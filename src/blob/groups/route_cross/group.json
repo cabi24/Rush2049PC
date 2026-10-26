@@ -1,0 +1,16 @@
+{
+ "name": "route_cross",
+ "members": [
+  "audio_priority_find",
+  "audio_mixer_main"
+ ],
+ "context": [],
+ "files": [
+  "group.c"
+ ],
+ "keep": [
+  "audio_mixer_main"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "note": "scoring of route experiment routes/unsigned_above.c (GC SyncCheckpointsToPaths + static FindPathDistances + unsigned GetNextCheckpoint, helpers renamed at install: FindPathDistances (GC name) and route_next_checkpoint_u (the PR's gc_lane_GetNextCheckpoint; distinct from the locked func_800B930C), both static and inlined) plus two disclosed unused s32 locals as the exact 8 B frame residual. audio_priority_find (provisional) is internal; its only caller audio_mixer_main is now a member. Supersedes the provisional evidence group (never installed)."
+}

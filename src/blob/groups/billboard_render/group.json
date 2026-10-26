@@ -1,0 +1,41 @@
+{
+ "name": "billboard_render",
+ "members": [
+  "billboard_render",
+  "func_800F207C",
+  "func_800F1930",
+  "PrintScores",
+  "SetHighScoreState",
+  "FindGhosts",
+  "highscore_InitScreen"
+ ],
+ "context": [
+  "func_800F2718",
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C",
+  "func_800D50E4",
+  "speed_set",
+  "speed_mode0_wrapper",
+  "speed_mode1_wrapper",
+  "continue_prompt",
+  "vsync_wait"
+ ],
+ "files": [
+  "func_800F2718.c",
+  "func_800F207C.c",
+  "func_800F0F44.c",
+  "func_800F1210.c",
+  "func_800F0914.c",
+  "func_800F1930.c",
+  "billboard_render.c",
+  "ctx_gr3_b.c",
+  "ctx_func_800D50E4.c",
+  "track_texture_load.c",
+  "ctx_vsync_a145.c"
+ ],
+ "keep": [
+  "billboard_render"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

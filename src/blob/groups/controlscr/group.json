@@ -1,0 +1,45 @@
+{
+ "files": [
+  "caller.c",
+  "target.c",
+  "rows.c",
+  "predicate.c",
+  "dtc.c",
+  "d8154.c",
+  "d9058.c",
+  "helpers.c",
+  "ctx_pak.c",
+  "ctx_gr3_b.c"
+ ],
+ "members": [
+  "func_800D91A0",
+  "func_800D816C",
+  "drone_throttle_calc",
+  "func_800D9058",
+  "render_replay_ui",
+  "render_results_screen",
+  "func_800D8078",
+  "func_800D8154"
+ ],
+ "context": [
+  "func_8008B32C",
+  "func_800B5898",
+  "func_800B5940",
+  "func_800A1A3C",
+  "func_80094FC4",
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C"
+ ],
+ "keep": [
+  "func_800D91A0",
+  "render_results_screen",
+  "func_8008B32C",
+  "func_800B5898",
+  "func_800B5940",
+  "func_800A1A3C",
+  "func_80094FC4",
+  "func_800B669C"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

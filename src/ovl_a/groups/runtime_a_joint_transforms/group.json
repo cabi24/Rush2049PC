@@ -1,0 +1,15 @@
+{
+ "members": [
+  "func_80390A28",
+  "func_80390BB8",
+  "func_80390DCC"
+ ],
+ "context": [],
+ "files": [
+  "group.c"
+ ],
+ "keep": [
+  "func_80390DCC"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

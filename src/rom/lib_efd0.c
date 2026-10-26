@@ -1,0 +1,31 @@
+/* GENERATED ROM-aligned TU — segment 0xefd0 (rom/lib_efd0)
+ * layout map 2a7f9866255757178a232bef3926568dc2e7e6952bf1b193104a6395c263892a.
+ * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
+ * passthrough lines. */
+#include "rom_tu.h"
+
+/* PROMOTED 2026-10-01 — osSetTimer
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O1 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+int osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg) {
+    OSTime time;
+
+
+    t->next = NULL;
+    t->prev = NULL;
+    t->interval = interval;
+    t->value = (countdown != 0) ? countdown : interval;
+    t->mq = mq;
+    t->msg = msg;
+
+    time = __osInsertTimer(t);
+    if (((OSTimer *)__osTimerList)->next == t) {
+        __osSetTimerIntr(time);
+    }
+
+    return 0;
+}
+

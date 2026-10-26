@@ -1,0 +1,25 @@
+{
+ "name": "videoscr",
+ "members": [
+  "video_animButtonText"
+ ],
+ "context": [
+  "video_animText",
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C",
+  "func_800BEA3C"
+ ],
+ "files": [
+  "videoscr.c",
+  "ctx_gr3_b.c",
+  "ctx_flash.c"
+ ],
+ "keep": [
+  "video_animText",
+  "func_800BEA3C"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "unprototyped": [],
+ "note": "videoscr.c text pair. MEMBER func_8010EA08 = animButtonText@videoscr.c (internal; only caller func_8010F218). CONTEXT func_8010F218 = animText@videoscr.c with drawColorBars inlined: NOT matched (kept as context: the caller whose IPA conventions the member needs) -> member PROVISIONAL ON THE CALLER FORM (highscore_anim precedent). See"
+}

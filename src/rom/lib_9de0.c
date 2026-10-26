@@ -1,0 +1,94 @@
+/* GENERATED ROM-aligned TU — segment 0x9de0 (rom/lib_9de0)
+ * layout map f4d21241ed69e607619775287abc7b113e3dd26a0a988799dd883df6aa3b91a7.
+ * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
+ * passthrough lines. */
+#include "rom_tu.h"
+
+/* PROMOTED 2026-10-01 — guMtxF2L
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void guMtxF2L(float mf[4][4], Mtx *m)
+{
+	int	i, j;
+	int	e1,e2;
+	int	*ai,*af;
+
+
+	ai=(int *) &(*m)[0][0];
+	af=(int *) &(*m)[2][0];
+
+	for (i=0; i<4; i++)
+	for (j=0; j<2; j++) {
+		e1=FTOFIX32(mf[i][j*2]);
+		e2=FTOFIX32(mf[i][j*2+1]);
+		*(ai++) = ( e1 & 0xffff0000 ) | ((e2 >> 16)&0xffff);
+		*(af++) = ((e1 << 16) & 0xffff0000) | (e2 & 0xffff);
+	}
+}
+
+/* PROMOTED 2026-07-11 — guMtxL2F
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void guMtxL2F(f32 mf[4][4], Mtx *m) {
+    s32 i, j;
+    u32 e1, e2;
+    u32 *ai, *af;
+    s32 q1, q2;
+
+    ai = (u32 *)&(*m)[0][0];
+    af = (u32 *)&(*m)[2][0];
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 2; j++) {
+            e1 = (*ai & 0xffff0000) | ((*af >> 16) & 0xffff);
+            e2 = ((*(ai++) << 16) & 0xffff0000) | (*(af++) & 0xffff);
+            q1 = *(s32 *)&e1;
+            q2 = *(s32 *)&e2;
+
+            mf[i][j * 2] = (f32)q1 * (1.0f / (f32)0x00010000);
+            mf[i][j * 2 + 1] = (f32)q2 * (1.0f / (f32)0x00010000);
+        }
+    }
+}
+
+/* PROMOTED 2026-07-11 — guMtxIdentF
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void guMtxIdentF(f32 mtx[4][4]) {
+    s32 i, j;
+    f32 one = 1.0f;
+    f32 zero = 0.0f;
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            if (i == j) {
+                mtx[i][j] = one;
+            } else {
+                mtx[i][j] = zero;
+            }
+        }
+    }
+}
+
+/* PROMOTED 2026-07-12 — guMtxIdent
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void guMtxIdent(u16 *mtx) {
+    f32 temp[4][4];
+
+    guMtxIdentF(temp);
+    guMtxF2L(temp, mtx);
+}
+

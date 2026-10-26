@@ -1,0 +1,833 @@
+{
+  "functions": 166,
+  "groups": {
+    "cheat_screen": {
+      "dir": "src/ovl_a/groups/cheat_screen",
+      "files": [
+        "eggs.c",
+        "cheatscr.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8039C910",
+        "func_803A5358"
+      ],
+      "members": [
+        "func_8039C900",
+        "func_8039C908",
+        "func_8039C910",
+        "func_803A5350",
+        "func_803A5358"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151388604
+        }
+      }
+    },
+    "cleanup_colortrace": {
+      "dir": "src/ovl_a/groups/cleanup_colortrace",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803A1EAC"
+      ],
+      "members": [
+        "func_8039D044",
+        "func_8039D04C",
+        "func_8039D054",
+        "func_8039D05C",
+        "func_8039D300",
+        "func_8039D494",
+        "func_8039D6A4",
+        "func_8039E200",
+        "func_8039E3BC",
+        "func_8039E444",
+        "func_8039ED20",
+        "func_8039EF00",
+        "func_8039EF08",
+        "func_8039FF04",
+        "func_803A0498",
+        "func_803A0FD8",
+        "func_803A1EAC"
+      ],
+      "own_data": {
+        ".bss": {
+          "references": {
+            "0": 2151391744,
+            "16": 2151391760
+          }
+        },
+        ".data": {
+          "references": {
+            "0": 2151362652,
+            "12": 2151360600,
+            "28": 2151360616,
+            "29": 2151360617,
+            "30": 2151360618,
+            "4": 2151362656,
+            "52": 2151360640,
+            "68": 2151360656,
+            "69": 2151360657,
+            "70": 2151360658,
+            "8": 2151362660,
+            "92": 2151362620
+          }
+        },
+        ".rodata": {
+          "base": 2151388688
+        }
+      }
+    },
+    "runtime_a_availability_refresh": {
+      "dir": "src/ovl_a/groups/runtime_a_availability_refresh",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8039842C"
+      ],
+      "members": [
+        "func_80394564",
+        "func_80394834",
+        "func_80394B00",
+        "func_80394DD8",
+        "func_80395E14",
+        "func_80395E1C",
+        "func_80395E8C",
+        "func_803968B8",
+        "func_803968C0",
+        "func_80396ED8",
+        "func_80396EE0",
+        "func_80396FA0",
+        "func_80397AD8",
+        "func_80397FF4",
+        "func_80397FFC",
+        "func_8039842C"
+      ],
+      "own_data": {
+        ".data": {
+          "base": 2151374568
+        },
+        ".rodata": {
+          "references": {
+            "0": 2151385588,
+            "124": 2151388348,
+            "128": 2151388352,
+            "132": 2151388356,
+            "136": 2151388360,
+            "140": 2151388364,
+            "144": 2151388368,
+            "148": 2151388372,
+            "152": 2151388376,
+            "156": 2151388380,
+            "16": 2151385604,
+            "160": 2151388384,
+            "164": 2151388388,
+            "168": 2151388392,
+            "172": 2151388396,
+            "24": 2151385612,
+            "40": 2151385628,
+            "48": 2151388272,
+            "52": 2151388276,
+            "56": 2151388280,
+            "60": 2151388284,
+            "64": 2151388288,
+            "68": 2151388292
+          }
+        }
+      }
+    },
+    "runtime_a_c93c_closure": {
+      "dir": "src/ovl_a/groups/runtime_a_c93c_closure",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038E5DC"
+      ],
+      "members": [
+        "func_8038A62C",
+        "func_8038A634",
+        "func_8038ACB0",
+        "func_8038AE50",
+        "func_8038AEA8",
+        "func_8038AEB0",
+        "func_8038B388",
+        "func_8038B3EC",
+        "func_8038B834",
+        "func_8038B930",
+        "func_8038B938",
+        "func_8038B940",
+        "func_8038BBB4",
+        "func_8038C5EC",
+        "func_8038C934",
+        "func_8038C93C",
+        "func_8038DFEC",
+        "func_8038E5DC"
+      ],
+      "own_data": {
+        ".bss": {
+          "references": {
+            "0": 2151389840,
+            "16": 2151391776,
+            "18": 2151391778,
+            "24": 2151393404,
+            "28": 2151393372
+          }
+        },
+        ".data": {
+          "references": {
+            "0": 2151383696,
+            "16": 2151383876,
+            "28": 2151383888,
+            "4": 2151383864
+          }
+        },
+        ".rodata": {
+          "references": {
+            "12": 2151387860,
+            "16": 2151387864,
+            "168": 2151387988,
+            "20": 2151387868,
+            "24": 2151387872,
+            "252": 2151388072,
+            "28": 2151387876,
+            "32": 2151387880,
+            "36": 2151387884,
+            "40": 2151387888,
+            "44": 2151387892,
+            "48": 2151387896,
+            "52": 2151387900,
+            "56": 2151387904,
+            "60": 2151387908,
+            "64": 2151387912,
+            "68": 2151387916,
+            "72": 2151387920,
+            "76": 2151387924,
+            "8": 2151387856,
+            "80": 2151387928,
+            "84": 2151387932,
+            "88": 2151387936,
+            "92": 2151387940,
+            "96": 2151387944
+          }
+        }
+      }
+    },
+    "runtime_a_callers_deep": {
+      "dir": "src/ovl_a/groups/runtime_a_callers_deep",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_80394058"
+      ],
+      "members": [
+        "func_803915E0",
+        "func_803915E8",
+        "func_803923B0",
+        "func_80392F28",
+        "func_80393004",
+        "func_803930B8",
+        "func_803931C0",
+        "func_803932D4",
+        "func_803932DC",
+        "func_803932E4",
+        "func_8039338C",
+        "func_80393B34",
+        "func_80393B3C",
+        "func_80394058"
+      ],
+      "own_data": {
+        ".data": {
+          "base": 2151376296
+        },
+        ".rodata": {
+          "references": {
+            "0": 2151386160,
+            "100": 2151388256,
+            "104": 2151388260,
+            "108": 2151388264,
+            "112": 2151388268,
+            "16": 2151386176,
+            "24": 2151386184,
+            "40": 2151386200,
+            "48": 2151388204,
+            "52": 2151388208,
+            "56": 2151388212,
+            "60": 2151388216,
+            "64": 2151388220,
+            "68": 2151388224,
+            "72": 2151388228,
+            "76": 2151388232,
+            "80": 2151388236,
+            "84": 2151388240,
+            "88": 2151388244,
+            "92": 2151388248,
+            "96": 2151388252
+          }
+        }
+      }
+    },
+    "runtime_a_joint_transforms": {
+      "dir": "src/ovl_a/groups/runtime_a_joint_transforms",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_80390DCC"
+      ],
+      "members": [
+        "func_80390A28",
+        "func_80390BB8",
+        "func_80390DCC"
+      ],
+      "own_data": {
+        ".data": {
+          "base": 2151376308
+        }
+      }
+    },
+    "runtime_a_menu_cleanup": {
+      "dir": "src/ovl_a/groups/runtime_a_menu_cleanup",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8039842C"
+      ],
+      "members": [
+        "func_803949C4",
+        "func_803949CC"
+      ],
+      "own_data": {}
+    },
+    "runtime_a_menu_renderers": {
+      "dir": "src/ovl_a/groups/runtime_a_menu_renderers",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803A7918"
+      ],
+      "members": [
+        "func_803A6F14",
+        "func_803A6F1C",
+        "func_803A6F24",
+        "func_803A6F2C",
+        "func_803A7180",
+        "func_803A7620",
+        "func_803A7918"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151389236
+        }
+      }
+    },
+    "runtime_a_menu_state": {
+      "dir": "src/ovl_a/groups/runtime_a_menu_state",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803990D0"
+      ],
+      "members": [
+        "func_80398B38",
+        "func_80398B40",
+        "func_80398BE0",
+        "func_80398BE8",
+        "func_80398C34",
+        "func_80398C3C",
+        "func_80398E70",
+        "func_803990D0"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151388424
+        }
+      }
+    },
+    "runtime_a_option_eligibility": {
+      "dir": "src/ovl_a/groups/runtime_a_option_eligibility",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803AE1C0"
+      ],
+      "members": [
+        "func_8038F744",
+        "func_803ADDA8",
+        "func_803AE1C0"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151389632
+        }
+      }
+    },
+    "runtime_a_profile_menu": {
+      "dir": "src/ovl_a/groups/runtime_a_profile_menu",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803A9EEC",
+        "func_80396FA0"
+      ],
+      "members": [
+        "func_80395E24",
+        "func_803A7B58",
+        "func_803A87D4",
+        "func_803A8B74"
+      ],
+      "own_data": {
+        ".rodata": {
+          "references": {
+            "36": 2151389256,
+            "40": 2151389260,
+            "44": 2151389264,
+            "48": 2151389268
+          }
+        }
+      }
+    },
+    "runtime_a_settings_bar": {
+      "dir": "src/ovl_a/groups/runtime_a_settings_bar",
+      "files": [
+        "settings_bar.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803AE63C"
+      ],
+      "members": [
+        "func_803AE63C"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151389652
+        }
+      }
+    },
+    "runtime_a_settings_values": {
+      "dir": "src/ovl_a/groups/runtime_a_settings_values",
+      "files": [
+        "settings_values.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803AECE4"
+      ],
+      "members": [
+        "func_803AECDC",
+        "func_803AECE4"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151389664
+        }
+      }
+    },
+    "runtime_a_seven_option_group": {
+      "dir": "src/ovl_a/groups/runtime_a_seven_option_group",
+      "files": [
+        "eligibility.c",
+        "renderer.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_80399D10",
+        "func_803A6B50"
+      ],
+      "members": [
+        "func_80399384",
+        "func_8039938C",
+        "func_80399394",
+        "func_803993EC",
+        "func_80399D10",
+        "func_803A6B50"
+      ],
+      "own_data": {
+        ".rodata": {
+          "references": {
+            "0": 2151389216,
+            "12": 2151389228,
+            "16": 2151389232,
+            "20": 2151388444,
+            "24": 2151388448,
+            "28": 2151388452,
+            "32": 2151388456,
+            "36": 2151388512,
+            "4": 2151389220,
+            "8": 2151389224
+          }
+        }
+      }
+    },
+    "runtime_a_seven_option_init": {
+      "dir": "src/ovl_a/groups/runtime_a_seven_option_init",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_80399D10"
+      ],
+      "members": [
+        "func_803998B8",
+        "func_803998C0"
+      ],
+      "own_data": {
+        ".rodata": {
+          "references": {
+            "16": 2151388460,
+            "20": 2151388464,
+            "24": 2151388468,
+            "28": 2151388472,
+            "32": 2151388476,
+            "36": 2151388480,
+            "40": 2151388484,
+            "44": 2151388488
+          }
+        }
+      }
+    },
+    "runtime_a_stats_menu": {
+      "dir": "src/ovl_a/groups/runtime_a_stats_menu",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803AD57C"
+      ],
+      "members": [
+        "func_803AA3D8",
+        "func_803AAF0C",
+        "func_803AB5FC",
+        "func_803AB848",
+        "func_803ABEC8",
+        "func_803AC330",
+        "func_803AC54C",
+        "func_803AC7F4",
+        "func_803ACA94",
+        "func_803ACD5C",
+        "func_803ACF5C",
+        "func_803AD0D4"
+      ],
+      "own_data": {
+        ".rodata": {
+          "references": {
+            "0": 2151389388,
+            "124": 2151389512,
+            "180": 2151389356,
+            "184": 2151389360,
+            "188": 2151389364,
+            "192": 2151389368,
+            "28": 2151389416,
+            "64": 2151389452,
+            "92": 2151389480
+          }
+        }
+      }
+    },
+    "runtime_a_text_helpers": {
+      "dir": "src/ovl_a/groups/runtime_a_text_helpers",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8039C140",
+        "func_803A5948"
+      ],
+      "members": [
+        "func_8039A448",
+        "func_8039A4D4",
+        "func_8039B004",
+        "func_8039B00C",
+        "func_8039B120",
+        "func_8039B214",
+        "func_8039B558",
+        "func_8039B560",
+        "func_8039B908",
+        "func_8039B988",
+        "func_8039BA20",
+        "func_8039BA28",
+        "func_8039BAE0",
+        "func_8039BB80",
+        "func_8039BE48",
+        "func_8039C140",
+        "func_803A5658",
+        "func_803A5938",
+        "func_803A5940",
+        "func_803A5948"
+      ],
+      "own_data": {
+        ".bss": {
+          "references": {
+            "0": 2151391784,
+            "4": 2151391788
+          }
+        },
+        ".data": {
+          "base": 2151363668
+        },
+        ".rodata": {
+          "references": {
+            "0": 2151389204,
+            "12": 2151388540,
+            "16": 2151388544,
+            "20": 2151388548,
+            "24": 2151388552,
+            "28": 2151388556,
+            "32": 2151388560,
+            "36": 2151388564,
+            "4": 2151389208,
+            "40": 2151388568,
+            "44": 2151388572,
+            "48": 2151388576,
+            "52": 2151388580,
+            "56": 2151388584,
+            "60": 2151388588,
+            "64": 2151388592,
+            "8": 2151389212
+          }
+        }
+      }
+    },
+    "start_screen": {
+      "dir": "src/ovl_a/groups/start_screen",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_80390418"
+      ],
+      "members": [
+        "func_8038F734",
+        "func_8038F73C",
+        "func_8038F79C",
+        "func_8038FFD0",
+        "func_8038FFD8",
+        "func_80390418"
+      ],
+      "own_data": {
+        ".data": {
+          "base": 2151377524
+        },
+        ".rodata": {
+          "references": {
+            "0": 2151386336,
+            "100": 2151388100,
+            "104": 2151388104,
+            "108": 2151388108,
+            "112": 2151388112,
+            "116": 2151388116,
+            "120": 2151388120,
+            "124": 2151388124,
+            "128": 2151388128,
+            "132": 2151388132,
+            "136": 2151388136,
+            "140": 2151388140,
+            "144": 2151388144,
+            "148": 2151388148,
+            "152": 2151388152,
+            "156": 2151388156,
+            "16": 2151386352,
+            "160": 2151388160,
+            "164": 2151388164,
+            "20": 2151386356,
+            "24": 2151386360,
+            "32": 2151386368,
+            "48": 2151386384,
+            "56": 2151386392,
+            "72": 2151386408,
+            "80": 2151386416,
+            "88": 2151386424
+          }
+        }
+      }
+    }
+  },
+  "image": "ovl_a",
+  "placements": "frozen own-data placements (tools/build_image.py --freeze-placements)",
+  "singles": {
+    "func_8038F454": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_8038F454.c"
+    },
+    "func_8038F648": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_8038F648.c"
+    },
+    "func_8038FF90": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_8038FF90.c"
+    },
+    "func_80390BC0": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_80390BC0.c"
+    },
+    "func_80390D2C": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_80390D2C.c"
+    },
+    "func_80391470": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_80391470.c"
+    },
+    "func_8039156C": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_8039156C.c"
+    },
+    "func_80396EE8": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_80396EE8.c"
+    },
+    "func_80396F44": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_80396F44.c"
+    },
+    "func_80398BF0": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_80398BF0.c"
+    },
+    "func_8039A24C": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_8039A24C.c"
+    },
+    "func_8039A2A0": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_8039A2A0.c"
+    },
+    "func_803A3A6C": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803A3A6C.c"
+    },
+    "func_803A3DA4": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803A3DA4.c"
+    },
+    "func_803A4134": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803A4134.c"
+    },
+    "func_803A4340": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803A4340.c"
+    },
+    "func_803A6A28": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803A6A28.c"
+    },
+    "func_803AE51C": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803AE51C.c"
+    },
+    "func_803AE940": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803AE940.c"
+    },
+    "func_803AF744": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_a/func_803AF744.c"
+    }
+  }
+}

@@ -1,0 +1,598 @@
+/* GENERATED ROM-aligned TU — segment 0x25bb0 (rom/lib_25bb0)
+ * layout map f5baec304e2af6053d0e085c8e4b667c97ff73771969d95aeccac477c5f6c448.
+ * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
+ * passthrough lines. */
+#include "rom_tu.h"
+
+/* Shared 0x1228 stream record. Named members replace only observed ranges;
+ * signed state/scale, volatile busy, SDK queues and callback ABI are retained.
+ * Hoisted before the first slot that uses it (
+ * func_800251A8); text unchanged. */
+typedef struct StreamState_80025264 { unsigned char unknown_0000[358]; unsigned short block_count; unsigned char unknown_0168[40]; void (*callback)(void *, void *, unsigned int, OSMesgQueue *); void *data; void *argument2; unsigned int argument3; unsigned char unknown_01A0[4096]; unsigned short read_count; unsigned short write_count; unsigned int buffered; int remaining; OSMesgQueue queue; OSMesg message; unsigned int field_11C8; unsigned int field_11CC; unsigned int field_11D0; unsigned int consumed; unsigned int available; signed char field_11DC; signed char state; signed char scale; unsigned char unknown_11DF; OSMesgQueue request_queue; OSMesg request_messages[2]; volatile unsigned char busy; unsigned char value1; unsigned char value2; unsigned char value3; unsigned char option; unsigned char unknown_1205[3]; unsigned int rate; int handle; short *buffer; unsigned int buffer_count; unsigned char request_state; unsigned char mode; unsigned char unknown_121A[2]; unsigned int processed; float field_1220; unsigned int token; } StreamState_80025264;
+
+/* PROMOTED 2026-10-04 — func_80024FB0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+typedef struct StreamState { unsigned char unknown_0000[4573]; signed char state; signed char scale; unsigned char unknown_11DF[33]; volatile unsigned char busy; unsigned char unknown_1201[39]; } StreamState;
+extern unsigned char D_80038290;
+void func_80024FB0(StreamState *stream)
+{
+    if (D_80038290 != 0) {
+        stream->scale *= 2;
+    }
+}
+
+/* PROMOTED 2026-10-11 — func_80024FD4
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern StreamState_80025264 D_80056230[2];
+extern volatile unsigned char D_8002D480[];
+extern unsigned int func_800262BC(StreamState_80025264 *, unsigned int);
+int func_80024FD4(short *first, unsigned int first_count,
+                  short *second, unsigned int second_count, unsigned int selected)
+{
+    if (D_8002D480[0]) {
+        func_800262BC(&D_80056230[selected], first_count + second_count);
+        D_80056230[selected].processed += first_count + second_count;
+    }
+    return 0;
+}
+
+/* PROMOTED 2026-10-04 — func_8002506C
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern void func_80010714(void *, void *, unsigned int);
+extern int osSendMesg(OSMesgQueue *, void *, int);
+void func_8002506C(void *source, void *destination, unsigned int count,
+                   OSMesgQueue *queue)
+{
+    func_80010714(destination, source, count);
+    osSendMesg(queue, 0, 1);
+}
+
+/* PROMOTED 2026-10-04 — func_800250AC
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, int);
+extern int osSendMesg(OSMesgQueue *, OSMesg, int);
+extern OSMesgQueue D_800586A8;
+extern OSMesg D_800586C0;
+void func_800250AC(void)
+{
+    osCreateMesgQueue(&D_800586A8, &D_800586C0, 1);
+    osSendMesg(&D_800586A8, 0, 0);
+}
+
+/* PROMOTED 2026-10-05 — func_800250F0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern int osRecvMesg(OSMesgQueue *, void **, int);
+int func_800250F0(void)
+{
+    osRecvMesg(&D_800586A8, 0, 1);
+    return 0;
+}
+
+/* PROMOTED 2026-10-05 — func_80025120
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void func_80025120(int token)
+{
+    osSendMesg(&D_800586A8, 0, 0);
+}
+
+/* PROMOTED 2026-10-05 — func_80025150
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void func_80025150(void)
+{
+    osRecvMesg(&D_800586A8, 0, 1);
+}
+
+/* PROMOTED 2026-10-11 — func_8002517C
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#define NULL ((void *)0)
+#define OS_MESG_NOBLOCK 0
+extern s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
+void func_8002517C(void) {
+    osSendMesg(&D_800586A8, NULL, OS_MESG_NOBLOCK);
+}
+
+/* PROMOTED 2026-10-05 — func_800251A8
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern StreamState_80025264 D_80056230[2];
+extern unsigned int D_80058680;
+unsigned int func_800251A8(int selected)
+{
+    StreamState_80025264 *stream;
+    int i;
+
+    for (;;) {
+        for (i = 0; i < 2; i++) {
+            stream = &D_80056230[i];
+            if (stream->busy && i != selected && stream->token == D_80058680) {
+                break;
+            }
+        }
+        if (i == 2) {
+            break;
+        }
+        D_80058680++;
+        if (D_80058680 == (unsigned int)-1) {
+            D_80058680 = 0;
+        }
+    }
+    stream = &D_80056230[selected];
+    stream->token = D_80058680;
+    D_80058680++;
+    if (D_80058680 == (unsigned int)-1) {
+        D_80058680 = 0;
+    }
+    return stream->token;
+}
+
+/* PROMOTED 2026-10-04 — func_80025264
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern StreamState_80025264 D_80056230[2];
+int func_80025264(unsigned int token)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        if (D_80056230[i].busy && D_80056230[i].token == token) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/* PROMOTED 2026-10-11 — func_800252AC
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#include "types.h"
+#include "PR/os_message.h"
+extern void *(*D_80038018)(unsigned int, unsigned int);
+extern void *D_80058688;
+extern void *D_8005868C;
+extern unsigned int D_80058690;
+extern unsigned int D_800586A0;
+extern void *D_80058698[2];
+extern unsigned int func_8001C770(unsigned int);
+extern void osInvalDCache(void *, int);
+extern int func_800250F0(void);
+extern void func_80025120(int);
+extern unsigned int func_800251A8(int);
+extern void func_80024FB0(StreamState *);
+extern void func_8002506C(void *, void *, unsigned int, OSMesgQueue *);
+extern void func_80025EB0(StreamState_80025264 *, void *, void *, unsigned int, void (*)(void *, void *, unsigned int, OSMesgQueue *));
+unsigned int func_800252AC(unsigned int index, unsigned int rate,
+                           unsigned char option, unsigned char value1,
+                           unsigned char value2, unsigned char value3,
+                           unsigned char mode)
+{
+    StreamState_80025264 *stream;
+    int selected;
+    int queue_token;
+    unsigned int size;
+    unsigned int frequency;
+
+    if (D_8002D480[0] && index < D_80058690) {
+        for (selected = 0; selected < 2; selected++) {
+            if (D_80056230[selected].busy == 0) {
+                break;
+            }
+        }
+        if (selected != 2) {
+            stream = &D_80056230[selected];
+            osCreateMesgQueue(&stream->request_queue, stream->request_messages, 2);
+            frequency = rate;
+            if (!frequency) {
+                frequency = ((((unsigned int *)D_8005868C)[index] >> 24) & 255) == 0 ? 8000 : 16000;
+            }
+            stream->option = option;
+            stream->rate = frequency;
+            stream->value1 = value1;
+            stream->value2 = value2;
+            stream->value3 = value3;
+            stream->mode = mode;
+            stream->buffer_count = ((frequency * 8 / 30 + 159) / 160) * 160;
+            if (D_800586A0 & 1) {
+                stream->buffer = D_80058698[selected];
+            } else {
+                size = func_8001C770(stream->buffer_count);
+                stream->buffer = D_80038018(size, 0);
+                osInvalDCache(stream->buffer, size);
+            }
+            if (stream->buffer) {
+                queue_token = func_800250F0();
+                func_80025EB0(stream, (unsigned char *)D_80058688 + (((unsigned int *)D_8005868C)[index] & 0xFFFFFF),
+                stream->buffer, stream->buffer_count, func_8002506C);
+                func_80024FB0((StreamState *)stream);
+                stream->handle = -1;
+                stream->busy = 1;
+                func_80025120(queue_token);
+                return func_800251A8(selected);
+            }
+        }
+    }
+    return (unsigned int)-1;
+}
+
+/* PROMOTED 2026-10-05 — func_800254D4
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern unsigned int D_800586A0;
+extern void (*D_8003801C)(void *);
+extern int func_800250F0(void);
+extern void func_80025120(int);
+extern void func_80026348(StreamState_80025264 *);
+void func_800254D4(int selected)
+{
+    int token;
+
+    switch (D_80056230[selected].busy) {
+    case 1:
+        D_80056230[selected].busy = 0;
+        if (!(D_800586A0 & 1)) {
+            D_8003801C(D_80056230[selected].buffer);
+        }
+        break;
+    case 2:
+        token = func_800250F0();
+        func_80026348(&D_80056230[selected]);
+        D_80056230[selected].busy = 3;
+        D_80056230[selected].request_state = 4;
+        func_80025120(token);
+        break;
+    }
+}
+
+/* PROMOTED 2026-10-04 — func_80025594
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern volatile unsigned char D_8002D480[];
+extern int func_80025264(unsigned int);
+extern void func_800254D4(int);
+int func_80025594(unsigned int token)
+{
+    int selected;
+
+    if (token != (unsigned int)-1 && D_8002D480[0]) {
+        selected = func_80025264(token);
+        if (selected != -1) {
+            func_800254D4(selected);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* PROMOTED 2026-10-11 — func_800255F0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern volatile unsigned char D_80057430[][sizeof(StreamState_80025264)];
+unsigned char func_800255F0(unsigned int token)
+{
+    if (D_8002D480[0]) {
+        token = func_80025264(token);
+        if (token == -1) {
+            return 0;
+        }
+        return D_80057430[token][0] != 0;
+    }
+    return 0;
+}
+
+/* PROMOTED 2026-10-05 — func_80025670
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern void func_8001C77C(int, unsigned char, unsigned char, unsigned char, unsigned char);
+int func_80025670(unsigned int token, unsigned char value1,
+                  unsigned char value2, unsigned char value3,
+                  unsigned char value4)
+{
+    int queue_token;
+
+    if (D_8002D480[0]) {
+        token = func_80025264(token);
+        if (token != (unsigned int)-1) {
+            queue_token = func_800250F0();
+            if (D_80056230[token].handle != -1) {
+                func_8001C77C(D_80056230[token].handle, value1, value2, value3, value4);
+            }
+            D_80056230[token].value2 = value2;
+            D_80056230[token].value3 = value3;
+            D_80056230[token].value1 = value1;
+            func_80025120(queue_token);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* PROMOTED 2026-10-05 — func_8002574C
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+typedef int (*SampleCallback_8002574C)(short *, unsigned int, short *, unsigned int, unsigned int);
+typedef struct ServiceHooks_8002574C { unsigned char unknown_00[24]; void *(*allocate)(unsigned int, int); void (*release)(void *); } ServiceHooks_8002574C;
+extern ServiceHooks_8002574C D_80038000;
+extern void func_80025150(void);
+extern void func_8002517C(void);
+extern void func_80025F74(StreamState_80025264 *);
+extern void func_80026328(StreamState_80025264 *);
+extern int func_8001C580(unsigned char, short *, unsigned int, unsigned int, unsigned char, unsigned char, unsigned char, unsigned char, SampleCallback_8002574C, unsigned int);
+extern void func_8001C7F4(int);
+extern int func_80024FD4(short *, unsigned int, short *, unsigned int, unsigned int);
+void func_8002574C(void)
+{
+    int selected;
+
+    if (D_8002D480[0]) {
+        func_80025150();
+        for (selected = 0; selected != 2; selected++) {
+            if (D_80056230[selected].busy) {
+                func_80025F74(&D_80056230[selected]);
+                switch (D_80056230[selected].busy) {
+                case 1:
+                    if (D_80056230[selected].state == 2) {
+                        D_80056230[selected].field_1220 = (float)(unsigned int)D_80056230[selected].read_count * 160.0f / D_80056230[selected].rate;
+                        D_80056230[selected].processed = 0;
+                        D_80056230[selected].busy = 2;
+                        func_80026328(&D_80056230[selected]);
+                        D_80056230[selected].handle = func_8001C580(D_80056230[selected].option, D_80056230[selected].buffer, D_80056230[selected].buffer_count, D_80056230[selected].rate, D_80056230[selected].value1, D_80056230[selected].value2, D_80056230[selected].value3, D_80056230[selected].mode, func_80024FD4, selected);
+                        if (D_80056230[selected].handle == -1) {
+                            func_80026348(&D_80056230[selected]);
+                            if (!(D_800586A0 & 1)) D_80038000.release(D_80056230[selected].buffer);
+                            D_80056230[selected].busy = 0;
+                        }
+                    }
+                    break;
+                case 2:
+                    if (D_80056230[selected].state == 4) {
+                        D_80056230[selected].busy = 3;
+                        D_80056230[selected].request_state = 4;
+                    }
+                    break;
+                case 3:
+                    if (D_80056230[selected].request_state == 0) {
+                        if (!(D_800586A0 & 1)) D_80038000.release(D_80056230[selected].buffer);
+                        D_80056230[selected].busy = 0;
+                    } else {
+                        if (D_80056230[selected].request_state == 2) {
+                            func_8001C7F4(D_80056230[selected].handle);
+                            D_80056230[selected].handle = -1;
+                        }
+                        D_80056230[selected].request_state--;
+                    }
+                    break;
+                }
+            }
+        }
+        func_8002517C();
+    }
+}
+
+/* PROMOTED 2026-10-05 — func_800259A8
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+float func_800259A8(unsigned int token, float *value)
+{
+    int queue_token;
+    float ratio;
+
+    if (token != (unsigned int)-1 && D_8002D480[0]) {
+        token = func_80025264(token);
+        if (token != (unsigned int)-1) {
+            queue_token = func_800250F0();
+            if (D_80056230[token].busy == 2) {
+                ratio = (float)D_80056230[token].processed / (float)D_80056230[token].rate;
+            } else {
+                ratio = 0.0f;
+            }
+            *value = D_80056230[token].field_1220;
+            func_80025120(queue_token);
+            return ratio;
+        }
+    }
+    return 0.0f;
+}
+
+/* PROMOTED 2026-10-11 — func_80025AB4
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern unsigned char D_8002D484;
+extern void *(*D_80038014)(void *);
+extern void *(*D_80038018)(unsigned int, unsigned int);
+extern void *D_80058684;
+extern void *D_80058688;
+extern void *D_8005868C;
+extern unsigned int D_80058690;
+extern void func_80010628(void *, void *, unsigned int);
+int func_80025AB4(void *source, void *data)
+{
+    unsigned int *count;
+
+    if (D_8002D480[0]) {
+        if (D_8005868C && D_8002D484) {
+            D_8003801C(D_8005868C);
+        }
+        if (((unsigned int)source & 0xF0000000) != 0x80000000) {
+            D_80058688 = D_80058684 = D_80038014(source);
+            count = D_80038018(4, 0);
+            if (!count) {
+                return 0;
+            }
+            func_80010628(count, D_80058684, 4);
+            D_80058690 = *count;
+            D_8003801C(count);
+            D_8005868C = D_80038018(D_80058690 * 4, 0);
+            if (!D_8005868C) {
+                return 0;
+            }
+            func_80010628(D_8005868C, (unsigned char *)D_80058684 + 4, D_80058690 * 4);
+            D_8002D484 = 1;
+        } else {
+            D_80058684 = source;
+            D_80058688 = D_80038014(data);
+            D_8005868C = (unsigned int *)source + 1;
+            D_80058690 = *(unsigned int *)source;
+            D_8002D484 = 0;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* PROMOTED 2026-10-05 — func_80025C68
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern void *D_8005868C;
+extern void *D_80058698[2];
+extern void (*D_80038024)(void);
+extern void func_80025EB0(StreamState_80025264 *, void *, void *, unsigned int, void (*)(void *, void *, unsigned int, OSMesgQueue *));
+extern void func_80024FB0(StreamState *);
+extern void func_800250AC(void);
+extern unsigned int func_8001C770(unsigned int);
+extern void osInvalDCache(void *, int);
+extern void func_8002574C(void);
+void func_80025C68(unsigned int flags)
+{
+    int i;
+    unsigned int size;
+
+    D_800586A0 = flags;
+    D_8005868C = 0;
+    for (i = 0; i < 2; i++) {
+        func_80025EB0(&D_80056230[i], 0, 0, 0, 0);
+        func_80024FB0((StreamState *)&D_80056230[i]);
+        D_80056230[i].busy = 0;
+    }
+    func_800250AC();
+    if (D_800586A0 & 1) {
+        size = func_8001C770(4320);
+        for (i = 0; i < 2; i++) {
+            D_80058698[i] = D_80038000.allocate(size, 0);
+            osInvalDCache(D_80058698[i], size);
+        }
+    }
+    D_80038024 = func_8002574C;
+    D_8002D480[0] = 1;
+    D_80058680 = 0;
+}
+
+/* PROMOTED 2026-10-05 — func_80025D84
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void func_80025D84(void)
+{
+    int i;
+
+    do {
+        for (i = 0; i < 2; i++) {
+            if (D_80056230[i].busy != 0) {
+                break;
+            }
+        }
+    } while (i != 2);
+}
+
+/* PROMOTED 2026-10-05 — func_80025DC0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern unsigned char D_8002D484;
+extern void (*D_80038024)(void);
+extern void *D_8005868C;
+extern void *D_80058698[2];
+extern void func_80025D84(void);
+extern void func_80014594(void);
+extern void func_8001061C(void);
+extern void func_800145DC(void);
+void func_80025DC0(void)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        func_800254D4(i);
+    }
+    func_80025D84();
+    D_8002D480[0] = 0;
+    func_80014594();
+    D_80038024 = 0;
+    func_8001061C();
+    func_800145DC();
+    if (D_8005868C && D_8002D484) {
+        D_80038000.release(D_8005868C);
+    }
+    if (D_800586A0 & 1) {
+        for (i = 0; i < 2; i++) {
+            D_80038000.release(D_80058698[i]);
+        }
+    }
+}
+

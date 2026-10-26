@@ -1,0 +1,14 @@
+{
+ "name": "runtime_b_trail",
+ "files": [
+  "group.c"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "members": [
+  "func_8038CB20"
+ ],
+ "context": [],
+ "keep": [
+  "func_8038CB20"
+ ]
+}

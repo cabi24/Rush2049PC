@@ -1,0 +1,25 @@
+{
+ "name": "control_settings",
+ "members": [
+  "func_800DCD58",
+  "func_800DCCE0",
+  "control_cell_text",
+  "control_cell_text2",
+  "control_cell_text3",
+  "func_800DD0C0",
+  "control_settings"
+ ],
+ "context": [
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C"
+ ],
+ "files": [
+  "group.c",
+  "ctx_gr3_b.c"
+ ],
+ "keep": [
+  "control_settings"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

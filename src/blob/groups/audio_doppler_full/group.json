@@ -1,0 +1,12 @@
+{
+ "members": [
+  "ShowCountdown"
+ ],
+ "files": [
+  "audio_doppler_full.c"
+ ],
+ "keep": [
+  "ShowCountdown"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

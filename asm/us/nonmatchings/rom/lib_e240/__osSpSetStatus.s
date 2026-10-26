@@ -1,0 +1,8 @@
+nonmatching __osSpSetStatus, 0xC
+
+glabel __osSpSetStatus
+    /* E240 8000D640 3C0EA404 */  lui        $t6, %hi(SP_STATUS_REG)
+    /* E244 8000D644 03E00008 */  jr         $ra
+    /* E248 8000D648 ADC40010 */   sw        $a0, %lo(SP_STATUS_REG)($t6)
+endlabel __osSpSetStatus
+    /* E24C 8000D64C 00000000 */  nop

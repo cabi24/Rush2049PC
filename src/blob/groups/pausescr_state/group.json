@@ -1,0 +1,23 @@
+{
+ "name": "pausescr_state",
+ "members": [
+  "setPauseState",
+  "voice_stop"
+ ],
+ "context": [
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C"
+ ],
+ "files": [
+  "pause.c",
+  "voice.c",
+  "ctx_gr3_b.c"
+ ],
+ "keep": [
+  "setPauseState"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "unprototyped": [],
+ "note": ": pausescr_state (pause.c and ctx_gr3_b.c byte-identical) + voice.c (voice_stop = _TitlePane@pausescr.c, body; helpers vs_header_lock/vs_header_unlock/vs_header_font non-static, not on keep). voice_stop is internal (private IPA, s0-s4 unsaved). unit_overrides force_internal (if not derived): ps_gfx_lock, ps_gfx_unlock, ps_font_set, ps_SetFont, ps_updatePauseStateCreate, vs_header_lock, vs_header_unlock, vs_header_font, voice_stop."
+}

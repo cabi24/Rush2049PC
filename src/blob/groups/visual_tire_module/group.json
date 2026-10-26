@@ -1,0 +1,61 @@
+{
+ "members": [
+  "matrix_scale_apply",
+  "anim_state_update",
+  "buffer_swap",
+  "entity_anim_texture",
+  "AnimateRocketFlame",
+  "AnimateFrame"
+ ],
+ "context": [
+  "model_bounds_calc",
+  "func_8008B2B4",
+  "func_8008B2E4",
+  "entity_transform_calc",
+  "client_sync",
+  "entity_hierarchy_update",
+  "stat_lap_complete",
+  "game_timer_resume",
+  "func_80091BA8",
+  "func_80091B00",
+  "scheduler_recv",
+  "func_8008B3A0",
+  "func_8008E06C",
+  "func_80092BF4",
+  "func_80092BC8",
+  "func_8008AE64",
+  "func_8008AE48"
+ ],
+ "files": [
+  "buffer_swap.c",
+  "anim_tire_donor.c",
+  "rand.c",
+  "visibility_wrappers.c",
+  "entity_anim_texture.c",
+  "func_8008B2E4.c",
+  "transform_b109.c",
+  "rocket.c",
+  "func_80092BF4.c",
+  "func_80092BC8.c"
+ ],
+ "keep": [
+  "anim_state_update",
+  "entity_anim_texture",
+  "func_8008B2E4",
+  "buffer_swap",
+  "client_sync",
+  "entity_hierarchy_update",
+  "scheduler_recv",
+  "stat_lap_complete",
+  "game_timer_resume",
+  "func_8008B3A0",
+  "AnimateFrame",
+  "func_8008E06C",
+  "func_80092BF4",
+  "func_80092BC8",
+  "func_8008AE64",
+  "func_8008AE48"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Xcpluscomm -Wab,-r4300_mul",
+ "name": "visual_tire_module"
+}

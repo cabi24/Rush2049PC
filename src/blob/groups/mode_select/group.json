@@ -1,0 +1,48 @@
+{
+ "members": [
+  "func_800D5E64",
+  "func_800E05F0",
+  "best_times_display",
+  "mode_select_handler",
+  "func_800DED78",
+  "func_800DEF60",
+  "mode_select_input",
+  "func_800DFBA0",
+  "func_800E0050",
+  "func_800E0048"
+ ],
+ "context": [
+  "entity_transform_calc",
+  "func_80091BA8",
+  "func_80091B00",
+  "client_sync",
+  "entity_hierarchy_update",
+  "scheduler_recv",
+  "stat_lap_complete",
+  "game_timer_resume",
+  "func_8008B2E4",
+  "player_conditional_check"
+ ],
+ "files": [
+  "d5e64.c",
+  "mode.c",
+  "msh.c",
+  "ded78.c",
+  "transform_b109.c",
+  "func_8008B2E4.c",
+  "player_conditional_check.c"
+ ],
+ "keep": [
+  "func_800D5E64",
+  "func_800E05F0",
+  "client_sync",
+  "entity_hierarchy_update",
+  "scheduler_recv",
+  "stat_lap_complete",
+  "game_timer_resume",
+  "func_8008B2E4",
+  "player_conditional_check"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "note": ": mode-select cluster (10 members, all EQUAL in the whole-program unit) packaged for the group path. Member sources d5e64.c, mode.c, msh.c, ded78.c are byte-identical to Context reproduces the unit's IPA: transform.c = src/blob/groups/transform/group.c with ONLY entity_hierarchy_update's definition stripped to its prototype (the same strip the whole-program unit applies under prefer_definition; mode.c's __inline definition is the one used, and a second definition makes uld merge both, giving it 4 parameters) -> entity_transform_calc stays internal with its IPA float-register convention (mode_select_input, func_800DFBA0, func_800E05F0); func_8008B2E4.c and player_conditional_check.c are unchanged copies of the locked singles (umerge inlines them into mode_select_handler and func_800E0050). Kept as in the unit: b109's keep list, func_8008B2E4, player_conditional_check. Context bodies all MATCH except func_80091B00 (11/42, as in transform itself; the unit uses slot18_alloc's) and player_conditional_check (17 words equal; the trailing deleted-static rand stub counts as 1 extra word). Needs unit_overrides: force_internal func_800DEF60, func_800E0048; prefer_definition entity_hierarchy_update -> src/blob/groups/mode_select/mode.c. Revert singles func_800DEF60, func_800E0048 at install. See"
+}

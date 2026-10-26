@@ -1,0 +1,19 @@
+{
+  "members": [
+    "MP_TargetSteerPos"
+  ],
+  "files": [
+    "group.c"
+  ],
+  "keep": [
+    "camera_transform",
+    "__standin_MP_TargetSteerPos"
+  ],
+  "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+  "unprototyped": [
+    "func_8001fea4"
+  ],
+  "context": [
+    "camera_transform"
+  ]
+}

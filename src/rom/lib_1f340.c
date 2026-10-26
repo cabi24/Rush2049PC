@@ -1,0 +1,136 @@
+/* GENERATED ROM-aligned TU — segment 0x1f340 (rom/lib_1f340)
+ * layout map e00424843f6bc10c711360c058d6ac0994494b0a03b7951830560602027a25aa.
+ * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
+ * passthrough lines. */
+#include "rom_tu.h"
+
+/* PROMOTED 2026-10-04 — func_8001E740
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern void *(*D_80038018)(unsigned int size, unsigned int mode);
+void *func_8001E740(unsigned int size)
+{
+    return D_80038018(size, 0);
+}
+
+/* PROMOTED 2026-10-04 — func_8001E768
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern void (*D_8003801C)(void *allocation);
+void func_8001E768(void *allocation)
+{
+    D_8003801C(allocation);
+}
+
+/* PROMOTED 2026-10-11 — func_8001E790
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern unsigned int D_8002CC50;
+unsigned short func_8001E790(void)
+{
+    D_8002CC50 *= 2822053219U;
+    return D_8002CC50 >> 6;
+}
+
+/* PROMOTED 2026-10-11 — func_8001E7BC
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern const short D_8002CC54[1024];
+extern const short D_8002D452[];
+short func_8001E7BC(u16 phase)
+{
+    phase &= 4095;
+    if (phase < 1024) {
+        return D_8002CC54[phase];
+    }
+    if (phase < 2048) {
+        return (&D_8002D452[-1023])[1023 - (phase & 1023)];
+    }
+    if (phase < 3072) {
+        return -D_8002CC54[phase & 1023];
+    }
+    return -(&D_8002D452[-1023])[1023 - (phase & 1023)];
+}
+
+/* PROMOTED 2026-10-11 — func_8001E864
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void *func_8001E864(const void *key, const void *base, int count, int size,
+                  int (*compare)(const void *, const void *))
+{
+    int low;
+    int high;
+    int middle;
+    int result;
+    void *element;
+    if (count != 0) {
+        low = 1;
+        high = count;
+        do {
+            middle = (low + high) >> 1;
+            element = (void *)((const unsigned char *)base + size * (middle - 1));
+            result = compare(key, element);
+            if (result == 0) {
+                return element;
+            }
+            if (result < 0) {
+                high = middle - 1;
+            } else {
+                low = middle + 1;
+            }
+        } while (high >= low);
+    }
+    return 0;
+}
+
+/* PROMOTED 2026-10-04 — func_8001E930
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void func_8001E930(unsigned int *time)
+{
+    *time *= 256U;
+}
+
+/* PROMOTED 2026-10-04 — func_8001E940
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern u32 func_80019AA8(unsigned char *);
+void func_8001E940(u32 *value, unsigned char *state)
+{
+    u32 rate;
+    rate = func_80019AA8(state);
+    *value = (((*value << 16) / rate) * 1000U) >> 5;
+}
+
+/* PROMOTED 2026-10-04 — func_8001E9A0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+unsigned int func_8001E9A0(unsigned int time)
+{
+    return time / 256U;
+}
+

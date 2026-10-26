@@ -1,0 +1,22 @@
+{
+ "members": [
+  "vector_diff_process",
+  "traction_control",
+  "steering_sensitivity"
+ ],
+ "context": [
+  "func_800A61B0",
+  "math_utility"
+ ],
+ "files": [
+  "group.c"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "keep": [
+  "steering_sensitivity",
+  "traction_control",
+  "func_800A61B0",
+  "math_utility"
+ ],
+ "note": "Real group, no stand-ins. Same files/keep as src/blob/groups/traction_control with steering_sensitivity's body replaced; it supersedes that group (revert it first, or land steering by replacing its body there). Context bodies unchanged and still MATCH."
+}

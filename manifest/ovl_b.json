@@ -1,0 +1,412 @@
+{
+  "functions": 44,
+  "groups": {
+    "hud_show": {
+      "dir": "src/ovl_b/groups/hud_show",
+      "files": [
+        "hudextra.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_803925D0"
+      ],
+      "members": [
+        "func_803925C8",
+        "func_803925D0"
+      ],
+      "own_data": {}
+    },
+    "runtime_b_damage": {
+      "dir": "src/ovl_b/groups/runtime_b_damage",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038D3A4"
+      ],
+      "members": [
+        "func_8038D3A4"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151239108
+        }
+      }
+    },
+    "runtime_b_nearest_steering": {
+      "dir": "src/ovl_b/groups/runtime_b_nearest_steering",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038DDDC"
+      ],
+      "members": [
+        "func_8038DDDC"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151239140
+        }
+      }
+    },
+    "runtime_b_position_initializer": {
+      "dir": "src/ovl_b/groups/runtime_b_position_initializer",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038D054"
+      ],
+      "members": [
+        "func_8038D054"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151239084
+        }
+      }
+    },
+    "runtime_b_radius_effect": {
+      "dir": "src/ovl_b/groups/runtime_b_radius_effect",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038D798"
+      ],
+      "members": [
+        "func_8038D798"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151239124
+        }
+      }
+    },
+    "runtime_b_resource_callbacks": {
+      "dir": "src/ovl_b/groups/runtime_b_resource_callbacks",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_80390F60"
+      ],
+      "members": [
+        "func_80390B00",
+        "func_80390B08",
+        "func_80390B10",
+        "func_80390D38",
+        "func_80390F60"
+      ],
+      "own_data": {
+        ".data": {
+          "base": 2151236280
+        }
+      }
+    },
+    "runtime_b_status_scene": {
+      "dir": "src/ovl_b/groups/runtime_b_status_scene",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_80391B00"
+      ],
+      "members": [
+        "func_80391650",
+        "func_80391864"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151239432
+        }
+      }
+    },
+    "runtime_b_trail": {
+      "dir": "src/ovl_b/groups/runtime_b_trail",
+      "files": [
+        "group.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038CB20"
+      ],
+      "members": [
+        "func_8038CB20"
+      ],
+      "own_data": {
+        ".rodata": {
+          "base": 2151239056
+        }
+      }
+    },
+    "shots": {
+      "dir": "src/ovl_b/groups/shots",
+      "files": [
+        "shots.c",
+        "ctx_d3a4.c",
+        "ctx_d798.c",
+        "ctx_dddc.c",
+        "ctx_d054.c",
+        "ctx_cb20.c",
+        "ctx_c910.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038FCE0",
+        "func_8038F568",
+        "func_8038CB20",
+        "func_8038D054",
+        "func_8038D3A4",
+        "func_8038D798",
+        "func_8038DDDC",
+        "func_8038C910"
+      ],
+      "members": [
+        "func_8038D200",
+        "func_8038D328",
+        "func_8038D498",
+        "func_8038DA78",
+        "func_8038E088",
+        "func_8038E114",
+        "func_8038F560",
+        "func_8038F568",
+        "func_8038F938",
+        "func_8038FCD8",
+        "func_8038FCE0"
+      ],
+      "own_data": {
+        ".data": {
+          "references": {
+            "0": 2151236440,
+            "52": 2151236288,
+            "64": 2151236300,
+            "92": 2151236492,
+            "96": 2151236496
+          }
+        },
+        ".rodata": {
+          "references": {
+            "0": 2151238396,
+            "12": 2151238408,
+            "132": 2151238908,
+            "144": 2151238920,
+            "224": 2151239096,
+            "228": 2151239100,
+            "232": 2151239104,
+            "236": 2151239112,
+            "240": 2151239116,
+            "244": 2151239120,
+            "248": 2151239132,
+            "252": 2151239136,
+            "256": 2151239156,
+            "292": 2151239192,
+            "296": 2151239196,
+            "300": 2151239200,
+            "336": 2151239236,
+            "340": 2151239240,
+            "344": 2151239244,
+            "348": 2151239248,
+            "352": 2151239252,
+            "356": 2151239256,
+            "360": 2151239260,
+            "364": 2151239264,
+            "368": 2151239268,
+            "372": 2151239272,
+            "408": 2151239308,
+            "412": 2151239312,
+            "416": 2151239316,
+            "420": 2151239320,
+            "424": 2151239324,
+            "428": 2151239328,
+            "432": 2151239332,
+            "436": 2151239336,
+            "440": 2151239340,
+            "444": 2151239344,
+            "448": 2151239348,
+            "452": 2151239352,
+            "456": 2151239356,
+            "492": 2151239392,
+            "496": 2151239396,
+            "500": 2151239400,
+            "504": 2151239404,
+            "508": 2151239408,
+            "512": 2151239412,
+            "516": 2151239416,
+            "520": 2151239420,
+            "524": 2151239424,
+            "528": 2151239428
+          }
+        }
+      }
+    },
+    "weapons": {
+      "dir": "src/ovl_b/groups/weapons",
+      "files": [
+        "weapons.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038AA8C"
+      ],
+      "members": [
+        "func_8038A95C",
+        "func_8038AA14",
+        "func_8038AA8C"
+      ],
+      "own_data": {
+        ".bss": {
+          "references": {
+            "0": 2151256344,
+            "1080": 2151257424,
+            "8": 2151256352
+          }
+        },
+        ".data": {
+          "base": 2151236516
+        },
+        ".rodata": {
+          "base": 2151238944
+        }
+      }
+    },
+    "worlddam": {
+      "dir": "src/ovl_b/groups/worlddam",
+      "files": [
+        "worlddam.c"
+      ],
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+      "keep": [
+        "func_8038A408"
+      ],
+      "members": [
+        "func_8038A400",
+        "func_8038A408"
+      ],
+      "own_data": {}
+    }
+  },
+  "image": "ovl_b",
+  "placements": "frozen own-data placements (tools/build_image.py --freeze-placements)",
+  "singles": {
+    "func_8038A8CC": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_8038A8CC.c"
+    },
+    "func_8038C910": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_8038C910.c"
+    },
+    "func_8038CA24": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_8038CA24.c"
+    },
+    "func_8038D1A8": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_8038D1A8.c"
+    },
+    "func_803908D0": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_803908D0.c"
+    },
+    "func_8039133C": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_8039133C.c"
+    },
+    "func_80391490": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_80391490.c"
+    },
+    "func_803914A8": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_803914A8.c"
+    },
+    "func_803914B4": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_803914B4.c"
+    },
+    "func_8039244C": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_8039244C.c"
+    },
+    "func_80392894": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": "    .own0 0x80394F50 : SUBALIGN(1) { *(.rodata) }\n"
+      },
+      "source": "src/ovl_b/func_80392894.c"
+    },
+    "func_80392FE4": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": "    .own0 0x80394F54 : SUBALIGN(1) { *(.rodata) }\n"
+      },
+      "source": "src/ovl_b/func_80392FE4.c"
+    },
+    "func_80393518": {
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_80393518.c"
+    },
+    "func_803936A8": {
+      "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "own_data": {
+        "bss": [],
+        "ld": ""
+      },
+      "source": "src/ovl_b/func_803936A8.c"
+    }
+  }
+}

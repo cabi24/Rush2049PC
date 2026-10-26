@@ -1,0 +1,20 @@
+{
+ "name": "read_path_data",
+ "members": [
+  "physics_response",
+  "audio_effect_apply"
+ ],
+ "context": [
+  "func_800B930C"
+ ],
+ "files": [
+  "physics_response.c",
+  "audio_effect_apply.c"
+ ],
+ "keep": [
+  "audio_effect_apply",
+  "func_800B930C"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "note": ": audio_effect_apply = GC ReadPathData (first draft from the GC body; else arm as GC's chain gResPath.alt = gAltPaths = 0) with its only caller-callee partner physics_response (= GC CalcCheckpointTimes, provisional MATCH; file byte-identical to, which defines the locked kept func_800B930C verbatim above it so umerge inlines it, as world_physics_tick.c does). physics_response is internal (its only caller is audio_effect_apply; it writes s0-s6/$f20-$f24 unsaved). Disclosed devices (physics_response only): two compiled-out do {} while (0) block ends. Supersedes the provisional evidence group (never installed); remove provisional.json physics_response on install."
+}

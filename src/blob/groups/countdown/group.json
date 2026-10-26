@@ -1,0 +1,32 @@
+{
+ "name": "countdown",
+ "members": [
+  "animCountdownTimer"
+ ],
+ "context": [
+  "slot_state_setup",
+  "sound_update_channel",
+  "HAL_GetCharWidth"
+ ],
+ "files": [
+  "countdown.c",
+  "ctx_gr3_b.c",
+  "ctx_gr3.c"
+ ],
+ "keep": [
+  "animCountdownTimer",
+  "HAL_SetFontFixedWidth",
+  "object_bytes23_sum",
+  "object_bytes_sum_global",
+  "func_800F68A4",
+  "HAL_GetCharWidth",
+  "slot_value_get",
+  "mode_byte2_set",
+  "mode_byte_set",
+  "object_type_byte2_get",
+  "object_type_byte3_get"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "unprototyped": [],
+ "note": "emitter_update = MAT3 animCountdownTimer@hud.c. Context (byte-identical copies): ctx_gr3_b.c = credits_scroll_grp/gr3_b.c (slot_state_setup s2 font convention), ctx_gr3.c = credits_scroll_grp/gr3.c. Inlined helpers _GetSemaphore_Countdown, _ReleaseSemaphore_Countdown, HAL_SetFont_Countdown, TB_SetJust_Countdown, PlayGameSound_Countdown are non-static and not on keep; unit install: force_internal += those five. Own data: function-local statics sec (retail 0x80124F74) and nextBeep = 30 (retail 0x801161B8)."
+}

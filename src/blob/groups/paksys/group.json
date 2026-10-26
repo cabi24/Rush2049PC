@@ -1,0 +1,48 @@
+{
+ "name": "paksys",
+ "files": [
+  "group.c",
+  "ctx_ll.c",
+  "ctx_lock.c",
+  "ctx_heap.c"
+ ],
+ "members": [
+  "PS_CreateFile",
+  "no_catchup",
+  "ClearPak",
+  "car_lod_select",
+  "func_800A3640",
+  "track_render_process",
+  "pak_delete_file_retry"
+ ],
+ "context": [
+  "func_800A1E94",
+  "func_800A370C",
+  "func_800A44E8",
+  "func_8008A704",
+  "audio_reverb_update",
+  "func_80095F8C",
+  "func_80095EF4"
+ ],
+ "keep": [
+  "PS_CreateFile",
+  "track_render_process",
+  "car_lod_select",
+  "func_800A370C",
+  "func_800A44E8",
+  "func_8008A704",
+  "audio_effect_process",
+  "synced_model_render",
+  "MP_TargetSpeed",
+  "assign_default_paths",
+  "stat_race_end",
+  "audio_buffer_sync",
+  "object_counter_decrement",
+  "object_counter_increment",
+  "menu_item_select",
+  "func_800C885C",
+  "pak_delete_file_retry"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "note": "supersedes the (all old members unchanged and still MATCH). Members/claims: PS_CreateFile, no_catchup, func_800A3724 (_ClearPak), car_lod_select (PS_InitPakSys), func_800A3640 (_RemovePak), track_render_process (PS_PakServer), pak_delete_file_retry (PS_DeleteFile, on keep: external callers). New context file ctx_heap.c = byte copy of src/blob/groups/heap_release/group.c: in the group compile it makes audio_reverb_update (DeallocateMemory, called by _RemovePak) internal with its IPA convention (address a1, tag a2, s0/s1 unsaved), which is what retail's _RemovePak colours against; its other heap functions are kept. the scorer --claims: all six members MATCH. Unit (the whole-program unit, packet substituted): all six EQUAL, locked bodies that differ: 0. Internal (force_internal, off keep): func_800A1E94, no_catchup, func_800A3640, func_800A3724, and the non-static inlined helpers paksys_queue_init/paksys_lock/paksys_unlock/pfs_get_node/_FileChanged/_StopRumble. Disclosed shaping in group.c header: one compiled-out if (forceUpdate) {} umerge-budget device, two unreferenced locals (frame residual), one compiled-out if (D_801460E0.head) {} in pfs_get_node. pak_delete_file_retry's inlined helpers pdf_free_blocks/pdf_release/pdf_dealloc/pdf_heap_lock/pdf_heap_unlock are non-static, not on keep (internal by derivation; no override needed)."
+}

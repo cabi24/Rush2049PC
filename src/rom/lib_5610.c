@@ -1,0 +1,580 @@
+/* GENERATED ROM-aligned TU — segment 0x5610 (rom/lib_5610)
+ * layout map 5f28eb4dc56fe3d76b0707d5fd55277a08a82e5e5499a3e3974d597d0c80bee6.
+ * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
+ * passthrough lines. */
+#include "rom_tu.h"
+
+#pragma GLOBAL_ASM("asm/us/nonmatchings/rom/lib_5610/inflate_io_wait.s")
+#pragma GLOBAL_ASM("asm/us/nonmatchings/rom/lib_5610/lzss_decode.s")
+/* PROMOTED 2026-10-01 — inflate_flush_window
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * : `gDisplayListSize = 0` (was `*(s32 *)&.`, a cast around rom_tu.h's
+ *           former volatile), whole TU IDENTICAL under ido5.3s
+ * Gate:     full-ROM SHA-1
+ */
+void inflate_flush_window(s32 arg0, s32 arg1) {
+    gDisplayListHead = arg0;
+    gDisplayListEnd = arg1;
+    gDisplayListSize = 0;
+}
+
+/* PROMOTED 2026-09-24 — huft_alloc
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * for the TU's ido5.3s recipe
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared, compiler ido5.3s (cc -S, no .loc, as1 -O1)
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * whole-TU IDENTICAL under ido5.3s (as1 -O1 keeps the final copy
+ *           of a returned named local, so the sum is returned directly)
+ * Gate:     full-ROM SHA-1
+ */
+s32 huft_alloc(s32 arg0)
+{
+  int new_var;
+  gDisplayListSize += arg0;
+  new_var = gDisplayListSize;
+  if (1)
+  {
+  }
+  return (new_var - arg0) + gDisplayListHead;
+}
+
+/* PROMOTED 2026-10-12 — huft_build
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#include "types.h"
+typedef struct huft { u8 e; u8 b; union { u16 n; struct huft *t; } v; } huft;
+extern s32 huft_alloc(s32);
+extern void *memset(void *, s32, u32);
+#define BMAX 16
+s32 huft_build(u32 *b, u32 n, u32 s, u16 *d, u16 *e, huft **t, s32 *m)
+{
+	u32 a;                   /* counter for codes of length k */
+	u32 c[BMAX+1];           /* bit length count table */
+	u32 f;                   /* i repeats in table every f entries */
+	s32 g;                   /* maximum code length */
+	s32 h;                   /* table level */
+	register u32 i;          /* counter, current code */
+	register u32 j;          /* counter */
+	register s32 k;          /* number of bits in current code */
+	s32 l;                   /* bits per table (returned in m) */
+	register u32 *p;         /* pointer into c[], b[], or v[] */
+	register huft *q; /* points to current table */
+	huft r;           /* table entry for structure assignment */
+	huft *u[BMAX];    /* table stack */
+	u32 *v;            /* values in order of bit length */
+	register s32 w;          /* bits before this table == (l * h) */
+	u32 x[BMAX+1];           /* bit offsets, then code stack */
+	u32 *xp;                 /* pointer into x */
+	s32 y;                   /* number of dummy codes added */
+	u32 z;                   /* number of entries in current table */
+	
+
+	/* Generate counts for each bit length */
+	memset(c,0,sizeof(c));
+
+	p = b;
+	i = n;
+
+	do {
+		c[*p]++;                  /* assume all entries <= BMAX */
+		p++;                      /* Can't combine with above line (Solaris bug) */
+	} while (--i);
+
+	if (c[0] == n) {              /* null input--all zero length codes */
+		*t = NULL;
+		*m = 0;
+		return 0;
+	}
+
+	/* Find minimum and maximum length, bound *m by those */
+	l = *m;
+
+	for (j = 1; j <= BMAX; j++) {
+		if (c[j]) {
+			break;
+		}
+	}
+
+	k = j;                        /* minimum code length */
+
+	if (l < j) {
+		l = j;
+	}
+
+	for (i = BMAX; i; i--) {
+		if (c[i]) {
+			break;
+		}
+	}
+
+	g = i;                        /* maximum code length */
+
+	if (l > i) {
+		l = i;
+	}
+
+	*m = l;
+
+	/* Adjust last length count to fill out codes, if needed */
+	for (y = 1 << j; j < i; j++, y <<= 1) {
+		if ((y -= c[j]) < 0) return 2;
+	}
+
+	if ((y -= c[i]) < 0) return 2;
+	c[i] += y;
+
+	/* Generate starting offsets into the value table for each length */
+	x[1] = j = 0;
+	p = c + 1;
+	xp = x + 2;
+
+	while (--i) {                 /* note that i == g from above */
+		*xp++ = (j += *p++);
+	}
+
+	/* Make a table of values in order of bit lengths */
+	v=(u32*)huft_alloc(288*sizeof(u32));
+	p = b;
+	i = 0;
+
+	do {
+		if ((j = *p++) != 0) {
+			v[x[j]++] = i;
+		}
+	} while (++i < n);
+
+	/* Generate the Huffman codes and for each, make the table entries */
+	x[0] = i = 0;                 /* first Huffman code is zero */
+	p = v;                        /* grab values in bit order */
+	h = -1;                       /* no tables yet--level -1 */
+	w = -l;                       /* bits decoded == (l * h) */
+	u[0] = (huft *)NULL;   /* just to keep compilers happy */
+	q = (huft *)NULL;      /* ditto */
+	z = 0;                        /* ditto */
+
+	/* go through the bit lengths (k already is bits in shortest code) */
+	for (; k <= g; k++) {
+		a = c[k];
+
+		while (a--) {
+			/* here i is the Huffman code of length k bits for value *p */
+			/* make tables up to required level */
+			while (k > w + l) {
+				h++;
+				w += l;                 /* previous table always l bits */
+
+				/* compute minimum size table less than or equal to l bits */
+				z = (z = g - w) > l ? l : z;  /* upper limit on table size */
+
+				if ((f = 1 << (j = k - w)) > a + 1) {   /* try a k-w bit table */
+					/* too few codes for k-w bit table */
+					/* deduct codes from patterns left */
+					f -= a + 1;
+					xp = c + k;
+
+					while (++j < z) {     /* try smaller tables up to z bits */
+						if ((f <<= 1) <= *++xp) {
+							break;            /* enough codes to use up j bits */
+						}
+
+						f -= *xp;           /* else deduct codes from patterns */
+					}
+				}
+
+				z = 1 << j;             /* table entries for j-bit table */
+
+				/* allocate and link in new table */
+				q = (huft*)huft_alloc((z+1)*sizeof(huft));
+				if(q==NULL) return 3;         /* track memory usage */
+				*t = q + 1;             /* link to list for huft_free() */
+				*(t = &(q->v.t)) = (huft *)NULL;
+				u[h] = ++q;             /* table starts after link */
+
+				/* connect to last table, if there is one */
+				if (h) {
+					x[h] = i;             /* save pattern for backing up */
+					r.b = l;              /* bits to dump before this table */
+					r.e = 16 + j;         /* bits in this table */
+					r.v.t = q;            /* pointer to this table */
+					j = i >> (w - l);     /* (get around Turbo C bug) */
+					u[h-1][j] = r;        /* connect to last table */
+				}
+			}
+
+			/* set up table entry in r */
+			r.b = (k - w);
+
+			if (p >= v + n) {
+				r.e = 99;               /* out of values--invalid code */
+			} else if (*p < s) {
+				r.e = (*p < 256 ? 16 : 15);    /* 256 is end-of-block code */
+				r.v.n = *p;             /* simple code is just the value */
+				p++;                    /* one compiler does not like *p++ */
+			} else {
+				r.e = e[*p - s];   /* non-simple--look up in lists */
+				r.v.n = d[*p++ - s];
+			}
+
+			/* fill code-like entries with r */
+			f = 1 << (k - w);
+
+			for (j = i >> w; j < z; j += f) {
+				q[j] = r;
+			}
+
+			/* backwards increment the k-bit code i */
+			for (j = 1 << (k - 1); i & j; j >>= 1) {
+				i ^= j;
+			}
+
+			i ^= j;
+
+			/* backup over finished tables */
+			while ((i & ((1 << w) - 1)) != x[h]) {
+				h--;                    /* don't need to update q */
+				w -= l;
+			}
+		}
+	}
+
+	/* Return true (1) if we were given an incomplete table */
+	return y != 0 && g != 1;
+}
+
+/* PROMOTED 2026-10-12 — inflate_free_window
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern u32 gInflateBitBuf, gInflateBitCount;
+extern u8 *gInflateInPtr, *gInflateInEnd, *gInflateOutPtr;
+extern s32 inflate_read_bits(void);
+extern u16 gInflateMaskBits[];
+extern void *memcpy(void *, const void *, u32);
+#define NEEDBITS(n) do { while (k < (n)) { b |= (u32)(gInflateInPtr < gInflateInEnd ? (gInflateInPtr += 2, gInflateInPtr[-2] | (gInflateInPtr[-1] << 8)) : inflate_read_bits()) << k; k += 16; } } while (0)
+#define DUMPBITS(n) do { b >>= (n); k -= (n); } while (0)
+s32 inflate_free_window(huft *tl, huft *td, s32 bl, s32 bd) {
+    register u32 e;
+    u32 n;
+    s32 d;
+    u32 w;  /* gzip: current window position (unused here, see header) */
+    huft *t;
+    u32 ml, md;
+    register u32 b;
+    register u32 k;
+
+    b = gInflateBitBuf;
+    k = gInflateBitCount;
+    ml = gInflateMaskBits[bl];
+    md = gInflateMaskBits[bd];
+    for (;;) {
+        NEEDBITS((u32)bl);
+        if ((e = (t = tl + (b & ml))->e) > 16)
+            do {
+                if (e == 99) return 1;
+                DUMPBITS(t->b);
+                e -= 16;
+                NEEDBITS(e);
+            } while ((e = (t = t->v.t + (b & gInflateMaskBits[e]))->e) > 16);
+        DUMPBITS(t->b);
+        if (e == 16) {
+            *gInflateOutPtr++ = (u8)t->v.n;
+        } else {
+            if (e == 15) break;
+            NEEDBITS(e);
+            n = t->v.n + (b & gInflateMaskBits[e]);
+            DUMPBITS(e);
+            NEEDBITS((u32)bd);
+            if ((e = (t = td + (b & md))->e) > 16)
+                do {
+                    if (e == 99) return 1;
+                    DUMPBITS(t->b);
+                    e -= 16;
+                    NEEDBITS(e);
+                } while ((e = (t = t->v.t + (b & gInflateMaskBits[e]))->e) > 16);
+            DUMPBITS(t->b);
+            NEEDBITS(e);
+            d = -t->v.n - (b & gInflateMaskBits[e]);
+            DUMPBITS(e);
+            if (d < -8) {
+                memcpy(gInflateOutPtr, gInflateOutPtr + d, n);
+                gInflateOutPtr += n;
+            } else {
+                while (n--) {
+                    *gInflateOutPtr = gInflateOutPtr[d];
+                    gInflateOutPtr++;
+                }
+            }
+        }
+    }
+    gInflateBitBuf = b;
+    gInflateBitCount = k;
+    return 0;
+}
+
+/* PROMOTED 2026-10-12 — inflate_stored
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern u32 gInflateBitBuf, gInflateBitCount;
+extern u8 *gInflateInPtr, *gInflateInEnd, *gInflateOutPtr;
+extern s32 inflate_read_bits(void);
+#define NEEDBITS(n) do { while (k < (n)) { b |= (u32)(gInflateInPtr < gInflateInEnd ? (gInflateInPtr += 2, gInflateInPtr[-2] | (gInflateInPtr[-1] << 8)) : inflate_read_bits()) << k; k += 16; } } while (0)
+#define DUMPBITS(n) do { b >>= (n); k -= (n); } while (0)
+s32 inflate_stored(void) {
+    u32 n;
+    register u32 b = gInflateBitBuf, k = gInflateBitCount;
+
+    DUMPBITS(k & 7);
+    NEEDBITS(16);
+    n = b & 0xffff;
+    DUMPBITS(16);
+    NEEDBITS(16);
+    if (n != ((~b) & 0xffff)) return 1;
+    DUMPBITS(16);
+    while (n--) {
+        NEEDBITS(8);
+        *gInflateOutPtr++ = (u8)b;
+        DUMPBITS(8);
+    }
+    gInflateBitBuf = b;
+    gInflateBitCount = k;
+    return 0;
+}
+
+/* PROMOTED 2026-10-12 — inflate_fixed
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern u16 gInflateCplens[], gInflateCplext[], gInflateCpdist[], gInflateCpdext[];
+extern unsigned int gDisplayListSize;
+extern s32 huft_build(u32 *, u32, u32, u16 *, u16 *, huft **, s32 *);
+extern s32 inflate_free_window(huft *, huft *, s32, s32);
+s32 inflate_fixed(void) {
+    s32 i;
+    huft *tl, *td;
+    s32 bl, bd;
+    u32 *l = (u32 *)huft_alloc(288 * sizeof(u32));
+
+    for (i = 0; i < 144; i++) l[i] = 8;
+    for (; i < 256; i++) l[i] = 9;
+    for (; i < 280; i++) l[i] = 7;
+    for (; i < 288; i++) l[i] = 8;
+    bl = 7;
+    if ((i = huft_build(l, 288, 257, gInflateCplens, gInflateCplext, &tl, &bl)) != 0) {
+        gDisplayListSize = 0;
+        return i;
+    }
+    for (i = 0; i < 30; i++) l[i] = 5;
+    bd = 5;
+    if ((i = huft_build(l, 30, 0, gInflateCpdist, gInflateCpdext, &td, &bd)) > 1) {
+        gDisplayListSize = 0;
+        return i;
+    }
+    if ((i = inflate_free_window(tl, td, bl, bd)) != 0) return i < 0 ? i : 1;
+    gDisplayListSize = 0;
+    return 0;
+}
+
+/* PROMOTED 2026-10-12 — inflate_dynamic
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern u8 *gInflateInPtr, *gInflateInEnd;
+extern u32 gInflateBorder[];
+extern s32 gInflateHuftPointerLit, gInflateHuftPointerDist;
+#define NEEDBITS_BR(n) { while (k < (n)) { b |= (u32)(gInflateInPtr < gInflateInEnd ? (gInflateInPtr += 2, gInflateInPtr[-2] | (gInflateInPtr[-1] << 8)) : inflate_read_bits()) << k; k += 16; } }
+#define DUMPBITS_BR(n) { b >>= (n); k -= (n); }
+s32 inflate_dynamic(void) {
+    s32 i;
+    u32 j;
+    u32 l;
+    u32 m;
+    u32 n;
+    huft *tl;
+    huft *td;
+    s32 bl;
+    s32 bd;
+    u32 nb;
+    u32 nl;
+    u32 nd;
+    u32 *ll;
+    register u32 b;
+    register u32 k;
+
+    ll = (u32 *)huft_alloc((286 + 30) * sizeof(u32));
+    b = gInflateBitBuf;
+    k = gInflateBitCount;
+    NEEDBITS_BR(5);
+    nl = 257 + (b & 0x1f);
+    DUMPBITS_BR(5);
+    NEEDBITS_BR(5);
+    nd = 1 + (b & 0x1f);
+    DUMPBITS_BR(5);
+    NEEDBITS_BR(4);
+    nb = 4 + (b & 0xf);
+    DUMPBITS_BR(4);
+    if (nl > 286 || nd > 30) return 1;
+    for (j = 0; j < nb; j++) {
+        NEEDBITS_BR(3);
+        ll[gInflateBorder[j]] = b & 7;
+        DUMPBITS_BR(3);
+    }
+    for (; j < 19; j++) ll[gInflateBorder[j]] = 0;
+    bl = 7;
+    if ((i = huft_build(ll, 19, 19, NULL, NULL, &tl, &bl)) != 0) {
+        gDisplayListSize = 0;
+        return i;
+    }
+    n = nl + nd;
+    m = gInflateMaskBits[bl];
+    i = l = 0;
+    while ((u32)i < n) {
+        NEEDBITS_BR((u32)bl);
+        j = (td = tl + (b & m))->b;
+        DUMPBITS_BR(j);
+        j = td->v.n;
+        if (j < 16)
+            ll[i++] = l = j;
+        else if (j == 16) {
+            NEEDBITS_BR(2);
+            j = 3 + (b & 3);
+            DUMPBITS_BR(2);
+            if ((u32)i + j > n) return 1;
+            while (j--) ll[i++] = l;
+        } else if (j == 17) {
+            NEEDBITS_BR(3);
+            j = 3 + (b & 7);
+            DUMPBITS_BR(3);
+            if ((u32)i + j > n) return 1;
+            while (j--) ll[i++] = 0;
+            l = 0;
+        } else {
+            NEEDBITS_BR(7);
+            j = 11 + (b & 0x7f);
+            DUMPBITS_BR(7);
+            if ((u32)i + j > n) return 1;
+            while (j--) ll[i++] = 0;
+            l = 0;
+        }
+    }
+    gDisplayListSize = 0x4F0;
+    gInflateBitBuf = b;
+    gInflateBitCount = k;
+    bl = gInflateHuftPointerLit;
+    if ((i = huft_build(ll, nl, 257, gInflateCplens, gInflateCplext, &tl, &bl)) != 0) {
+        gDisplayListSize = 0;
+        return i;
+    }
+    bd = gInflateHuftPointerDist;
+    if ((i = huft_build(ll + nl, nd, 0, gInflateCpdist, gInflateCpdext, &td, &bd)) != 0) {
+        gDisplayListSize = 0;
+        return i;
+    }
+    if ((i = inflate_free_window(tl, td, bl, bd)) != 0) return i < 0 ? i : 1;
+    gDisplayListSize = 0;
+    return 0;
+}
+
+/* PROMOTED 2026-10-12 — inflate_block
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#include "types.h"
+extern u32 gInflateBitBuf, gInflateBitCount;
+extern u8 *gInflateInPtr, *gInflateInEnd;
+extern s32 inflate_read_bits(void), inflate_dynamic(void), inflate_stored(void), inflate_fixed(void);
+#define NEEDBITS(n) do { while (k < (n)) { b |= (u32)(gInflateInPtr < gInflateInEnd ? (gInflateInPtr += 2, gInflateInPtr[-2] | (gInflateInPtr[-1] << 8)) : inflate_read_bits()) << k; k += 16; } } while (0)
+#define DUMPBITS(n) do { b >>= (n); k -= (n); } while (0)
+s32 inflate_block(s32 *last) {
+    u32 t;
+    register u32 b = gInflateBitBuf, k = gInflateBitCount;
+
+    NEEDBITS(1);
+    *last = b & 1;
+    DUMPBITS(1);
+    NEEDBITS(2);
+    t = b & 3;
+    DUMPBITS(2);
+    gInflateBitBuf = b;
+    gInflateBitCount = k;
+    if (t == 2) return inflate_dynamic();
+    if (t == 0) return inflate_stored();
+    if (t == 1) return inflate_fixed();
+    return 1;
+}
+
+/* PROMOTED 2026-10-12 — inflate_loop
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern s32 inflate_block(s32 *last);
+s32 inflate_loop(void) {
+    s32 e;
+
+    gInflateBitCount = 0;
+    gInflateBitBuf = 0;
+    do {
+        if (inflate_block(&e) != 0) {
+            return 1;
+        }
+    } while (!e);
+    return 0;
+}
+
+/* PROMOTED 2026-10-12 — inflate_read_bits
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#include "PR/os_message.h"
+#include "PR/os_pi.h"
+extern u32 gInflateSrc;
+extern s32 gInflateToggle;
+extern u8 gInflateBufferA[], gInflateBufferB[];
+extern OSIoMesg gInflateDmaState;
+extern OSMesgQueue gInflateMsgQueue;
+extern void osInvalDCache(void *, s32);
+extern s32 osPiStartDma(OSIoMesg *, s32, s32, u32, void *, u32, OSMesgQueue *);
+s32 inflate_read_bits(void) {
+    OSMesg msg;
+    u8 *next;
+
+    while (osRecvMesg(&gInflateMsgQueue, &msg, OS_MESG_NOBLOCK) == -1) {
+    }
+    if (gInflateToggle) {
+        gInflateInPtr = gInflateBufferA;
+        next = gInflateBufferB;
+        gInflateToggle = 0;
+    } else {
+        gInflateInPtr = gInflateBufferB;
+        gInflateToggle = 1;
+        next = gInflateBufferA;
+    }
+    gInflateInEnd = gInflateInPtr + 4096;
+    gInflateSrc += 4096;
+    osInvalDCache(gInflateInPtr, 4096);
+    osPiStartDma(&gInflateDmaState, 0, 0, gInflateSrc, next, 4096, &gInflateMsgQueue);
+    gInflateInPtr += 2;
+    return gInflateInPtr[-2] | (gInflateInPtr[-1] << 8);
+}
+
+#pragma GLOBAL_ASM("asm/us/nonmatchings/rom/lib_5610/inflate_entry.s")
+#pragma GLOBAL_ASM("asm/us/nonmatchings/rom/lib_5610/inflate_entry_alt.s")

@@ -1,0 +1,28 @@
+{
+ "members": [
+  "controller_poll",
+  "func_800C9590",
+  "SetControllerStickEdges",
+  "SetControllerActive",
+  "func_800E7134"
+ ],
+ "files": [
+  "group.c"
+ ],
+ "keep": [
+  "controller_poll",
+  "func_800E7134",
+  "process_inputs",
+  "SetControllerStickEdges",
+  "SetControllerActive",
+  "__standin_controller_poll",
+  "__standin_func_800C9590",
+  "__standin_func_800E7038"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "unprototyped": [],
+ "context": [
+  "func_800E7038",
+  "process_inputs"
+ ]
+}

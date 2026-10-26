@@ -1,0 +1,19 @@
+{
+ "members": [
+  "func_800E627C",
+  "func_800E6460",
+  "func_800E681C"
+ ],
+ "context": [
+  "func_800E6AE8"
+ ],
+ "files": [
+  "group.c"
+ ],
+ "keep": [
+  "func_800E681C"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "unprototyped": [],
+ "note": ". Real three-body group, no stand-ins: func_800E681C (kept) with its internal callees func_800E6460 (previously provisional) and func_800E627C (already locked, source unchanged). func_800E6AE8 is the retail stub of the inlined gear-selection static, defined here for real (context; its locked 2-word body is reproduced). Supersedes src/blob/groups/func_800E681C (stand-in group): revert that group first. If the whole-program unit check resolves func_800E6AE8 to the locked empty single, add a prefer_definition entry pointing at this group file."
+}

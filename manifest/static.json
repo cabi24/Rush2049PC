@@ -1,0 +1,3392 @@
+{
+  "asm": {
+    "__osCleanupThread": {
+      "evidence": "ultralib:src/os/exceptasm.s",
+      "source": "asm/us/nonmatchings/rom/lib_d580/__osCleanupThread.s",
+      "vaddr": "0x8000D298"
+    },
+    "__osDisableInt": {
+      "evidence": "ultralib:src/os/interrupt.s",
+      "source": "asm/us/D0B0.s",
+      "vaddr": "0x8000C4B0"
+    },
+    "__osDispatchThread": {
+      "evidence": "ultralib:src/os/exceptasm.s",
+      "source": "asm/us/nonmatchings/rom/lib_d580/__osDispatchThread.s",
+      "vaddr": "0x8000D11C"
+    },
+    "__osEnqueueAndYield": {
+      "evidence": "ultralib:src/os/exceptasm.s",
+      "source": "asm/us/nonmatchings/rom/lib_d580/__osEnqueueAndYield.s",
+      "vaddr": "0x8000CFC4"
+    },
+    "__osEnqueueThread": {
+      "evidence": "ultralib:src/os/exceptasm.s",
+      "source": "asm/us/nonmatchings/rom/lib_d580/__osEnqueueThread.s",
+      "vaddr": "0x8000D0C4"
+    },
+    "__osException": {
+      "evidence": "ultralib:src/os/exceptasm.s",
+      "source": "asm/us/nonmatchings/rom/lib_d580/__osException.s",
+      "vaddr": "0x8000C990"
+    },
+    "__osExceptionPreamble": {
+      "evidence": "ultralib:src/os/exceptasm.s",
+      "source": "asm/us/nonmatchings/rom/lib_d580/__osExceptionPreamble.s",
+      "vaddr": "0x8000C980"
+    },
+    "__osGetCause": {
+      "evidence": "ultralib:src/os/getcause.s",
+      "source": "asm/us/nonmatchings/rom/lib_e4f0/__osGetCause.s",
+      "vaddr": "0x8000DBB0"
+    },
+    "__osGetSR": {
+      "evidence": "ultralib:src/os/getsr.s",
+      "source": "asm/us/E370.s",
+      "vaddr": "0x8000D780"
+    },
+    "__osProbeTLB": {
+      "evidence": "ultralib:src/os/probetlb.s",
+      "source": "asm/us/108B0.s",
+      "vaddr": "0x8000FCB0"
+    },
+    "__osRestoreInt": {
+      "evidence": "ultralib:src/os/interrupt.s",
+      "source": "asm/us/D0B0.s",
+      "vaddr": "0x8000C520"
+    },
+    "__osSetCompare": {
+      "evidence": "ultralib:src/os/setcompare.s",
+      "source": "asm/us/10790.s",
+      "vaddr": "0x8000FB90"
+    },
+    "__osSetFpcCsr": {
+      "evidence": "ultralib:src/os/setfpccsr.s",
+      "source": "asm/us/nonmatchings/rom/lib_e390/__osSetFpcCsr.s",
+      "vaddr": "0x8000D790"
+    },
+    "__osSetSR": {
+      "evidence": "ultralib:src/os/setsr.s",
+      "source": "asm/us/E370.s",
+      "vaddr": "0x8000D770"
+    },
+    "__setfpcsr": {
+      "evidence": "handwritten:ctc1 a0,$31; nop; nop; jr ra: writes the FPU control register, which C cannot; not an ultralib routine",
+      "source": "asm/us/55F0.s",
+      "vaddr": "0x800049F0"
+    },
+    "bcmp": {
+      "evidence": "ultralib:src/libc/bcmp.s",
+      "source": "asm/us/104D0.s",
+      "vaddr": "0x8000F8D0"
+    },
+    "bcopy": {
+      "evidence": "ultralib:src/libc/bcopy.s",
+      "source": "asm/us/DEB0.s",
+      "vaddr": "0x8000D2B0"
+    },
+    "bzero": {
+      "evidence": "ultralib:src/libc/bzero.s",
+      "source": "asm/us/9190.s",
+      "vaddr": "0x80008590"
+    },
+    "entrypoint": {
+      "evidence": "handwritten:boot stub: clears BSS from 0x8002E8E0, sets sp, jumps to main",
+      "source": "asm/us/1000.s",
+      "vaddr": "0x80000400"
+    },
+    "func_800277D0": {
+      "evidence": "handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x800277D0"
+    },
+    "func_800278C4": {
+      "evidence": "handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x800278C4"
+    },
+    "func_80027980": {
+      "evidence": "handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x80027980"
+    },
+    "func_80027B44": {
+      "evidence": "handwritten:frameless bal calls into 0x80027980/0x80027C98 and builds callback pointers as ra+imm after bltzal $zero (libgsm short-term synthesis)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x80027B44"
+    },
+    "func_80027C98": {
+      "evidence": "handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x80027C98"
+    },
+    "func_80027D3C": {
+      "evidence": "handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x80027D3C"
+    },
+    "func_80027D54": {
+      "evidence": "handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x80027D54"
+    },
+    "func_80027D64": {
+      "evidence": "handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x80027D64"
+    },
+    "func_80027D7C": {
+      "evidence": "handwritten:shared tail of the PC-relative coefficient callbacks (libgsm LARp_to_rp)",
+      "source": "asm/us/boot_data/kernels.s",
+      "vaddr": "0x80027D7C"
+    },
+    "func_8002C5E0": {
+      "evidence": "handwritten:cache 0xd (create dirty exclusive) loop; C cannot emit cache",
+      "source": "asm/us/boot_data/func_8002C5E0.s",
+      "vaddr": "0x8002C5E0"
+    },
+    "inflate_entry": {
+      "evidence": "handwritten:hand-edited compiler output: li a1,12000 + addiu a0,zero,0 after a one-argument call; no C order reaches it",
+      "source": "asm/us/nonmatchings/rom/lib_5610/inflate_entry.s",
+      "vaddr": "0x80006814"
+    },
+    "inflate_entry_alt": {
+      "evidence": "handwritten:same hand edit as inflate_entry",
+      "source": "asm/us/nonmatchings/rom/lib_5610/inflate_entry_alt.s",
+      "vaddr": "0x8000697C"
+    },
+    "inflate_io_wait": {
+      "evidence": "handwritten:non-ABI: returns in t1 and clobbers s0-s4 unsaved",
+      "source": "asm/us/nonmatchings/rom/lib_5610/inflate_io_wait.s",
+      "vaddr": "0x80004A10"
+    },
+    "lzss_decode": {
+      "evidence": "handwritten:non-ABI register contract: reads t1 after each call and spills s0 itself",
+      "source": "asm/us/nonmatchings/rom/lib_5610/lzss_decode.s",
+      "vaddr": "0x80004AFC"
+    },
+    "osGetCount": {
+      "evidence": "ultralib:src/os/getcount.s",
+      "source": "asm/us/D570.s",
+      "vaddr": "0x8000C970"
+    },
+    "osInvalDCache": {
+      "evidence": "ultralib:src/os/invaldcache.s",
+      "source": "asm/us/90E0.s",
+      "vaddr": "0x800084E0"
+    },
+    "osInvalICache": {
+      "evidence": "ultralib:src/os/invalicache.s",
+      "source": "asm/us/nonmatchings/rom/lib_8e10/osInvalICache.s",
+      "vaddr": "0x80008460"
+    },
+    "osMapTLBRdb": {
+      "evidence": "ultralib:src/os/maptlbrdb.s",
+      "source": "asm/us/E490.s",
+      "vaddr": "0x8000D890"
+    },
+    "osSetIntMask": {
+      "evidence": "ultralib:src/os/setintmask.s",
+      "source": "asm/us/nonmatchings/rom/lib_7c80/osSetIntMask.s",
+      "vaddr": "0x800071D0"
+    },
+    "osUnmapTLBAll": {
+      "evidence": "ultralib:src/os/unmaptlball.s",
+      "source": "asm/us/E440.s",
+      "vaddr": "0x8000D840"
+    },
+    "osWritebackDCache": {
+      "evidence": "ultralib:src/os/writebackdcache.s",
+      "source": "asm/us/88A0.s",
+      "vaddr": "0x80007CA0"
+    },
+    "osWritebackDCacheAll": {
+      "evidence": "ultralib:src/os/writebackdcacheall.s",
+      "source": "asm/us/8410.s",
+      "vaddr": "0x80007810"
+    },
+    "send_mesg": {
+      "evidence": "ultralib:src/os/exceptasm.s",
+      "source": "asm/us/nonmatchings/rom/lib_d580/send_mesg.s",
+      "vaddr": "0x8000CEDC"
+    },
+    "sqrtf": {
+      "evidence": "ultralib:src/gu/sqrtf.s",
+      "source": "asm/us/EFC0.s",
+      "vaddr": "0x8000E3C0"
+    }
+  },
+  "c": {
+    "_VirtualToPhysicalTask": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8440.c"
+    },
+    "__d_to_ll": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__d_to_ull": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__ecvt_internal": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "__f_to_ll": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__f_to_ull": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__isinf": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "__isnan": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "__ll_div": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ll_lshift": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ll_mod": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ll_mul": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ll_rem": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ll_rshift": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ll_to_d": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__ll_to_f": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__osAiDeviceBusy": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10760.c"
+    },
+    "__osCheckId": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f700.c"
+    },
+    "__osCheckPackId": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f700.c"
+    },
+    "__osContAddressCrc": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_105f0.c"
+    },
+    "__osContDataCrc": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_105f0.c"
+    },
+    "__osContGetInitData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a050.c"
+    },
+    "__osContRamRead": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f4d0.c"
+    },
+    "__osContRamWrite": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10280.c"
+    },
+    "__osDequeueThread": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_cc50.c"
+    },
+    "__osEPiRawReadIo": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10b60.c"
+    },
+    "__osEPiRawStartDma": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e9a0.c"
+    },
+    "__osEPiRawWriteIo": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10a00.c"
+    },
+    "__osGetId": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f700.c"
+    },
+    "__osIdCheckSum": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f700.c"
+    },
+    "__osInitialize_common": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared -Xcpluscomm",
+      "tu": "src/rom/lib_8a80.c"
+    },
+    "__osInsertTimer": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_cc50.c"
+    },
+    "__osMakeMotorData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_ab20.c"
+    },
+    "__osMotorAccess": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_ab20.c"
+    },
+    "__osPackReadData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a330.c"
+    },
+    "__osPackRequestData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a050.c"
+    },
+    "__osPfsCheckPages": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_bfe0.c"
+    },
+    "__osPfsCheckRamArea": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a810.c"
+    },
+    "__osPfsDeclearPage": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_b570.c"
+    },
+    "__osPfsGetNextPage": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_b9f0.c"
+    },
+    "__osPfsGetOneChannelData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f160.c"
+    },
+    "__osPfsGetStatus": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f160.c"
+    },
+    "__osPfsPageCheck": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_bfe0.c"
+    },
+    "__osPfsRWInode": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f700.c"
+    },
+    "__osPfsReleasePages": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_b300.c"
+    },
+    "__osPfsRequestData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10d60.c"
+    },
+    "__osPfsRequestOneChannel": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f160.c"
+    },
+    "__osPfsSelectBank": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f450.c"
+    },
+    "__osPiCreateAccessQueue": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e7c0.c"
+    },
+    "__osPiGetAccess": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e7c0.c"
+    },
+    "__osPiRawReadIo": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e7c0.c"
+    },
+    "__osPiRawStartDma": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e8d0.c"
+    },
+    "__osPiReadDeviceType": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8a80.c"
+    },
+    "__osPiRelAccess": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e7c0.c"
+    },
+    "__osPopThread": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_d580.c"
+    },
+    "__osRepairPackId": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f700.c"
+    },
+    "__osResetGlobalIntMask": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_109a0.c"
+    },
+    "__osSetGlobalIntMask": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10cc0.c"
+    },
+    "__osSetTimerIntr": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_cc50.c"
+    },
+    "__osSiCreateAccessQueue": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f160.c"
+    },
+    "__osSiDeviceBusy": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10970.c"
+    },
+    "__osSiGetAccess": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f160.c"
+    },
+    "__osSiRawReadIo": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e390.c"
+    },
+    "__osSiRawStartDma": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f0b0.c"
+    },
+    "__osSiRawWriteIo": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e3f0.c"
+    },
+    "__osSiRelAccess": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f160.c"
+    },
+    "__osSpDeviceBusy": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e310.c"
+    },
+    "__osSpRawStartDma": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e280.c"
+    },
+    "__osSpSetPc": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e250.c"
+    },
+    "__osSpSetStatus": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e240.c"
+    },
+    "__osSumcalc": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_f700.c"
+    },
+    "__osTimerInterrupt": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_cc50.c"
+    },
+    "__osTimerServicesInit": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared -Xcpluscomm -Wab,-r4300_mul",
+      "tu": "src/rom/lib_cc50.c"
+    },
+    "__osViSwapContext": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_d270.c"
+    },
+    "__round_helper": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "__scAppendList": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scExec": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scExecTask": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scHandlePreNMI": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scHandleRDP": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scHandleRSP": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scHandleRetrace": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scMain": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scSchedule": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scScheduleCore": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__scTaskReady": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "__ull_div": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ull_divremi": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ull_rem": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ull_rshift": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_e4f0.c"
+    },
+    "__ull_to_d": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__ull_to_f": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips3 -32 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5f0.c"
+    },
+    "__write_exponent": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "apply_display_mode": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    },
+    "audio_thread_entry": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_2cf0.c"
+    },
+    "bzero_alt": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_d580.c"
+    },
+    "cosf": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9330.c"
+    },
+    "display_mode_tick": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    },
+    "display_update": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    },
+    "dma_queue_init": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_3140.c"
+    },
+    "dma_signal": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_3140.c"
+    },
+    "dma_wait": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_3140.c"
+    },
+    "fcvt": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "func_800103A0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10d60.c"
+    },
+    "func_80010450": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11050.c"
+    },
+    "func_800105C4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11050.c"
+    },
+    "func_8001061C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11050.c"
+    },
+    "func_80010628": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11050.c"
+    },
+    "func_80010714": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11050.c"
+    },
+    "func_800107E0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_80010840": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_800108E0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_80010980": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_800109C0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_80010A00": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_80010A0C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_80010A14": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_113e0.c"
+    },
+    "func_80010A40": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80010C68": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80010D3C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80010D74": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80010DD8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80010E80": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011074": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800110C4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011104": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_8001144C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800114C0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011848": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011894": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800118C0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011910": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800119E0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011A10": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011A3C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011A64": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011C1C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011C84": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011CD8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011D24": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011D74": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80011F60": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800121BC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80012200": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80012234": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800123A8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_8001261C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80012660": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80012730": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80012D18": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80013964": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800139D4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80013C84": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80013D70": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80013DEC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800140F8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014140": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014198": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014374": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800143C0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014434": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014488": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800144F0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014550": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014594": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800145DC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014624": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014650": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_8001467C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800146AC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800146B4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_8001489C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800148F8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800149BC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_800149DC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014A04": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014A0C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014A74": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014AF0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014B3C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014BB0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014BD8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014BF8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014C18": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014C40": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014C60": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014CAC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014CF4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014CFC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014D08": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014D14": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014D1C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_11640.c"
+    },
+    "func_80014D30": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15930.c"
+    },
+    "func_80014E00": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15930.c"
+    },
+    "func_80014E10": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014E1C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014E64": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014E90": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014EBC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014EE8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014F14": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014F80": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80014FEC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015058": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_800150C8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015120": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015178": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_800151D0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015228": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_800152A8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015318": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015348": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_8001536C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_800154A4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015574": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_8001558C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_800156E8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_15a10.c"
+    },
+    "func_80015720": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_800158D8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80015A0C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80015C0C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80015D68": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80015F28": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_8001605C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_800161A0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_800162AC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_800163A8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_800164D0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_8001661C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_8001671C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016998": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016BF8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016C20": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016CE0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016CF0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016E40": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016E68": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016EE0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016F58": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80016F80": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80017018": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80017040": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_80017108": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_16320.c"
+    },
+    "func_800171C0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_8001729C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_8001734C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800173B4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80017410": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80017470": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800174D0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80017540": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800175A8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800175B4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80017644": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80017720": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800177EC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80017824": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_8001785C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800178B0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80017D38": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800180A0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018184": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_8001824C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018448": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018634": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_8001897C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018A30": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018AEC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018B3C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018B8C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018BEC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018C2C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018D00": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018D40": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018E2C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018E6C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018EB4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018F20": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018FA4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80018FEC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_8001906C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800190AC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80019144": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80019194": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80019370": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800193C8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80019420": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80019490": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80019850": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_8001989C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800198C8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_800199F4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_17dc0.c"
+    },
+    "func_80019A60": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_80019AA8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_80019AD4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_80019BE4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_80019C8C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_80019ED0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_80019F48": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001A270": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001A5D8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001A658": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B154": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B1D0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B29C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B3A0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B4A4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B5F4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B744": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B7C0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B8C4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B968": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001B9F8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001BDB8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001BE14": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001C19C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001C1D8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1a660.c"
+    },
+    "func_8001C390": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001C3CC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001C508": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001C580": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001C770": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001C77C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001C7F4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001C860": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001CC9C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001CCC0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001CCDC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D084": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D0F0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D1C0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D1F4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D3F0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D460": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D4CC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D518": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D578": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D5C0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D660": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D764": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D8B0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D928": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001D944": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001DA74": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001DC08": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001DDE0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001E0C0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001E0D4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1cf90.c"
+    },
+    "func_8001E0E0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1ece0.c"
+    },
+    "func_8001E440": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1ece0.c"
+    },
+    "func_8001E50C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1ece0.c"
+    },
+    "func_8001E688": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1ece0.c"
+    },
+    "func_8001E740": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E768": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E790": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E7BC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E864": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E930": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E940": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E9A0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f340.c"
+    },
+    "func_8001E9B0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001EAA0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001EAEC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001EB10": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001ECE0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001EDF4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001EE34": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001EE9C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001EF8C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001F13C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001F6EC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001F7EC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001F864": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001F898": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001F954": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001F9D0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001FA18": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001FAE4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1f5b0.c"
+    },
+    "func_8001FBB0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8001FD2C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8001FE58": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8001FEA4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8001FEF8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8001FF4C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8001FFA0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8001FFF4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020048": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020174": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_800201D0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020200": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8002021C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020274": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_800202C4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020370": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_800203EC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_8002043C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020494": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020518": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020528": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020558": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020598": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_800205E4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_207b0.c"
+    },
+    "func_80020610": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_800206AC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80020820": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80020A04": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80020DA8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80020F4C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80020F98": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80020FDC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021028": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_8002106C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021150": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021428": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021448": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021468": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021488": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_800214A8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_800214C8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_800214E8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021508": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021528": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021548": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_800215A8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_8002165C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_21210.c"
+    },
+    "func_80021700": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021764": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800217E4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021844": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800218CC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002193C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021B9C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021BC0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021BF0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021C58": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021CDC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021D5C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021DF8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021E74": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021F08": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021F68": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80021F84": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022160": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022324": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800223D0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002243C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002245C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800224B0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022514": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022580": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800225AC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800225DC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800225FC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022678": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002279C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022874": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022A40": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022A78": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022A98": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022C58": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022CD4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80022F24": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002300C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800230B0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023190": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002321C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800232A4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800233B0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023520": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023544": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023564": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023710": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023734": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023754": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023818": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023844": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023870": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002389C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800238C8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800238F4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023920": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_8002394C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023978": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_800239A4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023AD4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023B50": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023BDC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023D70": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023DB8": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80023E9C": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80024988": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_22300.c"
+    },
+    "func_80024BF0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_257f0.c"
+    },
+    "func_80024C9C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_257f0.c"
+    },
+    "func_80024D04": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_257f0.c"
+    },
+    "func_80024D74": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_257f0.c"
+    },
+    "func_80024FB0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80024FD4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_8002506C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_800250AC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_800250F0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025120": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025150": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_8002517C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_800251A8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025264": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_800252AC": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_800254D4": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025594": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_800255F0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025670": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_8002574C": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_800259A8": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025AB4": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025C68": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025D84": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025DC0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_25bb0.c"
+    },
+    "func_80025EB0": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26ab0.c"
+    },
+    "func_80025F74": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26ab0.c"
+    },
+    "func_800262BC": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26ab0.c"
+    },
+    "func_80026328": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26ab0.c"
+    },
+    "func_80026348": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26ab0.c"
+    },
+    "func_80026360": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26f60.c"
+    },
+    "func_80026558": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26f60.c"
+    },
+    "func_80026640": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26f60.c"
+    },
+    "func_800268D0": {
+      "compiler": "ido7.1",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_26f60.c"
+    },
+    "game_init": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_2cf0.c"
+    },
+    "get_tv_offset": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    },
+    "get_viewport_offset": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    },
+    "get_viewport_pos": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    },
+    "guLookAt": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9ab0.c"
+    },
+    "guLookAtF": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9ab0.c"
+    },
+    "guMtxF2L": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9de0.c"
+    },
+    "guMtxIdent": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9de0.c"
+    },
+    "guMtxIdentF": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9de0.c"
+    },
+    "guMtxL2F": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9de0.c"
+    },
+    "guOrtho": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9660.c"
+    },
+    "guOrthoF": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9660.c"
+    },
+    "guPerspective": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9820.c"
+    },
+    "guPerspectiveF": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9820.c"
+    },
+    "huft_alloc": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "huft_build": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "idle_thread_entry": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_2cf0.c"
+    },
+    "inflate_block": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "inflate_decompress": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_3140.c"
+    },
+    "inflate_dynamic": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "inflate_fixed": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "inflate_flush_window": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "inflate_free_window": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "inflate_loop": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "inflate_read_bits": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "inflate_stored": {
+      "compiler": "ido5.3s",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_5610.c"
+    },
+    "lzss_decompress": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_3140.c"
+    },
+    "main": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_2cf0.c"
+    },
+    "memchr": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_3330.c"
+    },
+    "memcpy": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8800.c"
+    },
+    "memset": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_3390.c"
+    },
+    "modf": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "modff": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "osAiSetFrequency": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_ca70.c"
+    },
+    "osAiSetNextBuffer": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_ca70.c"
+    },
+    "osContGetQuery": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a330.c"
+    },
+    "osContGetReadData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a330.c"
+    },
+    "osContInit": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a050.c"
+    },
+    "osContStartQuery": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a330.c"
+    },
+    "osContStartReadData": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a330.c"
+    },
+    "osCreateMesgQueue": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7600.c"
+    },
+    "osCreatePiManager": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_8e10_pi.c"
+    },
+    "osCreateScheduler": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "osCreateThread": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7b30.c"
+    },
+    "osCreateViManager": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7630.c"
+    },
+    "osDestroyThread": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_107a0.c"
+    },
+    "osDpGetCounters": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a5b0.c"
+    },
+    "osDpIsBusy": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e340.c"
+    },
+    "osDpSetNextBuffer": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8700.c"
+    },
+    "osGetActiveQueue": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_d260.c"
+    },
+    "osGetThreadId": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_c990.c"
+    },
+    "osGetThreadPri": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_cc50.c"
+    },
+    "osGetTime": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7fb0.c"
+    },
+    "osJamMesg": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_8040_msg.c"
+    },
+    "osMotorInit": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_ab20.c"
+    },
+    "osPfsAllocateFile": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_b570.c"
+    },
+    "osPfsChecker": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_bfe0.c"
+    },
+    "osPfsDeleteFile": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_b300.c"
+    },
+    "osPfsFileState": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_b120.c"
+    },
+    "osPfsFindFile": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_af50.c"
+    },
+    "osPfsFreeBlocks": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_be40.c"
+    },
+    "osPfsInitPak": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a810.c"
+    },
+    "osPfsIsPlug": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10d60.c"
+    },
+    "osPfsReadWriteFile": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_b9f0.c"
+    },
+    "osPfsRepairId": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_ab20.c"
+    },
+    "osPhysicalToVirtual": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_a800.c"
+    },
+    "osPiGetCmdQueue": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e9a0.c"
+    },
+    "osPiReadIo": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8dd0.c"
+    },
+    "osPiStartDma": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_9230.c"
+    },
+    "osRecvMesg": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7c80.c"
+    },
+    "osScAddClient": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050_sdk.c"
+    },
+    "osSendMesg": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_81e0.c"
+    },
+    "osSetEventMesg": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7a10.c"
+    },
+    "osSetThreadPri": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8e10.c"
+    },
+    "osSetTimer": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_efd0.c"
+    },
+    "osSpTaskLoad": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8440.c"
+    },
+    "osSpTaskLoad_full": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e9a0.c"
+    },
+    "osSpTaskStartGo": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8440.c"
+    },
+    "osSpTaskYield": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8700.c"
+    },
+    "osSpTaskYielded": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8330.c"
+    },
+    "osStartThread": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7c80.c"
+    },
+    "osStopThread": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_c990.c"
+    },
+    "osSyncPrintf": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_92f0.c"
+    },
+    "osViBlack": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_79a0.c"
+    },
+    "osViGetCurrentFramebuffer": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8330.c"
+    },
+    "osViGetNextFramebuffer": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_83d0.c"
+    },
+    "osViInit": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_d140.c"
+    },
+    "osViSetEvent": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7ad0.c"
+    },
+    "osViSetMode": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7940.c"
+    },
+    "osViSetSpecialFeatures": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8920.c"
+    },
+    "osViSwapBuffer": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8040.c"
+    },
+    "osVirtualToPhysical": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_e1c0.c"
+    },
+    "osYieldThread": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_10d10.c"
+    },
+    "rmonPrintf": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_92f0.c"
+    },
+    "sinf": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_9330.c"
+    },
+    "sprintf": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_34a0.c"
+    },
+    "strchr": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8800.c"
+    },
+    "strlen": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_8800.c"
+    },
+    "update_viewport": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    },
+    "viAddTicks": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "viDeadlinePassed": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "viDisableAccum": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "viEnableAccum": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "viGetTimeToDeadline": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "viScheduleTick": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "viTickStart": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "viUpdateTime": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_1050.c"
+    },
+    "vi_manager_main": {
+      "compiler": "ido5.3",
+      "flags": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "tu": "src/rom/lib_7630.c"
+    },
+    "viewport_setup": {
+      "compiler": "ido5.3",
+      "flags": "-g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul",
+      "tu": "src/rom/lib_21f0.c"
+    }
+  },
+  "note": "Reference only: the static ROM is built by the Makefile (src/rom/*.c with src/rom/opt_overrides.mk); this lists which functions are C and which are the original hand-written assembly."
+}

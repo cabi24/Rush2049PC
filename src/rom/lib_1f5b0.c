@@ -1,0 +1,643 @@
+/* GENERATED ROM-aligned TU — segment 0x1f5b0 (rom/lib_1f5b0)
+ * layout map ae263abb1203148d19b634cda2c10e4ccdd9bfaa8069507b2028db9a263d7388.
+ * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
+ * passthrough lines. */
+#include "rom_tu.h"
+
+/* Shared list/channel records, hoisted before the first slot that uses them
+ * (func_8001E9B0, func_8001EE34). Text unchanged. */
+#pragma pack(1)
+typedef struct SequenceNode { struct SequenceNode *next; struct SequenceNode *previous; u32 key; int value; } SequenceNode;
+#pragma pack(0)
+typedef struct ChannelLink_8001EE9C { u8 previous, next; u16 active; } ChannelLink_8001EE9C;
+
+/* PROMOTED 2026-10-05 — func_8001E9B0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+extern unsigned int D_80050A4C;
+extern SequenceNode D_80050A50[32];
+extern SequenceNode *D_80050C50;
+extern SequenceNode *D_80050C54;
+void func_8001E9B0(void)
+{
+    SequenceNode *previous;
+    int i;
+    D_80050A4C = 0;
+    D_80050C50 = 0;
+    D_80050C54 = D_80050A50;
+    previous = 0;
+    for (i = 0; i < 32; i++) {
+        D_80050A50[i].previous = previous;
+        if (previous != 0) previous->next = &D_80050A50[i];
+        previous = &D_80050A50[i];
+    }
+    previous->next = 0;
+}
+
+/* PROMOTED 2026-10-04 — func_8001EAA0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+/* The used/free sequence lists share a 16-byte doubly linked node.
+ * Voice records have a 0x1A0 stride; parent, node and reset word occupy
+ * previously opaque fields at +0x14, +0x18 and +0x28 respectively.
+ * Keep these declarations before any future early list-helper promotion. */
+#pragma pack(1)
+typedef struct VoiceState { u32 command00; u8 unknown04[12]; u32 next_identifier; u32 parent_identifier; SequenceNode *entry18; u8 unknown1C[8]; u32 flags24; u32 value28; u8 unknown2C[2]; u8 channel2E; u8 unknown2F[29]; u8 external4C; u8 unknown4D[19]; u32 identifier60; u8 unknown64[89]; u8 activeBD; u8 unknownBE[226]; } VoiceState;
+#pragma pack(0)
+extern SequenceNode *D_80050C50;
+extern VoiceState D_8004BEB8[];
+SequenceNode *func_8001EAA0(u32 key)
+{
+    SequenceNode *node;
+    node = D_80050C50;
+    while (node != 0) {
+        if (key == node->key) return node;
+        if (key < node->key) break;
+        node = node->next;
+    }
+    return 0;
+}
+
+/* PROMOTED 2026-10-04 — func_8001EAEC
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern unsigned int D_80050A4C;
+unsigned int func_8001EAEC(void)
+{
+    unsigned int value;
+    do { value = D_80050A4C++; } while (value == 0xFFFFFFFF);
+    return value;
+}
+
+/* PROMOTED 2026-10-05 — func_8001EB10
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+extern SequenceNode *D_80050C50, *D_80050C54;
+extern void func_80021844(VoiceState *);
+void func_8001EB10(VoiceState *state)
+{
+    func_80021844(state);
+    if (state->identifier60 != 0xFFFFFFFFU) {
+        if (state->parent_identifier != 0xFFFFFFFFU) {
+            D_8004BEB8[(state->parent_identifier & 255)].next_identifier=state->next_identifier;
+            if (state->next_identifier != 0xFFFFFFFFU) {
+                D_8004BEB8[(state->next_identifier & 255)].parent_identifier=state->parent_identifier;
+            }
+        } else if (state->next_identifier != 0xFFFFFFFFU) {
+            state->entry18->value=state->next_identifier;
+            D_8004BEB8[(state->next_identifier & 255)].parent_identifier=0xFFFFFFFFU;
+            D_8004BEB8[(state->next_identifier & 255)].entry18=state->entry18;
+        } else {
+            if (state->entry18->previous != 0) {
+                state->entry18->previous->next=state->entry18->next;
+            } else {
+                D_80050C50=state->entry18->next;
+            }
+            if (state->entry18->next != 0) {
+                state->entry18->next->previous=state->entry18->previous;
+            }
+            state->entry18->next=D_80050C54;
+            if (D_80050C54 != 0) D_80050C54->previous=state->entry18;
+            state->entry18->previous=0;
+            D_80050C54=state->entry18;
+        }
+    }
+}
+
+/* PROMOTED 2026-10-05 — func_8001ECE0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+extern u32 func_8001EAEC(void);
+u32 func_8001ECE0(VoiceState *state)
+{
+    SequenceNode *current;
+    SequenceNode *previous;
+    SequenceNode *node;
+    u32 key;
+    key = func_8001EAEC();
+    previous = 0;
+    for (current = D_80050C50; current != 0; current = current->next) {
+        if (key < current->key) break;
+        if (key == current->key) key = func_8001EAEC();
+        previous = current;
+    }
+    node = D_80050C54;
+    if (node == 0) return 0xFFFFFFFFU;
+    if ((D_80050C54 = D_80050C54->next) != 0)
+        D_80050C54->previous = 0;
+    if (previous == 0) D_80050C50 = node;
+    else previous->next = node;
+    node->previous = previous;
+    node->next = current;
+    if (current != 0) current->previous = node;
+    node->key = key;
+    node->value = state->identifier60;
+    state->entry18 = node;
+    return key;
+}
+
+/* PROMOTED 2026-10-04 — func_8001EDF4
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern SequenceNode *func_8001EAA0(u32 key);
+int func_8001EDF4(u32 key)
+{
+    SequenceNode *node;
+    if (key != 0xFFFFFFFF) {
+        node = func_8001EAA0(key);
+        if (node != 0) return node->value;
+    }
+    return -1;
+}
+
+/* PROMOTED 2026-10-05 — func_8001EE34
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern u8 D_8004FA18;
+extern ChannelLink_8001EE9C D_800504C8[32];
+extern u8 D_80050548[256];
+extern u16 D_80050A48;
+void func_8001EE34(void)
+{
+    u32 i;
+    for (i = 0; i < D_8004FA18; i++) {
+        D_800504C8[i].active = 0;
+    }
+    for (i = 0; i < 256; i++) {
+        D_80050548[i] = 255;
+    }
+    D_80050A48 = 65535;
+}
+
+/* PROMOTED 2026-10-04 — func_8001EE9C
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+typedef struct VoicePrefix_8001EE9C { u8 unknown00[46]; u8 channel2E; u8 unknown2F[49]; u32 identifier60; } VoicePrefix_8001EE9C;
+#pragma pack(0)
+typedef struct GroupLink_8001EE9C { u16 next, previous; } GroupLink_8001EE9C;
+extern ChannelLink_8001EE9C D_800504C8[32];
+extern u8 D_80050548[256];
+extern GroupLink_8001EE9C D_80050648[256];
+extern u16 D_80050A48;
+void func_8001EE9C(VoicePrefix_8001EE9C *state)
+{
+    ChannelLink_8001EE9C *link;
+    GroupLink_8001EE9C *group;
+    link = &D_800504C8[state->identifier60 & 255];
+    if (link->active == 1) {
+        if (link->previous != 255) D_800504C8[link->previous].next = link->next;
+        else D_80050548[state->channel2E] = link->next;
+        if (link->next != 255) D_800504C8[link->next].previous = link->previous;
+        else if (link->previous == 255) {
+            group = &D_80050648[state->channel2E];
+            if (group->previous != 65535) D_80050648[group->previous].next = group->next;
+            else D_80050A48 = group->next;
+            if (group->next != 65535) D_80050648[group->next].previous = group->previous;
+        }
+        link->active = 0;
+    }
+}
+
+/* PROMOTED 2026-10-11 — func_8001EF8C
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+#pragma pack(1)
+#pragma pack(0)
+#pragma pack(1)
+#pragma pack(0)
+extern void func_8001EE9C(VoicePrefix_8001EE9C *);
+void func_8001EF8C(VoiceState *state, u8 channel)
+{
+    u16 current;
+    u16 previous;
+    ChannelLink_8001EE9C *link;
+    u8 index;
+    index = state->identifier60 & 255;
+    link = &D_800504C8[index];
+    if (link->active == 1) {
+        if (state->channel2E == channel) return;
+        func_8001EE9C((VoicePrefix_8001EE9C *)state);
+    }
+    link->active = 1;
+    link->previous = 255;
+    if ((link->next = D_80050548[channel]) != 255) {
+        D_800504C8[D_80050548[channel]].previous = index;
+    } else {
+        if (D_80050A48 != 65535) {
+            if (channel >= D_80050A48) {
+                for (current = D_80050A48; current != 65535; current = D_80050648[current].next) {
+                    if (channel < current) break;
+                    previous = current;
+                }
+                D_80050648[previous].next = channel;
+                D_80050648[channel].previous = previous;
+                D_80050648[channel].next = current;
+                if (D_80050648[channel].next != 65535) D_80050648[current].previous = channel;
+            } else {
+                D_80050648[channel].next = D_80050A48;
+                D_80050648[channel].previous = 65535;
+                D_80050648[D_80050A48].previous = channel;
+                D_80050A48 = channel;
+            }
+        } else {
+            D_80050648[channel].next = 65535;
+            D_80050648[channel].previous = 65535;
+            D_80050A48 = channel;
+        }
+    }
+    D_80050548[channel] = index;
+    state->channel2E = channel;
+}
+
+typedef struct ChannelLink { u8 previous; u8 next; u16 flags; } ChannelLink;
+extern ChannelLink D_80050440[32];
+/* PROMOTED 2026-10-12 — func_8001F13C
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#include "types.h"
+#pragma pack(1)
+#pragma pack(0)
+#pragma pack(1)
+typedef struct VoiceAlloc_8001F13C { u8 unknown00[0xBA]; u16 allocId; u8 unknownBC; u8 block; u8 unknownBE[226]; } VoiceAlloc_8001F13C;
+#pragma pack(0)
+extern volatile unsigned char D_8004BE94;
+extern u8 D_8004FA18, D_8004FA19, D_8004FA1A;
+extern u8 D_800504C0, D_800504C1;
+extern unsigned char D_800504C2, D_800504C3;
+#define ALLOC(i) (((VoiceAlloc_8001F13C *)D_8004BEB8)[i])
+int func_8001F13C(u8 priority, u8 maxVoices, u16 allocId, u8 fxFlag)
+{
+    s32 i;
+    s32 num;
+    s32 voice;
+    u16 p;
+    u32 type_alloc;
+    ChannelLink *sfv;
+
+    if (!D_8004BE94) {
+        if (fxFlag) {
+            type_alloc = (D_800504C2 >= (i = D_8004FA1A) && D_8004FA18 > i) ? 1 : 0;
+            if (i <= maxVoices) {
+                goto _skip_alloc;
+            }
+            goto _do_alloc;
+        } else {
+            type_alloc = (D_800504C3 >= (i = D_8004FA19) && D_8004FA18 > i) ? 1 : 0;
+            if (i <= maxVoices) {
+                goto _skip_alloc;
+            }
+        _do_alloc:
+            num = 0;
+            voice = -1;
+            p = D_80050A48;
+            while (p != 0xFFFF && priority >= p && voice == -1) {
+                for (i = D_80050548[p]; i != 0xFF; i = D_800504C8[i].next) {
+                    if (ALLOC(i).block == 0 && allocId == ALLOC(i).allocId) {
+                        ++num;
+                        if ((!type_alloc || fxFlag == D_8004BEB8[i].external4C) && !(D_8004BEB8[i].flags24 & 2)) {
+                            if (voice != -1) {
+                                if (D_8004BEB8[i].value28 < D_8004BEB8[voice].value28)
+                                    voice = i;
+                            } else
+                                voice = i;
+                        }
+                    }
+                }
+                p = D_80050648[p].next;
+            }
+        }
+        if (num < maxVoices) {
+            do {} while (0);
+            while (p != 0xFFFF && num < maxVoices) {
+                i = D_80050548[p];
+                while (i != 0xFF) {
+                    if (!ALLOC(i).block) {
+                        if (allocId == ALLOC(i).allocId) {
+                            num++;
+                        }
+                    }
+                    i = D_800504C8[i].next;
+                }
+                p = D_80050648[p].next;
+            }
+            if (num < maxVoices) {
+            _skip_alloc:
+                voice = -1;
+                if (D_800504C0 != 0xFF && type_alloc == 0) {
+                    voice = D_800504C0;
+                } else {
+                if (priority < D_80050A48) {
+                    return -1;
+                }
+                p = D_80050A48;
+                while (p != 0xFFFF && priority >= p && voice == -1) {
+                    for (i = D_80050548[p]; i != 0xFF; i = D_800504C8[i].next) {
+                        if (ALLOC(i).block == 0 && (!type_alloc || fxFlag == D_8004BEB8[i].external4C) && !(D_8004BEB8[i].flags24 & 2)) {
+                            if (voice != -1) {
+                                if (D_8004BEB8[voice].value28 > D_8004BEB8[i].value28)
+                                    voice = i;
+                            } else
+                                voice = i;
+                        }
+                    }
+                    p = D_80050648[p].next;
+                }
+                if (voice == -1) {
+                    return -1;
+                }
+                }
+                if (D_8004BEB8[voice].channel2E > priority) {
+                    goto _fail;
+                }
+            }
+        }
+        if (voice == -1) {
+            goto _fail;
+        }
+        if (D_80050440[voice].flags == 1) {
+            sfv = &D_80050440[voice];
+            i = sfv->previous;
+            if (i != 0xFF) {
+                D_80050440[i].next = sfv->next;
+            } else {
+                D_800504C0 = sfv->next;
+            }
+            i = sfv->next;
+            if (i != 0xFF) {
+                D_80050440[i].previous = sfv->previous;
+            }
+            if (voice == D_800504C1) {
+                D_800504C1 = sfv->previous;
+            }
+            sfv->flags = 0;
+        } else if (D_8004BEB8[voice].external4C) {
+            D_800504C2--;
+        } else {
+            D_800504C3--;
+        }
+        if (fxFlag) {
+            ++D_800504C2;
+        } else {
+            ++D_800504C3;
+        }
+        return voice;
+    }
+_fail:
+    return -1;
+}
+
+/* PROMOTED 2026-10-11 — func_8001F6EC
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+#pragma pack(1)
+#pragma pack(0)
+extern u8 D_800504C0;
+extern u8 D_800504C1;
+extern unsigned char D_800504C2, D_800504C3;
+extern void func_8001EE9C(VoicePrefix_8001EE9C *);
+void func_8001F6EC(VoiceState *state)
+{
+    u32 index;
+    ChannelLink *link;
+    func_8001EE9C((VoicePrefix_8001EE9C *)state);
+    index = state->identifier60 & 255;
+    link = &D_80050440[index];
+    state->command00 = 0;
+    state->channel2E = 0;
+    if (link->flags == 0) {
+        link->flags = 1;
+        if (D_800504C0 != 255) {
+            link->previous = D_800504C1;
+            link->next = 255;
+            D_80050440[D_800504C1].next = index;
+        } else {
+            link->next = 255;
+            link->previous = 255;
+            D_800504C0 = index;
+        }
+        D_800504C1 = index;
+        if (state->external4C) {
+            --D_800504C2;
+        } else {
+            --D_800504C3;
+        }
+    }
+    state->identifier60 = 0xFFFFFFFFU;
+}
+
+/* PROMOTED 2026-10-04 — func_8001F7EC
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern u8 D_8004FA18;
+extern u8 D_800504C0;
+extern u8 D_800504C1;
+void func_8001F7EC(void)
+{
+    u32 i;
+    for (i = 0; i < D_8004FA18; i++) {
+        D_80050440[i].previous = i - 1;
+        D_80050440[i].next = i + 1;
+        D_80050440[i].flags = 1;
+    }
+    D_80050440[0].previous = 255;
+    D_80050440[D_8004FA18 - 1].next = 255;
+    D_800504C0 = 0;
+    D_800504C1 = D_8004FA18 - 1;
+}
+
+/* PROMOTED 2026-10-04 — func_8001F864
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+extern void func_8001F7EC(void);
+extern void func_8001EE34(void);
+extern unsigned char D_800504C2, D_800504C3;
+void func_8001F864(void)
+{
+    func_8001F7EC();
+    func_8001EE34();
+    D_800504C2 = 0;
+    D_800504C3 = 0;
+}
+
+/* PROMOTED 2026-10-04 — func_8001F898
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+extern int func_8001F13C(u8, u8, u16, u8);
+extern void func_8001EB10(VoiceState *);
+extern u8 func_8001467C(int);
+extern void func_80014AF0(int);
+extern void func_8001EF8C(VoiceState *, u8);
+int func_8001F898(u8 channel)
+{
+    int index;
+    VoiceState *state;
+    index = func_8001F13C(channel, 255, 65535, 1);
+    if (index != -1) {
+        state = &D_8004BEB8[index];
+        state->activeBD = 1;
+        state->external4C = 1;
+        func_8001EB10(state);
+        state->identifier60 = (u32)index | 0xFFFFFF00U;
+        if (func_8001467C(index)) func_80014AF0(index);
+        state->command00 = 0;
+        func_8001EF8C(state, channel);
+    }
+    return index;
+}
+
+/* PROMOTED 2026-10-11 — func_8001F954
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+extern void func_8001F6EC(VoiceState *);
+void func_8001F954(u32 index)
+{
+    if (index == 0xFFFFFFFFU) {
+        return;
+    }
+    if (func_8001467C(index)) {
+        func_80014AF0(index);
+    }
+    D_8004BEB8[index].identifier60 = index;
+    func_8001F6EC(&D_8004BEB8[index]);
+    D_8004BEB8[index].activeBD = 0;
+}
+
+/* PROMOTED 2026-10-05 — func_8001F9D0
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+extern void func_8001F6EC(VoiceState *);
+void func_8001F9D0(VoiceState *state)
+{
+    func_8001EB10(state);
+    state->flags24 &= ~3U;
+    state->value28 = 0;
+    func_8001F6EC(state);
+}
+
+/* PROMOTED 2026-10-04 — func_8001FA18
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+extern u8 D_8002C630;
+extern int func_8001EDF4(u32);
+extern void func_8001F9D0(VoiceState *);
+extern void func_80014B3C(int);
+int func_8001FA18(u32 key)
+{
+    int result;
+    u32 index;
+    u32 next;
+    result = -1;
+    if (D_8002C630) {
+        key = func_8001EDF4(key);
+        while (key != 0xFFFFFFFFU) {
+            index = key & 255;
+            next = D_8004BEB8[index].next_identifier;
+            if (key == D_8004BEB8[index].identifier60) {
+                result = 0;
+                if (D_8004BEB8[index].command00 != 0) {
+                    func_8001F9D0(&D_8004BEB8[index]);
+                }
+                func_80014B3C(index);
+            }
+            key = next;
+        }
+    }
+    return result;
+}
+
+/* PROMOTED 2026-10-04 — func_8001FAE4
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+#pragma pack(1)
+#pragma pack(0)
+void func_8001FAE4(u8 preserve_external)
+{
+    int i;
+    for (i = 0; i < D_8004FA18; i++) {
+        if (D_8004BEB8[i].command00 != 0) {
+            if (!preserve_external ||
+                (preserve_external && !D_8004BEB8[i].external4C)) {
+                func_8001F9D0(&D_8004BEB8[i]);
+                D_8004BEB8[i].command00 = 0;
+                D_8004BEB8[i].flags24 &= ~3U;
+            } else {
+                continue;
+            }
+        }
+        func_80014B3C(i);
+    }
+}
+

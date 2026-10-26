@@ -1,0 +1,16 @@
+{
+  "members": [
+    "track_info_display"
+  ],
+  "context": [
+    "func_800D0A1C"
+  ],
+  "files": [
+    "group.c"
+  ],
+  "keep": [
+    "track_info_display",
+    "func_800D0A1C"
+  ],
+  "flags": "-g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul"
+}

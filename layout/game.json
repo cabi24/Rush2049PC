@@ -1,0 +1,7574 @@
+{
+  "image": {
+    "base": "80086A50",
+    "path": "build/game_code.bin",
+    "sha256": "bf7da3fa6283428a97372250cd4076d15e9eae10f9d5709c0387fe0742d43a1d",
+    "size": 647072
+  },
+  "regions": [
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 1548,
+          "target_id": "func_80086A50",
+          "vaddr": 2148035152
+        },
+        {
+          "kind": "function",
+          "size": 180,
+          "target_id": "func_8008705C",
+          "vaddr": 2148036700
+        },
+        {
+          "kind": "function",
+          "size": 1780,
+          "target_id": "func_80087110",
+          "vaddr": 2148036880
+        },
+        {
+          "kind": "function",
+          "size": 220,
+          "target_id": "func_80087804",
+          "vaddr": 2148038660
+        },
+        {
+          "kind": "function",
+          "size": 296,
+          "target_id": "func_800878E0",
+          "vaddr": 2148038880
+        },
+        {
+          "kind": "function",
+          "size": 10048,
+          "target_id": "object_render",
+          "vaddr": 2148039176
+        },
+        {
+          "kind": "function",
+          "size": 580,
+          "target_id": "func_8008A148",
+          "vaddr": 2148049224
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "func_8008A38C",
+          "vaddr": 2148049804
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_8008A3E4",
+          "vaddr": 2148049892
+        },
+        {
+          "kind": "function",
+          "size": 472,
+          "target_id": "func_8008A46C",
+          "vaddr": 2148050028
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "func_8008A644",
+          "vaddr": 2148050500
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_8008A6A4",
+          "vaddr": 2148050596
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "sync_release_video",
+          "vaddr": 2148050640
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8008A6FC",
+          "vaddr": 2148050684
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_8008A704",
+          "vaddr": 2148050692
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8008A774",
+          "vaddr": 2148050804
+        },
+        {
+          "kind": "function",
+          "size": 676,
+          "target_id": "audio_queue_process",
+          "vaddr": 2148050812
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "controller_rumble_thunk",
+          "vaddr": 2148051488
+        },
+        {
+          "kind": "function",
+          "size": 420,
+          "target_id": "dma_wait_complete",
+          "vaddr": 2148051520
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "func_8008ABE4",
+          "vaddr": 2148051940
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "task_complete_signal",
+          "vaddr": 2148052084
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "func_8008AD04",
+          "vaddr": 2148052228
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "pointer_offset_wrapper",
+          "vaddr": 2148052296
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "func_8008AD6C",
+          "vaddr": 2148052332
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_8008AE10",
+          "vaddr": 2148052496
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_8008AE2C",
+          "vaddr": 2148052524
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_8008AE48",
+          "vaddr": 2148052552
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "func_8008AE64",
+          "vaddr": 2148052580
+        },
+        {
+          "kind": "function",
+          "size": 372,
+          "target_id": "model_data_load",
+          "vaddr": 2148052620
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "func_8008B000",
+          "vaddr": 2148052992
+        },
+        {
+          "kind": "function",
+          "size": 404,
+          "target_id": "model_transform_setup",
+          "vaddr": 2148053208
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "model_bounds_calc",
+          "vaddr": 2148053612
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_8008B2B4",
+          "vaddr": 2148053684
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_8008B2E4",
+          "vaddr": 2148053732
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "func_8008B32C",
+          "vaddr": 2148053804
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "func_8008B3A0",
+          "vaddr": 2148053920
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_8008B3C8",
+          "vaddr": 2148053960
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_8008B3F4",
+          "vaddr": 2148054004
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_8008B424",
+          "vaddr": 2148054052
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "vector_copy_scale",
+          "vaddr": 2148054132
+        },
+        {
+          "kind": "function",
+          "size": 380,
+          "target_id": "vector_normalize_length",
+          "vaddr": 2148054212
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_8008B640",
+          "vaddr": 2148054592
+        },
+        {
+          "kind": "function",
+          "size": 712,
+          "target_id": "physics_velocity_integrate_a",
+          "vaddr": 2148054684
+        },
+        {
+          "kind": "function",
+          "size": 288,
+          "target_id": "physics_velocity_integrate_b",
+          "vaddr": 2148055396
+        },
+        {
+          "kind": "function",
+          "size": 264,
+          "target_id": "physics_velocity_integrate_c",
+          "vaddr": 2148055684
+        },
+        {
+          "kind": "function",
+          "size": 264,
+          "target_id": "physics_velocity_integrate_d",
+          "vaddr": 2148055948
+        },
+        {
+          "kind": "function",
+          "size": 264,
+          "target_id": "physics_velocity_integrate_e",
+          "vaddr": 2148056212
+        },
+        {
+          "kind": "function",
+          "size": 264,
+          "target_id": "physics_velocity_integrate_f",
+          "vaddr": 2148056476
+        },
+        {
+          "kind": "function",
+          "size": 464,
+          "target_id": "func_8008BEA4",
+          "vaddr": 2148056740
+        },
+        {
+          "kind": "function",
+          "size": 1232,
+          "target_id": "func_8008C074",
+          "vaddr": 2148057204
+        },
+        {
+          "kind": "function",
+          "size": 156,
+          "target_id": "func_8008C544",
+          "vaddr": 2148058436
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "func_8008C5E0",
+          "vaddr": 2148058592
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "func_8008C680",
+          "vaddr": 2148058752
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_8008C720",
+          "vaddr": 2148058912
+        },
+        {
+          "kind": "function",
+          "size": 268,
+          "target_id": "func_8008C768",
+          "vaddr": 2148058984
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_8008C874",
+          "vaddr": 2148059252
+        },
+        {
+          "kind": "function",
+          "size": 2048,
+          "target_id": "entity_render_setup",
+          "vaddr": 2148059268
+        },
+        {
+          "kind": "function",
+          "size": 20,
+          "target_id": "func_8008D084",
+          "vaddr": 2148061316
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_8008D098",
+          "vaddr": 2148061336
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_8008D0B0",
+          "vaddr": 2148061360
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 0,
+      "name": "blob_80086a50",
+      "vaddr_end": 2148061376,
+      "vaddr_start": 2148035152
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "func_8008D0C0",
+          "vaddr": 2148061376
+        },
+        {
+          "kind": "function",
+          "size": 1424,
+          "target_id": "entity_process_main",
+          "vaddr": 2148061472
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "math_utility",
+          "vaddr": 2148062896
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "func_8008D6FC",
+          "vaddr": 2148062972
+        },
+        {
+          "kind": "function",
+          "size": 268,
+          "target_id": "euler_to_matrix",
+          "vaddr": 2148063076
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "func_8008D870",
+          "vaddr": 2148063344
+        },
+        {
+          "kind": "function",
+          "size": 100,
+          "target_id": "matrix_scale_apply",
+          "vaddr": 2148063448
+        },
+        {
+          "kind": "function",
+          "size": 1840,
+          "target_id": "anim_state_update",
+          "vaddr": 2148063548
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_8008E06C",
+          "vaddr": 2148065388
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "func_8008E098",
+          "vaddr": 2148065432
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "func_8008E0B8",
+          "vaddr": 2148065464
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "func_8008E144",
+          "vaddr": 2148065604
+        },
+        {
+          "kind": "function",
+          "size": 208,
+          "target_id": "render_mode_select",
+          "vaddr": 2148065692
+        },
+        {
+          "kind": "function",
+          "size": 300,
+          "target_id": "func_8008E26C",
+          "vaddr": 2148065900
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "sign_extend_call",
+          "vaddr": 2148066200
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_8008E3C0",
+          "vaddr": 2148066240
+        },
+        {
+          "kind": "function",
+          "size": 1544,
+          "target_id": "func_8008E408",
+          "vaddr": 2148066312
+        },
+        {
+          "kind": "function",
+          "size": 5544,
+          "target_id": "entity_spawn_init",
+          "vaddr": 2148067856
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_8008FFB8",
+          "vaddr": 2148073400
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_8008FFD0",
+          "vaddr": 2148073424
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_8009002C",
+          "vaddr": 2148073516
+        },
+        {
+          "kind": "function",
+          "size": 416,
+          "target_id": "entity_spawn_callback",
+          "vaddr": 2148073608
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "sound_call_simple",
+          "vaddr": 2148074024
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "sound_call_minimal",
+          "vaddr": 2148074068
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_80090284",
+          "vaddr": 2148074116
+        },
+        {
+          "kind": "function",
+          "size": 1128,
+          "target_id": "func_80090308",
+          "vaddr": 2148074248
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_80090770",
+          "vaddr": 2148075376
+        },
+        {
+          "kind": "function",
+          "size": 260,
+          "target_id": "entity_transform_apply",
+          "vaddr": 2148075420
+        },
+        {
+          "kind": "function",
+          "size": 712,
+          "target_id": "entity_physics_update",
+          "vaddr": 2148075680
+        },
+        {
+          "kind": "function",
+          "size": 820,
+          "target_id": "entity_collision_detect",
+          "vaddr": 2148076392
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "func_80090E9C",
+          "vaddr": 2148077212
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "PitchUV",
+          "vaddr": 2148077380
+        },
+        {
+          "kind": "function",
+          "size": 2184,
+          "target_id": "entity_update_callback",
+          "vaddr": 2148077548
+        },
+        {
+          "kind": "function",
+          "size": 636,
+          "target_id": "entity_anim_texture",
+          "vaddr": 2148079732
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80091AF0",
+          "vaddr": 2148080368
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80091AF8",
+          "vaddr": 2148080376
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "func_80091B00",
+          "vaddr": 2148080384
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "func_80091BA8",
+          "vaddr": 2148080552
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80091BFC",
+          "vaddr": 2148080636
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "scheduler_recv",
+          "vaddr": 2148080644
+        },
+        {
+          "kind": "function",
+          "size": 440,
+          "target_id": "entity_transform_calc",
+          "vaddr": 2148080804
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "client_sync",
+          "vaddr": 2148081244
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "entity_hierarchy_update",
+          "vaddr": 2148081460
+        },
+        {
+          "kind": "function",
+          "size": 352,
+          "target_id": "func_80091FBC",
+          "vaddr": 2148081596
+        },
+        {
+          "kind": "function",
+          "size": 348,
+          "target_id": "func_8009211C",
+          "vaddr": 2148081948
+        },
+        {
+          "kind": "function",
+          "size": 232,
+          "target_id": "func_80092278",
+          "vaddr": 2148082296
+        },
+        {
+          "kind": "function",
+          "size": 292,
+          "target_id": "entity_flags_apply",
+          "vaddr": 2148082528
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_80092484",
+          "vaddr": 2148082820
+        },
+        {
+          "kind": "function",
+          "size": 1676,
+          "target_id": "buffer_swap",
+          "vaddr": 2148082932
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_80092B80",
+          "vaddr": 2148084608
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_80092BC8",
+          "vaddr": 2148084680
+        },
+        {
+          "kind": "function",
+          "size": 100,
+          "target_id": "func_80092BF4",
+          "vaddr": 2148084724
+        },
+        {
+          "kind": "function",
+          "size": 296,
+          "target_id": "entity_name_copy",
+          "vaddr": 2148084824
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_80092D80",
+          "vaddr": 2148085120
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "func_80092DCC",
+          "vaddr": 2148085196
+        },
+        {
+          "kind": "function",
+          "size": 436,
+          "target_id": "string_copy_format",
+          "vaddr": 2148085292
+        },
+        {
+          "kind": "function",
+          "size": 188,
+          "target_id": "func_80092FE0",
+          "vaddr": 2148085728
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8009309C",
+          "vaddr": 2148085916
+        },
+        {
+          "kind": "function",
+          "size": 2684,
+          "target_id": "AnimateRocketFlame",
+          "vaddr": 2148085924
+        },
+        {
+          "kind": "function",
+          "size": 3280,
+          "target_id": "AnimateFrame",
+          "vaddr": 2148088608
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 1,
+      "name": "blob_8008d0c0",
+      "vaddr_end": 2148091888,
+      "vaddr_start": 2148061376
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800947F0",
+          "vaddr": 2148091888
+        },
+        {
+          "kind": "function",
+          "size": 332,
+          "target_id": "audio_channel_setup",
+          "vaddr": 2148092040
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_800949D4",
+          "vaddr": 2148092372
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80094A44",
+          "vaddr": 2148092484
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80094A4C",
+          "vaddr": 2148092492
+        },
+        {
+          "kind": "function",
+          "size": 468,
+          "target_id": "audio_channel_priority",
+          "vaddr": 2148092500
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "audio_volume_pan",
+          "vaddr": 2148092968
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "Input_SetPadEnabledFlag",
+          "vaddr": 2148093216
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "Input_SetPadSecondaryFlag",
+          "vaddr": 2148093288
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "input_status_update",
+          "vaddr": 2148093360
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "Input_SetAnalogBounds",
+          "vaddr": 2148093440
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "Input_InitPadHandlers",
+          "vaddr": 2148093576
+        },
+        {
+          "kind": "function",
+          "size": 192,
+          "target_id": "Input_ApplyPadConfig",
+          "vaddr": 2148093640
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "input_new_data_wrapper",
+          "vaddr": 2148093832
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_80094FC4",
+          "vaddr": 2148093892
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "audio_channel_reset",
+          "vaddr": 2148093928
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "pointer_compare_thunk",
+          "vaddr": 2148094092
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "func_800950AC",
+          "vaddr": 2148094124
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "validate_and_call",
+          "vaddr": 2148094240
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "sound_volume_helper",
+          "vaddr": 2148094292
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_80095198",
+          "vaddr": 2148094360
+        },
+        {
+          "kind": "function",
+          "size": 444,
+          "target_id": "sound_position_update",
+          "vaddr": 2148094432
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "draw_sprites",
+          "vaddr": 2148094876
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800953B4",
+          "vaddr": 2148094900
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800953BC",
+          "vaddr": 2148094908
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800953C4",
+          "vaddr": 2148094916
+        },
+        {
+          "kind": "function",
+          "size": 212,
+          "target_id": "audio_fade_control",
+          "vaddr": 2148094924
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800954A0",
+          "vaddr": 2148095136
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "gfx_setup_e700",
+          "vaddr": 2148095144
+        },
+        {
+          "kind": "function",
+          "size": 404,
+          "target_id": "music_track_control",
+          "vaddr": 2148095272
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800956BC",
+          "vaddr": 2148095676
+        },
+        {
+          "kind": "function",
+          "size": 236,
+          "target_id": "audio_bus_route",
+          "vaddr": 2148095756
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800957F8",
+          "vaddr": 2148095992
+        },
+        {
+          "kind": "function",
+          "size": 184,
+          "target_id": "audio_effect_setup",
+          "vaddr": 2148096000
+        },
+        {
+          "kind": "function",
+          "size": 100,
+          "target_id": "func_800958B8",
+          "vaddr": 2148096184
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8009591C",
+          "vaddr": 2148096284
+        },
+        {
+          "kind": "function",
+          "size": 184,
+          "target_id": "audio_timing_sync",
+          "vaddr": 2148096292
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "audio_pitch_adjust",
+          "vaddr": 2148096476
+        },
+        {
+          "kind": "function",
+          "size": 236,
+          "target_id": "sound_priority_set",
+          "vaddr": 2148096548
+        },
+        {
+          "kind": "function",
+          "size": 236,
+          "target_id": "audio_stream_control",
+          "vaddr": 2148096784
+        },
+        {
+          "kind": "function",
+          "size": 236,
+          "target_id": "audio_buffer_manage",
+          "vaddr": 2148097020
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_80095CE8",
+          "vaddr": 2148097256
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80095CF4",
+          "vaddr": 2148097268
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80095CFC",
+          "vaddr": 2148097276
+        },
+        {
+          "kind": "function",
+          "size": 436,
+          "target_id": "audio_state_save",
+          "vaddr": 2148097284
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80095EB8",
+          "vaddr": 2148097720
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_80095EC0",
+          "vaddr": 2148097728
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_80095EF4",
+          "vaddr": 2148097780
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_80095F8C",
+          "vaddr": 2148097932
+        },
+        {
+          "kind": "function",
+          "size": 244,
+          "target_id": "audio_reverb_update",
+          "vaddr": 2148098008
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800960CC",
+          "vaddr": 2148098252
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "audio_effect_process",
+          "vaddr": 2148098260
+        },
+        {
+          "kind": "function",
+          "size": 264,
+          "target_id": "func_80096130",
+          "vaddr": 2148098352
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_80096238",
+          "vaddr": 2148098616
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_80096288",
+          "vaddr": 2148098696
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "slot_value_get",
+          "vaddr": 2148098712
+        },
+        {
+          "kind": "function",
+          "size": 184,
+          "target_id": "PurgeableMemory",
+          "vaddr": 2148098772
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "LockWaveInstance",
+          "vaddr": 2148098956
+        },
+        {
+          "kind": "function",
+          "size": 468,
+          "target_id": "display_list_traverse",
+          "vaddr": 2148099048
+        },
+        {
+          "kind": "function",
+          "size": 284,
+          "target_id": "entity_render_mode",
+          "vaddr": 2148099516
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 2,
+      "name": "blob_800947f0",
+      "vaddr_end": 2148099800,
+      "vaddr_start": 2148091888
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_800966D8",
+          "vaddr": 2148099800
+        },
+        {
+          "kind": "function",
+          "size": 716,
+          "target_id": "entity_lod_select",
+          "vaddr": 2148099892
+        },
+        {
+          "kind": "function",
+          "size": 256,
+          "target_id": "entity_cull_check",
+          "vaddr": 2148100608
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_80096B00",
+          "vaddr": 2148100864
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "MBGetFromWad",
+          "vaddr": 2148100956
+        },
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "func_80096BBC",
+          "vaddr": 2148101052
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "MBSetupWad",
+          "vaddr": 2148101160
+        },
+        {
+          "kind": "function",
+          "size": 1204,
+          "target_id": "SetupWaveModel",
+          "vaddr": 2148101288
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8009715C",
+          "vaddr": 2148102492
+        },
+        {
+          "kind": "function",
+          "size": 344,
+          "target_id": "func_80097164",
+          "vaddr": 2148102500
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800972BC",
+          "vaddr": 2148102844
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "func_800972C4",
+          "vaddr": 2148102852
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "audio_buffer_sync",
+          "vaddr": 2148102940
+        },
+        {
+          "kind": "function",
+          "size": 228,
+          "target_id": "audio_helper",
+          "vaddr": 2148103044
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097468",
+          "vaddr": 2148103272
+        },
+        {
+          "kind": "function",
+          "size": 124,
+          "target_id": "AllocateMemoryHeap",
+          "vaddr": 2148103280
+        },
+        {
+          "kind": "function",
+          "size": 416,
+          "target_id": "AllocateHandleHeap",
+          "vaddr": 2148103404
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8009768C",
+          "vaddr": 2148103820
+        },
+        {
+          "kind": "function",
+          "size": 260,
+          "target_id": "func_80097694",
+          "vaddr": 2148103828
+        },
+        {
+          "kind": "function",
+          "size": 520,
+          "target_id": "audio_frame_sync",
+          "vaddr": 2148104088
+        },
+        {
+          "kind": "function",
+          "size": 292,
+          "target_id": "func_800979A0",
+          "vaddr": 2148104608
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097AC4",
+          "vaddr": 2148104900
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097ACC",
+          "vaddr": 2148104908
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097AD4",
+          "vaddr": 2148104916
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097ADC",
+          "vaddr": 2148104924
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097AE4",
+          "vaddr": 2148104932
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097AEC",
+          "vaddr": 2148104940
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097AF4",
+          "vaddr": 2148104948
+        },
+        {
+          "kind": "function",
+          "size": 412,
+          "target_id": "MP_TargetSteerPos",
+          "vaddr": 2148104956
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80097C98",
+          "vaddr": 2148105368
+        },
+        {
+          "kind": "function",
+          "size": 2228,
+          "target_id": "camera_transform",
+          "vaddr": 2148105376
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "resource_process_thunk",
+          "vaddr": 2148107604
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "camera_update_a",
+          "vaddr": 2148107636
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "param_reshuffle_wrapper",
+          "vaddr": 2148107764
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "camera_update_b",
+          "vaddr": 2148107808
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "pointer_offset8_call",
+          "vaddr": 2148107952
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800986D4",
+          "vaddr": 2148107988
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_800986DC",
+          "vaddr": 2148107996
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "func_80098710",
+          "vaddr": 2148108048
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "entity_state_check",
+          "vaddr": 2148108264
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_80098860",
+          "vaddr": 2148108384
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8009886C",
+          "vaddr": 2148108396
+        },
+        {
+          "kind": "function",
+          "size": 100,
+          "target_id": "entity_flag_check",
+          "vaddr": 2148108404
+        },
+        {
+          "kind": "function",
+          "size": 380,
+          "target_id": "func_800988D8",
+          "vaddr": 2148108504
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_80098A54",
+          "vaddr": 2148108884
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80098ADC",
+          "vaddr": 2148109020
+        },
+        {
+          "kind": "function",
+          "size": 1236,
+          "target_id": "engine_sound_sync",
+          "vaddr": 2148109028
+        },
+        {
+          "kind": "function",
+          "size": 756,
+          "target_id": "func_80098FB8",
+          "vaddr": 2148110264
+        },
+        {
+          "kind": "function",
+          "size": 2180,
+          "target_id": "entity_ai_pathfind",
+          "vaddr": 2148111020
+        },
+        {
+          "kind": "function",
+          "size": 204,
+          "target_id": "func_80099B30",
+          "vaddr": 2148113200
+        },
+        {
+          "kind": "function",
+          "size": 10236,
+          "target_id": "render_display_list",
+          "vaddr": 2148113404
+        },
+        {
+          "kind": "function",
+          "size": 452,
+          "target_id": "func_8009C3F8",
+          "vaddr": 2148123640
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "camera_update_c",
+          "vaddr": 2148124092
+        },
+        {
+          "kind": "function",
+          "size": 784,
+          "target_id": "camera_update_d",
+          "vaddr": 2148124128
+        },
+        {
+          "kind": "function",
+          "size": 2900,
+          "target_id": "particle_system",
+          "vaddr": 2148124912
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_8009D444",
+          "vaddr": 2148127812
+        },
+        {
+          "kind": "function",
+          "size": 684,
+          "target_id": "func_8009D45C",
+          "vaddr": 2148127836
+        },
+        {
+          "kind": "function",
+          "size": 660,
+          "target_id": "func_8009D708",
+          "vaddr": 2148128520
+        },
+        {
+          "kind": "function",
+          "size": 692,
+          "target_id": "func_8009D99C",
+          "vaddr": 2148129180
+        },
+        {
+          "kind": "function",
+          "size": 200,
+          "target_id": "track_collision",
+          "vaddr": 2148129872
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 3,
+      "name": "blob_800966d8",
+      "vaddr_end": 2148130072,
+      "vaddr_start": 2148099800
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "track_collision_edge",
+          "vaddr": 2148130072
+        },
+        {
+          "kind": "function",
+          "size": 2712,
+          "target_id": "track_collision_wall",
+          "vaddr": 2148130184
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "func_8009E820",
+          "vaddr": 2148132896
+        },
+        {
+          "kind": "function",
+          "size": 292,
+          "target_id": "func_8009E8B4",
+          "vaddr": 2148133044
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "func_8009E9D8",
+          "vaddr": 2148133336
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "RollUV",
+          "vaddr": 2148133480
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "gfx_setup_fc",
+          "vaddr": 2148133648
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8009EBB8",
+          "vaddr": 2148133816
+        },
+        {
+          "kind": "function",
+          "size": 1176,
+          "target_id": "physics_float_calc",
+          "vaddr": 2148133824
+        },
+        {
+          "kind": "function",
+          "size": 5228,
+          "target_id": "func_8009F058",
+          "vaddr": 2148135000
+        },
+        {
+          "kind": "function",
+          "size": 2720,
+          "target_id": "Input_ProcessGameplayPad",
+          "vaddr": 2148140228
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A0F64",
+          "vaddr": 2148142948
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "MP_TargetSpeed",
+          "vaddr": 2148142956
+        },
+        {
+          "kind": "function",
+          "size": 520,
+          "target_id": "NextMaxPath",
+          "vaddr": 2148143068
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "PrevMaxPath",
+          "vaddr": 2148143588
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "InitMaxPath",
+          "vaddr": 2148143684
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "assign_default_paths",
+          "vaddr": 2148143820
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "sync_maxpath_to_checkpoint",
+          "vaddr": 2148143932
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A13C4",
+          "vaddr": 2148144068
+        },
+        {
+          "kind": "function",
+          "size": 276,
+          "target_id": "check_mpath_save",
+          "vaddr": 2148144104
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_800A14FC",
+          "vaddr": 2148144380
+        },
+        {
+          "kind": "function",
+          "size": 312,
+          "target_id": "func_800A150C",
+          "vaddr": 2148144396
+        },
+        {
+          "kind": "function",
+          "size": 716,
+          "target_id": "func_800A1644",
+          "vaddr": 2148144708
+        },
+        {
+          "kind": "function",
+          "size": 300,
+          "target_id": "func_800A1910",
+          "vaddr": 2148145424
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A1A3C",
+          "vaddr": 2148145724
+        },
+        {
+          "kind": "function",
+          "size": 340,
+          "target_id": "func_800A1A60",
+          "vaddr": 2148145760
+        },
+        {
+          "kind": "function",
+          "size": 184,
+          "target_id": "func_800A1BB4",
+          "vaddr": 2148146100
+        },
+        {
+          "kind": "function",
+          "size": 360,
+          "target_id": "func_800A1C6C",
+          "vaddr": 2148146284
+        },
+        {
+          "kind": "function",
+          "size": 192,
+          "target_id": "func_800A1DD4",
+          "vaddr": 2148146644
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800A1E94",
+          "vaddr": 2148146836
+        },
+        {
+          "kind": "function",
+          "size": 652,
+          "target_id": "track_data_decompress",
+          "vaddr": 2148146968
+        },
+        {
+          "kind": "function",
+          "size": 468,
+          "target_id": "PS_FlushPak",
+          "vaddr": 2148147620
+        },
+        {
+          "kind": "function",
+          "size": 396,
+          "target_id": "PS_FlushFile",
+          "vaddr": 2148148088
+        },
+        {
+          "kind": "function",
+          "size": 188,
+          "target_id": "PS_WriteFile",
+          "vaddr": 2148148484
+        },
+        {
+          "kind": "function",
+          "size": 176,
+          "target_id": "AdjustSteer",
+          "vaddr": 2148148672
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A2670",
+          "vaddr": 2148148848
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A2678",
+          "vaddr": 2148148856
+        },
+        {
+          "kind": "function",
+          "size": 784,
+          "target_id": "pak_delete_file_retry",
+          "vaddr": 2148148864
+        },
+        {
+          "kind": "function",
+          "size": 852,
+          "target_id": "drone_set_catchup",
+          "vaddr": 2148149648
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "PS_ReadFile",
+          "vaddr": 2148150500
+        },
+        {
+          "kind": "function",
+          "size": 56,
+          "target_id": "no_catchup",
+          "vaddr": 2148150540
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A2D44",
+          "vaddr": 2148150596
+        },
+        {
+          "kind": "function",
+          "size": 1752,
+          "target_id": "PS_CreateFile",
+          "vaddr": 2148150604
+        },
+        {
+          "kind": "function",
+          "size": 228,
+          "target_id": "func_800A3424",
+          "vaddr": 2148152356
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_800A3508",
+          "vaddr": 2148152584
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_800A3518",
+          "vaddr": 2148152600
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A3598",
+          "vaddr": 2148152728
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_800A35BC",
+          "vaddr": 2148152764
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800A35EC",
+          "vaddr": 2148152812
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A35F8",
+          "vaddr": 2148152824
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A361C",
+          "vaddr": 2148152860
+        },
+        {
+          "kind": "function",
+          "size": 204,
+          "target_id": "func_800A3640",
+          "vaddr": 2148152896
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_800A370C",
+          "vaddr": 2148153100
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A371C",
+          "vaddr": 2148153116
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "ClearPak",
+          "vaddr": 2148153124
+        },
+        {
+          "kind": "function",
+          "size": 3200,
+          "target_id": "track_render_process",
+          "vaddr": 2148153212
+        },
+        {
+          "kind": "function",
+          "size": 212,
+          "target_id": "func_800A43FC",
+          "vaddr": 2148156412
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800A44D0",
+          "vaddr": 2148156624
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800A44DC",
+          "vaddr": 2148156636
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "func_800A44E8",
+          "vaddr": 2148156648
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 4,
+      "name": "blob_8009dd18",
+      "vaddr_end": 2148156680,
+      "vaddr_start": 2148130072
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 324,
+          "target_id": "car_lod_select",
+          "vaddr": 2148156680
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_800A464C",
+          "vaddr": 2148157004
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_800A46CC",
+          "vaddr": 2148157132
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_800A473C",
+          "vaddr": 2148157244
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800A4770",
+          "vaddr": 2148157296
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "func_800A47C0",
+          "vaddr": 2148157376
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800A48BC",
+          "vaddr": 2148157628
+        },
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "audio_start",
+          "vaddr": 2148157640
+        },
+        {
+          "kind": "function",
+          "size": 400,
+          "target_id": "sound_init",
+          "vaddr": 2148157748
+        },
+        {
+          "kind": "function",
+          "size": 124,
+          "target_id": "wheel_setup_initial",
+          "vaddr": 2148158148
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A4B40",
+          "vaddr": 2148158272
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "resource_update_global",
+          "vaddr": 2148158280
+        },
+        {
+          "kind": "function",
+          "size": 232,
+          "target_id": "wheel_params_set",
+          "vaddr": 2148158316
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "init_wait_completion",
+          "vaddr": 2148158548
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_800A4CA8",
+          "vaddr": 2148158632
+        },
+        {
+          "kind": "function",
+          "size": 408,
+          "target_id": "func_800A4CB8",
+          "vaddr": 2148158648
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A4E50",
+          "vaddr": 2148159056
+        },
+        {
+          "kind": "function",
+          "size": 444,
+          "target_id": "func_800A4E58",
+          "vaddr": 2148159064
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A5014",
+          "vaddr": 2148159508
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "suspension_setup",
+          "vaddr": 2148159516
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_800A510C",
+          "vaddr": 2148159756
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_800A5158",
+          "vaddr": 2148159832
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A51D8",
+          "vaddr": 2148159960
+        },
+        {
+          "kind": "function",
+          "size": 680,
+          "target_id": "car_damage_visual",
+          "vaddr": 2148159968
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "InitBlits",
+          "vaddr": 2148160648
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_800A54FC",
+          "vaddr": 2148160764
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A5518",
+          "vaddr": 2148160792
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A553C",
+          "vaddr": 2148160828
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_800A5560",
+          "vaddr": 2148160864
+        },
+        {
+          "kind": "function",
+          "size": 456,
+          "target_id": "func_800A557C",
+          "vaddr": 2148160892
+        },
+        {
+          "kind": "function",
+          "size": 452,
+          "target_id": "exhaust_smoke_effect",
+          "vaddr": 2148161348
+        },
+        {
+          "kind": "function",
+          "size": 312,
+          "target_id": "arb_rate_set",
+          "vaddr": 2148161800
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "ZOID_ResetWindows",
+          "vaddr": 2148162112
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "func_800A5B3C",
+          "vaddr": 2148162364
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A5BB0",
+          "vaddr": 2148162480
+        },
+        {
+          "kind": "function",
+          "size": 372,
+          "target_id": "InitWaves",
+          "vaddr": 2148162488
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A5D2C",
+          "vaddr": 2148162860
+        },
+        {
+          "kind": "function",
+          "size": 836,
+          "target_id": "car_shadow_render",
+          "vaddr": 2148162868
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_800A6078",
+          "vaddr": 2148163704
+        },
+        {
+          "kind": "function",
+          "size": 284,
+          "target_id": "car_lights_render",
+          "vaddr": 2148163732
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "func_800A61B0",
+          "vaddr": 2148164016
+        },
+        {
+          "kind": "function",
+          "size": 448,
+          "target_id": "brake_light_update",
+          "vaddr": 2148164164
+        },
+        {
+          "kind": "function",
+          "size": 2016,
+          "target_id": "car_render_full",
+          "vaddr": 2148164612
+        },
+        {
+          "kind": "function",
+          "size": 2072,
+          "target_id": "wheel_render_full",
+          "vaddr": 2148166628
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_800A73FC",
+          "vaddr": 2148168700
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "func_800A7428",
+          "vaddr": 2148168744
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_800A7480",
+          "vaddr": 2148168832
+        },
+        {
+          "kind": "function",
+          "size": 808,
+          "target_id": "viewport_scale",
+          "vaddr": 2148168968
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_800A7830",
+          "vaddr": 2148169776
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "func_800A785C",
+          "vaddr": 2148169820
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_800A7884",
+          "vaddr": 2148169860
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800A78B0",
+          "vaddr": 2148169904
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "func_800A78BC",
+          "vaddr": 2148169916
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800A79B8",
+          "vaddr": 2148170168
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_800A79DC",
+          "vaddr": 2148170204
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "func_800A79F4",
+          "vaddr": 2148170228
+        },
+        {
+          "kind": "function",
+          "size": 276,
+          "target_id": "car_mass_set",
+          "vaddr": 2148170468
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "func_800A7BF8",
+          "vaddr": 2148170744
+        },
+        {
+          "kind": "function",
+          "size": 208,
+          "target_id": "car_gear_shift",
+          "vaddr": 2148170908
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800A7D6C",
+          "vaddr": 2148171116
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 5,
+      "name": "blob_800a4508",
+      "vaddr_end": 2148171248,
+      "vaddr_start": 2148156680
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "object_process_thunk",
+          "vaddr": 2148171248
+        },
+        {
+          "kind": "function",
+          "size": 704,
+          "target_id": "func_800A7E10",
+          "vaddr": 2148171280
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "car_cg_height_set",
+          "vaddr": 2148171984
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_800A8174",
+          "vaddr": 2148172148
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_800A81FC",
+          "vaddr": 2148172284
+        },
+        {
+          "kind": "function",
+          "size": 1268,
+          "target_id": "func_800A8284",
+          "vaddr": 2148172420
+        },
+        {
+          "kind": "function",
+          "size": 1556,
+          "target_id": "func_800A8778",
+          "vaddr": 2148173688
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A8D8C",
+          "vaddr": 2148175244
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A8D94",
+          "vaddr": 2148175252
+        },
+        {
+          "kind": "function",
+          "size": 412,
+          "target_id": "car_collision_init",
+          "vaddr": 2148175260
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_800A8F38",
+          "vaddr": 2148175672
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "car_collision_update",
+          "vaddr": 2148175716
+        },
+        {
+          "kind": "function",
+          "size": 568,
+          "target_id": "func_800A9054",
+          "vaddr": 2148175956
+        },
+        {
+          "kind": "function",
+          "size": 260,
+          "target_id": "func_800A928C",
+          "vaddr": 2148176524
+        },
+        {
+          "kind": "function",
+          "size": 896,
+          "target_id": "car_crash_detect",
+          "vaddr": 2148176784
+        },
+        {
+          "kind": "function",
+          "size": 688,
+          "target_id": "func_800A9710",
+          "vaddr": 2148177680
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800A99C0",
+          "vaddr": 2148178368
+        },
+        {
+          "kind": "function",
+          "size": 1632,
+          "target_id": "car_crash_response",
+          "vaddr": 2148178376
+        },
+        {
+          "kind": "function",
+          "size": 508,
+          "target_id": "func_800AA028",
+          "vaddr": 2148180008
+        },
+        {
+          "kind": "function",
+          "size": 552,
+          "target_id": "func_800AA224",
+          "vaddr": 2148180516
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AA44C",
+          "vaddr": 2148181068
+        },
+        {
+          "kind": "function",
+          "size": 692,
+          "target_id": "car_reset_position",
+          "vaddr": 2148181076
+        },
+        {
+          "kind": "function",
+          "size": 1068,
+          "target_id": "car_spawn_at_checkpoint",
+          "vaddr": 2148181768
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AAB34",
+          "vaddr": 2148182836
+        },
+        {
+          "kind": "function",
+          "size": 812,
+          "target_id": "func_800AAB3C",
+          "vaddr": 2148182844
+        },
+        {
+          "kind": "function",
+          "size": 804,
+          "target_id": "car_angular_velocity_clamp",
+          "vaddr": 2148183656
+        },
+        {
+          "kind": "function",
+          "size": 924,
+          "target_id": "func_800AB18C",
+          "vaddr": 2148184460
+        },
+        {
+          "kind": "function",
+          "size": 20,
+          "target_id": "func_800AB528",
+          "vaddr": 2148185384
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "func_800AB53C",
+          "vaddr": 2148185404
+        },
+        {
+          "kind": "function",
+          "size": 212,
+          "target_id": "func_800AB638",
+          "vaddr": 2148185656
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "engine_rpm_calc",
+          "vaddr": 2148185868
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_800AB750",
+          "vaddr": 2148185936
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AB7D0",
+          "vaddr": 2148186064
+        },
+        {
+          "kind": "function",
+          "size": 896,
+          "target_id": "engine_torque_calc",
+          "vaddr": 2148186072
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "func_800ABB58",
+          "vaddr": 2148186968
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "transmission_shift",
+          "vaddr": 2148187088
+        },
+        {
+          "kind": "function",
+          "size": 1808,
+          "target_id": "transmission_ratio_get",
+          "vaddr": 2148187336
+        },
+        {
+          "kind": "function",
+          "size": 648,
+          "target_id": "differential_output",
+          "vaddr": 2148189144
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AC660",
+          "vaddr": 2148189792
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "wheel_torque_apply",
+          "vaddr": 2148189800
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "fp_call_wrapper",
+          "vaddr": 2148189940
+        },
+        {
+          "kind": "function",
+          "size": 196,
+          "target_id": "brake_force_apply",
+          "vaddr": 2148190044
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "resource_slot_get",
+          "vaddr": 2148190240
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "UnlockWaveInstance",
+          "vaddr": 2148190272
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "player_state_get",
+          "vaddr": 2148190360
+        },
+        {
+          "kind": "function",
+          "size": 232,
+          "target_id": "func_800AC8D4",
+          "vaddr": 2148190420
+        },
+        {
+          "kind": "function",
+          "size": 224,
+          "target_id": "func_800AC9BC",
+          "vaddr": 2148190652
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "handbrake_apply",
+          "vaddr": 2148190876
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "vector_diff_process",
+          "vaddr": 2148191092
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "func_800ACBC4",
+          "vaddr": 2148191172
+        },
+        {
+          "kind": "function",
+          "size": 992,
+          "target_id": "traction_control",
+          "vaddr": 2148191256
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800ACFF8",
+          "vaddr": 2148192248
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800AD090",
+          "vaddr": 2148192400
+        },
+        {
+          "kind": "function",
+          "size": 928,
+          "target_id": "steering_sensitivity",
+          "vaddr": 2148192552
+        },
+        {
+          "kind": "function",
+          "size": 264,
+          "target_id": "func_800AD4C8",
+          "vaddr": 2148193480
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_800AD5D0",
+          "vaddr": 2148193744
+        },
+        {
+          "kind": "function",
+          "size": 228,
+          "target_id": "func_800AD650",
+          "vaddr": 2148193872
+        },
+        {
+          "kind": "function",
+          "size": 1452,
+          "target_id": "input_process_controller",
+          "vaddr": 2148194100
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "func_800ADCE0",
+          "vaddr": 2148195552
+        },
+        {
+          "kind": "function",
+          "size": 3580,
+          "target_id": "input_deadzone_apply",
+          "vaddr": 2148195672
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 6,
+      "name": "blob_800a7df0",
+      "vaddr_end": 2148199252,
+      "vaddr_start": 2148171248
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 452,
+          "target_id": "camera_position_update",
+          "vaddr": 2148199252
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AED18",
+          "vaddr": 2148199704
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "func_800AED20",
+          "vaddr": 2148199712
+        },
+        {
+          "kind": "function",
+          "size": 636,
+          "target_id": "camera_target_track",
+          "vaddr": 2148199780
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "camera_collision_check",
+          "vaddr": 2148200416
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AF064",
+          "vaddr": 2148200548
+        },
+        {
+          "kind": "function",
+          "size": 1200,
+          "target_id": "save_write_data",
+          "vaddr": 2148200556
+        },
+        {
+          "kind": "function",
+          "size": 196,
+          "target_id": "camera_smooth_lerp",
+          "vaddr": 2148201756
+        },
+        {
+          "kind": "function",
+          "size": 176,
+          "target_id": "save_slot_valid",
+          "vaddr": 2148201952
+        },
+        {
+          "kind": "function",
+          "size": 436,
+          "target_id": "save_load_data",
+          "vaddr": 2148202128
+        },
+        {
+          "kind": "function",
+          "size": 124,
+          "target_id": "func_800AF844",
+          "vaddr": 2148202564
+        },
+        {
+          "kind": "function",
+          "size": 452,
+          "target_id": "func_800AF8C0",
+          "vaddr": 2148202688
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "func_800AFA84",
+          "vaddr": 2148203140
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AFB28",
+          "vaddr": 2148203304
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AFB30",
+          "vaddr": 2148203312
+        },
+        {
+          "kind": "function",
+          "size": 540,
+          "target_id": "save_validate",
+          "vaddr": 2148203320
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800AFD54",
+          "vaddr": 2148203860
+        },
+        {
+          "kind": "function",
+          "size": 1060,
+          "target_id": "cpak_init",
+          "vaddr": 2148203868
+        },
+        {
+          "kind": "function",
+          "size": 848,
+          "target_id": "cpak_read",
+          "vaddr": 2148204928
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "pool_linked_list_init",
+          "vaddr": 2148205776
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "struct_fields_init",
+          "vaddr": 2148205904
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800B0580",
+          "vaddr": 2148205952
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "func_800B0618",
+          "vaddr": 2148206104
+        },
+        {
+          "kind": "function",
+          "size": 508,
+          "target_id": "audio_voice_set",
+          "vaddr": 2148206188
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "PhysicsObjectList_Update",
+          "vaddr": 2148206696
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B08DC",
+          "vaddr": 2148206812
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B08E4",
+          "vaddr": 2148206820
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B08EC",
+          "vaddr": 2148206828
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B08F4",
+          "vaddr": 2148206836
+        },
+        {
+          "kind": "function",
+          "size": 396,
+          "target_id": "func_800B08FC",
+          "vaddr": 2148206844
+        },
+        {
+          "kind": "function",
+          "size": 448,
+          "target_id": "func_800B0A88",
+          "vaddr": 2148207240
+        },
+        {
+          "kind": "function",
+          "size": 600,
+          "target_id": "audio_frame_update",
+          "vaddr": 2148207688
+        },
+        {
+          "kind": "function",
+          "size": 192,
+          "target_id": "func_800B0EA0",
+          "vaddr": 2148208288
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B0F60",
+          "vaddr": 2148208480
+        },
+        {
+          "kind": "function",
+          "size": 364,
+          "target_id": "MBOX_FindPalette_WORK",
+          "vaddr": 2148208488
+        },
+        {
+          "kind": "function",
+          "size": 1248,
+          "target_id": "sound_bank_unload",
+          "vaddr": 2148208852
+        },
+        {
+          "kind": "function",
+          "size": 1428,
+          "target_id": "music_seq_load",
+          "vaddr": 2148210100
+        },
+        {
+          "kind": "function",
+          "size": 992,
+          "target_id": "music_control",
+          "vaddr": 2148211528
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B1F28",
+          "vaddr": 2148212520
+        },
+        {
+          "kind": "function",
+          "size": 220,
+          "target_id": "func_800B1F30",
+          "vaddr": 2148212528
+        },
+        {
+          "kind": "function",
+          "size": 980,
+          "target_id": "music_tempo_set",
+          "vaddr": 2148212748
+        },
+        {
+          "kind": "function",
+          "size": 268,
+          "target_id": "func_800B23E0",
+          "vaddr": 2148213728
+        },
+        {
+          "kind": "function",
+          "size": 364,
+          "target_id": "func_800B24EC",
+          "vaddr": 2148213996
+        },
+        {
+          "kind": "function",
+          "size": 396,
+          "target_id": "sfx_stop",
+          "vaddr": 2148214360
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_800B27E4",
+          "vaddr": 2148214756
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B2818",
+          "vaddr": 2148214808
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B2820",
+          "vaddr": 2148214816
+        },
+        {
+          "kind": "function",
+          "size": 256,
+          "target_id": "sfx_volume_set",
+          "vaddr": 2148214824
+        },
+        {
+          "kind": "function",
+          "size": 692,
+          "target_id": "sfx_position_3d",
+          "vaddr": 2148215080
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "func_800B2BDC",
+          "vaddr": 2148215772
+        },
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "func_800B2CB4",
+          "vaddr": 2148215988
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "listener_position_set",
+          "vaddr": 2148216096
+        },
+        {
+          "kind": "function",
+          "size": 1428,
+          "target_id": "engine_sound_update",
+          "vaddr": 2148216312
+        },
+        {
+          "kind": "function",
+          "size": 504,
+          "target_id": "tire_sound_update",
+          "vaddr": 2148217740
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B3584",
+          "vaddr": 2148218244
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "sound_stop",
+          "vaddr": 2148218252
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "collision_sound_play",
+          "vaddr": 2148218412
+        },
+        {
+          "kind": "function",
+          "size": 228,
+          "target_id": "func_800B3704",
+          "vaddr": 2148218628
+        },
+        {
+          "kind": "function",
+          "size": 468,
+          "target_id": "sound_control",
+          "vaddr": 2148218856
+        },
+        {
+          "kind": "function",
+          "size": 400,
+          "target_id": "crowd_cheer_play",
+          "vaddr": 2148219324
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 7,
+      "name": "blob_800aeb54",
+      "vaddr_end": 2148219724,
+      "vaddr_start": 2148199252
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 448,
+          "target_id": "ambient_sound_set",
+          "vaddr": 2148219724
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800B3D0C",
+          "vaddr": 2148220172
+        },
+        {
+          "kind": "function",
+          "size": 488,
+          "target_id": "sound_update_channel",
+          "vaddr": 2148220184
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "object_type_byte2_get",
+          "vaddr": 2148220672
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "object_type_byte3_get",
+          "vaddr": 2148220712
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "object_bytes_sum_global",
+          "vaddr": 2148220752
+        },
+        {
+          "kind": "function",
+          "size": 532,
+          "target_id": "object_manager_update",
+          "vaddr": 2148220836
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B41B8",
+          "vaddr": 2148221368
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "HAL_SetFontFixedWidth",
+          "vaddr": 2148221376
+        },
+        {
+          "kind": "function",
+          "size": 232,
+          "target_id": "slot_state_setup",
+          "vaddr": 2148221440
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B42E8",
+          "vaddr": 2148221672
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "object_create",
+          "vaddr": 2148221680
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "fcvt_wrapper",
+          "vaddr": 2148221792
+        },
+        {
+          "kind": "function",
+          "size": 552,
+          "target_id": "voice_stop",
+          "vaddr": 2148221836
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B45B4",
+          "vaddr": 2148222388
+        },
+        {
+          "kind": "function",
+          "size": 176,
+          "target_id": "sound_handles_clear",
+          "vaddr": 2148222396
+        },
+        {
+          "kind": "function",
+          "size": 180,
+          "target_id": "format_string_parse",
+          "vaddr": 2148222572
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B4720",
+          "vaddr": 2148222752
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B4728",
+          "vaddr": 2148222760
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B4730",
+          "vaddr": 2148222768
+        },
+        {
+          "kind": "function",
+          "size": 224,
+          "target_id": "voice_stop_2",
+          "vaddr": 2148222776
+        },
+        {
+          "kind": "function",
+          "size": 720,
+          "target_id": "SavePlayerOption",
+          "vaddr": 2148223000
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B4AE8",
+          "vaddr": 2148223720
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B4AF0",
+          "vaddr": 2148223728
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B4AF8",
+          "vaddr": 2148223736
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "func_800B4B00",
+          "vaddr": 2148223744
+        },
+        {
+          "kind": "function",
+          "size": 528,
+          "target_id": "reverb_setup",
+          "vaddr": 2148223892
+        },
+        {
+          "kind": "function",
+          "size": 196,
+          "target_id": "func_800B4DA4",
+          "vaddr": 2148224420
+        },
+        {
+          "kind": "function",
+          "size": 328,
+          "target_id": "func_800B4E68",
+          "vaddr": 2148224616
+        },
+        {
+          "kind": "function",
+          "size": 1472,
+          "target_id": "setPauseState",
+          "vaddr": 2148224944
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800B5570",
+          "vaddr": 2148226416
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "ambient_sounds_clear",
+          "vaddr": 2148226428
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B55F4",
+          "vaddr": 2148226548
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "SaveFlush",
+          "vaddr": 2148226556
+        },
+        {
+          "kind": "function",
+          "size": 196,
+          "target_id": "func_800B5688",
+          "vaddr": 2148226696
+        },
+        {
+          "kind": "function",
+          "size": 332,
+          "target_id": "TitlePane",
+          "vaddr": 2148226892
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "func_800B5898",
+          "vaddr": 2148227224
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "func_800B5940",
+          "vaddr": 2148227392
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B59E8",
+          "vaddr": 2148227560
+        },
+        {
+          "kind": "function",
+          "size": 1372,
+          "target_id": "func_800B59F0",
+          "vaddr": 2148227568
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "audio_distance_atten",
+          "vaddr": 2148228940
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "audio_doppler",
+          "vaddr": 2148229000
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "resource_type_select",
+          "vaddr": 2148229060
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B6014",
+          "vaddr": 2148229140
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B601C",
+          "vaddr": 2148229148
+        },
+        {
+          "kind": "function",
+          "size": 276,
+          "target_id": "audio_occlusion",
+          "vaddr": 2148229156
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "entity_audio_update",
+          "vaddr": 2148229432
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "func_800B61A8",
+          "vaddr": 2148229544
+        },
+        {
+          "kind": "function",
+          "size": 952,
+          "target_id": "ShowCountdown",
+          "vaddr": 2148229628
+        },
+        {
+          "kind": "function",
+          "size": 232,
+          "target_id": "render_helper",
+          "vaddr": 2148230580
+        },
+        {
+          "kind": "function",
+          "size": 20,
+          "target_id": "func_800B669C",
+          "vaddr": 2148230812
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800B66B0",
+          "vaddr": 2148230832
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "func_800B6748",
+          "vaddr": 2148230984
+        },
+        {
+          "kind": "function",
+          "size": 1124,
+          "target_id": "audio_doppler_calc",
+          "vaddr": 2148231048
+        },
+        {
+          "kind": "function",
+          "size": 1280,
+          "target_id": "menu_input_process",
+          "vaddr": 2148232172
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "func_800B70EC",
+          "vaddr": 2148233452
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "object_bytes23_sum",
+          "vaddr": 2148233512
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "sound_pitch_diff_calc",
+          "vaddr": 2148233584
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "sound_pitch_diff_halved",
+          "vaddr": 2148233632
+        },
+        {
+          "kind": "function",
+          "size": 396,
+          "target_id": "state_utility",
+          "vaddr": 2148233684
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 8,
+      "name": "blob_800b3b4c",
+      "vaddr_end": 2148234080,
+      "vaddr_start": 2148219724
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800B7360",
+          "vaddr": 2148234080
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "func_800B73E4",
+          "vaddr": 2148234212
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "func_800B7438",
+          "vaddr": 2148234296
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B7498",
+          "vaddr": 2148234392
+        },
+        {
+          "kind": "function",
+          "size": 1028,
+          "target_id": "dispatch_handler",
+          "vaddr": 2148234400
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_800B78A4",
+          "vaddr": 2148235428
+        },
+        {
+          "kind": "function",
+          "size": 336,
+          "target_id": "func_800B78F0",
+          "vaddr": 2148235504
+        },
+        {
+          "kind": "function",
+          "size": 1464,
+          "target_id": "particles_update",
+          "vaddr": 2148235840
+        },
+        {
+          "kind": "function",
+          "size": 208,
+          "target_id": "func_800B7FF8",
+          "vaddr": 2148237304
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "particles_spawn_emitter",
+          "vaddr": 2148237512
+        },
+        {
+          "kind": "function",
+          "size": 256,
+          "target_id": "Effects_UpdateEmitters",
+          "vaddr": 2148237596
+        },
+        {
+          "kind": "function",
+          "size": 172,
+          "target_id": "particle_position_set",
+          "vaddr": 2148237852
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "particle_velocity_set",
+          "vaddr": 2148238024
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800B836C",
+          "vaddr": 2148238188
+        },
+        {
+          "kind": "function",
+          "size": 732,
+          "target_id": "createBG",
+          "vaddr": 2148238196
+        },
+        {
+          "kind": "function",
+          "size": 448,
+          "target_id": "video_calcMenuRect",
+          "vaddr": 2148238928
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_800B8810",
+          "vaddr": 2148239376
+        },
+        {
+          "kind": "function",
+          "size": 1012,
+          "target_id": "video_initScreen",
+          "vaddr": 2148239392
+        },
+        {
+          "kind": "function",
+          "size": 1252,
+          "target_id": "physics_sym",
+          "vaddr": 2148240404
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_800B90F8",
+          "vaddr": 2148241656
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "func_800B912C",
+          "vaddr": 2148241708
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "physics_collision_test",
+          "vaddr": 2148241812
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_800B9284",
+          "vaddr": 2148242052
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_800B930C",
+          "vaddr": 2148242188
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_800B9338",
+          "vaddr": 2148242232
+        },
+        {
+          "kind": "function",
+          "size": 920,
+          "target_id": "physics_response",
+          "vaddr": 2148242344
+        },
+        {
+          "kind": "function",
+          "size": 408,
+          "target_id": "func_800B9740",
+          "vaddr": 2148243264
+        },
+        {
+          "kind": "function",
+          "size": 308,
+          "target_id": "func_800B98D8",
+          "vaddr": 2148243672
+        },
+        {
+          "kind": "function",
+          "size": 344,
+          "target_id": "physics_velocity_clamp",
+          "vaddr": 2148243980
+        },
+        {
+          "kind": "function",
+          "size": 516,
+          "target_id": "func_800B9B64",
+          "vaddr": 2148244324
+        },
+        {
+          "kind": "function",
+          "size": 504,
+          "target_id": "physics_friction_apply",
+          "vaddr": 2148244840
+        },
+        {
+          "kind": "function",
+          "size": 172,
+          "target_id": "func_800B9F60",
+          "vaddr": 2148245344
+        },
+        {
+          "kind": "function",
+          "size": 676,
+          "target_id": "audio_channel_alloc",
+          "vaddr": 2148245516
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800BA2B0",
+          "vaddr": 2148246192
+        },
+        {
+          "kind": "function",
+          "size": 436,
+          "target_id": "func_800BA2B8",
+          "vaddr": 2148246200
+        },
+        {
+          "kind": "function",
+          "size": 432,
+          "target_id": "audio_priority_find",
+          "vaddr": 2148246636
+        },
+        {
+          "kind": "function",
+          "size": 424,
+          "target_id": "func_800BA61C",
+          "vaddr": 2148247068
+        },
+        {
+          "kind": "function",
+          "size": 732,
+          "target_id": "audio_mixer_main",
+          "vaddr": 2148247492
+        },
+        {
+          "kind": "function",
+          "size": 696,
+          "target_id": "audio_effect_apply",
+          "vaddr": 2148248224
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "audio_effect_remove",
+          "vaddr": 2148248920
+        },
+        {
+          "kind": "function",
+          "size": 388,
+          "target_id": "audio_dsp_process",
+          "vaddr": 2148249056
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "mode_flags_clear",
+          "vaddr": 2148249444
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800BAF90",
+          "vaddr": 2148249488
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "audio_output_setup",
+          "vaddr": 2148249496
+        },
+        {
+          "kind": "function",
+          "size": 276,
+          "target_id": "func_800BB02C",
+          "vaddr": 2148249644
+        },
+        {
+          "kind": "function",
+          "size": 1372,
+          "target_id": "LoadCars",
+          "vaddr": 2148249920
+        },
+        {
+          "kind": "function",
+          "size": 344,
+          "target_id": "camera_reset",
+          "vaddr": 2148251292
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "func_800BB7F4",
+          "vaddr": 2148251636
+        },
+        {
+          "kind": "function",
+          "size": 380,
+          "target_id": "camera_lerp_position",
+          "vaddr": 2148251700
+        },
+        {
+          "kind": "function",
+          "size": 2104,
+          "target_id": "LoadTrack",
+          "vaddr": 2148252080
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "player_flag_clear_process",
+          "vaddr": 2148254184
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "func_800BC21C",
+          "vaddr": 2148254236
+        },
+        {
+          "kind": "function",
+          "size": 2300,
+          "target_id": "camera_dolly",
+          "vaddr": 2148254396
+        },
+        {
+          "kind": "function",
+          "size": 812,
+          "target_id": "camera_follow_target",
+          "vaddr": 2148256696
+        },
+        {
+          "kind": "function",
+          "size": 412,
+          "target_id": "camera_collision_avoid",
+          "vaddr": 2148257508
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800BD080",
+          "vaddr": 2148257920
+        },
+        {
+          "kind": "function",
+          "size": 452,
+          "target_id": "camera_smooth_follow",
+          "vaddr": 2148258052
+        },
+        {
+          "kind": "function",
+          "size": 1884,
+          "target_id": "race_setup_1",
+          "vaddr": 2148258504
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800BDA24",
+          "vaddr": 2148260388
+        },
+        {
+          "kind": "function",
+          "size": 744,
+          "target_id": "camera_shake_start",
+          "vaddr": 2148260520
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 9,
+      "name": "blob_800b7360",
+      "vaddr_end": 2148261264,
+      "vaddr_start": 2148234080
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "func_800BDD90",
+          "vaddr": 2148261264
+        },
+        {
+          "kind": "function",
+          "size": 180,
+          "target_id": "HAL_GetCharWidth",
+          "vaddr": 2148261372
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800BDEB0",
+          "vaddr": 2148261552
+        },
+        {
+          "kind": "function",
+          "size": 444,
+          "target_id": "camera_zoom_fov",
+          "vaddr": 2148261564
+        },
+        {
+          "kind": "function",
+          "size": 1084,
+          "target_id": "camera_auto_follow",
+          "vaddr": 2148262008
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "camera_cinematic_mode",
+          "vaddr": 2148263092
+        },
+        {
+          "kind": "function",
+          "size": 436,
+          "target_id": "func_800BE4F0",
+          "vaddr": 2148263152
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "func_800BE6A4",
+          "vaddr": 2148263588
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "TB_Strlen",
+          "vaddr": 2148263748
+        },
+        {
+          "kind": "function",
+          "size": 484,
+          "target_id": "TB_EllipseText",
+          "vaddr": 2148263868
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "music_fade",
+          "vaddr": 2148264352
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "music_tempo_adjust",
+          "vaddr": 2148264424
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800BEA30",
+          "vaddr": 2148264496
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_800BEA3C",
+          "vaddr": 2148264508
+        },
+        {
+          "kind": "function",
+          "size": 20,
+          "target_id": "func_800BEA58",
+          "vaddr": 2148264536
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_800BEA6C",
+          "vaddr": 2148264556
+        },
+        {
+          "kind": "function",
+          "size": 908,
+          "target_id": "race_setup_2",
+          "vaddr": 2148264608
+        },
+        {
+          "kind": "function",
+          "size": 496,
+          "target_id": "camera_blend_between",
+          "vaddr": 2148265516
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800BF01C",
+          "vaddr": 2148266012
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "results_screen_update",
+          "vaddr": 2148266020
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "results_time_display",
+          "vaddr": 2148266148
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "leaderboard_update",
+          "vaddr": 2148266312
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "camera_fov_control",
+          "vaddr": 2148266440
+        },
+        {
+          "kind": "function",
+          "size": 220,
+          "target_id": "camera_clip_planes",
+          "vaddr": 2148266680
+        },
+        {
+          "kind": "function",
+          "size": 200,
+          "target_id": "camera_aspect_ratio",
+          "vaddr": 2148266900
+        },
+        {
+          "kind": "function",
+          "size": 796,
+          "target_id": "PlayMoveSound",
+          "vaddr": 2148267100
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800BF778",
+          "vaddr": 2148267896
+        },
+        {
+          "kind": "function",
+          "size": 184,
+          "target_id": "func_800BF780",
+          "vaddr": 2148267904
+        },
+        {
+          "kind": "function",
+          "size": 944,
+          "target_id": "camera_first_person",
+          "vaddr": 2148268088
+        },
+        {
+          "kind": "function",
+          "size": 384,
+          "target_id": "func_800BFBE8",
+          "vaddr": 2148269032
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "select_screen_update",
+          "vaddr": 2148269416
+        },
+        {
+          "kind": "function",
+          "size": 852,
+          "target_id": "func_800BFD8C",
+          "vaddr": 2148269452
+        },
+        {
+          "kind": "function",
+          "size": 436,
+          "target_id": "camera_free_look",
+          "vaddr": 2148270304
+        },
+        {
+          "kind": "function",
+          "size": 568,
+          "target_id": "func_800C0294",
+          "vaddr": 2148270740
+        },
+        {
+          "kind": "function",
+          "size": 860,
+          "target_id": "camera_track_spline",
+          "vaddr": 2148271308
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_800C0828",
+          "vaddr": 2148272168
+        },
+        {
+          "kind": "function",
+          "size": 612,
+          "target_id": "camera_build_view_matrix",
+          "vaddr": 2148272220
+        },
+        {
+          "kind": "function",
+          "size": 2876,
+          "target_id": "camera_update",
+          "vaddr": 2148272832
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C15FC",
+          "vaddr": 2148275708
+        },
+        {
+          "kind": "function",
+          "size": 1020,
+          "target_id": "camera_process_input",
+          "vaddr": 2148275716
+        },
+        {
+          "kind": "function",
+          "size": 352,
+          "target_id": "func_800C1A00",
+          "vaddr": 2148276736
+        },
+        {
+          "kind": "function",
+          "size": 1188,
+          "target_id": "func_800C1B60",
+          "vaddr": 2148277088
+        },
+        {
+          "kind": "function",
+          "size": 520,
+          "target_id": "func_800C2004",
+          "vaddr": 2148278276
+        },
+        {
+          "kind": "function",
+          "size": 524,
+          "target_id": "func_800C220C",
+          "vaddr": 2148278796
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C2418",
+          "vaddr": 2148279320
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C2420",
+          "vaddr": 2148279328
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C2428",
+          "vaddr": 2148279336
+        },
+        {
+          "kind": "function",
+          "size": 660,
+          "target_id": "func_800C2430",
+          "vaddr": 2148279344
+        },
+        {
+          "kind": "function",
+          "size": 640,
+          "target_id": "func_800C26C4",
+          "vaddr": 2148280004
+        },
+        {
+          "kind": "function",
+          "size": 668,
+          "target_id": "func_800C2944",
+          "vaddr": 2148280644
+        },
+        {
+          "kind": "function",
+          "size": 2456,
+          "target_id": "camera_scene_manager",
+          "vaddr": 2148281312
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "func_800C3578",
+          "vaddr": 2148283768
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C360C",
+          "vaddr": 2148283916
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "effect_system_init",
+          "vaddr": 2148283924
+        },
+        {
+          "kind": "function",
+          "size": 1072,
+          "target_id": "func_800C36A0",
+          "vaddr": 2148284064
+        },
+        {
+          "kind": "function",
+          "size": 1448,
+          "target_id": "func_800C3AD0",
+          "vaddr": 2148285136
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_800C4078",
+          "vaddr": 2148286584
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "fyaw",
+          "vaddr": 2148286696
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_800C4180",
+          "vaddr": 2148286848
+        },
+        {
+          "kind": "function",
+          "size": 1232,
+          "target_id": "camera_trigger_check",
+          "vaddr": 2148286976
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 10,
+      "name": "blob_800bdd90",
+      "vaddr_end": 2148288208,
+      "vaddr_start": 2148261264
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 1484,
+          "target_id": "camera_follow_path",
+          "vaddr": 2148288208
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_800C4C9C",
+          "vaddr": 2148289692
+        },
+        {
+          "kind": "function",
+          "size": 624,
+          "target_id": "func_800C4CF8",
+          "vaddr": 2148289784
+        },
+        {
+          "kind": "function",
+          "size": 1416,
+          "target_id": "func_800C4F68",
+          "vaddr": 2148290408
+        },
+        {
+          "kind": "function",
+          "size": 244,
+          "target_id": "func_800C54F0",
+          "vaddr": 2148291824
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "effect_cleanup",
+          "vaddr": 2148292068
+        },
+        {
+          "kind": "function",
+          "size": 3520,
+          "target_id": "camera_play_script",
+          "vaddr": 2148292164
+        },
+        {
+          "kind": "function",
+          "size": 1468,
+          "target_id": "camera_victory",
+          "vaddr": 2148295684
+        },
+        {
+          "kind": "function",
+          "size": 224,
+          "target_id": "entity_iterate",
+          "vaddr": 2148297152
+        },
+        {
+          "kind": "function",
+          "size": 1564,
+          "target_id": "entity_update",
+          "vaddr": 2148297376
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "UnloadFrontEndWaves",
+          "vaddr": 2148298940
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "draw_ui_element",
+          "vaddr": 2148299024
+        },
+        {
+          "kind": "function",
+          "size": 256,
+          "target_id": "func_800C7200",
+          "vaddr": 2148299264
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C7300",
+          "vaddr": 2148299520
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "object_render_cleanup",
+          "vaddr": 2148299528
+        },
+        {
+          "kind": "function",
+          "size": 556,
+          "target_id": "draw_text",
+          "vaddr": 2148299596
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "func_800C7578",
+          "vaddr": 2148300152
+        },
+        {
+          "kind": "function",
+          "size": 440,
+          "target_id": "draw_number",
+          "vaddr": 2148300300
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "func_800C77C4",
+          "vaddr": 2148300740
+        },
+        {
+          "kind": "function",
+          "size": 1704,
+          "target_id": "draw_speedometer",
+          "vaddr": 2148300824
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C7EC0",
+          "vaddr": 2148302528
+        },
+        {
+          "kind": "function",
+          "size": 628,
+          "target_id": "func_800C7EC8",
+          "vaddr": 2148302536
+        },
+        {
+          "kind": "function",
+          "size": 900,
+          "target_id": "SaveServer",
+          "vaddr": 2148303164
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "SetControllerStickEdges",
+          "vaddr": 2148304064
+        },
+        {
+          "kind": "function",
+          "size": 572,
+          "target_id": "hud_speed_display",
+          "vaddr": 2148304124
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "func_800C8738",
+          "vaddr": 2148304696
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_800C8774",
+          "vaddr": 2148304756
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C8784",
+          "vaddr": 2148304772
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "object_type7_create",
+          "vaddr": 2148304780
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "object_type1_create",
+          "vaddr": 2148304884
+        },
+        {
+          "kind": "function",
+          "size": 188,
+          "target_id": "func_800C885C",
+          "vaddr": 2148304988
+        },
+        {
+          "kind": "function",
+          "size": 628,
+          "target_id": "func_800C8918",
+          "vaddr": 2148305176
+        },
+        {
+          "kind": "function",
+          "size": 1048,
+          "target_id": "hud_setup",
+          "vaddr": 2148305804
+        },
+        {
+          "kind": "function",
+          "size": 316,
+          "target_id": "display_enable",
+          "vaddr": 2148306852
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "player_cleanup_slots",
+          "vaddr": 2148307168
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800C9150",
+          "vaddr": 2148307280
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "SetControllerActive",
+          "vaddr": 2148307288
+        },
+        {
+          "kind": "function",
+          "size": 124,
+          "target_id": "sync_entry_register",
+          "vaddr": 2148307348
+        },
+        {
+          "kind": "function",
+          "size": 204,
+          "target_id": "speed_set",
+          "vaddr": 2148307472
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "speed_mode0_wrapper",
+          "vaddr": 2148307676
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "resource_slot_clear",
+          "vaddr": 2148307764
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "resource_slots_clear_multiple",
+          "vaddr": 2148307836
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "speed_mode1_wrapper",
+          "vaddr": 2148307884
+        },
+        {
+          "kind": "function",
+          "size": 124,
+          "target_id": "draw_minimap",
+          "vaddr": 2148307972
+        },
+        {
+          "kind": "function",
+          "size": 168,
+          "target_id": "func_800C9480",
+          "vaddr": 2148308096
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "input_init_flag_get",
+          "vaddr": 2148308264
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_800C9590",
+          "vaddr": 2148308368
+        },
+        {
+          "kind": "function",
+          "size": 928,
+          "target_id": "controller_poll",
+          "vaddr": 2148308444
+        },
+        {
+          "kind": "function",
+          "size": 356,
+          "target_id": "process_inputs",
+          "vaddr": 2148309372
+        },
+        {
+          "kind": "function",
+          "size": 256,
+          "target_id": "UpdateFrame",
+          "vaddr": 2148309728
+        },
+        {
+          "kind": "function",
+          "size": 1816,
+          "target_id": "SetOptions",
+          "vaddr": 2148309984
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800CA2F8",
+          "vaddr": 2148311800
+        },
+        {
+          "kind": "function",
+          "size": 180,
+          "target_id": "state_change_preprocess",
+          "vaddr": 2148311808
+        },
+        {
+          "kind": "function",
+          "size": 2544,
+          "target_id": "playgame_state_change",
+          "vaddr": 2148311988
+        },
+        {
+          "kind": "function",
+          "size": 2420,
+          "target_id": "hud_render",
+          "vaddr": 2148314532
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_800CB718",
+          "vaddr": 2148316952
+        },
+        {
+          "kind": "function",
+          "size": 600,
+          "target_id": "func_800CB748",
+          "vaddr": 2148317000
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "menu_render_list",
+          "vaddr": 2148317600
+        },
+        {
+          "kind": "function",
+          "size": 516,
+          "target_id": "func_800CB9D0",
+          "vaddr": 2148317648
+        },
+        {
+          "kind": "function",
+          "size": 564,
+          "target_id": "menu_item_select",
+          "vaddr": 2148318164
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 11,
+      "name": "blob_800c46d0",
+      "vaddr_end": 2148318728,
+      "vaddr_start": 2148288208
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "DecodeGhost",
+          "vaddr": 2148318728
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "menu_transition",
+          "vaddr": 2148318860
+        },
+        {
+          "kind": "function",
+          "size": 276,
+          "target_id": "func_800CBF2C",
+          "vaddr": 2148319020
+        },
+        {
+          "kind": "function",
+          "size": 896,
+          "target_id": "SaveGhost",
+          "vaddr": 2148319296
+        },
+        {
+          "kind": "function",
+          "size": 332,
+          "target_id": "sound_play_menu",
+          "vaddr": 2148320192
+        },
+        {
+          "kind": "function",
+          "size": 760,
+          "target_id": "CompressGhost",
+          "vaddr": 2148320524
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "menu_item_value_get",
+          "vaddr": 2148321284
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_800CC848",
+          "vaddr": 2148321352
+        },
+        {
+          "kind": "function",
+          "size": 316,
+          "target_id": "func_800CC8C8",
+          "vaddr": 2148321480
+        },
+        {
+          "kind": "function",
+          "size": 316,
+          "target_id": "func_800CCA04",
+          "vaddr": 2148321796
+        },
+        {
+          "kind": "function",
+          "size": 396,
+          "target_id": "func_800CCB40",
+          "vaddr": 2148322112
+        },
+        {
+          "kind": "function",
+          "size": 400,
+          "target_id": "func_800CCCCC",
+          "vaddr": 2148322508
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "func_800CCE5C",
+          "vaddr": 2148322908
+        },
+        {
+          "kind": "function",
+          "size": 348,
+          "target_id": "func_800CCEFC",
+          "vaddr": 2148323068
+        },
+        {
+          "kind": "function",
+          "size": 156,
+          "target_id": "func_800CD058",
+          "vaddr": 2148323416
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800CD0F4",
+          "vaddr": 2148323572
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800CD0FC",
+          "vaddr": 2148323580
+        },
+        {
+          "kind": "function",
+          "size": 1088,
+          "target_id": "CreatePlayer",
+          "vaddr": 2148323588
+        },
+        {
+          "kind": "function",
+          "size": 412,
+          "target_id": "menu_confirm_dialog",
+          "vaddr": 2148324676
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "menu_dialog_close",
+          "vaddr": 2148325088
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "object_data_allocate",
+          "vaddr": 2148325192
+        },
+        {
+          "kind": "function",
+          "size": 340,
+          "target_id": "func_800CD798",
+          "vaddr": 2148325272
+        },
+        {
+          "kind": "function",
+          "size": 372,
+          "target_id": "func_800CD8EC",
+          "vaddr": 2148325612
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_800CDA60",
+          "vaddr": 2148325984
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "object_byte71_set_sync",
+          "vaddr": 2148326032
+        },
+        {
+          "kind": "function",
+          "size": 348,
+          "target_id": "menu_text_input",
+          "vaddr": 2148326112
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_800CDC3C",
+          "vaddr": 2148326460
+        },
+        {
+          "kind": "function",
+          "size": 316,
+          "target_id": "menu_option_toggle",
+          "vaddr": 2148326572
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800CDDE8",
+          "vaddr": 2148326888
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800CDE38",
+          "vaddr": 2148326968
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800CDE88",
+          "vaddr": 2148327048
+        },
+        {
+          "kind": "function",
+          "size": 20,
+          "target_id": "func_800CDED8",
+          "vaddr": 2148327128
+        },
+        {
+          "kind": "function",
+          "size": 768,
+          "target_id": "menu_save_options",
+          "vaddr": 2148327148
+        },
+        {
+          "kind": "function",
+          "size": 364,
+          "target_id": "menu_load_options",
+          "vaddr": 2148327916
+        },
+        {
+          "kind": "function",
+          "size": 2356,
+          "target_id": "menu_options_screen",
+          "vaddr": 2148328280
+        },
+        {
+          "kind": "function",
+          "size": 176,
+          "target_id": "func_800CEC8C",
+          "vaddr": 2148330636
+        },
+        {
+          "kind": "function",
+          "size": 816,
+          "target_id": "menu_audio_settings",
+          "vaddr": 2148330812
+        },
+        {
+          "kind": "function",
+          "size": 548,
+          "target_id": "func_800CF06C",
+          "vaddr": 2148331628
+        },
+        {
+          "kind": "function",
+          "size": 228,
+          "target_id": "menu_video_settings",
+          "vaddr": 2148332176
+        },
+        {
+          "kind": "function",
+          "size": 656,
+          "target_id": "menu_control_settings",
+          "vaddr": 2148332404
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800CF604",
+          "vaddr": 2148333060
+        },
+        {
+          "kind": "function",
+          "size": 1548,
+          "target_id": "menu_controller_remap",
+          "vaddr": 2148333212
+        },
+        {
+          "kind": "function",
+          "size": 324,
+          "target_id": "func_800CFCA8",
+          "vaddr": 2148334760
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_800CFDEC",
+          "vaddr": 2148335084
+        },
+        {
+          "kind": "function",
+          "size": 408,
+          "target_id": "menu_vibration_test",
+          "vaddr": 2148335220
+        },
+        {
+          "kind": "function",
+          "size": 884,
+          "target_id": "track_select_handler",
+          "vaddr": 2148335628
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "func_800D0380",
+          "vaddr": 2148336512
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_800D03AC",
+          "vaddr": 2148336556
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "sound_position_set",
+          "vaddr": 2148336604
+        },
+        {
+          "kind": "function",
+          "size": 996,
+          "target_id": "func_800D0424",
+          "vaddr": 2148336676
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D0808",
+          "vaddr": 2148337672
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800D0810",
+          "vaddr": 2148337680
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800D0894",
+          "vaddr": 2148337812
+        },
+        {
+          "kind": "function",
+          "size": 260,
+          "target_id": "track_preview_handler",
+          "vaddr": 2148337892
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "func_800D09E8",
+          "vaddr": 2148338152
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_800D0A1C",
+          "vaddr": 2148338204
+        },
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "func_800D0A34",
+          "vaddr": 2148338228
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "func_800D0AA0",
+          "vaddr": 2148338336
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "func_800D0B14",
+          "vaddr": 2148338452
+        },
+        {
+          "kind": "function",
+          "size": 1124,
+          "target_id": "track_info_display",
+          "vaddr": 2148338592
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 12,
+      "name": "blob_800cbe08",
+      "vaddr_end": 2148339716,
+      "vaddr_start": 2148318728
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 440,
+          "target_id": "func_800D1004",
+          "vaddr": 2148339716
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "func_800D11BC",
+          "vaddr": 2148340156
+        },
+        {
+          "kind": "function",
+          "size": 324,
+          "target_id": "func_800D1248",
+          "vaddr": 2148340296
+        },
+        {
+          "kind": "function",
+          "size": 360,
+          "target_id": "car_select_handler",
+          "vaddr": 2148340620
+        },
+        {
+          "kind": "function",
+          "size": 424,
+          "target_id": "func_800D14F4",
+          "vaddr": 2148340980
+        },
+        {
+          "kind": "function",
+          "size": 556,
+          "target_id": "func_800D169C",
+          "vaddr": 2148341404
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D18C8",
+          "vaddr": 2148341960
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D18D0",
+          "vaddr": 2148341968
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "func_800D18D8",
+          "vaddr": 2148341976
+        },
+        {
+          "kind": "function",
+          "size": 308,
+          "target_id": "car_stats_display",
+          "vaddr": 2148342140
+        },
+        {
+          "kind": "function",
+          "size": 560,
+          "target_id": "func_800D1AB0",
+          "vaddr": 2148342448
+        },
+        {
+          "kind": "function",
+          "size": 884,
+          "target_id": "car_setup_confirm",
+          "vaddr": 2148343008
+        },
+        {
+          "kind": "function",
+          "size": 212,
+          "target_id": "func_800D2054",
+          "vaddr": 2148343892
+        },
+        {
+          "kind": "function",
+          "size": 816,
+          "target_id": "func_800D2128",
+          "vaddr": 2148344104
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_800D2458",
+          "vaddr": 2148344920
+        },
+        {
+          "kind": "function",
+          "size": 1120,
+          "target_id": "race_countdown_display",
+          "vaddr": 2148345032
+        },
+        {
+          "kind": "function",
+          "size": 332,
+          "target_id": "lap_count_select",
+          "vaddr": 2148346152
+        },
+        {
+          "kind": "function",
+          "size": 412,
+          "target_id": "difficulty_select",
+          "vaddr": 2148346484
+        },
+        {
+          "kind": "function",
+          "size": 196,
+          "target_id": "func_800D2C10",
+          "vaddr": 2148346896
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D2CD4",
+          "vaddr": 2148347092
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "split_time_display",
+          "vaddr": 2148347100
+        },
+        {
+          "kind": "function",
+          "size": 200,
+          "target_id": "time_of_day_select",
+          "vaddr": 2148347340
+        },
+        {
+          "kind": "function",
+          "size": 276,
+          "target_id": "minimap_render",
+          "vaddr": 2148347540
+        },
+        {
+          "kind": "function",
+          "size": 1160,
+          "target_id": "func_800D2FA8",
+          "vaddr": 2148347816
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_800D3430",
+          "vaddr": 2148348976
+        },
+        {
+          "kind": "function",
+          "size": 1684,
+          "target_id": "func_800D348C",
+          "vaddr": 2148349068
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D3B20",
+          "vaddr": 2148350752
+        },
+        {
+          "kind": "function",
+          "size": 4700,
+          "target_id": "stunt_combo_display",
+          "vaddr": 2148350760
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "func_800D4D84",
+          "vaddr": 2148355460
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "func_800D4DFC",
+          "vaddr": 2148355580
+        },
+        {
+          "kind": "function",
+          "size": 348,
+          "target_id": "battle_mode_setup",
+          "vaddr": 2148355828
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "players_race_update",
+          "vaddr": 2148356176
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "func_800D50E4",
+          "vaddr": 2148356324
+        },
+        {
+          "kind": "function",
+          "size": 440,
+          "target_id": "ghost_race_setup",
+          "vaddr": 2148356364
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D52C4",
+          "vaddr": 2148356804
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D52CC",
+          "vaddr": 2148356812
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "object_activate",
+          "vaddr": 2148356820
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D536C",
+          "vaddr": 2148356972
+        },
+        {
+          "kind": "function",
+          "size": 328,
+          "target_id": "func_800D5374",
+          "vaddr": 2148356980
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "player_conditional_call",
+          "vaddr": 2148357308
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "player_conditional_check",
+          "vaddr": 2148357344
+        },
+        {
+          "kind": "function",
+          "size": 628,
+          "target_id": "func_800D5524",
+          "vaddr": 2148357412
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "players_frame_update",
+          "vaddr": 2148358040
+        },
+        {
+          "kind": "function",
+          "size": 100,
+          "target_id": "func_800D5828",
+          "vaddr": 2148358184
+        },
+        {
+          "kind": "function",
+          "size": 56,
+          "target_id": "player_state_clear",
+          "vaddr": 2148358284
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D58C4",
+          "vaddr": 2148358340
+        },
+        {
+          "kind": "function",
+          "size": 312,
+          "target_id": "records_screen",
+          "vaddr": 2148358348
+        },
+        {
+          "kind": "function",
+          "size": 428,
+          "target_id": "func_800D5A04",
+          "vaddr": 2148358660
+        },
+        {
+          "kind": "function",
+          "size": 224,
+          "target_id": "best_times_display",
+          "vaddr": 2148359088
+        },
+        {
+          "kind": "function",
+          "size": 468,
+          "target_id": "high_scores_display",
+          "vaddr": 2148359312
+        },
+        {
+          "kind": "function",
+          "size": 584,
+          "target_id": "func_800D5E64",
+          "vaddr": 2148359780
+        },
+        {
+          "kind": "function",
+          "size": 180,
+          "target_id": "func_800D60AC",
+          "vaddr": 2148360364
+        },
+        {
+          "kind": "function",
+          "size": 304,
+          "target_id": "func_800D6160",
+          "vaddr": 2148360544
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "physics_init_mode0",
+          "vaddr": 2148360848
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "physics_init_mode1",
+          "vaddr": 2148360940
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "func_800D6348",
+          "vaddr": 2148361032
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D63B0",
+          "vaddr": 2148361136
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "object_action_clear",
+          "vaddr": 2148361144
+        },
+        {
+          "kind": "function",
+          "size": 324,
+          "target_id": "func_800D63EC",
+          "vaddr": 2148361196
+        },
+        {
+          "kind": "function",
+          "size": 352,
+          "target_id": "func_800D6530",
+          "vaddr": 2148361520
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 13,
+      "name": "blob_800d1004",
+      "vaddr_end": 2148361872,
+      "vaddr_start": 2148339716
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D6690",
+          "vaddr": 2148361872
+        },
+        {
+          "kind": "function",
+          "size": 296,
+          "target_id": "credits_screen",
+          "vaddr": 2148361880
+        },
+        {
+          "kind": "function",
+          "size": 332,
+          "target_id": "credits_scroll",
+          "vaddr": 2148362176
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D690C",
+          "vaddr": 2148362508
+        },
+        {
+          "kind": "function",
+          "size": 1260,
+          "target_id": "func_800D6914",
+          "vaddr": 2148362516
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "func_800D6E00",
+          "vaddr": 2148363776
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800D6E74",
+          "vaddr": 2148363892
+        },
+        {
+          "kind": "function",
+          "size": 852,
+          "target_id": "audio_calcMenuRect",
+          "vaddr": 2148363900
+        },
+        {
+          "kind": "function",
+          "size": 1124,
+          "target_id": "audio_initScreen",
+          "vaddr": 2148364752
+        },
+        {
+          "kind": "function",
+          "size": 1804,
+          "target_id": "func_800D7634",
+          "vaddr": 2148365876
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "render_replay_ui",
+          "vaddr": 2148367680
+        },
+        {
+          "kind": "function",
+          "size": 196,
+          "target_id": "render_results_screen",
+          "vaddr": 2148367812
+        },
+        {
+          "kind": "function",
+          "size": 496,
+          "target_id": "drone_target_update",
+          "vaddr": 2148368008
+        },
+        {
+          "kind": "function",
+          "size": 220,
+          "target_id": "func_800D8078",
+          "vaddr": 2148368504
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_800D8154",
+          "vaddr": 2148368724
+        },
+        {
+          "kind": "function",
+          "size": 2796,
+          "target_id": "func_800D816C",
+          "vaddr": 2148368748
+        },
+        {
+          "kind": "function",
+          "size": 1024,
+          "target_id": "drone_throttle_calc",
+          "vaddr": 2148371544
+        },
+        {
+          "kind": "function",
+          "size": 328,
+          "target_id": "func_800D9058",
+          "vaddr": 2148372568
+        },
+        {
+          "kind": "function",
+          "size": 3860,
+          "target_id": "func_800D91A0",
+          "vaddr": 2148372896
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DA0B4",
+          "vaddr": 2148376756
+        },
+        {
+          "kind": "function",
+          "size": 184,
+          "target_id": "func_800DA0BC",
+          "vaddr": 2148376764
+        },
+        {
+          "kind": "function",
+          "size": 332,
+          "target_id": "options_TitlePane",
+          "vaddr": 2148376948
+        },
+        {
+          "kind": "function",
+          "size": 2316,
+          "target_id": "func_800DA2C0",
+          "vaddr": 2148377280
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DABCC",
+          "vaddr": 2148379596
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DABD4",
+          "vaddr": 2148379604
+        },
+        {
+          "kind": "function",
+          "size": 1540,
+          "target_id": "options_initScreen",
+          "vaddr": 2148379612
+        },
+        {
+          "kind": "function",
+          "size": 1400,
+          "target_id": "func_800DB1E0",
+          "vaddr": 2148381152
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "continue_prompt",
+          "vaddr": 2148382552
+        },
+        {
+          "kind": "function",
+          "size": 104,
+          "target_id": "object_type7_create_alt",
+          "vaddr": 2148382644
+        },
+        {
+          "kind": "function",
+          "size": 2148,
+          "target_id": "RaceStateMachine_Update",
+          "vaddr": 2148382748
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "func_800DC080",
+          "vaddr": 2148384896
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "func_800DC120",
+          "vaddr": 2148385056
+        },
+        {
+          "kind": "function",
+          "size": 156,
+          "target_id": "func_800DC1AC",
+          "vaddr": 2148385196
+        },
+        {
+          "kind": "function",
+          "size": 432,
+          "target_id": "championship_standings",
+          "vaddr": 2148385352
+        },
+        {
+          "kind": "function",
+          "size": 388,
+          "target_id": "tournament_trophy_award",
+          "vaddr": 2148385784
+        },
+        {
+          "kind": "function",
+          "size": 172,
+          "target_id": "func_800DC57C",
+          "vaddr": 2148386172
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "func_800DC628",
+          "vaddr": 2148386344
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "RemovePane",
+          "vaddr": 2148386592
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "ChangePaneColor",
+          "vaddr": 2148386708
+        },
+        {
+          "kind": "function",
+          "size": 264,
+          "target_id": "control_cell_text",
+          "vaddr": 2148386956
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DC994",
+          "vaddr": 2148387220
+        },
+        {
+          "kind": "function",
+          "size": 820,
+          "target_id": "control_cell_text3",
+          "vaddr": 2148387228
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DCCD0",
+          "vaddr": 2148388048
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DCCD8",
+          "vaddr": 2148388056
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "func_800DCCE0",
+          "vaddr": 2148388064
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DCD50",
+          "vaddr": 2148388176
+        },
+        {
+          "kind": "function",
+          "size": 156,
+          "target_id": "func_800DCD58",
+          "vaddr": 2148388184
+        },
+        {
+          "kind": "function",
+          "size": 692,
+          "target_id": "control_cell_text2",
+          "vaddr": 2148388340
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DD0A8",
+          "vaddr": 2148389032
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DD0B0",
+          "vaddr": 2148389040
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DD0B8",
+          "vaddr": 2148389048
+        },
+        {
+          "kind": "function",
+          "size": 908,
+          "target_id": "func_800DD0C0",
+          "vaddr": 2148389056
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DD44C",
+          "vaddr": 2148389964
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DD454",
+          "vaddr": 2148389972
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800DD45C",
+          "vaddr": 2148389980
+        },
+        {
+          "kind": "function",
+          "size": 2552,
+          "target_id": "control_settings",
+          "vaddr": 2148390060
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800DDEA4",
+          "vaddr": 2148392612
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800DDF28",
+          "vaddr": 2148392744
+        },
+        {
+          "kind": "function",
+          "size": 608,
+          "target_id": "display_settings",
+          "vaddr": 2148392876
+        },
+        {
+          "kind": "function",
+          "size": 584,
+          "target_id": "save_settings",
+          "vaddr": 2148393484
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 14,
+      "name": "blob_800d6690",
+      "vaddr_end": 2148394068,
+      "vaddr_start": 2148361872
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DE454",
+          "vaddr": 2148394068
+        },
+        {
+          "kind": "function",
+          "size": 1020,
+          "target_id": "func_800DE45C",
+          "vaddr": 2148394076
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DE858",
+          "vaddr": 2148395096
+        },
+        {
+          "kind": "function",
+          "size": 844,
+          "target_id": "func_800DE860",
+          "vaddr": 2148395104
+        },
+        {
+          "kind": "function",
+          "size": 224,
+          "target_id": "main_menu_input",
+          "vaddr": 2148395948
+        },
+        {
+          "kind": "function",
+          "size": 236,
+          "target_id": "main_menu_render",
+          "vaddr": 2148396172
+        },
+        {
+          "kind": "function",
+          "size": 488,
+          "target_id": "func_800DED78",
+          "vaddr": 2148396408
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800DEF60",
+          "vaddr": 2148396896
+        },
+        {
+          "kind": "function",
+          "size": 2976,
+          "target_id": "mode_select_handler",
+          "vaddr": 2148396904
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "mode_select_input",
+          "vaddr": 2148399880
+        },
+        {
+          "kind": "function",
+          "size": 1192,
+          "target_id": "func_800DFBA0",
+          "vaddr": 2148400032
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E0048",
+          "vaddr": 2148401224
+        },
+        {
+          "kind": "function",
+          "size": 1440,
+          "target_id": "func_800E0050",
+          "vaddr": 2148401232
+        },
+        {
+          "kind": "function",
+          "size": 1328,
+          "target_id": "func_800E05F0",
+          "vaddr": 2148402672
+        },
+        {
+          "kind": "function",
+          "size": 1580,
+          "target_id": "func_800E0B20",
+          "vaddr": 2148404000
+        },
+        {
+          "kind": "function",
+          "size": 948,
+          "target_id": "func_800E114C",
+          "vaddr": 2148405580
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "func_800E1500",
+          "vaddr": 2148406528
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "func_800E1540",
+          "vaddr": 2148406592
+        },
+        {
+          "kind": "function",
+          "size": 1280,
+          "target_id": "func_800E15A0",
+          "vaddr": 2148406688
+        },
+        {
+          "kind": "function",
+          "size": 400,
+          "target_id": "func_800E1AA0",
+          "vaddr": 2148407968
+        },
+        {
+          "kind": "function",
+          "size": 848,
+          "target_id": "func_800E1C30",
+          "vaddr": 2148408368
+        },
+        {
+          "kind": "function",
+          "size": 1060,
+          "target_id": "func_800E1F80",
+          "vaddr": 2148409216
+        },
+        {
+          "kind": "function",
+          "size": 1688,
+          "target_id": "func_800E23A4",
+          "vaddr": 2148410276
+        },
+        {
+          "kind": "function",
+          "size": 40,
+          "target_id": "replay_update_dual",
+          "vaddr": 2148411964
+        },
+        {
+          "kind": "function",
+          "size": 96,
+          "target_id": "object_update_full",
+          "vaddr": 2148412004
+        },
+        {
+          "kind": "function",
+          "size": 428,
+          "target_id": "func_800E2AC4",
+          "vaddr": 2148412100
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "func_800E2C70",
+          "vaddr": 2148412528
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "func_800E2CC0",
+          "vaddr": 2148412608
+        },
+        {
+          "kind": "function",
+          "size": 488,
+          "target_id": "func_800E2D18",
+          "vaddr": 2148412696
+        },
+        {
+          "kind": "function",
+          "size": 428,
+          "target_id": "func_800E2F00",
+          "vaddr": 2148413184
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_800E30AC",
+          "vaddr": 2148413612
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_800E30F4",
+          "vaddr": 2148413684
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800E313C",
+          "vaddr": 2148413756
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "func_800E31D4",
+          "vaddr": 2148413908
+        },
+        {
+          "kind": "function",
+          "size": 356,
+          "target_id": "func_800E32CC",
+          "vaddr": 2148414156
+        },
+        {
+          "kind": "function",
+          "size": 756,
+          "target_id": "func_800E3430",
+          "vaddr": 2148414512
+        },
+        {
+          "kind": "function",
+          "size": 600,
+          "target_id": "func_800E3724",
+          "vaddr": 2148415268
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E397C",
+          "vaddr": 2148415868
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E3984",
+          "vaddr": 2148415876
+        },
+        {
+          "kind": "function",
+          "size": 2396,
+          "target_id": "func_800E398C",
+          "vaddr": 2148415884
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E42E8",
+          "vaddr": 2148418280
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E42F0",
+          "vaddr": 2148418288
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E42F8",
+          "vaddr": 2148418296
+        },
+        {
+          "kind": "function",
+          "size": 540,
+          "target_id": "func_800E4300",
+          "vaddr": 2148418304
+        },
+        {
+          "kind": "function",
+          "size": 1588,
+          "target_id": "func_800E451C",
+          "vaddr": 2148418844
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E4B50",
+          "vaddr": 2148420432
+        },
+        {
+          "kind": "function",
+          "size": 2268,
+          "target_id": "func_800E4B58",
+          "vaddr": 2148420440
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E5434",
+          "vaddr": 2148422708
+        },
+        {
+          "kind": "function",
+          "size": 700,
+          "target_id": "func_800E543C",
+          "vaddr": 2148422716
+        },
+        {
+          "kind": "function",
+          "size": 1436,
+          "target_id": "func_800E56F8",
+          "vaddr": 2148423416
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E5C94",
+          "vaddr": 2148424852
+        },
+        {
+          "kind": "function",
+          "size": 200,
+          "target_id": "func_800E5C9C",
+          "vaddr": 2148424860
+        },
+        {
+          "kind": "function",
+          "size": 1296,
+          "target_id": "func_800E5D64",
+          "vaddr": 2148425060
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E6274",
+          "vaddr": 2148426356
+        },
+        {
+          "kind": "function",
+          "size": 484,
+          "target_id": "func_800E627C",
+          "vaddr": 2148426364
+        },
+        {
+          "kind": "function",
+          "size": 956,
+          "target_id": "func_800E6460",
+          "vaddr": 2148426848
+        },
+        {
+          "kind": "function",
+          "size": 716,
+          "target_id": "func_800E681C",
+          "vaddr": 2148427804
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E6AE8",
+          "vaddr": 2148428520
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E6AF0",
+          "vaddr": 2148428528
+        },
+        {
+          "kind": "function",
+          "size": 1336,
+          "target_id": "model_iteration",
+          "vaddr": 2148428536
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 15,
+      "name": "blob_800de454",
+      "vaddr_end": 2148429872,
+      "vaddr_start": 2148394068
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E7030",
+          "vaddr": 2148429872
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "func_800E7038",
+          "vaddr": 2148429880
+        },
+        {
+          "kind": "function",
+          "size": 676,
+          "target_id": "func_800E7134",
+          "vaddr": 2148430132
+        },
+        {
+          "kind": "function",
+          "size": 596,
+          "target_id": "ControllerUpdate",
+          "vaddr": 2148430808
+        },
+        {
+          "kind": "function",
+          "size": 228,
+          "target_id": "func_800E762C",
+          "vaddr": 2148431404
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "func_800E7710",
+          "vaddr": 2148431632
+        },
+        {
+          "kind": "function",
+          "size": 268,
+          "target_id": "render_thread_entry",
+          "vaddr": 2148431880
+        },
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "object_counter_decrement",
+          "vaddr": 2148432148
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "object_counter_increment",
+          "vaddr": 2148432256
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E79F0",
+          "vaddr": 2148432368
+        },
+        {
+          "kind": "function",
+          "size": 160,
+          "target_id": "func_800E79F8",
+          "vaddr": 2148432376
+        },
+        {
+          "kind": "function",
+          "size": 172,
+          "target_id": "func_800E7A98",
+          "vaddr": 2148432536
+        },
+        {
+          "kind": "function",
+          "size": 232,
+          "target_id": "func_800E7B44",
+          "vaddr": 2148432708
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "func_800E7C2C",
+          "vaddr": 2148432940
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E7D04",
+          "vaddr": 2148433156
+        },
+        {
+          "kind": "function",
+          "size": 196,
+          "target_id": "func_800E7D0C",
+          "vaddr": 2148433164
+        },
+        {
+          "kind": "function",
+          "size": 464,
+          "target_id": "func_800E7DD0",
+          "vaddr": 2148433360
+        },
+        {
+          "kind": "function",
+          "size": 1244,
+          "target_id": "func_800E7FA0",
+          "vaddr": 2148433824
+        },
+        {
+          "kind": "function",
+          "size": 2100,
+          "target_id": "update_game_data",
+          "vaddr": 2148435068
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800E8CB0",
+          "vaddr": 2148437168
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_800E8CB8",
+          "vaddr": 2148437176
+        },
+        {
+          "kind": "function",
+          "size": 448,
+          "target_id": "func_800E8D50",
+          "vaddr": 2148437328
+        },
+        {
+          "kind": "function",
+          "size": 804,
+          "target_id": "func_800E8F10",
+          "vaddr": 2148437776
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "func_800E9234",
+          "vaddr": 2148438580
+        },
+        {
+          "kind": "function",
+          "size": 788,
+          "target_id": "func_800E92C8",
+          "vaddr": 2148438728
+        },
+        {
+          "kind": "function",
+          "size": 1684,
+          "target_id": "func_800E95DC",
+          "vaddr": 2148439516
+        },
+        {
+          "kind": "function",
+          "size": 444,
+          "target_id": "func_800E9C70",
+          "vaddr": 2148441200
+        },
+        {
+          "kind": "function",
+          "size": 732,
+          "target_id": "func_800E9E2C",
+          "vaddr": 2148441644
+        },
+        {
+          "kind": "function",
+          "size": 468,
+          "target_id": "func_800EA108",
+          "vaddr": 2148442376
+        },
+        {
+          "kind": "function",
+          "size": 280,
+          "target_id": "func_800EA2DC",
+          "vaddr": 2148442844
+        },
+        {
+          "kind": "function",
+          "size": 3048,
+          "target_id": "func_800EA3F4",
+          "vaddr": 2148443124
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_800EAFDC",
+          "vaddr": 2148446172
+        },
+        {
+          "kind": "function",
+          "size": 1640,
+          "target_id": "func_800EB028",
+          "vaddr": 2148446248
+        },
+        {
+          "kind": "function",
+          "size": 636,
+          "target_id": "world_object_destroy",
+          "vaddr": 2148447888
+        },
+        {
+          "kind": "function",
+          "size": 2000,
+          "target_id": "func_800EB90C",
+          "vaddr": 2148448524
+        },
+        {
+          "kind": "function",
+          "size": 180,
+          "target_id": "race_init_helper",
+          "vaddr": 2148450524
+        },
+        {
+          "kind": "function",
+          "size": 224,
+          "target_id": "func_800EC190",
+          "vaddr": 2148450704
+        },
+        {
+          "kind": "function",
+          "size": 136,
+          "target_id": "func_800EC270",
+          "vaddr": 2148450928
+        },
+        {
+          "kind": "function",
+          "size": 1564,
+          "target_id": "world_physics_tick",
+          "vaddr": 2148451064
+        },
+        {
+          "kind": "function",
+          "size": 596,
+          "target_id": "func_800EC914",
+          "vaddr": 2148452628
+        },
+        {
+          "kind": "function",
+          "size": 176,
+          "target_id": "world_bounds_check",
+          "vaddr": 2148453224
+        },
+        {
+          "kind": "function",
+          "size": 2644,
+          "target_id": "world_gravity_apply",
+          "vaddr": 2148453400
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "func_800ED66C",
+          "vaddr": 2148456044
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "mode_byte_set",
+          "vaddr": 2148456292
+        },
+        {
+          "kind": "function",
+          "size": 80,
+          "target_id": "mode_byte2_set",
+          "vaddr": 2148456372
+        },
+        {
+          "kind": "function",
+          "size": 712,
+          "target_id": "world_velocity_integrate",
+          "vaddr": 2148456452
+        },
+        {
+          "kind": "function",
+          "size": 540,
+          "target_id": "world_collision_response",
+          "vaddr": 2148457164
+        },
+        {
+          "kind": "function",
+          "size": 216,
+          "target_id": "HAL_StartText",
+          "vaddr": 2148457704
+        },
+        {
+          "kind": "function",
+          "size": 2076,
+          "target_id": "gfx_frame_begin",
+          "vaddr": 2148457920
+        },
+        {
+          "kind": "function",
+          "size": 464,
+          "target_id": "world_trigger_activate",
+          "vaddr": 2148459996
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800EE7AC",
+          "vaddr": 2148460460
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800EE7B4",
+          "vaddr": 2148460468
+        },
+        {
+          "kind": "function",
+          "size": 100,
+          "target_id": "sync_init_conditional",
+          "vaddr": 2148460476
+        },
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "effect_spawn",
+          "vaddr": 2148460576
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "collision_check_thunk",
+          "vaddr": 2148460684
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800EE8AC",
+          "vaddr": 2148460716
+        },
+        {
+          "kind": "function",
+          "size": 456,
+          "target_id": "world_effect_update",
+          "vaddr": 2148460724
+        },
+        {
+          "kind": "function",
+          "size": 820,
+          "target_id": "game_late_init",
+          "vaddr": 2148461180
+        },
+        {
+          "kind": "function",
+          "size": 1240,
+          "target_id": "animCountdownTimer",
+          "vaddr": 2148462000
+        },
+        {
+          "kind": "function",
+          "size": 808,
+          "target_id": "func_800EF288",
+          "vaddr": 2148463240
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 16,
+      "name": "blob_800e7030",
+      "vaddr_end": 2148464048,
+      "vaddr_start": 2148429872
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 124,
+          "target_id": "func_800EF5B0",
+          "vaddr": 2148464048
+        },
+        {
+          "kind": "function",
+          "size": 712,
+          "target_id": "func_800EF62C",
+          "vaddr": 2148464172
+        },
+        {
+          "kind": "function",
+          "size": 1460,
+          "target_id": "animSpeedText",
+          "vaddr": 2148464884
+        },
+        {
+          "kind": "function",
+          "size": 600,
+          "target_id": "dust_cloud_effect",
+          "vaddr": 2148466344
+        },
+        {
+          "kind": "function",
+          "size": 1396,
+          "target_id": "skid_mark_render",
+          "vaddr": 2148466944
+        },
+        {
+          "kind": "function",
+          "size": 472,
+          "target_id": "func_800F0674",
+          "vaddr": 2148468340
+        },
+        {
+          "kind": "function",
+          "size": 200,
+          "target_id": "func_800F084C",
+          "vaddr": 2148468812
+        },
+        {
+          "kind": "function",
+          "size": 1584,
+          "target_id": "PrintScores",
+          "vaddr": 2148469012
+        },
+        {
+          "kind": "function",
+          "size": 464,
+          "target_id": "FindGhosts",
+          "vaddr": 2148470596
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "func_800F1114",
+          "vaddr": 2148471060
+        },
+        {
+          "kind": "function",
+          "size": 1816,
+          "target_id": "SetHighScoreState",
+          "vaddr": 2148471312
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800F1928",
+          "vaddr": 2148473128
+        },
+        {
+          "kind": "function",
+          "size": 980,
+          "target_id": "func_800F1930",
+          "vaddr": 2148473136
+        },
+        {
+          "kind": "function",
+          "size": 888,
+          "target_id": "func_800F1D04",
+          "vaddr": 2148474116
+        },
+        {
+          "kind": "function",
+          "size": 1684,
+          "target_id": "func_800F207C",
+          "vaddr": 2148475004
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800F2710",
+          "vaddr": 2148476688
+        },
+        {
+          "kind": "function",
+          "size": 368,
+          "target_id": "func_800F2718",
+          "vaddr": 2148476696
+        },
+        {
+          "kind": "function",
+          "size": 416,
+          "target_id": "func_800F2888",
+          "vaddr": 2148477064
+        },
+        {
+          "kind": "function",
+          "size": 2728,
+          "target_id": "net_state_validate",
+          "vaddr": 2148477480
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800F34D0",
+          "vaddr": 2148480208
+        },
+        {
+          "kind": "function",
+          "size": 3568,
+          "target_id": "net_session_update",
+          "vaddr": 2148480216
+        },
+        {
+          "kind": "function",
+          "size": 240,
+          "target_id": "func_800F42C8",
+          "vaddr": 2148483784
+        },
+        {
+          "kind": "function",
+          "size": 576,
+          "target_id": "func_800F43B8",
+          "vaddr": 2148484024
+        },
+        {
+          "kind": "function",
+          "size": 900,
+          "target_id": "func_800F45F8",
+          "vaddr": 2148484600
+        },
+        {
+          "kind": "function",
+          "size": 528,
+          "target_id": "graphics_chunk",
+          "vaddr": 2148485500
+        },
+        {
+          "kind": "function",
+          "size": 520,
+          "target_id": "graphics_chunk_b",
+          "vaddr": 2148486028
+        },
+        {
+          "kind": "function",
+          "size": 600,
+          "target_id": "audio_update_a",
+          "vaddr": 2148486548
+        },
+        {
+          "kind": "function",
+          "size": 1236,
+          "target_id": "assign_drones",
+          "vaddr": 2148487148
+        },
+        {
+          "kind": "function",
+          "size": 544,
+          "target_id": "place_cars_in_order",
+          "vaddr": 2148488384
+        },
+        {
+          "kind": "function",
+          "size": 2072,
+          "target_id": "func_800F56E0",
+          "vaddr": 2148488928
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "track_lighting_setup",
+          "vaddr": 2148491000
+        },
+        {
+          "kind": "function",
+          "size": 1348,
+          "target_id": "highscore_InitScreen",
+          "vaddr": 2148491152
+        },
+        {
+          "kind": "function",
+          "size": 976,
+          "target_id": "billboard_render",
+          "vaddr": 2148492500
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_800F68A4",
+          "vaddr": 2148493476
+        },
+        {
+          "kind": "function",
+          "size": 400,
+          "target_id": "func_800F6928",
+          "vaddr": 2148493608
+        },
+        {
+          "kind": "function",
+          "size": 2180,
+          "target_id": "GhostStart",
+          "vaddr": 2148494008
+        },
+        {
+          "kind": "function",
+          "size": 192,
+          "target_id": "UpdateActiveObjects",
+          "vaddr": 2148496188
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "audio_update_b",
+          "vaddr": 2148496380
+        },
+        {
+          "kind": "function",
+          "size": 284,
+          "target_id": "func_800F7448",
+          "vaddr": 2148496456
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_800F7564",
+          "vaddr": 2148496740
+        },
+        {
+          "kind": "function",
+          "size": 32,
+          "target_id": "func_800F75B0",
+          "vaddr": 2148496816
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_800F75D0",
+          "vaddr": 2148496848
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_800F75EC",
+          "vaddr": 2148496876
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_800F7604",
+          "vaddr": 2148496900
+        },
+        {
+          "kind": "function",
+          "size": 36,
+          "target_id": "func_800F7620",
+          "vaddr": 2148496928
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "func_800F7644",
+          "vaddr": 2148496964
+        },
+        {
+          "kind": "function",
+          "size": 1020,
+          "target_id": "func_800F769C",
+          "vaddr": 2148497052
+        },
+        {
+          "kind": "function",
+          "size": 392,
+          "target_id": "func_800F7A98",
+          "vaddr": 2148498072
+        },
+        {
+          "kind": "function",
+          "size": 528,
+          "target_id": "linear_interp",
+          "vaddr": 2148498464
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "func_800F7E30",
+          "vaddr": 2148498992
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "audio_update_c",
+          "vaddr": 2148499056
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "func_800F7EB0",
+          "vaddr": 2148499120
+        },
+        {
+          "kind": "function",
+          "size": 1396,
+          "target_id": "FindWinner",
+          "vaddr": 2148499260
+        },
+        {
+          "kind": "function",
+          "size": 204,
+          "target_id": "gameover_validOption",
+          "vaddr": 2148500656
+        },
+        {
+          "kind": "function",
+          "size": 464,
+          "target_id": "func_800F857C",
+          "vaddr": 2148500860
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800F874C",
+          "vaddr": 2148501324
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "audio_update_d",
+          "vaddr": 2148501332
+        },
+        {
+          "kind": "function",
+          "size": 968,
+          "target_id": "func_800F87A0",
+          "vaddr": 2148501408
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800F8B68",
+          "vaddr": 2148502376
+        },
+        {
+          "kind": "function",
+          "size": 556,
+          "target_id": "finish_state_alt",
+          "vaddr": 2148502384
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 17,
+      "name": "blob_800ef5b0",
+      "vaddr_end": 2148502940,
+      "vaddr_start": 2148464048
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 244,
+          "target_id": "CarSetup",
+          "vaddr": 2148502940
+        },
+        {
+          "kind": "function",
+          "size": 56,
+          "target_id": "func_800F8E90",
+          "vaddr": 2148503184
+        },
+        {
+          "kind": "function",
+          "size": 1024,
+          "target_id": "func_800F8EC8",
+          "vaddr": 2148503240
+        },
+        {
+          "kind": "function",
+          "size": 208,
+          "target_id": "func_800F92C8",
+          "vaddr": 2148504264
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800F9398",
+          "vaddr": 2148504472
+        },
+        {
+          "kind": "function",
+          "size": 5652,
+          "target_id": "render_large_objects",
+          "vaddr": 2148504480
+        },
+        {
+          "kind": "function",
+          "size": 924,
+          "target_id": "render_viewport_init",
+          "vaddr": 2148510132
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "func_800FAD50",
+          "vaddr": 2148511056
+        },
+        {
+          "kind": "function",
+          "size": 260,
+          "target_id": "render_post_process",
+          "vaddr": 2148511200
+        },
+        {
+          "kind": "function",
+          "size": 108,
+          "target_id": "func_800FAEE4",
+          "vaddr": 2148511460
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_800FAF50",
+          "vaddr": 2148511568
+        },
+        {
+          "kind": "function",
+          "size": 712,
+          "target_id": "CalcPolePositions",
+          "vaddr": 2148511596
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "vsync_wait",
+          "vaddr": 2148512308
+        },
+        {
+          "kind": "function",
+          "size": 2356,
+          "target_id": "display_list_flush",
+          "vaddr": 2148512456
+        },
+        {
+          "kind": "function",
+          "size": 52,
+          "target_id": "game_state_check_handler",
+          "vaddr": 2148514812
+        },
+        {
+          "kind": "function",
+          "size": 496,
+          "target_id": "countdown_handler",
+          "vaddr": 2148514864
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FBE20",
+          "vaddr": 2148515360
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FBE28",
+          "vaddr": 2148515368
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_800FBE30",
+          "vaddr": 2148515376
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "func_800FBE60",
+          "vaddr": 2148515424
+        },
+        {
+          "kind": "function",
+          "size": 84,
+          "target_id": "func_800FBED8",
+          "vaddr": 2148515544
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "func_800FBF2C",
+          "vaddr": 2148515628
+        },
+        {
+          "kind": "function",
+          "size": 2672,
+          "target_id": "countdown",
+          "vaddr": 2148515720
+        },
+        {
+          "kind": "function",
+          "size": 1016,
+          "target_id": "func_800FC9F8",
+          "vaddr": 2148518392
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FCDF0",
+          "vaddr": 2148519408
+        },
+        {
+          "kind": "function",
+          "size": 532,
+          "target_id": "debug_stats",
+          "vaddr": 2148519416
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FD00C",
+          "vaddr": 2148519948
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FD014",
+          "vaddr": 2148519956
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FD01C",
+          "vaddr": 2148519964
+        },
+        {
+          "kind": "function",
+          "size": 532,
+          "target_id": "debug_collision",
+          "vaddr": 2148519972
+        },
+        {
+          "kind": "function",
+          "size": 484,
+          "target_id": "input_aux_handler",
+          "vaddr": 2148520504
+        },
+        {
+          "kind": "function",
+          "size": 72,
+          "target_id": "func_800FD41C",
+          "vaddr": 2148520988
+        },
+        {
+          "kind": "function",
+          "size": 704,
+          "target_id": "game_loop",
+          "vaddr": 2148521060
+        },
+        {
+          "kind": "function",
+          "size": 48,
+          "target_id": "func_800FD724",
+          "vaddr": 2148521764
+        },
+        {
+          "kind": "function",
+          "size": 148,
+          "target_id": "func_800FD754",
+          "vaddr": 2148521812
+        },
+        {
+          "kind": "function",
+          "size": 244,
+          "target_id": "random_seed_init",
+          "vaddr": 2148521960
+        },
+        {
+          "kind": "function",
+          "size": 284,
+          "target_id": "random_int",
+          "vaddr": 2148522204
+        },
+        {
+          "kind": "function",
+          "size": 1424,
+          "target_id": "random_float",
+          "vaddr": 2148522488
+        },
+        {
+          "kind": "function",
+          "size": 248,
+          "target_id": "func_800FDF88",
+          "vaddr": 2148523912
+        },
+        {
+          "kind": "function",
+          "size": 1068,
+          "target_id": "stat_race_start",
+          "vaddr": 2148524160
+        },
+        {
+          "kind": "function",
+          "size": 116,
+          "target_id": "stat_race_end",
+          "vaddr": 2148525228
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "game_timer_reset",
+          "vaddr": 2148525344
+        },
+        {
+          "kind": "function",
+          "size": 396,
+          "target_id": "stat_race_update",
+          "vaddr": 2148525488
+        },
+        {
+          "kind": "function",
+          "size": 76,
+          "target_id": "func_800FE73C",
+          "vaddr": 2148525884
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FE788",
+          "vaddr": 2148525960
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_800FE790",
+          "vaddr": 2148525968
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FE79C",
+          "vaddr": 2148525980
+        },
+        {
+          "kind": "function",
+          "size": 164,
+          "target_id": "game_timer_pause",
+          "vaddr": 2148525988
+        },
+        {
+          "kind": "function",
+          "size": 220,
+          "target_id": "game_timer_resume",
+          "vaddr": 2148526152
+        },
+        {
+          "kind": "function",
+          "size": 220,
+          "target_id": "stat_lap_complete",
+          "vaddr": 2148526372
+        },
+        {
+          "kind": "function",
+          "size": 608,
+          "target_id": "stat_lap_split",
+          "vaddr": 2148526592
+        },
+        {
+          "kind": "function",
+          "size": 60,
+          "target_id": "resource_type_select_simple",
+          "vaddr": 2148527200
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_800FEC9C",
+          "vaddr": 2148527260
+        },
+        {
+          "kind": "function",
+          "size": 352,
+          "target_id": "game_timer_display",
+          "vaddr": 2148527268
+        },
+        {
+          "kind": "function",
+          "size": 1172,
+          "target_id": "audio_animButtonText",
+          "vaddr": 2148527620
+        },
+        {
+          "kind": "function",
+          "size": 1164,
+          "target_id": "audio_animText",
+          "vaddr": 2148528792
+        },
+        {
+          "kind": "function",
+          "size": 1732,
+          "target_id": "animControls",
+          "vaddr": 2148529956
+        },
+        {
+          "kind": "function",
+          "size": 1916,
+          "target_id": "controls_animButtonText",
+          "vaddr": 2148531688
+        },
+        {
+          "kind": "function",
+          "size": 1576,
+          "target_id": "controls_animText",
+          "vaddr": 2148533604
+        },
+        {
+          "kind": "function",
+          "size": 408,
+          "target_id": "func_80100B8C",
+          "vaddr": 2148535180
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 18,
+      "name": "blob_800f8d9c",
+      "vaddr_end": 2148535588,
+      "vaddr_start": 2148502940
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_80100D24",
+          "vaddr": 2148535588
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "callback_init",
+          "vaddr": 2148535600
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "func_80100D5C",
+          "vaddr": 2148535644
+        },
+        {
+          "kind": "function",
+          "size": 2732,
+          "target_id": "drawRaceStandings",
+          "vaddr": 2148535896
+        },
+        {
+          "kind": "function",
+          "size": 1152,
+          "target_id": "func_80101904",
+          "vaddr": 2148538628
+        },
+        {
+          "kind": "function",
+          "size": 1176,
+          "target_id": "func_80101D84",
+          "vaddr": 2148539780
+        },
+        {
+          "kind": "function",
+          "size": 548,
+          "target_id": "drawMain",
+          "vaddr": 2148540956
+        },
+        {
+          "kind": "opaque",
+          "size": 8,
+          "vaddr": 2148541504
+        },
+        {
+          "kind": "function",
+          "size": 1336,
+          "target_id": "func_80102448",
+          "vaddr": 2148541512
+        },
+        {
+          "kind": "function",
+          "size": 1456,
+          "target_id": "drawBattleScore",
+          "vaddr": 2148542848
+        },
+        {
+          "kind": "function",
+          "size": 3560,
+          "target_id": "func_80102F30",
+          "vaddr": 2148544304
+        },
+        {
+          "kind": "opaque",
+          "size": 16,
+          "vaddr": 2148547864
+        },
+        {
+          "kind": "function",
+          "size": 2516,
+          "target_id": "DrawUnlocked",
+          "vaddr": 2148547880
+        },
+        {
+          "kind": "opaque",
+          "size": 8,
+          "vaddr": 2148550396
+        },
+        {
+          "kind": "function",
+          "size": 1040,
+          "target_id": "DrawName",
+          "vaddr": 2148550404
+        },
+        {
+          "kind": "function",
+          "size": 2404,
+          "target_id": "DrawGhost",
+          "vaddr": 2148551444
+        },
+        {
+          "kind": "opaque",
+          "size": 8,
+          "vaddr": 2148553848
+        },
+        {
+          "kind": "function",
+          "size": 1780,
+          "target_id": "highscore_animText",
+          "vaddr": 2148553856
+        },
+        {
+          "kind": "function",
+          "size": 564,
+          "target_id": "func_80105B74",
+          "vaddr": 2148555636
+        },
+        {
+          "kind": "function",
+          "size": 256,
+          "target_id": "func_80105DA8",
+          "vaddr": 2148556200
+        },
+        {
+          "kind": "function",
+          "size": 2508,
+          "target_id": "animResults",
+          "vaddr": 2148556456
+        },
+        {
+          "kind": "function",
+          "size": 712,
+          "target_id": "func_80106874",
+          "vaddr": 2148558964
+        },
+        {
+          "kind": "function",
+          "size": 600,
+          "target_id": "func_80106B3C",
+          "vaddr": 2148559676
+        },
+        {
+          "kind": "function",
+          "size": 1604,
+          "target_id": "func_80106D94",
+          "vaddr": 2148560276
+        },
+        {
+          "kind": "function",
+          "size": 580,
+          "target_id": "animElapsedTimer",
+          "vaddr": 2148561880
+        },
+        {
+          "kind": "function",
+          "size": 1232,
+          "target_id": "animElapsedTimerText",
+          "vaddr": 2148562460
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80107AEC",
+          "vaddr": 2148563692
+        },
+        {
+          "kind": "function",
+          "size": 1000,
+          "target_id": "animPlace",
+          "vaddr": 2148563700
+        },
+        {
+          "kind": "function",
+          "size": 632,
+          "target_id": "func_80107EDC",
+          "vaddr": 2148564700
+        },
+        {
+          "kind": "function",
+          "size": 896,
+          "target_id": "animLapTime",
+          "vaddr": 2148565332
+        },
+        {
+          "kind": "function",
+          "size": 1500,
+          "target_id": "animLapTimeText",
+          "vaddr": 2148566228
+        },
+        {
+          "kind": "function",
+          "size": 760,
+          "target_id": "animWrongWay",
+          "vaddr": 2148567728
+        },
+        {
+          "kind": "function",
+          "size": 408,
+          "target_id": "func_80108DA8",
+          "vaddr": 2148568488
+        },
+        {
+          "kind": "function",
+          "size": 1320,
+          "target_id": "func_80108F40",
+          "vaddr": 2148568896
+        },
+        {
+          "kind": "function",
+          "size": 1528,
+          "target_id": "func_80109468",
+          "vaddr": 2148570216
+        },
+        {
+          "kind": "function",
+          "size": 1268,
+          "target_id": "func_80109A60",
+          "vaddr": 2148571744
+        },
+        {
+          "kind": "function",
+          "size": 1504,
+          "target_id": "animFlag",
+          "vaddr": 2148573012
+        },
+        {
+          "kind": "opaque",
+          "size": 8,
+          "vaddr": 2148574516
+        },
+        {
+          "kind": "function",
+          "size": 616,
+          "target_id": "func_8010A53C",
+          "vaddr": 2148574524
+        },
+        {
+          "kind": "function",
+          "size": 300,
+          "target_id": "options_printOption",
+          "vaddr": 2148575140
+        },
+        {
+          "kind": "function",
+          "size": 1500,
+          "target_id": "options_animButtonText",
+          "vaddr": 2148575440
+        },
+        {
+          "kind": "function",
+          "size": 1652,
+          "target_id": "options_animText",
+          "vaddr": 2148576940
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8010B520",
+          "vaddr": 2148578592
+        },
+        {
+          "kind": "function",
+          "size": 56,
+          "target_id": "struct_callback_init",
+          "vaddr": 2148578600
+        },
+        {
+          "kind": "function",
+          "size": 112,
+          "target_id": "state_update_global",
+          "vaddr": 2148578656
+        },
+        {
+          "kind": "function",
+          "size": 556,
+          "target_id": "func_8010B5D0",
+          "vaddr": 2148578768
+        },
+        {
+          "kind": "function",
+          "size": 460,
+          "target_id": "func_8010B7FC",
+          "vaddr": 2148579324
+        },
+        {
+          "kind": "function",
+          "size": 700,
+          "target_id": "func_8010B9C8",
+          "vaddr": 2148579784
+        },
+        {
+          "kind": "function",
+          "size": 928,
+          "target_id": "func_8010BC84",
+          "vaddr": 2148580484
+        },
+        {
+          "kind": "opaque",
+          "size": 8,
+          "vaddr": 2148581412
+        },
+        {
+          "kind": "function",
+          "size": 696,
+          "target_id": "func_8010C02C",
+          "vaddr": 2148581420
+        },
+        {
+          "kind": "function",
+          "size": 356,
+          "target_id": "func_8010C2E4",
+          "vaddr": 2148582116
+        },
+        {
+          "kind": "function",
+          "size": 320,
+          "target_id": "func_8010C448",
+          "vaddr": 2148582472
+        },
+        {
+          "kind": "function",
+          "size": 320,
+          "target_id": "func_8010C588",
+          "vaddr": 2148582792
+        },
+        {
+          "kind": "function",
+          "size": 260,
+          "target_id": "steering_apply",
+          "vaddr": 2148583112
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_8010C7CC",
+          "vaddr": 2148583372
+        },
+        {
+          "kind": "opaque",
+          "size": 16,
+          "vaddr": 2148583396
+        },
+        {
+          "kind": "function",
+          "size": 384,
+          "target_id": "func_8010C7F4",
+          "vaddr": 2148583412
+        },
+        {
+          "kind": "function",
+          "size": 2636,
+          "target_id": "func_8010C974",
+          "vaddr": 2148583796
+        },
+        {
+          "kind": "function",
+          "size": 704,
+          "target_id": "StartWeaponIcon",
+          "vaddr": 2148586432
+        },
+        {
+          "kind": "function",
+          "size": 476,
+          "target_id": "func_8010D680",
+          "vaddr": 2148587136
+        },
+        {
+          "kind": "function",
+          "size": 368,
+          "target_id": "func_8010D85C",
+          "vaddr": 2148587612
+        },
+        {
+          "kind": "function",
+          "size": 300,
+          "target_id": "func_8010D9CC",
+          "vaddr": 2148587980
+        },
+        {
+          "kind": "function",
+          "size": 192,
+          "target_id": "func_8010DAF8",
+          "vaddr": 2148588280
+        },
+        {
+          "kind": "function",
+          "size": 324,
+          "target_id": "func_8010DBB8",
+          "vaddr": 2148588472
+        },
+        {
+          "kind": "function",
+          "size": 660,
+          "target_id": "StartCone",
+          "vaddr": 2148588796
+        },
+        {
+          "kind": "function",
+          "size": 364,
+          "target_id": "func_8010DF90",
+          "vaddr": 2148589456
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 19,
+      "name": "blob_80100d24",
+      "vaddr_end": 2148589820,
+      "vaddr_start": 2148535588
+    },
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 1000,
+          "target_id": "func_8010E0FC",
+          "vaddr": 2148589820
+        },
+        {
+          "kind": "function",
+          "size": 432,
+          "target_id": "func_8010E4E4",
+          "vaddr": 2148590820
+        },
+        {
+          "kind": "function",
+          "size": 152,
+          "target_id": "func_8010E694",
+          "vaddr": 2148591252
+        },
+        {
+          "kind": "function",
+          "size": 252,
+          "target_id": "func_8010E72C",
+          "vaddr": 2148591404
+        },
+        {
+          "kind": "function",
+          "size": 132,
+          "target_id": "func_8010E828",
+          "vaddr": 2148591656
+        },
+        {
+          "kind": "opaque",
+          "size": 8,
+          "vaddr": 2148591788
+        },
+        {
+          "kind": "function",
+          "size": 340,
+          "target_id": "func_8010E8B4",
+          "vaddr": 2148591796
+        },
+        {
+          "kind": "function",
+          "size": 2056,
+          "target_id": "video_animButtonText",
+          "vaddr": 2148592136
+        },
+        {
+          "kind": "opaque",
+          "size": 8,
+          "vaddr": 2148594192
+        },
+        {
+          "kind": "function",
+          "size": 2444,
+          "target_id": "video_animText",
+          "vaddr": 2148594200
+        },
+        {
+          "kind": "opaque",
+          "size": 16,
+          "vaddr": 2148596644
+        },
+        {
+          "kind": "function",
+          "size": 44,
+          "target_id": "sync_acquire_menu",
+          "vaddr": 2148596660
+        },
+        {
+          "kind": "function",
+          "size": 128,
+          "target_id": "func_8010FBE0",
+          "vaddr": 2148596704
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_8010FC60",
+          "vaddr": 2148596832
+        },
+        {
+          "kind": "function",
+          "size": 16,
+          "target_id": "func_8010FC70",
+          "vaddr": 2148596848
+        },
+        {
+          "kind": "function",
+          "size": 64,
+          "target_id": "resource_alloc_init",
+          "vaddr": 2148596864
+        },
+        {
+          "kind": "function",
+          "size": 92,
+          "target_id": "synced_model_render",
+          "vaddr": 2148596928
+        },
+        {
+          "kind": "function",
+          "size": 68,
+          "target_id": "struct_init_and_call",
+          "vaddr": 2148597020
+        },
+        {
+          "kind": "function",
+          "size": 28,
+          "target_id": "func_8010FD60",
+          "vaddr": 2148597088
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 20,
+      "name": "blob_8010e0fc",
+      "vaddr_end": 2148597116,
+      "vaddr_start": 2148589820
+    },
+    {
+      "entries": [
+        {
+          "kind": "data",
+          "section": ".data",
+          "size": 80628,
+          "vaddr": 2148597116
+        },
+        {
+          "kind": "data",
+          "section": ".rodata",
+          "size": 4480,
+          "vaddr": 2148677744
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 21,
+      "name": "blob_8010fd7c",
+      "vaddr_end": 2148682224,
+      "vaddr_start": 2148597116
+    }
+  ],
+  "totals": {
+    "data_bytes": 85108,
+    "function_bytes": 561860,
+    "functions": 1216,
+    "opaque_bytes": 104,
+    "opaque_runs": 10,
+    "regions": 22
+  }
+}

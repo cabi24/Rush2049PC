@@ -1,0 +1,26 @@
+{
+ "name": "results_table",
+ "members": [
+  "func_80102F30",
+  "drawMain",
+  "func_80101904",
+  "func_80101D84",
+  "func_80102448",
+  "func_80100D5C",
+  "drawBattleScore",
+  "drawRaceStandings"
+ ],
+ "context": [
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C"
+ ],
+ "files": [
+  "results_table.c",
+  "ctx_gr3_b.c"
+ ],
+ "keep": [
+  "func_80102F30"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

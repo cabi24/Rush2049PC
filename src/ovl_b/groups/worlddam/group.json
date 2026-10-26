@@ -1,0 +1,15 @@
+{
+ "name": "worlddam",
+ "members": [
+  "func_8038A408",
+  "func_8038A400"
+ ],
+ "context": [],
+ "files": [
+  "worlddam.c"
+ ],
+ "keep": [
+  "func_8038A408"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

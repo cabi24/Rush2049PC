@@ -1,0 +1,23 @@
+{
+ "name": "pak_write_cluster",
+ "members": [
+  "func_800A1BB4",
+  "func_800A1C6C",
+  "func_800A1DD4",
+  "track_data_decompress",
+  "PS_FlushPak",
+  "PS_FlushFile",
+  "PS_WriteFile"
+ ],
+ "files": [
+  "group.c"
+ ],
+ "keep": [
+  "PS_FlushPak",
+  "PS_FlushFile",
+  "PS_WriteFile"
+ ],
+ "context": [],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "note": "Controller-pak write cluster. func_800A1BB4, func_800A1C6C, func_800A1DD4 and track_data_decompress are internal IPA functions (need unit_overrides force_internal); pfs_queue_init/pfs_lock/pfs_unlock are non-static inlined helpers (not members, not keep). Shaping devices disclosed in group.c header."
+}

@@ -1,0 +1,108 @@
+"""Assemble, link and gate a code image (distilled from the project's
+image-splice tooling; definitions copied verbatim)."""
+import subprocess
+from pathlib import Path
+
+AS = "mips-linux-gnu-as"
+LD = "mips-linux-gnu-ld"
+OBJCOPY = "mips-linux-gnu-objcopy"
+NM = "mips-linux-gnu-nm"
+READELF = "mips-linux-gnu-readelf"
+REPO = Path(__file__).resolve().parents[2]
+
+
+class BuildError(RuntimeError):
+    pass
+
+
+def function_symbols(obj):
+    """{name: (value, section index)} for defined ELF function symbols only.
+
+    Function sizes may omit padding; the next function or section end bounds
+    a compiled body. Local code labels and section symbols are not boundaries.
+    """
+    proc = subprocess.run([READELF, "-sW", str(obj)], capture_output=True, text=True)
+    if proc.returncode:
+        raise BuildError("readelf failed: " + proc.stderr.strip()[:200])
+    functions = {}
+    for line in proc.stdout.splitlines():
+        fields = line.split()
+        if (len(fields) >= 8 and fields[0].rstrip(":").isdigit()
+                and fields[3] == "FUNC" and fields[6].isdigit()):
+            functions[fields[7]] = (int(fields[1], 16), fields[6])
+    return functions
+
+
+def assemble(asm_path, out_o):
+    proc = subprocess.run(
+        [AS, "-march=vr4300", "-mabi=32", "-I", str(REPO),
+         "-o", str(out_o), str(asm_path)],
+        capture_output=True, text=True)
+    if proc.returncode != 0:
+        first = next((l for l in proc.stderr.splitlines() if ": Error:" in l),
+                     proc.stderr.strip()[:200])
+        raise BuildError(f"assembling {asm_path.name}: {first}")
+
+
+def link(objects, script, out_elf):
+    proc = subprocess.run(
+        [LD, "-T", str(script), "--no-warn-rwx-segments", "-o", str(out_elf),
+         *[str(o) for o in objects]],
+        capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise BuildError("link failed: " + proc.stderr.strip()[:400])
+
+
+def extract_image(elf, out_bin):
+    proc = subprocess.run(
+        [OBJCOPY, "-O", "binary", "--only-section=.image", str(elf), str(out_bin)],
+        capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise BuildError("objcopy failed: " + proc.stderr.strip()[:300])
+    return Path(out_bin).read_bytes()
+
+
+def _base(document):
+    return int(document["image"]["base"], 16)
+
+
+def locate(document, offset):
+    """(region, entry) owning an image offset — for naming a gate failure."""
+    vaddr = _base(document) + offset
+    for region in document["regions"]:
+        if region["vaddr_start"] <= vaddr < region["vaddr_end"]:
+            for entry in region["entries"]:
+                if entry["vaddr"] <= vaddr < entry["vaddr"] + entry["size"]:
+                    return region, entry
+            return region, None
+    return None, None
+
+
+def describe_difference(document, expected, actual):
+    """Human-readable first difference (contract §13)."""
+    if len(expected) != len(actual):
+        detail = f"length {len(actual)} != expected {len(expected)}"
+        limit = min(len(expected), len(actual))
+    else:
+        detail = None
+        limit = len(expected)
+    offset = next((i for i in range(limit) if expected[i] != actual[i]), None)
+    if offset is None:
+        return detail or "images differ but no differing byte was found"
+    word = offset & ~3
+    region, entry = locate(document, word)
+    owner = "unmapped"
+    if entry is not None:
+        owner = (entry["target_id"] if entry["kind"] == "function"
+                 else f"{entry['kind']}@0x{entry['vaddr']:08X}")
+    lines = [
+        f"first difference at image offset {offset} "
+        f"(vram 0x{_base(document) + offset:08X})",
+        f"  region:   {region['name'] if region else '?'}",
+        f"  owner:    {owner}",
+        f"  expected: {expected[word:word + 4].hex()}",
+        f"  built:    {actual[word:word + 4].hex()}",
+    ]
+    if detail:
+        lines.append(f"  note:     {detail}")
+    return "\n".join(lines)

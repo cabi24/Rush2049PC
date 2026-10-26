@@ -1,0 +1,33 @@
+{
+ "members": [
+  "func_80394564",
+  "func_80394834",
+  "func_80394B00",
+  "func_80397AD8",
+  "func_80397FFC",
+  "func_803968C0",
+  "func_80395E8C",
+  "func_80394DD8",
+  "func_80396FA0",
+  "func_80397FF4",
+  "func_803968B8",
+  "func_8039842C",
+  "func_80395E14",
+  "func_80395E1C",
+  "func_80396ED8",
+  "func_80396EE0"
+ ],
+ "context": [
+  "func_803949CC",
+  "func_80395E24",
+  "func_80396EE8",
+  "func_80396F44"
+ ],
+ "files": [
+  "group.c"
+ ],
+ "keep": [
+  "func_8039842C"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

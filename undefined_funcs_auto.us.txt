@@ -1,0 +1,14 @@
+func_800277D0 = 0x800277D0;
+func_800278C4 = 0x800278C4;
+func_80027B44 = 0x80027B44;
+func_8002C5E0 = 0x8002C5E0;
+dma_queue_sync = 0x800960D4;
+audio_start = 0x800A48C8;
+sound_init = 0x800A4934;
+viewport_scale = 0x800A7508;
+brake_force_apply = 0x800AC75C;
+sound_play_menu = 0x800CC3C0;
+render_thread_entry = 0x800E7808;
+world_trigger_activate = 0x800EE5DC;
+game_late_init = 0x800EEA7C;
+game_loop = 0x800FD464;

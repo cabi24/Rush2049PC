@@ -1,0 +1,111 @@
+/* GENERATED ROM-aligned TU — segment 0xa050 (rom/lib_a050)
+ * layout map d5022908837d5caae1c6f954ab92b583231ad91b890aac766d00d270cadc95ee.
+ * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
+ * passthrough lines. */
+#include "rom_tu.h"
+
+/* PROMOTED 2026-10-01 — osContInit (formerly labelled __osContBuildPacket)
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+s32 osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
+    OSMesg dummy;
+    s32 ret = 0;
+    OSTime t;
+    OSTimer mytimer;
+    OSMesgQueue timerMesgQueue;
+
+    if (__osContPifBuf) {
+        return 0;
+    }
+
+    __osContPifBuf = TRUE;
+
+    t = osGetTime();
+    if (t < ((OSTime)0x165A0BC)) {
+        osCreateMesgQueue(&timerMesgQueue, &dummy, 1);
+        osSetTimer(&mytimer, ((OSTime)0x165A0BC) - t, 0, &timerMesgQueue, &dummy);
+        osRecvMesg(&timerMesgQueue, &dummy, OS_MESG_BLOCK);
+    }
+
+    __osPfsRequestType2 = 4;
+
+    __osPackRequestData(CONT_CMD_REQUEST_STATUS);
+
+    ret = __osSiRawStartDma(OS_WRITE, __osSiDmaBuffer.ramarray);
+    osRecvMesg(mq, &dummy, OS_MESG_BLOCK);
+
+    ret = __osSiRawStartDma(OS_READ, __osSiDmaBuffer.ramarray);
+    osRecvMesg(mq, &dummy, OS_MESG_BLOCK);
+
+    __osContGetInitData(bitpattern, data);
+    __osPfsRequestType = CONT_CMD_REQUEST_STATUS;
+    __osSiCreateAccessQueue();
+    osCreateMesgQueue(&__osContQueryMsgQ, &__osContQueryMesg, 1);
+
+    return ret;
+}
+
+/* PROMOTED 2026-10-01 — __osContGetInitData (ultralib name; formerly labelled __osContGetStatus)
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void __osContGetInitData(u8* pattern, OSContStatus* data) {
+    u8* ptr;
+    __OSContRequesFormat requestHeader;
+    int i;
+    u8 bits = 0;
+
+    ptr = (u8*)__osSiDmaBuffer.ramarray;
+    for (i = 0; i < __osPfsRequestType2; i++, ptr += sizeof(requestHeader), data++) {
+        requestHeader = *(__OSContRequesFormat*)ptr;
+        data->errno = CHNL_ERR(requestHeader);
+
+        if (data->errno != 0) {
+            continue;
+        }
+
+        data->type = requestHeader.typel << 8 | requestHeader.typeh;
+        data->status = requestHeader.status;
+        bits |= 1 << i;
+    }
+    *pattern = bits;
+}
+
+/* PROMOTED 2026-10-01 — __osPackRequestData (ultralib name; formerly labelled __osContRamReset)
+ * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
+ * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
+ * Evidence: identical bytes in the full-ROM SHA-1 build
+ * Gate:     full-ROM SHA-1
+ */
+void __osPackRequestData(u8 cmd) {
+    u8* ptr;
+    __OSContRequesFormat requestHeader;
+    s32 i;
+
+    for (i = 0; i < ARRLEN(__osSiDmaBuffer.ramarray); i++) {
+        __osSiDmaBuffer.ramarray[i] = 0;
+    }
+
+    __osSiDmaBuffer.pifstatus = CONT_CMD_EXE;
+    ptr = (u8*)__osSiDmaBuffer.ramarray;
+    requestHeader.dummy = CONT_CMD_NOP;
+    requestHeader.txsize = CONT_CMD_RESET_TX;
+    requestHeader.rxsize = CONT_CMD_RESET_RX;
+    requestHeader.cmd = cmd;
+    requestHeader.typeh = CONT_CMD_NOP;
+    requestHeader.typel = CONT_CMD_NOP;
+    requestHeader.status = CONT_CMD_NOP;
+    requestHeader.dummy1 = CONT_CMD_NOP;
+
+    for (i = 0; i < __osPfsRequestType2; i++) {
+        *(__OSContRequesFormat*)ptr = requestHeader;
+        ptr += sizeof(requestHeader);
+    }
+    *ptr = CONT_CMD_END;
+}
+

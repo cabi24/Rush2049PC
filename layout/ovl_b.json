@@ -1,0 +1,371 @@
+{
+  "image": {
+    "base": "8038A400",
+    "name": "b",
+    "path": "build/ovl/b/image.bin",
+    "sha256": "b55fc2d1b22eb1ebdf01286a69a181b496da7b45ff7aec888ff74b7db748e7cd",
+    "size": 43888,
+    "text_end": "0x80393B34"
+  },
+  "regions": [
+    {
+      "entries": [
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8038A400",
+          "vaddr": 2151195648
+        },
+        {
+          "kind": "function",
+          "size": 1220,
+          "target_id": "func_8038A408",
+          "vaddr": 2151195656
+        },
+        {
+          "kind": "function",
+          "size": 144,
+          "target_id": "func_8038A8CC",
+          "vaddr": 2151196876
+        },
+        {
+          "kind": "function",
+          "size": 184,
+          "target_id": "func_8038A95C",
+          "vaddr": 2151197020
+        },
+        {
+          "kind": "function",
+          "size": 120,
+          "target_id": "func_8038AA14",
+          "vaddr": 2151197204
+        },
+        {
+          "kind": "function",
+          "size": 7812,
+          "target_id": "func_8038AA8C",
+          "vaddr": 2151197324
+        },
+        {
+          "kind": "function",
+          "size": 276,
+          "target_id": "func_8038C910",
+          "vaddr": 2151205136
+        },
+        {
+          "kind": "function",
+          "size": 236,
+          "target_id": "func_8038CA24",
+          "vaddr": 2151205412
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8038CB10",
+          "vaddr": 2151205648
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8038CB18",
+          "vaddr": 2151205656
+        },
+        {
+          "kind": "function",
+          "size": 1332,
+          "target_id": "func_8038CB20",
+          "vaddr": 2151205664
+        },
+        {
+          "kind": "function",
+          "size": 340,
+          "target_id": "func_8038D054",
+          "vaddr": 2151206996
+        },
+        {
+          "kind": "function",
+          "size": 88,
+          "target_id": "func_8038D1A8",
+          "vaddr": 2151207336
+        },
+        {
+          "kind": "function",
+          "size": 296,
+          "target_id": "func_8038D200",
+          "vaddr": 2151207424
+        },
+        {
+          "kind": "function",
+          "size": 124,
+          "target_id": "func_8038D328",
+          "vaddr": 2151207720
+        },
+        {
+          "kind": "function",
+          "size": 244,
+          "target_id": "func_8038D3A4",
+          "vaddr": 2151207844
+        },
+        {
+          "kind": "function",
+          "size": 768,
+          "target_id": "func_8038D498",
+          "vaddr": 2151208088
+        },
+        {
+          "kind": "function",
+          "size": 736,
+          "target_id": "func_8038D798",
+          "vaddr": 2151208856
+        },
+        {
+          "kind": "function",
+          "size": 868,
+          "target_id": "func_8038DA78",
+          "vaddr": 2151209592
+        },
+        {
+          "kind": "function",
+          "size": 684,
+          "target_id": "func_8038DDDC",
+          "vaddr": 2151210460
+        },
+        {
+          "kind": "function",
+          "size": 140,
+          "target_id": "func_8038E088",
+          "vaddr": 2151211144
+        },
+        {
+          "kind": "function",
+          "size": 5196,
+          "target_id": "func_8038E114",
+          "vaddr": 2151211284
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8038F560",
+          "vaddr": 2151216480
+        },
+        {
+          "kind": "function",
+          "size": 976,
+          "target_id": "func_8038F568",
+          "vaddr": 2151216488
+        },
+        {
+          "kind": "function",
+          "size": 928,
+          "target_id": "func_8038F938",
+          "vaddr": 2151217464
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_8038FCD8",
+          "vaddr": 2151218392
+        },
+        {
+          "kind": "function",
+          "size": 3056,
+          "target_id": "func_8038FCE0",
+          "vaddr": 2151218400
+        },
+        {
+          "kind": "function",
+          "size": 560,
+          "target_id": "func_803908D0",
+          "vaddr": 2151221456
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80390B00",
+          "vaddr": 2151222016
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80390B08",
+          "vaddr": 2151222024
+        },
+        {
+          "kind": "function",
+          "size": 552,
+          "target_id": "func_80390B10",
+          "vaddr": 2151222032
+        },
+        {
+          "kind": "function",
+          "size": 552,
+          "target_id": "func_80390D38",
+          "vaddr": 2151222584
+        },
+        {
+          "kind": "function",
+          "size": 988,
+          "target_id": "func_80390F60",
+          "vaddr": 2151223136
+        },
+        {
+          "kind": "function",
+          "size": 340,
+          "target_id": "func_8039133C",
+          "vaddr": 2151224124
+        },
+        {
+          "kind": "function",
+          "size": 24,
+          "target_id": "func_80391490",
+          "vaddr": 2151224464
+        },
+        {
+          "kind": "function",
+          "size": 12,
+          "target_id": "func_803914A8",
+          "vaddr": 2151224488
+        },
+        {
+          "kind": "function",
+          "size": 396,
+          "target_id": "func_803914B4",
+          "vaddr": 2151224500
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80391640",
+          "vaddr": 2151224896
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_80391648",
+          "vaddr": 2151224904
+        },
+        {
+          "kind": "function",
+          "size": 532,
+          "target_id": "func_80391650",
+          "vaddr": 2151224912
+        },
+        {
+          "kind": "function",
+          "size": 668,
+          "target_id": "func_80391864",
+          "vaddr": 2151225444
+        },
+        {
+          "kind": "function",
+          "size": 2380,
+          "target_id": "func_80391B00",
+          "vaddr": 2151226112
+        },
+        {
+          "kind": "function",
+          "size": 380,
+          "target_id": "func_8039244C",
+          "vaddr": 2151228492
+        },
+        {
+          "kind": "function",
+          "size": 8,
+          "target_id": "func_803925C8",
+          "vaddr": 2151228872
+        },
+        {
+          "kind": "function",
+          "size": 708,
+          "target_id": "func_803925D0",
+          "vaddr": 2151228880
+        },
+        {
+          "kind": "function",
+          "size": 1872,
+          "target_id": "func_80392894",
+          "vaddr": 2151229588
+        },
+        {
+          "kind": "function",
+          "size": 1332,
+          "target_id": "func_80392FE4",
+          "vaddr": 2151231460
+        },
+        {
+          "kind": "function",
+          "size": 400,
+          "target_id": "func_80393518",
+          "vaddr": 2151232792
+        },
+        {
+          "kind": "function",
+          "size": 1164,
+          "target_id": "func_803936A8",
+          "vaddr": 2151233192
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 0,
+      "name": "ovl_b_8038a400",
+      "vaddr_end": 2151234356,
+      "vaddr_start": 2151195648
+    },
+    {
+      "entries": [
+        {
+          "kind": "data",
+          "section": ".data",
+          "size": 4588,
+          "vaddr": 2151234356
+        },
+        {
+          "kind": "data",
+          "section": ".rodata",
+          "size": 592,
+          "vaddr": 2151238944
+        }
+      ],
+      "flagset": "-g0 -O2 -mips2 -G 0 -non_shared",
+      "index": 1,
+      "name": "ovl_b_80393b34",
+      "vaddr_end": 2151239536,
+      "vaddr_start": 2151234356
+    }
+  ],
+  "switch_tables": [
+    {
+      "size": 36,
+      "vaddr": "0x80394D20"
+    },
+    {
+      "size": 36,
+      "vaddr": "0x80394DF4"
+    },
+    {
+      "size": 36,
+      "vaddr": "0x80394E20"
+    },
+    {
+      "size": 36,
+      "vaddr": "0x80394E68"
+    },
+    {
+      "size": 36,
+      "vaddr": "0x80394EBC"
+    },
+    {
+      "size": 32,
+      "vaddr": "0x80394F14"
+    }
+  ],
+  "totals": {
+    "data_bytes": 5180,
+    "function_bytes": 38708,
+    "functions": 49,
+    "opaque_bytes": 0,
+    "opaque_runs": 0,
+    "regions": 2,
+    "switch_tables": 6
+  }
+}

@@ -1,0 +1,15 @@
+{
+ "name": "hud_show",
+ "members": [
+  "func_803925D0",
+  "func_803925C8"
+ ],
+ "context": [],
+ "files": [
+  "hudextra.c"
+ ],
+ "keep": [
+  "func_803925D0"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

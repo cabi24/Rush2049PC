@@ -1,0 +1,10 @@
+# ROM and everything derived from it
+*.z64
+*.n64
+*.v64
+assets/
+build/
+# toolchain installed by the user
+tools/ido/
+__pycache__/
+*.pyc

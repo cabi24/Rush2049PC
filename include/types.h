@@ -1,0 +1,249 @@
+/**
+ * @file types.h
+ * @brief Common type definitions for Rush 2049 N64
+ *
+ * Mirrors arcade source conventions where possible.
+ * See reference/repos/rushtherock/game/typedefs.h
+ */
+
+#ifndef TYPES_H
+#define TYPES_H
+
+/* Basic integer types */
+typedef signed char s8;
+typedef unsigned char u8;
+typedef signed short s16;
+typedef unsigned short u16;
+typedef signed int s32;
+typedef unsigned int u32;
+typedef signed long long s64;
+typedef unsigned long long u64;
+typedef float f32;
+typedef double f64;
+
+/* Pointer-sized integer types */
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+
+/* Volatile types (for hardware registers) */
+typedef volatile u8  vu8;
+typedef volatile u16 vu16;
+typedef volatile u32 vu32;
+typedef volatile u64 vu64;
+typedef volatile s8  vs8;
+typedef volatile s16 vs16;
+typedef volatile s32 vs32;
+typedef volatile s64 vs64;
+
+/* N64 Graphics types (from libultra) */
+typedef union {
+    struct {
+        u32 w0;
+        u32 w1;
+    } words;
+    u64 force_structure_alignment;
+} Gfx;
+typedef u32 Mtx[4][4];
+
+/* Arcade-style type definitions */
+typedef f32 F32;          /* 32-bit float */
+typedef s32 S32;          /* Signed 32-bit */
+typedef s16 S16;          /* Signed 16-bit */
+typedef s8  S08;          /* Signed 8-bit */
+typedef u32 U32;          /* Unsigned 32-bit */
+typedef u16 U16;          /* Unsigned 16-bit */
+typedef u8  U08;          /* Unsigned 8-bit */
+
+/* Boolean */
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+typedef s32 BOOL;
+
+/* Vector types */
+typedef f32 Vec3f[3];
+typedef s16 Vec3s[3];
+typedef s32 Vec3i[3];
+
+/* Matrix types */
+typedef f32 Mat3f[3][3];
+typedef f32 Mat4f[4][4];
+
+/* Fixed-point math (arcade uses 0x4000 = 1.0 scale) */
+#define FRAC_BITS 14
+#define FRAC_ONE (1 << FRAC_BITS)  /* 0x4000 = 16384 */
+
+/* Common null pointer */
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+
+/* N64 OS constants */
+#define OS_READ  0
+#define OS_WRITE 1
+#define OS_MESG_NOBLOCK 0
+#define OS_MESG_BLOCK   1
+
+/* Controller Pak (PFS) constants - see include/PR/os_pfs.h for full definitions */
+/* Basic constants kept here for compatibility */
+#ifndef _OS_PFS_H_
+#define PFS_READ  0
+#define PFS_WRITE 1
+#define PFS_ERR_INVALID      5   /* Invalid parameter */
+#define PFS_INITIALIZED      0x01
+#define PFS_BLOCKSIZE        32
+#define PFS_ONE_PAGE         8
+#endif
+#define PFS_LABEL_SIZE      28
+
+/* N64 Matrix constants */
+#define G_MTX_MODELVIEW  0x00
+#define G_MTX_PROJECTION 0x04
+#define G_MTX_MUL        0x00
+#define G_MTX_LOAD       0x02
+#define G_MTX_NOPUSH     0x00
+#define G_MTX_PUSH       0x01
+
+/* N64 AA render mode constants */
+#define G_RM_AA_ZB_OPA_SURF  0x0C184000
+#define G_RM_AA_ZB_OPA_SURF2 0x03124000
+#define G_RM_AA_ZB_XLU_SURF  0x00504A00
+#define G_RM_AA_ZB_XLU_SURF2 0x00104A40
+
+/* Combine mode macros */
+#define G_CC_MODULATEIA_PRIM 0
+
+/* Float matrix type alias */
+typedef f32 MtxF[4][4];
+
+/* N64 Controller Pak (PFS) - see include/PR/os_pfs.h for full definition */
+/* Forward declaration only - typedef is in os_pfs.h */
+#ifndef _OS_PFS_H_
+struct OSPfs;
+#endif
+
+/* N64 OS timer - defined in include/PR/os_time.h */
+/* Include os_time.h for OSTimer definition */
+
+/* N64 RSP task type constants */
+#define M_GFXTASK   1
+#define M_AUDTASK   2
+#define M_VIDTASK   3
+#define M_HVQTASK   4
+
+#define SP_UCODE_DATA_SIZE 0x800
+
+/* N64 RDP Image Format constants */
+#define G_IM_FMT_RGBA    0
+#define G_IM_FMT_YUV     1
+#define G_IM_FMT_CI      2
+#define G_IM_FMT_IA      3
+#define G_IM_FMT_I       4
+
+#define G_IM_SIZ_4b      0
+#define G_IM_SIZ_8b      1
+#define G_IM_SIZ_16b     2
+#define G_IM_SIZ_32b     3
+
+/* N64 RDP Render Mode constants */
+#define G_RM_OPA_SURF    0x0C084000
+#define G_RM_OPA_SURF2   0x03024000
+#define G_RM_XLU_SURF    0x00404200
+#define G_RM_XLU_SURF2   0x00104240
+#define G_RM_ZB_OPA_SURF 0x0C184000
+#define G_RM_ZB_OPA_SURF2 0x03124000
+#define G_RM_ZB_XLU_SURF 0x00504A00
+#define G_RM_ZB_XLU_SURF2 0x00104A40
+
+/* N64 OS Message Priority */
+#define OS_MESG_PRI_NORMAL 0
+#define OS_MESG_PRI_HIGH   1
+
+/* N64 I/O Message - defined in include/PR/os_pi.h */
+/* Include os_pi.h for OSIoMesg definition */
+
+/* External RSP boot/ucode symbols */
+extern u8 rspbootTextStart[], rspbootTextEnd[];
+extern u8 gspF3DEX2_fifoTextStart[], gspF3DEX2_fifoTextEnd[];
+extern u8 gspF3DEX2_fifoDataStart[], gspF3DEX2_fifoDataEnd[];
+
+/* N64 OSTask structure for RSP tasks */
+typedef struct {
+    u32 type;                /* Task type (M_GFXTASK, M_AUDTASK, etc.) */
+    u32 flags;               /* Task flags */
+    u64 *ucode_boot;         /* RSP boot microcode */
+    u32 ucode_boot_size;     /* Boot microcode size */
+    u64 *ucode;              /* RSP microcode */
+    u32 ucode_size;          /* Microcode size */
+    u64 *ucode_data;         /* Microcode data */
+    u32 ucode_data_size;     /* Data size */
+    u64 *dram_stack;         /* DRAM stack */
+    u32 dram_stack_size;     /* Stack size */
+    u64 *output_buff;        /* Output buffer */
+    u64 *output_buff_size;   /* Output buffer size */
+    u64 *data_ptr;           /* Data pointer */
+    u32 data_size;           /* Data size */
+    u64 *yield_data_ptr;     /* Yield data pointer */
+    u32 yield_data_size;     /* Yield data size */
+} OSTask_t;
+
+typedef struct {
+    OSTask_t t;
+} OSTask;
+
+/* N64 GBI Texture/Tile constants */
+#define G_TX_RENDERTILE  0
+#define G_TX_LOADTILE    7
+#define G_TX_WRAP        0
+#define G_TX_CLAMP       2
+#define G_TX_MIRROR      1
+#define G_TX_NOMASK      0
+#define G_TX_NOLOD       0
+
+/* N64 GBI Geometry Mode flags */
+#define G_ZBUFFER        0x00000001
+#define G_SHADE          0x00000004
+#define G_CULL_FRONT     0x00000200
+#define G_CULL_BACK      0x00000400
+#define G_FOG            0x00010000
+#define G_LIGHTING       0x00020000
+#define G_TEXTURE_GEN    0x00040000
+#define G_SHADING_SMOOTH 0x00200000
+#define G_CLIPPING       0x00800000
+
+/* N64 GBI Texture settings */
+#define G_ON             1
+#define G_OFF            0
+#define G_TP_PERSP       (1 << 11)
+#define G_TP_NONE        0
+#define G_TL_TILE        (1 << 14)
+#define G_TL_LOD         0
+#define G_TT_NONE        0
+#define G_TT_RGBA16      (2 << 16)
+#define G_TD_CLAMP       0
+#define G_TD_WRAP        (1 << 18)
+#define G_TC_FILT        (2 << 19)
+#define G_TC_FILTL       (3 << 19)
+#define G_CK_NONE        0
+#define G_AC_NONE        0
+#define G_ZS_PIXEL       0
+#define G_ZS_PRIM        (1 << 2)
+
+/* N64 GBI Cycle type */
+#define G_CYC_1CYCLE     0
+#define G_CYC_2CYCLE     (1 << 20)
+#define G_CYC_COPY       (2 << 20)
+#define G_CYC_FILL       (3 << 20)
+
+/* N64 GBI Combine modes (simplified - actual values are complex) */
+#define G_CC_MODULATERGBA    0
+#define G_CC_MODULATEIA      0
+#define G_CC_SHADE           0
+#define G_CC_DECALRGBA       0
+#define G_CC_BLENDRGBA       0
+
+#endif /* TYPES_H */

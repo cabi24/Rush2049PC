@@ -1,0 +1,32 @@
+{
+ "name": "controls",
+ "members": [
+  "controls_animText",
+  "controls_animButtonText"
+ ],
+ "context": [
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C",
+  "func_800A1A3C",
+  "func_80094FC4",
+  "func_800D8154",
+  "func_800BEA3C"
+ ],
+ "files": [
+  "controls.c",
+  "ctx_gr3_b.c",
+  "ctx_pak.c",
+  "ctx_d8154.c",
+  "ctx_flash.c"
+ ],
+ "keep": [
+  "controls_animText",
+  "func_800A1A3C",
+  "func_80094FC4",
+  "func_800BEA3C"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "unprototyped": [],
+ "note": "controlscr.c text pair (MAT3 animText/animButtonText). controls_animText kept (blit callback), controls_animButtonText internal (only caller animText, stack-slot p). Inlined helpers ct_* non-static, not on keep. Context: ctx_gr3_b.c = byte-identical copy of credits_scroll_grp/gr3_b.c (slot_state_setup s2 IPA), ctx_pak.c = byte-identical copy of controlscr/ctx_pak.c (PS_PakRumble), ctx_d8154.c = byte-identical copy of controlscr/d8154.c (validOption), ctx_flash.c = func_800BEA3C function text byte-identical to audioscr/audio.c. Unit install: force_internal += controls_animButtonText, ct_gfx_lock, ct_gfx_unlock, ct_font_set, ct_SetJust, ct_CenterText, ct_RightText, ct_DrawEllipseText (if not derived). Disclosed: animButtonText unused u8 str1[64] (frame residual), animText compiled-out if (i == 10) {}."
+}

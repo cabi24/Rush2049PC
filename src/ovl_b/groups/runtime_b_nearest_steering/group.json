@@ -1,0 +1,14 @@
+{
+ "name": "runtime_b_nearest_steering",
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "files": [
+  "group.c"
+ ],
+ "members": [
+  "func_8038DDDC"
+ ],
+ "context": [],
+ "keep": [
+  "func_8038DDDC"
+ ]
+}

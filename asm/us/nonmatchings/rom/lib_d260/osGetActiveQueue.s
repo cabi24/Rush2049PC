@@ -1,0 +1,8 @@
+nonmatching osGetActiveQueue, 0xC
+
+glabel osGetActiveQueue
+    /* D260 8000C660 3C028003 */  lui        $v0, %hi(__osViModeInfo)
+    /* D264 8000C664 03E00008 */  jr         $ra
+    /* D268 8000C668 8C42C460 */   lw        $v0, %lo(__osViModeInfo)($v0)
+endlabel osGetActiveQueue
+    /* D26C 8000C66C 00000000 */  nop

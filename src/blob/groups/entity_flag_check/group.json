@@ -1,0 +1,16 @@
+{
+  "members": [
+    "entity_flag_check"
+  ],
+  "files": [
+    "group.c"
+  ],
+  "keep": [
+    "func_800988D8",
+    "__standin_entity_flag_check"
+  ],
+  "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+  "context": [
+    "func_800988D8"
+  ]
+}

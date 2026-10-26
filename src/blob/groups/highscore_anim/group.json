@@ -1,0 +1,22 @@
+{
+ "name": "highscore_anim",
+ "members": [
+  "DrawName",
+  "DrawGhost",
+  "DrawUnlocked"
+ ],
+ "context": [
+  "highscore_animText",
+  "slot_state_setup",
+  "object_create",
+  "func_800B669C"
+ ],
+ "files": [
+  "highscore.c",
+  "ctx_gr3_b.c"
+ ],
+ "keep": [
+  "highscore_animText"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared"
+}

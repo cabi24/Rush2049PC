@@ -1,0 +1,15 @@
+{
+ "members": [
+  "func_800F92C8",
+  "render_large_objects"
+ ],
+ "files": [
+  "group.c"
+ ],
+ "keep": [
+  "render_large_objects"
+ ],
+ "flags": "-g0 -O3 -mips2 -G 0 -non_shared",
+ "unprototyped": [],
+ "context": []
+}
