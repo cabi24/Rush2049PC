@@ -41,6 +41,23 @@ static uint8_t *g_rdram, *g_rdram_k1;
 static int g_fixed;
 
 #ifdef _WIN32
+/* Reserves (without committing) every free range below 4 GiB but the window, so that whatever the process maps
+ * from now on, the N64 threads' stacks and new heap segments among them, lands above 4 GiB. High-entropy ASLR puts
+ * them there anyway, but not always: under gdb the heap and stacks started at a few MiB. */
+static void reserve_low(void)
+{
+    MEMORY_BASIC_INFORMATION mi;
+    const uintptr_t top = (uintptr_t)1 << 32, granule = 0x10000;
+    for (uintptr_t a = granule; a < top; a = (uintptr_t)mi.BaseAddress + mi.RegionSize) {
+        if (!VirtualQuery((void *)a, &mi, sizeof mi))
+            break;
+        uintptr_t lo = ((uintptr_t)mi.BaseAddress + granule - 1) & ~(granule - 1);
+        uintptr_t hi = (uintptr_t)mi.BaseAddress + mi.RegionSize;
+        if (mi.State == MEM_FREE && (hi = hi < top ? hi : top) > lo)
+            VirtualAlloc((void *)lo, hi - lo, MEM_RESERVE, PAGE_NOACCESS);
+    }
+}
+
 int pc_mem_init(void)
 {
     HANDLE section = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, PC_RDRAM_SIZE, NULL);
@@ -57,8 +74,9 @@ int pc_mem_init(void)
         return -1;
     }
     g_fixed = 1;
+    reserve_low();
     /* Host data must be above 4 GiB, where high-entropy ASLR puts the heap and the stacks of a process whose
-     * image asks for it (CMakeLists.txt): say so if this one got low memory anyway. */
+     * image asks for it (CMakeLists.txt): say so if what came before main got low memory anyway. */
     void *heap = malloc(64);
     int local;
     if (!((uintptr_t)heap >> 32) || !((uintptr_t)&local >> 32))
