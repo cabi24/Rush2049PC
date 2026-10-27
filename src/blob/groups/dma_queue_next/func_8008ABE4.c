@@ -24,6 +24,22 @@ typedef struct {
     void *vAddr;
 } DmaReq;
 
+#ifdef TARGET_PC
+/* PC: the list also holds the done queue struct_init_and_call stores at +0xC on the N64. With two host
+ * pointers it is 24 bytes, and 0x80153F10 has 16 before D_80153F20, so it has its own storage, defined
+ * here; struct_init_and_call.c and task_complete_signal use the same name and layout
+ * (docs/port/MUSYX_DATA.md 8.1). */
+typedef struct {
+    u16 pad0;
+    u16 count;
+    u16 next;
+    u16 pad6;
+    DmaReq *reqs;
+    OSMesgQueue *done;
+} DmaList;
+#define D_80153F10 pc_D_80153F10
+DmaList pc_D_80153F10;
+#else
 typedef struct {
     u16 pad0;
     u16 count;
@@ -31,6 +47,7 @@ typedef struct {
     u16 pad6;
     DmaReq *reqs;
 } DmaList;
+#endif
 
 extern DmaList D_80153F10;
 extern OSIoMesg D_80161438;

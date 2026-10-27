@@ -2609,7 +2609,14 @@ extern s32 D_80153EB8;
 extern s32 D_80153EF0;
 extern s32 D_80153EF8;
 extern s16 D_80153F08;
+#ifdef TARGET_PC
+/* PC: arg (the request list) and aux (its done queue) are pointers: func_8008ABE4.c's DmaList, in its
+ * own storage (docs/port/MUSYX_DATA.md 8.1) */
+typedef struct { s8 active; s8 pad1; s16 id; s16 count; s16 pad6; intptr_t arg; intptr_t aux; } CallSlot;
+#define D_80153F10 pc_D_80153F10
+#else
 typedef struct { s8 active; s8 pad1; s16 id; s16 count; s16 pad6; s32 arg; s32 aux; } CallSlot;
+#endif
 extern CallSlot D_80153F10;
 extern s32 D_80153F20;
 extern s16 D_80153F24;
@@ -3694,7 +3701,7 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-s32 struct_init_and_call(s32 arg0, s32 arg1, s32 arg2) {
+s32 struct_init_and_call(intptr_t arg0, s32 arg1, intptr_t arg2) {
     if (arg1 != 0) {
         D_80153F10.arg = arg0;
         D_80153F10.id = arg1;

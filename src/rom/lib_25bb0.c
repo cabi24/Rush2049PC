@@ -365,7 +365,12 @@ int func_80025670(unsigned int token, unsigned char value1,
  * Gate:     full-ROM SHA-1
  */
 typedef int (*SampleCallback_8002574C)(short *, unsigned int, short *, unsigned int, unsigned int);
+#ifdef TARGET_PC
+/* the six callbacks before allocate are function pointers too (docs/port/MUSYX_DATA.md 8.1) */
+typedef struct ServiceHooks_8002574C { void (*unknown_00[6])(void); void *(*allocate)(unsigned int, int); void (*release)(void *); } ServiceHooks_8002574C;
+#else
 typedef struct ServiceHooks_8002574C { unsigned char unknown_00[24]; void *(*allocate)(unsigned int, int); void (*release)(void *); } ServiceHooks_8002574C;
+#endif
 extern ServiceHooks_8002574C D_80038000;
 extern void func_80025150(void);
 extern void func_8002517C(void);

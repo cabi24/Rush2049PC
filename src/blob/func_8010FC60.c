@@ -3692,7 +3692,7 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-s32 func_8010FC60(s32 arg0) {
+s32 func_8010FC60(intptr_t arg0) {
     D_8011EAA8 = arg0;
     return 0;
 }

@@ -468,7 +468,12 @@ void func_80020558(void)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* the 8 service callbacks are function pointers (docs/port/MUSYX_DATA.md 8.1) */
+typedef struct CallbackWords { void (*words[8])(void); } CallbackWords;
+#else
 typedef struct CallbackWords { unsigned int words[8]; } CallbackWords;
+#endif
 extern CallbackWords D_80038000;
 void func_80020598(const CallbackWords *callbacks)
 {
