@@ -533,7 +533,8 @@ over the next node's link, while the other views had the N64 one.
   zero-extended: proto_check's last harmful view). The views of `func_8010DBB8`, `func_8010E72C` and
   `race_setup_2` had the N64 layout and no pointers already.
 - **Walks of the node list outside `level_objects`** follow the 32-bit link too: `func_800BEA6C` (every node's
-  state 2 and no sound; `NODE_NEXT`) and battle mode's power-up selection `func_8039133C` (`NEXT`), which walked
+  state 2 and no sound; `NODE_NEXT`), the pause screen's `PauseTargets` (the same, in the nonmatching draft of
+  `RaceStateMachine_Update` the PC builds; `TARGET_NEXT`) and battle mode's power-up selection `func_8039133C` (`NEXT`), which walked
   the active list `D_80143FD8` reading the link 8 bytes wide, with the node's flags at +4 as its upper half. The
   power-ups' `Object` view (`runtime_b_resource_callbacks`: flags, handle, `resource` at +0x50) has the N64 layout,
   and `func_8039133C`'s heap block of slots holds `count` 16-byte slots (it was sized for 8-byte ones). Test:

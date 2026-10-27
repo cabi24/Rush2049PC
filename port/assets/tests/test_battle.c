@@ -3,11 +3,13 @@
  * D_8014D280 and link each other by 32-bit window addresses (the node pool's n64 flag), so a walk of the active list
  * D_80143FD8 and a view of a node must read them that way: battle mode's power-up selection func_8039133C, which
  * keeps the flagged nodes in a heap block of slots, UpdateBattleHealth, UpdateBattleShield and UpdateBattleInvs
- * (runtime_b_resource_callbacks: a node's flags, handle and resource), and func_800BEA6C, which gives every node on
- * the list state 2 and no sound. The nodes and the heap sit in an RDRAM window the test maps (exit 77, skipped, if
- * it can't).
+ * (runtime_b_resource_callbacks: a node's flags, handle and resource), func_800BEA6C, which gives every node on the
+ * list state 2 and no sound, and the pause screen's PauseTargets, which does the same when a race is paused
+ * (RaceStateMachine_Update, the nonmatching draft the PC builds). The nodes and the heap sit in an RDRAM window the
+ * test maps (exit 77, skipped, if it can't).
  * game: src/blob/camera_lerp_position.c src/blob/pool_linked_list_init.c src/blob/func_8008E3C0.c
  * game: src/blob/func_800BEA6C.c src/ovl_b/func_8039133C.c src/ovl_b/groups/runtime_b_resource_callbacks/group.c
+ * game: nonmatching/game/RaceStateMachine_Update.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -76,6 +78,43 @@ static int32_t g_shown;
 void model_transform_setup(int32_t handle, int32_t a, uint32_t b) { g_shown = handle; }   /* MBOX_ShowObject */
 void func_800BB7F4(void) {}
 void func_803914A8(void) {}
+/* the pause screen (RaceStateMachine_Update) */
+int32_t D_801170FC, D_80149D98, D_8015698C;
+int16_t gNumWindows;
+uint8_t input_rec0[4 * 80] __attribute__((aligned(16)));   /* the input records: edges at +4 */
+volatile uint8_t gControllerData[4 * 16];
+int8_t D_80117350, D_80117354, D_80142699, D_80157244, D_8015418C[4];
+float D_801543CC;
+uint32_t state_word_a;
+uint8_t D_80142728[64], D_801427A8[64];
+static uint8_t g_audmsg[16];
+void *func_80091B00(void) { return g_audmsg; }
+int32_t osRecvMesg(void *mq, void *msg, int32_t flag) { return 0; }
+int32_t osSendMesg(void *mq, void *msg, int32_t flag) { return 0; }
+static int32_t g_pause_state = -1;
+void setPauseState(int32_t state) { g_pause_state = state; }
+void SaveServer(int32_t a, int32_t b) {}
+void viEnableAccum(void) {}
+void viDisableAccum(void) {}
+void speed_mode0_wrapper(float vol, float time) {}
+void func_800D5374(void) {}
+void players_frame_update(void) {}
+void func_800D6530(void) {}
+void func_800D60AC(void) {}
+void physics_init_mode0(void) {}
+void physics_init_mode1(void) {}
+void SetControllerStickEdges(int32_t player, int32_t value) {}
+void SaveFlush(int32_t action) {}
+uint32_t entity_flags_apply(uint32_t fx, uint32_t sub, uint32_t replace, uint8_t prio) { return 0; }
+void func_800DB1E0(void) {}
+void func_800D91A0(void) {}
+void func_800D7634(void) {}
+void physics_sym(void) {}
+void audio_distance_atten(int32_t edges) {}
+void audio_doppler(int32_t edges) {}
+void resource_type_select(int32_t edges) {}
+void func_800D5A04(void) {}
+void voice_stop(void) {}
 
 /* ---------------------------------------------------------------- the game's functions */
 
@@ -86,6 +125,7 @@ void func_80390D38(void);            /* UpdateBattleHealth */
 void func_80390B10(void);            /* UpdateBattleShield */
 void func_80390B08(void);            /* UpdateBattleInvs */
 void func_800BEA6C(void);
+void RaceStateMachine_Update(void);
 
 static int guard_intact(const void *end)
 {
@@ -167,5 +207,16 @@ int main(void)
         CHECK(NF(n[i], 0x64, int8_t) == 2 && NF(n[i], 0x60, int32_t) == -1);
     CHECK(NF(NODE(5), 0x64, int8_t) == 0 && NF(NODE(5), 0x60, int32_t) == 0);
     CHECK(NF(n[4], 0, uint32_t) == W32(n[3]) && NF(n[4], 4, uint8_t) == 0x22);
+
+    /* Player 0 pauses the race: PauseTargets does the same over the list. */
+    for (i = 0; i < 5; i++)
+        NF(n[i], 0x60, int32_t) = 7, NF(n[i], 0x64, int8_t) = 0;
+    D_801170FC = 0, gNumWindows = 1, gControllerData[0] = 1;
+    NF(input_rec0, 4, int32_t) = 1;                            /* player 0's edges: start */
+    RaceStateMachine_Update();
+    CHECK(g_pause_state == 1 && D_8015698C == 0 && D_80117350 == 0 && g_audmsg[2] == 7);
+    for (i = 0; i < 5; i++)
+        CHECK(NF(n[i], 0x64, int8_t) == 2 && NF(n[i], 0x60, int32_t) == -1);
+    CHECK(NF(n[4], 0x68, uint32_t) == 0 && NF(NODE(5), 0x64, int8_t) == 0);
     return TEST_DONE();
 }
