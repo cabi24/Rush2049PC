@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run a command in a copy of the current git worktree on a faster build host (RUSH_REMOTE, an ssh host name).
-#   RUSH_REMOTE=host tools/port/remote.sh [-n name] 'command'      e.g. rocky.sh 'cmake -S . -B build/pc -G Ninja && cmake --build build/pc -j16'
+#   RUSH_REMOTE=host tools/port/remote.sh [-n name] 'command'      e.g. remote.sh 'cmake -S . -B build/pc -G Ninja && cmake --build build/pc -j16'
 # Only files git tracks or would track (git ls-files -co --exclude-standard) are sent, so ignored files
 # (ROMs, build/, .claude/) never leave this machine. The copy lives in $RUSH_REMOTE:~/rush2049pc/<name>
 # (name defaults to the worktree's directory name); its build/ is kept between runs.
