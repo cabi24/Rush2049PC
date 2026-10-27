@@ -30,7 +30,23 @@ jobs:
           set -o pipefail
           cmake --build build/pc -j4 2>&1 | cut -c1-2000
       - name: Tests
-        run: ctest --test-dir build/pc --output-on-failure
+        # A failing test is run again under gdb for a backtrace.
+        run: |
+          ctest --test-dir build/pc --output-on-failure && exit 0
+          sudo apt-get install -y --no-install-recommends gdb > /dev/null
+          ctest --test-dir build/pc --show-only=json-v1 > tests.json
+          python3 - <<'PY'
+          import json, subprocess
+          failed = {l.split(":", 1)[1].strip() for l in open("build/pc/Testing/Temporary/LastTestsFailed.log")}
+          for t in json.load(open("tests.json"))["tests"]:
+              if t["name"] in failed:
+                  wd = next((p["value"] for p in t.get("properties", []) if p["name"] == "WORKING_DIRECTORY"), None)
+                  print("::group::gdb " + t["name"], flush=True)
+                  subprocess.run(["gdb", "-batch", "-ex", "run", "-ex", "bt", "-ex", "info registers", "--args"]
+                                 + t["command"], cwd=wd)
+                  print("::endgroup::", flush=True)
+          PY
+          exit 1
       - name: Boot without a ROM
         # On a blank cartridge the game boots through its init into the first file loads and then stops (the
         # files are zero-size): the check is that it gets that far.
