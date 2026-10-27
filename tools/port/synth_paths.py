@@ -10,14 +10,16 @@ Each tools/port/synth/NAME.press is a --press-file script whose leading comments
     # seconds: 90              --seconds (game time with --fast)
     # expect: players 2, windows 2, cars 6, mode 0, track 0
     #                          what the state log's last line ("state reached: ... state=S: <info>") must say
+    # visits: 0x2000 0x200     states the run must pass through on the way (the state log has each)
     # realtime                 run on the host's clock (the default is --fast, the virtual clock)
     # args: --screenshot-at 900 --screenshot race.png
-    #                          more options (a path is relative to the logs directory, where the run happens)
+    #                          more options (a path is relative to the logs directory, where the run happens;
+    #                          a .png or .mpk named there is deleted first, so each run starts afresh)
     # check: tools/port/synth_shot.py race.png 1
     #                          then this command, in the logs directory (tools/ is the repository's)
 
 A run passes if the program exits 0 (it reached the state in time and nothing faulted), its last state line matches,
-and the check, if any, exits 0. Every run's log goes to DIR/NAME.log (default build/synth/paths). Exit status: the
+it passed through the states visits names, and the check, if any, exits 0. Every run's log goes to DIR/NAME.log (default build/synth/paths). Exit status: the
 number of paths that failed.
 """
 import argparse
@@ -34,12 +36,12 @@ PRESS_DIR = ROOT / "tools/port/synth"
 
 
 def read_script(path):
-    spec = {"until": None, "seconds": "60", "expect": "", "realtime": False, "args": [], "check": None}
+    spec = {"until": None, "seconds": "60", "expect": "", "realtime": False, "args": [], "check": None, "visits": []}
     for line in path.read_text().splitlines():
-        m = re.match(r"#\s*(until|seconds|expect|args|check)\s*:\s*(.*)$", line)
+        m = re.match(r"#\s*(until|seconds|expect|args|check|visits)\s*:\s*(.*)$", line)
         if m:
             key, value = m.group(1), m.group(2).strip()
-            spec[key] = shlex.split(value) if key in ("args", "check") else value
+            spec[key] = shlex.split(value) if key in ("args", "check", "visits") else value
         elif re.match(r"#\s*realtime\s*$", line):
             spec["realtime"] = True
     if not spec["until"]:
@@ -55,6 +57,9 @@ def run(name, exe, rom, logs):
     if not spec["realtime"]:
         cmd.append("--fast")
     cmd += spec["args"]
+    for a in spec["args"]:              # what the run writes starts afresh: a screenshot, a controller pak
+        if a.endswith((".png", ".mpk")) and (Path(logs) / a).exists():
+            (Path(logs) / a).unlink()
     env = dict(os.environ, RUSH_TRACE_WAVES="1")
     t0 = time.time()
     try:
@@ -73,6 +78,9 @@ def run(name, exe, rom, logs):
         why.append("the state was not reached")
     elif spec["expect"] and spec["expect"] not in last:
         why.append(f"expected '{spec['expect']}'")
+    for state in spec["visits"]:
+        if f"game state 0x{int(state, 0):08X} " not in out:
+            why.append(f"never in state {state}")
     if not why and spec["check"]:
         c = spec["check"]
         if c and c[0].startswith("tools/"):

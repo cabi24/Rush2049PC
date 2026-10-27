@@ -146,7 +146,8 @@ cars, mode (gRace) and track, and the first car's position and speed. The front 
 | 0x400000 | the race | 23.6 s | |
 
 **The paths.** Each `tools/port/synth/NAME.press` is a `--press-file` script whose leading comments say what the run
-must reach (`# until:`, `# seconds:`, `# expect:` the state line's text, `# realtime`, `# args:`, `# check:`);
+must reach (`# until:`, `# seconds:`, `# expect:` the state line's text, `# visits:` states on the way, `# realtime`,
+`# args:`, `# check:`);
 `tools/port/synth_paths.py` runs them (on the virtual clock, `--fast`, unless `# realtime`), checks the exit code and
 the last state line, and keeps each log in `build/synth/paths`. ctest has one `synth_boot_NAME` per script, and the
 CI step runs them all on both Linux jobs and keeps the logs. On Windows the native job's ctest runs them, and
@@ -163,6 +164,8 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `battle2p` | gRace 6, two players in the first battle arena (track 6), image B: weapons, the four weapon icons as power-ups | 2 cars, 4 power-up slots | 0.4 s |
 | `drive` | the one-player race with gas, steering and brake for 30 s; a screenshot (below) | | 0.5 s |
 | `pause` | the race paused (START), the four screens the pause menu opens (options, controls, audio, video), then quit, confirmed: the race is retired, its results and the game over screen | 0x800000 | 0.5 s |
+| `screens` | the main menu's other four options, each screen entered with A and left with B (`# visits:` checks the states 0x2000, 0x200, 0x800, 0x1000) | back on the main menu | 0.3 s |
+| `pak` | the one-player race with a fresh controller pak (`--pak`): the warning finds it, and the save code runs on it at the race's start | 0x400000, 300 frames | 0.4 s |
 | `raceend` | gRace 2, whose race has a time limit: when it runs out, _EndGame, the results (30 s), the game over screen, its Quit and back to the main menu | 0x10 after the race | 0.8 s |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 

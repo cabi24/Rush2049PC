@@ -1,0 +1,14 @@
+# A race with a controller pak (a fresh, formatted one: port/ultra/si.c): the pak warning finds it, and the game's
+# save code (the profiles, the records, SaveServer and SaveFlush at the race's start and end) runs on it
+# (docs/port/SYNTH.md 2).
+# until: 0x400000:300
+# seconds: 90
+# args: --pak pak.mpk
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen
+20 A           # the track select
+23 A           # the car select
