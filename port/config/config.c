@@ -144,7 +144,7 @@ static const char *const default_hotkeys[PC_NUM_HOTKEYS] = {"F11", "F12", "Pause
 
 /* ---------------------------------------------------------------- the settings table */
 
-typedef enum { T_STR, T_BOOL, T_INT, T_REAL, T_ENUM } ItemType;
+typedef enum { T_STR, T_BOOL, T_INT, T_REAL, T_ENUM, T_ASPECT } ItemType;
 
 typedef struct {
     const char *section, *key;
@@ -178,7 +178,9 @@ static const Item items[] = {
     {"video", "scale", T_INT, F(scale), 1, 8, NULL, "1",
      "Internal resolution, a multiple of the N64's (1-8; RUSH_GFX_SCALE)."},
     {"video", "api", T_ENUM, F(api), 0, 0, api_choices, "gles", "gles (OpenGL ES 3.0) or gl (desktop GL; RUSH_GFX_API)."},
-    {"video", "widescreen", T_BOOL, F(widescreen), 0, 0, NULL, "off", "Reserved: not implemented yet (4:3 only)."},
+    {"video", "widescreen", T_ASPECT, F(widescreen), 4.0 / 3.0, 4, NULL, "off",
+     "Widen the picture: off (4:3), auto (the window's aspect), 16:9, 16:10, 21:9, W:H or a ratio up to 4. The 3D view "
+     "shows more at the sides; menus and the HUD stay 4:3 (RUSH_GFX_WIDESCREEN)."},
     {"video", "pause_on_focus_loss", T_BOOL, F(pause_on_focus_loss), 0, 0, NULL, "off",
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
@@ -224,6 +226,25 @@ static int parse_bool(const char *v, int *out)
     return -1;
 }
 
+/* An aspect: off (0), auto (-1), W:H or a ratio, from min to max; 4:3 itself is off. */
+static int parse_aspect(const char *v, double min, double max, double *out)
+{
+    double a, b;
+    char tail;
+    if (!strcasecmp(v, "off") || !strcmp(v, "0"))
+        return *out = 0, 0;
+    if (!strcasecmp(v, "auto"))
+        return *out = -1, 0;
+    if (sscanf(v, "%lf:%lf%c", &a, &b, &tail) == 2 && b > 0)
+        a /= b;
+    else if (sscanf(v, "%lf%c", &a, &tail) != 1)
+        return -1;
+    if (!(a >= min - 1e-4 && a <= max + 1e-4))
+        return -1;
+    *out = a <= min + 1e-4 ? 0 : a;
+    return 0;
+}
+
 static int set_item(PcSettings *s, const Item *it, const char *v, char *why, size_t why_size)
 {
     char *base = (char *)s + it->offset, *end;
@@ -263,6 +284,15 @@ static int set_item(PcSettings *s, const Item *it, const char *v, char *why, siz
         *(double *)base = d;
         return 0;
     }
+    case T_ASPECT: {
+        double a;
+        if (parse_aspect(v, it->min, it->max, &a) != 0) {
+            snprintf(why, why_size, "'%s' is not off, auto or an aspect (16:9, 2.39) from 4:3 to %g", v, it->max);
+            return -2;
+        }
+        *(double *)base = a;
+        return 0;
+    }
     case T_ENUM:
         for (int i = 0; it->choices[i]; i++)
             if (!strcasecmp(v, it->choices[i])) {
@@ -300,6 +330,32 @@ static void format_item(const PcSettings *s, const Item *it, char *out, size_t n
     case T_ENUM:
         snprintf(out, n, "%s", it->choices[*(const int *)base]);
         break;
+    case T_ASPECT: {
+        double a = *(const double *)base;
+        if (a == 0)
+            snprintf(out, n, "off");
+        else if (a < 0)
+            snprintf(out, n, "auto");
+        else {
+            /* the usual names first, then W:H when a small one gives it back */
+            static const int named[][2] = {{16, 9}, {16, 10}, {21, 9}, {32, 9}};
+            snprintf(out, n, "%.4g", a);
+            for (size_t i = 0; i < sizeof named / sizeof *named; i++)
+                if (a * named[i][1] - named[i][0] < 1e-4 && a * named[i][1] - named[i][0] > -1e-4) {
+                    snprintf(out, n, "%d:%d", named[i][0], named[i][1]);
+                    return;
+                }
+            for (int h = 1; h <= 32; h++) {
+                int w = (int)(a * h + 0.5);
+                double d = a * h - w;
+                if (d < 1e-4 * h && d > -1e-4 * h) {
+                    snprintf(out, n, "%d:%d", w, h);
+                    break;
+                }
+            }
+        }
+        break;
+    }
     }
 }
 
@@ -366,6 +422,15 @@ int pc_settings_set(PcSettings *s, const char *section, const char *key, const c
         return -1;
     }
     return set_item(s, it, value, why, why_size);
+}
+
+int pc_settings_get(const PcSettings *s, const char *section, const char *key, char *out, size_t out_size)
+{
+    const Item *it = find_item(section, key);
+    if (!it)
+        return -1;
+    format_item(s, it, out, out_size);
+    return 0;
 }
 
 int pc_settings_assign(PcSettings *s, const char *assignment, char *why, size_t why_size)
@@ -461,7 +526,8 @@ int pc_settings_load_file(PcSettings *s, const char *path)
 int pc_settings_apply_env(PcSettings *s)
 {
     static const struct { const char *var, *section, *key; } env[] = {
-        {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"}};
+        {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
+        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);

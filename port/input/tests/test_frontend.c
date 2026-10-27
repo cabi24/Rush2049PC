@@ -139,6 +139,25 @@ static void test_settings(void)
               strstr(why, "none, memory, rumble"),
           "enum bad: %s", why);
     CHECK(pc_settings_set(&s, "video", "api", "gl", why, sizeof why) == 0 && s.api == PC_CFG_API_GL, "api");
+    {   /* an aspect: off, auto, W:H or a ratio from 4:3 to 4, written back by name */
+        static const struct { const char *in, *out; } wide[] = {
+            {"16:9", "16:9"}, {"32:18", "16:9"}, {"1.6", "16:10"}, {"21:9", "21:9"}, {"2.39", "2.39"},
+            {"3:2", "3:2"}, {"AUTO", "auto"}, {"4:3", "off"}, {"off", "off"}};
+        char v[32];
+        for (size_t i = 0; i < sizeof wide / sizeof *wide; i++) {
+            int ok = pc_settings_set(&s, "video", "widescreen", wide[i].in, why, sizeof why) == 0;
+            pc_settings_get(&s, "video", "widescreen", v, sizeof v);
+            CHECK(ok && !strcmp(v, wide[i].out), "widescreen %s: %s", wide[i].in, ok ? v : why);
+        }
+        pc_settings_set(&s, "video", "widescreen", "16:9", why, sizeof why);
+        CHECK(fabs(s.widescreen - 16.0 / 9.0) < 1e-9, "widescreen value");
+        CHECK(pc_settings_set(&s, "video", "widescreen", "5:4", why, sizeof why) == -2 &&
+                  fabs(s.widescreen - 16.0 / 9.0) < 1e-9,
+              "widescreen narrower than 4:3: %s", why);
+        CHECK(pc_settings_set(&s, "video", "widescreen", "on", why, sizeof why) == -2, "widescreen on is no aspect");
+        CHECK(pc_settings_set(&s, "video", "widescreen", "16:9:1", why, sizeof why) == -2, "widescreen junk");
+        CHECK(pc_settings_set(&s, "video", "widescreen", "5", why, sizeof why) == -2, "widescreen past 4");
+    }
     CHECK(pc_settings_set(&s, "game", "rom", "/roms/my rom.z64", why, sizeof why) == 0 &&
               !strcmp(s.rom, "/roms/my rom.z64"),
           "string");
