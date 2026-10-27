@@ -18,6 +18,12 @@ symbol's address, and tables indexed past their declarations. Each is fixed with
 | Paths | `tools/port/synth/*.press`, run by `tools/port/synth_paths.py` (section 2) |
 | Checks | ctest `synth_rom` and a `synth_boot_<path>` per path; CI step "Boot the synthetic cartridge" (both Linux jobs) |
 
+**Provenance note (2026-10-27).** While the paths were widened, a research helper of the agent doing it decoded
+the retail control and button-map tables from a local ROM, against the project's rules. Nothing from it was used:
+the button map was already in the generator before that (from the libultra button masks and ControllerUpdate's
+loop), and the control table is the formula `1 << k` for k < 19, else k, from how the car's readers use it. Those
+commits were reviewed before the merge; the ROM was not copied or committed.
+
 **No ROM bytes.** The generator reads no ROM and copies nothing from one. Its inputs are the image table
 (`tools/port/n64syms.py`), the symbol files and `layout/*.json` (function addresses), the build's data report
 (addresses and element kinds, from the build's DWARF), the decompiled C (names it looks up, record layouts) and the
