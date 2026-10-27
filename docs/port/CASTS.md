@@ -269,7 +269,9 @@ functions:
   block, is window data); `func_8010BC84`, `func_800D5374` and `func_800D6530` hold `.name`, `.object` and
   `.message` as `s32`; `engine_sound_update` compares an `s32` GTLD key with a pointer slot, which sign-extends
   keys with bit 31 set. The texture-animation records `D_8011905C` take WAD words zero-extended
-  (`camera_shake_start`, `race_setup_1`): harmless as they are.
+  (`camera_shake_start`, `race_setup_1`): harmless as they are. Done (POINTERS.md 10.3): the save data and the profile handle are read
+  pointer-sized, `.object` and `.message` are a 32-bit packet slot converted explicitly, and the GTLD key compare
+  sign-extends on purpose, as the side array holds the keys.
 - **The pak file record `tPS_File`** (paksys' view: 76 bytes on the N64, 96 on the PC) has about ten views that
   keep the N64 layout under u32s and pads (state.c's and controlscr's `PSFile`, overlay A's menu `Slot`s), and raw
   N64 offsets in the save code: `CreatePlayer` and `_ReadGhostHeader` set `RemoveFile` and `MoveFile` at +8 and

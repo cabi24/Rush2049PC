@@ -179,7 +179,8 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 - **gTargInfo `D_80117530`** (race logic: the level-object kinds). gen_data chooses `TargInfo`, which has byte pads
   at +0x10..0x1B and +0x20..0x2F where other views read s32 and f32 (StartCone, camera_aspect_ratio, level_objects),
   so those stay big-endian. Its seven views also disagree on pointers (POINTERS.md 9.9); the fix belongs with that
-  record's PC layout.
+  record's PC layout. Done: every PC view now spells out each field at its width, and endian_check no longer reports
+  the table (POINTERS.md 10.1).
 - **The boot's `gViewportOffsetX` (`src/rom/lib_21f0.c`).** Declared `s16[32]` at 0x8002AFFC, it runs over
   `gInitFlag` (0x8002B028) and `gDmaInitialized` (0x8002B030), so the loader swaps those flags with their
   neighbour bytes. `game_init` reads `gInitFlag` as loaded. A size in the declaration is the fix (DATA.md 1).
