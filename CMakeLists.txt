@@ -365,6 +365,7 @@ endfunction()
 pc_link_scripts(rush2049pc ${PC_DATA_DIR}/aliases.ld ${PC_DATA_PE_OUTPUTS})   # PE: data.c's weak references
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
+add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
 # The synthetic test cartridge (tools/port/synth_rom.py, docs/port/SYNTH.md): original, minimal data, generated into
 # the build directory from the data report. synth_boot_menu boots it to the front end's mode screen (state 0x40)
 # and runs 240 more frames there; synth_boot_race goes on through the track and car selects into a race on an empty

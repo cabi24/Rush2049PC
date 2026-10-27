@@ -7,7 +7,9 @@
  * framebuffer. Between deadlines it sleeps until a thread submits work. --screenshot-at and --frames act two
  * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. While
  * port/input says the game is paused, it holds (hold()). With a game-state hook (port/main.c), each retrace it logs
- * a change of the game's state word and checks --until-state (docs/port/SYNTH.md).
+ * a change of the game's state word and checks --until-state (docs/port/SYNTH.md). With --fast the clock is
+ * virtual (timer.c): the waits move it instead of sleeping, and a run whose clock stops moving for 30 s of real
+ * time (a thread computing for ever) is stopped as hung.
  *
  * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts are as coarse as
  * the system timer (15.6 ms by default): the scheduler's own waits use high-resolution timers (sched.c), and the
@@ -112,6 +114,7 @@ int pc_ultra_run(const PcRunOptions *opt)
     int shot = 0;
     uint32_t shot_vi = 0, frames_vi = 0;   /* the retrace at which each limit was reached */
     uint32_t until_gfx = 0;                /* --until-state: the graphics task to run to, once the state is seen */
+    uint64_t last_vi_real = pc_real_ns();  /* --fast: when the last retrace was, in real time */
     g_game_state = opt->game_state;
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
@@ -143,6 +146,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             PcPad pads[4];
             const void *fb;
             pc_frame++;
+            last_vi_real = pc_real_ns();
             if (pc_gfx_poll_events())   /* first, so the pads below are this retrace's */
                 pc_quit = 1;
             pc_input_poll(pads);
@@ -199,6 +203,14 @@ int pc_ultra_run(const PcRunOptions *opt)
             g_dump = 0;
             status("status");
             pc_os_dump_threads();
+        }
+        if (pc_time_virtual() && pc_real_ns() - last_vi_real > 30000000000u) {
+            status("hung:");
+            fprintf(stderr, "rush2049pc: --fast: no retrace for 30 s of real time: a thread computes without "
+                    "waiting\n");
+            pc_os_dump_threads();
+            pc_quit = 1 + 1;
+            break;
         }
         pc_os_wait_main(deadline);
     }

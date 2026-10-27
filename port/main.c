@@ -32,7 +32,9 @@ static void usage(FILE *f)
             "  --size WxH          window size (default 640x480)\n"
             "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
-            "  --seconds N         stop after N seconds\n"
+            "  --seconds N         stop after N seconds (of game time with --fast)\n"
+            "  --fast              run as fast as the host can: the N64 clock moves on only while every N64\n"
+            "                      thread waits, so a run is the same on any host (tests, scripted runs)\n"
             "  --frames N          stop after N graphics tasks (at the retrace that shows the last)\n"
             "  --screenshot-at N   save a PNG once N graphics tasks have run (--screenshot PATH, default\n"
             "                      rush2049pc-N.png)\n"
@@ -113,13 +115,19 @@ static uint32_t game_state(void)
     return *(volatile uint32_t *)&state_word_a;
 }
 
+/* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
+static double fast_clock(void)
+{
+    return pc_host_ns() / 1e9;
+}
+
 #define MAX_OVERRIDES 64
 
 int main(int argc, char **argv)
 {
     const char *dump_audio = getenv("RUSH2049_DUMP_AUDIO"), *config = NULL;
     int no_rom = 0, headless = !getenv("DISPLAY") && !getenv("WAYLAND_DISPLAY"), selftest = 0, use_config = 1;
-    int print_config = 0;
+    int print_config = 0, fast = 0;
     PcRunOptions run = {0};
     PcSettingValue over[MAX_OVERRIDES + 1];   /* the command line's settings, in order; [0] for a press file */
     int nover = 1;
@@ -171,6 +179,8 @@ int main(int argc, char **argv)
             run.screenshot = ARG();
         else if (!strcmp(a, "--seconds"))
             run.seconds = atof(ARG());
+        else if (!strcmp(a, "--fast"))
+            fast = 1;
         else if (!strcmp(a, "--frames"))
             run.frames = (uint32_t)atoi(ARG());
         else if (!strcmp(a, "--stop-at-gfx"))
@@ -292,8 +302,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "rush2049pc: cannot map the RDRAM window\n");
         return 1;
     }
-    if (selftest)
+    if (selftest) {
+        pc_time_set_virtual(fast);
         return pc_selftest();
+    }
 
     if (no_rom ? pc_rom_blank() != 0 : pc_rom_load(cfg.rom, cfg.rom_check) != 0)
         return 1;
@@ -320,6 +332,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
 
     run.game_state = game_state;
+    if (fast) {
+        pc_time_set_virtual(1);
+        pc_audio_set_clock(fast_clock);
+    }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
     pc_input_shutdown();

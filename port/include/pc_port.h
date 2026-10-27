@@ -108,6 +108,9 @@ int pc_audio_init(const char *backend, const char *dump_wav_path);
 void pc_audio_shutdown(void);
 /* The master volume, 0-1 (audio.volume / 100), on the output device; 1 leaves the samples as they are. */
 void pc_audio_set_volume(double volume);
+/* The clock, in seconds, by which the null backend drains the queue: NULL for the host's (the default); --fast
+ * gives it the N64 clock. */
+void pc_audio_set_clock(double (*now_seconds)(void));
 /* One audio task: OSTask.t.data_ptr / data_size, as the game sets them. Runs to completion. The game's
  * microcode is MusyX v1, not Acmd: data_ptr is an array of subframe descriptors and data_size is how many
  * (not bytes); each writes 192 stereo frames into an AI buffer (port/audio/musyx_abi.h). */

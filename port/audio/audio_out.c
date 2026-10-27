@@ -115,11 +115,21 @@ static size_t ring_read(int16_t *out, size_t n)
     return got;
 }
 
+static double (*g_clock)(void);   /* pc_audio_set_clock */
+
+void pc_audio_set_clock(double (*now)(void))
+{
+    lock();
+    g_clock = now;
+    g.clock_last = g.clock_carry = 0;
+    unlock();
+}
+
 static void null_drain(void)
 {
     if (g.kind != KIND_NULL || !g.dev_rate)
         return;
-    double t = now_seconds();
+    double t = g_clock ? g_clock() : now_seconds();
     if (g.clock_last > 0) {
         double frames = (t - g.clock_last) * g.dev_rate + g.clock_carry;
         size_t n = (size_t)frames;

@@ -52,7 +52,11 @@ typedef struct {
 /* N64 time: osGetTime counts at 46.875 MHz (half the CPU clock). */
 #define PC_COUNT_HZ 46875000ull
 #define PC_VI_HZ 60
-uint64_t pc_host_ns(void);              /* monotonic, since startup */
+uint64_t pc_host_ns(void);              /* monotonic, since startup: the N64 clock (virtual with --fast) */
+uint64_t pc_real_ns(void);              /* the host's monotonic clock, since startup, whatever the mode */
+void pc_time_set_virtual(int on);       /* --fast, before the boot: the clock moves only by pc_time_advance */
+int pc_time_virtual(void);
+void pc_time_advance(uint64_t ns);      /* main thread, --fast: the clock jumps to ns (never back) */
 uint64_t pc_ticks_now(void);            /* osGetTime */
 uint64_t pc_ticks_to_ns(uint64_t ticks);
 

@@ -1,7 +1,9 @@
 /* port/ultra/selftest.c: rush2049pc --selftest. Exercises the PC libultra without the ROM: thread priorities
  * and preemption, blocking and non-blocking message calls, jam, stop/start, osSetThreadPri, yield, events,
  * the VI retrace, timers, busy-wait yields, the RDRAM window and big-endian ranges, and the PIF with the
- * game's own osContInit / osContStartReadData / osPfsInitPak C (src/rom). Runs on the real main loop. */
+ * game's own osContInit / osContStartReadData / osPfsInitPak C (src/rom). Runs on the real main loop; with
+ * --fast, on the virtual clock (timer.c), where the same bounds hold and the whole run takes a fraction of the
+ * time. */
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,11 +101,10 @@ static void expect_log(const char *name, const char *want)
     g_log[0] = 0;
 }
 
+/* The host's clock, or with --fast the virtual one that stands in for it. */
 static double host_ms(void)
 {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+    return pc_host_ns() / 1e6;
 }
 
 static void sleep_ms(int ms)
@@ -469,6 +470,11 @@ static void controller(void *arg)
     t_memory();
     t_rcp();
     t_pif();
+    if (pc_time_virtual()) {
+        char d[64];
+        snprintf(d, sizeof d, "%.0f ms of N64 time in %.0f ms", pc_host_ns() / 1e6, pc_real_ns() / 1e6);
+        check("--fast: the virtual clock", pc_real_ns() < pc_host_ns(), d);
+    }
     fprintf(stderr, "selftest: %d of %d passed\n", g_run - g_failed, g_run);
     pc_quit = g_failed ? 2 : 1;
     pc_os_wake_main();
