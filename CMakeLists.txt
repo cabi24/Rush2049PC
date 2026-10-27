@@ -17,6 +17,13 @@ set(PORT_TOOLS ${CMAKE_SOURCE_DIR}/tools/port)
 # ---------------------------------------------------------------- game code
 # Every C file of the decompilation, compiled for the host with TARGET_PC.
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
+# Functions at the matching ceiling: the ROM takes them from their retail assembly, but their C drafts
+# (nonmatching/README.md) differ only in register allocation and scheduling. The PC build compiles the
+# standalone drafts of those no other file defines; the rest already come in as group context copies.
+foreach(f RaceStateMachine_Update TB_EllipseText createBG display_list_flush drone_set_catchup
+          ghost_race_setup physics_float_calc state_utility)
+    list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
+endforeach()
 # libultra and libc units the PC layer replaces (port/ultra, docs/port/ULTRA.md): thread dispatch, message
 # queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB, and the
 # inflate/LZSS readers (zlib and C in port/ultra/pi.c). lib_34a0 is the IDO libc (sprintf, fcvt, modff): the
@@ -180,6 +187,8 @@ add_custom_command(
             --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR}
             --out ${PC_DATA_DIR}/stubs.c --aliases ${PC_DATA_DIR}/aliases.ld
     DEPENDS ${PC_GAME_OBJECTS} ${PC_PORT_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
+            ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/layout/game.json
+            ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
     COMMENT "Stubs for what is still missing (tools/port/gen_stubs.py)"
     VERBATIM)
 set_source_files_properties(${PC_DATA_DIR}/stubs.c PROPERTIES COMPILE_OPTIONS "-fno-builtin")

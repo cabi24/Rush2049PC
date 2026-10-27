@@ -45,6 +45,11 @@ typedef struct {
 
 typedef struct SoundClearRecord SoundClearRecord;
 typedef struct SoundState SoundState;
+#ifdef TARGET_PC
+/* gcc rejects arrays of an incomplete type, which IDO accepts. Layout as in src/blob/func_800D18D0.c. */
+struct SoundClearRecord { s32 unk0; s16 unk4, unk6, unk8, unkA, unkC, unkE, unk10, unk12; s32 unk14, unk18;
+                          s32 (*unk1C)(void *); s32 unk20; };
+#endif
 
 extern BackRect D_80114264[4][4];        /* gBackRects */
 extern s32 D_801145E4[4][4];             /* gBackCamera */

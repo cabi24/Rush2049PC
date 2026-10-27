@@ -130,6 +130,11 @@ def main():
     game_defined = set(defs)
     for name, d in n64syms.nm_table(port_objs, a.nm)[0].items():
         defs.setdefault(name, []).extend(d)
+    # Names the link satisfies with generated linker aliases (gen_stubs.py: another spelling at the same address).
+    aliases = build / "pc-data" / "aliases.ld"
+    if aliases.exists():
+        for name in re.findall(r"PROVIDE\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*=", aliases.read_text()):
+            defs.setdefault(name, []).append((str(aliases), "A"))
     defined = set(defs)
     undefined -= defined
     # One strong definition per symbol (tools/port/gen_weak.py makes the non-owned copies weak).

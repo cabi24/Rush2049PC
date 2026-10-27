@@ -79,7 +79,8 @@ add_custom_target(pcaudio_tests)
 foreach(t ${PCAUDIO_TESTS})
     add_executable(test_audio_${t} tests/test_${t}.c tests/stubs.c tests/ref.c)
     set_target_properties(test_audio_${t} PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
-        POSITION_INDEPENDENT_CODE ON)
+        POSITION_INDEPENDENT_CODE ON
+        EXPORT_COMPILE_COMMANDS OFF)   # test programs define main: kept out of tools/port/census.py's view
     target_link_libraries(test_audio_${t} PRIVATE pcaudio)
     target_include_directories(test_audio_${t} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     add_test(NAME audio_${t} COMMAND test_audio_${t})

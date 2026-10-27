@@ -11,7 +11,9 @@ weak ones included, but their own references (the C library, zlib, pthreads) are
 - A name that differs from a definition only by the case of its address digits (func_8001fe58 for
   func_8001FE58), or an address name (D_/func_XXXXXXXX) whose N64 address belongs to one defined symbol (a
   function's, for a D_ name the game takes the address of: D_8008BEA4 for func_8008BEA4), becomes a PROVIDE
-  alias in aliases.ld, an implicit linker script.
+  alias in aliases.ld, an implicit linker script. So does a historical label from the symbol file
+  (pause_resume) whose address is one defined function's. Function addresses come from layout/<image>.json
+  first: it is what the matching build links.
 - Data the game uses by its N64 address, which nothing else defines, becomes an absolute symbol there: RDRAM
   addresses (the low-memory globals at 0x80000300, the heap start D_8017A640, the runtime images' base
   D_8038A400) point into port/ultra's RDRAM window, and ROM offsets (D_00039B40) become cartridge addresses
@@ -59,22 +61,29 @@ def aliases_for(undefined, defined, syms):
         if _ADDR_NAME.match(d):
             by_lower.setdefault(d.lower(), []).append(d)
     by_addr = {}
+    placed = {}   # the layouts first: they are what the matching build links
+    for image in ("game", "ovl_a", "ovl_b"):
+        for addr, name in n64syms.load_layout_functions(image):
+            placed.setdefault(name, addr)
     for d in defined:
-        addr = n64syms.address_of(d, syms)
+        addr = placed.get(d, n64syms.address_of(d, syms))
         if addr is not None:
-            by_addr.setdefault((addr, n64syms.kind_of(d, syms)), []).append(d)
+            by_addr.setdefault((addr, "func" if d in placed else n64syms.kind_of(d, syms)), []).append(d)
             by_addr.setdefault((addr, "any"), []).append(d)
     out = {}
     for name in sorted(undefined):
         m = _ADDR_NAME.match(name)
-        if not m:
+        if m:
+            same = by_lower.get(name.lower(), [])
+            if len(same) == 1:
+                out[name] = same[0]
+                continue
+            addr = int(m.group(2), 16)
+            kind = "func" if m.group(1) == "func" else "data"
+        elif name in syms:   # a historical label for a function the C defines under its layout name
+            addr, kind = syms[name][0], syms[name][1]
+        else:
             continue
-        same = by_lower.get(name.lower(), [])
-        if len(same) == 1:
-            out[name] = same[0]
-            continue
-        addr = int(m.group(2), 16)
-        kind = "func" if m.group(1) == "func" else "data"
         cands = sorted(set(by_addr.get((addr, kind), [])))
         if not cands and kind == "data" and n64syms.region_of(addr) == "game code":
             cands = sorted(set(by_addr.get((addr, "any"), [])))   # a function's address used as data

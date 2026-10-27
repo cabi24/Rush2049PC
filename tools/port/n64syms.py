@@ -32,7 +32,8 @@ CODE = {"boot": (0x80000400, 0x800277D0), "game": (0x80086A50, 0x8010FD7C),
 # The symbol tables the matching build links each image's compiled C against.
 IMAGE_SYMBOLS = {"game": "asm/us/blob/symbols.json", "ovl_a": "asm/us/ovl_a/symbols.json",
                  "ovl_b": "asm/us/ovl_b/symbols.json"}
-_IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"))
+_IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"),
+               ("/nonmatching/game/", "game"), ("/nonmatching/ovl_a/", "ovl_a"), ("/nonmatching/ovl_b/", "ovl_b"))
 
 # N64 virtual memory regions (docs/memory_map.md). Both runtime images load at 0x8038A400.
 REGIONS = [
@@ -132,7 +133,8 @@ def nm_objects(paths, nm="nm"):
 
 
 def object_image(path):
-    """'boot', 'game', 'ovl_a' or 'ovl_b' for an object compiled from src/rom, src/blob, src/ovl_a or src/ovl_b."""
+    """'boot', 'game', 'ovl_a' or 'ovl_b' for an object compiled from src/rom, src/blob, src/ovl_a or src/ovl_b
+    (or nonmatching/<image>)."""
     p = str(path).replace("\\", "/")
     for part, image in _IMAGE_DIRS:
         if part in p:
