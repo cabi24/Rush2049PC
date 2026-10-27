@@ -39,6 +39,27 @@ typedef struct Car {
     u8 pad6C6[0x808 - 0x6C6];
 } Car;
 
+#ifdef TARGET_PC
+/* PC: a camera (a level-object node), its state CamCtl (a heap record of its category) and the scene, a track
+ * WAD's PTHD record with its key list, keep their N64 layout: their pointers are 32-bit window addresses
+ * (docs/port/POINTERS.md 10). */
+enum n64p_CamCtl { n64p_CamCtl_ };
+enum n64p_CamScene { n64p_CamScene_ };
+typedef struct CamScene {
+    u8 pad00[0x10];
+    u32 flags;
+    s16 count;
+    s16 id;
+} CamScene;
+typedef struct CamCtl {
+    enum n64p_CamScene scene;
+} CamCtl;
+typedef struct Camera {
+    u8 pad00[0x6C];
+    enum n64p_CamCtl ctl;
+} Camera;
+#define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)(uintptr_t)(x), enum n64p_CamScene: (CamScene *)(uintptr_t)(x), default: (x))
+#else
 typedef struct CamScene {
     u8 pad00[0x10];
     u32 flags;
@@ -52,6 +73,8 @@ typedef struct Camera {
     u8 pad00[0x6C];
     CamCtl *ctl;
 } Camera;
+#define N64P(x) x
+#endif
 
 extern Car D_8014A250[];
 extern Poly24 *D_801497F8;
@@ -72,8 +95,8 @@ s32 func_8010C2E4(Camera *cam, s16 *player, s32 arg2, s32 arg3) {
     if (cam == NULL) {
         DEBUG_PRINT(("func_8010C2E4: no camera\n"));
     }
-    ctl = cam->ctl;
-    sc = ctl->scene;
+    ctl = N64P(cam->ctl);
+    sc = N64P(ctl->scene);
     id = sc->id;
     id <<= 11;
     f0 = D_801497F8[car->wheelPoly[0]].flags;

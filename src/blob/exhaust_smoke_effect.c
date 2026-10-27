@@ -24,8 +24,15 @@ typedef signed char s8; typedef unsigned char u8; typedef signed short s16; type
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
 
 typedef struct View {
+#ifdef TARGET_PC
+/* PC: a window is 80 bytes: the two words at 0 are pointers (ZOID_InitializeWindow's first and bounds;
+ * docs/port/POINTERS.md 10). */
+    /* 0x00 */ void *unk0;
+    /* 0x04 */ void *unk4;
+#else
     /* 0x00 */ s32 unk0;
     /* 0x04 */ s32 unk4;
+#endif
     /* 0x08 */ s32 ortho;
     /* 0x0C */ f32 fovx;
     /* 0x10 */ f32 fovy;

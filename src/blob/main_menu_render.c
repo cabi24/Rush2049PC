@@ -16,7 +16,17 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: an input record is 80 bytes (its pointer at +0x48 is 8 bytes). The node at +0x44 stays 32 bits: it is a
+ * packet's window address (a heap block, func_800D63EC) or -1 (docs/port/POINTERS.md 10). */
+typedef struct { u8 model; u8 pad1[67]; u32 node; void *ref; } CarRec;
+#define NO_NODE 0xFFFFFFFFu
+#define NODE(n) (void *)(uintptr_t)n
+#else
 typedef struct { u8 model; u8 pad1[67]; void *node; u8 pad48[4]; } CarRec;   /* 76 */
+#define NO_NODE (void *) -1
+#define NODE(n) n
+#endif
 typedef struct { u8 pad0[556]; f32 pos[3]; u8 pad238[2056 - 568]; } ModelDat; /* 0x808 */
 typedef struct { u8 pad0[12]; f32 a[3]; f32 b[3]; u8 pad24[152 - 36]; } View;  /* 152 */
 
@@ -34,8 +44,8 @@ void main_menu_render(void)
     void *node;
 
     for (i = 0; i < D_8014A108; i++) {
-        if (D_8014A118[i].node != (void *) -1) {
-            node = D_8014A118[i].node;
+        if (D_8014A118[i].node != NO_NODE) {
+            node = NODE(D_8014A118[i].node);
             main_menu_input(node, D_8014A250[D_8014A118[i].model].pos, D_801141B0,
                             gCamera[i].b, gCamera[i].a);
         }

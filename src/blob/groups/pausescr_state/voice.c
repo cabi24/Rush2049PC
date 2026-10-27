@@ -19,9 +19,11 @@ typedef signed char s8;typedef unsigned char u8;typedef signed short s16;typedef
  * entries sit at host offsets: TXH maps an N64 header offset, TXS an N64 string-table byte offset. */
 #define TXH(o) ((o) == 4 ? 8 : (o) == 12 ? 24 : (o) == 16 ? 32 : (o))
 #define TXS(o) ((o) / 4 * (int)sizeof(char *))
+#define INPUT_SIZE 80   /* an input record (D_8014A118): its pointer at +0x48 is 8 bytes (POINTERS.md 10) */
 #else
 #define TXH(o) o
 #define TXS(o) o
+#define INPUT_SIZE 76
 #endif
 extern u8 D_801461D0[],D_80117280[],D_8014A160[],countdown_state[];
 extern char D_801210B0[],D_801210C4[];
@@ -51,7 +53,7 @@ void voice_stop(void)
     } else if(D_801170FC==6) {
         width=0;
     } else {
-        fcvt_wrapper(text,D_801210C4,(u8 *)*F(D_8014A160+D_8015698C*76,void **,0)+20,F(countdown_state,char **,TXH(16))[F(F(countdown_state,void *,TXH(12)),u16,112)]);
+        fcvt_wrapper(text,D_801210C4,(u8 *)*F(D_8014A160+D_8015698C*INPUT_SIZE,void **,0)+20,F(countdown_state,char **,TXH(16))[F(F(countdown_state,void *,TXH(12)),u16,112)]);
         width=object_manager_update(str,-1);
     }
     x=F(D_80117280,s16,0);

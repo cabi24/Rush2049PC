@@ -799,6 +799,29 @@ void stat_lap_split();
 void func_8010DAF8(void *arg0);
 
 
+#ifdef TARGET_PC
+/* PC: the target arg0 (a level-object node) keeps its N64 layout, but its visual is a struct pc_visual (data a
+ * 32-bit window address) and its target info record is 0x40 bytes with the visual function a pointer; the m2c body
+ * uses the N64 offsets of both (docs/port/CARS.md, POINTERS.md 10). */
+void func_8010DAF8(void *arg0) {
+    struct pc_visual *v;
+    u8 *info;
+
+    info = (u8 *) &D_80117530 + M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30);
+    M2C_FIELD(arg0, s16 *, 0x5A) = 0xC;
+    v = (struct pc_visual *) func_80090284();
+    if (v != NULL) {
+        v->index = 0;
+        v->func = M2C_FIELD(info, void (**)(void *, short), TINFO_OFS(0xC));
+        v->data = PC_N64W(arg0);
+        v->timeStamp = (f32) D_801249C0;
+        M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFF9);
+        v->next = D_801391F0;
+        D_801391F0 = v;
+        stat_lap_split(*(s32 *)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30))), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
+    }
+}
+#else
 void func_8010DAF8(void *arg0) {
     void *temp_v0;
     void *sp18;
@@ -817,4 +840,5 @@ void func_8010DAF8(void *arg0) {
         stat_lap_split(*(s32 *)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * 0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
     }
 }
+#endif
 

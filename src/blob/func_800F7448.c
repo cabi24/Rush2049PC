@@ -66,7 +66,18 @@ typedef union {
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
+#ifdef TARGET_PC
+/* PC: D_80156C5C is the colour buffer of frame record 0 (D_80156BE0 + 0x7C), and a record seen from there runs
+ * into the next record's scheduler task, the native OSScTask (pointer fields where it has them): 208 bytes a
+ * record, as the record views have it (docs/port/POINTERS.md 10). */
+typedef struct { void *next; u32 state, flags; void *fb; u32 type, tflags; void *boot; u32 boot_size;
+                 void *ucode; u32 ucode_size; void *udata; u32 udata_size; void *stack; u32 stack_size;
+                 void *out; void *out_size; void *data; u32 data_size; void *yield; u32 yield_size;
+                 void *msgQ; void *msg; } PcScTaskShape;
+typedef struct { void *buf; PcScTaskShape task; u8 *commands; s16 n; u8 pad[30]; } FrameBuf;
+#else
 typedef struct { void *buf; u8 pad[124]; } FrameBuf;
+#endif
 
 extern Gfx *D_801497C8;
 extern s32 D_8002AFC0;

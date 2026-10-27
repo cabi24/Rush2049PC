@@ -21,6 +21,33 @@ typedef int s32; typedef float f32;
 typedef unsigned int uintptr_t;
 typedef int intptr_t;
 #endif
+#ifdef TARGET_PC
+/* PC: obj is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data the target, a
+ * level-object node, which keeps its N64 layout: both as 32-bit window addresses, as is the node's state, here the
+ * flag's place record (its name; a track WAD record) (docs/port/CARS.md, POINTERS.md 10). */
+enum n64p_Model { n64p_Model_ };
+enum n64p_char { n64p_char_ };
+typedef struct Model {
+    u8 pad0[4];
+    u8 flags;
+    u8 pad5[7];
+    s32 id;                 /* the target's handle, whose low half is the model id (N64 +0xE): +0xC here */
+    u8 pad10[0x5A - 0x10];
+    s16 f5A;
+    u8 pad5C[0x6C - 0x5C];
+    enum n64p_char name;
+} Model;
+typedef struct Obj {
+    void *next;
+    s16 team;
+    u8 pad6[6];
+    enum n64p_Model model;
+    f32 f10;
+    void (*fn)();
+} Obj;
+#define N64P(x) _Generic((x), enum n64p_Model: (Model *)(uintptr_t)(x), enum n64p_char: (char *)(uintptr_t)(x), \
+    default: (x))
+#else
 typedef struct Model {
     u8 pad0[4];
     u8 flags;
@@ -39,6 +66,8 @@ typedef struct Obj {
     f32 f10;
     void (*fn)();
 } Obj;
+#define N64P(x) x
+#endif
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
  * `sound` is the palette slot (N64 +0x38): MBOX_FindPalette_WORK returns the WAD's palette record. */
@@ -76,9 +105,9 @@ void func_8010D85C(Obj *obj, s16 mode) {
     if (D_801170FC != 0) {
         return;
     }
-    m = obj->model;
+    m = N64P(obj->model);
     if (!(m->flags & 1)) {
-        name = m->name;
+        name = N64P(m->name);
         m->f5A = 10;
         if (func_800A464C(name, "BLU") != 0) {
             i = 2;
@@ -90,7 +119,7 @@ void func_8010D85C(Obj *obj, s16 mode) {
         r = MBOX_FindPalette_WORK(D_80118E08[i], &handle, 0, (s8)(gNumModels - 1), 1);
         i = m->id;
         D_8012E700[i].sound = r;
-        p = func_800A464C(m->name, "_OFF");
+        p = func_800A464C(N64P(m->name), "_OFF");
         if (p != 0) {
             i = (s8)(p[4] - '0');
         } else {

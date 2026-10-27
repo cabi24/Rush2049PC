@@ -91,6 +91,35 @@ typedef struct Scene36 {
     s32 key;
 } Scene36;
 
+#ifdef TARGET_PC
+/* PC: a level-object node (a target, 112 bytes) keeps its N64 layout: the nodes are the arena block D_8014D280, and
+ * next and state hold 32-bit window addresses (state: a heap record of the node's category, a track WAD record or
+ * a static table). So does the dead-reckoning record Matrix64 (a heap block), whose record is arena data
+ * (docs/port/POINTERS.md 10). */
+enum n64p_Node { n64p_Node_ };
+enum n64p_void { n64p_void_ };
+enum n64p_u8 { n64p_u8_ };
+typedef struct Node {
+    enum n64p_Node next;
+    u8 flags;
+    s32 key;
+    s32 handle;
+    s16 metadata;
+    f32 matrix[9];
+    f32 pos[3];
+    u8 xform[12];
+    s16 f80;
+    f32 f84;
+    s16 texture;
+    s16 f90;
+    s8 f92;
+    s32 f96;
+    s8 f100;
+    s8 index;
+    f32 f104;
+    enum n64p_void state;
+} Node;
+#else
 typedef struct Node {
     struct Node *next;
     u8 flags;
@@ -111,7 +140,25 @@ typedef struct Node {
     f32 f104;
     void *state;
 } Node;
+#endif
 
+#ifdef TARGET_PC
+/* PC: every field spelled out, whichever view the loader converts the ROM's records by (docs/port/POINTERS.md 10). */
+typedef struct Metadata48 {
+    char *name;
+    char *file;
+    void (*callback)(Node *);
+    void *animation;
+    s16 kind;
+    u16 flags;
+    s16 f20;
+    s8 category;
+    s8 element;
+    f32 value;
+    s32 sound, w20, w24, w28;
+    f32 f2C;
+} Metadata48;
+#else
 typedef struct Metadata48 {
     char *name;
     char *file;
@@ -125,16 +172,27 @@ typedef struct Metadata48 {
     f32 value;
     u8 tail[20];
 } Metadata48;
+#endif
 
 typedef struct Place { char name[16]; f32 matrix[9]; f32 pos[3]; u32 flags; s32 w68; s32 w72; s32 key; } Place;
 typedef struct Slot136 { s32 object[3]; u8 gap12[122]; s16 active; } Slot136;
-typedef struct Matrix64 { u8 *record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
 #ifdef TARGET_PC
-#define N64P(x) ((Node *)(uintptr_t)(x))
+typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
+#define N64P(x) _Generic((x), enum n64p_Node: (Node *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), \
+    enum n64p_u8: (u8 *)(uintptr_t)(x), default: (x))
 #define N64W(x) PC_N64W(x)
+/* A camera node's state (CamCtl, groups/camera_aspect_ratio) starts with its scene (a PTHD record) as a u32. */
+#define STATE_SCENE(s) (*(u32 *)N64P(s))
+#define SCENE_OF(s) ((Scene36 *)(uintptr_t)*(u32 *)N64P(s))
+/* GTLD keys: the side array holds them sign-extended (docs/port/LOADERS.md), and so does this. */
+#define KEY(k) (void *)(intptr_t)k
 #else
+typedef struct Matrix64 { u8 *record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
 #define N64P(x) x
 #define N64W(x) x
+#define STATE_SCENE(s) *(Scene36 **)s
+#define SCENE_OF(s) *(Scene36 **)s
+#define KEY(k) (void *)k
 #endif
 typedef struct Animation24 {
     struct Animation24 *next;
@@ -175,7 +233,11 @@ extern s32 D_801497EC;
 extern void **D_801497C0;
 extern Pool D_80143FC8;
 extern Pool D_80151AA8;
+#ifdef TARGET_PC
+extern Metadata48 D_80117530[122];
+#else
 extern Metadata48 D_80117530[];
+#endif
 extern u16 D_801427C0[];
 extern Ent D_8012E700[];
 extern Animation24 *D_801391F0;
@@ -248,16 +310,16 @@ void func_800AB7D0(Node *node,Metadata48 *metadata,s32 category)
     Slot136 *slot;
     if(!(D_801174B4&0x400000)) {
         if(metadata->flags&8) {
-            node->state=D_80150E98[category];
+            node->state=N64W(D_80150E98[category]);
             if(!(node->flags&16) && category==4) {
                 j=node->index;
-                *(Scene36 **)node->state=&D_801392D0[j];
+                STATE_SCENE(node->state)=N64W(&D_801392D0[j]);
                 if(D_801392D0) {}
-                if((*(Scene36 **)node->state)->flags&16) node->flags&=~8;
+                if((SCENE_OF(node->state))->flags&16) node->flags&=~8;
             }
             D_80150E98[category]=D_80150E98[category]+D_80117510[category];
         } else if(category!=7) {
-            node->state=D_80118DDC[category]+D_80117510[category]*metadata->element;
+            node->state=N64W(D_80118DDC[category]+D_80117510[category]*metadata->element);
         }
         if(metadata->kind==4) {
             node->index=D_80150F80++;
@@ -268,7 +330,7 @@ void func_800AB7D0(Node *node,Metadata48 *metadata,s32 category)
                 matrix->position[index]=0.0f;
             }
             index=(s32)D_80117530[node->metadata].value;
-            matrix->record=D_80118C10+index*32;
+            matrix->record=N64W(D_80118C10+index*32);
         }
     } else if((metadata->flags&8) && metadata->category==5) {
         slot=(Slot136 *)D_80150E68[5];
@@ -276,7 +338,7 @@ void func_800AB7D0(Node *node,Metadata48 *metadata,s32 category)
             if(!slot->active && slot->object[0]==-1 && slot->object[1]==-1 && slot->object[2]==-1) break;
         }
         slot->active=1;
-        node->state=D_80150E98[category]+D_80117510[category]*index;
+        node->state=N64W(D_80150E98[category]+D_80117510[category]*index);
     }
 }
 s32 func_8008AE64(s16 id);
@@ -352,7 +414,7 @@ s32 transmission_ratio_get(Place *rec, s16 parent, f32 *pos, void *src, s8 index
         node->f96 = -1;
         node->f104 = 0.0f;
         if (mflags & 0x400) {
-            node->state = rec;
+            node->state = N64W(rec);
         }
         if (mflags & 0x80) {
             flags |= 0x8000;
@@ -504,11 +566,11 @@ void engine_sound_update(void)
             key = D_801497C0[i];
             node = D_80143FC8.head;
             while (node != 0) {
-                if ((node->flags & 8) && (void *)node->key == key) {
+                if ((node->flags & 8) && KEY(node->key) == key) {
                     D_801497C0[i] = node;
                     break;
                 }
-                node = node->next;
+                node = N64P(node->next);
             }
             if (key == D_801497C0[i]) {
                 D_801497C0[i] = 0;
@@ -532,7 +594,7 @@ void engine_sound_update(void)
     node = D_80143FC8.head;
     while (node != 0) {
         engine_torque_calc(node);
-        node = node->next;
+        node = N64P(node->next);
     }
     if (D_8014A110 == 6) {
         func_8039133C(D_80150DD0);

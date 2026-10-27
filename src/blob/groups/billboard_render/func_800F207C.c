@@ -20,7 +20,11 @@ typedef struct InputRecord {
     u32 pressed;
     u32 unk8;
     u32 repeated;
+#ifdef TARGET_PC
+    u8 unk10[0x48 - 0x10]; void *ref;
+#else
     u8 unk10[60];
+#endif
 } InputRecord;
 extern InputRecord input_rec0[];
 extern s16 D_80144010[];

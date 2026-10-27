@@ -66,7 +66,11 @@ typedef struct Player {
     u8 b0;
     u8 control;
     u8 pad2[70];
+#ifdef TARGET_PC
+    intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
+#else
     s32 *name;
+#endif
 } Player;
 
 #ifdef TARGET_PC

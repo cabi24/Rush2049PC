@@ -42,7 +42,11 @@ typedef struct Game2056 {
     s8 type;                /* 0x7CC */
     u8 pad7CD[2056 - 1997];
 } Game2056;
+#ifdef TARGET_PC
+typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
+#else
 typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[10]; } Player76;
+#endif
 typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[84]; f32 savepos[3]; u8 pad90[8]; } Cam152;
 typedef struct Info8 { u8 pad0[7]; u8 state; } Info8;
 typedef struct Inner5 { u8 pad0[5]; s8 f5; } Inner5;

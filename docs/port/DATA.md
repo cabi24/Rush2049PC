@@ -311,14 +311,15 @@ From `data_layout.txt`:
     disagreed on which visual fields were pointers. Now every view has the PC car layout (0x468 bytes, 43
     pointers: the 21 visuals' `next` and `func`, and the input pointer) and the warning is gone; the model array
     `D_8014A250` keeps its N64 layout with u32 pointer fields and sits in the arena ([CARS.md](CARS.md)).
-  - `input_rec0`: only the views that declare the +0x48 pointer (and now `func_800DE45C`'s) use 80-byte records;
-    about 30 index them by 76.
+  - `input_rec0`: every view now has the 80-byte record, and the m2c code that added 76-byte strides uses
+    `INPUT_SIZE` ([POINTERS.md](POINTERS.md) 10.3).
 - **Width conflicts: 85 symbols** (198 pairs), such as `s32` vs `s8` for `D_8011028C`, `u64[]` vs `u8[4096]` for
   `gInflateBufferA`, or `Rec164A4` vs `s16[]`. For initialized data, a word layout over what is really bytes
   byte-swaps text, so these are worth reading.
 - **Inside own storage, but with pointers the storage lacks: 10**, all in other parts' structures: MusyX's
   `D_80038000` hooks and stream state `D_80056230` (`lib_11640.c`, `lib_25bb0.c`), the scene-node table
-  `D_8012E700`, and the object pool `D_80143FC8`, whose three `Pool` views disagree on its pointers.
+  `D_8012E700`, and the object pool `D_80143FC8`, whose three `Pool` views disagree on its pointers. (The pool's
+  views now agree, and its nodes keep their N64 layout in the arena block `D_8014D280`: POINTERS.md 10.2.)
 - **Gap extents crossing symbol-table addresses: 44.** Open-ended arrays whose size came from the gap, but which
   run over an address the image's symbol table knows. Most are field addresses inside struct arrays
   (`player_array`, `Camera[]`). Some may be separate tables that no C declares: the file table's

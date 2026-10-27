@@ -39,7 +39,12 @@ typedef struct {
     /* 0x00 */ u8 player;
     /* 0x01 */ u8 pad;
     /* 0x02 */ u8 pad2[0x18 - 2];
+#ifdef TARGET_PC
+    /* 0x18 */ u32 map[12];
+    /* 0x48 */ void *ref;
+#else
     /* 0x18 */ u32 map[13];
+#endif
 } InputRecord;                          /* 0x4C */
 
 typedef struct {

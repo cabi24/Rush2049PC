@@ -28,7 +28,11 @@ typedef struct MultiBlit {
 } MultiBlit;
 
 typedef struct PlayerStatus {
+#ifdef TARGET_PC
+    unsigned char header, state, rest[0x48 - 2]; void *ref;
+#else
     unsigned char header, state, rest[74];
+#endif
 } PlayerStatus;
 extern u32 D_801174BC, D_801174B4;
 extern s32 D_803B6AEC, D_803B6AE4;

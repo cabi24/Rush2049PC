@@ -76,7 +76,11 @@ typedef struct {
 typedef struct {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 port;
+#ifdef TARGET_PC
+    /* 0x02 */ u8 pad2[0x48 - 0x2]; void *ref;
+#else
     /* 0x02 */ u8 pad2[0x4A];
+#endif
 } InputRec; /* 0x4C */
 
 #ifdef TARGET_PC

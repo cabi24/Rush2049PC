@@ -24,7 +24,11 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+typedef struct Player76 { u8 slot; u8 pad01[63]; s16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
+#else
 typedef struct Player76 { u8 slot; u8 pad01[63]; s16 numCrashes; u8 pad42[10]; } Player76;
+#endif
 typedef struct Car952 {
     u8 pad000[232];
     s32 appearance;         /* 0x0E8 */

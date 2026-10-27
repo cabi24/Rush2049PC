@@ -28,7 +28,11 @@ typedef s32 intptr_t;
 #endif
 
 /* 76-byte records at input_rec0 */
+#ifdef TARGET_PC
+typedef struct Rec76 { s32 w0; u32 w4; s32 rest[16]; void *ref; } Rec76;
+#else
 typedef struct Rec76 { s32 w0; u32 w4; s32 rest[17]; } Rec76;
+#endif
 
 extern s8 D_801148A4;
 extern s8 D_80157244;

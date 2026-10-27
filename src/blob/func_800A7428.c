@@ -3800,6 +3800,22 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: a ZOID window (D_8017A510) is 80 bytes, its first and bounds pointers 8 bytes each (docs/port/POINTERS.md
+ * 10); the m2c body uses the N64 stride and offsets. Reads window arg6's fog range and colour. */
+typedef struct { void *first, *bounds; u8 pad08[0x40 - 8]; u16 range_start, range_end; u8 red, green, blue, alpha; }
+    PcWindow;
+void func_800A7428(u16 *arg0, u16 *arg1, u8 *arg2, u8 *arg3, u8 *arg4, u8 *arg5, s32 arg6)
+{
+  PcWindow *w = &((PcWindow *) &D_8017A510)[arg6];
+  *arg0 = w->range_start;
+  *arg1 = w->range_end;
+  *arg2 = w->red;
+  *arg3 = w->green;
+  *arg4 = w->blue;
+  *arg5 = w->alpha;
+}
+#else
 void func_800A7428(u16 *arg0, u16 *arg1, u8 *arg2, u8 *arg3, u8 *arg4, u8 *arg5, s32 arg6)
 {
   void *temp_v0;
@@ -3811,3 +3827,4 @@ void func_800A7428(u16 *arg0, u16 *arg1, u8 *arg2, u8 *arg3, u8 *arg4, u8 *arg5,
   *arg4 = *((u8 *) (((s8 *) temp_v0) + 0x46));
   *arg5 = *((u8 *) (((s8 *) temp_v0) + 0x47));
 }
+#endif

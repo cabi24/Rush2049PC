@@ -18,7 +18,11 @@ typedef struct {
 } View;
 
 typedef struct {
+#ifdef TARGET_PC
+    /* 0x00 */ void *first; void *bounds; u8 pad0_8[0x1C - 0x8];
+#else
     /* 0x00 */ u8 pad0[0x1C];
+#endif
     /* 0x1C */ f32 unk1C;
     /* 0x20 */ f32 unk20;
     /* 0x24 */ f32 unk24;

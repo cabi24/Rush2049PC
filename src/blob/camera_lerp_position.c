@@ -19,7 +19,14 @@ typedef int intptr_t;
  * leaves the address in v0/v1 as retail does; `= 0`, `&= 0`, `-= x`, volatile all differ).
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32;
+#ifdef TARGET_PC
+/* PC: the node pool's elements (the level-object nodes, 112 bytes) keep their N64 layout in the arena block
+ * D_8014D280, so their links are 32-bit window addresses: the header's n64 flag (docs/port/POINTERS.md 10). */
+typedef struct { u8 b0; u8 n64; u8 pad2[2]; s32 count; s32 size; u8 *mem; intptr_t f16; u8 *free; } Pool;
+#else
 typedef struct { u8 b0; u8 pad1[3]; s32 count; s32 size; u8 *mem; intptr_t f16; u8 *free; } Pool;
+#define PC_ONLY(stmt)
+#endif
 typedef struct { intptr_t w[5]; } Rec20;   /* MineSlots (func_8010C974): four target pointers and a count */
 #ifdef TARGET_PC
 /* PC: the mine list's elements (func_8010C974's Link, race_setup_2's Node: next and the target) are 16 bytes here,
@@ -30,7 +37,11 @@ typedef struct { void *next, *target; } PcLink;
 #define ELEMENT_SIZE(n64, type) n64
 #endif
 extern Pool D_80143FC8;
+#ifdef TARGET_PC
+extern u8 D_8014D280[130 * 112];
+#else
 extern u8 D_8014D280[];
+#endif
 extern s8 D_80114650;
 extern s8 D_80150DD0;
 extern s32 D_80150B64;
@@ -61,7 +72,7 @@ static void pool_init(Pool *p, void *mem, s32 count, s32 size) {
 void camera_lerp_position(s32 arg0) {
     s16 i;
 
-    pool_init(&D_80143FC8, D_8014D280, 130, 112);
+    PC_ONLY(D_80143FC8.n64 = 1;) pool_init(&D_80143FC8, D_8014D280, 130, 112);
     D_80150DD0 = D_80114650;
     func_800BB7F4();
     D_80150B64 = 0;
