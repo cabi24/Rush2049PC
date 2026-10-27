@@ -206,8 +206,11 @@ zero sample-cache count corrupts the heap (the N64 would do the same with those 
    - `RUSH_TRACE_WAVES=1 build/pc/rush2049pc --headless --stop-at-gfx`, then `--screenshot-at N`, is the bring-up
      loop: run, read the backtrace, fix. The converters log any file that doesn't parse (LOADERS.md and
      MUSYX_DATA.md list what to check first).
-2. **N64 check on the Rocky host.** Run `make` to confirm the ROM still matches. `tools/port/n64_neutral.py --base
-   09da2f0` is the local proof, and CI runs it; the real check is IDO.
+2. **N64 check.** `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD and compares
+   code, data, relocations, symbols and section sizes. On 1575cc9 all 1,011 objects agree (234 differ only in
+   `.mdebug` line numbers), and the build's other inputs (Makefile, linker scripts, asm, manifests) are unchanged,
+   so the ROM still matches. A full `make` with the ROM remains the final word. Run it after each merge of game
+   C; `n64_neutral.py` stays the fast check, in CI.
 3. **Records on 64-bit.** The car, visual and model records have one layout each ([port/CARS.md](port/CARS.md)); the
    target info table `D_80117530`, the target records, the input records `D_8014A118` and the other race-time
    records (POINTERS.md 9.9) are in progress.
@@ -220,7 +223,8 @@ zero sample-cache count corrupts the heap (the N64 would do the same with those 
 
 1. **Seed**: done, from the decompilation's history.
 2. **Keep the N64 matching build working** in this repo: yes. Shared changes are checked with
-   `tools/port/n64_neutral.py` here and with `make` on the Rocky host.
+   `tools/port/n64_neutral.py` here and in CI, and with `tools/port/ido_check.sh` (IDO objects, no ROM) on a host
+   with IDO.
 3. **Renderer**: our own Fast3D-style interpreter (`port/gfx`), written for this game.
 4. **License** for `port/`: open. Nothing in it requires GPL. `port/audio` follows public reverse-engineering
    notes on MusyX v1 whose main source is GPL code (mupen64plus); no code was copied. If you want strict clean-room

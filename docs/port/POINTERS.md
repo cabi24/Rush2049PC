@@ -35,6 +35,11 @@ asset world), [DATA.md](DATA.md) (where data symbols live on PC), [GFX.md](GFX.m
 
 ### The neutrality check
 
+The definitive check is IDO itself: `tools/port/ido_check.sh [base]` (with `IDO53_DIR`, `IDO71_DIR` and
+`MIPS_BIN` set) builds every N64 object at the base and at HEAD and compares what a linked ROM would contain;
+it needs IDO but not the ROM. The script below is the fast proxy that runs anywhere, and in CI.
+
+
 `tools/port/n64_neutral.py [--base REV] [FILE...]` (default: every changed `src/`/`include/` file vs `HEAD`)
 preprocesses each file as the N64 build does (no `TARGET_PC`; `-Iinclude -Iinclude/PR -D_LANGUAGE_C` for `src/rom`,
 nothing for game files, which IDO compiles with no `-I`/`-D`; IDO-like predefines) with `gcc -E -undef -nostdinc`,
