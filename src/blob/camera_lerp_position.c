@@ -20,7 +20,7 @@ typedef int intptr_t;
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32;
 typedef struct { u8 b0; u8 pad1[3]; s32 count; s32 size; u8 *mem; intptr_t f16; u8 *free; } Pool;
-typedef struct { s32 w[5]; } Rec20;
+typedef struct { intptr_t w[5]; } Rec20;   /* MineSlots (func_8010C974): four target pointers and a count */
 #ifdef TARGET_PC
 /* PC: the mine list's elements (func_8010C974's Link, race_setup_2's Node: next and the target) are 16 bytes here,
  * 8 on the N64: their heap block and element size are the host ones (docs/port/POINTERS.md 9). */

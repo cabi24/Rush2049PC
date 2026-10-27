@@ -19,6 +19,10 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 typedef struct SaveData {
     char pad0[13];
@@ -31,12 +35,12 @@ typedef struct SaveSlot {
     SaveData **data;
 } SaveSlot; /* 0x30 */
 
-typedef struct ListHead {
+typedef struct ListHead {   /* tDLList: the head and tail are pointers (audio_volume_pan's List16) */
     s8 unk0;
     s8 unk1;
     s32 unk4;
-    s32 unk8;
-    s32 unkC;
+    intptr_t unk8;
+    intptr_t unkC;
 } ListHead;
 
 typedef struct Record {
