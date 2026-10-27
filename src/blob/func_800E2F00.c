@@ -3309,7 +3309,11 @@ void func_800E1F80(void *arg0);
 void func_800E23A4(void *arg0);
 void func_800E2AC4(void *arg0);
 void func_800E2C70(void *arg0);
+#ifdef TARGET_PC
+s16 func_800E2D18(void *arg0, s16 arg1, s16 arg2, uintptr_t arg3);   /* arg3: s16 *curve, zero-extended */
+#else
 s16 func_800E2D18(void *arg0, s16 arg1, s16 arg2, s32 arg3);
+#endif
 
 void func_800E30AC(void *arg0);
 void func_800E30F4(void *arg0);
@@ -3708,7 +3712,11 @@ typedef struct CarE {
   u8 pad0[0xA]; s8 fA;
   u8 padB[0x3D0 - 0xB]; f32 f3D0;
   u8 pad3D4[0x3F4 - 0x3D4]; s16 f3F4;
+#ifdef TARGET_PC
+  u8 pad3F6[0x404 - 0x3F6]; f32 f404; f32 f408; u32 f40C;    /* the torque curve's window address (model + 0x40C) */
+#else
   u8 pad3F6[0x404 - 0x3F6]; f32 f404; f32 f408; s32 f40C;
+#endif
   u8 pad410[0x614 - 0x410]; s32 f614; s32 f618;
   u8 pad61C[0x640 - 0x61C]; s8 f640;
 } CarE;
