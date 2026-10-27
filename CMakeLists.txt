@@ -241,7 +241,7 @@ target_link_libraries(game PRIVATE game_flags)
 # so the data tables lost symbols at -O2 (D_80117498, a word the loader then left in the ROM's byte order).
 # A Debug build's game objects are -O0 already; any other build type compiles a second copy for its types, with the
 # game's own flags and weak headers (set on the sources). gen_data.py refuses optimized DWARF.
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT CMAKE_C_FLAGS MATCHES "(^| )-O[^0 ]")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}" MATCHES "(^| )-O[^0 ]")
     set(PC_TYPES_TARGET game)
 else()
     add_library(game_types OBJECT ${GAME_SOURCES})
