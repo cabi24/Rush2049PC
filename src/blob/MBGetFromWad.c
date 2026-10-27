@@ -3692,7 +3692,14 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-s32 MBGetFromWad(void *arg0, s32 arg1, s32 *arg2) {
+#ifdef TARGET_PC
+/* PC: the entry's address is a 32-bit RDRAM-window address. Unsigned, so callers widen it to a pointer by zero
+ * extension (docs/port/ASSETS.md section 4 #3). */
+#define WAD_ADDR u32
+#else
+#define WAD_ADDR s32
+#endif
+WAD_ADDR MBGetFromWad(void *arg0, s32 arg1, s32 *arg2) {
     void *var_v1;
 
     var_v1 = NULL;
