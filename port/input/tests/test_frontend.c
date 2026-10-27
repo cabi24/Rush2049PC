@@ -8,9 +8,13 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <dirent.h>
+#endif
 
 #include "config.h"
 #include "input_internal.h"
+#include "pc_compat.h"
 
 static int g_fail, g_checks;
 static const char *g_dir;
@@ -246,6 +250,27 @@ static void test_layers(void)
 
 /* ---------------------------------------------------------------- locate and first run */
 
+#ifdef _WIN32
+/* No rm on Windows: the tree, by hand. */
+static void rmrf(const char *path)
+{
+    char sub[2048];
+    struct stat st;
+    DIR *d = opendir(path);
+    struct dirent *e;
+    while (d && (e = readdir(d)))
+        if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) {
+            snprintf(sub, sizeof sub, "%s/%s", path, e->d_name);
+            if (stat(sub, &st) == 0 && S_ISDIR(st.st_mode))
+                rmrf(sub);
+            else
+                unlink(sub);
+        }
+    if (d)
+        closedir(d);
+    rmdir(path);
+}
+#else
 static void rmrf(const char *path)
 {
     char cmd[2048];
@@ -253,6 +278,7 @@ static void rmrf(const char *path)
     if (system(cmd) != 0)
         fprintf(stderr, "cannot remove %s\n", path);
 }
+#endif
 
 static void test_locate(void)
 {
@@ -267,6 +293,18 @@ static void test_locate(void)
     rmrf(exe);
     mkdir(exe, 0755);
     mkdir(home, 0755);
+#ifdef _WIN32
+    /* Windows: %APPDATA%\rush2049pc (the xdg directory stands in for it); XDG_CONFIG_HOME and HOME don't count */
+    setenv("APPDATA", xdg, 1);
+    setenv("XDG_CONFIG_HOME", home, 1);
+    CHECK(pc_config_locate(path, sizeof path, exe, &exists) == 0, "locate");
+    snprintf(want, sizeof want, "%s/rush2049pc/rush2049pc.ini", xdg);
+    CHECK(!strcmp(path, want) && !exists, "first location %s (%d)", path, exists);
+    unsetenv("APPDATA");
+    CHECK(pc_config_locate(path, sizeof path, exe, &exists) == -1, "no place at all");
+    unsetenv("XDG_CONFIG_HOME");
+    setenv("APPDATA", xdg, 1);
+#else
     setenv("XDG_CONFIG_HOME", xdg, 1);
     setenv("HOME", home, 1);
 
@@ -287,6 +325,7 @@ static void test_locate(void)
     CHECK(pc_config_locate(path, sizeof path, exe, &exists) == -1, "no place at all");
     setenv("HOME", home, 1);
     setenv("XDG_CONFIG_HOME", xdg, 1);
+#endif
 
     /* first run: the file is written with the defaults (directories made) and read back */
     CHECK(pc_settings_resolve(&s, PC_CFG_FILE_CREATE, NULL, exe, NULL, 0) == 0, "first run");
@@ -318,7 +357,11 @@ static void test_locate(void)
     /* pc_config_exe_dir: this program's directory */
     char self[1024];
     pc_config_exe_dir(self, sizeof self, NULL);
+#ifdef _WIN32
+    CHECK(self[0] && self[1] == ':' && access(self, F_OK) == 0, "exe dir %s", self);
+#else
     CHECK(self[0] == '/' && access(self, X_OK) == 0, "exe dir %s", self);
+#endif
 }
 
 /* ---------------------------------------------------------------- stick */
@@ -382,7 +425,11 @@ int main(int argc, char **argv)
     }
     static char dir[1024];
     mkdir(argv[2], 0755);
+#ifdef _WIN32
+    if (!_fullpath(dir, argv[2], sizeof dir)) {
+#else
     if (!realpath(argv[2], dir)) {   /* absolute: a relative XDG_CONFIG_HOME is ignored */
+#endif
         perror(argv[2]);
         return 2;
     }

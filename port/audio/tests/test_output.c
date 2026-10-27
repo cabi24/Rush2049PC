@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include "out_wav.h"
+#include "pc_compat.h"
 #include "resample.h"
 #include "test.h"
 

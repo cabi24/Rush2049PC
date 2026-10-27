@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "pc_compat.h"
 #include "test.h"
 
 static void sleep_ms(long ms)

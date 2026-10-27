@@ -438,7 +438,7 @@ static void test_damaged(void)
 /* The game's functions (PC prototypes). */
 int func_8001536C(uint8_t *groups, uint16_t id, void *address, void *records, void *resources);
 int func_800154A4(void);
-int func_8001558C(uint16_t id, uint16_t program, unsigned long stream, unsigned long options, uint8_t unlocked);
+int func_8001558C(uint16_t id, uint16_t program, uintptr_t stream, uintptr_t options, uint8_t unlocked);
 void func_80017108(void);
 void *func_80016C20(uint16_t id);
 void *func_80016E68(uint16_t id);
@@ -901,8 +901,8 @@ static void test_game(void)
     func_800199F4();
     memset(seen_controls, 0, sizeof seen_controls);
     /* Started, as the first song (identifier 0) in slot 0, and active. */
-    CHECK(func_8001558C(20, 0, (unsigned long)sg, 0, 1) == 0);
-    CHECK(func_8001558C(20, 1, (unsigned long)sg, 0, 1) == -1);
+    CHECK(func_8001558C(20, 0, (uintptr_t)sg, 0, 1) == 0);
+    CHECK(func_8001558C(20, 1, (uintptr_t)sg, 0, 1) == -1);
     seq = (const SequenceContext *)D_80043EB8;
     prg = (const uint32_t *)seq->unknownF80;
     CHECK(seq->identifier == 0 && seq->activeFC0 == 1 && seq->inactiveFC1 == 0 && seq->channelFC4 == 23);

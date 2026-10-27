@@ -76,6 +76,15 @@ static void init_cv(pthread_cond_t *cv)
     pthread_condattr_destroy(&a);
 }
 
+#ifdef _WIN32
+/* Windows waits with a relative timeout (a winpthreads extension), so the wait doesn't depend on which clock
+ * winpthreads reads absolute deadlines with (docs/port/WINDOWS.md). */
+static int timed_wait(pthread_cond_t *cv, uint64_t ns_from_now)
+{
+    struct timespec rel = {(time_t)(ns_from_now / 1000000000u), (long)(ns_from_now % 1000000000u)};
+    return pthread_cond_timedwait_relative_np(cv, &g_lock, &rel);
+}
+#else
 static void deadline_ts(struct timespec *ts, uint64_t ns_from_now)
 {
     clock_gettime(CLOCK_MONOTONIC, ts);
@@ -86,6 +95,14 @@ static void deadline_ts(struct timespec *ts, uint64_t ns_from_now)
         ts->tv_nsec -= 1000000000L;
     }
 }
+
+static int timed_wait(pthread_cond_t *cv, uint64_t ns_from_now)
+{
+    struct timespec ts;
+    deadline_ts(&ts, ns_from_now);
+    return pthread_cond_timedwait(cv, &g_lock, &ts);
+}
+#endif
 
 /* ---------------------------------------------------------------- side tables */
 
@@ -537,10 +554,8 @@ void pc_os_spin_yield(const char *site)
     }
     PcThread *b = best(self);
     if (!(b && b->pri >= self->pri)) {
-        struct timespec ts;
-        deadline_ts(&ts, 1000000);
         self->event_wait = 1;
-        pthread_cond_timedwait(&self->cv, &g_lock, &ts);
+        timed_wait(&self->cv, 1000000);
         self->event_wait = 0;
         b = best(self);
     }
@@ -595,11 +610,8 @@ void pc_os_wait_main(uint64_t deadline_ns)
 {
     pthread_mutex_lock(&g_lock);
     uint64_t now = pc_host_ns();
-    if (!g_main_wake && deadline_ns > now) {
-        struct timespec ts;
-        deadline_ts(&ts, deadline_ns - now);
-        pthread_cond_timedwait(&g_main_cv, &g_lock, &ts);
-    }
+    if (!g_main_wake && deadline_ns > now)
+        timed_wait(&g_main_cv, deadline_ns - now);
     g_main_wake = 0;
     pthread_mutex_unlock(&g_lock);
 }

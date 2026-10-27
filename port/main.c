@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "config.h"
+#include "pc_compat.h"
 #include "ultra.h"
 
 extern void n64_main(void *argument);   /* src/rom/lib_2cf0.c */
@@ -255,7 +256,9 @@ int main(int argc, char **argv)
         run.screenshot = shot_path;
     }
 
+#ifndef _WIN32   /* stderr is unbuffered there, and the CRT has no line buffering */
     setvbuf(stderr, NULL, _IOLBF, 0);
+#endif
     pc_mem_fix_absolute();
     pc_fault_install();
     if (pc_mem_init() != 0) {

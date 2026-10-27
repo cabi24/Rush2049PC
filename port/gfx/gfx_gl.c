@@ -1,8 +1,15 @@
 /* port/gfx/gfx_gl.c: the OpenGL backend (GLES 3.0 or desktop GL 3.1+ core). Render targets per color image,
  * depth buffers per z image, the shader cache, texture upload, batched draws, presentation and readback.
  * All GL calls live here, through a loader, so one build serves GLES and desktop GL. */
+#ifdef _WIN32
+/* mingw-w64 ships desktop GL's glcorearb.h rather than GLES3/gl3.h: the same function, type and enum names, and
+ * no prototypes unless asked for (docs/port/WINDOWS.md). */
+#include <GL/glcorearb.h>
+#define GL_APIENTRYP APIENTRYP
+#else
 #define GL_GLES_PROTOTYPES 0
 #include <GLES3/gl3.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

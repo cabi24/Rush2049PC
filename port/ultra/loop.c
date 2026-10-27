@@ -6,11 +6,20 @@
  * AI events, and at each 60 Hz retrace handles window events, polls input, sends the VI event and shows a swapped
  * framebuffer. Between deadlines it sleeps until a thread submits work. --screenshot-at and --frames act two
  * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. While
- * port/input says the game is paused, it holds (hold()). */
+ * port/input says the game is paused, it holds (hold()).
+ *
+ * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timed waits are as coarse
+ * as the system timer (15.6 ms by default), so the loop runs with a 1 ms timer period. */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <mmsystem.h>
+#define SIGQUIT SIGBREAK
+#endif
 
 #include "ultra.h"
 
@@ -20,6 +29,9 @@ static volatile sig_atomic_t g_dump;
 
 static void on_signal(int sig)
 {
+#ifdef _WIN32
+    signal(sig, on_signal);   /* the CRT resets a handler to the default before calling it */
+#endif
     if (sig == SIGQUIT)
         g_dump = 1;
     else
@@ -58,6 +70,9 @@ int pc_ultra_run(const PcRunOptions *opt)
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
     signal(SIGQUIT, on_signal);
+#ifdef _WIN32
+    timeBeginPeriod(1);
+#endif
     if (opt->status_every)
         next_status = (uint64_t)opt->status_every * 1000000000u;
 
@@ -131,5 +146,8 @@ int pc_ultra_run(const PcRunOptions *opt)
         pc_os_wait_main(deadline);
     }
     pc_si_flush();
+#ifdef _WIN32
+    timeEndPeriod(1);
+#endif
     return pc_quit > 1 ? pc_quit - 1 : 0;
 }

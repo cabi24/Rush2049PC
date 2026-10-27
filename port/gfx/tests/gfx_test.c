@@ -1057,8 +1057,13 @@ static void case_screenshot(void) {
     FILE *f;
     frame_begin(0, 128, 0);
     frame_end();
+#ifdef _WIN32
+    snprintf(path, sizeof(path), "%s/screenshot_test.png",
+             s_png_dir ? s_png_dir : getenv("TEMP") ? getenv("TEMP") : ".");
+#else
     snprintf(path, sizeof(path), "%s/screenshot_test.png",
              s_png_dir ? s_png_dir : getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp");
+#endif
     if (pc_gfx_save_screenshot(path) != 0 || (f = fopen(path, "rb")) == NULL) {
         printf("  FAIL screenshot: not written\n");
         s_fail++;
