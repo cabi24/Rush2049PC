@@ -532,6 +532,12 @@ over the next node's link, while the other views had the N64 one.
   `func_8010E694`, and `func_8010E828` as a PC version, which also passes it to `sound_position_set`
   zero-extended: proto_check's last harmful view). The views of `func_8010DBB8`, `func_8010E72C` and
   `race_setup_2` had the N64 layout and no pointers already.
+- **Walks of the node list outside `level_objects`** follow the 32-bit link too: `func_800BEA6C` (every node's
+  state 2 and no sound; `NODE_NEXT`) and battle mode's power-up selection `func_8039133C` (`NEXT`), which walked
+  the active list `D_80143FD8` reading the link 8 bytes wide, with the node's flags at +4 as its upper half. The
+  power-ups' `Object` view (`runtime_b_resource_callbacks`: flags, handle, `resource` at +0x50) has the N64 layout,
+  and `func_8039133C`'s heap block of slots holds `count` 16-byte slots (it was sized for 8-byte ones). Test:
+  `assets_battle`.
 - **The target visuals' views of the visual** padded over `next` or had `data` as a pointer (`audio_channel_setup`,
   `func_8010D85C`, `func_8010E0FC`): they have the visual's PC layout (CARS.md 3) with `data` a u32.
 - **The handle's low half.** The flag, the frame stepper, the debris and the camera views read the node's s32 handle
