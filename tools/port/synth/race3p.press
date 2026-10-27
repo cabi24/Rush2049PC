@@ -1,0 +1,17 @@
+# Three players, a single race on track 0 in split screen (docs/port/SYNTH.md 2). No drones: three cars.
+# until: 0x400000:600
+# seconds: 90
+# expect: state=0x00400000: players 3, windows 3, cars 3, mode 0, track 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+9 RIGHT 0.1    # the main menu's first option: one player more, twice
+9.5 RIGHT 0.1
+11 A           # the main menu: the race
+14 A           # the player screen: each player is ready
+14 A@2
+14 A@3
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select: each player's car
+23 A@2
+23 A@3

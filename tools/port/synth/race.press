@@ -1,0 +1,12 @@
+# One player, a single race (gRace 0) on track 0 (docs/port/SYNTH.md 2).
+# until: 0x400000:300
+# seconds: 75
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# realtime
+5 A            # the controller pak warning (0x40000000)
+8 START        # the start prompt (4)
+11 A           # the main menu (0x10): the race
+14 A           # the player screen (0x20)
+17 A           # the mode screen (0x40): the first mode, a single race
+20 A           # the track select (0x80): track 0
+23 A           # the car select (0x100); then the race start (0x40000), PrePlay (0x80000) and the race (0x400000)

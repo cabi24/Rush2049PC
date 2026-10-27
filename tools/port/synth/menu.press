@@ -1,0 +1,8 @@
+# The synthetic cartridge's front end, from the boot to the mode screen (docs/port/SYNTH.md 2).
+# until: 0x40:240
+# seconds: 45
+# expect: state=0x00000040: players 1, windows 1
+5 A            # the controller pak warning (0x40000000)
+8 START        # the start prompt (4): without it the attract demo starts at 10 s
+11 A           # the main menu (0x10): its first option, the race
+14 A           # the player screen (0x20): player 1 is ready; the mode screen (0x40) follows

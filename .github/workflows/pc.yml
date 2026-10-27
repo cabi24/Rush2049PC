@@ -58,16 +58,14 @@ jobs:
           grep -q "wave 0 loaded" boot.log
       - name: Boot the synthetic cartridge
         # tools/port/synth_rom.py writes a cartridge of original, minimal data (docs/port/SYNTH.md). The game boots
-        # on it through the front end's screens into a race on an empty track and runs 300 frames of it; the run
-        # fails if it faults or doesn't get there in time. (ctest's synth_boot_menu and synth_boot_race do the same.)
+        # on it through the front end's screens into each of the paths the press scripts in tools/port/synth take
+        # (races for 1-4 players, circuit, stunt, battle, the attract demo...) and runs each for a while, on the
+        # virtual clock (--fast); the step fails if one faults or doesn't get there. The one-player race also runs
+        # in real time. (ctest's synth_boot_* do the same; this keeps the logs.)
         run: |
           python3 tools/port/synth_rom.py
-          status=0
-          RUSH_TRACE_WAVES=1 build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headless \
-            --no-config --audio null --no-pak --press 5:A,8:A,11:A,14:A,17:A --until-state 0x400000:300 \
-            --seconds 75 > synth.log 2>&1 || status=$?
-          grep -v "wave .* loaded\|wad .* converted" synth.log || true
-          exit $status
+          python3 tools/port/synth_paths.py --exe build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 \
+            --logs build/synth/paths
       - name: Census
         run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20
       - uses: actions/upload-artifact@v4
@@ -76,7 +74,7 @@ jobs:
           name: logs-${{ matrix.os }}
           path: |
             boot.log
-            synth.log
+            build/synth/paths/
             build/synth/rush2049_synth.txt
             build/pc/pc-data/data_layout.txt
           if-no-files-found: ignore
