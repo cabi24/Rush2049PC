@@ -6,7 +6,8 @@
  * AI events, and at each 60 Hz retrace handles window events, polls input, sends the VI event and shows a swapped
  * framebuffer. Between deadlines it sleeps until a thread submits work. --screenshot-at and --frames act two
  * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. While
- * port/input says the game is paused, it holds (hold()).
+ * port/input says the game is paused, it holds (hold()). With a game-state hook (port/main.c), each retrace it logs
+ * a change of the game's state word and checks --until-state (docs/port/SYNTH.md).
  *
  * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts are as coarse as
  * the system timer (15.6 ms by default): the scheduler's own waits use high-resolution timers (sched.c), and the
