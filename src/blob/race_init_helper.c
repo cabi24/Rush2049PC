@@ -3803,6 +3803,13 @@ typedef s64 M2C_UNK64;
 #ifndef TARGET_PC
 #define CAR_OFS(n) n
 #endif
+#ifdef TARGET_PC
+/* PC: +0xF4 is a car's scene-node handle, an s32, and the s16 read is its low half: the second s16 on the N64, the
+ * first on a little-endian host (docs/port/ENDIAN.md 3.1). */
+#define NODE_LOW 0xF4
+#else
+#define NODE_LOW 0xF6
+#endif
 void race_init_helper(void)
 {
   s32 i;
@@ -3813,7 +3820,7 @@ void race_init_helper(void)
   {
     for (i = 1, j = 0; i < active_player_count; i++, j++)
     {
-      func_8008D6FC(*((s16 *) (((s8 *) &D_80152BD0) + (j * CAR_OFS(0x3B8)) + 0xF6)), ((s8 *) &D_80152BD8) + (j * CAR_OFS(0x3B8)), ((s8 *) &D_80152C20) + (j * CAR_OFS(0x3B8)));
+      func_8008D6FC(*((s16 *) (((s8 *) &D_80152BD0) + (j * CAR_OFS(0x3B8)) + NODE_LOW)), ((s8 *) &D_80152BD8) + (j * CAR_OFS(0x3B8)), ((s8 *) &D_80152C20) + (j * CAR_OFS(0x3B8)));
     }
   }
   func_800EB90C();

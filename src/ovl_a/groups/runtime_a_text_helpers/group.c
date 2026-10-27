@@ -165,6 +165,11 @@ typedef struct OwnerBody {
 } OwnerBody;
 struct MenuOwner { OwnerBody *body; };
 typedef struct Player { u8 other[72]; MenuOwner *owner; } Player;
+/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
+ * docs/port/POINTERS.md 9.10). */
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n
+#endif
 typedef struct Object { u8 other[32]; f32 scale; u8 tail[32]; } Object;
 typedef struct Blit Blit;
 typedef struct FiveParts FiveParts;
@@ -785,7 +790,7 @@ void func_8039BAE0(u8 *destination)
  * func_8039BB80; deleted stub 0x8039BA20. */
 void func_8039BA20(s32 player,u8 *destination)
 {
-    func_800BE6A4(destination,(u8 *)D_8014A118[player].owner->body + 20);
+    func_800BE6A4(destination,(u8 *)D_8014A118[player].owner->body + PROFILE_OFS(20));
 }
 
 void func_8039BB80(void)
@@ -901,7 +906,7 @@ void func_803A5658(void)
         y=129+(rank%3)*24;
         state_utility(sound_pitch_diff_halved(number,x+6),y+1,number);
         object_create(11);
-        if(i<D_8014A108)func_800BE6A4(name,(u8 *)D_8014A118[i].owner->body+20);
+        if(i<D_8014A108)func_800BE6A4(name,(u8 *)D_8014A118[i].owner->body+PROFILE_OFS(20));
         else func_800BE6A4(name,D_801147C8[D_80154450[i].other0]);
         music_fade((s16)(x+15),y+2,120,name);
         fcvt_wrapper(number,D_803B8790,D_803B9A84==D_803BAD90->b9 ?

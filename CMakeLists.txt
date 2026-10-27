@@ -555,6 +555,12 @@ if(NOT WIN32)
     add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
         --in src/blob/groups/func_800AD4C8/camera_victory.c,src/blob/groups/entity_update/entity_update.c,src/blob/groups/update_game_data/update_game_data.c)
 endif()
+# tools/port/layout_check.py (docs/port/LAYOUT.md): the layout check on its synthetic cases (it reads the same GIMPLE,
+# so not on Windows either).
+if(NOT WIN32)
+    add_test(NAME layout_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/layout_check.py --build ${CMAKE_BINARY_DIR}
+        --selftest)
+endif()
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game

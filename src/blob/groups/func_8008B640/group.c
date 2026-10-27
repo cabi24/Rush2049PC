@@ -3696,12 +3696,23 @@ typedef s64 M2C_UNK64;
 
 
 /* group members */
+#ifdef TARGET_PC
+/* PC: the objects are car visuals (tVisual, docs/port/CARS.md 3), 0x20 bytes: next is a host pointer, so index,
+ * objnum and slot (state, model and player here) are at +8, +0xA and +0xC. */
+typedef struct {
+    /* 0x0 */ void *pad0;
+    /* 0x8 */ s16 state;
+    /* 0xA */ s16 model;
+    /* 0xC */ s16 player;
+} ModelObj;
+#else
 typedef struct {
     /* 0x0 */ u8 pad0[4];
     /* 0x4 */ s16 state;
     /* 0x6 */ s16 model;
     /* 0x8 */ s16 player;
 } ModelObj;
+#endif
 
 typedef struct {
     /* 0x0 */ f32 v;

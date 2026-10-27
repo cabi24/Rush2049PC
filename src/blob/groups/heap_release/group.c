@@ -9,6 +9,8 @@ typedef s32 intptr_t;
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };
 enum n64p_u32 { n64p_u32_ };
+enum n64p_MBlock { n64p_MBlock_ };
+enum n64p_void { n64p_void_ };
 #endif
 #ifdef TARGET_PC
 typedef struct Block {u32 pad0;enum n64p_Block next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
@@ -27,7 +29,7 @@ typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Hea
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Pool: (struct Pool *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Pool: (struct Pool *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), enum n64p_MBlock: (struct MBlock *)(uintptr_t)(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
@@ -203,6 +205,24 @@ void object_counter_increment(u32 address) {
  * field expression (v1) while `next` is its own variable (a1); the grow path
  * reads the successor size once into a local for the test only.
  */
+#ifdef TARGET_PC
+/* PC: the heap's block and heap headers keep their N64 layout in the RDRAM window (alloc_at.c's Block and Heap,
+ * docs/port/POINTERS.md 1): the links, the owner and the heap's last block are 32-bit window addresses. */
+typedef struct MBlock {
+    u32 magic;
+    enum n64p_MBlock next;
+    enum n64p_MBlock prev;
+    u32 size;
+    enum n64p_void owner;
+    s8 used;
+    s8 tag;
+    u8 count;
+} MBlock;
+typedef struct MHeap {
+    u32 pad0[3];
+    enum n64p_MBlock tail;
+} MHeap;
+#else
 typedef struct MBlock {
     u32 magic;
     struct MBlock *next;
@@ -217,6 +237,7 @@ typedef struct MHeap {
     u32 pad0[3];
     MBlock *tail;
 } MHeap;
+#endif
 
 void menu_item_select(u32 address, u32 desired) {
     MHeap *heap;
@@ -232,73 +253,73 @@ void menu_item_select(u32 address, u32 desired) {
     block = (MBlock *)func_80095EF4((Heap *)heap, address, 0);
     size = block->size;
     if (size >= desired) {
-        next = block->next;
-        if (block->next == NULL || next->used != 0) {
+        next = N64P(block->next);
+        if (N64P(block->next) == NULL || next->used != 0) {
             if (size - desired >= 64) {
                 moved = (MBlock *)((u8 *)block + desired + 32);
                 moved->next = block->next;
-                if (moved->next != NULL) {
-                    moved->next->prev = moved;
+                if (N64P(moved->next) != NULL) {
+                    N64P(moved->next)->prev = N64W(moved);
                 } else {
-                    heap->tail = moved;
+                    heap->tail = N64W(moved);
                 }
-                moved->prev = block;
+                moved->prev = N64W(block);
                 moved->size = block->size - desired - 32;
-                moved->owner = NULL;
+                moved->owner = N64W(NULL);
                 moved->used = 0;
                 moved->tag = 0;
                 moved->count = 0;
                 moved->magic = 0xFEDCBA98;
-                block->next = moved;
+                block->next = N64W(moved);
                 block->size = desired;
             }
         } else {
             if (size - desired >= 32) {
                 moved = (MBlock *)((u8 *)block + desired + 32);
                 moved->next = next->next;
-                if (moved->next != NULL) {
-                    moved->next->prev = moved;
+                if (N64P(moved->next) != NULL) {
+                    N64P(moved->next)->prev = N64W(moved);
                 } else {
-                    heap->tail = moved;
+                    heap->tail = N64W(moved);
                 }
-                moved->prev = block;
+                moved->prev = N64W(block);
                 moved->size = block->size - desired + next->size;
-                moved->owner = NULL;
+                moved->owner = N64W(NULL);
                 moved->used = 0;
                 moved->tag = 0;
                 moved->count = 0;
                 moved->magic = 0xFEDCBA98;
-                block->next = moved;
+                block->next = N64W(moved);
                 block->size = desired;
             }
         }
     } else {
-        next = block->next;
+        next = N64P(block->next);
         nsize = next->size;
         if (nsize - desired + size < 32) {
             block->next = next->next;
-            if (block->next != NULL) {
-                block->next->prev = block;
+            if (N64P(block->next) != NULL) {
+                N64P(block->next)->prev = N64W(block);
             } else {
-                heap->tail = block;
+                heap->tail = N64W(block);
             }
             desired = block->size + next->size + 32;
         } else {
             moved = (MBlock *)((u8 *)block + desired + 32);
             moved->next = next->next;
-            if (moved->next != NULL) {
-                moved->next->prev = moved;
+            if (N64P(moved->next) != NULL) {
+                N64P(moved->next)->prev = N64W(moved);
             } else {
-                heap->tail = moved;
+                heap->tail = N64W(moved);
             }
-            moved->prev = block;
+            moved->prev = N64W(block);
             moved->size = block->size + next->size - desired;
-            moved->owner = NULL;
+            moved->owner = N64W(NULL);
             moved->used = 0;
             moved->tag = 0;
             moved->count = 0;
             moved->magic = 0xFEDCBA98;
-            block->next = moved;
+            block->next = N64W(moved);
         }
         block->size = desired;
     }

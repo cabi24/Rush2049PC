@@ -25,6 +25,11 @@ typedef signed char s8;typedef unsigned char u8;typedef signed short s16;typedef
 #define TXS(o) o
 #define INPUT_SIZE 76
 #endif
+/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
+ * docs/port/POINTERS.md 9.10). */
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n
+#endif
 extern u8 D_801461D0[],D_80117280[],D_8014A160[],countdown_state[];
 extern char D_801210B0[],D_801210C4[];
 extern s32 D_801170FC,D_8015698C;
@@ -53,7 +58,7 @@ void voice_stop(void)
     } else if(D_801170FC==6) {
         width=0;
     } else {
-        fcvt_wrapper(text,D_801210C4,(u8 *)*F(D_8014A160+D_8015698C*INPUT_SIZE,void **,0)+20,F(countdown_state,char **,TXH(16))[F(F(countdown_state,void *,TXH(12)),u16,112)]);
+        fcvt_wrapper(text,D_801210C4,(u8 *)*F(D_8014A160+D_8015698C*INPUT_SIZE,void **,0)+PROFILE_OFS(20),F(countdown_state,char **,TXH(16))[F(F(countdown_state,void *,TXH(12)),u16,112)]);
         width=object_manager_update(str,-1);
     }
     x=F(D_80117280,s16,0);
