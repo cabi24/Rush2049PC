@@ -23,6 +23,11 @@ asset world), [DATA.md](DATA.md) (where data symbols live on PC), [GFX.md](GFX.m
     `N64_WORLD` there lists the files whose casts are kept (section 4.1).
   - `tools/port/ptr64_decls.py [SYMBOL...]`: integer declarations of data symbols that other files declare as
     pointers become `intptr_t`/`uintptr_t` (from gen_data's DWARF survey, `build/pc/pc-data/data_layout.txt`).
+  - `tools/port/ptr64_u32fields.py --types T,... FILE...`: records that stay in their N64 layout on PC (the heap
+    headers; usable for Phase 4's ROM records). Each pointer field becomes a 4-byte `enum n64p_X` under
+    `TARGET_PC`; `N64P(x)` (a `_Generic` cast to the host pointer) and `N64W(x)` (a pointer stored as `u32`) are
+    inserted where the compiler rejects a use; both are `x` on the N64. It lists `field +`/`-`/`++` sites, which
+    would silently become integer arithmetic, for review.
   - The rest (ROM-list walkers, buffers, prototypes, `long`) are small hand edits, one commit each.
 
 ### The neutrality check
@@ -96,7 +101,7 @@ expect there: 2576, `+= 0x50`, `+ 16`, the 12-byte DMA entries.
 | | Total | Mine (`src/blob`, `src/ovl_a`, `src/ovl_b`) | `src/rom` (agent A) |
 |---|---:|---:|---:|
 | Start (`d28fbb3`) | 836 in 172 files | 758 | 78 |
-| Now | 438 in 108 files | 360 | 78 |
+| Now (census, after merging main `560e8fc`) | 392 in 93 files | 344 | 43 (+5 in `nonmatching/`) |
 
 What was fixed: the Gfx work; the cast rewrite at pointer -> int -> pointer round trips, address comparisons and
 alignment tests; storage that receives game-built pointers (globals `D_80149450` BlitPtrs, `D_801406B8`,
@@ -106,9 +111,9 @@ alignment tests; storage that receives game-built pointers (globals `D_80149450`
 `Node68.p64`). Casts left where the callee ignores the value: `random_float`, `steering_sensitivity`,
 `traction_control`, `camera_update_a` (first argument unused). No new warning class appears.
 
-What is left (360):
+What is left (344):
 
-### 4.1 The 32-bit N64 world: 251, kept on purpose
+### 4.1 The 32-bit N64 world: 239, kept on purpose
 
 The heap allocator and its u32-address API (free, purge, size, handles), and the loaders that relocate ROM records
 in place. On PC the heap is the RDRAM window at host 0x80000000 (ASSETS.md), so `(u32)` of those addresses is exact
@@ -116,9 +121,14 @@ and the casts stay. Files: `ptr64_edit.py` `N64_WORLD` (heap: `audio_heap`, the 
 `func_80095EF4`, `car_damage_visual`, `deflate_mem` frees, `menu_save_options/ctx_slot`/`ctx_newghost`/`hud_setup`/
 `save`, `paksys`, `state_audio`, `resource_alloc_init`; ROM records: `MBSetupWad`, `waves.c`, the text bank
 `func_800A4E58` copies, `loadtrack`, the sample base in `car_shadow_render`).
-Two things this needs that are not done: the heap's 0x20-byte block header holds three pointer fields (`next`,
-`prev`, ...) in several views, which grow on PC; and the handle tables are `u32` slots read as `*(u8 **)`.
-Both need `u32` fields under `TARGET_PC` (ASSETS.md §4 #5, #27).
+The heap's own headers keep their N64 layout on PC: `Block` (0x20), `Heap`, `HandleTable` and the `Pool` view
+have their pointer fields as 4-byte `enum n64p_X` window addresses (`ptr64_u32fields.py`) in the running heap
+code: `audio_heap`, `counter_guard`, `heap_release/{group,alloc_at,car_damage_visual,func_800CB9D0}.c`,
+`func_80095EF4`, `sound_play_menu`, `func_800E7A98`, `heap_max`, `loadcars/heap_total`, `heap_free_total`,
+`menu_save_options/ctx_slot`. Because every view agrees on the N64, they agree on PC with no unification, and the
+hard-coded 0x20 header and the raw readers (`func_80095F8C`, which now zero-extends what it loads) stay right. The
+weak context copies of the heap code were not converted (they never run). Still open: the handle tables are
+`u32` slots, and code that dereferences a handle as `*(void **)h` reads 8 bytes (ASSETS.md §4 #5).
 
 ### 4.2 ROM-layout structs: not widened, for Phase 4
 
@@ -185,6 +195,19 @@ holding pointers; the offsets themselves are N64 layout and wrong wherever the r
   look game-built (the game writes their f32 positions), so no swap was added. Any producer that fills them from a
   WAD needs one.
 
+- **Widening N64-world storage needs the casts widened too.** An RDRAM-window address stored as `(s32)p` into
+  storage widened to `intptr_t` is sign-extended. The original 4-byte store into zeroed 8-byte storage happened to
+  read back zero-extended on little-endian. `D_8002EBB0` in `game_late_init` was the one case; it now stores
+  `(intptr_t)`.
+- **PC-only struct changes must keep pointer fields as pointers.** gen_data infers each symbol's N64 size from the
+  PC build's DWARF, with pointers counted as 4 bytes. A PC-only `u8 pad[0xA0]` standing for a native struct reads
+  as 0xA0 N64 bytes and stretches the symbol over its neighbors. The frame-record views use `PcScTaskShape`, a
+  struct with `OSScTask`'s field sequence, instead.
+- **Weak copies can bind to an empty stub.** gen_weak binds every call to the manifest owner. Where the owner is
+  a deleted-procedure stub (`func_800A51D8`: `void f(void) {}`) and a group file inlines a real helper under that
+  name, the running caller gets the stub. `car_damage_visual`'s helper is renamed under `TARGET_PC`; others may
+  exist.
+
 ## 6. long
 
 `long` is 32-bit on the N64. There are 56 plain `long` tokens (not 159; that count included `long long`): 24 in
@@ -208,3 +231,23 @@ Outside the overlay loaders, every address literal used as a pointer is an m2c `
 
 Heap and frame-buffer constants (`0x80400001` heap end, `osMemSize | 0x80000000`, `0x80000300` osTvType) rely on the
 RDRAM window and are unchanged.
+
+## 8. Boot on a blank cartridge (`rush2049pc --no-rom --no-pak --audio null --headless`)
+
+Fixed on the way, in order of the faults:
+
+1. `func_800CCCCC` and the save helpers read `SaveSlot.data` at its N64 offset (44; 48 natively): `SLOT_DATA` in
+   the save group and the setting/filename/range helpers (12 files).
+2. `func_80095F8C` (the heap that holds an address) walked the heap list through `s32` locals: sign-extended
+   window addresses. Then the heap headers themselves, which the views disagreed on natively (section 4.1).
+3. `car_damage_visual` (ClearMemory's compaction) called the empty `func_800A51D8` stub for its heap.
+4. The frame records: five views of `D_80156BE0` (section 5).
+5. Before they faulted: `dma_wait_complete`'s view of the scheduler reads `curRSPTask` at its native offset
+   0x2B0; `fcvt_wrapper` (sprintf) takes pointers and formats with a real `va_list`.
+
+Now the boot runs `main`, the threads, `game_init`, `game_late_init` (the heap, `_InitGfx`, `menu_save_options`
+with the four default profiles), and `AudioInitSys` through `InitWaves` and the text bank. It stops at the first
+MusyX wave load (`LoadWave(6)`, `car_shadow_render.c:84`). That stop is the blank cartridge, not pointer work.
+Every wave size comes from the ROM's `gWaveSizes`, so the text bank gets a 0-byte block; its in-place fixups
+parse the next block's header as the file and overwrite the heap. With a ROM the block has its size. To go
+further without one, the wave loader would need a `--no-rom` guard.
