@@ -35,6 +35,11 @@ asset world), [DATA.md](DATA.md) (where data symbols live on PC), [GFX.md](GFX.m
 
 ### The neutrality check
 
+The definitive check is IDO itself: `tools/port/ido_check.sh [base]` (with `IDO53_DIR`, `IDO71_DIR` and
+`MIPS_BIN` set) builds every N64 object at the base and at HEAD and compares what a linked ROM would contain;
+it needs IDO but not the ROM. The script below is the fast proxy that runs anywhere, and in CI.
+
+
 `tools/port/n64_neutral.py [--base REV] [FILE...]` (default: every changed `src/`/`include/` file vs `HEAD`)
 preprocesses each file as the N64 build does (no `TARGET_PC`; `-Iinclude -Iinclude/PR -D_LANGUAGE_C` for `src/rom`,
 nothing for game files, which IDO compiles with no `-I`/`-D`; IDO-like predefines) with `gcc -E -undef -nostdinc`,
@@ -444,9 +449,196 @@ have PC versions. 18 views agree. Test: `assets_pak`.
 - **Colours as words.** Nodes and sprites keep RGBA in a u32 that some writers fill from words and the model draw
   reads as bytes (`prim[4]`). Copies of byte-built colours are fine; the words that came from the ROM are now
   `PC_RGBA`, and colour unions in initialized data are the loader's union rule ([ENDIAN.md](ENDIAN.md) 3.2, 4).
-- **Records still disagreeing in race-time code** (`view_check` over all own-storage symbols): the level-object
-  kinds `D_80117530` (7 views), car lights and exhaust `D_8017A510` (4), the level-object node pool `D_80143FC8`
-  (130 records of 112 bytes, several model views with pointers at different places; its element size is still the
-  N64 one), the frame records `D_80156BE0`, the texture-animation frames `D_8011905C` (race_setup_1's first field).
-  The player records `D_8014A118`/`input_rec0` and the cars `player_array` are another part's.
+- **Records that still disagreed in race-time code**: the level-object kinds `D_80117530`, the ZOID windows
+  `D_8017A510` (named here after two of their users, car lights and exhaust), the level-object node pool
+  `D_80143FC8`, the frame records `D_80156BE0`, the texture-animation frames `D_8011905C` and the input records
+  `D_8014A118`/`input_rec0`: all done in section 10. The cars `player_array` are [CARS.md](CARS.md)'s.
 - The OSMesgQueue views that declare it without pointers (24 bytes) only take its address; harmless.
+
+## 10. Race-time records (2026-10-27)
+
+The records the race builds and reads every frame that section 9.9 left: the target info table, the level-object
+nodes (the targets) and the records they point to, the input records, the ZOID windows, the frame records seen from
+inside, and the texture-animation frames. The rule is 9.1's, with [CARS.md](CARS.md)'s refinement: a record keeps
+its N64 layout, with u32 window addresses, when everything stored in its pointer fields and everything that stores
+a pointer to it is in the RDRAM window (heap blocks, track WAD records, arena data); it gets a pointer-sized PC
+layout when it holds host pointers (host functions, own storage, stack).
+
+| Record | N64 | PC | Storage on the PC | Layout, and why |
+|---|---:|---:|---|---|
+| target info `D_80117530` (122 records) | 0x30 | **0x40** | own (initialized data) | pointer-sized: the start and visual functions are host functions |
+| level-object nodes, the targets (130 at `D_8014D280`, pool `D_80143FC8`) | 0x70 | 0x70 | game arena (BSS), at its N64 address | N64 layout, 32-bit links and state: everything a node holds and everything that holds a node is a window address |
+| their category records, the dead-reckoning records `D_80150F38` | ROM sizes, 0x40 | same | heap | N64 layout: heap blocks with the ROM's sizes (`D_80117510`) |
+| input records `D_8014A118` = `input_rec0` (4) | 0x4C | **0x50** | own (BSS) | the profile pointer at +0x48 points into `D_80146150` (own storage) |
+| ZOID windows `D_8017A510` (4) | 0x48 | **0x50** | own (BSS) | `first` and `bounds` pointer-sized (9.1; the storage already was) |
+| frame records `D_80156BE0` (2) | 0x80 | 0xD0 | own (BSS) | the native OSScTask (before this); one view from inside was not |
+| texture-animation frames `D_8011905C` | 0xC | 0x18 | own (initialized data) | the frame's name is a pointer (the storage already was) |
+
+### 10.1 The target info table `D_80117530`
+
+MAT3's `targetInfo`: one record per level-object kind, found by name (`transmission_ratio_get` compares the place
+record's name with the first `strlen` characters of each of the 122). On the PC:
+
+| N64 | PC | Field (the views' names) | |
+|---:|---:|---|---|
+| 0x00 | 0x00 | `name`, `file` | strings in the game data |
+| 0x08 | 0x10 | `callback`, `start`, `onHit` | the start function: `engine_torque_calc` (flags 4, 0x4000) and `race_setup_2` (a hit) call it with the node: `StartCone`, `func_8010DBB8`/`func_8010E72C` (StartKnockdown), `func_8010DAF8`, `func_8010D9CC`, `func_8010C7F4`, `func_8010DF90` |
+| 0x0C | 0x18 | `animation`, `visFunc`, `f12`, `w0C` | the visual's function, which the start functions and `engine_torque_calc` put in the visual they grab |
+| 0x10 | 0x20 | `kind`, `shape`, `mode` | the collision shape: `race_setup_2` indexes the hit tests `D_80117518` by it; 4 is a dead-reckoned object |
+| 0x12 | 0x22 | `flags` | |
+| 0x14 | 0x24 | `f20`, `id`, `s14` | the texture index; the cameras' period (361, 365) |
+| 0x16, 0x17 | 0x26, 0x27 | `category`, `element` | two bytes (the camera group's view had an `s16` there) |
+| 0x18 | 0x28 | `value` | |
+| 0x1C | 0x2C | `sound`, `f28`, `trackA` | `D_8011754C` is record 0's, placed at +0x2C |
+| 0x20-0x2F | 0x30-0x3F | the cameras' sound kind, second track, `s28`, `f2C` | |
+
+`TINFO_OFS(n)` (pc_prelude.h) is the PC offset of N64 offset n. Before: the storage was one 56-byte record (its
+extent came from the gap to `D_8011754C`, inside record 0), and 7 of the 8 views put the four pointers in four
+places. Now `level_objects` declares the 122 records, every view has the host layout with each field spelled out at
+its width (the loader converts the ROM's records by whichever view gen_data chooses, and byte pads would leave the
+words big-endian: [ENDIAN.md](ENDIAN.md) 4), the m2c handlers stride by `TINFO_OFS(0x30)` (`func_8010C7F4`,
+`func_8010D9CC`, `func_8010DAF8` as a PC version, `func_8010DF90`), and the visual's function reaches the visual
+whole (`StartCone`'s `Node.f20`, `camera_process_input`'s `CamNode.w14`, `func_8010D9CC`'s `BNode.stat`: `void *`).
+
+### 10.2 The level-object nodes (the targets), their pool and their records
+
+MAT3's targets are the level-object nodes: `transmission_ratio_get` takes one from the StatLL pool `D_80143FC8`,
+whose 130 elements are the arena block `D_8014D280` (0x8014D280-0x80150B60; `port/data/extents.txt` now gives its
+extent), and every target function receives one. A node: link (+0), flags (+4), model key (+8), scene-node handle
+(+0xC, an s32), type (+0x10, the info record), matrix and position (+0x14, +0x38), the place's transform (+0x44),
+texture or animation fields (+0x50-+0x5A), car or slot (+0x5C), sound (+0x60), state (+0x64), index or owner
+(+0x65), age (+0x68) and the state record (+0x6C).
+
+**Why the N64 layout.** What a node holds: the next node (arena); its state record, a heap block of its category
+(`D_80150E98[c]`, `D_80117510[c]` bytes each), its place record (a track WAD record, heap) or an element of a
+static per-kind table (`D_80118DDC[c]`, game data). What holds a node: the visuals' 32-bit `data` (CARS.md 3),
+`Animation24.node`, and pointer-sized slots that don't care (the pool header, the GTLD side array `D_801497C0`, the
+camera list `D_8013C300`, the mine links and slots). A host layout (0x78 bytes) would not fit the arena block
+(130 x 0x78 > 0x38E0), and a node anywhere else couldn't be held by a visual. Before, `level_objects`' `Node` and the
+mine's `Target` had the host layout (next and state 8 bytes), so a 0x78-byte node at a 0x70 stride wrote its state
+over the next node's link, while the other views had the N64 one.
+
+- **32-bit links.** The generic StatLL code links elements through pointer-sized words (9.5). A list whose
+  elements keep their N64 layout is flagged `n64` in its header's first padding byte, and InitStatLL
+  (`pool_linked_list_init`), GetStatLLE (`func_8008E3C0`) and FreeStatLLE (`func_800AFA84`) read and write the links
+  through `pc_statll_link`/`pc_statll_set_link` (pc_prelude.h). `camera_lerp_position` sets the flag before it
+  builds the node pool (`PC_ONLY` on the `pool_init` line); InitStatLL (`struct_fields_init`) clears it.
+- **Node views** with `enum n64p_` fields and `N64P()`/`N64W()` (N64W is main's `PC_N64W`): `level_objects`
+  (`Node`, `Matrix64`, and the camera controller's scene through `STATE_SCENE`/`SCENE_OF`), `StartCone` (the
+  motion), the mine `func_8010C974` (`next`, `data`), the debris `func_8010E4E4`, the flag `func_8010D85C` (its
+  place record's name), the coin `func_8010E0FC`, the camera group (`Camera.ctl`, `CamCtl.scene`, `CamScene.link`,
+  `keys`, `cur`: about 65 uses, wrapped with `ptr64_u32fields.py`'s error-driven fixer), `func_800C1A00`, `func_8010C2E4`,
+  and the dead-reckoning body in `func_8010C02C`. The m2c functions read the state as a u32 (`func_8010DF90`,
+  `func_8010E694`, and `func_8010E828` as a PC version, which also passes it to `sound_position_set`
+  zero-extended: proto_check's last harmful view). The views of `func_8010DBB8`, `func_8010E72C` and
+  `race_setup_2` had the N64 layout and no pointers already.
+- **The target visuals' views of the visual** padded over `next` or had `data` as a pointer (`audio_channel_setup`,
+  `func_8010D85C`, `func_8010E0FC`): they have the visual's PC layout (CARS.md 3) with `data` a u32.
+- **The handle's low half.** The flag, the frame stepper, the debris and the camera views read the node's s32 handle
+  (+0xC) as an s16 at +0xE, the low half on the N64 but the high half on a little-endian host (0 for every handle).
+  Their PC views read the word. (`func_8010E0FC`'s `Id` union came from main's byte-order work at the same time.)
+- **The records the nodes point to** keep their N64 sizes: the category records are heap blocks of
+  `D_80117510[c]` bytes (ROM data), and of their views only the camera controller `CamCtl` (72 bytes) has a pointer,
+  its scene (a PTHD record of the track WAD, which itself keeps its N64 layout: `link`, `keys`, `cur` u32). The
+  dead-reckoning records `D_80150F38` (64 bytes, a heap block; `func_800AB750` strides by 64) keep their body, game
+  data at `D_80118C10 + 32 x value`, as a u32. The mine data, the debris physics, the cone's motion, the coin and
+  battle mode's `Slot136` have no pointers.
+- `D_8013C300`, the cameras with key paths, is pointer-sized already (`intptr_t[30]`, PROTOTYPES.md 5).
+
+### 10.3 The input records `D_8014A118`
+
+Four records (gPlayers): index, controller (+1), pad words (+4..+0x14), the controls (+0x18), flags (+0x42), a
+packet slot (+0x44) and the profile pointer (+0x48, `&D_80146150[k]`, own storage). On the PC the record is 80
+bytes and nothing before +0x48 moves. 30 of 68 views had the N64 size (padding, an `s32` or a `u32` over +0x48), so
+they indexed the records 76 bytes apart: `world_physics_tick`'s set every car's `input` pointer (only car 0's was
+its record), `process_inputs`' filled them every frame. Their padding is split under `TARGET_PC` (`view_pads.py`,
+26 files; by hand where a named field covered the pointer: `func_800F207C`, `func_800E681C`'s group,
+`object_activate`, `func_8038F454`), and the m2c code that adds 76-byte strides uses `INPUT_SIZE`
+(`random_seed_init`, `entity_audio_update`, `func_800F42C8`, `func_800FDF88`, mode select's `func_800E05F0`, the
+pause screen's `voice_stop`).
+
+- **+0x44 stays 32 bits.** `func_800D6530` keeps a packet there (a heap block from `func_800D63EC`, so a window
+  address) or -1, `func_800D5374` activates it and `main_menu_render` hands it on. `main_menu_render`'s view had it
+  as a pointer, on top of +0x48. The readers zero-extend it and keep -1 (`OBJECT`, `NODE`, `NO_NODE`); the writer
+  stores the window address (`PACKET`).
+- **Through the profile.** `func_800FDF88` and `func_800F42C8` read the profile's save-data pointer at
+  `SaveSlot.data` as an `s32`, which sign-extended it, and `func_8010BC84` the profile handle's first word: they read
+  them pointer-sized now (`intptr_t`; CASTS.md 7). The save-data block itself, at +0x6F4, is front-end work.
+- `D_8014A160` (+0x48) is declared as records seen from their profile pointer, `{pointer; the next record's 72
+  bytes}`, which is 80 bytes already; `input_rec1` (record 1) is at host +0x50.
+
+### 10.4 The ZOID windows `D_8017A510`
+
+Four 72-byte windows (`ZOID_InitializeWindow`, `arb_rate_set`): `first`, `bounds`, the projection (`orthographic`,
+the fields of view, their tangents and inverses, the viewport, `near`, `far`, `aspect`), `zoom`, `fog`, the fog
+range and colour. The storage had the 80-byte layout; four views padded over the pointers or typed them `s32`
+(`car_lights_render`, `exhaust_smoke_effect`, `func_800AB18C`, `animate_arrow`), `ZOID_ProjectWindow`'s `Port`
+(`brake_light_update`, through the getter) padded too, and `func_800AB18C` spaced the windows 72 bytes apart
+(`VIEW_SIZE`). The m2c accessors `func_800A5518` (set `first`, `bounds`), `func_800A6078` (a window) and
+`func_800A7428` (the fog range and colour) have PC versions. `set_window.c` is a weak copy and keeps its view.
+
+### 10.5 Frame records and texture-animation frames
+
+- `func_800F7448` (clear the frame buffer) views the frame records from `D_80156C5C`, frame 0's colour buffer
+  (`D_80156BE0` + 0x7C), as 128-byte records `{buf; ...}`. On the PC a record is 208 bytes, so frame 1's buffer was
+  read 136 bytes on: the PC view runs into the next record's task, display list and count. The other three views
+  of `D_80156BE0` are arrays of half the `Segs` struct and agree with it (view_check now compares such arrays element
+  by element).
+- `race_setup_1` typed the frame's name (`D_8011905C`, `camera_shake_start`'s `Item12`) as a `u32`; it is a
+  pointer. The host offsets were the same.
+
+### 10.6 Tests and checks
+
+- `assets_targets` (`test_targets.c`): the node pool's set-up, the instantiation of a cone and a camera from info
+  records 5 and 9 (pool, place record, category records, the camera's controller and scene, its dead-reckoning
+  record and body), the per-node set-up and the cone's visual, five start functions and a hit function, the target
+  visuals (spin, rotation, frame stepper, the debris freed back into the pool), the collision pass, the camera's
+  first frame, its key velocity and trigger, and a dead-reckoned collision. `assets_input` (`test_input.c`): fill,
+  clear and hand-over of records 0-3, the controls through the profile pointer, the packet slot, and a save record
+  reached from record 2. `assets_windows` (`test_windows.c`): window set-up, fog, the accessors, the fog regions, a
+  projection undone by the unprojection in window 2, and the frame-buffer clear of frame 1. `assets_cars` has a
+  second human car (its input pointer is its own record); `assets_zoid` and `assets_endian` follow the flag and coin
+  views. Reverting any of 34 views, strides or PC versions makes one of them fail (17 for the targets, 10 for the
+  input records with `world_physics_tick`'s, 7 for the windows and frames; the targets' on x86-64, the others on
+  aarch64).
+- `tools/port/view_check.py`: an array of half-records is compared against a struct of two, and a struct that runs
+  into the next element (`entity_audio_update`'s and `random_seed_init`'s `InputRecord`, which end at record 1's
+  controller byte) field by field.
+- `n64_neutral.py --base 09da2f0`: every changed file code-exact or shifted, 0 FAIL. `rush2049pc --no-rom` stops
+  where it did (AudioSfxInit, `func_800A4CB8` -> `AllocateMemoryHeap` -> `audio_helper`).
+
+| | Before | After |
+|---|---:|---:|
+| `view_check` live views disagreeing: `D_80117530` | 7 of 8 | 0 of 8 |
+| `D_8014A118`/`input_rec0` (with the names inside) | 25 of 62 | 0 of 62 |
+| `D_8017A510` | 4 of 11 | 0 of 11 |
+| `D_80156BE0` | 3 of 5 | 0 of 5 |
+| `D_8011905C` | 1 of 2 | 0 of 2 |
+| `view_audit`, input record views | 30 of 68 | 0 of 68 |
+| `view_audit`, node views of N64 size 0x70 (reference: `level_objects`) | 7 of 9 off its host layout | all 12 structs of that size on its N64 layout |
+| `D_80117530` storage | 56 B (one record) | 7,808 B (122 x 0x40) |
+| gen_data pointer conflicts, all / these records | 202 / 41 | 171 / 11 |
+| gen_data width conflicts, all / these records | 345 / 21 | 356 / 39 |
+| proto_check harmful | 1 view of 1 function | 0 |
+
+The pointer conflicts left on these records are the base addresses declared as integers or bytes by code that has
+a PC version (`M2C_UNK`, `u8[]`, `s32`), `intptr_t` against a pointer in the same slot, and the weak `set_window.c`.
+Width conflicts went up as for the car: the views name more fields, at different places. The "all" counts of the
+last column include main's work merged into this branch (10258ff).
+
+### 10.7 What is left, and what needs the ROM
+
+- **Needs the ROM:** that the static per-kind tables `D_80118DDC[c]` point to pointer-free game data in the arena
+  (a node's state then holds their window address; if one were own storage, its u32 would lose the upper half: a
+  `RUSH_CHECK_CASTS` build stops there, since `N64W` is `PC_N64W`); that `D_80117510`'s category sizes are what the
+  N64-layout views read (72 for the cameras); that the 122 info records end at `D_80118C10` and their fields have the
+  widths given in 10.1 (the loader swaps them so); that the scene, key and place records are the track WAD's; and the
+  targets in a real race (cones, mines, coins, flags, the scripted cameras).
+- **The targets with no C yet**: `StartWeaponIcon` and `_AnimateWeaponIcon` (`func_8010D680`) are only nonmatching
+  drafts, not in the PC build, so their info records' functions are NULL on the PC. `engine_torque_calc` calls a
+  record's start function without a NULL check when its flag 0x4000 is set.
+- **`D_8011A31C`'s extent** (the per-track object-animation sequences): 1,316 bytes by gap, typed as
+  `Sequence20 *[]`, so the unnamed sequence and frame tables after its pointers are converted as pointers. A size for
+  the pointer table, and declarations for the tables, would fix it (DATA.md).
+- endian_check reports two value conflicts on the car record (`func_800E9234`'s light-flash bytes at the PC offsets
+  0x405/0x406 against words at +0x4C): the PC offsets taken modulo the N64 car stride, a car-record question.

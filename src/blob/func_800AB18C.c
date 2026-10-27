@@ -45,12 +45,22 @@ typedef struct {
 } Region; /* 0xC */
 
 typedef struct {
+#ifdef TARGET_PC
+    void *first; void *bounds; char pad0_8[0x3C - 0x8];
+#else
     char pad0[0x3C];
+#endif
     f32 fog;        /* 0x3C */
     u16 near_clip;  /* 0x40 */
     u16 far_clip;   /* 0x42 */
     char pad44[4];
 } View; /* 0x48 */
+#ifdef TARGET_PC
+/* PC: a window is 80 bytes, its first two words are pointers (docs/port/POINTERS.md 10). */
+#define VIEW_SIZE (s32)sizeof(View)
+#else
+#define VIEW_SIZE 72
+#endif
 
 extern s8 D_8013F1D8;
 extern s8 D_8014978C;
@@ -76,7 +86,7 @@ void func_800AB18C(s32 index, f32 *pos) {
     f32 ratio;
 
     if (D_8013F1D8) {
-        view = (View *) ((intptr_t) D_8017A510 + index * 72);
+        view = (View *) ((intptr_t) D_8017A510 + index * VIEW_SIZE);
         view->near_clip = D_8011E810[D_8014A108][D_8013F1D8];
         view->far_clip = 1000;
         view->fog = D_8011E7F0[D_8014A108][D_8013F1D8];

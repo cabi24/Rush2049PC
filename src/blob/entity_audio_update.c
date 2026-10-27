@@ -408,7 +408,11 @@ typedef struct {
     s32 unk0C;
     f32 unk10;
     f32 unk14;
+#ifdef TARGET_PC
+    u8 _pad18[0x48 - 0x18]; void *ref; u8 _pad18_4C[0x4D - 0x4C];
+#else
     u8 _pad18[0x4D - 0x18];
+#endif
     u8 unk4D;
 } InputRecord;
 extern InputRecord input_rec0;
@@ -1312,6 +1316,13 @@ void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
 
+#ifdef TARGET_PC
+/* PC: an input record (D_8014A118) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
+#define INPUT_SIZE 80
+#else
+#define INPUT_SIZE 0x4C
+#endif
+
 void entity_audio_update(void) {
     s8 *var_v0;
     s32 var_v1;
@@ -1327,7 +1338,7 @@ void entity_audio_update(void) {
             *(f32 *) (var_v0 + 0x10) = 0.0f;
             *(f32 *) (var_v0 + 0x14) = 0.0f;
             var_v1 += 1;
-            var_v0 += 0x4C;
+            var_v0 += INPUT_SIZE;
         } while (var_v1 < active_player_count);
     }
 }

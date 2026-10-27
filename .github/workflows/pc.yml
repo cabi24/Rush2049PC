@@ -66,6 +66,145 @@ jobs:
             build/pc/pc-data/data_layout.txt
           if-no-files-found: ignore
 
+  windows-cross:
+    # Windows x86-64 cross-compiled with mingw-w64 (cmake/mingw-w64.cmake, docs/port/WINDOWS.md), with SDL2 built
+    # from source: the window, controllers and SDL audio compile and link. The windows-run job runs the program.
+    runs-on: ubuntu-24.04
+    # Debian 12's mingw-w64 (GCC 12.2, binutils 2.40), the toolchain the port was first cross-built with; and
+    # deb.debian.org is quicker than the runners' Ubuntu mirror, which took minutes a package on some runs.
+    container: debian:12
+    defaults:
+      run:
+        shell: bash   # a container's default is sh
+    steps:
+      - name: Dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build python3 \
+            binutils-mingw-w64-x86-64 gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix mingw-w64-x86-64-dev \
+            libz-mingw-w64-dev
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON
+      - name: Build
+        run: |
+          set -o pipefail
+          cmake --build build/win -j4 2>&1 | cut -c1-2000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-cross
+          path: build/win/rush2049pc.exe
+          if-no-files-found: error
+
+  windows-run:
+    # The cross-compiled program on Windows: the self-test and the boot without a ROM. Mesa's opengl32.dll
+    # (llvmpipe, from mesa-dist-win) next to it gives the headless WGL context a GL 3 driver on a runner without
+    # a GPU.
+    needs: windows-cross
+    runs-on: windows-latest
+    env:
+      MESA_7Z: https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z
+      MESA_SHA256: 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-cross
+          path: bin
+      - name: Software OpenGL
+        run: |
+          curl -sSL -o mesa.7z "$MESA_7Z"
+          echo "$MESA_SHA256  mesa.7z" | sha256sum -c
+          7z x -omesa mesa.7z > /dev/null
+          cp mesa/x64/*.dll bin/
+      - name: Self-test
+        run: bin/rush2049pc.exe --selftest
+      - name: Boot without a ROM
+        run: |
+          RUSH_TRACE_WAVES=1 GALLIUM_DRIVER=llvmpipe bin/rush2049pc.exe --no-rom --headless --no-config \
+            --audio null --seconds 10 > boot.log 2>&1 || true
+          cat boot.log
+          grep -q "wave 0 loaded" boot.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-windows-run
+          path: boot.log
+          if-no-files-found: ignore
+
+  windows:
+    # Windows x86-64 built natively with MSYS2's mingw-w64 (UCRT64), with its SDL2: the build, all tests, the
+    # self-test and the boot without a ROM. Mesa's llvmpipe for the GL tests, as in windows-run. A failing test is
+    # run again under gdb for a backtrace.
+    runs-on: windows-latest
+    env:
+      MESA_7Z: https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z
+      MESA_SHA256: 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-gdb p7zip curl
+      - name: Configure
+        run: cmake -S . -B build/pc -G Ninja
+      - name: Build
+        id: build
+        run: |
+          set -o pipefail
+          cmake --build build/pc -j4 2>&1 | cut -c1-2000
+      - name: Software OpenGL
+        run: |
+          curl -sSL -o mesa.7z "$MESA_7Z"
+          echo "$MESA_SHA256  mesa.7z" | sha256sum -c
+          7z x -omesa mesa.7z > /dev/null
+          for d in build/pc build/pc/port/gfx build/pc/port/input; do cp mesa/x64/*.dll $d/; done
+      - name: Tests
+        env:
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          ctest --test-dir build/pc --output-on-failure && exit 0
+          ctest --test-dir build/pc --show-only=json-v1 > tests.json
+          python3 - <<'PY'
+          import json, subprocess
+          failed = {l.split(":", 1)[1].strip() for l in open("build/pc/Testing/Temporary/LastTestsFailed.log")}
+          for t in json.load(open("tests.json"))["tests"]:
+              if t["name"] in failed:
+                  wd = next((p["value"] for p in t.get("properties", []) if p["name"] == "WORKING_DIRECTORY"), None)
+                  print("::group::gdb " + t["name"], flush=True)
+                  subprocess.run(["gdb", "-batch", "-ex", "run", "-ex", "bt", "-ex", "info registers", "--args"]
+                                 + t["command"], cwd=wd)
+                  print("::endgroup::", flush=True)
+          PY
+          exit 1
+      - name: Self-test
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: build/pc/rush2049pc.exe --selftest
+      - name: Boot without a ROM
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          RUSH_TRACE_WAVES=1 GALLIUM_DRIVER=llvmpipe build/pc/rush2049pc.exe --no-rom --headless --no-config \
+            --audio null --seconds 10 > boot.log 2>&1 || true
+          cat boot.log
+          grep -q "wave 0 loaded" boot.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-windows
+          path: |
+            boot.log
+            build/pc/pc-data/data_layout.txt
+          if-no-files-found: ignore
+
   n64-neutral:
     # PC edits to shared game C must leave what IDO compiles unchanged (tools/port/n64_neutral.py). The real
     # proof is the matching N64 build, which needs IDO; this compares preprocessed tokens and lines.

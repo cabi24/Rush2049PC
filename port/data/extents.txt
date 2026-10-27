@@ -19,3 +19,16 @@ D_801407F0 0x10     # gResPath {numPts, pts, numAlt, alt}: D_80140800 (GhostHead
                     # Header/PGraph views were written to the PC layout (ReadPathData's 32 bytes)
 D_80142530 0x160    # the ghost headers, 4 of 0x58 (GhostStart: D_80142500[i] = &D_80142530[i], i < 4), not 1
 D_80144C50 0x10     # a 16-byte list head (List, tDLList); ap.c's 20-byte Node runs into D_80144C60 (PakHandle[])
+
+# The level-object node pool's elements (docs/port/POINTERS.md 10): 130 nodes of 0x70 bytes, which keep their N64
+# layout in the arena (camera_lerp_position's pool_init). menu_audio_settings' Vehicle2056 view only takes the address
+# (the end of the model array), and its 0x808-byte elements left the extent at 7 of them.
+D_8014D280 0x38E0
+# Sizes the game C's tentative definitions gave, which are declarations on the PC (PC_ONLY(extern): Windows' code
+# can't reach a symbol in the RDRAM window PC-relatively, docs/port/WINDOWS.md).
+D_80110680 6        # u8[6], render_post_process.c
+D_80118E20 8        # the TB_SetJust pair (gJust), coins.c, controls.c, countdown.c, gr3_d.c, videoscr.c
+D_8012E688 8        # s64, object_render.c (both copies)
+D_80146180 4        # s8[4], func_800DE45C.c
+D_80149AF8 8        # s8[4][2] (gStickCal), func_800E7038.c
+D_8014A250 0x3030   # Car[6] of 0x808, world_physics_tick.c

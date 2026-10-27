@@ -16,7 +16,11 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+typedef struct Player76 { u8 slot; u8 pad01[3]; s32 edges; u8 pad08[0x48 - 0x8]; void *ref; } Player76;
+#else
 typedef struct Player76 { u8 slot; u8 pad01[3]; s32 edges; u8 pad08[68]; } Player76;
+#endif
 typedef struct Controller16 { s8 attached; u8 pad[15]; } Controller16;
 typedef struct Target { struct Target *next; u8 pad04[92]; s32 f96; s8 f100; } Target;
 typedef struct AudMsg { u8 pad0[2]; s8 type; } AudMsg;

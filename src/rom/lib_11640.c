@@ -1716,7 +1716,7 @@ void func_800146B4(unsigned int index, SampleInfo_800146B4 *sample, unsigned cha
     } else {
         D_80038294[index].tail = 0;
     }
-    if (PC_ONLY(((unsigned long)sample->data >> 32) == 0 &&) ((unsigned long)sample->data & 0xF0000000UL) != 0x80000000UL) {
+    if (PC_ONLY(((uintptr_t)sample->data >> 32) == 0 &&) ((unsigned long)sample->data & 0xF0000000UL) != 0x80000000UL) {
         D_80038294[index].flags |= 1;
     }
 }
@@ -1936,7 +1936,7 @@ extern void *(*D_80038014)(void *);
 void *func_80014CAC(void *address)
 {
     unsigned int region;
-    PC_ONLY(if ((unsigned long)address >> 32) return address;) region = (unsigned int)address & 0xFF000000;
+    PC_ONLY(if ((uintptr_t)address >> 32) return address;) region = (unsigned int)address & 0xFF000000;
     if (region != 0x80000000 && region != 0xB0000000) {
         address = D_80038014(address);
     }

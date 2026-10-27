@@ -37,7 +37,11 @@ typedef struct Reference {
     u32 word0;
     u8 opaque4[62];
     u8 flags;
+#ifdef TARGET_PC
+    u8 opaque67[0x48 - 0x43]; void *ref;
+#else
     u8 opaque67[9];
+#endif
 } Reference;
 #ifdef TARGET_PC
 enum n64p_void { n64p_void_ };
@@ -200,7 +204,13 @@ typedef struct Player {
 typedef struct Config {u8 field0,body,field2,field3,field4,place,flags,owner;} Config;
 typedef struct Bounds {float front,rear,side,height;} Bounds;
 typedef struct Route {s16 field0,first,field4,field6,count;} Route;
+#ifdef TARGET_PC
+/* PC: the model records are arena data at their N64 address (docs/port/CARS.md), not a common symbol, which
+ * x86-64 gcc would align to 32. */
+extern Car D_8014A250[6];
+#else
 Car D_8014A250[6];
+#endif
 extern Player D_80152818[];
 extern Config D_80153E88[];
 extern Reference D_8014A118[];

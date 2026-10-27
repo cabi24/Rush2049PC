@@ -90,7 +90,7 @@ Rush2049PC/
 | **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain). MusyX files converted and the library's structures fixed for 64-bit; songs and voices run through the game's own sequencer in tests ([port/MUSYX_DATA.md](port/MUSYX_DATA.md)) |
 | **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart | Controller pak at the SI block level done; keyboard, up to 4 controllers, rumble and `rush2049pc.ini` ([port/FRONTEND.md](port/FRONTEND.md)) |
 | **7. Parity with v5** | v5 is the reference: same `--press` input scripts on both; compare state probes (game state, car positions and speeds per frame), screenshots and audio | Every mode v5's scripted runs cover | `--press` scripts work on the PC build |
-| **8. Features** | Widescreen, high frame rate, settings menu, remapping, texture packs: the V6 list, now plain C edits plus our renderer | Per feature, behind a setting | Internal resolution scale (`RUSH_GFX_SCALE`) |
+| **8. Features** | Widescreen, high frame rate, settings menu, remapping, texture packs: the V6 list, now plain C edits plus our renderer | Per feature, behind a setting | Internal resolution scale (`video.scale`, 1-8 or `auto`: the window's whole multiple). Widescreen (`video.widescreen`: 16:9, 21:9, auto...) in the renderer: perspective views widen, 2D stays 4:3, full-width fills span ([port/GFX.md](port/GFX.md) "Widescreen"); tested with synthetic lists, needs the ROM to judge the menus |
 
 ## Phase 0 results (2026-10-26)
 
@@ -206,21 +206,31 @@ zero sample-cache count corrupts the heap (the N64 would do the same with those 
    - `RUSH_TRACE_WAVES=1 build/pc/rush2049pc --headless --stop-at-gfx`, then `--screenshot-at N`, is the bring-up
      loop: run, read the backtrace, fix. The converters log any file that doesn't parse (LOADERS.md and
      MUSYX_DATA.md list what to check first).
-2. **N64 check on the Rocky host.** Run `make` to confirm the ROM still matches. `tools/port/n64_neutral.py --base
-   09da2f0` is the local proof, and CI runs it; the real check is IDO.
-3. **Records on 64-bit.** The car, visual and model records have one layout each ([port/CARS.md](port/CARS.md)); the
-   target info table `D_80117530`, the target records, the input records `D_8014A118` and the other race-time
-   records (POINTERS.md 9.9) are in progress.
-4. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C
-   ([port/ENDIAN.md](port/ENDIAN.md)); what is left is its section 4, chiefly the loader's colour unions.
-5. **Other platforms.** Windows needs the window at 0x80000000 (VirtualAlloc) and a way for code to reach absolute
-   symbols; macOS on arm64 reserves the low 4 GB (`__PAGEZERO`), so it would need address translation instead.
+2. **N64 check.** `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD and compares
+   code, data, relocations, symbols and section sizes. On 1575cc9 all 1,011 objects agree (234 differ only in
+   `.mdebug` line numbers), and the build's other inputs (Makefile, linker scripts, asm, manifests) are unchanged,
+   so the ROM still matches. A full `make` with the ROM remains the final word. Run it after each merge of game
+   C; `n64_neutral.py` stays the fast check, in CI.
+3. **Records on 64-bit.** The car, visual and model records, the target table and level-object nodes, the input
+   records, the ZOID windows and the frame records have one PC layout each ([port/CARS.md](port/CARS.md),
+   POINTERS.md §10). The controller-pak file record `tPS_File` is in progress (CASTS.md §7).
+4. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C or in the
+   loader ([port/ENDIAN.md](port/ENDIAN.md)); two reads of bytes inside a word of the car record are left there.
+5. **Other platforms.**
+   - **Windows x86-64 builds with mingw-w64**, cross from Linux (`cmake/mingw-w64.cmake`) or in MSYS2, and CI runs
+     its tests, self-test and ROM-less boot on windows-latest ([port/WINDOWS.md](port/WINDOWS.md)).
+   - What makes it work: the window is a file mapping viewed at 0x80000000 and 0xA0000000. The image stays above
+     4 GiB with high-entropy ASLR. Code reaches the absolute symbols through `.refptr` slots, which get no base
+     relocations.
+   - Still to do on Windows: a real GPU, display, audio device and controllers.
+   - macOS on arm64 reserves the low 4 GB (`__PAGEZERO`), so it would need address translation instead.
 
 ## Decisions
 
 1. **Seed**: done, from the decompilation's history.
 2. **Keep the N64 matching build working** in this repo: yes. Shared changes are checked with
-   `tools/port/n64_neutral.py` here and with `make` on the Rocky host.
+   `tools/port/n64_neutral.py` here and in CI, and with `tools/port/ido_check.sh` (IDO objects, no ROM) on a host
+   with IDO.
 3. **Renderer**: our own Fast3D-style interpreter (`port/gfx`), written for this game.
 4. **License** for `port/`: open. Nothing in it requires GPL. `port/audio` follows public reverse-engineering
    notes on MusyX v1 whose main source is GPL code (mupen64plus); no code was copied. If you want strict clean-room

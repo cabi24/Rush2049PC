@@ -25,7 +25,9 @@ typedef struct {
 _Static_assert(sizeof(Node) == 0x68, "the node's host size");
 Node D_8012E700[600];
 
-/* ---- func_8010E0FC (the coin updater): its views, host layout */
+/* ---- func_8010E0FC (the coin updater): its views. The visual is 0x20 bytes, its data the coin's target, a
+ * level-object node in its N64 layout whose state (+0x6C) is the coin record: both window addresses
+ * (docs/port/POINTERS.md 10). */
 typedef struct {
     int32_t model;
     float matrix[3][3];
@@ -43,11 +45,14 @@ typedef struct {
     uint8_t pad16[40];
     float position[3];
     uint8_t pad68[40];
-    Coin *coin;
+    uint32_t coin;
 } Entity;
 typedef struct {
-    uint8_t pad0[12];
-    Entity *entity;
+    void *next;
+    uint8_t pad8[8];
+    uint32_t entity;
+    float timeStamp;
+    void (*func)(void *, short);
 } CoinNode;
 void func_8010E0FC(CoinNode *node, int16_t update);
 
@@ -115,32 +120,39 @@ int osSendMesg(void *mq, void *msg, int block) { return 0; }
 
 int main(void)
 {
-    static Coin coin;
-    static Entity entity;
     static CoinNode node;
     uint8_t *w = test_rdram();
     int i;
 
-    /* The coin: its scene node is 7, its model will be MBOX_NewObject's 9. */
-    memset(D_8012E700, 0, sizeof(D_8012E700));
-    entity.flags = 0x40;   /* gold, first update */
-    entity.handle = 7;
-    entity.coin = &coin;
-    node.entity = &entity;
-    func_8010E0FC(&node, 1);
-    CHECK(D_8012E700[7].model == 0x123);                  /* resource_set_object(id.part.index) */
-    CHECK(memcmp(D_8012E700[7].prim, "\xFF\xC8\x00\xFF", 4) == 0);   /* gold: R,G,B,A for the model draw */
-    CHECK(coin.model == 9);
-    CHECK(g_nspawned == 2 && g_spawned[0] == 9 && g_spawned[1] == 7);   /* EntityHdr and id.part.index */
-    CHECK(D_8012E700[0].model == 0 && memcmp(D_8012E700[0].prim, "\0\0\0\0", 4) == 0);
+    if (w) {
+        Coin *coin = (Coin *)(w + 0x310000);        /* a heap record and a level-object node, in the window */
+        Entity *entity = (Entity *)(w + 0x310100);
 
-    /* Silver, a second coin. */
-    entity.flags = 0;
-    entity.handle = 12;
-    g_nspawned = 0;
-    func_8010E0FC(&node, 1);
-    CHECK(memcmp(D_8012E700[12].prim, "\xC8\xE6\xFF\xFF", 4) == 0);
-    CHECK(g_nspawned == 2 && g_spawned[0] == 9 && g_spawned[1] == 12);
+        /* The coin: its scene node is 7, its model will be MBOX_NewObject's 9. */
+        memset(D_8012E700, 0, sizeof(D_8012E700));
+        memset(coin, 0, sizeof *coin);
+        memset(entity, 0, sizeof *entity);
+        entity->flags = 0x40;   /* gold, first update */
+        entity->handle = 7;
+        entity->coin = (uint32_t)(uintptr_t)coin;
+        node.entity = (uint32_t)(uintptr_t)entity;
+        func_8010E0FC(&node, 1);
+        CHECK(D_8012E700[7].model == 0x123);                  /* resource_set_object(id.part.index) */
+        CHECK(memcmp(D_8012E700[7].prim, "\xFF\xC8\x00\xFF", 4) == 0);   /* gold: R,G,B,A for the model draw */
+        CHECK(coin->model == 9);
+        CHECK(g_nspawned == 2 && g_spawned[0] == 9 && g_spawned[1] == 7);   /* EntityHdr and id.part.index */
+        CHECK(D_8012E700[0].model == 0 && memcmp(D_8012E700[0].prim, "\0\0\0\0", 4) == 0);
+
+        /* Silver, a second coin. */
+        entity->flags = 0;
+        entity->handle = 12;
+        g_nspawned = 0;
+        func_8010E0FC(&node, 1);
+        CHECK(memcmp(D_8012E700[12].prim, "\xC8\xE6\xFF\xFF", 4) == 0);
+        CHECK(g_nspawned == 2 && g_spawned[0] == 9 && g_spawned[1] == 12);
+    } else {
+        fprintf(stderr, "no RDRAM window: the coin part is skipped\n");
+    }
 
     /* A car's colour, a word copied whole: each part's node gets the bytes as they are. */
     memset(D_8012E700, 0, sizeof(D_8012E700));

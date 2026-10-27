@@ -17,6 +17,7 @@
 
 #include "config.h"
 #include "input_internal.h"
+#include "pc_compat.h"
 #include "test_gbi.h"
 
 int pc_input_init(const PcSettings *s);

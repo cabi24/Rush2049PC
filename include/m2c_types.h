@@ -83,8 +83,17 @@ extern s32 __osContRamWrite(OSMesgQueue *mq, s32 channel, u16 address,
  * with the viewport index scaled by 8 bytes (4 s16s) per symbol_addrs.us.txt,
  * which also documents adjacent gViewportOffsetXExtra/YExtra 4 bytes
  * earlier in the same table. */
+#ifdef TARGET_PC
+/* PC: the table at gViewportOffsetXExtra is s16[3][4], a row per TV type (gViewportX = osTvType, 0-2), up to
+ * gViewportPendingFrames at 0x8002B010. These two are its columns 2 and 3, read at [i][0], so 9 s16s reach the
+ * last one read. Declared s16[32], they ran over gViewportPendingFrames, gViewportDataPtr, gInitFlag and
+ * gDmaInitialized, and the PC loader swapped those flags with their neighbour bytes (docs/port/DATA.md 1). */
+extern s16 gViewportOffsetX[9];
+extern s16 gViewportOffsetY[9];
+#else
 extern s16 gViewportOffsetX[32];
 extern s16 gViewportOffsetY[32];
+#endif
 
 /* --- Decompression DMA sync helpers (src/util/dma.c, not visible to m2c's
  * type context since that's a .c file, not a header). */

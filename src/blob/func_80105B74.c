@@ -52,7 +52,11 @@ typedef struct {
 
 typedef struct {
     u8 slot;
+#ifdef TARGET_PC
+    char pad1[0x48 - 0x1]; void *ref;
+#else
     char pad1[0x4B];
+#endif
 } Pad;
 
 extern Car D_80152818[];

@@ -791,9 +791,13 @@ extern M2C_UNK D_8011754C;
 extern f32 D_801249BC;
 #ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; u32 owner; f32 timer; intptr_t stat; } BNode;
+typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; u32 owner; f32 timer; void *stat; } BNode;
+/* The target info records (D_80117530) are 0x40 bytes, their visual function a pointer (docs/port/POINTERS.md 10). */
+#define TI_VISUAL(t) M2C_FIELD(t, void **, TINFO_OFS(0xC))
 #else
 typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; void *owner; f32 timer; s32 stat; } BNode;
+#define TI_VISUAL(t) (s32) M2C_FIELD(t, s32 *, 0xC)
+#define TINFO_OFS(n) n
 #endif
 #ifdef TARGET_PC
 #define N64P(x) ((void *)(uintptr_t)(x))
@@ -820,12 +824,12 @@ void func_8010D9CC(void *arg0) {
     BNode **head;
     f32 vector[3];
 
-    sp30 = (M2C_FIELD(arg0, s16 *, 0x10) * 0x30) + (u8 *) &D_80117530;
+    sp30 = (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)) + (u8 *) &D_80117530;
     M2C_FIELD(arg0, s16 *, 0x5A) = 7;
     temp_v0 = func_80090284();
     if (temp_v0 != NULL) {
         temp_v0->active = 0;
-        temp_v0->stat = (s32) M2C_FIELD(sp30, s32 *, 0xC);
+        temp_v0->stat = TI_VISUAL(sp30);
         temp_v0->owner = N64W(arg0);
         temp_v0->timer = (f32) D_801249BC;
         temp_v0_2 = &player_array[M2C_FIELD(arg0, s8 *, 0x5C)];
@@ -837,7 +841,7 @@ void func_8010D9CC(void *arg0) {
         head = &D_801391F0;
         temp_v0->next = *head;
         *head = temp_v0;
-        stat_lap_split(*(s32*)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * 0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
+        stat_lap_split(*(s32*)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30))), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
     }
 }
 

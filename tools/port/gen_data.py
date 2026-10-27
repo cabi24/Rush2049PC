@@ -3,6 +3,7 @@
 
     python3 tools/port/gen_data.py --objects-list build/pc/game_objects.txt --out build/pc/pc-data/data.c
     python3 tools/port/gen_data.py --check build/pc/rush2049pc_datacheck --layout build/pc/pc-data/data_layout.json
+    python3 tools/port/gen_data.py --test-tables test_pc_data_decls.c.o --out build/pc/pc-data/test_pc_data_gen.h
 
 The game C declares data at fixed N64 addresses that nothing defines: the boot segment's, the game image's and
 the two runtime images' initialized data, and their BSS. This tool gives every such symbol host storage and
@@ -13,13 +14,15 @@ No ROM bytes are read here or written into the build.
    most informative wins (struct over pointer over words over bytes) and the disagreement is reported.
 2. Each type is laid out twice: for the N64 (MIPS o32: pointers and long are 4 bytes, double is 8 aligned 8)
    and for the host (the DWARF offsets). The result is a field program: runs of (kind, count, N64 offset, host
-   offset), repeated with strides for arrays.
+   offset), repeated with strides for arrays. A union is copied as bytes when a member made of bytes covers it
+   (the colour unions), else laid out by its largest member.
 3. Storage. Each image's data and BSS is an arena laid out as on the N64, at its N64 address in the RDRAM
    window port/ultra maps at host 0x80000000, and a symbol with no pointers whose two layouts agree is an
    absolute symbol at its N64 address there (an assembler .set), so code that indexes from one symbol into the
    next keeps working and a 32-bit N64 address of it is a host address. A symbol with pointers, or whose host
    layout differs, gets its own storage in the executable; symbols inside its N64 extent are defined at the
-   matching host offsets.
+   matching host offsets. Where declarations overlap in an arena at other element widths (bytes included), the
+   most informative one decides and the rest are reported.
 4. Addresses: the referencing image's symbol table (asm/us/<image>/symbols.json, what the matching build links
    against), then symbol_addrs.us.txt and undefined_syms_auto.us.txt, then D_XXXXXXXX names. Functions known by
    address (layout/*.json, the symbol file) go in a table, through weak references, so the loader can turn N64
@@ -30,6 +33,11 @@ No ROM bytes are read here or written into the build.
 Outputs: data.c, data_layout.txt (what was decided, the conflicts, what is left), data_layout.json (for
 --check, which verifies placements and sizes in the linked executable, and that nothing else is linked at a
 window address). Stdlib and binutils, Python 3.9+.
+
+Windows (PE, docs/port/WINDOWS.md): pass objdump as --readelf (DWARF of COFF objects), and --weak-script. An
+undefined weak reference doesn't come out as 0 there, so data.c's weak references name `pc_weak.<symbol>`, which
+the script defines as the symbol when something defines it and as 0 otherwise; thunks are naked functions (COFF
+has no section stack for `.previous`).
 """
 import argparse
 import bisect
@@ -56,6 +64,9 @@ RENAMED = {n: "n64_" + n for n in ("main", "memcpy", "memset", "memchr", "strlen
 N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short int": 2, "short unsigned int": 2,
             "int": 4, "unsigned int": 4, "long int": 4, "long unsigned int": 4, "long long int": 8,
             "long long unsigned int": 8, "float": 4, "double": 8, "long double": 8}
+# Typedefs that are pointer-sized on the host and 4 bytes on the N64 (port/include/pc_prelude.h). Windows spells
+# them `long long`, so they are told from a real 64-bit integer by name.
+POINTER_SIZED = {"uintptr_t", "intptr_t", "size_t", "ssize_t", "ptrdiff_t"}
 
 
 # N64 pointers at or above this (outside the runtime images) point into the game heap and stay as they are.
@@ -106,14 +117,28 @@ def _name(v):
     return v.strip()
 
 
+_OBJDUMP_FILE = re.compile(r"^(\S.*):\s+file format \S+$")
+
+
+def dwarf_info_command(tool):
+    """The command that prints .debug_info: readelf's, or objdump's for PE objects (readelf reads only ELF; both
+    print the DIEs in the same form)."""
+    return [tool, "--dwarf=info"] if "objdump" in Path(tool).name else [tool, "--debug-dump=info"]
+
+
 def parse_readelf(text, single=None):
-    """{object: {offset: Die}} from `readelf --debug-dump=info` output (one CU per object)."""
+    """{object: {offset: Die}} from `readelf --debug-dump=info` output (one CU per object), or from
+    `objdump --dwarf=info`, which starts each object with `path:     file format ...`."""
     objs, dies, stack, cur = {}, None, [], None
     if single:
         dies = objs.setdefault(single, {})
     for line in text.splitlines():
         if line.startswith("File: "):
             dies, stack, cur = objs.setdefault(line[6:].strip(), {}), [], None
+            continue
+        m = _OBJDUMP_FILE.match(line) if line[:1] not in ("", " ") else None
+        if m:
+            dies, stack, cur = objs.setdefault(single or m.group(1), {}), [], None
             continue
         if line.startswith(" <"):
             m = _HDR.match(line)
@@ -156,6 +181,10 @@ def canon(dies, off, memo):
     if tag in ("DW_TAG_typedef", "DW_TAG_const_type", "DW_TAG_volatile_type", "DW_TAG_restrict_type",
                "DW_TAG_atomic_type"):
         r = canon(dies, _ref(d), memo)
+        if tag == "DW_TAG_typedef" and r[0] == "base" and r[2] == 8 and \
+                _name(d.attrs.get("DW_AT_name", "")) in POINTER_SIZED:
+            # 4 bytes on the N64 like a pointer; `long long` on Windows (LLP64), `long` elsewhere
+            r = ("base", "long unsigned int" if "unsigned" in r[1] else "long int", 8)
     elif tag == "DW_TAG_base_type":
         r = ("base", _name(d.attrs.get("DW_AT_name", "?")), _num(d.attrs.get("DW_AT_byte_size")))
     elif tag == "DW_TAG_pointer_type":
@@ -234,7 +263,7 @@ def read_variables(objects, readelf, wanted):
     tags = collections.defaultdict(collections.Counter)
     for i in range(0, len(objects), 100):
         batch = objects[i:i + 100]
-        out = subprocess.run([readelf, "--debug-dump=info", *batch], capture_output=True, text=True,
+        out = subprocess.run([*dwarf_info_command(readelf), *batch], capture_output=True, text=True,
                              check=True).stdout
         for obj, dies in parse_readelf(out, batch[0] if len(batch) == 1 else None).items():
             memo = {}
@@ -379,15 +408,35 @@ def program(t):
             off += s or 0
         r = merge(runs)
     elif k == "union":
-        best = max(t[3], key=lambda m: (n64_layout(m[2])[0] or 0, sum(1 for x in program(m[2]) if x[0] != K_U8)),
-                   default=None)
-        r = program(best[2]) if best else []
+        r = union_program(t)
     elif k == "array":
         r = replicate(program(t[1]), t[2] or 0, n64_layout(t[1])[0] or 0, host_size(t[1]) or 0)
     else:
         r = []
     _PROG[t] = r
     return r
+
+
+BYTE_UNIONS = set()   # unions laid out as bytes (union_program), for the report
+
+
+def union_program(t):
+    """A union's runs. One with a member made only of bytes (a u8 array or a struct of u8s) that covers the whole
+    union is the game's byte view of that storage: the colour unions ({ u8 c[4]; u32 rgba; }) are R, G, B, A in
+    memory, and their words only copy those bytes or test them for equality, so they are copied as bytes, not
+    swapped (docs/port/ENDIAN.md 4). Not when a member has a pointer or a long, whose host layout differs.
+    Otherwise the largest member with the most non-byte elements sets the layout."""
+    size = n64_layout(t)[0] or 0
+    progs = [(m, program(m[2])) for m in t[3]]
+    if size and not any(r[0] in (K_PTR, K_S32_64, K_U32_64) for _, p in progs for r in p):
+        for m, p in progs:
+            if p and all(r[0] == K_U8 for r in p) and sum(r[1] * r[4] for r in p) == size \
+                    and (n64_layout(m[2])[0] or 0) == size:
+                BYTE_UNIONS.add(t)
+                return p
+    best = max(progs, key=lambda mp: (n64_layout(mp[0][2])[0] or 0, sum(1 for x in mp[1] if x[0] != K_U8)),
+               default=None)
+    return best[1] if best else []
 
 
 def replicate(e, n, sn, sh):
@@ -528,21 +577,26 @@ def signature(runs, limit):
     return tuple((o, cls.get(k, k)) for o, k in elements(runs, True) if o < limit)
 
 
-SWAP = {K_U16: 2, K_U32: 4, K_F32: 4, K_PTR: 4, K_S32_64: 4, K_U32_64: 4, K_U64: 8, K_F64: 8}
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--objects-list", type=Path, help="the game objects, one per line")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--nm", default="nm")
-    ap.add_argument("--readelf", default="readelf")
+    ap.add_argument("--readelf", default="readelf", help="readelf, or objdump for PE objects")
     ap.add_argument("--root", type=Path, default=n64syms.ROOT)
+    ap.add_argument("--weak-script", type=Path,
+                    help="PE: also write the linker script that resolves data.c's weak references")
     ap.add_argument("--check", type=Path, help="linked executable to verify against --layout")
     ap.add_argument("--layout", type=Path)
+    ap.add_argument("--test-tables", type=Path, help="an object of test declarations: write pc_data_test's header")
+    ap.add_argument("--pe", action="store_true", help="--check: the executable is PE (Windows)")
     a = ap.parse_args()
     if a.check:
-        sys.exit(check(a.check, a.layout, a.nm))
+        sys.exit(check(a.check, a.layout, a.nm, a.pe))
+    if a.test_tables:
+        if not a.out:
+            ap.error("--test-tables needs --out")
+        return test_tables(a)
     if not a.objects_list or not a.out:
         ap.error("--objects-list and --out are required")
     generate(a)
@@ -785,27 +839,9 @@ def generate(a):
     arena_runs = {}
     elem_conflicts = []
     for i, (img, lo, init, hi) in enumerate(n64syms.ARENAS):
-        taken = {}
-        cover = bytearray(init - lo)
         members = [s for s in ordered if s.arena == i and s.parent is None and not s.cdef and not s.bss]
-        members.sort(key=lambda s: (not s.own, tuple(-x for x in score(s.t, s.runs))))
-        for s in members:
-            base = s.addr - lo
-            for off, kind in elements(s.runs, True):
-                kk = K_U32 if kind in (K_S32_64, K_U32_64) else kind
-                o, n = base + off, N64_ESZ[kind]
-                if o + n > init - lo:
-                    continue
-                if any(cover[o:o + n]):
-                    if taken.get(o) is None or SWAP[taken[o]] != n:
-                        elem_conflicts.append((s, off, kind))
-                    continue
-                cover[o:o + n] = b"\1" * n
-                taken[o] = kk
-        runs = []
-        for o in sorted(taken):
-            runs.append((taken[o], 1, o, o, 1, 0, 0))
-        arena_runs[i] = merge(runs)
+        arena_runs[i], conflicts = arena_elements(members, lo, init)
+        elem_conflicts += conflicts
 
     # Functions by address, for function pointers.
     funcs, func_clash = {}, []
@@ -884,8 +920,16 @@ def generate(a):
                                    f"0x{s.parent_off:X}" for s in inside])
     section("Pointer conflicts: files disagree on where pointers are (agent D)", pointer_conflicts)
     section("Width conflicts: files disagree on element sizes", width_conflicts)
-    section("Arena element conflicts (first declaration kept)",
-            [f"0x{s.addr + off:08X} {sorted(s.names)[0]}+0x{off:X} {KIND_NAMES[k]}" for s, off, k in elem_conflicts])
+    groups = [(g, OVERLAPS_REVIEWED.get((sorted(g[0].names)[0], sorted(g[3].names)[0])))
+              for g in group_conflicts(elem_conflicts)]
+    section("Arena element conflicts: overlapping declarations at other widths, bytes included (the first in rank "
+            "kept; a size in the declaration is the fix)",
+            [f"0x{g[0].addr + g[1]:08X} {fmt_conflict(g)}" for g, why in groups if not why])
+    section("Arena element conflicts read and judged (OVERLAPS_REVIEWED)",
+            [f"0x{g[0].addr + g[1]:08X} {fmt_conflict(g)}: {why}" for g, why in groups if why])
+    section("Unions copied as bytes: a member made of bytes covers them (docs/port/ENDIAN.md 4)",
+            [f"0x{s.addr:08X} {'/'.join(sorted(s.names))}: {s.disp} ({', '.join(sorted(u))}){' (bss)' if s.bss else ''}"
+             for s in ordered if not s.cdef for u in [byte_unions_in(s.t)] if u])
     section("Self-check failures (runs outside the symbol)", selfcheck)
     section("N64 size differs from the symbol file, extents.txt or the C definition", size_mismatch)
     cut_files = collections.defaultdict(set)
@@ -934,6 +978,114 @@ def generate(a):
           f"{len(pointer_conflicts)} pointer conflicts -> {a.out}")
 
 
+def arena_elements(members, lo, init):
+    """(runs, conflicts) for one arena's initialized part [lo, init): the runs byte-swap every element of the
+    members (Syms) in place. Where declarations overlap (one runs into the next symbol, or a name lies inside
+    another's array), the members are taken in order, own storage first and then the most informative
+    declaration (score), and an element over bytes an earlier one already has, at another start or width, is left
+    out and listed: (symbol, offset, kind, the symbol that has the bytes, its offset, its element width). Byte
+    elements take part, so a word view over a byte view (an inner name inside a colour union array, a declaration
+    that runs over a flag) is listed, and whichever ranks first decides; a size in the declaration is the fix."""
+    taken, start, owner, conflicts = {}, {}, {}, []   # start: arena offset -> (start, width) of the element there
+    for s in sorted(members, key=lambda s: (not s.own, tuple(-x for x in score(s.t, s.runs)))):
+        base = s.addr - lo
+        for off, kind in elements(s.runs):
+            o, n = base + off, N64_ESZ[kind]
+            if o + n > init - lo:
+                continue
+            if any(o + j in start for j in range(n)):
+                if start.get(o) != (o, n) or start.get(o + n - 1) != (o, n):
+                    held = next(start[o + j] for j in range(n) if o + j in start)
+                    conflicts.append((s, off, kind, owner[held[0]], held[0] + lo - owner[held[0]].addr, held[1]))
+                continue
+            for j in range(n):
+                start[o + j] = (o, n)
+            owner[o] = s
+            if kind != K_U8:
+                taken[o] = K_U32 if kind in (K_S32_64, K_U32_64) else kind
+    return merge([(taken[o], 1, o, o, 1, 0, 0) for o in sorted(taken)]), conflicts
+
+
+# Element conflicts in initialized data that were read and judged (docs/port/DATA.md 1): (symbol, the symbol whose
+# elements keep the bytes) -> why those are the right ones.
+OVERLAPS_REVIEWED = {
+    ("D_801146C0", "D_801146BC"): "D_801146BC[1], a colour read as bytes; D_801146C0's word only copies it",
+    ("D_801105A4", "D_801102B4"): "&buttonInfo[11].pos, the audio screen's title position (f32)",
+    ("D_8011AC84", "D_8011A994"): "&buttonInfo[11].pos, the video screen's title position (f32)",
+    ("D_803B5CFC", "D_803B5D2C"): "read as [n][0] for n = 1..4 players, in D_803B5D50; row 0 never",
+    ("D_803B4679", "D_803B467C"): "read as [n][i] for n = 1..4 players, after D_803B467C; row 0 never",
+}
+
+
+def group_conflicts(conflicts):
+    """Element conflicts with each run of one symbol's elements over one other's as one: (symbol, offset, kind,
+    holder, its offset, its width, count)."""
+    out = []
+    for s, off, kind, held, hoff, hw in conflicts:
+        p = out[-1] if out else None
+        if p and p[0] is s and p[2] == kind and p[3] is held and p[5] == hw and off == p[1] + p[6] * N64_ESZ[kind]:
+            p[6] += 1
+        else:
+            out.append([s, off, kind, held, hoff, hw, 1])
+    return out
+
+
+def fmt_conflict(g):
+    s, off, kind, held, hoff, hw, n = g
+    return (f"{sorted(s.names)[0]}+0x{off:X} {KIND_NAMES[kind]}{f' x{n}' if n > 1 else ''}: held by "
+            f"{sorted(held.names)[0]}+0x{hoff:X} ({hw} B)")
+
+
+def byte_unions_in(t, depth=0):
+    """Names of the unions inside t that union_program lays out as bytes."""
+    if depth > 8 or t[0] not in ("struct", "union", "array"):
+        return set()
+    if t[0] == "array":
+        return byte_unions_in(t[1], depth + 1)
+    out = {t[1] or "(anonymous)"} if t in BYTE_UNIONS else set()
+    for _, _, mt in t[3]:
+        out |= byte_unions_in(mt, depth + 1)
+    return out
+
+
+def test_tables(a):
+    """--test-tables OBJ --out HEADER: what the rules above make of the D_XXXXXXXX variables one object declares
+    (port/data/test_pc_data_decls.c), as a header for pc_data_test, which loads them from its synthetic image:
+    the runs of one arena of initialized data, from the lowest address to the end of the last symbol, and the
+    element conflicts (data_layout.txt's lines). Each name has one declaration, at the address it spells."""
+    obj = str(a.test_tables)
+    _, refs = n64syms.nm_objects([obj], a.nm)[obj]
+    found, tags = read_variables([obj], a.readelf, {n for n in refs if re.fullmatch(r"D_[0-9A-F]{8}", n)})
+    members = []
+    for name, decls in sorted(found.items()):
+        s = Sym(n64syms.address_of(name, {}))
+        s.names.add(name)
+        s.t, s.disp = complete(decls[0][1], tags), decls[0][2]
+        s.runs, s.n64_size = program(s.t), n64_layout(s.t)[0] or 0
+        if any(r[0] in (K_PTR, K_S32_64, K_U32_64) for r in s.runs):
+            sys.exit(f"gen_data --test-tables: {name} needs own storage, which the test arena does not model")
+        members.append(s)
+    if not members:
+        sys.exit(f"gen_data --test-tables: no D_XXXXXXXX declarations in {obj}")
+    lo = min(s.addr for s in members)
+    hi = align(max(s.addr + s.n64_size for s in members), 4)
+    runs, conflicts = arena_elements(members, lo, hi)
+    cont = " \\"
+    L = [f"/* {a.out.name}: generated by tools/port/gen_data.py --test-tables from {Path(obj).name}. Do not edit.",
+         " * The arena runs gen_data's layout rules give port/data/test_pc_data_decls.c's declarations, and the",
+         " * element conflicts it lists, for test_pc_data.c. */",
+         f"#define PC_TEST_GEN_LO 0x{lo:08X}u",
+         f"#define PC_TEST_GEN_HI 0x{hi:08X}u",
+         f"#define PC_TEST_GEN_NRUNS {len(runs)}",
+         "#define PC_TEST_GEN_RUNS" + cont]
+    L += [f"    {{{r[2]}, {r[3]}, {r[1]}, {r[4]}, {r[5]}, {r[6]}, {r[0]}}}," + cont for r in runs]
+    L += ["", "#define PC_TEST_GEN_CONFLICTS" + cont]
+    L += ["    " + c_str(fmt_conflict(g))[:-1] + '\\n"' + cont for g in group_conflicts(conflicts)]
+    L += ['    ""', ""]
+    a.out.parent.mkdir(parents=True, exist_ok=True)
+    a.out.write_text("\n".join(L))
+
+
 def local_data(obj, nm):
     out = subprocess.run([nm, obj], capture_output=True, text=True).stdout
     return [l.split()[-1] for l in out.splitlines() if len(l.split()) == 3 and l.split()[1] in "dbr"
@@ -957,7 +1109,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          "#endif",
          "/* A symbol takes its own size (the linker compares it with the game's common symbols). */",
          "#if defined(__ELF__)", "#define PC_SIZE(name, n) \"\\n.size \" N64_SYM(name) \", \" #n", "#else",
-         "#define PC_SIZE(name, n) \"\"", "#endif", "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", ""]
+         "#define PC_SIZE(name, n) \"\"", "#endif",
+         "#if defined(_WIN32)   /* weak.ld defines pc_weak.<name> as the symbol, or 0 (docs/port/WINDOWS.md) */",
+         f"#define PC_WEAK(id, name) extern char id[] __asm__(\"{n64syms.PE_WEAK_PREFIX}\" name);", "#else",
+         "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", "#endif", ""]
     L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 addresses in the RDRAM window")
     L.append(" * port/ultra maps at host 0x80000000 (docs/port/ULTRA.md), so nothing here allocates them:")
     for img, lo, init, hi in arenas:
@@ -1003,6 +1158,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         L += [");", ""]
     if thunks:
         L += ["/* Labels the game calls for a function defined under another name (symbols.json). */",
+              "#if defined(_WIN32)   /* COFF has no section stack (.previous): naked functions */"]
+        L += [f"__attribute__((naked)) void {n}(void) {{ __asm__(\"jmp {RENAMED.get(t, t)}\"); }}"
+              for n, t, _ in thunks]
+        L += ["#else",
               "#if defined(__aarch64__)", "#define PC_THUNK(n, t) \".globl \" N64_SYM(n) \"\\n.p2align 2\\n\" "
               "N64_SYM(n) \":\\n\\tb \" N64_SYM(t) \"\\n\"",
               "#elif defined(__x86_64__)", "#define PC_THUNK(n, t) \".globl \" N64_SYM(n) \"\\n.p2align 4\\n\" "
@@ -1010,7 +1169,7 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
               "#else", "#error \"gen_data: add a branch for this architecture\"", "#endif",
               "__asm__(\".text\\n\""]
         L += [f"    PC_THUNK(\"{n}\", \"{RENAMED.get(t, t)}\")" for n, t, _ in thunks]
-        L += ["    \".previous\\n\");", ""]
+        L += ["    \".previous\\n\");", "#endif", ""]
 
     # Weak references: functions and the game C's data.
     weak = {}
@@ -1025,6 +1184,14 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     for s in cdefs:
         L.append(f"PC_WEAK({cweak[id(s)]}, {c_str(sorted(s.names)[0])})")
     L.append("")
+    if a.weak_script:
+        W = ["/* weak.ld: generated by tools/port/gen_data.py. data.c's weak references on PE (docs/port/WINDOWS.md):",
+             " * pc_weak.<name> is the symbol when something linked in defines it, else 0, as an undefined weak",
+             " * reference is on ELF. An absolute 0 gets no base relocation, so it stays 0 when the image moves. */"]
+        W += [f"PROVIDE({n64syms.PE_WEAK_PREFIX}{n} = DEFINED({n}) ? {n} : 0);"
+              for n in [*weak, *(sorted(s.names)[0] for s in cdefs)]]
+        a.weak_script.parent.mkdir(parents=True, exist_ok=True)
+        a.weak_script.write_text("\n".join(W) + "\n")
 
     # Runs.
     runs = []
@@ -1098,21 +1265,30 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     (a.out.parent / "data_layout.json").write_text(json.dumps(layout))
 
 
-def check(exe, layout_path, nm):
+def check(exe, layout_path, nm, pe=False):
     """Verify the linked executable: every arena symbol absolute at its N64 address, every symbol inside own
-    storage at its base + offset, own storage at its host size, and nothing else linked in the RDRAM window."""
+    storage at its base + offset, own storage at its host size, and nothing else linked in the RDRAM window.
+    PE (pe): COFF symbols have no sizes, so own storage isn't size-checked; the image links at 0x140000000 and
+    moves, so only the window and its KSEG1 alias must be free of it (no GOT fix-up relies on the rest)."""
     layout = json.loads(Path(layout_path).read_text())
     out = subprocess.run([nm, "-S", "--defined-only", str(exe)], capture_output=True, text=True, check=True).stdout
     addr, size, letter = {}, {}, {}
     for line in out.splitlines():
         p = line.split()
+        if len(p) not in (3, 4):
+            continue
+        name, kind = p[-1], p[-2]
+        if name in letter and kind.islower() and letter[name].isupper():
+            continue   # a file-local static of the same name (overlay statics such as D_80399120): the global wins
+        addr[name], letter[name] = int(p[0], 16), kind
+        size.pop(name, None)
         if len(p) == 4:
-            addr[p[3]], size[p[3]], letter[p[3]] = int(p[0], 16), int(p[1], 16), p[2]
-        elif len(p) == 3:
-            addr[p[2]], letter[p[2]] = int(p[0], 16), p[1]
+            size[name] = int(p[1], 16)
     bad = []
     for name, n in layout["own"]:
-        if size.get(name) != n:
+        if name not in addr:
+            bad.append(f"own {name}: not in the executable")
+        elif size.get(name) != n and not pe:
             bad.append(f"own {name}: size {size.get(name)} != {n}")
     for name, base, off in layout["sets"]:
         if name not in addr or base not in addr:
@@ -1127,8 +1303,13 @@ def check(exe, layout_path, nm):
     # The executable's own link-time addresses must stay below the window: port/ultra/memory.c tells the GOT
     # slots of absolute symbols by an addend at 0x80000000 or above.
     lo, hi = layout["window"]
-    high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and x >= lo)
-    bad += [f"{n}: linked at 0x{addr[n]:X}, at or above the RDRAM window" for n in high]
+    if pe:
+        k1 = 0x20000000   # the KSEG1 alias of the window (port/ultra/memory.c)
+        high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and (lo <= x < hi or lo + k1 <= x < hi + k1))
+        bad += [f"{n}: linked at 0x{addr[n]:X}, inside the RDRAM window" for n in high]
+    else:
+        high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and x >= lo)
+        bad += [f"{n}: linked at 0x{addr[n]:X}, at or above the RDRAM window" for n in high]
     for b in bad[:50]:
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "

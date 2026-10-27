@@ -4207,6 +4207,37 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: arg0 is a visual (struct pc_visual) whose data is the target, a level-object node in its N64 layout; both the
+ * data and the target's state (+0x6C, the spin rate sound_position_set reads) are 32-bit window addresses, and the
+ * state goes to sound_position_set zero-extended, as the pointer it is (docs/port/CARS.md, POINTERS.md 10). */
+void func_8010E828(void *arg0, s16 arg1)
+{
+  u8 *target;
+  void *rate;
+  s16 var_v1;
+  if (arg1 == 0)
+  {
+    entity_transform_apply(arg0, 1);
+  }
+  if (D_801170FC == 0)
+  {
+    target = (u8 *) (uintptr_t) ((struct pc_visual *) arg0)->data;
+    rate = (void *) (uintptr_t) *((u32 *) (target + 0x6C));
+    var_v1 = *((s16 *) (target + 0x5A));
+    if (var_v1 != 0)
+    {
+      *((s16 *) (target + 0x5A)) = (s16) (var_v1 - 1);
+      sound_position_set(rate, target + 0x14);
+      var_v1 = *((s16 *) (target + 0x5A));
+    }
+    if (var_v1 == 0)
+    {
+      entity_transform_apply(arg0, 1);
+    }
+  }
+}
+#else
 void func_8010E828(void *arg0, s16 arg1)
 {
   void *new_var;
@@ -4237,3 +4268,4 @@ void func_8010E828(void *arg0, s16 arg1)
     }
   }
 }
+#endif

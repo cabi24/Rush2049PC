@@ -5,14 +5,15 @@
  * Linked with the game objects, the generated data and the link test's stubs, so every table entry is the real
  * host address. Without a ROM it says so and exits 0 (the build and the unit test still check the rest).
  * Checks: the ROM's SHA-1; the boot tail's build-info record; the inflate tables (public zlib constants); how
- * many floats are plausible (wrong byte order makes most of them garbage); function pointers; an overlay
- * reload restoring its data.
+ * many floats are plausible (wrong byte order makes most of them garbage); function pointers; the element widths
+ * at places where the game's reads fix them (known_widths); an overlay reload restoring its data.
  *
  *     rush2049pc_datacheck --synthetic
  *
  * needs no ROM: random data at the real image offsets (streams deflated into their retail slots), a known target
  * planted in every pointer field, then every arena byte and own-storage element is checked with an independent
- * decoder, and an overlay reload is checked. It tests the generated tables and the loader together.
+ * decoder, known_widths against the images, and an overlay reload is checked. It tests the generated tables and
+ * the loader together.
  *
  * The game's arenas are at their N64 addresses, so both map the RDRAM window at host 0x80000000 first, as
  * port/ultra does for the game. */
@@ -107,6 +108,90 @@ static int contains(const uint8_t *p, size_t n, const char *s)
         if (memcmp(p + i, s, k) == 0)
             return 1;
     return 0;
+}
+
+/* Element widths the game's reads need (docs/port/ENDIAN.md 4, DATA.md 1-2), written down here apart from the
+ * generated tables so that a regression in gen_data's layout rules shows: each element of `width` bytes in
+ * [n64, n64 + len) must hold the image's bytes reversed (a byte as it is). The colour unions are bytes (a byte
+ * member covers them; their words only copy them), D_801146BC's second colour too under D_801146C0's word view;
+ * unions without such a member keep their widest member's layout (Vtx, MenuSlot); the boot's viewport offset
+ * table is s16 up to gViewportPendingFrames, and the flags after it, which its s16[32] declarations ran over, are
+ * bytes. */
+static const struct {
+    const char *what;
+    uint32_t n64, len;
+    uint8_t image, width;
+} known_widths[] = {
+    {"D_80118E28/2C, the menus' flashing text colours", 0x80118E28, 8, 1, 1},
+    {"D_801146BC, their source pair (D_801146C0 the second)", 0x801146BC, 8, 1, 1},
+    {"D_80116DB0, the options screen's button colour", 0x80116DB0, 4, 1, 1},
+    {"D_8011AD8C, the shadow colour", 0x8011AD8C, 4, 1, 1},
+    {"D_8011ADC0, the sheen colours", 0x8011ADC0, 16, 1, 1},
+    {"D_8011AE58, track 1's IR colours", 0x8011AE58, 16, 1, 1},
+    {"D_8011B558, the arrows' colours", 0x8011B558, 20, 1, 1},
+    {"D_8011B578, the arrow colour", 0x8011B578, 4, 1, 1},
+    {"D_8011EF10, a Vtx's ob, flag and tc (s16)", 0x8011EF10, 12, 1, 2},
+    {"D_8011EF10, its cn (bytes)", 0x8011EF1C, 4, 1, 1},
+    {"D_803B3054/58, image A's colours", 0x803B3054, 8, 2, 1},
+    {"D_803B3458/5C", 0x803B3458, 8, 2, 1},
+    {"D_803B8328", 0x803B8328, 4, 2, 1},
+    {"D_803B8354", 0x803B8354, 4, 2, 1},
+    {"D_803B8394/98", 0x803B8394, 8, 2, 1},
+    {"D_803AF9A8, a MenuSlot's first float", 0x803AF9A8, 4, 2, 4},
+    {"D_803AF9A8, its alpha byte", 0x803AF9E4, 1, 2, 1},
+    {"D_80394270, image B's player colours", 0x80394270, 16, 3, 1},
+    {"D_803942A0/A4", 0x803942A0, 8, 3, 1},
+    {"D_803942E8", 0x803942E8, 4, 3, 1},
+    {"gViewportOffsetXExtra..gViewportOffsetY, s16[3][4]", 0x8002AFF8, 24, 0, 2},
+    {"gViewportPendingFrames", 0x8002B010, 2, 0, 2},
+    {"gInitFlag and the byte after it", 0x8002B028, 2, 0, 1},
+    {"gDmaInitialized and the byte after it", 0x8002B030, 2, 0, 1},
+};
+
+/* Checks known_widths against the images' bytes (after both runtime images are loaded); the number that differ. */
+static uint32_t check_widths(const PcDataTables *t, uint8_t *const img[])
+{
+    uint32_t bad = 0;
+    for (size_t i = 0; i < sizeof known_widths / sizeof known_widths[0]; i++) {
+        uint32_t n = known_widths[i].len, w = known_widths[i].width, a = known_widths[i].n64;
+        int im = known_widths[i].image;
+        const uint8_t *host = at(a, im), *src = img[im] + (a - t->images[im].n64_base);
+        int ok = host != NULL;
+        for (uint32_t o = 0; ok && o < n; o++)
+            ok = host[o] == src[o - o % w + (w - 1 - o % w)];
+        if (!ok && bad++ < 8)
+            printf("  %s: not %u-byte elements as the image holds them\n", known_widths[i].what, w);
+    }
+    return bad;
+}
+
+/* An image's bytes from the ROM, as the loader reads them: a slice, or a raw DEFLATE stream. */
+static uint8_t *image_from_rom(const PcDataImage *im, const uint8_t *rom, size_t size)
+{
+    uint8_t *out = calloc(1, im->size);
+    if (!out || (size_t)im->rom_off + im->rom_len > size) {
+        free(out);
+        return NULL;
+    }
+    if (im->storage == PC_IMG_RAW) {
+        memcpy(out, rom + im->rom_off, im->size);
+        return out;
+    }
+    z_stream z;
+    memset(&z, 0, sizeof z);
+    int rc = inflateInit2(&z, -15);
+    z.next_in = (Bytef *)(rom + im->rom_off);
+    z.avail_in = im->rom_len;
+    z.next_out = out;
+    z.avail_out = im->size;
+    if (rc == Z_OK)
+        rc = inflate(&z, Z_FINISH);
+    inflateEnd(&z);
+    if (rc != Z_STREAM_END || z.total_out != im->size) {
+        free(out);
+        return NULL;
+    }
+    return out;
 }
 
 /* ---------------------------------------------------------------- synthetic ROM, real tables */
@@ -344,7 +429,17 @@ static int synthetic(void)
     for (size_t i = 0; i < n_exp; i++)
         if (*exp[i].field != exp[i].want && bad_ptr++ < 5)
             printf("  pointer at %p: %p, expected %p\n", (void *)exp[i].field, *exp[i].field, exp[i].want);
+    uint32_t bad_width = check_widths(t, img), same = 0;
+    uint8_t *from_rom[8] = {0};   /* the images as the ROM check reads them */
+    for (uint32_t i = 0; i < t->n_images && i < 8; i++)
+        same += (from_rom[i] = image_from_rom(&t->images[i], rom, rom_size)) != NULL
+                && memcmp(from_rom[i], img[i], t->images[i].size) == 0;
+    CHECK(same == t->n_images, "the ROM check's own inflate gives the %u images (%u do)", t->n_images, same);
+    for (uint32_t i = 0; i < 8; i++)
+        free(from_rom[i]);
     CHECK(bad_arena == 0, "%u arenas match the image with every described element byte-reversed", t->n_arenas);
+    CHECK(bad_width == 0, "%zu places hold the element widths the game reads (colour unions, viewport table, flags; "
+          "%u differ)", sizeof known_widths / sizeof known_widths[0], bad_width);
     CHECK(bad_sym == 0, "%u own-storage symbols decode element by element (%u differ)", n_own, bad_sym);
     CHECK(bad_ptr == 0, "%zu planted pointers resolve (%u wrong)", n_exp, bad_ptr);
 
@@ -483,6 +578,17 @@ int main(int argc, char **argv)
     CHECK(models, "file table: model flags are 0 or 1 (D_801234AC)");
     CHECK(offsets, "file table: ROM offsets inside the ROM (D_8011B5BC)");
     CHECK(sizes, "file table: sizes under 8 MB (D_8002E580)");
+
+    /* Element widths at the places listed in known_widths, against the images as the ROM holds them. */
+    uint8_t *img[8] = {0};
+    int have = 1;
+    for (uint32_t i = 0; i < t->n_images && i < 8; i++)
+        have &= (img[i] = image_from_rom(&t->images[i], rom, (size_t)size)) != NULL;
+    uint32_t bad_width = have ? check_widths(t, img) : 1;
+    CHECK(bad_width == 0, "%zu places hold the element widths the game reads (colour unions, viewport table, "
+          "flags; %u differ)", sizeof known_widths / sizeof known_widths[0], bad_width);
+    for (uint32_t i = 0; i < 8; i++)
+        free(img[i]);
 
     /* Overlay reload: change image A's and B's first data words, load, compare. */
     for (int ov = 0; ov < 2; ov++) {

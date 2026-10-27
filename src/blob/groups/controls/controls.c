@@ -58,7 +58,12 @@ extern s16 D_8014A100[];                         /* gControlFirst[p] */
 extern s16 D_8014A0F8[];                         /* gControlSelect[p] */
 extern s16 D_8014A10A;                           /* gControlMenuSize */
 extern PakSlot D_80144030[];
-s32 D_80118E20[2];   /* gJust (TB_SetJust pair): tentative definition, as credits_scroll_grp/gr3_d.c, countdown,
+#ifndef TARGET_PC
+/* PC: port/data defines D_80118E20 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) s32 D_80118E20[2];   /* gJust (TB_SetJust pair): tentative definition, as credits_scroll_grp/gr3_d.c, countdown,
                         coins: the two TB_SetJust stores share one `lui at` only with gJust defined in the group's
                         program; in the shadow unit gr3_d.c is the one definition (unit_overrides extern_data) */
 extern char D_80120240[];                        /* "CONTROLLER %d %s" */

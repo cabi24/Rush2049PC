@@ -3664,8 +3664,13 @@ typedef s64 M2C_UNK64;
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
 #ifdef TARGET_PC
 #define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
+#define INPUT_SIZE 80  /* an input record (D_8014A118): its pointer at +0x48 is 8 bytes (docs/port/POINTERS.md 10);
+                       * the profile's save data, at SaveSlot.data, is read pointer-sized (intptr_t) */
+#define DATA_PTR(x) (void *)(x)
 #else
 #define SLOT_DATA 0x2C
+#define INPUT_SIZE 0x4C
+#define DATA_PTR(x) x
 #define PROFILE_OFS(n) n
 #endif
 
@@ -3710,9 +3715,9 @@ typedef s64 M2C_UNK64;
 void func_800FDF88(s32 arg0) {
     void *temp_a0;
 
-    temp_a0 = *M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), s32 **, SLOT_DATA) + 0x6F4;
+    temp_a0 = DATA_PTR(*M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * INPUT_SIZE))), intptr_t **, SLOT_DATA) + 0x6F4);
     memset(temp_a0, 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, PROFILE_OFS(8)), (uintptr_t) temp_a0, 0x4C);
+    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * INPUT_SIZE))), void ***, PROFILE_OFS(8)), (uintptr_t) temp_a0, 0x4C);
     M2C_FIELD(temp_a0, s8 *, 8) = (s8) arg0;
     M2C_FIELD(temp_a0, s32 *, 0xC) = (s32) (D_8002EB90 & 0xFFFFF);
     M2C_FIELD(temp_a0, s8 *, 4) = 1;

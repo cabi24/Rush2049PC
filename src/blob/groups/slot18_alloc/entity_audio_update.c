@@ -408,7 +408,11 @@ typedef struct {
     s32 unk0C;
     f32 unk10;
     f32 unk14;
+#ifdef TARGET_PC
+    u8 _pad18[0x48 - 0x18]; void *ref; u8 _pad18_4C[0x4D - 0x4C];
+#else
     u8 _pad18[0x4D - 0x18];
+#endif
     u8 unk4D;
 } InputRecord;
 extern InputRecord input_rec0;

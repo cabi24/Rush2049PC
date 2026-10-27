@@ -72,17 +72,17 @@ Same tool on `3e3c58a` (before) and on this branch (after), Debug build on aarch
 | `stub` | 0 | 0 | harmful |
 | `class` | 0 | 0 | harmful |
 | `fwidth` | 0 | 0 | harmful |
-| `width` | 2 | 2 | harmful |
+| `width` | 0 | 0 | harmful |
 | `aggregate` | 0 | 0 | harmful |
 | `count` | 0 | 0 | harmful |
 | `return` | 0 | 0 | harmful |
 | `narrow` | 82 | 164 | benign |
 | `extra` | 8 | 12 | benign |
-| `unused` | 45 | 76 | benign |
-| `reviewed` | 17 | 24 | benign |
+| `unused` | 46 | 77 | benign |
+| `reviewed` | 16 | 23 | benign |
 | `dead` | 42 | 166 | benign |
-| `harmless` | 55 | 251 | benign |
-| **harmful** | **2** | **2** | |
+| `harmless` | 57 | 253 | benign |
+| **harmful** | **0** | **0** | |
 <!-- proto_check:end -->
 
 Other checks on this branch: every changed file passes `n64_neutral.py --base 09da2f0` (all "shifted"); ctest 34/34;
@@ -225,8 +225,10 @@ Harmful views in files I may not edit:
 Harmful views that needed a typed PC version or struct unification, not a prototype change, are done
 (POINTERS.md 9): `func_8008D870`, `func_800A79B8`, `MBOX_FindPalette_WORK` and `func_800B24EC` (the scene nodes
 `D_8012E700`), `sound_stop` in `RemovePane`, `sound_handles_clear` and `UpdateActiveObjects` (panes and blits),
-`struct_fields_init` (the StatLL lists) and `PS_WriteFile` in `menu_confirm_dialog`. Left, in race code:
-`func_800E2D18` in `func_800E2F00` (`EngineState.f40C`) and `sound_position_set` in `func_8010E828` (`+0x6C`).
+`struct_fields_init` (the StatLL lists) and `PS_WriteFile` in `menu_confirm_dialog`. The two that were left in race
+code are done too: `func_800E2D18` in `func_800E2F00` (the torque curve, [CARS.md](CARS.md) 4) and
+`sound_position_set` in `func_8010E828` (a target's state, a window address, passed zero-extended: POINTERS.md 10.2).
+No harmful view is left.
 
 Limits of the check: calls through function pointers aren't seen. `narrow` is benign for the ABI, but AAPCS64
 leaves the upper bits of narrow arguments and returns unspecified, while IDO trusted the caller's extension. Behavior

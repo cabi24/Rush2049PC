@@ -67,7 +67,11 @@ typedef struct ButtonName {
 typedef struct Player {
     u8 b0;
     u8 control;
+#ifdef TARGET_PC
+    u8 pad2[0x48 - 0x2]; void *ref;
+#else
     u8 pad2[74];
+#endif
 } Player;
 
 typedef struct TextPos {

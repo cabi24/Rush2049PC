@@ -61,9 +61,9 @@ typedef struct PcSettings {
     int width, height;              /* window size */
     int fullscreen;                 /* desktop fullscreen */
     int vsync;
-    int scale;                      /* internal resolution multiple (RUSH_GFX_SCALE) */
+    int scale;                      /* internal resolution multiple (RUSH_GFX_SCALE); 0: auto, the window's */
     int api;                        /* PC_CFG_API_* (RUSH_GFX_API) */
-    int widescreen;                 /* reserved: the renderer's GfxConfig.widescreen hook */
+    double widescreen;              /* display aspect the 4:3 frame widens to: 0 off, -1 the window's (auto) */
     int pause_on_focus_loss;
     char screenshot_dir[PC_CFG_PATH];   /* empty: the working directory */
     /* [audio] */
@@ -104,11 +104,13 @@ int pc_settings_assign(PcSettings *s, const char *assignment, char *why, size_t 
 int pc_settings_load_text(PcSettings *s, const char *text, const char *name);
 /* The same for a file: -1 when it can't be read. Records source and source_dir. */
 int pc_settings_load_file(PcSettings *s, const char *path);
-/* The environment variables that other parts already read: RUSH2049_AUDIO, RUSH_GFX_SCALE, RUSH_GFX_API. Bad
- * values are reported and ignored. Returns how many were bad. */
+/* The environment variables that other parts already read: RUSH2049_AUDIO, RUSH_GFX_SCALE, RUSH_GFX_API,
+ * RUSH_GFX_WIDESCREEN. Bad values are reported and ignored. Returns how many were bad. */
 int pc_settings_apply_env(PcSettings *s);
 /* The whole file, with comments, as malloc'd text. */
 char *pc_settings_format(const PcSettings *s);
+/* One setting's value as the file writes it ("16:9", "on", ...). -1 for an unknown setting. */
+int pc_settings_get(const PcSettings *s, const char *section, const char *key, char *out, size_t out_size);
 int pc_settings_write(const PcSettings *s, const char *path);   /* through a temp file and rename; 0 on success */
 
 /* Where the file is: rush2049pc.ini next to the executable when there is one (a portable install), else

@@ -23,8 +23,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 #include <zlib.h>
 
 #ifndef PC_DATA_REPORT_DEFAULT
@@ -472,11 +477,22 @@ const PcDataStats *pc_data_stats(void)
 }
 
 /* 1 if [p, p + n) is mapped. */
+#ifdef _WIN32
+static int mapped(const void *p, size_t n)
+{
+    MEMORY_BASIC_INFORMATION mi;
+    for (const uint8_t *a = p, *end = a + n; a < end; a = (const uint8_t *)mi.BaseAddress + mi.RegionSize)
+        if (!VirtualQuery(a, &mi, sizeof mi) || mi.State != MEM_COMMIT)
+            return 0;
+    return 1;
+}
+#else
 static int mapped(const void *p, size_t n)
 {
     uintptr_t page = (uintptr_t)sysconf(_SC_PAGESIZE), lo = (uintptr_t)p & ~(page - 1);
     return msync((void *)lo, (uintptr_t)p + n - lo, MS_ASYNC) == 0;
 }
+#endif
 
 int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path)
 {

@@ -8,7 +8,7 @@
 
 #ifdef TARGET_PC
 /* PC layer (port/include/pc_port.h): big-endian ranges, for the MusyX DMA caches (lib_11640.c). */
-extern void pc_mem_register_be(const void *start, unsigned long size);
+extern void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 extern void pc_mem_unregister_be(const void *start);
 #endif
 

@@ -3704,20 +3704,20 @@ typedef s64 M2C_UNK64;
 #ifdef TARGET_PC
 /* PC: GetStatLLE over the header's host layout (shots.c's StatLL, docs/port/POINTERS.md 9): takes the first free
  * element and puts it at the head of the active list (and links it back when the list is doubly linked); the m2c
- * body uses the N64 offsets. An element's links are its first two pointers. */
-typedef struct { s8 dbl; s32 numElements; s32 elementSize; void *list; void *head; void *store; } PcStatLL;
-typedef struct { void *next; void *prev; } PcLink;
+ * body uses the N64 offsets. An element's links are its first two words: pointers, or window addresses in a list
+ * flagged n64 (POINTERS.md 10). */
+typedef struct { s8 dbl; u8 n64; s32 numElements; s32 elementSize; void *list; void *head; void *store; } PcStatLL;
 void *func_8008E3C0(void *arg0) {
     PcStatLL *list = (PcStatLL *) arg0;
-    PcLink *e = (PcLink *) list->store;
+    void *e = list->store;
 
     if (e != NULL) {
-        list->store = e->next;
-        e->next = list->head;
+        list->store = pc_statll_link(list->n64, e, 0);
+        pc_statll_set_link(list->n64, e, 0, list->head);
         if (list->dbl != 0) {
-            e->prev = NULL;
+            pc_statll_set_link(list->n64, e, 1, NULL);
             if (list->head != NULL) {
-                ((PcLink *) list->head)->prev = e;
+                pc_statll_set_link(list->n64, list->head, 1, e);
             }
         }
         list->head = e;

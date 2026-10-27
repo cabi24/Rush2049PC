@@ -22,7 +22,11 @@ typedef struct {
 
 typedef struct {
     u8 node;
+#ifdef TARGET_PC
+    u8 pad1[0x48 - 0x1]; void *ref;
+#else
     u8 pad1[0x4B];
+#endif
 } Player;
 
 static s8 D_80114154 = 0;

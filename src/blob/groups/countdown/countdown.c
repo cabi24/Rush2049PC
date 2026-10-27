@@ -57,7 +57,12 @@ extern volatile tSchedCtl sc;
 extern s16 gNumWindows;
 extern s32 countdownTimerPos[4][2];
 extern s32 mapPos[4][2];
-tJust gJust;   /* tentative definition (as credits_scroll_grp/gr3_d.c): the two TB_SetJust tail stores share one lui at in the group compile */
+#ifndef TARGET_PC
+/* PC: port/data defines gJust (D_80118E20) at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) tJust gJust;   /* tentative definition (as credits_scroll_grp/gr3_d.c): the two TB_SetJust tail stores share one lui at in the group compile */
 extern OSMesgQueue gFontSem;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);

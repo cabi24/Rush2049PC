@@ -13,7 +13,12 @@ extern s16 gNumWindows;
 extern A152 gCamera[];
 extern float D_801106B4[];
 extern B952 D_80152818[];
-u8 D_80110680[6];
+#ifndef TARGET_PC
+/* PC: port/data defines D_80110680 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) u8 D_80110680[6];
 void func_800E9234(B952 *b);
 void func_800FAD50(B952 *b);
 void render_post_process(void) {

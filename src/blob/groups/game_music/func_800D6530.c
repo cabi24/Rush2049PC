@@ -22,7 +22,11 @@ typedef struct {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 pad1[0x43];
     /* 0x44 */ s32 message;
+#ifdef TARGET_PC
+    /* 0x48 */ void *ref;
+#else
     /* 0x48 */ u8 pad48[4];
+#endif
 } PlayerRec; /* 0x4C */
 
 extern PlayerRec D_8014A118[];

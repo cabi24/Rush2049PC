@@ -799,8 +799,14 @@ void stat_lap_split();
 void func_8010DF90(void *arg0);
 
 
-#ifndef TARGET_PC
+#ifdef TARGET_PC
+/* PC: the target arg0 (a level-object node) keeps its N64 layout: its state (+0x6C) is a 32-bit window address
+ * (docs/port/POINTERS.md 10). */
+#define NODE_STATE(t) (void *) (uintptr_t) M2C_FIELD(t, u32 *, 0x6C)
+#else
 #define CAR_OFS(n) n
+#define TINFO_OFS(n) n
+#define NODE_STATE(t) M2C_FIELD(t, void **, 0x6C)
 #endif
 void func_8010DF90(void *arg0) {
     s8 temp_a2;
@@ -808,7 +814,7 @@ void func_8010DF90(void *arg0) {
 
     temp_a2 = M2C_FIELD(arg0, s8 *, 0x5C);
     M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFFB);
-    temp_s1 = M2C_FIELD(arg0, void **, 0x6C);
+    temp_s1 = NODE_STATE(arg0);
     if ((*((s8 *) &D_80152B74 + (temp_a2 * CAR_OFS(0x3B8))) >= 0) && (func_800F7A98(temp_a2, M2C_FIELD(temp_s1, u16 *, 0x4A)) == 0)) {
         linear_interp(M2C_FIELD(arg0, s8 *, 0x5C), M2C_FIELD(temp_s1, u16 *, 0x4A));
         model_data_load(M2C_FIELD(arg0, s32 *, 0xC), 1, 1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))));
@@ -816,7 +822,7 @@ void func_8010DF90(void *arg0) {
         if ((M2C_FIELD(temp_s1, u16 *, 0x48) &= ~(1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))))) == 0) {
             M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) | 0x80);
         }
-        stat_lap_split(*(s32*)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * 0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
+        stat_lap_split(*(s32*)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30))), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
     }
 }
 

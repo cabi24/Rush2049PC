@@ -144,9 +144,15 @@ int pc_ultra_run(const PcRunOptions *opt);   /* the host main loop; returns the 
 extern uint32_t pc_frame;                    /* retraces since boot */
 extern volatile int pc_quit;                 /* set to stop the main loop (exit code pc_quit - 1) */
 
-/* Logging. */
-void pc_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-void pc_fatal(const char *fmt, ...) __attribute__((format(printf, 1, 2), noreturn));
+/* Logging. On mingw-w64 a `printf` format attribute checks Microsoft's formats, but its printf family, and so
+ * pc_log, takes C99's (%zu). */
+#ifdef __MINGW_PRINTF_FORMAT
+#define PC_PRINTF_FORMAT __MINGW_PRINTF_FORMAT
+#else
+#define PC_PRINTF_FORMAT printf
+#endif
+void pc_log(const char *fmt, ...) __attribute__((format(PC_PRINTF_FORMAT, 1, 2)));
+void pc_fatal(const char *fmt, ...) __attribute__((format(PC_PRINTF_FORMAT, 1, 2), noreturn));
 extern int pc_verbose;
 
 #endif

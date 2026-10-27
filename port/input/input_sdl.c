@@ -235,7 +235,11 @@ static void screenshot(void)
     struct stat st;
     time_t t = time(NULL);
     struct tm tm;
+#ifdef _WIN32
+    tm = *localtime(&t);   /* no localtime_r; this is the main thread's only caller */
+#else
     localtime_r(&t, &tm);
+#endif
     strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", &tm);
     const char *dir = L.shot_dir[0] ? L.shot_dir : ".";
     snprintf(path, sizeof path, "%s/rush2049pc-%s.png", dir, stamp);

@@ -1,15 +1,17 @@
 /* port/ultra/misc.c: osInitialize and the low-memory globals, the CPU's cache, TLB, interrupt and FPU control
  * (no-ops natively), address conversion, a few libc pieces of the boot segment, logging and the fault handler
- * (docs/port/ULTRA.md). */
+ * (docs/port/ULTRA.md). On Windows the fault handler and backtraces are in win32.c. */
 #define _GNU_SOURCE
+#ifndef _WIN32
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <signal.h>
+#include <unistd.h>
+#endif
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "ultra.h"
 
@@ -140,7 +142,18 @@ void *osPhysicalToVirtual(uint32_t paddr)
     return p ? p : (void *)(uintptr_t)paddr;
 }
 
+/* A generated stub was called (build/pc/pc-data/stubs.c, tools/port/gen_stubs.py). */
+void pc_stub_hit(const char *name)
+{
+    fprintf(stderr, "rush2049pc: not implemented yet: %s (N64 thread %s, frame %u)\n", name, pc_os_thread_name(),
+            pc_frame);
+    pc_print_backtrace(1);
+    fflush(NULL);
+    abort();
+}
+
 /* ---------------------------------------------------------------- faults */
+#ifndef _WIN32
 
 /* The calling stack, symbolized with addr2line when it is installed: frames in the executable by their offset
  * from its load address (it is a PIE), others as library + offset. */
@@ -184,16 +197,6 @@ void pc_print_backtrace(int skip)
         pclose(p);
 }
 
-/* A generated stub was called (build/pc/pc-data/stubs.c, tools/port/gen_stubs.py). */
-void pc_stub_hit(const char *name)
-{
-    fprintf(stderr, "rush2049pc: not implemented yet: %s (N64 thread %s, frame %u)\n", name, pc_os_thread_name(),
-            pc_frame);
-    pc_print_backtrace(1);
-    fflush(NULL);
-    abort();
-}
-
 static void fault(int sig, siginfo_t *si, void *ctx)
 {
     (void)ctx;
@@ -227,3 +230,4 @@ void pc_fault_install(void)
     sigaction(SIGFPE, &sa, NULL);
     pc_fault_thread_init();
 }
+#endif

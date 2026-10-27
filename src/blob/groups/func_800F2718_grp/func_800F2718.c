@@ -10,7 +10,11 @@ typedef s32 intptr_t;
 typedef struct {
     u8 pad00[4];
     s32 unk04;
+#ifdef TARGET_PC
+    u8 pad08[0x48 - 0x8]; void *ref;
+#else
     u8 pad08[0x4C - 8];
+#endif
 } InputRecord;
 
 extern s16 active_player_count;

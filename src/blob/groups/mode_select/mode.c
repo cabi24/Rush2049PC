@@ -128,6 +128,12 @@ void func_800DFBA0(ModelView *model)
     }
 }
 #define FIELD(p,t,o) (*(t *)((u8 *)(p)+(o)))
+#ifdef TARGET_PC
+/* PC: an input record (D_8014A118) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
+#define INPUT_SIZE 80
+#else
+#define INPUT_SIZE 76
+#endif
 extern s8 D_8010FFC0,D_8010FFCC[],D_8010FFC4[];
 extern s8 D_801115CD[][13];
 extern volatile f32 D_8002EB90;
@@ -368,7 +374,7 @@ void func_800E05F0(ModelView *model)
     mode_select_handler(model);
     if(D_8002EB90<D_80110020[original_slot])D_80110020[original_slot]=0.0f;
     if(!(FIELD(model,s32,2004)&0x10) &&
-       (FIELD(input_rec0,s32,original_slot*76+4)&FIELD(input_rec0,s32,original_slot*76+56)) &&
+       (FIELD(input_rec0,s32,original_slot*INPUT_SIZE+4)&FIELD(input_rec0,s32,original_slot*INPUT_SIZE+56)) &&
        D_8002EB90-D_80110020[original_slot]>0.1f) {
         D_80110020[original_slot]=D_8002EB90;
         D_801407E0[original_slot]=frame_sync(D_801115CD[original_slot][FIELD(model,u8,8)]+26,original_slot,1,4);

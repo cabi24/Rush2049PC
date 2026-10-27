@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "config.h"
+#include "pc_compat.h"
 #include "ultra.h"
 
 extern void n64_main(void *argument);   /* src/rom/lib_2cf0.c */
@@ -29,7 +30,8 @@ static void usage(FILE *f)
             "                      WAYLAND_DISPLAY); --window: an SDL2 window\n"
             "  --fullscreen        start in fullscreen (Alt+Enter or F11 toggles)\n"
             "  --size WxH          window size (default 640x480)\n"
-            "  --scale N           internal resolution, a multiple of the N64's (1-8)\n"
+            "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
+            "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
             "  --seconds N         stop after N seconds\n"
             "  --frames N          stop after N graphics tasks (at the retrace that shows the last)\n"
             "  --screenshot-at N   save a PNG once N graphics tasks have run (--screenshot PATH, default\n"
@@ -149,6 +151,8 @@ int main(int argc, char **argv)
             SET("video", "height", height);
         } else if (!strcmp(a, "--scale"))
             SET("video", "scale", ARG());
+        else if (!strcmp(a, "--widescreen"))
+            SET("video", "widescreen", ARG());
         else if (!strcmp(a, "--screenshot-at"))
             run.screenshot_at = (uint32_t)atoi(ARG());
         else if (!strcmp(a, "--screenshot"))
@@ -241,12 +245,14 @@ int main(int argc, char **argv)
     int pak_kind = cfg.pak == PC_CFG_PAK_MEMORY ? PC_PAK_MEMORY : cfg.pak == PC_CFG_PAK_RUMBLE ? PC_PAK_RUMBLE
                                                                                               : PC_PAK_NONE;
     /* port/gfx reads its settings from the environment; the resolved values already include it */
-    char scale[8];
-    snprintf(scale, sizeof scale, "%d", cfg.scale);
+    char scale[8], aspect[16];
+    pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);
     setenv("RUSH_GFX_SCALE", scale, 1);
     setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : "gles", 1);
-    if (cfg.widescreen)
-        fprintf(stderr, "rush2049pc: widescreen is not implemented yet; the picture stays 4:3\n");
+    pc_settings_get(&cfg, "video", "widescreen", aspect, sizeof aspect);
+    setenv("RUSH_GFX_WIDESCREEN", aspect, 1);
+    if (cfg.widescreen > 0 && cfg.width == 640 && cfg.height == 480)   /* the default window, at the picture's aspect */
+        cfg.width = (int)(cfg.height * cfg.widescreen + 0.5);
     if (!run.frames && pc_input_script_frames)
         run.frames = pc_input_script_frames;
     char shot_path[64];
@@ -255,7 +261,9 @@ int main(int argc, char **argv)
         run.screenshot = shot_path;
     }
 
+#ifndef _WIN32   /* stderr is unbuffered there, and the CRT has no line buffering */
     setvbuf(stderr, NULL, _IOLBF, 0);
+#endif
     pc_mem_fix_absolute();
     pc_fault_install();
     if (pc_mem_init() != 0) {

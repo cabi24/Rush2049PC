@@ -1,8 +1,15 @@
 /* port/gfx/gfx_gl.c: the OpenGL backend (GLES 3.0 or desktop GL 3.1+ core). Render targets per color image,
  * depth buffers per z image, the shader cache, texture upload, batched draws, presentation and readback.
  * All GL calls live here, through a loader, so one build serves GLES and desktop GL. */
+#ifdef _WIN32
+/* mingw-w64 ships desktop GL's glcorearb.h rather than GLES3/gl3.h: the same function, type and enum names, and
+ * no prototypes unless asked for (docs/port/WINDOWS.md). */
+#include <GL/glcorearb.h>
+#define GL_APIENTRYP APIENTRYP
+#else
 #define GL_GLES_PROTOTYPES 0
 #include <GLES3/gl3.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,7 +99,7 @@ struct GfxShader {
 
 typedef struct GfxDepth {
     const void *addr;
-    int w, h;
+    int w, h, s;
     GLuint rb;
     struct GfxDepth *next;
 } GfxDepth;
@@ -100,6 +107,7 @@ typedef struct GfxDepth {
 struct GfxTarget {
     const void *addr;
     int w, h, vis_h;    /* N64 pixels; vis_h: rows shown (the largest scissor bottom drawn with) */
+    int s;              /* the internal scale it was made at */
     GLuint fbo, color;
     GfxDepth *depth;
     GfxTarget *next;
@@ -119,12 +127,26 @@ static struct {
     GLuint bound_fbo;
 } G;
 
+/* The scale new targets get: the setting, or the window's for auto (gfx_api.c). A target keeps its own until it
+ * is made again, so a change applies from the next color image. */
 static int scale(void) {
-    return pcgfx_cfg.internal_scale > 0 ? pcgfx_cfg.internal_scale : 1;
+    return pcgfx_cfg.scale > 0 ? pcgfx_cfg.scale : 1;
 }
 
-void pcgfx_gl_target_size(int *s) {
-    *s = scale();
+int pcgfx_gl_target_scale(const GfxTarget *t) {
+    return t != NULL ? t->s : scale();
+}
+
+static int target_rows(const GfxTarget *t);
+
+void pcgfx_gl_target_shown(const GfxTarget *t, int *w, int *rows) {
+    *w = t->w;
+    *rows = target_rows(t);
+}
+
+void pcgfx_gl_target_dims(const GfxTarget *t, int *w, int *h) {
+    *w = t->w;
+    *h = t->h;
 }
 
 /* ---------------------------------------------------------------- init */
@@ -227,11 +249,31 @@ GfxTarget *pcgfx_gl_last_target(void) {
     return G.last;
 }
 
+/* After a target changes size (widescreen or the scale follows the window), the depth buffers of a size no target
+ * has any more are dropped. A target's depth always has the target's size, so none is still attached. */
+static void drop_unused_depths(void) {
+    GfxDepth **pd = &G.depths;
+    while (*pd != NULL) {
+        GfxDepth *d = *pd;
+        const GfxTarget *t;
+        for (t = G.targets; t != NULL; t = t->next)
+            if (t->w == d->w && t->h == d->h && t->s == d->s)
+                break;
+        if (t != NULL) {
+            pd = &d->next;
+            continue;
+        }
+        *pd = d->next;
+        glDeleteRenderbuffers(1, &d->rb);
+        free(d);
+    }
+}
+
 GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
     GfxTarget *t = pcgfx_gl_find_target(addr);
-    int s = scale();
+    int s = scale(), resized = t != NULL;
     static const float black[4] = {0, 0, 0, 1};
-    if (t != NULL && t->w == w && t->h == h) {
+    if (t != NULL && t->w == w && t->h == h && t->s == s) {
         G.last = t;
         return t;
     }
@@ -245,6 +287,7 @@ GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
     }
     t->w = w;
     t->h = h;
+    t->s = s;
     t->depth = NULL;
     glBindTexture(GL_TEXTURE_2D, t->color);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w * s, h * s, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -257,16 +300,19 @@ GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glClearBufferfv(GL_COLOR, 0, black);
     G.last = t;
+    if (resized)
+        drop_unused_depths();
     return t;
 }
 
 void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
     GfxDepth *d;
-    int s = scale();
+    int s;
     if (t == NULL)
         return;
+    s = t->s;
     for (d = G.depths; d != NULL; d = d->next)
-        if (d->addr == zaddr && d->w == t->w && d->h == t->h)
+        if (d->addr == zaddr && d->w == t->w && d->h == t->h && d->s == s)
             break;
     if (d == NULL) {
         float one = 1.0f;
@@ -274,6 +320,7 @@ void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
         d->addr = zaddr;
         d->w = t->w;
         d->h = t->h;
+        d->s = s;
         glGenRenderbuffers(1, &d->rb);
         glBindRenderbuffer(GL_RENDERBUFFER, d->rb);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, t->w * s, t->h * s);
@@ -295,7 +342,7 @@ void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
 }
 
 static void set_scissor(const GfxTarget *t, const int32_t r[4]) {
-    int s = scale();
+    int s = t->s;
     int x0 = r[0] < 0 ? 0 : r[0], y0 = r[1] < 0 ? 0 : r[1];
     int x1 = r[2] > t->w ? t->w : r[2], y1 = r[3] > t->h ? t->h : r[3];
     if (x1 < x0) x1 = x0;
@@ -315,7 +362,7 @@ void pcgfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float 
     if (t == NULL)
         return;
     bind_fbo(t->fbo);
-    glViewport(0, 0, t->w * scale(), t->h * scale());
+    glViewport(0, 0, t->w * t->s, t->h * t->s);
     set_scissor(t, rect);
     if (depth) {
         if (t->depth == NULL)
@@ -443,7 +490,7 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     if (t == NULL || sh == NULL || n <= 0)
         return;
     bind_fbo(t->fbo);
-    glViewport(0, 0, t->w * scale(), t->h * scale());
+    glViewport(0, 0, t->w * t->s, t->h * t->s);
     glUseProgram(sh->prog);
     glUniform4fv(sh->u_prim, 1, st->prim);
     glUniform4fv(sh->u_env, 1, st->env);
@@ -507,9 +554,10 @@ static int target_rows(const GfxTarget *t) {
 }
 
 void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
-    int s = scale(), rows, pw, ph;
+    int s, rows, pw, ph;
     if (t == NULL)
         return;
+    s = t->s;
     rows = target_rows(t);
     pw = t->w * s;
     ph = rows * s;
@@ -574,9 +622,10 @@ static int read_fbo(GLuint fbo, int x, int y, int w, int h, uint8_t *rgba) {
 }
 
 int pcgfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h) {
-    int s = scale();
+    int s;
     if (t == NULL)
         return -1;
+    s = t->s;
     *w = t->w * s;
     *h = t->h * s;
     if (rgba == NULL)

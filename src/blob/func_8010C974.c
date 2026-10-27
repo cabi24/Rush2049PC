@@ -32,19 +32,32 @@ typedef struct MineData {
  s32 base,ring[2]; f32 timer; f32 mat[2][4][3];
  f32 elapsed[2]; s8 step[2]; u8 alpha[2]; f32 scale[2]; s16 phase,active;
 } MineData;
+#ifdef TARGET_PC
+/* PC: a target (a level-object node, 112 bytes) keeps its N64 layout: next and its state, the mine's data (a heap
+ * record of its category), are 32-bit window addresses (docs/port/POINTERS.md 10). */
+enum n64p_Target { n64p_Target_ };
+enum n64p_MineData { n64p_MineData_ };
+typedef struct Target {
+ enum n64p_Target next;u8 flags,pad5[7];s32 model;s16 info;u8 pad18[2];
+ f32 mat[4][3],position[3];s16 kind;u8 pad82[10];s8 car;u8 pad93[3];
+ s32 sound;s8 sound_state,owner;u8 pad102[2];f32 age;enum n64p_MineData data;
+} Target;
+#else
 typedef struct Target {
  struct Target *next;u8 flags,pad5[7];s32 model;s16 info;u8 pad18[2];
  f32 mat[4][3],position[3];s16 kind;u8 pad82[10];s8 car;u8 pad93[3];
  s32 sound;s8 sound_state,owner;u8 pad102[2];f32 age;MineData *data;
 } Target;
+#endif
 #ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];u32 data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
+typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
 #else
 typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];Target *data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
 #endif
 #ifdef TARGET_PC
-#define N64P(x) ((Target *)(uintptr_t)(x))
+#define N64P(x) _Generic((x), enum n64p_Target: (Target *)(uintptr_t)(x), \
+    enum n64p_MineData: (MineData *)(uintptr_t)(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
@@ -121,7 +134,7 @@ void func_8010C974(Visual *v, s16 op)
     }
     if (D_801170FC != 0) return;
     t = N64P(v->data);
-    m = t->data;
+    m = N64P(t->data);
     if (!(t->flags & 1)) {
         if (D_80151528[t->owner].count == 3) {
             oldT = 0.0f;

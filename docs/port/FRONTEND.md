@@ -93,8 +93,19 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - **Resizing.** The window is resizable, with a minimum of 320 × 240. The frame keeps its aspect: square N64
   pixels, which is 4:3 for the N64's 320 × 240, at the largest integer multiple that fits, letterboxed
   (port/gfx's present, [GFX.md](GFX.md)). The default window is 640 × 480.
-- **Widescreen.** `video.widescreen` is the hook. It is read and reported, but not implemented yet: it would set
-  the renderer's reserved `GfxConfig.widescreen`, which would widen the projection and the target.
+- **Widescreen.** `video.widescreen` (`--widescreen`, `RUSH_GFX_WIDESCREEN`) widens the picture to a display
+  aspect: `off`, `auto`, `16:9`, `16:10`, `21:9`, any `W:H` or a ratio from 4:3 to 4. The 3D view shows more at
+  the sides at the same scale; menus, the HUD and sprites stay 4:3 in the middle; full-width fills and
+  backgrounds span the width. The renderer does it all ([GFX.md](GFX.md) "Widescreen"); the game code is
+  unchanged.
+  - `auto` takes the window's aspect at each frame, so resizing the window or going fullscreen changes it. A
+    640 × 480 window is 4:3, so `auto` is off there.
+  - With a fixed aspect and the default window (640 × 480), the window opens at the picture's aspect (853 × 480
+    at 16:9), so the frame shows at 2× as at 4:3. A window size set in the file or with `--size` is kept.
+  - At 16:9 the frame is 426 × 220. A 1280 × 720 window shows it at 3×, and a 1920 × 1080 screen at 4×, with a
+    border: the present uses whole multiples. `video.scale = auto` draws it at that multiple too, instead of
+    scaling a smaller frame up. A scale of the window's exact size is not implemented ([GFX.md](GFX.md) "Hooks
+    for later" says why).
 - **Quit.** Closing the window, the quit key, Ctrl-C and SIGTERM all end the loop the same way. The controller
   pak is flushed, rumble stops, and audio and the renderer shut down.
 
@@ -110,7 +121,8 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - **Layers.** Each overrides the one before:
   1. the defaults;
   2. the file;
-  3. the environment variables other parts already read: `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`;
+  3. the environment variables other parts already read: `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
+     `RUSH_GFX_WIDESCREEN`;
   4. a press file's `pak on|off`;
   5. command-line options, in order.
 - **Bad values.** A bad line in the file, or a bad environment value, is reported with its line and skipped.
@@ -131,9 +143,9 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `video.width`, `video.height` | 640, 480 | `--size WxH` | window size |
 | `video.fullscreen` | off | `--fullscreen` | start in desktop fullscreen |
 | `video.vsync` | on | | swap interval 1 or 0 |
-| `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8 (`RUSH_GFX_SCALE`) |
+| `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8, or auto: the largest whole multiple the window holds, so the frame is drawn at the size it is shown (`RUSH_GFX_SCALE`) |
 | `video.api` | gles | | `gles` or `gl` (`RUSH_GFX_API`) |
-| `video.widescreen` | off | | reserved (above) |
+| `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (working directory) | | where F12 saves |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
@@ -163,8 +175,8 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - The environment variables `RUSH_GFX_HEIGHT`, `RUSH_GFX_VERBOSE`, `RUSH2049_DUMP_AUDIO`, `RUSH2049_AUDIO_RATE`
   and `RUSH2049_ALSA_DEVICE` stay environment-only, as do `--dump-audio` and the run-limit options.
 - **How settings reach the parts.**
-  - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE` and
-    `RUSH_GFX_API` to the resolved values before `pc_gfx_init`.
+  - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`
+    and `RUSH_GFX_WIDESCREEN` to the resolved values before `pc_gfx_init`.
   - The window size goes to `pc_gfx_init`.
   - Vsync, fullscreen, the title and the minimum size are set by port/input on the SDL window.
 
@@ -196,7 +208,7 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | CTest | Program | Checks |
 |---|---|---|
 | `frontend.ini` | `frontend_test ini` | the INI reader: BOM, CRLF, comments, inline comments, quotes, case, a key before any section, a missing final newline, and four kinds of malformed line with their line numbers |
-| `frontend.settings` | `frontend_test settings` | the defaults; every type and its range checks (a bad value leaves the setting alone); bindings, unbound, `analog`, hotkeys; `--set` syntax; the written file reads back to the same text, quoted strings included; bad lines are counted and skipped |
+| `frontend.settings` | `frontend_test settings` | the defaults; every type and its range checks (a bad value leaves the setting alone); the widescreen aspect (W:H, ratios, auto, off, written back as 16:9 / 16:10 / 21:9, narrower than 4:3 refused); `scale = auto`; bindings, unbound, `analog`, hotkeys; `--set` syntax; the written file reads back to the same text, quoted strings included; bad lines are counted and skipped |
 | `frontend.layers` | `frontend_test layers` | the file over the defaults, the environment over the file (a bad variable is ignored), overrides over both in order, a bad override fails but the rest apply, no file, a missing `--config` file |
 | `frontend.locate` | `frontend_test locate` | XDG, a relative XDG (ignored), HOME, no place at all; the first run writes the defaults (making directories) and reads them back; edits are read next time; READ never creates; a file next to the executable wins |
 | `frontend.stick` | `frontend_test stick` | dead zone (radial), rescaling, full tilt in four directions, the octagon's corner and edge (22.5°: (76, 31)), a square pad's corner, the round gate, keys, monotonic travel |
@@ -244,8 +256,8 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
   It also gains `pc_si_motor(channel)`: si.c's rumble motor, 1 while on, or if it was turned on since the last
   call.
 - **`loop.c`**: the pause hold, and events pumped before the pads are read.
-- **`main.c`**: settings resolution, and new options: `--fullscreen`, `--size`, `--scale`, `--config`,
-  `--no-config`, `--set`, `--print-config` and `--log-input`. `pc_input_init` runs after `pc_gfx_init`, and
+- **`main.c`**: settings resolution, and new options: `--fullscreen`, `--size`, `--scale`, `--widescreen`,
+  `--config`, `--no-config`, `--set`, `--print-config` and `--log-input`. `pc_input_init` runs after `pc_gfx_init`, and
   `pc_input_shutdown` runs at exit.
 - **Build.** `pcfrontend` is a new object library (port/input and port/config), and `pcultra` no longer
   compiles port/input. port/gfx and port/audio take `RUSH_SDL2_TARGET` from the top level.

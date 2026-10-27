@@ -100,9 +100,10 @@ bytes, in the cars and in the environment visual pool `D_80138880` (100 nodes, d
 `GrabEnvEntry` `func_80090284`, the list `D_801391F0`, `entity_transform_apply` to free one).
 
 `data` stays a u32. For car visuals it holds flags or a float. For environment visuals it holds what the visual
-animates, and every such pointee is in the window: targets and level-object nodes, which `level_objects` allocates
-from the heap per category (`func_8010C974`, `func_8010DBB8`, `func_8010E72C`, `func_8010D9CC`, `func_8010E4E4`,
-`Animation24`), and `gCamera` entries in the game arena (`CamNode`). Those views store it through `N64W()` and read
+animates, and every such pointee is in the window: the targets, which are the level-object nodes, in the arena
+block `D_8014D280` (`func_8010C974`, `func_8010DBB8`, `func_8010E72C`, `func_8010D9CC`, `func_8010E4E4`,
+`Animation24`, and the cameras of `CamNode`; their state records are heap blocks of their category,
+POINTERS.md 10.2). Those views store it through `N64W()` and read
 it through `N64P()`. `func` is pointer-sized in every view: the pool's `Node` views had it as `u32` (and `data` as a
 pointer), `StartCone`, `BNode`, `CamNode`, rocket's `Entity` and `ModelObj` as an integer (now `intptr_t`), and the
 callbacks' own views (`entity_process_main`, `entity_update_callback`, `buffer_swap`, the tire views) had padding
@@ -173,23 +174,17 @@ that name different fields at different places. They are not width disagreements
 
 ## 6. What is left
 
-- **The target info table `D_80117530`** (48-byte N64 records, MAT3 `targetInfo`): `level_objects`' view has four
-  pointers (name, file, callback, animation = the visual's func), others one or none, and the storage has the
-  layout of `func_8010DBB8`'s `TargInfo` (56 bytes, one pointer). The environment visuals' func comes from it through
-  32-bit views or raw N64 offsets (`StartCone`'s `vis->f20 = tInfo->f12`, `func_8010D9CC`'s `stat`, `CamNode.w14`
-  from `CamTbl.w0C`, and `func_8010D9CC`'s `* 0x30` stride), so a hit target's visual gets a wrong function on the
-  PC. It needs its own unification (about 11 views).
-- **Targets** are heap records with pointer fields (`next`, `MineData *data`), allocated with N64 sizes by
-  `level_objects`, while their views have the host layout.
-- **The input records `D_8014A118`** (76 bytes on the N64; 80 on the PC, where `PlayerRow` has a pointer at +0x48):
-  `world_physics_tick` sets `car->input = &D_8014A118[i]` with its 76-byte view, so only car 0's pointer is the start
-  of its record. About 30 views index them by 76 (DATA.md).
-- **`func_8010D85C`'s `Obj`**, a visual view with a pointer `data` (40 bytes), is in the front-end work's files.
+- **The target info table `D_80117530`**, **the targets** and **the input records `D_8014A118`**: done in
+  [POINTERS.md](POINTERS.md) 10. The table is 0x40 bytes a record on the PC (its start and visual functions are
+  host functions); the targets are the level-object nodes, which keep their N64 layout in the arena with 32-bit
+  links and state (section 3's reasoning holds: everything a target holds is a window address); an input record is
+  80 bytes in every view, so `world_physics_tick` gives every car its own record. `func_8010D85C`'s `Obj` (a target
+  visual, padded over `next`) has the visual's PC layout there too.
 - The heuristics that found partial views and raw offsets (DWARF: padding spanning the visuals and car-like fields
   after it; text: car pointers in m2c byte arithmetic, `pad0EC[x]`, `M2C_FIELD` at car offsets, with
   `-Wint-conversion` for implicit conversions) can miss a view that reaches cars some other way.
 
 **Needs the ROM to confirm:** that `D_80110D08`'s six descriptors are at 0x801108D0.. inside the arena
 (`data_report.txt` classes their pointers; the research notes say so) and that their fields are all words (the
-arena swaps `D_801108C8` as `f32`); that the targets, level-object nodes and road nodes and polygons the u32 fields
-hold are in the heap; and the visual starters and animators in a real race (`--screenshot-at` in a race).
+arena swaps `D_801108C8` as `f32`); that the road nodes and polygons the u32 fields hold are in the heap (the targets'
+part is in POINTERS.md 10.7); and the visual starters and animators in a real race (`--screenshot-at` in a race).
