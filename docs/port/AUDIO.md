@@ -26,7 +26,8 @@ at 2.0 (`func_80014A0C`), so a voice's source always fits the microcode's 0x200-
 the delay effect: nothing calls its setter (`func_80020528` → `func_80010E80`), and init passes a delay size of 0.
 The stage is implemented anyway.
 
-The data flow, from the asset survey ([ASSETS.md](ASSETS.md) §3.8) and the driver:
+The data flow, from the asset survey ([ASSETS.md](ASSETS.md) §3.8) and the driver (the files themselves, and how
+port/assets converts them: [MUSYX_DATA.md](MUSYX_DATA.md)):
 - Bank sounds start in `func_80022874`, then `func_80016CF0`. The format is the top byte of the sample descriptor's
   length word. `data` is a cart address, `0xB0000000 | (0x39B40 + offset)`.
 - Not being a RAM address, a cart address sets voice flag 1. The builder then fetches through two caches it fills
