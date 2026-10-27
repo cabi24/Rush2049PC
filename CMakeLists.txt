@@ -495,6 +495,36 @@ else()
 endif()
 add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_check.py --build ${CMAKE_BINARY_DIR}
     ${ENDIAN_CHECK_ARGS})
+# The audio manager's records (docs/port/SYNTH.md): every live view of an fx tag (N64 0x44 bytes), a sequence
+# (0x3C), an emitter (0x2C) and the command table has the host layout of audiomgr_thread.c's views, read from the
+# DWARF of the game's objects (tools/port/view_check.py; ELF objects only).
+if(NOT WIN32)
+    set(SOUND_FX_VIEWS
+        src/blob/groups/menu_save_options/hud_setup.c src/blob/groups/camera_target_track/group.c
+        src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c src/blob/groups/engine_sound_sync/audiomgr_thread.c
+        src/blob/groups/entity_lookup/group.c src/blob/groups/entity_helpers/group.c src/blob/groups/transform/group.c
+        src/blob/groups/engine_sound_sync/engine_sound_sync.c src/blob/groups/updatefx/updatefx.c
+        src/blob/groups/audio_pitch_adjust/ap.c src/blob/groups/record_score/group.c src/blob/results_time_display.c)
+    set(SOUND_SEQ_VIEWS
+        src/blob/groups/engine_sound_sync/audiomgr_thread.c src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c
+        src/blob/groups/menu_save_options/hud_setup.c src/blob/hud_speed_display.c src/blob/car_stats_display.c
+        src/blob/func_800D18D8.c src/blob/game_timer_pause.c)
+    set(SOUND_EMITTER_VIEWS
+        src/blob/groups/camera_target_track/group.c src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c
+        src/blob/hud_speed_display.c src/blob/groups/entity_helpers/group.c src/blob/groups/entity_lookup/group.c
+        src/blob/groups/engine_sound_sync/engine_sound_sync.c)
+    string(REPLACE ";" "," SOUND_FX_VIEWS "${SOUND_FX_VIEWS}")
+    string(REPLACE ";" "," SOUND_SEQ_VIEWS "${SOUND_SEQ_VIEWS}")
+    string(REPLACE ";" "," SOUND_EMITTER_VIEWS "${SOUND_EMITTER_VIEWS}")
+    set(VIEW_CHECK ${Python3_EXECUTABLE} ${PORT_TOOLS}/view_check.py --build ${CMAKE_BINARY_DIR})
+    add_test(NAME views_sound_fxtag COMMAND ${VIEW_CHECK} --n64-size 0x44 --in ${SOUND_FX_VIEWS}
+        --tag tFxSequence,Node68,Voice,Entity,Effect,FxTag,Node,Record,ResEntry)
+    add_test(NAME views_sound_sequence COMMAND ${VIEW_CHECK} --n64-size 0x3C --in ${SOUND_SEQ_VIEWS}
+        --tag anon_ll_id_3c,Sequence,Chan,RecA,Event,Node16)
+    add_test(NAME views_sound_emitter COMMAND ${VIEW_CHECK} --n64-size 0x2C --in ${SOUND_EMITTER_VIEWS}
+        --tag Cam,CamSlot,Owner,RecB,Source)
+    add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --sym D_80142DD8)
+endif()
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game

@@ -41,12 +41,27 @@ typedef struct List {
     u32 count;
     Link *head, *tail;
 } List;
+#ifdef TARGET_PC
+/* PC: an fx tag (audiomgr_thread.c's tFxSequence, 0x44 bytes on the N64) is 88 bytes: its links, list and data
+ * pointer are host-sized. The sorted-tag nodes (anon_te_tag_c: two tree links and the tag) are 24 bytes, and a
+ * command (tAudioMsg) 32 (docs/port/SYNTH.md). */
+typedef struct Voice {
+    Link link;
+    List *owner;            /* 0x10 */
+    s32 index;              /* 0x18 */
+    u8 pad1C[0x50 - 0x1C];
+    void *data;             /* 0x50 */
+} Voice;
+#define SORTED_TAG_SIZE 24
+#else
 typedef struct Voice {      /* 0x44 */
     Link link;
     List *owner;            /* 0x08 */
     s32 index;              /* 0x0C */
     u8 pad10[0x34];
 } Voice;
+#define SORTED_TAG_SIZE 12
+#endif
 typedef struct Chan {       /* 0x3C */
     Link link;
     s32 index;              /* 0x08 */
@@ -54,7 +69,11 @@ typedef struct Chan {       /* 0x3C */
     s8 unkD;
     u8 padE[0x2E];
 } Chan;
+#ifdef TARGET_PC
+typedef struct Slot24 { u8 pad0[3]; u8 active; u8 pad4[28]; } Slot24;
+#else
 typedef struct Slot24 { u8 pad0[3]; u8 active; u8 pad4[20]; } Slot24;
+#endif
 typedef struct Handler { void (*func)(void); s32 unk4; intptr_t unk8; } Handler;   /* tOrderedList: unk8 is its root */
 
 extern s8 D_8011023C;
@@ -140,7 +159,7 @@ void hud_setup(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6
     sound_list_init(&D_80143FF8, 0, 1);
     sound_list_init(&D_80144020, 0, 1);
     sound_list_init(&D_80144C50, 0, 1);
-    D_80110248 = AllocateMemoryHeap(0, D_80110264 * 12);
+    D_80110248 = AllocateMemoryHeap(0, D_80110264 * SORTED_TAG_SIZE);
     PurgeableMemory((u32)D_80110248, 0);
     D_80143F58.func = func_8009539C;
     D_80143F58.unk8 = 0;

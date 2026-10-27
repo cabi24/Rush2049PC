@@ -3706,14 +3706,26 @@ typedef s64 M2C_UNK64;
 void entity_flag_check(s32 *ipa_s0);
 void func_800988D8(void);
 
+#ifdef TARGET_PC
+/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links: its id is at +0x10 and its free and
+ * active flags at +0x14, +0x15 (docs/port/SYNTH.md). A list header keeps its head at +8. */
+#define SEQ_ID 0x10
+#define SEQ_FREE 0x14
+#define SEQ_ACTIVE 0x15
+#else
+#define SEQ_ID 8
+#define SEQ_FREE 0xC
+#define SEQ_ACTIVE 0xD
+#endif
+
 void entity_flag_check(s32 *ipa_s0) {
-    M2C_FIELD(ipa_s0, s32 *, 8) = (s32) (M2C_FIELD(ipa_s0, s32 *, 8) & D_80146104);
-    if (M2C_FIELD(ipa_s0, s8 *, 0xD) != 0) {
+    M2C_FIELD(ipa_s0, s32 *, SEQ_ID) = (s32) (M2C_FIELD(ipa_s0, s32 *, SEQ_ID) & D_80146104);
+    if (M2C_FIELD(ipa_s0, s8 *, SEQ_ACTIVE) != 0) {
         func_8009211C(&D_80149860, ipa_s0);
-        M2C_FIELD(ipa_s0, s8 *, 0xD) = 0;
+        M2C_FIELD(ipa_s0, s8 *, SEQ_ACTIVE) = 0;
     }
     func_80091FBC(&D_80149808, ipa_s0, M2C_FIELD(&D_80149808, s32 **, 8));
-    M2C_FIELD(ipa_s0, s8 *, 0xC) = 1;
+    M2C_FIELD(ipa_s0, s8 *, SEQ_FREE) = 1;
 }
 
 void func_800988D8(void) {

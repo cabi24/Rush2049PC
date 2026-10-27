@@ -1,6 +1,11 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef unsigned char u8;typedef unsigned int u32;
+#ifdef TARGET_PC
+/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links (docs/port/SYNTH.md). */
+typedef struct Node16 {void *pad0[2];u32 value;u8 busy,pad13[3];} Node16;
+#else
 typedef struct Node16 {u32 pad0,pad4,value;u8 busy,pad13[3];} Node16;
+#endif
 typedef struct List16 {u8 indirect,doubly,pad2[2];u32 count;Node16 *head,*tail;} List16;
 extern List16 D_80149808;extern u32 D_80110258,D_801460F8,D_80146104;
 void func_8009211C(List16 *,Node16 *);
