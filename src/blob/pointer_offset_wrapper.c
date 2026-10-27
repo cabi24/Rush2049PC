@@ -3692,6 +3692,15 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-void pointer_offset_wrapper(s32 arg0, s32 arg1) {
-    func_8008AD04(arg0 + 4, arg1 + 4);
+#ifdef TARGET_PC
+/* NewWorld's bsearch comparator (wheel_torque_apply): it gets pointers (its key is on the stack), and the
+ * search reads the result func_8008AD04 leaves in v0 through the void return. On the PC both are explicit. */
+#define PC_V0_S32 s32
+#define PC_V0_RETURN return
+#else
+#define PC_V0_S32 void
+#define PC_V0_RETURN
+#endif
+PC_V0_S32 pointer_offset_wrapper(intptr_t arg0, intptr_t arg1) {
+    PC_V0_RETURN func_8008AD04(arg0 + 4, arg1 + 4);
 }
