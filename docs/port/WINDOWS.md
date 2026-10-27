@@ -180,7 +180,7 @@ on aarch64).
   definition that reads a pointer there gets the upper half of whatever the slot held. In a register a 32-bit move
   zero-extends, so on Linux a constant 0 for a pointer arrives as NULL, and [PROTOTYPES.md](PROTOTYPES.md) counted
   such views harmless. `char` and `short` arguments are extended and stored as 4 bytes, so they are fine.
-- *What it broke.* Every synthetic boot faulted 0.4 s in, at the first `playgame_state_change`:
+- *What it broke.* Every synthetic boot faulted 0.4 s in, when `playgame_state_change` entered state 0x2:
   `resource_slot_clear` calls `audio_frame_sync(id, 0, 0, 0, 0)` (LoadWave) through an all-`s32` prototype, and
   the definition's fifth parameter is the heap. It read 0x00007FF6_00000000, the upper half of a host address left
   in the slot, and `audio_helper` faulted reading the heap's first block at +8. The boot without a ROM stops before
