@@ -19,7 +19,8 @@ find_package(ZLIB REQUIRED)
 find_path(PCGFX_GLES3_INCLUDE GLES3/gl3.h REQUIRED)
 
 option(RUSH_GFX_SDL "Build the SDL2 window backend when SDL2 is found" ON)
-# The fetched SDL2 serves this directory only; a shared one (with port/audio) belongs at the top level.
+# In the top-level build, SDL2 is looked up (or fetched) once there, for every part (RUSH_SDL2_TARGET). Built on
+# its own, this directory finds or fetches its own.
 option(RUSH_FETCH_SDL2 "Download and build SDL2 (pinned 2.30.x) for the window backend" OFF)
 
 add_library(pcgfx STATIC
@@ -41,7 +42,9 @@ endif()
 # ---------------------------------------------------------------- SDL2 window backend
 set(PCGFX_SDL_TARGET "")
 if(RUSH_GFX_SDL)
-    if(RUSH_FETCH_SDL2)
+    if(RUSH_SDL2_SHARED)
+        set(PCGFX_SDL_TARGET "${RUSH_SDL2_TARGET}")
+    elseif(RUSH_FETCH_SDL2)
         include(FetchContent)
         FetchContent_Declare(SDL2
             URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.9/SDL2-2.30.9.tar.gz

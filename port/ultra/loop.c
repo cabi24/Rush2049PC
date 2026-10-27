@@ -3,12 +3,14 @@
  *
  * The N64 threads run on their own host threads; this loop owns the window and the GL context. It runs the
  * RSP tasks they submit (graphics, then the SP and DP events; audio, then SP), fires the OS timers, sends the
- * AI events, and at each 60 Hz retrace polls input, sends the VI event, shows a swapped framebuffer and handles
- * window events. Between deadlines it sleeps until a thread submits work. --screenshot-at and --frames act two
- * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. */
+ * AI events, and at each 60 Hz retrace handles window events, polls input, sends the VI event and shows a swapped
+ * framebuffer. Between deadlines it sleeps until a thread submits work. --screenshot-at and --frames act two
+ * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. While
+ * port/input says the game is paused, it holds (hold()). */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "ultra.h"
 
@@ -30,6 +32,23 @@ static void status(const char *tag)
             pc_frame, pc_rcp_gfx_tasks, pc_rcp_audio_tasks);
 }
 
+void osSetTime(uint64_t ticks);   /* timer.c */
+
+/* The pause key, or focus lost with pause_on_focus_loss (port/input): no retraces, timers, RSP tasks or AI
+ * events while held, so the game's threads stop where they wait for them; window events are still handled.
+ * The N64 clock is set back by the time held, so osGetTime and the OS timers don't jump. */
+static void hold(void)
+{
+    uint64_t ticks = pc_ticks_now();
+    while (pc_input_paused() && !pc_quit) {
+        if (pc_gfx_poll_events())
+            pc_quit = 1;
+        struct timespec ts = {0, 1000000000 / PC_VI_HZ};
+        nanosleep(&ts, NULL);
+    }
+    osSetTime(ticks);
+}
+
 int pc_ultra_run(const PcRunOptions *opt)
 {
     const uint64_t vi_ns = 1000000000u / PC_VI_HZ;
@@ -43,6 +62,11 @@ int pc_ultra_run(const PcRunOptions *opt)
         next_status = (uint64_t)opt->status_every * 1000000000u;
 
     while (!pc_quit) {
+        if (pc_input_paused()) {
+            hold();
+            next_vi = pc_host_ns() + vi_ns;
+            continue;
+        }
         uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
         uint64_t timer = pc_timer_service(ticks);
         if (timer && timer > ticks && now + pc_ticks_to_ns(timer - ticks) < deadline)
@@ -58,13 +82,13 @@ int pc_ultra_run(const PcRunOptions *opt)
             PcPad pads[4];
             const void *fb;
             pc_frame++;
+            if (pc_gfx_poll_events())   /* first, so the pads below are this retrace's */
+                pc_quit = 1;
             pc_input_poll(pads);
             pc_si_set_pads(pads);
             pc_vi_retrace(&fb);
             if (fb)
                 pc_gfx_present(fb);
-            if (pc_gfx_poll_events())
-                pc_quit = 1;
             if (opt->screenshot_at && !shot_vi && pc_rcp_gfx_tasks >= opt->screenshot_at)
                 shot_vi = pc_frame;
             if (opt->frames && !frames_vi && pc_rcp_gfx_tasks >= opt->frames)

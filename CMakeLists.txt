@@ -14,6 +14,47 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # tools/port/census.py reads compile_com
 find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
 set(PORT_TOOLS ${CMAKE_SOURCE_DIR}/tools/port)
 
+# ---------------------------------------------------------------- SDL2 (optional)
+# One SDL2 for the window (port/gfx), the keyboard and controllers (port/input) and audio output (port/audio).
+# An installed one is used when CMake finds it (config package, then pkg-config); RUSH_FETCH_SDL2 downloads the
+# pinned release once and builds it statically instead (about 50 s on the Pi 5 with -j3). Without SDL2 the build
+# is headless EGL, null/WAV/ALSA audio and scripted input only (docs/port/FRONTEND.md).
+option(RUSH_SDL2 "Use SDL2 when it is found: window, keyboard and controllers, audio" ON)
+option(RUSH_FETCH_SDL2 "Download and build SDL2 2.30.9 (SHA-256 pinned) instead of an installed one" OFF)
+set(RUSH_SDL2_TARGET "")
+if(RUSH_FETCH_SDL2)
+    include(FetchContent)
+    FetchContent_Declare(SDL2
+        URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.9/SDL2-2.30.9.tar.gz
+        URL_HASH SHA256=24b574f71c87a763f50704bbb630cbe38298d544a1f890f099a4696b1d6beba4)
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_STATIC_PIC ON CACHE BOOL "" FORCE)   # linked into the PIE executable
+    set(SDL_TEST OFF CACHE BOOL "" FORCE)
+    set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(SDL2)
+    set(RUSH_SDL2_TARGET SDL2::SDL2-static)
+elseif(RUSH_SDL2)
+    find_package(SDL2 CONFIG QUIET)
+    if(TARGET SDL2::SDL2)
+        set(RUSH_SDL2_TARGET SDL2::SDL2)
+    else()
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(RUSH_SDL2_PC QUIET IMPORTED_TARGET sdl2)
+            if(RUSH_SDL2_PC_FOUND)
+                set(RUSH_SDL2_TARGET PkgConfig::RUSH_SDL2_PC)
+            endif()
+        endif()
+    endif()
+endif()
+set(RUSH_SDL2_SHARED ON)   # port/gfx and port/audio use RUSH_SDL2_TARGET instead of their own lookup
+if(RUSH_SDL2_TARGET)
+    message(STATUS "SDL2: ${RUSH_SDL2_TARGET}")
+else()
+    message(STATUS "SDL2: none (headless, scripted input; -DRUSH_FETCH_SDL2=ON downloads it)")
+endif()
+
 # ---------------------------------------------------------------- game code
 # Every C file of the decompilation, compiled for the host with TARGET_PC.
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
@@ -151,17 +192,28 @@ target_compile_definitions(pcdata_rt PRIVATE PC_DATA_REPORT_DEFAULT="${CMAKE_BIN
 target_link_libraries(pcdata_rt PUBLIC ZLIB::ZLIB)
 
 # ---------------------------------------------------------------- the PC layer and the executable
-# port/ultra: libultra, ROM, memory, threads and the main loop (docs/port/ULTRA.md); port/input: pads. The other
+# port/ultra: libultra, ROM, memory, threads and the main loop (docs/port/ULTRA.md). pcfrontend: port/input (pads,
+# keyboard, controllers, window keys) and port/config (rush2049pc.ini), docs/port/FRONTEND.md. The other
 # parts link in as object libraries (PC_PORT_OBJECT_LIBS) or as static libraries linked whole
 # (PC_PORT_ARCHIVES), so their strong definitions replace port/ultra's weak no-op defaults
 # (port/ultra/defaults.c); a part not built yet is simply left out of the lists. Targets may be defined later in
 # this file: they are only named here.
 find_package(Threads REQUIRED)
-file(GLOB PC_ULTRA_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/ultra/*.c ${CMAKE_SOURCE_DIR}/port/input/*.c)
+file(GLOB PC_ULTRA_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/ultra/*.c)
 add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
-target_include_directories(pcultra PRIVATE port/include port/ultra ${ZLIB_INCLUDE_DIRS})
+target_include_directories(pcultra PRIVATE port/include port/ultra port/config ${ZLIB_INCLUDE_DIRS})
 target_compile_options(pcultra PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
-list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcdata_rt)   # port/data's loader (docs/port/DATA.md)
+file(GLOB PC_FRONTEND_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/input/*.c
+     ${CMAKE_SOURCE_DIR}/port/config/*.c)
+add_library(pcfrontend OBJECT ${PC_FRONTEND_SOURCES})
+target_include_directories(pcfrontend PRIVATE port/include port/ultra port/config port/input)
+target_compile_options(pcfrontend PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(pcfrontend PUBLIC m)
+if(RUSH_SDL2_TARGET)
+    target_compile_definitions(pcfrontend PRIVATE PC_HAVE_SDL2)
+    target_link_libraries(pcfrontend PUBLIC ${RUSH_SDL2_TARGET})
+endif()
+list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcfrontend pcdata_rt)   # port/data's loader (docs/port/DATA.md)
 list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (docs/port/AUDIO.md, GFX.md)
 
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
@@ -239,3 +291,4 @@ set_target_properties(pc_data_test rush2049pc_datacheck PROPERTIES EXPORT_COMPIL
 
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
+add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)

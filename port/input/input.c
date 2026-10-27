@@ -1,17 +1,21 @@
-/* port/input/input.c: the pads the SI reports (pc_input_poll, once per retrace).
+/* port/input/input.c: the pads the SI reports (pc_input_poll, once per retrace; docs/port/FRONTEND.md).
  *
- * For now: controller 1 connected and idle, plus scripted presses in v5's format, so the same scripts drive
- * both builds (docs/PORT_PLAN.md Phase 7):
+ * Each retrace: live input (the keyboard and game controllers, input_sdl.c, in SDL2 builds with a window),
+ * then scripted presses OR'ed over it, then the rumble pak's motor passed to the controllers. Controller 1 is
+ * always connected; another port is when a controller is assigned to it or a script uses it.
+ *
+ * Scripted presses use v5's format, so the same scripts drive both builds (docs/PORT_PLAN.md Phase 7):
  *     --press T:BUTTON[@PORT][:DUR],...       T and DUR in seconds since boot (DUR 0.2 by default)
  *     --press-file PATH                       one `TIME BUTTON[@PORT] [DURATION]` per line, `#` comments,
  *                                             `pak on|off`, `frames N`
  * BUTTON: A B Z START UP DOWN LEFT RIGHT L R CU CD CL CR STICKUP STICKDOWN STICKLEFT STICKRIGHT. The ports a
- * script uses are connected. Live keyboard and controllers come with the SDL window (port/gfx). */
+ * script uses are connected. A scripted stick direction replaces that axis of the live stick. */
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "input_internal.h"
 #include "ultra.h"
 
 typedef struct {
@@ -123,10 +127,74 @@ int pc_input_add_file(const char *path)
     return err;
 }
 
+/* ---------------------------------------------------------------- rumble and the input log */
+
+/* The motor is on or off, and a game may pulse it for a weaker effect: the strength is 1 while it is on and
+ * otherwise the share of the last 4 retraces it was on, so a pulsed motor gives a steady, weaker rumble. */
+#define RUMBLE_WINDOW 4
+static uint8_t g_motor[4][RUMBLE_WINDOW];
+static int g_motor_pos;
+static double g_rumble_strength = 1.0;
+
+static void rumble(void)
+{
+    g_motor_pos = (g_motor_pos + 1) % RUMBLE_WINDOW;
+    for (int port = 0; port < 4; port++) {
+        int on = pc_si_motor(port), n = 0;
+        g_motor[port][g_motor_pos] = (uint8_t)on;
+        for (int i = 0; i < RUMBLE_WINDOW; i++)
+            n += g_motor[port][i];
+        pc_input_live_rumble(port, g_rumble_strength * (on ? 1.0 : (double)n / RUMBLE_WINDOW));
+    }
+}
+
+int pc_input_log;
+static PcPad g_logged[4];
+
+static void log_changes(const PcPad pads[4])
+{
+    static const char *const names[16] = {"C-RIGHT", "C-LEFT", "C-DOWN", "C-UP", "R", "L", "?", "?",
+                                          "D-RIGHT", "D-LEFT", "D-DOWN", "D-UP", "START", "Z", "B", "A"};
+    for (int port = 0; port < 4; port++) {
+        const PcPad *p = &pads[port], *o = &g_logged[port];
+        if (p->buttons == o->buttons && p->stick_x == o->stick_x && p->stick_y == o->stick_y &&
+            p->connected == o->connected)
+            continue;
+        char list[128] = "";
+        for (int bit = 15; bit >= 0; bit--)
+            if (p->buttons & (1u << bit))
+                snprintf(list + strlen(list), sizeof list - strlen(list), "%s%s", *list ? "+" : "", names[bit]);
+        fprintf(stderr, "rush2049pc: input player %d: %s stick x=%+d y=%+d%s\n", port + 1, *list ? list : "-",
+                p->stick_x, p->stick_y, p->connected ? "" : " (not connected)");
+        g_logged[port] = *p;
+    }
+}
+
+/* ---------------------------------------------------------------- the interface */
+
+int pc_input_init(const PcSettings *s)
+{
+    g_rumble_strength = s->rumble;
+    return pc_input_live_init(s);
+}
+
+void pc_input_shutdown(void)
+{
+    for (int port = 0; port < 4; port++)
+        pc_input_live_rumble(port, 0);
+    pc_input_live_shutdown();
+}
+
+int pc_input_paused(void)
+{
+    return pc_input_live_paused();
+}
+
 void pc_input_poll(PcPad pads[4])
 {
     double now = pc_host_ns() / 1e9;
     memset(pads, 0, 4 * sizeof *pads);
+    pc_input_live_poll(pads);
     for (int i = 0; i <= g_max_port; i++)
         pads[i].connected = 1;
     for (int i = 0; i < g_npress; i++) {
@@ -139,4 +207,7 @@ void pc_input_poll(PcPad pads[4])
         if (p->y)
             pads[p->port].stick_y = p->y;
     }
+    rumble();
+    if (pc_input_log)
+        log_changes(pads);
 }

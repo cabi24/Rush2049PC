@@ -100,6 +100,9 @@ void pc_sha1(const void *data, size_t size, uint8_t out[20]);
 int pc_si_init(const char *pak_path, int pak_kind);  /* pak_kind: PC_PAK_* */
 enum { PC_PAK_NONE = 0, PC_PAK_MEMORY = 1, PC_PAK_RUMBLE = 2 };
 void pc_si_set_pads(const PcPad pads[4]);            /* main thread, each retrace */
+/* The rumble pak's motor on a channel: 1 while it is on, or if it was turned on since the last call (a pulse
+ * between two calls counts). For port/input, which passes it to the controller. */
+int pc_si_motor(int channel);
 void pc_si_flush(void);                              /* write the .mpk if it changed */
 
 /* ---------------------------------------------------------------- memory.c */
@@ -121,6 +124,12 @@ int pc_input_add_spec(const char *spec);   /* --press T:BUTTON[@PORT][:DUR],...;
 int pc_input_add_file(const char *path);   /* --press-file */
 extern int pc_input_script_pak;            /* a press file's `pak on|off`, else -1 */
 extern uint32_t pc_input_script_frames;    /* a press file's `frames N` */
+struct PcSettings;                         /* port/config/config.h */
+/* After pc_gfx_init: live keyboard and controllers when there is an SDL window (0), else scripts only (-1). */
+int pc_input_init(const struct PcSettings *settings);
+void pc_input_shutdown(void);
+int pc_input_paused(void);                 /* the pause key, or focus lost with pause_on_focus_loss */
+extern int pc_input_log;                   /* --log-input: print every change of a player's pad */
 
 /* ---------------------------------------------------------------- loop.c */
 typedef struct {

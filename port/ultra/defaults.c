@@ -26,6 +26,7 @@ WEAK int pc_gfx_init(int headless, int window_width, int window_height)
 WEAK void pc_gfx_run_dl(const void *dl) { (void)dl; }
 WEAK void pc_gfx_present(const void *framebuffer) { (void)framebuffer; }
 WEAK int pc_gfx_poll_events(void) { return 0; }
+WEAK int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event)) { (void)hook; return -1; }
 WEAK int pc_gfx_save_screenshot(const char *path) { (void)path; return -1; }
 WEAK void pc_gfx_shutdown(void) {}
 

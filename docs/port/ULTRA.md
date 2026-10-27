@@ -156,11 +156,17 @@ CIC 6102 and `osMemSize` into the window at 0x80000300 and clears the NMI buffer
 
 ## 4. The main loop and options
 
-`main` fixes the absolute symbols, maps the window, loads and checks the ROM and runs `osInitialize`. It then calls
-`pc_data_init(rom, size)`, `pc_gfx_init(headless, 640, 480)` (the game draws 320 × 220), `pc_si_init` and
-`pc_audio_init`. It starts `n64_main` on an N64 thread and runs the loop on the host main thread. Each pass runs
-due timers, queued RSP tasks and the AI. At each retrace it polls `pc_input_poll`, sends the VI event, presents a
-swapped framebuffer and calls `pc_gfx_poll_events`. Between deadlines it sleeps until a thread submits work.
+`main` resolves the settings (`rush2049pc.ini`, the environment and the options: [FRONTEND.md](FRONTEND.md)),
+fixes the absolute symbols, maps the window, loads and checks the ROM and runs `osInitialize`. It then calls
+`pc_data_init(rom, size)`, `pc_gfx_init(headless, 640, 480)` (the window size is a setting; the game draws
+320 × 220), `pc_input_init`, `pc_si_init` and `pc_audio_init`. It starts `n64_main` on an N64 thread and runs the
+loop on the host main thread.
+- Each pass runs due timers, queued RSP tasks and the AI.
+- At each retrace it calls `pc_gfx_poll_events` (window events, which also reach port/input), polls
+  `pc_input_poll`, sends the VI event and presents a swapped framebuffer.
+- Between deadlines it sleeps until a thread submits work.
+- While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
+  events. Afterwards it sets the N64 clock back by the time held.
 
 | Option | |
 |---|---|
@@ -172,6 +178,8 @@ swapped framebuffer and calls `pc_gfx_poll_events`. Between deadlines it sleeps 
 | `--pak PATH`, `--no-pak`, `--rumble`, `--expansion-pak` | accessories; 8 MiB of RDRAM |
 | `--audio BACKEND`, `--dump-audio PATH` | port/audio's output (`RUSH2049_AUDIO`, `RUSH2049_DUMP_AUDIO` too) |
 | `-v`, `--trace-os`, `--status N`, `--selftest` | logging; switches; a status line every N s; the self-test |
+| `--fullscreen`, `--size WxH`, `--scale N`, `--log-input` | the window and live input ([FRONTEND.md](FRONTEND.md)) |
+| `--config PATH`, `--no-config`, `--set S.KEY=VALUE`, `--print-config` | the settings file ([FRONTEND.md](FRONTEND.md)) |
 
 `--frames` and `--screenshot-at` act two retraces after their graphics task, once the scheduler has swapped the
 frame in and it has been shown.
