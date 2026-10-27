@@ -91,7 +91,9 @@ def compile_one(job):
     cmd = list(cmd)
     i = cmd.index("-o")
     cmd[i + 1] = str(obj)
-    cmd = cmd[:1] + DUMP_FLAGS + cmd[1:]
+    # after the build's own flags, so the analysis is the same in every build type: its -O1 over an optimized
+    # build's -O2, and -g where the build has none (Release)
+    cmd = cmd + DUMP_FLAGS + ["-g"]
     r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     return uid, (r.stderr[-400:] if r.returncode else None)
 
