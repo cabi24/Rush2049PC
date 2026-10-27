@@ -53,9 +53,14 @@ jobs:
           path: bin
       - name: Without Mesa
         run: |
-          bin/win_timing.exe
-          time (bin/rush2049pc.exe --selftest > st.log 2>&1); tail -3 st.log
-          time (bin/rush2049pc.exe --selftest --fast > st.log 2>&1); tail -3 st.log
+          set +e
+          time (bin/rush2049pc.exe --selftest > st.log 2>&1); cat st.log
+          time (bin/rush2049pc.exe --selftest --fast > st.log 2>&1); cat st.log
+          RUSH_DIAG_TIME=1 bin/rush2049pc.exe --selftest --trace-os > trace-real.log 2>&1
+          wc -l trace-real.log
+          head -150 trace-real.log
+          grep -E "nap|main wait" trace-real.log | sort | uniq -c | sort -rn | head -20
+          exit 0
       - name: Software OpenGL
         run: |
           curl -sSL -o mesa.7z "$MESA_7Z"
@@ -65,7 +70,7 @@ jobs:
           ls -la bin/
       - name: With Mesa
         run: |
-          bin/win_timing.exe gl
+          set +e
           time (bin/rush2049pc.exe --selftest > st.log 2>&1); cat st.log
           time (bin/rush2049pc.exe --selftest --fast > st.log 2>&1); cat st.log
           RUSH_DIAG_TIME=1 bin/rush2049pc.exe --selftest --fast --trace-os > trace.log 2>&1 || true
@@ -73,6 +78,7 @@ jobs:
           grep -c "main wait: timeout" trace.log || true
           grep -c "main wait: event" trace.log || true
           head -300 trace.log
+          exit 0
       - uses: actions/checkout@v4
         with:
           path: src
@@ -90,5 +96,6 @@ jobs:
           name: diag-logs
           path: |
             trace.log
+            trace-real.log
             synth/paths/
           if-no-files-found: ignore

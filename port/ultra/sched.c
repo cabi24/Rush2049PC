@@ -115,7 +115,10 @@ static void nap(pthread_cond_t *cv, uint64_t ns_from_now)
 {
     (void)cv;
     pthread_mutex_unlock(&g_lock);
+    uint64_t diag_t0 = pc_real_ns();   /* TEMPORARY diagnostic */
     WaitForSingleObject(hires_timer(ns_from_now), INFINITE);
+    if (pc_os_trace)
+        pc_log("nap %.3f ms took %.3f ms", ns_from_now / 1e6, (pc_real_ns() - diag_t0) / 1e6);
     pthread_mutex_lock(&g_lock);
 }
 #else
@@ -730,7 +733,11 @@ void pc_os_wait_main(uint64_t deadline_ns)
     pthread_mutex_unlock(&g_lock);
     if (wait) {
         HANDLE h[2] = {g_main_event, hires_timer(deadline_ns - now)};
-        WaitForMultipleObjects(2, h, FALSE, INFINITE);
+        uint64_t diag_t0 = pc_real_ns();   /* TEMPORARY diagnostic */
+        DWORD diag_r = WaitForMultipleObjects(2, h, FALSE, INFINITE);
+        if (pc_os_trace)
+            pc_log("main wait %.3f ms: %s after %.3f ms", (deadline_ns - now) / 1e6,
+                   diag_r == WAIT_OBJECT_0 ? "event" : "timer", (pc_real_ns() - diag_t0) / 1e6);
     }
     pthread_mutex_lock(&g_lock);
     g_main_wake = 0;
