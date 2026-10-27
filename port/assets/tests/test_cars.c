@@ -11,7 +11,7 @@
  * game: src/ovl_b/func_8038C910.c src/blob/func_800B1F30.c
  * game: src/blob/func_800B2BDC.c src/blob/func_80090284.c src/blob/entity_transform_apply.c
  * game: src/blob/func_800C4078.c src/blob/func_800E9234.c src/blob/func_800CF604.c src/blob/gameover_validOption.c
- * game: src/blob/car_select_handler.c src/blob/func_800CFCA8.c
+ * game: src/blob/car_select_handler.c src/blob/func_800CFCA8.c src/blob/func_800FBE60.c
  * game: src/blob/groups/car_resistance/group.c src/blob/func_800D0894.c src/blob/func_800E313C.c
  */
 #include <math.h>
@@ -98,6 +98,8 @@ extern struct pc_visual D_80138880[100];   /* defined by func_800B2BDC.c */
 int8_t D_80152574[8];
 float D_801526E0[8], D_801526F8[8];
 uint8_t D_801543D4;
+float D_80152018, D_80152218[6][3];
+int8_t D_80152031;
 float D_80110DA4[13], D_80110E0C[13], D_80110E44[13], D_8011121C[13], D_80111274[13], D_801112D0[13];
 int8_t D_8011128C[13 * 7], D_801114E4[13];
 float D_80124158 = 1.0f, D_8012415C = 2.0f, D_80142764 = 3.0f, D_80124134 = 2.0f;
@@ -159,6 +161,7 @@ int32_t func_800CF604(int16_t slot);
 int32_t gameover_validOption(int32_t arg0);
 void car_select_handler(int16_t slot);
 void func_800CFCA8(void);
+void func_800FBE60(void);
 void track_info_display(void *m);
 void func_800D0894(void *m);
 void func_800E313C(void *m, float a, float b);
@@ -393,6 +396,19 @@ static void test_raw(void)
     MF(MODEL(1), 0x714, float) = 10.5f;
     func_800CFCA8();
     CHECK(CF(c, 0x311, int8_t) == 1 && CF(c, 0x310, int8_t) == 0 && MF(MODEL(1), 0x7D4, uint32_t) == 0xF7);
+    /* func_800FBE60 (race start): each car's +0x108 cleared and its position (+8) copied out, at the car stride */
+    D_80152744 = 3;
+    for (int i = 0; i < 3; i++) {
+        CF(&D_80152818[i], 0x108, float) = 1.0f;
+        CF(&D_80152818[i], 0x8, float) = 10.0f * (float)i, CF(&D_80152818[i], 0xC, float) = 1.0f + (float)i;
+        CF(&D_80152818[i], 0x10, float) = -2.0f * (float)i;
+    }
+    func_800FBE60();
+    for (int i = 0; i < 3; i++) {
+        CHECK(CF(&D_80152818[i], 0x108, float) == 0.0f);
+        CHECK(D_80152218[i][0] == 10.0f * (float)i && D_80152218[i][1] == 1.0f + (float)i);
+        CHECK(D_80152218[i][2] == -2.0f * (float)i);
+    }
 }
 
 /* The model from its physics descriptor (window addresses in u32 fields), and the descriptor's tire curves. */

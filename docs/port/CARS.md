@@ -82,6 +82,7 @@ original token):
 | Site | What |
 |---|---|
 | `gameover_validOption` (+ weak copy), `race_init_helper`, `func_800CF604`, `func_8010DF90`, `func_80105DA8` | `* 0x3B8` strides on names inside the array |
+| `func_800FBE60` (race start) | `* 952` strides on `D_80152818` (+0x108, the position at +8) |
 | `func_800B08FC`, `func_800B0A88` (StartWingFlame, StartWing; both group copies) | the wing visuals at +0x2C0 and +0x290 |
 | `save_load_data` (StartFrame) | visual 14's func (stored pointer-sized now: it was `(s32)AnimateFrame`), objnum, slot, the scale at +0x374 |
 | `func_800C4078`, `func_8010C7F4`, `func_800E9234`, `func_800E9C70` (`motion_norm`), `func_800CFCA8`, `func_800E56F8` | fields past the visuals through car pointers (+0x33A, +0x384, +0x35C–E, +0x30C, +0x380, +0x388) |
