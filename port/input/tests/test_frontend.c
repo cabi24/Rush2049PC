@@ -453,7 +453,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|all SCRATCH_DIR\n");
         return 2;
     }
-    static char dir[1024];
+    static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */
     mkdir(argv[2], 0755);
 #ifdef _WIN32
     if (!_fullpath(dir, argv[2], sizeof dir)) {
