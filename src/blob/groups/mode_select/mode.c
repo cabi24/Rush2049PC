@@ -5,6 +5,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef signed int s32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct Entity {
     u8 pad0[12]; s32 id; s32 state; u8 pad14[6];
@@ -133,7 +137,7 @@ extern s32 D_801407E0[],D_801407C0[];
 extern f32 D_801141B0[3];
 extern u8 input_rec0[];
 void mode_select_handler(ModelView *);
-s32 camera_target_track(f32 *,s32,f32,f32,f32,f32,s32,s32,s32,u8);
+s32 camera_target_track(f32 *,intptr_t,f32,f32,f32,f32,s32,s32,s32,u8);
 void results_screen_update(s32);
 void camera_clip_planes(s32,f32 *,f32 *,f32,f32);
 

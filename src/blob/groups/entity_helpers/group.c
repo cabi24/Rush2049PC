@@ -9,6 +9,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct CamSlot {
@@ -50,6 +54,12 @@ s32 osSendMesg(void *, void *, s32);
 s32 entity_state_check(s32);
 
 Entity *func_80091BA8(s32 h);
+#ifdef TARGET_PC
+/* The manifest owners of func_800BF01C are empty deleted-procedure stubs (src/blob/func_800BF01C.c),
+ * which this group's calls bind to on PC. The bodies written here get their own names
+ * (docs/port/PROTOTYPES.md). */
+#define func_800BF01C pc_func_800BF01C
+#endif
 void func_800BF01C(CamSlot *c);
 Msg *func_80091B00(void);
 
@@ -155,7 +165,7 @@ s32 results_time_display(s32 h)
     return r;
 }
 
-void camera_clip_planes(s32 h, f32 *p, s32 unused, f32 a, f32 b)
+void camera_clip_planes(s32 h, f32 *p, intptr_t unused, f32 a, f32 b)
 {
     Entity *e;
     CamSlot *c;
