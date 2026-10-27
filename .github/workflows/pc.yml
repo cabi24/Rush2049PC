@@ -66,7 +66,7 @@ jobs:
           RUSH_TRACE_WAVES=1 build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headless \
             --no-config --audio null --no-pak --press 5:A,8:A,11:A,14:A,17:A --until-state 0x400000:300 \
             --seconds 75 > synth.log 2>&1 || status=$?
-          grep -v "wave .* loaded\|wad .* converted" synth.log
+          grep -v "wave .* loaded\|wad .* converted" synth.log || true
           exit $status
       - name: Census
         run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20

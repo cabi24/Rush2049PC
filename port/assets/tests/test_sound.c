@@ -11,7 +11,7 @@
  * game: src/blob/groups/menu_save_options/hud_setup.c src/blob/hud_speed_display.c
  * game: src/blob/groups/camera_target_track/group.c src/blob/groups/slot18_alloc/func_80091B00.c
  * game: src/blob/func_800AED20.c src/blob/car_stats_display.c src/blob/func_800D18D8.c src/blob/game_timer_pause.c
- * game: src/blob/draw_sprites.c
+ * game: src/blob/draw_sprites.c src/blob/func_80091FBC.c src/blob/func_8009211C.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -92,13 +92,24 @@ uint8_t D_801497E8;
 
 static struct { void *p; uint32_t size; } g_alloc[16];
 static int g_nalloc;
+static __attribute__((aligned(16))) uint8_t g_heap[0x10000];
+static uint32_t g_heap_used;
 void *AllocateMemoryHeap(void *heap, uint32_t size)
 {
     (void)heap;
-    void *p = aligned_alloc(16, (size + 15) & ~15u);
+    void *p = g_heap + g_heap_used;
+    if (g_nalloc == 16 || size > sizeof g_heap - g_heap_used)
+        abort();
+    g_heap_used += (size + 15) & ~15u;
     memset(p, 0xEE, size);   /* as a fresh block's leftovers: nothing may rely on zeros */
     g_alloc[g_nalloc].p = p, g_alloc[g_nalloc++].size = size;
     return p;
+}
+/* The list clear (save.c's, which needs much else); hud_speed_display.c's copy is weak. */
+void func_800A370C(List *list)
+{
+    list->head = list->tail = NULL;
+    list->count = 0;
 }
 void PurgeableMemory(uint32_t p, int32_t purgeable) { (void)p, (void)purgeable; }
 static void *g_sent[8];
