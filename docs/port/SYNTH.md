@@ -21,9 +21,10 @@ symbol's address, and tables indexed past their declarations. Each is fixed with
 **No ROM bytes.** The generator reads no ROM and copies nothing from one. Its inputs are the image table
 (`tools/port/n64syms.py`), the symbol files and `layout/*.json` (function addresses), the build's data report
 (addresses and element kinds, from the build's DWARF), the decompiled C (names it looks up, record layouts) and the
-format documents ([ASSETS.md](ASSETS.md), [LOADERS.md](LOADERS.md), [MUSYX_DATA.md](MUSYX_DATA.md)). The images are
-zero except about 650 values, each listed with its reason; the files are as small as their formats allow, with solid-colour
-textures and no sounds. The output is under `build/`, which version control ignores: never commit it. Its SHA-1 is
+format documents ([ASSETS.md](ASSETS.md), [LOADERS.md](LOADERS.md), [MUSYX_DATA.md](MUSYX_DATA.md)). Constants with a
+mathematical meaning (the VI registers, the elementary functions' approximants) are computed from that meaning. The
+images are zero except about 920 values, each listed with its reason; the files are as small as their formats allow,
+with solid-colour textures, untextured boxes and tiles for models, and no sounds. The output is under `build/`, which version control ignores: never commit it. Its SHA-1 is
 not the retail one, so it runs with `--no-rom-check`.
 
 ## 1. What it makes
@@ -295,23 +296,33 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
 
 - **Data reached only through pointers.** The loader swaps what declarations describe. A table that initialized data
   points at, but no C declares, keeps the ROM's byte order: right for strings and byte tables, wrong for anything
-  wider. The cartridge has three (the demo start points, s16, kept 0; the colours, bytes; the strings), and the
-  race needed more that real data has: the car descriptors (CARS.md puts them inside `D_801108C8`, an f32 array,
-  which would make them right), their tire curves and the suspension records (where in the ROM is unknown). The
-  loader's report now lists every such pointer as `undescribed` (`PC_DATA_REPORT`, default
-  `build/pc/data_report.txt`): with the ROM, read that list for tables of 16- or 32-bit values and give each a
-  declaration or an `extents.txt` size.
-- **The values the cartridge made up** are the first to compare: the button map, the mode table, the state words'
-  start values, the MusyX cache counts and scales, gWorldNames, the target names.
-- **The views of the model and car records.** The race here ran with one empty node, no surfaces and no targets, so
-  the collision response, the targets, the drones, the HUD's lookups and the cameras ran little. CARS.md's audits
+  wider. The cartridge has some (the demo start points, s16, kept 0; the colours, bytes; the strings), and the race
+  needed more that real data has: the car descriptors (CARS.md puts them inside `D_801108C8`, an f32 array, which
+  would make them right), their tire curves and the suspension records (where in the ROM is unknown). The loader's
+  report lists every such pointer as `undescribed` (`PC_DATA_REPORT`, default `build/pc/data_report.txt`): with the
+  ROM, read that list for tables of 16- or 32-bit values and give each a declaration or an `extents.txt` size.
+- **Tables indexed past a scalar** are covered by `index_check` (section 3, port bug 8). gSongNames' 12 entries in
+  `extents.txt` come from the code; check what the 488 bytes after them, which no declaration describes, hold.
+- **The values the cartridge made up** are the first to compare: the button map and the control table, the mode,
+  main menu and options tables, the state words' start values (gSkipToGameState 1), the MusyX cache counts and
+  scales, gWorldNames, the target names and the weapon icon's record, the VI mode, the screen size (320 x 220), the
+  math constants (computed approximants: the ROM's may differ in the last bits), the gravity factors, car masses,
+  weights and tunes, the drone schedule, the HUD entries.
+- **Car physics.** The cars no longer go NaN and sit on the road, but they don't really drive: the torque curve,
+  gear ratios, tire curves (all 1 here), suspension, drag and the start grid are zero or made up, so gas moves
+  nothing much, the six cars start on one spot and push each other apart, and gRace 2's car never stops (its race
+  then never ends by its time limit). The physics code ran with values on every path; with the ROM, watch the state
+  log's car position for NaN first (`synth_paths.py` fails on it).
+- **The views of the model and car records.** The races here ran with one flat surface and a few targets, so the
+  collision with walls, most targets, the cameras' special cases and the HUD's lookups ran little. CARS.md's audits
   missed two views found here (`camera_victory`, `func_800E2D18`) and two m2c readers; the flow-based layout check
   ([LAYOUT.md](LAYOUT.md)) finds each of them when its fix is reverted, and found one more (the brake lights'
   car slot, LAYOUT.md 4.4); what it can't follow is in its section 8.
 - **Sound.** The cartridge has no sounds and no songs: the sequencer, the voices and sample DMA did not run (MUSYX_DATA.md
   7 and 8.7 stand).
-- **Graphics.** Nothing visible is drawn: the VI mode table and every model are empty. The renderer ran the game's
-  lists every frame without a fault, but no textured geometry.
+- **Graphics.** The models are untextured boxes and a checker of tiles with their own render state, and the menus'
+  blit tables and button records are zero (black menus): texture loads, the combiners the real models set, fog,
+  lighting, the front end's 3D buttons and 2D panes, and mirroring have not been drawn on the synthetic cartridge.
 - **Windows.** The paths run in both Windows CI jobs (section 2), which this work could not run itself (no Windows
   host or wine): their first CI run is their first run on Windows.
 
