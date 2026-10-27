@@ -121,7 +121,8 @@ changes it at run time.
   N64 layout.
   - A pointer field holds a host pointer or, below 4 GB, an N64 address resolved with `pc_n64_ptr`: the RDRAM
     window at host 0x80000000, K0, K1 or physical.
-  - This relies on the executable being PIE, with no host data below 4 GB. The forms test asserts it.
+  - This relies on the executable being PIE, with no host data below 4 GB outside the window (the game's
+    pointer-free data is in it, at its N64 addresses: DATA.md §3). The forms test asserts it.
 - `N64` is the 0xA10 and 0x50 layouts with 32-bit addresses. Multi-byte fields are big-endian when the record is in
   a `pc_mem_is_be` range, native otherwise.
 

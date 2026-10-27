@@ -35,8 +35,8 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 
 | Value | Meaning | Host address |
 |---|---|---|
-| ≥ 4 GB | host pointer (the build is PIE; its data lives high) | as is |
-| 0x80000000–0xBFFFFFFF | K0/K1 | `pc_n64_ptr(v)` (identity through the RDRAM window) |
+| ≥ 4 GB | host pointer (the build is PIE; its data with pointers lives high) | as is |
+| 0x80000000–0xBFFFFFFF | K0/K1: the heap, frame buffers, the game's pointer-free data (DATA.md §3) | `pc_n64_ptr(v)` (identity through the RDRAM window) |
 | 0x0S000000 + off, segment S has a base | segmented | `base[S] + off` |
 | anything else below 0x80000000 | physical (segment 0, or no base) | `pc_n64_ptr(0x80000000 \| (v & 0xFFFFFF))` |
 | 0 | null | none (the command is skipped) |

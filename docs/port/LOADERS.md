@@ -88,7 +88,7 @@ The readers of the records:
 
 The car palette descriptors `D_8013FEE0` are palette records to the model draw (`Model.palette`). So every view of
 them takes the PLHD N64 layout: 24 bytes, with `data` a u32 that holds a heap block. They now live in the game
-arena at their N64 offsets, which also makes `heap_release`'s `RaceEntry` view of `D_8013FEF4` right.
+arena at their N64 addresses, which also makes `heap_release`'s `RaceEntry` view of `D_8013FEF4` right.
 `sound_bank_unload` copies the car's WAD palette into its working buffer as native RGBA16 (`TLUT_COPY_IN`). The
 descriptor's block is then native, which port/gfx reads natively because it isn't registered.
 
@@ -154,9 +154,10 @@ are not WAD record views, but the textures and palettes don't reach the renderer
   `node->pal`.
 - **The blit and sprite lists.** `Input_ApplyPadConfig` / `Input_InitPadHandlers` copy texture and palette pointers
   as u32 into `D_80140BF0` at N64 offsets, but the table has the host `Sprite` layout.
-- **Overlay B's health palettes** `D_80395060` have a palette record's shape but point at game data (`healthColor`).
-  Game data lives in host arenas above 4 GB, so a u32 field can't hold that address. They need the arenas inside the
-  window, or a window copy.
+- **Overlay B's health palettes** `D_80395060` have a palette record's shape but point at game data (`healthColor`,
+  `D_80394280`). The arenas are now at their N64 addresses in the window ([DATA.md](DATA.md) §3), so a u32 field
+  can hold that address, and the records can take the PLHD N64 layout like the car palettes. Their own declaration
+  still has the host layout (own storage, `data` a pointer), which works too.
 
 ## Text bank, font data, world, road and paths (2026-10-27)
 
@@ -220,12 +221,11 @@ and unread byte pads.
 
 ### Open, and what to check with the ROM
 
-- **`player_array` swallows the path globals.** gen_data lays `D_80152818` out as 8 × 0x3B8 cars (`GameCar
-  player_array[8]` in 17 files), but `D_80153E68` (an `OSMesgQueue`) at +0x1650 shows it is 6 cars. The globals
-  after it are placed inside its own storage through tCarData's runs, so pointer-sized ones overlap their
-  neighbours: `gAltPaths` `D_80153E80` (8 bytes) over `D_80153E84`, `gPathPtList` `D_80153EF8` (32 bytes) over
-  `D_80153F08` and `D_80153F10`, `gPathWave` `D_80153F20` over `D_80153F24`. ReadPathData writes all three. Fix in
-  port/data: 6 elements (the C declarations, or an extent gen_data prefers over complete declarations).
+- **`player_array` swallowed the path globals**: fixed. gen_data laid `D_80152818` out as 8 × 0x3B8 cars, but
+  `D_80153E68` (an `OSMesgQueue`) at +0x1650 shows it is 6 cars, and the pointer-sized globals after it overlapped
+  their neighbours inside its storage (`gAltPaths` `D_80153E80`, `gPathPtList` `D_80153EF8`, `gPathWave`
+  `D_80153F20`, which ReadPathData writes). A known size now bounds the declarations, and `extents.txt` gives
+  6 cars, so each of those has storage of its own ([DATA.md](DATA.md) §1).
 - **Handle waves in `waves.c`** (not mine): `_ReadWave` (`dst = *(u8 **)r->ptr`, three times), the
   `pc_wave_loaded` hook and `SetupWaveModel` read a handle's u32 heap slot as 8 bytes. Font data (38–53) is the
   handle wave: it is read to, and converted at, the wrong address until those read `(u8 *)(uintptr_t)*(u32 *)ptr`.

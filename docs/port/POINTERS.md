@@ -231,8 +231,8 @@ Outside the overlay loaders, every address literal used as a pointer is an m2c `
 
 | Site | Address | Target | Storage on PC | Done |
 |---|---|---|---|---|
-| `func_800DDF28` | `0x80150000 - 0x649C + arg0` | `D_80149B64[arg0]` | arena | symbol-relative under `TARGET_PC` |
-| `func_800DDEA4` | `0x80150000 - 0x648C + arg0` | `D_80149B74[arg0]` | arena | symbol-relative |
+| `func_800DDF28` | `0x80150000 - 0x649C + arg0` | `D_80149B64[arg0]` | arena, at its N64 address | symbol-relative under `TARGET_PC` (the literal would work too now) |
+| `func_800DDEA4` | `0x80150000 - 0x648C + arg0` | `D_80149B74[arg0]` | arena, at its N64 address | symbol-relative |
 | `func_8008AE2C` | `0x80130000 - 0x18EA + arg0*0x44` | `D_8012E700[arg0]` +0x16 | own (layout differs) | listed (4.3) |
 | `func_800A79DC` | `0x80140000 + 0xC06 + arg0*32` | `D_80140BF0[arg0]` +0x16 (Sprite) | own | listed |
 | `func_800A35F8`, `func_800A35BC`, `func_800A3598` | `0x80140000 + 0x4035/0x40A8 + arg0*0x304` | `D_80144030[arg0]` +5/+0x78 (PakRecord) | own | listed |

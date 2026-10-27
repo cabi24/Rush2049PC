@@ -59,24 +59,29 @@ exercises both paths.
 
 **The RDRAM window is load-bearing.** The game addresses RDRAM outside its symbols with 32-bit arithmetic. It does
 this in the heap (`align32(0x8017A640)` to `osMemSize | K0BASE`, where every loaded file is relocated in place,
-[ASSETS.md](ASSETS.md)), the low-memory globals at 0x80000300 and the runtime images' region at 0x8038A400. An
-8 MiB memfd is mapped at host 0x80000000 (KSEG0) and again at 0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`. On
-Linux the mapping is required and the program stops if it fails. Elsewhere it falls back to a translated window
-(`pc_n64_ptr`), and the game's literal addresses fault.
+[ASSETS.md](ASSETS.md)), the low-memory globals at 0x80000300 and the runtime images' region at 0x8038A400. The
+game's pointer-free data and BSS are in the window too, at their N64 addresses (port/data's arenas, [DATA.md](DATA.md)
+§3: boot 0x800277D0–0x80086A50, game 0x8010FD7C–0x8017A640, the runtime images' inside their heap block), so a
+32-bit N64 address of game data is a host address. An 8 MiB memfd is mapped at host 0x80000000 (KSEG0) and again
+at 0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`, before the data is filled. On Linux the mapping is required and
+the program stops if it fails. Elsewhere it falls back to a translated window (`pc_n64_ptr`), the game's literal
+addresses fault, and `pc_data_init` refuses to fill data that isn't mapped.
 
-**Host addresses are above 4 GiB.** The executable is PIE, and its heap and the N64 threads' stacks are mapped
-high. So the renderer tells host pointers (≥ 4 GiB) from N64 addresses (K0/K1, physical, segmented).
-`osVirtualToPhysical` maps window addresses to physical; it truncates a host address, with one warning, since
-the game keeps the result in a u32.
+**Host addresses are above 4 GiB**, except the window's. The executable is PIE, and its heap and the N64 threads'
+stacks are mapped high. So the renderer tells host pointers (≥ 4 GiB) from N64 addresses (K0/K1, physical,
+segmented), and game data in the window is simply RDRAM to it. `osVirtualToPhysical` maps window addresses to
+physical; it truncates a host address, with one warning, since the game keeps the result in a u32.
 
 **Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
 (`osTvType`, `D_80000300`, `D_80000318` for osMemSize), the heap start `D_8017A640`, the images' base
 `D_8038A400`, `gDecompressedDataStart`, and the ROM offset `D_00039B40`. gen_stubs makes them absolute symbols
 (`aliases.ld`): window addresses, and ROM offsets as cartridge addresses (`0xB0000000 | offset`, which the game's PI
-and MusyX address callbacks accept). binutils 2.40 on aarch64 gives the GOT slot of an absolute symbol in a PIE a
-RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`, called in `main`
-before anything else runs, puts the values back. It only touches RELATIVE relocations whose addend is at 0x80000000 or above, where
-nothing the linker places can be, and whose slot holds exactly base + addend.
+and MusyX address callbacks accept). port/data's arena names are absolute symbols too (`data.c`, about 1,800). The
+game reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute symbol in a
+PIE a RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`, called in
+`main` before anything else runs, puts the values back (1,802 slots). It only touches RELATIVE relocations whose
+addend is at 0x80000000 or above, where nothing the linker places can be (`gen_data.py --check` verifies that),
+and whose slot holds exactly base + addend. Initialized pointers to them are resolved at link time.
 
 **osMemSize is 4 MiB** (no Expansion Pak) by default. The game then leaves its Expansion Pak flag (`D_80156994`)
 clear and skips overlay B and the extra waves in races, the smaller first target ASSETS.md suggests.
@@ -214,7 +219,7 @@ gcc's preprocessor against main; the IDO build itself was not run):
 
 | File | Edit |
 |---|---|
-| `lib_2cf0.c` | the idle loop calls `pc_os_idle`; `game_init`'s game-BSS `bzero` is skipped (zero at startup, and not one range here) |
+| `lib_2cf0.c` | the idle loop calls `pc_os_idle`; `game_init`'s game-BSS `bzero` is skipped (zero at startup; the BSS with pointers lives outside that range) |
 | `lib_1050_sdk.c` | the scheduler's layout and its N64 names (below) |
 | `lib_11640.c` | `__unaligned`; the native task records (`unknown44` a pointer, the real types in `func_800139D4`, `sizeof` for the SFD and delay sizes); the DMA caches registered big-endian; host pointers count as RAM (`func_800146B4`, `func_80014CAC`); two busy-waits |
 | `lib_15a10.c`, `lib_17dc0.c` | `func_8001558C`/`func_800156E8` take pointer-sized integers (a stack address passed through a u32) |
@@ -284,14 +289,15 @@ the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
 
-- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 25 of 25 in about 1 s. It covers:
+- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 26 of 26 in about 1 s. It covers:
   - threads: preemption on start, priorities, FIFO among equals and yield, `osSetThreadPri` both ways,
     `osStopThread` on a waiting thread;
   - queues: FIFO, jam, full and empty, a blocking send;
   - events: `osSetEventMesg`; the VI retrace at 60 Hz (12 in about 200 ms);
   - time: one-shot and periodic timers and `osStopTimer`; `osGetTime`'s rate;
   - busy-waits: both yield paths;
-  - memory: the window and its KSEG1 alias, the absolute symbols, host addresses above 4 GiB, big-endian ranges;
+  - memory: the window and its KSEG1 alias, the absolute symbols, game data at its N64 addresses, host addresses
+    above 4 GiB, big-endian ranges;
   - RSP tasks and DP buffers, and the AI rate and event;
   - the SI through the game's own C: `osContInit`, `osContGetReadData`, `osPfsInitPak`, `osPfsFreeBlocks`, and a
     three-page note allocated, written, read back after a new `osPfsInitPak`, and deleted.

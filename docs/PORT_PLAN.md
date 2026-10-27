@@ -149,7 +149,8 @@ Key design decisions that came out of it:
   address fields and stay exact.
 - **Host data above 4 GB.** The executable is position-independent, so any value below 4 GB is an N64 address (K0,
   physical or segmented) and anything above is a host pointer. The renderer and audio resolve addresses with that
-  rule.
+  rule. The game's pointer-free data fits it too: it sits at its N64 addresses in the window (docs/port/DATA.md),
+  so its N64 address is its host address.
 - **Two display-list forms.** Lists the game builds are native (16 bytes per command, host pointers). Lists loaded
   from the ROM stay in N64 form (8 bytes, big-endian) inside registered big-endian ranges.
 - **Data from the ROM at run time.** Nothing derived from the ROM is generated at build time, so the build and its
