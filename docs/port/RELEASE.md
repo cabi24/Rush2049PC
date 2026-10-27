@@ -255,8 +255,10 @@ also makes a **draft** GitHub release with them, which a person checks and publi
 | Job | Runner | What |
 |---|---|---|
 | `windows` | ubuntu-24.04, in `debian:12` | cross-built as pc.yml's `windows-cross` (mingw-w64 GCC 12.2, SDL2 2.30.9 from source); `cmake --install` into `rush2049pc-<version>-windows-x86_64/`; the zip; checks what is in it |
-| `windows-check` | windows-latest | the zip unzipped; from its folder, `--selftest` and the boot without a ROM. Mesa's llvmpipe `opengl32.dll` is copied in for the run, since the runner has no GPU; it is not in the zip |
-| `release` | ubuntu-24.04 | tags only: `gh release create --draft` with the archives |
+| `windows-check` | windows-latest | the zip unzipped; from its folder: `--version`, the first run (the empty ini filled, the log next to the program), `--selftest`, the boot without a ROM (the log has its fault and backtrace), the forced wait for a key. Mesa's llvmpipe `opengl32.dll` is copied in for the run, since the runner has no GPU; it is not in the zip |
+| `linux` | ubuntu-24.04 and ubuntu-24.04-arm, in `ubuntu:22.04` | x86-64 and aarch64: built with SDL2 2.30.9 from source; `cmake --install` into `rush2049pc-<version>-linux-<arch>/`; the tarball; checks what is in it, its libraries and the newest glibc symbol it needs |
+| `linux-check` | the same, in `fedora:40` | the tarball unpacked on another distribution; from its folder: `--version`, `--selftest`, the first run, the boot without a ROM headless on Mesa's llvmpipe with its log |
+| `release` | ubuntu-24.04 | tags only: `gh release create --draft` with the three archives |
 
 - **The Windows zip:** `rush2049pc.exe`, `README.txt` (`dist/README-windows.txt`, CRLF line ends) and `LICENSES/`:
   - `SDL2.txt`, from the SDL2 source built;
@@ -267,9 +269,28 @@ also makes a **draft** GitHub release with them, which a person checks and publi
   SDL2, zlib and the runtime are linked statically, so the program needs only Windows' own DLLs (`objdump -p`:
   ADVAPI32, GDI32, IMM32, KERNEL32, msvcrt, ole32, OLEAUT32, OPENGL32, SETUPAPI, SHELL32, USER32, VERSION,
   WINMM). The executable is the CI build type (Debug) and is not stripped, so its backtraces can be symbolized.
-- **`cmake --install`.** `RUSH_INSTALL_PORTABLE` (the default on Windows) installs one folder: the program,
-  README.txt, LICENSES/. Otherwise: `bin/rush2049pc`, and README.md, README.txt, FRONTEND.md and the licences under
-  `share/doc/rush2049pc`. `RUSH_EXTRA_LICENSES` adds licence files as `NAME=FILE` pairs.
+- **The Linux tarballs:** `rush2049pc`, an empty `rush2049pc.ini`, `README.txt` (`dist/README-linux.txt`) and
+  `LICENSES/` (`SDL2.txt`, `zlib.txt`).
+  - Built in Ubuntu 22.04, so they need glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora 36 and newer).
+  - SDL2 is built with the X11, Wayland, libdecor, PulseAudio, PipeWire, ALSA, udev and D-Bus headers there and
+    linked statically. It loads those libraries at run time (SDL's default), so the program runs without them,
+    and with a window wherever they are.
+  - The program itself links the system's libc, libm, zlib, EGL and GLES (through GLVND or Mesa), and ALSA's
+    libasound (port/audio's ALSA output). The job prints the list (`readelf -d`).
+  - **No AppImage.** It would need FUSE on the player's system (or an extract step), and it must not carry
+    GL, which comes from the player's driver. A folder with one program, which needs only what every desktop
+    has, is as portable and simpler.
+- **`cmake --install`.** `RUSH_INSTALL_PORTABLE` (the default on Windows, and the release builds) installs one
+  folder: the program, an empty `rush2049pc.ini`, `README.txt`, `LICENSES/`. Otherwise the usual layout under the
+  prefix:
+  - `bin/rush2049pc`;
+  - `share/applications/rush2049pc.desktop` (Games; it opens `application/x-n64-rom` files, so a ROM can be
+    opened with it) and `share/icons/hicolor/scalable/apps/rush2049pc.svg`, a plain road of our own (no art,
+    logo or trademark of the game);
+  - `share/doc/rush2049pc/`: README.md, README.txt, FRONTEND.md, RELEASE.md and `LICENSES/`.
+
+  `RUSH_EXTRA_LICENSES` adds licence files as `NAME=FILE` pairs. `RUSH_DATA_REPORT=` (empty) turns off the data
+  loader's report, as the release builds do.
 - **No ROM data.** The packaging step fails if the zip holds a `.z64`, `.v64`, `.n64`, `.rom` or `.bin`.
 - **Registering the workflow.** GitHub dispatches only workflows it has seen. Until release.yml is on the default
   branch, a dispatch on another branch gets HTTP 404. One push of a commit with a temporary `push` trigger, to

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- rush2049pc's icon: a plain road going into the distance. Original, and nothing of the game's. -->
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1f2d3d"/>
+  <path d="M27 12 H37 L50 54 H14 Z" fill="#4a5868"/>
+  <path d="M32 16 V21 M32 27 V34 M32 41 V50" stroke="#f2c14e" stroke-width="3" stroke-linecap="round"/>
+</svg>

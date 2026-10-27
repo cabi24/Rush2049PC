@@ -20,7 +20,9 @@ Where the program looks for the ROM, in this order:
 If there is no ROM, or the file is not the right one, the program says where it looked, what the file is and
 what is needed (in a message box too, when it has a display).
 
-You need OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver), and SDL2 for the window, controllers and sound.
+You need OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver) and glibc 2.35 or later (Ubuntu 22.04, Debian 12,
+Fedora 36 or newer), on x86-64 or aarch64 (64-bit ARM, such as a Raspberry Pi 4 or 5). SDL2 is built into the
+program; X11 or Wayland, PulseAudio, PipeWire or ALSA, and controllers are used through the system's libraries.
 
 Controls
 --------
@@ -43,7 +45,8 @@ Controls
 
 Settings and saves
 ------------------
-This folder is portable: because rush2049pc.ini is next to the program, everything it keeps is in this folder:
+The release archive is portable: because rush2049pc.ini is next to the program, everything it keeps is in its
+folder:
   rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each
   rush2049pc.mpk    the saves (the game's controller pak)
   screenshots/      F12's pictures
