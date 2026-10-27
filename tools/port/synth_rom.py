@@ -23,9 +23,11 @@ copies as they are: bytes, or values whose byte order doesn't matter.
 Next to OUT, OUT with .txt lists every value and file, and why.
 """
 import argparse
+import math
 import struct
 import sys
 import zlib
+from fractions import Fraction
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -152,6 +154,8 @@ class Cart:
         addr = self.syms.addr(sym) + offset + index * w
         if kind == "f32":
             data = bef32(value)
+        elif kind == "f64":
+            data = struct.pack(">d", value)
         elif w == 1:
             data = bytes([value & 0xFF])
         elif w == 2:
@@ -160,7 +164,7 @@ class Cart:
             data = be32(value)
         self._put(image, addr, data, elem or kind, f"{sym}[{index}]+{offset}")
         self.log.append(f"{image:5} 0x{addr:08X} {sym}[{index}]{'+%d' % offset if offset else ''} {kind} = "
-                        f"{value if kind == 'f32' else hex(value)}: {why}")
+                        f"{value if kind in ('f32', 'f64') else hex(value)}: {why}")
 
     def set_bytes(self, image, addr, data, why):
         """Bytes at an address no declaration covers (the arena copies them as they are): it must be in an arena's
@@ -712,21 +716,161 @@ def boot_and_sound(c):
         c.file(38 + f, font_data(), f"font {f} metrics")
 
 
+# ---------------------------------------------------------------- the elementary functions
+
+# The game's own sinf, cosf, tanf, atan, atan2, asin and acos read their constants from data: zero on a blank
+# cartridge, where sin x = x, cos x = -|x|, tan x = 0 and atan returns 0 or NaN, so no projection, camera or rotation
+# works. The constants here are computed from the functions' structure (the formula each evaluates is written next
+# to it): reduction constants from pi, and the polynomial or rational coefficients as Pade approximants or a least-
+# squares fit made here from the Taylor series. None is a table copied from anywhere.
+
+
+def tan_pade():
+    """tan f = f (1 + P1 g + P2 g^2 + P3 g^3) / (1 + Q1 g + ... + Q4 g^4), g = f^2: the convergent of Lambert's
+    continued fraction tan f = f / (1 - g / (3 - g / (5 - ...))) with those degrees, exact, then normalised."""
+    num, den = [Fraction(15)], [Fraction(1)]          # the fraction's tail, T = 15, as num(g) / den(g)
+    for k in (13, 11, 9, 7, 5, 3, 1):                 # T = k - g / T = (k num - g den) / num
+        new = [k * x for x in num] + [Fraction(0)] * (len(den) + 1 - len(num))
+        for i, x in enumerate(den):
+            new[i + 1] -= x
+        while len(new) > 1 and new[-1] == 0:
+            new.pop()
+        num, den = new, num
+    p, q = den, num                                   # tan f = f / T = f den / num
+    p = [x / p[0] for x in p]
+    q = [x / q[0] for x in q]
+    assert len(p) == 4 and len(q) == 5, (len(p), len(q))
+    return [float(x) for x in p[1:]], [float(x) for x in q[1:]]
+
+
+def atan_pade():
+    """atan t / t = N(g) / D(g), g = t^2, N of degree 4 and D of degree 5: the [4/5] Pade approximant of the series
+    sum (-g)^k / (2k + 1), scaled so that D is monic; then N and D share their constant term, as func_8008C5E0's one
+    constant for both says. Returns (c0, [n1..n4], [d1..d4])."""
+    L, M = 4, 5
+    c = [Fraction((-1) ** k, 2 * k + 1) for k in range(L + M + 1)]
+    # D = 1 + d1 g + ... + d5 g^5 with sum_j d_j c_(k-j) = 0 for k = L+1 .. L+M
+    rows = [[c[k - j] if k - j >= 0 else Fraction(0) for j in range(1, M + 1)] + [-c[k]]
+            for k in range(L + 1, L + M + 1)]
+    for i in range(M):                                 # Gauss-Jordan, exact
+        piv = next(r for r in range(i, M) if rows[r][i] != 0)
+        rows[i], rows[piv] = rows[piv], rows[i]
+        rows[i] = [x / rows[i][i] for x in rows[i]]
+        for r in range(M):
+            if r != i and rows[r][i] != 0:
+                f = rows[r][i]
+                rows[r] = [a - f * b for a, b in zip(rows[r], rows[i])]
+    d = [Fraction(1)] + [rows[i][M] for i in range(M)]
+    n = [sum(c[k - j] * d[j] for j in range(0, k + 1)) for k in range(L + 1)]
+    n, d = [x / d[M] for x in n], [x / d[M] for x in d]
+    assert d[M] == 1 and n[0] == d[0]
+    return float(n[0]), [float(x) for x in n[1:]], [float(x) for x in d[1:M]]
+
+
+def sin_fit():
+    """sin x = x + x^3 (P1 + P2 g + P3 g^2 + P4 g^3), g = x^2, on |x| <= pi/2: a least-squares fit of
+    (sin x - x) / x^3 at 64 Chebyshev points of g in [0, (pi/2)^2], solved by Gaussian elimination."""
+    gmax = (math.pi / 2) ** 2
+    pts = [gmax * (1 - math.cos(math.pi * (i + 0.5) / 64)) / 2 for i in range(64)]
+
+    def target(g):
+        x = math.sqrt(g)
+        if x < 1e-2:                                   # the series, where the quotient loses its digits
+            return -1 / 6 + g / 120 - g * g / 5040
+        return (math.sin(x) - x) / (x * x * x)
+    a = [[sum(gi ** (i + j) for gi in pts) for j in range(4)] + [sum(target(gi) * gi ** i for gi in pts)]
+         for i in range(4)]
+    for i in range(4):
+        piv = max(range(i, 4), key=lambda r: abs(a[r][i]))
+        a[i], a[piv] = a[piv], a[i]
+        for r in range(4):
+            if r != i:
+                f = a[r][i] / a[i][i]
+                a[r] = [x - f * y for x, y in zip(a[r], a[i])]
+    return [a[i][4] / a[i][i] for i in range(4)]
+
+
+def math_constants(c):
+    """The constants of the game's elementary functions (see above)."""
+    # libultra's sinf and cosf (boot data, double): reduce by pi (n = round(x / pi), dx = x - n (pi_hi + pi_lo), the
+    # sign flipped for odd n; cosf by (n - 1/2) pi), then sin dx = dx + dx^3 P(dx^2). pi_hi has 21 significant bits,
+    # so n pi_hi is exact for every n below 2^28 / pi, past which both give up and return 0.
+    pi_hi = math.floor(math.pi * 2 ** 19) / 2 ** 19
+    coeffs = sin_fit()
+    for sym, scale, hi, lo in (("gSinCoeffs", "gTwoOverPi", "gPiOver2Hi", "gPiOver2Lo"),
+                               ("gCosCoeffs", "gCosAngleScale", "gCosPiOver2Hi", "gCosPiOver2Lo")):
+        c.set("boot", sym, "f64", 1.0, "the sine polynomial's x term (never read)")
+        for i, v in enumerate(coeffs, 1):
+            c.set("boot", sym, "f64", v, f"sin x = x + x^3 (P1 + P2 x^2 + ...): P{i}, a least-squares fit", index=i)
+        c.set("boot", scale, "f64", 1 / math.pi, "the reduction: x / pi")
+        c.set("boot", hi, "f64", pi_hi, "the reduction: pi, its first 21 bits")
+        c.set("boot", lo, "f64", math.pi - pi_hi, "the reduction: the rest of pi")
+    c.set("boot", "gNaN", "f32", 0.0, "sinf's result for |x| >= 2^28: 0")
+    c.set("boot", "gCosOne", "f32", 0.0, "cosf's result for |x| >= 2^28: 0")
+    c.set("boot", "gNaNf", "u32", 0x7FC00000, "sinf's result for a NaN: a quiet NaN", elem="f32")
+    c.set("boot", "gOrthoScale", "f64", math.pi / 180, "guPerspectiveF's fovy factor: degrees to radians")
+
+    # tanf (func_800A557C): xn = round(x 2/pi); f = (x - xn C1) - xn C2 with C1 + C2 = pi/2 (C1 = 201/128, 8 bits,
+    # so xn C1 is exact); f itself below eps, else f (1 + P(g)) / (1 + Q(g)), and -1 over that for odd xn; 0 past ymax.
+    p, q = tan_pade()
+    c.set("game", "D_80123B98", "f32", math.pi / 2 * 2 ** 12, "tanf: the largest argument it reduces")
+    c.set("game", "D_80123B9C", "f32", 2 / math.pi, "tanf: x 2/pi counts the quarter turns")
+    c.set("game", "D_80123BA0", "f32", 201 / 128, "tanf: pi/2, its first 8 bits (C1)")
+    c.set("game", "D_80123BA4", "f32", math.pi / 2 - 201 / 128, "tanf: the rest of pi/2 (C2)")
+    c.set("game", "D_80123BA8", "f32", 2 ** -12, "tanf: below this, tan f = f")
+    for sym, v, what in (("D_80123BB4", p[0], "P1"), ("D_80123BB0", p[1], "P2"), ("D_80123BAC", p[2], "P3"),
+                         ("D_80123BC4", q[0], "Q1"), ("D_80123BC0", q[1], "Q2"), ("D_80123BBC", q[2], "Q3"),
+                         ("D_80123BB8", q[3], "Q4")):
+        c.set("game", sym, "f32", v, f"tanf: {what} of f (1 + P(g)) / (1 + Q(g)), Lambert's continued fraction")
+
+    # atan: the kernel func_8008C5E0 is t N(g) / D(g) on |t| <= tan(pi/8); func_8008C680 maps x > tan(3pi/8) to
+    # pi/2 - K(1/x) and the middle to pi/4 + K((x - 1) / (x + 1)); atan2 (func_8008C768) adds +-pi/2 and +-pi.
+    c0, n, d = atan_pade()
+    c.set("game", "D_801238C0", "f32", c0, "atan kernel: N's and D's constant term ([4/5] Pade, D monic)")
+    for sym, v, what in (("D_801238D0", n[0], "n1"), ("D_801238CC", n[1], "n2"), ("D_801238C8", n[2], "n3"),
+                         ("D_801238C4", n[3], "n4"), ("D_801238E0", d[0], "d1"), ("D_801238DC", d[1], "d2"),
+                         ("D_801238D8", d[2], "d3"), ("D_801238D4", d[3], "d4")):
+        c.set("game", sym, "f32", v, f"atan kernel: {what} of atan t = t N(g) / D(g)")
+    for sym, v, what in (("D_801238E4", math.tan(math.pi / 8), "the kernel's own range, tan(pi/8)"),
+                         ("D_801238E8", math.tan(3 * math.pi / 8), "past this, pi/2 - K(1/x): tan(3pi/8)"),
+                         ("D_801238EC", math.pi / 2, "pi/2"), ("D_801238F0", math.pi / 4, "pi/4"),
+                         ("D_801238F4", math.pi / 2, "atan2: +pi/2"), ("D_801238F8", -math.pi / 2, "atan2: -pi/2"),
+                         ("D_801238FC", math.pi, "atan2: +pi"), ("D_80123900", -math.pi, "atan2: -pi")):
+        c.set("game", sym, "f32", v, f"atan: {what}")
+    # asin and acos (func_8009C3F8): a literal rational for |x| <= 1/2 and asin x = pi/2 - 2 asin sqrt((1 - x) / 2)
+    # above, joined by {a0, a1, b0, b1}: asin = (a[i] + r) + a[i], acos = (a[i] - r) + a[i] or (b[i] + r) + b[i].
+    c.set_all("game", "D_8011F010", "f32", [0.0, math.pi / 4, math.pi / 2, math.pi / 4],
+              "asin/acos: the offsets {0, pi/4, pi/2, pi/4}")
+    # The vector helpers' floors, and the tire slip ratio's slope past |z| 400 (continuous with x / z there).
+    c.set("game", "D_80123888", "f32", 1e-10, "func_8008B424: the least squared length it takes 1/sqrt of")
+    c.set("game", "D_8012394C", "f32", 1e-6, "func_8008E0B8: a length it doesn't normalise")
+    c.set("game", "D_80123F80", "f32", 1e-5, "func_800C4180: matrix entries it takes for zero (gimbal lock)")
+    c.set("game", "D_80123E04", "f32", 1 / 400, "func_800BC21C: x / z for z >= 400 (continuous)")
+    c.set("game", "D_80123E08", "f32", 1 / 400, "func_800BC21C: -x / z for z <= -400 (continuous)")
+
+
+SCREEN_W, SCREEN_H = 320, 220   # the game's framebuffer (display())
+VI_X_PER_PIXEL = 1024 / 640     # gViewportFloatA: 2.10 xScale per pixel of a 640-pixel line
+VI_Y_PER_LINE = 1024 / 240      # gViewportFloatB: 2.10 yScale per line of a 240-line field
+
+
 def vi_mode_ntsc_lpn1():
     """An NTSC, low-resolution, point-sampled, non-interlaced, 16-bit VI mode as 20 big-endian words (libultra's
     OSViMode: the type byte and 3 pad bytes; comRegs ctrl, width, burst, vSync, hSync, leap, hStart, xScale, vCurrent;
-    fldRegs[2] origin, yScale, vStart, vBurst, vIntr), computed from what the VI registers mean for a 320-pixel line
-    of NTSC video."""
-    width = 320
+    fldRegs[2] origin, yScale, vStart, vBurst, vIntr), computed from what the VI registers mean, for the game's
+    320 x 220 framebuffer on NTSC's 240 lines. Its scales are what display_update makes of the screen size
+    (`width x FloatA`, `(height x FloatB + 16.5) & ~15`): display_mode_tick shows the picture (osViBlack(0)) only
+    once the mode it made has the table's yScale."""
     ctrl = 0x2 | 0x4 | 0x8 | 0x10 | 0x300 | 0x3000  # 16-bit, gamma dither, gamma, divot, resample only, advance 3
     burst = (62 << 20) | (5 << 16) | (34 << 8) | 57  # burst start, vsync width, burst width, hsync width
     v_sync = 525                                      # lines a frame
     h_sync = 3093                                     # a line, in quarter pixels
     h_start = (108 << 16) | 748                       # the active line: pixels 108-748
-    x_scale = width * 1024 // 640                     # 2.10: 320 pixels over the 640-pixel line
-    comregs = (ctrl, width, burst, v_sync, h_sync, (h_sync << 16) | h_sync, h_start, x_scale, 0)
-    #         origin (a line's bytes), yScale 1.0 (2.10), active half-lines 37-511, burst half-lines, VI interrupt
-    field = (width * 2, 0x400, (37 << 16) | 511, (14 << 16) | 516, 2)
+    x_scale = int(SCREEN_W * VI_X_PER_PIXEL)          # 2.10: 320 pixels over the 640-pixel line
+    y_scale = int(SCREEN_H * VI_Y_PER_LINE + 16.5) & 0xFFF0   # 2.10: 220 lines over 240
+    comregs = (ctrl, SCREEN_W, burst, v_sync, h_sync, (h_sync << 16) | h_sync, h_start, x_scale, 0)
+    #         origin (a line's bytes), yScale, active half-lines 37-511, burst half-lines, VI interrupt line
+    field = (SCREEN_W * 2, y_scale, (37 << 16) | 511, (14 << 16) | 516, 2)
     return [0] + list(comregs) + list(field) * 2      # word 0: the type, 0, in its first byte
 
 
@@ -736,18 +880,19 @@ def display(c):
     # 64 in _InitGfx); gfx_frame_begin sets the colour image and clears it at the screen size D_8002AFC0 x D_8002AFC4,
     # and ZOID_ResetWindows makes the windows from it. Zero is a colour image 4096 pixels wide (its width field is
     # width - 1) and windows of no size.
-    c.set("boot", "D_8002AFC0", "u32", 320, "the screen's width (a framebuffer is 320 x 220 x 2 bytes)")
-    c.set("boot", "D_8002AFC4", "u32", 220, "the screen's height")
+    c.set("boot", "D_8002AFC0", "u32", SCREEN_W, "the screen's width (a framebuffer is 320 x 220 x 2 bytes)")
+    c.set("boot", "D_8002AFC4", "u32", SCREEN_H, "the screen's height")
     # The VI modes (gViModeTableBase, OSViMode[5]): viewport_setup takes mode get_tv_offset(), 0 for NTSC (osTvType
     # 1), and display_update divides by its active line's and field's lengths (0 / 0 with a zero mode).
     c.set("boot", "gViModeTableBase", "u8", 0, "VI mode 0: NTSC LPN1, type 0 (vi_mode_ntsc_lpn1)")
     for k, v in enumerate(vi_mode_ntsc_lpn1()[1:], 1):
         c.set("boot", "gViModeTableBase", "u32", v, "VI mode 0: its registers" if k == 1 else "(same)", offset=4 * k)
-    # display_update scales the mode's xScale and yScale by the screen size: xScale = width x FloatA, yScale = height
-    # x FloatB (+16.5), so FloatA = 1024 / 640 and FloatB = 1024 / 240 give the mode's own for 320 x 240. FloatC and
-    # FloatD are the seconds a retrace takes, PAL and NTSC (gScaleSecondsPerTick; the ticks a second are 50 and 60).
-    c.set("boot", "gViewportFloatA", "f32", 1024 / 640, "xScale per pixel of the line (2.10)")
-    c.set("boot", "gViewportFloatB", "f32", 1024 / 240, "yScale per line of the field (2.10)")
+    # display_update scales the mode by the screen size: xScale = width x FloatA, yScale = (height x FloatB + 16.5) &
+    # ~15. FloatA = 1024 / 640 and FloatB = 1024 / 240 are the 2.10 scales of a pixel of the 640-pixel line and of a
+    # line of the 240-line field (vi_mode_ntsc_lpn1 uses the same). FloatC and FloatD are the seconds a retrace takes,
+    # PAL and NTSC (gScaleSecondsPerTick; the ticks a second are 50 and 60).
+    c.set("boot", "gViewportFloatA", "f32", VI_X_PER_PIXEL, "xScale per pixel of the line (2.10)")
+    c.set("boot", "gViewportFloatB", "f32", VI_Y_PER_LINE, "yScale per line of the field (2.10)")
     c.set("boot", "gViewportFloatC", "f32", 1 / 50, "a PAL retrace, in seconds")
     c.set("boot", "gViewportFloatD", "f32", 1 / 60, "an NTSC retrace, in seconds")
 
@@ -914,12 +1059,43 @@ def race(c):
         c.set("game", "D_80111560", "ptr", susp, "carSuspensions: the one suspension" if i == 0 else "(same)",
               index=i)
 
+    car_tables(c)
+
     # The tracks' car colours (gTrackColors, D_8011AF90, tRGBA *[19]): each points at RGBA byte quadruples, which
     # the cars' IR colour comes from. Sixteen mid greys per track (bytes, so copied as they are).
     colours = c.blob(bytes([0x80, 0x80, 0x80, 0xFF]) * 16, "a track's car colours: sixteen greys")
     for t in range(19):
         c.set("game", "D_8011AF90", "ptr", colours, "gTrackColors: a track's colours" if t == 0 else "(same)",
               index=t)
+
+
+def car_tables(c):
+    """The car physics' tables, which the race start (track_info_display, display_list_flush) turns into each car's
+    model record. With zeros the gravity is 0, so a car's mass is 0 and the model thread's first step divides 0 by
+    0 (func_800E1540): every car's position is NaN from the first frame. Units are the model's: feet, seconds,
+    pounds (its gravity is 32.2)."""
+    # PrePlay sets gravity to 32.2 x D_801202F8[the gravity option]: the option's factor, 1 for each of the nine.
+    c.set_all("game", "D_801202F8", "f32", [1.0] * 9, "the gravity option's factor (32.2 ft/s^2 x): 1 for each")
+    # func_800D0B14, a car's mass in slugs (its weight is that x gravity): (D_80110DD8[type] + (D_80111274[mass
+    # option] - D_80124154 + the pak's mass bonus) x D_80124150) x the tune's factor. 3000 lb is 93 slugs; the mass
+    # options add nothing; one slug a unit.
+    c.set_all("game", "D_80110DD8", "f32", [93.0] * 13, "a car type's mass, in slugs (3000 lb)")
+    c.set_all("game", "D_80111274", "f32", [0.0] * 6, "a mass option's difference: none")
+    c.set("game", "D_80124150", "f32", 1.0, "slugs per unit of mass difference")
+    # A car type's weight in pounds (D_80110E0C, f32[14]; + 1000 lb per unit of mass difference), the model's +0x5C4,
+    # which the car-car collision (menu_options_screen) shares the push out by: 0 for both is 0 / 0.
+    c.set_all("game", "D_80110E0C", "f32", [3000.0] * 14, "a car type's weight, in pounds")
+    # Two cars that overlap are pushed apart along the line between them with force D_80124104 (menu_load_options),
+    # or along x with D_80124100 when they are closer than sqrt(D_801240FC): 0 / 0 when they coincide, as the six
+    # cars do at the start here. The push is the size of the collision response's own (menu_options_screen: 2000).
+    c.set("game", "D_801240FC", "f32", 1e-4, "car push: a squared distance it takes for none")
+    c.set("game", "D_80124100", "f32", 2000.0, "car push: the force when the cars coincide")
+    c.set("game", "D_80124104", "f32", 2000.0, "car push: the force along the line between them")
+    # The car tunes (D_801116D0, three Tune44 of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
+    for t in range(3):
+        for k in range(11):
+            c.set("game", "D_801116D0", "f32", 1.0, "a tune's eleven factors: 1 (+4: the mass factor)" if t == k == 0
+                  else "(same)", offset=44 * t + 4 * k)
 
 
 def battle(c):
@@ -943,6 +1119,7 @@ MAP_MODELS = [f"MAPOBJ{i:02}" for i in range(20)]
 def make(syms):
     c = Cart(syms)
     boot_and_sound(c)
+    math_constants(c)
     display(c)
     front_end(c)
     race(c)

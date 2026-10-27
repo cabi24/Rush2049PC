@@ -5,9 +5,9 @@ most of the game's code had never run on the PC, and the 64-bit bugs left were i
 is a ROM image of original, minimal data, built from the decompilation's knowledge of where the game reads its data
 and in what format. On it, the game boots through the front end's screens and along each of its paths: races for one
 to four players in split screen, the circuit, stunt and battle modes, the attract demo (section 2). Getting there
-found port bugs in seven places (section 3): a function the PC had linked to the wrong runtime image, the audio
-manager's records, IDO varargs, a busy-wait, four readers of the car model record, and a walk bounded by the next
-symbol's address. Each is fixed with a regression test.
+found port bugs in eight places (section 3): a function the PC had linked to the wrong runtime image, the audio
+manager's records, IDO varargs, a busy-wait, four readers of the car model record, a walk bounded by the next
+symbol's address, and tables indexed past their declarations. Each is fixed with a regression test.
 
 | | |
 |---|---|
@@ -43,7 +43,7 @@ so a value written at the wrong width stops it rather than reading back swapped.
 that pointers in the data reach go in game-image data bytes no symbol covers (`Cart.string`, `Cart.blob`): the loader
 copies those as they are, so they are bytes, or zero.
 
-**The values** (`make()`, in five parts):
+**The values** (`make()`, in six parts):
 
 | Part | Symbols | Why |
 |---|---|---|
@@ -53,8 +53,14 @@ copies those as they are, so they are bytes, or zero.
 | | `D_8002E4A0`, `D_8002E528` | the two static display lists: G_ENDDL (a list of zeros runs off its end) |
 | | `state_word_b` (gNewGameState) | 1: the first frame runs initGameState; 0 is a game with no state |
 | | `gSkipToGameState` | 1, no screen skipped: a screen whose state isn't this one passes straight on (0 skipped the start prompt and the main menu) |
+| math | `gSinCoeffs`, `gCosCoeffs` and their reductions (boot, f64) | libultra's sinf and cosf: reduction by pi (1/pi, pi in a 21-bit and a rest part), a sine polynomial P1-P4 fitted by least squares here (2e-8), 0 past 2^28. Zero gave sin x = x, cos x = -abs(x) |
+| | `gOrthoScale` | guPerspectiveF's degrees to radians, pi/180 |
+| | `D_80123B98`..`D_80123BC4` | tanf (func_800A557C, Cody and Waite's structure): ymax, 2/pi, pi/2 as 201/128 and the rest, 2^-12, and the [7/8] Pade approximant from Lambert's continued fraction (5e-16). Zero gave tan x = 0: the projection's 0.5 / tan divided by 0 |
+| | `D_801238C0`..`D_80123900` | atan (func_8008C5E0, C680, C720) and atan2 (C768): the [4/5] Pade approximant of atan t / t in t^2 with a monic denominator (one constant term for both, as the code has it; 1e-14), tan(pi/8), tan(3pi/8), pi/4, +-pi/2, +-pi |
+| | `D_8011F010[4]` | asin and acos (func_8009C3F8): {0, pi/4, pi/2, pi/4}, the offsets its two ranges need |
+| | `D_80123888`, `D_8012394C`, `D_80123F80`, `D_80123E04/08` | vector helpers' floors (1e-10, 1e-6), a gimbal epsilon (1e-5), the tire slip ratio's slope past 400 (1/400, continuous) |
 | display | `D_8002AFC0`, `D_8002AFC4` | the screen, 320 x 220: a framebuffer block is 0x22620 bytes, 32 more than that at 16 bits. Zero was a colour image 4096 wide (its width field is width - 1) |
-| | `gViModeTableBase[0]` | VI mode 0 (NTSC, get_tv_offset), an LPN1 mode computed from what the VI registers mean (`vi_mode_ntsc_lpn1`): display_update divided 0 by 0 |
+| | `gViModeTableBase[0]` | VI mode 0 (NTSC, get_tv_offset), an LPN1 mode computed from what the VI registers mean (`vi_mode_ntsc_lpn1`): display_update divided 0 by 0. Its yScale is what display_update makes of 220 lines (`(220 x 1024/240 + 16.5) & ~15`): display_mode_tick shows the picture (osViBlack(0)) only when they agree |
 | | `gViewportFloatA`..`D` | xScale per pixel (1024/640), yScale per line (1024/240), a PAL and an NTSC retrace in seconds (1/50, 1/60: gScaleSecondsPerTick, the game's clock) |
 | front end | `D_8011FAD4` | the button map (game bit j = N64 buttons): none means no button ever works. Made up from the code: bits 0-2 Start, A, B (what the prompts take), 10-13 the d-pad (what the stick makes) |
 | | `D_801118E4[26]` | gControlTable: SetControls makes each control option byte k the mask table[k], which the car's readers test against the game buttons; 0x13-0x19 they take as analog sources. So k < 19 is game button k and 19-25 are those codes (gas A, brake B, steering the stick with the code-set default controls) |
@@ -63,6 +69,10 @@ copies those as they are, so they are bytes, or zero.
 | | `D_803B7738[20]` | the track select's map objects: a name each (it swaps their LODs and puts them back) |
 | | `D_8011B3A0`, `D_8011B400`, `D_8011B404`, `D_8011B438` | the car select's texture, model and sheen names: "" (a NULL name faults) |
 | race | `D_8011A924[19]` | gWorldNames: "WORLD" |
+| | `D_801202F8[9]` | the gravity options' factors (gravity = 32.2 x): 1 each. Zero is a weightless car whose mass is 0, and the first physics step divides 0 by 0 (func_800E1540) |
+| | `D_80110DD8[13]`, `D_80111274`, `D_80124150`, `D_801116D0[3]` | a car's mass (func_800D0B14): 93 slugs per type (3000 lb), no mass-option difference, the three tunes' factors 1 |
+| | `D_80110E0C[14]` | a car type's weight in pounds, the model's +0x5C4, which the car-car collision shares its push by: 3000 |
+| | `D_801240FC`, `D_80124100`, `D_80124104` | the push apart of two overlapping cars (menu_load_options): 1e-4, 2000, 2000; the six cars start on one spot here |
 | | `D_80117530[122]` (+0) | the targets' names: TARGET001.. (NULL faults; "" would match every world node) |
 | | `D_80117530[0]` | the weapon icon, WEAPON: StartWeaponIcon, flags 0x4028 (made without the Expansion Pak, a category record, the start function when made), shape 350, category 5. The battle arenas have four |
 | | `D_80117510[5]` | category 5's record size, 136 (Slot136): battle mode writes 16 of them; 0 is a zero-size heap block and the writes go over the next blocks' headers |
@@ -185,7 +195,17 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 | 33 | battle: the race hangs (the game thread computes for ever) | UpdateBattleHealth picks a power-up with `while (slot not free) i++`: the arena had none | data | the weapon icon target and four icons per arena |
 | 34 | (with `RUSH_TRAP_FP`) display_update divides 0 by 0 | the VI mode table is zero | data | an NTSC mode, the screen size, the VI floats |
 
-Stops 26-34 came with the paths of section 2 (`--fast`, the virtual clock, makes each a second's run).
+| 35 | screenshots black, 320 x 220 | the picture is never shown: display_mode_tick unblacks the VI only when its computed yScale matches the mode's | data | the mode's yScale from the game's formula |
+| 36 | (with `RUSH_TRAP_FP`, the projection) 0.5 / tan(fov / 2) divides by 0 | tanf's constants; then sinf and cosf (guPerspective), atan | data | the math constants, computed |
+| 37 | every car's position is NaN from the first physics step | gravity 0: mass 0, and func_800E1540 divides 0 by 0 | data | the gravity factors, the cars' masses and tunes |
+| 38 | the car-car collision (menu_options_screen) and the push (menu_load_options) divide 0 by 0 | no weights; the push's constants | data | weights, push constants |
+| 39 | (looking for 37) | **the cars' masses D_80110DD8, the tunes D_801116D0 and D_801117B4 are indexed past their one-element declarations, so the loader converted only the first element and left the others in the ROM's byte order** | **port bug** | declarations of their size, an extent; `index_check` |
+| | the cars drive without NaN (they fall: the road has no surfaces) | | | |
+
+Stops 26-34 came with the paths of section 2 (`--fast`, the virtual clock, makes each a second's run), 35-39 with
+looking for what makes the picture and the physics: the state log's car position, `RUSH_TRAP_FP` (which also stops at
+harmless divisions the N64 does too, such as guLookAtF on the zeroed cameras of the start prompt), and gdb
+watchpoints on the model record's fields with a NaN condition.
 
 ### The port bugs and their tests
 
@@ -222,6 +242,15 @@ All game-C changes are `TARGET_PC` types, macros or function versions at file sc
    end. Test: `assets_effects` runs the function on records with a guard after them. The same kind of walk in
    `ambient_sounds_clear` (D_80114628 to D_80114638) ends because both have own storage, in address order and
    adjacent (gen_data's order); `sound_handles_clear` has a PC version.
+8. **Tables indexed past their declaration** (stop 39). m2c declared the car type's mass as one `f32` and indexes it,
+   `(&D_80110DD8)[type]`, and the same for the three car tunes (`((F2C *)&D_801116D4)[tune]`, D_801116D0 declared as
+   one Tune44) and D_801117B4 (`(&D_801117B4)[arg0]`, s32). The loader converts each symbol by its declaration over
+   its extent and copies the bytes no symbol covers as they are, so on the ROM 12 of the 13 masses, two of the three
+   tunes and three of the four words would have read back byte-swapped. Under TARGET_PC the two scalars are declared
+   as the tables they are (`extern f32 D_80110DD8[13]; #define D_80110DD8 D_80110DD8[0]`, so the code reads as
+   before), and `extents.txt` gives D_801116D0 its three records. Test: ctest `index_check`
+   (`tools/port/index_check.py`) lists every initialized symbol the C indexes past a scalar whose extent in the data
+   report is one element with bytes no symbol covers after it: there were these three, and it fails on a new one.
 
 Also from this work: `--until-state MASK[:N]` and the state log (port/ultra/loop.c, ULTRA.md 4); the data loader
 counts arena pointers whose target no declaration describes (`undescribed` in its report, section 4).
