@@ -55,7 +55,7 @@ extern void osCreateMesgQueue(void *,void *,s32);
 extern void osCreateThread(void *,s32,void (*)(void *),void *,void *,s32);
 extern void osStartThread(void *);
 extern void InitWaves(void);
-extern s32 audio_frame_sync(s32,s32,s32,s32,s32);
+extern s32 audio_frame_sync(s32,s32,s32,s32,intptr_t);
 extern void LockWaveInstance(s32);
 extern void func_80096288(s32,s32,s32);
 extern void func_80020598(void *);

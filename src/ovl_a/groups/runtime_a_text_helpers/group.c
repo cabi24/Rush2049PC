@@ -212,7 +212,7 @@ extern void particle_velocity_set(void);
 extern void particle_lifetime_set(void);
 extern void func_8039BB80(void);
 extern void func_8039B560(void);
-extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
+extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern Blit *sound_control(s16,s16,const MultiBlit *,s16);
 
 void func_8039BE48(void)

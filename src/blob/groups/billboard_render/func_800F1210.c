@@ -48,7 +48,7 @@ extern char D_80120600[], D_801148A8[];
 extern void sound_stop(intptr_t);
 extern void RemovePane(s8 *);
 extern void func_800F1114(void);
-extern void *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
+extern void *ambient_sound_set(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern void viScheduleTick(f32);
 typedef struct { s32 opaque[6]; } OSMesgQueue;
 extern OSMesgQueue D_801461D0;

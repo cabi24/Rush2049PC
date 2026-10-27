@@ -133,7 +133,7 @@ extern s16 object_bytes_sum_global(void);
 extern void func_80397AD8(s8);
 extern void func_800A6404(s32);
 extern void particle_lifetime_set(void);
-extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
+extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern Blit *sound_control(s16,s16,const MultiBlit *,s16);
 extern void entity_audio_update(void);
 
