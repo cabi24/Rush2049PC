@@ -102,12 +102,12 @@ target_compile_options(game_flags INTERFACE -include ${CMAKE_SOURCE_DIR}/port/in
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).
 target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -fno-strict-aliasing -fcommon)
-# Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so game
-# code must load every extern's address from the GOT. aarch64 PIE code does that already. x86-64 PIE code
-# reaches externs PC-relatively, so it is compiled as PIC, without GOT relaxation (port/ultra/memory.c fixes
-# the slots at startup).
+# Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so code
+# that names them (the game, and parts of port/) must load every extern's address from the GOT. aarch64 PIE
+# code does that already. x86-64 PIE code reaches externs PC-relatively, so everything is compiled as PIC there,
+# without GOT relaxation (port/ultra/memory.c fixes the slots at startup).
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-    target_compile_options(game_flags INTERFACE -fPIC -fno-semantic-interposition -Wa,-mrelax-relocations=no)
+    add_compile_options(-fPIC -fno-semantic-interposition -Wa,-mrelax-relocations=no)
     add_link_options(-Wl,--no-relax)   # ld would still turn GOT loads of absolute symbols into PC32
 endif()
 # Silence what the N64-era declarations trip over; the 64-bit pointer warnings (-Wpointer-to-int-cast,
