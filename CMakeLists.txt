@@ -285,6 +285,23 @@ foreach(t ${PC_ASSETS_TESTS})
     target_compile_options(test_assets_${n} PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
     set_target_properties(test_assets_${n} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
     add_test(NAME assets_${n} COMMAND test_assets_${n})
+    # A test that runs the game's own readers on its converted files names their sources on ` * game: ...` lines
+    # of its leading comment: they are compiled as the game is (game_flags) and linked in, with the test
+    # standing in for everything else they reference.
+    file(STRINGS ${t} game_lines REGEX "^ \\* game: ")
+    set(game_srcs "")
+    foreach(l ${game_lines})
+        string(REGEX REPLACE "^ \\* game: " "" l "${l}")
+        separate_arguments(l)
+        list(APPEND game_srcs ${l})
+    endforeach()
+    if(game_srcs)
+        add_library(test_assets_${n}_game OBJECT ${game_srcs})
+        target_link_libraries(test_assets_${n}_game PRIVATE game_flags)
+        target_compile_options(test_assets_${n}_game PRIVATE -w)
+        set_target_properties(test_assets_${n}_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+        target_sources(test_assets_${n} PRIVATE $<TARGET_OBJECTS:test_assets_${n}_game>)
+    endif()
 endforeach()
 # A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
 set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
