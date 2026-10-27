@@ -139,6 +139,10 @@ endif()
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).
 target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -fno-strict-aliasing -fcommon)
+# Each floating-point operation rounded on its own, as the N64's VR4300 does (it has no fused multiply-add): GCC's
+# default for GNU C fuses a * b + c wherever the target has FMA (aarch64, x86-64-v3 such as RHEL 10's default) once it
+# optimizes, which moved the cars by a bit a step from the Debug build's (docs/port/OPTIMIZED.md). -O0 never fuses.
+target_compile_options(game_flags INTERFACE -ffp-contract=off)
 # Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so code
 # that names them (the game, and parts of port/) must load every extern's address from the GOT. aarch64 PIE
 # code does that already. x86-64 PIE code reaches externs PC-relatively, so everything is compiled as PIC there,
