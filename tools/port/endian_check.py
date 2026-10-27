@@ -1529,6 +1529,13 @@ REVIEWED = [
 LEFT = {
     "gTargInfo's PC layout (POINTERS.md 9.9)": {"D_80117530"},
 }
+# Initialized data passed by address to a `void *` parameter that was read and judged (report section 4b,
+# docs/port/ENDIAN.md 3.4): (function, argument) -> why.
+BYTES_REVIEWED = {
+    ("arb_rate_set", 1): "a Vp (s16) for gSPViewport, which the renderer reads as s16",
+    ("func_8008E26C", 1): "MBOX_NewObject's matrix, f32 read as words",
+    ("camera_target_track", 1): "a Vec3, f32 read as words",
+}
 
 
 def reviewed(writes, reads, uses):
@@ -1932,6 +1939,7 @@ def report(results, build, out, loader):
     w("## 3. ROM data: initialized data accessed at a width other than the element width the loader swapped")
     w("")
     rom = collections.defaultdict(list)
+    moved = collections.Counter()
     for a in acc:
         if a.base[0] != "sym" or a.kind in ("agg", "p"):
             continue
@@ -1940,6 +1948,9 @@ def report(results, build, out, loader):
             continue
         el = loader_element(e, a.hpos, a.pos)
         if el is None or (el[0] == a.n64w and el[1] == a.pos) or (el[0] == 1 and a.n64w == 1):
+            continue
+        if el[0] < a.n64w and not interp(a):
+            moved[a.base[1]] += 1   # a word that only moves the bytes keeps their order (a colour union's copy)
             continue
         rom[a.base[1]].append((a.pos, el[0], a))
     for sym in sorted(rom):
@@ -1950,6 +1961,10 @@ def report(results, build, out, loader):
             if k not in seen:
                 seen.add(k)
                 w(f"      +0x{pos:X} {a.rw} {a.n64w}B {a.flow} over {lw}B elements  {site(a)}  {a.text[:140]}")
+    if moved:
+        w(f"  Not listed: {sum(moved.values())} accesses that only move narrower elements as a wider value (a copy "
+          f"keeps their byte order; section 1 checks where the value is read): "
+          + ", ".join(f"{s_} ({n})" for s_, n in sorted(moved.items())))
     w("")
     # -- 3. copies between views
     w("## 4. Copies (memcpy/bcopy) between views whose scalar widths differ")
@@ -1977,6 +1992,7 @@ def report(results, build, out, loader):
     for r in results.values():
         typed.update(r["params"] if r else {})
     seen = set()
+    passed_reviewed = []
     for r in results.values():
         if not r or not r["accesses"]:
             continue
@@ -1995,8 +2011,14 @@ def report(results, build, out, loader):
                 lw = loader_width(e, ident[1], ident[1])
                 if lw and lw > 1 and (ident[0][1], ident[1], fn, k) not in seen:
                     seen.add((ident[0][1], ident[1], fn, k))
-                    w(f"  {ident[0][1]}+0x{ident[1]:X} ({lw}B elements) -> {fn} argument {k} "
-                      f"({'u8 *' if keys[k][1] == 1 else 'void *'}), from {unit}")
+                    why = BYTES_REVIEWED.get((fn, k))
+                    (passed_reviewed.append if why else w)(
+                        f"  {ident[0][1]}+0x{ident[1]:X} ({lw}B elements) -> {fn} argument {k} "
+                        f"({'u8 *' if keys[k][1] == 1 else 'void *'}), from {unit}" + (f": {why}" if why else ""))
+    if passed_reviewed:
+        w(f"  Reviewed ({len(passed_reviewed)}):")
+        for line in passed_reviewed:
+            w("  " + line)
     w("")
     # -- 4. puns in one file's code
     puns = [a for a in acc if a.pun]
