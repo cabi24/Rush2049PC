@@ -49,3 +49,14 @@ jobs:
             boot.log
             build/pc/pc-data/data_layout.txt
           if-no-files-found: ignore
+
+  n64-neutral:
+    # PC edits to shared game C must leave what IDO compiles unchanged (tools/port/n64_neutral.py). The real
+    # proof is the matching N64 build, which needs IDO; this compares preprocessed tokens and lines.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the base revision 09da2f0
+      - name: Shared game C against the decompilation it started from
+        run: python3 tools/port/n64_neutral.py --base 09da2f0 -q $(git diff --name-only 09da2f0 -- src include)
