@@ -27,6 +27,14 @@ typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
 
+/* What only one build runs (the PC side is in port/include/pc_prelude.h) */
+#ifndef TARGET_PC
+#define PC_SPIN(site)
+#define PC_IDLE()
+#define N64_ONLY(stmt) stmt
+#define PC_ONLY(stmt)
+#endif
+
 /* Volatile types (for hardware registers) */
 typedef volatile u8  vu8;
 typedef volatile u16 vu16;

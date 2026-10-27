@@ -36,6 +36,25 @@ static __inline__ void pc_be16_set(void *p, unsigned short v) {
 void *pc_n64_ptr(unsigned int n64_addr);
 unsigned int pc_n64_addr(const void *host);
 
+/* Statements only one build has, placed on a line the function already has, so its lines stay as IDO
+ * compiles them (tools/port/n64_neutral.py). Each game file that uses them defines the N64 side itself:
+ *     #ifndef TARGET_PC
+ *     #define PC_SPIN(site)
+ *     #endif
+ * PC_SPIN goes in the body of a busy-wait: the writer it waits for (another N64 thread, or what the N64 did
+ * from an interrupt) gets to run (port/ultra/sched.c). PC_IDLE is the idle thread's loop. N64_ONLY(stmt)
+ * keeps a statement from the PC build, PC_ONLY(stmt) from the N64 one. */
+void pc_os_spin_yield(const char *site);
+void pc_os_idle(void);
+#define PC_SPIN(site) pc_os_spin_yield(site);
+#define PC_IDLE() pc_os_idle();
+#define N64_ONLY(stmt)
+#define PC_ONLY(stmt) stmt
+
+/* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
+void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
+void pc_mem_unregister_be(const void *start);
+
 /* A wave's file is in memory, or its block goes away (port/assets, pc_port.h). */
 void pc_wave_loaded(int wave, void *buf, __SIZE_TYPE__ size);
 void pc_wave_released(int wave, void *buf);

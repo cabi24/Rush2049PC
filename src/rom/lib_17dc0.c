@@ -1289,15 +1289,9 @@ extern void func_8001906C(unsigned int);
 extern void func_80019144(unsigned int, unsigned int, unsigned int);
 extern void func_80018FA4(unsigned int, unsigned short);
 extern void func_80019370(unsigned char, unsigned short, unsigned int, unsigned char);
-#ifdef TARGET_PC
-/* PC: pointers passed as integers, pointer-sized (lib_15a10.c). */
-extern int func_8001558C(unsigned short, unsigned short, unsigned long, unsigned long, unsigned char);
-extern int func_800156E8(unsigned short, unsigned short, unsigned long, unsigned long);
-#define ROM_UPTR unsigned long
-#else
-extern int func_8001558C(unsigned short, unsigned short, unsigned int, unsigned int, unsigned char);
-extern int func_800156E8(unsigned short, unsigned short, unsigned int, unsigned int);
-#endif
+/* Pointers passed as integers: pointer-sized on the PC (lib_15a10.c). */
+extern int func_8001558C(unsigned short, unsigned short, uintptr_t, uintptr_t, unsigned char);
+extern int func_800156E8(unsigned short, unsigned short, uintptr_t, uintptr_t);
 void func_80019490(void *request, unsigned int *result, unsigned char unlocked)
 {
     SequenceOptions options;
@@ -1348,18 +1342,10 @@ void func_80019490(void *request, unsigned int *result, unsigned char unlocked)
                     options.channel = state->channel;
                     options.channelCount = 0;
                     if (unlocked) {
-#ifdef TARGET_PC
-                        *result = func_8001558C(state->group,state->program,(ROM_UPTR)state->stream,(ROM_UPTR)&options,1);
-#else
-                        *result = func_8001558C(state->group,state->program,(unsigned int)state->stream,(unsigned int)&options,1);
-#endif
+                        *result = func_8001558C(state->group,state->program,(uintptr_t)state->stream,(uintptr_t)&options,1);
                         if (*result != 0xFFFFFFFFU && (state->flags & 0x80)) func_800190AC(*result,0,0);
                     } else {
-#ifdef TARGET_PC
-                        *result = func_800156E8(state->group,state->program,(ROM_UPTR)state->stream,(ROM_UPTR)&options);
-#else
-                        *result = func_800156E8(state->group,state->program,(unsigned int)state->stream,(unsigned int)&options);
-#endif
+                        *result = func_800156E8(state->group,state->program,(uintptr_t)state->stream,(uintptr_t)&options);
                         if (*result != 0xFFFFFFFFU && (state->flags & 0x80)) func_80019144(*result,0,0);
                     }
                 }

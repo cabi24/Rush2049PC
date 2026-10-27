@@ -25,11 +25,7 @@ s32 __osIdCheckSum(u16 *ptr, u16 *csum, u16 *icsum) {
     *csum = *icsum = 0;
 
     for (j = 0; j < 28; j += 2) {
-#ifdef TARGET_PC
-        data = *(u16 *)((u8 *)ptr + j);   /* PC: the ID is on a 64-bit stack */
-#else
-        data = *(u16 *)((u32)ptr + j);
-#endif
+        data = *(u16 *)((uintptr_t)ptr + j);
         *csum += data;
         *icsum += ~data;
     }

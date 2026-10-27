@@ -12,20 +12,33 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifdef TARGET_PC
+/* PC: gWaveInstance's host layout (waves.c): ptr and lastPtr are pointer-sized, so 0x20 bytes a slot. The
+ * {pointer, count} tables are 16 bytes an entry. */
+typedef struct Slot20 { u8 pad0[6]; u8 resource; u8 pad7; u32 word8; uintptr_t allocation, word16; } Slot20;
+#define WAVE_PAIR 16
+#else
 typedef struct Slot20 { u8 pad0[6]; u8 resource; u8 pad7; u32 word8, allocation, word16; } Slot20;
+#define WAVE_PAIR 8
+#endif
 extern Slot20 gWaveInstance[64];
 extern volatile s16 D_8002EB70;
 extern u8 gRomObjDefPtrs[], gTexDefPtrs[], gPalDefPtrs[];
 void *memset(void *, int, u32);
+#ifdef TARGET_PC
+/* func_800960CC's manifest owner is the empty deleted-procedure stub; audio_effect_process (heap_release/group.c)
+ * is its body under a name the link keeps (docs/port/PROTOTYPES.md). */
+#define func_800960CC audio_effect_process
+#endif
 void func_800960CC(u32 address);
+
+#ifndef TARGET_PC
+#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
+#endif
 
 static void dma_wait(void)
 {
-    while (D_8002EB70 != 0) {
-#ifdef TARGET_PC
-        extern void pc_os_spin_yield(const char *site);
-        pc_os_spin_yield("func_80096130");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
+    while (D_8002EB70 != 0) { PC_SPIN("func_80096130")
     }
 }
 
@@ -40,7 +53,7 @@ void func_80096130(s32 index)
     func_800960CC(slot->allocation);
     if (slot) {}
     slot->allocation = 0;
-    memset(gRomObjDefPtrs + index * 8, 0, 8);
-    memset(gTexDefPtrs + index * 8, 0, 8);
-    memset(gPalDefPtrs + index * 8, 0, 8);
+    memset(gRomObjDefPtrs + index * WAVE_PAIR, 0, WAVE_PAIR);
+    memset(gTexDefPtrs + index * WAVE_PAIR, 0, WAVE_PAIR);
+    memset(gPalDefPtrs + index * WAVE_PAIR, 0, WAVE_PAIR);
 }

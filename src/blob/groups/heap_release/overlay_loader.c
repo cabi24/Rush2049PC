@@ -44,6 +44,14 @@ void bzero(void *p, u32 n);
  * values and zeroes its BSS: 0 = image A ("Start", flag D_8011ED00), 1 = image B ("Extra", flag
  * D_8011ED04). The game-heap reservation at the image address stays. */
 void pc_data_overlay_load(int overlay);
+/* No ROM addresses on the PC: the images come from port/data. */
+#define D_00BE4C70 0
+#define D_00BDA100 0
+#define D_8002B020 0
+#define D_8002B024 0
+#else
+#define N64_ONLY(stmt) stmt
+#define PC_ONLY(stmt)
 #endif
 
 void PrevMaxPath(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bssStart, s8 *loaded, u8 *rom) {
@@ -61,27 +69,15 @@ void PrevMaxPath(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bss
     if (bssStart) {}
     p = NextMaxPath((u32) dst, end - dst);
     PurgeableMemory(p, 0);
-#ifdef TARGET_PC
-    pc_data_overlay_load(loaded == &D_8011ED04);
-#else
-    inflate_decompress(rom, dst, 1);
-    bzero(bssStart, bssEnd - bssStart);
-#endif
+    N64_ONLY(inflate_decompress(rom, dst, 1);) PC_ONLY(pc_data_overlay_load(loaded == &D_8011ED04);)
+    N64_ONLY(bzero(bssStart, bssEnd - bssStart);)
     *loaded = 1;
 }
 
 void InitMaxPath(void) {
-#ifdef TARGET_PC   /* no ROM addresses: the image comes from port/data */
-    PrevMaxPath((u8 *) 0x8038A400, "Extra", (u8 *) 0x803BB380, D_8039B440, 0, D_80394F70, &D_8011ED04, 0);
-#else
     PrevMaxPath((u8 *) 0x8038A400, "Extra", (u8 *) 0x803BB380, D_8039B440, D_00BE4C70, D_80394F70, &D_8011ED04, D_8002B024);
-#endif
 }
 
 void sync_maxpath_to_checkpoint(void) {
-#ifdef TARGET_PC
-    PrevMaxPath((u8 *) 0x8038A400, "Start", (u8 *) 0x803BB380, D_803BAE20, 0, D_803B9A50, &D_8011ED00, 0);
-#else
     PrevMaxPath((u8 *) 0x8038A400, "Start", (u8 *) 0x803BB380, D_803BAE20, D_00BDA100, D_803B9A50, &D_8011ED00, D_8002B020);
-#endif
 }

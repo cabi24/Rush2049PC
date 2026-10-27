@@ -35,6 +35,10 @@ void controller_poll(void);
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
+#ifndef TARGET_PC
+#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
+#endif
+
 void func_800E7038(void)
 {
     static s8 queueCreated = 0;    /* 0x80111968 */
@@ -53,11 +57,7 @@ void func_800E7038(void)
         osCreateMesgQueue(&D_801497A8, &D_80152730, 1);
         osSendMesg(&D_801497A8, 0, 0);
     }
-    while (*(volatile u8 *)&D_80111950 == 0x80) {
-#ifdef TARGET_PC
-        extern void pc_os_spin_yield(const char *site);
-        pc_os_spin_yield("func_800E7038");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
+    while (*(volatile u8 *)&D_80111950 == 0x80) { PC_SPIN("func_800E7038")
     }
     controller_poll();
 }

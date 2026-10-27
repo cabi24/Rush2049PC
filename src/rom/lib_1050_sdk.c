@@ -55,7 +55,7 @@ s32 gViAccumTime = 0;
 s32 gViAccumTotal = 0;
 volatile s32 gViLastTick = 0;
 /* The game's names for this storage, by N64 address (port/data leaves these to the libultra layer). */
-#if defined(__APPLE__)
+#if defined(TARGET_PC) && defined(__APPLE__)
 #define PC_SYM(name) "_" name
 #else
 #define PC_SYM(name) name

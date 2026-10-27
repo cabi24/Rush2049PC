@@ -59,21 +59,20 @@ void func_800960CC(u32 address)
     func_80095CFC();
 }
 
+#ifdef TARGET_PC
+/* This file's func_800960CC is a weak copy; the link keeps the empty stub of that name, and the heap free
+ * itself as audio_effect_process (heap_release/group.c, docs/port/PROTOTYPES.md). */
+#define func_800960CC audio_effect_process
+void audio_effect_process(u32 address);
+#else
+#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
+#endif
+
 void wheel_params_set(void)
 {
     func_800958B8();
-    while (D_8011028C != 0) {
-#ifdef TARGET_PC
-        extern void pc_os_spin_yield(const char *site);
-        pc_os_spin_yield("wheel_params_set 1");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
-    }
-    while (D_80146160.head != 0) {
-#ifdef TARGET_PC
-        extern void pc_os_spin_yield(const char *site);
-        pc_os_spin_yield("wheel_params_set 2");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
-    }
+    while (D_8011028C != 0) { PC_SPIN("wheel_params_set 1") }
+    while (D_80146160.head != 0) { PC_SPIN("wheel_params_set 2") }
     D_80110284 = 0;
     func_800960CC(D_80144C48);
     func_800960CC(D_80146100);

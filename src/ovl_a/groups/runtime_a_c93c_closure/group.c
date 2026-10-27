@@ -29,6 +29,9 @@ typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
+#ifndef TARGET_PC
+#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
+#endif
 typedef struct Blit Blit;
 typedef struct MultiBlit {
     char *name;s16 x,y,width,height,top,bottom,left,right;
@@ -264,7 +267,15 @@ extern void sound_call_minimal(s16);  /* ZOID_RemoveObject */
 extern void ambient_sounds_clear(void);  /* removeBG */
 extern void func_800A5B3C(void);  /* ZOID_Reset */
 /* ---- context (region): _UninitScreen, buildTrackMap, animTrackMap: option_parent research bodies ---- */
+#ifdef TARGET_PC
+/* PC: the loaded WAD's OBHD records keep their N64 layout (port/assets/wad.c), so a LOD's display list and
+ * vertices are u32 RDRAM-window addresses here too (docs/port/LOADERS.md). */
+typedef struct MapLod {u16 texidx,flags;f32 lodRad;u32 displayList;u32 verts;} MapLod;
+#define MAPLOD_PTR(x) (uintptr_t) x
+#else
 typedef struct MapLod {u16 texidx,flags;f32 lodRad;u32 *displayList;void *verts;} MapLod;   /* N64 16-byte model LOD */
+#define MAPLOD_PTR(x) x
+#endif
 typedef struct RomObjDef {char name[16];f32 radius;s16 unused,lodCount;MapLod lod[4];} RomObjDef;   /* 88 B */
 typedef struct ModelBank {RomObjDef *romObjDefs;s32 count;} ModelBank;
 typedef struct Slot72 {s32 handle;f32 offset_x,offset_y,angle,scale_from,scale_to;f32 matrix[3][3],position[3];} Slot72;   /* trackMap: anon_objIdx_cityX_48 */
@@ -283,7 +294,11 @@ extern char *D_803B7788[];
 extern char D_803B9260[];
 extern Color D_803B8328;
 extern s32 D_803B7CD8;          /* kNumMapSects */
+#ifdef TARGET_PC
+extern u32 D_803BAB50;             /* mapObj[6].displayList (MapLod) */
+#else
 extern Gfx *D_803BAB50;            /* mapObj[6].displayList */
+#endif
 #ifdef TARGET_PC
 /* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
 #define MAP_DL_SECTION_BYTES 80
@@ -893,12 +908,7 @@ void func_8038B388(void)
 {
     func_8038AE50();
     if (D_803B8284 != -1) { sound_call_minimal((s16)D_803B8284); D_803B8284 = -1; }
-    while (D_8002EB70) {
-#ifdef TARGET_PC
-        extern void pc_os_spin_yield(const char *site);
-        pc_os_spin_yield("func_8038B388");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
-    }
+    while (D_8002EB70) { PC_SPIN("func_8038B388") }
 }
 
 /* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
@@ -1192,12 +1202,7 @@ void func_8038B930(void)
                 D_803B7CE4[i].handle = -1;
             }
         }
-        while (D_8002EB70) {
-#ifdef TARGET_PC
-            extern void pc_os_spin_yield(const char *site);
-            pc_os_spin_yield("func_8038B930");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
-        }
+        while (D_8002EB70) { PC_SPIN("func_8038B930") }
         for (i = 0; i < 7; i++) {
             model = string_copy_format(D_803B7738[i < 6 ? i : 19],0,D_80140BDC - 1,1);
             def = &D_801161F4[model >> 10].romObjDefs[model & 0x3FF];
@@ -1250,7 +1255,7 @@ void func_8038A820(void)
                 if (trackIdx < 6 || trackIdx == 19) {
                     if (D_803BAAE8[mapIdx].displayList) {
                         for (pointIdx = 0; pointIdx < D_803B7CD8; pointIdx++) {
-                            pStrip = (MapVtx *)D_803BAAE8[mapIdx].verts;
+                            pStrip = (MapVtx *)MAPLOD_PTR(D_803BAAE8[mapIdx].verts);
                             pStrip += pointIdx * 4;
                             if (D_80146108[27] == 0) fade = D_803B7CE0 * D_803B7CD8 - pointIdx;
                             else fade = D_803B7CE0 * D_803B7CD8 + pointIdx;

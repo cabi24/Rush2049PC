@@ -59,6 +59,10 @@ s32 PhysicsObjectList_Update(void);
 void Effects_UpdateEmitters(void);
 void Input_ProcessGameplayPad(s32);
 
+#ifndef TARGET_PC
+#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
+#endif
+
 s32 game_loop(void)
 {
     s32 renderFlag;
@@ -73,11 +77,7 @@ s32 game_loop(void)
     if (state_word_b == state_word_a) {
         UpdateFrame();
     } else {
-        while (D_8002EB70) {
-#ifdef TARGET_PC
-            extern void pc_os_spin_yield(const char *site);
-            pc_os_spin_yield("game_loop");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
+        while (D_8002EB70) { PC_SPIN("game_loop")
         }
         D_80149438 = 0;
         gfx_frame_begin();

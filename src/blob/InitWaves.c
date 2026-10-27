@@ -92,16 +92,15 @@ static void ClearMemory(void)
     car_damage_visual(0);
 }
 
+#ifndef TARGET_PC
+#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
+#endif
+
 void InitWaves(void)
 {
     int i;
     _BGLoadWaveCheck(1);
-    while (*(volatile s16 *)&gRenderInProgress) {
-#ifdef TARGET_PC
-        extern void pc_os_spin_yield(const char *site);
-        pc_os_spin_yield("InitWaves");   /* PC: let the writer run (docs/port/ULTRA.md) */
-#endif
-    }
+    while (*(volatile s16 *)&gRenderInProgress) { PC_SPIN("InitWaves") }
     ZOID_Reset(); InitBlits();
     for (i = 0; i < 64; i++) {
         if (gWaveInstance[i].ptr && !gWaveInstance[i].locked) func_80096130(i);
