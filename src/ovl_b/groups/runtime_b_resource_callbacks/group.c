@@ -53,6 +53,11 @@ typedef struct Player {
     f32 timer;
     u8 unknown3AC[12];
 } Player;
+#ifdef TARGET_PC
+#define N64_ULONG uintptr_t /* a pointer through an integer: long is 32 bits on Windows */
+#else
+#define N64_ULONG unsigned long
+#endif
 extern State D_80399AE0;
 extern f32 D_8002EB94;
 extern u16 D_80142A82, D_80142A84, D_80142A8E;
@@ -158,7 +163,7 @@ void func_80390B10(void)
             D_80399AE0.slots[D_80399AE0.selected_b].count = 1;
         }
     } else {
-        D_80399AE0.phase_b -= *(f32 *)(unsigned long)&D_8002EB94;
+        D_80399AE0.phase_b -= *(f32 *)(N64_ULONG)&D_8002EB94;
         if (D_80399AE0.phase_b < 0.0f) {
             i = func_8008B2E4(D_80399AE0.count);
             while (D_80399AE0.slots[i].count != 1 || D_80399AE0.slots[i].active == 3) {
@@ -190,7 +195,7 @@ void func_80390D38(void)
             D_80399AE0.slots[D_80399AE0.selected_delay].count = 1;
         }
     } else {
-        D_80399AE0.delay -= *(f32 *)(unsigned long)&D_8002EB94;
+        D_80399AE0.delay -= *(f32 *)(N64_ULONG)&D_8002EB94;
         if (D_80399AE0.delay < 0.0f) {
             i = func_8008B2E4(D_80399AE0.count);
             while (D_80399AE0.slots[i].count != 1 || D_80399AE0.slots[i].active == 4) {
