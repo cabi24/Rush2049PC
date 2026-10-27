@@ -3,34 +3,33 @@
 
     python3 tools/port/endian_check.py [--build build/pc] [-j 2] [--reuse] [--out build/pc/endian/report.txt]
     python3 tools/port/endian_check.py --reuse --only src/blob/foo.c --dump      # one file's accesses
+    python3 tools/port/endian_check.py --selftest --check-loader                 # ctest endian_check
 
 On the N64 (big-endian) the first byte of a word is its high byte; on the PC it is the low byte. Wherever the
-game writes a value at one width and reads its bytes at another (a u32 colour read as u8[4], two s16 halves of a
-handle read as one s32, flags written as a word and tested as a byte), or reads data the PC loader byte-swapped
-by a different width than the code uses, the PC sees other values than the N64. docs/port/ENDIAN.md.
+game writes a value at one width and reads its bytes at another (a u32 colour read as u8[4], an s32 handle read
+back as its low s16, flags written as a word and tested as a byte), or reads data the PC loader byte-swapped by a
+different width than the code uses, the PC sees other values than the N64. docs/port/ENDIAN.md 2.
 
 How it works:
 1. Every live game file (game.dir in compile_commands.json) is compiled again with its own flags plus
    -O1 -fno-inline -fdump-tree-forwprop1-lineno, into build/pc/endian/. GCC's GIMPLE at that point has every
    memory access as one expression with its access type and its base: `MEM[(u8 *)p_3 + 61B]`,
    `D_80140BF0[_5].prim[1]`, `MEM <unsigned int> [(char * {ref-all})&c]`. The object's DWARF gives the
-   declared types (gen_data.py's parser).
-2. Each access is resolved to a base (a data symbol, a local, or a pointer with its declared pointee type), a
-   host offset and an access width, and laid against the base's declared type:
-   - pun: the access's width differs from the declared scalar it falls on (a byte inside a word, a word over
-     bytes or over two halves). The cast is in this file's code: these are the most likely real sites;
-   - union: a union's members of different widths over the same bytes, both used.
-3. Accesses are grouped by storage across files. A record family joins a data symbol with the struct types
-   files declare it with (by name and N64 size), and accesses through pointers of those types; pointers set
-   from `&symbol...` in the function count for the symbol. Positions are N64 offsets (in an element for arrays
-   of structs), so views with different pointer layouts line up:
-   - cross: the same bytes accessed at different widths in different views. A write at one width and a read at
-     another ranks highest; a constant written wide (a colour) higher still;
-   - rom: initialized data read at a width other than the element width the PC loader swapped it by
-     (build/pc/pc-data/data.c's runs), which is wrong on the PC whatever the code does.
-4. Weak context copies (build/pc/weak/*.h) never run and are skipped.
+   declared types (gen_data.py's parser), so each access has a host offset, an N64 position and a width.
+2. Each access is put in a storage: a data symbol, what a function's parameter points to, what a pointer loaded
+   from a storage position points to, what one call returned, a local. A pointer argument connects the caller's
+   storage with the callee's parameter at its offset.
+3. Values are made (constants, arithmetic, conversions, the loader's elements of initialized data) and
+   interpreted (shifted, masked, ordered, compared with a constant, converted, used as an array index), and move
+   unchanged in between (same-width loads and stores, arguments, returns, struct assignments). A value made at one
+   (position, width) and interpreted at an overlapping other one is a conflict (report section 1).
+4. The other sections list every storage accessed at mixed widths (2), s16 reads of a word's second half (2b),
+   initialized data read at a width other than the loader's element (3), copies between views (4), initialized
+   data passed as bytes (4b) and puns in one file's code (5).
+5. Weak context copies (build/pc/weak/*.h) never run and are skipped.
 
-Ranks are heuristics; every site needs reading. Stdlib and binutils, Python 3.9+.
+Scores are heuristics; every site needs reading. Conflicts that were read and judged are in REVIEWED and LEFT.
+Stdlib and binutils, Python 3.9+.
 """
 import argparse
 import collections
@@ -519,11 +518,20 @@ class DefUse:
     def ssa_in(self, s):
         return [n for n in _NAMES.findall(s) if self.an.is_ssa(self.f, n)]
 
+    def addr_uses(self, s):
+        """SSA names in an address or memory expression: an array index is interpreted (its value picks the
+        element), a base pointer is not."""
+        idx = set(re.findall(r"\[([\w.$]+(?:\((?:D|ab)\))?)\]", s))
+        for n in self.ssa_in(s):
+            self.uses[n].append(("index",) if n in idx else ("addr",))
+
     def call_uses(self, fn, args, ln):
         for k, a in enumerate(split_args(args)):
             self.call_args.append((fn, k, a, ln))
-            for n in self.ssa_in(a):
-                self.uses[n].append(("call", fn, k) if n == a else ("addr",))
+            if self.an.is_ssa(self.f, a):
+                self.uses[a].append(("call", fn, k))
+            else:
+                self.addr_uses(a)
 
     def roots(self, x, depth=0, seen=None):
         """Where x's value comes from without a conversion: ('load', ssa), ('param', ssa), ('const', value) or
@@ -587,8 +595,7 @@ class DefUse:
             return
         lhs, rhs = m.group(1).strip(), m.group(2).strip()
         if not an.is_ssa(f, lhs):
-            for n in self.ssa_in(lhs):
-                self.uses[n].append(("addr",))
+            self.addr_uses(lhs)
             if an.is_ssa(f, rhs):
                 self.uses[rhs].append(("store", lhs))
             return
@@ -600,10 +607,10 @@ class DefUse:
             self.call_uses(mm.group(1), mm.group(2), ln)
         elif an.is_mem_expr(f, rhs):
             self.defs[lhs] = ("load",)
-            for n in self.ssa_in(rhs):
-                self.uses[n].append(("addr",))
+            self.addr_uses(rhs)
         elif rhs.startswith("&"):
             self.defs[lhs] = ("addr",)
+            self.addr_uses(rhs)
         else:
             c = re.match(r"^\(([^()]*(?:\([^()]*\)[^()]*)*)\) (\S+)$", rhs)
             b = _BINOP.match(rhs)
@@ -699,7 +706,7 @@ class DefUse:
                 out.append(u)
             elif u[0] == "ret":
                 out.append(("ret",))
-            elif u[0] in ("arith", "cmp", "eqc"):
+            elif u[0] in ("arith", "cmp", "eqc", "index"):
                 out.append(("use", u[0] if u[0] != "arith" else "arith:" + u[1]))
         return out
 
@@ -708,7 +715,7 @@ class Analyzer:
     def __init__(self, unit, types, weak):
         self.unit, self.T, self.weak = unit, types, weak
         self.accesses, self.links, self.copies, self.calls, self.errors = [], [], [], [], 0
-        self.edges, self.made, self.used = [], [], []
+        self.edges, self.made, self.used, self.aggcopies, self.byvalue = [], [], [], [], []
 
     # -- helpers
     def is_ssa(self, f, name):
@@ -1079,9 +1086,10 @@ class Analyzer:
             return
         lhs_mem = not self.is_ssa(f, lhs)
         value = None
+        wi = None
         if lhs_mem:
             value = parse_int(rhs) if _INT.match(rhs) else None
-            i = self.ref_access(f, ln, lhs, "W", ptrsrc, st, value=value)
+            i = wi = self.ref_access(f, ln, lhs, "W", ptrsrc, st, value=value)
             if i is not None:
                 w = self.accesses[i].width
                 if self.is_ssa(f, rhs):
@@ -1094,6 +1102,8 @@ class Analyzer:
             return
         if self.is_mem_expr(f, rhs):
             i = self.ref_access(f, ln, rhs, "R", ptrsrc, st)
+            if i is not None and wi is not None and self.accesses[i].kind == "agg":
+                self.aggcopies.append((i, wi))   # a struct assignment: its bytes move as they are
             if i is not None:
                 w = self.accesses[i].width
                 if not lhs_mem:
@@ -1128,9 +1138,11 @@ class Analyzer:
         if not m:
             return
         fn, args = m.group(1), split_args(m.group(2))
-        for a in args:
+        for k, a in enumerate(args):
             if self.is_mem_expr(f, a):
-                self.ref_access(f, ln, a, "R", ptrsrc, st, note="by value")
+                i = self.ref_access(f, ln, a, "R", ptrsrc, st, note="by value")
+                if i is not None and self.accesses[i].kind == "agg":
+                    self.byvalue.append((i, fn, k))   # a struct passed by value: the callee's parameter's bytes
         # what each pointer argument points into, to join the caller's view with the callee's parameter type
         idents = []
         for a in args:
@@ -1375,8 +1387,10 @@ def analyze_unit(job):
             keys.append(key)
         if any(keys):
             params[f.name] = keys
+    pnames = {f.name: list(f.params) for f in funcs if f.name not in an.weak}
     return uid, dict(accesses=[tuple(a) for a in an.accesses], links=links, copies=an.copies, calls=an.calls,
-                     params=params, edges=an.edges, made=an.made, used=an.used, errors=an.errors,
+                     params=params, pnames=pnames, edges=an.edges, made=an.made, used=an.used,
+                     aggcopies=an.aggcopies, byvalue=an.byvalue, errors=an.errors,
                      funcs=sum(1 for f in funcs if f.name not in an.weak))
 
 
@@ -1406,7 +1420,8 @@ def loader_map(build):
                 for i in range(cnt):
                     o = n64o + r_ * ns + i * w - base_off
                     if limit is None or 0 <= o < limit:
-                        mp[o] = w
+                        for j in range(w):   # every byte of the element: (width, its start)
+                            mp[o + j] = (w, o)
         return mp
 
     arena_maps = []
@@ -1430,14 +1445,16 @@ def loader_map(build):
     return table
 
 
-def loader_width(entry, host_off, n64_off):
-    """Element width the loader swapped at this offset of the symbol (None if not initialized data)."""
+def loader_element(entry, host_off, n64_off):
+    """(width, offset of its first byte) of the element the loader swapped over this byte of the symbol: an
+    undescribed byte is copied as it is (width 1). None if the symbol is not initialized data."""
     storage, addr, init, data, n64s = entry
-    if not init:
+    if not init or n64_off is None:
         return None
     if storage == "arena":
         lo, mp = data
-        return mp.get(addr + n64_off - lo, 1) if n64_off is not None else None
+        w, start = mp.get(addr + n64_off - lo, (1, addr + n64_off - lo))
+        return w, start - (addr - lo)
     # own storage: runs by host offset
     for n64o, ho, cnt, rep, ns, hs, kind in data:
         w = KIND_W.get(kind, 1)
@@ -1445,8 +1462,14 @@ def loader_width(entry, host_off, n64_off):
         for r_ in range(max(rep, 1)):
             start = ho + r_ * hs
             if start <= host_off < start + cnt * hw:
-                return w
-    return 1
+                return w, n64_off - (host_off - start) % hw
+    return 1, n64_off
+
+
+def loader_width(entry, host_off, n64_off):
+    """Element width the loader swapped at this offset of the symbol (None if not initialized data)."""
+    e = loader_element(entry, host_off, n64_off)
+    return e[0] if e else None
 
 
 # ---------------------------------------------------------------- 6. analysis over all units
@@ -1489,22 +1512,28 @@ REVIEWED = [
      r"id\.part\.index|EntityHdr", "fixed: the PC view's index is the s32 handle's low half"),
     (r"src/blob/groups/entity_spawn_init/entity_spawn_init\.c", r"handle\.part\.id",
      "fixed: the PC view's id is the s32 handle's low half"),
-    (r"src/blob/groups/carcolor/carcolor\.c", r"halves\.id", "fixed: the PC view's id is the s32 handle's low half"),
+    (r"src/blob/func_80092FE0\.c|src/blob/groups/carcolor/carcolor\.c", r"PlayerRec|halves\.id",
+     "fixed: the PC views' a..f and id are the s32 handles' low halves"),
     (r"src/ovl_b/groups/runtime_b_resource_callbacks/group\.c", r"handle\.parts\.index",
      "fixed: the PC view's index is the s32 handle's low half"),
     (r"src/blob/groups/route_cross/group\.c", r"TrackerLen",
      "not a conflict: LEN(k) is element k+1's word at +8, the counts read are element 0's"),
-    (r"src/blob/groups/blast/blast\.c", r"save_write_data",
-     "not a conflict: StartBlast's data is an s16 car slot with linkToCar, an f32 position without; the callers "
-     "that pass positions do not link"),
-    (r"src/blob/groups/entity_spawn_init/entity_spawn_init\.c", r"^entity_spawn_init$",
-     "not a conflict: values from StartBlast's callers, merged in its parameter (not context sensitive)"),
     (r"src/blob/entity_lod_select\.c", r"^entity_lod_select$",
      "not a conflict: `if (cmd[0] & 0x00FF0000) {}` reads a big-endian command word natively and discards it "
      "(kept for matching); every other read goes through pc_be32_get"),
-    (r"src/rom/lib_b(300|570|9f0|e40|fe0)\.c|src/rom/lib_f700\.c", r".",
+    (r"src/rom/lib_(b120|b300|b570|b9f0|be40|bfe0|f700)\.c", r".",
      "by design: the controller pak image keeps native u16 links next to {bank, page} bytes (docs/port/ULTRA.md)"),
 ]
+# Initialized data whose conflicts are left to other parts (docs/port/ENDIAN.md 4): a conflict whose values all come
+# from the loader's elements of these symbols is listed as reviewed with the reason.
+LEFT = {
+    "the loader's union rule (port/data)": {
+        "D_801146BC", "D_801146C0", "D_80116DB0", "D_80118E28", "D_80118E2C", "D_8011AD8C", "D_8011ADC0",
+        "D_8011AE58", "D_8011B558", "D_8011B578", "D_80394270", "D_803942A0", "D_803942A4", "D_803942E8",
+        "D_803B3054", "D_803B3058", "D_803B3458", "D_803B345C", "D_803B8328", "D_803B8354", "D_803B8394",
+        "D_803B8398"},
+    "gTargInfo's PC layout (POINTERS.md 9.9)": {"D_80117530"},
+}
 
 
 def reviewed(writes, reads, uses):
@@ -1522,7 +1551,13 @@ def reviewed(writes, reads, uses):
 
 
 CAP = 24   # descriptions kept per node
-GENERIC = 12   # a pointer parameter given more storages than this belongs to a generic helper
+GENERIC = 12   # an untyped pointer parameter given more storages than this belongs to a generic helper
+# Parameters whose callers' storages are not joined, because the record they point to depends on another argument
+# (the tool has no call contexts): (function, parameter index) -> why
+NOT_FOLLOWED = {
+    ("save_write_data", 0): "StartBlast's data is an s16 car slot with linkToCar, an f32 position without; the "
+                            "callers that pass positions do not link",
+}
 
 
 def value_conflicts(results, fam, norm, loader=None):
@@ -1554,11 +1589,11 @@ def value_conflicts(results, fam, norm, loader=None):
                 sites[k].append(a)
                 e = loader.get(k[0][1]) if loader and k[0][0] == "sym" and a.rw == "R" else None
                 if e and e[2] and a.pos is not None:
-                    lw = loader_width(e, a.hpos if a.hpos is not None else a.pos, a.pos)
-                    if lw:   # the element the loader swapped, at its own (aligned) place
-                        lo = k[1] - a.pos % lw
-                        made[(k[0], lo, lw)].add(("rom", None, (f"{e[0]} 0x{e[1] + a.pos - a.pos % lw:08X}",
-                                                                "the PC loader", 0)))
+                    el = loader_element(e, a.hpos if a.hpos is not None else a.pos, a.pos)
+                    if el:   # the element the loader swapped over the access's first byte, at its own place
+                        lw, start = el
+                        made[(k[0], k[1] - (a.pos - start), lw)].add(
+                            ("rom", None, (f"{k[0][1]} ({e[0]} 0x{e[1] + start:08X})", "the PC loader", 0)))
         for n, kind, val, s in r["made"]:
             k = key(u, accs, n)
             if k and len(made[k]) < CAP:
@@ -1579,6 +1614,42 @@ def value_conflicts(results, fam, norm, loader=None):
     by_family = collections.defaultdict(set)
     for k in reads | writes:
         by_family[k[0]].add(k)
+    # struct assignments and structs passed by value: their bytes move as they are, so every scalar place inside
+    # them moves (and the loader's elements of initialized data with them)
+    pnames, agg = {}, []
+    for r in results.values():
+        pnames.update(r.get("pnames", {}) if r else {})
+    for u, r in results.items():
+        if not r:
+            continue
+        accs = [Access(*a) for a in r["accesses"]]
+        for si, di in r.get("aggcopies", ()):
+            s, d = accs[si], accs[di]
+            if norm(s) is not None and norm(d) is not None:
+                agg.append((fam(s), norm(s), s.n64w, fam(d), norm(d), s))
+        for si, fn, k in r.get("byvalue", ()):
+            s, names = accs[si], pnames.get(fn)
+            if norm(s) is not None and names and k < len(names):
+                agg.append((fam(s), norm(s), s.n64w, ("local", fn, names[k]), 0, s))
+    for fs, ps, n, fd, pd, s in agg:
+        n = min(n or 0, 256)
+        e = loader.get(fs[1]) if loader and fs[0] == "sym" else None
+        if e and e[2] and s.pos is not None:
+            for off in range(n):
+                el = loader_element(e, (s.hpos or 0) + off, s.pos + off)
+                if el and el[1] == s.pos + off:   # an element starts here
+                    made[(fd, pd + off, el[0])].add(
+                        ("rom", None, (f"{fs[1]} ({e[0]} 0x{e[1] + s.pos + off:08X})", "the PC loader", 0)))
+        for k in list(by_family.get(fs, ())):
+            if ps <= k[1] < ps + n:
+                k2 = (fd, pd + k[1] - ps, k[2])
+                succ[k].add(k2)
+                pred[k2].add(k)
+        for k2 in list(by_family.get(fd, ())):
+            if pd <= k2[1] < pd + n:
+                k = (fs, ps + k2[1] - pd, k2[2])
+                succ[k].add(k2)
+                pred[k2].add(k)
     esize = getattr(norm, "esize", {})
     for fp, args in getattr(fam, "shared", ()):
         for k in by_family.get(fp, ()):
@@ -1628,6 +1699,9 @@ def value_conflicts(results, fam, norm, loader=None):
                     score += 1
                 why = reviewed([a for a in sites.get((f, p, wa), ()) if a.rw == "W"],
                                [a for a in sites.get((f, q, wb), ()) if a.rw == "R"], us)
+                for reason, syms in LEFT.items():
+                    if not why and all(k == "rom" and s[0].split()[0] in syms for k, v, s in m):
+                        why = "left: " + reason
                 out.append((score, f, (p, wa), m, (q, wb), us, why))
     out.sort(key=lambda x: (-x[0], str(x[1]), x[2], x[4]))
     return out
@@ -1682,7 +1756,7 @@ def families(results, alias):
     typed = {}
     for r in results.values():
         typed.update(r["params"] if r else {})
-    links = collections.defaultdict(set)
+    links, untyped = collections.defaultdict(set), set()
     for r in results.values():
         if not r or not r["accesses"]:
             continue
@@ -1692,12 +1766,16 @@ def families(results, alias):
             for k, ident in enumerate(idents):
                 if ident and ident[0][0] not in ("ldssa", "anon") and k < len(keys) and keys[k]:
                     links[("param", fn, k)].add((canon(ident[0], unit), ident[1] or 0))
+                    if keys[k][0] == "scalar" and keys[k][1] <= 1:
+                        untyped.add(("param", fn, k))
     # A parameter's storage is each caller's at the same offsets. Families are not joined (a helper's parameter
     # takes many records, and joins would chain them together); value_conflicts follows values across instead.
-    # A parameter given more than GENERIC storages (memcpy, bzero, a list helper) is left out: values would go
-    # from every caller's storage to every other's.
+    # A `void *` or byte-pointer parameter given more than GENERIC storages (memcpy, bzero, a buffer helper) is left
+    # out: what it copies would go from every caller's source to every caller's destination. So are the parameters
+    # in NOT_FOLLOWED.
     fam = lambda a: canon(a.base, a.unit)
-    fam.shared = [(node, idents) for node, idents in links.items() if len(idents) <= GENERIC]
+    fam.shared = [(node, idents) for node, idents in links.items()
+                  if (node not in untyped or len(idents) <= GENERIC) and node[1:] not in NOT_FOLLOWED]
     return fam
 
 
@@ -1724,6 +1802,26 @@ def analyze(results, alias):
     return acc, fam, norm
 
 
+def low_halves(acc, fam, norm):
+    """(storage, position, the read, the word's 4-byte accesses) for each s16 read at +2 of a place that is also
+    accessed as a 4-byte integer: the word's low half on the N64, its high half on the PC."""
+    by = collections.defaultdict(list)
+    for a in acc:
+        p = norm(a)
+        if p is not None and a.kind == "i" and a.base[0] != "abs":
+            by[fam(a)].append((p, a))
+    out = []
+    for f, items in by.items():
+        words = collections.defaultdict(list)
+        for p, a in items:
+            if a.n64w == 4:
+                words[p].append(a)
+        for p, a in items:
+            if a.n64w == 2 and a.rw == "R" and p % 4 == 2 and p - 2 in words:
+                out.append((f, p, a, words[p - 2]))
+    return sorted(out, key=lambda x: (str(x[0]), x[1], x[2].unit, x[2].line))
+
+
 def report(results, build, out, loader):
     acc, fam, norm = analyze(results, symbol_aliases(build))
     lines = []
@@ -1740,11 +1838,12 @@ def report(results, build, out, loader):
     vf = value_conflicts(results, fam, norm, loader)
     w("## 1. Value conflicts: a value made at one width is interpreted at another width of the same bytes")
     w("")
-    w("A value is made where it is a constant (not 0 or -1), arithmetic, a conversion or an unknown call's result,")
-    w("and interpreted where it is shifted, masked, ordered, compared with a constant or converted. In between it")
-    w("may move unchanged: copied at the same width, passed as an argument, returned (followed across files).")
+    w("A value is made where it is a constant (not 0 or -1), arithmetic, a conversion, the PC loader's element of")
+    w("initialized data or an unknown call's result, and interpreted where it is shifted, masked, ordered, compared")
+    w("with a constant, converted or used as an array index. In between it may move unchanged: copied at the same")
+    w("width or in a struct assignment, passed as an argument, returned (followed across files).")
     w("Score: 5 a constant or ROM data, 4 arithmetic or a conversion, 3 a call's or parameter's value; +1 across")
-    w("files. Conflicts already judged (REVIEWED in the tool) are listed last, with the reason.")
+    w("files. Conflicts already judged (REVIEWED and LEFT in the tool) are listed last, with the reason.")
     w("")
     open_ = [c for c in vf if not c[6]]
     hist = collections.Counter(min(c[0], 6) for c in open_)
@@ -1805,7 +1904,7 @@ def report(results, build, out, loader):
     w("masked, compared, passed on); +1 if the writer stores a constant; +1 if the two are in different files.")
     w("2 = one side only moves the value (copy). 1 = moves on both sides, or ROM data read at its own width.")
     w("Flows: copy (moved at the same width, or compared for equality), zero (0 or -1), const, arith:OP, param,")
-    w("call:F, convert (read at another width before the store), cmp, eqc (compared with a constant), ret.")
+    w("call:F, convert (read at another width before the store), cmp, eqc (compared with a constant), index, ret.")
     w("")
     hist = collections.Counter(min(s_, 6) for s_, f, cl, rom in scored)
     w("clusters by score: " + ", ".join(f"{k}: {v}" for k, v in sorted(hist.items(), reverse=True)))
@@ -1822,6 +1921,18 @@ def report(results, build, out, loader):
             val = f" = {a.value:#x}" if a.value is not None else ""
             w(f"      +0x{p:X} {a.rw} {a.n64w}B {a.flow}{val}  {site(a)}  {a.text[:150]}")
     w("")
+    # -- 1b. the second s16 of a word read where the word is also accessed whole: the N64's low half, the PC's high
+    w("## 2b. Low halves: an s16 read at +2 of a place that is also accessed as a 4-byte integer")
+    w("")
+    w("On the N64 that s16 is the word's low half; on the PC it is the high half (a handle's 0). A PC view that")
+    w("reads the low half first is at +0 and not listed.")
+    w("")
+    halves = low_halves(acc, fam, norm)
+    for f, p, a, whole in halves:
+        w(f"  {fmt_ident(f)} +0x{p:X}: {site(a)}  {a.text[:140]}")
+        for b in sorted(whole, key=lambda b: (b.unit, b.line))[:4]:
+            w(f"      the word: {b.rw} {b.flow}  {site(b)}")
+    w("")
     # -- 2. initialized data read at a width other than the loader's
     w("## 3. ROM data: initialized data accessed at a width other than the element width the loader swapped")
     w("")
@@ -1832,10 +1943,10 @@ def report(results, build, out, loader):
         e = loader.get(a.base[1])
         if not e or not e[2] or a.pos is None:
             continue
-        lw = loader_width(e, a.hpos, a.pos)
-        if lw is None or lw == a.n64w:
+        el = loader_element(e, a.hpos, a.pos)
+        if el is None or (el[0] == a.n64w and el[1] == a.pos) or (el[0] == 1 and a.n64w == 1):
             continue
-        rom[a.base[1]].append((a.pos, lw, a))
+        rom[a.base[1]].append((a.pos, el[0], a))
     for sym in sorted(rom):
         w(f"  {sym} ({loader[sym][0]} 0x{loader[sym][1]:08X}):")
         seen = set()
@@ -1910,7 +2021,8 @@ def report(results, build, out, loader):
     funcs = sum(r["funcs"] for r in results.values() if r)
     summary = (f"{len(results)} units, {funcs} live functions, {len(acc)} accesses; {len(open_)} open value "
                f"conflicts in {len({c[1] for c in open_})} storages ({len(vf) - len(open_)} reviewed), "
-               f"{len(scored)} mixed-width clusters, {sum(len(v) for v in rom.values())} ROM-width accesses in "
+               f"{len(scored)} mixed-width clusters, {len(halves)} low-half reads, "
+               f"{sum(len(v) for v in rom.values())} ROM-width accesses in "
                f"{len(rom)} symbols, {ncopies} copies between views, {len(puns)} puns; {errors} statements not parsed")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("# endian_check report (tools/port/endian_check.py; docs/port/ENDIAN.md)\n\n" + summary + "\n\n"
@@ -1970,13 +2082,32 @@ void caller(void) { Color c; c.w = 0x11223344; copy_color(&gRec[3], &c); }
 /* bytes copied as a word, read as bytes: no conflict */
 void neutral(void) { Color c; c.c[0] = 1; c.c[1] = 2; c.c[2] = 3; c.c[3] = 4; copy_color(&gRec[4], &c); }
 u32 neutral_flags(int i) { return gRec[i].flags & 4; }
+/* a word moved by a struct assignment, and a union passed by value, into the records: conflicts (with draw) */
+typedef struct Word { u32 w; } Word;
+Word gWordSrc;
+void make_word(void) { gWordSrc.w = 0x10203040; }
+void struct_copy(void) { Word t = gWordSrc; copy_color(&gRec[5], (Color *)&t); }
+void take_color(Color c, Rec *r) { r->col.w = c.w; }
+void by_value(void) { Color c; c.w = 0x55667788; take_color(c, &gRec[6]); }
+/* a handle kept as an s32 and read back as its second s16, the N64's low half (section 2b), returned and used as an
+ * array index (a conflict) */
+typedef union Handle { s32 whole; struct { s16 high, index; } part; } Handle;
+Handle gHandles[4];
+void keep_handle(int i) { gHandles[i].whole = i * 3 + 1; }
+s16 handle_index(int i) { return gHandles[i].part.index; }
+extern int gTable[];
+int lookup(int i) { return gTable[gHandles[i].part.index]; }
 """
 # (family, position made, width made, position used, width used, a function that made it) the self-test must
 # find, and (family, position) it must not
 SELFTEST_EXPECT = [(("sym", "gRec"), 0x4, 4, 0x4, 1, "set_color"), (("sym", "gRec"), 0x4, 4, 0x4, 1, "caller"),
                    (("sym", "gRec"), 0xC, 1, 0xC, 4, "set_bytes"), (("sym", "gRec"), 0x8, 2, 0x8, 4, "set_halves"),
-                   (("local", "local_union", "c"), 0, 4, 0, 1, "local_union")]
+                   (("local", "local_union", "c"), 0, 4, 0, 1, "local_union"),
+                   (("sym", "gRec"), 0x4, 4, 0x4, 1, "make_word"), (("sym", "gRec"), 0x4, 4, 0x4, 1, "by_value"),
+                   (("sym", "gHandles"), 0x0, 4, 0x2, 2, "keep_handle")]
 SELFTEST_ABSENT = [(("local", "neutral", "c"), None), (("sym", "gRec"), 0x0)]
+# (family, position, function) of the low-half reads (report section 2b) it must find, and no others
+SELFTEST_HALVES = [(("sym", "gHandles"), 0x2, "handle_index"), (("sym", "gHandles"), 0x2, "lookup")]
 
 
 # Initialized data whose declarations were made to agree with how the game reads it (docs/port/ENDIAN.md): the
@@ -1985,7 +2116,7 @@ LOADER_EXPECT = [("D_80114264", 0x0, 4), ("D_80114264", 0xC, 4), ("D_801164A4", 
                  ("D_80117100", 0x0, 4), ("D_80117100", 0x10, 4), ("D_80116148", 0x0, 1), ("D_80116148", 0x5, 1),
                  ("D_803AF9A8", 0x0, 4), ("D_803AF9A8", 0x3C, 1), ("D_80111950", 0x0, 1), ("D_8011195C", 0x0, 1),
                  ("D_80111960", 0x0, 1), ("D_8011028C", 0x0, 1), ("D_8011EA40", 0x0, 2), ("D_8011EA40", 0xC, 2),
-                 ("D_8011EA90", 0x6, 2)]
+                 ("D_8011EA90", 0x6, 2), ("D_803B46A4", 0x0, 1), ("D_803B46A4", 0x3, 1)]
 
 
 def check_loader(build):
@@ -2028,7 +2159,13 @@ def selftest(build, readelf):
         bad += bool(hit)
         print(f"{'ok  ' if not hit else 'FALSE'} no conflict in {fmt_ident(e[0])}" +
               (f" at +0x{e[1]:X}" if e[1] is not None else ""))
-    print(f"selftest: {len(found)} conflicts, {bad} wrong")
+    halves = {(f, p, a.func) for f, p, a, whole in low_halves(acc, fam, norm)}
+    for e in SELFTEST_HALVES:
+        ok = e in halves
+        bad += not ok
+        print(f"{'ok  ' if ok else 'MISS'} low half of {fmt_ident(e[0])} +0x{e[1] - 2:X} read by {e[2]}")
+    bad += len(halves - set(SELFTEST_HALVES))
+    print(f"selftest: {len(found)} conflicts, {len(halves)} low-half reads, {bad} wrong")
     return 1 if bad else 0
 
 
