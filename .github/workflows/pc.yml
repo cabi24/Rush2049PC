@@ -73,6 +73,9 @@ jobs:
     # Debian 12's mingw-w64 (GCC 12.2, binutils 2.40), the toolchain the port was first cross-built with; and
     # deb.debian.org is quicker than the runners' Ubuntu mirror, which took minutes a package on some runs.
     container: debian:12
+    defaults:
+      run:
+        shell: bash   # a container's default is sh
     steps:
       - name: Dependencies
         run: |
