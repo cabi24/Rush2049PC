@@ -69,6 +69,11 @@ typedef struct Resource { u8 pad0[20]; s16 object; u8 pad22[38]; u32 color; u8 p
 typedef struct Player { u8 pad0[860]; s8 slot; u8 pad861[91]; } Player;
 extern s32 D_801170FC;
 extern u32 D_80118E14, D_80118E18;
+/* PC: the gold and silver colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
+ * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
+#ifndef TARGET_PC
+#define PC_RGBA(x) x
+#endif
 extern s32 D_80151610, D_80151964;
 extern u8 gNumModels;
 extern s16 D_8014A108;
@@ -122,8 +127,8 @@ void func_8010E0FC(Node *node, s16 update)
         return;
     }
     if (!(entity->flags & 1)) {
-        gold[0] = D_80118E14;
-        silver[0] = D_80118E18;
+        gold[0] = PC_RGBA(D_80118E14);
+        silver[0] = PC_RGBA(D_80118E18);
         if (entity->flags & 0x40) {
             number = D_80151610 + 8;
             coin->number = number;

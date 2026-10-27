@@ -72,6 +72,11 @@ extern Bank gTexDefPtrs[];
 extern s8 D_80111299[];
 extern f32 D_8011744C[];
 extern s32 D_8011749C,D_801174A0,D_801174A4,D_801174A8,D_801174AC,D_801174B0;
+/* PC: the six surface colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
+ * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
+#ifndef TARGET_PC
+#define PC_RGBA(x) x
+#endif
 void func_8008D870(s16 handle,void *resource,s32 mode);
 f32 func_8008E0B8(f32 *v);
 s32 func_8008E26C(s32 object,void *basis,s16 parent,s32 flags);
@@ -121,12 +126,12 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
     s32 count;
     s32 i;
     s32 pC1, pC2, pC3;
-    s32 color0 = D_8011749C;
-    s32 color1 = D_801174A0;
-    s32 color2 = D_801174A4;
-    s32 color3 = D_801174A8;
-    s32 color4 = D_801174AC;
-    s32 color5 = D_801174B0;
+    s32 color0 = PC_RGBA(D_8011749C);
+    s32 color1 = PC_RGBA(D_801174A0);
+    s32 color2 = PC_RGBA(D_801174A4);
+    s32 color3 = PC_RGBA(D_801174A8);
+    s32 color4 = PC_RGBA(D_801174AC);
+    s32 color5 = PC_RGBA(D_801174B0);
     s32 pD00;
     s32 pD01;
     s32 pD02;

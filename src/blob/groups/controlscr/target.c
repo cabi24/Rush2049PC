@@ -36,6 +36,11 @@ extern f32 D_8011418C[3][3];
 extern volatile f32 D_8002EB94;
 extern f32 D_80112A9C,D_80112AA0,D_80112AA4,D_80112AA8,D_80112AAC,D_80112AB0,D_80112AB4;
 extern s32 D_80154618[],D_80154630[],D_801140F0;
+/* PC: the button colour D_801140F0 is R,G,B,A bytes in the ROM, which the loader swaps as the word it is declared;
+ * PC_RGBA gives back the word whose bytes the alpha store and the scene node's colour expect (docs/port/ENDIAN.md). */
+#ifndef TARGET_PC
+#define PC_RGBA(x) x
+#endif
 extern f32 D_80154648[],D_80154FC0[];
 extern s16 D_8014A0F8[];
 extern volatile u8 D_80140BDC;
@@ -81,7 +86,7 @@ void func_800D816C(s8 player) {
     s32 frame_residual3;
 
     settled = 1;
-    color.word = D_801140F0;
+    color.word = PC_RGBA(D_801140F0);
     if (D_80154618[player] != 0) {
         count = 0;
         before = 0;
