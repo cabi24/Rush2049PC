@@ -8,3 +8,6 @@ build/
 tools/ido/
 __pycache__/
 *.pyc
+# PC build run files: controller pak images, agent worktrees
+*.mpk
+.claude/
