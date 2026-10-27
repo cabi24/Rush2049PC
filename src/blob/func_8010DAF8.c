@@ -783,7 +783,7 @@ extern f32 D_801249C0;
 extern void *D_801391F0;
 
 /* callees outside the group */
-s32 func_80090284();
+intptr_t func_80090284();
 void stat_lap_split();
 
 /* group functions */

@@ -2890,7 +2890,7 @@ void camera_track_spline(void *arg3, s32 arg0);
 void camera_transform(void);
 u16 *camera_trigger_check(void *arg0, void *arg1, f32 *arg2);
 void camera_update(s32 *arg0, s16 arg1);
-void camera_update_a(s32 arg0, void *arg1, s32 *arg2, s32 (*arg3)(void *, s32));
+void camera_update_a(intptr_t arg0, void *arg1, s32 *arg2, s32 (*arg3)(void *, s32));
 void camera_update_b(void *arg0, s32 *arg1, s32 *arg2);
 void camera_update_c(f32 arg0);
 void camera_update_d(void *arg0, f32 arg1, f32 arg2, f32 arg3, f32 arg4, f32 arg5, f32 arg6, f32 arg7, f32 arg8, f32 arg9);

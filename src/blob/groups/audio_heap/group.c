@@ -126,7 +126,11 @@ extern u32 D_80000318;
 s32 osRecvMesg();
 s32 osSendMesg();
 void osCreateMesgQueue();
+#ifdef TARGET_PC
+void *memset(uintptr_t, int, unsigned int);   /* the slots are enum n64p_u32 window addresses: zero-extended */
+#else
 void *memset();
+#endif
 
 void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag);
 void func_800E7B44(Heap *heap, u16 count, u16 a);

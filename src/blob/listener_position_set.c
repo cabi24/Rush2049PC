@@ -3791,7 +3791,11 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+void *memcpy(void *, const void *, u32);
+#else
 M2C_UNK memcpy(s32, void *, M2C_UNK);
+#endif
 void listener_position_set(s32 arg0)
 {
   s32 var_s0;

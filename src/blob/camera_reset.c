@@ -3250,7 +3250,7 @@ void func_800A7480(s16 arg0, s16 arg1, s8 arg2, s8 arg3, u8 arg4, u8 arg5, s32 a
 void *func_800A78BC(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u16 arg4, s32 arg5);
 s32 func_800A79F4(s16 arg0, PadConfig *arg1, PadConfig *arg2, s16 arg3, s32 arg4, s32 arg5, s32 arg6);
 s16 func_800A7BF8(s16 arg0);
-s32 func_800A7D6C(void);
+intptr_t func_800A7D6C(void);
 void func_800A7E10(void *arg0, void *arg1, s16 arg2);
 void func_800A8174(void *arg0);
 void func_800A81FC(void *arg0);
@@ -3789,7 +3789,7 @@ void world_trigger_activate(void);
 s32 world_velocity_integrate();
 void camera_reset(void)
 {
-  s32 i; s32 *dst; s32 handle; s32 val;
+  s32 i; s32 *dst; s32 handle; intptr_t val;
   if (D_8013F1D8 > 0) {
     func_800B90F8();
     return;

@@ -22,6 +22,10 @@ typedef signed int s32;
 typedef signed short s16;
 typedef signed char s8;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 /* 76-byte records at input_rec0 */
 typedef struct Rec76 { s32 w0; u32 w4; s32 rest[17]; } Rec76;
@@ -34,7 +38,7 @@ extern Rec76 input_rec0[];
 extern s8 D_80143F18[];
 extern s8 *namePanes[];
 extern s32 D_8014A110;
-extern s32 D_80140800;
+extern intptr_t D_80140800;
 extern s8 D_8014978C;
 extern void *D_801461A8;
 extern s8 D_801148E4;
@@ -54,7 +58,7 @@ extern void func_800F207C(s32);
 extern void RemovePane(s8 *);
 extern void wheel_setup_initial(s32);
 extern char D_803BA7EB[];
-extern void *CompressGhost(s32, char *);
+extern void *CompressGhost(intptr_t, char *);
 extern s32 SaveGhost(s32, void *, void *, s32);
 extern void func_800F1930(void);
 extern void audio_doppler(u32);

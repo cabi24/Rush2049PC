@@ -69,7 +69,11 @@ s32 audio_frame_sync(s32 wave, s32 a1, s32 background, s32 a3, s32 a4);   /* GC 
 s8 player_state_get(s32 idx);                                            /* GC WaveInstanceReady */
 void *slot_value_get(s32 idx);                                           /* GC GetWaveInstanceAddr */
 void MBSetupWad(Wad *wad, void *ptr);                                 /* GC MBSetupWad */
+#ifdef TARGET_PC
+u32 MBGetFromWad(Wad *wad, s32 tag, s32 *count);       /* a WAD entry: a 32-bit window address */
+#else
 void *MBGetFromWad(Wad *wad, s32 tag, s32 *count);                 /* GC MBGetFromWad */
+#endif
 void camera_lerp_position(s16 track);                                    /* GC initTargetStructs */
 void camera_reset(void);                                                 /* GC SkyInit */
 void func_800B2BDC(void);                                                /* GC InitEnvs */
