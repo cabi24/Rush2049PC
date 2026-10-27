@@ -149,7 +149,9 @@ cars, mode (gRace) and track, and the first car's position and speed. The front 
 must reach (`# until:`, `# seconds:`, `# expect:` the state line's text, `# realtime`, `# args:`, `# check:`);
 `tools/port/synth_paths.py` runs them (on the virtual clock, `--fast`, unless `# realtime`), checks the exit code and
 the last state line, and keeps each log in `build/synth/paths`. ctest has one `synth_boot_NAME` per script, and the
-CI step runs them all on both Linux jobs and keeps the logs.
+CI step runs them all on both Linux jobs and keeps the logs. On Windows the native job's ctest runs them, and
+`windows-run` generates the cartridge from the cross build's data report and runs every path with the cross-built
+program ([WINDOWS.md](WINDOWS.md) 9).
 
 | Path | What it does | Reaches | Time (Rocky) |
 |---|---|---|---|
@@ -302,7 +304,8 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
   7 and 8.7 stand).
 - **Graphics.** Nothing visible is drawn: the VI mode table and every model are empty. The renderer ran the game's
   lists every frame without a fault, but no textured geometry.
-- **Windows.** The synthetic boot runs on x86-64 and aarch64 Linux only.
+- **Windows.** The paths run in both Windows CI jobs (section 2), which this work could not run itself (no Windows
+  host or wine): their first CI run is their first run on Windows.
 
 ## 5. Changing it
 

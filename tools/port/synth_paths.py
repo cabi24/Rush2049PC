@@ -63,7 +63,7 @@ def run(name, exe, rom, logs):
     except subprocess.TimeoutExpired as e:
         out, code = (e.stdout or b"").decode(errors="replace") + "\nsynth_paths: timed out\n", -1
     took = time.time() - t0
-    (Path(logs) / f"{name}.log").write_text(out)
+    (Path(logs) / f"{name}.log").write_text(out, encoding="utf-8")
     reached = [l for l in out.splitlines() if "state reached:" in l]
     last = reached[-1] if reached else ""
     why = []

@@ -244,8 +244,8 @@ differ:
 | Job | Runner | What |
 |---|---|---|
 | `windows-cross` | ubuntu-24.04, in `debian:12` | the toolchain file, Debian 12's mingw-w64 (GCC 12.2) and zlib, SDL2 built from source; uploads `rush2049pc.exe` |
-| `windows-run` | windows-latest | that executable: `--selftest`, and the boot without a ROM (`grep "wave 0 loaded"`) |
-| `windows` | windows-latest | MSYS2 UCRT64 with its SDL2: the build, `ctest`, `--selftest` and the boot without a ROM |
+| `windows-run` | windows-latest | that executable: `--selftest`, the boot without a ROM (`grep "wave 0 loaded"`), and the synthetic cartridge's paths ([SYNTH.md](SYNTH.md): generated from the cross build's data report, which `windows-cross` uploads with the executable) |
+| `windows` | windows-latest | MSYS2 UCRT64 with its SDL2: the build, `ctest` (with the synthetic cartridge's `synth_boot_*`), `--selftest` and the boot without a ROM |
 
 - **OpenGL.** The runners have no GPU. Mesa 26.2.4's llvmpipe (mesa-dist-win, SHA-256 pinned, `GALLIUM_DRIVER=llvmpipe`)
   is copied next to the programs.
