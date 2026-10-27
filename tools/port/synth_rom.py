@@ -1173,6 +1173,17 @@ def race(c):
 
     battle(c)
 
+    # The drones' update schedule (drone_sched, D_80120E74, Row3[12] of s16; update_drone_models): row r gives how
+    # many drones to update each model tick, ended by -1, where the walk goes back to the row's start. The race uses
+    # row n for n drones, n + 7 with two humans or more (world_physics_tick). With zeros it never meets -1 and walks
+    # on through the tables after it, updating whatever cars their values say (gRace 2's car with no time step:
+    # NaN); a row asking for more drones than there are updates the players' cars, whose time step is then 0 (NaN in
+    # the 3- and 4-player races). Every row: all its drones every tick.
+    for r in range(12):
+        for k, v in enumerate((r if r < 7 else r - 7, -1, -1)):
+            c.set("game", "D_80120E74", "u16", v, "the drone schedule: row n and n + 7 are {n, -1}" if r == k == 0
+                  else "(same)", offset=6 * r + 2 * k)
+
     # The time limit of a gRace 2 race on tracks 0-5 (D_80111754, f32[6]; func_800FBED8, 600 s for the others): the
     # race ends when it runs out (countdown's last branch), then the results (0x2000000, 4 s) and the game over
     # screen (0x800000). Zero ended the race in its first frame. 15 s.
@@ -1247,6 +1258,9 @@ def car_tables(c):
     c.set("game", "D_801240FC", "f32", 1e-4, "car push: a squared distance it takes for none")
     c.set("game", "D_80124100", "f32", 2000.0, "car push: the force when the cars coincide")
     c.set("game", "D_80124104", "f32", 2000.0, "car push: the force along the line between them")
+    # A car type's brake factor (D_80110DA4, f32[13]): track_info_display's brake gains are mass x the tire's
+    # brake value x this, so zero is a car without brakes. 1.
+    c.set_all("game", "D_80110DA4", "f32", [1.0] * 13, "a car type's brake factor: 1")
     # The car tunes (D_801116D0, three Tune44 of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
     for t in range(3):
         for k in range(11):

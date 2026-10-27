@@ -18,8 +18,9 @@ Each tools/port/synth/NAME.press is a --press-file script whose leading comments
     # check: tools/port/synth_shot.py race.png 1
     #                          then this command, in the logs directory (tools/ is the repository's)
 
-A run passes if the program exits 0 (it reached the state in time and nothing faulted), its last state line matches,
-it passed through the states visits names, and the check, if any, exits 0. Every run's log goes to DIR/NAME.log (default build/synth/paths). Exit status: the
+A run passes if the program exits 0 (it reached the state in time and nothing faulted), its last state line matches
+and gives the first car a position that is not NaN, it passed through the states visits names, and the check, if
+any, exits 0. Every run's log goes to DIR/NAME.log (default build/synth/paths). Exit status: the
 number of paths that failed.
 """
 import argparse
@@ -78,6 +79,8 @@ def run(name, exe, rom, logs):
         why.append("the state was not reached")
     elif spec["expect"] and spec["expect"] not in last:
         why.append(f"expected '{spec['expect']}'")
+    if "nan" in last.split("car 0 at", 1)[-1]:
+        why.append("the first car's position is NaN")
     for state in spec["visits"]:
         if f"game state 0x{int(state, 0):08X} " not in out:
             why.append(f"never in state {state}")

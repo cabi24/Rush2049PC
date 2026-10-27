@@ -1,18 +1,23 @@
-# The end of a race and back to the menu (docs/port/SYNTH.md 2): one player, gRace 2 on track 0, whose race has a
-# time limit (15 s here). When it runs out: _EndGame (0x1000000), the results (0x2000000, 30 s), the game over screen
-# (0x800000), where UP goes from its first option to Quit and A takes it: state 4 with gSkipToGameState 0x10, which
-# passes on to the main menu (0x10).
+# The end of a race and back to the menu (docs/port/SYNTH.md 2): one player retires from a single race through the
+# pause screen's quit, then _EndGame (0x1000000), the results (0x2000000), the game over screen (0x800000), where UP
+# goes from its first option to Quit and A takes it: state 4 with gSkipToGameState 0x10, which passes on to the main
+# menu (0x10). (gRace 2's time limit would end a race by itself too, once the car has stopped: with the cartridge's
+# car physics it doesn't.)
 # until: 0x800000:300
 # seconds: 120
+# visits: 0x2000000 0x800000 0x4
 # expect: state=0x00000010: players 1, windows 1
 5 A            # the controller pak warning
 8 START        # the start prompt
 11 A           # the main menu: the race
 14 A           # the player screen
-15 DOWN 0.1    # the mode screen: two modes down, gRace 2
-15.2 DOWN 0.1
-17 A
+17 A           # the mode screen: a single race
 20 A           # the track select: track 0
-23 A           # the car select
-88 UP 0.1      # the game over screen (from about 86 s): Quit
-90 A
+23 A           # the car select; the race from 27 s
+30 START       # pause
+31 UP 0.1      # its last item, quit
+32 A           # are you sure?
+33 RIGHT 0.1   # yes
+34 A           # retired: the results, then the game over screen from about 37 s
+40 UP 0.1      # the game over screen: Quit
+42 A

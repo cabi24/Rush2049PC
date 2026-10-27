@@ -81,6 +81,8 @@ copies those as they are, so they are bytes, or zero.
 | | `D_80121D60[8]`, `D_8011F844[13]` | the weapons' ammunition (5) and the bodies' collision boxes (4.5, 4.5, 2.5, 3: the tires are 4 ahead and behind, 2.5 aside) |
 | | `D_80117480[6]` | the arenas' puff textures: "" (physics_collision_test looks them up from track 6 on) |
 | | `D_80111754[6]` | a gRace 2 race's time limit on tracks 0-5 (func_800FBED8): 15 s. Zero ended the race in its first frame |
+| | `D_80120E74[12]` | the drones' update schedule (update_drone_models): row r is {drones, -1}, the race using row n for n drones and n + 7 with two humans or more. With zeros the walk never met -1 and went on through the tables after it, updating cars those values named; a row asking for more drones than there are updates players' cars with a time step of 0: NaN |
+| | `D_80110DA4[13]` | a car type's brake factor: 1 (zero is a car without brakes) |
 | | `D_801173D8[12]`, `D_80117408[12]` | the demo paths' start points: one, point 0 |
 | | `D_80110D08[13]`, `D_801108C8` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (one 23-word record) |
 | | `D_80111560[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
@@ -149,7 +151,7 @@ cars, mode (gRace) and track, and the first car's position and speed. The front 
 must reach (`# until:`, `# seconds:`, `# expect:` the state line's text, `# visits:` states on the way, `# realtime`,
 `# args:`, `# check:`);
 `tools/port/synth_paths.py` runs them (on the virtual clock, `--fast`, unless `# realtime`), checks the exit code and
-the last state line, and keeps each log in `build/synth/paths`. ctest has one `synth_boot_NAME` per script, and the
+the last state line (and that the first car's position isn't NaN), and keeps each log in `build/synth/paths`. ctest has one `synth_boot_NAME` per script, and the
 CI step runs them all on both Linux jobs and keeps the logs. On Windows the native job's ctest runs them, and
 `windows-run` generates the cartridge from the cross build's data report and runs every path with the cross-built
 program ([WINDOWS.md](WINDOWS.md) 9).
@@ -166,7 +168,7 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `pause` | the race paused (START), the four screens the pause menu opens (options, controls, audio, video), then quit, confirmed: the race is retired, its results and the game over screen | 0x800000 | 0.5 s |
 | `screens` | the main menu's other four options, each screen entered with A and left with B (`# visits:` checks the states 0x2000, 0x200, 0x800, 0x1000) | back on the main menu | 0.3 s |
 | `pak` | the one-player race with a fresh controller pak (`--pak`): the warning finds it, and the save code runs on it at the race's start | 0x400000, 300 frames | 0.4 s |
-| `raceend` | gRace 2, whose race has a time limit: when it runs out, _EndGame, the results (30 s), the game over screen, its Quit and back to the main menu | 0x10 after the race | 0.8 s |
+| `raceend` | the race retired from the pause screen, then _EndGame, the results, the game over screen, its Quit and back to the main menu (`# visits:` the results, the game over screen and state 4). gRace 2's time limit would end a race by itself once the car has stopped, which the cartridge's car physics doesn't do | 0x10 after the race | 0.6 s |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 
 **Screenshots.** `--screenshot-at N` of a race now shows the game's own display lists drawn: its matrices and
@@ -232,6 +234,7 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 | 40 | (with models) SetupWaveModel faults in the vertex chain walk at 0x6 | **the generator's**: the models shared one display list, which each model's relocation moved again | data (the generator's) | lists of their own |
 | 41 | the pause screen's options screen spins | no valid option (`while (!valid[i]) i++`) | data | `D_80116D14` |
 | 42 | the pause screen's audio screen copies a NULL name | gSongNames; and its declaration ran by the gap to 131 pointers (the loader would have made the 119 words after the 12 names pointer slots), so `extents.txt` gives it 12 | data; extent | `D_80110030` |
+| 43 | gRace 2's car, then the 3- and 4-player races' and battle's first car, go NaN | update_drone_models walked off its zero schedule, then (with a schedule) row n + 7 for two humans or more asked for drones that weren't there and updated the players' cars with a time step of 0 | data | `D_80120E74` |
 
 Stops 26-34 came with the paths of section 2 (`--fast`, the virtual clock, makes each a second's run), 35-39 with
 looking for what makes the picture and the physics: the state log's car position, `RUSH_TRAP_FP` (which also stops at
