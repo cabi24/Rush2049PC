@@ -8,12 +8,21 @@ typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
 
+#ifdef TARGET_PC
+typedef struct {            /* the profile's host layout (pc_prelude.h): unk08 is its pak file handle */
+    void *next, *prev;
+    void *unk08;
+    u8 pad0C[8];
+    char name[1];
+} PlayerProfile;
+#else
 typedef struct {
     u8 pad00[8];
     s32 unk08;
     u8 pad0C[8];
     char name[1];
 } PlayerProfile;
+#endif
 
 typedef struct {
     u8 pad00;

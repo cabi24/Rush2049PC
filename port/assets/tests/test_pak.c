@@ -54,9 +54,9 @@ int32_t func_800A1A60(void *node) { return 7; }
 
 int main(void)
 {
-    struct { uint8_t pad[16]; uint8_t car; } owner = {{0}, 2};
+    struct { void *next, *prev, *fn[2]; uint8_t pak; } owner = {NULL, NULL, {NULL, NULL}, 2};   /* tPS_File, PC */
     struct { void *owner; } node = {&owner};
-    struct { uint8_t pad[8]; void *node; } obj = {{0}, &node};
+    struct { void *next, *prev, *node; } obj = {NULL, NULL, &node};   /* the profile, PC: its file handle */
     void *pobj = &obj;
     int k;
 
@@ -78,7 +78,7 @@ int main(void)
     CHECK(func_800A3518(1) == 11 && func_800A3518(0) == 16);
 
     CHECK(func_800CC848(&pobj, 1) == 7 && func_800CC848(&pobj, 0) == 1);
-    owner.car = 1;
+    owner.pak = 1;
     CHECK(func_800CC848(&pobj, 1) == 0);
     return TEST_DONE();
 }

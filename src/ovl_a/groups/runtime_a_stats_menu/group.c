@@ -48,7 +48,12 @@ typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Slot { s32 kind,handle; f32 angle,matrix[3][3],position[3]; u8 alpha,unknown3D[3]; } Slot;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller; } FileInfo;
+#else
 typedef struct FileInfo { u8 unknown00[16],controller; } FileInfo;
+#endif
 typedef struct Profile Profile;
 struct Profile { Profile **next,**previous; FileInfo **file; u8 unknown0C[8]; u8 name[24]; u8 **stats; };
 typedef struct Player { u8 unknown00[72]; Profile **owner; } Player;

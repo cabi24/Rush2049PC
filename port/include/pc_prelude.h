@@ -99,6 +99,25 @@ struct pc_visual {
 /* The PC offset of N64 offset x inside a car visual, up to its stride (VIS_OFS(0x18) is 0x20). */
 #define VIS_OFS(x) (CAR_OFS(0x110 + (x)) - 0x110)
 
+/* The save records (docs/port/POINTERS.md 9.10). Each is RAM-only and starts with pointers, so on the PC the rest
+ * of it is later; X_OFS(n) is the PC offset of N64 offset n, for code that reaches the record by raw offsets (the
+ * N64 size gives the PC size, as CAR_OFS does). Game files that use one define the N64 side, `#define PSF_OFS(n) n`.
+ * - The pak file record (paksys' tPS_File, D_80144DC0[64]; N64 76 bytes, PC 96): next, prev, RemoveFile and
+ *   MoveFile at +0/4/8/12 are pointers, then pak, fileNo, name[35], ext[11], size, blocks and the data handle. */
+#define PC_PSFILE_SIZE 96
+#define PC_PSFILE_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 12 ? (r) + 8 : (r) < 16 ? (r) + 12 : (r) + 16)
+#define PSF_OFS(n) ((n) / 76 * PC_PSFILE_SIZE + PC_PSFILE_REL((n) % 76))
+/* - The profile record (save.c's SaveSlot, GC tPlayer; N64 48 bytes, PC 64): next, prev and the pak file handle at
+ *   +0/4/8, the id, name and controls from +12, and the save data handle at +0x2C. */
+#define PC_PROFILE_SIZE 64
+#define PC_PROFILE_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 12 ? (r) + 8 : (r) + 12)
+#define PROFILE_OFS(n) ((n) / 48 * PC_PROFILE_SIZE + PC_PROFILE_REL((n) % 48))
+/* - A ghost (menu_save_options' Ghost; N64 0x2C bytes, PC 64): the link and the file handle at +0/4, the data and
+ *   header handles at +0x24/0x28. */
+#define PC_GHOST_SIZE 64
+#define PC_GHOST_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 0x24 ? (r) + 8 : (r) < 0x28 ? (r) + 12 : (r) + 16)
+#define GHOST_OFS(n) ((n) / 0x2C * PC_GHOST_SIZE + PC_GHOST_REL((n) % 0x2C))
+
 /* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
 void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 void pc_mem_unregister_be(const void *start);

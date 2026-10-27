@@ -3662,6 +3662,10 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n   /* the profile's and a ghost's PC offsets (pc_prelude.h) */
+#define GHOST_OFS(n) n
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3701,18 +3705,18 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-void func_800949D4(s32 arg0, s32 arg1) {
+void func_800949D4(intptr_t arg0, intptr_t arg1) {
     D_8012E6E0_Node *temp_v1;
     D_8012E6E0_Node *var_v0;
-    s32 var_v0_2;
+    intptr_t var_v0_2;
     void *temp_v1_2;
 
     var_v0 = D_8012E6E0;
     if (var_v0 != NULL) {
 loop_1:
         temp_v1 = var_v0->next;
-        if (arg0 == M2C_FIELD(temp_v1, s32 *, 8)) {
-            M2C_FIELD(temp_v1, s32 *, 8) = arg1;
+        if (arg0 == M2C_FIELD(temp_v1, intptr_t *, PROFILE_OFS(8))) {
+            M2C_FIELD(temp_v1, intptr_t *, PROFILE_OFS(8)) = arg1;
             return;
         }
         var_v0 = temp_v1->next;
@@ -3726,11 +3730,11 @@ block_4:
     if (var_v0_2 != 0) {
 loop_5:
         temp_v1_2 = M2C_FIELD(var_v0_2, void **, 0);
-        if (arg0 == M2C_FIELD(temp_v1_2, s32 *, 4)) {
-            M2C_FIELD(temp_v1_2, s32 *, 4) = arg1;
+        if (arg0 == M2C_FIELD(temp_v1_2, intptr_t *, GHOST_OFS(4))) {
+            M2C_FIELD(temp_v1_2, intptr_t *, GHOST_OFS(4)) = arg1;
             return;
         }
-        var_v0_2 = M2C_FIELD(temp_v1_2, s32 *, 0);
+        var_v0_2 = M2C_FIELD(temp_v1_2, intptr_t *, 0);
         if (var_v0_2 == 0) {
 
         } else {

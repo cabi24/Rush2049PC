@@ -44,9 +44,18 @@ typedef signed int s32;typedef unsigned int u32;typedef float f32;
 #define NULL ((void *)0)
 #define F(expr,type,offset) (*(type *)((u8 *)(expr)+(offset)))
 #ifdef TARGET_PC
-#define SLOT_DATA 48   /* SaveSlot.data (save.c): after name[24] at 20, 8-aligned on PC */
+/* PC: the save records' host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10): PSF_OFS for the pak file record
+ * (*fileh), PROFILE_OFS for the profile record (*player), GHOST_OFS for a ghost. The ghost header is file data, so
+ * it keeps its N64 layout; its sample buffer `start` is a window address. */
+#define SLOT_DATA PROFILE_OFS(44)   /* SaveSlot.data */
+#define N64W(x) PC_N64W(x)
 #else
 #define SLOT_DATA 44
+#define PSF_OFS(n) n
+#define PROFILE_OFS(n) n
+#define GHOST_OFS(n) n
+#define N64W(x) x
+typedef s32 intptr_t;
 #endif
 typedef void **Handle;
 
@@ -109,14 +118,14 @@ void func_800CCCCC(Handle h) {
     s32 i;
     s8 saved;
 
-    memset(*h, 0, 44);
+    memset(*h, 0, SLOT_DATA);
     data = *F(*h, Handle, SLOT_DATA);
     memset(data, 0, 2064);
     data[12] = 16;
     func_800C77C4(data + 60);
     data[70] = 1;
     F(data, s32, 56) = format_string_parse(data + 60, 11);
-    memcpy((u8 *)*h + 33, data + 60, 11);
+    memcpy((u8 *)*h + PROFILE_OFS(33), data + 60, 11);
     for (i = 0; i < 13; i++) {
         draw_number(h, i);
     }
@@ -157,7 +166,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
     save = *F(*h, Handle, SLOT_DATA);
     if (save[12] != 16) {
         if (repair) {
-            pak_delete_file_retry(F(*h, Handle, 8));
+            pak_delete_file_retry(F(*h, Handle, PROFILE_OFS(8)));
             return 0;
         }
         dirty = 1;
@@ -166,7 +175,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
         dirty = 1;
         if (repair) {
             F(save, s32, 0) = format_string_parse(save + 4, (save + 28) - (save + 4));
-            PS_WriteFile(F(*h, Handle, 8), save, 4);
+            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save, 4);
         }
     }
     if (format_string_parse(save + 32, 21) != F(save, s32, 28)) {
@@ -180,11 +189,11 @@ s32 draw_speedometer(Handle h, s32 repair) {
     if (format_string_parse(save + 60, 11) != F(save, s32, 56)) {
         dirty = 1;
         if (repair) {
-            func_800C77C4((u8 *)*h + 33);
-            ((u8 *)*h)[43] = 1;
-            memcpy(save + 60, (u8 *)*h + 33, 11);
+            func_800C77C4((u8 *)*h + PROFILE_OFS(33));
+            ((u8 *)*h)[PROFILE_OFS(43)] = 1;
+            memcpy(save + 60, (u8 *)*h + PROFILE_OFS(33), 11);
             F(save, s32, 56) = format_string_parse(save + 60, 11);
-            PS_WriteFile(F(*h, Handle, 8), save + 56, 15);
+            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 56, 15);
         }
     }
     if (format_string_parse(save + 76, 16) != F(save, s32, 72)) {
@@ -197,7 +206,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             }
             D_8014978C = saved;
             memset(save + 72, 0, 20);
-            PS_WriteFile(F(*h, Handle, 8), save + 72, 20);
+            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 72, 20);
         }
     }
     if (format_string_parse(save + 96, 12) != F(save, s32, 92)) {
@@ -210,7 +219,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             }
             D_8014978C = saved;
             memset(save + 92, 0, 16);
-            PS_WriteFile(F(*h, Handle, 8), save + 92, 16);
+            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 92, 16);
         }
     }
     if (format_string_parse(save + 112, 16) != F(save, s32, 108)) {
@@ -223,7 +232,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             }
             D_8014978C = saved;
             memset(save + 108, 0, 20);
-            PS_WriteFile(F(*h, Handle, 8), save + 108, 20);
+            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 108, 20);
         }
     }
     if (format_string_parse(save + 132, 8) != F(save, s32, 128)) {
@@ -236,7 +245,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             }
             D_8014978C = saved;
             memset(save + 128, 0, 12);
-            PS_WriteFile(F(*h, Handle, 8), save + 128, 12);
+            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 128, 12);
         }
     }
     for (i = 0; i < 6; i++) {
@@ -244,7 +253,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             dirty = 1;
             if (repair) {
                 memset(save + 140 + i * 96, 0, 96);
-                PS_WriteFile(F(*h, Handle, 8), save + 140 + i * 96, 96);
+                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 140 + i * 96, 96);
             }
         }
     }
@@ -253,7 +262,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             dirty = 1;
             if (repair) {
                 memset(save + 1292 + i * 64, 0, 64);
-                PS_WriteFile(F(*h, Handle, 8), save + 1292 + i * 64, 64);
+                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1292 + i * 64, 64);
             }
         }
     }
@@ -262,7 +271,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             dirty = 1;
             if (repair) {
                 memset(save + 1548 + i * 12, 0, 12);
-                PS_WriteFile(F(*h, Handle, 8), save + 1548 + i * 12, 12);
+                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1548 + i * 12, 12);
             }
         }
     }
@@ -271,7 +280,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             dirty = 1;
             if (repair) {
                 memset(save + 1644 + i * 24, 0, 24);
-                PS_WriteFile(F(*h, Handle, 8), save + 1644 + i * 24, 24);
+                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1644 + i * 24, 24);
             }
         }
     }
@@ -280,7 +289,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             dirty = 1;
             if (repair) {
                 memset(save + 1668 + i * 28, 0, 28);
-                PS_WriteFile(F(*h, Handle, 8), save + 1668 + i * 28, 28);
+                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1668 + i * 28, 28);
             }
         }
     }
@@ -288,7 +297,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
         dirty = 1;
         if (repair) {
             memset(save + 1780, 0, 76);
-            PS_WriteFile(F(*h, Handle, 8), save + 1780, 76);
+            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1780, 76);
         }
     }
     for (i = 0; i < 13; i++) {
@@ -297,7 +306,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
             dirty = 1;
             if (repair) {
                 draw_number(h, i);
-                PS_WriteFile(F(*h, Handle, 8), p + 1856, 16);
+                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), p + 1856, 16);
             }
         }
     }
@@ -310,20 +319,20 @@ s32 func_800CCEFC(Handle h) {
     s32 i;
 
     obj = *h;
-    if (F(obj, void *, 44) != NULL) {
+    if (F(obj, void *, SLOT_DATA) != NULL) {
         return 1;
     }
-    drone_set_catchup(F(obj, Handle, 8), 0, F(*F(obj, Handle, 8), s32, 64));
-    data = F(*F(obj, Handle, 8), void **, 72);
+    drone_set_catchup(F(obj, Handle, PROFILE_OFS(8)), 0, F(*F(obj, Handle, PROFILE_OFS(8)), s32, PSF_OFS(64)));
+    data = F(*F(obj, Handle, PROFILE_OFS(8)), void **, PSF_OFS(72));
     if (data == NULL) {
         return 0;
     }
-    F(obj, void **, 44) = data;
+    F(obj, void **, SLOT_DATA) = data;
     if (draw_speedometer(h, 0) && !draw_speedometer(h, 1)) {
         return 0;
     }
-    func_800CCE5C(h, obj + 33);
-    if (func_8008AD04(obj + 20, D_801211CC) == 0) {
+    func_800CCE5C(h, obj + PROFILE_OFS(33));
+    if (func_8008AD04(obj + PROFILE_OFS(20), D_801211CC) == 0) {
         D_801164A1 = 1;
         for (i = 1; i < 21; i++) {
         }
@@ -336,9 +345,9 @@ s32 func_800CCEFC(Handle h) {
 }
 
 void func_800CD058(Handle h) {
-    if (F(*h, s32, 8) != 0) {
+    if (F(*h, intptr_t, PROFILE_OFS(8)) != 0) {
         if (func_800CCEFC(h)) {
-            pak_delete_file_retry(F(*h, Handle, 8));
+            pak_delete_file_retry(F(*h, Handle, PROFILE_OFS(8)));
         }
     } else {
         func_800CCCCC(h);
@@ -347,9 +356,18 @@ void func_800CD058(Handle h) {
 
 typedef struct { char c[9]; } Name9;
 extern Handle D_8013C128[][16];
+#ifdef TARGET_PC
+/* the profile records (save.c's SaveSlot, 64 bytes; one-element arrays, so D_8013E5D8[pak][slot] is a pointer as
+ * the N64's byte array is) and the four tDLLists (24 bytes) */
+typedef struct { void *next, *prev; Handle fileh; u8 pad0C[0x2C - 0x0C]; Handle data; } ProfileRec;
+extern ProfileRec D_8013E5D8[][16][1];
+extern u8 D_8012E6D8[];
+extern u8 D_80144D60[][24];
+#else
 extern u8 D_8013E5D8[][16][48];
 extern u8 D_8012E6D8[];
 extern u8 D_80144D60[][16];
+#endif
 extern s32 D_8002E8E8[];
 extern char D_801211F8[], D_801211DC[], D_801211E0[], D_80121204[];
 
@@ -410,7 +428,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
             }
         }
         for (before = F(D_80144D60[pak], Handle, 8); before != NULL; before = *(Handle *)*before) {
-            if (func_8008AD04((u8 *)*before + 18, file) == 0 && func_8008AD04((u8 *)*before + 53, D_801211DC) == 0) {
+            if (func_8008AD04((u8 *)*before + PSF_OFS(18), file) == 0 && func_8008AD04((u8 *)*before + PSF_OFS(53), D_801211DC) == 0) {
                 break;
             }
         }
@@ -422,24 +440,24 @@ void **CreatePlayer(s32 pak, u8 *name) {
     if (fileh == NULL) {
         return NULL;
     }
-    player = func_800C7EC0(((u8 *)*fileh)[16], ((u8 *)*fileh)[17]);
+    player = func_800C7EC0(((u8 *)*fileh)[PSF_OFS(16)], ((u8 *)*fileh)[PSF_OFS(17)]);
     p = *player;
-    data = *(F(p, Handle, SLOT_DATA) = F(*fileh, Handle, 72));
+    data = *(F(p, Handle, SLOT_DATA) = F(*fileh, Handle, PSF_OFS(72)));
     func_800CCCCC(player);
-    F(p, Handle, 8) = fileh;
-    F(*fileh, void *, 8) = audio_volume_pan;
-    F(*F(p, Handle, 8), void *, 12) = func_800949D4;
+    F(p, Handle, PROFILE_OFS(8)) = fileh;
+    F(*fileh, void *, PSF_OFS(8)) = audio_volume_pan;
+    F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = func_800949D4;
     F(data, s32, 4) = D_8002E8E8[159];
     F(data, s32, 8) = ((u32)player << 3) | pak;
     func_800A473C(data + 13, name);
     F(data, s32, 0) = format_string_parse(data + 4, (data + 28) - (data + 4));
-    memcpy(p + 20, data + 13, 13);
-    memcpy(p + 12, data + 4, 8);
-    PS_WriteFile(F(p, Handle, 8), data, 2064);
-    PS_FlushFile(F(p, Handle, 8), 0);
-    PS_FlushPak(((u8 *)*F(p, Handle, 8))[16], 1);
+    memcpy(p + PROFILE_OFS(20), data + 13, 13);
+    memcpy(p + PROFILE_OFS(12), data + 4, 8);
+    PS_WriteFile(F(p, Handle, PROFILE_OFS(8)), data, 2064);
+    PS_FlushFile(F(p, Handle, PROFILE_OFS(8)), 0);
+    PS_FlushPak(((u8 *)*F(p, Handle, PROFILE_OFS(8)))[PSF_OFS(16)], 1);
     for (before = F(D_8012E6D8, Handle, 8); before != NULL; before = *(Handle *)*before) {
-        if (func_8008AD04((u8 *)*before + 20, p + 20) > 0) {
+        if (func_8008AD04((u8 *)*before + PROFILE_OFS(20), p + PROFILE_OFS(20)) > 0) {
             break;
         }
     }
@@ -464,26 +482,26 @@ void **func_800C7EC8(void **fileh) {
     s32 i;
 
     for (player = F(D_8012E6D8, Handle, 8); player != NULL; player = *(Handle *)*player) {
-        if (F(*player, Handle, 8) == fileh) {
+        if (F(*player, Handle, PROFILE_OFS(8)) == fileh) {
             return NULL;
         }
     }
-    drone_set_catchup(fileh, 0, F(*fileh, s32, 64));
-    if (F(*fileh, void *, 72) == NULL) {
+    drone_set_catchup(fileh, 0, F(*fileh, s32, PSF_OFS(64)));
+    if (F(*fileh, void *, PSF_OFS(72)) == NULL) {
         return NULL;
     }
-    player = func_800C7EC0(((u8 *)*fileh)[16], ((u8 *)*fileh)[17]);
+    player = func_800C7EC0(((u8 *)*fileh)[PSF_OFS(16)], ((u8 *)*fileh)[PSF_OFS(17)]);
     p = *player;
-    F(p, Handle, 8) = fileh;
-    F(*fileh, void *, 8) = audio_volume_pan;
-    F(*F(p, Handle, 8), void *, 12) = func_800949D4;
-    F(p, Handle, SLOT_DATA) = F(*F(p, Handle, 8), Handle, 72);
+    F(p, Handle, PROFILE_OFS(8)) = fileh;
+    F(*fileh, void *, PSF_OFS(8)) = audio_volume_pan;
+    F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = func_800949D4;
+    F(p, Handle, SLOT_DATA) = F(*F(p, Handle, PROFILE_OFS(8)), Handle, PSF_OFS(72));
     if (draw_speedometer(player, 0) && !draw_speedometer(player, 1)) {
         return NULL;
     }
-    memcpy(p + 20, (u8 *)*F(p, Handle, SLOT_DATA) + 13, 13);
-    memcpy(p + 12, (u8 *)*F(p, Handle, SLOT_DATA) + 4, 8);
-    memcpy(p + 33, (u8 *)*F(p, Handle, SLOT_DATA) + 60, 11);
+    memcpy(p + PROFILE_OFS(20), (u8 *)*F(p, Handle, SLOT_DATA) + 13, 13);
+    memcpy(p + PROFILE_OFS(12), (u8 *)*F(p, Handle, SLOT_DATA) + 4, 8);
+    memcpy(p + PROFILE_OFS(33), (u8 *)*F(p, Handle, SLOT_DATA) + 60, 11);
     if (!D_80117428 && F(D_8012E6D8, Handle, 8) == NULL) {
         for (i = 0; i < 21; i++) {
             D_80146108[i] = reverb_setup(player, i);
@@ -494,7 +512,7 @@ void **func_800C7EC8(void **fileh) {
         update_viewport(D_80146108[19], D_80146108[20]);
     }
     for (before = F(D_8012E6D8, Handle, 8); before != NULL; before = *(Handle *)*before) {
-        if (func_8008AD04((u8 *)*before + 20, p + 20) > 0) {
+        if (func_8008AD04((u8 *)*before + PROFILE_OFS(20), p + PROFILE_OFS(20)) > 0) {
             break;
         }
     }
@@ -521,7 +539,11 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the 
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
+#ifdef TARGET_PC
+    u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
+#else
     u8 *start;                    /* 0x4C */
+#endif
     u32 offset;                   /* 0x50 */
     u32 size;                     /* 0x54 */
 } GhostHeader;
@@ -600,11 +622,11 @@ s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select) {
             return 1;
         }
     }
-    drone_set_catchup(ghost->fileh, 0, F(*ghost->fileh, s32, 64));
-    if (F(*ghost->fileh, GhostHeader **, 72) == NULL) {
+    drone_set_catchup(ghost->fileh, 0, F(*ghost->fileh, s32, PSF_OFS(64)));
+    if (F(*ghost->fileh, GhostHeader **, PSF_OFS(72)) == NULL) {
         return 0;
     }
-    ghost->header = F(*ghost->fileh, GhostHeader **, 72);
+    ghost->header = F(*ghost->fileh, GhostHeader **, PSF_OFS(72));
     (*ghost->header)->start = NULL;
     if (draw_ui_element(ghosth, 1, 0) && !draw_ui_element(ghosth, 1, 1)) {
         return 0;
@@ -616,7 +638,7 @@ s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select) {
         menu_item_select(ghost->header, 88);
         func_800CB9D0(ghost->header);
         func_800CB9D0(ghost->datah);
-        (*ghost->header)->start = *ghost->datah;
+        (*ghost->header)->start = N64W(*ghost->datah);
     }
     return 1;
 }
@@ -693,17 +715,17 @@ Handle _ReadGhostHeader(Handle fileh) {
         }
     }
     drone_set_catchup(fileh, 0, 88);
-    if (F(*fileh, void *, 72) == NULL) {
+    if (F(*fileh, void *, PSF_OFS(72)) == NULL) {
         return NULL;
     }
     ghosth = func_800C7200();
     ghost = *ghosth;
-    memset(ghost, 0, 44);
+    memset(ghost, 0, GHOST_OFS(44));
     ghost->fileh = fileh;
-    F(*fileh, void *, 8) = audio_volume_pan;
-    F(*ghost->fileh, void *, 12) = func_800949D4;
+    F(*fileh, void *, PSF_OFS(8)) = audio_volume_pan;
+    F(*ghost->fileh, void *, PSF_OFS(12)) = func_800949D4;
     ghost->datah = NULL;
-    ghost->header = F(*fileh, GhostHeader **, 72);
+    ghost->header = F(*fileh, GhostHeader **, PSF_OFS(72));
     header = *ghost->header;
     header->start = NULL;
     if (draw_ui_element((Ghost **)ghosth, 0, 0) && !draw_ui_element((Ghost **)ghosth, 0, 1)) {
@@ -759,8 +781,8 @@ void SaveServer(s32 forceUpdate, s32 rumbleOnly) {
                 break;
             }
             next = *(Handle *)*fileh;
-            if (func_800950AC(D_801211BC, (char *)*fileh + 18, 8) == 0) {
-                if (func_800950AC(D_801211C8, (char *)*fileh + 53, 1) == 0) {
+            if (func_800950AC(D_801211BC, (char *)*fileh + PSF_OFS(18), 8) == 0) {
+                if (func_800950AC(D_801211C8, (char *)*fileh + PSF_OFS(53), 1) == 0) {
                     func_800C7EC8(fileh);
                 } else {
                     _ReadGhostHeader(fileh);

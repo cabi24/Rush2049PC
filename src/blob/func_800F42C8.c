@@ -12,6 +12,7 @@ typedef double f64;
 #ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#define PROFILE_OFS(n) n   /* the profile record's PC offsets (pc_prelude.h) */
 #endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
@@ -3807,7 +3808,7 @@ void func_800F42C8(intptr_t arg0)
   D_8014A160_Target **new_var2;
   void *temp_s0;
   int new_var;
-  temp_s0 = (void *) ((*(*((s32 **) ((**((s8 ***) (((s8 *) (&D_8014A160)) + (D_801543D4 * 0x4C)))) + 0x2C)))) + 0x6F4);
+  temp_s0 = (void *) ((*(*((s32 **) ((**((s8 ***) (((s8 *) (&D_8014A160)) + (D_801543D4 * 0x4C)))) + PROFILE_OFS(0x2C))))) + 0x6F4);
   net_session_update();
  do { D_80154628 -= 1; func_800DC628(0x56U, 0xEU); func_800DC1AC((u32) (*((s8 *) (((s8 *) temp_s0) + 8))), 3U); new_var3 = (u8 *) (((s8 *) temp_s0) + 5); func_800DC1AC((u32) (*new_var3), 1U); func_800DC1AC((u32) (*((s8 *) (((s8 *) temp_s0) - -9))), 5U); func_800DC1AC(*((u32 *) (((s8 *) temp_s0) + 0xC)), 0x14U); func_800DC1AC((u32) (*((u8 *) (((s8 *) temp_s0) + 7))), 3U); var_s0 = (s8 *) &D_80154450; do { func_800DC1AC((u32) (*((u16 *) (((s8 *) var_s0) + 2))), 9U); var_s0 += 0x4C; } while (var_s0 != ((s8 *) &D_80154618)); tournament_trophy_award(arg0); } while (0);
 }

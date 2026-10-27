@@ -13,11 +13,22 @@ typedef struct ReplayStream {
     u8 pad6[0x34 - 6];
     f32 dt;
     u8 pad38[0x4C - 0x38];
+#ifdef TARGET_PC
+    u32 data;           /* a heap block (the window): the ghost header keeps its N64 layout, file data */
+#else
     u8 *data;
+#endif
     u32 pos;
     u32 count;
 } ReplayStream;
+#ifdef TARGET_PC
+/* PC: a ghost's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10): its header handle at +56 */
+typedef struct ReplayOwner { void *ll; void **fileh; u8 pad10[0x24 - 0x08]; void **datah; ReplayStream **stream; } ReplayOwner;
+#define DATA(s) ((u8 *)(uintptr_t)(s)->data)
+#else
 typedef struct ReplayOwner { u8 pad0[0x28]; ReplayStream **stream; } ReplayOwner;
+#define DATA(s) s->data
+#endif
 typedef struct ReplaySlot { ReplayOwner *owner; } ReplaySlot;
 typedef struct Model {
     u8 pad0[0x720];
@@ -75,12 +86,12 @@ s32 func_800E5D64(s32 idx, f32 *out)
             D_8014A250[idx].gas = 0.0f;
             D_8014A250[idx].brake = 0.0f;
         } else {
-            D_8014A250[idx].gear = (s8) (s->data[s->pos] & 7) - 1;
-            D_8014A250[idx].flagA = (s->data[s->pos] & 8) >> 3;
-            D_8014A250[idx].flagB = (s->data[s->pos] & 0x10) >> 4;
-            D_8014A250[idx].steer = (f32) ((s8 *) s->data)[s->pos + s->count] / 127;
-            D_8014A250[idx].gas = (f32) (s->data[s->pos + s->count + s->count] >> 4) / 15.0f;
-            D_8014A250[idx].brake = (f32) (s->data[s->pos + s->count + s->count] & 0xF) / 15.0f;
+            D_8014A250[idx].gear = (s8) (DATA(s)[s->pos] & 7) - 1;
+            D_8014A250[idx].flagA = (DATA(s)[s->pos] & 8) >> 3;
+            D_8014A250[idx].flagB = (DATA(s)[s->pos] & 0x10) >> 4;
+            D_8014A250[idx].steer = (f32) ((s8 *) DATA(s))[s->pos + s->count] / 127;
+            D_8014A250[idx].gas = (f32) (DATA(s)[s->pos + s->count + s->count] >> 4) / 15.0f;
+            D_8014A250[idx].brake = (f32) (DATA(s)[s->pos + s->count + s->count] & 0xF) / 15.0f;
             s->pos++;
         }
         if (D_8002AFB8 != s->dt && 0.016666668f == s->dt) {
@@ -96,14 +107,14 @@ s32 func_800E5D64(s32 idx, f32 *out)
         if (!(s->pos < s->count)) {
             return 0;
         }
-        s->data[s->pos] = (D_8014A250[idx].gear + 1) | (D_8014A250[idx].flagA * 8) | (D_8014A250[idx].flagB * 16);
+        DATA(s)[s->pos] = (D_8014A250[idx].gear + 1) | (D_8014A250[idx].flagA * 8) | (D_8014A250[idx].flagB * 16);
         if (D_8014A250[idx].steer * 127.0f < 0.0f) {
             f = D_8014A250[idx].steer * 127.0f - 0.5f;
         } else {
             f = D_8014A250[idx].steer * 127.0f + 0.5f;
         }
-        s->data[s->pos + s->count] = (s32) f;
-        s->data[s->pos + s->count + s->count] = ((u8) (D_8014A250[idx].gas * 15.0f + 0.5f) * 16) | (u8) (D_8014A250[idx].brake * 15.0f + 0.5f);
+        DATA(s)[s->pos + s->count] = (s32) f;
+        DATA(s)[s->pos + s->count + s->count] = ((u8) (D_8014A250[idx].gas * 15.0f + 0.5f) * 16) | (u8) (D_8014A250[idx].brake * 15.0f + 0.5f);
         s->pos++;
         return 0;
     }

@@ -26,7 +26,11 @@ typedef unsigned int u32;
 typedef signed int s32;
 
 typedef struct Resource { u8 *data; } Resource;
+#ifdef TARGET_PC
+typedef struct Object { void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC]; Resource *resource; } Object;
+#else
 typedef struct Object { u8 pad0[44]; Resource *resource; } Object;
+#endif
 typedef struct Handle { Object *object; } Handle;
 typedef struct Player76 { u8 index, selector; u8 pad2[70]; Handle *handle; } Player76;
 typedef struct Session76 {

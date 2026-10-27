@@ -1,7 +1,11 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef unsigned char u8;typedef signed char s8;typedef unsigned short u16;typedef unsigned int u32;typedef int s32;
 typedef struct Data {u8 *base;} Data;
+#ifdef TARGET_PC
+typedef struct Car {void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC];Data *data;} Car;
+#else
 typedef struct Car {u8 pad0[44];Data *data;} Car;
+#endif
 typedef struct Ref {Car *car;} Ref;
 typedef struct Player76 {u8 pad0;u8 index;u8 pad2[70];Ref *ref;} Player76;
 extern u32 D_801174B4;extern s8 D_8014978C;extern Player76 D_8014A118[];extern Car *D_80146150[];

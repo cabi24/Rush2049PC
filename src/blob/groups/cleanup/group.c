@@ -7,7 +7,11 @@ typedef u32 uintptr_t;
 typedef int intptr_t;
 #endif
 typedef struct Resource Resource;
+#ifdef TARGET_PC
+typedef struct Object { void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC]; Resource *resource; } Object;
+#else
 typedef struct Object { u8 opaque[44]; Resource *resource; } Object;
+#endif
 typedef struct Handle { Object *object; } Handle;
 typedef struct Player { u8 opaque[72]; Handle *handle; } Player;
 extern u32 D_801170FC;

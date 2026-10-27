@@ -31,7 +31,11 @@ typedef signed char s8; typedef unsigned char u8; typedef signed short s16; type
 typedef signed int s32; typedef unsigned int u32;
 typedef struct { u8 pad[6]; u8 flag6; u8 pad1; s8 mode; s8 lim; u8 pad2[2]; u32 seed; u8 pad3[4]; u8 bits[6 * 9]; } Info;
 typedef struct { u8 pad[0x6F4]; Info info; } Sess;
+#ifdef TARGET_PC
+typedef struct { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Sess **s; } A;
+#else
 typedef struct { u8 pad[0x2C]; Sess **s; } A;
+#endif
 typedef struct { u8 id; u8 b1; u16 h2; u8 b4[24]; u8 b28[24]; s16 skill[12]; } Rec;
 typedef struct { u8 a, b, c, d, e; } Slot;
 typedef struct { u16 hi, lo; } Pair;

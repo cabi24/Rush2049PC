@@ -27,7 +27,11 @@ typedef struct StatsD {u32 first; f32 minimum, total; u16 count[5]; u8 pad22[2];
 typedef struct StatsE {u32 first; u16 count[6], maximum; u8 pad18[6]; u32 total;} StatsE;
 typedef struct Statistics {u8 pad0[140]; StatsA a[12]; StatsB b[4]; StatsC c[8]; StatsD d[1]; StatsE e[4];} Statistics;
 typedef struct Holder {Statistics *statistics;} Holder;
+#ifdef TARGET_PC
+typedef struct Model {void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC]; Holder *holder;} Model;
+#else
 typedef struct Model {u8 pad0[44]; Holder *holder;} Model;
+#endif
 typedef struct Object {Model *model;} Object;
 extern StatsA D_80150F88[12];
 extern StatsB D_80151410[4];

@@ -20,7 +20,11 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef struct Stats { u8 pad[1785]; u8 option_a; u8 pad1786; u8 option_b; } Stats;
 typedef struct Profile { Stats *stats; } Profile;
+#ifdef TARGET_PC
+typedef struct PlayerState { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Profile *profile; } PlayerState;
+#else
 typedef struct PlayerState { u8 pad[44]; Profile *profile; } PlayerState;
+#endif
 typedef struct Player { PlayerState *state; } Player;
 typedef struct InputRecord { u8 pad[72]; Player *player; } InputRecord;
 extern InputRecord input_rec0[];

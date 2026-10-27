@@ -4,7 +4,11 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef struct Resource { u8 *data; } Resource;
+#ifdef TARGET_PC
+typedef struct Object {void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC];Resource *resource;} Object;
+#else
 typedef struct Object {u8 opaque[44];Resource *resource;} Object;
+#endif
 typedef struct Handle {Object *object;} Handle;
 typedef struct Player {u8 first;u8 selector;u8 opaque[70];Handle *handle;} Player;
 typedef struct Record96 {u8 opaque[92];u16 bits;u8 tail[2];} Record96;

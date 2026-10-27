@@ -30,7 +30,11 @@ typedef struct SaveData {
 } SaveData; /* 0x810 */
 
 typedef struct SaveSlot {
+#ifdef TARGET_PC
+    void *next; void *prev; void *fileh; char pad0_C[0x14 - 0xC];
+#else
     char pad0[20];
+#endif
     char name[24];
     SaveData **data;
 } SaveSlot; /* 0x30 */
@@ -43,9 +47,19 @@ typedef struct ListHead {   /* tDLList: the head and tail are pointers (audio_vo
     intptr_t unkC;
 } ListHead;
 
+#ifdef TARGET_PC
+typedef struct Record {     /* a ghost (menu_save_options' Ghost), 64 bytes on the PC (docs/port/POINTERS.md 9.10) */
+    void *ll;
+    void **fileh;
+    char pad08[0x24 - 0x08];
+    void **datah;
+    void **header;
+} Record;
+#else
 typedef struct Record {
     char pad[44];
 } Record;
+#endif
 
 extern SaveSlot *D_80146150[4];
 extern SaveSlot D_801391F8[4];

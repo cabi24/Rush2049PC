@@ -3662,6 +3662,9 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifndef TARGET_PC
+#define PSF_OFS(n) n   /* the pak file record's PC offsets (pc_prelude.h) */
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3702,5 +3705,5 @@ typedef s64 M2C_UNK64;
 #endif
 
 void PS_ReadFile(void **arg0) {
-    drone_set_catchup(arg0, 0, M2C_FIELD(*arg0, s32 *, 0x40));
+    drone_set_catchup(arg0, 0, M2C_FIELD(*arg0, s32 *, PSF_OFS(0x40)));
 }

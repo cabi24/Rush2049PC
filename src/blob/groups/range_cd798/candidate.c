@@ -3,7 +3,7 @@ typedef signed char s8;
 typedef unsigned int u32;
 #define M2C_FIELD(expr, type, offset) (*(type)((u8 *)(expr) + (offset)))
 #ifdef TARGET_PC
-#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #else
 #define SLOT_DATA 44
 #endif

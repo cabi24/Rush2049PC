@@ -3663,9 +3663,10 @@ typedef s64 M2C_UNK64;
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
 #ifdef TARGET_PC
-#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #else
 #define SLOT_DATA 0x2C
+#define PROFILE_OFS(n) n
 #endif
 
 /* Bitwise (reinterpret) cast */
@@ -3711,7 +3712,7 @@ void func_800FDF88(s32 arg0) {
 
     temp_a0 = *M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), s32 **, SLOT_DATA) + 0x6F4;
     memset(temp_a0, 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, 8), (uintptr_t) temp_a0, 0x4C);
+    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, PROFILE_OFS(8)), (uintptr_t) temp_a0, 0x4C);
     M2C_FIELD(temp_a0, s8 *, 8) = (s8) arg0;
     M2C_FIELD(temp_a0, s32 *, 0xC) = (s32) (D_8002EB90 & 0xFFFFF);
     M2C_FIELD(temp_a0, s8 *, 4) = 1;

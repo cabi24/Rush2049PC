@@ -19,7 +19,12 @@ typedef unsigned char u8;
 typedef signed char s8;
 typedef int s32;
 
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Object { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 port, file; } Object;
+#else
 typedef struct Object { u8 opaque[16]; u8 port, file; } Object;
+#endif
 typedef struct Handle { Object *object; } Handle;
 typedef struct PakFile40 { s8 active; u8 opaque1[39]; } PakFile40;
 #ifdef TARGET_PC

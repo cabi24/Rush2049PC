@@ -32,7 +32,11 @@ typedef struct Fields {
     /* 0x88 */ s8 fallback[4];
 } Fields;
 typedef struct Resource {Fields *fields;} Resource;
+#ifdef TARGET_PC
+typedef struct Object {void *next; void *prev; void *fileh; u8 opaque0_C[0x2C - 0xC];Resource *resource;} Object;
+#else
 typedef struct Object {u8 opaque0[44];Resource *resource;} Object;
+#endif
 typedef struct Owner {Object *object;} Owner;
 extern s8 D_8014978C;
 

@@ -3662,6 +3662,9 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n   /* the profile record's PC offsets (pc_prelude.h) */
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3706,11 +3709,11 @@ void object_render_cleanup(void **arg0) {
     void **temp_a0;
 
     temp_v0 = *arg0;
-    if (M2C_FIELD(temp_v0, s32 *, 0x2C) != 0) {
-        temp_a0 = M2C_FIELD(temp_v0, void ***, 8);
+    if (M2C_FIELD(temp_v0, intptr_t *, PROFILE_OFS(0x2C)) != 0) {
+        temp_a0 = M2C_FIELD(temp_v0, void ***, PROFILE_OFS(8));
         if (temp_a0 != NULL) {
             AdjustSteer(temp_a0);
-            M2C_FIELD(temp_v0, s32 *, 0x2C) = 0;
+            M2C_FIELD(temp_v0, intptr_t *, PROFILE_OFS(0x2C)) = 0;
         }
     }
 }

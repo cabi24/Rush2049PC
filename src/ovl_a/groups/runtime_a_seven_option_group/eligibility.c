@@ -23,8 +23,17 @@ typedef struct Slot64 {
     f32 angle,matrix[3][3],position[3];
     s32 unknown3C;
 } Slot64;
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 player; } Resource;
+#else
 typedef struct Resource { u8 unknown0[16]; u8 player; } Resource;
+#endif
+#ifdef TARGET_PC
+typedef struct Owner { void *unknown0,*unknown4; Resource **resource; } Owner;   /* the profile, pc_prelude.h */
+#else
 typedef struct Owner { u32 unknown0,unknown4; Resource **resource; } Owner;
+#endif
 typedef struct Player76 { u8 unknown0[72]; Owner **owner; } Player76;
 typedef struct Blit Blit;
 extern s16 D_8014A108;

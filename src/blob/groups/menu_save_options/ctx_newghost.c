@@ -918,7 +918,11 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the 
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
+#ifdef TARGET_PC
+    u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
+#else
     u8 *start;                    /* 0x4C */
+#endif
     u32 offset;                   /* 0x50 */
     u32 size;                     /* 0x54 */
 } GhostHeader;
@@ -938,6 +942,13 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
 
 void *memcpy(void *, const void *, u32);
 void ghost_free_start(GhostHeader *header);
+#ifdef TARGET_PC
+/* PC: the header keeps its N64 layout, file data (docs/port/POINTERS.md 9.10); a ghost is 64 bytes */
+#define START(x) ((u8 *)(uintptr_t)(x))
+#else
+#define START(x) x
+#define GHOST_OFS(n) n
+#endif
 
 s32 ghost_blocks_from_size(s32 size) {   /* GC PS_GetBlocks */
     return (size + 255) >> 8;
@@ -954,10 +965,10 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     GhostHeader **gh;
     u32 unzippedChecksum;
 
-    sorted = header->start;
+    sorted = START(header->start);
     maxsize = (f32)(D_80111754[D_8014978C] + 10.0) * D_8002AFB4;
-    func_800A47C0(header->start + header->size, header->start + maxsize, header->size);
-    func_800A47C0(header->start + header->size * 2, header->start + maxsize * 2, header->size);
+    func_800A47C0(START(header->start) + header->size, START(header->start) + maxsize, header->size);
+    func_800A47C0(START(header->start) + header->size * 2, START(header->start) + maxsize * 2, header->size);
     num = header->size * 3;
     unzippedChecksum = format_string_parse(sorted, num);
     *(s16 *)((u8 *)header + 36) = 0;
@@ -967,7 +978,7 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     header->start = NULL;
     ghosth = func_800C7200();
     ghost = *ghosth;
-    memset(ghost, 0, 44);
+    memset(ghost, 0, GHOST_OFS(44));
     ghost->header = (GhostHeader **)AllocateHandleHeap(NULL, dataSize + 88);
     memcpy(*ghost->header, header, 88);
     (*ghost->header)->revision = 17;
@@ -1001,4 +1012,4 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
  * source line; retail schedules `lw s2,76(s3)` between the lock's `la a0` and `move a1` with `li a2,1` in the delay
  * slot, which needs the pointer load on the lock's line and that line after the caller's `dataSize = ...` line.
  * Identity hypothesis (disclosed): the GC code calls DeallocateMemory(header->start) directly. Non-static, internal. */
-void ghost_free_start(GhostHeader *header) { u8 *p = header->start; osRecvMesg((OSMesgQueue *)&D_80152770, NULL, 1); audio_reverb_update((u32)p, 0); osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0); }
+void ghost_free_start(GhostHeader *header) { u8 *p = START(header->start); osRecvMesg((OSMesgQueue *)&D_80152770, NULL, 1); audio_reverb_update((u32)p, 0); osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0); }

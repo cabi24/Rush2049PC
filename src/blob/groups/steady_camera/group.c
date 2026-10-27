@@ -3729,7 +3729,11 @@ typedef s64 M2C_UNK64;
  * func_800E95DC = arcade steady_move_cam, rebuilt for N64 per-player legs.
  */
 /* group members */
+#ifdef TARGET_PC
+typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;   /* the profile, pc_prelude.h */
+#else
 typedef struct HN { u8 p[0x2C]; s32 f2c; } HN;
+#endif
 typedef struct Q { u8 p[0x48]; HN **h; } Q;
 typedef struct Cr {
     u8 p0[8];

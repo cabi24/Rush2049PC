@@ -6,7 +6,11 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef struct Resource {u8 *data;} Resource;
+#ifdef TARGET_PC
+typedef struct Object {void *next; void *prev; void *fileh; u8 other_C[0x2C - 0xC];Resource *resource;} Object;
+#else
 typedef struct Object {u8 other[44];Resource *resource;} Object;
+#endif
 typedef struct Handle {Object *object;} Handle;
 typedef struct Player76 {u8 index,selector;u8 other2[62];u16 half64;u8 other66[6];Handle *handle;} Player76;
 typedef struct {u32 word0,maximum,rate,total;u16 frames,extra;u32 counters[10];u32 other60;} Stats64;

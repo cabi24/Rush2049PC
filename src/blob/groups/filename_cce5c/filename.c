@@ -1,6 +1,10 @@
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16; typedef signed int s32; typedef unsigned int u32;
 typedef struct Y { u8 pad[0x38]; s32 f38; u8 name[11]; } Y;
+#ifdef TARGET_PC
+typedef struct X { void *next, *prev; struct C96Handle *f8; u8 p1[0x15]; u8 name[11]; Y **f2C; } X;   /* the profile, pc_prelude.h */
+#else
 typedef struct X { u8 p0[8]; struct C96Handle *f8; u8 p1[0x15]; u8 name[11]; Y **f2C; } X;
+#endif
 s32 func_800A1910(u8 *a, u8 *b, s32 n);
 extern void *memcpy(void *, void *, unsigned);
 u32 format_string_parse(u8 *, u32);

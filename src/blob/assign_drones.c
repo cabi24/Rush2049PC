@@ -48,8 +48,13 @@ typedef struct SaveBlock {
 } SaveBlock;
 
 typedef struct Profile {
+#ifdef TARGET_PC
+    void *next, *prev;
+    void *valid;               /* the pak file handle (pc_prelude.h) */
+#else
     u8 pad00[8];
     s32 valid;                 /* 0x08 */
+#endif
     u8 pad0C[0x2C - 0x0C];
     SaveBlock **save;          /* 0x2C */
 } Profile;

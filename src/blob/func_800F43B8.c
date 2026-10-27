@@ -53,7 +53,11 @@ typedef struct {
 } Data;
 
 typedef struct {
+#ifdef TARGET_PC
+    void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC];
+#else
     u8 pad0[0x2C];
+#endif
     Data *data;
 } Car;
 

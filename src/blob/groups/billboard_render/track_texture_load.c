@@ -60,10 +60,17 @@ typedef struct {
 #endif
 } GameCar;              /* 952 bytes */
 
+#ifdef TARGET_PC
+typedef struct {
+    void *next, *prev;
+    void *f8;           /* the profile's pak file handle (pc_prelude.h) */
+} PlayerRec;
+#else
 typedef struct {
     s32 pad0[2];
     s32 f8;
 } PlayerRec;
+#endif
 
 typedef struct {
     PlayerRec **rec;    /* gPlayers[i] + 0x4C */

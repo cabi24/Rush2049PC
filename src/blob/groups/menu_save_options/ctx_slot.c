@@ -148,6 +148,24 @@ struct Obj {
     void **h36;       /* 36 */
     void **h40;       /* 40 */
 };
+#ifdef TARGET_PC
+/* PC: paksys' tPS_File (96 bytes, docs/port/POINTERS.md 9.10). menu_transition also reaches the ghost header's
+ * start (N64 0x4C, 32 bits in the file data) through this view, as f76: on the PC through HeaderStart. */
+typedef struct Slot {
+    void *next, *prev;
+    void *update;     /* RemoveFile */
+    void *render;     /* MoveFile */
+    u8 id;
+    u8 seat;
+    u8 pad18[46];
+    s32 catchup;
+    u8 pad68[4];
+    void **data;
+} Slot;
+typedef struct HeaderStart { u8 pad0[76]; s32 f76; } HeaderStart;
+#define START_VIEW HeaderStart
+typedef struct List { s32 pad0; s32 pad4; Handle head, tail; } List;
+#else
 typedef struct Slot {
     u8 pad0[8];
     void *update;     /* 8 */
@@ -160,7 +178,11 @@ typedef struct Slot {
     void **data;      /* 72 */
     s32 f76;          /* 76 */
 } Slot;
+#define START_VIEW Slot
+#define PROFILE_OFS(n) n
+#define PSF_OFS(n) n
 typedef struct List { s32 pad0; s32 pad4; Handle head; } List;
+#endif
 
 extern List D_80152020;
 extern Handle D_80152698[4];
@@ -248,7 +270,7 @@ void menu_transition(Handle h) {
         audio_reverb_update((u32)old, 0);
         osSendMesg(&D_80152770, NULL, 0);
         o->h36 = NULL;
-        ((Slot *)*o->h40)->f76 = 0;
+        ((START_VIEW *)*o->h40)->f76 = 0;
         if (o->slot != NULL) {
             AdjustSteer(o->slot);
             o->h40 = NULL;
@@ -357,7 +379,7 @@ s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
     }
     obj = *self;
     size = (u32)audio_buffer_sync((u32)obj->h40);
-    sprintf(buf, D_801211E4, (char *)*M2C_FIELD(*owner, void ***, 8) + 18, m->index + 1,
+    sprintf(buf, D_801211E4, (char *)*M2C_FIELD(*owner, void ***, PROFILE_OFS(8)) + PSF_OFS(18), m->index + 1,
             GhostDirName(m));
     created = PS_CreateFile(id, buf, D_801211F4, size, 0x3544, 0x4E525545);
     if (created == NULL) {

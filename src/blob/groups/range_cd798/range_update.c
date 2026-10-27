@@ -2,7 +2,11 @@
 typedef unsigned char u8;
 typedef unsigned int u32;
 typedef struct Resource {u8 *data;} Resource;
+#ifdef TARGET_PC
+typedef struct Object {void *next; void *prev;void *lookup;u8 other12[32];Resource *resource;} Object;
+#else
 typedef struct Object {u8 other0[8];void *lookup;u8 other12[32];Resource *resource;} Object;
+#endif
 typedef struct Handle {Object *object;} Handle;
 extern u32 format_string_parse(u8 *,u32);
 extern void PS_WriteFile(void *,void *,u32);

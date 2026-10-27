@@ -9,11 +9,22 @@
 typedef signed int s32;
 typedef unsigned int u32;
 typedef struct VisualNode VisualNode;
+#ifdef TARGET_PC
+/* PC: paksys' tPS_File (docs/port/POINTERS.md 9.10); enabled is its data handle. */
+typedef struct VisualBody {
+    VisualNode *next, *prev;
+    void (*RemoveFile)(VisualNode *);
+    void (*MoveFile)(VisualNode *, VisualNode *);
+    unsigned char unknown10[0x48 - 0x10];
+    void *enabled;
+} VisualBody;
+#else
 typedef struct VisualBody {
     VisualNode *next;
     unsigned char unknown04[68];
     u32 enabled;
 } VisualBody;
+#endif
 struct VisualNode { VisualBody *body; };
 typedef struct VisualList {
     unsigned char indirect, doubly, unknown02[2];

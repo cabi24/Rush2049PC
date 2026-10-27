@@ -43,7 +43,11 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
+#ifdef TARGET_PC
+    u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
+#else
     u8 *start;                    /* 0x4C */
+#endif
     u32 offset;                   /* 0x50 */
     s32 size;                     /* 0x54 */
 } GhostHeader;
