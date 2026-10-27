@@ -61,6 +61,14 @@ WEAK void pc_assets_wave_released(int wave, uint8_t *buf)
     pc_mem_unregister_be(buf);
 }
 
+WEAK void pc_assets_wad_block_freed(uint8_t *p, size_t size) { (void)p, (void)size; }
+
+void pc_heap_block_freed(void *p, size_t size)
+{
+    pc_assets_wad_block_freed((uint8_t *)p, size);
+    pc_mem_unregister_be(p);   /* a file the PI DMA or a decompressor registered at the block's start */
+}
+
 void pc_swap16_n(void *p, size_t count)
 {
     uint8_t *b = (uint8_t *)p;

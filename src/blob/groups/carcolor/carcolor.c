@@ -33,7 +33,24 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
-typedef struct Resource24 { u8 directory_fields[20]; u16 *data; } Resource24;
+#ifdef TARGET_PC
+/* PC: Resource24 is a palette record, a WAD's PLHD (MBOX_FindPalette_WORK) or a car's descriptor D_8013FEE0, both
+ * in the N64 layout (port/assets/wad.c): data is a 32-bit window address. The WAD's TLUT stays big-endian; the
+ * car's copy, in a heap block that port/gfx reads natively, is made native as it is read. */
+#define PAL_DATA u32 data
+#define TLUT_COPY_IN(dst, src, size) tlut_copy_in(dst, src, size)
+static void tlut_copy_in(u16 *dst, u32 src, u32 size)
+{
+    const u8 *s = (const u8 *)(uintptr_t)src;
+    u32 i;
+    for (i = 0; i < size / 2; i++)
+        dst[i] = pc_be16_get(s + 2 * i);
+}
+#else
+#define PAL_DATA u16 *data
+#define TLUT_COPY_IN memcpy
+#endif
+typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 typedef union Handle { s32 value; struct { s16 bank, id; } halves; } Handle;
 typedef struct Handles64 { Handle root; u32 unknown04[3]; Handle secondary, body; u32 unknown18[10]; } Handles64;
 typedef struct Model68 { u8 model_fields[56]; Resource24 *palette; u32 texture0, texture1; } Model68;
@@ -114,7 +131,7 @@ void sound_bank_unload(s16 index,s16 palette,u8 first,u8 second,u8 third)
     D_8013FE90[index]=1;
     colors=AllocateMemoryHeap(0,512);
     sprintf(name,D_80123498,palette+1);
-    memcpy(colors,MBOX_FindPalette_WORK(name,&handle,0,D_80140BDC-1,1)->data,512);
+    TLUT_COPY_IN(colors,MBOX_FindPalette_WORK(name,&handle,0,D_80140BDC-1,1)->data,512);
     if (first == 0) {
         for (i = 1; i < 32; i++) {
             value = (s32)((((colors[i] >> 11) & 0x7f) << 3) * 1.25f);

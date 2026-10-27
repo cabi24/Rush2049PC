@@ -3793,7 +3793,13 @@ typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
 typedef struct { s32 key; s32 a; s32 b; } E12;
-typedef struct { s32 pad0; s32 count; E12 *tbl; } H12;
+#ifdef TARGET_PC
+/* PC: MBSetupWad's handle {Header *, s32, Entry *} with host pointers, as waves.c and loadtrack.c declare it. */
+#define H12_BASE void *
+#else
+#define H12_BASE s32
+#endif
+typedef struct { H12_BASE pad0; s32 count; E12 *tbl; } H12;
 void *func_80096B00(H12 *h, s32 arg1)
 {
   s32 i;

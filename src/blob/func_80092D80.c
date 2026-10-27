@@ -3791,6 +3791,25 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: gWaveInstance has its host layout, 0x20 bytes a slot with ptr at +0x10 (every other view declares the
+ * pointers); the N64 code addresses it by its N64 offsets (0x14 a slot, ptr at +0xC). Returns the model flag of
+ * a slot that holds a ready wave. */
+typedef struct { s8 loaded, ready, locked, model; u8 mirrored; s8 handle; u8 wave; u32 size; u8 *ptr; u8 *lastPtr; } WaveSlot;
+s8 func_80092D80(s32 arg0)
+{
+  WaveSlot *slot = (WaveSlot *) &gWaveInstance + arg0;
+  if (slot->ptr == 0)
+  {
+    return 0;
+  }
+  if (slot->ready == 0)
+  {
+    return 0;
+  }
+  return slot->model;
+}
+#else
 s8 func_80092D80(s32 arg0)
 {
   void *temp_v1;
@@ -3805,3 +3824,4 @@ s8 func_80092D80(s32 arg0)
   }
   return *((s8 *) (((s8 *) temp_v1) + 3));
 }
+#endif

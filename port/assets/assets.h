@@ -60,6 +60,12 @@ void pc_assets_musyx(int wave, uint8_t *buf, size_t size);
  * registered for it. The default unregisters the big-endian range that contains buf. */
 void pc_assets_wave_released(int wave, uint8_t *buf);
 
+/* The game's heap frees a block (audio_reverb_update, src/blob/groups/heap_release/group.c): what was registered
+ * big-endian inside it goes, whichever path freed it (UnloadWaveInstance, heap compaction, a whole sub-heap).
+ * pc_assets_wad_block_freed is wad.c's part. */
+void pc_heap_block_freed(void *p, size_t size);
+void pc_assets_wad_block_freed(uint8_t *p, size_t size);
+
 /* Byte order. */
 static inline uint16_t pc_be16(const void *p)
 {

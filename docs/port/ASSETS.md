@@ -366,6 +366,10 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | Game image, runtime images | — | skip | — | `game_init` inflate and `PrevMaxPath` under `TARGET_PC` |
 | File table (4 tables), car tables, PVS, texture-animation tables | — | `port/data` | by declared type | — |
 
+Status, 2026-10-27: the WAD rows are done in `port/assets/wad.c`. That covers the TOC, OBHD, TXHD, PLHD, PTHD with
+its PATH points, the big-endian payload and its release, together with the game edits for §4 #1–11. What was done
+and what is left is in [LOADERS.md](LOADERS.md).
+
 ## 6. Bring-up order
 
 | Stage | Formats needed, in load order | Evidence |

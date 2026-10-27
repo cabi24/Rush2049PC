@@ -82,6 +82,12 @@ Block *func_80095EF4(Heap *heap, u32 addr, s32 tag) {
     }
     return b;
 }
+#ifdef TARGET_PC
+/* PC: the free's first step poisons the freed block (block + 32, size). Whatever was registered big-endian in
+ * it (a wave's file) goes with it (port/assets). The other two calls clear merged headers. */
+void pc_heap_block_freed(void *p, __SIZE_TYPE__ size);
+#define func_80095EC0(p, n) (pc_heap_block_freed(p, n), func_80095EC0(p, n))
+#endif
 void audio_reverb_update(u32 address,s32 tag) {
  Heap *heap; Block *block,*next,*prev;
  heap=func_80095F8C(address);
@@ -106,6 +112,9 @@ void audio_reverb_update(u32 address,s32 tag) {
   func_80095EC0(block,32);
  }
 }
+#ifdef TARGET_PC
+#undef func_80095EC0
+#endif
 /* : __inline + four unused locals: umerge inlines it into func_800C885C below, and each inlined
  * instance reserves its callee's locals in the caller's frame (retail spill homes 56 / 32, frame 64). */
 __inline void audio_effect_process(u32 address) {

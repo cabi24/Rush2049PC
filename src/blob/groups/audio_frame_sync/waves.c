@@ -56,12 +56,23 @@ typedef struct anon_loaded_ready_14 {   /* gWaveInstance[64], 0x14 */
 
 typedef struct anon_base_TOCentries_c { u32 *base; s32 TOCentries; void *TOC; } anon_base_TOCentries_c; /* mb_wad.c */
 
+#ifdef TARGET_PC
+/* The loaded records keep their N64 layout on PC (port/assets/wad.c swaps their scalars in place): their pointer
+ * fields are 32-bit RDRAM-window addresses, which widen to host pointers (docs/port/ASSETS.md section 5). */
+#define WADP(type) u32
+/* A handle wave's ptr is a heap master slot, a u32 window address (the heap's handle tables keep N64 layout). */
+#define HANDLE_BLOCK(h) ((u8 *)(uintptr_t)*(u32 *)(h))
+#else
+#define WADP(type) type *
+#define HANDLE_BLOCK(h) *(u8 **)h
+#endif
+
 typedef struct tLod {               /* N64 0x10 (GC anon_texidx_flags_c 0xc) */
     u16 texidx;
     u16 flags;
     f32 lodRad;
-    u32 *displayList;               /* 0x8 */
-    u32 *vtxList;                   /* 0xc N64 only, relocated with the display list */
+    WADP(u32) displayList;          /* 0x8 */
+    WADP(u32) vtxList;              /* 0xc N64 only, relocated with the display list */
 } tLod;
 typedef struct tModelDef {          /* N64 0x58 */
     char name[16];
@@ -77,7 +88,7 @@ typedef struct tTexture {           /* N64 0x24 */
     u8 size;
     u8 format;
     s16 palIndex;
-    char *texBase;                  /* 0x18 */
+    WADP(char) texBase;             /* 0x18 */
     u32 flags;
     u32 xflags;
 } tTexture;
@@ -86,16 +97,16 @@ typedef struct anon_name_start_18 { /* palette, 0x18 */
     u8 start;
     u8 end;
     u16 format;
-    char *palBase;                  /* 0x14 */
+    WADP(char) palBase;             /* 0x14 */
 } anon_name_start_18;
 typedef struct tBasicTargetPath {   /* 0x24 */
     char name[16];
     u32 flags;
     s16 numPts;
     s16 collIdx;
-    char *trigPtr;                  /* 0x18 */
-    char *pts;                      /* 0x1c */
-    void *parent;
+    WADP(char) trigPtr;             /* 0x18 */
+    WADP(char) pts;                 /* 0x1c */
+    WADP(void) parent;
 } tBasicTargetPath;
 typedef struct anon_romObjDefs_count_8 { tModelDef *romObjDefs; s32 count; } anon_romObjDefs_count_8;
 typedef struct anon_texDefs_count_8 { tTexture *texDefs; s32 count; } anon_texDefs_count_8;
@@ -118,8 +129,18 @@ extern OSMesgQueue D_80035410;                      /* PI DMA completion queue *
 
 void MBSetupWad(anon_base_TOCentries_c *wad, u8 *WADptr);              /* MBSetupWad */
 void func_80096BBC(anon_base_TOCentries_c *wad, s32 WADptr, s32 offset);  /* MBOffsetWad */
+#ifdef TARGET_PC
+/* A TOC entry's address is a u32 window address: zero-extended, not sign-extended, into a pointer. */
+u32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count);
+#define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
+/* entity_cull_check walks TXLD from start to end as Gfx pointers. */
+void entity_cull_check(void *start, void *end, s32 IMAGptr);
+#define entity_cull_check(start, end, IMAGptr) \
+    entity_cull_check((void *)(uintptr_t)(u32)(start), (void *)(uintptr_t)(u32)(end), IMAGptr)
+#else
 s32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count); /* MBGetFromWad */
 void entity_cull_check(u32 start, u32 end, s32 IMAGptr);
+#endif
 void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask);
 void entity_render_mode(s32 idx);                                         /* MirrorWaveInstance */
 void osInvalICache(void *vaddr, s32 nbytes);
@@ -160,7 +181,7 @@ void SetupWaveModel(s32 idx, s32 first) {
         flags |= 8;
     }
     if (gWaveInstance[idx].handle != 0) {
-        WADptr = *(u8 **)gWaveInstance[idx].ptr;
+        WADptr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
     } else {
         WADptr = gWaveInstance[idx].ptr;
     }
@@ -168,10 +189,10 @@ void SetupWaveModel(s32 idx, s32 first) {
     if (first != 0) {
         MBSetupWad(&wad, WADptr);
     } else {
-        offset = *(u8 **)gWaveInstance[idx].ptr - (u32)gWaveInstance[idx].lastPtr;
+        offset = HANDLE_BLOCK(gWaveInstance[idx].ptr) - (u32)gWaveInstance[idx].lastPtr;
         func_80096BBC(&wad, (s32)WADptr, (s32)offset);
     }
-    gWaveInstance[idx].lastPtr = *(u8 **)gWaveInstance[idx].ptr;
+    gWaveInstance[idx].lastPtr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
     gRomObjDefPtrs[modelIdx].romObjDefs = (tModelDef *)MBGetFromWad(&wad, 0x4F424844, &gRomObjDefPtrs[modelIdx].count);
     gTexDefPtrs[modelIdx].texDefs = (tTexture *)MBGetFromWad(&wad, 0x54584844, &gTexDefPtrs[modelIdx].count);
     gPalDefPtrs[modelIdx].palDefs = (anon_name_start_18 *)MBGetFromWad(&wad, 0x504C4844, &gPalDefPtrs[modelIdx].count);
@@ -192,8 +213,8 @@ void SetupWaveModel(s32 idx, s32 first) {
     if (first != 0) {
         for (i = 0; i < gRomObjDefPtrs[modelIdx].count; i++) {
             for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (u32 *)((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + (u32)(first ? WADptr : offset));
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (u32 *)((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + (u32)(first ? WADptr : offset));
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + (u32)(first ? WADptr : offset));
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + (u32)(first ? WADptr : offset));
                 entity_lod_select(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList, (s32)(first ? WADptr : offset), -1, D_80140A04 ? 1 : 0, flags);
             }
         }
@@ -211,7 +232,7 @@ void SetupWaveModel(s32 idx, s32 first) {
 #ifdef TARGET_PC
 /* _ReadWave's SetupWaveModel(slot, 1): convert the file to the host's byte order first (port/assets). The
  * re-setup after a heap move (first = 0) converts nothing. */
-#define SetupWaveModel(slot, first) ((first) ? pc_wave_loaded(gWaveInstance[slot].wave, gWaveInstance[slot].handle ? *(u8 **)gWaveInstance[slot].ptr : gWaveInstance[slot].ptr, gWaveInstance[slot].size) : (void)0, SetupWaveModel(slot, first))
+#define SetupWaveModel(slot, first) ((first) ? pc_wave_loaded(gWaveInstance[slot].wave, gWaveInstance[slot].handle ? HANDLE_BLOCK(gWaveInstance[slot].ptr) : gWaveInstance[slot].ptr, gWaveInstance[slot].size) : (void)0, SetupWaveModel(slot, first))
 #endif
 
 void func_8009715C(u8 *dst, s32 rom, s32 size) {
@@ -234,7 +255,7 @@ void func_80097164(s32 slot) {
     type = r->wave;
     if (D_80123564[type] == 0) {
         if (r->handle != 0) {
-            dst = *(u8 **)r->ptr;
+            dst = HANDLE_BLOCK(r->ptr);
         } else {
             dst = r->ptr;
         }
@@ -243,14 +264,14 @@ void func_80097164(s32 slot) {
         func_8009715C(dst, rom, size);
     } else if (D_80123564[type] == 1) {
         if (r->handle != 0) {
-            dst = *(u8 **)r->ptr;
+            dst = HANDLE_BLOCK(r->ptr);
         } else {
             dst = r->ptr;
         }
         lzss_decompress(D_8011B5BC[type], dst);
     } else {
         if (r->handle != 0) {
-            dst = *(u8 **)r->ptr;
+            dst = HANDLE_BLOCK(r->ptr);
         } else {
             dst = r->ptr;
         }

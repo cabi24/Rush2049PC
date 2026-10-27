@@ -23,11 +23,20 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: TexDef is a WAD's TXHD record, which keeps its N64 layout (port/assets/wad.c): data is a 32-bit window
+ * address of the texels. */
+#define TXHD_DATA u32 data
+#define TEXELS(tex) ((u8 *)(uintptr_t)(tex)->data)
+#else
+#define TXHD_DATA u8 *data
+#define TEXELS(tex) tex->data
+#endif
 typedef struct TexDef {
     /* 0x00 */ char name[16];
     /* 0x10 */ u16 width, height;
     /* 0x14 */ u8 pad14[4];
-    /* 0x18 */ u8 *data;
+    /* 0x18 */ TXHD_DATA;
 } TexDef;
 
 typedef struct Blit {
@@ -142,7 +151,7 @@ s32 func_80109468(Blit *blt) {
     offz = (D_801161C4 - h - 8) / 2 + 4;
     for (pz = 0; pz < D_801161C4; pz++) {
         for (px = 0; px < D_801161C4 / 2; px++) {
-            blt->info->data[pz * D_801161C4 / 2 + px] = 0;
+            TEXELS(blt->info)[pz * D_801161C4 / 2 + px] = 0;
         }
     }
     for (i = 0; i < D_801407F0.count; i++) {
@@ -163,7 +172,7 @@ s32 func_80109468(Blit *blt) {
             for (x = px - 2; x <= px + 2; x++) {
                 if (x >= 0 && x < D_801161C4 && y >= 0 && y < D_801161C4) {
                     col = D_80140A04 == 0 ? D_801161C4 - x - 1 : x;
-                    row = blt->info->data + (D_801161C4 - y - 1) * D_801161C4 / 2 + col / 2;
+                    row = TEXELS(blt->info) + (D_801161C4 - y - 1) * D_801161C4 / 2 + col / 2;
                     if (x <= px - 2 || x >= px + 2 || y <= pz - 2 || y >= pz + 2) {
                         if (col & 1) {
                             if ((*row & 0xF) != 0xE) {

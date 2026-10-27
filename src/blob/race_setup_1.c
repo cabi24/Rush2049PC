@@ -39,7 +39,17 @@ typedef struct Gfx { u32 w0,w1; } Gfx;
 #endif
 typedef union AnimatedData { u16 *palette; Gfx *commands; } AnimatedData;
 typedef struct PaletteAnimation20 { void *owner; s16 first,last; s8 step; u8 action; s16 ticks; f32 delay; AnimatedData data; } PaletteAnimation20;
-typedef struct ObjectView { u8 before24[24]; Gfx *commands; u32 flags; } ObjectView;
+#ifdef TARGET_PC
+/* PC: ObjectView is a texture record (TXHD) of a WAD, which keeps its N64 layout: commands (texBase) is a 32-bit
+ * RDRAM-window address. The palettes are the WAD's TLUTs, which stay big-endian, as do the TXLD lists
+ * (port/assets/wad.c). */
+#define TXHD_PTR(type) u32
+#define PAL_SET(entry, value) pc_be16_set(&(entry), value)
+#else
+#define TXHD_PTR(type) type *
+#define PAL_SET(entry, value) entry = value
+#endif
+typedef struct ObjectView { u8 before24[24]; TXHD_PTR(Gfx) commands; u32 flags; } ObjectView;
 typedef struct AnimationFrame12 { u32 tag; ObjectView *object; Gfx *commands; } AnimationFrame12;
 typedef struct ObjectAnimation20 { s16 count,object_index,direction,index; f32 delay,interval; AnimationFrame12 *frames; } ObjectAnimation20;
 extern u32 D_801174B4;
@@ -93,37 +103,37 @@ void race_setup_1(void)
                     }
                     break;
                 case 6:
-                    palette[palette_animation->first+2]=1985; palette[palette_animation->first+1]=10561; palette[palette_animation->first]=10241;
+                    PAL_SET(palette[palette_animation->first+2], 1985); PAL_SET(palette[palette_animation->first+1], 10561); PAL_SET(palette[palette_animation->first], 10241);
                     palette_animation->action=5; palette_animation->delay=10.0f;
                     break;
                 case 5:
-                    palette[palette_animation->first+2]=321; palette[palette_animation->first+1]=0xffc1; palette[palette_animation->first]=10241;
+                    PAL_SET(palette[palette_animation->first+2], 321); PAL_SET(palette[palette_animation->first+1], 0xffc1); PAL_SET(palette[palette_animation->first], 10241);
                     palette_animation->action=4; palette_animation->delay=0.5f;
                     break;
                 case 4:
-                    palette[palette_animation->first+2]=321; palette[palette_animation->first+1]=10561; palette[palette_animation->first]=0xf801;
+                    PAL_SET(palette[palette_animation->first+2], 321); PAL_SET(palette[palette_animation->first+1], 10561); PAL_SET(palette[palette_animation->first], 0xf801);
                     palette_animation->action=6; palette_animation->delay=10.5f;
                     break;
                 case 7:
-                    if(palette_animation->step<10) palette[palette_animation->step]=0xf001;
+                    if(palette_animation->step<10) PAL_SET(palette[palette_animation->step], 0xf001);
                     else if(palette_animation->step>=21) {
                         for(i=0;i<10;i++)
- palette[i]=12421;
+ PAL_SET(palette[i], 12421);
                         palette_animation->step=-1;
                     }
                     palette_animation->step++;
                     break;
                 case 8:
-                    if(palette_animation->step==0) palette[palette_animation->step+7]=0xce73;
+                    if(palette_animation->step==0) PAL_SET(palette[palette_animation->step+7], 0xce73);
                     else if(palette_animation->step<8) {
-                        palette[palette_animation->step-1]=0xf141;
-                        palette[palette_animation->step+7]=0xce73;
+                        PAL_SET(palette[palette_animation->step-1], 0xf141);
+                        PAL_SET(palette[palette_animation->step+7], 0xce73);
                     } else if(palette_animation->step>=23) {
                         for(i=0;i<7;i++) {
- palette[i]=12289;
- palette[i+7]=4229;
+ PAL_SET(palette[i], 12289);
+ PAL_SET(palette[i+7], 4229);
  }
-                        palette[14]=4229; palette_animation->step=-1;
+                        PAL_SET(palette[14], 4229); palette_animation->step=-1;
                     }
                     palette_animation->step++;
                     break;
