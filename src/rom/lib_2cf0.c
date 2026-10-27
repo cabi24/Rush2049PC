@@ -34,7 +34,12 @@ void idle_thread_entry(void *argument) {
     osSetThreadPri(NULL, 0);
     osCreateThread(&gGameThread, 6, game_init, argument, gStackGame + 0x960, 4);
     osStartThread(&gGameThread);
-    for (;;) {}
+    for (;;) {
+#ifdef TARGET_PC
+        extern void pc_os_idle(void);
+        pc_os_idle();   /* PC: wait for a thread to run instead of spinning (port/ultra/sched.c) */
+#endif
+    }
 }
 
 /* PROMOTED 2026-10-12 — game_init
@@ -89,7 +94,11 @@ void game_init(void *arg) {
     osInvalICache(gDecompressedDataStart, gDecompressedDataEnd1 - gDecompressedDataStart);
     osInvalDCache(gDecompressedDataEnd1, gBssStart - gDecompressedDataEnd1);
     inflate_entry(gRomCompressedData, gDecompressedDataStart, 0);
+#ifndef TARGET_PC
+    /* PC: the game BSS is zero at startup, and it is not one range here (port/data's arenas plus separate
+     * storage for pointers), so there is nothing to clear. */
     bzero(gBssStart, gBssEnd - gBssStart);
+#endif
     osScAddClient(&gScheduler, &client, &gRetraceMesgQueue);
     osCreateThread(&gAudioThread, 8, brake_force_apply, 0, gStackAudio + 0x960, 3);
     osCreateMesgQueue(&gSyncMesgQueue, gSyncMesgBuf, 1);

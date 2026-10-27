@@ -156,6 +156,10 @@ void dma_wait_complete(void *arg) {
         case 1:
             if (D_8011EAA8 != 0) {
                 while (D_8002AFA0 != 0 && D_8002AFA0 == D_8002E8E8.cur) {
+#ifdef TARGET_PC
+                    extern void pc_os_spin_yield(const char *site);
+                    pc_os_spin_yield("dma_wait_complete");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
                 }
                 D_8011EAA8(D_8011EAA8);
             }

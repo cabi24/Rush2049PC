@@ -64,7 +64,13 @@ s32 __osPfsReleasePages(OSPfs* pfs, __OSInode* inode, u8 start_page, u8 bank, __
     __OSInodeUnit old_page;
     s32 ret = 0;
 
+#ifdef TARGET_PC
+    /* PC: ipage is a host-order u16, and page links are read through the byte fields everywhere else. */
+    next_page.inode_t.bank = bank;
+    next_page.inode_t.page = start_page;
+#else
     next_page.ipage = (bank << 8) + start_page;
+#endif
 
     do {
         old_page = next_page;

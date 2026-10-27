@@ -893,7 +893,12 @@ void func_8038B388(void)
 {
     func_8038AE50();
     if (D_803B8284 != -1) { sound_call_minimal((s16)D_803B8284); D_803B8284 = -1; }
-    while (D_8002EB70) {}
+    while (D_8002EB70) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("func_8038B388");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
+    }
 }
 
 /* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
@@ -1187,7 +1192,12 @@ void func_8038B930(void)
                 D_803B7CE4[i].handle = -1;
             }
         }
-        while (D_8002EB70) {}
+        while (D_8002EB70) {
+#ifdef TARGET_PC
+            extern void pc_os_spin_yield(const char *site);
+            pc_os_spin_yield("func_8038B930");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
+        }
         for (i = 0; i < 7; i++) {
             model = string_copy_format(D_803B7738[i < 6 ? i : 19],0,D_80140BDC - 1,1);
             def = &D_801161F4[model >> 10].romObjDefs[model & 0x3FF];

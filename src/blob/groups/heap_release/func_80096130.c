@@ -22,6 +22,10 @@ void func_800960CC(u32 address);
 static void dma_wait(void)
 {
     while (D_8002EB70 != 0) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("func_80096130");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
     }
 }
 

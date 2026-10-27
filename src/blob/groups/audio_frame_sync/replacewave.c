@@ -43,7 +43,12 @@ void suspension_setup(int curWave, int newWave)
     if (func_80097694(newWave, -1) < 0) {
         idx = func_80097694(curWave, -1);
         if (idx >= 0) {
-            while (*(volatile s16 *)&gRenderInProgress) {}
+            while (*(volatile s16 *)&gRenderInProgress) {
+#ifdef TARGET_PC
+                extern void pc_os_spin_yield(const char *site);
+                pc_os_spin_yield("ReplaceWave");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
+            }
             func_800A5014(idx, newWave); func_80097164(idx);
         }
     }

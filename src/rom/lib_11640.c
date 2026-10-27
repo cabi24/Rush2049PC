@@ -172,7 +172,11 @@ void func_80010E80(void *configuration)
     if (D_800382F0 != 0) {
         count = ((AudioConfiguration_80010E80 *)configuration)->duration * D_8003828C / 1000;
         count = 192 - count % 192 + count;
+#ifdef TARGET_PC
+        state = D_80038018(sizeof(AudioDelayState_80010E80), 0);   /* PC: 72 bytes on the N64 */
+#else
         state = D_80038018(72, 0);
+#endif
         state->buffer = D_800382F0;
         i = count * 2;
         bzero(state->buffer, i);
@@ -251,6 +255,9 @@ extern unsigned short D_800382CE;
 extern unsigned short *D_800382D8[2];
 extern unsigned short D_800382E0[2];
 extern void *D_800382E4;
+#ifdef TARGET_PC
+static unsigned int pc_sfd_size(void);   /* sizeof(Block_80012D18): 2576 bytes on the N64 */
+#endif
 void func_80011104(unsigned short count, unsigned int frequency)
 {
     unsigned short i;
@@ -268,8 +275,13 @@ void func_80011104(unsigned short count, unsigned int frequency)
     } else {
         D_800382CE = (unsigned short) (((float)frequency / 25.0f / 192.0f) * D_8002D8BC) + 1;
     }
+#ifdef TARGET_PC
+    D_800382D8[0] = D_80038018(D_800382CE * pc_sfd_size(), 0);
+    D_800382D8[1] = D_80038018(D_800382CE * pc_sfd_size(), 0);
+#else
     D_800382D8[0] = D_80038018(D_800382CE * 2576U, 0);
     D_800382D8[1] = D_80038018(D_800382CE * 2576U, 0);
+#endif
     D_800382E0[1] = 0;
     D_800382E0[0] = 0;
     D_800382E4 = D_80038018(664, 0);
@@ -347,6 +359,10 @@ extern void *D_8003802C;
 void func_80011848(void)
 {
     while (D_800382CC != 0) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("func_80011848");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
     }
     D_8003801C(D_8003802C);
 }
@@ -632,6 +648,9 @@ void func_80011F60(int count)
     D_80038338 = D_80038018(count * sizeof(AudioNode), 0);
     D_8003833C = D_80038018(count * 256, 0);
     osInvalDCache(D_8003833C, count * 256);
+#ifdef TARGET_PC
+    pc_mem_register_be(D_8003833C, count * 256);   /* PC: the codebook cache holds ROM bytes */
+#endif
     D_80038344 = 0;
     D_80038348 = D_80038338;
     D_80038338[0].buffer = D_8003833C;
@@ -655,6 +674,9 @@ extern unsigned char *D_8003833C;
 extern AudioNode *D_80038338;
 void func_800121BC(void)
 {
+#ifdef TARGET_PC
+    pc_mem_unregister_be(D_8003833C);
+#endif
     D_8003801C(D_8003833C);
     D_8003801C(D_80038338);
 }
@@ -738,6 +760,9 @@ void func_800123A8(unsigned short count)
     int i;
     D_8003834C = D_80038018(count * 1536, 0);
     osInvalDCache(D_8003834C, count * 1536);
+#ifdef TARGET_PC
+    pc_mem_register_be(D_8003834C, count * 1536);   /* PC: the sample cache holds ROM bytes */
+#endif
     D_80038350 = D_80038018(count * sizeof(AudioCacheNode), 0);
     D_80038354 = 0;
     D_80038358 = 0;
@@ -763,6 +788,9 @@ extern unsigned char *D_8003834C;
 void func_8001261C(void)
 {
     D_8003801C(D_80038350);
+#ifdef TARGET_PC
+    pc_mem_unregister_be(D_8003834C);
+#endif
     D_8003801C(D_8003834C);
 }
 
@@ -953,8 +981,16 @@ extern unsigned int D_80038030;
  * Gate:     full-ROM SHA-1
  */
 typedef struct Voice_80012D18 { unsigned char active, pending; unsigned short flags; unsigned short rate; unsigned char unknown06[2]; double position; unsigned char unknown10[8]; short level[4]; unsigned char unknown20[12]; unsigned char *data; unsigned int length; unsigned int loop_start; unsigned int loop_length; unsigned int tail; short target[4]; unsigned char unknown48[4]; float gain; unsigned char unknown50[13]; unsigned char format; unsigned char unknown5E[2]; unsigned char slot; } Voice_80012D18;
+#ifdef TARGET_PC
+/* PC: 0x44 is the SFD's output pointer (set in func_800139D4), so it is pointer-sized (docs/port/AUDIO.md). */
+typedef struct Command_80012D18 { int volume[4]; int delta[4]; unsigned short fraction; unsigned short rate; Fetch_80012730 main; Fetch_80012730 loop; unsigned char main_blocks, loop_blocks, main_offset, loop_offset; union { void *book; struct { short main_count, loop_count; } pcm; } u; void *unknown44; short end48, end4A, position4C, start4E; } Command_80012D18;
+#else
 typedef struct Command_80012D18 { int volume[4]; int delta[4]; unsigned short fraction; unsigned short rate; Fetch_80012730 main; Fetch_80012730 loop; unsigned char main_blocks, loop_blocks, main_offset, loop_offset; union { void *book; struct { short main_count, loop_count; } pcm; } u; unsigned int unknown44; short end48, end4A, position4C, start4E; } Command_80012D18;
+#endif
 typedef struct Block_80012D18 { unsigned short count; unsigned short sample; unsigned int changed; void *work; void *loop; Command_80012D18 commands[32]; } Block_80012D18;
+#ifdef TARGET_PC
+static unsigned int pc_sfd_size(void) { return sizeof(Block_80012D18); }
+#endif
 extern double func_8001E688(double value);
 extern void func_80011A64(AudioState *audio, unsigned short samples, unsigned char *active);
 extern void func_80011D74(AudioState *audio, unsigned short samples);
@@ -1185,6 +1221,12 @@ void func_80013964(void)
 typedef struct AudioLoop { unsigned int unknown00; unsigned int length; } AudioLoop;
 typedef struct AudioCommand { unsigned char unknown00[44]; unsigned short status; unsigned char unknown2E[22]; void *output; unsigned char unknown48[8]; } AudioCommand;
 typedef struct AudioBlock { unsigned short count; unsigned short sample; unsigned int changed; void *work; AudioLoop *loop; AudioCommand commands[32]; } AudioBlock;
+#ifdef TARGET_PC
+/* PC: these are N64 byte views of the SFD and the delay state; natively the real records are used
+ * (docs/port/AUDIO.md). AudioCommand.status is main.first_length, .output the pointer at 0x44 (unknown44). */
+#define AudioBlock Block_80012D18
+#define AudioLoop AudioDelayState_80010E80
+#endif
 extern unsigned short D_8003829C;
 extern unsigned short D_800382CE;
 extern int D_800382EC;
@@ -1206,12 +1248,21 @@ void func_800139D4(void *output, unsigned short samples)
             active++;
         }
     }
+#ifdef TARGET_PC
+    if (((AudioBlock *)D_800382D0)[*D_800382D4].count == 0) {
+        ((AudioBlock *)D_800382D0)[*D_800382D4].commands[0].main.first_length = 0;
+        ((AudioBlock *)D_800382D0)[*D_800382D4].commands[0].unknown44 = output;
+    } else {
+        ((AudioBlock *)D_800382D0)[*D_800382D4].commands[((AudioBlock *)D_800382D0)[*D_800382D4].count - 1].unknown44 = output;
+    }
+#else
     if (((AudioBlock *)D_800382D0)[*D_800382D4].count == 0) {
         ((AudioBlock *)D_800382D0)[*D_800382D4].commands[0].status = 0;
         ((AudioBlock *)D_800382D0)[*D_800382D4].commands[0].output = output;
     } else {
         ((AudioBlock *)D_800382D0)[*D_800382D4].commands[((AudioBlock *)D_800382D0)[*D_800382D4].count - 1].output = output;
     }
+#endif
     ((AudioBlock *)D_800382D0)[*D_800382D4].work = D_800382E4;
     ((AudioBlock *)D_800382D0)[*D_800382D4].changed = changed;
     ((AudioBlock *)D_800382D0)[*D_800382D4].loop = D_800382E8;
@@ -1229,6 +1280,10 @@ void func_800139D4(void *output, unsigned short samples)
         ((AudioBlock *)D_800382D0)[*D_800382D4].count = 0;
     }
 }
+#ifdef TARGET_PC
+#undef AudioBlock
+#undef AudioLoop
+#endif
 
 /* PROMOTED 2026-10-05 — func_80013C84
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
@@ -1397,6 +1452,10 @@ void func_80014140(void)
 {
     D_80038362 = D_80038292;
     while (D_80038362 > 0) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("func_80014140");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
     }
     D_8003800C(func_80013DEC);
 }
@@ -1673,7 +1732,12 @@ void func_800146B4(unsigned int index, SampleInfo_800146B4 *sample, unsigned cha
     } else {
         D_80038294[index].tail = 0;
     }
+#ifdef TARGET_PC
+    /* PC: a host pointer (at or above 4 GiB) is RAM too; only cartridge addresses are fetched by DMA. */
+    if (((unsigned long)sample->data >> 32) == 0 && ((unsigned long)sample->data & 0xF0000000UL) != 0x80000000UL) {
+#else
     if (((unsigned long)sample->data & 0xF0000000UL) != 0x80000000UL) {
+#endif
         D_80038294[index].flags |= 1;
     }
 }
@@ -1698,6 +1762,9 @@ void func_8001489C(int index, unsigned char release)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+#define __unaligned   /* IDO's qualifier; the PC targets load unaligned u16 natively */
+#endif
 void func_800148F8(int index, __unaligned unsigned short *data)
 {
     D_80038294[index].value20 = data[0];
@@ -1889,6 +1956,11 @@ extern void *(*D_80038014)(void *);
 void *func_80014CAC(void *address)
 {
     unsigned int region;
+#ifdef TARGET_PC
+    if ((unsigned long)address >> 32) {
+        return address;   /* PC: a host pointer is RAM, not a cartridge offset */
+    }
+#endif
     region = (unsigned int)address & 0xFF000000;
     if (region != 0x80000000 && region != 0xB0000000) {
         address = D_80038014(address);
