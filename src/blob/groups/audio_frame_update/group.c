@@ -76,7 +76,11 @@ typedef struct SndCtl {          /* D_80139320[player], 0x40 bytes */
     s32 vals[4];                 /* 0x1C */
     u8 pad2C[0x14];
 } SndCtl;
+#ifdef TARGET_PC
+typedef struct PCarX { u8 pad[PC_CAR_SIZE]; } PCarX;    /* a car record (docs/port/CARS.md) */
+#else
 typedef struct PCarX { u8 pad[0x3B8]; } PCarX;
+#endif
 typedef struct HudRec {          /* D_8014A250[player], 0x808 bytes */
     u8 pad000[8];
     u8 b8;

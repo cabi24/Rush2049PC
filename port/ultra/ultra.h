@@ -109,6 +109,7 @@ void pc_si_flush(void);                              /* write the .mpk if it cha
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */
 int pc_mem_fixed(void);         /* the window is at host 0x80000000 */
 int pc_mem_fix_absolute(void);  /* first thing in main: GOT slots of absolute N64-address symbols */
+int pc_fix_absolute_got(void);  /* the same, without the log (absfix.c, also linked by tests) */
 uint8_t *pc_rdram(void);
 
 /* ---------------------------------------------------------------- misc.c */

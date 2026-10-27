@@ -14,6 +14,9 @@ void test_be_reset(void);
 /* The RDRAM window at PC_RDRAM_BASE, mapped as port/ultra maps it (NULL if that address is taken), for tests whose
  * files must hold 32-bit window addresses as the game's heap blocks do. */
 uint8_t *test_rdram(void);
+/* Puts back the GOT slots of symbols a test defines at absolute N64 addresses (`.set name, 0x8014A250`), as
+ * rush2049pc does first thing (port/ultra/absfix.c): game data that sits at its N64 address in the window. */
+int pc_fix_absolute_got(void);
 
 /* Writing big-endian test files. */
 static inline void test_put16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v >> 8); p[1] = (uint8_t)v; }
