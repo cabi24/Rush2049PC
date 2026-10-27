@@ -151,6 +151,18 @@ int pc_rom_load(const char *path, int check_sha1)
     return 0;
 }
 
+/* --no-rom: a blank 12 MiB cartridge, to run the boot path without the user's ROM (bring-up only). */
+int pc_rom_blank(void)
+{
+    g_rom_size = 12u << 20;
+    g_rom = calloc(1, g_rom_size);
+    if (!g_rom)
+        return -1;
+    g_rom[0] = 0x80, g_rom[1] = 0x37, g_rom[2] = 0x12, g_rom[3] = 0x40;
+    fprintf(stderr, "rush2049pc: --no-rom: running on a blank cartridge (every ROM read is zero)\n");
+    return 0;
+}
+
 static uint32_t rom_offset(uint32_t dev)
 {
     uint32_t phys = dev & 0x1FFFFFFFu;

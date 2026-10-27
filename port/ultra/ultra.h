@@ -91,6 +91,7 @@ extern int pc_rcp_stop_at_gfx;                            /* --stop-at-gfx: exit
 
 /* ---------------------------------------------------------------- pi.c: ROM */
 int pc_rom_load(const char *path, int check_sha1);   /* 0 on success; prints why not */
+int pc_rom_blank(void);                              /* --no-rom: a zeroed 12 MiB cartridge */
 int pc_rom_copy(uint32_t rom_offset, void *dst, uint32_t size);   /* 0 if inside the ROM */
 uint32_t pc_rom_word(uint32_t rom_offset);           /* big-endian word, 0 past the end */
 void pc_sha1(const void *data, size_t size, uint8_t out[20]);

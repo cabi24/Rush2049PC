@@ -19,6 +19,7 @@ static void usage(FILE *f)
             "usage: rush2049pc [--rom PATH] [options]\n"
             "  --rom PATH          the San Francisco Rush 2049 (USA) ROM, .z64/.v64/.n64 (default baserom.us.z64)\n"
             "  --no-rom-check      run a ROM whose SHA-1 differs\n"
+            "  --no-rom            bring-up: a blank cartridge instead of the ROM (every ROM read is zero)\n"
             "  --headless          no window (port/gfx renders off screen or not at all)\n"
             "  --seconds N         stop after N seconds\n"
             "  --frames N          stop after N graphics tasks\n"
@@ -37,7 +38,7 @@ static void usage(FILE *f)
 int main(int argc, char **argv)
 {
     const char *rom = "baserom.us.z64", *pak = "rush2049pc.mpk";
-    int check = 1, headless = 0, pak_kind = PC_PAK_MEMORY, pak_set = 0, selftest = 0;
+    int check = 1, no_rom = 0, headless = 0, pak_kind = PC_PAK_MEMORY, pak_set = 0, selftest = 0;
     PcRunOptions run = {0};
 
     for (int i = 1; i < argc; i++) {
@@ -48,6 +49,8 @@ int main(int argc, char **argv)
             rom = ARG();
         else if (!strcmp(a, "--no-rom-check"))
             check = 0;
+        else if (!strcmp(a, "--no-rom"))
+            no_rom = 1;
         else if (!strcmp(a, "--headless"))
             headless = 1;
         else if (!strcmp(a, "--seconds"))
@@ -102,7 +105,7 @@ int main(int argc, char **argv)
     if (selftest)
         return pc_selftest();
 
-    if (pc_rom_load(rom, check) != 0)
+    if (no_rom ? pc_rom_blank() != 0 : pc_rom_load(rom, check) != 0)
         return 1;
     pc_os_initialize();
     if (pc_data_init(pc_rom_bytes(), pc_rom_size()) != 0) {
