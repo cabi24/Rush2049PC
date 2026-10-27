@@ -13,13 +13,15 @@ No ROM bytes are read here or written into the build.
    most informative wins (struct over pointer over words over bytes) and the disagreement is reported.
 2. Each type is laid out twice: for the N64 (MIPS o32: pointers and long are 4 bytes, double is 8 aligned 8)
    and for the host (the DWARF offsets). The result is a field program: runs of (kind, count, N64 offset, host
-   offset), repeated with strides for arrays.
+   offset), repeated with strides for arrays. A union is copied as bytes when a member made of bytes covers it
+   (the colour unions), else laid out by its largest member.
 3. Storage. Each image's data and BSS is an arena laid out as on the N64, at its N64 address in the RDRAM
    window port/ultra maps at host 0x80000000, and a symbol with no pointers whose two layouts agree is an
    absolute symbol at its N64 address there (an assembler .set), so code that indexes from one symbol into the
    next keeps working and a 32-bit N64 address of it is a host address. A symbol with pointers, or whose host
    layout differs, gets its own storage in the executable; symbols inside its N64 extent are defined at the
-   matching host offsets.
+   matching host offsets. Where declarations overlap in an arena at other element widths (bytes included), the
+   most informative one decides and the rest are reported.
 4. Addresses: the referencing image's symbol table (asm/us/<image>/symbols.json, what the matching build links
    against), then symbol_addrs.us.txt and undefined_syms_auto.us.txt, then D_XXXXXXXX names. Functions known by
    address (layout/*.json, the symbol file) go in a table, through weak references, so the loader can turn N64
@@ -379,15 +381,35 @@ def program(t):
             off += s or 0
         r = merge(runs)
     elif k == "union":
-        best = max(t[3], key=lambda m: (n64_layout(m[2])[0] or 0, sum(1 for x in program(m[2]) if x[0] != K_U8)),
-                   default=None)
-        r = program(best[2]) if best else []
+        r = union_program(t)
     elif k == "array":
         r = replicate(program(t[1]), t[2] or 0, n64_layout(t[1])[0] or 0, host_size(t[1]) or 0)
     else:
         r = []
     _PROG[t] = r
     return r
+
+
+BYTE_UNIONS = set()   # unions laid out as bytes (union_program), for the report
+
+
+def union_program(t):
+    """A union's runs. One with a member made only of bytes (a u8 array or a struct of u8s) that covers the whole
+    union is the game's byte view of that storage: the colour unions ({ u8 c[4]; u32 rgba; }) are R, G, B, A in
+    memory, and their words only copy those bytes or test them for equality, so they are copied as bytes, not
+    swapped (docs/port/ENDIAN.md 4). Not when a member has a pointer or a long, whose host layout differs.
+    Otherwise the largest member with the most non-byte elements sets the layout."""
+    size = n64_layout(t)[0] or 0
+    progs = [(m, program(m[2])) for m in t[3]]
+    if size and not any(r[0] in (K_PTR, K_S32_64, K_U32_64) for _, p in progs for r in p):
+        for m, p in progs:
+            if p and all(r[0] == K_U8 for r in p) and sum(r[1] * r[4] for r in p) == size \
+                    and (n64_layout(m[2])[0] or 0) == size:
+                BYTE_UNIONS.add(t)
+                return p
+    best = max(progs, key=lambda mp: (n64_layout(mp[0][2])[0] or 0, sum(1 for x in mp[1] if x[0] != K_U8)),
+               default=None)
+    return best[1] if best else []
 
 
 def replicate(e, n, sn, sh):
@@ -526,9 +548,6 @@ def signature(runs, limit):
     """Element classes below `limit`, for conflict checks: bytes are left out; floats count as words."""
     cls = {K_F32: K_U32, K_F64: K_U64, K_S32_64: K_U32, K_U32_64: K_U32}
     return tuple((o, cls.get(k, k)) for o, k in elements(runs, True) if o < limit)
-
-
-SWAP = {K_U16: 2, K_U32: 4, K_F32: 4, K_PTR: 4, K_S32_64: 4, K_U32_64: 4, K_U64: 8, K_F64: 8}
 
 
 def main():
@@ -785,27 +804,9 @@ def generate(a):
     arena_runs = {}
     elem_conflicts = []
     for i, (img, lo, init, hi) in enumerate(n64syms.ARENAS):
-        taken = {}
-        cover = bytearray(init - lo)
         members = [s for s in ordered if s.arena == i and s.parent is None and not s.cdef and not s.bss]
-        members.sort(key=lambda s: (not s.own, tuple(-x for x in score(s.t, s.runs))))
-        for s in members:
-            base = s.addr - lo
-            for off, kind in elements(s.runs, True):
-                kk = K_U32 if kind in (K_S32_64, K_U32_64) else kind
-                o, n = base + off, N64_ESZ[kind]
-                if o + n > init - lo:
-                    continue
-                if any(cover[o:o + n]):
-                    if taken.get(o) is None or SWAP[taken[o]] != n:
-                        elem_conflicts.append((s, off, kind))
-                    continue
-                cover[o:o + n] = b"\1" * n
-                taken[o] = kk
-        runs = []
-        for o in sorted(taken):
-            runs.append((taken[o], 1, o, o, 1, 0, 0))
-        arena_runs[i] = merge(runs)
+        arena_runs[i], conflicts = arena_elements(members, lo, init)
+        elem_conflicts += conflicts
 
     # Functions by address, for function pointers.
     funcs, func_clash = {}, []
@@ -884,8 +885,16 @@ def generate(a):
                                    f"0x{s.parent_off:X}" for s in inside])
     section("Pointer conflicts: files disagree on where pointers are (agent D)", pointer_conflicts)
     section("Width conflicts: files disagree on element sizes", width_conflicts)
-    section("Arena element conflicts (first declaration kept)",
-            [f"0x{s.addr + off:08X} {sorted(s.names)[0]}+0x{off:X} {KIND_NAMES[k]}" for s, off, k in elem_conflicts])
+    groups = [(g, OVERLAPS_REVIEWED.get((sorted(g[0].names)[0], sorted(g[3].names)[0])))
+              for g in group_conflicts(elem_conflicts)]
+    section("Arena element conflicts: overlapping declarations at other widths, bytes included (the first in rank "
+            "kept; a size in the declaration is the fix)",
+            [f"0x{g[0].addr + g[1]:08X} {fmt_conflict(g)}" for g, why in groups if not why])
+    section("Arena element conflicts read and judged (OVERLAPS_REVIEWED)",
+            [f"0x{g[0].addr + g[1]:08X} {fmt_conflict(g)}: {why}" for g, why in groups if why])
+    section("Unions copied as bytes: a member made of bytes covers them (docs/port/ENDIAN.md 4)",
+            [f"0x{s.addr:08X} {'/'.join(sorted(s.names))}: {s.disp} ({', '.join(sorted(u))}){' (bss)' if s.bss else ''}"
+             for s in ordered if not s.cdef for u in [byte_unions_in(s.t)] if u])
     section("Self-check failures (runs outside the symbol)", selfcheck)
     section("N64 size differs from the symbol file, extents.txt or the C definition", size_mismatch)
     cut_files = collections.defaultdict(set)
@@ -932,6 +941,76 @@ def generate(a):
     print(f"gen_data: {n_names} names ({len(arena_syms)} arena, {len(own)} own, {len(inside)} inside own), "
           f"{len(cdefs)} C-defined, {len(funcs)} functions, {len(thunks)} thunks; "
           f"{len(pointer_conflicts)} pointer conflicts -> {a.out}")
+
+
+def arena_elements(members, lo, init):
+    """(runs, conflicts) for one arena's initialized part [lo, init): the runs byte-swap every element of the
+    members (Syms) in place. Where declarations overlap (one runs into the next symbol, or a name lies inside
+    another's array), the members are taken in order, own storage first and then the most informative
+    declaration (score), and an element over bytes an earlier one already has, at another start or width, is left
+    out and listed: (symbol, offset, kind, the symbol that has the bytes, its offset, its element width). Byte
+    elements take part, so a word view over a byte view (an inner name inside a colour union array, a declaration
+    that runs over a flag) is listed, and whichever ranks first decides; a size in the declaration is the fix."""
+    taken, start, owner, conflicts = {}, {}, {}, []   # start: arena offset -> (start, width) of the element there
+    for s in sorted(members, key=lambda s: (not s.own, tuple(-x for x in score(s.t, s.runs)))):
+        base = s.addr - lo
+        for off, kind in elements(s.runs):
+            o, n = base + off, N64_ESZ[kind]
+            if o + n > init - lo:
+                continue
+            if any(o + j in start for j in range(n)):
+                if start.get(o) != (o, n) or start.get(o + n - 1) != (o, n):
+                    held = next(start[o + j] for j in range(n) if o + j in start)
+                    conflicts.append((s, off, kind, owner[held[0]], held[0] + lo - owner[held[0]].addr, held[1]))
+                continue
+            for j in range(n):
+                start[o + j] = (o, n)
+            owner[o] = s
+            if kind != K_U8:
+                taken[o] = K_U32 if kind in (K_S32_64, K_U32_64) else kind
+    return merge([(taken[o], 1, o, o, 1, 0, 0) for o in sorted(taken)]), conflicts
+
+
+# Element conflicts in initialized data that were read and judged (docs/port/DATA.md 1): (symbol, the symbol whose
+# elements keep the bytes) -> why those are the right ones.
+OVERLAPS_REVIEWED = {
+    ("D_801146C0", "D_801146BC"): "D_801146BC[1], a colour read as bytes; D_801146C0's word only copies it",
+    ("D_801105A4", "D_801102B4"): "&buttonInfo[11].pos, the audio screen's title position (f32)",
+    ("D_8011AC84", "D_8011A994"): "&buttonInfo[11].pos, the video screen's title position (f32)",
+    ("D_803B5CFC", "D_803B5D2C"): "read as [n][0] for n = 1..4 players, in D_803B5D50; row 0 never",
+    ("D_803B4679", "D_803B467C"): "read as [n][i] for n = 1..4 players, after D_803B467C; row 0 never",
+}
+
+
+def group_conflicts(conflicts):
+    """Element conflicts with each run of one symbol's elements over one other's as one: (symbol, offset, kind,
+    holder, its offset, its width, count)."""
+    out = []
+    for s, off, kind, held, hoff, hw in conflicts:
+        p = out[-1] if out else None
+        if p and p[0] is s and p[2] == kind and p[3] is held and p[5] == hw and off == p[1] + p[6] * N64_ESZ[kind]:
+            p[6] += 1
+        else:
+            out.append([s, off, kind, held, hoff, hw, 1])
+    return out
+
+
+def fmt_conflict(g):
+    s, off, kind, held, hoff, hw, n = g
+    return (f"{sorted(s.names)[0]}+0x{off:X} {KIND_NAMES[kind]}{f' x{n}' if n > 1 else ''}: held by "
+            f"{sorted(held.names)[0]}+0x{hoff:X} ({hw} B)")
+
+
+def byte_unions_in(t, depth=0):
+    """Names of the unions inside t that union_program lays out as bytes."""
+    if depth > 8 or t[0] not in ("struct", "union", "array"):
+        return set()
+    if t[0] == "array":
+        return byte_unions_in(t[1], depth + 1)
+    out = {t[1] or "(anonymous)"} if t in BYTE_UNIONS else set()
+    for _, _, mt in t[3]:
+        out |= byte_unions_in(mt, depth + 1)
+    return out
 
 
 def local_data(obj, nm):

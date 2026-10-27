@@ -1527,11 +1527,6 @@ REVIEWED = [
 # Initialized data whose conflicts are left to other parts (docs/port/ENDIAN.md 4): a conflict whose values all come
 # from the loader's elements of these symbols is listed as reviewed with the reason.
 LEFT = {
-    "the loader's union rule (port/data)": {
-        "D_801146BC", "D_801146C0", "D_80116DB0", "D_80118E28", "D_80118E2C", "D_8011AD8C", "D_8011ADC0",
-        "D_8011AE58", "D_8011B558", "D_8011B578", "D_80394270", "D_803942A0", "D_803942A4", "D_803942E8",
-        "D_803B3054", "D_803B3058", "D_803B3458", "D_803B345C", "D_803B8328", "D_803B8354", "D_803B8394",
-        "D_803B8398"},
     "gTargInfo's PC layout (POINTERS.md 9.9)": {"D_80117530"},
 }
 
@@ -2118,6 +2113,17 @@ LOADER_EXPECT = [("D_80114264", 0x0, 4), ("D_80114264", 0xC, 4), ("D_801164A4", 
                  ("D_80111960", 0x0, 1), ("D_8011028C", 0x0, 1), ("D_8011EA40", 0x0, 2), ("D_8011EA40", 0xC, 2),
                  ("D_8011EA90", 0x6, 2), ("D_803B46A4", 0x0, 1), ("D_803B46A4", 0x3, 1),
                  ("D_80120E50", 0x0, 1), ("D_80120E50", 0x3, 1)]
+# The colour unions gen_data copies as bytes (a byte member covers them), D_801146BC's element 1 under
+# D_801146C0's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
+# table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).
+LOADER_EXPECT += [(sym, off, 1) for sym in (
+    "D_801146BC", "D_801146C0", "D_80116DB0", "D_80118E28", "D_80118E2C", "D_8011AD8C", "D_8011ADC0", "D_8011AE58",
+    "D_8011B558", "D_8011B578", "D_80394270", "D_803942A0", "D_803942A4", "D_803942E8", "D_803B3054", "D_803B3058",
+    "D_803B3458", "D_803B345C", "D_803B8328", "D_803B8354", "D_803B8394", "D_803B8398") for off in (0x0, 0x3)]
+LOADER_EXPECT += [("D_801146BC", 0x4, 1), ("D_801146BC", 0x7, 1), ("D_8011B558", 0x10, 1), ("D_8011EF10", 0x0, 2),
+                  ("D_8011EF10", 0xC, 1), ("D_8002E4A0", 0x0, 4), ("gViewportOffsetX", 0x0, 2),
+                  ("gViewportOffsetX", 0x10, 2), ("gViewportOffsetY", 0x10, 2), ("gViewportPendingFrames", 0x0, 2),
+                  ("gInitFlag", 0x0, 1), ("gInitFlag", 0x1, 1), ("gDmaInitialized", 0x0, 1)]
 
 
 def check_loader(build):
