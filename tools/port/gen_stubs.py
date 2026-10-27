@@ -139,7 +139,7 @@ def main():
     game_defs, game_refs = n64syms.nm_table(game, a.nm)
     port_defs, _ = n64syms.nm_table(port, a.nm) if port else ({}, set())
     defined = set(game_defs) | set(port_defs)
-    undefined = (game_refs - defined) - n64syms.HOST_LIBC
+    undefined = (game_refs - defined) - n64syms.HOST_LIBC - n64syms.LINKER_DEFINED
     alias = {} if a.standalone else aliases_for(undefined, defined, syms)
     undefined -= alias.keys()
     absolute = {} if a.standalone else absolute_for(undefined, syms)
