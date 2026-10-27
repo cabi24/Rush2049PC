@@ -280,13 +280,17 @@ functions:
   `RemoveFile`, and `pak_delete_file_retry` and `func_800A3640` call `RemoveFile` when it isn't NULL: deleting a
   profile's or a ghost's file would jump there. This is the next pointer job in the front end. `func_800949D4`,
   installed as `MoveFile`, is never called (no indirect call through +12 in the ROM's code) and reaches profiles,
-  ghosts and file records at N64 offsets.
+  ghosts and file records at N64 offsets. Done (POINTERS.md 9.10): every view has the 96-byte layout, the raw
+  offsets go through `PSF_OFS`, and both file functions take the handle whole.
 - **The controller/pak records** (POINTERS.md 9.6): `func_800E56F8` clears `D_801440AD + pak * 0x304`, N64 +0x7D
-  (the rumble request) at the N64 stride; on the PC the record is 0x310 bytes and the field later.
+  (the rumble request) at the N64 stride; on the PC the record is 0x310 bytes and the field later. Done: the PC
+  stride is 0x310 (`PAK_RECORD`), and gen_data places `D_801440AD` at +0x89.
 - The profile record itself (`SaveSlot`, `Player`): the profile list `D_8012E6D8` is indirect and doubly linked
   (`func_800A44E8(&D_8012E6D8, 1, 1)`), so `func_80091FBC` links a profile through pointer-sized `next` and `prev`
   at +0 and +8, where the save code's views keep the file handle at N64 +8 (`F(p, Handle, 8)`, `char pad0[20]`).
-  One PC layout for it goes with the `tPS_File` work.
+  One PC layout for it goes with the `tPS_File` work. Done (POINTERS.md 9.10): 64 bytes, the file handle at +16 and
+  the data at +56 (`PROFILE_OFS`), in every live view; the ghost header keeps its N64 88 bytes, as it is file data.
+  The heap's handle slots, which the save code reads through as pointers, are 8 bytes on the PC.
 
 ## 8. Needs the ROM
 

@@ -22,7 +22,11 @@ typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
 typedef struct Player {                 /* GC struct __anon_3bdf (0x4c) */
+#ifdef TARGET_PC
+    void *next, *prev; void *fileh; u32 id[2];   /* the profile's host layout (pc_prelude.h) */
+#else
     u8 ll[8]; void *fileh; u32 id[2];
+#endif
     char name[13];                      /* +0x14 */
 } Player;
 typedef struct RaceStats {              /* GC struct __anon_2dfd (0x60) */

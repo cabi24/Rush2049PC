@@ -55,7 +55,12 @@ void func_80394564(s32 player)
 }
 
 typedef struct Owner Owner;
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Item {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 player;} Item;
+#else
 typedef struct Item {u8 other[16];u8 player;} Item;
+#endif
 typedef struct Selection {Item *item;} Selection;
 typedef struct OwnerBody {Owner *next,*previous;Selection *selection;} OwnerBody;
 struct Owner {OwnerBody *body;};

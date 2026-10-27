@@ -3663,6 +3663,9 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n   /* the profile record's PC offsets (pc_prelude.h) */
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3705,9 +3708,9 @@ typedef s64 M2C_UNK64;
 void object_byte71_set_sync(u8 ***arg0, s32 arg1) {
     u8 *p;
 
-    p = *(u8 **) *(u8 ***) ((u8 *) *arg0 + 0x2C);
+    p = *(u8 **) *(u8 ***) ((u8 *) *arg0 + PROFILE_OFS(0x2C));
     if (arg1 != p[0x47]) {
         p[0x47] = arg1;
-        PS_WriteFile(*(void ***) ((u8 *) *arg0 + 8), (uintptr_t) (*(u8 **) *(u8 ***) ((u8 *) *arg0 + 0x2C) + 0x47), 1);
+        PS_WriteFile(*(void ***) ((u8 *) *arg0 + PROFILE_OFS(8)), (uintptr_t) (*(u8 **) *(u8 ***) ((u8 *) *arg0 + PROFILE_OFS(0x2C)) + 0x47), 1);
     }
 }

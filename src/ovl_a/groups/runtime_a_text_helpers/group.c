@@ -148,7 +148,12 @@ void func_8039B214(void)
  * Production definitions and locks are unchanged. */
 extern s32 sign_extend_call(u32 value, uintptr_t data, s32 index, u32 flags);
 
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Item { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 player; } Item;
+#else
 typedef struct Item { u8 other[16]; u8 player; } Item;
+#endif
 typedef struct Selection { Item *item; } Selection;
 typedef struct Resource { u8 *bytes; } Resource;
 typedef struct MenuOwner MenuOwner;

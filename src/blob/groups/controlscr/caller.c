@@ -28,6 +28,18 @@ typedef s32 intptr_t;
 #endif
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct { void *next, *prev; void (*RemoveFile)(void *); void (*MoveFile)(void *, void *); u8 pak; } PSFile;
+typedef struct {
+    void *next, *prev;
+    PSFile **fileh;
+    u8 padC[21];
+    s8 controls[10];
+    s8 rumble;
+    void *data;
+} Profile;
+#else
 typedef struct { u8 pad0[16]; u8 pak; } PSFile;                /* tPS_File: pak 0x10 */
 typedef struct {
     u8 ll[8];
@@ -36,6 +48,7 @@ typedef struct {
     s8 controls[10];     /* 0x21 */
     s8 rumble;           /* 0x2B */
 } Profile;               /* tPlayerProfile */
+#endif
 typedef struct {
     u8 slot;
     u8 controller;       /* 0x01 */

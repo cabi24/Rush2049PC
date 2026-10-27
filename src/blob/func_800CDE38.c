@@ -3664,7 +3664,7 @@ typedef s64 M2C_UNK64;
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
 #ifdef TARGET_PC
-#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #else
 #define SLOT_DATA 0x2C
 #endif

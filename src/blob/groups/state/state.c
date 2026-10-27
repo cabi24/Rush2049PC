@@ -47,7 +47,11 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+typedef struct PSFile { void *next, *prev; void *fileh; } PSFile;     /* the profile's host layout (pc_prelude.h) */
+#else
 typedef struct PSFile { u8 pad0[8]; void *fileh; } PSFile;            /* tPS_File: fileh at +8 */
+#endif
 typedef struct PadState { u8 pad0[72]; PSFile **save; } PadState;    /* gPlayers[], 76 bytes, save at +72 */
 typedef struct PlayerData { struct PlayerData **next; } PlayerData;  /* handle list, next handle at +0 */
 typedef struct { u32 opaque[6]; } OSMesgQueue;

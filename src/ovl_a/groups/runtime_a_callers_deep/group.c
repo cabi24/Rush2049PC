@@ -105,10 +105,20 @@ void func_80393004(void)
 
 /* Bounded storage views follow only observed offsets; names are descriptive. */
 typedef struct { s8 enabled; unsigned char remaining[15]; } PlayerSlot;
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); unsigned char slot; } ListOwner;
+#else
 typedef struct { unsigned char prefix[16]; unsigned char slot; } ListOwner;
+#endif
 typedef struct { ListOwner *owner; } ListObject;
 typedef struct ListNode ListNode;
+#ifdef TARGET_PC
+/* PC: the profile's host layout (pc_prelude.h); flags2C is its save data handle */
+typedef struct { ListNode *next, *prev; ListObject *object; unsigned char unknown0C[8]; char text[24]; void *flags2C; } ListPayload;
+#else
 typedef struct { ListNode *next, *prev; ListObject *object; unsigned char unknown0C[8]; char text[24]; s32 flags2C; } ListPayload;
+#endif
 struct ListNode { ListPayload *payload; };
 typedef struct { s32 prefix[2]; ListNode *head, *tail; } ListRoot;
 extern PlayerSlot D_80156CF0[];

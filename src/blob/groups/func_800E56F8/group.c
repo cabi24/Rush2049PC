@@ -3847,10 +3847,15 @@ void model_iteration(void);
 #define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
 /* A ghost (menu_save_options' Ghost, 64 bytes on the PC) has its header handle at +0x38 (docs/port/CASTS.md). */
 #define GHOST_HEADER 0x38
+/* The controller/pak records D_80144030 are 0x310 bytes on the PC (paksys' PakRecord, docs/port/POINTERS.md 9.6);
+ * D_801440AD, the rumble request, is placed at its PC offset in record 0. */
+#define PAK_RECORD 0x310
 #else
 #define PAD0EC(a, x) a[x]
 #define CAR_OFS(n) n
 #define GHOST_HEADER 0x28
+#define PAK_RECORD 0x304
+#define PROFILE_OFS(n) n
 #endif
 void func_800E56F8(s32 ipa_s4) {
     GameCar *temp_s2;
@@ -3885,7 +3890,7 @@ void func_800E56F8(s32 ipa_s4) {
                 D_80153F08 -= 7;
             }
             temp_v0_3 = M2C_FIELD(temp_s3, u8 *, 1);
-            *(&D_801440AD + (temp_v0_3 * 0x304)) = 0;
+            *(&D_801440AD + (temp_v0_3 * PAK_RECORD)) = 0;
             return;
         }
         idx = D_80153F40;
@@ -3916,7 +3921,7 @@ void func_800E56F8(s32 ipa_s4) {
             track_select_handler(temp_s0_2);
             if (state_word_a & 0x400000) {
                 temp_v0_3 = M2C_FIELD(temp_s3, u8 *, 1);
-            *(&D_801440AD + (temp_v0_3 * 0x304)) = 0;
+            *(&D_801440AD + (temp_v0_3 * PAK_RECORD)) = 0;
             }
         } else {
             track_select_handler(temp_s0_2);
@@ -3947,7 +3952,7 @@ loop_34:
                         goto loop_34;
                     }
                 }
-                temp_v0 = M2C_FIELD(*M2C_FIELD(temp_s3, void ***, 0x48), s8 *, 0x2B);
+                temp_v0 = M2C_FIELD(*M2C_FIELD(temp_s3, void ***, 0x48), s8 *, PROFILE_OFS(0x2B));
                 if (temp_v0 == 0) {
                     goto block_40;
                 }
@@ -3959,7 +3964,7 @@ block_40:
                     }
                 }
                 temp_a0 = M2C_FIELD(temp_s3, u8 *, 1);
-                *(&D_801440AD + (temp_a0 * 0x304)) = var_v1;
+                *(&D_801440AD + (temp_a0 * PAK_RECORD)) = var_v1;
             }
         } else {
             func_800E4B58(temp_s0_2);

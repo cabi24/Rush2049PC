@@ -3802,9 +3802,10 @@ typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
 #ifdef TARGET_PC
 /* PC: an input record (D_8014A118) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10), and
- * SaveSlot.data (menu_save_options/save.c) is 8-aligned; the save data it points to is read pointer-sized. */
+ * SaveSlot.data is at the profile record's PC offset (pc_prelude.h, POINTERS.md 9.10); the save data it points to
+ * is read pointer-sized. */
 #define INPUT_SIZE 80
-#define SLOT_DATA 48
+#define SLOT_DATA PROFILE_OFS(0x2C)
 #else
 #define INPUT_SIZE 0x4C
 #define SLOT_DATA 0x2C

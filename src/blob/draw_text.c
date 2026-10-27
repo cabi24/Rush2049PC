@@ -41,7 +41,11 @@ typedef struct SaveSlot {
 } SaveSlot;
 
 typedef struct Owner {
+#ifdef TARGET_PC
+    /* 0x00 */ void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC];
+#else
     /* 0x00 */ u8 pad0[0x2C];
+#endif
     /* 0x2C */ SaveSlot *slot;
 } Owner;
 

@@ -2,9 +2,17 @@
 typedef unsigned char u8;
 typedef signed char s8;
 typedef int s32;
+#ifdef TARGET_PC
+/* PC: the pak file record (Owner, car is its pak) and the profile (Object, node is its file handle) on their host
+ * layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Owner { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 car; } Owner;
+typedef struct Node { Owner *owner; } Node;
+typedef struct Object { void *next, *prev; Node *node; } Object;
+#else
 typedef struct Owner { u8 pad[16]; u8 car; } Owner;
 typedef struct Node { Owner *owner; } Node;
 typedef struct Object { u8 pad[8]; Node *node; } Object;
+#endif
 #ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
  * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */

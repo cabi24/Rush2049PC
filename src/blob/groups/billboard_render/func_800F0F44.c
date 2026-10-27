@@ -17,9 +17,19 @@ typedef unsigned int u32;
 typedef signed char s8;
 typedef unsigned char u8;
 
+#ifdef TARGET_PC
+/* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Q { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 id; u8 pad17;
+    s8 name[14]; } Q;
+#else
 typedef struct Q { u8 pad[16]; u8 id; u8 pad17; s8 name[14]; } Q;
+#endif
 typedef struct Ghost { struct Ghost **next; Q **q; s8 track; u8 backwards; s8 pos[14]; s32 id0; s32 id1; } Ghost;
+#ifdef TARGET_PC
+typedef struct Player { void *w0, *w4; Q **qq; s32 id0; s32 id1; s8 name[4]; } Player;
+#else
 typedef struct Player { s32 w0; s32 w4; Q **qq; s32 id0; s32 id1; s8 name[4]; } Player;
+#endif
 #ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
  * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */

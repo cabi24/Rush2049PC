@@ -50,14 +50,22 @@ typedef struct Header88 {
 } Header88; /* 0x58 */
 
 typedef struct Record44 {
+#ifdef TARGET_PC
+    /* 0x00 */ void *ll; void **fileh;   /* a ghost, 64 bytes on the PC (docs/port/POINTERS.md 9.10) */
+#else
     /* 0x00 */ u8 pad0[8];
+#endif
     /* 0x08 */ s8 player;
     /* 0x09 */ u8 mode;
     /* 0x0A */ u8 name[13];
     /* 0x17 */ u8 pad17;
     /* 0x18 */ u8 ident[8];
     /* 0x20 */ f32 score;
+#ifdef TARGET_PC
+    /* 0x24 */ void *unk24;
+#else
     /* 0x24 */ u32 unk24;
+#endif
     /* 0x28 */ Header88 **handle;
 } Record44; /* 0x2C */
 

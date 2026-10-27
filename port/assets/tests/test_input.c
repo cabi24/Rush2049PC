@@ -13,6 +13,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "pc_prelude.h"
 #include "support.h"
 
 /* An input record on the PC: the N64 fields in place, the profile pointer at +0x48 pointer-sized. */
@@ -72,8 +73,10 @@ void *n64_memset(void *p, int c, uint32_t n) { return memset(p, c, n); }
 static void *g_written;
 void PS_WriteFile(void **file, uintptr_t data, int32_t size) { g_written = (void *)data; }
 void func_800FDF88(int32_t mode);
-/* A profile (menu_save_options' SaveSlot on the PC): its file handle at +8, its data at +48. */
-typedef struct { uint8_t pad0[8]; void **file; uint8_t pad16[48 - 16]; void **data; } SaveSlot;
+/* A profile (menu_save_options' SaveSlot on the PC, POINTERS.md 9.10): its file handle at +16, its data at +56. */
+typedef struct { void *next, *prev; void **file; uint8_t pad24[56 - 24]; void **data; } SaveSlot;
+_Static_assert(offsetof(SaveSlot, file) == PROFILE_OFS(8) && offsetof(SaveSlot, data) == PROFILE_OFS(0x2C),
+               "the profile's host layout");
 static void *g_saved[8];
 static int g_nsaved;
 void func_800CCE5C(void **profile, int8_t *controls) { g_saved[g_nsaved++ & 7] = profile; }

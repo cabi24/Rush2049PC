@@ -44,7 +44,13 @@ typedef int s32;
 typedef unsigned int u32;
 /* Accessed field offsets are known; the view extents are not string-capacity
  * or termination guarantees. This view preserves existing offsets; the Pak producer bounds are in capacity.py. */
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Record { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak, fileNo;
+    char name[35]; char suffix[15]; u32 blocks; } Record;
+#else
 typedef struct Record { u8 prefix[18]; char name[35]; char suffix[15]; u32 blocks; } Record;
+#endif
 typedef struct TextIndices { u8 prefix[48]; u16 choice; u8 unknown32[44]; u16 file_action; } TextIndices;
 typedef struct Language { void *header; char **labels; void *unknown8; TextIndices *indices; char **choices; } Language;
 extern Record **D_803B9BC0;
@@ -71,7 +77,12 @@ extern void func_800B4360(char *,const char *,...);
 extern s32 func_80004990(char *,const char *,...);
 extern Record **func_80398BF0(s32);
 typedef struct Slot { s8 present; u8 unknown[15]; } Slot;
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct Owner { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 slot; } Owner;
+#else
 typedef struct Owner { u8 prefix[16]; u8 slot; } Owner;
+#endif
 typedef struct OpenRecord OpenRecord;
 struct OpenRecord { OpenRecord **next; void *previous; Owner **owner; };
 typedef struct SavedRecord SavedRecord;

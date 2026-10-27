@@ -56,7 +56,13 @@ typedef struct C96File C96File;
 typedef struct C96Handle { C96File *file; } C96Handle;
 struct C96File {
     C96Handle *next;
+#ifdef TARGET_PC
+    C96Handle *prev;    /* PC: paksys' tPS_File, 96 bytes (docs/port/POINTERS.md 9.10) */
+    void (*RemoveFile)(C96Handle *);
+    void (*MoveFile)(C96Handle *, C96Handle *);
+#else
     u8 unknown04[12];
+#endif
     u8 channel, slot;
     u8 unknown12[46];
     u32 data_size;

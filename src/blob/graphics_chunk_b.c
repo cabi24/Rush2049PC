@@ -1,7 +1,11 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
 typedef unsigned char u8;typedef signed char s8;typedef unsigned short u16;typedef signed short s16;typedef float f32;
 typedef struct Resource {u8 *data;} Resource;
+#ifdef TARGET_PC
+typedef struct Object {void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC];Resource *resource;} Object;
+#else
 typedef struct Object {u8 opaque[44];Resource *resource;} Object;
+#endif
 typedef struct Handle {Object *object;} Handle;
 typedef struct Player {u8 index,selector;u8 opaque[62];u16 count;u8 rest[6];Handle *handle;} Player;
 #ifdef TARGET_PC

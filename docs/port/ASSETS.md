@@ -313,7 +313,7 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 | 2 | `func_80096BBC.c` (`MBOffsetWad`) | raw +0/+4/+8 into the 12-byte WAD handle | keep the handle three 32-bit words, or rewrite with fields |
 | 3 | `waves.c:139, 175-182`; `MBGetFromWad.c` | chunk addresses returned and held as `s32` (`IMAGptr`, `TXLDptr`) | window |
 | 4 | `waves.c:171, 195-196, 203-204` | `(u32)displayList + (u32)WADptr`; `offset = *(u8 **)ptr - (u32)lastPtr` | window; u32 fields |
-| 5 | `waves.c:163`, `slot_sound/group.c:127` vs `audio_heap/group.c:159` | handles dereferenced as `*(u8 **)` while the heap's master slots are `u32` (`count * 4`) | `(u8 *)(uintptr_t)*(u32 *)h`, or 8-byte slots throughout memsys |
+| 5 | `waves.c:163`, `slot_sound/group.c:127` vs `audio_heap/group.c:159` | handles dereferenced as `*(u8 **)` while the heap's master slots are `u32` (`count * 4`) | `(u8 *)(uintptr_t)*(u32 *)h`, or 8-byte slots throughout memsys. Done: 8-byte slots on the PC, a window address zero-extended ([POINTERS.md](POINTERS.md) 9.10) |
 | 6 | `entity_lod_select` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | window (RDRAM ≤ 16 MB); BE32 accessors |
 | 7 | `entity_cull_check.c:19-37` | the same rebase on TXLD; iterates a local 8-byte `Gfx` | BE32; keep its local `Gfx` 8 bytes even after the `TARGET_PC` widening of `Gfx` |
 | 8 | `func_800966D8` | `addr \| 0x80000000` to make a pointer; u16 at Vtx+6, s16 at +8 | window; BE16 |

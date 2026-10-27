@@ -26,6 +26,13 @@
 typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
 typedef signed int s32;typedef unsigned int u32;typedef float f32;
 #define NULL ((void *)0)
+#ifdef TARGET_PC
+/* PC: the ghost header keeps its N64 layout, file data; the profile record is 64 bytes (docs/port/POINTERS.md 9.10) */
+#define N64W(x) PC_N64W(x)
+#else
+#define N64W(x) x
+#define PROFILE_OFS(n) n
+#endif
 
 typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 headerChecksum;           /* 0x00 */
@@ -46,7 +53,11 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
+#ifdef TARGET_PC
+    u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
+#else
     u8 *start;                    /* 0x4C */
+#endif
     u32 offset;                   /* 0x50 */
     s32 size;                     /* 0x54 */
 } GhostHeader;
@@ -65,7 +76,11 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
 } Ghost;
 
 typedef struct PlayerRec {        /* GC player record (0x4C); N64 0x30 */
+#ifdef TARGET_PC
+    void *next; void *prev; void *fileh;
+#else
     u8 pad0[12];
+#endif
     u32 playerId[2];              /* 0x0C */
     u8 name[13];                  /* 0x14 */
     u8 pad21[44 - 33];
@@ -179,7 +194,7 @@ void GhostStart(void) {
         g->frameTime = D_8002AFB8;
         if (!D_80114650) {
             g->size = (f32)(D_80111754[D_8014978C] + 10.0) * D_8002AFB4;
-            g->start = AllocateMemoryHeap(NULL, g->size * 3);
+            g->start = N64W(AllocateMemoryHeap(NULL, g->size * 3));
         }
         g->offset = 0;
     }
@@ -194,13 +209,13 @@ void GhostStart(void) {
             continue;
         }
         ghost = *D_80152698[i];
-        (*ghost->header)->start = *ghost->datah;
+        (*ghost->header)->start = N64W(*ghost->datah);
         g = *(*D_80152698[i])->header;
         g->offset = 0;
         car = g->car;
         memset(&input_rec0[i], 0, 76);
         input_rec0[i].handle = &D_801409F0[i];
-        memset(D_801409F0[i], 0, 48);
+        memset(D_801409F0[i], 0, PROFILE_OFS(48));
         memcpy((*input_rec0[i].handle)->name, g->name, 13);
         input_rec0[i].node = i;
         input_rec0[i].slot = i;

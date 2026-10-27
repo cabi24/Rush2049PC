@@ -40,7 +40,12 @@ typedef struct MultiBlit {
 typedef struct MenuObjectSlot {s32 other,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} MenuObjectSlot;
 typedef union Color {u32 word;u8 channel[4];} Color;
 typedef struct Texture Texture;
+#ifdef TARGET_PC
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
+typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller;} FileInfo;
+#else
 typedef struct FileInfo {u8 unknown00[16],controller;} FileInfo;
+#endif
 typedef struct Profile Profile;
 struct Profile {Profile **next,**previous;FileInfo **file;u32 id0,id1;u8 name[24];u8 **stats;};
 typedef struct Player {u32 held,pressed,levels,repeated;u8 unknown10[56];Profile **save;} Player;

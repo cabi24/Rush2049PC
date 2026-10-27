@@ -163,7 +163,7 @@ int8_t D_80151AC0[3][5];                   /* which player holds each place */
 /* The input records, as func_800F2888 sees them: the active pad at +1, the profile handle at +0x48 (80 bytes a
  * record on the PC). One player is enough here. */
 struct input { uint8_t pad00, active, pad02[0x46]; void *profile; } input_rec0[1];
-struct profile { uint8_t pad00[8]; int32_t valid; uint8_t pad0C[8]; char name[13]; };
+struct profile { void *next, *prev, *valid; uint8_t pad0C[8]; char name[13]; };   /* PC: valid is the file handle */
 
 static struct profile profile_data[2];
 static struct profile *profiles[2] = { &profile_data[0], &profile_data[1] };   /* D_80146150-like handles */
@@ -218,12 +218,13 @@ static void test_remove_handle(void)
 
 /* Clearing a save slot (menu_confirm_dialog) takes its profile out of the table with the whole handle. (An s32
  * argument there fails on x86-64, whose 32-bit moves clear the upper half; aarch64 leaves it in the register.) */
-static uint8_t save_data[0x800], file_block[0x50];
+static uint8_t save_data[0x800], file_block[0x60];
 static uint8_t *save_handle = save_data;
 static void *file_handle = file_block;
-/* The profile's slot record as menu_confirm_dialog reads it: its pak file handle at +8, SaveSlot.data at 48. */
-static struct { uint8_t pad0[8]; void **file; uint8_t pad16[32]; uint8_t **data; } slot_record = {
-    { 0 }, &file_handle, { 0 }, &save_handle };
+/* The profile record as menu_confirm_dialog reads it on the PC (pc_prelude.h): its pak file handle at +16,
+ * SaveSlot.data at +56. */
+static struct { void *next, *prev; void **file; uint8_t pad24[32]; uint8_t **data; } slot_record = {
+    NULL, NULL, &file_handle, { 0 }, &save_handle };
 static void *slot_ptr = &slot_record;
 int32_t func_800CCEFC(void **slot) { return 1; }
 void PS_WriteFile(void **file, uintptr_t data, int32_t size) {}
@@ -273,14 +274,14 @@ static void test_player_names(void)
     D_80151AC0[1][2] = 0;                    /* player 0 holds a place */
     input_rec0[0].active = 3;
     input_rec0[0].profile = &profiles[1];
-    profile_data[1].valid = 1;
+    profile_data[1].valid = &profile_data[0];
     strcpy(profile_data[1].name, "SAVED");
     D_80143F18[0] = 0;
     func_800F2888();
     CHECK(D_801424F0[0] == (intptr_t)&profiles[1] && HIGH(D_801424F0[0]));
     CHECK(D_80143F18[0] == 0 && strcmp(D_80143A50[0], "SAVED") == 0);
 
-    profile_data[1].valid = 0;               /* a default profile: its pad's name slot, none here */
+    profile_data[1].valid = NULL;            /* a default profile: its pad's name slot, none here */
     D_801148D4[3] = -1;
     memset(D_80143A50[0], 'z', 12);
     D_80143A50[0][12] = 0;

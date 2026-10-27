@@ -3662,6 +3662,9 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifndef TARGET_PC
+#define GHOST_OFS(n) n   /* a ghost's PC offsets (pc_prelude.h) */
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3704,7 +3707,7 @@ typedef s64 M2C_UNK64;
 void menu_render_list(void **arg0) {
     s32 *temp_a1;
 
-    temp_a1 = M2C_FIELD(*arg0, s32 **, 4);
+    temp_a1 = M2C_FIELD(*arg0, s32 **, GHOST_OFS(4));
     if (temp_a1 != NULL) {
         pak_delete_file_retry(temp_a1);
     }

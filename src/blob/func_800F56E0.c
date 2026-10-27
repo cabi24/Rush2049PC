@@ -38,8 +38,13 @@ typedef struct StatsPayload {
     u8 *data;
 } StatsPayload;
 typedef struct ResourceRoot {
+#ifdef TARGET_PC
+    void *next, *prev;
+    void *enabled;      /* the profile's pak file handle (pc_prelude.h) */
+#else
     u32 unknown00[2];
     s32 enabled;
+#endif
     u8 unknown12[32];
     StatsPayload *payload;
 } ResourceRoot;

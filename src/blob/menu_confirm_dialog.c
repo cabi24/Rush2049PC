@@ -3663,9 +3663,11 @@ typedef s64 M2C_UNK64;
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
 #ifdef TARGET_PC
-#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #else
 #define SLOT_DATA 0x2C
+#define PROFILE_OFS(n) n
+#define PSF_OFS(n) n
 #endif
 
 /* Bitwise (reinterpret) cast */
@@ -3714,23 +3716,23 @@ s32 menu_confirm_dialog(void **arg0) {
     }
     temp_s1 = *M2C_FIELD(*arg0, intptr_t **, SLOT_DATA);
     memset((void *) (temp_s1 + 0x8C), 0, 0x480U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x8C), 0x480);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x8C), 0x480);
     memset((void *) (temp_s1 + 0x50C), 0, 0x100U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x50C), 0x100);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x50C), 0x100);
     memset((void *) (temp_s1 + 0x60C), 0, 0x60U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x60C), 0x60);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x60C), 0x60);
     memset((void *) (temp_s1 + 0x66C), 0, 0x18U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x66C), 0x18);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x66C), 0x18);
     memset((void *) (temp_s1 + 0x684), 0, 0x70U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x684), 0x70);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x684), 0x70);
     memset((void *) (temp_s1 + 0x6F4), 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x6F4), 0x4C);
-    if (PS_FlushFile(M2C_FIELD(*arg0, void ***, 8), 0) == 0) {
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x6F4), 0x4C);
+    if (PS_FlushFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), 0) == 0) {
         object_render_cleanup(arg0);
         return 0;
     }
     audio_channel_priority((intptr_t) arg0);
-    PS_FlushPak((s32) M2C_FIELD(*M2C_FIELD(*arg0, void ***, 8), u8 *, 0x10), 1);
+    PS_FlushPak((s32) M2C_FIELD(*M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), u8 *, PSF_OFS(0x10)), 1);
     return 1;
 }
 

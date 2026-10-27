@@ -80,7 +80,11 @@ typedef struct {
     u8 target;          /* 148 */
     u8 other149[3];
 } Camera;               /* 152 */
+#ifdef TARGET_PC
+typedef struct { void *next, *prev, *fileh; u8 other0C[32]; void *resource; } HObject;   /* the profile, pc_prelude.h */
+#else
 typedef struct { u8 other0[44]; s32 resource; } HObject;
+#endif
 typedef struct { HObject *object; } Handle;
 typedef struct {
     u8 index;
