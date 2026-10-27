@@ -785,7 +785,13 @@ extern s32 D_8011027C;
 extern s32 D_80110280;
 extern s8 D_80110284;
 extern s32 D_80110288;
+#ifdef TARGET_PC
+/* PC: a byte flag, as every other file has it (func_800A4CB8.c); camera_transform only tests and clears it. The PC
+ * loader fills initialized data by its declarations, and as a word its byte would be the ROM's fourth. */
+extern s8 D_8011028C;
+#else
 extern s32 D_8011028C;
+#endif
 extern s32 D_80110290;
 extern s32 D_801102B4;
 extern s32 D_801102C0;
