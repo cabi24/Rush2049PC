@@ -71,9 +71,32 @@ BENIGN = ("narrow", "extra", "unused", "reviewed", "dead", "harmless")
 CLASSES = HARMFUL + BENIGN
 RANK = {c: i for i, c in enumerate(CLASSES)}
 DEFAULT_ROOTS = "n64_main,game_init,game_late_init,AudioInitSys,LoadWave,InitWaves,LoadFrontEndOverlay"
-# Disagreements that are read and known not to matter on the PC (docs/port/PROTOTYPES.md): function -> why.
+# Disagreements that are read and known not to matter on the PC (docs/port/PROTOTYPES.md): function, or
+# function@view file, -> why.
+_HEAP = "heap block addresses are RDRAM-window addresses below 4 GB, which 32 bits hold exactly (POINTERS.md 4.1)"
+_ROMDL = ("a word of a display list loaded from the ROM (N64 form): a 32-bit window address of loaded data "
+          "(POINTERS.md 2)")
+_SAME32 = "compared with 32-bit slots that hold the same truncation of the pointer (POINTERS.md 4.4)"
+_INDEX = "a model index carried in a void * variable"
 REVIEWED = {
     "func_800C1B60": "old-style definition; `hits` is a third parameter no caller passes, written before it is read",
+    "PurgeableMemory": _HEAP, "func_80095EF4": _HEAP, "func_80095F8C": _HEAP, "audio_reverb_update": _HEAP,
+    "audio_effect_process": _HEAP, "menu_item_select": _HEAP, "audio_buffer_sync": _HEAP,
+    "AllocateMemoryHeap@src/blob/groups/initgraphics/initgfx.c": _HEAP,
+    "sound_play_menu@src/blob/groups/initgraphics/initgfx.c": _HEAP,
+    "format_string_parse@src/blob/groups/menu_save_options/ctx_slot.c": "the buffer is a heap block: " + _HEAP,
+    "inflate_entry_alt@src/blob/groups/menu_save_options/ctx_slot.c": "the buffer is a heap block: " + _HEAP,
+    "inflate_decompress": "the source is a ROM offset from the file table D_8011B5BC, not a host pointer",
+    "lzss_decompress": "the source is a ROM offset from the file table D_8011B5BC, not a host pointer",
+    "entity_cull_check@src/blob/groups/audio_frame_sync/waves.c":
+        "the WAD loader (an N64_WORLD file) passes its loaded block's window addresses as 32-bit integers",
+    "func_800BD080": _ROMDL, "func_800BDA24": _ROMDL,
+    "state_utility@src/ovl_a/func_803AE51C.c":
+        "the text comes from the loaded text bank, whose fields are 32-bit window addresses (POINTERS.md 4.2)",
+    "audio_channel_priority": _SAME32, "func_800956BC": _SAME32,
+    "string_copy_format@src/ovl_a/groups/runtime_a_availability_refresh/group.c": _INDEX,
+    "sign_extend_call@src/ovl_a/groups/runtime_a_availability_refresh/group.c": _INDEX,
+    "func_80014D08": "the definition is empty, as in retail: its arguments are never read",
 }
 
 VOID = ("void",)
@@ -528,8 +551,8 @@ def arg_abi(nodes, a):
     if a is None:
         return ("?",)
     t = tree_abi(nodes, _fields(a).get("type"))
-    if a[0] == "integer_cst" and t[0] == "i" and int(_fields(a).get("int", "-1") or -1) >= 0:
-        return ("k",) + t
+    if a[0] == "integer_cst" and t[0] in ("i", "p") and int(_fields(a).get("int", "-1") or -1) >= 0:
+        return ("k",) + (t if t[0] == "i" else ("i", 8, False))   # a null pointer constant is a 64-bit 0
     return t
 
 
@@ -713,7 +736,7 @@ def compare_view(defn, view, calls):
                 srcs_i = [srcs[i] for _, _, _, srcs in calls or () if i < len(srcs)]
                 passed = sorted({short(s[1:]) + " const" if s[0] == "k" else short(s) for s in srcs_i})
                 gpr = sum(1 for p in dparams[:i] if p[0] != "f")
-                if c == "width" and srcs_i and all(s[0] == "k" for s in srcs_i) and gpr < 6:
+                if c == "width" and srcs_i and all(s[0] == "k" for s in srcs_i) and (gpr < 6 or size_of(vp) == 8):
                     c = "harmless"   # every caller passes a small constant: its register is zero-extended
                 issues.append((c, f"arg {i + 1}: {short(dp)} vs {short(vp)}"
                                   + (f" (callers pass {', '.join(passed)})" if passed and c in HARMFUL + ("harmless",)
@@ -741,7 +764,7 @@ def compare_view(defn, view, calls):
                 const = a[0] == "k"
                 a = a[1:] if const else a
                 c = compare_types(dp, a)
-                if c == "width" and const and gpr < 6:
+                if c == "width" and const and (gpr < 6 or size_of(a) == 8):
                     c = "harmless"   # 0 or a small constant for a pointer: the register is zero-extended
                 if c:
                     issues.append((c, f"arg {i + 1} in {caller}: {short(dp)} vs {short(a)}"
