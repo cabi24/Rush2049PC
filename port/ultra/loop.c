@@ -11,9 +11,9 @@
  * virtual (timer.c): the waits move it instead of sleeping, and a run whose clock stops moving for 30 s of real
  * time (a thread computing for ever) is stopped as hung.
  *
- * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts are as coarse as
- * the system timer (15.6 ms by default): the scheduler's own waits use high-resolution timers (sched.c), and the
- * loop asks for a 1 ms period for the rest (hold()'s sleep, SDL). */
+ * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts follow the system
+ * timer (15.6 ms by default), and winpthreads' are 15.6 ms steps whatever the period: the scheduler's own waits use
+ * high-resolution timers (sched.c), and the loop asks for a 1 ms period for the rest (SDL's waits). */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
@@ -86,8 +86,8 @@ void osSetTime(uint64_t ticks);   /* timer.c */
 #ifdef _WIN32
 /* A 1 ms timer period while the loop runs. Windows 11 may ignore the request from a process nobody sees (a
  * headless run, the hidden GL window) unless the process opts out of that power throttling, which needs Windows 8's
- * SetProcessInformation (looked up, so older Windows still start). Some machines keep 15.6 ms anyway (the
- * windows-latest runner did), which is why sched.c doesn't rely on it. */
+ * SetProcessInformation (looked up, so older Windows still start). winpthreads' timed waits stay at 15.6 ms steps
+ * anyway (sched.c), and a machine may refuse the period, so the scheduler doesn't rely on it. */
 static void timer_period(int on)
 {
     typedef BOOL(WINAPI * SetInfo)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
