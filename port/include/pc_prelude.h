@@ -87,6 +87,17 @@ struct pc_visual {
     void (*func)(void *, short);
 };
 
+/* NewMultiBlit's descriptor (sound_control; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
+ * animation function being pointers. A file whose declaration of such a table has no layout (s32, u8[]) declares it
+ * with this one on the PC, so the data loader gives the table its PC layout (docs/port/BRINGUP.md 1). */
+struct pc_multiblit {
+    const char *texname;
+    short dulx, duly, width, height, top, bot, left, right;
+    unsigned int zdepth, alpha;
+    int (*animfunc)(void *);
+    unsigned int animid;
+};
+
 /* The car record (player_array, 6 cars) is 0x468 bytes on the PC, 0x3B8 on the N64: its visuals are 0x20 bytes
  * from +0x110 to N64 +0x308, and its input record pointer at N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of
  * N64 offset n, which may run into the next cars (CAR_OFS(0x3B8) is the PC stride). Code that reaches cars by raw

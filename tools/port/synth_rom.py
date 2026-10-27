@@ -1228,6 +1228,7 @@ def race(c):
 
     car_tables(c)
     hud(c)
+    blits(c)
 
     # The tracks' car colours (gTrackColors, D_8011AF90, tRGBA *[19]): each points at RGBA byte quadruples, which
     # the cars' IR colour comes from. Sixteen mid greys per track (bytes, so copied as they are).
@@ -1298,6 +1299,23 @@ def hud(c):
             for k, v in enumerate((x, y)):
                 c.set("game", "D_80115A68", "u32", v, "speedPos: the speedometer's place per view" if windows == 1
                       and slot == k == 0 else "(same)", offset=32 * (windows - 1) + 8 * slot + 4 * k)
+
+
+def blits(c):
+    """NewMultiBlit's descriptor tables that game C declared without their layout (s32, u8[]), which the PC declares
+    as MultiBlits now (struct pc_multiblit, BRINGUP.md 1): with a texture name in each, a view without the pointer
+    would read the name from the wrong bytes. The attract demo's blit, made before the race's files are loaded: the
+    name -1, a blit without a texture (the sign-extended sentinel only matches with the pointer in place: read as
+    words it is 0xFFFFFFFF and the next field, the address the demo faulted at). The game over title, the controls
+    screens' first buttons (front end, paused alone, paused with others) and the menu backgrounds (createBG's two
+    blits, front end and track select): BUTTON blits."""
+    multiblit(c, "D_80114128", 0, None, 8, 8, 48, 12)
+    multiblit(c, "D_80114700", 0, "BUTTON", 136, 20, 48, 12)
+    for sym in ("D_80112AB8", "D_8011361C", "D_80113910"):
+        multiblit(c, sym, 0, "BUTTON", 16, 16, 48, 12)
+    for sym in ("D_801141D4", "D_8011421C"):
+        for i in range(2):
+            multiblit(c, sym, i, "BUTTON", 8 + 160 * i, 200, 48, 12)
 
 
 def battle(c):

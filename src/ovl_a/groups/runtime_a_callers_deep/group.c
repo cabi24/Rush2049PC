@@ -511,7 +511,11 @@ extern char *D_803B5EF0[];
 extern f32 D_8011418C[3][3];
 extern volatile u8 D_80140BDC;
 extern char D_803B8C10[], D_803B8C20[], D_803B8C28[], D_803B8C2C[];
+#ifdef TARGET_PC
+extern struct pc_multiblit D_803B6504[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
+#else
 extern unsigned char D_803B6504[];
+#endif
 extern void particle_lifetime_set(void), particle_velocity_set(void);
 extern void *memcpy(void *, const void *, u32);
 extern s32 string_copy_format(char *, s8, s8, s8);

@@ -23,7 +23,11 @@ typedef s32 OSId;
 typedef struct OSThread OSThread;
 
 extern s16 gNumWindows;
+#ifdef TARGET_PC
+extern struct pc_multiblit D_80116DBC[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
+#else
 extern s32 D_80116DBC;
+#endif
 
 extern intptr_t sound_control(s16 arg0, s16 arg1, void *arg2, s16 arg3);
 extern void sound_stop(intptr_t sound_id);
