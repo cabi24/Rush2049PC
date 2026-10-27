@@ -39,3 +39,14 @@ any disclosed shaping. The full table, with the mechanism and any runtime verdic
 
 Stubs (8-byte `jr ra; nop` bodies of inlined helpers) land only with their callers; see the ceiling page.
 
+**The PC build** (`CMakeLists.txt`, [`docs/port/DATA.md`](../docs/port/DATA.md) section 4) compiles the drafts whose
+functions no other file defines, so every game and runtime-image function has C there: `RaceStateMachine_Update`,
+`TB_EllipseText`, `createBG`, `display_list_flush`, `drone_set_catchup`, `ghost_race_setup`, `physics_float_calc`,
+`state_utility`, `animSpeedText`, `StartWeaponIcon`, `func_8010D680`, `func_8010E8B4` and `ovl_a/func_803A44FC`
+(the others come in as group context copies). A draft that views a shared record has its PC layout under
+`TARGET_PC` (the car record, the target info table, the scene nodes, the ghost records); without `TARGET_PC` each
+gives the tokens it had, only shifted, so the distances above still hold. Each says in its header who reaches it,
+and `port/assets/tests/test_weapons.c`, `test_hudtext.c` and `test_carscr.c` run them on synthetic records.
+`ovl_a/stubs.c` and `ovl_b/stubs.c` are PC only: the runtime images' 18 stubs, as the empty functions they are on
+the N64.
+

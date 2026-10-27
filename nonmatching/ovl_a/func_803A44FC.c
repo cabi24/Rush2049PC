@@ -27,7 +27,14 @@
  * first block (bb 6, sll and addu) into the loop-header block bb 5 (weight 1, stalls 2); retail evidently moved none. Not
  * changed by: line layout or `.loc` values (listing edits), labels or alias directives after the branch, the parameter
  * store position, the loop/if spellings tried. A listing with the IV increment inside the header block reproduces retail's
- * delay slot, i.e. the cause is what as1 sees in the header block, not the inlined body. */
+ * delay slot, i.e. the cause is what as1 sees in the header block, not the inlined body.
+ * PC (compiled into the PC build, CMakeLists.txt): no direct callers and no code takes its address. As animText it is
+ * a callback of the car-select screen's MultiBlit table (D_803B2AB8, 38 entries, which initScreen@carscr.c =
+ * func_803A0FD8 hands to NewMultiBlit; the table is ROM data): NewMultiBlit calls an AnimFunc once and
+ * UpdateActiveObjects every frame after, or the sprite pass calls a draw callback every frame, with the blit. The
+ * views are cleanup_colortrace's (the carscr.c group), which have their PC layouts: the input records 80 bytes with
+ * the profile handle at +0x48, the text bank's string tables at +8, +0x18 and +0x20, and the ghost records' pointer
+ * fields host-sized. The inlined helpers' deleted bodies are nonmatching/ovl_a/stubs.c's empty functions. */
 typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short s16;
@@ -41,7 +48,12 @@ typedef struct Profile Profile;
 struct Profile { Profile **next, **previous; FileInfo **file; u32 id0, id1; u8 name[24]; u8 **stats; };
 typedef struct Player { u32 held, pressed, unknown08, repeated; u8 unknown10[50]; u8 paint, unknown43[5]; Profile **owner; } Player;
 typedef struct Record Record;
+#ifdef TARGET_PC
+/* PC: as cleanup_colortrace's Record: unknown24 is pointer-sized. */
+struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; void *unknown24; void **active; };
+#else
 struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; u32 unknown24; void **active; };
+#endif
 typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u8 **indexed; } Language;
 typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
 typedef struct Slot { s32 kind, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, unknown3D[3]; } Slot;

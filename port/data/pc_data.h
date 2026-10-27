@@ -87,6 +87,15 @@ typedef struct {
     const char *name;
 } PcDataName;
 
+/* The writable data an image's own C defines, file-local and function-local statics included, as one host range
+ * (the game's: port/data/overlays.ld gathers each runtime image's objects' .data and .bss). No table can name a
+ * static, so the loader takes the range's bytes at startup and puts them back on every later load of the image, as
+ * the N64's load of the image does. */
+typedef struct {
+    uint8_t image;
+    uint8_t *start, *end;
+} PcDataCRange;
+
 /* Mutable loader state (one per table set). */
 typedef struct {
     const uint8_t *rom;
@@ -94,6 +103,7 @@ typedef struct {
     uint8_t *image[8];          /* inflated images (raw images point into the ROM) */
     uint8_t *owned[8];          /* buffers to free */
     void **snapshot;            /* per symbol: startup bytes of PC_SYM_CDEF overlay data */
+    void **crange_snapshot;     /* per C range: its startup bytes */
     int loaded;
 } PcDataState;
 
@@ -112,6 +122,8 @@ typedef struct {
     uint32_t n_names;
     uint32_t heap_lo;           /* N64 pointers at or above this, outside the runtime images, are kept as is */
     PcDataState *state;
+    const PcDataCRange *cranges;   /* runtime images' C data, restored on their loads (may be none) */
+    uint32_t n_cranges;
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM

@@ -70,11 +70,15 @@ endif()
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
 # Functions at the matching ceiling: the ROM takes them from their retail assembly, but their C drafts
 # (nonmatching/README.md) differ only in register allocation and scheduling. The PC build compiles the
-# standalone drafts of those no other file defines; the rest already come in as group context copies.
+# standalone drafts of those no other file defines; the rest already come in as group context copies. Drafts that
+# need the PC layouts of shared records have them under TARGET_PC. The runtime images' 8-byte stubs (deleted bodies
+# of inlined helpers) are empty functions in nonmatching/ovl_<x>/stubs.c, PC only.
 foreach(f RaceStateMachine_Update TB_EllipseText createBG display_list_flush drone_set_catchup
-          ghost_race_setup physics_float_calc state_utility)
+          ghost_race_setup physics_float_calc state_utility animSpeedText StartWeaponIcon func_8010D680 func_8010E8B4)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
 endforeach()
+list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_803A44FC.c
+     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)
 # libultra and libc units the PC layer replaces (port/ultra, docs/port/ULTRA.md): thread dispatch, message
 # queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB, and the
 # inflate/LZSS readers (zlib and C in port/ultra/pi.c). lib_34a0 is the IDO libc (sprintf, fcvt, modff): the
@@ -337,6 +341,12 @@ if(WIN32)   # data.c's weak references (tools/port/gen_data.py)
     target_link_options(rush2049pc PRIVATE ${PC_DATA_PE_OUTPUTS})
     set_property(TARGET rush2049pc APPEND PROPERTY LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
 endif()
+# Each runtime image's C data (its objects' .data and .bss, statics included) in one range, which the loader puts
+# back on every load of the image as the N64's load does (port/data/overlays.ld, docs/port/DATA.md 5). data.c names
+# the ranges, so every program that links it links this too.
+set(PC_OVERLAYS_LD ${CMAKE_SOURCE_DIR}/port/data/overlays.ld)
+target_link_options(rush2049pc PRIVATE "LINKER:-T,${PC_OVERLAYS_LD}")
+set_property(TARGET rush2049pc APPEND PROPERTY LINK_DEPENDS ${PC_OVERLAYS_LD})
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
@@ -451,12 +461,26 @@ if(WIN32)
     set_target_properties(rush2049pc_datacheck PROPERTIES LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
     set(PC_DATA_CHECK_PE --pe)   # COFF symbols have no sizes; the image links high and moves
 endif()
+target_link_options(rush2049pc_datacheck PRIVATE "LINKER:-T,${PC_OVERLAYS_LD}")
+set_property(TARGET rush2049pc_datacheck APPEND PROPERTY LINK_DEPENDS ${PC_OVERLAYS_LD})
 add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --check $<TARGET_FILE:rush2049pc_datacheck>
             --layout ${PC_DATA_DIR}/data_layout.json --nm ${CMAKE_NM} ${PC_DATA_CHECK_PE}
     VERBATIM)
 add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
 add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
+# pc_data_overlay: runtime image B's weapons.c built as the game is (its BSS state and its global table) and a
+# stand-in for image A's C with statics, linked through overlays.ld, written to, then reloaded with the loader
+# (port/data/test_overlay_data.c). The stand-in's path has src/ovl_a/ in it, which is how the script tells image A's.
+add_library(test_overlay_data_game OBJECT src/ovl_b/groups/weapons/weapons.c
+    port/data/test_overlay/src/ovl_a/statics.c)
+target_link_libraries(test_overlay_data_game PRIVATE game_flags)
+target_compile_options(test_overlay_data_game PRIVATE -w)
+add_executable(test_overlay_data port/data/test_overlay_data.c $<TARGET_OBJECTS:test_overlay_data_game>)
+target_link_libraries(test_overlay_data PRIVATE pcdata_rt)
+target_link_options(test_overlay_data PRIVATE "LINKER:-T,${PC_OVERLAYS_LD}")
+set_property(TARGET test_overlay_data APPEND PROPERTY LINK_DEPENDS ${PC_OVERLAYS_LD})
+add_test(NAME pc_data_overlay COMMAND test_overlay_data)
 # tools/port/endian_check.py (docs/port/ENDIAN.md): the detector on its synthetic cases, and the loader's element
 # widths where game declarations were made to agree with how the game reads the data.
 # The detector's own cases need its reading of gcc's GIMPLE dumps, which finds none of them under MSYS2's gcc 16:
@@ -470,7 +494,8 @@ add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_ch
     ${ENDIAN_CHECK_ARGS})
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
-set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
+    PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)

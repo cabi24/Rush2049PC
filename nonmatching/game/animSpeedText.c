@@ -7,6 +7,12 @@
  * `FAIL animSpeedText: 31 of 365 words differ` (x2: 282 of 365, 366 words). NOT a match.
  * Kept from x2: `if (y) {}` (compiled-out holder), private TB_SetJust/TB_GetFontHeight copies (_Speed).
  * Residual: split pieces &gGameCar / 952 / 1 / 10 are a2 / v0 / t0 / a3 (retail v0 / a2 / a3 / a2).
+ * PC (compiled into the PC build, CMakeLists.txt): no direct callers and no code takes its address, so it is reached
+ * through an entry of the HUD's MultiBlit tables, which ShowHUD (skid_mark_render, showhud.c) hands to NewMultiBlit
+ * (the tables are ROM data, so which entry is not visible here). NewMultiBlit (sound_control.c) makes an entry's
+ * function the sprite's draw callback (a -1 name; the 2D sprite pass of Input_ProcessGameplayPad calls it every
+ * frame) or the blit's AnimFunc; either way it gets the blit. The car record has its PC layout (docs/port/CARS.md);
+ * the text bank's string table is the host pointer at +8 (ModelTables).
  */
 #define gShowSpeed D_8015F72C
 #define gJust D_80118E20
@@ -26,7 +32,15 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
+#ifdef TARGET_PC
+/* PC: the car record's layout (0x468 bytes, docs/port/CARS.md). */
+typedef struct tCarData {
+    u8 pad000[0xEF]; s8 place_locked; u8 pad0F0[8]; s16 rwmph; u8 pad0FA[0x110 - 0xFA]; struct pc_visual visuals[21];
+    u8 pad0FA_308[0x380 - 0x308]; void *input; u8 pad0FA_384[952 - 0x384];
+} tCarData;
+#else
 typedef struct tCarData { u8 pad000[0xEF]; s8 place_locked; u8 pad0F0[8]; s16 rwmph; u8 pad0FA[952 - 0xFA]; } tCarData;
+#endif
 typedef struct tModelData { u8 pad000[0x7C6]; s16 slot; u8 pad7C8[0x808 - 0x7C8]; } tModelData;
 typedef struct tJust { s32 h, v; } tJust;
 typedef struct tText { u16 numSingle; u8 **single; } tText;

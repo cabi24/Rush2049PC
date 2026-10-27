@@ -10,7 +10,8 @@
  *      pointers (functions, own storage, game-C data, arenas). Addresses in the game heap (at or above the tables'
  *      heap_lo, outside the runtime images) stay as they are: the heap is the RDRAM window at host 0x80000000
  *      (pc_port.h), so they are valid host addresses, and the renderer reads values below 4 GB as N64 addresses;
- *   4. game-C data in an overlay: put back the bytes it had at startup (or zero it).
+ *   4. game-C data in an overlay: put back the bytes it had at startup (or zero it), the symbols the tables name and
+ *      the image's C ranges, which hold the statics no table can name.
  *
  * The game's arenas are at their N64 addresses in that window too, so an N64 address inside one is its own host
  * address (arena + offset is the identity), and 32-bit fields can hold it. The window must be mapped first. The
@@ -468,6 +469,11 @@ int pc_data_load_image(const PcDataTables *t, int image)
                 memcpy(s->host, st->snapshot[i], s->host_size);
         }
     }
+    for (uint32_t i = 0; is_overlay(t, image) && st->loaded && st->crange_snapshot && i < t->n_cranges; i++) {
+        const PcDataCRange *r = &t->cranges[i];
+        if (r->image == image && st->crange_snapshot[i])
+            memcpy(r->start, st->crange_snapshot[i], (size_t)(r->end - r->start));
+    }
     return 0;
 }
 
@@ -530,6 +536,15 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
         if ((s->flags & PC_SYM_CDEF) && !(s->flags & PC_SYM_BSS) && s->host && is_overlay(t, s->image)
             && !st->snapshot[i] && (st->snapshot[i] = malloc(s->host_size)) != NULL)
             memcpy(st->snapshot[i], s->host, s->host_size);
+    }
+    /* ... and of the runtime images' own C data, statics included. */
+    if (!st->crange_snapshot && t->n_cranges)
+        st->crange_snapshot = calloc(t->n_cranges, sizeof *st->crange_snapshot);
+    for (uint32_t i = 0; st->crange_snapshot && i < t->n_cranges; i++) {
+        const PcDataCRange *r = &t->cranges[i];
+        size_t n = r->end > r->start ? (size_t)(r->end - r->start) : 0;
+        if (n && !st->crange_snapshot[i] && (st->crange_snapshot[i] = malloc(n)) != NULL)
+            memcpy(st->crange_snapshot[i], r->start, n);
     }
     /* Host storage must sit above 4 GB (a PIE build): the renderer reads values below it as N64 addresses. The
      * arenas at their N64 addresses are the exception, since there the N64 address is the host address. */

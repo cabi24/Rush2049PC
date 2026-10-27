@@ -755,9 +755,10 @@ last column include main's work merged into this branch (10258ff).
   N64-layout views read (72 for the cameras); that the 122 info records end at `D_80118C10` and their fields have the
   widths given in 10.1 (the loader swaps them so); that the scene, key and place records are the track WAD's; and the
   targets in a real race (cones, mines, coins, flags, the scripted cameras).
-- **The targets with no C yet**: `StartWeaponIcon` and `_AnimateWeaponIcon` (`func_8010D680`) are only nonmatching
-  drafts, not in the PC build, so their info records' functions are NULL on the PC. `engine_torque_calc` calls a
-  record's start function without a NULL check when its flag 0x4000 is set.
+- **The weapon icons** (`StartWeaponIcon`, `_AnimateWeaponIcon` = `func_8010D680`) were only nonmatching drafts,
+  so their info records' functions were NULL on the PC, and `engine_torque_calc` calls a record's start function
+  without a NULL check when its flag 0x4000 is set. The drafts are in the PC build now, with the car's and the info
+  record's PC layouts under `TARGET_PC` (DATA.md section 4); `assets_weapons` runs them.
 - **`D_8011A31C`'s extent** (the per-track object-animation sequences): 1,316 bytes by gap, typed as
   `Sequence20 *[]`, so the unnamed sequence and frame tables after its pointers are converted as pointers. A size for
   the pointer table, and declarations for the tables, would fix it (DATA.md).
