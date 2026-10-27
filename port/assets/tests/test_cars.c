@@ -4,7 +4,8 @@
  * environment visual pool, the code that reaches cars at raw offsets or strides, and the model set-up from the
  * car physics descriptors, whose pointers are u32 window addresses, and the physics that read them (the torque
  * func_800E2D18, func_800E1500, func_800E2C70; docs/port/LAYOUT.md 5); race_init_helper reads a car's node handle's
- * low half. The car array is host storage, as in the
+ * low half; the brake lights (func_8008BEA4) read their car's slot from the visual. The car array is host storage,
+ * as in the
  * game (own storage); the model array, the checkpoint block and the tune and torque tables sit at their N64
  * addresses in an RDRAM window the test maps (exit 77, skipped, if it can't), as the game's arena does.
  * game: src/blob/world_physics_tick.c src/blob/func_800B27E4.c src/blob/func_800EC270.c
@@ -16,6 +17,7 @@
  * game: src/blob/car_select_handler.c src/blob/func_800CFCA8.c src/blob/func_800FBE60.c
  * game: src/blob/groups/car_resistance/group.c src/blob/func_800D0894.c src/blob/func_800E313C.c
  * game: src/blob/func_800E2D18.c src/blob/func_800E1500.c src/blob/func_800E2C70.c src/blob/race_init_helper.c
+ * game: src/blob/func_8008BEA4.c
  */
 #include <math.h>
 #include <stddef.h>
@@ -54,6 +56,7 @@ ALIAS(D_80152B70, D_80152818, 0x400);      /* N64 +0x358 */
 ALIAS(D_80152BD0, D_80152818, 0x468);      /* car 1, and its +8 and +0x50 */
 ALIAS(D_80152BD8, D_80152818, 0x470);
 ALIAS(D_80152C20, D_80152818, 0x4B8);
+ALIAS(D_80152900, D_80152818, 0xE8);       /* a car's flags, seen as an array of cars */
 
 ABS(D_8014A250, 0x8014A250);               /* model[6], in the game arena */
 ABS(D_8014A258, 0x8014A258);
@@ -89,7 +92,7 @@ int16_t active_player_count, D_80151AD0;
 float D_801543CC = 12.5f;                  /* gModelTime */
 volatile float D_8002EB90 = 3.25f;         /* gSeconds */
 int8_t D_8014978C, D_80156994, gCarTeam[8];
-uint8_t D_8011B58C[16], D_8011B5AC[16], D_8011AD8C[4], D_8011B558[5][4];
+uint8_t D_8011B57C[16], D_8011B58C[16], D_8011B59C[16], D_8011B5AC[16], D_8011AD8C[4], D_8011B558[5][4];
 float D_8011AD90[4][3];
 uint16_t D_80161368[16], D_801427C0[600], D_8014296A, D_8014296C, D_8014296E;
 ABS(D_8014254C, 0x8014254C);               /* gObjList + 0x... in the game; only an id is read */
@@ -144,7 +147,7 @@ void *func_800A78BC(int nverts, float (*xyz)[3], uint16_t tex, void *color, uint
 void func_800C4F68(int16_t a, int32_t *b, int32_t c) {}
 /* The visual functions the starters install (their addresses are what the test checks). */
 #define VFN(name) void name(void *v, int16_t op) { if (g_ncalled < 32) g_called_v[g_ncalled++] = v; }
-VFN(func_8008BEA4) VFN(func_8008BD9C) VFN(func_8008BC94) VFN(func_8008BB8C) VFN(func_8008BA84) VFN(func_8008B964)
+VFN(func_8008BD9C) VFN(func_8008BC94) VFN(func_8008BB8C) VFN(func_8008BA84) VFN(func_8008B964)
 VFN(anim_state_update) VFN(buffer_swap) VFN(entity_anim_texture) VFN(func_8038AA8C) VFN(entity_process_main)
 VFN(entity_render_setup) VFN(recorder)
 int32_t AnimateFrame(void) { return 0; }
@@ -180,6 +183,7 @@ int16_t func_800E2D18(void *m, int16_t rpm, int16_t throttle, int16_t *torquecur
 void func_800E1500(void *m, float *in, float *out);
 void func_800E2C70(void *m);
 void race_init_helper(void);
+void func_8008BEA4(void *v, int16_t flag);
 
 /* ---------------------------------------------------------------- tests */
 
@@ -500,6 +504,34 @@ static void test_race_init(void)
     gameplay_mode = 0;
 }
 
+/* The brake lights (AnimateBrakeLights, func_8008BEA4) of a braking car take the brake colours into its palette
+ * record (a u32 window address in D_8013FEF4): the car is the visual's slot (+0xC on the PC; +8 is its index). */
+#define PALETTES_AT 0x80302000u
+static void test_brake_lights(void)
+{
+    struct pc_visual v;
+    uint16_t *pal = (uint16_t *)(uintptr_t)(PALETTES_AT + 320);
+    int i, k;
+
+    for (i = 0; i < 6; i++) {
+        CF(&D_80152818[i], 0xE8, uint32_t) = i == 1 ? 0x1000 : 0;
+        MF(D_8013FEF4, 24 * i, uint32_t) = PALETTES_AT + 0x200 * (uint32_t)i;
+        memset((uint8_t *)pal + 0x200 * i, 0, 16);
+    }
+    for (k = 0; k < 8; k++)
+        MF(D_8011B57C, 2 * k, uint16_t) = (uint16_t)(0x100 + k), MF(D_8011B58C, 2 * k, uint16_t) = (uint16_t)(0x200 + k);
+    D_8014978C = 0;
+    memset(&v, 0, sizeof v);
+    v.index = 3, v.slot = 1;
+    func_8008BEA4(&v, 1);
+    for (i = 0; i < 6; i++)
+        for (k = 0; k < 8; k++)
+            CHECK(pal[0x100 * i + k] == (i == 1 ? 0x200 + k : 0));
+    func_8008BEA4(&v, 0);
+    CHECK(pal[0x100] == 0x100 && pal[0x107] == 0x107);
+    CF(&D_80152818[1], 0xE8, uint32_t) = 0;
+}
+
 int main(void)
 {
     if (!test_rdram()) {
@@ -518,5 +550,6 @@ int main(void)
     test_raw();
     test_model();
     test_race_init();
+    test_brake_lights();
     return TEST_DONE();
 }

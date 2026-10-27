@@ -1,7 +1,13 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#ifdef TARGET_PC
+/* PC: the visual (tVisual, pc_prelude.h's struct pc_visual) has a host-sized link: its car slot is at +0xC, where
+ * +8 is its index (docs/port/LAYOUT.md). */
+typedef struct { void *next; s16 index, objnum; s16 idx; } In;
+#else
 typedef struct { u8 pad0[8]; s16 idx; } In;
+#endif
 typedef struct { u8 pad[320]; u16 v[8]; } Out;
 #ifdef TARGET_PC
 /* PC: a car record seen from +0xE8 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
