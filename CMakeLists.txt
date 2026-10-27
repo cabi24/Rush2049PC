@@ -142,6 +142,7 @@ endif()
 if(WIN32)
     include_directories(BEFORE ${CMAKE_SOURCE_DIR}/port/include/win)
     add_link_options(-static -Wl,--dynamicbase,--high-entropy-va,--nxcompat)
+    set(ZLIB_USE_STATIC_LIBS ON)   # libz.a, not zlib1.dll
     add_compile_definitions(SDL_MAIN_HANDLED)   # test programs have their own main and include SDL.h
 endif()
 # Silence what the N64-era declarations trip over; the 64-bit pointer warnings (-Wpointer-to-int-cast,
