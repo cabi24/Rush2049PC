@@ -38,6 +38,13 @@ typedef struct ButtonInfo { s32 buttonType; s32 objIdx; f32 angle; f32 uvs[4][3]
 typedef union tRGBA { u8 c[4]; u32 w; } tRGBA;
 typedef struct MultiBlit MultiBlit;
 typedef struct Egg Egg;
+#ifdef TARGET_PC
+/* gcc rejects arrays of an incomplete type, which IDO accepts. Layouts as in src/blob/sound_control.c (MultiBlit)
+   and src/ovl_a/groups/cheat_screen/eggs.c (Egg). */
+struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
+                   s32 (*animfunc)(Blit *); u32 animid; };
+struct Egg { u8 size; u8 pad[3]; u32 levels[20]; u32 edges[20]; };
+#endif
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
 extern volatile f32 D_8002EB94;            /* gFrameSeconds */

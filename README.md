@@ -1,3 +1,22 @@
+# Rush 2049 PC
+
+A native PC port of *San Francisco Rush 2049* (N64, USA), built from the decompilation below the way the SM64 PC
+port was built from the SM64 decompilation: the game's C compiled for the PC, with a PC layer in place of the N64
+hardware. You bring your own ROM. **Status: early.** The game code compiles and links natively; it doesn't run
+yet. The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in
+[docs/port/STATUS.md](docs/port/STATUS.md).
+
+```sh
+cmake -S . -B build/pc -G Ninja
+cmake --build build/pc                         # game objects, generated BSS, rush2049pc_linktest
+python3 tools/port/census.py --build build/pc  # rewrites docs/port/STATUS.md
+```
+
+Needs CMake 3.20 or later, Ninja, gcc or clang, and Python 3.9 or later. The N64 matching build below is unchanged
+and still works from the same tree.
+
+---
+
 # San Francisco Rush 2049 (N64) decompilation
 
 A decompilation of *San Francisco Rush 2049* for the Nintendo 64 (USA). The C in this repository, together with

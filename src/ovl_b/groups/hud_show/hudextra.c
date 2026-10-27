@@ -48,6 +48,12 @@ typedef struct tBattlePoint {      /* anon_active_cnt_18 */
 } tBattlePoint;
 typedef struct tBlitSet tBlitSet;
 typedef struct tBlitDef tBlitDef;
+#ifdef TARGET_PC
+/* gcc rejects arrays of an incomplete type, which IDO accepts. MAT3 tBlitDef (size 0x24), the same layout as
+   MultiBlit in src/blob/sound_control.c. */
+struct tBlitDef { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
+                  s32 (*animfunc)(void *); u32 animid; };
+#endif
 
 extern void *D_80395ED4;
 extern s16 D_80151AD0, active_player_count;
