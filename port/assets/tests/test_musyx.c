@@ -11,7 +11,8 @@
  * 4. The library's own state on LP64 (docs/port/MUSYX_DATA.md 8): the song plays for 60 frames through the
  *    sequencer's per-frame units, each with its own view of the slot (notes, programs, controllers, pitch bend,
  *    modulation, tempo, loop, note-offs); voices start macros, step them through the interpreter (envelope,
- *    sample, end, a subroutine, a wait, a trap on key-off) and free their sequence nodes. */
+ *    sample, end, a subroutine, a wait, a trap on key-off) and free their sequence nodes; the DMA service
+ *    (struct_init_and_call, func_8008ABE4) walks a request list as the driver builds it. */
 #define _GNU_SOURCE
 #include <string.h>
 #include <sys/mman.h>
@@ -306,7 +307,8 @@ static void song_build(Song *S)
     set32(B, patterns + 4, (uint32_t)S->pattern[1]);
     b32(B, 0x30), b32(B, 0), b32(B, (uint32_t)S->mod);
     b16(B, 0), b8(B, 64), b8(B, 90), b16(B, 0x30);
-    b16(B, 0x30), b8(B, 0xFF), b8(B, 0xFF);
+    b16(B, 0x10), b8(B, 0x80), b8(B, 0x80 | 104);      /* controller 104: a deferred request is carried out */
+    b16(B, 0x20), b8(B, 0xFF), b8(B, 0xFF);
     /* Tempo track: {u32 time; u32 tempo} until time 0xFFFFFFFF. */
     S->tempo = b_align(B, 4);
     set32(B, 12, (uint32_t)S->tempo);
@@ -461,6 +463,15 @@ void func_8001E9B0(void);
 void func_800218CC(void);
 int func_8001EDF4(uint32_t key);
 int func_8001FA18(uint32_t key);
+void func_80019490(void *request, unsigned int *result, unsigned char unlocked);
+/* func_80019490's request (lib_17dc0.c's SequenceRequest). */
+typedef struct { uint32_t identifier; uint16_t duration; uint8_t unknown006[2]; uint32_t nextIdentifier;
+    uint16_t nextDuration; uint8_t unknown00E[2]; void *stream; uint16_t group, program; uint8_t channel;
+    uint8_t unknown019[3]; uint32_t first, second; uint16_t value; uint8_t flags; uint8_t unknown027; } Request;
+int32_t struct_init_and_call(intptr_t list, int32_t count, intptr_t done);
+int32_t func_8008ABE4(void);
+/* The request list's header, in its own storage on the PC (func_8008ABE4.c's DmaList). */
+extern struct { uint16_t pad0, count, next, pad6; void *reqs; void *done; } pc_D_80153F10;
 
 /* func_800146B4's view (lib_11640.c, lib_1cf90.c): the PC layout every sample-info writer must match. */
 #pragma pack(1)
@@ -604,6 +615,19 @@ void func_8002106C(void *voice) {}
 uint8_t func_80020F98(uint8_t channel, uint8_t set) { return 0xFF; }
 void func_80020F4C(uint8_t a, uint8_t b, uint8_t c) {}
 void func_80014B3C(int index) {}
+/* The PI: the requests func_8008ABE4 starts. */
+STORAGE(D_80153E68, 24);
+STORAGE(D_80161438, 24);
+static struct { uint32_t dev, size; void *vaddr, *queue; } seen_dma[8];
+static unsigned seen_ndma;
+int32_t osPiStartDma(void *mb, int32_t priority, int32_t direction, uint32_t devAddr, void *vAddr, uint32_t nbytes,
+                     void *mq)
+{
+    if (seen_ndma < 8)
+        seen_dma[seen_ndma].dev = devAddr, seen_dma[seen_ndma].size = nbytes, seen_dma[seen_ndma].vaddr = vAddr,
+        seen_dma[seen_ndma++].queue = mq;
+    return 0;
+}
 void func_8001489C(int index, uint8_t release) {}
 uint32_t func_80014D30(uint32_t rate) { return rate; }
 uint16_t func_800214C8(void *voice) { return 0; }
@@ -645,13 +669,25 @@ static void test_play(const SequenceContext *seq)
     int offs_ok;
     uint32_t rate = 384;
     int32_t frequency = 22050;
+    Request request;
+    static unsigned int result;
 
     memcpy(D_8004F808, &rate, 4);
     memcpy(D_8004F800, &frequency, 4);
     seen_nnotes = seen_noffs = seen_ntempi = 0;
     memset(seen_controls, 0, sizeof seen_controls);
+    /* A request deferred to the song's controller 104 (flags 4): the slot keeps a copy and the result word's
+     * address; then (flags 2) it would start a next song that doesn't exist. */
+    memset(&request, 0, sizeof request);
+    request.identifier = 0, request.flags = 4 | 2, request.nextIdentifier = 0x1234, request.channel = 7;
+    request.first = 11, request.value = 0x2222, request.stream = &request;
+    func_80019490(&request, &result, 1);
+    CHECK(result == 0x80000000u && seq->pendingFF0 == (uintptr_t)&result && seq->unknownFF4[0] == 1);
+    CHECK(seq->valueFE0 == 7 && seq->firstFE4 == 11 && seq->valueFEC == 0x2222 && seq->flagsFEE == 2 &&
+          seq->streamFD8 == &request);
     for (frame = 0; frame < 60; frame++)
         func_800198C8();
+    CHECK(result == 0xFFFFFFFFu && seq->unknownFF4[0] == 0);       /* carried out at tick 0x190 */
     CHECK(seen_nnotes == sizeof want / sizeof want[0]);
     for (i = 0; i < seen_nnotes && i < sizeof want / sizeof want[0]; i++)
         if (seen_notes[i].key != want[i].key || seen_notes[i].velocity != want[i].velocity ||
@@ -750,6 +786,31 @@ static void test_voices(uint8_t *pl)
     CHECK(key == 2 && D_80050C50 != NULL);
     func_80023E9C(D_8004BEB8 + 2 * 0x1A0);
     CHECK(func_8001FA18(key) == 0 && D_80050C50 == NULL && func_8001EDF4(key) == -1);
+}
+
+/* The DMA service (slot 4 of the service table) on a request list as func_80012234 and func_80012730 build it:
+ * {length, source, destination}, 16 bytes on the PC. struct_init_and_call starts the first, func_8008ABE4 each
+ * next one as the PI finishes, and the header keeps the queue to tell when all are done (docs/port/MUSYX_DATA.md
+ * 8.1). */
+static void test_dma(void)
+{
+    static struct { int32_t length; uint32_t source; unsigned char *destination; } list[3];
+    static unsigned char buf[3][0x600];
+    static uint8_t done;
+
+    CHECK(sizeof list[0] == 16);
+    for (int i = 0; i < 3; i++)
+        list[i].length = 0x100 << i, list[i].source = SAMPLE_BASE + 0x1000 * (uint32_t)i, list[i].destination = buf[i];
+    seen_ndma = 0;
+    CHECK(struct_init_and_call((intptr_t)list, 3, (intptr_t)&done) == 1);
+    CHECK(seen_ndma == 1 && seen_dma[0].dev == SAMPLE_BASE && seen_dma[0].size == 0x100 && seen_dma[0].vaddr == buf[0] &&
+          seen_dma[0].queue == (void *)D_80153E68);
+    CHECK(func_8008ABE4() == 1 && func_8008ABE4() == 1 && func_8008ABE4() == 0);
+    CHECK(seen_ndma == 3 && seen_dma[2].dev == SAMPLE_BASE + 0x2000 && seen_dma[2].size == 0x400 &&
+          seen_dma[2].vaddr == buf[2]);
+    CHECK(pc_D_80153F10.reqs == (void *)list && pc_D_80153F10.done == &done && pc_D_80153F10.count == 3 &&
+          pc_D_80153F10.next == 3 && (pc_D_80153F10.pad0 & 0xFF) == 1);
+    CHECK(struct_init_and_call((intptr_t)list, 0, (intptr_t)&done) == 1 && seen_ndma == 3);   /* nothing to do */
 }
 
 static void test_game(void)
@@ -887,5 +948,6 @@ int main(void)
     test_formats();
     test_damaged();
     test_game();
+    test_dma();
     return TEST_DONE();
 }
