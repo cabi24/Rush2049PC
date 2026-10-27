@@ -70,9 +70,24 @@ typedef f32 Mat4f[4][4];
 typedef f32 MtxF[4][4];
 struct OSPfs;
 /* : camera structures (hand-derived from the retail words) */
+#ifdef TARGET_PC
+/* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function (w0C)
+ * are pointers. A camera (a level-object node), its state CamCtl (a heap record of its category) and the scene, a
+ * track WAD's PTHD record with its key list, keep their N64 layout: their pointers are 32-bit window addresses
+ * (docs/port/POINTERS.md 10). */
+enum n64p_Camera { n64p_Camera_ };
+enum n64p_CamCtl { n64p_CamCtl_ };
+enum n64p_CamScene { n64p_CamScene_ };
+enum n64p_CamKey { n64p_CamKey_ };
+typedef struct CamTbl {
+    char *name, *file;
+    void *start;
+    void *w0C;
+#else
 typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
     u8 pad00[0xC];
     s32 w0C;
+#endif
     s16 mode;                    /* 0x10 */
     s16 s12;
     s16 s14;
@@ -86,7 +101,7 @@ typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
 } CamTbl;
 extern CamTbl D_80117530[];
 #ifdef TARGET_PC
-#define N64P(x) ((struct Camera *)(uintptr_t)(x))
+#define N64P(x) _Generic((x), enum n64p_Camera: (struct Camera *)(uintptr_t)(x), enum n64p_CamCtl: (struct CamCtl *)(uintptr_t)(x), enum n64p_CamScene: (struct CamScene *)(uintptr_t)(x), enum n64p_CamKey: (CamKey *)(uintptr_t)(x), default: (x))
 #define N64W(x) ((u32)(uintptr_t)(x))
 #else
 #define N64P(x) x
@@ -98,9 +113,9 @@ typedef struct CamNode {         /* pool entry from func_80090284 */
     u8 pad06[6];
 #ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-    u32 cam;                     /* 0x0C: a gCamera entry's window address */
+    enum n64p_Camera cam;        /* 0x0C: the camera's window address */
     f32 f10;                     /* 0x10 */
-    intptr_t w14;
+    void *w14;
 #else
     struct Camera *cam;          /* 0x0C */
     f32 f10;                     /* 0x10 */
@@ -119,6 +134,19 @@ typedef struct CamKey {          /* 0x44 bytes */
     f32 f3C;
     s32 flags;                   /* 0x40 */
 } CamKey;
+#ifdef TARGET_PC
+typedef struct CamScene {
+    u8 pad00[0x10];
+    s32 flags;                   /* 0x10 */
+    s16 count;                   /* 0x14 */
+    s16 id;                      /* 0x16 */
+    enum n64p_CamScene link;     /* 0x18 */
+    enum n64p_CamKey keys;       /* 0x1C */
+    enum n64p_CamCtl cur;        /* 0x20 */
+} CamScene;
+typedef struct CamCtl {
+    enum n64p_CamScene scene;    /* 0x00 */
+#else
 typedef struct CamScene {
     u8 pad00[0x10];
     s32 flags;                   /* 0x10 */
@@ -130,6 +158,7 @@ typedef struct CamScene {
 } CamScene;
 typedef struct CamCtl {
     CamScene *scene;             /* 0x00 */
+#endif
     f32 t;                       /* 0x04 */
     u8 pad08[4];
     s16 idx;                     /* 0x0C */
@@ -158,7 +187,11 @@ typedef struct Camera {
     s8 state;                    /* 0x64 */
     s8 s65;
     u8 pad66[6];
+#ifdef TARGET_PC
+    enum n64p_CamCtl ctl;        /* 0x6C */
+#else
     CamCtl *ctl;                 /* 0x6C */
+#endif
 } Camera;
 extern u8 rspbootTextStart[], rspbootTextEnd[];
 extern u8 gspF3DEX2_fifoTextStart[], gspF3DEX2_fifoTextEnd[];
@@ -3875,11 +3908,11 @@ void camera_free_look(Camera *cam) {
     s32 near;
     f32 dist;
 
-    ctl = cam->ctl;
-    sc = cam->ctl->scene;
+    ctl = N64P(cam->ctl);
+    sc = N64P(N64P(cam->ctl)->scene);
     idx = ctl->idx;
-    k = &sc->keys[idx];
-    keys = sc->keys;
+    k = &N64P(sc->keys)[idx];
+    keys = N64P(sc->keys);
     if (k->flags & 0x20) {
         goto plain;
     }
@@ -3933,7 +3966,7 @@ void PlayMoveSound(Camera *cam) {
     if (cam->state == 1) {
         if (cam->handle != -1) {
             if (D_80117530[cam->tbl].s20 == 1) {
-                dPtr = cam->ctl;
+                dPtr = N64P(cam->ctl);
                 maxVel = dPtr->f14;
                 curVel = dPtr->f10;
                 if (!maxVel) {
@@ -3972,8 +4005,8 @@ void camera_build_view_matrix(Camera *cam, s32 idx) {
     CamScene *sc;
     s32 i;
 
-    ctl = cam->ctl;
-    sc = ctl->scene;
+    ctl = N64P(cam->ctl);
+    sc = N64P(ctl->scene);
     if ((sc->flags & 1) && idx >= sc->count - 1) {
         ctl->mode = 8;
     } else {
@@ -3982,26 +4015,26 @@ void camera_build_view_matrix(Camera *cam, s32 idx) {
     ctl->idx = idx;
     ctl->t = 0.0f;
     ctl->f10 = 0.0f;
-    cam->pos[0] = sc->keys[ctl->idx].pos[0];
-    cam->pos[1] = sc->keys[ctl->idx].pos[1];
-    cam->pos[2] = sc->keys[ctl->idx].pos[2];
-    ctl->look[0] = sc->keys[ctl->idx].pos[0];
-    ctl->look[1] = sc->keys[ctl->idx].pos[1];
-    ctl->look[2] = sc->keys[ctl->idx].pos[2];
+    cam->pos[0] = N64P(sc->keys)[ctl->idx].pos[0];
+    cam->pos[1] = N64P(sc->keys)[ctl->idx].pos[1];
+    cam->pos[2] = N64P(sc->keys)[ctl->idx].pos[2];
+    ctl->look[0] = N64P(sc->keys)[ctl->idx].pos[0];
+    ctl->look[1] = N64P(sc->keys)[ctl->idx].pos[1];
+    ctl->look[2] = N64P(sc->keys)[ctl->idx].pos[2];
     if (sc->flags & 0xC0) {
         sc->flags |= 0x100;
-        sc->cur = ctl;
+        sc->cur = N64W(ctl);
     }
     if (sc->flags & 0x5000) {
         sc->flags |= 0x400;
     }
-    func_800BFBE8(cam->m, sc->keys[ctl->idx].rot, 1);
+    func_800BFBE8(cam->m, N64P(sc->keys)[ctl->idx].rot, 1);
     math_utility(cam->m, ctl->mat);
     func_800C0828(ctl->mat);
     for (i = 0; i < 3; i++) {
-        cam->m[0][i] = sc->keys[ctl->idx].scale[0] * cam->m[0][i];
-        cam->m[1][i] = sc->keys[ctl->idx].scale[1] * cam->m[1][i];
-        cam->m[2][i] = sc->keys[ctl->idx].scale[2] * cam->m[2][i];
+        cam->m[0][i] = N64P(sc->keys)[ctl->idx].scale[0] * cam->m[0][i];
+        cam->m[1][i] = N64P(sc->keys)[ctl->idx].scale[1] * cam->m[1][i];
+        cam->m[2][i] = N64P(sc->keys)[ctl->idx].scale[2] * cam->m[2][i];
     }
 }
 
@@ -4025,12 +4058,12 @@ void camera_track_spline(Camera *cam) {
     s32 i;
     s32 j;
 
-    ctl = cam->ctl;
+    ctl = N64P(cam->ctl);
     idx = ctl->idx;
-    sc = ctl->scene;
-    k = &sc->keys[idx];
+    sc = N64P(ctl->scene);
+    k = &N64P(sc->keys)[idx];
     n = sc->count;
-    keys = sc->keys;
+    keys = N64P(sc->keys);
     if (idx < n - 1 || (sc->flags & 2) != 0 || !(sc->flags & 0x80)) {
         if (k->flags & 0x10000008) {
             if (ctl->mode & 8) {
@@ -4155,8 +4188,8 @@ void camera_process_input(Camera *cam) {
 
     cam->state = 2;
     tbl = &D_80117530[cam->tbl];
-    ctl = cam->ctl;
-    sc = cam->ctl->scene;
+    ctl = N64P(cam->ctl);
+    sc = N64P(N64P(cam->ctl)->scene);
     if (!(cam->flags & 1)) {
         ctl->mode = 0;
         ctl->t = 0.0f;
@@ -4167,11 +4200,11 @@ void camera_process_input(Camera *cam) {
             f32 delta[3];
             f32 mat[9];
 
-            s = cam->ctl->scene;
+            s = N64P(N64P(cam->ctl)->scene);
             for (j = 0; j < s->count; j++) {
-                CamKey *k = &s->keys[j];
+                CamKey *k = &N64P(s->keys)[j];
 
-                if (s->keys[j].flags & 0x1000000) {
+                if (N64P(s->keys)[j].flags & 0x1000000) {
                     cam->pos[0] = k->pos[0];
                     cam->pos[1] = k->pos[1];
                     cam->pos[2] = k->pos[2];
@@ -4179,10 +4212,10 @@ void camera_process_input(Camera *cam) {
                 }
             }
             if (s->flags & 0x20) {
-                v[0] = s->keys[0].pos[0];
-                v[1] = s->keys[0].pos[1];
-                v[2] = s->keys[0].pos[2];
-                func_800BFBE8(mat, s->keys[0].rot, 1);
+                v[0] = N64P(s->keys)[0].pos[0];
+                v[1] = N64P(s->keys)[0].pos[1];
+                v[2] = N64P(s->keys)[0].pos[2];
+                func_800BFBE8(mat, N64P(s->keys)[0].rot, 1);
                 func_800C0828(mat);
                 delta[0] = cam->pos[0] - v[0];
                 delta[1] = cam->pos[1] - v[1];
@@ -4196,15 +4229,15 @@ void camera_process_input(Camera *cam) {
             }
             mx = 0.0f;
             for (i = 0; i < sc->count; i++) {
-                if (mx < sc->keys[i].f3C) {
-                    mx = sc->keys[i].f3C;
+                if (mx < N64P(sc->keys)[i].f3C) {
+                    mx = N64P(sc->keys)[i].f3C;
                 }
             }
             ctl->f14 = mx;
             for (i = 0; i < sc->count; i++) {
-                if ((sc->keys[i].flags & 1) && !(sc->keys[i].flags & 0x1000)) {
+                if ((N64P(sc->keys)[i].flags & 1) && !(N64P(sc->keys)[i].flags & 0x1000)) {
                     camera_build_view_matrix(cam, i);
-                    sc->keys[i].flags |= 0x1000;
+                    N64P(sc->keys)[i].flags |= 0x1000;
                     i = sc->count;
                 }
             }
@@ -4287,8 +4320,8 @@ void camera_update(CamNode *node, s16 flag) {
     }
     if (((state_word_a & 0x7C0000) || (state_word_a & 8)) && D_801170FC == 0) {
         cam = N64P(node->cam);
-        ctl = cam->ctl;
-        sc = ctl->scene;
+        ctl = N64P(cam->ctl);
+        sc = N64P(ctl->scene);
         if (sc->flags & 0x40) {
             if (sc->flags & 0x4000) {
                 if (!(sc->flags & 0x200)) {
@@ -4296,7 +4329,7 @@ void camera_update(CamNode *node, s16 flag) {
                         if (ctl->mode & 4) {
                             ctl->mode &= ~4;
                             ctl->mode |= 8;
-                            ctl->t = sc->keys[ctl->idx].dur - ctl->t;
+                            ctl->t = N64P(sc->keys)[ctl->idx].dur - ctl->t;
                         }
                         if (sc->flags & 0x100) {
                             camera_aspect_ratio(cam);
@@ -4312,7 +4345,7 @@ void camera_update(CamNode *node, s16 flag) {
                 }
             } else {
                 if ((sc->flags & 0x2000) && (sc->flags & 0x100000)) {
-                    if (sc->link->flags & 0x100) {
+                    if (N64P(sc->link)->flags & 0x100) {
                         sc->flags &= ~0x100000;
                         sc->flags |= 0x200400;
                         if (!(sc->flags & 0x8000)) {
@@ -4323,19 +4356,19 @@ void camera_update(CamNode *node, s16 flag) {
                     }
                 }
                 if ((sc->flags & 0x400) && (sc->flags & 0x200)) {
-                    lk = sc->link;
+                    lk = N64P(sc->link);
                     if (lk->flags & 0x100) {
                         lk->flags &= ~0x100;
                     } else if (sc->flags & 0x1000) {
-                        lc = lk->cur;
+                        lc = N64P(lk->cur);
                         if (lc->mode & 8) {
                             lc->mode &= ~8;
                             lc->mode |= 4;
-                            lc->t = lk->keys[lc->idx].dur - lc->t;
+                            lc->t = N64P(lk->keys)[lc->idx].dur - lc->t;
                         } else {
                             lc->mode &= ~4;
                             lc->mode |= 8;
-                            lc->t = lk->keys[lc->idx].dur - lc->t;
+                            lc->t = N64P(lk->keys)[lc->idx].dur - lc->t;
                         }
                     }
                     sc->flags = sc->flags & ~0x700;
@@ -4372,7 +4405,7 @@ void camera_update(CamNode *node, s16 flag) {
             idx = ctl->idx;
             do {
                 fr = ctl->t;
-                f = sc->keys[idx].dur;
+                f = N64P(sc->keys)[idx].dur;
                 if (f <= fr) {
                     ctl->t = fr - f;
                     if (ctl->mode & 8) {
@@ -4410,7 +4443,7 @@ void camera_update(CamNode *node, s16 flag) {
                     } else {
                         ctl->idx = idx + 1;
                         idx = ctl->idx;
-                        if (sc->keys[idx].flags & 0x40) {
+                        if (N64P(sc->keys)[idx].flags & 0x40) {
                             i = 1;
                             sc->flags |= 0x100;
                             ctl->t = 0.0f;
@@ -4438,11 +4471,11 @@ void camera_update(CamNode *node, s16 flag) {
                     i = 1;
                 }
             } while (i == 0);
-            idx = sc->keys[idx].flags;
+            idx = N64P(sc->keys)[idx].flags;
             if (!(idx & 2)) {
                 camera_track_spline(cam);
                 moved = 1;
-                idx = sc->keys[ctl->idx].flags;
+                idx = N64P(sc->keys)[ctl->idx].flags;
             }
             if (!(idx & 0x10) || !(idx & 4)) {
                 moved = 1;
@@ -4475,7 +4508,7 @@ void camera_update(CamNode *node, s16 flag) {
                     flag = cam->s58 + idx;
                     if (flag != cam->s50) {
                         m = (&D_801427C0)[flag];
-                        lk = sc->link;
+                        lk = N64P(sc->link);
                         if (lk) {}
                         if (sc->flags & 0x8000) {
                         } else {
@@ -4489,33 +4522,33 @@ void camera_update(CamNode *node, s16 flag) {
 block_99:
                 if (tb->mode == 4) {
                     if (ctl->mode & 8) {
-                        dv[0] = sc->keys[ctl->idx].dir[0] * -ctl->f10;
-                        dv[1] = sc->keys[ctl->idx].dir[1] * -ctl->f10;
-                        dv[2] = sc->keys[ctl->idx].dir[2] * -ctl->f10;
+                        dv[0] = N64P(sc->keys)[ctl->idx].dir[0] * -ctl->f10;
+                        dv[1] = N64P(sc->keys)[ctl->idx].dir[1] * -ctl->f10;
+                        dv[2] = N64P(sc->keys)[ctl->idx].dir[2] * -ctl->f10;
                     } else {
-                        dv[0] = sc->keys[ctl->idx].dir[0] * ctl->f10;
-                        dv[1] = sc->keys[ctl->idx].dir[1] * ctl->f10;
-                        dv[2] = sc->keys[ctl->idx].dir[2] * ctl->f10;
+                        dv[0] = N64P(sc->keys)[ctl->idx].dir[0] * ctl->f10;
+                        dv[1] = N64P(sc->keys)[ctl->idx].dir[1] * ctl->f10;
+                        dv[2] = N64P(sc->keys)[ctl->idx].dir[2] * ctl->f10;
                     }
                     func_800AB750(cam->s65, dv, cam->pos, cam->m);
                 }
                 idx = ctl->idx;
-                if (!(sc->keys[idx].flags & 0x10)) {
+                if (!(N64P(sc->keys)[idx].flags & 0x10)) {
                     nx = idx + 1;
                     if (nx >= sc->count) {
                         nx = 0;
                     }
                     if (ctl->mode & 8) {
-                        f = sc->keys[idx].dur;
+                        f = N64P(sc->keys)[idx].dur;
                         tt = f - ctl->t;
                     } else {
                         tt = ctl->t;
-                        f = sc->keys[idx].dur;
+                        f = N64P(sc->keys)[idx].dur;
                     }
                     fr = tt / f;
-                    if (sc->keys[idx].dur != 0.0f) {}
+                    if (N64P(sc->keys)[idx].dur != 0.0f) {}
                     for (i = 0; i < 3; i++) {
-                        sv[i] = sc->keys[ctl->idx].scale[i] + (sc->keys[nx].scale[i] - sc->keys[ctl->idx].scale[i]) * fr;
+                        sv[i] = N64P(sc->keys)[ctl->idx].scale[i] + (N64P(sc->keys)[nx].scale[i] - N64P(sc->keys)[ctl->idx].scale[i]) * fr;
                     }
                     for (i = 0; i < 3; i++) {
                         cam->m[0][i] *= sv[0];

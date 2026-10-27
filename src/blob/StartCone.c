@@ -41,6 +41,28 @@ typedef struct Motion {
     f32 vel[3];
 } Motion;
 
+#ifdef TARGET_PC
+/* PC: a target (a level-object node) keeps its N64 layout; its state, the cone's motion, is a heap record of its
+ * category, held as a 32-bit window address (docs/port/POINTERS.md 10). */
+enum n64p_Motion { n64p_Motion_ };
+typedef struct Obj {
+    u8 pad0[4];
+    u8 flags;
+    u8 pad5[7];
+    s32 model;
+    s16 type;
+    u8 pad12[2];
+    f32 pos[3];
+    u8 pad20[56 - 32];
+    u8 f56[12];
+    u8 f68[12];
+    s16 kind;
+    u8 pad52[92 - 82];
+    s8 car;
+    u8 pad5D[108 - 93];
+    enum n64p_Motion motion;
+} Obj;
+#else
 typedef struct Obj {
     u8 pad0[4];
     u8 flags;
@@ -58,7 +80,22 @@ typedef struct Obj {
     u8 pad5D[108 - 93];
     Motion *motion;
 } Obj;
+#endif
 
+#ifdef TARGET_PC
+/* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
+ * pointers (docs/port/POINTERS.md 10). */
+typedef struct ObjType {
+    char *name, *file;
+    void *start;
+    void *f12;
+    u8 pad10[4];
+    s16 id;
+    u8 pad16[6];
+    s32 f28;
+    u8 pad20[48 - 32];
+} ObjType;
+#else
 typedef struct ObjType {
     u8 pad0[12];
     s32 f12;
@@ -68,6 +105,7 @@ typedef struct ObjType {
     s32 f28;
     u8 pad20[48 - 32];
 } ObjType;
+#endif
 
 typedef struct Car {
     u8 pad0[20];
@@ -99,7 +137,7 @@ typedef struct Node {
     u8 pad6[6];
     u32 obj;
     f32 f16;
-    intptr_t f20;
+    void *f20;
 } Node;
 #else
 typedef struct Node {
@@ -113,7 +151,7 @@ typedef struct Node {
 #endif
 
 #ifdef TARGET_PC
-#define N64P(x) ((Obj *)(uintptr_t)(x))
+#define N64P(x) _Generic((x), enum n64p_Motion: (Motion *)(uintptr_t)(x), default: (x))
 #define N64W(x) ((u32)(uintptr_t)(x))
 #else
 #define N64P(x) x
@@ -178,8 +216,8 @@ void StartCone(Obj *obj)
     vis->obj = N64W(obj);
     vis->f16 = 5.0f;
     obj->flags &= ~6;
-    vel = obj->motion->vel;
-    angV = obj->motion;
+    vel = N64P(obj->motion)->vel;
+    angV = N64P(obj->motion);
     vel[0] = car->vel[0] * 0.125f;
     vel[1] = car->vel[1] * 0.125f;
     vel[2] = car->vel[2] * 0.125f;

@@ -45,6 +45,17 @@ typedef struct Object {
 
 typedef s32 (*HitFunc)(void *, void *, void *, s32);
 
+#ifdef TARGET_PC
+/* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
+ * pointers (docs/port/POINTERS.md 10). */
+typedef struct ObjType {
+    char *name, *file;
+    void (*onHit)(Object *);
+    void *visual;
+    s16 shape;
+    char pad12[30];
+} ObjType;
+#else
 typedef struct ObjType {
     char pad0[8];
     void (*onHit)(Object *);
@@ -52,6 +63,7 @@ typedef struct ObjType {
     s16 shape;
     char pad12[30];
 } ObjType;
+#endif
 
 typedef struct Node {
     struct Node *next;

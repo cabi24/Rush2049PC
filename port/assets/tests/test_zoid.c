@@ -14,6 +14,7 @@
  */
 #include <string.h>
 
+#include "pc_prelude.h"
 #include "support.h"
 
 /* particle_knot's Node: the layout every PC view of the table has. */
@@ -74,26 +75,10 @@ char *func_800A464C(char *s, char *find) { return strstr(s, find); }
 void entity_transform_apply(void *node, int32_t unlink) {}
 void audio_channel_setup(void) {}
 
-/* func_8010D85C's Model and Obj views, host layout. */
-typedef struct {
-    uint8_t pad0[4];
-    uint8_t flags;
-    uint8_t pad5[9];
-    int16_t id;
-    uint8_t pad10[0x5A - 0x10];
-    int16_t f5A;
-    uint8_t pad5C[0x6C - 0x5C];
-    char *name;
-} Model;
-typedef struct {
-    uint8_t pad0[4];
-    int16_t team;
-    uint8_t pad6[6];
-    Model *model;
-    float f10;
-    void (*fn)();
-} Obj;
-void func_8010D85C(Obj *obj, int16_t mode);
+/* func_8010D85C's obj is a visual (struct pc_visual): its data is the flag, a level-object node that keeps its
+ * N64 layout (0x70 bytes), and the node's state (+0x6C) is the flag's place record, here its name; both are window
+ * addresses (docs/port/POINTERS.md 10). */
+void func_8010D85C(struct pc_visual *obj, int16_t mode);
 
 typedef struct {
     float rot[3][3], pos[3];
@@ -162,19 +147,21 @@ int main(void)
     CHECK(g_math_src == &views[0] && g_math_dst == &views[3]);
 
     /* The capture-the-flag flag: its palette lookup lands whole in the palette slot. */
-    {
-        Model m;
-        Obj o;
-        memset(&m, 0, sizeof(m));
+    if (w) {
+        uint8_t *m = w + 0x300000;              /* the flag's node, in the window */
+        char *name = (char *)(w + 0x300100);
+        struct pc_visual o;
+        memset(m, 0, 0x70);
         memset(&o, 0, sizeof(o));
-        m.id = c;
-        m.name = "FLAG_GRN_OFF3";
-        o.model = &m;
+        *(int16_t *)(m + 0xE) = c;
+        strcpy(name, "FLAG_GRN_OFF3");
+        *(uint32_t *)(m + 0x6C) = (uint32_t)(uintptr_t)name;
+        o.data = (uint32_t)(uintptr_t)m;
         D_8012E700[c].pal = NULL;
         func_8010D85C(&o, 1);
         CHECK(g_pal_name == D_80118E08[1]);
-        CHECK(D_8012E700[c].pal == g_palette && (m.flags & 1) && m.f5A == 10 && o.team == 3);
-        CHECK(o.fn == (void (*)())audio_channel_setup);
+        CHECK(D_8012E700[c].pal == g_palette && (m[4] & 1) && *(int16_t *)(m + 0x5A) == 10 && o.index == 3);
+        CHECK(o.func == (void (*)(void *, short))audio_channel_setup && o.timeStamp == 0.0f);
     }
 
     /* Hiding walks the children; the collision walk follows them. */

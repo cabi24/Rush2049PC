@@ -44,6 +44,18 @@ typedef struct Visual {
 } Visual;
 #endif
 
+#ifdef TARGET_PC
+/* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
+ * pointers (docs/port/POINTERS.md 10). */
+typedef struct TargInfo {
+    char *name, *file;
+    void *start;
+    void *visFunc;          /* 0x0C */
+    u8 pad10[12];
+    s32 sound;              /* 0x1C */
+    u8 pad20[16];
+} TargInfo;
+#else
 typedef struct TargInfo {
     u8 pad0[12];
     void *visFunc;          /* 0x0C */
@@ -51,6 +63,7 @@ typedef struct TargInfo {
     s32 sound;              /* 0x1C */
     u8 pad20[16];
 } TargInfo;                 /* 0x30 */
+#endif
 
 typedef struct Target {
     u8 pad0[4];

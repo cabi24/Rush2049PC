@@ -37,6 +37,27 @@ typedef struct Coin {
     s16 number;         /* 74 */
 } Coin;
 typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
+#ifdef TARGET_PC
+/* PC: node is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data the target, a
+ * level-object node, which keeps its N64 layout: both as 32-bit window addresses, as is the target's state, the
+ * coin (a heap record of its category) (docs/port/CARS.md, POINTERS.md 10). */
+enum n64p_Coin { n64p_Coin_ };
+enum n64p_Entity { n64p_Entity_ };
+typedef struct Entity {
+    u8 pad0[4];
+    u8 flags;           /* 4 */
+    u8 pad5[7];
+    Id id;              /* 12 */
+    u8 pad16[40];
+    f32 position[3];    /* 56 */
+    u8 pad68[40];
+    enum n64p_Coin coin; /* 108 */
+} Entity;
+typedef struct EntityHdr { u8 pad0[2]; s16 handle; } EntityHdr;
+typedef struct Node { void *next; u8 pad8[8]; enum n64p_Entity entity; } Node;
+#define N64P(x) _Generic((x), enum n64p_Coin: (Coin *)(uintptr_t)(x), enum n64p_Entity: (Entity *)(uintptr_t)(x), \
+    default: (x))
+#else
 typedef struct Entity {
     u8 pad0[4];
     u8 flags;           /* 4 */
@@ -49,6 +70,8 @@ typedef struct Entity {
 } Entity;
 typedef struct EntityHdr { u8 pad0[2]; s16 handle; } EntityHdr;
 typedef struct Node { u8 pad0[12]; Entity *entity; } Node;
+#define N64P(x) x
+#endif
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; s16 object; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad64[4]; } Resource;
@@ -105,8 +128,8 @@ void func_8010E0FC(Node *node, s16 update)
         return;
     }
     if (D_801170FC) return;
-    entity = node->entity;
-    coin = entity->coin;
+    entity = N64P(node->entity);
+    coin = N64P(entity->coin);
     if (entity->flags & 0x80) {
         entity_spawn_callback(((EntityHdr *)coin)->handle, 0, 0);
         entity_spawn_callback(entity->id.part.index, 0, 0);
@@ -162,7 +185,7 @@ void func_8010E0FC(Node *node, s16 update)
         }
         entity->flags |= 1;
     }
-    rate = entity->coin->spin;
+    rate = N64P(entity->coin)->spin;
     spin[0] = rate[0] * D_8002EB94;
     spin[1] = rate[1] * D_8002EB94;
     spin[2] = rate[2] * D_8002EB94;

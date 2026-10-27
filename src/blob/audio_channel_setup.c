@@ -29,6 +29,18 @@ typedef struct Model {
     s16 base;
     s16 count;
 } Model;
+#ifdef TARGET_PC
+/* PC: obj is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data is the target, a
+ * level-object node, as a 32-bit window address (docs/port/CARS.md, POINTERS.md 10). */
+typedef struct Obj {
+    void *next;
+    s16 frame;
+    u8 pad6[6];
+    unsigned int model;
+    f32 timer;
+} Obj;
+#define N64P(x) ((Model *)(uintptr_t)(x))
+#else
 typedef struct Obj {
     u8 pad0[4];
     s16 frame;
@@ -36,13 +48,21 @@ typedef struct Obj {
     Model *model;
     f32 timer;
 } Obj;
+#define N64P(x) x
+#endif
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Ent { unsigned int flags, w4; void *obj; f32 scale, w; u16 tex; s16 child, next, mode; void *light, *texture[4], *rect, *clip, *pal; unsigned int prim, env; } Ent;
 #else
 typedef struct Ent { u8 pad0[0x14]; u16 tex; u8 pad16[0x44 - 0x16]; } Ent;
 #endif
+#ifdef TARGET_PC
+/* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
+ * pointers (docs/port/POINTERS.md 10). */
+typedef struct Kind { char *name, *file; void *start, *visual; u8 pad10[2]; u16 flags; u8 pad14[0x30 - 0x14]; } Kind;
+#else
 typedef struct Kind { u8 pad0[0x12]; u16 flags; u8 pad14[0x30 - 0x14]; } Kind;
+#endif
 extern s32 D_801170FC;
 extern volatile f32 D_8002EB94;
 extern Kind D_80117530[];
@@ -67,7 +87,7 @@ apply:
     if (D_801170FC != 0) {
         return;
     }
-    m = obj->model;
+    m = N64P(obj->model);
     obj->timer -= D_8002EB94;
     if (obj->timer > 0.0f) {
         return;

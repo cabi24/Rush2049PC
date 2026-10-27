@@ -799,6 +799,7 @@ void func_8010C7F4(void *arg0);
 
 #ifndef TARGET_PC
 #define CAR_OFS(n) n
+#define TINFO_OFS(n) n
 #endif
 void func_8010C7F4(void *arg0) {
     s32 pad;
@@ -821,6 +822,6 @@ void func_8010C7F4(void *arg0) {
             func_8038d3a4(&player_array[M2C_FIELD(arg0, s8 *, 0x65)], car, 0x320);
         }
         M2C_FIELD(arg0, u8 *, 4) &= 0xFFFD;
-        stat_lap_split(*(s32 *)((u8 *)&D_8011754C + M2C_FIELD(arg0, s16 *, 0x10) * 0x30), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *)arg0 + 0x38, 2);
+        stat_lap_split(*(s32 *)((u8 *)&D_8011754C + M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *)arg0 + 0x38, 2);
     }
 }

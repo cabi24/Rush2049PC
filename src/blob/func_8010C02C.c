@@ -51,12 +51,25 @@ typedef struct {
     f32 xmin, xmax, zmax, zmin, ymax, ymin, radius;
     f32 mass;
 } CollisionBounds;
+#ifdef TARGET_PC
+/* PC: the dead-reckoning records (D_80150F38, a heap block of 64-byte records) keep their N64 layout: body is a
+ * 32-bit window address of arena data (level_objects' Matrix64, docs/port/POINTERS.md 10). */
+typedef struct {
+    unsigned int body;
+    f32 basis[3][3];
+    f32 position[3];
+    f32 velocity[3];
+} CollisionReckon;
+#define BODY(r) ((CollisionBounds *)(uintptr_t)(r)->body)
+#else
 typedef struct {
     CollisionBounds *body;
     f32 basis[3][3];
     f32 position[3];
     f32 velocity[3];
 } CollisionReckon;
+#define BODY(r) r->body
+#endif
 extern CollisionModel D_8014A250[];
 extern CollisionReckon *D_80150F38;
 void func_8009E820(f32 *, f32 *, f32 *);
@@ -85,7 +98,7 @@ s32 func_8010C02C(CollisionObject *object, s16 *index, void *arg2, s32 arg3) {
     for (i = 0, distance = 0.0; i < 3; i++) {
         distance += delta[i] * delta[i];
     }
-    radius = other->body->radius + car->radius;
+    radius = BODY(other)->radius + car->radius;
     radius_squared = radius * radius;
     if (distance > radius_squared) {
         return 0;
@@ -99,11 +112,11 @@ s32 func_8010C02C(CollisionObject *object, s16 *index, void *arg2, s32 arg3) {
         world.c.y -= other->position[1];
         world.c.z -= other->position[2];
         func_800A61B0(world.v, local, other->basis[0]);
-        if (local[0] > other->body->xmax || local[0] < other->body->xmin) {
+        if (local[0] > BODY(other)->xmax || local[0] < BODY(other)->xmin) {
             hit = 0;
-        } else if (local[1] > other->body->ymax || local[1] < other->body->ymin) {
+        } else if (local[1] > BODY(other)->ymax || local[1] < BODY(other)->ymin) {
             hit = 0;
-        } else if (local[2] > other->body->zmax || local[2] < other->body->zmin) {
+        } else if (local[2] > BODY(other)->zmax || local[2] < BODY(other)->zmin) {
             hit = 0;
         } else {
             hit = 1;
