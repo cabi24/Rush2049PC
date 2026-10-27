@@ -31,6 +31,7 @@ void pc_audio_run_task_form(const void *sfds, size_t count, int form);
 /* Device-rate stereo frames out of the queue; the rest of out is zero-filled. Returns frames that were
  * queued. Backends call this from their own thread. */
 size_t pc_audio_pull(int16_t *out, size_t frames);
+/* pc_audio_set_volume (pc_port.h) scales what pc_audio_pull returns. */
 uint32_t pc_audio_device_rate(void);   /* 0 until a rate is known */
 const char *pc_audio_backend_name(void);
 

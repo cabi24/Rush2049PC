@@ -108,7 +108,7 @@ between them.
 | `musyx_abi.h` | the records: N64-form offsets, native-form structs (`PcMusyxSfd`, `PcMusyxVoice`, `PcMusyxCat`, `PcMusyxDelay`) |
 | `musyx.c` | the interpreter; `pc_audio_run_task` |
 | `musyx_lut.c` | the resample table |
-| `audio_out.c` | the queue: `pc_audio_init/shutdown/set_frequency/push/queued_frames/pull` |
+| `audio_out.c` | the queue: `pc_audio_init/shutdown/set_frequency/push/queued_frames/pull`; the volume |
 | `resample.c` | device-rate conversion: polyphase windowed sinc, 32 taps, 256 phases, Kaiser β 6, cutoff 0.45 × the lower rate |
 | `out_wav.c` | WAV writer (header rewritten about every second) and reader (tests) |
 | `out_sdl.c`, `out_alsa.c` | device backends, compiled only when CMake finds SDL2 or the ALSA headers |
@@ -160,6 +160,15 @@ Without `pc_audio_init`, the first call initializes from the environment:
 - `RUSH2049_AUDIO_RATE` forces a device rate.
 - `RUSH2049_ALSA_DEVICE` names the ALSA device (`default` otherwise).
 
+**The volume** (2026-10-27). `pc_audio_set_volume(v)`, v from 0 to 1, is `audio.volume / 100`: main sets it at
+start and the settings overlay as it changes ([FRONTEND.md](FRONTEND.md)).
+- The gain is v², so the slider's middle is about -12 dB and 10 about -40 dB, in Q16 under the queue's lock.
+- It scales what `pc_audio_pull` returns, so it applies to the device backends at once, and the dump file keeps
+  what the game played. At 1 the samples are untouched.
+- It holds across `pc_audio_init`. The backend itself changes only at start: `pc_audio_init` shuts the output down
+  and opens it again, which isn't safe while the game's threads may call into port/audio, so the overlay marks
+  `audio.backend` as needing a restart.
+
 ## 4. Tests
 
 ```
@@ -186,6 +195,7 @@ The tests link their own copies of the port/ultra functions (`tests/stubs.c`), i
 | `audio_output` | 25 | queue counts, pulls, underruns, overflow; 22050 → 48000 frequency, amplitude, ratio, chunked = whole; 48000 → 22050 alias rejection; a forced device rate; WAV round trip; the null backend's clock |
 | `audio_e2e` | 14 | four SFDs per task from the game's builder, `pc_audio_run_task`, `pc_audio_push`, the WAV read back. ADPCM 1 kHz at 32 kHz, played at 22050: 999.9480 Hz (expected 999.9481), left 9964.8 (expected about 9960), right/left 0.5, residual 0.19 % rms, worst 0.6 %. PCM16 big-endian 750 Hz at 24 kHz: 749.9611 Hz (expected 749.9611), right inverted at half volume |
 | `audio_backends` | 9 | only when SDL2 or ALSA is built: SDL2's `disk` driver gives a 440.000 Hz tone of the right length; ALSA opens alsa-lib's `null` device and drains |
+| `audio_volume` | 14 | the master volume through the manual backend's pulls: 1 leaves the samples as they were, 0.5 gives a quarter (the extremes 8191 and -8192), 0 silence, values past either end clamp, and it holds across a re-init |
 
 Result on the Pi 5: 9 of 9 tests pass (159 checks). With SDL2 2.26.5 and ALSA 1.2.8 headers unpacked locally
 (not installed, not committed), 10 of 10 pass (168 checks).
