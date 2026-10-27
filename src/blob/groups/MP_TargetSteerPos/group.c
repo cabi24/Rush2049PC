@@ -3711,6 +3711,33 @@ s32 MP_TargetSteerPos(void *ipa_s0, f32 ipa_f20, f32 ipa_f22) {
     return 1;
 }
 
+#ifdef TARGET_PC
+/* PC: camera_transform walks the sound request list (audio_fade_control/group.c's List and Node), whose pointers
+ * are 8 bytes here; its 24-byte entries have none. Its offsets into a node and the list header are these
+ * (docs/port/MUSYX_DATA.md 8.4). */
+typedef struct { void *prev, *next; u8 kind, busy, pad[2]; void *entry; f32 value, stream, priority, route; } PcSfxNode;
+typedef struct { u32 pad[2]; void *tail, *head; } PcSfxList;
+#define SFX_NODE_NEXT __builtin_offsetof(PcSfxNode, next)
+#define SFX_NODE_KIND __builtin_offsetof(PcSfxNode, kind)
+#define SFX_NODE_BUSY __builtin_offsetof(PcSfxNode, busy)
+#define SFX_NODE_ENTRY __builtin_offsetof(PcSfxNode, entry)
+#define SFX_NODE_VALUE __builtin_offsetof(PcSfxNode, value)
+#define SFX_NODE_STREAM __builtin_offsetof(PcSfxNode, stream)
+#define SFX_NODE_PRIORITY __builtin_offsetof(PcSfxNode, priority)
+#define SFX_NODE_ROUTE __builtin_offsetof(PcSfxNode, route)
+#define SFX_LIST_HEAD __builtin_offsetof(PcSfxList, head)
+#else
+#define SFX_NODE_NEXT 4
+#define SFX_NODE_KIND 8
+#define SFX_NODE_BUSY 9
+#define SFX_NODE_ENTRY 0xC
+#define SFX_NODE_VALUE 0x10
+#define SFX_NODE_STREAM 0x14
+#define SFX_NODE_PRIORITY 0x18
+#define SFX_NODE_ROUTE 0x1C
+#define SFX_LIST_HEAD 0xC
+#endif
+
 void camera_transform(void) {
     f32 temp_f0;
     f32 temp_f0_2;
@@ -3798,12 +3825,12 @@ block_10:
             do {
                 temp_v1_2 = D_80144C48 + var_s0_2;
                 if ((M2C_FIELD(temp_v1_2, s8 *, 0) != 0) && (M2C_FIELD(temp_v1_2, s8 *, 1) != 0) && (func_800201d0(M2C_FIELD((var_s0_2 + D_80144C48), s32 *, 0x10)) == -1)) {
-                    var_s1_2 = M2C_FIELD(&D_80146160, s32 **, 0xC);
+                    var_s1_2 = M2C_FIELD(&D_80146160, s32 **, SFX_LIST_HEAD);
                     temp_v0_2 = D_80144C48;
                     if (var_s1_2 != NULL) {
                         do {
-                            temp_s2 = M2C_FIELD(var_s1_2, s32 **, 4);
-                            if ((temp_v0_2 + var_s0_2) == M2C_FIELD(var_s1_2, s32 *, 0xC)) {
+                            temp_s2 = M2C_FIELD(var_s1_2, s32 **, SFX_NODE_NEXT);
+                            if ((temp_v0_2 + var_s0_2) == M2C_FIELD(var_s1_2, s32 *, SFX_NODE_ENTRY)) {
                                 func_8009211C(&D_80146160, var_s1_2);
                                 func_80091FBC(&D_80146138, var_s1_2, M2C_FIELD(&D_80146138, s32 **, 8));
                             }
@@ -3819,20 +3846,20 @@ block_10:
                 var_s0_2 += 0x18;
             } while (var_s4_2 < D_801460F4);
         }
-        var_s1_3 = M2C_FIELD(&D_80146160, s32 **, 0xC);
+        var_s1_3 = M2C_FIELD(&D_80146160, s32 **, SFX_LIST_HEAD);
         if (var_s1_3 != NULL) {
             do {
-                temp_a0 = M2C_FIELD(var_s1_3, void **, 0xC);
-                temp_s2_2 = M2C_FIELD(var_s1_3, s32 **, 4);
-                if ((temp_a0 != NULL) && (M2C_FIELD(temp_a0, s8 *, 2) != 0) && (M2C_FIELD(var_s1_3, u8 *, 8) != 2)) {
+                temp_a0 = M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY);
+                temp_s2_2 = M2C_FIELD(var_s1_3, s32 **, SFX_NODE_NEXT);
+                if ((temp_a0 != NULL) && (M2C_FIELD(temp_a0, s8 *, 2) != 0) && (M2C_FIELD(var_s1_3, u8 *, SFX_NODE_KIND) != 2)) {
                     func_8009211C(&D_80146160, var_s1_3);
                     func_80091FBC(&D_80146138, var_s1_3, M2C_FIELD(&D_80146138, s32 **, 8));
                 } else if ((temp_a0 == NULL) || (M2C_FIELD(temp_a0, s8 *, 5) == 0)) {
-                    temp_v0_3 = M2C_FIELD(var_s1_3, u8 *, 8);
+                    temp_v0_3 = M2C_FIELD(var_s1_3, u8 *, SFX_NODE_KIND);
                     switch (temp_v0_3) {            /* irregular */
                     case 0:
                         if (D_80144DB8 > 0) {
-                            if (MP_TargetSteerPos(temp_a0, M2C_FIELD(var_s1_3, f32 *, 0x10), M2C_FIELD(var_s1_3, f32 *, 0x14)) == 0) {
+                            if (MP_TargetSteerPos(temp_a0, M2C_FIELD(var_s1_3, f32 *, SFX_NODE_VALUE), M2C_FIELD(var_s1_3, f32 *, SFX_NODE_STREAM)) == 0) {
                                 goto block_109;
                             }
                             D_80144DB8 -= 1;
@@ -3842,11 +3869,11 @@ block_108:
                             func_80091FBC(&D_80146138, var_s1_3, M2C_FIELD(&D_80146138, s32 **, 8));
                         } else {
 block_109:
-                            M2C_FIELD(var_s1_3, u8 *, 9) = (u8) (M2C_FIELD(var_s1_3, u8 *, 9) + 1);
-                            if (M2C_FIELD(var_s1_3, void **, 0xC) != NULL) {
-                                M2C_FIELD(M2C_FIELD(var_s1_3, void **, 0xC), s8 *, 5) = 1;
+                            M2C_FIELD(var_s1_3, u8 *, SFX_NODE_BUSY) = (u8) (M2C_FIELD(var_s1_3, u8 *, SFX_NODE_BUSY) + 1);
+                            if (M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY) != NULL) {
+                                M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s8 *, 5) = 1;
                             }
-                            if (((s32) M2C_FIELD(var_s1_3, u8 *, 9) >= 0xA) && (M2C_FIELD(var_s1_3, u8 *, 8) != 0)) {
+                            if (((s32) M2C_FIELD(var_s1_3, u8 *, SFX_NODE_BUSY) >= 0xA) && (M2C_FIELD(var_s1_3, u8 *, SFX_NODE_KIND) != 0)) {
                                 func_8009211C(&D_80146160, var_s1_3);
                                 func_80091FBC(&D_80146138, var_s1_3, M2C_FIELD(&D_80146138, s32 **, 8));
                             }
@@ -3876,7 +3903,7 @@ block_109:
                         D_801460D8 += 1;
                         goto block_108;
                     case 3:
-                        temp_f0 = M2C_FIELD(var_s1_3, f32 *, 0x10);
+                        temp_f0 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_VALUE);
                         if (temp_f0 != -2.0f) {
                             temp_a2 = M2C_FIELD(temp_a0, s32 *, 0x10);
                             if (temp_a2 == -1) {
@@ -3908,9 +3935,9 @@ block_62:
                             goto block_65;
                         }
 block_65:
-                        temp_f0_2 = M2C_FIELD(var_s1_3, f32 *, 0x14);
+                        temp_f0_2 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_STREAM);
                         if (temp_f0_2 != -2.0f) {
-                            temp_a0_2 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, 0xC), s32 *, 0x10);
+                            temp_a0_2 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s32 *, 0x10);
                             if (temp_a0_2 == -1) {
                                 goto block_75;
                             }
@@ -3940,9 +3967,9 @@ block_75:
                             goto block_78;
                         }
 block_78:
-                        temp_f0_3 = M2C_FIELD(var_s1_3, f32 *, 0x18);
+                        temp_f0_3 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_PRIORITY);
                         if (temp_f0_3 != -2.0f) {
-                            temp_a0_3 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, 0xC), s32 *, 0x10);
+                            temp_a0_3 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s32 *, 0x10);
                             if (temp_a0_3 == -1) {
                                 goto block_88;
                             }
@@ -3972,9 +3999,9 @@ block_88:
                             goto block_91;
                         }
 block_91:
-                        temp_f2 = M2C_FIELD(var_s1_3, f32 *, 0x1C);
+                        temp_f2 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_ROUTE);
                         if (temp_f2 != -2.0f) {
-                            temp_a0_4 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, 0xC), s32 *, 0x10);
+                            temp_a0_4 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s32 *, 0x10);
                             if (temp_a0_4 == -1) {
                                 goto block_104;
                             }
@@ -4010,21 +4037,21 @@ block_104:
                         }
                         goto block_108;
                     case 4:
-                        func_80020518((s32) M2C_FIELD(var_s1_3, f32 *, 0x10) & 0xFF);
+                        func_80020518((s32) M2C_FIELD(var_s1_3, f32 *, SFX_NODE_VALUE) & 0xFF);
                         goto block_108;
                     }
                 }
                 var_s1_3 = temp_s2_2;
             } while (temp_s2_2 != NULL);
         }
-        var_s1_4 = M2C_FIELD(&D_80146160, s32 **, 0xC);
+        var_s1_4 = M2C_FIELD(&D_80146160, s32 **, SFX_LIST_HEAD);
         if (var_s1_4 != NULL) {
             do {
-                temp_a0_5 = M2C_FIELD(var_s1_4, void **, 0xC);
+                temp_a0_5 = M2C_FIELD(var_s1_4, void **, SFX_NODE_ENTRY);
                 if (temp_a0_5 != NULL) {
                     M2C_FIELD(temp_a0_5, s8 *, 5) = 0;
                 }
-                var_s1_4 = M2C_FIELD(var_s1_4, s32 **, 4);
+                var_s1_4 = M2C_FIELD(var_s1_4, s32 **, SFX_NODE_NEXT);
             } while (var_s1_4 != NULL);
         }
     }
