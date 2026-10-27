@@ -80,15 +80,15 @@ Rush2049PC/
 
 ## Phases
 
-| Phase | Goal | Done when | Status (2026-10-26) |
+| Phase | Goal | Done when | Status (2026-10-27) |
 |---|---|---|---|
 | **0. Seed and census** | Repo seeded, PC build compiles everything, census tool committed | `cmake --build` compiles 1,346 files into a library; `tools/port/census.py` reproduces the tables above | Done |
 | **1. It links** | Every undefined symbol has a definition: BSS generated, data generated from the ROM, missing functions stubbed (abort with the name) | `rush2049pc` links and runs until the first stub | Done: 0 function stubs left |
-| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault | Built and self-tested; with a blank cartridge the game runs into its sound loading. **Needs the ROM** |
+| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault | On a blank cartridge the game boots through sndInit and sndPushGroup and stops on missing data (AudioSfxInit); with that data patched in a debugger it runs graphics and audio tasks every retrace. **Needs the ROM** |
 | **3. First picture** | Interpreter + OpenGL + SDL window. 64-bit `Gfx`. Pointer warnings on the boot path fixed. | Midway logo and title screen | Renderer done and tested with synthetic lists; `Gfx` widened. Needs the ROM |
-| **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race | Survey done ([port/ASSETS.md](port/ASSETS.md)); loaders not started |
-| **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain), tested with synthetic tasks |
-| **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart | Controller pak at the SI block level done; SDL input in progress |
+| **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race | A converter for every format, run from `_ReadWave` ([port/LOADERS.md](port/LOADERS.md)): WAD, text bank, fonts, world, road, paths, MusyX. Tested with the game's own readers on synthetic files; needs the ROM to confirm |
+| **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain). MusyX files converted and the library's structures fixed for 64-bit; songs and voices run through the game's own sequencer in tests ([port/MUSYX_DATA.md](port/MUSYX_DATA.md)) |
+| **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart | Controller pak at the SI block level done; keyboard, up to 4 controllers, rumble and `rush2049pc.ini` ([port/FRONTEND.md](port/FRONTEND.md)) |
 | **7. Parity with v5** | v5 is the reference: same `--press` input scripts on both; compare state probes (game state, car positions and speeds per frame), screenshots and audio | Every mode v5's scripted runs cover | `--press` scripts work on the PC build |
 | **8. Features** | Widescreen, high frame rate, settings menu, remapping, texture packs: the V6 list, now plain C edits plus our renderer | Per feature, behind a setting | Internal resolution scale (`RUSH_GFX_SCALE`) |
 
@@ -165,20 +165,54 @@ How far it runs: `rush2049pc --no-rom` (a blank cartridge) runs the game's own `
 the scheduler, audio and render threads, heap setup in the window and `game_late_init` into AudioInitSys. It stops
 in `LoadWave(6)`, where every file size read from the blank cartridge is zero. Going further needs the ROM.
 
+## Third session results (2026-10-27)
+
+The second wave of parallel work, all merged into `main` and checked by CI:
+
+| Part | Where | Document | What it does |
+|---|---|---|---|
+| Asset converters | `port/assets/` | [port/LOADERS.md](port/LOADERS.md) | `_ReadWave` calls `pc_wave_loaded` once per file, which converts it by format: WAD containers (TOC, OBHD, TXHD, PLHD, PTHD/PATH swapped, display lists, vertices and texels left big-endian), text bank (native side tables), fonts, world (WHDR, WOBJ, GDAT, GTLD), road, paths. Each converter checks the file fits before it swaps anything |
+| MusyX | `port/assets/musyx.c`, `src/rom/lib_1*.c` | [port/MUSYX_DATA.md](port/MUSYX_DATA.md) | The project, pool, sample directory and songs swapped at the width the library reads each field. The library's service callbacks, sequencer slots, voice state, DMA request list and stream state now have one layout each on 64-bit |
+| Data in the window | `tools/port/gen_data.py`, `port/data/` | [port/DATA.md](port/DATA.md) | The game's pointer-free data and BSS sit at their N64 addresses inside the RDRAM window, so an N64 address of game data is its host address, and 32-bit fields can hold it. Pointer-holding symbols keep their own storage above 4 GB. Arrays that overlapped their neighbours are bounded (`player_array` is 6 cars) |
+| Front-end records | about 120 game files | [port/POINTERS.md](port/POINTERS.md) §9 | One PC layout for the scene-node table, sprite list, blits and panes, the StatLL pools and the controller pak records; `tools/port/view_check.py` compares every view of a record from DWARF |
+| Prototypes | `tools/port/proto_check.py` | [port/PROTOTYPES.md](port/PROTOTYPES.md) | Cross-file prototype disagreements ranked by what they cost on a 64-bit ABI: 62 harmful at the start, 2 now |
+| N64 neutrality | `include/types.h`, `port/include/pc_prelude.h` | [port/POINTERS.md](port/POINTERS.md) | Every shared file passes `n64_neutral.py`: PC-only statements sit on lines the function already has, through `PC_SPIN`, `PC_ONLY` and `N64_ONLY`, which are empty or the original tokens on the N64 |
+| CI | `.github/workflows/pc.yml` | | x86-64 and aarch64 Linux: build, all tests, the ROM-less boot, the census; the N64 neutrality check. A failing test is run again under gdb |
+
+Bugs found on the way that would have broken the game on a 64-bit or little-endian host:
+
+- **bzero, bcopy, bcmp**: the host versions take a `size_t`, but the game's prototypes declare an `int`, so through about
+  900 calls the length's upper half was undefined. The game now calls 32-bit versions (`port/ultra/n64mem.c`).
+- **The scheduler read each task's done queue at the wrong field**, so it would have blocked after the first
+  graphics task.
+- **x86-64**: game code compiled as PIE reached the absolute N64-address symbols PC-relatively; everything is PIC on
+  x86-64 now, without GOT relaxation. `listener_position_set` read a variable in one call argument that another
+  argument assigns, which only IDO's left-to-right evaluation defines; `-Wsequence-point` is on for game C and finds
+  no other case.
+- **`(char *)-1` sentinels** in ROM tables came out as 0x00000000FFFFFFFF; the loader now sign-extends small
+  negatives.
+
+Numbers: 1,341 of 1,341 files compile, 332 pointer warnings, 1 undefined name, 53 tests here (62 in CI, where SDL2
+and ALSA are installed), 0 neutrality failures in 817 changed files.
+
+How far it runs: `rush2049pc --no-rom` boots on both architectures through the game's init, the text bank, the MusyX
+project, pool and sample directory, sndInit and sndPushGroup, and stops in AudioSfxInit, where the blank cartridge's
+zero sample-cache count corrupts the heap (the N64 would do the same with those bytes).
+
 ## Next
 
 1. **The ROM.** Put `baserom.us.z64` in the repository root (git-ignored). Then:
    - `build/pc/rush2049pc_datacheck` checks the data loader on real data.
-   - `build/pc/rush2049pc --headless --stop-at-gfx`, then `--screenshot-at N`, is the Phase 2 and Phase 3 bring-up
-     loop: run, read the backtrace, fix.
+   - `RUSH_TRACE_WAVES=1 build/pc/rush2049pc --headless --stop-at-gfx`, then `--screenshot-at N`, is the bring-up
+     loop: run, read the backtrace, fix. The converters log any file that doesn't parse (LOADERS.md and
+     MUSYX_DATA.md list what to check first).
 2. **N64 check on the Rocky host.** Run `make` to confirm the ROM still matches. `tools/port/n64_neutral.py --base
-   09da2f0` is the local proof; the real check is IDO.
-3. **Phase 4 loaders.** Hook `_ReadWave` for the per-format byte swaps in ASSETS.md §5, starting with the text bank,
-   the MusyX files and fonts.
-4. **Declarations that disagree** across files: 107 pointer, 80 width (`build/pc/pc-data/data_layout.txt`). Also the
-   cross-file prototype mismatches that aarch64 exposes (POINTERS.md).
-5. **SDL2.** Install `libsdl2-dev`, or configure with `-DRUSH_FETCH_SDL2=ON`, for a window, controllers and audio
-   output.
+   09da2f0` is the local proof, and CI runs it; the real check is IDO.
+3. **Car and model records** on 64-bit, and **byte order in type-punned storage** (colours stored as words and read
+   as bytes): in progress.
+4. **Race-time records** that still disagree (POINTERS.md 9.9) and the two remaining prototype mismatches.
+5. **Other platforms.** Windows needs the window at 0x80000000 (VirtualAlloc) and a way for code to reach absolute
+   symbols; macOS on arm64 reserves the low 4 GB (`__PAGEZERO`), so it would need address translation instead.
 
 ## Decisions
 
