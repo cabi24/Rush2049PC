@@ -329,8 +329,9 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
 - **Graphics.** The models are untextured boxes and a checker of tiles with their own render state, and the menus'
   blit tables and button records are zero (black menus): texture loads, the combiners the real models set, fog,
   lighting, the front end's 3D buttons and 2D panes, and mirroring have not been drawn on the synthetic cartridge.
-- **Windows.** The paths run in both Windows CI jobs (section 2), which this work could not run itself (no Windows
-  host or wine): their first CI run is their first run on Windows.
+- **Windows.** The paths run in both Windows CI jobs (section 2). Their first run there faulted at once, on an
+  argument the Microsoft x64 convention passes in a stack slot ([WINDOWS.md](WINDOWS.md) 4). Now all 14 pass there,
+  to the same states, in times within the Linux runners' range.
 
 ## 5. Changing it
 
