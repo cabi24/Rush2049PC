@@ -5,6 +5,9 @@
 #   cmake --build build/pc
 #   python3 tools/port/census.py --build build/pc      # docs/port/STATUS.md
 cmake_minimum_required(VERSION 3.20)
+if(CMAKE_VERSION VERSION_LESS 3.24)   # $<LINK_LIBRARY:WHOLE_ARCHIVE,...> below
+    message(FATAL_ERROR "The PC build needs CMake 3.24 or later; this is ${CMAKE_VERSION} (pip install cmake gives a newer one)")
+endif()
 project(Rush2049PC C)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
