@@ -1,4 +1,8 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef int intptr_t;
+#endif
 /*
  * func_800E1AA0 (0x800E1AA0, 400 bytes): N64-only car drag/brake term (no arcade ancestor
  * found; 12000.0f = 100 * 120 is an N64 constant).  Subtracts from the car's f320 accumulator:
@@ -16,6 +20,38 @@
  */
 typedef float f32; typedef int s32; typedef short s16; typedef unsigned char u8;
 typedef struct Sub { u8 p0[36]; f32 f36; } Sub;
+#ifdef TARGET_PC
+enum n64p_Sub { n64p_Sub_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Car {
+    u8 p0[4];
+    enum n64p_Sub sub;
+    u8 p8[56];
+    f32 f64;
+    u8 p68[4];
+    f32 f72;
+    u8 p76[4];
+    f32 f80;
+    u8 p84[236];
+    f32 f320;
+    u8 p324[656];
+    f32 f980;
+    u8 p984[24];
+    f32 f1008;
+    u8 p1012[440];
+    f32 f1452;
+    u8 p1456[92];
+    s32 w1548;
+    s32 w1552;
+    u8 p1556[268];
+    f32 f1824;
+    u8 p1828[166];
+    s16 h1994;
+    u8 p1996[8];
+    s32 flags2004;
+} Car;
+#else
 typedef struct Car {
     u8 p0[4];
     Sub *sub;
@@ -43,6 +79,15 @@ typedef struct Car {
     u8 p1996[8];
     s32 flags2004;
 } Car;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Sub: (Sub *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 
 void func_800E1AA0(Car *m) {
     f32 scale;
@@ -69,7 +114,7 @@ void func_800E1AA0(Car *m) {
                 }
             } else {
                 if (m->f64 * m->f80 > 0.0f && m->f980 < 0.5f) {
-                    m->f320 -= m->f64 * 100.0f * m->sub->f36;
+                    m->f320 -= m->f64 * 100.0f * N64P(m->sub)->f36;
                 }
             }
         }

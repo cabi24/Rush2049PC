@@ -23,6 +23,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct _tCar {
@@ -36,6 +40,56 @@ typedef struct CarParams {
 } CarParams;
 
 
+#ifdef TARGET_PC
+enum n64p_CarParams { n64p_CarParams_ };
+enum n64p__tCar { n64p__tCar_ };
+#endif
+#ifdef TARGET_PC
+typedef struct tModelData {
+    /* 0x000 */ enum n64p__tCar car;
+    /* 0x004 */ enum n64p_CarParams tune;
+    /* 0x008 */ u8 body_type;
+    /* 0x009 */ u8 pad009[0x40 - 0x9];
+    /* 0x040 */ f32 v[3];
+    /* 0x04C */ u8 pad04C[0x64 - 0x4C];
+    /* 0x064 */ f32 tireForce[4][3];
+    /* 0x094 */ u8 pad094[0xC4 - 0x94];
+    /* 0x0C4 */ f32 bodyForce[4][3];
+    /* 0x0F4 */ u8 pad0F4[0x2E0 - 0xF4];
+    /* 0x2E0 */ f32 stuntW[3];
+    /* 0x2EC */ u8 pad2EC[0x3D4 - 0x2EC];
+    /* 0x3D4 */ f32 brake;
+    /* 0x3D8 */ u8 pad3D8[0x3F0 - 0x3D8];
+    /* 0x3F0 */ f32 magvel;
+    /* 0x3F4 */ u8 pad3F4[0x61C - 0x3F4];
+    /* 0x61C */ u16 sviscode[4];
+    /* 0x624 */ u8 pad624[0x62C - 0x624];
+    /* 0x62C */ u16 sound_flags[4];
+    /* 0x634 */ u8 pad634[0x642 - 0x634];
+    /* 0x642 */ s8 thumpflag;
+    /* 0x643 */ u8 pad643[0x710 - 0x643];
+    /* 0x710 */ s32 modelIteration;
+    /* 0x714 */ f32 modelTime;
+    /* 0x718 */ u8 pad718[0x758 - 0x718];
+    /* 0x758 */ s16 rwmph;
+    /* 0x75A */ u8 pad75A[0x77C - 0x75A];
+    /* 0x77C */ f32 rwa[3];
+    /* 0x788 */ f32 rwv[3];
+    /* 0x794 */ f32 rwr[3];
+    /* 0x7A0 */ f32 uvs[3][3];
+    /* 0x7C4 */ u8 pad7C4[4];
+    /* 0x7C8 */ s16 in_game;
+    /* 0x7CA */ u8 pad7CA[0x7D4 - 0x7CA];
+    /* 0x7D4 */ u32 appearance;
+    /* 0x7D8 */ u8 pad7D8[0x7DD - 0x7D8];
+    /* 0x7DD */ s8 data_valid;
+    /* 0x7DE */ u8 pad7DE[0x7EA - 0x7DE];
+    /* 0x7EA */ s8 collidable;
+    /* 0x7EB */ s8 solid;
+    /* 0x7EC */ u8 pad7EC[0x7F8 - 0x7EC];
+    /* 0x7F8 */ f32 skidIntensity[4];
+} tModelData; /* 0x808 */
+#else
 typedef struct tModelData {
     /* 0x000 */ _tCar *car;
     /* 0x004 */ CarParams *tune;
@@ -80,6 +134,15 @@ typedef struct tModelData {
     /* 0x7EC */ u8 pad7EC[0x7F8 - 0x7EC];
     /* 0x7F8 */ f32 skidIntensity[4];
 } tModelData; /* 0x808 */
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_CarParams: (CarParams *)(uintptr_t)(x), enum n64p__tCar: (_tCar *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 
 typedef struct tCarData {
     /* 0x000 */ s32 modelIteration;
@@ -216,7 +279,7 @@ void func_800E7FA0(s16 droneIndex)
                 break;
             }
             {
-                f32 scale = D_8014A110 == 6 ? 3.0f : m->tune->skidk;
+                f32 scale = D_8014A110 == 6 ? 3.0f : N64P(m->tune)->skidk;
                 f32 intensity;
                 s32 maxForce;
 
@@ -327,10 +390,10 @@ void update_game_data(void)
             gc->roll = 0.7f * gc->roll + 0.3f * angle;
             RollUV(gc->roll, gc->dr_car_uvs);
             for (j = 0; j < 4; j++) {
-                gc->tireR[j][0] = m->car->tireR[j][0];
-                gc->tireR[j][1] = m->car->tireR[j][1];
-                gc->tireR[j][2] = m->car->tireR[j][2];
-                func_8009E820(m->car->tireR[j], gc->dr_tirepos[j], gc->dr_uvs);
+                gc->tireR[j][0] = N64P(m->car)->tireR[j][0];
+                gc->tireR[j][1] = N64P(m->car)->tireR[j][1];
+                gc->tireR[j][2] = N64P(m->car)->tireR[j][2];
+                func_8009E820(N64P(m->car)->tireR[j], gc->dr_tirepos[j], gc->dr_uvs);
                 gc->dr_tirepos[j][0] = gc->dr_tirepos[j][0] + gc->dr_pos[0];
                 gc->dr_tirepos[j][1] = gc->dr_tirepos[j][1] + gc->dr_pos[1];
                 gc->dr_tirepos[j][2] = gc->dr_tirepos[j][2] + gc->dr_pos[2];

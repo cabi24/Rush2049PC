@@ -13,6 +13,10 @@ typedef int s32;
 typedef short s16;
 typedef signed char s8;
 typedef unsigned char u8;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef f32 Vec3[3];
 typedef struct Model { u8 pad[16]; f32 x, y; } Model;
 #ifdef TARGET_PC
@@ -21,6 +25,38 @@ typedef struct Player { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pa
 typedef struct Player { u8 pad[896]; Model *model; u8 rest[52]; } Player;
 #endif
 typedef struct Parameters { u8 pad[112]; Vec3 tireArm[4]; } Parameters;
+#ifdef TARGET_PC
+enum n64p_Parameters { n64p_Parameters_ };
+#endif
+#ifdef TARGET_PC
+typedef struct State {
+    enum n64p_Parameters parameters;
+    u8 pad4[24];
+    Vec3 sum;
+    u8 pad40[60];
+    Vec3 tireForce[4];
+    u8 pad148[48];
+    Vec3 bodyForce[4];
+    u8 pad244[72];
+    Vec3 extra;
+    u8 pad328[680];
+    f32 factor;
+    u8 pad1012[4];
+    s16 active;
+    u8 pad1018[446];
+    f32 gain;
+    u8 pad1468[16];
+    f32 delta[4];
+    u8 pad1500[16];
+    f32 check[4];
+    u8 pad1532[309];
+    s8 enabled;
+    u8 pad1842[148];
+    s16 player;
+    u8 pad1992[12];
+    s32 flags;
+} State;
+#else
 typedef struct State {
     Parameters *parameters;
     u8 pad4[24];
@@ -48,6 +84,15 @@ typedef struct State {
     u8 pad1992[12];
     s32 flags;
 } State;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern s32 gameplay_mode;
 extern Player player_array[];
 extern s8 D_80140A04;
@@ -65,13 +110,13 @@ void func_800E15A0(State *state) {
     Model *model;
     int sign;
     state->sum[0]=0; state->sum[1]=0; state->sum[2]=0;
-    for(i=0,rp=state->parameters->tireArm[0],fp=state->tireForce[0];i<4;++i,rp+=3,fp+=3) {
+    for(i=0,rp=N64P(state->parameters)->tireArm[0],fp=state->tireForce[0];i<4;++i,rp+=3,fp+=3) {
         veccopy(rp,temp1);
         temp1[1] += state->delta[i];
         crossprod(fp,temp1,temp);
         vecadd(state->sum,temp,state->sum);
     }
-    for(i=0,rp=state->parameters->tireArm[0],fp=state->bodyForce[0];i<4;++i,rp+=3,fp+=3) {
+    for(i=0,rp=N64P(state->parameters)->tireArm[0],fp=state->bodyForce[0];i<4;++i,rp+=3,fp+=3) {
         veccopy(rp,temp1);
         temp1[1]=0;
         crossprod(fp,temp1,temp);

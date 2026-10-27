@@ -1,10 +1,93 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef int intptr_t;
+#endif
 typedef unsigned char u8;typedef signed char s8;typedef short s16;typedef unsigned short u16;
 typedef struct Vec3 {float x,y,z;} Vec3;
 typedef struct Tire92 {float values[23];} Tire92;
 typedef struct Tune44 {float values[11];} Tune44;
 typedef struct Collision16 {float front,rear,side,height;} Collision16;
+#ifdef TARGET_PC
+enum n64p_Car { n64p_Car_ };
+enum n64p_Tune44 { n64p_Tune44_ };
+enum n64p_u16 { n64p_u16_ };
+enum n64p_void { n64p_void_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Car {u8 prefix[80];float mass,engine_inertia;u8 gap88[8];enum n64p_void tire_info[4];u8 gap112[8];Vec3 tire_positions[4];} Car;
+#else
 typedef struct Car {u8 prefix[80];float mass,engine_inertia;u8 gap88[8];void *tire_info[4];u8 gap112[8];Vec3 tire_positions[4];} Car;
+#endif
+#ifdef TARGET_PC
+typedef struct Vehicle2056 {
+ enum n64p_Car car;
+ enum n64p_Tune44 tune;
+ u8 car_type;
+ u8 gap9[2];
+ s8 tune_type;
+ u8 gap12[1];
+ s8 traction_type;
+ s8 mass_type;
+ u8 gap15[57];
+ float velocity;
+ u8 gap76[12];
+ Vec3 time;
+ Vec3 center_moment;
+ Vec3 tire_force[3];
+ Vec3 tire_velocity[4];
+ u8 gap196[48];
+ Vec3 body_corner[4];
+ u8 gap292[24];
+ Vec3 delta;
+ u8 gap328[192];
+ Vec3 angular;
+ u8 gap532[192];
+ Vec3 gravity;
+ u8 gap736[228];
+ float steer[2];
+ u8 gap972[8];
+ float brake;
+ u8 gap984[4];
+ float brake_gain[4];
+ u8 gap1004[10];
+ s16 gear[2];
+ u8 gap1018[10];
+ float engine_torque;
+ u8 gap1032[4];
+ enum n64p_u16 torque_curve;
+ float clutch;
+ float drive_inertia;
+ float trans_ratio;
+ float total_ratio;
+ float drive_values[4];
+ Tire92 tires[4];
+ u8 gap1440[8];
+ u8 flags[2];
+ u8 gap1450[2];
+ float drag;
+ float rolling_resistance;
+ float torque_scale;
+ float parameter1464;
+ float mass;
+ float mass_scale;
+ float spring;
+ float wheelbase;
+ float compression[4];
+ u8 gap1500[92];
+ float inverse_dt;
+ float damping;
+ u8 gap1600[20];
+ float collision_radius;
+ u8 gap1624[216];
+ u8 ignition;
+ u8 gap1841[149];
+ s16 active_index;
+ u8 gap1992[4];
+ s8 mode;
+ u8 tail1997[59];
+} Vehicle2056;
+#else
 typedef struct Vehicle2056 {
  Car * car;
  Tune44 * tune;
@@ -72,6 +155,15 @@ typedef struct Vehicle2056 {
  s8 mode;
  u8 tail1997[59];
 } Vehicle2056;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Car: (struct Car *)(uintptr_t)(x), enum n64p_Tune44: (Tune44 *)(uintptr_t)(x), enum n64p_u16: (u16 *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((unsigned int)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern Car *D_80110D08[];
 extern Tune44 D_801116D0[];
 extern s8 D_8011128C[13],D_801114E4[];
@@ -93,8 +185,8 @@ void track_info_display(Vehicle2056 *m)
  if(m->mode==2)mode=m->active_index+1;else mode=0;
  type=m->car_type;
  car=D_80110D08[type];
- m->tune=&D_801116D0[m->tune_type];
- m->car=car;
+ m->tune=N64W(&D_801116D0[m->tune_type]);
+ m->car=N64W(car);
  m->parameter1464=D_801112D0[D_8011128C[mode*13+type]];
  m->mass_scale=func_800D0B14(m);
  mass_delta=D_80111274[m->mass_type]-D_80124158;
@@ -104,7 +196,7 @@ void track_info_display(Vehicle2056 *m)
  m->mass=m->mass_scale*D_80142764;
  m->flags[0]=D_801114E4[type]&1;
  m->flags[1]=D_801114E4[type]&2;
- m->torque_curve=D_8011F724;
+ m->torque_curve=N64W(D_8011F724);
  m->torque_scale=func_800D0AA0(m);
  resistance=func_800D0A34(m);m->drag=resistance;
  m->rolling_resistance=func_800D0A1C(m);
@@ -119,7 +211,7 @@ void track_info_display(Vehicle2056 *m)
  max_length=(size->rear<size->front)?size->front:size->rear;
  m->collision_radius=sqrtf(max_length*max_length+size->side*size->side+size->height*size->height);
  for(i=0;i<4;i++) {
-  func_800D09E8(car->tire_info[i],&m->tires[i]);
+  func_800D09E8(N64P(car->tire_info[i]),&m->tires[i]);
   if(i<2)track_preview_handler(m,&m->tires[i],-car->tire_positions[i+2].x);
   else track_preview_handler(m,&m->tires[i],car->tire_positions[i-2].x);
   m->tires[i].values[18]=m->velocity/m->tires[i].values[0];
