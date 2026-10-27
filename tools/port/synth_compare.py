@@ -26,8 +26,8 @@ graphics-task counts. Runs of one executable give the baseline. The verdict per 
     DIFFERS   otherwise
 
 --script, --until and --seconds run one press script of any path instead (the retail cartridge: --rom, no
---no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. Exit status: the number of paths that DIFFER.
-Stdlib only, Python 3.9+.
+--no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. Exit status: the number of paths that DIFFER,
+or with --same (CI, strict) that aren't the same. Stdlib only, Python 3.9+.
 """
 import argparse
 import os
@@ -46,6 +46,7 @@ _STATE = re.compile(r"^rush2049pc: game state (0x[0-9A-F]{8}) \(was 0x[0-9A-F]{8
                     r"after \d+ graphics tasks(?:: (.*))?$")
 EXACT = True   # RUSH_STATE_EXACT: positions and speeds as exact floats (--coarse: whole feet)
 STRICT = True  # RUSH_FAST_STRICT: the main thread acts only while every N64 thread waits (--loose: plain --fast)
+SAME = False   # --same: only "same" passes
 _STATUS = re.compile(r"^rush2049pc: (status|state reached:|time reached:) t=\S+ vi=(\d+) gfx_tasks=\d+ "
                      r"audio_tasks=\d+(?: state=(0x[0-9A-F]{8}))?(?:: (.*))?$")
 
@@ -142,7 +143,7 @@ def compare(name, exes, rom, cmd_tail, runs, logs, retail):
         if d:
             i, x, y = d
             print(f"  {label}: event {i}\n    {show(x)}\n    {show(y)}")
-    return 0 if verdict != "DIFFERS" else 1
+    return 0 if verdict != "DIFFERS" and not SAME else 1
 
 
 def main():
@@ -157,14 +158,15 @@ def main():
     ap.add_argument("--seconds", default="90", help="with --script: --seconds")
     ap.add_argument("--coarse", action="store_true",
                     help="positions in whole feet, as builds without RUSH_STATE_EXACT print them")
+    ap.add_argument("--same", action="store_true", help="a path whose runs aren't all the same fails")
     ap.add_argument("--loose", action="store_true",
                     help="plain --fast (without RUSH_FAST_STRICT), as synth_paths.py runs: within a graphics task")
     ap.add_argument("names", nargs="*", help="the paths (default: every tools/port/synth/*.press)")
     a = ap.parse_args()
     if len(a.exe) != 2:
         ap.error("give --exe twice")
-    global EXACT, STRICT
-    EXACT, STRICT = not a.coarse, not a.loose
+    global EXACT, STRICT, SAME
+    EXACT, STRICT, SAME = not a.coarse, not a.loose, a.same
     Path(a.logs).mkdir(parents=True, exist_ok=True)
     differ = 0
     if a.script:
