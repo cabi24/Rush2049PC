@@ -853,6 +853,10 @@ def boot_and_sound(c):
     for j, g in enumerate(SFX_GROUPS):
         c.set("game", "D_8011F0A0", "u16", g, "sfx group id pushed at boot", offset=4 * j + 2)
 
+    # zlib 1.0.4's extra bits of the bit-length codes (extra_blbits, D_8011E974, int[19]: zlib's own constants), which
+    # only static_bl_desc points to: declared in zlib_deflate for the PC, so the loader converts them (BRINGUP.md 13).
+    c.set_all("game", "D_8011E974", "u32", [0] * 16 + [2, 3, 7], "zlib's extra_blbits")
+
     # The boot data's two static display lists (Gfx[], called from every frame's list): a list of zeros is a run of
     # no-ops that walks off its end on the N64 as on the PC, so each is just its end command.
     for s in ("D_8002E4A0", "D_8002E528"):

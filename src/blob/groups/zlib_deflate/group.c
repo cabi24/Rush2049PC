@@ -281,6 +281,12 @@ local void copy_block     OF((deflate_state *s, charf *buf, unsigned len, int he
 extern int extra_lbits[LENGTH_CODES];
 extern int extra_dbits[D_CODES];
 extern int extra_blbits[BL_CODES];
+#ifdef TARGET_PC
+/* PC: only static_bl_desc's extra_bits reaches extra_blbits, so no code names it, and the data loader left it in the
+ * ROM's byte order (the bit-length tree's extra bits, when a ghost is compressed). Referenced here, it is described
+ * as the int[19] it is (docs/port/BRINGUP.md 13). */
+int *const pc_extra_blbits = extra_blbits;
+#endif
 extern uch bl_order[BL_CODES];
 extern ct_data static_ltree[L_CODES+2];
 extern ct_data static_dtree[D_CODES];
