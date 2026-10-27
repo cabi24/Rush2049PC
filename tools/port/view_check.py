@@ -7,7 +7,7 @@
 Each game file declares its own struct for shared records, and the N64 build forgives views that disagree on
 where a pointer is, since pointers are 4 bytes there. On the PC they must agree on the host layout. This reads
 the PC build's DWARF (with tools/port/gen_data.py's parser and layout rules), lays every view out twice (N64 and
-host), and compares, element by element at each N64 offset, the host offset and the element class with the
+host), and compares, member by member at each N64 offset, the host offset and whether it is a pointer with the
 reference view (the one with the most pointers, as gen_data chooses). Byte arrays (pads) are not compared.
 
 With --sym, the views are the declarations in the objects whose live code (strong or local functions, from the
@@ -33,16 +33,37 @@ def element_type(t):
     return t
 
 
+def _walk(t, n64o, hosto, out):
+    """Scalars of t at (N64, host) offsets into out; byte arrays are pads, so they are left out."""
+    k = t[0]
+    if k in ("base", "ptr", "enum"):
+        kind = gd.program(t)[0][0] if gd.program(t) else None
+        if kind:
+            out.setdefault(n64o, (hosto, CLASS.get(kind, kind)))
+    elif k == "array":
+        e = t[1]
+        if e[0] == "base" and gd.n64_layout(e)[0] == 1:
+            return
+        n, h = gd.n64_layout(e)[0] or 0, gd.host_size(e) or 0
+        for i in range(t[2] or 0):
+            _walk(e, n64o + i * n, hosto + i * h, out)
+    elif k == "struct":
+        off = 0
+        for _, hoff, mt in t[3]:
+            s, a = gd.n64_layout(mt)
+            off = gd.align(off, a)
+            _walk(mt, n64o + off, hosto + hoff, out)
+            off += s or 0
+    elif k == "union":
+        for _, _, mt in t[3]:
+            _walk(mt, n64o, hosto, out)
+
+
 def layout(t):
-    """{N64 offset: (host offset, class)} of the non-byte elements of struct t, and its (N64, host) size."""
+    """{N64 offset: (host offset, class)} of the scalar members of struct t (not byte arrays), and its (N64, host)
+    size."""
     out = {}
-    for kind, count, n64o, hosto, rep, ns, hs in gd.program(t):
-        if kind == gd.K_U8:
-            continue
-        en, eh = gd.N64_ESZ[kind], gd.esz_host(kind)
-        for i in range(rep):
-            for j in range(count):
-                out[n64o + i * ns + j * en] = (hosto + i * hs + j * eh, CLASS.get(kind, kind))
+    _walk(t, 0, 0, out)
     return out, (gd.n64_layout(t)[0], gd.host_size(t))
 
 
@@ -141,7 +162,7 @@ def main():
                 rh, rc = ref[n64o]
             else:   # bytes in the reference (u8 prim[4] against a u32 colour): compare the place only
                 rh, rc = gd.map_offset(gd.program(ref_v[2]), n64o), c
-            if (rh, rc) != (h, c):
+            if rh != h or (rc == gd.K_PTR) != (c == gd.K_PTR):   # u8[4] against a u32 colour is the same place
                 problems.append(f"N64 +0x{n64o:X}: host +0x{h:X} {gd.KIND_NAMES[c]}, reference +0x{rh:X} "
                                 f"{gd.KIND_NAMES[rc]}")
         tag = "" if v[3] is not False else " (no live code)"
