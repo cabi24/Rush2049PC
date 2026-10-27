@@ -217,7 +217,12 @@ typedef union {
 extern u32 D_8012E608;
 extern s32 D_8012E680;
 extern void *D_8012E684;
-s64 D_8012E688;
+#ifndef TARGET_PC
+/* PC: port/data defines D_8012E688 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) s64 D_8012E688;
 extern Gfx *D_80149438;
 extern s32 D_8014A248;
 extern void func_80086A50();

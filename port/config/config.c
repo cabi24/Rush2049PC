@@ -10,8 +10,13 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #include "config.h"
+#include "pc_compat.h"
 
 #define FILE_NAME "rush2049pc.ini"
 
@@ -512,6 +517,11 @@ static char *read_file(const char *path)
 static void dir_of(const char *path, char *out, size_t n)
 {
     const char *slash = strrchr(path, '/');
+#ifdef _WIN32
+    const char *back = strrchr(path, '\\');   /* Windows paths take either separator */
+    if (back && (!slash || back > slash))
+        slash = back;
+#endif
     if (!slash)
         snprintf(out, n, ".");
     else if (slash == path)
@@ -652,7 +662,7 @@ int pc_settings_write(const PcSettings *s, const char *path)
     if (ok) {
         ok = fwrite(text, 1, strlen(text), f) == strlen(text);
         ok = fclose(f) == 0 && ok;
-        ok = ok && rename(tmp, path) == 0;
+        ok = ok && pc_rename_replace(tmp, path) == 0;
         if (!ok)
             unlink(tmp);
     }
@@ -671,10 +681,17 @@ static int file_exists(const char *path)
 void pc_config_exe_dir(char *out, size_t out_size, const char *argv0)
 {
     char path[PC_CFG_PATH];
+#ifdef _WIN32
+    DWORD n = GetModuleFileNameA(NULL, path, sizeof path);
+    if (n > 0 && n < sizeof path)
+        ;
+    else if (argv0 && (strchr(argv0, '/') || strchr(argv0, '\\')))
+#else
     ssize_t n = readlink("/proc/self/exe", path, sizeof path - 1);
     if (n > 0)
         path[n] = 0;
     else if (argv0 && strchr(argv0, '/'))
+#endif
         snprintf(path, sizeof path, "%s", argv0);
     else {
         out[0] = 0;
@@ -683,6 +700,17 @@ void pc_config_exe_dir(char *out, size_t out_size, const char *argv0)
     dir_of(path, out, out_size);
 }
 
+#ifdef _WIN32
+/* Windows: %APPDATA%\rush2049pc, the user's roaming application data. */
+static int xdg_dir(char *out, size_t n)
+{
+    const char *appdata = getenv("APPDATA");
+    if (!appdata || !*appdata)
+        return -1;
+    snprintf(out, n, "%s/rush2049pc", appdata);
+    return 0;
+}
+#else
 static int xdg_dir(char *out, size_t n)
 {
     const char *xdg = getenv("XDG_CONFIG_HOME"), *home = getenv("HOME");
@@ -694,6 +722,7 @@ static int xdg_dir(char *out, size_t n)
         return -1;
     return 0;
 }
+#endif
 
 int pc_config_locate(char *out, size_t out_size, const char *exe_dir, int *exists)
 {
@@ -713,6 +742,27 @@ int pc_config_locate(char *out, size_t out_size, const char *exe_dir, int *exist
     return 0;
 }
 
+#ifdef _WIN32
+/* As below, with either separator; a drive ("C:") or a directory that exists is skipped, since making one fails
+ * with EACCES there, not EEXIST. */
+static int mkdirs(const char *dir)
+{
+    char p[PC_CFG_PATH];
+    struct stat st;
+    snprintf(p, sizeof p, "%s", dir);
+    for (char *c = p + 1;; c++)
+        if (*c == '/' || *c == '\\' || !*c) {
+            char sep = *c;
+            *c = 0;
+            if (c[-1] != ':' && !(stat(p, &st) == 0 && S_ISDIR(st.st_mode)) && mkdir(p, 0755) != 0 &&
+                errno != EEXIST)
+                return -1;
+            if (!sep)
+                return 0;
+            *c = sep;
+        }
+}
+#else
 static int mkdirs(const char *dir)
 {
     char p[PC_CFG_PATH];
@@ -726,6 +776,7 @@ static int mkdirs(const char *dir)
         }
     return mkdir(p, 0755) != 0 && errno != EEXIST ? -1 : 0;
 }
+#endif
 
 /* ---------------------------------------------------------------- the layers */
 

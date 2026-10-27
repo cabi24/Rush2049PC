@@ -211,13 +211,19 @@ zero sample-cache count corrupts the heap (the N64 would do the same with those 
    `.mdebug` line numbers), and the build's other inputs (Makefile, linker scripts, asm, manifests) are unchanged,
    so the ROM still matches. A full `make` with the ROM remains the final word. Run it after each merge of game
    C; `n64_neutral.py` stays the fast check, in CI.
-3. **Records on 64-bit.** The car, visual and model records have one layout each ([port/CARS.md](port/CARS.md)); the
-   target info table `D_80117530`, the target records, the input records `D_8014A118` and the other race-time
-   records (POINTERS.md 9.9) are in progress.
-4. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C
-   ([port/ENDIAN.md](port/ENDIAN.md)); what is left is its section 4, chiefly the loader's colour unions.
-5. **Other platforms.** Windows needs the window at 0x80000000 (VirtualAlloc) and a way for code to reach absolute
-   symbols; macOS on arm64 reserves the low 4 GB (`__PAGEZERO`), so it would need address translation instead.
+3. **Records on 64-bit.** The car, visual and model records, the target table and level-object nodes, the input
+   records, the ZOID windows and the frame records have one PC layout each ([port/CARS.md](port/CARS.md),
+   POINTERS.md §10). The controller-pak file record `tPS_File` is in progress (CASTS.md §7).
+4. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C or in the
+   loader ([port/ENDIAN.md](port/ENDIAN.md)); two reads of bytes inside a word of the car record are left there.
+5. **Other platforms.**
+   - **Windows x86-64 builds with mingw-w64**, cross from Linux (`cmake/mingw-w64.cmake`) or in MSYS2, and CI runs
+     its tests, self-test and ROM-less boot on windows-latest ([port/WINDOWS.md](port/WINDOWS.md)).
+   - What makes it work: the window is a file mapping viewed at 0x80000000 and 0xA0000000. The image stays above
+     4 GiB with high-entropy ASLR. Code reaches the absolute symbols through `.refptr` slots, which get no base
+     relocations.
+   - Still to do on Windows: a real GPU, display, audio device and controllers.
+   - macOS on arm64 reserves the low 4 GB (`__PAGEZERO`), so it would need address translation instead.
 
 ## Decisions
 

@@ -2,12 +2,19 @@
  * (pc_mem_fix_absolute in memory.c). On its own so that test programs that place game data at its N64 addresses
  * can link it too (port/assets/tests/support.h). */
 #define _GNU_SOURCE
-#include <link.h>
 #include <stdint.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 int pc_fix_absolute_got(void);
+
+#ifdef _WIN32
+/* PE has nothing to fix: code reaches every extern through a .refptr slot, which the linker fills with an
+ * absolute symbol's value, and absolute symbols get no base relocations, so the slots keep it when the image
+ * moves (docs/port/WINDOWS.md). */
+int pc_fix_absolute_got(void) { return 0; }
+#else
+#include <link.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 /* gen_stubs puts data the game uses by its N64 address at that address (aliases.ld: the low-memory globals,
  * the heap start, cartridge offsets), and gen_data every arena symbol (data.c: about 1,800 names of the game's
@@ -76,3 +83,4 @@ int pc_fix_absolute_got(void)
     dl_iterate_phdr(fix_absolute, &count);
     return count;
 }
+#endif

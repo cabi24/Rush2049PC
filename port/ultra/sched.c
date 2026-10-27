@@ -20,6 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #include "ultra.h"
 
@@ -76,6 +80,40 @@ static void init_cv(pthread_cond_t *cv)
     pthread_condattr_destroy(&a);
 }
 
+#ifdef _WIN32
+/* Windows' timeouts run on the system timer, which some machines keep at 15.6 ms whatever timeBeginPeriod asks for
+ * (the windows-latest runner did: 200 one-millisecond busy-wait naps took 3.1 s). So the two timed waits use a
+ * high-resolution waitable timer (Windows 10 1803 and later; a plain one before) instead of a condition
+ * variable's timeout: a busy-wait naps on it with the lock released, and the main thread waits for it or for its
+ * wake-up event (docs/port/WINDOWS.md). */
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x2
+#endif
+static HANDLE g_main_event;
+
+/* This thread's timer, armed to fire ns from now. */
+static HANDLE hires_timer(uint64_t ns)
+{
+    static _Thread_local HANDLE timer;
+    LARGE_INTEGER due;
+    if (!timer)
+        timer = CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    if (!timer)
+        timer = CreateWaitableTimerExW(NULL, NULL, 0, TIMER_ALL_ACCESS);
+    due.QuadPart = -(LONGLONG)((ns + 99) / 100);   /* relative, in 100 ns units */
+    SetWaitableTimer(timer, &due, 0, NULL, NULL, FALSE);
+    return timer;
+}
+
+/* A busy-wait's nap: ns with the lock released. An event that comes meanwhile is seen when it ends. */
+static void nap(pthread_cond_t *cv, uint64_t ns_from_now)
+{
+    (void)cv;
+    pthread_mutex_unlock(&g_lock);
+    WaitForSingleObject(hires_timer(ns_from_now), INFINITE);
+    pthread_mutex_lock(&g_lock);
+}
+#else
 static void deadline_ts(struct timespec *ts, uint64_t ns_from_now)
 {
     clock_gettime(CLOCK_MONOTONIC, ts);
@@ -86,6 +124,15 @@ static void deadline_ts(struct timespec *ts, uint64_t ns_from_now)
         ts->tv_nsec -= 1000000000L;
     }
 }
+
+/* Up to ns, or until cv is signalled: a busy-wait's nap, and the main thread's wait. */
+static void nap(pthread_cond_t *cv, uint64_t ns_from_now)
+{
+    struct timespec ts;
+    deadline_ts(&ts, ns_from_now);
+    pthread_cond_timedwait(cv, &g_lock, &ts);
+}
+#endif
 
 /* ---------------------------------------------------------------- side tables */
 
@@ -253,6 +300,9 @@ static void start_host(PcThread *t)
 void pc_os_boot(void (*entry)(void *), void *arg, const char *name)
 {
     init_cv(&g_main_cv);
+#ifdef _WIN32
+    g_main_event = CreateEventW(NULL, FALSE, FALSE, NULL);
+#endif
     pthread_mutex_lock(&g_lock);
     PcThread *t = thread_new();
     t->boot = 1;
@@ -537,10 +587,8 @@ void pc_os_spin_yield(const char *site)
     }
     PcThread *b = best(self);
     if (!(b && b->pri >= self->pri)) {
-        struct timespec ts;
-        deadline_ts(&ts, 1000000);
         self->event_wait = 1;
-        pthread_cond_timedwait(&self->cv, &g_lock, &ts);
+        nap(&self->cv, 1000000);
         self->event_wait = 0;
         b = best(self);
     }
@@ -591,15 +639,38 @@ void pc_os_idle(void)
     pthread_mutex_unlock(&g_lock);
 }
 
+#ifdef _WIN32
+/* The main thread's wake-up is an auto-reset event, so a wake between the check and the wait isn't lost. */
 void pc_os_wait_main(uint64_t deadline_ns)
 {
     pthread_mutex_lock(&g_lock);
     uint64_t now = pc_host_ns();
-    if (!g_main_wake && deadline_ns > now) {
-        struct timespec ts;
-        deadline_ts(&ts, deadline_ns - now);
-        pthread_cond_timedwait(&g_main_cv, &g_lock, &ts);
+    int wait = !g_main_wake && deadline_ns > now;
+    pthread_mutex_unlock(&g_lock);
+    if (wait) {
+        HANDLE h[2] = {g_main_event, hires_timer(deadline_ns - now)};
+        WaitForMultipleObjects(2, h, FALSE, INFINITE);
     }
+    pthread_mutex_lock(&g_lock);
+    g_main_wake = 0;
+    pthread_mutex_unlock(&g_lock);
+}
+
+void pc_os_wake_main(void)
+{
+    pthread_mutex_lock(&g_lock);
+    g_main_wake = 1;
+    if (g_main_event)
+        SetEvent(g_main_event);
+    pthread_mutex_unlock(&g_lock);
+}
+#else
+void pc_os_wait_main(uint64_t deadline_ns)
+{
+    pthread_mutex_lock(&g_lock);
+    uint64_t now = pc_host_ns();
+    if (!g_main_wake && deadline_ns > now)
+        nap(&g_main_cv, deadline_ns - now);
     g_main_wake = 0;
     pthread_mutex_unlock(&g_lock);
 }
@@ -611,6 +682,7 @@ void pc_os_wake_main(void)
     pthread_cond_signal(&g_main_cv);
     pthread_mutex_unlock(&g_lock);
 }
+#endif
 
 void pc_os_dump_threads(void)
 {

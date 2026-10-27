@@ -64,7 +64,8 @@ game's pointer-free data and BSS are in the window too, at their N64 addresses (
 §3: boot 0x800277D0–0x80086A50, game 0x8010FD7C–0x8017A640, the runtime images' inside their heap block), so a
 32-bit N64 address of game data is a host address. An 8 MiB memfd is mapped at host 0x80000000 (KSEG0) and again
 at 0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`, before the data is filled. On Linux the mapping is required and
-the program stops if it fails. Elsewhere it falls back to a translated window (`pc_n64_ptr`), the game's literal
+the program stops if it fails, and on Windows too, where a file mapping is viewed at both addresses
+([WINDOWS.md](WINDOWS.md)). Elsewhere it falls back to a translated window (`pc_n64_ptr`), the game's literal
 addresses fault, and `pc_data_init` refuses to fill data that isn't mapped.
 
 **Host addresses are above 4 GiB**, except the window's. The executable is PIE, and its heap and the N64 threads'

@@ -6,11 +6,21 @@
  * AI events, and at each 60 Hz retrace handles window events, polls input, sends the VI event and shows a swapped
  * framebuffer. Between deadlines it sleeps until a thread submits work. --screenshot-at and --frames act two
  * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. While
- * port/input says the game is paused, it holds (hold()). */
+ * port/input says the game is paused, it holds (hold()).
+ *
+ * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts are as coarse as
+ * the system timer (15.6 ms by default): the scheduler's own waits use high-resolution timers (sched.c), and the
+ * loop asks for a 1 ms period for the rest (hold()'s sleep, SDL). */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <mmsystem.h>
+#define SIGQUIT SIGBREAK
+#endif
 
 #include "ultra.h"
 
@@ -20,6 +30,9 @@ static volatile sig_atomic_t g_dump;
 
 static void on_signal(int sig)
 {
+#ifdef _WIN32
+    signal(sig, on_signal);   /* the CRT resets a handler to the default before calling it */
+#endif
     if (sig == SIGQUIT)
         g_dump = 1;
     else
@@ -33,6 +46,27 @@ static void status(const char *tag)
 }
 
 void osSetTime(uint64_t ticks);   /* timer.c */
+
+#ifdef _WIN32
+/* A 1 ms timer period while the loop runs. Windows 11 may ignore the request from a process nobody sees (a
+ * headless run, the hidden GL window) unless the process opts out of that power throttling, which needs Windows 8's
+ * SetProcessInformation (looked up, so older Windows still start). Some machines keep 15.6 ms anyway (the
+ * windows-latest runner did), which is why sched.c doesn't rely on it. */
+static void timer_period(int on)
+{
+    typedef BOOL(WINAPI * SetInfo)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+    if (!on) {
+        timeEndPeriod(1);
+        return;
+    }
+    SetInfo set = (SetInfo)(void *)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetProcessInformation");
+    PROCESS_POWER_THROTTLING_STATE s = {PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+                                        PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION, 0};
+    if (set)
+        set(GetCurrentProcess(), ProcessPowerThrottling, &s, sizeof s);
+    timeBeginPeriod(1);
+}
+#endif
 
 /* The pause key, or focus lost with pause_on_focus_loss (port/input): no retraces, timers, RSP tasks or AI
  * events while held, so the game's threads stop where they wait for them; window events are still handled.
@@ -58,6 +92,9 @@ int pc_ultra_run(const PcRunOptions *opt)
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
     signal(SIGQUIT, on_signal);
+#ifdef _WIN32
+    timer_period(1);
+#endif
     if (opt->status_every)
         next_status = (uint64_t)opt->status_every * 1000000000u;
 
@@ -131,5 +168,8 @@ int pc_ultra_run(const PcRunOptions *opt)
         pc_os_wait_main(deadline);
     }
     pc_si_flush();
+#ifdef _WIN32
+    timer_period(0);
+#endif
     return pc_quit > 1 ? pc_quit - 1 : 0;
 }

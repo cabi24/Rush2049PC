@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "pc_compat.h"
 #include "ultra.h"
 
 #define PAK_SIZE 0x8000
@@ -148,7 +149,7 @@ void pc_si_flush(void)
     FILE *f = fopen(tmp, "wb");
     if (!f || fwrite(copy, 1, PAK_SIZE, f) != PAK_SIZE || fclose(f) != 0)
         pc_log("controller pak: cannot write %s", tmp);
-    else if (rename(tmp, g_pak_path) != 0)
+    else if (pc_rename_replace(tmp, g_pak_path) != 0)
         pc_log("controller pak: cannot replace %s", g_pak_path);
     free(tmp);
 }

@@ -16,11 +16,22 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 enable_testing()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(PCGFX_EGL REQUIRED IMPORTED_TARGET egl)
 find_package(ZLIB REQUIRED)
-# GL entry points are loaded at run time (eglGetProcAddress / SDL_GL_GetProcAddress): only the headers are used.
-find_path(PCGFX_GLES3_INCLUDE GLES3/gl3.h REQUIRED)
+# GL entry points are loaded at run time (eglGetProcAddress / wglGetProcAddress / SDL_GL_GetProcAddress): only
+# the headers are used. Windows has no EGL: the headless context is WGL's on a hidden window (gfx_wgl.c), and the
+# GL declarations come from mingw-w64's GL/glcorearb.h, which has the same names as GLES3/gl3.h.
+if(WIN32)
+    find_package(PkgConfig QUIET)
+    find_path(PCGFX_GLES3_INCLUDE GL/glcorearb.h REQUIRED)
+    set(PCGFX_HEADLESS gfx_wgl.c)
+    set(PCGFX_HEADLESS_LIBS opengl32 gdi32 user32)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(PCGFX_EGL REQUIRED IMPORTED_TARGET egl)
+    find_path(PCGFX_GLES3_INCLUDE GLES3/gl3.h REQUIRED)
+    set(PCGFX_HEADLESS gfx_egl.c)
+    set(PCGFX_HEADLESS_LIBS PkgConfig::PCGFX_EGL)
+endif()
 
 option(RUSH_GFX_SDL "Build the SDL2 window backend when SDL2 is found" ON)
 # In the top-level build, SDL2 is looked up (or fetched) once there, for every part (RUSH_SDL2_TARGET). Built on
@@ -33,12 +44,12 @@ add_library(pcgfx STATIC
     gfx_rdp.c
     gfx_combine.c
     gfx_gl.c
-    gfx_egl.c
+    ${PCGFX_HEADLESS}
     gfx_png.c)
 set_target_properties(pcgfx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_include_directories(pcgfx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include
                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PCGFX_GLES3_INCLUDE})
-target_link_libraries(pcgfx PUBLIC PkgConfig::PCGFX_EGL ZLIB::ZLIB m)
+target_link_libraries(pcgfx PUBLIC ${PCGFX_HEADLESS_LIBS} ZLIB::ZLIB m)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(pcgfx PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
@@ -63,7 +74,7 @@ if(RUSH_GFX_SDL)
         find_package(SDL2 CONFIG QUIET)
         if(TARGET SDL2::SDL2)
             set(PCGFX_SDL_TARGET SDL2::SDL2)
-        else()
+        elseif(PkgConfig_FOUND)
             pkg_check_modules(PCGFX_SDL2 QUIET IMPORTED_TARGET sdl2)
             if(PCGFX_SDL2_FOUND)
                 set(PCGFX_SDL_TARGET PkgConfig::PCGFX_SDL2)
@@ -107,5 +118,11 @@ pcgfx_all_variant(wide "RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(wide21-scale3 "RUSH_GFX_WIDESCREEN=21:9;RUSH_GFX_SCALE=3")
 pcgfx_all_variant(scale-auto "RUSH_GFX_SCALE=auto")   # 2 in the 640 x 480 headless size
 if(PCGFX_SDL_TARGET)   # the window path, on SDL's offscreen driver (no display needed)
-    pcgfx_all_variant(sdl-window "SDL_VIDEODRIVER=offscreen" --window)
+    # Windows: SDL's offscreen driver makes its GL contexts through EGL, which Windows lacks, so a real window
+    # through WGL, where the back buffer doesn't survive the swap for the window comparison (docs/port/WINDOWS.md)
+    if(WIN32)
+        pcgfx_all_variant(sdl-window "SDL_VIDEODRIVER=windows" --window --no-window-readback)
+    else()
+        pcgfx_all_variant(sdl-window "SDL_VIDEODRIVER=offscreen" --window)
+    endif()
 endif()

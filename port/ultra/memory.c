@@ -10,16 +10,24 @@
  * fault (port/data refuses to fill an unmapped arena).
  *
  * Everything else the host allocates (the PIE image, the heap, the N64 threads' stacks) is above 4 GiB, so the
- * renderer can tell host pointers from N64 addresses. */
+ * renderer can tell host pointers from N64 addresses.
+ *
+ * Windows (docs/port/WINDOWS.md): a pagefile-backed section viewed at both addresses (MapViewOfFileEx fails
+ * rather than moving when the range is taken), and required as on Linux. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
 #include <link.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 #include "ultra.h"
 
@@ -32,6 +40,54 @@
 static uint8_t *g_rdram, *g_rdram_k1;
 static int g_fixed;
 
+#ifdef _WIN32
+/* Reserves (without committing) every free range below 4 GiB but the window, so that whatever the process maps
+ * from now on, the N64 threads' stacks and new heap segments among them, lands above 4 GiB. High-entropy ASLR puts
+ * them there anyway, but not always: under gdb the heap and stacks started at a few MiB. */
+static void reserve_low(void)
+{
+    MEMORY_BASIC_INFORMATION mi;
+    const uintptr_t top = (uintptr_t)1 << 32, granule = 0x10000;
+    for (uintptr_t a = granule; a < top; a = (uintptr_t)mi.BaseAddress + mi.RegionSize) {
+        if (!VirtualQuery((void *)a, &mi, sizeof mi))
+            break;
+        uintptr_t lo = ((uintptr_t)mi.BaseAddress + granule - 1) & ~(granule - 1);
+        uintptr_t hi = (uintptr_t)mi.BaseAddress + mi.RegionSize;
+        if (mi.State == MEM_FREE && (hi = hi < top ? hi : top) > lo)
+            VirtualAlloc((void *)lo, hi - lo, MEM_RESERVE, PAGE_NOACCESS);
+    }
+}
+
+int pc_mem_init(void)
+{
+    HANDLE section = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, PC_RDRAM_SIZE, NULL);
+    if (section) {
+        g_rdram = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, PC_RDRAM_SIZE,
+                                  (void *)(uintptr_t)PC_RDRAM_BASE);
+        if (g_rdram)
+            g_rdram_k1 = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, PC_RDRAM_SIZE, (void *)(uintptr_t)K1_BASE);
+        CloseHandle(section);   /* the views keep it */
+    }
+    if (!g_rdram) {
+        fprintf(stderr, "rush2049pc: cannot map the RDRAM window at host 0x%08X (error %lu); the game's heap must "
+                "live there (docs/port/ULTRA.md)\n", PC_RDRAM_BASE, (unsigned long)GetLastError());
+        return -1;
+    }
+    g_fixed = 1;
+    reserve_low();
+    /* Host data must be above 4 GiB, where high-entropy ASLR puts the heap and the stacks of a process whose
+     * image asks for it (CMakeLists.txt): say so if what came before main got low memory anyway. */
+    void *heap = malloc(64);
+    int local;
+    if (!((uintptr_t)heap >> 32) || !((uintptr_t)&local >> 32))
+        fprintf(stderr, "rush2049pc: warning: host memory below 4 GiB (heap %p, stack %p); the renderer and the "
+                "audio take addresses there for N64 ones\n", heap, (void *)&local);
+    free(heap);
+    if (pc_verbose)
+        pc_log("RDRAM window at %p%s", (void *)g_rdram, g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
+    return 0;
+}
+#else
 static void *map_at(uintptr_t addr, size_t size, int fd)
 {
     int flags = (fd >= 0 ? MAP_SHARED : MAP_PRIVATE | MAP_ANONYMOUS) | MAP_FIXED_NOREPLACE;
@@ -76,6 +132,7 @@ int pc_mem_init(void)
         pc_log("RDRAM window at %p%s", (void *)g_rdram, g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
     return 0;
 }
+#endif
 
 int pc_mem_fixed(void) { return g_fixed; }
 

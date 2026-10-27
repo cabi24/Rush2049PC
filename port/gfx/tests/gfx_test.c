@@ -1,9 +1,11 @@
 /* port/gfx/tests/gfx_test.c: renders display lists headless and checks pixels.
  *
- *   gfx_test <case>|all [--png DIR] [--window]
+ *   gfx_test <case>|all [--png DIR] [--window [--no-window-readback]]
  *
  * --window initializes with a window (SDL2 builds; SDL_VIDEODRIVER=offscreen works without a display) and
- * presents to it; the checks still read the render targets.
+ * presents to it; the checks still read the render targets, and the window's pixels are compared with the frame.
+ * --no-window-readback leaves that comparison out: it reads the back buffer after the swap, which GL leaves
+ * undefined (SDL's offscreen driver keeps it; WGL gives an earlier frame).
  * Each case builds its lists with test_gbi.h, runs them through pc_gfx_run_dl, presents, and compares sample
  * points against values worked out from the N64 semantics. Exit status 0 = pass. */
 #include <math.h>
@@ -73,7 +75,7 @@ int pc_mem_is_be(const void *p) {
 static uint16_t s_fb[FB_W * FB_H], s_zb[FB_W * FB_H];
 static PcGfxWords s_list[16384], s_sub[4096];
 static uint8_t *s_px;
-static int s_px_w, s_px_h, s_fail, s_window;
+static int s_px_w, s_px_h, s_fail, s_window, s_window_readback = 1;
 static const char *s_case, *s_png_dir;
 
 typedef struct {
@@ -210,7 +212,7 @@ static void frame_end(void) {
     pc_gfx_read_framebuffer(s_fb, NULL, &s_px_w, &s_px_h);
     s_px = (uint8_t *)malloc((size_t)s_px_w * s_px_h * 4);
     pc_gfx_read_framebuffer(s_fb, s_px, &s_px_w, &s_px_h);
-    if (s_window && s_px_w == FB_W) {   /* 640x480 window, 320x240 frame: shown at exactly 2x */
+    if (s_window && s_window_readback && s_px_w == FB_W) {   /* 640x480 window, 320x240 frame: at 2x */
         int ww, wh, x, y, bad = 0;
         uint8_t *win;
         pc_gfx_read_window(NULL, &ww, &wh);
@@ -1383,8 +1385,13 @@ static void case_screenshot(void) {
     FILE *f;
     frame_begin(0, 128, 0);
     frame_end();
+#ifdef _WIN32
+    snprintf(path, sizeof(path), "%s/screenshot_test.png",
+             s_png_dir ? s_png_dir : getenv("TEMP") ? getenv("TEMP") : ".");
+#else
     snprintf(path, sizeof(path), "%s/screenshot_test.png",
              s_png_dir ? s_png_dir : getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp");
+#endif
     if (pc_gfx_save_screenshot(path) != 0 || (f = fopen(path, "rb")) == NULL) {
         printf("  FAIL screenshot: not written\n");
         s_fail++;
@@ -1423,6 +1430,8 @@ int main(int argc, char **argv) {
             s_png_dir = argv[++i];
         else if (strcmp(argv[i], "--window") == 0)
             window = 1;
+        else if (strcmp(argv[i], "--no-window-readback") == 0)
+            s_window_readback = 0;
     }
     s_rdram = (uint8_t *)calloc(1, PC_RDRAM_SIZE);
     mtx_ortho(&s_ortho, 0, FB_W, FB_H, 0, -1000, 1000);

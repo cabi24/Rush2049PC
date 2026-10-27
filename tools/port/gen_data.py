@@ -33,6 +33,11 @@ No ROM bytes are read here or written into the build.
 Outputs: data.c, data_layout.txt (what was decided, the conflicts, what is left), data_layout.json (for
 --check, which verifies placements and sizes in the linked executable, and that nothing else is linked at a
 window address). Stdlib and binutils, Python 3.9+.
+
+Windows (PE, docs/port/WINDOWS.md): pass objdump as --readelf (DWARF of COFF objects), and --weak-script. An
+undefined weak reference doesn't come out as 0 there, so data.c's weak references name `pc_weak.<symbol>`, which
+the script defines as the symbol when something defines it and as 0 otherwise; thunks are naked functions (COFF
+has no section stack for `.previous`).
 """
 import argparse
 import bisect
@@ -59,6 +64,9 @@ RENAMED = {n: "n64_" + n for n in ("main", "memcpy", "memset", "memchr", "strlen
 N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short int": 2, "short unsigned int": 2,
             "int": 4, "unsigned int": 4, "long int": 4, "long unsigned int": 4, "long long int": 8,
             "long long unsigned int": 8, "float": 4, "double": 8, "long double": 8}
+# Typedefs that are pointer-sized on the host and 4 bytes on the N64 (port/include/pc_prelude.h). Windows spells
+# them `long long`, so they are told from a real 64-bit integer by name.
+POINTER_SIZED = {"uintptr_t", "intptr_t", "size_t", "ssize_t", "ptrdiff_t"}
 
 
 # N64 pointers at or above this (outside the runtime images) point into the game heap and stay as they are.
@@ -109,14 +117,28 @@ def _name(v):
     return v.strip()
 
 
+_OBJDUMP_FILE = re.compile(r"^(\S.*):\s+file format \S+$")
+
+
+def dwarf_info_command(tool):
+    """The command that prints .debug_info: readelf's, or objdump's for PE objects (readelf reads only ELF; both
+    print the DIEs in the same form)."""
+    return [tool, "--dwarf=info"] if "objdump" in Path(tool).name else [tool, "--debug-dump=info"]
+
+
 def parse_readelf(text, single=None):
-    """{object: {offset: Die}} from `readelf --debug-dump=info` output (one CU per object)."""
+    """{object: {offset: Die}} from `readelf --debug-dump=info` output (one CU per object), or from
+    `objdump --dwarf=info`, which starts each object with `path:     file format ...`."""
     objs, dies, stack, cur = {}, None, [], None
     if single:
         dies = objs.setdefault(single, {})
     for line in text.splitlines():
         if line.startswith("File: "):
             dies, stack, cur = objs.setdefault(line[6:].strip(), {}), [], None
+            continue
+        m = _OBJDUMP_FILE.match(line) if line[:1] not in ("", " ") else None
+        if m:
+            dies, stack, cur = objs.setdefault(single or m.group(1), {}), [], None
             continue
         if line.startswith(" <"):
             m = _HDR.match(line)
@@ -159,6 +181,10 @@ def canon(dies, off, memo):
     if tag in ("DW_TAG_typedef", "DW_TAG_const_type", "DW_TAG_volatile_type", "DW_TAG_restrict_type",
                "DW_TAG_atomic_type"):
         r = canon(dies, _ref(d), memo)
+        if tag == "DW_TAG_typedef" and r[0] == "base" and r[2] == 8 and \
+                _name(d.attrs.get("DW_AT_name", "")) in POINTER_SIZED:
+            # 4 bytes on the N64 like a pointer; `long long` on Windows (LLP64), `long` elsewhere
+            r = ("base", "long unsigned int" if "unsigned" in r[1] else "long int", 8)
     elif tag == "DW_TAG_base_type":
         r = ("base", _name(d.attrs.get("DW_AT_name", "?")), _num(d.attrs.get("DW_AT_byte_size")))
     elif tag == "DW_TAG_pointer_type":
@@ -237,7 +263,7 @@ def read_variables(objects, readelf, wanted):
     tags = collections.defaultdict(collections.Counter)
     for i in range(0, len(objects), 100):
         batch = objects[i:i + 100]
-        out = subprocess.run([readelf, "--debug-dump=info", *batch], capture_output=True, text=True,
+        out = subprocess.run([*dwarf_info_command(readelf), *batch], capture_output=True, text=True,
                              check=True).stdout
         for obj, dies in parse_readelf(out, batch[0] if len(batch) == 1 else None).items():
             memo = {}
@@ -556,14 +582,17 @@ def main():
     ap.add_argument("--objects-list", type=Path, help="the game objects, one per line")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--nm", default="nm")
-    ap.add_argument("--readelf", default="readelf")
+    ap.add_argument("--readelf", default="readelf", help="readelf, or objdump for PE objects")
     ap.add_argument("--root", type=Path, default=n64syms.ROOT)
+    ap.add_argument("--weak-script", type=Path,
+                    help="PE: also write the linker script that resolves data.c's weak references")
     ap.add_argument("--check", type=Path, help="linked executable to verify against --layout")
     ap.add_argument("--layout", type=Path)
     ap.add_argument("--test-tables", type=Path, help="an object of test declarations: write pc_data_test's header")
+    ap.add_argument("--pe", action="store_true", help="--check: the executable is PE (Windows)")
     a = ap.parse_args()
     if a.check:
-        sys.exit(check(a.check, a.layout, a.nm))
+        sys.exit(check(a.check, a.layout, a.nm, a.pe))
     if a.test_tables:
         if not a.out:
             ap.error("--test-tables needs --out")
@@ -1080,7 +1109,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          "#endif",
          "/* A symbol takes its own size (the linker compares it with the game's common symbols). */",
          "#if defined(__ELF__)", "#define PC_SIZE(name, n) \"\\n.size \" N64_SYM(name) \", \" #n", "#else",
-         "#define PC_SIZE(name, n) \"\"", "#endif", "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", ""]
+         "#define PC_SIZE(name, n) \"\"", "#endif",
+         "#if defined(_WIN32)   /* weak.ld defines pc_weak.<name> as the symbol, or 0 (docs/port/WINDOWS.md) */",
+         f"#define PC_WEAK(id, name) extern char id[] __asm__(\"{n64syms.PE_WEAK_PREFIX}\" name);", "#else",
+         "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", "#endif", ""]
     L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 addresses in the RDRAM window")
     L.append(" * port/ultra maps at host 0x80000000 (docs/port/ULTRA.md), so nothing here allocates them:")
     for img, lo, init, hi in arenas:
@@ -1126,6 +1158,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         L += [");", ""]
     if thunks:
         L += ["/* Labels the game calls for a function defined under another name (symbols.json). */",
+              "#if defined(_WIN32)   /* COFF has no section stack (.previous): naked functions */"]
+        L += [f"__attribute__((naked)) void {n}(void) {{ __asm__(\"jmp {RENAMED.get(t, t)}\"); }}"
+              for n, t, _ in thunks]
+        L += ["#else",
               "#if defined(__aarch64__)", "#define PC_THUNK(n, t) \".globl \" N64_SYM(n) \"\\n.p2align 2\\n\" "
               "N64_SYM(n) \":\\n\\tb \" N64_SYM(t) \"\\n\"",
               "#elif defined(__x86_64__)", "#define PC_THUNK(n, t) \".globl \" N64_SYM(n) \"\\n.p2align 4\\n\" "
@@ -1133,7 +1169,7 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
               "#else", "#error \"gen_data: add a branch for this architecture\"", "#endif",
               "__asm__(\".text\\n\""]
         L += [f"    PC_THUNK(\"{n}\", \"{RENAMED.get(t, t)}\")" for n, t, _ in thunks]
-        L += ["    \".previous\\n\");", ""]
+        L += ["    \".previous\\n\");", "#endif", ""]
 
     # Weak references: functions and the game C's data.
     weak = {}
@@ -1148,6 +1184,14 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     for s in cdefs:
         L.append(f"PC_WEAK({cweak[id(s)]}, {c_str(sorted(s.names)[0])})")
     L.append("")
+    if a.weak_script:
+        W = ["/* weak.ld: generated by tools/port/gen_data.py. data.c's weak references on PE (docs/port/WINDOWS.md):",
+             " * pc_weak.<name> is the symbol when something linked in defines it, else 0, as an undefined weak",
+             " * reference is on ELF. An absolute 0 gets no base relocation, so it stays 0 when the image moves. */"]
+        W += [f"PROVIDE({n64syms.PE_WEAK_PREFIX}{n} = DEFINED({n}) ? {n} : 0);"
+              for n in [*weak, *(sorted(s.names)[0] for s in cdefs)]]
+        a.weak_script.parent.mkdir(parents=True, exist_ok=True)
+        a.weak_script.write_text("\n".join(W) + "\n")
 
     # Runs.
     runs = []
@@ -1221,21 +1265,30 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     (a.out.parent / "data_layout.json").write_text(json.dumps(layout))
 
 
-def check(exe, layout_path, nm):
+def check(exe, layout_path, nm, pe=False):
     """Verify the linked executable: every arena symbol absolute at its N64 address, every symbol inside own
-    storage at its base + offset, own storage at its host size, and nothing else linked in the RDRAM window."""
+    storage at its base + offset, own storage at its host size, and nothing else linked in the RDRAM window.
+    PE (pe): COFF symbols have no sizes, so own storage isn't size-checked; the image links at 0x140000000 and
+    moves, so only the window and its KSEG1 alias must be free of it (no GOT fix-up relies on the rest)."""
     layout = json.loads(Path(layout_path).read_text())
     out = subprocess.run([nm, "-S", "--defined-only", str(exe)], capture_output=True, text=True, check=True).stdout
     addr, size, letter = {}, {}, {}
     for line in out.splitlines():
         p = line.split()
+        if len(p) not in (3, 4):
+            continue
+        name, kind = p[-1], p[-2]
+        if name in letter and kind.islower() and letter[name].isupper():
+            continue   # a file-local static of the same name (overlay statics such as D_80399120): the global wins
+        addr[name], letter[name] = int(p[0], 16), kind
+        size.pop(name, None)
         if len(p) == 4:
-            addr[p[3]], size[p[3]], letter[p[3]] = int(p[0], 16), int(p[1], 16), p[2]
-        elif len(p) == 3:
-            addr[p[2]], letter[p[2]] = int(p[0], 16), p[1]
+            size[name] = int(p[1], 16)
     bad = []
     for name, n in layout["own"]:
-        if size.get(name) != n:
+        if name not in addr:
+            bad.append(f"own {name}: not in the executable")
+        elif size.get(name) != n and not pe:
             bad.append(f"own {name}: size {size.get(name)} != {n}")
     for name, base, off in layout["sets"]:
         if name not in addr or base not in addr:
@@ -1250,8 +1303,13 @@ def check(exe, layout_path, nm):
     # The executable's own link-time addresses must stay below the window: port/ultra/memory.c tells the GOT
     # slots of absolute symbols by an addend at 0x80000000 or above.
     lo, hi = layout["window"]
-    high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and x >= lo)
-    bad += [f"{n}: linked at 0x{addr[n]:X}, at or above the RDRAM window" for n in high]
+    if pe:
+        k1 = 0x20000000   # the KSEG1 alias of the window (port/ultra/memory.c)
+        high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and (lo <= x < hi or lo + k1 <= x < hi + k1))
+        bad += [f"{n}: linked at 0x{addr[n]:X}, inside the RDRAM window" for n in high]
+    else:
+        high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and x >= lo)
+        bad += [f"{n}: linked at 0x{addr[n]:X}, at or above the RDRAM window" for n in high]
     for b in bad[:50]:
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "

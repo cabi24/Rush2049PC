@@ -92,7 +92,12 @@ extern u8 D_8011AC84[];                          /* buttonInfo + 0x2f0 (title po
 extern u8 gCamera[];
 extern TextColor D_801146BC[2];                  /* flashColors */
 extern TextColor D_80118E28, D_80118E2C;
-s32 D_80118E20[2];   /* gJust: tentative definition (as controls.c / credits_scroll_grp gr3_d.c); unit: extern_data */
+#ifndef TARGET_PC
+/* PC: port/data defines D_80118E20 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) s32 D_80118E20[2];   /* gJust: tentative definition (as controls.c / credits_scroll_grp gr3_d.c); unit: extern_data */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 slot_state_setup(s32);
 extern u32 object_manager_update(char *, s32);   /* HAL_GetTextWidth */
