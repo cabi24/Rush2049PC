@@ -50,12 +50,22 @@ typedef struct {
     RoutePoint *pts;
 } Route;
 
+#ifdef TARGET_PC
+/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (audio_effect_apply), so these views take host offsets and strides */
+typedef struct {
+    char pad0[16];
+    u8 count;
+    char pad9[3];
+    Route *routes;
+} RouteSet;
+#else
 typedef struct {
     char pad0[8];
     u8 count;
     char pad9[3];
     Route *routes;
 } RouteSet;
+#endif
 
 typedef struct {
     s16 unk0;

@@ -22,6 +22,16 @@ typedef struct AltPath {
     u16 numPts;
     Vertex *pts;
 } AltPath;
+#ifdef TARGET_PC
+/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (audio_effect_apply), so these views take host offsets and strides */
+typedef struct ResPath {
+    u16 numPrimary;
+    u8 unk02[14];
+    u8 numAlt;
+    u8 unk09[3];
+    AltPath *alt;
+} ResPath;
+#else
 typedef struct ResPath {
     u16 numPrimary;
     u8 unk02[6];
@@ -29,6 +39,7 @@ typedef struct ResPath {
     u8 unk09[3];
     AltPath *alt;
 } ResPath;
+#endif
 extern s16 D_801407D4[3];
 extern s16 D_801407B4[3];
 extern ResPath D_801407F0;
