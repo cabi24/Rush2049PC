@@ -61,7 +61,11 @@ extern AudioCfg D_80146108;
 extern Button D_801102B4[12]; extern Ent D_8012E700[];
 extern char *D_80110290[]; extern u8 gNumModels; extern f32 D_8011418C[3][3];
 extern char D_8011F6F0[],D_8011F6F8[],D_8011F6FC[];
+#ifdef TARGET_PC
+extern const struct pc_multiblit D_801105C0[1],D_801105E4[2];   /* one blit and two, as NewMultiBlit gets them */
+#else
 extern const MultiBlit D_801105C0,D_801105E4;
+#endif
 extern Blit *D_80110630;
 extern s32 D_801105B4,D_801105B8,D_80110638,D_8011063C,D_80110640;
 extern s8 D_80117428,D_8011062C; extern u32 state_word_a;

@@ -1373,6 +1373,10 @@ def blits(c):
     for sym in ("D_801141D4", "D_8011421C"):
         for i in range(2):
             multiblit(c, sym, i, "BUTTON", 8 + 160 * i, 200, 48, 12)
+    # The video screen's two sets (front end, paused) and the audio screen's second set have two blits each, as
+    # NewMultiBlit gets them: one-blit declarations left the second outside its table (BRINGUP.md 9).
+    for sym in ("D_8011ACA0", "D_8011ACE8", "D_801105E4"):
+        multiblit(c, sym, 1, "BUTTON", 16, 200, 48, 12)
 
 
 def track_animations(c):
