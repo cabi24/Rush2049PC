@@ -100,6 +100,11 @@ endforeach()
 foreach(name bzero bcopy bcmp)
     target_compile_definitions(game_flags INTERFACE ${name}=n64_${name})
 endforeach()
+# The game's deflate code has its own zcfree. Windows links zlib statically, and a static zlib's zcfree is global
+# (a shared one keeps it hidden), so the game's is renamed there.
+if(WIN32)
+    target_compile_definitions(game_flags INTERFACE zcfree=n64_zcfree)
+endif()
 target_include_directories(game_flags INTERFACE include include/game include/PR)
 # First include of every game file: pointer-sized integer types and big-endian helpers for the 64-bit host
 # (docs/port/POINTERS.md).
@@ -111,10 +116,23 @@ target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -
 # Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so code
 # that names them (the game, and parts of port/) must load every extern's address from the GOT. aarch64 PIE
 # code does that already. x86-64 PIE code reaches externs PC-relatively, so everything is compiled as PIC there,
-# without GOT relaxation (port/ultra/memory.c fixes the slots at startup).
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+# without GOT relaxation (port/ultra/memory.c fixes the slots at startup). On Windows, GCC's default code model
+# loads every extern's address from a .refptr slot, which the linker fills with the absolute value
+# (docs/port/WINDOWS.md).
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64" AND NOT WIN32)
     add_compile_options(-fPIC -fno-semantic-interposition -Wa,-mrelax-relocations=no)
     add_link_options(-Wl,--no-relax)   # ld would still turn GOT loads of absolute symbols into PC32
+endif()
+# ---------------------------------------------------------------- Windows (mingw-w64, docs/port/WINDOWS.md)
+# The image links above 4 GiB (0x140000000) and moves with high-entropy ASLR, which keeps the heap and the thread
+# stacks above 4 GiB too: the renderer and the audio interpreter read values below 4 GiB as N64 addresses.
+# Absolute symbols get no base relocations, so their .refptr slots keep the N64 addresses wherever the image
+# lands. Executables are static (no MinGW runtime DLLs next to them). port/include/win holds the part of
+# <sys/mman.h> the PC layer's tests use.
+if(WIN32)
+    include_directories(BEFORE ${CMAKE_SOURCE_DIR}/port/include/win)
+    add_link_options(-static -Wl,--dynamicbase,--high-entropy-va,--nxcompat)
+    add_compile_definitions(SDL_MAIN_HANDLED)   # test programs have their own main and include SDL.h
 endif()
 # Silence what the N64-era declarations trip over; the 64-bit pointer warnings (-Wpointer-to-int-cast,
 # -Wint-to-pointer-cast) stay on, since they are the porting work list (docs/port/STATUS.md).
@@ -135,6 +153,10 @@ endif()
 # for the copies, and the real build force-includes it: one strong definition per symbol.
 set(PROBE_DIR ${CMAKE_BINARY_DIR}/probe)
 set(WEAK_DIR ${CMAKE_BINARY_DIR}/weak)
+set(PC_WEAK_PE_ARGS "")
+if(WIN32)
+    set(PC_WEAK_PE_ARGS --pe)   # each header also defines a global of its file's own (tools/port/gen_weak.py)
+endif()
 set(PROBE_SOURCES "")
 set(WEAK_HEADERS "")
 foreach(src ${GAME_SOURCES})
@@ -165,7 +187,7 @@ file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/probe_objects.txt CONTENT "$<JOIN:$<TAR
 add_custom_command(
     OUTPUT ${WEAK_HEADERS}
     COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_weak.py --objects-list ${CMAKE_BINARY_DIR}/probe_objects.txt
-            --out-dir ${WEAK_DIR} --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR}
+            --out-dir ${WEAK_DIR} --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR} ${PC_WEAK_PE_ARGS}
     DEPENDS $<TARGET_OBJECTS:game_probe> ${PORT_TOOLS}/gen_weak.py ${PORT_TOOLS}/n64syms.py
             ${CMAKE_SOURCE_DIR}/manifest/game.json ${CMAKE_SOURCE_DIR}/manifest/ovl_a.json
             ${CMAKE_SOURCE_DIR}/manifest/ovl_b.json ${CMAKE_SOURCE_DIR}/manifest/static.json
@@ -185,12 +207,23 @@ set(PC_DATA_DIR ${CMAKE_BINARY_DIR}/pc-data)
 if(NOT CMAKE_READELF)
     set(CMAKE_READELF readelf)
 endif()
+set(PC_DWARF_TOOL ${CMAKE_READELF})
+set(PC_DATA_PE_ARGS "")
+set(PC_DATA_PE_OUTPUTS "")
+if(WIN32)
+    # COFF objects: objdump prints their DWARF (readelf reads only ELF), and data.c's weak references resolve
+    # through weak.ld (tools/port/gen_data.py).
+    set(PC_DWARF_TOOL ${CMAKE_OBJDUMP})
+    set(PC_DATA_PE_ARGS --weak-script ${PC_DATA_DIR}/weak.ld)
+    set(PC_DATA_PE_OUTPUTS ${PC_DATA_DIR}/weak.ld)
+endif()
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_objects.txt CONTENT "$<JOIN:$<TARGET_OBJECTS:game>,\n>\n")
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json
-           ${PC_DATA_DIR}/data_symbols.txt
+           ${PC_DATA_DIR}/data_symbols.txt ${PC_DATA_PE_OUTPUTS}
     COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
-            --nm ${CMAKE_NM} --readelf ${CMAKE_READELF} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
+            --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
+            ${PC_DATA_PE_ARGS}
     DEPENDS $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/manifest/static.json
@@ -218,9 +251,15 @@ target_link_libraries(pcdata_rt PUBLIC ZLIB::ZLIB)
 # this file: they are only named here.
 find_package(Threads REQUIRED)
 file(GLOB PC_ULTRA_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/ultra/*.c)
+if(NOT WIN32)
+    list(FILTER PC_ULTRA_SOURCES EXCLUDE REGEX "/win32\\.c$")   # Windows' fault handler (docs/port/WINDOWS.md)
+endif()
 add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
 target_include_directories(pcultra PRIVATE port/include port/ultra port/config ${ZLIB_INCLUDE_DIRS})
 target_compile_options(pcultra PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+if(WIN32)
+    target_link_libraries(pcultra PUBLIC winmm)   # timeBeginPeriod (loop.c)
+endif()
 file(GLOB PC_FRONTEND_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/input/*.c
      ${CMAKE_SOURCE_DIR}/port/config/*.c)
 add_library(pcfrontend OBJECT ${PC_FRONTEND_SOURCES})
@@ -277,6 +316,10 @@ foreach(lib ${PC_PORT_ARCHIVES})
 endforeach()
 target_link_options(rush2049pc PRIVATE ${PC_DATA_DIR}/aliases.ld)
 set_target_properties(rush2049pc PROPERTIES LINK_DEPENDS ${PC_DATA_DIR}/aliases.ld)
+if(WIN32)   # data.c's weak references (tools/port/gen_data.py)
+    target_link_options(rush2049pc PRIVATE ${PC_DATA_PE_OUTPUTS})
+    set_property(TARGET rush2049pc APPEND PROPERTY LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
+endif()
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
@@ -373,9 +416,15 @@ add_executable(rush2049pc_datacheck port/data/datacheck.c ${PC_DATA_DIR}/stubs_s
     $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:pcdata>)
 target_link_libraries(rush2049pc_datacheck PRIVATE pcdata_rt m)
 target_compile_definitions(rush2049pc_datacheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64")
+set(PC_DATA_CHECK_PE "")
+if(WIN32)
+    target_link_options(rush2049pc_datacheck PRIVATE ${PC_DATA_PE_OUTPUTS})
+    set_target_properties(rush2049pc_datacheck PROPERTIES LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
+    set(PC_DATA_CHECK_PE --pe)   # COFF symbols have no sizes; the image links high and moves
+endif()
 add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
     COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --check $<TARGET_FILE:rush2049pc_datacheck>
-            --layout ${PC_DATA_DIR}/data_layout.json --nm ${CMAKE_NM}
+            --layout ${PC_DATA_DIR}/data_layout.json --nm ${CMAKE_NM} ${PC_DATA_CHECK_PE}
     VERBATIM)
 add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
 add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
