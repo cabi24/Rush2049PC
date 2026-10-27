@@ -38,8 +38,8 @@ extern const char *const pc_control_names[PC_NUM_CONTROLS];   /* "A", "CUP", "ST
 extern const uint16_t pc_control_masks[PC_NUM_CONTROLS];      /* N64 button bits; 0 for the stick */
 int pc_control_find(const char *name);                        /* index, case-insensitive; -1 if none */
 
-enum { PC_HOTKEY_FULLSCREEN, PC_HOTKEY_SCREENSHOT, PC_HOTKEY_PAUSE, PC_HOTKEY_QUIT, PC_NUM_HOTKEYS };
-extern const char *const pc_hotkey_names[PC_NUM_HOTKEYS];     /* "fullscreen", ... */
+enum { PC_HOTKEY_FULLSCREEN, PC_HOTKEY_SCREENSHOT, PC_HOTKEY_PAUSE, PC_HOTKEY_QUIT, PC_HOTKEY_MENU, PC_NUM_HOTKEYS };
+extern const char *const pc_hotkey_names[PC_NUM_HOTKEYS];     /* "fullscreen", ..., "menu" (the settings overlay) */
 
 /* ---------------------------------------------------------------- settings */
 
@@ -68,6 +68,7 @@ typedef struct PcSettings {
     char screenshot_dir[PC_CFG_PATH];   /* empty: the working directory */
     /* [audio] */
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
+    int volume;                     /* master volume, 0-100 */
     /* [input] */
     int keyboard_player;            /* 1-4, 0: no keyboard */
     int first_controller_player;    /* controllers fill players from here, in the order they are plugged in */
@@ -80,11 +81,14 @@ typedef struct PcSettings {
     char key[PC_NUM_CONTROLS][PC_CFG_BIND];
     int analog;                     /* PC_CFG_STICK_*: which controller stick is the N64 stick */
     char pad[PC_NUM_CONTROLS][PC_CFG_BIND];
+    char pad_menu[PC_CFG_BIND];     /* [controller] menu: the buttons that open the settings overlay */
     char hotkey[PC_NUM_HOTKEYS][PC_CFG_BIND];
 
-    /* Not in the file: where it was read from ("" for none) and its directory. */
+    /* Not in the file: where it was read from ("" for none) and its directory; where the settings overlay saves
+     * (pc_settings_resolve: the file read, the --config path, or the located one; "" for nowhere). */
     char source[PC_CFG_PATH];
     char source_dir[PC_CFG_PATH];
+    char save_path[PC_CFG_PATH];
 } PcSettings;
 
 /* One setting by name, as the file has it: ("video", "scale", "2"). */
@@ -109,9 +113,23 @@ int pc_settings_load_file(PcSettings *s, const char *path);
 int pc_settings_apply_env(PcSettings *s);
 /* The whole file, with comments, as malloc'd text. */
 char *pc_settings_format(const PcSettings *s);
-/* One setting's value as the file writes it ("16:9", "on", ...). -1 for an unknown setting. */
+/* One setting's value as the file writes it ("16:9", "on", "X, Left Shift", ...): the bindings and hotkeys too.
+ * -1 for an unknown setting. */
 int pc_settings_get(const PcSettings *s, const char *section, const char *key, char *out, size_t out_size);
 int pc_settings_write(const PcSettings *s, const char *path);   /* through a temp file and rename; 0 on success */
+/* The file over s without reporting its problems (bad lines are skipped). -1 when it can't be read. */
+int pc_settings_read_quiet(PcSettings *s, const char *path);
+
+/* An INI text with settings changed in place (the settings overlay's Save). Each change replaces the value of the
+ * last line that sets it, keeping that line's key, spacing and inline comment; a setting the text lacks goes after
+ * the last setting of its section, and a section it lacks goes at the end. Everything else (comments, blank lines,
+ * order, unknown keys, bad lines, a BOM, CRLF line ends) is kept byte for byte. Values are quoted when they need it
+ * to read back the same. malloc'd. */
+char *pc_ini_update(const char *text, const PcSettingValue *changes, int n);
+/* The changes saved to the settings file at path: pc_ini_update over it when it exists, otherwise the whole file
+ * (pc_settings_format) of the defaults with the changes, its directory made. Through a temp file and rename.
+ * 0 on success; why gets a message otherwise. */
+int pc_settings_save(const char *path, const PcSettingValue *changes, int n, char *why, size_t why_size);
 
 /* Where the file is: rush2049pc.ini next to the executable when there is one (a portable install), else
  * $XDG_CONFIG_HOME/rush2049pc/rush2049pc.ini (~/.config/... without XDG_CONFIG_HOME). *exists says whether that

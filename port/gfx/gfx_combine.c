@@ -271,6 +271,17 @@ const char *pcgfx_vertex_source(int gles, int glsl_version) {
     return s_vs;
 }
 
+/* The overlay's (gfx_ui.c): its color times the font atlas, alpha-blended by the GL state. */
+static char s_ui_fs[512];
+
+const char *pcgfx_ui_fragment_source(int gles, int glsl_version) {
+    snprintf(s_ui_fs, sizeof(s_ui_fs),
+             "%suniform sampler2D uTex0;\nin vec4 vShade;\nin vec4 vUV;\nout vec4 fragColor;\n"
+             "void main() {\n    fragColor = vShade * texture(uTex0, vUV.xy);\n}\n",
+             preamble(gles, glsl_version));
+    return s_ui_fs;
+}
+
 /* One blender term, color input v weighted by w: memory adds to memw, CLR_IN carries its own memory weight. */
 static void put_term(Str *s, int v, const char *w) {
     if (v == G_BL_CLR_MEM)

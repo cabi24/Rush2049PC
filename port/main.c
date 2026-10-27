@@ -51,7 +51,8 @@ static void usage(FILE *f)
             "  --status N          a status line every N seconds\n"
             "  -v, --verbose       more log lines (repeat for more); --trace-os: every thread switch\n"
             "  --selftest          test the thread scheduler, queues, events and timers (no ROM needed)\n"
-            "Ctrl-\\ prints the N64 threads' states.\n");
+            "F1 (or both stick clicks on a controller) opens the settings overlay, which holds the game; a\n"
+            "--press script's MENU does too. Ctrl-\\ prints the N64 threads' states.\n");
 }
 
 /* --no-rom: the file table (docs/port/ASSETS.md §2.2) is ROM data, so on a blank cartridge every wave is a
@@ -293,6 +294,7 @@ int main(int argc, char **argv)
     pc_si_init(pak_kind == PC_PAK_MEMORY ? cfg.pak_file : NULL, pak_kind);
     if (pc_audio_init(cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
+    pc_audio_set_volume(cfg.volume / 100.0);
     if (!pc_mem_fixed())
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
 

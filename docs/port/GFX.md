@@ -19,8 +19,9 @@ documentation and n64brew.
 | `gfx_egl.c` | headless context (EGL surfaceless, then EGL device, then the default display) |
 | `gfx_sdl.c` | SDL2 window and context (built only when SDL2 is found) |
 | `gfx_png.c` | PNG writer on zlib |
+| `gfx_ui.c`, `gfx_font.c` | drawing over the frame in window pixels, and its font: the settings overlay ("The overlay" below) |
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
-| `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`) |
+| `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing) |
 
 Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game has its own `gfx_*` functions
 (`gfx_frame_begin`, `gfx_lock`), and the renderer links into the same executable.
@@ -168,7 +169,9 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   - Offscreen color images get their own target. Nothing reads one back as a texture yet.
 - **Present.** `pc_gfx_present(fb)` copies fb's target (or the last one drawn) into a "presented" image. In a window
   it shows that image at the largest integer multiple that fits, otherwise aspect-fit, letterboxed, with square N64
-  pixels. Screenshots read the presented image.
+  pixels. Headless, it does the same into an offscreen image of the window's size, which `pc_gfx_read_window`
+  reads. Screenshots read the presented image. The overlay, when there is one, is drawn after the frame is shown
+  and before the swap (below).
 - **Context.** `pc_gfx_init(headless, w, h)`:
   - Headless uses EGL surfaceless (Mesa), which needs no display and works on a tty.
   - A window needs SDL2. When the window can't be created, or the build has no SDL2, it falls back to headless and
@@ -185,9 +188,10 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 
 - **Hooks for later.**
   - `pc_gfx_read_framebuffer` and `pc_gfx_read_window` (in `gfx_internal.h`, not `pc_port.h`) return target and
-    window pixels, for tests and tools. `pc_gfx_set_widescreen` and `pc_gfx_set_scale` (there too) change those
-    settings at run time, for a settings menu; `pc_gfx_set_window_size` sets the size the auto settings follow
-    when there is no window.
+    window pixels, for tests and tools; headless, the window's are the offscreen image the present fills.
+    `pc_gfx_set_widescreen` and `pc_gfx_set_scale` (there too) change those settings at run time, which the
+    settings overlay does ([FRONTEND.md](FRONTEND.md)); `pc_gfx_set_window_size` sets the size the auto settings
+    follow, and the headless window's size, when there is no window.
   - **An internal resolution of the window's size** (a scale that isn't a whole number) is not implemented. Three
     parts assume a whole scale: the point-sampled rectangle snap (`mod(floor(gl_FragCoord), uScale)` finds a
     fragment's place inside its N64 pixel), `rect_start` (the first sample sits half an internal pixel from the
@@ -285,6 +289,36 @@ the next frame. A new value applies from the next SETCIMG.
   - The 2-player screen's right panel and the empty band beside it.
   - Whatever the game draws at the frame's edges to hide something (a border fill, a fade) that touches only
     one side: it now reaches the target's side.
+
+### The overlay
+
+port/input's settings overlay ([FRONTEND.md](FRONTEND.md) "The settings overlay") is drawn here, outside the
+display-list interpreter (`gfx_ui.c`, `pc_port.h`'s graphics section). Added 2026-10-27.
+
+- **When.** While a UI hook is set (`pc_gfx_set_ui_hook`), each present calls it after the frame is shown in the
+  window, and before the swap, with the window's size in pixels. With no frame yet it draws over black. The overlay
+  is set only while it is open, so with it closed nothing here runs and the output is what it was.
+- **What it draws.** `pc_gfx_ui_rect` and `pc_gfx_ui_text`, in window pixels from the top left, colors as
+  `0xRRGGBBAA`. They are batched as triangles and drawn in one call by `pcgfx_gl_ui_draw`:
+  - a program of their own: the renderer's vertex shader (clip coordinates computed on the CPU) and a fragment
+    shader that multiplies the color by one texture (`pcgfx_ui_fragment_source`);
+  - the texture is an atlas of the font's 95 glyphs, 6 texels apart, and a solid cell that the rectangles sample.
+    It is uploaded once, nearest-sampled;
+  - alpha blending (`SRC_ALPHA`, `ONE_MINUS_SRC_ALPHA`) on the color channels, with the window's alpha kept; no
+    scissor, depth or culling. The renderer sets all of its state per draw, so nothing has to be put back.
+  - At a whole scale, each glyph is one quad whose window pixels land in the middle of their texels, so the text is
+    exact (the font test checks it pixel for pixel).
+- **Not through the frame.** Nothing goes through a render target or the presented image: the overlay is the same
+  at every internal scale and in widescreen, and a screenshot (which reads the presented image) has the frame
+  without it.
+- **`pc_gfx_redraw`** shows the presented image again with the overlay and swaps. The overlay redraws with it after
+  each change while the game is held, when no frames come; the pause key's redraw of an exposed window uses it too.
+- **The font** (`gfx_font.c`) was drawn for this port: printable ASCII in a 5 x 9 cell, capitals and digits 7 rows
+  tall, lower case 5 from row 2, descenders 2 rows (`, ; _ g j p q y`). The table is the glyphs as they look, eight
+  to a band of nine strings, `#` for a lit pixel; `pc_gfx_font_glyph` reads a glyph's rows out of it. No font data
+  was copied from anywhere.
+- **The event pump's tick.** `pc_gfx_poll_events` calls the tick hook (`pc_gfx_set_tick_hook`) after the window's
+  events, with or without a window: port/input's turn at each retrace and while the main loop holds the game.
 
 ### SDL2
 
@@ -446,6 +480,18 @@ build/gfx/gfx_test texrect --png /tmp/out
   4:3 frame's pixels must come out the same in the middle of the wider target. `gfx.all.scale-auto` reruns them
   with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Each variant has its own
   directory for the screenshot case's PNG, since they run in parallel.
+- **The overlay** has its own program, `gfx_ui_test`, headless: it reads the window's offscreen image.
+
+| Case | Checks |
+|---|---|
+| `gfx.ui.font` | every printable glyph present, within 5 columns, distinct, descenders only on `, ; _ g j p q y`; four glyphs against bitmaps written out in the test; a string drawn at scales 1, 2 and 3 matches them pixel for pixel, gaps included, in three colors, and its width |
+| `gfx.ui.panel` | a rectangle at alpha 128 blends over the frame by its alpha, to its last pixel and not past it; an opaque one covers it; the 640 x 480 headless window |
+| `gfx.ui.closed` | the overlay shows when presented and when redrawn; a screenshot with it is byte for byte the one without; without the hook the window, after a redraw and after presents, and the render target are byte for byte what they were before |
+| `gfx.ui.scaled` | the overlay's pixels at internal scale 1 and at 3 in 16:9 (a 1278 x 720 target) are the same; the hook gets the window's size, which follows `pc_gfx_set_window_size` (1280 x 960) |
+| `gfx.ui.all.desktop-gl`, `.software` | every case on desktop GL and on llvmpipe |
+
+- **Results on rocky (x86-64, Mesa, 2026-10-27):** the 19 cases and their variants pass as before, with the headless
+  window image now filled at each present; the 6 `gfx.ui` tests pass.
 - **Results on the Pi 5 (V3D 7.1, Mesa 24.2).**
   - 25/25 CTest entries pass (26/26 with SDL).
   - Every case also passes at internal scales 1–4, on GLES, on desktop GL and on llvmpipe, and in widescreen

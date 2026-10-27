@@ -124,6 +124,12 @@ static struct {
     GfxDepth *depths;
     GLuint present_fbo, present_tex;
     int present_w, present_h, present_valid;
+    int present_fw, present_rows;   /* the presented frame in N64 pixels */
+    GLuint window_fbo, window_tex;  /* headless: the window, offscreen */
+    int window_w, window_h;
+    GLuint ui_prog, ui_tex;         /* the overlay (gfx_ui.c) */
+    GLint u_ui_tex;
+    int ui_failed;
     GLuint bound_fbo;
 } G;
 
@@ -222,6 +228,14 @@ void pcgfx_gl_shutdown(void) {
         glDeleteFramebuffers(1, &G.present_fbo);
         glDeleteTextures(1, &G.present_tex);
     }
+    if (G.window_fbo) {
+        glDeleteFramebuffers(1, &G.window_fbo);
+        glDeleteTextures(1, &G.window_tex);
+    }
+    if (G.ui_prog)
+        glDeleteProgram(G.ui_prog);
+    if (G.ui_tex)
+        glDeleteTextures(1, &G.ui_tex);
     glDeleteTextures(1, &G.white);
     glDeleteBuffers(1, &G.vbo);
     glDeleteVertexArrays(1, &G.vao);
@@ -580,31 +594,115 @@ void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, G.present_fbo);
     glBlitFramebuffer(0, (t->h - rows) * s, pw, t->h * s, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     G.present_valid = 1;
-    if (to_window && win_w > 0 && win_h > 0) {
+    G.present_fw = t->w;
+    G.present_rows = rows;
+    pcgfx_gl_show(win_w, win_h, to_window);
+}
+
+void pcgfx_gl_show(int win_w, int win_h, int to_window) {
+    static const float black[4] = {0, 0, 0, 1};
+    GLuint dst = 0;
+    if (win_w > 0 && win_h > 0 && !to_window) {
+        /* headless: the window is an image of its size, which pc_gfx_read_window reads */
+        if (G.window_fbo == 0) {
+            glGenFramebuffers(1, &G.window_fbo);
+            glGenTextures(1, &G.window_tex);
+        }
+        if (G.window_w != win_w || G.window_h != win_h) {
+            glBindTexture(GL_TEXTURE_2D, G.window_tex);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, win_w, win_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+            bind_fbo(G.window_fbo);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, G.window_tex, 0);
+            G.window_w = win_w;
+            G.window_h = win_h;
+        }
+        dst = G.window_fbo;
+    }
+    if (win_w > 0 && win_h > 0) {
+        glDisable(GL_SCISSOR_TEST);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst);
+        glViewport(0, 0, win_w, win_h);
+        glClearBufferfv(GL_COLOR, 0, black);
+    }
+    if (G.present_valid && win_w > 0 && win_h > 0) {
         /* square N64 pixels; integer multiples when they fit, else aspect fit */
-        int k = win_w / t->w < win_h / rows ? win_w / t->w : win_h / rows, dw, dh, dx, dy;
-        static const float black[4] = {0, 0, 0, 1};
+        int fw = G.present_fw, rows = G.present_rows, pw = G.present_w, ph = G.present_h;
+        int k = win_w / fw < win_h / rows ? win_w / fw : win_h / rows, dw, dh, dx, dy;
         if (k >= 1) {
-            dw = t->w * k;
+            dw = fw * k;
             dh = rows * k;
-        } else if ((long)win_w * rows > (long)win_h * t->w) {
+        } else if ((long)win_w * rows > (long)win_h * fw) {
             dh = win_h;
-            dw = win_h * t->w / rows;
+            dw = win_h * fw / rows;
         } else {
             dw = win_w;
-            dh = win_w * rows / t->w;
+            dh = win_w * rows / fw;
         }
         dx = (win_w - dw) / 2;
         dy = (win_h - dh) / 2;
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glViewport(0, 0, win_w, win_h);
-        glClearBufferfv(GL_COLOR, 0, black);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, G.present_fbo);
         glBlitFramebuffer(0, 0, pw, ph, dx, dy, dx + dw, dy + dh, GL_COLOR_BUFFER_BIT,
                           (dw % pw == 0 && dh % ph == 0) ? GL_NEAREST : GL_LINEAR);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     G.bound_fbo = 0;
+}
+
+void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_window, const uint8_t *atlas,
+                      int atlas_w, int atlas_h) {
+    if (n <= 0 || G.ui_failed || (!to_window && G.window_fbo == 0))
+        return;
+    if (G.ui_prog == 0) {
+        GLuint vs = compile(GL_VERTEX_SHADER, pcgfx_vertex_source(G.gles, G.glsl));
+        GLuint fs = compile(GL_FRAGMENT_SHADER, pcgfx_ui_fragment_source(G.gles, G.glsl));
+        GLuint prog = glCreateProgram();
+        GLint ok = 0;
+        if (vs)
+            glAttachShader(prog, vs);
+        if (fs)
+            glAttachShader(prog, fs);
+        glBindAttribLocation(prog, 0, "aPos");
+        glBindAttribLocation(prog, 1, "aShade");
+        glBindAttribLocation(prog, 2, "aUV");
+        if (!G.gles && glBindFragDataLocation != NULL)
+            glBindFragDataLocation(prog, 0, "fragColor");
+        glLinkProgram(prog);
+        glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+        if (vs)
+            glDeleteShader(vs);
+        if (fs)
+            glDeleteShader(fs);
+        if (!ok || !vs || !fs) {
+            fprintf(stderr, "gfx: the overlay's shader did not build; no overlay\n");
+            glDeleteProgram(prog);
+            G.ui_failed = 1;
+            return;
+        }
+        G.ui_prog = prog;
+        G.u_ui_tex = glGetUniformLocation(prog, "uTex0");
+    }
+    if (G.ui_tex == 0)
+        G.ui_tex = pcgfx_gl_texture(atlas, atlas_w, atlas_h);
+    bind_fbo(to_window ? 0 : G.window_fbo);
+    glViewport(0, 0, win_w, win_h);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glDisable(GL_CULL_FACE);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+    glUseProgram(G.ui_prog);
+    glUniform1i(G.u_ui_tex, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, G.ui_tex);
+    glBindBuffer(GL_ARRAY_BUFFER, G.vbo);
+    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(sizeof(*v) * (size_t)n), v, GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, n);
+    glDisable(GL_BLEND);
+    bind_fbo(0);
 }
 
 static int read_fbo(GLuint fbo, int x, int y, int w, int h, uint8_t *rgba) {
@@ -637,6 +735,16 @@ int pcgfx_gl_read_window(uint8_t *rgba, int w, int h) {
     int rc = read_fbo(0, 0, 0, w, h, rgba);
     bind_fbo(0);
     return rc;
+}
+
+int pcgfx_gl_read_headless_window(uint8_t *rgba, int *w, int *h) {
+    if (G.window_fbo == 0)
+        return -1;
+    *w = G.window_w;
+    *h = G.window_h;
+    if (rgba == NULL)
+        return 0;
+    return read_fbo(G.window_fbo, 0, 0, *w, *h, rgba);
 }
 
 int pcgfx_gl_read_presented(uint8_t *rgba, int *w, int *h) {
