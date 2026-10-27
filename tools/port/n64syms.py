@@ -32,6 +32,11 @@ CODE = {"boot": (0x80000400, 0x800277D0), "game": (0x80086A50, 0x8010FD7C),
 # The symbol tables the matching build links each image's compiled C against.
 IMAGE_SYMBOLS = {"game": "asm/us/blob/symbols.json", "ovl_a": "asm/us/ovl_a/symbols.json",
                  "ovl_b": "asm/us/ovl_b/symbols.json"}
+# C library functions the game calls and the host's C library provides (link stubs and the census skip them).
+HOST_LIBC = {"bcopy", "bzero", "bcmp", "memcpy", "memset", "memmove", "memcmp", "strlen", "strcpy", "strcmp",
+             "strncpy", "strchr", "sqrtf", "sqrt", "fabsf", "fabs", "sinf", "cosf", "abort", "printf", "sprintf",
+             "vsprintf", "modff"}
+
 _IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"),
                ("/nonmatching/game/", "game"), ("/nonmatching/ovl_a/", "ovl_a"), ("/nonmatching/ovl_b/", "ovl_b"))
 

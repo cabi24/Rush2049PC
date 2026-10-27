@@ -80,17 +80,17 @@ Rush2049PC/
 
 ## Phases
 
-| Phase | Goal | Done when |
-|---|---|---|
-| **0. Seed and census** (tonight) | Repo seeded, PC build compiles everything, census tool committed | `cmake --build` compiles 1,346 files into a library; `tools/port/census.py` reproduces the tables above |
-| **1. It links** | Every undefined symbol has a definition: BSS generated, data generated from the ROM, missing functions stubbed (abort with the name) | `rush2049pc` links and runs until the first stub |
-| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault |
-| **3. First picture** | Interpreter + OpenGL + SDL window. 64-bit `Gfx`. Pointer warnings on the boot path fixed. | Midway logo and title screen |
-| **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race |
-| **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound |
-| **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart |
-| **7. Parity with v5** | v5 is the reference: same `--press` input scripts on both; compare state probes (game state, car positions and speeds per frame), screenshots and audio | Every mode v5's scripted runs cover |
-| **8. Features** | Widescreen, high frame rate, settings menu, remapping, texture packs: the V6 list, now plain C edits plus our renderer | Per feature, behind a setting |
+| Phase | Goal | Done when | Status (2026-10-26) |
+|---|---|---|---|
+| **0. Seed and census** | Repo seeded, PC build compiles everything, census tool committed | `cmake --build` compiles 1,346 files into a library; `tools/port/census.py` reproduces the tables above | Done |
+| **1. It links** | Every undefined symbol has a definition: BSS generated, data generated from the ROM, missing functions stubbed (abort with the name) | `rush2049pc` links and runs until the first stub | Done: 0 function stubs left |
+| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault | Built and self-tested; with a blank cartridge the game runs into its sound loading. **Needs the ROM** |
+| **3. First picture** | Interpreter + OpenGL + SDL window. 64-bit `Gfx`. Pointer warnings on the boot path fixed. | Midway logo and title screen | Renderer done and tested with synthetic lists; `Gfx` widened. Needs the ROM |
+| **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race | Survey done ([port/ASSETS.md](port/ASSETS.md)); loaders not started |
+| **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain), tested with synthetic tasks |
+| **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart | Controller pak at the SI block level done; SDL input in progress |
+| **7. Parity with v5** | v5 is the reference: same `--press` input scripts on both; compare state probes (game state, car positions and speeds per frame), screenshots and audio | Every mode v5's scripted runs cover | `--press` scripts work on the PC build |
+| **8. Features** | Widescreen, high frame rate, settings menu, remapping, texture packs: the V6 list, now plain C edits plus our renderer | Per feature, behind a setting | Internal resolution scale (`RUSH_GFX_SCALE`) |
 
 ## Phase 0 results (2026-10-26)
 
@@ -126,27 +126,66 @@ What was learned, and how the build handles it:
   `src/ovl_a/groups/start_screen/group.c` and `src/ovl_b/groups/hud_show/hudextra.c`. Check them with the N64
   matching build on the Rocky host.
 
-## Next session
+## Second session results (2026-10-26)
 
-1. **N64 check**: run `make` on the Rocky host to confirm the two `#ifdef TARGET_PC` edits leave the ROM
-   matching.
-2. **Initialized data** (746 boot and game symbols): a generator that reads them from your ROM
-   (`baserom.us.z64` in the repository root, as the N64 build expects), fixes byte order by declared type, and turns
-   N64 pointers into symbol references. It can be checked against the matching build: the same values compiled for
-   the N64 must give the ROM's bytes.
-3. **Overlay data** (559): decide the overlay model. Both images share 0x8038A400, and an overlay load must restore
-   that image's initial data.
-4. **The 48 names missing from the symbol file**: resolve them to addresses.
-5. **Phase 2 starts**: the PC libultra (threads, message queues, VI timer, PI DMA from the ROM file), replacing the
-   boot and libultra stubs one by one.
+Six parts were built in parallel against one interface header, [`port/include/pc_port.h`](../port/include/pc_port.h).
+Each part's design, tests and open items are in its own document:
 
-Tools: cmake 3.25, ninja and gcc 12 are on the Pi. Install `libsdl2-dev` (missing) before Phase 3, and optionally
-`clang lld`. zlib 1.2.13 is present.
+| Part | Where | Document | What it does |
+|---|---|---|---|
+| PC libultra and main loop | `port/ultra/`, `port/main.c`, `port/input/` | [port/ULTRA.md](port/ULTRA.md) | Each N64 thread is a host thread, and one runs at a time with N64 priorities. Message queues, events, timers, VI at 60 Hz, PI DMA from the ROM file, SI with the game's own controller pak code on a `.mpk` file, AI and RSP tasks. 54 libultra units are replaced; 12 busy-waits yield. `rush2049pc --selftest` |
+| Game data | `tools/port/gen_data.py`, `port/data/` | [port/DATA.md](port/DATA.md) | Storage for every boot, game and runtime-image data symbol, laid out from the build's DWARF types. At startup the loader inflates the images from your ROM and fills each symbol by type: byte order fixed, N64 pointers made host pointers. The executable holds no ROM bytes. An overlay load resets that image's data |
+| Graphics | `port/gfx/` | [port/GFX.md](port/GFX.md) | F3DEX2 (NoN fifo 2.08) on the CPU, with 4 KB TMEM, all nine texture formats the game uses, combiners and blender compiled to GLSL. GLES 3 / GL 3.1+, headless EGL, optional SDL2 window, internal resolution scale |
+| Audio | `port/audio/` | [port/AUDIO.md](port/AUDIO.md) | The audio microcode is Factor 5's MusyX v1 (subframe descriptors, not an Acmd list). Interpreter, ring buffer, null, WAV, SDL2 and ALSA output |
+| 64-bit types | `include/`, `src/`, `tools/port/ptr64_*.py`, `tools/port/n64_neutral.py` | [port/POINTERS.md](port/POINTERS.md) | `Gfx.w1` is pointer-sized on PC in all 444 local typedefs. Pointer warnings dropped from 836 to 392, and most of what is left is deliberate: 32-bit N64 addresses in heap headers and ROM records, in the identity-mapped RDRAM window |
+| Asset survey | | [port/ASSETS.md](port/ASSETS.md) | One loader (`LoadWave`, 183 files) into the game heap, with 11 formats. The game relocates loaded records with 32-bit arithmetic |
+| Speech | `port/ultra/gsm.c` | [port/ULTRA.md](port/ULTRA.md) | The three hand-written GSM decoder kernels in C, checked against their MIPS code run in an interpreter |
+
+Key design decisions that came out of it:
+
+- **RDRAM window.** An 8 MB window is mapped at host address 0x80000000 (`MAP_FIXED_NOREPLACE`). The game heap,
+  frame buffers and the overlay region sit at their N64 addresses inside it. This is load-bearing: the game relocates
+  the files it loads with 32-bit arithmetic (`+= base`, `| 0x80000000`, bit-31 tests), so those records keep 32-bit
+  address fields and stay exact.
+- **Host data above 4 GB.** The executable is position-independent, so any value below 4 GB is an N64 address (K0,
+  physical or segmented) and anything above is a host pointer. The renderer and audio resolve addresses with that
+  rule.
+- **Two display-list forms.** Lists the game builds are native (16 bytes per command, host pointers). Lists loaded
+  from the ROM stay in N64 form (8 bytes, big-endian) inside registered big-endian ranges.
+- **Data from the ROM at run time.** Nothing derived from the ROM is generated at build time, so the build and its
+  tests run without a ROM.
+- **Ceiling drafts.** The 8 standalone C drafts in `nonmatching/game/` that nothing else defines are compiled into
+  the PC build. Historical labels are linked to the function the layout places at their address.
+
+Numbers ([port/STATUS.md](port/STATUS.md)): 1,329 of 1,329 files compile, 392 pointer warnings in 93 files, **0**
+function stubs, 1 undefined name (`ShowCull`, a debug flag in a draft), 34 tests passing.
+
+How far it runs: `rush2049pc --no-rom` (a blank cartridge) runs the game's own `main`, the idle thread, `game_init`,
+the scheduler, audio and render threads, heap setup in the window and `game_late_init` into AudioInitSys. It stops
+in `LoadWave(6)`, where every file size read from the blank cartridge is zero. Going further needs the ROM.
+
+## Next
+
+1. **The ROM.** Put `baserom.us.z64` in the repository root (git-ignored). Then:
+   - `build/pc/rush2049pc_datacheck` checks the data loader on real data.
+   - `build/pc/rush2049pc --headless --stop-at-gfx`, then `--screenshot-at N`, is the Phase 2 and Phase 3 bring-up
+     loop: run, read the backtrace, fix.
+2. **N64 check on the Rocky host.** Run `make` to confirm the ROM still matches. `tools/port/n64_neutral.py --base
+   09da2f0` is the local proof; the real check is IDO.
+3. **Phase 4 loaders.** Hook `_ReadWave` for the per-format byte swaps in ASSETS.md §5, starting with the text bank,
+   the MusyX files and fonts.
+4. **Declarations that disagree** across files: 107 pointer, 80 width (`build/pc/pc-data/data_layout.txt`). Also the
+   cross-file prototype mismatches that aarch64 exposes (POINTERS.md).
+5. **SDL2.** Install `libsdl2-dev`, or configure with `-DRUSH_FETCH_SDL2=ON`, for a window, controllers and audio
+   output.
 
 ## Decisions
 
-1. **Seed** from the decompilation's history (proposed) or start a fresh copy.
-2. **Keep the N64 matching build working** in this repo (proposed). Shared changes get checked on the Rocky host.
-3. **Renderer** (Phase 3): libultraship's Fast3D, or our own interpreter.
-4. **License** for `port/` (libultraship is MIT; nothing requires GPL now that N64ModernRuntime isn't used).
-5. **Rush2049Recompiled**: v5 becomes the reference for parity testing. Its `V6_PLAN.md` is superseded by this plan.
+1. **Seed**: done, from the decompilation's history.
+2. **Keep the N64 matching build working** in this repo: yes. Shared changes are checked with
+   `tools/port/n64_neutral.py` here and with `make` on the Rocky host.
+3. **Renderer**: our own Fast3D-style interpreter (`port/gfx`), written for this game.
+4. **License** for `port/`: open. Nothing in it requires GPL. `port/audio` follows public reverse-engineering
+   notes on MusyX v1 whose main source is GPL code (mupen64plus); no code was copied. If you want strict clean-room
+   provenance, review those parts.
+5. **Rush2049Recompiled**: v5 is the reference for parity testing. Its `V6_PLAN.md` is superseded by this plan.
