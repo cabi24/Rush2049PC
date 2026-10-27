@@ -510,8 +510,11 @@ def gfx(w0, w1=0):
 
 # Each model's list sets the state it draws with, so it doesn't depend on what the game set before it: one-cycle
 # mode, the shade colour (G_CC_SHADE in both cycles), an opaque z-buffered surface without blending, no texture, and
-# smooth shading without fog, lighting or culling. Then its vertices (G_VTX, w1 file-relative: the WAD relocator,
-# entity_lod_select, adds the file's address) and triangles (G_TRI2), then G_ENDDL.
+# smooth shading with back faces culled, without fog, lighting or texture generation. Then its vertices (G_VTX, w1
+# file-relative: the WAD relocator, entity_lod_select, adds the file's address), its triangles (G_TRI2), G_ENDDL. The
+# faces wind clockwise seen from outside in the world's axes: the scene's modelview negates x (func_8009F058's
+# identity has m[0][0] = -1), which makes them counter-clockwise, front faces, on the screen. So the ground is seen
+# from above only, and a box not from inside (the in-car camera's own car).
 RM_ZB_OPA = 0x10 | 0x20 | 0x4000 | (3 << 26) | (2 << 18) | (3 << 24) | (2 << 16)   # Z_CMP Z_UPD FORCE_BL, CLR_IN x 1
 DL_STATE = (gfx(0xE7000000) +                                   # G_RDPPIPESYNC
             gfx(0xE3000A01, 0) +                                # G_SETOTHERMODE_H cycle type: G_CYC_1CYCLE
@@ -519,8 +522,8 @@ DL_STATE = (gfx(0xE7000000) +                                   # G_RDPPIPESYNC
             gfx(0xE200001C, RM_ZB_OPA) +                        # G_SETOTHERMODE_L render mode
             gfx(0xD7000000, 0xFFFFFFFF) +                       # G_TEXTURE off
             gfx(0xD9000000 | (~(0x00010000 | 0x00020000 | 0x00040000 | 0x00080000 | 0x600) & 0xFFFFFF),
-                0x1 | 0x4 | 0x00200000))                        # G_GEOMETRYMODE: - fog, lighting, texgen, culling;
-                                                                # + z-buffer, shade, smooth
+                0x1 | 0x4 | 0x00200000 | 0x400))               # G_GEOMETRYMODE: - fog, lighting, texgen, culling;
+                                                                # + z-buffer, shade, smooth, cull back
 
 
 def vtx(x, y, z, rgba, last):
@@ -542,7 +545,7 @@ def mesh(quads):
     verts = b""
     count = 4 * len(quads)
     for qi, (corners, rgba) in enumerate(quads):
-        for k, (x, y, z) in enumerate(corners):
+        for k, (x, y, z) in enumerate(reversed(corners)):      # clockwise from outside (above)
             verts += vtx(x, y, z, rgba, 4 * qi + k == count - 1)
 
     def dlist(vtx_off):
@@ -560,7 +563,7 @@ def mesh(quads):
 
 def box_quads(dx, dy, dz):
     """A box from -dx..dx, 0..dy, -dz..dz with a colour per face: +x (the front) red, -x blue, the top yellow, the
-    bottom grey, the sides green and cyan."""
+    bottom grey, the sides green and cyan. Each face counter-clockwise seen from outside (mesh reverses them)."""
     x0, x1, y0, y1, z0, z1 = -dx, dx, 0, dy, -dz, dz
     return [(((x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)), (230, 40, 40, 255)),
             (((x0, y0, z1), (x0, y1, z1), (x0, y1, z0), (x0, y0, z0)), (40, 60, 230, 255)),
@@ -766,20 +769,46 @@ def world_wad(targets=()):
 
 
 def road_file():
-    """A road file (ASSETS.md 3.5): no path records, one collision tree node, a leaf with no surfaces in it (the
-    lookup, handbrake_apply, takes a quarter's child as a subnode if the flags say so, else as an offset into the
-    surface lists, 0 for none), and no surfaces, vertices or save records."""
+    """A road file (ASSETS.md 3.5): flat pavement at y = 0 under the ground, x and z from -1000 to 3000 feet.
+
+    - header: no path or save records, one tree node, one surface, four vertices, a 5-byte vertex list and a 4-byte
+      surface list (slnum, which the N64 doesn't read);
+    - the tree node (handbrake_apply, func_800AC9BC): the root (parent -1), bounds in whole feet (h is x, v is z,
+      half-open), flags 0 so each quarter's child is a byte offset into the surface lists (0 would be "none"), all
+      four the same list;
+    - the surface (0x18 bytes): type 0 (roadcode 0, pavement; a wall, trigger or disabled code would be skipped or
+      act), its vertex count 4 in the low bits of the second word, an identity 3 x 3 matrix in 2^-14 units (row 1 is
+      the up normal: entity_update's height above the road is that row's dot product with the point less the first
+      vertex), and its vertex list at offset 0;
+    - the vertices (s16 feet and a word of 1/32 fractions): the first is the corner (-1000, 0, -1000) in the world,
+      the others are in the surface's frame from it, (4000, 0, 0), (4000, 0, 4000), (0, 0, 4000), in the order
+      func_800C3AD0's edge tests take as inside;
+    - the vertex list (func_800AD5D0): the first index as a big-endian u16, then a run byte 0xE0 | 3 for the next
+      three, then the u16 path record index the edge handlers read (0);
+    - the surface list (func_800ADCE0): offset 0 is a pad byte (0 means none), then the count 1 and one word, a run
+      of 0 more from surface 0."""
+    lo, hi = -1000, 3000
     b = Buf()
-    for v in (0, 1, 0, 0, 0, 0):    # pnum, tnum, snum, vnum, savenum, vlnum
+    for v in (0, 1, 1, 4, 0, 5):    # pnum, tnum, snum, vnum, savenum, vlnum
         b.u16(v)
-    b.u32(0)                        # slnum
-    b.u16(0xFFFF)                   # tree: parent none
+    b.u32(4)                        # slnum
+    b.u16(0xFFFF)                   # tree node 0: no parent
     b.u8(0)
-    b.u8(0)
-    for v in (-SQUARE, SQUARE, -SQUARE, SQUARE):
+    b.u8(0)                         # flags: every quarter a leaf
+    for v in (lo, hi, lo, hi):
         b.u16(v)                    # minh, maxh, minv, maxv
     for _ in range(4):
-        b.u16(0)                    # a leaf (flags 0), and no surface list in any quarter (offset 0)
+        b.u16(1)                    # each quarter: the surface list at offset 1
+    b.u16(0)                        # surface 0: type 0, pavement
+    b.u16(4)                        #            four vertices
+    for v in (0x4000, 0, 0, 0, 0x4000, 0, 0, 0, 0x4000):
+        b.u16(v)                    #            identity orientation, 1.0 = 0x4000
+    b.u16(0)                        #            its vertices at vertex list offset 0
+    for x, y, z in ((lo, 0, lo), (hi - lo, 0, 0), (hi - lo, 0, hi - lo), (0, 0, hi - lo)):
+        for v in (x, y, z, 0):
+            b.u16(v)                # vertex: s16 x, y, z, then the fractions word
+    b.raw(bytes([0x00, 0x00, 0xE3, 0x00, 0x00]))    # vertex list: 0, a run of 3 more, the path record index 0
+    b.raw(bytes([0x00, 0x01, 0x00, 0x00]))          # surface list: the pad, one surface: a run of 0 from surface 0
     return b.b
 
 
@@ -1098,7 +1127,7 @@ def race(c):
         icons = ARENA_ICONS if t in BATTLE_ARENAS else ()
         c.file(120 + t, world_wad(icons), f"track {t} world: one node" + (f" and {len(icons)} weapon icons" if icons
                                                                            else ""))
-        c.file(139 + t, road_file(), f"track {t} road: one empty collision node")
+        c.file(139 + t, road_file(), f"track {t} road: flat pavement, one surface")
     for w in list(range(61, 69)) + list(range(76, 101)):
         c.file(w, texture_wad(CODE_TEXTURES, CODE_MODELS), "race, HUD or car WAD", model=True)
 

@@ -100,13 +100,15 @@ copies those as they are, so they are bytes, or zero.
 | 61-68, 76-100 | race, HUD, car WADs | like 54, without the map objects |
 | 101-119 | track WADs | like those, plus the world node's model TRACK |
 | 120-138 | world WADs | WHDR naming one world, one WOBJ node (TRACK), one empty GDAT leaf, no GTLD keys; the battle arenas' (tracks 6-13) four more nodes, WEAPON00-03, siblings of TRACK at the corners of a 1000-unit square, which become weapon icons |
-| 139-157 | road | one empty collision quadtree leaf, no surfaces |
+| 139-157 | road | flat pavement at y = 0, x and z from -1000 to 3000 feet: one tree node whose four quarters list one surface (type 0, an identity orientation, four vertices; `road_file` says what each reader takes) |
 | 158-182 | paths | a 2000-unit square: four checkpoints, an eight-point resurrection path, four drone paths |
 
 **The models** (`model_objs`): each has a display list and vertices of its own (SetupWaveModel relocates every
 model's lists in place, so two models sharing one list would have its addresses relocated twice). A list sets the
 state it draws with (one-cycle, the shade combiner, an opaque z-buffered surface, no texture, smooth shading without
-fog, lighting or culling), then loads its vertices eight quads at a time and draws them with G_TRI2. Vertices are in
+fog or lighting, back faces culled), then loads its vertices eight quads at a time and draws them with G_TRI2. The
+faces wind clockwise seen from outside in the world's axes: the scene's modelview negates x, which makes them front
+faces on the screen (the ground is seen from above, a box not from inside). Vertices are in
 sixteenths of a foot (the scene's matrices and the projection's near and far are x16). The world node's model TRACK
 is the ground: 16 x 16 tiles of 250 feet, a checker of greens with the tiles under the square loop grey, centred on
 the node, which the world puts at the loop's middle. Every other model (AAANULLOBJ, which the game takes for a NULL or
@@ -221,6 +223,7 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 | 38 | the car-car collision (menu_options_screen) and the push (menu_load_options) divide 0 by 0 | no weights; the push's constants | data | weights, push constants |
 | 39 | (looking for 37) | **the cars' masses D_80110DD8, the tunes D_801116D0 and D_801117B4 are indexed past their one-element declarations, so the loader converted only the first element and left the others in the ROM's byte order** | **port bug** | declarations of their size, an extent; `index_check` |
 | | the cars drive without NaN (they fall: the road has no surfaces) | | | |
+| | the cars fall for ever | no road surface under the tires: every lookup misses | data | the flat pavement |
 | 40 | (with models) SetupWaveModel faults in the vertex chain walk at 0x6 | **the generator's**: the models shared one display list, which each model's relocation moved again | data (the generator's) | lists of their own |
 | 41 | the pause screen's options screen spins | no valid option (`while (!valid[i]) i++`) | data | `D_80116D14` |
 | 42 | the pause screen's audio screen copies a NULL name | gSongNames; and its declaration ran by the gap to 131 pointers (the loader would have made the 119 words after the 12 names pointer slots), so `extents.txt` gives it 12 | data; extent | `D_80110030` |
