@@ -53,7 +53,12 @@ static void tlut_copy_in(u16 *dst, u32 src, u32 size)
 typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 typedef union Handle { s32 value; struct { s16 bank, id; } halves; } Handle;
 typedef struct Handles64 { Handle root; u32 unknown04[3]; Handle secondary, body; u32 unknown18[10]; } Handles64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Model68 { u32 flags, w4; void *obj; float scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip; Resource24 *palette; u32 texture0, texture1; } Model68;
+#else
 typedef struct Model68 { u8 model_fields[56]; Resource24 *palette; u32 texture0, texture1; } Model68;
+#endif
 extern u8 D_8013FE90[];          /* gCarPaintJobInited */
 extern u32 D_8013F300[];         /* paint colour table */
 extern Resource24 D_8013FEE0[];  /* per-slot palette descriptors */

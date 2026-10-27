@@ -3787,6 +3787,23 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node whose
+ * next sibling is arg0, or -1. */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+s16 func_8008FFD0(s16 arg0)
+{
+  s32 i;
+  for (i = 0; i < D_80156990; i++)
+  {
+    if (((PcNode *) &D_8012E700)[i].next == arg0)
+    {
+      return i;
+    }
+  }
+  return -1;
+}
+#else
 s16 func_8008FFD0(s16 arg0)
 {
   s16 new_var;
@@ -3810,3 +3827,4 @@ s16 func_8008FFD0(s16 arg0)
   }
   return -1;
 }
+#endif

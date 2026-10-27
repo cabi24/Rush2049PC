@@ -1336,7 +1336,14 @@ typedef struct CompRec { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CompRec;
 #define gCarComponents ((CompRec (*)[11])D_803B2618)
 typedef struct CompLightDir { u8 col[3], pad0, colc[3], pad1; s8 dir[3], pad2; u8 pad3[4]; } CompLightDir;
 typedef struct CompLight { u8 col[3], pad0, colc[3], pad1; CompLightDir l[2]; } CompLight;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
+ * D_8012E708 is node 0's object slot (N64 +0x08): on the PC, a field of the node. */
+typedef struct ObjInstance { u32 flags, w4; void *mat; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInstance;
+#define D_8012E708 D_8012E700
+#else
 typedef struct ObjInstance { void *mat; u8 unknown04[64]; } ObjInstance;
+#endif
 typedef struct ZMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;
 CompLight D_803B2858[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},

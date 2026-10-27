@@ -11,7 +11,12 @@ typedef signed char s8; typedef unsigned char u8; typedef signed short s16;
 typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef struct ModelObj {u8 opaque0[6];s16 model,player;u16 opaque10;u32 flags,opaque16,active;} ModelObj;
 typedef struct Pose {f32 values[9];} Pose;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Model68 { u32 flags, opaque4; Pose *pose; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
+#else
 typedef struct Model68 {u32 flags,opaque4;Pose *pose;u8 opaque12[56];} Model68;
+#endif
 typedef struct Side24 {u32 flags;u8 opaque4[20];} Side24;
 typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[432];Side24 side[2];u8 opaque716[144];s8 shift,quality,opaque862,disabled;u8 opaque864[32];Pose *pose;u8 opaque900[52];} Player952;
 extern Player952 player_array[];

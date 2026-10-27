@@ -8,12 +8,27 @@
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned char u8;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct SceneRecord {
+    unsigned int flags, w4;
+    void *obj;
+    float scale, w;
+    unsigned short model;
+    s16 child;
+    s16 sibling;
+    s16 mode;
+    void *light, *tex[4], *rect, *clip, *pal;
+    unsigned int prim, env;
+} SceneRecord;
+#else
 typedef struct SceneRecord {
     u8 prefix[22];
     s16 child;
     s16 sibling;
     u8 tail[42];
 } SceneRecord;
+#endif
 extern SceneRecord D_8012E700[];
 extern s32 D_80156990;
 

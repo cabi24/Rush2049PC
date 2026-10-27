@@ -3791,6 +3791,24 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. 1 unless the
+ * node's flag bit 8 + arg1 is set and track_collision finds nothing in its children. */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+s32 track_collision_edge(void *arg0, s32 arg1)
+{
+  PcNode *node = (PcNode *) arg0;
+  if (!(node->flags & (0x100 << arg1)))
+  {
+    return 1;
+  }
+  if ((node->child >= 0) && (track_collision(&((PcNode *) &D_8012E700)[node->child], arg1) != 0))
+  {
+    return 1;
+  }
+  return 0;
+}
+#else
 s32 track_collision_edge(void *arg0, s32 arg1)
 {
   s8 *new_var3;
@@ -3812,3 +3830,4 @@ s32 track_collision_edge(void *arg0, s32 arg1)
   }
   return 0;
 }
+#endif

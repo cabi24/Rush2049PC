@@ -25,6 +25,21 @@
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef struct TexDef TexDef; typedef struct Blit Blit; typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Ent {
+    /* 0x00 */ s32 w0;
+    /* 0x04 */ s32 w4;
+    /* 0x08 */ void *owner;
+    /* 0x10 */ f32 scaleA;
+    /* 0x14 */ f32 scaleB;
+    /* 0x18 */ u16 id;          /* 0xFFFF = free */
+    /* 0x1A */ s16 link[3];     /* -1 = none */
+    /* 0x20 */ void *w28[8];
+    u32 color;
+    /* 0x64 */ s32 w64;
+} Ent; /* size 0x68 */
+#else
 typedef struct Ent {
     /* 0x00 */ s32 w0;
     /* 0x04 */ s32 w4;
@@ -37,6 +52,7 @@ typedef struct Ent {
     u32 color;
     /* 0x40 */ s32 w64;
 } Ent; /* size 0x44 */
+#endif
 
 
 typedef union Color { u8 c[4]; u32 rgba; } Color;

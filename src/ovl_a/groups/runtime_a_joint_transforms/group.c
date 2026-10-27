@@ -42,7 +42,12 @@ typedef struct LoadState {
 } LoadState;
 typedef struct Transform {f32 matrix[3][3],position[3];} Transform;
 typedef struct ModelDescription {u8 unaccessed[112];f32 joint_position[4][3];} ModelDescription;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct ObjectFlags { u32 flags, word4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjectFlags;
+#else
 typedef struct ObjectFlags {u32 flags,word4;u8 other[60];} ObjectFlags;
+#endif
 extern ModelState D_80139320[];
 extern LoadState D_803BA2F0[];
 extern ModelDescription *D_80110D08[13];
@@ -71,7 +76,7 @@ extern void sfx_stop(s16,s16,s16);
 extern void sound_bank_unload(s16,s16,u8,u8,u8);
 extern void func_80092FE0(s16,s32 *);
 extern void func_8008D6FC(s16,void *,void *);
-extern void func_8008D870(s16,s32,s32);
+extern void func_8008D870(s16,intptr_t,s32);
 
 void func_80390A28(s16 id,s16 player)
 {
@@ -114,7 +119,7 @@ void func_80390DCC(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *po
     s16 cam;
     s32 x0;                 /* disclosed unused: frame residual (header) */
     tRGBA alphaCol = {255, 255, 255, 255};
-    s32 wheelTex;
+    intptr_t wheelTex;
     s32 u0, u1, u2, u3, u4, u5, u6, u7, u8, u9;   /* disclosed unused: frame residual (header) */
     idx = slot % 13;
     if (D_80151AD0 < 3) {

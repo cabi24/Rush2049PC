@@ -28,6 +28,23 @@ typedef float f32;
 
 #define DEBUG_PRINT(args)
 
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, which every view of the table has (docs/port/POINTERS.md 9): the nine zeroed
+ * words are the light, the four LOD textures, the two texture rectangles, the palette (pointer-sized here) and the
+ * primitive colour. */
+typedef struct Ent {
+    /* 0x00 */ s32 w0;
+    /* 0x04 */ s32 w4;
+    /* 0x08 */ void *owner;
+    /* 0x10 */ f32 scaleA;
+    /* 0x14 */ f32 scaleB;
+    /* 0x18 */ u16 id;          /* 0xFFFF = free */
+    /* 0x1A */ s16 link[3];     /* -1 = none */
+    /* 0x20 */ void *light, *tex[4], *rect, *clip, *pal;
+    /* 0x60 */ u32 color;
+    /* 0x64 */ s32 w64;
+} Ent; /* size 0x68 */
+#else
 typedef struct Ent {
     /* 0x00 */ s32 w0;
     /* 0x04 */ s32 w4;
@@ -39,13 +56,58 @@ typedef struct Ent {
     /* 0x1C */ s32 w28[9];
     /* 0x40 */ s32 w64;
 } Ent; /* size 0x44 */
+#endif
 
+#ifdef TARGET_PC
+extern Ent D_8012E700[600];   /* to 0x80138660: the table's extent, for gen_data */
+#else
 extern Ent D_8012E700[];
+#endif
 extern s32 D_80156990;  /* records in use */
 extern s32 D_801569A8;  /* high-water mark */
 
 void render_mode_select(s16 index, s16 parent);
 
+#ifdef TARGET_PC
+/* PC: the same record by field. The N64 body's byte offset (`off`) and its nine-word clear are N64 layout. */
+s32 func_8008E26C(s32 a, void *b, s16 parent, s32 d) {
+    Ent *e;
+    s32 i;
+
+    for (i = 0; i < D_80156990; i++) {
+        if (D_8012E700[i].id == 0xFFFF) {
+            break;
+        }
+    }
+    if (i == D_80156990) {
+        D_80156990++;
+    }
+    if (D_801569A8 < D_80156990) {
+        D_801569A8 = D_80156990;
+    }
+    e = &D_8012E700[i];
+    e->w0 = d;
+    e->w4 = 0;
+    e->owner = b;
+    e->scaleA = 1.0f;
+    e->scaleB = 1.0f;
+    e->id = a;
+    e->link[0] = -1;
+    e->link[1] = -1;
+    e->link[2] = -1;
+    e->light = 0;
+    e->tex[0] = 0;
+    e->tex[1] = 0;
+    e->tex[2] = 0;
+    e->tex[3] = 0;
+    e->rect = 0;
+    e->clip = 0;
+    e->pal = 0;
+    e->color = 0;
+    render_mode_select(i, parent);
+    return (s16)i;
+}
+#else
 s32 func_8008E26C(s32 a, void *b, s16 parent, s32 d) {
     Ent *e;
     s32 i;
@@ -88,3 +150,4 @@ s32 func_8008E26C(s32 a, void *b, s16 parent, s32 d) {
     }
     return (s16)i;
 }
+#endif

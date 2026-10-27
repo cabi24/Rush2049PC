@@ -53,11 +53,25 @@ typedef struct {
     u8 pad3D[3];
 } Button; /* 0x40 */
 
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct {
+    u32 flags, w4;
+    void *obj;
+    f32 scale, w;
+    u16 model;
+    s16 child, next, mode;
+    void *light, *tex[4], *rect, *clip, *pal;
+    Color color;         /* 0x60 */
+    u8 pad40[4];
+} Model68;
+#else
 typedef struct {
     u8 pad0[60];
     Color color;         /* 0x3C */
     u8 pad40[4];
 } Model68;
+#endif
 
 extern s32 D_80116D0C;
 extern s32 D_80116D10;
@@ -74,8 +88,8 @@ extern Model68 D_8012E700[];
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
-s32 func_800B24EC();
-void func_8008D870(s16 handle, s32 tex, s32 c);
+intptr_t func_800B24EC();
+void func_8008D870(s16 handle, intptr_t tex, s32 c);
 void func_800B5898(f32 angle, f32 uv[][3]);
 void func_800B5940(f32 angle, f32 uv[][3]);
 void func_8008B32C(f32 (*dst)[3], f32 (*src)[3], f32 s);
@@ -136,7 +150,7 @@ void func_800DA2C0(void) {
     f32 old[3];
     f32 sel_y;
     s8 flag;
-    s32 name;
+    intptr_t name;
     s32 yi;
     s32 u0;
     s16 tex;

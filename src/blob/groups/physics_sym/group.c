@@ -62,13 +62,13 @@ extern f32 D_80152678;
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
-s32 func_800B24EC();
+intptr_t func_800B24EC();
 void func_800B5898(f32 angle, f32 uv[][3]);
 void func_800B5940(f32 angle, f32 uv[][3]);
 void func_8008B32C(f32 (*dst)[3], f32 (*src)[3], f32 s);
 void model_data_load();
 void model_transform_setup();
-void func_8008D870(s16 arg0, s32 arg1, s32 arg2);
+void func_8008D870(s16 arg0, intptr_t arg1, s32 arg2);
 
 extern s8 D_8011AD30;
 extern intptr_t D_8011AD34;
@@ -116,7 +116,7 @@ s32 func_800B59E8(s32 i) {
 
 void func_800B59F0(void) {
     s32 i;
-    s32 name;
+    intptr_t name;
     f32 y;
     f32 cur;
     f32 old[3];

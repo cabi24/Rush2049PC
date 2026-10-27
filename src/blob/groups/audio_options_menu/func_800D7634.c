@@ -38,6 +38,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct {
@@ -62,8 +66,8 @@ extern f32 D_801543D0;
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
-s32 func_800B24EC();
-void func_8008D870(s16 handle, s32 tex, s32 c);
+intptr_t func_800B24EC();
+void func_8008D870(s16 handle, intptr_t tex, s32 c);
 void func_800B5898(f32 angle, f32 uv[][3]);
 void func_800B5940(f32 angle, f32 uv[][3]);
 void func_8008B32C(f32 (*dst)[3], f32 (*src)[3], f32 s);
@@ -78,7 +82,7 @@ s32 func_800D690C(s32 i) {
 
 void func_800D6914(void) {
     s32 i;
-    s32 name;
+    intptr_t name;
     f32 y;
     f32 cur;
     f32 m[3][3];

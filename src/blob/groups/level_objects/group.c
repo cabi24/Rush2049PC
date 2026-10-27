@@ -42,6 +42,21 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { f32 x, y, z; } Vec3;
 
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Ent {
+    s32 flags;
+    s32 w4;
+    f32 *owner;
+    f32 scaleA;
+    f32 scaleB;
+    u16 id;
+    s16 link[3];
+    void *w28[8];
+    s32 w60;
+    s32 w64;
+} Ent;
+#else
 typedef struct Ent {
     s32 flags;
     s32 w4;
@@ -53,6 +68,7 @@ typedef struct Ent {
     s32 w28[9];
     s32 w64;
 } Ent;
+#endif
 
 typedef struct Resource68 { u8 prefix[64]; u32 flags; } Resource68;
 

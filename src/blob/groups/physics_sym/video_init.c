@@ -27,7 +27,12 @@ typedef struct TexDef TexDef;
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad40[4]; } Ent;
+#else
 typedef struct { u8 pad0[60]; u32 color; u8 pad40[4]; } Ent;                                 /* 0x44 */
+#endif
 typedef union Color { u8 c[4]; u32 rgba; } Color;
 typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; char **taba; } TextState;
 typedef struct { s32 x, w, h, cx; } MenuRect;

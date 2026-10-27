@@ -4081,6 +4081,14 @@ void camera_track_spline(Camera *cam) {
  * not kept) so that the stub remains.  Its two parameters give retail's v0/v1 pair; with its two
  * locals it reserves the four frame slots per call site that both callers' frames need.
  */
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node's
+ * model id (N64 +0x14, D_8012E714 of node 0). */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+void func_800C15FC(s32 slot, u16 v) {
+    ((PcNode *) &D_8012E700)[slot].model = v;
+}
+#else
 void func_800C15FC(s32 slot, u16 v) {
     u8 *base;
     u16 *p;
@@ -4089,6 +4097,7 @@ void func_800C15FC(s32 slot, u16 v) {
     p = (u16 *) (base + slot * 0x44);
     *p = v;
 }
+#endif
 
 /*
  * camera_process_input(cam): first-frame set-up of a scripted camera.  state = 2; unless already started

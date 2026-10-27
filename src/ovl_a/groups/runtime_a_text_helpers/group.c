@@ -193,7 +193,7 @@ extern void object_byte71_set_sync(u8 ***,s32);
 extern void net_session_update(void);
 extern s32 string_copy_format(char *,s8,s8,s8);
 extern Texture *func_800B24EC(char *,s16 *,s8,s8,s32);
-extern void func_8008D870(s16,s32,s32);
+extern void func_8008D870(s16,intptr_t,s32);
 extern void func_8008E06C(s16,s32 *);
 extern void func_80092BC8(s16,s32 *);
 extern void model_transform_setup(s32,s32,u32);
@@ -229,7 +229,7 @@ void func_8039BE48(void)
                 model = string_copy_format(D_803B343C[selected], 0, D_80140BDC - 1, 1);
                 D_803B344C = sign_extend_call(model, (uintptr_t)D_8011418C, D_803B3448, 0x2C6084);
                 func_8008D870((s16)D_803B344C,
-                    (s32)func_800B24EC(D_803B8750, &texture_index, 0, D_80140BDC - 1, 1), -1);
+                    (intptr_t)func_800B24EC(D_803B8750, &texture_index, 0, D_80140BDC - 1, 1), -1);
                 D_8012E6F0[D_803B344C].scale = D_803B95B4;
                 func_8008E06C((s16)D_803B344C, D_803B3450);
                 func_80092BC8((s16)D_803B344C, D_803B3450);
@@ -520,7 +520,7 @@ extern void func_8008B32C(f32 [3][3],f32 [3][3],f32);
 extern void func_800B5898(f32,f32 [][3]);
 extern void func_800B5940(f32,f32 [][3]);
 extern Texture *func_800B24EC(char *,s16 *,s8,s8,s32);
-extern void func_8008D870(s16,s32,s32);
+extern void func_8008D870(s16,intptr_t,s32);
 extern void func_8008E06C(s16,s32 *);
 
 /* : func_8039A4D4 = updateButtons@circuitscr.c (MAT3 GC 0x8006A730, 0x89C B): per-frame scroll, fade and
@@ -626,7 +626,7 @@ void func_8039A4D4(void)
                 tex = func_800B24EC(D_803B87C8, &texIdx, 0, *(volatile u8 *)&D_80140BDC - 1, 1);
             else
                 tex = func_800B24EC(D_803B87D8, &texIdx, 0, *(volatile u8 *)&D_80140BDC - 1, 1);
-            func_8008D870(D_803B30C0[buttonIdx].handle, (s32)tex, -1);
+            func_8008D870(D_803B30C0[buttonIdx].handle, (intptr_t)tex, -1);
             if (D_803B30C0[buttonIdx].position[1] > D_803B33D4 + D_803B33CC * D_803B33C8
                 || D_803B30C0[buttonIdx].position[1] < D_803B33D8 - D_803B33CC * D_803B33C8)
                 D_803B30C0[buttonIdx].alpha = 0;
@@ -647,7 +647,7 @@ void func_8039A4D4(void)
                 D_803B30C0[4].position[2] = D_803B30C0[buttonIdx].position[2];
                 func_8008B32C((f32 (*)[3])D_8011418C, D_803B30C0[4].matrix, D_803B33C8);
                 func_800B5898(D_803B30C0[4].angle - 1.5707964f, D_803B30C0[4].matrix);
-                func_8008D870(D_803B30C0[4].handle, (s32)tex, -1);
+                func_8008D870(D_803B30C0[4].handle, (intptr_t)tex, -1);
                 D_803B30C0[4].alpha = D_803B30C0[buttonIdx].alpha;
                 func_8008E06C(D_803B30C0[4].handle, (s32 *)&buttonColor);
                 if (!func_8039A448(buttonIdx))
@@ -663,7 +663,7 @@ void func_8039A4D4(void)
                 D_803B30C0[5].position[2] = D_803B30C0[buttonIdx].position[2];
                 func_8008B32C((f32 (*)[3])D_8011418C, D_803B30C0[5].matrix, D_803B33C8);
                 func_800B5898(D_803B30C0[5].angle - 1.5707964f, D_803B30C0[5].matrix);
-                func_8008D870(D_803B30C0[5].handle, (s32)tex, -1);
+                func_8008D870(D_803B30C0[5].handle, (intptr_t)tex, -1);
                 D_803B30C0[5].alpha = D_803B30C0[buttonIdx].alpha;
                 func_8008E06C(D_803B30C0[5].handle, (s32 *)&buttonColor);
                 if (!func_8039A448(buttonIdx))
@@ -1199,7 +1199,7 @@ void func_8039B560(void)
         }
     }
     func_8008D870((s16)D_803B30C0[6].handle,
-        (s32)func_800B24EC(D_803B87A8, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B87A8, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B30C0[6].matrix, D_8011418C, 36);
     yaw = -1.5707963705062866f;
     func_800B5898(yaw, D_803B30C0[6].matrix);
@@ -1207,9 +1207,9 @@ void func_8039B560(void)
     D_803B30C0[6].position[1] = 115.0f;
     D_803B30C0[6].position[2] = 200.0f;
     func_8008D870((s16)D_803B30C0[7].handle,
-        (s32)func_800B24EC(D_803B87B8, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B87B8, &texture_index, 0, D_80140BDC - 1, 1), -1);
     func_8008D870((s16)D_803B30C0[8].handle,
-        (s32)func_800B24EC(D_803B87C0, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B87C0, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B30C0[8].matrix, D_8011418C, 36);
     func_800B5898(yaw, D_803B30C0[8].matrix);
 
@@ -1224,7 +1224,7 @@ void func_8039B560(void)
     D_803B30C0[9].position[1] = 55.2f;
     D_803B30C0[9].position[2] = 100.0f;
     func_8008D870((s16)D_803B30C0[10].handle,
-        (s32)func_800B24EC(D_803B87C4, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B87C4, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B30C0[10].matrix, D_8011418C, 36);
     func_800B5898(yaw, D_803B30C0[10].matrix);
 

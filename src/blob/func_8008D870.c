@@ -3791,6 +3791,25 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. ZOID_SetTexture
+ * keeps the whole texture pointer in the node's tex[] slots (all four LODs when arg2 < 0); the m2c body writes it
+ * as an s32 at the N64 offsets. */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+void func_8008D870(s16 arg0, void *arg1, s32 arg2)
+{
+  PcNode *node = (PcNode *) &D_8012E700 + arg0;
+  if (arg2 < 0)
+  {
+    node->tex[0] = arg1;
+    node->tex[1] = arg1;
+    node->tex[2] = arg1;
+    node->tex[3] = arg1;
+    return;
+  }
+  node->tex[arg2] = arg1;
+}
+#else
 void func_8008D870(s16 arg0, s32 arg1, s32 arg2)
 {
   void *temp_v0;
@@ -3809,4 +3828,5 @@ void func_8008D870(s16 arg0, s32 arg1, s32 arg2)
   }
   *((s32 *) (((s8 *) (&D_8012E720)) + ((arg0 * 0x44) + (arg2 * 4)))) = arg1;
 }
+#endif
 

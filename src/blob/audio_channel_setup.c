@@ -36,7 +36,12 @@ typedef struct Obj {
     Model *model;
     f32 timer;
 } Obj;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Ent { unsigned int flags, w4; void *obj; f32 scale, w; u16 tex; s16 child, next, mode; void *light, *texture[4], *rect, *clip, *pal; unsigned int prim, env; } Ent;
+#else
 typedef struct Ent { u8 pad0[0x14]; u16 tex; u8 pad16[0x44 - 0x16]; } Ent;
+#endif
 typedef struct Kind { u8 pad0[0x12]; u16 flags; u8 pad14[0x30 - 0x14]; } Kind;
 extern s32 D_801170FC;
 extern volatile f32 D_8002EB94;

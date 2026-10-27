@@ -1,7 +1,12 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 key; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Ent;
+#else
 typedef struct { u8 pad[20]; u16 key; u8 pad22[46]; } Ent;
+#endif
 typedef struct { u8 *base; s32 x; } Tab;
 extern s32 D_80156990;
 extern Ent D_8012E700[];

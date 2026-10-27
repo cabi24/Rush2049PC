@@ -131,7 +131,7 @@ extern s32 func_800F7644(s32);                    /* IsTrackUnlocked */
 extern s32 sign_extend_call(u32,uintptr_t,s32,u32);     /* MBOX_NewObject */
 extern s32 string_copy_format(char *,s8,s8,s8);   /* MBOX_FindObject_WORK */
 extern Texture *func_800B24EC(char *,s16 *,s8,s8,s32);  /* MBOX_FindTexture_WORK */
-extern void func_8008D870(s16,s32,s32);           /* ZOID_SetTexture */
+extern void func_8008D870(s16,intptr_t,s32);      /* ZOID_SetTexture */
 extern void func_8008E06C(s16,s32 *);             /* ZOID_SetColor */
 extern void func_8008B32C(f32 [3][3],f32 [3][3],f32);  /* ScaleUV */
 extern void func_800B5898(f32,f32 [][3]);         /* WPitchUV */
@@ -1331,7 +1331,7 @@ void func_8038C93C(void)
         }
     }
     func_8008D870((s16)D_803B6B14[42].handle,
-        (s32)func_800B24EC(D_803B9264, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B9264, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B6B14[42].matrix, D_8011418C, 36);
     yaw = -1.5707963705062866f;
     func_800B5898(yaw, D_803B6B14[42].matrix);
@@ -1339,9 +1339,9 @@ void func_8038C93C(void)
     D_803B6B14[42].position[1] = 115.0f;
     D_803B6B14[42].position[2] = 200.0f;
     func_8008D870((s16)D_803B6B14[43].handle,
-        (s32)func_800B24EC(D_803B9274, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B9274, &texture_index, 0, D_80140BDC - 1, 1), -1);
     func_8008D870((s16)D_803B6B14[44].handle,
-        (s32)func_800B24EC(D_803B927C, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B927C, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B6B14[44].matrix, D_8011418C, 36);
     func_800B5898(yaw, D_803B6B14[44].matrix);
     D_803B6B14[44].position[0] = 75.1f;
@@ -1355,7 +1355,7 @@ void func_8038C93C(void)
     D_803B6B14[45].position[1] = 55.2f;
     D_803B6B14[45].position[2] = 100.0f;
     func_8008D870((s16)D_803B6B14[46].handle,
-        (s32)func_800B24EC(D_803B9280, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B9280, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B6B14[46].matrix, D_8011418C, 36);
     func_800B5898(yaw, D_803B6B14[46].matrix);
     D_803B6B14[46].position[0] = -75.1f;
@@ -1472,10 +1472,10 @@ void func_8038BBB4(void)
             func_800B5898(D_803B6B14[buttonIdx+21].angle - 1.5707963705062866f, D_803B6B14[buttonIdx+21].matrix);
             if (D_803B6B14[buttonIdx].angle > 1.5707963705062866f) tex = func_800B24EC(D_803B9284, &texIdx, 0, D_80140BDC - 1, 1);
             else tex = func_800B24EC(D_803B9294, &texIdx, 0, D_80140BDC - 1, 1);
-            func_8008D870(D_803B6B14[buttonIdx].handle, (s32)tex, -1);
+            func_8008D870(D_803B6B14[buttonIdx].handle, (intptr_t)tex, -1);
             if (D_803B6B14[buttonIdx+21].angle > 1.5707963705062866f) tex = func_800B24EC(D_803B929C, &texIdx, 0, D_80140BDC - 1, 1);
             else tex = func_800B24EC(D_803B92AC, &texIdx, 0, D_80140BDC - 1, 1);
-            func_8008D870(D_803B6B14[buttonIdx+21].handle, (s32)tex, -1);
+            func_8008D870(D_803B6B14[buttonIdx+21].handle, (intptr_t)tex, -1);
             if (D_803B6B14[buttonIdx].position[1] > D_803B7728 + D_803B7720 * D_803B771C || D_803B6B14[buttonIdx].position[1] < D_803B772C - D_803B7720 * D_803B771C) D_803B6B14[buttonIdx].alpha = 0;
             else if (D_803B6B14[buttonIdx].position[1] > D_803B7728) D_803B6B14[buttonIdx].alpha = 255 - (D_803B6B14[buttonIdx].position[1] - D_803B7728) * 255.0f / (D_803B7720 * D_803B771C);
             else if (D_803B6B14[buttonIdx].position[1] < D_803B772C) D_803B6B14[buttonIdx].alpha = 255 - (D_803B772C - D_803B6B14[buttonIdx].position[1]) * 255.0f / (D_803B7720 * D_803B771C);

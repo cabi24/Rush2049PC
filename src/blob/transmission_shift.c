@@ -3792,7 +3792,12 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct { u32 flags, w4; u8 *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } E44;
+#else
 typedef struct { u8 pad[8]; u8 *obj; u8 pad2[0x38]; } E44;
+#endif
 void transmission_shift(void *arg0, int arg1)
 {
   f32 *out = (f32 *) arg0;

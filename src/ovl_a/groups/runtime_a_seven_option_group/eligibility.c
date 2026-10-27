@@ -13,6 +13,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct Slot64 {
     s32 unknown0,id;
@@ -42,7 +46,7 @@ extern void math_utility(void *,void *);
 extern void func_800B5898(f32,f32 (*)[3]);
 extern void func_800B5940(f32,f32 (*)[3]);
 extern void func_8008B32C(f32 (*)[3],f32 (*)[3],f32);
-extern void func_8008D870(s16,s32,s32);
+extern void func_8008D870(s16,intptr_t,s32);
 extern void *func_800B24EC(char *,s16 *,s32,s8,s32);
 extern void model_data_load(s32,s32,u32),model_transform_setup(s32,s32,u32);
 extern void func_800B5570(s32),func_803998C0(void);
@@ -105,7 +109,7 @@ void func_803993EC(void)
         func_800B5898(D_803B42F4[buttonIdx].angle - 1.5707964f, D_803B42F4[buttonIdx].matrix);
         if (D_803B42F4[buttonIdx].angle > 1.5707964f) tex = func_800B24EC(D_803B8884, (s16 *)&texIdx, 0, D_80140BDC - 1, 1);
         else tex = func_800B24EC(D_803B8894, (s16 *)&texIdx, 0, D_80140BDC - 1, 1);
-        func_8008D870((s16)D_803B42F4[buttonIdx].id, (s32)tex, -1);
+        func_8008D870((s16)D_803B42F4[buttonIdx].id, (intptr_t)tex, -1);
         if (!func_80399394(buttonIdx)) model_data_load(D_803B42F4[buttonIdx].id, 0, 15);
         else {
             model_transform_setup(D_803B42F4[buttonIdx].id, 0, 15);
