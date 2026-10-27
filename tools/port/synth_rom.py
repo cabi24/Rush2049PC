@@ -492,12 +492,15 @@ def font_data():
 # must be in some loaded WAD or the caller gets NULL. "" stands for every name that comes from initialized data
 # (MultiBlit tables, rodata strings), which is zero here.
 CODE_TEXTURES = ["", "A1", "B1", "BACKGROUND_SFX", "BUTTON", "BUTTON_SELECT", "BUTTON_TITLE", "CNTDWN3",
-                 "CURSOR", "CURSOR_B", "FOG", "HEALTHBAR", "HIT_WALL"]
+                 "CURSOR", "CURSOR_B", "HIT_WALL"]
 TEX_W, TEX_H = 16, 16          # every such texture: RGBA16, one solid colour
-# ... but for these, whose (size, format) differs: the track select's fog (the name is image A's D_803B9260), IA8,
-# which the 2D draw colours with the 8-byte colour pair its blit's palette table points to (BRINGUP.md 7); battle
-# mode's health bar, I8, likewise (BRINGUP.md 10).
-TEX_FORMATS = {"FOG": (1, 3), "HEALTHBAR": (1, 4)}
+# Texture names of the cartridge's own, for data it writes on both sides (a name in data and its texture), with their
+# (size, format) where it isn't RGBA16: the track select's fog blit (its name is image A's D_803B9260, char[4]) and
+# battle mode's health bar (BRINGUP.md 7, 10). Each is an 8-bit IA or I texture, the two formats the 2D draw colours
+# with the 8-byte colour pair its blit's palette table points to (func_8008A148).
+SYN_FOG, SYN_BAR = "SYF", "SYN_BAR"
+OWN_TEXTURES = [SYN_FOG, SYN_BAR]
+TEX_FORMATS = {SYN_FOG: (1, 3), SYN_BAR: (1, 4)}
 
 
 # Model names the C looks up with MBOX_FindModel (string_copy_format): "AAANULLOBJ" is what it looks up for a NULL
@@ -866,9 +869,9 @@ def boot_and_sound(c):
     # updateGameState runs initGameState's state 1 (InitWaves, overlay "Start", SetOptions, InitRecords), which
     # moves on to state 2 (the front end's waves). Zero for both is a game with no state, where nothing happens.
     c.set("game", "state_word_b", "u32", 0x1, "gNewGameState: start in state 1 (initGameState)")
-    # gGameState before that: all ones, a state that has every bit, which the host's --until-state must not take for
-    # the one it waits for (BRINGUP.md 6). Any value but 1 starts the game the same way.
-    c.set("game", "state_word_a", "u32", 0xFFFFFFFF, "gGameState: no state yet (all ones)")
+    # gGameState before that: -1, the game's own "no state" (func_800B7FF8 tests state_word_a != -1), which has every
+    # state's bit, and which the host's --until-state must not take for the one it waits for (BRINGUP.md 6).
+    c.set("game", "state_word_a", "u32", 0xFFFFFFFF, "gGameState: -1, no state yet (func_800B7FF8)")
     # gSkipToGameState (D_801174BC): a screen whose state isn't this one passes straight on to its next screen,
     # unless it is 1, which every screen writes back once it is reached (and the race start, gameover's
     # "Quit"...). 0 skips the start prompt and the main menu; 1 is "no skip".
@@ -1152,15 +1155,16 @@ def front_end(c):
 
     # The track select's fog (BlowFog, func_8038A634): with option 14 valid for a single race (validOption,
     # D_803B77D4[gRace][21], image A, s32), the screen makes a blit of the texture named D_803B9260 (image A, char[])
-    # whose palette is D_803BA1E8, a Palette whose colour table is the word at +0x14 (D_803BA1FC): FOG, an IA texture,
-    # so the draw reads its prim and env colours from that table. The word must be the arena's (BRINGUP.md 7).
+    # whose palette is D_803BA1E8, a Palette whose colour table is the word at +0x14 (D_803BA1FC): the cartridge's
+    # SYN_FOG, an IA texture, so the draw reads its prim and env colours from that table. The word must be the arena's
+    # (BRINGUP.md 7).
     c.set("ovl_a", "D_803B77D4", "u32", 1, "the track select's option 14 (the fog) valid in a single race", index=14)
-    for i, ch in enumerate(b"FOG\0"):
-        c.set("ovl_a", "D_803B9260", "u8", ch, "the fog's texture name: FOG" if i == 0 else "(same)", index=i)
+    for i, ch in enumerate(SYN_FOG.encode() + b"\0"):
+        c.set("ovl_a", "D_803B9260", "u8", ch, f"the fog's texture name: {SYN_FOG}" if i == 0 else "(same)", index=i)
 
     # The front end's WADs (ASSETS.md 2.3): the locked one (54, "attract") has every texture and model the code
     # names; the others (58, 59 locked; the screens 55, 56, 57, 60) are empty but valid.
-    c.file(54, texture_wad(CODE_TEXTURES, CODE_MODELS + MAP_MODELS),
+    c.file(54, texture_wad(CODE_TEXTURES + OWN_TEXTURES, CODE_MODELS + MAP_MODELS),
            "front-end WAD: the textures and models the code names", model=True)
     for w in (55, 56, 57, 58, 59, 60):
         c.file(w, empty_wad(), "front-end WAD: empty", model=True)
@@ -1176,13 +1180,14 @@ def race(c):
     # names. gWorldNames (D_8011A924, char *[19]) names every track's world.
     for t in range(19):
         c.set("game", "D_8011A924", "ptr", c.string(WORLD_NAME), f"gWorldNames: track {t}'s world", index=t)
-        c.file(101 + t, texture_wad(CODE_TEXTURES, CODE_MODELS + [WORLD_NODE]), f"track {t} WAD", model=True)
+        c.file(101 + t, texture_wad(CODE_TEXTURES + OWN_TEXTURES, CODE_MODELS + [WORLD_NODE]), f"track {t} WAD",
+               model=True)
         icons = ARENA_ICONS if t in BATTLE_ARENAS else ()
         c.file(120 + t, world_wad(icons), f"track {t} world: one node" + (f" and {len(icons)} weapon icons" if icons
                                                                            else ""))
         c.file(139 + t, road_file(), f"track {t} road: flat pavement, one surface")
     for w in list(range(61, 69)) + list(range(76, 101)):
-        c.file(w, texture_wad(CODE_TEXTURES, CODE_MODELS), "race, HUD or car WAD", model=True)
+        c.file(w, texture_wad(CODE_TEXTURES + OWN_TEXTURES, CODE_MODELS), "race, HUD or car WAD", model=True)
 
     # The target info table (D_80117530, 122 records of 0x30, docs/port/POINTERS.md 10): a world node whose name
     # starts with a target's name becomes that target. The names are read with strlen, so NULL faults, and an empty
@@ -1284,7 +1289,7 @@ def race(c):
 
     # The car types' names (D_80110D3C, char *[13]), which sfx_volume_set puts in front of each car part's name:
     # after the shadow scales (D_8011F914, f32[14][4]: AnimateShadow's per body type, 13 with the appearance bit).
-    names = c.strings_after("D_8011F914", 14 * 16, [f"CAR{t}" for t in range(13)], "a car type's name")
+    names = c.strings_after("D_8011F914", 14 * 16, [f"SYNC{t:02}" for t in range(13)], "a car type's name")
     for t in range(13):
         c.set("game", "D_80110D3C", "ptr", names[t], "a car type's name" if t == 0 else "(same)", index=t)
 
@@ -1327,9 +1332,8 @@ def car_tables(c):
     # brake value x this, so zero is a car without brakes. 1.
     c.set_all("game", "D_80110DA4", "f32", [1.0] * 13, "a car type's brake factor: 1")
     # The gear ratios (D_80110EBC, f32[8][6], port/data/extents.txt): a row per car class, which is the model's
-    # byte 9 (battle mode's cars are row 6), gear g's ratio at [g + 1] (func_800E2C70, func_800E313C). 1 everywhere:
-    # with zeros a car's drive torque is 0. The battle row is past the first, which the loader converted only with
-    # the table's extent (BRINGUP.md 11).
+    # byte 9, gear g's ratio at [g + 1] (func_800E2C70, func_800E313C). 1 everywhere: with zeros a car's drive torque
+    # is 0. The rows past the first are outside a one-row extent, which the generator refuses (BRINGUP.md 11).
     c.set_all("game", "D_80110EBC", "f32", [1.0] * 48, "the gear ratios: 1 in every row and gear")
     # The car tunes (D_801116D0, three Tune44 of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
     for t in range(3):
@@ -1338,13 +1342,13 @@ def car_tables(c):
                   else "(same)", offset=44 * t + 4 * k)
 
 
-def multiblit(c, sym, index, texname, x, y, w, h, func=None, image="game", animid=0):
+def multiblit(c, sym, index, texname, x, y, w, h, func=None, image="game", animid=0, null_name=False):
     """MultiBlit sym[index] (36 bytes: char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32
     zdepth, alpha; animfunc; u32 animid): a blit of the texture's first 16 x 16 texels at (x, y), w x h, opaque, or
     with texname -1 and func, a sprite whose draw function func is (NewMultiBlit). With a texture name and func, func
-    is the blit's animation function, called with animid."""
+    is the blit's animation function, called with animid. null_name: the name NULL (InitBlit's built-in image)."""
     base = 36 * index
-    name = 0xFFFFFFFF if texname is None else c.string(texname)
+    name = 0 if null_name else 0xFFFFFFFF if texname is None else c.string(texname)
     c.set(image, sym, "ptr", name, f"{sym}[{index}]: {texname or 'a sprite'}", offset=base)
     for k, v in enumerate((x, y, w, h, 0, 15, 0, 15)):
         c.set(image, sym, "u16", v, "(same)", offset=base + 4 + 2 * k)
@@ -1376,11 +1380,11 @@ def blits(c):
     """NewMultiBlit's descriptor tables that game C declared without their layout (s32, u8[]), which the PC declares
     as MultiBlits now (struct pc_multiblit, BRINGUP.md 1): with a texture name in each, a view without the pointer
     would read the name from the wrong bytes. The attract demo's blit, made before the race's files are loaded: the
-    name -1, a blit without a texture (the sign-extended sentinel only matches with the pointer in place: read as
-    words it is 0xFFFFFFFF and the next field, the address the demo faulted at). The game over title, the controls
-    screens' first buttons (front end, paused alone, paused with others) and the menu backgrounds (createBG's two
-    blits, front end and track select): BUTTON blits."""
-    multiblit(c, "D_80114128", 0, None, 8, 8, 48, 12)
+    name NULL, InitBlit's built-in image (read as words, the NULL name and the next field, the blit's x and y, make a
+    pointer that isn't). The game over title, the controls screens' first buttons (front end, paused alone, paused
+    with others) and the menu backgrounds (createBG's two blits, front end and track select): BUTTON blits (a texture
+    name the game C looks up itself)."""
+    multiblit(c, "D_80114128", 0, "", 8, 8, 48, 12, null_name=True)
     multiblit(c, "D_80114700", 0, "BUTTON", 136, 20, 48, 12)
     for sym in ("D_80112AB8", "D_8011361C", "D_80113910"):
         multiblit(c, sym, 0, "BUTTON", 16, 16, 48, 12)
@@ -1420,12 +1424,12 @@ def battle(c):
     for sym in ("D_80394330", "D_80394344"):
         for i in range(5):
             c.set("ovl_b", sym, "ptr", empty, "a weapon texture: the empty name" if i == 0 else "(same)", index=i)
-    # The battle HUD (BattleMultiBlit D_80393DE8, image B, NewMultiBlit's 10): player 1's health bar, the HEALTHBAR
-    # texture (I8) with animHealth (func_80392FE4) for part 1 (animid: slot << 4 | part), which colours it through a
-    # palette of its own, healthPal (BRINGUP.md 10). An IA blit (FOG) first, so the draw's last palette isn't NULL
-    # when it gets to the bar, as in a game, where a NULL colour table would not pass for the one already loaded.
-    multiblit(c, "D_80393DE8", 0, "FOG", 8, 20, 16, 16, image="ovl_b")
-    multiblit(c, "D_80393DE8", 1, "HEALTHBAR", 8, 8, 64, 4, func="func_80392FE4", image="ovl_b", animid=0x01)
+    # The battle HUD (BattleMultiBlit D_80393DE8, image B, NewMultiBlit's 10): player 1's health bar, the cartridge's
+    # SYN_BAR texture (I8) with animHealth (func_80392FE4) for part 1 (animid: slot << 4 | part), which colours it
+    # through a palette of its own, healthPal (BRINGUP.md 10). An IA blit (SYN_FOG) first, so the draw's last palette
+    # isn't NULL when it gets to the bar, as in a game, where a NULL colour table would not pass for the one loaded.
+    multiblit(c, "D_80393DE8", 0, SYN_FOG, 8, 20, 16, 16, image="ovl_b")
+    multiblit(c, "D_80393DE8", 1, SYN_BAR, 8, 8, 40, 6, func="func_80392FE4", image="ovl_b", animid=0x01)
 
 
 SFX_GROUPS = [12, 13, 14, 15]

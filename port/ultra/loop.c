@@ -64,8 +64,11 @@ static void status(const char *tag)
  * graphics-task count at which its frames are done, else 0). */
 static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
 {
-    static uint32_t last, seen;
+    static uint32_t last, seen, first, entered;
     uint32_t s = g_game_state();
+    if (!seen)
+        first = s;
+    entered |= s != first;
     if (s != last || !seen) {
         char info[160] = "";
         if (opt->game_info) {
@@ -76,8 +79,9 @@ static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
                 (unsigned)s, (unsigned)last, pc_frame, pc_rcp_gfx_tasks, info);
         last = s, seen = 1;
     }
-    /* All ones is no state yet: the retail cartridge's initial value of the state word, before initGameState. */
-    if (opt->until_state && !until_gfx && s != 0xFFFFFFFFu && (s & opt->until_state))
+    /* The value the state word starts with, before initGameState changes it, is no state the game has entered: the
+     * game's own "no state" is -1 (func_800B7FF8), whose bits match every mask. */
+    if (opt->until_state && !until_gfx && entered && (s & opt->until_state))
         until_gfx = pc_rcp_gfx_tasks + opt->until_state_frames + (opt->until_state_frames == 0);
     return until_gfx;
 }

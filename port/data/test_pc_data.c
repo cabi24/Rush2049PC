@@ -180,7 +180,7 @@ static void build_rom(void)
     /* words that look like addresses, in u32s: of own storage, and of a boot arena word */
     put32(game + 0x180, 0x80010100);
     put32(game + 0x184, 0x80001088);
-    memcpy(game + 0x190, "CAR1", 5);   /* a string a word declaration runs over */
+    memcpy(game + 0x190, "SYN1", 5);   /* a string a word declaration runs over */
     memcpy(game + 0x170, "FOO", 4);    /* ... and one an own symbol's words run over */
     /* the generated arena: no two neighbouring bytes alike, so a swap shows; its one word is no address */
     for (uint32_t a = PC_TEST_GEN_LO; a < PC_TEST_GEN_HI; a++)
@@ -309,7 +309,7 @@ static void run(int window)
     CHECK(st->undescribed == 1);   /* P[12]: P[9]'s target is BSS, the others are described */
     CHECK(st->text_in_words == 2);   /* P[13], P[14]: text under u32s, which the loader swapped */
     CHECK(P[14] == (void *)T && memcmp(T, "\0OOF", 4) == 0);
-    CHECK(P[13] == (void *)(a_game + 0x90) && memcmp(P[13], "1RAC", 4) == 0);
+    CHECK(P[13] == (void *)(a_game + 0x90) && memcmp(P[13], "1NYS", 4) == 0);
     CHECK(P[12] == (void *)(a_boot + 0x18) && memcmp(P[12], "HELLO", 6) == 0);
     CHECK(st->func == 4);   /* S.fp, P[5], A1, B1 */
     /* both address-like words; the one of own storage can't be reached through a u32, nor the arena word when
@@ -359,7 +359,7 @@ static void run(int window)
     CHECK(strstr(buf, "addr-word game_word+0x4 0x80001088 -> boot_vals+0x8 [arena]") != NULL);
     CHECK(strstr(buf, "unresolved P+0x8 0x8001F000") != NULL);
     CHECK(strstr(buf, "no-code P+0x10 0x80010010 nocode_fn") != NULL);
-    CHECK(strstr(buf, "text-in-words P+0x34 0x80010190 -> game_word+0x10 (CAR1)") != NULL);
+    CHECK(strstr(buf, "text-in-words P+0x34 0x80010190 -> game_word+0x10 (SYN1)") != NULL);
     CHECK(strstr(buf, "text-in-words P+0x38 0x80010170 -> T+0x0 (FOO)") != NULL);
     CHECK(strstr(buf, "undescribed P+0x30 0x80001098 -> boot_vals+0x18 (text)") != NULL);
 

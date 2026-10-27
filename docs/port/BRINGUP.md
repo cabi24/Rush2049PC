@@ -20,7 +20,7 @@ its cores don't trap floating-point exceptions, so a NaN is found by watching me
 
 | Path | Reaches | Screens |
 |---|---|---|
-| boot, no input | the start prompt, the controller pak warning, the title (state 4) and the attract demo (8), cycling through tracks 0-3 for as long as it runs | the demo is a race of drones on the track, with the title's PRESS START over it |
+| boot, no input | the start prompt, the controller pak warning, the title (state 4) and the attract demo (8), cycling through tracks 0-3 for as long as it runs | the demo is a race of drones on the track, with the title's start prompt over it |
 | the front end | the main menu (0x10), the player screen (0x20), the mode screen (0x40), the track select (0x80), the car select (0x100); the records (0x2000), options (0x200), audio (0x800) and video (0x1000) screens and back | as on the N64: the blue menus and their buttons, the track map and its fogged preview, the car turning on the car select with its bars; the video screen's test pattern has its grey ramp and red, green and blue bars in order |
 | a single race, 1 player | race start, PrePlay, the countdown (0x200000), the race (0x400000); with gas and steering the car drives, up to about 150 mph, and off the road onto the grass | the track, the cars, the HUD (speed, lap, position, the map, the time) |
 | pause | the pause screen, quitting: the results (0x2000000), the game over screen (0x800000), the title and the main menu again | |
@@ -39,14 +39,14 @@ Not tried yet: a race to its finish line, saving a ghost, sound through a device
 
 ### 1. The attract demo's blit: NewMultiBlit's tables without their layout
 
-The demo faulted in its first frame, in `strcpy` from InitBlit (`collision_sound_play`), at 0xFFFFFFFF. NewMultiBlit
+The demo faulted in its first frame, in `strcpy` from InitBlit (`collision_sound_play`). NewMultiBlit
 (`sound_control`) reads its descriptor table as `MultiBlit`, whose texture name and animation function are pointers;
 the demo's table `D_80114128` was declared `s32` in every file, so the loader kept it as words in the N64 layout, and
-the name read as 8 bytes was the -1 sentinel and the field after it.
+the name, read as 8 bytes, took in the field after it.
 
 Ten tables passed to NewMultiBlit had declarations without the layout (`s32`, `u8[]`, `char[]`, createBG's view
 with an `s32` name). `pc_prelude.h` has the descriptor's PC layout, `struct pc_multiblit`, and each file declares its
-table with it under `TARGET_PC`. Test: the synthetic cartridge writes those tables (the demo's blit with the -1 name),
+table with it under `TARGET_PC`. Test: the synthetic cartridge writes those tables (the demo's blit with a NULL name),
 so its generator's kind check fails if a declaration loses the pointer; the demo, pause, raceend and screens paths run
 them. (Commit 270ba85.)
 
@@ -79,7 +79,7 @@ kind check needs them to be floats. (91f98eb.)
 
 ### 4. The attract demo runs
 
-With 1-3 the demo runs: the drones race on the track, the title's PRESS START over them, and it cycles back to the
+With 1-3 the demo runs: the drones race on the track, the title's start prompt over them, and it cycles back to the
 title and on through tracks 0-3. The picture is right: the road, the buildings and the bridge, the cars in their
 colours, the checkered start, the sky.
 
@@ -93,8 +93,10 @@ bytes short of the PC's. Test: `assets_pool` runs StopSkid and the reset. (acfd8
 
 ### 6. `--until-state` and the retail state word
 
-The retail cartridge starts gGameState at all ones, so every `--until-state` mask was met on the first retrace.
-The host loop skips that value; the synthetic cartridge starts the state word at all ones too. (f458ed4.)
+The retail cartridge's gGameState starts as the game's own "no state", -1 (func_800B7FF8 tests for it), whose bits
+match every `--until-state` mask, so each was met on the first retrace. The host loop takes no state from the value
+the state word starts with, until the game first changes it; the synthetic cartridge starts it at -1 too. (f458ed4,
+and the commit that made the rule general.)
 
 ### 7. The track select's fog
 
@@ -135,9 +137,9 @@ battle HUD has an IA blit and player 1's health bar; without the fix the battle2
 
 ### 11. Battle: the gear ratios
 
-Battle cars didn't move: full throttle, a drive torque near 1e26, wheels that never turned. The gear ratios are a
-row of six per car class (the model's byte 9, battle's cars in row 6), read from `D_80110EC0` by byte offsets; by the
-gap the table was one row, and the others kept the ROM's byte order. `extents.txt` gives `D_80110EBC` its eight
+Battle cars didn't move: full throttle, an absurd drive torque, wheels that never turned. The gear ratios are a
+row of six per car class (the model's byte 9; battle's cars use a later row), read from `D_80110EC0` by byte
+offsets; by the gap the table was one row, and the others kept the ROM's byte order. `extents.txt` gives `D_80110EBC` its eight
 rows. `tools/port/index_check.py` now knows m2c's byte-offset indexing and finds this table, and only it; its ctest
 fails without the extent. The synthetic cartridge sets every row. (5b30657.)
 

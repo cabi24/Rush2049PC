@@ -44,10 +44,10 @@ D_80110030 0x30
 # the gap they ran over the palette animations after them, which port/data/reached.txt now converts.
 D_8011A31C 0x4C
 D_8011A840 0x4C
-# The gear ratios, f32[8][6]: a row per car class (the model's byte 9, gRace's battle row among them), the ratio of
-# gear g at [g + 1] (func_800E2C70 reads them from D_80110EC0, its +4, by byte offsets; tools/port/index_check.py).
-# By the gap the table was one row, and the rows after it kept the ROM's byte order: a battle car's drive torque
-# came out near 1e26 and its wheels never turned.
+# The gear ratios, f32[8][6]: a row per car class (the model's byte 9), the ratio of gear g at [g + 1]
+# (func_800E2C70 reads them from D_80110EC0, its +4, by byte offsets; tools/port/index_check.py). By the gap the
+# table was one row, and the rows after it kept the ROM's byte order: a battle car's drive torque came out absurd and
+# its wheels never turned.
 D_80110EBC 0xC0
 # The player screens' model slots (image A, Slot64[players][22]: unknown0 picks the model name): four players. A
 # known address 0x1080 in left the extent at three, and the fourth player's slots kept the ROM's byte order (a
