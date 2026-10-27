@@ -2177,7 +2177,11 @@ extern s32 D_80124F78;
 extern s32 D_80124F88;
 extern s16 D_80124FC4;
 extern s16 D_80124FCC;
+#ifdef TARGET_PC
+extern volatile int D_80124FD0;  /* long: 32-bit on the N64 */
+#else
 extern volatile long D_80124FD0;
+#endif
 extern s16 D_80124FE0;
 extern s16 D_80124FE2;
 extern s32 D_80124FE8;

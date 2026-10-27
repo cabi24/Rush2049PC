@@ -43,7 +43,11 @@ extern void *memset(void *, int, size_t);
 
 typedef unsigned char  Byte;
 typedef unsigned int   uInt;
+#ifdef TARGET_PC
+typedef unsigned int  uLong;  /* long is 32-bit on the N64 */
+#else
 typedef unsigned long  uLong;
+#endif
 typedef Byte  FAR Bytef;
 typedef char  FAR charf;
 typedef int   FAR intf;
@@ -54,7 +58,11 @@ typedef unsigned char  uch;
 typedef uch FAR uchf;
 typedef unsigned short ush;
 typedef ush FAR ushf;
+#ifdef TARGET_PC
+typedef unsigned int  ulg;
+#else
 typedef unsigned long  ulg;
+#endif
 
 #define Z_NO_FLUSH      0
 #define Z_FINISH        4
@@ -135,7 +143,11 @@ typedef struct internal_state {
     uInt  hash_bits;
     uInt  hash_mask;
     uInt  hash_shift;
+#ifdef TARGET_PC
+    int block_start;      /* 0x44 */
+#else
     long block_start;     /* 0x44 */
+#endif
     uInt match_length;
     IPos prev_match;
     int match_available;

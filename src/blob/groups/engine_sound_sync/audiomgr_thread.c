@@ -35,7 +35,11 @@ typedef struct OSSched OSSched;
 
 typedef struct tDLLE { void *next; void *prev; } tDLLE;
 typedef struct tDLList { char handle; char dbl; int numElements; void *head; void *tail; } tDLList;
+#ifdef TARGET_PC
+typedef struct tOrderedList { int (*OrderFunc)(void *, void *); int numElements; void *root; } tOrderedList;
+#else
 typedef struct tOrderedList { int (*OrderFunc)(void *, void *); long numElements; void *root; } tOrderedList;
+#endif
 typedef struct tBSTE { void *left; void *right; } tBSTE;
 
 typedef struct tFxSequence {
