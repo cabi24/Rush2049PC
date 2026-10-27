@@ -492,11 +492,12 @@ def font_data():
 # must be in some loaded WAD or the caller gets NULL. "" stands for every name that comes from initialized data
 # (MultiBlit tables, rodata strings), which is zero here.
 CODE_TEXTURES = ["", "A1", "B1", "BACKGROUND_SFX", "BUTTON", "BUTTON_SELECT", "BUTTON_TITLE", "CNTDWN3",
-                 "CURSOR", "CURSOR_B", "FOG", "HIT_WALL"]
+                 "CURSOR", "CURSOR_B", "FOG", "HEALTHBAR", "HIT_WALL"]
 TEX_W, TEX_H = 16, 16          # every such texture: RGBA16, one solid colour
 # ... but for these, whose (size, format) differs: the track select's fog (the name is image A's D_803B9260), IA8,
-# which the 2D draw colours with the 8-byte colour pair its blit's palette table points to (BRINGUP.md 7).
-TEX_FORMATS = {"FOG": (1, 3)}
+# which the 2D draw colours with the 8-byte colour pair its blit's palette table points to (BRINGUP.md 7); battle
+# mode's health bar, I8, likewise (BRINGUP.md 10).
+TEX_FORMATS = {"FOG": (1, 3), "HEALTHBAR": (1, 4)}
 
 
 # Model names the C looks up with MBOX_FindModel (string_copy_format): "AAANULLOBJ" is what it looks up for a NULL
@@ -1318,19 +1319,22 @@ def car_tables(c):
                   else "(same)", offset=44 * t + 4 * k)
 
 
-def multiblit(c, sym, index, texname, x, y, w, h, func=None):
+def multiblit(c, sym, index, texname, x, y, w, h, func=None, image="game", animid=0):
     """MultiBlit sym[index] (36 bytes: char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32
     zdepth, alpha; animfunc; u32 animid): a blit of the texture's first 16 x 16 texels at (x, y), w x h, opaque, or
-    with texname -1 and func, a sprite whose draw function func is (NewMultiBlit)."""
+    with texname -1 and func, a sprite whose draw function func is (NewMultiBlit). With a texture name and func, func
+    is the blit's animation function, called with animid."""
     base = 36 * index
     name = 0xFFFFFFFF if texname is None else c.string(texname)
-    c.set("game", sym, "ptr", name, f"{sym}[{index}]: {texname or 'a sprite'}", offset=base)
+    c.set(image, sym, "ptr", name, f"{sym}[{index}]: {texname or 'a sprite'}", offset=base)
     for k, v in enumerate((x, y, w, h, 0, 15, 0, 15)):
-        c.set("game", sym, "u16", v, "(same)", offset=base + 4 + 2 * k)
-    c.set("game", sym, "u32", 1, "(same)", offset=base + 0x14)                 # zdepth
-    c.set("game", sym, "u32", 255, "(same)", offset=base + 0x18)               # alpha
+        c.set(image, sym, "u16", v, "(same)", offset=base + 4 + 2 * k)
+    c.set(image, sym, "u32", 1, "(same)", offset=base + 0x14)                 # zdepth
+    c.set(image, sym, "u32", 255, "(same)", offset=base + 0x18)               # alpha
     if func:
-        c.set("game", sym, "ptr", c.syms.func(func), f"(same): {func}", offset=base + 0x1C)
+        c.set(image, sym, "ptr", c.syms.func(func, image), f"(same): {func}", offset=base + 0x1C)
+    if animid:
+        c.set(image, sym, "u32", animid, "(same): animid", offset=base + 0x20)
 
 
 def hud(c):
@@ -1393,6 +1397,12 @@ def battle(c):
     for sym in ("D_80394330", "D_80394344"):
         for i in range(5):
             c.set("ovl_b", sym, "ptr", empty, "a weapon texture: the empty name" if i == 0 else "(same)", index=i)
+    # The battle HUD (BattleMultiBlit D_80393DE8, image B, NewMultiBlit's 10): player 1's health bar, the HEALTHBAR
+    # texture (I8) with animHealth (func_80392FE4) for part 1 (animid: slot << 4 | part), which colours it through a
+    # palette of its own, healthPal (BRINGUP.md 10). An IA blit (FOG) first, so the draw's last palette isn't NULL
+    # when it gets to the bar, as in a game, where a NULL colour table would not pass for the one already loaded.
+    multiblit(c, "D_80393DE8", 0, "FOG", 8, 20, 16, 16, image="ovl_b")
+    multiblit(c, "D_80393DE8", 1, "HEALTHBAR", 8, 8, 64, 4, func="func_80392FE4", image="ovl_b", animid=0x01)
 
 
 SFX_GROUPS = [12, 13, 14, 15]
