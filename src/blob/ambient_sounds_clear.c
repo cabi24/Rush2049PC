@@ -3800,6 +3800,13 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the walk over the four ambient sound handles D_80114628 stops at the address after them, where the N64 has
+ * D_80114638. On the PC both have storage of their own (port/data), and their order is the compiler's: an optimized
+ * build put D_80114638 first, so the walk never met it and ran on through memory (docs/port/OPTIMIZED.md). It stops
+ * at the handles' end. */
+#define D_80114638 ((&D_80114628)[4])
+#endif
 void ambient_sounds_clear(void)
 {
   intptr_t *var_s0;

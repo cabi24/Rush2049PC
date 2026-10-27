@@ -286,6 +286,14 @@ add_custom_command(
 add_library(pcdata OBJECT ${PC_DATA_DIR}/data.c)
 target_include_directories(pcdata PRIVATE port/data)
 target_compile_options(pcdata PRIVATE -fno-common)   # the .set aliases need the arenas in a section
+# Own storage in the order data.c defines it, which is N64 address order: GCC reorders top-level definitions from -O1
+# on (at -O2 it put them in reverse), and game C that walks from one symbol to the next relies on the N64's order
+# (docs/port/OPTIMIZED.md). -O0 keeps the order anyway; gen_data.py --check verifies it in the executable.
+include(CheckCCompilerFlag)
+check_c_compiler_flag(-fno-toplevel-reorder PC_HAVE_NO_TOPLEVEL_REORDER)
+if(PC_HAVE_NO_TOPLEVEL_REORDER)
+    target_compile_options(pcdata PRIVATE -fno-toplevel-reorder)
+endif()
 find_package(ZLIB REQUIRED)
 add_library(pcdata_rt OBJECT port/data/pc_data.c)
 target_include_directories(pcdata_rt PUBLIC port/data)

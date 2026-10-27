@@ -1473,11 +1473,19 @@ def check(exe, layout_path, nm, pe=False):
         if len(p) == 4:
             size[name] = int(p[1], 16)
     bad = []
+    prev = None
     for name, n in layout["own"]:
         if name not in addr:
             bad.append(f"own {name}: not in the executable")
-        elif size.get(name) != n and not pe:
+            continue
+        if size.get(name) != n and not pe:
             bad.append(f"own {name}: size {size.get(name)} != {n}")
+        # In N64 address order (layout["own"]'s), as data.c defines them: game C that walks from one symbol to the
+        # next relies on it (ambient_sounds_clear did), and GCC reorders definitions unless -fno-toplevel-reorder.
+        if prev is not None and addr[name] <= addr[prev]:
+            bad.append(f"own {name}: at 0x{addr[name]:X}, not after {prev} (0x{addr[prev]:X}): "
+                       f"compile data.c with -fno-toplevel-reorder")
+        prev = name
     for name, base, off in layout["sets"]:
         if name not in addr or base not in addr:
             bad.append(f"{name}: not in the executable")
@@ -1514,7 +1522,7 @@ def check(exe, layout_path, nm, pe=False):
     for b in bad[:50]:
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "
-          f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own, "
+          f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own in N64 order, "
           f"{n_ovl} runtime-image C data in their C ranges, "
           f"nothing else in the window: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
