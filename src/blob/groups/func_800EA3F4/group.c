@@ -156,6 +156,10 @@ void func_800E8CB8(void *car, void *vel, void *mat) {
 #define car ((u8 *)arg0)
 #define CF(off) (*(f32 *)(car + (off)))
 #define CB(off) (*(s8 *)(car + (off)))
+/* arg0 is a car (func_800EB028): its fields past the visuals are at CAR_OFS(n) on the PC (docs/port/CARS.md 2.3). */
+#ifndef TARGET_PC
+#define CAR_OFS(n) n
+#endif
 #define OF(off) (*(f32 *)(gCamera[idx] + (off)))
 #define A1(off) (*(f32 *)((u8 *)arg1 + (off)))
 void func_800EA3F4(void *arg0, void *arg1) {
@@ -174,11 +178,11 @@ void func_800EA3F4(void *arg0, void *arg1) {
     f32 sp44[3];
     f32 f12;
 
-    idx = CB(0x35C);
+    idx = CB(CAR_OFS(0x35C));
     sp94 = D_801526F8[idx];
     sp90 = D_801526E0[idx];
     func_800E8CB8(arg0, arg1, car + 0x50);
-    if (CB(0x35D) == 3) {
+    if (CB(CAR_OFS(0x35D)) == 3) {
         sp94 -= 6.0f;
         sp90 -= 2.0f;
     }
@@ -316,11 +320,11 @@ void func_800EA3F4(void *arg0, void *arg1) {
     sp44[0] = OF(0x78) * sp84;
     sp44[1] = OF(0x7C) * sp84;
     sp44[2] = OF(0x80) * sp84;
-    if (CB(0x35D) == 2) {
+    if (CB(CAR_OFS(0x35D)) == 2) {
         sp44[0] += sp50[0] * 4.0f;
         sp44[1] += sp50[1] * 4.0f;
         sp44[2] += sp50[2] * 4.0f;
-    } else if (CB(0x35D) == 3) {
+    } else if (CB(CAR_OFS(0x35D)) == 3) {
         sp44[0] += sp50[0] * 4.0f;
         sp44[1] += sp50[1] * 4.0f;
         sp44[2] += sp50[2] * 4.0f;

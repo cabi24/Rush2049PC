@@ -3743,8 +3743,16 @@ typedef struct Cr {
     f32 m[9];
     u8 p50[0x58];
     f32 f_a8, f_ac;
+#ifdef TARGET_PC
+    /* PC: +0xF4 is the car's scene-node handle, an s32; s_f6 is its low half, the second s16 on the N64 and the
+     * first on a little-endian host (docs/port/ENDIAN.md 3.1). */
+    u8 pb0[0x44];
+    s16 s_f6;
+    s16 s_f6_high;
+#else
     u8 pb0[0x46];
     s16 s_f6;
+#endif
 #ifdef TARGET_PC
     u8 pf8[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 pf8_308[0x35C - 0x308];
 #else

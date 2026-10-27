@@ -3800,9 +3800,16 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: arg0 is the model record D_8014A250, which keeps its N64 layout: its car descriptor (+0) and tune (+4) pointers
+ * are u32 window addresses (docs/port/CARS.md 4). */
+#define MODEL_P(b, o) ((s8 *) (uintptr_t) *((u32 *) (b + o)))
+#else
+#define MODEL_P(b, o) *((s8 **) (b + o))
+#endif
 void func_800E2C70(s8 *arg0)
 {
-  *((f32 *) (arg0 + 0x428)) = (*((f32 *) ((*((s8 **) (arg0 + 4))) + 0xC))) * (*((f32 *) (((s8 *) (&D_80110EC0)) + (((*((s16 *) (arg0 + 0x3F4))) * 4) + ((*((s8 *) (arg0 + 9))) * 0x18)))));
-  *((f32 *) (arg0 + 0x42C)) = (*((f32 *) ((*((s8 **) (arg0 + 0))) + 0xA4))) * (*((f32 *) (arg0 + 0x428)));
+  *((f32 *) (arg0 + 0x428)) = (*((f32 *) ((MODEL_P(arg0, 4)) + 0xC))) * (*((f32 *) (((s8 *) (&D_80110EC0)) + (((*((s16 *) (arg0 + 0x3F4))) * 4) + ((*((s8 *) (arg0 + 9))) * 0x18)))));
+  *((f32 *) (arg0 + 0x42C)) = (*((f32 *) ((MODEL_P(arg0, 0)) + 0xA4))) * (*((f32 *) (arg0 + 0x428)));
 }
 
