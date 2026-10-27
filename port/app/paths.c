@@ -155,6 +155,30 @@ int pc_app_rom_places(const PcAppDirs *d, const char *name, int from_command_lin
     return n;
 }
 
+void pc_app_data_file(const PcAppDirs *d, const char *value, int from_command_line, char *out, size_t size)
+{
+    if (from_command_line || pc_app_is_absolute(value))
+        snprintf(out, size, "%s", value);
+    else
+        pc_app_join(out, size, d->data, value);
+}
+
+int pc_app_pak_file(const PcAppDirs *d, const char *value, int from_command_line, char *out, size_t size)
+{
+    char old[PC_APP_PATH];
+    pc_app_data_file(d, value, from_command_line, out, size);
+    if (from_command_line || pc_app_is_absolute(value) || pc_app_exists(out) || !d->cwd[0])
+        return 0;
+    /* Earlier builds kept the pak in the working directory: one there, and none where it belongs now, is used where
+     * it is, so no save is lost. */
+    pc_app_join(old, sizeof old, d->cwd, value);
+    if (!same_path(old, out) && is_file(old)) {
+        snprintf(out, size, "%s", old);
+        return 1;
+    }
+    return 0;
+}
+
 int pc_app_rom_find(const PcAppPlace *places, int n)
 {
     for (int i = 0; i < n; i++)

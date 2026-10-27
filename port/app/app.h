@@ -36,6 +36,15 @@ int pc_app_exists(const char *path);   /* anything there (a file, a folder) */
 void pc_app_dirname(const char *path, char *out, size_t size);   /* "." for a bare name */
 int pc_app_mkdirs(const char *dir);    /* the folder and its parents; 0 when it is there */
 
+/* ---------------------------------------------------------------- paths.c: what the program writes */
+
+/* A file the program writes, named by a setting (game.pak_file, video.screenshot_dir): value as it is when it came
+ * from the command line (from the working directory) or is absolute, otherwise in the data folder. */
+void pc_app_data_file(const PcAppDirs *d, const char *value, int from_command_line, char *out, size_t size);
+/* The controller pak's file, the same way; except that when it isn't there and the working directory has one by
+ * that name, where earlier builds kept it, that one is used. Returns 1 then. */
+int pc_app_pak_file(const PcAppDirs *d, const char *value, int from_command_line, char *out, size_t size);
+
 /* ---------------------------------------------------------------- paths.c: where the ROM is looked for */
 
 #define PC_APP_ROM_PLACES 4

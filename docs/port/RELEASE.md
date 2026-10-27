@@ -146,6 +146,46 @@ and that it will probably not work. A usable ROM gives one line: `rush2049pc: RO
   revision 1; another game, the synthetic cartridge's header, a name that isn't ASCII; a ZIP, a 7-Zip, a gzip, an
   ELF file, an empty file, a short one.
 
+## Files: where the program keeps what it writes
+
+One rule, for an installed copy (the program's folder read-only) and a portable one alike:
+
+- **Portable**: `rush2049pc.ini` is next to the program. Everything the program keeps is in the program's folder.
+  The release archives are portable: they ship an empty `rush2049pc.ini`, which the first run fills with the
+  defaults and their comments (`fill_portable_ini` in `port/main.c`), as it writes a missing one elsewhere.
+- **Installed**: no `rush2049pc.ini` next to the program. The settings file is in the user settings folder,
+  as before (`%APPDATA%\rush2049pc`, `$XDG_CONFIG_HOME/rush2049pc`), and the rest in the user data folder:
+  `%APPDATA%\rush2049pc` on Windows, `$XDG_DATA_HOME/rush2049pc` (`~/.local/share/rush2049pc`) on Linux. With no
+  user folder at all (no `HOME`), the working directory.
+
+That folder is "the data folder" (`PcAppDirs.data`). It is made when it is missing.
+
+| What | Setting | Where |
+|---|---|---|
+| settings | `--config` | `rush2049pc.ini` next to the program, else the user settings folder (unchanged; FRONTEND.md) |
+| saves: the controller pak | `game.pak_file`, `--pak` | `rush2049pc.mpk` in the data folder |
+| F12 screenshots | `video.screenshot_dir` | `screenshots/` in the data folder (made when a window opens) |
+| the log | `--log`, `--no-log` | `rush2049pc.log` and `rush2049pc.old.log` in the data folder |
+| `gamecontrollerdb.txt` | | read next to `rush2049pc.ini` (unchanged) |
+| `--screenshot-at`, `--dump-audio` | | as given: these are for scripted runs |
+| the data report | `PC_DATA_REPORT` | `build/.../data_report.txt` of a source build, none in a release build |
+
+- **Paths in the settings.** A name alone (`rush2049pc.mpk`, `shots`) is in the data folder; a full path is used
+  as it is. A path on the command line (`--pak PATH`, `--set game.pak_file=PATH`) is from the working directory,
+  as command-line paths usually are.
+- **Saves from earlier builds.** They kept `rush2049pc.mpk` in the working directory. When the data folder has no
+  pak and the working directory has one by that name, that one is used, read and written where it is, so no
+  save is lost. The console and the log say so: `rush2049pc: saves (the controller pak): /home/me/rush2049pc.mpk,
+  in the working directory, where earlier builds kept it`. Moving it into the data folder ends that.
+- **The settings file** keeps its earlier locations, so nothing there moves.
+- **Each run says where its saves are**: `rush2049pc: saves (the controller pak): PATH`, after the ROM line.
+
+Tested in `app_paths` (a name alone, a full path, the command line; a new pak; an earlier build's pak in the
+working directory used where it is, and not when the data folder has one or with `--pak`; the portable folder;
+folders made) and `app_firstrun`: the pak written in the user data folder, an earlier build's in the working
+directory used and none made, `--pak`, a portable copy (its empty ini filled, the ROM, the pak and the log next to
+it, nothing in the user folder), and the screenshots folder with a window (SDL's offscreen driver).
+
 ## The log
 
 Every game run writes what it prints into a log file as well as to the console: `rush2049pc.log` in the folder
@@ -215,8 +255,10 @@ also makes a **draft** GitHub release with them, which a person checks and publi
 | Job | Runner | What |
 |---|---|---|
 | `windows` | ubuntu-24.04, in `debian:12` | cross-built as pc.yml's `windows-cross` (mingw-w64 GCC 12.2, SDL2 2.30.9 from source); `cmake --install` into `rush2049pc-<version>-windows-x86_64/`; the zip; checks what is in it |
-| `windows-check` | windows-latest | the zip unzipped; from its folder, `--selftest` and the boot without a ROM. Mesa's llvmpipe `opengl32.dll` is copied in for the run, since the runner has no GPU; it is not in the zip |
-| `release` | ubuntu-24.04 | tags only: `gh release create --draft` with the archives |
+| `windows-check` | windows-latest | the zip unzipped; from its folder: `--version`, the first run (the empty ini filled, the log next to the program), `--selftest`, the boot without a ROM (the log has its fault and backtrace), the forced wait for a key. Mesa's llvmpipe `opengl32.dll` is copied in for the run, since the runner has no GPU; it is not in the zip |
+| `linux` | ubuntu-24.04 and ubuntu-24.04-arm, in `ubuntu:22.04` | x86-64 and aarch64: built with SDL2 2.30.9 from source; `cmake --install` into `rush2049pc-<version>-linux-<arch>/`; the tarball; checks what is in it, its libraries and the newest glibc symbol it needs |
+| `linux-check` | the same, in `fedora:40` | the tarball unpacked on another distribution; from its folder: `--version`, `--selftest`, the first run, the boot without a ROM headless on Mesa's llvmpipe with its log |
+| `release` | ubuntu-24.04 | tags only: `gh release create --draft` with the three archives |
 
 - **The Windows zip:** `rush2049pc.exe`, `README.txt` (`dist/README-windows.txt`, CRLF line ends) and `LICENSES/`:
   - `SDL2.txt`, from the SDL2 source built;
@@ -227,15 +269,42 @@ also makes a **draft** GitHub release with them, which a person checks and publi
   SDL2, zlib and the runtime are linked statically, so the program needs only Windows' own DLLs (`objdump -p`:
   ADVAPI32, GDI32, IMM32, KERNEL32, msvcrt, ole32, OLEAUT32, OPENGL32, SETUPAPI, SHELL32, USER32, VERSION,
   WINMM). The executable is the CI build type (Debug) and is not stripped, so its backtraces can be symbolized.
-- **`cmake --install`.** `RUSH_INSTALL_PORTABLE` (the default on Windows) installs one folder: the program,
-  README.txt, LICENSES/. Otherwise: `bin/rush2049pc`, and README.md, README.txt, FRONTEND.md and the licences under
-  `share/doc/rush2049pc`. `RUSH_EXTRA_LICENSES` adds licence files as `NAME=FILE` pairs.
+- **The Linux tarballs:** `rush2049pc`, an empty `rush2049pc.ini`, `README.txt` (`dist/README-linux.txt`) and
+  `LICENSES/` (`SDL2.txt`, `zlib.txt`).
+  - Built in Ubuntu 22.04, so they need glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora 36 and newer).
+  - SDL2 is built with the X11, Wayland, libdecor, PulseAudio, PipeWire, ALSA, udev and D-Bus headers there and
+    linked statically. It loads those libraries at run time (SDL's default), so the program runs without them,
+    and with a window wherever they are.
+  - The program itself needs only `libc.so.6`, `libm.so.6`, `libz.so.1`, `libEGL.so.1` (GLES comes through EGL)
+    and `libasound.so.2` (port/audio's ALSA output), and glibc symbols up to `GLIBC_2.35`. The job prints both
+    (`readelf -d`, `objdump -T`).
+  - The tarball needs CMake 3.24 to build (`$<LINK_LIBRARY:WHOLE_ARCHIVE>`), and Ubuntu 22.04 has 3.22: the job
+    installs CMake 3.30.5 from PyPI. Configuring with an older CMake now stops with that message.
+  - **No AppImage.** It would need FUSE on the player's system (or an extract step), and it must not carry
+    GL, which comes from the player's driver. A folder with one program, which needs only what every desktop
+    has, is as portable and simpler.
+- **`cmake --install`.** `RUSH_INSTALL_PORTABLE` (the default on Windows, and the release builds) installs one
+  folder: the program, an empty `rush2049pc.ini`, `README.txt`, `LICENSES/`. Otherwise the usual layout under the
+  prefix:
+  - `bin/rush2049pc`;
+  - `share/applications/rush2049pc.desktop` (Games; it opens `application/x-n64-rom` files, so a ROM can be
+    opened with it) and `share/icons/hicolor/scalable/apps/rush2049pc.svg`, a plain road of our own (no art,
+    logo or trademark of the game);
+  - `share/doc/rush2049pc/`: README.md, README.txt, FRONTEND.md, RELEASE.md and `LICENSES/`.
+
+  `RUSH_EXTRA_LICENSES` adds licence files as `NAME=FILE` pairs. `RUSH_DATA_REPORT=` (empty) turns off the data
+  loader's report, as the release builds do.
 - **No ROM data.** The packaging step fails if the zip holds a `.z64`, `.v64`, `.n64`, `.rom` or `.bin`.
 - **Registering the workflow.** GitHub dispatches only workflows it has seen. Until release.yml is on the default
   branch, a dispatch on another branch gets HTTP 404. One push of a commit with a temporary `push` trigger, to
   the CI branch only, registers it.
 
-**Results:** release run 40572061761 (workflow_dispatch on `port-release`, commit edc9445): `windows` 1 min 36 s,
-then `windows-check` unzipped the zip and passed the self-test (26 of 26) and the boot without a ROM (waves 0, 6, 7,
-8, then the blank cartridge's access violation at 0xC, as in pc.yml). pc.yml run 40572065582 on the same commit
-passed every job.
+**Results** (workflow_dispatch on `port-release`):
+
+| Commit | Release run | pc.yml run | What was new |
+|---|---|---|---|
+| edc9445 | 40572061761 | 40572065582 | the Windows zip; unzipped: the self-test (26 of 26), the boot without a ROM |
+| 590baca | 40574335614 | 40574338828 | the ROM lookup and its messages |
+| d69f864 | 40576309316 | 40576314199 | the log: on windows-latest the zip's exe wrote `rush2049pc.log` with its header, the fault line and a symbolized backtrace; `--version` named the Actions run; the forced wait |
+| 72d47b5 | 40578906382 | 40578911258 | the data folder; the zip's empty ini filled by the first run |
+| 12bf09a | 40579937190 | | the Linux tarballs, x86-64 and aarch64, built in Ubuntu 22.04 and run on Fedora 40: `--version`, the self-test, the first run, the boot without a ROM on llvmpipe with its fault and backtrace in the log |

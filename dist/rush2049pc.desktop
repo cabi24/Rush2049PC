@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Rush 2049 PC
+GenericName=Racing game
+Comment=A native PC port of San Francisco Rush 2049 (N64); needs your own ROM
+Exec=rush2049pc %f
+Icon=rush2049pc
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=racing;n64;
+MimeType=application/x-n64-rom;

@@ -222,6 +222,31 @@ def main():
         run(exe, "wait for a key", ["--window"], ["press a key to close this window"], stdin=b"x\n",
             env_extra={"RUSH2049_WAIT_KEY": "1"})
 
+    # Where saves go (docs/port/RELEASE.md, "Files"): the controller pak in the user data folder; one an earlier build
+    # left in the working directory used where it is; --pak from the working directory; a portable copy's empty
+    # rush2049pc.ini filled with the defaults, and everything next to the program
+    def exists(folder, name, want=True):
+        return lambda d, out: [] if (d[folder] / name).exists() == want else \
+            [f"{folder}/{name} {'missing' if want else 'there'}"]
+
+    pak = "rush2049pc.mpk"
+    run(exe, "saves: installed", fast + ["synth.z64"], [f"saves (the controller pak): @USER@{sep}{pak}"], code=0,
+        files={"synth.z64": synth}, after=both(exists("user", pak), exists("work", pak, False)))
+    run(exe, "saves: earlier build's", fast + ["synth.z64"],
+        [f"saves (the controller pak): @WORK@{sep}{pak}, in the working directory, where earlier builds kept it"],
+        code=0, files={"synth.z64": synth, pak: bytes(32768)}, after=exists("user", pak, False))
+    run(exe, "saves: --pak", fast + ["--pak", "mine.mpk", "synth.z64"], ["saves (the controller pak): mine.mpk"],
+        code=0, files={"synth.z64": synth}, after=exists("work", "mine.mpk"))
+    run(exe, "saves: portable", fast, ["wrote the default settings to @PROGRAM@", f"saves (the controller pak): "
+                                       f"@PROGRAM@{sep}{pak}", f"@PROGRAM@{sep}baserom.us.z64 (next to the program"],
+        code=0, copy_exe=True, program_files={"rush2049pc.ini": b"", "baserom.us.z64": synth}, no_config=False,
+        after=both(exists("program", pak), exists("program", "rush2049pc.log"), exists("user", pak, False),
+                   log_has("program", "rush2049pc.ini", "[game]", "pak_file = rush2049pc.mpk")))
+    if not win:   # a window (SDL's offscreen driver): F12's folder is made
+        run(exe, "screenshots folder", ["--window", "--fast", "--seconds", "0.5", "--no-rom-check", "synth.z64"],
+            [f"saves (the controller pak): @USER@{sep}{pak}"], code=0, files={"synth.z64": synth},
+            env_extra={"SDL_VIDEODRIVER": "offscreen"}, after=exists("user", "screenshots"))
+
     print(f"firstrun: {'FAILED' if failures else 'all passed'}")
     return 1 if failures else 0
 

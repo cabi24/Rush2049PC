@@ -44,16 +44,18 @@ Controls
   Pause             hold the game
   Escape            quit
 
-Settings
---------
-rush2049pc.ini holds every setting, with a comment on each. The program looks for it next to rush2049pc.exe
-first, and otherwise uses %APPDATA%\rush2049pc\rush2049pc.ini, which the first run writes with the defaults.
-The F1 overlay changes most settings while you play and can save them into the file.
+Settings and saves
+------------------
+This folder is portable: because rush2049pc.ini is next to rush2049pc.exe, everything the program keeps is in
+this folder:
+  rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each
+  rush2049pc.mpk    the saves (the game's controller pak)
+  screenshots\      F12's pictures
+  rush2049pc.log    what the program printed last time (rush2049pc.old.log: the time before)
+Without rush2049pc.ini next to it, the program keeps them in %APPDATA%\rush2049pc instead.
 
-Saves
------
-The game saves to a controller pak image, rush2049pc.mpk, in the folder the program runs in (this folder when
-you double-click it). Keep that file to keep your saves.
+The F1 overlay changes most settings while you play and can save them into rush2049pc.ini. To move to a new
+version, copy rush2049pc.mpk and rush2049pc.ini into its folder.
 
 Troubleshooting
 ---------------
@@ -62,9 +64,9 @@ Troubleshooting
 - "wrong ROM": the message says what the file is: another game, another region (the port runs the USA
   cartridge only), a bad or modified dump, or an archive to extract first.
 - No window, or "no renderer": update the graphics driver; the game needs OpenGL 3.
-- The log: everything the console shows is also written to rush2049pc.log, in %APPDATA%\rush2049pc (type
-  that into Explorer's address bar), or in this folder when rush2049pc.ini is here. The console's first line
-  says where. The run before is kept as rush2049pc.old.log.
+- The log: everything the console shows is also written to rush2049pc.log, in this folder (or in
+  %APPDATA%\rush2049pc without rush2049pc.ini: type that into Explorer's address bar). The console's first
+  line says where. The run before is kept as rush2049pc.old.log.
 - If the program stops with an error, a message box says where the log is, and the console window stays
   open until you press a key.
 - Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; rush2049pc.exe --version

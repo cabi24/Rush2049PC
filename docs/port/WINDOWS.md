@@ -35,7 +35,12 @@ cmake -S . -B build/pc -G Ninja && cmake --build build/pc && ctest --test-dir bu
 
 - zlib and the MinGW runtime are linked in. An MSYS2 build with MSYS2's SDL2 also needs `SDL2.dll`.
 - Settings: `rush2049pc.ini` next to the program (a portable install), else `%APPDATA%\rush2049pc\rush2049pc.ini`.
-  `XDG_CONFIG_HOME` and `HOME` are not used.
+  `XDG_CONFIG_HOME` and `HOME` are not used. The controller pak, screenshots and `rush2049pc.log` go next to the
+  program when the ini is there, else into `%APPDATA%\rush2049pc` ([RELEASE.md](RELEASE.md) "Files").
+- A double-clicked program (its own console) waits for a key after an error or a fault, and a fault shows a
+  message box naming the log ([RELEASE.md](RELEASE.md) "The log"). The log's first lines name the commit and the
+  Actions run, so its `rush2049pc.exe+0x...` frames can be symbolized with that run's exe.
+- A ROM dropped on `rush2049pc.exe` arrives as its first argument, which the program takes for `--rom`.
 - **Ctrl-Break** prints the N64 threads' states (Ctrl-\ on Linux). Ctrl-C quits.
 - **Headless rendering** needs an OpenGL 3 driver. With a GPU driver installed there is one. Windows' own renderer
   is GL 1.1. Without a GPU, Mesa's `opengl32.dll` next to the program gives llvmpipe (mesa-dist-win, `x64/*.dll`).

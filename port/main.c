@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "app.h"
@@ -49,7 +50,9 @@ static void usage(FILE *f)
             "  --press T:BUTTON[@PORT][:DUR],...   scripted input (v5's format; T, DUR in seconds)\n"
             "  --press-file PATH   a .press input script\n"
             "  --log-input         print every change of a player's buttons and stick\n"
-            "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk)\n"
+            "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
+            "                      folder: next to the program when rush2049pc.ini is there, else the user data\n"
+            "                      folder; it also holds screenshots/ and rush2049pc.log)\n"
             "  --no-pak            no accessory; --rumble: a rumble pak instead\n"
             "  --expansion-pak     report 8 MiB of RDRAM (default 4 MiB: no Expansion Pak)\n"
             "  --audio BACKEND     auto (default), sdl, alsa, null or wav (port/audio)\n"
@@ -146,6 +149,32 @@ static void game_info(char *out, size_t size)
 static double fast_clock(void)
 {
     return pc_host_ns() / 1e9;
+}
+
+/* A portable copy's empty rush2049pc.ini, as the release archives ship it, gets the defaults with their comments,
+ * as a first run writes them in the user settings folder (docs/port/RELEASE.md). */
+static void fill_portable_ini(const PcAppDirs *d)
+{
+    char ini[PC_APP_PATH];
+    struct stat st;
+    pc_app_join(ini, sizeof ini, d->exe, "rush2049pc.ini");
+    if (stat(ini, &st) != 0 || st.st_size != 0)
+        return;
+    static PcSettings def;
+    pc_settings_defaults(&def);
+    if (pc_settings_write(&def, ini) == 0)
+        fprintf(stderr, "rush2049pc: wrote the default settings to %s\n", ini);
+    else
+        fprintf(stderr, "rush2049pc: cannot write %s; using the defaults\n", ini);
+}
+
+/* Whether the command line set this setting (its path is then from the working directory). */
+static int from_command_line(const PcSettingValue *over, int n, const char *section, const char *key)
+{
+    int set = 0;
+    for (int i = 1; i < n; i++)
+        set |= !strcasecmp(over[i].section, section) && !strcasecmp(over[i].key, key);
+    return set;
 }
 
 #define MAX_OVERRIDES 64
@@ -321,6 +350,8 @@ static int rush_main(int argc, char **argv)
         if (pc_app_log_open(log_path ? log_path : default_log, argc, argv, &dirs) == 0)
             fprintf(stderr, "rush2049pc %s: the log is %s\n", pc_app_version(), pc_app_log_path());
     }
+    if (dirs.portable && use_config && !config && !print_config && !selftest)
+        fill_portable_ini(&dirs);
     static PcSettings cfg;
     int file_mode = !use_config || selftest           ? PC_CFG_FILE_NONE
                     : config != NULL || print_config ? PC_CFG_FILE_READ
@@ -371,9 +402,7 @@ static int rush_main(int argc, char **argv)
     }
 
     /* The ROM: from the command line as given, else game.rom by the lookup order (port/app/paths.c). */
-    int rom_from_command_line = 0;
-    for (int i = 1; i < nover; i++)
-        rom_from_command_line |= !strcasecmp(over[i].section, "game") && !strcasecmp(over[i].key, "rom");
+    int rom_from_command_line = from_command_line(over, nover, "game", "rom");
     if (no_rom ? pc_rom_blank() != 0
                : pc_app_load_rom(&dirs, cfg.rom, rom_from_command_line, cfg.rom_check,
                                  cfg.source[0] ? cfg.source : cfg.save_path, !headless) != 0)
@@ -394,9 +423,26 @@ static int rush_main(int argc, char **argv)
                      "Updating the graphics driver usually fixes this. The log says more.");
         return 1;
     }
+    /* What the program writes goes into the data folder: next to it when portable, else the user data folder
+     * (port/app/paths.c); paths from the command line are from the working directory. */
+    char pak_path[PC_APP_PATH], dir[PC_APP_PATH];
+    if (pak_kind == PC_PAK_MEMORY) {
+        int old = pc_app_pak_file(&dirs, cfg.pak_file, from_command_line(over, nover, "game", "pak_file"), pak_path,
+                                  sizeof pak_path);
+        pc_app_dirname(pak_path, dir, sizeof dir);
+        pc_app_mkdirs(dir);
+        fprintf(stderr, "rush2049pc: saves (the controller pak): %s%s\n", pak_path,
+                old ? ", in the working directory, where earlier builds kept it" : "");
+    }
+    pc_app_data_file(&dirs, cfg.screenshot_dir[0] ? cfg.screenshot_dir : "screenshots",
+                     cfg.screenshot_dir[0] && from_command_line(over, nover, "video", "screenshot_dir"), dir,
+                     sizeof dir);
+    snprintf(cfg.screenshot_dir, sizeof cfg.screenshot_dir, "%s", dir);
+    if (!headless)
+        pc_app_mkdirs(cfg.screenshot_dir);   /* F12's folder */
     if (pc_input_init(&cfg) != 0 && !headless)
         fprintf(stderr, "rush2049pc: no window: scripted input only\n");
-    pc_si_init(pak_kind == PC_PAK_MEMORY ? cfg.pak_file : NULL, pak_kind);
+    pc_si_init(pak_kind == PC_PAK_MEMORY ? pak_path : NULL, pak_kind);
     if (pc_audio_init(cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     pc_audio_set_volume(cfg.volume / 100.0);

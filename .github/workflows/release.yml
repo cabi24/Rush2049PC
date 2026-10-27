@@ -1,6 +1,7 @@
 # Release archives (docs/port/RELEASE.md): a Windows x86-64 zip, cross-compiled as in pc.yml's windows-cross and
-# then unzipped and run on windows-latest. Each archive is `cmake --install` of a portable build: the program,
-# README.txt and the licences of what is linked in. No ROM and nothing from one goes in.
+# then unzipped and run on windows-latest; Linux x86-64 and aarch64 tarballs, built on Ubuntu 22.04 (glibc 2.35) and
+# then unpacked and run on Fedora. Each archive is `cmake --install` of a portable build: the program, an empty
+# rush2049pc.ini (portable), README.txt and the licences of what is linked in. No ROM and nothing from one goes in.
 #
 # workflow_dispatch builds the archives as artifacts only. A pushed tag v* also makes a draft GitHub release with
 # them, for a person to publish.
@@ -43,6 +44,7 @@ jobs:
         # Their licences come from the sources and the toolchain's packages.
         run: |
           cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON \
+            -DRUSH_DATA_REPORT= \
             "-DRUSH_EXTRA_LICENSES=mingw-w64.txt=/usr/share/doc/mingw-w64-x86-64-dev/copyright;gcc-runtime.txt=/usr/share/doc/gcc-mingw-w64-base/copyright"
       - name: Build
         run: |
@@ -56,7 +58,7 @@ jobs:
           (cd stage && zip -r9 "../$name.zip" "$name")
           unzip -l "$name.zip"
           # what must be there, and nothing of a ROM
-          for f in rush2049pc.exe README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt; do
+          for f in rush2049pc.exe rush2049pc.ini README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt; do
             test -f "stage/$name/$f" || { echo "missing $f"; exit 1; }
           done
           ! unzip -Z1 "$name.zip" | grep -iE '\.(z64|v64|n64|rom|bin)$'
@@ -98,6 +100,16 @@ jobs:
         run: cd "$GAME_DIR" && ./rush2049pc.exe --selftest
       - name: Version
         run: cd "$GAME_DIR" && ./rush2049pc.exe --version | tee version.txt && grep -q "GitHub Actions run" version.txt
+      - name: First run
+        # The zip's empty rush2049pc.ini makes the folder portable; the first run fills it with the defaults and
+        # writes its log next to the program.
+        run: |
+          cd "$GAME_DIR"
+          test ! -s rush2049pc.ini
+          ./rush2049pc.exe --headless --rom missing.z64 > "$GITHUB_WORKSPACE/first.log" 2>&1 || true
+          cat "$GITHUB_WORKSPACE/first.log"
+          grep -q "wrote the default settings to" "$GITHUB_WORKSPACE/first.log"
+          grep -q "^\[game\]" rush2049pc.ini && grep -q "no ROM at missing.z64" rush2049pc.log
       - name: Boot without a ROM
         # It faults where the blank cartridge's zero data runs out (docs/port/WINDOWS.md); the log the program
         # writes must have the run, the fault and its backtrace.
@@ -129,21 +141,151 @@ jobs:
           name: logs-windows-check
           path: |
             boot.log
+            first.log
             rush2049pc.log
             wait.log
+          if-no-files-found: ignore
+
+  linux:
+    # Built in Ubuntu 22.04, so the program needs glibc 2.35 or later. SDL2 is built here and linked statically,
+    # with its X11, Wayland, PulseAudio, PipeWire, ALSA and udev support loaded at run time (SDL's default): the
+    # program needs only the system's libc, zlib, EGL/GLES and ALSA libraries.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    container: ubuntu:22.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git ninja-build gcc g++ make python3 \
+            python3-pip pkg-config file zlib1g-dev libegl-dev libgles-dev libasound2-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev libdrm-dev libgbm-dev libpulse-dev libpipewire-0.3-dev \
+            libudev-dev libdbus-1-dev
+          # The build needs CMake 3.24 ($<LINK_LIBRARY:WHOLE_ARCHIVE>); Ubuntu 22.04 has 3.22
+          pip3 install --no-cache-dir "cmake==3.30.5"
+          cmake --version
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the tags, for git describe
+      - name: Version
+        id: version
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          echo "version=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
+      - name: Configure
+        run: cmake -S . -B build/pc -G Ninja -DRUSH_FETCH_SDL2=ON -DRUSH_INSTALL_PORTABLE=ON -DRUSH_DATA_REPORT=
+      - name: Build
+        run: |
+          set -o pipefail
+          cmake --build build/pc -j4 --target rush2049pc 2>&1 | cut -c1-2000
+      - name: Package
+        run: |
+          name=rush2049pc-${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}
+          cmake --install build/pc --prefix "stage/$name"
+          tar -C stage -czf "$name.tar.gz" "$name"
+          tar -tvzf "$name.tar.gz"
+          for f in rush2049pc rush2049pc.ini README.txt LICENSES/SDL2.txt LICENSES/zlib.txt; do
+            test -f "stage/$name/$f" || { echo "missing $f"; exit 1; }
+          done
+          ! tar -tzf "$name.tar.gz" | grep -iE '\.(z64|v64|n64|rom|bin)$'
+          file "stage/$name/rush2049pc"
+          readelf -d "stage/$name/rush2049pc" | grep NEEDED
+          # the newest glibc symbol version it needs
+          objdump -T "stage/$name/rush2049pc" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: rush2049pc-*-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  linux-check:
+    # The tarball as a player gets it, on another distribution: unpacked on Fedora and run from its folder (the
+    # self-test, the boot without a ROM headless on Mesa's llvmpipe, the first run's settings file and log).
+    needs: linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    container: fedora:40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Dependencies
+        run: dnf install -y -q mesa-libEGL mesa-libGLES mesa-dri-drivers alsa-lib zlib tar gzip
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: tarball
+      - name: Unpack
+        run: |
+          mkdir unpacked && tar -C unpacked -xzf tarball/*.tar.gz
+          echo "GAME_DIR=$(echo "$PWD"/unpacked/rush2049pc-*)" >> "$GITHUB_ENV"
+          ls -lR unpacked
+      - name: Version
+        run: cd "$GAME_DIR" && ./rush2049pc --version | tee "$GITHUB_WORKSPACE/version.txt" && grep -q "GitHub Actions run" "$GITHUB_WORKSPACE/version.txt"
+      - name: Self-test
+        run: cd "$GAME_DIR" && ./rush2049pc --selftest
+      - name: First run
+        run: |
+          cd "$GAME_DIR"
+          test ! -s rush2049pc.ini
+          ./rush2049pc --headless --rom missing.z64 > "$GITHUB_WORKSPACE/first.log" 2>&1 || true
+          cat "$GITHUB_WORKSPACE/first.log"
+          grep -q "wrote the default settings to" "$GITHUB_WORKSPACE/first.log"
+          grep -q "^\[game\]" rush2049pc.ini && grep -q "no ROM at missing.z64" rush2049pc.log
+      - name: Boot without a ROM
+        run: |
+          cd "$GAME_DIR"
+          RUSH_TRACE_WAVES=1 ./rush2049pc --no-rom --headless --no-config --audio null --seconds 10 \
+            > "$GITHUB_WORKSPACE/boot.log" 2>&1 || true
+          cat "$GITHUB_WORKSPACE/boot.log"
+          grep -q "wave 0 loaded" "$GITHUB_WORKSPACE/boot.log"
+          cp rush2049pc.log "$GITHUB_WORKSPACE/rush2049pc.log"
+          for want in "GitHub Actions run" "wave 0 loaded" "Segmentation fault at address" "  #1 "; do
+            grep -qF "$want" rush2049pc.log || { echo "the log lacks '$want'"; exit 1; }
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-linux-check-${{ matrix.arch }}
+          path: |
+            version.txt
+            first.log
+            boot.log
+            rush2049pc.log
           if-no-files-found: ignore
 
   release:
     # Only for a pushed tag: a draft release with the archives, which a person reviews and publishes.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, windows-check]
+    needs: [windows, windows-check, linux, linux-check]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: windows-x86_64
+          pattern: '{windows-x86_64,linux-x86_64,linux-aarch64}'
+          merge-multiple: true
           path: out
       - name: Draft release
         env:

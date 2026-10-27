@@ -87,8 +87,16 @@ int main(int argc, char **argv)
         printf("usage: test_app DIR\n");
         return 2;
     }
-    pc_app_join(base, sizeof base, argv[1], "app");
+    char top[PC_APP_PATH] = "";
     make_dir(argv[1]);
+    if (!pc_app_is_absolute(argv[1]) && getcwd(top, sizeof top)) {   /* XDG_DATA_HOME must be absolute */
+        char rel[PC_APP_PATH];
+        snprintf(rel, sizeof rel, "%s", top);
+        pc_app_join(top, sizeof top, rel, argv[1]);
+    } else {
+        snprintf(top, sizeof top, "%s", argv[1]);
+    }
+    pc_app_join(base, sizeof base, top, "app");
     make_dir(base);
     pc_app_join(exe, sizeof exe, base, "program");
     pc_app_join(cwd, sizeof cwd, base, "work");
@@ -164,12 +172,49 @@ int main(int argc, char **argv)
     CHECK(n == 2 && at == -1, "program folder = working directory: %d places", n);
     snprintf(exe, sizeof exe, "%s", saved);
 
+    /* What the program writes: a name alone into the data folder; a full path, or one from the command line, as
+     * it is; the controller pak of an earlier build, in the working directory, used where it is */
+    char out[PC_APP_PATH], want[PC_APP_PATH + 32];
+    pc_app_dirs(&d, exe);
+    pc_app_data_file(&d, "screenshots", 0, out, sizeof out);
+    pc_app_join(want, sizeof want, user, "screenshots");
+    CHECK(!strcmp(out, want), "screenshots: %s, expected %s", out, want);
+    pc_app_data_file(&d, abs, 0, out, sizeof out);
+    CHECK(!strcmp(out, abs), "a full path: %s", out);
+    pc_app_data_file(&d, "shots", 1, out, sizeof out);
+    CHECK(!strcmp(out, "shots"), "from the command line: %s", out);
+    const char *pak = "rush2049pc.mpk";
+    rm(user, pak), rm(cwd, pak);
+    pc_app_join(want, sizeof want, user, pak);
+    CHECK(pc_app_pak_file(&d, pak, 0, out, sizeof out) == 0 && !strcmp(out, want), "new pak: %s", out);
+    touch(cwd, pak);
+    pc_app_join(want, sizeof want, cwd, pak);
+    CHECK(pc_app_pak_file(&d, pak, 0, out, sizeof out) == 1 && !strcmp(out, want), "an earlier build's pak: %s", out);
+    CHECK(pc_app_pak_file(&d, pak, 1, out, sizeof out) == 0 && !strcmp(out, pak), "--pak: %s", out);
+    touch(user, pak);
+    pc_app_join(want, sizeof want, user, pak);
+    CHECK(pc_app_pak_file(&d, pak, 0, out, sizeof out) == 0 && !strcmp(out, want), "both: the data folder's: %s", out);
+    rm(user, pak), rm(cwd, pak);
+    /* portable: the program's folder */
+    touch(exe, "rush2049pc.ini");
+    pc_app_dirs(&d, exe);
+    pc_app_join(want, sizeof want, exe, pak);
+    CHECK(pc_app_pak_file(&d, pak, 0, out, sizeof out) == 0 && !strcmp(out, want), "portable pak: %s", out);
+    rm(exe, "rush2049pc.ini");
+    /* folders made as needed */
+    char deep[PC_APP_PATH], deeper[PC_APP_PATH];
+    pc_app_join(deep, sizeof deep, base, "made");
+    pc_app_join(deeper, sizeof deeper, deep, "a");
+    pc_app_join(deep, sizeof deep, deeper, "b");
+    CHECK(pc_app_mkdirs(deep) == 0 && pc_app_exists(deep) && pc_app_mkdirs(deep) == 0, "mkdirs %s", deep);
+    pc_app_dirname(deep, out, sizeof out);
+    CHECK(!strcmp(out, deeper), "dirname %s", out);
+
 #ifndef _WIN32
     /* A relative XDG_DATA_HOME is ignored (~/.local/share); with no HOME either, there is no user folder */
     setenv("XDG_DATA_HOME", "relative/dir", 1);
     setenv("HOME", base, 1);
     pc_app_dirs(&d, exe);
-    char want[PC_APP_PATH + 32];
     snprintf(want, sizeof want, "%s/.local/share/rush2049pc", base);
     CHECK(!strcmp(d.user, want), "relative XDG_DATA_HOME: %s, expected %s", d.user, want);
     unsetenv("XDG_DATA_HOME");
