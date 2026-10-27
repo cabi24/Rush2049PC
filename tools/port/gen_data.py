@@ -1152,10 +1152,15 @@ def check(exe, layout_path, nm, pe=False):
     addr, size, letter = {}, {}, {}
     for line in out.splitlines():
         p = line.split()
+        if len(p) not in (3, 4):
+            continue
+        name, kind = p[-1], p[-2]
+        if name in letter and kind.islower() and letter[name].isupper():
+            continue   # a file-local static of the same name (overlay statics such as D_80399120): the global wins
+        addr[name], letter[name] = int(p[0], 16), kind
+        size.pop(name, None)
         if len(p) == 4:
-            addr[p[3]], size[p[3]], letter[p[3]] = int(p[0], 16), int(p[1], 16), p[2]
-        elif len(p) == 3:
-            addr[p[2]], letter[p[2]] = int(p[0], 16), p[1]
+            size[name] = int(p[1], 16)
     bad = []
     for name, n in layout["own"]:
         if name not in addr:
