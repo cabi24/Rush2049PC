@@ -1,7 +1,9 @@
 /* port/gfx/tests/gfx_test.c: renders display lists headless and checks pixels.
  *
- *   gfx_test <case>|all [--png DIR]
+ *   gfx_test <case>|all [--png DIR] [--window]
  *
+ * --window initializes with a window (SDL2 builds; SDL_VIDEODRIVER=offscreen works without a display) and
+ * presents to it; the checks still read the render targets.
  * Each case builds its lists with test_gbi.h, runs them through pc_gfx_run_dl, presents, and compares sample
  * points against values worked out from the N64 semantics. Exit status 0 = pass. */
 #include <math.h>
@@ -13,6 +15,7 @@
 #include "test_gbi.h"
 
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
+int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
@@ -66,7 +69,7 @@ int pc_mem_is_be(const void *p) {
 static uint16_t s_fb[FB_W * FB_H], s_zb[FB_W * FB_H];
 static PcGfxWords s_list[16384], s_sub[4096];
 static uint8_t *s_px;
-static int s_px_w, s_px_h, s_fail;
+static int s_px_w, s_px_h, s_fail, s_window;
 static const char *s_case, *s_png_dir;
 
 typedef struct {
@@ -203,14 +206,36 @@ static void frame_end(void) {
     pc_gfx_read_framebuffer(s_fb, NULL, &s_px_w, &s_px_h);
     s_px = (uint8_t *)malloc((size_t)s_px_w * s_px_h * 4);
     pc_gfx_read_framebuffer(s_fb, s_px, &s_px_w, &s_px_h);
+    if (s_window && s_px_w == FB_W) {   /* 640x480 window, 320x240 frame: shown at exactly 2x */
+        int ww, wh, x, y, bad = 0;
+        uint8_t *win;
+        pc_gfx_read_window(NULL, &ww, &wh);
+        win = (uint8_t *)malloc((size_t)ww * wh * 4);
+        if (pc_gfx_read_window(win, &ww, &wh) != 0 || ww != 2 * FB_W || wh != 2 * FB_H) {
+            printf("  FAIL %s window readback (%dx%d)\n", s_case, ww, wh);
+            s_fail++;
+        } else {
+            for (y = 0; y < FB_H; y += 7)
+                for (x = 0; x < FB_W; x += 7)
+                    if (memcmp(win + ((size_t)(2 * y + 1) * ww + 2 * x + 1) * 4, s_px + ((size_t)y * s_px_w + x) * 4, 3))
+                        bad++;
+            if (bad) {
+                printf("  FAIL %s window differs from the frame at %d samples\n", s_case, bad);
+                s_fail++;
+            }
+        }
+        free(win);
+    }
     if (s_png_dir != NULL) {
         snprintf(path, sizeof(path), "%s/%s.png", s_png_dir, s_case);
         pc_gfx_save_screenshot(path);
     }
 }
 
+/* N64 pixel (x, y): the middle of its block at the internal scale (RUSH_GFX_SCALE) */
 static const uint8_t *px(int x, int y) {
-    return s_px + ((size_t)y * s_px_w + x) * 4;
+    int k = s_px_w / FB_W;
+    return s_px + ((size_t)(y * k + k / 2) * s_px_w + x * k + k / 2) * 4;
 }
 
 static void check(const char *what, int x, int y, int r, int g, int b, int tol) {
@@ -998,6 +1023,12 @@ static void case_xlu(void) {
     gsDPSetPrimColor(0, 0, 0, 0, 255, 128);
     cc_prim();
     gsDPFillRectangle(10, 10, 30, 30);
+    /* the game's fog-on rectangles: XLU_SURF in both cycles of 2-cycle mode, so memory blends twice:
+     * in*a*a + mem*(1-a)*(1+a) */
+    gsDPSetCycleType(G_CYC_2CYCLE);
+    gsDPSetRenderMode(RM_XLU_SURF(1), RM_XLU_SURF(2));
+    gsDPFillRectangle(10, 40, 30, 60);
+    gsDPSetCycleType(G_CYC_1CYCLE);
     gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
     gsDPSetAlphaCompare(G_AC_THRESHOLD);
     gsDPSetBlendColor(0, 0, 0, 100);
@@ -1012,6 +1043,7 @@ static void case_xlu(void) {
     gsSPTextureRectangle(80 << 2, 10 << 2, 84 << 2, 14 << 2, 0, 0, 0, 1 << 10, 1 << 10);
     frame_end();
     check("xlu 50%", 20, 20, 127, 0, 128, 3);
+    check("xlu twice (2-cycle)", 20, 50, 191, 0, 64, 3);
     check("alpha compare below", 45, 15, 255, 0, 0, 0);
     check("alpha compare at", 65, 15, 0, 255, 0, 0);
     check("tex edge transparent", 80, 10, 255, 0, 0, 0);
@@ -1033,7 +1065,7 @@ static void case_screenshot(void) {
         return;
     }
     if (fread(hdr, 1, 24, f) != 24 || memcmp(hdr, "\x89PNG\r\n\x1a\n", 8) != 0 || memcmp(hdr + 12, "IHDR", 4) ||
-        hdr[16] << 24 != 0 || (hdr[18] << 8 | hdr[19]) != FB_W || (hdr[22] << 8 | hdr[23]) != FB_H) {
+        hdr[16] != 0 || hdr[17] != 0 || (hdr[18] << 8 | hdr[19]) != s_px_w || (hdr[22] << 8 | hdr[23]) != s_px_h) {
         printf("  FAIL screenshot: bad PNG header\n");
         s_fail++;
     }
@@ -1058,9 +1090,13 @@ static const Case s_cases[] = {
 
 int main(int argc, char **argv) {
     const char *which = argc > 1 ? argv[1] : "all";
-    int i, ran = 0, failed = 0;
-    if (argc > 3 && strcmp(argv[2], "--png") == 0)
-        s_png_dir = argv[3];
+    int i, ran = 0, failed = 0, window = 0;
+    for (i = 2; i < argc; i++) {
+        if (strcmp(argv[i], "--png") == 0 && i + 1 < argc)
+            s_png_dir = argv[++i];
+        else if (strcmp(argv[i], "--window") == 0)
+            window = 1;
+    }
     s_rdram = (uint8_t *)calloc(1, PC_RDRAM_SIZE);
     mtx_ortho(&s_ortho, 0, FB_W, FB_H, 0, -1000, 1000);
     {
@@ -1068,7 +1104,8 @@ int main(int argc, char **argv) {
         mtx_ident_f(f);
         mtx_f2l(f, &s_ident);
     }
-    if (pc_gfx_init(1, 0, 0) != 0) {
+    s_window = window;
+    if (pc_gfx_init(!window, 640, 480) != 0) {
         printf("FAIL: pc_gfx_init\n");
         return 2;
     }
@@ -1078,6 +1115,8 @@ int main(int argc, char **argv) {
             continue;
         s_case = s_cases[i].name;
         s_cases[i].fn();
+        if (pc_gfx_poll_events())
+            printf("  (quit requested)\n");
         ran++;
         if (s_fail != before)
             failed++;

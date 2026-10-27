@@ -127,6 +127,7 @@ enum {
     GFX_KF_CVG_X_ALPHA = 4,
     GFX_KF_TEX0 = 8,
     GFX_KF_TEX1 = 16,
+    GFX_KF_SNAP = 32,   /* point-sampled rectangle above 1x: sample at each N64 pixel's corner */
 };
 
 typedef struct GfxShader GfxShader;
@@ -142,6 +143,8 @@ typedef struct {
     float prim[4], env[4], fog[4], blendc[4], fill[4];
     float prim_lod, lod_frac;
     float noise_seed;
+    float scale;                    /* internal resolution multiple */
+    uint32_t shader_flags;          /* the key's GFX_KF_* */
 } GfxDrawState;
 
 /* ---------------------------------------------------------------- interpreter entry points */
@@ -181,6 +184,7 @@ void gfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n);
 void gfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
 int gfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h);   /* top row first, RGBA8 */
 int gfx_gl_read_presented(uint8_t *rgba, int *w, int *h);
+int gfx_gl_read_window(uint8_t *rgba, int w, int h);   /* the default framebuffer, top row first */
 void gfx_gl_target_size(int *scale);
 
 /* gfx_png.c */
@@ -206,6 +210,7 @@ extern GfxConfig g_gfx_cfg;
 
 /* Test and tool access (not part of pc_port.h). */
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
+int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);   /* what the window shows (window mode only) */
 
 #ifdef __cplusplus
 }

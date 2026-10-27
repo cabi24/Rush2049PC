@@ -86,7 +86,7 @@ static PFNGLBINDFRAGDATALOCATIONPROC glBindFragDataLocation;
 struct GfxShader {
     GfxShaderKey key;
     GLuint prog;
-    GLint u_prim, u_env, u_fog, u_blend, u_fill, u_primlod, u_lodfrac, u_noise;
+    GLint u_prim, u_env, u_fog, u_blend, u_fill, u_primlod, u_lodfrac, u_noise, u_scale;
     GfxShader *next;
 };
 
@@ -425,6 +425,7 @@ GfxShader *gfx_gl_shader(const GfxShaderKey *key) {
     s->u_primlod = glGetUniformLocation(prog, "uPrimLod");
     s->u_lodfrac = glGetUniformLocation(prog, "uLodFrac");
     s->u_noise = glGetUniformLocation(prog, "uNoise");
+    s->u_scale = glGetUniformLocation(prog, "uScale");
     glUseProgram(prog);
     glUniform1i(glGetUniformLocation(prog, "uTex0"), 0);
     glUniform1i(glGetUniformLocation(prog, "uTex1"), 1);
@@ -452,6 +453,7 @@ void gfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     glUniform1f(sh->u_primlod, st->prim_lod);
     glUniform1f(sh->u_lodfrac, st->lod_frac);
     glUniform1f(sh->u_noise, st->noise_seed);
+    glUniform1f(sh->u_scale, st->scale);
     for (u = 0; u < 2; u++) {
         glActiveTexture(GL_TEXTURE0 + u);
         if (st->tex[u]) {
@@ -580,6 +582,12 @@ int gfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h) {
     if (rgba == NULL)
         return 0;
     return read_fbo(t->fbo, 0, 0, *w, *h, rgba);
+}
+
+int gfx_gl_read_window(uint8_t *rgba, int w, int h) {
+    int rc = read_fbo(0, 0, 0, w, h, rgba);
+    bind_fbo(0);
+    return rc;
 }
 
 int gfx_gl_read_presented(uint8_t *rgba, int *w, int *h) {

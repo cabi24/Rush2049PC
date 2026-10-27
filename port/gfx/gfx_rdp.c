@@ -285,6 +285,13 @@ typedef struct TexEntry {
 static TexEntry *s_tex_buckets[TEX_BUCKETS];
 static int s_tex_count;
 static uint8_t *s_decode;
+/* The last lookup per texture unit, valid while no tile, TMEM or TLUT-mode change happened (epoch). */
+static uint32_t s_tex_epoch = 1;
+static struct {
+    int tile;
+    uint32_t epoch;
+    TexEntry *e;
+} s_unit_cache[2];
 
 static uint64_t mix64(uint64_t h, uint64_t v) {
     h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
@@ -306,6 +313,7 @@ static uint64_t hash_tmem(uint64_t h, uint32_t start, uint32_t len) {
 
 static void tex_evict(void) {
     int b;
+    s_tex_epoch++;
     for (b = 0; b < TEX_BUCKETS; b++) {
         TexEntry **pp = &s_tex_buckets[b];
         while (*pp) {
@@ -424,6 +432,7 @@ void gfx_tex_cache_clear(void) {
         }
     }
     s_tex_count = 0;
+    s_tex_epoch++;
     free(s_decode);
     s_decode = NULL;
 }
@@ -521,7 +530,16 @@ static void build_state(GfxDrawState *st, int rect_tile) {
         if (want) {
             int ti = (tile + (int)u) & 7;
             const GfxTile *tl = &g_gfx.tiles[ti];
-            TexEntry *e = tex_lookup(ti);
+            TexEntry *e;
+            if (s_unit_cache[u].tile == ti && s_unit_cache[u].epoch == s_tex_epoch) {
+                e = s_unit_cache[u].e;
+                e->last_use = s_frame;
+            } else {
+                e = tex_lookup(ti);
+                s_unit_cache[u].tile = ti;
+                s_unit_cache[u].epoch = s_tex_epoch;
+                s_unit_cache[u].e = e;
+            }
             unsigned filt = (g_gfx.om_h >> G_MDSFT_TEXTFILT) & 3;
             st->tex[u] = e->gl;
             st->repeat_s[u] = (uint8_t)e->repeat_s;
@@ -539,7 +557,16 @@ static void build_state(GfxDrawState *st, int rect_tile) {
         }
     }
 
+    {
+        int scale;
+        gfx_gl_target_size(&scale);
+        st->scale = (float)scale;
+        if (rect_tile >= 0 && rect_tile < 8 && scale > 1 &&
+            (key.mode == GFX_MODE_COPY || ((g_gfx.om_h >> G_MDSFT_TEXTFILT) & 3) == G_TF_POINT))
+            key.flags |= GFX_KF_SNAP;
+    }
     st->shader = gfx_gl_shader(&key);
+    st->shader_flags = key.flags;
     st->target = current_target();
 
     /* Depth. Triangles need G_ZBUFFER for z (or the primitive depth); rectangles only have the primitive depth. */
@@ -572,6 +599,8 @@ const GfxDrawState *gfx_draw_state(int rect_tile) {
     GfxDrawState st;
     if (s_state_valid && !g_gfx.state_dirty && !g_gfx.tex_dirty && s_state_rect_tile == rect_tile)
         return &s_state;
+    if (g_gfx.tex_dirty)
+        s_tex_epoch++;
     build_state(&st, rect_tile);
     g_gfx.state_dirty = 0;
     g_gfx.tex_dirty = 0;
@@ -627,18 +656,26 @@ static void rect_vertex(GfxOutVtx *o, float x, float y, float s, float t, int te
     }
 }
 
+/* The RDP samples a rectangle pixel at its corner: pixel k gets texel floor(c0 + k * d). GL samples at (internal)
+ * pixel centers, so start the interpolation so that each of the scale x scale samples inside N64 pixel k stays in
+ * that texel (exact for |d| <= 1), plus a small bias against float error on texel boundaries. */
+static float rect_start(float c0, float d, int scale, int snap) {
+    if (d >= 0.0f || snap)   /* snap: the shader moves every sample to the first one of its N64 pixel */
+        return c0 - 0.5f * d / scale + 1.0f / 64;
+    return c0 - d + 0.5f * d / scale + 1.0f / 64;
+}
+
 /* Corners in N64 pixels; s/t at (x0, y0) for the pixel's corner, per-pixel steps. */
 static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s, float t, float dsdx, float dtdy,
                       int flip) {
     GfxOutVtx q[4], tri[6];
-    int tw, th, textured = tile >= 0;
+    int tw, th, scale, textured = tile >= 0;
     float w = x1 - x0, h = y1 - y0;
     gfx_draw_state(textured ? tile : 8);
     gfx_target_dims(&tw, &th);
-    /* GL samples at pixel centers; the RDP steps from the pixel corner. Start half a step earlier, plus a small
-     * bias so samples that land exactly on a texel boundary don't round down under float error. */
-    s += 1.0f / 64 - 0.5f * dsdx;
-    t += 1.0f / 64 - 0.5f * dtdy;
+    gfx_gl_target_size(&scale);
+    s = rect_start(s, dsdx, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
+    t = rect_start(t, dtdy, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
     if (!flip) {
         rect_vertex(&q[0], x0, y0, s, t, textured, tw, th);
         rect_vertex(&q[1], x1, y0, s + dsdx * w, t, textured, tw, th);

@@ -33,6 +33,8 @@ set_target_properties(pcgfx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EX
 target_include_directories(pcgfx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include
                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PCGFX_GLES3_INCLUDE})
 target_link_libraries(pcgfx PUBLIC PkgConfig::PCGFX_EGL ZLIB::ZLIB m)
+# compile_commands.json is tools/port/census.py's list of game files: keep the renderer out of it.
+set_target_properties(pcgfx PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(pcgfx PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
@@ -76,6 +78,7 @@ endif()
 add_executable(gfx_test tests/gfx_test.c)
 set_target_properties(gfx_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_link_libraries(gfx_test PRIVATE pcgfx)
+set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle dualtile belist matrix cull branchz nearclip
@@ -85,5 +88,11 @@ endforeach()
 # The same cases on desktop GL and on the software rasterizer (llvmpipe), when those exist.
 add_test(NAME gfx.all.desktop-gl COMMAND gfx_test all)
 set_tests_properties(gfx.all.desktop-gl PROPERTIES ENVIRONMENT "RUSH_GFX_API=gl")
+add_test(NAME gfx.all.scale2 COMMAND gfx_test all)
+set_tests_properties(gfx.all.scale2 PROPERTIES ENVIRONMENT "RUSH_GFX_SCALE=2")
 add_test(NAME gfx.all.software COMMAND gfx_test all)
 set_tests_properties(gfx.all.software PROPERTIES ENVIRONMENT "LIBGL_ALWAYS_SOFTWARE=1")
+if(PCGFX_SDL_TARGET)   # the window path, on SDL's offscreen driver (no display needed)
+    add_test(NAME gfx.all.sdl-window COMMAND gfx_test all --window)
+    set_tests_properties(gfx.all.sdl-window PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=offscreen")
+endif()

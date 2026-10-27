@@ -135,6 +135,15 @@ int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h) {
     return gfx_gl_read_target(t, rgba, w, h);
 }
 
+int pc_gfx_read_window(uint8_t *rgba, int *w, int *h) {
+    if (!S.inited || !S.use_sdl)
+        return -1;
+#ifdef PC_GFX_HAVE_SDL
+    gfx_sdl_size(w, h);
+#endif
+    return rgba != NULL ? gfx_gl_read_window(rgba, *w, *h) : 0;
+}
+
 void pc_gfx_shutdown(void) {
     if (S.inited) {
         gfx_tex_cache_clear();

@@ -5,6 +5,7 @@
  * Blender: the 2-cycle first blender cycle is computed in the shader (memory reads as 0). The final cycle splits
  * into a part without memory (the shader's rgb) and the weight of memory (the shader's alpha); GL then blends
  * with (ONE, SRC_ALPHA). See GFX.md "Blender". */
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -203,14 +204,22 @@ static BlCycle final_cycle(const GfxShaderKey *k) {
     return blender_cycle(k, k->mode == GFX_MODE_2CYC ? 1 : 0);
 }
 
+/* Does the result depend on memory? Directly (the final cycle reads it) or through CLR_IN when the 2-cycle first
+ * cycle read it. */
 int gfx_blend_uses_mem(const GfxShaderKey *k) {
     BlCycle c;
+    int in_has_mem = 0;
     if (k->mode != GFX_MODE_1CYC && k->mode != GFX_MODE_2CYC)
         return 0;
+    if (k->mode == GFX_MODE_2CYC) {
+        BlCycle c1 = blender_cycle(k, 0);
+        in_has_mem = c1.p == G_BL_CLR_MEM || c1.m == G_BL_CLR_MEM;
+    }
     c = final_cycle(k);
     if (k->flags & GFX_KF_FORCE_BL)
-        return c.p == G_BL_CLR_MEM || c.m == G_BL_CLR_MEM;
-    return c.p == G_BL_CLR_MEM;
+        return c.p == G_BL_CLR_MEM || c.m == G_BL_CLR_MEM ||
+               (in_has_mem && (c.p == G_BL_CLR_IN || c.m == G_BL_CLR_IN));
+    return c.p == G_BL_CLR_MEM || (in_has_mem && c.p == G_BL_CLR_IN);
 }
 
 typedef struct {
@@ -220,7 +229,6 @@ typedef struct {
 
 static void put(Str *s, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
-#include <stdarg.h>
 static void put(Str *s, const char *fmt, ...) {
     va_list ap;
     int n;
@@ -263,6 +271,16 @@ const char *gfx_vertex_source(int gles, int glsl_version) {
     return s_vs;
 }
 
+/* One blender term, color input v weighted by w: memory adds to memw, CLR_IN carries its own memory weight. */
+static void put_term(Str *s, int v, const char *w) {
+    if (v == G_BL_CLR_MEM)
+        put(s, "    memw += %s;\n", w);
+    else if (v == G_BL_CLR_IN)
+        put(s, "    rgb += bin * %s;\n    memw += binw * %s;\n", w, w);
+    else
+        put(s, "    rgb += %s * %s;\n", bl_pm(v), w);
+}
+
 char *gfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
     Str s = {0};
     Cycle cyc[2];
@@ -273,7 +291,7 @@ char *gfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
 
     put(&s, "%s", preamble(gles, glsl_version));
     put(&s, "uniform vec4 uPrim;\nuniform vec4 uEnv;\nuniform vec4 uFog;\nuniform vec4 uBlend;\nuniform vec4 uFill;\n"
-            "uniform float uPrimLod;\nuniform float uLodFrac;\nuniform float uNoise;\n"
+            "uniform float uPrimLod;\nuniform float uLodFrac;\nuniform float uNoise;\nuniform float uScale;\n"
             "uniform sampler2D uTex0;\nuniform sampler2D uTex1;\n"
             "in vec4 vShade;\nin vec4 vUV;\nout vec4 fragColor;\n"
             "float noise() {\n"
@@ -281,9 +299,13 @@ char *gfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
             "}\n"
             "void main() {\n"
             "    vec4 sh = vShade;\n"
-            "    vec4 cmb = vec4(0.0);\n");
-    put(&s, "    vec4 t0 = %s;\n", (k->flags & GFX_KF_TEX0) ? "texture(uTex0, vUV.xy)" : "vec4(0.0)");
-    put(&s, "    vec4 t1 = %s;\n", (k->flags & GFX_KF_TEX1) ? "texture(uTex1, vUV.zw)" : "vec4(0.0)");
+            "    vec4 cmb = vec4(0.0);\n"
+            "    vec4 uv = vUV;\n");
+    if (k->flags & GFX_KF_SNAP)   /* back to the top-left sample of this N64 pixel (GL rows run bottom-up) */
+        put(&s, "    vec2 j = mod(floor(gl_FragCoord.xy), uScale);\n"
+                "    uv = uv - j.x * dFdx(vUV) + (uScale - 1.0 - j.y) * dFdy(vUV);\n");
+    put(&s, "    vec4 t0 = %s;\n", (k->flags & GFX_KF_TEX0) ? "texture(uTex0, uv.xy)" : "vec4(0.0)");
+    put(&s, "    vec4 t1 = %s;\n", (k->flags & GFX_KF_TEX1) ? "texture(uTex1, uv.zw)" : "vec4(0.0)");
 
     if (k->mode == GFX_MODE_FILL) {
         put(&s, "    fragColor = vec4(uFill.rgb, 1.0);\n}\n");
@@ -312,33 +334,28 @@ char *gfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
     if (k->flags & GFX_KF_CVG_X_ALPHA)
         put(&s, "    if (cmb.a < %s) discard;\n", (k->flags & GFX_KF_FORCE_BL) ? "0.125" : "0.5");
 
-    put(&s, "    vec3 bin = cmb.rgb;\n");
+    /* Blender. Values are kept as (rgb without memory, weight of memory): exact for these linear blends. */
+    put(&s, "    vec3 bin = cmb.rgb;\n    float binw = 0.0;\n");
     put(&s, "    float ain = %s;\n",
         ((k->flags & GFX_KF_ALPHA_CVG_SEL) && !(k->flags & GFX_KF_CVG_X_ALPHA)) ? "1.0" : "cmb.a");
-    if (k->mode == GFX_MODE_2CYC) {
+    put(&s, "    vec3 rgb = vec3(0.0);\n    float memw = 0.0;\n");
+    if (k->mode == GFX_MODE_2CYC) {   /* the first cycle always blends */
         BlCycle c = blender_cycle(k, 0);
-        put(&s, "    { float a = %s; bin = %s * a + %s * %s; }\n", bl_a(c.a), bl_pm(c.p), bl_pm(c.m), bl_b(c.b));
+        put(&s, "    {\n    float a = %s;\n    float b = %s;\n", bl_a(c.a), bl_b(c.b));
+        put_term(&s, c.p, "a");
+        put_term(&s, c.m, "b");
+        put(&s, "    bin = rgb;\n    binw = memw;\n    rgb = vec3(0.0);\n    memw = 0.0;\n    }\n");
     }
     {
         BlCycle c = final_cycle(k);
-        int pmem = c.p == G_BL_CLR_MEM, mmem = c.m == G_BL_CLR_MEM;
         if (k->flags & GFX_KF_FORCE_BL) {
             put(&s, "    float a = %s;\n    float b = %s;\n", bl_a(c.a), bl_b(c.b));
-            put(&s, "    vec3 rgb = vec3(0.0);\n    float memw = 0.0;\n");
-            if (pmem)
-                put(&s, "    memw += a;\n");
-            else
-                put(&s, "    rgb += %s * a;\n", bl_pm(c.p));
-            if (mmem)
-                put(&s, "    memw += b;\n");
-            else
-                put(&s, "    rgb += %s * b;\n", bl_pm(c.m));
-            put(&s, "    fragColor = vec4(rgb, %s);\n", (pmem || mmem) ? "memw" : "1.0");
-        } else if (pmem) {
-            put(&s, "    fragColor = vec4(0.0, 0.0, 0.0, 1.0);\n");
-        } else {
-            put(&s, "    fragColor = vec4(%s, 1.0);\n", bl_pm(c.p));
+            put_term(&s, c.p, "a");
+            put_term(&s, c.m, "b");
+        } else {   /* no blend: the first input passes */
+            put_term(&s, c.p, "1.0");
         }
+        put(&s, "    fragColor = vec4(rgb, %s);\n", gfx_blend_uses_mem(k) ? "memw" : "1.0");
     }
     put(&s, "}\n");
     return s.buf;
