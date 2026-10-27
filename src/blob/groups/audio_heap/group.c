@@ -109,11 +109,17 @@ typedef struct Heap {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_HandleTable: (struct HandleTable *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_HandleTable: (struct HandleTable *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_u32: (uintptr_t *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
 #define N64W(x) PC_N64W(x)
+/* A handle is the address of its slot, and the game reads a slot through the handle as a pointer (`*(u8 **)h`,
+ * the pak files' data, the save data, the ghosts): on the PC the slots are pointer-sized, holding a heap block's
+ * window address zero-extended, so the u32 readers of a slot (the font waves, the compaction's owner update) see
+ * the address in its first four bytes as well (docs/port/POINTERS.md 9.10). */
+#define HANDLE_SLOT 8
 #else
 #define N64P(x) x
 #define N64W(x) x
+#define HANDLE_SLOT 4
 #endif
 
 extern u8 D_8017A640[];
@@ -214,8 +220,8 @@ void func_800E7B44(Heap *heap, u16 count, u16 a)
     heap->maxHandles = a;
     heap->tbl.next = 0;
     if (count > 0) {
-        heap->tbl.slots = N64W(audio_helper(heap, count * 4, 0, 1));
-        memset(heap->tbl.slots, 0, count * 4);
+        heap->tbl.slots = N64W(audio_helper(heap, count * HANDLE_SLOT, 0, 1));
+        memset(heap->tbl.slots, 0, count * HANDLE_SLOT);
     } else {
         heap->tbl.slots = 0;
     }
@@ -234,7 +240,7 @@ void *AllocateMemoryHeap(Heap *heap, u32 size)
 void *AllocateHandleHeap(Heap *heap, u32 size)
 {
     Heap *h;
-    u32 *slot;
+    uintptr_t *slot;
     HandleTable *t;
     u32 i;
 
@@ -243,8 +249,8 @@ void *AllocateHandleHeap(Heap *heap, u32 size)
     t = &h->tbl;
     if (t->slots == 0) {
         t->count = h->maxHandles;
-        t->slots = N64W(audio_helper(h, h->maxHandles * 4, 0, 1));
-        memset(t->slots, 0, h->maxHandles * 4);
+        t->slots = N64W(audio_helper(h, h->maxHandles * HANDLE_SLOT, 0, 1));
+        memset(t->slots, 0, h->maxHandles * HANDLE_SLOT);
         t->next = 0;
     }
     i = 0;
@@ -262,13 +268,13 @@ void *AllocateHandleHeap(Heap *heap, u32 size)
         if (t->next == 0) {
             t->next = N64W(audio_helper(h, 12, 0, 1));
             N64P(t->next)->count = h->maxHandles;
-            N64P(t->next)->slots = N64W(audio_helper(h, h->maxHandles * 4, 0, 1));
-            memset(N64P(t->next)->slots, 0, h->maxHandles * 4);
+            N64P(t->next)->slots = N64W(audio_helper(h, h->maxHandles * HANDLE_SLOT, 0, 1));
+            memset(N64P(t->next)->slots, 0, h->maxHandles * HANDLE_SLOT);
             N64P(t->next)->next = 0;
         }
         t = N64P(t->next);
     }
-    *slot = (u32)audio_helper(h, size, slot, 0);
+    *slot = (uintptr_t)audio_helper(h, size, slot, 0);
     osSendMesg(D_80152770, 0, 0);
     return slot;
 }
