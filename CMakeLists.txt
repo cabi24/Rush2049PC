@@ -127,3 +127,4 @@ set_source_files_properties(${PC_DATA_DIR}/stubs.c PROPERTIES COMPILE_OPTIONS "-
 add_executable(rush2049pc_linktest port/main.c ${PC_DATA_DIR}/stubs.c
     $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:pcdata>)
 target_link_libraries(rush2049pc_linktest PRIVATE m)
+add_subdirectory(port/audio)
