@@ -1527,12 +1527,14 @@ REVIEWED = [
 # Initialized data whose conflicts are left to other parts (docs/port/ENDIAN.md 4): a conflict whose values all come
 # from the loader's elements of these symbols is listed as reviewed with the reason.
 LEFT = {
-    "the loader's union rule (port/data)": {
-        "D_801146BC", "D_801146C0", "D_80116DB0", "D_80118E28", "D_80118E2C", "D_8011AD8C", "D_8011ADC0",
-        "D_8011AE58", "D_8011B558", "D_8011B578", "D_80394270", "D_803942A0", "D_803942A4", "D_803942E8",
-        "D_803B3054", "D_803B3058", "D_803B3458", "D_803B345C", "D_803B8328", "D_803B8354", "D_803B8394",
-        "D_803B8398"},
     "gTargInfo's PC layout (POINTERS.md 9.9)": {"D_80117530"},
+}
+# Initialized data passed by address to a `void *` parameter that was read and judged (report section 4b,
+# docs/port/ENDIAN.md 3.4): (function, argument) -> why.
+BYTES_REVIEWED = {
+    ("arb_rate_set", 1): "a Vp (s16) for gSPViewport, which the renderer reads as s16",
+    ("func_8008E26C", 1): "MBOX_NewObject's matrix, f32 read as words",
+    ("camera_target_track", 1): "a Vec3, f32 read as words",
 }
 
 
@@ -1937,6 +1939,7 @@ def report(results, build, out, loader):
     w("## 3. ROM data: initialized data accessed at a width other than the element width the loader swapped")
     w("")
     rom = collections.defaultdict(list)
+    moved = collections.Counter()
     for a in acc:
         if a.base[0] != "sym" or a.kind in ("agg", "p"):
             continue
@@ -1945,6 +1948,9 @@ def report(results, build, out, loader):
             continue
         el = loader_element(e, a.hpos, a.pos)
         if el is None or (el[0] == a.n64w and el[1] == a.pos) or (el[0] == 1 and a.n64w == 1):
+            continue
+        if el[0] < a.n64w and not interp(a):
+            moved[a.base[1]] += 1   # a word that only moves the bytes keeps their order (a colour union's copy)
             continue
         rom[a.base[1]].append((a.pos, el[0], a))
     for sym in sorted(rom):
@@ -1955,6 +1961,10 @@ def report(results, build, out, loader):
             if k not in seen:
                 seen.add(k)
                 w(f"      +0x{pos:X} {a.rw} {a.n64w}B {a.flow} over {lw}B elements  {site(a)}  {a.text[:140]}")
+    if moved:
+        w(f"  Not listed: {sum(moved.values())} accesses that only move narrower elements as a wider value (a copy "
+          f"keeps their byte order; section 1 checks where the value is read): "
+          + ", ".join(f"{s_} ({n})" for s_, n in sorted(moved.items())))
     w("")
     # -- 3. copies between views
     w("## 4. Copies (memcpy/bcopy) between views whose scalar widths differ")
@@ -1982,6 +1992,7 @@ def report(results, build, out, loader):
     for r in results.values():
         typed.update(r["params"] if r else {})
     seen = set()
+    passed_reviewed = []
     for r in results.values():
         if not r or not r["accesses"]:
             continue
@@ -2000,8 +2011,14 @@ def report(results, build, out, loader):
                 lw = loader_width(e, ident[1], ident[1])
                 if lw and lw > 1 and (ident[0][1], ident[1], fn, k) not in seen:
                     seen.add((ident[0][1], ident[1], fn, k))
-                    w(f"  {ident[0][1]}+0x{ident[1]:X} ({lw}B elements) -> {fn} argument {k} "
-                      f"({'u8 *' if keys[k][1] == 1 else 'void *'}), from {unit}")
+                    why = BYTES_REVIEWED.get((fn, k))
+                    (passed_reviewed.append if why else w)(
+                        f"  {ident[0][1]}+0x{ident[1]:X} ({lw}B elements) -> {fn} argument {k} "
+                        f"({'u8 *' if keys[k][1] == 1 else 'void *'}), from {unit}" + (f": {why}" if why else ""))
+    if passed_reviewed:
+        w(f"  Reviewed ({len(passed_reviewed)}):")
+        for line in passed_reviewed:
+            w("  " + line)
     w("")
     # -- 4. puns in one file's code
     puns = [a for a in acc if a.pun]
@@ -2118,6 +2135,17 @@ LOADER_EXPECT = [("D_80114264", 0x0, 4), ("D_80114264", 0xC, 4), ("D_801164A4", 
                  ("D_80111960", 0x0, 1), ("D_8011028C", 0x0, 1), ("D_8011EA40", 0x0, 2), ("D_8011EA40", 0xC, 2),
                  ("D_8011EA90", 0x6, 2), ("D_803B46A4", 0x0, 1), ("D_803B46A4", 0x3, 1),
                  ("D_80120E50", 0x0, 1), ("D_80120E50", 0x3, 1)]
+# The colour unions gen_data copies as bytes (a byte member covers them), D_801146BC's element 1 under
+# D_801146C0's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
+# table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).
+LOADER_EXPECT += [(sym, off, 1) for sym in (
+    "D_801146BC", "D_801146C0", "D_80116DB0", "D_80118E28", "D_80118E2C", "D_8011AD8C", "D_8011ADC0", "D_8011AE58",
+    "D_8011B558", "D_8011B578", "D_80394270", "D_803942A0", "D_803942A4", "D_803942E8", "D_803B3054", "D_803B3058",
+    "D_803B3458", "D_803B345C", "D_803B8328", "D_803B8354", "D_803B8394", "D_803B8398") for off in (0x0, 0x3)]
+LOADER_EXPECT += [("D_801146BC", 0x4, 1), ("D_801146BC", 0x7, 1), ("D_8011B558", 0x10, 1), ("D_8011EF10", 0x0, 2),
+                  ("D_8011EF10", 0xC, 1), ("D_8002E4A0", 0x0, 4), ("gViewportOffsetX", 0x0, 2),
+                  ("gViewportOffsetX", 0x10, 2), ("gViewportOffsetY", 0x10, 2), ("gViewportPendingFrames", 0x0, 2),
+                  ("gInitFlag", 0x0, 1), ("gInitFlag", 0x1, 1), ("gDmaInitialized", 0x0, 1)]
 
 
 def check_loader(build):

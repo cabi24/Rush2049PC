@@ -15,7 +15,7 @@ is the same fill run again for one image.
 | Generator reports | `build/pc/pc-data/data_layout.txt` (decisions, conflicts, what is left), `data_symbols.txt` (every symbol) |
 | Loader | `port/data/pc_data.c`, descriptor types in `port/data/pc_data.h` |
 | Size overrides for open-ended arrays | `port/data/extents.txt` |
-| Tests | `port/data/test_pc_data.c` (synthetic tables), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM) |
+| Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM) |
 | Overlay loads | `src/blob/groups/{heap_release,score_insert}/overlay_loader.c`, `{carcolor,state}/ctx_overlay_loader.c` |
 
 ## How it works
@@ -49,6 +49,7 @@ is too long is worse than one that is too short. That is what the bound fixes:
 | `D_80144C50` | ap.c's 20-byte `Node` | 16 B | the list head of 6 files' `List`/`tDLList`; `D_80144C60` (`PakHandle[]`, 64 pointers) follows |
 | `D_80110680` | 2-byte `Flags` | 6 B (`u8[6]`) | per car, cleared for 6 by `render_post_process`, which defines it |
 | `D_80146180` | `s8[]`, 8 B by the gap | `s8[4]` | `func_800DE45C`'s definition |
+| `gViewportOffsetX`, `gViewportOffsetY` (0x8002AFFC, 0x8002AFFE) | `s16[32]` (`m2c_types.h`) | `s16[9]`, 18 B, the PC declaration | one table `s16[3][4]` from `gViewportOffsetXExtra` (0x8002AFF8) to `gViewportPendingFrames` (0x8002B010), a row per TV type: `lib_21f0.c` reads `((s16 (*)[4])gViewportOffsetX)[gViewportX][0]` with `gViewportX` = `osTvType` (0-2). These two are its columns 2 and 3. The 64-byte views ran over `gViewportPendingFrames`, `gViewportDataPtr`, `gInitFlag` and `gDmaInitialized` (arena, section 3), and the loader swapped the two flags with the bytes after them |
 
 ### 2. Two layouts per type
 
@@ -58,6 +59,29 @@ the DWARF offsets and sizes. The walk produces a *field program*: runs of (kind,
 with a repeat count and two strides for arrays of structs. Kinds are u8, u16, u32, f32, u64, f64, pointer (4 to 8
 bytes) and the N64's 32-bit `long` (4 to 8 bytes, signed or not). There are no bitfields or `long double`s in the
 game's data declarations.
+
+**Unions.** A union with a member made only of bytes (a `u8` array or a struct of `u8`s) that covers all of it is
+copied as bytes, unless a member has a pointer or a `long` (whose host layout needs that member). Any other union
+is laid out by its largest member with the most non-byte elements. The first kind is the game's colours
+(`TextColor`, `tRGBA`, `RGBA`, `Color`, `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word; struct { u8 r, g, b, a; }
+rgba; }`): the ROM holds R, G, B, A, the game reads those bytes, and swapped as a u32 they came out A, B, G, R. Every
+union in the layout was checked against the game's reads (`endian_check.py`'s accesses and value flow,
+[ENDIAN.md](ENDIAN.md) 4). The 22 colour symbols in initialized data are read as bytes; their words are only
+copied (into locals, scene nodes, the car records, by value) or tested for equality, and no code shifts them,
+compares them with a constant or stores a word constant into them. So none is read both ways and none needs
+`PC_RGBA`. The other unions keep their layout: `Vtx` (`{ Vtx_t v; long long }`: s16s and the `cn` bytes), `Gfx`,
+`MenuSlot` (whose byte member is shorter than it), and the BSS ones (`__OSInodeUnit` is copied as bytes now too, but
+BSS is zeroed). Loaded as bytes now, listed in `data_layout.txt` ("Unions copied as bytes"):
+
+| Symbols | What |
+|---|---|
+| `D_80118E28`, `D_80118E2C` | the menus' flashing text colours (TB_FlashTextColors, read as bytes in `dispatch_handler`) |
+| `D_801146BC` (`D_801146C0` is its second element, section 3) | their source pairs |
+| `D_80116DB0` | the options screen's button colour |
+| `D_8011AD8C`, `D_8011ADC0`, `D_8011AE58` | the shadow colour, the sheen colours, track 1's IR colours (GetCarsIRColor) |
+| `D_8011B558`, `D_8011B578` | the arrows |
+| `D_80394270`, `D_803942A0`, `D_803942A4`, `D_803942E8` | runtime image B (status scene, shots) |
+| `D_803B3054`, `D_803B3058`, `D_803B3458`, `D_803B345C`, `D_803B8328`, `D_803B8354`, `D_803B8394`, `D_803B8398` | runtime image A (front-end colours) |
 
 Check of the N64 rules: for every struct without pointers or `long`, the computed N64 offsets must equal the
 host's, since the two ABIs agree there. All of them do (0 listed under "Layouts that differ without pointers").
@@ -109,6 +133,27 @@ arena. The window bytes under own storage hold that data's N64 form and are not 
   of game-C data, and then clears them, so the heap starts out zero as before. The game's own load of an image
   (`PrevMaxPath`, after it has reserved the block) fills that image's arena again. As on the N64, an image's data
   is valid only while the image is loaded; its own-storage symbols keep their values in the executable.
+
+**Overlapping declarations.** In an arena every symbol's elements are swapped in place, so where declarations
+overlap (one runs into the next symbol, or a name lies inside another's array) a byte can belong to two elements.
+`arena_elements` takes the symbols in order, own storage first and then the most informative declaration (as the
+ranking above: struct, pointer, words, bytes, then the larger), and leaves out an element over bytes an earlier
+one already has at another start or width; `data_layout.txt` lists each under "Arena element conflicts". Bytes
+take part: a word declaration that runs over a byte flag, or a word view of a byte union's element, is a conflict
+too. (They did not before, so `gViewportOffsetX`'s `s16[32]` swapped `gInitFlag` with its neighbour unreported.)
+The first in rank decides, and where that is the wrong one a size in the declaration is the fix (section 1). The
+conflicts read and judged are `OVERLAPS_REVIEWED` in gen_data.py, listed apart with the reason; none is open:
+
+| Symbol | Over | Kept | Why |
+|---|---|---|---|
+| `D_801146C0` (image A's `struct Color4 { u32 word; }`) | `D_801146BC[1]` | the bytes | a colour the game reads as bytes; `D_801146C0` is only passed by value |
+| `D_801105A4`, `D_8011AC84` (`u8[]`) | `D_801102B4`, `D_8011A994` (`Button[]`) + 0x2F0 | the floats | `&buttonInfo[11].pos`, the audio and video screens' title positions, which ZOID_ProjectWindow reads as f32 |
+| `D_803B5CFC` (`s32[][24]`) | `D_803B5D2C` (own `MultiBlit[]`) | own storage's | read as `[n][0]` for n = 1..4 players, inside `D_803B5D50`; row 0 never |
+| `D_803B4679` (`s8[][7]`) | `D_803B467C` (own `Blit *`) | own storage's | read as `[n][i]` for n = 1..4 players, at 0x803B4680-0x803B469B (no symbol: bytes); row 0 never |
+
+22 initialized symbols have a declared size that runs past the next known address ("Declared N64 size runs past
+..."); apart from these, each agrees element for element with what it overlaps (nested names, the interleaved
+viewport columns).
 
 Result: **2,258 names at 2,221 addresses**. 1,775 addresses are in arenas (1,007 data, 768 BSS) and 384 have their
 own storage (141 data, 243 BSS). 60 more lie inside own storage, and 2 are end markers. 1,149 addresses are
@@ -261,7 +306,8 @@ Without the ROM (all run by `ctest` in `build/pc`, and the first two by every bu
 - **Generator self-checks** (`data_layout.txt`): every run ends inside both the N64 and the host size of its symbol
   (0 failures; the generator fails the build otherwise); N64 sizes against the known size (1 difference:
   `D_8002E8E8`, the PC scheduler's `PcSched`, 672 B against the symbol file's 80); pointer-free struct layouts
-  against DWARF (0 differences). Element overlaps in the arenas are resolved first-come and listed (8).
+  against DWARF (0 differences). Element conflicts in the arenas, bytes included, are resolved by rank and listed:
+  none open, 5 read and judged (section 3).
 - **Link warnings**: the size and alignment warnings of game commons against `data.c` are gone (`D_80152818`, the
   last one, with the car layout of [CARS.md](CARS.md)). Before: `D_80152818` (5712 vs 8960), `D_80110680` (6 vs 2), `D_80146180` (4 vs 8),
   `input_rec0` (304 vs 320), and the alignments of `D_80149B64`, `D_80149B74` (aarch64: 4 vs a common's 8) and
@@ -279,14 +325,23 @@ Without the ROM (all run by `ctest` in `build/pc`, and the first two by every bu
   raw values, an overlay reload (data, BSS, game-C data), the report with the address-like words' targets, and a
   stream of the wrong size. It runs twice: with its arenas in host memory, and at their N64 addresses in a window
   it maps at 0x80000000, where an arena pointer is its own value and the runtime images' arenas stay clear until
-  loaded.
+  loaded. One arena's runs come from gen_data's own rules: `gen_data.py --test-tables` reads the DWARF of
+  `port/data/test_pc_data_decls.c` and writes them, with the element conflicts it finds, to
+  `pc-data/test_pc_data_gen.h`. The declarations: two colour unions (bytes stay in order, also under a word view
+  of one element), a union no byte member covers (swapped), one whose byte member is shorter (the widest member
+  decides), two interleaved s16 columns at their true size and the flag after them (untouched), and a table
+  declared too long, whose run over its flag the header must list.
 - **Synthetic round trip with the real tables** (`rush2049pc_datacheck --synthetic`, which maps the window as
   port/ultra does): random data at the real image addresses, deflated into the real ROM slots; a known target
   planted in every pointer field (null, ROM offset, function, own storage, arena, heap). After the first load the
   runtime images' arenas must be clear; after both overlay loads an independent decoder checks all 4 arenas byte for
   byte, all 384 own-storage symbols element by element, and 3,217 planted pointers, before and after another
   overlay reload. It runs clean under AddressSanitizer (`data.c`, the loader and the check instrumented), and so
-  does `pc_data_test`, leak checks included.
+  does `pc_data_test`, leak checks included. Those checks follow the tables, so `datacheck.c` also has 24 places
+  whose element width the game's reads fix, written down apart from them (`known_widths`: the colour unions,
+  `Vtx` and `MenuSlot`, the boot's viewport table and the flags after it), checked against the images. With the
+  union rule and the viewport declaration both undone, 18 of them fail (the 16 colour places and the two flags),
+  and so do 28 checks of `pc_data_test` and 50 of `endian_check --check-loader`.
 - **`rush2049pc --selftest`** checks that boot, game and runtime-image data names are at their N64 addresses
   (through the fixed-up GOT).
 - **Determinism**: two runs with different `PYTHONHASHSEED` give identical outputs.
@@ -296,7 +351,8 @@ message when there is none) checks the SHA-1, the boot tail's build-info record 
 "BLACKOUT"), the inflate tables against zlib's public constants (`gInflateBorder` u32, `gInflateCplens` and
 `gInflateMaskBits` u16), that 90% of all f32 elements are finite and of sane size, the four file tables from
 `ASSETS.md` §2.2 (kinds 0–2, model flags 0–1, offsets inside the ROM, sizes under 8 MB), that function pointers
-resolve, and both overlay reloads (both are loaded first, as the game would). **The ROM was not present, so none of
+resolve, `known_widths` against the images it inflates itself, and both overlay reloads (both are loaded first,
+as the game would). **The ROM was not present, so none of
 this has run yet**, and there are no resolved and unresolved pointer counts, nor `addr-word` counts, for the real
 data. Without a ROM the boot fills nothing but the (blank) boot tail, and the synthetic data is random.
 

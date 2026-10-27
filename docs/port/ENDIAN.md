@@ -85,6 +85,7 @@ A full run, which compiles the 1,300 game units again, takes about a minute with
   3.1 and `TPos`). Sections 3 and 4b (initialized data read at another width, or passed as bytes) led to the
   rest of 3.3: the flags, the viewports, the pane colours, MaxPath's message (TB_DrawText's parameter takes too
   many storages for the value flow to follow). After the fixes: 0 open conflicts, 61 reviewed, 0 low-half reads.
+  The loader's union rule (section 4) then removed the 11 conflicts left to it, with none new.
 - **Limits.** No call contexts (a parameter that takes different records merges them). A pointer that comes from
   nowhere the tool follows (an integer, a pointer loaded through an untyped pointer) is one function's storage. Byte
   loops with a variable index have no position. The order of writes is not known, so ROM data that the game
@@ -156,34 +157,44 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 - Light and lookat records (`camera_update_d`): bytes. Display-list words the game builds: by the GBI macros'
   shifts. The checkpoint block's `s16` reads of an `s32`-declared `D_80151CE8`: the path converter swaps the block
   by its fields, so the s16 reads are right.
-- What the report's sections 3, 4 and 4b still list: the data in `LEFT` (section 4 here); the viewports handed to
-  gSPViewport (now s16 elements, which the renderer reads natively); float matrices and vectors passed as
-  `void *` (read as words); and copies that move a record whole (effect_spawn's, the path blob's, the pak's
-  inodes). Initialized data passed by address to a parameter with no pointee type (a K&R prototype) is only
-  matrices and vectors as well (checked once, not a report section).
+- What the report's sections 3, 4 and 4b still list: in 3, only gTargInfo (`LEFT`, section 4 here); section 3
+  leaves out accesses that only move narrower elements as a wider value (a word copying a colour's bytes keeps
+  their order, and section 1 follows where it goes) and counts them. In 4b, all marked reviewed
+  (`BYTES_REVIEWED`): the viewports handed to gSPViewport (s16 elements, which the renderer reads natively) and
+  float matrices and vectors passed as `void *` (read as words). In 4, copies that move a record whole
+  (effect_spawn's, the path blob's, the pak's inodes). Initialized data passed by address to a parameter with no
+  pointee type (a K&R prototype) is only matrices and vectors as well (checked once, not a report section).
 
 ## 4. Left, and for other parts
 
-- **The loader's union rule (port/data, gen_data.py; not changed here).** gen_data lays a union out by its widest
+- **The loader's union rule: done (port/data, [DATA.md](DATA.md) 2).** gen_data laid a union out by its widest
   member with the most non-byte elements, so the game's colour unions (`TextColor`, `tRGBA`, `RGBA`, `Color`,
-  `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word; struct { u8 r, g, b, a; } c; }`) are swapped as u32, and the
-  bytes the game reads come out A, B, G, R. Initialized data of that kind that the game reads as bytes, directly or
-  after word copies (22 symbols, `LEFT` in the tool): `D_80118E28`/`D_80118E2C` (the menus' flashing text colours),
-  `D_801146BC` (their source pairs, TB_FlashTextColors), `D_8011B558` and `D_8011B578` (arrows), `D_8011AD8C`,
-  `D_8011ADC0` and `D_8011AE58` (the cars' IR colours, GetCarsIRColor), `D_80116DB0`, `D_801146C0`, overlay B's
-  `D_80394270`, `D_803942A0`/`A4`, `D_803942E8`, overlay A's `D_803B3054`/`58`, `D_803B3458`/`5C`, `D_803B8328`,
-  `D_803B8354`, `D_803B8394`/`98`. Proposed rule: a union with a member made only of bytes (a byte array or a
-  struct of bytes) that covers the whole union is bytes, not swapped. Every reader of these reads the bytes and
-  only copies or compares the words (report section 2), and the other unions in initialized data have no such
-  member. With it, the game C needs nothing more; do not add `PC_RGBA` there.
+  `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word; struct { u8 r, g, b, a; } c; }`) were swapped as u32, and the
+  bytes the game reads came out A, B, G, R. Now a union with a member made only of bytes that covers all of it is
+  copied as bytes (not with a pointer or a `long` in it). Checked against every union in the layout: the 21
+  colour symbols of initialized data with such a union are read as bytes, directly or after word copies, and their
+  words are only copied or tested for equality (no shift, no comparison with a constant, no word constant stored),
+  so none is read both ways; the other unions of initialized data (`Vtx`, `Gfx`, `MenuSlot`) have no such member
+  and keep their layout, and BSS is zeroed. The 22nd, `D_801146C0`, is `D_801146BC[1]` under image A's `struct Color4 { u32 word; }`: bytes now
+  take part in the arena's overlap resolution, and the union's bytes rank first (DATA.md 3). Loaded as bytes now:
+  `D_80118E28`/`D_80118E2C` (the menus' flashing text colours), `D_801146BC`/`D_801146C0` (their source pairs,
+  TB_FlashTextColors), `D_8011B558` and `D_8011B578` (arrows), `D_8011AD8C`, `D_8011ADC0` and `D_8011AE58` (the
+  cars' shadow, sheen and IR colours, GetCarsIRColor), `D_80116DB0`, overlay B's `D_80394270`, `D_803942A0`/`A4`,
+  `D_803942E8`, overlay A's `D_803B3054`/`58`, `D_803B3458`/`5C`, `D_803B8328`, `D_803B8354`, `D_803B8394`/`98`.
+  The 11 conflicts `LEFT` held for them are gone (none new), the game C needed nothing more, and none of them takes
+  `PC_RGBA`. `--check-loader` checks their widths, and `rush2049pc_datacheck` checks them against the images.
 - **gTargInfo `D_80117530`** (race logic: the level-object kinds). gen_data chooses `TargInfo`, which has byte pads
   at +0x10..0x1B and +0x20..0x2F where other views read s32 and f32 (StartCone, camera_aspect_ratio, level_objects),
   so those stay big-endian. Its seven views also disagree on pointers (POINTERS.md 9.9); the fix belongs with that
   record's PC layout. Done: every PC view now spells out each field at its width, and endian_check no longer reports
   the table (POINTERS.md 10.1).
-- **The boot's `gViewportOffsetX` (`src/rom/lib_21f0.c`).** Declared `s16[32]` at 0x8002AFFC, it runs over
-  `gInitFlag` (0x8002B028) and `gDmaInitialized` (0x8002B030), so the loader swaps those flags with their
-  neighbour bytes. `game_init` reads `gInitFlag` as loaded. A size in the declaration is the fix (DATA.md 1).
+- **The boot's `gViewportOffsetX`: done ([DATA.md](DATA.md) 1).** Declared `s16[32]` at 0x8002AFFC (and
+  `gViewportOffsetY` at 0x8002AFFE), it ran over `gInitFlag` (0x8002B028) and `gDmaInitialized` (0x8002B030), so
+  the loader swapped those flags with their neighbour bytes; `game_init` reads `gInitFlag` as loaded. The two are
+  columns 2 and 3 of one `s16[3][4]` table from `gViewportOffsetXExtra` to `gViewportPendingFrames`, read as
+  `[osTvType][0]`, so under `TARGET_PC` `include/m2c_types.h` declares them `s16[9]`, which reaches the last
+  element read (the N64 line is under `#else`). Overlaps of this kind are now reported, bytes included
+  (DATA.md 3): none open.
 - **The controller pak** (`src/rom` Pfs): page links are `{bank, page}` bytes next to native u16 `ipage` tests,
   by design (ULTRA.md, controller pak); the detector's conflicts there are marked reviewed.
 - `func_800148F8` (`src/rom/lib_11640.c`, MusyX) reads `__unaligned` u16s natively; MUSYX_DATA.md's.
@@ -204,11 +215,13 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
   synthetic records (the handles' low halves reach the right nodes; the gold and silver colours as the loader
   leaves them come out R, G, B, A in the node). With the N64 views the checks fail: node 0 gets the coin's object,
   its colour, the car's colour and its palettes. `endian_check` runs the detector's synthetic cases and the
-  loader-width checks (21 places). 55 tests pass.
+  loader-width checks (21 places; 78 with the union rule and the viewport table's flags). 55 tests pass.
 - `n64_neutral.py --base 09da2f0` over every changed game file: 0 FAIL.
 - `rush2049pc --selftest`: 26 of 26. `rush2049pc --no-rom --headless --no-config --audio null --seconds 10` stops
   where it did (AudioSfxInit, `func_800A4CB8` → AllocateMemoryHeap, on blank data).
 - Census: the same two pointer-warning classes, no new ones.
 - On x86-64 (Rocky Linux 10, gcc 14, `tools/port/remote.sh`): the build, its 64 tests, the self-test and the boot
   as above. The detector runs there too (gcc 14's dumps add discriminators to locations): 0 open conflicts, 51
-  reviewed, the same kinds as on the Pi.
+  reviewed, the same kinds as on the Pi. With the union rule: 40 reviewed; the 2 open ones, in the car records
+  `D_80152818` (BSS: bytes +0x4D and +0x4E set by `func_800E9234`, the word at +0x4C read), were there before it
+  and are not the loader's.
