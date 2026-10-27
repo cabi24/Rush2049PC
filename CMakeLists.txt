@@ -294,13 +294,24 @@ if(RUSH_SDL2_TARGET)
     target_compile_definitions(pcfrontend PRIVATE PC_HAVE_SDL2)
     target_link_libraries(pcfrontend PUBLIC ${RUSH_SDL2_TARGET})
 endif()
+# port/app: the program around the game (docs/port/RELEASE.md): its folders, the ROM lookup and what is wrong with a
+# ROM, message boxes. Only the executable links it (it calls port/ultra).
+file(GLOB PC_APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/app/*.c)
+add_library(pcapp OBJECT ${PC_APP_SOURCES})
+target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app)
+target_compile_options(pcapp PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+if(RUSH_SDL2_TARGET)
+    target_compile_definitions(pcapp PRIVATE PC_HAVE_SDL2)
+    target_link_libraries(pcapp PUBLIC ${RUSH_SDL2_TARGET})
+endif()
+target_include_directories(pcultra PRIVATE port/app)   # main.c
 # port/assets: the game's files converted to the host's byte order as _ReadWave loads them (docs/port/ASSETS.md).
 # One file per format; assets.c has the dispatcher and weak no-ops for formats not converted yet.
 file(GLOB PC_ASSETS_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/*.c)
 add_library(pcassets OBJECT ${PC_ASSETS_SOURCES})
 target_include_directories(pcassets PRIVATE port/include port/assets)
 target_compile_options(pcassets PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
-list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcfrontend pcdata_rt pcassets)   # port/data's loader (docs/port/DATA.md)
+list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcfrontend pcapp pcdata_rt pcassets)   # port/data's loader (docs/port/DATA.md)
 list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (docs/port/AUDIO.md, GFX.md)
 
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
@@ -384,6 +395,21 @@ foreach(script ${SYNTH_PATHS})
         --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths ${name})
     set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150)
 endforeach()
+# The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
+# ROM lookup order in temporary folders; and the program's own messages for each kind of missing or wrong ROM, and
+# the lookup order, through tools/port/firstrun_check.py with copies of the synthetic cartridge.
+add_executable(test_romcheck port/ultra/tests/test_romcheck.c port/ultra/romcheck.c)
+target_include_directories(test_romcheck PRIVATE port/ultra port/include)
+target_compile_options(test_romcheck PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+add_test(NAME ultra_romcheck COMMAND test_romcheck)
+add_executable(test_app port/app/tests/test_app.c port/app/paths.c)
+target_include_directories(test_app PRIVATE port/app port/include)
+target_compile_options(test_app PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+add_test(NAME app_paths COMMAND test_app ${CMAKE_BINARY_DIR}/test-scratch)
+add_test(NAME app_firstrun COMMAND ${PC_PYTHON} ${PORT_TOOLS}/firstrun_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM})
+set_tests_properties(app_firstrun PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+set_target_properties(test_romcheck test_app PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)

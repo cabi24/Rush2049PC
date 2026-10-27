@@ -12,8 +12,16 @@ Playing
 2. Double-click rush2049pc.exe. A console window opens next to the game's window and shows what the program
    is doing; closing either one quits.
 
-From a command prompt you can name the ROM instead: rush2049pc.exe --rom D:\roms\rush2049.z64
-rush2049pc.exe --help lists every option.
+Or drag the ROM file onto rush2049pc.exe, whatever it is called and wherever it is. From a command prompt:
+rush2049pc.exe D:\roms\rush2049.z64 (or --rom PATH). rush2049pc.exe --help lists every option.
+
+Where the program looks for the ROM, in this order:
+  - the file dropped on it, or named on the command line;
+  - game.rom in rush2049pc.ini, when it is a full path (C:\...);
+  - otherwise baserom.us.z64 (or the name game.rom gives) in this folder, then in %APPDATA%\rush2049pc, then
+    in the folder the program was started in.
+If there is no ROM, or the file is not the right one, a message box says where it looked, what the file is,
+and what is needed.
 
 You need a graphics driver with OpenGL 3 (any GPU from the last ten years), on 64-bit Windows 10 or 11.
 
@@ -49,9 +57,10 @@ you double-click it). Keep that file to keep your saves.
 
 Troubleshooting
 ---------------
-- "cannot open the ROM": the ROM isn't where the program looked. Put it in this folder as baserom.us.z64, or
-  give its path with --rom.
-- "has SHA-1 ...": the file is not the USA cartridge, or it is a bad or modified dump.
+- "no ROM": the ROM isn't where the program looked. Put it in this folder as baserom.us.z64, or drop it on
+  rush2049pc.exe.
+- "wrong ROM": the message says what the file is: another game, another region (the port runs the USA
+  cartridge only), a bad or modified dump, or an archive to extract first.
 - No window, or "no renderer": update the graphics driver; the game needs OpenGL 3.
 - To keep the console's messages, run it from a command prompt:
     rush2049pc.exe > rush2049pc.log 2>&1
@@ -59,5 +68,5 @@ Troubleshooting
 
 Licences
 --------
-The game and its code are the copyright of their original publisher; no licence is granted for the port's code.
-The program includes SDL2, zlib and the mingw-w64 and GCC runtime libraries; their licences are in LICENSES\.
+This package contains no game data: you need your own ROM of the cartridge. The program includes
+SDL2, zlib and the mingw-w64 and GCC runtime libraries; their licences are in LICENSES\.

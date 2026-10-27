@@ -2,7 +2,7 @@
  * (docs/port/ULTRA.md).
  *
  * The ROM is read whole, byte-swapped to big-endian (.z64) order if it is a .v64 or .n64 dump, and checked
- * against the US SHA-1. PI DMA has no manager thread: osPiStartDma copies at once, marks the destination as
+ * against the US SHA-1 (romcheck.c says what a file is when it isn't that ROM). PI DMA has no manager thread: osPiStartDma copies at once, marks the destination as
  * big-endian ROM bytes (pc_mem_register_be) and sends the completion message, so the caller's osRecvMesg
  * returns as soon as it runs. The game passes ROM offsets as devAddr (libultra adds osRomBase); cartridge bus
  * addresses (0x10000000 and up) are accepted too.
@@ -12,14 +12,15 @@
  * runtime images' streams (ROM 0xB5C534, 0xB6FEC4) become pc_data_overlay_load; any other stream (sound
  * banks, ghosts) is inflated with zlib from the ROM image or from memory. */
 #define _GNU_SOURCE
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <zlib.h>
 
 #include "ultra.h"
 
-#define ROM_SHA1 "3f99351d7bb61656614bdb2aa1a90cfe55d1922c"
 #define GAME_IMAGE_ROM 0xB0CB10u
 #define GAME_IMAGE_SIZE 647072u
 #define OVERLAY_A_ROM 0xB5C534u
@@ -35,120 +36,78 @@ static void *g_pi_cmd_queue;
 const uint8_t *pc_rom_bytes(void) { return g_rom; }
 size_t pc_rom_size(void) { return g_rom_size; }
 
-/* ---------------------------------------------------------------- SHA-1 (FIPS 180-1) */
-
-static uint32_t rol(uint32_t x, int n) { return x << n | x >> (32 - n); }
-
-static void sha1_block(uint32_t h[5], const uint8_t *p)
-{
-    uint32_t w[80], a = h[0], b = h[1], c = h[2], d = h[3], e = h[4];
-    for (int i = 0; i < 16; i++)
-        w[i] = (uint32_t)p[4 * i] << 24 | (uint32_t)p[4 * i + 1] << 16 | (uint32_t)p[4 * i + 2] << 8 | p[4 * i + 3];
-    for (int i = 16; i < 80; i++)
-        w[i] = rol(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
-    for (int i = 0; i < 80; i++) {
-        uint32_t f, k;
-        if (i < 20)
-            f = (b & c) | (~b & d), k = 0x5A827999;
-        else if (i < 40)
-            f = b ^ c ^ d, k = 0x6ED9EBA1;
-        else if (i < 60)
-            f = (b & c) | (b & d) | (c & d), k = 0x8F1BBCDC;
-        else
-            f = b ^ c ^ d, k = 0xCA62C1D6;
-        uint32_t t = rol(a, 5) + f + e + k + w[i];
-        e = d, d = c, c = rol(b, 30), b = a, a = t;
-    }
-    h[0] += a, h[1] += b, h[2] += c, h[3] += d, h[4] += e;
-}
-
-void pc_sha1(const void *data, size_t size, uint8_t out[20])
-{
-    uint32_t h[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
-    const uint8_t *p = data;
-    size_t n = size;
-    for (; n >= 64; n -= 64, p += 64)
-        sha1_block(h, p);
-    uint8_t tail[128] = {0};
-    memcpy(tail, p, n);
-    tail[n] = 0x80;
-    size_t len = n < 56 ? 64 : 128;
-    uint64_t bits = (uint64_t)size * 8;
-    for (int i = 0; i < 8; i++)
-        tail[len - 1 - i] = (uint8_t)(bits >> (8 * i));
-    sha1_block(h, tail);
-    if (len == 128)
-        sha1_block(h, tail + 64);
-    for (int i = 0; i < 20; i++)
-        out[i] = (uint8_t)(h[i / 4] >> (24 - 8 * (i % 4)));
-}
-
 /* ---------------------------------------------------------------- loading */
+
+/* The file at path as the cartridge, when it is the USA ROM, or with check_sha1 off any N64 ROM
+ * (romcheck.c). No messages: info says what the file is. */
+int pc_rom_open(const char *path, int check_sha1, PcRomInfo *info)
+{
+    struct stat st;
+    memset(info, 0, sizeof *info);
+    if (stat(path, &st) != 0) {
+        int missing = errno == ENOENT || errno == ENOTDIR;
+        snprintf(info->what, sizeof info->what, "%s", missing ? "there is no such file" : strerror(errno));
+        return info->status = missing ? PC_ROM_MISSING : PC_ROM_UNREADABLE;
+    }
+    if (S_ISDIR(st.st_mode)) {
+        snprintf(info->what, sizeof info->what, "it is a folder, not a file");
+        return info->status = PC_ROM_UNREADABLE;
+    }
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        snprintf(info->what, sizeof info->what, "it cannot be opened: %s", strerror(errno));
+        return info->status = PC_ROM_UNREADABLE;
+    }
+    /* A file too big for a ROM is read only far enough to say what it is. */
+    size_t size = (size_t)st.st_size, want = size > PC_ROM_MAX_SIZE ? 16 : size;
+    uint8_t *rom = malloc(want ? want : 1);
+    size_t got = rom ? fread(rom, 1, want, f) : 0;
+    int err = ferror(f) ? errno : 0;
+    fclose(f);
+    if (!rom || got != want) {
+        snprintf(info->what, sizeof info->what, "it cannot be read: %s", rom ? strerror(err ? err : EIO) : "no memory");
+        free(rom);
+        return info->status = PC_ROM_UNREADABLE;
+    }
+    if (want < size) {
+        const char *kind = pc_rom_kind(rom, want);
+        info->size = size;
+        if (kind) {
+            snprintf(info->what, sizeof info->what, "it is %s, not a ROM: extract the ROM from it first", kind);
+            info->status = PC_ROM_ARCHIVE;
+        } else {
+            snprintf(info->what, sizeof info->what, "it is %zu MiB, too big for an N64 ROM", size >> 20);
+            info->status = PC_ROM_NOT_ROM;
+        }
+        free(rom);
+        return info->status;
+    }
+    int status = pc_rom_identify(rom, size, info);
+    int usable = status == PC_ROM_OK || (!check_sha1 && (status == PC_ROM_WRONG_GAME ||
+                                                          status == PC_ROM_OTHER_VERSION ||
+                                                          status == PC_ROM_BAD_DUMP));
+    if (!usable) {
+        free(rom);
+        return status;
+    }
+    free(g_rom);
+    g_rom = rom;
+    g_rom_size = size;
+    if (pc_verbose)
+        pc_log("ROM %s: %zu bytes, .%s order, SHA-1 %s", path, size, info->order, info->sha1);
+    return status;
+}
 
 int pc_rom_load(const char *path, int check_sha1)
 {
-    FILE *f = fopen(path, "rb");
-    if (!f) {
-        fprintf(stderr, "rush2049pc: cannot open the ROM %s (give its path with --rom)\n", path);
-        return -1;
-    }
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (size < 0x1000 || size > (64 << 20)) {
-        fclose(f);
-        fprintf(stderr, "rush2049pc: %s is not an N64 ROM (%ld bytes)\n", path, size);
-        return -1;
-    }
-    uint8_t *rom = malloc((size_t)size);
-    size_t got = fread(rom, 1, (size_t)size, f);
-    fclose(f);
-    if (got != (size_t)size) {
-        free(rom);
-        fprintf(stderr, "rush2049pc: cannot read %s\n", path);
-        return -1;
-    }
-    const char *order = "z64";
-    if (rom[0] == 0x37 && rom[1] == 0x80) {          /* .v64: 16-bit words swapped */
-        order = "v64";
-        for (long i = 0; i + 1 < size; i += 2) {
-            uint8_t t = rom[i];
-            rom[i] = rom[i + 1];
-            rom[i + 1] = t;
-        }
-    } else if (rom[0] == 0x40 && rom[1] == 0x12) {   /* .n64: 32-bit words little-endian */
-        order = "n64";
-        for (long i = 0; i + 3 < size; i += 4) {
-            uint8_t a = rom[i], b = rom[i + 1];
-            rom[i] = rom[i + 3];
-            rom[i + 1] = rom[i + 2];
-            rom[i + 2] = b;
-            rom[i + 3] = a;
-        }
-    } else if (rom[0] != 0x80 || rom[1] != 0x37) {
-        free(rom);
-        fprintf(stderr, "rush2049pc: %s is not an N64 ROM (unknown header)\n", path);
-        return -1;
-    }
-    uint8_t sum[20];
-    char hex[41];
-    pc_sha1(rom, (size_t)size, sum);
-    for (int i = 0; i < 20; i++)
-        snprintf(hex + 2 * i, 3, "%02x", sum[i]);
-    if (strcmp(hex, ROM_SHA1) != 0) {
-        fprintf(stderr, "rush2049pc: %s (.%s) has SHA-1 %s; San Francisco Rush 2049 (USA) is %s\n", path, order,
-                hex, ROM_SHA1);
-        if (check_sha1) {
-            free(rom);
-            fprintf(stderr, "rush2049pc: use --no-rom-check to run it anyway\n");
-            return -1;
-        }
-    }
-    g_rom = rom;
-    g_rom_size = (size_t)size;
-    if (pc_verbose)
-        pc_log("ROM %s: %ld bytes, .%s order, SHA-1 %s", path, size, order, hex);
-    return 0;
+    PcRomInfo info;
+    int status = pc_rom_open(path, check_sha1, &info);
+    if (status == PC_ROM_OK)
+        return 0;
+    fprintf(stderr, "rush2049pc: %s: %s\n", path, info.what);
+    if (info.sha1[0])
+        fprintf(stderr, "rush2049pc: its SHA-1 is %s; San Francisco Rush 2049 (USA) is %s\n", info.sha1, PC_ROM_SHA1);
+    return g_rom ? 0 : -1;   /* loaded anyway with check_sha1 off */
 }
 
 /* --no-rom: a blank 12 MiB cartridge, to run the boot path without the user's ROM (bring-up only). */
