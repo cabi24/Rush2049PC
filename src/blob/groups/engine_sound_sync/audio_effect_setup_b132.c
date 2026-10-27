@@ -7,6 +7,10 @@
  */
 typedef unsigned char u8;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef int intptr_t;
+#endif
 typedef struct Link {struct Link *next, *prev;} Link;
 typedef struct List {u8 indirect, doubly, pad[2];u32 count;Link *head, *tail;} List;
 void func_80091FBC(List *list, Link *object, Link *before) {
@@ -118,7 +122,7 @@ extern s8 D_8011023C;
 extern s32 D_80110250,D_8011024C,D_80110278,D_80110280,D_8011027C;
 extern void *D_80143CF0[],*D_80143AE8[];
 extern s32 *D_80144C58;
-extern s32 func_80091BA8(s32);
+extern intptr_t func_80091BA8(s32);
 extern s32 entity_state_check(s32);
 extern void scheduler_recv(s32);
 extern s32 entity_flags_apply(s32,s32,s32,u8);

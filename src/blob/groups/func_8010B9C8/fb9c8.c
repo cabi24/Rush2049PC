@@ -14,6 +14,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
@@ -104,7 +108,7 @@ s32 func_8010B9C8(MenuItem *item) {
     s32 w;
     s32 x;
     s32 y;
-    s32 str;
+    intptr_t str;
 
     if (item_disable_B9C8(item, D_801170FC < 7)) {
         return 1;

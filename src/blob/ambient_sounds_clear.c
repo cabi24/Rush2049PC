@@ -3793,8 +3793,8 @@ typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
 void ambient_sounds_clear(void)
 {
-  s32 *var_s0;
-  s32 temp_a0;
+  intptr_t *var_s0;
+  intptr_t temp_a0;
   if (D_80114624 != 0)
   {
     sound_stop(D_80114624);

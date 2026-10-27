@@ -56,7 +56,7 @@ extern s16 D_80151AD0,D_80142B08[];
 extern s8 D_801613AB,D_80156994,D_8014978C;
 extern Color D_803B65B4;
 extern ObjectFlags D_8012E700[];
-extern s32 func_8008B3A0(s16);
+extern intptr_t func_8008B3A0(s16);
 extern void func_8008B32C(f32 (*)[3],f32 (*)[3],f32);
 extern void math_utility(void *,void *);
 extern void model_data_load(s32,s32,u32);

@@ -4104,8 +4104,8 @@ void func_800D7634(void) {
     f32 spEC;
     s32 spE8;
     s32 spE4;
-    s32 spD4;
-    s32 sp74;
+    intptr_t spD4;
+    intptr_t sp74;
     f32 *var_a1;
     s32 temp_t8;
     s32 temp_v0;

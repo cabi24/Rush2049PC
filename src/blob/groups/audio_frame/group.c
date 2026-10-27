@@ -3732,7 +3732,7 @@ void audio_frame_update(s16 arg0);
 void func_800B08FC(s16 ipa_t0, s16 ipa_t3);
 void func_800B0A88(s16 ipa_s1, s16 ipa_s2);
 
-s32 func_8008B3A0(s16);
+intptr_t func_8008B3A0(s16);
 
 void func_800B08FC(s16 slot, s16 idx) {
     HudRec *h;
@@ -3830,6 +3830,6 @@ void audio_frame_update(s16 slot) {
 }
 
 
-s32 func_8008B3A0(s16 arg0) {
+intptr_t func_8008B3A0(s16 arg0) {
     return *((s32 *) ((u8 *) &D_8012E708 + (arg0 * 0x44)));
 }
