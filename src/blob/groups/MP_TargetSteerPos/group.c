@@ -3770,7 +3770,7 @@ void camera_transform(void) {
     s32 temp_a2;
     s32 temp_t6;
     s32 temp_v0;
-    s32 temp_v0_2;
+    intptr_t temp_v0_2;
     s32 var_a1;
     s32 var_a1_2;
     s32 var_a1_3;
@@ -3839,7 +3839,7 @@ block_10:
                     if (var_s1_2 != NULL) {
                         do {
                             temp_s2 = M2C_FIELD(var_s1_2, s32 **, SFX_NODE_NEXT);
-                            if ((temp_v0_2 + var_s0_2) == M2C_FIELD(var_s1_2, s32 *, SFX_NODE_ENTRY)) {
+                            if ((temp_v0_2 + var_s0_2) == M2C_FIELD(var_s1_2, intptr_t *, SFX_NODE_ENTRY)) {
                                 func_8009211C(&D_80146160, var_s1_2);
                                 func_80091FBC(&D_80146138, var_s1_2, M2C_FIELD(&D_80146138, s32 **, 8));
                             }

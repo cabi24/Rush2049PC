@@ -3,13 +3,14 @@
  * PhysicsObjectList_Update, the camera matrix particles_spawn_emitter reads from a window address, and the
  * high-score name table gTotalNames with each player's name slot D_801424F0, whose slots hold a name index or a
  * profile handle (func_800C9480, func_800F1D04, audio_channel_priority and its caller menu_confirm_dialog,
- * func_800F2888), the ghost allocator _NewGhost (func_800C7200), and the RUSH_CHECK_CASTS check of 32-bit N64
- * address stores (PC_N64W). Host storage here is above 4 GB, as the game's own storage is; the camera matrix part
- * maps the RDRAM window and is skipped if it can't.
+ * func_800F2888), the ghost allocator _NewGhost (func_800C7200), the audio manager's walk of its sound requests
+ * (camera_transform), and the RUSH_CHECK_CASTS check of 32-bit N64 address stores (PC_N64W). Host storage here is
+ * above 4 GB, as the game's own storage is; the parts with window data (the camera matrix, the sound requests) map
+ * the RDRAM window and are skipped if it can't be.
  * game: src/blob/camera_smooth_lerp.c src/blob/PhysicsObjectList_Update.c src/blob/particles_spawn_emitter.c
  * game: src/blob/func_800C9480.c src/blob/func_800F1D04.c src/blob/audio_channel_priority.c
  * game: src/blob/menu_confirm_dialog.c src/blob/groups/func_800F2888_grp/func_800F2888.c
- * game: src/blob/groups/menu_save_options/ctx_newghost.c
+ * game: src/blob/groups/menu_save_options/ctx_newghost.c src/blob/groups/MP_TargetSteerPos/group.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -352,6 +353,56 @@ static void test_ghosts(void)
     CHECK(again == h[37] && *again == g);
 }
 
+/* ---------------------------------------------------------------- the sound requests (camera_transform) */
+
+void camera_transform(void);
+
+/* The audio manager's request entries (24 bytes, no pointers) are a heap block: window addresses. */
+void *D_80144C48;
+int32_t D_801460F4, D_80144DB8;
+int8_t D_80110284, D_8011028C;
+int32_t sfx_history[5];                    /* D_801460CC..D_801460D8, and the word before */
+ALIAS(D_801460CC, sfx_history, 4);
+ALIAS(D_801460D8, sfx_history, 16);
+#define D_801460D8 sfx_history[4]
+struct { uint32_t pad[2]; void *tail, *head; } D_80146138, D_80146160;   /* the request lists (PcSfxList) */
+static int sfx_calls;
+int32_t func_800201d0(int32_t voice) { return voice == 100 ? -1 : 0; }   /* 100 has finished */
+void audio_timing_sync(int32_t voice) { sfx_calls++; }
+int32_t func_8001fe58() { return sfx_calls++, 0; }
+int32_t func_8001fea4() { return sfx_calls++, 0; }
+int32_t func_8001ff4c() { return sfx_calls++, 0; }
+int32_t func_8001ffa0() { return sfx_calls++, 0; }
+int32_t func_8001fff4() { return sfx_calls++, 0; }
+int32_t func_80020174() { return sfx_calls++, 0; }
+void func_80020518() { sfx_calls++; }
+void func_80091FBC() { sfx_calls++; }
+void func_8009211C() { sfx_calls++; }
+#define SFX_AT 0x80310000u
+
+static void test_sound_requests(void)
+{
+    uint8_t *e = (uint8_t *)(uintptr_t)SFX_AT;
+
+    if (!test_rdram()) {
+        fprintf(stderr, "test_casts: the RDRAM window can't be mapped here: sound request part skipped\n");
+        return;
+    }
+    memset(e, 0, 3 * 24);
+    e[0] = e[1] = 1, *(int32_t *)(e + 8) = 7, *(int32_t *)(e + 0x10) = 100;            /* finished */
+    e[24] = e[25] = 1, *(int32_t *)(e + 32) = 8, *(int32_t *)(e + 24 + 0x10) = 101;    /* still playing */
+    D_80144C48 = e;
+    D_801460F4 = 3;
+    D_80110284 = 1;
+    D_8011028C = 0;
+    D_801460D8 = 0;
+    sfx_calls = 0;
+    camera_transform();
+    CHECK(e[0] == 0 && *(int32_t *)(e + 8) == 0);   /* retired in place */
+    CHECK(e[24] == 1 && *(int32_t *)(e + 32) == 8);
+    CHECK(D_801460D8 == 1 && sfx_calls == 0);
+}
+
 /* ---------------------------------------------------------------- RUSH_CHECK_CASTS */
 
 static struct { const char *file; int line; uintptr_t value; int n; } cast_fail;
@@ -387,6 +438,7 @@ int main(void)
     test_name_slots();
     test_player_names();
     test_ghosts();
+    test_sound_requests();
     test_check_casts();
     return TEST_DONE();
 }
