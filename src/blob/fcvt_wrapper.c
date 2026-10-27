@@ -3694,8 +3694,21 @@ typedef s64 M2C_UNK64;
 
 s32 fcvt(s32, s32, void *);                            /* extern */
 
+#ifdef TARGET_PC
+/* PC: sprintf(buf, fmt, ...). The N64 version passes the address of its stack arguments as an IDO va_list;
+ * natively the arguments need a real va_list, and buf/fmt are pointers. The host formats them. */
+int vsprintf(char *, const char *, __builtin_va_list);
+void fcvt_wrapper(char *arg0, const char *arg1, ...)
+{
+  __builtin_va_list ap;
+  __builtin_va_start(ap, arg1);
+  vsprintf(arg0, arg1, ap);
+  __builtin_va_end(ap);
+}
+#else
 void fcvt_wrapper(s32 arg0, s32 arg1, ...)
 {
   fcvt(arg0, arg1, (s8 *) (&arg1) + 4);
 }
+#endif
 

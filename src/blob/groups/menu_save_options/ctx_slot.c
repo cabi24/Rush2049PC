@@ -15,9 +15,34 @@ extern intptr_t D_801527C8;
 extern OSMesgQueue D_80152770;
 
 /* ---- heap release (copied from src/blob/groups/heap_release, matched there) ---- */
+#ifdef TARGET_PC
+enum n64p_Block { n64p_Block_ };
+enum n64p_Pool { n64p_Pool_ };
+enum n64p_u32 { n64p_u32_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Block {u32 pad0;enum n64p_Block next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
+#else
 typedef struct Block {u32 pad0;struct Block *next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
+#endif
+#ifdef TARGET_PC
+typedef struct Pool {s32 count;enum n64p_u32 base;enum n64p_Pool next;} Pool;
+#else
 typedef struct Pool {s32 count;u32 *base;struct Pool *next;} Pool;
+#endif
+#ifdef TARGET_PC
+typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool pool;} Heap;
+#else
 typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Heap;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Pool: (struct Pool *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 void func_80095EC0(void *,u32);
 void *func_80095F8C(u32 arg0) {
     s32 var_v0;
@@ -41,16 +66,16 @@ Block *func_80095EF4(Heap *heap, u32 addr, s32 tag) {
     p = &heap->pool;
     while (1) {
         if (p == 0 || p->base == 0) break;
-        if (addr >= (u32)p->base && addr < (u32)(p->base + p->count)) {
+        if (addr >= (u32)p->base && addr < (u32)(N64P(p->base) + p->count)) {
             addr = *(u32 *)addr;
             break;
         }
-        p = p->next;
+        p = N64P(p->next);
     }
-    b = heap->blocks;
+    b = N64P(heap->blocks);
     while (b != 0) {
         if (tag != b->tag || addr < (u32)b || (b->next != 0 && addr >= (u32)b->next)) {
-            b = b->next;
+            b = N64P(b->next);
         } else break;
     }
     return b;
@@ -61,10 +86,10 @@ void audio_reverb_update(u32 address,s32 tag) {
  block=func_80095EF4(heap,address,tag);
  func_80095EC0((u8 *)block+32,block->pad8[1]);
  if(block->pad8[2]) *(u32 *)block->pad8[2]=0;
- next=block->next;
+ next=N64P(block->next);
  if(next && next->pad14==0) {
   block->next=next->next;
-  if(block->next) block->next->pad8[0]=(u32)block;
+  if(block->next) N64P(block->next)->pad8[0]=(u32)block;
   else heap->padc[0]=(u32)block;
   block->pad8[1]+=next->pad8[1]+32;
   func_80095EC0(next,32);
@@ -73,7 +98,7 @@ void audio_reverb_update(u32 address,s32 tag) {
  block->pad8[2]=0;block->pad14=0;block->tag=0;block->counter=0;
  if(prev && prev->pad14==0) {
   prev->next=block->next;
-  if(prev->next) prev->next->pad8[0]=(u32)prev;
+  if(prev->next) N64P(prev->next)->pad8[0]=(u32)prev;
   else heap->padc[0]=(u32)prev;
   prev->pad8[1]+=block->pad8[1]+32;
   func_80095EC0(block,32);

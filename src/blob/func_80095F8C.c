@@ -3692,9 +3692,14 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+#define HEAP_LINK u32   /* heap headers hold RDRAM-window addresses: zero-extend them */
+#else
+#define HEAP_LINK s32
+#endif
 void *func_80095F8C(u32 arg0) {
-    s32 var_v0;
-    s32 var_v1;
+    intptr_t var_v0;
+    intptr_t var_v1;
 
     var_v0 = D_801527C8;
     var_v1 = 0;
@@ -3703,7 +3708,7 @@ void *func_80095F8C(u32 arg0) {
             if ((arg0 >= (u32) M2C_FIELD(var_v0, u32 *, 8)) && (arg0 < (u32) M2C_FIELD(var_v0, u32 *, 0x10))) {
                 var_v1 = var_v0;
             }
-            var_v0 = M2C_FIELD(var_v0, s32 *, 4);
+            var_v0 = M2C_FIELD(var_v0, HEAP_LINK *, 4);
         } while (var_v0 != 0);
     }
     return (void *) var_v1;

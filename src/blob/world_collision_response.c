@@ -70,10 +70,17 @@ typedef struct OSScTask {
     OSTask_t t;             /* 0x10 */
     OSMesgQueue *msgQ;      /* 0x50 */
     OSMesg msg;             /* 0x54 */
+#ifdef TARGET_PC
+    void *pad58;            /* the DL base pointer (other views) */
+#else
     u8 pad58[4];
+#endif
     u8 doneMsg[0x7C - 0x5C];/* 0x5C */
     void *buffer;           /* 0x7C */
 } Frame;                    /* 0x80 */
+#ifdef TARGET_PC
+typedef char pc_frame_size_check[(sizeof(Frame) == 0xD0 && __builtin_offsetof(Frame, pad58) == 0xA0) ? 1 : -1];
+#endif
 
 extern Gfx *D_801497C8;             /* display-list cursor (msgq_ptr) */
 extern volatile s8 D_8015F72D;               /* current frame record */

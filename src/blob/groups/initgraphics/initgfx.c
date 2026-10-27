@@ -17,12 +17,23 @@ typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
 typedef float f32;
+#ifdef TARGET_PC
+/* PC: the native OSScTask's shape, pointer fields where it has them (N64 0x58 bytes, host 0xA0) */
+typedef struct { void *next; u32 state, flags; void *fb; u32 type, tflags; void *boot; u32 boot_size;
+                 void *ucode; u32 ucode_size; void *udata; u32 udata_size; void *stack; u32 stack_size;
+                 void *out; void *out_size; void *data; u32 data_size; void *yield; u32 yield_size;
+                 void *msgQ; void *msg; } PcScTaskShape;
+#endif
 typedef struct {
+#ifdef TARGET_PC
+    PcScTaskShape task;
+#else
     u8 pad00[0x58];
+#endif
     u8 *dl_base;           /* 0x58 */
     s16 unk5C;             /* 0x5C */
     u8 pad5E[0x7C - 0x5E];
-    u32 buffer;            /* 0x7C */
+    uintptr_t buffer;      /* 0x7C */
 } SegmentTableEntry;
 extern s32 D_8015F738, D_80161380, D_80161398, D_801613A4;
 extern f32 D_80154188;
