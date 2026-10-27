@@ -1227,6 +1227,7 @@ def race(c):
               index=i)
 
     car_tables(c)
+    hud(c)
 
     # The tracks' car colours (gTrackColors, D_8011AF90, tRGBA *[19]): each points at RGBA byte quadruples, which
     # the cars' IR colour comes from. Sixteen mid greys per track (bytes, so copied as they are).
@@ -1266,6 +1267,37 @@ def car_tables(c):
         for k in range(11):
             c.set("game", "D_801116D0", "f32", 1.0, "a tune's eleven factors: 1 (+4: the mass factor)" if t == k == 0
                   else "(same)", offset=44 * t + 4 * k)
+
+
+def multiblit(c, sym, index, texname, x, y, w, h, func=None):
+    """MultiBlit sym[index] (36 bytes: char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32
+    zdepth, alpha; animfunc; u32 animid): a blit of the texture's first 16 x 16 texels at (x, y), w x h, opaque, or
+    with texname -1 and func, a sprite whose draw function func is (NewMultiBlit)."""
+    base = 36 * index
+    name = 0xFFFFFFFF if texname is None else c.string(texname)
+    c.set("game", sym, "ptr", name, f"{sym}[{index}]: {texname or 'a sprite'}", offset=base)
+    for k, v in enumerate((x, y, w, h, 0, 15, 0, 15)):
+        c.set("game", sym, "u16", v, "(same)", offset=base + 4 + 2 * k)
+    c.set("game", sym, "u32", 1, "(same)", offset=base + 0x14)                 # zdepth
+    c.set("game", sym, "u32", 255, "(same)", offset=base + 0x18)               # alpha
+    if func:
+        c.set("game", sym, "ptr", c.syms.func(func), f"(same): {func}", offset=base + 0x1C)
+
+
+def hud(c):
+    """The race HUD (ShowHUD, skid_mark_render: NewMultiBlit of the HUD set D_801158DC[8] and the race set
+    D_80114C58[89]). With zeros every blit has no texture and no size. Two of the HUD set's eight: a 48 x 12 panel
+    of the BUTTON texture top left, and the digital speedometer (animSpeedText, which the 2D sprite pass calls every
+    frame: gShowSpeed is option 5, 1 by default), whose digits go at speedPos (D_80115A68, s32 [windows][slot][2])."""
+    multiblit(c, "D_801158DC", 0, "BUTTON", 8, 8, 48, 12)
+    multiblit(c, "D_801158DC", 1, None, 0, 0, 0, 0, func="animSpeedText")
+    corners = {1: [(300, 200)], 2: [(300, 95), (300, 205)], 3: [(140, 95), (300, 95), (140, 205)],
+               4: [(140, 95), (300, 95), (140, 205), (300, 205)]}
+    for windows, slots in corners.items():
+        for slot, (x, y) in enumerate(slots):
+            for k, v in enumerate((x, y)):
+                c.set("game", "D_80115A68", "u32", v, "speedPos: the speedometer's place per view" if windows == 1
+                      and slot == k == 0 else "(same)", offset=32 * (windows - 1) + 8 * slot + 4 * k)
 
 
 def battle(c):

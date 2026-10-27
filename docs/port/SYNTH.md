@@ -87,6 +87,7 @@ copies those as they are, so they are bytes, or zero.
 | | `D_80110D08[13]`, `D_801108C8` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (one 23-word record) |
 | | `D_80111560[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
 | | `D_8011AF90[19]` | gTrackColors: sixteen greys |
+| | `D_801158DC[0..1]`, `D_80115A68` | the HUD set (ShowHUD): a BUTTON panel, and a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos). With zeros every HUD blit had no texture or size |
 | battle | `D_80394330[5]`, `D_80394344[5]` (image B) | the weapons' texture names: "" (func_803908D0 looks each up); their model names stay NULL (AAANULLOBJ) |
 
 **The files:**
@@ -175,7 +176,8 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 viewports put the models where the cars are, in one view or split in two (top and bottom) or four (quarters).
 `drive`, `race2p` and `race4p` take one and check it (`# check:` runs `tools/port/synth_shot.py SHOT VIEWS`): the
 picture is the game's 320 x 220, each view the split screen should have shows drawing (a share of non-black pixels),
-and the borders between them stay dark. The menus are still black: their buttons and backgrounds come from
+and the borders between them stay dark. The HUD's speedometer draws its three digits in each view. The menus are
+still black: their buttons and backgrounds come from
 MultiBlit tables and button records that are zero.
 
 The races run every thread (game, model, audio manager, MusyX, scheduler) with no fault. Earlier, nothing was drawn:
