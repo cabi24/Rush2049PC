@@ -151,6 +151,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build/pc -G Ninja
       - name: Build
+        id: build
         run: |
           set -o pipefail
           cmake --build build/pc -j4 2>&1 | cut -c1-2000
@@ -179,8 +180,10 @@ jobs:
           PY
           exit 1
       - name: Self-test
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: build/pc/rush2049pc.exe --selftest
       - name: Boot without a ROM
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           RUSH_TRACE_WAVES=1 GALLIUM_DRIVER=llvmpipe build/pc/rush2049pc.exe --no-rom --headless --no-config \
             --audio null --seconds 10 > boot.log 2>&1 || true
