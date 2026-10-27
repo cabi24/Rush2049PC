@@ -6,12 +6,10 @@
     python3 tools/port/synth_compare.py --exe A --exe B --rom ROM --script PRESS --until MASK:N --seconds S
 
 Each path (tools/port/synth/NAME.press, as tools/port/synth_paths.py runs it, but always with --fast) runs --runs
-times with each executable, with three settings:
+times with each executable. On the virtual clock a run takes the same course every time (the main loop works only
+while every N64 thread waits, docs/port/ULTRA.md 1), so two runs of one program give the same trace, and so must two
+builds. Two settings:
 
-- RUSH_FAST_STRICT: the virtual clock's strict mode (docs/port/ULTRA.md 1), where the host main thread runs the RSP
-  tasks, posts events and reads the game's state only while every N64 thread waits. Plain --fast (--loose) lands
-  those wherever a computing thread happens to be, so it keeps a run only to within a graphics task, and the
-  physics amplify that: two runs of one build drift apart. Strict, a run depends on the N64 clock alone.
 - RUSH_STATE_EXACT: the state log gives the first car's position and speed as exact floats (--coarse: whole feet,
   for a build without it).
 - --status: the log gives them every --status seconds of game time too.
@@ -27,7 +25,7 @@ graphics-task counts. Runs of one executable give the baseline. The verdict per 
 
 --script, --until and --seconds run one press script of any path instead (the retail cartridge: --rom, no
 --no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. Exit status: the number of paths that DIFFER,
-or with --same (CI, strict) that aren't the same. Stdlib only, Python 3.9+.
+or with --same (CI) that aren't the same. Stdlib only, Python 3.9+.
 """
 import argparse
 import os
@@ -45,7 +43,6 @@ import synth_paths  # noqa: E402
 _STATE = re.compile(r"^rush2049pc: game state (0x[0-9A-F]{8}) \(was 0x[0-9A-F]{8}\) at vi (\d+), "
                     r"after \d+ graphics tasks(?:: (.*))?$")
 EXACT = True   # RUSH_STATE_EXACT: positions and speeds as exact floats (--coarse: whole feet)
-STRICT = True  # RUSH_FAST_STRICT: the main thread acts only while every N64 thread waits (--loose: plain --fast)
 SAME = False   # --same: only "same" passes
 _STATUS = re.compile(r"^rush2049pc: (status|state reached:|time reached:) t=\S+ vi=(\d+) gfx_tasks=\d+ "
                      r"audio_tasks=\d+(?: state=(0x[0-9A-F]{8}))?(?:: (.*))?$")
@@ -93,8 +90,6 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail):
     env = dict(os.environ)
     if EXACT:
         env["RUSH_STATE_EXACT"] = "1"
-    if STRICT:
-        env["RUSH_FAST_STRICT"] = "1"
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve())] + ([] if retail else ["--no-rom-check"]) + \
         ["--headless", "--no-config", "--audio", "null", "--no-pak", "--fast"] + cmd_tail
     with tempfile.TemporaryDirectory(dir=logs) as cwd:   # screenshots and paks start afresh, and don't collide
@@ -159,14 +154,12 @@ def main():
     ap.add_argument("--coarse", action="store_true",
                     help="positions in whole feet, as builds without RUSH_STATE_EXACT print them")
     ap.add_argument("--same", action="store_true", help="a path whose runs aren't all the same fails")
-    ap.add_argument("--loose", action="store_true",
-                    help="plain --fast (without RUSH_FAST_STRICT), as synth_paths.py runs: within a graphics task")
     ap.add_argument("names", nargs="*", help="the paths (default: every tools/port/synth/*.press)")
     a = ap.parse_args()
     if len(a.exe) != 2:
         ap.error("give --exe twice")
-    global EXACT, STRICT, SAME
-    EXACT, STRICT, SAME = not a.coarse, not a.loose, a.same
+    global EXACT, SAME
+    EXACT, SAME = not a.coarse, a.same
     Path(a.logs).mkdir(parents=True, exist_ok=True)
     differ = 0
     if a.script:

@@ -259,12 +259,12 @@ changed files, 0 objects that differ under IDO.
 
 RelWithDebInfo (`-O2 -g`) passes every test on x86-64 and aarch64 Linux and in the Windows cross build, and plays the
 same as Debug to the bit along 14 synthetic and 14 retail paths, twice as fast on the retail cartridge (a race frame
-6.9 ms of the Pi 5's time, not 14.8; [port/OPTIMIZED.md](port/OPTIMIZED.md)). What it took: gen_data reads the types of `-O0` objects in every build type
-(optimized DWARF had dropped declarations); own storage keeps N64 address order (`-fno-toplevel-reorder` on data.c) and
-`ambient_sounds_clear`'s walk ends at its own end; no fused multiply-adds and no loop bounds from declared array sizes
-in the game C; `tools/port/alias_check.py` for one storage under two names (three places given one name). Tools:
-`tools/port/synth_compare.py` and the virtual clock's strict mode (`RUSH_FAST_STRICT`), which makes a `--fast` run
-depend on the N64 clock alone. CI builds and compares both build types. Default build type: still Debug.
+6.9 ms of the Pi 5's time, not 14.8; [port/OPTIMIZED.md](port/OPTIMIZED.md)). What it took: gen_data reads the types
+of `-O0` objects in every build type (optimized DWARF had dropped declarations); own storage keeps N64 address order
+(`-fno-toplevel-reorder` on data.c) and `ambient_sounds_clear`'s walk ends at its own end; no fused multiply-adds and
+no loop bounds from declared array sizes in the game C; `tools/port/alias_check.py` for one storage under two names
+(three places given one name). `tools/port/synth_compare.py` compares two builds along the paths, to the bit
+(`RUSH_STATE_EXACT`). CI builds and compares both build types. Default build type: still Debug.
 
 ## Next
 

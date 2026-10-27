@@ -70,14 +70,8 @@ of one script could start a race two retraces apart ([FRAMERATE.md](FRAMERATE.md
 computing without a libultra call) is stopped as hung, with the threads' states. The self-test runs on it too
 (`--selftest --fast`, CTest `ultra_selftest_fast`).
 
-"To within a graphics task": the main thread runs an RSP task as soon as it is queued, posts its events, and reads
-the state log, while an N64 thread may still compute, so where those land in that thread's work depends on the
-host's speed. The physics amplify that: on the Pi 5, two runs of one build drift apart in most races. **Strict mode**
-(`RUSH_FAST_STRICT` set, with `--fast`; `sched.c`): the main thread acts only while the system is idle, and after
-each event it posts it waits until the threads that event woke wait again; woken by a queued task, it runs it before
-the clock moves. A run then depends on the N64 clock alone, and two runs, two builds or two architectures give the
-same states at the same retraces, to the bit (`tools/port/synth_compare.py`, [OPTIMIZED.md](OPTIMIZED.md) 5). It
-is opt-in: the default `--fast` is unchanged.
+So two runs, two builds (Debug and RelWithDebInfo) or two architectures give the same states at the same retraces
+and the first car at the same place, to the bit: `tools/port/synth_compare.py` checks it ([OPTIMIZED.md](OPTIMIZED.md) 5).
 
 `--trace-os` logs every switch and blocking call. Ctrl-\ (SIGQUIT) prints every thread's state and what it waits on.
 With `RUSH_TRAP_FP` set (glibc), every host thread traps the first invalid floating-point operation or division by

@@ -172,8 +172,8 @@ Considered and not used:
   RelWithDebInfo, and runs every test, the boot without a ROM and the synthetic paths in each. The RelWithDebInfo Linux
   jobs also run `alias_check.py`. Then:
   - `optimized` (per architecture): the two builds' `data.c` and `data_symbols.txt` must be the same files, and
-    `synth_compare.py --same` runs every path with both programs, twice each, on the virtual clock's strict mode:
-    every trace must be the same, to the bit;
+    `synth_compare.py --same` runs every path with both programs, twice each, on the virtual clock: every trace must
+    be the same, to the bit;
   - `optimized-windows`: the cross builds' `data.c` and `data_symbols.txt` must be the same files;
   - `windows-run` runs the self-test, the boot without a ROM and the 14 paths with both cross-built programs.
 
@@ -182,9 +182,11 @@ Considered and not used:
 `tools/port/synth_compare.py` runs every press script's path with two programs, several times each, and compares
 their traces: the loader's summary line, every state change and the retrace it happened at, and a status line each
 second of game time with the players, windows, cars, mode, track, pause state, and the first car's position and speed
-as exact floats (`RUSH_STATE_EXACT`). It runs on the virtual clock's strict mode (`RUSH_FAST_STRICT`,
-[ULTRA.md](ULTRA.md) 1): plain `--fast` keeps a run only to within a graphics task, and on the Pi 5 two runs of one
-Debug build drifted apart in most races (`--loose` runs it that way). Strict, a run depends on the N64 clock alone.
+as exact floats (`RUSH_STATE_EXACT`). It runs on the virtual clock (`--fast`), where the main loop works only while
+every N64 thread waits, so a run takes the same course every time ([ULTRA.md](ULTRA.md) 1). Before that change (made
+for the high frame rate while this work went on) a run was the same only to within a graphics task, and on the Pi 5
+two runs of one Debug build drifted apart in most races; this work had an opt-in mode of its own for it at first, and
+the results below were all repeated on the merged clock.
 
 | | Paths | Result (Debug against RelWithDebInfo, 2 or 3 runs each) |
 |---|---|---|
@@ -196,8 +198,8 @@ Before the fix of 2.3 the synthetic races differed from the first second of phys
 two of the car's position at first. The retail runs and their logs stay on the Pi (nothing from the cartridge is in the
 repository); `synth_compare.py --rom <rom>` repeats them.
 
-Debug against the Debug build before this work (`--coarse --loose`, since that program prints whole feet and has
-no strict mode): every synthetic path agrees, within the plain clock's tolerance.
+Debug against the Debug build before this work (`--coarse`, since that program prints whole feet, and its clock was
+the one before the change above): every synthetic path agrees, within that clock's tolerance.
 
 ## 6. Speed
 

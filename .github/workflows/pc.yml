@@ -100,7 +100,7 @@ jobs:
     # RelWithDebInfo against Debug on each Linux architecture (docs/port/OPTIMIZED.md). The data tables gen_data
     # generates must be the same files (it reads the types of -O0 objects in every build type), and the game must be
     # the same along every synthetic path: the same states at the same retraces and the first car at the same place
-    # to the bit, every second (tools/port/synth_compare.py, on the virtual clock's strict mode).
+    # to the bit, every second (tools/port/synth_compare.py, on the virtual clock).
     needs: linux
     strategy:
       fail-fast: false
