@@ -93,8 +93,39 @@ int pc_rcp_service(uint64_t now_ns, uint64_t *next_ns);   /* main thread, unlock
 extern uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks;     /* counts, for status lines */
 extern int pc_rcp_stop_at_gfx;                            /* --stop-at-gfx: exit at the first graphics task */
 
-/* ---------------------------------------------------------------- pi.c: ROM */
-int pc_rom_load(const char *path, int check_sha1);   /* 0 on success; prints why not */
+/* ---------------------------------------------------------------- romcheck.c, pi.c: ROM */
+/* The cartridge the port runs: San Francisco Rush 2049 (USA), 12 MiB. */
+#define PC_ROM_SHA1 "3f99351d7bb61656614bdb2aa1a90cfe55d1922c"
+#define PC_ROM_USA_SIZE 0xC00000u
+#define PC_ROM_MAX_SIZE ((size_t)64 << 20)
+enum {
+    PC_ROM_OK,             /* the USA cartridge */
+    PC_ROM_MISSING,        /* no file at the path */
+    PC_ROM_UNREADABLE,     /* a folder, no permission, a read error */
+    PC_ROM_NOT_ROM,        /* empty, too small or big, no N64 header */
+    PC_ROM_ARCHIVE,        /* a .zip, .7z, .rar, .gz... */
+    PC_ROM_WRONG_GAME,     /* an N64 ROM of another game */
+    PC_ROM_OTHER_VERSION,  /* Rush 2049 of another region or revision */
+    PC_ROM_BAD_DUMP        /* the USA header, other contents (or size) */
+};
+typedef struct PcRomInfo {
+    int status;            /* PC_ROM_* */
+    char order[4];         /* "z64", "v64" or "n64"; "" when not an N64 ROM */
+    char title[21];        /* the header's name, printable ASCII, trimmed */
+    char code[5];          /* the header's game code: "NRUE" for the USA cartridge */
+    int version;           /* the header's revision byte */
+    size_t size;           /* the file's size */
+    char sha1[41];         /* of the image in .z64 order; "" when not an N64 ROM */
+    char what[240];        /* what the file is, for the player: "it is another N64 game: ..." */
+} PcRomInfo;
+/* What an image is (romcheck.c): swaps it to .z64 order in place when it is a .v64 or .n64 dump, and fills info.
+ * Returns info->status. */
+int pc_rom_identify(uint8_t *image, size_t size, PcRomInfo *info);
+const char *pc_rom_kind(const uint8_t *head, size_t n);   /* "a ZIP archive"... by the first bytes, or NULL */
+/* The file as the cartridge when it is the USA ROM, or (check_sha1 off) any N64 ROM; nothing printed. Returns
+ * info->status; the cartridge is loaded for PC_ROM_OK, and with check_sha1 off for the last three. */
+int pc_rom_open(const char *path, int check_sha1, PcRomInfo *info);
+int pc_rom_load(const char *path, int check_sha1);   /* pc_rom_open, printing why not; 0 when loaded */
 int pc_rom_blank(void);                              /* --no-rom: a zeroed 12 MiB cartridge */
 int pc_rom_copy(uint32_t rom_offset, void *dst, uint32_t size);   /* 0 if inside the ROM */
 uint32_t pc_rom_word(uint32_t rom_offset);           /* big-endian word, 0 past the end */

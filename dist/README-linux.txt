@@ -6,10 +6,19 @@ game data: you need your own ROM of the cartridge. https://github.com/cabi24/Rus
 
 Playing
 -------
-1. Copy your ROM into the folder you run the program from and name it baserom.us.z64, or name it with --rom.
-   It must be San Francisco Rush 2049 (USA), SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. .z64, .v64 and
-   .n64 dumps all work; a .zip must be extracted first.
-2. Run ./rush2049pc (or rush2049pc --rom ~/roms/rush2049.z64). ./rush2049pc --help lists every option.
+1. Copy your ROM next to the program and name it baserom.us.z64. It must be San Francisco Rush 2049 (USA),
+   SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. .z64, .v64 and .n64 dumps all work; a .zip must be
+   extracted first.
+2. Run ./rush2049pc, or ./rush2049pc ~/roms/rush2049.z64 to name the ROM. ./rush2049pc --help lists every
+   option.
+
+Where the program looks for the ROM, in this order:
+  - the path on the command line (rush2049pc PATH, or --rom PATH);
+  - game.rom in rush2049pc.ini, when it is a full path;
+  - otherwise baserom.us.z64 (or the name game.rom gives) next to the program, then in
+    ~/.local/share/rush2049pc ($XDG_DATA_HOME), then in the working directory.
+If there is no ROM, or the file is not the right one, the program says where it looked, what the file is and
+what is needed (in a message box too, when it has a display).
 
 You need OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver), and SDL2 for the window, controllers and sound.
 
@@ -44,5 +53,5 @@ The game saves to a controller pak image, rush2049pc.mpk, in the folder the prog
 
 Licences
 --------
-The game and its code are the copyright of their original publisher; no licence is granted for the port's code.
-The licences of the libraries the program includes are in LICENSES/.
+This package contains no game data: you need your own ROM of the cartridge. The program includes
+SDL2 and zlib; their licences are in LICENSES/.

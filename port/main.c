@@ -9,8 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
+#include "app.h"
 #include "config.h"
 #include "pc_compat.h"
 #include "ultra.h"
@@ -21,10 +23,12 @@ int pc_selftest(void);                  /* port/ultra/selftest.c */
 static void usage(FILE *f)
 {
     fprintf(f,
-            "usage: rush2049pc [--rom PATH] [options]\n"
-            "Settings come from rush2049pc.ini (next to the program, else ~/.config/rush2049pc/; written with the\n"
-            "defaults on first run), then the environment, then these options.\n"
-            "  --rom PATH          the San Francisco Rush 2049 (USA) ROM, .z64/.v64/.n64 (default baserom.us.z64)\n"
+            "usage: rush2049pc [options] [ROM]\n"
+            "Settings come from rush2049pc.ini (next to the program, else the user settings folder; written with\n"
+            "the defaults on first run), then the environment, then these options.\n"
+            "  --rom PATH, ROM     the San Francisco Rush 2049 (USA) ROM, .z64/.v64/.n64. Without one, game.rom\n"
+            "                      (default baserom.us.z64) is looked for next to the program, in the user data\n"
+            "                      folder, then in the working directory\n"
             "  --no-rom-check      run a ROM whose SHA-1 differs\n"
             "  --no-rom            bring-up: a blank cartridge instead of the ROM (every ROM read is zero)\n"
             "  --headless          render off screen (EGL surfaceless, WGL on Windows; on Linux the default\n"
@@ -153,6 +157,7 @@ int main(int argc, char **argv)
 #endif
     int no_rom = 0, selftest = 0, use_config = 1;
     int print_config = 0, fast = 0;
+    const char *bare_rom = NULL;
     PcRunOptions run = {0};
     PcSettingValue over[MAX_OVERRIDES + 1];   /* the command line's settings, in order; [0] for a press file */
     int nover = 1;
@@ -172,6 +177,14 @@ int main(int argc, char **argv)
     } while (0)
         if (!strcmp(a, "--rom"))
             SET("game", "rom", ARG());
+        else if (a[0] != '-' && a[0]) {   /* a ROM's path: what Windows passes for a file dropped on the program */
+            if (bare_rom) {
+                fprintf(stderr, "rush2049pc: one ROM at a time (%s, then %s)\n", bare_rom, a);
+                return 2;
+            }
+            bare_rom = a;
+            SET("game", "rom", a);
+        }
         else if (!strcmp(a, "--no-rom-check"))
             SET("game", "rom_check", "off");
         else if (!strcmp(a, "--no-rom"))
@@ -332,7 +345,15 @@ int main(int argc, char **argv)
         return pc_selftest();
     }
 
-    if (no_rom ? pc_rom_blank() != 0 : pc_rom_load(cfg.rom, cfg.rom_check) != 0)
+    /* The ROM: from the command line as given, else game.rom by the lookup order (port/app/paths.c). */
+    PcAppDirs dirs;
+    pc_app_dirs(&dirs, exe_dir);
+    int rom_from_command_line = 0;
+    for (int i = 1; i < nover; i++)
+        rom_from_command_line |= !strcasecmp(over[i].section, "game") && !strcasecmp(over[i].key, "rom");
+    if (no_rom ? pc_rom_blank() != 0
+               : pc_app_load_rom(&dirs, cfg.rom, rom_from_command_line, cfg.rom_check,
+                                 cfg.source[0] ? cfg.source : cfg.save_path, !headless) != 0)
         return 1;
     pc_os_initialize();
     if (pc_data_init(pc_rom_bytes(), pc_rom_size()) != 0) {
