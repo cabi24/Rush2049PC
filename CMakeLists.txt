@@ -70,11 +70,15 @@ endif()
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
 # Functions at the matching ceiling: the ROM takes them from their retail assembly, but their C drafts
 # (nonmatching/README.md) differ only in register allocation and scheduling. The PC build compiles the
-# standalone drafts of those no other file defines; the rest already come in as group context copies.
+# standalone drafts of those no other file defines; the rest already come in as group context copies. Drafts that
+# need the PC layouts of shared records have them under TARGET_PC. The runtime images' 8-byte stubs (deleted bodies
+# of inlined helpers) are empty functions in nonmatching/ovl_<x>/stubs.c, PC only.
 foreach(f RaceStateMachine_Update TB_EllipseText createBG display_list_flush drone_set_catchup
-          ghost_race_setup physics_float_calc state_utility)
+          ghost_race_setup physics_float_calc state_utility animSpeedText StartWeaponIcon func_8010D680 func_8010E8B4)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
 endforeach()
+list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_803A44FC.c
+     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)
 # libultra and libc units the PC layer replaces (port/ultra, docs/port/ULTRA.md): thread dispatch, message
 # queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB, and the
 # inflate/LZSS readers (zlib and C in port/ultra/pi.c). lib_34a0 is the IDO libc (sprintf, fcvt, modff): the

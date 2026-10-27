@@ -202,8 +202,28 @@ fails and says so otherwise. The arenas are below 4 GB on purpose: in the window
 are the same. (The loader takes an arena's host address from the tables, so the unit test can also keep its arenas
 in host memory.)
 Function pointers come from a table of 2,134 functions by address (`layout/*.json`, `manifest/static.json`, the
-symbol file's boot functions), held through weak references. 1,976 have C. A function with no C is NULL there,
-not a stub, unless some other file calls it (then the link test's stub is what it gets).
+symbol file's boot functions), held through weak references. 2,000 have game C (1,977 before the last 23 got theirs,
+2026-10-27): every function of the game and both runtime images. The 134 without are the boot segment's: the
+libultra, libc and inflate routines the PC layer replaces (port/ultra, the host's C library and zlib), 69 of them
+under the same name, which the weak reference then reaches. A function with nothing linked is NULL there, not a
+stub, unless some other file calls it (then the link test's stub is what it gets).
+
+The last 23 were matched assembly with no C on the PC (`docs/game-asm-ceiling.md`); their C is in `nonmatching/`
+(README there), and no code in any image calls them or builds their address, so the game reaches them only through
+data:
+
+| Function | What | Reached through |
+|---|---|---|
+| `StartWeaponIcon` | `_StartWeaponIcon`: a weapon icon's start function: set-up (hide it, one more power-up) or a car's pickup (weapon and shots, health, invisibility, shield) | the target info table `D_80117530` (its start slot): `engine_torque_calc` (flag 4, and flag 0x4000 without a NULL check), `race_setup_2` on a hit |
+| `func_8010D680` | `_AnimateWeaponIcon`: spins a shown icon, shows a hidden one again once no car has its weapon | the table's visual slot: the environment visual `engine_torque_calc` grabs for the node |
+| `animSpeedText` | the HUD's digital speedometer and its units | a MultiBlit entry of the HUD tables ShowHUD (`skid_mark_render`) passes to NewMultiBlit |
+| `func_8010E8B4` | `animPanes@videoscr.c`: the video screen's title and menu frame | the video screen's MultiBlit tables `D_8011ACA0`/`D_8011ACE8` (video_initScreen) |
+| `func_803A44FC` | `animText@carscr.c`: each player's name, ghosts and option values on the car-select screen | a callback of the car-select MultiBlit table `D_803B2AB8` (initScreen@carscr.c) |
+| 18 stubs: 14 in image A (`func_8039A440` ... `func_803AECD4`), 4 in image B | the deleted bodies of inlined helpers: `jr ra; nop` on the N64, empty functions here | nothing (an address in data would now resolve) |
+
+Without them, `engine_torque_calc` would call NULL for a weapon icon's record if it has flag 0x4000 (the ROM data
+decides), and the other entries would be skipped (their callers test for NULL). The tests run each on synthetic
+records: `assets_weapons`, `assets_hudtext`, `assets_carscr` (port/assets/tests).
 
 The first load writes a report, to `$PC_DATA_REPORT` or else `build/pc/data_report.txt` (`PC_DATA_REPORT=""`
 turns it off):
