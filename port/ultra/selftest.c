@@ -41,9 +41,11 @@ int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
 
-/* The game's names at absolute N64 addresses (gen_stubs, aliases.ld). */
+/* The game's names at absolute N64 addresses (gen_stubs, aliases.ld), and data in the arenas at their N64
+ * addresses (port/data: boot data gWaveSizes, game data, runtime image A's BSS). */
 extern uint8_t D_8017A640[], D_8038A400[];
 extern uint32_t osTvType, D_80000318;
+extern uint8_t D_8002E580[], D_8011B5BC[], D_803B9A50[];
 
 #define MS(n) ((uint64_t)(n) * PC_COUNT_HZ / 1000)
 
@@ -322,6 +324,10 @@ static void t_memory(void)
     check("absolute N64 symbols", (uintptr_t)D_8017A640 == 0x8017A640u && (uintptr_t)D_8038A400 == 0x8038A400u &&
                                       (uintptr_t)&osTvType == 0x80000300u && osTvType == 1 &&
                                       D_80000318 == pc_os_mem_size(), d);
+    snprintf(d, sizeof d, "%p, %p, %p", (void *)D_8002E580, (void *)D_8011B5BC, (void *)D_803B9A50);
+    check("game data at its N64 addresses", (uintptr_t)D_8002E580 == 0x8002E580u &&
+                                                (uintptr_t)D_8011B5BC == 0x8011B5BCu &&
+                                                (uintptr_t)D_803B9A50 == 0x803B9A50u, d);
     int local;
     snprintf(d, sizeof d, "code %p, data %p, stack %p", (void *)check, (void *)g_log, (void *)&local);
     check("host addresses above 4 GiB", (uintptr_t)check >> 32 && (uintptr_t)g_log >> 32 && (uintptr_t)&local >> 32,

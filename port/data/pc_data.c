@@ -12,13 +12,19 @@
  *      (pc_port.h), so they are valid host addresses, and the renderer reads values below 4 GB as N64 addresses;
  *   4. game-C data in an overlay: put back the bytes it had at startup (or zero it).
  *
+ * The game's arenas are at their N64 addresses in that window too, so an N64 address inside one is its own host
+ * address (arena + offset is the identity), and 32-bit fields can hold it. The window must be mapped first. The
+ * test tables may keep their arenas in host memory instead.
+ *
  * The first load writes a report: pointer counts, unresolved pointers, and non-pointer words that look like N64
- * addresses (likely mistyped declarations). */
+ * addresses (likely mistyped declarations, unless they point at window data). */
 #include "pc_data.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <zlib.h>
 
 #ifndef PC_DATA_REPORT_DEFAULT
@@ -167,6 +173,50 @@ static void describe(const PcDataTables *t, uint32_t a, char *buf, size_t n)
         snprintf(buf, n, "%s+0x%X", nm->name, a - nm->n64_addr);
     else
         snprintf(buf, n, "?");
+}
+
+static int at_n64_address(const PcDataArena *ar)
+{
+    return (uintptr_t)ar->host == ar->n64_lo;
+}
+
+/* What an address-like word points at, for the report. Data in the window (an arena at its N64 address, outside
+ * own storage and game-C data; the heap; low memory) is reachable through the 32-bit value as it is: *host = 0.
+ * Own storage, game-C data and functions are host memory, and code is not data: a u32 can't reach them. */
+static const char *addr_class(const PcDataTables *t, uint32_t v, int *host)
+{
+    const PcDataSym *s = find_sym(t, v);
+    *host = 1;
+    if (find_func(t, v, -1))
+        return "function";
+    if (s && s->host)
+        return s->flags & PC_SYM_OWN ? "own" : "C data";
+    for (uint32_t i = 0; i < t->n_arenas; i++)
+        if (v >= t->arenas[i].n64_lo && v < t->arenas[i].n64_hi) {
+            *host = !at_n64_address(&t->arenas[i]);
+            return "arena";
+        }
+    for (uint32_t i = 0; i < t->n_images; i++)
+        if (v >= t->images[i].n64_base && v - t->images[i].n64_base < t->images[i].size)
+            return "code";   /* an image's bytes outside its arena */
+    if (v >= t->heap_lo || v < 0x80000400u) {
+        *host = 0;
+        return v >= t->heap_lo ? "heap" : "low memory";
+    }
+    return "code";
+}
+
+static void report_addr_word(const PcDataTables *t, const char *where, uint32_t v)
+{
+    int host;
+    const char *cls = addr_class(t, v, &host);
+    g_stats.addr_words++;
+    g_stats.addr_words_host += host;
+    if (g_report) {
+        char target[96];
+        describe(t, v, target, sizeof target);
+        fprintf(g_report, "addr-word %s 0x%08X -> %s [%s]\n", where, v, target, cls);
+    }
 }
 
 /* N64 pointer value v, found in image `image`'s data at where+off -> host pointer. */
@@ -326,14 +376,9 @@ static void swap_arena(const PcDataTables *t, const PcDataArena *ar)
                     uint32_t v = rd32(p);
                     memcpy(p, &v, 4);
                     if (g_scan && r->kind == PC_K_U32 && v >= 0x80000000u && v < 0x80800000u) {
-                        g_stats.addr_words++;
-                        if (g_report) {
-                            char what[96], target[96];
-                            uint32_t at = ar->n64_lo + (uint32_t)(p - ar->host);
-                            describe(t, at, what, sizeof what);
-                            describe(t, v, target, sizeof target);
-                            fprintf(g_report, "addr-word %s 0x%08X -> %s\n", what, v, target);
-                        }
+                        char what[96];
+                        describe(t, ar->n64_lo + (uint32_t)(p - ar->host), what, sizeof what);
+                        report_addr_word(t, what, v);
                     }
                 } else if (en == 8) {
                     uint64_t v = rd64(p);
@@ -424,11 +469,27 @@ const PcDataStats *pc_data_stats(void)
     return &g_stats;
 }
 
+/* 1 if [p, p + n) is mapped. */
+static int mapped(const void *p, size_t n)
+{
+    uintptr_t page = (uintptr_t)sysconf(_SC_PAGESIZE), lo = (uintptr_t)p & ~(page - 1);
+    return msync((void *)lo, (uintptr_t)p + n - lo, MS_ASYNC) == 0;
+}
+
 int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path)
 {
     PcDataState *st = t->state;
     const char *path = report_path;
     int rc = 0;
+    /* An arena at its N64 address is in the RDRAM window, which must be mapped (port/ultra's pc_mem_init). */
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        if (at_n64_address(ar) && !mapped(ar->host, ar->n64_hi - ar->n64_lo)) {
+            fprintf(stderr, "pc_data: the game's data belongs at 0x%08X-0x%08X, in the RDRAM window at host "
+                    "0x80000000, which is not mapped (docs/port/ULTRA.md)\n", ar->n64_lo, ar->n64_hi);
+            return -1;
+        }
+    }
     st->rom = rom;
     st->rom_size = rom_size;
     if (!path)
@@ -438,7 +499,9 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
     g_report = path[0] ? fopen(path, "w") : NULL;
     if (g_report)
         fprintf(g_report, "# pc_data report: unresolved pointers, pointers to functions with no C, and words in\n"
-                          "# non-pointer fields that look like N64 addresses (likely mistyped declarations)\n");
+                          "# non-pointer fields that look like N64 addresses. Their target in brackets: [arena],\n"
+                          "# [heap] and [low memory] are window data, which the word reaches as it is; [own],\n"
+                          "# [C data], [function] and [code] it can't (likely mistyped declarations)\n");
     memset(&g_stats, 0, sizeof g_stats);
     memset(g_logged, 0, sizeof g_logged);
     /* Startup bytes of the game C's overlay data, put back on every overlay load. */
@@ -450,11 +513,12 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
             && !st->snapshot[i] && (st->snapshot[i] = malloc(s->host_size)) != NULL)
             memcpy(st->snapshot[i], s->host, s->host_size);
     }
-    /* Host storage must sit above 4 GB (a PIE build): the renderer reads values below it as N64 addresses. */
+    /* Host storage must sit above 4 GB (a PIE build): the renderer reads values below it as N64 addresses. The
+     * arenas at their N64 addresses are the exception, since there the N64 address is the host address. */
     if (sizeof(void *) == 8) {
         uintptr_t low = 0;
         for (uint32_t i = 0; i < t->n_arenas; i++)
-            if ((uintptr_t)t->arenas[i].host < ((uintptr_t)1 << 32))
+            if (!at_n64_address(&t->arenas[i]) && (uintptr_t)t->arenas[i].host < ((uintptr_t)1 << 32))
                 low = (uintptr_t)t->arenas[i].host;
         for (uint32_t i = 0; i < t->n_syms; i++)
             if (t->syms[i].host && (uintptr_t)t->syms[i].host < ((uintptr_t)1 << 32))
@@ -480,16 +544,25 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
             st->owned[i] = st->image[i] = NULL;
         }
     }
+    /* A runtime image's arena in the window lies in the game heap, which holds the image only once the game has
+     * loaded it (PrevMaxPath reserves the block, then the load fills it again): until then it is heap memory, and
+     * starts out zero like the rest of the heap. */
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        if (is_overlay(t, ar->image) && at_n64_address(ar) && ar->n64_lo >= t->heap_lo)
+            memset(ar->host, 0, ar->n64_hi - ar->n64_lo);
+    }
     const PcDataStats *g = &g_stats;
     fprintf(stderr, "pc_data: %u symbols, pointers: %u own, %u C data, %u arena, %u functions, %u heap (kept), %u null, "
-            "%u raw, %u unresolved, %u to functions with no C (%u inexact, %u ambiguous); %u address-like words\n",
+            "%u raw, %u unresolved, %u to functions with no C (%u inexact, %u ambiguous); %u address-like words "
+            "(%u to host storage or code)\n",
             t->n_syms, g->own, g->cdef, g->arena, g->func, g->rdram, g->null, g->raw, g->unresolved, g->no_code,
-            g->inexact, g->ambiguous, g->addr_words);
+            g->inexact, g->ambiguous, g->addr_words, g->addr_words_host);
     if (g_report) {
         fprintf(g_report, "# pointers: %u own, %u C data, %u arena, %u functions, %u heap (kept), %u null, %u raw, "
-                "%u unresolved, %u no C, %u inexact, %u ambiguous; %u address-like words\n", g->own, g->cdef,
-                g->arena, g->func, g->rdram, g->null, g->raw, g->unresolved, g->no_code, g->inexact, g->ambiguous,
-                g->addr_words);
+                "%u unresolved, %u no C, %u inexact, %u ambiguous; %u address-like words (%u to host storage or "
+                "code)\n", g->own, g->cdef, g->arena, g->func, g->rdram, g->null, g->raw, g->unresolved, g->no_code,
+                g->inexact, g->ambiguous, g->addr_words, g->addr_words_host);
         fclose(g_report);
         g_report = NULL;
     }

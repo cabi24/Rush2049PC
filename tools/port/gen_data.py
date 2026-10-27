@@ -14,10 +14,12 @@ No ROM bytes are read here or written into the build.
 2. Each type is laid out twice: for the N64 (MIPS o32: pointers and long are 4 bytes, double is 8 aligned 8)
    and for the host (the DWARF offsets). The result is a field program: runs of (kind, count, N64 offset, host
    offset), repeated with strides for arrays.
-3. Storage. Each image's data and BSS is one zeroed arena laid out as on the N64, and a symbol with no
-   pointers whose two layouts agree is defined at its N64 offset there (an assembler .set), so code that
-   indexes from one symbol into the next keeps working. A symbol with pointers, or whose host layout differs,
-   gets its own storage; symbols inside its N64 extent are defined at the matching host offsets.
+3. Storage. Each image's data and BSS is an arena laid out as on the N64, at its N64 address in the RDRAM
+   window port/ultra maps at host 0x80000000, and a symbol with no pointers whose two layouts agree is an
+   absolute symbol at its N64 address there (an assembler .set), so code that indexes from one symbol into the
+   next keeps working and a 32-bit N64 address of it is a host address. A symbol with pointers, or whose host
+   layout differs, gets its own storage in the executable; symbols inside its N64 extent are defined at the
+   matching host offsets.
 4. Addresses: the referencing image's symbol table (asm/us/<image>/symbols.json, what the matching build links
    against), then symbol_addrs.us.txt and undefined_syms_auto.us.txt, then D_XXXXXXXX names. Functions known by
    address (layout/*.json, the symbol file) go in a table, through weak references, so the loader can turn N64
@@ -26,7 +28,8 @@ No ROM bytes are read here or written into the build.
    branch thunk.
 
 Outputs: data.c, data_layout.txt (what was decided, the conflicts, what is left), data_layout.json (for
---check, which verifies placements and sizes in the linked executable). Stdlib and binutils, Python 3.9+.
+--check, which verifies placements and sizes in the linked executable, and that nothing else is linked at a
+window address). Stdlib and binutils, Python 3.9+.
 """
 import argparse
 import bisect
@@ -57,6 +60,11 @@ N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short 
 
 # N64 pointers at or above this (outside the runtime images) point into the game heap and stay as they are.
 HEAP_LO = 0x8017A640
+# The RDRAM window (port/include/pc_port.h: PC_RDRAM_BASE, PC_RDRAM_SIZE). The arenas are at their N64 addresses in
+# it; the executable itself must link below it (port/ultra/memory.c's absolute-symbol fix-up relies on that).
+WINDOW_LO, WINDOW_HI = 0x80000000, 0x80800000
+for _img, _lo, _init, _hi in n64syms.ARENAS:   # boot and game below the heap; the runtime images' inside it
+    assert WINDOW_LO <= _lo <= _init <= _hi <= (WINDOW_HI if _img.startswith("ovl") else HEAP_LO), _img
 # What data.c itself defines for the game C.
 PC_EXPORTS = {"pc_data_init", "pc_data_overlay_load"}
 
@@ -897,7 +905,6 @@ def c_str(s):
 
 def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image):
     arenas = n64syms.ARENAS
-    arena_var = [f"pc_n64_{img}" for img, _, _, _ in arenas]
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
     cdefs = [s for s in ordered if s.cdef]
     own_var = {id(s): f"pc_own_{i}" for i, s in enumerate(own)}
@@ -907,21 +914,21 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          "#include <stddef.h>", "#include <stdint.h>", "#include \"pc_data.h\"", "",
          "#if defined(__APPLE__)", "#define N64_SYM(name) \"_\" name", "#else", "#define N64_SYM(name) name",
          "#endif",
-         "/* An alias takes its own size, not the arena's (the linker compares it with the game's common symbols). */",
+         "/* A symbol takes its own size (the linker compares it with the game's common symbols). */",
          "#if defined(__ELF__)", "#define PC_SIZE(name, n) \"\\n.size \" N64_SYM(name) \", \" #n", "#else",
          "#define PC_SIZE(name, n) \"\"", "#endif", "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", ""]
-    L.append("/* One arena per image's data and BSS, laid out as on the N64. */")
-    for (img, lo, init, hi), var in zip(arenas, arena_var):
-        L.append(f"__attribute__((aligned(16))) uint8_t {var}[0x{(lo & 15) + hi - lo:X}];   "
-                 f"/* N64 0x{lo:08X}-0x{hi:08X} from +0x{lo & 15:X}: host addresses keep the N64 alignment */")
+    L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 addresses in the RDRAM window")
+    L.append(" * port/ultra maps at host 0x80000000 (docs/port/ULTRA.md), so nothing here allocates them:")
+    for img, lo, init, hi in arenas:
+        L.append(f" *   {img}: 0x{lo:08X}-0x{hi:08X} (data to 0x{init:08X})")
+    L.append(" */")
     L += ["", "/* Own storage: host layout. */"]
     for s in own:
         L.append(f"__attribute__((aligned(16))) uint8_t {own_var[id(s)]}[{max(s.host_size, 1)}] "
                  f"__asm__(N64_SYM({c_str(sorted(s.names)[0])}));   /* N64 0x{s.addr:08X}, {s.n64_size} B: {s.disp} */")
-    sets = []
-    layout = {"arenas": {}, "sets": [], "own": []}
-    for i, (img, lo, init, hi) in enumerate(arenas):
-        layout["arenas"][arena_var[i]] = [lo, (lo & 15) + hi - lo]
+    sets = []   # (name, base symbol or None for an absolute address, offset or address, size)
+    layout = {"window": [WINDOW_LO, WINDOW_HI], "arenas": [[lo, hi] for _, lo, _, hi in arenas], "absolute": [],
+              "sets": [], "own": []}
     for s in ordered:
         if s.cdef:
             continue
@@ -933,22 +940,23 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
             names = sorted(s.names)[1:]
             layout["own"].append([base, max(s.host_size, 1)])
         else:
-            base, off = arena_var[s.arena], s.addr - (arenas[s.arena][1] & ~15)
+            base, off = None, s.addr
             names = sorted(s.names)
         for n in names:
             sets.append((n, base, off, s.host_size))
-            layout["sets"].append([n, base, off])
     for s in sorted(syms.values(), key=lambda x: x.addr):
         if s.end_marker:   # one past an overlay's BSS (the loaders pass it as bssEnd)
             for n in sorted(s.names):
-                sets.append((n, arena_var[s.arena], s.addr - (arenas[s.arena][1] & ~15), 0))
-                layout["sets"].append(list(sets[-1][:3]))
+                sets.append((n, None, s.addr, 0))
+    for n, base, off, _ in sets:
+        layout["absolute" if base is None else "sets"].append([n, off] if base is None else [n, base, off])
     if sets:
-        L += ["", "/* Symbols at their N64 offsets in the arenas, or at the matching offset in own storage. */",
+        L += ["", "/* Symbols at their N64 addresses (absolute), or at the matching offset in own storage. */",
               "__asm__("]
         for n, base, off, size in sets:
-            L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", \" N64_SYM(\"{base}\")"
-                     f" \" + 0x{off:X}\" PC_SIZE(\"{n}\", {size}) \"\\n\"")
+            value = f"0x{off:08X}" if base is None else f"\" N64_SYM(\"{base}\") \" + 0x{off:X}"
+            L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", {value}\""
+                     f" PC_SIZE(\"{n}\", {size}) \"\\n\"")
         L += [");", ""]
     if thunks:
         L += ["/* Labels the game calls for a function defined under another name (symbols.json). */",
@@ -1010,10 +1018,12 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         L.append(f"    {{{c_str(name)}, {'PC_IMG_RAW' if storage == 'raw' else 'PC_IMG_DEFLATE'}, 0x{rom_off:X}, "
                  f"{rom_len}, {size}, 0x{base:08X}}},")
     L += ["};", ""]
+    L.append("/* host: the arena's N64 address, in the RDRAM window. */")
     L.append("static const PcDataArena pc_arenas[] = {")
     for i, (img, lo, init, hi) in enumerate(arenas):
         f, n = arena_first[i]
-        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, {arena_var[i]} + {lo & 15}, {f}, {n}}},")
+        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, (uint8_t *)(uintptr_t)0x{lo:08X}u, "
+                 f"{f}, {n}}},")
     L += ["};", ""]
     L.append(f"static const PcDataFunc pc_funcs[{max(len(funcs), 1)}] = {{")
     for (addr, img), host in sorted(funcs.items()):
@@ -1046,20 +1056,18 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
 
 
 def check(exe, layout_path, nm):
-    """Verify the linked executable: every .set symbol at its base + offset, own storage at its host size."""
+    """Verify the linked executable: every arena symbol absolute at its N64 address, every symbol inside own
+    storage at its base + offset, own storage at its host size, and nothing else linked in the RDRAM window."""
     layout = json.loads(Path(layout_path).read_text())
     out = subprocess.run([nm, "-S", "--defined-only", str(exe)], capture_output=True, text=True, check=True).stdout
-    addr, size = {}, {}
+    addr, size, letter = {}, {}, {}
     for line in out.splitlines():
         p = line.split()
         if len(p) == 4:
-            addr[p[3]], size[p[3]] = int(p[0], 16), int(p[1], 16)
+            addr[p[3]], size[p[3]], letter[p[3]] = int(p[0], 16), int(p[1], 16), p[2]
         elif len(p) == 3:
-            addr[p[2]] = int(p[0], 16)
+            addr[p[2]], letter[p[2]] = int(p[0], 16), p[1]
     bad = []
-    for var, (lo, n) in layout["arenas"].items():
-        if size.get(var) != n:
-            bad.append(f"arena {var}: size {size.get(var)} != {n}")
     for name, n in layout["own"]:
         if size.get(name) != n:
             bad.append(f"own {name}: size {size.get(name)} != {n}")
@@ -1068,10 +1076,21 @@ def check(exe, layout_path, nm):
             bad.append(f"{name}: not in the executable")
         elif addr[name] - addr[base] != off:
             bad.append(f"{name}: at {base}+0x{addr[name] - addr[base]:X}, expected +0x{off:X}")
+    for name, want in layout["absolute"]:
+        if name not in addr:
+            bad.append(f"{name}: not in the executable")
+        elif letter[name] not in "Aa" or addr[name] != want:
+            bad.append(f"{name}: {letter[name]} 0x{addr[name]:X}, expected absolute 0x{want:08X}")
+    # The executable's own link-time addresses must stay below the window: port/ultra/memory.c tells the GOT
+    # slots of absolute symbols by an addend at 0x80000000 or above.
+    lo, hi = layout["window"]
+    high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and x >= lo)
+    bad += [f"{n}: linked at 0x{addr[n]:X}, at or above the RDRAM window" for n in high]
     for b in bad[:50]:
         print("gen_data check:", b)
-    print(f"gen_data check: {len(layout['sets'])} placements, {len(layout['own'])} own, "
-          f"{len(layout['arenas'])} arenas: {'OK' if not bad else f'{len(bad)} errors'}")
+    print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "
+          f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own, "
+          f"nothing else in the window: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
 
 

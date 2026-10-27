@@ -49,7 +49,9 @@ typedef struct {
 } PcDataImage;
 
 /* One image's data and BSS in N64 layout: [n64_lo, n64_init) is initialized from the image, [n64_init,
- * n64_hi) is zeroed. The runs byte-swap the known elements in place. */
+ * n64_hi) is zeroed. The runs byte-swap the known elements in place. The game's arenas are at their N64
+ * addresses (host == n64_lo, in the RDRAM window); a runtime image's arena there is cleared again after the first
+ * load, since it is game-heap memory until the game loads the image. */
 typedef struct {
     uint8_t image;
     uint32_t n64_lo, n64_init, n64_hi;
@@ -113,15 +115,18 @@ typedef struct {
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM
- * address (a ROM offset, a segment address), kept. unresolved: below the heap and in no symbol, kept. */
+ * address (a ROM offset, a segment address), kept. unresolved: below the heap and in no symbol, kept. arena: an
+ * arena's host address, which is the value itself for an arena at its N64 address. */
 typedef struct {
     uint32_t null, own, cdef, arena, func, rdram, raw, unresolved, no_code, inexact, ambiguous;
     uint32_t addr_words;        /* non-pointer words that look like N64 addresses */
+    uint32_t addr_words_host;   /* ... of host storage, a function or code, which the word can't reach */
 } PcDataStats;
 
 /* The loader (pc_data.c). load_all: inflate every image from the ROM and fill all of them, then write the
- * report (env PC_DATA_REPORT, else the build's data_report.txt; "" for none). 0 on success. load_image:
- * fill one image again (an overlay load). report_path NULL means the default. */
+ * report (env PC_DATA_REPORT, else the build's data_report.txt; "" for none). 0 on success; -1 at once if an
+ * arena at its N64 address is not mapped. load_image: fill one image again (an overlay load). report_path NULL
+ * means the default. */
 int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path);
 int pc_data_load_image(const PcDataTables *t, int image);
 const PcDataStats *pc_data_stats(void);
