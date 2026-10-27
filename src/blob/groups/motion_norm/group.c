@@ -7,6 +7,9 @@ typedef short s16;typedef signed char s8;typedef unsigned char u8;typedef int s3
 #define M2C_FIELD(p,t,o) (*(t)((u8*)(p)+(o)))
 extern f32 D_801244D4;extern f32 D_8012E638[][3];extern s8 D_8012E670[];extern f32 D_80152720[];
 extern f32 func_8008B3C8(f32 *);extern void func_800E8D50(void*,void*,intptr_t,f32*);
+#ifndef TARGET_PC
+#define CAR_OFS(n) n
+#endif
 void func_800E9C70(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
     f32 vector[3];
     f32 temp_f0;
@@ -14,7 +17,7 @@ void func_800E9C70(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
     s8 temp_v1;
     f32 *temp_v0;
 
-    temp_v1 = M2C_FIELD(arg1, s8 *, 0x35C);
+    temp_v1 = M2C_FIELD(arg1, s8 *, CAR_OFS(0x35C));
     if (arg0 == 0) {
         D_8012E670[temp_v1] = 0;
         temp_v0 = D_8012E638[temp_v1];

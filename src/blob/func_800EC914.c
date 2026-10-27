@@ -45,9 +45,17 @@ typedef struct {
 typedef struct {
     /* 0x000 */ u8 pad0[0xEE];
     /* 0x0EE */ u8 unkEE;
+#ifdef TARGET_PC
+    /* 0x0EF */ u8 padEF[0x110 - 0xEF]; struct pc_visual visuals[21]; u8 padEF_308[0x35B - 0x308];
+#else
     /* 0x0EF */ u8 padEF[0x26C];
+#endif
     /* 0x35B */ s8 place;
+#ifdef TARGET_PC
+    /* 0x35C */ u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
+#else
     /* 0x35C */ u8 pad35C[0x5C];
+#endif
 } CAR_DATA; /* 0x3B8 */
 
 typedef struct {

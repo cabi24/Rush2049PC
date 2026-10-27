@@ -28,7 +28,12 @@ typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];intptr_t state;} Node;
+#else
 typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];s32 state;} Node;
+#endif
 typedef union Id {s32 handle;struct {s16 high,index;} part;} Id;
 typedef struct Vec3 {f32 x,y,z;} Vec3;
 typedef struct Effect {
@@ -39,7 +44,11 @@ typedef struct Effect {
     f32 delay;
 } Effect;
 typedef struct Car {u8 opaque0[1600];s8 enabled;u8 opaque1601[455];} Car;
+#ifdef TARGET_PC
+typedef struct Player {u8 opaque0[8];Vec3 position;u8 opaque20[0x110 - 0x14]; struct pc_visual visuals[21]; u8 opaque20_308[0x380 - 0x308]; void *input; u8 opaque20_384[0x3B8 - 0x384];} Player;
+#else
 typedef struct Player {u8 opaque0[8];Vec3 position;u8 opaque20[932];} Player;
+#endif
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 opaque64[4]; } Resource;

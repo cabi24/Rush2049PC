@@ -22,13 +22,25 @@ typedef struct {
     /* 0x06 */ s16 pad06;
     /* 0x08 */ s32 pad08[2];
     /* 0x10 */ void (*func)();
+#ifdef TARGET_PC
+    /* 0x14 */ void *pad14;          /* the next visual's next pointer */
+#else
     /* 0x14 */ s32 pad14;
+#endif
 } CarSlot;
 
 typedef struct {
+#ifdef TARGET_PC
+    char pad0[0x110 - 0x0]; struct pc_visual visuals[1]; void *pad0_128;
+#else
     char pad0[0x12C];
+#endif
     CarSlot slot[5];
+#ifdef TARGET_PC
+    char pad1[0x1B4 - 0x1A4]; void *pad1_1B4; struct pc_visual pad1_1B8[14]; char pad1_308[0x380 - 0x308]; void *input; char pad1_384[0x3B8 - 0x384];
+#else
     char pad1[0x3B8 - 0x12C - 5 * 0x18];
+#endif
 } Car;
 
 typedef struct {

@@ -32,10 +32,18 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct Player {
     u8 unknown000[8]; f32 position[3];
+#ifdef TARGET_PC
+    u8 unknown014[0x110 - 0x14]; struct pc_visual visuals[21]; s8 active;
+#else
     u8 unknown014[756]; s8 active;
+#endif
     u8 unknown309[80]; s8 blocked;
     u8 unknown35A; s8 index;
+#ifdef TARGET_PC
+    u8 unknown35C[0x380 - 0x35C]; void *input; s8 kind;
+#else
     u8 unknown35C[40]; s8 kind;
+#endif
     u8 unknown385[51];
 } Player;
 typedef struct Vehicle { u8 unknown000[1600]; s8 disabled; u8 unknown641[455]; } Vehicle;

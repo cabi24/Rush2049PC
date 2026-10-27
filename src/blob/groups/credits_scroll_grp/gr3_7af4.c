@@ -32,7 +32,11 @@ typedef struct {
     u8 pad000[238];
     s8 place;        /* 238 */
     s8 finished;     /* 239 */
+#ifdef TARGET_PC
+    u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x380 - 0x308]; void *input; u8 pad0F0_384[0x3B8 - 0x384];
+#else
     u8 pad0F0[952 - 240];
+#endif
 } Player952;
 extern OSMesgQueue D_801461D0;
 extern s32 state_word_a;

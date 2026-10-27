@@ -541,11 +541,20 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
+#ifdef TARGET_PC
+  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
   u8 pad0EC[0x35B - 0xEC];
+#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+  void *unk380;
+  u8 pad384[0x3A3 - 0x384];
+#else
   u8 unk380;
   u8 pad381[0x3A3 - 0x381];
+#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3792,6 +3801,13 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
+#define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
+#else
+#define PAD0EC(a, x) a[x]
+#define CAR_OFS(n) n
+#endif
 void func_800CFCA8(void)
 {
   GameCar *temp_a0;
@@ -3807,16 +3823,16 @@ void func_800CFCA8(void)
       temp_a0 = &player_array[var_v0];
       if (((s8) temp_a0->pad0EC[0]) != 0)
       {
-        if (((s8) temp_a0->pad0EC[0x21D]) == 0)
+        if (((s8) PAD0EC(temp_a0->pad0EC, 0x21D)) == 0)
         {
-          temp_a0->pad0EC[0x224] = ((s8) temp_a0->pad0EC[0x224]) - 1;
-          new_var = (*((f32 *) (((s8 *) temp_v1) + 0x714))) - (*((f32 *) (((s8 *) temp_a0) + 0x30C)));
-          if (((s8) temp_a0->pad0EC[0x224]) < 0)
+          PAD0EC(temp_a0->pad0EC, 0x224) = ((s8) PAD0EC(temp_a0->pad0EC, 0x224)) - 1;
+          new_var = (*((f32 *) (((s8 *) temp_v1) + 0x714))) - (*((f32 *) (((s8 *) temp_a0) + CAR_OFS(0x30C))));
+          if (((s8) PAD0EC(temp_a0->pad0EC, 0x224)) < 0)
           {
-            temp_a0->pad0EC[0x225] = ((s8) temp_a0->pad0EC[0x225]) + 1;
-            if (((s8) temp_a0->pad0EC[0x225]) & 1)
+            PAD0EC(temp_a0->pad0EC, 0x225) = ((s8) PAD0EC(temp_a0->pad0EC, 0x225)) + 1;
+            if (((s8) PAD0EC(temp_a0->pad0EC, 0x225)) & 1)
             {
-              temp_a0->pad0EC[0x224] = 0;
+              PAD0EC(temp_a0->pad0EC, 0x224) = 0;
               *((s32 *) (((s8 *) temp_v1) + 0x7D4)) = (s32) ((*((s32 *) (((s8 *) temp_v1) + 0x7D4))) & (~8));
             }
             else
@@ -3825,24 +3841,24 @@ void func_800CFCA8(void)
               switch (temp_f8)
               {
                 default:
-                  temp_a0->pad0EC[0x224] = 0;
+                  PAD0EC(temp_a0->pad0EC, 0x224) = 0;
                   break;
 
                 case 0:
 
                 case 1:
-                  temp_a0->pad0EC[0x224] = 2;
+                  PAD0EC(temp_a0->pad0EC, 0x224) = 2;
                   break;
 
                 case 2:
 
                 case 3:
-                  temp_a0->pad0EC[0x224] = 1;
+                  PAD0EC(temp_a0->pad0EC, 0x224) = 1;
                   break;
 
               }
 
-              if (((s8) temp_a0->pad0EC[0x26D]) <= 0)
+              if (((s8) PAD0EC(temp_a0->pad0EC, 0x26D)) <= 0)
               {
                 *((s32 *) (((s8 *) temp_v1) + 0x7D4)) = (s32) ((*((s32 *) (((s8 *) temp_v1) + 0x7D4))) | 8);
               }

@@ -32,6 +32,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef f32 F32;
 
@@ -48,6 +52,37 @@ typedef struct {
     F32 fpuvs[3][3];
 } UVECT;
 
+#ifdef TARGET_PC
+enum n64p_CARTYPE { n64p_CARTYPE_ };
+#endif
+#ifdef TARGET_PC
+typedef struct MODELDAT {
+    enum n64p_CARTYPE car;           /* 0x000 */
+    char pad4[0x24];
+    F32 A[3];               /* 0x028 */
+    char pad34[0xC];
+    F32 V[3];               /* 0x040 */
+    F32 W[3];               /* 0x04C */
+    char pad58[0x9C];
+    F32 BODYR[4][3];        /* 0x0F4 */
+    char pad124[0xF0];
+    F32 RWA[3];             /* 0x214 */
+    F32 RWV[3];             /* 0x220 */
+    F32 RWR[3];             /* 0x22C */
+    F32 lastRWR[3];         /* 0x238 */
+    F32 TIRERWR[4][3];      /* 0x244 */
+    F32 BODYRWR[4][3];      /* 0x274 */
+    char pad2A4[0x3C];
+    F32 angle[3];           /* 0x2E0 */
+    UVECT UV;               /* 0x2EC */
+    char pad310[0x2CC];
+    F32 tpcomp[4];          /* 0x5DC */
+    char pad5EC[0x48];
+    F32 dt;                 /* 0x634 */
+    char pad638[0xD8];
+    s32 frame;              /* 0x710 */
+} MODELDAT;
+#else
 typedef struct MODELDAT {
     CARTYPE *car;           /* 0x000 */
     char pad4[0x24];
@@ -74,6 +109,15 @@ typedef struct MODELDAT {
     char pad638[0xD8];
     s32 frame;              /* 0x710 */
 } MODELDAT;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_CARTYPE: (CARTYPE *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 
 extern s32 D_8014A110;
 extern s8 D_801427A1;
@@ -156,7 +200,7 @@ void func_800D0424(MODELDAT *m) {
 
     for (i = 0; i < 4; i++) {
         rwp = m->TIRERWR[i];
-        bp = m->car->TIRER[i];
+        bp = N64P(m->car)->TIRER[i];
         temp[0] = bp[0];
         temp[1] = bp[1] + m->tpcomp[i];
         temp[2] = bp[2];

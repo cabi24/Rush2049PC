@@ -28,7 +28,11 @@ typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
 typedef unsigned long long u64;
 typedef struct Visual { struct Visual *next; s32 index; s32 objnum; u32 slot; u32 data; void (*func)(struct Visual *v, s16 op); } Visual;
+#ifdef TARGET_PC
+typedef struct Car { u8 pad0[232]; u32 appearance; u8 pad236[36]; Visual visuals[21]; u8 pad776[0x380 - 0x308]; void *input; u8 pad776_384[0x3B8 - 0x384]; } Car;
+#else
 typedef struct Car { u8 pad0[232]; u32 appearance; u8 pad236[36]; Visual visuals[21]; u8 pad776[176]; } Car;
+#endif
 typedef struct Model { u8 pad0[1564]; u16 sviscode[4]; u8 pad1572[484]; } Model;
 extern Car D_80152818[];
 extern Model D_8014A250[];

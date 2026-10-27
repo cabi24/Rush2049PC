@@ -66,7 +66,11 @@ typedef struct tBlitInstance {       /* anon_palette_texture_20, N64 form */
     u8 pad16[10];
 } tBlitInstance;
 typedef struct tCarData {
+#ifdef TARGET_PC
+    u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x386 - 0x384];
+#else
     u8 unknown000[0x386];
+#endif
     s16 health;                      /* battle.health */
     u8 unknown388[0x30];
 } tCarData;

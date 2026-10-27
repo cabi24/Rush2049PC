@@ -42,12 +42,20 @@ typedef struct {
     Mat3 uvs;           /* 80 */
     u8 other116[128];
     s32 node;           /* 244 */
+#ifdef TARGET_PC
+    u8 other248[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 other248_308[0x35B - 0x308];
+#else
     u8 other248[611];
+#endif
     s8 car;             /* 859 */
     s8 slot;            /* 860 */
     s8 view;            /* 861 */
     s8 view2;           /* 862 */
+#ifdef TARGET_PC
+    u8 other863[0x380 - 0x35F]; void *input; u8 other863_384[0x3B8 - 0x384];
+#else
     u8 other863[89];
+#endif
 } Object;               /* 952 */
 typedef struct {
     u8 other0[1484];

@@ -541,11 +541,20 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
+#ifdef TARGET_PC
+  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
   u8 pad0EC[0x35B - 0xEC];
+#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+  void *unk380;
+  u8 pad384[0x3A3 - 0x384];
+#else
   u8 unk380;
   u8 pad381[0x3A3 - 0x381];
+#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3792,15 +3801,22 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
+#define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
+#else
+#define PAD0EC(a, x) a[x]
+#define CAR_OFS(n) n
+#endif
 void car_select_handler(s16 arg0)
 {
   GameCar *temp_v0;
   s32 *temp_a1;
   temp_v0 = &player_array[arg0];
-  switch ((s8) temp_v0->pad0EC[0x26C])
+  switch ((s8) PAD0EC(temp_v0->pad0EC, 0x26C))
   {
     case 0:
-      if (((s8) temp_v0->pad0EC[0x26D]) <= 0)
+      if (((s8) PAD0EC(temp_v0->pad0EC, 0x26D)) <= 0)
     {
 
       temp_a1 = (D_8014A250_Record *) ((arg0 * 0x808) + ((u8 *) (&D_8014A250)));
@@ -3808,7 +3824,7 @@ void car_select_handler(s16 arg0)
       {
         ((s8 *) temp_v0->pad0EC)[1] = -1;
         func_800C4F68(2, temp_a1, 0);
-        temp_v0->pad0EC[0x26C] = 1;
+        PAD0EC(temp_v0->pad0EC, 0x26C) = 1;
         *((f32 *) (((s8 *) temp_v0) + 0x10C)) = (f32) (*((f32 *) (((s8 *) temp_a1) + 0x714)));
       }
     }
@@ -3824,14 +3840,14 @@ void car_select_handler(s16 arg0)
     {
       if (((*((f32 *) (((u8 *) (&D_8014A964)) + (arg0 * 0x808)))) - (*((f32 *) (((s8 *) temp_v0) + 0x10C)))) > 2.25f)
       {
-        temp_v0->pad0EC[0x26C] = 2;
+        PAD0EC(temp_v0->pad0EC, 0x26C) = 2;
         return;
       }
     }
     else
       if (((*((f32 *) (((u8 *) (&D_8014A964)) + (arg0 * 0x808)))) - (*((f32 *) (((s8 *) temp_v0) + 0x10C)))) > 3.5f)
     {
-      temp_v0->pad0EC[0x26C] = 2;
+      PAD0EC(temp_v0->pad0EC, 0x26C) = 2;
     }
       break;
 

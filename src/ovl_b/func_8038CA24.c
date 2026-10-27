@@ -16,7 +16,11 @@ typedef signed int s32;
 typedef float f32;
 
 typedef struct PlayerHudState {
+#ifdef TARGET_PC
+    unsigned char unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; unsigned char unknown000_308[0x380 - 0x308]; void *input;
+#else
     unsigned char unknown000[0x384];
+#endif
     s8 mode;
     s8 selection;
     unsigned char unknown386[6];

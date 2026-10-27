@@ -449,11 +449,20 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
+#ifdef TARGET_PC
+    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
     u8 pad0EC[0x35B - 0xEC];
+#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+    void *unk380;
+    u8 pad384[0x3A3 - 0x384];
+#else
     u8 unk380;
     u8 pad381[0x3A3 - 0x381];
+#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -790,6 +799,9 @@ void stat_lap_split();
 void func_8010DF90(void *arg0);
 
 
+#ifndef TARGET_PC
+#define CAR_OFS(n) n
+#endif
 void func_8010DF90(void *arg0) {
     s8 temp_a2;
     void *temp_s1;
@@ -797,11 +809,11 @@ void func_8010DF90(void *arg0) {
     temp_a2 = M2C_FIELD(arg0, s8 *, 0x5C);
     M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFFB);
     temp_s1 = M2C_FIELD(arg0, void **, 0x6C);
-    if ((*((s8 *) &D_80152B74 + (temp_a2 * 0x3B8)) >= 0) && (func_800F7A98(temp_a2, M2C_FIELD(temp_s1, u16 *, 0x4A)) == 0)) {
+    if ((*((s8 *) &D_80152B74 + (temp_a2 * CAR_OFS(0x3B8))) >= 0) && (func_800F7A98(temp_a2, M2C_FIELD(temp_s1, u16 *, 0x4A)) == 0)) {
         linear_interp(M2C_FIELD(arg0, s8 *, 0x5C), M2C_FIELD(temp_s1, u16 *, 0x4A));
-        model_data_load(M2C_FIELD(arg0, s32 *, 0xC), 1, 1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * 0x3B8)));
-        model_data_load(M2C_FIELD(temp_s1, s32 *, 0), 1, 1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * 0x3B8)));
-        if ((M2C_FIELD(temp_s1, u16 *, 0x48) &= ~(1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * 0x3B8)))) == 0) {
+        model_data_load(M2C_FIELD(arg0, s32 *, 0xC), 1, 1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))));
+        model_data_load(M2C_FIELD(temp_s1, s32 *, 0), 1, 1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))));
+        if ((M2C_FIELD(temp_s1, u16 *, 0x48) &= ~(1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))))) == 0) {
             M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) | 0x80);
         }
         stat_lap_split(*(s32*)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * 0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);

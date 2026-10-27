@@ -24,7 +24,11 @@ typedef float f32;
 typedef struct Player {        /* 952 B player/car record */
     u8 pad000[8];
     f32 position[3];           /* 0x08 */
+#ifdef TARGET_PC
+    u8 pad014[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad014_308[0x380 - 0x308]; void *input; u8 pad014_384[0x3B8 - 0x384];
+#else
     u8 pad014[932];
+#endif
 } Player;
 
 extern s8 D_801613C0[4][4];    /* visibility matrix */

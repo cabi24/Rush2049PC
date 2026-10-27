@@ -37,7 +37,19 @@ typedef struct Target {
  f32 mat[4][3],position[3];s16 kind;u8 pad82[10];s8 car;u8 pad93[3];
  s32 sound;s8 sound_state,owner;u8 pad102[2];f32 age;MineData *data;
 } Target;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];u32 data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
+#else
 typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];Target *data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
+#endif
+#ifdef TARGET_PC
+#define N64P(x) ((Target *)(uintptr_t)(x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). The colour is a member of its own:
  * a union of the eight pointer slots and the colour would be padded to 72 bytes. */
@@ -108,7 +120,7 @@ void func_8010C974(Visual *v, s16 op)
         return;
     }
     if (D_801170FC != 0) return;
-    t = v->data;
+    t = N64P(v->data);
     m = t->data;
     if (!(t->flags & 1)) {
         if (D_80151528[t->owner].count == 3) {

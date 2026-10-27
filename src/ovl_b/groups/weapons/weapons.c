@@ -34,12 +34,20 @@ typedef struct Battle {
 } Battle;
 
 typedef struct Car {
+#ifdef TARGET_PC
+    u8 pad00[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad00_308[0x34C - 0x308];
+#else
     u8 pad00[0x34c];
+#endif
     RGBA IRclr;           /* 0x34c */
     u8 pad350[0x35c - 0x350];
     s8 camera;            /* 0x35c */
     s8 view;              /* 0x35d */
+#ifdef TARGET_PC
+    u8 pad35e[0x380 - 0x35E]; void *input;
+#else
     u8 pad35e[0x384 - 0x35e];
+#endif
     Battle battle;        /* 0x384 */
 } Car;
 

@@ -35,7 +35,11 @@ typedef struct {
     s8 place;
     s8 finished;
     f32 time;
+#ifdef TARGET_PC
+    char padF4[0x110 - 0xF4]; struct pc_visual visuals[21]; char padF4_308[0x380 - 0x308]; void *input; char padF4_384[0x3B8 - 0x384];
+#else
     char padF4[0x3B8 - 0xF4];
+#endif
 } Car;
 
 typedef struct {

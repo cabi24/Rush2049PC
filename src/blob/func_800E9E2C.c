@@ -17,7 +17,11 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 typedef f32 Mat3[3][3];
+#ifdef TARGET_PC
+typedef struct { u8 other[0x110 - 0x0]; struct pc_visual visuals[21]; u8 other_308[0x35B - 0x308]; s8 car,slot; } Object;
+#else
 typedef struct { u8 other[859]; s8 car,slot; } Object;
+#endif
 extern f32 D_80152720[];
 extern f32 D_801543CC;
 extern s8 D_80110680[];

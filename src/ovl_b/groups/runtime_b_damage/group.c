@@ -18,7 +18,11 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifdef TARGET_PC
+typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x35B - 0x308]; s8 index; u8 unknown35c[0x380 - 0x35C]; void *input; u8 unknown35c_384[0x386 - 0x384]; s16 health; s16 damage; u8 unknown38a[2]; u32 flags; u8 unknown390[0x28]; } Player;
+#else
 typedef struct Player { u8 unknown000[0x35b]; s8 index; u8 unknown35c[0x2a]; s16 health; s16 damage; u8 unknown38a[2]; u32 flags; u8 unknown390[0x28]; } Player;
+#endif
 typedef struct Vehicle { u8 unknown000[0x640]; s8 disabled; u8 unknown641[0x1c7]; } Vehicle;
 extern Vehicle D_8014A250[];
 extern s8 D_8012E67C[];

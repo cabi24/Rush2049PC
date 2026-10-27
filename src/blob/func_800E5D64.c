@@ -30,7 +30,11 @@ typedef struct Model {
     s8 flagA;
     u8 pad733[0x808 - 0x733];
 } Model;
+#ifdef TARGET_PC
+typedef struct Car { u8 pad0[239]; s8 locked; u8 pad1[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad1_308[0x380 - 0x308]; void *input; u8 pad1_384[0x3B8 - 0x384]; } Car;
+#else
 typedef struct Car { u8 pad0[239]; s8 locked; u8 pad1[952 - 240]; } Car;
+#endif
 
 extern f32 D_8002AFB8;
 extern volatile s8 D_80114738;

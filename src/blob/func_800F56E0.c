@@ -58,7 +58,11 @@ typedef struct CarRecord {
     s8 finished;
     u8 unknown240[24];
     float distance;
+#ifdef TARGET_PC
+    u8 unknown268[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 unknown268_308[0x380 - 0x308]; void *input; u8 unknown268_384[0x3B8 - 0x384];
+#else
     u8 unknown268[684];
+#endif
 } CarRecord;
 
 extern s8 D_8014978C;

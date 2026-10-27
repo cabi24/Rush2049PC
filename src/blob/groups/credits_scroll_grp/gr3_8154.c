@@ -57,7 +57,11 @@ typedef struct Blit {
 typedef struct Car {
     u8 pad0[239];
     s8 f239;
+#ifdef TARGET_PC
+    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
+#else
     u8 padF0[952 - 240];
+#endif
 } Car;
 
 typedef struct Pos {

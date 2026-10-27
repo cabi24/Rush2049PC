@@ -14,7 +14,11 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct Tgt { u8 pad[0x2C]; u8 **blk; } Tgt;
 typedef struct Rec { u8 b0; u8 idx; u8 pad2[0x46]; Tgt **tgt; } Rec;
+#ifdef TARGET_PC
+typedef struct Car { u8 pad[264]; f32 dist; u8 pad2[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad2_308[0x380 - 0x308]; void *input; u8 pad2_384[0x3B8 - 0x384]; } Car;
+#else
 typedef struct Car { u8 pad[264]; f32 dist; u8 pad2[952 - 268]; } Car;
+#endif
 extern s16 active_player_count;
 extern s8 D_8014978C;
 extern s8 D_80152570;

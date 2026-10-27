@@ -32,8 +32,15 @@ extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
 typedef struct Visual {
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+    /* 0x00 */ void *pad0;
+    /* 0x04 */ u8 pad4[2];
+    /* 0x06 */ s16 objnum;
+#else
     /* 0x00 */ u8 pad0[6];
     /* 0x06 */ s16 objnum;
+#endif
     /* 0x08 */ s16 slot;
     /* 0x0A */ u8 padA[0x14 - 0x0A];
     /* 0x14 */ void (*func)(struct Visual *v, s16 op);
@@ -50,12 +57,20 @@ typedef struct {
     /* 0x074 */ f32 dr_tirepos[4][3];
     /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
     /* 0x0E8 */ u32 flags;
+#ifdef TARGET_PC
+    /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x35C - 0x308];
+#else
     /* 0x0EC */ u8 padEC[0x35C - 0xEC];
+#endif
     /* 0x35C */ s8 unk35C;
     /* 0x35D */ s8 unk35D;
     /* 0x35E */ s8 unk35E;
     /* 0x35F */ s8 unk35F;
+#ifdef TARGET_PC
+    /* 0x360 */ u8 pad360[0x380 - 0x360]; void *input; u8 pad360_384[0x3B8 - 0x384];
+#else
     /* 0x360 */ u8 pad360[0x3B8 - 0x360];
+#endif
 } CarData;
 
 typedef struct {

@@ -61,9 +61,17 @@ typedef struct {
 typedef struct {
     /* 0x000 */ u8 pad0[0xF8];
     /* 0x0F8 */ s16 speed;
+#ifdef TARGET_PC
+    /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 padFA_308[0x359 - 0x308];
+#else
     /* 0x0FA */ u8 padFA[0x359 - 0xFA];
+#endif
     /* 0x359 */ s8 f359;
+#ifdef TARGET_PC
+    /* 0x35A */ u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
+#else
     /* 0x35A */ u8 pad35A[0x3B8 - 0x35A];
+#endif
 } Car;                                  /* 0x3B8 */
 
 typedef struct {

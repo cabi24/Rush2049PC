@@ -64,7 +64,11 @@ typedef struct CAR_DATA {
     f32 dr_uvs[3][3];       /* 44 */
     u8 pad50[0xEF - 80];
     s8 state;
+#ifdef TARGET_PC
+    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
+#else
     u8 padF0[952 - 0xF0];
+#endif
 } CAR_DATA;
 typedef struct { s32 x, y; } Pos;
 

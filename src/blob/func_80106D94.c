@@ -86,7 +86,11 @@ typedef struct {
     /* 0x0EF */ s8 unkEF;
     /* 0x0F0 */ char padF0[0x18];
     /* 0x108 */ f32 distance;
+#ifdef TARGET_PC
+    /* 0x10C */ char pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; char pad10C_308[0x380 - 0x308]; void *input; char pad10C_384[0x3B8 - 0x384];
+#else
     /* 0x10C */ char pad10C[0x2AC];
+#endif
 } Car; /* 0x3B8 */
 
 typedef struct {

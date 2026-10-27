@@ -47,8 +47,17 @@ typedef struct tBlastStruct {
     float lifeTime;             /* 0x188 */
     float incTime;              /* 0x18C */
 } tBlastStruct;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct tVisual { void *next; u8 pad4[2]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
+#else
 typedef struct tVisual { u8 pad0[6]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
+#endif
+#ifdef TARGET_PC
+typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384]; } tCarData;
+#else
 typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[952 - 0x14]; } tCarData;
+#endif
 typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x6C4 - 0x641]; s16 moving_state; u8 pad6C6[0x808 - 0x6C6]; } tModelData;
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */

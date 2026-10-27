@@ -18,8 +18,16 @@ typedef struct Car {
     u8 opaque1630[360]; s16 index1990;
 } Car;
 typedef struct Player952 {
+#ifdef TARGET_PC
+    u8 opaque0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 opaque0_308[0x358 - 0x308]; u8 x856;
+#else
     u8 opaque0[856]; u8 x856;
+#endif
+#ifdef TARGET_PC
+    u8 opaque857[0x380 - 0x359]; void *input; u8 opaque857_384[0x386 - 0x384]; s16 x902;
+#else
     u8 opaque857[45]; s16 x902;
+#endif
     u8 opaque904[4]; u32 x908;
     u8 opaque912[16]; u8 x928, x929, x930;
     u8 opaque931[13]; f32 x944, x948;

@@ -19,7 +19,11 @@ typedef signed short s16;
 typedef signed int s32;
 typedef float f32;
 typedef f32 Mat3[3][3];
+#ifdef TARGET_PC
+typedef struct { u8 other[0x110 - 0x0]; struct pc_visual visuals[21]; u8 other_308[0x35B - 0x308]; s8 car,slot; } Object;
+#else
 typedef struct { u8 other[859]; s8 car,slot; } Object;
+#endif
 typedef struct { s16 status;u8 other[2054]; } CarField2056;
 typedef struct { u8 other[96];Mat3 matrix;f32 position[3];u8 tail[8]; } Slot152;
 extern CarField2056 D_8014A914[];

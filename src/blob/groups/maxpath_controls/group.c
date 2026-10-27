@@ -139,9 +139,17 @@ typedef struct { /* 0x0 */ s16 x, y, z; /* 0x6 */ u8 flag; /* 0x7 */ u8 pad7; } 
 typedef struct { /* 0x0 */ u16 numPoints; /* 0x2 */ u16 pad2; /* 0x4 */ TrackPt *points; } Track;
 
 typedef struct GameCar {
+#ifdef TARGET_PC
+    u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x314 - 0x308];
+#else
     u8 prefix[0x314];
+#endif
     Nav nav;
+#ifdef TARGET_PC
+    u8 suffix[0x380 - 0x340]; void *input; u8 suffix_384[0x3B8 - 0x384];
+#else
     u8 suffix[0x3B8 - 0x340];
+#endif
 } GameCar;
 extern GameCar player_array[];
 extern D_8014A250_Record D_8014A250[];

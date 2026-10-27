@@ -296,10 +296,11 @@ file(GLOB PC_ASSETS_TESTS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/test
 foreach(t ${PC_ASSETS_TESTS})
     get_filename_component(n ${t} NAME_WE)
     string(REGEX REPLACE "^test_" "" n ${n})
-    add_executable(test_assets_${n} ${t} port/assets/tests/support.c port/ultra/n64mem.c
+    add_executable(test_assets_${n} ${t} port/assets/tests/support.c port/ultra/n64mem.c port/ultra/absfix.c
         $<TARGET_OBJECTS:pcassets>)
     target_include_directories(test_assets_${n} PRIVATE port/include port/assets port/assets/tests)
     target_compile_options(test_assets_${n} PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+    target_link_libraries(test_assets_${n} PRIVATE m)
     set_target_properties(test_assets_${n} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
     add_test(NAME assets_${n} COMMAND test_assets_${n})
     # A test that runs the game's own readers on its converted files names their sources on ` * game: ...` lines

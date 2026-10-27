@@ -41,7 +41,13 @@ struct tVisual {
 typedef struct tCarData {
     u8 unknown000[0x110];
     tVisual visuals[21];            /* 0x110; weapon = visuals[20] at 0x2F0 */
+#ifdef TARGET_PC
+    u8 unknown308[0x380 - 0x308];
+    void *input;                    /* 0x380: the car's input record (D_8014A118[]), a host pointer */
+    u8 unknown384[0x3b8 - 0x384];
+#else
     u8 unknown308[0x3b8 - 0x110 - 21 * 0x18];
+#endif
 } tCarData;                         /* 0x3B8 */
 
 typedef struct tCarParts {

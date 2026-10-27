@@ -70,7 +70,11 @@ typedef struct CarData {       /* 0x3B8 */
     f32 time;                  /* 0xF0 */
     u8 padF4[0x108 - 0xF4];
     f32 dist;                  /* 0x108 */
+#ifdef TARGET_PC
+    u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x380 - 0x308]; void *input; u8 pad10C_384[0x3B8 - 0x384];
+#else
     u8 pad10C[0x3B8 - 0x10C];
+#endif
 } CarData;
 
 extern s8 D_8014978C;          /* track */

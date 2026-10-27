@@ -4,7 +4,11 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef struct { u8 p0[148]; u8 idx; u8 p1[3]; } A152;
+#ifdef TARGET_PC
+typedef struct { u8 p[0x110 - 0x0]; struct pc_visual visuals[21]; u8 p_308[0x35C - 0x308]; u8 f860; u8 f861; u8 q[0x380 - 0x35E]; void *input; u8 q_384[0x3B8 - 0x384]; } B952;
+#else
 typedef struct { u8 p[860]; u8 f860; u8 f861; u8 q[90]; } B952;
+#endif
 extern s16 gNumWindows;
 extern A152 gCamera[];
 extern float D_801106B4[];

@@ -9,15 +9,29 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef f32 Vec3[3];
 typedef f32 Matrix3[3][3];
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual {
+    void *prefix;
+    s16 tire,object,slot,reserved;
+    f32 angle,time;
+    void (*callback)(void);
+} Visual;
+#else
 typedef struct Visual {
     u8 prefix[4];
     s16 tire,object,slot,reserved;
     f32 angle,time;
     void (*callback)(void);
 } Visual;
+#endif
 typedef struct Tire92 {
     u8 prefix[64];
     f32 angular_velocity;
@@ -51,11 +65,30 @@ typedef struct Car952 {
     s8 controller,render_state,reserved,hidden;
     u8 tail[88];
 } Car952;
+#ifdef TARGET_PC
+enum n64p_f32 { n64p_f32_ };
+#endif
+#ifdef TARGET_PC
+typedef struct CarConfig {
+    u8 prefix[96];
+    enum n64p_f32 radius[4];
+    Vec3 tire_position[4];
+} CarConfig;
+#else
 typedef struct CarConfig {
     u8 prefix[96];
     f32 *radius[4];
     Vec3 tire_position[4];
 } CarConfig;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_f32: (f32 *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 typedef struct Control152 {
     u8 prefix[144];
     f32 spring_save;

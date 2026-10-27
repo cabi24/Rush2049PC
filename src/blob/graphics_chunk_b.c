@@ -4,7 +4,11 @@ typedef struct Resource {u8 *data;} Resource;
 typedef struct Object {u8 opaque[44];Resource *resource;} Object;
 typedef struct Handle {Object *object;} Handle;
 typedef struct Player {u8 index,selector;u8 opaque[62];u16 count;u8 rest[6];Handle *handle;} Player;
+#ifdef TARGET_PC
+typedef struct Model952 {u8 opaque[240];f32 time;u8 rest[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 rest_308[0x380 - 0x308]; void *input; u8 rest_384[0x3B8 - 0x384];} Model952;
+#else
 typedef struct Model952 {u8 opaque[240];f32 time;u8 rest[708];} Model952;
+#endif
 typedef struct Stats24 {int unknown;f32 minimum,total;u16 count,finished,sum,enabled,enabled_finished;u8 tail[2];} Stats24;
 extern s8 D_8014978C,D_80142760;
 extern s16 active_player_count;

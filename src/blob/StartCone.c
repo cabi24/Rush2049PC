@@ -72,9 +72,17 @@ typedef struct ObjType {
 typedef struct Car {
     u8 pad0[20];
     f32 vel[3];
+#ifdef TARGET_PC
+    u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x35F - 0x308];
+#else
     u8 pad20[863 - 32];
+#endif
     u8 f863;
+#ifdef TARGET_PC
+    u8 pad360[0x380 - 0x360]; void *input; u8 pad360_384[0x3B8 - 0x384];
+#else
     u8 pad360[952 - 864];
+#endif
 } Car;
 
 typedef struct Lap {
@@ -83,6 +91,17 @@ typedef struct Lap {
     u8 pad641[2056 - 1601];
 } Lap;
 
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Node {
+    struct Node *next;
+    s16 f4;
+    u8 pad6[6];
+    u32 obj;
+    f32 f16;
+    intptr_t f20;
+} Node;
+#else
 typedef struct Node {
     struct Node *next;
     s16 f4;
@@ -91,7 +110,15 @@ typedef struct Node {
     f32 f16;
     s32 f20;
 } Node;
+#endif
 
+#ifdef TARGET_PC
+#define N64P(x) ((Obj *)(uintptr_t)(x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern s8 D_8013FECD;
 extern s8 D_8013FECC;
 extern ObjType D_80117530[];
@@ -148,7 +175,7 @@ void StartCone(Obj *obj)
     }
     vis->f4 = 0;
     vis->f20 = tInfo->f12;
-    vis->obj = obj;
+    vis->obj = N64W(obj);
     vis->f16 = 5.0f;
     obj->flags &= ~6;
     vel = obj->motion->vel;

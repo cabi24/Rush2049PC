@@ -46,9 +46,17 @@ typedef struct {
     s8 blocked;             /* +0x0EE */
     u8 padEF[0x108 - 0xEF];
     f32 distance;           /* +0x108 */
+#ifdef TARGET_PC
+    u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x358 - 0x308];
+#else
     u8 pad10C[0x358 - 0x10C];
+#endif
     s8 crashed;             /* +0x358 */
+#ifdef TARGET_PC
+    u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x3B8 - 0x384];
+#else
     u8 pad359[0x3B8 - 0x359];
+#endif
 } CarData;                  /* 0x3B8 */
 
 typedef struct {

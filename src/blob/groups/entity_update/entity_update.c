@@ -64,6 +64,32 @@ void steering_sensitivity(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f3
 void traction_control(s32 arg0, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]);
 f32 func_8008E0B8(f32 *v);
 
+#ifdef TARGET_PC
+enum n64p_Poly { n64p_Poly_ };
+enum n64p_QNode { n64p_QNode_ };
+#endif
+#ifdef TARGET_PC
+typedef struct EUCar {
+    u8 pad0[928];
+    enum n64p_QNode node[4];
+    u8 pad944[1440 - 944];
+    u16 hint[4];
+    u8 pad1448[1564 - 1448];
+    s16 kind[4];
+    s16 slope[4];
+    u16 attr[4];
+    u8 pad1588[1600 - 1588];
+    u8 b1600;
+    u8 pad1601[7];
+    enum n64p_Poly p1608;
+    u8 pad1612[1732 - 1612];
+    s16 s1732;
+    u8 pad1734[1741 - 1734];
+    u8 b1741;
+    u8 pad1742[1990 - 1742];
+    s16 id;
+} EUCar;
+#else
 typedef struct EUCar {
     u8 pad0[928];
     QNode *node[4];
@@ -84,14 +110,31 @@ typedef struct EUCar {
     u8 pad1742[1990 - 1742];
     s16 id;
 } EUCar;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Poly: (Poly *)(uintptr_t)(x), enum n64p_QNode: (QNode *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 typedef struct EUSlot {
     f32 dr_pos[3];          /* 0x000 arcade CAR_DATA dr_pos */
+#ifdef TARGET_PC
+    u8 pad00C[0x110 - 0xC]; struct pc_visual visuals[21]; u8 pad00C_308[0x358 - 0x308];
+#else
     u8 pad00C[856 - 12];
+#endif
     s8 b856;
     s8 b857;                /* 0x359 state (battle_mode_setup) */
     u8 pad35A;
     s8 place;               /* 0x35B (func_800EC914) */
+#ifdef TARGET_PC
+    u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
+#else
     u8 pad35C[952 - 860];
+#endif
 } EUSlot;
 extern EUSlot D_80152818[];
 extern s8 D_8010FFC0;
@@ -135,11 +178,11 @@ void entity_update(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32
     } else {
         z = pos[2];
     }
-    node = handbrake_apply(car->node[wheel], (s32)x, (s32)z, &quad);
+    node = handbrake_apply(N64P(car->node[wheel]), (s32)x, (s32)z, &quad);
     if (node == NULL) {
         goto miss;
     }
-    car->node[wheel] = node;
+    car->node[wheel] = N64W(node);
     off = node->child[quad];
     if (node->mask & (16 << quad)) {
         off |= 0x10000;
@@ -169,7 +212,7 @@ void entity_update(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32
     }
     if (bestAbs != 250.0f) {
     if (out[1] < 1.0f && (best->cnt & 0x30)) {
-        car->p1608 = best;
+        car->p1608 = N64W(best);
     }
     if (best->type & 0x2000) {
         steering_sensitivity((intptr_t)best, bestIdx, pos, out, mat, 250.0f);

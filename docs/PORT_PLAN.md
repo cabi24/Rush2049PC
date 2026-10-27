@@ -208,8 +208,9 @@ zero sample-cache count corrupts the heap (the N64 would do the same with those 
      MUSYX_DATA.md list what to check first).
 2. **N64 check on the Rocky host.** Run `make` to confirm the ROM still matches. `tools/port/n64_neutral.py --base
    09da2f0` is the local proof, and CI runs it; the real check is IDO.
-3. **Car and model records** on 64-bit, and **byte order in type-punned storage** (colours stored as words and read
-   as bytes): in progress.
+3. **Byte order in type-punned storage** (colours stored as words and read as bytes): in progress. The car, visual
+   and model records have one layout each ([port/CARS.md](port/CARS.md)); the target info table `D_80117530`, the
+   target records and the input records `D_8014A118` are next there.
 4. **Race-time records** that still disagree (POINTERS.md 9.9) and the two remaining prototype mismatches.
 5. **Other platforms.** Windows needs the window at 0x80000000 (VirtualAlloc) and a way for code to reach absolute
    symbols; macOS on arm64 reserves the low 4 GB (`__PAGEZERO`), so it would need address translation instead.

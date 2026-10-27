@@ -541,11 +541,20 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
+#ifdef TARGET_PC
+  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
   u8 pad0EC[0x35B - 0xEC];
+#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+  void *unk380;
+  u8 pad384[0x3A3 - 0x384];
+#else
   u8 unk380;
   u8 pad381[0x3A3 - 0x381];
+#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3792,11 +3801,14 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifndef TARGET_PC
+#define CAR_OFS(n) n
+#endif
 s32 func_800CF604(s16 arg0)
 {
   u8 *p;
   p = (u8 *) &D_8014A250 + arg0 * 0x808;
-  return (*((&D_80152B70) + (arg0 * 0x3B8))) == 0
+  return (*((&D_80152B70) + (arg0 * CAR_OFS(0x3B8)))) == 0
       && *(s8 *) (p + 0x640) == 0
       && *(s16 *) (p + 0x6C4) == -1
       && *(s8 *) (p + 0x7EB) != 0

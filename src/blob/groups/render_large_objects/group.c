@@ -77,11 +77,19 @@ typedef struct {
     /* 0x0EE */ S8 place;
     /* 0x0EF */ U8 pad0EF[0x100 - 0xEF];
     /* 0x100 */ F32 distance;
+#ifdef TARGET_PC
+    /* 0x104 */ U8 pad104[0x110 - 0x104]; struct pc_visual visuals[21]; U8 pad104_308[0x356 - 0x308];
+#else
     /* 0x104 */ U8 pad104[0x356 - 0x104];
+#endif
     /* 0x356 */ S16 weight_index;
     /* 0x358 */ U8 pad358;
     /* 0x359 */ S8 state;
+#ifdef TARGET_PC
+    /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
+#else
     /* 0x35A */ U8 pad35A[0x3B8 - 0x35A];
+#endif
 } CAR_DATA;
 
 extern MODELDAT D_8014A250[];

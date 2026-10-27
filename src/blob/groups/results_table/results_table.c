@@ -104,7 +104,12 @@ void func_80100D5C(s32 x, s32 y, s32 w, s32 h, u8 *color)
 
 typedef struct RGBA {u8 r,g,b,a;} RGBA;
 typedef struct PlayerRow {u8 vehicle;u8 other[71];char **name;} PlayerRow;
+#ifdef TARGET_PC
+/* PC: a car record seen from +0x3A3 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
+typedef struct VehicleScore {s8 score;u8 other[PC_CAR_SIZE - 1];} VehicleScore;
+#else
 typedef struct VehicleScore {s8 score;u8 other[951];} VehicleScore;
+#endif
 typedef struct PlayerStats {s32 words[18];s16 laps[24];} PlayerStats;
 typedef struct TextIndices {u8 other[74];u16 records;u8 other2[14];u16 menu;} TextIndices;
 typedef struct TextState {void *word0;char **fixed;void *word8;TextIndices *indices;char **strings;} TextState;
@@ -117,9 +122,24 @@ extern PlayerStats D_80152038[];
 extern s32 D_801146AC[],D_80118E20[2],D_801391E0,gameplay_mode;
 extern u8 D_80114724[];
 extern char D_8012039C[],D_801203A0[],D_80120390[],D_80120394[],D_80120398[],D_80120354[],D_8012035C[],D_80120344[],D_8012034C[],D_80120350[];
+#ifdef TARGET_PC
+/* PC: a car record seen from +0xEE (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
+typedef struct CarB6 {s8 lap;u8 rest[PC_CAR_SIZE - 1];} CarB6;
+#else
 typedef struct CarB6 {s8 lap;u8 rest[951];} CarB6;
+#endif
+#ifdef TARGET_PC
+/* PC: a car record seen from +0xEF (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
+typedef struct CarB7 {s8 flag;u8 rest[PC_CAR_SIZE - 1];} CarB7;
+#else
 typedef struct CarB7 {s8 flag;u8 rest[951];} CarB7;
+#endif
+#ifdef TARGET_PC
+/* PC: a car record seen from +0xF0 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
+typedef struct CarF8 {f32 best;u8 rest[PC_CAR_SIZE - 4];} CarF8;
+#else
 typedef struct CarF8 {f32 best;u8 rest[948];} CarF8;
+#endif
 typedef struct Rec808 {s16 car;u8 rest[2054];} Rec808;
 typedef struct TextIdx2 {u8 other[108];u16 cars;} TextIdx2;
 extern CarB6 D_80152906[];

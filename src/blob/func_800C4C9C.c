@@ -445,11 +445,20 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
+#ifdef TARGET_PC
+    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
     u8 pad0EC[0x35B - 0xEC];
+#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+    void *unk380;
+    u8 pad384[0x3A3 - 0x384];
+#else
     u8 unk380;
     u8 pad381[0x3A3 - 0x381];
+#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3693,9 +3702,16 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
+#define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
+#else
+#define PAD0EC(a, x) a[x]
+#define CAR_OFS(n) n
+#endif
 void func_800C4C9C(void *arg0, s16 arg1) {
  u8 *temp_v0;
- temp_v0 = &player_array[M2C_FIELD(arg0, s16 *, 0x7C6)].pad0EC[0x228];
+ temp_v0 = &PAD0EC(player_array[M2C_FIELD(arg0, s16 *, 0x7C6)].pad0EC, 0x228);
 M2C_FIELD(temp_v0, s16 *, 0x24) = arg1;
 M2C_FIELD(temp_v0, f32 *, 0x20) = (f32) D_801543CC;
 M2C_FIELD(temp_v0, s16 *, 0x26) = -1;

@@ -55,9 +55,17 @@ typedef struct Pair {
 typedef struct Car {
     u8 pad0[239];
     s8 f239;
+#ifdef TARGET_PC
+    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x364 - 0x308];
+#else
     u8 padF0[868 - 240];
+#endif
     f32 heading;
+#ifdef TARGET_PC
+    u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
+#else
     u8 pad368[952 - 872];
+#endif
 } Car;
 
 extern OSMesgQueue D_801461D0;

@@ -95,9 +95,17 @@ typedef struct MODELDAT {
 typedef struct CAR_DATA {
     /* 0x000 */ U8 pad000[0xEF];
     /* 0x0EF */ S8 place_locked;
+#ifdef TARGET_PC
+    /* 0x0F0 */ U8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; U8 pad0F0_308[0x359 - 0x308];
+#else
     /* 0x0F0 */ U8 pad0F0[0x359 - 0xF0];
+#endif
     /* 0x359 */ S8 unk359;
+#ifdef TARGET_PC
+    /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
+#else
     /* 0x35A */ U8 pad35A[0x3B8 - 0x35A];
+#endif
 } CAR_DATA;
 
 extern CAR_DATA player_array[];

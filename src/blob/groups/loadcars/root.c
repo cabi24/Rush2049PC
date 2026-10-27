@@ -4,9 +4,28 @@ typedef unsigned int u32;
 typedef signed short s16;
 typedef signed char s8;
 typedef unsigned char u8;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct Selection8 {u8 reserved;u8 model;s8 type;s8 tune;s8 variant;u8 tail[3];} Selection8;
+#ifdef TARGET_PC
+enum n64p_void { n64p_void_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Vehicle2056 {enum n64p_void car;enum n64p_void parameters;u8 opaque[1988];s8 mode;u8 tail[59];} Vehicle2056;
+#else
 typedef struct Vehicle2056 {void *car;void *parameters;u8 opaque[1988];s8 mode;u8 tail[59];} Vehicle2056;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern Selection8 D_80153E88[13];
 extern Vehicle2056 D_8014A250[6];
 extern u32 D_8002E580[];

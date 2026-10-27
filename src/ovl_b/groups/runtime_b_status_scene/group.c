@@ -36,7 +36,11 @@ typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
 typedef float f32;
+#ifdef TARGET_PC
+typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; s8 kind, lives; u8 unknown386[6]; s32 flags; u8 unknown390[0x28]; } Player;
+#else
 typedef struct Player { u8 unknown000[0x384]; s8 kind, lives; u8 unknown386[6]; s32 flags; u8 unknown390[0x28]; } Player;
+#endif
 typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
 typedef struct Handle { s16 handle, unknown2; f32 uv[3][3], position[3]; } Handle;
 typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;

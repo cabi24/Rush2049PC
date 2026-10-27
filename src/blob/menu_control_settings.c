@@ -27,6 +27,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 #define vecadd(a, b, r) { r[0] = a[0] + b[0]; r[1] = a[1] + b[1]; r[2] = a[2] + b[2]; }
@@ -40,9 +44,51 @@ typedef struct {
     /* 0x02C */ f32 uvs[3][3];
     /* 0x050 */ u8 pad50[0x20];
     /* 0x070 */ f32 TIRER[4][3];
+#ifdef TARGET_PC
+    /* 0x0A0 */ u8 padA0[0x110 - 0xA0]; struct pc_visual visuals[21]; u8 padA0_308[0x380 - 0x308]; void *input; u8 padA0_384[0x3B8 - 0x384];
+#else
     /* 0x0A0 */ u8 padA0[0x318];
+#endif
 } CarRec; /* 0x3B8 */
 
+#ifdef TARGET_PC
+enum n64p_CarRec { n64p_CarRec_ };
+#endif
+#ifdef TARGET_PC
+typedef struct {
+    /* 0x000 */ enum n64p_CarRec car;
+    /* 0x004 */ u8 pad4[0xF0];
+    /* 0x0F4 */ f32 BODYR[4][3];
+    /* 0x124 */ u8 pad124[0x108];
+    /* 0x22C */ f32 RWR[3];
+    /* 0x238 */ u8 pad238[0xC];
+    /* 0x244 */ f32 TIRERWR[4][3];
+    /* 0x274 */ f32 BODYRWR[4][3];
+    /* 0x2A4 */ f32 lastBODYRWR[4][3];
+    /* 0x2D4 */ u8 pad2D4[0x18];
+    /* 0x2EC */ f32 uvs[3][3];
+    /* 0x310 */ u8 pad310[0x2BC];
+    /* 0x5CC */ f32 suscomp[4];
+    /* 0x5DC */ f32 tpcomp[4];
+    /* 0x5EC */ u8 pad5EC[0x20];
+    /* 0x60C */ u32 sviscode[4];
+    /* 0x61C */ u16 roadcode[4];
+    /* 0x624 */ u16 roadboost[4];
+    /* 0x62C */ u16 sound_flags[4];
+    /* 0x634 */ u8 pad634[0xA0];
+    /* 0x6D4 */ f32 initpos[3];
+    /* 0x6E0 */ f32 inituvs[3][3];
+    /* 0x704 */ f32 initoffset[3];
+    /* 0x710 */ u8 pad710[0x3C];
+    /* 0x74C */ f32 base_RWR[3];
+    /* 0x758 */ u8 pad758[0x3C];
+    /* 0x794 */ f32 EPRWR[3];
+    /* 0x7A0 */ f32 uvs2[3][3];
+    /* 0x7C4 */ u16 unk7C4;
+    /* 0x7C6 */ s16 slot;
+    /* 0x7C8 */ u8 pad7C8[0x40];
+} MODELDAT; /* 0x808 */
+#else
 typedef struct {
     /* 0x000 */ CarRec *car;
     /* 0x004 */ u8 pad4[0xF0];
@@ -76,6 +122,15 @@ typedef struct {
     /* 0x7C6 */ s16 slot;
     /* 0x7C8 */ u8 pad7C8[0x40];
 } MODELDAT; /* 0x808 */
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_CarRec: (CarRec *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 
 extern s8 D_801427A1;
 extern CarRec D_80152818[];
@@ -100,7 +155,7 @@ void menu_control_settings(MODELDAT *m) {
     veccopy(m->RWR, m->base_RWR);
     veccopy(m->RWR, D_80152818[m->slot].RWR);
     for (i = 0; i < 4; i++) {
-        func_8009E820(m->car->TIRER[i], m->TIRERWR[i], m->uvs);
+        func_8009E820(N64P(m->car)->TIRER[i], m->TIRERWR[i], m->uvs);
         vecadd(m->TIRERWR[i], m->RWR, m->TIRERWR[i]);
         m->suscomp[i] = 0;
         m->tpcomp[i] = 0;

@@ -30,7 +30,11 @@ typedef struct Car952 {
     s32 appearance;         /* 0x0E8 */
     u8 pad0EC[3];
     s8 place_locked;        /* 0x0EF */
+#ifdef TARGET_PC
+    u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x359 - 0x308];
+#else
     u8 pad0F0[857 - 240];
+#endif
     s8 dead;                /* 0x359 */
     u8 pad35A[896 - 858];
     void *player;           /* 0x380 */

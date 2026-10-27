@@ -53,7 +53,11 @@ typedef struct {
     s8 place;           /* +0xEE */
     s8 finished;        /* +0xEF */
     f32 time;           /* +0xF0 */
+#ifdef TARGET_PC
+    u8 padF4[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 padF4_308[0x380 - 0x308]; void *input; u8 padF4_384[0x3B8 - 0x384];
+#else
     u8 padF4[952 - 0xF4];
+#endif
 } GameCar;              /* 952 bytes */
 
 typedef struct {

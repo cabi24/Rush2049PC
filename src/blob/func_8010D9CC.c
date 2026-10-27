@@ -449,11 +449,20 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
+#ifdef TARGET_PC
+    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
     u8 pad0EC[0x35B - 0xEC];
+#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+    void *unk380;
+    u8 pad384[0x3A3 - 0x384];
+#else
     u8 unk380;
     u8 pad381[0x3A3 - 0x381];
+#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -780,7 +789,19 @@ float sqrtf(float);
 extern M2C_UNK D_80117530;
 extern M2C_UNK D_8011754C;
 extern f32 D_801249BC;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; u32 owner; f32 timer; intptr_t stat; } BNode;
+#else
 typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; void *owner; f32 timer; s32 stat; } BNode;
+#endif
+#ifdef TARGET_PC
+#define N64P(x) ((void *)(uintptr_t)(x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern BNode *D_801391F0;
 
 /* callees outside the group */
@@ -805,7 +826,7 @@ void func_8010D9CC(void *arg0) {
     if (temp_v0 != NULL) {
         temp_v0->active = 0;
         temp_v0->stat = (s32) M2C_FIELD(sp30, s32 *, 0xC);
-        temp_v0->owner = arg0;
+        temp_v0->owner = N64W(arg0);
         temp_v0->timer = (f32) D_801249BC;
         temp_v0_2 = &player_array[M2C_FIELD(arg0, s8 *, 0x5C)];
         vector[0] = M2C_FIELD(temp_v0_2, f32 *, 0x14) * 0.125f;

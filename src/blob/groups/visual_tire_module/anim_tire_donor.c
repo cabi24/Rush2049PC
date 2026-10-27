@@ -28,12 +28,22 @@ typedef s32 intptr_t;
 typedef float f32;
 typedef f32 Vec3[3];
 typedef f32 Matrix3[3][3];
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual {
+    void *prefix;
+    s16 tire,object,slot,reserved;
+    f32 angle,time;
+    void (*callback)(void);
+} Visual;
+#else
 typedef struct Visual {
     u8 prefix[4];
     s16 tire,object,slot,reserved;
     f32 angle,time;
     void (*callback)(void);
 } Visual;
+#endif
 typedef struct Tire92 {
     u8 prefix[64];
     f32 angular_velocity;
@@ -63,15 +73,42 @@ typedef struct Car952 {
     u32 appearance;
     u8 to_mph[12];
     s16 mph;
+#ifdef TARGET_PC
+    u8 to_controller[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 to_controller_308[0x35C - 0x308];
+#else
     u8 to_controller[610];
+#endif
     s8 controller,render_state,reserved,hidden;
+#ifdef TARGET_PC
+    u8 tail[0x380 - 0x360]; void *input; u8 tail_384[0x3B8 - 0x384];
+#else
     u8 tail[88];
+#endif
 } Car952;
+#ifdef TARGET_PC
+enum n64p_f32 { n64p_f32_ };
+#endif
+#ifdef TARGET_PC
+typedef struct CarConfig {
+    u8 prefix[96];
+    enum n64p_f32 radius[4];
+    Vec3 tire_position[4];
+} CarConfig;
+#else
 typedef struct CarConfig {
     u8 prefix[96];
     f32 *radius[4];
     Vec3 tire_position[4];
 } CarConfig;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_f32: (f32 *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 typedef struct Control152 {
     u8 prefix[144];
     f32 spring_save;
@@ -154,7 +191,7 @@ void anim_state_update(Visual *v, s16 op)
     if (spring < 0) spring = 0;
     else if (spring > 0.5f) spring = 0.5f;
     pos[0] = config->tire_position[tire][0];
-    pos[1] = config->tire_position[tire][1] + *config->radius[tire] + spring;
+    pos[1] = config->tire_position[tire][1] + *N64P(config->radius[tire]) + spring;
     pos[2] = config->tire_position[tire][2];
     if (controller >= 0 && car->render_state == 1 && tire == 0) {
         t = (mph >> 2) * 0.002f;

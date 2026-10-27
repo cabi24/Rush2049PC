@@ -65,7 +65,11 @@ typedef struct Blit {
 #endif
 
 typedef struct Model { u8 pad0[1990]; s16 slot; u8 pad7C8[2056 - 1992]; } Model;   /* model[] 0x808 B */
+#ifdef TARGET_PC
+typedef struct Car { u8 pad0[239]; s8 f239; u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384]; } Car;
+#else
 typedef struct Car { u8 pad0[239]; s8 f239; u8 padF0[952 - 240]; } Car;
+#endif
 typedef struct Pos { s32 x, y; } Pos;
 
 extern OSMesgQueue D_801461D0;

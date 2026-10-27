@@ -37,9 +37,17 @@ typedef struct {
     /* 0x0F0 */ f32 score;
     /* 0x0F4 */ char padF4[0xC];
     /* 0x100 */ f32 distance;
+#ifdef TARGET_PC
+    /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x359 - 0x308];
+#else
     /* 0x104 */ char pad104[0x255];
+#endif
     /* 0x359 */ s8 unk359;
+#ifdef TARGET_PC
+    /* 0x35A */ char pad35A[0x380 - 0x35A]; void *input; char pad35A_384[0x3B8 - 0x384];
+#else
     /* 0x35A */ char pad35A[0x5E];
+#endif
 } GameCar; /* 0x3B8 */
 
 extern s8 D_80152744;

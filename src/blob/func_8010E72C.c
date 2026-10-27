@@ -18,6 +18,19 @@
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual {
+    struct Visual *next;    /* 0x00 */
+    s16 index;              /* 0x04 */
+    s16 objnum;             /* 0x06 */
+    s16 slot;               /* 0x08 */
+    u8 padA[2];
+    u32 data;               /* 0x0C: a target's window address */
+    f32 timeStamp;          /* 0x10 */
+    void *func;             /* 0x14 */
+} Visual;
+#else
 typedef struct Visual {
     struct Visual *next;    /* 0x00 */
     s16 index;              /* 0x04 */
@@ -28,6 +41,7 @@ typedef struct Visual {
     f32 timeStamp;          /* 0x10 */
     void *func;             /* 0x14 */
 } Visual;
+#endif
 
 typedef struct TargInfo {
     u8 pad0[12];
@@ -54,7 +68,11 @@ typedef struct Target {
 typedef struct GameCar {
     u8 pad0[20];
     f32 RWV[3];             /* 0x14 */
+#ifdef TARGET_PC
+    u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x380 - 0x308]; void *input; u8 pad20_384[0x3B8 - 0x384];
+#else
     u8 pad20[920];
+#endif
 } GameCar;                  /* 0x3B8 */
 
 typedef struct MATRIX {
@@ -62,6 +80,13 @@ typedef struct MATRIX {
     f32 pos[3];
 } MATRIX;
 
+#ifdef TARGET_PC
+#define N64P(x) ((void *)(uintptr_t)(x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern TargInfo D_80117530[];
 extern GameCar player_array[];
 extern Visual *D_801391F0;
@@ -87,7 +112,7 @@ void func_8010E72C(Target *t)
     }
     v->index = 0;
     v->func = D_80117530[t->type].visFunc;
-    v->data = t;
+    v->data = N64W(t);
     v->timeStamp = 0.0333333f;
     t->state = 4;
     t->flags &= ~6;

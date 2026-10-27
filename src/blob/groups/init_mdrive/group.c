@@ -40,7 +40,11 @@ typedef struct Vehicle2056 {
  u8 gap1992[48];
  float wheels[4];
 } Vehicle2056;
+#ifdef TARGET_PC
+typedef struct Model952 {u8 prefix[4];float setup;u8 gap8[0x110 - 0x8]; struct pc_visual visuals[21]; u8 gap8_308[0x358 - 0x308];s8 clear,active;u8 gap858[10];float drift;u8 tail[0x380 - 0x368]; void *input; u8 tail_384[0x3B8 - 0x384];} Model952;
+#else
 typedef struct Model952 {u8 prefix[4];float setup;u8 gap8[848];s8 clear,active;u8 gap858[10];float drift;u8 tail[80];} Model952;
+#endif
 typedef struct Config8 {u8 prefix[5],camera,unknown,mode;} Config8;
 extern s8 D_80142760;
 extern Model952 player_array[];

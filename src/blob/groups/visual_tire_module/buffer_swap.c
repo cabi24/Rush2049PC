@@ -39,10 +39,19 @@ typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef f
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual { void *opaque0; s16 index, object, slot, opaque10; u32 flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
+#else
 typedef struct Visual { u8 opaque0[4]; s16 index, object, slot, opaque10; u32 flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
+#endif
 typedef struct Model2056 { u8 opaque0[8]; u8 type; u8 opaque9[1007]; s16 state; u8 opaque1018[2]; s32 sound; u8 opaque1024[966]; s16 player; u8 opaque1992[64]; } Model2056;
 typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
+#ifdef TARGET_PC
+typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 opaque236_308[0x35C - 0x308]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
+#else
 typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[624]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
+#endif
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Model68 { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;

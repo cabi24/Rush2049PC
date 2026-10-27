@@ -540,11 +540,20 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
+#ifdef TARGET_PC
+  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
   u8 pad0EC[0x35B - 0xEC];
+#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+  void *unk380;
+  u8 pad384[0x3A3 - 0x384];
+#else
   u8 unk380;
   u8 pad381[0x3A3 - 0x381];
+#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3791,10 +3800,17 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the model record keeps its N64 layout, and its car descriptor pointer (+0) is a u32 window address
+ * (docs/port/CARS.md). */
+#define MODEL_P(b, o) ((void *) (uintptr_t) *((u32 *) (((s8 *) b) + o)))
+#else
+#define MODEL_P(b, o) *((void **) (((s8 *) b) + o))
+#endif
 void func_800D0894(void *arg0)
 {
   void *temp_v0;
-  temp_v0 = *((void **) (((s8 *) arg0) + 0));
+  temp_v0 = MODEL_P(arg0, 0);
   *((f32 *) (((s8 *) arg0) + 0x3C4)) = (f32) ((540.0f / (*((f32 *) (((s8 *) temp_v0) + 0x50)))) * D_80124134);
   *((f32 *) (((s8 *) arg0) + 0x3C8)) = (f32) (((*((f32 *) (((s8 *) temp_v0) + 0x54))) * (*((f32 *) (((s8 *) temp_v0) + 0x50)))) / ((*((f32 *) (((s8 *) arg0) + 0x5BC))) * ((*((f32 *) (((s8 *) temp_v0) + 0x90))) / (*((f32 *) (((s8 *) arg0) + 0x5C8))))));
 }

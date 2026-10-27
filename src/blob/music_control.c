@@ -24,11 +24,23 @@ typedef struct tVisual {
     s16 objnum;                 /* 0x06 */
     s16 slot;                   /* 0x08 */
     u8 pad0A[2];
+#ifdef TARGET_PC
+    u32 data;                   /* 0x0C: flags (a u32 on the PC) */
+#else
     void *data;                 /* 0x0C */
+#endif
     float timeStamp;            /* 0x10 */
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;
+#ifdef TARGET_PC
+/* PC: the view counts the car's visuals from 0xF8, one before the first (+0x110). Visuals are 0x20 bytes on
+ * the PC, so that fake one can't stay in place: the PC view starts at the first, and VISUAL(n) is n - 1. */
+typedef struct tCarData { u8 pad0[0x110]; tVisual visuals[21]; u8 pad308[0x380 - 0x308]; void *input; u8 pad308_384[0x3B8 - 0x384]; } tCarData;
+#define VISUAL(n) ((n) - 1)
+#else
 typedef struct tCarData { u8 pad0[0xF8]; tVisual visuals[22]; u8 pad308[952 - 0x308]; } tCarData;
+#define VISUAL(n) n
+#endif
 typedef struct tModelData { u8 pad0[0x7C8]; s16 in_game; u8 pad7CA[0x808 - 0x7CA]; } tModelData;
 typedef struct tPoly { s16 nverts; u16 flags; u16 texidx; s16 z; u8 verts[80]; } tPoly;
 typedef struct tLink { u8 pad0; u8 car; u8 pad2[5]; u8 owner; } tLink;
@@ -68,7 +80,7 @@ static void StartShadow(s16 slot)
     void *shadow2;
     void *shadow3;
     int u0, u1;
-    v = &player_array[slot].visuals[11];
+    v = &player_array[slot].visuals[VISUAL(11)];
     v->func = entity_process_main;
     v->slot = slot;
     v->timeStamp = D_801543CC;
@@ -78,7 +90,7 @@ static void StartShadow(s16 slot)
 
 static void StartArrow(s16 slot)
 {
-    tVisual *v = &player_array[slot].visuals[12];
+    tVisual *v = &player_array[slot].visuals[VISUAL(12)];
     int i;
     int u2;
     tRGBA clr = { { 255, 255, 255, 255 } };
@@ -105,7 +117,7 @@ static void StartArrow(s16 slot)
         v->objnum = poly - D_8015B268;
         v++;
     }
-    while (v < &player_array[slot].visuals[14]) {
+    while (v < &player_array[slot].visuals[VISUAL(14)]) {
         v->func = 0;
         v->objnum = -1;
         v++;

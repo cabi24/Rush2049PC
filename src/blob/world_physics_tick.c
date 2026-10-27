@@ -29,12 +29,79 @@ typedef signed char s8;
 typedef short s16;
 typedef unsigned int u32;
 typedef int s32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Reference {
     u32 word0;
     u8 opaque4[62];
     u8 flags;
     u8 opaque67[9];
 } Reference;
+#ifdef TARGET_PC
+enum n64p_void { n64p_void_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Car {
+    enum n64p_void object;
+    u8 opaque4[4];
+    s8 byte8;
+    s8 byte9;
+    s8 byte10;
+    s8 byte11;
+    s8 byte12;
+    s8 byte13;
+    s8 byte14;
+    s8 byte15;
+    u8 opaque16[228];
+    float value244;
+    float value248;
+    float value252;
+    float value256;
+    float value260;
+    float value264;
+    float value268;
+    float value272;
+    float value276;
+    float value280;
+    float value284;
+    float value288;
+    u8 opaque292[728];
+    s32 word1020;
+    float value1024;
+    u8 opaque1028[592];
+    float radius;
+    u8 opaque1624[108];
+    s16 half1732;
+    u8 opaque1734[82];
+    float preserved;
+    u8 opaque1820[168];
+    s16 half1988;
+    s16 half1990;
+    s16 half1992;
+    s16 half1994;
+    s8 byte1996;
+    s8 byte1997;
+    s8 byte1998;
+    s8 byte1999;
+    u8 opaque2000[4];
+    s32 word2004;
+    u8 opaque2008[4];
+    s8 byte2012;
+    s8 byte2013;
+    u8 opaque2014[4];
+    s16 half2018;
+    s16 half2020;
+    s16 half2022;
+    u8 opaque2024[2];
+    s8 byte2026;
+    s8 byte2027;
+    float scale;
+    float time_boost;
+    u8 opaque2036[20];
+} Car;
+#else
 typedef struct Car {
     void * object;
     u8 opaque4[4];
@@ -93,6 +160,15 @@ typedef struct Car {
     float time_boost;
     u8 opaque2036[20];
 } Car;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 typedef struct Player {
     u8 opaque0[232];
     s32 word232;
@@ -102,7 +178,11 @@ typedef struct Player {
     u8 opaque239[17];
     float distance;
     float last_distance;
+#ifdef TARGET_PC
+    u8 opaque264[0x110 - 0x108]; struct pc_visual visuals[21]; u8 opaque264_308[0x309 - 0x308];
+#else
     u8 opaque264[513];
+#endif
     s8 byte777;
     u8 opaque778[7];
     s8 byte785;
@@ -157,7 +237,7 @@ void world_physics_tick(void) {
         car->preserved=preserved;
         for(j=0;j<sizeof(Player);j++)
             ((s8 *)player)[j]=0;
-        car->object=D_80110D08;
+        car->object=N64W(D_80110D08);
         car->half1994=D_80153E88[i].owner==0;
         player->byte862=2;
         player->byte860=-1;

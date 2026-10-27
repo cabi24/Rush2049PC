@@ -80,7 +80,11 @@ typedef struct Pool {
 typedef struct Car {
     char pad0[8];
     f32 pos[3];
+#ifdef TARGET_PC
+    char pad14[0x110 - 0x14]; struct pc_visual visuals[21]; char pad14_308[0x380 - 0x308]; void *input; char pad14_384[0x3B8 - 0x384];
+#else
     char pad14[0x3B8 - 0x14];
+#endif
 } Car;
 
 typedef struct Tree {

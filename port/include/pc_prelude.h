@@ -51,6 +51,28 @@ void pc_os_idle(void);
 #define N64_ONLY(stmt)
 #define PC_ONLY(stmt) stmt
 
+/* A car visual (tVisual: N64 0x18 bytes, PC 0x20) on the PC, for views of the car record that pad over the
+ * car's 21 visuals at +0x110: next and func are host pointers there, data a u32 (docs/port/CARS.md). */
+struct pc_visual {
+    void *next;
+    short index, objnum, slot;
+    unsigned int data;
+    float timeStamp;
+    void (*func)(void *, short);
+};
+
+/* The car record (player_array, 6 cars) is 0x468 bytes on the PC, 0x3B8 on the N64: its visuals are 0x20 bytes
+ * from +0x110 to N64 +0x308, and its input record pointer at N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of
+ * N64 offset n, which may run into the next cars (CAR_OFS(0x3B8) is the PC stride). Code that reaches cars by raw
+ * offsets goes through it; each game file that does defines the N64 side, `#define CAR_OFS(n) n`. */
+#define PC_CAR_SIZE 0x468
+#define PC_CAR_REL(r) ((r) < 0x110 ? (r) : (r) < 0x308 ? 0x110 + ((r) - 0x110) / 0x18 * 0x20 \
+    + (((r) - 0x110) % 0x18 < 4 ? ((r) - 0x110) % 0x18 : ((r) - 0x110) % 0x18 + 4) : (r) <= 0x380 ? (r) + 0xA8 \
+    : (r) + 0xAC)
+#define CAR_OFS(n) ((n) / 0x3B8 * PC_CAR_SIZE + PC_CAR_REL((n) % 0x3B8))
+/* The PC offset of N64 offset x inside a car visual, up to its stride (VIS_OFS(0x18) is 0x20). */
+#define VIS_OFS(x) (CAR_OFS(0x110 + (x)) - 0x110)
+
 /* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
 void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 void pc_mem_unregister_be(const void *start);
