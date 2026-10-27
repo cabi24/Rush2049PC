@@ -1,16 +1,26 @@
 /* port/data/test_pc_data.c: the loader (pc_data.c) on a synthetic ROM, with hand-written tables.
  *
  * Four images as in the game: a raw boot slice, a DEFLATE game image, and two DEFLATE runtime images at one N64
- * base whose functions share an address. Checks: byte order per kind, a struct whose host layout differs (pointers,
- * a 32-bit long), arrays of structs (run strides), pointers into own storage (offset mapping), arenas, functions
- * per image, functions with no C, ROM offsets kept raw, unresolved pointers, an overlay reload restoring data,
- * BSS and game-C data, and the address-like word report. */
+ * base whose functions share an address (image B's data lies in image A's code range). Checks: byte order per
+ * kind, a struct whose host layout differs (pointers, a 32-bit long), arrays of structs (run strides), pointers
+ * into own storage (offset mapping), arenas, functions per image, functions with no C, ROM offsets kept raw,
+ * unresolved pointers, an overlay reload restoring data, BSS and game-C data, and the address-like word report.
+ *
+ * It runs twice: with the arenas in host memory, and at their N64 addresses in an RDRAM window it maps at host
+ * 0x80000000, as the game's are. There a pointer into an arena is its own N64 value, and a runtime image's arena,
+ * which lies in the "heap", stays clear until the image is loaded. */
+#define _GNU_SOURCE
 #include "pc_data.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <zlib.h>
+
+#ifndef MAP_FIXED_NOREPLACE
+#define MAP_FIXED_NOREPLACE 0x100000
+#endif
 
 static int failures;
 #define CHECK(c) do { if (!(c)) { fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); failures++; } } while (0)
@@ -48,30 +58,33 @@ static PcDataImage images[4] = {
     {"ovl_b", PC_IMG_DEFLATE, 0x5000, 0, 0x80, 0x80300000},
 };
 
-static uint8_t a_boot[0xC0], a_game[0x200], a_ovl_a[0x100], a_ovl_b[0x80];
-static const PcDataArena arenas[4] = {
-    {0, 0x80001080, 0x80001100, 0x80001140, a_boot, 0, 4},
-    {1, 0x80010100, 0x80010200, 0x80010300, a_game, 4, 1},
-    {2, 0x80300080, 0x80300100, 0x80300180, a_ovl_a, 5, 1},
-    {3, 0x80300040, 0x80300080, 0x803000C0, a_ovl_b, 0, 0},
+/* The arenas' host memory: these arrays, or the window. Image B's (0x80300040-0x80300080) is inside image A's
+ * code; the two runtime images' arenas are disjoint, as the game's are. */
+static uint8_t h_boot[0xC0], h_game[0x200], h_ovl_a[0x100], h_ovl_b[0x40];
+static uint8_t *a_boot, *a_game, *a_ovl_a, *a_ovl_b;
+static PcDataArena arenas[4] = {
+    {0, 0x80001080, 0x80001100, 0x80001140, NULL, 0, 4},
+    {1, 0x80010100, 0x80010200, 0x80010300, NULL, 4, 1},
+    {2, 0x80300080, 0x80300100, 0x80300180, NULL, 5, 1},
+    {3, 0x80300040, 0x80300060, 0x80300080, NULL, 0, 0},
 };
 
 /* Own storage. S: { u32 a; void *p; u16 h; void (*fp)(void); long l; } (N64 20 B, host 40 B).
- * P: void *[7]. Q: { u32 x; void *y; }[2] (N64 16 B, host 32 B). A1, B1: void *. */
+ * P: void *[11]. Q: { u32 x; void *y; }[2] (N64 16 B, host 32 B). A1, B1: void *. */
 typedef struct { uint32_t a; void *p; uint16_t h; void (*fp)(void); int64_t l; } S_t;
 typedef struct { uint32_t x; void *y; } Q_t;
 static S_t S;
 static void *P[11];
 static Q_t Q[2];
 static void *A1, *B1;
-static uint32_t cvar = 7;   /* game-C data of image A */
+static uint32_t cvar;   /* game-C data of image A */
 
 static const PcDataRun runs[] = {
     /* 0-3 boot arena: u16[2] @0, u32 @4, f32 @8, f64 @0x10 */
     {0, 0, 2, 1, 0, 0, PC_K_U16}, {4, 4, 1, 1, 0, 0, PC_K_U32}, {8, 8, 1, 1, 0, 0, PC_K_F32},
     {0x10, 0x10, 1, 1, 0, 0, PC_K_F64},
-    /* 4 game arena: the address-like word @0x80 */
-    {0x80, 0x80, 1, 1, 0, 0, PC_K_U32},
+    /* 4 game arena: the address-like words @0x80 */
+    {0x80, 0x80, 2, 1, 0, 0, PC_K_U32},
     /* 5 A arena: u32 @0x10 */
     {0x10, 0x10, 1, 1, 0, 0, PC_K_U32},
     /* 6-10 S */
@@ -109,7 +122,7 @@ static PcDataState state;
 static const PcDataTables tables = {images, 4, arenas, 4, syms, 6, runs, sizeof runs / sizeof runs[0], funcs, 4,
                                     names, 3, 0x80020000, &state};
 
-int main(void)
+static void build_rom(void)
 {
     uint8_t game[0x200] = {0}, ova[0x100] = {0}, ovb[0x80] = {0};
     uint8_t *boot = rom + 0x1000;
@@ -145,17 +158,45 @@ int main(void)
     put32(game + 0x164, 0x80001084);
     put32(game + 0x168, 2);
     put32(game + 0x16C, 0x80010100);
-    /* a word that looks like an address, in a u32 */
+    /* words that look like addresses, in u32s: of own storage, and of a boot arena word */
     put32(game + 0x180, 0x80010100);
+    put32(game + 0x184, 0x80001088);
     /* image A: A1 at 0x80 -> its function; a u32 at 0x90 */
     put32(ova + 0x80, 0x80300010);
     put32(ova + 0x90, 0xCAFEF00D);
-    /* image B: B1 at 0x40 -> its function */
+    /* image B: B1 at 0x40 -> its function; a byte at 0x50 */
     put32(ovb + 0x40, 0x80300010);
+    ovb[0x50] = 0x42;
 
     images[1].rom_len = deflate_to(0x2000, game, sizeof game);
     images[2].rom_len = deflate_to(0x4000, ova, sizeof ova);
     images[3].rom_len = deflate_to(0x5000, ovb, sizeof ovb);
+}
+
+/* Drops the loader state of a run: the inflated images and the startup snapshot. */
+static void reset_state(void)
+{
+    for (int i = 0; i < 8; i++)
+        free(state.owned[i]);
+    for (uint32_t i = 0; state.snapshot && i < tables.n_syms; i++)
+        free(state.snapshot[i]);
+    free(state.snapshot);
+    memset(&state, 0, sizeof state);
+}
+
+static void run(int window)
+{
+    const char *where = window ? "window" : "host";
+    a_boot = window ? (uint8_t *)(uintptr_t)arenas[0].n64_lo : h_boot;
+    a_game = window ? (uint8_t *)(uintptr_t)arenas[1].n64_lo : h_game;
+    a_ovl_a = window ? (uint8_t *)(uintptr_t)arenas[2].n64_lo : h_ovl_a;
+    a_ovl_b = window ? (uint8_t *)(uintptr_t)arenas[3].n64_lo : h_ovl_b;
+    arenas[0].host = a_boot, arenas[1].host = a_game, arenas[2].host = a_ovl_a, arenas[3].host = a_ovl_b;
+    reset_state();
+    memset(&S, 0, sizeof S), memset(P, 0, sizeof P), memset(Q, 0, sizeof Q);
+    A1 = B1 = NULL;
+    cvar = 7;
+    images[3].size = 0x80;
 
     CHECK(pc_data_load_all(&tables, rom, sizeof rom, "pc_data_test_report.txt") == 0);
     const PcDataStats *st = pc_data_stats();
@@ -200,12 +241,27 @@ int main(void)
     /* overlay functions by image */
     CHECK(A1 == (void *)ovl_a_fn);
     CHECK(B1 == (void *)ovl_b_fn);
+    /* in the window, an arena pointer is its N64 address */
+    if (window)
+        CHECK(S.p == (void *)(uintptr_t)0x80001084 && P[9] == (void *)(uintptr_t)0x80300120);
     /* stats */
     CHECK(st->unresolved == 1 && st->raw == 1 && st->no_code == 1 && st->ambiguous == 1 && st->rdram == 2);
     CHECK(st->own == 5);   /* P[0], P[1], P[6], P[8], Q[1].y */
     CHECK(st->arena == 3);   /* S.p, Q[0].y, P[9] */
     CHECK(st->func == 4);   /* S.fp, P[5], A1, B1 */
-    CHECK(st->addr_words == 1);
+    /* both address-like words; the one of own storage can't be reached through a u32, nor the arena word when
+     * the arena is host memory */
+    CHECK(st->addr_words == 2 && st->addr_words_host == (window ? 1u : 2u));
+
+    /* In the window, the runtime images' arenas (the "heap") are clear until loaded; in host memory they keep
+     * their data. */
+    memcpy(&w, a_ovl_a + 0x10, 4);
+    CHECK(window ? w == 0 && a_ovl_b[0x10] == 0 : w == 0xCAFEF00D && a_ovl_b[0x10] == 0x42);
+    if (window) {
+        CHECK(pc_data_load_image(&tables, 2) == 0 && pc_data_load_image(&tables, 3) == 0);
+        memcpy(&w, a_ovl_a + 0x10, 4);
+        CHECK(w == 0xCAFEF00D && a_ovl_b[0x10] == 0x42);
+    }
 
     /* overlay reload: data back to its ROM values, BSS zeroed, game-C data back to its startup value */
     a_ovl_a[0x10] ^= 0xFF;
@@ -221,13 +277,14 @@ int main(void)
     CHECK(cvar == 7);
     CHECK(a_ovl_b[0x10] == 0x77);   /* the other image is untouched */
     CHECK(pc_data_load_image(&tables, 3) == 0);
-    CHECK(a_ovl_b[0x10] == 0 && B1 == (void *)ovl_b_fn);
+    CHECK(a_ovl_b[0x10] == 0x42 && B1 == (void *)ovl_b_fn);
 
     /* lookups */
     CHECK(pc_data_host_of(&tables, 0x80010108, 1) == &S.h);
     CHECK(pc_data_host_of(&tables, 0x80300010, 3) == (void *)ovl_b_fn);
+    CHECK(pc_data_host_of(&tables, 0x80001088, 0) == a_boot + 8);
 
-    /* the report names the address-like word and the unresolved pointer */
+    /* the report names the address-like words, with their targets, and the unresolved pointer */
     FILE *fp = fopen("pc_data_test_report.txt", "r");
     char buf[4096] = {0};
     CHECK(fp != NULL);
@@ -235,7 +292,8 @@ int main(void)
         fread(buf, 1, sizeof buf - 1, fp);
         fclose(fp);
     }
-    CHECK(strstr(buf, "addr-word game_word+0x0 0x80010100 -> S+0x0") != NULL);
+    CHECK(strstr(buf, "addr-word game_word+0x0 0x80010100 -> S+0x0 [own]") != NULL);
+    CHECK(strstr(buf, "addr-word game_word+0x4 0x80001088 -> boot_vals+0x8 [arena]") != NULL);
     CHECK(strstr(buf, "unresolved P+0x8 0x8001F000") != NULL);
     CHECK(strstr(buf, "no-code P+0x10 0x80010010 nocode_fn") != NULL);
 
@@ -243,6 +301,23 @@ int main(void)
     images[3].size = 0x81;
     state.image[3] = NULL;
     CHECK(pc_data_load_image(&tables, 3) != 0);
+    fprintf(stderr, "pc_data_test: arenas in %s memory: %s\n", where, failures ? "failures so far" : "ok");
+}
+
+int main(void)
+{
+    build_rom();
+    run(0);
+    /* An RDRAM window like port/ultra's (4 MiB is enough here). */
+    void *want = (void *)(uintptr_t)0x80000000u;
+    void *p = mmap(want, 0x400000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    if (p == want) {
+        run(1);
+    } else {
+        fprintf(stderr, "FAIL: cannot map a window at host 0x80000000\n");
+        failures++;
+    }
+    reset_state();
 
     if (failures)
         fprintf(stderr, "pc_data_test: %d failures\n", failures);

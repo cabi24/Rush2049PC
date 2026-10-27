@@ -28,7 +28,11 @@ typedef struct {
     s8 unk42;
     u8 pad43;
     s32 unk44;
+#ifdef TARGET_PC
+    void *ref;              /* 0x48: a pointer into D_80146150 (Player76.ref), so 8 bytes and 80-byte records here */
+#else
     u8 pad48[4];
+#endif
 } Player;
 
 typedef struct {

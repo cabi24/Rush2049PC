@@ -17,6 +17,11 @@
 typedef float f32;
 typedef int s32;
 typedef struct OSMesgQueue OSMesgQueue;
+#ifndef TARGET_PC
+/* PC: port/data defines D_80156958 at its N64 address, which isn't as aligned as the host gives a common, so here
+ * it is a declaration (docs/port/DATA.md). */
+#define PC_ONLY(x)
+#endif
 
 extern OSMesgQueue D_801497A8;
 extern int osRecvMesg(OSMesgQueue *, void **, int);
@@ -25,7 +30,7 @@ extern int osSendMesg(OSMesgQueue *, void *, int);
 extern s32 D_80156944;      /* all pads: held mask */
 extern s32 D_80149784;      /* all pads: repeat-pressed mask */
 extern s32 D_8015694C;      /* all pads: pressed mask */
-f32 D_80156958[4][2];       /* per pad stick x, y (defined in this TU) */
+PC_ONLY(extern) f32 D_80156958[4][2];       /* per pad stick x, y (defined in this TU) */
 extern s32 D_80149B10[4];   /* per pad pressed latch */
 extern s32 D_80143A00[4];   /* per pad repeat-pressed mask */
 extern s32 D_80156978[4];   /* per pad held mask */

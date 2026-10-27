@@ -4,8 +4,10 @@
  * BSS (0x8017A640) to osMemSize | K0BASE, where every loaded file lands and is relocated in place with
  * `+= (u32)base` and `| 0x80000000` (docs/port/ASSETS.md); the low-memory globals at 0x80000300; the overlay
  * region at 0x8038A400. So an 8 MiB window is mapped at host 0x80000000 (KSEG0) and, from the same memory, at
- * 0xA0000000 (KSEG1): those N64 addresses are host addresses. The window is load-bearing, so on Linux the
- * fixed mapping is required; elsewhere pc_n64_ptr translates, and the game's literal addresses fault.
+ * 0xA0000000 (KSEG1): those N64 addresses are host addresses. The game's pointer-free data and BSS live there too,
+ * at their N64 addresses (port/data's arenas, docs/port/DATA.md). The window is load-bearing, so on Linux the
+ * fixed mapping is required; elsewhere pc_n64_ptr translates, and the game's literal addresses and its data
+ * fault (port/data refuses to fill an unmapped arena).
  *
  * Everything else the host allocates (the PIE image, the heap, the N64 threads' stacks) is above 4 GiB, so the
  * renderer can tell host pointers from N64 addresses. */
@@ -80,10 +82,12 @@ int pc_mem_fixed(void) { return g_fixed; }
 /* ---------------------------------------------------------------- absolute symbols in the PIE */
 
 /* gen_stubs puts data the game uses by its N64 address at that address (aliases.ld: the low-memory globals,
- * the heap start, cartridge offsets). binutils 2.40 on aarch64 gives the GOT slot of such an absolute symbol a
- * RELATIVE relocation, so at run time it holds the load address plus the value. Nothing the linker places has
- * a link-time address at 0x80000000 or above, so a RELATIVE relocation with an addend there is one of these:
- * put the value back. Runs before any game code. */
+ * the heap start, cartridge offsets), and gen_data every arena symbol (data.c: about 1,800 names of the game's
+ * data and BSS in the window). binutils 2.40 on aarch64 gives the GOT slot of such an absolute symbol a RELATIVE
+ * relocation, so at run time it holds the load address plus the value. Nothing the linker places has a link-time
+ * address at 0x80000000 or above (gen_data.py --check verifies it), so a RELATIVE relocation with an addend there
+ * is one of these: put the value back. Initialized pointers to them (R_*_ABS64) are resolved at link time. Runs
+ * before any game code, and before anything touches game data. */
 static int fix_absolute(struct dl_phdr_info *info, size_t size, void *count)
 {
     (void)size;

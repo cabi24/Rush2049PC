@@ -12,14 +12,23 @@
  *
  * needs no ROM: random data at the real image offsets (streams deflated into their retail slots), a known target
  * planted in every pointer field, then every arena byte and own-storage element is checked with an independent
- * decoder, and an overlay reload is checked. It tests the generated tables and the loader together. */
+ * decoder, and an overlay reload is checked. It tests the generated tables and the loader together.
+ *
+ * The game's arenas are at their N64 addresses, so both map the RDRAM window at host 0x80000000 first, as
+ * port/ultra does for the game. */
+#define _GNU_SOURCE
 #include "pc_data.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <zlib.h>
+
+#ifndef MAP_FIXED_NOREPLACE
+#define MAP_FIXED_NOREPLACE 0x100000
+#endif
 
 int pc_data_init(const uint8_t *rom, size_t rom_size);
 void pc_data_overlay_load(int overlay);
@@ -74,6 +83,21 @@ static void sha1(const uint8_t *msg, size_t len, char out[41])
 static void *at(uint32_t n64, int image)
 {
     return pc_data_host_of(&pc_data_tables, n64, image);
+}
+
+/* The RDRAM window (port/ultra/memory.c maps it for the game): 8 MiB at host 0x80000000. */
+static int map_window(void)
+{
+    void *want = (void *)(uintptr_t)0x80000000u;
+    void *p = mmap(want, 0x800000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    if (p != want) {
+        if (p != MAP_FAILED)
+            munmap(p, 0x800000);
+        printf("FAIL: cannot map the RDRAM window at host 0x80000000, where the game's data belongs\n");
+        failures++;
+        return -1;
+    }
+    return 0;
 }
 
 static int contains(const uint8_t *p, size_t n, const char *s)
@@ -289,6 +313,14 @@ static int synthetic(void)
         CHECK(n <= room, "synthetic image %s: %lu B stream fits its %u B slot", im->name, (unsigned long)n, room);
     }
     CHECK(pc_data_load_all(t, rom, rom_size, "") == 0, "pc_data_load_all on the synthetic ROM");
+    /* The runtime images' arenas are heap memory until the game loads them. */
+    uint32_t dirty = 0;
+    for (uint32_t i = 0; i < t->n_arenas; i++)
+        for (uint32_t k = 0; t->arenas[i].image >= 2 && k < t->arenas[i].n64_hi - t->arenas[i].n64_lo; k++)
+            dirty += t->arenas[i].host[k] != 0;
+    CHECK(dirty == 0, "the runtime images' arenas are clear until loaded (%u bytes set)", dirty);
+    pc_data_overlay_load(0);
+    pc_data_overlay_load(1);
 
     for (uint32_t i = 0; i < t->n_arenas; i++)
         bad_arena += check_arena(t, &t->arenas[i], img[t->arenas[i].image]);
@@ -342,13 +374,18 @@ static int synthetic(void)
 
 int main(int argc, char **argv)
 {
-    /* The renderer reads values below 4 GB as N64 addresses, so the game's data must sit above (PIE). */
-    int high = 1;
-    for (uint32_t i = 0; i < pc_data_tables.n_arenas; i++)
-        high &= sizeof(void *) < 8 || (uintptr_t)pc_data_tables.arenas[i].host >> 16 >> 16 != 0;
-    CHECK(high, "arenas above 4 GB (%p)", (void *)pc_data_tables.arenas[1].host);
+    /* The arenas are at their N64 addresses, in the window. The renderer reads every other value below 4 GB as
+     * an N64 address too, so the rest of the game's data must sit above it (PIE). */
+    const PcDataTables *tab = &pc_data_tables;
+    int placed = 1, high = 1;
+    for (uint32_t i = 0; i < tab->n_arenas; i++)
+        placed &= (uintptr_t)tab->arenas[i].host == tab->arenas[i].n64_lo;
+    for (uint32_t i = 0; i < tab->n_syms; i++)
+        high &= sizeof(void *) < 8 || !tab->syms[i].host || (uintptr_t)tab->syms[i].host >> 16 >> 16 != 0;
+    CHECK(placed, "%u arenas at their N64 addresses (game: %p)", tab->n_arenas, (void *)tab->arenas[1].host);
+    CHECK(high, "own storage and game-C data above 4 GB (%s at %p)", tab->syms[0].name, tab->syms[0].host);
     if (argc > 1 && strcmp(argv[1], "--synthetic") == 0)
-        return synthetic();
+        return map_window() != 0 ? 1 : synthetic();
     const char *path = argc > 1 ? argv[1] : PC_DATA_ROM;
     FILE *fp = fopen(path, "rb");
     if (!fp) {
@@ -373,8 +410,13 @@ int main(int argc, char **argv)
     }
     printf("ok: ROM SHA-1\n");
 
+    if (map_window() != 0)
+        return 1;
     CHECK(pc_data_init(rom, (size_t)size) == 0, "pc_data_init");
     const PcDataStats *st = pc_data_stats();
+    /* Both runtime images loaded, as the game loads them, so their arenas hold their data too. */
+    pc_data_overlay_load(0);
+    pc_data_overlay_load(1);
 
     /* Boot tail build-info record, 0x8002E440..0x8002E8E0. */
     const uint8_t *info = at(0x8002E440, 0);
@@ -417,9 +459,9 @@ int main(int argc, char **argv)
 
     /* Function pointers resolved to host functions. */
     printf("pointers: %u own, %u C data, %u arena, %u functions, %u RDRAM, %u null, %u raw, %u unresolved, "
-           "%u to functions with no C, %u inexact, %u ambiguous; %u address-like words\n", st->own, st->cdef,
-           st->arena, st->func, st->rdram, st->null, st->raw, st->unresolved, st->no_code, st->inexact, st->ambiguous,
-           st->addr_words);
+           "%u to functions with no C, %u inexact, %u ambiguous; %u address-like words (%u to host storage or "
+           "code)\n", st->own, st->cdef, st->arena, st->func, st->rdram, st->null, st->raw, st->unresolved,
+           st->no_code, st->inexact, st->ambiguous, st->addr_words, st->addr_words_host);
     CHECK(st->func > 0, "function pointers resolve to host functions");
 
     /* The file table (docs/port/ASSETS.md 2.2): 183 waves. Wrong byte order breaks every one of these. */

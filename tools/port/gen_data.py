@@ -14,10 +14,12 @@ No ROM bytes are read here or written into the build.
 2. Each type is laid out twice: for the N64 (MIPS o32: pointers and long are 4 bytes, double is 8 aligned 8)
    and for the host (the DWARF offsets). The result is a field program: runs of (kind, count, N64 offset, host
    offset), repeated with strides for arrays.
-3. Storage. Each image's data and BSS is one zeroed arena laid out as on the N64, and a symbol with no
-   pointers whose two layouts agree is defined at its N64 offset there (an assembler .set), so code that
-   indexes from one symbol into the next keeps working. A symbol with pointers, or whose host layout differs,
-   gets its own storage; symbols inside its N64 extent are defined at the matching host offsets.
+3. Storage. Each image's data and BSS is an arena laid out as on the N64, at its N64 address in the RDRAM
+   window port/ultra maps at host 0x80000000, and a symbol with no pointers whose two layouts agree is an
+   absolute symbol at its N64 address there (an assembler .set), so code that indexes from one symbol into the
+   next keeps working and a 32-bit N64 address of it is a host address. A symbol with pointers, or whose host
+   layout differs, gets its own storage in the executable; symbols inside its N64 extent are defined at the
+   matching host offsets.
 4. Addresses: the referencing image's symbol table (asm/us/<image>/symbols.json, what the matching build links
    against), then symbol_addrs.us.txt and undefined_syms_auto.us.txt, then D_XXXXXXXX names. Functions known by
    address (layout/*.json, the symbol file) go in a table, through weak references, so the loader can turn N64
@@ -26,7 +28,8 @@ No ROM bytes are read here or written into the build.
    branch thunk.
 
 Outputs: data.c, data_layout.txt (what was decided, the conflicts, what is left), data_layout.json (for
---check, which verifies placements and sizes in the linked executable). Stdlib and binutils, Python 3.9+.
+--check, which verifies placements and sizes in the linked executable, and that nothing else is linked at a
+window address). Stdlib and binutils, Python 3.9+.
 """
 import argparse
 import bisect
@@ -57,6 +60,11 @@ N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short 
 
 # N64 pointers at or above this (outside the runtime images) point into the game heap and stay as they are.
 HEAP_LO = 0x8017A640
+# The RDRAM window (port/include/pc_port.h: PC_RDRAM_BASE, PC_RDRAM_SIZE). The arenas are at their N64 addresses in
+# it; the executable itself must link below it (port/ultra/memory.c's absolute-symbol fix-up relies on that).
+WINDOW_LO, WINDOW_HI = 0x80000000, 0x80800000
+for _img, _lo, _init, _hi in n64syms.ARENAS:   # boot and game below the heap; the runtime images' inside it
+    assert WINDOW_LO <= _lo <= _init <= _hi <= (WINDOW_HI if _img.startswith("ovl") else HEAP_LO), _img
 # What data.c itself defines for the game C.
 PC_EXPORTS = {"pc_data_init", "pc_data_overlay_load"}
 
@@ -446,7 +454,8 @@ class Sym:
 
     def __init__(self, addr):
         self.addr, self.names, self.decls, self.images = addr, set(), [], set()
-        self.sfsize = None
+        self.sfsize = None       # N64 size from the symbol file or port/data/extents.txt
+        self.defsize = None      # N64 size of the game C's (tentative) definition
         self.arena = self.bss = None
         self.end_marker = False
         self.t = self.disp = None
@@ -619,9 +628,13 @@ def generate(a):
             for obj, t, disp, is_def in found.get(n, ()):
                 if s.cdef and not is_def:
                     continue
-                s.decls.append((n, obj, complete(t, tags), disp))
+                t = complete(t, tags)
+                s.decls.append((n, obj, t, disp))
+                if is_def and not s.cdef and n64_layout(t)[0]:
+                    s.defsize = max(s.defsize or 0, n64_layout(t)[0])
 
-    # Extents: symbol-file size, else the largest complete declaration, else the gap to the next address.
+    # Extents: symbol-file (or extents.txt) size, else the game C's definition, else the largest complete
+    # declaration or the gap to the next address.
     known = collections.defaultdict(set)
     for addr, s in syms.items():
         known[s.arena].add(addr)
@@ -639,7 +652,7 @@ def generate(a):
         return (k[j] if j < len(k) else n64syms.ARENAS[s.arena][3]) - s.addr
 
     pointer_conflicts, width_conflicts, untyped = [], [], []
-    selfcheck, size_mismatch, past_gap, crossing = [], [], [], []
+    selfcheck, size_mismatch, past_gap, crossing, cut = [], [], [], [], []
     # Addresses the image symbol tables know (table starts the asm or the compiled C refers to): an incomplete
     # array whose gap extent crosses one may be swallowing a table no C declares.
     soft = collections.defaultdict(set)
@@ -653,16 +666,22 @@ def generate(a):
         if s.end_marker:
             continue
         sized = [n64_layout(t)[0] for _, _, t, _ in s.decls if n64_layout(t)[0]]
-        # Incomplete declarations (T x[], struct tags no file completes) take the symbol-file size, else the
-        # gap to the next known address, or the largest complete declaration if that is longer.
-        extent = s.sfsize or max([gap(s)] + sized)
+        # A known size: the symbol file's (or extents.txt's), else the game C's own definition of the symbol (a
+        # tentative definition: what the linker compares data.c's size with). Incomplete declarations (T x[],
+        # struct tags no file completes) take it, else the gap to the next known address, or the largest
+        # complete declaration if that is longer. Arrays declared longer than a known size are cut to it.
+        bound = s.sfsize or s.defsize
+        extent = bound or max([gap(s)] + sized)
         cands = {}
         for n, obj, t, disp in s.decls:
             tt = t
+            es = n64_layout(tt[1])[0] if tt[0] == "array" else None
             if tt[0] == "array" and tt[2] is None:
-                es = n64_layout(tt[1])[0]
                 if es:
                     tt = INTERN.setdefault(("array", tt[1], max(1, extent // es)), ("array", tt[1], max(1, extent // es)))
+            elif tt[0] == "array" and bound and es and tt[2] * es > bound:
+                tt = INTERN.setdefault(("array", tt[1], max(1, bound // es)), ("array", tt[1], max(1, bound // es)))
+                cut.append((s, disp, Path(obj).name.replace(".c.o", ".c"), t[2] * es, bound))
             elif tt[0] in ("opaque", "void", "func"):
                 tt = ("array", ("base", "unsigned char", 1), extent)
             c = cands.setdefault(tt, [0, disp, []])
@@ -672,9 +691,15 @@ def generate(a):
             untyped.append(s)
             tt = ("array", ("base", "unsigned char", 1), extent)
             cands[tt] = [0, "u8[] (no declaration with a type)", []]
-        ranked = sorted(cands.items(), key=lambda kv: (score(kv[0], program(kv[0])), kv[1][0], kv[1][1], repr(kv[0])), reverse=True)
+        # With a known size, declarations of exactly that size first, then larger ones (a view that runs over the
+        # next object), then smaller (a view of part of it); then the most informative.
+        def fit(t):
+            n = n64_layout(t)[0] or 0
+            return 2 if not bound or n == bound else 1 if n > bound else 0
+        ranked = sorted(cands.items(), key=lambda kv: (fit(kv[0]), score(kv[0], program(kv[0])), kv[1][0], kv[1][1],
+                                                       repr(kv[0])), reverse=True)
         s.t, (cnt, s.disp, _) = ranked[0]
-        s.extent_by_gap = not s.sfsize and s.t not in [t for _, _, t, _ in s.decls]
+        s.extent_by_gap = not bound and s.t not in [t for _, _, t, _ in s.decls]
         s.runs = program(s.t)
         s.n64_size = n64_layout(s.t)[0] or 0
         s.host_size = host_size(s.t) or 0
@@ -690,9 +715,9 @@ def generate(a):
             if end_n > s.n64_size or end_h > s.host_size:
                 selfcheck.append(f"0x{s.addr:08X} {sorted(s.names)[0]}: run {KIND_NAMES[kind]} ends at N64 "
                                  f"{end_n}/{s.n64_size}, host {end_h}/{s.host_size}")
-        if s.sfsize and s.n64_size != s.sfsize:
+        if bound and s.n64_size != bound:
             size_mismatch.append(f"0x{s.addr:08X} {sorted(s.names)[0]}: {s.disp} is {s.n64_size} B on the N64, "
-                                 f"the symbol file says {s.sfsize}")
+                                 f"{'the symbol file says' if s.sfsize else 'its C definition'} {bound}")
         if s.extent_by_gap and not s.cdef and any(r[0] != K_U8 for r in s.runs):
             inside = [x for x in soft.get(s.arena, ()) if s.addr < x < s.addr + s.n64_size and x not in syms]
             if inside:
@@ -718,12 +743,16 @@ def generate(a):
                 elif tuple(x for x in mine if x[0] < lim) != other:
                     width_conflicts.append(line)
 
-    # Own storage swallows the symbols inside its N64 extent.
+    # Own storage swallows the symbols inside its N64 extent. One whose own declaration needs host storage (a
+    # pointer or a long) where the parent's layout has none gets a host slot the parent sized for something
+    # else, so it overlaps its neighbours there: usually a sign that the parent's extent is too long (player_array
+    # ran over the globals after it). Listed.
     ordered = sorted((s for s in syms.values() if not s.end_marker), key=lambda x: x.addr)
-    overlaps = []
+    overlaps, inside_conflicts = [], []
     for s in ordered:
         if s.parent is not None or not s.own or s.cdef:
             continue
+        parent_kinds = None
         for u in ordered:
             if u is s or u.addr < s.addr or u.addr >= s.addr + max(s.n64_size, 1) or u.arena != s.arena:
                 continue
@@ -731,6 +760,17 @@ def generate(a):
                 overlaps.append(f"0x{u.addr:08X} {sorted(u.names)[0]} (C-defined) inside own 0x{s.addr:08X} "
                                 f"{sorted(s.names)[0]}")
                 continue
+            wide_kinds = (K_PTR, K_S32_64, K_U32_64)   # 4 bytes on the N64, 8 here
+            if parent_kinds is None:
+                parent_kinds = dict(elements(s.runs))
+            off = u.addr - s.addr
+            bad = [o for o, k in elements(u.runs) if k in wide_kinds and parent_kinds.get(off + o) not in wide_kinds]
+            if bad or off + u.n64_size > s.n64_size:
+                inside_conflicts.append(
+                    f"0x{u.addr:08X} {sorted(u.names)[0]} ({u.disp}) in own 0x{s.addr:08X} {sorted(s.names)[0]}"
+                    f"+0x{off:X} ({s.disp}, {s.n64_size} B): "
+                    + (f"{len(bad)} of its pointers/longs not in the parent's layout" if bad
+                       else f"ends at +0x{off + u.n64_size:X}"))
             u.parent, u.parent_off, u.own = s, map_offset(s.runs, u.addr - s.addr), False
     # An arena symbol whose extent runs into own storage, or two own symbols that overlap.
     own_list = [s for s in ordered if s.own and s.parent is None and not s.cdef]
@@ -847,7 +887,16 @@ def generate(a):
     section("Arena element conflicts (first declaration kept)",
             [f"0x{s.addr + off:08X} {sorted(s.names)[0]}+0x{off:X} {KIND_NAMES[k]}" for s, off, k in elem_conflicts])
     section("Self-check failures (runs outside the symbol)", selfcheck)
-    section("N64 size differs from the symbol file", size_mismatch)
+    section("N64 size differs from the symbol file, extents.txt or the C definition", size_mismatch)
+    cut_files = collections.defaultdict(set)
+    for s, disp, obj, n, bound in cut:
+        cut_files[(s.addr, sorted(s.names)[0], disp, n, bound)].add(obj)
+    section("Array declarations longer than the known size (cut to it)",
+            [f"0x{ad:08X} {name}: {disp} ({n} B) in {len(f)} file{'s' if len(f) > 1 else ''} "
+             f"({', '.join(sorted(f)[:3])}{' ...' if len(f) > 3 else ''}), size {bound} B"
+             for (ad, name, disp, n, bound), f in sorted(cut_files.items())])
+    section("Inside own storage, but its own declaration has pointers or a long where the storage has none, or "
+            "runs past its end", inside_conflicts)
     section("Declared N64 size runs past the next known address (nested names or mistyped sizes)", past_gap)
     section("Gap extents crossing symbol-table addresses (give the declaration a size, or port/data/extents.txt)",
             crossing)
@@ -897,7 +946,6 @@ def c_str(s):
 
 def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image):
     arenas = n64syms.ARENAS
-    arena_var = [f"pc_n64_{img}" for img, _, _, _ in arenas]
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
     cdefs = [s for s in ordered if s.cdef]
     own_var = {id(s): f"pc_own_{i}" for i, s in enumerate(own)}
@@ -907,21 +955,23 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          "#include <stddef.h>", "#include <stdint.h>", "#include \"pc_data.h\"", "",
          "#if defined(__APPLE__)", "#define N64_SYM(name) \"_\" name", "#else", "#define N64_SYM(name) name",
          "#endif",
-         "/* An alias takes its own size, not the arena's (the linker compares it with the game's common symbols). */",
+         "/* A symbol takes its own size (the linker compares it with the game's common symbols). */",
          "#if defined(__ELF__)", "#define PC_SIZE(name, n) \"\\n.size \" N64_SYM(name) \", \" #n", "#else",
          "#define PC_SIZE(name, n) \"\"", "#endif", "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", ""]
-    L.append("/* One arena per image's data and BSS, laid out as on the N64. */")
-    for (img, lo, init, hi), var in zip(arenas, arena_var):
-        L.append(f"__attribute__((aligned(16))) uint8_t {var}[0x{(lo & 15) + hi - lo:X}];   "
-                 f"/* N64 0x{lo:08X}-0x{hi:08X} from +0x{lo & 15:X}: host addresses keep the N64 alignment */")
-    L += ["", "/* Own storage: host layout. */"]
+    L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 addresses in the RDRAM window")
+    L.append(" * port/ultra maps at host 0x80000000 (docs/port/ULTRA.md), so nothing here allocates them:")
+    for img, lo, init, hi in arenas:
+        L.append(f" *   {img}: 0x{lo:08X}-0x{hi:08X} (data to 0x{init:08X})")
+    L.append(" */")
+    L += ["", "/* Own storage: host layout. Aligned as a common symbol of that size can be (x86-64 GCC aligns",
+          " * aggregates of 32 bytes or more to 32), so the game C's tentative definitions agree with it. */"]
     for s in own:
-        L.append(f"__attribute__((aligned(16))) uint8_t {own_var[id(s)]}[{max(s.host_size, 1)}] "
+        al = 32 if s.host_size >= 32 else 16
+        L.append(f"__attribute__((aligned({al}))) uint8_t {own_var[id(s)]}[{max(s.host_size, 1)}] "
                  f"__asm__(N64_SYM({c_str(sorted(s.names)[0])}));   /* N64 0x{s.addr:08X}, {s.n64_size} B: {s.disp} */")
-    sets = []
-    layout = {"arenas": {}, "sets": [], "own": []}
-    for i, (img, lo, init, hi) in enumerate(arenas):
-        layout["arenas"][arena_var[i]] = [lo, (lo & 15) + hi - lo]
+    sets = []   # (name, base symbol or None for an absolute address, offset or address, size)
+    layout = {"window": [WINDOW_LO, WINDOW_HI], "arenas": [[lo, hi] for _, lo, _, hi in arenas], "absolute": [],
+              "sets": [], "own": []}
     for s in ordered:
         if s.cdef:
             continue
@@ -933,22 +983,23 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
             names = sorted(s.names)[1:]
             layout["own"].append([base, max(s.host_size, 1)])
         else:
-            base, off = arena_var[s.arena], s.addr - (arenas[s.arena][1] & ~15)
+            base, off = None, s.addr
             names = sorted(s.names)
         for n in names:
             sets.append((n, base, off, s.host_size))
-            layout["sets"].append([n, base, off])
     for s in sorted(syms.values(), key=lambda x: x.addr):
         if s.end_marker:   # one past an overlay's BSS (the loaders pass it as bssEnd)
             for n in sorted(s.names):
-                sets.append((n, arena_var[s.arena], s.addr - (arenas[s.arena][1] & ~15), 0))
-                layout["sets"].append(list(sets[-1][:3]))
+                sets.append((n, None, s.addr, 0))
+    for n, base, off, _ in sets:
+        layout["absolute" if base is None else "sets"].append([n, off] if base is None else [n, base, off])
     if sets:
-        L += ["", "/* Symbols at their N64 offsets in the arenas, or at the matching offset in own storage. */",
+        L += ["", "/* Symbols at their N64 addresses (absolute), or at the matching offset in own storage. */",
               "__asm__("]
         for n, base, off, size in sets:
-            L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", \" N64_SYM(\"{base}\")"
-                     f" \" + 0x{off:X}\" PC_SIZE(\"{n}\", {size}) \"\\n\"")
+            value = f"0x{off:08X}" if base is None else f"\" N64_SYM(\"{base}\") \" + 0x{off:X}"
+            L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", {value}\""
+                     f" PC_SIZE(\"{n}\", {size}) \"\\n\"")
         L += [");", ""]
     if thunks:
         L += ["/* Labels the game calls for a function defined under another name (symbols.json). */",
@@ -1010,10 +1061,12 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         L.append(f"    {{{c_str(name)}, {'PC_IMG_RAW' if storage == 'raw' else 'PC_IMG_DEFLATE'}, 0x{rom_off:X}, "
                  f"{rom_len}, {size}, 0x{base:08X}}},")
     L += ["};", ""]
+    L.append("/* host: the arena's N64 address, in the RDRAM window. */")
     L.append("static const PcDataArena pc_arenas[] = {")
     for i, (img, lo, init, hi) in enumerate(arenas):
         f, n = arena_first[i]
-        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, {arena_var[i]} + {lo & 15}, {f}, {n}}},")
+        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, (uint8_t *)(uintptr_t)0x{lo:08X}u, "
+                 f"{f}, {n}}},")
     L += ["};", ""]
     L.append(f"static const PcDataFunc pc_funcs[{max(len(funcs), 1)}] = {{")
     for (addr, img), host in sorted(funcs.items()):
@@ -1046,20 +1099,18 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
 
 
 def check(exe, layout_path, nm):
-    """Verify the linked executable: every .set symbol at its base + offset, own storage at its host size."""
+    """Verify the linked executable: every arena symbol absolute at its N64 address, every symbol inside own
+    storage at its base + offset, own storage at its host size, and nothing else linked in the RDRAM window."""
     layout = json.loads(Path(layout_path).read_text())
     out = subprocess.run([nm, "-S", "--defined-only", str(exe)], capture_output=True, text=True, check=True).stdout
-    addr, size = {}, {}
+    addr, size, letter = {}, {}, {}
     for line in out.splitlines():
         p = line.split()
         if len(p) == 4:
-            addr[p[3]], size[p[3]] = int(p[0], 16), int(p[1], 16)
+            addr[p[3]], size[p[3]], letter[p[3]] = int(p[0], 16), int(p[1], 16), p[2]
         elif len(p) == 3:
-            addr[p[2]] = int(p[0], 16)
+            addr[p[2]], letter[p[2]] = int(p[0], 16), p[1]
     bad = []
-    for var, (lo, n) in layout["arenas"].items():
-        if size.get(var) != n:
-            bad.append(f"arena {var}: size {size.get(var)} != {n}")
     for name, n in layout["own"]:
         if size.get(name) != n:
             bad.append(f"own {name}: size {size.get(name)} != {n}")
@@ -1068,10 +1119,21 @@ def check(exe, layout_path, nm):
             bad.append(f"{name}: not in the executable")
         elif addr[name] - addr[base] != off:
             bad.append(f"{name}: at {base}+0x{addr[name] - addr[base]:X}, expected +0x{off:X}")
+    for name, want in layout["absolute"]:
+        if name not in addr:
+            bad.append(f"{name}: not in the executable")
+        elif letter[name] not in "Aa" or addr[name] != want:
+            bad.append(f"{name}: {letter[name]} 0x{addr[name]:X}, expected absolute 0x{want:08X}")
+    # The executable's own link-time addresses must stay below the window: port/ultra/memory.c tells the GOT
+    # slots of absolute symbols by an addend at 0x80000000 or above.
+    lo, hi = layout["window"]
+    high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and x >= lo)
+    bad += [f"{n}: linked at 0x{addr[n]:X}, at or above the RDRAM window" for n in high]
     for b in bad[:50]:
         print("gen_data check:", b)
-    print(f"gen_data check: {len(layout['sets'])} placements, {len(layout['own'])} own, "
-          f"{len(layout['arenas'])} arenas: {'OK' if not bad else f'{len(bad)} errors'}")
+    print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "
+          f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own, "
+          f"nothing else in the window: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
 
 

@@ -14,6 +14,9 @@ typedef double f64;
 #ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+/* PC: port/data defines D_80156958, D_80149B64 and D_80149B74 at their N64 addresses, which aren't as aligned as
+ * the host gives a common, so here they are declarations (docs/port/DATA.md). */
+#define PC_ONLY(x)
 #endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
@@ -420,7 +423,7 @@ typedef struct {
     f32 unk0;
     f32 unk4;
 } D_80156958_Entry;
-D_80156958_Entry D_80156958[4];
+PC_ONLY(extern) D_80156958_Entry D_80156958[4];
 typedef struct {
     u8 pad0000[0x9CC0];
     OSMesgQueue unk9CC0;
@@ -2386,13 +2389,13 @@ extern s8 D_80149B4B;
 extern s32 D_80149B50;
 extern s32 D_80149B58;
 extern s8 D_80149B60;
-s8 D_80149B64[4];
+PC_ONLY(extern) s8 D_80149B64[4];
 extern s8 D_80149B65;
 extern s8 D_80149B66;
 extern s8 D_80149B67;
 extern s32 D_80149B68;
 extern s8 D_80149B70;
-s8 D_80149B74[4];
+PC_ONLY(extern) s8 D_80149B74[4];
 extern s8 D_80149B75;
 extern s8 D_80149B76;
 extern s8 D_80149B77;

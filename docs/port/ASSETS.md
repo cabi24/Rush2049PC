@@ -388,11 +388,13 @@ Expansion Pak waves (61, 65, 78, 82–87), which is a smaller first target. Swit
 ## 7. Risks and open questions
 
 1. **The RDRAM window is load-bearing.** The 32-bit plan needs the heap inside a fixed mapping at host 0x80000000
-   (≤ 16 MB, because of the 24-bit masks). If the OS can't provide it (`pc_n64_ptr` fallback), every u32 pointer
-   field needs a translating macro at each use. That is a much larger edit.
+   (≤ 16 MB, because of the 24-bit masks). The game's pointer-free data and BSS are there too, at their N64
+   addresses ([DATA.md](DATA.md) §3), so records and u32 fields can hold their addresses as well. If the OS can't
+   provide it (`pc_n64_ptr` fallback), every u32 pointer field needs a translating macro at each use, and the data
+   needs another home. That is a much larger edit.
 2. **Address ambiguity in the renderer.** Native lists mix host pointers with N64 physical and K0 addresses (§3.2).
    The renderer can only tell them apart if no host data sits below 4 GB except the window: build PIE, or tag the
-   addresses.
+   addresses. Game data in the window is RDRAM to it, the same memory either way.
 3. **Multiple struct views of the same records** (OBHD three views, `gText` four, `gWaveInstance` four, the
    `{ptr,count}` pairs two). Every view must change together, or the PC layout silently diverges. `gen_bss` doesn't
    yet give pointer-bearing structs their own storage.
