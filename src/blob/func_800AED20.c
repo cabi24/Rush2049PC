@@ -3702,11 +3702,11 @@ typedef s64 M2C_UNK64;
 #endif
 
 #ifdef TARGET_PC
-/* PC: a 3D-sound source (engine_sound_sync.c's Source, audio_effect_setup's Owner): InsertLLE links it through two
- * pointers, so its active byte is at +0x10 (docs/port/LAYOUT.md 5). */
-#define SOURCE_ACTIVE 0x10
+/* PC: an emitter (camera_target_track's Cam) has host-sized links, so its active flag is at +0x10
+ * (docs/port/SYNTH.md). The list header keeps its head at +8. */
+#define EMITTER_ACTIVE 0x10
 #else
-#define SOURCE_ACTIVE 8
+#define EMITTER_ACTIVE 8
 #endif
 s32 *func_800AED20(void) {
     s32 *sp1C;
@@ -3716,6 +3716,6 @@ s32 *func_800AED20(void) {
     }
     sp1C = M2C_FIELD(&D_801461B0, s32 **, 8);
     func_8009211C(&D_801461B0, M2C_FIELD(&D_801461B0, s32 **, 8));
-    M2C_FIELD(sp1C, s8 *, SOURCE_ACTIVE) = 0;
+    M2C_FIELD(sp1C, s8 *, EMITTER_ACTIVE) = 0;
     return sp1C;
 }

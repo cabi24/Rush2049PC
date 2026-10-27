@@ -16,18 +16,36 @@ typedef s32 intptr_t;
 typedef float f32;
 
 #ifdef TARGET_PC
-/* PC: the slot is an FX tag's data, a 3D-sound source (engine_sound_sync.c's Source): InsertLLE links it through two
- * pointers, so its flags are at +0x10 and the position, the near volume and the parameter 8 bytes later
- * (docs/port/LAYOUT.md 5). */
+/* PC: the audio manager's records have host-sized links and pointers (audiomgr_thread.c's views): an emitter
+ * (camera_target_track's Cam) is 56 bytes, an fx tag (tFxSequence) 88, a command (tAudioMsg) 32 (docs/port/SYNTH.md). */
 typedef struct CamSlot {
-    /* 0x00 */ void *pad0[2];
-    /* 0x10 */ u8 pad0c[4];
+    void *link[2];
+    u8 pad10[4];
     /* 0x14 */ f32 x, y, z;
-    /* 0x20 */ u8 pad18[4];
+    u8 pad20[4];
     /* 0x24 */ f32 blend;
-    /* 0x28 */ u8 pad20[4];
+    u8 pad28[4];
     /* 0x2C */ f32 extra;
 } CamSlot;
+
+typedef struct Entity {
+    void *pad0[3];
+    /* 0x18 */ s32 id;
+    /* 0x1C */ s32 state;
+    u8 pad20[6];
+    /* 0x26 */ u8 msgCount;
+    u8 pad27[0x48 - 0x27];
+    /* 0x48 */ s32 link;
+    /* 0x50 */ CamSlot *cam;
+} Entity; /* 0x58 */
+
+typedef struct Msg {
+    s16 id;
+    s8 type;
+    s8 used;
+    /* 0x08 */ Entity *ent;
+    u8 pad10[16];
+} Msg; /* 0x20 */
 #else
 typedef struct CamSlot {
     /* 0x00 */ u8 pad0[12];
@@ -37,22 +55,7 @@ typedef struct CamSlot {
     /* 0x20 */ u8 pad20[4];
     /* 0x24 */ f32 extra;
 } CamSlot;
-#endif
 
-#ifdef TARGET_PC
-/* PC: an FX tag (MAT3 audiomgr.c's tFxSequence): InsertLLE's two links and the tag's list are pointers, so the id
- * is at +0x18, everything after 12 bytes later and the data pointer (cam) at +0x50 (docs/port/LAYOUT.md 5). */
-typedef struct Entity {
-    /* 0x00 */ void *pad0[3];
-    /* 0x18 */ s32 id;
-    /* 0x1C */ s32 state;
-    /* 0x20 */ u8 pad14[6];
-    /* 0x26 */ u8 msgCount;
-    /* 0x27 */ u8 pad1B[0x48 - 0x27];
-    /* 0x48 */ s32 link;
-    /* 0x50 */ CamSlot *cam;
-} Entity; /* 0x58 */
-#else
 typedef struct Entity {
     /* 0x00 */ u8 pad0[12];
     /* 0x0C */ s32 id;
@@ -63,7 +66,6 @@ typedef struct Entity {
     /* 0x3C */ s32 link;
     /* 0x40 */ CamSlot *cam;
 } Entity; /* 0x44 */
-#endif
 
 typedef struct Msg {
     /* 0x00 */ s16 id;
@@ -72,6 +74,7 @@ typedef struct Msg {
     /* 0x04 */ Entity *ent;
     /* 0x08 */ u8 pad8[16];
 } Msg; /* 0x18 */
+#endif
 
 extern Entity *D_80110244;
 extern s32 D_80146104;

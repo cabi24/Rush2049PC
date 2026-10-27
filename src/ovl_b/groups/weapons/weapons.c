@@ -146,9 +146,17 @@ f32 D_803943A4[8][13][3] = {
     -0.9f, 0.0f, 3.1f, -0.9f, 0.0f, 3.52f, -2.0f, 0.0f, 3.4f, -0.33f, 0.0f, 4.38f, -4.39f, 0.0f,
     3.25f, -2.05f, 0.0f, 3.12f, -1.11f
 };
-static s8 D_80399118[4];            /* gCurWeaponType */
-static MuzzleObj D_80399120[4];     /* gGattMuzzleObjs */
-static CMuzzleObj D_80399550[4];    /* gCannMuzzleObjs */
+#ifdef TARGET_PC
+/* PC: func_8038CA24 (the weapon reset on a resurrect) writes these by their addresses, which on the N64 are this
+ * file's statics. Declared here, they are one storage on the PC too: image B's BSS arena (port/data), zeroed on
+ * every load of the image. */
+#define WEAPON_STATE extern
+#else
+#define WEAPON_STATE static
+#endif
+WEAPON_STATE s8 D_80399118[4];            /* gCurWeaponType */
+WEAPON_STATE MuzzleObj D_80399120[4];     /* gGattMuzzleObjs */
+WEAPON_STATE CMuzzleObj D_80399550[4];    /* gCannMuzzleObjs */
 
 /* 0x8038AA14 _RemoveGattMFlash */
 void func_8038AA14(s16 slot)

@@ -78,6 +78,26 @@ int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event));
 int pc_gfx_save_screenshot(const char *path);   /* last presented frame as PNG; 0 on success */
 void pc_gfx_shutdown(void);
 
+/* Drawing over the frame, in window pixels (port/gfx/gfx_ui.c), for port/input's settings overlay. While a UI hook
+ * is set, each present (and pc_gfx_redraw) calls it with the window's size after the frame is shown and before
+ * the swap; it draws with pc_gfx_ui_rect and pc_gfx_ui_text. Screenshots keep the frame without it. NULL removes
+ * it. Colors are 0xRRGGBBAA, blended over what is there. */
+void pc_gfx_set_ui_hook(void (*draw)(int window_w, int window_h));
+void pc_gfx_ui_rect(int x, int y, int w, int h, uint32_t rgba);
+/* Printable ASCII in the port's own font (gfx_font.c): 5 x 9 pixels per glyph at scale 1 (7 above the baseline),
+ * 6 apart; y is the top of the cell. Returns the width drawn. */
+int pc_gfx_ui_text(int x, int y, int scale, uint32_t rgba, const char *text);
+#define PC_GFX_FONT_W 5
+#define PC_GFX_FONT_H 9
+#define PC_GFX_FONT_ADVANCE 6
+/* A glyph's rows, top first; bit 4 is the leftmost column. 0 for a character the font lacks. */
+int pc_gfx_font_glyph(int c, uint8_t rows[PC_GFX_FONT_H]);
+/* Show the last presented frame again, with the UI over it, and swap (the overlay while the game is held). */
+void pc_gfx_redraw(void);
+/* Called by pc_gfx_poll_events after the window's events, also without a window: port/input's turn at each
+ * retrace and while the game is held. A nonzero return quits. NULL removes it. */
+void pc_gfx_set_tick_hook(int (*tick)(void));
+
 /* ---------------------------------------------------------------- audio (port/audio) */
 
 /* Output setup, from main before the game starts. backend: "auto" (SDL2, then ALSA, then null), "sdl",
@@ -86,6 +106,8 @@ void pc_gfx_shutdown(void);
  * initializes from the environment (port/audio/pc_audio.h). */
 int pc_audio_init(const char *backend, const char *dump_wav_path);
 void pc_audio_shutdown(void);
+/* The master volume, 0-1 (audio.volume / 100), on the output device; 1 leaves the samples as they are. */
+void pc_audio_set_volume(double volume);
 /* One audio task: OSTask.t.data_ptr / data_size, as the game sets them. Runs to completion. The game's
  * microcode is MusyX v1, not Acmd: data_ptr is an array of subframe descriptors and data_size is how many
  * (not bytes); each writes 192 stereo frames into an AI buffer (port/audio/musyx_abi.h). */

@@ -39,10 +39,12 @@ typedef float f32;
 #define NULL ((void *)0)
 
 #ifdef TARGET_PC
-/* PC: an audio message (MAT3 audiomgr.c's tAudioMsg) ends with a tag pointer: 0x20 bytes (docs/port/LAYOUT.md 5). */
-typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[0x20 - 4]; } ShutdownMsg;
+/* PC: a command is 32 bytes (func_80091B00.c). The wait for the audio manager to take every command is a
+ * busy-wait, which lets it run (docs/port/ULTRA.md 6). */
+typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[28]; } ShutdownMsg;
 #else
 typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[20]; } ShutdownMsg;
+#define PC_SPIN(site)
 #endif
 typedef struct OSMesgQueue OSMesgQueue;
 typedef void *OSMesg;
@@ -83,7 +85,7 @@ void func_800C8918(void) {
         func_800C885C();
         post_type1();
         post_type7();
-        do {
+        do { PC_SPIN("func_800C8918")
             for (i = 0; i < 128; i++) {
                 if (D_80142DD8[i].used) {
                     break;

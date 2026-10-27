@@ -55,6 +55,19 @@ typedef struct CCol {
     f32 k;
 } CCol;
 
+#ifdef TARGET_PC
+/* PC: the car's model record (D_8014A250) keeps its N64 layout, and its tires' road nodes are u32 window addresses
+ * there (docs/port/CARS.md), as entity_update.c's view has them. */
+enum n64p_QNode { n64p_QNode_ };
+typedef struct VCar {
+    u8 p0[628];
+    f32 pos[4][3];      /* 628: wheel positions */
+    f32 old[4][3];      /* 676: previous wheel positions */
+    u8 p724[204];
+    enum n64p_QNode node[4];     /* 928 */
+} VCar;
+#define N64P(x) _Generic((x), enum n64p_QNode: (QNode *)(uintptr_t)(x), default: (x))
+#else
 typedef struct VCar {
     u8 p0[628];
     f32 pos[4][3];      /* 628: wheel positions */
@@ -62,6 +75,8 @@ typedef struct VCar {
     u8 p724[204];
     QNode *node[4];     /* 928 */
 } VCar;
+#define N64P(x) x
+#endif
 
 extern Poly *D_801497F8;
 extern u8 *D_80152460;
@@ -101,7 +116,7 @@ void camera_victory(VCar *car)
     s16 outIdx;
 
     for (j = 0; j < 4; j++) {
-        p = (Poly *)handbrake_apply(car->node[j], (s32)FLOOR(car->pos[j][0]), (s32)FLOOR(car->pos[j][2]), &out);
+        p = (Poly *)handbrake_apply(N64P(car->node[j]), (s32)FLOOR(car->pos[j][0]), (s32)FLOOR(car->pos[j][2]), &out);
         if (p != NULL) {
             unique = 1;
             for (i = ncells - 1; i >= 0; i--) {

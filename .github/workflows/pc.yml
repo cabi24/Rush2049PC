@@ -1,5 +1,6 @@
 # The PC port (docs/PORT_PLAN.md): build, unit tests, and a boot without a ROM, on x86-64 and aarch64 Linux.
-# No ROM is involved: the tests use synthetic data, and --no-rom boots the game on a blank cartridge.
+# No ROM is involved: the tests use synthetic data, --no-rom boots the game on a blank cartridge, and a synthetic
+# cartridge of original data (tools/port/synth_rom.py, docs/port/SYNTH.md) boots it into a race.
 name: PC port
 
 on:
@@ -55,6 +56,18 @@ jobs:
             > boot.log 2>&1 || true
           cat boot.log
           grep -q "wave 0 loaded" boot.log
+      - name: Boot the synthetic cartridge
+        # tools/port/synth_rom.py writes a cartridge of original, minimal data (docs/port/SYNTH.md). The game boots
+        # on it through the front end's screens into a race on an empty track and runs 300 frames of it; the run
+        # fails if it faults or doesn't get there in time. (ctest's synth_boot_menu and synth_boot_race do the same.)
+        run: |
+          python3 tools/port/synth_rom.py
+          status=0
+          RUSH_TRACE_WAVES=1 build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headless \
+            --no-config --audio null --no-pak --press 5:A,8:A,11:A,14:A,17:A --until-state 0x400000:300 \
+            --seconds 75 > synth.log 2>&1 || status=$?
+          grep -v "wave .* loaded\|wad .* converted" synth.log || true
+          exit $status
       - name: Census
         run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20
       - uses: actions/upload-artifact@v4
@@ -63,6 +76,8 @@ jobs:
           name: logs-${{ matrix.os }}
           path: |
             boot.log
+            synth.log
+            build/synth/rush2049_synth.txt
             build/pc/pc-data/data_layout.txt
           if-no-files-found: ignore
 

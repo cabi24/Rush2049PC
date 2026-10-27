@@ -3707,8 +3707,8 @@ void entity_flag_check(s32 *ipa_s0);
 void func_800988D8(void);
 
 #ifdef TARGET_PC
-/* PC: ipa_s0 is a sequence tag (MAT3 audiomgr.c's, audiomgr_thread.c's anon_ll_id_3c): InsertLLE links it through two
- * pointers, so its id, free and active flags are 8 bytes later than on the N64 (docs/port/LAYOUT.md 5). */
+/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links: its id is at +0x10 and its free and
+ * active flags at +0x14, +0x15 (docs/port/SYNTH.md). A list header keeps its head at +8. */
 #define SEQ_ID 0x10
 #define SEQ_FREE 0x14
 #define SEQ_ACTIVE 0x15
@@ -3717,6 +3717,7 @@ void func_800988D8(void);
 #define SEQ_FREE 0xC
 #define SEQ_ACTIVE 0xD
 #endif
+
 void entity_flag_check(s32 *ipa_s0) {
     M2C_FIELD(ipa_s0, s32 *, SEQ_ID) = (s32) (M2C_FIELD(ipa_s0, s32 *, SEQ_ID) & D_80146104);
     if (M2C_FIELD(ipa_s0, s8 *, SEQ_ACTIVE) != 0) {

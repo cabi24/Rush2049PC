@@ -44,6 +44,8 @@ add_library(pcgfx STATIC
     gfx_rdp.c
     gfx_combine.c
     gfx_gl.c
+    gfx_ui.c
+    gfx_font.c
     ${PCGFX_HEADLESS}
     gfx_png.c)
 set_target_properties(pcgfx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
@@ -117,6 +119,21 @@ pcgfx_all_variant(software "LIBGL_ALWAYS_SOFTWARE=1")
 pcgfx_all_variant(wide "RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(wide21-scale3 "RUSH_GFX_WIDESCREEN=21:9;RUSH_GFX_SCALE=3")
 pcgfx_all_variant(scale-auto "RUSH_GFX_SCALE=auto")   # 2 in the 640 x 480 headless size
+# The overlay's drawing (gfx_ui.c) and font (gfx_font.c), headless: the window's offscreen image is read back.
+add_executable(gfx_ui_test tests/ui_test.c)
+set_target_properties(gfx_ui_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    EXPORT_COMPILE_COMMANDS OFF)
+target_link_libraries(gfx_ui_test PRIVATE pcgfx)
+foreach(c font panel closed scaled)
+    add_test(NAME gfx.ui.${c} COMMAND gfx_ui_test ${c} ${PCGFX_TEST_OUT})
+endforeach()
+foreach(v "desktop-gl;RUSH_GFX_API=gl" "software;LIBGL_ALWAYS_SOFTWARE=1")
+    list(GET v 0 name)
+    list(GET v 1 env)
+    file(MAKE_DIRECTORY ${PCGFX_TEST_OUT}/ui-${name})
+    add_test(NAME gfx.ui.all.${name} COMMAND gfx_ui_test all ${PCGFX_TEST_OUT}/ui-${name})
+    set_tests_properties(gfx.ui.all.${name} PROPERTIES ENVIRONMENT "${env}")
+endforeach()
 if(PCGFX_SDL_TARGET)   # the window path, on SDL's offscreen driver (no display needed)
     # Windows: SDL's offscreen driver makes its GL contexts through EGL, which Windows lacks, so a real window
     # through WGL, where the back buffer doesn't survive the swap for the window comparison (docs/port/WINDOWS.md)

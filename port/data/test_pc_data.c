@@ -82,7 +82,7 @@ static PcDataArena arenas[5] = {
 typedef struct { uint32_t a; void *p; uint16_t h; void (*fp)(void); int64_t l; } S_t;
 typedef struct { uint32_t x; void *y; } Q_t;
 static S_t S;
-static void *P[12];
+static void *P[13];
 static Q_t Q[2];
 static void *A1, *B1;
 static uint32_t cvar;   /* game-C data of image A */
@@ -100,7 +100,7 @@ static const PcDataRun runs[] = {
     {8, offsetof(S_t, h), 1, 1, 0, 0, PC_K_U16}, {12, offsetof(S_t, fp), 1, 1, 0, 0, PC_K_PTR},
     {16, offsetof(S_t, l), 1, 1, 0, 0, PC_K_S32_64},
     /* 11 P */
-    {0, 0, 12, 1, 0, 0, PC_K_PTR},
+    {0, 0, 13, 1, 0, 0, PC_K_PTR},
     /* 12-13 Q: two elements, N64 stride 8, host stride sizeof(Q_t) */
     {0, offsetof(Q_t, x), 1, 2, 8, sizeof(Q_t), PC_K_U32}, {4, offsetof(Q_t, y), 1, 2, 8, sizeof(Q_t), PC_K_PTR},
     /* 14 A1, 15 B1 */
@@ -111,7 +111,7 @@ static const PcDataRun runs[] = {
 
 static const PcDataSym syms[] = {
     {"S", 0x80010100, 20, sizeof S, &S, 6, 5, 1, PC_SYM_OWN},
-    {"P", 0x80010120, 48, sizeof P, P, 11, 1, 1, PC_SYM_OWN},
+    {"P", 0x80010120, 52, sizeof P, P, 11, 1, 1, PC_SYM_OWN},
     {"Q", 0x80010160, 16, sizeof Q, Q, 12, 2, 1, PC_SYM_OWN},
     {"B1", 0x80300040, 4, sizeof B1, &B1, 15, 1, 3, PC_SYM_OWN},
     {"A1", 0x80300080, 4, sizeof A1, &A1, 14, 1, 2, PC_SYM_OWN},
@@ -164,6 +164,7 @@ static void build_rom(void)
     put32(game + 0x144, 0x80300120);   /* image A's arena (its BSS) */
     put32(game + 0x148, 0x803FF000);   /* the heap above the images: kept */
     put32(game + 0x14C, 0xFFFFFFFF);   /* (char *)-1: a sentinel, sign-extended */
+    put32(game + 0x150, 0x80001098);   /* the boot arena's "HELLO", which no element describes */
     /* Q at 0x160 */
     put32(game + 0x160, 1);
     put32(game + 0x164, 0x80001084);
@@ -295,7 +296,9 @@ static void run(int window)
     /* stats */
     CHECK(st->unresolved == 1 && st->raw == 2 && st->no_code == 1 && st->ambiguous == 1 && st->rdram == 2);
     CHECK(st->own == 5);   /* P[0], P[1], P[6], P[8], Q[1].y */
-    CHECK(st->arena == 3);   /* S.p, Q[0].y, P[9] */
+    CHECK(st->arena == 4);   /* S.p, Q[0].y, P[9], P[12] */
+    CHECK(st->undescribed == 1);   /* P[12]: P[9]'s target is BSS, the others are a described u32 */
+    CHECK(P[12] == (void *)(a_boot + 0x18) && memcmp(P[12], "HELLO", 6) == 0);
     CHECK(st->func == 4);   /* S.fp, P[5], A1, B1 */
     /* both address-like words; the one of own storage can't be reached through a u32, nor the arena word when
      * the arena is host memory */

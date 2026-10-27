@@ -50,7 +50,8 @@ static struct {
     PcWav dump;
     PcAudioStats stats;
     double clock_last, clock_carry;   /* null backend */
-} g = {.mutex = PC_LOCK_INIT};
+    int32_t gain;                     /* the master volume, Q16 (pc_audio_set_volume) */
+} g = {.mutex = PC_LOCK_INIT, .gain = 65536};
 
 static double now_seconds(void)
 {
@@ -319,13 +320,28 @@ size_t pc_audio_queued_frames(void)
 size_t pc_audio_pull(int16_t *out, size_t frames)
 {
     size_t got;
+    int32_t gain;
     lock();
     got = g.ring ? ring_read(out, frames) : 0;
     if (got < frames)
         g.stats.underrun_frames += frames - got;
+    gain = g.gain;
     unlock();
+    if (gain != 65536)   /* full volume leaves the samples as they are */
+        for (size_t i = 0; i < 2 * got; i++)
+            out[i] = (int16_t)(out[i] * gain >> 16);
     memset(out + 2 * got, 0, (frames - got) * 4);
     return got;
+}
+
+/* The volume is a slider: its square is the gain, so 50 is about -12 dB and 10 about -40 dB. It applies where the
+ * backends pull, so the dump file (--dump-audio) keeps what the game played. */
+void pc_audio_set_volume(double volume)
+{
+    double v = volume < 0 ? 0 : volume > 1 ? 1 : volume;
+    lock();
+    g.gain = (int32_t)(v * v * 65536 + 0.5);
+    unlock();
 }
 
 uint32_t pc_audio_device_rate(void)

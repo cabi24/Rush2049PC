@@ -16,9 +16,8 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 #ifdef TARGET_PC
-/* PC: an audio message (MAT3 audiomgr.c's tAudioMsg) ends with a tag pointer, so a slot is 0x20 bytes (gen_data's
- * D_80142DD8 is 128 of them; docs/port/LAYOUT.md 5). */
-typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x20 - 4]; } Slot18;
+/* PC: a command (tAudioMsg, audiomgr_thread.c) is 32 bytes, its fx tag pointer host-sized (docs/port/SYNTH.md). */
+typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x1C]; } Slot18;
 #else
 typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x14]; } Slot18;
 #endif

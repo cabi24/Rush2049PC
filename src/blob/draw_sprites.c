@@ -3701,6 +3701,16 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: the audio manager's sorted-tag node (anon_te_tag_c: two tree links, then the fx tag) and fx tag
+ * (tFxSequence) have host-sized pointers: the tag is at +0x10, its weighted priority at +0x28
+ * (docs/port/SYNTH.md). */
+#define STAG_TAG 0x10
+#define FX_WPRIORITY 0x28
+#else
+#define STAG_TAG 8
+#define FX_WPRIORITY 0x1C
+#endif
 s32 draw_sprites(void *arg0, void *arg1) {
-    return M2C_FIELD(M2C_FIELD(arg0, void **, 8), s32 *, 0x1C) - M2C_FIELD(M2C_FIELD(arg1, void **, 8), s32 *, 0x1C);
+    return M2C_FIELD(M2C_FIELD(arg0, void **, STAG_TAG), s32 *, FX_WPRIORITY) - M2C_FIELD(M2C_FIELD(arg1, void **, STAG_TAG), s32 *, FX_WPRIORITY);
 }

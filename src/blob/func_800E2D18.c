@@ -33,16 +33,17 @@ typedef struct {
 } TorqueSrc;
 
 #ifdef TARGET_PC
-/* PC: m is the model record D_8014A250, which keeps its N64 layout: its tune pointer at +4 is a u32 window address
- * (docs/port/CARS.md 4). */
+/* PC: the record is the car's model (D_8014A250), which keeps its N64 layout: its tune pointer at +4 is a u32 window
+ * address (docs/port/CARS.md 2.2). */
+enum n64p_TorqueSrc { n64p_TorqueSrc_ };
 typedef struct {
     u8 pad0[4];
-    unsigned int unk4;
+    enum n64p_TorqueSrc unk4;
     u8 pad8[3];
     s8 unkB;
     s8 unkC;
 } EngineState;
-#define TUNE(m) ((TorqueSrc *)(uintptr_t)(m)->unk4)
+#define N64P(x) _Generic((x), enum n64p_TorqueSrc: (TorqueSrc *)(__UINTPTR_TYPE__)(x), default: (x))
 #else
 typedef struct {
     u8 pad0[4];
@@ -51,7 +52,7 @@ typedef struct {
     s8 unkB;
     s8 unkC;
 } EngineState;
-#define TUNE(m) m->unk4
+#define N64P(x) x
 #endif
 
 extern f32 D_801110C4[][3];
@@ -90,6 +91,6 @@ s16 func_800E2D18(EngineState *m, s16 rpm, s16 throttle, s16 *torquecurve)
     hi_ptr = (s16 *)torquecurve + ((tindex + 1) * 12) + rindex + 1;
     right = func_800E2CC0((*low_ptr), (*hi_ptr), rrem, RPM_SCALE - 1);
     right = func_800E2CC0(left, right, trem, 14);
-    right *= TUNE(m)->unk8 * D_801110C4[m->unkC][m->unkB];
+    right *= N64P(m->unk4)->unk8 * D_801110C4[m->unkC][m->unkB];
     return right;
 }

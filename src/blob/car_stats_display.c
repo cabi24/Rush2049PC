@@ -26,8 +26,8 @@ typedef int intptr_t;
 #endif
 
 #ifdef TARGET_PC
-/* PC: the variadic arguments are where the host ABI passes them (registers first), not after the last named
- * parameter: the compiler's va_list (as fcvt_wrapper's PC version). */
+/* PC: IDO's va_list walks the o32 stack after the last named argument; a host ABI passes the variable arguments
+ * in registers (docs/port/SYNTH.md). */
 typedef __builtin_va_list va_list;
 #define va_start(list, parmN) __builtin_va_start(list, parmN)
 #define va_arg(list, mode) __builtin_va_arg(list, mode)
@@ -41,16 +41,18 @@ typedef char *va_list;
 #define va_end(list) (void)0
 #endif
 
-typedef struct Event {
 #ifdef TARGET_PC
-    /* PC: a sequence tag (MAT3 audiomgr.c's, audiomgr_thread.c's anon_ll_id_3c): InsertLLE links it through two
-     * pointers, so everything after them is 8 bytes later and a tag is 0x48 bytes (docs/port/LAYOUT.md 5). */
-    void *pad0;
-    void *pad4;
+/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links, so its fields follow from +0x10, 72 bytes
+ * (docs/port/SYNTH.md). */
+#define EVENT_LINK0 void *pad0;
+#define EVENT_LINK1 void *pad4;
 #else
-    u32 pad0;
-    u32 pad4;
+#define EVENT_LINK0 u32 pad0;
+#define EVENT_LINK1 u32 pad4;
 #endif
+typedef struct Event {
+    EVENT_LINK0
+    EVENT_LINK1
     u32 handle;     /* 8 */
     u8 busy;        /* 12 */
     u8 active;      /* 13 */

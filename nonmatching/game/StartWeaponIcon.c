@@ -1,5 +1,10 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* StartWeaponIcon = _StartWeaponIcon (MAT3 targets.c, GC 0x8004DC94, size 0x428). */
+/* PC (compiled into the PC build, CMakeLists.txt): the weapon icons' start function in the target info table
+ * D_80117530 (its +0x08 slot, PC +0x10; docs/port/POINTERS.md 10). engine_torque_calc calls it with the node when
+ * the record's flag 4 or 0x4000 is set (the second without a NULL check), and race_setup_2 calls it when a car hits
+ * the icon, with flag 4 set and the car in t->slot. No direct callers. The node keeps its N64 layout (arena); the
+ * car and the info record have their PC layouts below, the model (arena) its N64 one. */
 typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short s16;
@@ -21,12 +26,25 @@ typedef struct Battle {
     s32 loaded;           /* 0x20 */
     f32 fadeTime; f32 reloadingTime; f32 pitch; f32 yaw;
 } Battle;
+#ifdef TARGET_PC
+/* PC: the car record's layout (0x468 bytes, docs/port/CARS.md): its 21 visuals and the input pointer are host-sized. */
+typedef struct Car {
+    u8 pad00[0xe8];
+    u32 appearance;       /* 0xe8 */
+    u8 padec[0x110 - 0xec];
+    struct pc_visual visuals[21];
+    u8 padec_308[0x380 - 0x308];
+    void *input;
+    Battle battle;        /* 0x384, PC 0x430 */
+} Car;
+#else
 typedef struct Car {
     u8 pad00[0xe8];
     u32 appearance;       /* 0xe8 */
     u8 padec[0x384 - 0xec];
     Battle battle;        /* 0x384 */
 } Car;
+#endif
 typedef struct Model {
     u8 pad00[8];
     u8 body_type;         /* 0x08 */
@@ -37,7 +55,25 @@ typedef struct Model {
     u8 pad658[0x808 - 0x658];
 } Model;
 typedef struct CollSize { f32 colfront, colrear, colside, colheight; } CollSize;
+#ifdef TARGET_PC
+/* PC: a target info record is 0x40 bytes (its first four words are pointers), every field spelled out as in the
+ * other views, whichever one the loader converts the ROM's records by (docs/port/POINTERS.md 10). */
+typedef struct TargetInfo {
+    char *name, *file;
+    void *start;
+    void *visFunc;
+    s16 kind;
+    u16 flags;
+    s16 shape;
+    s8 category, element;
+    f32 value;
+    s32 startSnd;         /* 0x1c, PC 0x2c */
+    s32 w20, w24, w28;
+    f32 f2C;
+} TargetInfo;
+#else
 typedef struct TargetInfo { u8 pad00[0x1c]; s32 startSnd; u8 pad20[0x30 - 0x20]; } TargetInfo;
+#endif
 typedef struct Target {
     u8 pad00[4];
     u8 Flags;             /* 0x04 */
@@ -55,10 +91,22 @@ typedef struct Target {
 extern Car D_80152818[];        /* gGameCar */
 extern Model D_8014A250[];      /* model */
 extern TargetInfo D_80117530[]; /* targetInfo */
+#ifdef TARGET_PC
+/* PC: the eight weapons' counts. Without a size the loader would take its extent from the gap to the next known
+ * address and swap the 48 bytes after it as words too. */
+extern s32 D_80121D60[8];       /* ammoCnts */
+#else
 extern s32 D_80121D60[];        /* ammoCnts */
+#endif
 extern CollSize D_8011F844[];   /* collsize */
+#ifdef TARGET_PC
+/* PC: the definitions' prototypes. */
+s32 stat_lap_split(s32 sound, s32 slot, f32 *position, u8 mode);
+void model_data_load(s32 a, s32 mode, u32 v);
+#else
 void stat_lap_split(s32 snd, s32 slot, f32 *pos, s32 n);  /* PlayTargetSound */
 void model_data_load(s32 dl, s32 a, s32 b);                /* MBOX_HideObject */
+#endif
 void func_80391490(void);                                  /* IncBattlePowerUps */
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)

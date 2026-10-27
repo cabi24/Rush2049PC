@@ -16,17 +16,18 @@ typedef unsigned char u8;
 typedef unsigned int u32;
 typedef int s32;
 
-typedef struct Event {
 #ifdef TARGET_PC
-    /* PC: a sequence tag (MAT3 audiomgr.c's, audiomgr_thread.c's anon_ll_id_3c): InsertLLE links it through two
-     * pointers, so everything after them is 8 bytes later and a tag is 0x48 bytes, which the lookup strides by
-     * (docs/port/LAYOUT.md 5). */
-    void *pad0;
-    void *pad4;
+/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links, so its fields follow from +0x10, 72 bytes
+ * (docs/port/SYNTH.md). */
+#define EVENT_LINK0 void *pad0;
+#define EVENT_LINK1 void *pad4;
 #else
-    u32 pad0;
-    u32 pad4;
+#define EVENT_LINK0 u32 pad0;
+#define EVENT_LINK1 u32 pad4;
 #endif
+typedef struct Event {
+    EVENT_LINK0
+    EVENT_LINK1
     u32 handle;     /* 8 */
     u8 busy;        /* 12 */
     u8 active;      /* 13 */

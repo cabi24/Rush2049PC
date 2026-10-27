@@ -7,6 +7,8 @@
 #                       joysticks (hot-plug, every binding, sticks, triggers, rumble), focus and pause, and
 #                       scripted presses merged over live input; through port/gfx's real window and event loop on
 #                       SDL's offscreen video driver, so no display is needed
+#   frontend_menu_test  the settings overlay, headless: moving through it, live changes, Save into a settings
+#                       file in place, scripted MENU input
 #   frontend.precedence the executable itself: rush2049pc --print-config over a settings file, the environment
 #                       and options
 set(PC_FRONTEND_TEST_FLAGS -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
@@ -32,6 +34,18 @@ add_test(NAME frontend.precedence
 set_tests_properties(frontend.precedence PROPERTIES ENVIRONMENT "RUSH2049_AUDIO=null;RUSH_GFX_SCALE=4"
     PASS_REGULAR_EXPRESSION "rom = /roms/rush2049.z64.*\nscale = 3.*\nbackend = null.*\\[keyboard\\].*\nA = Space\n")
 
+# The settings overlay, headless (no SDL needed): port/input with port/gfx's renderer, whose window is then an
+# offscreen image; input as the overlay's actions and --press scripts. One directory per case: they run in parallel.
+add_executable(frontend_menu_test tests/test_menu.c tests/stubs.c $<TARGET_OBJECTS:pcfrontend>)
+target_include_directories(frontend_menu_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config ${CMAKE_SOURCE_DIR}/port/input
+                           ${CMAKE_SOURCE_DIR}/port/include ${CMAKE_SOURCE_DIR}/port/gfx/tests)
+target_compile_options(frontend_menu_test PRIVATE ${PC_FRONTEND_TEST_FLAGS} -Wno-unused-function)
+target_link_libraries(frontend_menu_test PRIVATE pcgfx ${RUSH_SDL2_TARGET} m)
+foreach(c nav live save script)
+    add_test(NAME frontend.menu.${c} COMMAND frontend_menu_test ${c} ${PC_FRONTEND_TEST_DIR}/menu-${c})
+endforeach()
+set_target_properties(frontend_menu_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+
 if(RUSH_SDL2_TARGET)
     add_executable(frontend_sdl_test tests/test_sdl.c tests/stubs.c $<TARGET_OBJECTS:pcfrontend>)
     target_include_directories(frontend_sdl_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config
@@ -45,7 +59,7 @@ if(RUSH_SDL2_TARGET)
     else()
         set(PC_FRONTEND_SDL_DRIVER offscreen)
     endif()
-    foreach(c keyboard hotkeys focus controller hotplug rumble script)
+    foreach(c keyboard hotkeys focus controller hotplug rumble menu script)
         add_test(NAME frontend.sdl.${c} COMMAND frontend_sdl_test ${c} ${PC_FRONTEND_TEST_DIR})
         set_tests_properties(frontend.sdl.${c} PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=${PC_FRONTEND_SDL_DRIVER}")
     endforeach()

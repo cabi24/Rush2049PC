@@ -12,6 +12,10 @@
  * Residual (3 words): retail narrows the line height through ring temps (`sll t8,t0; sra t9,t8`, uses t9) and
  * keeps the unnarrowed value in t0; ours narrows in place (`sra t0,t8`, ugen `sra $25; move $8,$25` merged by
  * as1). Same family residual as the `x - (w>>1)` state_utility narrowing in func_8010B5D0/B7FC/BC84.
+ * PC (compiled into the PC build, CMakeLists.txt): animPanes@videoscr.c, the AnimFunc of the video-options screen's
+ * MultiBlit tables D_8011ACA0 (front end) and D_8011ACE8 (in game), which video_initScreen hands to NewMultiBlit
+ * (ROM data). NewMultiBlit calls it once with the new blit, UpdateActiveObjects every frame after. No direct callers.
+ * InitPane (ambient_sound_set) takes its sixth argument pointer-sized on the PC.
  */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -48,7 +52,11 @@ void fcvt_wrapper(char *, char *, ...);
 u32 object_manager_update(void *, s32);
 void crowd_cheer_play(void *, s32, s32, s32, s32);
 s16 object_bytes_sum_global(void);
+#ifdef TARGET_PC
+void *ambient_sound_set(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, intptr_t word40, s32 word44, s32 own);
+#else
 void *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
+#endif
 
 s32 func_8010E8B4(void *item)
 {

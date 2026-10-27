@@ -35,9 +35,8 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
 #ifdef TARGET_PC
-/* PC: an FX tag (MAT3 audiomgr.c's tFxSequence): InsertLLE's two links and the tag's list are pointers, so its state
- * is at +0x1C and everything after 12 bytes later (docs/port/LAYOUT.md 5). */
-typedef struct Effect {void *pad0[3];u8 pad18[4];s32 kind;u8 pad20[4];s8 state,delay;u8 persistent;u8 pad27[33];s32 voice;} Effect;
+/* PC: an fx tag (audiomgr_thread.c's tFxSequence) is 88 bytes, its links and list host-sized (docs/port/SYNTH.md). */
+typedef struct Effect {u8 pad0[28];s32 kind;u8 pad32[4];s8 state,delay;u8 persistent;u8 pad39[33];s32 voice;void *data;} Effect;
 #else
 typedef struct Effect {u8 pad0[16];s32 kind;u8 pad20[4];s8 state,delay;u8 persistent;u8 pad27[33];s32 voice;} Effect;
 #endif

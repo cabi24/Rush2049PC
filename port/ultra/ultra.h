@@ -139,6 +139,12 @@ typedef struct {
     int status_every;        /* print a status line every N seconds (0: never) */
     uint32_t screenshot_at;  /* save a screenshot once this many graphics tasks have run (0: never) */
     const char *screenshot;  /* its path */
+    /* The game's state word (gGameState), read once per retrace on the host main thread: each change is logged.
+     * NULL: none (the self-test). */
+    uint32_t (*game_state)(void);
+    uint32_t until_state;        /* stop once the state word has one of these bits... */
+    uint32_t until_state_frames; /* ...and this many more graphics tasks have run; a time limit reached first
+                                    is a failure (exit 1). 0: no such stop */
 } PcRunOptions;
 int pc_ultra_run(const PcRunOptions *opt);   /* the host main loop; returns the exit code */
 extern uint32_t pc_frame;                    /* retraces since boot */

@@ -70,11 +70,18 @@ endif()
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
 # Functions at the matching ceiling: the ROM takes them from their retail assembly, but their C drafts
 # (nonmatching/README.md) differ only in register allocation and scheduling. The PC build compiles the
-# standalone drafts of those no other file defines; the rest already come in as group context copies.
+# standalone drafts of those no other file defines; the rest already come in as group context copies. Drafts that
+# need the PC layouts of shared records have them under TARGET_PC. The runtime images' 8-byte stubs (deleted bodies
+# of inlined helpers) are empty functions in nonmatching/ovl_<x>/stubs.c, PC only.
 foreach(f RaceStateMachine_Update TB_EllipseText createBG display_list_flush drone_set_catchup
-          ghost_race_setup physics_float_calc state_utility)
+          ghost_race_setup physics_float_calc state_utility animSpeedText StartWeaponIcon func_8010D680 func_8010E8B4)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
 endforeach()
+# Image A's func_8038A400 (updateWarningScreen) shares its address, and so its name, with image B's: it is
+# compiled as updateWarningScreen (docs/port/SYNTH.md).
+list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_803A44FC.c
+     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_8038A400.c
+     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)
 # libultra and libc units the PC layer replaces (port/ultra, docs/port/ULTRA.md): thread dispatch, message
 # queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB, and the
 # inflate/LZSS readers (zlib and C in port/ultra/pi.c). lib_34a0 is the IDO libc (sprintf, fcvt, modff): the
@@ -331,14 +338,50 @@ target_link_libraries(rush2049pc PRIVATE ${PC_PORT_OBJECT_LIBS} ZLIB::ZLIB Threa
 foreach(lib ${PC_PORT_ARCHIVES})
     target_link_libraries(rush2049pc PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
 endforeach()
-target_link_options(rush2049pc PRIVATE ${PC_DATA_DIR}/aliases.ld)
-set_target_properties(rush2049pc PROPERTIES LINK_DEPENDS ${PC_DATA_DIR}/aliases.ld)
-if(WIN32)   # data.c's weak references (tools/port/gen_data.py)
-    target_link_options(rush2049pc PRIVATE ${PC_DATA_PE_OUTPUTS})
-    set_property(TARGET rush2049pc APPEND PROPERTY LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
-endif()
+# Each runtime image's C data (its objects' .data and .bss, statics included) in one range, which the loader puts
+# back on every load of the image as the N64's load does (port/data/overlays.ld, docs/port/DATA.md 5). data.c names
+# the ranges, so every program that links it links this too.
+set(PC_OVERLAYS_LD ${CMAKE_SOURCE_DIR}/port/data/overlays.ld)
+# A program's linker scripts: the given implicit ones (symbol assignments) and overlays.ld with -T. On Windows they
+# are one -T script: binutils 2.44+ tells a -T script from the others by stat, and Windows' stat gives every file
+# inode 0, so MSYS2's ld takes any second script for the -T one given twice. overlays.ld goes first there, since
+# its INSERT moves the statements before it.
+function(pc_link_scripts target)
+    if(WIN32)
+        set(out ${CMAKE_BINARY_DIR}/link/${target}.ld)
+        add_custom_command(OUTPUT ${out}
+            COMMAND ${CMAKE_COMMAND} -DOUT=${out} "-DIN=$<JOIN:${PC_OVERLAYS_LD};${ARGN},|>"
+                    -P ${CMAKE_SOURCE_DIR}/cmake/concat.cmake
+            DEPENDS ${PC_OVERLAYS_LD} ${ARGN} ${CMAKE_SOURCE_DIR}/cmake/concat.cmake VERBATIM)
+        add_custom_target(${target}_ld DEPENDS ${out})
+        add_dependencies(${target} ${target}_ld)
+        target_link_options(${target} PRIVATE "LINKER:-T,${out}")
+        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${out})
+    else()
+        target_link_options(${target} PRIVATE ${ARGN} "LINKER:-T,${PC_OVERLAYS_LD}")
+        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${ARGN} ${PC_OVERLAYS_LD})
+    endif()
+endfunction()
+pc_link_scripts(rush2049pc ${PC_DATA_DIR}/aliases.ld ${PC_DATA_PE_OUTPUTS})   # PE: data.c's weak references
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
+# The synthetic test cartridge (tools/port/synth_rom.py, docs/port/SYNTH.md): original, minimal data, generated into
+# the build directory from the data report. synth_boot_menu boots it to the front end's mode screen (state 0x40)
+# and runs 240 more frames there; synth_boot_race goes on through the track and car selects into a race on an empty
+# track (0x400000) and runs 300 frames of it. The presses take the pak warning, the player screen, the mode, the
+# track and the car. Linux only for now.
+if(NOT WIN32)
+    set(SYNTH_ROM ${CMAKE_BINARY_DIR}/synth/rush2049_synth.z64)
+    set(SYNTH_RUN rush2049pc --rom ${SYNTH_ROM} --no-rom-check --headless --no-config --audio null --no-pak)
+    add_test(NAME synth_rom COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/synth_rom.py --out ${SYNTH_ROM}
+        --data-symbols ${PC_DATA_DIR}/data_symbols.txt)
+    set_tests_properties(synth_rom PROPERTIES FIXTURES_SETUP synth_rom)
+    add_test(NAME synth_boot_menu COMMAND ${SYNTH_RUN} --press 5:A,8:A --until-state 0x40:240 --seconds 45)
+    add_test(NAME synth_boot_race COMMAND ${SYNTH_RUN} --press 5:A,8:A,11:A,14:A,17:A --until-state 0x400000:300
+        --seconds 75)
+    set_tests_properties(synth_boot_menu synth_boot_race PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/synth)
+endif()
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
@@ -447,16 +490,26 @@ target_link_libraries(rush2049pc_datacheck PRIVATE pcdata_rt m)
 target_compile_definitions(rush2049pc_datacheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64")
 set(PC_DATA_CHECK_PE "")
 if(WIN32)
-    target_link_options(rush2049pc_datacheck PRIVATE ${PC_DATA_PE_OUTPUTS})
-    set_target_properties(rush2049pc_datacheck PROPERTIES LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
     set(PC_DATA_CHECK_PE --pe)   # COFF symbols have no sizes; the image links high and moves
 endif()
+pc_link_scripts(rush2049pc_datacheck ${PC_DATA_PE_OUTPUTS})
 add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --check $<TARGET_FILE:rush2049pc_datacheck>
             --layout ${PC_DATA_DIR}/data_layout.json --nm ${CMAKE_NM} ${PC_DATA_CHECK_PE}
     VERBATIM)
 add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
 add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
+# pc_data_overlay: runtime image B's weapons.c built as the game is (its BSS state and its global table) and a
+# stand-in for image A's C with statics, linked through overlays.ld, written to, then reloaded with the loader
+# (port/data/test_overlay_data.c). The stand-in's path has src/ovl_a/ in it, which is how the script tells image A's.
+add_library(test_overlay_data_game OBJECT src/ovl_b/groups/weapons/weapons.c
+    port/data/test_overlay/src/ovl_a/statics.c)
+target_link_libraries(test_overlay_data_game PRIVATE game_flags)
+target_compile_options(test_overlay_data_game PRIVATE -w)
+add_executable(test_overlay_data port/data/test_overlay_data.c $<TARGET_OBJECTS:test_overlay_data_game>)
+target_link_libraries(test_overlay_data PRIVATE pcdata_rt)
+pc_link_scripts(test_overlay_data)
+add_test(NAME pc_data_overlay COMMAND test_overlay_data)
 # tools/port/endian_check.py (docs/port/ENDIAN.md): the detector on its synthetic cases, and the loader's element
 # widths where game declarations were made to agree with how the game reads the data.
 # The detector's own cases need its reading of gcc's GIMPLE dumps, which finds none of them under MSYS2's gcc 16:
@@ -468,6 +521,40 @@ else()
 endif()
 add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_check.py --build ${CMAKE_BINARY_DIR}
     ${ENDIAN_CHECK_ARGS})
+# The audio manager's records (docs/port/SYNTH.md): every live view of an fx tag (N64 0x44 bytes), a sequence
+# (0x3C), an emitter (0x2C) and the command table has the host layout of audiomgr_thread.c's views, read from the
+# DWARF of the game's objects (tools/port/view_check.py; ELF objects only).
+if(NOT WIN32)
+    set(SOUND_FX_VIEWS
+        src/blob/groups/menu_save_options/hud_setup.c src/blob/groups/camera_target_track/group.c
+        src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c src/blob/groups/engine_sound_sync/audiomgr_thread.c
+        src/blob/groups/entity_lookup/group.c src/blob/groups/entity_helpers/group.c src/blob/groups/transform/group.c
+        src/blob/groups/engine_sound_sync/engine_sound_sync.c src/blob/groups/updatefx/updatefx.c
+        src/blob/groups/audio_pitch_adjust/ap.c src/blob/groups/record_score/group.c src/blob/results_time_display.c)
+    set(SOUND_SEQ_VIEWS
+        src/blob/groups/engine_sound_sync/audiomgr_thread.c src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c
+        src/blob/groups/menu_save_options/hud_setup.c src/blob/hud_speed_display.c src/blob/car_stats_display.c
+        src/blob/func_800D18D8.c src/blob/game_timer_pause.c)
+    set(SOUND_EMITTER_VIEWS
+        src/blob/groups/camera_target_track/group.c src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c
+        src/blob/hud_speed_display.c src/blob/groups/entity_helpers/group.c src/blob/groups/entity_lookup/group.c
+        src/blob/groups/engine_sound_sync/engine_sound_sync.c)
+    string(REPLACE ";" "," SOUND_FX_VIEWS "${SOUND_FX_VIEWS}")
+    string(REPLACE ";" "," SOUND_SEQ_VIEWS "${SOUND_SEQ_VIEWS}")
+    string(REPLACE ";" "," SOUND_EMITTER_VIEWS "${SOUND_EMITTER_VIEWS}")
+    set(VIEW_CHECK ${Python3_EXECUTABLE} ${PORT_TOOLS}/view_check.py --build ${CMAKE_BINARY_DIR})
+    add_test(NAME views_sound_fxtag COMMAND ${VIEW_CHECK} --n64-size 0x44 --in ${SOUND_FX_VIEWS}
+        --tag tFxSequence,Node68,Voice,Entity,Effect,FxTag,Node,Record,ResEntry)
+    add_test(NAME views_sound_sequence COMMAND ${VIEW_CHECK} --n64-size 0x3C --in ${SOUND_SEQ_VIEWS}
+        --tag anon_ll_id_3c,Sequence,Chan,RecA,Event,Node16)
+    add_test(NAME views_sound_emitter COMMAND ${VIEW_CHECK} --n64-size 0x2C --in ${SOUND_EMITTER_VIEWS}
+        --tag Cam,CamSlot,Owner,RecB,Source)
+    add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --sym D_80142DD8)
+    # The road collision's views of the car's model record (D_8014A250, N64 layout): the tires' road nodes at
+    # +0x3A0 are u32 window addresses (docs/port/CARS.md 2.2).
+    add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
+        --in src/blob/groups/func_800AD4C8/camera_victory.c,src/blob/groups/entity_update/entity_update.c,src/blob/groups/update_game_data/update_game_data.c)
+endif()
 # tools/port/layout_check.py (docs/port/LAYOUT.md): the layout check on its synthetic cases (it reads the same GIMPLE,
 # so not on Windows either).
 if(NOT WIN32)
@@ -476,7 +563,8 @@ if(NOT WIN32)
 endif()
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
-set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
+    PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)

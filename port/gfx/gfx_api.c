@@ -159,6 +159,20 @@ void pc_gfx_run_dl(const void *dl) {
                 pcgfx.stat_tris, pcgfx.stat_draws, pcgfx.stat_unknown);
 }
 
+static void window_size(void) {
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        pcgfx_sdl_size(&S.win_w, &S.win_h);
+#endif
+}
+
+static void swap(void) {
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        pcgfx_sdl_swap();
+#endif
+}
+
 void pc_gfx_present(const void *framebuffer) {
     GfxTarget *t;
     if (!S.inited)
@@ -168,30 +182,48 @@ void pc_gfx_present(const void *framebuffer) {
     if (t == NULL)
         t = pcgfx_gl_last_target();
     if (t != NULL) {
-        int w = S.win_w, h = S.win_h;
-#ifdef PC_GFX_HAVE_SDL
-        if (S.use_sdl) {
-            pcgfx_sdl_size(&w, &h);
-            S.win_w = w;
-            S.win_h = h;
-        }
-#endif
-        pcgfx_gl_present(t, w, h, S.use_sdl);
-#ifdef PC_GFX_HAVE_SDL
-        if (S.use_sdl)
-            pcgfx_sdl_swap();
-#endif
+        window_size();
+        pcgfx_gl_present(t, S.win_w, S.win_h, S.use_sdl);
+        pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
+        swap();
+    } else if (pcgfx_ui_active()) {   /* nothing drawn yet: the overlay over black */
+        window_size();
+        pcgfx_gl_show(S.win_w, S.win_h, S.use_sdl);
+        pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
+        swap();
     }
     resolve_auto();
     pcgfx_rdp_new_frame();
 }
 
+/* The last presented frame again, from the presented image (not a render target, which the game may have drawn
+ * into since), with the overlay over it. */
+void pc_gfx_redraw(void) {
+    if (!S.inited)
+        return;
+    pcgfx_flush();
+    window_size();
+    pcgfx_gl_show(S.win_w, S.win_h, S.use_sdl);
+    pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
+    swap();
+    resolve_auto();
+}
+
+static int (*s_tick)(void);
+
+void pc_gfx_set_tick_hook(int (*tick)(void)) {
+    s_tick = tick;
+}
+
 int pc_gfx_poll_events(void) {
+    int quit = 0;
 #ifdef PC_GFX_HAVE_SDL
     if (S.use_sdl)
-        return pcgfx_sdl_poll();
+        quit = pcgfx_sdl_poll();
 #endif
-    return 0;
+    if (s_tick != NULL && s_tick() != 0)
+        quit = 1;
+    return quit;
 }
 
 int pc_gfx_save_screenshot(const char *path) {
@@ -221,8 +253,10 @@ int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h) {
 }
 
 int pc_gfx_read_window(uint8_t *rgba, int *w, int *h) {
-    if (!S.inited || !S.use_sdl)
+    if (!S.inited)
         return -1;
+    if (!S.use_sdl)   /* headless: the window's offscreen image */
+        return pcgfx_gl_read_headless_window(rgba, w, h);
 #ifdef PC_GFX_HAVE_SDL
     pcgfx_sdl_size(w, h);
 #endif
