@@ -172,13 +172,16 @@ static const char *const scale_choices[] = {"auto", NULL};
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
     {"game", "rom", T_STR, F(rom), 0, 0, NULL, "baserom.us.z64",
-     "The San Francisco Rush 2049 (USA) ROM: .z64, .v64 or .n64. A relative path is from the working directory."},
+     "The San Francisco Rush 2049 (USA) ROM: .z64, .v64 or .n64. A full path, or a name looked for next to the "
+     "program, in the user data folder, then in the working directory."},
     {"game", "rom_check", T_BOOL, F(rom_check), 0, 0, NULL, "on", "Refuse a ROM whose SHA-1 is not the USA ROM's."},
     {"game", "expansion_pak", T_BOOL, F(expansion_pak), 0, 0, NULL, "off",
      "Report 8 MiB of RDRAM (the Expansion Pak). v5 parity runs need it."},
     {"game", "pak", T_ENUM, F(pak), 0, 0, pak_choices, "memory",
      "Controller 1's accessory: memory (the controller pak, for saves), rumble or none."},
-    {"game", "pak_file", T_STR, F(pak_file), 0, 0, NULL, "rush2049pc.mpk", "The controller pak image."},
+    {"game", "pak_file", T_STR, F(pak_file), 0, 0, NULL, "rush2049pc.mpk",
+     "The controller pak image (the saves). A name alone is in the data folder: next to the program when this file "
+     "is there, else the user data folder."},
 
     {"video", "width", T_INT, F(width), 160, 16384, NULL, "640", "Window size. The game draws 320 x 220."},
     {"video", "height", T_INT, F(height), 120, 16384, NULL, "480", NULL},
@@ -193,7 +196,7 @@ static const Item items[] = {
     {"video", "pause_on_focus_loss", T_BOOL, F(pause_on_focus_loss), 0, 0, NULL, "off",
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
-     "Where F12 saves screenshots; empty for the working directory."},
+     "Where F12 saves screenshots; empty for screenshots in the data folder (as pak_file)."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},

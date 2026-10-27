@@ -43,6 +43,7 @@ jobs:
         # Their licences come from the sources and the toolchain's packages.
         run: |
           cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON \
+            -DRUSH_DATA_REPORT= \
             "-DRUSH_EXTRA_LICENSES=mingw-w64.txt=/usr/share/doc/mingw-w64-x86-64-dev/copyright;gcc-runtime.txt=/usr/share/doc/gcc-mingw-w64-base/copyright"
       - name: Build
         run: |
@@ -56,7 +57,7 @@ jobs:
           (cd stage && zip -r9 "../$name.zip" "$name")
           unzip -l "$name.zip"
           # what must be there, and nothing of a ROM
-          for f in rush2049pc.exe README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt; do
+          for f in rush2049pc.exe rush2049pc.ini README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt; do
             test -f "stage/$name/$f" || { echo "missing $f"; exit 1; }
           done
           ! unzip -Z1 "$name.zip" | grep -iE '\.(z64|v64|n64|rom|bin)$'
@@ -98,6 +99,16 @@ jobs:
         run: cd "$GAME_DIR" && ./rush2049pc.exe --selftest
       - name: Version
         run: cd "$GAME_DIR" && ./rush2049pc.exe --version | tee version.txt && grep -q "GitHub Actions run" version.txt
+      - name: First run
+        # The zip's empty rush2049pc.ini makes the folder portable; the first run fills it with the defaults and
+        # writes its log next to the program.
+        run: |
+          cd "$GAME_DIR"
+          test ! -s rush2049pc.ini
+          ./rush2049pc.exe --headless --rom missing.z64 > "$GITHUB_WORKSPACE/first.log" 2>&1 || true
+          cat "$GITHUB_WORKSPACE/first.log"
+          grep -q "wrote the default settings to" "$GITHUB_WORKSPACE/first.log"
+          grep -q "^\[game\]" rush2049pc.ini && grep -q "no ROM at missing.z64" rush2049pc.log
       - name: Boot without a ROM
         # It faults where the blank cartridge's zero data runs out (docs/port/WINDOWS.md); the log the program
         # writes must have the run, the fault and its backtrace.
@@ -129,6 +140,7 @@ jobs:
           name: logs-windows-check
           path: |
             boot.log
+            first.log
             rush2049pc.log
             wait.log
           if-no-files-found: ignore

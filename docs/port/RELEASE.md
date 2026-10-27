@@ -146,6 +146,46 @@ and that it will probably not work. A usable ROM gives one line: `rush2049pc: RO
   revision 1; another game, the synthetic cartridge's header, a name that isn't ASCII; a ZIP, a 7-Zip, a gzip, an
   ELF file, an empty file, a short one.
 
+## Files: where the program keeps what it writes
+
+One rule, for an installed copy (the program's folder read-only) and a portable one alike:
+
+- **Portable**: `rush2049pc.ini` is next to the program. Everything the program keeps is in the program's folder.
+  The release archives are portable: they ship an empty `rush2049pc.ini`, which the first run fills with the
+  defaults and their comments (`fill_portable_ini` in `port/main.c`), as it writes a missing one elsewhere.
+- **Installed**: no `rush2049pc.ini` next to the program. The settings file is in the user settings folder,
+  as before (`%APPDATA%\rush2049pc`, `$XDG_CONFIG_HOME/rush2049pc`), and the rest in the user data folder:
+  `%APPDATA%\rush2049pc` on Windows, `$XDG_DATA_HOME/rush2049pc` (`~/.local/share/rush2049pc`) on Linux. With no
+  user folder at all (no `HOME`), the working directory.
+
+That folder is "the data folder" (`PcAppDirs.data`). It is made when it is missing.
+
+| What | Setting | Where |
+|---|---|---|
+| settings | `--config` | `rush2049pc.ini` next to the program, else the user settings folder (unchanged; FRONTEND.md) |
+| saves: the controller pak | `game.pak_file`, `--pak` | `rush2049pc.mpk` in the data folder |
+| F12 screenshots | `video.screenshot_dir` | `screenshots/` in the data folder (made when a window opens) |
+| the log | `--log`, `--no-log` | `rush2049pc.log` and `rush2049pc.old.log` in the data folder |
+| `gamecontrollerdb.txt` | | read next to `rush2049pc.ini` (unchanged) |
+| `--screenshot-at`, `--dump-audio` | | as given: these are for scripted runs |
+| the data report | `PC_DATA_REPORT` | `build/.../data_report.txt` of a source build, none in a release build |
+
+- **Paths in the settings.** A name alone (`rush2049pc.mpk`, `shots`) is in the data folder; a full path is used
+  as it is. A path on the command line (`--pak PATH`, `--set game.pak_file=PATH`) is from the working directory,
+  as command-line paths usually are.
+- **Saves from earlier builds.** They kept `rush2049pc.mpk` in the working directory. When the data folder has no
+  pak and the working directory has one by that name, that one is used, read and written where it is, so no
+  save is lost. The console and the log say so: `rush2049pc: saves (the controller pak): /home/me/rush2049pc.mpk,
+  in the working directory, where earlier builds kept it`. Moving it into the data folder ends that.
+- **The settings file** keeps its earlier locations, so nothing there moves.
+- **Each run says where its saves are**: `rush2049pc: saves (the controller pak): PATH`, after the ROM line.
+
+Tested in `app_paths` (a name alone, a full path, the command line; a new pak; an earlier build's pak in the
+working directory used where it is, and not when the data folder has one or with `--pak`; the portable folder;
+folders made) and `app_firstrun`: the pak written in the user data folder, an earlier build's in the working
+directory used and none made, `--pak`, a portable copy (its empty ini filled, the ROM, the pak and the log next to
+it, nothing in the user folder), and the screenshots folder with a window (SDL's offscreen driver).
+
 ## The log
 
 Every game run writes what it prints into a log file as well as to the console: `rush2049pc.log` in the folder

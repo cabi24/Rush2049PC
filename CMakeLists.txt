@@ -263,7 +263,10 @@ target_compile_options(pcdata PRIVATE -fno-common)   # the .set aliases need the
 find_package(ZLIB REQUIRED)
 add_library(pcdata_rt OBJECT port/data/pc_data.c)
 target_include_directories(pcdata_rt PUBLIC port/data)
-target_compile_definitions(pcdata_rt PRIVATE PC_DATA_REPORT_DEFAULT="${CMAKE_BINARY_DIR}/data_report.txt")
+# The loader's report on the first load (docs/port/DATA.md), for bring-up: in the build directory by default; empty
+# for none (the release builds, docs/port/RELEASE.md). PC_DATA_REPORT overrides it at run time.
+set(RUSH_DATA_REPORT "${CMAKE_BINARY_DIR}/data_report.txt" CACHE STRING "Where the data loader writes its report; empty for none")
+target_compile_definitions(pcdata_rt PRIVATE PC_DATA_REPORT_DEFAULT="${RUSH_DATA_REPORT}")
 target_link_libraries(pcdata_rt PUBLIC ZLIB::ZLIB)
 
 # ---------------------------------------------------------------- the PC layer and the executable
@@ -642,7 +645,12 @@ else()
     set(RUSH_README_TXT ${CMAKE_SOURCE_DIR}/dist/README-linux.txt)
 endif()
 install(FILES ${RUSH_README_TXT} DESTINATION ${RUSH_INSTALL_DOC} RENAME README.txt)
-if(NOT RUSH_INSTALL_PORTABLE)
+if(RUSH_INSTALL_PORTABLE)
+    # An empty rush2049pc.ini next to the program makes the folder portable: settings, saves, screenshots and the
+    # log stay in it. The first run fills the file with the defaults (port/main.c).
+    file(WRITE ${CMAKE_BINARY_DIR}/dist/rush2049pc.ini "")
+    install(FILES ${CMAKE_BINARY_DIR}/dist/rush2049pc.ini DESTINATION ${RUSH_INSTALL_BIN})
+else()
     install(FILES README.md docs/port/FRONTEND.md DESTINATION ${RUSH_INSTALL_DOC})
 endif()
 set(RUSH_LICENSE_DIR ${CMAKE_BINARY_DIR}/licenses)

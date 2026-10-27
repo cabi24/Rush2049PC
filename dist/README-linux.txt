@@ -41,20 +41,23 @@ Controls
   Pause             hold the game
   Escape            quit
 
-Settings
---------
-rush2049pc.ini holds every setting, with a comment on each. The program looks for it next to the program first,
-and otherwise uses ~/.config/rush2049pc/rush2049pc.ini ($XDG_CONFIG_HOME), which the first run writes with the
-defaults. The F1 overlay changes most settings while you play and can save them into the file.
+Settings and saves
+------------------
+This folder is portable: because rush2049pc.ini is next to the program, everything it keeps is in this folder:
+  rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each
+  rush2049pc.mpk    the saves (the game's controller pak)
+  screenshots/      F12's pictures
+  rush2049pc.log    what the program printed last time (rush2049pc.old.log: the time before)
+Without rush2049pc.ini next to it (an installed copy), the settings are in ~/.config/rush2049pc
+($XDG_CONFIG_HOME) and the rest in ~/.local/share/rush2049pc ($XDG_DATA_HOME).
 
-Saves
------
-The game saves to a controller pak image, rush2049pc.mpk, in the folder the program runs in.
+The F1 overlay changes most settings while you play and can save them into rush2049pc.ini. To move to a new
+version, copy rush2049pc.mpk and rush2049pc.ini into its folder.
 
 Troubleshooting
 ---------------
-- Everything the program prints is also written to ~/.local/share/rush2049pc/rush2049pc.log (or next to the
-  program when rush2049pc.ini is there); the run before is kept as rush2049pc.old.log.
+- Everything the program prints is also written to rush2049pc.log in this folder (in
+  ~/.local/share/rush2049pc without rush2049pc.ini); the run before is kept as rush2049pc.old.log.
 - Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; ./rush2049pc --version says
   which build you have)
 

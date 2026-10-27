@@ -114,7 +114,8 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 
 ## Settings: rush2049pc.ini
 
-- **Location.**
+- **Location.** (What the program writes besides, the controller pak, screenshots and the log, follows the same
+  rule: [RELEASE.md](RELEASE.md) "Files".)
   - `rush2049pc.ini` next to the executable, when there is one (a portable install).
   - Otherwise `$XDG_CONFIG_HOME/rush2049pc/rush2049pc.ini`. That is `~/.config/rush2049pc/` when
     `XDG_CONFIG_HOME` is unset, or relative, as the XDG spec says.
@@ -138,11 +139,11 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 
 | Setting | Default | Option | |
 |---|---|---|---|
-| `game.rom` | `baserom.us.z64` | `--rom` | the ROM; relative to the working directory |
+| `game.rom` | `baserom.us.z64` | `--rom`, a path alone | the ROM: a full path, or a name looked for next to the program, in the user data folder, then in the working directory ([RELEASE.md](RELEASE.md) "The ROM") |
 | `game.rom_check` | on | `--no-rom-check` | refuse a ROM whose SHA-1 isn't the USA ROM's |
 | `game.expansion_pak` | off | `--expansion-pak` | 8 MiB of RDRAM |
 | `game.pak` | memory | `--no-pak`, `--rumble`, `--pak` | controller 1's accessory: memory, rumble, none |
-| `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image |
+| `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image; a name alone is in the data folder (RELEASE.md "Files"), `--pak` from the working directory |
 | `video.width`, `video.height` | 640, 480 | `--size WxH` | window size |
 | `video.fullscreen` | off | `--fullscreen` | start in desktop fullscreen |
 | `video.vsync` | on | | swap interval 1 or 0 |
@@ -150,7 +151,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `video.api` | gles | | `gles` or `gl` (`RUSH_GFX_API`) |
 | `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
-| `video.screenshot_dir` | (working directory) | | where F12 saves |
+| `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `input.keyboard_player` | 1 | | 1-4, 0 for none |
