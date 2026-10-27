@@ -26,6 +26,8 @@ first.
 
 Each disagreement is classified by what it does under AAPCS64 and x86-64 SysV (worst first):
 
+    stub       the owner is an empty deleted-procedure stub (`void f(void) {}`, retail's `jr ra`) while this
+               file's group has the body umerge inlined: its calls lose that work
     class      float vs integer/pointer argument: different register files, so this and every later
                argument of either class lands in the wrong register
     fwidth     f32 vs f64 argument (an unprototyped call promotes float to double)
