@@ -286,6 +286,14 @@ foreach(t ${PC_ASSETS_TESTS})
     set_target_properties(test_assets_${n} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
     add_test(NAME assets_${n} COMMAND test_assets_${n})
 endforeach()
+# test_assets_musyx also runs the game's own MusyX readers on the converted files: the boot library's units that
+# read them, built with the game's flags (one wrapper per unit, like test_gsm_game).
+file(GLOB PC_ASSETS_MUSYX_GAME CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/tests/musyx_lib_*.c)
+add_library(test_musyx_game OBJECT ${PC_ASSETS_MUSYX_GAME})
+target_link_libraries(test_musyx_game PRIVATE game_flags)
+target_compile_options(test_musyx_game PRIVATE -w)
+target_sources(test_assets_musyx PRIVATE $<TARGET_OBJECTS:test_musyx_game>)
+set_target_properties(test_musyx_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
 set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
