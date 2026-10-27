@@ -121,7 +121,8 @@ endif()
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     target_compile_options(game_flags INTERFACE -Wno-builtin-declaration-mismatch
         -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types
-        -Wno-discarded-qualifiers -Wno-overflow)
+        -Wno-discarded-qualifiers -Wno-overflow
+        -Wsequence-point)   # unsequenced reads that only IDO's evaluation order defines (listener_position_set)
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     target_compile_options(game_flags INTERFACE -Wno-incompatible-library-redeclaration
         -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types

@@ -3796,6 +3796,24 @@ void *memcpy(void *, const void *, u32);
 #else
 M2C_UNK memcpy(s32, void *, M2C_UNK);
 #endif
+#ifdef TARGET_PC
+/* PC: the N64 version assigns new_var in one memcpy argument and reads it in the next, which only IDO's
+ * left-to-right evaluation makes defined (x86-64 gcc reads it first). The same copies, in order. */
+void listener_position_set(s32 arg0)
+{
+  intptr_t var_s0;
+  s32 var_s1;
+  var_s0 = D_801525EC;
+  for (var_s1 = 0; var_s1 < ((s32) D_8015267C); var_s1++, var_s0 += 0x20)
+  {
+    if (arg0 == (*((u16 *) var_s0)))
+    {
+      memcpy((void *) (D_801497F8 + ((*((u16 *) (var_s0 + 2))) * 0x18) + 4), (void *) (var_s0 + 4), 0x12);
+      memcpy((void *) (((*((u16 *) (var_s0 + 0x16))) * 8) + D_8015201C), (void *) (var_s0 + 0x18), 8);
+    }
+  }
+}
+#else
 void listener_position_set(s32 arg0)
 {
   intptr_t var_s0;
@@ -3818,3 +3836,4 @@ void listener_position_set(s32 arg0)
     while (var_s1 < ((s32) D_8015267C));
   }
 }
+#endif
