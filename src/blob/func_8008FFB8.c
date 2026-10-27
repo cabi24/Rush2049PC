@@ -3701,7 +3701,9 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-void func_8008FFB8(s32 *arg0) {
+/* AddToEnvList: arg0 is a visual, whose next (+0) is pointer-sized on the PC like the list head D_801391F0
+ * (docs/port/CARS.md 3). No C calls it; gen_data's function table has it, so ROM data could (docs/port/LAYOUT.md 6). */
+void func_8008FFB8(intptr_t *arg0) {
     *arg0 = D_801391F0;
     D_801391F0 = (intptr_t) arg0;
 }
