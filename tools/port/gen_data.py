@@ -890,7 +890,9 @@ def generate(a):
             others = sorted({n for (ad, _), n in funcs.items() if ad == addr})
             func_aliases_left.append(f"{name} = 0x{addr:08X} ({'/'.join(others) or 'no name'}: no C yet)")
 
-    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image)
+    ovl_data = {img: [(Path(o).name.replace('.c.obj', '.c').replace('.c.o', '.c'), n, k) for o in objects
+                      if obj_image[o] == img for n, k in image_data(o, a.nm)] for img in OVL_RANGES}
+    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data)
 
     # Report.
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
@@ -957,9 +959,11 @@ def generate(a):
         section(f"Not placed: {k}", [x if isinstance(x, str) else f"{x[0]} 0x{x[1]:08X}" for x in v])
     for k, v in report.items():
         section(k, v)
-    statics = sorted(f"{Path(o).name.replace('.c.o', '.c')}: {n}" for o in objects if obj_image[o] in ("ovl_a", "ovl_b")
-                     for n in local_data(o, a.nm))
-    section("Overlay statics not reset on overlay load (file-local; need a section or a reset hook)", statics)
+    section("Runtime-image C data, put back on each load of its image (its C range, port/data/overlays.ld)",
+            sorted(f"{img} {f}: {n}{'' if k in 'db' else ' (global)'}" for img, v in ovl_data.items()
+                   for f, n, k in v if k in "dbDB"))
+    section("Runtime-image C data that is read-only (never changes)",
+            sorted(f"{img} {f}: {n}" for img, v in ovl_data.items() for f, n, k in v if k in "rR"))
     (a.out.parent / "data_layout.txt").write_text("\n".join(L) + "\n")
     # Every placed symbol, one per line: address, storage, N64 and host size, kinds, chosen type, names.
     rows = ["# N64 address\tstorage\tN64 size\thost size\tkinds\ttype\tnames"]
@@ -1086,17 +1090,23 @@ def test_tables(a):
     a.out.write_text("\n".join(L))
 
 
-def local_data(obj, nm):
+# Each runtime image's C range (port/data/overlays.ld): its first and one-past-last symbols.
+OVL_RANGES = {"ovl_a": ("pc_ovl_a_start", "pc_ovl_a_end"), "ovl_b": ("pc_ovl_b_start", "pc_ovl_b_end")}
+
+
+def image_data(obj, nm):
+    """[(name, nm letter)] of the data an object defines: file-local (d, b, r) and global (D, B, R) definitions.
+    Commons and weak copies are left out: the linker may resolve them to another file's definition."""
     out = subprocess.run([nm, obj], capture_output=True, text=True).stdout
-    return [l.split()[-1] for l in out.splitlines() if len(l.split()) == 3 and l.split()[1] in "dbr"
-            and not l.split()[-1].startswith((".L", "$"))]
+    return [(p[2], p[1]) for p in (l.split() for l in out.splitlines()) if len(p) == 3 and p[1] in "dbrDBR"
+            and not p[2].startswith((".", "$", "pc_weak_anchor_"))]   # section names (COFF), labels
 
 
 def c_str(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image):
+def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data):
     arenas = n64syms.ARENAS
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
     cdefs = [s for s in ordered if s.cdef]
@@ -1126,7 +1136,9 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
                  f"__asm__(N64_SYM({c_str(sorted(s.names)[0])}));   /* N64 0x{s.addr:08X}, {s.n64_size} B: {s.disp} */")
     sets = []   # (name, base symbol or None for an absolute address, offset or address, size)
     layout = {"window": [WINDOW_LO, WINDOW_HI], "arenas": [[lo, hi] for _, lo, _, hi in arenas], "absolute": [],
-              "sets": [], "own": []}
+              "sets": [], "own": [],
+              "ovl_data": {img: sorted(n for _, n, k in v if k in "dbDB") for img, v in ovl_data.items()},
+              "ovl_ranges": OVL_RANGES}
     for s in ordered:
         if s.cdef:
             continue
@@ -1243,12 +1255,20 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     L.append(f"static const PcDataName pc_names[{max(len(names), 1)}] = {{")
     L += [f"    {{0x{ad:08X}, {c_str(n)}}}," for ad, n in names]
     L += ["};", ""]
+    L += ["/* Each runtime image's C data, file-local statics included (port/data/overlays.ld, linked with -T):",
+          " * put back on every load of the image. */"]
+    L += [f"extern uint8_t {lo}[] __asm__(N64_SYM(\"{lo}\")), {hi}[] __asm__(N64_SYM(\"{hi}\"));"
+          for lo, hi in OVL_RANGES.values()]
+    L.append(f"static const PcDataCRange pc_cranges[{len(OVL_RANGES)}] = {{")
+    L += [f"    {{{IMAGE_INDEX[img]}, {lo}, {hi}}}," for img, (lo, hi) in OVL_RANGES.items()]
+    L += ["};", ""]
     L += ["static PcDataState pc_state;",
           "const PcDataTables pc_data_tables = {",
           "    pc_images, sizeof pc_images / sizeof pc_images[0], pc_arenas, sizeof pc_arenas / sizeof pc_arenas[0],",
           f"    pc_syms, {len(sym_rows)}, pc_runs, {len(runs)}, pc_funcs, {len(funcs)}, pc_names, {len(names)},",
           f"    0x{HEAP_LO:08X},   /* the game heap starts at the end of the game's BSS (docs/port/ASSETS.md) */",
           "    &pc_state,",
+          f"    pc_cranges, {len(OVL_RANGES)},",
           "};", "",
           "/* pc_port.h entry points. The loader is weak here so the link test (which leaves it out) still links. */",
           "int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path)",
@@ -1273,11 +1293,13 @@ def check(exe, layout_path, nm, pe=False):
     layout = json.loads(Path(layout_path).read_text())
     out = subprocess.run([nm, "-S", "--defined-only", str(exe)], capture_output=True, text=True, check=True).stdout
     addr, size, letter = {}, {}, {}
+    every = collections.defaultdict(list)   # name -> addresses, file-locals of one name included
     for line in out.splitlines():
         p = line.split()
         if len(p) not in (3, 4):
             continue
         name, kind = p[-1], p[-2]
+        every[name].append(int(p[0], 16))
         if name in letter and kind.islower() and letter[name].isupper():
             continue   # a file-local static of the same name (overlay statics such as D_80399120): the global wins
         addr[name], letter[name] = int(p[0], 16), kind
@@ -1310,10 +1332,24 @@ def check(exe, layout_path, nm, pe=False):
     else:
         high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and x >= lo)
         bad += [f"{n}: linked at 0x{addr[n]:X}, at or above the RDRAM window" for n in high]
+    # Each runtime image's C data inside its C range (overlays.ld), which the loader puts back on the image's loads:
+    # as many symbols of each name inside it as the image's objects define.
+    n_ovl = 0
+    for img, names in layout.get("ovl_data", {}).items():
+        lo_name, hi_name = layout["ovl_ranges"][img]
+        if lo_name not in addr or hi_name not in addr:
+            bad.append(f"{img}: no C range ({lo_name}, {hi_name}): link with port/data/overlays.ld")
+            continue
+        for name, want in collections.Counter(names).items():
+            got = sum(1 for x in every.get(name, ()) if addr[lo_name] <= x < addr[hi_name])
+            n_ovl += min(got, want)
+            if got < want:
+                bad.append(f"{img} {name}: {want - got} of {want} outside its C range")
     for b in bad[:50]:
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "
           f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own, "
+          f"{n_ovl} runtime-image C data in their C ranges, "
           f"nothing else in the window: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
 

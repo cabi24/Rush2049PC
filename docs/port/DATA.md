@@ -15,8 +15,9 @@ is the same fill run again for one image.
 | Generator reports | `build/pc/pc-data/data_layout.txt` (decisions, conflicts, what is left), `data_symbols.txt` (every symbol) |
 | Loader | `port/data/pc_data.c`, descriptor types in `port/data/pc_data.h` |
 | Size overrides for open-ended arrays | `port/data/extents.txt` |
-| Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM) |
+| Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM), `port/data/test_overlay_data.c` (a runtime image's C data on reload) |
 | Overlay loads | `src/blob/groups/{heap_release,score_insert}/overlay_loader.c`, `{carcolor,state}/ctx_overlay_loader.c` |
+| The runtime images' C data, one range each | `port/data/overlays.ld` (linked with `-T`), section 5 |
 
 ## How it works
 
@@ -176,7 +177,8 @@ and `layout/game.json` agree with each other.
 2. Each arena, in place in the window: copy the initialized part, zero the BSS, byte-swap every described element.
    Pointers stay N64 addresses there (in host byte order).
 3. Each symbol with its own storage: convert from the image element by element through its runs.
-4. Game-C data in a runtime image: its bytes are saved at startup and put back on every load (zeroed if BSS).
+4. Game-C data in a runtime image: its bytes are saved at startup and put back on every load (zeroed if BSS): the
+   symbols the tables name, and each image's C range, which holds its file-local statics too (section 5).
 5. After the first load, the runtime images' arenas are cleared (section 3).
 
 Pointer values are turned into host pointers in this order:
@@ -255,10 +257,40 @@ change. The four copies of `overlay_loader.c` carry the same edit. Preprocessed 
 exactly the tokens of the original, so the N64 build is unchanged. That is checked with gcc's preprocessor here;
 the matching build itself (IDO, Rocky host) has not been run.
 
-Not reset yet: **22 file-local statics in runtime-image C** (`cursorSpeed.1`, `gShieldSizes`, `D_80399120`...,
-listed in `data_layout.txt`). They're local symbols, so the tables can't name them. A fix belongs to the game
-build: rename the runtime-image objects' `.data`/`.bss` sections (`objcopy --rename-section`) so the linker
-gathers them between `__start_`/`__stop_` symbols, and snapshot that range like the globals.
+**The images' C data.** On the N64 a load copies the image's `.data` and zeroes its `.bss`, so every variable its C
+defines starts again from its initial value, file-local and function-local statics too. On the PC that C is linked
+into the executable, and the tables name only symbols with N64 addresses. So each image's C data is gathered into
+one range by `port/data/overlays.ld`, linked with `-T` (its `INSERT AFTER .data` adds to the default script; ELF and
+PE ld alike): the `.data`, `.data.rel`, `.data.rel.local`, `.bss` and commons of the objects compiled from
+`src/ovl_a`, `nonmatching/ovl_a` (`.ovl_a`, `pc_ovl_a_start`..`pc_ovl_a_end`) and `src/ovl_b`, `nonmatching/ovl_b`
+(`.ovl_b`). data.c lists the two ranges (`PcDataCRange`), so every program that links data.c links the script.
+The loader copies each range at startup, before the game runs, and puts it back on every later load of its image;
+the other image's range is untouched. Read-only data stays where it was: it never changes.
+
+| Image | File | C data (`data_layout.txt`, "Runtime-image C data") |
+|---|---|---|
+| A | `cleanup_colortrace/group.c` | `cursorSpeed.1`, `scrollSpeed.0`, `zoom.2`, `D_803B2858` (CompLight, global) |
+| A | `runtime_a_c93c_closure/group.c` | `angle.8`, `cityPos.4`, `cursorSpeed.1`, `fogPos.7`, `fogTileSize.6`, `mapPos.2`, `mapPos.3`, `rotAngle.5`, `scrollSpeed.0` |
+| A | `runtime_a_text_helpers/group.c` | `cursorSpeed.1`, `del.0` (a pointer: `.data.rel`), `scrollSpeed.2` |
+| B | `shots.c` | `gShieldSizes`, `sWeaponFx` (and the const `CaseOffsets`, `ShotOffsets`) |
+| B | `weapons.c` | `D_803943A4` (global) |
+
+Of the 22 the report listed before, `CaseOffsets` and `ShotOffsets` are read-only, and `weapons.c`'s three
+(`D_80399118` gCurWeaponType, `D_80399120` and `D_80399550`, the muzzle-flash records) were a second copy: on the N64
+they are that file's statics at those addresses, and `func_8038CA24`, the weapon reset after a resurrect, writes
+them by the addresses. On the PC the file had its own statics while `func_8038CA24` wrote image B's arena, so the
+reset never reached the weapons. `weapons.c` declares them `extern` on the PC now (`WEAPON_STATE`; the N64 tokens are
+unchanged), one storage in the BSS arena, which every load of image B zeroes. That leaves 17 statics, and the two
+globals (`D_803B2858`, `D_803943A4`), restored already as game-C data and restored twice now, to the same bytes: 19
+in the ranges. Each image's own storage (data.c, its N64 data with pointers or a host layout) needs nothing new: a
+load converts it from the image again, or zeroes it if BSS (step 3 above).
+
+Checks: `gen_data.py --check` (after linking `rush2049pc_datacheck`) finds each of the 19 inside its image's range,
+by name and count. The ctest `pc_data_overlay` (`port/data/test_overlay_data.c`) links image B's `weapons.c` and a
+stand-in for image A's C (`port/data/test_overlay/src/ovl_a/statics.c`: file-local and function-local statics, a
+BSS array, a pointer to a static), both through the script, with the loader and tables of its own (image B's BSS
+arena in host memory). It writes them all (the muzzle-flash records through `_RemoveCannMFlash` and
+`_RemoveGattMFlash`), then checks that a load of one image puts back that image's and leaves the other's.
 
 ## The names missing from the symbol file
 
@@ -416,8 +448,8 @@ From `data_layout.txt`:
   game's code used as data) and `D_8038A400` (the runtime images' base, used as the heap block's address). Boot
   commons (tentative definitions in `src/rom`, such as `gScheduler`) are left as they are for the libultra layer.
 - **Agent D:** the conflict lists above. Declaring sizes for open-ended arrays makes extents exact.
-- **Game build owner:** the 22 runtime-image statics (above). census.py could also leave test programs out; this
-  branch removes them from `compile_commands.json`.
+- **Game build owner:** census.py could also leave test programs out; this branch removes them from
+  `compile_commands.json`. (The 22 runtime-image statics are reset now: section 5.)
 - **Graphics and audio:** the RSP microcode in the boot tail (`D_80027DD0`, `D_80028CC0`, `D_8002A050`) is in
   the boot arena with whatever element type its declarations give it, so don't expect the original byte order
   there.
