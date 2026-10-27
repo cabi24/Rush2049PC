@@ -1,0 +1,458 @@
+/* port/data/datacheck.c: run the data loader on the user's ROM with the game's tables and check known values.
+ *
+ *     rush2049pc_datacheck [baserom.us.z64]
+ *
+ * Linked with the game objects, the generated data and the link test's stubs, so every table entry is the real
+ * host address. Without a ROM it says so and exits 0 (the build and the unit test still check the rest).
+ * Checks: the ROM's SHA-1; the boot tail's build-info record; the inflate tables (public zlib constants); how
+ * many floats are plausible (wrong byte order makes most of them garbage); function pointers; an overlay
+ * reload restoring its data.
+ *
+ *     rush2049pc_datacheck --synthetic
+ *
+ * needs no ROM: random data at the real image offsets (streams deflated into their retail slots), a known target
+ * planted in every pointer field, then every arena byte and own-storage element is checked with an independent
+ * decoder, and an overlay reload is checked. It tests the generated tables and the loader together. */
+#include "pc_data.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <zlib.h>
+
+int pc_data_init(const uint8_t *rom, size_t rom_size);
+void pc_data_overlay_load(int overlay);
+
+#ifndef PC_DATA_ROM
+#define PC_DATA_ROM "baserom.us.z64"
+#endif
+#define ROM_SHA1 "3f99351d7bb61656614bdb2aa1a90cfe55d1922c"
+
+static int failures;
+#define CHECK(c, ...) do { if (!(c)) { printf("FAIL: " __VA_ARGS__); printf("\n"); failures++; } \
+                           else { printf("ok: " __VA_ARGS__); printf("\n"); } } while (0)
+
+/* SHA-1 (FIPS 180-1). */
+static uint32_t rol(uint32_t x, int n) { return x << n | x >> (32 - n); }
+
+static void sha1(const uint8_t *msg, size_t len, char out[41])
+{
+    uint32_t h[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
+    uint64_t bits = (uint64_t)len * 8;
+    size_t total = (len + 9 + 63) / 64 * 64;
+    for (size_t off = 0; off < total; off += 64) {
+        uint8_t blk[64];
+        uint32_t w[80];
+        for (int i = 0; i < 64; i++) {
+            size_t k = off + i;
+            blk[i] = k < len ? msg[k] : k == len ? 0x80 : 0;
+        }
+        if (off + 64 == total)
+            for (int i = 0; i < 8; i++)
+                blk[56 + i] = (uint8_t)(bits >> (56 - 8 * i));
+        for (int i = 0; i < 16; i++)
+            w[i] = (uint32_t)blk[4 * i] << 24 | blk[4 * i + 1] << 16 | blk[4 * i + 2] << 8 | blk[4 * i + 3];
+        for (int i = 16; i < 80; i++)
+            w[i] = rol(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+        uint32_t a = h[0], b = h[1], c = h[2], d = h[3], e = h[4];
+        for (int i = 0; i < 80; i++) {
+            uint32_t f, k;
+            if (i < 20) f = (b & c) | (~b & d), k = 0x5A827999;
+            else if (i < 40) f = b ^ c ^ d, k = 0x6ED9EBA1;
+            else if (i < 60) f = (b & c) | (b & d) | (c & d), k = 0x8F1BBCDC;
+            else f = b ^ c ^ d, k = 0xCA62C1D6;
+            uint32_t tmp = rol(a, 5) + f + e + k + w[i];
+            e = d, d = c, c = rol(b, 30), b = a, a = tmp;
+        }
+        h[0] += a, h[1] += b, h[2] += c, h[3] += d, h[4] += e;
+    }
+    for (int i = 0; i < 5; i++)
+        sprintf(out + 8 * i, "%08x", h[i]);
+}
+
+static void *at(uint32_t n64, int image)
+{
+    return pc_data_host_of(&pc_data_tables, n64, image);
+}
+
+static int contains(const uint8_t *p, size_t n, const char *s)
+{
+    size_t k = strlen(s);
+    for (size_t i = 0; i + k <= n; i++)
+        if (memcmp(p + i, s, k) == 0)
+            return 1;
+    return 0;
+}
+
+/* ---------------------------------------------------------------- synthetic ROM, real tables */
+
+static uint64_t rng = 0x9E3779B97F4A7C15ull;
+static uint32_t rnd(void)
+{
+    rng ^= rng << 13, rng ^= rng >> 7, rng ^= rng << 17;
+    return (uint32_t)rng;
+}
+
+static void put32(uint8_t *p, uint32_t v) { p[0] = v >> 24, p[1] = v >> 16, p[2] = v >> 8, p[3] = (uint8_t)v; }
+static uint32_t get32(const uint8_t *p) { return (uint32_t)p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3]; }
+
+static uint32_t esz(int kind, int host)
+{
+    switch (kind) {
+    case PC_K_U8: return 1;
+    case PC_K_U16: return 2;
+    case PC_K_U32: case PC_K_F32: return 4;
+    case PC_K_U64: case PC_K_F64: return 8;
+    case PC_K_PTR: return host ? sizeof(void *) : 4;
+    default: return host ? 8 : 4;
+    }
+}
+
+typedef struct { void **field; void *want; } Expect;
+
+/* A pointer target for data of image `img`: a value to plant and the host pointer the loader must produce. */
+static uint32_t pick_target(const PcDataTables *t, int img, void **want)
+{
+    int ovl = img >= 2;
+    for (int tries = 0; tries < 64; tries++) {
+        switch (rnd() % 6) {
+        case 0:
+            *want = NULL;
+            return 0;
+        case 5: {   /* the game heap (the RDRAM window): kept as the N64 address */
+            uint32_t a = t->heap_lo + rnd() % (0x8038A400u - t->heap_lo);
+            *want = (void *)(uintptr_t)a;
+            return a;
+        }
+        case 1:
+            *want = (void *)(uintptr_t)0x00B5C534u;   /* a ROM offset stays as it is */
+            return 0x00B5C534u;
+        case 2: {   /* a function of this image, or a game/boot one with a single entry at its address */
+            const PcDataFunc *f = &t->funcs[rnd() % t->n_funcs];
+            int single = (f == t->funcs || f[-1].n64_addr != f->n64_addr)
+                         && (f + 1 == t->funcs + t->n_funcs || f[1].n64_addr != f->n64_addr);
+            if (!f->host || !single || (ovl ? f->image != img : f->image >= 2))
+                continue;
+            *want = f->host;
+            return f->n64_addr;
+        }
+        case 3: {   /* the start of a symbol with its own storage */
+            const PcDataSym *s = &t->syms[rnd() % t->n_syms];
+            if (!(s->flags & PC_SYM_OWN) || (s->image >= 2 && s->image != img) || s->run_count == 0
+                || t->runs[s->run_first].n64_off != 0 || t->runs[s->run_first].host_off != 0)
+                continue;
+            *want = s->host;
+            return s->n64_addr;
+        }
+        default: {   /* a byte in an arena that no symbol's own storage covers */
+            const PcDataArena *ar = &t->arenas[rnd() % t->n_arenas];
+            if (ar->image >= 2 && ar->image != img)
+                continue;
+            if (!ovl && ar->image >= 2)
+                continue;   /* image B's data range is image A's code: game data there is ambiguous */
+            uint32_t a = ar->n64_lo + rnd() % (ar->n64_hi - ar->n64_lo);
+            int covered = 0;
+            for (uint32_t i = 0; i < t->n_syms && !covered; i++)
+                covered = a >= t->syms[i].n64_addr && a < t->syms[i].n64_addr + (t->syms[i].n64_size ? t->syms[i].n64_size : 1);
+            for (uint32_t i = 0; i < t->n_funcs && !covered; i++)
+                covered = t->funcs[i].n64_addr == a;
+            if (covered)
+                continue;
+            *want = ar->host + (a - ar->n64_lo);
+            return a;
+        }
+        }
+    }
+    *want = NULL;
+    return 0;
+}
+
+/* Expected arena contents: the image bytes, every described element byte-reversed, BSS zero. */
+static int check_arena(const PcDataTables *t, const PcDataArena *ar, const uint8_t *img)
+{
+    uint32_t n = ar->n64_hi - ar->n64_lo, init = ar->n64_init - ar->n64_lo;
+    uint8_t *want = calloc(1, n);
+    memcpy(want, img + (ar->n64_lo - t->images[ar->image].n64_base), init);
+    for (uint32_t k = 0; k < ar->run_count; k++) {
+        const PcDataRun *r = &t->runs[ar->run_first + k];
+        uint32_t e = esz(r->kind, 0);
+        for (uint32_t i = 0; i < r->rep; i++)
+            for (uint32_t j = 0; j < r->count; j++) {
+                uint8_t *p = want + r->n64_off + i * r->n64_stride + j * e;
+                for (uint32_t x = 0; x < e / 2; x++) {
+                    uint8_t c = p[x];
+                    p[x] = p[e - 1 - x], p[e - 1 - x] = c;
+                }
+            }
+    }
+    int bad = memcmp(want, ar->host, n) != 0;
+    free(want);
+    return bad;
+}
+
+/* Expected own storage: each element decoded from big-endian; pointers as planted. */
+static int check_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t *img, uint32_t img_size)
+{
+    uint8_t *want = calloc(1, s->host_size ? s->host_size : 1);
+    uint32_t base = s->n64_addr - t->images[s->image].n64_base;
+    for (uint32_t k = 0; k < s->run_count; k++) {
+        const PcDataRun *r = &t->runs[s->run_first + k];
+        uint32_t en = esz(r->kind, 0), eh = esz(r->kind, 1);
+        for (uint32_t i = 0; i < r->rep; i++)
+            for (uint32_t j = 0; j < r->count; j++) {
+                uint32_t no = r->n64_off + i * r->n64_stride + j * en, ho = r->host_off + i * r->host_stride + j * eh;
+                if (no + en > s->n64_size || base + no + en > img_size || ho + eh > s->host_size)
+                    continue;
+                const uint8_t *p = img + base + no;
+                uint8_t *q = want + ho;
+                if (r->kind == PC_K_PTR) {
+                    memcpy(q, (uint8_t *)s->host + ho, eh);   /* compared against the planted targets */
+                } else if (r->kind == PC_K_S32_64) {
+                    int64_t v = (int32_t)get32(p);
+                    memcpy(q, &v, 8);
+                } else if (r->kind == PC_K_U32_64) {
+                    uint64_t v = get32(p);
+                    memcpy(q, &v, 8);
+                } else {
+                    for (uint32_t x = 0; x < en; x++)
+                        q[x] = p[en - 1 - x];
+                }
+            }
+    }
+    int bad = memcmp(want, s->host, s->host_size) != 0;
+    free(want);
+    return bad;
+}
+
+static int synthetic(void)
+{
+    const PcDataTables *t = &pc_data_tables;
+    size_t rom_size = 0xC00000;
+    uint8_t *rom = calloc(1, rom_size), *img[8] = {0};
+    size_t n_exp = 0, cap = 1 << 16;
+    Expect *exp = malloc(cap * sizeof *exp);
+    uint32_t bad_arena = 0, bad_sym = 0, bad_ptr = 0, n_own = 0;
+
+    for (uint32_t i = 0; i < t->n_images; i++)
+        img[i] = calloc(1, t->images[i].size);
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        uint8_t *p = img[ar->image] + (ar->n64_lo - t->images[ar->image].n64_base);
+        for (uint32_t k = 0; k < ar->n64_init - ar->n64_lo; k++)
+            p[k] = (uint8_t)rnd();
+    }
+    /* Plant pointer targets in every pointer element of own storage. */
+    for (uint32_t i = 0; i < t->n_syms; i++) {
+        const PcDataSym *s = &t->syms[i];
+        if (!(s->flags & PC_SYM_OWN) || (s->flags & PC_SYM_BSS))
+            continue;
+        uint32_t base = s->n64_addr - t->images[s->image].n64_base;
+        for (uint32_t k = 0; k < s->run_count; k++) {
+            const PcDataRun *r = &t->runs[s->run_first + k];
+            if (r->kind != PC_K_PTR)
+                continue;
+            for (uint32_t rep = 0; rep < r->rep; rep++)
+                for (uint32_t j = 0; j < r->count; j++) {
+                    uint32_t no = r->n64_off + rep * r->n64_stride + j * 4;
+                    uint32_t ho = r->host_off + rep * r->host_stride + j * (uint32_t)sizeof(void *);
+                    if (no + 4 > s->n64_size || base + no + 4 > t->images[s->image].size || ho + 8 > s->host_size)
+                        continue;
+                    void *want;
+                    put32(img[s->image] + base + no, pick_target(t, s->image, &want));
+                    if (n_exp == cap)
+                        exp = realloc(exp, (cap *= 2) * sizeof *exp);
+                    exp[n_exp].field = (void **)((uint8_t *)s->host + ho);
+                    exp[n_exp++].want = want;
+                }
+        }
+    }
+    /* Into the ROM at the real offsets; each stream must fit before the next image. */
+    for (uint32_t i = 0; i < t->n_images; i++) {
+        const PcDataImage *im = &t->images[i];
+        if (im->storage == PC_IMG_RAW) {
+            memcpy(rom + im->rom_off, img[i], im->size);
+            continue;
+        }
+        uLongf n = compressBound(im->size);
+        z_stream z;
+        memset(&z, 0, sizeof z);
+        deflateInit2(&z, 6, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
+        z.next_in = img[i];
+        z.avail_in = im->size;
+        z.next_out = rom + im->rom_off;
+        z.avail_out = (uInt)(rom_size - im->rom_off < n ? rom_size - im->rom_off : n);
+        deflate(&z, Z_FINISH);
+        n = z.total_out;
+        deflateEnd(&z);
+        uint32_t room = im->rom_len;   /* the retail stream's length, which the tables give inflate */
+        CHECK(n <= room, "synthetic image %s: %lu B stream fits its %u B slot", im->name, (unsigned long)n, room);
+    }
+    CHECK(pc_data_load_all(t, rom, rom_size, "") == 0, "pc_data_load_all on the synthetic ROM");
+
+    for (uint32_t i = 0; i < t->n_arenas; i++)
+        bad_arena += check_arena(t, &t->arenas[i], img[t->arenas[i].image]);
+    for (uint32_t i = 0; i < t->n_syms; i++) {
+        const PcDataSym *s = &t->syms[i];
+        if (!(s->flags & PC_SYM_OWN))
+            continue;
+        n_own++;
+        if (s->flags & PC_SYM_BSS) {
+            for (uint32_t k = 0; k < s->host_size; k++)
+                if (((uint8_t *)s->host)[k]) {
+                    bad_sym++;
+                    break;
+                }
+        } else if (check_sym(t, s, img[s->image], t->images[s->image].size)) {
+            bad_sym++;
+            if (bad_sym < 5)
+                printf("  own %s differs\n", s->name);
+        }
+    }
+    for (size_t i = 0; i < n_exp; i++)
+        if (*exp[i].field != exp[i].want && bad_ptr++ < 5)
+            printf("  pointer at %p: %p, expected %p\n", (void *)exp[i].field, *exp[i].field, exp[i].want);
+    CHECK(bad_arena == 0, "%u arenas match the image with every described element byte-reversed", t->n_arenas);
+    CHECK(bad_sym == 0, "%u own-storage symbols decode element by element (%u differ)", n_own, bad_sym);
+    CHECK(bad_ptr == 0, "%zu planted pointers resolve (%u wrong)", n_exp, bad_ptr);
+
+    /* Overlay reload: scribble over image A, load it, check again. */
+    const PcDataArena *a = &t->arenas[2];
+    memset(a->host, 0xA5, a->n64_hi - a->n64_lo);
+    for (uint32_t i = 0; i < t->n_syms; i++)
+        if ((t->syms[i].flags & PC_SYM_OWN) && t->syms[i].image == a->image)
+            memset(t->syms[i].host, 0xA5, t->syms[i].host_size);
+    pc_data_overlay_load(0);
+    uint32_t bad = check_arena(t, a, img[a->image]);
+    for (uint32_t i = 0; i < t->n_syms; i++) {
+        const PcDataSym *s = &t->syms[i];
+        if ((s->flags & PC_SYM_OWN) && !(s->flags & PC_SYM_BSS) && s->image == a->image)
+            bad += check_sym(t, s, img[s->image], t->images[s->image].size);
+    }
+    for (size_t i = 0; i < n_exp; i++)
+        bad += *exp[i].field != exp[i].want;
+    CHECK(bad == 0, "overlay A reload restores its arena, own storage and pointers");
+    for (uint32_t i = 0; i < t->n_images; i++)
+        free(img[i]);
+    free(exp);
+    free(rom);
+    printf("datacheck --synthetic: %s\n", failures ? "FAILED" : "all checks passed");
+    return failures != 0;
+}
+
+int main(int argc, char **argv)
+{
+    /* The renderer reads values below 4 GB as N64 addresses, so the game's data must sit above (PIE). */
+    int high = 1;
+    for (uint32_t i = 0; i < pc_data_tables.n_arenas; i++)
+        high &= sizeof(void *) < 8 || (uintptr_t)pc_data_tables.arenas[i].host >> 16 >> 16 != 0;
+    CHECK(high, "arenas above 4 GB (%p)", (void *)pc_data_tables.arenas[1].host);
+    if (argc > 1 && strcmp(argv[1], "--synthetic") == 0)
+        return synthetic();
+    const char *path = argc > 1 ? argv[1] : PC_DATA_ROM;
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        printf("datacheck: no ROM at %s; nothing to check\n", path);
+        return 0;
+    }
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    uint8_t *rom = malloc((size_t)size);
+    if (!rom || fread(rom, 1, (size_t)size, fp) != (size_t)size) {
+        printf("datacheck: cannot read %s\n", path);
+        return 1;
+    }
+    fclose(fp);
+    char digest[41];
+    sha1(rom, (size_t)size, digest);
+    if (strcmp(digest, ROM_SHA1) != 0) {
+        printf("datacheck: %s has SHA-1 %s, expected %s (San Francisco Rush 2049, USA, .z64)\n", path, digest,
+               ROM_SHA1);
+        return 1;
+    }
+    printf("ok: ROM SHA-1\n");
+
+    CHECK(pc_data_init(rom, (size_t)size) == 0, "pc_data_init");
+    const PcDataStats *st = pc_data_stats();
+
+    /* Boot tail build-info record, 0x8002E440..0x8002E8E0. */
+    const uint8_t *info = at(0x8002E440, 0);
+    CHECK(info && contains(info, 0x4A0, "07-17-00") && contains(info, 0x4A0, "MERRILL")
+          && contains(info, 0x4A0, "BLACKOUT"), "build-info record (07-17-00, MERRILL, BLACKOUT)");
+
+    /* Inflate tables (zlib's inflate.c constants), declared u32 border[], u16 cplens[], u16 mask_bits[]. */
+    static const uint32_t border[19] = {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
+    static const uint16_t cplens[29] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59,
+                                        67, 83, 99, 115, 131, 163, 195, 227, 258};
+    const uint32_t *b = at(0x8002B040, 0);
+    const uint16_t *cl = at(0x8002B08C, 0), *mb = at(0x8002B184, 0);
+    CHECK(b && memcmp(b, border, sizeof border) == 0, "gInflateBorder (u32)");
+    CHECK(cl && memcmp(cl, cplens, sizeof cplens) == 0, "gInflateCplens (u16)");
+    int masks = 1;
+    for (int i = 0; mb && i < 17; i++)
+        masks &= mb[i] == (uint16_t)((1u << i) - 1);
+    CHECK(mb && masks, "gInflateMaskBits (u16)");
+
+    /* Floats: of every f32 element the tables describe, most must be finite and of sane size. */
+    uint32_t nf = 0, good = 0;
+    const PcDataTables *t = &pc_data_tables;
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        for (uint32_t k = 0; k < ar->run_count; k++) {
+            const PcDataRun *r = &t->runs[ar->run_first + k];
+            if (r->kind != PC_K_F32)
+                continue;
+            for (uint32_t rep = 0; rep < r->rep; rep++)
+                for (uint32_t j = 0; j < r->count; j++) {
+                    float f;
+                    memcpy(&f, ar->host + r->n64_off + rep * r->n64_stride + j * 4, 4);
+                    nf++;
+                    good += isfinite(f) && (f == 0.0f || (fabsf(f) > 1e-6f && fabsf(f) < 1e7f));
+                }
+        }
+    }
+    printf("floats: %u of %u plausible\n", good, nf);
+    CHECK(nf && good * 10 >= nf * 9, "at least 90%% of f32 values plausible");
+
+    /* Function pointers resolved to host functions. */
+    printf("pointers: %u own, %u C data, %u arena, %u functions, %u RDRAM, %u null, %u raw, %u unresolved, "
+           "%u to functions with no C, %u inexact, %u ambiguous; %u address-like words\n", st->own, st->cdef,
+           st->arena, st->func, st->rdram, st->null, st->raw, st->unresolved, st->no_code, st->inexact, st->ambiguous,
+           st->addr_words);
+    CHECK(st->func > 0, "function pointers resolve to host functions");
+
+    /* The file table (docs/port/ASSETS.md 2.2): 183 waves. Wrong byte order breaks every one of these. */
+    const uint32_t *wrom = at(0x8011B5BC, 1), *wsize = at(0x8002E580, 0);
+    const int32_t *wkind = at(0x80123564, 1);
+    const int8_t *wmodel = at(0x801234AC, 1);
+    int kinds = 1, models = 1, offsets = 1, sizes = 1, n_kind[3] = {0, 0, 0};
+    for (int i = 0; i < 183; i++) {
+        kinds &= wkind[i] >= 0 && wkind[i] <= 2;
+        if (wkind[i] >= 0 && wkind[i] <= 2)
+            n_kind[wkind[i]]++;
+        models &= wmodel[i] == 0 || wmodel[i] == 1;
+        offsets &= wrom[i] < (uint32_t)size;
+        sizes &= wsize[i] < 0x800000u;
+    }
+    printf("file table: %d raw, %d LZSS, %d DEFLATE; wave 0 at ROM 0x%X, %u B\n", n_kind[0], n_kind[1], n_kind[2],
+           wrom[0], wsize[0]);
+    CHECK(kinds, "file table: storage kinds are 0, 1 or 2 (D_80123564)");
+    CHECK(models, "file table: model flags are 0 or 1 (D_801234AC)");
+    CHECK(offsets, "file table: ROM offsets inside the ROM (D_8011B5BC)");
+    CHECK(sizes, "file table: sizes under 8 MB (D_8002E580)");
+
+    /* Overlay reload: change image A's and B's first data words, load, compare. */
+    for (int ov = 0; ov < 2; ov++) {
+        const PcDataArena *ar = &t->arenas[2 + ov];
+        uint8_t keep[64];
+        memcpy(keep, ar->host, sizeof keep);
+        memset(ar->host, 0xA5, sizeof keep);
+        ar->host[ar->n64_init - ar->n64_lo] = 0x5A;   /* first BSS byte */
+        pc_data_overlay_load(ov);
+        CHECK(memcmp(keep, ar->host, sizeof keep) == 0 && ar->host[ar->n64_init - ar->n64_lo] == 0,
+              "overlay %c reload restores data and zeroes BSS", 'A' + ov);
+    }
+    printf("datacheck: %s\n", failures ? "FAILED" : "all checks passed");
+    return failures != 0;
+}

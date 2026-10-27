@@ -1,12 +1,38 @@
 """Shared helpers for the PC port tools: the decompilation's symbol file, N64 memory regions, nm output.
 
-Stdlib only, Python 3.9+. Used by census.py and gen_bss.py.
+Stdlib only, Python 3.9+. Used by census.py, gen_stubs.py, gen_weak.py and gen_data.py.
 """
+import json
 import re
 import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# The four images whose data the PC build fills from the ROM (tools/extract_rom.py, docs/memory_map.md):
+# name, how it is stored, ROM offset, stored length, image size, N64 base. "raw" is a plain copy (the boot
+# segment tail); "deflate" a raw DEFLATE stream.
+IMAGES = [
+    ("boot", "raw", 0x283D0, 0x7110, 0x7110, 0x800277D0),
+    ("game", "deflate", 0xB0CB10, 326180, 647072, 0x80086A50),
+    ("ovl_a", "deflate", 0xB5C534, 80272, 194128, 0x8038A400),
+    ("ovl_b", "deflate", 0xB6FEC4, 23639, 43888, 0x8038A400),
+]
+# Each image's data and BSS: image, N64 start, end of initialized data (= image end), end of BSS. The two
+# runtime images' code overlaps at 0x8038A400, but their data and BSS ranges are disjoint.
+ARENAS = [
+    ("boot", 0x800277D0, 0x8002E8E0, 0x80086A50),
+    ("game", 0x8010FD7C, 0x801249F0, 0x8017A640),
+    ("ovl_a", 0x803AF978, 0x803B9A50, 0x803BAE20),
+    ("ovl_b", 0x80393B34, 0x80394F70, 0x8039B440),
+]
+# Code ranges per image, for telling function addresses from data.
+CODE = {"boot": (0x80000400, 0x800277D0), "game": (0x80086A50, 0x8010FD7C),
+        "ovl_a": (0x8038A400, 0x803AF978), "ovl_b": (0x8038A400, 0x80393B34)}
+# The symbol tables the matching build links each image's compiled C against.
+IMAGE_SYMBOLS = {"game": "asm/us/blob/symbols.json", "ovl_a": "asm/us/ovl_a/symbols.json",
+                 "ovl_b": "asm/us/ovl_b/symbols.json"}
+_IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"))
 
 # N64 virtual memory regions (docs/memory_map.md). Both runtime images load at 0x8038A400.
 REGIONS = [
@@ -83,3 +109,48 @@ def nm_symbols(paths, nm="nm"):
     """(defined, undefined) global symbol names over object files or static libraries."""
     defs, undefined = nm_table(paths, nm)
     return set(defs), undefined
+
+
+def nm_objects(paths, nm="nm"):
+    """object -> (definitions {name: (nm type letter, size or None)}, references {name}) for global symbols.
+    Weak undefined references (w/v) are left out, as in nm_table."""
+    table = {}
+    paths = [str(p) for p in paths]
+    for i in range(0, len(paths), 200):
+        out = subprocess.run([nm, "-g", "-A", "-S", *paths[i:i + 200]], capture_output=True, text=True,
+                             check=True).stdout
+        for line in out.splitlines():
+            obj, _, rest = line.rpartition(":") if line.count(":") > 1 else line.partition(":")
+            defs, refs = table.setdefault(obj, ({}, set()))
+            parts = rest.split()
+            if len(parts) == 2 and parts[0] == "U":
+                refs.add(parts[1])
+            elif len(parts) >= 3 and parts[-2] not in ("U", "w", "v"):
+                size = int(parts[1], 16) if len(parts) == 4 else None
+                defs[parts[-1]] = (parts[-2], size)
+    return table
+
+
+def object_image(path):
+    """'boot', 'game', 'ovl_a' or 'ovl_b' for an object compiled from src/rom, src/blob, src/ovl_a or src/ovl_b."""
+    p = str(path).replace("\\", "/")
+    for part, image in _IMAGE_DIRS:
+        if part in p:
+            return image
+    return None
+
+
+def load_image_symbols(image, root=ROOT):
+    """name -> address from the image's symbol table (IMAGE_SYMBOLS); {} for the boot segment."""
+    path = IMAGE_SYMBOLS.get(image)
+    if not path:
+        return {}
+    return {k: int(v, 16) for k, v in json.loads((Path(root) / path).read_text())["symbols"].items()}
+
+
+def load_layout_functions(image, root=ROOT):
+    """[(address, name)] of the image's functions in layout/<image>.json order."""
+    out = []
+    for region in json.loads((Path(root) / "layout" / f"{image}.json").read_text())["regions"]:
+        out += [(e["vaddr"], e["target_id"]) for e in region["entries"] if e["kind"] == "function"]
+    return out
