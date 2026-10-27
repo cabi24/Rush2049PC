@@ -17,10 +17,18 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
+typedef struct TblHdr {
+    char *pad0[0x338 / 4];
+    char *text;
+} TblHdr;
+#else
 typedef struct TblHdr {
     u8 pad0[0x338];
     char *text;
 } TblHdr;
+#endif
 
 typedef struct StrTable {
     u8 pad0[4];

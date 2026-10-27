@@ -56,6 +56,64 @@ void audio_mixer_main(s16 mode);
 void physics_friction_apply(void);
 void func_800B9740(void);
 
+#ifdef TARGET_PC
+/* PC: the file is in host order (port/assets/path.c), but its headers have 4-byte pointer slots. The resurrection
+ * and drone path headers are copied field by field into the native gResPath and gDronePaths, and the alternative
+ * paths, whose pts this sets and every reader reads with the native stride, are kept in a native array (numAlt is a
+ * u8) instead of in the file (docs/port/ASSETS.md §4 #22). */
+static AltPath pc_alt_paths[256];
+
+void audio_effect_apply(void)
+{
+    s16 i;
+    s16 p;
+    char *ptr;
+
+    if (D_80114650) {
+        physics_response();
+        audio_mixer_main(-1);
+        physics_friction_apply();
+        func_800B9740();
+        physics_response();
+        return;
+    }
+    ptr = D_80153F20 + 0x32C;
+    memcpy(&D_801407F0, ptr, 4);                        /* numPrimary, unk02 */
+    memcpy(&D_801407F0.numAlt, ptr + 8, 4);             /* numAlt, unk09 */
+    ptr += 0x10;
+    D_80153E80 = pc_alt_paths;
+    for (i = 0; i < D_801407F0.numAlt; i++) {
+        memcpy(&pc_alt_paths[i], ptr, 12);              /* everything before the pts slot */
+        ptr += 16;
+    }
+    memcpy(&D_801527A4, ptr, 2);
+    ptr += 2;
+    D_801409E8 = (Vertex *)ptr;
+    ptr += D_801407F0.numPrimary * 6;
+    D_801407F0.pts = D_801409E8;
+    if (D_801407F0.numAlt > 0) {
+        D_801407F0.alt = D_80153E80;
+    } else {
+        D_801407F0.alt = D_80153E80 = 0;
+    }
+    for (i = 0; i < D_801407F0.numAlt; i++) {
+        D_80153E80[i].pts = (Vertex *)ptr;
+        ptr += D_80153E80[i].numPts * 6;
+    }
+    for (p = 0; p < 4; p++) {
+        memcpy(&D_8012E5E8[p], ptr, 4);                 /* num, unk02 */
+        D_801527D0[p] = D_8012E5E8[p].num;
+        ptr += 8;
+        D_80153EF8[p] = ptr;
+        D_8012E5E8[p].pts = ptr;
+        ptr += D_8012E5E8[p].num * 8;
+    }
+    audio_mixer_main(-1);
+    physics_friction_apply();
+    func_800B9740();
+    physics_response();
+}
+#else
 void audio_effect_apply(void)
 {
     s16 i;
@@ -113,3 +171,4 @@ void audio_effect_apply(void)
     func_800B9740();
     physics_response();
 }
+#endif

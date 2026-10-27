@@ -7,7 +7,12 @@ typedef unsigned char u8;
 typedef struct Position { s16 x,y,z; } Position;
 typedef struct SearchPoint { s16 x,y,z,flag; } SearchPoint;
 typedef struct PositionEntry { u8 pad[12]; Position *points; } PositionEntry;
+#ifdef TARGET_PC
+/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (audio_effect_apply), so these views take host offsets and strides */
+typedef struct CountEntry { u16 count; u8 pad[14]; } CountEntry;
+#else
 typedef struct CountEntry { u16 count; u8 pad[6]; } CountEntry;
+#endif
 typedef struct PointEntry { SearchPoint *points; u8 pad[4]; } PointEntry;
 typedef struct Waypoint { s16 index[40]; } Waypoint;
 typedef struct Region { u8 pad[40]; s16 path; } Region;

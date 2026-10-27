@@ -10,6 +10,26 @@ typedef struct TrackRecord {
     s16 first[4];
     s16 second[12];
 } TrackRecord;
+#ifdef TARGET_PC
+/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (audio_effect_apply), so these views take host offsets and strides */
+typedef struct Descriptor {
+    unsigned char prefix;
+    s8 previous;
+    u16 previous_end;
+    s8 parent;
+    unsigned char gap;
+    u16 end;
+    unsigned char gap2[2];
+    u16 delta;
+    unsigned char tail[12];   /* the native pts pointer */
+} Descriptor;
+typedef struct Header {
+    u16 total;
+    unsigned char opaque[22];
+    Descriptor *nodes;
+} Header;
+typedef struct Count {u16 total;unsigned char opaque[14];} Count;
+#else
 typedef struct Descriptor {
     unsigned char prefix;
     s8 previous;
@@ -27,6 +47,7 @@ typedef struct Header {
     Descriptor *nodes;
 } Header;
 typedef struct Count {u16 total;unsigned char opaque[6];} Count;
+#endif
 extern TrackRecord D_80151CE8[];
 extern Header D_801407F0;
 extern Count D_8012E5E8[];

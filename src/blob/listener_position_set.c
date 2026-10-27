@@ -3798,7 +3798,7 @@ M2C_UNK memcpy(s32, void *, M2C_UNK);
 #endif
 void listener_position_set(s32 arg0)
 {
-  s32 var_s0;
+  intptr_t var_s0;
   s32 var_s1;
   int new_var;
   var_s0 = D_801525EC;

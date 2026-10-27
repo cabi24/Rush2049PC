@@ -9,6 +9,25 @@ typedef short s16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
+typedef struct MenuText {
+    char *pad0[344 / 4];
+    char *text344;
+    char *pad348[4 / 4];
+    char *text352;
+    char *pad356[4 / 4];
+    char *text360;
+    char *pad364[244 / 4];
+    char *text608;
+    char *text612;
+    char *text616;
+    char *pad620[4 / 4];
+    char *text624;
+    char *pad628[316 / 4];
+    char *text944;
+} MenuText;
+#else
 typedef struct MenuText {
     u8 pad0[344];
     char *text344;
@@ -25,6 +44,7 @@ typedef struct MenuText {
     u8 pad628[316];
     char *text944;
 } MenuText;
+#endif
 extern MenuText *D_8017A4E4;
 extern u8 D_803B83A0;
 extern s8 D_803B839C;

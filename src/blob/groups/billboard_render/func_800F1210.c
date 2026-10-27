@@ -27,7 +27,12 @@ typedef s32 intptr_t;
 typedef float f32;
 typedef struct Rect { s16 x,y,w,h; s16 unknown[2]; } Rect;
 typedef struct TextInfo { char unknown[54]; u16 index; } TextInfo;
+#ifdef TARGET_PC
+/* PC: gText's header has host pointers (port/assets/text.c), so info and strings sit at host offsets. */
+typedef struct TextState { void *unknown[3]; TextInfo *info; char **strings; } TextState;
+#else
 typedef struct TextState { s32 unknown[3]; TextInfo *info; char **strings; } TextState;
+#endif
 extern TextState countdown_state;
 #ifdef TARGET_PC
 extern intptr_t D_801148CC;

@@ -26,11 +26,20 @@ typedef struct LangInfo {
     u16 lang;
 } LangInfo;
 
+#ifdef TARGET_PC
+/* PC: gText's header has host pointers (port/assets/text.c), so its fields sit at host offsets */
+typedef struct StrTable {
+    void *pad0[3];
+    LangInfo *info;
+    char **strings;
+} StrTable;
+#else
 typedef struct StrTable {
     u8 pad0[12];
     LangInfo *info;
     char **strings;
 } StrTable;
+#endif
 
 typedef struct CreditPage {
     char *names[11];

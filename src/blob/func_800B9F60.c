@@ -2302,7 +2302,14 @@ extern s8 D_801407D0;
 extern s32 D_801407D4;
 extern s32 D_801407DC;
 extern s32 D_801407E0;
+#ifdef TARGET_PC
+/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (audio_effect_apply), so these views take host offsets and strides */
+typedef struct { u16 w0; u8 pad[22]; u8 *recs; } PGraph;
+#define ALT_PATH_SIZE 24
+#else
 typedef struct { u16 w0; u8 pad[10]; u8 *recs; } PGraph;
+#define ALT_PATH_SIZE 0x10
+#endif
 extern volatile PGraph D_801407F0;
 extern s32 D_801407F4;
 extern u8 D_801407F8;
@@ -3802,7 +3809,7 @@ void func_800B9F60(s32 arg0, s32 arg1, s32 *arg2, s32 *arg3)
   g = &D_801407F0;
   if (arg0 >= 0)
   {
-    temp_v0 = arg0 * 0x10;
+    temp_v0 = arg0 * ALT_PATH_SIZE;
     r = g->recs + temp_v0;
     if ((arg1 + new_var) == *(u16 *) (r + 0xA))
     {

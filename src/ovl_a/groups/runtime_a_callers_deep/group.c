@@ -253,7 +253,12 @@ void func_80394058(void)
 extern s32 D_803BA808;
 extern char D_803BA840[];
 extern ListNode D_80146150[4];
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
+typedef struct { char *prefix[0x2C4 / 4]; const char *label; } ResourceNames;
+#else
 typedef struct { unsigned char prefix[0x2C4]; const char *label; } ResourceNames;
+#endif
 extern ResourceNames *D_8017A4E4;
 extern s32 func_800CD544(ListNode *);
 extern s32 func_800CCEFC(ListNode *);

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 
 #include "support.h"
 
@@ -61,3 +62,24 @@ int pc_mem_is_be(const void *p)
 size_t test_be_range_count(void) { return g_nbe; }
 
 void test_be_reset(void) { g_nbe = 0; }
+
+#ifndef MAP_FIXED_NOREPLACE
+#define MAP_FIXED_NOREPLACE 0x100000
+#endif
+
+uint8_t *test_rdram(void)
+{
+    static uint8_t *w;
+    static int tried;
+    void *want = (void *)(uintptr_t)PC_RDRAM_BASE, *p;
+
+    if (tried)
+        return w;
+    tried = 1;
+    p = mmap(want, PC_RDRAM_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    if (p == want)
+        w = (uint8_t *)p;
+    else if (p != MAP_FAILED)
+        munmap(p, PC_RDRAM_SIZE);
+    return w;
+}

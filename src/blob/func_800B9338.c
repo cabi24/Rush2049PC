@@ -3792,9 +3792,15 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: gDronePaths is native (audio_effect_apply), 16 bytes a path. */
+#define DRONE_PATH_SIZE 16
+#else
+#define DRONE_PATH_SIZE 8
+#endif
 s16 func_800B9338(s16 arg0, s16 arg1)
 {
-  if ((arg0 + 1) == (*((u16 *) (((u8 *) (&D_8012E5E8)) + (arg1 * 8)))))
+  if ((arg0 + 1) == (*((u16 *) (((u8 *) (&D_8012E5E8)) + (arg1 * DRONE_PATH_SIZE)))))
   {
     return *((s16 *) (((u8 *) (((*((s16 *) (((s8 *) (&D_80151CE8)) + 2))) * 0x50) + ((u8 *) ((0, &D_80151CE8))))) + (arg1 * 2) + 0x30));
   }

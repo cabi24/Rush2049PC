@@ -47,6 +47,20 @@ typedef struct FontHdr {
     /* 0xC */ u8 count;
 } FontHdr;
 
+#ifdef TARGET_PC
+/* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c);
+ * FONT_KERNS reads it as a pointer. */
+typedef struct Glyph {
+    /* 0x0 */ u32 kern;
+    /* 0x4 */ u8 id;
+    /* 0x5 */ u8 pad5;
+    /* 0x6 */ u8 left;
+    /* 0x7 */ u8 pad7;
+    /* 0x8 */ u8 right;
+    /* 0x9 */ u8 pad9[3];
+} Glyph;
+#define FONT_KERNS(k) ((u8 *)(uintptr_t)(k))
+#else
 typedef struct Glyph {
     /* 0x0 */ u8 *kern;
     /* 0x4 */ u8 id;
@@ -56,6 +70,8 @@ typedef struct Glyph {
     /* 0x8 */ u8 right;
     /* 0x9 */ u8 pad9[3];
 } Glyph;
+#define FONT_KERNS(k) k
+#endif
 
 extern FontHdr *D_801497F0;
 extern Glyph *D_80149800;
@@ -113,7 +129,7 @@ s32 object_manager_update(u8 *str, s16 maxlen)
                 } else {
                     width += D_80149800[ch].right - D_80149800[ch].left + D_80149B70 + 1;
                     if (prev > 0 && D_801497F0->kerning) {
-                        width -= D_80149800[ch].kern[prev];
+                        width -= FONT_KERNS(D_80149800[ch].kern)[prev];
                     }
                     prev = ch;
                 }

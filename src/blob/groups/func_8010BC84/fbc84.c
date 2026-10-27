@@ -25,6 +25,16 @@ typedef struct Blit {
     s8 hidden;
 } Blit;
 
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
+typedef struct TblHdr {
+    char *pad0[0x2A8 / 4];
+    char *ok;
+    char *notOk;
+    char *pad2B0[(0x388 - 0x2B0) / 4];
+    char *title;
+} TblHdr;
+#else
 typedef struct TblHdr {
     u8 pad0[0x2A8];
     char *ok;
@@ -32,6 +42,7 @@ typedef struct TblHdr {
     u8 pad2B0[0x388 - 0x2B0];
     char *title;
 } TblHdr;
+#endif
 
 typedef struct StrTable {
     u8 pad0[4];

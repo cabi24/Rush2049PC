@@ -90,6 +90,14 @@ void func_8038A8CC(void);                                                /* over
 s16 wheel_torque_apply(u8 *World, s16 Parent);                        /* GC NewWorld (world.c, locked) */
 void mode_flags_clear(void);                                            /* N64 InitCheckpointData wrapper (locked) */
 
+#ifdef TARGET_PC
+/* PC: the GTLD keys become object pointers at race setup (engine_sound_update), which don't fit the file's 4-byte
+ * slots, so LoadTrack gets GTLD as a native array of the keys (port/assets/world.c); other chunks are returned
+ * as they are. */
+uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
+#define MBGetFromWad(wad, tag, count) pc_world_chunk(MBGetFromWad(wad, tag, count), tag, count)
+#endif
+
 s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     Wad wad;
     WorldHdr *whdr;

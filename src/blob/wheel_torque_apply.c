@@ -25,10 +25,19 @@ typedef struct NameKey {
     u32 hdr;
     char name[20];
 } NameKey;
+#ifdef TARGET_PC
+/* PC: the entry is the world file's 0x14-byte WHDR record; LoadTrack has made node a window address
+ * (port/assets/world.c), which converts to the Node104 pointer as it is. */
+typedef struct NameEntry {
+    u32 node;
+    char name[16];
+} NameEntry;
+#else
 typedef struct NameEntry {
     Node104 *node;
     char name[16];
 } NameEntry;
+#endif
 
 extern s16 D_80149D90;
 extern Node104 *D_80149B80;
