@@ -84,10 +84,10 @@ Rush2049PC/
 |---|---|---|---|
 | **0. Seed and census** | Repo seeded, PC build compiles everything, census tool committed | `cmake --build` compiles 1,346 files into a library; `tools/port/census.py` reproduces the tables above | Done |
 | **1. It links** | Every undefined symbol has a definition: BSS generated, data generated from the ROM, missing functions stubbed (abort with the name) | `rush2049pc` links and runs until the first stub | Done: 0 function stubs left |
-| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault | On the synthetic test cartridge (`tools/port/synth_rom.py`, [port/SYNTH.md](port/SYNTH.md)) the game runs through the whole front end into a race on an empty track, with graphics and audio tasks every frame; CI boots it on every push. Real data **needs the ROM** |
-| **3. First picture** | Interpreter + OpenGL + SDL window. 64-bit `Gfx`. Pointer warnings on the boot path fixed. | Midway logo and title screen | Renderer done and tested with synthetic lists; `Gfx` widened. Needs the ROM |
-| **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race | A converter for every format, run from `_ReadWave` ([port/LOADERS.md](port/LOADERS.md)): WAD, text bank, fonts, world, road, paths, MusyX. Tested with the game's own readers on synthetic files; needs the ROM to confirm |
-| **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain). MusyX files converted and the library's structures fixed for 64-bit; songs and voices run through the game's own sequencer in tests ([port/MUSYX_DATA.md](port/MUSYX_DATA.md)) |
+| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault | On the synthetic test cartridge (`tools/port/synth_rom.py`, [port/SYNTH.md](port/SYNTH.md)) the game runs through the whole front end into a race on an empty track, with graphics and audio tasks every frame; CI boots it on every push. **On the retail cartridge** the game runs the attract demo, the front end and races in every mode tried ([port/BRINGUP.md](port/BRINGUP.md)) |
+| **3. First picture** | Interpreter + OpenGL + SDL window. 64-bit `Gfx`. Pointer warnings on the boot path fixed. | Midway logo and title screen | Done: on the retail cartridge the Midway logo, the title, the menus and the races render as on the N64 (headless, on the Pi's GPU). Not yet seen in a window on a desktop GPU |
+| **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race | A converter for every format, run from `_ReadWave` ([port/LOADERS.md](port/LOADERS.md)): WAD, text bank, fonts, world, road, paths, MusyX. Tested with the game's own readers on synthetic files, and on the retail cartridge: the loader checks pass, and tables that only pointers reach are converted by rules (port/data/reached.txt, [port/DATA.md](port/DATA.md) 7) |
+| **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain). MusyX files converted and the library's structures fixed for 64-bit; songs and voices run through the game's own sequencer in tests ([port/MUSYX_DATA.md](port/MUSYX_DATA.md)). On the retail cartridge `--dump-audio` from the title records music; not yet listened to through SDL |
 | **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart | Controller pak at the SI block level done; keyboard, up to 4 controllers, rumble and `rush2049pc.ini` ([port/FRONTEND.md](port/FRONTEND.md)). The game's file records, profiles and ghosts have their PC layouts, and its own code creates, reloads and deletes them on a test pak (POINTERS.md 9.10) |
 | **7. Parity with v5** | v5 is the reference: same `--press` input scripts on both; compare state probes (game state, car positions and speeds per frame), screenshots and audio | Every mode v5's scripted runs cover | `--press` scripts work on the PC build |
 | **8. Features** | Widescreen, high frame rate, settings menu, remapping, texture packs: the V6 list, now plain C edits plus our renderer | Per feature, behind a setting | Internal resolution scale (`video.scale`, 1-8 or `auto`: the window's whole multiple). Widescreen (`video.widescreen`: 16:9, 21:9, auto...) in the renderer: perspective views widen, 2D stays 4:3, full-width fills span ([port/GFX.md](port/GFX.md) "Widescreen"); tested with synthetic lists, needs the ROM to judge the menus. Settings overlay (F1, or both stick clicks): holds the game; widescreen, scale, fullscreen, vsync, window size and volume live (the graphics API and audio backend after a restart); remapping the keyboard, the controllers and the hotkeys by capturing the next key or button; Save into rush2049pc.ini in place, keeping its comments and order; drawn by port/gfx in window pixels with the port's own font ([port/FRONTEND.md](port/FRONTEND.md) "The settings overlay"); tested headless and on SDL's offscreen driver, not yet over the game's frames |
@@ -245,27 +245,37 @@ were indexed past their one-element declarations, so the loader would have left 
 ROM's byte order (`index_check`). Also: gSongNames' extent (131 pointers by the gap, 12 by the code). The rest of the
 40-odd stops were data the cartridge lacked, now synthesized and documented (SYNTH.md 3).
 
+## Sixth session results (2026-10-27)
+
+| Part | Document | What it does |
+|---|---|---|
+| The retail cartridge | [port/BRINGUP.md](port/BRINGUP.md) | Used locally by its path (never copied, nothing from it committed). The game runs the attract demo, the whole front end (main, players, mode, track and car select, records, options, audio, video), and races: one player (driving to about 200 mph), two to four in split screen, circuit, practice, ghost race, stunt and battle; pause, results, game over and back; a fresh controller pak. 13 stops fixed, each with a test on synthetic data: NewMultiBlit's tables got their PC layout (`struct pc_multiblit`), tables sized by the gap to the next symbol that ran over strings or records got their sizes, tables only pointers reach are converted by rules (`port/data/reached.txt`), two colour-table words stay window addresses |
+| Windows runtime | [port/WINDOWS.md](port/WINDOWS.md) 4 | The Microsoft x64 convention passes arguments 5 on in 8-byte stack slots, and an `s32` prototype stores 4 of them: `proto_check.py --abi win64` finds such views (20 of 3 functions, fixed). The self-test's audio test uses the null output (SDL's audio init takes 8 s without a device). All 14 synthetic paths and the fast self-test pass on Windows |
+
+Numbers: 121 tests on x86-64 Linux, 0 harmful prototype views under either convention, 0 neutrality failures in 992
+changed files, 0 objects that differ under IDO.
+
 ## Next
 
-1. **The ROM.** Put `baserom.us.z64` in the repository root (git-ignored). Then:
-   - `build/pc/rush2049pc_datacheck` checks the data loader on real data.
-   - `RUSH_TRACE_WAVES=1 build/pc/rush2049pc --headless --stop-at-gfx`, then `--screenshot-at N`, is the bring-up
-     loop: run, read the backtrace, fix. The converters log any file that doesn't parse (LOADERS.md and
-     MUSYX_DATA.md list what to check first).
-2. **N64 check.** `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD and compares
+1. **A person playing it.** Everything above ran headless with scripted input. Still untried: a window on a desktop
+   GPU, sound through SDL, real controllers, a race to its finish, ghost saves (zlib), and the whole thing on Windows
+   with the retail cartridge.
+2. **The retail cartridge's loose ends** ([port/BRINGUP.md](port/BRINGUP.md) "What's next"): the report's remaining
+   `undescribed` targets, more tables sized by the gap (`index_check.py`, the report's `text-in-words` lines).
+3. **N64 check.** `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD and compares
    code, data, relocations, symbols and section sizes. On 1575cc9 all 1,011 objects agree (234 differ only in
    `.mdebug` line numbers), and the build's other inputs (Makefile, linker scripts, asm, manifests) are unchanged,
    so the ROM still matches. A full `make` with the ROM remains the final word. Run it after each merge of game
    C; `n64_neutral.py` stays the fast check, in CI.
-3. **Records on 64-bit.** The car, visual and model records, the target table and level-object nodes, the input
+4. **Records on 64-bit.** The car, visual and model records, the target table and level-object nodes, the input
    records, the ZOID windows and the frame records have one PC layout each ([port/CARS.md](port/CARS.md),
    POINTERS.md §10), and so do the save records (§9.10). `tools/port/layout_check.py` ([port/LAYOUT.md](port/LAYOUT.md))
    finds no open layout disagreement in game C. Its blind spots are function tables in ROM data and call contexts:
    the synthetic cartridge's widening coverage (SYNTH.md) is the runtime check, the ROM's `undescribed` report the
    next one.
-4. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C or in the
+5. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C or in the
    loader ([port/ENDIAN.md](port/ENDIAN.md)); two reads of bytes inside a word of the car record are left there.
-5. **Other platforms.**
+6. **Other platforms.**
    - **Windows x86-64 builds with mingw-w64**, cross from Linux (`cmake/mingw-w64.cmake`) or in MSYS2, and CI runs
      its tests, self-test and ROM-less boot on windows-latest ([port/WINDOWS.md](port/WINDOWS.md)).
    - What makes it work: the window is a file mapping viewed at 0x80000000 and 0xA0000000. The image stays above
