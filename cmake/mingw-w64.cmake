@@ -12,6 +12,7 @@ set(CMAKE_SYSTEM_PROCESSOR x86_64)
 set(RUSH_MINGW_TRIPLE x86_64-w64-mingw32 CACHE STRING "mingw-w64 target triple (tool prefix)")
 set(RUSH_MINGW_ROOTS "" CACHE STRING "Extra prefixes with Windows libraries (zlib, SDL2)")
 find_program(CMAKE_C_COMPILER NAMES ${RUSH_MINGW_TRIPLE}-gcc-posix ${RUSH_MINGW_TRIPLE}-gcc REQUIRED)
+find_program(CMAKE_CXX_COMPILER NAMES ${RUSH_MINGW_TRIPLE}-g++-posix ${RUSH_MINGW_TRIPLE}-g++)   # SDL2's project
 find_program(CMAKE_RC_COMPILER NAMES ${RUSH_MINGW_TRIPLE}-windres)
 # The build's generators read objects with these (tools/port): nm for symbols, objdump for DWARF (readelf only
 # reads ELF).
