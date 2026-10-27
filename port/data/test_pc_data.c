@@ -361,6 +361,7 @@ static void run(int window)
     CHECK(strstr(buf, "no-code P+0x10 0x80010010 nocode_fn") != NULL);
     CHECK(strstr(buf, "text-in-words P+0x34 0x80010190 -> game_word+0x10 (CAR1)") != NULL);
     CHECK(strstr(buf, "text-in-words P+0x38 0x80010170 -> T+0x0 (FOO)") != NULL);
+    CHECK(strstr(buf, "undescribed P+0x30 0x80001098 -> boot_vals+0x18 (text)") != NULL);
 
     /* a stream that does not inflate to the image size is an error */
     images[3].size = 0x81;

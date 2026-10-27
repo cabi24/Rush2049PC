@@ -40,3 +40,7 @@ D_801116D0 0x84
 # the declaration ran 131 pointers to the next known address, so the loader turned 119 words of whatever follows into
 # pointer slots of its own storage.
 D_80110030 0x30
+# The track animations' pointer tables (race_setup_1, camera_shake_start): one per track, 19 (D_8014978C 0-18). By
+# the gap they ran over the palette animations after them, which port/data/reached.txt now converts.
+D_8011A31C 0x4C
+D_8011A840 0x4C

@@ -1276,6 +1276,7 @@ def race(c):
     car_tables(c)
     hud(c)
     blits(c)
+    track_animations(c)
 
     # The tracks' car colours (gTrackColors, D_8011AF90, tRGBA *[19]): each points at RGBA byte quadruples, which
     # the cars' IR colour comes from. Sixteen mid greys per track (bytes, so copied as they are).
@@ -1363,6 +1364,24 @@ def blits(c):
     for sym in ("D_801141D4", "D_8011421C"):
         for i in range(2):
             multiblit(c, sym, i, "BUTTON", 8 + 160 * i, 200, 48, 12)
+
+
+def track_animations(c):
+    """Track 0's animations (camera_shake_start sets them up, race_setup_1 runs them every frame): tables only
+    pointers reach, which port/data/reached.txt has the loader convert (BRINGUP.md 8). In N64 form, in bytes no
+    symbol covers. A palette animation (PaletteAnimation20, 20 bytes: owner, first, last, step, action, ticks, delay,
+    data) that rotates entries 0-3 of the palette named "" every tick, and an object animation (ObjectAnimation20, 20
+    bytes: count, object_index, direction, index, delay, interval, frames) of two frames (AnimationFrame12, 12 bytes:
+    name, object, commands) of the texture "", each ended by an empty record. Track 0 is not one with the shared
+    frames, so camera_shake_start looks its frames up."""
+    empty = c.string("")
+    frames = c.blob(be32(empty) + be32(0) + be32(0) + be32(empty) + be32(0) + be32(0), "track 0's animation frames")
+    seq = c.blob(be16(2) + be16(0) + be16(1) + be16(0) + bef32(0.0) + bef32(0.1) + be32(frames) + bytes(20),
+                 "track 0's object animation and its end")
+    pal = c.blob(be32(empty) + be16(0) + be16(3) + bytes([0, 0]) + be16(1) + bef32(0.0) + be32(0) + bytes(20),
+                 "track 0's palette animation and its end")
+    c.set("game", "D_8011A31C", "ptr", seq, "track 0's object animations")
+    c.set("game", "D_8011A840", "ptr", pal, "track 0's palette animations")
 
 
 def battle(c):

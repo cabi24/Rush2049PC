@@ -895,7 +895,9 @@ def generate(a):
 
     ovl_data = {img: [(Path(o).name.replace('.c.obj', '.c').replace('.c.o', '.c'), n, k) for o in objects
                       if obj_image[o] == img for n, k in image_data(o, a.nm)] for img in OVL_RANGES}
-    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data)
+    syms_by_name = {n: s for s in ordered for n in s.names}
+    reach = reach_rules(root / "port" / "data" / "reached.txt", tags, syms_by_name, ordered)
+    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach)
 
     # Report.
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
@@ -1113,7 +1115,112 @@ def c_str(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data):
+# ---------------------------------------------------------------- tables only pointers reach
+
+REACH_BASES = {"u8": ("unsigned char", 1), "s8": ("signed char", 1), "u16": ("short unsigned int", 2),
+               "s16": ("short int", 2), "u32": ("unsigned int", 4), "s32": ("int", 4), "f32": ("float", 4),
+               "float": ("float", 4)}
+REACH_FIXED, REACH_UNTIL, REACH_PARENT, REACH_TABLE = range(4)
+
+
+class Reach:
+    """A rule of port/data/reached.txt (docs/port/DATA.md 7)."""
+
+    def __init__(self, line, root, tspec, cspec):
+        self.line, self.root, self.tspec, self.cspec = line, root, tspec, cspec
+        self.sym = self.parent = None
+        self.slot_n64 = self.slot_host = self.slots = 0
+        self.count_kind, self.count, self.field_n64, self.field_width, self.table_sym = REACH_FIXED, 1, 0, 0, None
+        self.compat = []
+
+
+def struct_members(t):
+    """name -> (N64 offset, host offset, type) of a canonical struct's members."""
+    out, off = {}, 0
+    for name, hoff, mt in t[3]:
+        sz, al = n64_layout(mt)
+        off = align(off, al)
+        out[name] = (off, hoff, mt)
+        off += sz or 0
+    return out
+
+
+def reach_type(spec, tags):
+    m = re.fullmatch(r"(\w+)\[(\d+)\]", spec)
+    if m and m.group(1) in REACH_BASES:
+        name, size = REACH_BASES[m.group(1)]
+        b = INTERN.setdefault(("base", name, size), ("base", name, size))
+        return INTERN.setdefault(("array", b, int(m.group(2))), ("array", b, int(m.group(2))))
+    if spec in REACH_BASES:
+        name, size = REACH_BASES[spec]
+        return INTERN.setdefault(("base", name, size), ("base", name, size))
+    if spec not in tags:
+        return None
+    return tags[spec].most_common(1)[0][0]
+
+
+def reach_rules(path, tags, syms_by_name, ordered):
+    """The rules of reached.txt, each with its pointee type, runs and count rule, checked against the DWARF."""
+    rules = []
+    if not path.exists():
+        return rules
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        f = line.split("#", 1)[0].split()
+        if not f:
+            continue
+        if len(f) < 3:
+            sys.exit(f"{path}:{n}: ROOT TYPE COUNT")
+        r = Reach(n, f[0], f[1], f[2:])
+        r.t = reach_type(r.tspec, tags)
+        if r.t is None or r.t[0] in ("opaque", "void"):
+            sys.exit(f"{path}:{n}: no complete type {r.tspec} in the game's DWARF")
+        r.n64_size, r.host_size = n64_layout(r.t)[0] or 0, host_size(r.t) or 0
+        r.runs = program(r.t)
+        r.copy = any(x[0] in (K_PTR, K_S32_64, K_U32_64) or x[2] != x[3] or x[5] != x[6] for x in r.runs) \
+            or r.n64_size != r.host_size
+        if "." in r.root:
+            tag, field = r.root.split(".", 1)
+            parents = [p for p in rules if p.tspec == tag]
+            if not parents or parents[0].t[0] != "struct" or field not in struct_members(parents[0].t):
+                sys.exit(f"{path}:{n}: {r.root}: no earlier rule reaches a {tag} with a field {field}")
+            r.parent = parents[0]
+            r.slot_n64, r.slot_host, _ = struct_members(r.parent.t)[field]
+        else:
+            s = syms_by_name.get(r.root)
+            if s is None or not s.own or not s.runs or any(x[0] != K_PTR for x in s.runs):
+                sys.exit(f"{path}:{n}: {r.root} is not a placed table of pointers with storage of its own")
+            r.sym, r.slots = s, s.n64_size // 4
+        c = r.cspec
+        if c[0] == "until" and len(c) == 2:
+            if r.t[0] != "struct" or c[1] not in struct_members(r.t):
+                sys.exit(f"{path}:{n}: {r.tspec} has no field {c[1]}")
+            off, _, mt = struct_members(r.t)[c[1]]
+            r.count_kind, r.field_n64, r.field_width = REACH_UNTIL, off, n64_layout(mt)[0]
+        elif c[0] == "parent" and len(c) == 2:
+            if r.parent is None or c[1] not in struct_members(r.parent.t):
+                sys.exit(f"{path}:{n}: the parent has no field {c[1]}")
+            off, _, mt = struct_members(r.parent.t)[c[1]]
+            r.count_kind, r.field_n64, r.field_width = REACH_PARENT, off, n64_layout(mt)[0]
+        elif re.fullmatch(r"\w+\[i\]", c[0]):
+            t = syms_by_name.get(c[0][:-3])
+            if t is None or r.sym is None or not t.runs or t.runs[0][0] not in (K_U8, K_U16, K_U32):
+                sys.exit(f"{path}:{n}: {c[0]}: a root rule's count from a placed table of integers")
+            r.count_kind, r.table_sym, r.field_width = REACH_TABLE, t, N64_ESZ[t.runs[0][0]]
+        elif c[0].isdigit():
+            r.count = int(c[0])
+        else:
+            sys.exit(f"{path}:{n}: COUNT is N, until FIELD, parent FIELD or TABLE[i]")
+        if r.count_kind in (REACH_UNTIL, REACH_PARENT) and r.field_width not in (1, 2, 4):
+            sys.exit(f"{path}:{n}: the count field must be 1, 2 or 4 bytes")
+        # Storage that already holds this type: a pointer into it is resolved as usual.
+        sig = (r.runs, r.n64_size, r.host_size)
+        r.compat = [s for s in ordered if s.own and s.parent is None and not s.cdef and s.t[0] == "array"
+                    and (program(s.t[1]), n64_layout(s.t[1])[0], host_size(s.t[1])) == sig]
+        rules.append(r)
+    return rules
+
+
+def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach=()):
     arenas = n64syms.ARENAS
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
     cdefs = [s for s in ordered if s.cdef]
@@ -1235,6 +1342,23 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         host = own_var[id(s)] if not s.cdef else cweak[id(s)]
         sym_rows.append(f"    {{{c_str(sorted(s.names)[0])}, 0x{s.addr:08X}, {s.n64_size or 1}, {host_sz or 0}, "
                         f"{host}, {first}, {len(runs) - first}, {img}, {flags}}},")
+    sym_index = {}
+    for i, s in enumerate(sorted(own + cdefs, key=lambda x: x.addr)):
+        sym_index[id(s)] = i
+    reach_rows = []
+    for k, r in enumerate(reach):
+        first = len(runs)
+        runs += r.runs
+        compat = [sym_index[id(s)] for s in r.compat if id(s) in sym_index]
+        if compat:
+            L.append(f"static const uint32_t pc_reach_compat_{k}[] = {{{', '.join(map(str, compat))}}};")
+        kinds = ["PC_REACH_FIXED", "PC_REACH_UNTIL", "PC_REACH_PARENT", "PC_REACH_TABLE"]
+        reach_rows.append(
+            f"    {{{c_str(f'{r.root} -> {r.tspec}')}, {sym_index[id(r.sym)] if r.sym else -1}, "
+            f"{reach.index(r.parent) if r.parent else -1}, {r.slot_n64}, {r.slot_host}, {r.slots}, {r.n64_size}, "
+            f"{r.host_size}, {first}, {len(r.runs)}, {kinds[r.count_kind]}, {r.count}, {r.field_n64}, "
+            f"{r.field_width}, 0x{r.table_sym.addr if r.table_sym else 0:08X}, {int(r.copy)}, "
+            f"{f'pc_reach_compat_{k}' if compat else 'NULL'}, {len(compat)}}},")
     L.append(f"static const PcDataRun pc_runs[{max(len(runs), 1)}] = {{")
     for r in runs:
         L.append(f"    {{{r[2]}, {r[3]}, {r[1]}, {r[4]}, {r[5]}, {r[6]}, {r[0]}}},")
@@ -1269,6 +1393,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     L.append(f"static const PcDataCRange pc_cranges[{len(OVL_RANGES)}] = {{")
     L += [f"    {{{IMAGE_INDEX[img]}, {lo}, {hi}}}," for img, (lo, hi) in OVL_RANGES.items()]
     L += ["};", ""]
+    L.append("/* Tables only pointers reach (port/data/reached.txt, docs/port/DATA.md 7). */")
+    L.append(f"static const PcDataReach pc_reach[{max(len(reach_rows), 1)}] = {{")
+    L += reach_rows
+    L += ["};", ""]
     L += ["static PcDataState pc_state;",
           "const PcDataTables pc_data_tables = {",
           "    pc_images, sizeof pc_images / sizeof pc_images[0], pc_arenas, sizeof pc_arenas / sizeof pc_arenas[0],",
@@ -1276,6 +1404,7 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
           f"    0x{HEAP_LO:08X},   /* the game heap starts at the end of the game's BSS (docs/port/ASSETS.md) */",
           "    &pc_state,",
           f"    pc_cranges, {len(OVL_RANGES)},",
+          f"    pc_reach, {len(reach_rows)},",
           "};", "",
           "/* pc_port.h entry points. The loader is weak here so the link test (which leaves it out) still links. */",
           "int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path)",

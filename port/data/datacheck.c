@@ -351,11 +351,15 @@ static int synthetic(void)
         for (uint32_t k = 0; k < ar->n64_init - ar->n64_lo; k++)
             p[k] = (uint8_t)rnd();
     }
-    /* Plant pointer targets in every pointer element of own storage. */
+    /* Plant pointer targets in every pointer element of own storage. The tables of pointers that port/data/reached.txt
+     * follows get NULL: what they reach is random data here (port/data/test_pc_data.c tests the rules). */
     for (uint32_t i = 0; i < t->n_syms; i++) {
         const PcDataSym *s = &t->syms[i];
         if (!(s->flags & PC_SYM_OWN) || (s->flags & PC_SYM_BSS))
             continue;
+        int root = 0;
+        for (uint32_t k = 0; k < t->n_reach; k++)
+            root |= t->reach[k].sym == (int32_t)i;
         uint32_t base = s->n64_addr - t->images[s->image].n64_base;
         for (uint32_t k = 0; k < s->run_count; k++) {
             const PcDataRun *r = &t->runs[s->run_first + k];
@@ -367,8 +371,8 @@ static int synthetic(void)
                     uint32_t ho = r->host_off + rep * r->host_stride + j * (uint32_t)sizeof(void *);
                     if (no + 4 > s->n64_size || base + no + 4 > t->images[s->image].size || ho + 8 > s->host_size)
                         continue;
-                    void *want;
-                    put32(img[s->image] + base + no, pick_target(t, s->image, &want));
+                    void *want = NULL;
+                    put32(img[s->image] + base + no, root ? 0 : pick_target(t, s->image, &want));
                     if (n_exp == cap)
                         exp = realloc(exp, (cap *= 2) * sizeof *exp);
                     exp[n_exp].field = (void **)((uint8_t *)s->host + ho);

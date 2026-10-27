@@ -1,0 +1,26 @@
+# Tables that only pointers reach, for tools/port/gen_data.py (docs/port/DATA.md 7). No symbol describes them, so
+# without a rule the loader leaves them in the ROM's byte order and the N64 layout (the report's "undescribed" lines
+# that are not text). At every load of its image the loader follows each rule's pointers: a table of a type with
+# pointers, or with a host layout of its own, is converted to host storage of its own and the pointer rewritten to
+# it; any other is swapped in place. The loader reads the counts from the ROM; nothing here holds ROM data.
+#
+#   ROOT    TYPE    COUNT
+#
+# ROOT: a table of pointers with storage of its own (each of its pointers), or Tag.field: that pointer field of every
+# element an earlier rule with TYPE Tag reaches. TYPE: a struct tag of the game C (from its DWARF), or u8, s8, u16,
+# s16, u32, s32 or f32, optionally [N]. COUNT: N; `until FIELD` (the element whose FIELD is zero ends the table and is
+# part of it); `parent FIELD` (that field of the element holding the pointer); TABLE[i] (element i of a table of
+# integers, for the root's pointer i).
+
+# The track animations (camera_shake_start sets them up, race_setup_1 runs them), per track: object-animation
+# sequences, ended by a count of 0, each with `count` frames (the shared D_8011905C on tracks 0-5, which resolves to
+# its storage, else frames of its own); and palette animations, ended by one without an owner.
+D_8011A31C                  ObjectAnimation20    until count
+ObjectAnimation20.frames    AnimationFrame12     parent count
+D_8011A840                  PaletteAnimation20   until owner
+
+# carSuspensions (D_80111560, _tSusp *[3]): nine floats each (forward, back, side: force minimum, range, angle).
+D_80111560                  f32[9]               1
+
+# The demo paths' start points (func_800B9284): D_80117408[i] point indices for path i.
+D_801173D8                  s16                  D_80117408[i]

@@ -96,6 +96,32 @@ typedef struct {
     uint8_t *start, *end;
 } PcDataCRange;
 
+/* A table that only pointers reach (port/data/reached.txt, docs/port/DATA.md 7): no symbol describes it, so without
+ * a rule it would keep the ROM's byte order and the N64 layout. A root rule takes every pointer of a symbol with its
+ * own storage (syms[sym], `slots` pointers); a field rule takes the pointer at slot_n64 (host: slot_host) of every
+ * element its parent rule reaches. The count of elements a pointer reaches is fixed, ends at the element whose field
+ * (field_n64, field_width bytes) is zero (that one included), is the parent element's field, or is element i of the
+ * table at table_n64 for root slot i. A type with pointers, or with a host layout of its own, gets host storage
+ * (`copy`) and the pointer is rewritten to it; any other is swapped in place in its arena. A pointer into one of the
+ * `compatible` symbols, which hold that type already, resolves as usual. */
+enum { PC_REACH_FIXED, PC_REACH_UNTIL, PC_REACH_PARENT, PC_REACH_TABLE };
+typedef struct {
+    const char *what;
+    int32_t sym;                /* root rule: the table of pointers, else -1 */
+    int32_t parent;             /* field rule: the rule that reaches the records holding the pointer, else -1 */
+    uint32_t slot_n64, slot_host;
+    uint32_t slots;
+    uint32_t n64_size, host_size;   /* an element */
+    uint32_t run_first, run_count;
+    uint8_t count_kind;
+    uint32_t count;
+    uint32_t field_n64, field_width;
+    uint32_t table_n64;         /* PC_REACH_TABLE: the N64 address of the table of counts */
+    uint8_t copy;
+    const uint32_t *compatible;
+    uint32_t n_compatible;
+} PcDataReach;
+
 /* Mutable loader state (one per table set). */
 typedef struct {
     const uint8_t *rom;
@@ -105,6 +131,7 @@ typedef struct {
     void **snapshot;            /* per symbol: startup bytes of PC_SYM_CDEF overlay data */
     void **crange_snapshot;     /* per C range: its startup bytes */
     int loaded;
+    void *reached[8];           /* per image: the host storage its rules made on its last load (a list) */
 } PcDataState;
 
 typedef struct {
@@ -124,6 +151,8 @@ typedef struct {
     PcDataState *state;
     const PcDataCRange *cranges;   /* runtime images' C data, restored on their loads (may be none) */
     uint32_t n_cranges;
+    const PcDataReach *reach;   /* tables only pointers reach (may be none) */
+    uint32_t n_reach;
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM
@@ -137,6 +166,7 @@ typedef struct {
     uint32_t addr_words_host;   /* ... of host storage, a function or code, which the word can't reach */
     uint32_t undescribed;       /* arena pointers to initialized bytes no element describes: kept in N64 order */
     uint32_t text_in_words;     /* arena pointers to text inside an element wider than a byte, which swaps it */
+    uint32_t reached, reached_elems;   /* tables the reach rules converted, and their elements */
 } PcDataStats;
 
 /* The loader (pc_data.c). load_all: inflate every image from the ROM and fill all of them, then write the
