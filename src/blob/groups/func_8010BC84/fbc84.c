@@ -72,6 +72,11 @@ typedef struct Player {
     s32 *name;
 #endif
 } Player;
+/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
+ * docs/port/POINTERS.md 9.10). */
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n
+#endif
 
 #ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
@@ -202,7 +207,7 @@ s32 func_8010BC84(Blit *blt)
         x = D_80117100[D_8014A108 - 1][i].x;
         y = D_80117100[D_8014A108 - 1][i].y - object_bytes_sum_global();
         dispatch_handler(D_801146AC[i]);
-        str = (char *)(*D_8014A118[i].name + 20);
+        str = (char *)(*D_8014A118[i].name + PROFILE_OFS(20));
         state_utility(TB_CenterText_BC84(str, x), y, str);
         y += object_bytes_sum_global();
         ctl = D_8014A118[i].control;

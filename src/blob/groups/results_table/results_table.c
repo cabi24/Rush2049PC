@@ -104,6 +104,11 @@ void func_80100D5C(s32 x, s32 y, s32 w, s32 h, u8 *color)
 
 typedef struct RGBA {u8 r,g,b,a;} RGBA;
 typedef struct PlayerRow {u8 vehicle;u8 other[71];char **name;} PlayerRow;
+/* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 (PROFILE_OFS,
+ * pc_prelude.h; docs/port/POINTERS.md 9.10). */
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n
+#endif
 #ifdef TARGET_PC
 /* PC: a car record seen from +0x3A3 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
 typedef struct VehicleScore {s8 score;u8 other[PC_CAR_SIZE - 1];} VehicleScore;
@@ -234,7 +239,7 @@ void drawRaceStandings(void)
                 rt_font_set(11);
                 if (D_80143F54[row - 1] < active_player_count) {
                     dispatch_handler(D_801146AC[D_80143F54[row - 1]]);
-                    str = input_rec0[D_80143F54[row - 1]].name[0] + 20;
+                    str = input_rec0[D_80143F54[row - 1]].name[0] + PROFILE_OFS(20);
                 } else {
                     dispatch_handler(4);
                     str = D_8012031C;
@@ -330,7 +335,7 @@ void func_80101904(void)
                     osRecvMesg(&D_801461D0,0,1); previous = slot_state_setup(11); osSendMesg(&D_801461D0,0,0); if (previous) {}
                     if(D_80143F54[row-1]<active_player_count) {
                         dispatch_handler(D_801146AC[gCarTeam[D_80143F54[row-1]]]);
-                        text=input_rec0[D_80143F54[row-1]].name[0]+20;
+                        text=input_rec0[D_80143F54[row-1]].name[0]+PROFILE_OFS(20);
                     } else {
                         text=D_80120354;
                         dispatch_handler(4);
@@ -414,7 +419,7 @@ void func_80101D84(void)
                     rt_font_set(11);
                     if(D_80143F54[row-1]<active_player_count) {
                         dispatch_handler(D_801146AC[D_80143F54[row-1]]);
-                        text=input_rec0[D_80143F54[row-1]].name[0]+20;
+                        text=input_rec0[D_80143F54[row-1]].name[0]+PROFILE_OFS(20);
                     } else {
                         text=D_80120344;
                         dispatch_handler(4);
@@ -507,7 +512,7 @@ void func_80102448(void)
                 if(row==0) {
                     s32 i;
                     dispatch_handler(D_801146AC[column-1]);
-                    text=input_rec0[column-1].name[0]+20;
+                    text=input_rec0[column-1].name[0]+PROFILE_OFS(20);
                     left=160-columns*60/2;
                     x=column*60;
                     TB_EllipseText(label,text,60);
@@ -658,7 +663,7 @@ void drawBattleScore(void)
                 if(row>=2) y+=8;
                 if(row==0) {
                     dispatch_handler(D_801146AC[gCarTeam[column-1]]);
-                    text=input_rec0[column-1].name[0]+20;
+                    text=input_rec0[column-1].name[0]+PROFILE_OFS(20);
                     total=160-columns*other/2;
                     x=column*other;
                     TB_EllipseText(name,text,60);
@@ -669,7 +674,7 @@ void drawBattleScore(void)
                         text=countdown_state.fixed[130];
                     } else {
                         dispatch_handler(D_801146AC[gCarTeam[row-2]]);
-                        text=input_rec0[row-2].name[0]+20;
+                        text=input_rec0[row-2].name[0]+PROFILE_OFS(20);
                         total=160-columns*other/2;
                         x=column*other;
                         TB_EllipseText(label,text,60);
@@ -773,7 +778,7 @@ s32 func_80102F30(s32 arg0)
                         if(row==0) {
                             rt_font_set_b(11);
                             dispatch_handler(D_801146AC[column-1]);
-                            text=input_rec0[column-1].name[0]+20;
+                            text=input_rec0[column-1].name[0]+PROFILE_OFS(20);
                             left=160-columns*60/2;
                             x=column*cell;
                             TB_EllipseText(label,text,60);

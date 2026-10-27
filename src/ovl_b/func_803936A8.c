@@ -33,7 +33,13 @@ typedef struct Texts { char *before108[108 / 4]; char *same_player; char *other_
 typedef struct Texts { u8 before108[108]; char *same_player; char *other_player; } Texts;
 #endif
 typedef struct LanguageState { s32 unknown0; Texts *texts; } LanguageState;
+#ifdef TARGET_PC
+/* PC: the data is the player's profile record (save.c's SaveSlot), 64 bytes, its name at +0x20 (PROFILE_OFS,
+ * docs/port/POINTERS.md 9.10). */
+typedef struct NameData { u8 before_name[0x20]; char name[1]; } NameData;
+#else
 typedef struct NameData { u8 before_name[20]; char name[1]; } NameData;
+#endif
 typedef struct NameRef { NameData *data; } NameRef;
 typedef struct PlayerInfo { NameRef *name_ref; u8 unknown04[72]; } PlayerInfo;
 extern Player D_80152818[];

@@ -40,6 +40,11 @@ typedef struct OSMesgQueue OSMesgQueue;
 typedef struct CtIdx { u8 pad0[32]; u16 rumbleOff; u16 rumbleNames; u8 pad36[2]; u16 controlNames; } CtIdx;
 typedef struct TextState { void *word0; char **fixed; void *word8; CtIdx *indices; char **strings; } TextState;
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
+/* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
+ * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n
+#endif
 typedef struct CtRect { s32 f0; s32 y; s32 w; s32 h; s32 x; s32 f20; } CtRect;          /* 24 B */
 typedef struct PakSlot { s8 b0, b1, b2, b3, b4, b5, b6; u8 rest[765]; } PakSlot;          /* 772 B */
 typedef struct ContData { s8 b0; u8 rest[15]; } ContData;                                   /* 16 B */
@@ -143,7 +148,7 @@ void controls_animButtonText(s8 p)
         else ct_font_set(13);
         dispatch_handler(1);
         w = gNumWindows == 1 ? 150 : 69;
-        str = *input_rec0[p].name + 20;
+        str = *input_rec0[p].name + PROFILE_OFS(20);
         ct_DrawEllipseText(x, y, w, str);
         ct_SetJust(0, 1);
         if (!D_8015418C[p]) {
@@ -185,7 +190,7 @@ void controls_animButtonText(s8 p)
                     x = screenPos[0] - 25.0f * gTextPosScale * 300.0f / D_80112AB0;
                     y = screenPos[1];
                     if (!func_80094FC4(input_rec0[p].pak)) str = countdown_state.strings[countdown_state.indices->rumbleOff];
-                    else str = countdown_state.strings[countdown_state.indices->rumbleNames + ((s8 *)*input_rec0[p].name)[43]];
+                    else str = countdown_state.strings[countdown_state.indices->rumbleNames + ((s8 *)*input_rec0[p].name)[PROFILE_OFS(43)]];
                     state_utility(x, y, str);
                 }
             }
@@ -227,7 +232,7 @@ s32 controls_animText(s32 arg0)
             if (!gControllerData[p].b0) {
                 fcvt_wrapper(str1, D_80120240, p + 1, countdown_state.fixed[233]);
             } else {
-                TB_EllipseText(pName, *input_rec0[p].name + 20, 69);
+                TB_EllipseText(pName, *input_rec0[p].name + PROFILE_OFS(20), 69);
                 fcvt_wrapper(str1, countdown_state.fixed[37], pName);
             }
             state_utility(ct_CenterText(str1, x), y, str1);
@@ -261,7 +266,7 @@ s32 controls_animText(s32 arg0)
                             if (!func_80094FC4(input_rec0[p].pak))
                                 str = countdown_state.strings[countdown_state.indices->rumbleOff];
                             else
-                                str = countdown_state.strings[countdown_state.indices->rumbleNames + ((s8 *)*input_rec0[p].name)[43]];
+                                str = countdown_state.strings[countdown_state.indices->rumbleNames + ((s8 *)*input_rec0[p].name)[PROFILE_OFS(43)]];
                             state_utility(x + 20, y, str);
                         }
                         y += 16;

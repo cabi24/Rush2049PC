@@ -5,10 +5,12 @@
  * (drone_target_update), and the packet slot at +0x44, which stays 32 bits (func_800D6530 posts a packet, a heap
  * block, or -1; func_800D5374 activates it; main_menu_render hands it on), and a new record of the player's save
  * data reached from its input record (func_800FDF88: the profile, SaveSlot.data, the data pointer read whole). Every
- * check is on records 1 to 3 too, so a 76-byte stride reads or writes the wrong bytes.
+ * check is on records 1 to 3 too, so a 76-byte stride reads or writes the wrong bytes. The pause screen's title
+ * (func_8010B5D0) names the player from its profile, whose name is at +0x20 on the PC (PROFILE_OFS(20)).
  * game: src/blob/process_inputs.c src/blob/entity_audio_update.c src/blob/random_seed_init.c
  * game: src/blob/drone_target_update.c src/blob/groups/vsync/func_800D6530.c
  * game: src/blob/groups/main_menu_input/object_activate.c src/blob/main_menu_render.c src/blob/func_800FDF88.c
+ * game: src/blob/groups/func_8010B5D0/fb5d0.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -195,6 +197,49 @@ static void test_save_record(uint8_t *w)
     CHECK(NF8(block, 0x6F4 + 0x4C) == 0xAA && NF8(block, 0x6F3) == 0xAA);
 }
 
+/* the pause screen's title (func_8010B5D0): what it formats and draws */
+struct { uint32_t opaque[6]; } D_801461D0;
+int16_t D_80117280[2] = {160, 40};
+int32_t D_80149D98, D_801170FC, D_8015698C, D_801146AC[4];
+int8_t D_80117350;
+char D_801210CC[] = "PLAYER %d", D_801210E0[] = "%s %s";
+static struct { uint16_t pad[0x70 / 2]; uint16_t lang; } g_lang;
+static intptr_t g_strings[4];
+struct { uint8_t pad0[4]; void *hdr; uint8_t pad8[4]; void *info; intptr_t *strings; } D_8017A4E0 = {
+    {0}, NULL, {0}, &g_lang, g_strings};
+static const char *g_named;
+void fcvt_wrapper(char *buf, const char *fmt, ...)
+{
+    __builtin_va_list ap;
+    __builtin_va_start(ap, fmt);
+    g_named = __builtin_va_arg(ap, const char *);
+    __builtin_va_end(ap);
+    strcpy(buf, "title");
+}
+int32_t slot_state_setup(int32_t font) { return 0; }
+void Input_ApplyPadConfig(void *item) {}
+void render_helper(float a) {}
+uint32_t object_manager_update(void *text, int32_t n) { return 40; }
+void dispatch_handler(int32_t colour) {}
+static const char *g_drawn;
+void state_utility(int16_t x, int16_t y, void *text) { g_drawn = text; }
+int32_t func_8010B5D0(void *item);
+
+static void test_pause_title(void)
+{
+    static SaveSlot slot;
+    static uint8_t item[0x20];
+
+    strcpy((char *)&slot + PROFILE_OFS(20), "ALICE");
+    D_80146150[6] = &slot;
+    D_8014A118[1].profile = &D_80146150[6];
+    D_8015698C = 1;
+    g_strings[0] = (intptr_t)"PAUSED";
+    g_named = g_drawn = NULL;
+    CHECK(func_8010B5D0(item) == 1);
+    CHECK(g_named == (char *)&slot + PROFILE_OFS(20) && strcmp(g_named, "ALICE") == 0 && g_drawn != NULL);
+}
+
 int main(void)
 {
     uint8_t *w = test_rdram();   /* the packets are heap blocks: window addresses */
@@ -209,5 +254,6 @@ int main(void)
     test_controls();
     test_packets();
     test_save_record(w);
+    test_pause_title();
     return TEST_DONE();
 }
