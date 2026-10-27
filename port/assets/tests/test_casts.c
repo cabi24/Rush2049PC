@@ -3,11 +3,13 @@
  * PhysicsObjectList_Update, the camera matrix particles_spawn_emitter reads from a window address, and the
  * high-score name table gTotalNames with each player's name slot D_801424F0, whose slots hold a name index or a
  * profile handle (func_800C9480, func_800F1D04, audio_channel_priority and its caller menu_confirm_dialog,
- * func_800F2888), and the RUSH_CHECK_CASTS check of 32-bit N64 address stores (PC_N64W). Host storage here is above
- * 4 GB, as the game's own storage is; the camera matrix part maps the RDRAM window and is skipped if it can't.
+ * func_800F2888), the ghost allocator _NewGhost (func_800C7200), and the RUSH_CHECK_CASTS check of 32-bit N64
+ * address stores (PC_N64W). Host storage here is above 4 GB, as the game's own storage is; the camera matrix part
+ * maps the RDRAM window and is skipped if it can't.
  * game: src/blob/camera_smooth_lerp.c src/blob/PhysicsObjectList_Update.c src/blob/particles_spawn_emitter.c
  * game: src/blob/func_800C9480.c src/blob/func_800F1D04.c src/blob/audio_channel_priority.c
  * game: src/blob/menu_confirm_dialog.c src/blob/groups/func_800F2888_grp/func_800F2888.c
+ * game: src/blob/groups/menu_save_options/ctx_newghost.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -294,6 +296,62 @@ static void test_player_names(void)
     CHECK(D_801424F0[0] == 6 && strcmp(D_80143A50[0], "PADSIX") == 0 && D_80144C40[0] == 6);
 }
 
+/* ---------------------------------------------------------------- the ghosts (_NewGhost) */
+
+void **func_800C7200(void);
+
+/* menu_save_options' Ghost on the PC (64 bytes), and what the rest of ctx_newghost.c references. */
+struct ghost { void *ll; void **fileh; int8_t track; uint8_t backward, name[13], pad17; uint32_t playerId[2];
+               float finish; uint8_t **datah; void **header; };
+void *AllocateHandleHeap(void *heap, uint32_t size) { return NULL; }
+void *audio_buffer_sync(uint32_t address) { return NULL; }
+void audio_reverb_update(uint32_t address, int32_t mode) {}
+int32_t car_angular_velocity_clamp(void *a, void *b, void *c, int32_t d) { return 0; }
+float D_8002AFB4;
+float D_80111754[64];
+int8_t D_8014978C;
+uint8_t D_80152770[64];
+uint32_t format_string_parse(void *data, int32_t size) { return 0; }
+void *func_800A47C0(void *dst, void *src, uint32_t n) { return memmove(dst, src, n); }
+void *n64_memcpy(void *d, const void *s, unsigned int n) { return memcpy(d, s, n); }
+int32_t osRecvMesg(void *q, void **m, int32_t flags) { return 0; }
+int32_t osSendMesg(void *q, void *m, int32_t flags) { return 0; }
+void *sound_play_menu(void *heap, uint32_t size) { return NULL; }
+ABS(D_8013F1F8, 0x8013F1F8);               /* the N64's handle slots and records, in the game arena: */
+ABS(D_8013F390, 0x8013F390);               /* not used on the PC */
+
+static void test_ghosts(void)
+{
+    void **h[64], **again;
+    struct ghost *g;
+    int i, j, bad = 0;
+
+    for (i = 0; i < 64; i++) {
+        h[i] = func_800C7200();
+        if (!h[i] || !*h[i] || !HIGH(h[i])) {
+            bad++;
+            continue;
+        }
+        g = *h[i];
+        memset(g, 0xA0 + (i & 15), sizeof *g);   /* a whole PC ghost */
+        g->ll = h[i];
+        g->header = (void **)&h[i];
+    }
+    CHECK(bad == 0);
+    CHECK(func_800C7200() == NULL);              /* all 64 taken */
+    for (i = 0; i < 64 && !bad; i++) {
+        g = *h[i];
+        for (j = 0; j < i; j++)
+            bad += h[j] == h[i] || *h[j] == *h[i];
+        bad += g->ll != h[i] || g->header != (void **)&h[i] || g->name[0] != 0xA0 + (i & 15) || g->datah == NULL;
+    }
+    CHECK(bad == 0);                             /* separate handles, records that don't overlap */
+    g = *h[37];
+    *h[37] = NULL;                               /* _FreeGhost */
+    again = func_800C7200();
+    CHECK(again == h[37] && *again == g);
+}
+
 /* ---------------------------------------------------------------- RUSH_CHECK_CASTS */
 
 static struct { const char *file; int line; uintptr_t value; int n; } cast_fail;
@@ -328,6 +386,7 @@ int main(void)
     test_clear_slot();
     test_name_slots();
     test_player_names();
+    test_ghosts();
     test_check_casts();
     return TEST_DONE();
 }

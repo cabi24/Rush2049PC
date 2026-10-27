@@ -46,7 +46,13 @@ typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[10]; } Player76
 typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[84]; f32 savepos[3]; u8 pad90[8]; } Cam152;
 typedef struct Info8 { u8 pad0[7]; u8 state; } Info8;
 typedef struct Inner5 { u8 pad0[5]; s8 f5; } Inner5;
+#ifdef TARGET_PC
+/* A ghost (menu_save_options' Ghost): link, file and data handles before its header, pointer-sized on the PC
+ * (docs/port/CASTS.md). */
+typedef struct Obj40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **inner; } Obj40;
+#else
 typedef struct Obj40 { u8 pad0[40]; Inner5 **inner; } Obj40;
+#endif
 
 extern s32 D_8014A110;
 extern s16 D_8014A108;
