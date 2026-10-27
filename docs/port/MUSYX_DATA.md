@@ -21,8 +21,10 @@ bytes were read: the formats below are what the game's code reads, and the tests
 - **Game edits** (all `#ifdef TARGET_PC` at file scope, `n64_neutral.py`: 0 FAIL against `HEAD`, 'shifted' for the
   three units): the sample record keeps 0x1C bytes; the keymap and macro registries keep 8-byte records; the
   sample-info records agree with `func_800146B4`'s view; the WAITMS step sets its flag on the word, not byte 6.
-- **Boot.** With a ROM, sndPushGroup can now read the converted files, but the boot stops first at the MusyX
-  service callbacks (section 8.1), which are next. `--no-rom` now gets past `LoadWave(6..8)` to that same point.
+- **Boot.** The library's own state is LP64-clean (section 8): the service table, the DMA request list, the
+  sequencer slots, the voices, the streams, and on the way the audio manager's request list and the scheduler's
+  task view. `--no-rom` now runs sndInit and sndPushGroup and stops in AudioSfxInit on a zeroed boot-data table
+  (section 8.6); with that table planted in a debugger it runs into the game loop, with an audio task every retrace.
 
 ## 2. Load path and pointers
 
@@ -131,8 +133,9 @@ Offsets are from the song start; the sequencer adds them with 32-bit arithmetic 
 - sample info: `func_80016CF0` fills, `func_80022874` passes and `func_800146B4` reads one record through three
   views. `func_800146B4`'s (and `func_8001C580`'s, whose `data` is a stream's host buffer) has a packed 8-byte
   pointer at +4; the other two now match it (`lib_16320.c`, `lib_22300.c`).
-- sfx tables, sample directories, pushed groups, and the sequencer's and voices' pointers are native pointers in
-  their own storage (gen_data gives pointer-bearing tables host-sized storage).
+- sfx tables, sample directories and pushed groups are native pointers in their own storage (gen_data gives
+  pointer-bearing tables host-sized storage); so are the sequencer's slots (section 8.2). The voices keep their
+  N64 layout with 32-bit window addresses (section 8.3).
 
 The sample base is `(s32)D_00039B40` in `car_shadow_render`: sign-extended to 0xFFFFFFFFB0039B40 in the
 pointer-sized `D_801525FC`, then truncated back to 0xB0039B40 + offset in the u32 record. `func_80014CAC` takes
@@ -175,6 +178,8 @@ A mutation check broke the converter at 12 points (layer count, keymap priority,
 length rule, directory stride, sfx header length, page end, tempo values, event +6, the BE registration, song
 header length) and reverted each of the 6 game edits in turn: the test caught all 18.
 
+Part 4, the library's state on LP64 (section 8.5), also links `lib_1f5b0.c` and the DMA service's two units.
+
 ## 7. To check with the ROM
 
 1. `RUSH_TRACE_WAVES=1`: waves 6, 7, 8 and each song should convert with no "doesn't parse" line. Expect 4 or more
@@ -193,50 +198,205 @@ header length) and reverted each of the 6 game edits in turn: the test caught al
 7. Decode a few samples from ROM 0x39B40 through port/audio (AUDIO.md §5): the addresses now arrive as
    0xB0039B40 + offset.
 
-## 8. Next walls in the sound library (found during the audit)
+## 8. The library's own state on LP64
 
-### 8.1 The service callbacks (boot, before sndPushGroup)
+Written 2026-10-27, after the converter. The library's in-memory records were written for 4-byte pointers, and
+each is reached through several struct views. A record that only holds 32-bit N64 values (the heap is the RDRAM
+window, the samples are cartridge addresses) keeps its N64 layout, with its pointer fields 4 bytes wide; a record
+that holds host pointers (functions, host storage, a caller's variable) is laid out natively, and every view of
+it then has the native field sequence. All the edits are N64-neutral (`n64_neutral.py`: 0 FAIL against
+`09da2f0`).
 
-`car_shadow_render` passes `&D_8011EAAC`, a table of 8 N64 function addresses in game .data, to
-`func_80020598` (`lib_207b0.c`), which copies it as `u32[8]` into `D_80038000`. The library calls the slots as
-8 function pointers `D_80038000` … `D_8003801C`: task start (`func_8010FBE0`), ?, register and clear the retrace
-callback (`func_8010FC60`, `func_8010FC70`), DMA (`struct_init_and_call`), address translation (`func_8010FD60`),
-alloc (`resource_alloc_init`) and free. On LP64:
-- `D_8011EAAC` is declared `s8`/`s32` (1 byte in gen_data), so the loader never makes its words host pointers;
-- the u32 copy fills 4-byte slots while gen_data lays out `D_80038000` as `ServiceHooks_8002574C`
-  (`lib_25bb0.c`: 24 bytes, then `allocate` at +0x18 and `release` at +0x20) and aliases the other slots at
-  +4, +8, … as 8-byte pointers that overlap;
-- the first allocation (`func_80010C68`, `lib_11640.c:95`, from sndInit `func_80010840`) calls a bad
-  `D_80038018`. `--no-rom` stops there now (the slots are zero: a call to 0, whose fault report has no frames).
+| Record | Layout on the PC | Why |
+|---|---|---|
+| service table `D_80038000` | native, 8 pointers | function pointers |
+| DMA request list `D_80153F10` | native, 24 bytes, own storage | the done queue is a host address |
+| sequencer slot `D_80043EB8[8]` | native, 0x1628 bytes (N64 0xFF8) | sequence nodes in host storage, a caller's result word |
+| voice `D_8004BEB8[32]` | N64, 0x1A0 bytes | 90 views at N64 offsets; its pointers point into the pool (heap) or one node pool |
+| stream `D_80056230[2]` | native, 0x1268 bytes (N64 0x1228) | read callback, host output buffers, message queues |
+| sound request node (audio manager) | native, 48 bytes (N64 32) | generic list links (`func_80091FBC`) shared with other game code |
+| scheduler task `OSScTask` | native, as the game builds it | the OSTask inside has host pointers |
 
-Changes needed: `D_8011EAAC` as `void (*[8])(void)` in `car_shadow_render.c` (the loader then resolves the
-function addresses); `CallbackWords` as 8 pointers (`lib_207b0.c`); `ServiceHooks_8002574C` with 6 pointer slots
-before `allocate` (`lib_25bb0.c`), so gen_data aliases the slots at 8-byte steps. Then the callbacks' own
-prototypes: `func_8010FC60(s32)` stores the registered function pointer in `D_8011EAA8` (called from
-`dma_wait_complete.c`, reserved) and must take `intptr_t`; `struct_init_and_call(s32, s32, s32)` gets the DMA
-request list and a pointer as `s32`, and its `CallSlot` view of `D_80153F10` puts `s32 arg` where
-`func_8008ABE4`'s `DmaList` reads the 8-byte `reqs`.
+### 8.1 The service callbacks and the DMA request list
 
-### 8.2 Reserved files
+`car_shadow_render` (AudioInitSys) hands `&D_8011EAAC`, eight function addresses in game data, to
+`func_80020598`, which copies them to `D_80038000`. The slots, from how the library calls them:
 
-- `lib_11640.c`: the DMA request list is allocated as `D_800382A8 * 2 * 12U` bytes (`func_800114C0`, line 344),
-  but the entries (`DmaEntry_80012234`, `DmaEntry_80012730`, `func_8008ABE4`'s `DmaReq`) are 16 bytes on LP64:
-  `sizeof(DmaEntry_80012234)` under `TARGET_PC`. Also `bzero`'s size parameter should be `__SIZE_TYPE__`
-  (PROTOTYPES.md §6). `func_800146B4`'s sample-info view needs nothing: the others were made to match it.
-- `lib_17dc0.c`: the sequencer's views of a slot disagree natively. `Seq_800178B0` (pointers at +4, +0x88,
-  +0x10C, in the tracks, …) is 0x1218 bytes on LP64 and overruns the 0x1008-byte `SequenceContext` slot;
-  `func_80017720`'s `prgState` is at 0xF8C and `func_800178B0`'s at 0x11A0; `func_80018634` reads the song pointer
-  at +0x110 where `func_800178B0` stores it at +0x118, and its `TRACK(i)` array (64 × 24 bytes from +0x128) runs
-  into its `PLAY(i)` array (from +0x568). In the test, a song start returns identifier 1
-  instead of 0 because `func_800178B0`'s stores land on `SequenceContext.inactiveFC1`. The views need one
-  native layout (or u32 window addresses for the pointers into the song) before music can play.
+| Slot | Library's name | Function | Called as |
+|---|---|---|---|
+| 0 `D_80038000` | submit the audio task | `func_8010FBE0` | `(OSTask *)`, from `func_80011910` |
+| 1 `D_80038004` | wait for it | `sync_acquire_menu` | `(void)`, `func_800118C0` |
+| 2 `D_80038008` | set the retrace callback | `func_8010FC60` | `(void (*)(void))` with `func_80013DEC` |
+| 3 `D_8003800C` | clear it | `func_8010FC70` | same |
+| 4 `D_80038010` | DMA a request list | `struct_init_and_call` | `(list, count, done queue)`, `func_80011D24` |
+| 5 `D_80038014` | cartridge address | `func_8010FD60` | `void *(*)(void *)` |
+| 6 `D_80038018` | allocate | `resource_alloc_init` | `(size, mode)` |
+| 7 `D_8003801C` | free | `synced_model_render` | `(void *)` |
 
-### 8.3 The voice state
+The eight are the functions at the end of the game's code (0x8010FBB4–0x8010FD7C), which nothing calls directly.
+The order comes from the call signatures, not from the ROM's table.
 
-`D_8004BEB8` (32 voices of 0x1A0 bytes) is reached through about 90 struct views in `lib_22300.c`,
-`lib_1a660.c`, `lib_1f5b0.c` and `lib_21210.c`. Fifteen of them declare pointers (the macro pointers at +0,
-+4, +8, +0xC, the trap pointers at +0x1C and +0x20, a sequence node at +0x18), which moves every later field on
-LP64, while the others reach `flags24`, `+0x30` and the rest through byte arrays at N64 offsets (and
-`func_80021BF0`-style views hold +0 … +0xC as u32). The pointers all point into the pool, in the window, so
-u32 slots would do, but the dereferences (`voice->curAddr04->word[0]`) need a typed PC version of the
-interpreter's entry points. Until then, starting a voice on the PC is unsafe.
+- `D_8011EAAC` is `void (*[8])(void)` (`car_shadow_render.c`), so the data loader turns the ROM's addresses into host
+  functions. `CallbackWords` (`lib_207b0.c`) copies 8 pointers. `ServiceHooks_8002574C` (`lib_25bb0.c`) has six
+  pointer slots before `allocate` and `release`, and gen_data now places `D_80038004` … `D_8003801C` at 8-byte steps
+  in `D_80038000`'s own storage (`data_symbols.txt`).
+- `func_8010FC60` takes `intptr_t` (it stores into the pointer-sized `D_8011EAA8`, which `dma_wait_complete` calls
+  each retrace), and `func_8010FD60` returns a pointer-sized cartridge address (`FD60_WORD`).
+  `struct_init_and_call` takes `intptr_t` for the list and the done queue. `resource_alloc_init` and
+  `synced_model_render` deal in heap blocks, which are window addresses, so their `s32`/`u32` sizes are exact.
+- The DMA request list: `struct_init_and_call`'s `CallSlot` and `func_8008ABE4`'s `DmaList` now have one layout
+  {u16 × 4; requests; done queue} (24 bytes; `task_complete_signal` reads the done queue at `DMA_DONE_OFF`). It has
+  PC storage of its own, `pc_D_80153F10` (defined in `func_8008ABE4.c`): at 0x80153F10 there are 16 bytes before
+  `D_80153F20` (the path data pointer), and gen_data places both inside `player_array`'s storage. The entries
+  (`DmaEntry_80012234`, `DmaEntry_80012730`, `DmaReq`) are 16 bytes on LP64, and `func_800114C0` allocates the
+  list with `DMA_ENTRY_SIZE` = 16.
+- Blank cartridge: the table is ROM data, so `--no-rom` fills it with the eight functions above (`port/main.c`,
+  `musyx_services`). With a ROM, `rush2049pc: MusyX service N is ... in the ROM's table, not ...` reports a slot
+  that differs from the list.
+
+**For gen_data (not changed here):** `player_array`'s extent comes from the gap to the next symbol, 7616 bytes
+(8 × 952), and runs over `D_80153E68` (the PI done queue), `D_80153EF0`, `D_80153F08`, `D_80153F10`, `D_80153F20`
+and `D_80153F24`. The car array has 6 entries (0x1650 bytes, which ends exactly at `D_80153E68`;
+`car_checkpoints/path_D169C_path.c` declares it complete, and the link warns that its size changed from 5712).
+Placed inside it, `D_80153F20` (`void *`, 8 bytes) overlaps `D_80153F24`. `port/data/extents.txt` should give
+`D_80152818 0x1650`.
+
+### 8.2 The sequencer slots
+
+A slot (`lib_17dc0.c`, `include/sequence_context.h`) holds pointers into the song and the project (heap), to
+sequence nodes (`D_800426B0`, host storage) and to a request's result word (anywhere), so on the PC it is laid
+out natively: 0x1628 bytes for the N64's 0xFF8. `sequence_context.h`'s PC `SequenceContext` has the slot's whole
+field sequence with every pointer typed as one, also where the N64 header has a byte range: the pages at 4 and
+0x88, the song at 0x10C, the 64 event tracks at 0x128 (`SequenceSlotTrack`, 24 bytes), the per-track streams in
+`SequenceTrack` (56 bytes), the tempo track, the note lists, and the request copy from 0xFC8 with its stream pointer
+and result word. gen_data counts pointers as 4 bytes and gets the N64 layout back (32704 bytes for the 8 slots;
+`D_800443E0`, `channels528` of slot 0, lands at +0x738).
+
+Every view in `lib_17dc0.c` follows the header on the PC: `func_80017720`'s `Seq_80017720`, `func_800178B0`'s
+`Seq_800178B0` (and its `TrackState_800178B0` with three pointers), `func_80017D38`'s `SequenceContextEvents`,
+`func_80018634`'s song pointer (`SequenceContextHead_80018634`), and the request copy in `func_80019490`. Their
+spans are `SEQ_PC_SPAN(from, to)` of the header, and `SEQ_PC_SAME` checks tie each named field to the header's
+offset at compile time. `func_80019490` keeps the result word's address pointer-sized, and `func_800193C8`
+indexes the slots from a `uintptr_t`.
+
+### 8.3 The voices
+
+`D_8004BEB8` (32 voices of 0x1A0 bytes) is reached through about 90 views in `lib_22300.c`, `lib_1a660.c`,
+`lib_1f5b0.c`, `lib_207b0.c` and `lib_21210.c`, almost all of them byte arrays and fields at N64 offsets (and
+raw offsets such as `(u8 *)state + 0xC4` and `+ 0x168`). The voice keeps that layout on the PC. The 15 views that
+declared pointers moved every later field; their pointer fields are 4 bytes now:
+
+| Field | Views | What it points to | On the PC |
+|---|---|---|---|
+| +0, +4 macro start, current step; +8, +0xC return start and step | the interpreter `func_80023E9C`, `func_80024988` (start), the GOSUB/GOTO/RETURN/LOOP handlers | the macros' steps in the pool (wave 7, in the heap), from the macro registry | 32-bit window address (`enum n64p_MacroCommand`) |
+| +0x1C, +0x20 trap start, step | `func_80021F08` (SETTRAP), `func_80021F68`, the interpreter | same | same |
+| +0x18 sequence node | `lib_1f5b0.c`'s `VoiceState` | one of `D_80050A50[32]`, host storage | the node's N64 address, 0x80050A50 + 16 × index, translated through the pool |
+| +0 (`SynthVoice_8001A658`) | `lib_1a660.c` | the macro start | `u32`: only tested for zero |
+
+In `lib_22300.c`, `N64P(x)` is such a field as a pointer, `N64W(x)` a pointer stored into one and `N64_NEXT(x)` the
+interpreter's step increment; in `lib_1f5b0.c`, `N64P`/`N64W` translate the node. On the N64 each is the original
+tokens. The two pieces of pointer arithmetic on fields (`func_80021F84`, `func_80023DB8`) go through `N64P`.
+
+Checked by `offaudit` (a scratch tool reading the objects' DWARF): in the five units, every member whose name ends in
+a hex offset (`flags24`, `id60`, `field2E`, `lfo17C`, …) is at that offset, in every view.
+
+### 8.4 Found on the way
+
+- **The audio manager's sound requests.** `func_800A4CB8` (AudioSfxInit) builds a pool of request nodes, which
+  `audio_fade_control/group.c` reads as `Node` {two links, kind, busy, entry pointer, four floats}: 48 bytes natively,
+  but the pool's records `{Link; u8[24]}` were 40. Its PC record has the node's sequence. `camera_transform`
+  (`MP_TargetSteerPos/group.c`, the request walk of `_PeriodicMaintenance`, m2c) read the nodes and the list
+  header at N64 offsets; they go through `SFX_NODE_*`/`SFX_LIST_HEAD`, the native offsets on the PC and the
+  original tokens on the N64. Before, the audio manager thread faulted on its first retrace.
+- **The scheduler's task view.** `lib_1050_sdk.c` reads tasks through `include/m2c_types.h`'s `OSScTask`, which
+  spelled the OSTask as bytes at N64 offsets. The game builds tasks with the OSTask in place
+  (`world_collision_response.c`'s `Frame`, `func_8010FBE0`'s audio task), so the scheduler read the done queue and
+  message at `output_buff`/`output_buff_size`. After the first graphics task it blocked forever on a queue that
+  didn't exist, and the audio thread would have waited forever for its first task's done message. The PC view
+  spells out the OSTask.
+- **The streams** (`lib_25bb0.c`, `lib_26ab0.c`, `lib_26f60.c`). `D_80056230` (two streams: GSM speech and PCM
+  streams) has host pointers after its 400-byte decoder state. The full views lay it out natively (0x1268 bytes),
+  but four byte views read `state`, `scale` and `busy` at N64 offsets, and the GSM frame decoder's
+  `GsmStream_26F60` read the input ring and the bit position 12 and 32 bytes early. On the PC each is the full
+  layout (compile-time checks in `lib_26ab0.c`; `ptype /o` of the objects agrees: ring at 428, bit position at
+  4584, state at 4605, busy at 4664).
+
+Same audit, not changed: `lib_11640.c`'s driver records (`AudioState`, `Voice_80012D18`, `Command_80012D18`,
+`AudioNode`, `AudioCacheNode`, `AudioDelayState`) are native by design and agree (AUDIO.md §6), and `lib_1cf90.c`'s
+emitter views all start with the same two links.
+
+### 8.5 Tests
+
+Part 4 of `assets_musyx` (`test_musyx.c`), with `lib_1f5b0.c` and the DMA service's units (`func_8008ABE4.c`,
+`struct_init_and_call.c`) added to the game's units:
+- **The song plays** for 60 frames of 384 samples through `func_800198C8`, whose units each read the slot through
+  their own view. The 7 note-ons come in order with their programs (from the page, the MIDI setup and a program
+  change), transposes, velocity offsets, clamping, channels and tracks, at the frames their ticks fall in (0, 3–4,
+  25–28, 49–53); every note ends after it started; the tempo track goes 120, 140 at tick 0x100, and again from the
+  loop's time; one loop; controllers, pitch bend and modulation per channel; a track ends. The slot is inspected
+  through the game's own PC header.
+- **A deferred request** (`func_80019490`, flags 4) is copied into the slot with its result word's address, and
+  the song's controller 104 carries it out.
+- **Voices**: `func_80024988` starts macros on voices allocated by `lib_1f5b0.c`, and `func_80023E9C` steps them:
+  envelope, sample start and end, freeing the voice and its sequence node; a trap and a subroutine whose wait holds
+  the voice, then key-off running the trap; a stop by key. The words at +0 … +0x20 are checked as window
+  addresses and the node at +0x18 as 0x80050A50.
+- **The DMA service** walks a request list of 16-byte entries and keeps the done queue.
+
+The synthetic song's loop time is now its loop target's time (0x180); 0x300, the loop event's own time, loops
+forever on the N64 too. A mutation check reverted 13 of the fixes one at a time: 12 are caught, 6 by the
+compile-time checks and 6 by the test (the result-word truncation once the deferred request was added). Not
+caught: `DmaList` without the done queue, which only overruns its own 16 bytes of storage.
+
+### 8.6 The ROM-less boot
+
+`rush2049pc --no-rom --headless --no-config --audio null` now runs sndInit through the service table (the audio
+thread, the voice and SFD buffers, the DMA list and caches, all from the heap), sndPushGroup of groups 12–15 on the
+empty project, and the volume setup, and stops in AudioSfxInit:
+
+```
+rush2049pc: Segmentation fault at address 0xc in N64 thread thread 6
+  #2  audio_helper at src/blob/groups/audio_heap/group.c:171
+  #3  AllocateMemoryHeap at src/blob/groups/audio_heap/group.c:229
+  #4  func_800A4CB8 at src/blob/func_800A4CB8.c:75
+  #5  car_shadow_render at src/blob/groups/audio_init_sys/car_shadow_render.c:118
+```
+
+That is the blank cartridge. `func_800114C0` sizes the sample cache as `D_8002C5D0[mode] × voices`, a table in
+the boot segment's data, which is zero without a ROM. `func_800123A8` then allocates zero-entry caches and writes
+the first node's links into the next heap block's header (as the N64 would with that table), which ends the heap's
+block list; the next allocation finds no free block. Its MusyX tuning floats (`D_8002D8B8` … `D_8002D8C8`) are zero
+too.
+
+To look past it, plant values in a debugger (this is a diagnosis, not data the port should ship):
+
+```
+break func_800114C0
+commands
+  silent
+  set var ((unsigned short *)&D_8002C5D0)[2] = 2
+  set var *(float *)&D_8002D8C0 = 1.0
+  set var *(float *)&D_8002D8C8 = 1.0
+  continue
+end
+run --no-rom --headless --no-config --audio null --seconds 8
+```
+
+AudioSfxInit and the audio manager then run, and the game loop faults in `countdown_handler` (the "controller
+removed" scroller) copying a string from the blank text bank: missing data again, outside the sound code. With
+that function skipped as well (`break countdown_handler` / `return`), 8 seconds give 236 graphics tasks and 470
+audio tasks: the retrace callback `func_80013DEC` runs every retrace, submits through slot 0 and the scheduler
+to `pc_audio_run_task`, and waits for each through slot 1. The DMA path (slot 4) and the sequencer and voices
+do not run there: the blank project has no sounds.
+
+### 8.7 To check with the ROM
+
+1. No `MusyX service N` line at startup (the inferred table, section 8.1).
+2. Sample DMA: with sounds playing, `func_80011D24` hands the request list to `struct_init_and_call`, the PI
+   copies each request and `task_complete_signal` sends the done queue; the audio thread must not stall in
+   `func_80011CD8`.
+3. Every macro pointer the interpreter stores comes from the macro registry (`func_80016C20`), so it is in the pool;
+   a macro outside the RDRAM window would be truncated by `N64W` (a voice crash in the interpreter would show it).
+4. A song from the ROM through the sequencer: its deferred requests (controller 104), loops and tempo tracks.
+5. Speech and streams through `D_80056230` (GSM, section 8.4).
+6. `player_array`'s extent (section 8.1), for whatever gen_data places after the car array.

@@ -257,6 +257,12 @@ and the empty-SFD shortcut. The tests caught all 11.
    `pc_audio_shutdown()` at exit. Link the `pcaudio` target. Weak no-op defaults are needed for the two new
    functions.
 
+**Status (2026-10-27).** The game's side reaches the interpreter: the MusyX service table and the DMA request
+list ([MUSYX_DATA.md](MUSYX_DATA.md) §8.1), the voices and sequencer (§8.2, §8.3), and the scheduler's task view
+(§8.4). The DMA callback is `D_80038010` = `struct_init_and_call`, which starts `func_8008ABE4`'s PI requests. On a
+blank cartridge with the MusyX tuning table planted in a debugger (§8.6), the retrace callback `func_80013DEC`
+submits an audio task every retrace (470 in 8 s) through the scheduler to `pc_audio_run_task`.
+
 **pc_port.h changes:**
 - added `pc_audio_init(const char *backend, const char *dump_wav_path)` and `pc_audio_shutdown(void)`
 - renamed `pc_audio_run_task`'s size argument `data_size`, documented as the SFD count
