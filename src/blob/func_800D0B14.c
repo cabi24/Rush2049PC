@@ -998,7 +998,15 @@ extern f32 D_801108C8;
 extern s32 D_80110D08;
 extern s32 D_80110D3C;
 extern s32 D_80110DA4;
+#ifdef TARGET_PC
+/* PC: the base mass of each of the 13 car types, indexed below as (&D_80110DD8)[type]. Declared as the table it is,
+ * so that the data loader converts all 13 (as one f32, the 12 after it kept the ROM's byte order); the name stands
+ * for its first element, so the code reads as before (docs/port/SYNTH.md 3). */
+extern f32 D_80110DD8[13];
+#define D_80110DD8 D_80110DD8[0]
+#else
 extern f32 D_80110DD8;
+#endif
 extern f32 D_80110E0C;
 extern f32 D_80110E44;
 extern s32 D_80110EBC;

@@ -564,6 +564,9 @@ if(NOT WIN32)
     add_test(NAME layout_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/layout_check.py --build ${CMAKE_BINARY_DIR}
         --selftest)
 endif()
+# tools/port/index_check.py: initialized data the code indexes past a scalar declaration must have the table's extent
+# in the data report, or its other elements keep the ROM's byte order (docs/port/SYNTH.md 3).
+add_test(NAME index_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/index_check.py --build ${CMAKE_BINARY_DIR})
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
