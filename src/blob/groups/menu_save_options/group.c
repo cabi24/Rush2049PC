@@ -624,6 +624,21 @@ s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select) {
 /* ===== func_800C813C = GC save.c SaveServer(forceUpdate, rumbleOnly) ===== */
 extern char D_801211BC[];      /* "RUSH2049" */
 extern char D_801211C8[];      /* "P" */
+#ifdef TARGET_PC
+/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
+ * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+typedef struct PakChannel {
+    s8 present;                /* 0x00 */
+    s8 state;                  /* 0x01 */
+    u8 unk02[4];
+    s8 busy;                   /* 0x06 */
+    u8 unk07[5];
+    PcPfs pfs;
+    u8 pad74[0x304 - 0x74];
+} PakChannel;
+#else
 typedef struct PakChannel {
     s8 present;                /* 0x00 */
     s8 state;                  /* 0x01 */
@@ -631,6 +646,7 @@ typedef struct PakChannel {
     s8 busy;                   /* 0x06 */
     u8 unk07[0x304 - 7];
 } PakChannel;
+#endif
 extern PakChannel D_80144030[];
 /* pak-TU channel getters (locked singles, re-typed on the D_80144030 record so the inlined copies share one
  * address CSE in SaveServer; each still compiles to its locked body) */
