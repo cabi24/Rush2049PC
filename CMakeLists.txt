@@ -108,6 +108,7 @@ target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -
 # the slots at startup).
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
     target_compile_options(game_flags INTERFACE -fPIC -fno-semantic-interposition -Wa,-mrelax-relocations=no)
+    add_link_options(-Wl,--no-relax)   # ld would still turn GOT loads of absolute symbols into PC32
 endif()
 # Silence what the N64-era declarations trip over; the 64-bit pointer warnings (-Wpointer-to-int-cast,
 # -Wint-to-pointer-cast) stay on, since they are the porting work list (docs/port/STATUS.md).
