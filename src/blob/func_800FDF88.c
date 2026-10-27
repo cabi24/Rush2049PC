@@ -3653,6 +3653,11 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifdef TARGET_PC
+#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#else
+#define SLOT_DATA 0x2C
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3695,7 +3700,7 @@ typedef s64 M2C_UNK64;
 void func_800FDF88(s32 arg0) {
     void *temp_a0;
 
-    temp_a0 = *M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), s32 **, 0x2C) + 0x6F4;
+    temp_a0 = *M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), s32 **, SLOT_DATA) + 0x6F4;
     memset(temp_a0, 0, 0x4CU);
     PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, 8), (uintptr_t) temp_a0, 0x4C);
     M2C_FIELD(temp_a0, s8 *, 8) = (s8) arg0;

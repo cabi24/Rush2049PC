@@ -43,6 +43,11 @@ typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsign
 typedef signed int s32;typedef unsigned int u32;typedef float f32;
 #define NULL ((void *)0)
 #define F(expr,type,offset) (*(type *)((u8 *)(expr)+(offset)))
+#ifdef TARGET_PC
+#define SLOT_DATA 48   /* SaveSlot.data (save.c): after name[24] at 20, 8-aligned on PC */
+#else
+#define SLOT_DATA 44
+#endif
 typedef void **Handle;
 
 void *memset(void *, s32, u32);
@@ -105,7 +110,7 @@ void func_800CCCCC(Handle h) {
     s8 saved;
 
     memset(*h, 0, 44);
-    data = *F(*h, Handle, 44);
+    data = *F(*h, Handle, SLOT_DATA);
     memset(data, 0, 2064);
     data[12] = 16;
     func_800C77C4(data + 60);
@@ -149,7 +154,7 @@ s32 draw_speedometer(Handle h, s32 repair) {
     s8 saved;
 
     dirty = 0;
-    save = *F(*h, Handle, 44);
+    save = *F(*h, Handle, SLOT_DATA);
     if (save[12] != 16) {
         if (repair) {
             pak_delete_file_retry(F(*h, Handle, 8));
@@ -419,7 +424,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
     }
     player = func_800C7EC0(((u8 *)*fileh)[16], ((u8 *)*fileh)[17]);
     p = *player;
-    data = *(F(p, Handle, 44) = F(*fileh, Handle, 72));
+    data = *(F(p, Handle, SLOT_DATA) = F(*fileh, Handle, 72));
     func_800CCCCC(player);
     F(p, Handle, 8) = fileh;
     F(*fileh, void *, 8) = audio_volume_pan;
@@ -472,13 +477,13 @@ void **func_800C7EC8(void **fileh) {
     F(p, Handle, 8) = fileh;
     F(*fileh, void *, 8) = audio_volume_pan;
     F(*F(p, Handle, 8), void *, 12) = func_800949D4;
-    F(p, Handle, 44) = F(*F(p, Handle, 8), Handle, 72);
+    F(p, Handle, SLOT_DATA) = F(*F(p, Handle, 8), Handle, 72);
     if (draw_speedometer(player, 0) && !draw_speedometer(player, 1)) {
         return NULL;
     }
-    memcpy(p + 20, (u8 *)*F(p, Handle, 44) + 13, 13);
-    memcpy(p + 12, (u8 *)*F(p, Handle, 44) + 4, 8);
-    memcpy(p + 33, (u8 *)*F(p, Handle, 44) + 60, 11);
+    memcpy(p + 20, (u8 *)*F(p, Handle, SLOT_DATA) + 13, 13);
+    memcpy(p + 12, (u8 *)*F(p, Handle, SLOT_DATA) + 4, 8);
+    memcpy(p + 33, (u8 *)*F(p, Handle, SLOT_DATA) + 60, 11);
     if (!D_80117428 && F(D_8012E6D8, Handle, 8) == NULL) {
         for (i = 0; i < 21; i++) {
             D_80146108[i] = reverb_setup(player, i);
