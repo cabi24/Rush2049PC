@@ -109,7 +109,17 @@ typedef struct Bank {
     /* 0xC */ u8 f12;
 } Bank;
 
+#ifdef TARGET_PC
+/* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c).
+ * A wave handle points to a u32 heap slot that holds the block's address. */
+typedef struct { u32 ptr; u8 id; u8 pad[7]; } Entry;
+#define FONT_SLOT(p) ((u32)(uintptr_t)(p))
+#define WAVE_HANDLE_BLOCK(h) ((u8 *)(uintptr_t)*(u32 *)(h))
+#else
 typedef struct { u8 *ptr; u8 id; u8 pad[7]; } Entry;
+#define FONT_SLOT(p) p
+#define WAVE_HANDLE_BLOCK(h) *(u8 **)h
+#endif
 typedef struct { s32 first; s32 second; } Pair;
 
 extern Bank *D_801497F0;
@@ -128,7 +138,7 @@ void sound_update_channel(s32 force)
     u8 *p;
     s32 i;
 
-    p = *(u8 **)slot_value_get(D_80149780);
+    p = WAVE_HANDLE_BLOCK(slot_value_get(D_80149780));
     if (force || p != (u8 *)D_801497F0) {
         D_801497F0 = (Bank *)p;
         p += 16;
@@ -136,7 +146,7 @@ void sound_update_channel(s32 force)
         p += D_801497F0->f12 * 12;
         if (D_801497F0->f10 != 0) {
             for (i = 0; i < D_801497F0->f12; i++) {
-                D_80149800[i].ptr = p;
+                D_80149800[i].ptr = FONT_SLOT(p);
                 p += D_801497F0->f12;
             }
         }

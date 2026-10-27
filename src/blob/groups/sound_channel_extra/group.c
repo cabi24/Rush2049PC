@@ -26,7 +26,12 @@ typedef struct Bank {
     /* 0xC */ u8 f12;
 } Bank;
 
+#ifdef TARGET_PC
+/* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c). */
+typedef struct { u32 ptr; u8 id; u8 pad[7]; } Entry;
+#else
 typedef struct { u8 *ptr; u8 id; u8 pad[7]; } Entry;
+#endif
 typedef struct { Bank *bank; } Hdr;
 typedef struct { Hdr *hdr; s32 pad[4]; } Tbl;
 typedef struct { s32 first; s32 second; } Pair;
