@@ -18,6 +18,11 @@ check_pie_supported()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
 set(PORT_TOOLS ${CMAKE_SOURCE_DIR}/tools/port)
+# The generators read and write UTF-8 (sources, nm and objdump output); Windows' Python defaults to the ANSI code page.
+set(PC_PYTHON ${Python3_EXECUTABLE})
+if(CMAKE_HOST_WIN32)
+    set(PC_PYTHON ${Python3_EXECUTABLE} -X utf8)
+endif()
 
 # ---------------------------------------------------------------- SDL2 (optional)
 # One SDL2 for the window (port/gfx), the keyboard and controllers (port/input) and audio output (port/audio).
@@ -191,7 +196,7 @@ target_compile_options(game_probe PRIVATE -w)
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/probe_objects.txt CONTENT "$<JOIN:$<TARGET_OBJECTS:game_probe>,\n>\n")
 add_custom_command(
     OUTPUT ${WEAK_HEADERS}
-    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_weak.py --objects-list ${CMAKE_BINARY_DIR}/probe_objects.txt
+    COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_weak.py --objects-list ${CMAKE_BINARY_DIR}/probe_objects.txt
             --out-dir ${WEAK_DIR} --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR} ${PC_WEAK_PE_ARGS}
     DEPENDS $<TARGET_OBJECTS:game_probe> ${PORT_TOOLS}/gen_weak.py ${PORT_TOOLS}/n64syms.py
             ${CMAKE_SOURCE_DIR}/manifest/game.json ${CMAKE_SOURCE_DIR}/manifest/ovl_a.json
@@ -226,7 +231,7 @@ file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_objects.txt CONTENT "$<JOIN:$<TARG
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json
            ${PC_DATA_DIR}/data_symbols.txt ${PC_DATA_PE_OUTPUTS}
-    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
+    COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
             ${PC_DATA_PE_ARGS}
     DEPENDS $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
@@ -300,7 +305,7 @@ file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_link_objects.txt CONTENT "$<JOIN:$
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/port_objects.txt CONTENT "$<JOIN:${PC_PORT_OBJECTS},\n>\n")
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/stubs.c ${PC_DATA_DIR}/aliases.ld
-    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
+    COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
             --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR}
             --out ${PC_DATA_DIR}/stubs.c --aliases ${PC_DATA_DIR}/aliases.ld
     DEPENDS ${PC_GAME_OBJECTS} ${PC_PORT_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
@@ -402,7 +407,7 @@ set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS 
 # libultra name is stubbed, and the stubs abort by themselves.
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/stubs_standalone.c
-    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
+    COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
             --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/stubs_standalone.c --standalone
     DEPENDS ${PC_GAME_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
     COMMENT "Standalone stubs (tools/port/gen_stubs.py)"
@@ -428,7 +433,7 @@ if(WIN32)
     set(PC_DATA_CHECK_PE --pe)   # COFF symbols have no sizes; the image links high and moves
 endif()
 add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
-    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --check $<TARGET_FILE:rush2049pc_datacheck>
+    COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --check $<TARGET_FILE:rush2049pc_datacheck>
             --layout ${PC_DATA_DIR}/data_layout.json --nm ${CMAKE_NM} ${PC_DATA_CHECK_PE}
     VERBATIM)
 add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
