@@ -36,7 +36,13 @@ typedef struct Coin {
     u16 missing;        /* 72 */
     s16 number;         /* 74 */
 } Coin;
+#ifdef TARGET_PC
+/* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
+ * on a little-endian host (docs/port/ENDIAN.md). */
+typedef union Id { s32 handle; struct { s16 index, high; } part; } Id;
+#else
 typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
+#endif
 typedef struct Entity {
     u8 pad0[4];
     u8 flags;           /* 4 */
@@ -47,7 +53,12 @@ typedef struct Entity {
     u8 pad68[40];
     Coin *coin;         /* 108 */
 } Entity;
+#ifdef TARGET_PC
+/* PC: the low half of the coin's s32 model handle comes first. */
+typedef struct EntityHdr { s16 handle; u8 pad2[2]; } EntityHdr;
+#else
 typedef struct EntityHdr { u8 pad0[2]; s16 handle; } EntityHdr;
+#endif
 typedef struct Node { u8 pad0[12]; Entity *entity; } Node;
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */

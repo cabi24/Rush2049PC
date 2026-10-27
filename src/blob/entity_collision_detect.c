@@ -29,7 +29,13 @@ typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
 typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];s32 state;} Node;
+#ifdef TARGET_PC
+/* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
+ * on a little-endian host (docs/port/ENDIAN.md). */
+typedef union Id {s32 handle;struct {s16 index,high;} part;} Id;
+#else
 typedef union Id {s32 handle;struct {s16 high,index;} part;} Id;
+#endif
 typedef struct Vec3 {f32 x,y,z;} Vec3;
 typedef struct Effect {
     Id id;
