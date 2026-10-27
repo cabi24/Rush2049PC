@@ -173,6 +173,17 @@ static void build_rom(void)
     images[3].rom_len = deflate_to(0x5000, ovb, sizeof ovb);
 }
 
+/* Drops the loader state of a run: the inflated images and the startup snapshot. */
+static void reset_state(void)
+{
+    for (int i = 0; i < 8; i++)
+        free(state.owned[i]);
+    for (uint32_t i = 0; state.snapshot && i < tables.n_syms; i++)
+        free(state.snapshot[i]);
+    free(state.snapshot);
+    memset(&state, 0, sizeof state);
+}
+
 static void run(int window)
 {
     const char *where = window ? "window" : "host";
@@ -181,7 +192,7 @@ static void run(int window)
     a_ovl_a = window ? (uint8_t *)(uintptr_t)arenas[2].n64_lo : h_ovl_a;
     a_ovl_b = window ? (uint8_t *)(uintptr_t)arenas[3].n64_lo : h_ovl_b;
     arenas[0].host = a_boot, arenas[1].host = a_game, arenas[2].host = a_ovl_a, arenas[3].host = a_ovl_b;
-    memset(&state, 0, sizeof state);
+    reset_state();
     memset(&S, 0, sizeof S), memset(P, 0, sizeof P), memset(Q, 0, sizeof Q);
     A1 = B1 = NULL;
     cvar = 7;
@@ -306,6 +317,7 @@ int main(void)
         fprintf(stderr, "FAIL: cannot map a window at host 0x80000000\n");
         failures++;
     }
+    reset_state();
 
     if (failures)
         fprintf(stderr, "pc_data_test: %d failures\n", failures);

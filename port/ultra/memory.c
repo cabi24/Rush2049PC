@@ -82,7 +82,7 @@ int pc_mem_fixed(void) { return g_fixed; }
 /* ---------------------------------------------------------------- absolute symbols in the PIE */
 
 /* gen_stubs puts data the game uses by its N64 address at that address (aliases.ld: the low-memory globals,
- * the heap start, cartridge offsets), and gen_data every arena symbol (data.c: about 1,750 names of the game's
+ * the heap start, cartridge offsets), and gen_data every arena symbol (data.c: about 1,800 names of the game's
  * data and BSS in the window). binutils 2.40 on aarch64 gives the GOT slot of such an absolute symbol a RELATIVE
  * relocation, so at run time it holds the load address plus the value. Nothing the linker places has a link-time
  * address at 0x80000000 or above (gen_data.py --check verifies it), so a RELATIVE relocation with an addend there

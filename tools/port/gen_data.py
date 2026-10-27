@@ -767,9 +767,10 @@ def generate(a):
             bad = [o for o, k in elements(u.runs) if k in wide_kinds and parent_kinds.get(off + o) not in wide_kinds]
             if bad or off + u.n64_size > s.n64_size:
                 inside_conflicts.append(
-                    f"0x{u.addr:08X} {sorted(u.names)[0]} ({u.disp}) in own 0x{s.addr:08X} {sorted(s.names)[0]}+0x{off:X}"
-                    f" ({s.disp}, {s.n64_size} B): " + (f"{len(bad)} of its pointers/longs not in the parent's "
-                                                        f"layout" if bad else f"ends at +0x{off + u.n64_size:X}"))
+                    f"0x{u.addr:08X} {sorted(u.names)[0]} ({u.disp}) in own 0x{s.addr:08X} {sorted(s.names)[0]}"
+                    f"+0x{off:X} ({s.disp}, {s.n64_size} B): "
+                    + (f"{len(bad)} of its pointers/longs not in the parent's layout" if bad
+                       else f"ends at +0x{off + u.n64_size:X}"))
             u.parent, u.parent_off, u.own = s, map_offset(s.runs, u.addr - s.addr), False
     # An arena symbol whose extent runs into own storage, or two own symbols that overlap.
     own_list = [s for s in ordered if s.own and s.parent is None and not s.cdef]
@@ -891,8 +892,9 @@ def generate(a):
     for s, disp, obj, n, bound in cut:
         cut_files[(s.addr, sorted(s.names)[0], disp, n, bound)].add(obj)
     section("Array declarations longer than the known size (cut to it)",
-            [f"0x{ad:08X} {name}: {disp} ({n} B) in {len(f)} file{'s' if len(f) > 1 else ''} ({', '.join(sorted(f)[:3])}"
-             f"{' ...' if len(f) > 3 else ''}), size {bound} B" for (ad, name, disp, n, bound), f in sorted(cut_files.items())])
+            [f"0x{ad:08X} {name}: {disp} ({n} B) in {len(f)} file{'s' if len(f) > 1 else ''} "
+             f"({', '.join(sorted(f)[:3])}{' ...' if len(f) > 3 else ''}), size {bound} B"
+             for (ad, name, disp, n, bound), f in sorted(cut_files.items())])
     section("Inside own storage, but its own declaration has pointers or a long where the storage has none, or "
             "runs past its end", inside_conflicts)
     section("Declared N64 size runs past the next known address (nested names or mistyped sizes)", past_gap)
@@ -961,10 +963,11 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     for img, lo, init, hi in arenas:
         L.append(f" *   {img}: 0x{lo:08X}-0x{hi:08X} (data to 0x{init:08X})")
     L.append(" */")
-    L += ["", "/* Own storage: host layout. Aligned as a common symbol of that size can be (x86-64 GCC aligns aggregates",
-          " * of 32 bytes or more to 32), so the game C's tentative definitions agree with it. */"]
+    L += ["", "/* Own storage: host layout. Aligned as a common symbol of that size can be (x86-64 GCC aligns",
+          " * aggregates of 32 bytes or more to 32), so the game C's tentative definitions agree with it. */"]
     for s in own:
-        L.append(f"__attribute__((aligned({32 if s.host_size >= 32 else 16}))) uint8_t {own_var[id(s)]}[{max(s.host_size, 1)}] "
+        al = 32 if s.host_size >= 32 else 16
+        L.append(f"__attribute__((aligned({al}))) uint8_t {own_var[id(s)]}[{max(s.host_size, 1)}] "
                  f"__asm__(N64_SYM({c_str(sorted(s.names)[0])}));   /* N64 0x{s.addr:08X}, {s.n64_size} B: {s.disp} */")
     sets = []   # (name, base symbol or None for an absolute address, offset or address, size)
     layout = {"window": [WINDOW_LO, WINDOW_HI], "arenas": [[lo, hi] for _, lo, _, hi in arenas], "absolute": [],
