@@ -881,10 +881,21 @@ extern s32 D_801117B4;
 extern s32 D_801117C4;
 extern s32 D_801118E4;
 extern s8 D_8011194C;
+#ifdef TARGET_PC
+/* PC: the osContInit bit pattern, gResetTick and gSkipFrames are bytes (the macros below, func_800E7038.c). The
+ * PC loader fills initialized data by its declarations, and as words their first byte would be the ROM's fourth. */
+extern u8 D_80111950;
+#else
 extern s32 D_80111950;
+#endif
 extern s8 D_80111954;
+#ifdef TARGET_PC
+extern s8 D_8011195C;
+extern u8 D_80111960;
+#else
 extern s32 D_8011195C;
 extern s32 D_80111960;
+#endif
 extern u8 D_80111964;
 extern s8 D_80111968;
 extern s32 D_8011196C;

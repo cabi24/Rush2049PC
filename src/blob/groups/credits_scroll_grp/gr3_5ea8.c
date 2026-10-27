@@ -56,7 +56,14 @@ extern s32 D_80150B60;                           /* ties */
 extern u8 D_80144018[];                          /* gLap[p] */
 extern StuntPlayer D_8015204C[];                 /* gStuntPlayer[p] (+0x14 in GC) */
 extern s32 *D_80154350[];                        /* result panes [p], [4] = the header pane */
+#ifdef TARGET_PC
+/* PC: playerPaneColors, the two R,G,B,A colours ChangePaneColor reads as bytes. The PC loader fills initialized data
+ * by its declarations, and as words their bytes would come out reversed (docs/port/ENDIAN.md). */
+typedef struct PaneColors { u8 x[4], y[4]; } PaneColors;
+extern PaneColors D_80116148[];
+#else
 extern Pos D_80116148[];
+#endif
 extern s32 D_80118E20[2];                        /* TB_SetJust pair */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 slot_state_setup(s32);

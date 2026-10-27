@@ -42,7 +42,13 @@ typedef struct {
 } Dims;
 
 typedef struct {
+#ifdef TARGET_PC
+    /* PC: the rectangle createBG reads (min/max x, y): the PC loader fills initialized data by its declarations, and
+     * bytes here would stay big-endian (docs/port/ENDIAN.md). */
+    f32 bounds[4];
+#else
     char pad0[0x10];
+#endif
     f32 dx;
     f32 dy;
     f32 xs[4];
