@@ -26,12 +26,12 @@ typedef struct WeightRecord {
 } WeightRecord;
 
 extern WeightRecord D_80150F88[12];
-extern int gTotalNames[12][3][5];
+extern intptr_t gTotalNames[12][3][5];   /* a name slot or a profile handle (docs/port/CASTS.md) */
 
-void audio_channel_priority(int handle) {
+void audio_channel_priority(intptr_t handle) {
     int outer, row, slot, index;
     f32 *weights;
-    int *handles;
+    intptr_t *handles;
 
     for (outer = 0; outer < 12; outer++) {
         for (row = 0; row < 3; row++) {

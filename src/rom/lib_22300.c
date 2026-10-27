@@ -125,7 +125,7 @@ typedef struct MacroCommand { u32 word[2]; } MacroCommand;
  * N64_NEXT(x) moves one to the next step (docs/port/MUSYX_DATA.md 8.3). */
 enum n64p_MacroCommand { n64p_MacroCommand_ };
 #define N64P(x) _Generic((x), enum n64p_MacroCommand: (MacroCommand *)(uintptr_t)(x), default: (x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #define N64_NEXT(x) ((x) = N64W(N64P(x) + 1))
 #else
 #define N64P(x) x

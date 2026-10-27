@@ -2827,7 +2827,7 @@ s32 audio_buffer_sync(u32 arg0);
 s32 audio_bus_mix();
 void audio_bus_route(s32 arg0, f32 arg1);
 f32 audio_channel_alloc(s32 arg0, s32 arg1);
-void audio_channel_priority(s32 arg0);
+void audio_channel_priority(intptr_t arg0);
 s32 audio_channel_reset(void *arg0);
 void audio_channel_setup(s32 *arg0, s32 arg1);
 void audio_distance_atten(s32 arg0);
@@ -3729,7 +3729,7 @@ s32 menu_confirm_dialog(void **arg0) {
         object_render_cleanup(arg0);
         return 0;
     }
-    audio_channel_priority((s32) arg0);
+    audio_channel_priority((intptr_t) arg0);
     PS_FlushPak((s32) M2C_FIELD(*M2C_FIELD(*arg0, void ***, 8), u8 *, 0x10), 1);
     return 1;
 }

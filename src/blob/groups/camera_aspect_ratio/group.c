@@ -87,7 +87,7 @@ typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
 extern CamTbl D_80117530[];
 #ifdef TARGET_PC
 #define N64P(x) ((struct Camera *)(uintptr_t)(x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

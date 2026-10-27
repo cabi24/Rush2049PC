@@ -838,6 +838,25 @@ s32 draw_ui_element(void **ipa_t0, s32 ipa_t1, s32 ipa_t2);
 extern void **func_800C7EC8(void **);
 
 
+#ifdef TARGET_PC
+/* _NewGhost on the PC. A ghost (Ghost below: 0x2C bytes on the N64, 64 with its four pointers) and its handle (8
+ * bytes) don't fit the N64's storage, 64 four-byte handle slots at D_8013F1F8 and 64 records 0x2C apart at
+ * D_8013F390 in the game arena: the PC keeps both here. Same search order; none free gives NULL
+ * (docs/port/CASTS.md). */
+static void *pc_ghost_slot[64];
+static void *pc_ghost[64][8];
+void **func_800C7200(void) {
+    s32 i;
+
+    for (i = 0; i < 64; i++) {
+        if (pc_ghost_slot[i] == NULL) {
+            pc_ghost_slot[i] = pc_ghost[i];
+            return &pc_ghost_slot[i];
+        }
+    }
+    return NULL;
+}
+#else
 void **func_800C7200(void) {
     void **var_a0;
     s32 var_v1;
@@ -868,6 +887,7 @@ loop_1:
     goto loop_1;
 exhausted:;
 }
+#endif
 
 
 /* SaveServer: defined in group.c */

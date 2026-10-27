@@ -2,7 +2,11 @@
 typedef int s32;
 typedef unsigned int u32;
 typedef unsigned char u8;
-typedef struct Table {s32 value[3][5];} Table;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
+typedef struct Table {intptr_t value[3][5];} Table;   /* a name index or a profile handle (docs/port/CASTS.md) */
 extern Table gTotalNames[12];
 extern u8 D_80151968[260];
 extern unsigned short D_80151A78[20];

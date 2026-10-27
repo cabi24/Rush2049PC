@@ -46,7 +46,12 @@ struct Profile {Profile **next,**previous;FileInfo **file;u32 id0,id1;u8 name[24
 typedef struct Player {u32 held,pressed,unknown08,repeated;u8 unknown10[50];u8 paint,unknown43[5];Profile **owner;} Player;
 typedef struct RecordedCar {u8 unknown00[8],car,unknown09[3];s8 component;u8 unknown0D[2],red,green;s8 blue,part,unknown13,stat0,stat1;} RecordedCar;
 typedef struct Record Record;
+#ifdef TARGET_PC
+/* A ghost (menu_save_options' Ghost): +0x24 is its data handle, pointer-sized on the PC (docs/port/CASTS.md). */
+struct Record {Record **next;FileInfo **file;s8 track;u8 mode,name[14];u32 id0,id1;f32 time;void *unknown24;RecordedCar **active;};
+#else
 struct Record {Record **next;FileInfo **file;s8 track;u8 mode,name[14];u32 id0,id1;f32 time;u32 unknown24;RecordedCar **active;};
+#endif
 extern Player D_8014A118[];
 typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Record **first, **last;} RecordList;
 extern RecordList D_80152020;
