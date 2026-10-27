@@ -134,9 +134,12 @@ The 85 names that come out 0 are the same as Linux's undefined weak references.
 strong definition beats the weak ones, and calls inside the copying file reach the strong one. Some details
 differ:
 
-- GNU as keeps a weak definition's body under `.weak.<name>.<a global the file defines>`. A file whose globals
-  are all weak copies got `.weak.<name>.` in every such file, and ld reported them as multiple definitions.
-  `gen_weak.py --pe` adds `char pc_weak_anchor_<file> = 0;` to each header that has pragmas.
+- GNU as keeps a weak definition's body under `.weak.<name>.<a global the file defines>`, the first it meets. A
+  file whose globals are all weak copies got `.weak.<name>.` in every such file, and ld reported them as multiple
+  definitions. `gen_weak.py --pe` adds `__attribute__((no_reorder)) char pc_weak_anchor_<file> = 0;` to each header
+  that has pragmas. `no_reorder` keeps it first in an optimized build too, where GCC reorders top-level definitions:
+  without it, the RelWithDebInfo build's two copies of `path_D169C_path.c` both named their bodies after the
+  common `D_80152818` ([OPTIMIZED.md](OPTIMIZED.md)).
 - nm shows a PE weak definition as `w`, as it shows an undefined weak reference. `n64syms.py` counts it as `W`
   when its `.weak.` body is in a section.
 - gen_weak skips the compiler's `.refptr.*` names.
