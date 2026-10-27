@@ -443,6 +443,11 @@ static void t_rcp(void)
     osSetEventMesg(OS_EVENT_SP, NULL, NULL);
     osSetEventMesg(OS_EVENT_DP, NULL, NULL);
 
+    /* The null output unless RUSH2049_AUDIO names another: the AI needs no sound device here, and looking for
+     * one can take seconds (SDL's on Windows without an audio endpoint: 8 s on the windows-latest runner), real
+     * time that --fast's check below counts against the virtual clock (docs/port/WINDOWS.md). */
+    const char *audio = getenv("RUSH2049_AUDIO");
+    pc_audio_init(audio && *audio ? audio : "null", getenv("RUSH2049_DUMP_AUDIO"));
     static int16_t buffer[192 * 2];
     int32_t rate = osAiSetFrequency(22050);
     osSetEventMesg(OS_EVENT_AI, q, (OSMesg)6);
