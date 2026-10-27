@@ -15,7 +15,8 @@ relocations) refers to the symbol, to one of its --alias names (same address) or
 it, whose own declarations are not compared); weak context copies never run. With --tag, the
 views are the complete struct definitions with one of those tags and at most the given N64 size (shorter ones are
 prefixes), in every object (or only those --in the given source files); those whose object has no live function are
-marked. Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
+marked. An array view whose element is a whole fraction of the reference (in both layouts) is compared element by
+element. Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
 """
 import argparse
 import re
@@ -163,6 +164,11 @@ def main():
     bad = 0
     for v, (lay, size) in sorted(lays, key=lambda x: rel(x[0][0])):
         problems = []
+        k = ref_size[0] // size[0] if size[0] and size[1] else 0
+        if k > 1 and size[0] * k == ref_size[0] and size[1] * k == ref_size[1]:
+            # elements that are a whole fraction of the reference (two frame records against a struct of two)
+            lay = {n + i * size[0]: (h + i * size[1], c) for i in range(k) for n, (h, c) in lay.items()}
+            size = ref_size
         if size != ref_size and not (a.tag and size[0] < ref_size[0]):   # a shorter --tag view is a prefix
             problems.append(f"size N64 {size[0]} / host {size[1]}")
         for n64o, (h, c) in sorted(lay.items()):
