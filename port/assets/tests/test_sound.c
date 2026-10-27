@@ -6,10 +6,12 @@
  * anon_ll_id_3c, anon_te_tag_c): an fx tag is 88 bytes, a command 32, a sequence 72, a sorted-tag node 24 and an
  * emitter 56. Before, AudioInit gave the fx tags 80 bytes (the last one's data pointer ran into the next heap
  * block's header), the sorted tags and commands their N64 sizes, the emitter pop cleared a byte of a link, and the
- * sequence's variable arguments were read from the stack as IDO's va_list does.
+ * sequence's variable arguments were read from the stack as IDO's va_list does; the sorted-tag tree's comparator
+ * (draw_sprites, _ProcessPriorities' order) read the tag and its priority at their N64 offsets.
  * game: src/blob/groups/menu_save_options/hud_setup.c src/blob/hud_speed_display.c
  * game: src/blob/groups/camera_target_track/group.c src/blob/groups/slot18_alloc/func_80091B00.c
  * game: src/blob/func_800AED20.c src/blob/car_stats_display.c src/blob/func_800D18D8.c src/blob/game_timer_pause.c
+ * game: src/blob/draw_sprites.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -134,6 +136,7 @@ int32_t camera_target_track(float *pos, void *a1, float volume, float a3, float 
 void *func_80091B00(void);
 uint32_t car_stats_display(int type, float delay, int func, int data, int nargs, ...);
 void game_timer_pause(int32_t h);
+int32_t draw_sprites(void *a, void *b);   /* the sorted-tag tree's order: by weighted priority */
 
 static int in_pool(const void *p, const void *pool, size_t stride, int n)
 {
@@ -200,5 +203,10 @@ int main(void)
     CHECK(s->startTime == 12.5f && s->active == 1 && s->stop == 0 && D_80149860.head == &s->ll);
     game_timer_pause((int32_t)h);
     CHECK(s->stop == 1);
+
+    /* The sorted-tag tree orders its nodes {left, right, tag} by the tags' weighted priority. */
+    struct { void *left, *right; FxTag *tag; } na = {0, 0, &D_80110244[5]}, nb = {0, 0, &D_80110244[9]};
+    D_80110244[5].wpriority = 70, D_80110244[9].wpriority = 30;
+    CHECK(draw_sprites(&na, &nb) == 40 && draw_sprites(&nb, &na) == -40);
     return TEST_DONE();
 }
