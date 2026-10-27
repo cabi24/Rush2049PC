@@ -527,18 +527,23 @@ int main(int argc, char **argv)
     CHECK(info && contains(info, 0x4A0, "07-17-00") && contains(info, 0x4A0, "MERRILL")
           && contains(info, 0x4A0, "BLACKOUT"), "build-info record (07-17-00, MERRILL, BLACKOUT)");
 
-    /* Inflate tables (zlib's inflate.c constants), declared u32 border[], u16 cplens[], u16 mask_bits[]. */
+    /* Inflate tables (zlib's inflate.c constants: u32 border[], u16 cplens[], u16 mask_bits[]) in the boot data.
+     * lib_5610 is one of the files port/ultra replaces (zlib inflates on the PC), so no PC declaration describes
+     * them and they stay in N64 byte order: this checks where the boot data lands, read big-endian. */
     static const uint32_t border[19] = {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
     static const uint16_t cplens[29] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59,
                                         67, 83, 99, 115, 131, 163, 195, 227, 258};
-    const uint32_t *b = at(0x8002B040, 0);
-    const uint16_t *cl = at(0x8002B08C, 0), *mb = at(0x8002B184, 0);
-    CHECK(b && memcmp(b, border, sizeof border) == 0, "gInflateBorder (u32)");
-    CHECK(cl && memcmp(cl, cplens, sizeof cplens) == 0, "gInflateCplens (u16)");
-    int masks = 1;
-    for (int i = 0; mb && i < 17; i++)
-        masks &= mb[i] == (uint16_t)((1u << i) - 1);
-    CHECK(mb && masks, "gInflateMaskBits (u16)");
+    const uint8_t *b = at(0x8002B040, 0), *cl = at(0x8002B08C, 0), *mb = at(0x8002B184, 0);
+    int ok_border = b != NULL, ok_cplens = cl != NULL, masks = mb != NULL;
+    for (int i = 0; ok_border && i < 19; i++)
+        ok_border = ((uint32_t)b[4 * i] << 24 | (uint32_t)b[4 * i + 1] << 16 | b[4 * i + 2] << 8 | b[4 * i + 3]) == border[i];
+    for (int i = 0; ok_cplens && i < 29; i++)
+        ok_cplens = (uint16_t)(cl[2 * i] << 8 | cl[2 * i + 1]) == cplens[i];
+    for (int i = 0; masks && i < 17; i++)
+        masks = (uint16_t)(mb[2 * i] << 8 | mb[2 * i + 1]) == (uint16_t)((1u << i) - 1);
+    CHECK(ok_border, "gInflateBorder (u32, N64 order)");
+    CHECK(ok_cplens, "gInflateCplens (u16, N64 order)");
+    CHECK(masks, "gInflateMaskBits (u16, N64 order)");
 
     /* Floats: of every f32 element the tables describe, most must be finite and of sane size. */
     uint32_t nf = 0, good = 0;
