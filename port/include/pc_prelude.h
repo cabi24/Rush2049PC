@@ -51,6 +51,16 @@ void pc_os_idle(void);
 #define N64_ONLY(stmt)
 #define PC_ONLY(stmt) stmt
 
+/* A car visual (tVisual: N64 0x18 bytes, PC 0x20) on the PC, for views of the car record that pad over the
+ * car's 21 visuals at +0x110: next and func are host pointers there, data a u32 (docs/port/CARS.md). */
+struct pc_visual {
+    void *next;
+    short index, objnum, slot;
+    unsigned int data;
+    float timeStamp;
+    void (*func)(void *, short);
+};
+
 /* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
 void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 void pc_mem_unregister_be(const void *start);
