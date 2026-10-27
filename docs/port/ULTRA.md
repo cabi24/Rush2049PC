@@ -61,7 +61,12 @@ count: it runs only through the busy-wait escape). Each change to idle wakes the
 busy-wait's 1 ms nap is 1 ms of the virtual clock, so its 200 ms escape keeps its length. Timers, `osGetTime`, the
 AI, scripted presses, `--seconds` and the null audio output's drain all run on the virtual clock; the renderer and
 the RSP tasks take no N64 time. A run is then as fast as the host allows (the synthetic race's 28 s in about
-0.4 s) and the same on any host, to within a graphics task. A run whose clock stops for 30 s of real time (a thread
+0.4 s) and the same every run, on any host. The main loop's work (RSP tasks, timers, the AI, retraces) happens only
+while every N64 thread waits: a thread that submits a task or wakes the main thread goes on until it waits, and
+only then does the main loop run (`pc_os_wait_main` returns 0 meanwhile, after 100 ms of real time, for the hang
+check). Before 2026-10-27 the main loop ran a task as soon as it was submitted, while the thread that submitted it
+computed on, and which of that thread's next libultra calls saw the task's events depended on the host: two runs
+of one script could start a race two retraces apart. A run whose clock stops for 30 s of real time (a thread
 computing without a libultra call) is stopped as hung, with the threads' states. The self-test runs on it too
 (`--selftest --fast`, CTest `ultra_selftest_fast`).
 
@@ -188,6 +193,9 @@ loop on the host main thread.
 - Between deadlines it sleeps until a thread submits work.
 - While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
   events. Afterwards it sets the N64 clock back by the time held.
+- The state log, the status lines and `--until-state` read the game's values when a retrace is due, before the
+  loop does anything else: with `--fast` every thread waits then. Read after the retrace's event, they raced the
+  threads it wakes (the model thread steps the cars at each retrace).
 
 | Option | |
 |---|---|

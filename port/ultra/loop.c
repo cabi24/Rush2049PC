@@ -46,15 +46,28 @@ static void on_signal(int sig)
 static uint32_t (*g_game_state)(void);
 static void (*g_game_info)(char *, size_t);
 
+/* The game's state word and its state-log values, read when a retrace is due before the loop does anything
+ * else: with --fast every N64 thread waits then (pc_os_wait_main), so the log, the status lines and --until-state
+ * see the same values in every run; read after the retrace's event they would race the threads it wakes. */
+static uint32_t g_snap_state;
+static char g_snap_info[160];
+
+static void snapshot(void)
+{
+    if (g_game_state)
+        g_snap_state = g_game_state();
+    if (g_game_info)
+        g_game_info(g_snap_info, sizeof g_snap_info);
+}
+
 static void status(const char *tag)
 {
     char state[192] = "";
     if (g_game_state)
-        snprintf(state, sizeof state, " state=0x%08X", (unsigned)g_game_state());
+        snprintf(state, sizeof state, " state=0x%08X", (unsigned)g_snap_state);
     if (g_game_info) {
         size_t n = strlen(state);
-        snprintf(state + n, sizeof state - n, ": ");
-        g_game_info(state + n + 2, sizeof state - n - 2);
+        snprintf(state + n, sizeof state - n, ": %s", g_snap_info);
     }
     fprintf(stderr, "rush2049pc: %s t=%.1fs vi=%u gfx_tasks=%u audio_tasks=%u%s\n", tag, pc_host_ns() / 1e9,
             pc_frame, pc_rcp_gfx_tasks, pc_rcp_audio_tasks, state);
@@ -65,16 +78,14 @@ static void status(const char *tag)
 static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
 {
     static uint32_t last, seen, first, entered;
-    uint32_t s = g_game_state();
+    uint32_t s = g_snap_state;
     if (!seen)
         first = s;
     entered |= s != first;
     if (s != last || !seen) {
-        char info[160] = "";
-        if (opt->game_info) {
-            info[0] = ':', info[1] = ' ';
-            opt->game_info(info + 2, sizeof info - 2);
-        }
+        char info[164] = "";
+        if (opt->game_info)
+            snprintf(info, sizeof info, ": %s", g_snap_info);
         fprintf(stderr, "rush2049pc: game state 0x%08X (was 0x%08X) at vi %u, after %u graphics tasks%s\n",
                 (unsigned)s, (unsigned)last, pc_frame, pc_rcp_gfx_tasks, info);
         last = s, seen = 1;
@@ -150,6 +161,8 @@ int pc_ultra_run(const PcRunOptions *opt)
             continue;
         }
         uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
+        if (now >= next_vi)
+            snapshot();
         uint64_t timer = pc_timer_service(ticks);
         if (timer && timer > ticks && now + pc_ticks_to_ns(timer - ticks) < deadline)
             deadline = now + pc_ticks_to_ns(timer - ticks);
@@ -219,10 +232,13 @@ int pc_ultra_run(const PcRunOptions *opt)
         }
         if (g_dump) {
             g_dump = 0;
+            snapshot();
             status("status");
             pc_os_dump_threads();
         }
+    wait:
         if (pc_time_virtual() && pc_real_ns() - last_vi_real > 30000000000u) {
+            snapshot();
             status("hung:");
             fprintf(stderr, "rush2049pc: --fast: no retrace for 30 s of real time: a thread computes without "
                     "waiting\n");
@@ -230,7 +246,8 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_quit = 1 + 1;
             break;
         }
-        pc_os_wait_main(deadline);
+        if (!pc_os_wait_main(deadline) && !pc_quit)
+            goto wait;   /* --fast: a thread still computes; the loop's work waits until it waits (sched.c) */
     }
     pc_si_flush();
 #ifdef _WIN32
