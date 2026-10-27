@@ -102,7 +102,13 @@ int func_80026640(GsmState_26F60 *s, unsigned char *c, short *target)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: the stream (lib_26ab0.c's StreamState_80025F74) has host pointers after the decoder state, so the
+ * input ring and the bit position are where its native layout puts them */
+typedef struct GsmStream_26F60 { GsmState_26F60 gsm; void *callback; unsigned char *input; void *output; unsigned int capacity; unsigned int ring[1024]; unsigned short remaining_blocks; unsigned short header_low; unsigned int remaining_input; int remaining; OSMesgQueue queue; OSMesg message; int pos; } GsmStream_26F60;
+#else
 typedef struct GsmStream_26F60 { GsmState_26F60 gsm; unsigned char unknown190[16]; unsigned int ring[1024]; unsigned char unknown11A0[40]; int pos; } GsmStream_26F60;
+#endif
 extern void bzero(void *, int);
 #define GETBITS(dst, n) if (left > n) { dst = word & ((1 << n) - 1); word >>= n; left -= n; } else { dst = ((1 << left) - 1) & word; pos += 32; word = ring[(pos >> 5) & 0x3FF]; if (left != n) dst |= (word & ((1 << (n - left)) - 1)) << left; word >>= n - left; left += 32 - n; }
 int func_800268D0(GsmStream_26F60 *stream, short *out)

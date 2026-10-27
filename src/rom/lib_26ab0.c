@@ -11,7 +11,13 @@
  * Gate:     full-ROM SHA-1
  */
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, int);
+#ifdef TARGET_PC
+/* PC: the request queue, its messages and the buffer after the state are host-sized, as in
+ * StreamState_80025F74 and lib_25bb0.c's StreamState_80025264 */
+typedef struct StreamState { unsigned char unknown_0000[358]; unsigned short block_count; unsigned char unknown_0168[40]; void (*callback)(void *, void *, unsigned int, OSMesgQueue *); void *data; void *argument2; unsigned int argument3; unsigned char unknown_01A0[4096]; unsigned short read_count; unsigned short write_count; unsigned int buffered; int remaining; OSMesgQueue queue; OSMesg message; unsigned int field_11C8; unsigned int field_11CC; unsigned int field_11D0; unsigned int consumed; unsigned int available; signed char field_11DC; signed char state; signed char scale; unsigned char unknown_11DF; OSMesgQueue request_queue; OSMesg request_messages[2]; volatile unsigned char busy; unsigned char unknown_1201[7]; unsigned int rate; int handle; short *buffer; unsigned int buffer_count; unsigned char unknown_1218[4]; unsigned int processed; float field_1220; unsigned int token; } StreamState;
+#else
 typedef struct StreamState { unsigned char unknown_0000[358]; unsigned short block_count; unsigned char unknown_0168[40]; void (*callback)(void *, void *, unsigned int, OSMesgQueue *); void *data; void *argument2; unsigned int argument3; unsigned char unknown_01A0[4096]; unsigned short read_count; unsigned short write_count; unsigned int buffered; int remaining; OSMesgQueue queue; OSMesg message; unsigned int field_11C8; unsigned int field_11CC; unsigned int field_11D0; unsigned int consumed; unsigned int available; signed char field_11DC; signed char state; signed char scale; unsigned char unknown_11DF[33]; volatile unsigned char busy; unsigned char unknown_1201[27]; unsigned int processed; float field_1220; unsigned int token; } StreamState;
+#endif
 extern void bzero(void *, int);
 void func_80025EB0(StreamState *stream, void *data, void *argument2,
                    unsigned int argument3,
@@ -47,6 +53,11 @@ void func_80025EB0(StreamState *stream, void *data, void *argument2,
  * Gate:     full-ROM SHA-1
  */
 typedef struct StreamState_80025F74 { unsigned char opaque_decoder[400]; void (*callback)(void *, void *, unsigned int, OSMesgQueue *); unsigned char *input; void *output; unsigned int capacity; unsigned int input_ring[1024]; unsigned short remaining_blocks; unsigned short header_low; unsigned int remaining_input; int remaining; OSMesgQueue queue; OSMesg message; unsigned int bit_position; unsigned int consumed_input; unsigned int received; unsigned int consumed; unsigned int available; signed char pending; signed char state; signed char budget; unsigned char unknown_11DF; OSMesgQueue request_queue; OSMesg request_messages[2]; volatile unsigned char busy; unsigned char volume; unsigned char pan; unsigned char span; unsigned char option; unsigned char unknown_1205[3]; unsigned int rate; int handle; short *buffer; unsigned int buffer_count; unsigned char request_state; unsigned char mode; unsigned char unknown_121A[2]; unsigned int processed; float duration; unsigned int token; } StreamState_80025F74;
+#ifdef TARGET_PC
+typedef char pc_stream_busy[__builtin_offsetof(StreamState, busy) == __builtin_offsetof(StreamState_80025F74, busy) ? 1 : -1];
+typedef char pc_stream_token[__builtin_offsetof(StreamState, token) == __builtin_offsetof(StreamState_80025F74, token) ? 1 : -1];
+typedef char pc_stream_size[sizeof(StreamState) == sizeof(StreamState_80025F74) ? 1 : -1];
+#endif
 extern int osRecvMesg(OSMesgQueue *, OSMesg *, int);
 extern int func_800268D0(StreamState_80025F74 *, void *);
 void func_80025F74(StreamState_80025F74 *stream)
@@ -129,7 +140,12 @@ unsigned int func_800262BC(StreamState *stream, unsigned int count)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: a stream holds host pointers before its state, so this view is the full one */
+typedef StreamState_80025F74 StreamState_80026328;
+#else
 typedef struct StreamState_80026328 { unsigned char unknown_0000[4573]; signed char state; signed char scale; unsigned char unknown_11DF[33]; volatile unsigned char busy; unsigned char unknown_1201[39]; } StreamState_80026328;
+#endif
 void func_80026328(StreamState_80026328 *stream)
 {
     if (stream->state == 2) {
@@ -143,7 +159,12 @@ void func_80026328(StreamState_80026328 *stream)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: a stream holds host pointers before its state, so this view is the full one */
+typedef StreamState_80025F74 StreamState_80026348;
+#else
 typedef struct StreamState_80026348 { unsigned char unknown_0000[4573]; signed char state; signed char scale; unsigned char unknown_11DF[33]; volatile unsigned char busy; unsigned char unknown_1201[39]; } StreamState_80026348;
+#endif
 void func_80026348(StreamState_80026348 *stream)
 {
     stream->state = 4;

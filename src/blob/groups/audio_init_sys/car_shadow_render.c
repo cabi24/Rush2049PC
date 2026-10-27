@@ -42,7 +42,13 @@ extern Instrument4 D_8011F0A0[];
 extern void *D_80152464,*D_801526D8,*D_80152690;
 extern intptr_t D_801525FC;
 extern u8 D_00039B40[];
+#ifdef TARGET_PC
+/* the MusyX service table: 8 function addresses, which the data loader makes host functions
+ * (docs/port/MUSYX_DATA.md 8.1) */
+extern void (*D_8011EAAC[8])(void);
+#else
 extern s8 D_8011EAAC;
+#endif
 extern void task_complete_signal(void *);
 extern void dma_wait_complete(void *);
 extern void osCreateMesgQueue(void *,void *,s32);

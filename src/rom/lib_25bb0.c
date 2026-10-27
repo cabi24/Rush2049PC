@@ -16,7 +16,12 @@ typedef struct StreamState_80025264 { unsigned char unknown_0000[358]; unsigned 
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: a stream (D_80056230) holds host pointers before its state, so this view is the full one */
+typedef StreamState_80025264 StreamState;
+#else
 typedef struct StreamState { unsigned char unknown_0000[4573]; signed char state; signed char scale; unsigned char unknown_11DF[33]; volatile unsigned char busy; unsigned char unknown_1201[39]; } StreamState;
+#endif
 extern unsigned char D_80038290;
 void func_80024FB0(StreamState *stream)
 {
@@ -365,7 +370,12 @@ int func_80025670(unsigned int token, unsigned char value1,
  * Gate:     full-ROM SHA-1
  */
 typedef int (*SampleCallback_8002574C)(short *, unsigned int, short *, unsigned int, unsigned int);
+#ifdef TARGET_PC
+/* the six callbacks before allocate are function pointers too (docs/port/MUSYX_DATA.md 8.1) */
+typedef struct ServiceHooks_8002574C { void (*unknown_00[6])(void); void *(*allocate)(unsigned int, int); void (*release)(void *); } ServiceHooks_8002574C;
+#else
 typedef struct ServiceHooks_8002574C { unsigned char unknown_00[24]; void *(*allocate)(unsigned int, int); void (*release)(void *); } ServiceHooks_8002574C;
+#endif
 extern ServiceHooks_8002574C D_80038000;
 extern void func_80025150(void);
 extern void func_8002517C(void);

@@ -28,7 +28,13 @@ typedef struct List {
 } List;
 
 typedef struct { u8 bytes[24]; } Rec24;
+#ifdef TARGET_PC
+/* PC: the record is a sound request (audio_fade_control/group.c's Node), whose entry pointer moves its
+ * values: 48 bytes natively */
+typedef struct { Link link; u8 kind, busy, pad[2]; void *entry; f32 values[4]; } Rec32;
+#else
 typedef struct { Link link; u8 bytes[24]; } Rec32;
+#endif
 
 extern List D_80146160;
 extern List D_80146138;

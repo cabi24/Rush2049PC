@@ -4,10 +4,15 @@
  *    logged with its width and value. After the conversion every logged field must read natively as its value,
  *    and every other byte must be unchanged. Shared lists and patterns are swapped once.
  * 2. Damaged files: truncated, garbage, self-overlapping, empty. Nothing is written past the block.
- * 3. The game's own readers (src/rom/lib_15a10.c, lib_16320.c, lib_17dc0.c, lib_1f340.c, lib_22300.c, built with
- *    the game's flags) run on the converted files, placed below 4 GiB as the heap is in the RDRAM window:
- *    sndPushGroup and its registries, the resource lookups, the sample lookup with the sample base, the song
- *    start, and the macro steps that read envelopes, start samples and wait in milliseconds. */
+ * 3. The game's own readers (src/rom/lib_15a10.c, lib_16320.c, lib_17dc0.c, lib_1f340.c, lib_1f5b0.c, lib_22300.c,
+ *    built with the game's flags) run on the converted files, placed below 4 GiB as the heap is in the RDRAM
+ *    window: sndPushGroup and its registries, the resource lookups, the sample lookup with the sample base, the
+ *    song start, and the macro steps that read envelopes, start samples and wait in milliseconds.
+ * 4. The library's own state on LP64 (docs/port/MUSYX_DATA.md 8): the song plays for 60 frames through the
+ *    sequencer's per-frame units, each with its own view of the slot (notes, programs, controllers, pitch bend,
+ *    modulation, tempo, loop, note-offs); voices start macros, step them through the interpreter (envelope,
+ *    sample, end, a subroutine, a wait, a trap on key-off) and free their sequence nodes; the DMA service
+ *    (struct_init_and_call, func_8008ABE4) walks a request list as the driver builds it. */
 #define _GNU_SOURCE
 #include <string.h>
 #include <sys/mman.h>
@@ -123,7 +128,7 @@ static void project_build(Project *P)
     b16(B, 12), b16(B, 1);
     for (k = 0; k < 6; k++)
         b32(B, 0);
-    lists[0] = b16(B, 1), b16(B, 2), b16(B, 0xFFFF);           /* macros */
+    lists[0] = b16(B, 1), b16(B, 2), b16(B, 6), b16(B, 0xFFFF); /* macros */
     lists[1] = b16(B, 5), b16(B, 7), b16(B, 0xFFFF);           /* samples */
     lists[2] = b16(B, 3), b16(B, 4), b16(B, 0xFFFF);           /* tables */
     lists[3] = b16(B, 0x4001), b16(B, 0x4002), b16(B, 0xFFFF);  /* keymaps */
@@ -175,7 +180,7 @@ static void project_build(Project *P)
 
 typedef struct {
     Build B;
-    size_t macro[2], table[2], keymap[2], layer;   /* entry offsets */
+    size_t macro[3], table[2], keymap[2], layer;   /* entry offsets */
 } Pool;
 
 static void pool_build(Pool *P)
@@ -195,6 +200,11 @@ static void pool_build(Pool *P)
     P->macro[1] = b32(B, 8 + 2 * 8);
     b16(B, 2), b16(B, 0);
     b32(B, 0x07), b32(B, 250u << 16);                  /* WAIT 250, the flag byte clear: WAITMS sets it */
+    b32(B, 0), b32(B, 0);
+    P->macro[2] = b32(B, 8 + 3 * 8);
+    b16(B, 6), b16(B, 0);
+    b32(B, 1u << 16 | 0x28), b32(B, 0);                /* SETTRAP: key-off goes to macro 1 */
+    b32(B, 2u << 16 | 0x06), b32(B, 0);                /* GOSUB macro 2 */
     b32(B, 0), b32(B, 0);
     b32(B, 0xFFFFFFFF);
     /* Tables: an envelope (four u16 stored little-endian: the N64 reads 0x3412 and swaps it to 0x1234) and a
@@ -253,7 +263,7 @@ static void song_build(Song *S)
     memset(S, 0, sizeof *S);
     for (int k = 0; k < 4; k++)
         b32(B, 0);
-    b32(B, 120), b32(B, 0x300);                        /* tempo, loop time */
+    b32(B, 120), b32(B, 0x180);                        /* tempo, loop time: event 1's */
     tracks = B->n;
     set32(B, 0, (uint32_t)tracks);
     for (int j = 0; j < 64; j++)
@@ -297,7 +307,8 @@ static void song_build(Song *S)
     set32(B, patterns + 4, (uint32_t)S->pattern[1]);
     b32(B, 0x30), b32(B, 0), b32(B, (uint32_t)S->mod);
     b16(B, 0), b8(B, 64), b8(B, 90), b16(B, 0x30);
-    b16(B, 0x30), b8(B, 0xFF), b8(B, 0xFF);
+    b16(B, 0x10), b8(B, 0x80), b8(B, 0x80 | 104);      /* controller 104: a deferred request is carried out */
+    b16(B, 0x20), b8(B, 0xFF), b8(B, 0xFF);
     /* Tempo track: {u32 time; u32 tempo} until time 0xFFFFFFFF. */
     S->tempo = b_align(B, 4);
     set32(B, 12, (uint32_t)S->tempo);
@@ -440,6 +451,27 @@ uint8_t func_80022F24(void *state, void *step);
 uint8_t func_80022874(void *state, void *step);
 uint8_t func_80021B9C(void *state, void *step);
 uint8_t func_8002193C(void *state, void *step);
+void func_800198C8(void);
+unsigned short func_80018B8C(unsigned int identifier);
+unsigned char func_800193C8(unsigned int identifier);
+uint32_t func_80024988(uint32_t packed, uint16_t allocation, uint8_t key, uint8_t volume, uint8_t panning,
+                       uint8_t channel, uint8_t set, uint16_t offset, uint16_t section, uint8_t start, uint8_t group);
+void func_80023E9C(void *voice);
+int func_80021700(uint32_t identifier);
+void func_8001F864(void);
+void func_8001E9B0(void);
+void func_800218CC(void);
+int func_8001EDF4(uint32_t key);
+int func_8001FA18(uint32_t key);
+void func_80019490(void *request, unsigned int *result, unsigned char unlocked);
+/* func_80019490's request (lib_17dc0.c's SequenceRequest). */
+typedef struct { uint32_t identifier; uint16_t duration; uint8_t unknown006[2]; uint32_t nextIdentifier;
+    uint16_t nextDuration; uint8_t unknown00E[2]; void *stream; uint16_t group, program; uint8_t channel;
+    uint8_t unknown019[3]; uint32_t first, second; uint16_t value; uint8_t flags; uint8_t unknown027; } Request;
+int32_t struct_init_and_call(intptr_t list, int32_t count, intptr_t done);
+int32_t func_8008ABE4(void);
+/* The request list's header, in its own storage on the PC (func_8008ABE4.c's DmaList). */
+extern struct { uint16_t pad0, count, next, pad6; void *reqs; void *done; } pc_D_80153F10;
 
 /* func_800146B4's view (lib_11640.c, lib_1cf90.c): the PC layout every sample-info writer must match. */
 #pragma pack(1)
@@ -447,24 +479,23 @@ typedef struct { uint32_t frequency; void *data; uint32_t offset, length, loopSt
     SampleInfo;
 #pragma pack()
 
-/* func_800178B0's view of a sequence slot (lib_17dc0.c). */
-#pragma pack(1)
-typedef struct Page_800178B0 { uint16_t macro; uint8_t prio, maxVoices, slot, index, reserved[2]; } Page_800178B0;
-#pragma pack()
-typedef struct SequenceNode SequenceNode;
-typedef struct Arr_800178B0 { uint32_t tTab, unknown04, unknown08, mTrack, info; } Arr_800178B0;
-typedef struct Track_800178B0 { uint8_t *addr, *base; uint32_t pattern08, pattern0C; } Track_800178B0;
-typedef struct TrackState_800178B0 { uint32_t unknown00[3]; uint32_t active0C, active10, active14; uint8_t unknown18[16]; }
-    TrackState_800178B0;
-typedef struct Seq_800178B0 { uint32_t identifier; Page_800178B0 *normtab; uint8_t normTrans[128]; Page_800178B0 *drumtab;
-    uint8_t drumTrans[128]; Arr_800178B0 *arrbase; uint32_t trackMute[2]; uint32_t fraction118, whole11C, half120;
-    uint32_t bpm; Track_800178B0 track[64]; uint8_t trackVolGroup[64]; TrackState_800178B0 trackState[64];
-    uint32_t *mTrackBase, *mTrackAddr; uint32_t lowF70, highF74; SequenceNode *noteUsed, *noteKeyOff;
-    uint32_t prgState[16]; uint8_t activeFC0, freeFC1; uint16_t speed; uint8_t defVGroup, disabledFC5;
-    uint16_t valueFC6; uint8_t unknownFC8[0x2C]; uint8_t syncFF4; uint8_t unknownFF5[3]; } Seq_800178B0;
-/* func_80017720's view of the same slot. */
-typedef struct Seq_80017720 { uint32_t identifier; void *normtab; uint8_t normTrans[128]; void *drumtab;
-    uint8_t drumTrans[128]; uint8_t unknown10C[0xE74]; uint32_t prgState[16]; } Seq_80017720;
+/* A sequence slot as the game lays it out on the PC (include/sequence_context.h, which every view of a slot in
+ * lib_17dc0.c follows), with the header's storage names moved out of the way of this test's own. */
+#define TARGET_PC 1
+#define D_80043EB0 header_D_80043EB0
+#define D_80043EB8 header_D_80043EB8
+#define D_8004BE80 header_D_8004BE80
+#define D_8004BE78 header_D_8004BE78
+#define D_8004BE7C header_D_8004BE7C
+#define D_8004F808 header_D_8004F808
+#include "../../../include/sequence_context.h"
+#undef D_80043EB0
+#undef D_80043EB8
+#undef D_8004BE80
+#undef D_8004BE78
+#undef D_8004BE7C
+#undef D_8004F808
+#undef TARGET_PC
 
 /* The boot library's storage these units use (gen_bss defines it in the game). */
 #define STORAGE(name, bytes) unsigned char name[bytes] __attribute__((aligned(16)))
@@ -501,9 +532,32 @@ STORAGE(D_8002CC50, 4);
 STORAGE(D_8002CC54, 2048);
 STORAGE(D_8002D452, 2048);
 void *D_80038018, *D_8003801C;
+/* lib_1f5b0.c's: the voice lists, the channel and priority links, the sequence nodes. */
+STORAGE(D_8004BE94, 1);
+STORAGE(D_8004FA19, 1);
+STORAGE(D_8004FA1A, 1);
+STORAGE(D_80050440, 32 * 4);
+STORAGE(D_800504C0, 1);
+STORAGE(D_800504C1, 1);
+STORAGE(D_800504C2, 1);
+STORAGE(D_800504C3, 1);
+STORAGE(D_800504C8, 32 * 4);
+STORAGE(D_80050548, 256);
+STORAGE(D_80050648, 256 * 4);
+STORAGE(D_80050A48, 2);
+STORAGE(D_80050A4C, 4);
+STORAGE(D_80050A50, 32 * 24);
+void *D_80050C50, *D_80050C54;
 
 /* What the units call outside themselves: recorded, or nothing. */
-static uint32_t seen_bpm, seen_controls[16][4];
+static uint32_t seen_bpm, seen_controls[16][4], seen_bend[16][2], seen_mod[16][2];
+static uint32_t seen_tempi[16];
+static unsigned seen_ntempi;
+static int frame;
+static struct { int frame; uint32_t program, id; uint8_t key, velocity, channel, track; } seen_notes[32];
+static unsigned seen_nnotes;
+static struct { int frame; uint32_t id; } seen_offs[32];
+static unsigned seen_noffs;
 static uint16_t seen_envelope[4];
 static SampleInfo seen_sample;
 static unsigned seen_samples;
@@ -514,12 +568,21 @@ void *func_80014CAC(void *address) { return address; }   /* the sample base is a
 void func_80014CF4(void) {}
 void func_80014CFC(void **descriptor, void **data) {}
 void func_80014D08(void *descriptor, unsigned int data) {}
-void func_80019A60(unsigned int value, unsigned char index) { seen_bpm = value; }
+void func_80019A60(unsigned int value, unsigned char index)
+{
+    seen_bpm = value;
+    if (seen_ntempi < 16)
+        seen_tempi[seen_ntempi++] = value;
+}
 void func_80020610(uint8_t controller, uint8_t channel, uint8_t set, uint8_t value)
 {
     int k = controller == 7 ? 0 : controller == 10 ? 1 : controller == 91 ? 2 : controller == 93 ? 3 : -1;
     if (k >= 0 && channel < 16)
         seen_controls[channel][k] = value;
+    if (channel < 16 && (controller == 128 || controller == 129))
+        seen_bend[channel][controller - 128] = value;
+    if (channel < 16 && (controller == 1 || controller == 33))
+        seen_mod[channel][controller == 33] = value;
 }
 void func_800148F8(uint32_t index, const uint16_t *envelope) { memcpy(seen_envelope, envelope, 8); }
 void func_800146B4(uint32_t index, const SampleInfo *info, uint8_t reset) { seen_sample = *info, seen_samples++; }
@@ -528,21 +591,43 @@ void func_80020820(uint8_t channel, uint8_t set) {}
 void func_8001C19C(uint8_t a, uint8_t b) {}
 void func_8001B9F8(uint8_t a, uint16_t b, uint8_t c, uint8_t d, uint32_t e) {}
 uint32_t func_800201D0(uint32_t v) { return v; }
-int func_8001FA18(uint32_t key) { return 0; }
-int func_8001B8C4(uint32_t key) { return 0; }
+int func_8001B8C4(uint32_t key)   /* note off */
+{
+    if (seen_noffs < 32)
+        seen_offs[seen_noffs].frame = frame, seen_offs[seen_noffs++].id = key;
+    return 0;
+}
+/* Note on (program, key, velocity, pan, channel, slot, ?, track, volume group, ?): a voice identifier. */
 uint32_t func_8001A270(uint32_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f, uint16_t g, uint16_t h,
-                       uint8_t i, int16_t j) { return 0xFFFFFFFFu; }
+                       uint8_t i, int16_t j)
+{
+    if (seen_nnotes >= 32)
+        return 0xFFFFFFFFu;
+    seen_notes[seen_nnotes].frame = frame, seen_notes[seen_nnotes].program = a;
+    seen_notes[seen_nnotes].key = b, seen_notes[seen_nnotes].velocity = c, seen_notes[seen_nnotes].channel = e;
+    seen_notes[seen_nnotes].track = (uint8_t)h, seen_notes[seen_nnotes].id = 0x1000 + seen_nnotes;
+    return seen_notes[seen_nnotes++].id;
+}
 int func_8001BDB8(uint8_t channel) { return 0; }
 uint8_t func_8001467C(int index) { return 0; }
 void func_80014AF0(int index) {}
 void func_8002106C(void *voice) {}
 uint8_t func_80020F98(uint8_t channel, uint8_t set) { return 0xFF; }
 void func_80020F4C(uint8_t a, uint8_t b, uint8_t c) {}
-void func_8001EB10(void *state) {}
-void func_8001F6EC(void *state) {}
-void func_8001EF8C(void *state, uint8_t channel) {}
-uint32_t func_8001ECE0(void *state) { return 0; }
-int func_8001F13C(uint8_t priority, uint8_t max, uint16_t alloc, uint8_t fx) { return -1; }
+void func_80014B3C(int index) {}
+/* The PI: the requests func_8008ABE4 starts. */
+STORAGE(D_80153E68, 24);
+STORAGE(D_80161438, 24);
+static struct { uint32_t dev, size; void *vaddr, *queue; } seen_dma[8];
+static unsigned seen_ndma;
+int32_t osPiStartDma(void *mb, int32_t priority, int32_t direction, uint32_t devAddr, void *vAddr, uint32_t nbytes,
+                     void *mq)
+{
+    if (seen_ndma < 8)
+        seen_dma[seen_ndma].dev = devAddr, seen_dma[seen_ndma].size = nbytes, seen_dma[seen_ndma].vaddr = vAddr,
+        seen_dma[seen_ndma++].queue = mq;
+    return 0;
+}
 void func_8001489C(int index, uint8_t release) {}
 uint32_t func_80014D30(uint32_t rate) { return rate; }
 uint16_t func_800214C8(void *voice) { return 0; }
@@ -567,13 +652,175 @@ static uint8_t *low_window(size_t size)
     return p;
 }
 
+/* The song plays: func_800198C8 runs the sequencer's units, each reading the slot through its own view. 60 frames
+ * of 384 samples at 22050 Hz: 13.4 ticks a frame at 120 bpm, 15.6 at 140 (from tick 0x100), one loop at 0x300.
+ * Track 0 (channel 0, transposed +5, velocity -2) plays pattern 0 at 0, then pattern 1 at 0x180, and loops to that
+ * event; track 5 shares its events on channel 5, which has a program only after pattern 0's program change;
+ * track 1 plays pattern 1 on channel 1, which has none. */
+static void test_play(const SequenceContext *seq)
+{
+    static const struct { uint8_t key, velocity, channel, track; } want[] = {
+        {65, 98, 0, 0},                   /* pattern 0's first note */
+        {127, 48, 0, 0}, {127, 48, 5, 5}, /* key bit 7 with a plain velocity: a note, key 0x85 + 5 clamped */
+        {64, 90, 0, 0}, {64, 90, 5, 5},   /* pattern 1 at 0x180 */
+        {64, 90, 0, 0}, {64, 90, 5, 5},   /* and after the loop to it */
+    };
+    unsigned i, k;
+    int offs_ok;
+    uint32_t rate = 384;
+    int32_t frequency = 22050;
+    Request request;
+    static unsigned int result;
+
+    memcpy(D_8004F808, &rate, 4);
+    memcpy(D_8004F800, &frequency, 4);
+    seen_nnotes = seen_noffs = seen_ntempi = 0;
+    memset(seen_controls, 0, sizeof seen_controls);
+    /* A request deferred to the song's controller 104 (flags 4): the slot keeps a copy and the result word's
+     * address; then (flags 2) it would start a next song that doesn't exist. */
+    memset(&request, 0, sizeof request);
+    request.identifier = 0, request.flags = 4 | 2, request.nextIdentifier = 0x1234, request.channel = 7;
+    request.first = 11, request.value = 0x2222, request.stream = &request;
+    func_80019490(&request, &result, 1);
+    CHECK(result == 0x80000000u && seq->pendingFF0 == (uintptr_t)&result && seq->unknownFF4[0] == 1);
+    CHECK(seq->valueFE0 == 7 && seq->firstFE4 == 11 && seq->valueFEC == 0x2222 && seq->flagsFEE == 2 &&
+          seq->streamFD8 == &request);
+    for (frame = 0; frame < 60; frame++)
+        func_800198C8();
+    CHECK(result == 0xFFFFFFFFu && seq->unknownFF4[0] == 0);       /* carried out at tick 0x190 */
+    CHECK(seen_nnotes == sizeof want / sizeof want[0]);
+    for (i = 0; i < seen_nnotes && i < sizeof want / sizeof want[0]; i++)
+        if (seen_notes[i].key != want[i].key || seen_notes[i].velocity != want[i].velocity ||
+            seen_notes[i].channel != want[i].channel || seen_notes[i].track != want[i].track ||
+            seen_notes[i].program != (2u << 16 | 0x30 << 8 | 2)) {
+            fprintf(stderr, "note %u: key %u velocity %u channel %u track %u program %08x\n", i, seen_notes[i].key,
+                    seen_notes[i].velocity, seen_notes[i].channel, seen_notes[i].track, seen_notes[i].program);
+            CHECK(!"a note the song doesn't play");
+        }
+    if (seen_nnotes == 7) {
+        /* When: tick 0, 0x38, 0x180 and the loop at 0x300 (the lookahead is half a frame's ticks). */
+        CHECK(seen_notes[0].frame == 0);
+        CHECK(seen_notes[1].frame == seen_notes[2].frame && seen_notes[1].frame >= 3 && seen_notes[1].frame <= 4);
+        CHECK(seen_notes[3].frame == seen_notes[4].frame && seen_notes[3].frame >= 25 && seen_notes[3].frame <= 28);
+        CHECK(seen_notes[5].frame == seen_notes[6].frame && seen_notes[5].frame >= 49 && seen_notes[5].frame <= 53);
+    }
+    /* Every note has ended (durations 0x60, 0x22 and 0x30 ticks: 7, 3 and 3 frames), each after it started. */
+    offs_ok = seen_noffs == 7;
+    for (i = 0; i < seen_noffs; i++) {
+        for (k = 0; k < seen_nnotes && seen_notes[k].id != seen_offs[i].id; k++)
+            ;
+        if (k == seen_nnotes || seen_offs[i].frame <= seen_notes[k].frame)
+            offs_ok = 0;
+    }
+    CHECK(offs_ok);
+    /* Tempo: the tempo track's first entry in frame 0, its second at tick 0x100, and both again when the loop
+     * restarts the track at its time (0x180). */
+    CHECK(seen_ntempi == 4 && seen_tempi[0] == 120 && seen_tempi[1] == 140 && seen_tempi[2] == 120 &&
+          seen_tempi[3] == 140 && seq->rate124 == 140);
+    CHECK(func_80018B8C(0) == 1);                                 /* one loop */
+    /* Controllers: pattern 0's volume 10 on channels 0 and 5, then the 0x180 event's 0x60. */
+    CHECK(seen_controls[0][0] == 0x60 && seen_controls[5][0] == 0x60);
+    /* Pitch bend: 0x2000 + 16; modulation: 0 + 127 (pattern 1, channels 0, 1 and 5). */
+    CHECK(seen_bend[0][0] == 0x40 && seen_bend[0][1] == 0x10 && seen_bend[5][0] == 0x40);
+    CHECK(seen_mod[0][1] == 127 && seen_mod[1][1] == 127 && seen_mod[5][1] == 127 && seen_mod[1][0] == 0);
+    /* Track 1 ended at 0x200; tracks 0 and 5 still run, both at the loop's events again. */
+    CHECK(seq->unknown128[1].cursor == NULL && seq->unknown128[0].cursor != NULL &&
+          seq->unknown128[5].cursor == seq->unknown128[0].cursor);
+    CHECK(seq->activeFC0 == 1);
+}
+
+/* Voices: func_80024988 starts a macro on a voice of D_8004BEB8 and func_80023E9C steps it. The voice keeps its
+ * N64 layout on the PC: the macro pointers at +0, +4, +8, +0xC, +0x1C and +0x20 as 32-bit window addresses, the
+ * sequence node at +0x18 as its N64 address (docs/port/MUSYX_DATA.md 8.3). */
+static void test_voices(uint8_t *pl)
+{
+    uint8_t *v0 = D_8004BEB8, *v1 = D_8004BEB8 + 0x1A0;
+    uint32_t m1 = (uint32_t)(uintptr_t)(pl + pool.macro[0] + 8), m2 = (uint32_t)(uintptr_t)(pl + pool.macro[1] + 8);
+    uint32_t m6 = (uint32_t)(uintptr_t)(pl + pool.macro[2] + 8), key, id;
+    int i;
+
+    /* As the synth's init leaves them: 32 voices, all free, their identifiers clear. */
+    D_8004FA18[0] = 32, D_8004FA19[0] = 32, D_8004FA1A[0] = 32;
+    memset(D_8004BEB8, 0, 32 * 0x1A0);
+    for (i = 0; i < 32; i++)
+        memset(D_8004BEB8 + i * 0x1A0 + 0x10, 0xFF, 8), memset(D_8004BEB8 + i * 0x1A0 + 0x60, 0xFF, 4);
+    func_8001F864();
+    func_8001E9B0();
+    func_800218CC();
+
+    /* Macro 1 (envelope, sample, end) on voice 0, key 60. */
+    seen_samples = 0;
+    memset(seen_envelope, 0, sizeof seen_envelope);
+    key = func_80024988(1u << 16 | 0x40 << 8 | 4, 0x100, 60, 100, 64, 0, 0, 0, 0, 1, 23);
+    id = 1u << 16 | 60 << 8 | 0;
+    CHECK(key == 0 && func_8001EDF4(key) == (int)id);
+    CHECK(rd32(v0 + 0) == m1 && rd32(v0 + 4) == m1 && rd32(v0 + 8) == 0 && rd32(v0 + 0x60) == id);
+    CHECK(rd32(v0 + 0x18) == 0x80050A50u && rd32(v0 + 0x10) == 0xFFFFFFFFu && rd32(v0 + 0x14) == 0xFFFFFFFFu);
+    CHECK(D_80050C50 == (void *)D_80050A50);
+    func_80023E9C(v0);
+    CHECK(seen_envelope[0] == 0x1234 && seen_envelope[3] == 0x0ABC);
+    CHECK(seen_samples == 1 && seen_sample.data == (void *)(uintptr_t)SAMPLE_BASE && seen_sample.offset == 100);
+    /* The end freed the voice and its node, after three steps. */
+    CHECK(rd32(v0 + 4) == m1 + 24 && rd32(v0 + 0x60) == 0xFFFFFFFFu && rd32(v0 + 0) == 0);
+    CHECK(D_80050C50 == NULL && D_80050C54 == (void *)D_80050A50 && func_8001EDF4(key) == -1);
+
+    /* Macro 6 on voice 1: a trap for key-off, then a subroutine (macro 2) that waits 250 ms. */
+    key = func_80024988(6u << 16 | 0x40 << 8 | 4, 0x100, 62, 100, 64, 0, 0, 0, 0, 1, 23);
+    id = 6u << 16 | 62 << 8 | 1;
+    CHECK(key == 1 && func_8001EDF4(key) == (int)id && rd32(v1 + 0x60) == id && rd32(v1 + 0x18) == 0x80050A50u);
+    func_80023E9C(v1);
+    CHECK(rd32(v1 + 0) == m2 && rd32(v1 + 4) == m2 + 8);            /* in the subroutine, after its wait */
+    CHECK(rd32(v1 + 8) == m6 && rd32(v1 + 0xC) == m6 + 16);         /* where it returns */
+    CHECK(rd32(v1 + 0x1C) == m1 && rd32(v1 + 0x20) == m1);          /* the trap */
+    CHECK(rd32(v1 + 0x9C) == 250 * 256);
+    func_80023E9C(v1);                                              /* still waiting */
+    CHECK(rd32(v1 + 4) == m2 + 8 && seen_samples == 1);
+    /* Key-off: the trap runs macro 1, which starts its sample and ends the voice. */
+    CHECK(func_80021700(id) == 0);
+    func_80023E9C(v1);
+    CHECK(seen_samples == 2 && rd32(v1 + 0x1C) == 0 && rd32(v1 + 0x20) == 0 && rd32(v1 + 4) == m1 + 24);
+    CHECK(rd32(v1 + 0x60) == 0xFFFFFFFFu && D_80050C50 == NULL && func_8001EDF4(key) == -1);
+
+    /* A voice stopped by its key (func_8001FA18) while it waits. */
+    key = func_80024988(2u << 16 | 0x40 << 8 | 4, 0x100, 64, 100, 64, 0, 0, 0, 0, 1, 23);
+    CHECK(key == 2 && D_80050C50 != NULL);
+    func_80023E9C(D_8004BEB8 + 2 * 0x1A0);
+    CHECK(func_8001FA18(key) == 0 && D_80050C50 == NULL && func_8001EDF4(key) == -1);
+}
+
+/* The DMA service (slot 4 of the service table) on a request list as func_80012234 and func_80012730 build it:
+ * {length, source, destination}, 16 bytes on the PC. struct_init_and_call starts the first, func_8008ABE4 each
+ * next one as the PI finishes, and the header keeps the queue to tell when all are done (docs/port/MUSYX_DATA.md
+ * 8.1). */
+static void test_dma(void)
+{
+    static struct { int32_t length; uint32_t source; unsigned char *destination; } list[3];
+    static unsigned char buf[3][0x600];
+    static uint8_t done;
+
+    CHECK(sizeof list[0] == 16);
+    for (int i = 0; i < 3; i++)
+        list[i].length = 0x100 << i, list[i].source = SAMPLE_BASE + 0x1000 * (uint32_t)i, list[i].destination = buf[i];
+    seen_ndma = 0;
+    CHECK(struct_init_and_call((intptr_t)list, 3, (intptr_t)&done) == 1);
+    CHECK(seen_ndma == 1 && seen_dma[0].dev == SAMPLE_BASE && seen_dma[0].size == 0x100 && seen_dma[0].vaddr == buf[0] &&
+          seen_dma[0].queue == (void *)D_80153E68);
+    CHECK(func_8008ABE4() == 1 && func_8008ABE4() == 1 && func_8008ABE4() == 0);
+    CHECK(seen_ndma == 3 && seen_dma[2].dev == SAMPLE_BASE + 0x2000 && seen_dma[2].size == 0x400 &&
+          seen_dma[2].vaddr == buf[2]);
+    CHECK(pc_D_80153F10.reqs == (void *)list && pc_D_80153F10.done == &done && pc_D_80153F10.count == 3 &&
+          pc_D_80153F10.next == 3 && (pc_D_80153F10.pad0 & 0xFF) == 1);
+    CHECK(struct_init_and_call((intptr_t)list, 0, (intptr_t)&done) == 1 && seen_ndma == 3);   /* nothing to do */
+}
+
 static void test_game(void)
 {
     uint8_t *w = low_window(0x20000), *prj, *pl, *sd, *sg, *base_ptr;
     uint8_t state[0x200], step[8];
     uint16_t count;
     SampleInfo si;
-    const Seq_800178B0 *seq;
+    const SequenceContext *seq;
+    const uint32_t *prg;
 
     if (!w) {
         fprintf(stderr, "test_musyx: no mapping below 4 GiB; the game's readers were not run\n");
@@ -647,39 +894,44 @@ static void test_game(void)
     memcpy(step, pl + pool.macro[1] + 8, 8);
     memset(state + 0x9C, 0, 12);
     CHECK(func_8002193C(state, step) == 1 && rd32(state + 0x9C) == (((250u << 16) / 0x10000) * 1000) >> 5);
+    test_voices(pl);
 
     /* The song group: its pages and MIDI setup start the song through func_800178B0. */
     CHECK(func_8001536C(prj, 20, base_ptr, sd, pl) == 1);
     func_800199F4();
     memset(seen_controls, 0, sizeof seen_controls);
-    /* Started (the identifier itself depends on lib_17dc0.c's views, which overlap on LP64). */
-    CHECK(func_8001558C(20, 0, (unsigned long)sg, 0, 1) != -1);
+    /* Started, as the first song (identifier 0) in slot 0, and active. */
+    CHECK(func_8001558C(20, 0, (unsigned long)sg, 0, 1) == 0);
     CHECK(func_8001558C(20, 1, (unsigned long)sg, 0, 1) == -1);
-    seq = (const Seq_800178B0 *)D_80043EB8;
-    CHECK((uint8_t *)seq->normtab == prj + project.norm_page && (uint8_t *)seq->drumtab == prj + project.drum_page);
-    CHECK((uint8_t *)seq->arrbase == sg && seq->bpm == 120 && seen_bpm == 120);
-    CHECK((uint8_t *)seq->mTrackBase == sg + song.tempo);
-    CHECK(seq->track[0].base == sg + song.track[0] && seq->track[1].base == sg + song.track[1] &&
-          seq->track[5].base == sg + song.track[0] && seq->track[2].base == NULL);
-    CHECK(seq->normTrans[0] == 0 && seq->normTrans[5] == 1 && seq->normTrans[1] == 0xFF && seq->drumTrans[36] == 0);
-    CHECK(seq->prgState[3] == (1u << 16 | 0x40 << 8 | 4));        /* page 0, slot 3 */
-    CHECK(seq->prgState[9] == (2u << 16 | 0x50 << 8 | 1));        /* drum page, slot 9 */
-    CHECK(seq->prgState[1] == 0xFFFFFFFFu);
-    /* The setup's programs, through func_80017720's own view: on LP64 its prgState is not func_800178B0's
-     * (lib_17dc0.c's views of the slot disagree; docs/port/MUSYX_DATA.md). */
-    CHECK(((const Seq_80017720 *)D_80043EB8)->prgState[0] == (2u << 16 | 0x30 << 8 | 2));   /* program 5 */
-    CHECK(((const Seq_80017720 *)D_80043EB8)->prgState[9] == (2u << 16 | 0x50 << 8 | 1));   /* drum 36 */
+    seq = (const SequenceContext *)D_80043EB8;
+    prg = (const uint32_t *)seq->unknownF80;
+    CHECK(seq->identifier == 0 && seq->activeFC0 == 1 && seq->inactiveFC1 == 0 && seq->channelFC4 == 23);
+    CHECK((uint8_t *)seq->normtab004 == prj + project.norm_page && (uint8_t *)seq->drumtab088 == prj + project.drum_page);
+    CHECK((uint8_t *)seq->song10C == sg && seq->rate124 == 120 && seen_bpm == 120);
+    CHECK((uint8_t *)seq->timingStartF68 == sg + song.tempo);
+    CHECK(seq->unknown128[0].start == sg + song.track[0] && seq->unknown128[0].cursor == sg + song.track[0] &&
+          seq->unknown128[1].start == sg + song.track[1] && seq->unknown128[5].start == sg + song.track[0] &&
+          seq->unknown128[2].start == NULL);
+    CHECK(seq->normTrans008[0] == 0 && seq->normTrans008[5] == 1 && seq->normTrans008[1] == 0xFF &&
+          seq->drumTrans08C[36] == 0);
+    CHECK(prg[3] == (1u << 16 | 0x40 << 8 | 4));                  /* page 0, slot 3 */
+    CHECK(prg[9] == (2u << 16 | 0x50 << 8 | 1));                  /* drum page, slot 9; and drum 36 */
+    CHECK(prg[1] == 0xFFFFFFFFu);
+    CHECK(prg[0] == (2u << 16 | 0x30 << 8 | 2));                  /* the setup's program 5 (func_80017720) */
+    CHECK(func_800193C8(0) == 23);                                /* through an integer slot address */
     CHECK(seen_controls[0][0] == 100 && seen_controls[0][1] == 64 && seen_controls[15][0] == 115 &&
           seen_controls[15][1] == 49 && seen_controls[7][2] == 10 && seen_controls[7][3] == 20);
     /* What the sequencer reads from the song, natively (func_80018634, func_80017D38, func_80018A30). */
     CHECK(rd32(sg + song.track[0] + 12) == 0x180 && rd16(sg + song.track[0] + 20) == 1 &&
           rd16(sg + song.track[0] + 34) == 1 && sg[song.track[0] + 10] == 5 && sg[song.track[0] + 11] == 0xFE);
     CHECK(rd32(sg + rd32(sg + 4) + 4) == song.pattern[1] && rd16(sg + song.pattern[0] + 12 + 4) == 0x60);
-    CHECK(seq->mTrackBase[2] == 0x100 && seq->mTrackBase[3] == 140);
+    CHECK(seq->timingStartF68[1].time == 0x100 && seq->timingStartF68[1].value == 140);
+    test_play(seq);
 
     /* sndPopGroup, twice: the shared macro goes with the second, the samples with their last reference. */
     CHECK(func_800154A4() == 1);
-    CHECK(func_80016C20(1) == pl + pool.macro[0] + 8 && func_80016C20(2) == pl + pool.macro[1] + 8);
+    CHECK(func_80016C20(1) == pl + pool.macro[0] + 8 && func_80016C20(2) == pl + pool.macro[1] + 8 &&
+          func_80016C20(6) == pl + pool.macro[2] + 8);
     CHECK(func_800154A4() == 1);
     CHECK(func_800154A4() == 0);
     CHECK(func_80016C20(1) == NULL && func_80016EE0(0x4001) == NULL && func_80016F80(0x8001, &count) == NULL);
@@ -696,5 +948,6 @@ int main(void)
     test_formats();
     test_damaged();
     test_game();
+    test_dma();
     return TEST_DONE();
 }

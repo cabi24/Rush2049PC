@@ -271,7 +271,14 @@ u32 func_80017644(u32 identifier)
 #pragma pack(1)
 typedef struct ProgramEntry_80017720 { u16 macro; u8 priority; u8 maxVoices; u32 unknown04; } ProgramEntry_80017720;
 #pragma pack(0)
+#ifdef TARGET_PC
+/* PC: the slot's native layout (sequence_context.h) */
+typedef struct Seq_80017720 { u32 identifier; ProgramEntry_80017720 *normtab; u8 normTrans[128]; ProgramEntry_80017720 *drumtab; u8 drumTrans[128]; u8 unknown10C[SEQ_PC_SPAN(song10C, unknownF80)]; u32 prgState[16]; } Seq_80017720;
+SEQ_PC_SAME(Seq_80017720, normtab, normtab004); SEQ_PC_SAME(Seq_80017720, drumtab, drumtab088);
+SEQ_PC_SAME(Seq_80017720, drumTrans, drumTrans08C); SEQ_PC_SAME(Seq_80017720, prgState, unknownF80);
+#else
 typedef struct Seq_80017720 { u32 identifier; ProgramEntry_80017720 *normtab; u8 normTrans[128]; ProgramEntry_80017720 *drumtab; u8 drumTrans[128]; u8 unknown10C[0xE74]; u32 prgState[16]; } Seq_80017720;
+#endif
 #define SEQ_17720 ((Seq_80017720 *)context)
 void func_80017720(SequenceContext *context, unsigned char program, unsigned char channel)
 {
@@ -349,8 +356,30 @@ typedef struct VolDef_800178B0 { u8 track, volGroup; } VolDef_800178B0;
 typedef struct PlayPara_800178B0 { u32 flags; u32 trackMute[2]; u16 speed; u16 time; u8 target; u8 pad11; u8 numSeqVolDef; VolDef_800178B0 *seqVolDef; u8 numFaded; u8 *faded; } PlayPara_800178B0;
 typedef struct Arr_800178B0 { u32 tTab, unknown04, unknown08, mTrack, info; } Arr_800178B0;
 typedef struct Track_800178B0 { u8 *addr, *base; u32 pattern08, pattern0C; } Track_800178B0;
+#ifdef TARGET_PC
+/* PC: the three streams are pointers (SequenceTrack, sequence_context.h) */
+typedef struct TrackState_800178B0 { u32 unknown00[3]; u8 *active0C, *active10, *active14; u8 unknown18[16]; } TrackState_800178B0;
+#else
 typedef struct TrackState_800178B0 { u32 unknown00[3]; u32 active0C, active10, active14; u8 unknown18[16]; } TrackState_800178B0;
+#endif
+#ifdef TARGET_PC
+/* PC: the request and its result pointer from FC8 to FF4 are 0x38 bytes (sequence_context.h) */
+typedef struct Seq_800178B0 { u32 identifier; Page_800178B0 *normtab; u8 normTrans[128]; Page_800178B0 *drumtab; u8 drumTrans[128]; Arr_800178B0 *arrbase; u32 trackMute[2]; u32 fraction118, whole11C, half120; u32 bpm; Track_800178B0 track[64]; u8 trackVolGroup[64]; TrackState_800178B0 trackState[64]; u32 *mTrackBase, *mTrackAddr; u32 lowF70, highF74; SequenceNode *noteUsed, *noteKeyOff; u32 prgState[16]; u8 activeFC0, freeFC1; u16 speed; u8 defVGroup, disabledFC5; u16 valueFC6; u8 unknownFC8[SEQ_PC_SPAN(unknownFC8, unknownFF4)]; u8 syncFF4; u8 unknownFF5[3]; } Seq_800178B0;
+SEQ_PC_SAME(Seq_800178B0, normtab, normtab004); SEQ_PC_SAME(Seq_800178B0, drumTrans, drumTrans08C);
+SEQ_PC_SAME(Seq_800178B0, arrbase, song10C); SEQ_PC_SAME(Seq_800178B0, trackMute, first110);
+SEQ_PC_SAME(Seq_800178B0, bpm, rate124); SEQ_PC_SAME(Seq_800178B0, track, unknown128);
+SEQ_PC_SAME(Seq_800178B0, trackVolGroup, channels528); SEQ_PC_SAME(Seq_800178B0, trackState, tracks568);
+SEQ_PC_SAME(Seq_800178B0, mTrackBase, timingStartF68); SEQ_PC_SAME(Seq_800178B0, noteUsed, active);
+SEQ_PC_SAME(Seq_800178B0, noteKeyOff, pending); SEQ_PC_SAME(Seq_800178B0, prgState, unknownF80);
+SEQ_PC_SAME(Seq_800178B0, freeFC1, inactiveFC1); SEQ_PC_SAME(Seq_800178B0, speed, valueFC2);
+SEQ_PC_SAME(Seq_800178B0, defVGroup, channelFC4); SEQ_PC_SAME(Seq_800178B0, valueFC6, valueFC6);
+SEQ_PC_SAME(Seq_800178B0, syncFF4, unknownFF4);
+typedef char pc_seq_800178B0_size[sizeof(Seq_800178B0) == sizeof(SequenceContext) ? 1 : -1];
+typedef char pc_seq_800178B0_track[sizeof(Track_800178B0) == sizeof(SequenceSlotTrack) ? 1 : -1];
+typedef char pc_seq_800178B0_state[sizeof(TrackState_800178B0) == sizeof(SequenceTrack) ? 1 : -1];
+#else
 typedef struct Seq_800178B0 { u32 identifier; Page_800178B0 *normtab; u8 normTrans[128]; Page_800178B0 *drumtab; u8 drumTrans[128]; Arr_800178B0 *arrbase; u32 trackMute[2]; u32 fraction118, whole11C, half120; u32 bpm; Track_800178B0 track[64]; u8 trackVolGroup[64]; TrackState_800178B0 trackState[64]; u32 *mTrackBase, *mTrackAddr; u32 lowF70, highF74; SequenceNode *noteUsed, *noteKeyOff; u32 prgState[16]; u8 activeFC0, freeFC1; u16 speed; u8 defVGroup, disabledFC5; u16 valueFC6; u8 unknownFC8[0x2C]; u8 syncFF4; u8 unknownFF5[3]; } Seq_800178B0;
+#endif
 extern u8 D_8004F2B8[64];
 extern void func_8001785C(u8 *map, MapRecord *record);
 extern void func_80017720(SequenceContext *, unsigned char, unsigned char);
@@ -495,7 +524,17 @@ unsigned int func_800178B0(Page_800178B0 *norm, Page_800178B0 *drum, MidiSetup_8
  * Gate:     full-ROM SHA-1
  */
 typedef struct SequenceTrackEvents { unsigned int fraction; int whole; unsigned int event_time; unsigned char *events, *pitch, *modulation; unsigned short pitch_value, modulation_value; unsigned int pitch_time, modulation_time; unsigned char channel; signed char velocity_offset, transpose; unsigned char number; } SequenceTrackEvents;
+#ifdef TARGET_PC
+/* PC: the slot's native layout (sequence_context.h) */
+typedef struct SequenceContextEvents { unsigned char unknown000[SEQ_PC_OFF(first110)]; unsigned int enabled[2]; unsigned char unknown118[8]; unsigned int lookahead; unsigned char unknown124[SEQ_PC_SPAN(rate124, channels528)]; unsigned char groups[64]; SequenceTrackEvents tracks[64]; unsigned char unknownF68[SEQ_PC_SPAN(timingStartF68, unknownF80)]; unsigned int programs[16]; unsigned char unknownFC0[8]; unsigned char request[SEQ_PC_SPAN(unknownFC8, pendingFF0)]; unsigned int *result; unsigned char pending; unsigned char unknownFF5[3]; } SequenceContextEvents;
+SEQ_PC_SAME(SequenceContextEvents, enabled, first110); SEQ_PC_SAME(SequenceContextEvents, lookahead, half120);
+SEQ_PC_SAME(SequenceContextEvents, groups, channels528); SEQ_PC_SAME(SequenceContextEvents, tracks, tracks568);
+SEQ_PC_SAME(SequenceContextEvents, programs, unknownF80); SEQ_PC_SAME(SequenceContextEvents, request, unknownFC8);
+SEQ_PC_SAME(SequenceContextEvents, result, pendingFF0); SEQ_PC_SAME(SequenceContextEvents, pending, unknownFF4);
+typedef char pc_seq_17D38_track[sizeof(SequenceTrackEvents) == sizeof(SequenceTrack) ? 1 : -1];
+#else
 typedef struct SequenceContextEvents { unsigned char unknown000[0x110]; unsigned int enabled[2]; unsigned char unknown118[8]; unsigned int lookahead; unsigned char unknown124[0x404]; unsigned char groups[64]; SequenceTrackEvents tracks[64]; unsigned char unknownF68[0x18]; unsigned int programs[16]; unsigned char unknownFC0[8]; unsigned char request[0x28]; unsigned int *result; unsigned char pending; unsigned char unknownFF5[3]; } SequenceContextEvents;
+#endif
 typedef struct SequenceTime_17D38 { unsigned int fraction, whole; } SequenceTime_17D38;
 #define CTX ((SequenceContextEvents *)D_8004BE80)
 extern unsigned char D_8004BE7B;
@@ -632,6 +671,9 @@ int func_80018184(void)
  * Gate:     full-ROM SHA-1
  */
 typedef struct SequenceTrackNotes { unsigned int fraction; int whole; unsigned int unknown08; unsigned char *notes0C, *first10, *second14; unsigned short first18, second1A; unsigned int firstTime1C, secondTime20; unsigned char channel24, unknown25[3]; } SequenceTrackNotes;
+#ifdef TARGET_PC
+typedef char pc_seq_1824C_track[sizeof(SequenceTrackNotes) == sizeof(SequenceTrack) ? 1 : -1];
+#endif
 #define TRACK(i) (((SequenceTrackNotes *)D_8004BE80->tracks568)[i])
 void func_8001824C(void)
 {
@@ -760,7 +802,15 @@ typedef struct SequenceHeader_80018634 { u32 unknown00; u32 patterns; u32 channe
 typedef struct SequencePattern_80018634 { u32 unknown00; u32 optional04; u32 optional08; u8 data[1]; } SequencePattern_80018634;
 typedef struct SequenceEventTrack_80018634 { SequenceEvent_80018634 *start; SequenceEvent_80018634 *cursor; u32 fraction; u32 time; } SequenceEventTrack_80018634;
 typedef struct SequencePlayback_80018634 { u32 counter00; u32 counter04; u32 counter08; u8 *cursor; u8 *optional10; u8 *optional14; u16 value18; u16 value1A; u32 counter1C; u32 counter20; u8 channel; s8 second; s8 first; u8 index; } SequencePlayback_80018634;
+#ifdef TARGET_PC
+/* PC: the song pointer is where func_800178B0 stores it (sequence_context.h) */
+typedef struct SequenceContextHead_80018634 { u8 unknown000[SEQ_PC_OFF(song10C)]; SequenceHeader_80018634 *sequence; } SequenceContextHead_80018634;
+SEQ_PC_SAME(SequenceContextHead_80018634, sequence, song10C);
+typedef char pc_seq_18634_track[sizeof(SequenceEventTrack_80018634) == sizeof(SequenceSlotTrack) ? 1 : -1];
+typedef char pc_seq_18634_play[sizeof(SequencePlayback_80018634) == sizeof(SequenceTrack) ? 1 : -1];
+#else
 typedef struct SequenceContextHead_80018634 { u8 unknown000[0x10C]; SequenceHeader_80018634 *sequence; } SequenceContextHead_80018634;
+#endif
 #define HEADER (((SequenceContextHead_80018634 *)D_8004BE80)->sequence)
 #define TRACK(i) (((SequenceEventTrack_80018634 *)D_8004BE80->unknown128)[i])
 #define PLAY(i) (((SequencePlayback_80018634 *)D_8004BE80->tracks568)[i])
@@ -1251,7 +1301,7 @@ unsigned char func_800193C8(unsigned int identifier)
     unsigned int index;
     if (D_8002C630) {
         index = func_80017644(identifier);
-        if (index != 0xFFFFFFFF) return (*(SequenceContext *)((unsigned int)D_80043EB8 +
+        if (index != 0xFFFFFFFF) return (*(SequenceContext *)((uintptr_t)D_80043EB8 +
                 index * sizeof(SequenceContext))).channelFC4;
     }
     return 0;
@@ -1284,6 +1334,14 @@ void func_80019420(unsigned int identifier, unsigned char selector, unsigned cha
  * Gate:     full-ROM SHA-1
  */
 typedef struct SequenceRequest { unsigned int identifier; unsigned short duration; unsigned char unknown006[2]; unsigned int nextIdentifier; unsigned short nextDuration; unsigned char unknown00E[2]; void *stream; unsigned short group, program; unsigned char channel; unsigned char unknown019[3]; unsigned int first, second; unsigned short value; unsigned char flags; unsigned char unknown027; } SequenceRequest;
+#ifdef TARGET_PC
+/* PC: a slot keeps a copy from FC8 to its result pointer, and names some of its fields (sequence_context.h) */
+typedef char pc_seq_request_size[sizeof(SequenceRequest) == SEQ_PC_SPAN(unknownFC8, pendingFF0) ? 1 : -1];
+typedef char pc_seq_request_stream[__builtin_offsetof(SequenceRequest, stream) == SEQ_PC_SPAN(unknownFC8, streamFD8) ? 1 : -1];
+typedef char pc_seq_request_channel[__builtin_offsetof(SequenceRequest, channel) == SEQ_PC_SPAN(unknownFC8, valueFE0) ? 1 : -1];
+typedef char pc_seq_request_first[__builtin_offsetof(SequenceRequest, first) == SEQ_PC_SPAN(unknownFC8, firstFE4) ? 1 : -1];
+typedef char pc_seq_request_flags[__builtin_offsetof(SequenceRequest, flags) == SEQ_PC_SPAN(unknownFC8, flagsFEE) ? 1 : -1];
+#endif
 typedef struct SequenceOptions { unsigned int flags, first, second; unsigned short value, duration; unsigned char channel; unsigned char unknown011; unsigned char mapCount; unsigned char unknown013; void *map; unsigned char channelCount; unsigned char unknown019[3]; void *channels; } SequenceOptions;
 extern void func_8001906C(unsigned int);
 extern void func_80019144(unsigned int, unsigned int, unsigned int);
@@ -1303,7 +1361,7 @@ void func_80019490(void *request, unsigned int *result, unsigned char unlocked)
             *(SequenceRequest *)D_80043EB8[index].unknownFC8 = *state;
             D_80043EB8[index].unknownFF4[0] = 1;
             D_80043EB8[index].flagsFEE &= ~4;
-            D_80043EB8[index].pendingFF0 = (unsigned int)result;
+            D_80043EB8[index].pendingFF0 = (uintptr_t)result;
             *result = state->identifier | 0x80000000U;
         } else {
             if (unlocked) {

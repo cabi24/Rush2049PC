@@ -2608,6 +2608,14 @@ extern s32 D_80153EB8;
 extern s32 D_80153EF0;
 extern s32 D_80153EF8;
 extern s16 D_80153F08;
+#ifdef TARGET_PC
+/* PC: the DMA request list has its own storage, and its done queue follows the 8-byte request pointer
+ * (func_8008ABE4.c, docs/port/MUSYX_DATA.md 8.1) */
+#define D_80153F10 pc_D_80153F10
+#define DMA_DONE_OFF 0x10
+#else
+#define DMA_DONE_OFF 0xC
+#endif
 extern s32 D_80153F10;
 extern s32 D_80153F20;
 extern s16 D_80153F24;
@@ -3699,7 +3707,7 @@ void task_complete_signal(s32 arg0) {
         osRecvMesg((OSMesgQueue *) &D_80153E68, NULL, 1);
         if (func_8008ABE4() == 0) {
             M2C_FIELD(&D_80153F10, s8 *, 0) = 0;
-            osSendMesg(M2C_FIELD(&D_80153F10, OSMesgQueue **, 0xC), NULL, 1);
+            osSendMesg(M2C_FIELD(&D_80153F10, OSMesgQueue **, DMA_DONE_OFF), NULL, 1);
         }
     }
 }

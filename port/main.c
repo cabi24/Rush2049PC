@@ -69,6 +69,36 @@ static void blank_files(void)
         D_8002E580[i] = BLANK_FILE_SIZE, D_8011B5BC[i] = BLANK_FILE_ROM, D_80123564[i] = 0;
 }
 
+/* The MusyX service table (docs/port/MUSYX_DATA.md 8.1) is game data too, so a blank cartridge has none and
+ * sndInit's first allocation calls 0. Its eight slots are the eight functions at the end of the game's code
+ * (0x8010FBB4-0x8010FD7C), which nothing calls directly; their order here follows how the library calls each
+ * slot. With a ROM the data loader fills the table, and a difference from this list is logged. */
+extern void (*D_8011EAAC[8])(void);
+extern void func_8010FBE0(void *task);                              /* 0: submit the audio task */
+extern void sync_acquire_menu(void);                                /* 1: wait for it */
+extern int32_t func_8010FC60(intptr_t callback);                    /* 2: set the retrace callback */
+extern void func_8010FC70(int32_t unused);                          /* 3: clear it */
+extern int32_t struct_init_and_call(intptr_t list, int32_t count, intptr_t done);  /* 4: DMA list */
+extern intptr_t func_8010FD60(intptr_t address);                    /* 5: cartridge address */
+extern void *resource_alloc_init(int32_t size, int32_t mode);       /* 6: allocate */
+extern void synced_model_render(uint32_t address);                  /* 7: free */
+
+static void musyx_services(int no_rom)
+{
+    void (*const known[8])(void) = {
+        (void (*)(void))func_8010FBE0,  (void (*)(void))sync_acquire_menu,    (void (*)(void))func_8010FC60,
+        (void (*)(void))func_8010FC70,  (void (*)(void))struct_init_and_call, (void (*)(void))func_8010FD60,
+        (void (*)(void))resource_alloc_init, (void (*)(void))synced_model_render,
+    };
+    for (int i = 0; i < 8; i++) {
+        if (no_rom)
+            D_8011EAAC[i] = known[i];
+        else if (D_8011EAAC[i] != known[i])
+            fprintf(stderr, "rush2049pc: MusyX service %d is %p in the ROM's table, not %p as the port expects\n", i,
+                    (void *)D_8011EAAC[i], (void *)known[i]);
+    }
+}
+
 #define MAX_OVERRIDES 64
 
 int main(int argc, char **argv)
@@ -245,6 +275,7 @@ int main(int argc, char **argv)
     }
     if (no_rom)
         blank_files();
+    musyx_services(no_rom);
     if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220 */
         fprintf(stderr, "rush2049pc: no renderer\n");
         return 1;

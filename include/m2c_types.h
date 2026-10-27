@@ -107,6 +107,29 @@ extern s32 __osContRamRead(OSMesgQueue *mq, s32 channel, u16 address,
  * void pointers; m2c needs real field types since it decompiles
  * __scAppendList/__scExec's own bodies directly from ROM asm, not through
  * those macros). */
+#ifdef TARGET_PC
+/* PC: the task as the game builds it (world_collision_response.c's Frame, func_8010FBE0's static task): its
+ * OSTask is in place from type on, and the OSTask's pointers are host-sized, which moves output_buff (unk38),
+ * output_buff_size (unk3C) and msgQueue (docs/port/MUSYX_DATA.md 8.4). */
+typedef struct OSScTask_s {
+    struct OSScTask_s *next;   /* 0x00 */
+    s32 state;                  /* 0x04 */
+    s32 flags;                  /* 0x08 */
+    void *framebuffer;          /* 0x0C */
+    s32 type;                   /* 0x10: t.type */
+    u32 tflags14;               /* t.flags */
+    u64 *pad18; u32 pad1C;      /* t.ucode_boot, size */
+    u64 *pad20; u32 pad24;      /* t.ucode, size */
+    u64 *pad28; u32 pad2C;      /* t.ucode_data, size */
+    u64 *pad30; u32 pad34;      /* t.dram_stack, size */
+    void *unk38;                 /* 0x38: t.output_buff */
+    s32 *unk3C;                  /* 0x3C: t.output_buff_size */
+    u64 *pad40; u32 pad44;      /* t.data_ptr, data_size */
+    u64 *pad48; u32 pad4C;      /* t.yield_data_ptr, size */
+    OSMesgQueue *msgQueue;        /* 0x50 */
+    OSMesg msg;                    /* 0x54 */
+} OSScTask;
+#else
 typedef struct OSScTask_s {
     struct OSScTask_s *next;   /* 0x00 */
     s32 state;                  /* 0x04 */
@@ -120,6 +143,7 @@ typedef struct OSScTask_s {
     OSMesgQueue *msgQueue;        /* 0x50 */
     OSMesg msg;                    /* 0x54 */
 } OSScTask;
+#endif
 
 typedef struct OSScClient_s {
     struct OSScClient_s *next;  /* 0x00 */

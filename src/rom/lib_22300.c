@@ -118,6 +118,20 @@ void func_800218CC(void)
 
 typedef struct MacroState { u8 unknown00[0x30]; u32 field30; u8 unknown34[0x2C]; u32 field60; } MacroState;
 typedef struct MacroCommand { u32 word[2]; } MacroCommand;
+#ifdef TARGET_PC
+/* PC: the voice state (D_8004BEB8) keeps its N64 layout, 0x1A0 bytes, in every view. Its macro and trap
+ * pointers (+0, +4, +8, +0xC, +0x1C, +0x20) point into the pool, in the game heap, so on the PC they are
+ * 32-bit window addresses: N64P(x) is such a field as a pointer, N64W(x) a pointer stored into one, and
+ * N64_NEXT(x) moves one to the next step (docs/port/MUSYX_DATA.md 8.3). */
+enum n64p_MacroCommand { n64p_MacroCommand_ };
+#define N64P(x) _Generic((x), enum n64p_MacroCommand: (MacroCommand *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64_NEXT(x) ((x) = N64W(N64P(x) + 1))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#define N64_NEXT(x) ++x
+#endif
 /* PROMOTED 2026-10-11 — func_8002193C
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
  * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
@@ -217,7 +231,11 @@ u8 func_80021BC0(MacroState *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021BF0 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; enum n64p_MacroCommand field1C; enum n64p_MacroCommand field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80021BF0;
+#else
 typedef struct MacroState_80021BF0 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; MacroCommand *field1C; MacroCommand *field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80021BF0;
+#endif
 typedef struct MacroControl_80021BF0 { u32 field0; u32 field4; u32 field8; } MacroControl_80021BF0;
 #pragma pack(0)
 extern u8 func_80021BC0(MacroState *, MacroCommand *);
@@ -238,7 +256,11 @@ u8 func_80021BF0(MacroState_80021BF0 *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021C58 { enum n64p_MacroCommand field00; enum n64p_MacroCommand field04; enum n64p_MacroCommand field08; enum n64p_MacroCommand field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021C58;
+#else
 typedef struct MacroState_80021C58 { MacroCommand *field00; MacroCommand *field04; MacroCommand *field08; MacroCommand *field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021C58;
+#endif
 #pragma pack(0)
 extern MacroCommand *func_80016C20(u16);
 u8 func_80021C58(MacroState_80021C58 *state, MacroCommand *command)
@@ -246,8 +268,8 @@ u8 func_80021C58(MacroState_80021C58 *state, MacroCommand *command)
     MacroCommand *address;
     if (state->field50 >= (u8)(command->word[0] >> 8)) {
         if ((address = func_80016C20((u16)(command->word[0] >> 16))) != 0) {
-            state->field00 = address;
-            state->field04 = address + (command->word[1] & 0xFFFF);
+            state->field00 = N64W(address);
+            state->field04 = N64W(address + (command->word[1] & 0xFFFF));
         }
     }
     return 0;
@@ -260,15 +282,19 @@ u8 func_80021C58(MacroState_80021C58 *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021CDC { enum n64p_MacroCommand field00; enum n64p_MacroCommand field04; enum n64p_MacroCommand field08; enum n64p_MacroCommand field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021CDC;
+#else
 typedef struct MacroState_80021CDC { MacroCommand *field00; MacroCommand *field04; MacroCommand *field08; MacroCommand *field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021CDC;
+#endif
 #pragma pack(0)
 u8 func_80021CDC(MacroState_80021CDC *state, MacroCommand *command)
 {
     MacroCommand *address;
     if ((state->field30 >> 16) >= (u8)(command->word[0] >> 8)) {
         if ((address = func_80016C20((u16)(command->word[0] >> 16))) != 0) {
-            state->field00 = address;
-            state->field04 = address + (command->word[1] & 0xFFFF);
+            state->field00 = N64W(address);
+            state->field04 = N64W(address + (command->word[1] & 0xFFFF));
         }
     }
     return 0;
@@ -281,7 +307,11 @@ u8 func_80021CDC(MacroState_80021CDC *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021D5C { enum n64p_MacroCommand field00; enum n64p_MacroCommand field04; enum n64p_MacroCommand field08; enum n64p_MacroCommand field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021D5C;
+#else
 typedef struct MacroState_80021D5C { MacroCommand *field00; MacroCommand *field04; MacroCommand *field08; MacroCommand *field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021D5C;
+#endif
 #pragma pack(0)
 extern u16 func_800214C8(MacroState_80021D5C *);
 u8 func_80021D5C(MacroState_80021D5C *state, MacroCommand *command)
@@ -292,8 +322,8 @@ u8 func_80021D5C(MacroState_80021D5C *state, MacroCommand *command)
         modulation = func_800214C8(state) >> 7;
         if (modulation >= (u8)(command->word[0] >> 8)) {
             if ((address = func_80016C20((u16)(command->word[0] >> 16))) != 0) {
-                state->field00 = address;
-                state->field04 = address + (command->word[1] & 0xFFFF);
+                state->field00 = N64W(address);
+                state->field04 = N64W(address + (command->word[1] & 0xFFFF));
             }
         }
     }
@@ -307,7 +337,11 @@ u8 func_80021D5C(MacroState_80021D5C *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021DF8 { enum n64p_MacroCommand field00; enum n64p_MacroCommand field04; enum n64p_MacroCommand field08; enum n64p_MacroCommand field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021DF8;
+#else
 typedef struct MacroState_80021DF8 { MacroCommand *field00; MacroCommand *field04; MacroCommand *field08; MacroCommand *field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021DF8;
+#endif
 #pragma pack(0)
 extern u16 func_8001E790(void);
 u8 func_80021DF8(MacroState_80021DF8 *state, MacroCommand *command)
@@ -315,8 +349,8 @@ u8 func_80021DF8(MacroState_80021DF8 *state, MacroCommand *command)
     MacroCommand *address;
     if ((u8)func_8001E790() >= (u8)(command->word[0] >> 8)) {
         if ((address = func_80016C20((u16)(command->word[0] >> 16))) != 0) {
-            state->field00 = address;
-            state->field04 = address + (command->word[1] & 0xFFFF);
+            state->field00 = N64W(address);
+            state->field04 = N64W(address + (command->word[1] & 0xFFFF));
         }
     }
     return 0;
@@ -329,7 +363,11 @@ u8 func_80021DF8(MacroState_80021DF8 *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021E74 { enum n64p_MacroCommand field00; enum n64p_MacroCommand field04; enum n64p_MacroCommand field08; enum n64p_MacroCommand field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021E74;
+#else
 typedef struct MacroState_80021E74 { MacroCommand *field00; MacroCommand *field04; MacroCommand *field08; MacroCommand *field0C; u8 unknown10[0x20]; u32 field30; u8 unknown34[0x16]; u8 field4A; u8 unknown4B[5]; u16 field50; } MacroState_80021E74;
+#endif
 #pragma pack(0)
 u8 func_80021E74(MacroState_80021E74 *state, MacroCommand *command)
 {
@@ -337,8 +375,8 @@ u8 func_80021E74(MacroState_80021E74 *state, MacroCommand *command)
     if ((address = func_80016C20(command->word[0] >> 16)) != 0) {
         state->field08 = state->field00;
         state->field0C = state->field04;
-        state->field00 = address;
-        state->field04 = address + (command->word[1] & 0xFFFF);
+        state->field00 = N64W(address);
+        state->field04 = N64W(address + (command->word[1] & 0xFFFF));
         return 0;
     }
     return func_80021BC0((MacroState *)state, command);
@@ -351,7 +389,11 @@ u8 func_80021E74(MacroState_80021E74 *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021F08 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; enum n64p_MacroCommand field1C; enum n64p_MacroCommand field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80021F08;
+#else
 typedef struct MacroState_80021F08 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; MacroCommand *field1C; MacroCommand *field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80021F08;
+#endif
 typedef struct MacroControl { u32 field0; u32 field4; u32 field8; } MacroControl;
 #pragma pack(0)
 u8 func_80021F08(MacroState_80021F08 *state, MacroCommand *command)
@@ -359,8 +401,8 @@ u8 func_80021F08(MacroState_80021F08 *state, MacroCommand *command)
     MacroCommand *start;
     start = func_80016C20((command->word[0] >> 16) & 0xFFFF);
     if (start != 0) {
-        state->field1C = start;
-        state->field20 = start + (command->word[1] & 0xFFFF);
+        state->field1C = N64W(start);
+        state->field20 = N64W(start + (command->word[1] & 0xFFFF));
     }
     return 0;
 }
@@ -388,7 +430,11 @@ u8 func_80021F68(MacroState_80021F68 *state, MacroCommand_80021F68 *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80021F84 { enum n64p_MacroCommand start00; enum n64p_MacroCommand current04; u8 unknown08[0x1C]; u32 flags24; u8 unknown28[0x38]; u32 identifier60; u8 unknown64[4]; u16 loop68; } MacroState_80021F84;
+#else
 typedef struct MacroState_80021F84 { MacroCommand *start00; MacroCommand *current04; u8 unknown08[0x1C]; u32 flags24; u8 unknown28[0x38]; u32 identifier60; u8 unknown64[4]; u16 loop68; } MacroState_80021F84;
+#endif
 #pragma pack()
 u8 func_80021F84(MacroState_80021F84 *state, MacroCommand *command)
 {
@@ -415,7 +461,7 @@ skip:
             state->loop68 = 0;
             return 0;
         }
-        state->current04 = state->start00 + (command->word[1] & 0xFFFF);
+        state->current04 = N64W(N64P(state->start00) + (command->word[1] & 0xFFFF));
     }
     return 0;
 }
@@ -580,7 +626,11 @@ u8 func_800224B0(MacroState_800224B0 *state, MacroCommand_800224B0 *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80022514 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; enum n64p_MacroCommand field1C; enum n64p_MacroCommand field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80022514;
+#else
 typedef struct MacroState_80022514 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; MacroCommand *field1C; MacroCommand *field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80022514;
+#endif
 #pragma pack(0)
 extern void func_8001EF8C(MacroState *, u8);
 u8 func_80022514(MacroState_80022514 *state, MacroCommand *command)
@@ -868,7 +918,11 @@ u8 func_80022A98(MacroState_80022A98 *state, MacroCommand *command)
  */
 typedef struct MacroCommand_80022C58 { u32 word[2]; } MacroCommand_80022C58;
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80022C58 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; enum n64p_MacroCommand field1C; enum n64p_MacroCommand field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80022C58;
+#else
 typedef struct MacroState_80022C58 { u32 field00; u32 field04; u32 field08; u32 field0C; u8 unknown10[0xC]; MacroCommand_80022C58 *field1C; MacroCommand_80022C58 *field20; u8 unknown24[0xA]; u8 field2E; } MacroState_80022C58;
+#endif
 typedef struct MacroControl_80022C58 { u32 field0; u32 field4; u32 field8; } MacroControl_80022C58;
 #pragma pack(0)
 extern void func_8001E930(u32 *);
@@ -1540,7 +1594,11 @@ u8 func_80023D70(MacroState *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroVoice_80023DB8 { enum n64p_MacroCommand program; enum n64p_MacroCommand current; } MacroVoice_80023DB8;
+#else
 typedef struct MacroVoice_80023DB8 { MacroCommand *program; MacroCommand *current; } MacroVoice_80023DB8;
+#endif
 #pragma pack(0)
 extern s16 func_80023AD4(VoiceVariables_80023AD4 *voice, u8 isController, u8 index);
 u8 func_80023DB8(MacroVoice_80023DB8 *voice, MacroCommand *command, u8 comparison)
@@ -1558,7 +1616,7 @@ u8 func_80023DB8(MacroVoice_80023DB8 *voice, MacroCommand *command, u8 compariso
         condition = !condition;
     }
     if (condition) {
-        voice->current = ((command->word[1] >> 16) & 65535) + voice->program;
+        voice->current = N64W(((command->word[1] >> 16) & 65535) + N64P(voice->program));
     }
     return 0;
 }
@@ -1572,7 +1630,11 @@ u8 func_80023DB8(MacroVoice_80023DB8 *voice, MacroCommand *command, u8 compariso
 struct VoiceState;
 struct VoiceControls;
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct SynthVoice_80023E9C { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; u8 unknown08[0x14]; enum n64p_MacroCommand trapAddr1C; enum n64p_MacroCommand trapCurAddr20; u32 cFlags24; u8 unknown28[7]; u8 section2F; u32 volume30; u32 orgVolume34; u32 panning38; u8 unknown3C[4]; u32 sweepOff40[2]; u8 sweepNum48[2]; u8 midi4A; u8 midiSet4B; u8 unknown4C[2]; u16 orgNote4E; u8 unknown50[2]; u8 setupVol52; u8 setupPan53; u8 setupMidi54; u8 setupMidiSet55; u8 setupSection56; u8 unknown57[5]; u32 field5C; u32 id60; u8 unknown64[4]; u16 field68; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x20]; u32 portTime8C; u32 portDuration90; u8 unknown94[4]; u8 portType98; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B; u32 wait9C; u32 waitTimeA0; u32 timeA4; u8 unknownA8[0x10]; u16 pbLastB8; u8 unknownBA[4]; u8 vGroupBE; u8 setupVGroupBF; u8 unknownC0; u8 lastNoteC1; u16 curOutputVolumeC2; u8 unknownC4[0xA8]; u32 lfoPeriod16C; s16 lfoValue170; u8 unknown172[6]; u32 lfoPeriod178; s16 lfoValue17C; u8 unknown17E[2]; s16 localVars180[16]; } SynthVoice_80023E9C;
+#else
 typedef struct SynthVoice_80023E9C { MacroCommand *addr00; MacroCommand *curAddr04; u8 unknown08[0x14]; MacroCommand *trapAddr1C; MacroCommand *trapCurAddr20; u32 cFlags24; u8 unknown28[7]; u8 section2F; u32 volume30; u32 orgVolume34; u32 panning38; u8 unknown3C[4]; u32 sweepOff40[2]; u8 sweepNum48[2]; u8 midi4A; u8 midiSet4B; u8 unknown4C[2]; u16 orgNote4E; u8 unknown50[2]; u8 setupVol52; u8 setupPan53; u8 setupMidi54; u8 setupMidiSet55; u8 setupSection56; u8 unknown57[5]; u32 field5C; u32 id60; u8 unknown64[4]; u16 field68; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x20]; u32 portTime8C; u32 portDuration90; u8 unknown94[4]; u8 portType98; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B; u32 wait9C; u32 waitTimeA0; u32 timeA4; u8 unknownA8[0x10]; u16 pbLastB8; u8 unknownBA[4]; u8 vGroupBE; u8 setupVGroupBF; u8 unknownC0; u8 lastNoteC1; u16 curOutputVolumeC2; u8 unknownC4[0xA8]; u32 lfoPeriod16C; s16 lfoValue170; u8 unknown172[6]; u32 lfoPeriod178; s16 lfoValue17C; u8 unknown17E[2]; s16 localVars180[16]; } SynthVoice_80023E9C;
+#endif
 #pragma pack(0)
 struct MacroState_80021BF0;
 struct MacroState_80021C58;
@@ -1755,9 +1817,9 @@ void func_80023E9C(SynthVoice_80023E9C *voice)
             if (++debugMacroSteps_80056200 > 32) {
                 break;
             }
-            cstep_80056228.word[0] = voice->curAddr04->word[0];
-            cstep_80056228.word[1] = voice->curAddr04->word[1];
-            ++voice->curAddr04;
+            cstep_80056228.word[0] = N64P(voice->curAddr04)->word[0];
+            cstep_80056228.word[1] = N64P(voice->curAddr04)->word[1];
+            N64_NEXT(voice->curAddr04);
             switch (cstep_80056228.word[0] & 0x7F) {
             case 0x0:
                 ex = func_80021BC0((MacroState *)voice, &cstep_80056228);
@@ -1972,7 +2034,11 @@ void func_80023E9C(SynthVoice_80023E9C *voice)
 #pragma pack(1)
 #pragma pack(0)
 #pragma pack(1)
+#ifdef TARGET_PC
+typedef struct MacroState_80024988 { enum n64p_MacroCommand start00; enum n64p_MacroCommand current04; enum n64p_MacroCommand saved08; u8 unknown0C[4]; u32 child10; u32 parent14; u8 unknown18[12]; u32 flags24; u32 age28; u16 ageSpeed2C; u8 unknown2E[0x1E]; u8 external4C; u8 unknown4D; u16 originalNote4E; u16 note50; u8 volume52; u8 panning53; u8 channel54; u8 set55; u8 section56; u8 unknown57[9]; u32 identifier60; u16 macro64; u8 unknown66[0x36]; u32 deadline9C; u8 unknownA0[0x1A]; u16 allocationBA; u8 unknownBC[3]; u8 groupBF; u8 detuneC0; u8 unknownC1[0xDF]; } MacroState_80024988;
+#else
 typedef struct MacroState_80024988 { MacroCommand *start00; MacroCommand *current04; MacroCommand *saved08; u8 unknown0C[4]; u32 child10; u32 parent14; u8 unknown18[12]; u32 flags24; u32 age28; u16 ageSpeed2C; u8 unknown2E[0x1E]; u8 external4C; u8 unknown4D; u16 originalNote4E; u16 note50; u8 volume52; u8 panning53; u8 channel54; u8 set55; u8 section56; u8 unknown57[9]; u32 identifier60; u16 macro64; u8 unknown66[0x36]; u32 deadline9C; u8 unknownA0[0x1A]; u16 allocationBA; u8 unknownBC[3]; u8 groupBF; u8 detuneC0; u8 unknownC1[0xDF]; } MacroState_80024988;
+#endif
 #pragma pack()
 extern int func_8001F13C(u8, u8, u16, u8);
 extern void func_80020820(u8, u8);
@@ -2012,8 +2078,8 @@ u32 func_80024988(u32 packed, u16 allocation, u8 key, u8 volume,
             state->allocationBA = allocation;
             state->age28 = 0x75300000U;
             state->ageSpeed2C = 1024;
-            state->start00 = program;
-            state->current04 = program + offset;
+            state->start00 = N64W(program);
+            state->current04 = N64W(program + offset);
             state->originalNote4E = key;
             state->note50 = key;
             state->detuneC0 = 0;

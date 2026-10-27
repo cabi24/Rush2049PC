@@ -239,6 +239,11 @@ It defines those names as aliases into its own storage: `D_8002E8E8`, `D_8002E92
 `gViTickCounter`, `D_8002EB64`, `D_8002EB5C` (`curRSPTask`), `D_8002EB70` (`__osScTaskCount`), and
 `D_8002EB90`/`94`/`98`.
 
+The scheduler reads tasks through `include/m2c_types.h`'s `OSScTask`. Its PC version has the OSTask in place with
+host-sized pointers, as the game builds its tasks (`world_collision_response.c`'s `Frame`, `func_8010FBE0`'s
+audio task). Before that, the scheduler read a task's done queue at its `output_buff` and blocked after the first
+graphics task ([MUSYX_DATA.md](MUSYX_DATA.md) §8.4).
+
 **The names missing from the symbol file.** By `rom_symbol_aliases.ld`, `osEPiRawReadIo`, `osEPiRawStartDma`,
 `osEPiRawWriteIo`, `__osPiDeviceBusy`, `__osPiGetCmdQueue` and `__osTLBLookup` are the decomp's names for other
 functions at those addresses. All their callers are in replaced units, so they are defined in pi.c and misc.c with
