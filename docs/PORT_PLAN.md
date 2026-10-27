@@ -84,7 +84,7 @@ Rush2049PC/
 |---|---|---|---|
 | **0. Seed and census** | Repo seeded, PC build compiles everything, census tool committed | `cmake --build` compiles 1,346 files into a library; `tools/port/census.py` reproduces the tables above | Done |
 | **1. It links** | Every undefined symbol has a definition: BSS generated, data generated from the ROM, missing functions stubbed (abort with the name) | `rush2049pc` links and runs until the first stub | Done: 0 function stubs left |
-| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault | On a blank cartridge the game boots through sndInit and sndPushGroup and stops on missing data (AudioSfxInit); with that data patched in a debugger it runs graphics and audio tasks every retrace. **Needs the ROM** |
+| **2. It boots** | PC libultra: threads, message queues, VI timer events, DMA from the ROM file, controllers. Busy-waits yield. Missing functions get C. | Game code reaches the first graphics task (`osSpTaskStartGo`) without a fault | On the synthetic test cartridge (`tools/port/synth_rom.py`, [port/SYNTH.md](port/SYNTH.md)) the game runs through the whole front end into a race on an empty track, with graphics and audio tasks every frame; CI boots it on every push. Real data **needs the ROM** |
 | **3. First picture** | Interpreter + OpenGL + SDL window. 64-bit `Gfx`. Pointer warnings on the boot path fixed. | Midway logo and title screen | Renderer done and tested with synthetic lists; `Gfx` widened. Needs the ROM |
 | **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race | A converter for every format, run from `_ReadWave` ([port/LOADERS.md](port/LOADERS.md)): WAD, text bank, fonts, world, road, paths, MusyX. Tested with the game's own readers on synthetic files; needs the ROM to confirm |
 | **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain). MusyX files converted and the library's structures fixed for 64-bit; songs and voices run through the game's own sequencer in tests ([port/MUSYX_DATA.md](port/MUSYX_DATA.md)) |
@@ -214,14 +214,17 @@ A third wave of parallel work, with builds on a 20-thread x86-64 host (`tools/po
 | Review | | A second read of the hand-written views found 5 more: the pause screen's and battle mode's node walks, the dead-reckoning view, four car strides at race start |
 | Widescreen | [port/GFX.md](port/GFX.md) | `video.widescreen` (16:9, 21:9, `auto`): 3D views widen per viewport, 2D stays 4:3; `video.scale = auto` |
 | Windows | [port/WINDOWS.md](port/WINDOWS.md) | mingw-w64, cross or MSYS2; the window is a file mapping at 0x80000000; CI builds it, runs the tests natively and runs the cross-built exe |
+| Synthetic cartridge | [port/SYNTH.md](port/SYNTH.md) | `tools/port/synth_rom.py` generates a cartridge of original, minimal data from the layout alone (it reads no ROM). The game boots it through every front-end state into a race and runs it; on the way it found 6 port bugs (image A's warning screen bound to image B's function, the audio manager's records, IDO varargs, a busy-wait, the sprite comparator, four model record readers). CI boots it to the menu and into the race |
+| Settings overlay | [port/FRONTEND.md](port/FRONTEND.md) | F1 (or both stick clicks) pauses the game and opens video, audio and control settings, with remapping and an in-place ini save; its own 5×9 font |
+| Last functions | [port/DATA.md](port/DATA.md) | C for the last 23 game and overlay functions (2,000 of 2,134 by address; the rest are boot code the PC layer replaces); each overlay's C data goes back to its initial values on every load, as on the N64 |
 | N64 check | POINTERS.md "The neutrality check" | `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD: all 1,011 agree in code and data |
 
 Also: executables are forced PIE (Red Hat's gcc links non-PIE, which put host data below 4 GB, where the port
 reads N64 addresses); the self-test's timing bounds hold on a loaded host.
 
-Numbers: 76 tests on x86-64 Linux with SDL2, 0 harmful prototype mismatches, 325 pointer warnings (all
-classified), 0 neutrality failures in 977 changed files, 0 objects that differ under IDO. The ROM-less boot still
-stops in AudioSfxInit on the blank cartridge's data, on Linux and Windows alike.
+Numbers: 102 tests on x86-64 Linux with SDL2, 0 harmful prototype mismatches, 325 pointer warnings (all
+classified), 0 neutrality failures in 987 changed files, 0 objects that differ under IDO. The synthetic cartridge
+reaches a race; `--no-rom` (all zeros) still stops in AudioSfxInit, as it should.
 
 ## Next
 
