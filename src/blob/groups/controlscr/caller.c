@@ -100,7 +100,11 @@ extern s32 D_80113ED8;                   /* blit */
 #endif
 extern s32 D_80113EDC;                   /* exitControlScreen */
 extern f32 D_80112A98, D_80112A9C, D_80112AA0, D_80112AA4, D_80112AA8, D_80112AAC, D_80112AB0, D_80112AB4;
+#ifdef TARGET_PC
+extern struct pc_multiblit D_80112AB8[81], D_8011361C[21], D_80113910[41];   /* NewMultiBlit's (pc_prelude.h) */
+#else
 extern u8 D_80112AB8[], D_8011361C[], D_80113910[];  /* buttonsFrontEnd, buttonsPauseSingle, buttonsPauseMulti */
+#endif
 
 s8 func_80094FC4(s32 pak);                                       /* PS_PakRumble (locked, menu_save_options) */
 s8 func_800A1A3C(s32 pak);                                       /* PS_PakInserted (locked, menu_save_options) */

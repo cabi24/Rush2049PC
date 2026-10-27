@@ -225,23 +225,54 @@ static void report_addr_word(const PcDataTables *t, const char *where, uint32_t 
     }
 }
 
-/* Whether initialized data at N64 address a of an arena is an element the runs describe (and so swapped). */
-static int arena_described(const PcDataTables *t, const PcDataArena *ar, uint32_t a)
+/* The kind of the element runs[first..first+count) describe at N64 offset o (and so swap), or 0. */
+static int run_kind(const PcDataTables *t, uint32_t first, uint32_t count, uint32_t o)
 {
-    uint32_t o = a - ar->n64_lo;
-    for (uint32_t k = 0; k < ar->run_count; k++) {
-        const PcDataRun *r = &t->runs[ar->run_first + k];
+    for (uint32_t k = 0; k < count; k++) {
+        const PcDataRun *r = &t->runs[first + k];
         uint32_t len = r->count * n64_esz(r->kind);
         if (o < r->n64_off)
             continue;
         if (r->rep <= 1 || r->n64_stride == 0) {
             if (o - r->n64_off < len)
-                return 1;
+                return r->kind;
         } else if ((o - r->n64_off) / r->n64_stride < r->rep && (o - r->n64_off) % r->n64_stride < len) {
-            return 1;
+            return r->kind;
         }
     }
     return 0;
+}
+
+/* ... at N64 address a of an arena's initialized data. */
+static int arena_kind(const PcDataTables *t, const PcDataArena *ar, uint32_t a)
+{
+    return run_kind(t, ar->run_first, ar->run_count, a - ar->n64_lo);
+}
+
+static void report_text(const PcDataTables *t, const char *where, uint32_t off, uint32_t v, uint32_t a,
+                        const char *text)
+{
+    g_stats.text_in_words++;
+    if (g_report) {
+        char target[96];
+        describe(t, a, target, sizeof target);
+        fprintf(g_report, "text-in-words %s+0x%X 0x%08X -> %s (%.16s)\n", where, off, v, target, text);
+    }
+}
+
+/* Whether the image's bytes at N64 address a read as text: three printable characters or more, then a NUL. A
+ * pointer to text inside an element wider than a byte means a declaration that runs over a string (a table sized by
+ * the gap to the next known address, say): the loader swaps the text with the words. NULL if not. */
+static const char *image_text(const PcDataTables *t, int image, uint32_t a)
+{
+    const PcDataImage *im = &t->images[image];
+    const uint8_t *img = t->state ? t->state->image[image] : NULL;
+    uint32_t o = a - im->n64_base, n = 0;
+    if (!img || a < im->n64_base || o >= im->size)
+        return NULL;
+    while (o + n < im->size && n < 64 && img[o + n] >= 0x20 && img[o + n] < 0x7F)
+        n++;
+    return n >= 3 && o + n < im->size && img[o + n] == 0 ? (const char *)img + o : NULL;
 }
 
 /* N64 pointer value v, found in image `image`'s data at where+off -> host pointer. */
@@ -290,6 +321,11 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
         if (!quiet) {
             if (s->flags & PC_SYM_OWN) g_stats.own++; else g_stats.cdef++;
             if (!exact) g_stats.inexact++;
+            const char *text = !(s->flags & PC_SYM_BSS) && run_kind(t, s->run_first, s->run_count,
+                                                                     a - s->n64_addr) > PC_K_U8
+                               ? image_text(t, s->image, a) : NULL;
+            if (text)
+                report_text(t, where, off, v, a, text);   /* own storage converts it as wider elements too */
         }
         return (uint8_t *)s->host + ho;
     }
@@ -298,13 +334,18 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
         if (a >= ar->n64_lo && a <= ar->n64_hi && (!in_ovl || !ovl_ctx || ar->image == image)) {
             if (!quiet) {
                 g_stats.arena++;
-                if (a < ar->n64_init && !arena_described(t, ar, a)) {
+                int kind = a < ar->n64_init ? arena_kind(t, ar, a) : -1;
+                const char *text = kind > PC_K_U8 || kind == 0 ? image_text(t, ar->image, a) : NULL;
+                if (kind == 0) {
                     g_stats.undescribed++;
-                    if (g_report) {
+                    if (g_report) {   /* text there is fine as it is; a table of wider values is not */
                         char target[96];
                         describe(t, a, target, sizeof target);
-                        fprintf(g_report, "undescribed %s+0x%X 0x%08X -> %s\n", where, off, v, target);
+                        fprintf(g_report, "undescribed %s+0x%X 0x%08X -> %s%s\n", where, off, v, target,
+                                text ? " (text)" : "");
                     }
+                } else if (text) {
+                    report_text(t, where, off, v, a, text);
                 }
             }
             return ar->host + (a - ar->n64_lo);
@@ -426,21 +467,22 @@ static void swap_arena(const PcDataTables *t, const PcDataArena *ar)
     }
 }
 
-static void convert_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t *img, uint32_t img_size, int image)
+/* The N64 bytes src (n64_size of them, `avail` in the image) to host bytes dst (host_size) through the runs
+ * runs[first..first+count): byte order per element, N64 pointers to host pointers. */
+static void convert_runs(const PcDataTables *t, uint32_t first, uint32_t count, const uint8_t *src, uint32_t n64_size,
+                         uint32_t avail, uint8_t *dst, uint32_t host_size, int image, const char *where, int quiet)
 {
-    uint8_t *dst = s->host;
-    uint32_t base = s->n64_addr - t->images[image].n64_base;
-    memset(dst, 0, s->host_size);
-    for (uint32_t k = 0; k < s->run_count; k++) {
-        const PcDataRun *r = &t->runs[s->run_first + k];
+    memset(dst, 0, host_size);
+    for (uint32_t k = 0; k < count; k++) {
+        const PcDataRun *r = &t->runs[first + k];
         uint32_t en = n64_esz(r->kind), eh = host_esz(r->kind);
         for (uint32_t i = 0; i < r->rep; i++) {
             for (uint32_t j = 0; j < r->count; j++) {
                 uint32_t no = r->n64_off + i * r->n64_stride + j * en;
                 uint32_t ho = r->host_off + i * r->host_stride + j * eh;
-                if (no + en > s->n64_size || base + no + en > img_size || ho + eh > s->host_size)
+                if (no + en > n64_size || no + en > avail || ho + eh > host_size)
                     continue;
-                const uint8_t *p = img + base + no;
+                const uint8_t *p = src + no;
                 uint8_t *q = dst + ho;
                 switch (r->kind) {
                 case PC_K_U8: *q = *p; break;
@@ -452,12 +494,200 @@ static void convert_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t
                 case PC_K_S32_64: { int64_t v = (int32_t)rd32(p); memcpy(q, &v, 8); break; }
                 case PC_K_U32_64: { uint64_t v = rd32(p); memcpy(q, &v, 8); break; }
                 case PC_K_PTR: {
-                    void *h = resolve(t, rd32(p), image, s->name, no, !g_scan);
+                    void *h = resolve(t, rd32(p), image, where, no, quiet);
                     memcpy(q, &h, sizeof h);
                     break;
                 }
                 }
             }
+        }
+    }
+}
+
+static void convert_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t *img, uint32_t img_size, int image)
+{
+    uint32_t base = s->n64_addr - t->images[image].n64_base;
+    if (base > img_size) {
+        memset(s->host, 0, s->host_size);
+        return;
+    }
+    /* A table of pointers a reach rule follows is quiet in the report: the rule rewrites its pointers. */
+    int quiet = !g_scan;
+    for (uint32_t k = 0; k < t->n_reach && !quiet; k++)
+        quiet = t->reach[k].sym >= 0 && &t->syms[t->reach[k].sym] == s;
+    convert_runs(t, s->run_first, s->run_count, img + base, s->n64_size, img_size - base, s->host, s->host_size, image,
+                 s->name, quiet);
+}
+
+/* ---------------------------------------------------------------- tables only pointers reach */
+
+/* What a rule made on an image's load: host storage for a converted table, or the mark of one swapped in place. */
+typedef struct ReachBlock {
+    struct ReachBlock *next;
+    int32_t rule;
+    uint32_t n64;
+    uint8_t *host;   /* NULL: swapped in place */
+} ReachBlock;
+
+/* The loaded image bytes at N64 address a, n of them, from image `image` first (the runtime images share
+ * addresses); *avail: how many there are to the image's end. */
+static const uint8_t *image_at(const PcDataTables *t, int image, uint32_t a, uint32_t n, uint32_t *avail)
+{
+    for (int pass = 0; pass < 2; pass++)
+        for (uint32_t i = 0; i < t->n_images; i++) {
+            const PcDataImage *im = &t->images[i];
+            const uint8_t *b = t->state ? t->state->image[i] : NULL;
+            if ((pass == 0) != ((int)i == image) || !b || a < im->n64_base || (uint64_t)a - im->n64_base + n > im->size)
+                continue;
+            *avail = im->size - (a - im->n64_base);
+            return b + (a - im->n64_base);
+        }
+    return NULL;
+}
+
+static uint32_t rd_width(const uint8_t *p, uint32_t w)
+{
+    return w == 1 ? *p : w == 2 ? rd16(p) : rd32(p);
+}
+
+/* How many elements rule r reaches at b (avail bytes to the image's end): 0 when the table has no end there. */
+static uint32_t reach_count(const PcDataTables *t, const PcDataReach *r, const uint8_t *b, uint32_t avail,
+                            const uint8_t *parent, uint32_t slot, int image)
+{
+    uint32_t n = r->count, a;
+    if (r->count_kind == PC_REACH_UNTIL) {
+        for (n = 1; n <= 4096 && (uint64_t)n * r->n64_size <= avail; n++)
+            if (rd_width(b + (n - 1) * r->n64_size + r->field_n64, r->field_width) == 0)
+                return n;
+        return 0;
+    }
+    if (r->count_kind == PC_REACH_PARENT)
+        n = parent ? rd_width(parent + r->field_n64, r->field_width) : 0;
+    else if (r->count_kind == PC_REACH_TABLE) {
+        const uint8_t *tb = image_at(t, image, r->table_n64 + slot * r->field_width, r->field_width, &a);
+        n = tb ? rd_width(tb, r->field_width) : 0;
+    }
+    return n <= 4096 && (uint64_t)n * r->n64_size <= avail ? n : 0;
+}
+
+/* The element bytes in an arena at N64 address a swapped in place through the runs, unless an element describes
+ * them already: 1 if they were. */
+static int swap_in_place(const PcDataTables *t, const PcDataReach *r, uint32_t a, uint32_t n)
+{
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        if (a < ar->n64_lo || (uint64_t)a + (uint64_t)n * r->n64_size > ar->n64_init || arena_kind(t, ar, a))
+            continue;
+        for (uint32_t e = 0; e < n; e++)
+            for (uint32_t k = 0; k < r->run_count; k++) {
+                const PcDataRun *run = &t->runs[r->run_first + k];
+                uint32_t en = n64_esz(run->kind);
+                for (uint32_t x = 0; x < run->rep; x++)
+                    for (uint32_t j = 0; j < run->count; j++) {
+                        uint32_t no = run->n64_off + x * run->n64_stride + j * en;
+                        uint8_t *p = ar->host + (a - ar->n64_lo) + e * r->n64_size + no;
+                        if (no + en > r->n64_size)
+                            continue;
+                        if (en == 2) {
+                            uint16_t v = rd16(p);
+                            memcpy(p, &v, 2);
+                        } else if (en == 4) {
+                            uint32_t v = rd32(p);
+                            memcpy(p, &v, 4);
+                        } else if (en == 8) {
+                            uint64_t v = rd64(p);
+                            memcpy(p, &v, 8);
+                        }
+                    }
+            }
+        return 1;
+    }
+    return 0;
+}
+
+/* The host pointer for the N64 pointer v that rule ri reaches: storage made for the table it points to (once per
+ * load), or the table swapped in place and v resolved as usual. parent: the N64 bytes of the element holding v (a
+ * field rule); slot: the index of v in a root rule's table. */
+static void *reach_target(const PcDataTables *t, int32_t ri, uint32_t v, const uint8_t *parent, uint32_t slot,
+                          int image)
+{
+    const PcDataReach *r = &t->reach[ri];
+    PcDataState *st = t->state;
+    uint32_t a = v >= 0xA0000000u && v < 0xC0000000u ? v - 0x20000000u : v, avail = 0;
+    if (v == 0)
+        return NULL;
+    for (uint32_t i = 0; i < r->n_compatible; i++) {
+        const PcDataSym *s = &t->syms[r->compatible[i]];
+        if (a >= s->n64_addr && a < s->n64_addr + s->n64_size)
+            return resolve(t, v, image, r->what, 0, 1);   /* storage that holds this type already */
+    }
+    for (ReachBlock *b = st->reached[image]; b; b = b->next)
+        if (b->rule == ri && b->n64 == a)
+            return b->host ? b->host : resolve(t, v, image, r->what, 0, 1);
+    const uint8_t *src = image_at(t, image, a, r->n64_size, &avail);
+    uint32_t n = src ? reach_count(t, r, src, avail, parent, slot, image) : 0;
+    ReachBlock *blk = n ? calloc(1, sizeof *blk) : NULL;
+    if (blk && r->copy && !(blk->host = calloc(n, r->host_size))) {
+        free(blk);
+        blk = NULL;
+    }
+    if (!blk) {
+        if (g_report && g_scan && v >= 0x80000000u)
+            fprintf(g_report, "reached %s 0x%08X: no table there\n", r->what, v);
+        return resolve(t, v, image, r->what, 0, 1);
+    }
+    blk->rule = ri;
+    blk->n64 = a;
+    blk->next = st->reached[image];
+    st->reached[image] = blk;
+    int swapped = !r->copy && swap_in_place(t, r, a, n);
+    if (g_scan) {
+        g_stats.reached++;
+        g_stats.reached_elems += n;
+        if (g_report)
+            fprintf(g_report, "reached %s 0x%08X: %u element%s, %s\n", r->what, v, n, n == 1 ? "" : "s",
+                    r->copy ? "converted to storage of its own" : swapped ? "swapped in place"
+                                                                          : "in place, described already");
+    }
+    if (!r->copy)
+        return resolve(t, v, image, r->what, 0, 1);
+    for (uint32_t e = 0; e < n; e++)
+        convert_runs(t, r->run_first, r->run_count, src + e * r->n64_size, r->n64_size, avail - e * r->n64_size,
+                     blk->host + e * r->host_size, r->host_size, image, r->what, 1);
+    for (uint32_t c = 0; c < t->n_reach; c++) {
+        const PcDataReach *cr = &t->reach[c];
+        if (cr->parent != ri)
+            continue;
+        for (uint32_t e = 0; e < n; e++) {
+            const uint8_t *el = src + e * r->n64_size;
+            void *h = reach_target(t, (int32_t)c, rd32(el + cr->slot_n64), el, e, image);
+            memcpy(blk->host + e * r->host_size + cr->slot_host, &h, sizeof h);
+        }
+    }
+    return blk->host;
+}
+
+/* The root rules of an image's symbols, after its load: what each of their pointers reaches. What the last load of
+ * the image made goes first. */
+static void reach_image(const PcDataTables *t, int image)
+{
+    PcDataState *st = t->state;
+    uint32_t avail;
+    for (ReachBlock *b = st->reached[image], *next; b; b = next) {
+        next = b->next;
+        free(b->host);
+        free(b);
+    }
+    st->reached[image] = NULL;
+    for (uint32_t ri = 0; ri < t->n_reach; ri++) {
+        const PcDataReach *r = &t->reach[ri];
+        const PcDataSym *s = r->sym >= 0 ? &t->syms[r->sym] : NULL;
+        const uint8_t *b = s && s->image == image && s->host ? image_at(t, image, s->n64_addr, r->slots * 4, &avail)
+                                                             : NULL;
+        for (uint32_t i = 0; b && i < r->slots; i++) {
+            int exact;
+            void *h = reach_target(t, (int32_t)ri, rd32(b + 4 * i), NULL, i, image);
+            memcpy((uint8_t *)s->host + map_offset(t, s, 4 * i, &exact), &h, sizeof h);
         }
     }
 }
@@ -503,6 +733,8 @@ int pc_data_load_image(const PcDataTables *t, int image)
         if (r->image == image && st->crange_snapshot[i])
             memcpy(r->start, st->crange_snapshot[i], (size_t)(r->end - r->start));
     }
+    if (t->n_reach && image < 8)
+        reach_image(t, image);
     return 0;
 }
 
@@ -556,7 +788,10 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
                           "# [heap] and [low memory] are window data, which the word reaches as it is; [own],\n"
                           "# [C data], [function] and [code] it can't (likely mistyped declarations). An\n"
                           "# undescribed pointer's target is initialized data no declaration describes: its bytes\n"
-                          "# keep the ROM's order, so a table of wider values there reads wrong\n");
+                          "# keep the ROM's order, so a table of wider values there reads wrong. A text-in-words\n"
+                          "# pointer's target reads as text but lies in an element wider than a byte, which swaps\n"
+                          "# it: a declaration that runs over a string. A reached line is a table only pointers\n"
+                          "# reach, which a rule of port/data/reached.txt converted\n");
     memset(&g_stats, 0, sizeof g_stats);
     memset(g_logged, 0, sizeof g_logged);
     /* Startup bytes of the game C's overlay data, put back on every overlay load. */
@@ -617,16 +852,19 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
             memset(ar->host, 0, ar->n64_hi - ar->n64_lo);
     }
     const PcDataStats *g = &g_stats;
-    fprintf(stderr, "pc_data: %u symbols, pointers: %u own, %u C data, %u arena (%u to undescribed data), %u functions, "
-            "%u heap (kept), %u null, %u raw, %u unresolved, %u to functions with no C (%u inexact, %u ambiguous); %u "
-            "address-like words (%u to host storage or code)\n",
-            t->n_syms, g->own, g->cdef, g->arena, g->undescribed, g->func, g->rdram, g->null, g->raw, g->unresolved,
-            g->no_code, g->inexact, g->ambiguous, g->addr_words, g->addr_words_host);
+    fprintf(stderr, "pc_data: %u symbols, pointers: %u own, %u C data, %u arena (%u to undescribed data, %u to text in "
+            "words), %u functions, %u heap (kept), %u null, %u raw, %u unresolved, %u to functions with no C (%u "
+            "inexact, %u ambiguous); %u address-like words (%u to host storage or code); %u tables only pointers "
+            "reach (%u elements)\n",
+            t->n_syms, g->own, g->cdef, g->arena, g->undescribed, g->text_in_words, g->func, g->rdram, g->null, g->raw,
+            g->unresolved, g->no_code, g->inexact, g->ambiguous, g->addr_words, g->addr_words_host, g->reached,
+            g->reached_elems);
     if (g_report) {
-        fprintf(g_report, "# pointers: %u own, %u C data, %u arena (%u undescribed), %u functions, %u heap (kept), %u "
-                "null, %u raw, %u unresolved, %u no C, %u inexact, %u ambiguous; %u address-like words (%u to host "
-                "storage or code)\n", g->own, g->cdef, g->arena, g->undescribed, g->func, g->rdram, g->null, g->raw,
-                g->unresolved, g->no_code, g->inexact, g->ambiguous, g->addr_words, g->addr_words_host);
+        fprintf(g_report, "# pointers: %u own, %u C data, %u arena (%u undescribed, %u text in words), %u functions, %u "
+                "heap (kept), %u null, %u raw, %u unresolved, %u no C, %u inexact, %u ambiguous; %u address-like words "
+                "(%u to host storage or code); %u tables only pointers reach (%u elements)\n", g->own, g->cdef, g->arena,
+                g->undescribed, g->text_in_words, g->func, g->rdram, g->null, g->raw, g->unresolved, g->no_code,
+                g->inexact, g->ambiguous, g->addr_words, g->addr_words_host, g->reached, g->reached_elems);
         fclose(g_report);
         g_report = NULL;
     }

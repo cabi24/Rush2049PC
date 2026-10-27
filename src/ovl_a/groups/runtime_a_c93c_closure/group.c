@@ -266,7 +266,17 @@ extern s8 D_8013F1D8;
 extern RGB D_80114658[];
 extern u8 D_803BA1E0[8];
 extern u8 D_803BA1E8[];
+#ifdef TARGET_PC
+/* PC: the fog blit's palette D_803BA1E8 is a Palette (gfx's draw reads its colour table at +0x14 as a u32 window
+ * address): that word is this one, which must stay in the arena at its N64 address. It holds the colour pair
+ * D_803BA1E0's address, a window address (FOG_TABLE). As a host pointer it had storage of its own, and the draw read
+ * a table of 0 (docs/port/BRINGUP.md 7). */
+extern u32 D_803BA1FC;
+#define FOG_TABLE(p) PC_N64W(p)
+#else
 extern u8 *D_803BA1FC;
+#define FOG_TABLE(p) p
+#endif
 extern Blit *D_803B8288,*D_803B828C;
 extern void Input_ApplyPadConfig(Blit *);
 /* BlowFog (inlined into _InitScreen); MAT3 static fogTileSize (anon_uls_ult_8) */
@@ -793,7 +803,7 @@ void func_8038A634(s32 initialize)
     }
     D_803BA1E0[3] = D_8013F1D8 * 192 / 3;
     if (D_803B828C) {
-        D_803BA1FC = D_803BA1E0;
+        D_803BA1FC = FOG_TABLE(D_803BA1E0);
         D_803BA1E0[4] = 0;
         D_803BA1E0[5] = 0;
         D_803BA1E0[6] = 0;

@@ -169,7 +169,16 @@ extern Tune44 D_801116D0[];
 extern s8 D_8011128C[13],D_801114E4[];
 extern float D_801112D0[],D_80111274[],D_8011121C[],D_80110E0C[],D_80110E44[],D_80110DA4[];
 extern float D_80124158,D_8012415C,D_80142764;
+#ifdef TARGET_PC
+extern u16 D_8011F724[10 * 12];   /* the torque curve, short[10][12] (func_800E2D18) */
+/* After it, the two tire records (front and rear, six floats each: func_800D09E8 copies them), which only the
+ * physics descriptors' u32 tire_info fields reach. Declared and referenced here, so that the data loader swaps them
+ * as floats; the torque curve's extent ran over them as u16s before (docs/port/BRINGUP.md 3). */
+extern float D_8011F814[2][6];
+float (*const pc_tire_records)[6] = D_8011F814;
+#else
 extern u16 D_8011F724[];
+#endif
 extern Collision16 D_8011F844[];
 extern float func_800D0B14(Vehicle2056 *),func_800D0AA0(Vehicle2056 *),func_800D0A34(Vehicle2056 *);
 extern void func_800D09E8(void *,Tire92 *),track_preview_handler(Vehicle2056 *,Tire92 *,float),func_800D0894(Vehicle2056 *);

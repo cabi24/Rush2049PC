@@ -24,7 +24,12 @@ extern void *D_8012E6E0;
 extern Controller gControllerData[4];  /* gControllerData */
 extern u32 D_8015694C;            /* gActiveEdges */
 extern u8 D_803BA7EB;             /* gBlocksNeeded */
+#ifdef TARGET_PC
+extern MultiBlit D_803B83A4[1];   /* WarningBlit: one, as NewMultiBlit gets it. By the gap it ran over the strings after
+                                   * it, which other screens' blits name, and turned them into words */
+#else
 extern MultiBlit D_803B83A4[];    /* WarningBlit */
+#endif
 
 extern s8 func_800A1A3C(s32);     /* PS_PakInserted */
 extern s8 func_800A35F8(s32);     /* PS_PakDamaged */

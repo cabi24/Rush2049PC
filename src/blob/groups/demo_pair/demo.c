@@ -45,7 +45,11 @@ extern s8 D_8014978C;
 static s8 D_8011414C = 0;
 typedef struct DemoBlit DemoBlit;
 static DemoBlit *D_80114150 = 0;
+#ifdef TARGET_PC
+extern struct pc_multiblit D_80114128[1];   /* the demo's blit, NewMultiBlit's descriptor (pc_prelude.h) */
+#else
 extern s32 D_80114128;
+#endif
 extern s32 D_80138660;
 extern s8 D_80156994;
 extern s8 D_80157244;

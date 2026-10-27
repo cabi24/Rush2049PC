@@ -31,12 +31,26 @@ typedef s32 intptr_t;
 #endif
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: a palette has its WAD record's N64 layout (waves.c's PLHD), which the 2D draw reads: palBase is a u32 window
+ * address at +0x14, so healthColor (arena data) fits (PAL_BASE). As a pointer it lay at +0x18 and the draw read a
+ * palette of 0 (docs/port/BRINGUP.md 10). */
+typedef struct tPalette {
+    char name[16];
+    u8 start, end;
+    u16 format;
+    u32 palBase;
+} tPalette;
+#define PAL_BASE(p) PC_N64W(p)
+#else
 typedef struct tPalette {            /* anon_name_start_18 */
     char name[16];
     u8 start, end;
     u16 format;
     char *palBase;
 } tPalette;
+#define PAL_BASE(p) p
+#endif
 typedef struct _tBlit_2 {
     const char *name;
     tPalette *palette;
@@ -136,7 +150,7 @@ int func_80392FE4(_tBlit_2 *blt) /* animHealth */
             healthColor[slot][0][0] = 224; healthColor[slot][0][1] = 0; healthColor[slot][0][2] = 0;
             healthColor[slot][1][0] = 112; healthColor[slot][1][1] = 0; healthColor[slot][1][2] = 0;
         }
-        healthPal[slot].palBase = (char *)healthColor[slot];
+        healthPal[slot].palBase = PAL_BASE((char *)healthColor[slot]);
         blt->palette = &healthPal[slot];
     }
     UpdateBlit(blt);

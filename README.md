@@ -7,8 +7,9 @@ program.
 
 **Status: bring-up.** Everything links, with no stubs left. The PC layer is built and tested: threads and libultra,
 the ROM's data, an F3DEX2 renderer (OpenGL), the MusyX sound interpreter, controllers and the controller pak, and a
-settings file. With a blank cartridge the game's own code boots through its startup; the next step needs a real ROM.
-The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
+settings file. On the retail cartridge the game runs its attract demo, the front end, and races in every mode tried:
+one to four players, circuit, stunt and battle ([docs/port/BRINGUP.md](docs/port/BRINGUP.md)). The plan is
+[docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
 
 ```sh
 cmake -S . -B build/pc -G Ninja                # add -DRUSH_FETCH_SDL2=ON if SDL2 isn't installed

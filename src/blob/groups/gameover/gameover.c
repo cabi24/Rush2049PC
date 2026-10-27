@@ -67,7 +67,11 @@ extern OSMesgQueue D_801461D0;  /* font semaphore */
 extern u8 D_80114724[2];        /* titlePos */
 extern s8 D_80114728;           /* inited */
 extern Voice *D_8011472C;       /* blit */
+#ifdef TARGET_PC
+extern struct pc_multiblit D_80114700[1];   /* multiblit (pc_prelude.h) */
+#else
 extern u8 D_80114700[];         /* multiblit */
+#endif
 extern s32 D_8015694C;          /* gActiveEdges */
 extern s32 D_80149784;          /* gActiveAutoEdges */
 extern s8 D_80157244;           /* gSoftReset */

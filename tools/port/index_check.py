@@ -21,10 +21,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import n64syms  # noqa: E402
 
 ROOT = n64syms.ROOT
-INDEXED = re.compile(r"\(\(?[A-Za-z0-9_ ]*\*?\)? *&(D_[0-9A-F]{8})\)\s*\[|\(\s*&(D_[0-9A-F]{8})\s*\+")
+INDEXED = re.compile(r"\(\(?[A-Za-z0-9_ ]*\*?\)? *&(D_[0-9A-F]{8})\)\s*\[|\(\s*&(D_[0-9A-F]{8})\s*\+"
+                     # m2c's byte offsets: (((s8 *) (&D_x)) + (i * 0x18 + ...)), ((T *) (&D_x))[i]
+                     r"|\(\s*\([A-Za-z0-9_ ]*\*\s*\)\s*\(\s*&(D_[0-9A-F]{8})\s*\)\s*\)\s*[+\[]")
 WIDTH = {"u8": 1, "u16": 2, "u32": 4, "f32": 4, "f64": 8, "u64": 8, "ptr": 4}
 # Symbols checked by hand that need nothing: name -> why.
-REVIEWED = {}
+REVIEWED = {
+    "D_80110EC0": "+4 of the gear ratios D_80110EBC, f32[8][6] (port/data/extents.txt); the gear is at most 4 "
+                  "(func_800E313C), so the last element read is +184, and the 4 bytes after the table are not read "
+                  "through it",
+}
 
 
 def main():
@@ -48,7 +54,7 @@ def main():
     for path in sorted(list((ROOT / "src").rglob("*.c")) + list((ROOT / "nonmatching").rglob("*.c"))):
         text = path.read_text(errors="replace")
         for m in INDEXED.finditer(text):
-            users.setdefault(m.group(1) or m.group(2), set()).add(str(path.relative_to(ROOT)))
+            users.setdefault(m.group(1) or m.group(2) or m.group(3), set()).add(str(path.relative_to(ROOT)))
 
     found = []
     for name, files in sorted(users.items()):

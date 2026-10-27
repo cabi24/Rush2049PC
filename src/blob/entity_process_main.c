@@ -89,7 +89,11 @@ extern CarData D_80152818[];
 extern ModelDat D_8014A250[];
 extern Poly D_8015B268[];
 extern s8 D_80140418;
+#ifdef TARGET_PC
+extern f32 D_8011F914[14][4];   /* shadow_scale: body types 0-13 (13 when appearance & 0x10); text follows */
+#else
 extern f32 D_8011F914[][4];
+#endif
 extern u8 D_8011AD8C[4];
 
 extern void func_8008D0C0(Poly *p);

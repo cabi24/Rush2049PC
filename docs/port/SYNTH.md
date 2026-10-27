@@ -91,11 +91,29 @@ copies those as they are, so they are bytes, or zero.
 | | `D_80120E74[12]` | the drones' update schedule (update_drone_models): row r is {drones, -1}, the race using row n for n drones and n + 7 with two humans or more. With zeros the walk never met -1 and went on through the tables after it, updating cars those values named; a row asking for more drones than there are updates players' cars with a time step of 0: NaN |
 | | `D_80110DA4[13]` | a car type's brake factor: 1 (zero is a car without brakes) |
 | | `D_801173D8[12]`, `D_80117408[12]` | the demo paths' start points: one, point 0 |
-| | `D_80110D08[13]`, `D_801108C8` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (one 23-word record) |
+| | `D_80110D08[13]`, `D_801108C8` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (the records `D_8011F814`, below) |
 | | `D_80111560[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
 | | `D_8011AF90[19]` | gTrackColors: sixteen greys |
 | | `D_801158DC[0..1]`, `D_80115A68` | the HUD set (ShowHUD): a BUTTON panel, and a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos). With zeros every HUD blit had no texture or size |
 | battle | `D_80394330[5]`, `D_80394344[5]` (image B) | the weapons' texture names: "" (func_803908D0 looks each up); their model names stay NULL (AAANULLOBJ) |
+
+**From the retail cartridge's bring-up** ([BRINGUP.md](BRINGUP.md)): data at the places the retail cartridge showed
+to matter, each the regression test of a fix there, synthetic as the rest. The places (addresses, sizes, which tables
+strings follow) came from looking at the retail layout; the values, names and strings are the cartridge's own, or
+the game C's (BUTTON) and zlib's (extra_blbits) constants. The cartridge's own texture names are `SYN_FOG` ("SYF",
+which fits `D_803B9260`'s 4 bytes) and `SYN_BAR`.
+
+| Values | Why (BRINGUP.md section) |
+|---|---|
+| NewMultiBlit tables declared without their layout: the demo's blit (a NULL name), the game over title, the controls screens' first buttons, the menu backgrounds (createBG), the video and audio screens' second blits (BUTTON blits) | the generator's kind check needs the PC layout, and a second blit inside its table (1, 9) |
+| the car types' names (`SYNC00`..) after `D_8011F914`, the songs' after `D_8011F0A0`, a car select blit's name ("") after `D_803B83A4` (`strings_after`) | strings where the images keep them, which a table sized by the gap would cover: the generator refuses (2) |
+| the tire curves in `D_8011F814[2][6]` (the descriptors' four `tire_info` words point there) | the records only those u32 fields reach, declared in car_resistance (3) |
+| `state_word_a` (gGameState) -1, the game's own "no state" (func_800B7FF8 tests for it) | a start value `--until-state` must not take for a state (6) |
+| option 14 valid in a single race, `D_803B9260` the name of `SYN_FOG`, an IA8 texture | the track select's fog blit and its palette word (7) |
+| track 0's palette animation and object animation (two frames), in bytes no symbol covers | tables only pointers reach, converted by `port/data/reached.txt` (8) |
+| battle HUD: an IA blit (`SYN_FOG`) and player 1's health bar (`SYN_BAR`, I8, animHealth) | the health bar's palette (10) |
+| `D_80110EBC`, every gear ratio row: 1 | the eight-row gear table (11) |
+| `D_803B470C`, every player's model slots: name 1, id -1 | the four-player slot table (12) |
 
 **The files:**
 

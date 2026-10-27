@@ -44,7 +44,12 @@ extern s16 active_player_count, gNumWindows;
 extern s8 *namePanes[], *codePane, *D_80149798[3], *D_80149778[2];
 extern s8 D_801460C0, D_801148D0;
 extern Rect D_801148E8[][4];
+#ifdef TARGET_PC
+extern char D_80120600[];
+extern struct pc_multiblit D_801148A8[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
+#else
 extern char D_80120600[], D_801148A8[];
+#endif
 extern void sound_stop(intptr_t);
 extern void RemovePane(s8 *);
 extern void func_800F1114(void);

@@ -45,7 +45,12 @@ extern char *D_8011A970[];                 /* buttonNames */
 extern Ent D_8012E700[];
 extern volatile u8 gNumModels;
 extern f32 D_8011418C[3][3];               /* unitmatrix */
+#ifdef TARGET_PC
+extern const struct pc_multiblit D_8011ACA0[2], D_8011ACE8[2];   /* frontEndBlit, pauseBlit: two blits each, as
+                                         * NewMultiBlit gets them (the second ran past a one-blit table) */
+#else
 extern const MultiBlit D_8011ACA0, D_8011ACE8;   /* frontEndBlit, pauseBlit */
+#endif
 extern Blit *D_8011AD34;                   /* blit */
 extern s32 D_8011AC94, D_8011AC98;         /* buttonsInited, buttonsJustInited */
 extern s8 D_80146108[];                    /* gOptions */

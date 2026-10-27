@@ -26,12 +26,16 @@ typedef struct Node {
 } Node;
 typedef struct { void *next, *prev; float f8; void *dl; float pos[3]; u8 color[4]; int f20; } PcEffectObj;
 #define ELEMENT_SIZE(n64, type) sizeof(type)
+/* The skid table D_80155290 (skid_marks' WheelSlot[6][4]: 0x5C bytes on the N64, 0x60 here, its effect pointer being
+ * pointer-sized): all of it, or the last wheel's slot keeps a stale effect pointer after a reset. */
+#define SKID_TABLE_BYTES (6 * 4 * 0x60)
 #else
 typedef struct Node {
     int pad0, pad4, pad8;
     void *data;     /* 12 */
 } Node;
 #define ELEMENT_SIZE(n64, type) n64
+#define SKID_TABLE_BYTES 2208
 #endif
 
 typedef struct Pool {
@@ -71,5 +75,5 @@ void func_800B0580(void)
     }
     POOL_SETUP(D_80155220, D_80155B30, ELEMENT_SIZE(36, PcEffectObj), 100, 1);
     pool_linked_list_init(&D_80155220);
-    memset(D_80155290, 0, 2208);
+    memset(D_80155290, 0, SKID_TABLE_BYTES);
 }

@@ -251,7 +251,7 @@ add_custom_command(
     DEPENDS $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/manifest/static.json
-            ${CMAKE_SOURCE_DIR}/port/data/extents.txt
+            ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
             ${CMAKE_SOURCE_DIR}/asm/us/blob/symbols.json ${CMAKE_SOURCE_DIR}/asm/us/ovl_a/symbols.json
             ${CMAKE_SOURCE_DIR}/asm/us/ovl_b/symbols.json ${CMAKE_SOURCE_DIR}/layout/game.json
             ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
@@ -486,6 +486,9 @@ add_executable(pc_data_test port/data/test_pc_data.c ${PC_DATA_DIR}/test_pc_data
 target_include_directories(pc_data_test PRIVATE ${PC_DATA_DIR})
 target_link_libraries(pc_data_test PRIVATE pcdata_rt)
 add_test(NAME pc_data_test COMMAND pc_data_test)
+add_executable(pc_reach_test port/data/test_reach.c)
+target_link_libraries(pc_reach_test PRIVATE pcdata_rt)
+add_test(NAME pc_reach_test COMMAND pc_reach_test)
 add_executable(rush2049pc_datacheck port/data/datacheck.c ${PC_DATA_DIR}/stubs_standalone.c
     $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:pcdata>)
 target_link_libraries(rush2049pc_datacheck PRIVATE pcdata_rt m)
@@ -568,7 +571,7 @@ endif()
 add_test(NAME index_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/index_check.py --build ${CMAKE_BINARY_DIR})
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
-set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
+set_target_properties(pc_data_test pc_reach_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
     PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_subdirectory(port/audio)
