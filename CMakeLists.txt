@@ -104,6 +104,12 @@ target_include_directories(game_flags INTERFACE include include/game include/PR)
 # First include of every game file: pointer-sized integer types and big-endian helpers for the 64-bit host
 # (docs/port/POINTERS.md).
 target_compile_options(game_flags INTERFACE -include ${CMAKE_SOURCE_DIR}/port/include/pc_prelude.h)
+# A debug build that stops at the first store of a host address into a 32-bit N64 address field (PC_N64W in
+# pc_prelude.h, docs/port/CASTS.md): for a run with the ROM, to check that only RDRAM-window addresses get there.
+option(RUSH_CHECK_CASTS "Check the game's 32-bit N64 address stores for host addresses at run time" OFF)
+if(RUSH_CHECK_CASTS)
+    target_compile_definitions(game_flags INTERFACE RUSH_CHECK_CASTS)
+endif()
 # IDO semantics: gnu89, so `__inline` functions also get an out-of-line definition (C99 rules would drop it,
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).

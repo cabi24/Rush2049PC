@@ -159,7 +159,7 @@ typedef struct Vehicle2056 {
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Car: (struct Car *)(uintptr_t)(x), enum n64p_Tune44: (Tune44 *)(uintptr_t)(x), enum n64p_u16: (u16 *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
-#define N64W(x) ((unsigned int)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

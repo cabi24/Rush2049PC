@@ -45,7 +45,7 @@ typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];Tar
 #endif
 #ifdef TARGET_PC
 #define N64P(x) ((Target *)(uintptr_t)(x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

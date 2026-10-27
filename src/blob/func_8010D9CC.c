@@ -797,7 +797,7 @@ typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; void *owner; f
 #endif
 #ifdef TARGET_PC
 #define N64P(x) ((void *)(uintptr_t)(x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

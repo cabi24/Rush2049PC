@@ -68,7 +68,7 @@ typedef struct Heap {
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

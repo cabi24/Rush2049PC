@@ -3,8 +3,8 @@
  * PhysicsObjectList_Update, the camera matrix particles_spawn_emitter reads from a window address, and the
  * high-score name table gTotalNames with each player's name slot D_801424F0, whose slots hold a name index or a
  * profile handle (func_800C9480, func_800F1D04, audio_channel_priority and its caller menu_confirm_dialog,
- * func_800F2888). Host storage here is above 4 GB, as the game's own storage is; the camera matrix part maps the
- * RDRAM window and is skipped if it can't.
+ * func_800F2888), and the RUSH_CHECK_CASTS check of 32-bit N64 address stores (PC_N64W). Host storage here is above
+ * 4 GB, as the game's own storage is; the camera matrix part maps the RDRAM window and is skipped if it can't.
  * game: src/blob/camera_smooth_lerp.c src/blob/PhysicsObjectList_Update.c src/blob/particles_spawn_emitter.c
  * game: src/blob/func_800C9480.c src/blob/func_800F1D04.c src/blob/audio_channel_priority.c
  * game: src/blob/menu_confirm_dialog.c src/blob/groups/func_800F2888_grp/func_800F2888.c
@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#define RUSH_CHECK_CASTS   /* this file's own PC_N64W checks, whatever the build's option */
 #include "pc_prelude.h"
 #include "support.h"
 
@@ -293,6 +294,28 @@ static void test_player_names(void)
     CHECK(D_801424F0[0] == 6 && strcmp(D_80143A50[0], "PADSIX") == 0 && D_80144C40[0] == 6);
 }
 
+/* ---------------------------------------------------------------- RUSH_CHECK_CASTS */
+
+static struct { const char *file; int line; uintptr_t value; int n; } cast_fail;
+
+void pc_cast_fail(const char *file, int line, uintptr_t value)
+{
+    cast_fail.file = file, cast_fail.line = line, cast_fail.value = value, cast_fail.n++;
+}
+
+static void test_check_casts(void)
+{
+    int line;
+
+    CHECK(PC_N64W((void *)(uintptr_t)0x80123456u) == 0x80123456u);   /* a window address */
+    CHECK(PC_N64W(NULL) == 0 && PC_N64W(0xB0039B40u) == 0xB0039B40u);
+    CHECK(cast_fail.n == 0);
+    line = __LINE__ + 1;
+    CHECK(PC_N64W(&profiles[0]) == (uint32_t)(uintptr_t)&profiles[0]);   /* host storage */
+    CHECK(cast_fail.n == 1 && cast_fail.value == (uintptr_t)&profiles[0] && cast_fail.line == line);
+    CHECK(cast_fail.file && strstr(cast_fail.file, "test_casts.c"));
+}
+
 int main(void)
 {
     if (test_rdram())
@@ -305,5 +328,6 @@ int main(void)
     test_clear_slot();
     test_name_slots();
     test_player_names();
+    test_check_casts();
     return TEST_DONE();
 }
