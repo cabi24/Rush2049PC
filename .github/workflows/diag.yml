@@ -40,6 +40,9 @@ jobs:
   run:
     needs: cross
     runs-on: windows-latest
+    env:
+      MESA_7Z: https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z
+      MESA_SHA256: 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
     defaults:
       run:
         shell: bash
@@ -48,23 +51,44 @@ jobs:
         with:
           name: diag-cross
           path: bin
-      - name: Timing primitives
-        run: bin/win_timing.exe
-      - name: Self-test, real time
-        run: bin/rush2049pc.exe --selftest 2>&1 || true
-      - name: Self-test, virtual clock
-        run: bin/rush2049pc.exe --selftest --fast 2>&1 || true
-      - name: Self-test, virtual clock, traced
+      - name: Without Mesa
         run: |
+          bin/win_timing.exe
+          time (bin/rush2049pc.exe --selftest > st.log 2>&1); tail -3 st.log
+          time (bin/rush2049pc.exe --selftest --fast > st.log 2>&1); tail -3 st.log
+      - name: Software OpenGL
+        run: |
+          curl -sSL -o mesa.7z "$MESA_7Z"
+          echo "$MESA_SHA256  mesa.7z" | sha256sum -c
+          7z x -omesa mesa.7z > /dev/null
+          cp mesa/x64/*.dll bin/
+          ls -la bin/
+      - name: With Mesa
+        run: |
+          bin/win_timing.exe gl
+          time (bin/rush2049pc.exe --selftest > st.log 2>&1); cat st.log
+          time (bin/rush2049pc.exe --selftest --fast > st.log 2>&1); cat st.log
           RUSH_DIAG_TIME=1 bin/rush2049pc.exe --selftest --fast --trace-os > trace.log 2>&1 || true
           wc -l trace.log
           grep -c "main wait: timeout" trace.log || true
           grep -c "main wait: event" trace.log || true
-          head -400 trace.log
+          head -300 trace.log
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Synthetic paths
+        env:
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          python -X utf8 src/tools/port/synth_rom.py --data-symbols bin/pc-data/data_symbols.txt \
+            --out synth/rush2049_synth.z64
+          python -X utf8 src/tools/port/synth_paths.py --exe bin/rush2049pc.exe --rom synth/rush2049_synth.z64 \
+            --logs synth/paths || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: diag-logs
           path: |
             trace.log
+            synth/paths/
           if-no-files-found: ignore

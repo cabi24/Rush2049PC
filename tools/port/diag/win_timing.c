@@ -54,12 +54,20 @@ static void *setter(void *p)
     return NULL;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     pthread_t t;
     uint64_t t0, t1, mx;
     int n;
     struct timespec res;
+    if (argc > 1) {
+        uint64_t a = now_ns();
+        HMODULE gl = LoadLibraryA("opengl32.dll");
+        char path[MAX_PATH] = "";
+        if (gl)
+            GetModuleFileNameA(gl, path, sizeof path);
+        printf("LoadLibrary(opengl32.dll): %s in %.1f ms\n", gl ? path : "failed", (now_ns() - a) / 1e6);
+    }
     clock_getres(CLOCK_MONOTONIC, &res);
     printf("clock_getres(MONOTONIC) %ld ns\n", (long)res.tv_nsec);
     t0 = now_ns();
