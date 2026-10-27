@@ -303,7 +303,7 @@ def host_to_n64(c, h):
 
 # ---------------------------------------------------------------- 3. GIMPLE
 
-_LOC = re.compile(r"\[[^\[\]\s]+:(\d+):\d+\] ")
+_LOC = re.compile(r"\[[^\[\]\s]+:(\d+):\d+(?: discrim \d+)?\] ")   # gcc 14 adds discriminators
 _FUNC = re.compile(r"^;; Function (\S+) \(")
 _SSA = re.compile(r"^(.*?)_(\d+)(?:\((?:D|ab)\))?$")
 _INT = re.compile(r"^-?\d+$")

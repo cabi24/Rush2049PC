@@ -208,3 +208,6 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 - `rush2049pc --selftest`: 26 of 26. `rush2049pc --no-rom --headless --no-config --audio null --seconds 10` stops
   where it did (AudioSfxInit, `func_800A4CB8` → AllocateMemoryHeap, on blank data).
 - Census: the same two pointer-warning classes, no new ones.
+- On x86-64 (Rocky Linux 10, gcc 14, `tools/port/remote.sh`): the build, its 64 tests, the self-test and the boot
+  as above. The detector runs there too (gcc 14's dumps add discriminators to locations): 0 open conflicts, 51
+  reviewed, the same kinds as on the Pi.
