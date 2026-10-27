@@ -19,6 +19,7 @@ find_package(ZLIB REQUIRED)
 find_path(PCGFX_GLES3_INCLUDE GLES3/gl3.h REQUIRED)
 
 option(RUSH_GFX_SDL "Build the SDL2 window backend when SDL2 is found" ON)
+# The fetched SDL2 serves this directory only; a shared one (with port/audio) belongs at the top level.
 option(RUSH_FETCH_SDL2 "Download and build SDL2 (pinned 2.30.x) for the window backend" OFF)
 
 add_library(pcgfx STATIC
@@ -33,8 +34,6 @@ set_target_properties(pcgfx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EX
 target_include_directories(pcgfx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include
                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PCGFX_GLES3_INCLUDE})
 target_link_libraries(pcgfx PUBLIC PkgConfig::PCGFX_EGL ZLIB::ZLIB m)
-# compile_commands.json is tools/port/census.py's list of game files: keep the renderer out of it.
-set_target_properties(pcgfx PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(pcgfx PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
@@ -78,6 +77,7 @@ endif()
 add_executable(gfx_test tests/gfx_test.c)
 set_target_properties(gfx_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_link_libraries(gfx_test PRIVATE pcgfx)
+# A test program defines main: keep it out of compile_commands.json (census.py reads the game and the PC layer).
 set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
