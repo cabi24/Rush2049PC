@@ -47,8 +47,16 @@ at the base revision and in the working tree, then:
 3. text rules: an added `#if`/`#ifdef`/`#ifndef`/`#elif` must test `TARGET_PC`; no added `//` comments in game files
    (IDO compiles them without `-Xcpluscomm`).
 
-A changed header is checked through every `src/rom` file. Result over this work (`--base d28fbb3`, the game files
-only): see the commit messages; every changed file passed, none needed a typedef other than `uintptr_t`/`intptr_t`.
+A changed header is checked through every `src/rom` file. Results:
+- this work, against main with the other parts merged (`--base main`): 663 files, 107 code-exact, 556 shifted,
+  0 failures. The only typedef names introduced are `uintptr_t`/`intptr_t`;
+- the whole branch against `d28fbb3`: 670 files, 18 fail, all from other parts' edits. Thirteen are `TARGET_PC`
+  blocks added inside functions (the busy-wait yields, the overlay loaders, `src/rom`): tokens equal, lines
+  inside one function moved, which this check refuses by policy. Five yields (`InitWaves.c:95`,
+  `replacewave.c:46`, `wheel_params_set.c:56`, `runtime_a_c93c_closure/group.c:884`, `lib_2cf0.c:37`) split a
+  one-line `while (c) {}` across lines, which changes which tokens share a line. A same-line form,
+  `while (c) { PC_YIELD(); }` with `PC_YIELD()` empty on the N64, would keep both tokens and lines.
+  `lib_1050_sdk.c` adds `#if defined(__APPLE__)`, presumably nested inside a `TARGET_PC` block.
 Still to do on the x86 host: `make` and the SHA-1 check, which nothing here can replace.
 
 ## 2. Gfx
