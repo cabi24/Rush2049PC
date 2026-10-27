@@ -32,7 +32,11 @@ float sqrtf(float);
 
 typedef struct EffectObj {
     /* 0x00 */ struct EffectObj *next;   /* pool list link */
+#ifdef TARGET_PC
+    void *prev;                         /* the list's back link (func_8008E3C0), pointer-sized here */
+#else
     /* 0x04 */ u8 pad4[4];
+#endif
     /* 0x08 */ f32 f8;
     /* 0x0C */ void *dl;                 /* display handle */
     /* 0x10 */ f32 pos[3];
@@ -91,6 +95,11 @@ extern f32 D_80123C08;
 extern f32 D_80123C0C;                  /* minimum travel before a mark starts */
 extern f32 D_8002EB90[];
 extern char D_80155220[];               /* EffectObj pool */
+#ifdef TARGET_PC
+#define POOL_HEAD 3   /* the active list, read as the pool header's pointer word: host +0x18 */
+#else
+#define POOL_HEAD 4
+#endif
 typedef struct {
     /* 0x00 */ f32 uvs[3][3];
     /* 0x24 */ f32 pos[3];
@@ -170,8 +179,8 @@ EffectObj *func_800AFB30(u8 *color)
     s = func_8008E3C0(D_80155220);
     if (s == 0) {
         fardsq = -1.0f;
-        fars = ((EffectObj **) D_80155220)[4];
-        for (s = ((EffectObj **) D_80155220)[4]; s->next; s = s->next) {
+        fars = ((EffectObj **) D_80155220)[POOL_HEAD];
+        for (s = ((EffectObj **) D_80155220)[POOL_HEAD]; s->next; s = s->next) {
             for (dsq = 0.0f, i = 0; i < 3; i++) {
                 d = s->pos[i] - gCamera.pos[i];
                 dsq += d * d;

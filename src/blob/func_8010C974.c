@@ -49,7 +49,13 @@ typedef struct Texture36 {u8 bytes[36];} Texture36;
 typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;
 typedef struct MineSlots {Target *target[4];s32 count;} MineSlots;
 typedef struct Link {struct Link *next;Target *target;} Link;
+#ifdef TARGET_PC
+/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
+ * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
+typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Pool;
+#else
 typedef struct Pool {u8 doubly,pad1[15];Link *active,*free;} Pool;
+#endif
 extern s32 D_801170FC,D_80399B2C,D_80399B30;
 extern volatile f32 D_8002EB94;
 extern MineSlots D_80151528[];

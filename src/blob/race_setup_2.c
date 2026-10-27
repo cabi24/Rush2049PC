@@ -58,12 +58,24 @@ typedef struct Node {
     Object *obj;
 } Node;
 
+#ifdef TARGET_PC
+/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
+ * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
+typedef struct Pool {
+    u8 doubly;
+    int count, size;
+    void *mem;
+    Node *active;
+    Node *free;
+} Pool;
+#else
 typedef struct Pool {
     u8 doubly;
     char pad1[15];
     Node *active;
     Node *free;
 } Pool;
+#endif
 
 typedef struct Car {
     char pad0[8];

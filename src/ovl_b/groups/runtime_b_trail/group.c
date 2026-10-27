@@ -32,8 +32,15 @@ typedef struct Trail Trail;
 typedef struct Fade Fade;
 struct Trail { Trail *next; u32 unknown04, flags; f32 lifetime; f32 origin[3], previous[3], lower[3], upper[3]; };
 struct Fade { Fade *next; u32 unknown04; Record88 *object; f32 lifetime, interval; u8 color[4]; Trail *source; };
+#ifdef TARGET_PC
+/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
+ * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
+typedef struct FadePool { u8 dbl; s32 numElements, elementSize; void *list; Fade *active; void *store; } FadePool;
+typedef struct TrailPool { u8 dbl; s32 numElements, elementSize; void *list; Trail *active; void *store; } TrailPool;
+#else
 typedef struct FadePool { u8 unknown00[16]; Fade *active; } FadePool;
 typedef struct TrailPool { u8 unknown00[16]; Trail *active; } TrailPool;
+#endif
 extern FadePool D_80396B80;
 extern TrailPool D_80395EE8;
 extern f32 D_8002EB94;

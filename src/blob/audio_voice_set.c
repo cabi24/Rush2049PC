@@ -10,18 +10,34 @@ typedef s32 intptr_t;
 typedef struct Voice Voice;
 struct Voice {
     Voice *next;
+#ifdef TARGET_PC
+    Voice *reserved4;   /* the doubly linked list's back link (func_8008E3C0), pointer-sized here */
+#else
     u32 reserved4;
+#endif
     f32 start;
     intptr_t handle;
     u8 pad10[12];
     u8 bytes[4];
     s32 enabled;
 };
+#ifdef TARGET_PC
+/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
+ * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
+typedef struct VoiceLists {
+    u8 flag;
+    s32 count, size;
+    void *mem;
+    Voice *active;
+    Voice *other;
+} VoiceLists;
+#else
 typedef struct VoiceLists {
     u8 reserved[16];
     Voice *active;
     Voice *other;
 } VoiceLists;
+#endif
 extern VoiceLists D_80155220;
 extern f32 D_8002EB90;
 extern void func_8008C074(intptr_t, s32, s32, s32, u8 *, s32, s32);

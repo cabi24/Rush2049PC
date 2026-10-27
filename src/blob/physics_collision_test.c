@@ -23,6 +23,24 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef short s16;
 
+#ifdef TARGET_PC
+/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
+ * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
+typedef struct Pool {
+    u8 flag;
+    int count;
+    int size;
+    void *mem;
+    void *head, *store;
+} Pool;
+/* The puffs (hud_render's Puff: 88 bytes on the N64, 96 here, linked through their first pointer): the array and the
+ * element size are the host ones. */
+typedef struct { void *next; float matrix[3][3], position[3]; int id; u8 pad56[4]; float life, timer, velocity[3];
+    unsigned int flags; s16 car, frame; } PcPuff;
+extern Pool D_8013F1E0;
+extern PcPuff D_8013C378[100];
+#define ELEMENT_SIZE(n64, type) sizeof(type)
+#else
 typedef struct Pool {
     u8 flag;
     int count;
@@ -32,6 +50,8 @@ typedef struct Pool {
 
 extern Pool D_8013F1E0;
 extern char D_8013C378[];
+#define ELEMENT_SIZE(n64, type) n64
+#endif
 extern int D_801392D8[6];
 extern s8 D_80156994;
 extern s8 D_8014978C;
@@ -56,7 +76,7 @@ void physics_collision_test(void)
 {
     int i;
 
-    POOL_SETUP(D_8013F1E0, D_8013C378, 100, 88);
+    POOL_SETUP(D_8013F1E0, D_8013C378, 100, ELEMENT_SIZE(88, PcPuff));
     pool_linked_list_init(&D_8013F1E0);
     for (i = 0; i < 6; i++) {
         D_801392D8[i] = 0;

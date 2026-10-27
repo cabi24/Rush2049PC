@@ -45,7 +45,11 @@ typedef struct Car {
 } Car;
 
 typedef struct Obj {
+#ifdef TARGET_PC
+    void *next;          /* the pool link: a puff (hud_render's Puff), pointer-sized here */
+#else
     u8 pad0[4];
+#endif
     f32 m[3][3];         /* +0x04 */
     f32 pos[3];          /* +0x28 */
     s32 w52;             /* +0x34 */
