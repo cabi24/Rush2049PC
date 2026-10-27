@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Find the function prototypes the game's files disagree on, and what each disagreement costs on a 64-bit host.
 
-    python3 tools/port/proto_check.py [--build build/pc] [--jobs 3] [--no-calls] [--doc docs/port/PROTOTYPES.md]
+    python3 tools/port/proto_check.py [--build build/pc] [--jobs 3] [--no-calls] [--abi sysv|win64]
+                                      [--doc docs/port/PROTOTYPES.md]
 
 Every game C file carries its own declarations of what it calls. MIPS o32 forgave most disagreements with the
 definition (an int and a pointer share a register, K&R calls put floats in GPRs). On aarch64 and x86-64 SysV
@@ -33,6 +34,9 @@ Each disagreement is classified by what it does under AAPCS64 and x86-64 SysV (w
     fwidth     f32 vs f64 argument (an unprototyped call promotes float to double)
     width      pointer or 64-bit integer vs a 32-bit-or-smaller integer argument: the upper half is lost or
                garbage (unless every caller passes a small constant, which is zero-extended: harmless)
+    stack      (--abi win64) the same in one of the stack slots the Microsoft x64 convention uses from the fifth
+               argument on: the caller stores 4 bytes of the 8-byte slot, so even a constant 0 or a value 32
+               bits hold arrives with garbage in the upper half (REVIEWED doesn't apply)
     aggregate  a struct passed by value that travels differently (size, eightbyte classes, float aggregate)
     count      the caller passes fewer arguments than the definition reads
     return     return class differs and the caller uses the value (float vs int, pointer vs s32, a void
@@ -45,6 +49,10 @@ Each disagreement is classified by what it does under AAPCS64 and x86-64 SysV (w
     reviewed   read by hand and known not to matter (REVIEWED below, docs/port/PROTOTYPES.md)
     dead       only weak copies refer to the function in that file
     harmless   same class and width (s32 vs u32, T * vs void *)
+
+--abi win64 applies the Microsoft x64 convention to the same DWARF (a Linux build's: the prototypes are the same
+source): the first four arguments, of any class, in registers, the rest in 8-byte stack slots. Linux's
+conventions pass six (x86-64) or eight (aarch64) integer arguments in registers, which hide `stack`.
 
 Outputs: build/pc/proto_report.txt (every disagreement), build/pc/proto_report.json, and with --doc the summary
 table between the `<!-- proto_check:begin -->` / `<!-- proto_check:end -->` markers of that file.
@@ -67,12 +75,13 @@ import n64syms  # noqa: E402
 from gen_data import _name, _num, _ref, display, parse_readelf  # noqa: E402
 
 ROOT = n64syms.ROOT
-HARMFUL = ("stub", "class", "fwidth", "width", "aggregate", "count", "return")
+HARMFUL = ("stub", "class", "fwidth", "width", "stack", "aggregate", "count", "return")
 EMPTY_FN = 8   # bytes of code an empty `void f(void) {}` compiles to (aarch64 `nop; ret`, x86-64 -O0 7)
 BENIGN = ("narrow", "extra", "unused", "reviewed", "dead", "harmless")
 CLASSES = HARMFUL + BENIGN
 RANK = {c: i for i, c in enumerate(CLASSES)}
 DEFAULT_ROOTS = "n64_main,game_init,game_late_init,AudioInitSys,LoadWave,InitWaves,LoadFrontEndOverlay"
+ABI = "sysv"   # --abi: "sysv" (x86-64 SysV and AAPCS64, both Linux hosts) or "win64" (Microsoft x64)
 # Disagreements that are read and known not to matter on the PC (docs/port/PROTOTYPES.md): function, or
 # function@view file, -> why.
 _HEAP = "heap block addresses are RDRAM-window addresses below 4 GB, which 32 bits hold exactly (POINTERS.md 4.1)"
@@ -99,6 +108,12 @@ REVIEWED = {
     "string_copy_format@src/ovl_a/groups/runtime_a_availability_refresh/group.c": _INDEX,
     "sign_extend_call@src/ovl_a/groups/runtime_a_availability_refresh/group.c": _INDEX,
     "func_80014D08": "the definition is empty, as in retail: its arguments are never read",
+}
+# The same for the `stack` class (--abi win64), which REVIEWED's reasons (32 bits hold the value) don't cover.
+REVIEWED_STACK = {
+    "input_process_controller@src/blob/groups/entity_update/group.c":
+        "its only calls are the matching build's stand-ins __standin_input_process_controller_a/b, which nothing "
+        "calls",
 }
 
 VOID = ("void",)
@@ -727,6 +742,20 @@ def distances(graph, roots):
 
 # ---------------------------------------------------------------- comparison
 
+def in_register(params, i):
+    """Whether argument i (0-based) of a call with these parameter types travels in a register. SysV and AAPCS64
+    count the integer and float registers apart (6 and 8 integer ones; 6 is the lower); the Microsoft x64
+    convention gives the first four argument positions a register, whatever their class."""
+    if ABI == "win64":
+        return i < 4
+    return sum(1 for p in params[:i] if p[0] != "f") < 6
+
+
+def stack_width(c, i, vp):
+    """--abi win64: a width mismatch in a stack slot where the caller stores 4 bytes and the definition reads 8."""
+    return c == "width" and ABI == "win64" and i >= 4 and vp[0] == "i" and size_of(vp) < 8
+
+
 def compare_view(defn, view, calls):
     """[(class, detail)] for one view against the definition. `calls` are its call sites (or None)."""
     issues = []
@@ -737,9 +766,11 @@ def compare_view(defn, view, calls):
             if c:
                 srcs_i = [srcs[i] for _, _, _, srcs in calls or () if i < len(srcs)]
                 passed = sorted({short(s[1:]) + " const" if s[0] == "k" else short(s) for s in srcs_i})
-                gpr = sum(1 for p in dparams[:i] if p[0] != "f")
-                if c == "width" and srcs_i and all(s[0] == "k" for s in srcs_i) and (gpr < 6 or size_of(vp) == 8):
+                if c == "width" and srcs_i and all(s[0] == "k" for s in srcs_i) \
+                        and (in_register(dparams, i) or size_of(vp) == 8):
                     c = "harmless"   # every caller passes a small constant: its register is zero-extended
+                if stack_width(c, i, vp):
+                    c = "stack"
                 issues.append((c, f"arg {i + 1}: {short(dp)} vs {short(vp)}"
                                   + (f" (callers pass {', '.join(passed)})" if passed and c in HARMFUL + ("harmless",)
                                      else "")))
@@ -761,17 +792,17 @@ def compare_view(defn, view, calls):
         if calls is None:
             issues.append(("harmless" if not dparams else "narrow", "unprototyped; no call sites read"))
         for caller, args, used, _ in calls or ():
-            gpr = 0
-            for i, (dp, a) in enumerate(zip(dparams, args)):
-                const = a[0] == "k"
-                a = a[1:] if const else a
+            plain = [a[1:] if a[0] == "k" else a for a in args]
+            for i, (dp, a) in enumerate(zip(dparams, plain)):
+                const = args[i][0] == "k"
                 c = compare_types(dp, a)
-                if c == "width" and const and (gpr < 6 or size_of(a) == 8):
+                if c == "width" and const and (in_register(plain, i) or size_of(a) == 8):
                     c = "harmless"   # 0 or a small constant for a pointer: the register is zero-extended
+                if stack_width(c, i, a):
+                    c = "stack"
                 if c:
                     issues.append((c, f"arg {i + 1} in {caller}: {short(dp)} vs {short(a)}"
                                       + (" (constant)" if const else "")))
-                gpr += a[0] != "f"
             if len(args) < len(dparams) and not defn.varargs:
                 issues.append(("count", f"{len(args)} args for {len(dparams)} in {caller}"))
             elif len(args) > len(dparams) and not defn.varargs and defn.proto:
@@ -797,12 +828,16 @@ def main():
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--no-calls", action="store_true", help="skip the call-site pass (unprototyped views unchecked)")
     ap.add_argument("--roots", default=DEFAULT_ROOTS, help="comma-separated boot roots for the ordering")
+    ap.add_argument("--abi", choices=("sysv", "win64"), default="sysv",
+                    help="calling convention to judge by: Linux's (default) or Windows x64's")
     ap.add_argument("--out", type=Path, help="report (default <build>/proto_report.txt)")
     ap.add_argument("--doc", type=Path, help="update the summary table between the proto_check markers")
     ap.add_argument("-q", "--quiet", action="store_true")
     a = ap.parse_args()
+    global ABI
+    ABI = a.abi
     build = a.build.resolve()
-    out_txt = a.out or build / "proto_report.txt"
+    out_txt = a.out or build / ("proto_report.txt" if ABI == "sysv" else f"proto_report_{ABI}.txt")
 
     def lines(p):
         return [str(Path(x).resolve()) for x in (build / p).read_text().split() if x] if (build / p).exists() else []
@@ -911,10 +946,12 @@ def main():
             continue
         note = ""
         reviewed = REVIEWED.get(f"{owner.name}@{v.src}", REVIEWED.get(owner.name))
+        reviewed_stack = REVIEWED_STACK.get(f"{owner.name}@{v.src}", REVIEWED_STACK.get(owner.name))
+        harmful = {c for c, _ in issues if c in HARMFUL}
         if not callers(v):
             cls, note = "dead", "only weak copies (code the link never runs) refer to it here"
-        elif reviewed and cls in HARMFUL:
-            cls, note = "reviewed", reviewed
+        elif harmful and (reviewed or harmful == {"stack"}) and (reviewed_stack or "stack" not in harmful):
+            cls, note = "reviewed", "; ".join(r for r in (reviewed, reviewed_stack) if r)
         results.append({"name": v.name, "class": cls, "issues": issues, "owner": owner, "view": v, "note": note,
                         "implicit": implicit, "calls": len(vcalls) if vcalls is not None else None,
                         "dist": dist.get(owner.name, dist.get(v.name))})
