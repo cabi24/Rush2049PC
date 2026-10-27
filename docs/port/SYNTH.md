@@ -301,8 +301,9 @@ All game-C changes are `TARGET_PC` types, macros or function versions at file sc
    0x7C-byte records at a time `while (p != &D_80156BA8)`, the symbol after them on the N64. With pointers in it,
    D_80156BA8 has storage of its own on the PC, so the walk never met it. Under TARGET_PC its name means the records'
    end. Test: `assets_effects` runs the function on records with a guard after them. The same kind of walk in
-   `ambient_sounds_clear` (D_80114628 to D_80114638) ends because both have own storage, in address order and
-   adjacent (gen_data's order); `sound_handles_clear` has a PC version.
+   `ambient_sounds_clear` (D_80114628 to D_80114638) ended only because both have own storage, in address order and
+   adjacent (gen_data's order), which an optimized build's compiler didn't keep: it now ends at the handles' end
+   under TARGET_PC too ([OPTIMIZED.md](OPTIMIZED.md) 2.2); `sound_handles_clear` has a PC version.
 8. **Tables indexed past their declaration** (stop 39). m2c declared the car type's mass as one `f32` and indexes it,
    `(&D_80110DD8)[type]`, and the same for the three car tunes (`((F2C *)&D_801116D4)[tune]`, D_801116D0 declared as
    one Tune44) and D_801117B4 (`(&D_801117B4)[arg0]`, s32). The loader converts each symbol by its declaration over

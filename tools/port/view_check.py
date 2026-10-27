@@ -120,7 +120,7 @@ def main():
     a = ap.parse_args()
     if bool(a.sym) == bool(a.tag) or (a.tag and not a.n64_size):
         ap.error("give --sym, or --tag with --n64-size")
-    objects = [l.strip() for l in (a.build / "game_objects.txt").read_text().split() if l.strip()]
+    objects = gd.n64syms.types_objects(a.build)   # -O0 DWARF, whatever the build type
 
     views = []   # (object, display, type, live)
     single = set()   # (object, display) of --sym views declared as one struct, not an array of them
@@ -164,7 +164,7 @@ def main():
     lays = [(v, layout(v[2])) for v in views]
     ref_v, (ref, ref_size) = max(lays, key=lambda x: (sum(1 for h, c in x[1][0].values() if c == gd.K_PTR),
                                                       len(x[1][0]), x[0][3] is not False))
-    rel = lambda o: o.split("game.dir/")[-1].replace("./", "").replace(".c.o", ".c")
+    rel = lambda o: re.split(r"game(?:_types)?\.dir/", o)[-1].replace("./", "").replace(".c.o", ".c")
     print(f"reference: {rel(ref_v[0])} ({ref_v[1]}): N64 {ref_size[0]} B, host {ref_size[1]} B")
     bad = 0
     for v, (lay, size) in sorted(lays, key=lambda x: rel(x[0][0])):

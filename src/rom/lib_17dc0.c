@@ -304,6 +304,13 @@ void func_80017720(SequenceContext *context, unsigned char program, unsigned cha
  * Gate:     full-ROM SHA-1
  */
 extern u8 D_8004BE7B;
+#ifdef TARGET_PC
+/* PC: byte 3 of the word D_8004BE78 (the current sequence, func_800198C8) under one name: an optimizing GCC takes
+ * two external variables for two objects, and func_800198C8 stores the word, then calls the sequencer, which reads
+ * this byte and may be inlined into it (tools/port/alias_check.py, docs/port/OPTIMIZED.md). It is the byte the
+ * data symbol was: byte 3 as the PC holds the word, which is not the one the N64 reads (OPTIMIZED.md). */
+#define D_8004BE7B (((u8 *)&D_8004BE78)[3])
+#endif
 extern void func_80020610(u8 controller, u8 channel, u8 set, u8 value);
 void func_800177EC(u8 value, u8 channel)
 {
@@ -537,7 +544,9 @@ typedef struct SequenceContextEvents { unsigned char unknown000[0x110]; unsigned
 #endif
 typedef struct SequenceTime_17D38 { unsigned int fraction, whole; } SequenceTime_17D38;
 #define CTX ((SequenceContextEvents *)D_8004BE80)
+#ifndef TARGET_PC
 extern unsigned char D_8004BE7B;
+#endif
 extern SequenceNode *func_800173B4(void);
 extern void func_80017410(SequenceNode *);
 extern void func_80017720(SequenceContext *, unsigned char, unsigned char);

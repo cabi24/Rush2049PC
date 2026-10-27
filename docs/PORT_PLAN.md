@@ -255,6 +255,17 @@ ROM's byte order (`index_check`). Also: gSongNames' extent (131 pointers by the 
 Numbers: 121 tests on x86-64 Linux, 0 harmful prototype views under either convention, 0 neutrality failures in 992
 changed files, 0 objects that differ under IDO.
 
+## Optimized builds (2026-10-27)
+
+RelWithDebInfo (`-O2 -g`) passes every test on x86-64 and aarch64 Linux and in the Windows cross build, and plays the
+same as Debug to the bit along 14 synthetic and 14 retail paths, twice as fast on the retail cartridge (a race frame
+6.7 ms of the Pi 5's time, not 15.3; [port/OPTIMIZED.md](port/OPTIMIZED.md)). What it took: gen_data reads the types
+of `-O0` objects in every build type (optimized DWARF had dropped declarations); own storage keeps N64 address order
+(`-fno-toplevel-reorder` on data.c) and `ambient_sounds_clear`'s walk ends at its own end; no fused multiply-adds and
+no loop bounds from declared array sizes in the game C; `tools/port/alias_check.py` for one storage under two names
+(three places given one name). `tools/port/synth_compare.py` compares two builds along the paths, to the bit
+(`RUSH_STATE_EXACT`). CI builds and compares both build types. Default build type: still Debug.
+
 ## Next
 
 1. **A person playing it.** Everything above ran headless with scripted input. Still untried: a window on a desktop

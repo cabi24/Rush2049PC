@@ -70,6 +70,9 @@ of one script could start a race two retraces apart ([FRAMERATE.md](FRAMERATE.md
 computing without a libultra call) is stopped as hung, with the threads' states. The self-test runs on it too
 (`--selftest --fast`, CTest `ultra_selftest_fast`).
 
+So two runs, two builds (Debug and RelWithDebInfo) or two architectures give the same states at the same retraces
+and the first car at the same place, to the bit: `tools/port/synth_compare.py` checks it ([OPTIMIZED.md](OPTIMIZED.md) 5).
+
 `--trace-os` logs every switch and blocking call. Ctrl-\ (SIGQUIT) prints every thread's state and what it waits on.
 With `RUSH_TRAP_FP` set (glibc), every host thread traps the first invalid floating-point operation or division by
 zero (SIGFPE, reported with a backtrace like any fault): where a NaN or an infinity starts.
@@ -211,7 +214,7 @@ loop on the host main thread.
 | `--headless`, `--window` | EGL surfaceless (default without `DISPLAY`/`WAYLAND_DISPLAY`); an SDL2 window |
 | `--seconds N`, `--frames N`, `--stop-at-gfx` | stop after N s, N graphics tasks, or at the first one |
 | `--fast` | the virtual clock (section 1): as fast as the host can, the same run on any host; `--seconds` is game time |
-| `--until-state MASK[:N]` | stop once the game's state word (gGameState) has a bit of MASK and N more graphics tasks have run; with `--seconds`, not getting there is exit code 1. Every change of the state word is logged, with the players, windows, cars, mode (gRace) and track, and the first car's position and speed ([SYNTH.md](SYNTH.md)) |
+| `--until-state MASK[:N]` | stop once the game's state word (gGameState) has a bit of MASK and N more graphics tasks have run; with `--seconds`, not getting there is exit code 1. Every change of the state word is logged, with the players, windows, cars, mode (gRace) and track, and the first car's position and speed ([SYNTH.md](SYNTH.md)); in whole feet, or as exact hex floats with `RUSH_STATE_EXACT` set |
 | `--screenshot-at N`, `--screenshot PATH` | a PNG once N graphics tasks have run (default `rush2049pc-N.png`) |
 | `--press T:BUTTON[@PORT][:DUR],...`, `--press-file PATH` | scripted input in v5's format |
 | `--pak PATH`, `--no-pak`, `--rumble`, `--expansion-pak` | accessories; 8 MiB of RDRAM |

@@ -139,6 +139,16 @@ endif()
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).
 target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -fno-strict-aliasing -fcommon)
+# Each floating-point operation rounded on its own, as the N64's VR4300 does (it has no fused multiply-add): GCC's
+# default for GNU C fuses a * b + c wherever the target has FMA (aarch64, x86-64-v3 such as RHEL 10's default) once it
+# optimizes, which moved the cars by a bit a step from the Debug build's (docs/port/OPTIMIZED.md). -O0 never fuses.
+target_compile_options(game_flags INTERFACE -ffp-contract=off)
+# No loop bounds from declared array sizes: the game C's declarations are views, often shorter than the data they
+# index (an open-ended table declared with one element, a struct member used as an array past its end; -O2's
+# -Warray-bounds sees 260 such accesses), so the rule the optimizer would derive bounds from doesn't hold here, as
+# -fwrapv and -fno-strict-aliasing say of theirs. Optimized, it changed the loops of 65 game objects; -O0 doesn't use
+# it (docs/port/OPTIMIZED.md).
+target_compile_options(game_flags INTERFACE -fno-aggressive-loop-optimizations)
 # Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so code
 # that names them (the game, and parts of port/) must load every extern's address from the GOT. aarch64 PIE
 # code does that already. x86-64 PIE code reaches externs PC-relatively, so everything is compiled as PIC there,
@@ -209,7 +219,8 @@ endforeach()
 
 add_library(game_probe OBJECT ${PROBE_SOURCES})
 target_link_libraries(game_probe PRIVATE game_flags)
-target_compile_options(game_probe PRIVATE -w)
+# Only its global definitions are read, which are the same at every optimization level: -O0 is the quickest.
+target_compile_options(game_probe PRIVATE -w -O0)
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/probe_objects.txt CONTENT "$<JOIN:$<TARGET_OBJECTS:game_probe>,\n>\n")
 add_custom_command(
     OUTPUT ${WEAK_HEADERS}
@@ -223,6 +234,24 @@ add_custom_command(
 
 add_library(game OBJECT ${GAME_SOURCES})
 target_link_libraries(game PRIVATE game_flags)
+
+# The game's types for the generators and the DWARF checks (gen_data.py, view_check.py...): objects compiled at -O0
+# with -g, so the generated tables don't depend on the build type (docs/port/OPTIMIZED.md). An optimized object's
+# DWARF leaves out the declarations of variables whose uses the optimizer removed, and of types nothing left uses,
+# so the data tables lost symbols at -O2 (D_80117498, a word the loader then left in the ROM's byte order).
+# A Debug build's game objects are -O0 already; any other build type compiles a second copy for its types, with the
+# game's own flags and weak headers (set on the sources). gen_data.py refuses optimized DWARF.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}" MATCHES "(^| )-O[^0 ]")
+    set(PC_TYPES_TARGET game)
+else()
+    add_library(game_types OBJECT ${GAME_SOURCES})
+    target_link_libraries(game_types PRIVATE game_flags)
+    target_compile_options(game_types PRIVATE -O0 -g -UNDEBUG -w)
+    set_target_properties(game_types PROPERTIES EXPORT_COMPILE_COMMANDS OFF)   # census.py, endian_check.py
+    set(PC_TYPES_TARGET game_types)
+endif()
+file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/types_objects.txt
+    CONTENT "$<JOIN:$<TARGET_OBJECTS:${PC_TYPES_TARGET}>,\n>\n")
 
 # ---------------------------------------------------------------- generated data
 # Storage for the data the game C declares but doesn't define (boot, game and both runtime images: initialized
@@ -245,13 +274,17 @@ if(WIN32)
     set(PC_DATA_PE_OUTPUTS ${PC_DATA_DIR}/weak.ld)
 endif()
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_objects.txt CONTENT "$<JOIN:$<TARGET_OBJECTS:game>,\n>\n")
+# Types and symbols from the -O0 objects (types_objects.txt); the runtime images' C data, which --check finds in the
+# executable, from the objects linked (game_objects.txt).
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json
            ${PC_DATA_DIR}/data_symbols.txt ${PC_DATA_PE_OUTPUTS}
-    COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
+    COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/types_objects.txt
+            --link-objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
             ${PC_DATA_PE_ARGS}
-    DEPENDS $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
+    DEPENDS $<TARGET_OBJECTS:${PC_TYPES_TARGET}> $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py
+            ${PORT_TOOLS}/n64syms.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/manifest/static.json
             ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
@@ -263,6 +296,14 @@ add_custom_command(
 add_library(pcdata OBJECT ${PC_DATA_DIR}/data.c)
 target_include_directories(pcdata PRIVATE port/data)
 target_compile_options(pcdata PRIVATE -fno-common)   # the .set aliases need the arenas in a section
+# Own storage in the order data.c defines it, which is N64 address order: GCC reorders top-level definitions from -O1
+# on (at -O2 it put them in reverse), and game C that walks from one symbol to the next relies on the N64's order
+# (docs/port/OPTIMIZED.md). -O0 keeps the order anyway; gen_data.py --check verifies it in the executable.
+include(CheckCCompilerFlag)
+check_c_compiler_flag(-fno-toplevel-reorder PC_HAVE_NO_TOPLEVEL_REORDER)
+if(PC_HAVE_NO_TOPLEVEL_REORDER)
+    target_compile_options(pcdata PRIVATE -fno-toplevel-reorder)
+endif()
 find_package(ZLIB REQUIRED)
 add_library(pcdata_rt OBJECT port/data/pc_data.c)
 target_include_directories(pcdata_rt PUBLIC port/data)
@@ -521,7 +562,7 @@ enable_testing()
 # Part of pc_data_test's tables comes from gen_data.py's layout rules (unions, overlapping declarations) applied
 # to the declarations in test_pc_data_decls.c, which is compiled for its DWARF only.
 add_library(pc_data_test_decls OBJECT port/data/test_pc_data_decls.c)
-target_compile_options(pc_data_test_decls PRIVATE -g)
+target_compile_options(pc_data_test_decls PRIVATE -O0 -g)   # unoptimized DWARF, as for the game (types_objects.txt)
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/test_pc_data_gen.h
     COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --test-tables $<TARGET_OBJECTS:pc_data_test_decls>

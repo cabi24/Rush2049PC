@@ -61,6 +61,12 @@ extern Player D_8014A118[];        /* gPlayers */
 extern s8 D_8014978C;              /* gTrackNum */
 extern s8 D_80146108[];            /* gOptions */
 extern s8 D_80146125;             /* gOptions[29] under its own name (retail case-14 store) */
+#ifdef TARGET_PC
+/* PC: one name for one place. An optimizing GCC takes two external variables for two objects, so after the store
+ * through this name updateTrackScreen could go on with a value of gOptions[29] it had read before
+ * (docs/port/OPTIMIZED.md, tools/port/alias_check.py). */
+#define D_80146125 (D_80146108[29])
+#endif
 extern s8 D_80157244;              /* gSoftReset */
 extern u32 D_8015694C;             /* gActiveEdges */
 extern u32 D_80156944;             /* gActiveLevels */
@@ -324,6 +330,11 @@ extern s32 D_803B7CD8;          /* kNumMapSects */
 extern u32 D_803BAB50;             /* mapObj[6].displayList (MapLod) */
 #else
 extern Gfx *D_803BAB50;            /* mapObj[6].displayList */
+#endif
+#ifdef TARGET_PC
+/* PC: mapObj[6].displayList under one name, as for D_80146125: clearTrackMaps and buildRaceTrackMaps write it
+ * through mapObj and buildTrackMap reads it, and the three may be inlined into updateTrackScreen. */
+#define D_803BAB50 (D_803BAAE8[6].displayList)
 #endif
 #ifdef TARGET_PC
 /* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */

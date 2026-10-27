@@ -139,9 +139,15 @@ extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 i
 
 static void game_info(char *out, size_t size)
 {
+    /* RUSH_STATE_EXACT: the position and speed as exact hex floats, so two runs compare bit for bit
+     * (tools/port/synth_compare.py, docs/port/OPTIMIZED.md). */
+    static int exact = -1;
+    if (exact < 0)
+        exact = getenv("RUSH_STATE_EXACT") != NULL;
     const volatile float *v = (const volatile float *)(D_8014A250 + 0x220), *r = v + 3;
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
-    snprintf(out, size, "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f %.0f, "
+    snprintf(out, size, exact ? "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %a %a %a, "
+             "speed %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f %.0f, "
              "speed %.0f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
              *(volatile int8_t *)&D_80152744, (int)*(volatile int32_t *)&gameplay_mode, *(volatile int8_t *)&D_8014978C,
              (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed);

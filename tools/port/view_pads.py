@@ -156,7 +156,7 @@ def main():
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--readelf", default="readelf")
     a = ap.parse_args()
-    objects = (a.build / "game_objects.txt").read_text().split()
+    objects = g.n64syms.types_objects(a.build)   # -O0 DWARF, whatever the build type
     wanted = set(a.symbols.split(","))
     tags = set(a.tags.split(",")) if a.tags else None
     views = collections.defaultdict(dict)   # source -> {type: {member: line}}
