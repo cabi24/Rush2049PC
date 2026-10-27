@@ -24,7 +24,7 @@ jobs:
       - name: Build
         run: |
           set -o pipefail
-          cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake > /dev/null
+          cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON > /dev/null
           cmake --build build/win -j4 --target rush2049pc 2>&1 | cut -c1-2000 | grep -E "error|warning: .*(refptr|truncat)" || true
           ls -la build/win/rush2049pc.exe
           x86_64-w64-mingw32-gcc-posix -O2 -Wall -o build/win/win_timing.exe tools/port/diag/win_timing.c -static -lwinmm
