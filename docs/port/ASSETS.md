@@ -353,14 +353,14 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | PLHD | WADs | swap | 16 at 0x12; 32 at 0x14 | u32 `palBase`/`table` (4 files) |
 | PTHD + PATH points | 101–119 | swap | §3.1 | u32 `pts`/`trigPtr`/`parent`/`resources` (2 files) |
 | TXLD, OBJS DLs, Vtx, IMAG texels and TLUTs | WADs | BE | none; register the buffer | §4 #6–11 (about 12 functions) |
-| WHDR | 120–138 | swap | u32 count, u32 woff | §4 #12–13 |
-| World nodes (WOBJ) | 120–138 | swap | 12 f32, u32, 4 × s16, s32, 6 f32 per 0x68 | none |
-| GDAT | 120–138 | swap | s16 at 0, 4 × f32, 4 × u16 | none |
-| GTLD | 120–138 | swap + side | u32 keys | §4 #14 (2 files) |
-| Road | 139–157 | swap | §3.5 | none |
-| Path | 158–182 | swap | §3.6 | §4 #22 |
-| Text bank | 0–5 | swap + side | counts u32, offset tables u32, tables u16 | §4 #15 (17 files); redo after `ReplaceWave` |
-| Font data | 38–53 | none | only the 4-byte slot | §4 #16 |
+| WHDR | 120–138 | swap: done, `port/assets/world.c` ([LOADERS.md](LOADERS.md)) | u32 count, u32 woff | §4 #12–13 |
+| World nodes (WOBJ) | 120–138 | swap: done | 12 f32, u32, 4 × s16, s32, 6 f32 per 0x68 | none |
+| GDAT | 120–138 | swap: done | s16 at 0, 4 × f32, 4 × u16 | none |
+| GTLD | 120–138 | swap + side: done | u32 keys | §4 #14 (2 files) |
+| Road | 139–157 | swap: done, `port/assets/road.c` | §3.5 | none |
+| Path | 158–182 | swap: done, `port/assets/path.c`; native headers in ReadPathData | §3.6 | §4 #22 |
+| Text bank | 0–5 | swap + side: done, `port/assets/text.c` ([LOADERS.md](LOADERS.md)) | counts u32, offset tables u32, tables u16 | §4 #15 (17 files); redo after `ReplaceWave` |
+| Font data | 38–53 | none: done, `port/assets/font.c` (needs `waves.c` to read handle slots as u32) | only the 4-byte slot | §4 #16 |
 | MusyX project, pool, sample directory, songs | 6–8, 10–21 | swap: done, `port/assets/musyx.c` ([MUSYX_DATA.md](MUSYX_DATA.md)). The readers use whole-field loads except a few, handled by how the fields are swapped | MUSYX_DATA.md §3 | §4 #24; registries, sample-info views, WAITMS (MUSYX_DATA.md §4) |
 | Samples | ROM 0x39B40 | BE: PC DMA is a `memcpy` from the ROM | none | audio interpreter reads ADPCM bytes |
 | Game image, runtime images | — | skip | — | `game_init` inflate and `PrevMaxPath` under `TARGET_PC` |
