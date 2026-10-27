@@ -215,6 +215,7 @@ A third wave of parallel work, with builds on a 20-thread x86-64 host (`tools/po
 | Widescreen | [port/GFX.md](port/GFX.md) | `video.widescreen` (16:9, 21:9, `auto`): 3D views widen per viewport, 2D stays 4:3; `video.scale = auto` |
 | Windows | [port/WINDOWS.md](port/WINDOWS.md) | mingw-w64, cross or MSYS2; the window is a file mapping at 0x80000000; CI builds it, runs the tests natively and runs the cross-built exe |
 | Synthetic cartridge | [port/SYNTH.md](port/SYNTH.md) | `tools/port/synth_rom.py` generates a cartridge of original, minimal data from the layout alone (it reads no ROM). The game boots it through every front-end state into a race and runs it; on the way it found 6 port bugs (image A's warning screen bound to image B's function, the audio manager's records, IDO varargs, a busy-wait, the sprite comparator, four model record readers). CI boots it to the menu and into the race |
+| Layout check | [port/LAYOUT.md](port/LAYOUT.md) | `tools/port/layout_check.py` follows every access through pointers, parameters, returns, list and tree walks and function-pointer slots to the storage it reaches, and flags views off the storage's reference layout, raw offsets inside fields, N64 strides and pointer-width mismatches. It re-finds every bug the review and the synthetic boot found; over the whole game it found 81 more, all fixed (0 open, 60 reviewed) |
 | Settings overlay | [port/FRONTEND.md](port/FRONTEND.md) | F1 (or both stick clicks) pauses the game and opens video, audio and control settings, with remapping and an in-place ini save; its own 5×9 font |
 | Last functions | [port/DATA.md](port/DATA.md) | C for the last 23 game and overlay functions (2,000 of 2,134 by address; the rest are boot code the PC layer replaces); each overlay's C data goes back to its initial values on every load, as on the N64 |
 | N64 check | POINTERS.md "The neutrality check" | `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD: all 1,011 agree in code and data |
@@ -222,7 +223,7 @@ A third wave of parallel work, with builds on a 20-thread x86-64 host (`tools/po
 Also: executables are forced PIE (Red Hat's gcc links non-PIE, which put host data below 4 GB, where the port
 reads N64 addresses); the self-test's timing bounds hold on a loaded host.
 
-Numbers: 102 tests on x86-64 Linux with SDL2, 0 harmful prototype mismatches, 325 pointer warnings (all
+Numbers: 105 tests on x86-64 Linux with SDL2, 0 harmful prototype mismatches, 325 pointer warnings (all
 classified), 0 neutrality failures in 987 changed files, 0 objects that differ under IDO. The synthetic cartridge
 reaches a race; `--no-rom` (all zeros) still stops in AudioSfxInit, as it should.
 
@@ -240,8 +241,10 @@ reaches a race; `--no-rom` (all zeros) still stops in AudioSfxInit, as it should
    C; `n64_neutral.py` stays the fast check, in CI.
 3. **Records on 64-bit.** The car, visual and model records, the target table and level-object nodes, the input
    records, the ZOID windows and the frame records have one PC layout each ([port/CARS.md](port/CARS.md),
-   POINTERS.md §10), and so do the save records (§9.10). Views reached through pointers under other struct names
-   escape view_audit: a flow-based layout check over endian_check's access model is in progress.
+   POINTERS.md §10), and so do the save records (§9.10). `tools/port/layout_check.py` ([port/LAYOUT.md](port/LAYOUT.md))
+   finds no open layout disagreement in game C. Its blind spots are function tables in ROM data and call contexts:
+   the synthetic cartridge's widening coverage (SYNTH.md) is the runtime check, the ROM's `undescribed` report the
+   next one.
 4. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C or in the
    loader ([port/ENDIAN.md](port/ENDIAN.md)); two reads of bytes inside a word of the car record are left there.
 5. **Other platforms.**
