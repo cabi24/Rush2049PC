@@ -1,0 +1,10 @@
+# N64 sizes of data symbols whose C declarations leave the size open (T x[]), for tools/port/gen_data.py.
+# Without one, an incomplete array runs to the next known address, which can swallow tables no C declares yet.
+# A size here wins over that gap (the symbol file's size: comments still win over this). Format: name size.
+# Better still: give the C declaration its size, then drop the line.
+
+# The file table (docs/port/ASSETS.md 2.2): 183 entries each; the next table starts after.
+D_8011B5BC 0x2DC    # ROM offset, u32[183]; track 1's PVS starts at 0x8011B898
+D_8002E580 0x2DC    # size in RAM, u32[183]; D_8002E860 follows
+D_80123564 0x2DC    # storage kind, s32[183]
+D_801234AC 0xB7     # model flag, s8[183]
