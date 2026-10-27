@@ -25,14 +25,20 @@ jobs:
       - name: Configure
         run: cmake -S . -B build/pc -G Ninja
       - name: Build
-        run: cmake --build build/pc -j4
+        # Lines cut short: a failed link's command line lists every object and hides the error after it.
+        run: |
+          set -o pipefail
+          cmake --build build/pc -j4 2>&1 | cut -c1-2000
       - name: Tests
         run: ctest --test-dir build/pc --output-on-failure
       - name: Boot without a ROM
-        # Gets as far as the first audio data on a blank cartridge (zero-size files); see the log.
+        # On a blank cartridge the game boots through its init into the first file loads and then stops (the
+        # files are zero-size): the check is that it gets that far.
         run: |
-          build/pc/rush2049pc --no-rom --headless --no-config --seconds 10 2>&1 | tee boot.log
-          test "${PIPESTATUS[0]}" -eq 0
+          RUSH_TRACE_WAVES=1 build/pc/rush2049pc --no-rom --headless --no-config --audio null --seconds 10 \
+            > boot.log 2>&1 || true
+          cat boot.log
+          grep -q "wave 0 loaded" boot.log
       - name: Census
         run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20
       - uses: actions/upload-artifact@v4
