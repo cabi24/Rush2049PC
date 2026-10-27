@@ -162,18 +162,17 @@ declared with pointer types today, so on PC they are larger than the data; Phase
 
 m2c output that reaches fields as `*(T *)(p + 0x..)` or `M2C_FIELD(expr, T *, off)`. The warnings mark integers
 holding pointers; the offsets themselves are N64 layout and wrong wherever the record has pointers before them.
-`UpdateActiveObjects` (Blit `+0x28`: three pointers before it), `menu_confirm_dialog`, `particles_spawn_emitter`,
+`particles_spawn_emitter`,
 `listener_position_set`, `func_800F42C8`, `func_80095F8C` and its copy in `pointer_counters/group.c`,
 `camera_smooth_lerp` (50 pointer slots as `s32`), `save_load_data` (`AnimateFrame` stored at `+0x274` as `s32`),
 `func_800B27E4`, `audio_frame*/group.c` (`+0x28` of a node), and the `M2C_FIELD` users `PhysicsObjectList_Update`,
-`entity_flag_check/group.c` (20), `func_8008AE2C`, `func_800949D4`, `func_800A3598`/`35BC`/`35F8`, `func_800A79DC`,
-`func_800E56F8/group.c`, `credits_scroll_grp/gr3_e.c`.
+`entity_flag_check/group.c` (20), `func_800949D4`, `func_800E56F8/group.c`, `credits_scroll_grp/gr3_e.c` (a weak
+copy). `UpdateActiveObjects`, `menu_confirm_dialog`, `func_8008AE2C`, `func_800A3598`/`35BC`/`35F8` and
+`func_800A79DC` are done (section 9).
 
 ### 4.4 Storage still 32-bit, or ambiguous
 
-- `func_8008D870(handle, (s32)tex, -1)` (overlay A menus, `controlscr`): the texture pointer goes into 4-byte slots
-  of the 0x44-byte table at `D_8012E700`, read back through `*(s32 *)`. The table has own storage on PC with a
-  different layout (`ObjInstance`, 72 B) and other pointer-free views (`Model68`).
+- `func_8008D870(handle, (s32)tex, -1)`: done, section 9.2.
 - `D_801424F0`, `gTotalNames`, `audio_channel_priority`: slots that hold either a name index or a profile pointer.
 - `D_8014A118` (0x4C-byte player records): `.message`, `.object`, `.name` hold pointers as `s32`, through six struct
   views in 38 files.
@@ -233,9 +232,9 @@ Outside the overlay loaders, every address literal used as a pointer is an m2c `
 |---|---|---|---|---|
 | `func_800DDF28` | `0x80150000 - 0x649C + arg0` | `D_80149B64[arg0]` | arena | symbol-relative under `TARGET_PC` |
 | `func_800DDEA4` | `0x80150000 - 0x648C + arg0` | `D_80149B74[arg0]` | arena | symbol-relative |
-| `func_8008AE2C` | `0x80130000 - 0x18EA + arg0*0x44` | `D_8012E700[arg0]` +0x16 | own (layout differs) | listed (4.3) |
-| `func_800A79DC` | `0x80140000 + 0xC06 + arg0*32` | `D_80140BF0[arg0]` +0x16 (Sprite) | own | listed |
-| `func_800A35F8`, `func_800A35BC`, `func_800A3598` | `0x80140000 + 0x4035/0x40A8 + arg0*0x304` | `D_80144030[arg0]` +5/+0x78 (PakRecord) | own | listed |
+| `func_8008AE2C` | `0x80130000 - 0x18EA + arg0*0x44` | `D_8012E700[arg0]` +0x16 | own (layout differs) | PC version (9.2) |
+| `func_800A79DC` | `0x80140000 + 0xC06 + arg0*32` | `D_80140BF0[arg0]` +0x16 (Sprite) | own | PC version (9.3) |
+| `func_800A35F8`, `func_800A35BC`, `func_800A3598` | `0x80140000 + 0x4035/0x40A8 + arg0*0x304` | `D_80144030[arg0]` +5/+0x78 (PakRecord) | own | PC versions (9.6) |
 
 Heap and frame-buffer constants (`0x80400001` heap end, `osMemSize | 0x80000000`, `0x80000300` osTvType) rely on the
 RDRAM window and are unchanged.
@@ -259,3 +258,187 @@ MusyX wave load (`LoadWave(6)`, `car_shadow_render.c:84`). That stop is the blan
 Every wave size comes from the ROM's `gWaveSizes`, so the text bank gets a 0-byte block; its in-place fixups
 parse the next block's header as the file and overwrite the heap. With a ROM the block has its size. To go
 further without one, the wave loader would need a `--no-rom` guard.
+
+## 9. Shared records: one PC layout per storage (2026-10-27)
+
+Every game file declares its own struct for a record that other files read too. On the N64 those views agree as
+long as their N64 offsets agree; on the PC they must agree on the host offsets, which pointer fields move. Byte
+pads sized for the N64, `s32` words that hold pointers, and m2c code at raw N64 offsets each put a field somewhere
+else, and gen_data gives the storage the size of the view it chooses: twice that was one element, because the
+table's extent came from the gap to a name inside element 0. This section covers the front end's and the HUD's
+shared records.
+
+### 9.1 The rule, and the check
+
+- **Records the game builds** (BSS, own storage, heap pools): every slot a view types as a pointer is
+  pointer-sized on the PC, whatever it holds. The slots hold host pointers (game data, C-defined data such as
+  overlay A's `CompLight`, stack addresses, function pointers) as well as RDRAM-window addresses (WAD textures and
+  palettes, heap blocks), so a 32-bit slot would hold only some of them. A window address goes into a pointer-sized
+  slot zero-extended; it must not pass through an `s32` on the way (section 5). Records loaded from the ROM keep
+  their u32 fields (4.2, [LOADERS.md](LOADERS.md)); none of the records below is one. If the data arenas move into
+  the RDRAM window, nothing here changes.
+- **One layout in every live view.** Each live view gets the record's full typed skeleton under `#ifdef TARGET_PC`
+  (or `s32` -> `intptr_t` where that is enough), with the file's own names on the fields it uses. Pointers are typed
+  as pointers rather than padded, so gen_data still computes the N64 layout from the DWARF. Weak context copies
+  never run and are left as they are.
+- **Extents.** A table's size comes from one complete declaration under `TARGET_PC`, which must be the first
+  declaration in its file: GCC's DWARF keeps the first declaration's (incomplete) type.
+- **m2c code** that adds N64 strides and offsets, or addresses a field of element 0 by its own name
+  (`D_8012E708` = node 0's object), gets a whole PC version over the host layout.
+- **`tools/port/view_check.py`** checks it from the PC build's DWARF (gen_data's parser and layout rules). It lays
+  each view out for the N64 and the host and compares, at every N64 offset, the host offset and whether the slot is
+  a pointer:
+  - `--sym D_8012E700 [--alias pad_config] [--also D_8012E708,...]` compares the declarations in the objects whose
+    live code (strong or local functions, from the relocations) uses the symbol;
+  - `--tag Blit,PadConfig --n64-size 0x40 [--in FILE,...]` compares records passed by pointer, by struct tag or
+    typedef name; shorter views count as prefixes.
+
+  Byte arrays count as pads. Two reports are benign: pointer-typed pads (the text-bank header views use `void *`
+  over its u16 counts) and a u8[4] colour against a u32 one.
+
+### 9.2 Scene nodes: ObjInstanceList `D_8012E700`
+
+600 nodes (0x8012E700-0x80138660), 0x44 bytes on the N64. Before this, the PC storage held one 72-byte node, so
+every node after the first that MBOX_NewObject made overwrote the next symbols. The layout is particle_knot's
+`Node`, the model draw's view:
+
+| N64 | PC | Field | Holds |
+|---:|---:|---|---|
+| 0x00 | 0x00 | `u32 flags`, `u32 lights` | |
+| 0x08 | 0x08 | `obj` (View/matrix/Camera/Pose) | host pointers into game data |
+| 0x0C | 0x10 | `f32 scale, w` | |
+| 0x14 | 0x18 | `u16 model`, `s16 child, next, mode` | |
+| 0x1C | 0x20 | `Lights2 *light` | overlay A's `CompLight` (C data) |
+| 0x20 | 0x28 | `Texture *tex[4]` (LODs) | WAD records (window), any texture |
+| 0x30 | 0x48 | `TexRect *rect`, `*clip` | `clip` is set to a stack rectangle by the draw |
+| 0x38 | 0x58 | `Palette *pal` | WAD palettes, the car palettes `D_8013FEE0` (game arena) |
+| 0x3C | 0x60 | `u8 prim[4]`, `env[4]` | |
+| 0x44 | 0x68 | | |
+
+- 50 views made to agree (struct views in 41 files; the rest go through the PC versions). The extent is declared
+  in `particle_knot/group.c` and `func_8008E26C.c` (MBOX_NewObject).
+- PC versions: MBOX_NewObject (its nine-word clear), ZOID_SetTexture `func_8008D870`, `func_8008D6FC`,
+  `func_8008E144`, `func_8008FFD0`, `func_8009002C`, `func_8008AE10`, `func_8008AE2C` (the `0x80130000 - 0x18EA`
+  address), `func_800A7884`, `car_mass_set`, `track_collision_edge`, `func_800C15FC` (camera_aspect_ratio), and the
+  colour accessors of `func_8010C974`. Symbol macros for node 0's fields: `D_8012E708` (cleanup_colortrace),
+  `D_8012E710` (coins), the `TBL` of `func_8008B640`.
+- ZOID_SetTexture takes `void *` and keeps the whole pointer. Its 11 views that took `s32` take `intptr_t`, the
+  callers' `(s32)` casts are `(intptr_t)`, and the three options-menu files read `func_800B24EC` (the texture
+  lookup) as `intptr_t`. `func_8010D85C` declares MBOX_FindPalette_WORK, old-style (the call passes a fifth word),
+  with a pointer-sized result. `func_800A79B8` (the light), `func_800A7830` (clip) and `func_800A785C` (palette)
+  take `uintptr_t`.
+- Test: `assets_zoid`.
+
+### 9.3 Sprites `D_80140BF0` and blits
+
+The **sprite list** (alias `pad_config`) is 200 sprites of 0x20 bytes on the N64 (to 0x801424F0); the PC storage
+held 13. The layout is particle_knot's `Sprite`, 0x28 bytes: the palette at 0 and the texture (or the callback,
+flags & 0x80) at 8 are pointer-sized, and everything after them moves by 8. The setter `Input_InitPadHandlers`
+(both copies) took the two pointers as `u32` and stored them in a `u32` record; four flag/state views were byte
+pads (`func_80109A60`, `func_803AE940`, runtime_a_c93c_closure's `ImageMeta`, DelBlit's), and `func_800A79DC` frees
+a sprite through the N64 address 0x80140C06. The extent is declared in `particle_knot/group.c` and
+`func_800A79F4.c`. 13 views agree.
+
+A **Blit** (sound_control.c's) is 0x68 bytes on the PC:
+
+| N64 | PC | Field |
+|---:|---:|---|
+| 0x00 | 0x00 | `Name`, `Image` (palette, or the blit itself), `Info` (texture, or the callback) |
+| 0x0C | 0x18 | `TexIndex`, `X`, `Y`, `Z`, `Width`, `Height`, `Alpha`, `Flip`, `Hide`, `Init`, `Top`..`Right`, `color` |
+| 0x28 | 0x38 | `AnimFunc` |
+| 0x2C | 0x40 | `AnimID` |
+| 0x30 | 0x48 | `intptr_t AnimDTA`: a value, or the pane group (InitPane) |
+| 0x34 | 0x50 | `BLIdx` (the sprite) |
+| 0x38 | 0x58 | `data`, `child` |
+
+- `AnimDTA` is pointer-sized because InitPane (`ambient_sound_set`) keeps the pane group there. Its view had the
+  group pointer at host 0x48 while the other views read `BLIdx` from 0x48: every pane's sprite index was overwritten.
+- InitBlits spaced the 200 blits 64 bytes apart in the 0x3200-byte arena block `D_80146210`; the blits overlapped.
+  On the PC the pool is host storage in InitBlits.c, and BlitPtrs (`D_80149450`) was pointer-sized already.
+- Views made to agree: the all-`u32` ones (animControls, dust, gr3_73d8, gr3_8154), the byte-pad ones (gr3_6874,
+  gr3_a53c, f6b3c, fbc84, func_80106D94, DelBlit's, runtime_a_c93c_closure's, func_803A3DA4), UpdateBlit's
+  (`pad_config/group.c`) and `audio_channel_reset`'s, crowd_cheer_play's, and the views that call the `AnimFunc`
+  slot `AnimDTA` or `state` and clear it. The `AnimDTA` field of the others is `intptr_t`. 40 views agree.
+- `UpdateActiveObjects` (the AnimFunc pass, m2c code at `+0x28`/`+0` through an `s32`) has a PC version; its
+  `sound_stop` (DelBlit) view takes `intptr_t`.
+- Test: `assets_blit`.
+
+### 9.4 Pane groups `D_80116DE4`
+
+16 `FiveParts` (an active flag, the owner flag, two RGBA colours and five blits), 0x38 bytes on the PC with the
+blits pointer-sized from +0x10 (N64: 0x20, blits from +0xC). RemovePane, `sound_handles_clear` (which also stopped
+at `D_80116FE4`, a variable of its own on the PC) and ChangePaneColor were m2c code at N64 offsets; they have PC
+versions. Their `sound_stop` views take `intptr_t`.
+
+### 9.5 StatLL lists and their elements
+
+The list header (shots.c's `StatLL`) is 40 bytes on the PC: doubly flag, element count and size, then the element
+array, the active list and the free list pointer-sized. The views disagreed (24, 32 and 40 bytes; FreeStatLLE's
+active and free 8 bytes early behind a 15-byte pad; `pool_linked_list_init`'s active list an `s32`), and InitStatLL
+(`struct_fields_init`) and GetStatLLE (`func_8008E3C0`) were m2c code at N64 offsets. Every live header view now
+has the layout, InitStatLL and GetStatLLE have PC versions, and the views that left a header 24 bytes of storage
+are whole.
+
+The elements are linked through their first pointer, and a doubly linked list's back through the second, so an
+element is larger on the PC than the size its initializer passes. Those lists get the host element size
+(`ELEMENT_SIZE(n64, type)`, `n64` on the N64) and an element array of that type (own storage):
+
+| List | Elements | N64 | PC | Initializer |
+|---|---|---:|---:|---|
+| `D_80395EE8`, `D_80396B80` | overlay B trails, fades | 64, 28 | 72, 48 | `func_8038D1A8` |
+| `D_8039A520`, `D_8039A5F8`, `D_80394F70`, `D_8039AE80` | shots, hit polys, shot objects, casings | 104, 8, 60, 72 | 120, 16, 72, 80 | `func_803908D0` |
+| `D_8013F1E0` | puffs (hud_render) | 88 | 96 | `physics_collision_test` |
+| `D_80151AA8` | mine links (a heap block) | 8 | 16 | `camera_lerp_position` |
+| `D_80155220` | skid-mark effects (doubly linked) | 36 | 56 | `func_800B0580` |
+
+The skid-mark views (skid_marks' `EffectObj`, `audio_voice_set`'s `Voice`, `func_800B0580`'s `Node`) have a
+pointer-sized back link, and skid_marks reads the active list as the header's fourth pointer word on the PC (the
+fifth `s32` on the N64). Test: `assets_pool`.
+
+### 9.6 Controller/pak records `D_80144030`
+
+Four 0x304-byte records (paksys' `PakRecord`) with an `OSPfs` at +0x0C, whose `queue` pointer makes the record
+0x310 bytes on the PC and moves everything after +0x0C by 4 to 12 bytes (`error`/`FreeSpace` +0x80, the rumble
+state +0x88, the file entries +0x90). Thirteen views were byte pads at the N64 size, so `D_80144030[port]` indexed
+0x304 apart, and the rumble thread passed `pfs` at +0x0C. Every live view has the layout (an `OSPfs`-shaped member
+in each); the free-space and damaged getters (`func_800A3598`/`35BC`/`35F8`, port * 0x304 added to N64 addresses)
+have PC versions. 18 views agree. Test: `assets_pak`.
+
+### 9.7 Other front-end storage
+
+- The tDLList clear and init (`func_800A370C`/`func_800A44E8`, strong in `menu_save_options/save.c`) cleared the
+  head and tail as two `s32` at +8 and +0xC: the head's two halves on the PC, and the tail at +0x10 was left. The
+  `ListHead` view's head and tail are `intptr_t`.
+- `hud_setup` cleared the sound handlers' ordered list's root (`D_80143F58`) as an `s32` at +8 (`intptr_t` now).
+- Mode select's `SndSet` view of `D_80140420` (`func_800D5524`) read its records 4 bytes early behind `Player84`'s
+  definition pointer.
+- `menu_confirm_dialog` (clear a save slot) kept the slot's data pointer in an `s32` and passed the buffers to
+  `PS_WriteFile` as `u32`.
+- `camera_lerp_position` cleared the mine slots `D_80151528` (four target pointers and a count) as five `s32`.
+
+### 9.8 Checks and counts
+
+- `n64_neutral.py --base 09da2f0`: every changed file "shifted", 0 FAIL. ctest: 53 tests (4 new: `assets_zoid`,
+  `assets_blit`, `assets_pool`, `assets_pak`; putting the blit stride back to 64 fails `assets_blit`).
+- `view_check.py`: 0 live disagreements for every record above.
+- proto_check: harmful 27 views of 9 functions before, 2 views of 2 functions after (`func_800E2D18` in
+  `func_800E2F00` and `sound_position_set` in `func_8010E828`, race code; PROTOTYPES.md 6).
+- Census: 373 pointer warnings before, 334 after; the same two warning classes. No overlay A file has one.
+- `rush2049pc --no-rom --headless` stops where it did, after wave 8 in MusyX `sndInit`.
+
+### 9.9 Findings, and what is left
+
+- **The `(char *)-1` sentinel.** port/data turns an N64 pointer value 0xFFFFFFFF into the 64-bit 0x00000000FFFFFFFF
+  ("not an RDRAM address: kept"), but the game compares names with `(char *)-1` (all ones). MultiBlit tables mark
+  callback entries with a -1 name (sound_control.c, NewMultiBlit), so on the PC such an entry is taken for a
+  texture name: InitBlit looks the name up at 0xFFFFFFFF. The loader should sign-extend -1 in pointer fields
+  (port/data, not changed here). `assets_blit` uses the value the loader should produce.
+- **Colours as words.** Nodes and sprites keep RGBA in a u32 that some writers fill from integer constants and the
+  model draw reads as bytes (`prim[4]`). On a little-endian host a constant like `0xRRGGBBAA` stored as a word reads
+  back as A, B, G, R. Copies of byte-built colours are fine. Not a pointer question; not changed.
+- **Records still disagreeing in race-time code** (`view_check` over all own-storage symbols): the level-object
+  kinds `D_80117530` (7 views), car lights and exhaust `D_8017A510` (4), the level-object node pool `D_80143FC8`
+  (130 records of 112 bytes, several model views with pointers at different places; its element size is still the
+  N64 one), the frame records `D_80156BE0`, the texture-animation frames `D_8011905C` (race_setup_1's first field).
+  The player records `D_8014A118`/`input_rec0` and the cars `player_array` are another part's.
+- The OSMesgQueue views that declare it without pointers (24 bytes) only take its address; harmless.

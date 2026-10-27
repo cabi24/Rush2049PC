@@ -143,17 +143,8 @@ These points can't be checked without real files. What to look at then:
   *verts;`) needs u32 fields under `TARGET_PC`. The records are struct-copied to and from `D_803BAB58`/`D_803BAAE8`,
   which then take the N64 size. The heap addresses stored there fit in u32.
 
-**Record pointers kept in game structs.** Some game structs hold record pointers in N64-layout or s32 slots. These
-are not WAD record views, but the textures and palettes don't reach the renderer until they are fixed:
-- **`ZOID_SetTexture`** (`func_8008D870`) stores a texture pointer as s32 into the scene-node table `D_8012E700` at
-  N64 offsets (0x44 a node, `tex[]` at +0x20). The table has own storage with a host layout, and its views disagree
-  (`ObjInstance` 72 B, particle_knot's `Node`). Its callers pass `(s32)func_800B24EC(...)`, and three declare
-  `s32 func_800B24EC()`. This is the front end's texture path. It needs one host view of the node table and a PC
-  `func_8008D870`.
-- **`func_8010D85C`** calls `MBOX_FindPalette_WORK` without a declaration (an int result) and stores it into
-  `node->pal`.
-- **The blit and sprite lists.** `Input_ApplyPadConfig` / `Input_InitPadHandlers` copy texture and palette pointers
-  as u32 into `D_80140BF0` at N64 offsets, but the table has the host `Sprite` layout.
+**Record pointers kept in game structs.** The scene nodes (`ZOID_SetTexture`, `func_8010D85C`'s palette), the
+blits and the sprite list now keep texture and palette pointers whole, in one host layout (POINTERS.md 9). Left:
 - **Overlay B's health palettes** `D_80395060` have a palette record's shape but point at game data (`healthColor`).
   Game data lives in host arenas above 4 GB, so a u32 field can't hold that address. They need the arenas inside the
   window, or a window copy.
