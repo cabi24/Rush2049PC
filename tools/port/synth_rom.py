@@ -492,8 +492,11 @@ def font_data():
 # must be in some loaded WAD or the caller gets NULL. "" stands for every name that comes from initialized data
 # (MultiBlit tables, rodata strings), which is zero here.
 CODE_TEXTURES = ["", "A1", "B1", "BACKGROUND_SFX", "BUTTON", "BUTTON_SELECT", "BUTTON_TITLE", "CNTDWN3",
-                 "CURSOR", "CURSOR_B", "HIT_WALL"]
+                 "CURSOR", "CURSOR_B", "FOG", "HIT_WALL"]
 TEX_W, TEX_H = 16, 16          # every such texture: RGBA16, one solid colour
+# ... but for these, whose (size, format) differs: the track select's fog (the name is image A's D_803B9260), IA8,
+# which the 2D draw colours with the 8-byte colour pair its blit's palette table points to (BRINGUP.md 7).
+TEX_FORMATS = {"FOG": (1, 3)}
 
 
 # Model names the C looks up with MBOX_FindModel (string_copy_format): "AAANULLOBJ" is what it looks up for a NULL
@@ -659,7 +662,7 @@ def texture_wad(names, models=(), palettes=("",)):
     names = sorted(set(names), key=lambda n: n.encode())
     models = sorted(set(models), key=lambda n: n.encode())
     palettes = sorted(set(palettes), key=lambda n: n.encode())
-    recs = b"".join(txhd(n, TEX_W, TEX_H, 2, 0, 0) for n in names)
+    recs = b"".join(txhd(n, TEX_W, TEX_H, *TEX_FORMATS.get(n, (2, 0)), 0) for n in names)
     objs, where = model_objs(models)
     chunks = [("OBJS", objs, None)]
     if models:
@@ -1131,6 +1134,14 @@ def front_end(c):
     for sym, n in (("D_8011B3A0", 24), ("D_8011B400", 1), ("D_8011B404", 10), ("D_8011B438", 11)):
         for i in range(n):
             c.set("game", sym, "ptr", empty, "a car select name: the empty one" if i == 0 else "(same)", index=i)
+
+    # The track select's fog (BlowFog, func_8038A634): with option 14 valid for a single race (validOption,
+    # D_803B77D4[gRace][21], image A, s32), the screen makes a blit of the texture named D_803B9260 (image A, char[])
+    # whose palette is D_803BA1E8, a Palette whose colour table is the word at +0x14 (D_803BA1FC): FOG, an IA texture,
+    # so the draw reads its prim and env colours from that table. The word must be the arena's (BRINGUP.md 7).
+    c.set("ovl_a", "D_803B77D4", "u32", 1, "the track select's option 14 (the fog) valid in a single race", index=14)
+    for i, ch in enumerate(b"FOG\0"):
+        c.set("ovl_a", "D_803B9260", "u8", ch, "the fog's texture name: FOG" if i == 0 else "(same)", index=i)
 
     # The front end's WADs (ASSETS.md 2.3): the locked one (54, "attract") has every texture and model the code
     # names; the others (58, 59 locked; the screens 55, 56, 57, 60) are empty but valid.
