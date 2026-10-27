@@ -128,11 +128,14 @@ typedef struct {
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM
  * address (a ROM offset, a segment address), kept. unresolved: below the heap and in no symbol, kept. arena: an
- * arena's host address, which is the value itself for an arena at its N64 address. */
+ * arena's host address, which is the value itself for an arena at its N64 address; undescribed counts those whose
+ * target is initialized data no declaration describes, which keeps the ROM's byte order (fine for bytes, wrong for
+ * a table of wider values that is reached only through pointers). */
 typedef struct {
     uint32_t null, own, cdef, arena, func, rdram, raw, unresolved, no_code, inexact, ambiguous;
     uint32_t addr_words;        /* non-pointer words that look like N64 addresses */
     uint32_t addr_words_host;   /* ... of host storage, a function or code, which the word can't reach */
+    uint32_t undescribed;       /* arena pointers to initialized bytes no element describes: kept in N64 order */
 } PcDataStats;
 
 /* The loader (pc_data.c). load_all: inflate every image from the ROM and fill all of them, then write the

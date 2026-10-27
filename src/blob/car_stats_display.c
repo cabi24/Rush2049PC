@@ -25,16 +25,34 @@ typedef u32 uintptr_t;
 typedef int intptr_t;
 #endif
 
+#ifdef TARGET_PC
+/* PC: IDO's va_list walks the o32 stack after the last named argument; a host ABI passes the variable arguments
+ * in registers (docs/port/SYNTH.md). */
+typedef __builtin_va_list va_list;
+#define va_start(list, parmN) __builtin_va_start(list, parmN)
+#define va_arg(list, mode) __builtin_va_arg(list, mode)
+#define va_end(list) __builtin_va_end(list)
+#else
 typedef char *va_list;
 #define va_start(list, parmN) (list = ((char *)&parmN + sizeof(parmN)))
 #define va_arg(list, mode) ((mode *)(list = \
     (char *)((sizeof(mode) > 4 ? ((intptr_t)list + 7) & -8 \
                                : ((intptr_t)list + 3) & -4) + sizeof(mode))))[-1]
 #define va_end(list) (void)0
+#endif
 
+#ifdef TARGET_PC
+/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links, so its fields follow from +0x10, 72 bytes
+ * (docs/port/SYNTH.md). */
+#define EVENT_LINK0 void *pad0;
+#define EVENT_LINK1 void *pad4;
+#else
+#define EVENT_LINK0 u32 pad0;
+#define EVENT_LINK1 u32 pad4;
+#endif
 typedef struct Event {
-    u32 pad0;
-    u32 pad4;
+    EVENT_LINK0
+    EVENT_LINK1
     u32 handle;     /* 8 */
     u8 busy;        /* 12 */
     u8 active;      /* 13 */

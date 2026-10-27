@@ -15,6 +15,38 @@ typedef s32 intptr_t;
 #endif
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: the audio manager's records have host-sized links and pointers (audiomgr_thread.c's views): an emitter
+ * (camera_target_track's Cam) is 56 bytes, an fx tag (tFxSequence) 88, a command (tAudioMsg) 32 (docs/port/SYNTH.md). */
+typedef struct CamSlot {
+    void *link[2];
+    u8 pad10[4];
+    /* 0x14 */ f32 x, y, z;
+    u8 pad20[4];
+    /* 0x24 */ f32 blend;
+    u8 pad28[4];
+    /* 0x2C */ f32 extra;
+} CamSlot;
+
+typedef struct Entity {
+    void *pad0[3];
+    /* 0x18 */ s32 id;
+    /* 0x1C */ s32 state;
+    u8 pad20[6];
+    /* 0x26 */ u8 msgCount;
+    u8 pad27[0x48 - 0x27];
+    /* 0x48 */ s32 link;
+    /* 0x50 */ CamSlot *cam;
+} Entity; /* 0x58 */
+
+typedef struct Msg {
+    s16 id;
+    s8 type;
+    s8 used;
+    /* 0x08 */ Entity *ent;
+    u8 pad10[16];
+} Msg; /* 0x20 */
+#else
 typedef struct CamSlot {
     /* 0x00 */ u8 pad0[12];
     /* 0x0C */ f32 x, y, z;
@@ -42,6 +74,7 @@ typedef struct Msg {
     /* 0x04 */ Entity *ent;
     /* 0x08 */ u8 pad8[16];
 } Msg; /* 0x18 */
+#endif
 
 extern Entity *D_80110244;
 extern s32 D_80146104;

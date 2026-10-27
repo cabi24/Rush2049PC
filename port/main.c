@@ -37,6 +37,8 @@ static void usage(FILE *f)
             "  --screenshot-at N   save a PNG once N graphics tasks have run (--screenshot PATH, default\n"
             "                      rush2049pc-N.png)\n"
             "  --stop-at-gfx       stop at the first graphics task (osSpTaskStartGo), reporting it\n"
+            "  --until-state M[:N] stop once the game's state word (gGameState) has a bit of M and N more\n"
+            "                      graphics tasks have run; with --seconds, not getting there is exit code 1\n"
             "  --press T:BUTTON[@PORT][:DUR],...   scripted input (v5's format; T, DUR in seconds)\n"
             "  --press-file PATH   a .press input script\n"
             "  --log-input         print every change of a player's buttons and stick\n"
@@ -102,6 +104,15 @@ static void musyx_services(int no_rom)
     }
 }
 
+/* The game's state word (gGameState, groups/state/state.c), which the host loop logs and --until-state waits
+ * for: 1 initGameState, 2 the start prompt, 0x40000000 the pak warning, 4 the front end's menus, ... */
+extern uint32_t state_word_a;
+
+static uint32_t game_state(void)
+{
+    return *(volatile uint32_t *)&state_word_a;
+}
+
 #define MAX_OVERRIDES 64
 
 int main(int argc, char **argv)
@@ -164,6 +175,16 @@ int main(int argc, char **argv)
             run.frames = (uint32_t)atoi(ARG());
         else if (!strcmp(a, "--stop-at-gfx"))
             pc_rcp_stop_at_gfx = 1;
+        else if (!strcmp(a, "--until-state")) {
+            const char *s = ARG();
+            char *end;
+            run.until_state = (uint32_t)strtoul(s, &end, 0);
+            run.until_state_frames = *end == ':' ? (uint32_t)strtoul(end + 1, &end, 0) : 0;
+            if (*end || !run.until_state) {
+                fprintf(stderr, "rush2049pc: --until-state takes MASK[:FRAMES], not '%s'\n", s);
+                return 2;
+            }
+        }
         else if (!strcmp(a, "--press")) {
             if (pc_input_add_spec(ARG()) != 0)
                 return 2;
@@ -298,6 +319,7 @@ int main(int argc, char **argv)
     if (!pc_mem_fixed())
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
 
+    run.game_state = game_state;
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
     pc_input_shutdown();

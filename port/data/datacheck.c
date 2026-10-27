@@ -479,6 +479,15 @@ int main(int argc, char **argv)
         high &= sizeof(void *) < 8 || !tab->syms[i].host || (uintptr_t)tab->syms[i].host >> 16 >> 16 != 0;
     CHECK(placed, "%u arenas at their N64 addresses (game: %p)", tab->n_arenas, (void *)tab->arenas[1].host);
     CHECK(high, "own storage and game-C data above 4 GB (%s at %p)", tab->syms[0].name, tab->syms[0].host);
+    /* Both runtime images have a function at 0x8038A400 (image A's updateWarningScreen, image B's worlddam
+     * entry), under one N64 name: each image's data must reach its own (docs/port/SYNTH.md). */
+    const PcDataFunc *f_a = NULL, *f_b = NULL;
+    for (uint32_t i = 0; i < tab->n_funcs; i++)
+        if (tab->funcs[i].n64_addr == 0x8038A400u)
+            *(tab->funcs[i].image == 2 ? &f_a : &f_b) = &tab->funcs[i];
+    CHECK(f_a && f_b && f_a->host && f_b->host && f_a->host != f_b->host,
+          "0x8038A400 is a function of its own in image A (%s) and in image B (%s)", f_a ? f_a->name : "none",
+          f_b ? f_b->name : "none");
     if (argc > 1 && strcmp(argv[1], "--synthetic") == 0)
         return map_window() != 0 ? 1 : synthetic();
     const char *path = argc > 1 ? argv[1] : PC_DATA_ROM;

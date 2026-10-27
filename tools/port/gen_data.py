@@ -60,6 +60,9 @@ HOST_PTR = 8   # from DWARF pointer types; checked as they are read
 IMAGE_INDEX = {img[0]: i for i, img in enumerate(n64syms.IMAGES)}
 # The game's libc names compile as n64_<name> (CMakeLists.txt).
 RENAMED = {n: "n64_" + n for n in ("main", "memcpy", "memset", "memchr", "strlen", "strchr", "sinf", "cosf")}
+# A runtime image's function whose name the other image's function at the same address has (both are linked in):
+# its PC name (nonmatching/ovl_a/func_8038A400.c).
+IMAGE_RENAMED = {("ovl_a", "func_8038A400"): "updateWarningScreen"}
 # N64 (IDO, o32) sizes of the C base types, by DWARF name.
 N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short int": 2, "short unsigned int": 2,
             "int": 4, "unsigned int": 4, "long int": 4, "long unsigned int": 4, "long long int": 8,
@@ -856,7 +859,7 @@ def generate(a):
         if kind == "func" and n64syms.CODE["boot"][0] <= addr < n64syms.CODE["boot"][1]:
             entries.append((addr, name, "boot"))
     for addr, name, img in entries:
-        host = RENAMED.get(name, name)
+        host = IMAGE_RENAMED.get((img, name), RENAMED.get(name, name))
         where = defined_in.get(host)
         if where and img not in where:
             func_clash.append(f"{img} 0x{addr:08X} {name}: defined only by {', '.join(sorted(where))}")
@@ -977,6 +980,10 @@ def generate(a):
     (a.out.parent / "data_symbols.txt").write_text("\n".join(rows) + "\n")
     if selfcheck:
         sys.exit(f"gen_data: {len(selfcheck)} self-check failures; see {a.out.parent / 'data_layout.txt'}")
+    if func_clash:
+        # A runtime image's function under the other image's name: its callers and its data would reach the other
+        # image's code (IMAGE_RENAMED is the fix).
+        sys.exit("gen_data: function addresses whose name the other image defines:\n  " + "\n  ".join(func_clash))
     print(f"gen_data: {n_names} names ({len(arena_syms)} arena, {len(own)} own, {len(inside)} inside own), "
           f"{len(cdefs)} C-defined, {len(funcs)} functions, {len(thunks)} thunks; "
           f"{len(pointer_conflicts)} pointer conflicts -> {a.out}")

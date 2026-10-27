@@ -15,7 +15,12 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
+#ifdef TARGET_PC
+/* PC: a command (tAudioMsg, audiomgr_thread.c) is 32 bytes, its fx tag pointer host-sized (docs/port/SYNTH.md). */
+typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x1C]; } Slot18;
+#else
 typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x14]; } Slot18;
+#endif
 extern volatile Slot18 D_80142DD8[128];
 Slot18 *func_80091B00(void)
 {

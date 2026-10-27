@@ -3702,7 +3702,12 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: an fx tag (audiomgr_thread.c's tFxSequence): state at +0x1C, sysId at +0x48 (docs/port/SYNTH.md). */
+typedef struct { void *pad[3]; u32 id; s32 type; u8 pad2[0x28]; s32 link; } ResEntry;
+#else
 typedef struct { u8 pad[0x10]; s32 type; u8 pad2[0x28]; s32 link; } ResEntry;
+#endif
 extern ResEntry *func_80091BA8(s32 arg0);
 s32 results_time_display(s32 arg0) {
     s32 result; ResEntry *e;

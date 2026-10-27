@@ -4,6 +4,22 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef float f32;
+#ifdef TARGET_PC
+/* PC: an fx tag (audiomgr_thread.c's tFxSequence) is 88 bytes, its links, list and data host-sized; a command
+ * (tAudioMsg) 32: a change's four floats from +4, its tag at +24; a stop's tag at +8 (docs/port/SYNTH.md). */
+typedef unsigned int u32;
+typedef struct Entity {
+    void *pad0[3]; s32 id; s32 state; u8 pad20[6];
+    u8 msgCount; u8 pad27[9]; f32 x,y,z,w; u8 pad40[16]; void *data;
+} Entity;
+typedef struct MsgTarget { u32 pad; Entity *target; } __attribute__((packed, aligned(4))) MsgTarget;
+typedef struct Msg {
+    s16 id; s8 type,used;
+    union { struct { f32 x,y,z,w; } value; MsgTarget t; } payload;
+    Entity *ent;
+} Msg;
+#define target t.target
+#else
 typedef struct Entity {
     u8 pad0[12]; s32 id; s32 state; u8 pad14[6];
     u8 msgCount; u8 pad1B[9]; f32 x,y,z,w; u8 pad34[16];
@@ -13,6 +29,7 @@ typedef struct Msg {
     union { struct { f32 x,y,z,w; } value; Entity *target; } payload;
     Entity *ent;
 } Msg;
+#endif
 extern Entity *D_80110244;
 extern s32 D_80146104;
 extern Msg D_80142DD8[128];

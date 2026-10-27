@@ -16,9 +16,18 @@ typedef unsigned char u8;
 typedef unsigned int u32;
 typedef int s32;
 
+#ifdef TARGET_PC
+/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links, so its fields follow from +0x10, 72 bytes
+ * (docs/port/SYNTH.md). */
+#define EVENT_LINK0 void *pad0;
+#define EVENT_LINK1 void *pad4;
+#else
+#define EVENT_LINK0 u32 pad0;
+#define EVENT_LINK1 u32 pad4;
+#endif
 typedef struct Event {
-    u32 pad0;
-    u32 pad4;
+    EVENT_LINK0
+    EVENT_LINK1
     u32 handle;     /* 8 */
     u8 busy;        /* 12 */
     u8 active;      /* 13 */

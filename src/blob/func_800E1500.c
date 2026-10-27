@@ -3800,10 +3800,22 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: arg0 is the car's model (D_8014A250), which keeps its N64 layout: its car descriptor pointer at +0 is a u32
+ * window address (docs/port/CARS.md 2.2), not the 8-byte pointer `*arg0` reads. */
+void func_800E1500(void **arg0, f32 *arg1, f32 *arg2)
+{
+  f32 *car = (f32 *)(uintptr_t)*(u32 *)arg0;
+  arg2[0] = arg1[0] * car[3];
+  arg2[1] = arg1[1] * car[4];
+  arg2[2] = arg1[2] * car[5];
+}
+#else
 void func_800E1500(void **arg0, f32 *arg1, f32 *arg2)
 {
   arg2[0] = arg1[0] * ((f32 *) (*arg0))[3];
   arg2[1] = arg1[1] * ((f32 *) (*arg0))[4];
   arg2[2] = arg1[2] * ((f32 *) (*arg0))[5];
 }
+#endif
 
