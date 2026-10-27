@@ -57,7 +57,11 @@ void fcvt_wrapper(char *, char *, ...);
 u32 object_manager_update(void *, s32);
 void crowd_cheer_play(void *, s32, s32, s32, s32);
 s16 object_bytes_sum_global(void);
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+void *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+#else
 void *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
+#endif
 
 void gfx_lock_slp(void) { osRecvMesg(&D_801461D0, (void *)0, 1); } void gfx_unlock_slp(void) { osSendMesg(&D_801461D0, (void *)0, 0); } s32 font_select_slp(s32 font) { return slot_state_setup(font); } s32 font_set_slp(s32 font) { s32 old; gfx_lock_slp(); old = font_select_slp(font); gfx_unlock_slp(); return old; }
 

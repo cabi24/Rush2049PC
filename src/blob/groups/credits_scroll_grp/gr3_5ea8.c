@@ -80,7 +80,11 @@ extern s16 object_bytes_sum_global(void);        /* TB_GetFontLineHeight */
 extern void dispatch_handler(s32);               /* TB_SetTextColor */
 extern s32 fcvt_wrapper(char *, char *, ...);    /* TB_Sprintf */
 extern void render_helper(f32);                  /* HAL_SetTextDepth */
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+extern s32 *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+#else
 extern s32 *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);   /* CreatePane-like */
+#endif
 extern void camera_auto_follow(s16, s16, s16, s16, s16, s16, char *);   /* TB_DrawTextScrollBox */
 extern void ChangePaneColor(void *, void *, void *);
 

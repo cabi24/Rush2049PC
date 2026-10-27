@@ -110,7 +110,11 @@ s32 slot_state_setup(s32 selection);
 void Input_ApplyPadConfig(void *);
 s32 object_manager_update(void *, s32);
 s16 object_bytes_sum_global(void);
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+void *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+#else
 void *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
+#endif
 void ChangePaneColor(void *, u8 *, u8 *);
 void RemovePane(void *);
 

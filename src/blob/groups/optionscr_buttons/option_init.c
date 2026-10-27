@@ -76,7 +76,11 @@ void createBG(void);                  /* createBG */
 void particle_velocity_set(void);                  /* ZeroCameras */
 void entity_audio_update(void);                    /* ClearRushControls */
 void options_TitlePane(void);                    /* _TitlePane@optionscr.c */
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+void *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+#else
 void *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);   /* InitPane */
+#endif
 Blit *sound_control(s16, s16, const MultiBlit *, s16);   /* NewMultiBlit */
 
 void op_gfx_lock(void) { osRecvMesg(&D_801461D0, 0, 1); }

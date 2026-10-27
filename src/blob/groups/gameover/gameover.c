@@ -87,7 +87,11 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
 void sound_handles_clear(s32 arg0);
 s32 object_manager_update(void *obj, s32 arg1);
 s16 object_bytes_sum_global(void);
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+void *ambient_sound_set(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, intptr_t word40, s32 word44, s32 own);
+#else
 void *ambient_sound_set(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, s32 word40, s32 word44, s32 own);
+#endif
 s32 slot_state_setup(s32 selection);
 s32 gameover_validOption(s32);
 void resource_type_select(s32 arg0);

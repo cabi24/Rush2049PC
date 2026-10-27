@@ -65,7 +65,11 @@ extern s8 D_8014978C;              /* gTrackNum */
 extern s16 gNumWindows;             /* gNumWindows */
 extern char *D_8011A924[];         /* gWorldNames (N64: indexed by track) */
 
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+s32 audio_frame_sync(s32 wave, s32 a1, s32 background, s32 a3, void *heap);
+#else
 s32 audio_frame_sync(s32 wave, s32 a1, s32 background, s32 a3, s32 a4);   /* GC LoadWave */
+#endif
 s8 player_state_get(s32 idx);                                            /* GC WaveInstanceReady */
 void *slot_value_get(s32 idx);                                           /* GC GetWaveInstanceAddr */
 void MBSetupWad(Wad *wad, void *ptr);                                 /* GC MBSetupWad */

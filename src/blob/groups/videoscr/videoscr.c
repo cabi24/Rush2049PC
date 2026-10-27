@@ -109,7 +109,7 @@ extern void render_helper(f32);                  /* HAL_SetTextDepth */
 extern void func_800ED66C(f32);                  /* HAL_SetTextTranslucency */
 extern void brake_light_update(s32, void *, void *, void *, s16 *);  /* ZOID_ProjectWindow */
 extern s16 camera_zoom_fov(s16, char *);         /* TB_GetTextNumLines */
-extern void *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);   /* InitPane */
+extern void *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);   /* InitPane */
 extern void camera_auto_follow(s16, s16, s16, s16, s32, s32, char *);    /* TB_DrawTextScrollBox */
 extern void RemovePane(void *);   /* RemovePane */
 

@@ -522,7 +522,11 @@ extern void *func_800B24EC(char *, s16 *, s32, s8, s32);
 extern void func_8008D870(s16, void *, s32);
 extern void func_800B5898(f32, f32 (*)[3]), func_800B5940(f32, f32 (*)[3]);
 extern void func_8008B32C(f32 (*)[3], f32 (*)[3], f32);
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+extern void *func_800B3B4C(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+#else
 extern void *func_800B3B4C(s32, s32, s32, s32, s32, s32, s32, s32);
+#endif
 extern void *sound_control(s16, s16, void *, s16);
 
 /* func_80393B3C = initRecordScreen@recordscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/recordscr.c, GC 0x8008077C)
