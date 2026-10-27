@@ -11,7 +11,8 @@ host), and compares, member by member at each N64 offset, the host offset and wh
 reference view (the one with the most pointers, as gen_data chooses). Byte arrays (pads) are not compared.
 
 With --sym, the views are the declarations in the objects whose live code (strong or local functions, from the
-relocations) refers to the symbol or to one of the --also names; weak context copies never run. With --tag, the
+relocations) refers to the symbol, to one of its --alias names (same address) or to one of the --also names (inside
+it, whose own declarations are not compared); weak context copies never run. With --tag, the
 views are the complete struct definitions with one of those tags and at most the given N64 size (shorter ones are
 prefixes), in every object; those whose object has no live function are marked. Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
 """
@@ -108,6 +109,7 @@ def main():
     ap.add_argument("--build", type=Path, default=Path("build/pc"))
     ap.add_argument("--sym", help="data symbol whose views to compare")
     ap.add_argument("--also", default="", help="names inside the symbol's extent that live code may use instead")
+    ap.add_argument("--alias", default="", help="other names of the symbol's address, whose declarations are views too")
     ap.add_argument("--tag", help="struct tags (comma-separated) of a record passed by pointer")
     ap.add_argument("--n64-size", type=lambda s: int(s, 0), help="N64 size of the --tag record")
     ap.add_argument("--readelf", default="readelf")
@@ -118,13 +120,14 @@ def main():
 
     views = []   # (object, display, type, live)
     if a.sym:
-        names = {a.sym} | {n for n in a.also.split(",") if n}
-        users = live_users(objects, names)
-        found, tags = gd.read_variables(sorted(users), a.readelf, {a.sym})
-        for obj, t, disp, _ in found.get(a.sym, ()):
-            t = element_type(gd.complete(t, tags))
-            if t[0] in ("struct", "union"):
-                views.append((obj, disp, t, True))
+        same = {a.sym} | {n for n in a.alias.split(",") if n}
+        users = live_users(objects, same | {n for n in a.also.split(",") if n})
+        found, tags = gd.read_variables(sorted(users), a.readelf, same)
+        for name in sorted(same):
+            for obj, t, disp, _ in found.get(name, ()):
+                t = element_type(gd.complete(t, tags))
+                if t[0] in ("struct", "union"):
+                    views.append((obj, disp if name == a.sym else f"{name}: {disp}", t, True))
         missing = users - {v[0] for v in views}
     else:
         want = set(a.tag.split(","))
