@@ -51,7 +51,8 @@ static void usage(FILE *f)
             "  --status N          a status line every N seconds\n"
             "  -v, --verbose       more log lines (repeat for more); --trace-os: every thread switch\n"
             "  --selftest          test the thread scheduler, queues, events and timers (no ROM needed)\n"
-            "Ctrl-\\ prints the N64 threads' states.\n");
+            "F1 (or both stick clicks on a controller) opens the settings overlay, which holds the game; a\n"
+            "--press script's MENU does too. Ctrl-\\ prints the N64 threads' states.\n");
 }
 
 /* --no-rom: the file table (docs/port/ASSETS.md §2.2) is ROM data, so on a blank cartridge every wave is a

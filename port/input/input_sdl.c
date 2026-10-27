@@ -13,6 +13,11 @@
  * - Window: Alt+Enter and the fullscreen hotkey toggle desktop fullscreen; the screenshot hotkey saves a PNG of
  *   the shown frame; the pause hotkey, and losing focus with pause_on_focus_loss, hold the game (the main loop
  *   asks pc_input_paused); the quit hotkey quits. Hotkeys never reach the game.
+ * - The settings overlay (menu.c): the menu hotkey (F1) or the controller's menu button (controller.menu, both
+ *   stick clicks; a button alone, or buttons held together) opens it. While
+ *   it is open its keys and buttons go to it and not to the game, and a binding item gets the next key or
+ *   controller input. When it closes, what is still held is ignored until it is released, so the key or button
+ *   that closed it doesn't reach the game.
  * - Rumble: the rumble pak's motor (port/ultra/si.c) drives SDL_GameControllerRumble on that player's pad. */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -35,11 +40,21 @@ typedef struct {
     int8_t sign;    /* axis direction that presses */
 } PadSource;
 
+/* The overlay's button: one input, or several held together ("leftstick+rightstick"). */
+#define MAX_COMBO 4
+typedef struct {
+    PadSource part[MAX_COMBO];
+    int n;
+} Combo;
+
 typedef struct {
     SDL_GameController *gc;
     SDL_JoystickID id;
     double rumble;
     Uint32 rumble_sent;
+    uint32_t mute_buttons;   /* held when the overlay closed: ignored until released */
+    uint8_t mute_axes;
+    uint8_t menu_held;       /* the overlay's combos held on this pad, one bit each */
 } Slot;
 
 static struct {
@@ -53,11 +68,18 @@ static struct {
     int nkeys[PC_NUM_CONTROLS];
     PadSource pads[PC_NUM_CONTROLS][MAX_SOURCES];
     int npads[PC_NUM_CONTROLS];
+    Combo menu_pad[MAX_SOURCES];       /* controller.menu */
+    int nmenu_pad;
     SDL_Scancode hot[PC_NUM_HOTKEYS][MAX_SOURCES];
     int nhot[PC_NUM_HOTKEYS];
-    uint8_t down[SDL_NUM_SCANCODES];
+    uint8_t down[SDL_NUM_SCANCODES];   /* the game's keys */
+    uint8_t held[SDL_NUM_SCANCODES];   /* every key, the overlay's included */
+    uint8_t mute[SDL_NUM_SCANCODES];   /* held when the overlay closed: ignored until released */
     Slot slot[4];
     int paused_focus, paused_key;
+    int nav_dir;                       /* the overlay: a held direction (PC_MENU_UP...), -1 for none */
+    uint64_t nav_next;                 /* when it repeats */
+    int stick_dir[2];                  /* where the left stick's x and y were last pushed, -1 for the middle */
 } L;
 
 /* ---------------------------------------------------------------- binding names */
@@ -79,6 +101,19 @@ static SDL_Scancode key_from_name(const char *name)
         if (!strcasecmp(name, key_aliases[i].name))
             return key_aliases[i].sc;
     return SDL_GetScancodeFromName(name);
+}
+
+/* A key's name for the file, the way it reads back: SDL's name, or the alias for punctuation. NULL for a key with
+ * no name a list can hold. */
+static const char *key_name(SDL_Scancode sc)
+{
+    const char *name = SDL_GetScancodeName(sc);
+    for (size_t i = 0; i < sizeof key_aliases / sizeof *key_aliases && name[0] && !name[1]; i++)
+        if (key_aliases[i].sc == sc)
+            name = key_aliases[i].name;
+    if (!name[0] || strpbrk(name, ",;#\"") || key_from_name(name) != sc)
+        return NULL;
+    return name;
 }
 
 static int pad_from_name(const char *name, PadSource *out)
@@ -150,6 +185,25 @@ static int add_pad(const char *name, int index, int slot)
     return pad_from_name(name, &L.pads[index][slot]);
 }
 
+/* "a+b": parts joined by '+', where a '+' that starts a part is an axis sign ("leftstick++rightx"). */
+static int add_menu_pad(const char *name, int index, int slot)
+{
+    Combo *c = &L.menu_pad[slot];
+    char part[64];
+    c->n = 0;
+    for (const char *p = name; *p;) {
+        const char *e = strchr(p + 1, '+');
+        size_t n = e ? (size_t)(e - p) : strlen(p);
+        if (c->n == MAX_COMBO || n >= sizeof part)
+            return -1;
+        snprintf(part, sizeof part, "%.*s", (int)n, p);
+        if (pad_from_name(part, &c->part[c->n++]) != 0)
+            return -1;
+        p += n + (e != NULL);
+    }
+    return c->n ? 0 : -1;
+}
+
 static int hotkey_of(SDL_Scancode sc)
 {
     for (int h = 0; h < PC_NUM_HOTKEYS; h++)
@@ -157,6 +211,23 @@ static int hotkey_of(SDL_Scancode sc)
             if (L.hot[h][i] == sc)
                 return h;
     return -1;
+}
+
+/* The settings live input follows, at start and from the overlay; the players are set at start only. */
+static void configure(const PcSettings *s)
+{
+    L.analog = s->analog;
+    L.pause_on_focus = s->pause_on_focus_loss;
+    L.threshold = s->axis_threshold;
+    L.shape = (PcStickShape){s->deadzone, s->stick_range, s->stick_diagonal};
+    snprintf(L.shot_dir, sizeof L.shot_dir, "%s", s->screenshot_dir);
+    for (int c = 0; c < PC_NUM_CONTROLS; c++) {
+        parse_list(s->key[c], "keyboard", pc_control_names[c], add_key, c, &L.nkeys[c]);
+        parse_list(s->pad[c], "controller", pc_control_names[c], add_pad, c, &L.npads[c]);
+    }
+    parse_list(s->pad_menu, "controller", "menu", add_menu_pad, 0, &L.nmenu_pad);
+    for (int h = 0; h < PC_NUM_HOTKEYS; h++)
+        parse_list(s->hotkey[h], "hotkeys", pc_hotkey_names[h], add_hotkey, h, &L.nhot[h]);
 }
 
 /* ---------------------------------------------------------------- controllers */
@@ -181,7 +252,7 @@ static void assign_pads(void)
             fprintf(stderr, "rush2049pc: controller %d: %s\n", i, SDL_GetError());
             continue;
         }
-        L.slot[p] = (Slot){gc, id, 0, 0};
+        L.slot[p] = (Slot){.gc = gc, .id = id};
         SDL_GameControllerSetPlayerIndex(gc, p);
         fprintf(stderr, "rush2049pc: controller -> player %d: %s\n", p + 1, SDL_GameControllerName(gc));
     }
@@ -203,19 +274,75 @@ static double axis_value(SDL_GameController *gc, int axis)
     return v < -1 ? -1 : v;
 }
 
-static int source_active(SDL_GameController *gc, const PadSource *s)
+static int same_source(const PadSource *a, const PadSource *b)
 {
+    return a->axis == b->axis && a->id == b->id && (!a->axis || a->sign == b->sign);
+}
+
+/* The overlay's button when it is one input alone: not a game button. (A combo's parts stay game buttons; while
+ * the whole combo is held the overlay is open and the game sees nothing anyway.) */
+static int is_menu_source(const PadSource *s)
+{
+    for (int i = 0; i < L.nmenu_pad; i++)
+        if (L.menu_pad[i].n == 1 && same_source(&L.menu_pad[i].part[0], s))
+            return 1;
+    return 0;
+}
+
+/* After a controller event: did one of the overlay's combos just become held on that pad? */
+static int menu_combo_pressed(SDL_JoystickID id)
+{
+    int pressed = 0;
+    for (int p = 0; p < 4; p++) {
+        Slot *slot = &L.slot[p];
+        uint8_t held = 0;
+        if (!slot->gc || slot->id != id)
+            continue;
+        for (int i = 0; i < L.nmenu_pad && i < 8; i++) {
+            int all = 1;
+            for (int j = 0; j < L.menu_pad[i].n && all; j++) {
+                const PadSource *s = &L.menu_pad[i].part[j];
+                all = s->axis ? SDL_GameControllerGetAxis(slot->gc, (SDL_GameControllerAxis)s->id) * s->sign > 19660
+                              : SDL_GameControllerGetButton(slot->gc, (SDL_GameControllerButton)s->id);
+            }
+            held |= (uint8_t)(all << i);
+        }
+        pressed = (held & ~slot->menu_held) != 0;
+        slot->menu_held = held;
+    }
+    return pressed;
+}
+
+static int source_active(const Slot *slot, const PadSource *s)
+{
+    if (is_menu_source(s))
+        return 0;   /* the overlay's button is not a game button */
     if (!s->axis)
-        return SDL_GameControllerGetButton(gc, (SDL_GameControllerButton)s->id) != 0;
-    return pc_axis_deadzone(axis_value(gc, s->id), L.shape.deadzone) * s->sign > L.threshold;
+        return !(slot->mute_buttons >> s->id & 1) &&
+               SDL_GameControllerGetButton(slot->gc, (SDL_GameControllerButton)s->id) != 0;
+    return !(slot->mute_axes >> s->id & 1) &&
+           pc_axis_deadzone(axis_value(slot->gc, s->id), L.shape.deadzone) * s->sign > L.threshold;
+}
+
+/* A pad's buttons and axes still held from the overlay count once they are released (an axis back in its dead
+ * zone). */
+static void unmute(Slot *slot)
+{
+    for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX && slot->mute_buttons; b++)
+        if (!SDL_GameControllerGetButton(slot->gc, (SDL_GameControllerButton)b))
+            slot->mute_buttons &= ~(1u << b);
+    for (int a = 0; a < SDL_CONTROLLER_AXIS_MAX && slot->mute_axes; a++)
+        if (pc_axis_deadzone(axis_value(slot->gc, a), L.shape.deadzone) == 0)
+            slot->mute_axes &= (uint8_t)~(1u << a);
 }
 
 /* ---------------------------------------------------------------- window actions */
 
 static void set_title(void)
 {
-    SDL_SetWindowTitle(L.win, L.paused_focus || L.paused_key ? "San Francisco Rush 2049 (paused)"
-                                                              : "San Francisco Rush 2049");
+    SDL_SetWindowTitle(L.win, L.paused_focus || L.paused_key || pc_menu_is_open()
+                                  ? "San Francisco Rush 2049 (paused)"
+                                  : "San Francisco Rush 2049");
 }
 
 static void set_fullscreen(int on)
@@ -262,6 +389,149 @@ static void set_pause(int *flag, int on, const char *why)
     }
 }
 
+/* ---------------------------------------------------------------- the overlay's input */
+
+/* A step the overlay takes from a direction; held, it repeats (pc_input_live_tick). */
+static void nav(int dir)
+{
+    pc_menu_action(dir);
+    L.nav_dir = dir;
+    L.nav_next = pc_host_ns() + 400000000u;
+}
+
+/* A key while the overlay is open. Its own keys, the menu key, and the fullscreen and screenshot hotkeys work; the
+ * game's keys, pause and quit don't (Escape is the overlay's back key). A binding item takes the next key. */
+static void menu_key(const SDL_Event *e, SDL_Scancode sc, int first)
+{
+    int capture = pc_menu_capturing(), h = hotkey_of(sc);
+    if (capture) {   /* Escape cancels; a key binding takes any other key, once */
+        if (first && sc == SDL_SCANCODE_ESCAPE)
+            pc_menu_capture(NULL);
+        else if (first && capture == PC_MENU_CAPTURE_KEY && key_name(sc))
+            pc_menu_capture(key_name(sc));
+        return;
+    }
+    if ((sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER) && (e->key.keysym.mod & KMOD_ALT)) {
+        if (first)
+            toggle_fullscreen();
+        return;
+    }
+    if (h == PC_HOTKEY_MENU || h == PC_HOTKEY_FULLSCREEN || h == PC_HOTKEY_SCREENSHOT) {
+        if (first && h == PC_HOTKEY_MENU)
+            pc_menu_action(PC_MENU_CLOSE);
+        else if (first && h == PC_HOTKEY_FULLSCREEN)
+            toggle_fullscreen();
+        else if (first)
+            screenshot();
+        return;
+    }
+    switch (sc) {   /* the moving keys repeat while held */
+    case SDL_SCANCODE_UP: pc_menu_action(PC_MENU_UP); break;
+    case SDL_SCANCODE_DOWN: pc_menu_action(PC_MENU_DOWN); break;
+    case SDL_SCANCODE_LEFT: pc_menu_action(PC_MENU_LEFT); break;
+    case SDL_SCANCODE_RIGHT: pc_menu_action(PC_MENU_RIGHT); break;
+    case SDL_SCANCODE_PAGEUP: pc_menu_action(PC_MENU_PAGE_UP); break;
+    case SDL_SCANCODE_PAGEDOWN: pc_menu_action(PC_MENU_PAGE_DOWN); break;
+    default:
+        if (!first)
+            break;
+        if (sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER || sc == SDL_SCANCODE_SPACE)
+            pc_menu_action(PC_MENU_ACCEPT);
+        else if (sc == SDL_SCANCODE_ESCAPE)
+            pc_menu_action(PC_MENU_BACK);
+        else if (sc == SDL_SCANCODE_BACKSPACE || sc == SDL_SCANCODE_DELETE)
+            pc_menu_action(PC_MENU_CLEAR);
+        else if (sc == SDL_SCANCODE_INSERT)
+            pc_menu_action(PC_MENU_ADD);
+    }
+}
+
+/* A controller button while the overlay is open: the D-pad moves, A accepts, B goes back, X clears, Y adds,
+ * the shoulders move a page, START and the menu button close. A binding item for the controller takes it. */
+static void menu_button(SDL_GameControllerButton b, int menu)
+{
+    int capture = pc_menu_capturing();
+    if (capture) {   /* the menu button cancels, and B a key capture */
+        if (menu || (capture != PC_MENU_CAPTURE_PAD && b == SDL_CONTROLLER_BUTTON_B))
+            pc_menu_capture(NULL);
+        else if (capture == PC_MENU_CAPTURE_PAD)
+            pc_menu_capture(SDL_GameControllerGetStringForButton(b));
+        return;
+    }
+    if (menu) {
+        pc_menu_action(PC_MENU_CLOSE);
+        return;
+    }
+    switch (b) {
+    case SDL_CONTROLLER_BUTTON_DPAD_UP: nav(PC_MENU_UP); break;
+    case SDL_CONTROLLER_BUTTON_DPAD_DOWN: nav(PC_MENU_DOWN); break;
+    case SDL_CONTROLLER_BUTTON_DPAD_LEFT: nav(PC_MENU_LEFT); break;
+    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: nav(PC_MENU_RIGHT); break;
+    case SDL_CONTROLLER_BUTTON_A: pc_menu_action(PC_MENU_ACCEPT); break;
+    case SDL_CONTROLLER_BUTTON_B: pc_menu_action(PC_MENU_BACK); break;
+    case SDL_CONTROLLER_BUTTON_X: pc_menu_action(PC_MENU_CLEAR); break;
+    case SDL_CONTROLLER_BUTTON_Y: pc_menu_action(PC_MENU_ADD); break;
+    case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: pc_menu_action(PC_MENU_PAGE_UP); break;
+    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: pc_menu_action(PC_MENU_PAGE_DOWN); break;
+    case SDL_CONTROLLER_BUTTON_START: pc_menu_action(PC_MENU_CLOSE); break;
+    default: break;
+    }
+}
+
+/* A held direction on any controller: the D-pad, or the left stick past half its travel. */
+static int pad_direction(void)
+{
+    for (int p = 0; p < 4; p++) {
+        SDL_GameController *gc = L.slot[p].gc;
+        if (!gc)
+            continue;
+        double x = axis_value(gc, SDL_CONTROLLER_AXIS_LEFTX), y = axis_value(gc, SDL_CONTROLLER_AXIS_LEFTY);
+        if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_DPAD_UP) || y < -0.5)
+            return PC_MENU_UP;
+        if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_DPAD_DOWN) || y > 0.5)
+            return PC_MENU_DOWN;
+        if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_DPAD_LEFT) || x < -0.5)
+            return PC_MENU_LEFT;
+        if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || x > 0.5)
+            return PC_MENU_RIGHT;
+    }
+    return -1;
+}
+
+/* A controller axis while the overlay is open: the left stick moves (once per push; holding it repeats), and a
+ * binding item for the controller takes a stick direction or a trigger pushed past 0.6. */
+static void menu_axis(SDL_GameControllerAxis a, int value, int menu)
+{
+    double v = value / 32767.0;
+    int capture = pc_menu_capturing();
+    if (menu) {
+        pc_menu_action(capture ? PC_MENU_BACK : PC_MENU_CLOSE);
+        return;
+    }
+    if (capture == PC_MENU_CAPTURE_PAD) {
+        char name[32];
+        if (v > 0.6 || v < -0.6) {
+            int trigger = a == SDL_CONTROLLER_AXIS_TRIGGERLEFT || a == SDL_CONTROLLER_AXIS_TRIGGERRIGHT;
+            snprintf(name, sizeof name, "%s%s", trigger ? "" : v < 0 ? "-" : "+",
+                     SDL_GameControllerGetStringForAxis(a));
+            pc_menu_capture(name);
+        }
+        return;
+    }
+    if (capture || (a != SDL_CONTROLLER_AXIS_LEFTX && a != SDL_CONTROLLER_AXIS_LEFTY))
+        return;
+    int y = a == SDL_CONTROLLER_AXIS_LEFTY, dir = L.stick_dir[y];
+    if (v < -0.5)
+        dir = y ? PC_MENU_UP : PC_MENU_LEFT;
+    else if (v > 0.5)
+        dir = y ? PC_MENU_DOWN : PC_MENU_RIGHT;
+    else if (v > -0.3 && v < 0.3)
+        dir = -1;   /* back to the middle; between 0.3 and 0.5 it keeps its direction */
+    if (dir >= 0 && dir != L.stick_dir[y])
+        nav(dir);
+    L.stick_dir[y] = dir;
+}
+
 /* ---------------------------------------------------------------- the interface */
 
 int pc_input_live_event(const void *event)
@@ -276,6 +546,14 @@ int pc_input_live_event(const void *event)
         int down = e->type == SDL_KEYDOWN, first = down && !e->key.repeat;
         if ((unsigned)sc >= SDL_NUM_SCANCODES)
             break;
+        L.held[sc] = (uint8_t)down;
+        if (!down)
+            L.mute[sc] = 0;
+        if (pc_menu_is_open()) {
+            if (down)
+                menu_key(e, sc, first);
+            break;
+        }
         if ((sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER) && (e->key.keysym.mod & KMOD_ALT)) {
             if (first)
                 toggle_fullscreen();
@@ -292,16 +570,41 @@ int pc_input_live_event(const void *event)
                     set_pause(&L.paused_key, !L.paused_key, "pause key");
                 else if (h == PC_HOTKEY_QUIT)
                     return 1;
+                else if (h == PC_HOTKEY_MENU)
+                    pc_menu_action(PC_MENU_TOGGLE);
             }
             break;
         }
+        if (down && L.mute[sc])
+            break;   /* held since the overlay closed */
         L.down[sc] = (uint8_t)down;
+        break;
+    }
+    case SDL_CONTROLLERBUTTONDOWN: {
+        int menu = menu_combo_pressed(e->cbutton.which);
+        if (pc_menu_is_open())
+            menu_button((SDL_GameControllerButton)e->cbutton.button, menu);
+        else if (menu)
+            pc_menu_action(PC_MENU_TOGGLE);
+        break;
+    }
+    case SDL_CONTROLLERBUTTONUP:
+        menu_combo_pressed(e->cbutton.which);   /* a combo let go can be pressed again */
+        break;
+    case SDL_CONTROLLERAXISMOTION: {
+        int menu = menu_combo_pressed(e->caxis.which);
+        if (pc_menu_is_open())
+            menu_axis((SDL_GameControllerAxis)e->caxis.axis, e->caxis.value, menu);
+        else if (menu)
+            pc_menu_action(PC_MENU_TOGGLE);
         break;
     }
     case SDL_WINDOWEVENT:
         switch (e->window.event) {
         case SDL_WINDOWEVENT_FOCUS_LOST:
             memset(L.down, 0, sizeof L.down);   /* key-up events go to the new focus */
+            memset(L.held, 0, sizeof L.held);
+            memset(L.mute, 0, sizeof L.mute);
             if (L.pause_on_focus)
                 set_pause(&L.paused_focus, 1, "focus lost");
             break;
@@ -310,8 +613,8 @@ int pc_input_live_event(const void *event)
             break;
         case SDL_WINDOWEVENT_EXPOSED:
         case SDL_WINDOWEVENT_SIZE_CHANGED:
-            if (L.paused_focus || L.paused_key)
-                pc_gfx_present(NULL);   /* the main loop is holding: show the last frame again */
+            if (L.paused_focus || L.paused_key || pc_menu_is_open())
+                pc_gfx_redraw();   /* the main loop is holding: show the last frame again */
             break;
         }
         break;
@@ -331,6 +634,7 @@ int pc_input_live_init(const PcSettings *s)
     char path[PC_CFG_PATH + 32];
     struct stat st;
     memset(&L, 0, sizeof L);
+    L.nav_dir = L.stick_dir[0] = L.stick_dir[1] = -1;
     if (!SDL_WasInit(SDL_INIT_VIDEO) || pc_gfx_set_event_hook(pc_input_live_event) != 0)
         return -1;   /* no window: scripted input only */
     L.win = SDL_GL_GetCurrentWindow();
@@ -340,17 +644,7 @@ int pc_input_live_init(const PcSettings *s)
     }
     L.kb_port = s->keyboard_player - 1;
     L.first_port = s->first_controller_player - 1;
-    L.analog = s->analog;
-    L.pause_on_focus = s->pause_on_focus_loss;
-    L.threshold = s->axis_threshold;
-    L.shape = (PcStickShape){s->deadzone, s->stick_range, s->stick_diagonal};
-    snprintf(L.shot_dir, sizeof L.shot_dir, "%s", s->screenshot_dir);
-    for (int c = 0; c < PC_NUM_CONTROLS; c++) {
-        parse_list(s->key[c], "keyboard", pc_control_names[c], add_key, c, &L.nkeys[c]);
-        parse_list(s->pad[c], "controller", pc_control_names[c], add_pad, c, &L.npads[c]);
-    }
-    for (int h = 0; h < PC_NUM_HOTKEYS; h++)
-        parse_list(s->hotkey[h], "hotkeys", pc_hotkey_names[h], add_hotkey, h, &L.nhot[h]);
+    configure(s);
 
     /* As v5: controllers keep working while the window is in the background, and Nintendo-style pads keep
      * their buttons' positions (south is a), not their labels. */
@@ -390,6 +684,77 @@ void pc_input_live_shutdown(void)
     memset(&L, 0, sizeof L);
 }
 
+void pc_input_live_apply(const PcSettings *s)
+{
+    if (L.on)
+        configure(s);
+}
+
+void pc_input_live_menu(int open)
+{
+    if (!L.on)
+        return;
+    L.nav_dir = L.stick_dir[0] = L.stick_dir[1] = -1;
+    if (open)
+        memset(L.down, 0, sizeof L.down);   /* the game's keys are released while it is open */
+    else {
+        memcpy(L.mute, L.held, sizeof L.mute);
+        for (int p = 0; p < 4; p++) {
+            Slot *slot = &L.slot[p];
+            if (!slot->gc)
+                continue;
+            for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; b++)
+                if (SDL_GameControllerGetButton(slot->gc, (SDL_GameControllerButton)b))
+                    slot->mute_buttons |= 1u << b;
+            for (int a = 0; a < SDL_CONTROLLER_AXIS_MAX; a++)
+                if (pc_axis_deadzone(axis_value(slot->gc, a), L.shape.deadzone) != 0)
+                    slot->mute_axes |= (uint8_t)(1u << a);
+        }
+    }
+    set_title();
+}
+
+void pc_input_live_tick(void)
+{
+    if (!L.on || !pc_menu_is_open() || pc_menu_capturing()) {
+        L.nav_dir = -1;
+        return;
+    }
+    int dir = pad_direction();
+    uint64_t now = pc_host_ns();
+    if (dir < 0 || dir != L.nav_dir)
+        L.nav_dir = -1;   /* the first step comes from the event */
+    else if (now >= L.nav_next) {
+        pc_menu_action(dir);
+        L.nav_next = now + 100000000u;
+    }
+}
+
+void pc_input_live_fullscreen(int on)
+{
+    if (L.on)
+        set_fullscreen(on);
+}
+
+int pc_input_live_is_fullscreen(void)
+{
+    return L.on ? (SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN) != 0 : -1;
+}
+
+void pc_input_live_vsync(int on)
+{
+    if (L.on && SDL_GL_SetSwapInterval(on ? 1 : 0) != 0)
+        fprintf(stderr, "rush2049pc: vsync %s: %s\n", on ? "on" : "off", SDL_GetError());
+}
+
+void pc_input_live_window_size(int w, int h)
+{
+    if (!L.on)
+        pc_gfx_set_window_size(w, h);
+    else if (!(SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN))
+        SDL_SetWindowSize(L.win, w, h);
+}
+
 static int8_t stronger(int8_t a, int8_t b)
 {
     return (a < 0 ? -a : a) >= (b < 0 ? -b : b) ? a : b;
@@ -400,15 +765,18 @@ void pc_input_live_poll(PcPad pads[4])
     if (!L.on)
         return;
     for (int p = 0; p < 4; p++) {
-        SDL_GameController *gc = L.slot[p].gc;
+        Slot *slot = &L.slot[p];
+        SDL_GameController *gc = slot->gc;
         int kb = p == L.kb_port, held[PC_NUM_CONTROLS] = {0};
         if (!kb && !gc)
             continue;
+        if (gc)
+            unmute(slot);
         for (int c = 0; c < PC_NUM_CONTROLS; c++) {
             for (int i = 0; kb && i < L.nkeys[c] && !held[c]; i++)
                 held[c] = L.down[L.keys[c][i]];
             for (int i = 0; gc && i < L.npads[c] && !held[c]; i++)
-                held[c] = source_active(gc, &L.pads[c][i]);
+                held[c] = source_active(slot, &L.pads[c][i]);
             if (held[c])
                 pads[p].buttons |= pc_control_masks[c];
         }
@@ -420,7 +788,8 @@ void pc_input_live_poll(PcPad pads[4])
                        held[PC_CTL_STICK_UP] - held[PC_CTL_STICK_DOWN], &digital, &x, &y);
         if (gc && L.analog != PC_CFG_STICK_NONE) {
             int ox = L.analog == PC_CFG_STICK_LEFT ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX;
-            pc_stick_shape(axis_value(gc, ox), -axis_value(gc, ox + 1), &L.shape, &ax, &ay);
+            if (!(slot->mute_axes & (3u << ox)))
+                pc_stick_shape(axis_value(gc, ox), -axis_value(gc, ox + 1), &L.shape, &ax, &ay);
         }
         pads[p].stick_x = stronger(x, ax);
         pads[p].stick_y = stronger(y, ay);
@@ -468,5 +837,12 @@ int pc_input_live_event(const void *event)
     (void)event;
     return 0;
 }
+void pc_input_live_apply(const PcSettings *s) { (void)s; }
+void pc_input_live_menu(int open) { (void)open; }
+void pc_input_live_tick(void) {}
+void pc_input_live_fullscreen(int on) { (void)on; }
+int pc_input_live_is_fullscreen(void) { return -1; }
+void pc_input_live_vsync(int on) { (void)on; }
+void pc_input_live_window_size(int w, int h) { pc_gfx_set_window_size(w, h); }
 
 #endif

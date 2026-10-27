@@ -8,8 +8,13 @@
  *     --press T:BUTTON[@PORT][:DUR],...       T and DUR in seconds since boot (DUR 0.2 by default)
  *     --press-file PATH                       one `TIME BUTTON[@PORT] [DURATION]` per line, `#` comments,
  *                                             `pak on|off`, `frames N`
- * BUTTON: A B Z START UP DOWN LEFT RIGHT L R CU CD CL CR STICKUP STICKDOWN STICKLEFT STICKRIGHT. The ports a
- * script uses are connected. A scripted stick direction replaces that axis of the live stick. */
+ * BUTTON: A B Z START UP DOWN LEFT RIGHT L R CU CD CL CR STICKUP STICKDOWN STICKLEFT STICKRIGHT, and MENU (this
+ * port's): the settings overlay's key. The ports a script uses are connected. A scripted stick direction replaces
+ * that axis of the live stick.
+ *
+ * The settings overlay (menu.c): while it is open the game is held (pc_input_paused) and its pads read empty, and
+ * scripted presses drive the overlay instead (script_menu), so tests and headless runs can use it. port/gfx's event
+ * pump gives port/input a turn (input_tick) at each retrace and while the game is held. */
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +28,7 @@ typedef struct {
     int port;
     uint16_t mask;
     int8_t x, y;
+    uint8_t menu;   /* MENU: the overlay's key, not the game's */
 } Press;
 
 static Press *g_press;
@@ -41,7 +47,9 @@ static int parse_button(const char *b, Press *p)
             p->mask = table[i].mask;
             return 0;
         }
-    if (!strcmp(b, "STICKUP"))
+    if (!strcmp(b, "MENU"))
+        p->menu = 1;
+    else if (!strcmp(b, "STICKUP"))
         p->y = 80;
     else if (!strcmp(b, "STICKDOWN"))
         p->y = -80;
@@ -61,7 +69,7 @@ static int add_press(char *item, const char *sep)
          *d = strtok_r(NULL, sep, &save);
     if (!t || !b)
         return -1;
-    Press p = {atof(t), d ? atof(d) : 0.2, 0, 0, 0, 0};
+    Press p = {atof(t), d ? atof(d) : 0.2, 0, 0, 0, 0, 0};
     char *at = strchr(b, '@');
     if (at) {
         *at = 0;
@@ -170,11 +178,57 @@ static void log_changes(const PcPad pads[4])
     }
 }
 
+/* ---------------------------------------------------------------- the overlay's turn */
+
+/* MENU opens and closes the overlay. While it is open, the script's buttons drive it as a controller's do: the
+ * D-pad and the stick move, A accepts, B goes back, Z clears a binding, START closes, L and R move a page. A press
+ * counts when it starts, so one held across the opening doesn't act. */
+static uint16_t g_script_held;
+static int g_script_menu;
+
+static void script_menu(void)
+{
+    static const struct { uint16_t mask; int action; } map[] = {
+        {0x0800, PC_MENU_UP},     {0x0400, PC_MENU_DOWN},    {0x0200, PC_MENU_LEFT},     {0x0100, PC_MENU_RIGHT},
+        {0x8000, PC_MENU_ACCEPT}, {0x4000, PC_MENU_BACK},    {0x2000, PC_MENU_CLEAR},    {0x1000, PC_MENU_CLOSE},
+        {0x0020, PC_MENU_PAGE_UP}, {0x0010, PC_MENU_PAGE_DOWN}};
+    double now = pc_host_ns() / 1e9;
+    uint16_t held = 0;
+    int menu = 0;
+    for (int i = 0; i < g_npress; i++) {
+        const Press *p = &g_press[i];
+        if (now < p->t || now >= p->t + p->dur)
+            continue;
+        menu |= p->menu;
+        held |= p->mask | (p->y > 0 ? 0x0800 : 0) | (p->y < 0 ? 0x0400 : 0) | (p->x < 0 ? 0x0200 : 0) |
+                (p->x > 0 ? 0x0100 : 0);
+    }
+    uint16_t pressed = held & ~g_script_held;
+    int toggle = menu && !g_script_menu;
+    g_script_held = held;
+    g_script_menu = menu;
+    if (toggle)
+        pc_menu_action(PC_MENU_TOGGLE);
+    for (size_t i = 0; i < sizeof map / sizeof *map && pc_menu_is_open(); i++)
+        if (pressed & map[i].mask)
+            pc_menu_action(map[i].action);
+}
+
+/* port/gfx's event pump calls this after the window's events: at each retrace, and while the game is held. */
+static int input_tick(void)
+{
+    script_menu();
+    pc_input_live_tick();
+    return pc_menu_tick();
+}
+
 /* ---------------------------------------------------------------- the interface */
 
 int pc_input_init(const PcSettings *s)
 {
     g_rumble_strength = s->rumble;
+    pc_menu_init(s);
+    pc_gfx_set_tick_hook(input_tick);
     return pc_input_live_init(s);
 }
 
@@ -182,12 +236,21 @@ void pc_input_shutdown(void)
 {
     for (int port = 0; port < 4; port++)
         pc_input_live_rumble(port, 0);
+    pc_menu_shutdown();
+    pc_gfx_set_tick_hook(NULL);
     pc_input_live_shutdown();
 }
 
+void pc_input_apply(const PcSettings *s)
+{
+    g_rumble_strength = s->rumble;
+    pc_input_live_apply(s);
+}
+
+/* The pause key, focus lost with pause_on_focus_loss, or the overlay: the main loop holds the game. */
 int pc_input_paused(void)
 {
-    return pc_input_live_paused();
+    return pc_input_live_paused() || pc_menu_is_open();
 }
 
 void pc_input_poll(PcPad pads[4])
@@ -199,7 +262,7 @@ void pc_input_poll(PcPad pads[4])
         pads[i].connected = 1;
     for (int i = 0; i < g_npress; i++) {
         const Press *p = &g_press[i];
-        if (now < p->t || now >= p->t + p->dur)
+        if (now < p->t || now >= p->t + p->dur || p->menu)
             continue;
         pads[p->port].buttons |= p->mask;
         if (p->x)
@@ -207,6 +270,9 @@ void pc_input_poll(PcPad pads[4])
         if (p->y)
             pads[p->port].stick_y = p->y;
     }
+    if (pc_menu_is_open())   /* the overlay has the input: the game sees idle pads */
+        for (int i = 0; i < 4; i++)
+            pads[i].buttons = 0, pads[i].stick_x = pads[i].stick_y = 0;
     rumble();
     if (pc_input_log)
         log_changes(pads);

@@ -1,6 +1,10 @@
 /* port/input/tests/test_sdl.c: live input through the real window and event loop (docs/port/FRONTEND.md).
  *
- *   frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|rumble|script|all SCRATCH_DIR
+ *   frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|rumble|menu|script|all SCRATCH_DIR
+ *
+ * menu drives the settings overlay with keys and a controller: F1 and the menu button open it, the game is held
+ * and gets nothing, keys and a controller input are captured into bindings the game then sees, the key or button
+ * that closes it is ignored until released, fullscreen changes at once.
  *
  * Runs on SDL's offscreen video driver (SDL_VIDEODRIVER=offscreen), so it needs no display. port/gfx opens its
  * SDL window and GL context as rush2049pc does; port/input installs its event hook. Keys and window events are
@@ -24,6 +28,7 @@ int pc_input_init(const PcSettings *s);
 void pc_input_shutdown(void);
 int pc_input_paused(void);
 int pc_input_add_spec(const char *spec);
+int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
 extern int pc_input_log;
 extern uint64_t test_now_ns;
 extern int test_motor[4];
@@ -724,14 +729,207 @@ static void test_script(void)
     stop();
 }
 
+/* ---------------------------------------------------------------- the settings overlay */
+
+static void menu_at(const char *page, const char *item, const char *value, const char *what)
+{
+    const char *p, *i;
+    char v[256];
+    pc_menu_state(&p, &i, v, sizeof v);
+    CHECK(!strcmp(p, page) && !strcmp(i, item) && (!value || !strcmp(v, value)),
+          "%s: on '%s' / '%s' = '%s'; expected '%s' / '%s' = '%s'", what, p, i, v, page, item, value ? value : "*");
+}
+
+static void tap(SDL_Scancode sc)
+{
+    key(sc, 1, 0);
+    key(sc, 0, 0);
+    pump();
+}
+
+static void press(Pad *p, SDL_GameControllerButton b)
+{
+    button(p, b, 1);
+    pump();
+    button(p, b, 0);
+    pump();
+}
+
+static void test_menu(void)
+{
+    PcSettings s;
+    Pad pad;
+    pc_settings_defaults(&s);
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    show_frame();
+    /* F1 opens it: the game is held, says so in the title, and gets no input */
+    key(SDL_SCANCODE_X, 1, 0);
+    poll_pads();
+    pad_is(0, 0x8000, 0, 0, 1, "X held");
+    tap(SDL_SCANCODE_F1);
+    pc_input_poll(g_pads);
+    CHECK(pc_menu_is_open() && pc_input_paused(), "F1 opens the overlay and holds the game");
+    CHECK(strstr(SDL_GetWindowTitle(g_win), "paused") != NULL, "title '%s'", SDL_GetWindowTitle(g_win));
+    pad_is(0, 0, 0, 0, 1, "the game's input while it is open");
+    key(SDL_SCANCODE_X, 0, 0);
+#ifndef _WIN32   /* WGL leaves the back buffer undefined after the swap (docs/port/WINDOWS.md) */
+    {
+        int w, h;
+        uint8_t *px = malloc(640 * 480 * 4);
+        CHECK(pc_gfx_read_window(px, &w, &h) == 0 && px[(240 * 640 + 320) * 4] < 60,
+              "the panel over the red frame: %d", px[(240 * 640 + 320) * 4]);
+        free(px);
+    }
+#endif
+    /* the arrows move, Enter opens, a binding takes the next key, Escape goes back and doesn't quit */
+    tap(SDL_SCANCODE_DOWN);
+    tap(SDL_SCANCODE_DOWN);
+    menu_at("Settings", "Keyboard", NULL, "two down");
+    tap(SDL_SCANCODE_RETURN);
+    menu_at("Keyboard", "A", "X", "the keyboard page");
+    tap(SDL_SCANCODE_RETURN);
+    CHECK(pc_menu_capturing() == PC_MENU_CAPTURE_KEY, "waiting for a key");
+    tap(SDL_SCANCODE_SPACE);
+    menu_at("Keyboard", "A", "Space", "Space captured");
+    tap(SDL_SCANCODE_DOWN);
+    tap(SDL_SCANCODE_RETURN);
+    tap(SDL_SCANCODE_COMMA);
+    menu_at("Keyboard", "B", "Comma", "punctuation by its name");
+    key(SDL_SCANCODE_ESCAPE, 1, 0);
+    key(SDL_SCANCODE_ESCAPE, 0, 0);
+    CHECK(pump() == 0, "Escape is the overlay's back key, not quit");
+    menu_at("Settings", "Keyboard", NULL, "back");
+    tap(SDL_SCANCODE_ESCAPE);
+    CHECK(!pc_menu_is_open() && !pc_input_paused(), "Escape again closes it");
+    /* the game has the new keys */
+    key(SDL_SCANCODE_SPACE, 1, 0);
+    key(SDL_SCANCODE_COMMA, 1, 0);
+    poll_pads();
+    pad_is(0, 0xC000, 0, 0, 1, "Space is A and Comma B now");
+    key(SDL_SCANCODE_SPACE, 0, 0);
+    key(SDL_SCANCODE_COMMA, 0, 0);
+    key(SDL_SCANCODE_X, 1, 0);
+    poll_pads();
+    pad_is(0, 0, 0, 0, 1, "X isn't A any more");
+    key(SDL_SCANCODE_X, 0, 0);
+
+    /* the key that closes it doesn't reach the game while it is still held */
+    tap(SDL_SCANCODE_F1);
+    menu_at("Settings", "Keyboard", NULL, "reopened");
+    tap(SDL_SCANCODE_DOWN);
+    tap(SDL_SCANCODE_DOWN);
+    tap(SDL_SCANCODE_DOWN);
+    menu_at("Settings", "Resume", NULL, "Resume");
+    key(SDL_SCANCODE_RETURN, 1, 0);
+    poll_pads();
+    CHECK(!pc_menu_is_open(), "Resume closes it");
+    pad_is(0, 0, 0, 0, 1, "Enter still held from the overlay isn't START");
+    SDL_Event e;
+    SDL_zero(e);
+    e.type = SDL_KEYDOWN;
+    e.key.keysym.scancode = SDL_SCANCODE_RETURN;
+    e.key.repeat = 1;
+    SDL_PushEvent(&e);
+    poll_pads();
+    pad_is(0, 0, 0, 0, 1, "nor its key repeat");
+    key(SDL_SCANCODE_RETURN, 0, 0);
+    key(SDL_SCANCODE_RETURN, 1, 0);
+    poll_pads();
+    pad_is(0, 0x1000, 0, 0, 1, "pressed again: START");
+    key(SDL_SCANCODE_RETURN, 0, 0);
+
+    /* a controller: both stick clicks open it, the D-pad moves, A chooses, a binding takes the next button */
+    attach(&pad, "menu pad");
+    poll_pads();
+    button(&pad, SDL_CONTROLLER_BUTTON_LEFTSTICK, 1);
+    poll_pads();
+    CHECK(!pc_menu_is_open(), "one stick click alone doesn't open it");
+    button(&pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK, 1);
+    poll_pads();
+    CHECK(pc_menu_is_open(), "both stick clicks open it");
+    button(&pad, SDL_CONTROLLER_BUTTON_LEFTSTICK, 0);
+    button(&pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK, 0);
+    pump();
+    menu_at("Settings", "Resume", NULL, "where it was");
+    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
+    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
+    menu_at("Settings", "Controllers", NULL, "D-pad up twice");
+    press(&pad, SDL_CONTROLLER_BUTTON_A);
+    menu_at("Controllers (all players)", "A", "a, righttrigger", "A opens the page");
+    press(&pad, SDL_CONTROLLER_BUTTON_A);
+    CHECK(pc_menu_capturing() == PC_MENU_CAPTURE_PAD, "waiting for a controller input");
+    press(&pad, SDL_CONTROLLER_BUTTON_Y);
+    menu_at("Controllers (all players)", "A", "y", "Y captured");
+    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+    press(&pad, SDL_CONTROLLER_BUTTON_A);
+    axis(&pad, SDL_CONTROLLER_AXIS_LEFTX, -32768);
+    pump();
+    axis(&pad, SDL_CONTROLLER_AXIS_LEFTX, 0);
+    pump();
+    menu_at("Controllers (all players)", "B", "-leftx", "a stick direction captured");
+    press(&pad, SDL_CONTROLLER_BUTTON_B);
+    menu_at("Settings", "Controllers", NULL, "B goes back");
+    button(&pad, SDL_CONTROLLER_BUTTON_START, 1);
+    poll_pads();
+    CHECK(!pc_menu_is_open(), "START closes it");
+    pad_is(0, 0, 0, 0, 1, "START still held from the overlay");
+    button(&pad, SDL_CONTROLLER_BUTTON_START, 0);
+    poll_pads();
+    button(&pad, SDL_CONTROLLER_BUTTON_START, 1);
+    button(&pad, SDL_CONTROLLER_BUTTON_Y, 1);
+    poll_pads();
+    pad_is(0, 0x9008, 0, 0, 1, "START again; Y is A now, and still C-up");
+    button(&pad, SDL_CONTROLLER_BUTTON_START, 0);
+    button(&pad, SDL_CONTROLLER_BUTTON_Y, 0);
+    poll_pads();
+
+    /* guide alone as the menu button: it opens and closes it, and isn't a game button. SDL holds back a guide
+     * release that comes within 250 ms of the press (and the next press with it), so it is held for 300 ms. */
+    snprintf(s.pad_menu, PC_CFG_BIND, "guide");
+    restart_input(&s);
+    poll_pads();
+    for (int i = 0; i < 3; i++) {
+        button(&pad, SDL_CONTROLLER_BUTTON_GUIDE, 1);
+        poll_pads();
+        pad_is(0, 0, 0, 0, 1, "guide isn't a game button");
+        CHECK(pc_menu_is_open() == (i != 1), "guide %s it", i == 1 ? "closes" : "opens");
+        SDL_Delay(300);
+        button(&pad, SDL_CONTROLLER_BUTTON_GUIDE, 0);
+        pump();
+    }
+
+    /* fullscreen from the overlay, at once */
+    CHECK(pc_menu_is_open(), "open again");
+    press(&pad, SDL_CONTROLLER_BUTTON_A);
+    menu_at("Video", "Widescreen", "off", "Video");
+    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+    menu_at("Video", "Fullscreen", "on", "fullscreen on");
+    CHECK(SDL_GetWindowFlags(g_win) & SDL_WINDOW_FULLSCREEN, "the window is fullscreen");
+    tap(SDL_SCANCODE_F11);
+    CHECK(!(SDL_GetWindowFlags(g_win) & SDL_WINDOW_FULLSCREEN), "F11 still works in the overlay");
+    tap(SDL_SCANCODE_F1);
+    CHECK(!pc_menu_is_open(), "F1 closes it");
+    tap(SDL_SCANCODE_F1);
+    press(&pad, SDL_CONTROLLER_BUTTON_A);
+    menu_at("Video", "Fullscreen", "off", "each page keeps its place; the overlay follows F11");
+    tap(SDL_SCANCODE_F1);
+    detach(&pad);
+    stop();
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"keyboard", test_keyboard}, {"hotkeys", test_hotkeys}, {"focus", test_focus},
         {"controller", test_controller}, {"hotplug", test_hotplug}, {"rumble", test_rumble},
-        {"script", test_script}};
+        {"menu", test_menu}, {"script", test_script}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|rumble|script|all DIR\n");
+        fprintf(stderr, "usage: frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|rumble|menu|script|all DIR\n");
         return 2;
     }
     g_dir = argv[2];
