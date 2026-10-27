@@ -73,6 +73,25 @@ struct pc_visual {
 /* The PC offset of N64 offset x inside a car visual, up to its stride (VIS_OFS(0x18) is 0x20). */
 #define VIS_OFS(x) (CAR_OFS(0x110 + (x)) - 0x110)
 
+/* The target info table (D_80117530, MAT3 targetInfo, 122 entries) is 0x40 bytes an entry on the PC, 0x30 on the
+ * N64: its first four words are pointers (the name, the model file, the start function and the visual's function),
+ * so everything after them is 0x10 further on. TINFO_OFS(n) is the PC offset of N64 offset n (TINFO_OFS(0x30) is
+ * the stride); a game file that uses it defines the N64 side, `#define TINFO_OFS(n) n` (docs/port/POINTERS.md 10). */
+#define TINFO_OFS(n) ((n) / 0x30 * 0x40 + ((n) % 0x30 < 0x10 ? (n) % 0x30 * 2 : (n) % 0x30 + 0x10))
+
+/* A StatLL list links its elements through their first word, and a doubly linked list back through the second.
+ * Link k of element e: a host pointer, or a 32-bit window address when the list's header is flagged n64 (its
+ * elements keep their N64 layout: the level-object nodes, docs/port/POINTERS.md 10). */
+static __inline__ void *pc_statll_link(int n64, void *e, int k) {
+    return n64 ? (void *)(__UINTPTR_TYPE__)((unsigned int *)e)[k] : ((void **)e)[k];
+}
+static __inline__ void pc_statll_set_link(int n64, void *e, int k, void *v) {
+    if (n64)
+        ((unsigned int *)e)[k] = (unsigned int)(__UINTPTR_TYPE__)v;
+    else
+        ((void **)e)[k] = v;
+}
+
 /* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
 void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 void pc_mem_unregister_be(const void *start);
