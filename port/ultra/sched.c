@@ -696,7 +696,11 @@ static void wait_main_virtual(uint64_t deadline_ns)
         }
 #ifdef _WIN32
         pthread_mutex_unlock(&g_lock);
-        WaitForSingleObject(g_main_event, 1);
+        uint64_t diag_t0 = pc_real_ns();   /* TEMPORARY diagnostic */
+        DWORD diag_r = WaitForSingleObject(g_main_event, 1);
+        if (pc_os_trace)
+            pc_log("main wait: %s after %.3f ms", diag_r == WAIT_TIMEOUT ? "timeout" : "event",
+                   (pc_real_ns() - diag_t0) / 1e6);
         pthread_mutex_lock(&g_lock);
 #else
         nap(&g_main_cv, 1000000);

@@ -89,8 +89,9 @@ static void check(const char *name, int ok, const char *detail)
     g_run++;
     if (!ok)
         g_failed++;
-    fprintf(stderr, "selftest: %-28s %s%s%s\n", name, ok ? "ok" : "FAIL", detail && !ok ? ": " : "",
-            detail && !ok ? detail : "");
+    fprintf(stderr, "selftest: %-28s %s%s%s [real %.1f ms, n64 %.1f ms]\n", name, ok ? "ok" : "FAIL",
+            detail && !ok ? ": " : "", detail && !ok ? detail : "", pc_real_ns() / 1e6,
+            pc_host_ns() / 1e6);   /* TEMPORARY diagnostic */
 }
 
 static void expect_log(const char *name, const char *want)
