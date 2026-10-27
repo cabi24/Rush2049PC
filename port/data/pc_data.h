@@ -136,6 +136,7 @@ typedef struct {
     uint32_t addr_words;        /* non-pointer words that look like N64 addresses */
     uint32_t addr_words_host;   /* ... of host storage, a function or code, which the word can't reach */
     uint32_t undescribed;       /* arena pointers to initialized bytes no element describes: kept in N64 order */
+    uint32_t text_in_words;     /* arena pointers to text inside an element wider than a byte, which swaps it */
 } PcDataStats;
 
 /* The loader (pc_data.c). load_all: inflate every image from the ROM and fill all of them, then write the

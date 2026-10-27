@@ -225,23 +225,54 @@ static void report_addr_word(const PcDataTables *t, const char *where, uint32_t 
     }
 }
 
-/* Whether initialized data at N64 address a of an arena is an element the runs describe (and so swapped). */
-static int arena_described(const PcDataTables *t, const PcDataArena *ar, uint32_t a)
+/* The kind of the element runs[first..first+count) describe at N64 offset o (and so swap), or 0. */
+static int run_kind(const PcDataTables *t, uint32_t first, uint32_t count, uint32_t o)
 {
-    uint32_t o = a - ar->n64_lo;
-    for (uint32_t k = 0; k < ar->run_count; k++) {
-        const PcDataRun *r = &t->runs[ar->run_first + k];
+    for (uint32_t k = 0; k < count; k++) {
+        const PcDataRun *r = &t->runs[first + k];
         uint32_t len = r->count * n64_esz(r->kind);
         if (o < r->n64_off)
             continue;
         if (r->rep <= 1 || r->n64_stride == 0) {
             if (o - r->n64_off < len)
-                return 1;
+                return r->kind;
         } else if ((o - r->n64_off) / r->n64_stride < r->rep && (o - r->n64_off) % r->n64_stride < len) {
-            return 1;
+            return r->kind;
         }
     }
     return 0;
+}
+
+/* ... at N64 address a of an arena's initialized data. */
+static int arena_kind(const PcDataTables *t, const PcDataArena *ar, uint32_t a)
+{
+    return run_kind(t, ar->run_first, ar->run_count, a - ar->n64_lo);
+}
+
+static void report_text(const PcDataTables *t, const char *where, uint32_t off, uint32_t v, uint32_t a,
+                        const char *text)
+{
+    g_stats.text_in_words++;
+    if (g_report) {
+        char target[96];
+        describe(t, a, target, sizeof target);
+        fprintf(g_report, "text-in-words %s+0x%X 0x%08X -> %s (%.16s)\n", where, off, v, target, text);
+    }
+}
+
+/* Whether the image's bytes at N64 address a read as text: three printable characters or more, then a NUL. A
+ * pointer to text inside an element wider than a byte means a declaration that runs over a string (a table sized by
+ * the gap to the next known address, say): the loader swaps the text with the words. NULL if not. */
+static const char *image_text(const PcDataTables *t, int image, uint32_t a)
+{
+    const PcDataImage *im = &t->images[image];
+    const uint8_t *img = t->state ? t->state->image[image] : NULL;
+    uint32_t o = a - im->n64_base, n = 0;
+    if (!img || a < im->n64_base || o >= im->size)
+        return NULL;
+    while (o + n < im->size && n < 64 && img[o + n] >= 0x20 && img[o + n] < 0x7F)
+        n++;
+    return n >= 3 && o + n < im->size && img[o + n] == 0 ? (const char *)img + o : NULL;
 }
 
 /* N64 pointer value v, found in image `image`'s data at where+off -> host pointer. */
@@ -290,6 +321,11 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
         if (!quiet) {
             if (s->flags & PC_SYM_OWN) g_stats.own++; else g_stats.cdef++;
             if (!exact) g_stats.inexact++;
+            const char *text = !(s->flags & PC_SYM_BSS) && run_kind(t, s->run_first, s->run_count,
+                                                                     a - s->n64_addr) > PC_K_U8
+                               ? image_text(t, s->image, a) : NULL;
+            if (text)
+                report_text(t, where, off, v, a, text);   /* own storage converts it as wider elements too */
         }
         return (uint8_t *)s->host + ho;
     }
@@ -298,13 +334,17 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
         if (a >= ar->n64_lo && a <= ar->n64_hi && (!in_ovl || !ovl_ctx || ar->image == image)) {
             if (!quiet) {
                 g_stats.arena++;
-                if (a < ar->n64_init && !arena_described(t, ar, a)) {
+                int kind = a < ar->n64_init ? arena_kind(t, ar, a) : -1;
+                const char *text = kind > PC_K_U8 ? image_text(t, ar->image, a) : NULL;
+                if (kind == 0) {
                     g_stats.undescribed++;
                     if (g_report) {
                         char target[96];
                         describe(t, a, target, sizeof target);
                         fprintf(g_report, "undescribed %s+0x%X 0x%08X -> %s\n", where, off, v, target);
                     }
+                } else if (text) {
+                    report_text(t, where, off, v, a, text);
                 }
             }
             return ar->host + (a - ar->n64_lo);
@@ -556,7 +596,9 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
                           "# [heap] and [low memory] are window data, which the word reaches as it is; [own],\n"
                           "# [C data], [function] and [code] it can't (likely mistyped declarations). An\n"
                           "# undescribed pointer's target is initialized data no declaration describes: its bytes\n"
-                          "# keep the ROM's order, so a table of wider values there reads wrong\n");
+                          "# keep the ROM's order, so a table of wider values there reads wrong. A text-in-words\n"
+                          "# pointer's target reads as text but lies in an element wider than a byte, which swaps\n"
+                          "# it: a declaration that runs over a string\n");
     memset(&g_stats, 0, sizeof g_stats);
     memset(g_logged, 0, sizeof g_logged);
     /* Startup bytes of the game C's overlay data, put back on every overlay load. */
@@ -617,16 +659,17 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
             memset(ar->host, 0, ar->n64_hi - ar->n64_lo);
     }
     const PcDataStats *g = &g_stats;
-    fprintf(stderr, "pc_data: %u symbols, pointers: %u own, %u C data, %u arena (%u to undescribed data), %u functions, "
-            "%u heap (kept), %u null, %u raw, %u unresolved, %u to functions with no C (%u inexact, %u ambiguous); %u "
-            "address-like words (%u to host storage or code)\n",
-            t->n_syms, g->own, g->cdef, g->arena, g->undescribed, g->func, g->rdram, g->null, g->raw, g->unresolved,
-            g->no_code, g->inexact, g->ambiguous, g->addr_words, g->addr_words_host);
+    fprintf(stderr, "pc_data: %u symbols, pointers: %u own, %u C data, %u arena (%u to undescribed data, %u to text in "
+            "words), %u functions, %u heap (kept), %u null, %u raw, %u unresolved, %u to functions with no C (%u "
+            "inexact, %u ambiguous); %u address-like words (%u to host storage or code)\n",
+            t->n_syms, g->own, g->cdef, g->arena, g->undescribed, g->text_in_words, g->func, g->rdram, g->null, g->raw,
+            g->unresolved, g->no_code, g->inexact, g->ambiguous, g->addr_words, g->addr_words_host);
     if (g_report) {
-        fprintf(g_report, "# pointers: %u own, %u C data, %u arena (%u undescribed), %u functions, %u heap (kept), %u "
-                "null, %u raw, %u unresolved, %u no C, %u inexact, %u ambiguous; %u address-like words (%u to host "
-                "storage or code)\n", g->own, g->cdef, g->arena, g->undescribed, g->func, g->rdram, g->null, g->raw,
-                g->unresolved, g->no_code, g->inexact, g->ambiguous, g->addr_words, g->addr_words_host);
+        fprintf(g_report, "# pointers: %u own, %u C data, %u arena (%u undescribed, %u text in words), %u functions, %u "
+                "heap (kept), %u null, %u raw, %u unresolved, %u no C, %u inexact, %u ambiguous; %u address-like words "
+                "(%u to host storage or code)\n", g->own, g->cdef, g->arena, g->undescribed, g->text_in_words, g->func,
+                g->rdram, g->null, g->raw, g->unresolved, g->no_code, g->inexact, g->ambiguous, g->addr_words,
+                g->addr_words_host);
         fclose(g_report);
         g_report = NULL;
     }
