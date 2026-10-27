@@ -1,6 +1,7 @@
 /* port/gfx/gfx_api.c: the pc_gfx_* interface (port/include/pc_port.h).
  *
- * Environment: RUSH_GFX_API=gl|gles (default gles), RUSH_GFX_SCALE=<n> (internal resolution multiple),
+ * Environment: RUSH_GFX_API=gl|gles (default gles), RUSH_GFX_SCALE=<n>|auto (internal resolution multiple; auto:
+ * the largest the window shows whole),
  * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_VERBOSE=1|2. */
@@ -11,7 +12,7 @@
 #include "gfx_internal.h"
 #include "pc_port.h"
 
-GfxConfig pcgfx_cfg = {1, 0.0f, 0.0f, 0, 0};
+GfxConfig pcgfx_cfg = {1, 1, 0.0f, 0.0f, 0, 0};
 
 void pcgfx_rdp_new_frame(void);
 void pcgfx_rdp_forget_targets(void);
@@ -46,18 +47,47 @@ float pc_gfx_parse_aspect(const char *text, int *ok) {
     return 0.0f;
 }
 
-/* The aspect in effect: the setting, or the window's for auto (taken at init and at each present, so a resize
- * applies from the next frame's color image). */
-static void resolve_aspect(void) {
+/* The values in effect, taken at init and at each present, so a resize applies from the next frame's color image:
+ * - the aspect: the setting, or the window's for auto;
+ * - the scale: the setting, or for auto the largest whole multiple of the next frame (the last one's 4:3 frame,
+ *   widened to that aspect, and its rows shown) that the window holds, so the present shows it pixel for pixel. */
+static void resolve_auto(void) {
+    GfxTarget *t = S.inited ? pcgfx_gl_last_target() : NULL;
     float a = pcgfx_cfg.widescreen;
+    int s = pcgfx_cfg.internal_scale;
     if (a < 0.0f)
         a = S.win_h > 0 ? (float)S.win_w / (float)S.win_h : 0.0f;
     pcgfx_cfg.aspect = a > 4.0f / 3.0f + 1e-4f ? a : 0.0f;
+    if (s <= 0) {
+        int fw = 320, rows = pcgfx_cfg.frame_height > 0 ? pcgfx_cfg.frame_height : 240, w;
+        if (t != NULL) {
+            int tw, th;
+            pcgfx_gl_target_shown(t, &tw, &rows);
+            pcgfx_gl_target_dims(t, &tw, &th);
+            fw = th * 4 / 3;
+        }
+        w = pcgfx_wide_width(fw);
+        s = S.win_w / w < S.win_h / rows ? S.win_w / w : S.win_h / rows;
+    }
+    pcgfx_cfg.scale = s < 1 ? 1 : s > 8 ? 8 : s;
 }
 
 void pc_gfx_set_widescreen(float aspect) {
     pcgfx_cfg.widescreen = aspect;
-    resolve_aspect();
+    resolve_auto();
+}
+
+void pc_gfx_set_scale(int scale) {
+    pcgfx_cfg.internal_scale = scale >= 0 && scale <= 8 ? scale : 1;
+    resolve_auto();
+}
+
+void pc_gfx_set_window_size(int w, int h) {
+    if (!S.use_sdl && w > 0 && h > 0) {
+        S.win_w = w;
+        S.win_h = h;
+        resolve_auto();
+    }
 }
 
 int pc_gfx_init(int headless, int window_width, int window_height) {
@@ -66,8 +96,11 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     int want_gles = !(api != NULL && strcmp(api, "gl") == 0), is_gles = want_gles;
     if (S.inited)
         return 0;
-    pcgfx_cfg.internal_scale = env_int("RUSH_GFX_SCALE", pcgfx_cfg.internal_scale);
-    if (pcgfx_cfg.internal_scale < 1 || pcgfx_cfg.internal_scale > 8)
+    if (getenv("RUSH_GFX_SCALE") != NULL && !strcmp(getenv("RUSH_GFX_SCALE"), "auto"))
+        pcgfx_cfg.internal_scale = 0;
+    else
+        pcgfx_cfg.internal_scale = env_int("RUSH_GFX_SCALE", pcgfx_cfg.internal_scale);
+    if (pcgfx_cfg.internal_scale < 0 || pcgfx_cfg.internal_scale > 8)
         pcgfx_cfg.internal_scale = 1;
     pcgfx_cfg.frame_height = env_int("RUSH_GFX_HEIGHT", pcgfx_cfg.frame_height);
     pcgfx_cfg.verbose = env_int("RUSH_GFX_VERBOSE", pcgfx_cfg.verbose);
@@ -111,7 +144,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     if (S.use_sdl)
         pcgfx_sdl_size(&S.win_w, &S.win_h);
 #endif
-    resolve_aspect();
+    resolve_auto();
     S.inited = 1;
     return 0;
 }
@@ -149,7 +182,7 @@ void pc_gfx_present(const void *framebuffer) {
             pcgfx_sdl_swap();
 #endif
     }
-    resolve_aspect();
+    resolve_auto();
     pcgfx_rdp_new_frame();
 }
 

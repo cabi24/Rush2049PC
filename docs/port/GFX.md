@@ -160,6 +160,9 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   time, so the same build runs on GLES 3.0+ and desktop GL 3.1+.
 - **Render targets.** One FBO per color image address, with a depth renderbuffer per z image and size.
   - A target is cimg width × width·3/4 (320 × 240), times the internal scale. Widescreen widens it (below).
+  - Each target and depth buffer keeps the scale it was made at, and is made again at the next color image when
+    the scale or the size changes (the auto settings follow the window). Depth buffers of a size no target has
+    any more are dropped.
   - The game's frame buffer is 320 × 220 (survey). Presentation shows rows down to the largest scissor bottom drawn
     with, or `RUSH_GFX_HEIGHT`.
   - Offscreen color images get their own target. Nothing reads one back as a texture yet.
@@ -174,7 +177,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | Variable | Effect |
 |---|---|
 | `RUSH_GFX_API=gl` | desktop GL (3.3 core, then 3.1) instead of GLES 3.0 |
-| `RUSH_GFX_SCALE=n` | internal resolution multiple (1–8) |
+| `RUSH_GFX_SCALE=n` | internal resolution multiple (1–8), or `auto`: the largest whole multiple of the frame the window holds, taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
@@ -182,15 +185,17 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 
 - **Hooks for later.**
   - `pc_gfx_read_framebuffer` and `pc_gfx_read_window` (in `gfx_internal.h`, not `pc_port.h`) return target and
-    window pixels, for tests and tools. `pc_gfx_set_widescreen` (there too) changes widescreen at run time, for a
-    settings menu.
+    window pixels, for tests and tools. `pc_gfx_set_widescreen` and `pc_gfx_set_scale` (there too) change those
+    settings at run time, for a settings menu; `pc_gfx_set_window_size` sets the size the auto settings follow
+    when there is no window.
   - **An internal resolution of the window's size** (a scale that isn't a whole number) is not implemented. Three
     parts assume a whole scale: the point-sampled rectangle snap (`mod(floor(gl_FragCoord), uScale)` finds a
     fragment's place inside its N64 pixel), `rect_start` (the first sample sits half an internal pixel from the
     N64 pixel's corner, the same in every pixel), and the scissor and clears (N64 pixel edges land on internal
     pixel edges). With a fractional scale, N64 pixel edges fall inside internal pixels, so each of these needs a
     per-pixel rule, and the exactness the tests check (texel for texel at every scale) would have to be redefined.
-    Until then the frame is drawn at a whole multiple and the present scales it.
+    Until then `RUSH_GFX_SCALE=auto` comes closest: the frame is drawn at the largest whole multiple the window
+    holds and shown pixel for pixel, with a border for the rest.
 
 ### Widescreen
 
@@ -251,7 +256,7 @@ the next frame. A new value applies from the next SETCIMG.
   overlay: it is stretched across the target (its x step divided by the widening), by 4/3 at 16:9. Others stay
   4:3 (a background drawn as tiles stays 4:3, in the middle, with whatever full-width fills are under it at the
   sides).
-- **Off** draws exactly as before: ox is 0, and each widescreen branch tests it first. The 17 other cases pass
+- **Off** draws exactly as before: ox is 0, and each widescreen branch tests it first. The 17 cases before it pass
   unchanged, and `gfx.widescreen` draws its scene off, then at 16:9, then off again, and compares the two off
   frames byte for byte.
 - **The game's own culling** (a survey of the game code, 2026-10-27). The game never tests objects, track or
@@ -411,7 +416,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 18, one CTest each:
+- **Cases.** 19, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -432,15 +437,17 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `nearclip` | a floor behind the eye; a triangle inside the near plane |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
 | `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
+| `autosize` | headless window sizes from 640 × 480 to 1920 × 1080: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
 | `screenshot` | PNG |
 
 - **Variants.** `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun every case on desktop
   GL, at 2× and on llvmpipe. `gfx.all.sdl-window` runs them in window mode (SDL builds). `gfx.all.wide` (16:9) and
   `gfx.all.wide21-scale3` (21:9 at 3×) rerun every case in widescreen, with every sample taken ox pixels in: the
-  4:3 frame's pixels must come out the same in the middle of the wider target. Each variant has its own
+  4:3 frame's pixels must come out the same in the middle of the wider target. `gfx.all.scale-auto` reruns them
+  with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Each variant has its own
   directory for the screenshot case's PNG, since they run in parallel.
 - **Results on the Pi 5 (V3D 7.1, Mesa 24.2).**
-  - 23/23 CTest entries pass (24/24 with SDL).
+  - 25/25 CTest entries pass (26/26 with SDL).
   - Every case also passes at internal scales 1–4, on GLES, on desktop GL and on llvmpipe, and in widescreen
     (16:9 on GLES and desktop GL, 16:10 on llvmpipe, 21:9 at 3× and 4×).
-  - On x86-64 (Intel UHD 770, Mesa 25.2, with SDL2) all 24 pass as well.
+  - On x86-64 (Intel UHD 770, Mesa 25.2, with SDL2) all 26 pass as well.

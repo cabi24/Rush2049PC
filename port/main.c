@@ -29,7 +29,7 @@ static void usage(FILE *f)
             "                      WAYLAND_DISPLAY); --window: an SDL2 window\n"
             "  --fullscreen        start in fullscreen (Alt+Enter or F11 toggles)\n"
             "  --size WxH          window size (default 640x480)\n"
-            "  --scale N           internal resolution, a multiple of the N64's (1-8)\n"
+            "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
             "  --seconds N         stop after N seconds\n"
             "  --frames N          stop after N graphics tasks (at the retrace that shows the last)\n"
@@ -245,7 +245,7 @@ int main(int argc, char **argv)
                                                                                               : PC_PAK_NONE;
     /* port/gfx reads its settings from the environment; the resolved values already include it */
     char scale[8], aspect[16];
-    snprintf(scale, sizeof scale, "%d", cfg.scale);
+    pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);
     setenv("RUSH_GFX_SCALE", scale, 1);
     setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : "gles", 1);
     pc_settings_get(&cfg, "video", "widescreen", aspect, sizeof aspect);

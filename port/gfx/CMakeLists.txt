@@ -85,7 +85,7 @@ set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle dualtile belist matrix cull branchz nearclip
-          xlu widescreen screenshot)
+          xlu widescreen autosize screenshot)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The same cases on desktop GL, at 2x, on the software rasterizer (llvmpipe) and in widescreen (the 4:3 frame's
@@ -101,6 +101,7 @@ pcgfx_all_variant(scale2 "RUSH_GFX_SCALE=2")
 pcgfx_all_variant(software "LIBGL_ALWAYS_SOFTWARE=1")
 pcgfx_all_variant(wide "RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(wide21-scale3 "RUSH_GFX_WIDESCREEN=21:9;RUSH_GFX_SCALE=3")
+pcgfx_all_variant(scale-auto "RUSH_GFX_SCALE=auto")   # 2 in the 640 x 480 headless size
 if(PCGFX_SDL_TARGET)   # the window path, on SDL's offscreen driver (no display needed)
     pcgfx_all_variant(sdl-window "SDL_VIDEODRIVER=offscreen" --window)
 endif()

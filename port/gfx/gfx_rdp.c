@@ -49,6 +49,10 @@ static int wide_offset(int width) {
     return (int)lrintf(width * (k - 1.0f) * 0.5f);
 }
 
+int pcgfx_wide_width(int frame_width) {
+    return frame_width + 2 * wide_offset(frame_width);
+}
+
 void pcgfx_target_dims(int *w, int *h) {
     int width = pcgfx_frame_width();
     *w = width + 2 * pcgfx.wide_ox;
@@ -587,8 +591,7 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
     }
 
     {
-        int scale;
-        pcgfx_gl_target_size(&scale);
+        int scale = pcgfx_gl_target_scale(current_target());
         st->scale = (float)scale;
         if (rect_tile >= 0 && rect_tile < 8 && scale > 1 &&
             (key.mode == GFX_MODE_COPY || ((pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3) == G_TF_POINT))
@@ -732,7 +735,7 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     w = x1 - x0;
     pcgfx_draw_state(textured ? tile : 8, wide);
     pcgfx_target_dims(&tw, &th);
-    pcgfx_gl_target_size(&scale);
+    scale = (int)s_state.scale;
     s = rect_start(s, dsdx, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
     t = rect_start(t, dtdy, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
     if (!flip) {

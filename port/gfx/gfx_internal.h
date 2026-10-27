@@ -164,6 +164,7 @@ const GfxDrawState *pcgfx_draw_state(int rect_tile, int wide);
 void pcgfx_target_dims(int *w, int *h);   /* the color image's target, N64 pixels (widened in widescreen) */
 int pcgfx_frame_width(void);              /* the color image's 4:3 frame width, N64 pixels */
 float pcgfx_wide_x(float x);              /* widescreen: a frame x edge's place in the target (GFX.md) */
+int pcgfx_wide_width(int frame_width);    /* a frame's target width at the aspect in effect */
 /* Texture coordinate transform for tile (tile-relative, normalized for the bound texture). */
 void pcgfx_tile_uv(int unit, float s_texel, float t_texel, float *u, float *v);
 void pcgfx_emit(const GfxOutVtx *v, int n);          /* triangles, 3 vertices each */
@@ -192,7 +193,9 @@ void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
 int pcgfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h);   /* top row first, RGBA8 */
 int pcgfx_gl_read_presented(uint8_t *rgba, int *w, int *h);
 int pcgfx_gl_read_window(uint8_t *rgba, int w, int h);   /* the default framebuffer, top row first */
-void pcgfx_gl_target_size(int *scale);
+int pcgfx_gl_target_scale(const GfxTarget *t);   /* NULL: the scale a new target gets */
+void pcgfx_gl_target_shown(const GfxTarget *t, int *w, int *rows);   /* N64 pixels the present shows */
+void pcgfx_gl_target_dims(const GfxTarget *t, int *w, int *h);       /* N64 pixels */
 
 /* gfx_png.c */
 int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
@@ -207,9 +210,10 @@ void pcgfx_sdl_size(int *w, int *h);
 void pcgfx_sdl_shutdown(void);
 
 /* Settings (gfx_api.c). The internal scale multiplies the N64 frame size. Widescreen widens the frame to a display
- * aspect (GFX.md "Widescreen"). */
+ * aspect (GFX.md "Widescreen"). The auto values follow the window and are taken again at each present. */
 typedef struct {
-    int internal_scale;     /* 1 = the N64 frame size */
+    int internal_scale;     /* 1 = the N64 frame size; 0 = auto: the largest whole multiple the window shows */
+    int scale;              /* the scale in effect, taken at each color image */
     float widescreen;       /* display aspect to widen the 4:3 frame to: 0 off, < 0 the window's */
     float aspect;           /* the aspect in effect (the window's for < 0), taken at each color image; 0 = 4:3 */
     int verbose;
@@ -224,6 +228,10 @@ int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);   /* what the window show
  * next color image (SETCIMG). */
 void pc_gfx_set_widescreen(float aspect);
 float pc_gfx_parse_aspect(const char *text, int *ok);   /* "off", "auto", "16:9", "2.39" -> as above */
+/* The internal scale at run time: 1-8, or 0 for auto. It applies from the next color image. */
+void pc_gfx_set_scale(int scale);
+/* The size the auto settings follow when there is no window (headless tests and tools). */
+void pc_gfx_set_window_size(int w, int h);
 
 #ifdef __cplusplus
 }

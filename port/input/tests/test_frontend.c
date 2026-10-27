@@ -129,6 +129,17 @@ static void test_settings(void)
     CHECK(pc_settings_set(&s, "VIDEO", "Scale", "4", why, sizeof why) == 0 && s.scale == 4, "int");
     CHECK(pc_settings_set(&s, "video", "scale", "9", why, sizeof why) == -2 && s.scale == 4, "int range: %s", why);
     CHECK(pc_settings_set(&s, "video", "scale", "2x", why, sizeof why) == -2 && s.scale == 4, "int junk");
+    {
+        char v[16];
+        CHECK(pc_settings_set(&s, "video", "scale", "Auto", why, sizeof why) == 0 && s.scale == 0 &&
+                  pc_settings_get(&s, "video", "scale", v, sizeof v) == 0 && !strcmp(v, "auto"),
+              "scale auto");
+        CHECK(pc_settings_set(&s, "video", "scale", "0", why, sizeof why) == -2 && s.scale == 0, "scale 0 is no scale");
+        CHECK(pc_settings_set(&s, "video", "scale", "4", why, sizeof why) == 0 && s.scale == 4 &&
+                  pc_settings_get(&s, "video", "scale", v, sizeof v) == 0 && !strcmp(v, "4"),
+              "scale back to 4");
+        CHECK(pc_settings_set(&s, "input", "stick_diagonal", "auto", why, sizeof why) == -2, "auto only for scale");
+    }
     CHECK(pc_settings_set(&s, "video", "vsync", "OFF", why, sizeof why) == 0 && !s.vsync, "bool off");
     CHECK(pc_settings_set(&s, "video", "vsync", "yes", why, sizeof why) == 0 && s.vsync, "bool yes");
     CHECK(pc_settings_set(&s, "video", "vsync", "maybe", why, sizeof why) == -2 && s.vsync, "bool bad");

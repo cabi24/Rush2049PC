@@ -18,6 +18,8 @@ int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
 int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
 void pc_gfx_set_widescreen(float aspect);
 float pc_gfx_parse_aspect(const char *text, int *ok);
+void pc_gfx_set_scale(int scale);
+void pc_gfx_set_window_size(int w, int h);
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
@@ -1328,6 +1330,52 @@ static void case_widescreen(void) {
     pc_gfx_set_widescreen(env_aspect);
 }
 
+/* the auto settings follow the window (here the headless size, pc_gfx_set_window_size): widescreen takes its aspect,
+ * and the scale the largest whole multiple of the frame that it holds */
+static void case_autosize(void) {
+    static uint16_t t[8 * 8];
+    const char *env_scale = getenv("RUSH_GFX_SCALE");
+    int i, x, y, ok, scale = env_scale && !strcmp(env_scale, "auto") ? 0 : env_scale ? atoi(env_scale) : 1;
+    float env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
+    static const struct { int win_w, win_h; float aspect; int scale, w, s; } steps[] = {
+        {1280, 720, -1.0f, 0, 426, 3},    /* 16:9: 426 x 240, 3 x 3 fits 1280 x 720 */
+        {1920, 1080, -1.0f, 0, 426, 4},   /* 4 x 426 = 1704 */
+        {1024, 768, -1.0f, 0, 320, 3},    /* 4:3: widescreen off */
+        {1280, 720, -1.0f, 2, 426, 2},    /* a fixed scale stays */
+        {1280, 720, 21.0f / 9, 0, 560, 2},   /* a fixed aspect: 560 x 240, 2 x 560 fits 1280 */
+        {640, 480, 0.0f, 0, 320, 2},
+    };
+    if (s_window) {   /* the window has its own size */
+        printf("  (autosize: headless only)\n");
+        return;
+    }
+    for (i = 0; i < 64; i++)
+        t[i] = rgba16((i & 7) * 32, (i >> 3) * 32, 128, 1);
+    for (i = 0; i < (int)(sizeof(steps) / sizeof(steps[0])); i++) {
+        pc_gfx_set_window_size(steps[i].win_w, steps[i].win_h);
+        pc_gfx_set_widescreen(steps[i].aspect);
+        pc_gfx_set_scale(steps[i].scale);
+        frame_begin(0, 0, 0);
+        load_texture_block((uintptr_t)t, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+        gsDPSetCycleType(G_CYC_COPY);
+        gsDPSetRenderMode(0, 0);
+        gsSPTextureRectangle(10 << 2, 10 << 2, 17 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);
+        frame_end();
+        if (s_px_w != steps[i].w * steps[i].s || s_px_h != FB_H * steps[i].s) {
+            printf("  FAIL autosize %dx%d: the target is %dx%d, not %dx%d\n", steps[i].win_w, steps[i].win_h, s_px_w,
+                   s_px_h, steps[i].w * steps[i].s, FB_H * steps[i].s);
+            s_fail++;
+            continue;
+        }
+        for (y = 0; y < 8; y++)
+            for (x = 0; x < 8; x++)
+                check("texrect", 10 + x, 10 + y, x5(x * 32), x5(y * 32), x5(128), 1);
+    }
+    pc_gfx_set_window_size(640, 480);
+    pc_gfx_set_widescreen(env_aspect);
+    pc_gfx_set_scale(scale);
+}
+
 /* the screenshot is a PNG of the presented frame */
 static void case_screenshot(void) {
     char path[512];
@@ -1363,7 +1411,8 @@ static const Case s_cases[] = {
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
     {"dualtile", case_dualtile}, {"belist", case_belist},     {"matrix", case_matrix},
     {"cull", case_cull},         {"branchz", case_branchz},   {"nearclip", case_nearclip},
-    {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"screenshot", case_screenshot},
+    {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
+    {"screenshot", case_screenshot},
 };
 
 int main(int argc, char **argv) {

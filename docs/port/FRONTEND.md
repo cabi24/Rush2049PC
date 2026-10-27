@@ -103,8 +103,9 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   - With a fixed aspect and the default window (640 × 480), the window opens at the picture's aspect (853 × 480
     at 16:9), so the frame shows at 2× as at 4:3. A window size set in the file or with `--size` is kept.
   - At 16:9 the frame is 426 × 220. A 1280 × 720 window shows it at 3×, and a 1920 × 1080 screen at 4×, with a
-    border (the present uses whole multiples; see [GFX.md](GFX.md) "Hooks for later" for a scale of the window's
-    size).
+    border: the present uses whole multiples. `video.scale = auto` draws it at that multiple too, instead of
+    scaling a smaller frame up. A scale of the window's exact size is not implemented ([GFX.md](GFX.md) "Hooks
+    for later" says why).
 - **Quit.** Closing the window, the quit key, Ctrl-C and SIGTERM all end the loop the same way. The controller
   pak is flushed, rumble stops, and audio and the renderer shut down.
 
@@ -142,7 +143,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `video.width`, `video.height` | 640, 480 | `--size WxH` | window size |
 | `video.fullscreen` | off | `--fullscreen` | start in desktop fullscreen |
 | `video.vsync` | on | | swap interval 1 or 0 |
-| `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8 (`RUSH_GFX_SCALE`) |
+| `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8, or auto: the largest whole multiple the window holds, so the frame is drawn at the size it is shown (`RUSH_GFX_SCALE`) |
 | `video.api` | gles | | `gles` or `gl` (`RUSH_GFX_API`) |
 | `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
@@ -207,7 +208,7 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | CTest | Program | Checks |
 |---|---|---|
 | `frontend.ini` | `frontend_test ini` | the INI reader: BOM, CRLF, comments, inline comments, quotes, case, a key before any section, a missing final newline, and four kinds of malformed line with their line numbers |
-| `frontend.settings` | `frontend_test settings` | the defaults; every type and its range checks (a bad value leaves the setting alone); the widescreen aspect (W:H, ratios, auto, off, written back as 16:9 / 16:10 / 21:9, narrower than 4:3 refused); bindings, unbound, `analog`, hotkeys; `--set` syntax; the written file reads back to the same text, quoted strings included; bad lines are counted and skipped |
+| `frontend.settings` | `frontend_test settings` | the defaults; every type and its range checks (a bad value leaves the setting alone); the widescreen aspect (W:H, ratios, auto, off, written back as 16:9 / 16:10 / 21:9, narrower than 4:3 refused); `scale = auto`; bindings, unbound, `analog`, hotkeys; `--set` syntax; the written file reads back to the same text, quoted strings included; bad lines are counted and skipped |
 | `frontend.layers` | `frontend_test layers` | the file over the defaults, the environment over the file (a bad variable is ignored), overrides over both in order, a bad override fails but the rest apply, no file, a missing `--config` file |
 | `frontend.locate` | `frontend_test locate` | XDG, a relative XDG (ignored), HOME, no place at all; the first run writes the defaults (making directories) and reads them back; edits are read next time; READ never creates; a file next to the executable wins |
 | `frontend.stick` | `frontend_test stick` | dead zone (radial), rescaling, full tilt in four directions, the octagon's corner and edge (22.5°: (76, 31)), a square pad's corner, the round gate, keys, monotonic travel |

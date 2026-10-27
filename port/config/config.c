@@ -151,7 +151,7 @@ typedef struct {
     ItemType type;
     size_t offset, size;
     double min, max;
-    const char *const *choices;   /* T_ENUM: value i is choices[i]; NULL-terminated */
+    const char *const *choices;   /* T_ENUM: value i is choices[i]; NULL-terminated. T_INT: a word for 0 */
     const char *def;              /* the default, as the file writes it */
     const char *comment;
 } Item;
@@ -159,6 +159,7 @@ typedef struct {
 static const char *const pak_choices[] = {"none", "memory", "rumble", NULL};
 static const char *const api_choices[] = {"gles", "gl", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
+static const char *const scale_choices[] = {"auto", NULL};
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -175,8 +176,8 @@ static const Item items[] = {
     {"video", "height", T_INT, F(height), 120, 16384, NULL, "480", NULL},
     {"video", "fullscreen", T_BOOL, F(fullscreen), 0, 0, NULL, "off", "Start in fullscreen (Alt+Enter or F11 toggles)."},
     {"video", "vsync", T_BOOL, F(vsync), 0, 0, NULL, "on", NULL},
-    {"video", "scale", T_INT, F(scale), 1, 8, NULL, "1",
-     "Internal resolution, a multiple of the N64's (1-8; RUSH_GFX_SCALE)."},
+    {"video", "scale", T_INT, F(scale), 1, 8, scale_choices, "1",
+     "Internal resolution, a multiple of the N64's (1-8), or auto: the largest the window shows whole (RUSH_GFX_SCALE)."},
     {"video", "api", T_ENUM, F(api), 0, 0, api_choices, "gles", "gles (OpenGL ES 3.0) or gl (desktop GL; RUSH_GFX_API)."},
     {"video", "widescreen", T_ASPECT, F(widescreen), 4.0 / 3.0, 4, NULL, "off",
      "Widen the picture: off (4:3), auto (the window's aspect), 16:9, 16:10, 21:9, W:H or a ratio up to 4. The 3D view "
@@ -266,10 +267,15 @@ static int set_item(PcSettings *s, const Item *it, const char *v, char *why, siz
         return 0;
     }
     case T_INT: {
+        if (it->choices && !strcasecmp(v, it->choices[0])) {
+            *(int *)base = 0;
+            return 0;
+        }
         errno = 0;
         long n = strtol(v, &end, 10);
         if (!*v || *end || errno || n < it->min || n > it->max) {
-            snprintf(why, why_size, "'%s' is not a whole number from %g to %g", v, it->min, it->max);
+            snprintf(why, why_size, "'%s' is not a whole number from %g to %g%s%s", v, it->min, it->max,
+                     it->choices ? " or " : "", it->choices ? it->choices[0] : "");
             return -2;
         }
         *(int *)base = (int)n;
@@ -320,7 +326,10 @@ static void format_item(const PcSettings *s, const Item *it, char *out, size_t n
         snprintf(out, n, "%s", *(const int *)base ? "on" : "off");
         break;
     case T_INT:
-        snprintf(out, n, "%d", *(const int *)base);
+        if (it->choices && *(const int *)base == 0)
+            snprintf(out, n, "%s", it->choices[0]);
+        else
+            snprintf(out, n, "%d", *(const int *)base);
         break;
     case T_REAL:
         snprintf(out, n, "%g", *(const double *)base);
