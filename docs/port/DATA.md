@@ -15,7 +15,8 @@ is the same fill run again for one image.
 | Generator reports | `build/pc/pc-data/data_layout.txt` (decisions, conflicts, what is left), `data_symbols.txt` (every symbol) |
 | Loader | `port/data/pc_data.c`, descriptor types in `port/data/pc_data.h` |
 | Size overrides for open-ended arrays | `port/data/extents.txt` |
-| Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM), `port/data/test_overlay_data.c` (a runtime image's C data on reload) |
+| Rules for tables only pointers reach | `port/data/reached.txt` (section 7) |
+| Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM), `port/data/test_overlay_data.c` (a runtime image's C data on reload), `port/data/test_reach.c` (the reach rules) |
 | Overlay loads | `src/blob/groups/{heap_release,score_insert}/overlay_loader.c`, `{carcolor,state}/ctx_overlay_loader.c` |
 | The runtime images' C data, one range each | `port/data/overlays.ld` (linked with `-T`), section 5 |
 
@@ -292,6 +293,68 @@ BSS array, a pointer to a static), both through the script, with the loader and 
 arena in host memory). It writes them all (the muzzle-flash records through `_RemoveCannMFlash` and
 `_RemoveGattMFlash`), then checks that a load of one image puts back that image's and leaves the other's.
 
+### 6. What the declarations miss: the report's text and undescribed lines
+
+The retail cartridge showed two ways the declarations leave data in the ROM's byte order ([BRINGUP.md](BRINGUP.md)
+2 and 8). The report says which:
+
+- **`text-in-words <where> <value> -> <target> (<text>)`**: a pointer whose target lies in an element wider than a
+  byte, in an arena or in own storage, while the image's bytes there read as text (three printable characters or
+  more, then a NUL). That is a declaration that runs over a string, almost always an open-ended table sized by the gap
+  to the next known address; the loader swaps the string with the table's elements. The fix is the table's size (in
+  its C declaration under `TARGET_PC`, or `extents.txt`). The stats line counts them ("to text in words").
+- **`undescribed <where> <value> -> <target>`**, with **`(text)`** when the bytes read as text. Text is fine as it is
+  (bytes keep their order). A target without the mark is a table only pointers reach: a rule in `reached.txt`
+  (section 7) or a declaration fixes it.
+
+`pc_data_test` plants a string under an arena's u32 run and one under an own symbol's u32s, and an undescribed
+string. The synthetic cartridge keeps its strings right after the tables the retail cartridge has them after
+(`strings_after` in `tools/port/synth_rom.py`), and its generator refuses bytes a declaration covers there.
+
+### 7. Tables only pointers reach (`port/data/reached.txt`)
+
+Some data is reached only through pointers in other data: the track animations (per-track tables of sequences, each
+with its frames, and of palette animations), the suspensions, the demo paths' start points. No symbol describes it,
+so the loader left it in the ROM's byte order and the N64 layout, while the game reads it with the host layout. Each
+line of `port/data/reached.txt` is a rule:
+
+```
+ROOT                        TYPE                 COUNT
+D_8011A31C                  ObjectAnimation20    until count
+ObjectAnimation20.frames    AnimationFrame12     parent count
+D_80111560                  f32[9]               1
+D_801173D8                  s16                  D_80117408[i]
+```
+
+- ROOT: a table of pointers with storage of its own (each of its pointers), or `Tag.field`, a pointer field of
+  every element an earlier rule with that TYPE reaches.
+- TYPE: a struct tag of the game C (gen_data takes its layout from the DWARF, as for any symbol), or `u8`, `s8`,
+  `u16`, `s16`, `u32`, `s32`, `f32`, optionally `[N]`.
+- COUNT: `N`; `until FIELD` (the element whose FIELD is zero ends the table and belongs to it); `parent FIELD` (that
+  field of the element holding the pointer); `TABLE[i]` (element i of a table of integers, for the root's pointer i).
+
+gen_data checks each rule against the DWARF (the type, its fields, the root's pointers) and emits it as a
+`PcDataReach` with the type's runs. After every load of an image the loader follows that image's root rules: for each
+pointer it reads the count from the ROM, then
+
+- a type with pointers or a host layout of its own gets host storage of its own (`calloc`, once per table per load,
+  shared by every pointer to it), converted element by element through the runs, its field rules followed, and the
+  pointer in the root (or the parent's copy) rewritten to it. What the game writes there is lost on a reload of the
+  image, as on the N64;
+- a pointer into a symbol whose own storage holds that type already (gen_data lists them: the shared frames
+  `D_8011905C` for `AnimationFrame12`) resolves as usual;
+- any other type is swapped in place in its arena, unless an element there describes it already.
+
+The report has a `reached` line per table (its address, count, and which of the three), and the stats line counts the
+tables and elements. The counts come from the ROM at run time; the repository holds only the rules. `extents.txt`
+bounds the two animation pointer tables to their 19 tracks, which by the gap ran over the palette animations.
+
+Tests: `pc_reach_test` (`port/data/test_reach.c`: hand-written rules on a synthetic image: a sequence table ended by
+a zero count, its frames by the parent's count, one table reached by two pointers, frames inside a compatible symbol,
+s16 arrays swapped in place by a table of counts, the report, a reload); `datacheck --synthetic` plants NULL in the
+rules' roots (their targets would be random); the synthetic cartridge's track 0 has a palette and an object
+animation, and its race faults in `camera_shake_start` without the rules.
+
 ## The names missing from the symbol file
 
 All resolved from the image symbol tables. Data (each is placed like any other symbol):
@@ -404,9 +467,10 @@ message when there is none) checks the SHA-1, the boot tail's build-info record 
 `gInflateMaskBits` u16), that 90% of all f32 elements are finite and of sane size, the four file tables from
 `ASSETS.md` §2.2 (kinds 0–2, model flags 0–1, offsets inside the ROM, sizes under 8 MB), that function pointers
 resolve, `known_widths` against the images it inflates itself, and both overlay reloads (both are loaded first,
-as the game would). **The ROM was not present, so none of
-this has run yet**, and there are no resolved and unresolved pointer counts, nor `addr-word` counts, for the real
-data. Without a ROM the boot fills nothing but the (blank) boot tail, and the synthetic data is random.
+as the game would). On the retail cartridge (2026-10-27) every check passes, and the game runs on what the loader
+makes of it: the front end, races in every mode tried, the attract demo ([BRINGUP.md](BRINGUP.md)), after the fixes
+there to declarations the real data showed wrong (sections 6 and 7). The counts aren't written here: they describe
+the ROM. Without a ROM the boot fills nothing but the (blank) boot tail, and the synthetic data is random.
 
 ## Conflicts and the work list (agent D)
 
@@ -456,7 +520,7 @@ From `data_layout.txt`:
 
 ## Untested
 
-Everything that needs the ROM: the real values and the real pointer and `addr-word` counts. Also untested: an
-overlay load called by the game itself (nothing runs the game that far yet), the x86-64 and macOS paths (thunks,
+The retail data where the game hasn't run yet (BRINGUP.md, "What's next"). Also untested: the x86-64 and macOS
+paths on the retail cartridge (thunks,
 `N64_SYM`; on x86-64 the arena names are object-file absolute symbols reached through `-fPIC` GOT loads, like
 `aliases.ld`'s, which only CI builds and runs), and whether the chosen declaration is right where files conflict.
