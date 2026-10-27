@@ -36,4 +36,8 @@ static __inline__ void pc_be16_set(void *p, unsigned short v) {
 void *pc_n64_ptr(unsigned int n64_addr);
 unsigned int pc_n64_addr(const void *host);
 
+/* A wave's file is in memory, or its block goes away (port/assets, pc_port.h). */
+void pc_wave_loaded(int wave, void *buf, __SIZE_TYPE__ size);
+void pc_wave_released(int wave, void *buf);
+
 #endif

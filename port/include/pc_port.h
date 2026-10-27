@@ -4,6 +4,7 @@
  *   port/data    initial values of the game's data, read from the ROM by declared type
  *   port/gfx     F3DEX2 display-list interpreter and renderer
  *   port/audio   audio command-list interpreter and output
+ *   port/assets  the game's files from the ROM, converted to the host's byte order
  *   port/input   keyboard, game controllers, scripted presses (port/config: rush2049pc.ini)
  *
  * PC-layer code only: game C never includes this (it carries its own declarations). Each part implements its
@@ -47,6 +48,14 @@ int pc_data_init(const uint8_t *rom, size_t rom_size);
  * resets that image's data to its initial values and zeroes its BSS. */
 enum { PC_OVERLAY_A = 0, PC_OVERLAY_B = 1 };
 void pc_data_overlay_load(int overlay);
+
+/* ---------------------------------------------------------------- the game's files (port/assets) */
+
+/* _ReadWave, after a wave's file is in its heap block and before SetupWaveModel relocates it: convert it to the
+ * host's byte order by format (docs/port/ASSETS.md §5). size is the block's size. */
+void pc_wave_loaded(int wave, void *buf, size_t size);
+/* The wave's block is freed or moves: drop its big-endian registrations. */
+void pc_wave_released(int wave, void *buf);
 
 /* ---------------------------------------------------------------- graphics (port/gfx), host main thread */
 

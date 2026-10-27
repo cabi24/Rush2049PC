@@ -208,6 +208,12 @@ void SetupWaveModel(s32 idx, s32 first) {
     entity_render_mode(idx);
 }
 
+#ifdef TARGET_PC
+/* _ReadWave's SetupWaveModel(slot, 1): convert the file to the host's byte order first (port/assets). The
+ * re-setup after a heap move (first = 0) converts nothing. */
+#define SetupWaveModel(slot, first) ((first) ? pc_wave_loaded(gWaveInstance[slot].wave, gWaveInstance[slot].handle ? *(u8 **)gWaveInstance[slot].ptr : gWaveInstance[slot].ptr, gWaveInstance[slot].size) : (void)0, SetupWaveModel(slot, first))
+#endif
+
 void func_8009715C(u8 *dst, s32 rom, s32 size) {
     OSIoMesg mb;
 

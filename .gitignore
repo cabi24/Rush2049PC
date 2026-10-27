@@ -3,6 +3,8 @@
 *.n64
 *.v64
 assets/
+# ...except the PC converters (code, no ROM data)
+!/port/assets/
 build/
 # toolchain installed by the user
 tools/ido/

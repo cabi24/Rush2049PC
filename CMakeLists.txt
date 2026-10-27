@@ -216,7 +216,13 @@ if(RUSH_SDL2_TARGET)
     target_compile_definitions(pcfrontend PRIVATE PC_HAVE_SDL2)
     target_link_libraries(pcfrontend PUBLIC ${RUSH_SDL2_TARGET})
 endif()
-list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcfrontend pcdata_rt)   # port/data's loader (docs/port/DATA.md)
+# port/assets: the game's files converted to the host's byte order as _ReadWave loads them (docs/port/ASSETS.md).
+# One file per format; assets.c has the dispatcher and weak no-ops for formats not converted yet.
+file(GLOB PC_ASSETS_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/*.c)
+add_library(pcassets OBJECT ${PC_ASSETS_SOURCES})
+target_include_directories(pcassets PRIVATE port/include port/assets)
+target_compile_options(pcassets PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcfrontend pcdata_rt pcassets)   # port/data's loader (docs/port/DATA.md)
 list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (docs/port/AUDIO.md, GFX.md)
 
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
@@ -268,6 +274,18 @@ target_include_directories(test_gsm PRIVATE port/ultra)
 target_compile_options(test_gsm PRIVATE -std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter)   # -O2: 2 s, not 7
 target_compile_definitions(test_gsm PRIVATE GSM_KERNELS_S="${CMAKE_SOURCE_DIR}/asm/us/boot_data/kernels.s")
 add_test(NAME ultra_gsm COMMAND test_gsm)
+# port/assets: each tests/test_<name>.c is a program run by ctest as assets_<name>, linked with the converters
+# and tests/support.c (a big-endian range registry in place of port/ultra's).
+file(GLOB PC_ASSETS_TESTS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/tests/test_*.c)
+foreach(t ${PC_ASSETS_TESTS})
+    get_filename_component(n ${t} NAME_WE)
+    string(REGEX REPLACE "^test_" "" n ${n})
+    add_executable(test_assets_${n} ${t} port/assets/tests/support.c $<TARGET_OBJECTS:pcassets>)
+    target_include_directories(test_assets_${n} PRIVATE port/include port/assets port/assets/tests)
+    target_compile_options(test_assets_${n} PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+    set_target_properties(test_assets_${n} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+    add_test(NAME assets_${n} COMMAND test_assets_${n})
+endforeach()
 # A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
 set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
