@@ -48,7 +48,7 @@ Ten tables passed to NewMultiBlit had declarations without the layout (`s32`, `u
 with an `s32` name). `pc_prelude.h` has the descriptor's PC layout, `struct pc_multiblit`, and each file declares its
 table with it under `TARGET_PC`. Test: the synthetic cartridge writes those tables (the demo's blit with a NULL name),
 so its generator's kind check fails if a declaration loses the pointer; the demo, pause, raceend and screens paths run
-them. (Commit 270ba85.)
+them. (Commit 74e650f.)
 
 ### 2. Tables sized by the gap ran over strings
 
@@ -65,7 +65,7 @@ those are fine as bytes, the others are tables (section 8).
 | `D_803B83A4`, image A's warning screen blit (`MultiBlit[]`) | the car select blits' names | the car select faulted on a texture lookup that failed | one `MultiBlit` |
 
 Test: the synthetic cartridge keeps strings right after these tables (`strings_after`), and refuses bytes a
-declaration covers there, so a table sized by the gap again stops its generator. (91f98eb, c4db0a2.)
+declaration covers there, so a table sized by the gap again stops its generator. (155c3f2, c4db0a2.)
 
 ### 3. Cars at NaN: the torque curve over the tire records
 
@@ -75,7 +75,7 @@ step found the first NaN in a tire's traction: the tire records' floats had thei
 `tire_info` fields reach, so they were swapped as u16s. The curve is `u16[10 * 12]` (func_800E2D18's
 `short[10][12]`), and the tire records are declared in `car_resistance` as `float[2][6]` (func_800D09E8 copies six)
 and referenced there, so the loader knows them. Test: the synthetic cartridge's tire curves are those records, so its
-kind check needs them to be floats. (91f98eb.)
+kind check needs them to be floats. (155c3f2.)
 
 ### 4. The attract demo runs
 
@@ -89,13 +89,13 @@ At the end of the demo, and later in races, the skid code freed a display handle
 (`func_800AF844`) writes a finished skid's midpoint and done flag through its own view of the effect record, which had
 the N64 offsets; on the PC the effect's links and display handle are pointers, so the midpoint landed on the time and
 the handle. Its view has the PC layout now. The reset (`func_800B0580`) also cleared the skid table's N64 size, 96
-bytes short of the PC's. Test: `assets_pool` runs StopSkid and the reset. (acfd8e8.)
+bytes short of the PC's. Test: `assets_pool` runs StopSkid and the reset. (786daab.)
 
 ### 6. `--until-state` and the retail state word
 
 The retail cartridge's gGameState starts as the game's own "no state", -1 (func_800B7FF8 tests for it), whose bits
 match every `--until-state` mask, so each was met on the first retrace. The host loop takes no state from the value
-the state word starts with, until the game first changes it; the synthetic cartridge starts it at -1 too. (f458ed4,
+the state word starts with, until the game first changes it; the synthetic cartridge starts it at -1 too. (3253de2,
 and the commit that made the rule general.)
 
 ### 7. The track select's fog
@@ -104,7 +104,7 @@ The track select faulted in its first frame, in the 2D draw's palette load, with
 palette is `D_803BA1E8`, a WAD-style Palette whose colour table the draw reads at +0x14 as a u32 window address: the
 word `D_803BA1FC`, which the C declared `u8 *` and so gave storage of its own outside the window. It is a u32 in the
 arena now (`FOG_TABLE`, `PC_N64W`). Test: the synthetic cartridge makes the fog (an IA texture, its option valid);
-without the fix its paths fault at the track select. (88be4c3.)
+without the fix its paths fault at the track select. (8d469cf.)
 
 ### 8. Tables only pointers reach
 
@@ -119,21 +119,21 @@ the count is found (fixed, ended by a zero field, a field of the parent element,
 the loader follows the pointers, converts a type with pointers to host storage of its own (once per table, children
 included) and rewrites the pointer, and swaps a pointer-free type in place. Tests: `pc_reach_test` (hand-written
 rules on a synthetic image); the synthetic cartridge's track 0 has a palette and an object animation, and its race
-faults without the rules. (f27b457.)
+faults without the rules. (22e79a7.)
 
 ### 9. The video and audio screens' second blit
 
 The video screen called an animation function at -1. It makes two blits from `D_8011ACA0` (or `D_8011ACE8` when
 paused), the audio screen two from `D_801105E4`, but each was declared one MultiBlit, so the second was read past
 its storage. Each is declared with its two. Every other table passed to NewMultiBlit holds the count it is passed.
-Test: the synthetic cartridge sets the second blits, which its generator refuses outside a symbol. (dc622ce.)
+Test: the synthetic cartridge sets the second blits, which its generator refuses outside a symbol. (ac8fa7f.)
 
 ### 10. Battle: the health bars' palettes
 
 Battle mode faulted in PrePlay in the same palette load as section 7: `animHealth` points each health bar's palette
 (`healthPal`, image B) at the bar's colours, and the game C's palette type had a pointer for the colour table, 8
 bytes at +0x18 instead of the u32 at +0x14 the draw reads. It has the u32 on the PC (`PAL_BASE`). Test: the synthetic
-battle HUD has an IA blit and player 1's health bar; without the fix the battle2p path faults. (d6958b8.)
+battle HUD has an IA blit and player 1's health bar; without the fix the battle2p path faults. (1fb6262.)
 
 ### 11. Battle: the gear ratios
 
@@ -141,21 +141,21 @@ Battle cars didn't move: full throttle, an absurd drive torque, wheels that neve
 row of six per car class (the model's byte 9; battle's cars use a later row), read from `D_80110EC0` by byte
 offsets; by the gap the table was one row, and the others kept the ROM's byte order. `extents.txt` gives `D_80110EBC` its eight
 rows. `tools/port/index_check.py` now knows m2c's byte-offset indexing and finds this table, and only it; its ctest
-fails without the extent. The synthetic cartridge sets every row. (5b30657.)
+fails without the extent. The synthetic cartridge sets every row. (db843ba.)
 
 ### 12. Four players: the model slots
 
 A four-player game faulted on the player screen, on a model name index in the millions: the player screens' model
 slots (`D_803B470C`, 22 per player) had an extent of three players (a known address inside the table), so the fourth
 player's kept the ROM's byte order. `extents.txt` gives it four. Test: the synthetic cartridge sets all four
-players' slots, which its generator refuses outside a three-player table. (762e8fe.)
+players' slots, which its generator refuses outside a three-player table. (4ad9b79.)
 
 ### 13. zlib's extra_blbits
 
 The report's last undescribed table that wasn't text, colours or short strings: zlib's bit-length extra bits
 (`D_8011E974`, int[19]), which only `static_bl_desc` points to and no code names. It would have been wrong whenever a
 ghost is compressed. `zlib_deflate` references it on the PC, so it is described. Test: the synthetic cartridge sets
-it (zlib's own constants), which its generator refuses without the declaration. (00b6c8b.)
+it (zlib's own constants), which its generator refuses without the declaration. (48b304c.)
 
 ## How the stops were found
 
