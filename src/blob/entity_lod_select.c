@@ -28,6 +28,17 @@ typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
 
+#ifdef TARGET_PC
+/* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
+ * (docs/port/POINTERS.md). */
+#define DLW(w) pc_be32_get(&(w))
+#define DLW_SET(w, v) pc_be32_set(&(w), v)
+#define DL_AT(addr) ((u32 *)pc_n64_ptr(addr))
+#else
+#define DLW(w) w
+#define DLW_SET(w, v) w = v
+#define DL_AT(addr) (u32 *) addr
+#endif
 void func_800966D8(s32 arg0, s32 arg1);
 
 void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
@@ -75,28 +86,28 @@ void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
         head = stk[depth];
         slot = &stk[depth];
         cmd = *slot;
-        op = (head[0] & 0xFF000000) >> 24;
+        op = (DLW(head[0]) & 0xFF000000) >> 24;
         if ((op & 0xC0) == 0x40 || (op & 0xC0) == 0x80 || (op >= 9 && op < 0x40) || (op >= 0xC0 && op < 0xD6)) {
             goto next;
         }
         nextcmd = cmd + 2;
-        op2 = (nextcmd[0] & 0xFF000000) >> 24;
+        op2 = (DLW(nextcmd[0]) & 0xFF000000) >> 24;
         if (op == 1 || op == 0xDD || op == 0xDE || op == 0xDA || op == 0xDC || (op == 0xE1 && (op2 == 4 || op2 == 0xDD)) || op >= 0xFD) {
             if (seg < 0) {
-                val = ((cmd[1] + base) & 0x00FFFFFF) | (cmd[1] & 0x0F000000);
+                val = ((DLW(cmd[1]) + base) & 0x00FFFFFF) | (DLW(cmd[1]) & 0x0F000000);
             } else {
                 segnib = seg & 0xF;
                 segbits = segnib << 24;
-                val = ((cmd[1] + base) & 0x00FFFFFF) | segbits;
+                val = ((DLW(cmd[1]) + base) & 0x00FFFFFF) | segbits;
             }
             newaddr = val;
-            cmd[1] = newaddr;
+            DLW_SET(cmd[1], newaddr);
         }
         switch (op) {
             case 0xE0:
-                type = (cmd[0] & 0x00FF0000) >> 16;
-                w1 = cmd[1];
-                w0 = cmd[0];
+                type = (DLW(cmd[0]) & 0x00FF0000) >> 16;
+                w1 = DLW(cmd[1]);
+                w0 = DLW(cmd[0]);
                 idx = w0 & 0xFFFF;
                 one = 1;
                 bit = one << idx;
@@ -113,8 +124,8 @@ void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
                         val = (sum2 & 0x00FFFFFF) | segbits2;
                     }
                     branch = 0xDE010000;
-                    cmd[0] = branch;
-                    cmd[1] = val;
+                    DLW_SET(cmd[0], branch);
+                    DLW_SET(cmd[1], val);
                 }
                 break;
             case 1:
@@ -127,10 +138,10 @@ void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
                 }
                 break;
             case 0xE1:
-                saved = cmd[1];
+                saved = DLW(cmd[1]);
                 break;
             case 4:
-                target = (u32 *) saved;
+                target = DL_AT(saved);
                 stk[depth] = target;
                 break;
             case 0xDE:

@@ -22,6 +22,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct { u8 pad0[16]; u8 pak; } PSFile;                /* tPS_File: pak 0x10 */
@@ -76,7 +80,11 @@ extern Profile *D_80146150[4];           /* gJustPlayers */
 extern s8 D_80139300[4];                 /* gControlsSet */
 extern s8 D_80157244;                    /* gSoftReset */
 extern s8 D_80113ED4;                    /* inited */
+#ifdef TARGET_PC
+extern void *D_80113ED8;                 /* blit: pointer-sized storage */
+#else
 extern s32 D_80113ED8;                   /* blit */
+#endif
 extern s32 D_80113EDC;                   /* exitControlScreen */
 extern f32 D_80112A98, D_80112A9C, D_80112AA0, D_80112AA4, D_80112AA8, D_80112AAC, D_80112AB0, D_80112AB4;
 extern u8 D_80112AB8[], D_8011361C[], D_80113910[];  /* buttonsFrontEnd, buttonsPauseSingle, buttonsPauseMulti */
@@ -112,11 +120,11 @@ void func_800D91A0(void) {
         }
         func_800D9058();
         if (state_word_a & 0x7C03FFFE)
-            D_80113ED8 = (s32)sound_control(0, 0, D_80112AB8, 81);
+            D_80113ED8 = (intptr_t)sound_control(0, 0, D_80112AB8, 81);
         else if (D_80151AD0 == 1)
-            D_80113ED8 = (s32)sound_control(0, 0, D_8011361C, 21);
+            D_80113ED8 = (intptr_t)sound_control(0, 0, D_8011361C, 21);
         else
-            D_80113ED8 = (s32)sound_control(0, 0, D_80113910, 41);
+            D_80113ED8 = (intptr_t)sound_control(0, 0, D_80113910, 41);
         if (D_80151AD0 == 1) {
             D_80112A98 = 1.0f;
             D_80112A9C = 0.9f;

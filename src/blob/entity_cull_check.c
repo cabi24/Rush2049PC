@@ -13,6 +13,15 @@ typedef struct Gfx {
     u32 w1;
 } Gfx;
 
+#ifdef TARGET_PC
+/* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
+ * (docs/port/POINTERS.md). */
+#define DLW(w) pc_be32_get(&(w))
+#define DLW_SET(w, v) pc_be32_set(&(w), v)
+#else
+#define DLW(w) w
+#define DLW_SET(w, v) w = v
+#endif
 void entity_cull_check(Gfx *start, Gfx *end, s32 base) {
     Gfx *gfx;
     u8 cmd;
@@ -21,18 +30,18 @@ void entity_cull_check(Gfx *start, Gfx *end, s32 base) {
     s32 off;
 
     for (gfx = start; gfx < end; gfx++) {
-        cmd = (gfx->w0 & 0xFF000000) >> 24;
+        cmd = (DLW(gfx->w0) & 0xFF000000) >> 24;
         if ((cmd & 0xC0) != 0x40 && (cmd & 0xC0) != 0x80 && (cmd < 9 || cmd >= 0x40) && (cmd < 0xC0 || cmd >= 0xD6)) {
-            next = (gfx[1].w0 & 0xFF000000) >> 24;
+            next = (DLW(gfx[1].w0) & 0xFF000000) >> 24;
             if (cmd == 0xFD) {
                 off = base;
-                val = (gfx->w1 & 0x0F000000) | ((gfx->w1 + off) & 0x00FFFFFF);
-                gfx->w1 = val;
+                val = (DLW(gfx->w1) & 0x0F000000) | ((DLW(gfx->w1) + off) & 0x00FFFFFF);
+                DLW_SET(gfx->w1, val);
             }
             if (cmd == 0xE1 && next == 4) {
                 off = base;
-                val = (gfx->w1 & 0x0F000000) | ((gfx->w1 + off) & 0x00FFFFFF);
-                gfx->w1 = val;
+                val = (DLW(gfx->w1) & 0x0F000000) | ((DLW(gfx->w1) + off) & 0x00FFFFFF);
+                DLW_SET(gfx->w1, val);
             }
         }
     }

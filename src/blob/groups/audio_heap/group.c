@@ -32,7 +32,30 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
+#ifdef TARGET_PC
+enum n64p_Block { n64p_Block_ };
+enum n64p_HandleTable { n64p_HandleTable_ };
+enum n64p_Heap { n64p_Heap_ };
+enum n64p_u32 { n64p_u32_ };
+enum n64p_void { n64p_void_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Block {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ enum n64p_Block next;
+    /* 0x08 */ enum n64p_Block prev;
+    /* 0x0C */ u32 size;
+    /* 0x10 */ enum n64p_void owner;
+    /* 0x14 */ s8 used;
+    /* 0x15 */ u8 tag;
+    /* 0x16 */ u8 pad16[10];
+} Block; /* 0x20 */
+#else
 typedef struct Block {
     /* 0x00 */ u32 magic;
     /* 0x04 */ struct Block *next;
@@ -43,13 +66,35 @@ typedef struct Block {
     /* 0x15 */ u8 tag;
     /* 0x16 */ u8 pad16[10];
 } Block; /* 0x20 */
+#endif
 
+#ifdef TARGET_PC
+typedef struct HandleTable {
+    /* 0x0 */ u32 count;
+    /* 0x4 */ enum n64p_u32 slots;
+    /* 0x8 */ enum n64p_HandleTable next;
+} HandleTable;
+#else
 typedef struct HandleTable {
     /* 0x0 */ u32 count;
     /* 0x4 */ u32 *slots;
     /* 0x8 */ struct HandleTable *next;
 } HandleTable;
+#endif
 
+#ifdef TARGET_PC
+typedef struct Heap {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ enum n64p_Heap next;
+    /* 0x08 */ enum n64p_Block first;
+    /* 0x0C */ enum n64p_Block last;
+    /* 0x10 */ u32 end;
+    /* 0x14 */ u16 maxHandles;
+    /* 0x16 */ u16 pad16;
+    /* 0x18 */ HandleTable tbl;
+    /* 0x24 */ u8 pad24[4];
+} Heap;
+#else
 typedef struct Heap {
     /* 0x00 */ u32 magic;
     /* 0x04 */ struct Heap *next;
@@ -61,6 +106,15 @@ typedef struct Heap {
     /* 0x18 */ HandleTable tbl;
     /* 0x24 */ u8 pad24[4];
 } Heap;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_HandleTable: (struct HandleTable *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 
 extern u8 D_8017A640[];
 extern Heap *D_801527C8;
@@ -98,7 +152,7 @@ void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag)
     u32 bs;
 
     size = (size + 31) & ~31;
-    for (b = heap->first; b != 0; b = b->next) {
+    for (b = N64P(heap->first); b != 0; b = N64P(b->next)) {
         if (b->used == 0) {
             bs = b->size;
             total += bs;
@@ -115,22 +169,22 @@ void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag)
         n = (Block *)((u8 *)b + size + 32);
         n->next = b->next;
         if (n->next != 0) {
-            n->next->prev = n;
+            N64P(n->next)->prev = N64W(n);
         } else {
-            heap->last = n;
+            heap->last = N64W(n);
         }
-        n->prev = b;
+        n->prev = N64W(b);
         n->size = b->size - size - 32;
         n->owner = 0;
         n->used = 0;
         n->tag = 0;
         n->pad16[0] = 0;
         n->magic = 0xFEDCBA98;
-        b->next = n;
+        b->next = N64W(n);
         b->size = size;
     }
     b->used = 1;
-    b->owner = owner;
+    b->owner = N64W(owner);
     b->tag = tag;
     return (u8 *)b + 32;
 }
@@ -142,21 +196,21 @@ void func_800E7B44(Heap *heap, u16 count, u16 a)
     }
     heap->magic = 0xFEDCBA98;
     heap->next = 0;
-    heap->first = (Block *)(((u32)heap + 67) & ~31);
-    heap->first->magic = 0xFEDCBA98;
-    heap->first->next = 0;
-    heap->first->prev = 0;
-    heap->first->size = heap->end - (u32)heap->first - 32;
-    heap->first->owner = 0;
-    heap->first->used = 0;
-    heap->first->tag = 0;
-    heap->first->pad16[0] = 0;
+    heap->first = N64W((Block *)(((u32)heap + 67) & ~31));
+    N64P(heap->first)->magic = 0xFEDCBA98;
+    N64P(heap->first)->next = 0;
+    N64P(heap->first)->prev = 0;
+    N64P(heap->first)->size = heap->end - (u32)heap->first - 32;
+    N64P(heap->first)->owner = 0;
+    N64P(heap->first)->used = 0;
+    N64P(heap->first)->tag = 0;
+    N64P(heap->first)->pad16[0] = 0;
     heap->last = heap->first;
     heap->tbl.count = count;
     heap->maxHandles = a;
     heap->tbl.next = 0;
     if (count > 0) {
-        heap->tbl.slots = audio_helper(heap, count * 4, 0, 1);
+        heap->tbl.slots = N64W(audio_helper(heap, count * 4, 0, 1));
         memset(heap->tbl.slots, 0, count * 4);
     } else {
         heap->tbl.slots = 0;
@@ -185,13 +239,13 @@ void *AllocateHandleHeap(Heap *heap, u32 size)
     t = &h->tbl;
     if (t->slots == 0) {
         t->count = h->maxHandles;
-        t->slots = audio_helper(h, h->maxHandles * 4, 0, 1);
+        t->slots = N64W(audio_helper(h, h->maxHandles * 4, 0, 1));
         memset(t->slots, 0, h->maxHandles * 4);
         t->next = 0;
     }
     i = 0;
     for (;;) {
-        slot = t->slots;
+        slot = N64P(t->slots);
         for (; i < t->count; i++, slot++) {
             if (*slot == 0) {
                 break;
@@ -202,13 +256,13 @@ void *AllocateHandleHeap(Heap *heap, u32 size)
         }
         i = 0;
         if (t->next == 0) {
-            t->next = audio_helper(h, 12, 0, 1);
-            t->next->count = h->maxHandles;
-            t->next->slots = audio_helper(h, h->maxHandles * 4, 0, 1);
-            memset(t->next->slots, 0, h->maxHandles * 4);
-            t->next->next = 0;
+            t->next = N64W(audio_helper(h, 12, 0, 1));
+            N64P(t->next)->count = h->maxHandles;
+            N64P(t->next)->slots = N64W(audio_helper(h, h->maxHandles * 4, 0, 1));
+            memset(N64P(t->next)->slots, 0, h->maxHandles * 4);
+            N64P(t->next)->next = 0;
         }
-        t = t->next;
+        t = N64P(t->next);
     }
     *slot = (u32)audio_helper(h, size, slot, 0);
     osSendMesg(D_80152770, 0, 0);
@@ -223,9 +277,9 @@ void *func_800E7C2C(Heap *heap, u32 size, u16 count, u16 a)
     h = audio_helper(func_80097468(heap), size + 64, 0, 1);
     h->end = (u32)h + ((size + 95) & ~31);
     func_800E7B44(h, count, a);
-    for (p = D_801527C8; p != 0; p = p->next) {
+    for (p = D_801527C8; p != 0; p = N64P(p->next)) {
         if (p->next == 0) {
-            p->next = h;
+            p->next = N64W(h);
             break;
         }
     }

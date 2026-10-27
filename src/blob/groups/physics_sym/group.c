@@ -33,6 +33,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct {
@@ -67,9 +71,9 @@ void model_transform_setup();
 void func_8008D870(s16 arg0, s32 arg1, s32 arg2);
 
 extern s8 D_8011AD30;
-extern s32 D_8011AD34;
+extern intptr_t D_8011AD34;
 extern s8 D_8011AD38;
-extern s32 D_8011AD68;
+extern intptr_t D_8011AD68;
 void SaveFlush(s32 arg0);
 void sound_handles_clear(s32 arg0);
 void sound_stop(s32 sound_id);

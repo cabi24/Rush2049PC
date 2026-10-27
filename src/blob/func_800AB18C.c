@@ -29,6 +29,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct {
@@ -72,7 +76,7 @@ void func_800AB18C(s32 index, f32 *pos) {
     f32 ratio;
 
     if (D_8013F1D8) {
-        view = (View *) ((s32) D_8017A510 + index * 72);
+        view = (View *) ((intptr_t) D_8017A510 + index * 72);
         view->near_clip = D_8011E810[D_8014A108][D_8013F1D8];
         view->far_clip = 1000;
         view->fog = D_8011E7F0[D_8014A108][D_8013F1D8];

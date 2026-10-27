@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -2278,7 +2280,7 @@ extern s8 D_80144334;
 extern s8 D_80144638;
 extern s8 D_8014493C;
 extern s32 D_80144C40;
-extern s32 D_80144C48;
+extern intptr_t D_80144C48;
 extern s32 D_80144C50;
 extern s32 D_80144C58;
 extern s32 D_80144C60;
@@ -3761,7 +3763,7 @@ void camera_transform(void) {
             temp_t6 = M2C_FIELD(var_v0, s32 *, -4);
             var_v0 = var_v0 - 1;
             *var_v0 = temp_t6;
-        } while ((u32) var_v0 >= (u32) &D_801460CC);
+        } while ((uintptr_t) var_v0 >= (uintptr_t) &D_801460CC);
         D_801460D8 = 0;
         if (D_8011028C != 0) {
             temp_v0 = D_801460F4;

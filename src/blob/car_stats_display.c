@@ -20,12 +20,16 @@
 typedef float f32;
 typedef unsigned char u8;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef int intptr_t;
+#endif
 
 typedef char *va_list;
 #define va_start(list, parmN) (list = ((char *)&parmN + sizeof(parmN)))
 #define va_arg(list, mode) ((mode *)(list = \
-    (char *)((sizeof(mode) > 4 ? ((int)list + 7) & -8 \
-                               : ((int)list + 3) & -4) + sizeof(mode))))[-1]
+    (char *)((sizeof(mode) > 4 ? ((intptr_t)list + 7) & -8 \
+                               : ((intptr_t)list + 3) & -4) + sizeof(mode))))[-1]
 #define va_end(list) (void)0
 
 typedef struct Event {

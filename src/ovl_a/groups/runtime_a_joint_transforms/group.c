@@ -21,6 +21,10 @@
 typedef signed char s8;typedef unsigned char u8;
 typedef short s16;typedef unsigned short u16;
 typedef int s32;typedef unsigned int u32;typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef union Color {u32 word;u8 channel[4];} Color;
 typedef union tRGBA {u8 c[4];u32 rgba;} tRGBA;      /* MAT3 rush_types.h */
 typedef struct ModelState {
@@ -45,14 +49,14 @@ extern ModelDescription *D_80110D08[13];
 extern f32 D_801112DC[][13],D_801113E0[][13];
 extern s8 D_80111589[][13];
 extern s8 D_8011157C[5][13];      /* gTireRims */
-extern s32 D_80143F68[];
+extern intptr_t D_80143F68[];
 extern f32 D_8011418C[3][3],D_801106C0[];
 extern f32 D_801106C4[];         /* FSCLS[3] */
 extern s16 D_80151AD0,D_80142B08[];
 extern s8 D_801613AB,D_80156994,D_8014978C;
 extern Color D_803B65B4;
 extern ObjectFlags D_8012E700[];
-extern s32 func_8008B3A0(s16);
+extern intptr_t func_8008B3A0(s16);
 extern void func_8008B32C(f32 (*)[3],f32 (*)[3],f32);
 extern void math_utility(void *,void *);
 extern void model_data_load(s32,s32,u32);

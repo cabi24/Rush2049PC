@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -3549,7 +3551,7 @@ void sign_extend_call(s16 arg0, s32 arg1, s16 arg2, s32 arg3);
 void skid_mark_render(void);
 s8 skill_rating_update(void *arg0, s32 arg6, s32 arg7, void *arg10, s32 arg24, s32 arg25, f32 arg30, f32 arg33, f32 arg35, s16 arg36, s32 arg41);
 void slot_deactivate(s32 arg0);
-void PS_WriteFile(void **arg0, u32 arg1, s32 arg2);
+void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
 s32 slot_value_get(s32 arg0);
 u32 sound_bank_load(u8 *arg0, s16 *arg1, s8 arg2, s8 arg3);
 void sound_bank_unload(s16 arg0, s16 arg1, u8 arg2, u8 arg3, u8 arg4);
@@ -3651,6 +3653,11 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifdef TARGET_PC
+#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#else
+#define SLOT_DATA 0x2C
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3693,9 +3700,9 @@ typedef s64 M2C_UNK64;
 void func_800FDF88(s32 arg0) {
     void *temp_a0;
 
-    temp_a0 = *M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), s32 **, 0x2C) + 0x6F4;
+    temp_a0 = *M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), s32 **, SLOT_DATA) + 0x6F4;
     memset(temp_a0, 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, 8), (u32) temp_a0, 0x4C);
+    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, 8), (uintptr_t) temp_a0, 0x4C);
     M2C_FIELD(temp_a0, s8 *, 8) = (s8) arg0;
     M2C_FIELD(temp_a0, s32 *, 0xC) = (s32) (D_8002EB90 & 0xFFFFF);
     M2C_FIELD(temp_a0, s8 *, 4) = 1;

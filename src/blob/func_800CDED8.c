@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -3651,6 +3653,11 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifdef TARGET_PC
+#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#else
+#define SLOT_DATA 0x2C
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3691,5 +3698,5 @@ typedef s64 M2C_UNK64;
 #endif
 
 u8 func_800CDED8(void **arg0) {
-    return M2C_FIELD(*M2C_FIELD(*arg0, void ***, 0x2C), u8 *, 0x47);
+    return M2C_FIELD(*M2C_FIELD(*arg0, void ***, SLOT_DATA), u8 *, 0x47);
 }

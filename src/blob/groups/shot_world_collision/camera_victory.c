@@ -22,6 +22,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 #define NULL ((void *)0)
 
@@ -144,7 +148,7 @@ void camera_victory(VCar *car)
             for (i = 0; i < 4; i++) {
                 bound = 250.0f;
                 if (func_800C3AD0(poly, car->pos[D_801174C4[i]], car->old[D_801174C4[i]], pt, &bound, &outIdx, col.m, -5.0f) != 0) {
-                    steering_sensitivity((s32)poly, outIdx, car->pos[i], pt, (f32 (*)[3])col.m, 0.0f);
+                    steering_sensitivity((intptr_t)poly, outIdx, car->pos[i], pt, (f32 (*)[3])col.m, 0.0f);
                     bound = pt[1];
                     if (bound < -5.0f || bound >= 0.0f) {
                         continue;

@@ -31,6 +31,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct Player { u8 unknown000[0x384]; s8 kind, lives; u8 unknown386[6]; s32 flags; u8 unknown390[0x28]; } Player;
 typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
@@ -110,7 +114,7 @@ s32 func_80391650(void *unused)
         }
         if (status->kind && status->handle == -1) {
             status->handle = func_8008E398(
-                string_copy_format(D_80393B68[status->kind], 0, *(u8 *)(u32)&D_80140BDC - 1, 1),
+                string_copy_format(D_80393B68[status->kind], 0, *(u8 *)(uintptr_t)&D_80140BDC - 1, 1),
                 D_80395CD0[i].uv, -1, 0);
             model_data_load(status->handle, 1, 15);
             model_transform_setup(status->handle, 0, D_80393B74[i]);
@@ -198,7 +202,7 @@ void func_80391B00(void)
                 player_color.rgba.b = D_80394270[D_8012E67C[i]].rgba.b;
                 player_color.rgba.a = 255;
                 handle->handle = func_8008E398(
-                    string_copy_format(names.name[D_8012E67C[i]], 0, *(u8 *)(u32)&D_80140BDC - 1, 1),
+                    string_copy_format(names.name[D_8012E67C[i]], 0, *(u8 *)(uintptr_t)&D_80140BDC - 1, 1),
                     handle->uv, -1, 0);
                 D_8012E700[handle->handle].scale = 1.5f;
                 model_data_load(handle->handle, 1, 15);
@@ -231,10 +235,10 @@ void func_80391B00(void)
                             if (effect->state == 11) {
                                 fcvt_wrapper(name, D_80394AA8, D_80393B40[kind]);
                                 if (effect->handle != -1) {
-                                    func_80090770(effect->handle, (u16)string_copy_format(name, 0, *(u8 *)(u32)&D_80140BDC - 1, 1));
+                                    func_80090770(effect->handle, (u16)string_copy_format(name, 0, *(u8 *)(uintptr_t)&D_80140BDC - 1, 1));
                                 } else {
                                     effect->handle = func_8008E398(
-                                        string_copy_format(name, 0, *(u8 *)(u32)&D_80140BDC - 1, 1), effect->uv, -1, 0x42000);
+                                        string_copy_format(name, 0, *(u8 *)(uintptr_t)&D_80140BDC - 1, 1), effect->uv, -1, 0x42000);
                                 }
                                 D_8012E700[effect->handle].scale = 1.5f;
                                 effect->state = kind;

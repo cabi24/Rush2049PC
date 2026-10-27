@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -3651,6 +3653,11 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifdef TARGET_PC
+#define SLOT_DATA 48  /* SaveSlot.data (menu_save_options/save.c), 8-aligned on PC */
+#else
+#define SLOT_DATA 0x2C
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3696,7 +3703,7 @@ s32 menu_confirm_dialog(void **arg0) {
     if (func_800CCEFC(arg0) == 0) {
         return 0;
     }
-    temp_s1 = *M2C_FIELD(*arg0, s32 **, 0x2C);
+    temp_s1 = *M2C_FIELD(*arg0, s32 **, SLOT_DATA);
     memset((void *) (temp_s1 + 0x8C), 0, 0x480U);
     PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (u32) (temp_s1 + 0x8C), 0x480);
     memset((void *) (temp_s1 + 0x50C), 0, 0x100U);

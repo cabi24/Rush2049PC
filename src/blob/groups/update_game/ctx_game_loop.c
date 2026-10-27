@@ -22,6 +22,10 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { s32 opaque[6]; } OSMesgQueue;
 
@@ -36,7 +40,7 @@ extern volatile Clock D_8002E8E8;      /* scheduler clock; .tick = GVSyncCount *
 extern s32 D_80111958;
 extern f32 D_8002AFB8;
 extern volatile s16 D_8002EB70;
-extern s32 D_80149438;
+extern intptr_t D_80149438;
 extern OSMesgQueue *D_801497F4;
 extern s32 D_801170FC;                  /* gPauseState */
 

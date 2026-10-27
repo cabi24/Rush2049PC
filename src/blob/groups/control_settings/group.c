@@ -28,6 +28,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef struct { s32 first, second; } Pair;
@@ -195,7 +199,7 @@ void func_800DCD58(s32 arg0, s32 arg1)
   }
 }
 
-void control_cell_text2(s32 row, s32 col, s32 text, char *a, char *b, s32 sel)
+void control_cell_text2(s32 row, s32 col, intptr_t text, char *a, char *b, s32 sel)
 {
     Cell *c;
     s32 y;
@@ -284,7 +288,7 @@ void cs_draw3_DC(s32 row, s32 col)
     func_800BE6A4(str, C.alt ? D_8017A4E0.msg[424 / 4] : D_8017A4E0.msg[428 / 4]);
     func_800BE4F0(str, (u8 *)D_80121074);
     func_800BE4F0(str, (u8 *)D_8017A4E0.msg[432 / 4]);
-    control_cell_text2(row, col, (s32)str, D_8017A4E0.strings[D_8017A4E0.lang[25]], D_8017A4E0.msg[944 / 4], C.sel1);
+    control_cell_text2(row, col, (intptr_t)str, D_8017A4E0.strings[D_8017A4E0.lang[25]], D_8017A4E0.msg[944 / 4], C.sel1);
 }
 
 void cs_drawT0_DC(s32 row, s32 col)
@@ -437,11 +441,11 @@ void control_settings(s32 row, s8 *sel1, s8 *sel2, s8 *done, s32 (*poll)(void))
     case 5:
     case 7:
         func_800DCD58(row, col);
-        control_cell_text2(row, col, (s32)D_8017A4E0.msg[444 / 4], (D_8017A4E0.strings + D_8017A4E0.lang[26])[1], D_8017A4E0.msg[944 / 4], C.sel1);
+        control_cell_text2(row, col, (intptr_t)D_8017A4E0.msg[444 / 4], (D_8017A4E0.strings + D_8017A4E0.lang[26])[1], D_8017A4E0.msg[944 / 4], C.sel1);
         break;
     case 8:
         func_800DCD58(row, col);
-        control_cell_text2(row, col, (s32)D_8017A4E0.msg[448 / 4], D_8017A4E0.strings[D_8017A4E0.lang[24]], (D_8017A4E0.strings + D_8017A4E0.lang[24])[1], C.sel1);
+        control_cell_text2(row, col, (intptr_t)D_8017A4E0.msg[448 / 4], D_8017A4E0.strings[D_8017A4E0.lang[24]], (D_8017A4E0.strings + D_8017A4E0.lang[24])[1], C.sel1);
         break;
     case 6:
         func_800DCD58(row, col);

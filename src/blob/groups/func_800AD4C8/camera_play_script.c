@@ -16,10 +16,14 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct PV { s16 x, y, z; u16 w; } PV;
 extern PV *D_8015201C;
-extern s32 D_80152568;
+extern intptr_t D_80152568;
 extern s8 D_801174CC[16];
 void effect_cleanup(s8, s8, s8);
 void func_800A61B0(void *, void *, void *);

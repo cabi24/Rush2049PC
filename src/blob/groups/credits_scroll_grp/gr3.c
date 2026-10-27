@@ -5,6 +5,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct Bank {
@@ -33,7 +37,7 @@ extern s32 D_801497A4;
 extern Tbl D_80156D44[];
 extern Entry *D_80149800;
 extern s16 D_80149878[256];
-extern s32 D_80149820[];
+extern intptr_t D_80149820[];
 extern Pair gTexDefPtrs[];
 extern s8 D_80149B60;
 extern u8 D_80149B70;

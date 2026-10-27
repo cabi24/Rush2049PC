@@ -50,7 +50,11 @@ extern void *memset(void *, int, size_t);
 
 typedef unsigned char  Byte;
 typedef unsigned int   uInt;
+#ifdef TARGET_PC
+typedef unsigned int  uLong;  /* long is 32-bit on the N64 */
+#else
 typedef unsigned long  uLong;
+#endif
 typedef Byte  FAR Bytef;
 typedef char  FAR charf;
 typedef int   FAR intf;
@@ -61,7 +65,16 @@ typedef unsigned char  uch;
 typedef uch FAR uchf;
 typedef unsigned short ush;
 typedef ush FAR ushf;
+#ifdef TARGET_PC
+typedef unsigned int  ulg;
+#else
 typedef unsigned long  ulg;
+#endif
+#ifdef TARGET_PC
+#define N64_LONG int
+#else
+#define N64_LONG long
+#endif
 
 #define Z_NO_FLUSH      0
 #define Z_FINISH        4
@@ -142,7 +155,11 @@ typedef struct internal_state {
     uInt  hash_bits;
     uInt  hash_mask;
     uInt  hash_shift;
+#ifdef TARGET_PC
+    int block_start;      /* 0x44 */
+#else
     long block_start;     /* 0x44 */
+#endif
     uInt match_length;
     IPos prev_match;
     int match_available;
@@ -601,8 +618,8 @@ local void gen_bitlen(s, desc)
             if (m > max_code) continue;
             if (tree[m].Len != (unsigned) bits) {
                 Trace((stderr,"code %d bits %d->%d\n", m, tree[m].Len, bits));
-                s->opt_len += ((long)bits - (long)tree[m].Len)
-                              *(long)tree[m].Freq;
+                s->opt_len += ((N64_LONG)bits - (N64_LONG)tree[m].Len)
+                              *(N64_LONG)tree[m].Freq;
                 tree[m].Len = (ush)bits;
             }
             n--;
@@ -1016,7 +1033,7 @@ int _tr_tally (s, dist, lc)
     if (s->level > 2 && (s->last_lit & 0xfff) == 0) {
         /* Compute an upper bound for the compressed length */
         ulg out_length = (ulg)s->last_lit*8L;
-        ulg in_length = (ulg)((long)s->strstart - s->block_start);
+        ulg in_length = (ulg)((N64_LONG)s->strstart - s->block_start);
         int dcode;
         for (dcode = 0; dcode < D_CODES; dcode++) {
             out_length += (ulg)s->dyn_dtree[dcode].Freq *
@@ -1365,7 +1382,7 @@ local void fill_window(s)
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
 
-            s->block_start -= (long) wsize;
+            s->block_start -= (N64_LONG) wsize;
 
             /* Slide the hash table (could be avoided with 32 bit values
                at the expense of memory usage):
@@ -1427,7 +1444,7 @@ local void fill_window(s)
    _tr_flush_block(s, (s->block_start >= 0L ? \
                    (charf *)&s->window[(unsigned)s->block_start] : \
                    (charf *)Z_NULL), \
-		(ulg)((long)s->strstart - s->block_start), \
+		(ulg)((N64_LONG)s->strstart - s->block_start), \
 		(eof)); \
    s->block_start = s->strstart; \
    flush_pending(s->strm); \

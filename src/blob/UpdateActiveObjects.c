@@ -10,8 +10,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -25,7 +27,7 @@ typedef union
   struct 
   {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
   } words;
   u64 force_structure_alignment;
 } Gfx;
@@ -2486,7 +2488,7 @@ extern s32 D_80149410;
 extern s32 D_80149418;
 extern s32 D_80149428;
 extern s32 D_80149440;
-extern s32 D_80149450;
+extern intptr_t D_80149450;
 extern s32 D_80149770;
 extern s32 D_80149778;
 extern s32 D_80149780;
@@ -3813,7 +3815,7 @@ void UpdateActiveObjects(void)
  goto dummy_label_90098; dummy_label_90098: ; if (D_80149788 != 0) { }
  ;
     var_s1 += 1;
-    if (((u32) var_s1) < ((u32) (&(&D_80149450)[D_80149788])))
+    if (((uintptr_t) var_s1) < ((uintptr_t) (&(&D_80149450)[D_80149788])))
     {
       goto loop_2;
     }

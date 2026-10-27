@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -2351,7 +2353,7 @@ extern s32 D_801497F8;
 extern s32 D_801497FC;
 extern s32 D_80149800;
 extern s32 D_80149808;
-extern s32 D_80149818;
+extern intptr_t D_80149818;
 extern s32 D_80149820;
 extern s32 D_80149860;
 extern s32 D_80149868;
@@ -2395,7 +2397,7 @@ extern s8 D_80149B75;
 extern s8 D_80149B76;
 extern s8 D_80149B77;
 extern s32 D_80149B78;
-extern s32 D_80149B80;
+extern intptr_t D_80149B80;
 extern s16 D_80149B84;
 extern s32 D_80149B88;
 extern s32 D_80149B90;

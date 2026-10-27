@@ -28,11 +28,19 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef unsigned long long u64;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef void *OSMesg;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
+#ifdef TARGET_PC
+typedef struct { u32 w0; uintptr_t w1; } Gwords;
+#else
 typedef struct { u32 w0, w1; } Gwords;
+#endif
 typedef union { Gwords words; long long force_structure_alignment; } Gfx;
-#define gDma1p_(pkt, c, s) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = (c); _g->words.w1 = (unsigned int)(s); }
+#define gDma1p_(pkt, c, s) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = (c); _g->words.w1 = (uintptr_t)(s); }
 #define gSPDisplayList(pkt, dl) gDma1p_(pkt, 0xDE000000, dl)
 #define gDPFullSync(pkt) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = 0xE9000000; _g->words.w1 = 0; }
 #define gSPEndDisplayList(pkt) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = 0xDF000000; _g->words.w1 = 0; }
@@ -62,17 +70,24 @@ typedef struct OSScTask {
     OSTask_t t;             /* 0x10 */
     OSMesgQueue *msgQ;      /* 0x50 */
     OSMesg msg;             /* 0x54 */
+#ifdef TARGET_PC
+    void *pad58;            /* the DL base pointer (other views) */
+#else
     u8 pad58[4];
+#endif
     u8 doneMsg[0x7C - 0x5C];/* 0x5C */
     void *buffer;           /* 0x7C */
 } Frame;                    /* 0x80 */
+#ifdef TARGET_PC
+typedef char pc_frame_size_check[(sizeof(Frame) == 0xD0 && __builtin_offsetof(Frame, pad58) == 0xA0) ? 1 : -1];
+#endif
 
 extern Gfx *D_801497C8;             /* display-list cursor (msgq_ptr) */
 extern volatile s8 D_8015F72D;               /* current frame record */
 extern Frame D_80156BE0[];
 extern Gfx *D_80156BA8;
 extern s32 D_80156BCC;
-extern s32 D_80149438;
+extern intptr_t D_80149438;
 #define GLIST_LEN 4000
 typedef struct {
     u8 pad[0x9CC0];

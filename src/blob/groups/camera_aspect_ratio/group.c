@@ -34,8 +34,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -47,7 +49,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -2961,7 +2963,7 @@ void camera_auto_follow(s16 arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s16 ar
 void camera_blend_between(void *arg0, f32 *arg1);
 void camera_build_view_matrix(Camera *cam, s32 idx);
 void camera_cinematic_mode(s16 arg0, s16 arg1, s32 arg2, void *arg3);
-void camera_clip_planes(s32 arg0, s32 arg1, s32 arg2, f32 arg3, f32 arg4);
+void camera_clip_planes(s32 arg0, intptr_t arg1, intptr_t arg2, f32 arg3, f32 arg4);
 void camera_collision_avoid(void *arg0, void *arg1, void *arg2, s32 arg3, void *arg4, s32 arg5, void *arg6, void *arg7);
 s32 camera_collision_check(void *arg0, s32 arg1, f32 arg2, s32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7, s32 arg8, u8 arg9);
 void camera_dolly(void *arg0, void *arg1, f32 arg2, f32 arg3, void *arg4, f32 *arg5, f32 *arg6);
@@ -3925,10 +3927,10 @@ void PlayMoveSound(Camera *cam) {
                 }
             } else ratio = 1.0f;
             if (D_80117530[cam->tbl].s20 == 0x12)
-                camera_clip_planes(cam->handle, (s32) cam->pos, (s32) &D_801141B0, 0.8f, 1.0f);
+                camera_clip_planes(cam->handle, (intptr_t) cam->pos, (intptr_t) &D_801141B0, 0.8f, 1.0f);
             else if (D_80117530[cam->tbl].s20 == 0x61)
-                camera_clip_planes(cam->handle, (s32) cam->pos, (s32) &D_801141B0, 1.0f, 0.75f);
-            else camera_clip_planes(cam->handle, (s32) cam->pos, (s32) &D_801141B0, 0.75f * ratio + 0.25f, ratio);
+                camera_clip_planes(cam->handle, (intptr_t) cam->pos, (intptr_t) &D_801141B0, 1.0f, 0.75f);
+            else camera_clip_planes(cam->handle, (intptr_t) cam->pos, (intptr_t) &D_801141B0, 0.75f * ratio + 0.25f, ratio);
         }
     } else if (cam->state == 2) camera_aspect_ratio(cam);
     else if (!leaderboard_update(cam->handle)) {
@@ -3936,7 +3938,7 @@ void PlayMoveSound(Camera *cam) {
         if (D_80117530[cam->tbl].s20 != -1) {
             cam->handle = camera_track_entry(cam, D_80117530[cam->tbl].f2C, D_80117530[cam->tbl].s20, D_80117530[cam->tbl].s28);
             if (D_80117530[cam->tbl].s20 == 1)
-                camera_clip_planes(cam->handle, (s32) cam->pos, (s32) &D_801141B0, 0.0f, 1.0f);
+                camera_clip_planes(cam->handle, (intptr_t) cam->pos, (intptr_t) &D_801141B0, 0.0f, 1.0f);
         } else cam->handle = -1;
         cam->state = 1;
     }
@@ -4334,7 +4336,7 @@ void camera_update(CamNode *node, s16 flag) {
         }
         if (!(sc->flags & 0x100)) {
             i = 0;
-            ctl->t += *(f32 *)(u32)&D_8002EB94;
+            ctl->t += *(f32 *)(uintptr_t)&D_8002EB94;
             idx = ctl->idx;
             do {
                 fr = ctl->t;
@@ -4425,7 +4427,7 @@ void camera_update(CamNode *node, s16 flag) {
             }
             tb = &D_80117530[cam->tbl];
             if (tb->s14 != -1) {
-                node->f10 -= *(f32 *)(s32)&D_8002EB94;
+                node->f10 -= *(f32 *)(intptr_t)&D_8002EB94;
                 if (node->f10 <= 0.0f) {
                     idx = tb->s14;
                     if (idx == 0x169) {

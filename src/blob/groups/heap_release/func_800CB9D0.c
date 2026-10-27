@@ -30,7 +30,29 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
+#ifdef TARGET_PC
+enum n64p_Block { n64p_Block_ };
+enum n64p_Heap { n64p_Heap_ };
+enum n64p_ptr { n64p_ptr_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Block {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ enum n64p_Block next;
+    /* 0x08 */ enum n64p_Block prev;
+    /* 0x0C */ u32 size;
+    /* 0x10 */ enum n64p_ptr owner;
+    /* 0x14 */ s8 used;
+    /* 0x15 */ s8 tag;
+    /* 0x16 */ u8 count;
+    /* 0x17 */ u8 pad17[9];
+} Block; /* 0x20 */
+#else
 typedef struct Block {
     /* 0x00 */ u32 magic;
     /* 0x04 */ struct Block *next;
@@ -42,13 +64,31 @@ typedef struct Block {
     /* 0x16 */ u8 count;
     /* 0x17 */ u8 pad17[9];
 } Block; /* 0x20 */
+#endif
 
+#ifdef TARGET_PC
+typedef struct Heap {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ enum n64p_Heap next;
+    /* 0x08 */ enum n64p_Block first;
+    /* 0x0C */ enum n64p_Block last;
+} Heap;
+#else
 typedef struct Heap {
     /* 0x00 */ u32 magic;
     /* 0x04 */ struct Heap *next;
     /* 0x08 */ Block *first;
     /* 0x0C */ Block *last;
 } Heap;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_ptr: (void **)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 
 typedef struct OSMesgQueue OSMesgQueue;
 extern OSMesgQueue D_80152770;
@@ -76,20 +116,20 @@ void func_800CB9D0(void *addr)
     osRecvMesg(&D_80152770, 0, 1);
     heap = func_80095F8C(addr);
     old = func_80095EF4(heap, addr, 0);
-    after = old->next;
+    after = N64P(old->next);
     adjacent = 0;
-    for (b = heap->first; b != 0; b = next) {
+    for (b = N64P(heap->first); b != 0; b = next) {
         if (b == old) {
             b = 0;
             break;
         }
         if (b->used != 0) {
-            next = b->next;
+            next = N64P(b->next);
         } else {
             if (b->size >= old->size) {
                 break;
             }
-            next = b->next;
+            next = N64P(b->next);
             if (old == next) {
                 adjacent = 1;
                 break;
@@ -101,7 +141,7 @@ void func_800CB9D0(void *addr)
         return;
     }
     b->owner = old->owner;
-    *b->owner = (u8 *)b + 32;
+    *N64P(b->owner) = (u8 *)b + 32;
     b->used = 1;
     b->tag = old->tag;
     b->count = old->count;
@@ -111,16 +151,16 @@ void func_800CB9D0(void *addr)
     if (adjacent || b->size - size >= 64) {
         n = (Block *)((u8 *)b + size + 32);
         if (adjacent) {
-            n->next = after;
+            n->next = N64W(after);
         } else {
             n->next = b->next;
         }
         if (n->next != 0) {
-            n->next->prev = n;
+            N64P(n->next)->prev = N64W(n);
         } else {
-            heap->last = n;
+            heap->last = N64W(n);
         }
-        n->prev = b;
+        n->prev = N64W(b);
         if (adjacent) {
             used = 0;
         } else {
@@ -132,7 +172,7 @@ void func_800CB9D0(void *addr)
         n->tag = 0;
         n->count = 0;
         n->magic = 0xFEDCBA98;
-        b->next = n;
+        b->next = N64W(n);
         b->size = size;
         if (adjacent) {
             old = n;

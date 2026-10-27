@@ -25,6 +25,10 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Blit Blit;
 typedef struct MultiBlit {
     char *name;s16 x,y,width,height,top,bottom,left,right;
@@ -121,7 +125,7 @@ extern void particle_position_set(s16);           /* ZeroCamera */
 extern void Effects_UpdateEmitters(void);         /* UpdateCameras */
 extern void entity_audio_update(void);            /* ClearRushControls */
 extern s32 func_800F7644(s32);                    /* IsTrackUnlocked */
-extern s32 sign_extend_call(u32,u32,s32,u32);     /* MBOX_NewObject */
+extern s32 sign_extend_call(u32,uintptr_t,s32,u32);     /* MBOX_NewObject */
 extern s32 string_copy_format(char *,s8,s8,s8);   /* MBOX_FindObject_WORK */
 extern Texture *func_800B24EC(char *,s16 *,s8,s8,s32);  /* MBOX_FindTexture_WORK */
 extern void func_8008D870(s16,s32,s32);           /* ZOID_SetTexture */
@@ -190,7 +194,7 @@ void func_8038CCF4(void); void func_8038CD0C(void); void func_8038CD04(void); vo
 void func_8038CCEC(void); void func_8038CCE4(void);
 
 /* SDK GBI subset (as) */
-typedef struct { u32 w0; u32 w1; } Gwords;
+typedef struct { u32 w0; uintptr_t w1; } Gwords;
 typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
 #define gSPTexture(pkt, s, t, level, tile, on) \
@@ -224,7 +228,7 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 { \
     Gfx *_g = (Gfx *)(pkt); \
     _g->words.w0 = _SHIFTL(0x01, 24, 8) | _SHIFTL((n), 12, 8) | _SHIFTL((v0) + (n), 1, 7); \
-    _g->words.w1 = (u32)(v); \
+    _g->words.w1 = (uintptr_t)(v); \
 }
 #define __gsSP1Triangle_w1(v0, v1, v2) (_SHIFTL((v0) * 2, 16, 8) | _SHIFTL((v1) * 2, 8, 8) | _SHIFTL((v2) * 2, 0, 8))
 #define gSP2Triangles(pkt, v00, v01, v02, flag0, v10, v11, v12, flag1) \
@@ -280,6 +284,14 @@ extern char D_803B9260[];
 extern Color D_803B8328;
 extern s32 D_803B7CD8;          /* kNumMapSects */
 extern Gfx *D_803BAB50;            /* mapObj[6].displayList */
+#ifdef TARGET_PC
+/* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
+#define MAP_DL_SECTION_BYTES 80
+#define MAP_DL_FIXED_BYTES 112
+#else
+#define MAP_DL_SECTION_BYTES 40
+#define MAP_DL_FIXED_BYTES 56
+#endif
 extern f32 D_803B8254[12],D_803BAC30[12],D_803B832C[3];
 extern Blit *func_800B3704(char *,s16,s16,s16);
 extern void func_80094EC8(Blit *);
@@ -864,7 +876,7 @@ void func_8038AEB0(void)
         }
     } else if ((D_803BAC90 >= 6 && D_803BAC90 <= 13) || (D_803BAC90 >= 14 && D_803BAC90 <= 17)) {
         if (D_803B8284 == -1) {
-            D_803B8284 = sign_extend_call(string_copy_format(D_803B7738[D_803BAC90], 0, D_80140BDC - 1, 1), (u32)D_803BAC30, -1, 0);
+            D_803B8284 = sign_extend_call(string_copy_format(D_803B7738[D_803BAC90], 0, D_80140BDC - 1, 1), (uintptr_t)D_803BAC30, -1, 0);
             func_8008B32C((f32 (*)[3])D_8011418C, (f32 (*)[3])D_803BAC30, 2.0f);
             func_800B5898(-0.785398185f, (f32 (*)[3])D_803BAC30);
             D_803BAC30[9] = D_803B832C[0];
@@ -985,10 +997,10 @@ void func_8038CCF4(void)
             D_803BAB58[D_8014978C] = trackRomObjDef->lod[0];
             vtxSize = D_803B7CD8 * 64 + 64;
             D_803BABE8[D_8014978C] = audio_dma_sync(0, vtxSize + 7);
-            D_803BAAE8[D_8014978C].verts = vtx = (Vtx_t *)(((u32)D_803BABE8[D_8014978C] + 7) & ~7);
-            dlSize = D_803B7CD8 * 40 + 56;
+            D_803BAAE8[D_8014978C].verts = vtx = (Vtx_t *)(((uintptr_t)D_803BABE8[D_8014978C] + 7) & ~7);
+            dlSize = D_803B7CD8 * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES;
             D_803BABC8[D_8014978C] = audio_dma_sync(0, dlSize + 7);
-            D_803BAAE8[D_8014978C].displayList = (u32 *)(dl = (Gfx *)(((u32)D_803BABC8[D_8014978C] + 7) & ~7));
+            D_803BAAE8[D_8014978C].displayList = (u32 *)(dl = (Gfx *)(((uintptr_t)D_803BABC8[D_8014978C] + 7) & ~7));
             dl[0].words.w0 = 0xD7000000; dl[0].words.w1 = 0xFFFFFFFF;
             dl[1].words.w0 = 0xE7000000; dl[1].words.w1 = 0;
             dl[2].words.w0 = 0xE200001C; dl[2].words.w1 = 0xC8112230;
@@ -1075,10 +1087,10 @@ void func_8038CCF4(void)
                     vtx++;
                 }
                 if (pointIdx == D_803B7CD8 - 1) {
-                    GFX(dl, 0x01004008, (u32)((Vtx_t *)D_803BABE8[D_8014978C] + pointIdx * 4));
-                    GFX(dl, 0x01004010, (u32)D_803BABE8[D_8014978C]);
+                    GFX(dl, 0x01004008, (uintptr_t)((Vtx_t *)D_803BABE8[D_8014978C] + pointIdx * 4));
+                    GFX(dl, 0x01004010, (uintptr_t)D_803BABE8[D_8014978C]);
                 } else {
-                    GFX(dl, 0x01008010, (u32)((Vtx_t *)D_803BABE8[D_8014978C] + pointIdx * 4));
+                    GFX(dl, 0x01008010, (uintptr_t)((Vtx_t *)D_803BABE8[D_8014978C] + pointIdx * 4));
                 }
                 GFX(dl, 0x06000802, 0x000A0208);
                 GFX(dl, 0x06020A04, 0x000C040A);
@@ -1092,7 +1104,7 @@ void func_8038CCF4(void)
             D_803BAAE8[D_8014978C].lodRad = 0.0f;
             trackRomObjDef->lod[0] = D_803BAAE8[D_8014978C];
             if (D_803B7CE4[D_8014978C].handle == -1) {
-                D_803B7CE4[D_8014978C].handle = sign_extend_call(trackMBIdx, (u32)D_803B7CE4[D_8014978C].matrix, -1, 0);
+                D_803B7CE4[D_8014978C].handle = sign_extend_call(trackMBIdx, (uintptr_t)D_803B7CE4[D_8014978C].matrix, -1, 0);
                 func_8008B32C((f32 (*)[3])D_8011418C, D_803B7CE4[D_8014978C].matrix, 1.0f);
                 func_800B5898(-1.5707963705062866f, D_803B7CE4[D_8014978C].matrix);
                 D_803B7CE4[D_8014978C].position[0] = D_803B8358[0];
@@ -1107,15 +1119,15 @@ void func_8038CCF4(void)
     trackRomObjDef = &D_801161F4[trackMBIdx >> 10].romObjDefs[trackMBIdx & 1023];
     D_803BAB58[6] = trackRomObjDef->lod[0];
     D_803BABE8[6] = audio_dma_sync(0, D_803B7CD8 * 64 + 64 + 7);
-    D_803BAAE8[6].verts = (void *)(((u32)D_803BABE8[6] + 7) & ~7);
-    D_803BABC8[6] = audio_dma_sync(0, D_803B7CD8 * 40 + 56 + 7);
-    D_803BAAE8[6].displayList = (u32 *)(((u32)D_803BABC8[6] + 7) & ~7);
+    D_803BAAE8[6].verts = (void *)(((uintptr_t)D_803BABE8[6] + 7) & ~7);
+    D_803BABC8[6] = audio_dma_sync(0, D_803B7CD8 * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
+    D_803BAAE8[6].displayList = (u32 *)(((uintptr_t)D_803BABC8[6] + 7) & ~7);
     D_803BAAE8[6].flags = 0;
     D_803BAAE8[6].texidx = 0;
     D_803BAAE8[6].lodRad = 0.0f;
     trackRomObjDef->lod[0] = D_803BAAE8[6];
     if (D_803B7CE4[19].handle == -1) {
-        D_803B7CE4[19].handle = sign_extend_call(trackMBIdx, (u32)D_803B7CE4[19].matrix, -1, 0);
+        D_803B7CE4[19].handle = sign_extend_call(trackMBIdx, (uintptr_t)D_803B7CE4[19].matrix, -1, 0);
         func_8008B32C((f32 (*)[3])D_8011418C, D_803B7CE4[19].matrix, 1.0f);
         func_800B5898(-1.5707963705062866f, D_803B7CE4[19].matrix);
         D_803B7CE4[19].position[0] = D_803B8364[0];
@@ -1132,7 +1144,7 @@ void func_8038CD0C(void)
     for (D_8014978C = 14; D_8014978C <= 17; D_8014978C++) {
         if (!func_800F7644(D_8014978C)) continue;
         if (D_803B7CE4[D_8014978C].handle == -1) {
-            D_803B7CE4[D_8014978C].handle = sign_extend_call(string_copy_format(D_803B7738[D_8014978C], 0, D_80140BDC - 1, 1), (u32)D_803B7CE4[D_8014978C].matrix, -1, 0);
+            D_803B7CE4[D_8014978C].handle = sign_extend_call(string_copy_format(D_803B7738[D_8014978C], 0, D_80140BDC - 1, 1), (uintptr_t)D_803B7CE4[D_8014978C].matrix, -1, 0);
             func_8008B32C((f32 (*)[3])D_8011418C, D_803B7CE4[D_8014978C].matrix, 1.0f);
             func_800B5898(-1.5707963705062866f, D_803B7CE4[D_8014978C].matrix);
             D_803B7CE4[D_8014978C].position[0] = D_803B8370[0];
@@ -1151,7 +1163,7 @@ void func_8038CD04(void)
     for (D_8014978C = 6; D_8014978C <= 13; D_8014978C++) {
         if (!func_800F7644(D_8014978C)) continue;
         if (D_803B7CE4[D_8014978C].handle == -1) {
-            D_803B7CE4[D_8014978C].handle = sign_extend_call(string_copy_format(D_803B7738[D_8014978C], 0, D_80140BDC - 1, 1), (u32)D_803B7CE4[D_8014978C].matrix, -1, 0);
+            D_803B7CE4[D_8014978C].handle = sign_extend_call(string_copy_format(D_803B7738[D_8014978C], 0, D_80140BDC - 1, 1), (uintptr_t)D_803B7CE4[D_8014978C].matrix, -1, 0);
             func_8008B32C((f32 (*)[3])D_8011418C, D_803B7CE4[D_8014978C].matrix, 1.0f);
             func_800B5898(-1.5707963705062866f, D_803B7CE4[D_8014978C].matrix);
             D_803B7CE4[D_8014978C].position[0] = D_803B837C[0];
@@ -1308,7 +1320,7 @@ void func_8038C93C(void)
             memcpy(D_803B6B14[i].matrix, D_8011418C, 36);
             D_803B6B14[i].handle = sign_extend_call(
                 string_copy_format(D_803B6AF0[D_803B6B14[i].other], 0, D_80140BDC - 1, 1),
-                (u32)D_803B6B14[i].matrix, -1,
+                (uintptr_t)D_803B6B14[i].matrix, -1,
                 (D_803B6B14[i].other == 0 || D_803B6B14[i].other == 1 || D_803B6B14[i].other == 2) ? 0x42000 : 0);
             func_8008E06C((s16)D_803B6B14[i].handle, (s32 *)&color);
         }

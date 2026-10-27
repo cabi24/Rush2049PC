@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -2571,7 +2573,7 @@ extern s32 D_80152788;
 extern s32 D_801527A0;
 extern u16 D_801527A4;
 extern s32 D_801527A8;
-extern s32 D_801527C8;
+extern intptr_t D_801527C8;
 extern s16 D_801527D0;
 extern s16 D_801527D8;
 extern s32 D_801527E4;
@@ -3690,9 +3692,14 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+#define HEAP_LINK u32   /* heap headers hold RDRAM-window addresses: zero-extend them */
+#else
+#define HEAP_LINK s32
+#endif
 void *func_80095F8C(u32 arg0) {
-    s32 var_v0;
-    s32 var_v1;
+    intptr_t var_v0;
+    intptr_t var_v1;
 
     var_v0 = D_801527C8;
     var_v1 = 0;
@@ -3701,7 +3708,7 @@ void *func_80095F8C(u32 arg0) {
             if ((arg0 >= (u32) M2C_FIELD(var_v0, u32 *, 8)) && (arg0 < (u32) M2C_FIELD(var_v0, u32 *, 0x10))) {
                 var_v1 = var_v0;
             }
-            var_v0 = M2C_FIELD(var_v0, s32 *, 4);
+            var_v0 = M2C_FIELD(var_v0, HEAP_LINK *, 4);
         } while (var_v0 != 0);
     }
     return (void *) var_v1;

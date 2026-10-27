@@ -54,6 +54,9 @@ foreach(name main memcpy memset memchr strlen strchr sinf cosf)
     target_compile_definitions(game_flags INTERFACE ${name}=n64_${name})
 endforeach()
 target_include_directories(game_flags INTERFACE include include/game include/PR)
+# First include of every game file: pointer-sized integer types and big-endian helpers for the 64-bit host
+# (docs/port/POINTERS.md).
+target_compile_options(game_flags INTERFACE -include ${CMAKE_SOURCE_DIR}/port/include/pc_prelude.h)
 # IDO semantics: gnu89, so `__inline` functions also get an out-of-line definition (C99 rules would drop it,
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).

@@ -16,6 +16,10 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct OSMesgQueue OSMesgQueue;
 typedef struct Msg { s16 id; s8 type, used; u8 payload[20]; } Msg;
 typedef struct {
@@ -26,7 +30,7 @@ typedef struct {
 extern s32 D_801427A8;
 extern s8 D_8011062C;           /* inited */
 extern s8 D_80110634;           /* panesCreated */
-extern s32 D_80110630;          /* blit */
+extern intptr_t D_80110630;          /* blit */
 extern s32 D_80110648;          /* gTitlePane */
 extern s32 D_801105B4;          /* buttonsInited */
 extern UButton D_801102B4[12];  /* buttonInfo */

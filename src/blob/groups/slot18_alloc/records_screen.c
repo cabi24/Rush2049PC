@@ -20,6 +20,10 @@
 typedef signed short s16;
 typedef int s32;
 typedef unsigned char u8;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 typedef struct Voice Voice;
 typedef struct RecordSlot { s16 id; u8 pad2[50]; } RecordSlot;       /* 52 bytes */
@@ -27,7 +31,7 @@ typedef struct RecordRow { RecordSlot a, b; } RecordRow;              /* 104 byt
 
 extern Voice *D_80154198;
 extern Voice *D_801541A0;
-extern s32 D_80154350[];
+extern intptr_t D_80154350[];
 extern s32 D_80154360;
 extern s16 gNumWindows;
 extern RecordRow D_801541A8[];

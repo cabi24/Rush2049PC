@@ -19,7 +19,15 @@ typedef unsigned int u32;
 typedef unsigned char u8;
 typedef signed short s16;
 typedef signed long long s64;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
+#ifdef TARGET_PC
+typedef struct { u32 w0; uintptr_t w1; } Gwords;
+#else
 typedef struct { u32 w0, w1; } Gwords;
+#endif
 typedef union {
     Gwords words;
     s64 force_structure_alignment;
@@ -69,13 +77,25 @@ typedef union {
 
 extern Gfx *D_80149438;
 extern Gfx D_80124FE8[2][2400];
+#ifdef TARGET_PC
+/* PC: the two text display lists hold 16-byte host Gfx; D_80124FE8 is sized for 8-byte commands. */
+Gfx pc_text_dl[2][2400];
+#define TEXT_DL pc_text_dl
+#else
+#define TEXT_DL D_80124FE8
+#endif
 extern u32 D_8012E608;
 extern s32 D_8012E60C, D_8012E668, D_8012E610;
 extern s32 D_8002AFC0, D_8002AFC4, D_8012E674;
 extern s16 D_8012E67A;
 extern u8 D_8011EACF;
 extern void *D_8012E684;
+#ifdef TARGET_PC
+extern intptr_t D_8012E6D0;
+extern s32 D_8012E6C0, D_8014A248, D_8012E680;
+#else
 extern s32 D_8012E6C0, D_8014A248, D_8012E680, D_8012E6D0;
+#endif
 extern s64 D_8012E688;
 extern void func_80086A50(s32);
 extern void func_800878E0(u32);
@@ -93,7 +113,7 @@ void sound_init(void)
         D_8012E684 = 0;
         D_8012E688 = 0;
         if (++D_8012E6C0 >= 2) D_8012E6C0 = 0;
-        D_80149438 = D_80124FE8[D_8012E6C0];
+        D_80149438 = TEXT_DL[D_8012E6C0];
         D_8014A248 = -1;
         D_8012E680 = -1;
         D_8012E6D0 = 0;

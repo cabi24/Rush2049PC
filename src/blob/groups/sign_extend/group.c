@@ -6,10 +6,14 @@
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
-s32 func_8008E26C(u32 value, u32 data, s16 index, u32 flags);
+s32 func_8008E26C(u32 value, uintptr_t data, s16 index, u32 flags);
 
-void sign_extend_call(u32 value, u32 data, s32 index, u32 flags)
+void sign_extend_call(u32 value, uintptr_t data, s32 index, u32 flags)
 {
     func_8008E26C(value, data, (s16) index, flags);
 }

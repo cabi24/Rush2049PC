@@ -26,9 +26,31 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 #define NULL ((void *)0)
 #define BLOCK_MAGIC 0xFEDCBA98
 
+#ifdef TARGET_PC
+enum n64p_Block { n64p_Block_ };
+enum n64p_Heap { n64p_Heap_ };
+enum n64p_u32 { n64p_u32_ };
+#endif
+#ifdef TARGET_PC
+typedef struct Block {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ enum n64p_Block next;
+    /* 0x08 */ enum n64p_Block prev;
+    /* 0x0C */ u32 size;           /* payload bytes, header excluded */
+    /* 0x10 */ enum n64p_u32 ref;           /* owner's pointer to the payload, or NULL */
+    /* 0x14 */ s8 used;
+    /* 0x15 */ s8 tag;
+    /* 0x16 */ u8 lock;
+    /* 0x17 */ u8 pad17[9];
+} Block;                           /* 0x20 */
+#else
 typedef struct Block {
     /* 0x00 */ u32 magic;
     /* 0x04 */ struct Block *next;
@@ -40,13 +62,31 @@ typedef struct Block {
     /* 0x16 */ u8 lock;
     /* 0x17 */ u8 pad17[9];
 } Block;                           /* 0x20 */
+#endif
 
+#ifdef TARGET_PC
+typedef struct Heap {
+    /* 0x00 */ u32 unk0;
+    /* 0x04 */ enum n64p_Heap next;
+    /* 0x08 */ enum n64p_Block first;
+    /* 0x0C */ enum n64p_Block last;
+} Heap;
+#else
 typedef struct Heap {
     /* 0x00 */ u32 unk0;
     /* 0x04 */ struct Heap *next;
     /* 0x08 */ Block *first;
     /* 0x0C */ Block *last;
 } Heap;
+#endif
+#ifdef TARGET_PC
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), default: (x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 
 typedef struct OSMesgQueue OSMesgQueue;
 extern Heap *D_801527C8;
@@ -56,6 +96,11 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
 void audio_reverb_update(u32 address, s32 tag);
 void *func_800A47C0(void *dst, const void *src, u32 n);
 
+#ifdef TARGET_PC
+/* The manifest owner of func_800A51D8 is the empty deleted-procedure stub (src/blob/func_800A51D8.c), which
+ * the weak copies bind to on PC. This inlined helper gets its own name there. */
+#define func_800A51D8 car_damage_visual_heap
+#endif
 Heap *func_800A51D8(Heap *heap) {
     if (heap) return heap;
     return D_801527C8;
@@ -70,19 +115,19 @@ void car_damage_visual(Heap *hint) {
 
     osRecvMesg((OSMesgQueue *)&D_80152770, NULL, 1);
     heap = func_800A51D8(hint);
-    block = heap->first;
+    block = N64P(heap->first);
     while (block != NULL) {
         if (block->used && !block->lock && !block->ref && !block->tag) {
             audio_reverb_update((u32)((u8 *)block + 32), 0);
-            block = heap->first;
+            block = N64P(heap->first);
         }
-        block = block->next;
+        block = N64P(block->next);
     }
-    block = heap->first;
+    block = N64P(heap->first);
     while (block != NULL) {
-        after = block->next;
+        after = N64P(block->next);
         if (block->used && block->ref && !block->lock) {
-            cursor = heap->first;
+            cursor = N64P(heap->first);
             adjacent = 0;
             while (cursor != NULL) {
                 if (cursor == block) {
@@ -90,10 +135,10 @@ void car_damage_visual(Heap *hint) {
                     break;
                 }
                 if (cursor->used) {
-                    next = cursor->next;
+                    next = N64P(cursor->next);
                 } else {
                     if (cursor->size >= block->size) break;
-                    next = cursor->next;
+                    next = N64P(cursor->next);
                     if (block == next) {
                         adjacent = 1;
                         break;
@@ -103,7 +148,7 @@ void car_damage_visual(Heap *hint) {
             }
             if (cursor != NULL) {
                 cursor->ref = block->ref;
-                *cursor->ref = (u32)((u8 *)cursor + 32);
+                *N64P(cursor->ref) = (u32)((u8 *)cursor + 32);
                 cursor->used = 1;
                 cursor->tag = block->tag;
                 cursor->lock = block->lock;
@@ -112,11 +157,11 @@ void car_damage_visual(Heap *hint) {
                 func_800A47C0((u8 *)cursor + 32, (u8 *)block + 32, block->size);
                 if (adjacent || cursor->size - size >= 64) {
                     tail = (Block *)((u8 *)cursor + size + 32);
-                    if (adjacent) tail->next = after;
+                    if (adjacent) tail->next = N64W(after);
                     else tail->next = cursor->next;
-                    if (tail->next != NULL) tail->next->prev = tail;
-                    else heap->last = tail;
-                    tail->prev = cursor;
+                    if (N64P(tail->next) != NULL) N64P(tail->next)->prev = N64W(tail);
+                    else heap->last = N64W(tail);
+                    tail->prev = N64W(cursor);
                     if (adjacent) difference = 0; else difference = size + 32;
                     tail->size = cursor->size - difference;
                     tail->ref = 0;
@@ -124,15 +169,15 @@ void car_damage_visual(Heap *hint) {
                     tail->tag = 0;
                     tail->lock = 0;
                     tail->magic = BLOCK_MAGIC;
-                    cursor->next = tail;
+                    cursor->next = N64W(tail);
                     cursor->size = size;
                     if (adjacent) block = tail;
                 }
-                previous = block->prev;
+                previous = N64P(block->prev);
                 audio_reverb_update((u32)((u8 *)block + 32), 0);
                 if (after->magic != BLOCK_MAGIC) {
-                    if (block->magic != BLOCK_MAGIC) after = previous->next;
-                    else after = block->next;
+                    if (block->magic != BLOCK_MAGIC) after = N64P(previous->next);
+                    else after = N64P(block->next);
                 }
             }
         }

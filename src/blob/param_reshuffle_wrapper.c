@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -3694,5 +3696,5 @@ void param_reshuffle_wrapper(void *arg0, s32 (*arg1)(void *, s32)) {
     s32 sp1C;
 
     sp1C = 0;
-    camera_update_a((s32) arg0, M2C_FIELD(arg0, void **, 8), &sp1C, arg1);
+    camera_update_a((intptr_t) arg0, M2C_FIELD(arg0, void **, 8), &sp1C, arg1);
 }

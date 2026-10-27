@@ -10,8 +10,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -25,7 +27,7 @@ typedef union
   struct 
   {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
   } words;
   u64 force_structure_alignment;
 } Gfx;
@@ -483,7 +485,7 @@ typedef enum GState
 } GState;
 extern u8 gstate;
 extern s32 frame_counter;
-extern s32 game_state_flags;
+extern intptr_t game_state_flags;
 extern s32 state_word_a;
 extern s32 state_word_b;
 extern OSMesgQueue *msgq_ptr;
@@ -2487,7 +2489,7 @@ extern s32 D_80149410;
 extern s32 D_80149418;
 extern s32 D_80149428;
 extern s32 D_80149440;
-extern s32 D_80149450;
+extern intptr_t D_80149450;
 extern s32 D_80149770;
 extern s32 D_80149778;
 extern s32 D_80149780;
@@ -3789,7 +3791,7 @@ void InitBlits(void)
 {
   s32 i;
   for (i = 0; i < 200; i++) {
-    (&D_80149450)[i] = (s32) ((&D_80146210) + (i << 6));
+    (&D_80149450)[i] = (intptr_t) ((&D_80146210) + (i << 6));
   }
   D_80149788 = 0;
   game_state_flags = 0;

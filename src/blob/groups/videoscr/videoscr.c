@@ -26,9 +26,13 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
-typedef struct { u32 w0; u32 w1; } Gwords;
+typedef struct { u32 w0; uintptr_t w1; } Gwords;
 typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))

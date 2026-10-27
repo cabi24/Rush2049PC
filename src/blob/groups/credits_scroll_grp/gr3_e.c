@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -4102,8 +4104,8 @@ void func_800D7634(void) {
     f32 spEC;
     s32 spE8;
     s32 spE4;
-    s32 spD4;
-    s32 sp74;
+    intptr_t spD4;
+    intptr_t sp74;
     f32 *var_a1;
     s32 temp_t8;
     s32 temp_v0;

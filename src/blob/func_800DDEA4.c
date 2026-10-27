@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -3651,6 +3653,12 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifdef TARGET_PC
+/* lui 0x8015 base of D_80149B74[arg0]; the symbol lives in an N64-layout arena on PC */
+#define N64_HI_80150000 ((intptr_t) &D_80149B74 + 0x648C)
+#else
+#define N64_HI_80150000 0x80150000
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3706,5 +3714,5 @@ s8 func_800DDEA4(s32 arg0) {
         }
         return 1;
     }
-    return M2C_FIELD((arg0 + 0x80150000), s8 *, -0x648C);
+    return M2C_FIELD((arg0 + N64_HI_80150000), s8 *, -0x648C);
 }

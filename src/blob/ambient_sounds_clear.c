@@ -9,8 +9,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef union
   struct 
   {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
   } words;
   u64 force_structure_alignment;
 } Gfx;
@@ -1084,8 +1086,8 @@ extern s32 D_8011421C;
 extern s32 D_80114264;
 extern s32 D_801145D4;
 extern s32 D_80114624;
-extern s32 D_80114628;
-extern s32 D_80114638;
+extern intptr_t D_80114628;
+extern intptr_t D_80114638;
 extern s32 D_8011463C;
 extern s32 D_8011464C;
 extern s32 D_801146AC;
@@ -3791,8 +3793,8 @@ typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
 void ambient_sounds_clear(void)
 {
-  s32 *var_s0;
-  s32 temp_a0;
+  intptr_t *var_s0;
+  intptr_t temp_a0;
   if (D_80114624 != 0)
   {
     sound_stop(D_80114624);

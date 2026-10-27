@@ -31,6 +31,10 @@ typedef short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 #define NULL ((void *)0)
 
@@ -40,7 +44,14 @@ typedef void *OSMesg;
 
 extern volatile ShutdownMsg D_80142DD8[128];
 extern s8 D_8011023C;
+#ifdef TARGET_PC
+extern uintptr_t D_80110244;
+extern uintptr_t D_80110248;
+extern uintptr_t D_80110270;
+extern u32 D_8011025C, D_80110260;
+#else
 extern u32 D_8011025C, D_80110260, D_80110244, D_80110248, D_80110270;
+#endif
 extern s32 D_801427A8;
 void init_wait_completion(void);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);

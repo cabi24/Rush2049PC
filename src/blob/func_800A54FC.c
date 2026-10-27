@@ -11,8 +11,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -527,7 +529,12 @@ extern s32 D_80124FC8;
 extern u8 D_8012E67C, D_8013FECB;
 extern s32 D_80140008;
 extern u16 D_80140618;
+#ifdef TARGET_PC
+extern intptr_t D_801406B8;
+extern s32 D_801407BC, D_80140804, D_80140A00;
+#else
 extern s32 D_801406B8, D_801407BC, D_80140804, D_80140A00;
+#endif
 extern s32 D_80140AD8, D_80140B08, D_80140BD8;
 extern u8 D_80140C26;
 extern s32 D_80140D70, D_80141428, D_80142510;
@@ -3692,5 +3699,5 @@ typedef s64 M2C_UNK64;
 
 void func_800A54FC(void) {
     D_80140618 = 0;
-    D_801406B8 = (s32) &D_8011EA18;
+    D_801406B8 = (intptr_t) &D_8011EA18;
 }

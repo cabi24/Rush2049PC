@@ -13,8 +13,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -26,7 +28,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;
@@ -3909,7 +3911,7 @@ void func_800C2430(s32 idx) {
         if (D_80156BC8 != 0 || D_80157238 >= 3) {
             p->flags = fl & ~0x40;
         } else {
-            c = (PCar *)(u32)&player_array[idx];
+            c = (PCar *)(uintptr_t)&player_array[idx];
             p->a10 += c->vx;
             p->a14 += c->vy;
             p->a18 += c->vz;
@@ -3921,7 +3923,7 @@ void func_800C2430(s32 idx) {
             p->flags &= ~0x40;
             return;
         }
-        if ((D_80123EF0 < v[0] && v[0] < D_80123EF4) || ((D_80156BC8 != 0 || D_80157238 > 0 || ((c = (PCar *)(u32)&player_array[idx])->fE8 & 0x100000)) && D_80123EF8 < v[0])) {
+        if ((D_80123EF0 < v[0] && v[0] < D_80123EF4) || ((D_80156BC8 != 0 || D_80157238 > 0 || ((c = (PCar *)(uintptr_t)&player_array[idx])->fE8 & 0x100000)) && D_80123EF8 < v[0])) {
             p->flags &= ~0x80;
             if (p->a10 > 0.0f) {
                 func_800C1B60(idx, 0);
@@ -3935,7 +3937,7 @@ void func_800C2430(s32 idx) {
         }
     } else if (D_80161360 != 0 && D_80161388[1] < D_80161388[0] && D_80161388[2] < D_80161388[0]) {
         p->flags = fl | 0x40;
-        c = (PCar *)(u32)&player_array[idx];
+        c = (PCar *)(uintptr_t)&player_array[idx];
         p->a10 = c->vx;
         p->a14 = c->vy;
         p->a18 = c->vz;
@@ -3955,7 +3957,7 @@ void func_800C26C4(s32 idx) {
         if (D_80156BD8 != 0 || D_80157238 >= 3) {
             p->flags = fl & ~0x10;
         } else {
-            c = (PCar *)(u32)&player_array[idx];
+            c = (PCar *)(uintptr_t)&player_array[idx];
             p->a1C += c->vx;
             p->a20 += c->vy;
             p->a24 += c->vz;
@@ -3967,7 +3969,7 @@ void func_800C26C4(s32 idx) {
             p->flags &= ~0x10;
             return;
         }
-        if ((D_80123F08 < v[1] && v[1] < D_80123F0C) || ((D_80156BD8 != 0 || D_80157238 > 0 || ((c = (PCar *)(u32)&player_array[idx])->fE8 & 0x100000)) && D_80123F10 < v[1])) {
+        if ((D_80123F08 < v[1] && v[1] < D_80123F0C) || ((D_80156BD8 != 0 || D_80157238 > 0 || ((c = (PCar *)(uintptr_t)&player_array[idx])->fE8 & 0x100000)) && D_80123F10 < v[1])) {
             p->flags &= ~0x80;
             func_800C1B60(idx, 4);
             d = (p->a20 > 0.0f) ? D_80123F14 : D_80123F18;
@@ -3977,7 +3979,7 @@ void func_800C26C4(s32 idx) {
         }
     } else if (D_80161360 != 0 && D_80161388[0] < D_80161388[1] && D_80161388[2] < D_80161388[1]) {
         p->flags = fl | 0x10;
-        c = (PCar *)(u32)&player_array[idx];
+        c = (PCar *)(uintptr_t)&player_array[idx];
         p->a1C = c->vx;
         p->a20 = c->vy;
         p->a24 = c->vz;
@@ -3996,7 +3998,7 @@ void func_800C2944(s32 idx) {
         if (D_80156CE4 != 0 || D_80157238 >= 3) {
             p->flags = fl & ~0x20;
         } else {
-            c = (PCar *)(u32)&player_array[idx];
+            c = (PCar *)(uintptr_t)&player_array[idx];
             p->a04 += c->vx;
             p->a08 += c->vy;
             p->a0C += c->vz;
@@ -4022,7 +4024,7 @@ void func_800C2944(s32 idx) {
         }
     } else if (D_80161360 != 0 && D_80161388[1] < D_80161388[2] && D_80161388[0] < D_80161388[2]) {
         p->flags = fl | 0x20;
-        c = (PCar *)(u32)&player_array[idx];
+        c = (PCar *)(uintptr_t)&player_array[idx];
         p->a04 = c->vx;
         p->a08 = c->vy;
         p->a0C = c->vz;
@@ -4225,7 +4227,7 @@ void camera_scene_manager(void) {
     s32 ok;
     f32 *pdt;
 
-    pdt = (f32 *)(u32)&D_8002EB94;
+    pdt = (f32 *)(uintptr_t)&D_8002EB94;
     if (D_8013FECB != 0) {
         ok = 1;
         for (i = 0; i < active_player_count; i++) {
@@ -4235,7 +4237,7 @@ void camera_scene_manager(void) {
             }
         }
         if (ok != 0) {
-            *(f32 *)(u32)&D_8016139C += *pdt;
+            *(f32 *)(uintptr_t)&D_8016139C += *pdt;
             if (2.69f <= D_8016139C) {
                 D_80152738 = 1;
             }

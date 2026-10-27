@@ -25,6 +25,10 @@
 typedef signed char s8;
 typedef short s16;
 typedef int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef union {
     struct { f32 x, y, z; } c;
@@ -105,7 +109,7 @@ s32 func_8010C02C(CollisionObject *object, s16 *index, void *arg2, s32 arg3) {
             hit = 1;
         }
         if (hit) {
-            random_float((s32)car, car, other, delta, local);
+            random_float((intptr_t)car, car, other, delta, local);
             return 0;
         }
     }

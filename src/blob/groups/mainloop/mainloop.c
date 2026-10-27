@@ -26,6 +26,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef void *OSMesg;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef struct { u8 pad[636]; s32 frameCount; } Sched;
@@ -79,7 +83,7 @@ void world_trigger_activate(void)
     static s32 D_801161CC = 0;
     s16 type;
     OSMesg msg = 0;
-    s32 cur;
+    intptr_t cur;
 
     osRecvMesg(&D_8002ECF8, &msg, 1);
     type = *(s16 *)msg;
@@ -88,8 +92,8 @@ void world_trigger_activate(void)
         MainPreNMI();
         break;
     case 1:
-        cur = (s32)osViGetCurrentFramebuffer();
-        if ((s32)osViGetNextFramebuffer() == cur && !D_80035471 && !D_80035470 && !D_80035472 &&
+        cur = (intptr_t)osViGetCurrentFramebuffer();
+        if ((intptr_t)osViGetNextFramebuffer() == cur && !D_80035471 && !D_80035470 && !D_80035472 &&
             D_8002EB98 != D_8002E8E8.frameCount && D_80114730 < 2) {
             D_80151AE0 = 0;
             gfx_frame_begin();

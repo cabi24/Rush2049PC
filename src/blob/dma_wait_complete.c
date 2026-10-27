@@ -110,7 +110,11 @@ extern OSMesg D_8015439C;
 extern OSMesgQueue D_801497D0;   /* one-slot queue used as the SI lock */
 extern OSMesg D_801527E4;
 typedef struct {
+#ifdef TARGET_PC
+    char pad[0x2B0];   /* gScheduler's curRSPTask (D_8002EB5C) natively: docs/port/ULTRA.md */
+#else
     char pad[0x274];
+#endif
     void *volatile cur;
 } Sched;
 extern Sched D_8002E8E8;         /* scheduler */

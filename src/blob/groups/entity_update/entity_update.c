@@ -26,6 +26,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 #define NULL ((void *)0)
 float fabsf(float);
@@ -168,12 +172,12 @@ void entity_update(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32
         car->p1608 = best;
     }
     if (best->type & 0x2000) {
-        steering_sensitivity((s32)best, bestIdx, pos, out, mat, 250.0f);
+        steering_sensitivity((intptr_t)best, bestIdx, pos, out, mat, 250.0f);
         if (out[1] < -5.0f) {
             goto miss;
         }
     } else if (best->type & 0x1000) {
-        traction_control((s32)best, bestIdx, pos, out, mat);
+        traction_control((intptr_t)best, bestIdx, pos, out, mat);
     }
     *surf = best->type & 0xF;
     car->kind[wheel] = (best->type & 0xF0) >> 4;

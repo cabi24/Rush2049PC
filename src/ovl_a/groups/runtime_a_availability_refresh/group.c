@@ -54,9 +54,18 @@
  */
 typedef signed char s8;typedef unsigned char u8;
 typedef short s16;typedef unsigned short u16;typedef int s32;typedef unsigned int u32;typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 extern s16 D_8014A108;
 extern s8 D_803BADBC[],D_803BADC0[],D_803BAD78[];
+#ifdef TARGET_PC
+extern intptr_t D_803BAC68[];
+extern s32 D_803BAC20[], D_803BACE0[];
+#else
 extern s32 D_803BAC20[],D_803BAC68[],D_803BACE0[];
+#endif
 extern s8 D_803BAD00[][14],D_803BAD40[][14];
 
 void func_80394564(s32 player)

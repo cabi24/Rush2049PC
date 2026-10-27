@@ -33,21 +33,53 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef void *OSMesg;
+#ifdef TARGET_PC
+/* PC: the native OSScTask's shape, pointer fields where it has them (N64 0x58 bytes, host 0xA0) */
+typedef struct { void *next; u32 state, flags; void *fb; u32 type, tflags; void *boot; u32 boot_size;
+                 void *ucode; u32 ucode_size; void *udata; u32 udata_size; void *stack; u32 stack_size;
+                 void *out; void *out_size; void *data; u32 data_size; void *yield; u32 yield_size;
+                 void *msgQ; void *msg; } PcScTaskShape;
+#endif
 typedef struct {
+#ifdef TARGET_PC
+    PcScTaskShape task0;
+#else
     u8 other0[88];
+#endif
     void *buf88;        /* 88 */
     s16 n92;            /* 92 */
     u8 other94[30];
+#ifdef TARGET_PC
+    uintptr_t f124;     /* 124: the color buffer, pointer-sized */
+#else
     s32 f124;           /* 124 */
+#endif
+#ifdef TARGET_PC
+    PcScTaskShape task1;
+#else
     u8 other128[88];
+#endif
     void *buf216;       /* 216 */
     s16 n220;           /* 220 */
     u8 other222[30];
+#ifdef TARGET_PC
+    uintptr_t f252;     /* 252 */
+#else
     s32 f252;           /* 252 */
+#endif
 } Segs;
+#ifdef TARGET_PC
+#define PC_ZEXT(x) ((u32)(x))   /* an RDRAM-window address held as s32 */
+#else
+#define PC_ZEXT(x) x
+#endif
 extern OSMesgQueue D_801461D0;
 extern OSMesg D_801461FC[];
 extern OSMesgQueue D_80152770;
@@ -55,9 +87,24 @@ extern s32 D_8015F738, D_80161380, D_80161398, D_801613A4;
 extern f32 D_80154188;
 extern s32 D_80000300;
 extern s32 D_8002AFC0, D_8002AFC4;
+#ifdef TARGET_PC
+extern intptr_t D_8002EBB0;
+extern s32 D_80156CEC, D_80157240;
+#else
 extern s32 D_8002EBB0, D_80156CEC, D_80157240;
+#endif
 extern Segs D_80156BE0;
 extern u8 D_800586D0[], D_8006A090[];
+#ifdef TARGET_PC
+/* PC: the two frame command buffers, 0x9CC0 bytes of matrices and vertices then 4000 Gfx, hold 16-byte
+ * commands, so they are larger than the N64's D_800586D0 / D_8006A090 (docs/port/POINTERS.md). */
+u8 pc_frame_dl[2][0x9CC0 + 4000 * 16] __attribute__((aligned(16)));
+#define DL_BUFFER_0 pc_frame_dl[0]
+#define DL_BUFFER_1 pc_frame_dl[1]
+#else
+#define DL_BUFFER_0 D_800586D0
+#define DL_BUFFER_1 D_8006A090
+#endif
 extern u8 *D_8015B250, *D_8015B260;
 extern u8 *D_801497C8, *D_801497F4;
 extern s8 D_80156994;
@@ -101,7 +148,7 @@ void HAL_InitText_Init(void)     /* MAT3 HAL_InitText@HAL_text.c */
 
 static void _InitGfx_Init(void)     /* N64 _InitGfx (GC ngcGraph.c has its own) */
 {
-    D_8015F738 = 0; D_80161380 = 0; D_80161398 = 0; D_801613A4 = 0; D_80154188 = 90.0f; while (D_80000300 == 0) {} viewport_setup(D_80000300, get_tv_offset(), D_8002AFC0, D_8002AFC4); D_8002EBB0 = (s32)AllocateMemoryHeap(0, 0x22620); PurgeableMemory(D_8002EBB0, 0); D_80156CEC = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80156CEC, 0); D_80157240 = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80157240, 0); D_8002EBB0 = (D_8002EBB0 + 32) & ~63; D_80156CEC = (D_80156CEC + 32) & ~63; D_80157240 = (D_80157240 + 32) & ~63; D_80156BE0.f124 = D_80156CEC; D_80156BE0.f252 = D_80157240; D_80156BE0.buf88 = D_800586D0; D_80156BE0.buf216 = D_8006A090; D_80156BE0.n92 = 2; D_80156BE0.n220 = 2; D_8015B250 = D_80156BE0.buf88; D_8015B260 = (u8 *)D_80156BE0.buf88 + 1728; D_801497F4 = D_801497C8 = (u8 *)D_80156BE0.buf88 + 0x9CC0;
+    D_8015F738 = 0; D_80161380 = 0; D_80161398 = 0; D_801613A4 = 0; D_80154188 = 90.0f; while (D_80000300 == 0) {} viewport_setup(D_80000300, get_tv_offset(), D_8002AFC0, D_8002AFC4); D_8002EBB0 = (intptr_t)AllocateMemoryHeap(0, 0x22620); PurgeableMemory(D_8002EBB0, 0); D_80156CEC = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80156CEC, 0); D_80157240 = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80157240, 0); D_8002EBB0 = (D_8002EBB0 + 32) & ~63; D_80156CEC = (D_80156CEC + 32) & ~63; D_80157240 = (D_80157240 + 32) & ~63; D_80156BE0.f124 = PC_ZEXT(D_80156CEC); D_80156BE0.f252 = PC_ZEXT(D_80157240); D_80156BE0.buf88 = DL_BUFFER_0; D_80156BE0.buf216 = DL_BUFFER_1; D_80156BE0.n92 = 2; D_80156BE0.n220 = 2; D_8015B250 = D_80156BE0.buf88; D_8015B260 = (u8 *)D_80156BE0.buf88 + 1728; D_801497F4 = D_801497C8 = (u8 *)D_80156BE0.buf88 + 0x9CC0;
 }
 
 static void ZOID_Init_Init(void)

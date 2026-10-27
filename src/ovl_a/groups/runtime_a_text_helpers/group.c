@@ -35,6 +35,10 @@
  * patches, padding arrays, or historical-source spelling claims are used.
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct { u8 pad0[4]; u8 u4; u8 pad5[3]; s8 b8; s8 b9; } Cfg;
 extern Cfg *D_803BAD90;
 extern s8 D_80154640;
@@ -142,7 +146,7 @@ void func_8039B214(void)
  * Its genuine returning body is supplied separately in wrapper_return.c;
  * it must not be inlined into this separately compiled runtime image.
  * Production definitions and locks are unchanged. */
-extern s32 sign_extend_call(u32 value, u32 data, s32 index, u32 flags);
+extern s32 sign_extend_call(u32 value, uintptr_t data, s32 index, u32 flags);
 
 typedef struct Item { u8 other[16]; u8 player; } Item;
 typedef struct Selection { Item *item; } Selection;
@@ -221,9 +225,9 @@ void func_8039BE48(void)
             D_803B342C = 1;
             if (selected < 3) {
                 model = string_copy_format(D_803B3430[selected], 0, D_80140BDC - 1, 1);
-                D_803B3448 = sign_extend_call(model, (u32)D_803B9A50, -1, 0);
+                D_803B3448 = sign_extend_call(model, (uintptr_t)D_803B9A50, -1, 0);
                 model = string_copy_format(D_803B343C[selected], 0, D_80140BDC - 1, 1);
-                D_803B344C = sign_extend_call(model, (u32)D_8011418C, D_803B3448, 0x2C6084);
+                D_803B344C = sign_extend_call(model, (uintptr_t)D_8011418C, D_803B3448, 0x2C6084);
                 func_8008D870((s16)D_803B344C,
                     (s32)func_800B24EC(D_803B8750, &texture_index, 0, D_80140BDC - 1, 1), -1);
                 D_8012E6F0[D_803B344C].scale = D_803B95B4;
@@ -1189,7 +1193,7 @@ void func_8039B560(void)
             memcpy(D_803B30C0[i].matrix, D_8011418C, 36);
             D_803B30C0[i].handle = sign_extend_call(
                 string_copy_format(D_803B309C[D_803B30C0[i].other], 0, D_80140BDC - 1, 1),
-                (u32)D_803B30C0[i].matrix, -1,
+                (uintptr_t)D_803B30C0[i].matrix, -1,
                 (D_803B30C0[i].other == 0 || D_803B30C0[i].other == 1 || D_803B30C0[i].other == 2) ? 0x42000 : 0);
             func_8008E06C((s16)D_803B30C0[i].handle, (s32 *)&color);
         }

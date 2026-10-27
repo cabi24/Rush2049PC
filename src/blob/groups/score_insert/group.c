@@ -1,11 +1,20 @@
 typedef signed char s8;typedef unsigned char u8;typedef signed int s32;typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 #define NULL ((void *)0)
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
 typedef struct Block {u32 pad0;struct Block *next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
 typedef struct Pool {s32 count;u32 *base;struct Pool *next;} Pool;
 typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Heap;
 typedef struct OSMesgQueue OSMesgQueue;
+#ifdef TARGET_PC
+extern intptr_t D_801527C8;
+extern s32 D_80152770;
+#else
 extern s32 D_801527C8,D_80152770;
+#endif
 extern s8 D_8011ED04,D_8011ED00;
 extern u8 D_8038A400[];
 typedef struct RaceEntry {u32 allocation;u8 pad4[20];} RaceEntry;

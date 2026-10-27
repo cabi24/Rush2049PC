@@ -31,6 +31,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
@@ -149,7 +153,7 @@ void hud_render(void)
         car = puff->car;
         type = (puff->flags >> 17) & 0xF;
         if (puff->flags & 0x10) {
-            player = (Player *)(u32)&D_80152818[car];
+            player = (Player *)(uintptr_t)&D_80152818[car];
             speed = player->speed >> 2;
             aspeed = fabsf((f32)speed);
             if (player->view < 2) {
@@ -229,7 +233,7 @@ void hud_render(void)
                         puff->frame++;
                     }
                 }
-                player = (Player *)(u32)&D_80152818[car];
+                player = (Player *)(uintptr_t)&D_80152818[car];
                 position[0] = player->position[0];
                 position[1] = player->position[1];
                 position[2] = player->position[2];

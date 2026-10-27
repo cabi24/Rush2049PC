@@ -9,8 +9,10 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -24,7 +26,7 @@ typedef union
   struct 
   {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
   } words;
   u64 force_structure_alignment;
 } Gfx;
@@ -662,7 +664,7 @@ extern u8 D_801461F8;
 extern u8 D_80146204;
 extern u8 D_80146205;
 extern u8 D_80149414;
-extern s32 D_80149438;
+extern intptr_t D_80149438;
 extern u8 D_80149774;
 extern u8 D_80149794;
 extern u8 D_801497C4;
@@ -3789,6 +3791,24 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the same with host Gfx (16-byte commands). D_80149438 holds a Gfx pointer; the two buffers are
+ * pc_text_dl (groups/gfx_modes/init.c). */
+extern Gfx pc_text_dl[2][2400];
+void *audio_start(void)
+{
+  Gfx **head = (Gfx **) (&D_80149438);
+  Gfx *g = *head;
+  if (g == ((void *) 0))
+  {
+    return (void *) 0;
+  }
+  g->words.w0 = 0xDF000000;
+  g->words.w1 = 0;
+  *head = (void *) 0;
+  return pc_text_dl[D_8012E6C0];
+}
+#else
 void *audio_start(void)
 {
   s32 temp_v0;
@@ -3797,4 +3817,5 @@ void *audio_start(void)
   D_80149438 = 0;
   return (s32 *) new_var;
 }
+#endif
 
