@@ -83,11 +83,11 @@ void model_data_load();
 void model_transform_setup();
 
 extern u32 state_word_a;
-extern s32 D_80116DA4;
+extern intptr_t D_80116DA4;
 extern intptr_t D_80116D98;
 extern s8 D_80116D94;
 void sound_handles_clear(s32 arg0);
-void sound_stop(s32 sound_id);
+void sound_stop(intptr_t sound_id);
 void ambient_sounds_clear(void);
 void entity_spawn_callback(s16 arg0, s32 arg1, s32 arg2);
 

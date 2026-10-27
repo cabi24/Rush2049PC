@@ -5,16 +5,30 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
+#ifdef TARGET_PC
+/* A view of the Blit (sound_control.c): word8 is its Info pointer and word40 its AnimFunc, so on the PC both
+ * are pointer-sized and the fields after them land where Blit has them (docs/port/PROTOTYPES.md). */
+typedef struct {
+    void *data; u8 *bytes4; intptr_t word8; u16 half12; s16 x,y; u16 half18;
+    s16 width,height;u8 status,flag; s8 disabled; u8 other27;
+    s16 left,bottom,right,top; u8 other36[4];intptr_t word40; s32 word44;void *link48;
+} PadConfig;
+#else
 typedef struct {
     void *data; u8 *bytes4; s32 word8; u16 half12; s16 x,y; u16 half18;
     s16 width,height;u8 status,flag; s8 disabled; u8 other27;
     s16 left,bottom,right,top; u8 other36[4];s32 word40,word44;void *link48;
 } PadConfig;
+#endif
 typedef struct { s8 active; u8 own,a,b,c,d,e,f,g,h;u8 other10[2];PadConfig *part[5]; } FiveParts;
 extern FiveParts D_80116DE4[];
 extern PadConfig *func_800B3704();
 extern void crowd_cheer_play(FiveParts *,s32,s32,s32,s32);
-FiveParts *ambient_sound_set(s32 x1,s32 y1,s32 x2,s32 y2,s32 style,s32 word40,s32 word44,s32 own)
+FiveParts *ambient_sound_set(s32 x1,s32 y1,s32 x2,s32 y2,s32 style,intptr_t word40,s32 word44,s32 own)
 {
     FiveParts *group=D_80116DE4;
     s32 i;

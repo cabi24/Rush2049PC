@@ -4,6 +4,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 #define TRUE 1
 typedef struct { u32 opaque[6]; } OSMesgQueue;   /* 24-byte libultra queue */
@@ -18,11 +22,11 @@ typedef struct { s8 flag; s8 pad[15]; } Slot16;
 extern Slot16 gControllerData[];
 extern s8 D_80110634;
 extern s8 D_8011064C;
-extern s32 D_80110648;
+extern intptr_t D_80110648;
 extern s32 D_80110650[3];
 extern char D_8011F6B0[];
 extern s8 D_80116DA8;
-extern s32 D_80116DA4;
+extern intptr_t D_80116DA4;
 extern char D_80121004[];
 typedef struct { u32 first, second; } Pair;
 extern Pair D_80118E20;
@@ -32,8 +36,8 @@ extern char D_8012029C[];
 void fcvt_wrapper(char *, char *, ...);
 s32 object_manager_update(char *, s32);
 s16 object_bytes_sum_global(void);
-void crowd_cheer_play(s32, s32, s32, s32, s32);
-s32 ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
+void crowd_cheer_play(intptr_t, s32, s32, s32, s32);
+intptr_t ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 void render_helper(f32);
 void dispatch_handler(s32);
 void camera_auto_follow(s32, s32, s32, s32, s32, s32, char *);

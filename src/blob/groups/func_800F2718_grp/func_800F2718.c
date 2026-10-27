@@ -2,6 +2,10 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 typedef struct {
     u8 pad00[4];
@@ -16,7 +20,7 @@ extern s8 D_80142694[];
 extern s8 D_80143CE8;
 extern s8 *namePanes[];
 extern s32 gHighScoreState;
-extern s32 D_801148CC;
+extern intptr_t D_801148CC;
 
 void RemovePane(s8 *arg0);
 s32 viDeadlinePassed(s32 arg0);

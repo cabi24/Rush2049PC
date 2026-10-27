@@ -14,6 +14,10 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef s32 OSId;
 typedef struct OSThread OSThread;
@@ -21,19 +25,19 @@ typedef struct OSThread OSThread;
 extern s16 gNumWindows;
 extern s32 D_80116DBC;
 
-extern s32 sound_control(s16 arg0, s16 arg1, void *arg2, s16 arg3);
-extern void sound_stop(s32 sound_id);
+extern intptr_t sound_control(s16 arg0, s16 arg1, void *arg2, s16 arg3);
+extern void sound_stop(intptr_t sound_id);
 extern void UpdateFrame(void);
 extern OSId osGetThreadId(OSThread *thread);
-s32 control_settings(s32 arg0, s32 arg1, s32 arg2, s8 *done, s32 (*arg4)(void));
+s32 control_settings(s32 arg0, intptr_t arg1, intptr_t arg2, s8 *done, s32 (*arg4)(void));
 void display_settings(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 void func_800A7428(s16 *arg0, s16 *arg1, u8 *arg2, u8 *arg3, u8 *arg4, u8 *arg5, s32 arg6);
 void func_800A7480(s16 arg0, s16 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5, s32 arg6);
 void SaveServer(s32 arg0, s32 arg1);
 
-void save_settings(s32 arg0, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 (*arg6)(void)) {
+void save_settings(s32 arg0, s32 mode, s32 arg2, s32 arg3, intptr_t arg4, intptr_t arg5, s32 (*arg6)(void)) {
     s8 done;
-    s32 snd;
+    intptr_t snd;
     s16 a[4];
     s16 b[4];
     u8 c[4];

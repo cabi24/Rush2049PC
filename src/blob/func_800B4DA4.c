@@ -3793,7 +3793,7 @@ typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
 M2C_UNK update_viewport(s8, s8);
-void func_800B4DA4(s32 arg0)
+void func_800B4DA4(intptr_t arg0)
 {
   s32 i;
   if (D_80117428 == 0)

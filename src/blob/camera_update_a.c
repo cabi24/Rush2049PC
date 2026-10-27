@@ -10,9 +10,13 @@
  * Also MATCH at -O2.
  */
 typedef int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Node { struct Node *child; struct Node *next; } Node;
 
-void camera_update_a(s32 arg0, Node *n, s32 *count, void (*fn)(Node *, s32)) {
+void camera_update_a(intptr_t arg0, Node *n, s32 *count, void (*fn)(Node *, s32)) {
     if (n != 0) {
         camera_update_a(arg0, n->child, count, fn);
         fn(n, *count);
