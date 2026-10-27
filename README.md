@@ -10,16 +10,150 @@ the ROM's data, an F3DEX2 renderer (OpenGL), the MusyX sound interpreter, contro
 settings file. With a blank cartridge the game's own code boots through its startup; the next step needs a real ROM.
 The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
 
+## Playing
+
+### Getting it
+
+- **A release.** The [releases page](https://github.com/cabi24/Rush2049PC/releases) has a Windows x86-64 zip and Linux
+  x86-64 and aarch64 tarballs, once one is published. Between releases, each run of the Release workflow (Actions,
+  "Release") has the same archives as artifacts. Each is one folder: the program, `README.txt` and the licences of
+  the libraries it includes. There is no game data in it.
+- **Your own build:** see [Building](#building) below.
+
+### The ROM
+
+You need your own ROM of *San Francisco Rush 2049* for the N64, the USA cartridge: SHA-1
+`3f99351d7bb61656614bdb2aa1a90cfe55d1922c`, 12 MiB, in any byte order (`.z64`, `.v64` or `.n64`). Name it
+`baserom.us.z64` and put it next to the program, or give its path: `rush2049pc PATH` (or `--rom PATH`). On Windows
+you can also drop it on `rush2049pc.exe`. The program looks only in these places, in this order:
+
+1. the path on the command line;
+2. `game.rom` in `rush2049pc.ini`, when it is a full path;
+3. `baserom.us.z64` (or the name `game.rom` gives) next to the program, then in the user data folder
+   (`%APPDATA%\rush2049pc`, `~/.local/share/rush2049pc`), then in the working directory.
+
+If there is no ROM, or the file isn't the right one, the program says so on the console and in a message box. It
+gives where it looked, what the file is (another game, another region or revision, a bad dump, an archive to
+extract first) and what it needs. [docs/port/RELEASE.md](docs/port/RELEASE.md) quotes every message.
+
+### First run
+
+- **Windows:** unzip the archive somewhere you can write to (not Program Files). Copy the ROM into the folder as
+  `baserom.us.z64` and double-click `rush2049pc.exe`. A console window opens next to the game's window and shows
+  what the program is doing. You need an OpenGL 3 driver, which any graphics driver from the last ten years has.
+- **Linux:** unpack the tarball, copy the ROM in, and run `./rush2049pc`. You need glibc 2.35 or later (Ubuntu 22.04,
+  Debian 12, Fedora 36 or newer) and OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver).
+
+The first run fills `rush2049pc.ini` with every setting and a comment on each. Every run prints which ROM it
+found, where the saves are and where its log is.
+
+### Controls
+
+| N64 | Keyboard | Controller (Xbox layout) |
+|---|---|---|
+| Stick | arrow keys | left stick |
+| A (accelerate) | X | A, right trigger |
+| B (brake) | C | X, left trigger |
+| Z | Z | LB |
+| L | Q | Back |
+| R | E | RB |
+| START | Enter | Start |
+| C buttons | I, J, K, L | right stick; Y and B for C-up and C-down |
+| D-pad | W, A, S, D | D-pad |
+
+F1 (or both stick clicks) opens the settings overlay. Alt+Enter or F11 toggles fullscreen, F12 saves a screenshot,
+Pause holds the game and Escape quits. Every key and button can be remapped. The details are in
+[docs/port/FRONTEND.md](docs/port/FRONTEND.md).
+
+### Settings
+
+`rush2049pc.ini` holds them all, with comments. While you play, the F1 overlay changes the video settings
+(widescreen, internal resolution, fullscreen, vsync, window size), the volume and the key and button mapping. It
+can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
+(`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
+
+### Saves and other files
+
+The release folders are portable. With `rush2049pc.ini` next to the program, everything the program keeps is in
+that folder:
+
+| File | What |
+|---|---|
+| `rush2049pc.ini` | the settings |
+| `rush2049pc.mpk` | the saves: the game's controller pak |
+| `screenshots/` | F12's pictures |
+| `rush2049pc.log`, `rush2049pc.old.log` | this run's output and the run before |
+
+Without `rush2049pc.ini` next to it (an installed copy, or a build run from its build folder), the settings go in
+`%APPDATA%\rush2049pc` or `~/.config/rush2049pc`, and the rest in `%APPDATA%\rush2049pc` or
+`~/.local/share/rush2049pc`. A `rush2049pc.mpk` that an earlier build left in the working directory keeps being used
+there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into its folder.
+
+### Troubleshooting
+
+- **"no ROM" or "wrong ROM":** the message says where the program looked and what the file is. It runs the USA
+  cartridge only, and a ZIP must be extracted first. `--no-rom-check` tries another revision or a dump with other
+  contents anyway; it probably won't work.
+- **"no renderer", or no window:** update the graphics driver. The program needs OpenGL ES 3.0, or OpenGL 3.1 or
+  later. `--set video.api=gl` tries desktop GL first.
+- **No sound:** `--audio sdl` (or `alsa` on Linux) picks the output; the volume is `audio.volume`.
+- **A controller isn't recognized:** put SDL's `gamecontrollerdb.txt`, with a line for it, next to `rush2049pc.ini`.
+- **It stopped with an error:** the log says why. On Windows a message box gives the log's path, and the console
+  waits for a key. Report it on the [issues page](https://github.com/cabi24/Rush2049PC/issues) with
+  `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was.
+
+## Building
+
+You need CMake 3.24 or later, Ninja, a C compiler (gcc or clang; mingw-w64's GCC for Windows), Python 3.9 or later
+and zlib. SDL2 is optional. Without it, the program renders off screen only, with scripted input and no sound
+output except ALSA on Linux. `-DRUSH_FETCH_SDL2=ON` downloads SDL2 2.30.9 (SHA-256 pinned) and links it statically.
+Neither the build nor its tests needs a ROM.
+
+### Linux
+
 ```sh
-cmake -S . -B build/pc -G Ninja                # add -DRUSH_FETCH_SDL2=ON if SDL2 isn't installed
+sudo apt install cmake ninja-build pkg-config python3 zlib1g-dev libegl-dev libgles-dev libsdl2-dev libasound2-dev
+cmake -S . -B build/pc -G Ninja
 cmake --build build/pc
-ctest --test-dir build/pc                      # the PC layer's tests (no ROM needed)
-build/pc/rush2049pc --rom baserom.us.z64       # or --headless --screenshot-at N; --help for the rest
+ctest --test-dir build/pc                      # the PC layer's tests and the synthetic cartridge's paths
+build/pc/rush2049pc                            # or rush2049pc PATH-TO-ROM; --help for the rest
 python3 tools/port/census.py --build build/pc  # rewrites docs/port/STATUS.md
 ```
 
-You need CMake 3.20 or later, Ninja, gcc or clang, Python 3.9 or later and zlib. SDL2 is optional; you need it for a
-window, controllers and sound output. Controls and settings are in [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
+`cmake --install build/pc --prefix ~/.local` installs `bin/rush2049pc`, a desktop entry with its icon, and the
+docs. `-DRUSH_INSTALL_PORTABLE=ON` installs one portable folder instead, like the release archives.
+
+### Windows
+
+- **In MSYS2** (the UCRT64 shell):
+
+  ```sh
+  pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja \
+            mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-SDL2
+  cmake -S . -B build/pc -G Ninja && cmake --build build/pc && ctest --test-dir build/pc
+  ```
+
+  The program needs MSYS2's `SDL2.dll` (in `/ucrt64/bin`) next to it or on `PATH`.
+- **Cross from Linux** (Debian or Ubuntu: `gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix
+  mingw-w64-x86-64-dev libz-mingw-w64-dev`):
+
+  ```sh
+  cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON
+  cmake --build build/win
+  ```
+
+  This is how the release zip is built: SDL2, zlib and the C runtime are linked statically, so `rush2049pc.exe`
+  needs no DLLs.
+
+The details are in [docs/port/WINDOWS.md](docs/port/WINDOWS.md).
+
+### Release archives
+
+`.github/workflows/release.yml` builds the Windows zip and the Linux tarballs, then unpacks each on a clean machine
+and runs it. Run it by hand (Actions, "Release", "Run workflow") to get the archives as artifacts. A pushed tag `v*`
+also makes a draft GitHub release with them, which someone checks and publishes.
+[docs/port/RELEASE.md](docs/port/RELEASE.md) describes it.
+
 The N64 matching build below is unchanged and still works from the same tree.
 
 ---
