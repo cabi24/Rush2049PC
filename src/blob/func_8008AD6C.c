@@ -9,22 +9,30 @@
 typedef unsigned int u32;
 typedef int s32;
 
+#ifdef TARGET_PC
+/* ROM display lists stay in N64 form on PC: 8-byte big-endian commands (docs/port/POINTERS.md). */
+#define DLW(w) pc_be32_get(&(w))
+#define DLW_SET(w, v) pc_be32_set(&(w), v)
+#else
+#define DLW(w) w
+#define DLW_SET(w, v) w = v
+#endif
 s32 func_8008AD6C(u32 *gfx) {
     u32 mid;
     u32 low;
 
-    if ((*gfx & 0xFF000000) == 0x05000000) {
-        mid = *gfx & 0xFF00;
-        low = *gfx & 0xFF;
-        *gfx = (*gfx & 0xFFFF0000) | (mid >> 8) | (low << 8);
-    } else if ((*gfx & 0xFF000000) == 0x07000000 || (*gfx & 0xFF000000) == 0x06000000) {
-        mid = *gfx & 0xFF00;
-        low = *gfx & 0xFF;
-        *gfx = (*gfx & 0xFFFF0000) | (mid >> 8) | (low << 8);
+    if ((DLW(*gfx) & 0xFF000000) == 0x05000000) {
+        mid = DLW(*gfx) & 0xFF00;
+        low = DLW(*gfx) & 0xFF;
+        DLW_SET(*gfx, (DLW(*gfx) & 0xFFFF0000) | (mid >> 8) | (low << 8));
+    } else if ((DLW(*gfx) & 0xFF000000) == 0x07000000 || (DLW(*gfx) & 0xFF000000) == 0x06000000) {
+        mid = DLW(*gfx) & 0xFF00;
+        low = DLW(*gfx) & 0xFF;
+        DLW_SET(*gfx, (DLW(*gfx) & 0xFFFF0000) | (mid >> 8) | (low << 8));
         gfx++;
-        mid = *gfx & 0xFF00;
-        low = *gfx & 0xFF;
-        *gfx = (*gfx & 0xFFFF0000) | (mid >> 8) | (low << 8);
+        mid = DLW(*gfx) & 0xFF00;
+        low = DLW(*gfx) & 0xFF;
+        DLW_SET(*gfx, (DLW(*gfx) & 0xFFFF0000) | (mid >> 8) | (low << 8));
     }
     return 2;
 }

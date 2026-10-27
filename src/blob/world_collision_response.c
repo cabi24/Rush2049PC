@@ -28,11 +28,19 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef unsigned long long u64;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef void *OSMesg;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
+#ifdef TARGET_PC
+typedef struct { u32 w0; uintptr_t w1; } Gwords;
+#else
 typedef struct { u32 w0, w1; } Gwords;
+#endif
 typedef union { Gwords words; long long force_structure_alignment; } Gfx;
-#define gDma1p_(pkt, c, s) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = (c); _g->words.w1 = (unsigned int)(s); }
+#define gDma1p_(pkt, c, s) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = (c); _g->words.w1 = (uintptr_t)(s); }
 #define gSPDisplayList(pkt, dl) gDma1p_(pkt, 0xDE000000, dl)
 #define gDPFullSync(pkt) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = 0xE9000000; _g->words.w1 = 0; }
 #define gSPEndDisplayList(pkt) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = 0xDF000000; _g->words.w1 = 0; }

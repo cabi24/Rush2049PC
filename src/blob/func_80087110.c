@@ -14,7 +14,15 @@
  * the scorer fn: MATCH. Unit (the whole-program unit --neighbours): EQUAL func_80087110: 445 words (kept); locked bodies that differ: 0.
  */
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef int intptr_t;
+#endif
+#ifdef TARGET_PC
+typedef union Gfx {struct {u32 w0; uintptr_t w1;} words;double align;} Gfx;
+#else
 typedef union Gfx {struct {u32 w0,w1;} words;double align;} Gfx;
+#endif
 extern Gfx *D_80149438;
 extern int D_8012E608,D_8012E60C,D_8012E610,D_8012E668,D_8012E674,D_8014A248;
 /* SDK forms from reference/repos/ultralib/include/PR/gbi.h: _SHIFTL,

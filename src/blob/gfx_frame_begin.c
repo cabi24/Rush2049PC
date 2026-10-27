@@ -18,11 +18,15 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
 } Gwords;
 
 typedef union {
@@ -42,7 +46,7 @@ typedef union {
 { \
     Gfx *_g = (Gfx *)(pkt); \
     _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL((width) - 1, 0, 12); \
-    _g->words.w1 = (u32)(i); \
+    _g->words.w1 = (uintptr_t)(i); \
 }
 #define gDPSetColorImage(pkt, f, s, w, i) gSetImage(pkt, G_SETCIMG, f, s, w, i)
 #define gDPNoParam(pkt, cmd) \
@@ -90,14 +94,14 @@ typedef union {
 { \
     Gfx *_g = (Gfx *)(pkt); \
     _g->words.w0 = _SHIFTL(G_MOVEWORD, 24, 8) | _SHIFTL(offset, 0, 16) | _SHIFTL(index, 16, 8); \
-    _g->words.w1 = (unsigned int)(data); \
+    _g->words.w1 = (uintptr_t)(data); \
 }
 #define gSPSegment(pkt, segment, base) gMoveWd(pkt, G_MW_SEGMENT, (segment) * 4, base)
 #define gDma1p(pkt, c, s, l, p) \
 { \
     Gfx *_g = (Gfx *)(pkt); \
     _g->words.w0 = (_SHIFTL((c), 24, 8) | _SHIFTL((p), 16, 8) | _SHIFTL((l), 0, 16)); \
-    _g->words.w1 = (unsigned int)(s); \
+    _g->words.w1 = (uintptr_t)(s); \
 }
 #define gSPDisplayList(pkt, dl) gDma1p(pkt, G_DL, dl, 0, G_DL_PUSH)
 #define gSPSetOtherMode(pkt, cmd, sft, len, data) \

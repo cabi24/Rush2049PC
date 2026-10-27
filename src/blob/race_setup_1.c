@@ -28,7 +28,15 @@
  * - source order of the three light cases is 6, 5, 4 (image order).
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef int intptr_t;
+#endif
+#ifdef TARGET_PC
+typedef struct Gfx { u32 w0; uintptr_t w1; } Gfx;
+#else
 typedef struct Gfx { u32 w0,w1; } Gfx;
+#endif
 typedef union AnimatedData { u16 *palette; Gfx *commands; } AnimatedData;
 typedef struct PaletteAnimation20 { void *owner; s16 first,last; s8 step; u8 action; s16 ticks; f32 delay; AnimatedData data; } PaletteAnimation20;
 typedef struct ObjectView { u8 before24[24]; Gfx *commands; u32 flags; } ObjectView;

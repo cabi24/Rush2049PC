@@ -26,7 +26,7 @@ typedef union
   struct 
   {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
   } words;
   u64 force_structure_alignment;
 } Gfx;
@@ -3791,6 +3791,24 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the same with host Gfx (16-byte commands). D_80149438 holds a Gfx pointer; the two buffers are
+ * pc_text_dl (groups/gfx_modes/init.c). */
+extern Gfx pc_text_dl[2][2400];
+void *audio_start(void)
+{
+  Gfx **head = (Gfx **) (&D_80149438);
+  Gfx *g = *head;
+  if (g == ((void *) 0))
+  {
+    return (void *) 0;
+  }
+  g->words.w0 = 0xDF000000;
+  g->words.w1 = 0;
+  *head = (void *) 0;
+  return pc_text_dl[D_8012E6C0];
+}
+#else
 void *audio_start(void)
 {
   s32 temp_v0;
@@ -3799,4 +3817,5 @@ void *audio_start(void)
   D_80149438 = 0;
   return (s32 *) new_var;
 }
+#endif
 

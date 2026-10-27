@@ -49,7 +49,7 @@ typedef volatile s64 vs64;
 typedef union {
     struct {
         u32 w0;
-        u32 w1;
+        uintptr_t w1;
     } words;
     u64 force_structure_alignment;
 } Gfx;

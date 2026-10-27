@@ -27,6 +27,16 @@ extern s32 D_8002AFC0, D_8002AFC4;
 extern u32 D_8002EBB0, D_80156CEC, D_80157240;
 extern SegmentTableEntry D_80156BE0[];
 extern u8 D_800586D0[], D_8006A090[];
+#ifdef TARGET_PC
+/* PC: the two frame command buffers, 0x9CC0 bytes of matrices and vertices then 4000 Gfx, hold 16-byte
+ * commands, so they are larger than the N64's D_800586D0 / D_8006A090 (docs/port/POINTERS.md). */
+u8 pc_frame_dl[2][0x9CC0 + 4000 * 16] __attribute__((aligned(16)));
+#define DL_BUFFER_0 pc_frame_dl[0]
+#define DL_BUFFER_1 pc_frame_dl[1]
+#else
+#define DL_BUFFER_0 D_800586D0
+#define DL_BUFFER_1 D_8006A090
+#endif
 extern u8 *D_8015B250, *D_8015B260;
 extern u8 *D_801497C8;           /* 0x801497C8, display-list cursor */
 extern u8 *D_801497F4;
@@ -62,8 +72,8 @@ void func_800EE8AC(void)
     D_80156BE0[1].buffer = D_80157240;
     D_80156BE0[0].unk5C = 2;
     D_80156BE0[1].unk5C = 2;
-    D_80156BE0[0].dl_base = D_800586D0;
-    D_80156BE0[1].dl_base = D_8006A090;
+    D_80156BE0[0].dl_base = DL_BUFFER_0;
+    D_80156BE0[1].dl_base = DL_BUFFER_1;
     D_8015B250 = D_80156BE0[0].dl_base;
     D_8015B260 = D_80156BE0[0].dl_base + 1728;
     D_801497C8 = D_80156BE0[0].dl_base + 0x9CC0;

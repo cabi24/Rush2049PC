@@ -5,6 +5,7 @@ check with tools/port/n64_neutral.py.
     python3 tools/port/ptr64_edit.py guard           # local `typedef u32 uintptr_t;` -> under #ifndef TARGET_PC
     python3 tools/port/ptr64_edit.py need FILE...    # give FILE the N64 uintptr_t/intptr_t typedefs
     python3 tools/port/ptr64_edit.py gfx             # Gfx/Gwords w1 -> uintptr_t (host-built lists)
+    python3 tools/port/ptr64_edit.py gbi             # address-carrying GBI macros store w1 via uintptr_t
 
 guard: the PC prelude (port/include/pc_prelude.h) defines uintptr_t/intptr_t pointer-sized; a file's own u32/s32
 typedefs of them would clash, so they are wrapped in #ifndef TARGET_PC. The N64 compiler sees them unchanged.
@@ -17,6 +18,11 @@ gfx: in every local Gfx and Gwords typedef, `u32 w1;` becomes `uintptr_t w1;` (o
 same type), giving the PC layout {u32 w0; uintptr_t w1;} of PcGfxWords (port/include/pc_port.h). One-line forms
 (`u32 w0, w1;`) get an #ifdef TARGET_PC copy of the line. Files listed in N64_FORM_GFX keep 8-byte commands:
 they walk display lists loaded from the ROM, which stay in N64 form.
+
+gbi: the local GBI macros whose w1 is an address (gSetImage, gDma1p, gDma2p, gSPVertex, gMoveWd for
+gSPSegment, gDma1p_) cast it with (uintptr_t) instead of (unsigned int)/(u32), so host pointers aren't cut to
+32 bits. Macros whose w1 is a value (other modes, combine, colors, geometry mode) keep their 32-bit casts:
+for those the upper half of w1 is zero.
 Stdlib only, Python 3.9+.
 """
 import re
@@ -115,13 +121,39 @@ def gfx():
     print(f"gfx: {changed} files")
 
 
+GBI_ADDR = {"gSetImage", "gDma1p", "gDma2p", "gSPVertex", "gMoveWd", "gDma1p_"}
+_W1_CAST = re.compile(r"(w1\s*=\s*)\((?:unsigned int|u32)\)\(")
+
+
+def gbi():
+    changed = 0
+    for p in game_files():
+        lines = p.read_text().split("\n")
+        old = list(lines)
+        i = 0
+        while i < len(lines):
+            m = re.match(r"#define\s+(\w+)\(", lines[i])
+            while m and m.group(1) in GBI_ADDR:
+                lines[i] = _W1_CAST.sub(r"\1(uintptr_t)(", lines[i])
+                if not lines[i].rstrip().endswith("\\"):
+                    break
+                i += 1
+            i += 1
+        if lines != old:
+            p.write_text(ensure_ptr_typedefs("\n".join(lines)))
+            changed += 1
+    print(f"gbi: {changed} files")
+
+
 def main(argv):
-    if not argv or argv[0] not in ("guard", "need", "gfx"):
+    if not argv or argv[0] not in ("guard", "need", "gfx", "gbi"):
         sys.exit(__doc__)
     if argv[0] == "guard":
         guard()
     elif argv[0] == "need":
         need(argv[1:])
+    elif argv[0] == "gbi":
+        gbi()
     else:
         gfx()
 

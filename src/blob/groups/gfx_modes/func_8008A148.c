@@ -5,11 +5,15 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
 } Gwords;
 
 typedef union {
@@ -32,7 +36,7 @@ typedef union {
 { \
     Gfx *_g = (Gfx *)(pkt); \
     _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL((width) - 1, 0, 12); \
-    _g->words.w1 = (u32)(i); \
+    _g->words.w1 = (uintptr_t)(i); \
 }
 #define gDPSetTextureImage(pkt, f, s, w, i) gSetImage(pkt, G_SETTIMG, f, s, w, i)
 #define gDPNoParam(pkt, cmd) \

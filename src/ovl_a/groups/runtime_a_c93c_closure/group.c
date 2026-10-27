@@ -25,6 +25,10 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Blit Blit;
 typedef struct MultiBlit {
     char *name;s16 x,y,width,height,top,bottom,left,right;
@@ -190,7 +194,7 @@ void func_8038CCF4(void); void func_8038CD0C(void); void func_8038CD04(void); vo
 void func_8038CCEC(void); void func_8038CCE4(void);
 
 /* SDK GBI subset (as) */
-typedef struct { u32 w0; u32 w1; } Gwords;
+typedef struct { u32 w0; uintptr_t w1; } Gwords;
 typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
 #define gSPTexture(pkt, s, t, level, tile, on) \
@@ -224,7 +228,7 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 { \
     Gfx *_g = (Gfx *)(pkt); \
     _g->words.w0 = _SHIFTL(0x01, 24, 8) | _SHIFTL((n), 12, 8) | _SHIFTL((v0) + (n), 1, 7); \
-    _g->words.w1 = (u32)(v); \
+    _g->words.w1 = (uintptr_t)(v); \
 }
 #define __gsSP1Triangle_w1(v0, v1, v2) (_SHIFTL((v0) * 2, 16, 8) | _SHIFTL((v1) * 2, 8, 8) | _SHIFTL((v2) * 2, 0, 8))
 #define gSP2Triangles(pkt, v00, v01, v02, flag0, v10, v11, v12, flag1) \
@@ -280,6 +284,14 @@ extern char D_803B9260[];
 extern Color D_803B8328;
 extern s32 D_803B7CD8;          /* kNumMapSects */
 extern Gfx *D_803BAB50;            /* mapObj[6].displayList */
+#ifdef TARGET_PC
+/* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
+#define MAP_DL_SECTION_BYTES 80
+#define MAP_DL_FIXED_BYTES 112
+#else
+#define MAP_DL_SECTION_BYTES 40
+#define MAP_DL_FIXED_BYTES 56
+#endif
 extern f32 D_803B8254[12],D_803BAC30[12],D_803B832C[3];
 extern Blit *func_800B3704(char *,s16,s16,s16);
 extern void func_80094EC8(Blit *);
@@ -981,7 +993,7 @@ void func_8038CCF4(void)
             vtxSize = D_803B7CD8 * 64 + 64;
             D_803BABE8[D_8014978C] = audio_dma_sync(0, vtxSize + 7);
             D_803BAAE8[D_8014978C].verts = vtx = (Vtx_t *)(((u32)D_803BABE8[D_8014978C] + 7) & ~7);
-            dlSize = D_803B7CD8 * 40 + 56;
+            dlSize = D_803B7CD8 * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES;
             D_803BABC8[D_8014978C] = audio_dma_sync(0, dlSize + 7);
             D_803BAAE8[D_8014978C].displayList = (u32 *)(dl = (Gfx *)(((u32)D_803BABC8[D_8014978C] + 7) & ~7));
             dl[0].words.w0 = 0xD7000000; dl[0].words.w1 = 0xFFFFFFFF;
@@ -1103,7 +1115,7 @@ void func_8038CCF4(void)
     D_803BAB58[6] = trackRomObjDef->lod[0];
     D_803BABE8[6] = audio_dma_sync(0, D_803B7CD8 * 64 + 64 + 7);
     D_803BAAE8[6].verts = (void *)(((u32)D_803BABE8[6] + 7) & ~7);
-    D_803BABC8[6] = audio_dma_sync(0, D_803B7CD8 * 40 + 56 + 7);
+    D_803BABC8[6] = audio_dma_sync(0, D_803B7CD8 * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
     D_803BAAE8[6].displayList = (u32 *)(((u32)D_803BABC8[6] + 7) & ~7);
     D_803BAAE8[6].flags = 0;
     D_803BAAE8[6].texidx = 0;

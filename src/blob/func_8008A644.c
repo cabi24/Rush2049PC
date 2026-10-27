@@ -27,7 +27,7 @@ typedef union
   struct 
   {
     u32 w0;
-    u32 w1;
+    uintptr_t w1;
   } words;
   u64 force_structure_alignment;
 } Gfx;
@@ -3787,6 +3787,22 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
+#ifdef TARGET_PC
+/* PC: the same G_SETPRIMDEPTH with host Gfx (16-byte commands); D_80149438 holds a Gfx pointer. */
+void func_8008A644(unsigned short arg0)
+{
+  Gfx **head = (Gfx **) (&D_80149438);
+  Gfx *g;
+  if ((u16) D_8012E67A != arg0)
+  {
+    g = (*head)++;
+    g->words.w0 = 0xEE000000;
+    g->words.w1 = (((u32) arg0) & 0xFFFF) << 0x10;
+    D_8012E67A = arg0;
+  }
+  func_800878E0(0x10);
+}
+#else
 void func_8008A644(unsigned short arg0)
 {
   s32 temp_v1;
@@ -3800,3 +3816,4 @@ void func_8008A644(unsigned short arg0)
   }
   func_800878E0(0x10);
 }
+#endif
