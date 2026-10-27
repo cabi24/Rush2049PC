@@ -147,8 +147,9 @@ code: `audio_heap`, `counter_guard`, `heap_release/{group,alloc_at,car_damage_vi
 `func_80095EF4`, `sound_play_menu`, `func_800E7A98`, `heap_max`, `loadcars/heap_total`, `heap_free_total`,
 `menu_save_options/ctx_slot`. Because every view agrees on the N64, they agree on PC with no unification, and the
 hard-coded 0x20 header and the raw readers (`func_80095F8C`, which now zero-extends what it loads) stay right. The
-weak context copies of the heap code were not converted (they never run). Still open: the handle tables are
-`u32` slots, and code that dereferences a handle as `*(void **)h` reads 8 bytes (ASSETS.md §4 #5).
+weak context copies of the heap code were not converted (they never run). The handle tables were `u32` slots,
+and code that dereferences a handle as `*(void **)h` reads 8 bytes (ASSETS.md §4 #5): on the PC the slots are 8
+bytes now (9.10).
 
 ### 4.2 ROM-layout structs: not widened, for Phase 4
 
@@ -454,6 +455,118 @@ have PC versions. 18 views agree. Test: `assets_pak`.
   `D_80143FC8`, the frame records `D_80156BE0`, the texture-animation frames `D_8011905C` and the input records
   `D_8014A118`/`input_rec0`: all done in section 10. The cars `player_array` are [CARS.md](CARS.md)'s.
 - The OSMesgQueue views that declare it without pointers (24 bytes) only take its address; harmless.
+
+### 9.10 The save records: pak files, profiles, ghosts
+
+The controller pak's file layer (paksys, MAT3 `paksysdc.c`) keeps a record per file it finds on a pak, and the
+save code keeps a record per profile and per ghost that points to its file. Each is reached through a handle
+(`T **`), and the lists that hold them (`gPS_Files` `D_80144D60[4]`, the free handles `D_801460E0`, the profiles
+`D_8012E6D8`, the ghosts `D_80152020`) are indirect: `InsertLLE` (`func_80091FBC`) links a record through its
+first two words as `{next, prev}` pointers. On the PC the views disagreed on all of them: paksys had the file
+record at 96 bytes and its readers at 76, the save code wrote the file functions at raw N64 offsets, and the
+profile's views put its file handle where the list keeps `prev`.
+
+| Record | Storage | N64 | PC | On the pak |
+|---|---|---:|---:|---|
+| pak file record (paksys' `tPS_File`) | `D_80144DC0[64]`, handles `D_80144C60[64]` (own) | 76 | 96 | no: built from the pak's directory |
+| profile (save.c's `SaveSlot`, `tPlayerProfile`) | `D_8013E5D8[4][16]` (own now; was arena), handles `D_8013C128`; the defaults `D_801391F8[4]`, the ghost players `D_80140A18` | 48 | 64 | no: its save data is |
+| ghost (menu_save_options' `Ghost`) | `_NewGhost`'s pool (CASTS.md 2.2), the limbo records `D_8013FEC4` (heap, `n * sizeof(Record)`) | 44 | 64 | no |
+| ghost header (`GhostHeader`) | a ghost file's first 88 bytes; the race's recording headers `D_80142530[4]` (arena now; was own) | 88 | 88 | yes |
+| save data (`tSaveData`) | the file's data block; the defaults' `D_8013A028[4]` (arena) | 2064 | 2064 | yes |
+| heap handle slot | the heap's handle tables | 4 | 8 | no |
+
+| N64 | PC | pak file record | N64 | PC | profile | N64 | PC | ghost |
+|---:|---:|---|---:|---:|---|---:|---:|---|
+| 0x00 | 0x00 | `next` | 0x00 | 0x00 | `next` | 0x00 | 0x00 | `ll` |
+| 0x04 | 0x08 | `prev` | 0x04 | 0x08 | `prev` | 0x04 | 0x08 | `fileh` |
+| 0x08 | 0x10 | `RemoveFile` | 0x08 | 0x10 | `fileh` (NULL for a default) | 0x08 | 0x10 | `track`, `backward`, `name[13]` |
+| 0x0C | 0x18 | `MoveFile` | 0x0C | 0x18 | `id[2]` | 0x18 | 0x20 | `playerId[2]` |
+| 0x10 | 0x20 | `pak`, `fileNo` | 0x14 | 0x20 | `name[13]` | 0x20 | 0x28 | `finish` |
+| 0x12 | 0x22 | `name[35]`, `ext[11]` | 0x21 | 0x2D | `controls[11]` (+0x2B the rumble) | 0x24 | 0x30 | `datah` |
+| 0x40 | 0x50 | `size`, `blocks` | 0x2C | 0x38 | `data` (the save data's handle) | 0x28 | 0x38 | `header` |
+| 0x48 | 0x58 | `data` (a heap handle) | 0x30 | 0x40 | | 0x2C | 0x40 | |
+| 0x4C | 0x60 | | | | | | | |
+
+- **Why these layouts.** Every slot a view types as a pointer holds a host pointer on the PC: the links and the file
+  handles are handles in own storage (`D_80144C60`, `D_8013C128`, the ghost pool), the file functions are host
+  functions, and the data handles are heap handles (window addresses). So the records are larger and everything
+  after their first pointer moves, in N64 field order (9.1). The ghost header is the first 88 bytes of a ghost's
+  file, written and read whole (`drone_set_catchup(fileh, 0, 88)`, its checksum over +4..+0x44, the samples at
+  `header + 1`), so it keeps its N64 layout: its `start`, the samples' buffer, is a `u32` window address in every
+  view (`AllocateMemoryHeap` in GhostStart, the data handle's block in `_ReadGhostData`; `N64W` where it is stored,
+  a cast where CompressGhost and the replay read it). The save data has no pointers.
+- **`pc_prelude.h`**: `PSF_OFS(n)`, `PROFILE_OFS(n)`, `GHOST_OFS(n)` (the PC offset of N64 offset n; the N64 size
+  gives the PC size, as `CAR_OFS` does) and `PC_PSFILE_SIZE`, `PC_PROFILE_SIZE`, `PC_GHOST_SIZE`. Game files that use
+  one define the N64 side, `#define PSF_OFS(n) n`; `SLOT_DATA` is `PROFILE_OFS(0x2C)` in its eleven files.
+- **The file-function table.** `RemoveFile` is `audio_volume_pan` for profiles and ghosts and `MoveFile` is
+  `func_800949D4`; CreatePlayer, `_ReadPlayer` (`func_800C7EC8`), `_ReadGhostHeader` and SaveGhost set them,
+  PS_CreateFile and PS_PakServer clear them, PS_DeleteFile and `_RemovePak` (`func_800A3640`) call `RemoveFile`.
+  The raw stores at +8 and +12 wrote `audio_volume_pan` over the record's `prev` link, and the upper half of
+  `func_800949D4` into `RemoveFile`, which deleting the file then called. `audio_volume_pan` compared the handle as
+  a `u32` with views at N64 offsets; it takes `uintptr_t` and finds a profile's handle at +16, a ghost's at +8.
+  `func_800949D4` (never called by the game) takes `intptr_t` and uses `PROFILE_OFS`/`GHOST_OFS`.
+- **Views made to agree.** The file record: pak_write_cluster's `C96File` (PS_WriteFile, PS_FlushFile, PS_FlushPak:
+  its `channel`, `data_size` and `data` were 12, 12 and 8 bytes early), SaveFlush's `VisualBody`, ctx_slot's `Slot`
+  (and its ghost-header `f76`, now `HeaderStart`), paksys' `prev`, and 17 views of its first fields (the pak at
+  +0x10): controlscr's `PSFile`, `func_800A3424`/`func_800A1A60`'s `Object`, `func_800CC848`'s `Owner`,
+  billboard_render's `Q`, overlay A's `FileInfo` (4), `Item` (3), `Resource` (2), `Owner`, `ListOwner` and the file
+  list's `Record`. The profile: save.c's `SaveSlot` and 28 more 48-byte views whose padding hid the links
+  (`view_pads.py --ref save_option/save_option.c --name 0x0=next --name 0x4=prev --name 0x8=fileh`), and by hand
+  `assign_drones`' `Profile`, `func_800F56E0`'s `ResourceRoot`, the two `filename.c` `X`, `func_800F2888`'s, state.c's
+  and track_texture_load's views with an `s32` handle at +8, controlscr's `Profile`, billboard_render's `Player` (2),
+  `func_800EB90C`'s `HObject`, the `HN` of steady_camera and `func_800E92C8`, overlay A's seven-option `Owner` (2) and
+  callers_deep's `ListPayload`. The ghost: `func_800E5D64`'s `ReplayOwner` (the replay read its header 16 bytes
+  early) and `ReplayStream`, `func_800CB748`'s `Record44` and save.c's limbo `Record`. The ghost header: `start` in
+  group.c, ctx_newghost.c, props.c and `ghost_race_setup`.
+- **Raw offsets** (on existing lines, through the macros): CreatePlayer, `_ReadPlayer`, the check and repair
+  (`draw_speedometer`, 15 file handles), `func_800CCCCC`, LoadPlayerData (`func_800CCEFC`), `func_800CD058`,
+  `_ReadGhostHeader`, `_ReadGhostData` (`func_800CBF2C`) and SaveServer in menu_save_options' group.c; SaveGhost;
+  CompressGhost (its ghost clear: 44 bytes left the PC ghost's data handle stale); GhostStart's clear of a ghost
+  player; `menu_confirm_dialog`; PS_ReadFile's size; PurgePlayerData (`object_render_cleanup`, which cleared half of
+  the data handle); `object_byte71_set_sync`; `menu_render_list`; `func_800C7578`; `func_800F42C8` and
+  `func_800FDF88`; `func_800E56F8`'s rumble byte; overlay A's `func_80398BF0` (the file number at +0x11).
+- **Strides and storage.** group.c viewed `D_80144D60` as `u8[][16]` (the lists are 24 bytes: pak 1's list was
+  read inside pak 0's); `func_800E56F8` cleared the rumble request at the N64 stride (`PAK_RECORD`, 0x310, 9.6).
+  group.c's view of the profile records is the 64-byte `ProfileRec[][16][1]` (a one-element array, so
+  `D_8013E5D8[pak][slot]` is a pointer as the N64's byte array is), which puts them in own storage; `D_801391F8` and
+  `D_80140A18` follow their views (256 bytes each); `D_80142530` keeps the N64's 352 bytes in the arena.
+- **Heap handles** (`audio_heap`): a handle is the address of a `u32` slot, and the game reads the slot through it
+  as a pointer (the files' data, the save data, the ghost headers): the read took the next slot's address as its
+  upper half (4.1, ASSETS.md 4 #5). On the PC AllocateHandleHeap and the heap's init give the tables 8-byte slots
+  holding the block's window address zero-extended; the slot's readers that take a `u32` (the font waves, the
+  compaction's owner update, the frees) still find the address in its first four bytes. This covers every handle
+  user, not only the save code.
+- **On the pak, and in RAM.** On the pak are the files' contents: a profile's `tSaveData` and a ghost's header and
+  zipped samples, in their N64 layouts (nothing in them is widened), and the pak's directory, which the Pfs C
+  keeps in `D_80144030`'s file entries (9.6). The file records, handles, lists, profiles and ghosts live only in
+  RAM and are rebuilt from the directory when a pak is inserted. The game writes the save data's words (checksums,
+  ids, times, sizes) natively, so the PC's `.mpk` holds them in host order like the Pfs C's own fields; an N64
+  pak image still needs a converter that knows these formats (ULTRA.md, controller pak). The profile's id word
+  `(player << 3) | pak` takes the low half of a host handle on the PC: it only tells profiles apart.
+- **Test:** `assets_save` (`test_save.c`) runs the game's pak and save code on a pak of its own (16 notes in place
+  of the SI and the Pfs C, which the selftest's "controller pak" and "pak note round trip" cover), in port 1 so the
+  strides count, with the game's heap in a mapped RDRAM window: PS_InitPakSys and the defaults; PS_PakServer;
+  CreatePlayer (the profile, the file record and its function table, the save file on the pak); the pak taken out
+  (`_RemovePak` through `RemoveFile`) and put back (SaveServer, `_ReadPlayer`, every block's check,
+  PurgePlayerData); LoadPlayerData and a car setting written back by SaveFlush; MoveFile; CompressGhost in a ghost
+  slot that held another ghost; SaveGhost; `_ReadGhostHeader` and `_ReadGhostData` after a reinsertion; the replay
+  playing and recording through the header; PS_DeleteFile of the ghost's and the profile's files through
+  `RemoveFile`; and two handles in a row. Putting back any of the 14 views and raw offsets tried, the `D_80144D60`
+  stride or the 4-byte slots fails it (a check, a fault or the build), and its static assertions check the three
+  offset macros. Not caught: group.c's ghost clear in `_ReadGhostHeader`, which sets
+  the bytes it misses anyway. `assets_casts`, `assets_pak` and `assets_input` model the profile and the file record
+  on their PC layouts too.
+- **Checks.** `view_audit --symbols D_801391F8,D_8013E5D8,D_80146150,D_80140A18 --size 48 --ref
+  save_option/save_option.c`: 35 profile views off its layout before, none after (the 48-byte views left are
+  matrices and blits). `view_check --sym` `D_80152020`: 1 of 4 views disagreed, none now; `D_80144D60`,
+  `D_801460E0`, `D_8012E6D8`, `D_80144DC0`, `D_80144030`: 0. `n64_neutral.py --base 09da2f0`: 0 FAIL. ctest, the
+  selftest (26 of 26, the two pak cases among them) and the ROM-less boot (the usual stop in AudioSfxInit) pass.
+- **Needs the ROM, or a real pak:** the strings the save code builds file names from (`D_801211F8`, `D_801211E4`,
+  the extensions; the test uses its own), the pak font `D_8011EAEC`, profiles and ghosts made, loaded and deleted
+  through overlay A's screens and a race (GhostStart, the recording, `ghost_race_setup`, CompressGhost's zip), the
+  rumble request with a rumble pak, and a pak image with the game's saves on it (that needs the converter above).
+- **Left:** the weak context copies keep their N64 views. DecodeGhost passes the data buffer, a window address, to
+  `inflate_entry_alt` and `format_string_parse` as an `s32` (PROTOTYPES.md, reviewed).
 
 ## 10. Race-time records (2026-10-27)
 
