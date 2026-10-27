@@ -176,7 +176,8 @@ in `LoadWave(6)`, where every file size read from the blank cartridge is zero. G
 3. **Phase 4 loaders.** Hook `_ReadWave` for the per-format byte swaps in ASSETS.md §5, starting with the text bank,
    the MusyX files and fonts.
 4. **Declarations that disagree** across files: 107 pointer, 80 width (`build/pc/pc-data/data_layout.txt`). Also the
-   cross-file prototype mismatches that aarch64 exposes (POINTERS.md).
+   cross-file prototype mismatches that aarch64 exposes (POINTERS.md). Byte order where widths disagree:
+   `tools/port/endian_check.py` and [port/ENDIAN.md](port/ENDIAN.md) (what is left: its section 4).
 5. **SDL2.** Install `libsdl2-dev`, or configure with `-DRUSH_FETCH_SDL2=ON`, for a window, controllers and audio
    output.
 

@@ -433,9 +433,9 @@ have PC versions. 18 views agree. Test: `assets_pak`.
   callback entries with a -1 name (sound_control.c, NewMultiBlit), so on the PC such an entry is taken for a
   texture name: InitBlit looks the name up at 0xFFFFFFFF. The loader should sign-extend -1 in pointer fields
   (port/data, not changed here). `assets_blit` uses the value the loader should produce.
-- **Colours as words.** Nodes and sprites keep RGBA in a u32 that some writers fill from integer constants and the
-  model draw reads as bytes (`prim[4]`). On a little-endian host a constant like `0xRRGGBBAA` stored as a word reads
-  back as A, B, G, R. Copies of byte-built colours are fine. Not a pointer question; not changed.
+- **Colours as words.** Nodes and sprites keep RGBA in a u32 that some writers fill from words and the model draw
+  reads as bytes (`prim[4]`). Copies of byte-built colours are fine; the words that came from the ROM are now
+  `PC_RGBA`, and colour unions in initialized data are the loader's union rule ([ENDIAN.md](ENDIAN.md) 3.2, 4).
 - **Records still disagreeing in race-time code** (`view_check` over all own-storage symbols): the level-object
   kinds `D_80117530` (7 views), car lights and exhaust `D_8017A510` (4), the level-object node pool `D_80143FC8`
   (130 records of 112 bytes, several model views with pointers at different places; its element size is still the
