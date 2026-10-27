@@ -1312,6 +1312,11 @@ def car_tables(c):
     # A car type's brake factor (D_80110DA4, f32[13]): track_info_display's brake gains are mass x the tire's
     # brake value x this, so zero is a car without brakes. 1.
     c.set_all("game", "D_80110DA4", "f32", [1.0] * 13, "a car type's brake factor: 1")
+    # The gear ratios (D_80110EBC, f32[8][6], port/data/extents.txt): a row per car class, which is the model's
+    # byte 9 (battle mode's cars are row 6), gear g's ratio at [g + 1] (func_800E2C70, func_800E313C). 1 everywhere:
+    # with zeros a car's drive torque is 0. The battle row is past the first, which the loader converted only with
+    # the table's extent (BRINGUP.md 11).
+    c.set_all("game", "D_80110EBC", "f32", [1.0] * 48, "the gear ratios: 1 in every row and gear")
     # The car tunes (D_801116D0, three Tune44 of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
     for t in range(3):
         for k in range(11):
