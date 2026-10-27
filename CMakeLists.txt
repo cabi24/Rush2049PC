@@ -203,6 +203,18 @@ target_link_options(rush2049pc PRIVATE ${PC_DATA_DIR}/aliases.ld)
 set_target_properties(rush2049pc PROPERTIES LINK_DEPENDS ${PC_DATA_DIR}/aliases.ld)
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
+# The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
+# reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
+add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
+target_link_libraries(test_gsm_game PRIVATE game_flags)
+target_compile_options(test_gsm_game PRIVATE -w)
+add_executable(test_gsm port/ultra/tests/test_gsm.c port/ultra/gsm.c $<TARGET_OBJECTS:test_gsm_game>)
+target_include_directories(test_gsm PRIVATE port/ultra)
+target_compile_options(test_gsm PRIVATE -std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter)   # -O2: 2 s, not 7
+target_compile_definitions(test_gsm PRIVATE GSM_KERNELS_S="${CMAKE_SOURCE_DIR}/asm/us/boot_data/kernels.s")
+add_test(NAME ultra_gsm COMMAND test_gsm)
+# A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
+set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 # The same stubs without the PC layer, for test programs that link the game alone (rush2049pc_datacheck): every
 # libultra name is stubbed, and the stubs abort by themselves.

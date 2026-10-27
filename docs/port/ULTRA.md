@@ -19,6 +19,7 @@ owns `main()`. About 3,300 lines of C11.
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, address conversion, faults, stubs |
 | `loop.c` | the host main loop |
 | `defaults.c` | weak no-op versions of the other parts' interfaces |
+| `gsm.c` | the boot segment's GSM 06.10 speech kernels (RPE decoding, long-term and short-term synthesis), from `kernels.s` |
 | `selftest.c` | `--selftest` |
 
 ## 1. Threads
@@ -270,8 +271,8 @@ references (libc, zlib, pthreads) are left to the linker. It also writes:
 - `stubs_standalone.c` (`--standalone`) for programs that link the game without the PC layer
   (`rush2049pc_datacheck`).
 
-Now: 29 function stubs, 0 data placeholders, 57 aliases, 7 absolute symbols. Three stubs are in the boot segment:
-the libgsm kernels (below). The other 26 are game and overlay functions with no C yet.
+Now: 0 function stubs, 1 data placeholder (`ShowCull`), 75 aliases, 6 absolute symbols. The last function stubs were
+the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
 
@@ -286,6 +287,12 @@ the libgsm kernels (below). The other 26 are game and overlay functions with no 
   - RSP tasks and DP buffers, and the AI rate and event;
   - the SI through the game's own C: `osContInit`, `osContGetReadData`, `osPfsInitPak`, `osPfsFreeBlocks`, and a
     three-page note allocated, written, read back after a new `osPfsInitPak`, and deleted.
+- CTest `ultra_gsm` (`port/ultra/tests/test_gsm.c`, 2 s) checks `gsm.c`'s three GSM kernels against their own MIPS
+  code, interpreted from the words in `asm/us/boot_data/kernels.s`, and against a GSM 06.10 reference decoder
+  written from the spec. Kernel by kernel on random and edge inputs, and over 6,160 frames through the game's own
+  frame decoder (`func_80026640`). The kernels keep the assembly's arithmetic: 32-bit products, and sums that wrap
+  where the spec saturates (the filter state and `msr` stay 32-bit, `drp` wraps to 16 bits). So they match the
+  MIPS code always, and the spec until the spec saturates something.
 - All 32 CTests of the other parts still pass with the PC layer linked in.
 - **Boot on a blank cartridge** (`rush2049pc --no-rom --no-pak --audio null`). The game's own boot runs on the PC
   layer: `main` starts the idle thread, the idle thread starts `game_init`, and `game_init` creates the queues and
@@ -306,10 +313,6 @@ the libgsm kernels (below). The other 26 are game and overlay functions with no 
     slots.
   - `fcvt_wrapper` passes a pointer into its own frame as an IDO va_list. Natively it needs a real `va_list`;
     until then `fcvt` copies the format unformatted and logs once.
-- **The libgsm kernels** `func_800277D0` (RPE decoding), `func_800278C4` (long-term synthesis) and `func_80027B44`
-  (short-term synthesis) are still stubs. They were hand-written assembly with PC-relative tables and frameless
-  internal calls (`asm/us/boot_data/kernels.s`, 464 lines), called by `lib_26f60.c`'s decoder with the signatures
-  it declares. They only run when speech plays.
 - **Preemption.** Events never take the baton from a computing thread. A busy-wait not in the list above would hang.
   `--trace-os` and Ctrl-\ show it, and the fix is one more `pc_os_spin_yield`.
 - **Controller pak interop** with N64-order images (v5, emulators) needs a converter that knows the save formats.
@@ -317,7 +320,7 @@ the libgsm kernels (below). The other 26 are game and overlay functions with no 
   undefined. It also sees port/audio's test programs in `compile_commands.json`, which shows up as duplicate
   `main`/`ref_*`.
 - **Untested:**
-  - anything with the ROM;
+  - anything with the ROM, speech included (the GSM kernels have only decoded test frames);
   - the graphics task path end to end (`pc_gfx_run_dl` from a game task);
   - a live window and live input (only scripted input);
   - x86-64 and macOS. On macOS a 64-bit process's 4 GiB `__PAGEZERO` covers 0x80000000, so the window needs
