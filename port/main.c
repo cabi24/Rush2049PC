@@ -59,7 +59,10 @@ static void usage(FILE *f)
             "  --print-config      print the settings in effect, as a settings file, and exit\n"
             "  --status N          a status line every N seconds\n"
             "  -v, --verbose       more log lines (repeat for more); --trace-os: every thread switch\n"
+            "  --log PATH          write the run's output to PATH (default rush2049pc.log where the program keeps\n"
+            "                      its files; the run before is kept as rush2049pc.old.log); --no-log: none\n"
             "  --selftest          test the thread scheduler, queues, events and timers (no ROM needed)\n"
+            "  --version           print the version and the build, and exit\n"
             "F1 (or both stick clicks on a controller) opens the settings overlay, which holds the game; a\n"
             "--press script's MENU does too. Ctrl-\\ prints the N64 threads' states.\n");
 }
@@ -147,7 +150,7 @@ static double fast_clock(void)
 
 #define MAX_OVERRIDES 64
 
-int main(int argc, char **argv)
+static int rush_main(int argc, char **argv)
 {
     const char *dump_audio = getenv("RUSH2049_DUMP_AUDIO"), *config = NULL;
 #ifdef _WIN32
@@ -157,7 +160,8 @@ int main(int argc, char **argv)
 #endif
     int no_rom = 0, selftest = 0, use_config = 1;
     int print_config = 0, fast = 0;
-    const char *bare_rom = NULL;
+    const char *bare_rom = NULL, *log_path = NULL;
+    int use_log = 1;
     PcRunOptions run = {0};
     PcSettingValue over[MAX_OVERRIDES + 1];   /* the command line's settings, in order; [0] for a press file */
     int nover = 1;
@@ -276,7 +280,16 @@ int main(int argc, char **argv)
             pc_os_trace = 1;
         else if (!strcmp(a, "--selftest"))
             selftest = 1;
-        else if (!strcmp(a, "-h") || !strcmp(a, "--help")) {
+        else if (!strcmp(a, "--log"))
+            log_path = ARG();
+        else if (!strcmp(a, "--no-log"))
+            use_log = 0;
+        else if (!strcmp(a, "--version")) {
+            char text[512];
+            pc_app_version_text(text, sizeof text);
+            fputs(text, stdout);
+            return 0;
+        } else if (!strcmp(a, "-h") || !strcmp(a, "--help")) {
             usage(stdout);
             return 0;
         } else {
@@ -296,6 +309,18 @@ int main(int argc, char **argv)
     }
     char exe_dir[PC_CFG_PATH];
     pc_config_exe_dir(exe_dir, sizeof exe_dir, argv[0]);
+    /* The program's folders, and the log of a game run from here on (port/app, docs/port/RELEASE.md). */
+    PcAppDirs dirs;
+    pc_app_dirs(&dirs, exe_dir);
+    if (use_log && !print_config && !selftest) {
+        char default_log[PC_APP_PATH];
+        pc_app_join(default_log, sizeof default_log, dirs.data, "rush2049pc.log");
+        pc_app_log_window(!headless);
+        pc_on_fault = pc_app_on_fault;
+        pc_on_exit = pc_app_finish;
+        if (pc_app_log_open(log_path ? log_path : default_log, argc, argv, &dirs) == 0)
+            fprintf(stderr, "rush2049pc %s: the log is %s\n", pc_app_version(), pc_app_log_path());
+    }
     static PcSettings cfg;
     int file_mode = !use_config || selftest           ? PC_CFG_FILE_NONE
                     : config != NULL || print_config ? PC_CFG_FILE_READ
@@ -346,8 +371,6 @@ int main(int argc, char **argv)
     }
 
     /* The ROM: from the command line as given, else game.rom by the lookup order (port/app/paths.c). */
-    PcAppDirs dirs;
-    pc_app_dirs(&dirs, exe_dir);
     int rom_from_command_line = 0;
     for (int i = 1; i < nover; i++)
         rom_from_command_line |= !strcasecmp(over[i].section, "game") && !strcasecmp(over[i].key, "rom");
@@ -365,7 +388,10 @@ int main(int argc, char **argv)
         blank_files();
     musyx_services(no_rom);
     if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220 */
-        fprintf(stderr, "rush2049pc: no renderer\n");
+        fprintf(stderr, "rush2049pc: no renderer: no OpenGL ES 3.0 or OpenGL 3.1 context\n");
+        pc_app_alert(!headless, "Rush 2049 PC: no graphics",
+                     "The program could not start OpenGL: it needs OpenGL ES 3.0 or OpenGL 3.1 or later.\n\n"
+                     "Updating the graphics driver usually fixes this. The log says more.");
         return 1;
     }
     if (pc_input_init(&cfg) != 0 && !headless)
@@ -388,6 +414,14 @@ int main(int argc, char **argv)
     pc_input_shutdown();
     pc_audio_shutdown();
     pc_gfx_shutdown();
+    pc_app_finish(code);
     fflush(NULL);
     _exit(code);   /* the N64 threads are still running game code: no atexit handlers */
+}
+
+int main(int argc, char **argv)
+{
+    int code = rush_main(argc, argv);   /* returns only when it stops early: an error, --help, --print-config... */
+    pc_app_finish(code);
+    return code;
 }

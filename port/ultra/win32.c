@@ -156,6 +156,10 @@ static LONG WINAPI fault(EXCEPTION_POINTERS *ep)
     int frames = unwind(&ctx, pcs, MAX_FRAMES);
     print_frames(pcs, frames);
     fflush(stderr);
+    if (pc_on_fault && n > 13 && n < (int)sizeof line) {
+        line[n - 1] = 0;          /* the line without its newlines */
+        pc_on_fault(line + 13);   /* nor "\nrush2049pc: " */
+    }
     return EXCEPTION_EXECUTE_HANDLER;   /* the process ends with the exception's code */
 }
 

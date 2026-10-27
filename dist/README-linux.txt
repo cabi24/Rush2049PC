@@ -51,6 +51,13 @@ Saves
 -----
 The game saves to a controller pak image, rush2049pc.mpk, in the folder the program runs in.
 
+Troubleshooting
+---------------
+- Everything the program prints is also written to ~/.local/share/rush2049pc/rush2049pc.log (or next to the
+  program when rush2049pc.ini is there); the run before is kept as rush2049pc.old.log.
+- Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; ./rush2049pc --version says
+  which build you have)
+
 Licences
 --------
 This package contains no game data: you need your own ROM of the cartridge. The program includes

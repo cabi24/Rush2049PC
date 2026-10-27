@@ -153,6 +153,10 @@ uint32_t pc_os_mem_size(void);
 void pc_os_set_expansion_pak(int on);   /* osMemSize 8 MiB instead of 4 */
 void pc_print_backtrace(int skip);
 void pc_fault_install(void);       /* SIGSEGV and friends: report the N64 thread and a backtrace */
+/* main's part of the end of the process (port/app's log, docs/port/RELEASE.md): pc_on_fault after a fault's report
+ * (what: its first line), before the process ends; pc_on_exit before an _exit that ends a run. NULL: nothing. */
+extern void (*pc_on_fault)(const char *what);
+extern void (*pc_on_exit)(int code);
 void pc_fault_thread_init(void);   /* per host thread: an alternate signal stack */
 
 /* ---------------------------------------------------------------- port/input */

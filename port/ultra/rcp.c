@@ -79,6 +79,8 @@ static void report_first_gfx(const PcOSTask *t)
         fprintf(stderr, "rush2049pc: --stop-at-gfx: stopping here\n");
         pc_si_flush();
         fflush(NULL);
+        if (pc_on_exit)
+            pc_on_exit(0);
         _exit(0);   /* the N64 threads are still running game code: no atexit handlers */
     }
 }

@@ -8,7 +8,9 @@ executable only), `port/ultra/romcheck.c`, and `.github/workflows/release.yml`.
 |---|---|
 | `port/app/paths.c` | the program's folders (its own, the user data folder, the working directory, portable or not) and the places the ROM is looked for |
 | `port/app/rom.c` | the ROM at startup: the lookup, then the console message and the message box when it fails |
-| `port/app/alert.c` | message boxes: SDL2's `SDL_ShowSimpleMessageBox`, or Windows' `MessageBoxA` without SDL2 |
+| `port/app/alert.c` | message boxes: SDL2's `SDL_ShowSimpleMessageBox`, or Windows' `MessageBoxA` without SDL2 (and for a fault) |
+| `port/app/log.c` | the version; the log file; the end of a run: the log emptied, on Windows the wait for a key and the fault's message box |
+| `cmake/version.cmake` | the version, the commit and the build, written into `build/.../version/pc_version.c` at each build |
 | `port/ultra/romcheck.c` | what a file is: byte order (swapped in place), SHA-1, header, and a sentence saying what it is when it isn't the USA cartridge |
 | `port/app/tests/test_app.c` | `app_paths`: the folders and the lookup order, in temporary folders |
 | `port/ultra/tests/test_romcheck.c` | `ultra_romcheck`: romcheck.c on images the test makes |
@@ -143,6 +145,67 @@ and that it will probably not work. A usable ROM gives one line: `rush2049pc: RO
   bytes after the swap); the USA header with other contents and another size; Europe, Japan, an unknown region,
   revision 1; another game, the synthetic cartridge's header, a name that isn't ASCII; a ZIP, a 7-Zip, a gzip, an
   ELF file, an empty file, a short one.
+
+## The log
+
+Every game run writes what it prints into a log file as well as to the console: `rush2049pc.log` in the folder
+where the program keeps what it writes (below), and the run before is kept as `rush2049pc.old.log` (`.log`, so
+it opens with a double click on Windows). `--log PATH` writes another file, and `--no-log` writes none.
+`--help`, `--version`, `--print-config` and `--selftest` write no log.
+
+- **The folder.** Next to the program when `rush2049pc.ini` is there (portable). Otherwise the user data folder:
+  `%APPDATA%\rush2049pc` on Windows, `$XDG_DATA_HOME/rush2049pc` (`~/.local/share/rush2049pc`) on Linux. If there
+  is no user folder either, the working directory. It is made when it is missing. The console's first line names
+  the file: `rush2049pc v1.0-3-gabc1234: the log is C:\Users\me\AppData\Roaming\rush2049pc\rush2049pc.log`.
+- **What it starts with:** the version, the commit, the build, the platform and compiler, the time, the program's
+  folder, the working directory, portable or installed, and the command line:
+
+  ```
+  rush2049pc 590baca
+  commit 590baca3964ba93fd186a31cd6390dd7abc3a0fd, GitHub Actions run 40574335614 (cabi24/Rush2049PC)
+  Windows x86-64, gcc 12-posix
+  started 2026-10-27 21:04:11; program folder C:\Games\rush2049pc; working directory C:\Games\rush2049pc; installed
+  command line: C:\Games\rush2049pc\rush2049pc.exe
+  ```
+
+  The commit and the Actions run say which build it was, so the `rush2049pc.exe+0x...` frames of a Windows
+  backtrace can be symbolized with that run's exe (WINDOWS.md 1). `--version` prints the same first three lines.
+- **How.** At the start of a run, stderr (fd 2) becomes the writing end of a pipe, and a thread copies what comes
+  out of it to the console (fd 2 as it was) and to the file. So everything printed reaches both, by any part of
+  the program or its libraries, `WriteFile` to the standard error handle included (Windows: `SetStdHandle`).
+- **The end.** Before the process ends, stderr is put back. That ends the pipe, and the program waits (up to 3 s)
+  until the thread has copied everything:
+  - at the end of a run and on an early error (`main` → `pc_app_finish`);
+  - at `--stop-at-gfx`'s `_exit` (`pc_on_exit`);
+  - after a fault's report and backtrace (`pc_on_fault`, from `misc.c`'s signal handler and `win32.c`'s exception
+    filter), so the report is in the file. Only calls that are safe in a signal handler are used.
+  - `abort()` (`pc_fatal`, the CRT): a SIGABRT handler prints a backtrace, empties the pipe, then aborts.
+- **Windows, a double-click.** The console is the program's own and closes when it ends (`GetConsoleProcessList`
+  returns 1). Then, after an error exit or a fault, it prints "press a key to close this window" and waits
+  (`_getch`). A program started from a command prompt shares the console and doesn't wait. `RUSH2049_WAIT_KEY=1`
+  forces the wait (with stdin not a console, it reads a line from stdin), `=0` turns it off.
+- **Windows, a fault** with a window also shows a message box, "Rush 2049 PC stopped", with the fault's first
+  line, the log's path and where to report it. The box is `MessageBoxA`, not SDL's, since it is shown from inside
+  the exception filter.
+
+Tested by `app_firstrun` (`tools/port/firstrun_check.py`): the boot without a ROM, which faults, leaves a log with
+the header, the run, the fault line and its backtrace; two runs keep the first as `rush2049pc.old.log`; a copy of
+the program with `rush2049pc.ini` next to it logs next to it; `--log` and `--no-log`; `--version`; on Windows the
+forced wait for a key. Every synthetic path (`synth_paths.py`) runs with `--log NAME.game.log` and checks that the
+log has the state the console reached. `release.yml`'s `windows-check` checks the log of the zip's program after
+its boot without a ROM (the fault and backtrace in it), `--version`'s Actions run, and the forced wait.
+
+## Versions
+
+`rush2049pc --version`, the log's first lines and the console's first line give the version: `git describe --tags
+--always --dirty` at build time (`v1.0`, `v1.0-3-gabc1234`, `abc1234` before any tag, `-dirty` with uncommitted
+changes), the full commit, and "GitHub Actions run N (owner/repo)" or "local build".
+
+- `cmake/version.cmake` runs at every build (the `pc_version` target) and rewrites `pc_version.c` only when the
+  text changes, so a build that changes nothing relinks nothing.
+- **Without git** (a source archive), `cmake/version-archive.txt` gives them: `.gitattributes` marks it
+  `export-subst`, so `git archive` (and GitHub's source downloads) fill in `%(describe:tags=true)` and `%H`.
+  Otherwise the version is "unknown" (as in a copy synced by `tools/port/remote.sh`, which has no `.git`).
 
 ## Release archives
 

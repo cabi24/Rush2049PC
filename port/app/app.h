@@ -33,6 +33,8 @@ void pc_app_dirs(PcAppDirs *d, const char *exe_dir);
 void pc_app_join(char *out, size_t size, const char *dir, const char *name);
 int pc_app_is_absolute(const char *path);
 int pc_app_exists(const char *path);   /* anything there (a file, a folder) */
+void pc_app_dirname(const char *path, char *out, size_t size);   /* "." for a bare name */
+int pc_app_mkdirs(const char *dir);    /* the folder and its parents; 0 when it is there */
 
 /* ---------------------------------------------------------------- paths.c: where the ROM is looked for */
 
@@ -55,6 +57,25 @@ int pc_app_rom_find(const PcAppPlace *places, int n);
  * prints it to stderr instead ("rush2049pc: message box: TITLE" and the text), =off shows none. 0 when it was
  * shown or printed. The text is also for the console, so the caller prints its own short message too. */
 int pc_app_alert(int show, const char *title, const char *text);
+/* The same with Windows' own MessageBoxA there (no SDL: for a fault, inside the exception filter). */
+int pc_app_alert_native(int show, const char *title, const char *text);
+
+/* ---------------------------------------------------------------- log.c: the version, the log, the end */
+
+const char *pc_app_version(void);                   /* git describe at build time (cmake/version.cmake) */
+void pc_app_version_text(char *out, size_t size);   /* --version: the version, commit, build, platform */
+/* The run's output into path as well as the console, from now on; the run before is kept as *.old.log. The log
+ * starts with the version, the time, the folders and the command line. 0 when it is open; otherwise a warning is
+ * printed and the program runs without it. */
+int pc_app_log_open(const char *path, int argc, char **argv, const PcAppDirs *d);
+void pc_app_log_close(void);         /* everything printed is in the file; stderr is the console again */
+const char *pc_app_log_path(void);   /* NULL without a log */
+void pc_app_log_window(int window);  /* the program has a window: a fault shows a message box (Windows) */
+/* port/ultra's pc_on_fault: the log closed; on Windows a message box saying where it is (with a window), and a
+ * wait for a key when the program owns its console. */
+void pc_app_on_fault(const char *what);
+/* The end of a run with this exit code: the log closed; on Windows, after an error, the wait for a key. */
+void pc_app_finish(int code);
 
 /* ---------------------------------------------------------------- rom.c: the ROM at startup */
 

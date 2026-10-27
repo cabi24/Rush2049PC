@@ -1,0 +1,2 @@
+# git archive fills in the version for a source archive without .git (cmake/version.cmake)
+cmake/version-archive.txt export-subst

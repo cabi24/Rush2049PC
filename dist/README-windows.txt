@@ -62,9 +62,13 @@ Troubleshooting
 - "wrong ROM": the message says what the file is: another game, another region (the port runs the USA
   cartridge only), a bad or modified dump, or an archive to extract first.
 - No window, or "no renderer": update the graphics driver; the game needs OpenGL 3.
-- To keep the console's messages, run it from a command prompt:
-    rush2049pc.exe > rush2049pc.log 2>&1
-- Problems and logs: https://github.com/cabi24/Rush2049PC/issues
+- The log: everything the console shows is also written to rush2049pc.log, in %APPDATA%\rush2049pc (type
+  that into Explorer's address bar), or in this folder when rush2049pc.ini is here. The console's first line
+  says where. The run before is kept as rush2049pc.old.log.
+- If the program stops with an error, a message box says where the log is, and the console window stays
+  open until you press a key.
+- Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; rush2049pc.exe --version
+  says which build you have)
 
 Licences
 --------

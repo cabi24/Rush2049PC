@@ -1,0 +1,2 @@
+describe: $Format:%(describe:tags=true)$
+commit: $Format:%H$

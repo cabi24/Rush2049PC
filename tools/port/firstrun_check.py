@@ -48,42 +48,56 @@ def swap32(b):
 
 
 def run(exe, case, args, expect, unexpect=(), code=1, env_extra=None, box="print", files=None, user_files=None,
-        locked=()):
+        locked=(), copy_exe=False, program_files=None, runs=1, after=None, stdin=None, no_config=True):
     """Runs the program in a fresh folder holding files; checks its exit code and that its output has each of expect
-    and none of unexpect."""
+    and none of unexpect. copy_exe runs a copy of the program from its own folder there, with program_files next to
+    it. after(folders, output) returns more failures, looked for before the folders go."""
     global failures
     with tempfile.TemporaryDirectory(prefix="rush2049pc-firstrun-") as tmp:
         tmp = Path(tmp)
-        work, data, conf = tmp / "work", tmp / "data", tmp / "config"
-        for d in (work, data, conf):
+        work, data, conf, prog = tmp / "work", tmp / "data", tmp / "config", tmp / "program"
+        for d in (work, data, conf, prog):
             d.mkdir()
         user = data / "rush2049pc"
-        user.mkdir()
+        if not after:
+            user.mkdir()
+        if copy_exe:
+            shutil.copy2(exe, prog / Path(exe).name)
+            for dll in Path(exe).parent.glob("*.dll"):   # Windows: Mesa's opengl32.dll in CI
+                shutil.copy2(dll, prog / dll.name)
+            exe = str(prog / Path(exe).name)
+        for name, content in (program_files or {}).items():
+            (prog / name).write_bytes(content)
         for name, content in (files or {}).items():
             if content is None:
                 (work / name).mkdir()
             else:
                 (work / name).write_bytes(content)
         for name, content in (user_files or {}).items():
+            user.mkdir(exist_ok=True)
             (user / name).write_bytes(content)
         for name in locked:
             os.chmod(work / name, 0)
         env = dict(os.environ, XDG_DATA_HOME=str(data), XDG_CONFIG_HOME=str(conf), HOME=str(tmp), APPDATA=str(data))
-        for v in ("DISPLAY", "WAYLAND_DISPLAY", "RUSH2049_MESSAGE_BOX"):
+        for v in ("DISPLAY", "WAYLAND_DISPLAY", "RUSH2049_MESSAGE_BOX", "RUSH2049_WAIT_KEY"):
             env.pop(v, None)
         if box:
             env["RUSH2049_MESSAGE_BOX"] = box
         env.update(env_extra or {})
-        cmd = [exe, "--no-config", "--audio", "null"] + [a.replace("@WORK@", str(work)) for a in args]
-        try:
-            p = subprocess.run(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
-            out, rc = p.stdout.decode(errors="replace"), p.returncode
-        except subprocess.TimeoutExpired:
-            out, rc = "(timed out)", None
+        cmd = [exe] + (["--no-config"] if no_config else []) + ["--audio", "null"] + \
+            [a.replace("@WORK@", str(work)) for a in args]
+        for _ in range(runs):
+            try:
+                p = subprocess.run(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   timeout=60, input=stdin)
+                out, rc = p.stdout.decode(errors="replace"), p.returncode
+            except subprocess.TimeoutExpired:
+                out, rc = "(timed out)", None
         for name in locked:   # readable again, for the clean-up
             os.chmod(work / name, stat.S_IRWXU)
-        out = out.replace(str(work), "@WORK@").replace(str(user), "@USER@")
-    why = []
+        more = after({"work": work, "user": user, "program": prog}, out) if after else []
+        out = out.replace(str(work), "@WORK@").replace(str(user), "@USER@").replace(str(prog), "@PROGRAM@")
+    why = list(more)
     if rc != code:
         why.append(f"exit {rc}, expected {code}")
     why += [f"no '{e}'" for e in expect if e not in out]
@@ -171,6 +185,42 @@ def main():
     if not win:
         run(exe, "SDL box, no display", ["--window"], ["no ROM: baserom.us.z64 is in none"], ["message box: Rush"],
             box=None, env_extra={"SDL_VIDEODRIVER": "dummy"})
+
+    # The log (docs/port/RELEASE.md, "The log"): in the user data folder, with the version first, everything the
+    # console got, a fault's report and backtrace; the run before kept; next to a portable program; --log, --no-log
+    def log_has(folder, name, *want):
+        def check(d, out):
+            f = d[folder] / name
+            if not f.exists():
+                return [f"no {folder}/{name}"]
+            text = f.read_text(encoding="utf-8", errors="replace")
+            return [f"{name} lacks '{w}'" for w in want if w not in text]
+        return check
+
+    def both(*checks):
+        return lambda d, out: sum((c(d, out) for c in checks), [])
+
+    fault = "Access violation (read) (0xC0000005)" if win else "Segmentation fault"
+    boot = ["--no-rom", "--headless", "--fast", "--seconds", "10"]
+    run(exe, "log: a fault", boot, [f"the log is @USER@{sep}rush2049pc.log", fault],
+        code=0xC0000005 if win else -11, env_extra={"RUSH_TRACE_WAVES": "1"},
+        after=log_has("user", "rush2049pc.log", "rush2049pc ", "commit ", "command line:", "wave 0 loaded",
+                      f"{fault} at address", "  #1 ", "the log is "))
+    run(exe, "log: the run before", ["--window"], ["the log is "], runs=2,
+        after=both(log_has("user", "rush2049pc.log", "no ROM: baserom.us.z64"),
+                   log_has("user", "rush2049pc.old.log", "no ROM: baserom.us.z64", "started ")))
+    run(exe, "log: portable", ["--window"], [f"the log is @PROGRAM@{sep}rush2049pc.log"], copy_exe=True,
+        program_files={"rush2049pc.ini": b"[video]\nscale = 2\n"}, no_config=False,
+        after=log_has("program", "rush2049pc.log", "portable (rush2049pc.ini next to the program)",
+                      "It looked for baserom.us.z64 in:"))
+    run(exe, "log: --log", ["--log", "my.log"], ["the log is my.log"], after=log_has("work", "my.log", "no ROM"))
+    run(exe, "log: --no-log", ["--no-log"], ["no ROM"], ["the log is"],
+        after=lambda d, out: [f"a log in {d['user']}"] if (d["user"] / "rush2049pc.log").exists() else [])
+    run(exe, "--version", ["--version"], ["rush2049pc ", "commit ", "Linux" if not win else "Windows"], code=0,
+        after=lambda d, out: ["--version wrote a log"] if d["user"].exists() else [])
+    if win:   # the wait for a key after an error, forced (CI's console is not the program's own)
+        run(exe, "wait for a key", ["--window"], ["press a key to close this window"], stdin=b"x\n",
+            env_extra={"RUSH2049_WAIT_KEY": "1"})
 
     print(f"firstrun: {'FAILED' if failures else 'all passed'}")
     return 1 if failures else 0

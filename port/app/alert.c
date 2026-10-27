@@ -6,22 +6,42 @@
 #include <string.h>
 #ifdef PC_HAVE_SDL2
 #include <SDL.h>
-#elif defined(_WIN32)
+#endif
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
 #include "app.h"
 
-int pc_app_alert(int show, const char *title, const char *text)
+/* 1 when the box is printed or not shown at all (RUSH2049_MESSAGE_BOX), 0 when it is to be shown. */
+static int print_or_skip(int show, const char *title, const char *text)
 {
     const char *mode = getenv("RUSH2049_MESSAGE_BOX");
     if (!show || (mode && !strcmp(mode, "off")))
-        return -1;
+        return 1;
     if (mode && !strcmp(mode, "print")) {
         fprintf(stderr, "rush2049pc: message box: %s\n%s\nrush2049pc: (end of message box)\n", title, text);
-        return 0;
+        return 1;
     }
+    return 0;
+}
+
+int pc_app_alert_native(int show, const char *title, const char *text)
+{
+#ifdef _WIN32
+    if (print_or_skip(show, title, text))
+        return 0;
+    return MessageBoxA(NULL, text, title, MB_OK | MB_ICONERROR | MB_SETFOREGROUND | MB_TOPMOST) ? 0 : -1;
+#else
+    return pc_app_alert(show, title, text);
+#endif
+}
+
+int pc_app_alert(int show, const char *title, const char *text)
+{
+    if (print_or_skip(show, title, text))
+        return 0;
 #ifdef PC_HAVE_SDL2
     if (SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, text, NULL) == 0)
         return 0;
