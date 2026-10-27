@@ -2836,10 +2836,18 @@ extern s32 D_80155148;
 extern s32 D_80155178;
 extern s32 D_801551A8;
 extern s32 D_801551D8;
+#ifdef TARGET_PC
+extern intptr_t D_801551E8[10];   /* function pointers (groups/func_800B7438) */
+#else
 extern s32 D_801551E8;
+#endif
 extern s32 D_801551EC;
 extern s32 D_801551F0;
+#ifdef TARGET_PC
+#define D_80155210 D_801551E8[10]   /* the table's end: 8-byte slots on the PC */
+#else
 extern s32 D_80155210;
+#endif
 extern s32 D_80155220;
 extern s32 D_80155238;
 extern s32 D_80155240;

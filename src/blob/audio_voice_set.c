@@ -3,12 +3,16 @@ typedef float f32;
 typedef int s32;
 typedef unsigned int u32;
 typedef unsigned char u8;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Voice Voice;
 struct Voice {
     Voice *next;
     u32 reserved4;
     f32 start;
-    s32 handle;
+    intptr_t handle;
     u8 pad10[12];
     u8 bytes[4];
     s32 enabled;
@@ -20,8 +24,8 @@ typedef struct VoiceLists {
 } VoiceLists;
 extern VoiceLists D_80155220;
 extern f32 D_8002EB90;
-extern void func_8008C074(s32, s32, s32, s32, u8 *, s32, s32);
-extern void func_8008D0C0(s32);
+extern void func_8008C074(intptr_t, s32, s32, s32, u8 *, s32, s32);
+extern void func_8008D0C0(intptr_t);
 extern void func_800AFA84(VoiceLists *, Voice *);
 void audio_voice_set(void) {
     Voice *p, *next;

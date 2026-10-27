@@ -3692,7 +3692,7 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-void task_complete_signal(s32 arg0) {
+void task_complete_signal(intptr_t arg0) {
     osCreateMesgQueue((OSMesgQueue *) &D_80153E68, (void **) &D_80153EF0, 1);
     M2C_FIELD(&D_80153F10, s8 *, 0) = 0;
     for (;;) {

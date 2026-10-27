@@ -111,7 +111,15 @@ typedef struct Cam {Link link;signed char active;signed char queued;u8 pad[2];f3
 extern intptr_t D_80110260;
 extern List D_801461E8;
 Cam *func_800AED20(void);
-s32 camera_target_track(f32 *pos,f32 a1,f32 volume,f32 a3,f32 x,f32 y,u32 index,u32 other,u32 value,u8 mode) {
+#ifdef TARGET_PC
+/* a1 is never read, and every caller passes a pointer there. On the N64 (o32) everything after the leading
+ * pointer travels in GPRs, so its type was moot; on the PC an f32 would take s0 and shift every float after it
+ * (docs/port/PROTOTYPES.md). */
+#define CTT_A1 void *
+#else
+#define CTT_A1 f32
+#endif
+s32 camera_target_track(f32 *pos,CTT_A1 a1,f32 volume,f32 a3,f32 x,f32 y,u32 index,u32 other,u32 value,u8 mode) {
  Object24 *object;Cam *cam;char buf[4];u32 result;
  if(D_80110260==0)return -1;
  osRecvMesg(&D_80142728,0,1);

@@ -31,7 +31,7 @@ extern s32 D_801427A8;
 extern s8 D_8011062C;           /* inited */
 extern s8 D_80110634;           /* panesCreated */
 extern intptr_t D_80110630;          /* blit */
-extern s32 D_80110648;          /* gTitlePane */
+extern intptr_t D_80110648;          /* gTitlePane */
 extern s32 D_801105B4;          /* buttonsInited */
 extern UButton D_801102B4[12];  /* buttonInfo */
 extern u32 state_word_a;        /* gGameState */
@@ -41,7 +41,7 @@ void func_80091AF8(void);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 void entity_spawn_callback(s16 idx, s32 freeChildren, s32 freeSiblings);
 void sound_handles_clear(s32 arg0);
-void sound_stop(s32 sound_id);
+void sound_stop(intptr_t sound_id);
 void ambient_sounds_clear(void);
 
 void us_ProcessCommand(Msg *task)

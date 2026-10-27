@@ -3692,7 +3692,7 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-void func_800B27E4(s32 arg0) {
+void func_800B27E4(intptr_t arg0) {
     s16 i;
     s8 *p;
 

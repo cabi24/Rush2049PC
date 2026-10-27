@@ -51,6 +51,15 @@ extern void *memcpy(void *, const void *, u32);
 extern void audio_reverb_update(u32, s32);                         /* _DeallocateMemory (internal, IPA a1/a2) */
 void func_80095CF4(void);   /* _GetSemaphore@memsys.c */
 void func_80095CFC(void);   /* _ReleaseSemaphore@memsys.c */
+#ifdef TARGET_PC
+/* Their manifest owners are empty deleted-procedure stubs (src/blob/func_80095CF4.c, func_80095CFC.c); the
+ * bodies (heap_release/wheel_params_set.c) were inlined here (docs/port/PROTOTYPES.md). */
+extern struct OSMesgQueue D_80152770;
+int osRecvMesg(struct OSMesgQueue *, void **, int);
+int osSendMesg(struct OSMesgQueue *, void *, int);
+#define func_80095CF4() osRecvMesg(&D_80152770, 0, 1)
+#define func_80095CFC() osSendMesg(&D_80152770, 0, 0)
+#endif
 
 u32 func_800B0EA0(u32 left, u32 right, s32 ratio)
 {

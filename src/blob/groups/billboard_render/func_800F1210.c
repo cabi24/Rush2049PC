@@ -20,18 +20,27 @@ typedef signed char s8;
 typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct Rect { s16 x,y,w,h; s16 unknown[2]; } Rect;
 typedef struct TextInfo { char unknown[54]; u16 index; } TextInfo;
 typedef struct TextState { s32 unknown[3]; TextInfo *info; char **strings; } TextState;
 extern TextState countdown_state;
+#ifdef TARGET_PC
+extern intptr_t D_801148CC;
+extern s32 gHighScoreState, D_8014A110, D_80144DA0;
+#else
 extern s32 gHighScoreState, D_801148CC, D_8014A110, D_80144DA0;
+#endif
 extern s16 active_player_count, gNumWindows;
 extern s8 *namePanes[], *codePane, *D_80149798[3], *D_80149778[2];
 extern s8 D_801460C0, D_801148D0;
 extern Rect D_801148E8[][4];
 extern char D_80120600[], D_801148A8[];
-extern void sound_stop(s32);
+extern void sound_stop(intptr_t);
 extern void RemovePane(s8 *);
 extern void func_800F1114(void);
 extern void *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
@@ -53,7 +62,7 @@ s32 hs_font_set(s32 font)
 extern s32 object_manager_update(char *,s32);
 extern s16 object_bytes_sum_global(void);
 extern void FindGhosts(s32), PrintScores(void);
-extern s32 sound_control(s32,s32,void *,s32);
+extern intptr_t sound_control(s32,s32,void *,s32);
 
 void SetHighScoreState(s32 newState)
 {

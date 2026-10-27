@@ -3750,7 +3750,7 @@ void task_complete_signal(s32 arg0);
 s32 time_of_day_select(s32 arg0, s32 arg1, s32 *arg2, s32 *arg3, s32 arg4);
 void time_result_display(void);
 void tire_sound_update(void);
-void tournament_trophy_award(s32 arg0);
+void tournament_trophy_award(intptr_t arg0);
 void tournament_unlock_check(void *arg0, void *arg1, void *arg2);
 s32 track_collision(void *arg0, s32 arg1);
 s32 track_collision_edge(void *arg0, s32 arg1);
@@ -3791,7 +3791,7 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-void func_800F42C8(s32 arg0)
+void func_800F42C8(intptr_t arg0)
 {
   s8 *var_s0;
   u8 *new_var3;

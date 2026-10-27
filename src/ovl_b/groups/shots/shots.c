@@ -44,6 +44,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
@@ -226,7 +230,7 @@ void func_8038F560(Shot *shot, Car *car);       /* _InitNewShot */
 extern void func_8038D3A4(Car *car, Car *hit, s32 damage); /* BattleDamage */
 extern void func_8038D798(f32 *pos, f32 *old, s32 owner, f32 radiussq, s32 damage); /* ProximityDamage */
 extern void func_8038DDDC(Shot *shot);          /* MissileLock */
-extern s32 input_deadzone_apply(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b); /* ShotToWorldCollision */
+extern intptr_t input_deadzone_apply(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b); /* ShotToWorldCollision */
 extern void func_8009E820(f32 *v, f32 *out, f32 *uvs);   /* WorldVector */
 extern void func_8008D870(s16 obj, void *tex, s32 a);    /* ZOID_SetTexture */
 extern void func_8008B32C(f32 *src, f32 *dst, f32 s);    /* ScaleUV */

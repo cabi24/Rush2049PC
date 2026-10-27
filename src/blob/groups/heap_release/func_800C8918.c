@@ -58,6 +58,12 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 ShutdownMsg *func_80091B00(void);
 
+#ifdef TARGET_PC
+/* func_800960CC's manifest owner is the empty deleted-procedure stub (src/blob/func_800960CC.c): its body, the
+ * locked heap free, was inlined here. audio_effect_process (heap_release/group.c) is that body under a name the
+ * link keeps (docs/port/PROTOTYPES.md). */
+#define func_800960CC audio_effect_process
+#endif
 void func_800960CC(u32 address);
 void func_800C885C(void);
 void func_80091AF0(void);

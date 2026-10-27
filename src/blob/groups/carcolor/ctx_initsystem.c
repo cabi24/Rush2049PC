@@ -132,6 +132,12 @@ extern void func_800DE45C();
 extern void viTickStart(void);
 void func_80095CF4(void);   /* _GetSemaphore@memsys.c (wheel_params_set.c) */
 void func_80095CFC(void);   /* _ReleaseSemaphore@memsys.c (wheel_params_set.c) */
+#ifdef TARGET_PC
+/* Their manifest owners are empty deleted-procedure stubs (src/blob/func_80095CF4.c, func_80095CFC.c): the
+ * bodies get written in place (docs/port/PROTOTYPES.md). */
+#define func_80095CF4() osRecvMesg(&D_80152770, 0, 1)
+#define func_80095CFC() osSendMesg(&D_80152770, 0, 0)
+#endif
 void DeallocateMemory_Init(u32 address);
 
 

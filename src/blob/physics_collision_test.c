@@ -35,11 +35,19 @@ extern char D_8013C378[];
 extern int D_801392D8[6];
 extern s8 D_80156994;
 extern s8 D_8014978C;
+#ifdef TARGET_PC
+extern char *D_80117480[6];   /* the six model names: N64 pointers in the data, host pointers once loaded */
+#else
 extern int D_80117480[6];
+#endif
 extern s16 D_8013F380[6];
 extern u8 gNumModels;
 void pool_linked_list_init(Pool *pool);
+#ifdef TARGET_PC
+void func_800B24EC(char *a, s16 *b, int c, int d, int e);
+#else
 void func_800B24EC(int a, s16 *b, int c, int d, int e);
+#endif
 
 /* one-line multi-statement macro: stands in for the inlined kept struct_fields_init (one .loc) */
 #define POOL_SETUP(pool, m, n, sz) { (pool).mem = (m); (pool).count = (n); (pool).size = (sz); (pool).flag = 0; }

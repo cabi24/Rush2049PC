@@ -7,7 +7,7 @@ typedef s32 intptr_t;
 #endif
 typedef struct { u8 *p[22]; } List;
 extern List D_801149B4;
-u8 func_800F0674(u8 *a, s32 b);
+u8 func_800F0674(u8 *a, intptr_t b);
 u8 func_800F084C(intptr_t arg) {
     u8 r;
     u8 **p;

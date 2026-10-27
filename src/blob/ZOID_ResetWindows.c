@@ -32,10 +32,18 @@ extern u8 D_80146204;
 extern u8 D_8017A63C;
 extern s32 D_8011EA30;
 extern s16 D_80149870[4];
+#ifdef TARGET_PC
+extern f32 D_80154188;   /* the field of view (90.0f): arb_rate_set takes it as an f32 */
+#else
 extern s32 D_80154188;
+#endif
 extern ArbEntry D_8017A510[];
 
+#ifdef TARGET_PC
+ArbEntry *arb_rate_set(s32 idx, void *a, void *b, f32 c, f32 d, f32 e, f32 f, f32 g, f32 h);
+#else
 ArbEntry *arb_rate_set(s32 idx, void *a, void *b, s32 c, f32 d, f32 e, f32 f, f32 g, f32 h);
+#endif
 
 void ZOID_ResetWindows(void) {
     ArbEntry *e;

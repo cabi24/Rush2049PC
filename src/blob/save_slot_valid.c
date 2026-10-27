@@ -18,7 +18,16 @@ extern s32 *D_803B9AA0[];
 void *func_800A7D6C(void);
 s32 func_8008E26C(s32 id, void *owner, s16 parent, s32 flags);
 
-void save_slot_valid(s32 id, s16 layer, s16 parent, s32 flags, s16 row, s16 col, s32 dynamic)
+#ifdef TARGET_PC
+/* This wrapper ends in a call to func_8008E26C (MBOX_NewObject), whose result stays in v0 through the void
+ * return; every caller reads it. On the PC the wrapper returns it (docs/port/PROTOTYPES.md). */
+#define PC_V0_S32 s32
+#define PC_V0_RETURN return
+#else
+#define PC_V0_S32 void
+#define PC_V0_RETURN
+#endif
+PC_V0_S32 save_slot_valid(s32 id, s16 layer, s16 parent, s32 flags, s16 row, s16 col, s32 dynamic)
 {
     void *owner;
 
@@ -30,5 +39,5 @@ void save_slot_valid(s32 id, s16 layer, s16 parent, s32 flags, s16 row, s16 col,
     } else {
         owner = D_803B9AA0[row / 13 * 12 + col];
     }
-    func_8008E26C(id, owner, parent, ((layer << 8) ^ 0xF00) | flags);
+    PC_V0_RETURN func_8008E26C(id, owner, parent, ((layer << 8) ^ 0xF00) | flags);
 }

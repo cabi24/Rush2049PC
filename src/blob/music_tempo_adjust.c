@@ -3694,6 +3694,21 @@ typedef s64 M2C_UNK64;
 
 s32 fcvt(s8 *, s32, void *);        /* extern */
 
+#ifdef TARGET_PC
+/* PC: printf at (x, y), formatted by the host as fcvt_wrapper does. The N64 version hands fcvt the address of
+ * its stack arguments as an IDO va_list, and its format (arg2) is a pointer every caller passes
+ * (docs/port/PROTOTYPES.md). */
+int vsprintf(char *, const char *, __builtin_va_list);
+void music_tempo_adjust(s16 arg0, s16 arg1, const char *arg2, ...) {
+    s8 buf[0x100];
+    __builtin_va_list ap;
+
+    __builtin_va_start(ap, arg2);
+    vsprintf((char *) buf, arg2, ap);
+    __builtin_va_end(ap);
+    state_utility(arg0, (s32) arg1, buf);
+}
+#else
 void music_tempo_adjust(s16 arg0, s16 arg1, s32 arg2, ...) {
     s8 buf[0x100];
     s8 *ap;
@@ -3702,4 +3717,5 @@ void music_tempo_adjust(s16 arg0, s16 arg1, s32 arg2, ...) {
     fcvt(buf, arg2, ap);
     state_utility(arg0, (s32) arg1, buf);
 }
+#endif
 

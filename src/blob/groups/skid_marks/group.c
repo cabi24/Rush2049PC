@@ -149,6 +149,13 @@ void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     func_8008C074(obj->dl, 4, slot->quad, 0, obj->color, 0, 0);
 }
 
+#ifdef TARGET_PC
+/* The manifest owners of func_800AFB30 and func_800AFD54 are empty deleted-procedure stubs
+ * (src/blob/func_800AFB30.c, func_800AFD54.c), which this group's calls bind to on PC. The bodies
+ * written here get their own names (docs/port/PROTOTYPES.md). */
+#define func_800AFB30 pc_func_800AFB30
+#define func_800AFD54 pc_func_800AFD54
+#endif
 /* func_800AFB30 = arcade GetSkid: take a skid from the pool, or steal the one farthest from the camera.
  * Not `static`, not in `keep`: umerge inlines it into its only caller and leaves the retail `jr ra` stub. */
 EffectObj *func_800AFB30(u8 *color)

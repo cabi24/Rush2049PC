@@ -788,7 +788,7 @@ extern void Effects_UpdateEmitters(void);
 extern void PhysicsObjectList_Update(void);
 extern void UpdateActiveObjects(void);
 extern void input_aux_handler(void);
-extern void sound_stop(s32 sound_id);
+extern void sound_stop(intptr_t sound_id);
 extern void input_init_flag_get(void);
 extern void viUpdateTime(void);
 extern void sound_init(void);
@@ -1459,7 +1459,7 @@ s32 world_velocity_integrate();
 extern intptr_t D_801541A4;
 void player_state_clear(void)
 {
-  s32 handle;
+  intptr_t handle;
 
   handle = D_801541A4;
   if (handle != 0)

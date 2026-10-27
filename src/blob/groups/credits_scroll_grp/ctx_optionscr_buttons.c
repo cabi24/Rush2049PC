@@ -83,7 +83,7 @@ void model_data_load();
 void model_transform_setup();
 
 extern u32 state_word_a;
-extern s32 D_80116DA4;
+extern intptr_t D_80116DA4;
 extern intptr_t D_80116D98;
 extern s8 D_80116D94;
 void sound_handles_clear(s32 arg0);

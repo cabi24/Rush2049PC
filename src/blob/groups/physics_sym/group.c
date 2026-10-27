@@ -76,7 +76,7 @@ extern s8 D_8011AD38;
 extern intptr_t D_8011AD68;
 void SaveFlush(s32 arg0);
 void sound_handles_clear(s32 arg0);
-void sound_stop(s32 sound_id);
+void sound_stop(intptr_t sound_id);
 void ambient_sounds_clear(void);
 void entity_spawn_callback(s16 arg0, s32 arg1, s32 arg2);
 

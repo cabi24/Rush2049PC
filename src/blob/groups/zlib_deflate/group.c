@@ -1573,7 +1573,15 @@ local block_state deflate_slow(s)
  * Hand-written from the assembly; NOT MATCHING yet (context), see STATUS.md.
  */
 extern void *AllocateMemoryHeap(voidpf opaque, uInt size);
+#ifdef TARGET_PC
+/* audio_reverb_update(address, tag) takes its arguments in a1/a2 under IDO's IPA, so the N64 call passes a
+ * dummy first; on the PC the address goes first. Heap blocks are RDRAM-window addresses
+ * (docs/port/PROTOTYPES.md). */
+extern void audio_reverb_update(unsigned int address, int tag);
+#define audio_reverb_update(opaque, ptr, flag) audio_reverb_update((unsigned int)(uintptr_t)(ptr), (flag))
+#else
 extern void audio_reverb_update(voidpf opaque, voidpf ptr, int flag);
+#endif
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
 extern char D_80152770[];

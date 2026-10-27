@@ -3787,9 +3787,18 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
-void engine_rpm_calc(s32 arg0, s32 arg1, s16 arg2, s32 arg3, s32 arg4)
+#ifdef TARGET_PC
+/* This wrapper ends in a call to func_8008E26C (MBOX_NewObject), whose result stays in v0 through the void
+ * return; every caller reads it. On the PC the wrapper returns it (docs/port/PROTOTYPES.md). */
+#define PC_V0_S32 s32
+#define PC_V0_RETURN return
+#else
+#define PC_V0_S32 void
+#define PC_V0_RETURN
+#endif
+PC_V0_S32 engine_rpm_calc(s32 arg0, intptr_t arg1, s16 arg2, s32 arg3, s32 arg4)
 {
   s16 x;
   x = arg3;
-  func_8008E26C(arg0, arg1, x, ((arg2 << 8) ^ 0xF00) | arg4);
+  PC_V0_RETURN func_8008E26C(arg0, arg1, x, ((arg2 << 8) ^ 0xF00) | arg4);
 }

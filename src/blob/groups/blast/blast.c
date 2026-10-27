@@ -35,6 +35,10 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
 typedef struct tUVMatrix { float uvs[3][3]; float pos[3]; } tUVMatrix;
@@ -90,7 +94,7 @@ s32 func_8008E26C(s32 objnum, tUVMatrix *mat, s16 parent, s32 flags);   /* MBOX_
 void entity_spawn_init(s16 slot, u32 type, s32 a, f32 *b);      /* StartSmoke */
 void func_8038A408(f32 *pos, s16 slot);                         /* newWorldDamage */
 void func_80090770(s16 objnum, u16 def);                        /* ZOID_SetObjectDef */
-int camera_collision_check(const float *pos, int dir, float fadeDistance, float fadeCompression, float maxVol, float minVol, int fxid, int subId, int replace, unsigned char priority); /* EmitGameSound (locked, kept) */
+int camera_collision_check(const float *pos, intptr_t dir, float fadeDistance, float fadeCompression, float maxVol, float minVol, int fxid, int subId, int replace, unsigned char priority); /* EmitGameSound (locked, kept) */
 void entity_update_callback(tVisual *v, s16 op);                /* AnimateNewBlast */
 void entity_physics_update(tVisual *v, s16 op);
 void func_80090B68(tVisual *v, s16 op);                         /* AnimateNewBlastRing */

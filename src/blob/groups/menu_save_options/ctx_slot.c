@@ -178,7 +178,11 @@ s32 PS_FlushFile(void *, s32);
 s32 PS_FlushPak(s32, s32);
 void func_80091FBC(List *, Handle, Handle);
 void drone_set_catchup(void *, s32, s32);
+#ifdef TARGET_PC
+void *AllocateHandleHeap(void *, s32);
+#else
 s32 AllocateHandleHeap(void *, s32);
+#endif
 s32 inflate_entry_alt(void *, s32, s32);
 s32 format_string_parse(s32, s32);
 s32 draw_ui_element(Handle, s32, s32);

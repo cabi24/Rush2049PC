@@ -193,6 +193,11 @@ void func_800E6460(CarState *st, InputRecord *in)
     st->brake = (f32) (s32) q / 15;
 }
 
+#ifdef TARGET_PC
+/* The manifest owner of func_800E6AE8 is the empty deleted-procedure stub (src/blob/func_800E6AE8.c), which
+ * the call below binds to on PC. The gear code written here gets its own name (docs/port/PROTOTYPES.md). */
+#define func_800E6AE8 pc_func_800E6AE8
+#endif
 void func_800E6AE8(CarState *st, InputRecord *in);
 void func_800E681C(void)
 {

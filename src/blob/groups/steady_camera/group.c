@@ -3336,7 +3336,7 @@ s16 func_800E7DD0(void);
 void func_800E7FA0(s16 arg0);
 void func_800E847C(void);
 void func_800E8CB8(void *arg0, void *arg1, void *arg2);
-void func_800E8D50(void *arg0, s32 arg1, s32 arg2, f32 *arg3);
+void func_800E8D50(void *arg0, intptr_t arg1, intptr_t arg2, f32 *arg3);
 void func_800E8F10(s16 arg0, void *arg1, f32 *arg2, s32 arg3);
 void func_800E9234(void *arg0);
 
@@ -3740,7 +3740,7 @@ typedef struct Cr {
     Q *q;
 } Cr;
 void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff);
-void func_800E95DC(s16 mode, Cr *car, f32 *pos, s32 uvs);
+void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs);
 #define MAX_VEL 100.0f
 void func_800EA108(Cr *car, f32 *pos, f32 *uvs);
 void func_800EA2DC(Cr *arg0, void *arg1, void *arg2, s32 arg3);
@@ -3840,7 +3840,7 @@ void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff) {
  * combining each component into one multiply expression changes scheduling.
  * Existing type/global declarations and accepted context bodies are unchanged.
  */
-void func_800E95DC(s16 mode, Cr *car, f32 *pos, s32 uvs) {
+void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs) {
     V3 delta[4];
     f32 res[3], pos2[3];
     s32 pl;
