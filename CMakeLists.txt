@@ -143,6 +143,12 @@ target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -
 # default for GNU C fuses a * b + c wherever the target has FMA (aarch64, x86-64-v3 such as RHEL 10's default) once it
 # optimizes, which moved the cars by a bit a step from the Debug build's (docs/port/OPTIMIZED.md). -O0 never fuses.
 target_compile_options(game_flags INTERFACE -ffp-contract=off)
+# No loop bounds from declared array sizes: the game C's declarations are views, often shorter than the data they
+# index (an open-ended table declared with one element, a struct member used as an array past its end; -O2's
+# -Warray-bounds sees 260 such accesses), so the rule the optimizer would derive bounds from doesn't hold here, as
+# -fwrapv and -fno-strict-aliasing say of theirs. Optimized, it changed the loops of 65 game objects; -O0 doesn't use
+# it (docs/port/OPTIMIZED.md).
+target_compile_options(game_flags INTERFACE -fno-aggressive-loop-optimizations)
 # Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so code
 # that names them (the game, and parts of port/) must load every extern's address from the GOT. aarch64 PIE
 # code does that already. x86-64 PIE code reaches externs PC-relatively, so everything is compiled as PIC there,
