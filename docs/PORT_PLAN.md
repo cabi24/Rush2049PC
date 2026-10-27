@@ -259,7 +259,7 @@ changed files, 0 objects that differ under IDO.
 
 RelWithDebInfo (`-O2 -g`) passes every test on x86-64 and aarch64 Linux and in the Windows cross build, and plays the
 same as Debug to the bit along 14 synthetic and 14 retail paths, twice as fast on the retail cartridge (a race frame
-6.9 ms of the Pi 5's time, not 14.8; [port/OPTIMIZED.md](port/OPTIMIZED.md)). What it took: gen_data reads the types
+6.7 ms of the Pi 5's time, not 15.3; [port/OPTIMIZED.md](port/OPTIMIZED.md)). What it took: gen_data reads the types
 of `-O0` objects in every build type (optimized DWARF had dropped declarations); own storage keeps N64 address order
 (`-fno-toplevel-reorder` on data.c) and `ambient_sounds_clear`'s walk ends at its own end; no fused multiply-adds and
 no loop bounds from declared array sizes in the game C; `tools/port/alias_check.py` for one storage under two names

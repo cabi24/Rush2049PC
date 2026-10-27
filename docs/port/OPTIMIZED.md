@@ -5,7 +5,7 @@ optimized build (`-DCMAKE_BUILD_TYPE=RelWithDebInfo`, `-O2 -g`) failed 14 of 121
 x86-64 and aarch64 Linux and in the Windows cross build, and it plays the game the same as Debug, to the bit: the
 synthetic cartridge's 14 paths and 14 paths on the retail cartridge give the same states at the same retraces and the
 first car at the same place every second (section 5). On the retail cartridge it runs twice as fast: a race frame
-takes 6.9 ms of the Pi 5's time instead of 14.8 (section 6).
+takes 6.7 ms of the Pi 5's time instead of 15.3 (section 6).
 
 ```
 cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -208,22 +208,22 @@ time a race frame costs: the drive path to 300 and to 1,500 graphics tasks into 
 
 | Host | Cartridge | Debug | RelWithDebInfo | |
 |---|---|---|---|---|
-| x86-64 (i5-14500T) | synthetic, the 14 paths | 9.16 s | 6.41 s | 1.43x |
-| | synthetic, a race frame | 0.68 ms | 0.44 ms | 1.55x |
-| aarch64 (Pi 5) | synthetic, the 14 paths | 35.33 s | 28.38 s | 1.24x |
-| | synthetic, a race frame | 3.09 ms | 2.52 ms | 1.23x |
-| | retail, the 14 press scripts (least of two runs) | 216.52 s | 106.38 s | 2.04x |
-| | retail, a race frame (`drive`, gas and steering) | 14.80 ms | 6.86 ms | 2.16x |
+| x86-64 (i5-14500T) | synthetic, the 14 paths | 9.90 s | 7.13 s | 1.39x |
+| | synthetic, a race frame | 0.78 ms | 0.47 ms | 1.66x |
+| aarch64 (Pi 5) | synthetic, the 14 paths | 32.78 s | 25.55 s | 1.28x |
+| | synthetic, a race frame | 2.39 ms | 1.75 ms | 1.37x |
+| | retail, the 14 press scripts (least of two runs) | 211.51 s | 101.09 s | 2.09x |
+| | retail, a race frame (`drive`, gas and steering) | 15.34 ms | 6.69 ms | 2.29x |
 
 In real time, headless (the VI at 60 Hz, a frame every second retrace), the CPU time a race frame costs, from the
 process's user and system time over 600 frames of the `drive` race (300 to 900): on the Pi 5 with the retail
-cartridge 11.63 ms in Debug and 5.59 ms in RelWithDebInfo (2.08x) of the 33 ms a frame has; on the x86-64 host with
-the synthetic cartridge 1.50 ms and 1.30 ms.
+cartridge 12.45 ms in Debug and 5.60 ms in RelWithDebInfo (2.22x) of the 33 ms a frame has; on the x86-64 host with
+the synthetic cartridge 1.45 ms and 1.38 ms.
 
 The synthetic cartridge's models are boxes and its textures solid, so its frames are mostly the renderer's and the GPU
 driver's, which the build type doesn't change; the retail cartridge's are mostly the game's.
 
-**Release** (`-O3`, no `-g`) works the same way: on the x86-64 build host it passes all 124 tests, its tables are the
+**Release** (`-O3`, no `-g`) works the same way: on the x86-64 build host it passes all 143 tests, its tables are the
 same files as Debug's, and all 14 synthetic paths give Debug's traces to the bit. Nothing above needs the game
 objects' own debug information: gen_data reads the `-O0` copy, and endian_check and alias_check compile their own
 with `-O1 -g` after the build's flags. CI tests RelWithDebInfo; a release built as Release should get the same CI
