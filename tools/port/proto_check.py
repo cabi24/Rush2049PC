@@ -65,7 +65,8 @@ import n64syms  # noqa: E402
 from gen_data import _name, _num, _ref, display, parse_readelf  # noqa: E402
 
 ROOT = n64syms.ROOT
-HARMFUL = ("class", "fwidth", "width", "aggregate", "count", "return")
+HARMFUL = ("stub", "class", "fwidth", "width", "aggregate", "count", "return")
+EMPTY_FN = 8   # bytes of code an empty `void f(void) {}` compiles to (aarch64 `nop; ret`, x86-64 -O0 7)
 BENIGN = ("narrow", "extra", "unused", "reviewed", "dead", "harmless")
 CLASSES = HARMFUL + BENIGN
 RANK = {c: i for i, c in enumerate(CLASSES)}
@@ -267,7 +268,7 @@ def compare_returns(d, v):
 
 class Fn:
     """One file's prototype of an external function."""
-    __slots__ = ("name", "obj", "src", "line", "kind", "proto", "varargs", "ret", "params", "text")
+    __slots__ = ("name", "obj", "src", "line", "kind", "proto", "varargs", "ret", "params", "text", "size")
 
     def __init__(self, **kw):
         for k in self.__slots__:
@@ -336,7 +337,8 @@ def read_prototypes(objects, readelf):
                 dfile = _num(d.attrs.get("DW_AT_decl_file", src_d.attrs.get("DW_AT_decl_file", "1")))
                 fns.append(Fn(name=name, obj=obj, src=(sources[obj], dfile), line=line,
                               kind="def" if is_def else "decl", proto=proto, varargs=varargs and proto,
-                              ret=ret, params=params, text=text))
+                              ret=ret, params=params, text=text,
+                              size=_num(d.attrs.get("DW_AT_high_pc", "0")) if is_def else None))
     return fns, sources
 
 
@@ -721,6 +723,8 @@ def compare_view(defn, view, calls):
             issues.append(("count", f"{nv} args for {nd}"))
         elif nv > nd and not defn.varargs:
             issues.append(("extra", f"{nv} args for {nd}"))
+        if calls is not None and not calls:   # only its address is taken: the prototype shapes no call
+            issues = [("harmless" if c in HARMFUL else c, w + " (no direct calls)") for c, w in issues]
         if view.varargs and nv < nd and calls is not None:
             for caller, args, _, _ in calls:
                 for i in range(nv, min(nd, len(args))):
@@ -854,6 +858,16 @@ def main():
     if not a.no_calls and need:
         calls = collect_calls(sorted(need.items()), entries, a.jobs)
 
+    # Empty owners (deleted-procedure stubs: the retail symbol is `jr ra`, the body was inlined into its group)
+    # whose name also has a weak copy with a body: that group's calls bind to the stub on the PC.
+    stub_bodies = {}
+    for name, owner in owners.items():
+        if owner.kind == "def" and owner.size is not None and owner.size <= EMPTY_FN:
+            bodies = {f.src for f in by_name[name] if f is not owner and f.kind in ("def", "copy")
+                      and (f.size or 0) > EMPTY_FN}
+            if bodies:
+                stub_bodies[name] = bodies
+
     results = []
     for owner, v in views:
         site = calls.get(v.obj)
@@ -862,14 +876,20 @@ def main():
             vcalls = [c for c in vcalls if c[0] in live_names.get(v.obj, ())]
         implicit = bool(site and v.name in site[1])
         issues = compare_view(owner, v, vcalls)
+        bodies = stub_bodies.get(owner.name, ())
+        if bodies and v.src not in bodies and os.path.dirname(v.src) in {os.path.dirname(b) for b in bodies} \
+                or bodies and v.src in bodies and callers(v):
+            issues.append(("stub", f"the owner is an empty deleted-procedure stub; the body is in "
+                                   f"{', '.join(sorted(bodies))}"))
         cls = worst(issues)
         if cls is None:
             continue
         note = ""
+        reviewed = REVIEWED.get(f"{owner.name}@{v.src}", REVIEWED.get(owner.name))
         if not callers(v):
             cls, note = "dead", "only weak copies (code the link never runs) refer to it here"
-        elif owner.name in REVIEWED and cls in HARMFUL:
-            cls, note = "reviewed", REVIEWED[owner.name]
+        elif reviewed and cls in HARMFUL:
+            cls, note = "reviewed", reviewed
         results.append({"name": v.name, "class": cls, "issues": issues, "owner": owner, "view": v, "note": note,
                         "implicit": implicit, "calls": len(vcalls) if vcalls is not None else None,
                         "dist": dist.get(owner.name, dist.get(v.name))})
