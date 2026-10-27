@@ -377,7 +377,19 @@ set_source_files_properties(${PC_DATA_DIR}/stubs_standalone.c PROPERTIES COMPILE
 # game's tables (it says so and passes when there is no ROM); after linking it, gen_data.py --check verifies every
 # placement and own-storage size in the executable against data_layout.json.
 enable_testing()
-add_executable(pc_data_test port/data/test_pc_data.c)
+# Part of pc_data_test's tables comes from gen_data.py's layout rules (unions, overlapping declarations) applied
+# to the declarations in test_pc_data_decls.c, which is compiled for its DWARF only.
+add_library(pc_data_test_decls OBJECT port/data/test_pc_data_decls.c)
+target_compile_options(pc_data_test_decls PRIVATE -g)
+add_custom_command(
+    OUTPUT ${PC_DATA_DIR}/test_pc_data_gen.h
+    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --test-tables $<TARGET_OBJECTS:pc_data_test_decls>
+            --nm ${CMAKE_NM} --readelf ${CMAKE_READELF} --out ${PC_DATA_DIR}/test_pc_data_gen.h
+    DEPENDS $<TARGET_OBJECTS:pc_data_test_decls> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
+    COMMENT "pc_data_test's tables from test_pc_data_decls.c (tools/port/gen_data.py --test-tables)"
+    VERBATIM)
+add_executable(pc_data_test port/data/test_pc_data.c ${PC_DATA_DIR}/test_pc_data_gen.h)
+target_include_directories(pc_data_test PRIVATE ${PC_DATA_DIR})
 target_link_libraries(pc_data_test PRIVATE pcdata_rt)
 add_test(NAME pc_data_test COMMAND pc_data_test)
 add_executable(rush2049pc_datacheck port/data/datacheck.c ${PC_DATA_DIR}/stubs_standalone.c
@@ -396,7 +408,7 @@ add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_ch
     --selftest --check-loader)
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
-set_target_properties(pc_data_test rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
