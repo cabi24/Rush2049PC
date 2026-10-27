@@ -9,6 +9,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
         set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
     endif()
+    # PIE, as in the top-level build: test data below 4 GB would be taken for N64 addresses.
+    include(CheckPIESupported)
+    check_pie_supported()
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 enable_testing()
 
