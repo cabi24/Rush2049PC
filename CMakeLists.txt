@@ -11,6 +11,11 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # tools/port/census.py reads compile_commands.json
+# Executables are PIE, so host code and data load above 4 GB, clear of the RDRAM window, and a pointer below
+# 4 GB is an N64 address (docs/port/DATA.md). Debian and Ubuntu compilers link PIE by default, Red Hat's don't.
+include(CheckPIESupported)
+check_pie_supported()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
 set(PORT_TOOLS ${CMAKE_SOURCE_DIR}/tools/port)
 
