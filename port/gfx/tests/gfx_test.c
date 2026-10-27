@@ -16,6 +16,10 @@
 
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
 int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
+void pc_gfx_set_widescreen(float aspect);
+float pc_gfx_parse_aspect(const char *text, int *ok);
+void pc_gfx_set_scale(int scale);
+void pc_gfx_set_window_size(int w, int h);
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
@@ -232,19 +236,37 @@ static void frame_end(void) {
     }
 }
 
-/* N64 pixel (x, y): the middle of its block at the internal scale (RUSH_GFX_SCALE) */
-static const uint8_t *px(int x, int y) {
-    int k = s_px_w / FB_W;
+/* Target pixel (x, y) in N64 pixels: the middle of its block at the internal scale (RUSH_GFX_SCALE). */
+static const uint8_t *tpx(int x, int y) {
+    int k = s_px_h / FB_H;
     return s_px + ((size_t)(y * k + k / 2) * s_px_w + x * k + k / 2) * 4;
 }
 
-static void check(const char *what, int x, int y, int r, int g, int b, int tol) {
-    const uint8_t *p = px(x, y);
+/* The 4:3 frame's left side in the target: 0, or in widescreen (RUSH_GFX_WIDESCREEN) the pixels added on each side. */
+static int frame_x0(void) {
+    return (s_px_w / (s_px_h / FB_H) - FB_W) / 2;
+}
+
+/* N64 pixel (x, y) of the 4:3 frame */
+static const uint8_t *px(int x, int y) {
+    return tpx(x + frame_x0(), y);
+}
+
+static void check_px(const char *what, const uint8_t *p, int x, int y, int r, int g, int b, int tol) {
     if (abs(p[0] - r) > tol || abs(p[1] - g) > tol || abs(p[2] - b) > tol) {
         printf("  FAIL %s %s at (%d,%d): got %d,%d,%d want %d,%d,%d (tol %d)\n", s_case, what, x, y, p[0], p[1],
                p[2], r, g, b, tol);
         s_fail++;
     }
+}
+
+static void check(const char *what, int x, int y, int r, int g, int b, int tol) {
+    check_px(what, px(x, y), x, y, r, g, b, tol);
+}
+
+/* the same at a target pixel (widescreen cases) */
+static void check_at(const char *what, int x, int y, int r, int g, int b, int tol) {
+    check_px(what, tpx(x, y), x, y, r, g, b, tol);
 }
 
 /* ---------------------------------------------------------------- cases */
@@ -1050,6 +1072,310 @@ static void case_xlu(void) {
     check("tex edge opaque", 81, 10, 255, 255, 255, 0);
 }
 
+/* ---- widescreen (GFX.md "Widescreen"). At 16:9 the 320 x 240 frame's target is 426 x 240: 53 pixels on each
+ * side. A perspective view across the frame spans the target, at the same scale; 2D stays 4:3 in the middle;
+ * full-width fills and rectangles span the target. */
+
+#define WIDE_W 426
+#define WIDE_OX 53
+
+static Mtx s_frustum;   /* guPerspective at 90 degrees, aspect 1: x/w = x/-z, y/w = y/-z */
+
+static void quad(Vtx *v, int x0, int y0, int x1, int y1, int z, uint8_t r, uint8_t g, uint8_t b) {
+    vtx(&v[0], x0, y0, z, 0, 0, r, g, b, 255);
+    vtx(&v[1], x0, y1, z, 0, 0, r, g, b, 255);
+    vtx(&v[2], x1, y0, z, 0, 0, r, g, b, 255);
+    vtx(&v[3], x1, y1, z, 0, 0, r, g, b, 255);
+}
+
+static uint16_t s_wtex[8 * 8], s_wbar[8 * 2];
+
+static int bar_r(int c) { return x5(c * 36); }
+static int bar_g(int c) { return x5(255 - c * 36); }
+
+/* A perspective view's viewport, centre and half size in N64 pixels */
+static void viewport(Vp *vp, int cx, int cy, int hw, int hh) {
+    vp->vscale[0] = (int16_t)(hw * 4);
+    vp->vscale[1] = (int16_t)(hh * 4);
+    vp->vscale[2] = 511;
+    vp->vscale[3] = 0;
+    vp->vtrans[0] = (int16_t)(cx * 4);
+    vp->vtrans[1] = (int16_t)(cy * 4);
+    vp->vtrans[2] = 511;
+    vp->vtrans[3] = 0;
+}
+
+/* Everything widescreen moves, in one frame on blue: a perspective view across the frame at rows 60-180, with
+ * strips at x/w -1.2..-1 (red), 1..1.2 (green), 1.25..1.5 (yellow) and a square at -0.25..0.25 (white); copy-mode
+ * texrects at x 10 and at the frame's left side (rows 10-17); an ortho triangle at the left side (rows 190-198); a
+ * full-width 1-cycle fill (rows 200-209); a full-width texrect, 1024/15 pixels a texel (rows 220-229). */
+static void wide_scene(void) {
+    static Vtx v[20];
+    int i;
+    for (i = 0; i < 64; i++)
+        s_wtex[i] = rgba16((i & 7) * 32, (i >> 3) * 32, 128, 1);
+    for (i = 0; i < 16; i++)
+        s_wbar[i] = rgba16(bar_r(i & 7), bar_g(i & 7), 0, 1);
+    frame_begin(0, 0, 255);
+    cc_shade();
+    vtx(&v[16], 0, 190, 0, 0, 0, 255, 0, 255, 255);
+    vtx(&v[17], 0, 199, 0, 0, 0, 255, 0, 255, 255);
+    vtx(&v[18], 40, 190, 0, 0, 0, 255, 0, 255, 255);
+    gsSPVertex((uintptr_t)&v[16], 3, 0);
+    gsSP1Triangle(0, 1, 2);
+    gsSPMatrix((uintptr_t)&s_frustum, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    quad(&v[0], -120, -50, -100, 50, -100, 255, 0, 0);
+    quad(&v[4], 100, -50, 120, 50, -100, 0, 255, 0);
+    quad(&v[8], 125, -50, 150, 50, -100, 255, 255, 0);
+    quad(&v[12], -25, -50, 25, 50, -100, 255, 255, 255);
+    gsSPVertex((uintptr_t)v, 16, 0);
+    for (i = 0; i < 16; i += 4)
+        gsSP2Triangles(i, i + 1, i + 2, i + 2, i + 1, i + 3);
+    gsSPMatrix((uintptr_t)&s_ortho, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    gsDPSetPrimColor(0, 0, 0, 255, 255, 255);
+    cc_prim();
+    gsDPFillRectangle(0, 200, FB_W, 210);
+    load_texture_block((uintptr_t)s_wbar, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 2, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    cc_decalrgba();
+    gsSPTextureRectangle(0, 220 << 2, FB_W << 2, 230 << 2, 0, 0, 0, 15, 0);
+    load_texture_block((uintptr_t)s_wtex, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    gsDPSetCycleType(G_CYC_COPY);
+    gsDPSetRenderMode(0, 0);
+    gsSPTextureRectangle(10 << 2, 10 << 2, 17 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);
+    gsSPTextureRectangle(0, 10 << 2, 7 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);
+    frame_end();
+}
+
+/* Split screen: four quadrant views (x 0-160 and 160-320), each filled with its color and a white square at x/w
+ * -0.25..0.25, then a copy-mode texrect at x 156-163 in the top-left view's scissor. */
+static void wide_split(void) {
+    static Vp vp[4];
+    static Vtx v[4][8];
+    static const uint8_t col[4][3] = {{255, 0, 0}, {0, 255, 0}, {255, 255, 0}, {255, 0, 255}};
+    int q;
+    frame_begin(0, 0, 255);
+    cc_shade();
+    gsSPMatrix((uintptr_t)&s_frustum, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    for (q = 0; q < 4; q++) {
+        int x = (q & 1) * 160, y = (q >> 1) * 120;
+        viewport(&vp[q], x + 80, y + 60, 80, 60);
+        quad(&v[q][0], -300, -300, 300, 300, -100, col[q][0], col[q][1], col[q][2]);
+        quad(&v[q][4], -25, -25, 25, 25, -100, 255, 255, 255);
+        gsSPViewport((uintptr_t)&vp[q]);
+        gsDPSetScissor(x, y, x + 160, y + 120);
+        gsSPVertex((uintptr_t)v[q], 8, 0);
+        gsSP2Triangles(0, 1, 2, 2, 1, 3);
+        gsSP2Triangles(4, 5, 6, 6, 5, 7);
+    }
+    gsDPSetScissor(0, 0, 160, 120);
+    load_texture_block((uintptr_t)s_wtex, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    gsDPSetCycleType(G_CYC_COPY);
+    gsDPSetRenderMode(0, 0);
+    gsSPTextureRectangle(156 << 2, 2 << 2, 163 << 2, 9 << 2, 0, 0, 0, 4 << 10, 1 << 10);
+    frame_end();
+}
+
+/* The game's own split-screen panes (docs/port/GFX.md "Widescreen"): 2 players, x 2-242 (rows 0-110); 4 players,
+ * x 1-161 and 158-318 with the scissor split at 160 (rows 120-232). */
+static void wide_panes(void) {
+    static Vp vp[7];
+    static Vtx v[7][8];
+    static const uint8_t col[7][3] = {{0}, {0}, {0}, {0}, {0, 255, 255}, {255, 128, 0}, {128, 0, 255}};
+    int q;
+    frame_begin(0, 0, 255);
+    cc_shade();
+    gsSPMatrix((uintptr_t)&s_frustum, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    viewport(&vp[4], 122, 55, 120, 55);
+    viewport(&vp[5], 81, 176, 80, 56);
+    viewport(&vp[6], 238, 176, 80, 56);
+    for (q = 4; q < 7; q++) {
+        static const int sc[7][4] = {{0}, {0}, {0}, {0}, {2, 0, 242, 110}, {0, 120, 160, 232}, {160, 120, 320, 232}};
+        quad(&v[q][0], -300, -300, 300, 300, -100, col[q][0], col[q][1], col[q][2]);
+        gsSPViewport((uintptr_t)&vp[q]);
+        gsDPSetScissor(sc[q][0], sc[q][1], sc[q][2], sc[q][3]);
+        gsSPVertex((uintptr_t)v[q], 4, 0);
+        gsSP2Triangles(0, 1, 2, 2, 1, 3);
+    }
+    frame_end();
+}
+
+static void case_widescreen(void) {
+    static const struct { const char *text; float aspect; int ok; } parse[] = {
+        {"off", 0.0f, 1}, {"auto", -1.0f, 1}, {"16:9", 16.0f / 9, 1}, {"16:10", 1.6f, 1}, {"21:9", 21.0f / 9, 1},
+        {"2.39", 2.39f, 1}, {"4:3", 0.0f, 1}, {"5:4", 0.0f, 0}, {"9:16", 0.0f, 0}, {"16:9x", 0.0f, 0},
+        {"wide", 0.0f, 0}, {"5", 0.0f, 0},
+    };
+    int i, x, y, ok, scale;
+    float f[4][4], env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
+    uint8_t *off;
+    size_t n;
+
+    for (i = 0; i < (int)(sizeof(parse) / sizeof(parse[0])); i++) {
+        float a = pc_gfx_parse_aspect(parse[i].text, &ok);
+        if (ok != parse[i].ok || fabsf(a - parse[i].aspect) > 1e-5f) {
+            printf("  FAIL widescreen parse '%s': %g ok %d\n", parse[i].text, a, ok);
+            s_fail++;
+        }
+    }
+    memset(f, 0, sizeof(f));
+    f[0][0] = f[1][1] = 1.0f;
+    f[2][2] = (10.0f + 1000.0f) / (10.0f - 1000.0f);
+    f[2][3] = -1.0f;
+    f[3][2] = 2.0f * 10.0f * 1000.0f / (10.0f - 1000.0f);
+    mtx_f2l(f, &s_frustum);
+
+    /* off: nothing past x/w = +-1 is drawn; the square is at 120..200 */
+    pc_gfx_set_widescreen(0.0f);
+    wide_scene();
+    if (s_px_w != FB_W * (s_px_h / FB_H)) {
+        printf("  FAIL widescreen off: the target is %dx%d\n", s_px_w, s_px_h);
+        s_fail++;
+        pc_gfx_set_widescreen(env_aspect);
+        return;
+    }
+    check("off: square", 125, 120, 255, 255, 255, 0);
+    check("off: left of the square", 115, 120, 0, 0, 255, 0);
+    check("off: no strip at the left side", 1, 120, 0, 0, 255, 0);
+    check("off: no strip at the right side", 318, 120, 0, 0, 255, 0);
+    check("off: full-width texrect, texel 4 from 274", 280, 225, bar_r(4), bar_g(4), 0, 1);
+    n = (size_t)s_px_w * s_px_h * 4;
+    off = (uint8_t *)malloc(n);
+    memcpy(off, s_px, n);
+
+    pc_gfx_set_widescreen(16.0f / 9.0f);
+    wide_scene();
+    scale = s_px_h / FB_H;
+    if (s_px_w != WIDE_W * scale || s_px_h != FB_H * scale) {
+        printf("  FAIL widescreen 16:9: the target is %dx%d, not %dx%d\n", s_px_w, s_px_h, WIDE_W * scale,
+               FB_H * scale);
+        s_fail++;
+        free(off);
+        pc_gfx_set_widescreen(env_aspect);
+        return;
+    }
+    check_at("clear: left side", 0, 5, 0, 0, 255, 0);
+    check_at("clear: right side", WIDE_W - 1, 5, 0, 0, 255, 0);
+    /* the view: the frame's middle (160) is the target's (213), 160 pixels per unit of x/w as at 4:3 */
+    check_at("strip left of the 4:3 frustum", 37, 120, 255, 0, 0, 0);
+    check_at("strip right of the 4:3 frustum", 389, 120, 0, 255, 0, 0);
+    check_at("strip across the wide frustum's side, at the last column", WIDE_W - 1, 120, 255, 255, 0, 0);
+    check_at("before that strip", 410, 120, 0, 0, 255, 0);
+    check_at("left of the left strip", 15, 120, 0, 0, 255, 0);
+    check_at("square: left edge inside", 175, 120, 255, 255, 255, 0);
+    check_at("square: right edge inside", 251, 120, 255, 255, 255, 0);
+    check_at("square: not wider on the left", 170, 120, 0, 0, 255, 0);
+    check_at("square: not wider on the right", 256, 120, 0, 0, 255, 0);
+    /* 2D in the middle, texel for texel */
+    for (y = 0; y < 8; y++)
+        for (x = 0; x < 8; x++) {
+            check_at("texrect", WIDE_OX + 10 + x, 10 + y, x5(x * 32), x5(y * 32), x5(128), 1);
+            check_at("texrect at the frame's left side", WIDE_OX + x, 10 + y, x5(x * 32), x5(y * 32), x5(128), 1);
+        }
+    check_at("texrect: the left bar is clear", WIDE_OX - 1, 12, 0, 0, 255, 0);
+    check_at("texrect: not wider", WIDE_OX + 8, 12, 0, 0, 255, 0);
+    check_at("ortho triangle at the frame's left side", WIDE_OX + 2, 191, 255, 0, 255, 0);
+    check_at("ortho triangle: the left bar is clear", WIDE_OX - 2, 191, 0, 0, 255, 0);
+    /* full width */
+    check_at("full-width fill: left", 0, 205, 0, 255, 255, 0);
+    check_at("full-width fill: right", WIDE_W - 1, 205, 0, 255, 255, 0);
+    check_at("full-width texrect: first texel at the left", 0, 225, bar_r(0), bar_g(0), 0, 1);
+    /* stretched by 426/320: 90.9 pixels a texel */
+    check_at("full-width texrect: texel 0 up to 89", 88, 225, bar_r(0), bar_g(0), 0, 1);
+    check_at("full-width texrect: texel 1 from 90", 91, 225, bar_r(1), bar_g(1), 0, 1);
+    check_at("full-width texrect: texel 3 before 363", 360, 225, bar_r(3), bar_g(3), 0, 1);
+    check_at("full-width texrect: texel 4 at the right", WIDE_W - 1, 225, bar_r(4), bar_g(4), 0, 1);
+
+    /* split screen: the quadrant views at x 0-160 and 160-320 become 0-213 and 213-426 */
+    wide_split();
+    check_at("split: top-left at the left side", 0, 60, 255, 0, 0, 0);
+    check_at("split: top-left to 212", 212, 60, 255, 0, 0, 0);
+    check_at("split: top-right from 213", 213, 60, 0, 255, 0, 0);
+    check_at("split: top-right at the right side", WIDE_W - 1, 60, 0, 255, 0, 0);
+    check_at("split: bottom-left at the left side", 0, 180, 255, 255, 0, 0);
+    check_at("split: bottom-left to 212", 212, 180, 255, 255, 0, 0);
+    check_at("split: bottom-right from 213", 213, 180, 255, 0, 255, 0);
+    check_at("split: bottom-right at the right side", WIDE_W - 1, 180, 255, 0, 255, 0);
+    /* each square: 40 pixels as at 4:3, in the middle of its widened view (106.5, 319.5) */
+    check_at("split: top-left square", 90, 60, 255, 255, 255, 0);
+    check_at("split: top-left square, right", 124, 60, 255, 255, 255, 0);
+    check_at("split: top-left square, not wider", 84, 60, 255, 0, 0, 0);
+    check_at("split: top-left square, not wider right", 129, 60, 255, 0, 0, 0);
+    check_at("split: top-right square", 303, 60, 255, 255, 255, 0);
+    check_at("split: top-right square, not wider", 297, 60, 0, 255, 0, 0);
+    check_at("split: bottom-right square", 336, 180, 255, 255, 255, 0);
+    check_at("split: bottom-right square, not wider", 342, 180, 255, 0, 255, 0);
+    /* 2D in a view keeps the N64's scissor, moved with the frame: cut at the frame's 160 */
+    check_at("split: texrect in the top-left view", WIDE_OX + 156, 2, x5(0), x5(0), x5(128), 1);
+    check_at("split: texrect up to the view's side", WIDE_OX + 159, 2, x5(3 * 32), x5(0), x5(128), 1);
+    check_at("split: texrect cut at the view's side", WIDE_OX + 160, 2, 0, 255, 0, 0);
+    /* the game's panes: their 1-2 pixel borders stay, the sides at the frame's widen */
+    wide_panes();
+    check_at("2 players: the border at the left", 1, 55, 0, 0, 255, 0);
+    check_at("2 players: the pane from 2", 2, 55, 0, 255, 255, 0);
+    check_at("2 players: the pane to 242 + 53", 241 + WIDE_OX, 55, 0, 255, 255, 0);
+    check_at("2 players: the side panel stays in the frame", 243 + WIDE_OX, 55, 0, 0, 255, 0);
+    check_at("4 players: left view at the left side", 0, 176, 255, 128, 0, 0);
+    check_at("4 players: left view to 160 + 53", 159 + WIDE_OX, 176, 255, 128, 0, 0);
+    check_at("4 players: right view from 160 + 53", 160 + WIDE_OX, 176, 128, 0, 255, 0);
+    check_at("4 players: right view at the right side", WIDE_W - 1, 176, 128, 0, 255, 0);
+
+    /* off again: pixel for pixel the first frame */
+    pc_gfx_set_widescreen(0.0f);
+    wide_scene();
+    if ((size_t)s_px_w * s_px_h * 4 != n || memcmp(off, s_px, n) != 0) {
+        printf("  FAIL widescreen off after on: the frame differs\n");
+        s_fail++;
+    }
+    free(off);
+    pc_gfx_set_widescreen(env_aspect);
+}
+
+/* the auto settings follow the window (here the headless size, pc_gfx_set_window_size): widescreen takes its aspect,
+ * and the scale the largest whole multiple of the frame that it holds */
+static void case_autosize(void) {
+    static uint16_t t[8 * 8];
+    const char *env_scale = getenv("RUSH_GFX_SCALE");
+    int i, x, y, ok, scale = env_scale && !strcmp(env_scale, "auto") ? 0 : env_scale ? atoi(env_scale) : 1;
+    float env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
+    static const struct { int win_w, win_h; float aspect; int scale, w, s; } steps[] = {
+        {1280, 720, -1.0f, 0, 426, 3},    /* 16:9: 426 x 240, 3 x 3 fits 1280 x 720 */
+        {1920, 1080, -1.0f, 0, 426, 4},   /* 4 x 426 = 1704 */
+        {1024, 768, -1.0f, 0, 320, 3},    /* 4:3: widescreen off */
+        {1280, 720, -1.0f, 2, 426, 2},    /* a fixed scale stays */
+        {1280, 720, 21.0f / 9, 0, 560, 2},   /* a fixed aspect: 560 x 240, 2 x 560 fits 1280 */
+        {640, 480, 0.0f, 0, 320, 2},
+    };
+    if (s_window) {   /* the window has its own size */
+        printf("  (autosize: headless only)\n");
+        return;
+    }
+    for (i = 0; i < 64; i++)
+        t[i] = rgba16((i & 7) * 32, (i >> 3) * 32, 128, 1);
+    for (i = 0; i < (int)(sizeof(steps) / sizeof(steps[0])); i++) {
+        pc_gfx_set_window_size(steps[i].win_w, steps[i].win_h);
+        pc_gfx_set_widescreen(steps[i].aspect);
+        pc_gfx_set_scale(steps[i].scale);
+        frame_begin(0, 0, 0);
+        load_texture_block((uintptr_t)t, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+        gsDPSetCycleType(G_CYC_COPY);
+        gsDPSetRenderMode(0, 0);
+        gsSPTextureRectangle(10 << 2, 10 << 2, 17 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);
+        frame_end();
+        if (s_px_w != steps[i].w * steps[i].s || s_px_h != FB_H * steps[i].s) {
+            printf("  FAIL autosize %dx%d: the target is %dx%d, not %dx%d\n", steps[i].win_w, steps[i].win_h, s_px_w,
+                   s_px_h, steps[i].w * steps[i].s, FB_H * steps[i].s);
+            s_fail++;
+            continue;
+        }
+        for (y = 0; y < 8; y++)
+            for (x = 0; x < 8; x++)
+                check("texrect", 10 + x, 10 + y, x5(x * 32), x5(y * 32), x5(128), 1);
+    }
+    pc_gfx_set_window_size(640, 480);
+    pc_gfx_set_widescreen(env_aspect);
+    pc_gfx_set_scale(scale);
+}
+
 /* the screenshot is a PNG of the presented frame */
 static void case_screenshot(void) {
     char path[512];
@@ -1085,7 +1411,8 @@ static const Case s_cases[] = {
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
     {"dualtile", case_dualtile}, {"belist", case_belist},     {"matrix", case_matrix},
     {"cull", case_cull},         {"branchz", case_branchz},   {"nearclip", case_nearclip},
-    {"xlu", case_xlu},           {"screenshot", case_screenshot},
+    {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
+    {"screenshot", case_screenshot},
 };
 
 int main(int argc, char **argv) {
