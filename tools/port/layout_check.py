@@ -15,18 +15,21 @@ How it works:
    compile cache, build/pc/endian), with each access's view (its base's declared struct), field, host offset, and
    the N64 position the view gives it. A view has no opinion on the N64 position where it is bytes, void, a scalar
    read past its extent, or past the struct's end. Pointers are followed further than endian_check does: scaled
-   indexes (`p + i * K`, keeping the offset in the element), pointers made from u32 loads (N64P), list walks and
-   increments through PHIs, pointer stores into slots, and returns.
+   indexes (`p + i * K`, keeping the offset in the element), pointers made from u32 loads (N64P), list walks, tree
+   walks (`pp = &(*pp)->right`) and increments through PHIs, pointer and function-address stores into slots, calls
+   through loaded pointers, and returns.
 2. Each access's storage is put on a root: aliases and names inside a symbol (data_symbols.txt) are their container
    at its offset; what a parameter points to is each caller's argument (host and N64 offsets added), a function's
    result is what it returns from a symbol or from that call's arguments (else the call's own storage: a heap
-   block), what a slot points to is what was stored there (LINKS: what a list or pool function's call links), and a
-   list's `next` points to the list's own records. Positions are host offsets (what the PC code really addresses).
+   block), what a slot points to is what was stored there (LINKS: what a list or pool function's call links), a
+   list's `next` and a tree node's links point to their own records, and a function stored into a slot takes the
+   arguments of every call through that slot. Positions are host offsets (what the PC code really addresses).
 3. The reference layout of a root is gen_data's chosen declaration for a symbol (its padding named from the symbol's
    other declarations of that size), SYMBOL_REFERENCE's, or REFERENCE's for a heap or pool record reached through a
    view named there. Element positions are taken in the reference's element.
-4. Findings: (1) views off the reference, or, without one, an N64 position at another host offset than most views
-   give it or a host offset at another N64 position; (1b) an access with no view opinion, or a pointer argument,
+4. Findings: (1) views off the reference (one that still hits fields of its widths only matters if the N64 build
+   has it too), or, without one, an N64 position at another host offset than most views give it or a host offset
+   at another N64 position; (1b) an access with no view opinion, or a pointer argument,
    inside a field of the reference (a raw N64 offset into a record whose PC layout moved it); (2) strides
    (`base + i * K`, `p += K`, a typed index) that are not the element's PC size, `* 952` with the N64 size above
    all; (3) an 8-byte pointer read or written where the reference has a u32 (a window address), or a u32 over a
@@ -97,9 +100,12 @@ class LAnalyzer(ec.Analyzer):
         self.extra = {}        # access index -> (view, path, the N64 position the view gives it or None, None)
         self.strides = []      # (func, line, ident, base host offset, K, how, view element (host, N64), view)
         self.selflinks = []    # (ident, slot host offset): the pointer there points to a record of the same storage
+        self.treelinks = []    # the same, for a record stored through a walk down a tree (pp = &(*pp)->right)
         self.pstores = []      # (store access index, value ident, value host offset, value N64 offset)
         self.sites = []        # (func, line, callee, [(ident, host offset, N64 offset) | None])
         self.rets = collections.defaultdict(list)   # func -> [(ident, host offset, N64 offset)]
+        self.fstores = []      # (store access index, function): a function's address stored into a slot
+        self.icalls = []       # (index of the load of the called pointer, [(ident, host offset, N64 offset) | None])
 
     # -- pointers
     def pointer_sources(self, f):
@@ -227,6 +233,9 @@ class LAnalyzer(ec.Analyzer):
                 steps[(ln, lhs, how[0])] = (None, how[1])
                 continue
             r = self._addr_ident(f, a[1:], src) if a.startswith("&") else src.get(a)
+            if r and r[0][0] == "ldssa" and r[2] is not None and self.loaded_from(f, r[0][1]) == lhs:
+                self.treewalk[lhs].add(r[2])   # a walk down a list or tree: pp = &(*pp)->right
+                continue
             if r:
                 found.add(r[0])
                 offs.add(r[2])
@@ -242,6 +251,11 @@ class LAnalyzer(ec.Analyzer):
             ident = found.pop()
             bt = next((src[a][1] for a in args if a in src and src[a][0] == ident), None)
             src[lhs] = (ident, bt, offs.pop() if len(offs) == 1 else None, vars_.pop() if len(vars_) == 1 else None)
+
+    def loaded_from(self, f, x):
+        """The SSA pointer whose record the SSA value x was loaded from, or None."""
+        d = self.defs_text.get(x)
+        return self.mem_base(f, d[0]) if d is not None and self.is_mem_expr(f, d[0]) else None
 
     def self_ref(self, f, phi, a):
         """('incr', K) if a is phi + K, ('link', slot host offset) if a is a pointer loaded from phi's record,
@@ -353,18 +367,61 @@ class LAnalyzer(ec.Analyzer):
         if not m or len(self.accesses) == n0 or self.accesses[n0].rw != "W":
             return
         rhs = m.group(2).strip()
+        fn = self.function_named(f, rhs)
+        if fn:
+            self.fstores.append((n0, fn))
+            return
         v = self.from_ptr.get(rhs, rhs) if self.is_ssa(f, rhs) else rhs
         d = self.pdesc(f, v, ptrsrc)
         if d and d[0][0] != "anon":
             self.pstores.append((n0,) + d)
+            walk = self.treewalk.get(self.mem_base(f, m.group(1).strip()))
+            for h in sorted(walk or ()):   # stored where the walk ended: a node of the tree, linked at those slots
+                if d[1] is not None:
+                    self.treelinks.append((d[0], d[1] + h))
+
+    def mem_base(self, f, text):
+        """The SSA pointer a memory reference goes through (*p, p->f, MEM[p + k]), or None."""
+        try:
+            prim, chain = ec.parse_ref(text)
+        except (ValueError, IndexError):
+            return None
+        return prim[1] if prim[0] in ("deref", "arrow") else \
+            prim[3][1] if prim[0] == "mem" and prim[3][0] == "ssa" else None
+
+    def function_named(self, f, v, depth=0):
+        """The function whose address the value v is (`slot = func;`, or an SSA name set to it), or None."""
+        if depth > 3:
+            return None
+        if self.is_ssa(f, v):
+            d = self.defs_text.get(v)
+            if d is None:
+                return None
+            c = _CAST.match(d[0])
+            return self.function_named(f, c.group(2) if c else d[0], depth + 1)
+        if re.match(r"^[A-Za-z_][\w.$]*$", v) and v not in f.decls and v not in f.params and v not in self.T.gvars:
+            return v
+        return None
+
+    def called_load(self, f, fn, depth=0):
+        """The access that loaded an indirect call's function pointer (through casts), or None."""
+        if fn in self.load_of:
+            return self.load_of[fn]
+        d = self.defs_text.get(fn)
+        c = _CAST.match(d[0]) if d else None
+        return self.called_load(f, c.group(2), depth + 1) if c and depth < 3 else None
 
     def call(self, f, ln, s, lhs, ptrsrc, st):
         super().call(f, ln, s, lhs, ptrsrc, st)
         m = re.match(r"^([\w.$]+) \((.*)\)$", s)
-        if not m or self.is_ssa(f, m.group(1)):
+        if not m:
             return
         out = [self.pdesc(f, a, ptrsrc) for a in ec.split_args(m.group(2))]
-        if any(out):
+        if self.is_ssa(f, m.group(1)):   # through a pointer: the slot it was loaded from says which functions
+            i = self.called_load(f, m.group(1))
+            if i is not None and any(out):
+                self.icalls.append((i, out))
+        elif any(out):
             self.sites.append((f.name, ln, m.group(1), out))
 
     def run(self, funcs):
@@ -372,7 +429,8 @@ class LAnalyzer(ec.Analyzer):
             if f.name in self.weak:
                 continue
             marks = (len(self.accesses), len(self.calls), len(self.strides), len(self.selflinks),
-                     len(self.pstores), len(self.sites))
+                     len(self.pstores), len(self.sites), len(self.icalls), len(self.treelinks))
+            self.treewalk = collections.defaultdict(set)   # PHI -> slots it steps through: pp = &(*pp)->right
             ptrsrc = self.pointer_sources(f)
             self.du = ec.DefUse(self, f)
             self.pending, self.store_w, self.load_of, self.line_of = [], {}, {}, {}
@@ -400,12 +458,17 @@ class LAnalyzer(ec.Analyzer):
                 self.strides[i] = s[:2] + (fix(s[2]),) + s[3:]
             for i in range(marks[3], len(self.selflinks)):
                 self.selflinks[i] = (fix(self.selflinks[i][0]), self.selflinks[i][1])
+            for i in range(marks[7], len(self.treelinks)):
+                self.treelinks[i] = (fix(self.treelinks[i][0]), self.treelinks[i][1])
             for i in range(marks[4], len(self.pstores)):
                 p = self.pstores[i]
                 self.pstores[i] = (p[0], fix(p[1]), p[2], p[3])
             for i in range(marks[5], len(self.sites)):
                 s = self.sites[i]
                 self.sites[i] = s[:3] + ([(fix(x[0]),) + x[1:] if x else None for x in s[3]],)
+            for i in range(marks[6], len(self.icalls)):
+                c = self.icalls[i]
+                self.icalls[i] = (c[0], [(fix(x[0]),) + x[1:] if x else None for x in c[1]])
             rl = self.rets.get(f.name)
             if rl:
                 for i in range(n_rets, len(rl)):
@@ -416,7 +479,8 @@ class LAnalyzer(ec.Analyzer):
 
 def analyze_unit(job):
     """One unit's accesses and links (LAnalyzer), and the declarations of its data symbols."""
-    uid, cache, build, readelf = job
+    uid, cache, build, readelf = job[:4]
+    source = job[4] if len(job) > 4 else None   # the unit's source, when it isn't ROOT / unit (the selftest)
     dumps = sorted(cache.glob(uid + ".c.*t.forwprop1"))
     obj = cache / (uid + ".o")
     if not dumps or not obj.exists():
@@ -440,10 +504,61 @@ def analyze_unit(job):
         if e[0] in ("struct", "union") or c[0] == "array":
             decls[name] = (gd.display(dies, toff), c)
     return uid, dict(unit=an.unit, accesses=[tuple(a) for a in an.accesses], extra=an.extra, strides=an.strides,
-                     selflinks=an.selflinks, pstores=an.pstores, sites=an.sites, rets=dict(an.rets), decls=decls,
-                     view_types=view_types(an, T), errors=an.errors,
+                     selflinks=an.selflinks, treelinks=an.treelinks, pstores=an.pstores, sites=an.sites,
+                     rets=dict(an.rets), decls=decls, fstores=an.fstores, icalls=an.icalls,
+                     view_types=view_types(an, T), pc_views=pc_views(dies, source or ROOT / an.unit),
+                     errors=an.errors,
                      defined=[f.name for f in funcs if f.name not in an.weak],
                      funcs=sum(1 for f in funcs if f.name not in an.weak))
+
+
+_DEFINED_PC = re.compile(r"defined\s*\(?\s*TARGET_PC\s*\)?")
+
+
+def pc_lines(path):
+    """The lines of a source file that only the PC build compiles (`#ifdef TARGET_PC` and the like, or the
+    `#else` of `#ifndef TARGET_PC`), as a set of line numbers."""
+    try:
+        text = path.read_text(errors="replace").splitlines()
+    except OSError:
+        return set()
+    out, stack = set(), []   # per open conditional: 'pc', 'n64' or None, for the branch we are in
+    for i, line in enumerate(text, 1):
+        m = re.match(r"^\s*#\s*(ifdef|ifndef|if|elif|else|endif)\b(.*)$", line)
+        if m:
+            d, rest = m.group(1), m.group(2).strip()
+            if d in ("ifdef", "ifndef", "if"):
+                if d == "if":
+                    pc, n64 = bool(_DEFINED_PC.fullmatch(rest)), bool(re.fullmatch(r"!\s*" + _DEFINED_PC.pattern, rest))
+                else:
+                    pc, n64 = rest == "TARGET_PC" and d == "ifdef", rest == "TARGET_PC" and d == "ifndef"
+                stack.append("pc" if pc else "n64" if n64 else None)
+            elif d == "else" and stack:   # (after an #elif of `#ifdef TARGET_PC`, every branch is the N64's)
+                stack[-1] = {"pc": "n64", "n64": "pc", "n64 only": "n64 only"}.get(stack[-1])
+            elif d == "elif" and stack:
+                stack[-1] = "n64 only" if stack[-1] in ("pc", "n64 only") else None
+            elif d == "endif" and stack:
+                stack.pop()
+            continue
+        if "pc" in stack:
+            out.add(i)
+    return out
+
+
+def pc_views(dies, path):
+    """The names of the struct, union and typedef views the unit's own source declares for the PC build only."""
+    lines = None
+    out = set()
+    for d in dies.values():
+        if d.tag not in ("DW_TAG_structure_type", "DW_TAG_union_type", "DW_TAG_typedef") or "DW_AT_name" not in d.attrs:
+            continue
+        if gd._num(d.attrs.get("DW_AT_decl_file")) != 1:
+            continue
+        if lines is None:
+            lines = pc_lines(path)
+        if gd._num(d.attrs.get("DW_AT_decl_line")) in lines:
+            out.add(gd._name(d.attrs["DW_AT_name"]))
+    return sorted(out)
 
 
 def view_types(an, T):
@@ -466,7 +581,11 @@ class Symbols:
     (container, host offset, N64 offset), and the type gen_data chose."""
 
     def __init__(self, build):
-        self.alias, self.inner, self.chosen, self.addr = {}, {}, {}, {}
+        self.alias, self.inner, self.chosen, self.addr, self.falias = {}, {}, {}, {}, {}
+        ld = build / "pc-data" / "aliases.ld"   # PROVIDE(func_8009539C = draw_sprites): names of one function
+        if ld.exists():
+            for m in re.finditer(r"PROVIDE\((\w+) = (\w+)\);", ld.read_text()):
+                self.falias[m.group(1)] = m.group(2)
         path = build / "pc-data" / "data_symbols.txt"
         if not path.exists():
             return
@@ -626,13 +745,13 @@ class Flow:
                     self.rets[self.fkey(fn, u)].append((u,) + tuple(x))
         self.refs = self.symbol_refs()
         self.memo, self.links, self.stores, self.generic = {}, set(), {}, set()
-        for u, r in self.units.items():
-            for ident, h in r["selflinks"]:
-                b, dh, dn = self.key(ident, u)
-                for root, dh2, dn2 in self.expand(b):
-                    self.links.add((root, self.norm_h(root, h + dh + dh2)))
-        for _ in range(2):   # what a slot points to is what was stored in it (twice: slots reached through slots)
+        self.add_links("selflinks")
+        for npass in range(3):   # what a slot points to is what was stored in it (slots reached through slots)
             self.memo = {}
+            if npass == 2:
+                self.indirect_callers()
+                self.memo = {}
+            self.add_links("treelinks")
             stores = collections.defaultdict(dict)
             for u, r in self.units.items():
                 for fn, ln, callee, args in r["sites"]:
@@ -657,8 +776,49 @@ class Flow:
                     stores[("pt", root, self.norm_h(root, a.hpos + dh + dh2))][(u, ident, h, n)] = None
             self.stores = stores
         self.memo = {}
+        self.add_links("treelinks")
         self.buckets = self.place()
         self.view_refs()
+
+    def add_links(self, which):
+        """The slots whose pointer points to another record of the same storage: a list's next, from a walk
+        along it (before any store is followed, which a list function's own list would take for every list), or a
+        tree's left and right, on the records stored where a walk down the tree ended (with the stores so far: the
+        tree's insert takes its node as a parameter). The memo starts again when there are new ones."""
+        n = len(self.links)
+        for u, r in self.units.items():
+            for ident, h in r[which]:
+                b, dh, dn = self.key(ident, u)
+                for root, dh2, dn2 in self.expand(b):
+                    self.links.add((root, self.norm_h(root, h + dh + dh2)))
+        if len(self.links) != n:
+            self.memo = {}
+
+    def indirect_callers(self):
+        """A function stored into a slot is called by every indirect call through that slot: its parameters take
+        those calls' arguments (the sorted-tag tree's order, a visual's animator)."""
+        fslots = collections.defaultdict(set)
+        for u, r in self.units.items():
+            accs = self.accs[u]
+            for i, fn in r.get("fstores", ()):
+                a = accs[i]
+                if a.hpos is None:
+                    continue
+                b, dh, dn = self.key(a.base, u)
+                for root, dh2, dn2 in self.expand(b):
+                    fslots[(root, self.norm_h(root, a.hpos + dh + dh2))].add(self.fkey(self.syms.falias.get(fn, fn), u))
+        for u, r in self.units.items():
+            accs = self.accs[u]
+            for i, args in r.get("icalls", ()):
+                a = accs[i]
+                if a.hpos is None:
+                    continue
+                b, dh, dn = self.key(a.base, u)
+                for root, dh2, dn2 in self.expand(b):
+                    for fk in fslots.get((root, self.norm_h(root, a.hpos + dh + dh2)), ()):
+                        for k, x in enumerate(args):
+                            if x:
+                                self.callers[(fk, k)].append((u,) + tuple(x))
 
     # -- references
     def symbol_refs(self):
@@ -921,10 +1081,14 @@ def layout_findings(flow):
                 if wrong:
                     out.append(Finding("layout", 5, root, f"{vn} in {u} is off the reference {ref.name()} at "
                                        f"{len({e.n for e in es})} N64 positions", lines, [es], None))
-                else:
+                elif re.sub(r"\[\]$", "", vn) in flow.units[u].get("pc_views", ()):
                     out.append(Finding("layout", 2, root, f"{vn} in {u} gives other N64 positions than the reference "
                                        f"{ref.name()}, but each access hits a field of its width there (a PC view "
                                        f"padded in host bytes?)", lines, [es], None))
+                else:   # the N64 build's view too: its N64 positions are the N64's fields, not these
+                    out.append(Finding("layout", 4, root, f"{vn} in {u} gives other N64 positions than the reference "
+                                       f"{ref.name()}; each access hits a field of its width there, but the view is "
+                                       f"the N64 build's too", lines, [es], None))
             continue
         # no reference: the mapping most views give, position by position
         support = collections.defaultdict(set)
@@ -959,6 +1123,12 @@ def layout_findings(flow):
 # Members a view or a reference leaves unnamed (m2c's unknown ranges, padding): they give no field there.
 PAD_NAME = re.compile(r"(^|\.)(_?pad|unk|unknown|opaque|filler|fill|tail|rest|res|reserved|spare|skip|gap|bytes|raw)",
                       re.I)
+
+
+def ref_bytes(ref, h):
+    """The reference has no scalar at host offset h, only bytes (or nothing)."""
+    x = ref.covering(h)
+    return x is None or bool(x[6])
 
 
 def fits(ref, e):
@@ -1032,7 +1202,8 @@ def width_findings(flow):
                     score = 4 if e.rw == "W" and e.flow not in ("zero",) else 3 if used else 1
                     out.append(Finding("width", score, root, f"4 bytes of the reference's pointer {x[5]} "
                                        f"({ref.name()})", [fmt_entry(e, ref) + f" [{e.flow}]"], [[e]], None))
-            continue
+            # where the reference has only bytes (a padded view), the views still have to agree with each other
+            entries = [e for e in entries if ref_bytes(ref, e.h)]
         at = collections.defaultdict(list)
         for e in entries:
             if e.kind in ("p", "i") and e.width in (4, 8):
@@ -1155,6 +1326,8 @@ REFERENCE = [
      "tFxSequence"),
     (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "anon_ll_id_3c",
      "the audio manager's sequence tags, MAT3 audiomgr.c's: InsertLLE's two links are pointers"),
+    (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "anon_te_tag_c",
+     "the sorted-tag tree's nodes, MAT3 audiomgr.c's: left, right and the tag, pointers"),
     (r"src/blob/groups/menu_save_options/hud_setup\.c$", "Chan",
      "the sequence tag pool D_80110270 that hud_setup allocates", r"engine_sound_sync/audiomgr_thread\.c$",
      "anon_ll_id_3c"),
@@ -1180,6 +1353,9 @@ REVIEWED = [
     (r"src/blob/dma_wait_complete\.c$|src/rom/lib_1050_sdk\.c$", r"^(Sched|PcSched)$",
      "by design: dma_wait_complete's Sched is a PC view of the native scheduler (lib_1050_sdk.c's PcSched), padded "
      "in host bytes to curRSPTask (ULTRA.md); both reach host +0x2B0"),
+    (r"src/blob/groups/engine_sound_sync/engine_sound_sync\.c$", r"^Effect$",
+     "by design: engine_sound_sync's Effect is a PC view of the FX tag padded in host bytes; each access is the "
+     "tag's field"),
     (r"src/rom/lib_17dc0\.c$", r"^(Seq_|SequenceContext)",
      "by design: lib_17dc0.c's PC views of a sequence slot are padded in host bytes (SEQ_PC_OFF, "
      "include/sequence_context.h), so each access is the slot's field whatever N64 position the padding gives"),
@@ -1361,6 +1537,37 @@ void good_name(int k) { show(gProf[k].name); }
 typedef struct Holder { void *ptr; u32 count; } Holder;
 Holder gHolder;
 u32 low_half(void) { return *(u32 *)&gHolder.ptr + 1; }
+/* 8. A sorted tree: the insert walks down it (pp = &(*pp)->right) and calls its order through the tree's function
+ * pointer; the order (draw_sprites) read the node's tag and the tag's priority at the N64 offsets: the node's +8 is
+ * its right link on the PC, so the priority read lands inside another node's link. */
+typedef struct Tag { void *link[2]; s32 id; s32 prio; } Tag;
+typedef struct TNode { struct TNode *left, *right; Tag *tag; } TNode;
+typedef struct Tree { s32 (*cmp)(TNode *, TNode *); s32 count; TNode *root; } Tree;
+Tree gTree, gTree2;
+TNode gTNodes[8], gTNodes2[8];
+void tree_insert(Tree *t, TNode **pp, TNode *n) {
+    while (1) {
+        if (*pp == 0) { *pp = n; n->left = 0; (*pp)->right = 0; t->count++; return; }
+        if (t->cmp(n, *pp) < 0) pp = &(*pp)->left; else pp = &(*pp)->right;
+    }
+}
+#define PRIO_N64(x) (*(s32 *)(*(u8 **)((u8 *)(x) + 8) + 0xC))
+s32 order_bad(void *a, void *b) { return PRIO_N64(a) - PRIO_N64(b); }
+s32 order_good(void *a, void *b) { return ((TNode *)a)->tag->prio - ((TNode *)b)->tag->prio; }
+typedef s32 (*Order)(TNode *, TNode *);
+void tree_setup(void) { gTree.cmp = (Order)order_bad; gTree2.cmp = (Order)order_good; }
+void tree_add(int i) {
+    tree_insert(&gTree, &gTree.root, &gTNodes[i]);
+    tree_insert(&gTree2, &gTree2.root, &gTNodes2[i]);
+}
+/* 9. Views padded in bytes up to a field. One the PC build alone has reaches the PC's field (a PC view, 2); one the
+ * N64 build has too gives the N64's field (+8, b) where the PC has another (a), as func_8008BEA4's In (4). */
+#ifdef TARGET_PC
+typedef struct PadPC { u8 pad[8]; u32 a; } PadPC;
+#endif
+typedef struct PadAll { u8 pad[8]; u32 b; } PadAll;
+u32 pad_pc(int i) { return ((PadPC *)&gRec16[i])->a; }
+u32 pad_all(int i) { return ((PadAll *)&gRec16[i])->b; }
 """
 SELFTEST_REFERENCE = [(r"selftest\.c$", "Node", "the synthetic nodes: N64 layout, 32-bit links")]
 # (kind, storage regex, regex on the title and lines) the selftest must find, and must not
@@ -1375,9 +1582,13 @@ SELFTEST_EXPECT = [
     ("layout", r"^gRec16$", r"Rec12 in .* off the reference .*Rec16.*typed_bad"),
     ("inside", r"^gProf$", r"host \+0x14 passed to show.*inside the reference's file.*bad_name"),
     ("width", r"^gHolder$", r"4 bytes of the reference's pointer ptr.*low_half"),
+    ("inside", r"^gTNodes$", r"4-byte read at host \+0xC, inside the reference's right.*order_bad"),
+    ("layout", r"^gRec16$", r"PadPC in .*a PC view padded in host bytes"),
+    ("layout", r"^gRec16$", r"PadAll in .*the view is the N64 build's too.*pad_all"),
 ]
 SELFTEST_ABSENT = [
     (r".", r"ref_walk"), (r".", r"good_stride"), (r".", r"typed_good"), (r".", r"good_name"), (r".", r"fill_slots"),
+    (r".", r"order_good|tree_insert"),
 ]
 
 
@@ -1388,15 +1599,15 @@ def selftest(build, readelf):
     d.mkdir(parents=True, exist_ok=True)
     src = d / "selftest.c"
     src.write_text(SELFTEST_C)
-    r = subprocess.run(["cc", "-std=gnu89", "-g", "-w", "-fno-strict-aliasing", *ec.DUMP_FLAGS, "-c", str(src),
-                        "-o", str(d / "selftest.o")], cwd=d, capture_output=True, text=True)
+    r = subprocess.run(["cc", "-std=gnu89", "-g", "-w", "-fno-strict-aliasing", "-DTARGET_PC", *ec.DUMP_FLAGS,
+                        "-c", str(src), "-o", str(d / "selftest.o")], cwd=d, capture_output=True, text=True)
     if r.returncode:
         print(r.stderr)
         return 1
     saved = REFERENCE, REVIEWED
     REFERENCE, REVIEWED = SELFTEST_REFERENCE, []
     try:
-        _, res = analyze_unit(("selftest", d, build, readelf))
+        _, res = analyze_unit(("selftest", d, build, readelf, src))
         flow = Flow({"selftest": res}, Symbols(d / "none"))
         found = findings(flow)
     finally:
