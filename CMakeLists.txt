@@ -286,6 +286,22 @@ foreach(t ${PC_ASSETS_TESTS})
     set_target_properties(test_assets_${n} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
     add_test(NAME assets_${n} COMMAND test_assets_${n})
 endforeach()
+# The game's own WAD loader reading a converted synthetic WAD (port/assets/tests/wad_game.c): _ReadWave,
+# SetupWaveModel, the TOC functions and the display-list walkers, built with the game's flags, in an RDRAM window
+# the test maps itself (exit 77, skipped, if it can't).
+add_library(test_wad_game OBJECT src/blob/groups/audio_frame_sync/waves.c src/blob/MBSetupWad.c
+    src/blob/MBGetFromWad.c src/blob/func_80096B00.c src/blob/func_80096BBC.c src/blob/entity_cull_check.c
+    src/blob/entity_lod_select.c src/blob/func_800966D8.c src/blob/groups/slot_sound/entity_render_mode.c
+    src/blob/display_list_traverse.c src/blob/func_8008AD6C.c src/blob/func_80092D80.c src/blob/func_800B24EC.c)
+target_link_libraries(test_wad_game PRIVATE game_flags)
+target_compile_options(test_wad_game PRIVATE -w)
+add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c
+    $<TARGET_OBJECTS:pcassets> $<TARGET_OBJECTS:test_wad_game>)
+target_include_directories(test_assets_wad_game PRIVATE port/include port/assets port/assets/tests)
+target_compile_options(test_assets_wad_game PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+set_target_properties(test_assets_wad_game test_wad_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+add_test(NAME assets_wad_game COMMAND test_assets_wad_game)
+set_tests_properties(assets_wad_game PROPERTIES SKIP_RETURN_CODE 77)
 # A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
 set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
