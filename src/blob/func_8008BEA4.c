@@ -4,7 +4,13 @@ typedef signed int s32; typedef unsigned int u32; typedef float f32;
 typedef struct { u8 pad0[8]; s16 idx; } In;
 typedef struct { u8 pad[320]; u16 v[8]; } Out;
 typedef struct { u32 flags; u8 pad[948]; } PF;
+#ifdef TARGET_PC
+/* PC: D_8013FEF4 is the data field of the car palette descriptors D_8013FEE0, which keep a palette record's N64
+ * layout (24 bytes, data a u32 window address). */
+typedef struct { u32 o; u8 pad[20]; } PO;
+#else
 typedef struct { Out *o; u8 pad[20]; } PO;
+#endif
 extern PF D_80152900[];
 extern PO D_8013FEF4[];
 extern s8 D_8014978C;

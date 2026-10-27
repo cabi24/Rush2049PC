@@ -14,7 +14,13 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 
-typedef struct { u16 value; u16 flags; u8 pad4[4]; u32 *dl; u8 padC[4]; } Part;
+#ifdef TARGET_PC
+/* PC: Model is a WAD's OBHD record, which keeps its N64 layout (port/assets/wad.c): dl is a 32-bit window address. */
+#define PART_DL u32
+#else
+#define PART_DL u32 *
+#endif
+typedef struct { u16 value; u16 flags; u8 pad4[4]; PART_DL dl; u8 padC[4]; } Part;
 typedef struct { u8 pad0[0x16]; s16 count; Part part[4]; } Model;
 typedef struct { Model *models; s32 count; } ModelList;
 

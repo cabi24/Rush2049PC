@@ -21,12 +21,19 @@ typedef struct anon_kerns_value_c {
     signed short pad12;
 } anon_kerns_value_c;
 typedef struct anon_fore_4 { unsigned char rgba[4]; } anon_fore_4;
+#ifdef TARGET_PC
+/* PC: a font texture is a TXHD record of the font's WAD, which keeps its N64 layout (port/assets/wad.c): image is a
+ * 32-bit RDRAM-window address. */
+#define TXHD_IMAGE unsigned int image
+#else
+#define TXHD_IMAGE void *image
+#endif
 typedef struct tTexture {
     unsigned char pad00[16];
     unsigned short width;           /* 0x10 */
     unsigned short height;          /* 0x12 */
     unsigned char pad14[4];
-    void *image;                    /* 0x18 */
+    TXHD_IMAGE;                     /* 0x18 */
 } tTexture;
 
 extern anon_version_type_10 *D_801497F0;    /* gFontHeader */

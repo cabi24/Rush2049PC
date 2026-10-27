@@ -52,7 +52,13 @@ typedef struct tCarParts {       /* gCarParts[slot], 0x40 bytes */
     u8 pad2C[0x14];
 } tCarParts;
 typedef struct { u16 uv[8]; } tUVPair;
+#ifdef TARGET_PC
+/* PC: D_8013FEF4 is the data field of the car palette descriptors D_8013FEE0, which keep a palette record's N64
+ * layout (24 bytes, data a u32 window address). */
+typedef struct { u32 data; u8 pad[0x14]; } tCarModel;
+#else
 typedef struct { u8 *data; u8 pad[0x14]; } tCarModel;
+#endif
 
 extern s32 state_word_a;
 extern s32 gameplay_mode;            /* gRace */

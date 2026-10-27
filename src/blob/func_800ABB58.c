@@ -3694,6 +3694,12 @@ typedef s64 M2C_UNK64;
 #endif
 
 typedef struct { u8 *ptr; s32 count; } ABBEnt;
+#ifdef TARGET_PC
+/* PC: gRomObjDefPtrs entries are {model *, s32}, 16 bytes; the model records keep their N64 layout. */
+#define ABB_STRIDE sizeof(ABBEnt)
+#else
+#define ABB_STRIDE 8
+#endif
 f32 func_800ABB58(s32 arg0) {
     s32 idx;
     s32 sub;
@@ -3703,7 +3709,7 @@ f32 func_800ABB58(s32 arg0) {
     if (idx >= (s32) *(volatile u8 *) gNumModels) {
         return 0.0f;
     }
-    e = (ABBEnt *) ((u8 *) &gRomObjDefPtrs + idx * 8);
+    e = (ABBEnt *) ((u8 *) &gRomObjDefPtrs + idx * ABB_STRIDE);
     sub = arg0 & 0x3FF;
     if (sub >= e->count) {
         return 0.0f;

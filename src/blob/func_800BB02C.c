@@ -21,7 +21,14 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 
 typedef struct Owner Owner;
-typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; void *data; } Slot24;
+#ifdef TARGET_PC
+/* PC: the car palette descriptors D_8013FEE0 have a WAD palette record's (PLHD) N64 layout, which the model draw
+ * reads them through: data is a u32 window address (a heap block). docs/port/LOADERS.md */
+#define DESC_PTR(name) u32 name
+#else
+#define DESC_PTR(name) void *name
+#endif
+typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; DESC_PTR(data); } Slot24;
 typedef struct Link { u8 state; u8 kind; u8 payload[3]; u8 other5[3]; } Link;
 
 extern Slot24 D_8013FEE0[];

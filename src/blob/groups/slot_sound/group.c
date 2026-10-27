@@ -118,7 +118,15 @@ extern s32 D_801497A4;
 extern Entry *D_80149800;
 extern s16 D_80149878[256];
 extern intptr_t D_80149820[];
-extern Pair gTexDefPtrs[];
+#ifdef TARGET_PC
+/* PC: the gTexDefPtrs pairs are {tTexture *, s32}, 16 bytes, as SetupWaveModel declares them. first is the window
+ * address of the slot's TXHD records, widened without sign extension. */
+typedef struct { uintptr_t first; s32 second; } TexDefPair;
+#define TEXDEF_PAIR TexDefPair
+#else
+#define TEXDEF_PAIR Pair
+#endif
+extern TEXDEF_PAIR gTexDefPtrs[];
 extern u8 D_80149B60;
 extern u8 D_80149B70;
 extern s32 D_80149B28;

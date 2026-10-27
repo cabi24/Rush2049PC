@@ -56,13 +56,22 @@ typedef struct Ent {
 
 typedef struct Resource68 { u8 prefix[64]; u32 flags; } Resource68;
 
+#ifdef TARGET_PC
+/* PC: Scene36 is a track WAD's PTHD record, which keeps its N64 layout (port/assets/wad.c): resources (pts) is a
+ * 32-bit window address of the path points. */
+#define PTHD_PTS_FIELD u32 resources
+#define PTHD_PTS(scene) ((Resource68 *)(uintptr_t)(scene)->resources)
+#else
+#define PTHD_PTS_FIELD Resource68 *resources
+#define PTHD_PTS(scene) scene->resources
+#endif
 typedef struct Scene36 {
     char name[16];
     u32 flags;
     s16 count;
     s16 action;
     u32 field24;
-    Resource68 *resources;
+    PTHD_PTS_FIELD;
     s32 key;
 } Scene36;
 
@@ -421,7 +430,7 @@ void engine_sound_update(void)
         for (i = 0, offset = 0; i < D_801392D4; i++, offset += 36) {
             if (D_8014A110 == 2 && SCENE->action > 0) {
                 for (j = 0; j < SCENE->count; j++) {
-                    if (SCENE->resources[j].flags & 0x01000000) {
+                    if (PTHD_PTS(SCENE)[j].flags & 0x01000000) {
                         goto process;
                     }
                 }
@@ -437,9 +446,9 @@ void engine_sound_update(void)
                 other = (SCENE->flags & 0x10) ? 0 : 1;
                 for (j = 0; j < SCENE->count; j++) {
                     if (D_80150DD0) {
-                        SCENE->resources[j].flags &= ~0x1000;
+                        PTHD_PTS(SCENE)[j].flags &= ~0x1000;
                     }
-                    if (SCENE->resources[j].flags & 1) {
+                    if (PTHD_PTS(SCENE)[j].flags & 1) {
                         transmission_ratio_get((Place *)SCENE, -1, &zero.x, 0, i, enabled, other);
                     }
                 }
