@@ -524,6 +524,10 @@ if(NOT WIN32)
     add_test(NAME views_sound_emitter COMMAND ${VIEW_CHECK} --n64-size 0x2C --in ${SOUND_EMITTER_VIEWS}
         --tag Cam,CamSlot,Owner,RecB,Source)
     add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --sym D_80142DD8)
+    # The road collision's views of the car's model record (D_8014A250, N64 layout): the tires' road nodes at
+    # +0x3A0 are u32 window addresses (docs/port/CARS.md 2.2).
+    add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
+        --in src/blob/groups/func_800AD4C8/camera_victory.c,src/blob/groups/entity_update/entity_update.c,src/blob/groups/update_game_data/update_game_data.c)
 endif()
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
