@@ -114,8 +114,10 @@ def ensure_ptr_typedefs(t):
                 s32 = "s32"
         if l.startswith(("typedef struct", "typedef union", "struct", "extern", "void ", "static ")) and last is not None:
             break
-    if last is None:
-        raise SystemExit("no integer typedefs to anchor the uintptr_t block")
+    if last is None:   # no integer typedefs: after the leading comment block
+        last = -1
+        if lines and lines[0].lstrip().startswith("/*"):
+            last = next(i for i, l in enumerate(lines) if "*/" in l)
     block = ["#ifndef TARGET_PC", f"typedef {u32 or 'unsigned int'} uintptr_t;",
              f"typedef {s32 or 'int'} intptr_t;", "#endif"]
     return "\n".join(lines[:last + 1] + block + lines[last + 1:])

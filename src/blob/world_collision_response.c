@@ -80,7 +80,7 @@ extern volatile s8 D_8015F72D;               /* current frame record */
 extern Frame D_80156BE0[];
 extern Gfx *D_80156BA8;
 extern s32 D_80156BCC;
-extern s32 D_80149438;
+extern intptr_t D_80149438;
 #define GLIST_LEN 4000
 typedef struct {
     u8 pad[0x9CC0];

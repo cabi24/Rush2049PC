@@ -17,6 +17,10 @@ typedef short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef void *OSMesg;
 typedef struct OSMesgQueue OSMesgQueue;
 
@@ -31,8 +35,8 @@ extern volatile u8 D_80035471;
 extern volatile u8 D_80035472;
 extern OSMesgQueue D_8002ECC0;
 extern OSMesgQueue D_8002ECF8;
-extern s32 D_801497C8;
-extern s32 D_801497F4;
+extern intptr_t D_801497C8;
+extern intptr_t D_801497F4;
 
 typedef struct { s16 type; s16 pad; u8 data[28]; } SchedMsg;
 

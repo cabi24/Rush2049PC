@@ -2077,7 +2077,7 @@ extern s32 D_80138928;
 extern s32 D_801391E0;
 extern s32 D_801391E4;
 extern s16 D_801391E8;
-extern s32 D_801391F0;
+extern intptr_t D_801391F0;
 extern s32 D_801391F8;
 extern s32 D_80139228;
 extern f32 D_801392B8;

@@ -90,7 +90,12 @@ extern s32 D_8002AFC0, D_8002AFC4, D_8012E674;
 extern s16 D_8012E67A;
 extern u8 D_8011EACF;
 extern void *D_8012E684;
+#ifdef TARGET_PC
+extern intptr_t D_8012E6D0;
+extern s32 D_8012E6C0, D_8014A248, D_8012E680;
+#else
 extern s32 D_8012E6C0, D_8014A248, D_8012E680, D_8012E6D0;
+#endif
 extern s64 D_8012E688;
 extern void func_80086A50(s32);
 extern void func_800878E0(u32);

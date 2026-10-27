@@ -32,6 +32,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef union {
@@ -80,7 +84,7 @@ void model_transform_setup();
 
 extern u32 state_word_a;
 extern s32 D_80116DA4;
-extern s32 D_80116D98;
+extern intptr_t D_80116D98;
 extern s8 D_80116D94;
 void sound_handles_clear(s32 arg0);
 void sound_stop(s32 sound_id);

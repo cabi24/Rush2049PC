@@ -19,6 +19,10 @@
 typedef signed char s8;
 typedef unsigned char u8;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef int intptr_t;
+#endif
 
 typedef struct List16 { u8 indirect, doubly, pad2[2]; u32 count; void *head, *tail; } List16;
 typedef struct OSMesgQueue OSMesgQueue;
@@ -26,7 +30,12 @@ typedef struct OSMesgQueue OSMesgQueue;
 extern volatile s8 D_8011028C;
 extern s8 D_80110284;
 extern volatile List16 D_80146160;
+#ifdef TARGET_PC
+extern uintptr_t D_80144C48;
+extern uintptr_t D_80146100;
+#else
 extern u32 D_80144C48, D_80146100;
+#endif
 extern char D_80152770[];
 int osRecvMesg(OSMesgQueue *, void **, int);
 int osSendMesg(OSMesgQueue *, void *, int);

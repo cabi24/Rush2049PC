@@ -2,13 +2,17 @@
 typedef unsigned char u8;
 typedef short s16;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef int intptr_t;
+#endif
 typedef struct Resource Resource;
 typedef struct Object { u8 opaque[44]; Resource *resource; } Object;
 typedef struct Handle { Object *object; } Handle;
 typedef struct Player { u8 opaque[72]; Handle *handle; } Player;
 extern u32 D_801170FC;
 extern void *D_80117338,*D_8011733C,*D_80117340,*D_80117344,*D_80117348;
-extern u32 D_8011734C;
+extern uintptr_t D_8011734C;
 extern Player input_rec0[];
 extern s16 active_player_count;
 extern void sound_stop(void *);

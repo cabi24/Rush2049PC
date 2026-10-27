@@ -108,7 +108,7 @@ u32 high_scores_display(u32 index,u32 other,u32 value,u8 mode,f32 x,f32 y,f32 z)
 }
 
 typedef struct Cam {Link link;signed char active;signed char queued;u8 pad[2];f32 pos[3];f32 volume,x,y,f36;u32 tag;} Cam;
-extern s32 D_80110260;
+extern intptr_t D_80110260;
 extern List D_801461E8;
 Cam *func_800AED20(void);
 s32 camera_target_track(f32 *pos,f32 a1,f32 volume,f32 a3,f32 x,f32 y,u32 index,u32 other,u32 value,u8 mode) {

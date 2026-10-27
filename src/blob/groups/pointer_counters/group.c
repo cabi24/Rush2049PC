@@ -2650,7 +2650,7 @@ extern s32 D_80152788;
 extern s32 D_801527A0;
 extern u16 D_801527A4;
 extern s32 D_801527A8;
-extern s32 D_801527C8;
+extern intptr_t D_801527C8;
 extern s16 D_801527D0;
 extern s16 D_801527D8;
 extern s32 D_801527E4;

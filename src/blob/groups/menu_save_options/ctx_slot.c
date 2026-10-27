@@ -3,11 +3,15 @@
  * callee menu_back (s1) must be in this group's program for func_800CBF2C's register convention. */
 typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
 typedef signed int s32;typedef unsigned int u32;typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 #define NULL ((void *)0)
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
 typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
-extern s32 D_801527C8;
+extern intptr_t D_801527C8;
 extern OSMesgQueue D_80152770;
 
 /* ---- heap release (copied from src/blob/groups/heap_release, matched there) ---- */

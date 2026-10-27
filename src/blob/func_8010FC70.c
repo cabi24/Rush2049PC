@@ -1222,7 +1222,7 @@ extern s32 D_8011EA80;
 extern s32 D_8011EA90;
 extern s32 D_8011EAA0;
 extern s8 D_8011EAA4;
-extern s32 D_8011EAA8;
+extern intptr_t D_8011EAA8;
 extern s32 D_8011EAAC;
 extern s32 D_8011EACC;
 extern s8 D_8011EACF;

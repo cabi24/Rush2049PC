@@ -33,6 +33,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef void *OSMesg;
@@ -55,7 +59,12 @@ extern s32 D_8015F738, D_80161380, D_80161398, D_801613A4;
 extern f32 D_80154188;
 extern s32 D_80000300;
 extern s32 D_8002AFC0, D_8002AFC4;
+#ifdef TARGET_PC
+extern intptr_t D_8002EBB0;
+extern s32 D_80156CEC, D_80157240;
+#else
 extern s32 D_8002EBB0, D_80156CEC, D_80157240;
+#endif
 extern Segs D_80156BE0;
 extern u8 D_800586D0[], D_8006A090[];
 #ifdef TARGET_PC

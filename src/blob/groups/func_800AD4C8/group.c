@@ -2537,7 +2537,7 @@ extern u8 D_80152360;
 extern s32 D_80152460;
 extern s32 D_80152464;
 extern u8 D_80152468;
-extern s32 D_80152568;
+extern intptr_t D_80152568;
 extern s8 D_80152570;
 extern s8 D_80152574;
 extern s32 D_80152578;

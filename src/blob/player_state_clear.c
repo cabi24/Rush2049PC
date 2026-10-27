@@ -1456,7 +1456,7 @@ void world_object_destroy(s32 *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
-extern s32 D_801541A4;
+extern intptr_t D_801541A4;
 void player_state_clear(void)
 {
   s32 handle;

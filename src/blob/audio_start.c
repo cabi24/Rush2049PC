@@ -664,7 +664,7 @@ extern u8 D_801461F8;
 extern u8 D_80146204;
 extern u8 D_80146205;
 extern u8 D_80149414;
-extern s32 D_80149438;
+extern intptr_t D_80149438;
 extern u8 D_80149774;
 extern u8 D_80149794;
 extern u8 D_801497C4;

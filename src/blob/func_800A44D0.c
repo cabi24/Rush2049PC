@@ -2265,7 +2265,7 @@ extern s32 D_80143FC8;
 extern s32 D_80143FE0;
 extern s32 D_80143FF4;
 extern s32 D_80143FF8;
-extern s32 D_80144008;
+extern intptr_t D_80144008;
 extern s16 D_80144010;
 extern u8 D_80144018;
 extern s32 D_80144020;

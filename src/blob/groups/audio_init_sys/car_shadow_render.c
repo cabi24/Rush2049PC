@@ -26,6 +26,10 @@ typedef unsigned char u8;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef unsigned short u16;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct { u8 id,other1,mode,other3; s32 word4,word8; void *hdr; s32 word16; } Resource20;
 typedef struct { u16 other,id; } Instrument4;
 extern u8 D_80151960;
@@ -36,7 +40,7 @@ extern u8 D_80035260[],D_800350B0[],D_80033EA0[],D_8002F660[];
 extern Resource20 D_80156D38[];
 extern Instrument4 D_8011F0A0[];
 extern void *D_80152464,*D_801526D8,*D_80152690;
-extern s32 D_801525FC;
+extern intptr_t D_801525FC;
 extern u8 D_00039B40[];
 extern s8 D_8011EAAC;
 extern void task_complete_signal(void *);

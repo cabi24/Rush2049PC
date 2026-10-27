@@ -21,6 +21,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef f32 Vec3[3];
 typedef f32 Matrix3[3][3];
@@ -84,7 +88,7 @@ extern Control152 gCamera[];
 extern Object68 D_8012E700[];
 extern s8 D_80140418,D_80156994,D_8014978C;
 extern u8 D_80123264[];
-extern s32 D_80143F68[];
+extern intptr_t D_80143F68[];
 extern f32 D_801112DC[][13],D_801113E0[][13];
 extern f32 D_801543CC;
 extern f32 D_8012393C,D_80123940,D_80123944,D_80123948;

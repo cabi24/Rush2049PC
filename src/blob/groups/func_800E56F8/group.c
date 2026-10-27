@@ -2646,7 +2646,7 @@ extern s32 D_80152678;
 extern u16 D_8015267C;
 extern f32 D_80152680;
 extern s32 D_80152690;
-extern s32 D_80152698;
+extern intptr_t D_80152698;
 extern s32 D_801526A4;
 extern s32 D_801526A8;
 extern s32 D_801526D8;

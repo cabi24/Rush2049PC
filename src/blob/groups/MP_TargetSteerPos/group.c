@@ -2280,7 +2280,7 @@ extern s8 D_80144334;
 extern s8 D_80144638;
 extern s8 D_8014493C;
 extern s32 D_80144C40;
-extern s32 D_80144C48;
+extern intptr_t D_80144C48;
 extern s32 D_80144C50;
 extern s32 D_80144C58;
 extern s32 D_80144C60;

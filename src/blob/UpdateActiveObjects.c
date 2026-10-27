@@ -2488,7 +2488,7 @@ extern s32 D_80149410;
 extern s32 D_80149418;
 extern s32 D_80149428;
 extern s32 D_80149440;
-extern s32 D_80149450;
+extern intptr_t D_80149450;
 extern s32 D_80149770;
 extern s32 D_80149778;
 extern s32 D_80149780;

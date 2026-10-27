@@ -485,7 +485,7 @@ typedef enum GState
 } GState;
 extern u8 gstate;
 extern s32 frame_counter;
-extern s32 game_state_flags;
+extern intptr_t game_state_flags;
 extern s32 state_word_a;
 extern s32 state_word_b;
 extern OSMesgQueue *msgq_ptr;

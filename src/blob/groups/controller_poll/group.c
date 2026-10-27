@@ -2558,7 +2558,7 @@ extern f32 D_801526F8;
 extern s32 D_80152708;
 extern s8 D_80152718;
 extern f32 D_80152720;
-extern s32 D_80152730;
+extern intptr_t D_80152730;
 extern s32 D_80152738;
 extern s16 D_8015273A;
 extern f32 D_8015273C;

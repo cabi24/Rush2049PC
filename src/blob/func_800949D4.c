@@ -2520,7 +2520,7 @@ extern s8 D_80152015;
 extern f32 D_80152018;
 extern s32 D_8015201C;
 extern s32 D_80152020;
-extern s32 D_80152028;
+extern intptr_t D_80152028;
 extern s8 D_80152030;
 extern s8 D_80152031;
 extern s16 D_80152032;

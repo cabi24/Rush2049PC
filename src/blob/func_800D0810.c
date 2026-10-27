@@ -1,4 +1,8 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef int intptr_t;
+#endif
 typedef float f32;
 typedef struct State {
     unsigned char prefix[0xC4];
@@ -10,7 +14,7 @@ typedef struct State {
     unsigned char tail[0x228];
     int state[4];
 } State;
-extern int D_80124EEC;
+extern intptr_t D_80124EEC;
 void func_800D0810(State *p) {
     int i,j;
     for (i=0;i<3;i++) {

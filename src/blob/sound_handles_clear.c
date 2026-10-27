@@ -1194,7 +1194,7 @@ extern s8 D_80116DB8;
 extern s32 D_80116DBC;
 extern s32 D_80116DE0;
 extern s32 D_80116DE4;
-extern s32 D_80116FE4;
+extern intptr_t D_80116FE4;
 extern s32 D_80116FE8;
 extern u16 D_801170E8;
 extern u16 D_801170EC;

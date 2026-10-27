@@ -2046,7 +2046,7 @@ extern s32 D_8012E68C;
 extern s32 D_8012E690;
 extern s32 D_8012E6C0;
 extern s16 D_8012E6C8;
-extern s32 D_8012E6D0;
+extern intptr_t D_8012E6D0;
 extern s32 D_8012E6D8;
 extern f32 D_8012E6E8;
 extern s32 D_8012E6F8;
