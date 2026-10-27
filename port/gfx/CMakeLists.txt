@@ -44,6 +44,7 @@ add_library(pcgfx STATIC
     gfx_rdp.c
     gfx_combine.c
     gfx_gl.c
+    gfx_interp.c
     gfx_ui.c
     gfx_font.c
     ${PCGFX_HEADLESS}
@@ -119,6 +120,24 @@ pcgfx_all_variant(software "LIBGL_ALWAYS_SOFTWARE=1")
 pcgfx_all_variant(wide "RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(wide21-scale3 "RUSH_GFX_WIDESCREEN=21:9;RUSH_GFX_SCALE=3")
 pcgfx_all_variant(scale-auto "RUSH_GFX_SCALE=auto")   # 2 in the 640 x 480 headless size
+# Frame interpolation (gfx_interp.c, a high frame rate): pairs of frames built as the game builds them, and the
+# frames shown between against frames drawn directly at those moments. Headless; again at 2x, in widescreen, on
+# desktop GL and on llvmpipe.
+add_executable(gfx_interp_test tests/interp_test.c)
+set_target_properties(gfx_interp_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    EXPORT_COMPILE_COMMANDS OFF)
+target_include_directories(gfx_interp_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gfx_interp_test PRIVATE pcgfx)
+foreach(c exact move camera cut teleport split hud appear instances children spin eyerel timing parse)
+    add_test(NAME gfx.interp.${c} COMMAND gfx_interp_test ${c})
+endforeach()
+foreach(v "scale2;RUSH_GFX_SCALE=2" "wide;RUSH_GFX_WIDESCREEN=16:9" "desktop-gl;RUSH_GFX_API=gl"
+          "software;LIBGL_ALWAYS_SOFTWARE=1")
+    list(GET v 0 name)
+    list(GET v 1 env)
+    add_test(NAME gfx.interp.all.${name} COMMAND gfx_interp_test all)
+    set_tests_properties(gfx.interp.all.${name} PROPERTIES ENVIRONMENT "${env}")
+endforeach()
 # The overlay's drawing (gfx_ui.c) and font (gfx_font.c), headless: the window's offscreen image is read back.
 add_executable(gfx_ui_test tests/ui_test.c)
 set_target_properties(gfx_ui_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF

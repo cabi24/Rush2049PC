@@ -568,6 +568,13 @@ static int target_rows(const GfxTarget *t) {
 }
 
 void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
+    if (t == NULL)
+        return;
+    pcgfx_gl_present_image(t);
+    pcgfx_gl_show(win_w, win_h, to_window);
+}
+
+void pcgfx_gl_present_image(GfxTarget *t) {
     int s, rows, pw, ph;
     if (t == NULL)
         return;
@@ -596,10 +603,12 @@ void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
     G.present_valid = 1;
     G.present_fw = t->w;
     G.present_rows = rows;
-    pcgfx_gl_show(win_w, win_h, to_window);
 }
 
-void pcgfx_gl_show(int win_w, int win_h, int to_window) {
+/* Clear the window (or the headless window's image) and blit (sx0, sy0)-(sx0 + pw, sy0 + ph) of src into it: a
+ * frame fw x rows N64 pixels, with square pixels, at a whole multiple when one fits, else aspect fit. src 0: none. */
+static void show_from(GLuint src, int sx0, int sy0, int pw, int ph, int fw, int rows, int win_w, int win_h,
+                      int to_window) {
     static const float black[4] = {0, 0, 0, 1};
     GLuint dst = 0;
     if (win_w > 0 && win_h > 0 && !to_window) {
@@ -625,9 +634,8 @@ void pcgfx_gl_show(int win_w, int win_h, int to_window) {
         glViewport(0, 0, win_w, win_h);
         glClearBufferfv(GL_COLOR, 0, black);
     }
-    if (G.present_valid && win_w > 0 && win_h > 0) {
+    if (src != 0 && fw > 0 && rows > 0 && win_w > 0 && win_h > 0) {
         /* square N64 pixels; integer multiples when they fit, else aspect fit */
-        int fw = G.present_fw, rows = G.present_rows, pw = G.present_w, ph = G.present_h;
         int k = win_w / fw < win_h / rows ? win_w / fw : win_h / rows, dw, dh, dx, dy;
         if (k >= 1) {
             dw = fw * k;
@@ -641,12 +649,87 @@ void pcgfx_gl_show(int win_w, int win_h, int to_window) {
         }
         dx = (win_w - dw) / 2;
         dy = (win_h - dh) / 2;
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, G.present_fbo);
-        glBlitFramebuffer(0, 0, pw, ph, dx, dy, dx + dw, dy + dh, GL_COLOR_BUFFER_BIT,
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, src);
+        glBlitFramebuffer(sx0, sy0, sx0 + pw, sy0 + ph, dx, dy, dx + dw, dy + dh, GL_COLOR_BUFFER_BIT,
                           (dw % pw == 0 && dh % ph == 0) ? GL_NEAREST : GL_LINEAR);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     G.bound_fbo = 0;
+}
+
+void pcgfx_gl_show(int win_w, int win_h, int to_window) {
+    show_from(G.present_valid ? G.present_fbo : 0, 0, 0, G.present_w, G.present_h, G.present_fw, G.present_rows,
+              win_w, win_h, to_window);
+}
+
+void pcgfx_gl_show_target(GfxTarget *t, int rows, int win_w, int win_h, int to_window) {
+    int s;
+    if (t == NULL)
+        return;
+    s = t->s;
+    if (rows <= 0 || rows > t->h)
+        rows = t->h;
+    /* N64 row 0 is the top: GL rows (h - rows) .. h of the target, as the present copies them */
+    show_from(t->fbo, 0, (t->h - rows) * s, t->w * s, rows * s, t->w, rows, win_w, win_h, to_window);
+}
+
+GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, int s) {
+    static const float black[4] = {0, 0, 0, 1};
+    float one = 1.0f;
+    if (t != NULL && t->w == w && t->h == h && t->s == s)
+        return t;
+    if (t == NULL) {
+        t = (GfxTarget *)calloc(1, sizeof(*t));
+        if (t == NULL)
+            return NULL;
+        t->depth = (GfxDepth *)calloc(1, sizeof(*t->depth));
+        if (t->depth == NULL) {
+            free(t);
+            return NULL;
+        }
+        glGenFramebuffers(1, &t->fbo);
+        glGenTextures(1, &t->color);
+        glGenRenderbuffers(1, &t->depth->rb);
+        t->addr = t;   /* a key of its own: no color image has this address */
+        t->depth->addr = t;
+    }
+    t->w = t->depth->w = w;
+    t->h = t->depth->h = h;
+    t->s = t->depth->s = s;
+    t->vis_h = 0;
+    glBindTexture(GL_TEXTURE_2D, t->color);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w * s, h * s, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindRenderbuffer(GL_RENDERBUFFER, t->depth->rb);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w * s, h * s);
+    bind_fbo(t->fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t->color, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, t->depth->rb);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+    glClearBufferfv(GL_COLOR, 0, black);
+    glClearBufferfv(GL_DEPTH, 0, &one);
+    return t;
+}
+
+void pcgfx_gl_finish(void) {
+    glFinish();
+}
+
+void pcgfx_gl_aux_free(GfxTarget *t) {
+    if (t == NULL)
+        return;
+    if (G.bound_fbo == t->fbo)
+        bind_fbo(0);
+    glDeleteFramebuffers(1, &t->fbo);
+    glDeleteTextures(1, &t->color);
+    if (t->depth != NULL) {
+        glDeleteRenderbuffers(1, &t->depth->rb);
+        free(t->depth);
+    }
+    free(t);
 }
 
 void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_window, const uint8_t *atlas,

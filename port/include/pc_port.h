@@ -78,6 +78,16 @@ int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event));
 int pc_gfx_save_screenshot(const char *path);   /* last presented frame as PNG; 0 on success */
 void pc_gfx_shutdown(void);
 
+/* A high frame rate (video.frame_rate; docs/port/GFX.md "High frame rate"). 0, the default, is the game's own: each
+ * frame is shown when the VI swaps it in (pc_gfx_present). Otherwise the main loop shows a frame this many times a
+ * second (pc_gfx_present_tick), drawn between the game's last two; -1 is the display's refresh rate. The game's
+ * timing doesn't change: pc_gfx_present still only marks when each frame is swapped in, and screenshots still
+ * read the game's frames. */
+void pc_gfx_set_frame_rate(int rate);
+int pc_gfx_frame_rate(void);                 /* frames shown a second (-1 resolved), 0 for the game's own */
+void pc_gfx_retrace(uint32_t vi);            /* each retrace, before the VI's present: its number */
+void pc_gfx_present_tick(double vi_time);    /* show the frame for this moment, in retraces (pc_gfx_retrace's) */
+
 /* Drawing over the frame, in window pixels (port/gfx/gfx_ui.c), for port/input's settings overlay. While a UI hook
  * is set, each present (and pc_gfx_redraw) calls it with the window's size after the frame is shown and before
  * the swap; it draws with pc_gfx_ui_rect and pc_gfx_ui_text. Screenshots keep the frame without it. NULL removes

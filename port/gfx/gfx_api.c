@@ -4,15 +4,36 @@
  * the largest the window shows whole),
  * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
- * RUSH_GFX_VERBOSE=1|2. */
+ * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
+ * RUSH_GFX_VERBOSE=1|2|3, RUSH_GFX_TIMES=1|2 (the CPU time of tasks and frames at exit; 2: with the GPU's, glFinish). */
+#define _POSIX_C_SOURCE 200809L   /* clock_gettime */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #include "gfx_internal.h"
 #include "pc_port.h"
 
-GfxConfig pcgfx_cfg = {1, 1, 0.0f, 0.0f, 0, 0, 0};
+/* Milliseconds on a monotonic clock: the CPU time the renderer spends (GL calls return before the GPU is done). */
+static double now_ms(void) {
+#ifdef _WIN32
+    LARGE_INTEGER f, c;
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&c);
+    return (double)c.QuadPart * 1000.0 / (double)f.QuadPart;
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec * 1e3 + (double)ts.tv_nsec / 1e6;
+#endif
+}
+
+GfxConfig pcgfx_cfg = {1, 1, 0.0f, 0.0f, 0, 0, 0, 0};
 
 void pcgfx_rdp_new_frame(void);
 void pcgfx_rdp_forget_targets(void);
@@ -21,6 +42,15 @@ void pcgfx_tex_cache_clear(void);
 static struct {
     int inited, headless, use_sdl;
     int win_w, win_h;
+    uint32_t vi;              /* the last retrace (pc_gfx_retrace) */
+    GfxTarget *shown;         /* high frame rate: the target last shown instead of the presented image, or NULL */
+    int shown_rows;
+    int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
+    /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
+    uint32_t tasks, drawn;
+    double task_ms, drawn_ms, drawn_ms_max, tick_ms;
+    int times;                /* RUSH_GFX_TIMES: 1 the summary at exit; 2 with glFinish around each timed part, so
+                               * its time includes the GPU's */
 } S;
 
 static int env_int(const char *name, int def) {
@@ -82,6 +112,52 @@ void pc_gfx_set_scale(int scale) {
     resolve_auto();
 }
 
+/* "original" (or 0, "off") 0; "display" -1; else frames a second, 1-1000. *ok = 0 for anything else. */
+int pc_gfx_parse_frame_rate(const char *text, int *ok) {
+    char *end;
+    long v;
+    *ok = 1;
+    if (text == NULL || !*text || !strcmp(text, "original") || !strcmp(text, "off") || !strcmp(text, "0"))
+        return 0;
+    if (!strcmp(text, "display"))
+        return -1;
+    v = strtol(text, &end, 10);
+    if (*end == '\0' && v >= 1 && v <= 1000)
+        return (int)v;
+    *ok = 0;
+    return 0;
+}
+
+void pc_gfx_set_frame_rate(int rate) {
+    int was = pcgfx_cfg.frame_rate != 0;
+    pcgfx_cfg.frame_rate = rate < -1 ? 0 : rate;
+    if (was != (pcgfx_cfg.frame_rate != 0)) {
+        pcgfx_hfr_reset();   /* on: from the next frames drawn; off: the presents show frames again */
+        S.shown = NULL;
+    }
+}
+
+/* The display's refresh: the window's display (taken again at each event pump, so moving the window to another
+ * display follows it), or 60 without one. */
+static void display_refresh(void) {
+    int r = 0;
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        r = pcgfx_sdl_refresh();
+#endif
+    S.display_hz = r > 0 ? r : 60;
+}
+
+int pc_gfx_frame_rate(void) {
+    int r = pcgfx_cfg.frame_rate;
+    if (r < 0) {
+        if (S.display_hz <= 0)
+            display_refresh();
+        r = S.display_hz;
+    }
+    return r;
+}
+
 void pc_gfx_set_window_size(int w, int h) {
     if (!S.use_sdl && w > 0 && h > 0) {
         S.win_w = w;
@@ -105,6 +181,15 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     pcgfx_cfg.frame_height = env_int("RUSH_GFX_HEIGHT", pcgfx_cfg.frame_height);
     pcgfx_cfg.verbose = env_int("RUSH_GFX_VERBOSE", pcgfx_cfg.verbose);
     pcgfx_cfg.trace_task = env_int("RUSH_GFX_TRACE", 0);
+    S.times = env_int("RUSH_GFX_TIMES", 0);
+    if (getenv("RUSH_GFX_FRAME_RATE") != NULL) {
+        int ok, r = pc_gfx_parse_frame_rate(getenv("RUSH_GFX_FRAME_RATE"), &ok);
+        if (ok)
+            pcgfx_cfg.frame_rate = r;
+        else
+            fprintf(stderr, "gfx: RUSH_GFX_FRAME_RATE=%s is not original, display or 1-1000; ignored\n",
+                    getenv("RUSH_GFX_FRAME_RATE"));
+    }
     if (getenv("RUSH_GFX_WIDESCREEN") != NULL) {
         int ok;
         float a = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
@@ -141,6 +226,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     memset(&pcgfx, 0, sizeof(pcgfx));
     pcgfx_rdp_reset();
     pcgfx_rsp_reset();
+    pcgfx_hfr_reset();
 #ifdef PC_GFX_HAVE_SDL
     if (S.use_sdl)
         pcgfx_sdl_size(&S.win_w, &S.win_h);
@@ -153,8 +239,20 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
 void pc_gfx_run_dl(const void *dl) {
     if (!S.inited || dl == NULL)
         return;
+    double t0;
+    if (S.times > 1)
+        pcgfx_gl_finish();
+    t0 = now_ms();
     pcgfx.stat_cmds = pcgfx.stat_tris = pcgfx.stat_draws = pcgfx.stat_unknown = 0;
+    if (pcgfx_cfg.frame_rate != 0)   /* a high frame rate: recorded, to be drawn again between frames */
+        pcgfx_rec_task_begin();
     pcgfx_run_list(dl);
+    if (pcgfx_rec != NULL)
+        pcgfx_rec_task_end();
+    if (S.times > 1)
+        pcgfx_gl_finish();
+    S.tasks++;
+    S.task_ms += now_ms() - t0;
     if (pcgfx_cfg.verbose)
         fprintf(stderr, "gfx: task: %u commands, %u triangles, %u draws, %u unknown\n", pcgfx.stat_cmds,
                 pcgfx.stat_tris, pcgfx.stat_draws, pcgfx.stat_unknown);
@@ -174,6 +272,10 @@ static void swap(void) {
 #endif
 }
 
+void pc_gfx_retrace(uint32_t vi) {
+    S.vi = vi;
+}
+
 void pc_gfx_present(const void *framebuffer) {
     GfxTarget *t;
     if (!S.inited)
@@ -182,6 +284,17 @@ void pc_gfx_present(const void *framebuffer) {
     t = pcgfx_gl_find_target(pcgfx_resolve((uintptr_t)framebuffer));
     if (t == NULL)
         t = pcgfx_gl_last_target();
+    if (pcgfx_cfg.frame_rate != 0) {
+        /* a high frame rate: the frame becomes the presented image (screenshots), and the main loop's ticks show
+         * it, or the frames drawn between it and the next (pc_gfx_present_tick) */
+        if (t != NULL) {
+            pcgfx_gl_present_image(t);
+            pcgfx_hfr_presented(t, S.vi);
+        }
+        resolve_auto();
+        pcgfx_rdp_new_frame();
+        return;
+    }
     if (t != NULL) {
         window_size();
         pcgfx_gl_present(t, S.win_w, S.win_h, S.use_sdl);
@@ -197,14 +310,54 @@ void pc_gfx_present(const void *framebuffer) {
     pcgfx_rdp_new_frame();
 }
 
-/* The last presented frame again, from the presented image (not a render target, which the game may have drawn
- * into since), with the overlay over it. */
+/* A high frame rate's tick (the main loop, video.frame_rate times a second): the frame for time vt, in retraces.
+ * The presented frame when it is due, else one drawn between it and the next, or the next one when it is late. */
+void pc_gfx_present_tick(double vt) {
+    GfxTarget *t = NULL;
+    int rows = 0, kind;
+    double t0, t1;
+    if (!S.inited || pcgfx_cfg.frame_rate == 0)
+        return;
+    if (S.times > 1)
+        pcgfx_gl_finish();
+    t0 = now_ms();
+    pcgfx_flush();
+    window_size();
+    kind = pcgfx_hfr_frame(vt, &t, &rows);
+    if (S.times > 1)
+        pcgfx_gl_finish();
+    t1 = now_ms() - t0;
+    if (kind == 2) {
+        S.drawn++;
+        S.drawn_ms += t1;
+        if (t1 > S.drawn_ms_max)
+            S.drawn_ms_max = t1;
+    }
+    if (kind != 0 && t != NULL) {
+        pcgfx_gl_show_target(t, rows, S.win_w, S.win_h, S.use_sdl);
+        S.shown = t;
+        S.shown_rows = rows;
+    } else {
+        pcgfx_gl_show(S.win_w, S.win_h, S.use_sdl);   /* black before the first frame */
+        S.shown = NULL;
+    }
+    pcgfx_hfr_dump(S.shown, kind == 2);
+    pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
+    swap();
+    S.tick_ms += now_ms() - t0;
+}
+
+/* The last frame shown again (the presented image, not a render target, which the game may have drawn into
+ * since; with a high frame rate, the frame drawn between two when that was the last shown), with the overlay. */
 void pc_gfx_redraw(void) {
     if (!S.inited)
         return;
     pcgfx_flush();
     window_size();
-    pcgfx_gl_show(S.win_w, S.win_h, S.use_sdl);
+    if (S.shown != NULL && pcgfx_cfg.frame_rate != 0)
+        pcgfx_gl_show_target(S.shown, S.shown_rows, S.win_w, S.win_h, S.use_sdl);
+    else
+        pcgfx_gl_show(S.win_w, S.win_h, S.use_sdl);
     pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
     swap();
     resolve_auto();
@@ -222,6 +375,8 @@ int pc_gfx_poll_events(void) {
     if (S.use_sdl)
         quit = pcgfx_sdl_poll();
 #endif
+    if (pcgfx_cfg.frame_rate < 0)
+        display_refresh();
     if (s_tick != NULL && s_tick() != 0)
         quit = 1;
     return quit;
@@ -266,6 +421,17 @@ int pc_gfx_read_window(uint8_t *rgba, int *w, int *h) {
 
 void pc_gfx_shutdown(void) {
     if (S.inited) {
+        PcGfxHfrStats st;
+        pcgfx_hfr_stats(&st);
+        if (pcgfx_cfg.frame_rate != 0)
+            fprintf(stderr, "gfx: frame rate %d: %u frames shown, %u drawn between two, %u next ones early, %u held\n",
+                    pc_gfx_frame_rate(), st.ticks, st.drawn, st.early, st.held);
+        if (pcgfx_cfg.frame_rate != 0 || pcgfx_cfg.verbose || S.times)   /* GL may finish the work later */
+            fprintf(stderr, "gfx: %s time: %u graphics tasks, %.3f ms each; %u frames drawn between two, %.3f ms "
+                    "each (at most %.3f); %u frames shown, %.3f ms each\n", S.times > 1 ? "GPU and CPU" : "CPU", S.tasks,
+                    S.tasks ? S.task_ms / S.tasks : 0.0, S.drawn, S.drawn ? S.drawn_ms / S.drawn : 0.0,
+                    S.drawn_ms_max, st.ticks, st.ticks ? S.tick_ms / st.ticks : 0.0);
+        pcgfx_hfr_shutdown();
         pcgfx_tex_cache_clear();
         pcgfx_rdp_forget_targets();
         pcgfx_gl_shutdown();

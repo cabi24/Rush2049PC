@@ -64,12 +64,16 @@ void pcgfx_target_dims(int *w, int *h) {
  * target. The game's split-screen views keep a 1-2 pixel border (2 players: x 2-242; 3-4: 1-161 and 158-318). */
 #define GFX_WIDE_EDGE 4.0f
 
-float pcgfx_wide_x(float x) {
+float pcgfx_wide_x_at(float x, int frame_width, int ox) {
     if (x <= GFX_WIDE_EDGE)
         return x;
-    if (x >= (float)pcgfx_frame_width() - GFX_WIDE_EDGE)
-        return x + 2.0f * pcgfx.wide_ox;
-    return x + pcgfx.wide_ox;
+    if (x >= (float)frame_width - GFX_WIDE_EDGE)
+        return x + 2.0f * ox;
+    return x + ox;
+}
+
+float pcgfx_wide_x(float x) {
+    return pcgfx_wide_x_at(x, pcgfx_frame_width(), pcgfx.wide_ox);
 }
 
 static GfxTarget *current_target(void) {
@@ -472,15 +476,7 @@ void pcgfx_tex_cache_clear(void) {
 
 /* ---------------------------------------------------------------- texture coordinates */
 
-typedef struct {
-    int tile;
-    float uls, ult;   /* texels */
-    int shifts, shiftt;
-    float w, h;
-    int linear;
-} UnitInfo;
-
-static UnitInfo s_unit[2];
+static GfxUnitInfo s_unit[2];
 
 static float tile_shift(float c, int sh) {
     if (sh == 0)
@@ -490,8 +486,7 @@ static float tile_shift(float c, int sh) {
     return c * (float)(1 << (16 - sh));
 }
 
-void pcgfx_tile_uv(int unit, float s, float t, float *u, float *v) {
-    const UnitInfo *ui = &s_unit[unit];
+void pcgfx_unit_uv(const GfxUnitInfo *ui, float s, float t, float *u, float *v) {
     s = tile_shift(s, ui->shifts) - ui->uls;
     t = tile_shift(t, ui->shiftt) - ui->ult;
     if (ui->linear) {   /* bilinear centers texels on integer coordinates */
@@ -500,6 +495,14 @@ void pcgfx_tile_uv(int unit, float s, float t, float *u, float *v) {
     }
     *u = s / ui->w;
     *v = t / ui->h;
+}
+
+void pcgfx_tile_uv(int unit, float s, float t, float *u, float *v) {
+    pcgfx_unit_uv(&s_unit[unit], s, t, u, v);
+}
+
+const GfxUnitInfo *pcgfx_units(void) {
+    return s_unit;
 }
 
 /* ---------------------------------------------------------------- draw state */
@@ -657,6 +660,13 @@ const GfxDrawState *pcgfx_draw_state(int rect_tile, int wide) {
     return &s_state;
 }
 
+const GfxDrawState *pcgfx_draw_state_peek(int rect_tile, int wide) {
+    if (s_state_valid && !pcgfx.state_dirty && !pcgfx.tex_dirty && s_state_rect_tile == rect_tile &&
+        s_state_wide == wide)
+        return &s_state;
+    return NULL;
+}
+
 void pcgfx_emit(const GfxOutVtx *v, int n) {
     if (s_batch_n + n > GFX_BATCH_MAX)
         pcgfx_flush();
@@ -755,6 +765,8 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     tri[3] = q[1];
     tri[4] = q[2];
     tri[5] = q[3];
+    if (pcgfx_rec != NULL)
+        pcgfx_rec_verts(&s_state, tri, 6);
     pcgfx_emit(tri, 6);
 }
 
@@ -809,9 +821,13 @@ static void fill_rect(uint32_t w0, uint32_t w1) {
             }
             pcgfx_gl_attach_depth(t, pcgfx.zimg);
             pcgfx_gl_clear(t, r, 1, NULL, (float)(z & 0x3FFF) / 16383.0f);
+            if (pcgfx_rec != NULL)
+                pcgfx_rec_clear(t, r, 1, NULL, (float)(z & 0x3FFF) / 16383.0f);
         } else {
             fill_rgba(pcgfx.fill_color, c);
             pcgfx_gl_clear(current_target(), r, 0, c, 0.0f);
+            if (pcgfx_rec != NULL)
+                pcgfx_rec_clear(current_target(), r, 0, c, 0.0f);
         }
         return;
     }

@@ -199,7 +199,7 @@ static void light_read(const uint8_t *p, GfxLight *l) {
 
 /* ---------------------------------------------------------------- vertices */
 
-static uint8_t outcode(const GfxVtx *v, float xs) {
+uint8_t pcgfx_outcode(const GfxVtx *v, float xs) {
     uint8_t c = 0;
     float x = v->x * xs;
     if (x < -v->w) c |= 1;
@@ -210,11 +210,11 @@ static uint8_t outcode(const GfxVtx *v, float xs) {
     return c;
 }
 
-static float fog_alpha(float z, float w) {
+float pcgfx_fog_alpha(float z, float w, int16_t fog_mul, int16_t fog_off) {
     float f;
     if (w < GFX_W_EPS)
         w = GFX_W_EPS;
-    f = z / w * (float)pcgfx.fog_mul + (float)pcgfx.fog_off;
+    f = z / w * (float)fog_mul + (float)fog_off;
     if (f < 0.0f) f = 0.0f;
     if (f > 255.0f) f = 255.0f;
     return f / 255.0f;
@@ -288,9 +288,11 @@ static void load_vertices(const uint8_t *p, int be, int v0, int n) {
             v->s = s * (pcgfx.tex_scale_s / 65536.0f);
             v->t = t * (pcgfx.tex_scale_t / 65536.0f);
         }
-        v->a = (pcgfx.geom & G_FOG) ? fog_alpha(v->z, v->w) : p[15] / 255.0f;
-        v->clip = outcode(v, xs);
+        v->a = (pcgfx.geom & G_FOG) ? pcgfx_fog_alpha(v->z, v->w, pcgfx.fog_mul, pcgfx.fog_off) : p[15] / 255.0f;
+        v->clip = pcgfx_outcode(v, xs);
     }
+    if (pcgfx_rec != NULL)
+        pcgfx_rec_load(p - 16 * i, be, v0, i);
 }
 
 static float screen_z(const GfxVtx *v) {
@@ -322,7 +324,7 @@ static void modify_vertex(uint32_t w0, uint32_t w1) {
         if (pcgfx.vp_scale[1] != 0.0f)
             v->y = -(sy - pcgfx.vp_trans[1]) / pcgfx.vp_scale[1] * v->w;
         view_x(&xs);
-        v->clip = outcode(v, xs);
+        v->clip = pcgfx_outcode(v, xs);
         break;
     }
     case G_MWO_POINT_ZSCREEN:
@@ -330,6 +332,8 @@ static void modify_vertex(uint32_t w0, uint32_t w1) {
             v->z = ((float)w1 / 65536.0f - pcgfx.vp_trans[2]) / pcgfx.vp_scale[2] * v->w;
         break;
     }
+    if (pcgfx_rec != NULL)
+        pcgfx_rec_modify(idx, ((w0 >> 16) & 0xFF) == G_MWO_POINT_XYSCREEN || ((w0 >> 16) & 0xFF) == G_MWO_POINT_ZSCREEN);
 }
 
 /* ---------------------------------------------------------------- triangles */
@@ -348,87 +352,114 @@ static void vtx_lerp(GfxVtx *o, const GfxVtx *a, const GfxVtx *b, float t) {
     o->clip = 0;
 }
 
-static int clip_w(const GfxVtx *in, int n, GfxVtx *out) {
+/* exact: a new vertex's w is the plane's (robust, the frame interpolator's): lerped from w in the thousands, its float
+ * w is off by about the plane's own 1e-4 and can come out below zero, which turns its projection around. The live
+ * interpreter keeps the lerped w, so its output is what it was. */
+static int clip_w(const GfxVtx *in, int n, GfxVtx *out, int exact) {
     int i, m = 0;
     for (i = 0; i < n; i++) {
         const GfxVtx *a = &in[i], *b = &in[(i + 1) % n];
         float da = a->w - GFX_W_EPS, db = b->w - GFX_W_EPS;
         if (da >= 0.0f)
             out[m++] = *a;
-        if ((da >= 0.0f) != (db >= 0.0f))
-            vtx_lerp(&out[m++], a, b, da / (da - db));
+        if ((da >= 0.0f) != (db >= 0.0f)) {
+            vtx_lerp(&out[m], a, b, da / (da - db));
+            if (exact)
+                out[m].w = GFX_W_EPS;
+            m++;
+        }
     }
     return m;
 }
 
-static void triangle(unsigned i0, unsigned i1, unsigned i2) {
-    GfxVtx in[3], poly[8];
-    GfxOutVtx out[18];
-    const GfxDrawState *st;
-    int n = 3, i, k, tw, th, tex;
-    float flat[4], ax, ay, bx, by, vx, xs;
-    uint32_t cull = pcgfx.geom & G_CULL_BOTH;
+static float screen_z_at(const GfxVtx *v, const GfxTriCtx *c) {
+    float w = v->w < GFX_W_EPS ? GFX_W_EPS : v->w;
+    return c->vp_trans[2] + v->z / w * c->vp_scale[2];
+}
 
-    if (i0 >= 32 || i1 >= 32 || i2 >= 32)
-        return;
-    in[0] = pcgfx.vtx[i0];
-    in[1] = pcgfx.vtx[i1];
-    in[2] = pcgfx.vtx[i2];
+int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]) {
+    int n = 3, i;
+    float ax, ay, bx, by;
+    uint32_t cull = c->geom & G_CULL_BOTH;
+
     if (in[0].clip & in[1].clip & in[2].clip)
-        return;
+        return 0;
     if (cull == G_CULL_BOTH)
-        return;
-    flat[0] = in[0].r;
-    flat[1] = in[0].g;
-    flat[2] = in[0].b;
-    flat[3] = in[0].a;
+        return 0;
     if ((in[0].clip | in[1].clip | in[2].clip) & 16) {
-        n = clip_w(in, 3, poly);
+        n = clip_w(in, 3, poly, c->robust);
         if (n < 3)
-            return;
+            return 0;
     } else {
-        memcpy(poly, in, sizeof(in));
+        memcpy(poly, in, sizeof(GfxVtx) * 3);
     }
 
     /* Cull on the screen-space winding (y down): front faces (counterclockwise with y up) have negative area,
-     * and a mirrored viewport flips it, as on the RSP. */
-    if (cull) {
+     * and a mirrored viewport flips it, as on the RSP. A polygon clipped at the eye plane has vertices at w = 1e-4,
+     * x/w near 1e7, and float sums of their products can lose the sign: the frame interpolator, whose moments put
+     * the road under the camera there often, sums in double (c->robust). The live interpreter keeps its float sum,
+     * so its output is what it was. */
+    if (cull && c->robust) {
+        double area = 0.0;
+        for (i = 0; i < n; i++) {
+            const GfxVtx *a = &poly[i], *b = &poly[(i + 1) % n];
+            double dax = c->vp_trans[0] + (double)a->x / a->w * c->vp_scale[0];
+            double day = c->vp_trans[1] - (double)a->y / a->w * c->vp_scale[1];
+            double dbx = c->vp_trans[0] + (double)b->x / b->w * c->vp_scale[0];
+            double dby = c->vp_trans[1] - (double)b->y / b->w * c->vp_scale[1];
+            area += dax * dby - dbx * day;
+        }
+        if (area == 0.0)
+            return 0;
+        if ((cull & G_CULL_BACK) && area > 0.0)
+            return 0;
+        if ((cull & G_CULL_FRONT) && area < 0.0)
+            return 0;
+    } else if (cull) {
         float area = 0.0f;
         for (i = 0; i < n; i++) {
             const GfxVtx *a = &poly[i], *b = &poly[(i + 1) % n];
-            ax = pcgfx.vp_trans[0] + a->x / a->w * pcgfx.vp_scale[0];
-            ay = pcgfx.vp_trans[1] - a->y / a->w * pcgfx.vp_scale[1];
-            bx = pcgfx.vp_trans[0] + b->x / b->w * pcgfx.vp_scale[0];
-            by = pcgfx.vp_trans[1] - b->y / b->w * pcgfx.vp_scale[1];
+            ax = c->vp_trans[0] + a->x / a->w * c->vp_scale[0];
+            ay = c->vp_trans[1] - a->y / a->w * c->vp_scale[1];
+            bx = c->vp_trans[0] + b->x / b->w * c->vp_scale[0];
+            by = c->vp_trans[1] - b->y / b->w * c->vp_scale[1];
             area += ax * by - bx * ay;
         }
         if (area == 0.0f)
-            return;
+            return 0;
         if ((cull & G_CULL_BACK) && area > 0.0f)
-            return;
+            return 0;
         if ((cull & G_CULL_FRONT) && area < 0.0f)
-            return;
+            return 0;
     }
+    return n;
+}
 
-    vx = view_x(&xs);
-    st = pcgfx_draw_state(-1, pcgfx.wide_ox != 0 && pcgfx.persp);
-    pcgfx_target_dims(&tw, &th);
-    tex = pcgfx.tex_on;
+int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTriCtx *c, const GfxDrawState *st,
+                     const GfxUnitInfo units[2], GfxOutVtx *tri) {
+    GfxOutVtx out[8];
+    float flat[4];
+    int i, k, m = 0;
+
+    flat[0] = first->r;
+    flat[1] = first->g;
+    flat[2] = first->b;
+    flat[3] = first->a;
     for (i = 0; i < n; i++) {
         const GfxVtx *v = &poly[i];
         GfxOutVtx *o = &out[i];
         float d;
-        if (pcgfx.om_l & G_ZS_PRIM)
-            d = pcgfx.prim_z / 32767.0f;
+        if (c->zs_prim)
+            d = c->prim_z / 32767.0f;
         else
-            d = screen_z(v) / 1023.0f;
+            d = screen_z_at(v, c) / 1023.0f;
         if (d < 0.0f) d = 0.0f;
         if (d > 1.0f) d = 1.0f;
-        o->pos[0] = v->w * (2.0f * vx / tw - 1.0f) + v->x * 2.0f * pcgfx.vp_scale[0] / tw;
-        o->pos[1] = v->w * (1.0f - 2.0f * pcgfx.vp_trans[1] / th) + v->y * 2.0f * pcgfx.vp_scale[1] / th;
+        o->pos[0] = v->w * (2.0f * c->vx / c->tw - 1.0f) + v->x * 2.0f * c->vp_scale[0] / c->tw;
+        o->pos[1] = v->w * (1.0f - 2.0f * c->vp_trans[1] / c->th) + v->y * 2.0f * c->vp_scale[1] / c->th;
         o->pos[2] = (2.0f * d - 1.0f) * v->w;
         o->pos[3] = v->w;
-        if (pcgfx.geom & G_SHADING_SMOOTH) {
+        if (c->geom & G_SHADING_SMOOTH) {
             o->shade[0] = v->r;
             o->shade[1] = v->g;
             o->shade[2] = v->b;
@@ -437,23 +468,57 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
             memcpy(o->shade, flat, sizeof(flat));
         }
         for (k = 0; k < 2; k++) {
-            if (tex && st->tex[k])
-                pcgfx_tile_uv(k, v->s / 32.0f, v->t / 32.0f, &o->uv[2 * k], &o->uv[2 * k + 1]);
+            if (c->tex && st->tex[k])
+                pcgfx_unit_uv(&units[k], v->s / 32.0f, v->t / 32.0f, &o->uv[2 * k], &o->uv[2 * k + 1]);
             else
                 o->uv[2 * k] = o->uv[2 * k + 1] = 0.0f;
         }
     }
-    {
-        GfxOutVtx tri[18];
-        int m = 0;
-        for (i = 1; i + 1 < n; i++) {
-            tri[m++] = out[0];
-            tri[m++] = out[i];
-            tri[m++] = out[i + 1];
-        }
-        pcgfx_emit(tri, m);
+    for (i = 1; i + 1 < n; i++) {
+        tri[m++] = out[0];
+        tri[m++] = out[i];
+        tri[m++] = out[i + 1];
     }
-    pcgfx.stat_tris++;
+    return m;
+}
+
+/* What a triangle drawn now needs besides its vertices. */
+static void tri_ctx(GfxTriCtx *c) {
+    memcpy(c->vp_scale, pcgfx.vp_scale, sizeof(c->vp_scale));
+    memcpy(c->vp_trans, pcgfx.vp_trans, sizeof(c->vp_trans));
+    c->vx = view_x(&c->xs);
+    pcgfx_target_dims(&c->tw, &c->th);
+    c->geom = pcgfx.geom;
+    c->prim_z = pcgfx.prim_z;
+    c->zs_prim = (pcgfx.om_l & G_ZS_PRIM) != 0;
+    c->tex = pcgfx.tex_on;
+    c->wide = pcgfx.wide_ox != 0 && pcgfx.persp;
+    c->robust = 0;
+}
+
+static void triangle(unsigned i0, unsigned i1, unsigned i2) {
+    GfxVtx in[3], poly[8];
+    GfxTriCtx c;
+    const GfxDrawState *st = NULL;
+    int n;
+
+    if (i0 >= 32 || i1 >= 32 || i2 >= 32)
+        return;
+    in[0] = pcgfx.vtx[i0];
+    in[1] = pcgfx.vtx[i1];
+    in[2] = pcgfx.vtx[i2];
+    tri_ctx(&c);
+    n = pcgfx_tri_visible(in, &c, poly);
+    if (n > 0) {
+        GfxOutVtx tri[18];
+        int m;
+        st = pcgfx_draw_state(-1, c.wide);
+        m = pcgfx_tri_output(poly, n, &in[0], &c, st, pcgfx_units(), tri);
+        pcgfx_emit(tri, m);
+        pcgfx.stat_tris++;
+    }
+    if (pcgfx_rec != NULL)
+        pcgfx_rec_tri(i0, i1, i2, &c, st);
 }
 
 static void tri_word(uint32_t w) {
@@ -510,6 +575,9 @@ void pcgfx_rsp_reset(void) {
     pcgfx.vp_trans[2] = 511.0f;
     memset(pcgfx.vtx, 0, sizeof(pcgfx.vtx));
     pcgfx.state_dirty = 1;
+    pcgfx.xf_gen++;
+    pcgfx.view_ord = pcgfx.vp_ord = 0;
+    pcgfx.mp_forced = 0;
 }
 
 static void moveword(uint32_t w0, uintptr_t w1) {
@@ -547,6 +615,8 @@ static void moveword(uint32_t w0, uintptr_t w1) {
     }
     case G_MW_MATRIX:
         mp_insert(off, v);
+        pcgfx.xf_gen++;
+        pcgfx.mp_forced = 1;
         break;
     default:   /* G_MW_CLIP, G_MW_PERSPNORM, G_MW_FORCEMTX: nothing to emulate */
         break;
@@ -568,6 +638,9 @@ static void movemem(uint32_t w0, uintptr_t w1) {
         pcgfx.vp_trans[0] = (int16_t)pcgfx_rd16(p + 8, be) / 4.0f;
         pcgfx.vp_trans[1] = (int16_t)pcgfx_rd16(p + 10, be) / 4.0f;
         pcgfx.vp_trans[2] = (int16_t)pcgfx_rd16(p + 12, be);
+        pcgfx.vp_ord++;
+        if (pcgfx_rec != NULL)
+            pcgfx_rec_viewport();
         break;
     case G_MV_LIGHT: {
         unsigned n = ofs / 24;   /* 0, 1: lookat x, y; 2..: lights */
@@ -582,6 +655,8 @@ static void movemem(uint32_t w0, uintptr_t w1) {
         mtx_read(p, be, pcgfx.mp);
         pcgfx.persp = is_persp(pcgfx.mp);
         pcgfx.mp_dirty = 0;
+        pcgfx.xf_gen++;
+        pcgfx.mp_forced = 1;
         break;
     default:
         break;
@@ -595,10 +670,13 @@ static void matrix(uint32_t w0, uintptr_t w1) {
     if (p == NULL)
         return;
     mtx_read(p, pcgfx_is_be(p), m);
+    pcgfx.xf_gen++;
+    pcgfx.mp_forced = 0;
     if (params & G_MTX_PROJECTION) {
-        if (params & G_MTX_LOAD)
+        if (params & G_MTX_LOAD) {
             memcpy(pcgfx.proj, m, sizeof(m));
-        else
+            pcgfx.view_ord++;
+        } else
             mtx_mul(pcgfx.proj, m, pcgfx.proj);
     } else {
         if ((params & G_MTX_PUSH) && pcgfx.mv_top + 1 < GFX_MTX_STACK) {
@@ -703,6 +781,8 @@ void pcgfx_run_list(const void *dl) {
             int n = (int)((uint32_t)w1 / 64);
             pcgfx.mv_top = pcgfx.mv_top > n ? pcgfx.mv_top - n : 0;
             pcgfx.mp_dirty = pcgfx.lights_dirty = 1;
+            pcgfx.xf_gen++;
+            pcgfx.mp_forced = 0;
             break;
         }
         case G_GEOMETRYMODE:

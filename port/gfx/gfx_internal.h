@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "gfx_gbi.h"
+#include "gfx_hfr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,6 +98,12 @@ typedef struct {
     int state_dirty;             /* draw state must be rebuilt */
     int tex_dirty;               /* textures must be looked up again */
 
+    /* Frame interpolation (gfx_interp.c): what the recorder needs to tell transforms and views apart. */
+    uint32_t xf_gen;             /* bumped by every change of the modelview, the projection or MP */
+    uint16_t view_ord;           /* projection loads (G_MTX_PROJECTION | G_MTX_LOAD) in this task */
+    uint16_t vp_ord;             /* viewports (G_MV_VIEWPORT) in this task */
+    uint8_t mp_forced;           /* MP set directly (G_MV_MATRIX, G_MW_MATRIX): it is not modelview x projection */
+
     /* statistics for the last task */
     uint32_t stat_cmds, stat_tris, stat_draws, stat_unknown;
 } GfxState;
@@ -155,18 +162,57 @@ void pcgfx_rsp_reset(void);      /* RSP state at task start */
 void pcgfx_rdp_reset(void);      /* RDP state at init */
 void pcgfx_run_list(const void *dl);
 
+/* How a texture unit maps a vertex's s, t to the bound texture (set with the draw state, gfx_rdp.c). */
+typedef struct {
+    int tile;
+    float uls, ult;   /* texels */
+    int shifts, shiftt;
+    float w, h;
+    int linear;
+} GfxUnitInfo;
+
+/* What turning a triangle's vertices into GL vertices needs besides them (gfx_rsp.c): the viewport and where it
+ * lands in the target, the geometry mode's culling and shading, the depth source. The live interpreter fills it
+ * from its state; the frame interpolator (gfx_interp.c) replays recorded ones. */
+typedef struct {
+    float vp_scale[3], vp_trans[3];
+    float vx, xs;           /* view_x: the viewport's x centre in the target, and clip x's widening for outcodes */
+    int tw, th;             /* the target, N64 pixels */
+    uint32_t geom;          /* G_CULL_*, G_SHADING_SMOOTH */
+    uint16_t prim_z;
+    uint8_t zs_prim;        /* G_ZS_PRIM: the primitive depth */
+    uint8_t tex;            /* G_TEXTURE on */
+    uint8_t wide;           /* widescreen 3D: the draw state's scissor widens */
+    uint8_t robust;         /* the screen winding in double precision (the frame interpolator's; see gfx_rsp.c) */
+} GfxTriCtx;
+
+/* A triangle's visible polygon: trivially rejected, clipped against the eye plane, culled by its screen winding.
+ * Returns its vertex count (0: nothing to draw). */
+int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]);
+/* The polygon as GL triangles (up to 18 vertices); flat shading takes first's colour. Returns the vertex count. */
+int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTriCtx *c, const GfxDrawState *st,
+                     const GfxUnitInfo units[2], GfxOutVtx *tri);
+uint8_t pcgfx_outcode(const GfxVtx *v, float xs);
+float pcgfx_fog_alpha(float z, float w, int16_t fog_mul, int16_t fog_off);
+
 /* gfx_rdp.c */
 void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1);
 void pcgfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip);
 /* rect_tile: -1 triangles, 0-7 texrect tile, 8 untextured rect. wide: in widescreen, the scissor's sides at the
  * frame's go to the target's (3D and full-width draws), else the scissor moves with the 4:3 frame (2D). */
 const GfxDrawState *pcgfx_draw_state(int rect_tile, int wide);
+/* The draw state in effect when it is still the one for (rect_tile, wide) and nothing changed since; else NULL.
+ * No side effects (the frame interpolator records rejected triangles with it). */
+const GfxDrawState *pcgfx_draw_state_peek(int rect_tile, int wide);
+const GfxUnitInfo *pcgfx_units(void);     /* the draw state's two texture units */
 void pcgfx_target_dims(int *w, int *h);   /* the color image's target, N64 pixels (widened in widescreen) */
 int pcgfx_frame_width(void);              /* the color image's 4:3 frame width, N64 pixels */
 float pcgfx_wide_x(float x);              /* widescreen: a frame x edge's place in the target (GFX.md) */
+float pcgfx_wide_x_at(float x, int frame_width, int ox);   /* the same for a given frame width and widening */
 int pcgfx_wide_width(int frame_width);    /* a frame's target width at the aspect in effect */
 /* Texture coordinate transform for tile (tile-relative, normalized for the bound texture). */
 void pcgfx_tile_uv(int unit, float s_texel, float t_texel, float *u, float *v);
+void pcgfx_unit_uv(const GfxUnitInfo *ui, float s_texel, float t_texel, float *u, float *v);
 void pcgfx_emit(const GfxOutVtx *v, int n);          /* triangles, 3 vertices each */
 void pcgfx_flush(void);
 
@@ -191,9 +237,18 @@ void pcgfx_gl_delete_texture(uint32_t tex);
 GfxShader *pcgfx_gl_shader(const GfxShaderKey *key);
 void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n);
 void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
+/* The frame in t becomes the presented image (screenshots read it), without showing it. */
+void pcgfx_gl_present_image(GfxTarget *t);
 /* The presented frame in the window (black if none yet): to_window, the default framebuffer; else the headless
  * window, an offscreen image of the window's size. */
 void pcgfx_gl_show(int win_w, int win_h, int to_window);
+/* A target's top rows in the window instead, fitted as the presented frame is (frame interpolation). */
+void pcgfx_gl_show_target(GfxTarget *t, int rows, int win_w, int win_h, int to_window);
+/* A render target of its own, outside the targets the color images name, with its own depth buffer: (re)made at
+ * w x h N64 pixels and scale s when t is NULL or differs. The frame interpolator draws into it. */
+GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, int s);
+void pcgfx_gl_aux_free(GfxTarget *t);
+void pcgfx_gl_finish(void);   /* glFinish: for timing the GPU's part (RUSH_GFX_TIME_SYNC) */
 /* The overlay's triangles (gfx_ui.c), in window pixels, blended over the window; the atlas is uploaded once. */
 void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_window, const uint8_t *atlas,
                       int atlas_w, int atlas_h);
@@ -212,6 +267,30 @@ void pcgfx_gl_target_dims(const GfxTarget *t, int *w, int *h);       /* N64 pixe
 /* gfx_png.c */
 int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
 
+/* gfx_interp.c: frame interpolation (GFX.md "High frame rate"). While pcgfx_rec is set, a graphics task is being
+ * recorded: the interpreter reports its vertex loads, triangles, rectangles and clears, so that the frame can be
+ * drawn again later with its transforms moved between the previous frame's and its own. */
+extern void *pcgfx_rec;
+void pcgfx_rec_task_begin(void);
+void pcgfx_rec_task_end(void);
+void pcgfx_rec_load(const uint8_t *p, int be, int v0, int n);   /* after load_vertices filled pcgfx.vtx */
+void pcgfx_rec_modify(unsigned idx, int moved);   /* G_MODIFYVTX; moved: its screen position was set */
+/* A triangle of the vertex buffer's slots. st: the draw state it was drawn with, NULL when it was rejected (the
+ * recorder then takes the state in effect if it is still current, since another frame may show the triangle). */
+void pcgfx_rec_tri(unsigned i0, unsigned i1, unsigned i2, const GfxTriCtx *c, const GfxDrawState *st);
+void pcgfx_rec_verts(const GfxDrawState *st, const GfxOutVtx *v, int n);   /* a rectangle's GL vertices */
+void pcgfx_rec_clear(const GfxTarget *t, const int32_t rect[4], int depth, const float rgba[4], float z);
+void pcgfx_rec_viewport(void);    /* after G_MV_VIEWPORT */
+/* The presentation side (gfx_api.c). */
+void pcgfx_hfr_presented(GfxTarget *t, uint32_t vi);   /* t's frame was swapped in at retrace vi */
+/* What to show at time vt (retraces): 0 the presented image; else the target *t, its top *rows rows: 1 the next
+ * frame, as the game drew it (it is due and not swapped in yet), 2 a frame drawn between the two. */
+int pcgfx_hfr_frame(double vt, GfxTarget **t, int *rows);
+void pcgfx_hfr_dump(GfxTarget *t, int drawn);   /* RUSH_GFX_HFR_DUMP: the frame just shown (t NULL: presented) */
+void pcgfx_hfr_reset(void);       /* forget the recorded frames */
+void pcgfx_hfr_shutdown(void);
+/* Its statistics (pcgfx_hfr_stats) and test hooks: gfx_hfr.h. */
+
 /* Context backends: gfx_egl.c (headless), gfx_sdl.c (window, when built with SDL2) */
 int pcgfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles);
 void pcgfx_egl_shutdown(void);
@@ -219,6 +298,7 @@ int pcgfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles);
 void pcgfx_sdl_swap(void);
 int pcgfx_sdl_poll(void);
 void pcgfx_sdl_size(int *w, int *h);
+int pcgfx_sdl_refresh(void);   /* the window's display's refresh rate, Hz; 0 unknown */
 void pcgfx_sdl_shutdown(void);
 
 /* Settings (gfx_api.c). The internal scale multiplies the N64 frame size. Widescreen widens the frame to a display
@@ -231,6 +311,7 @@ typedef struct {
     int verbose;
     int frame_height;       /* rows shown; 0 = the largest scissor bottom drawn with */
     int trace_task;         /* RUSH_GFX_TRACE: print every command of this graphics task (1 = the first); 0 none */
+    int frame_rate;         /* RUSH_GFX_FRAME_RATE: 0 the game's own; > 0 frames shown a second; -1 the display's */
 } GfxConfig;
 extern GfxConfig pcgfx_cfg;
 
