@@ -73,7 +73,10 @@ static HMODULE module_of(const void *pc, uintptr_t *text_off)
     return m;
 }
 
-static void print_frames(void **pcs, int n)
+/* fault_first: pcs[0] is the faulting instruction itself, looked up at its own address; the others are return
+ * addresses, looked up 1 byte before (inside the call), as a fault on a function's first instruction would otherwise
+ * be put in the function before. */
+static void print_frames(void **pcs, int n, int fault_first)
 {
     char exe[MAX_PATH], name[MAX_PATH], cmd[8192], line[512];
     HMODULE self = GetModuleHandleW(NULL), mod[MAX_FRAMES];
@@ -83,7 +86,7 @@ static void print_frames(void **pcs, int n)
     if (n > MAX_FRAMES)
         n = MAX_FRAMES;
     for (i = 0; i < n; i++)
-        mod[i] = module_of(pcs[i] ? (const uint8_t *)pcs[i] - 1 : NULL, &off[i]);   /* -1: inside the call */
+        mod[i] = module_of(pcs[i] ? (const uint8_t *)pcs[i] - (i == 0 && fault_first ? 0 : 1) : NULL, &off[i]);
     if (GetModuleFileNameA(self, exe, sizeof exe)) {
         len = snprintf(cmd, sizeof cmd, "addr2line -f -p -e \"%s\" -j .text", exe);
         for (i = 0; i < n && len < (int)sizeof cmd - 24; i++)
@@ -113,7 +116,7 @@ void pc_print_backtrace(int skip)
     RtlCaptureContext(&ctx);
     int n = unwind(&ctx, pcs, MAX_FRAMES + skip + 1);
     if (n > skip + 1)
-        print_frames(pcs + skip + 1, n - skip - 1);
+        print_frames(pcs + skip + 1, n - skip - 1, 0);
 }
 
 static const char *exception_name(DWORD code, const EXCEPTION_RECORD *er)
@@ -154,7 +157,7 @@ static LONG WINAPI fault(EXCEPTION_POINTERS *ep)
     WriteFile(GetStdHandle(STD_ERROR_HANDLE), line, (DWORD)n, &written, NULL);
     CONTEXT ctx = *ep->ContextRecord;
     int frames = unwind(&ctx, pcs, MAX_FRAMES);
-    print_frames(pcs, frames);
+    print_frames(pcs, frames, 1);
     fflush(stderr);
     if (pc_on_fault && n > 13 && n < (int)sizeof line) {
         line[n - 1] = 0;          /* the line without its newlines */

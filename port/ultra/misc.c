@@ -7,6 +7,7 @@
 #include <execinfo.h>
 #include <fenv.h>
 #include <signal.h>
+#include <ucontext.h>
 #include <unistd.h>
 #endif
 #include <stdarg.h>
@@ -158,6 +159,11 @@ void (*pc_on_fault)(const char *what);
 void (*pc_on_exit)(int code);
 #ifndef _WIN32
 
+/* In a fault, the faulting instruction (fault): its frame is looked up at its own address, the others, return
+ * addresses, 1 byte before (inside the call), as a fault on a function's first instruction would otherwise be put
+ * in the function before. */
+static uintptr_t g_fault_pc;
+
 /* The calling stack, symbolized with addr2line when it is installed: frames in the executable by their offset
  * from its load address (it is a PIE), others as library + offset. */
 void pc_print_backtrace(int skip)
@@ -171,7 +177,9 @@ void pc_print_backtrace(int skip)
     if (!dladdr((void *)pc_print_backtrace, &self))
         self.dli_fbase = NULL;
     for (i = skip + 1; i < n; i++, k++) {
-        uintptr_t pc = (uintptr_t)frames[i] - 1;
+        uintptr_t pc = (uintptr_t)frames[i];
+        if (!g_fault_pc || pc != g_fault_pc)
+            pc--;
         what[k] = NULL;
         off[k] = pc;
         if (dladdr((void *)pc, &d) && d.dli_fbase) {
@@ -202,7 +210,14 @@ void pc_print_backtrace(int skip)
 
 static void fault(int sig, siginfo_t *si, void *ctx)
 {
-    (void)ctx;
+    const ucontext_t *uc = ctx;
+#if defined(__x86_64__) && defined(REG_RIP)
+    g_fault_pc = (uintptr_t)uc->uc_mcontext.gregs[REG_RIP];
+#elif defined(__aarch64__)
+    g_fault_pc = (uintptr_t)uc->uc_mcontext.pc;
+#else
+    (void)uc;
+#endif
     char line[256];
     int n = snprintf(line, sizeof line, "\nrush2049pc: %s at address %p in N64 thread %s\n", strsignal(sig),
                      si->si_addr, pc_os_thread_name());
