@@ -227,9 +227,29 @@ GfxTarget *pcgfx_gl_last_target(void) {
     return G.last;
 }
 
+/* After a target changes size (widescreen follows the window), the depth buffers of a size no target has any more
+ * are dropped. A target's depth always has the target's size, so none is still attached. */
+static void drop_unused_depths(void) {
+    GfxDepth **pd = &G.depths;
+    while (*pd != NULL) {
+        GfxDepth *d = *pd;
+        const GfxTarget *t;
+        for (t = G.targets; t != NULL; t = t->next)
+            if (t->w == d->w && t->h == d->h)
+                break;
+        if (t != NULL) {
+            pd = &d->next;
+            continue;
+        }
+        *pd = d->next;
+        glDeleteRenderbuffers(1, &d->rb);
+        free(d);
+    }
+}
+
 GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
     GfxTarget *t = pcgfx_gl_find_target(addr);
-    int s = scale();
+    int s = scale(), resized = t != NULL;
     static const float black[4] = {0, 0, 0, 1};
     if (t != NULL && t->w == w && t->h == h) {
         G.last = t;
@@ -257,6 +277,8 @@ GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glClearBufferfv(GL_COLOR, 0, black);
     G.last = t;
+    if (resized)
+        drop_unused_depths();
     return t;
 }
 

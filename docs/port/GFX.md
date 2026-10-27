@@ -159,7 +159,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   what V3D offers). Attributes are bound by name, so there are no layout qualifiers. GL entry points are loaded at run
   time, so the same build runs on GLES 3.0+ and desktop GL 3.1+.
 - **Render targets.** One FBO per color image address, with a depth renderbuffer per z image and size.
-  - A target is cimg width × width·3/4 (320 × 240), times the internal scale.
+  - A target is cimg width × width·3/4 (320 × 240), times the internal scale. Widescreen widens it (below).
   - The game's frame buffer is 320 × 220 (survey). Presentation shows rows down to the largest scissor bottom drawn
     with, or `RUSH_GFX_HEIGHT`.
   - Offscreen color images get their own target. Nothing reads one back as a texture yet.
@@ -175,14 +175,111 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 |---|---|
 | `RUSH_GFX_API=gl` | desktop GL (3.3 core, then 3.1) instead of GLES 3.0 |
 | `RUSH_GFX_SCALE=n` | internal resolution multiple (1–8) |
+| `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
 | `LIBGL_ALWAYS_SOFTWARE=1` | Mesa llvmpipe |
 
 - **Hooks for later.**
-  - `GfxConfig.widescreen` is reserved: it would widen the projection and the target.
   - `pc_gfx_read_framebuffer` and `pc_gfx_read_window` (in `gfx_internal.h`, not `pc_port.h`) return target and
-    window pixels, for tests and tools.
+    window pixels, for tests and tools. `pc_gfx_set_widescreen` (there too) changes widescreen at run time, for a
+    settings menu.
+  - **An internal resolution of the window's size** (a scale that isn't a whole number) is not implemented. Three
+    parts assume a whole scale: the point-sampled rectangle snap (`mod(floor(gl_FragCoord), uScale)` finds a
+    fragment's place inside its N64 pixel), `rect_start` (the first sample sits half an internal pixel from the
+    N64 pixel's corner, the same in every pixel), and the scissor and clears (N64 pixel edges land on internal
+    pixel edges). With a fractional scale, N64 pixel edges fall inside internal pixels, so each of these needs a
+    per-pixel rule, and the exactness the tests check (texel for texel at every scale) would have to be redefined.
+    Until then the frame is drawn at a whole multiple and the present scales it.
+
+### Widescreen
+
+`GfxConfig.widescreen` (`RUSH_GFX_WIDESCREEN`, `video.widescreen` in [FRONTEND.md](FRONTEND.md)) is a display
+aspect. 0 is off. `auto` follows the window: the aspect is taken again at each present, so a resize applies from
+the next frame. A new value applies from the next SETCIMG.
+
+- **The target.** The 4:3 frame (cimg width × width·3/4) gets `ox = round(width × (aspect·3/4 − 1) / 2)` N64
+  pixels on each side. ox is a whole number, so 2D stays on the N64 pixel grid and the copy-mode and snapped
+  rectangles stay texel-exact. The height doesn't change. The internal scale multiplies the whole target, and
+  the present fits it to the window as before: square pixels, a whole multiple when it fits, letterboxed.
+
+  | Aspect | ox | Target (the game's 320-wide frame) |
+  |---|---:|---|
+  | off, 4:3 | 0 | 320 × 240 |
+  | 16:10 | 32 | 384 × 240 |
+  | 16:9 | 53 | 426 × 240 |
+  | 21:9 | 120 | 560 × 240 |
+  | 4 (the most) | 320 | 960 × 240 |
+
+  The game shows 220 rows, so 16:9 presents 426 × 220. A 16:9 screen is the full VI frame (240 rows) at 16:9,
+  with the game's own 10-row bands above and below, as on a TV.
+- **3D or 2D: the projection's w column.** A perspective projection makes w depend on the position. With row
+  vectors, its w column (`proj[0..2][3]`) is not zero: guPerspective's is (0, 0, −1), and the lookat rotation the
+  game multiplies into the projection (`func_8009F058`) keeps it nonzero. guOrtho's, and the identity's
+  that a task starts with, is zero. So triangles drawn under a perspective projection are 3D, and everything else
+  is 2D. After a G_MV_MATRIX (forced MP) the MP's own w column decides.
+  - Limits: a 2D overlay drawn with a perspective projection loaded (none in the game's code: its only projection
+    loads are in `func_8009F058`) would widen like 3D; at a full-width view that only shows more at the sides,
+    since the frame's middle stays the target's middle. An orthographic 3D view (`cam->ortho`, guOrtho) is
+    treated as 2D: it stays 4:3, in the middle.
+- **Where a side of the frame goes** (`pcgfx_wide_x`): an x at the frame's left side (within 4 pixels, or past
+  it) stays; one at the right side (within 4 pixels, or past it) moves 2·ox, to the target's right side; any
+  other x moves ox, with the frame. The 4-pixel margin is for the game's split-screen views, which keep a 1-2
+  pixel border (`wheel_render_full`, 0x800A6BE4):
+
+  | Players | Views (x, from the code; 320 × 220 frame) | At 16:9 (ox 53) |
+  |---|---|---|
+  | 1 | 0-320 | 0-426: the whole target |
+  | 2 | 2-242 each (top and bottom); a 78-pixel panel to the right | 2-295: the views widen to the left, the panel stays with the frame (295-373), and 373-426 has only what full-width draws put there |
+  | 3, 4 | 1-161 and 158-318; scissors 0-159 and 161-320 | 1-214 and 211-424; scissors 0-212 and 214-426 |
+
+  The car-select screen's 2-player views (`car_render_full`) are 0-320 halves, so they widen like 1 player.
+- **3D.** A perspective view's sides go through `pcgfx_wide_x`, so a view across the frame spans the target and
+  split-screen views widen in proportion. The output position keeps the N64 viewport's scale and moves its
+  centre to the widened view's centre: the picture is not stretched, it shows more at the sides (the projection's
+  aspect grows by the view's widening, 4/3 at 16:9). Clip x is divided by the same factor for the outcodes, so
+  the trivial reject and G_CULLDL use the widened frustum. The scissor of a 3D draw goes through
+  `pcgfx_wide_x` too.
+- **2D** (orthographic triangles, texture rectangles) moves ox, with the frame, at its 4:3 size. Its scissor
+  moves ox as well, so 2D that the N64 clipped at the frame's edge (a sprite sliding in, something parked off
+  screen) stays hidden instead of showing in the side bars.
+- **Fills** (FILLRECT in every cycle type, z clears included) go through `pcgfx_wide_x` with their scissor: a
+  full-width clear covers the target, a view's own clear covers the widened view, and a divider in the middle
+  stays in the middle. A fill that touches only one side of the frame (a HUD bar from x 0) reaches the target's
+  side: it is a solid color, so it only grows.
+- **A texture rectangle across the whole frame** (both sides within 4 pixels) is a full-screen background or
+  overlay: it is stretched across the target (its x step divided by the widening), by 4/3 at 16:9. Others stay
+  4:3 (a background drawn as tiles stays 4:3, in the middle, with whatever full-width fills are under it at the
+  sides).
+- **Off** draws exactly as before: ox is 0, and each widescreen branch tests it first. The 17 other cases pass
+  unchanged, and `gfx.widescreen` draws its scene off, then at 16:9, then off again, and compares the two off
+  frames byte for byte.
+- **The game's own culling** (a survey of the game code, 2026-10-27). The game never tests objects, track or
+  particles against the horizontal field of view, so nothing pops in at the widened sides from the game's side:
+  - Frustum culling is G_CULLDL in the lists (the scene walk `track_collision_wall` puts one after each node's
+    bounding box), and the renderer runs it against the widened frustum.
+  - The world's visibility (`physics_float_calc`, MAT3's WorldCullObjects) picks a ROM bitmask table by the cell
+    the eye is in: position only, not direction or field of view. Whether those tables were baked for a 90° view
+    can only be seen with the ROM.
+  - The rest is distance (LOD, the fog radius), the per-view hide mask (own car, cockpit) and range guards.
+  - One function reads the horizontal field of view to decide what is on screen: the battle-mode off-screen arrow
+    (`entity_render_setup`, AnimateArrow, `src/blob/groups/animate_arrow/group.c:156,174`). It draws an arrow at
+    the side when an opponent's angle is past `0.48 × fovx` (`view->radius`, the view record's 0x0C). In
+    widescreen an opponent between the 4:3 edge and the wide edge is on screen and still gets an arrow, drawn at
+    the 4:3 edge. Fixing it would mean `fovx' = 2·atan(tan(fovx/2)·k)` for that view, with k the renderer's
+    widening of that view (which `pcgfx_wide_x` decides at draw time). It is left: it is an indicator in one mode,
+    not a cull, and it can only be checked with the ROM. The record's other horizontal fields (invx at 0x1C, the
+    width at 0x24) are read by menu and HUD code that places 2D by 3D points (ZOID_ProjectWindow,
+    `car_lights_render` for the coin icons), which stays 4:3, so they must not be widened.
+- **What can only be judged with the ROM.**
+  - Menus with full-screen art drawn as one rectangle per row band: stretched by 4/3. Art drawn as tiles: 4:3 in
+    the middle, with the clear color or the stretched background beside it.
+  - 2D that tracks 3D (a name or marker over a car, the coin icons): in a full-width view it stays on its car,
+    since the frame's middle is the view's middle. In the 3- and 4-player views the view's centre moves by ox/2
+    against the frame (the left views' from 134 to 107.5 at 16:9), so such markers are off by that much.
+  - The 2-player screen's right panel and the empty band beside it.
+  - Whatever the game draws at the frame's edges to hide something (a border fill, a fade) that touches only
+    one side: it now reaches the target's side.
 
 ### SDL2
 
@@ -314,7 +411,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 17, one CTest each:
+- **Cases.** 18, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -334,10 +431,16 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `branchz` | BRANCH_Z |
 | `nearclip` | a floor behind the eye; a triangle inside the near plane |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
+| `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
 | `screenshot` | PNG |
 
 - **Variants.** `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun every case on desktop
-  GL, at 2× and on llvmpipe. `gfx.all.sdl-window` runs them in window mode (SDL builds).
+  GL, at 2× and on llvmpipe. `gfx.all.sdl-window` runs them in window mode (SDL builds). `gfx.all.wide` (16:9) and
+  `gfx.all.wide21-scale3` (21:9 at 3×) rerun every case in widescreen, with every sample taken ox pixels in: the
+  4:3 frame's pixels must come out the same in the middle of the wider target. Each variant has its own
+  directory for the screenshot case's PNG, since they run in parallel.
 - **Results on the Pi 5 (V3D 7.1, Mesa 24.2).**
-  - 20/20 CTest entries pass (21/21 with SDL).
-  - Every case also passes at internal scales 1–4, on GLES, on desktop GL and on llvmpipe.
+  - 23/23 CTest entries pass (24/24 with SDL).
+  - Every case also passes at internal scales 1–4, on GLES, on desktop GL and on llvmpipe, and in widescreen
+    (16:9 on GLES and desktop GL, 16:10 on llvmpipe, 21:9 at 3× and 4×).
+  - On x86-64 (Intel UHD 770, Mesa 25.2, with SDL2) all 24 pass as well.

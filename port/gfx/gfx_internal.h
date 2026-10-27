@@ -69,6 +69,7 @@ typedef struct {
     float light_dir[GFX_MAX_LIGHTS][3];   /* in model space, normalized */
     float lookat_dir[2][3];
     float vp_scale[3], vp_trans[3];       /* pixels (x, y), z units (0..0x3FF) */
+    int persp;                            /* the projection is perspective (its w column is not 0 0 0 1) */
     int16_t fog_mul, fog_off;
     uint16_t tex_scale_s, tex_scale_t;
     uint8_t tex_level, tex_tile, tex_on;
@@ -88,6 +89,7 @@ typedef struct {
     struct { const uint8_t *addr; uint8_t fmt, siz; uint16_t width; } cimg;
     const uint8_t *zimg;
     uint16_t zimg_width;
+    int wide_ox;                 /* widescreen: N64 pixels added on each side of the color image's frame */
     GfxTile tiles[8];
     uint8_t tmem[4096];          /* RDP byte order (big-endian texels) */
     uint8_t tmem_le16[512];      /* per 64-bit word: loaded raw from native little-endian memory as 16b data */
@@ -156,7 +158,12 @@ void pcgfx_run_list(const void *dl);
 /* gfx_rdp.c */
 void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1);
 void pcgfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip);
-const GfxDrawState *pcgfx_draw_state(int rect_tile);   /* -1 triangles, 0-7 texrect tile, 8 untextured rect */
+/* rect_tile: -1 triangles, 0-7 texrect tile, 8 untextured rect. wide: in widescreen, the scissor's sides at the
+ * frame's go to the target's (3D and full-width draws), else the scissor moves with the 4:3 frame (2D). */
+const GfxDrawState *pcgfx_draw_state(int rect_tile, int wide);
+void pcgfx_target_dims(int *w, int *h);   /* the color image's target, N64 pixels (widened in widescreen) */
+int pcgfx_frame_width(void);              /* the color image's 4:3 frame width, N64 pixels */
+float pcgfx_wide_x(float x);              /* widescreen: a frame x edge's place in the target (GFX.md) */
 /* Texture coordinate transform for tile (tile-relative, normalized for the bound texture). */
 void pcgfx_tile_uv(int unit, float s_texel, float t_texel, float *u, float *v);
 void pcgfx_emit(const GfxOutVtx *v, int n);          /* triangles, 3 vertices each */
@@ -199,10 +206,12 @@ int pcgfx_sdl_poll(void);
 void pcgfx_sdl_size(int *w, int *h);
 void pcgfx_sdl_shutdown(void);
 
-/* Settings (gfx_api.c). The internal scale multiplies the N64 frame size; widescreen is a hook for later. */
+/* Settings (gfx_api.c). The internal scale multiplies the N64 frame size. Widescreen widens the frame to a display
+ * aspect (GFX.md "Widescreen"). */
 typedef struct {
     int internal_scale;     /* 1 = the N64 frame size */
-    int widescreen;         /* hook, not implemented yet */
+    float widescreen;       /* display aspect to widen the 4:3 frame to: 0 off, < 0 the window's */
+    float aspect;           /* the aspect in effect (the window's for < 0), taken at each color image; 0 = 4:3 */
     int verbose;
     int frame_height;       /* rows shown; 0 = the largest scissor bottom drawn with */
 } GfxConfig;
@@ -211,6 +220,10 @@ extern GfxConfig pcgfx_cfg;
 /* Test and tool access (not part of pc_port.h). */
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
 int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);   /* what the window shows (window mode only) */
+/* Widescreen at run time: the display aspect (16/9.0f, ...), 0 for off, < 0 for the window's. It applies from the
+ * next color image (SETCIMG). */
+void pc_gfx_set_widescreen(float aspect);
+float pc_gfx_parse_aspect(const char *text, int *ok);   /* "off", "auto", "16:9", "2.39" -> as above */
 
 #ifdef __cplusplus
 }

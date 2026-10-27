@@ -108,11 +108,40 @@ static void mtx_read(const uint8_t *p, int be, float f[4][4]) {
     }
 }
 
+/* A perspective matrix makes w depend on the position: its w column (row vectors) is not (0, 0, 0, 1).
+ * guPerspective's is (0, 0, -1, 0), and the game's lookat rotation multiplied onto it keeps the top three nonzero;
+ * guOrtho's is (0, 0, 0, 1). */
+static int is_persp(const float m[4][4]) {
+    return m[0][3] != 0.0f || m[1][3] != 0.0f || m[2][3] != 0.0f;
+}
+
 static void update_mp(void) {
     if (pcgfx.mp_dirty) {
         mtx_mul(pcgfx.mp, pcgfx.mv[pcgfx.mv_top], pcgfx.proj);
+        pcgfx.persp = is_persp(pcgfx.proj);
         pcgfx.mp_dirty = 0;
     }
+}
+
+/* Widescreen (GFX.md "Widescreen"): where the viewport lands in the wide target. A perspective view is widened:
+ * its sides go through pcgfx_wide_x, so a view across the frame spans the target and split-screen views widen in
+ * proportion, and the frustum widens with it (*xs: clip x over w as the view sees it, for the outcodes). The
+ * picture keeps its scale, so the view shows more at the sides instead of a stretched image. Anything else is 2D
+ * and moves with the 4:3 frame. Off: the N64's viewport. */
+static float view_x(float *xs) {
+    float t = pcgfx.vp_trans[0], h, l, r;
+    *xs = 1.0f;
+    if (pcgfx.wide_ox == 0)
+        return t;
+    update_mp();
+    if (!pcgfx.persp)
+        return t + (float)pcgfx.wide_ox;
+    h = fabsf(pcgfx.vp_scale[0]);
+    l = pcgfx_wide_x(t - h);
+    r = pcgfx_wide_x(t + h);
+    if (h > 0.0f)
+        *xs = 2.0f * h / (r - l);
+    return 0.5f * (l + r);
 }
 
 /* G_MW_MATRIX: replace the integer or fraction halves of two MP elements. */
@@ -170,10 +199,11 @@ static void light_read(const uint8_t *p, GfxLight *l) {
 
 /* ---------------------------------------------------------------- vertices */
 
-static uint8_t outcode(const GfxVtx *v) {
+static uint8_t outcode(const GfxVtx *v, float xs) {
     uint8_t c = 0;
-    if (v->x < -v->w) c |= 1;
-    if (v->x > v->w) c |= 2;
+    float x = v->x * xs;
+    if (x < -v->w) c |= 1;
+    if (x > v->w) c |= 2;
     if (v->y < -v->w) c |= 4;
     if (v->y > v->w) c |= 8;
     if (v->w < GFX_W_EPS) c |= 16;
@@ -193,7 +223,9 @@ static float fog_alpha(float z, float w) {
 static void load_vertices(const uint8_t *p, int be, int v0, int n) {
     const float(*mp)[4];
     int i, k;
+    float xs;
     update_mp();
+    view_x(&xs);
     mp = (const float(*)[4])pcgfx.mp;
     if ((pcgfx.geom & (G_LIGHTING | G_TEXTURE_GEN)) && pcgfx.lights_dirty)
         update_lights();
@@ -257,7 +289,7 @@ static void load_vertices(const uint8_t *p, int be, int v0, int n) {
             v->t = t * (pcgfx.tex_scale_t / 65536.0f);
         }
         v->a = (pcgfx.geom & G_FOG) ? fog_alpha(v->z, v->w) : p[15] / 255.0f;
-        v->clip = outcode(v);
+        v->clip = outcode(v, xs);
     }
 }
 
@@ -284,12 +316,13 @@ static void modify_vertex(uint32_t w0, uint32_t w1) {
         v->t = (int16_t)(w1 & 0xFFFF);
         break;
     case G_MWO_POINT_XYSCREEN: {   /* screen position in 10.2: invert the viewport, keep w */
-        float sx = (int16_t)(w1 >> 16) / 4.0f, sy = (int16_t)(w1 & 0xFFFF) / 4.0f;
+        float sx = (int16_t)(w1 >> 16) / 4.0f, sy = (int16_t)(w1 & 0xFFFF) / 4.0f, xs;
         if (pcgfx.vp_scale[0] != 0.0f)
             v->x = (sx - pcgfx.vp_trans[0]) / pcgfx.vp_scale[0] * v->w;
         if (pcgfx.vp_scale[1] != 0.0f)
             v->y = -(sy - pcgfx.vp_trans[1]) / pcgfx.vp_scale[1] * v->w;
-        v->clip = outcode(v);
+        view_x(&xs);
+        v->clip = outcode(v, xs);
         break;
     }
     case G_MWO_POINT_ZSCREEN:
@@ -328,14 +361,12 @@ static int clip_w(const GfxVtx *in, int n, GfxVtx *out) {
     return m;
 }
 
-void pcgfx_target_dims(int *w, int *h);
-
 static void triangle(unsigned i0, unsigned i1, unsigned i2) {
     GfxVtx in[3], poly[8];
     GfxOutVtx out[18];
     const GfxDrawState *st;
     int n = 3, i, k, tw, th, tex;
-    float flat[4], ax, ay, bx, by;
+    float flat[4], ax, ay, bx, by, vx, xs;
     uint32_t cull = pcgfx.geom & G_CULL_BOTH;
 
     if (i0 >= 32 || i1 >= 32 || i2 >= 32)
@@ -379,7 +410,8 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
             return;
     }
 
-    st = pcgfx_draw_state(-1);
+    vx = view_x(&xs);
+    st = pcgfx_draw_state(-1, pcgfx.wide_ox != 0 && pcgfx.persp);
     pcgfx_target_dims(&tw, &th);
     tex = pcgfx.tex_on;
     for (i = 0; i < n; i++) {
@@ -392,7 +424,7 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
             d = screen_z(v) / 1023.0f;
         if (d < 0.0f) d = 0.0f;
         if (d > 1.0f) d = 1.0f;
-        o->pos[0] = v->w * (2.0f * pcgfx.vp_trans[0] / tw - 1.0f) + v->x * 2.0f * pcgfx.vp_scale[0] / tw;
+        o->pos[0] = v->w * (2.0f * vx / tw - 1.0f) + v->x * 2.0f * pcgfx.vp_scale[0] / tw;
         o->pos[1] = v->w * (1.0f - 2.0f * pcgfx.vp_trans[1] / th) + v->y * 2.0f * pcgfx.vp_scale[1] / th;
         o->pos[2] = (2.0f * d - 1.0f) * v->w;
         o->pos[3] = v->w;
@@ -548,6 +580,7 @@ static void movemem(uint32_t w0, uintptr_t w1) {
     }
     case G_MV_MATRIX:   /* gSPForceMatrix: load MP directly */
         mtx_read(p, be, pcgfx.mp);
+        pcgfx.persp = is_persp(pcgfx.mp);
         pcgfx.mp_dirty = 0;
         break;
     default:

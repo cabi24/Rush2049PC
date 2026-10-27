@@ -1,6 +1,7 @@
 /* port/gfx/gfx_api.c: the pc_gfx_* interface (port/include/pc_port.h).
  *
  * Environment: RUSH_GFX_API=gl|gles (default gles), RUSH_GFX_SCALE=<n> (internal resolution multiple),
+ * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_VERBOSE=1|2. */
 #include <stdio.h>
@@ -10,7 +11,7 @@
 #include "gfx_internal.h"
 #include "pc_port.h"
 
-GfxConfig pcgfx_cfg = {1, 0, 0, 0};
+GfxConfig pcgfx_cfg = {1, 0.0f, 0.0f, 0, 0};
 
 void pcgfx_rdp_new_frame(void);
 void pcgfx_rdp_forget_targets(void);
@@ -26,6 +27,39 @@ static int env_int(const char *name, int def) {
     return v != NULL && *v ? atoi(v) : def;
 }
 
+/* "off" (or 4:3) 0, "auto" -1, "W:H" or a ratio from 4:3 to 4. *ok = 0 for anything else (and 0 is returned). */
+float pc_gfx_parse_aspect(const char *text, int *ok) {
+    float a = 0.0f, b = 0.0f;
+    char tail;
+    *ok = 1;
+    if (text == NULL || !*text || !strcmp(text, "off") || !strcmp(text, "0"))
+        return 0.0f;
+    if (!strcmp(text, "auto"))
+        return -1.0f;
+    if (sscanf(text, "%f:%f%c", &a, &b, &tail) == 2 && b > 0.0f)
+        a /= b;
+    else if (sscanf(text, "%f%c", &a, &tail) != 1)
+        a = 0.0f;
+    if (a >= 4.0f / 3.0f - 1e-4f && a <= 4.0f + 1e-4f)
+        return a <= 4.0f / 3.0f + 1e-4f ? 0.0f : a;
+    *ok = 0;
+    return 0.0f;
+}
+
+/* The aspect in effect: the setting, or the window's for auto (taken at init and at each present, so a resize
+ * applies from the next frame's color image). */
+static void resolve_aspect(void) {
+    float a = pcgfx_cfg.widescreen;
+    if (a < 0.0f)
+        a = S.win_h > 0 ? (float)S.win_w / (float)S.win_h : 0.0f;
+    pcgfx_cfg.aspect = a > 4.0f / 3.0f + 1e-4f ? a : 0.0f;
+}
+
+void pc_gfx_set_widescreen(float aspect) {
+    pcgfx_cfg.widescreen = aspect;
+    resolve_aspect();
+}
+
 int pc_gfx_init(int headless, int window_width, int window_height) {
     GfxGetProc get_proc = NULL;
     const char *api = getenv("RUSH_GFX_API");
@@ -37,6 +71,15 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
         pcgfx_cfg.internal_scale = 1;
     pcgfx_cfg.frame_height = env_int("RUSH_GFX_HEIGHT", pcgfx_cfg.frame_height);
     pcgfx_cfg.verbose = env_int("RUSH_GFX_VERBOSE", pcgfx_cfg.verbose);
+    if (getenv("RUSH_GFX_WIDESCREEN") != NULL) {
+        int ok;
+        float a = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
+        if (ok)
+            pcgfx_cfg.widescreen = a;
+        else
+            fprintf(stderr, "gfx: RUSH_GFX_WIDESCREEN=%s is not off, auto or an aspect from 4:3 to 4; ignored\n",
+                    getenv("RUSH_GFX_WIDESCREEN"));
+    }
     S.win_w = window_width > 0 ? window_width : 960;
     S.win_h = window_height > 0 ? window_height : 720;
     S.headless = headless;
@@ -64,6 +107,11 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     memset(&pcgfx, 0, sizeof(pcgfx));
     pcgfx_rdp_reset();
     pcgfx_rsp_reset();
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        pcgfx_sdl_size(&S.win_w, &S.win_h);
+#endif
+    resolve_aspect();
     S.inited = 1;
     return 0;
 }
@@ -89,8 +137,11 @@ void pc_gfx_present(const void *framebuffer) {
     if (t != NULL) {
         int w = S.win_w, h = S.win_h;
 #ifdef PC_GFX_HAVE_SDL
-        if (S.use_sdl)
+        if (S.use_sdl) {
             pcgfx_sdl_size(&w, &h);
+            S.win_w = w;
+            S.win_h = h;
+        }
 #endif
         pcgfx_gl_present(t, w, h, S.use_sdl);
 #ifdef PC_GFX_HAVE_SDL
@@ -98,6 +149,7 @@ void pc_gfx_present(const void *framebuffer) {
             pcgfx_sdl_swap();
 #endif
     }
+    resolve_aspect();
     pcgfx_rdp_new_frame();
 }
 

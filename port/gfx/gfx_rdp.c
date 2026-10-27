@@ -18,6 +18,7 @@ static int s_batch_n;
 static GfxDrawState s_state;       /* state of the batch being built */
 static int s_state_valid;
 static int s_state_rect_tile = -2;
+static int s_state_wide;
 static uint32_t s_frame;
 
 static int host_is_le(void) {
@@ -33,10 +34,38 @@ static int frame_height(int width) {
     return width * 3 / 4;   /* the VI shows 4:3; 320 -> 240 */
 }
 
+int pcgfx_frame_width(void) {
+    return pcgfx.cimg.width ? pcgfx.cimg.width : 320;
+}
+
+/* Widescreen (GFX.md "Widescreen"): the 4:3 frame of a width-wide color image grows by this many N64 pixels on
+ * each side, so the target has the display aspect. A whole number, so that 2D stays on the N64 pixel grid. */
+static int wide_offset(int width) {
+    float k = pcgfx_cfg.aspect * 0.75f;   /* the target's width over the frame's */
+    if (k <= 1.0f)
+        return 0;
+    if (k > 3.0f)
+        k = 3.0f;
+    return (int)lrintf(width * (k - 1.0f) * 0.5f);
+}
+
 void pcgfx_target_dims(int *w, int *h) {
-    int width = pcgfx.cimg.width ? pcgfx.cimg.width : 320;
-    *w = width;
+    int width = pcgfx_frame_width();
+    *w = width + 2 * pcgfx.wide_ox;
     *h = frame_height(width);
+}
+
+/* A frame x edge in the target: the frame sits in the middle, and an edge at (within GFX_WIDE_EDGE pixels of) or
+ * past the frame's left or right side goes to the target's, so a view or a fill that spans the frame spans the
+ * target. The game's split-screen views keep a 1-2 pixel border (2 players: x 2-242; 3-4: 1-161 and 158-318). */
+#define GFX_WIDE_EDGE 4.0f
+
+float pcgfx_wide_x(float x) {
+    if (x <= GFX_WIDE_EDGE)
+        return x;
+    if (x >= (float)pcgfx_frame_width() - GFX_WIDE_EDGE)
+        return x + 2.0f * pcgfx.wide_ox;
+    return x + pcgfx.wide_ox;
 }
 
 static GfxTarget *current_target(void) {
@@ -496,7 +525,7 @@ static unsigned cycle_type(void) {
     return (pcgfx.om_h >> G_MDSFT_CYCLETYPE) & 3;
 }
 
-static void build_state(GfxDrawState *st, int rect_tile) {
+static void build_state(GfxDrawState *st, int rect_tile, int wide) {
     GfxShaderKey key;
     unsigned cyc = cycle_type(), u;
     uint32_t oml = pcgfx.om_l;
@@ -579,11 +608,21 @@ static void build_state(GfxDrawState *st, int rect_tile) {
         st->blend = (uint8_t)pcgfx_blend_uses_mem(&key);
     }
 
-    /* Scissor, N64 pixels, exclusive */
+    /* Scissor, N64 pixels, exclusive. In widescreen it is in the target: its sides at the frame's sides go to the
+     * target's for a widened draw, and a 2D draw keeps the N64's (GFX.md "Widescreen"). */
     st->scissor[0] = pcgfx.sc_ulx >> 2;
     st->scissor[1] = pcgfx.sc_uly >> 2;
     st->scissor[2] = pcgfx.sc_lrx >> 2;
     st->scissor[3] = pcgfx.sc_lry >> 2;
+    if (pcgfx.wide_ox != 0) {
+        if (wide) {
+            st->scissor[0] = (int32_t)pcgfx_wide_x((float)st->scissor[0]);
+            st->scissor[2] = (int32_t)pcgfx_wide_x((float)st->scissor[2]);
+        } else {
+            st->scissor[0] += pcgfx.wide_ox;
+            st->scissor[2] += pcgfx.wide_ox;
+        }
+    }
 
     color4(pcgfx.prim, st->prim);
     color4(pcgfx.env, st->env);
@@ -595,16 +634,18 @@ static void build_state(GfxDrawState *st, int rect_tile) {
     st->noise_seed = (float)(s_frame & 255);
 }
 
-const GfxDrawState *pcgfx_draw_state(int rect_tile) {
+const GfxDrawState *pcgfx_draw_state(int rect_tile, int wide) {
     GfxDrawState st;
-    if (s_state_valid && !pcgfx.state_dirty && !pcgfx.tex_dirty && s_state_rect_tile == rect_tile)
+    if (s_state_valid && !pcgfx.state_dirty && !pcgfx.tex_dirty && s_state_rect_tile == rect_tile &&
+        s_state_wide == wide)
         return &s_state;
     if (pcgfx.tex_dirty)
         s_tex_epoch++;
-    build_state(&st, rect_tile);
+    build_state(&st, rect_tile, wide);
     pcgfx.state_dirty = 0;
     pcgfx.tex_dirty = 0;
     s_state_rect_tile = rect_tile;
+    s_state_wide = wide;
     if (!s_state_valid || memcmp(&st, &s_state, sizeof(st)) != 0) {
         pcgfx_flush();
         s_state = st;
@@ -669,9 +710,27 @@ static float rect_start(float c0, float d, int scale, int snap) {
 static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s, float t, float dsdx, float dtdy,
                       int flip) {
     GfxOutVtx q[4], tri[6];
-    int tw, th, scale, textured = tile >= 0;
-    float w = x1 - x0, h = y1 - y0;
-    pcgfx_draw_state(textured ? tile : 8);
+    int tw, th, scale, textured = tile >= 0, wide = 0;
+    float w, h = y1 - y0;
+    if (pcgfx.wide_ox != 0) {
+        /* Widescreen (GFX.md): a fill's sides at the frame's go to the target's, and a textured rectangle across
+         * the whole frame is stretched across the target. Other textured rectangles stay 4:3, in the middle. */
+        wide = !textured || (pcgfx_wide_x(x0) == x0 && pcgfx_wide_x(x1) == x1 + 2.0f * pcgfx.wide_ox);
+        if (wide) {
+            float nx0 = pcgfx_wide_x(x0), nx1 = pcgfx_wide_x(x1), k = (x1 - x0) / (nx1 - nx0);
+            if (flip)   /* the step along x */
+                dtdy *= k;
+            else
+                dsdx *= k;
+            x0 = nx0;
+            x1 = nx1;
+        } else {
+            x0 += (float)pcgfx.wide_ox;
+            x1 += (float)pcgfx.wide_ox;
+        }
+    }
+    w = x1 - x0;
+    pcgfx_draw_state(textured ? tile : 8, wide);
     pcgfx_target_dims(&tw, &th);
     pcgfx_gl_target_size(&scale);
     s = rect_start(s, dsdx, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
@@ -731,6 +790,10 @@ static void fill_rect(uint32_t w0, uint32_t w1) {
         if (r[3] > (int32_t)(pcgfx.sc_lry >> 2)) r[3] = pcgfx.sc_lry >> 2;
         if (r[2] <= r[0] || r[3] <= r[1])
             return;
+        if (pcgfx.wide_ox != 0) {   /* widescreen: sides at the frame's go to the target's (GFX.md) */
+            r[0] = (int32_t)pcgfx_wide_x((float)r[0]);
+            r[2] = (int32_t)pcgfx_wide_x((float)r[2]);
+        }
         pcgfx_flush();
         if (pcgfx.cimg.addr != NULL && pcgfx.cimg.addr == pcgfx.zimg) {
             /* the z buffer as color image: a depth clear (packed z: 14 bits after the 2-bit dz) */
@@ -896,6 +959,8 @@ void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
         pcgfx.cimg.siz = (w0 >> 19) & 3;
         pcgfx.cimg.width = (uint16_t)((w0 & 0xFFF) + 1);
         pcgfx.cimg.addr = a;
+        if (a != pcgfx.zimg)   /* the z buffer as color image clears the frame's depth: keep its geometry */
+            pcgfx.wide_ox = wide_offset(pcgfx.cimg.width);
         if (a == NULL || a != pcgfx.zimg) {   /* drawing into the z buffer only ever clears it */
             int tw, th;
             pcgfx_target_dims(&tw, &th);
