@@ -25,16 +25,32 @@ typedef u32 uintptr_t;
 typedef int intptr_t;
 #endif
 
+#ifdef TARGET_PC
+/* PC: the variadic arguments are where the host ABI passes them (registers first), not after the last named
+ * parameter: the compiler's va_list (as fcvt_wrapper's PC version). */
+typedef __builtin_va_list va_list;
+#define va_start(list, parmN) __builtin_va_start(list, parmN)
+#define va_arg(list, mode) __builtin_va_arg(list, mode)
+#define va_end(list) __builtin_va_end(list)
+#else
 typedef char *va_list;
 #define va_start(list, parmN) (list = ((char *)&parmN + sizeof(parmN)))
 #define va_arg(list, mode) ((mode *)(list = \
     (char *)((sizeof(mode) > 4 ? ((intptr_t)list + 7) & -8 \
                                : ((intptr_t)list + 3) & -4) + sizeof(mode))))[-1]
 #define va_end(list) (void)0
+#endif
 
 typedef struct Event {
+#ifdef TARGET_PC
+    /* PC: a sequence tag (MAT3 audiomgr.c's, audiomgr_thread.c's anon_ll_id_3c): InsertLLE links it through two
+     * pointers, so everything after them is 8 bytes later and a tag is 0x48 bytes (docs/port/LAYOUT.md 5). */
+    void *pad0;
+    void *pad4;
+#else
     u32 pad0;
     u32 pad4;
+#endif
     u32 handle;     /* 8 */
     u8 busy;        /* 12 */
     u8 active;      /* 13 */

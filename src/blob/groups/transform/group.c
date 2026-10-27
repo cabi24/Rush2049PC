@@ -4,6 +4,22 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef float f32;
+#ifdef TARGET_PC
+/* PC: e is an FX tag (MAT3 audiomgr.c's tFxSequence): InsertLLE's two links and the tag's list are pointers, so the
+ * id is at +0x18, the command count at +0x26, vol..pitch at +0x30 and a tag is 0x58 bytes. A message is
+ * audiomgr_thread.c's tAudioMsg: changeEffect's four words follow the header at +4 and its tag is at +0x18; a stop's
+ * or an interrupt's tag is at +8 (docs/port/LAYOUT.md 5). */
+typedef struct Entity {
+    void *pad0[3]; s32 id; s32 state; u8 pad14[6];
+    u8 msgCount; u8 pad1B[9]; f32 x,y,z,w; u8 pad34[0x58 - 0x40];
+} Entity;
+typedef struct Msg {
+    s16 id; s8 type,used;
+    union { struct { f32 x,y,z,w; } value; } payload;
+    Entity *ent;
+} Msg;
+#define MSG_TARGET(m) (*(Entity **)((u8 *)(m) + 8))
+#else
 typedef struct Entity {
     u8 pad0[12]; s32 id; s32 state; u8 pad14[6];
     u8 msgCount; u8 pad1B[9]; f32 x,y,z,w; u8 pad34[16];
@@ -13,6 +29,8 @@ typedef struct Msg {
     union { struct { f32 x,y,z,w; } value; Entity *target; } payload;
     Entity *ent;
 } Msg;
+#define MSG_TARGET(m) m->payload.target
+#endif
 extern Entity *D_80110244;
 extern s32 D_80146104;
 extern Msg D_80142DD8[128];
@@ -72,7 +90,7 @@ void scheduler_recv(s32 h) {
     if(e!=0) {
         m=func_80091B00();
         m->type=6;
-        m->payload.target=e;
+        MSG_TARGET(m)=e;
         e->msgCount++;
     }
     osSendMesg(&D_80142728,0,0);

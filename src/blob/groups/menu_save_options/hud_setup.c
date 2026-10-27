@@ -41,12 +41,24 @@ typedef struct List {
     u32 count;
     Link *head, *tail;
 } List;
+#ifdef TARGET_PC
+/* PC: an FX tag is MAT3 audiomgr.c's tFxSequence (audiomgr_thread.c): its data pointer at the end (N64 +0x40) is
+ * pointer-sized too, so a tag is 0x58 bytes and the pool D_80110244 holds that many (docs/port/LAYOUT.md 5). */
+typedef struct Voice {      /* 0x58 */
+    Link link;
+    List *owner;            /* 0x10 */
+    s32 index;              /* 0x18 */
+    u8 pad10[0x50 - 0x1C];
+    void *data;             /* 0x50 */
+} Voice;
+#else
 typedef struct Voice {      /* 0x44 */
     Link link;
     List *owner;            /* 0x08 */
     s32 index;              /* 0x0C */
     u8 pad10[0x34];
 } Voice;
+#endif
 typedef struct Chan {       /* 0x3C */
     Link link;
     s32 index;              /* 0x08 */
@@ -54,7 +66,12 @@ typedef struct Chan {       /* 0x3C */
     s8 unkD;
     u8 padE[0x2E];
 } Chan;
+#ifdef TARGET_PC
+/* PC: an audio message (MAT3 audiomgr.c's tAudioMsg) ends with a tag pointer: 0x20 bytes (docs/port/LAYOUT.md 5). */
+typedef struct Slot24 { u8 pad0[3]; u8 active; u8 pad4[0x20 - 4]; } Slot24;
+#else
 typedef struct Slot24 { u8 pad0[3]; u8 active; u8 pad4[20]; } Slot24;
+#endif
 typedef struct Handler { void (*func)(void); s32 unk4; intptr_t unk8; } Handler;   /* tOrderedList: unk8 is its root */
 
 extern s8 D_8011023C;

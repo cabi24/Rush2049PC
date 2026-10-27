@@ -3702,7 +3702,13 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: an FX tag (MAT3 audiomgr.c's tFxSequence): InsertLLE's two links and the tag's list are pointers, so the state
+ * is at +0x1C and the sound id at +0x48 (docs/port/LAYOUT.md 5). */
+typedef struct { void *pad0[3]; u8 pad[4]; s32 type; u8 pad2[0x28]; s32 link; } ResEntry;
+#else
 typedef struct { u8 pad[0x10]; s32 type; u8 pad2[0x28]; s32 link; } ResEntry;
+#endif
 extern ResEntry *func_80091BA8(s32 arg0);
 s32 results_time_display(s32 arg0) {
     s32 result; ResEntry *e;

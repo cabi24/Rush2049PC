@@ -15,6 +15,20 @@ typedef s32 intptr_t;
 #endif
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: the slot is an FX tag's data, a 3D-sound source (engine_sound_sync.c's Source): InsertLLE links it through two
+ * pointers, so its flags are at +0x10 and the position, the near volume and the parameter 8 bytes later
+ * (docs/port/LAYOUT.md 5). */
+typedef struct CamSlot {
+    /* 0x00 */ void *pad0[2];
+    /* 0x10 */ u8 pad0c[4];
+    /* 0x14 */ f32 x, y, z;
+    /* 0x20 */ u8 pad18[4];
+    /* 0x24 */ f32 blend;
+    /* 0x28 */ u8 pad20[4];
+    /* 0x2C */ f32 extra;
+} CamSlot;
+#else
 typedef struct CamSlot {
     /* 0x00 */ u8 pad0[12];
     /* 0x0C */ f32 x, y, z;
@@ -23,7 +37,22 @@ typedef struct CamSlot {
     /* 0x20 */ u8 pad20[4];
     /* 0x24 */ f32 extra;
 } CamSlot;
+#endif
 
+#ifdef TARGET_PC
+/* PC: an FX tag (MAT3 audiomgr.c's tFxSequence): InsertLLE's two links and the tag's list are pointers, so the id
+ * is at +0x18, everything after 12 bytes later and the data pointer (cam) at +0x50 (docs/port/LAYOUT.md 5). */
+typedef struct Entity {
+    /* 0x00 */ void *pad0[3];
+    /* 0x18 */ s32 id;
+    /* 0x1C */ s32 state;
+    /* 0x20 */ u8 pad14[6];
+    /* 0x26 */ u8 msgCount;
+    /* 0x27 */ u8 pad1B[0x48 - 0x27];
+    /* 0x48 */ s32 link;
+    /* 0x50 */ CamSlot *cam;
+} Entity; /* 0x58 */
+#else
 typedef struct Entity {
     /* 0x00 */ u8 pad0[12];
     /* 0x0C */ s32 id;
@@ -34,6 +63,7 @@ typedef struct Entity {
     /* 0x3C */ s32 link;
     /* 0x40 */ CamSlot *cam;
 } Entity; /* 0x44 */
+#endif
 
 typedef struct Msg {
     /* 0x00 */ s16 id;

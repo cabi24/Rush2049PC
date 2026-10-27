@@ -10,7 +10,14 @@ typedef unsigned char u8;
 typedef int s32;
 typedef float f32;
 typedef struct Record {
+#ifdef TARGET_PC
+    /* PC: the record is an FX tag (MAT3 audiomgr.c's tFxSequence; this is _CalcPriority): its two links and its
+     * list are pointers, so the state is at +0x1C and the rest 12 bytes later (docs/port/LAYOUT.md 5). */
+    void *links[3];
+    u8 unknown00[4];
+#else
     u8 unknown00[0x10];
+#endif
     s32 kind;
     u8 unknown14[5];
     s8 flag;

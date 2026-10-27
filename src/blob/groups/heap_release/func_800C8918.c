@@ -38,7 +38,12 @@ typedef s32 intptr_t;
 typedef float f32;
 #define NULL ((void *)0)
 
+#ifdef TARGET_PC
+/* PC: an audio message (MAT3 audiomgr.c's tAudioMsg) ends with a tag pointer: 0x20 bytes (docs/port/LAYOUT.md 5). */
+typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[0x20 - 4]; } ShutdownMsg;
+#else
 typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[20]; } ShutdownMsg;
+#endif
 typedef struct OSMesgQueue OSMesgQueue;
 typedef void *OSMesg;
 

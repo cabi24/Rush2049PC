@@ -19,6 +19,21 @@ typedef struct CamSlot {
     /* 0x24 */ f32 extra;
 } CamSlot;
 
+#ifdef TARGET_PC
+/* PC: an FX tag (MAT3 audiomgr.c's tFxSequence; func_80091BA8 is _GetFxTag): InsertLLE's two links and the tag's
+ * list are pointers, so the id is at +0x18, everything after 12 bytes later, the data pointer at +0x50, and a tag is
+ * 0x58 bytes, which the lookup strides by (docs/port/LAYOUT.md 5). */
+typedef struct Entity {
+    /* 0x00 */ void *pad0[3];
+    /* 0x18 */ s32 id;
+    /* 0x1C */ s32 state;
+    /* 0x20 */ u8 pad14[6];
+    /* 0x26 */ u8 msgCount;
+    /* 0x27 */ u8 pad1B[0x48 - 0x27];
+    /* 0x48 */ s32 link;
+    /* 0x50 */ CamSlot *cam;
+} Entity; /* 0x58 */
+#else
 typedef struct Entity {
     /* 0x00 */ u8 pad0[12];
     /* 0x0C */ s32 id;
@@ -29,6 +44,7 @@ typedef struct Entity {
     /* 0x3C */ s32 link;
     /* 0x40 */ CamSlot *cam;
 } Entity; /* 0x44 */
+#endif
 
 typedef struct Msg {
     /* 0x00 */ s16 id;
