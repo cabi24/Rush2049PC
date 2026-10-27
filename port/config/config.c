@@ -168,6 +168,7 @@ static const char *const pak_choices[] = {"none", "memory", "rumble", NULL};
 static const char *const api_choices[] = {"gles", "gl", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const scale_choices[] = {"auto", NULL};
+static const char *const frame_rate_choices[] = {"original", "display", NULL};
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -187,6 +188,10 @@ static const Item items[] = {
     {"video", "height", T_INT, F(height), 120, 16384, NULL, "480", NULL},
     {"video", "fullscreen", T_BOOL, F(fullscreen), 0, 0, NULL, "off", "Start in fullscreen (Alt+Enter or F11 toggles)."},
     {"video", "vsync", T_BOOL, F(vsync), 0, 0, NULL, "on", NULL},
+    {"video", "frame_rate", T_INT, F(frame_rate), 30, 1000, frame_rate_choices, "original",
+     "Frames shown a second: original (the game's own: 30, or fewer), display (the display's refresh; with vsync) or "
+     "a number (60, 120, 144). Frames between the game's are drawn from its last two; its timing is unchanged "
+     "(RUSH_GFX_FRAME_RATE)."},
     {"video", "scale", T_INT, F(scale), 1, 8, scale_choices, "1",
      "Internal resolution, a multiple of the N64's (1-8), or auto: the largest the window shows whole (RUSH_GFX_SCALE)."},
     {"video", "api", T_ENUM, F(api), 0, 0, api_choices, "gles", "gles (OpenGL ES 3.0) or gl (desktop GL; RUSH_GFX_API)."},
@@ -279,15 +284,20 @@ static int set_item(PcSettings *s, const Item *it, const char *v, char *why, siz
         return 0;
     }
     case T_INT: {
-        if (it->choices && !strcasecmp(v, it->choices[0])) {
-            *(int *)base = 0;
-            return 0;
-        }
+        /* words for 0, -1, ...: choices[i] is -i */
+        for (int i = 0; it->choices && it->choices[i]; i++)
+            if (!strcasecmp(v, it->choices[i])) {
+                *(int *)base = -i;
+                return 0;
+            }
         errno = 0;
         long n = strtol(v, &end, 10);
         if (!*v || *end || errno || n < it->min || n > it->max) {
-            snprintf(why, why_size, "'%s' is not a whole number from %g to %g%s%s", v, it->min, it->max,
-                     it->choices ? " or " : "", it->choices ? it->choices[0] : "");
+            snprintf(why, why_size, "'%s' is not a whole number from %g to %g", v, it->min, it->max);
+            for (int i = 0; it->choices && it->choices[i]; i++) {
+                size_t k = strlen(why);
+                snprintf(why + k, why_size - k, "%s %s", it->choices[i + 1] ? "," : " or", it->choices[i]);
+            }
             return -2;
         }
         *(int *)base = (int)n;
@@ -337,12 +347,16 @@ static void format_item(const PcSettings *s, const Item *it, char *out, size_t n
     case T_BOOL:
         snprintf(out, n, "%s", *(const int *)base ? "on" : "off");
         break;
-    case T_INT:
-        if (it->choices && *(const int *)base == 0)
-            snprintf(out, n, "%s", it->choices[0]);
+    case T_INT: {
+        int v = *(const int *)base, words = 0;
+        while (it->choices && it->choices[words])
+            words++;
+        if (v <= 0 && -v < words)
+            snprintf(out, n, "%s", it->choices[-v]);
         else
-            snprintf(out, n, "%d", *(const int *)base);
+            snprintf(out, n, "%d", v);
         break;
+    }
     case T_REAL:
         snprintf(out, n, "%g", *(const double *)base);
         if (!strpbrk(out, ".e"))
@@ -590,7 +604,7 @@ int pc_settings_apply_env(PcSettings *s)
 {
     static const struct { const char *var, *section, *key; } env[] = {
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
-        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}};
+        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);

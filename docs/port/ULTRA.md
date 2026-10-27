@@ -61,7 +61,12 @@ count: it runs only through the busy-wait escape). Each change to idle wakes the
 busy-wait's 1 ms nap is 1 ms of the virtual clock, so its 200 ms escape keeps its length. Timers, `osGetTime`, the
 AI, scripted presses, `--seconds` and the null audio output's drain all run on the virtual clock; the renderer and
 the RSP tasks take no N64 time. A run is then as fast as the host allows (the synthetic race's 28 s in about
-0.4 s) and the same on any host, to within a graphics task. A run whose clock stops for 30 s of real time (a thread
+0.4 s) and the same every run, on any host. The main loop's work (RSP tasks, timers, the AI, retraces) happens only
+while every N64 thread waits: a thread that submits a task or wakes the main thread goes on until it waits, and
+only then does the main loop run (`pc_os_wait_main` returns 0 meanwhile, after 100 ms of real time, for the hang
+check). Before 2026-10-27 the main loop ran a task as soon as it was submitted, while the thread that submitted it
+computed on, and which of that thread's next libultra calls saw the task's events depended on the host: two runs
+of one script could start a race two retraces apart ([FRAMERATE.md](FRAMERATE.md) 2). A run whose clock stops for 30 s of real time (a thread
 computing without a libultra call) is stopped as hung, with the threads' states. The self-test runs on it too
 (`--selftest --fast`, CTest `ultra_selftest_fast`).
 
@@ -188,6 +193,17 @@ loop on the host main thread.
 - Between deadlines it sleeps until a thread submits work.
 - While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
   events. Afterwards it sets the N64 clock back by the time held.
+- The state log, the status lines and `--until-state` read the game's values when a retrace is due, before the
+  loop does anything else: with `--fast` every thread waits then. Read after the retrace's event, they raced the
+  threads it wakes (the model thread steps the cars at each retrace).
+- With a high frame rate (`video.frame_rate`, [FRAMERATE.md](FRAMERATE.md)) the loop calls `pc_gfx_present_tick`
+  that many times a second, in step with the retraces (the first tick at a retrace), with the moment in retraces;
+  port/gfx shows nothing at the retraces then. On the host's clock the ticks are deadlines; with `--fast` they are
+  not (they run when the loop wakes for something else), so the virtual clock stops at the same moments with the
+  setting on or off. The ticks post nothing to the game. On the host's clock they give way to it: a tick waits while
+  an RSP task is queued (`pc_rcp_pending`), is skipped when it would run into the next retrace (by how long the last
+  ones took), and draws no frame between two while the host is behind (two retraces dropped within a second). At
+  exit the loop says how many it skipped and how many retraces were dropped.
 
 | Option | |
 |---|---|
@@ -202,6 +218,7 @@ loop on the host main thread.
 | `--audio BACKEND`, `--dump-audio PATH` | port/audio's output (`RUSH2049_AUDIO`, `RUSH2049_DUMP_AUDIO` too) |
 | `-v`, `--trace-os`, `--status N`, `--selftest` | logging; switches; a status line every N s; the self-test |
 | `--fullscreen`, `--size WxH`, `--scale N`, `--log-input` | the window and live input ([FRONTEND.md](FRONTEND.md)) |
+| `--frame-rate R` | frames shown a second: `original`, `display` or 30-1000 ([FRAMERATE.md](FRAMERATE.md)) |
 | `--config PATH`, `--no-config`, `--set S.KEY=VALUE`, `--print-config` | the settings file ([FRONTEND.md](FRONTEND.md)) |
 
 `--frames` and `--screenshot-at` act two retraces after their graphics task, once the scheduler has swapped the

@@ -61,6 +61,7 @@ typedef struct PcSettings {
     int width, height;              /* window size */
     int fullscreen;                 /* desktop fullscreen */
     int vsync;
+    int frame_rate;                 /* frames shown a second: 0 the game's own, -1 the display's (RUSH_GFX_FRAME_RATE) */
     int scale;                      /* internal resolution multiple (RUSH_GFX_SCALE); 0: auto, the window's */
     int api;                        /* PC_CFG_API_* (RUSH_GFX_API) */
     double widescreen;              /* display aspect the 4:3 frame widens to: 0 off, -1 the window's (auto) */

@@ -678,20 +678,28 @@ void pc_os_idle(void)
     pthread_mutex_unlock(&g_lock);
 }
 
-/* --fast: wait for a wake-up, or for the system to go idle and then move the clock to the deadline. At most
- * 100 ms of real time, so that the main loop sees a run that stopped moving the clock (a hang). */
-static void wait_main_virtual(uint64_t deadline_ns)
+/* --fast: wait for the system to go idle; then, unless a thread woke the main thread (it has work at this moment),
+ * move the clock to the deadline. The main loop's work (RSP tasks, events) thus always happens while every N64
+ * thread waits, never in the middle of one's computing, so a run takes the same course every time. Returns 1 then;
+ * 0 after 100 ms of real time with a thread still computing, so that the main loop sees a run that stopped moving
+ * the clock (a hang); a wake-up is kept for the next call. */
+static int wait_main_virtual(uint64_t deadline_ns)
 {
     uint64_t until = pc_real_ns() + 100000000u;
+    int idle = 0;
     pthread_mutex_lock(&g_lock);
-    while (!g_main_wake && pc_real_ns() < until) {
+    while (pc_real_ns() < until) {
         if (system_idle()) {
-            PcThread *t = g_running;
-            if (t && t->nap_until && t->nap_until < deadline_ns)
-                deadline_ns = t->nap_until;   /* a busy-wait's nap ends first */
-            pc_time_advance(deadline_ns);
-            if (t && t->nap_until)
-                pthread_cond_signal(&t->cv);
+            idle = 1;
+            if (!g_main_wake) {
+                PcThread *t = g_running;
+                if (t && t->nap_until && t->nap_until < deadline_ns)
+                    deadline_ns = t->nap_until;   /* a busy-wait's nap ends first */
+                pc_time_advance(deadline_ns);
+                if (t && t->nap_until)
+                    pthread_cond_signal(&t->cv);
+            }
+            g_main_wake = 0;
             break;
         }
 #ifdef _WIN32
@@ -702,8 +710,8 @@ static void wait_main_virtual(uint64_t deadline_ns)
         nap(&g_main_cv, 1000000);
 #endif
     }
-    g_main_wake = 0;
     pthread_mutex_unlock(&g_lock);
+    return idle;
 }
 
 #ifdef _WIN32
@@ -714,12 +722,10 @@ static void main_signal(void)
 }
 
 /* The main thread's wake-up is an auto-reset event, so a wake between the check and the wait isn't lost. */
-void pc_os_wait_main(uint64_t deadline_ns)
+int pc_os_wait_main(uint64_t deadline_ns)
 {
-    if (pc_time_virtual()) {
-        wait_main_virtual(deadline_ns);
-        return;
-    }
+    if (pc_time_virtual())
+        return wait_main_virtual(deadline_ns);
     pthread_mutex_lock(&g_lock);
     uint64_t now = pc_host_ns();
     int wait = !g_main_wake && deadline_ns > now;
@@ -731,6 +737,7 @@ void pc_os_wait_main(uint64_t deadline_ns)
     pthread_mutex_lock(&g_lock);
     g_main_wake = 0;
     pthread_mutex_unlock(&g_lock);
+    return 1;
 }
 
 void pc_os_wake_main(void)
@@ -744,18 +751,17 @@ void pc_os_wake_main(void)
 #else
 static void main_signal(void) { pthread_cond_signal(&g_main_cv); }
 
-void pc_os_wait_main(uint64_t deadline_ns)
+int pc_os_wait_main(uint64_t deadline_ns)
 {
-    if (pc_time_virtual()) {
-        wait_main_virtual(deadline_ns);
-        return;
-    }
+    if (pc_time_virtual())
+        return wait_main_virtual(deadline_ns);
     pthread_mutex_lock(&g_lock);
     uint64_t now = pc_host_ns();
     if (!g_main_wake && deadline_ns > now)
         nap(&g_main_cv, deadline_ns - now);
     g_main_wake = 0;
     pthread_mutex_unlock(&g_lock);
+    return 1;
 }
 
 void pc_os_wake_main(void)

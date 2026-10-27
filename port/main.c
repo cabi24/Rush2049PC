@@ -38,6 +38,8 @@ static void usage(FILE *f)
             "  --size WxH          window size (default 640x480)\n"
             "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
+            "  --frame-rate R      frames shown a second: original (the game's own), display, or 60, 120...;\n"
+            "                      the frames between the game's are drawn from its last two\n"
             "  --seconds N         stop after N seconds (of game time with --fast)\n"
             "  --fast              run as fast as the host can: the N64 clock moves on only while every N64\n"
             "                      thread waits, so a run is the same on any host (tests, scripted runs)\n"
@@ -244,6 +246,8 @@ static int rush_main(int argc, char **argv)
             SET("video", "scale", ARG());
         else if (!strcmp(a, "--widescreen"))
             SET("video", "widescreen", ARG());
+        else if (!strcmp(a, "--frame-rate"))
+            SET("video", "frame_rate", ARG());
         else if (!strcmp(a, "--screenshot-at"))
             run.screenshot_at = (uint32_t)atoi(ARG());
         else if (!strcmp(a, "--screenshot"))
@@ -371,12 +375,14 @@ static int rush_main(int argc, char **argv)
     int pak_kind = cfg.pak == PC_CFG_PAK_MEMORY ? PC_PAK_MEMORY : cfg.pak == PC_CFG_PAK_RUMBLE ? PC_PAK_RUMBLE
                                                                                               : PC_PAK_NONE;
     /* port/gfx reads its settings from the environment; the resolved values already include it */
-    char scale[8], aspect[16];
+    char scale[8], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);
     setenv("RUSH_GFX_SCALE", scale, 1);
     setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : "gles", 1);
     pc_settings_get(&cfg, "video", "widescreen", aspect, sizeof aspect);
     setenv("RUSH_GFX_WIDESCREEN", aspect, 1);
+    pc_settings_get(&cfg, "video", "frame_rate", rate, sizeof rate);
+    setenv("RUSH_GFX_FRAME_RATE", rate, 1);
     if (cfg.widescreen > 0 && cfg.width == 640 && cfg.height == 480)   /* the default window, at the picture's aspect */
         cfg.width = (int)(cfg.height * cfg.widescreen + 0.5);
     if (!run.frames && pc_input_script_frames)

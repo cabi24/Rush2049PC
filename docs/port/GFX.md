@@ -20,8 +20,9 @@ documentation and n64brew.
 | `gfx_sdl.c` | SDL2 window and context (built only when SDL2 is found) |
 | `gfx_png.c` | PNG writer on zlib |
 | `gfx_ui.c`, `gfx_font.c` | drawing over the frame in window pixels, and its font: the settings overlay ("The overlay" below) |
+| `gfx_interp.c`, `gfx_hfr.h` | a high frame rate: graphics tasks recorded, frames drawn between the game's ("High frame rate" below) |
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
-| `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing) |
+| `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between) |
 
 Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game has its own `gfx_*` functions
 (`gfx_frame_begin`, `gfx_lock`), and the renderer links into the same executable.
@@ -290,6 +291,101 @@ the next frame. A new value applies from the next SETCIMG.
   - The 2-player screen's right panel and the empty band beside it.
   - Whatever the game draws at the frame's edges to hide something (a border fill, a fade) that touches only
     one side: it now reaches the target's side.
+
+### High frame rate
+
+`GfxConfig.frame_rate` (`RUSH_GFX_FRAME_RATE`, `video.frame_rate` in [FRONTEND.md](FRONTEND.md); why and what it
+costs: [FRAMERATE.md](FRAMERATE.md)). 0, the default, is the game's own rate: `pc_gfx_present` shows each frame when the
+VI swaps it in, and nothing below runs. Otherwise `pc_gfx_present` only makes the frame the presented image (what
+screenshots read) and notes the retrace (`pc_gfx_retrace`); the main loop calls `pc_gfx_present_tick(vt)` that many
+times a second, vt in retraces, and it shows the frame for that moment. Added 2026-10-27, `gfx_interp.c`.
+
+- **Recording.** While it is on, `pc_gfx_run_dl` records each task as the interpreter runs it; what the interpreter
+  draws doesn't change. The hooks (`pcgfx_rec_*`):
+  - a vertex load: each vertex in model space (read again from the Vtx), its clip position, shade, s, t and fog flag
+    as loaded, and the transform it was loaded under. A transform is made whenever the modelview, the projection or
+    MP changed (`pcgfx.xf_gen`), or the viewport or fog: its modelview, projection and MP, whether it is perspective,
+    whether MP is modelview x projection (not after G_MV_MATRIX or G_MW_MATRIX), the view (projection loads so far),
+    its parent (the transform one level up with the modelview this one was pushed from), the bounds of its vertices
+    and a signature: the view and each load's source address and size;
+  - a triangle: its three vertices, the draw state and texture units it was drawn with, and its `GfxTriCtx` (the
+    viewport, culling, smooth shading, depth source, where the viewport lands in widescreen). Triangles the frame
+    rejects (outside, behind, back faces) are recorded too when the draw state in effect is still theirs
+    (`pcgfx_draw_state_peek`): another moment may show them;
+  - rectangles as their GL vertices; clears.
+- **Which frames.** Four recordings are kept. When frame B is on screen (swapped in at retrace b) and the next one, C,
+  is drawn (the scheduler swaps C in a period later, so on the PC C is drawn well before it is due), the moment
+  `a = (vt - b) / period` (period: B's retrace minus the one before, 1-4, else 2) shows:
+  - a <= 0: B (the presented image); a >= 1 and C not swapped in yet (the game is late): C as drawn;
+  - between: a frame drawn again from the nearer recording, B's up to halfway, then C's, toward the other's. What is
+    in view at that moment is mostly what that frame drew (the road under a camera moving forward is in B's list, not
+    in C's), and what appears or goes, 2D and teleports change there, not earlier;
+  - B again when there is no C yet, when either frame has no 3D (menus), draws into two color images, differs in
+    size, or when every view is a cut.
+- **Pairing** (`match_pair`, once per pair and direction). Transforms with the same signature, one in each frame,
+  pair. The game's per-frame buffers alternate between two frame records, so its matrix and list addresses pair
+  nothing; its models' vertex data stays put, and each scene node loads its own culling box (`D_80157248[k]`), so
+  most transforms are unique. Several with one signature (a car's wheels, smoke puffs): those under a paired parent
+  pair in their order under it; the rest as mutual nearest neighbours by where they are against the camera, the
+  other frame's moved by the camera's move.
+- **The camera's move** per view is the median change of the paired modelviews' translations among those that didn't
+  turn: the game puts the camera's turn in the projection (`func_8009F058` multiplies its lookat into it) and its
+  place in every node's modelview, so the world's pieces all change by the camera's move.
+- **Cuts and jumps.** A view is cut (drawn as the frame has it; with every view cut, B is held) when its projection
+  turned more than 45 degrees or zoomed 1.5x, its camera moved more than 150 units a retrace or 0.35 of the median
+  distance to what it shows, more than 30% of its paired transforms jumped, or nothing in it paired. A transform
+  jumped (a teleport: unpaired) when it moved, against the camera, more than 100 units a retrace and 0.6 of its
+  distance; one that turned more than 50 degrees or scaled 1.67x (a wheel at speed) spun: its place is blended, its
+  turn is its own frame's.
+- **Drawing a moment** (`draw_between`, into an auxiliary target of the frame's size and scale with its own depth
+  buffer, `pcgfx_gl_aux_target`):
+  - each view's projection is blended elementwise; each paired transform's modelview too, and MP = MV x P with
+    gfx_rsp.c's operations, so a transform that didn't move gives its MP to the bit;
+  - an unpaired 3D transform (only that frame has it, or it jumped) keeps its modelview, moved by the camera's move
+    to the moment: it stays where the frame has it in the world. So do native (game-built) vertices under a paired
+    transform that didn't move while the camera did (eye-relative skid marks under the identity modelview);
+  - 2D, transforms in a cut view, and vertices placed on screen (G_MODIFYVTX XY/Z) keep their recorded clip position;
+  - fog is recomputed from the new position; lighting, texture generation and colours are the frame's;
+  - triangles go through the interpreter's own `pcgfx_tri_visible` and `pcgfx_tri_output`, with two changes
+    (`GfxTriCtx.robust`): a vertex made by clipping at the eye plane gets w = 1e-4 exactly, and the screen winding
+    is summed in double. Lerping w from the thousands down to 1e-4 in float leaves an error of about 1e-4, so the
+    new vertex's w could come out below zero and its projection turn around, which culled a whole road triangle at
+    some moments. The live interpreter keeps its float lerp, so its output is what it was (it has the same latent
+    error for triangles through the eye plane; see FRAMERATE.md);
+  - batches are drawn with the recorded draw state into the auxiliary target; it is shown like the presented image
+    (`pcgfx_gl_show_target`), with the frame's rows.
+- **The window and screenshots.** `pc_gfx_redraw` shows the last thing shown (a frame between, while the overlay holds
+  the game). Screenshots and F12 read the presented image: always a frame of the game. A tick that would show what is
+  on screen already (a held frame, the same window size, no overlay) shows nothing and doesn't swap.
+- **Load** (`pc_gfx_present_tick`'s mode, from the main loop; [FRAMERATE.md](FRAMERATE.md) 2): 0 with `--fast`,
+  everything drawn as the moment says; 1 on the host's clock, a frame between is drawn only once the GPU has passed
+  the fence set after the last graphics task or frame between (`pcgfx_gl_fence_set`/`_busy`, `glClientWaitSync`, at
+  most 2 ms; without fences, always); 2 while the host is behind, none is drawn. A frame not drawn shows nothing new.
+- **Textures** in a recording are GL names from the texture cache; an entry is evicted only after 2 presents unused,
+  and a recording is drawn again only until the frame after it is swapped in.
+- **Tools.** `RUSH_GFX_VERBOSE=1` prints a line per pair and direction (transforms blended, moved with the camera,
+  eye-fixed, as drawn; views cut), 2 each view's camera move, 3 every transform and each recorded frame;
+  `RUSH_GFX_HFR_DUMP=DIR[:FIRST[:COUNT]]` writes each frame shown as `hfr-TICK-AAA.png` (AAA the moment in
+  hundredths, `real` for a frame of the game). At exit, with the setting on: the frames shown, drawn between, early
+  and held, and the CPU time of graphics tasks and frames drawn between.
+
+| Case (`gfx.interp.*`) | Checks |
+|---|---|
+| `exact` | a pair of identical frames (two views, a textured back-face-culled quad, a texture rectangle, an orthographic triangle): the frame between is the game's frame to the pixel; with a fogged ground through the eye plane, within 32 pixels (the exact eye-plane clipping) |
+| `move` | an object moving across a still camera, at 0.25, 0.5 and 0.75 against frames drawn at those moments; its centroid halfway |
+| `camera` | the camera turning in the projection and moving in the modelviews; within 2 pixels of the true turn |
+| `cut` | a quarter turn: no frame between, B until C is due, then C as drawn |
+| `teleport` | a jump among moving and still objects, with a still and a moving camera: where B has it, then where C has it |
+| `split` | 2 and 4 views, each with its own camera and objects moving their own ways |
+| `hud` | a texture rectangle and an orthographic triangle that move: B's, then C's, texel for texel; the 3D with them blended |
+| `appear` | an object only C has appears past halfway where C has it, through the moving camera; one only B has stays until halfway |
+| `instances` | four instances of one model, the first gone in C: each pairs with its own |
+| `children` | a parent the camera follows, with four instances of a model under it as far apart as the camera moves: paired in their order |
+| `spin` | an object turning 60 degrees a frame: its place blended, its turn the nearer frame's |
+| `eyerel` | eye-relative native vertices under the identity modelview, in the frame's buffer and at one address: they stay put in the world |
+| `timing` | held, drawn, drawn, early (C late), then C; a period of 3; the presented image (screenshots) unchanged by a frame between; a redraw shows the frame between; off, a tick shows nothing and the present shows the frame |
+| `parse` | the setting's text; `display` is 60 without a display |
+| `gfx.interp.all.*` | every case at 2x, in 16:9, on desktop GL and on llvmpipe |
 
 ### The overlay
 
