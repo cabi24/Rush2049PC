@@ -29,7 +29,14 @@ WEAK int pc_gfx_poll_events(void) { return 0; }
 WEAK int pc_gfx_save_screenshot(const char *path) { (void)path; return -1; }
 WEAK void pc_gfx_shutdown(void) {}
 
-WEAK void pc_audio_run_task(const void *cmdlist, size_t size_bytes) { (void)cmdlist, (void)size_bytes; }
+WEAK int pc_audio_init(const char *backend, const char *dump_wav_path)
+{
+    (void)backend, (void)dump_wav_path;
+    return 0;
+}
+
+WEAK void pc_audio_shutdown(void) {}
+WEAK void pc_audio_run_task(const void *cmdlist, size_t data_size) { (void)cmdlist, (void)data_size; }
 WEAK void pc_audio_set_frequency(uint32_t hz) { (void)hz; }
 WEAK void pc_audio_push(const int16_t *samples, size_t stereo_frames) { (void)samples, (void)stereo_frames; }
 WEAK size_t pc_audio_queued_frames(void) { return 0; }

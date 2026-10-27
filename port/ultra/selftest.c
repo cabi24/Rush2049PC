@@ -36,6 +36,10 @@ int32_t osPfsAllocateFile(void *pfs, uint16_t company, uint32_t game, uint8_t *n
 int32_t osPfsReadWriteFile(void *pfs, int32_t file, uint8_t flag, int32_t offset, int32_t size, uint8_t *buf);
 int32_t osPfsDeleteFile(void *pfs, uint16_t company, uint32_t game, uint8_t *name, uint8_t *ext);
 
+/* The game's names at absolute N64 addresses (gen_stubs, aliases.ld). */
+extern uint8_t D_8017A640[], D_8038A400[];
+extern uint32_t osTvType, D_80000318;
+
 #define MS(n) ((uint64_t)(n) * PC_COUNT_HZ / 1000)
 
 static uint8_t g_thread[32][32];   /* stand-ins for the game's OSThread storage: only their addresses matter */
@@ -308,16 +312,29 @@ static void t_memory(void)
     check("RDRAM window", k0 == k1 && k0 == ph && pc_n64_addr(k0) == 0x80001000 && pc_n64_ptr(0x00800000) == NULL &&
                               (!fixed || (k0 == (uint8_t *)0x80001000 && *(volatile uint8_t *)0xA0001000 == 0x5A)),
           d);
+    snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)D_8017A640,
+             (void *)D_8038A400, (void *)&osTvType, osTvType, D_80000318);
+    check("absolute N64 symbols", (uintptr_t)D_8017A640 == 0x8017A640u && (uintptr_t)D_8038A400 == 0x8038A400u &&
+                                      (uintptr_t)&osTvType == 0x80000300u && osTvType == 1 &&
+                                      D_80000318 == pc_os_mem_size(), d);
+    int local;
+    snprintf(d, sizeof d, "code %p, data %p, stack %p", (void *)check, (void *)g_log, (void *)&local);
+    check("host addresses above 4 GiB", (uintptr_t)check >> 32 && (uintptr_t)g_log >> 32 && (uintptr_t)&local >> 32,
+          d);
+
     static uint8_t buf[256];
     pc_mem_register_be(buf, 100);
-    pc_mem_register_be(buf + 50, 100);   /* overlaps: replaces the tail */
+    pc_mem_register_be(buf + 50, 100);   /* overlaps: one range 0-150 */
+    pc_mem_register_be(buf + 10, 20);    /* inside: no change */
     pc_mem_register_be(buf + 200, 10);
+    pc_mem_register_be(buf + 210, 10);   /* adjacent: its own range */
     int ok = pc_mem_is_be(buf) && pc_mem_is_be(buf + 149) && !pc_mem_is_be(buf + 150) && pc_mem_is_be(buf + 205) &&
-             !pc_mem_is_be(buf + 210);
-    pc_mem_unregister_be(buf + 50);
-    ok = ok && pc_mem_is_be(buf + 49) && !pc_mem_is_be(buf + 50) && pc_mem_is_be(buf + 200);
-    pc_mem_unregister_be(buf);
+             pc_mem_is_be(buf + 219) && !pc_mem_is_be(buf + 220);
+    pc_mem_unregister_be(buf + 60);      /* drops all of 0-150 */
+    ok = ok && !pc_mem_is_be(buf) && !pc_mem_is_be(buf + 120) && pc_mem_is_be(buf + 200);
     pc_mem_unregister_be(buf + 200);
+    ok = ok && !pc_mem_is_be(buf + 200) && pc_mem_is_be(buf + 210);
+    pc_mem_unregister_be(buf + 210);
     check("big-endian ranges", ok && !pc_mem_is_be(buf), NULL);
 }
 
@@ -415,6 +432,7 @@ static void boot(void *arg)
 int pc_selftest(void)
 {
     PcRunOptions run = {.seconds = 30};
+    pc_os_initialize();                /* the low-memory globals */
     pc_si_init(NULL, PC_PAK_MEMORY);   /* a formatted pak in memory */
     pc_os_boot(boot, NULL, "boot");
     int code = pc_ultra_run(&run);

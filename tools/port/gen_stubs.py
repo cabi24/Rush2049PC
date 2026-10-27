@@ -9,14 +9,21 @@ here. --defined-list names the PC layer's objects (port/ultra and the other part
 weak ones included, but their own references (the C library, zlib, pthreads) are left to the linker.
 
 - A name that differs from a definition only by the case of its address digits (func_8001fe58 for
-  func_8001FE58), or an address name (D_/func_XXXXXXXX) whose N64 address belongs to a defined symbol of the
-  same kind (D_80000318 for osMemSize), becomes a PROVIDE alias in aliases.ld, an implicit linker script.
+  func_8001FE58), or an address name (D_/func_XXXXXXXX) whose N64 address belongs to one defined symbol (a
+  function's, for a D_ name the game takes the address of: D_8008BEA4 for func_8008BEA4), becomes a PROVIDE
+  alias in aliases.ld, an implicit linker script.
+- Data the game uses by its N64 address, which nothing else defines, becomes an absolute symbol there: RDRAM
+  addresses (the low-memory globals at 0x80000300, the heap start D_8017A640, the runtime images' base
+  D_8038A400) point into port/ultra's RDRAM window, and ROM offsets (D_00039B40) become cartridge addresses
+  (0xB0000000 | offset), which the game's PI and MusyX address callbacks accept. port/ultra fixes their GOT
+  slots at startup (memory.c: binutils 2.40 on aarch64 relocates them in a PIE).
 - Functions become stubs that call pc_stub_hit (port/ultra/misc.c): it prints the name, the N64 thread and a
   symbolized backtrace, then aborts. The first one hit is the next thing to implement.
 - Data becomes zeroed placeholders (twice the N64 size, at least 16 bytes; 4 KiB when the size is unknown).
   Not game data: each one left is a to-do.
 
-Names the host C library provides are left to it. Stdlib only, Python 3.9+.
+--standalone writes stubs for a program that links the game without the PC layer (no aliases, no absolute
+symbols, a local pc_stub_hit). Names the host C library provides are left to it. Stdlib only, Python 3.9+.
 """
 import argparse
 import re
@@ -56,6 +63,7 @@ def aliases_for(undefined, defined, syms):
         addr = n64syms.address_of(d, syms)
         if addr is not None:
             by_addr.setdefault((addr, n64syms.kind_of(d, syms)), []).append(d)
+            by_addr.setdefault((addr, "any"), []).append(d)
     out = {}
     for name in sorted(undefined):
         m = _ADDR_NAME.match(name)
@@ -65,10 +73,29 @@ def aliases_for(undefined, defined, syms):
         if len(same) == 1:
             out[name] = same[0]
             continue
+        addr = int(m.group(2), 16)
         kind = "func" if m.group(1) == "func" else "data"
-        cands = sorted(set(by_addr.get((int(m.group(2), 16), kind), [])))
+        cands = sorted(set(by_addr.get((addr, kind), [])))
+        if not cands and kind == "data" and n64syms.region_of(addr) == "game code":
+            cands = sorted(set(by_addr.get((addr, "any"), [])))   # a function's address used as data
         if len(cands) == 1:
             out[name] = cands[0]
+    return out
+
+
+def absolute_for(undefined, syms):
+    """undefined data name -> the absolute address it gets (see the module docstring)."""
+    out = {}
+    for name in sorted(undefined):
+        if n64syms.kind_of(name, syms) != "data":
+            continue
+        addr = n64syms.address_of(name, syms)
+        if addr is None:
+            continue
+        if 0x80000000 <= addr < 0x80800000:
+            out[name] = addr
+        elif addr < 0x01000000 and n64syms.region_of(addr) == "other":
+            out[name] = 0xB0000000 | addr
     return out
 
 
@@ -76,6 +103,16 @@ STUB_PRELUDE = r"""
 /* No system headers: stub names such as fcvt would clash with the C library's declarations. pc_stub_hit
  * (port/ultra/misc.c) prints the name, the N64 thread and a symbolized backtrace, then aborts. */
 void pc_stub_hit(const char *name) __attribute__((noreturn));
+"""
+STANDALONE_PRELUDE = r"""
+/* No system headers: stub names such as fcvt would clash with the C library's declarations. */
+int dprintf(int fd, const char *format, ...);
+void abort(void) __attribute__((noreturn));
+static void pc_stub_hit(const char *name)
+{
+    dprintf(2, "not implemented yet: %s\n", name);
+    abort();
+}
 """
 
 
@@ -87,6 +124,7 @@ def main():
     ap.add_argument("--aliases", type=Path, help="implicit linker script of PROVIDE aliases")
     ap.add_argument("--nm", default="nm")
     ap.add_argument("--root", type=Path, default=n64syms.ROOT)
+    ap.add_argument("--standalone", action="store_true", help="for a program without the PC layer")
     a = ap.parse_args()
 
     syms = n64syms.load_symbols(a.root / "symbol_addrs.us.txt")
@@ -96,8 +134,10 @@ def main():
     port_defs, _ = n64syms.nm_table(port, a.nm) if port else ({}, set())
     defined = set(game_defs) | set(port_defs)
     undefined = (game_refs - defined) - HOST_LIBC
-    alias = aliases_for(undefined, defined, syms)
+    alias = {} if a.standalone else aliases_for(undefined, defined, syms)
     undefined -= alias.keys()
+    absolute = {} if a.standalone else absolute_for(undefined, syms)
+    undefined -= absolute.keys()
     unknown = {n for n in undefined if n64syms.address_of(n, syms) is None}
     unknown_funcs = declared_as_function(a.root / "src", unknown)
     funcs, data = [], []
@@ -106,7 +146,7 @@ def main():
         (funcs if is_func else data).append(name)
 
     L = ["/* stubs.c: generated by tools/port/gen_stubs.py. Not game code or data: what is still missing. */",
-         STUB_PRELUDE]
+         STANDALONE_PRELUDE if a.standalone else STUB_PRELUDE]
     L += [f"void {n}(void) {{ pc_stub_hit(\"{n}\"); }}" for n in funcs]
     L.append("")
     for n in data:
@@ -118,8 +158,11 @@ def main():
         A = ["/* aliases.ld: generated by tools/port/gen_stubs.py; names the game uses for a symbol defined",
              " * under another spelling or name at the same N64 address. */"]
         A += [f"PROVIDE({n} = {t});" for n, t in sorted(alias.items())]
+        A += ["", "/* Data at its N64 address: the RDRAM window, or the cartridge for ROM offsets. */"]
+        A += [f"PROVIDE({n} = ABSOLUTE(0x{v:08X}));" for n, v in sorted(absolute.items())]
         a.aliases.write_text("\n".join(A) + "\n")
-    print(f"gen_stubs: {len(funcs)} function stubs, {len(data)} data placeholders, {len(alias)} aliases -> {a.out}")
+    print(f"gen_stubs: {len(funcs)} function stubs, {len(data)} data placeholders, {len(alias)} aliases, "
+          f"{len(absolute)} absolute -> {a.out}")
 
 
 if __name__ == "__main__":

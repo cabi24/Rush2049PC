@@ -39,45 +39,42 @@ void pc_fatal(const char *fmt, ...)
 
 /* ---------------------------------------------------------------- osInitialize and the boot globals */
 
-/* The low-memory globals (N64 0x80000300-0x8000035C), set by the IPL and osInitialize. The game reads
- * osMemSize under its address name too (D_80000318: gen_stubs aliases it), and the values are mirrored into
- * the RDRAM window for code that reads the literal address. Weak, in case port/data defines them. */
-#define WEAK __attribute__((weak))
-WEAK uint32_t osTvType = 1;            /* NTSC */
-WEAK uint32_t osRomType = 0;
-WEAK uint32_t osRomBase = 0xB0000000u;
-WEAK uint32_t osResetType = 0;         /* cold */
-WEAK uint32_t osCicId = 6102;
-WEAK uint32_t osVersion = 0;
+/* The low-memory globals (N64 0x80000300-0x8000035C), set by the IPL and osInitialize. The game's names for
+ * them (osTvType, D_80000318 for osMemSize...) are absolute symbols in the RDRAM window (gen_stubs), so the
+ * values are written there, as native words. */
+enum {
+    LOW_TV_TYPE = 0x80000300, LOW_ROM_TYPE = 0x80000304, LOW_ROM_BASE = 0x80000308, LOW_RESET_TYPE = 0x8000030C,
+    LOW_CIC_ID = 0x80000310, LOW_VERSION = 0x80000314, LOW_MEM_SIZE = 0x80000318, LOW_NMI_BUFFER = 0x8000031C,
+};
 /* 4 MiB by default: no Expansion Pak, so the game leaves its Expansion Pak flag (D_80156994) clear and skips
  * overlay B and the extra waves in races, the smaller first target docs/port/ASSETS.md suggests.
  * --expansion-pak reports 8 MiB, as N64ModernRuntime and v5 do (needed for parity runs against v5). The RDRAM
  * window is 8 MiB either way. */
-WEAK uint32_t osMemSize = 0x00400000;
-WEAK uint8_t osAppNMIBuffer[64];
+static uint32_t g_mem_size = 0x00400000;
 
 static void put_word(uint32_t addr, uint32_t v)
 {
     uint8_t *p = pc_n64_ptr(addr);
     if (p)
-        memcpy(p, &v, 4);   /* native order: the game reads them as words */
+        memcpy(p, &v, 4);
 }
 
 void pc_os_initialize(void)
 {
-    if (osResetType == 0)
-        memset(osAppNMIBuffer, 0, sizeof osAppNMIBuffer);
-    put_word(0x80000300, osTvType);
-    put_word(0x80000304, osRomType);
-    put_word(0x80000308, osRomBase);
-    put_word(0x8000030C, osResetType);
-    put_word(0x80000310, osCicId);
-    put_word(0x80000314, osVersion);
-    put_word(0x80000318, osMemSize);
+    put_word(LOW_TV_TYPE, 1);              /* NTSC */
+    put_word(LOW_ROM_TYPE, 0);
+    put_word(LOW_ROM_BASE, 0xB0000000u);
+    put_word(LOW_RESET_TYPE, 0);           /* cold: the NMI buffer starts zeroed */
+    put_word(LOW_CIC_ID, 6102);
+    put_word(LOW_VERSION, 0);
+    put_word(LOW_MEM_SIZE, g_mem_size);
+    uint8_t *nmi = pc_n64_ptr(LOW_NMI_BUFFER);
+    if (nmi)
+        memset(nmi, 0, 64);
 }
 
-uint32_t pc_os_mem_size(void) { return osMemSize; }
-void pc_os_set_expansion_pak(int on) { osMemSize = on ? PC_RDRAM_SIZE : 0x00400000; }
+uint32_t pc_os_mem_size(void) { return g_mem_size; }
+void pc_os_set_expansion_pak(int on) { g_mem_size = on ? PC_RDRAM_SIZE : 0x00400000; }
 
 /* main's first call (libultra's osInitialize; historical label). */
 void __osInitialize_common(void) { pc_os_initialize(); }

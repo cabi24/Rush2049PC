@@ -29,6 +29,8 @@ static void usage(FILE *f)
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk)\n"
             "  --no-pak            no accessory; --rumble: a rumble pak instead\n"
             "  --expansion-pak     report 8 MiB of RDRAM (default 4 MiB: no Expansion Pak)\n"
+            "  --audio BACKEND     auto (default), sdl, alsa, null or wav (port/audio)\n"
+            "  --dump-audio PATH   also write everything the game plays to a WAV file\n"
             "  --status N          a status line every N seconds\n"
             "  -v, --verbose       more log lines (repeat for more); --trace-os: every thread switch\n"
             "  --selftest          test the thread scheduler, queues, events and timers (no ROM needed)\n"
@@ -38,6 +40,7 @@ static void usage(FILE *f)
 int main(int argc, char **argv)
 {
     const char *rom = "baserom.us.z64", *pak = "rush2049pc.mpk";
+    const char *audio = getenv("RUSH2049_AUDIO"), *dump_audio = getenv("RUSH2049_DUMP_AUDIO");
     int check = 1, no_rom = 0, headless = 0, pak_kind = PC_PAK_MEMORY, pak_set = 0, selftest = 0;
     PcRunOptions run = {0};
 
@@ -71,6 +74,10 @@ int main(int argc, char **argv)
             pak_kind = PC_PAK_NONE, pak_set = 1;
         else if (!strcmp(a, "--rumble"))
             pak_kind = PC_PAK_RUMBLE, pak_set = 1;
+        else if (!strcmp(a, "--audio"))
+            audio = ARG();
+        else if (!strcmp(a, "--dump-audio"))
+            dump_audio = ARG();
         else if (!strcmp(a, "--expansion-pak"))
             pc_os_set_expansion_pak(1);
         else if (!strcmp(a, "--status"))
@@ -97,6 +104,7 @@ int main(int argc, char **argv)
         run.frames = pc_input_script_frames;
 
     setvbuf(stderr, NULL, _IOLBF, 0);
+    pc_mem_fix_absolute();
     pc_fault_install();
     if (pc_mem_init() != 0) {
         fprintf(stderr, "rush2049pc: cannot map the RDRAM window\n");
@@ -110,18 +118,22 @@ int main(int argc, char **argv)
     pc_os_initialize();
     if (pc_data_init(pc_rom_bytes(), pc_rom_size()) != 0) {
         fprintf(stderr, "rush2049pc: the game's data could not be read from the ROM\n");
-        return 1;
+        if (!no_rom)
+            return 1;   /* --no-rom goes on with the data zeroed */
     }
     if (pc_gfx_init(headless, 640, 480) != 0) {
         fprintf(stderr, "rush2049pc: no renderer\n");
         return 1;
     }
     pc_si_init(pak_kind == PC_PAK_MEMORY ? pak : NULL, pak_kind);
+    if (pc_audio_init(audio ? audio : "auto", dump_audio) != 0)
+        fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     if (!pc_mem_fixed())
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
 
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
+    pc_audio_shutdown();
     pc_gfx_shutdown();
     fflush(NULL);
     _exit(code);   /* the N64 threads are still running game code: no atexit handlers */

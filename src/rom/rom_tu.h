@@ -6,6 +6,12 @@
 #include "PR/os_message.h"
 #include "PR/os_thread.h"
 
+#ifdef TARGET_PC
+/* PC layer (port/include/pc_port.h): big-endian ranges, for the MusyX DMA caches (lib_11640.c). */
+extern void pc_mem_register_be(const void *start, unsigned long size);
+extern void pc_mem_unregister_be(const void *start);
+#endif
+
 /* Data symbols referenced by promoted libultra bodies. */
 extern OSThread *__osEmptyMesgQueue;   /* 0x8002C3D0 — empty mesg queue sentinel */
 

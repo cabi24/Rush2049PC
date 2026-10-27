@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <link.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -75,6 +76,75 @@ int pc_mem_init(void)
 }
 
 int pc_mem_fixed(void) { return g_fixed; }
+
+/* ---------------------------------------------------------------- absolute symbols in the PIE */
+
+/* gen_stubs puts data the game uses by its N64 address at that address (aliases.ld: the low-memory globals,
+ * the heap start, cartridge offsets). binutils 2.40 on aarch64 gives the GOT slot of such an absolute symbol a
+ * RELATIVE relocation, so at run time it holds the load address plus the value. Nothing the linker places has
+ * a link-time address at 0x80000000 or above, so a RELATIVE relocation with an addend there is one of these:
+ * put the value back. Runs before any game code. */
+static int fix_absolute(struct dl_phdr_info *info, size_t size, void *count)
+{
+    (void)size;
+    if (info->dlpi_name && info->dlpi_name[0])
+        return 0;   /* the executable comes first, with no name */
+    uintptr_t base = info->dlpi_addr, relro = 0, relro_size = 0;
+    const ElfW(Dyn) *dyn = NULL;
+    for (int i = 0; i < info->dlpi_phnum; i++) {
+        const ElfW(Phdr) *ph = &info->dlpi_phdr[i];
+        if (ph->p_type == PT_DYNAMIC)
+            dyn = (const ElfW(Dyn) *)(base + ph->p_vaddr);
+        else if (ph->p_type == PT_GNU_RELRO)
+            relro = base + ph->p_vaddr, relro_size = ph->p_memsz;
+    }
+    uintptr_t rela = 0;
+    size_t relasz = 0;
+    for (; dyn && dyn->d_tag != DT_NULL; dyn++) {
+        if (dyn->d_tag == DT_RELA)
+            rela = dyn->d_un.d_ptr;
+        else if (dyn->d_tag == DT_RELASZ)
+            relasz = dyn->d_un.d_val;
+    }
+    if (!rela || !base)
+        return 1;
+    if (rela < base)
+        rela += base;   /* the dynamic loader leaves some ports' entries unrelocated */
+#if defined(__aarch64__)
+    const unsigned relative = R_AARCH64_RELATIVE;
+#elif defined(__x86_64__)
+    const unsigned relative = R_X86_64_RELATIVE;
+#else
+    const unsigned relative = ~0u;
+#endif
+    long page = sysconf(_SC_PAGESIZE);
+    uintptr_t lo = relro & ~(uintptr_t)(page - 1), hi = (relro + relro_size + (uintptr_t)page - 1) & ~(uintptr_t)(page - 1);
+    int opened = 0;
+    for (const ElfW(Rela) *r = (const ElfW(Rela) *)rela; (uintptr_t)(r + 1) <= rela + relasz; r++) {
+        uint64_t v = (uint64_t)r->r_addend;
+        if (ELF64_R_TYPE(r->r_info) != relative || v < 0x80000000u || v >= 0xC0000000u)
+            continue;
+        uint64_t *slot = (uint64_t *)(base + r->r_offset);
+        if (*slot != base + v)
+            continue;
+        if (!opened && relro_size && mprotect((void *)lo, hi - lo, PROT_READ | PROT_WRITE) == 0)
+            opened = 1;
+        *slot = v;
+        ++*(int *)count;
+    }
+    if (opened)
+        mprotect((void *)lo, hi - lo, PROT_READ);
+    return 1;
+}
+
+int pc_mem_fix_absolute(void)
+{
+    int count = 0;
+    dl_iterate_phdr(fix_absolute, &count);
+    if (pc_verbose > 1)
+        pc_log("%d absolute-symbol GOT slots fixed", count);
+    return count;
+}
 uint8_t *pc_rdram(void) { return g_rdram; }
 
 void *pc_n64_ptr(uint32_t addr)
@@ -106,7 +176,9 @@ static pthread_mutex_t g_be_lock = PTHREAD_MUTEX_INITIALIZER;
 static Range *g_be;
 static size_t g_nbe, g_cap;
 
-/* Sorted, non-overlapping. A new range replaces whatever it overlaps: the memory now holds new bytes. */
+/* Sorted and disjoint. A range that overlaps existing ones merges with them, so a PI DMA into a registered
+ * buffer (the MusyX caches) leaves it one range; adjacent ranges stay apart, so each buffer can be dropped on
+ * its own when it is freed. */
 void pc_mem_register_be(const void *start, size_t size)
 {
     uintptr_t s = (uintptr_t)start, e = s + size;
@@ -116,33 +188,34 @@ void pc_mem_register_be(const void *start, size_t size)
     size_t i = 0, j;
     while (i < g_nbe && g_be[i].end <= s)
         i++;
-    Range keep_lo = {0, 0}, keep_hi = {0, 0};
     for (j = i; j < g_nbe && g_be[j].start < e; j++) {
         if (g_be[j].start < s)
-            keep_lo = (Range){g_be[j].start, s};
+            s = g_be[j].start;
         if (g_be[j].end > e)
-            keep_hi = (Range){e, g_be[j].end};
+            e = g_be[j].end;
     }
-    size_t add = 1 + (keep_lo.end != 0) + (keep_hi.end != 0), del = j - i;
-    if (g_nbe - del + add > g_cap) {
-        g_cap = (g_nbe + add) * 2 + 16;
+    if (j == i && g_nbe == g_cap) {
+        g_cap = g_cap * 2 + 16;
         g_be = realloc(g_be, g_cap * sizeof *g_be);
     }
-    memmove(&g_be[i + add], &g_be[j], (g_nbe - j) * sizeof *g_be);
-    g_nbe = g_nbe - del + add;
-    if (keep_lo.end)
-        g_be[i++] = keep_lo;
-    g_be[i++] = (Range){s, e};
-    if (keep_hi.end)
-        g_be[i] = keep_hi;
+    if (j == i) {   /* no overlap: insert */
+        memmove(&g_be[i + 1], &g_be[i], (g_nbe - i) * sizeof *g_be);
+        g_nbe++;
+    } else {        /* replace ranges i..j-1 with their union */
+        memmove(&g_be[i + 1], &g_be[j], (g_nbe - j) * sizeof *g_be);
+        g_nbe -= j - i - 1;
+    }
+    g_be[i] = (Range){s, e};
     pthread_mutex_unlock(&g_be_lock);
 }
 
+/* Drops the range that holds start (the buffer is freed or refilled with native data). */
 void pc_mem_unregister_be(const void *start)
 {
+    uintptr_t a = (uintptr_t)start;
     pthread_mutex_lock(&g_be_lock);
     for (size_t i = 0; i < g_nbe; i++)
-        if (g_be[i].start == (uintptr_t)start) {
+        if (g_be[i].start <= a && a < g_be[i].end) {
             memmove(&g_be[i], &g_be[i + 1], (g_nbe - i - 1) * sizeof *g_be);
             g_nbe--;
             break;

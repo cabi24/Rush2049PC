@@ -2,9 +2,11 @@
  *
  * osSpTaskStartGo queues a copy of the task for the host main thread, which owns the GL context: graphics
  * tasks go to pc_gfx_run_dl and are followed by the SP and DP done events, audio tasks to pc_audio_run_task
- * and the SP event. Tasks run to completion, so osSpTaskYield never yields. The AI keeps libultra's two-entry
- * buffer FIFO on the host clock: a buffer plays for its length at the set frequency, and the AI event is sent
- * whenever one starts, as the hardware interrupt is raised when the next buffer moves into the DMA. */
+ * and the SP event. Tasks run to completion, so osSpTaskYield never yields. The AI hands each buffer to
+ * port/audio's output queue (pc_audio_push) and sends the AI event when fewer than 384 frames (two of the
+ * game's 192-frame buffers) are left in it: the game's audio thread answers each event with one buffer
+ * (docs/port/AUDIO.md). One event is outstanding at a time, and events are at least half a buffer apart, so a
+ * missing output can't make the audio thread run flat out. */
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
@@ -21,12 +23,14 @@ static int g_ntasks, g_dp_pending;
 uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks;
 int pc_rcp_stop_at_gfx;
 
+#define AI_LOW_FRAMES 384
+#define AI_BUFFER_FRAMES 192
+
 static struct {
     uint32_t freq;
-    int n;                       /* buffers in the FIFO; q[0] plays */
-    struct { const void *buf; uint32_t len; } q[2];
-    uint64_t end_ns;             /* when q[0] finishes */
-    int events;                  /* AI events to send */
+    int started;         /* the game has queued its first buffer */
+    int waiting;         /* an AI event is out and not answered yet */
+    uint64_t sent_ns;
 } g_ai;
 
 /* ---------------------------------------------------------------- RSP and RDP */
@@ -94,50 +98,58 @@ int32_t osAiSetFrequency(uint32_t frequency)
     return (int32_t)actual;
 }
 
-static uint64_t buffer_ns(uint32_t len)
+static uint64_t frames_ns(uint64_t frames)
 {
-    uint32_t hz = g_ai.freq ? g_ai.freq : 32000;
-    return (uint64_t)(len / 4) * 1000000000u / hz;
+    return frames * 1000000000u / (g_ai.freq ? g_ai.freq : 22050);
 }
 
 int32_t osAiSetNextBuffer(void *buf, uint32_t len)
 {
-    pthread_mutex_lock(&g_rlock);
-    if (g_ai.n == 2) {
-        pthread_mutex_unlock(&g_rlock);
-        return -1;
-    }
-    g_ai.q[g_ai.n].buf = buf;
-    g_ai.q[g_ai.n].len = len;
-    if (g_ai.n++ == 0) {
-        g_ai.end_ns = pc_host_ns() + buffer_ns(len);
-        g_ai.events++;
-    }
-    pthread_mutex_unlock(&g_rlock);
     pc_audio_push(buf, len / 4);
+    pthread_mutex_lock(&g_rlock);
+    g_ai.started = 1;
+    g_ai.waiting = 0;
+    pthread_mutex_unlock(&g_rlock);
     pc_os_wake_main();
     return 0;
 }
 
-uint32_t osAiGetLength(void)
-{
-    pthread_mutex_lock(&g_rlock);
-    uint32_t left = 0;
-    if (g_ai.n) {
-        uint64_t now = pc_host_ns(), total = buffer_ns(g_ai.q[0].len);
-        if (now < g_ai.end_ns && total)
-            left = (uint32_t)((uint64_t)g_ai.q[0].len * (g_ai.end_ns - now) / total) & ~3u;
-    }
-    pthread_mutex_unlock(&g_rlock);
-    return left;
-}
+uint32_t osAiGetLength(void) { return (uint32_t)pc_audio_queued_frames() * 4; }
 
 uint32_t osAiGetStatus(void)
 {
+    return pc_audio_queued_frames() ? 0x40000000u : 0;   /* busy */
+}
+
+/* Main thread: send the AI event when the output queue runs low; *next gets when to look again. */
+static int ai_service(uint64_t now, uint64_t *next)
+{
     pthread_mutex_lock(&g_rlock);
-    uint32_t s = (g_ai.n == 2 ? 0x80000000u : 0) | (g_ai.n ? 0x40000000u : 0);   /* FIFO full, busy */
+    int send = 0;
+    uint64_t again = 0, gap = frames_ns(AI_BUFFER_FRAMES / 2);
+    if (g_ai.waiting && now - g_ai.sent_ns > 50000000u)
+        g_ai.waiting = 0;   /* not answered in 50 ms: the event may have been dropped */
+    if (g_ai.started && !g_ai.waiting) {
+        size_t queued = pc_audio_queued_frames();
+        if (queued < AI_LOW_FRAMES && now - g_ai.sent_ns >= gap) {
+            send = 1;
+            g_ai.waiting = 1;
+            g_ai.sent_ns = now;
+        } else if (queued < AI_LOW_FRAMES) {
+            again = g_ai.sent_ns + gap;
+        } else {
+            uint64_t ahead = frames_ns(queued - AI_LOW_FRAMES);
+            again = now + (ahead > 1000000u ? ahead : 1000000u);
+        }
+    } else if (g_ai.waiting) {
+        again = g_ai.sent_ns + 50000000u;
+    }
     pthread_mutex_unlock(&g_rlock);
-    return s;
+    if (again && (!*next || again < *next))
+        *next = again;
+    if (send)
+        pc_os_event(OS_EVENT_AI);
+    return send;
 }
 
 /* ---------------------------------------------------------------- main thread */
@@ -150,23 +162,9 @@ int pc_rcp_service(uint64_t now, uint64_t *next)
     for (int i = 0; i < n; i++)
         tasks[i] = g_tasks[i];
     g_ntasks = g_dp_pending = 0;
-    while (g_ai.n && now >= g_ai.end_ns) {
-        g_ai.q[0] = g_ai.q[1];
-        if (--g_ai.n) {
-            g_ai.end_ns += buffer_ns(g_ai.q[0].len);
-            if (g_ai.end_ns < now)
-                g_ai.end_ns = now + buffer_ns(g_ai.q[0].len);
-            g_ai.events++;
-        }
-    }
-    int ai = g_ai.events;
-    g_ai.events = 0;
-    if (g_ai.n && (!*next || g_ai.end_ns < *next))
-        *next = g_ai.end_ns;
     pthread_mutex_unlock(&g_rlock);
 
-    for (int i = 0; i < ai; i++)
-        pc_os_event(OS_EVENT_AI);
+    int ai = ai_service(now, next);
     for (int i = 0; i < n; i++) {
         const PcOSTask *t = &tasks[i];
         if (t->type == M_GFXTASK) {
