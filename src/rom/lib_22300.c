@@ -179,11 +179,21 @@ u8 func_8002193C(MacroState *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 extern u8 func_8002193C(MacroState *, MacroCommand *);
+#ifdef TARGET_PC
+/* PC: the step's words are in host order (port/assets/musyx.c swaps the pool's macros), so the N64's byte 6 is
+ * not bits 15..8 of word[1], the milliseconds flag func_8002193C tests. The same store, on the word. */
+u8 func_80021B9C(MacroState *state, MacroCommand *command)
+{
+    command->word[1] = (command->word[1] & ~0xFF00U) | 0x100U;
+    return func_8002193C(state, command);
+}
+#else
 u8 func_80021B9C(MacroState *state, MacroCommand *command)
 {
     ((u8 *)command)[6] = 1;
     return func_8002193C(state, command);
 }
+#endif
 
 /* PROMOTED 2026-10-04 — func_80021BC0
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
