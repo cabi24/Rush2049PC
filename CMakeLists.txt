@@ -335,18 +335,31 @@ target_link_libraries(rush2049pc PRIVATE ${PC_PORT_OBJECT_LIBS} ZLIB::ZLIB Threa
 foreach(lib ${PC_PORT_ARCHIVES})
     target_link_libraries(rush2049pc PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
 endforeach()
-target_link_options(rush2049pc PRIVATE ${PC_DATA_DIR}/aliases.ld)
-set_target_properties(rush2049pc PROPERTIES LINK_DEPENDS ${PC_DATA_DIR}/aliases.ld)
-if(WIN32)   # data.c's weak references (tools/port/gen_data.py)
-    target_link_options(rush2049pc PRIVATE ${PC_DATA_PE_OUTPUTS})
-    set_property(TARGET rush2049pc APPEND PROPERTY LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
-endif()
 # Each runtime image's C data (its objects' .data and .bss, statics included) in one range, which the loader puts
 # back on every load of the image as the N64's load does (port/data/overlays.ld, docs/port/DATA.md 5). data.c names
 # the ranges, so every program that links it links this too.
 set(PC_OVERLAYS_LD ${CMAKE_SOURCE_DIR}/port/data/overlays.ld)
-target_link_options(rush2049pc PRIVATE "LINKER:-T,${PC_OVERLAYS_LD}")
-set_property(TARGET rush2049pc APPEND PROPERTY LINK_DEPENDS ${PC_OVERLAYS_LD})
+# A program's linker scripts: the given implicit ones (symbol assignments) and overlays.ld with -T. On Windows they
+# are one -T script: binutils 2.44+ tells a -T script from the others by stat, and Windows' stat gives every file
+# inode 0, so MSYS2's ld takes any second script for the -T one given twice. overlays.ld goes first there, since
+# its INSERT moves the statements before it.
+function(pc_link_scripts target)
+    if(WIN32)
+        set(out ${CMAKE_BINARY_DIR}/link/${target}.ld)
+        add_custom_command(OUTPUT ${out}
+            COMMAND ${CMAKE_COMMAND} -DOUT=${out} "-DIN=$<JOIN:${PC_OVERLAYS_LD};${ARGN},|>"
+                    -P ${CMAKE_SOURCE_DIR}/cmake/concat.cmake
+            DEPENDS ${PC_OVERLAYS_LD} ${ARGN} ${CMAKE_SOURCE_DIR}/cmake/concat.cmake VERBATIM)
+        add_custom_target(${target}_ld DEPENDS ${out})
+        add_dependencies(${target} ${target}_ld)
+        target_link_options(${target} PRIVATE "LINKER:-T,${out}")
+        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${out})
+    else()
+        target_link_options(${target} PRIVATE ${ARGN} "LINKER:-T,${PC_OVERLAYS_LD}")
+        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${ARGN} ${PC_OVERLAYS_LD})
+    endif()
+endfunction()
+pc_link_scripts(rush2049pc ${PC_DATA_DIR}/aliases.ld ${PC_DATA_PE_OUTPUTS})   # PE: data.c's weak references
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
@@ -457,12 +470,9 @@ target_link_libraries(rush2049pc_datacheck PRIVATE pcdata_rt m)
 target_compile_definitions(rush2049pc_datacheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64")
 set(PC_DATA_CHECK_PE "")
 if(WIN32)
-    target_link_options(rush2049pc_datacheck PRIVATE ${PC_DATA_PE_OUTPUTS})
-    set_target_properties(rush2049pc_datacheck PROPERTIES LINK_DEPENDS ${PC_DATA_PE_OUTPUTS})
     set(PC_DATA_CHECK_PE --pe)   # COFF symbols have no sizes; the image links high and moves
 endif()
-target_link_options(rush2049pc_datacheck PRIVATE "LINKER:-T,${PC_OVERLAYS_LD}")
-set_property(TARGET rush2049pc_datacheck APPEND PROPERTY LINK_DEPENDS ${PC_OVERLAYS_LD})
+pc_link_scripts(rush2049pc_datacheck ${PC_DATA_PE_OUTPUTS})
 add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --check $<TARGET_FILE:rush2049pc_datacheck>
             --layout ${PC_DATA_DIR}/data_layout.json --nm ${CMAKE_NM} ${PC_DATA_CHECK_PE}
@@ -478,8 +488,7 @@ target_link_libraries(test_overlay_data_game PRIVATE game_flags)
 target_compile_options(test_overlay_data_game PRIVATE -w)
 add_executable(test_overlay_data port/data/test_overlay_data.c $<TARGET_OBJECTS:test_overlay_data_game>)
 target_link_libraries(test_overlay_data PRIVATE pcdata_rt)
-target_link_options(test_overlay_data PRIVATE "LINKER:-T,${PC_OVERLAYS_LD}")
-set_property(TARGET test_overlay_data APPEND PROPERTY LINK_DEPENDS ${PC_OVERLAYS_LD})
+pc_link_scripts(test_overlay_data)
 add_test(NAME pc_data_overlay COMMAND test_overlay_data)
 # tools/port/endian_check.py (docs/port/ENDIAN.md): the detector on its synthetic cases, and the loader's element
 # widths where game declarations were made to agree with how the game reads the data.
