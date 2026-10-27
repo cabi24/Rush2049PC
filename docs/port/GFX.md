@@ -184,6 +184,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
+| `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (w0, w1, and the depth of the list it is in) |
 | `LIBGL_ALWAYS_SOFTWARE=1` | Mesa llvmpipe |
 
 - **Hooks for later.**

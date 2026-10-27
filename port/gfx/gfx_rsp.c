@@ -632,6 +632,9 @@ void pcgfx_run_list(const void *dl) {
     uint32_t budget = 1u << 22;
     static int warned_ucode;
 
+    static int task;
+    int trace = pcgfx_cfg.trace_task != 0 && ++task == pcgfx_cfg.trace_task;
+
     pcgfx_rsp_reset();
     cur.p = (const uint8_t *)dl;
     cur.be = pcgfx_is_be(dl);
@@ -641,6 +644,8 @@ void pcgfx_run_list(const void *dl) {
         fetch(&cur, &w0, &w1);
         op = w0 >> 24;
         pcgfx.stat_cmds++;
+        if (trace)   /* RUSH_GFX_TRACE: the task's commands, with the depth of the list they are in */
+            fprintf(stderr, "gfx: trace %2d %08X %08lX\n", sp, (unsigned)w0, (unsigned long)w1);
         switch (op) {
         case G_NOOP:
         case G_SPNOOP:
