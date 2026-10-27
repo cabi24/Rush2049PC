@@ -21,9 +21,11 @@ typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
 
-/* Pointer-sized integer types */
+/* Pointer-sized integer types (on PC from port/include/pc_prelude.h) */
+#ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+#endif
 
 /* Volatile types (for hardware registers) */
 typedef volatile u8  vu8;
