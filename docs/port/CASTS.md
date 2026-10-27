@@ -11,6 +11,8 @@ earlier list), [DATA.md](DATA.md) (where data lives on the PC), [CARS.md](CARS.m
 | Before (`e6d51b3`) | 331 (212 pointer-to-int, 119 int-to-pointer) | 74 |
 | After | 325 (209, 116) | 69 |
 
+Counted with gcc 12 on the Pi 5 (aarch64), as earlier sessions did; gcc 14 on x86-64 counts the same 325 in 69.
+
 Of the 331 before:
 
 | Class | Warnings | Sites (functions) |
@@ -102,6 +104,8 @@ storage is) and on window data in a mapped RDRAM window:
 | ghosts | `_NewGhost` | 64 separate handles and whole 64-byte records, the 65th NULL, a freed slot reused | 4 checks fail |
 | sound requests | `camera_transform` | a finished request in the window cleared in place, a playing one kept | fault |
 | `RUSH_CHECK_CASTS` | `PC_N64W` | window addresses and small values pass, a host address calls `pc_cast_fail` with the line | |
+
+The test passes on aarch64 (gcc 12) and x86-64 (gcc 14), and the old `menu_confirm_dialog` fails it on x86-64.
 
 ## 4. RUSH_CHECK_CASTS
 
