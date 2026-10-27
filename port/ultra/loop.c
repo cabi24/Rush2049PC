@@ -46,6 +46,26 @@ static void status(const char *tag)
 
 void osSetTime(uint64_t ticks);   /* timer.c */
 
+#ifdef _WIN32
+/* A 1 ms timer period while the loop runs. Windows 11 may ignore the request from a process nobody sees (a
+ * headless run, the hidden GL window) unless the process opts out of that power throttling, which needs Windows 8's
+ * SetProcessInformation (looked up, so older Windows still start). */
+static void timer_period(int on)
+{
+    typedef BOOL(WINAPI * SetInfo)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+    if (!on) {
+        timeEndPeriod(1);
+        return;
+    }
+    SetInfo set = (SetInfo)(void *)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetProcessInformation");
+    PROCESS_POWER_THROTTLING_STATE s = {PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+                                        PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION, 0};
+    if (set)
+        set(GetCurrentProcess(), ProcessPowerThrottling, &s, sizeof s);
+    timeBeginPeriod(1);
+}
+#endif
+
 /* The pause key, or focus lost with pause_on_focus_loss (port/input): no retraces, timers, RSP tasks or AI
  * events while held, so the game's threads stop where they wait for them; window events are still handled.
  * The N64 clock is set back by the time held, so osGetTime and the OS timers don't jump. */
@@ -71,7 +91,7 @@ int pc_ultra_run(const PcRunOptions *opt)
     signal(SIGTERM, on_signal);
     signal(SIGQUIT, on_signal);
 #ifdef _WIN32
-    timeBeginPeriod(1);
+    timer_period(1);
 #endif
     if (opt->status_every)
         next_status = (uint64_t)opt->status_every * 1000000000u;
@@ -147,7 +167,7 @@ int pc_ultra_run(const PcRunOptions *opt)
     }
     pc_si_flush();
 #ifdef _WIN32
-    timeEndPeriod(1);
+    timer_period(0);
 #endif
     return pc_quit > 1 ? pc_quit - 1 : 0;
 }
