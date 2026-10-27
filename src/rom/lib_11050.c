@@ -13,7 +13,15 @@ typedef struct TransferRequest { void *destination; void *source; unsigned int s
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: the list's entries are lib_11640.c's DmaEntry_80012234, 16 bytes (DMA_ENTRY_SIZE): the source is a 32-bit
+ * cartridge address and the destination a host pointer (docs/port/MUSYX_DATA.md, docs/port/LAYOUT.md 5). */
+typedef struct DmaEntry_80010450 { int length; unsigned int source; unsigned char *destination; } DmaEntry_80010450;
+#define DMA_SOURCE(x) ((unsigned int) (uintptr_t) (x))
+#else
 typedef struct DmaEntry_80010450 { int length; void *source; unsigned char *destination; } DmaEntry_80010450;
+#define DMA_SOURCE(x) x
+#endif
 extern TransferRequest D_80037FA8[];
 extern volatile unsigned char D_80037FA0;
 extern unsigned char D_80037FD8;
@@ -34,7 +42,7 @@ void func_80010450(void)
         for (i = 0; i < D_80037FA0; i++) {
             D_80038038 += 12;
             D_8003803C = func_8002C5E0(D_8003803C, D_80038038);
-            ((DmaEntry_80010450 *)D_8003802C)[D_80038028].source = D_80037FA8[i].source;
+            ((DmaEntry_80010450 *)D_8003802C)[D_80038028].source = DMA_SOURCE(D_80037FA8[i].source);
             ((DmaEntry_80010450 *)D_8003802C)[D_80038028].length = D_80037FA8[i].size;
             ((DmaEntry_80010450 *)D_8003802C)[D_80038028].destination = D_80037FA8[i].destination;
             D_80038028++;

@@ -198,7 +198,8 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
 - **The views of the model and car records.** The race here ran with one empty node, no surfaces and no targets, so
   the collision response, the targets, the drones, the HUD's lookups and the cameras ran little. CARS.md's audits
   missed two views found here (`camera_victory`, `func_800E2D18`) and two m2c readers; the flow-based layout check
-  in progress is the systematic way to find the rest.
+  ([LAYOUT.md](LAYOUT.md)) finds each of them when its fix is reverted, and found one more (the brake lights'
+  car slot, LAYOUT.md 4.4); what it can't follow is in its section 8.
 - **Sound.** The cartridge has no sounds and no songs: the sequencer, the voices and sample DMA did not run (MUSYX_DATA.md
   7 and 8.7 stand).
 - **Graphics.** Nothing visible is drawn: the VI mode table and every model are empty. The renderer ran the game's

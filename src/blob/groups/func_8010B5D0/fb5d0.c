@@ -83,8 +83,17 @@ void fcvt_wrapper(char *, char *, ...);
 
 typedef struct {
     u8 pad0[0x48];
+#ifdef TARGET_PC
+    intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
+#else
     s32 *name;
+#endif
 } PlayerRec;
+/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
+ * docs/port/POINTERS.md 9.10). */
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n
+#endif
 
 extern s8 D_80117350;
 extern s32 D_801170FC;
@@ -138,7 +147,7 @@ s32 func_8010B5D0(MenuItem *item) {
         } else if (v == 6) {
             buf[0] = 0;
         } else {
-            fcvt_wrapper(buf, D_801210E0, *D_8014A118[D_8015698C].name + 20, D_8017A4E0.strings[D_8017A4E0.info->lang]);
+            fcvt_wrapper(buf, D_801210E0, *D_8014A118[D_8015698C].name + PROFILE_OFS(20), D_8017A4E0.strings[D_8017A4E0.info->lang]);
             dispatch_handler(D_801146AC[D_8015698C]);
         }
     }

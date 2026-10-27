@@ -186,6 +186,10 @@ typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f
 #define SCENE_OF(s) ((Scene36 *)(uintptr_t)*(u32 *)N64P(s))
 /* GTLD keys: the side array holds them sign-extended (docs/port/LOADERS.md), and so does this. */
 #define KEY(k) (void *)(intptr_t)k
+/* An info record with flag 0x400 keeps the place record as the node's state, a 32-bit window address. A place record
+ * is the track WAD's (the heap, in the window), except for the mine shots.c drops, which passes its name, a host
+ * string: that one is not kept, the state stays 0 (docs/port/LAYOUT.md 6). */
+#define PLACE_STATE(x) ((uintptr_t)(x) >> 16 >> 16 ? 0u : N64W(x))
 #else
 typedef struct Matrix64 { u8 *record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
 #define N64P(x) x
@@ -193,6 +197,7 @@ typedef struct Matrix64 { u8 *record; f32 matrix[9]; f32 position[3]; f32 veloci
 #define STATE_SCENE(s) *(Scene36 **)s
 #define SCENE_OF(s) *(Scene36 **)s
 #define KEY(k) (void *)k
+#define PLACE_STATE(x) N64W(x)
 #endif
 typedef struct Animation24 {
     struct Animation24 *next;
@@ -414,7 +419,7 @@ s32 transmission_ratio_get(Place *rec, s16 parent, f32 *pos, void *src, s8 index
         node->f96 = -1;
         node->f104 = 0.0f;
         if (mflags & 0x400) {
-            node->state = N64W(rec);
+            node->state = PLACE_STATE(rec);
         }
         if (mflags & 0x80) {
             flags |= 0x8000;

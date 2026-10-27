@@ -3701,6 +3701,13 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: the controller/pak records D_80144030 are 0x310 bytes (paksys' PakRecord, docs/port/POINTERS.md 9.6); +1 is
+ * before the OSPfs's pointer, so it is where the N64 has it. */
+#define PAK_RECORD 0x310
+#else
+#define PAK_RECORD 0x304
+#endif
 s32 func_8008A6A4(s32 arg0) {
-    return *(&D_80144031 + (arg0 * 0x304)) == 0;
+    return *(&D_80144031 + (arg0 * PAK_RECORD)) == 0;
 }

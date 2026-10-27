@@ -2,7 +2,10 @@
  * (D_8014A250, 0x808 bytes, its N64 layout) through the game's own code (docs/port/CARS.md): init_cars
  * (world_physics_tick), StartEnvironment and StartCar with every visual starter, the car visuals' stop loop, the
  * environment visual pool, the code that reaches cars at raw offsets or strides, and the model set-up from the
- * car physics descriptors, whose pointers are u32 window addresses. The car array is host storage, as in the
+ * car physics descriptors, whose pointers are u32 window addresses, and the physics that read them (the torque
+ * func_800E2D18, func_800E1500, func_800E2C70; docs/port/LAYOUT.md 5); race_init_helper reads a car's node handle's
+ * low half; the brake lights (func_8008BEA4) read their car's slot from the visual. The car array is host storage,
+ * as in the
  * game (own storage); the model array, the checkpoint block and the tune and torque tables sit at their N64
  * addresses in an RDRAM window the test maps (exit 77, skipped, if it can't), as the game's arena does.
  * game: src/blob/world_physics_tick.c src/blob/func_800B27E4.c src/blob/func_800EC270.c
@@ -13,6 +16,8 @@
  * game: src/blob/func_800C4078.c src/blob/func_800E9234.c src/blob/func_800CF604.c src/blob/gameover_validOption.c
  * game: src/blob/car_select_handler.c src/blob/func_800CFCA8.c src/blob/func_800FBE60.c
  * game: src/blob/groups/car_resistance/group.c src/blob/func_800D0894.c src/blob/func_800E313C.c
+ * game: src/blob/func_800E2D18.c src/blob/func_800E1500.c src/blob/func_800E2C70.c src/blob/race_init_helper.c
+ * game: src/blob/func_8008BEA4.c
  */
 #include <math.h>
 #include <stddef.h>
@@ -48,6 +53,10 @@ struct car D_80152818[6] __attribute__((aligned(16)));
 ALIAS(player_array, D_80152818, 0);
 ALIAS(D_80152907, D_80152818, 0xEF);       /* names inside player_array, as gen_data places them */
 ALIAS(D_80152B70, D_80152818, 0x400);      /* N64 +0x358 */
+ALIAS(D_80152BD0, D_80152818, 0x468);      /* car 1, and its +8 and +0x50 */
+ALIAS(D_80152BD8, D_80152818, 0x470);
+ALIAS(D_80152C20, D_80152818, 0x4B8);
+ALIAS(D_80152900, D_80152818, 0xE8);       /* a car's flags, seen as an array of cars */
 
 ABS(D_8014A250, 0x8014A250);               /* model[6], in the game arena */
 ABS(D_8014A258, 0x8014A258);
@@ -83,7 +92,7 @@ int16_t active_player_count, D_80151AD0;
 float D_801543CC = 12.5f;                  /* gModelTime */
 volatile float D_8002EB90 = 3.25f;         /* gSeconds */
 int8_t D_8014978C, D_80156994, gCarTeam[8];
-uint8_t D_8011B58C[16], D_8011B5AC[16], D_8011AD8C[4], D_8011B558[5][4];
+uint8_t D_8011B57C[16], D_8011B58C[16], D_8011B59C[16], D_8011B5AC[16], D_8011AD8C[4], D_8011B558[5][4];
 float D_8011AD90[4][3];
 uint16_t D_80161368[16], D_801427C0[600], D_8014296A, D_8014296C, D_8014296E;
 ABS(D_8014254C, 0x8014254C);               /* gObjList + 0x... in the game; only an id is read */
@@ -104,6 +113,7 @@ float D_80110DA4[13], D_80110E0C[13], D_80110E44[13], D_8011121C[13], D_80111274
 int8_t D_8011128C[13 * 7], D_801114E4[13];
 float D_80124158 = 1.0f, D_8012415C = 2.0f, D_80142764 = 3.0f, D_80124134 = 2.0f;
 float D_80110EBC[16][6];
+float D_80110EC0[16][6], D_801110C4[8][3];   /* the gear table (func_800E2C70), the torque scale */
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
@@ -120,7 +130,11 @@ void model_data_load(int16_t objnum, int32_t a, int32_t b)
 void model_transform_setup(int16_t objnum, int32_t a, int32_t b) {}
 int32_t save_slot_valid(int32_t obj, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) { return g_handle++; }
 int32_t func_800AF5E0(int32_t a, int16_t b, int32_t c, uint32_t d, int16_t e, int16_t f, int32_t g) { return 77; }
-void func_8008D6FC(int16_t objnum, void *a, void *b) {}
+static int16_t g_node_moved[8];
+static int g_nnode;
+void func_8008D6FC(int16_t objnum, void *a, void *b) { if (g_nnode < 8) g_node_moved[g_nnode++] = objnum; }
+void update_game_data(void) {}
+void func_800EB90C(void) {}
 void func_80092484(int16_t a, int16_t b) {}
 static float g_pose[16];
 intptr_t func_8008B3A0(int16_t objnum) { return (intptr_t)g_pose; }
@@ -133,7 +147,7 @@ void *func_800A78BC(int nverts, float (*xyz)[3], uint16_t tex, void *color, uint
 void func_800C4F68(int16_t a, int32_t *b, int32_t c) {}
 /* The visual functions the starters install (their addresses are what the test checks). */
 #define VFN(name) void name(void *v, int16_t op) { if (g_ncalled < 32) g_called_v[g_ncalled++] = v; }
-VFN(func_8008BEA4) VFN(func_8008BD9C) VFN(func_8008BC94) VFN(func_8008BB8C) VFN(func_8008BA84) VFN(func_8008B964)
+VFN(func_8008BD9C) VFN(func_8008BC94) VFN(func_8008BB8C) VFN(func_8008BA84) VFN(func_8008B964)
 VFN(anim_state_update) VFN(buffer_swap) VFN(entity_anim_texture) VFN(func_8038AA8C) VFN(entity_process_main)
 VFN(entity_render_setup) VFN(recorder)
 int32_t AnimateFrame(void) { return 0; }
@@ -165,6 +179,11 @@ void func_800FBE60(void);
 void track_info_display(void *m);
 void func_800D0894(void *m);
 void func_800E313C(void *m, float a, float b);
+int16_t func_800E2D18(void *m, int16_t rpm, int16_t throttle, int16_t *torquecurve);
+void func_800E1500(void *m, float *in, float *out);
+void func_800E2C70(void *m);
+void race_init_helper(void);
+void func_8008BEA4(void *v, int16_t flag);
 
 /* ---------------------------------------------------------------- tests */
 
@@ -450,6 +469,67 @@ static void test_model(void)
     CHECK(MF(m, 0x3F4, int16_t) == 4);
     func_800E313C(m, 16.0f, 0.0f);
     CHECK(MF(m, 0x3F4, int16_t) == 1);
+    /* the torque: the curve, scaled by tune +8 (through the u32 at +4) and the table at the model's +0xC, +0xB */
+    {
+        static int16_t curve[12 * 10];
+        for (i = 0; i < 12 * 10; i++)
+            curve[i] = 100;
+        TUNES[2 * 11 + 2] = 2.0f;        /* tune +8 */
+        MF(m, 0xB, int8_t) = 1, MF(m, 0xC, int8_t) = 2;
+        D_801110C4[2][1] = 1.5f;
+        CHECK(func_800E2D18(m, 2000, 50, curve) == 300);
+    }
+    /* the descriptor's +0xC..+0x14 scale a vector (func_800E1500), tune +0xC and descriptor +0xA4 the gear force */
+    {
+        float in[3] = {1.0f, 2.0f, 3.0f}, out[3];
+        MF(desc, 0xC, float) = 2.0f, MF(desc, 0x10, float) = 3.0f, MF(desc, 0x14, float) = 4.0f;
+        func_800E1500(m, in, out);
+        CHECK(out[0] == 2.0f && out[1] == 6.0f && out[2] == 12.0f);
+        MF(m, 0x3F4, int16_t) = 2, MF(m, 9, int8_t) = 1;
+        D_80110EC0[1][2] = 4.0f;
+        func_800E2C70(m);
+        CHECK(MF(m, 0x428, float) == 0.5f * 4.0f && MF(m, 0x42C, float) == 3.0f * 2.0f);
+    }
+}
+
+/* race_init_helper (a battle race) moves the other cars' scene nodes by their handles' low halves. */
+static void test_race_init(void)
+{
+    gameplay_mode = 2, active_player_count = 3;
+    CF(&D_80152818[1], 0xF4, int32_t) = 0x42;
+    CF(&D_80152818[2], 0xF4, int32_t) = 0x43;
+    g_nnode = 0;
+    race_init_helper();
+    CHECK(g_nnode == 2 && g_node_moved[0] == 0x42 && g_node_moved[1] == 0x43);
+    gameplay_mode = 0;
+}
+
+/* The brake lights (AnimateBrakeLights, func_8008BEA4) of a braking car take the brake colours into its palette
+ * record (a u32 window address in D_8013FEF4): the car is the visual's slot (+0xC on the PC; +8 is its index). */
+#define PALETTES_AT 0x80302000u
+static void test_brake_lights(void)
+{
+    struct pc_visual v;
+    uint16_t *pal = (uint16_t *)(uintptr_t)(PALETTES_AT + 320);
+    int i, k;
+
+    for (i = 0; i < 6; i++) {
+        CF(&D_80152818[i], 0xE8, uint32_t) = i == 1 ? 0x1000 : 0;
+        MF(D_8013FEF4, 24 * i, uint32_t) = PALETTES_AT + 0x200 * (uint32_t)i;
+        memset((uint8_t *)pal + 0x200 * i, 0, 16);
+    }
+    for (k = 0; k < 8; k++)
+        MF(D_8011B57C, 2 * k, uint16_t) = (uint16_t)(0x100 + k), MF(D_8011B58C, 2 * k, uint16_t) = (uint16_t)(0x200 + k);
+    D_8014978C = 0;
+    memset(&v, 0, sizeof v);
+    v.index = 3, v.slot = 1;
+    func_8008BEA4(&v, 1);
+    for (i = 0; i < 6; i++)
+        for (k = 0; k < 8; k++)
+            CHECK(pal[0x100 * i + k] == (i == 1 ? 0x200 + k : 0));
+    func_8008BEA4(&v, 0);
+    CHECK(pal[0x100] == 0x100 && pal[0x107] == 0x107);
+    CF(&D_80152818[1], 0xE8, uint32_t) = 0;
 }
 
 int main(void)
@@ -469,5 +549,7 @@ int main(void)
     test_env_pool();
     test_raw();
     test_model();
+    test_race_init();
+    test_brake_lights();
     return TEST_DONE();
 }

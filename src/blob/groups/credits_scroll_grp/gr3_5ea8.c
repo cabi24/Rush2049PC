@@ -42,6 +42,11 @@ typedef struct GameCar { u8 pad0[238]; s8 place; s8 f239; f32 time; u8 pad244[0x
 typedef struct GameCar { u8 pad0[238]; s8 place; s8 f239; f32 time; u8 pad244[687]; s8 f931; u8 pad932[20]; } GameCar; /* 952 B */
 #endif
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
+/* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
+ * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
+#ifndef TARGET_PC
+#define PROFILE_OFS(n) n
+#endif
 typedef struct Pos { s32 x, y; } Pos;
 typedef struct StuntPlayer { s32 score; u8 pad[116]; } StuntPlayer;                      /* 120 B */
 
@@ -121,7 +126,7 @@ s32 animResults(s32 arg0)
         } else if (D_80150B60) {
             fcvt_wrapper(str, countdown_state.fixed[201], D_80150B60 + 1);
         } else {
-            fcvt_wrapper(str, countdown_state.fixed[199], *input_rec0[D_80143F54].name + 20);
+            fcvt_wrapper(str, countdown_state.fixed[199], *input_rec0[D_80143F54].name + PROFILE_OFS(20));
         }
         camera_auto_follow(160, 110, 160, 110, -1, 0, str);
     }
@@ -138,11 +143,11 @@ s32 animResults(s32 arg0)
             ChangePaneColor(D_80154350[playerIdx], &D_80116148[playerIdx].x, &D_80116148[playerIdx].y);
         }
         if (gameplay_mode == 4) {
-            fcvt_wrapper(str, "%s\n%d %s", *input_rec0[playerIdx].name + 20, D_8015204C[playerIdx].score,
+            fcvt_wrapper(str, "%s\n%d %s", *input_rec0[playerIdx].name + PROFILE_OFS(20), D_8015204C[playerIdx].score,
                          countdown_state.fixed[130]);
         } else if (gameplay_mode == 5) {
             if (D_80144018[playerIdx] != 1) {
-                fcvt_wrapper(str, "%s\n%s", *input_rec0[playerIdx].name + 20, countdown_state.fixed[214]);
+                fcvt_wrapper(str, "%s\n%s", *input_rec0[playerIdx].name + PROFILE_OFS(20), countdown_state.fixed[214]);
             } else {
                 u32 min;
                 u32 sec;
@@ -153,11 +158,11 @@ s32 animResults(s32 arg0)
                 sec = (u32)player_array[input_rec0[playerIdx].vehicle].time % 60;
                 thou = (u32)(1000.0f * player_array[input_rec0[playerIdx].vehicle].time);
                 thou %= 1000;
-                fcvt_wrapper(str, "%s\n%s %d:%02d.%03d", *input_rec0[playerIdx].name + 20, countdown_state.fixed[208],
+                fcvt_wrapper(str, "%s\n%s %d:%02d.%03d", *input_rec0[playerIdx].name + PROFILE_OFS(20), countdown_state.fixed[208],
                              min, sec, thou);
             }
         } else if (gameplay_mode == 6) {
-            fcvt_wrapper(str, "%s\n%d %s", *input_rec0[playerIdx].name + 20, player_array[playerIdx].f931,
+            fcvt_wrapper(str, "%s\n%d %s", *input_rec0[playerIdx].name + PROFILE_OFS(20), player_array[playerIdx].f931,
                          countdown_state.fixed[130]);
         } else {
             char str1[32], str2[32];
@@ -179,7 +184,7 @@ s32 animResults(s32 arg0)
                 thou %= 1000;
                 fcvt_wrapper(str2, "%s %d:%02d.%03d", countdown_state.fixed[208], min, sec, thou);
             }
-            fcvt_wrapper(str, "%s\n%s\n%s", *input_rec0[playerIdx].name + 20, str1, str2);
+            fcvt_wrapper(str, "%s\n%s\n%s", *input_rec0[playerIdx].name + PROFILE_OFS(20), str1, str2);
         }
         camera_auto_follow(x, y, 160, 110, -1, 0, str);
     }

@@ -15,6 +15,29 @@
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32;
 
+#ifdef TARGET_PC
+/* PC: the node is a blit (sound_control.c's Blit, 0x68 bytes, docs/port/POINTERS.md 9.3): its name, image and info
+ * are pointers, so the rest is 0x0C later, and the AnimFunc slot (word28) is pointer-sized at +0x38 with the AnimID
+ * (the player index) after it at +0x40. */
+typedef struct MenuNode {
+    void *next;         /* 0x00 */
+    void *image;        /* 0x08 */
+    void *info;         /* 0x10 */
+    s16 padC;           /* 0x18 */
+    s16 x;              /* 0x1A */
+    s16 y;              /* 0x1C */
+    s16 pad12;          /* 0x1E */
+    s16 w;              /* 0x20 */
+    s16 h;              /* 0x22 */
+    s8 alpha;           /* 0x24 */
+    s8 pad19;
+    s8 hidden;          /* 0x26 */
+    s8 pad1B;
+    s32 pad1C, pad20, pad24;
+    intptr_t word28;    /* 0x38 */
+    s32 index;          /* 0x40: player index */
+} MenuNode;
+#else
 typedef struct MenuNode {
     s32 next;           /* 0x00 */
     s16 flags, pad6;    /* 0x04 */
@@ -33,6 +56,7 @@ typedef struct MenuNode {
     s32 word28;         /* 0x28 */
     s32 index;          /* 0x2C: player index */
 } MenuNode;
+#endif
 
 typedef struct { s32 x, y; } Pos;
 #ifdef TARGET_PC
