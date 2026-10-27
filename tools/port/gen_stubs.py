@@ -38,7 +38,7 @@ import n64syms  # noqa: E402
 # Called by the game C under their own names and provided by the host C library and libm.
 HOST_LIBC = {"bcopy", "bzero", "bcmp", "memcpy", "memset", "memmove", "memcmp", "strlen", "strcpy", "strcmp",
              "strncpy", "strchr", "sqrtf", "sqrt", "fabsf", "fabs", "sinf", "cosf", "abort", "printf", "sprintf",
-             "modff"}
+             "vsprintf", "modff"}
 _ADDR_NAME = re.compile(r"^(D|func)_([0-9A-Fa-f]{8})$")
 
 
