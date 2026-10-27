@@ -70,13 +70,17 @@ jobs:
     # Windows x86-64 cross-compiled with mingw-w64 (cmake/mingw-w64.cmake, docs/port/WINDOWS.md), with SDL2 built
     # from source: the window, controllers and SDL audio compile and link. The windows-run job runs the program.
     runs-on: ubuntu-24.04
+    # Debian 12's mingw-w64 (GCC 12.2, binutils 2.40), the toolchain the port was first cross-built with; and
+    # deb.debian.org is quicker than the runners' Ubuntu mirror, which took minutes a package on some runs.
+    container: debian:12
     steps:
-      - uses: actions/checkout@v4
       - name: Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake ninja-build python3 binutils-mingw-w64-x86-64 \
-            gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix mingw-w64-x86-64-dev libz-mingw-w64-dev
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build python3 \
+            binutils-mingw-w64-x86-64 gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix mingw-w64-x86-64-dev \
+            libz-mingw-w64-dev
+      - uses: actions/checkout@v4
       - name: Configure
         run: cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON
       - name: Build
