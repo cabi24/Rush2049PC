@@ -13,8 +13,8 @@ each N64 offset maps to a host offset through its field program, as gen_data map
 For every other view it reports:
   size     the element's host size differs from the reference's
   field    a named field whose host offset is not where the reference maps its N64 offset
-  pointer  the reference has a pointer (or a 4-byte field) where the view has another kind (gen_data lists these
-           as conflicts), or the view has a pointer where the reference has none
+  pointer  the reference has a pointer where the view has another kind (gen_data lists these as conflicts), or the
+           view has a pointer where the reference has none (intptr_t and uintptr_t count as pointers)
 Fields whose names start with pad/unk_pad/gap/opaque/prefix/tail/reserved/fill are padding and only checked for
 pointers. --lines prints each member's source line, for editing. Exit status 1 if any view disagrees.
 Stdlib and binutils, Python 3.9+.
@@ -60,6 +60,8 @@ def leaves(t, n64o, hosto, path, out):
                 leaves(t[1], n64o + i * s, hosto + i * h, path + f"[{i}]", out)
     elif k == "ptr":
         out.append((n64o, hosto, path, "ptr", 4, False))
+    elif k == "base" and t[1] in ("long int", "long unsigned int") and t[2] == g.HOST_PTR:
+        out.append((n64o, hosto, path, "ptr", 4, False))      # intptr_t/uintptr_t: pointer-sized on the host
     elif k in ("base", "enum"):
         out.append((n64o, hosto, path, t[1] if k == "base" else f"enum{t[1]}", g.n64_layout(t)[0] or 0, False))
 
@@ -84,13 +86,16 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--build", type=Path, default=Path("build/pc"))
     ap.add_argument("--symbols", required=True, help="comma-separated names of the record array")
-    ap.add_argument("--size", type=lambda x: int(x, 0), help="also every struct of this N64 size")
+    ap.add_argument("--size", type=lambda x: {int(v, 0) for v in x.split(",")},
+                    help="also every struct of this N64 size (comma-separated sizes)")
+    ap.add_argument("--tags", help="with --size, only structs with these tags (comma-separated)")
     ap.add_argument("--ref", required=True, help="substring of the reference view's object path")
     ap.add_argument("--lines", action="store_true", help="print the source line of each disagreeing member")
     ap.add_argument("--readelf", default="readelf")
     a = ap.parse_args()
     objects = (a.build / "game_objects.txt").read_text().split()
     wanted = set(a.symbols.split(","))
+    tags = set(a.tags.split(",")) if a.tags else None
     views = collections.defaultdict(dict)     # object -> {type: (how, lines)}
     for i in range(0, len(objects), 100):
         batch = objects[i:i + 100]
@@ -114,7 +119,7 @@ def main():
                             views[obj][t] = ("decl", by_type.get(t, {}))
                 elif a.size and d.tag == "DW_TAG_structure_type" and "DW_AT_declaration" not in d.attrs:
                     t = g.canon(dies, off, memo)
-                    if g.n64_layout(t)[0] == a.size and t not in views[obj]:
+                    if g.n64_layout(t)[0] in a.size and t not in views[obj] and (tags is None or t[1] in tags):
                         views[obj][t] = ("size", lines.get(off, {}))
     refs = [(o, t) for o in views for t in views[o] if a.ref in o]
     if not refs:

@@ -19,6 +19,19 @@
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual {
+    struct Visual *next;    /* 0x00 */
+    s16 index;              /* 0x04 */
+    s16 objnum;             /* 0x06 */
+    s16 slot;               /* 0x08 */
+    u8 padA[2];
+    u32 data;               /* 0x0C: a target's window address */
+    f32 timeStamp;          /* 0x10 */
+    void *func;             /* 0x14 */
+} Visual;
+#else
 typedef struct Visual {
     struct Visual *next;    /* 0x00 */
     s16 index;              /* 0x04 */
@@ -29,6 +42,7 @@ typedef struct Visual {
     f32 timeStamp;          /* 0x10 */
     void *func;             /* 0x14 */
 } Visual;
+#endif
 
 typedef struct TargInfo {
     u8 pad0[12];
@@ -63,6 +77,13 @@ typedef struct GameCar {
 #endif
 } GameCar;                  /* 0x3B8 */
 
+#ifdef TARGET_PC
+#define N64P(x) ((void *)(uintptr_t)(x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern TargInfo D_80117530[];
 extern GameCar player_array[];
 extern Visual *D_801391F0;
@@ -85,7 +106,7 @@ void func_8010DBB8(Target *t)
     }
     v->index = 0;
     v->func = info->visFunc;
-    v->data = t;
+    v->data = N64W(t);
     v->timeStamp = 0.0333333f;
     car = &player_array[t->slot];
     dot = car->RWV[0] * t->dir[0] + car->RWV[1] * t->dir[1] + car->RWV[2] * t->dir[2];

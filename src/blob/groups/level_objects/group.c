@@ -113,15 +113,30 @@ typedef struct Metadata48 {
 typedef struct Place { char name[16]; f32 matrix[9]; f32 pos[3]; u32 flags; s32 w68; s32 w72; s32 key; } Place;
 typedef struct Slot136 { s32 object[3]; u8 gap12[122]; s16 active; } Slot136;
 typedef struct Matrix64 { u8 *record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
+#ifdef TARGET_PC
+#define N64P(x) ((Node *)(uintptr_t)(x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 typedef struct Animation24 {
     struct Animation24 *next;
     s16 state;
     u16 field6;
     u32 field8;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+    u32 node;
+    f32 time;
+    void *data;
+} Animation24;
+#else
     Node *node;
     f32 time;
     void *data;
 } Animation24;
+#endif
 typedef struct Pool { u8 b0; s32 count; s32 size; u8 *mem; Node *head; u8 *free; } Pool;
 
 extern u32 D_801174B4;
@@ -194,7 +209,7 @@ void engine_torque_calc(Node *node)
         if(animation) {
             animation->state=0;
             animation->data=metadata->animation;
-            animation->node=node;
+            animation->node=N64W(node);
             animation->time=0.0f;
             animation->next=D_801391F0;
             D_801391F0=animation;

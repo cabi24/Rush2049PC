@@ -85,13 +85,27 @@ typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
     f32 f2C;
 } CamTbl;
 extern CamTbl D_80117530[];
+#ifdef TARGET_PC
+#define N64P(x) ((struct Camera *)(uintptr_t)(x))
+#define N64W(x) ((u32)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 typedef struct CamNode {         /* pool entry from func_80090284 */
     struct CamNode *next;        /* 0x00 */
     s16 s04;
     u8 pad06[6];
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+    u32 cam;                     /* 0x0C: a gCamera entry's window address */
+    f32 f10;                     /* 0x10 */
+    intptr_t w14;
+#else
     struct Camera *cam;          /* 0x0C */
     f32 f10;                     /* 0x10 */
     s32 w14;
+#endif
 } CamNode;
 struct Camera;
 struct CamCtl;
@@ -4201,7 +4215,7 @@ void camera_process_input(Camera *cam) {
             if (node != NULL) {
                 node->s04 = 0;
                 node->w14 = tbl->w0C;
-                node->cam = cam;
+                node->cam = N64W(cam);
                 if (tbl->s14 == 361) {
                     node->f10 = 0.25f;
                 } else if (tbl->s14 == 365) {
@@ -4263,7 +4277,7 @@ void camera_update(CamNode *node, s16 flag) {
         return;
     }
     if (((state_word_a & 0x7C0000) || (state_word_a & 8)) && D_801170FC == 0) {
-        cam = node->cam;
+        cam = N64P(node->cam);
         ctl = cam->ctl;
         sc = ctl->scene;
         if (sc->flags & 0x40) {

@@ -32,8 +32,15 @@ extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
 typedef struct Visual {
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+    /* 0x00 */ void *pad0;
+    /* 0x04 */ u8 pad4[2];
+    /* 0x06 */ s16 objnum;
+#else
     /* 0x00 */ u8 pad0[6];
     /* 0x06 */ s16 objnum;
+#endif
     /* 0x08 */ s16 slot;
     /* 0x0A */ u8 padA[0x14 - 0x0A];
     /* 0x14 */ void (*func)(struct Visual *v, s16 op);

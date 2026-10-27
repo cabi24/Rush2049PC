@@ -39,7 +39,12 @@ typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef f
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual { void *opaque0; s16 index, object, slot, opaque10; u32 flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
+#else
 typedef struct Visual { u8 opaque0[4]; s16 index, object, slot, opaque10; u32 flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
+#endif
 typedef struct Model2056 { u8 opaque0[8]; u8 type; u8 opaque9[1007]; s16 state; u8 opaque1018[2]; s32 sound; u8 opaque1024[966]; s16 player; u8 opaque1992[64]; } Model2056;
 typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
 #ifdef TARGET_PC

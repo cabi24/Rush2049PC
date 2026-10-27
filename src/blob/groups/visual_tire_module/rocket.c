@@ -133,11 +133,21 @@ typedef struct CarState {
 
 /* the entity drone_ai_update is called with */
 typedef struct Entity {
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+    /* 0x00 */ void *pad0;
+    /* 0x04 */ u8 pad4[2];
+    /* 0x06 */ s16 slot;
+    /* 0x08 */ s16 car;
+    /* 0x0A */ u8 padA[0x14 - 0xA];
+    /* 0x14 */ intptr_t field14;
+#else
     /* 0x00 */ u8 pad0[6];
     /* 0x06 */ s16 slot;
     /* 0x08 */ s16 car;
     /* 0x0A */ u8 padA[0x14 - 0xA];
     /* 0x14 */ s32 field14;
+#endif
 } Entity;
 
 extern ModelSlot D_8012E700[];

@@ -11,6 +11,19 @@ typedef signed short s16;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Node {
+    struct Node *next;
+    s16 field4;
+    s16 field6;
+    s16 field8;
+    u8 padA[2];
+    u32 fieldC;
+    f32 field10;
+    void *field14;
+} Node;
+#else
 typedef struct Node {
     struct Node *next;
     s16 field4;
@@ -21,6 +34,7 @@ typedef struct Node {
     f32 field10;
     u32 field14;
 } Node;
+#endif
 
 Node D_80138880[100];
 extern Node *D_801392C8;

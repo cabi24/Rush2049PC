@@ -28,7 +28,12 @@ typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];intptr_t state;} Node;
+#else
 typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];s32 state;} Node;
+#endif
 typedef union Id {s32 handle;struct {s16 high,index;} part;} Id;
 typedef struct Vec3 {f32 x,y,z;} Vec3;
 typedef struct Effect {

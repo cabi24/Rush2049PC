@@ -59,7 +59,12 @@ typedef struct tVisual {
     s16 objnum;                 /* 0x06 */
     s16 slot;                   /* 0x08 */
     u8 pad0A[2];
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+    u32 data;                   /* 0x0C */
+#else
     void *data;                 /* 0x0C */
+#endif
     float timeStamp;            /* 0x10 */
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;

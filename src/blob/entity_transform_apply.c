@@ -1,5 +1,15 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
 typedef signed short s16;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Node {
+    struct Node *next;
+    unsigned short tag;
+    s16 handle;
+    unsigned char opaque[12];
+    intptr_t state;
+} Node;
+#else
 typedef struct Node {
     struct Node *next;
     unsigned short tag;
@@ -7,6 +17,7 @@ typedef struct Node {
     unsigned char opaque[12];
     int state;
 } Node;
+#endif
 extern Node *D_801391F0;
 extern Node *D_801392C8;
 extern s16 D_8012E66C,D_8012E678;

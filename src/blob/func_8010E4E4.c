@@ -32,12 +32,30 @@ typedef struct Model {
     u8 pad44[0x6C - 0x44];
     Phys *phys;
 } Model;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Obj {
+    void *next;
+    u8 pad4[0xC - 4];
+    unsigned int model;
+    f32 timer;
+    void (*fn)();
+} Obj;
+#else
 typedef struct Obj {
     u8 pad0[0xC];
     Model *model;
     f32 timer;
     void (*fn)();
 } Obj;
+#endif
+#ifdef TARGET_PC
+#define N64P(x) ((Model *)(uintptr_t)(x))
+#define N64W(x) ((unsigned int)(uintptr_t)(x))
+#else
+#define N64P(x) x
+#define N64W(x) x
+#endif
 typedef struct Kind { u8 pad0[0x12]; u16 flags; u8 pad14[0x30 - 0x14]; } Kind;
 extern s32 D_801170FC;
 extern f32 D_80121DDC[3];
@@ -72,7 +90,7 @@ void func_8010E4E4(Obj *obj, s16 mode) {
     if (D_801170FC != 0) {
         return;
     }
-    m = obj->model;
+    m = N64P(obj->model);
     p = m->phys;
     v = p->V;
     for (i = 0; i < 3; i++) {

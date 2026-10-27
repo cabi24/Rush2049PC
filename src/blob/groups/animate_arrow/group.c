@@ -9,9 +9,16 @@ typedef struct Effect {
     s16 view;       /* 4 */
     s16 mesh;       /* 6 */
     s16 player;     /* 8 */
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+    u8 pad10[2];
+    u32 data;
+    f32 time;
+#else
     u8 pad10[2];
     void *data;
     f32 time;
+#endif
     void (*callback)(struct Effect *, s16);
 } Effect;
 typedef struct CAR_DATA {

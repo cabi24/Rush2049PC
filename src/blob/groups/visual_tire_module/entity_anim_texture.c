@@ -9,7 +9,12 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16;
 typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
+#ifdef TARGET_PC
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct ModelObj {void *opaque0;u8 opaque4[2];s16 model,player;u16 opaque10;u32 flags,opaque16;intptr_t active;} ModelObj;
+#else
 typedef struct ModelObj {u8 opaque0[6];s16 model,player;u16 opaque10;u32 flags,opaque16,active;} ModelObj;
+#endif
 typedef struct Pose {f32 values[9];} Pose;
 typedef struct Model68 {u32 flags,opaque4;Pose *pose;u8 opaque12[56];} Model68;
 #ifdef TARGET_PC
