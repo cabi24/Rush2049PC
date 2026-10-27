@@ -77,7 +77,10 @@ foreach(f RaceStateMachine_Update TB_EllipseText createBG display_list_flush dro
           ghost_race_setup physics_float_calc state_utility animSpeedText StartWeaponIcon func_8010D680 func_8010E8B4)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
 endforeach()
+# Image A's func_8038A400 (updateWarningScreen) shares its address, and so its name, with image B's: it is
+# compiled as updateWarningScreen (docs/port/SYNTH.md).
 list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_803A44FC.c
+     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_8038A400.c
      ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)
 # libultra and libc units the PC layer replaces (port/ultra, docs/port/ULTRA.md): thread dispatch, message
 # queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB, and the

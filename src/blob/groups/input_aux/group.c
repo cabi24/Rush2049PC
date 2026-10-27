@@ -3798,6 +3798,11 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the front end's 0x8038A400 is image A's updateWarningScreen; func_8038A400 is image B's function at
+ * that address, since both images are linked in (docs/port/SYNTH.md). */
+#define func_8038a400 updateWarningScreen
+#endif
 M2C_UNK func_8038a400();
 M2C_UNK func_8038e5dc();
 M2C_UNK func_8038f454();

@@ -5,7 +5,18 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef short s16; typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef struct Blit Blit;
+#ifdef TARGET_PC
+/* PC: WarningBlit is an array, which gcc wants complete: the MultiBlit of the other image-A screens. */
+typedef struct MultiBlit {
+    const char *texname;
+    short dulx, duly, width, height, top, bot, left, right;
+    u32 zdepth, alpha;
+    s32 (*animfunc)(Blit *);
+    u32 animid;
+} MultiBlit;
+#else
 typedef struct MultiBlit MultiBlit;
+#endif
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
 extern s8 D_80116DB4;
@@ -29,8 +40,20 @@ extern void audio_distance_atten(u32);  /* PlayUDSound */
 extern void resource_type_select(u32);  /* PlayStartABSound */
 extern void func_800B5570(s32);   /* setGameState */
 
+#ifdef TARGET_PC
+/* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (worlddam.c), which the name
+ * func_8038A400 is there. Image A's is updateWarningScreen, which updateFrontEnd (input_aux_handler) calls in
+ * state 0x40000000 and port/data's function table gives image A's data (docs/port/SYNTH.md). Its two file statics
+ * are read by drawWarningScreen (func_803AF744) by their addresses, so they are the image A arena's bytes. */
+#define func_8038A400 updateWarningScreen
+#define gPakScr D_803B839C
+#define numPaksFound D_803B83A0
+extern s8 gPakScr;
+extern u8 numPaksFound;
+#else
 static s8 gPakScr = 0;            /* D_803B839C */
 static u8 numPaksFound = 0;       /* D_803B83A0 (DC byte_8C0D19E1) */
+#endif
 
 void func_8038A400(void)
 {
