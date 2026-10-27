@@ -25,8 +25,6 @@ void pc_log(const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, sizeof buf, fmt, ap);
     va_end(ap);
-    if (getenv("RUSH_DIAG_TIME"))   /* TEMPORARY diagnostic */
-        fprintf(stderr, "%9.3f %9.3f ", pc_real_ns() / 1e6, pc_host_ns() / 1e6);
     fprintf(stderr, "rush2049pc: [%s] %s\n", pc_os_thread_name(), buf);
 }
 

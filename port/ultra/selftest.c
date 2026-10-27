@@ -89,9 +89,8 @@ static void check(const char *name, int ok, const char *detail)
     g_run++;
     if (!ok)
         g_failed++;
-    fprintf(stderr, "selftest: %-28s %s%s%s [real %.1f ms, n64 %.1f ms]\n", name, ok ? "ok" : "FAIL",
-            detail && !ok ? ": " : "", detail && !ok ? detail : "", pc_real_ns() / 1e6,
-            pc_host_ns() / 1e6);   /* TEMPORARY diagnostic */
+    fprintf(stderr, "selftest: %-28s %s%s%s\n", name, ok ? "ok" : "FAIL", detail && !ok ? ": " : "",
+            detail && !ok ? detail : "");
 }
 
 static void expect_log(const char *name, const char *want)
@@ -444,6 +443,11 @@ static void t_rcp(void)
     osSetEventMesg(OS_EVENT_SP, NULL, NULL);
     osSetEventMesg(OS_EVENT_DP, NULL, NULL);
 
+    /* The null output unless RUSH2049_AUDIO names another: the AI needs no sound device here, and looking for
+     * one can take seconds (SDL's on Windows without an audio endpoint: 8 s on the windows-latest runner), real
+     * time that --fast's check below counts against the virtual clock (docs/port/WINDOWS.md). */
+    const char *audio = getenv("RUSH2049_AUDIO");
+    pc_audio_init(audio && *audio ? audio : "null", getenv("RUSH2049_DUMP_AUDIO"));
     static int16_t buffer[192 * 2];
     int32_t rate = osAiSetFrequency(22050);
     osSetEventMesg(OS_EVENT_AI, q, (OSMesg)6);
