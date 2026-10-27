@@ -33,8 +33,8 @@ static int frame_height(int width) {
     return width * 3 / 4;   /* the VI shows 4:3; 320 -> 240 */
 }
 
-void gfx_target_dims(int *w, int *h) {
-    int width = g_gfx.cimg.width ? g_gfx.cimg.width : 320;
+void pcgfx_target_dims(int *w, int *h) {
+    int width = pcgfx.cimg.width ? pcgfx.cimg.width : 320;
     *w = width;
     *h = frame_height(width);
 }
@@ -42,8 +42,8 @@ void gfx_target_dims(int *w, int *h) {
 static GfxTarget *current_target(void) {
     int w, h;
     if (s_target == NULL) {
-        gfx_target_dims(&w, &h);
-        s_target = gfx_gl_target(g_gfx.cimg.addr, w, h);
+        pcgfx_target_dims(&w, &h);
+        s_target = pcgfx_gl_target(pcgfx.cimg.addr, w, h);
     }
     return s_target;
 }
@@ -53,16 +53,16 @@ static GfxTarget *current_target(void) {
 static uint16_t tmem16(uint32_t a) {
     uint16_t v;
     a &= 0xFFE;
-    v = (uint16_t)(g_gfx.tmem[a] << 8 | g_gfx.tmem[a + 1]);
-    if (g_gfx.tmem_le16[a >> 3])
+    v = (uint16_t)(pcgfx.tmem[a] << 8 | pcgfx.tmem[a + 1]);
+    if (pcgfx.tmem_le16[a >> 3])
         v = (uint16_t)(v >> 8 | v << 8);
     return v;
 }
 
 static void tmem_put(uint32_t a, uint8_t v, uint8_t le16) {
     a &= 0xFFF;
-    g_gfx.tmem[a] = v;
-    g_gfx.tmem_le16[a >> 3] = le16;
+    pcgfx.tmem[a] = v;
+    pcgfx.tmem_le16[a >> 3] = le16;
 }
 
 static unsigned bpp_x2(unsigned siz) {   /* bytes per texel, times two */
@@ -70,16 +70,16 @@ static unsigned bpp_x2(unsigned siz) {   /* bytes per texel, times two */
 }
 
 static void load_block(uint32_t w0, uint32_t w1) {
-    const GfxTile *tile = &g_gfx.tiles[(w1 >> 24) & 7];
+    const GfxTile *tile = &pcgfx.tiles[(w1 >> 24) & 7];
     unsigned uls = (w0 >> 12) & 0xFFF, ult = w0 & 0xFFF, lrs = (w1 >> 12) & 0xFFF, dxt = w1 & 0xFFF;
-    unsigned siz = g_gfx.timg.siz, texels, dst = tile->tmem * 8u, i;
+    unsigned siz = pcgfx.timg.siz, texels, dst = tile->tmem * 8u, i;
     const uint8_t *src;
     int be;
-    if (g_gfx.timg.addr == NULL || lrs < uls)
+    if (pcgfx.timg.addr == NULL || lrs < uls)
         return;
     texels = lrs - uls + 1;
-    src = g_gfx.timg.addr + (((size_t)ult * g_gfx.timg.width + uls) * bpp_x2(siz)) / 2;
-    be = gfx_is_be(src) || !host_is_le();
+    src = pcgfx.timg.addr + (((size_t)ult * pcgfx.timg.width + uls) * bpp_x2(siz)) / 2;
+    be = pcgfx_is_be(src) || !host_is_le();
     if (siz == G_IM_SIZ_32b) {
         /* RG to the low half, BA to the high half, two bytes per texel each */
         for (i = 0; i < texels && i < 1024; i++) {
@@ -92,7 +92,7 @@ static void load_block(uint32_t w0, uint32_t w1) {
                 b = src[4 * i + 2];
                 al = src[4 * i + 3];
             } else {
-                uint32_t v = gfx_rd32(src + 4 * i, 0);
+                uint32_t v = pcgfx_rd32(src + 4 * i, 0);
                 r = v >> 24;
                 g = v >> 16;
                 b = v >> 8;
@@ -114,28 +114,28 @@ static void load_block(uint32_t w0, uint32_t w1) {
                 tmem_put((dst + w * 8 + (k ^ swap)), src[w * 8 + k], le16);
         }
     }
-    g_gfx.tmem_gen++;
-    g_gfx.tex_dirty = g_gfx.state_dirty = 1;
+    pcgfx.tmem_gen++;
+    pcgfx.tex_dirty = pcgfx.state_dirty = 1;
 }
 
 static void load_tile(uint32_t w0, uint32_t w1) {
-    const GfxTile *tile = &g_gfx.tiles[(w1 >> 24) & 7];
+    const GfxTile *tile = &pcgfx.tiles[(w1 >> 24) & 7];
     unsigned sl = ((w0 >> 12) & 0xFFF) >> 2, tl = (w0 & 0xFFF) >> 2;
     unsigned sh = ((w1 >> 12) & 0xFFF) >> 2, th = (w1 & 0xFFF) >> 2;
-    unsigned siz = g_gfx.timg.siz, line = tile->line * 8u, dst = tile->tmem * 8u, r, i, w, h;
+    unsigned siz = pcgfx.timg.siz, line = tile->line * 8u, dst = tile->tmem * 8u, r, i, w, h;
     int be;
-    if (g_gfx.timg.addr == NULL || sh < sl || th < tl)
+    if (pcgfx.timg.addr == NULL || sh < sl || th < tl)
         return;
     w = sh - sl + 1;
     h = th - tl + 1;
-    be = gfx_is_be(g_gfx.timg.addr) || !host_is_le();
+    be = pcgfx_is_be(pcgfx.timg.addr) || !host_is_le();
     for (r = 0; r < h && r < 1024; r++) {
-        const uint8_t *src = g_gfx.timg.addr + (((size_t)(tl + r) * g_gfx.timg.width + sl) * bpp_x2(siz)) / 2;
+        const uint8_t *src = pcgfx.timg.addr + (((size_t)(tl + r) * pcgfx.timg.width + sl) * bpp_x2(siz)) / 2;
         unsigned swap = (r & 1) ? 4u : 0u, base = dst + r * line;
         if (siz == G_IM_SIZ_32b) {
             for (i = 0; i < w; i++) {
                 uint32_t a = ((base + i * 2) ^ swap) & 0x7FF;
-                uint32_t v = be ? gfx_rd32(src + 4 * i, 1) : gfx_rd32(src + 4 * i, 0);
+                uint32_t v = be ? pcgfx_rd32(src + 4 * i, 1) : pcgfx_rd32(src + 4 * i, 0);
                 tmem_put(a, v >> 24, 0);
                 tmem_put(a + 1, v >> 16, 0);
                 tmem_put(a + 0x800, v >> 8, 0);
@@ -148,33 +148,33 @@ static void load_tile(uint32_t w0, uint32_t w1) {
                 tmem_put((base + i) ^ swap, src[i], le16);
         }
     }
-    g_gfx.tmem_gen++;
-    g_gfx.tex_dirty = g_gfx.state_dirty = 1;
+    pcgfx.tmem_gen++;
+    pcgfx.tex_dirty = pcgfx.state_dirty = 1;
 }
 
 /* Each palette entry is stored four times, 8 bytes apart per entry, as the hardware's four TLUT banks. */
 static void load_tlut(uint32_t w0, uint32_t w1) {
-    const GfxTile *tile = &g_gfx.tiles[(w1 >> 24) & 7];
+    const GfxTile *tile = &pcgfx.tiles[(w1 >> 24) & 7];
     unsigned sl = ((w0 >> 12) & 0xFFF) >> 2, tl = (w0 & 0xFFF) >> 2, sh = ((w1 >> 12) & 0xFFF) >> 2;
     unsigned dst = tile->tmem * 8u, i, k, n;
     const uint8_t *src;
     int be;
-    if (g_gfx.timg.addr == NULL || sh < sl)
+    if (pcgfx.timg.addr == NULL || sh < sl)
         return;
     n = sh - sl + 1;
     if (n > 256)
         n = 256;
-    src = g_gfx.timg.addr + ((size_t)tl * g_gfx.timg.width + sl) * 2;
-    be = gfx_is_be(src);
+    src = pcgfx.timg.addr + ((size_t)tl * pcgfx.timg.width + sl) * 2;
+    be = pcgfx_is_be(src);
     for (i = 0; i < n; i++) {
-        uint16_t v = gfx_rd16(src + 2 * i, be);
+        uint16_t v = pcgfx_rd16(src + 2 * i, be);
         for (k = 0; k < 4; k++) {
             tmem_put(dst + i * 8 + k * 2, v >> 8, 0);
             tmem_put(dst + i * 8 + k * 2 + 1, v & 0xFF, 0);
         }
     }
-    g_gfx.tmem_gen++;
-    g_gfx.tex_dirty = g_gfx.state_dirty = 1;
+    pcgfx.tmem_gen++;
+    pcgfx.tex_dirty = pcgfx.state_dirty = 1;
 }
 
 /* ---------------------------------------------------------------- texture decode */
@@ -203,21 +203,21 @@ static void texel(const GfxTile *tl, unsigned tlut, unsigned s, unsigned t, uint
     unsigned siz = tl->siz;
     switch (siz) {
     case G_IM_SIZ_4b:
-        v = g_gfx.tmem[((row + (s >> 1)) ^ swap) & 0xFFF];
+        v = pcgfx.tmem[((row + (s >> 1)) ^ swap) & 0xFFF];
         v = (s & 1) ? (v & 0xF) : (v >> 4);
         break;
     case G_IM_SIZ_8b:
-        v = g_gfx.tmem[((row + s) ^ swap) & 0xFFF];
+        v = pcgfx.tmem[((row + s) ^ swap) & 0xFFF];
         break;
     case G_IM_SIZ_16b:
         v = tmem16((row + s * 2) ^ swap);
         break;
     default:
         a = ((row + s * 2) ^ swap) & 0x7FF;
-        o[0] = g_gfx.tmem[a];
-        o[1] = g_gfx.tmem[a + 1];
-        o[2] = g_gfx.tmem[a + 0x800];
-        o[3] = g_gfx.tmem[a + 0x801];
+        o[0] = pcgfx.tmem[a];
+        o[1] = pcgfx.tmem[a + 1];
+        o[2] = pcgfx.tmem[a + 0x800];
+        o[3] = pcgfx.tmem[a + 0x801];
         return;
     }
     if (siz <= G_IM_SIZ_8b && (tlut & 2)) {   /* palette: TLUT enabled turns any 4b/8b texel into an index */
@@ -305,8 +305,8 @@ static uint64_t hash_tmem(uint64_t h, uint32_t start, uint32_t len) {
     for (i = 0; i < len; i += 8) {
         uint32_t a = (start + i) & 0xFF8;
         uint64_t v;
-        memcpy(&v, &g_gfx.tmem[a], 8);
-        h = mix64(h, v ^ ((uint64_t)g_gfx.tmem_le16[a >> 3] << 63));
+        memcpy(&v, &pcgfx.tmem[a], 8);
+        h = mix64(h, v ^ ((uint64_t)pcgfx.tmem_le16[a >> 3] << 63));
     }
     return h;
 }
@@ -320,7 +320,7 @@ static void tex_evict(void) {
             TexEntry *e = *pp;
             if (s_frame - e->last_use > 2) {
                 *pp = e->next;
-                gfx_gl_delete_texture(e->gl);
+                pcgfx_gl_delete_texture(e->gl);
                 free(e);
                 s_tex_count--;
             } else {
@@ -331,7 +331,7 @@ static void tex_evict(void) {
 }
 
 static TexEntry *tex_lookup(int tile_idx) {
-    const GfxTile *tl = &g_gfx.tiles[tile_idx & 7];
+    const GfxTile *tl = &pcgfx.tiles[tile_idx & 7];
     TexKey k;
     TexEntry *e;
     uint64_t h;
@@ -341,7 +341,7 @@ static TexEntry *tex_lookup(int tile_idx) {
     k.fmt = tl->fmt;
     k.siz = tl->siz;
     k.palette = tl->palette;
-    k.tlut = (g_gfx.om_h >> G_MDSFT_TEXTLUT) & 3;
+    k.tlut = (pcgfx.om_h >> G_MDSFT_TEXTLUT) & 3;
     k.cms = tl->cms;
     k.cmt = tl->cmt;
     k.masks = tl->masks > 10 ? 10 : tl->masks;
@@ -413,7 +413,7 @@ static TexEntry *tex_lookup(int tile_idx) {
     e->h = (int)H;
     e->repeat_s = !clamp_s;
     e->repeat_t = !clamp_t;
-    e->gl = gfx_gl_texture(s_decode, (int)W, (int)H);
+    e->gl = pcgfx_gl_texture(s_decode, (int)W, (int)H);
     e->last_use = s_frame;
     e->next = s_tex_buckets[h % TEX_BUCKETS];
     s_tex_buckets[h % TEX_BUCKETS] = e;
@@ -421,13 +421,13 @@ static TexEntry *tex_lookup(int tile_idx) {
     return e;
 }
 
-void gfx_tex_cache_clear(void) {
+void pcgfx_tex_cache_clear(void) {
     int b;
     for (b = 0; b < TEX_BUCKETS; b++) {
         while (s_tex_buckets[b]) {
             TexEntry *e = s_tex_buckets[b];
             s_tex_buckets[b] = e->next;
-            gfx_gl_delete_texture(e->gl);
+            pcgfx_gl_delete_texture(e->gl);
             free(e);
         }
     }
@@ -457,7 +457,7 @@ static float tile_shift(float c, int sh) {
     return c * (float)(1 << (16 - sh));
 }
 
-void gfx_tile_uv(int unit, float s, float t, float *u, float *v) {
+void pcgfx_tile_uv(int unit, float s, float t, float *u, float *v) {
     const UnitInfo *ui = &s_unit[unit];
     s = tile_shift(s, ui->shifts) - ui->uls;
     t = tile_shift(t, ui->shiftt) - ui->ult;
@@ -479,7 +479,7 @@ static void color4(const uint8_t *c, float *o) {
 }
 
 static void fill_rgba(uint32_t fc, float *o) {
-    if (g_gfx.cimg.siz == G_IM_SIZ_32b) {
+    if (pcgfx.cimg.siz == G_IM_SIZ_32b) {
         o[0] = (fc >> 24) / 255.0f;
         o[1] = ((fc >> 16) & 0xFF) / 255.0f;
         o[2] = ((fc >> 8) & 0xFF) / 255.0f;
@@ -493,19 +493,19 @@ static void fill_rgba(uint32_t fc, float *o) {
 }
 
 static unsigned cycle_type(void) {
-    return (g_gfx.om_h >> G_MDSFT_CYCLETYPE) & 3;
+    return (pcgfx.om_h >> G_MDSFT_CYCLETYPE) & 3;
 }
 
 static void build_state(GfxDrawState *st, int rect_tile) {
     GfxShaderKey key;
     unsigned cyc = cycle_type(), u;
-    uint32_t oml = g_gfx.om_l;
-    int tile = rect_tile >= 0 ? rect_tile : g_gfx.tex_tile;
+    uint32_t oml = pcgfx.om_l;
+    int tile = rect_tile >= 0 ? rect_tile : pcgfx.tex_tile;
 
     memset(st, 0, sizeof(*st));
     memset(&key, 0, sizeof(key));
-    key.cc_w0 = g_gfx.cc_w0 & 0x00FFFFFF;
-    key.cc_w1 = g_gfx.cc_w1;
+    key.cc_w0 = pcgfx.cc_w0 & 0x00FFFFFF;
+    key.cc_w1 = pcgfx.cc_w1;
     key.blender = (uint16_t)(oml >> 16);
     key.mode = cyc == G_CYC_1CYCLE ? GFX_MODE_1CYC : cyc == G_CYC_2CYCLE ? GFX_MODE_2CYC
              : cyc == G_CYC_COPY ? GFX_MODE_COPY : GFX_MODE_FILL;
@@ -524,12 +524,12 @@ static void build_state(GfxDrawState *st, int rect_tile) {
     /* Textures */
     for (u = 0; u < 2; u++) {
         int want = key.mode == GFX_MODE_COPY ? u == 0
-                 : (key.mode == GFX_MODE_FILL ? 0 : gfx_combine_uses(&key, (int)u));
-        if (rect_tile < 0 && !g_gfx.tex_on)
+                 : (key.mode == GFX_MODE_FILL ? 0 : pcgfx_combine_uses(&key, (int)u));
+        if (rect_tile < 0 && !pcgfx.tex_on)
             want = want && 0;
         if (want) {
             int ti = (tile + (int)u) & 7;
-            const GfxTile *tl = &g_gfx.tiles[ti];
+            const GfxTile *tl = &pcgfx.tiles[ti];
             TexEntry *e;
             if (s_unit_cache[u].tile == ti && s_unit_cache[u].epoch == s_tex_epoch) {
                 e = s_unit_cache[u].e;
@@ -540,7 +540,7 @@ static void build_state(GfxDrawState *st, int rect_tile) {
                 s_unit_cache[u].epoch = s_tex_epoch;
                 s_unit_cache[u].e = e;
             }
-            unsigned filt = (g_gfx.om_h >> G_MDSFT_TEXTFILT) & 3;
+            unsigned filt = (pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3;
             st->tex[u] = e->gl;
             st->repeat_s[u] = (uint8_t)e->repeat_s;
             st->repeat_t[u] = (uint8_t)e->repeat_t;
@@ -559,81 +559,81 @@ static void build_state(GfxDrawState *st, int rect_tile) {
 
     {
         int scale;
-        gfx_gl_target_size(&scale);
+        pcgfx_gl_target_size(&scale);
         st->scale = (float)scale;
         if (rect_tile >= 0 && rect_tile < 8 && scale > 1 &&
-            (key.mode == GFX_MODE_COPY || ((g_gfx.om_h >> G_MDSFT_TEXTFILT) & 3) == G_TF_POINT))
+            (key.mode == GFX_MODE_COPY || ((pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3) == G_TF_POINT))
             key.flags |= GFX_KF_SNAP;
     }
-    st->shader = gfx_gl_shader(&key);
+    st->shader = pcgfx_gl_shader(&key);
     st->shader_flags = key.flags;
     st->target = current_target();
 
     /* Depth. Triangles need G_ZBUFFER for z (or the primitive depth); rectangles only have the primitive depth. */
     if (key.mode == GFX_MODE_1CYC || key.mode == GFX_MODE_2CYC) {
-        int has_z = rect_tile >= 0 ? (oml & G_ZS_PRIM) != 0 : ((g_gfx.geom & G_ZBUFFER) || (oml & G_ZS_PRIM));
+        int has_z = rect_tile >= 0 ? (oml & G_ZS_PRIM) != 0 : ((pcgfx.geom & G_ZBUFFER) || (oml & G_ZS_PRIM));
         int cmp = has_z && (oml & Z_CMP), upd = has_z && (oml & Z_UPD);
         st->depth_test = cmp ? 1 : upd ? 2 : 0;   /* 2: always pass, write only */
         st->depth_write = (uint8_t)(upd != 0);
         st->decal = (oml & ZMODE_MASK) == ZMODE_DEC;
-        st->blend = (uint8_t)gfx_blend_uses_mem(&key);
+        st->blend = (uint8_t)pcgfx_blend_uses_mem(&key);
     }
 
     /* Scissor, N64 pixels, exclusive */
-    st->scissor[0] = g_gfx.sc_ulx >> 2;
-    st->scissor[1] = g_gfx.sc_uly >> 2;
-    st->scissor[2] = g_gfx.sc_lrx >> 2;
-    st->scissor[3] = g_gfx.sc_lry >> 2;
+    st->scissor[0] = pcgfx.sc_ulx >> 2;
+    st->scissor[1] = pcgfx.sc_uly >> 2;
+    st->scissor[2] = pcgfx.sc_lrx >> 2;
+    st->scissor[3] = pcgfx.sc_lry >> 2;
 
-    color4(g_gfx.prim, st->prim);
-    color4(g_gfx.env, st->env);
-    color4(g_gfx.fog, st->fog);
-    color4(g_gfx.blend, st->blendc);
-    fill_rgba(g_gfx.fill_color, st->fill);
-    st->prim_lod = g_gfx.prim_lod / 255.0f;
+    color4(pcgfx.prim, st->prim);
+    color4(pcgfx.env, st->env);
+    color4(pcgfx.fog, st->fog);
+    color4(pcgfx.blend, st->blendc);
+    fill_rgba(pcgfx.fill_color, st->fill);
+    st->prim_lod = pcgfx.prim_lod / 255.0f;
     st->lod_frac = 0.0f;   /* no LOD computation: see GFX.md */
     st->noise_seed = (float)(s_frame & 255);
 }
 
-const GfxDrawState *gfx_draw_state(int rect_tile) {
+const GfxDrawState *pcgfx_draw_state(int rect_tile) {
     GfxDrawState st;
-    if (s_state_valid && !g_gfx.state_dirty && !g_gfx.tex_dirty && s_state_rect_tile == rect_tile)
+    if (s_state_valid && !pcgfx.state_dirty && !pcgfx.tex_dirty && s_state_rect_tile == rect_tile)
         return &s_state;
-    if (g_gfx.tex_dirty)
+    if (pcgfx.tex_dirty)
         s_tex_epoch++;
     build_state(&st, rect_tile);
-    g_gfx.state_dirty = 0;
-    g_gfx.tex_dirty = 0;
+    pcgfx.state_dirty = 0;
+    pcgfx.tex_dirty = 0;
     s_state_rect_tile = rect_tile;
     if (!s_state_valid || memcmp(&st, &s_state, sizeof(st)) != 0) {
-        gfx_flush();
+        pcgfx_flush();
         s_state = st;
         s_state_valid = 1;
     }
     return &s_state;
 }
 
-void gfx_emit(const GfxOutVtx *v, int n) {
+void pcgfx_emit(const GfxOutVtx *v, int n) {
     if (s_batch_n + n > GFX_BATCH_MAX)
-        gfx_flush();
+        pcgfx_flush();
     memcpy(&s_batch[s_batch_n], v, sizeof(*v) * (size_t)n);
     s_batch_n += n;
 }
 
-void gfx_flush(void) {
+void pcgfx_flush(void) {
     if (s_batch_n > 0 && s_state_valid) {
-        gfx_gl_draw(&s_state, s_batch, s_batch_n);
-        g_gfx.stat_draws++;
+        pcgfx_gl_draw(&s_state, s_batch, s_batch_n);
+        pcgfx.stat_draws++;
     }
     s_batch_n = 0;
 }
 
-void gfx_rdp_new_frame(void) {
+void pcgfx_rdp_new_frame(void) {
     s_frame++;
-    g_gfx.state_dirty = 1;
+    pcgfx.state_dirty = 1;
 }
 
-void gfx_rdp_forget_targets(void) {
+void pcgfx_rdp_forget_targets(void) {
     s_target = NULL;
     s_state_valid = 0;
 }
@@ -641,7 +641,7 @@ void gfx_rdp_forget_targets(void) {
 /* ---------------------------------------------------------------- rectangles */
 
 static void rect_vertex(GfxOutVtx *o, float x, float y, float s, float t, int textured, int tw, int th) {
-    float d = (g_gfx.om_l & G_ZS_PRIM) ? g_gfx.prim_z / 32767.0f : 0.0f;
+    float d = (pcgfx.om_l & G_ZS_PRIM) ? pcgfx.prim_z / 32767.0f : 0.0f;
     int k;
     o->pos[0] = x * 2.0f / tw - 1.0f;
     o->pos[1] = 1.0f - y * 2.0f / th;
@@ -650,7 +650,7 @@ static void rect_vertex(GfxOutVtx *o, float x, float y, float s, float t, int te
     o->shade[0] = o->shade[1] = o->shade[2] = o->shade[3] = 0.0f;   /* rectangles have no shade */
     for (k = 0; k < 2; k++) {
         if (textured && s_state.tex[k])
-            gfx_tile_uv(k, s, t, &o->uv[2 * k], &o->uv[2 * k + 1]);
+            pcgfx_tile_uv(k, s, t, &o->uv[2 * k], &o->uv[2 * k + 1]);
         else
             o->uv[2 * k] = o->uv[2 * k + 1] = 0.0f;
     }
@@ -671,9 +671,9 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     GfxOutVtx q[4], tri[6];
     int tw, th, scale, textured = tile >= 0;
     float w = x1 - x0, h = y1 - y0;
-    gfx_draw_state(textured ? tile : 8);
-    gfx_target_dims(&tw, &th);
-    gfx_gl_target_size(&scale);
+    pcgfx_draw_state(textured ? tile : 8);
+    pcgfx_target_dims(&tw, &th);
+    pcgfx_gl_target_size(&scale);
     s = rect_start(s, dsdx, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
     t = rect_start(t, dtdy, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
     if (!flip) {
@@ -693,10 +693,10 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     tri[3] = q[1];
     tri[4] = q[2];
     tri[5] = q[3];
-    gfx_emit(tri, 6);
+    pcgfx_emit(tri, 6);
 }
 
-void gfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip) {
+void pcgfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip) {
     unsigned lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF, ulx = (w1 >> 12) & 0xFFF, uly = w1 & 0xFFF;
     int tile = (w1 >> 24) & 7;
     float s = (int16_t)(half1 >> 16) / 32.0f, t = (int16_t)(half1 & 0xFFFF) / 32.0f;
@@ -725,27 +725,27 @@ static void fill_rect(uint32_t w0, uint32_t w1) {
         r[2] = (int32_t)(lrx >> 2) + 1;
         r[3] = (int32_t)(lry >> 2) + 1;
         /* clip to the scissor */
-        if (r[0] < (int32_t)(g_gfx.sc_ulx >> 2)) r[0] = g_gfx.sc_ulx >> 2;
-        if (r[1] < (int32_t)(g_gfx.sc_uly >> 2)) r[1] = g_gfx.sc_uly >> 2;
-        if (r[2] > (int32_t)(g_gfx.sc_lrx >> 2)) r[2] = g_gfx.sc_lrx >> 2;
-        if (r[3] > (int32_t)(g_gfx.sc_lry >> 2)) r[3] = g_gfx.sc_lry >> 2;
+        if (r[0] < (int32_t)(pcgfx.sc_ulx >> 2)) r[0] = pcgfx.sc_ulx >> 2;
+        if (r[1] < (int32_t)(pcgfx.sc_uly >> 2)) r[1] = pcgfx.sc_uly >> 2;
+        if (r[2] > (int32_t)(pcgfx.sc_lrx >> 2)) r[2] = pcgfx.sc_lrx >> 2;
+        if (r[3] > (int32_t)(pcgfx.sc_lry >> 2)) r[3] = pcgfx.sc_lry >> 2;
         if (r[2] <= r[0] || r[3] <= r[1])
             return;
-        gfx_flush();
-        if (g_gfx.cimg.addr != NULL && g_gfx.cimg.addr == g_gfx.zimg) {
+        pcgfx_flush();
+        if (pcgfx.cimg.addr != NULL && pcgfx.cimg.addr == pcgfx.zimg) {
             /* the z buffer as color image: a depth clear (packed z: 14 bits after the 2-bit dz) */
-            uint32_t z = (g_gfx.fill_color >> 16) >> 2;
-            GfxTarget *t = gfx_gl_last_target();
+            uint32_t z = (pcgfx.fill_color >> 16) >> 2;
+            GfxTarget *t = pcgfx_gl_last_target();
             if (t == NULL) {
                 int tw, th;
-                gfx_target_dims(&tw, &th);
-                t = gfx_gl_target(NULL, tw, th);
+                pcgfx_target_dims(&tw, &th);
+                t = pcgfx_gl_target(NULL, tw, th);
             }
-            gfx_gl_attach_depth(t, g_gfx.zimg);
-            gfx_gl_clear(t, r, 1, NULL, (float)(z & 0x3FFF) / 16383.0f);
+            pcgfx_gl_attach_depth(t, pcgfx.zimg);
+            pcgfx_gl_clear(t, r, 1, NULL, (float)(z & 0x3FFF) / 16383.0f);
         } else {
-            fill_rgba(g_gfx.fill_color, c);
-            gfx_gl_clear(current_target(), r, 0, c, 0.0f);
+            fill_rgba(pcgfx.fill_color, c);
+            pcgfx_gl_clear(current_target(), r, 0, c, 0.0f);
         }
         return;
     }
@@ -762,37 +762,37 @@ static void set_othermode(uint32_t *word, uint32_t w0, uint32_t w1) {
     *word = (*word & ~mask) | (w1 & mask);
 }
 
-void gfx_rdp_reset(void) {
-    g_gfx.om_h = 0;
-    g_gfx.om_l = 0;
-    g_gfx.cc_w0 = g_gfx.cc_w1 = 0;
-    g_gfx.sc_ulx = g_gfx.sc_uly = 0;
-    g_gfx.sc_lrx = 320 << 2;
-    g_gfx.sc_lry = 240 << 2;
-    memset(g_gfx.tiles, 0, sizeof(g_gfx.tiles));
-    memset(g_gfx.tmem, 0, sizeof(g_gfx.tmem));
-    memset(g_gfx.tmem_le16, 0, sizeof(g_gfx.tmem_le16));
-    g_gfx.state_dirty = g_gfx.tex_dirty = 1;
+void pcgfx_rdp_reset(void) {
+    pcgfx.om_h = 0;
+    pcgfx.om_l = 0;
+    pcgfx.cc_w0 = pcgfx.cc_w1 = 0;
+    pcgfx.sc_ulx = pcgfx.sc_uly = 0;
+    pcgfx.sc_lrx = 320 << 2;
+    pcgfx.sc_lry = 240 << 2;
+    memset(pcgfx.tiles, 0, sizeof(pcgfx.tiles));
+    memset(pcgfx.tmem, 0, sizeof(pcgfx.tmem));
+    memset(pcgfx.tmem_le16, 0, sizeof(pcgfx.tmem_le16));
+    pcgfx.state_dirty = pcgfx.tex_dirty = 1;
     s_target = NULL;
     s_state_valid = 0;
 }
 
-void gfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
+void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
     uint32_t w1 = (uint32_t)w1p;
     GfxTile *tl;
     switch (op) {
     case G_SETOTHERMODE_L:
-        set_othermode(&g_gfx.om_l, w0, w1);
-        g_gfx.state_dirty = 1;
+        set_othermode(&pcgfx.om_l, w0, w1);
+        pcgfx.state_dirty = 1;
         break;
     case G_SETOTHERMODE_H:
-        set_othermode(&g_gfx.om_h, w0, w1);
-        g_gfx.state_dirty = g_gfx.tex_dirty = 1;
+        set_othermode(&pcgfx.om_h, w0, w1);
+        pcgfx.state_dirty = pcgfx.tex_dirty = 1;
         break;
     case G_RDPSETOTHERMODE:
-        g_gfx.om_h = w0 & 0x00FFFFFF;
-        g_gfx.om_l = w1;
-        g_gfx.state_dirty = g_gfx.tex_dirty = 1;
+        pcgfx.om_h = w0 & 0x00FFFFFF;
+        pcgfx.om_l = w1;
+        pcgfx.state_dirty = pcgfx.tex_dirty = 1;
         break;
     case G_RDPLOADSYNC:
     case G_RDPPIPESYNC:
@@ -803,32 +803,32 @@ void gfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
     case G_SETCONVERT:
         break;
     case G_SETSCISSOR:
-        g_gfx.sc_ulx = (w0 >> 12) & 0xFFF;
-        g_gfx.sc_uly = w0 & 0xFFF;
-        g_gfx.sc_lrx = (w1 >> 12) & 0xFFF;
-        g_gfx.sc_lry = w1 & 0xFFF;
-        g_gfx.state_dirty = 1;
+        pcgfx.sc_ulx = (w0 >> 12) & 0xFFF;
+        pcgfx.sc_uly = w0 & 0xFFF;
+        pcgfx.sc_lrx = (w1 >> 12) & 0xFFF;
+        pcgfx.sc_lry = w1 & 0xFFF;
+        pcgfx.state_dirty = 1;
         break;
     case G_SETPRIMDEPTH:
-        g_gfx.prim_z = (uint16_t)(w1 >> 16);
-        g_gfx.prim_dz = (uint16_t)w1;
+        pcgfx.prim_z = (uint16_t)(w1 >> 16);
+        pcgfx.prim_dz = (uint16_t)w1;
         break;
     case G_LOADTLUT:
         load_tlut(w0, w1);
         break;
     case G_SETTILESIZE:
-        tl = &g_gfx.tiles[(w1 >> 24) & 7];
+        tl = &pcgfx.tiles[(w1 >> 24) & 7];
         tl->uls = (w0 >> 12) & 0xFFF;
         tl->ult = w0 & 0xFFF;
         tl->lrs = (w1 >> 12) & 0xFFF;
         tl->lrt = w1 & 0xFFF;
-        g_gfx.tex_dirty = g_gfx.state_dirty = 1;
+        pcgfx.tex_dirty = pcgfx.state_dirty = 1;
         break;
     case G_LOADBLOCK:
         load_block(w0, w1);
         break;
     case G_LOADTILE:
-        tl = &g_gfx.tiles[(w1 >> 24) & 7];
+        tl = &pcgfx.tiles[(w1 >> 24) & 7];
         tl->uls = (w0 >> 12) & 0xFFF;   /* a load also sets the tile's size */
         tl->ult = w0 & 0xFFF;
         tl->lrs = (w1 >> 12) & 0xFFF;
@@ -836,7 +836,7 @@ void gfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
         load_tile(w0, w1);
         break;
     case G_SETTILE:
-        tl = &g_gfx.tiles[(w1 >> 24) & 7];
+        tl = &pcgfx.tiles[(w1 >> 24) & 7];
         tl->fmt = (w0 >> 21) & 7;
         tl->siz = (w0 >> 19) & 3;
         tl->line = (w0 >> 9) & 0x1FF;
@@ -848,65 +848,65 @@ void gfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
         tl->cms = (w1 >> 8) & 3;
         tl->masks = (w1 >> 4) & 0xF;
         tl->shifts = w1 & 0xF;
-        g_gfx.tex_dirty = g_gfx.state_dirty = 1;
+        pcgfx.tex_dirty = pcgfx.state_dirty = 1;
         break;
     case G_FILLRECT:
         fill_rect(w0, w1);
         break;
     case G_SETFILLCOLOR:
-        g_gfx.fill_color = w1;
-        g_gfx.state_dirty = 1;
+        pcgfx.fill_color = w1;
+        pcgfx.state_dirty = 1;
         break;
     case G_SETFOGCOLOR:
     case G_SETBLENDCOLOR:
     case G_SETPRIMCOLOR:
     case G_SETENVCOLOR: {
-        uint8_t *c = op == G_SETFOGCOLOR ? g_gfx.fog : op == G_SETBLENDCOLOR ? g_gfx.blend
-                   : op == G_SETPRIMCOLOR ? g_gfx.prim : g_gfx.env;
+        uint8_t *c = op == G_SETFOGCOLOR ? pcgfx.fog : op == G_SETBLENDCOLOR ? pcgfx.blend
+                   : op == G_SETPRIMCOLOR ? pcgfx.prim : pcgfx.env;
         c[0] = w1 >> 24;
         c[1] = w1 >> 16;
         c[2] = w1 >> 8;
         c[3] = w1;
         if (op == G_SETPRIMCOLOR) {
-            g_gfx.prim_min_level = (w0 >> 8) & 0x1F;
-            g_gfx.prim_lod = w0 & 0xFF;
+            pcgfx.prim_min_level = (w0 >> 8) & 0x1F;
+            pcgfx.prim_lod = w0 & 0xFF;
         }
-        g_gfx.state_dirty = 1;
+        pcgfx.state_dirty = 1;
         break;
     }
     case G_SETCOMBINE:
-        g_gfx.cc_w0 = w0;
-        g_gfx.cc_w1 = w1;
-        g_gfx.state_dirty = 1;
+        pcgfx.cc_w0 = w0;
+        pcgfx.cc_w1 = w1;
+        pcgfx.state_dirty = 1;
         break;
     case G_SETTIMG:
-        g_gfx.timg.addr = gfx_resolve(w1p);
-        g_gfx.timg.fmt = (w0 >> 21) & 7;
-        g_gfx.timg.siz = (w0 >> 19) & 3;
-        g_gfx.timg.width = (uint16_t)((w0 & 0xFFF) + 1);
+        pcgfx.timg.addr = pcgfx_resolve(w1p);
+        pcgfx.timg.fmt = (w0 >> 21) & 7;
+        pcgfx.timg.siz = (w0 >> 19) & 3;
+        pcgfx.timg.width = (uint16_t)((w0 & 0xFFF) + 1);
         break;
     case G_SETZIMG:
-        g_gfx.zimg = gfx_resolve(w1p);
-        g_gfx.zimg_width = g_gfx.cimg.width;
-        g_gfx.state_dirty = 1;
+        pcgfx.zimg = pcgfx_resolve(w1p);
+        pcgfx.zimg_width = pcgfx.cimg.width;
+        pcgfx.state_dirty = 1;
         break;
     case G_SETCIMG: {
-        const uint8_t *a = gfx_resolve(w1p);
-        g_gfx.cimg.fmt = (w0 >> 21) & 7;
-        g_gfx.cimg.siz = (w0 >> 19) & 3;
-        g_gfx.cimg.width = (uint16_t)((w0 & 0xFFF) + 1);
-        g_gfx.cimg.addr = a;
-        if (a == NULL || a != g_gfx.zimg) {   /* drawing into the z buffer only ever clears it */
+        const uint8_t *a = pcgfx_resolve(w1p);
+        pcgfx.cimg.fmt = (w0 >> 21) & 7;
+        pcgfx.cimg.siz = (w0 >> 19) & 3;
+        pcgfx.cimg.width = (uint16_t)((w0 & 0xFFF) + 1);
+        pcgfx.cimg.addr = a;
+        if (a == NULL || a != pcgfx.zimg) {   /* drawing into the z buffer only ever clears it */
             int tw, th;
-            gfx_target_dims(&tw, &th);
-            s_target = gfx_gl_target(a, tw, th);
-            gfx_gl_attach_depth(s_target, g_gfx.zimg);
+            pcgfx_target_dims(&tw, &th);
+            s_target = pcgfx_gl_target(a, tw, th);
+            pcgfx_gl_attach_depth(s_target, pcgfx.zimg);
         }
-        g_gfx.state_dirty = 1;
+        pcgfx.state_dirty = 1;
         break;
     }
     default:
-        g_gfx.stat_unknown++;
+        pcgfx.stat_unknown++;
         break;
     }
 }

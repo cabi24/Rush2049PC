@@ -20,12 +20,12 @@ typedef struct {
     int be;
 } GfxDlPtr;
 
-uint16_t gfx_rd16(const void *p, int be);
-uint32_t gfx_rd32(const void *p, int be);
-int gfx_is_be(const void *p);   /* pc_mem_is_be, tolerating NULL */
+uint16_t pcgfx_rd16(const void *p, int be);
+uint32_t pcgfx_rd32(const void *p, int be);
+int pcgfx_is_be(const void *p);   /* pc_mem_is_be, tolerating NULL */
 /* An address from a command's w1 or an API argument: host pointer (>= 4 GB) or N64 address (GFX.md "Addresses"). */
-const uint8_t *gfx_resolve(uintptr_t addr);
-uintptr_t gfx_segment_value(uintptr_t v);   /* a segment base as set by MOVEWORD -> host base (0 = physical) */
+const uint8_t *pcgfx_resolve(uintptr_t addr);
+uintptr_t pcgfx_segment_value(uintptr_t v);   /* a segment base as set by MOVEWORD -> host base (0 = physical) */
 
 /* ---------------------------------------------------------------- RSP state */
 
@@ -99,7 +99,7 @@ typedef struct {
     uint32_t stat_cmds, stat_tris, stat_draws, stat_unknown;
 } GfxState;
 
-extern GfxState g_gfx;
+extern GfxState pcgfx;
 
 /* ---------------------------------------------------------------- output vertices and draw state */
 
@@ -149,55 +149,55 @@ typedef struct {
 
 /* ---------------------------------------------------------------- interpreter entry points */
 
-void gfx_rsp_reset(void);      /* RSP state at task start */
-void gfx_rdp_reset(void);      /* RDP state at init */
-void gfx_run_list(const void *dl);
+void pcgfx_rsp_reset(void);      /* RSP state at task start */
+void pcgfx_rdp_reset(void);      /* RDP state at init */
+void pcgfx_run_list(const void *dl);
 
 /* gfx_rdp.c */
-void gfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1);
-void gfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip);
-const GfxDrawState *gfx_draw_state(int rect_tile);   /* -1 triangles, 0-7 texrect tile, 8 untextured rect */
+void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1);
+void pcgfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip);
+const GfxDrawState *pcgfx_draw_state(int rect_tile);   /* -1 triangles, 0-7 texrect tile, 8 untextured rect */
 /* Texture coordinate transform for tile (tile-relative, normalized for the bound texture). */
-void gfx_tile_uv(int unit, float s_texel, float t_texel, float *u, float *v);
-void gfx_emit(const GfxOutVtx *v, int n);          /* triangles, 3 vertices each */
-void gfx_flush(void);
+void pcgfx_tile_uv(int unit, float s_texel, float t_texel, float *u, float *v);
+void pcgfx_emit(const GfxOutVtx *v, int n);          /* triangles, 3 vertices each */
+void pcgfx_flush(void);
 
 /* gfx_combine.c */
-char *gfx_combine_glsl(const GfxShaderKey *key, int gles, int glsl_version);   /* malloc'd fragment source */
-const char *gfx_vertex_source(int gles, int glsl_version);
-int gfx_combine_uses(const GfxShaderKey *key, int texel);   /* does the key read TEXEL0 (0) or TEXEL1 (1)? */
-int gfx_blend_uses_mem(const GfxShaderKey *key);
+char *pcgfx_combine_glsl(const GfxShaderKey *key, int gles, int glsl_version);   /* malloc'd fragment source */
+const char *pcgfx_vertex_source(int gles, int glsl_version);
+int pcgfx_combine_uses(const GfxShaderKey *key, int texel);   /* does the key read TEXEL0 (0) or TEXEL1 (1)? */
+int pcgfx_blend_uses_mem(const GfxShaderKey *key);
 
 /* gfx_gl.c */
 typedef void *(*GfxGetProc)(const char *name);
-int gfx_gl_init(GfxGetProc get_proc, int gles);
-void gfx_gl_shutdown(void);
-GfxTarget *gfx_gl_target(const void *addr, int width, int height);
-GfxTarget *gfx_gl_find_target(const void *addr);
-GfxTarget *gfx_gl_last_target(void);
-void gfx_gl_attach_depth(GfxTarget *t, const void *zaddr);
-void gfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float rgba[4], float z);
-uint32_t gfx_gl_texture(const uint8_t *rgba, int w, int h);
-void gfx_gl_delete_texture(uint32_t tex);
-GfxShader *gfx_gl_shader(const GfxShaderKey *key);
-void gfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n);
-void gfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
-int gfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h);   /* top row first, RGBA8 */
-int gfx_gl_read_presented(uint8_t *rgba, int *w, int *h);
-int gfx_gl_read_window(uint8_t *rgba, int w, int h);   /* the default framebuffer, top row first */
-void gfx_gl_target_size(int *scale);
+int pcgfx_gl_init(GfxGetProc get_proc, int gles);
+void pcgfx_gl_shutdown(void);
+GfxTarget *pcgfx_gl_target(const void *addr, int width, int height);
+GfxTarget *pcgfx_gl_find_target(const void *addr);
+GfxTarget *pcgfx_gl_last_target(void);
+void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr);
+void pcgfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float rgba[4], float z);
+uint32_t pcgfx_gl_texture(const uint8_t *rgba, int w, int h);
+void pcgfx_gl_delete_texture(uint32_t tex);
+GfxShader *pcgfx_gl_shader(const GfxShaderKey *key);
+void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n);
+void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
+int pcgfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h);   /* top row first, RGBA8 */
+int pcgfx_gl_read_presented(uint8_t *rgba, int *w, int *h);
+int pcgfx_gl_read_window(uint8_t *rgba, int w, int h);   /* the default framebuffer, top row first */
+void pcgfx_gl_target_size(int *scale);
 
 /* gfx_png.c */
-int gfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
+int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
 
 /* Context backends: gfx_egl.c (headless), gfx_sdl.c (window, when built with SDL2) */
-int gfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles);
-void gfx_egl_shutdown(void);
-int gfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles);
-void gfx_sdl_swap(void);
-int gfx_sdl_poll(void);
-void gfx_sdl_size(int *w, int *h);
-void gfx_sdl_shutdown(void);
+int pcgfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles);
+void pcgfx_egl_shutdown(void);
+int pcgfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles);
+void pcgfx_sdl_swap(void);
+int pcgfx_sdl_poll(void);
+void pcgfx_sdl_size(int *w, int *h);
+void pcgfx_sdl_shutdown(void);
 
 /* Settings (gfx_api.c). The internal scale multiplies the N64 frame size; widescreen is a hook for later. */
 typedef struct {
@@ -206,7 +206,7 @@ typedef struct {
     int verbose;
     int frame_height;       /* rows shown; 0 = the largest scissor bottom drawn with */
 } GfxConfig;
-extern GfxConfig g_gfx_cfg;
+extern GfxConfig pcgfx_cfg;
 
 /* Test and tool access (not part of pc_port.h). */
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);

@@ -120,16 +120,16 @@ static struct {
 } G;
 
 static int scale(void) {
-    return g_gfx_cfg.internal_scale > 0 ? g_gfx_cfg.internal_scale : 1;
+    return pcgfx_cfg.internal_scale > 0 ? pcgfx_cfg.internal_scale : 1;
 }
 
-void gfx_gl_target_size(int *s) {
+void pcgfx_gl_target_size(int *s) {
     *s = scale();
 }
 
 /* ---------------------------------------------------------------- init */
 
-int gfx_gl_init(GfxGetProc get_proc, int gles) {
+int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
     const char *ver;
     int ok = 1;
     memset(&G, 0, sizeof(G));
@@ -152,7 +152,7 @@ int gfx_gl_init(GfxGetProc get_proc, int gles) {
         if (sscanf(ver, "%d.%d", &maj, &min) == 2)
             G.glsl = maj * 100 + min;
     }
-    if (g_gfx_cfg.verbose)
+    if (pcgfx_cfg.verbose)
         fprintf(stderr, "gfx: %s / %s / %s\n", (const char *)glGetString(GL_RENDERER),
                 (const char *)glGetString(GL_VERSION), ver ? ver : "?");
     glGenVertexArrays(1, &G.vao);
@@ -167,14 +167,14 @@ int gfx_gl_init(GfxGetProc get_proc, int gles) {
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(GfxOutVtx), (void *)offsetof(GfxOutVtx, uv));
     {
         static const uint8_t white[4] = {255, 255, 255, 255};
-        G.white = gfx_gl_texture(white, 1, 1);
+        G.white = pcgfx_gl_texture(white, 1, 1);
     }
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     return 0;
 }
 
-void gfx_gl_shutdown(void) {
+void pcgfx_gl_shutdown(void) {
     int b;
     for (b = 0; b < SHADER_BUCKETS; b++)
         while (G.shaders[b]) {
@@ -215,7 +215,7 @@ static void bind_fbo(GLuint fbo) {
 
 /* ---------------------------------------------------------------- targets */
 
-GfxTarget *gfx_gl_find_target(const void *addr) {
+GfxTarget *pcgfx_gl_find_target(const void *addr) {
     GfxTarget *t;
     for (t = G.targets; t != NULL; t = t->next)
         if (t->addr == addr)
@@ -223,12 +223,12 @@ GfxTarget *gfx_gl_find_target(const void *addr) {
     return NULL;
 }
 
-GfxTarget *gfx_gl_last_target(void) {
+GfxTarget *pcgfx_gl_last_target(void) {
     return G.last;
 }
 
-GfxTarget *gfx_gl_target(const void *addr, int w, int h) {
-    GfxTarget *t = gfx_gl_find_target(addr);
+GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
+    GfxTarget *t = pcgfx_gl_find_target(addr);
     int s = scale();
     static const float black[4] = {0, 0, 0, 1};
     if (t != NULL && t->w == w && t->h == h) {
@@ -260,7 +260,7 @@ GfxTarget *gfx_gl_target(const void *addr, int w, int h) {
     return t;
 }
 
-void gfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
+void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
     GfxDepth *d;
     int s = scale();
     if (t == NULL)
@@ -311,7 +311,7 @@ static void note_rows(GfxTarget *t, int32_t bottom) {
         t->vis_h = bottom;
 }
 
-void gfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float rgba[4], float z) {
+void pcgfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float rgba[4], float z) {
     if (t == NULL)
         return;
     bind_fbo(t->fbo);
@@ -334,7 +334,7 @@ void gfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float rg
 
 /* ---------------------------------------------------------------- textures */
 
-uint32_t gfx_gl_texture(const uint8_t *rgba, int w, int h) {
+uint32_t pcgfx_gl_texture(const uint8_t *rgba, int w, int h) {
     GLuint tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -346,7 +346,7 @@ uint32_t gfx_gl_texture(const uint8_t *rgba, int w, int h) {
     return tex;
 }
 
-void gfx_gl_delete_texture(uint32_t tex) {
+void pcgfx_gl_delete_texture(uint32_t tex) {
     GLuint t = tex;
     if (t != 0)
         glDeleteTextures(1, &t);
@@ -378,7 +378,7 @@ static unsigned key_hash(const GfxShaderKey *k) {
     return h % SHADER_BUCKETS;
 }
 
-GfxShader *gfx_gl_shader(const GfxShaderKey *key) {
+GfxShader *pcgfx_gl_shader(const GfxShaderKey *key) {
     unsigned b = key_hash(key);
     GfxShader *s;
     GLuint vs, fs, prog;
@@ -387,10 +387,10 @@ GfxShader *gfx_gl_shader(const GfxShaderKey *key) {
     for (s = G.shaders[b]; s != NULL; s = s->next)
         if (memcmp(&s->key, key, sizeof(*key)) == 0)
             return s;
-    fsrc = gfx_combine_glsl(key, G.gles, G.glsl);
-    if (g_gfx_cfg.verbose > 1)
+    fsrc = pcgfx_combine_glsl(key, G.gles, G.glsl);
+    if (pcgfx_cfg.verbose > 1)
         fprintf(stderr, "gfx: new shader\n%s\n", fsrc);
-    vs = compile(GL_VERTEX_SHADER, gfx_vertex_source(G.gles, G.glsl));
+    vs = compile(GL_VERTEX_SHADER, pcgfx_vertex_source(G.gles, G.glsl));
     fs = compile(GL_FRAGMENT_SHADER, fsrc);
     free(fsrc);
     prog = glCreateProgram();
@@ -436,7 +436,7 @@ GfxShader *gfx_gl_shader(const GfxShaderKey *key) {
 
 /* ---------------------------------------------------------------- draw */
 
-void gfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
+void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     GfxTarget *t = st->target;
     const GfxShader *sh = st->shader;
     int u;
@@ -500,13 +500,13 @@ void gfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
 /* ---------------------------------------------------------------- present and readback */
 
 static int target_rows(const GfxTarget *t) {
-    int rows = g_gfx_cfg.frame_height > 0 ? g_gfx_cfg.frame_height : t->vis_h;
+    int rows = pcgfx_cfg.frame_height > 0 ? pcgfx_cfg.frame_height : t->vis_h;
     if (rows <= 0 || rows > t->h)
         rows = t->h;
     return rows;
 }
 
-void gfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
+void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
     int s = scale(), rows, pw, ph;
     if (t == NULL)
         return;
@@ -573,7 +573,7 @@ static int read_fbo(GLuint fbo, int x, int y, int w, int h, uint8_t *rgba) {
     return glGetError() == GL_NO_ERROR ? 0 : -1;
 }
 
-int gfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h) {
+int pcgfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h) {
     int s = scale();
     if (t == NULL)
         return -1;
@@ -584,13 +584,13 @@ int gfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h) {
     return read_fbo(t->fbo, 0, 0, *w, *h, rgba);
 }
 
-int gfx_gl_read_window(uint8_t *rgba, int w, int h) {
+int pcgfx_gl_read_window(uint8_t *rgba, int w, int h) {
     int rc = read_fbo(0, 0, 0, w, h, rgba);
     bind_fbo(0);
     return rc;
 }
 
-int gfx_gl_read_presented(uint8_t *rgba, int *w, int *h) {
+int pcgfx_gl_read_presented(uint8_t *rgba, int *w, int *h) {
     if (!G.present_valid)
         return -1;
     *w = G.present_w;

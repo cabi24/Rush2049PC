@@ -51,7 +51,7 @@ static int cycle_uses(const Cycle *c, int texel) {
     return 0;
 }
 
-int gfx_combine_uses(const GfxShaderKey *k, int texel) {
+int pcgfx_combine_uses(const GfxShaderKey *k, int texel) {
     Cycle cyc[2];
     int i;
     if (k->mode == GFX_MODE_COPY)
@@ -206,7 +206,7 @@ static BlCycle final_cycle(const GfxShaderKey *k) {
 
 /* Does the result depend on memory? Directly (the final cycle reads it) or through CLR_IN when the 2-cycle first
  * cycle read it. */
-int gfx_blend_uses_mem(const GfxShaderKey *k) {
+int pcgfx_blend_uses_mem(const GfxShaderKey *k) {
     BlCycle c;
     int in_has_mem = 0;
     if (k->mode != GFX_MODE_1CYC && k->mode != GFX_MODE_2CYC)
@@ -266,7 +266,7 @@ static const char *vertex_body(void) {
            "}\n";
 }
 
-const char *gfx_vertex_source(int gles, int glsl_version) {
+const char *pcgfx_vertex_source(int gles, int glsl_version) {
     snprintf(s_vs, sizeof(s_vs), "%s%s", preamble(gles, glsl_version), vertex_body());
     return s_vs;
 }
@@ -281,7 +281,7 @@ static void put_term(Str *s, int v, const char *w) {
         put(s, "    rgb += %s * %s;\n", bl_pm(v), w);
 }
 
-char *gfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
+char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
     Str s = {0};
     Cycle cyc[2];
     int i;
@@ -355,7 +355,7 @@ char *gfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
         } else {   /* no blend: the first input passes */
             put_term(&s, c.p, "1.0");
         }
-        put(&s, "    fragColor = vec4(rgb, %s);\n", gfx_blend_uses_mem(k) ? "memw" : "1.0");
+        put(&s, "    fragColor = vec4(rgb, %s);\n", pcgfx_blend_uses_mem(k) ? "memw" : "1.0");
     }
     put(&s, "}\n");
     return s.buf;

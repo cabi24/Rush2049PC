@@ -36,7 +36,7 @@ static int try_create(int w, int h, int gles, int major, int minor) {
     return 0;
 }
 
-int gfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles) {
+int pcgfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles) {
     const char *api = getenv("RUSH_GFX_API");
     int want_gl = api != NULL && strcmp(api, "gl") == 0;
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
@@ -59,11 +59,11 @@ int gfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles) {
     return 0;
 }
 
-void gfx_sdl_swap(void) {
+void pcgfx_sdl_swap(void) {
     SDL_GL_SwapWindow(s_win);
 }
 
-int gfx_sdl_poll(void) {
+int pcgfx_sdl_poll(void) {
     SDL_Event e;
     int quit = 0;
     while (SDL_PollEvent(&e))
@@ -72,11 +72,11 @@ int gfx_sdl_poll(void) {
     return quit;
 }
 
-void gfx_sdl_size(int *w, int *h) {
+void pcgfx_sdl_size(int *w, int *h) {
     SDL_GL_GetDrawableSize(s_win, w, h);
 }
 
-void gfx_sdl_shutdown(void) {
+void pcgfx_sdl_shutdown(void) {
     if (s_ctx != NULL)
         SDL_GL_DeleteContext(s_ctx);
     if (s_win != NULL)

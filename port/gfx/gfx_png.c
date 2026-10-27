@@ -27,7 +27,7 @@ static int chunk(FILE *f, const char *type, const uint8_t *data, uint32_t len) {
     return fwrite(hdr, 1, 4, f) == 4 ? 0 : -1;
 }
 
-int gfx_png_write(const char *path, const uint8_t *rgba, int w, int h) {
+int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h) {
     static const uint8_t sig[8] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
     size_t raw_len = (size_t)h * (1 + (size_t)w * 3), x, y;
     uLongf zlen = compressBound((uLong)raw_len);

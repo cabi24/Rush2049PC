@@ -89,7 +89,7 @@ static EGLContext try_context(int gles, int major, int minor, int core) {
     return c;
 }
 
-int gfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles) {
+int pcgfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles) {
     int pass;
     s_dpy = open_display();
     if (s_dpy == EGL_NO_DISPLAY) {
@@ -118,7 +118,7 @@ int gfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles) {
     return 0;
 }
 
-void gfx_egl_shutdown(void) {
+void pcgfx_egl_shutdown(void) {
     if (s_dpy != EGL_NO_DISPLAY) {
         eglMakeCurrent(s_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (s_ctx != EGL_NO_CONTEXT)

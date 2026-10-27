@@ -22,6 +22,9 @@ documentation and n64brew.
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
 | `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`) |
 
+Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game has its own `gfx_*` functions
+(`gfx_frame_begin`, `gfx_lock`), and the renderer links into the same executable.
+
 ## Command formats and addresses
 
 - **Native lists** (game C on `TARGET_PC`): `PcGfxWords { uint32_t w0; uintptr_t w1; }`, 16 bytes per command.
