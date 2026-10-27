@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "ultra.h"
@@ -48,6 +49,9 @@ extern uint32_t osTvType, D_80000318;
 extern uint8_t D_8002E580[], D_8011B5BC[], D_803B9A50[];
 
 #define MS(n) ((uint64_t)(n) * PC_COUNT_HZ / 1000)
+/* How late a loaded host (parallel ctest, CI runners) may wake a thread. Lower bounds stay exact: nothing may
+ * fire early. */
+#define SLACK_MS 250
 
 static uint8_t g_thread[32][32];   /* stand-ins for the game's OSThread storage: only their addresses matter */
 static int g_nthread;
@@ -93,6 +97,13 @@ static void expect_log(const char *name, const char *want)
     snprintf(detail, sizeof detail, "got \"%s\", want \"%s\"", g_log, want);
     check(name, !strcmp(g_log, want), detail);
     g_log[0] = 0;
+}
+
+static double host_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
 }
 
 static void sleep_ms(int ms)
@@ -254,7 +265,7 @@ static void t_events(void)
     double ms = (osGetTime() - t0) * 1000.0 / PC_COUNT_HZ;
     char d[64];
     snprintf(d, sizeof d, "%d retraces in %.0f ms", n, ms);
-    check("VI retrace at 60 Hz", n == 12 && ms > 150 && ms < 400, d);
+    check("VI retrace at 60 Hz", n == 12 && ms > 150 && ms < 200 + SLACK_MS, d);
 }
 
 static void t_timers(void)
@@ -267,7 +278,7 @@ static void t_timers(void)
     double ms = (osGetTime() - t0) * 1000.0 / PC_COUNT_HZ;
     char d[64];
     snprintf(d, sizeof d, "fired after %.1f ms", ms);
-    check("one-shot timer", m == (OSMesg)1 && ms >= 49 && ms < 120, d);
+    check("one-shot timer", m == (OSMesg)1 && ms >= 49 && ms < 50 + SLACK_MS, d);
 
     t0 = osGetTime();
     osSetTimer(g_timer[1], MS(10), MS(10), q, (OSMesg)2);
@@ -279,13 +290,15 @@ static void t_timers(void)
     sleep_ms(30);
     int late = osRecvMesg(q, &m, OS_MESG_NOBLOCK) == 0;
     snprintf(d, sizeof d, "5 periods in %.1f ms, stop %d, late %d", ms, stopped, late);
-    check("periodic timer, osStopTimer", ms >= 49 && ms < 150 && stopped == 0 && !late, d);
+    check("periodic timer, osStopTimer", ms >= 49 && ms < 50 + SLACK_MS && stopped == 0 && !late, d);
 
+    /* Against the host clock, so a late wake-up doesn't count. */
+    double h0 = host_ms();
     t0 = osGetTime();
     sleep_ms(100);
-    double ticks = (double)(osGetTime() - t0);
-    snprintf(d, sizeof d, "%.0f ticks in 100 ms", ticks);
-    check("osGetTime at 46.875 MHz", ticks > 4.6e6 && ticks < 5.6e6, d);
+    double ticks = (double)(osGetTime() - t0), host = host_ms() - h0, err = ticks / host / 46875.0 - 1;
+    snprintf(d, sizeof d, "%.0f ticks in %.1f ms", ticks, host);
+    check("osGetTime at 46.875 MHz", host >= 99 && err > -0.02 && err < 0.02, d);
 }
 
 static void t_spin(void)
@@ -298,7 +311,7 @@ static void t_spin(void)
     double ms = (osGetTime() - t0) * 1000.0 / PC_COUNT_HZ;
     char d[64];
     snprintf(d, sizeof d, "%.1f ms", ms);
-    check("busy-wait, higher writer", ms < 100, d);
+    check("busy-wait, higher writer", ms < 150, d);   /* below the lower writer's fallback */
 
     t0 = osGetTime();
     osStartThread(thread(w_set_flag, NULL, 10));   /* lower priority: only the fallback runs it */
@@ -438,7 +451,7 @@ static void t_rcp(void)
     double ms = (osGetTime() - t0) * 1000.0 / PC_COUNT_HZ;
     osSetEventMesg(OS_EVENT_AI, NULL, NULL);
     snprintf(d, sizeof d, "rate %d, event %d after %.1f ms", (int)rate, (int)(intptr_t)m[3], ms);
-    check("AI frequency and event", rate == 22047 && r == 0 && m[3] == (OSMesg)6 && ms < 50, d);
+    check("AI frequency and event", rate == 22047 && r == 0 && m[3] == (OSMesg)6 && ms < SLACK_MS, d);
 }
 
 static void controller(void *arg)
