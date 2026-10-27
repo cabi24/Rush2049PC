@@ -32,9 +32,35 @@ static __inline__ void pc_be16_set(void *p, unsigned short v) {
     b[1] = (unsigned char)v;
 }
 
+/* A colour word as the N64 holds it in a register, 0xRRGGBBAA: the word whose bytes in host memory are R, G, B, A.
+ * That is how the game's byte readers (the model draw's prim and env, the fill and font colours) and the renderer
+ * take a colour. For a word the game stores into colour storage that is read as bytes: a constant, or a colour read
+ * from data the PC loader swapped as a u32 (docs/port/ENDIAN.md). Each game file that uses it defines the N64 side:
+ *     #ifndef TARGET_PC
+ *     #define PC_RGBA(x) x
+ *     #endif */
+#define PC_RGBA(x) __builtin_bswap32(x)
+
 /* N64 addresses (K0, K1 or physical) the game computes as integers, and back (port/ultra). */
 void *pc_n64_ptr(unsigned int n64_addr);
 unsigned int pc_n64_addr(const void *host);
+
+/* A pointer stored as a 32-bit N64 address: the u32 fields of records that keep their N64 layout (each file's
+ * N64W(x) is PC_N64W(x)). That is right for RDRAM-window addresses only. A RUSH_CHECK_CASTS build
+ * (cmake -DRUSH_CHECK_CASTS=ON) checks every such store and stops at the first one that would drop the upper half
+ * of a host address, naming the source line (pc_cast_fail, port/ultra/castcheck.c; docs/port/CASTS.md). */
+#ifdef RUSH_CHECK_CASTS
+void pc_cast_fail(const char *file, int line, __UINTPTR_TYPE__ value) __attribute__((weak));
+static __inline__ unsigned int pc_n64w_checked(__UINTPTR_TYPE__ v, const char *file, int line)
+{
+    if (v >> 16 >> 16)
+        pc_cast_fail(file, line, v);   /* weak: a program without port/ultra faults here */
+    return (unsigned int)v;
+}
+#define PC_N64W(x) pc_n64w_checked((__UINTPTR_TYPE__)(x), __FILE__, __LINE__)
+#else
+#define PC_N64W(x) ((unsigned int)(__UINTPTR_TYPE__)(x))
+#endif
 
 /* Statements only one build has, placed on a line the function already has, so its lines stay as IDO
  * compiles them (tools/port/n64_neutral.py). Each game file that uses them defines the N64 side itself:

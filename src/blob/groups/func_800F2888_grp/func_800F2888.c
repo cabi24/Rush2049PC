@@ -3,6 +3,10 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 typedef struct {
     u8 pad00[8];
@@ -20,7 +24,15 @@ typedef struct {
 
 extern s16 active_player_count;
 extern InputRecord input_rec0[];
+#ifdef TARGET_PC
+/* Each player's name slot (an index into D_80151968, -1 for none) or profile handle (&D_80146150[n], host storage),
+ * pointer-sized on the PC like the high-score table gTotalNames it is copied into (docs/port/CASTS.md). */
+extern intptr_t D_801424F0[];
+#define NO_NAME (-1)
+#else
 extern s32 D_801424F0[];
+#define NO_NAME 0xFFFFFFFF
+#endif
 extern s8 D_80143F18[];
 extern char D_80143A50[][13];
 extern s16 D_80144010[];
@@ -45,7 +57,7 @@ void func_800F2888(void)
         if ((*profile)->unk08 == 0) {
             D_801424F0[i] = D_801148D4[input_rec0[i].active];
         } else {
-            D_801424F0[i] = (s32)profile;
+            D_801424F0[i] = (intptr_t)profile;
         }
         for (j = 0; j < 3; j++) {
             for (k = 0; k < 5; k++) {
@@ -60,7 +72,7 @@ void func_800F2888(void)
         if ((*profile)->unk08 == 0) {
             D_80143F18[i] = 1;
             D_80144010[i] = -1;
-            if (D_801424F0[i] == 0xFFFFFFFF) {
+            if (D_801424F0[i] == NO_NAME) {
                 memset(D_80143A50[i], 0, 13);
             } else {
                 func_800A473C(D_80143A50[i], D_80151968[D_801424F0[i]]);

@@ -138,7 +138,7 @@ typedef struct tModelData {
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_CarParams: (CarParams *)(uintptr_t)(x), enum n64p__tCar: (_tCar *)(uintptr_t)(x), default: (x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

@@ -102,7 +102,7 @@ typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
 extern CamTbl D_80117530[];
 #ifdef TARGET_PC
 #define N64P(x) _Generic((x), enum n64p_Camera: (struct Camera *)(uintptr_t)(x), enum n64p_CamCtl: (struct CamCtl *)(uintptr_t)(x), enum n64p_CamScene: (struct CamScene *)(uintptr_t)(x), enum n64p_CamKey: (CamKey *)(uintptr_t)(x), default: (x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

@@ -162,7 +162,7 @@ typedef struct Slot136 { s32 object[3]; u8 gap12[122]; s16 active; } Slot136;
 typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
 #define N64P(x) _Generic((x), enum n64p_Node: (Node *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), \
     enum n64p_u8: (u8 *)(uintptr_t)(x), default: (x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 /* A camera node's state (CamCtl, groups/camera_aspect_ratio) starts with its scene (a PTHD record) as a u32. */
 #define STATE_SCENE(s) (*(u32 *)N64P(s))
 #define SCENE_OF(s) ((Scene36 *)(uintptr_t)*(u32 *)N64P(s))

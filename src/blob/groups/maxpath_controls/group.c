@@ -159,7 +159,15 @@ extern volatile s16 D_80152768;
 extern s16 D_80154182, D_801527D8[];
 extern s8 D_80152744;
 extern s8 D_801543C8;
+#ifdef TARGET_PC
+/* PC: D_80120E50 is TB_DrawText's message, characters in the ROM. The PC loader fills initialized data by its
+ * declarations: as an s32 it would swap the first four (docs/port/ENDIAN.md). The rest up to the next symbol is
+ * copied as it is. */
+typedef struct PcText4 { char c[4]; } PcText4;
+extern PcText4 D_80120E50;
+#else
 extern s32 D_80120E50;
+#endif
 extern f32 D_801161D4[], D_801161E4[];
 extern f32 D_80153F28[], D_80153F48[], D_80153F68[];
 extern f32 D_80153F88[][3], D_80154138[][3];

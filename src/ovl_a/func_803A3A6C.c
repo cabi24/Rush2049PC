@@ -19,10 +19,20 @@ typedef struct Blit {
     s16 Top, Bot, Left, Right, Color; u16 reserved26;
     s32 (*AnimFunc)(struct Blit *); u32 AnimID;
 } Blit;
+#ifdef TARGET_PC
+/* PC: the record as cleanup_colortrace's Slot has it (kind, handle, angle, matrix, position, then the alpha byte),
+ * which the PC loader then fills element by element. Seen as matrix[16] it would swap the alpha byte with the
+ * three after it as one f32 (docs/port/ENDIAN.md). */
+typedef union MenuSlot {
+    float matrix[16];
+    struct { s32 x,y; float depth; float rest[12]; u8 alpha; u8 tail[3]; } state;
+} MenuSlot;
+#else
 typedef union MenuSlot {
     float matrix[16];
     struct { float x,y,depth; u8 rest[48]; u8 alpha; u8 tail[3]; } state;
 } MenuSlot;
+#endif
 typedef struct Color { u8 r,g,b,a; } Color;
 typedef struct ProjectContext {
     float rotation[3][3], position[3]; u8 opaque[104];

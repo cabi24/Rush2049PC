@@ -21,6 +21,10 @@ typedef short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct Record {        /* 0x60 per track */
@@ -50,10 +54,18 @@ typedef struct Profile {
     SaveBlock **save;          /* 0x2C */
 } Profile;
 
+#ifdef TARGET_PC
+/* gTotalNames on the PC: every slot is pointer-sized, a name index or a profile handle (docs/port/CASTS.md). */
+typedef struct Owner {         /* 0x3C per track (0x78 on the PC) */
+    intptr_t names[2][5];
+    Profile **who[5];          /* 0x28 */
+} Owner;
+#else
 typedef struct Owner {         /* 0x3C per track */
     u8 pad00[0x28];
     Profile **who[5];          /* 0x28 */
 } Owner;
+#endif
 
 typedef struct Player {        /* 0x4C */
     u8 car;                    /* 0x00 */

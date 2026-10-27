@@ -152,7 +152,7 @@ typedef struct Node {
 
 #ifdef TARGET_PC
 #define N64P(x) _Generic((x), enum n64p_Motion: (Motion *)(uintptr_t)(x), default: (x))
-#define N64W(x) ((u32)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

@@ -207,7 +207,12 @@ extern char *D_80117420;                         /* gPlayerNameChars */
 extern s16 D_80144010[];                         /* gNameSelect[p] */
 extern char D_80143A50[][13];                    /* gScoreName[p] */
 extern char D_801149A8[], D_801149AC[], D_801149B0[];   /* DrawName statics del$1225 "DEL", end$1226 "END", spc$1227 "SPC" */
+#ifdef TARGET_PC
+/* menu_save_options' Ghost: its link and file handle are pointer-sized on the PC (docs/port/CASTS.md). */
+typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;
+#else
 typedef struct Ghost { u8 pad0[10]; char name[22]; f32 time; } Ghost;   /* GC GHOST_DATA: name +10 (GC +0xe), time +32 */
+#endif
 extern Ghost **D_801461A8;                       /* gSavedGhost */
 extern Ghost **D_80146198[];                     /* gPakGhosts[pak] */
 extern s8 D_801460C0;                            /* gGhostPak */

@@ -35,6 +35,20 @@ typedef struct {
 #endif
 } Player;
 
+#ifdef TARGET_PC
+/* PC: the cheat flags gCheatState are s16[21] (cheatscr.c); the PC loader fills initialized data by its declarations,
+ * and bytes here, or past the end, would stay big-endian (docs/port/ENDIAN.md). */
+typedef struct {
+    s16 unk00[3];
+    s16 unk06;
+    s16 unk08[9];
+    s16 unk1A;
+    s16 unk1C;
+    s16 unk1E;
+    s16 unk20;
+    s16 unk22[4];
+} Rec164A4;
+#else
 typedef struct {
     u8 pad0[6];
     s16 unk06;
@@ -44,6 +58,7 @@ typedef struct {
     s16 unk1E;
     s16 unk20;
 } Rec164A4;
+#endif
 
 Player input_rec0[4];
 extern s8 D_80146108[];

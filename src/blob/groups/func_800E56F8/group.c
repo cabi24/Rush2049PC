@@ -3845,9 +3845,12 @@ void model_iteration(void);
 #ifdef TARGET_PC
 /* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
 #define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
+/* A ghost (menu_save_options' Ghost, 64 bytes on the PC) has its header handle at +0x38 (docs/port/CASTS.md). */
+#define GHOST_HEADER 0x38
 #else
 #define PAD0EC(a, x) a[x]
 #define CAR_OFS(n) n
+#define GHOST_HEADER 0x28
 #endif
 void func_800E56F8(s32 ipa_s4) {
     GameCar *temp_s2;
@@ -3860,7 +3863,7 @@ void func_800E56F8(s32 ipa_s4) {
     s32 temp_f6;
     s32 temp_lo;
     s32 temp_v0_2;
-    s32 temp_v1;
+    intptr_t temp_v1;
     s32 var_a0;
     s8 temp_v0;
     s32 var_v1;
@@ -3922,7 +3925,7 @@ void func_800E56F8(s32 ipa_s4) {
     } else if (M2C_FIELD(temp_s0_2, s16 *, 0x71C) != 0) {
         if (temp_s3 != NULL) {
             func_800E3724(temp_s0_2);
-            if ((state_word_a & 0x400000) && ((gameplay_mode != 2) || (temp_v1 = (&D_80152698)[M2C_FIELD(temp_s0_2, s16 *, 0x7C6)], (temp_v1 == 0)) || (M2C_FIELD(*M2C_FIELD(M2C_FIELD(temp_v1, void **, 0), void ***, 0x28), s8 *, 5) < 0))) {
+            if ((state_word_a & 0x400000) && ((gameplay_mode != 2) || (temp_v1 = (&D_80152698)[M2C_FIELD(temp_s0_2, s16 *, 0x7C6)], (temp_v1 == 0)) || (M2C_FIELD(*M2C_FIELD(M2C_FIELD(temp_v1, void **, 0), void ***, GHOST_HEADER), s8 *, 5) < 0))) {
                 temp_f6 = (s32) ((fabsf(M2C_FIELD(temp_s0_2, f32 *, 0x10)) + fabsf(M2C_FIELD(temp_s0_2, f32 *, 0x14))) + fabsf(M2C_FIELD(temp_s0_2, f32 *, 0x18)));
                 var_a0 = temp_f6;
                 if (gameplay_mode == 6) {

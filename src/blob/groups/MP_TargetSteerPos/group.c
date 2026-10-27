@@ -794,7 +794,13 @@ extern s32 D_8011027C;
 extern s32 D_80110280;
 extern s8 D_80110284;
 extern s32 D_80110288;
+#ifdef TARGET_PC
+/* PC: a byte flag, as every other file has it (func_800A4CB8.c); camera_transform only tests and clears it. The PC
+ * loader fills initialized data by its declarations, and as a word its byte would be the ROM's fourth. */
+extern s8 D_8011028C;
+#else
 extern s32 D_8011028C;
+#endif
 extern s32 D_80110290;
 extern s32 D_801102B4;
 extern s32 D_801102C0;
@@ -3770,7 +3776,7 @@ void camera_transform(void) {
     s32 temp_a2;
     s32 temp_t6;
     s32 temp_v0;
-    s32 temp_v0_2;
+    intptr_t temp_v0_2;
     s32 var_a1;
     s32 var_a1_2;
     s32 var_a1_3;
@@ -3839,7 +3845,7 @@ block_10:
                     if (var_s1_2 != NULL) {
                         do {
                             temp_s2 = M2C_FIELD(var_s1_2, s32 **, SFX_NODE_NEXT);
-                            if ((temp_v0_2 + var_s0_2) == M2C_FIELD(var_s1_2, s32 *, SFX_NODE_ENTRY)) {
+                            if ((temp_v0_2 + var_s0_2) == M2C_FIELD(var_s1_2, intptr_t *, SFX_NODE_ENTRY)) {
                                 func_8009211C(&D_80146160, var_s1_2);
                                 func_80091FBC(&D_80146138, var_s1_2, M2C_FIELD(&D_80146138, s32 **, 8));
                             }

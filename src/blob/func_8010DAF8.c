@@ -813,7 +813,7 @@ void func_8010DAF8(void *arg0) {
     if (v != NULL) {
         v->index = 0;
         v->func = M2C_FIELD(info, void (**)(void *, short), TINFO_OFS(0xC));
-        v->data = (u32) (uintptr_t) arg0;
+        v->data = PC_N64W(arg0);
         v->timeStamp = (f32) D_801249C0;
         M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFF9);
         v->next = D_801391F0;

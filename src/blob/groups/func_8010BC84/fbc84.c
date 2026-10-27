@@ -89,11 +89,22 @@ typedef struct Control {
 } Control;
 #endif
 
+#ifdef TARGET_PC
+/* PC: gPlayerRects' layout (pause.c's Rect: x, y, w, h, cx, cy as s32). x reads the low half of the s32 centre cx on
+ * the N64; here the whole word, which the s16 local takes the same. The PC loader fills initialized data by its
+ * declarations, and the bytes of the N64 view would stay big-endian (docs/port/ENDIAN.md). */
+typedef struct TPos {
+    s32 pad0[4];
+    s32 x;
+    s32 y;
+} TPos;
+#else
 typedef struct TPos {
     u8 pad0[18];
     s16 x;
     s32 y;
 } TPos;
+#endif
 
 extern OSMesgQueue D_801461D0;
 extern s32 D_801170FC;

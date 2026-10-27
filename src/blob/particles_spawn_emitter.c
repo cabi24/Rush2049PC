@@ -3800,10 +3800,17 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* D_80124FD0 holds each window's camera matrix (func_800A7D6C's pool in the game arena) as a 32-bit RDRAM-window
+ * address: zero-extend it into a pointer (docs/port/CASTS.md). */
+#define MTX_WORD u32
+#else
+#define MTX_WORD s32
+#endif
 void particles_spawn_emitter(s32 arg0)
 {
-  s32 *temp_v0;
-  s32 temp_v1;
+  MTX_WORD *temp_v0;
+  MTX_WORD temp_v1;
   void *temp_a1;
   temp_v0 = &(&D_80124FD0)[arg0];
   temp_v1 = *temp_v0;

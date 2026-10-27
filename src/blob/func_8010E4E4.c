@@ -69,7 +69,7 @@ typedef struct Obj {
 #ifdef TARGET_PC
 #define N64P(x) _Generic((x), enum n64p_Phys: (Phys *)(uintptr_t)(x), enum n64p_Model: (Model *)(uintptr_t)(x), \
     default: (x))
-#define N64W(x) ((unsigned int)(uintptr_t)(x))
+#define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x

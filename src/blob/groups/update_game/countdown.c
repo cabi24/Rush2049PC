@@ -69,7 +69,13 @@ typedef struct Model2056 {
 typedef struct Stunt120 { u8 pad00[20]; s32 totalPoints; u8 pad18[96]; } Stunt120;
 typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[104]; } Cam152;
 typedef struct Inner5 { u8 pad0[5]; s8 flag; } Inner5;
+#ifdef TARGET_PC
+/* A ghost (menu_save_options' Ghost): link, file and data handles before its header, pointer-sized on the PC
+ * (docs/port/CASTS.md). */
+typedef struct Ghost40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **header; } Ghost40;
+#else
 typedef struct Ghost40 { u8 pad0[40]; Inner5 **header; } Ghost40;
+#endif
 
 extern u32 state_word_a;        /* gGameState */
 extern u32 state_word_b;        /* gNewGameState */

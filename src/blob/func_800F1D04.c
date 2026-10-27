@@ -25,10 +25,14 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 extern u8 D_80151968[20][13];
 extern u16 D_80151A78[20];
-extern s32 gTotalNames[12][3][5];
+extern intptr_t gTotalNames[12][3][5];   /* a name slot or a profile handle (docs/port/CASTS.md) */
 extern s32 func_8008AD04(u8 *, u8 *);
 extern u8 *func_800A473C(u8 *, u8 *);
 
@@ -37,7 +41,7 @@ s16 func_800F1D04(u8 *name)
     s16 i, j, k;
     s16 references[20];
     s16 oldest, best;
-    s32 slot;
+    intptr_t slot;
     u32 victim;
 
     for (i = 0; i < 20; i++) {

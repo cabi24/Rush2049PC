@@ -109,6 +109,10 @@ expect there: 2576, `+= 0x50`, `+ 16`, the 12-byte DMA entries.
 
 ## 4. Pointer warnings
 
+2026-10-27: what is left is classified site by site in [CASTS.md](CASTS.md) (325 warnings: 191 in weak copies, the
+rest window addresses, small integers or unused values, 5 on the input and level-object records, 1 that needs the
+ROM), with the fixes of 4.3 and 4.4 and a run-time check of the u32 stores, `RUSH_CHECK_CASTS`.
+
 | | Total | Mine (`src/blob`, `src/ovl_a`, `src/ovl_b`) | `src/rom` (agent A) |
 |---|---:|---:|---:|
 | Start (`d28fbb3`) | 836 in 172 files | 758 | 78 |
@@ -165,11 +169,9 @@ declared with pointer types today, so on PC they are larger than the data; Phase
 
 m2c output that reaches fields as `*(T *)(p + 0x..)` or `M2C_FIELD(expr, T *, off)`. The warnings mark integers
 holding pointers; the offsets themselves are N64 layout and wrong wherever the record has pointers before them.
-`particles_spawn_emitter`,
-`listener_position_set`, `func_800F42C8`, `func_80095F8C` and its copy in `pointer_counters/group.c`,
-`camera_smooth_lerp` (50 pointer slots as `s32`), `audio_frame*/group.c` (`+0x28` of a node), and the `M2C_FIELD`
-users `PhysicsObjectList_Update`, `entity_flag_check/group.c` (20), `func_800949D4`, `credits_scroll_grp/gr3_e.c` (a
-weak copy). `UpdateActiveObjects`, `menu_confirm_dialog`, `func_8008AE2C`, `func_800A3598`/`35BC`/`35F8` and
+`particles_spawn_emitter`, `camera_smooth_lerp` (50 pointer slots as `s32`) and `PhysicsObjectList_Update` are done
+(CASTS.md 2); `func_800F42C8` reads the input records (another part's); `func_800949D4` never runs;
+`entity_flag_check/group.c` (20) and `credits_scroll_grp/gr3_e.c` are weak copies. `UpdateActiveObjects`, `menu_confirm_dialog`, `func_8008AE2C`, `func_800A3598`/`35BC`/`35F8` and
 `func_800A79DC` are done (section 9). The car record's raw offsets (`save_load_data`, `func_800B27E4`,
 `func_800E56F8/group.c` and the others) go through `CAR_OFS` now, and the model record keeps its N64 layout:
 [CARS.md](CARS.md).
@@ -178,10 +180,12 @@ weak copy). `UpdateActiveObjects`, `menu_confirm_dialog`, `func_8008AE2C`, `func
 
 - `func_8008D870(handle, (s32)tex, -1)`: done, section 9.2.
 - `D_801424F0`, `gTotalNames`, `audio_channel_priority`: slots that hold either a name index or a profile pointer.
+  Done: pointer-sized in every live view (CASTS.md 2.1).
 - `D_8014A118` (0x4C-byte player records): `.message`, `.object`, `.name` hold pointers as `s32`, through six struct
   views in 38 files.
 - `d5e64.c` (`Definition32.object`, `-1` or a pointer), `menu_save_options/group.c` (`(u32)player << 3 | pak` into
-  save data), `blast.c` (`camera_collision_check`'s int second argument).
+  save data), `blast.c` (`camera_collision_check`'s int second argument): harmless (a dead store, a 32-bit id,
+  an argument `camera_target_track` never reads; CASTS.md 5.1).
 
 ### 4.5 Not mine
 
@@ -437,9 +441,9 @@ have PC versions. 18 views agree. Test: `assets_pak`.
   callback entries with a -1 name (sound_control.c, NewMultiBlit), so on the PC such an entry is taken for a
   texture name: InitBlit looks the name up at 0xFFFFFFFF. The loader should sign-extend -1 in pointer fields
   (port/data, not changed here). `assets_blit` uses the value the loader should produce.
-- **Colours as words.** Nodes and sprites keep RGBA in a u32 that some writers fill from integer constants and the
-  model draw reads as bytes (`prim[4]`). On a little-endian host a constant like `0xRRGGBBAA` stored as a word reads
-  back as A, B, G, R. Copies of byte-built colours are fine. Not a pointer question; not changed.
+- **Colours as words.** Nodes and sprites keep RGBA in a u32 that some writers fill from words and the model draw
+  reads as bytes (`prim[4]`). Copies of byte-built colours are fine; the words that came from the ROM are now
+  `PC_RGBA`, and colour unions in initialized data are the loader's union rule ([ENDIAN.md](ENDIAN.md) 3.2, 4).
 - **Records still disagreeing in race-time code** (`view_check` over all own-storage symbols): the level-object
   kinds `D_80117530` (7 views), car lights and exhaust `D_8017A510` (4), the level-object node pool `D_80143FC8`
   (130 records of 112 bytes, several model views with pointers at different places; its element size is still the

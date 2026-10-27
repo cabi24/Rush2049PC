@@ -37,7 +37,8 @@ typedef struct Coin {
     s16 number;         /* 74 */
 } Coin;
 #ifdef TARGET_PC
-/* PC: index is the handle's low half, which comes first on a little-endian host (docs/port/POINTERS.md 10). */
+/* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
+ * on a little-endian host (docs/port/ENDIAN.md). */
 typedef union Id { s32 handle; struct { s16 index, high; } part; } Id;
 #else
 typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
@@ -45,7 +46,8 @@ typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
 #ifdef TARGET_PC
 /* PC: node is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data the target, a
  * level-object node, which keeps its N64 layout: both as 32-bit window addresses, as is the target's state, the
- * coin (a heap record of its category) (docs/port/CARS.md, POINTERS.md 10). */
+ * coin (a heap record of its category) (docs/port/CARS.md, POINTERS.md 10). The low half of the coin's s32
+ * model handle comes first. */
 enum n64p_Coin { n64p_Coin_ };
 enum n64p_Entity { n64p_Entity_ };
 typedef struct Entity {
@@ -58,7 +60,7 @@ typedef struct Entity {
     u8 pad68[40];
     enum n64p_Coin coin; /* 108 */
 } Entity;
-typedef struct EntityHdr { u8 pad0[2]; s16 handle; } EntityHdr;
+typedef struct EntityHdr { s16 handle; u8 pad2[2]; } EntityHdr;
 typedef struct Node { void *next; u8 pad8[8]; enum n64p_Entity entity; } Node;
 #define N64P(x) _Generic((x), enum n64p_Coin: (Coin *)(uintptr_t)(x), enum n64p_Entity: (Entity *)(uintptr_t)(x), \
     default: (x))
@@ -90,6 +92,11 @@ typedef struct Player { u8 pad0[860]; s8 slot; u8 pad861[91]; } Player;
 #endif
 extern s32 D_801170FC;
 extern u32 D_80118E14, D_80118E18;
+/* PC: the gold and silver colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
+ * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
+#ifndef TARGET_PC
+#define PC_RGBA(x) x
+#endif
 extern s32 D_80151610, D_80151964;
 extern u8 gNumModels;
 extern s16 D_8014A108;
@@ -143,8 +150,8 @@ void func_8010E0FC(Node *node, s16 update)
         return;
     }
     if (!(entity->flags & 1)) {
-        gold[0] = D_80118E14;
-        silver[0] = D_80118E18;
+        gold[0] = PC_RGBA(D_80118E14);
+        silver[0] = PC_RGBA(D_80118E18);
         if (entity->flags & 0x40) {
             number = D_80151610 + 8;
             coin->number = number;

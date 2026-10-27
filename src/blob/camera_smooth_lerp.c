@@ -2265,7 +2265,11 @@ extern s32 D_8013C098;
 extern s32 D_8013C128;
 extern s32 D_8013C228;
 extern s32 D_8013C234;
+#ifdef TARGET_PC
+extern void *D_8013C238[50];   /* gBlastMats: blast.c's tBlastMat, one matrix pointer an entry */
+#else
 extern s32 D_8013C238;
+#endif
 extern s32 D_8013C300;
 extern s32 D_8013C304;
 extern s32 D_8013C308;
@@ -3801,6 +3805,15 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* The 50 blast matrices func_800A7D6C hands out are kept as pointers, 8 bytes an entry on the PC
+ * (docs/port/CASTS.md). */
+#define BLAST_MAT(p, i) (((void **) (p))[i])
+#define BLAST_MAT_PTR
+#else
+#define BLAST_MAT(p, i) *((s32 *) (p + i * 4))
+#define BLAST_MAT_PTR (s32)
+#endif
 void camera_smooth_lerp(void)
 {
   s16 i;
@@ -3808,7 +3821,7 @@ void camera_smooth_lerp(void)
   u8 *p2;
   u8 *p3;
   p = (u8 *) (&D_8013C238);
-  for (i = 0; i < 50; i++) { *((s32 *) (p + i * 4)) = (s32) func_800A7D6C(); }
+  for (i = 0; i < 50; i++) { BLAST_MAT(p, i) = BLAST_MAT_PTR func_800A7D6C(); }
   p2 = (u8 *) (&D_80154FD8);
   p3 = (u8 *) (&D_80154660);
   for (i = 0; i < 6; i++) {
