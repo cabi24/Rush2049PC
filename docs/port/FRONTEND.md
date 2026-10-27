@@ -126,7 +126,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   1. the defaults;
   2. the file;
   3. the environment variables other parts already read: `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
-     `RUSH_GFX_WIDESCREEN`;
+     `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`;
   4. a press file's `pak on|off`;
   5. command-line options, in order.
 - **Bad values.** A bad line in the file, or a bad environment value, is reported with its line and skipped.
@@ -147,6 +147,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `video.width`, `video.height` | 640, 480 | `--size WxH` | window size |
 | `video.fullscreen` | off | `--fullscreen` | start in desktop fullscreen |
 | `video.vsync` | on | | swap interval 1 or 0 |
+| `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
 | `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8, or auto: the largest whole multiple the window holds, so the frame is drawn at the size it is shown (`RUSH_GFX_SCALE`) |
 | `video.api` | gles | | `gles` or `gl` (`RUSH_GFX_API`) |
 | `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
@@ -181,8 +182,9 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - The environment variables `RUSH_GFX_HEIGHT`, `RUSH_GFX_VERBOSE`, `RUSH2049_DUMP_AUDIO`, `RUSH2049_AUDIO_RATE`
   and `RUSH2049_ALSA_DEVICE` stay environment-only, as do `--dump-audio` and the run-limit options.
 - **How settings reach the parts.**
-  - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`
-    and `RUSH_GFX_WIDESCREEN` to the resolved values before `pc_gfx_init`.
+  - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
+    `RUSH_GFX_WIDESCREEN` and `RUSH_GFX_FRAME_RATE` to the resolved values before `pc_gfx_init`. The main loop asks
+    port/gfx for the frame rate in effect (`pc_gfx_frame_rate`) at each pass, so the overlay's change applies at once.
   - The window size goes to `pc_gfx_init`.
   - Vsync, fullscreen, the title and the minimum size are set by port/input on the SDL window.
   - main sets the volume with `pc_audio_set_volume` after `pc_audio_init`.
@@ -234,6 +236,7 @@ restart.
 | | Internal scale: auto, 1-8 | `video.scale` | from the next frame (`pc_gfx_set_scale`) |
 | | Fullscreen | `video.fullscreen` | at once; opening the overlay takes F11's state |
 | | Vsync | `video.vsync` | at once (the swap interval) |
+| | Frame rate: original, 60, 120, 144, display | `video.frame_rate` | at once (`pc_gfx_set_frame_rate`): frames between the game's from the next two it draws |
 | | Window size: 640x480 to 2560x1440 | `video.width`, `height` | at once when windowed (`SDL_SetWindowSize`); headless, the size the auto settings follow |
 | | Pause in background | `video.pause_on_focus_loss` | at once |
 | | Graphics API * | `video.api` | after a restart: the GL context and its shaders are made at start |
@@ -313,7 +316,7 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.sdl.rumble` | `... rumble` | the motor drives the pad's rumble callback at full strength, only on that player; a steady rumble outlives SDL's 1 s duration; the fade over 4 retraces; a pulsed motor stays at least half; strength from the settings; another player's motor; stopped at shutdown; strength 0 |
 | `frontend.sdl.script` | `... script` | `--press` merged over live input: buttons OR'ed, a scripted stick axis replaces the live one, a scripted port connected; `--log-input` runs |
 | `frontend.menu.nav` | `frontend_menu_test nav` | the overlay, headless: opening holds the game and its pads read idle; the panel shows over the frame (the frame dimmed around it, the selected row's color); moving and wrapping, pages, a long page scrolled by a page, back, close; closed, the window is the frame again byte for byte, and so is the next frame; each page keeps its place; Quit stops the main loop |
-| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s |
+| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s |
 | `frontend.menu.save` | `... save` | `pc_ini_update`: a value replaced in place (key case, spacing, the inline comment kept), the last of two lines, a new key after its section's last, an empty section, a new section after a last line without its end, CRLF, a binding, quoting, a BOM and bad lines kept, no changes; the overlay's Save over a hand-written file: the expected text exactly, a setting changed and back not written, the command line's scale not written, nothing more to save, the file reads back; a missing file and its directories, written whole |
 | `frontend.menu.script` | `... script` | a `--press` script over time: MENU opens it, a press held across the opening doesn't act, the game's pads are idle meanwhile, DOWN, A, LEFT (the volume), B, the stick, START closes; scripted game input works after |
 | `frontend.sdl.menu` | `frontend_sdl_test menu` | the overlay through the real window: F1 opens it, the game's held key released and its input suppressed, the title; (not on Windows) the panel in the window; arrows, Enter, a key captured (Space; Comma by its alias); Escape goes back and doesn't quit; the game then has the new keys; Enter that closed it and its key repeat aren't START until released; a virtual pad: one stick click doesn't open it, both do; the D-pad, A, a button and a stick direction captured, B, Start closes it and stays ignored until released, Y now A; guide as the menu button opens and closes it and isn't a game button; fullscreen from the overlay at once; F11 works in it and the overlay follows |

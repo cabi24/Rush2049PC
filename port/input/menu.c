@@ -7,7 +7,7 @@
  * and drawn again after each change (pc_gfx_redraw).
  *
  * - Changes apply at once where the part allows it: the renderer's widescreen and scale (from the game's next
- *   frame), the window's size, fullscreen and vsync, the volume, and everything port/input reads (bindings,
+ *   frame) and frame rate, the window's size, fullscreen and vsync, the volume, and everything port/input reads (bindings,
  *   hotkeys, sticks, rumble). The graphics API and the audio backend apply after a restart; they are marked so.
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
@@ -56,6 +56,7 @@ static Page pages[NUM_PAGES];
 static const char *const onoff[] = {"off", "on", NULL};
 static const char *const wide_choices[] = {"off", "auto", "16:10", "16:9", "21:9", NULL};
 static const char *const scale_choices[] = {"auto", "1", "2", "3", "4", "5", "6", "7", "8", NULL};
+static const char *const rate_choices[] = {"original", "60", "120", "144", "display", NULL};
 static const char *const api_choices[] = {"gles", "gl", NULL};
 static const char *const backend_choices[] = {"auto", "sdl", "alsa", "null", "wav", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
@@ -92,6 +93,7 @@ static void build(void)
     add(P_VIDEO, I_CHOICE, "Internal scale", "video", "scale")->choices = scale_choices;
     add(P_VIDEO, I_CHOICE, "Fullscreen", "video", "fullscreen")->choices = onoff;
     add(P_VIDEO, I_CHOICE, "Vsync", "video", "vsync")->choices = onoff;
+    add(P_VIDEO, I_CHOICE, "Frame rate", "video", "frame_rate")->choices = rate_choices;
     add(P_VIDEO, I_WINDOW, "Window size", "video", "width")->choices = window_choices;
     add(P_VIDEO, I_CHOICE, "Pause in background", "video", "pause_on_focus_loss")->choices = onoff;
     it = add(P_VIDEO, I_CHOICE, "Graphics API", "video", "api");
@@ -222,6 +224,8 @@ static void apply(const char *section, const char *key)
             pc_input_live_fullscreen(s->fullscreen);
         else if (!strcasecmp(key, "vsync"))
             pc_input_live_vsync(s->vsync);
+        else if (!strcasecmp(key, "frame_rate"))
+            pc_gfx_set_frame_rate(s->frame_rate);
         else if (!strcasecmp(key, "width") || !strcasecmp(key, "height"))
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))

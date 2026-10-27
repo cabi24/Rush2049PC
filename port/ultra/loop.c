@@ -11,6 +11,12 @@
  * virtual (timer.c): the waits move it instead of sleeping, and a run whose clock stops moving for 30 s of real
  * time (a thread computing for ever) is stopped as hung.
  *
+ * A high frame rate (video.frame_rate, docs/port/GFX.md "High frame rate"): port/gfx then shows nothing at the
+ * retraces; the loop calls pc_gfx_present_tick that many times a second instead, in step with the retraces, with
+ * the moment in retraces, and port/gfx shows the swapped-in frame or one drawn between two. The ticks post nothing
+ * to the game, so its timing is the same. With --fast they are not deadlines either: they run when the loop wakes
+ * for something else, so the virtual clock stops at the same moments with the setting on or off.
+ *
  * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts follow the system
  * timer (15.6 ms by default), and winpthreads' are 15.6 ms steps whatever the period: the scheduler's own waits use
  * high-resolution timers (sched.c), and the loop asks for a 1 ms period for the rest (SDL's waits). */
@@ -46,15 +52,28 @@ static void on_signal(int sig)
 static uint32_t (*g_game_state)(void);
 static void (*g_game_info)(char *, size_t);
 
+/* The game's state word and its state-log values, read when a retrace is due before the loop does anything
+ * else: with --fast every N64 thread waits then (pc_os_wait_main), so the log, the status lines and --until-state
+ * see the same values in every run; read after the retrace's event they would race the threads it wakes. */
+static uint32_t g_snap_state;
+static char g_snap_info[160];
+
+static void snapshot(void)
+{
+    if (g_game_state)
+        g_snap_state = g_game_state();
+    if (g_game_info)
+        g_game_info(g_snap_info, sizeof g_snap_info);
+}
+
 static void status(const char *tag)
 {
     char state[192] = "";
     if (g_game_state)
-        snprintf(state, sizeof state, " state=0x%08X", (unsigned)g_game_state());
+        snprintf(state, sizeof state, " state=0x%08X", (unsigned)g_snap_state);
     if (g_game_info) {
         size_t n = strlen(state);
-        snprintf(state + n, sizeof state - n, ": ");
-        g_game_info(state + n + 2, sizeof state - n - 2);
+        snprintf(state + n, sizeof state - n, ": %s", g_snap_info);
     }
     fprintf(stderr, "rush2049pc: %s t=%.1fs vi=%u gfx_tasks=%u audio_tasks=%u%s\n", tag, pc_host_ns() / 1e9,
             pc_frame, pc_rcp_gfx_tasks, pc_rcp_audio_tasks, state);
@@ -65,16 +84,14 @@ static void status(const char *tag)
 static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
 {
     static uint32_t last, seen, first, entered;
-    uint32_t s = g_game_state();
+    uint32_t s = g_snap_state;
     if (!seen)
         first = s;
     entered |= s != first;
     if (s != last || !seen) {
-        char info[160] = "";
-        if (opt->game_info) {
-            info[0] = ':', info[1] = ' ';
-            opt->game_info(info + 2, sizeof info - 2);
-        }
+        char info[164] = "";
+        if (opt->game_info)
+            snprintf(info, sizeof info, ": %s", g_snap_info);
         fprintf(stderr, "rush2049pc: game state 0x%08X (was 0x%08X) at vi %u, after %u graphics tasks%s\n",
                 (unsigned)s, (unsigned)last, pc_frame, pc_rcp_gfx_tasks, info);
         last = s, seen = 1;
@@ -132,6 +149,13 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint32_t shot_vi = 0, frames_vi = 0;   /* the retrace at which each limit was reached */
     uint32_t until_gfx = 0;                /* --until-state: the graphics task to run to, once the state is seen */
     uint64_t last_vi_real = pc_real_ns();  /* --fast: when the last retrace was, in real time */
+    uint64_t vi_at = next_vi - vi_ns;      /* when retrace pc_frame was due */
+    uint64_t next_tick = 0;                /* a high frame rate: the next frame to show; 0 to start again */
+    uint64_t tick_ns = 0;                  /* how long showing one takes, in real time (a running mean) */
+    uint32_t ticks_skipped = 0;            /* frames not shown, to keep the game's retraces on time */
+    uint32_t vi_dropped = 0;               /* retraces the loop fell a whole period or more behind on */
+    uint64_t late_at[2] = {0, 0};          /* real time of the last two retraces dropped (the loop fell behind) */
+    int tick_rate = 0;
     g_game_state = opt->game_state;
     g_game_info = opt->game_info;
     signal(SIGINT, on_signal);
@@ -147,9 +171,12 @@ int pc_ultra_run(const PcRunOptions *opt)
         if (pc_input_paused()) {
             hold();
             next_vi = pc_host_ns() + vi_ns;
+            next_tick = 0;
             continue;
         }
         uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
+        if (now >= next_vi)
+            snapshot();
         uint64_t timer = pc_timer_service(ticks);
         if (timer && timer > ticks && now + pc_ticks_to_ns(timer - ticks) < deadline)
             deadline = now + pc_ticks_to_ns(timer - ticks);
@@ -169,6 +196,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                 pc_quit = 1;
             pc_input_poll(pads);
             pc_si_set_pads(pads);
+            pc_gfx_retrace(pc_frame);
             pc_vi_retrace(&fb);
             if (fb)
                 pc_gfx_present(fb);
@@ -196,8 +224,13 @@ int pc_ultra_run(const PcRunOptions *opt)
                 break;
             }
             next_vi += vi_ns;
-            if (next_vi <= now)   /* stalled (a debugger, a slow frame): resynchronize */
+            if (next_vi <= now) {   /* stalled (a debugger, a slow frame): resynchronize */
+                vi_dropped += (uint32_t)((now - next_vi) / vi_ns + 1);
                 next_vi = now + vi_ns;
+                late_at[0] = late_at[1];   /* when the last two were */
+                late_at[1] = pc_real_ns();
+            }
+            vi_at = next_vi - vi_ns;
             deadline = next_vi;
             if (now >= next_flush) {
                 pc_si_flush();
@@ -217,12 +250,46 @@ int pc_ultra_run(const PcRunOptions *opt)
                 break;
             }
         }
+        int rate = pc_gfx_frame_rate();
+        if (rate > 0) {   /* a high frame rate: a frame shown, in step with the retraces */
+            uint64_t period = 1000000000u / (uint64_t)rate, t = pc_host_ns();
+            if (!next_tick || rate != tick_rate)
+                next_tick = vi_at;
+            tick_rate = rate;
+            if (t >= next_tick && !pc_time_virtual() && pc_rcp_pending()) {
+                deadline = t;   /* the game first: its task runs in the next pass, then this frame */
+            } else if (t >= next_tick) {
+                /* On the host's clock a frame is skipped (the screen keeps the last one) when drawing it would run
+                 * into the next retrace, by how long the last ones took: the frames between never delay the
+                 * game's retraces or frames, which would slow the game in real time. */
+                if (pc_time_virtual() || t + tick_ns <= next_vi) {
+                    /* the mode: exact with --fast; else the GPU's spare time only; and only the game's frames
+                     * while the host is behind (two retraces dropped within a second) */
+                    uint64_t r0 = pc_real_ns();
+                    int mode = pc_time_virtual() ? 0 : late_at[0] && r0 - late_at[0] < 1000000000u ? 2 : 1;
+                    pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, mode);
+                    tick_ns = (tick_ns * 3 + (pc_real_ns() - r0)) / 4;
+                } else {
+                    ticks_skipped++;
+                }
+                next_tick += period;
+                if (next_tick <= t)   /* behind (a slow frame, a blocking swap): skip to the next one due */
+                    next_tick += ((t - next_tick) / period + 1) * period;
+            }
+            if (!pc_time_virtual() && next_tick < deadline)
+                deadline = next_tick;
+        } else {
+            next_tick = 0;
+        }
         if (g_dump) {
             g_dump = 0;
+            snapshot();
             status("status");
             pc_os_dump_threads();
         }
+    wait:
         if (pc_time_virtual() && pc_real_ns() - last_vi_real > 30000000000u) {
+            snapshot();
             status("hung:");
             fprintf(stderr, "rush2049pc: --fast: no retrace for 30 s of real time: a thread computes without "
                     "waiting\n");
@@ -230,9 +297,13 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_quit = 1 + 1;
             break;
         }
-        pc_os_wait_main(deadline);
+        if (!pc_os_wait_main(deadline) && !pc_quit)
+            goto wait;   /* --fast: a thread still computes; the loop's work waits until it waits (sched.c) */
     }
     pc_si_flush();
+    if (tick_rate)
+        fprintf(stderr, "rush2049pc: frame rate %d: %u frames not shown to keep the retraces on time; %u retraces "
+                "late by a whole retrace or more (the host fell behind)\n", tick_rate, ticks_skipped, vi_dropped);
 #ifdef _WIN32
     timer_period(0);
 #endif

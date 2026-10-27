@@ -466,6 +466,12 @@ add_test(NAME app_firstrun COMMAND ${PC_PYTHON} ${PORT_TOOLS}/firstrun_check.py 
     --rom ${SYNTH_ROM})
 set_tests_properties(app_firstrun PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
 set_target_properties(test_romcheck test_app PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+# A high frame rate leaves the game's timing alone (docs/port/GFX.md "High frame rate"): three paths on the virtual
+# clock with video.frame_rate original and 120, their state and status lines compared line for line
+# (tools/port/hfr_check.py), and frames drawn between the game's in the second run.
+add_test(NAME hfr_timing COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr --require-drawn race2p drive demo)
+set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)

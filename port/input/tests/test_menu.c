@@ -261,6 +261,13 @@ static void test_live(void)
     act(PC_MENU_DOWN);
     act(PC_MENU_DOWN);
     act(PC_MENU_DOWN);
+    at("Video", "Frame rate", "original", "frame rate");
+    act(PC_MENU_RIGHT);
+    at("Video", "Frame rate", "60", "frame rate 60");
+    CHECK(pc_gfx_frame_rate() == 60, "the renderer's frame rate: %d", pc_gfx_frame_rate());
+    act(PC_MENU_LEFT);
+    CHECK(pc_gfx_frame_rate() == 0, "the game's own again: %d", pc_gfx_frame_rate());
+    act(PC_MENU_DOWN);
     at("Video", "Window size", "640x480", "window size");
     act(PC_MENU_RIGHT);
     at("Video", "Window size", "960x720", "a bigger window");
@@ -389,7 +396,7 @@ static void test_save(void)
     act_n(PC_MENU_DOWN, 3);
     act(PC_MENU_RIGHT);        /* vsync off, then on again: the same as the file, so not written */
     act(PC_MENU_RIGHT);
-    act(PC_MENU_DOWN);
+    act_n(PC_MENU_DOWN, 2);    /* past the frame rate */
     act(PC_MENU_RIGHT);        /* 800x600 isn't a choice: from the start of the list, 640x480 */
     at("Video", "Window size", "640x480", "window size");
     act(PC_MENU_BACK);

@@ -90,6 +90,14 @@ void pcgfx_sdl_size(int *w, int *h) {
     SDL_GL_GetDrawableSize(s_win, w, h);
 }
 
+int pcgfx_sdl_refresh(void) {
+    SDL_DisplayMode mode;
+    int d = s_win != NULL ? SDL_GetWindowDisplayIndex(s_win) : -1;
+    if (d < 0 || SDL_GetCurrentDisplayMode(d, &mode) != 0)
+        return 0;
+    return mode.refresh_rate;
+}
+
 void pcgfx_sdl_shutdown(void) {
     if (s_ctx != NULL)
         SDL_GL_DeleteContext(s_ctx);
