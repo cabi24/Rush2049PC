@@ -710,7 +710,15 @@ u8 func_8002279C(MacroState_8002279C *state, MacroCommand *command)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: the record func_80016CF0 fills and func_800146B4 reads, both with a pointer-sized, packed address field
+ * (a stream's host buffer in func_8001C580's call); here it holds the sample's cartridge address. */
+#pragma pack(1)
+typedef struct SampleInfo_80022874 { u32 info; void *address; u32 offset; u32 length; u32 loopStart; u32 loopLength; u8 type; } SampleInfo_80022874;
+#pragma pack()
+#else
 typedef struct SampleInfo_80022874 { u32 info; u32 address; u32 offset; u32 length; u32 loopStart; u32 loopLength; u8 type; } SampleInfo_80022874;
+#endif
 #pragma pack(1)
 typedef struct MacroState_80022874 { u8 unknown00[0x24]; u32 flags24; u8 unknown28[8]; u32 volume30; u8 unknown34[0x24]; u32 sampleAddress58; u32 sampleInfo5C; u32 identifier60; } MacroState_80022874;
 #pragma pack(0)
