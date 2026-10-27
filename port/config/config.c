@@ -126,7 +126,7 @@ const char *const pc_control_names[PC_NUM_CONTROLS] = {
 const uint16_t pc_control_masks[PC_NUM_CONTROLS] = {
     0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100, 0x0020, 0x0010, 0x0008, 0x0004, 0x0002,
     0x0001, 0, 0, 0, 0};
-const char *const pc_hotkey_names[PC_NUM_HOTKEYS] = {"fullscreen", "screenshot", "pause", "quit"};
+const char *const pc_hotkey_names[PC_NUM_HOTKEYS] = {"fullscreen", "screenshot", "pause", "quit", "menu"};
 
 int pc_control_find(const char *name)
 {
@@ -145,7 +145,10 @@ static const char *const default_keys[PC_NUM_CONTROLS] = {
 static const char *const default_pads[PC_NUM_CONTROLS] = {
     "a, righttrigger", "x, lefttrigger", "leftshoulder", "start", "dpup", "dpdown", "dpleft", "dpright",
     "back", "rightshoulder", "y, -righty", "b, +righty", "-rightx", "+rightx", "", "", "", ""};
-static const char *const default_hotkeys[PC_NUM_HOTKEYS] = {"F11", "F12", "Pause", "Escape"};
+static const char *const default_hotkeys[PC_NUM_HOTKEYS] = {"F11", "F12", "Pause", "Escape", "F1"};
+/* The controller's button for the settings overlay: both stick clicks together, which the game's bindings leave
+ * free (guide alone is often taken by the system: the Xbox Game Bar, Steam). */
+static const char *const default_pad_menu = "leftstick+rightstick";
 
 /* ---------------------------------------------------------------- the settings table */
 
@@ -194,6 +197,7 @@ static const Item items[] = {
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},
+    {"audio", "volume", T_INT, F(volume), 0, 100, NULL, "100", "Master volume, 0-100."},
 
     {"input", "keyboard_player", T_INT, F(keyboard_player), 0, 4, NULL, "1", "The keyboard's player, 1-4; 0 for none."},
     {"input", "first_controller_player", T_INT, F(first_controller_player), 1, 4, NULL, "1",
@@ -395,6 +399,7 @@ void pc_settings_defaults(PcSettings *s)
         snprintf(s->pad[i], PC_CFG_BIND, "%s", default_pads[i]);
     }
     s->analog = PC_CFG_STICK_LEFT;
+    snprintf(s->pad_menu, PC_CFG_BIND, "%s", default_pad_menu);
     for (int i = 0; i < PC_NUM_HOTKEYS; i++)
         snprintf(s->hotkey[i], PC_CFG_BIND, "%s", default_hotkeys[i]);
 }
@@ -417,6 +422,8 @@ int pc_settings_set(PcSettings *s, const char *section, const char *key, const c
             snprintf(why, why_size, "'%s' is not one of left, right, none", value);
             return -2;
         }
+        if (!strcasecmp(section, "controller") && !strcasecmp(key, "menu"))
+            return set_binding(&s->pad_menu, 0, value, why, why_size);
         if (c < 0) {
             snprintf(why, why_size, "no N64 control '%s'", key);
             return -1;
@@ -441,9 +448,27 @@ int pc_settings_set(PcSettings *s, const char *section, const char *key, const c
 int pc_settings_get(const PcSettings *s, const char *section, const char *key, char *out, size_t out_size)
 {
     const Item *it = find_item(section, key);
-    if (!it)
+    const char *v = NULL;
+    int c = pc_control_find(key);
+    if (it) {
+        format_item(s, it, out, out_size);
+        return 0;
+    }
+    if (!strcasecmp(section, "controller") && !strcasecmp(key, "analog"))
+        v = analog_choices[s->analog];
+    else if (!strcasecmp(section, "controller") && !strcasecmp(key, "menu"))
+        v = s->pad_menu;
+    else if (!strcasecmp(section, "keyboard") && c >= 0)
+        v = s->key[c];
+    else if (!strcasecmp(section, "controller") && c >= 0)
+        v = s->pad[c];
+    else if (!strcasecmp(section, "hotkeys"))
+        for (int i = 0; i < PC_NUM_HOTKEYS; i++)
+            if (!strcasecmp(key, pc_hotkey_names[i]))
+                v = s->hotkey[i];
+    if (!v)
         return -1;
-    format_item(s, it, out, out_size);
+    snprintf(out, out_size, "%s", v);
     return 0;
 }
 
@@ -542,6 +567,22 @@ int pc_settings_load_file(PcSettings *s, const char *path)
     return r;
 }
 
+static int quiet_entry(void *user, const char *section, const char *key, const char *value, int line)
+{
+    pc_settings_set(user, section, key, value, NULL, 0);
+    return 0;
+}
+
+int pc_settings_read_quiet(PcSettings *s, const char *path)
+{
+    char *text = read_file(path);
+    if (!text)
+        return -1;
+    pc_ini_parse(text, quiet_entry, NULL, s);
+    free(text);
+    return 0;
+}
+
 int pc_settings_apply_env(PcSettings *s)
 {
     static const struct { const char *var, *section, *key; } env[] = {
@@ -586,13 +627,18 @@ static void put(Buf *b, const char *fmt, ...)
 
 /* A value that needs quotes to read back the same: empty is fine, but edge spaces or a comment character
  * after whitespace are not. */
-static void put_value(Buf *b, const char *v)
+static int needs_quotes(const char *v)
 {
     int quote = *v == ' ' || *v == '\t' || *v == '"' || (*v && (v[strlen(v) - 1] == ' ' || v[strlen(v) - 1] == '\t'));
     for (const char *c = v; *c && !quote; c++)
         if ((*c == ';' || *c == '#') && c > v && (c[-1] == ' ' || c[-1] == '\t'))
             quote = 1;
-    put(b, quote ? "\"%s\"\n" : "%s\n", v);
+    return quote;
+}
+
+static void put_value(Buf *b, const char *v)
+{
+    put(b, needs_quotes(v) ? "\"%s\"\n" : "%s\n", v);
 }
 
 static void put_comment(Buf *b, const char *text)
@@ -639,12 +685,17 @@ char *pc_settings_format(const PcSettings *s)
             "; L = leftshoulder, R = rightshoulder, righttrigger.\n"
             "; analog: the stick that is the N64 stick: left, right or none.\n");
     put(&b, "analog = %s\n", analog_choices[s->analog]);
+    put(&b, "; menu: what opens the settings overlay (not an N64 control): a button, or buttons held together\n"
+            "; joined by + (guide; back+start); empty for none.\n"
+            "menu = ");
+    put_value(&b, s->pad_menu);
     for (int i = 0; i < PC_NUM_CONTROLS; i++) {
         put(&b, "%s = ", pc_control_names[i]);
         put_value(&b, s->pad[i]);
     }
     put(&b, "\n[hotkeys]\n"
-            "; Keys (names as in [keyboard]). Alt+Enter also toggles fullscreen. A hotkey is not also a game key.\n");
+            "; Keys (names as in [keyboard]). Alt+Enter also toggles fullscreen. A hotkey is not also a game key.\n"
+            "; menu opens and closes the settings overlay.\n");
     for (int i = 0; i < PC_NUM_HOTKEYS; i++) {
         put(&b, "%s = ", pc_hotkey_names[i]);
         put_value(&b, s->hotkey[i]);
@@ -652,10 +703,9 @@ char *pc_settings_format(const PcSettings *s)
     return b.p;
 }
 
-int pc_settings_write(const PcSettings *s, const char *path)
+static int write_text(const char *path, const char *text)
 {
     char tmp[PC_CFG_PATH + 16];
-    char *text = pc_settings_format(s);
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
     FILE *f = fopen(tmp, "wb");
     int ok = f != NULL;
@@ -666,8 +716,15 @@ int pc_settings_write(const PcSettings *s, const char *path)
         if (!ok)
             unlink(tmp);
     }
-    free(text);
     return ok ? 0 : -1;
+}
+
+int pc_settings_write(const PcSettings *s, const char *path)
+{
+    char *text = pc_settings_format(s);
+    int rc = write_text(path, text);
+    free(text);
+    return rc;
 }
 
 /* ---------------------------------------------------------------- the file's location */
@@ -778,6 +835,201 @@ static int mkdirs(const char *dir)
 }
 #endif
 
+/* ---------------------------------------------------------------- saving in place */
+
+/* One line by pc_ini_parse's rules: 1 a section header (its name in name), 2 a setting (its key in name, and in
+ * v0..v1 the value's place in the line, quotes included), 0 anything else (blank, comment, malformed). n is the
+ * line's length without its line end. */
+static int ini_line(const char *line, size_t n, char *name, size_t name_size, size_t *v0, size_t *v1)
+{
+    char buf[2048];
+    if (n >= sizeof buf)
+        return 0;
+    memcpy(buf, line, n);
+    buf[n] = 0;
+    char *p = buf;
+    while (*p == ' ' || *p == '\t')
+        p++;
+    if (!*p || *p == '\r' || *p == ';' || *p == '#')
+        return 0;
+    if (*p == '[') {
+        char *close = strchr(p, ']');
+        char *rest = close ? trim(close + 1) : NULL;
+        if (!close || (*rest && *rest != ';' && *rest != '#'))
+            return 0;
+        *close = 0;
+        snprintf(name, name_size, "%s", trim(p + 1));
+        lower(name);
+        return 1;
+    }
+    char *eq = strchr(p, '=');
+    if (!eq)
+        return 0;
+    char *v = eq + 1, *e;
+    while (*v == ' ' || *v == '\t')
+        v++;
+    if (*v == '"') {
+        char *q = strchr(v + 1, '"'), *rest = q ? q + 1 : NULL;
+        while (rest && (*rest == ' ' || *rest == '\t' || *rest == '\r'))
+            rest++;
+        if (!q || (*rest && *rest != ';' && *rest != '#'))
+            return 0;
+        e = q + 1;
+    } else {
+        e = v + strlen(v);
+        for (char *c = v; *c; c++)   /* an inline comment needs whitespace before it */
+            if ((*c == ';' || *c == '#') && c > v && (c[-1] == ' ' || c[-1] == '\t')) {
+                e = c;
+                break;
+            }
+        while (e > v && (e[-1] == ' ' || e[-1] == '\t' || e[-1] == '\r'))
+            e--;
+    }
+    *v0 = (size_t)(v - buf);
+    *v1 = (size_t)(e - buf);
+    *eq = 0;
+    char *key = trim(p);
+    if (!*key)
+        return 0;
+    snprintf(name, name_size, "%s", key);
+    lower(name);
+    return 2;
+}
+
+typedef struct {
+    const char *p;          /* the line, without its line end */
+    size_t n, end;          /* its length; its line end's (0, 1 or 2 for CRLF) */
+    int kind;               /* ini_line's */
+    char section[64], key[64];
+    size_t v0, v1;
+} IniLine;
+
+static void put_setting(Buf *b, const char *key, const char *value, const char *eol)
+{
+    put(b, needs_quotes(value) ? "%s = \"%s\"%s" : "%s = %s%s", key, value, eol);
+}
+
+char *pc_ini_update(const char *text, const PcSettingValue *ch, int nch)
+{
+    Buf b = {malloc(4096), 0, 4096};
+    IniLine *lines = NULL;
+    int nlines = 0, cap = 0, *at = calloc((size_t)(nch > 0 ? nch : 1), sizeof *at);
+    char section[64] = "", name[64];
+    const char *eol = "\n";
+    b.p[0] = 0;
+    if ((unsigned char)text[0] == 0xEF && (unsigned char)text[1] == 0xBB && (unsigned char)text[2] == 0xBF) {
+        put(&b, "\xEF\xBB\xBF");
+        text += 3;
+    }
+    for (const char *t = text; *t;) {
+        const char *nl = strchr(t, '\n');
+        size_t n = nl ? (size_t)(nl - t) : strlen(t);
+        if (nlines == cap)
+            lines = realloc(lines, (size_t)(cap = cap * 2 + 64) * sizeof *lines);
+        IniLine *l = &lines[nlines++];
+        memset(l, 0, sizeof *l);
+        l->p = t;
+        l->end = nl != NULL;
+        if (nl && n && t[n - 1] == '\r')
+            n--, l->end = 2;
+        if (nlines == 1 && l->end == 2)
+            eol = "\r\n";   /* added lines follow the file's line ends */
+        l->n = n;
+        l->kind = ini_line(t, n, name, sizeof name, &l->v0, &l->v1);
+        if (l->kind == 1)
+            snprintf(section, sizeof section, "%s", name);
+        snprintf(l->section, sizeof l->section, "%s", section);
+        if (l->kind == 2)
+            snprintf(l->key, sizeof l->key, "%s", name);
+        t += n + l->end;
+    }
+    /* Where each change goes: the last line that sets it (the one that counts), as j >= 0; else after its
+     * section's last setting or header line, as -1 - j; else a new section at the end, as nlines. */
+    for (int i = 0; i < nch; i++) {
+        int set = -1, after = -1;
+        for (int j = 0; j < nlines; j++) {
+            if (strcasecmp(lines[j].section, ch[i].section))
+                continue;
+            if (lines[j].kind == 2 && !strcasecmp(lines[j].key, ch[i].key))
+                set = j;
+            if (lines[j].kind)
+                after = j;
+        }
+        at[i] = set >= 0 ? set : after >= 0 ? -1 - after : nlines;
+    }
+    for (int j = 0; j < nlines; j++) {
+        const IniLine *l = &lines[j];
+        int last = -1;
+        for (int i = 0; i < nch; i++)
+            if (at[i] == j)
+                last = i;   /* two changes to one setting: the later one */
+        if (last >= 0)
+            put(&b, needs_quotes(ch[last].value) ? "%.*s\"%s\"%.*s" : "%.*s%s%.*s", (int)l->v0, l->p,
+                ch[last].value, (int)(l->n - l->v1), l->p + l->v1);
+        else
+            put(&b, "%.*s", (int)l->n, l->p);
+        put(&b, "%.*s", (int)l->end, l->p + l->n);
+        int ended = l->end != 0;
+        for (int i = 0; i < nch; i++)
+            if (at[i] == -1 - j) {
+                if (!ended)
+                    put(&b, "%s", eol);   /* the file's last line had no line end */
+                ended = 1;
+                put_setting(&b, ch[i].key, ch[i].value, eol);
+            }
+    }
+    /* the sections the text lacks, each once, with their settings in order */
+    for (int i = 0; i < nch; i++) {
+        int first = at[i] == nlines;
+        for (int k = 0; k < i && first; k++)
+            first = !(at[k] == nlines && !strcasecmp(ch[k].section, ch[i].section));
+        if (!first)
+            continue;
+        if (b.n && b.p[b.n - 1] != '\n')
+            put(&b, "%s", eol);
+        put(&b, "%s[%s]%s", b.n ? eol : "", ch[i].section, eol);
+        for (int k = i; k < nch; k++)
+            if (at[k] == nlines && !strcasecmp(ch[k].section, ch[i].section))
+                put_setting(&b, ch[k].key, ch[k].value, eol);
+    }
+    free(lines);
+    free(at);
+    return b.p;
+}
+
+int pc_settings_save(const char *path, const PcSettingValue *ch, int n, char *why, size_t why_size)
+{
+    char scratch[160], dir[PC_CFG_PATH], *old = read_file(path), *text;
+    if (!why) {
+        why = scratch;
+        why_size = sizeof scratch;
+    }
+    why[0] = 0;
+    if (old) {
+        text = pc_ini_update(old, ch, n);
+        free(old);
+    } else {
+        /* no file yet: a whole one, as the first run writes it, with the changes */
+        PcSettings *s = malloc(sizeof *s);
+        pc_settings_defaults(s);
+        for (int i = 0; i < n; i++)
+            pc_settings_set(s, ch[i].section, ch[i].key, ch[i].value, NULL, 0);
+        text = pc_settings_format(s);
+        free(s);
+        dir_of(path, dir, sizeof dir);
+        if (mkdirs(dir) != 0) {
+            snprintf(why, why_size, "cannot make %s: %s", dir, strerror(errno));
+            free(text);
+            return -1;
+        }
+    }
+    int rc = write_text(path, text);
+    if (rc != 0)
+        snprintf(why, why_size, "cannot write %s: %s", path, strerror(errno));
+    free(text);
+    return rc;
+}
+
 /* ---------------------------------------------------------------- the layers */
 
 int pc_settings_resolve(PcSettings *s, int use_file, const char *path, const char *exe_dir,
@@ -786,6 +1038,11 @@ int pc_settings_resolve(PcSettings *s, int use_file, const char *path, const cha
     char located[PC_CFG_PATH], why[200];
     int rc = 0, exists = 0;
     pc_settings_defaults(s);
+    /* where the settings overlay saves: the file named, else the located one (with --no-config too) */
+    if (path)
+        snprintf(s->save_path, sizeof s->save_path, "%s", path);
+    else if (pc_config_locate(located, sizeof located, exe_dir, &exists) == 0)
+        snprintf(s->save_path, sizeof s->save_path, "%s", located);
     if (use_file && path) {
         if (pc_settings_load_file(s, path) < 0)
             fprintf(stderr, "rush2049pc: cannot read %s; using the defaults\n", path);
