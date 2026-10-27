@@ -185,31 +185,35 @@ static void test_layout(void)
     CHECK(CAR_OFS(0x3B8 + 0xF6) == sizeof(struct car) + 0xF6);
 }
 
-/* init_cars: clears both records of every car (all 0x468 bytes of a car) and sets them up from gLink. */
+/* init_cars: clears both records of every car (all 0x468 bytes of a car) and sets them up from gLink. Cars 0
+ * and 2 are humans: their input pointers are their input records, 80 bytes apart on the PC (POINTERS.md 10). */
 static void test_init_cars(void)
 {
     int k;
-    struct car *c0 = &D_80152818[0], *c1 = &D_80152818[1];
+    struct car *c0 = &D_80152818[0], *c1 = &D_80152818[1], *c2 = &D_80152818[2];
 
     memset(D_80152818, 0xAA, sizeof D_80152818);
-    memset(MODEL(0), 0x55, 0x808 * 2);
-    D_801543CA = 2;
+    memset(MODEL(0), 0x55, 0x808 * 3);
+    D_801543CA = 3;
     D_8014A108 = 1;
     D_80153E88[0 * 8 + 1] = 3, D_80153E88[0 * 8 + 5] = 1, D_80153E88[0 * 8 + 6] = 0x80, D_80153E88[0 * 8 + 7] = 6;
     D_80153E88[1 * 8 + 1] = 5, D_80153E88[1 * 8 + 5] = 2, D_80153E88[1 * 8 + 6] = 0x80, D_80153E88[1 * 8 + 7] = 2;
-    D_8014A118[66] = 0x21;                       /* the human's input record flags */
+    D_80153E88[2 * 8 + 1] = 4, D_80153E88[2 * 8 + 5] = 3, D_80153E88[2 * 8 + 6] = 0x80, D_80153E88[2 * 8 + 7] = 7;
+    D_8014A118[66] = 0x21;                       /* the humans' input record flags (+0x42) */
+    D_8014A118[2 * 80 + 66] = 0x42;
     D_8011F844[0][0] = 4.0f, D_8011F844[0][1] = 3.0f, D_8011F844[0][2] = 1.5f, D_8011F844[0][3] = 2.0f;
     D_80110D08[0] = (void *)(uintptr_t)DESC_AT;
     MF(D_80151CE8, 2, int16_t) = 0, MF(D_80151CE8, 8, int16_t) = 4;   /* Route first, count */
     world_physics_tick();
 
-    CHECK(c0->input == (void *)D_8014A118 && c1->input == NULL);
+    CHECK(c0->input == (void *)D_8014A118 && c1->input == NULL && c2->input == (void *)(D_8014A118 + 2 * 80));
+    CHECK(MF(MODEL(2), 9, int8_t) == 0x42 && MF(MODEL(2), 8, int8_t) == 4 && MF(MODEL(2), 0x7CC, int8_t) == 2);
     for (k = 0; k < 21; k++) {
         CHECK(c0->visuals[k].func == NULL && c0->visuals[k].objnum == -1 && c0->visuals[k].next == NULL);
         CHECK(c1->visuals[k].func == NULL && c1->visuals[k].objnum == -1 && c1->visuals[k].data == 0);
     }
     CHECK(c0->tail[sizeof c0->tail - 1] == 0 && c1->tail[sizeof c1->tail - 1] == 0);   /* the PC tail is cleared */
-    CHECK(D_80152818[2].head[0] == 0xAA);
+    CHECK(D_80152818[3].head[0] == 0xAA);
     CHECK(CF(c0, 0x35B, int8_t) == 0 && CF(c1, 0x35B, int8_t) == 1);                   /* slot */
     CHECK(CF(c0, 0xEE, int8_t) == 1 && CF(c1, 0xEE, int8_t) == 2);                     /* place */
     CHECK(CF(c0, 0x35E, int8_t) == 2 && CF(c0, 0x35C, int8_t) == -1 && CF(c0, 0x35D, int8_t) == 2);
