@@ -225,3 +225,5 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
   reviewed, the same kinds as on the Pi. With the union rule: 40 reviewed; the 2 open ones, in the car records
   `D_80152818` (BSS: bytes +0x4D and +0x4E set by `func_800E9234`, the word at +0x4C read), were there before it
   and are not the loader's.
+- On Windows (MSYS2, gcc 16) the detector finds none of its synthetic cases, so its GIMPLE-dump reading doesn't
+  fit that compiler yet; the `endian_check` test runs only `--check-loader` there. Run the detector on Linux.

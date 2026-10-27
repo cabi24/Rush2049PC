@@ -459,8 +459,15 @@ add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
 add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
 # tools/port/endian_check.py (docs/port/ENDIAN.md): the detector on its synthetic cases, and the loader's element
 # widths where game declarations were made to agree with how the game reads the data.
+# The detector's own cases need its reading of gcc's GIMPLE dumps, which finds none of them under MSYS2's gcc 16:
+# Windows runs the loader check only.
+if(WIN32)
+    set(ENDIAN_CHECK_ARGS --check-loader)
+else()
+    set(ENDIAN_CHECK_ARGS --selftest --check-loader)
+endif()
 add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_check.py --build ${CMAKE_BINARY_DIR}
-    --selftest --check-loader)
+    ${ENDIAN_CHECK_ARGS})
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
