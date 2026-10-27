@@ -50,7 +50,12 @@ typedef struct PaletteAnimation20 { void *owner; s16 first,last; s8 step; u8 act
 #define PAL_SET(entry, value) entry = value
 #endif
 typedef struct ObjectView { u8 before24[24]; TXHD_PTR(Gfx) commands; u32 flags; } ObjectView;
+#ifdef TARGET_PC
+/* PC: the frame's first word is its name, a pointer (camera_shake_start's Item12; docs/port/POINTERS.md 10). */
+typedef struct AnimationFrame12 { char *tag; ObjectView *object; Gfx *commands; } AnimationFrame12;
+#else
 typedef struct AnimationFrame12 { u32 tag; ObjectView *object; Gfx *commands; } AnimationFrame12;
+#endif
 typedef struct ObjectAnimation20 { s16 count,object_index,direction,index; f32 delay,interval; AnimationFrame12 *frames; } ObjectAnimation20;
 extern u32 D_801174B4;
 extern s8 D_80156994,D_8014978C;
