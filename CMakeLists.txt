@@ -94,6 +94,12 @@ target_compile_definitions(game_flags INTERFACE TARGET_PC)
 foreach(name main memcpy memset memchr strlen strchr sinf cosf)
     target_compile_definitions(game_flags INTERFACE ${name}=n64_${name})
 endforeach()
+# libultra's bzero, bcopy and bcmp take a 32-bit length, which the game's own prototypes declare as s32, int or
+# u32. The host's take a size_t, so a call through one of those prototypes would leave the length's upper half
+# undefined: the game calls port/ultra's 32-bit versions instead (libc.c).
+foreach(name bzero bcopy bcmp)
+    target_compile_definitions(game_flags INTERFACE ${name}=n64_${name})
+endforeach()
 target_include_directories(game_flags INTERFACE include include/game include/PR)
 # First include of every game file: pointer-sized integer types and big-endian helpers for the 64-bit host
 # (docs/port/POINTERS.md).
@@ -277,7 +283,8 @@ add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues,
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
 target_link_libraries(test_gsm_game PRIVATE game_flags)
 target_compile_options(test_gsm_game PRIVATE -w)
-add_executable(test_gsm port/ultra/tests/test_gsm.c port/ultra/gsm.c $<TARGET_OBJECTS:test_gsm_game>)
+add_executable(test_gsm port/ultra/tests/test_gsm.c port/ultra/gsm.c port/ultra/n64mem.c
+    $<TARGET_OBJECTS:test_gsm_game>)
 target_include_directories(test_gsm PRIVATE port/ultra)
 target_compile_options(test_gsm PRIVATE -std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter)   # -O2: 2 s, not 7
 target_compile_definitions(test_gsm PRIVATE GSM_KERNELS_S="${CMAKE_SOURCE_DIR}/asm/us/boot_data/kernels.s")
@@ -288,7 +295,8 @@ file(GLOB PC_ASSETS_TESTS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/test
 foreach(t ${PC_ASSETS_TESTS})
     get_filename_component(n ${t} NAME_WE)
     string(REGEX REPLACE "^test_" "" n ${n})
-    add_executable(test_assets_${n} ${t} port/assets/tests/support.c $<TARGET_OBJECTS:pcassets>)
+    add_executable(test_assets_${n} ${t} port/assets/tests/support.c port/ultra/n64mem.c
+        $<TARGET_OBJECTS:pcassets>)
     target_include_directories(test_assets_${n} PRIVATE port/include port/assets port/assets/tests)
     target_compile_options(test_assets_${n} PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
     set_target_properties(test_assets_${n} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
@@ -313,7 +321,7 @@ add_library(test_wad_game OBJECT src/blob/groups/audio_frame_sync/waves.c src/bl
     src/blob/func_800BD080.c src/blob/camera_smooth_follow.c)
 target_link_libraries(test_wad_game PRIVATE game_flags)
 target_compile_options(test_wad_game PRIVATE -w)
-add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c
+add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c port/ultra/n64mem.c
     $<TARGET_OBJECTS:pcassets> $<TARGET_OBJECTS:test_wad_game>)
 target_include_directories(test_assets_wad_game PRIVATE port/include port/assets port/assets/tests)
 target_compile_options(test_assets_wad_game PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
