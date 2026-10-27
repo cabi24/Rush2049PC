@@ -8,9 +8,11 @@ This page covers the tool that finds them, what was fixed and how, and what is l
 
 ## 1. The tool
 
-`python3 tools/port/proto_check.py [--build build/pc] [--jobs 3] [--doc docs/port/PROTOTYPES.md]` (stdlib, binutils
-and the build's compiler; about 8 s on the Pi 5 with 3 jobs). It writes `build/pc/proto_report.txt` (every
-disagreement, nearest the boot first) and `build/pc/proto_report.json`, and with `--doc` the table in section 2.
+`python3 tools/port/proto_check.py [--build build/pc] [--jobs 3] [--abi sysv|win64] [--doc docs/port/PROTOTYPES.md]`
+(stdlib, binutils and the build's compiler; about 8 s on the Pi 5 with 3 jobs). It writes `build/pc/proto_report.txt`
+(every disagreement, nearest the boot first) and `build/pc/proto_report.json`, and with `--doc` the table in section 2.
+`--abi win64` judges the same DWARF of a Linux build by the Microsoft x64 convention instead (section 3.6) and writes
+`proto_report_win64.txt`.
 
 - **Definitions.** For each external function, the definition the link keeps: the strong one (nm `T`) in the game
   objects, the PC layer's for the replaced libultra units, the host's for the C library names the game calls
@@ -36,6 +38,7 @@ Classes, worst first. A view takes the worst of its arguments and return:
 | `class` | float vs integer/pointer argument: different register files, so this and every later argument of either class move |
 | `fwidth` | f32 vs f64 (an unprototyped call promotes float to double) |
 | `width` | pointer or 64-bit integer vs an integer of 32 bits or less: the upper half is lost or garbage |
+| `stack` | `--abi win64` only: the same in a stack slot (the fifth argument on), where even a constant 0 leaves garbage in the upper half |
 | `aggregate` | a struct by value that travels differently (size, eightbyte classes, homogeneous float aggregate) |
 | `count` | the caller passes fewer arguments than the definition reads |
 | `return` | the return class differs and the caller reads the value |
@@ -48,6 +51,8 @@ Classes, worst first. A view takes the worst of its arguments and return:
 
 A width mismatch is harmless when every live caller passes a non-negative constant (`NULL` spelled `0`): the
 register is zero-extended. That holds in a register, or on the stack when the caller's argument is the wider one.
+On Linux an argument is in a register up to the sixth integer one (x86-64; aarch64 has eight). On Windows x64 only
+the first four arguments are, whatever their class, so a constant from the fifth on is `stack` there.
 
 ## 2. Results
 
@@ -73,17 +78,21 @@ Same tool on `3e3c58a` (before) and on this branch (after), Debug build on aarch
 | `class` | 0 | 0 | harmful |
 | `fwidth` | 0 | 0 | harmful |
 | `width` | 0 | 0 | harmful |
+| `stack` | 0 | 0 | harmful |
 | `aggregate` | 0 | 0 | harmful |
 | `count` | 0 | 0 | harmful |
 | `return` | 0 | 0 | harmful |
 | `narrow` | 82 | 164 | benign |
 | `extra` | 8 | 12 | benign |
-| `unused` | 46 | 77 | benign |
-| `reviewed` | 16 | 23 | benign |
-| `dead` | 42 | 166 | benign |
-| `harmless` | 57 | 253 | benign |
+| `unused` | 47 | 79 | benign |
+| `reviewed` | 15 | 22 | benign |
+| `dead` | 41 | 166 | benign |
+| `harmless` | 60 | 246 | benign |
 | **harmful** | **0** | **0** | |
 <!-- proto_check:end -->
+
+With `--abi win64` (2026-10-27, x86-64 Debug build): `stack` 20 views of 3 functions before section 3.6's fixes, 0
+after, and no other harmful view; one more `reviewed` (the stand-in view).
 
 Other checks on this branch: every changed file passes `n64_neutral.py --base 09da2f0` (all "shifted"); ctest 34/34;
 census 390 pointer warnings in 92 files (392 in 93 before), the same two warning classes; `rush2049pc --no-rom
@@ -169,6 +178,30 @@ the real value first or an ignored extra (`func_80018E2C(id, id)`, `osGetThreadI
   `enum n64p_u32` window address, so the PC parameter is `uintptr_t`.
 - `music_tempo_adjust` (printf at x, y) gets the host `vsprintf`, as `fcvt_wrapper` did: the N64 version walks its
   stack arguments, and its format is a pointer.
+
+### 3.6 Stack slots on Windows x64 (`stack`)
+
+The Microsoft x64 convention passes the first four arguments in registers, whatever their class, and every later
+one in an 8-byte stack slot. A caller whose prototype says `s32` stores 4 bytes there (`movl $0, 0x20(%rsp)`), so a
+definition that reads a pointer gets the upper half of whatever the slot held before. In a register, as on Linux up
+to the sixth integer argument, a 32-bit move zero-extends and a constant 0 arrives as NULL. A `char` or `short`
+argument is extended to 32 bits and stored as 4 bytes, so `narrow` stays benign. `--abi win64` applies these rules
+and reports the class `stack`. `REVIEWED`'s reasons (32 bits hold the value) don't cover it; `REVIEWED_STACK` holds
+the reviewed ones.
+
+The first run found 20 views of three functions, all passing a constant 0:
+
+| Function | Argument | Views | Fix |
+|---|---|---|---|
+| `audio_frame_sync` (LoadWave) | 5: the heap, `void *` | `car_shadow_render.c`, `loadtrack.c`, `slots.c` (`resource_slot_clear`), image A's `cleanup_colortrace` and `runtime_a_c93c_closure` | pointer-sized on the PC |
+| `ambient_sound_set` (InitPane) | 6: the pane's animation, `intptr_t` (section 3.5) | 14 files, one under the name `func_800B3B4C` | `intptr_t` on the PC |
+| `input_process_controller` | 6: `f32 *` | the weak copy in `entity_update/group.c` | reviewed: its only calls are the matching stand-ins `__standin_input_process_controller_a/b`, which nothing calls |
+
+`resource_slot_clear`'s `audio_frame_sync(id, 0, 0, 0, 0)` is what every synthetic boot reached first on Windows: LoadWave
+got the heap 0x00007FF6_00000000 and faulted reading its first block ([WINDOWS.md](WINDOWS.md) 4). The views use
+`intptr_t` where the file has its N64 typedef and an `#ifdef TARGET_PC` declaration elsewhere; `n64_neutral.py`
+passes them. Now `--abi win64` finds no harmful view either. Calls through function pointers are not checked
+(section 6).
 
 ## 4. Reviewed: 32 bits that carry the value exactly
 
