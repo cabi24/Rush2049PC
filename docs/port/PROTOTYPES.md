@@ -204,7 +204,8 @@ pointers into host pointers. `D_80154188` is `f32` in the one file that passes i
 `D_80140800` were already pointer storage; their `s32` users are `intptr_t` now.
 
 The other pointer conflicts are struct views that disagree: `tCarData` against `Car`/`Player`/`GameCar`
-and others (92 pairs), `tModelData` against `Model`/`Car` (62), `ObjInstance` against `Ent`/`Model68`/`Node` (32),
+and others (92 pairs), `tModelData` against `Model`/`Car` (62; both now one layout, [CARS.md](CARS.md)), `ObjInstance`
+against `Ent`/`Model68`/`Node` (32),
 the `OSMesgQueue` views (35). Making
 them agree is struct unification, which is beyond prototypes. That includes the blit (`Blit` in 14 files: its
 `AnimDTA` holds the pane group pointer but is `s32` in several views) and the pool headers (section 6).

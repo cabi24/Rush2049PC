@@ -28,6 +28,9 @@ asset world), [DATA.md](DATA.md) (where data symbols live on PC), [GFX.md](GFX.m
     `TARGET_PC`; `N64P(x)` (a `_Generic` cast to the host pointer) and `N64W(x)` (a pointer stored as `u32`) are
     inserted where the compiler rejects a use; both are `x` on the N64. It lists `field +`/`-`/`++` sites, which
     would silently become integer arithmetic, for review.
+  - `tools/port/view_audit.py` and `tools/port/view_pads.py`: one host layout for every view of a record, checked
+    from DWARF against a reference view, and padding over the reference's pointers split under `TARGET_PC`
+    (the car record, [CARS.md](CARS.md)).
   - The rest (ROM-list walkers, buffers, prototypes, `long`) are small hand edits, one commit each.
 
 ### The neutrality check
@@ -164,10 +167,11 @@ m2c output that reaches fields as `*(T *)(p + 0x..)` or `M2C_FIELD(expr, T *, of
 holding pointers; the offsets themselves are N64 layout and wrong wherever the record has pointers before them.
 `UpdateActiveObjects` (Blit `+0x28`: three pointers before it), `menu_confirm_dialog`, `particles_spawn_emitter`,
 `listener_position_set`, `func_800F42C8`, `func_80095F8C` and its copy in `pointer_counters/group.c`,
-`camera_smooth_lerp` (50 pointer slots as `s32`), `save_load_data` (`AnimateFrame` stored at `+0x274` as `s32`),
-`func_800B27E4`, `audio_frame*/group.c` (`+0x28` of a node), and the `M2C_FIELD` users `PhysicsObjectList_Update`,
-`entity_flag_check/group.c` (20), `func_8008AE2C`, `func_800949D4`, `func_800A3598`/`35BC`/`35F8`, `func_800A79DC`,
-`func_800E56F8/group.c`, `credits_scroll_grp/gr3_e.c`.
+`camera_smooth_lerp` (50 pointer slots as `s32`), `audio_frame*/group.c` (`+0x28` of a node), and the `M2C_FIELD`
+users `PhysicsObjectList_Update`, `entity_flag_check/group.c` (20), `func_8008AE2C`, `func_800949D4`,
+`func_800A3598`/`35BC`/`35F8`, `func_800A79DC`, `credits_scroll_grp/gr3_e.c`. The car record's raw offsets
+(`save_load_data`, `func_800B27E4`, `func_800E56F8/group.c` and the others) go through `CAR_OFS` now, and the
+model record keeps its N64 layout: [CARS.md](CARS.md).
 
 ### 4.4 Storage still 32-bit, or ambiguous
 

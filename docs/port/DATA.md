@@ -201,7 +201,7 @@ All resolved from the image symbol tables. Data (each is placed like any other s
 
 | Name | N64 | Region | Storage | Chosen type |
 |---|---|---|---|---|
-| `D_8014A250_alias` | 0x8014A250 | BSS | own (also D_8014A250) | `tModelData[]` |
+| `D_8014A250_alias` | 0x8014A250 | BSS | arena (also D_8014A250) | `tModelData[]`, N64 layout ([CARS.md](CARS.md)) |
 | `gCamera` | 0x80150B70 | BSS | arena (also D_80150B70) | `Camera[]` |
 | `gControllerData` | 0x80156CF0 | BSS | arena (also D_80156CF0) | `Pad16[]` |
 | `gCarTeam` | 0x8012E67C | BSS | arena (also D_8012E67C) | `s8[]` |
@@ -227,7 +227,7 @@ All resolved from the image symbol tables. Data (each is placed like any other s
 | `input_rec1` | 0x8014A164 | BSS | inside D_8014A118 + 0x50 | `InputRecord` |
 | `msgq_ptr` | 0x801497C8 | BSS | own (also D_801497C8) | `Gfx *` |
 | `pad_config` | 0x80140BF0 | BSS | own (also D_80140BF0) | `Sprite[]` |
-| `player_array` | 0x80152818 | BSS | own (also D_80152818) | `tCarData[]` |
+| `player_array` | 0x80152818 | BSS | own (also D_80152818) | `GameCar[]`, 0x468 bytes a car ([CARS.md](CARS.md)) |
 | `state_word_a` | 0x801174B4 | data | arena (also D_801174B4) | `u32` (gGameState) |
 | `state_word_b` | 0x801174B8 | data | arena (also D_801174B8) | `s32` (gNewGameState) |
 | `active_player_count` | 0x8014A108 | BSS | arena (also D_8014A108) | `s16` (gNumPlayers) |
@@ -262,8 +262,8 @@ Without the ROM (all run by `ctest` in `build/pc`, and the first two by every bu
   (0 failures; the generator fails the build otherwise); N64 sizes against the known size (1 difference:
   `D_8002E8E8`, the PC scheduler's `PcSched`, 672 B against the symbol file's 80); pointer-free struct layouts
   against DWARF (0 differences). Element overlaps in the arenas are resolved first-come and listed (8).
-- **Link warnings**: the size and alignment warnings of game commons against `data.c` are down to one,
-  `D_80152818` (below). Before: `D_80152818` (5712 vs 8960), `D_80110680` (6 vs 2), `D_80146180` (4 vs 8),
+- **Link warnings**: the size and alignment warnings of game commons against `data.c` are gone (`D_80152818`, the
+  last one, with the car layout of [CARS.md](CARS.md)). Before: `D_80152818` (5712 vs 8960), `D_80110680` (6 vs 2), `D_80146180` (4 vs 8),
   `input_rec0` (304 vs 320), and the alignments of `D_80149B64`, `D_80149B74` (aarch64: 4 vs a common's 8) and
   `D_80156958` (x86-64: 8 vs 32). The first three were the sizes above. `input_rec0`'s 76-byte records have a
   pointer at +0x48 (`Player76.ref`, into `D_80146150`), so its defining file's view (`func_800DE45C.c`) gets it under
@@ -307,9 +307,10 @@ From `data_layout.txt`:
 - **Pointer conflicts: 106 symbols** whose files disagree on where pointers are (400 declaration pairs), for
   example `D_80110244` (`Entity *` in 7 files, `u32` in 2) and `D_8002EBB0` (`void *` vs `s32`/`u32`). The chosen
   layout follows the pointer, so the integer-declaring files read half a pointer. Two that the linker shows:
-  - `player_array`: 5712 B in `path_D169C`'s definition (6 × 952) against 6720 B of storage. The car's visual
-    records hold pointers (`next`, `data`, `func`), and the views disagree on which (from 1 to 66 per car; the
-    chosen `tCarData` of overlay B has 42, 1,120 bytes a car), while 40-odd views index cars by 952 bytes.
+  - `player_array`: was 5712 B in `path_D169C`'s definition (6 × 952) against 6720 B of storage, with views that
+    disagreed on which visual fields were pointers. Now every view has the PC car layout (0x468 bytes, 43
+    pointers: the 21 visuals' `next` and `func`, and the input pointer) and the warning is gone; the model array
+    `D_8014A250` keeps its N64 layout with u32 pointer fields and sits in the arena ([CARS.md](CARS.md)).
   - `input_rec0`: only the views that declare the +0x48 pointer (and now `func_800DE45C`'s) use 80-byte records;
     about 30 index them by 76.
 - **Width conflicts: 85 symbols** (198 pairs), such as `s32` vs `s8` for `D_8011028C`, `u64[]` vs `u8[4096]` for
