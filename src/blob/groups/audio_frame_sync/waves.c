@@ -63,7 +63,7 @@ typedef struct anon_base_TOCentries_c { u32 *base; s32 TOCentries; void *TOC; } 
 /* A handle wave's ptr is a heap master slot, a u32 window address (the heap's handle tables keep N64 layout). */
 #define HANDLE_BLOCK(h) ((u8 *)(uintptr_t)*(u32 *)(h))
 #else
-#define WADP(type) u32
+#define WADP(type) type *
 #define HANDLE_BLOCK(h) *(u8 **)h
 #endif
 
