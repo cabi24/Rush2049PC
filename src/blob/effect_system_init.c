@@ -3800,6 +3800,12 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the walk over the four 0x7C-byte player records D_801569B8 stops at the address after them, where the N64 has
+ * D_80156BA8; on the PC that Gfx * has storage of its own (port/data), so the loop never met it and cleared the arena
+ * to the window's end. It stops at the records' end (docs/port/SYNTH.md 3). */
+#define D_80156BA8 (((s8 *)&D_801569B8)[4 * 0x7C])
+#endif
 void effect_system_init(void)
 {
   s8 *p;
