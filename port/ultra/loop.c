@@ -8,8 +8,9 @@
  * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. While
  * port/input says the game is paused, it holds (hold()).
  *
- * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timed waits are as coarse
- * as the system timer (15.6 ms by default), so the loop runs with a 1 ms timer period. */
+ * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts are as coarse as
+ * the system timer (15.6 ms by default): the scheduler's own waits use high-resolution timers (sched.c), and the
+ * loop asks for a 1 ms period for the rest (hold()'s sleep, SDL). */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
@@ -49,7 +50,8 @@ void osSetTime(uint64_t ticks);   /* timer.c */
 #ifdef _WIN32
 /* A 1 ms timer period while the loop runs. Windows 11 may ignore the request from a process nobody sees (a
  * headless run, the hidden GL window) unless the process opts out of that power throttling, which needs Windows 8's
- * SetProcessInformation (looked up, so older Windows still start). */
+ * SetProcessInformation (looked up, so older Windows still start). Some machines keep 15.6 ms anyway (the
+ * windows-latest runner did), which is why sched.c doesn't rely on it. */
 static void timer_period(int on)
 {
     typedef BOOL(WINAPI * SetInfo)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
