@@ -2257,7 +2257,7 @@ extern s32 D_8013C128;
 extern s32 D_8013C228;
 extern s32 D_8013C234;
 extern s32 D_8013C238;
-s32 D_8013C300[30];
+intptr_t D_8013C300[30];   /* Camera *[30]: pointer-sized slots on the PC */
 
 extern s32 D_8013C308;
 extern s32 D_8013C378;
