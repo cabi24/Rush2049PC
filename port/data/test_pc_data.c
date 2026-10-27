@@ -74,7 +74,7 @@ static PcDataArena arenas[4] = {
 typedef struct { uint32_t a; void *p; uint16_t h; void (*fp)(void); int64_t l; } S_t;
 typedef struct { uint32_t x; void *y; } Q_t;
 static S_t S;
-static void *P[11];
+static void *P[12];
 static Q_t Q[2];
 static void *A1, *B1;
 static uint32_t cvar;   /* game-C data of image A */
@@ -92,7 +92,7 @@ static const PcDataRun runs[] = {
     {8, offsetof(S_t, h), 1, 1, 0, 0, PC_K_U16}, {12, offsetof(S_t, fp), 1, 1, 0, 0, PC_K_PTR},
     {16, offsetof(S_t, l), 1, 1, 0, 0, PC_K_S32_64},
     /* 11 P */
-    {0, 0, 11, 1, 0, 0, PC_K_PTR},
+    {0, 0, 12, 1, 0, 0, PC_K_PTR},
     /* 12-13 Q: two elements, N64 stride 8, host stride sizeof(Q_t) */
     {0, offsetof(Q_t, x), 1, 2, 8, sizeof(Q_t), PC_K_U32}, {4, offsetof(Q_t, y), 1, 2, 8, sizeof(Q_t), PC_K_PTR},
     /* 14 A1, 15 B1 */
@@ -101,7 +101,7 @@ static const PcDataRun runs[] = {
 
 static const PcDataSym syms[] = {
     {"S", 0x80010100, 20, sizeof S, &S, 6, 5, 1, PC_SYM_OWN},
-    {"P", 0x80010120, 44, sizeof P, P, 11, 1, 1, PC_SYM_OWN},
+    {"P", 0x80010120, 48, sizeof P, P, 11, 1, 1, PC_SYM_OWN},
     {"Q", 0x80010160, 16, sizeof Q, Q, 12, 2, 1, PC_SYM_OWN},
     {"B1", 0x80300040, 4, sizeof B1, &B1, 15, 1, 3, PC_SYM_OWN},
     {"A1", 0x80300080, 4, sizeof A1, &A1, 14, 1, 2, PC_SYM_OWN},
@@ -153,6 +153,7 @@ static void build_rom(void)
     put32(game + 0x140, 0x80300040);   /* image B's data, from game data: its own storage */
     put32(game + 0x144, 0x80300120);   /* image A's arena (its BSS) */
     put32(game + 0x148, 0x803FF000);   /* the heap above the images: kept */
+    put32(game + 0x14C, 0xFFFFFFFF);   /* (char *)-1: a sentinel, sign-extended */
     /* Q at 0x160 */
     put32(game + 0x160, 1);
     put32(game + 0x164, 0x80001084);
@@ -235,6 +236,7 @@ static void run(int window)
     CHECK(P[8] == (void *)&B1);
     CHECK(P[9] == a_ovl_a + 0xA0);
     CHECK(P[10] == (void *)(uintptr_t)0x803FF000);
+    CHECK(P[11] == (void *)(intptr_t)-1);
     /* array of structs: strides differ */
     CHECK(Q[0].x == 1 && Q[0].y == a_boot + 4);
     CHECK(Q[1].x == 2 && Q[1].y == &S);
@@ -245,7 +247,7 @@ static void run(int window)
     if (window)
         CHECK(S.p == (void *)(uintptr_t)0x80001084 && P[9] == (void *)(uintptr_t)0x80300120);
     /* stats */
-    CHECK(st->unresolved == 1 && st->raw == 1 && st->no_code == 1 && st->ambiguous == 1 && st->rdram == 2);
+    CHECK(st->unresolved == 1 && st->raw == 2 && st->no_code == 1 && st->ambiguous == 1 && st->rdram == 2);
     CHECK(st->own == 5);   /* P[0], P[1], P[6], P[8], Q[1].y */
     CHECK(st->arena == 3);   /* S.p, Q[0].y, P[9] */
     CHECK(st->func == 4);   /* S.fp, P[5], A1, B1 */

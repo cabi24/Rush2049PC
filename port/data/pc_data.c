@@ -232,6 +232,8 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
         a -= 0x20000000u;   /* KSEG1 -> KSEG0 */
     if (a < 0x80000000u || a >= 0x80800000u) {
         if (!quiet) g_stats.raw++;   /* not an RDRAM address: a ROM offset or segment address, kept as is */
+        if (v >= 0xFFFFF000u)        /* a small negative sentinel such as (char *)-1: sign-extended, so the */
+            return (void *)(intptr_t)(int32_t)v;   /* game's comparisons with (T *)-1 still match */
         return (void *)(uintptr_t)v;
     }
     /* In a runtime image (its code, data or BSS)? Those live in host code and arenas, not in the window. */
