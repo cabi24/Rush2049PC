@@ -37,6 +37,21 @@ typedef struct {
     u16 lang;
 } LangInfo;
 
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
+typedef struct {
+    char *pad0[0x3A4 / 4];
+    intptr_t unk3A4;
+} TblHdr;
+
+typedef struct {
+    u8 pad0[4];
+    TblHdr *hdr;
+    u8 pad8[4];
+    LangInfo *info;
+    intptr_t *strings;
+} StrTable;
+#else
 typedef struct {
     u8 pad0[0x3A4];
     s32 unk3A4;
@@ -49,6 +64,7 @@ typedef struct {
     LangInfo *info;
     s32 *strings;
 } StrTable;
+#endif
 
 extern OSMesgQueue D_801461D0;
 extern s16 D_80117280[2];

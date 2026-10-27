@@ -31,11 +31,20 @@ typedef struct {
     u16 lang;
 } LangInfo;
 
+#ifdef TARGET_PC
+/* PC: gText's header has host pointers (port/assets/text.c), so its fields sit at host offsets */
+typedef struct {
+    void *pad0[3];
+    LangInfo *info;
+    intptr_t *strings;
+} StrTable;
+#else
 typedef struct {
     u8 pad0[0xC];
     LangInfo *info;
     s32 *strings;
 } StrTable;
+#endif
 
 extern OSMesgQueue D_801461D0;
 extern s16 D_80117280[2];

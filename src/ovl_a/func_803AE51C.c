@@ -1,6 +1,11 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef unsigned int u32; typedef float f32;
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices; value940 is the low word of entry 235, a window address */
+typedef struct { char *pad0[128 / 4]; void *text128; char *pad132[808 / 4]; s32 value940; } Countdown;
+#else
 typedef struct { u8 pad0[128]; void *text128; u8 pad132[808]; s32 value940; } Countdown;
+#endif
 void func_800B65B4(f32 value);
 void func_800B669C(s32 a, s32 b);
 void func_800B42F0(s32 id);

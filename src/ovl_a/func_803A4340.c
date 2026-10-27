@@ -18,11 +18,20 @@ typedef int s32;
 typedef float f32;
 typedef struct Texture { u8 pad0[18]; u16 height; u8 pad20[16]; } Texture;
 typedef struct MenuIndices { u8 pad0[26]; u16 first; } MenuIndices;
+#ifdef TARGET_PC
+/* PC: gText's header has host pointers (port/assets/text.c), so its fields sit at host offsets */
+typedef struct MenuData {
+    void *pad0[3];
+    MenuIndices *indices;
+    char **text;
+} MenuData;
+#else
 typedef struct MenuData {
     u8 pad0[12];
     MenuIndices *indices;
     char **text;
 } MenuData;
+#endif
 extern s16 D_8014A108;
 extern s32 D_8014A110;
 extern s8 D_803BA028[];

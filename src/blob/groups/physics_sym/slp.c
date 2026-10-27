@@ -31,12 +31,22 @@ extern s8 D_80156CF0[][16];
 extern s32 D_8011AD70[3];
 extern void *D_8011AD68;
 
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
+typedef struct TblHdr {
+    char *pad0[0xD4 / 4];
+    char *title;
+    char *padD8[(0x3A4 - 0xD8) / 4];
+    char *ctrl;
+} TblHdr;
+#else
 typedef struct TblHdr {
     u8 pad0[0xD4];
     char *title;
     u8 padD8[0x3A4 - 0xD8];
     char *ctrl;
 } TblHdr;
+#endif
 
 extern TblHdr *D_8017A4E4;
 

@@ -22,7 +22,12 @@ typedef struct Event {
     s8 delta;
     u8 unknown15[3];
 } Event;
+#ifdef TARGET_PC
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
+typedef struct Texts { char *before108[108 / 4]; char *same_player; char *other_player; } Texts;
+#else
 typedef struct Texts { u8 before108[108]; char *same_player; char *other_player; } Texts;
+#endif
 typedef struct LanguageState { s32 unknown0; Texts *texts; } LanguageState;
 typedef struct NameData { u8 before_name[20]; char name[1]; } NameData;
 typedef struct NameRef { NameData *data; } NameRef;

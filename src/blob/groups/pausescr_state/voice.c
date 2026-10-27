@@ -14,6 +14,15 @@
  */
 typedef signed char s8;typedef unsigned char u8;typedef signed short s16;typedef unsigned short u16;typedef signed int s32;
 #define F(p,t,o) (*(t *)((u8 *)(p)+(o)))
+#ifdef TARGET_PC
+/* PC: gText (countdown_state) has host pointers (port/assets/text.c), so its header fields and string-table
+ * entries sit at host offsets: TXH maps an N64 header offset, TXS an N64 string-table byte offset. */
+#define TXH(o) ((o) == 4 ? 8 : (o) == 12 ? 24 : (o) == 16 ? 32 : (o))
+#define TXS(o) ((o) / 4 * (int)sizeof(char *))
+#else
+#define TXH(o) o
+#define TXS(o) o
+#endif
 extern u8 D_801461D0[],D_80117280[],D_8014A160[],countdown_state[];
 extern char D_801210B0[],D_801210C4[];
 extern s32 D_801170FC,D_8015698C;
@@ -35,14 +44,14 @@ void voice_stop(void)
     vs_header_font(13);
     str = text;
     if(D_80117350) {
-        fcvt_wrapper(text,D_801210B0,D_8015698C+1,F(F(countdown_state,void *,4),char *,932));
+        fcvt_wrapper(text,D_801210B0,D_8015698C+1,F(F(countdown_state,void *,TXH(4)),char *,TXS(932)));
         width=object_manager_update(str,-1);
     } else if(D_801170FC==7 || D_801170FC==8) {
-        width=object_manager_update(F(countdown_state,u8 **,16)[F(F(countdown_state,void *,12),u16,112)+D_801170FC],-1);
+        width=object_manager_update(F(countdown_state,u8 **,TXH(16))[F(F(countdown_state,void *,TXH(12)),u16,112)+D_801170FC],-1);
     } else if(D_801170FC==6) {
         width=0;
     } else {
-        fcvt_wrapper(text,D_801210C4,(u8 *)*F(D_8014A160+D_8015698C*76,void **,0)+20,F(countdown_state,char **,16)[F(F(countdown_state,void *,12),u16,112)]);
+        fcvt_wrapper(text,D_801210C4,(u8 *)*F(D_8014A160+D_8015698C*76,void **,0)+20,F(countdown_state,char **,TXH(16))[F(F(countdown_state,void *,TXH(12)),u16,112)]);
         width=object_manager_update(str,-1);
     }
     x=F(D_80117280,s16,0);
