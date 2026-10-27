@@ -7,7 +7,7 @@
  *   0x124 PLHD   2 palettes
  *   0x154 PTHD   3 target paths: 0 and 1 share their middle point, 2 has none
  *   0x1C0 PATH   4 points of 0x44
- *   0x2D0 TXLD   SETTIMG, SETTILE, E1+04 (a branch), LOADBLOCK, ENDDL
+ *   0x2D0 TXLD   SETTIMG, SETTILE, E1+04 (a branch), SETTILESIZE, ENDDL; texture 1's list
  *   0x300 OBJS   display lists (LOD 0: VTX, TRI1, a LOD marker the load flags keep, a call, a LOD marker they
  *                turn into a branch, ENDDL; the called list; the branch target; LOD 1 and model 1's lists) and
  *                three Vtx
@@ -100,7 +100,7 @@ static size_t wad_build(uint8_t *buf)
         r[0x14] = (uint8_t)(t + 1);                    /* size */
         r[0x15] = (uint8_t)(t * 2);                    /* format */
         test_put16(r + 0x16, t == 2 ? 1 : 0xFFFF);     /* palIndex */
-        test_put32(r + 0x18, t == 1 ? 0 : 0x10 * t);   /* texBase: IMAG-relative (for t 1, unused) */
+        test_put32(r + 0x18, t == 1 ? (uint32_t)(W_TXLD - W_IMAG) : (uint32_t)(0x10 * t));   /* texBase, IMAG-relative */
         test_put32(r + 0x1C, t == 1 ? 0x00030000u : 0x08010000u);   /* flags: 0x08000000 = texels */
         test_put32(r + 0x20, 0xA0B0C0D0u + t);         /* xflags */
     }
@@ -134,12 +134,12 @@ static size_t wad_build(uint8_t *buf)
         test_put32(pt + 0x40, 0xF1A90000u + (uint32_t)i);     /* flags */
     }
 
-    /* TXLD: SETTIMG (IMAG-relative), SETTILE, E1 + 04 (IMAG-relative), LOADBLOCK, ENDDL */
+    /* TXLD: SETTIMG (IMAG-relative), SETTILE, E1 + 04 (IMAG-relative), SETTILESIZE, ENDDL */
     wad_cmd(buf + W_TXLD, 0xFD100000u, 0x00000010u);
     wad_cmd(buf + W_TXLD + 8, 0xF5100000u, 0x07000000u);
     wad_cmd(buf + W_TXLD + 16, 0xE1000000u, 0x00000020u);
     wad_cmd(buf + W_TXLD + 24, 0x04000000u, 0x00000000u);
-    wad_cmd(buf + W_TXLD + 32, 0xF3000000u, 0x073FF100u);
+    wad_cmd(buf + W_TXLD + 32, 0xF2000000u, 0x0007C03Cu);
     wad_cmd(buf + W_TXLD + 40, 0xDF000000u, 0);
 
     /* OBJS */

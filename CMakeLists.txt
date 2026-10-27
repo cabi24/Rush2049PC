@@ -287,12 +287,14 @@ foreach(t ${PC_ASSETS_TESTS})
     add_test(NAME assets_${n} COMMAND test_assets_${n})
 endforeach()
 # The game's own WAD loader reading a converted synthetic WAD (port/assets/tests/wad_game.c): _ReadWave,
-# SetupWaveModel, the TOC functions and the display-list walkers, built with the game's flags, in an RDRAM window
-# the test maps itself (exit 77, skipped, if it can't).
+# SetupWaveModel, the TOC functions, the display-list walkers, the texture lookups and the texture animation,
+# built with the game's flags, in an RDRAM window the test maps itself (exit 77, skipped, if it can't).
 add_library(test_wad_game OBJECT src/blob/groups/audio_frame_sync/waves.c src/blob/MBSetupWad.c
     src/blob/MBGetFromWad.c src/blob/func_80096B00.c src/blob/func_80096BBC.c src/blob/entity_cull_check.c
     src/blob/entity_lod_select.c src/blob/func_800966D8.c src/blob/groups/slot_sound/entity_render_mode.c
-    src/blob/display_list_traverse.c src/blob/func_8008AD6C.c src/blob/func_80092D80.c src/blob/func_800B24EC.c)
+    src/blob/display_list_traverse.c src/blob/func_8008AD6C.c src/blob/func_80092D80.c src/blob/func_800B24EC.c
+    src/blob/MBOX_FindPalette_WORK.c src/blob/camera_shake_start.c src/blob/race_setup_1.c src/blob/func_800BDA24.c
+    src/blob/func_800BD080.c src/blob/camera_smooth_follow.c)
 target_link_libraries(test_wad_game PRIVATE game_flags)
 target_compile_options(test_wad_game PRIVATE -w)
 add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c

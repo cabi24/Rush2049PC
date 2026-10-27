@@ -37,7 +37,7 @@ static void check_converted(const uint8_t *b)
         CHECK(n16(r + 0x10) == 32 << t && n16(r + 0x12) == 16 + t);
         CHECK(r[0x14] == t + 1 && r[0x15] == t * 2);
         CHECK(n16(r + 0x16) == (t == 2 ? 1 : 0xFFFF));
-        CHECK(n32(r + 0x18) == (uint32_t)(t == 1 ? 0 : 0x10 * t));
+        CHECK(n32(r + 0x18) == (uint32_t)(t == 1 ? W_TXLD - W_IMAG : 0x10 * t));
         CHECK(n32(r + 0x1C) == (t == 1 ? 0x00030000u : 0x08010000u));
         CHECK(n32(r + 0x20) == 0xA0B0C0D0u + (uint32_t)t);
     }

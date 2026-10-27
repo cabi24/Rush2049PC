@@ -3,8 +3,10 @@
  * The game's C is built with its PC flags (CMakeLists.txt, test_wad_game): _ReadWave and SetupWaveModel
  * (audio_frame_sync/waves.c), MBSetupWad, MBGetFromWad, MBFindInWad, MBOffsetWad, the TXLD rebase
  * (entity_cull_check), the display-list relocation (entity_lod_select) and its vertex pass (func_800966D8), the
- * mirror pass (entity_render_mode, display_list_traverse, func_8008AD6C), MBOX_FindTexture_Sub (func_800B24EC)
- * and its slot test (func_80092D80). This file stands in for the rest: the wave tables, a PI DMA from a
+ * mirror pass (entity_render_mode, display_list_traverse, func_8008AD6C), MBOX_FindTexture_Sub (func_800B24EC),
+ * MBOX_FindPalette_WORK and their slot test (func_80092D80), and the texture animation: its set-up
+ * (camera_shake_start) and per-frame update (race_setup_1) with the TXLD helpers func_800BDA24, func_800BD080 and
+ * camera_smooth_follow. This file stands in for the rest: the wave and animation tables, a PI DMA from a
  * synthetic cartridge, and the RDRAM window at host 0x80000000, which the game's 32-bit relocation needs. */
 #define _GNU_SOURCE
 #include <stdlib.h>
@@ -59,6 +61,35 @@ void *entity_name_copy(void *key, void *base, uint32_t n, uint32_t size, int (*c
     return bsearch(key, base, n, size, cmp);
 }
 int32_t pointer_compare_thunk(const void *a, const void *b) { return strcmp(a, b); }
+int32_t func_8009508C(const void *a, const void *b) { return strcmp(a, b); }
+
+/* The texture-animation tables, in the host layout both of their game views agree on (camera_shake_start's
+ * Row20/Sequence20/Item12, race_setup_1's PaletteAnimation20/ObjectAnimation20/AnimationFrame12). */
+typedef struct {
+    const char *name;
+    int16_t first, last;
+    int8_t step, kind;
+    int16_t ticks;
+    float time;
+    void *data;
+} AnimRow;
+typedef struct {
+    const char *name;
+    void *resource;
+    void *output;
+} AnimItem;
+typedef struct {
+    int16_t count, maximum, direction, current;
+    float time, default_time;
+    AnimItem *items;
+} AnimSequence;
+AnimRow *D_8011A840[20];
+AnimSequence *D_8011A31C[20];
+AnimItem D_8011905C[4];
+uint32_t state_word_a, D_801174B4;
+int8_t D_80156994, D_80114650, D_8014978C;
+volatile float D_8002EB94;
+volatile int D_8002EB98;
 char *func_800A473C(char *dst, const char *src) { return strcpy(dst, src); }
 
 static uint8_t *g_rdram;
@@ -74,6 +105,8 @@ void MBSetupWad(void *wad, void *file);
 uint32_t MBGetFromWad(void *wad, int32_t tag, int32_t *count);
 void func_80096BBC(void *wad, int32_t file, int32_t offset);   /* MBOffsetWad */
 void *func_800B24EC(char *name, int16_t *out, int8_t lo, int8_t hi, int32_t err);   /* MBOX_FindTexture_Sub */
+void camera_shake_start(void);   /* the texture animation's set-up */
+void race_setup_1(void);         /* its per-frame update */
 
 /* ---------------------------------------------------------------- checks */
 
@@ -108,6 +141,7 @@ static void check_tables(int slot, uint32_t base)
     CHECK(n32(base + W_OBHD + 0x58 + 0x20) == base + W_DL_M1);
     /* TXHD texBase and PLHD palBase relocated by IMAG; flags native */
     CHECK(n32(base + W_TXHD + 0x18) == imag && n32(base + W_TXHD + 0x24 * 2 + 0x18) == imag + 0x20);
+    CHECK(n32(base + W_TXHD + 0x24 + 0x18) == base + W_TXLD);   /* texture 1: its TXLD list */
     CHECK(n32(base + W_TXHD + 0x1C) == 0x08010000u);
     CHECK(n32(base + W_PLHD + 0x18 + 0x14) == base + W_TLUT + 0x20);
     /* PTHD pts and trigPtr relocated by the file; PATH native */
@@ -117,7 +151,7 @@ static void check_tables(int slot, uint32_t base)
 
     /* TXLD rebased by IMAG, big-endian */
     CHECK(b32(base + W_TXLD + 4) == PHYS(imag + 0x10) && b32(base + W_TXLD + 20) == PHYS(imag + 0x20));
-    CHECK(b32(base + W_TXLD + 12) == 0x07000000u && b32(base + W_TXLD + 36) == 0x073FF100u);
+    CHECK(b32(base + W_TXLD + 12) == 0x07000000u && b32(base + W_TXLD + 36) == 0x0007C03Cu);
     /* the display lists: relocated w1, big-endian */
     CHECK(b32(base + W_DL0) == 0x01003006u && b32(base + W_DL0 + 4) == PHYS(base + W_VTX));
     CHECK(b32(base + W_DL0 + 28) == PHYS(base + W_DL_SUB));
@@ -161,6 +195,41 @@ int main(void)
         CHECK(func_800B24EC("bravo", &out, -1, -1, 0) == pc_n64_ptr(base + W_TXHD + 0x24));
         CHECK(out == (3 << 10 | 1));
         CHECK(func_800B24EC("zulu", &out, -1, -1, 0) == NULL && out == 0);
+    }
+
+    /* The texture animation over slot 3: a palette light sequence (pal1, rewritten big-endian), a texture scroll
+     * (bravo's TXLD SETTILESIZE), a flip-book on a TXLD texture (bravo: its SETTIMG) and on a texel texture
+     * (alpha: its texBase). */
+    {
+        static AnimRow rows[3] = {
+            {"pal1", 2, 15, 0, 6, 1, 0, NULL},
+            {"bravo", 0, 1000, 8, 9, 1, 0, NULL},
+            {NULL, 0, 0, 0, 0, 0, 0, NULL},
+        };
+        static AnimItem flip_txld[2] = {{"bravo", NULL, NULL}, {"alpha", NULL, NULL}};
+        static AnimItem flip_texels[2] = {{"alpha", NULL, NULL}, {"charlie", NULL, NULL}};
+        static AnimSequence seqs[3] = {
+            {2, 0, 1, 0, 0, 0, flip_txld}, {2, 0, 1, 0, 0, 0, flip_texels}, {0, 0, 0, 0, 0, 0, NULL},
+        };
+        uint32_t imag = base + W_IMAG, txld = base + W_TXLD, tlut1 = base + W_TLUT + 0x20;
+        D_8011A840[0] = rows;
+        D_8011A31C[0] = seqs;
+        D_8014978C = 0, D_80156994 = 1, D_80114650 = 0;
+        camera_shake_start();
+        CHECK(rows[0].data == pc_n64_ptr(tlut1) && rows[1].data == pc_n64_ptr(txld));
+        CHECK(flip_txld[0].resource == pc_n64_ptr(base + W_TXHD + 0x24));
+        CHECK(flip_txld[0].output == (void *)(uintptr_t)PHYS(imag + 0x10));   /* bravo's SETTIMG */
+        CHECK(flip_txld[1].output == pc_n64_ptr(imag) && flip_texels[1].output == pc_n64_ptr(imag + 0x20));
+
+        D_8002EB94 = 0.05f, D_8002EB98 = 1;
+        race_setup_1();
+        CHECK(b16(tlut1 + 8) == 1985 && b16(tlut1 + 6) == 10561 && b16(tlut1 + 4) == 10241);
+        CHECK(b16(tlut1 + 2) == 0xF012 && b16(tlut1 + 10) == 0xF016);              /* untouched */
+        CHECK(rows[1].first == 8 && b32(txld + 32) == 0xF2002000u && b32(txld + 36) == 0x0007C03Cu);
+        CHECK(b32(txld + 4) == imag);                                              /* SETTIMG = alpha's texels */
+        CHECK(n32(base + W_TXHD + 0x18) == imag + 0x20);                           /* alpha = charlie's texels */
+        CHECK(n32(base + W_TXHD + 0x1C) == 0x08010000u);                           /* flags kept */
+        D_8011A840[0] = NULL, D_8011A31C[0] = NULL;
     }
 
     /* Two players, no mirror: bit 1 becomes the branch, bit 2 stays; nothing flips. */
