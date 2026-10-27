@@ -1,19 +1,26 @@
 # Rush 2049 PC
 
-A native PC port of *San Francisco Rush 2049* (N64, USA), built from the decompilation below the way the SM64 PC
-port was built from the SM64 decompilation: the game's C compiled for the PC, with a PC layer in place of the N64
-hardware. You bring your own ROM. **Status: early.** The game code compiles and links natively; it doesn't run
-yet. The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in
-[docs/port/STATUS.md](docs/port/STATUS.md).
+A native PC port of *San Francisco Rush 2049* (N64, USA). It is built from the decompilation below the way the SM64
+PC port was built from the SM64 decompilation: the game's C is compiled for the PC, and a PC layer stands in for the
+N64 hardware. You bring your own ROM. Its data is read at startup, and nothing derived from it is built into the
+program.
+
+**Status: bring-up.** Everything links, with no stubs left. The PC layer is built and tested: threads and libultra,
+the ROM's data, an F3DEX2 renderer (OpenGL), the MusyX sound interpreter, controllers and the controller pak, and a
+settings file. With a blank cartridge the game's own code boots through its startup; the next step needs a real ROM.
+The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
 
 ```sh
-cmake -S . -B build/pc -G Ninja
-cmake --build build/pc                         # game objects, generated BSS, rush2049pc_linktest
+cmake -S . -B build/pc -G Ninja                # add -DRUSH_FETCH_SDL2=ON if SDL2 isn't installed
+cmake --build build/pc
+ctest --test-dir build/pc                      # the PC layer's tests (no ROM needed)
+build/pc/rush2049pc --rom baserom.us.z64       # or --headless --screenshot-at N; --help for the rest
 python3 tools/port/census.py --build build/pc  # rewrites docs/port/STATUS.md
 ```
 
-Needs CMake 3.20 or later, Ninja, gcc or clang, and Python 3.9 or later. The N64 matching build below is unchanged
-and still works from the same tree.
+You need CMake 3.20 or later, Ninja, gcc or clang, Python 3.9 or later and zlib. SDL2 is optional; you need it for a
+window, controllers and sound output. Controls and settings are in [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
+The N64 matching build below is unchanged and still works from the same tree.
 
 ---
 
