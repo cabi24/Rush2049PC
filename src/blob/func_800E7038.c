@@ -26,7 +26,12 @@ typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,ms
 
 extern s8 D_80111954;              /* controller subsystem initialised (also read by func_800E7134) */
 extern u8 D_80111950;              /* osContInit bit pattern */
-s8 D_80149AF8[4][2];               /* gStickCal: per-controller x/y stick calibration */
+#ifndef TARGET_PC
+/* PC: port/data defines D_80149AF8 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) s8 D_80149AF8[4][2];               /* gStickCal: per-controller x/y stick calibration */
 extern OSMesgQueue D_801497A8;     /* SI lock queue */
 extern OSMesg D_80152730;          /* its one-message buffer */
 void SetControllerActive(s32 player, s32 value);

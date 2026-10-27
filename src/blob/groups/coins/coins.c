@@ -59,7 +59,12 @@ typedef struct Pos { s16 x, y; } Pos;
 extern s16 D_80151AD0;
 extern s16 D_8014A108;
 extern s32 gameplay_mode;
-Pair D_80118E20;   /* tentative definition (as credits_scroll_grp/gr3_d.c): see header */
+#ifndef TARGET_PC
+/* PC: port/data defines D_80118E20 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) Pair D_80118E20;   /* tentative definition (as credits_scroll_grp/gr3_d.c): see header */
 extern RecordRow D_801541A8[];
 extern Cam152 D_80150B70[];
 extern volatile u8 D_80140BDC;

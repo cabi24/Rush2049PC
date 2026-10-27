@@ -47,7 +47,12 @@ typedef struct {
 
 Player input_rec0[4];
 extern s8 D_80146108[];
-s8 D_80146180[4];
+#ifndef TARGET_PC
+/* PC: port/data defines D_80146180 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) s8 D_80146180[4];
 extern Rec164A4 D_801164A4;
 extern s16 D_80151AD0;
 extern s16 D_8014A108;

@@ -200,7 +200,12 @@ typedef struct Player {
 typedef struct Config {u8 field0,body,field2,field3,field4,place,flags,owner;} Config;
 typedef struct Bounds {float front,rear,side,height;} Bounds;
 typedef struct Route {s16 field0,first,field4,field6,count;} Route;
-Car D_8014A250[6];
+#ifndef TARGET_PC
+/* PC: port/data defines D_8014A250 at its N64 address in the RDRAM window, where Windows' code can't reach
+ * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
+#define PC_ONLY(x)
+#endif
+PC_ONLY(extern) Car D_8014A250[6];
 extern Player D_80152818[];
 extern Config D_80153E88[];
 extern Reference D_8014A118[];
