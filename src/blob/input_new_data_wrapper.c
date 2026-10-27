@@ -3702,10 +3702,17 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: arg0 is a blit (sound_control.c's Blit, docs/port/POINTERS.md 9.3): its name, image and info are pointers, so
+ * Hide is at +0x26. */
+#define BLIT_HIDE 0x26
+#else
+#define BLIT_HIDE 0x1A
+#endif
 s8 input_new_data_wrapper(s8 *arg0, s32 arg1) {
-    if (arg1 != arg0[0x1A]) {
-        arg0[0x1A] = arg1;
+    if (arg1 != arg0[BLIT_HIDE]) {
+        arg0[BLIT_HIDE] = arg1;
         Input_ApplyPadConfig(arg0);
     }
-    return arg0[0x1A];
+    return arg0[BLIT_HIDE];
 }

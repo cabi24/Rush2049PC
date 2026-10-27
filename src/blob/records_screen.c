@@ -47,7 +47,7 @@ void records_screen(void) {
     s32 id;
     s32 neg;
     RecordRow *row;
-    s32 *status;
+    intptr_t *status;   /* D_80154350 is pointer-sized on the PC */
 
     if (D_80154198 != 0) {
         sound_handles_clear(1);
