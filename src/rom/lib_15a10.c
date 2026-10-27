@@ -249,7 +249,12 @@ void func_800151D0(u16 *ids)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: the sample directory's 0x1C-byte record, as include/boot_tail_sample_contract.h declares it there. */
+typedef struct SampleRecord { u16 identifier; u16 references; u32 offset; u32 data; u8 descriptor[16]; } SampleRecord;
+#else
 typedef struct SampleRecord { u16 identifier; u16 references; u32 offset; void *data; u8 descriptor[16]; } SampleRecord;
+#endif
 extern void *func_80014CAC(void *);
 extern int func_8001605C(SampleRecord *, void *);
 extern int func_800162AC(u16, SampleRecord *);

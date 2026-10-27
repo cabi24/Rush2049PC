@@ -4,6 +4,17 @@
 /* Native shared object contracts for lib_16320 and lib_1cf90. These are
  * object fields, not stack-layout devices. Native offsets are checked by
  * sample_buffer_contract/verify.py; host pointer sizes may differ. */
+#ifdef TARGET_PC
+/* PC: a record of the sample directory file (wave 8), 0x1C bytes there; data is the sample's 32-bit cartridge
+ * address, written at run time (docs/port/MUSYX_DATA.md). The record copy in lib_15a10.c matches. */
+typedef struct SampleRecord {
+    unsigned short identifier;
+    unsigned short references;
+    unsigned int offset;
+    unsigned int data;
+    unsigned char descriptor[16];
+} SampleRecord;
+#else
 typedef struct SampleRecord {
     unsigned short identifier;
     unsigned short references;
@@ -11,6 +22,7 @@ typedef struct SampleRecord {
     void *data;
     unsigned char descriptor[16];
 } SampleRecord;
+#endif
 typedef struct RegisteredSamples {
     SampleRecord *records;
     unsigned char *base;

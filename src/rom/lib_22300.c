@@ -179,11 +179,21 @@ u8 func_8002193C(MacroState *state, MacroCommand *command)
  * Gate:     full-ROM SHA-1
  */
 extern u8 func_8002193C(MacroState *, MacroCommand *);
+#ifdef TARGET_PC
+/* PC: the step's words are in host order (port/assets/musyx.c swaps the pool's macros), so the N64's byte 6 is
+ * not bits 15..8 of word[1], the milliseconds flag func_8002193C tests. The same store, on the word. */
+u8 func_80021B9C(MacroState *state, MacroCommand *command)
+{
+    command->word[1] = (command->word[1] & ~0xFF00U) | 0x100U;
+    return func_8002193C(state, command);
+}
+#else
 u8 func_80021B9C(MacroState *state, MacroCommand *command)
 {
     ((u8 *)command)[6] = 1;
     return func_8002193C(state, command);
 }
+#endif
 
 /* PROMOTED 2026-10-04 — func_80021BC0
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
@@ -710,7 +720,15 @@ u8 func_8002279C(MacroState_8002279C *state, MacroCommand *command)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: the record func_80016CF0 fills and func_800146B4 reads, both with a pointer-sized, packed address field
+ * (a stream's host buffer in func_8001C580's call); here it holds the sample's cartridge address. */
+#pragma pack(1)
+typedef struct SampleInfo_80022874 { u32 info; void *address; u32 offset; u32 length; u32 loopStart; u32 loopLength; u8 type; } SampleInfo_80022874;
+#pragma pack()
+#else
 typedef struct SampleInfo_80022874 { u32 info; u32 address; u32 offset; u32 length; u32 loopStart; u32 loopLength; u8 type; } SampleInfo_80022874;
+#endif
 #pragma pack(1)
 typedef struct MacroState_80022874 { u8 unknown00[0x24]; u32 flags24; u8 unknown28[8]; u32 volume30; u8 unknown34[0x24]; u32 sampleAddress58; u32 sampleInfo5C; u32 identifier60; } MacroState_80022874;
 #pragma pack(0)

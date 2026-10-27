@@ -156,7 +156,7 @@ declared with pointer types today, so on PC they are larger than the data; Phase
 | GTLD keys | `level_objects/group.c:464`, `race_setup_2.c:155` | key -> `Object *` in place |
 | font letter (12 B) | `slot_sound/group.c:108` | `ptr` |
 | `ResPath`/`AltPath`/`DronePath` | `read_path_data/audio_effect_apply.c` | `pts`, `alt` |
-| `SampleRecord` | `include/boot_tail_sample_contract.h` | `data` |
+| `SampleRecord` | `include/boot_tail_sample_contract.h`, `lib_15a10.c` | `data`: done, u32 ([MUSYX_DATA.md](MUSYX_DATA.md)) |
 
 ### 4.3 Raw N64 offsets in m2c code: need a typed PC version
 

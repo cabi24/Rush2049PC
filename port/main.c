@@ -52,6 +52,23 @@ static void usage(FILE *f)
             "Ctrl-\\ prints the N64 threads' states.\n");
 }
 
+/* --no-rom: the file table (docs/port/ASSETS.md §2.2) is ROM data, so on a blank cartridge every wave is a
+ * zero-size file at ROM offset 0. A zero-size heap block makes the file alias the next block's header, which the
+ * text bank's fixups then overwrite. Instead every wave becomes a small raw file of zeros past the cartridge
+ * header; the converters turn the zeros into empty files where the game would loop on them (port/assets). */
+#define BLANK_WAVES 183
+#define BLANK_FILE_SIZE 0x200u
+#define BLANK_FILE_ROM 0x1000u
+extern uint32_t D_8002E580[BLANK_WAVES];   /* gWaveSizes */
+extern uint32_t D_8011B5BC[BLANK_WAVES];   /* ROM offsets */
+extern int32_t D_80123564[BLANK_WAVES];    /* storage kind: 0 raw */
+
+static void blank_files(void)
+{
+    for (int i = 0; i < BLANK_WAVES; i++)
+        D_8002E580[i] = BLANK_FILE_SIZE, D_8011B5BC[i] = BLANK_FILE_ROM, D_80123564[i] = 0;
+}
+
 #define MAX_OVERRIDES 64
 
 int main(int argc, char **argv)
@@ -226,6 +243,8 @@ int main(int argc, char **argv)
         if (!no_rom)
             return 1;   /* --no-rom goes on with the data zeroed */
     }
+    if (no_rom)
+        blank_files();
     if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220 */
         fprintf(stderr, "rush2049pc: no renderer\n");
         return 1;

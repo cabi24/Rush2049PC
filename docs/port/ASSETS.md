@@ -280,15 +280,17 @@ map reads the same waves (§2.3).
 
 ### 3.8 MusyX sound data (waves 6–8, 10–21; samples in ROM)
 
-The MusyX runtime is boot-segment C (`src/rom/lib_1xxxx.c`). It reads these files with native loads.
+The MusyX runtime is boot-segment C (`src/rom/lib_15a10.c`, `lib_16320.c`, `lib_17dc0.c`, `lib_1a660.c`,
+`lib_22300.c`). It reads these files in place with native loads. Field by field, with every reader:
+[MUSYX_DATA.md](MUSYX_DATA.md) §3.
 
 | File | Layout | Writes into the file | Tag |
 |---|---|---|---|
-| project (6) | groups until u32 0xFFFFFFFF: `{s32 size; u16 id; u16 type; u32 offsets[6]}` (`lib_15a10.c:317`), offsets relative to group + 8, pointing to u16 id lists ended by 0xFFFF (macros, samples, tables, keymaps, layers; `type == 1` adds an sfx table). Song groups (`type 0`) also hold pages and MIDI setups (`func_8001558C`, `lib_15a10.c`) | none | C, R |
-| pool (7) | 4 lists (`ResourceOffsets {u32 offsets[4]}`) of `{u32 next_offset; u16 id; …}` entries ended by next 0xFFFFFFFF (`lib_15a10.c:25`, `:162`); payload after the entry header (macro steps are 8 B, opcode in the low 7 bits of the first BE word [R]) | none | C, R |
-| sample directory (8) | `SampleRecord` 0x1C until id 0xFFFF: `u16 identifier; u16 references; u32 offset; void *data; u8 descriptor[16]` (`include/boot_tail_sample_contract.h:7-13`) | **`references` counter and `data = base + offset`** (`lib_16320.c:336`), where base is the cart address of ROM 0x39B40 from `func_80014CAC` → address callback `D_80038014` | C |
-| songs (10–21) | `{u32 tTab, u32, u32, u32 mTrack, u32 bpm}` + `u32 trackTab[64]` (offsets from the song start) + patterns (16-bit delta times [R]) | none; resolved into sequencer state as `offset + (u32)song` (`lib_17dc0.c:422-439`) | C, R |
-| samples | ROM 0x39B40, raw ADPCM (format 3 [R]); 12-byte `{size, devAddr, vAddr}` DMA requests (`func_8008ABE4.c:21-25`) | none | C |
+| project (6) | groups until u32 0xFFFFFFFF: `{s32 size; u16 id; u16 type; u32 offsets[]}` (`func_8001536C`), offsets relative to group + 8: u16 id lists ended by 0xFFFF (macros, samples, tables, keymaps, layers); type 1 adds an sfx table (12-byte entries), type 0 a normal page, a drum page and MIDI setups (`func_8001558C`) | byte 9 of sfx entries (`func_800164D0`, `func_80020370`) | C |
+| pool (7) | 4 lists (`ResourceOffsets {u32 offsets[4]}`) of `{u32 size; u16 id; u16; payload at +8}` entries ended by size 0xFFFFFFFF (`func_80014E1C`): macros (8-byte steps of two u32, copied word by word by `func_80023E9C`), tables (byte curves; envelopes of four little-endian u16), keymaps (128 × 8 B), layers (count u16 at +0xA, payload at +12, 12 B each) | none | C |
+| sample directory (8) | `SampleRecord` 0x1C until id 0xFFFF: `u16 identifier; u16 references; u32 offset; void *data; u8 descriptor[16]` (`include/boot_tail_sample_contract.h`) | **`references` counter and `data = base + offset`** (`func_800162AC`), where base is the cart address of ROM 0x39B40 (`D_801525FC`, through `func_80014CAC`) | C |
+| songs (10–21) | `{u32 tracks, patterns, channel map, tempo track, tempo, loop time}`; `u32 trackTab[64]` (offsets from the song start) to 12-byte track events; a pattern table to patterns `{u32; u32 bend; u32 modulation}` + note events (u16 delta, key, velocity, u16 duration for notes) | none; resolved into sequencer state as `offset + (u32)song` (`func_800178B0`, `func_80018634`) | C |
+| samples | ROM 0x39B40, raw ADPCM (format 3) or PCM16 (format 0), a 0x100-byte codebook first; `{length, source, destination}` DMA requests (`func_80012234`, `func_80012730`, `func_8008ABE4.c:21-25`) | none | C |
 
 ### 3.9 Not loaded at run time
 
@@ -330,9 +332,9 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 | 21 | `runtime_a_c93c_closure/group.c:264-265` | `MapLod` 0x10 with two pointers; whole records saved and restored (`D_803BAB58`) | u32 fields |
 | 22 | `audio_effect_apply.c:75, 96, 100` | `memcpy` of 16 B / 8 B file headers into structs with pointers; `AltPath.pts` written in place | field-by-field copy; u32 `pts` |
 | 23 | `level_objects/group.c:59-67, 406` | PTHD as `Scene36` (0x24) with `Resource68 *resources`; byte-offset indexing `(u8 *)D_801392D0 + offset` | u32 fields |
-| 24 | `lib_16320.c:336`, `boot_tail_sample_contract.h:7-13` | `SampleRecord.data` (`void *`, 0x1C record) set in place to a cart address | u32 |
-| 25 | `lib_11640.c:1893` | address class by the top byte (0x80 RAM, 0xB0 cart) | cart addresses stay 32-bit |
-| 26 | `lib_17dc0.c:422-439` | song offsets `+ (u32)arr` | window |
+| 24 | `func_800162AC`, `boot_tail_sample_contract.h` | `SampleRecord.data` (`void *`, 0x1C record) set in place to a cart address | done: u32 under `TARGET_PC` (MUSYX_DATA.md §4) |
+| 25 | `func_80014CAC`, `func_800146B4` (`lib_11640.c`) | address class by the top byte (0x80 RAM, 0xB0 cart) | cart addresses stay 32-bit; host pointers (≥ 4 GiB) count as RAM |
+| 26 | `func_800178B0`, `func_80018634` (`lib_17dc0.c`) | song offsets `+ (u32)arr` | window |
 | 27 | `audio_heap/group.c:36-63, 236-245` | heap base `(u32)&D_8017A640`; `end = osMemSize \| 0x80000000`; 0x20-byte block header holding 3 pointers | `TARGET_PC`: base and end inside the window |
 | 28 | `gWaveInstance` 0x80156D38 and the `{ptr,count}` tables (§3.1) | BSS/data structs with pointers, declared differently per file (`ResSlot`, `Voice`, `anon_loaded_ready_14`, `Pair`) | `gen_bss` doesn't detect pointer structs yet (PORT_PLAN Phase 0). Give them own storage and one declaration, or u32 pointers |
 
@@ -359,7 +361,7 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | Path | 158–182 | swap | §3.6 | §4 #22 |
 | Text bank | 0–5 | swap + side | counts u32, offset tables u32, tables u16 | §4 #15 (17 files); redo after `ReplaceWave` |
 | Font data | 38–53 | none | only the 4-byte slot | §4 #16 |
-| MusyX project, pool, sample directory, songs | 6–8, 10–21 | swap, after auditing every MusyX reader for byte or halfword reads inside words; or BE accessors in the MusyX library | §3.8 | §4 #24–26; Phase 5 |
+| MusyX project, pool, sample directory, songs | 6–8, 10–21 | swap: done, `port/assets/musyx.c` ([MUSYX_DATA.md](MUSYX_DATA.md)). The readers use whole-field loads except a few, handled by how the fields are swapped | MUSYX_DATA.md §3 | §4 #24; registries, sample-info views, WAITMS (MUSYX_DATA.md §4) |
 | Samples | ROM 0x39B40 | BE: PC DMA is a `memcpy` from the ROM | none | audio interpreter reads ADPCM bytes |
 | Game image, runtime images | — | skip | — | `game_init` inflate and `PrevMaxPath` under `TARGET_PC` |
 | File table (4 tables), car tables, PVS, texture-animation tables | — | `port/data` | by declared type | — |
@@ -368,7 +370,7 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 
 | Stage | Formats needed, in load order | Evidence |
 |---|---|---|
-| Boot (`InitSystem`, `game_late_init` 0x800EEA7C) | heap (§2.4) → `AudioInit` (`hud_setup` 0x800C8B8C) → `AudioInitSys`: `InitWaves` → **text bank** (`D_8002E860`, then `ReplaceWave` to the language) → **MusyX project, pool, sample directory** (6, 7, 8) → `sndPushGroup` of sfx groups 12–15 with samples at ROM 0x39B40 → `HAL_InitText` | `groups/heap_release/initsystem.c:144-156`, `car_shadow_render.c:65-110`, `InitWaves.c` |
+| Boot (`InitSystem`, `game_late_init` 0x800EEA7C) | heap (§2.4) → `AudioInit` (`hud_setup` 0x800C8B8C) → `AudioInitSys`: `InitWaves` → **text bank** (`D_8002E860`, then `ReplaceWave` to the language) → **MusyX project, pool, sample directory** (6, 7, 8; converted) → MusyX init through its service callbacks (`D_8011EAAC`, not yet LP64-ready: MUSYX_DATA.md §8.1) → `sndPushGroup` of sfx groups 12–15 with samples at ROM 0x39B40 → `HAL_InitText` | `groups/heap_release/initsystem.c:144-156`, `car_shadow_render.c:65-110`, `InitWaves.c` |
 | First text on screen | **font data + font texture WAD** (38 + f, 22 + f) on the first `HAL_SetFont`; **WAD** loader, TXHD, IMAG | `slot_state_setup` |
 | Front end (states 0x2 / 0x4) | `InitWaves`, overlay A ("Start"), **front-end WADs** 54, 58, 59 (locked), song 6 (wave 16) when the Expansion Pak flag is set; screens 55/56/57/60 (all WAD; DL relocation, mirror pass, conditionals) | `state.c:158-196` |
 | Car select / track select (image A) | **car WADs** 88–100 (`func_80390BC0`); **path** waves 158–163 for the track maps (`loadPathData`), which needs the path format before any race | `runtime_a_c93c_closure/group.c:1272-1281` |
@@ -392,8 +394,10 @@ Expansion Pak waves (61, 65, 78, 82–87), which is a smaller first target. Swit
    yet give pointer-bearing structs their own storage.
 4. **The `Gfx` widening must not reach code that walks ROM lists** (`entity_cull_check`'s local `Gfx`, `u32 *`
    walkers): those lists stay 8-byte commands.
-5. **MusyX** parses its files throughout the boot library with native loads. Swapping in place is only safe if every
-   reader uses whole-word loads. That needs an audit; the formats come mostly from [R].
+5. **MusyX** parses its files throughout the boot library with native loads. Audited (MUSYX_DATA.md §4): every
+   reader uses whole-field loads except WAITMS's byte store (given a PC version), the little-endian envelopes,
+   the layer count's halfword and two fields read at either width by record kind, which the converter swaps
+   accordingly. The formats are now from the C; what to check with the ROM is MUSYX_DATA.md §7.
 6. **Unidentified**: waves 9 and 69–75 (no load site), 61, 79, 80, 81 (N64-only), `trigPtr` targets (relocated, no
    reader found) and the contents of WOBJ beyond the 0x68 records [M]. The storage kind per wave is ROM data, so read
    it from the table rather than guessing.
