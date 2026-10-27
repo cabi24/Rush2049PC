@@ -3701,6 +3701,17 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: a ZOID window (D_8017A510) is 80 bytes, its first and bounds pointers 8 bytes each (docs/port/POINTERS.md
+ * 10); the m2c body uses the N64 stride. Stores a window's first and bounds. */
+typedef struct { void *first, *bounds; u8 rest[0x48 - 8]; } PcWindow;
+void func_800A5518(s32 arg0, void *arg1, void *arg2) {
+    PcWindow *w = &((PcWindow *) &D_8017A510)[arg0];
+
+    w->first = arg1;
+    w->bounds = arg2;
+}
+#else
 void func_800A5518(s32 arg0, s32 arg1, s32 arg2) {
     void *temp_v0;
 
@@ -3708,3 +3719,4 @@ void func_800A5518(s32 arg0, s32 arg1, s32 arg2) {
     M2C_FIELD(temp_v0, s32 *, 0) = arg1;
     M2C_FIELD(temp_v0, s32 *, 4) = arg2;
 }
+#endif

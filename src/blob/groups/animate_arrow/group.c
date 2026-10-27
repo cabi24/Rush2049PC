@@ -58,7 +58,11 @@ typedef struct Camera {
     u8 pad54[152 - 84];
 } Camera;
 typedef struct View {
+#ifdef TARGET_PC
+    void *first; void *bounds; u8 pad0_8[0xC - 0x8];
+#else
     u8 pad0[12];
+#endif
     f32 radius;             /* 12 */
     f32 scale;              /* 16 */
     u8 pad14[72 - 20];

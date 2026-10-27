@@ -19,7 +19,11 @@ typedef short s16;
 typedef signed char s8;
 
 typedef struct View {
+#ifdef TARGET_PC
+    void *first; void *bounds; char pad0_8[0x1C - 0x8];
+#else
     char pad0[28];
+#endif
     f32 scale_x;   /* 28 */
     f32 scale_y;   /* 32 */
     f32 proj_x;    /* 36 */
