@@ -11,6 +11,12 @@
  * virtual (timer.c): the waits move it instead of sleeping, and a run whose clock stops moving for 30 s of real
  * time (a thread computing for ever) is stopped as hung.
  *
+ * A high frame rate (video.frame_rate, docs/port/GFX.md "High frame rate"): port/gfx then shows nothing at the
+ * retraces; the loop calls pc_gfx_present_tick that many times a second instead, in step with the retraces, with
+ * the moment in retraces, and port/gfx shows the swapped-in frame or one drawn between two. The ticks post nothing
+ * to the game, so its timing is the same. With --fast they are not deadlines either: they run when the loop wakes
+ * for something else, so the virtual clock stops at the same moments with the setting on or off.
+ *
  * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts follow the system
  * timer (15.6 ms by default), and winpthreads' are 15.6 ms steps whatever the period: the scheduler's own waits use
  * high-resolution timers (sched.c), and the loop asks for a 1 ms period for the rest (SDL's waits). */
@@ -143,6 +149,9 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint32_t shot_vi = 0, frames_vi = 0;   /* the retrace at which each limit was reached */
     uint32_t until_gfx = 0;                /* --until-state: the graphics task to run to, once the state is seen */
     uint64_t last_vi_real = pc_real_ns();  /* --fast: when the last retrace was, in real time */
+    uint64_t vi_at = next_vi - vi_ns;      /* when retrace pc_frame was due */
+    uint64_t next_tick = 0;                /* a high frame rate: the next frame to show; 0 to start again */
+    int tick_rate = 0;
     g_game_state = opt->game_state;
     g_game_info = opt->game_info;
     signal(SIGINT, on_signal);
@@ -158,6 +167,7 @@ int pc_ultra_run(const PcRunOptions *opt)
         if (pc_input_paused()) {
             hold();
             next_vi = pc_host_ns() + vi_ns;
+            next_tick = 0;
             continue;
         }
         uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
@@ -182,6 +192,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                 pc_quit = 1;
             pc_input_poll(pads);
             pc_si_set_pads(pads);
+            pc_gfx_retrace(pc_frame);
             pc_vi_retrace(&fb);
             if (fb)
                 pc_gfx_present(fb);
@@ -211,6 +222,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             next_vi += vi_ns;
             if (next_vi <= now)   /* stalled (a debugger, a slow frame): resynchronize */
                 next_vi = now + vi_ns;
+            vi_at = next_vi - vi_ns;
             deadline = next_vi;
             if (now >= next_flush) {
                 pc_si_flush();
@@ -229,6 +241,23 @@ int pc_ultra_run(const PcRunOptions *opt)
                 }
                 break;
             }
+        }
+        int rate = pc_gfx_frame_rate();
+        if (rate > 0) {   /* a high frame rate: a frame shown, in step with the retraces */
+            uint64_t period = 1000000000u / (uint64_t)rate, t = pc_host_ns();
+            if (!next_tick || rate != tick_rate)
+                next_tick = vi_at;
+            tick_rate = rate;
+            if (t >= next_tick) {
+                pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns);
+                next_tick += period;
+                if (next_tick <= t)   /* behind (a slow frame, a blocking swap): skip to the next one due */
+                    next_tick += ((t - next_tick) / period + 1) * period;
+            }
+            if (!pc_time_virtual() && next_tick < deadline)
+                deadline = next_tick;
+        } else {
+            next_tick = 0;
         }
         if (g_dump) {
             g_dump = 0;
