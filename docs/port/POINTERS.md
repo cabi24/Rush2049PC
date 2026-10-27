@@ -309,6 +309,11 @@ shared records.
 
   Byte arrays count as pads. Two reports are benign: pointer-typed pads (the text-bank header views use `void *`
   over its u16 counts) and a u8[4] colour against a u32 one.
+- **`tools/port/layout_check.py`** checks the same rule along the code: endian_check's accesses, each put on the
+  storage it reaches through pointers, parameters, returns, list walks and slots, so a view whose struct has another
+  name meets the others there. It reports views off the storage's reference layout or off each other, raw offsets
+  inside a moved field, strides of the N64 size and pointer-width mismatches ([LAYOUT.md](LAYOUT.md); ctest
+  `layout_check`).
 
 ### 9.2 Scene nodes: ObjInstanceList `D_8012E700`
 
