@@ -16,7 +16,8 @@ it, whose own declarations are not compared); weak context copies never run. Wit
 views are the complete struct definitions with one of those tags and at most the given N64 size (shorter ones are
 prefixes), in every object (or only those --in the given source files); those whose object has no live function are
 marked. An array view whose element is a whole fraction of the reference (in both layouts) is compared element by
-element. Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
+element, and a struct view that runs into the next element field by field in the element each field falls in.
+Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
 """
 import argparse
 import re
@@ -122,15 +123,19 @@ def main():
     objects = [l.strip() for l in (a.build / "game_objects.txt").read_text().split() if l.strip()]
 
     views = []   # (object, display, type, live)
+    single = set()   # (object, display) of --sym views declared as one struct, not an array of them
     if a.sym:
         same = {a.sym} | {n for n in a.alias.split(",") if n}
         users = live_users(objects, same | {n for n in a.also.split(",") if n})
         found, tags = gd.read_variables(sorted(users), a.readelf, same)
         for name in sorted(same):
             for obj, t, disp, _ in found.get(name, ()):
-                t = element_type(gd.complete(t, tags))
+                whole = gd.complete(t, tags)
+                t = element_type(whole)
                 if t[0] in ("struct", "union"):
                     views.append((obj, disp if name == a.sym else f"{name}: {disp}", t, True))
+                    if whole[0] != "array":
+                        single.add(views[-1][:2])
         missing = users - {v[0] for v in views}
     else:
         want = set(a.tag.split(","))
@@ -168,6 +173,12 @@ def main():
         if k > 1 and size[0] * k == ref_size[0] and size[1] * k == ref_size[1]:
             # elements that are a whole fraction of the reference (two frame records against a struct of two)
             lay = {n + i * size[0]: (h + i * size[1], c) for i in range(k) for n, (h, c) in lay.items()}
+            size = ref_size
+        runs_on = v[:2] in single and ref_v[:2] not in single and size[0] > ref_size[0]
+        if runs_on:
+            # one struct that runs into the next element (an input record view that ends at the next record's
+            # controller byte): its fields are compared in the element they fall in, its size isn't
+            lay = {n % ref_size[0]: (h - n // ref_size[0] * ref_size[1], c) for n, (h, c) in lay.items()}
             size = ref_size
         if size != ref_size and not (a.tag and size[0] < ref_size[0]):   # a shorter --tag view is a prefix
             problems.append(f"size N64 {size[0]} / host {size[1]}")
