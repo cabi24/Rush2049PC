@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "ultra.h"
 
@@ -76,8 +77,9 @@ static void report_first_gfx(const PcOSTask *t)
     if (pc_rcp_stop_at_gfx) {
         pc_os_dump_threads();
         fprintf(stderr, "rush2049pc: --stop-at-gfx: stopping here\n");
+        pc_si_flush();
         fflush(NULL);
-        exit(0);
+        _exit(0);   /* the N64 threads are still running game code: no atexit handlers */
     }
 }
 
@@ -87,7 +89,7 @@ int32_t osAiSetFrequency(uint32_t frequency)
 {
     if (!frequency)
         return -1;
-    uint32_t dac = (2 * VI_CLOCK_NTSC / frequency + 1) / 2;   /* libultra's rounding */
+    uint32_t dac = (uint32_t)((float)VI_CLOCK_NTSC / (float)frequency + 0.5f);   /* as libultra rounds it */
     if (dac < 132)
         return -1;
     uint32_t actual = VI_CLOCK_NTSC / dac;

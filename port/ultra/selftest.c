@@ -35,6 +35,11 @@ int32_t osPfsAllocateFile(void *pfs, uint16_t company, uint32_t game, uint8_t *n
                           int32_t *file);
 int32_t osPfsReadWriteFile(void *pfs, int32_t file, uint8_t flag, int32_t offset, int32_t size, uint8_t *buf);
 int32_t osPfsDeleteFile(void *pfs, uint16_t company, uint32_t game, uint8_t *name, uint8_t *ext);
+void osSpTaskLoad(void *task);
+void osSpTaskStartGo(void *task);
+int32_t osDpSetNextBuffer(void *buf, uint64_t size);
+int32_t osAiSetFrequency(uint32_t hz);
+int32_t osAiSetNextBuffer(void *buf, uint32_t len);
 
 /* The game's names at absolute N64 addresses (gen_stubs, aliases.ld). */
 extern uint8_t D_8017A640[], D_8038A400[];
@@ -391,6 +396,45 @@ static void t_pif(void)
                                      !memcmp(in, out, 768) && rd == 0 && after_delete == 123 * 256, d);
 }
 
+/* The main thread runs RSP tasks and answers with SP (and DP) events; the AI event comes when the output
+ * queue is low. No graphics task: that needs a GL context (port/gfx has its own tests). */
+static void t_rcp(void)
+{
+    void *q = queue(10, 8);
+    OSMesg m[4] = {0};
+    PcOSTask task = {0};
+    char d[96];
+    osSetEventMesg(OS_EVENT_SP, q, (OSMesg)4);
+    osSetEventMesg(OS_EVENT_DP, q, (OSMesg)9);
+    task.type = M_AUDTASK;   /* no SFDs: port/audio renders nothing */
+    uint32_t before = pc_rcp_audio_tasks;
+    osSpTaskLoad(&task);
+    osSpTaskStartGo(&task);
+    osRecvMesg(q, &m[0], OS_MESG_BLOCK);
+    task.type = 7;           /* some other microcode: just done */
+    osSpTaskStartGo(&task);
+    osRecvMesg(q, &m[1], OS_MESG_BLOCK);
+    osDpSetNextBuffer(NULL, 0);
+    osRecvMesg(q, &m[2], OS_MESG_BLOCK);
+    snprintf(d, sizeof d, "events %d %d %d, audio tasks %u", (int)(intptr_t)m[0], (int)(intptr_t)m[1],
+             (int)(intptr_t)m[2], pc_rcp_audio_tasks - before);
+    check("RSP tasks and DP buffers", m[0] == (OSMesg)4 && m[1] == (OSMesg)4 && m[2] == (OSMesg)9 &&
+                                          pc_rcp_audio_tasks - before == 1, d);
+    osSetEventMesg(OS_EVENT_SP, NULL, NULL);
+    osSetEventMesg(OS_EVENT_DP, NULL, NULL);
+
+    static int16_t buffer[192 * 2];
+    int32_t rate = osAiSetFrequency(22050);
+    osSetEventMesg(OS_EVENT_AI, q, (OSMesg)6);
+    uint64_t t0 = osGetTime();
+    osAiSetNextBuffer(buffer, sizeof buffer);   /* 192 frames queued: below 384, so an event */
+    int r = osRecvMesg(q, &m[3], OS_MESG_BLOCK);
+    double ms = (osGetTime() - t0) * 1000.0 / PC_COUNT_HZ;
+    osSetEventMesg(OS_EVENT_AI, NULL, NULL);
+    snprintf(d, sizeof d, "rate %d, event %d after %.1f ms", (int)rate, (int)(intptr_t)m[3], ms);
+    check("AI frequency and event", rate == 22047 && r == 0 && m[3] == (OSMesg)6 && ms < 50, d);
+}
+
 static void controller(void *arg)
 {
     (void)arg;
@@ -404,6 +448,7 @@ static void controller(void *arg)
     t_timers();
     t_spin();
     t_memory();
+    t_rcp();
     t_pif();
     fprintf(stderr, "selftest: %d of %d passed\n", g_run - g_failed, g_run);
     pc_quit = g_failed ? 2 : 1;
