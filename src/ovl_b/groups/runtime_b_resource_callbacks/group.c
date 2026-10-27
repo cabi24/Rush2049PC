@@ -32,7 +32,14 @@ typedef float f32;
 #define OBJECT_HANDLE union { s32 scene; struct { s16 upper, index; } parts; }
 #endif
 typedef struct Object {
+#ifdef TARGET_PC
+    /* PC: the power-ups are level-object nodes (func_8039133C's slots), which keep their N64 layout in the arena:
+     * the link is a 32-bit window address, so flags, the handle and resource (+0x50) are where the N64 has them
+     * (docs/port/POINTERS.md 10). */
+    u32 next;
+#else
     struct Object *next;
+#endif
     u8 flags;
     u8 unknown05[7];
     OBJECT_HANDLE handle;

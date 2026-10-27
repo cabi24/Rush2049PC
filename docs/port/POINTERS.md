@@ -532,6 +532,13 @@ over the next node's link, while the other views had the N64 one.
   `func_8010E694`, and `func_8010E828` as a PC version, which also passes it to `sound_position_set`
   zero-extended: proto_check's last harmful view). The views of `func_8010DBB8`, `func_8010E72C` and
   `race_setup_2` had the N64 layout and no pointers already.
+- **Walks of the node list outside `level_objects`** follow the 32-bit link too: `func_800BEA6C` (every node's
+  state 2 and no sound; `NODE_NEXT`), the pause screen's `PauseTargets` (the same, in the nonmatching draft of
+  `RaceStateMachine_Update` the PC builds; `TARGET_NEXT`) and battle mode's power-up selection `func_8039133C` (`NEXT`), which walked
+  the active list `D_80143FD8` reading the link 8 bytes wide, with the node's flags at +4 as its upper half. The
+  power-ups' `Object` view (`runtime_b_resource_callbacks`: flags, handle, `resource` at +0x50) has the N64 layout,
+  and `func_8039133C`'s heap block of slots holds `count` 16-byte slots (it was sized for 8-byte ones). Test:
+  `assets_battle`.
 - **The target visuals' views of the visual** padded over `next` or had `data` as a pointer (`audio_channel_setup`,
   `func_8010D85C`, `func_8010E0FC`): they have the visual's PC layout (CARS.md 3) with `data` a u32.
 - **The handle's low half.** The flag, the frame stepper, the debris and the camera views read the node's s32 handle
@@ -541,7 +548,8 @@ over the next node's link, while the other views had the N64 one.
   `D_80117510[c]` bytes (ROM data), and of their views only the camera controller `CamCtl` (72 bytes) has a pointer,
   its scene (a PTHD record of the track WAD, which itself keeps its N64 layout: `link`, `keys`, `cur` u32). The
   dead-reckoning records `D_80150F38` (64 bytes, a heap block; `func_800AB750` strides by 64) keep their body, game
-  data at `D_80118C10 + 32 x value`, as a u32. The mine data, the debris physics, the cone's motion, the coin and
+  data at `D_80118C10 + 32 x value`, as a u32, in each view: `level_objects`' `Matrix64`, `func_8010C02C`'s hit
+  test and the collision response `random_float` (`Reckon`, `BODY`). The mine data, the debris physics, the cone's motion, the coin and
   battle mode's `Slot136` have no pointers.
 - `D_8013C300`, the cameras with key paths, is pointer-sized already (`intptr_t[30]`, PROTOTYPES.md 5).
 
