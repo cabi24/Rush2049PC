@@ -175,7 +175,12 @@ typedef struct HitPoly { struct HitPoly *next; void *poly; } HitPoly;
 typedef struct Shield { s32 dlIdx; UVMat mat; } Shield;
 typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct ObjInst { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInst;
+#else
 typedef struct ObjInst { u8 pad00[12]; f32 scale; u8 pad10[0x44 - 16]; } ObjInst;
+#endif
 
 extern volatile f32 D_8002EB94;          /* gFrameSeconds */
 extern f32 D_80142764;          /* gGravity */

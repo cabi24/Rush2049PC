@@ -20,7 +20,15 @@ typedef unsigned char u8;
 typedef struct Q { u8 pad[16]; u8 id; u8 pad17; s8 name[14]; } Q;
 typedef struct Ghost { struct Ghost **next; Q **q; s8 track; u8 backwards; s8 pos[14]; s32 id0; s32 id1; } Ghost;
 typedef struct Player { s32 w0; s32 w4; Q **qq; s32 id0; s32 id1; s8 name[4]; } Player;
-typedef struct Slot { u8 pad0; s8 formatted; u8 pad2[3]; s8 damaged; s8 full; u8 rest[765]; } Slot;   /* 772 bytes */
+#ifdef TARGET_PC
+/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
+ * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+typedef struct Slot { u8 pad0; s8 formatted; u8 pad2[3]; s8 damaged; s8 full; u8 rest[5]; PcPfs pfs; u8 pad74[0x304 - 0x74]; } Slot;
+#else
+typedef struct Slot { u8 pad0; s8 formatted; u8 pad2[3]; s8 damaged; s8 full; u8 rest[765]; } Slot;
+#endif   /* 772 bytes */
 typedef struct PakState { s8 inserted; u8 rest[15]; } PakState;
 
 extern Player **D_8014A160;     /* gGhostPlayer */

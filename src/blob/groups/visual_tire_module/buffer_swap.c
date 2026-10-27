@@ -43,7 +43,12 @@ typedef struct Visual { u8 opaque0[4]; s16 index, object, slot, opaque10; u32 fl
 typedef struct Model2056 { u8 opaque0[8]; u8 type; u8 opaque9[1007]; s16 state; u8 opaque1018[2]; s32 sound; u8 opaque1024[966]; s16 player; u8 opaque1992[64]; } Model2056;
 typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
 typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[624]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Model68 { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
+#else
 typedef struct Model68 { u32 flags; u8 opaque4[64]; } Model68;
+#endif
 extern Model2056 D_8014A250[];
 extern Player952 player_array[];
 extern Model68 D_8012E700[];

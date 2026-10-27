@@ -43,7 +43,7 @@ extern void math_utility(void *,void *);
 extern void func_800B5898(f32,f32 (*)[3]);
 extern void func_800B5940(f32,f32 (*)[3]);
 extern void func_8008B32C(f32 (*)[3],f32 (*)[3],f32);
-extern void func_8008D870(s16,s32,s32);
+extern void func_8008D870(s16,intptr_t,s32);
 extern void *func_800B24EC(char *,s16 *,s32,s8,s32);
 extern void model_data_load(s32,s32,u32),model_transform_setup(s32,s32,u32);
 extern void func_800B5570(s32),func_803998C0(void);
@@ -90,8 +90,8 @@ void func_803993EC(void)
             }
             func_800B5898(slot->angle-1.5707963705062866f,slot->matrix);
             if(slot->angle>1.5707963705062866f)
-                func_8008D870((s16)slot->id,(s32)func_800B24EC(D_803B8884,&texture,0,D_80140BDC-1,1),-1);
-            else func_8008D870((s16)slot->id,(s32)func_800B24EC(D_803B8894,&texture,0,D_80140BDC-1,1),-1);
+                func_8008D870((s16)slot->id,(intptr_t)func_800B24EC(D_803B8884,&texture,0,D_80140BDC-1,1),-1);
+            else func_8008D870((s16)slot->id,(intptr_t)func_800B24EC(D_803B8894,&texture,0,D_80140BDC-1,1),-1);
             if(!func_80399394(i))model_data_load(slot->id,0,15);
             else {
                 model_transform_setup(slot->id,0,15);
@@ -269,8 +269,8 @@ void func_803998B8(void)
             func_8008E06C(slot->id,&color);
         }
     }
-    func_8008D870(D_803B42F4[7].id,(s32)func_800B24EC(D_803B8864,&texture,0,D_80140BDC-1,1),-1);
-    func_8008D870(D_803B42F4[8].id,(s32)func_800B24EC(D_803B886C,&texture,0,D_80140BDC-1,1),-1);
+    func_8008D870(D_803B42F4[7].id,(intptr_t)func_800B24EC(D_803B8864,&texture,0,D_80140BDC-1,1),-1);
+    func_8008D870(D_803B42F4[8].id,(intptr_t)func_800B24EC(D_803B886C,&texture,0,D_80140BDC-1,1),-1);
     memcpy(D_803B42F4[8].matrix,D_8011418C,36);
     func_800B5898(-1.5707963705062866f,D_803B42F4[8].matrix);
     D_803B42F4[8].position[0]=75.0999984741211f;
@@ -283,7 +283,7 @@ void func_803998B8(void)
     D_803B42F4[9].position[0]=87.0999984741211f;
     D_803B42F4[9].position[1]=55.20000076293945f;
     D_803B42F4[9].position[2]=100.0f;
-    func_8008D870(D_803B42F4[10].id,(s32)func_800B24EC(D_803B8870,&texture,0,D_80140BDC-1,1),-1);
+    func_8008D870(D_803B42F4[10].id,(intptr_t)func_800B24EC(D_803B8870,&texture,0,D_80140BDC-1,1),-1);
     memcpy(D_803B42F4[10].matrix,D_8011418C,36);
     func_800B5898(-1.5707963705062866f,D_803B42F4[10].matrix);
     D_803B42F4[10].position[0]=-75.0999984741211f;
@@ -295,7 +295,7 @@ void func_803998B8(void)
     D_803B42F4[11].position[0]=-87.0999984741211f;
     D_803B42F4[11].position[1]=55.20000076293945f;
     D_803B42F4[11].position[2]=100.0f;
-    func_8008D870(D_803B42F4[12].id,(s32)func_800B24EC(D_803B8874,&texture,0,D_80140BDC-1,1),-1);
+    func_8008D870(D_803B42F4[12].id,(intptr_t)func_800B24EC(D_803B8874,&texture,0,D_80140BDC-1,1),-1);
     memcpy(D_803B42F4[12].matrix,D_8011418C,36);
     func_800B5898(-1.5707963705062866f,D_803B42F4[12].matrix);
     D_803B42F4[12].position[0]=0.0f;

@@ -25,10 +25,19 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
+#else
 typedef struct Node { u8 pad[60]; u32 color; u8 tail[4]; } Node;
+#endif
 
 extern s32 D_801140EC;
 extern Item D_80111998[4][17];
@@ -47,7 +56,7 @@ void model_data_load(s32 a, s32 mode, u32 v);
 void model_transform_setup(s32 a, s32 mode, u32 v);
 typedef struct NameEntry NameEntry;
 NameEntry *func_800B24EC(char *name, s16 *out, s8 lo, s8 hi, s32 err);
-void func_8008D870(s16 handle, s32 tex, s32 c);
+void func_8008D870(s16 handle, intptr_t tex, s32 c);
 void func_800B5898(f32 angle, f32 uv[][3]);
 void func_8008B32C(f32 (*dst)[3], f32 (*src)[3], f32 s);
 void particle_velocity_set(void);
@@ -84,7 +93,7 @@ void drone_throttle_calc(s8 player) {
             model_transform_setup(e->handle, 0, mask);
         }
     }
-    func_8008D870(D_80111998[player][13].handle, (s32)func_800B24EC("BUTTON_TITLE", &tex, 0, (s8)(D_80140BDC - 1), 1), -1);
+    func_8008D870(D_80111998[player][13].handle, (intptr_t)func_800B24EC("BUTTON_TITLE", &tex, 0, (s8)(D_80140BDC - 1), 1), -1);
     math_utility(D_8011418C, D_80111998[player][13].matrix);
     func_800B5898(-1.5707964f, D_80111998[player][13].matrix);
     D_80111998[player][13].position[0] = 0.0f;
@@ -96,8 +105,8 @@ void drone_throttle_calc(s8 player) {
     D_80111998[player][13].position[0] *= scale;
     D_80111998[player][13].position[1] *= scale;
     D_80111998[player][13].position[2] *= scale;
-    func_8008D870(D_80111998[player][14].handle, (s32)func_800B24EC("CURSOR", &tex, 0, (s8)(D_80140BDC - 1), 1), -1);
-    func_8008D870(D_80111998[player][15].handle, (s32)func_800B24EC("B1", &tex, 0, (s8)(D_80140BDC - 1), 1), -1);
+    func_8008D870(D_80111998[player][14].handle, (intptr_t)func_800B24EC("CURSOR", &tex, 0, (s8)(D_80140BDC - 1), 1), -1);
+    func_8008D870(D_80111998[player][15].handle, (intptr_t)func_800B24EC("B1", &tex, 0, (s8)(D_80140BDC - 1), 1), -1);
     math_utility(D_8011418C, D_80111998[player][15].matrix);
     func_800B5898(-1.5707964f, D_80111998[player][15].matrix);
     D_80111998[player][15].position[0] = -75.1f;

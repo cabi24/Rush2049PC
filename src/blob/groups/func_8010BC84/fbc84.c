@@ -20,10 +20,23 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
+#ifdef TARGET_PC
+/* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Blit {
+    void *name, *image, *info;
+    u16 texIndex;
+    s16 x, y;
+    u16 z;
+    s16 width, height;
+    u8 alpha, flip;
+    s8 hidden;
+} Blit;
+#else
 typedef struct Blit {
     u8 pad0[0x1A];
     s8 hidden;
 } Blit;
+#endif
 
 #ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
@@ -56,11 +69,25 @@ typedef struct Player {
     s32 *name;
 } Player;
 
+#ifdef TARGET_PC
+/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
+ * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+typedef struct Control {
+    u8 pad0[6];
+    s8 b6;
+    u8 pad7[5];
+    PcPfs pfs;
+    u8 pad74[0x304 - 0x74];
+} Control;
+#else
 typedef struct Control {
     u8 pad0[6];
     s8 b6;
     u8 pad7[772 - 7];
 } Control;
+#endif
 
 typedef struct TPos {
     u8 pad0[18];

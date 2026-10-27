@@ -3791,6 +3791,22 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The last node
+ * of arg0's sibling chain (a ring stops at arg0). */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+s16 func_8008E144(s16 arg0)
+{
+  s16 last;
+  s16 i = arg0;
+  do
+  {
+    last = i;
+    i = ((PcNode *) &D_8012E700)[i].next;
+  } while ((i >= 0) && (i != arg0));
+  return last;
+}
+#else
 s16 func_8008E144(s16 arg0)
 {
   s16 temp_v1;
@@ -3809,3 +3825,4 @@ s16 func_8008E144(s16 arg0)
   }
   return temp_v1;
 }
+#endif

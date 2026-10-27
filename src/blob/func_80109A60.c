@@ -25,6 +25,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct Blit {
@@ -43,7 +47,7 @@ typedef struct Blit {
     u16 unknown26;
     s32 (*AnimFunc)(struct Blit *);
     u32 AnimID;
-    u32 unk30;
+    uintptr_t unk30;
     u16 render_slot;
 } Blit;
 
@@ -72,7 +76,12 @@ typedef struct Model {
 
 typedef struct WorldPoint { s16 x, y, z; } WorldPoint;
 typedef struct MapOrigin { s32 x, y; } MapOrigin;
+#ifdef TARGET_PC
+/* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
+typedef struct RenderRec { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color; u8 flags; s8 hidden; u8 pad17; s16 t0, s0, t1, s1; } RenderRec;
+#else
 typedef struct RenderRec { u8 pad0[21]; u8 flags; u8 tail[10]; } RenderRec;
+#endif
 typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
 
 extern s8 D_80142DB4[];

@@ -3791,6 +3791,40 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. Unlinks node
+ * arg0 from its parent's child list, its older sibling or the root list (D_8015B254), then links it under arg1
+ * (render_mode_select); nothing when it is arg1's child already. */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+void car_mass_set(s16 arg0, s16 arg1)
+{
+  PcNode *nodes = (PcNode *) &D_8012E700;
+  s16 parent;
+  s16 prev;
+  parent = func_8009002C(arg0);
+  if ((parent == (-1)) || (parent != arg1))
+  {
+    if (parent >= 0)
+    {
+      nodes[parent].child = nodes[arg0].next;
+    }
+    else if (arg0 == D_8015B254)
+    {
+      D_8015B254 = nodes[arg0].next;
+    }
+    else
+    {
+      prev = func_8008FFD0(arg0);
+      if (prev >= 0)
+      {
+        nodes[prev].next = nodes[arg0].next;
+      }
+    }
+    nodes[arg0].next = -1;
+    render_mode_select(arg0, arg1);
+  }
+}
+#else
 void car_mass_set(s16 arg0, s16 arg1)
 {
   s16 temp_a0;
@@ -3827,3 +3861,4 @@ void car_mass_set(s16 arg0, s16 arg1)
     render_mode_select(arg0, arg1);
   }
 }
+#endif

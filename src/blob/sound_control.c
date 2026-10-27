@@ -19,6 +19,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Blit Blit;
 struct Blit {
     const char *Name;
@@ -34,7 +38,7 @@ struct Blit {
     u16 reserved;
     s32 (*AnimFunc)(Blit *);
     u32 AnimID;
-    s32 AnimDTA;
+    intptr_t AnimDTA;
     u16 BLIdx;
     u16 reserved36;
     void *data;

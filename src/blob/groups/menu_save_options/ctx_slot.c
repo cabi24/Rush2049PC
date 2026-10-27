@@ -189,16 +189,40 @@ s32 draw_ui_element(Handle, s32, s32);
 void menu_item_select(void *, s32);
 void func_800CB9D0(void *);
 
+#ifdef TARGET_PC
+/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
+ * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+/* The seats are the record's 16 file entries (0x28 bytes from +0x84 on the N64); the N64 view starts them 0x20
+ * early, at +0x64, with busy at +0x22. */
+typedef struct {
+    u8 pad0[2];
+    u8 busy;          /* file entry +2 */
+    u8 pad3[37];
+} SeatEntry;
+#else
 typedef struct {
     u8 pad0[0x22];
     u8 busy;          /* 0x22 */
     u8 pad23[5];
-} SeatEntry;          /* 0x28 */
+} SeatEntry;
+#endif          /* 0x28 */
+#ifdef TARGET_PC
+typedef struct {
+    u8 pad0[12];
+    PcPfs pfs;
+    s32 error, FreeSpace;
+    u8 pad7C[8];
+    SeatEntry seat[16];  /* the file entries */
+} PlayerSeats;
+#else
 typedef struct {
     u8 pad0[0x64];
     SeatEntry seat[16];  /* 0x64 */
     u8 pad2E4[0x304 - 0x2E4];
-} PlayerSeats;        /* 0x304, D_80144030 */
+} PlayerSeats;
+#endif        /* 0x304, D_80144030 */
 extern PlayerSeats D_80144030[];
 
 /* AdjustSteer (historical label): release a slot's data block and clear its seat flag. */

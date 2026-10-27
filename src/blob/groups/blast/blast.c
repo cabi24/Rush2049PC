@@ -65,7 +65,12 @@ typedef struct tVisual {
 } tVisual;
 typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[952 - 0x14]; } tCarData;
 typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x808 - 0x641]; } tModelData;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct ObjInstance { unsigned int flags, w4; tUVMatrix *mat; float scale; float w; u16 index; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int color; unsigned int envcolor; } ObjInstance;
+#else
 typedef struct ObjInstance { unsigned int flags; char pad4[4]; tUVMatrix *mat; float scale; float w; u16 index; char pad16[0x26]; unsigned int color; unsigned int envcolor; } ObjInstance;
+#endif
 
 extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;         /* gFrameSeconds */

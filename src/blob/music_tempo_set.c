@@ -25,7 +25,12 @@ typedef unsigned char u8;typedef signed char s8;typedef short s16;typedef unsign
 typedef struct Model952 {u8 prefix[232];u32 flags;u8 gap236[8];int model;u8 gap248[613];s8 selection;u8 tail[90];} Model952;
 typedef struct Vehicle2056 {u8 prefix[15];s8 type;u8 gap16[1988];u32 flags;u8 tail[48];} Vehicle2056;
 typedef struct Slot64 {int root;u8 gap4[12];int body;u8 gap20[8];int wheels[4],extras[5];} Slot64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Resource68 { u32 flags, w4; void *obj; float scale, w; u16 object; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Resource68;
+#else
 typedef struct Resource68 {u8 prefix[20];u16 object;u8 tail[46];} Resource68;
+#endif
 typedef struct Config8 {u8 prefix[7];u8 mode;} Config8;
 typedef struct OSThread OSThread;
 extern Model952 player_array[];

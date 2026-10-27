@@ -3730,8 +3730,14 @@ static f32 Random(f32 max)
     return rannum;
 }
 
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct { u32 flags, w4; f32 *m; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ModelSlot;
+#define TBL ((ModelSlot *) &D_8012E700)
+#else
 typedef struct { f32 *m; u8 pad4[0x40]; } ModelSlot;
 #define TBL ((ModelSlot *) &D_8012E708)
+#endif
 /* deleted static: the 0x44-byte model slot's matrix pointer; inlined at all
  * three uses (this is what puts the index in a0 and the pointer in a1) */
 static f32 *model_mat(s16 idx) { return TBL[idx].m; }

@@ -22,6 +22,24 @@ typedef int s32;
 typedef struct Object { u8 opaque[16]; u8 port, file; } Object;
 typedef struct Handle { Object *object; } Handle;
 typedef struct PakFile40 { s8 active; u8 opaque1[39]; } PakFile40;
+#ifdef TARGET_PC
+/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
+ * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+typedef struct Pak772 {
+    u8 index;
+    s8 enabled;
+    u8 opaque2[7];
+    s8 retained;
+    s8 files_active;
+    u8 opaque11;
+    PcPfs pfs;
+    s32 error, FreeSpace;
+    u8 opaque7C[8];
+    PakFile40 files[16];
+} Pak772;
+#else
 typedef struct Pak772 {
     u8 index;
     s8 enabled;
@@ -31,6 +49,7 @@ typedef struct Pak772 {
     u8 opaque11[121];
     PakFile40 files[16];
 } Pak772;
+#endif
 
 extern volatile Pak772 D_80144030[];
 

@@ -16,10 +16,23 @@
  */
 typedef unsigned char u8;
 
+#ifdef TARGET_PC
+/* PC: the skid-mark effects (skid_marks' EffectObj) of this doubly linked list: the two links are pointer-sized, so
+ * the element is 56 bytes here (36 on the N64), and so are the array and the element size (docs/port/POINTERS.md 9). */
+typedef struct Node {
+    void *next, *prev;
+    int pad8;
+    void *data;     /* 12 */
+} Node;
+typedef struct { void *next, *prev; float f8; void *dl; float pos[3]; u8 color[4]; int f20; } PcEffectObj;
+#define ELEMENT_SIZE(n64, type) sizeof(type)
+#else
 typedef struct Node {
     int pad0, pad4, pad8;
     void *data;     /* 12 */
 } Node;
+#define ELEMENT_SIZE(n64, type) n64
+#endif
 
 typedef struct Pool {
     u8 flag;
@@ -27,10 +40,17 @@ typedef struct Pool {
     int size;
     void *mem;
     Node *head;     /* 16 */
+#ifdef TARGET_PC
+    Node *store;    /* the whole StatLL header (shots.c), as every view has it on the PC */
+#endif
 } Pool;
 
 extern Pool D_80155220;
+#ifdef TARGET_PC
+extern PcEffectObj D_80155B30[100];
+#else
 extern char D_80155B30[];
+#endif
 extern char D_80155290[];
 void pool_linked_list_init(Pool *pool);
 void func_8008D0C0(void *data);
@@ -49,7 +69,7 @@ void func_800B0580(void)
         func_8008D0C0(n->data);
         func_800AFA84(&D_80155220, n);
     }
-    POOL_SETUP(D_80155220, D_80155B30, 36, 100, 1);
+    POOL_SETUP(D_80155220, D_80155B30, ELEMENT_SIZE(36, PcEffectObj), 100, 1);
     pool_linked_list_init(&D_80155220);
     memset(D_80155290, 0, 2208);
 }

@@ -788,7 +788,7 @@ extern void Input_ProcessGameplayPad(s32 pad);
 extern void Effects_UpdateEmitters(void);
 extern void PhysicsObjectList_Update(void);
 extern void input_aux_handler(void);
-extern void sound_stop(s32 sound_id);
+extern void sound_stop(intptr_t sound_id);
 extern void input_init_flag_get(void);
 extern void viUpdateTime(void);
 extern void sound_init(void);
@@ -3787,6 +3787,34 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
+#ifdef TARGET_PC
+/* PC: the Blit's host layout (sound_control.c, docs/port/POINTERS.md 9); the m2c body reads AnimFunc and Name as s32
+ * at the N64 offsets (+0x28, +0) and keeps the blit in an s32. A blit whose AnimFunc returns 0 is deleted (DelBlit
+ * swaps the last active one into its slot, which is looked at next). */
+typedef struct PcBlit { const char *Name; void *Image; void *Info; u16 TexIndex; s16 X, Y; u16 Z; s16 Width, Height;
+    u8 Alpha, Flip; s8 Hide, Init; s16 Top, Bot, Left, Right, color; u16 reserved; s32 (*AnimFunc)(struct PcBlit *);
+    u32 AnimID; intptr_t AnimDTA; u16 BLIdx, reserved36; void *data; struct PcBlit *child; } PcBlit;
+void UpdateActiveObjects(void)
+{
+  PcBlit **p;
+  PcBlit *blit;
+
+  if (D_80149788 > 0)
+  {
+    p = (PcBlit **) &D_80149450;
+    do
+    {
+      blit = *p;
+      if ((blit->AnimFunc != 0) && (blit->Name != (const char *) -1) && (blit->AnimFunc(blit) == 0))
+      {
+        sound_stop((intptr_t) blit);
+        p -= 1;
+      }
+      p += 1;
+    } while (p < &((PcBlit **) &D_80149450)[D_80149788]);
+  }
+}
+#else
 void UpdateActiveObjects(void)
 {
   s32 (*temp_v0)(s32);
@@ -3821,3 +3849,4 @@ void UpdateActiveObjects(void)
     }
   }
 }
+#endif

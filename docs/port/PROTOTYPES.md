@@ -69,20 +69,20 @@ Same tool on `3e3c58a` (before) and on this branch (after), Debug build on aarch
 <!-- proto_check:begin -->
 | Class | Functions | Views | |
 |---|---:|---:|---|
-| `stub` | 1 | 2 | harmful |
+| `stub` | 0 | 0 | harmful |
 | `class` | 0 | 0 | harmful |
 | `fwidth` | 0 | 0 | harmful |
-| `width` | 8 | 24 | harmful |
+| `width` | 2 | 2 | harmful |
 | `aggregate` | 0 | 0 | harmful |
 | `count` | 0 | 0 | harmful |
-| `return` | 3 | 6 | harmful |
-| `narrow` | 78 | 158 | benign |
-| `extra` | 7 | 12 | benign |
-| `unused` | 44 | 73 | benign |
-| `reviewed` | 19 | 26 | benign |
-| `dead` | 41 | 165 | benign |
-| `harmless` | 52 | 233 | benign |
-| **harmful** | **12** | **32** | |
+| `return` | 0 | 0 | harmful |
+| `narrow` | 82 | 164 | benign |
+| `extra` | 8 | 12 | benign |
+| `unused` | 45 | 76 | benign |
+| `reviewed` | 17 | 24 | benign |
+| `dead` | 42 | 166 | benign |
+| `harmless` | 55 | 251 | benign |
+| **harmful** | **2** | **2** | |
 <!-- proto_check:end -->
 
 Other checks on this branch: every changed file passes `n64_neutral.py --base 09da2f0` (all "shifted"); ctest 34/34;
@@ -221,19 +221,11 @@ Harmful views in files I may not edit:
 | `src/ovl_a/groups/runtime_a_c93c_closure/group.c` | `audio_frame_sync`, `audio_dma_sync`, `func_800960D4`, `sign_extend_call` | harmless now (constant arguments, window addresses, the wrapper returns `s32`); no change needed |
 | `nonmatching/game/display_list_flush.c` | `D_801406B8` | section 5 |
 
-Harmful views that need a typed PC version or struct unification, not a prototype change (POINTERS.md 4.3, 4.4):
-
-- `D_8012E700`'s 0x44-byte records: `func_8008D870` (14 views), `func_800A79B8`, `MBOX_FindPalette_WORK` (`.sound`)
-  and the button names from `func_800B24EC` in three options-menu files all store pointers into its 4-byte slots,
-  and readers load them back as `s32`. Textures from the WAD are window addresses, but `NameEntry` pointers and
-  `CompLight` are host pointers. Front end: options-menu buttons.
-- `RemovePane`, `sound_handles_clear`, `UpdateActiveObjects`: read the blit pointer through raw N64 offsets
-  (`+0xC` of FiveParts, which is `+0x10` on PC; `+0x28` of a Blit), so their `sound_stop` views stay `s32`.
-- `struct_fields_init` (overlay B pools): writes the pool header through raw offsets, and the header views disagree
-  on PC (`Pool` 40 B in `pool_linked_list_init.c`, `TrailPool` 24 B, `StatLL` 40 B), so a typed version would
-  overflow the 24-byte ones.
-- `PS_WriteFile` in `menu_confirm_dialog` (an `s32` buffer pointer), `func_800E2D18` in `func_800E2F00`
-  (`EngineState.f40C`), `sound_position_set` in `func_8010E828` (`+0x6C`).
+Harmful views that needed a typed PC version or struct unification, not a prototype change, are done
+(POINTERS.md 9): `func_8008D870`, `func_800A79B8`, `MBOX_FindPalette_WORK` and `func_800B24EC` (the scene nodes
+`D_8012E700`), `sound_stop` in `RemovePane`, `sound_handles_clear` and `UpdateActiveObjects` (panes and blits),
+`struct_fields_init` (the StatLL lists) and `PS_WriteFile` in `menu_confirm_dialog`. Left, in race code:
+`func_800E2D18` in `func_800E2F00` (`EngineState.f40C`) and `sound_position_set` in `func_8010E828` (`+0x6C`).
 
 Limits of the check: calls through function pointers aren't seen. `narrow` is benign for the ABI, but AAPCS64
 leaves the upper bits of narrow arguments and returns unspecified, while IDO trusted the caller's extension. Behavior

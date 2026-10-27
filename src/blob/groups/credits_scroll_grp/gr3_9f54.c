@@ -23,6 +23,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
@@ -44,7 +48,7 @@ typedef struct Blit {
     /* 0x24 */ s16 color;
     /* 0x28 */ void *animFunc;
     /* 0x2C */ u32 animID;
-    /* 0x30 */ s32 animDTA;
+    /* 0x30 */ intptr_t animDTA;
 } Blit;
 
 typedef struct CheckPoint {

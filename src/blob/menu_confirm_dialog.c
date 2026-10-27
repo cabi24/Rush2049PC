@@ -3551,7 +3551,7 @@ void sign_extend_call(s16 arg0, s32 arg1, s16 arg2, s32 arg3);
 void skid_mark_render(void);
 s8 skill_rating_update(void *arg0, s32 arg6, s32 arg7, void *arg10, s32 arg24, s32 arg25, f32 arg30, f32 arg33, f32 arg35, s16 arg36, s32 arg41);
 void slot_deactivate(s32 arg0);
-void PS_WriteFile(void **arg0, u32 arg1, s32 arg2);
+void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
 s32 slot_value_get(s32 arg0);
 u32 sound_bank_load(u8 *arg0, s16 *arg1, s8 arg2, s8 arg3);
 void sound_bank_unload(s16 arg0, s16 arg1, u8 arg2, u8 arg3, u8 arg4);
@@ -3698,24 +3698,24 @@ typedef s64 M2C_UNK64;
 #endif
 
 s32 menu_confirm_dialog(void **arg0) {
-    s32 temp_s1;
+    intptr_t temp_s1;
 
     if (func_800CCEFC(arg0) == 0) {
         return 0;
     }
-    temp_s1 = *M2C_FIELD(*arg0, s32 **, SLOT_DATA);
+    temp_s1 = *M2C_FIELD(*arg0, intptr_t **, SLOT_DATA);
     memset((void *) (temp_s1 + 0x8C), 0, 0x480U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (u32) (temp_s1 + 0x8C), 0x480);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x8C), 0x480);
     memset((void *) (temp_s1 + 0x50C), 0, 0x100U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (u32) (temp_s1 + 0x50C), 0x100);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x50C), 0x100);
     memset((void *) (temp_s1 + 0x60C), 0, 0x60U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (u32) (temp_s1 + 0x60C), 0x60);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x60C), 0x60);
     memset((void *) (temp_s1 + 0x66C), 0, 0x18U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (u32) (temp_s1 + 0x66C), 0x18);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x66C), 0x18);
     memset((void *) (temp_s1 + 0x684), 0, 0x70U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (u32) (temp_s1 + 0x684), 0x70);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x684), 0x70);
     memset((void *) (temp_s1 + 0x6F4), 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (u32) (temp_s1 + 0x6F4), 0x4C);
+    PS_WriteFile(M2C_FIELD(*arg0, void ***, 8), (uintptr_t) (temp_s1 + 0x6F4), 0x4C);
     if (PS_FlushFile(M2C_FIELD(*arg0, void ***, 8), 0) == 0) {
         object_render_cleanup(arg0);
         return 0;

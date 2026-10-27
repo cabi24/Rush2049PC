@@ -76,6 +76,21 @@ typedef struct Car {
     s8 enabled;         /* 1600 */
     u8 pad1601[455];
 } Car;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Resource {
+    u32 flags, w4;
+    void *obj;
+    f32 scale;          /* N64 12 */
+    f32 w;
+    s16 frame;          /* N64 20 */
+    s16 child, next, mode;
+    void *light, *tex[4], *rect, *clip, *pal;
+    u8 prim[3];
+    u8 alpha;           /* N64 63 */
+    u8 pad64[4];
+} Resource;
+#else
 typedef struct Resource {
     u8 pad0[12];
     f32 scale;          /* 12 */
@@ -85,6 +100,7 @@ typedef struct Resource {
     u8 alpha;           /* 63 */
     u8 pad64[4];
 } Resource;
+#endif
 extern Puff *D_8013F1F0;
 extern s32 D_8013F1E0;
 extern Player D_80152818[];

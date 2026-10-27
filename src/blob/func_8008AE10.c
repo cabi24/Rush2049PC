@@ -3692,6 +3692,15 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node's next
+ * sibling (N64 +0x18, D_8012E718 of node 0). */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+s16 func_8008AE10(s32 arg0) {
+    return ((PcNode *) &D_8012E700)[arg0].next;
+}
+#else
 s16 func_8008AE10(s32 arg0) {
     return *((s16 *) ((u8 *) &D_8012E718 + (arg0 * 0x44)));
 }
+#endif

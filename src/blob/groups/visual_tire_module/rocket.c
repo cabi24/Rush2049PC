@@ -56,6 +56,22 @@ typedef struct Node {
 } Node;
 
 /* table at 0x8012E700, 0x44 bytes each; flags bit 31 = hidden */
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct ModelSlot {
+    /* 0x00 */ u32 flags;
+    /* 0x04 */ u32 w4;
+    /* 0x08 */ Node *node;
+    /* 0x10 */ f32 scale, w;
+    /* 0x18 */ u16 tex;
+    /* 0x1A */ s16 child;
+    /* 0x1C */ s16 sibling;
+    /* 0x1E */ s16 mode;
+    /* 0x20 */ void *light, *texture[4], *rect, *clip, *pal;
+    /* 0x60 */ u32 colA;
+    /* 0x64 */ u32 colB;
+} ModelSlot;
+#else
 typedef struct ModelSlot {
     /* 0x00 */ u32 flags;
     /* 0x04 */ u8 pad4[4];
@@ -68,6 +84,7 @@ typedef struct ModelSlot {
     /* 0x3C */ u32 colA;
     /* 0x40 */ u32 colB;
 } ModelSlot;
+#endif
 
 /* table at 0x80139320, 0x40 bytes each: four model-slot ids per car */
 typedef struct CarModels {

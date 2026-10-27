@@ -5,11 +5,15 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct {
-    void *data; s32 word4,word8; u16 half12; s16 x,y; u16 half18;
+    void *data; intptr_t word4,word8; u16 half12; s16 x,y; u16 half18;
     s16 width,height; u8 status,flag; s8 disabled; u8 other27;
-    s16 left,bottom,right,top; u8 other36[4]; s32 active; u32 packed;
+    s16 left,bottom,right,top; u8 other36[4]; intptr_t active; u32 packed;
 } PadConfig;
 typedef struct { u8 other[12]; PadConfig *part[5]; } FiveParts;
 extern void Input_ApplyPadConfig(PadConfig *);

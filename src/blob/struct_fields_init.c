@@ -3692,6 +3692,20 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: InitStatLL (head, element array, element size, count, doubly) by field; the m2c body writes the header at
+ * the N64 offsets with the array as an s32. The header's host layout is shots.c's StatLL (docs/port/POINTERS.md 9). */
+typedef struct { s8 dbl; s32 numElements; s32 elementSize; void *list; void *head; void *store; } PcStatLL;
+void struct_fields_init(void *arg0, void *arg1, s32 arg2, s32 arg3, u8 arg4) {
+    PcStatLL *list = (PcStatLL *) arg0;
+
+    list->list = arg1;
+    list->numElements = arg3;
+    list->elementSize = arg2;
+    list->dbl = arg4;
+    pool_linked_list_init(arg0);
+}
+#else
 void struct_fields_init(void *arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4) {
     M2C_FIELD(arg0, s32 *, 0xC) = arg1;
     M2C_FIELD(arg0, s32 *, 4) = arg3;
@@ -3699,3 +3713,4 @@ void struct_fields_init(void *arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4) {
     M2C_FIELD(arg0, u8 *, 0) = arg4;
     pool_linked_list_init(arg0);
 }
+#endif

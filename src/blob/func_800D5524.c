@@ -28,6 +28,10 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef short s16;
 typedef int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct {
@@ -36,7 +40,7 @@ typedef struct {
 } SndRec; /* 0x14 */
 
 typedef struct {
-    s32 unk0;
+    intptr_t unk0;   /* Player84's definition pointer (mode_select/d5e64.c) */
     SndRec rec[4];
 } SndSet; /* 0x54 */
 

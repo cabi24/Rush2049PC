@@ -25,6 +25,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct tPalette {            /* anon_name_start_18 */
@@ -46,7 +50,7 @@ typedef struct _tBlit_2 {
     s16 top, bot, left, right, color;
     int (*animFunc)(struct _tBlit_2 *);
     u32 animID;
-    int animDTA;
+    intptr_t animDTA;
     u16 blidx;
     void *data;
     struct _tBlit_2 *child;

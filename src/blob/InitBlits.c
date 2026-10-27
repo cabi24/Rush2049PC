@@ -3787,6 +3787,20 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
+#ifdef TARGET_PC
+/* PC: a Blit is 0x68 bytes on the host (sound_control.c, docs/port/POINTERS.md 9), and the 0x3200-byte arena block
+ * D_80146210 holds the 200 at the N64's 64. The pool is host storage here; BlitPtrs is pointer-sized. */
+static long long pc_blits[200][0x68 / 8];
+void InitBlits(void)
+{
+  s32 i;
+  for (i = 0; i < 200; i++) {
+    (&D_80149450)[i] = (intptr_t) pc_blits[i];
+  }
+  D_80149788 = 0;
+  game_state_flags = 0;
+}
+#else
 void InitBlits(void)
 {
   s32 i;
@@ -3796,3 +3810,4 @@ void InitBlits(void)
   D_80149788 = 0;
   game_state_flags = 0;
 }
+#endif

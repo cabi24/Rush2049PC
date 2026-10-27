@@ -40,7 +40,11 @@ typedef struct {
     s16 wm1;    /* 0x1E */
 } Slot;
 
+#ifdef TARGET_PC
+extern Slot D_80140BF0[200];   /* to 0x801424F0: the table's extent, for gen_data */
+#else
 extern Slot D_80140BF0[];
+#endif
 extern s32 D_801613AC;
 extern s32 D_8013C234;
 

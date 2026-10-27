@@ -3792,7 +3792,12 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct TrackNode { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 left; s16 right; s16 mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } TrackNode;
+#else
 typedef struct TrackNode { u32 flags; u8 pad[0x12]; s16 left; s16 right; u8 pad2[0x2A]; } TrackNode;
+#endif
 extern TrackNode D_8012E700[];
 s32 track_collision(TrackNode *node, s32 type)
 {

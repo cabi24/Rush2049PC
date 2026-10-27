@@ -30,10 +30,17 @@ typedef struct {
     f32 max[3];             /* 0x5C */
 } tModelPart; /* 0x68 */
 
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct {
+    u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
+} ObjInstance;
+#else
 typedef struct {
     u32 flags;
     char pad4[0x40];
 } ObjInstance; /* 0x44 on the N64 */
+#endif
 
 extern tModelPart *D_80149B80;      /* WorldBase */
 extern s8 D_8014978C;               /* gTrackNum */

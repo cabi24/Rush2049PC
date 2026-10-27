@@ -3692,6 +3692,18 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: the controller/pak records D_80144030 have their host layout (paksys' PakRecord, 0x310 bytes, docs/port/
+ * POINTERS.md 9); the m2c body adds arg0 * 0x304 to an N64 address in D_80144030[0]. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+typedef struct { u8 changed; s8 inserted, b2, b3, b4, damaged, b6, b7, b8, b9, b10, b11; PcPfs pfs; s32 error, FreeSpace;
+    u8 rest[0x304 - 0x7C]; } PcPak;
+s8 func_800A35F8(s32 arg0) {
+    return ((PcPak *) &D_80144030)[arg0].damaged;
+}
+#else
 s8 func_800A35F8(s32 arg0) {
     return M2C_FIELD(((arg0 * 0x304) + 0x80140000), s8 *, 0x4035);
 }
+#endif

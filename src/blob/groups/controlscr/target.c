@@ -18,9 +18,18 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
 typedef union Color { u32 word; u8 channel[4]; } Color;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
+#else
 typedef struct Node {u8 pad[60]; u32 color; u8 tail[4];} Node;
+#endif
 extern Item D_80111998[4][17];
 extern Node D_8012E700[];
 extern f32 D_8011418C[3][3];
@@ -33,7 +42,7 @@ extern volatile u8 D_80140BDC;
 extern char D_80120270[],D_80120280[];
 void func_8008B32C(f32[3][3],f32[3][3],f32);
 s32 func_800D8154(s8,s32);
-void func_8008D870(s16,s32,s32);
+void func_8008D870(s16,intptr_t,s32);
 typedef struct NameEntry NameEntry;
 NameEntry *func_800B24EC(char *,s16 *,s8,s8,s32);
 void func_800B5898(f32,f32[3][3]);
@@ -62,7 +71,7 @@ void func_800D816C(s8 player) {
     f32 current_y;
     s16 texture;
     Color color;
-    s32 tex;
+    intptr_t tex;
     s32 valid;
     s32 shown;
     s32 mask;
@@ -146,9 +155,9 @@ void func_800D816C(s8 player) {
             }
             func_8008B32C(D_8011418C,D_80111998[player][i].matrix,D_80112A9C);
             func_800B5898(D_80111998[player][i].angle-HALF_PI,D_80111998[player][i].matrix);
-            if (D_80111998[player][i].angle > HALF_PI) tex=(s32)func_800B24EC(D_80120270,&texture,0,(s8)(D_80140BDC-1),1);
-            else tex=(s32)func_800B24EC(D_80120280,&texture,0,(s8)(D_80140BDC-1),1);
-            func_8008D870((s16)D_80111998[player][i].handle,(s32)tex,-1);
+            if (D_80111998[player][i].angle > HALF_PI) tex=(intptr_t)func_800B24EC(D_80120270,&texture,0,(s8)(D_80140BDC-1),1);
+            else tex=(intptr_t)func_800B24EC(D_80120280,&texture,0,(s8)(D_80140BDC-1),1);
+            func_8008D870((s16)D_80111998[player][i].handle,(intptr_t)tex,-1);
             if (i == 10) {}
             top = D_80112AA8;
             spacing = D_80112AA0*D_80112A9C;
@@ -169,7 +178,7 @@ void func_800D816C(s8 player) {
                 D_80111998[player][12].position[0]+=180.0f*D_80112A9C;
                 func_8008B32C(D_8011418C,D_80111998[player][12].matrix,D_80112A9C);
                 func_800B5898(D_80111998[player][i].angle-HALF_PI,D_80111998[player][12].matrix);
-                func_8008D870((s16)D_80111998[player][12].handle,(s32)tex,-1);
+                func_8008D870((s16)D_80111998[player][12].handle,(intptr_t)tex,-1);
                 handle = D_80111998[player][12].handle;
                 D_8012E700[handle].color=color.word;
             }

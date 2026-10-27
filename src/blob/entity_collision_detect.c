@@ -40,7 +40,12 @@ typedef struct Effect {
 } Effect;
 typedef struct Car {u8 opaque0[1600];s8 enabled;u8 opaque1601[455];} Car;
 typedef struct Player {u8 opaque0[8];Vec3 position;u8 opaque20[932];} Player;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 opaque64[4]; } Resource;
+#else
 typedef struct Resource {u8 opaque0[60];u32 color;u8 opaque64[4];} Resource;
+#endif
 typedef union Color {struct {u8 red,green,blue,alpha;} component;u32 word;} Color;
 extern s32 D_801170FC;
 extern Car D_8014A250[];

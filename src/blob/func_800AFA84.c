@@ -1,7 +1,13 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef signed char s8;typedef unsigned char u8;typedef signed short s16;typedef int s32;typedef unsigned int u32;typedef float f32;
 typedef struct Node {struct Node *prev,*next;} Node;
+#ifdef TARGET_PC
+/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
+ * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
+typedef struct Pool {u8 doubly;s32 count,size;void *mem;Node *active,*free;} Pool;
+#else
 typedef struct Pool {u8 doubly;u8 pad1[15];Node *active,*free;} Pool;
+#endif
 void func_800AFA84(Pool *pool,Node *node) {
  Node *cur,*prev;
  if(node) {

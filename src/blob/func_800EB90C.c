@@ -83,7 +83,12 @@ typedef struct {
     u8 other56[16];
     Handle *handle;     /* 72 */
 } Player76;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct { u32 flags, w4; Camera *cam; f32 scale, w; unsigned short model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Node68;
+#else
 typedef struct { u8 other0[8]; Camera *cam; u8 other12[56]; } Node68;
+#endif
 extern s32 gameplay_mode;
 extern s32 D_8015697C, D_8015699C;
 extern s32 state_word_a;

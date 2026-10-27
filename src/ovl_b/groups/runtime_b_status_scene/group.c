@@ -40,7 +40,12 @@ typedef struct Player { u8 unknown000[0x384]; s8 kind, lives; u8 unknown386[6]; 
 typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
 typedef struct Handle { s16 handle, unknown2; f32 uv[3][3], position[3]; } Handle;
 typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Scene { u32 flags, w4; void *obj; f32 scaleA; f32 scale; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Scene;
+#else
 typedef struct Scene { u8 unknown00[16]; f32 scale; u8 unknown14[48]; } Scene;
+#endif
 typedef struct Point { s16 x, y; } Point;
 typedef union Color { u32 word; struct { u8 r,g,b,a; } rgba; } Color;
 typedef struct NameQuad { char *name[4]; } NameQuad;

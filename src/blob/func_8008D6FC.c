@@ -3791,6 +3791,25 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node's
+ * object (a View: rot[3][3], pos[3], no pointers) keeps its N64 offsets. */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+void func_8008D6FC(s16 arg0, void *arg1, void *arg2)
+{
+  u8 *obj = (u8 *) ((PcNode *) &D_8012E700)[arg0].obj;
+  if (arg1 != ((void *) 0))
+  {
+    *((f32 *) (obj + 0x24)) = ((f32 *) arg1)[0];
+    *((f32 *) (obj + 0x28)) = ((f32 *) arg1)[1];
+    *((f32 *) (obj + 0x2C)) = ((f32 *) arg1)[2];
+  }
+  if (arg2 != ((void *) 0))
+  {
+    math_utility(arg2, obj);
+  }
+}
+#else
 void func_8008D6FC(s16 arg0, void *arg1, void *arg2)
 {
   s32 *new_var2;
@@ -3811,3 +3830,4 @@ void func_8008D6FC(s16 arg0, void *arg1, void *arg2)
     math_utility(arg2, temp_a3);
   }
 }
+#endif

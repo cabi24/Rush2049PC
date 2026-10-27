@@ -788,7 +788,7 @@ extern void Effects_UpdateEmitters(void);
 extern s32 PhysicsObjectList_Update(void);
 extern void UpdateActiveObjects(void);
 extern void input_aux_handler(void);
-extern void sound_stop(s32 sound_id);
+extern void sound_stop(intptr_t sound_id);
 extern s32 input_init_flag_get(void);
 extern void viUpdateTime(void);
 extern void sound_init(void);
@@ -3791,6 +3791,33 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: a pane group (FiveParts, ambient_sound_set.c) keeps its five blits pointer-sized from +0x10; the m2c body
+ * reads them as s32 at the N64 offsets (+0xC, 4 apart) and stops at the address after the 16 groups, D_80116FE4,
+ * which is a variable of its own on the PC. */
+typedef struct { s8 active; u8 own; u8 rgba1[4]; u8 rgba2[4]; u8 other10[2]; void *part[5]; } PcFiveParts;
+void sound_handles_clear(s32 arg0)
+{
+  PcFiveParts *group;
+  s32 i;
+
+  for (group = (PcFiveParts *) &D_80116DE4; group < (PcFiveParts *) &D_80116DE4 + 16; group++)
+  {
+    if ((group->active != 0) && ((arg0 != 0) || (group->own == 0)))
+    {
+      for (i = 0; i < 5; i++)
+      {
+        if (group->part[i] != 0)
+        {
+          sound_stop((intptr_t) group->part[i]);
+          group->part[i] = 0;
+        }
+      }
+      group->active = 0;
+    }
+  }
+}
+#else
 void sound_handles_clear(s32 arg0)
 {
   s8 *entry;
@@ -3819,4 +3846,5 @@ void sound_handles_clear(s32 arg0)
     entry += 0x20;
   } while (entry != (s8 *) &D_80116FE4); } while (0);
 }
+#endif
 

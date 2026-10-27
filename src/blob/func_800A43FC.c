@@ -19,7 +19,15 @@ typedef unsigned short u16;
 typedef int s32;
 
 typedef struct OSContStatus { u16 type; u8 status; u8 errno_; } OSContStatus;
+#ifdef TARGET_PC
+/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
+ * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+typedef struct Pak772 { u8 index; s8 enabled; s8 inserted; s8 changed; u8 opaque4[8]; PcPfs pfs; u8 pad74[0x304 - 0x74]; } Pak772;
+#else
 typedef struct Pak772 { u8 index; s8 enabled; s8 inserted; s8 changed; u8 opaque4[768]; } Pak772;
+#endif
 
 extern s8 D_8011EAE0;
 extern volatile Pak772 D_80144030[4];

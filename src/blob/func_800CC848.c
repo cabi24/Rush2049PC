@@ -5,7 +5,15 @@ typedef int s32;
 typedef struct Owner { u8 pad[16]; u8 car; } Owner;
 typedef struct Node { Owner *owner; } Node;
 typedef struct Object { u8 pad[8]; Node *node; } Object;
+#ifdef TARGET_PC
+/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
+ * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
+typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
+    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
+typedef struct Car { u8 pad0; s8 enabled; u8 rest[10]; PcPfs pfs; u8 pad74[0x304 - 0x74]; } Car;
+#else
 typedef struct Car { u8 pad0; s8 enabled; u8 rest[770]; } Car;
+#endif
 extern Car D_80144030[];
 s32 func_800A1A60(Node *);
 s32 func_800CC848(Object **object, s32 action)

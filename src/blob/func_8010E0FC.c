@@ -49,7 +49,12 @@ typedef struct Entity {
 } Entity;
 typedef struct EntityHdr { u8 pad0[2]; s16 handle; } EntityHdr;
 typedef struct Node { u8 pad0[12]; Entity *entity; } Node;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; s16 object; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad64[4]; } Resource;
+#else
 typedef struct Resource { u8 pad0[20]; s16 object; u8 pad22[38]; u32 color; u8 pad64[4]; } Resource;
+#endif
 typedef struct Player { u8 pad0[860]; s8 slot; u8 pad861[91]; } Player;
 extern s32 D_801170FC;
 extern u32 D_80118E14, D_80118E18;

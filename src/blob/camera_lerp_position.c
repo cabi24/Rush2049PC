@@ -1,4 +1,8 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef int intptr_t;
+#endif
 /*
  * camera_lerp_position (historical label): resets the level-object system before objects are
  * instantiated. Initialises the node pool D_80143FC8 (130 nodes of 112 bytes at D_8014D280; the
@@ -15,8 +19,16 @@
  * leaves the address in v0/v1 as retail does; `= 0`, `&= 0`, `-= x`, volatile all differ).
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32;
-typedef struct { u8 b0; u8 pad1[3]; s32 count; s32 size; u8 *mem; s32 f16; u8 *free; } Pool;
-typedef struct { s32 w[5]; } Rec20;
+typedef struct { u8 b0; u8 pad1[3]; s32 count; s32 size; u8 *mem; intptr_t f16; u8 *free; } Pool;
+typedef struct { intptr_t w[5]; } Rec20;   /* MineSlots (func_8010C974): four target pointers and a count */
+#ifdef TARGET_PC
+/* PC: the mine list's elements (func_8010C974's Link, race_setup_2's Node: next and the target) are 16 bytes here,
+ * 8 on the N64: their heap block and element size are the host ones (docs/port/POINTERS.md 9). */
+typedef struct { void *next, *target; } PcLink;
+#define ELEMENT_SIZE(n64, type) sizeof(type)
+#else
+#define ELEMENT_SIZE(n64, type) n64
+#endif
 extern Pool D_80143FC8;
 extern u8 D_8014D280[];
 extern s8 D_80114650;
@@ -66,11 +78,11 @@ void camera_lerp_position(s32 arg0) {
     }
     if (D_8014A110 == 6) {
         if (D_80150DD0 == 0) {
-            D_80151A70 = AllocateMemoryHeap(0, 120);
+            D_80151A70 = AllocateMemoryHeap(0, ELEMENT_SIZE(120, PcLink[15]));
         }
         D_80150E28[5] = 16;
         func_803914A8();
-        pool_init(&D_80151AA8, D_80151A70, 15, 8);
+        pool_init(&D_80151AA8, D_80151A70, 15, ELEMENT_SIZE(8, PcLink));
     }
     D_80150F78 = 0;
     D_80151688 *= 0;

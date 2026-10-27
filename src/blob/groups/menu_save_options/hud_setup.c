@@ -24,6 +24,10 @@ typedef short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef void *OSMesg;
 typedef struct OSMesgQueue { u8 opaque[0x18]; } OSMesgQueue;
@@ -51,7 +55,7 @@ typedef struct Chan {       /* 0x3C */
     u8 padE[0x2E];
 } Chan;
 typedef struct Slot24 { u8 pad0[3]; u8 active; u8 pad4[20]; } Slot24;
-typedef struct Handler { void (*func)(void); s32 unk4; s32 unk8; } Handler;
+typedef struct Handler { void (*func)(void); s32 unk4; intptr_t unk8; } Handler;   /* tOrderedList: unk8 is its root */
 
 extern s8 D_8011023C;
 

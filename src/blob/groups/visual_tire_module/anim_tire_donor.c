@@ -77,10 +77,17 @@ typedef struct Control152 {
     f32 spring_save;
     u8 tail[4];
 } Control152;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Object68 {
+    u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
+} Object68;
+#else
 typedef struct Object68 {
     u32 flags;
     u8 tail[64];
 } Object68;
+#endif
 extern Model2056 D_8014A250[];
 extern Car952 player_array[];
 extern CarConfig *D_80110D08[];
@@ -97,7 +104,7 @@ extern void model_data_load(s16,s32,s32);
 extern void model_transform_setup(s16,s32,s32);
 extern s32 model_bounds_calc(Visual *,s32);
 extern s32 matrix_scale_apply(Visual *,s32,s32);
-extern void func_8008D870(s16,s32,s32);
+extern void func_8008D870(s16,intptr_t,s32);
 extern void euler_to_matrix(Matrix3,Vec3);
 extern void func_8008B32C(Matrix3,Matrix3,f32);
 extern void func_8008D6FC(s16,Vec3,Matrix3);

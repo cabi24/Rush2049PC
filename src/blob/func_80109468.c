@@ -21,6 +21,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 #ifdef TARGET_PC
@@ -57,7 +61,7 @@ typedef struct Blit {
     /* 0x20 */ s16 Left;
     /* 0x22 */ s16 Right;
     /* 0x24 */ s32 pad24;
-    /* 0x28 */ s32 AnimDTA;
+    /* 0x28 */ intptr_t AnimDTA;
     /* 0x2C */ u32 AnimID;
 } Blit;
 

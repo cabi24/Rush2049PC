@@ -131,7 +131,7 @@ extern s32 func_800F7644(s32);                    /* IsTrackUnlocked */
 extern s32 sign_extend_call(u32,uintptr_t,s32,u32);     /* MBOX_NewObject */
 extern s32 string_copy_format(char *,s8,s8,s8);   /* MBOX_FindObject_WORK */
 extern Texture *func_800B24EC(char *,s16 *,s8,s8,s32);  /* MBOX_FindTexture_WORK */
-extern void func_8008D870(s16,s32,s32);           /* ZOID_SetTexture */
+extern void func_8008D870(s16,intptr_t,s32);      /* ZOID_SetTexture */
 extern void func_8008E06C(s16,s32 *);             /* ZOID_SetColor */
 extern void func_8008B32C(f32 [3][3],f32 [3][3],f32);  /* ScaleUV */
 extern void func_800B5898(f32,f32 [][3]);         /* WPitchUV */
@@ -247,8 +247,14 @@ extern s32 D_803B77D4[][21];   /* validOption */
 extern s8 D_803B8314[19];      /* TrackValid static trackReady */
 extern s32 D_803AF980;
 /* SetFogIntensity: research body */
+#ifdef TARGET_PC
+/* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
+struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
+    s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
+#else
 struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
     u8 other28[24];u16 resource;};
+#endif
 typedef struct RGB { u8 r, g, b; } RGB;
 extern s8 D_801427A0;
 extern s8 D_8013F1D8;
@@ -287,7 +293,12 @@ extern void *D_803BABC8[7],*D_803BABE8[7];
 extern ModelBank D_801161F4[];   /* gRomObjDefPtrs */
 extern char *D_803B7738[];       /* trackMapObjNames */
 extern void func_800960D4(void *);  /* DeallocateMemory */
+#ifdef TARGET_PC
+/* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
+typedef struct ImageMeta {void *pal,*tex;u16 model;s16 x,y;u16 mode;s16 w,h;u8 color;u8 flags;s8 hidden;u8 pad17;s16 t0,s0,t1,s1;} ImageMeta;
+#else
 typedef struct ImageMeta {u8 other0[21];u8 flags;u8 other22[10];} ImageMeta;
+#endif
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
 extern ImageMeta D_80140BF0[];
 extern char *D_803B7788[];
@@ -1331,7 +1342,7 @@ void func_8038C93C(void)
         }
     }
     func_8008D870((s16)D_803B6B14[42].handle,
-        (s32)func_800B24EC(D_803B9264, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B9264, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B6B14[42].matrix, D_8011418C, 36);
     yaw = -1.5707963705062866f;
     func_800B5898(yaw, D_803B6B14[42].matrix);
@@ -1339,9 +1350,9 @@ void func_8038C93C(void)
     D_803B6B14[42].position[1] = 115.0f;
     D_803B6B14[42].position[2] = 200.0f;
     func_8008D870((s16)D_803B6B14[43].handle,
-        (s32)func_800B24EC(D_803B9274, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B9274, &texture_index, 0, D_80140BDC - 1, 1), -1);
     func_8008D870((s16)D_803B6B14[44].handle,
-        (s32)func_800B24EC(D_803B927C, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B927C, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B6B14[44].matrix, D_8011418C, 36);
     func_800B5898(yaw, D_803B6B14[44].matrix);
     D_803B6B14[44].position[0] = 75.1f;
@@ -1355,7 +1366,7 @@ void func_8038C93C(void)
     D_803B6B14[45].position[1] = 55.2f;
     D_803B6B14[45].position[2] = 100.0f;
     func_8008D870((s16)D_803B6B14[46].handle,
-        (s32)func_800B24EC(D_803B9280, &texture_index, 0, D_80140BDC - 1, 1), -1);
+        (intptr_t)func_800B24EC(D_803B9280, &texture_index, 0, D_80140BDC - 1, 1), -1);
     memcpy(D_803B6B14[46].matrix, D_8011418C, 36);
     func_800B5898(yaw, D_803B6B14[46].matrix);
     D_803B6B14[46].position[0] = -75.1f;
@@ -1472,10 +1483,10 @@ void func_8038BBB4(void)
             func_800B5898(D_803B6B14[buttonIdx+21].angle - 1.5707963705062866f, D_803B6B14[buttonIdx+21].matrix);
             if (D_803B6B14[buttonIdx].angle > 1.5707963705062866f) tex = func_800B24EC(D_803B9284, &texIdx, 0, D_80140BDC - 1, 1);
             else tex = func_800B24EC(D_803B9294, &texIdx, 0, D_80140BDC - 1, 1);
-            func_8008D870(D_803B6B14[buttonIdx].handle, (s32)tex, -1);
+            func_8008D870(D_803B6B14[buttonIdx].handle, (intptr_t)tex, -1);
             if (D_803B6B14[buttonIdx+21].angle > 1.5707963705062866f) tex = func_800B24EC(D_803B929C, &texIdx, 0, D_80140BDC - 1, 1);
             else tex = func_800B24EC(D_803B92AC, &texIdx, 0, D_80140BDC - 1, 1);
-            func_8008D870(D_803B6B14[buttonIdx+21].handle, (s32)tex, -1);
+            func_8008D870(D_803B6B14[buttonIdx+21].handle, (intptr_t)tex, -1);
             if (D_803B6B14[buttonIdx].position[1] > D_803B7728 + D_803B7720 * D_803B771C || D_803B6B14[buttonIdx].position[1] < D_803B772C - D_803B7720 * D_803B771C) D_803B6B14[buttonIdx].alpha = 0;
             else if (D_803B6B14[buttonIdx].position[1] > D_803B7728) D_803B6B14[buttonIdx].alpha = 255 - (D_803B6B14[buttonIdx].position[1] - D_803B7728) * 255.0f / (D_803B7720 * D_803B771C);
             else if (D_803B6B14[buttonIdx].position[1] < D_803B772C) D_803B6B14[buttonIdx].alpha = 255 - (D_803B772C - D_803B6B14[buttonIdx].position[1]) * 255.0f / (D_803B7720 * D_803B771C);

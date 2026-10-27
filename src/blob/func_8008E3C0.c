@@ -3692,6 +3692,30 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: GetStatLLE over the header's host layout (shots.c's StatLL, docs/port/POINTERS.md 9): takes the first free
+ * element and puts it at the head of the active list (and links it back when the list is doubly linked); the m2c
+ * body uses the N64 offsets. An element's links are its first two pointers. */
+typedef struct { s8 dbl; s32 numElements; s32 elementSize; void *list; void *head; void *store; } PcStatLL;
+typedef struct { void *next; void *prev; } PcLink;
+void *func_8008E3C0(void *arg0) {
+    PcStatLL *list = (PcStatLL *) arg0;
+    PcLink *e = (PcLink *) list->store;
+
+    if (e != NULL) {
+        list->store = e->next;
+        e->next = list->head;
+        if (list->dbl != 0) {
+            e->prev = NULL;
+            if (list->head != NULL) {
+                ((PcLink *) list->head)->prev = e;
+            }
+        }
+        list->head = e;
+    }
+    return e;
+}
+#else
 void *func_8008E3C0(void *arg0) {
     void *temp_v0;
     void *temp_v1;
@@ -3711,3 +3735,4 @@ void *func_8008E3C0(void *arg0) {
     }
     return temp_v1;
 }
+#endif

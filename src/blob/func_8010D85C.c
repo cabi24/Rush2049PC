@@ -17,6 +17,10 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef float f32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef int intptr_t;
+#endif
 typedef struct Model {
     u8 pad0[4];
     u8 flags;
@@ -35,7 +39,13 @@ typedef struct Obj {
     f32 f10;
     void (*fn)();
 } Obj;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
+ * `sound` is the palette slot (N64 +0x38): MBOX_FindPalette_WORK returns the WAD's palette record. */
+typedef struct Ent { unsigned int flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip; intptr_t sound; unsigned int prim, env; } Ent;
+#else
 typedef struct Ent { u8 pad0[0x38]; s32 sound; u8 pad3C[8]; } Ent;
+#endif
 extern s32 D_801170FC;
 extern char *D_80118E08[];
 extern volatile u8 gNumModels;
@@ -43,6 +53,11 @@ extern Ent D_8012E700[];
 void entity_transform_apply(void *node, s32 unlink);
 char *func_800A464C(char *s, char *find);
 void audio_channel_setup();
+#ifdef TARGET_PC
+/* PC: retail calls it through an implicit declaration (an int result) with a fifth word; the definition
+ * returns the palette record, which an int would cut to 32 bits. Old-style, so the five-word call stays. */
+intptr_t MBOX_FindPalette_WORK();
+#endif
 
 void func_8010D85C(Obj *obj, s16 mode) {
     char buf[16];
@@ -51,7 +66,7 @@ void func_8010D85C(Obj *obj, s16 mode) {
     Model *m;
     char *p;
     s32 i;
-    s32 r;
+    intptr_t r;
     s32 b0;
 
     if (mode == 0) {

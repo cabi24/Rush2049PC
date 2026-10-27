@@ -19,7 +19,12 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child; s16 sibling; s16 mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Ent;
+#else
 typedef struct { u32 flags; u8 pad4[18]; s16 child; s16 sibling; u8 pad26[42]; } Ent;
+#endif
 extern Ent D_8012E700[];
 
 #define DEBUG_PRINT(args)

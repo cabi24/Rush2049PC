@@ -16,8 +16,18 @@
  * Also MATCH at -O2. Leaf, no frame. The caller-less stub func_800B3584 before it is left as locked.
  */
 typedef unsigned char u8; typedef unsigned short u16; typedef int s32;
+#ifdef TARGET_PC
+/* PC: the Blit's and the sprite's host layouts (sound_control.c, particle_knot's Sprite), as every view has them
+ * (docs/port/POINTERS.md 9). */
+typedef struct Voice { void *name, *image, *info; u16 texIndex; short x, y; u16 z; short width, height;
+    u8 alpha, flip, hide, init; short top, bot, left, right, color; u16 reserved; void *animFunc; unsigned int animID;
+    void *animDTA; u16 slot; u16 reserved36; void *data; struct Voice *next; } Voice;
+typedef struct PadConfig { void *pal, *tex; u16 model; short x, y; u16 mode; short w, h; u8 color, flags; u8 state;
+    u8 pad17; short t0, s0, t1, s1; } PadConfig;
+#else
 typedef struct Voice { u8 pad0[0x34]; u16 slot; u8 pad36[6]; struct Voice *next; } Voice;
 typedef struct PadConfig { u8 pad0[22]; u8 state; u8 pad17[9]; } PadConfig;
+#endif
 extern PadConfig pad_config[];
 extern Voice *D_80149450[];
 extern s32 D_80149788;

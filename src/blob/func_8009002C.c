@@ -3792,6 +3792,23 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node whose
+ * first child is arg0, or -1. */
+typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+s16 func_8009002C(s16 arg0)
+{
+  s32 i;
+  for (i = 0; i < D_80156990; i++)
+  {
+    if (((PcNode *) &D_8012E700)[i].child == arg0)
+    {
+      return i;
+    }
+  }
+  return -1;
+}
+#else
 s16 func_8009002C(s16 arg0)
 {
   s16 new_var;
@@ -3815,3 +3832,4 @@ s16 func_8009002C(s16 arg0)
   }
   return -1;
 }
+#endif

@@ -3692,6 +3692,16 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: frees sprite arg0 (state 2) in the sprite list's host layout (particle_knot's Sprite, 0x28 bytes, docs/port/
+ * POINTERS.md 9); the m2c body adds arg0 * 32 to the N64 address 0x80140C06 = &D_80140BF0[0].state. */
+typedef struct { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color, flags; s8 state; u8 pad17;
+    s16 t0, s0, t1, s1; } PcSprite;
+void func_800A79DC(s32 arg0) {
+    ((PcSprite *) &pad_config)[arg0].state = 2;
+}
+#else
 void func_800A79DC(s32 arg0) {
     M2C_FIELD(((arg0 << 5) + 0x80140000), s8 *, 0xC06) = 2;
 }
+#endif

@@ -42,7 +42,14 @@ typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                     
 typedef struct Cam152 { u8 pad[152]; } Cam152;
 typedef struct Car952 { u8 pad000[239]; s8 mode; u8 pad0F0[952 - 240]; } Car952;
 typedef struct Pair { s32 first, second; } Pair;
+#ifdef TARGET_PC
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
+ * D_8012E710 is node 0 + 0x10: on the PC the field is the node's, at host +0x14. */
+typedef struct Model68 { u32 flags, w4; void *obj; f32 w; f32 scale; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
+#define D_8012E710 D_8012E700
+#else
 typedef struct Model68 { f32 scale; u8 pad[64]; } Model68;
+#endif
 typedef struct Pos { s16 x, y; } Pos;
 
 extern s16 D_80151AD0;
