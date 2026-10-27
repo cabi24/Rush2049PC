@@ -86,7 +86,9 @@ void osInvalDCache(void *p, int32_t n) { (void)p, (void)n; }
 void osInvalICache(void *p, int32_t n) { (void)p, (void)n; }
 void osWritebackDCache(void *p, int32_t n) { (void)p, (void)n; }
 void osWritebackDCacheAll(void) {}
-void func_8002C5E0(void) {}   /* boot-data D-cache loop (cache 0xD) */
+/* boot-data D-cache loop (cache 0xD): returns start advanced in 16-byte lines to at least end, which
+ * func_80010450 keeps as its audio DMA cursor (asm/us/boot_data/func_8002C5E0.s) */
+uint32_t func_8002C5E0(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }
 void osUnmapTLBAll(void) {}
 void osMapTLBRdb(void) {}
 uint32_t __osTLBLookup(void *vaddr) { return (uint32_t)(uintptr_t)vaddr & 0x1FFFFFFFu; }

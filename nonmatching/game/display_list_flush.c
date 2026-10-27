@@ -140,7 +140,11 @@ extern s32 D_80156990, D_80156CE0, D_801613AC, D_80156BAC, D_801613B4;
 extern s16 D_8015B254;
 extern f32 D_801613B8;
 extern s16 D_80140618;
+#ifdef TARGET_PC
+extern intptr_t D_801406B8;   /* Lights2 *: pointer-sized on the PC */
+#else
 extern s32 D_801406B8;
+#endif
 extern u8 D_8011EA18[];
 AudMsg *func_80091B00(void);
 s32 osRecvMesg(void *mq, void *msg, s32 flag);
@@ -165,7 +169,11 @@ static void ZOID_Reset(void)
     ZOID_ResetWindows();
     D_801613B8 = 1.0f;
     D_80140618 = 0;
+#ifdef TARGET_PC
+    D_801406B8 = (intptr_t)D_8011EA18;
+#else
     D_801406B8 = (s32)D_8011EA18;
+#endif
 }
 
 void AudLock(void)
