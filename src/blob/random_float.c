@@ -82,12 +82,26 @@ typedef struct {
     f32 mass;                   /* 0x1C */
 } Body;
 
+#ifdef TARGET_PC
+/* PC: a dead-reckoning record (D_80150F38, a heap block of 64-byte records) keeps its N64 layout, its body a 32-bit
+ * window address of game data at D_80118C10 (func_8010C02C's CollisionReckon, level_objects' Matrix64;
+ * docs/port/POINTERS.md 10.2). */
+typedef struct {
+    unsigned int body;          /* 0x00 */
+    f32 UV[3][3];               /* 0x04 */
+    f32 RWR[3];                 /* 0x28 */
+    f32 RWV[3];                 /* 0x34 */
+} Reckon;
+#define BODY(r) ((Body *)(uintptr_t)(r)->body)
+#else
 typedef struct {
     Body *body;                 /* 0x00 */
     f32 UV[3][3];               /* 0x04 */
     f32 RWR[3];                 /* 0x28 */
     f32 RWV[3];                 /* 0x34 */
 } Reckon;
+#define BODY(r) r->body
+#endif
 
 extern s8 D_8017A634;
 extern s32 D_8014A110;
@@ -113,8 +127,8 @@ void random_float(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
     temp[1] = m->RWR[1] - m2->RWR[1];
     temp[2] = m->RWR[2] - m2->RWR[2];
     func_800A61B0(temp, cent, m2->UV[0]);
-    behind = ((cent[2] < m2->body->BODYR[2]) && (cent[2] > m2->body->BODYR[3]));
-    beside = ((cent[0] < m2->body->BODYR[1]) && (cent[0] > m2->body->BODYR[0]));
+    behind = ((cent[2] < BODY(m2)->BODYR[2]) && (cent[2] > BODY(m2)->BODYR[3]));
+    beside = ((cent[0] < BODY(m2)->BODYR[1]) && (cent[0] > BODY(m2)->BODYR[0]));
     if (behind && beside && m->unk640) {
         random_int(m, dir);
         return;
@@ -133,7 +147,7 @@ void random_float(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
                 force[2] = -4000.0f;
             }
             if (beside) {
-                temp[2] = pos[2] - m2->body->BODYR[2];
+                temp[2] = pos[2] - BODY(m2)->BODYR[2];
                 temp[2] *= 10000.0f * fabsf(temp[2]);
                 if (temp[2] < force[2]) {
                     force[2] = temp[2];
@@ -144,7 +158,7 @@ void random_float(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
                 force[2] = 4000.0f;
             }
             if (beside) {
-                temp[2] = pos[2] - m2->body->BODYR[3];
+                temp[2] = pos[2] - BODY(m2)->BODYR[3];
                 temp[2] *= 10000.0f * fabsf(temp[2]);
                 if (temp[2] > force[2]) {
                     force[2] = temp[2];
@@ -162,7 +176,7 @@ void random_float(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
                 force[0] = -4000.0f;
             }
             if (behind) {
-                temp[0] = pos[0] - m2->body->BODYR[1];
+                temp[0] = pos[0] - BODY(m2)->BODYR[1];
                 temp[0] *= 20000.0f * fabsf(temp[0]);
                 if (temp[0] < force[0]) {
                     force[0] = temp[0];
@@ -173,7 +187,7 @@ void random_float(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
                 force[0] = 4000.0f;
             }
             if (behind) {
-                temp[0] = pos[0] - m2->body->BODYR[0];
+                temp[0] = pos[0] - BODY(m2)->BODYR[0];
                 temp[0] *= 20000.0f * fabsf(temp[0]);
                 if (temp[0] > force[0]) {
                     force[0] = temp[0];
@@ -183,10 +197,10 @@ void random_float(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
     }
 
     force[1] = rvel[1] * 100.0f;
-    mass = (m->mass + m2->body->mass) * 0.5f;
+    mass = (m->mass + BODY(m2)->mass) * 0.5f;
     func_8009E820(force, temp, m2->UV[0]);
     func_800A61B0(temp, cent, m->UV[0]);
-    scale = m2->body->mass / mass;
+    scale = BODY(m2)->mass / mass;
     cent[0] *= scale;
     cent[1] *= scale;
     cent[2] *= scale;

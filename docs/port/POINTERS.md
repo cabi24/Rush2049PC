@@ -547,7 +547,8 @@ over the next node's link, while the other views had the N64 one.
   `D_80117510[c]` bytes (ROM data), and of their views only the camera controller `CamCtl` (72 bytes) has a pointer,
   its scene (a PTHD record of the track WAD, which itself keeps its N64 layout: `link`, `keys`, `cur` u32). The
   dead-reckoning records `D_80150F38` (64 bytes, a heap block; `func_800AB750` strides by 64) keep their body, game
-  data at `D_80118C10 + 32 x value`, as a u32. The mine data, the debris physics, the cone's motion, the coin and
+  data at `D_80118C10 + 32 x value`, as a u32, in each view: `level_objects`' `Matrix64`, `func_8010C02C`'s hit
+  test and the collision response `random_float` (`Reckon`, `BODY`). The mine data, the debris physics, the cone's motion, the coin and
   battle mode's `Slot136` have no pointers.
 - `D_8013C300`, the cameras with key paths, is pointer-sized already (`intptr_t[30]`, PROTOTYPES.md 5).
 

@@ -7,7 +7,7 @@
  * audio_channel_setup, the debris func_8010E4E4, which frees its target into the pool), the collision pass that
  * calls a target's hit function (race_setup_2), the scripted cameras (camera_process_input, func_800C1A00,
  * func_8010C2E4: camera, controller and PTHD scene, all window addresses) and a dead-reckoned collision
- * (func_8010C02C: Matrix64). Records past the first are used throughout, so an N64 stride or a host-sized pointer
+ * (func_8010C02C and its response random_float: Matrix64, whose body is a window address). Records past the first are used throughout, so an N64 stride or a host-sized pointer
  * lands somewhere else. The nodes, the heap records and the track records sit in an RDRAM window the test maps
  * (exit 77, skipped, if it can't).
  * game: src/blob/camera_lerp_position.c src/blob/pool_linked_list_init.c src/blob/func_8008E3C0.c
@@ -16,7 +16,7 @@
  * game: src/blob/func_8010D9CC.c src/blob/func_8010DF90.c src/blob/func_8010E828.c src/blob/func_8010E694.c
  * game: src/blob/audio_channel_setup.c src/blob/func_8010E4E4.c src/blob/race_setup_2.c
  * game: src/blob/groups/camera_aspect_ratio/group.c src/blob/func_800C1A00.c src/blob/func_8010C2E4.c
- * game: src/blob/func_8010C02C.c
+ * game: src/blob/func_8010C02C.c src/blob/random_float.c
  */
 #include <math.h>
 #include <stddef.h>
@@ -165,7 +165,9 @@ void func_8009E820(float *in, float *out, float *m)
         out[j] = in[0] * m[j] + in[1] * m[3 + j] + in[2] * m[6 + j];
 }
 static void *g_hit_other;
-void random_float(intptr_t a, void *car, void *other, float *d, float *l) { g_hit_other = other; }
+void random_int(void *car, float *dir) { g_hit_other = car; }   /* random_float's push out of the record's box */
+float func_8008B3C8(float *v) { return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
+int8_t D_8017A634;
 /* the scripted cameras */
 int32_t camera_target_track(float *pos, intptr_t up, float f2C, float a, float b, float c, int32_t id, int32_t d,
                             int32_t s28, int32_t e) { return 40 + id; }
@@ -205,6 +207,7 @@ void camera_process_input(void *cam);
 void func_800C1A00(int32_t id, float *out);
 int32_t func_8010C2E4(void *cam, int16_t *player, int32_t a, int32_t b);
 int32_t func_8010C02C(void *object, int16_t *index, void *a, int32_t b);
+void random_float(int32_t a, void *car, void *other, float *dir, float *pos);
 
 /* ---------------------------------------------------------------- the track: scenes, keys, places */
 
@@ -492,25 +495,36 @@ static void test_camera(void)
     CHECK((NF(sc, 0x10, uint32_t) & (1u << 24)) && (NF(sc, 0x10, uint32_t) & 0x200));
 }
 
-/* A dead-reckoned collision: the record's body is a 32-bit window address. */
+/* A dead-reckoned collision: the record's body is a 32-bit window address, read by the hit test (func_8010C02C)
+ * and by the response (random_float), which reads the record's basis, position and velocity after it. */
 static void test_reckon(void)
 {
-    uint8_t *obj = NODE(1), *body = WP(0x80118C10u + 2 * 32);
+    uint8_t *obj = NODE(1), *body = WP(0x80118C10u + 2 * 32), *rec = D_80150F38, *m = MODEL(0);
     int16_t index = 0;
+    float dir[3] = {0, 0, 0}, pos[3] = {0, 0, 0};
 
     memset(body, 0, 32);
     NF(body, 0, float) = -10.0f, NF(body, 4, float) = 10.0f, NF(body, 8, float) = 10.0f;
     NF(body, 12, float) = -10.0f, NF(body, 16, float) = 10.0f, NF(body, 20, float) = -10.0f;
-    NF(body, 24, float) = 5.0f;
-    memcpy((uint8_t *)D_80150F38 + 4, D_8011418C, sizeof D_8011418C);
-    memset((uint8_t *)D_80150F38 + 0x28, 0, 12);
+    NF(body, 24, float) = 5.0f, NF(body, 28, float) = 4.0f;   /* radius, mass */
+    memcpy(rec + 4, D_8011418C, sizeof D_8011418C);
+    memset(rec + 0x28, 0, 24);
     NF(obj, 0x65, int8_t) = 0;
-    memset(MODEL(0), 0, 0x808);
-    NF(MODEL(0), 0x7EA, int8_t) = 1, NF(MODEL(0), 0x654, float) = 3.0f;
-    memcpy(MODEL(0) + 0x798, D_8011418C, sizeof D_8011418C);
+    memset(m, 0, 0x808);
+    NF(m, 0x7EA, int8_t) = 1, NF(m, 0x654, float) = 3.0f, NF(m, 0x640, int8_t) = 1;
+    memcpy(m + 0x798, D_8011418C, sizeof D_8011418C);
+    memcpy(m + 0x7A0, D_8011418C, sizeof D_8011418C);
+    /* The car is inside the record's box and already pushed (+0x640): random_float hands it to random_int. */
     g_hit_other = NULL;
     func_8010C02C(obj, &index, NULL, 0);
-    CHECK(g_hit_other == D_80150F38);
+    CHECK(g_hit_other == m);
+    /* Past the box's far side (z 12 > 10) and closing at 1 along z: a push of 2500 x the mass ratio (4 / 2). */
+    NF(m, 0x79C, float) = 12.0f;
+    NF(rec, 0x3C, float) = -1.0f;                              /* the record's velocity z */
+    g_hit_other = NULL;
+    random_float(0, m, rec, dir, pos);
+    CHECK(g_hit_other == NULL);
+    CHECK(NF(m, 0x124, float) == 0.0f && NF(m, 0x128, float) == 0.0f && NF(m, 0x12C, float) == -5000.0f);
 }
 
 int main(void)
