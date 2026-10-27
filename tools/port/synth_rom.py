@@ -858,6 +858,9 @@ def boot_and_sound(c):
     # updateGameState runs initGameState's state 1 (InitWaves, overlay "Start", SetOptions, InitRecords), which
     # moves on to state 2 (the front end's waves). Zero for both is a game with no state, where nothing happens.
     c.set("game", "state_word_b", "u32", 0x1, "gNewGameState: start in state 1 (initGameState)")
+    # gGameState before that: all ones, a state that has every bit, which the host's --until-state must not take for
+    # the one it waits for (BRINGUP.md 6). Any value but 1 starts the game the same way.
+    c.set("game", "state_word_a", "u32", 0xFFFFFFFF, "gGameState: no state yet (all ones)")
     # gSkipToGameState (D_801174BC): a screen whose state isn't this one passes straight on to its next screen,
     # unless it is 1, which every screen writes back once it is reached (and the race start, gameover's
     # "Quit"...). 0 skips the start prompt and the main menu; 1 is "no skip".

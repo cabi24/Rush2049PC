@@ -76,7 +76,8 @@ static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
                 (unsigned)s, (unsigned)last, pc_frame, pc_rcp_gfx_tasks, info);
         last = s, seen = 1;
     }
-    if (opt->until_state && !until_gfx && (s & opt->until_state))
+    /* All ones is no state yet: the retail cartridge's initial value of the state word, before initGameState. */
+    if (opt->until_state && !until_gfx && s != 0xFFFFFFFFu && (s & opt->until_state))
         until_gfx = pc_rcp_gfx_tasks + opt->until_state_frames + (opt->until_state_frames == 0);
     return until_gfx;
 }
