@@ -1,6 +1,10 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
 typedef unsigned char u8;typedef signed short s16;typedef unsigned int u32;typedef float f32;
+#ifdef TARGET_PC
+typedef struct Player76 {u8 index,selector;u8 gap[2];u32 previous,current,pressed;f32 horizontal,vertical;u8 opaque[0x48 - 0x18]; void *ref;} Player76;
+#else
 typedef struct Player76 {u8 index,selector;u8 gap[2];u32 previous,current,pressed;f32 horizontal,vertical;u8 opaque[52];} Player76;
+#endif
 typedef struct Axes8 {f32 horizontal,vertical;} Axes8;
 extern Player76 input_rec0[];
 extern s16 active_player_count;

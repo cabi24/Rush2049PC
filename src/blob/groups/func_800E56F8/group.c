@@ -454,7 +454,11 @@ typedef struct {
 } InputRecord;
 typedef struct Inp {
     u8 car;
+#ifdef TARGET_PC
+    u8 pad1[0x48 - 0x1]; void *ref;
+#else
     u8 pad1[0x4B];
+#endif
 } Inp;
 extern Inp input_rec0[];
 extern s32 D_80156978[4];

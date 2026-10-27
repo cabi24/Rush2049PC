@@ -22,8 +22,19 @@ typedef struct {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 pad1[0x43];
     /* 0x44 */ s32 message;
+#ifdef TARGET_PC
+    /* 0x48 */ void *ref;
+#else
     /* 0x48 */ u8 pad48[4];
+#endif
 } PlayerRec; /* 0x4C */
+#ifdef TARGET_PC
+/* PC: an input record is 80 bytes; +0x44 stays 32 bits: a packet is a heap block, so its window address
+ * (docs/port/POINTERS.md 10). */
+#define PACKET(p) (s32)(uintptr_t)(p)
+#else
+#define PACKET(p) (s32)p
+#endif
 
 extern PlayerRec D_8014A118[];
 extern s32 D_801174B4;
@@ -42,7 +53,7 @@ void func_800D6530(void)
     if (!(D_801174B4 & 8)) {
         for (i = 0; i < D_8014A108; i++) {
             if (D_8014A110 != 2 || D_8014A118[i].unk0 == 0)
-                D_8014A118[i].message = (s32)func_800D63EC(&D_801141B0, &D_801141B0, &D_801141A4, &D_80114198);
+                D_8014A118[i].message = PACKET(func_800D63EC(&D_801141B0, &D_801141B0, &D_801141A4, &D_80114198));
             else D_8014A118[i].message = -1;
         }
         speed_set((f32)D_80146115 / 10.0f, 0.1f, 0, 1);

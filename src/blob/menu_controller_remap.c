@@ -85,7 +85,11 @@ typedef struct {
     s32 unk8;
     u8 padC[0x2C - 0xC];
     s32 unk2C;
+#ifdef TARGET_PC
+    u8 pad30[0x48 - 0x30]; void *ref;
+#else
     u8 pad30[0x4C - 0x30];
+#endif
 } Player;
 
 typedef struct {

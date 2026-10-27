@@ -37,7 +37,11 @@ typedef struct Reference {
     u32 word0;
     u8 opaque4[62];
     u8 flags;
+#ifdef TARGET_PC
+    u8 opaque67[0x48 - 0x43]; void *ref;
+#else
     u8 opaque67[9];
+#endif
 } Reference;
 #ifdef TARGET_PC
 enum n64p_void { n64p_void_ };

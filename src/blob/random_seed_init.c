@@ -499,7 +499,11 @@ typedef struct
   s32 unk0C;
   f32 unk10;
   f32 unk14;
+#ifdef TARGET_PC
+  u8 _pad18[0x48 - 0x18]; void *ref; u8 _pad18_4C[0x4D - 0x4C];
+#else
   u8 _pad18[0x4D - 0x18];
+#endif
   u8 unk4D;
 } InputRecord;
 extern InputRecord input_rec0;
@@ -3801,16 +3805,22 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* PC: an input record (D_8014A118) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
+#define INPUT_SIZE 80
+#else
+#define INPUT_SIZE 0x4C
+#endif
 void random_seed_init(u32 arg0, s32 arg1)
 {
   InputRecord *r;
   s32 *t;
   D_80156958_Entry *e;
   if (arg1 != 0) {
-    r = (InputRecord *) ((u8 *) &input_rec0 + arg0 * 0x4C);
+    r = (InputRecord *) ((u8 *) &input_rec0 + arg0 * INPUT_SIZE);
     t = &D_80156998[arg0];
   } else {
-    r = (InputRecord *) ((u8 *) &input_rec0 + arg0 * 0x4C);
+    r = (InputRecord *) ((u8 *) &input_rec0 + arg0 * INPUT_SIZE);
     if (r->active != 5) return;
     t = &D_80156998[arg0];
     if (!(*t & 1)) return;

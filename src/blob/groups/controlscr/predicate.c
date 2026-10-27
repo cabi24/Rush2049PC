@@ -7,7 +7,11 @@ typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
 
+#ifdef TARGET_PC
+typedef struct { u8 pad0; u8 row; u8 pad2[0x48 - 0x2]; void *ref; } Rec76;
+#else
 typedef struct { u8 pad0; u8 row; u8 pad2[74]; } Rec76;
+#endif
 extern Rec76 D_8014A118[];
 extern s16 D_8014A0F8[];
 extern s8 D_8013C068[][10];
