@@ -24,6 +24,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct tVisual {         /* 0x18 bytes; gGameCar[slot].visuals[] at 0x110 */
@@ -131,7 +135,7 @@ static void StartTire(s16 slot, u32 tire)
 static void StartBrakeLights(s16 slot)
 {
     tVisual *v;
-    v = (tVisual *)((u32)&player_array[slot] + 0x110);
+    v = (tVisual *)((uintptr_t)&player_array[slot] + 0x110);
     v->func = func_8008BEA4;
     v->slot = slot;
 }

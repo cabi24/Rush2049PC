@@ -6,6 +6,7 @@ check with tools/port/n64_neutral.py.
     python3 tools/port/ptr64_edit.py need FILE...    # give FILE the N64 uintptr_t/intptr_t typedefs
     python3 tools/port/ptr64_edit.py gfx             # Gfx/Gwords w1 -> uintptr_t (host-built lists)
     python3 tools/port/ptr64_edit.py gbi             # address-carrying GBI macros store w1 via uintptr_t
+    python3 tools/port/ptr64_edit.py casts [FILE...] # (u32)ptr -> (uintptr_t)ptr at each warning (build/pc)
 
 guard: the PC prelude (port/include/pc_prelude.h) defines uintptr_t/intptr_t pointer-sized; a file's own u32/s32
 typedefs of them would clash, so they are wrapped in #ifndef TARGET_PC. The N64 compiler sees them unchanged.
@@ -23,9 +24,17 @@ gbi: the local GBI macros whose w1 is an address (gSetImage, gDma1p, gDma2p, gSP
 gSPSegment, gDma1p_) cast it with (uintptr_t) instead of (unsigned int)/(u32), so host pointers aren't cut to
 32 bits. Macros whose w1 is a value (other modes, combine, colors, geometry mode) keep their 32-bit casts:
 for those the upper half of w1 is zero.
+
+casts: compiles FILEs (default: all game files) with the PC build's flags (build/pc/compile_commands.json) and,
+at each -Wpointer-to-int-cast, rewrites a (u32)/(unsigned int)/(s32)/(int) cast to (uintptr_t)/(intptr_t),
+keeping the signedness. This only stops the cast truncating; where the value then lands in 32-bit storage
+the storage is widened by hand (docs/port/POINTERS.md lists how those were found).
 Stdlib only, Python 3.9+.
 """
+import json
 import re
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,6 +42,31 @@ ROOT = Path(__file__).resolve().parents[2]
 GAME = ("src/blob", "src/ovl_a", "src/ovl_b")
 # Their local Gfx describes ROM display lists (N64 form, big-endian on PC): not widened.
 N64_FORM_GFX = {"src/blob/entity_cull_check.c"}
+# The 32-bit N64 world (docs/port/ASSETS.md): the game heap (allocator internals and its u32-address API:
+# free, purge, size, handles) and the loaders that relocate ROM records in place. On PC the heap sits in the
+# RDRAM window at host 0x80000000, so (u32) of those addresses is exact; their casts stay as they are.
+N64_WORLD = {
+    "src/blob/func_80095EF4.c", "src/blob/resource_alloc_init.c", "src/blob/MBSetupWad.c",
+    "src/blob/groups/audio_heap/group.c", "src/blob/groups/counter_guard/group.c",
+    "src/blob/groups/state/ctx_alloc_at.c", "src/blob/groups/state/ctx_heap_group.c", "src/blob/groups/state/state.c",
+    "src/blob/groups/score_insert/alloc_at.c", "src/blob/groups/score_insert/group.c",
+    "src/blob/groups/score_insert/car_damage_visual.c", "src/blob/groups/score_insert/deflate_mem.c",
+    "src/blob/groups/score_insert/func_800CB748.c",
+    "src/blob/groups/heap_release/alloc_at.c", "src/blob/groups/heap_release/group.c",
+    "src/blob/groups/heap_release/car_damage_visual.c", "src/blob/groups/heap_release/deflate_mem.c",
+    "src/blob/groups/heap_release/initsystem.c",
+    "src/blob/groups/carcolor/ctx_alloc_at.c", "src/blob/groups/carcolor/ctx_group.c",
+    "src/blob/groups/carcolor/ctx_car_damage_visual.c", "src/blob/groups/carcolor/ctx_deflate_mem.c",
+    "src/blob/groups/carcolor/ctx_initsystem.c", "src/blob/groups/carcolor/carcolor.c",
+    "src/blob/groups/paksys/ctx_heap.c", "src/blob/groups/paksys/group.c",
+    "src/blob/groups/func_800E7A98/heap_release_context.c", "src/blob/groups/func_800E7A98/func_800E7A98.c",
+    "src/blob/groups/menu_save_options/ctx_slot.c", "src/blob/groups/menu_save_options/ctx_newghost.c",
+    "src/blob/groups/menu_save_options/hud_setup.c", "src/blob/groups/menu_save_options/save.c",
+    "src/blob/groups/state_audio/group.c",
+    "src/blob/groups/audio_frame_sync/waves.c", "src/blob/groups/slot_sound/func_800A4E58.c",
+    "src/blob/groups/audio_init_sys/ctx_func_800A4E58.c", "src/blob/groups/loadtrack/loadtrack.c",
+    "src/blob/groups/audio_init_sys/car_shadow_render.c",
+}
 GUARD_OLD = "typedef u32 uintptr_t;\ntypedef s32 intptr_t;\n"
 GUARD_NEW = "#ifndef TARGET_PC\ntypedef u32 uintptr_t;\ntypedef s32 intptr_t;\n#endif\n"
 _HAS_PTR_TYPEDEF = re.compile(r"^typedef\s+\w+(\s+\w+)?\s+uintptr_t\s*;", re.M)
@@ -40,7 +74,9 @@ _HAS_PTR_TYPEDEF = re.compile(r"^typedef\s+\w+(\s+\w+)?\s+uintptr_t\s*;", re.M)
 
 def game_files():
     for d in GAME:
-        yield from sorted((ROOT / d).rglob("*.c"))
+        for p in sorted((ROOT / d).rglob("*.c")):
+            if p.name not in ("overlay_loader.c", "ctx_overlay_loader.c"):   # the overlay-loader work's
+                yield p
 
 
 def rel(p):
@@ -121,6 +157,65 @@ def gfx():
     print(f"gfx: {changed} files")
 
 
+_CASTS = {"u32": "uintptr_t", "unsigned int": "uintptr_t", "unsigned": "uintptr_t", "U32": "uintptr_t",
+          "s32": "intptr_t", "int": "intptr_t", "signed int": "intptr_t", "S32": "intptr_t"}
+_CAST_AT = re.compile(r"\(\s*(u32|unsigned int|unsigned|U32|s32|int|signed int|S32)\s*\)")
+_WARN = re.compile(r"^(\S+?):(\d+):(\d+): warning: cast from pointer to integer of different size")
+
+
+def pointer_casts(files, build):
+    """file -> sorted {(line, col)} of -Wpointer-to-int-cast warnings, from the PC build's compile commands."""
+    cc = json.loads((build / "compile_commands.json").read_text())
+    want = {str(Path(f).resolve()) for f in files}
+    sites = {}
+    for e in cc:
+        f = str(Path(e["file"]).resolve())
+        if f not in want:
+            continue
+        args = e["arguments"] if "arguments" in e else shlex.split(e["command"])
+        out, skip = [], False
+        for x in args:
+            if skip:
+                skip = False
+                continue
+            if x in ("-o", "-MF", "-MT", "-MQ"):
+                skip = True
+                continue
+            if x not in ("-MD", "-MMD"):
+                out.append("-fsyntax-only" if x == "-c" else x)
+        r = subprocess.run(out, cwd=e["directory"], capture_output=True, text=True)
+        for line in r.stderr.splitlines():
+            m = _WARN.match(line)
+            if m:
+                src = str(Path(e["directory"], m.group(1)).resolve())
+                sites.setdefault(src, set()).add((int(m.group(2)), int(m.group(3))))
+    return sites
+
+
+def casts(files, build):
+    """At each pointer-to-int warning, a 32-bit integer cast becomes the pointer-sized one of the same
+    signedness (u32 -> uintptr_t, s32 -> intptr_t: the same types on the N64)."""
+    sites = pointer_casts(files, build)
+    left = []
+    for src, locs in sorted(sites.items()):
+        p = Path(src)
+        lines = p.read_text().split("\n")
+        changed = False
+        for ln, col in sorted(locs, key=lambda x: (x[0], -x[1])):   # right to left on a line
+            text = lines[ln - 1]
+            m = _CAST_AT.match(text, col - 1)
+            if not m:
+                left.append(f"{rel(p)}:{ln}:{col}: {text.strip()[:100]}")
+                continue
+            lines[ln - 1] = text[:m.start()] + "(" + _CASTS[m.group(1)] + ")" + text[m.end():]
+            changed = True
+        if changed:
+            p.write_text(ensure_ptr_typedefs("\n".join(lines)))
+            print(f"casts: {rel(p)}: {len(locs)}")
+    for l in left:
+        print("casts: left", l)
+
+
 GBI_ADDR = {"gSetImage", "gDma1p", "gDma2p", "gSPVertex", "gMoveWd", "gDma1p_"}
 _W1_CAST = re.compile(r"(w1\s*=\s*)\((?:unsigned int|u32)\)\(")
 
@@ -146,7 +241,7 @@ def gbi():
 
 
 def main(argv):
-    if not argv or argv[0] not in ("guard", "need", "gfx", "gbi"):
+    if not argv or argv[0] not in ("guard", "need", "gfx", "gbi", "casts"):
         sys.exit(__doc__)
     if argv[0] == "guard":
         guard()
@@ -154,6 +249,8 @@ def main(argv):
         need(argv[1:])
     elif argv[0] == "gbi":
         gbi()
+    elif argv[0] == "casts":
+        casts(argv[1:] or [str(p) for p in game_files() if rel(p) not in N64_WORLD], ROOT / "build" / "pc")
     else:
         gfx()
 

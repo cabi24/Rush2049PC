@@ -10,6 +10,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct Slot64 {
     s32 unknown0,id;
@@ -220,7 +224,7 @@ extern MultiBlit D_803B4654;
 extern void visual_objects_update(s32),particle_lifetime_set(void);
 extern void particle_velocity_set(void),entity_audio_update(void);
 extern s32 string_copy_format(char *,s8,s8,s8);
-extern s32 sign_extend_call(u32,u32,s32,u32);
+extern s32 sign_extend_call(u32,uintptr_t,s32,u32);
 extern void func_8008E06C(s16,Color4 *);
 extern Blit *sound_control(s16,s16,const MultiBlit *,s16);
 extern u8 func_800CDED8(void **);
@@ -261,7 +265,7 @@ void func_803998B8(void)
         if(slot->id==-1) {
             matrix=slot->matrix;
             memcpy(matrix,D_8011418C,36);
-            slot->id=sign_extend_call(string_copy_format(D_803B42D4[slot->unknown0],0,D_80140BDC-1,1),(u32)matrix,-1,(slot->unknown0==0 || slot->unknown0==1) ? 0x42000 : 0);
+            slot->id=sign_extend_call(string_copy_format(D_803B42D4[slot->unknown0],0,D_80140BDC-1,1),(uintptr_t)matrix,-1,(slot->unknown0==0 || slot->unknown0==1) ? 0x42000 : 0);
             func_8008E06C(slot->id,&color);
         }
     }

@@ -1,12 +1,16 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef int intptr_t;
+#endif
 void *func_800A47C0(void *dst, const void *src, u32 n) {
     char *d = (char *)dst;
     const char *s = (const char *)src;
     if (s < d && d < s + n) {
         d += n;
         s += n;
-        if (((u32)d & 3) == 0 && ((u32)s & 3) == 0) {
+        if (((uintptr_t)d & 3) == 0 && ((uintptr_t)s & 3) == 0) {
             while (n >= 4) {
                 *(u32 *)(d -= 4) = *(const u32 *)(s - 4);
                 n -= 4; s -= 4;
@@ -14,7 +18,7 @@ void *func_800A47C0(void *dst, const void *src, u32 n) {
         }
         while (n--) { *--d = *--s; }
     } else {
-        if (((u32)d & 3) == 0 && ((u32)s & 3) == 0) {
+        if (((uintptr_t)d & 3) == 0 && ((uintptr_t)s & 3) == 0) {
             while (n >= 4) {
                 *(u32 *)d = *(const u32 *)s;
                 d += 4; s += 4; n -= 4;

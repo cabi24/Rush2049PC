@@ -4,6 +4,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 #define NULL ((void *)0)
 float fabsf(float);
@@ -169,9 +173,9 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
         if (best != NULL) {
             if (snap != 0) {
                 if (best->type & 0x2000) {
-                    steering_sensitivity((s32)best, bestIdx, end, vc, mat, 250.0f);
+                    steering_sensitivity((intptr_t)best, bestIdx, end, vc, mat, 250.0f);
                 } else if (best->type & 0x1000) {
-                    traction_control((s32)best, bestIdx, end, vc, mat);
+                    traction_control((intptr_t)best, bestIdx, end, vc, mat);
                     func_8008E0B8(mat[0]);
                     func_8008E0B8(mat[1]);
                     func_8008E0B8(mat[2]);

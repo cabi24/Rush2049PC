@@ -529,7 +529,12 @@ extern s32 D_80124FC8;
 extern u8 gCarTeam, D_8013FECB;
 extern s32 D_80140008;
 extern u16 D_80140618;
+#ifdef TARGET_PC
+extern intptr_t D_801406B8;
+extern s32 D_801407BC, D_80140804, D_80140A00;
+#else
 extern s32 D_801406B8, D_801407BC, D_80140804, D_80140A00;
+#endif
 extern s32 D_80140AD8, D_80140B08, D_80140BD8;
 extern u8 D_80140C26;
 extern s32 D_80140D70, D_80141428, D_80142510;
@@ -3702,5 +3707,5 @@ void func_800A5B3C(void) {
     ZOID_ResetWindows();
     D_801613B8 = 1.0f;
     D_80140618 = 0;
-    D_801406B8 = (s32) &D_8011EA18;
+    D_801406B8 = (intptr_t) &D_8011EA18;
 }

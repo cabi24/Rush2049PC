@@ -3551,7 +3551,7 @@ void sign_extend_call(s16 arg0, s32 arg1, s16 arg2, s32 arg3);
 void skid_mark_render(void);
 s8 skill_rating_update(void *arg0, s32 arg6, s32 arg7, void *arg10, s32 arg24, s32 arg25, f32 arg30, f32 arg33, f32 arg35, s16 arg36, s32 arg41);
 void slot_deactivate(s32 arg0);
-void PS_WriteFile(void **arg0, u32 arg1, s32 arg2);
+void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
 s32 slot_value_get(s32 arg0);
 u32 sound_bank_load(u8 *arg0, s16 *arg1, s8 arg2, s8 arg3);
 void sound_bank_unload(s16 arg0, s16 arg1, u8 arg2, u8 arg3, u8 arg4);
@@ -3697,7 +3697,7 @@ void func_800FDF88(s32 arg0) {
 
     temp_a0 = *M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), s32 **, 0x2C) + 0x6F4;
     memset(temp_a0, 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, 8), (u32) temp_a0, 0x4C);
+    PS_WriteFile(M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &D_8014A160 + (D_801543D4 * 0x4C))), void ***, 8), (uintptr_t) temp_a0, 0x4C);
     M2C_FIELD(temp_a0, s8 *, 8) = (s8) arg0;
     M2C_FIELD(temp_a0, s32 *, 0xC) = (s32) (D_8002EB90 & 0xFFFFF);
     M2C_FIELD(temp_a0, s8 *, 4) = 1;

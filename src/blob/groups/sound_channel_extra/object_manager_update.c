@@ -26,6 +26,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 typedef struct FontHdr {
     /* 0x0 */ u8 pad0;
@@ -84,7 +88,7 @@ s32 object_manager_update(u8 *str, s16 maxlen)
     width = 0;
     str = 0;
     prev = -1;
-    while ((maxlen < 0 || (s32) str < maxlen) && (s[pos] != 0 || (wide && s[pos + 1] != 0))) {
+    while ((maxlen < 0 || (intptr_t) str < maxlen) && (s[pos] != 0 || (wide && s[pos + 1] != 0))) {
         if (D_801497F0->monospace) {
             width += D_801497F0->fixedWidth + D_80149B70;
             prev = ch;

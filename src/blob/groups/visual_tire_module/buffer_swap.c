@@ -35,6 +35,10 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16;
 typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct Visual { u8 opaque0[4]; s16 index, object, slot, opaque10; u32 flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
 typedef struct Model2056 { u8 opaque0[8]; u8 type; u8 opaque9[1007]; s16 state; u8 opaque1018[2]; s32 sound; u8 opaque1024[966]; s16 player; u8 opaque1992[64]; } Model2056;
 typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
@@ -112,7 +116,7 @@ void buffer_swap(Visual *v, s16 op)
         v->object = -1;
         return;
     }
-    model = (Model2056 *)(u32)&D_8014A250[slot];
+    model = (Model2056 *)(uintptr_t)&D_8014A250[slot];
     reverse = (v->flags & 1) ? 1 : 0;
     sign = reverse ? 1.0f : -1.0f;
     position[0] = D_8011B4B4[model->type][0] * (0, sign);

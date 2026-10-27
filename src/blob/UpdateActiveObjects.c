@@ -3815,7 +3815,7 @@ void UpdateActiveObjects(void)
  goto dummy_label_90098; dummy_label_90098: ; if (D_80149788 != 0) { }
  ;
     var_s1 += 1;
-    if (((u32) var_s1) < ((u32) (&(&D_80149450)[D_80149788])))
+    if (((uintptr_t) var_s1) < ((uintptr_t) (&(&D_80149450)[D_80149788])))
     {
       goto loop_2;
     }

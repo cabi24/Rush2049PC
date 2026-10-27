@@ -18,6 +18,10 @@ typedef signed char s8;
 typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef void *OSMesg;
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
@@ -44,7 +48,7 @@ extern s32 D_80156990, D_80156CE0, D_801613AC, D_80156BAC, D_801613B4;
 extern s16 D_8015B254;                      /* ObjHead */
 extern f32 D_801613B8;                      /* gGlobalCameraFacingScale */
 extern u16 D_80140618;
-extern s32 D_801406B8;
+extern intptr_t D_801406B8;
 extern s32 D_8011EA18;
 #define gWaveInstance D_80156D38
 #define gNumModels D_80140BDC
@@ -80,7 +84,7 @@ static void ZOID_Reset(void)
     ZOID_ResetWindows();
     D_801613B8 = 1.0f;
     D_80140618 = 0;
-    D_801406B8 = (s32) &D_8011EA18;
+    D_801406B8 = (intptr_t) &D_8011EA18;
 }
 
 static void ClearMemory(void)

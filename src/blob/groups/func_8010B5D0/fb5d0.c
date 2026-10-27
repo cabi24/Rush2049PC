@@ -20,6 +20,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
@@ -95,7 +99,7 @@ s32 func_8010B5D0(MenuItem *item) {
     s32 i;
     s32 x;
     s32 y;
-    s32 str;
+    intptr_t str;
     char buf[40];
     s32 v;
 
@@ -106,7 +110,7 @@ s32 func_8010B5D0(MenuItem *item) {
     font_set_B5D0(13);
     x = D_80117280[0];
     y = D_80117280[1];
-    str = (s32)buf;
+    str = (intptr_t)buf;
     if (D_80117350) {
         fcvt_wrapper(buf, D_801210CC, D_8015698C + 1, D_8017A4E0.hdr->unk3A4);
         dispatch_handler(1);

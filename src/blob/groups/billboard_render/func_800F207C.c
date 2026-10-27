@@ -10,6 +10,10 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef struct InputRecord {
     u8 unk0, player_id;
     u8 unk2[2];
@@ -33,7 +37,7 @@ extern void audio_distance_atten(u32);
 extern void audio_doppler(u32);
 extern void resource_type_select(u32);
 extern s32 viDeadlinePassed(void);
-extern u8 func_800F084C(s32);
+extern u8 func_800F084C(intptr_t);
 extern s16 func_800F1D04(u8 *);
 
 void func_800F207C(s32 player)
@@ -92,7 +96,7 @@ void func_800F207C(s32 player)
                 D_80143A50[player][D_80144C40[player]] = 0;
             }
             name = D_80143A50[player];
-            func_800F084C((s32)name);
+            func_800F084C((intptr_t)name);
             D_80143F18[player] = 0;
             D_801424F0[player] = D_801148D4[input->player_id] = func_800F1D04(name);
             for (row = 0; row < 3; row++) {

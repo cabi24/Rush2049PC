@@ -3552,7 +3552,7 @@ void sign_extend_call(s16 arg0, s32 arg1, s16 arg2, s32 arg3);
 void skid_mark_render(void);
 s8 skill_rating_update(void *arg0, s32 arg6, s32 arg7, void *arg10, s32 arg24, s32 arg25, f32 arg30, f32 arg33, f32 arg35, s16 arg36, s32 arg41);
 void slot_deactivate(s32 arg0);
-void PS_WriteFile(void **arg0, u32 arg1, s32 arg2);
+void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
 s32 slot_value_get(s32 arg0);
 u32 sound_bank_load(u8 *arg0, s16 *arg1, s8 arg2, s8 arg3);
 void sound_bank_unload(s16 arg0, s16 arg1, u8 arg2, u8 arg3, u8 arg4);
@@ -3699,6 +3699,6 @@ void object_byte71_set_sync(u8 ***arg0, s32 arg1) {
     p = *(u8 **) *(u8 ***) ((u8 *) *arg0 + 0x2C);
     if (arg1 != p[0x47]) {
         p[0x47] = arg1;
-        PS_WriteFile(*(void ***) ((u8 *) *arg0 + 8), (u32) (*(u8 **) *(u8 ***) ((u8 *) *arg0 + 0x2C) + 0x47), 1);
+        PS_WriteFile(*(void ***) ((u8 *) *arg0 + 8), (uintptr_t) (*(u8 **) *(u8 ***) ((u8 *) *arg0 + 0x2C) + 0x47), 1);
     }
 }

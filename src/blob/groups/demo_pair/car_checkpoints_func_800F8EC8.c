@@ -32,6 +32,10 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef unsigned int u32;
 typedef int s32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 typedef struct {
@@ -116,7 +120,7 @@ void func_800F8EC8(void)
         prev[1] = gc->pos[1];
         prev[2] = gc->pos[2];
         if ((D_80153E88[index].type == 0 || D_80153E88[index].type == 6) && gc->crashed == 0) {
-            m = (Model *)((u32)D_8014A250 + index * sizeof(Model));
+            m = (Model *)((uintptr_t)D_8014A250 + index * sizeof(Model));
             if (m->moving == -1) {
                 diff[0] = gc->pos[0] - D_80151CF4[m->next_cp].pos[0];
                 diff[1] = gc->pos[1] - D_80151CF4[m->next_cp].pos[1];

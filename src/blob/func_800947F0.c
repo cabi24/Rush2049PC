@@ -3,6 +3,10 @@
  * register (lui/addiu/lwc1 0(reg)) and load it before D_80118E30; the two written globals are volatile. */
 typedef float f32;
 typedef int s32;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef s32 intptr_t;
+#endif
 
 extern f32 D_8002EB94;
 extern volatile f32 D_80118E30;
@@ -12,7 +16,7 @@ void func_800947F0(void) {
     f32 t;
     f32 u;
 
-    D_80118E30 += *(f32 *) (s32) &D_8002EB94;
+    D_80118E30 += *(f32 *) (intptr_t) &D_8002EB94;
     t = D_80118E30;
     D_8017A630 = t + t;
     u = D_8017A630;

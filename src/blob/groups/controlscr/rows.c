@@ -2,13 +2,21 @@
 typedef signed char s8;
 typedef signed short s16;
 typedef unsigned char u8;
+#ifndef TARGET_PC
+typedef unsigned int uintptr_t;
+typedef int intptr_t;
+#endif
 typedef struct Item { int type, handle; float angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
 extern Item D_80111998[4][17];
 extern int D_80154618[4];
+#ifdef TARGET_PC
+extern void *D_80113ED8;
+#else
 extern int D_80113ED8;
+#endif
 extern s8 D_8015418C[4],D_8014A10C[4],D_80113ED4;
 void entity_spawn_callback(s16,int,int);
-void sound_stop(int);
+void sound_stop(intptr_t);
 void render_replay_ui(s8 row) {
     int i;
     Item *record=D_80111998[row];

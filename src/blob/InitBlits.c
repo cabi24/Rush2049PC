@@ -2489,7 +2489,7 @@ extern s32 D_80149410;
 extern s32 D_80149418;
 extern s32 D_80149428;
 extern s32 D_80149440;
-extern s32 D_80149450;
+extern intptr_t D_80149450;
 extern s32 D_80149770;
 extern s32 D_80149778;
 extern s32 D_80149780;
@@ -3791,7 +3791,7 @@ void InitBlits(void)
 {
   s32 i;
   for (i = 0; i < 200; i++) {
-    (&D_80149450)[i] = (s32) ((&D_80146210) + (i << 6));
+    (&D_80149450)[i] = (intptr_t) ((&D_80146210) + (i << 6));
   }
   D_80149788 = 0;
   game_state_flags = 0;

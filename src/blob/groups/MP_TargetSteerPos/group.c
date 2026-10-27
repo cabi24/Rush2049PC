@@ -3763,7 +3763,7 @@ void camera_transform(void) {
             temp_t6 = M2C_FIELD(var_v0, s32 *, -4);
             var_v0 = var_v0 - 1;
             *var_v0 = temp_t6;
-        } while ((u32) var_v0 >= (u32) &D_801460CC);
+        } while ((uintptr_t) var_v0 >= (uintptr_t) &D_801460CC);
         D_801460D8 = 0;
         if (D_8011028C != 0) {
             temp_v0 = D_801460F4;

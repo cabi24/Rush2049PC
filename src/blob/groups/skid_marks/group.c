@@ -21,6 +21,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 
 float sqrtf(float);
@@ -137,7 +141,7 @@ void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     up = D_80123C08;
     slot->left[1] += up;
     slot->right[1] += up;
-    obj->f8 = *(f32 *) ((u32) &D_8002EB90[0]);
+    obj->f8 = *(f32 *) ((uintptr_t) &D_8002EB90[0]);
     obj->color[0] = color[0];
     obj->color[1] = color[1];
     obj->color[2] = color[2];

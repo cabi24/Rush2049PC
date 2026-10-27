@@ -14,6 +14,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
+#ifndef TARGET_PC
+typedef u32 uintptr_t;
+typedef s32 intptr_t;
+#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
@@ -82,8 +86,8 @@ void PrintScores(void)
             sprintf(D_80143F20[i], D_8012060C, (u32)defTime / 60, (u32)defTime % 60,
                     (u32)(defTime * 1000.0f) % 1000);
         } else {
-            if ((u32)*p <= 20) {
-                D_80143FE0[i] = D_80151968[(s32)*p];
+            if ((uintptr_t)*p <= 20) {
+                D_80143FE0[i] = D_80151968[(intptr_t)*p];
             } else {
                 D_80143FE0[i] = (**p)->name;
             }
