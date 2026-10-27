@@ -102,6 +102,14 @@ target_compile_options(game_flags INTERFACE -include ${CMAKE_SOURCE_DIR}/port/in
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).
 target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -fno-strict-aliasing -fcommon)
+# Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so code
+# that names them (the game, and parts of port/) must load every extern's address from the GOT. aarch64 PIE
+# code does that already. x86-64 PIE code reaches externs PC-relatively, so everything is compiled as PIC there,
+# without GOT relaxation (port/ultra/memory.c fixes the slots at startup).
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    add_compile_options(-fPIC -fno-semantic-interposition -Wa,-mrelax-relocations=no)
+    add_link_options(-Wl,--no-relax)   # ld would still turn GOT loads of absolute symbols into PC32
+endif()
 # Silence what the N64-era declarations trip over; the 64-bit pointer warnings (-Wpointer-to-int-cast,
 # -Wint-to-pointer-cast) stay on, since they are the porting work list (docs/port/STATUS.md).
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -303,6 +311,14 @@ foreach(t ${PC_ASSETS_TESTS})
         target_sources(test_assets_${n} PRIVATE $<TARGET_OBJECTS:test_assets_${n}_game>)
     endif()
 endforeach()
+# test_assets_musyx also runs the game's own MusyX readers on the converted files: the boot library's units that
+# read them, built with the game's flags (one wrapper per unit, like test_gsm_game).
+file(GLOB PC_ASSETS_MUSYX_GAME CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/tests/musyx_lib_*.c)
+add_library(test_musyx_game OBJECT ${PC_ASSETS_MUSYX_GAME})
+target_link_libraries(test_musyx_game PRIVATE game_flags)
+target_compile_options(test_musyx_game PRIVATE -w)
+target_sources(test_assets_musyx PRIVATE $<TARGET_OBJECTS:test_musyx_game>)
+set_target_properties(test_musyx_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
 set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 

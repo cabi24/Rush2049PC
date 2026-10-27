@@ -36,6 +36,9 @@ IMAGE_SYMBOLS = {"game": "asm/us/blob/symbols.json", "ovl_a": "asm/us/ovl_a/symb
 HOST_LIBC = {"bcopy", "bzero", "bcmp", "memcpy", "memset", "memmove", "memcmp", "strlen", "strcpy", "strcmp",
              "strncpy", "strchr", "sqrtf", "sqrt", "fabsf", "fabs", "sinf", "cosf", "abort", "printf", "sprintf",
              "vsprintf", "modff"}
+# Names the host linker defines itself; x86-64 code references _GLOBAL_OFFSET_TABLE_ directly. Never stubbed.
+LINKER_DEFINED = {"_GLOBAL_OFFSET_TABLE_", "_DYNAMIC", "__dso_handle", "__ehdr_start", "__executable_start",
+                  "_edata", "_end", "__bss_start", "__TMC_END__"}
 
 _IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"),
                ("/nonmatching/game/", "game"), ("/nonmatching/ovl_a/", "ovl_a"), ("/nonmatching/ovl_b/", "ovl_b"))
