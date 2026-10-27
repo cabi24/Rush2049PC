@@ -1,0 +1,45 @@
+# The PC port (docs/PORT_PLAN.md): build, unit tests, and a boot without a ROM, on x86-64 and aarch64 Linux.
+# No ROM is involved: the tests use synthetic data, and --no-rom boots the game on a blank cartridge.
+name: PC port
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 \
+            zlib1g-dev libegl-dev libgles-dev libsdl2-dev libasound2-dev
+      - name: Configure
+        run: cmake -S . -B build/pc -G Ninja
+      - name: Build
+        run: cmake --build build/pc -j4
+      - name: Tests
+        run: ctest --test-dir build/pc --output-on-failure
+      - name: Boot without a ROM
+        # Gets as far as the first audio data on a blank cartridge (zero-size files); see the log.
+        run: |
+          build/pc/rush2049pc --no-rom --headless --no-config --seconds 10 2>&1 | tee boot.log
+          test "${PIPESTATUS[0]}" -eq 0
+      - name: Census
+        run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-${{ matrix.os }}
+          path: |
+            boot.log
+            build/pc/pc-data/data_layout.txt
+          if-no-files-found: ignore
