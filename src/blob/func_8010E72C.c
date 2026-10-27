@@ -45,14 +45,20 @@ typedef struct Visual {
 
 #ifdef TARGET_PC
 /* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
- * pointers (docs/port/POINTERS.md 10). */
+ * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
+ * (docs/port/POINTERS.md 10). */
 typedef struct TargInfo {
     char *name, *file;
     void *start;
     void *visFunc;          /* 0x0C */
-    u8 pad10[12];
+    s16 kind;               /* 0x10 */
+    u16 flags;
+    s16 shape;
+    s8 category, element;
+    f32 value;
     s32 sound;              /* 0x1C */
-    u8 pad20[16];
+    s32 w20, w24, w28;
+    f32 f2C;
 } TargInfo;
 #else
 typedef struct TargInfo {

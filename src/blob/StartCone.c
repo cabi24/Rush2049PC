@@ -84,16 +84,20 @@ typedef struct Obj {
 
 #ifdef TARGET_PC
 /* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
- * pointers (docs/port/POINTERS.md 10). */
+ * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
+ * (docs/port/POINTERS.md 10). */
 typedef struct ObjType {
     char *name, *file;
     void *start;
     void *f12;
-    u8 pad10[4];
-    s16 id;
-    u8 pad16[6];
-    s32 f28;
-    u8 pad20[48 - 32];
+    s16 kind;
+    u16 flags;
+    s16 id;                 /* 0x14 */
+    s8 category, element;
+    f32 value;
+    s32 f28;                /* 0x1C */
+    s32 w20, w24, w28;
+    f32 f2C;
 } ObjType;
 #else
 typedef struct ObjType {

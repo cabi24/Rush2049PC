@@ -142,6 +142,23 @@ typedef struct Node {
 } Node;
 #endif
 
+#ifdef TARGET_PC
+/* PC: every field spelled out, whichever view the loader converts the ROM's records by (docs/port/POINTERS.md 10). */
+typedef struct Metadata48 {
+    char *name;
+    char *file;
+    void (*callback)(Node *);
+    void *animation;
+    s16 kind;
+    u16 flags;
+    s16 f20;
+    s8 category;
+    s8 element;
+    f32 value;
+    s32 sound, w20, w24, w28;
+    f32 f2C;
+} Metadata48;
+#else
 typedef struct Metadata48 {
     char *name;
     char *file;
@@ -155,6 +172,7 @@ typedef struct Metadata48 {
     f32 value;
     u8 tail[20];
 } Metadata48;
+#endif
 
 typedef struct Place { char name[16]; f32 matrix[9]; f32 pos[3]; u32 flags; s32 w68; s32 w72; s32 key; } Place;
 typedef struct Slot136 { s32 object[3]; u8 gap12[122]; s16 active; } Slot136;
@@ -166,12 +184,15 @@ typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f
 /* A camera node's state (CamCtl, groups/camera_aspect_ratio) starts with its scene (a PTHD record) as a u32. */
 #define STATE_SCENE(s) (*(u32 *)N64P(s))
 #define SCENE_OF(s) ((Scene36 *)(uintptr_t)*(u32 *)N64P(s))
+/* GTLD keys: the side array holds them sign-extended (docs/port/LOADERS.md), and so does this. */
+#define KEY(k) (void *)(intptr_t)k
 #else
 typedef struct Matrix64 { u8 *record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
 #define N64P(x) x
 #define N64W(x) x
 #define STATE_SCENE(s) *(Scene36 **)s
 #define SCENE_OF(s) *(Scene36 **)s
+#define KEY(k) (void *)k
 #endif
 typedef struct Animation24 {
     struct Animation24 *next;
@@ -545,7 +566,7 @@ void engine_sound_update(void)
             key = D_801497C0[i];
             node = D_80143FC8.head;
             while (node != 0) {
-                if ((node->flags & 8) && (void *)node->key == key) {
+                if ((node->flags & 8) && KEY(node->key) == key) {
                     D_801497C0[i] = node;
                     break;
                 }

@@ -79,15 +79,27 @@ enum n64p_Camera { n64p_Camera_ };
 enum n64p_CamCtl { n64p_CamCtl_ };
 enum n64p_CamScene { n64p_CamScene_ };
 enum n64p_CamKey { n64p_CamKey_ };
+/* Every field is spelled out, whichever view the loader converts the ROM's records by: +0x16 and +0x17 are the
+ * kind's category and element, +0x18 its value. */
 typedef struct CamTbl {
     char *name, *file;
     void *start;
     void *w0C;
+    s16 mode;                    /* 0x10 */
+    s16 s12;
+    s16 s14;
+    s8 category, element;
+    f32 value;
+    s32 trackA;                  /* 0x1C */
+    s32 s20;
+    s32 trackB;                  /* 0x24 */
+    s32 s28;
+    f32 f2C;
+} CamTbl;
 #else
 typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
     u8 pad00[0xC];
     s32 w0C;
-#endif
     s16 mode;                    /* 0x10 */
     s16 s12;
     s16 s14;
@@ -99,6 +111,7 @@ typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
     s32 s28;
     f32 f2C;
 } CamTbl;
+#endif
 extern CamTbl D_80117530[];
 #ifdef TARGET_PC
 #define N64P(x) _Generic((x), enum n64p_Camera: (struct Camera *)(uintptr_t)(x), enum n64p_CamCtl: (struct CamCtl *)(uintptr_t)(x), enum n64p_CamScene: (struct CamScene *)(uintptr_t)(x), enum n64p_CamKey: (CamKey *)(uintptr_t)(x), default: (x))

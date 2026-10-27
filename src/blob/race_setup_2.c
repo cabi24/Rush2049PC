@@ -47,13 +47,19 @@ typedef s32 (*HitFunc)(void *, void *, void *, s32);
 
 #ifdef TARGET_PC
 /* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
- * pointers (docs/port/POINTERS.md 10). */
+ * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
+ * (docs/port/POINTERS.md 10). */
 typedef struct ObjType {
     char *name, *file;
     void (*onHit)(Object *);
     void *visual;
-    s16 shape;
-    char pad12[30];
+    s16 shape;              /* 0x10 */
+    u16 flags;
+    s16 id;
+    s8 category, element;
+    f32 value;
+    s32 sound, w20, w24, w28;
+    f32 f2C;
 } ObjType;
 #else
 typedef struct ObjType {

@@ -3,11 +3,12 @@
  * the per-frame fill (process_inputs), the clear (entity_audio_update) and the controller hand-over
  * (random_seed_init), which add 80-byte strides by hand, the controls set-up through the profile pointer
  * (drone_target_update), and the packet slot at +0x44, which stays 32 bits (func_800D6530 posts a packet, a heap
- * block, or -1; func_800D5374 activates it; main_menu_render hands it on). Every check is on records 1 to 3 too, so
- * a 76-byte stride reads or writes the wrong bytes.
+ * block, or -1; func_800D5374 activates it; main_menu_render hands it on), and a new record of the player's save
+ * data reached from its input record (func_800FDF88: the profile, SaveSlot.data, the data pointer read whole). Every
+ * check is on records 1 to 3 too, so a 76-byte stride reads or writes the wrong bytes.
  * game: src/blob/process_inputs.c src/blob/entity_audio_update.c src/blob/random_seed_init.c
  * game: src/blob/drone_target_update.c src/blob/groups/vsync/func_800D6530.c
- * game: src/blob/groups/main_menu_input/object_activate.c src/blob/main_menu_render.c
+ * game: src/blob/groups/main_menu_input/object_activate.c src/blob/main_menu_render.c src/blob/func_800FDF88.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -27,9 +28,11 @@ typedef struct {
 _Static_assert(sizeof(Input) == 80 && offsetof(Input, profile) == 0x48, "the input record's host layout");
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
+#define NF8(p, off) (((uint8_t *)(p))[off])
 
 Input D_8014A118[4] __attribute__((aligned(16)));
 ALIAS(input_rec0, D_8014A118, 0);
+ALIAS(D_8014A160, D_8014A118, 0x48);   /* record 0's profile pointer, as gen_data places it */
 int16_t active_player_count, D_8014A108;
 uint32_t D_80156978[8], D_80156998[8], D_80143A00[8];
 struct { float h, v; } D_80156958[8];
@@ -62,6 +65,15 @@ void func_80091FBC(void *list, int32_t *object, void *before) { g_moved[g_nmoved
 static void *g_handed[8];
 static int g_nhanded;
 void main_menu_input(void *node, float *a, float *b, float *c, float *d) { g_handed[g_nhanded++ & 7] = node; }
+uint8_t D_801543D4;
+int32_t D_8002EB90 = 0x123456, D_801117B4[4] = {11, 22, 33, 44};
+int8_t D_80146127;
+void *n64_memset(void *p, int c, uint32_t n) { return memset(p, c, n); }
+static void *g_written;
+void PS_WriteFile(void **file, uintptr_t data, int32_t size) { g_written = (void *)data; }
+void func_800FDF88(int32_t mode);
+/* A profile (menu_save_options' SaveSlot on the PC): its file handle at +8, its data at +48. */
+typedef struct { uint8_t pad0[8]; void **file; uint8_t pad16[48 - 16]; void **data; } SaveSlot;
 static void *g_saved[8];
 static int g_nsaved;
 void func_800CCE5C(void **profile, int8_t *controls) { g_saved[g_nsaved++ & 7] = profile; }
@@ -159,6 +171,27 @@ static void test_packets(void)
         CHECK(D_8014A118[p].packet == 0xFFFFFFFFu && D_8014A118[p].profile == &D_80146150[p]);
 }
 
+/* The player's new record: through record 2's profile pointer to its save data, in the window. */
+static void test_save_record(uint8_t *w)
+{
+    static SaveSlot slot;
+    static void *file, *block;
+
+    block = w + 0x330000;
+    memset(block, 0xAA, 0x800);
+    slot.file = &file, slot.data = &block;
+    D_80146150[5] = &slot;
+    D_8014A118[2].profile = &D_80146150[5];
+    D_801543D4 = 2;
+    D_80146127 = 1;
+    g_written = NULL;
+    func_800FDF88(3);
+    CHECK(g_written == (uint8_t *)block + 0x6F4);
+    CHECK(NF8(block, 0x6F4 + 8) == 3 && NF8(block, 0x6F4 + 4) == 1 && NF8(block, 0x6F4 + 5) == 1);
+    CHECK(NF8(block, 0x6F4 + 7) == 44 && *(int32_t *)((uint8_t *)block + 0x6F4 + 0xC) == 0x23456);
+    CHECK(NF8(block, 0x6F4 + 0x4C) == 0xAA && NF8(block, 0x6F3) == 0xAA);
+}
+
 int main(void)
 {
     uint8_t *w = test_rdram();   /* the packets are heap blocks: window addresses */
@@ -172,5 +205,6 @@ int main(void)
     test_hand_over();
     test_controls();
     test_packets();
+    test_save_record(w);
     return TEST_DONE();
 }
