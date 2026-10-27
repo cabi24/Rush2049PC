@@ -14,7 +14,8 @@ With --sym, the views are the declarations in the objects whose live code (stron
 relocations) refers to the symbol, to one of its --alias names (same address) or to one of the --also names (inside
 it, whose own declarations are not compared); weak context copies never run. With --tag, the
 views are the complete struct definitions with one of those tags and at most the given N64 size (shorter ones are
-prefixes), in every object; those whose object has no live function are marked. Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
+prefixes), in every object (or only those --in the given source files); those whose object has no live function are
+marked. Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
 """
 import argparse
 import re
@@ -112,6 +113,7 @@ def main():
     ap.add_argument("--alias", default="", help="other names of the symbol's address, whose declarations are views too")
     ap.add_argument("--tag", help="struct tags (comma-separated) of a record passed by pointer")
     ap.add_argument("--n64-size", type=lambda s: int(s, 0), help="N64 size of the --tag record")
+    ap.add_argument("--in", dest="within", default="", help="with --tag: only the views in these source files")
     ap.add_argument("--readelf", default="readelf")
     a = ap.parse_args()
     if bool(a.sym) == bool(a.tag) or (a.tag and not a.n64_size):
@@ -144,6 +146,9 @@ def main():
                 if t[0] == "struct" and (gd.n64_layout(t)[0] or 0) <= a.n64_size and t not in seen:
                     seen.add(t)
                     views.append((obj, name, t, None))
+        if a.within:
+            keep = [f for f in a.within.split(",") if f]
+            views = [v for v in views if any(f + ".o" in v[0] for f in keep)]
         live = {o: has_live_code(o) for o in {v[0] for v in views}}
         views = [(o, d, t, live[o]) for o, d, t, _ in views]
 
