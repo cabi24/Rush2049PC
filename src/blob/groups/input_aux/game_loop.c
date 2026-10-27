@@ -70,6 +70,10 @@ s32 game_loop(void)
         UpdateFrame();
     } else {
         while (D_8002EB70) {
+#ifdef TARGET_PC
+            extern void pc_os_spin_yield(const char *site);
+            pc_os_spin_yield("game_loop");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
         }
         D_80149438 = 0;
         gfx_frame_begin();

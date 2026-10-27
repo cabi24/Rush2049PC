@@ -53,8 +53,18 @@ void func_800960CC(u32 address)
 void wheel_params_set(void)
 {
     func_800958B8();
-    while (D_8011028C != 0) {}
-    while (D_80146160.head != 0) {}
+    while (D_8011028C != 0) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("wheel_params_set 1");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
+    }
+    while (D_80146160.head != 0) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("wheel_params_set 2");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
+    }
     D_80110284 = 0;
     func_800960CC(D_80144C48);
     func_800960CC(D_80146100);

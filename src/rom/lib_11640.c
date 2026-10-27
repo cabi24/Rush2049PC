@@ -359,6 +359,10 @@ extern void *D_8003802C;
 void func_80011848(void)
 {
     while (D_800382CC != 0) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("func_80011848");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
     }
     D_8003801C(D_8003802C);
 }
@@ -1448,6 +1452,10 @@ void func_80014140(void)
 {
     D_80038362 = D_80038292;
     while (D_80038362 > 0) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("func_80014140");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
     }
     D_8003800C(func_80013DEC);
 }

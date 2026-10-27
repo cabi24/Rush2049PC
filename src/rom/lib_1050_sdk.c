@@ -3,7 +3,76 @@
  * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
  * passthrough lines. */
 
+#ifdef TARGET_PC
+#define __scAppendList pc_m2c_scAppendList   /* m2c_types.h's prototypes take its OSSched, not PcSched */
+#define __scExec pc_m2c_scExec
+#endif
 #include "rom_tu.h"
+#ifdef TARGET_PC
+#undef __scAppendList
+#undef __scExec
+/* PC: the scheduler keeps the N64 offsets the game reads it at (docs/port/ULTRA.md). The game takes the
+ * queues' and the thread's addresses (D_8002E928, D_8002E960, D_8002E998) and reads retraceCount at 0x27C
+ * (its frame clock: frameCount, tick, gViTickCounter). port/ultra keys queues and threads by address and never
+ * writes into them, so they are N64-sized storage here; the scheduler's own pointers follow at host size. */
+typedef struct PcSched {
+    s16 state;                         /* 0x000 */
+    u8 pad02[0x20 - 0x02];
+    s16 priority;                      /* 0x020 */
+    u8 pad22[0x40 - 0x22];
+    u8 cmdQueue[0x18];                 /* 0x040 */
+    u8 cmdMsgs[0x20];                  /* 0x058 */
+    u8 retQueue[0x18];                 /* 0x078: where the game sends its tasks */
+    u8 retMsgs[0x20];                  /* 0x090 */
+    u8 padB0[0x260 - 0xB0];            /* 0x0B0: the scheduler thread */
+    u8 pad260[0x27C - 0x260];          /* N64: clientList .. curRDPTask, 4-byte pointers */
+    s32 retraceCount;                  /* 0x27C */
+    s32 audioListPending;              /* 0x280 */
+    OSScClient *clientList;            /* 0x288 */
+    OSScTask *rspTaskHead;
+    OSScTask *rspTaskTail;
+    OSScTask *rdpTaskHead;
+    OSScTask *rdpTaskTail;
+    OSScTask *curRSPTask;              /* 0x2B0 */
+    OSScTask *curRDPTask;
+} PcSched;
+#define OSSched PcSched
+typedef char pc_sched_layout_check[(sizeof(PcSched) == 0x2C0 && sizeof(void *) == 8) ? 1 : -1];
+
+/* owned .bss of __scMain (__scMain, __scExec): C definitions in place of the companion. Initialized, so that
+ * they are definitions the aliases below can name (not common symbols). */
+volatile OSTime __osScRetraceTime = 0;
+OSSched gScheduler = {0};
+s32 D_8002EB6C = 0;
+s16 __osScTaskCount = 0;
+volatile OSTime __osScAudioStart = 0;
+volatile OSTime __osScFrameTime = 0;
+u64 D_8002EB88 = 0;
+f32 __osScElapsedTime = 0;
+f32 __osScDeltaTime = 0;
+s32 gViFrameDelta = 0;
+s32 gViAccumTime = 0;
+s32 gViAccumTotal = 0;
+volatile s32 gViLastTick = 0;
+/* The game's names for this storage, by N64 address (port/data leaves these to the libultra layer). */
+#if defined(__APPLE__)
+#define PC_SYM(name) "_" name
+#else
+#define PC_SYM(name) name
+#endif
+#define PC_ALIAS(name, target) ".globl " PC_SYM(name) "\n.set " PC_SYM(name) ", " PC_SYM(target) "\n"
+__asm__(PC_ALIAS("D_8002E8E8", "gScheduler")
+        PC_ALIAS("D_8002E928", "gScheduler + 0x40")
+        PC_ALIAS("D_8002E960", "gScheduler + 0x78")
+        PC_ALIAS("D_8002E998", "gScheduler + 0xB0")
+        PC_ALIAS("gViTickCounter", "gScheduler + 0x27C")
+        PC_ALIAS("D_8002EB64", "gScheduler + 0x27C")
+        PC_ALIAS("D_8002EB5C", "gScheduler + 0x2B0")   /* curRSPTask, host-sized: not at its N64 offset */
+        PC_ALIAS("D_8002EB70", "__osScTaskCount")
+        PC_ALIAS("D_8002EB90", "__osScElapsedTime")
+        PC_ALIAS("D_8002EB94", "__osScDeltaTime")
+        PC_ALIAS("D_8002EB98", "gViFrameDelta"));
+#else
 /* owned .bss of __scMain (__scMain, __scExec): C definitions in place of the companion */
 volatile OSTime __osScRetraceTime;
 OSSched gScheduler;
@@ -18,6 +87,7 @@ s32 gViFrameDelta;
 s32 gViAccumTime;
 s32 gViAccumTotal;
 volatile s32 gViLastTick;
+#endif
 #include "scheduler_declarations.h"
 
 

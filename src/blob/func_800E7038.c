@@ -54,6 +54,10 @@ void func_800E7038(void)
         osSendMesg(&D_801497A8, 0, 0);
     }
     while (*(volatile u8 *)&D_80111950 == 0x80) {
+#ifdef TARGET_PC
+        extern void pc_os_spin_yield(const char *site);
+        pc_os_spin_yield("func_800E7038");   /* PC: let the writer run (docs/port/ULTRA.md) */
+#endif
     }
     controller_poll();
 }
