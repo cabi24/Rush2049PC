@@ -50,8 +50,29 @@ void func_8001E9B0(void)
  * previously opaque fields at +0x14, +0x18 and +0x28 respectively.
  * Keep these declarations before any future early list-helper promotion. */
 #pragma pack(1)
+#ifdef TARGET_PC
+/* PC: the voice state keeps its N64 layout (lib_22300.c), so the node at +0x18, one of D_80050A50's, is
+ * kept as its N64 address, 0x80050A50 + 16 * index: N64P(x) gives the node, N64W(x) the word
+ * (docs/port/MUSYX_DATA.md 8.3). */
+enum n64p_SequenceNode { n64p_SequenceNode_ };
+typedef struct VoiceState { u32 command00; u8 unknown04[12]; u32 next_identifier; u32 parent_identifier; enum n64p_SequenceNode entry18; u8 unknown1C[8]; u32 flags24; u32 value28; u8 unknown2C[2]; u8 channel2E; u8 unknown2F[29]; u8 external4C; u8 unknown4D[19]; u32 identifier60; u8 unknown64[89]; u8 activeBD; u8 unknownBE[226]; } VoiceState;
+#pragma pack(0)
+static SequenceNode *pc_voice_node(enum n64p_SequenceNode address)
+{
+    return address != 0 ? &D_80050A50[(address - 0x80050A50U) / 16] : 0;
+}
+static enum n64p_SequenceNode pc_voice_node_address(SequenceNode *node)
+{
+    return (enum n64p_SequenceNode)(node != 0 ? 0x80050A50U + (u32)(node - D_80050A50) * 16 : 0);
+}
+#define N64P(x) pc_voice_node(x)
+#define N64W(x) pc_voice_node_address(x)
+#else
 typedef struct VoiceState { u32 command00; u8 unknown04[12]; u32 next_identifier; u32 parent_identifier; SequenceNode *entry18; u8 unknown1C[8]; u32 flags24; u32 value28; u8 unknown2C[2]; u8 channel2E; u8 unknown2F[29]; u8 external4C; u8 unknown4D[19]; u32 identifier60; u8 unknown64[89]; u8 activeBD; u8 unknownBE[226]; } VoiceState;
 #pragma pack(0)
+#define N64P(x) x
+#define N64W(x) x
+#endif
 extern SequenceNode *D_80050C50;
 extern VoiceState D_8004BEB8[];
 SequenceNode *func_8001EAA0(u32 key)
@@ -100,22 +121,22 @@ void func_8001EB10(VoiceState *state)
                 D_8004BEB8[(state->next_identifier & 255)].parent_identifier=state->parent_identifier;
             }
         } else if (state->next_identifier != 0xFFFFFFFFU) {
-            state->entry18->value=state->next_identifier;
+            N64P(state->entry18)->value=state->next_identifier;
             D_8004BEB8[(state->next_identifier & 255)].parent_identifier=0xFFFFFFFFU;
             D_8004BEB8[(state->next_identifier & 255)].entry18=state->entry18;
         } else {
-            if (state->entry18->previous != 0) {
-                state->entry18->previous->next=state->entry18->next;
+            if (N64P(state->entry18)->previous != 0) {
+                N64P(state->entry18)->previous->next=N64P(state->entry18)->next;
             } else {
-                D_80050C50=state->entry18->next;
+                D_80050C50=N64P(state->entry18)->next;
             }
-            if (state->entry18->next != 0) {
-                state->entry18->next->previous=state->entry18->previous;
+            if (N64P(state->entry18)->next != 0) {
+                N64P(state->entry18)->next->previous=N64P(state->entry18)->previous;
             }
-            state->entry18->next=D_80050C54;
-            if (D_80050C54 != 0) D_80050C54->previous=state->entry18;
-            state->entry18->previous=0;
-            D_80050C54=state->entry18;
+            N64P(state->entry18)->next=D_80050C54;
+            if (D_80050C54 != 0) D_80050C54->previous=N64P(state->entry18);
+            N64P(state->entry18)->previous=0;
+            D_80050C54=N64P(state->entry18);
         }
     }
 }
@@ -153,7 +174,7 @@ u32 func_8001ECE0(VoiceState *state)
     if (current != 0) current->previous = node;
     node->key = key;
     node->value = state->identifier60;
-    state->entry18 = node;
+    state->entry18 = N64W(node);
     return key;
 }
 
