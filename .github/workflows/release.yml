@@ -44,7 +44,7 @@ jobs:
         # Their licences come from the sources and the toolchain's packages.
         run: |
           cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON \
-            -DRUSH_DATA_REPORT= \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo -DRUSH_DATA_REPORT= \
             "-DRUSH_EXTRA_LICENSES=mingw-w64.txt=/usr/share/doc/mingw-w64-x86-64-dev/copyright;gcc-runtime.txt=/usr/share/doc/gcc-mingw-w64-base/copyright"
       - name: Build
         run: |
@@ -186,7 +186,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           echo "version=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
       - name: Configure
-        run: cmake -S . -B build/pc -G Ninja -DRUSH_FETCH_SDL2=ON -DRUSH_INSTALL_PORTABLE=ON -DRUSH_DATA_REPORT=
+        run: cmake -S . -B build/pc -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DRUSH_FETCH_SDL2=ON -DRUSH_INSTALL_PORTABLE=ON -DRUSH_DATA_REPORT=
       - name: Build
         run: |
           set -o pipefail

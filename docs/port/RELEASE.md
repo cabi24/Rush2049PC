@@ -268,7 +268,8 @@ also makes a **draft** GitHub release with them, which a person checks and publi
 
   SDL2, zlib and the runtime are linked statically, so the program needs only Windows' own DLLs (`objdump -p`:
   ADVAPI32, GDI32, IMM32, KERNEL32, msvcrt, ole32, OLEAUT32, OPENGL32, SETUPAPI, SHELL32, USER32, VERSION,
-  WINMM). The executable is the CI build type (Debug) and is not stripped, so its backtraces can be symbolized.
+  WINMM). The executable is built RelWithDebInfo (-O2 -g, [OPTIMIZED.md](OPTIMIZED.md)) and is not stripped, so its
+  backtraces can be symbolized (`addr2line -f -i`, for the inlined frames).
 - **The Linux tarballs:** `rush2049pc`, an empty `rush2049pc.ini`, `README.txt` (`dist/README-linux.txt`) and
   `LICENSES/` (`SDL2.txt`, `zlib.txt`).
   - Built in Ubuntu 22.04, so they need glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora 36 and newer).
