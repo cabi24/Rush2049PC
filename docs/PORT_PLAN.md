@@ -88,7 +88,7 @@ Rush2049PC/
 | **3. First picture** | Interpreter + OpenGL + SDL window. 64-bit `Gfx`. Pointer warnings on the boot path fixed. | Midway logo and title screen | Renderer done and tested with synthetic lists; `Gfx` widened. Needs the ROM |
 | **4. Assets** | List every ROM file the game loads and its format; a converting loader per format (models, textures, track geometry, collision, AI paths, car tables, fonts) | Front-end menus, then one race | A converter for every format, run from `_ReadWave` ([port/LOADERS.md](port/LOADERS.md)): WAD, text bank, fonts, world, road, paths, MusyX. Tested with the game's own readers on synthetic files; needs the ROM to confirm |
 | **5. Sound** | Audio command interpreter in C (aspMain ABI); the MusyX code is already game C; SDL output | Title music; race sound | Interpreter done (MusyX v1, not aspMain). MusyX files converted and the library's structures fixed for 64-bit; songs and voices run through the game's own sequencer in tests ([port/MUSYX_DATA.md](port/MUSYX_DATA.md)) |
-| **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart | Controller pak at the SI block level done; keyboard, up to 4 controllers, rumble and `rush2049pc.ini` ([port/FRONTEND.md](port/FRONTEND.md)) |
+| **6. Saves and input** | `.mpk` controller pak (from v5), SDL controllers and keyboard, rumble | Create Player and records survive a restart | Controller pak at the SI block level done; keyboard, up to 4 controllers, rumble and `rush2049pc.ini` ([port/FRONTEND.md](port/FRONTEND.md)). The game's file records, profiles and ghosts have their PC layouts, and its own code creates, reloads and deletes them on a test pak (POINTERS.md 9.10) |
 | **7. Parity with v5** | v5 is the reference: same `--press` input scripts on both; compare state probes (game state, car positions and speeds per frame), screenshots and audio | Every mode v5's scripted runs cover | `--press` scripts work on the PC build |
 | **8. Features** | Widescreen, high frame rate, settings menu, remapping, texture packs: the V6 list, now plain C edits plus our renderer | Per feature, behind a setting | Internal resolution scale (`video.scale`, 1-8 or `auto`: the window's whole multiple). Widescreen (`video.widescreen`: 16:9, 21:9, auto...) in the renderer: perspective views widen, 2D stays 4:3, full-width fills span ([port/GFX.md](port/GFX.md) "Widescreen"); tested with synthetic lists, needs the ROM to judge the menus |
 
@@ -199,6 +199,30 @@ How far it runs: `rush2049pc --no-rom` boots on both architectures through the g
 project, pool and sample directory, sndInit and sndPushGroup, and stops in AudioSfxInit, where the blank cartridge's
 zero sample-cache count corrupts the heap (the N64 would do the same with those bytes).
 
+## Fourth session results (2026-10-27)
+
+A third wave of parallel work, with builds on a 20-thread x86-64 host (`tools/port/remote.sh`), all merged into
+`main` and green in CI, now with Windows:
+
+| Part | Document | What it does |
+|---|---|---|
+| Car, visual and model records | [port/CARS.md](port/CARS.md) | A car is 0x468 bytes on the PC (its 21 visuals and its input pointer are pointer-sized); the model records keep their N64 layout with u32 window addresses, in the arena. `tools/port/view_audit.py` checks every view against the reference layout by DWARF |
+| Race-time records | [port/POINTERS.md](port/POINTERS.md) §10 | The target info table, the level-object nodes (N64 layout, 32-bit links), the input records (80 bytes), the ZOID windows and the frame records |
+| Save records | POINTERS.md §9.10 | The pak file records, profiles and ghosts; heap handle slots are pointer-sized. The game's own code saves, reloads and deletes on a test pak |
+| Byte order | [port/ENDIAN.md](port/ENDIAN.md) | `tools/port/endian_check.py` follows each access of the live game code through GCC's GIMPLE and DWARF; node handles read as their N64 low half, colour words, and declarations fixed; the loader copies colour unions as bytes |
+| Pointer casts | [port/CASTS.md](port/CASTS.md) | Every remaining cast warning classified; 8 truncations fixed; `-DRUSH_CHECK_CASTS=ON` aborts where a host pointer is narrowed |
+| Review | | A second read of the hand-written views found 5 more: the pause screen's and battle mode's node walks, the dead-reckoning view, four car strides at race start |
+| Widescreen | [port/GFX.md](port/GFX.md) | `video.widescreen` (16:9, 21:9, `auto`): 3D views widen per viewport, 2D stays 4:3; `video.scale = auto` |
+| Windows | [port/WINDOWS.md](port/WINDOWS.md) | mingw-w64, cross or MSYS2; the window is a file mapping at 0x80000000; CI builds it, runs the tests natively and runs the cross-built exe |
+| N64 check | POINTERS.md "The neutrality check" | `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD: all 1,011 agree in code and data |
+
+Also: executables are forced PIE (Red Hat's gcc links non-PIE, which put host data below 4 GB, where the port
+reads N64 addresses); the self-test's timing bounds hold on a loaded host.
+
+Numbers: 76 tests on x86-64 Linux with SDL2, 0 harmful prototype mismatches, 325 pointer warnings (all
+classified), 0 neutrality failures in 977 changed files, 0 objects that differ under IDO. The ROM-less boot still
+stops in AudioSfxInit on the blank cartridge's data, on Linux and Windows alike.
+
 ## Next
 
 1. **The ROM.** Put `baserom.us.z64` in the repository root (git-ignored). Then:
@@ -213,7 +237,8 @@ zero sample-cache count corrupts the heap (the N64 would do the same with those 
    C; `n64_neutral.py` stays the fast check, in CI.
 3. **Records on 64-bit.** The car, visual and model records, the target table and level-object nodes, the input
    records, the ZOID windows and the frame records have one PC layout each ([port/CARS.md](port/CARS.md),
-   POINTERS.md §10). The controller-pak file record `tPS_File` is in progress (CASTS.md §7).
+   POINTERS.md §10), and so do the save records (§9.10). Views reached through pointers under other struct names
+   escape view_audit: a flow-based layout check over endian_check's access model is in progress.
 4. **Byte order** where widths disagree: `tools/port/endian_check.py` finds no open conflict in game C or in the
    loader ([port/ENDIAN.md](port/ENDIAN.md)); two reads of bytes inside a word of the car record are left there.
 5. **Other platforms.**
