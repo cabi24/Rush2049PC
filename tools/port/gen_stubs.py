@@ -112,7 +112,12 @@ void pc_stub_hit(const char *name) __attribute__((noreturn));
 """
 STANDALONE_PRELUDE = r"""
 /* No system headers: stub names such as fcvt would clash with the C library's declarations. */
+#ifdef _WIN32
+int printf(const char *format, ...);   /* the Windows C runtime has no dprintf */
+#define dprintf(fd, ...) printf(__VA_ARGS__)
+#else
 int dprintf(int fd, const char *format, ...);
+#endif
 void abort(void) __attribute__((noreturn));
 static void pc_stub_hit(const char *name)
 {
@@ -140,6 +145,7 @@ def main():
     port_defs, _ = n64syms.nm_table(port, a.nm) if port else ({}, set())
     defined = set(game_defs) | set(port_defs)
     undefined = (game_refs - defined) - n64syms.HOST_LIBC - n64syms.LINKER_DEFINED
+    undefined = {n for n in undefined if not n.startswith(n64syms.PE_WEAK_PREFIX)}   # weak.ld's
     alias = {} if a.standalone else aliases_for(undefined, defined, syms)
     undefined -= alias.keys()
     absolute = {} if a.standalone else absolute_for(undefined, syms)

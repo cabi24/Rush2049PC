@@ -39,6 +39,8 @@ HOST_LIBC = {"bcopy", "bzero", "bcmp", "memcpy", "memset", "memmove", "memcmp", 
 # Names the host linker defines itself; x86-64 code references _GLOBAL_OFFSET_TABLE_ directly. Never stubbed.
 LINKER_DEFINED = {"_GLOBAL_OFFSET_TABLE_", "_DYNAMIC", "__dso_handle", "__ehdr_start", "__executable_start",
                   "_edata", "_end", "__bss_start", "__TMC_END__"}
+# On Windows (PE), data.c's weak references are to pc_weak.<symbol>, which pc-data/weak.ld defines (gen_data.py).
+PE_WEAK_PREFIX = "pc_weak."
 
 _IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"),
                ("/nonmatching/game/", "game"), ("/nonmatching/ovl_a/", "ovl_a"), ("/nonmatching/ovl_b/", "ovl_b"))
@@ -96,19 +98,42 @@ def kind_of(name, syms):
     return "func" if name.startswith("func_") else "data"
 
 
+def _nm_line(line):
+    """(object, fields) of an `nm -A` line; an archive member's object is `archive:member`."""
+    obj, _, rest = line.rpartition(":") if line.count(":") > 1 else line.partition(":")
+    return obj, rest.split()
+
+
+def _pe_weak_definitions(lines):
+    """PE (COFF) objects show a weak definition X as `w X`, as they show an undefined weak reference, and keep
+    its body under a default symbol `.weak.X.<another symbol>` in a section; an undefined weak reference's
+    default is absolute 0. The (object, X) whose default is in a section; empty for ELF objects."""
+    out = set()
+    for line in lines:
+        if ".weak." not in line:
+            continue
+        obj, parts = _nm_line(line)   # with or without nm -S's size field
+        if len(parts) >= 3 and parts[-1].startswith(".weak.") and parts[-2] not in "AaUuw":
+            out.add((obj, parts[-1][6:].split(".", 1)[0]))
+    return out
+
+
 def nm_table(paths, nm="nm"):
     """(definitions, undefined): name -> [(object, nm type letter)] for global definitions, and the names
-    some object references but none defines. Weak (W/V) and common (C) symbols count as definitions."""
+    some object references but none defines. Weak (W/V, and PE's weak definitions as W) and common (C) symbols
+    count as definitions."""
     defs, refs = {}, set()
     paths = [str(p) for p in paths]
     for i in range(0, len(paths), 200):   # keep the command line short
         out = subprocess.run([nm, "-g", "-A", *paths[i:i + 200]], capture_output=True, text=True,
                              check=True).stdout
+        pe_weak = _pe_weak_definitions(out.splitlines())
         for line in out.splitlines():
-            obj, _, rest = line.rpartition(":") if line.count(":") > 1 else line.partition(":")
-            parts = rest.split()
+            obj, parts = _nm_line(line)
             if len(parts) == 2 and parts[0] == "U":
                 refs.add(parts[1])
+            elif len(parts) == 2 and parts[0] == "w" and (obj, parts[1]) in pe_weak:
+                defs.setdefault(parts[1], []).append((obj, "W"))
             elif len(parts) == 3 and parts[1] not in ("U", "w", "v"):
                 defs.setdefault(parts[2], []).append((obj, parts[1]))
     return defs, refs - defs.keys()
@@ -122,18 +147,20 @@ def nm_symbols(paths, nm="nm"):
 
 def nm_objects(paths, nm="nm"):
     """object -> (definitions {name: (nm type letter, size or None)}, references {name}) for global symbols.
-    Weak undefined references (w/v) are left out, as in nm_table."""
+    Weak undefined references (w/v) are left out, as in nm_table (PE's weak definitions are W, as there)."""
     table = {}
     paths = [str(p) for p in paths]
     for i in range(0, len(paths), 200):
         out = subprocess.run([nm, "-g", "-A", "-S", *paths[i:i + 200]], capture_output=True, text=True,
                              check=True).stdout
+        pe_weak = _pe_weak_definitions(out.splitlines())
         for line in out.splitlines():
-            obj, _, rest = line.rpartition(":") if line.count(":") > 1 else line.partition(":")
+            obj, parts = _nm_line(line)
             defs, refs = table.setdefault(obj, ({}, set()))
-            parts = rest.split()
             if len(parts) == 2 and parts[0] == "U":
                 refs.add(parts[1])
+            elif len(parts) == 2 and parts[0] == "w" and (obj, parts[1]) in pe_weak:
+                defs[parts[1]] = ("W", None)
             elif len(parts) >= 3 and parts[-2] not in ("U", "w", "v"):
                 size = int(parts[1], 16) if len(parts) == 4 else None
                 defs[parts[-1]] = (parts[-2], size)
