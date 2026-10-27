@@ -21,17 +21,19 @@ its cores don't trap floating-point exceptions, so a NaN is found by watching me
 | Path | Reaches | Screens |
 |---|---|---|
 | boot, no input | the start prompt, the controller pak warning, the title (state 4) and the attract demo (8), cycling through tracks 0-3 for as long as it runs | the demo is a race of drones on the track, with the title's PRESS START over it |
-| the front end | the main menu (0x10), the player screen (0x20), the mode screen (0x40), the track select (0x80), the car select (0x100); the records (0x2000), options (0x200), audio (0x800) and video (0x1000) screens and back | as on the N64: the blue menus, the track map and its fogged preview, the car turning on the car select |
+| the front end | the main menu (0x10), the player screen (0x20), the mode screen (0x40), the track select (0x80), the car select (0x100); the records (0x2000), options (0x200), audio (0x800) and video (0x1000) screens and back | as on the N64: the blue menus and their buttons, the track map and its fogged preview, the car turning on the car select with its bars; the video screen's test pattern has its grey ramp and red, green and blue bars in order |
 | a single race, 1 player | race start, PrePlay, the countdown (0x200000), the race (0x400000); with gas and steering the car drives, up to about 150 mph, and off the road onto the grass | the track, the cars, the HUD (speed, lap, position, the map, the time) |
 | pause | the pause screen, quitting: the results (0x2000000), the game over screen (0x800000), the title and the main menu again | |
 | 2 players | a single race in split screen (top and bottom), both cars driving | each view with its HUD, the map in the side panel |
-| circuit | a race | |
+| circuit, practice, ghost race | a race each | |
+| a controller pak (`--pak`, a fresh image) | the warning finds it; the race, with the save code at its start | |
+| sound | `--dump-audio` from the title: silence for 4 s, then the title music (a WAV with the levels and peaks of music; not listened to) | |
 | stunt, 1 player | the stunt arena's race; the car drives and jumps | the arena, the timer, the coin counts |
 | battle, 2 players | the battle arena in split screen; the cars drive | the health bars, the scores, the side panel |
 | 3 and 4 players | the player screen in quarters, the mode screen (stunt and battle only), a stunt arena in three or four views | four views, each with its HUD, the timer in the middle |
 
-Not tried yet: practice, ghost races, a race to its finish line, the controller pak (`--pak`),
-audio output (all runs use `--audio null`), a window (`--window`).
+Not tried yet: a race to its finish line, saving a ghost, sound through a device (`--audio sdl`), a window
+(`--window`).
 
 ## The stops
 
@@ -146,6 +148,13 @@ slots (`D_803B470C`, 22 per player) had an extent of three players (a known addr
 player's kept the ROM's byte order. `extents.txt` gives it four. Test: the synthetic cartridge sets all four
 players' slots, which its generator refuses outside a three-player table. (762e8fe.)
 
+### 13. zlib's extra_blbits
+
+The report's last undescribed table that wasn't text, colours or short strings: zlib's bit-length extra bits
+(`D_8011E974`, int[19]), which only `static_bl_desc` points to and no code names. It would have been wrong whenever a
+ghost is compressed. `zlib_deflate` references it on the PC, so it is described. Test: the synthetic cartridge sets
+it (zlib's own constants), which its generator refuses without the declaration. (00b6c8b.)
+
 ## How the stops were found
 
 - The fault handler's backtrace names the function; `gdb -batch` with `bt -15` gives the outer frames of a deep
@@ -161,9 +170,9 @@ players' slots, which its generator refuses outside a three-player table. (762e8
 ## What's next
 
 - The paths not tried yet (the table above), and races to their end on the retail cartridge.
-- The report's remaining `undescribed` targets that aren't text: the zlib trees' extra-bits tables (`D_8011E9FC`,
-  used when ghosts are compressed), the per-kind tables `D_80118DDC`, `D_8011EAD0`'s targets, and a few pointers in
-  the target info and credit tables. Each needs a rule in `reached.txt` or a declaration.
+- The report's remaining `undescribed` targets that aren't text are colours (`gTrackColors`), short labels (the pak
+  numbers, a few names), the per-kind byte tables `D_80118DDC`, and the tail of the shared animation frames'
+  extent: right as bytes, or unused. Ghost saving and loading (zlib) haven't run on the retail cartridge.
 - More tables sized by the gap may run over data no pointer reaches; `index_check.py` and the `text-in-words` lines
   find two kinds of them.
 - Audio on the retail cartridge (`--audio sdl`), a window, and the renderer's look at full speed.
