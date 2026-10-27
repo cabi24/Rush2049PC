@@ -5,11 +5,12 @@ PC port was built from the SM64 decompilation: the game's C is compiled for the 
 N64 hardware. You bring your own ROM. Its data is read at startup, and nothing derived from it is built into the
 program.
 
-**Status: bring-up.** Everything links, with no stubs left. The PC layer is built and tested: threads and libultra,
-the ROM's data, an F3DEX2 renderer (OpenGL), the MusyX sound interpreter, controllers and the controller pak, and a
-settings file. On the retail cartridge the game runs its attract demo, the front end, and races in every mode tried:
-one to four players, circuit, stunt and battle ([docs/port/BRINGUP.md](docs/port/BRINGUP.md)). The plan is
-[docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
+**Status: first test builds.** On the retail cartridge the game runs its attract demo, the front end, and races in
+every mode tried: one to four players, circuit, stunt and battle ([docs/port/BRINGUP.md](docs/port/BRINGUP.md)).
+Windows x86-64 and Linux (x86-64, aarch64) builds come from the release workflow
+([docs/port/RELEASE.md](docs/port/RELEASE.md)). So far it has been checked headless with scripted input; play on a
+desktop GPU, with sound and real controllers, is being tested now. The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md),
+and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
 
 ## Playing
 
