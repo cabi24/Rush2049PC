@@ -27,8 +27,8 @@ static void usage(FILE *f)
             "  --rom PATH          the San Francisco Rush 2049 (USA) ROM, .z64/.v64/.n64 (default baserom.us.z64)\n"
             "  --no-rom-check      run a ROM whose SHA-1 differs\n"
             "  --no-rom            bring-up: a blank cartridge instead of the ROM (every ROM read is zero)\n"
-            "  --headless          render off screen (EGL surfaceless; the default without DISPLAY or\n"
-            "                      WAYLAND_DISPLAY); --window: an SDL2 window\n"
+            "  --headless          render off screen (EGL surfaceless, WGL on Windows; on Linux the default\n"
+            "                      without DISPLAY or WAYLAND_DISPLAY); --window: an SDL2 window\n"
             "  --fullscreen        start in fullscreen (Alt+Enter or F11 toggles)\n"
             "  --size WxH          window size (default 640x480)\n"
             "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
@@ -146,7 +146,12 @@ static double fast_clock(void)
 int main(int argc, char **argv)
 {
     const char *dump_audio = getenv("RUSH2049_DUMP_AUDIO"), *config = NULL;
-    int no_rom = 0, headless = !getenv("DISPLAY") && !getenv("WAYLAND_DISPLAY"), selftest = 0, use_config = 1;
+#ifdef _WIN32
+    int headless = 0;   /* Windows has no DISPLAY: a window unless --headless */
+#else
+    int headless = !getenv("DISPLAY") && !getenv("WAYLAND_DISPLAY");
+#endif
+    int no_rom = 0, selftest = 0, use_config = 1;
     int print_config = 0, fast = 0;
     PcRunOptions run = {0};
     PcSettingValue over[MAX_OVERRIDES + 1];   /* the command line's settings, in order; [0] for a press file */
