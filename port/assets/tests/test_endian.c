@@ -4,8 +4,9 @@
  *   union (the coin updater's Id and EntityHdr views, the car parts' Handle in sound_bank_unload). On the N64 the
  *   low half is the second s16; here it must be the first;
  * - colours: the coin's gold and silver are R,G,B,A bytes in the ROM, which the PC loader swaps as the u32s they are
- *   declared; the scene node's colour, read as bytes by the model draw, must come out R,G,B,A again.
- * game: src/blob/func_8010E0FC.c src/blob/groups/carcolor/carcolor.c
+ *   declared; the scene node's colour, read as bytes by the model draw, must come out R,G,B,A again. A car's colour
+ *   (func_80092FE0) goes to the six nodes its parts' handles name.
+ * game: src/blob/func_8010E0FC.c src/blob/groups/carcolor/carcolor.c src/blob/func_80092FE0.c
  */
 #include <string.h>
 
@@ -90,6 +91,7 @@ typedef struct {
     uint32_t unknown18[10];
 } Handles64;
 void sound_bank_unload(int16_t index, int16_t palette, uint8_t first, uint8_t second, uint8_t third);
+void func_80092FE0(int16_t index, uint32_t *color);   /* a car's colour on its six part nodes */
 
 uint8_t D_8013FE90[8];
 uint32_t D_8013F300[8];
@@ -139,6 +141,23 @@ int main(void)
     func_8010E0FC(&node, 1);
     CHECK(memcmp(D_8012E700[12].prim, "\xC8\xE6\xFF\xFF", 4) == 0);
     CHECK(g_nspawned == 2 && g_spawned[0] == 9 && g_spawned[1] == 12);
+
+    /* A car's colour, a word copied whole: each part's node gets the bytes as they are. */
+    memset(D_8012E700, 0, sizeof(D_8012E700));
+    memset(D_80139320, 0, sizeof(D_80139320));
+    D_80139320[2].root = 21;
+    D_80139320[2].secondary = 22;
+    for (i = 0; i < 4; i++)
+        D_80139320[2].unknown18[1 + i] = 23 + i;   /* the parts at +0x1C..+0x28 */
+    {
+        uint8_t rgba[4] = {0x12, 0x34, 0x56, 0x78};
+        uint32_t color;
+        memcpy(&color, rgba, 4);
+        func_80092FE0(2, &color);
+        for (i = 21; i <= 26; i++)
+            CHECK(memcmp(D_8012E700[i].prim, rgba, 4) == 0);
+        CHECK(memcmp(D_8012E700[0].prim, "\0\0\0\0", 4) == 0);
+    }
 
     /* A car's paint job: the palette descriptor goes to the car's two model nodes, not to node 0. */
     if (!w) {
