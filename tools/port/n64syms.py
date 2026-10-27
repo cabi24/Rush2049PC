@@ -42,6 +42,17 @@ LINKER_DEFINED = {"_GLOBAL_OFFSET_TABLE_", "_DYNAMIC", "__dso_handle", "__ehdr_s
 # On Windows (PE), data.c's weak references are to pc_weak.<symbol>, which pc-data/weak.ld defines (gen_data.py).
 PE_WEAK_PREFIX = "pc_weak."
 
+
+def types_objects(build):
+    """The game objects whose DWARF the tools read, one path each: the build's -O0 copy (types_objects.txt), which
+    is its game objects in a Debug build. Optimized DWARF leaves out what the optimizer removed
+    (docs/port/OPTIMIZED.md). A build made before types_objects.txt existed has only game_objects.txt."""
+    build = Path(build)
+    path = build / "types_objects.txt"
+    if not path.exists():
+        path = build / "game_objects.txt"
+    return path.read_text().split() if path.exists() else []
+
 _IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"),
                ("/nonmatching/game/", "game"), ("/nonmatching/ovl_a/", "ovl_a"), ("/nonmatching/ovl_b/", "ovl_b"))
 

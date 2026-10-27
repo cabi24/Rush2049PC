@@ -11,7 +11,11 @@ writes the descriptors port/data/pc_data.c uses to fill it from the user's ROM a
 No ROM bytes are read here or written into the build.
 
 1. Types come from the game objects' DWARF (readelf): each file's own declaration. When files disagree, the
-   most informative wins (struct over pointer over words over bytes) and the disagreement is reported.
+   most informative wins (struct over pointer over words over bytes) and the disagreement is reported. The
+   objects must be unoptimized (-O0): an optimized object's DWARF leaves out the variables whose uses the
+   optimizer removed, so the tables would depend on the build type. An optimized build passes a -O0 copy of the
+   game objects (types_objects.txt) and the objects it links (--link-objects-list, for the runtime images' C
+   data); gen_data refuses DWARF whose producer line records optimization (docs/port/OPTIMIZED.md).
 2. Each type is laid out twice: for the N64 (MIPS o32: pointers and long are 4 bytes, double is 8 aligned 8)
    and for the host (the DWARF offsets). The result is a field program: runs of (kind, count, N64 offset, host
    offset), repeated with strides for arrays. A union is copied as bytes when a member made of bytes covers it
@@ -259,11 +263,23 @@ def display(dies, off, depth=0):
     return "?"
 
 
+_OPT_FLAG = re.compile(r"(?:^|\s)-O(\S*)")
+
+
+def optimization(producer):
+    """The optimization level a compile unit's DW_AT_producer records ('0', '2', 's', ''...: the last -O switch;
+    GCC records its switches by default, -grecord-gcc-switches), or None when it records none (clang)."""
+    levels = _OPT_FLAG.findall(producer)
+    return levels[-1] if levels else None
+
+
 def read_variables(objects, readelf, wanted):
     """name -> [(object, type, display, is_definition)] for the external variables in `wanted`, and struct tag ->
-    Counter of complete definitions (to complete a type another file left incomplete)."""
+    Counter of complete definitions (to complete a type another file left incomplete). Exits if an object's DWARF
+    is of optimized code, which leaves out the declarations of what the optimizer removed (docs/port/OPTIMIZED.md)."""
     found = collections.defaultdict(list)
     tags = collections.defaultdict(collections.Counter)
+    optimized = []
     for i in range(0, len(objects), 100):
         batch = objects[i:i + 100]
         out = subprocess.run([*dwarf_info_command(readelf), *batch], capture_output=True, text=True,
@@ -271,6 +287,10 @@ def read_variables(objects, readelf, wanted):
         for obj, dies in parse_readelf(out, batch[0] if len(batch) == 1 else None).items():
             memo = {}
             for off, d in dies.items():
+                if d.tag == "DW_TAG_compile_unit":
+                    level = optimization(_name(d.attrs.get("DW_AT_producer", "")))
+                    if level not in (None, "0"):
+                        optimized.append(f"{obj} (-O{level})")
                 if d.tag in ("DW_TAG_structure_type", "DW_TAG_union_type") and "DW_AT_declaration" not in d.attrs \
                         and "DW_AT_name" in d.attrs:
                     tags[_name(d.attrs["DW_AT_name"])][canon(dies, off, memo)] += 1
@@ -286,6 +306,10 @@ def read_variables(objects, readelf, wanted):
                 toff = _ref(d) if "DW_AT_type" in d.attrs else _ref(src)
                 found[name].append((obj, canon(dies, toff, memo), display(dies, toff),
                                     "DW_AT_declaration" not in d.attrs))
+    if optimized:
+        sys.exit(f"gen_data: {len(optimized)} objects have the DWARF of optimized code, which leaves out the "
+                 f"declarations the optimizer made unused; pass objects compiled with -O0 -g (types_objects.txt): "
+                 + ", ".join(optimized[:3]))
     return found, tags
 
 
@@ -582,7 +606,9 @@ def signature(runs, limit):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--objects-list", type=Path, help="the game objects, one per line")
+    ap.add_argument("--objects-list", type=Path, help="the game objects, compiled -O0, one per line")
+    ap.add_argument("--link-objects-list", type=Path,
+                    help="the game objects the executable links, if not those (an optimized build)")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--nm", default="nm")
     ap.add_argument("--readelf", default="readelf", help="readelf, or objdump for PE objects")
@@ -893,8 +919,10 @@ def generate(a):
             others = sorted({n for (ad, _), n in funcs.items() if ad == addr})
             func_aliases_left.append(f"{name} = 0x{addr:08X} ({'/'.join(others) or 'no name'}: no C yet)")
 
-    ovl_data = {img: [(Path(o).name.replace('.c.obj', '.c').replace('.c.o', '.c'), n, k) for o in objects
-                      if obj_image[o] == img for n, k in image_data(o, a.nm)] for img in OVL_RANGES}
+    # The runtime images' C data as the executable has it: an optimized object may have fewer statics.
+    linked = a.link_objects_list.read_text().split() if a.link_objects_list else objects
+    ovl_data = {img: [(Path(o).name.replace('.c.obj', '.c').replace('.c.o', '.c'), n, k) for o in linked
+                      if n64syms.object_image(o) == img for n, k in image_data(o, a.nm)] for img in OVL_RANGES}
     syms_by_name = {n: s for s in ordered for n in s.names}
     reach = reach_rules(root / "port" / "data" / "reached.txt", tags, syms_by_name, ordered)
     emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach)

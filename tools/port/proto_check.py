@@ -841,7 +841,9 @@ def main():
 
     def lines(p):
         return [str(Path(x).resolve()) for x in (build / p).read_text().split() if x] if (build / p).exists() else []
-    game_objs = lines("game_objects.txt")
+    # The -O0 copy's DWARF (types_objects.txt; the game objects in a Debug build): optimized DWARF leaves out the
+    # declarations of calls the optimizer removed.
+    game_objs = lines("types_objects.txt") or lines("game_objects.txt")
     port_objs = [p for p in lines("port_objects.txt") if Path(p).exists()]
     if not game_objs:
         sys.exit(f"proto_check: {build}/game_objects.txt not found; build first")
