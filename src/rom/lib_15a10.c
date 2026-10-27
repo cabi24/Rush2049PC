@@ -406,7 +406,12 @@ typedef struct MidiSetup_800178B0 MidiSetup_800178B0;
 typedef struct Arr_800178B0 Arr_800178B0;
 typedef struct PlayPara_800178B0 PlayPara_800178B0;
 extern u32 func_800178B0(Page_800178B0 *, Page_800178B0 *, MidiSetup_800178B0 *, Arr_800178B0 *, PlayPara_800178B0 *);
+#ifdef TARGET_PC
+/* PC: stream and options are pointers passed as integers (options is on the caller's 64-bit stack). */
+int func_8001558C(u16 id, u16 program_id, unsigned long stream, unsigned long options, u8 unlocked)
+#else
 int func_8001558C(u16 id, u16 program_id, u32 stream, u32 options, u8 unlocked)
+#endif
 {
     int i;
     ResourceHeader *resource;
@@ -451,8 +456,13 @@ int func_8001558C(u16 id, u16 program_id, u32 stream, u32 options, u8 unlocked)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+extern int func_8001558C(unsigned short, unsigned short, unsigned long, unsigned long, unsigned char);
+int func_800156E8(unsigned short group, unsigned short item, unsigned long context, unsigned long option)
+#else
 extern int func_8001558C(unsigned short, unsigned short, unsigned int, unsigned int, unsigned char);
 int func_800156E8(unsigned short group, unsigned short item, unsigned int context, unsigned int option)
+#endif
 {
     return func_8001558C(group, item, context, option, 0);
 }

@@ -1698,6 +1698,9 @@ void func_8001489C(int index, unsigned char release)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+#define __unaligned   /* IDO's qualifier; the PC targets load unaligned u16 natively */
+#endif
 void func_800148F8(int index, __unaligned unsigned short *data)
 {
     D_80038294[index].value20 = data[0];
