@@ -39,10 +39,31 @@ static void on_signal(int sig)
         pc_quit = 1 + 130;
 }
 
+static uint32_t (*g_game_state)(void);
+
 static void status(const char *tag)
 {
-    fprintf(stderr, "rush2049pc: %s t=%.1fs vi=%u gfx_tasks=%u audio_tasks=%u\n", tag, pc_host_ns() / 1e9,
-            pc_frame, pc_rcp_gfx_tasks, pc_rcp_audio_tasks);
+    char state[32] = "";
+    if (g_game_state)
+        snprintf(state, sizeof state, " state=0x%08X", (unsigned)g_game_state());
+    fprintf(stderr, "rush2049pc: %s t=%.1fs vi=%u gfx_tasks=%u audio_tasks=%u%s\n", tag, pc_host_ns() / 1e9,
+            pc_frame, pc_rcp_gfx_tasks, pc_rcp_audio_tasks, state);
+}
+
+/* Once per retrace: logs each change of the game's state word, and says when --until-state is met (the
+ * graphics-task count at which its frames are done, else 0). */
+static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
+{
+    static uint32_t last, seen;
+    uint32_t s = g_game_state();
+    if (s != last || !seen) {
+        fprintf(stderr, "rush2049pc: game state 0x%08X (was 0x%08X) at vi %u, after %u graphics tasks\n",
+                (unsigned)s, (unsigned)last, pc_frame, pc_rcp_gfx_tasks);
+        last = s, seen = 1;
+    }
+    if (opt->until_state && !until_gfx && (s & opt->until_state))
+        until_gfx = pc_rcp_gfx_tasks + opt->until_state_frames + (opt->until_state_frames == 0);
+    return until_gfx;
 }
 
 void osSetTime(uint64_t ticks);   /* timer.c */
@@ -89,6 +110,8 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint64_t next_vi = pc_host_ns() + vi_ns, next_status = 0, next_flush = 0;
     int shot = 0;
     uint32_t shot_vi = 0, frames_vi = 0;   /* the retrace at which each limit was reached */
+    uint32_t until_gfx = 0;                /* --until-state: the graphics task to run to, once the state is seen */
+    g_game_state = opt->game_state;
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
     signal(SIGQUIT, on_signal);
@@ -130,6 +153,12 @@ int pc_ultra_run(const PcRunOptions *opt)
                 shot_vi = pc_frame;
             if (opt->frames && !frames_vi && pc_rcp_gfx_tasks >= opt->frames)
                 frames_vi = pc_frame;
+            if (g_game_state)
+                until_gfx = watch_state(opt, until_gfx);
+            if (until_gfx && pc_rcp_gfx_tasks >= until_gfx) {
+                status("state reached:");
+                break;
+            }
             if (shot_vi && !shot && pc_frame >= shot_vi + 2) {
                 shot = 1;
                 if (pc_gfx_save_screenshot(opt->screenshot) == 0)
@@ -157,6 +186,11 @@ int pc_ultra_run(const PcRunOptions *opt)
             }
             if (opt->seconds > 0 && now >= (uint64_t)(opt->seconds * 1e9)) {
                 status("time reached:");
+                if (opt->until_state) {
+                    fprintf(stderr, "rush2049pc: --until-state 0x%X:%u not reached in %.0f s\n",
+                            (unsigned)opt->until_state, (unsigned)opt->until_state_frames, opt->seconds);
+                    pc_quit = 1 + 1;
+                }
                 break;
             }
         }
