@@ -173,6 +173,7 @@ void pcgfx_flush(void);
 /* gfx_combine.c */
 char *pcgfx_combine_glsl(const GfxShaderKey *key, int gles, int glsl_version);   /* malloc'd fragment source */
 const char *pcgfx_vertex_source(int gles, int glsl_version);
+const char *pcgfx_ui_fragment_source(int gles, int glsl_version);   /* the overlay's (gfx_ui.c) */
 int pcgfx_combine_uses(const GfxShaderKey *key, int texel);   /* does the key read TEXEL0 (0) or TEXEL1 (1)? */
 int pcgfx_blend_uses_mem(const GfxShaderKey *key);
 
@@ -190,9 +191,20 @@ void pcgfx_gl_delete_texture(uint32_t tex);
 GfxShader *pcgfx_gl_shader(const GfxShaderKey *key);
 void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n);
 void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
+/* The presented frame in the window (black if none yet): to_window, the default framebuffer; else the headless
+ * window, an offscreen image of the window's size. */
+void pcgfx_gl_show(int win_w, int win_h, int to_window);
+/* The overlay's triangles (gfx_ui.c), in window pixels, blended over the window; the atlas is uploaded once. */
+void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_window, const uint8_t *atlas,
+                      int atlas_w, int atlas_h);
 int pcgfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h);   /* top row first, RGBA8 */
 int pcgfx_gl_read_presented(uint8_t *rgba, int *w, int *h);
 int pcgfx_gl_read_window(uint8_t *rgba, int w, int h);   /* the default framebuffer, top row first */
+int pcgfx_gl_read_headless_window(uint8_t *rgba, int *w, int *h);   /* -1 before the first show */
+
+/* gfx_ui.c */
+int pcgfx_ui_active(void);                          /* a UI hook is set */
+void pcgfx_ui_run(int w, int h, int to_window);     /* the hook's drawing, over the window */
 int pcgfx_gl_target_scale(const GfxTarget *t);   /* NULL: the scale a new target gets */
 void pcgfx_gl_target_shown(const GfxTarget *t, int *w, int *rows);   /* N64 pixels the present shows */
 void pcgfx_gl_target_dims(const GfxTarget *t, int *w, int *h);       /* N64 pixels */
@@ -223,7 +235,9 @@ extern GfxConfig pcgfx_cfg;
 
 /* Test and tool access (not part of pc_port.h). */
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
-int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);   /* what the window shows (window mode only) */
+/* What the window shows: the default framebuffer, or headless the offscreen window image the present also fills
+ * (the frame letterboxed at the window's size, the overlay over it). */
+int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
 /* Widescreen at run time: the display aspect (16/9.0f, ...), 0 for off, < 0 for the window's. It applies from the
  * next color image (SETCIMG). */
 void pc_gfx_set_widescreen(float aspect);
