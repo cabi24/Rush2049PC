@@ -1,10 +1,21 @@
-# N64 sizes of data symbols whose C declarations leave the size open (T x[]), for tools/port/gen_data.py.
-# Without one, an incomplete array runs to the next known address, which can swallow tables no C declares yet.
-# A size here wins over that gap (the symbol file's size: comments still win over this). Format: name size.
-# Better still: give the C declaration its size, then drop the line.
+# N64 sizes of data symbols, for tools/port/gen_data.py, where the C declarations leave the size open (T x[]) or
+# get it wrong. Without one, an incomplete array runs to the next known address, which can swallow tables no C
+# declares yet, and a declaration that runs over the next object makes that object part of its storage. A size
+# here wins over the gap and over the game C's own definitions (the symbol file's size: comments still win over
+# this): longer array declarations are cut to it, and declarations of exactly this size are preferred. Format:
+# name size. Better still: give the C declarations their size, then drop the line.
 
 # The file table (docs/port/ASSETS.md 2.2): 183 entries each; the next table starts after.
 D_8011B5BC 0x2DC    # ROM offset, u32[183]; track 1's PVS starts at 0x8011B898
 D_8002E580 0x2DC    # size in RAM, u32[183]; D_8002E860 follows
 D_80123564 0x2DC    # storage kind, s32[183]
 D_801234AC 0xB7     # model flag, s8[183]
+
+# Declarations that run over the next object. Each swallowed globals into its own storage, where the ones with
+# pointers overlapped their neighbours (data_layout.txt lists any left under "Inside own storage, but ...").
+D_80152818 0x1650   # player_array: 6 cars of 0x3B8 (the symbol file: 6 entries; Car D_80152818[6] in path_D169C,
+                    # CAR_DATA[6] in battle_mode_setup), not GameCar[8]: D_80153E68 (an OSMesgQueue) is at +0x1650
+D_801407F0 0x10     # gResPath {numPts, pts, numAlt, alt}: D_80140800 (GhostHeader *) is at +0x10. The 28-byte
+                    # Header/PGraph views were written to the PC layout (ReadPathData's 32 bytes)
+D_80142530 0x160    # the ghost headers, 4 of 0x58 (GhostStart: D_80142500[i] = &D_80142530[i], i < 4), not 1
+D_80144C50 0x10     # a 16-byte list head (List, tDLList); ap.c's 20-byte Node runs into D_80144C60 (PakHandle[])
