@@ -1,11 +1,14 @@
 /* port/gfx/gfx_sdl.c: SDL2 window and GL context. Built only when SDL2 is found (PC_GFX_HAVE_SDL).
- * RUSH_GFX_API=gl asks for desktop GL 3.3 core (then 3.1), anything else GLES 3.0 (then desktop GL). */
+ * RUSH_GFX_API=gl asks for desktop GL 3.3 core (then 3.1), anything else GLES 3.0 (then desktop GL).
+ * port/input handles the window's keys, controllers, fullscreen and focus through the event hook
+ * (docs/port/FRONTEND.md); everything here runs on the main thread. */
 #include <SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "gfx_internal.h"
+#include "pc_port.h"
 
 static SDL_Window *s_win;
 static SDL_GLContext s_ctx;
@@ -63,12 +66,23 @@ void pcgfx_sdl_swap(void) {
     SDL_GL_SwapWindow(s_win);
 }
 
+/* port/input's handler (pc_gfx_set_event_hook): every event goes to it first, so this is the only event loop. */
+static int (*s_hook)(const void *sdl_event);
+
+int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event)) {
+    s_hook = hook;
+    return s_win != NULL ? 0 : -1;
+}
+
 int pcgfx_sdl_poll(void) {
     SDL_Event e;
     int quit = 0;
-    while (SDL_PollEvent(&e))
+    while (SDL_PollEvent(&e)) {
+        if (s_hook != NULL && s_hook(&e) != 0)
+            quit = 1;
         if (e.type == SDL_QUIT || (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE))
             quit = 1;
+    }
     return quit;
 }
 
@@ -83,5 +97,6 @@ void pcgfx_sdl_shutdown(void) {
         SDL_DestroyWindow(s_win);
     s_ctx = NULL;
     s_win = NULL;
+    s_hook = NULL;
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }

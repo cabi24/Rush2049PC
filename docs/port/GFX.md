@@ -187,7 +187,11 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 ### SDL2
 
 - **Detection.** The window backend builds when CMake finds SDL2 (config package or pkg-config). The Pi has the
-  SDL2 runtime but no development package.
+  SDL2 runtime but no development package. In the top-level build, SDL2 is found (or fetched) once and shared
+  with port/audio and port/input ([FRONTEND.md](FRONTEND.md)). `cmake -S port/gfx` on its own still looks for
+  its own.
+- **Events.** `pc_gfx_poll_events` passes each SDL event to port/input's hook (`pc_gfx_set_event_hook`) before
+  its own handling, so the keys, controllers, fullscreen and focus need no second event loop.
 - **Opt-in fetch.** `-DRUSH_FETCH_SDL2=ON` downloads SDL2 2.30.9 (SHA-256 pinned) and builds it statically, which
   takes about 50 s on the Pi 5 with `-j3`. It was checked here with `SDL_VIDEODRIVER=offscreen`: GLES 3.0 and desktop
   GL contexts come up, and every case passes in window mode. The window shows the frame at exactly 2× (CTest

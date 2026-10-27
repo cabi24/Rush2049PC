@@ -38,6 +38,7 @@ static uint8_t g_pak[PAK_SIZE];
 static char *g_pak_path;
 static int g_pak_dirty;
 static int g_rumble[4];
+static int g_rumble_seen[4];   /* turned on since the last pc_si_motor */
 
 /* ---------------------------------------------------------------- the .mpk image */
 
@@ -217,7 +218,19 @@ static void pak_write(int ch, uint16_t addr, const uint8_t *in)
         if (g_rumble[ch] != (in[0] != 0) && pc_verbose > 1)
             pc_log("rumble %d %s", ch + 1, in[0] ? "on" : "off");
         g_rumble[ch] = in[0] != 0;
+        g_rumble_seen[ch] |= in[0] != 0;
     }
+}
+
+int pc_si_motor(int ch)
+{
+    if (ch < 0 || ch > 3)
+        return 0;
+    pthread_mutex_lock(&g_slock);
+    int on = g_rumble[ch] || g_rumble_seen[ch];
+    g_rumble_seen[ch] = 0;
+    pthread_mutex_unlock(&g_slock);
+    return on;
 }
 
 /* One channel's command: tx bytes at cmd (cmd[0] is the command), rx bytes of reply at res. */

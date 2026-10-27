@@ -4,6 +4,7 @@
  *   port/data    initial values of the game's data, read from the ROM by declared type
  *   port/gfx     F3DEX2 display-list interpreter and renderer
  *   port/audio   audio command-list interpreter and output
+ *   port/input   keyboard, game controllers, scripted presses (port/config: rush2049pc.ini)
  *
  * PC-layer code only: game C never includes this (it carries its own declarations). Each part implements its
  * functions; port/ultra links weak no-op defaults for any part that isn't built yet. */
@@ -61,6 +62,10 @@ int pc_gfx_init(int headless, int window_width, int window_height);   /* 0 on su
 void pc_gfx_run_dl(const void *dl);          /* one graphics task: OSTask.t.data_ptr */
 void pc_gfx_present(const void *framebuffer);   /* osViSwapBuffer: show the frame rendered into it */
 int pc_gfx_poll_events(void);                /* window and input events; nonzero when the user quits */
+/* The window's events for port/input: pc_gfx_poll_events passes each one (an SDL_Event *) to hook before its
+ * own handling, and a nonzero return quits. NULL removes it. 0 when there is an SDL window, -1 otherwise
+ * (headless, or no SDL2), and the hook is then never called. */
+int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event));
 int pc_gfx_save_screenshot(const char *path);   /* last presented frame as PNG; 0 on success */
 void pc_gfx_shutdown(void);
 
@@ -82,7 +87,7 @@ void pc_audio_set_frequency(uint32_t hz);
 void pc_audio_push(const int16_t *samples, size_t stereo_frames);
 size_t pc_audio_queued_frames(void);
 
-/* ---------------------------------------------------------------- input (port/ultra for now) */
+/* ---------------------------------------------------------------- input (port/input) */
 
 typedef struct {
     uint16_t buttons;   /* N64 button bits (CONT_A 0x8000 ... as libultra) */
