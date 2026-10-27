@@ -3705,6 +3705,10 @@ typedef s64 M2C_UNK64;
 M2C_UNK func_80020274();                            /* extern */
 s32 func_800202c4();                                /* extern */
 
+#ifndef TARGET_PC
+#define PC_SPIN(site)   /* PC: the busy-wait lets the audio threads run (pc_prelude.h) */
+#endif
+
 void init_wait_completion(void)
 {
   wheel_params_set();
@@ -3713,7 +3717,7 @@ void init_wait_completion(void)
   if (func_800202c4() == 0)
   {
     do
-    {
+    { PC_SPIN("init_wait_completion")
     } while (func_800202c4() == 0);
   }
 }
