@@ -173,3 +173,4 @@ add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
 set_target_properties(pc_data_test rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_subdirectory(port/audio)
+add_subdirectory(port/gfx)
