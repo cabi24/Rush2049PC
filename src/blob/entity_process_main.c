@@ -50,12 +50,20 @@ typedef struct {
     /* 0x074 */ f32 dr_tirepos[4][3];
     /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
     /* 0x0E8 */ u32 flags;
+#ifdef TARGET_PC
+    /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x35C - 0x308];
+#else
     /* 0x0EC */ u8 padEC[0x35C - 0xEC];
+#endif
     /* 0x35C */ s8 unk35C;
     /* 0x35D */ s8 unk35D;
     /* 0x35E */ s8 unk35E;
     /* 0x35F */ s8 unk35F;
+#ifdef TARGET_PC
+    /* 0x360 */ u8 pad360[0x380 - 0x360]; void *input; u8 pad360_384[0x3B8 - 0x384];
+#else
     /* 0x360 */ u8 pad360[0x3B8 - 0x360];
+#endif
 } CarData;
 
 typedef struct {

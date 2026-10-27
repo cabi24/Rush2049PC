@@ -63,9 +63,17 @@ typedef struct Car952 {
     u32 appearance;
     u8 to_mph[12];
     s16 mph;
+#ifdef TARGET_PC
+    u8 to_controller[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 to_controller_308[0x35C - 0x308];
+#else
     u8 to_controller[610];
+#endif
     s8 controller,render_state,reserved,hidden;
+#ifdef TARGET_PC
+    u8 tail[0x380 - 0x360]; void *input; u8 tail_384[0x3B8 - 0x384];
+#else
     u8 tail[88];
+#endif
 } Car952;
 typedef struct CarConfig {
     u8 prefix[96];

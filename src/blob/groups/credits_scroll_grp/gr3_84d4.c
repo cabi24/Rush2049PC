@@ -27,7 +27,11 @@ typedef struct { s32 x, y; } Pos;
 typedef struct Car {
     u8 pad0[239];
     s8 place_locked;
+#ifdef TARGET_PC
+    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
+#else
     u8 padF0[952 - 240];
+#endif
 } Car;
 
 extern OSMesgQueue D_801461D0;

@@ -62,10 +62,18 @@ typedef struct Player {
     Vec3 exhaust[4];    /* 116 */
     u8 pad164[84];
     s16 speed;          /* 248 */
+#ifdef TARGET_PC
+    u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad250_308[0x35C - 0x308];
+#else
     u8 pad250[610];
+#endif
     s8 slot;            /* 860 */
     s8 view;            /* 861 */
+#ifdef TARGET_PC
+    u8 pad862[0x380 - 0x35E]; void *input; u8 pad862_384[0x3B8 - 0x384];
+#else
     u8 pad862[90];
+#endif
 } Player;
 typedef struct Car {
     u8 pad0[8];

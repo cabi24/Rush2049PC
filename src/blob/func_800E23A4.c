@@ -16,7 +16,11 @@ typedef struct VehicleModel {
  u8 gap1564[44];void *direction;u8 gap1612[378];s16 index;
  u8 gap1992[4];s8 mode;u8 gap1997[7];u32 flags;u8 tail[48];
 } VehicleModel;
+#ifdef TARGET_PC
+typedef struct GameCar {u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x35A - 0x308];s8 disabled;u8 tail[0x380 - 0x35B]; void *input; u8 tail_384[0x3B8 - 0x384];} GameCar;
+#else
 typedef struct GameCar {u8 prefix[858];s8 disabled;u8 tail[93];} GameCar;
+#endif
 extern GameCar player_array[];
 extern s8 D_80142726,D_80142DB0,D_8011128C[][13];
 extern float D_801243CC,D_801243D0,D_801243D4;

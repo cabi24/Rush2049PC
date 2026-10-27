@@ -43,7 +43,11 @@ typedef struct ObjInstance {
 typedef struct tTexDef { u8 pad[36]; } tTexDef;
 typedef struct tTexDefPtr { tTexDef *texDefs; int pad; } tTexDefPtr;
 typedef struct tLink { u8 pad0; u8 car; u8 pad2[5]; u8 owner; } tLink;
+#ifdef TARGET_PC
+typedef struct tCarData { u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad0_308[0x34C - 0x308]; tRGBA IRclr; tRGBA prevIRclr; u8 pad354[0x360 - 0x354]; int sheenAlpha; u8 pad364[0x380 - 0x364]; void *input; u8 pad364_384[0x3B8 - 0x384]; } tCarData;
+#else
 typedef struct tCarData { u8 pad0[0x34C]; tRGBA IRclr; tRGBA prevIRclr; u8 pad354[0x360 - 0x354]; int sheenAlpha; u8 pad364[952 - 0x364]; } tCarData;
+#endif
 typedef struct tModelData { u8 pad0[0x7CD]; u8 a; u8 b; u8 c; u8 pad7D0[0x808 - 0x7D0]; } tModelData;
 
 extern s16 active_player_count;         /* gNumPlayers */

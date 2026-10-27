@@ -144,7 +144,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--build", type=Path, default=Path("build/pc"))
     ap.add_argument("--symbols", required=True)
-    ap.add_argument("--size", type=lambda x: int(x, 0))
+    ap.add_argument("--size", type=lambda x: {int(v, 0) for v in x.split(",")},
+                    help="also every struct of this N64 size (comma-separated sizes: partial views)")
     ap.add_argument("--tags", help="with --size, only structs with these tags")
     ap.add_argument("--ref", required=True)
     ap.add_argument("--only", nargs="*", help="source files to edit (default: all views)")
@@ -181,7 +182,7 @@ def main():
                             views[src][t] = by_type.get(t, {})
                 elif a.size and d.tag == "DW_TAG_structure_type" and "DW_AT_declaration" not in d.attrs:
                     t = g.canon(dies, off, memo)
-                    if g.n64_layout(t)[0] == a.size and (tags is None or t[1] in tags):
+                    if g.n64_layout(t)[0] in a.size and (tags is None or t[1] in tags):
                         views[src].setdefault(t, lines.get(off, {}))
     names = {}
     for x in a.name:
@@ -266,7 +267,7 @@ def main():
             path.write_text("\n".join(lines))
     for m in manual:
         print(f"manual: {m}")
-    for ln_missing in [(s, n) for s, it in edits.items() for (ln, n, _, _) in it if not ln]:
+    for ln_missing in [(s, n) for s, it in edits.items() for (ln, n, _) in it if not ln]:
         print(f"manual: {ln_missing[0]}: no line for {ln_missing[1]}")
 
 

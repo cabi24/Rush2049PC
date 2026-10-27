@@ -39,7 +39,11 @@ typedef struct Effect {
     f32 delay;
 } Effect;
 typedef struct Car {u8 opaque0[1600];s8 enabled;u8 opaque1601[455];} Car;
+#ifdef TARGET_PC
+typedef struct Player {u8 opaque0[8];Vec3 position;u8 opaque20[0x110 - 0x14]; struct pc_visual visuals[21]; u8 opaque20_308[0x380 - 0x308]; void *input; u8 opaque20_384[0x3B8 - 0x384];} Player;
+#else
 typedef struct Player {u8 opaque0[8];Vec3 position;u8 opaque20[932];} Player;
+#endif
 typedef struct Resource {u8 opaque0[60];u32 color;u8 opaque64[4];} Resource;
 typedef union Color {struct {u8 red,green,blue,alpha;} component;u32 word;} Color;
 extern s32 D_801170FC;

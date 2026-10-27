@@ -40,7 +40,11 @@ typedef float f32;
 typedef struct RecordSlot { s16 id; u8 pad02[2]; f32 pos[9]; u8 obj[12]; } RecordSlot;   /* 52 bytes; +4 transform, +40 */
 typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                                /* 104 bytes */
 typedef struct Cam152 { u8 pad[152]; } Cam152;
+#ifdef TARGET_PC
+typedef struct Car952 { u8 pad000[239]; s8 mode; u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x380 - 0x308]; void *input; u8 pad0F0_384[0x3B8 - 0x384]; } Car952;
+#else
 typedef struct Car952 { u8 pad000[239]; s8 mode; u8 pad0F0[952 - 240]; } Car952;
+#endif
 typedef struct Pair { s32 first, second; } Pair;
 typedef struct Model68 { f32 scale; u8 pad[64]; } Model68;
 typedef struct Pos { s16 x, y; } Pos;

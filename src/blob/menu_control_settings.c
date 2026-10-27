@@ -40,7 +40,11 @@ typedef struct {
     /* 0x02C */ f32 uvs[3][3];
     /* 0x050 */ u8 pad50[0x20];
     /* 0x070 */ f32 TIRER[4][3];
+#ifdef TARGET_PC
+    /* 0x0A0 */ u8 padA0[0x110 - 0xA0]; struct pc_visual visuals[21]; u8 padA0_308[0x380 - 0x308]; void *input; u8 padA0_384[0x3B8 - 0x384];
+#else
     /* 0x0A0 */ u8 padA0[0x318];
+#endif
 } CarRec; /* 0x3B8 */
 
 typedef struct {

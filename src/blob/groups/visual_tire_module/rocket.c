@@ -83,7 +83,11 @@ typedef struct Car {
     /* 0x0E8 */ u32 flagsE8;
     /* 0x0EC */ u8 padEC[0xF8 - 0xEC];
     /* 0x0F8 */ s16 sF8;
+#ifdef TARGET_PC
+    /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 padFA_308[0x344 - 0x308];
+#else
     /* 0x0FA */ u8 padFA[0x344 - 0xFA];
+#endif
     /* 0x344 */ u16 pal[4];
     /* 0x34C */ u32 irColor;
     /* 0x350 */ u32 prevIRColor;
@@ -98,8 +102,12 @@ typedef struct Car {
     /* 0x360 */ u32 alpha;
     /* 0x364 */ u8 pad364[0x374 - 0x364];
     /* 0x374 */ f32 scale[3];
+#ifdef TARGET_PC
+    /* 0x380 */ void *input;         /* the car's input record, a host pointer */
+#else
     /* 0x380 */ u8 pad380;
     /* 0x381 */ u8 b381[3];
+#endif
     /* 0x384 */ s8 b384;
     /* 0x385 */ u8 pad385[0x38C - 0x385];
     /* 0x38C */ u32 f38C;

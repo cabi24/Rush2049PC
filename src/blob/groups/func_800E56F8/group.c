@@ -488,22 +488,39 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
+#ifdef TARGET_PC
+    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
     u8 pad0EC[0x35B - 0xEC];
+#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+    void *unk380;
+    u8 pad384[0x3A3 - 0x384];
+#else
     u8 unk380;
     u8 pad381[0x3A3 - 0x381];
+#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
 typedef struct GC2 {
     u8 pad00[0xEF];
     s8 bEF;
+#ifdef TARGET_PC
+    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x358 - 0x308];
+#else
     u8 padF0[0x358 - 0xF0];
+#endif
     s8 b358;
     s8 b359;
     u8 pad35A[0x380 - 0x35A];
+#ifdef TARGET_PC
+    void *w380;                      /* the car's input record, a host pointer */
+#else
     s32 w380;
+#endif
     u8 pad384[0x3B8 - 0x384];
 } GC2;
 extern GameCar player_array[8];
@@ -3821,6 +3838,13 @@ void func_800E4B58(D_8014A250_Record *car);
 void func_800E56F8(s32 ipa_s4);
 void model_iteration(void);
 
+#ifdef TARGET_PC
+/* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
+#define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
+#else
+#define PAD0EC(a, x) a[x]
+#define CAR_OFS(n) n
+#endif
 void func_800E56F8(s32 ipa_s4) {
     GameCar *temp_s2;
     f32 temp_f0;
@@ -3842,10 +3866,10 @@ void func_800E56F8(s32 ipa_s4) {
     void *temp_s3;
 
     temp_s2 = &player_array[ipa_s4];
-    temp_s3 = M2C_FIELD(temp_s2, void **, 0x380);
-    if (((s8) temp_s2->pad0EC[0x26D] == 1) && ((temp_s0 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) &D_8014A250), (M2C_FIELD(temp_s0, f32 *, 0x3F0) < 5.0f)) || (M2C_FIELD(temp_s0, s16 *, 0x71C) == 0))) {
-        *(s8 *)&temp_s2->pad0EC[0x26D] = 2;
-        temp_s2->pad0EC[0x26C] = 0;
+    temp_s3 = M2C_FIELD(temp_s2, void **, CAR_OFS(0x380));
+    if (((s8) PAD0EC(temp_s2->pad0EC, 0x26D) == 1) && ((temp_s0 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) &D_8014A250), (M2C_FIELD(temp_s0, f32 *, 0x3F0) < 5.0f)) || (M2C_FIELD(temp_s0, s16 *, 0x71C) == 0))) {
+        *(s8 *)&PAD0EC(temp_s2->pad0EC, 0x26D) = 2;
+        PAD0EC(temp_s2->pad0EC, 0x26C) = 0;
         M2C_FIELD(temp_s0, s8 *, 0x640) = 0;
         M2C_FIELD(temp_s0, s16 *, 0x71C) = 0;
         M2C_FIELD(temp_s0, f32 *, 0x3F0) = 0.0f;
@@ -3871,10 +3895,10 @@ void func_800E56F8(s32 ipa_s4) {
     temp_s0_2 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) &D_8014A250);
     car_select_handler(ipa_s4);
     func_800D1248(temp_s0_2);
-    if (((s8) temp_s2->pad0EC[0x26C] == 2) && ((s8) temp_s2->pad0EC[0x26D] <= 0)) {
+    if (((s8) PAD0EC(temp_s2->pad0EC, 0x26C) == 2) && ((s8) PAD0EC(temp_s2->pad0EC, 0x26D) <= 0)) {
         func_800D5828(ipa_s4);
         func_800E543C(2, ipa_s4);
-    } else if ((M2C_FIELD(temp_s0_2, s8 *, 0x640) != 0) && ((s8) temp_s2->pad0EC[0x26D] >= 2)) {
+    } else if ((M2C_FIELD(temp_s0_2, s8 *, 0x640) != 0) && ((s8) PAD0EC(temp_s2->pad0EC, 0x26D) >= 2)) {
         M2C_FIELD(temp_s0_2, s8 *, 0x640) = 0;
     }
     temp_f0 = (M2C_FIELD(temp_s0_2, f32 *, 0x400) * M2C_FIELD(temp_s0_2, f32 *, 0x7F0)) * (((f32) M2C_FIELD(temp_s0_2, s16 *, 0x624) * D_8012447C) + 1.0f);
@@ -3899,11 +3923,11 @@ void func_800E56F8(s32 ipa_s4) {
                 var_a0 = temp_f6;
                 if (gameplay_mode == 6) {
                     var_a0 /= 2;
-                    if ((s8) temp_s2->pad0EC[0x26C] == 1) {
+                    if ((s8) PAD0EC(temp_s2->pad0EC, 0x26C) == 1) {
                         var_a0 += 0x186A0;
                     } else {
-                        var_a0 += (M2C_FIELD(temp_s2, s16 *, 0x388) * 0x186A0) / 800;
-                        M2C_FIELD(temp_s2, s16 *, 0x388) = 0;
+                        var_a0 += (M2C_FIELD(temp_s2, s16 *, CAR_OFS(0x388)) * 0x186A0) / 800;
+                        M2C_FIELD(temp_s2, s16 *, CAR_OFS(0x388)) = 0;
                     }
                 }
                 var_v0_2 = &D_801163F8;
@@ -3950,14 +3974,14 @@ block_40:
     if (M2C_FIELD(temp_s0_2, s8 *, 0x7EB) == 0) {
         if (M2C_FIELD(temp_s0_2, s16 *, 0x6C4) >= 0) {
             var_f0 = 0.0f;
-            M2C_FIELD(temp_s2, f32 *, 0x30C) = M2C_FIELD(temp_s0_2, f32 *, 0x714);
+            M2C_FIELD(temp_s2, f32 *, CAR_OFS(0x30C)) = M2C_FIELD(temp_s0_2, f32 *, 0x714);
         } else {
-            var_f0 = M2C_FIELD(temp_s0_2, f32 *, 0x714) - M2C_FIELD(temp_s2, f32 *, 0x30C);
+            var_f0 = M2C_FIELD(temp_s0_2, f32 *, 0x714) - M2C_FIELD(temp_s2, f32 *, CAR_OFS(0x30C));
         }
         if ((((s8) D_8013FECB != 0) || (((gameplay_mode != 6) || (gameplay_mode != 5)) && (var_f0 >= 5.0f)) || (((gameplay_mode == 6) || (gameplay_mode == 5)) && (D_80124480 < var_f0))) && ((temp_v0_3 = *(&D_80153E8F + (M2C_FIELD(temp_s0_2, s16 *, 0x7C6) * 8)), (temp_v0_3 == 0)) || (temp_v0_3 == 6))) {
             M2C_FIELD(temp_s0_2, s8 *, 0x7EA) = 1;
             M2C_FIELD(temp_s0_2, s8 *, 0x7EB) = 1;
-            M2C_FIELD(temp_s2, f32 *, 0x30C) = 0.0f;
+            M2C_FIELD(temp_s2, f32 *, CAR_OFS(0x30C)) = 0.0f;
         }
     }
 }

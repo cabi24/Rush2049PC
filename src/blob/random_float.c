@@ -36,6 +36,19 @@ typedef short s16;
 typedef int s32;
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: the car record's layout (its visuals and input pointer are pointer-sized). This view's CENTERFORCE is
+ * MODELDAT's (below), never read through a car. */
+typedef struct {
+    char pad0[0x110];
+    struct pc_visual visuals[21];
+    char pad308[0x359 - 0x308];
+    s8 unk359;
+    char pad35A[0x380 - 0x35A];
+    void *input;
+    char pad384[0x3B8 - 0x384];
+} Car;
+#else
 typedef struct {
     char pad0[0x124];
     f32 CENTERFORCE[3];         /* 0x124 */
@@ -43,6 +56,7 @@ typedef struct {
     s8 unk359;
     char pad35A[0x3B8 - 0x35A];
 } Car;
+#endif
 
 typedef struct {
     char pad0[0x124];

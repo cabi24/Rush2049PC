@@ -102,7 +102,11 @@ typedef struct Player {
     u8 opaque239[17];
     float distance;
     float last_distance;
+#ifdef TARGET_PC
+    u8 opaque264[0x110 - 0x108]; struct pc_visual visuals[21]; u8 opaque264_308[0x309 - 0x308];
+#else
     u8 opaque264[513];
+#endif
     s8 byte777;
     u8 opaque778[7];
     s8 byte785;

@@ -22,7 +22,11 @@
  *    before the branch, the 2056 multiply's addu in the delay slot).
  */
 typedef unsigned char u8;typedef signed char s8;typedef short s16;typedef unsigned short u16;typedef unsigned int u32;
+#ifdef TARGET_PC
+typedef struct Model952 {u8 prefix[232];u32 flags;u8 gap236[8];int model;u8 gap248[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 gap248_308[0x35D - 0x308];s8 selection;u8 tail[0x380 - 0x35E]; void *input; u8 tail_384[0x3B8 - 0x384];} Model952;
+#else
 typedef struct Model952 {u8 prefix[232];u32 flags;u8 gap236[8];int model;u8 gap248[613];s8 selection;u8 tail[90];} Model952;
+#endif
 typedef struct Vehicle2056 {u8 prefix[15];s8 type;u8 gap16[1988];u32 flags;u8 tail[48];} Vehicle2056;
 typedef struct Slot64 {int root;u8 gap4[12];int body;u8 gap20[8];int wheels[4],extras[5];} Slot64;
 typedef struct Resource68 {u8 prefix[20];u16 object;u8 tail[46];} Resource68;

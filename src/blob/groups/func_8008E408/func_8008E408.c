@@ -41,7 +41,11 @@ typedef struct Car {
     f32 wheel[4][3];     /* +0x74 */
     u8 pad164[84];
     s16 h248;            /* +0xF8 */
+#ifdef TARGET_PC
+    u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad250_308[0x380 - 0x308]; void *input; u8 pad250_384[0x3B8 - 0x384];
+#else
     u8 pad250[0x3B8 - 250];
+#endif
 } Car;
 
 typedef struct Obj {

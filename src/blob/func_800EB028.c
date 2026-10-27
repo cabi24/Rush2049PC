@@ -29,7 +29,11 @@ typedef struct {
     u8 other20[24];
     Mat3 uvs44;         /* 44 */
     Mat3 uvs;           /* 80 */
+#ifdef TARGET_PC
+    u8 other116[0x110 - 0x74]; struct pc_visual visuals[21]; u8 other116_308[0x35B - 0x308];
+#else
     u8 other116[743];
+#endif
     s8 car;             /* 859 */
     s8 slot;            /* 860 */
     u8 view;            /* 861 */

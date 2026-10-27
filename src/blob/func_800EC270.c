@@ -31,7 +31,11 @@ typedef struct {
     s16 unkFA;
     s16 unkFC;
     s16 unkFE;
+#ifdef TARGET_PC
+    char pad100[0x110 - 0x100]; struct pc_visual visuals[21]; char pad100_308[0x314 - 0x308];
+#else
     char pad100[0x214];
+#endif
     f32 unk314;
     f32 unk318;
     char pad31C[0x18];

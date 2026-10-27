@@ -43,7 +43,11 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#ifdef TARGET_PC
+typedef struct Car { u8 pad0[8]; f32 pos[3]; f32 dir[3]; u8 pad32[12]; f32 right[3]; f32 up[3]; f32 forward[3]; u8 pad80[36]; f32 wheel[4][3]; u8 pad164[84]; s16 mph; u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad250_308[0x35C - 0x308]; s8 viewport; s8 visibility; u8 pad862[0x380 - 0x35E]; void *input; u8 pad862_384[0x3B8 - 0x384]; } Car;
+#else
 typedef struct Car { u8 pad0[8]; f32 pos[3]; f32 dir[3]; u8 pad32[12]; f32 right[3]; f32 up[3]; f32 forward[3]; u8 pad80[36]; f32 wheel[4][3]; u8 pad164[84]; s16 mph; u8 pad250[610]; s8 viewport; s8 visibility; u8 pad862[90]; } Car;
+#endif
 typedef struct Model {u8 pad0[8];u8 type;u8 pad9[1555];u16 surface[8];u8 pad1580[304];f32 suspension[4];u8 pad1900[156];} Model;
 typedef struct Effect { void *next; f32 basis[9]; f32 pos[3]; union { s32 word; struct {s16 bank,id;} part; } handle; s32 unknown56; f32 lifetime; f32 timestep; f32 velocity[3]; u32 flags; s16 slot; s16 object; } Effect;
 typedef struct Scene {u32 flags;u32 flags4;void *owner;f32 scaleA;f32 scaleB;u16 id;s16 links[3];s32 words[8];union { u8 byte[4]; u32 word; } rgba;s32 tail;} Scene;

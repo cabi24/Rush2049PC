@@ -63,7 +63,11 @@ typedef struct tVisual {
     float timeStamp;            /* 0x10 */
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;
+#ifdef TARGET_PC
+typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384]; } tCarData;
+#else
 typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[952 - 0x14]; } tCarData;
+#endif
 typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x808 - 0x641]; } tModelData;
 typedef struct ObjInstance { unsigned int flags; char pad4[4]; tUVMatrix *mat; float scale; float w; u16 index; char pad16[0x26]; unsigned int color; unsigned int envcolor; } ObjInstance;
 

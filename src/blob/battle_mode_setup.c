@@ -32,9 +32,17 @@ typedef struct MODELDAT {
     u8 pad7F8[2056 - 2040];
 } MODELDAT;
 typedef struct CAR_DATA {
+#ifdef TARGET_PC
+    u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad0_308[0x359 - 0x308];
+#else
     u8 pad0[857];
+#endif
     S08 state;              /* 857 */
+#ifdef TARGET_PC
+    u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
+#else
     u8 pad35A[952 - 858];
+#endif
 } CAR_DATA;
 extern MODELDAT D_8014A250[6];
 extern CAR_DATA D_80152818[6];

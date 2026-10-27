@@ -19,11 +19,19 @@ typedef float f32;
 typedef struct Car952 {
     u8 pad000[237];
     s8 restart;            /* 0x0ED */
+#ifdef TARGET_PC
+    u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21]; u8 pad0EE_308[0x35C - 0x308];
+#else
     u8 pad0EE[860 - 238];
+#endif
     s8 cam;                 /* 0x35C */
     s8 camMode;             /* 0x35D */
     s8 camModeSave;         /* 0x35E */
+#ifdef TARGET_PC
+    u8 pad35F[0x380 - 0x35F]; void *input; u8 pad35F_384[0x3B8 - 0x384];
+#else
     u8 pad35F[952 - 863];
+#endif
 } Car952;
 typedef struct Game2056 {
     u8 pad000[556];

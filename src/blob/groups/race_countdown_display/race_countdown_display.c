@@ -29,14 +29,22 @@ typedef struct GameCar {
     u8 pad000[0xEE];
     s8 place;
     s8 place_locked;
+#ifdef TARGET_PC
+    u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21];
+#else
     u8 pad0F0[0x308 - 0xF0];
+#endif
     s8 finish_a;
     s8 finish_b;
     u8 pad30A[2];
     f32 finish_timer;
     u8 pad310;
     s8 flags311;
+#ifdef TARGET_PC
+    u8 pad312[0x380 - 0x312]; void *input; u8 pad312_384[0x3B8 - 0x384];
+#else
     u8 pad312[0x3B8 - 0x312];
+#endif
 } GameCar;
 
 typedef struct Player {

@@ -16,7 +16,11 @@ typedef short s16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
+#ifdef TARGET_PC
+typedef struct GameCar { s32 header[2]; f32 position[3]; s32 middle[6]; f32 matrix[9]; unsigned char rest[0x110 - 0x50]; struct pc_visual visuals[21]; unsigned char rest_308[0x380 - 0x308]; void *input; unsigned char rest_384[0x3B8 - 0x384]; } GameCar;
+#else
 typedef struct GameCar { s32 header[2]; f32 position[3]; s32 middle[6]; f32 matrix[9]; unsigned char rest[872]; } GameCar;
+#endif
 extern s8 D_8010FFC0;
 extern u8 D_80153E8F[];
 extern GameCar player_array[];

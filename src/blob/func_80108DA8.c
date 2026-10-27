@@ -35,7 +35,12 @@ typedef struct MenuNode {
 } MenuNode;
 
 typedef struct { s32 x, y; } Pos;
+#ifdef TARGET_PC
+/* PC: a car record seen from +0xD8 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
+typedef struct { u8 pad[0x17]; s8 state; u8 pad18[PC_CAR_SIZE - 0x18]; } Player;
+#else
 typedef struct { u8 pad[0x17]; s8 state; u8 pad18[0x3B8 - 0x18]; } Player;  /* 0x3B8 */
+#endif
 
 extern s16 gNumWindows;                  /* player count */
 extern volatile s16 D_801543CA;

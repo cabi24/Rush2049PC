@@ -56,7 +56,11 @@ typedef struct {
     /* 0x074 */ f32 wheelPos[4][3];
     /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
     /* 0x0E8 */ u32 wheelFlags;
+#ifdef TARGET_PC
+    /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x380 - 0x308]; void *input; u8 padEC_384[0x3B8 - 0x384];
+#else
     /* 0x0EC */ u8 padEC[0x3B8 - 0xEC];
+#endif
 } Car;                                  /* 0x3B8 */
 
 typedef struct {

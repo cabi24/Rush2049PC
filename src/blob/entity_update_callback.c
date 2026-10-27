@@ -48,7 +48,11 @@ typedef struct tBlastStruct {
     float incTime;              /* 0x18C */
 } tBlastStruct;
 typedef struct tVisual { u8 pad0[6]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
+#ifdef TARGET_PC
+typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384]; } tCarData;
+#else
 typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[952 - 0x14]; } tCarData;
+#endif
 typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x6C4 - 0x641]; s16 moving_state; u8 pad6C6[0x808 - 0x6C6]; } tModelData;
 typedef struct ObjInstance { unsigned int flags; char pad4[8]; float scale; char pad10[0x2C]; unsigned int color; unsigned int envcolor; } ObjInstance;
 

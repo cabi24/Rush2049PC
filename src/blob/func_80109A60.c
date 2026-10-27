@@ -50,10 +50,18 @@ typedef struct Blit {
 typedef struct Car {
     u8 pad0[8];
     f32 position[3];
+#ifdef TARGET_PC
+    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x358 - 0x308];
+#else
     u8 pad14[856 - 20];
+#endif
     s8 dead;
     s8 active;
+#ifdef TARGET_PC
+    u8 tail[0x380 - 0x35A]; void *input; u8 tail_384[0x3B8 - 0x384];
+#else
     u8 tail[952 - 858];
+#endif
 } Car;
 
 typedef struct Model {

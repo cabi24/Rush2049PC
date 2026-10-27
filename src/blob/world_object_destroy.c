@@ -25,7 +25,11 @@ typedef signed int s32;
 typedef float f32;
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
+#ifdef TARGET_PC
+typedef struct { u8 other0[248]; s16 speed; u8 other250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 other250_308[0x338 - 0x308]; s16 point; s16 other826; s16 track; } Object;
+#else
 typedef struct { u8 other0[248]; s16 speed; u8 other250[574]; s16 point; s16 other826; s16 track; } Object;
+#endif
 typedef struct { s16 x, y, z, pad; } PathPoint;
 typedef struct { u16 count, other2; PathPoint *points; } Path;
 typedef struct { s8 flag; u8 pad1[3]; Vec3 pos; } Respawn;

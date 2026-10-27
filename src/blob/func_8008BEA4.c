@@ -3,7 +3,12 @@ typedef signed char s8; typedef unsigned char u8; typedef signed short s16; type
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
 typedef struct { u8 pad0[8]; s16 idx; } In;
 typedef struct { u8 pad[320]; u16 v[8]; } Out;
+#ifdef TARGET_PC
+/* PC: a car record seen from +0xE8 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
+typedef struct { u32 flags; u8 pad[PC_CAR_SIZE - 4]; } PF;
+#else
 typedef struct { u32 flags; u8 pad[948]; } PF;
+#endif
 #ifdef TARGET_PC
 /* PC: D_8013FEF4 is the data field of the car palette descriptors D_8013FEE0, which keep a palette record's N64
  * layout (24 bytes, data a u32 window address). */

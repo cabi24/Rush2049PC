@@ -86,12 +86,20 @@ typedef struct EUCar {
 } EUCar;
 typedef struct EUSlot {
     f32 dr_pos[3];          /* 0x000 arcade CAR_DATA dr_pos */
+#ifdef TARGET_PC
+    u8 pad00C[0x110 - 0xC]; struct pc_visual visuals[21]; u8 pad00C_308[0x358 - 0x308];
+#else
     u8 pad00C[856 - 12];
+#endif
     s8 b856;
     s8 b857;                /* 0x359 state (battle_mode_setup) */
     u8 pad35A;
     s8 place;               /* 0x35B (func_800EC914) */
+#ifdef TARGET_PC
+    u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
+#else
     u8 pad35C[952 - 860];
+#endif
 } EUSlot;
 extern EUSlot D_80152818[];
 extern s8 D_8010FFC0;

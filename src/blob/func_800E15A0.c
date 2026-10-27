@@ -15,7 +15,11 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef f32 Vec3[3];
 typedef struct Model { u8 pad[16]; f32 x, y; } Model;
+#ifdef TARGET_PC
+typedef struct Player { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x380 - 0x308]; Model *model; u8 rest[52]; } Player;
+#else
 typedef struct Player { u8 pad[896]; Model *model; u8 rest[52]; } Player;
+#endif
 typedef struct Parameters { u8 pad[112]; Vec3 tireArm[4]; } Parameters;
 typedef struct State {
     Parameters *parameters;

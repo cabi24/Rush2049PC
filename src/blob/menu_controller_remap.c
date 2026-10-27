@@ -61,14 +61,22 @@ typedef struct {
     s16 padFE;
     f32 distance;           /* 0x100 */
     f32 last_distance;      /* 0x104 */
+#ifdef TARGET_PC
+    u8 pad108[0x110 - 0x108]; struct pc_visual visuals[21]; u8 pad108_308[0x340 - 0x308];
+#else
     u8 pad108[0x340 - 0x108];
+#endif
     f32 fwd_progress_t;     /* 0x340 */
     u8 pad344[0x358 - 0x344];
     s8 we_died;             /* 0x358 */
     s8 unk359;              /* 0x359 */
     u8 pad35A[0x364 - 0x35A];
     f32 stray_angle;        /* 0x364 */
+#ifdef TARGET_PC
+    u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
+#else
     u8 pad368[0x3B8 - 0x368];
+#endif
 } CAR_DATA;
 
 typedef struct {

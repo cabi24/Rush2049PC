@@ -51,11 +51,19 @@ typedef struct {
     /* 0x0EE */ s8 place;
     /* 0x0EF */ u8 pad0EF[0x100 - 0xEF];
     /* 0x100 */ f32 dist;
+#ifdef TARGET_PC
+    /* 0x104 */ u8 pad104[0x110 - 0x104]; struct pc_visual visuals[21]; u8 pad104_308[0x356 - 0x308];
+#else
     /* 0x104 */ u8 pad104[0x356 - 0x104];
+#endif
     /* 0x356 */ s16 slot;
     /* 0x358 */ u8 pad358;
     /* 0x359 */ s8 state;
+#ifdef TARGET_PC
+    /* 0x35A */ u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
+#else
     /* 0x35A */ u8 pad35A[0x3B8 - 0x35A];
+#endif
 } Rec;
 
 extern Car D_8014A250[];

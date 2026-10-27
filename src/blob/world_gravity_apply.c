@@ -102,7 +102,11 @@ typedef struct Car {
     /* 0x0FC */ s16 unkFC;
     /* 0x0FE */ s16 unkFE;
     /* 0x100 */ f32 unk100;
+#ifdef TARGET_PC
+    /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x380 - 0x308]; void *input; char pad104_384[0x3B8 - 0x384];
+#else
     /* 0x104 */ char pad104[0x2B4];
+#endif
 } Car; /* 0x3B8 */
 
 extern s8 D_80152744;

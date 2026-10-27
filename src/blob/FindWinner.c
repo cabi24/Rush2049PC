@@ -20,7 +20,11 @@ typedef signed short s16;
 typedef signed int s32;
 typedef struct { u8 pad0[0x7C6]; s16 idx; u8 pad1[0x808 - 0x7C8]; } Rec;
 typedef struct { u8 pad0[20]; s32 key; u8 pad1[0x78 - 24]; } Ent;
+#ifdef TARGET_PC
+typedef struct { u8 pad0[238]; s8 b238; u8 pad1[0x110 - 0xEF]; struct pc_visual visuals[21]; u8 pad1_308[0x380 - 0x308]; void *input; u8 pad1_384[0x3A3 - 0x384]; s8 b931; u8 pad2[952 - 932]; } Car;
+#else
 typedef struct { u8 pad0[238]; s8 b238; u8 pad1[931 - 239]; s8 b931; u8 pad2[952 - 932]; } Car;
+#endif
 extern s16 D_80151AD0;
 extern s8 D_80143F54[];
 extern s32 D_8014A110;

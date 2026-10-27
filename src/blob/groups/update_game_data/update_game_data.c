@@ -98,7 +98,11 @@ typedef struct tCarData {
     /* 0x0EC */ s8 data_valid;
     /* 0x0ED */ u8 pad0ED[0xF8 - 0xED];
     /* 0x0F8 */ s16 rwmph;
+#ifdef TARGET_PC
+    /* 0x0FA */ u8 pad0FA[0x110 - 0xFA]; struct pc_visual visuals[21];
+#else
     /* 0x0FA */ u8 pad0FA[0x308 - 0xFA];
+#endif
     /* 0x308 */ s8 collidable;
     /* 0x309 */ s8 solid;
     /* 0x30C */ f32 collide_time;
@@ -111,7 +115,11 @@ typedef struct tCarData {
     /* 0x35A */ s8 in_tunnel;
     /* 0x35B */ u8 pad35B[0x368 - 0x35B];
     /* 0x368 */ f32 stuntW[3];
+#ifdef TARGET_PC
+    /* 0x374 */ u8 pad374[0x380 - 0x374]; void *input; u8 pad374_384[0x3B8 - 0x384];
+#else
     /* 0x374 */ u8 pad374[0x3B8 - 0x374];
+#endif
 } tCarData; /* 0x3B8 */
 
 typedef struct _tSusp {

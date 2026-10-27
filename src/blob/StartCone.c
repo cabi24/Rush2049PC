@@ -72,9 +72,17 @@ typedef struct ObjType {
 typedef struct Car {
     u8 pad0[20];
     f32 vel[3];
+#ifdef TARGET_PC
+    u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x35F - 0x308];
+#else
     u8 pad20[863 - 32];
+#endif
     u8 f863;
+#ifdef TARGET_PC
+    u8 pad360[0x380 - 0x360]; void *input; u8 pad360_384[0x3B8 - 0x384];
+#else
     u8 pad360[952 - 864];
+#endif
 } Car;
 
 typedef struct Lap {

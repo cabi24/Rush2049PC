@@ -444,11 +444,20 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
+#ifdef TARGET_PC
+    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
     u8 pad0EC[0x35B - 0xEC];
+#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+    void *unk380;
+    u8 pad384[0x3A3 - 0x384];
+#else
     u8 unk380;
     u8 pad381[0x3A3 - 0x381];
+#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3692,12 +3701,15 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifndef TARGET_PC
+#define CAR_OFS(n) n
+#endif
 void func_800E9234(void *arg0) {
     s8 temp_v0;
 
-    M2C_FIELD(arg0, s8 *, 0x35E) = 2;
-    temp_v0 = M2C_FIELD(arg0, s8 *, 0x35C);
-    M2C_FIELD(arg0, s8 *, 0x35D) = (s8) M2C_FIELD(arg0, s8 *, 0x35E);
+    M2C_FIELD(arg0, s8 *, CAR_OFS(0x35E)) = 2;
+    temp_v0 = M2C_FIELD(arg0, s8 *, CAR_OFS(0x35C));
+    M2C_FIELD(arg0, s8 *, CAR_OFS(0x35D)) = (s8) M2C_FIELD(arg0, s8 *, CAR_OFS(0x35E));
     if (state_word_a & 8) {
         (&D_801526E0)[temp_v0] = 5.0f;
         (&D_801526F8)[temp_v0] = 20.0f;

@@ -96,7 +96,11 @@ typedef struct Car {
     f32 vel[3];           /* 0x14 */
     f32 acc[3];           /* 0x20 */
     f32 uvs[3][3];        /* 0x2c */
+#ifdef TARGET_PC
+    u8 pad50[0x110 - 0x50]; struct pc_visual visuals[21];
+#else
     u8 pad50[0x308 - 0x50];
+#endif
     s8 collidable;        /* 0x308 */
     u8 pad309[0x34c - 0x309];
     RGBA IRclr;           /* 0x34c */

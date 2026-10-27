@@ -61,7 +61,11 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     GhostHeader **header;         /* 0x28 */
 } Ghost;
 
+#ifdef TARGET_PC
+typedef struct GhostPlayer { u8 pad0[239]; s8 ready; f32 value; u8 tail[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 tail_308[0x380 - 0x308]; void *input; u8 tail_384[0x3B8 - 0x384]; } GhostPlayer;
+#else
 typedef struct GhostPlayer { u8 pad0[239]; s8 ready; f32 value; u8 tail[708]; } GhostPlayer;
+#endif
 typedef struct GhostObject { u8 pad0[1820]; s16 reset; u8 tail[234]; } GhostObject;
 extern Ghost **D_80152698[];
 extern GhostPlayer D_80152818[];

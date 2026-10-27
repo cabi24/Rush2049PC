@@ -33,7 +33,11 @@ typedef struct Route {
 typedef struct Car {
     u8 opaque0[8];
     f32 pos[3];
+#ifdef TARGET_PC
+    u8 opaque14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 opaque14_308[0x380 - 0x308]; void *input; u8 opaque14_384[0x3B8 - 0x384];
+#else
     u8 opaque14[0x3A4];
+#endif
 } Car; /* 0x3B8 */
 extern Route D_801407F0;
 Car D_80152818[6];

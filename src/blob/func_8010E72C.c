@@ -54,7 +54,11 @@ typedef struct Target {
 typedef struct GameCar {
     u8 pad0[20];
     f32 RWV[3];             /* 0x14 */
+#ifdef TARGET_PC
+    u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x380 - 0x308]; void *input; u8 pad20_384[0x3B8 - 0x384];
+#else
     u8 pad20[920];
+#endif
 } GameCar;                  /* 0x3B8 */
 
 typedef struct MATRIX {

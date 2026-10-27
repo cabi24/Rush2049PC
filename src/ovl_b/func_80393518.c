@@ -4,7 +4,11 @@ typedef signed char s8;
 typedef signed short s16;
 typedef unsigned char u8;
 typedef struct Player952 {
+#ifdef TARGET_PC
+    u8 before_kind[0x110 - 0x0]; struct pc_visual visuals[21]; u8 before_kind_308[0x380 - 0x308]; void *input;
+#else
     u8 before_kind[0x384];
+#endif
     s8 kind;
     s8 lives;
     u8 tail[0x32];

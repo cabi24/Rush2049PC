@@ -39,7 +39,11 @@ typedef struct State {
     Slot *slots;
 } State;
 typedef struct Player {
+#ifdef TARGET_PC
+    u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x38C - 0x384];
+#else
     u8 unknown000[908];
+#endif
     u32 flags;
     u8 unknown390[16];
     s8 countdown;

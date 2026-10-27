@@ -16,7 +16,11 @@ typedef struct CountEntry { u16 count; u8 pad[6]; } CountEntry;
 typedef struct PointEntry { SearchPoint *points; u8 pad[4]; } PointEntry;
 typedef struct Waypoint { s16 index[40]; } Waypoint;
 typedef struct Region { u8 pad[40]; s16 path; } Region;
+#ifdef TARGET_PC
+typedef struct Player { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x314 - 0x308]; Region region; u8 rest[0x380 - 0x33E]; void *input; u8 rest_384[0x3B8 - 0x384]; } Player;
+#else
 typedef struct Player { u8 pad[788]; Region region; u8 rest[122]; } Player;
+#endif
 typedef struct State { u8 pad[1990]; s16 player; u8 gap[26]; s16 next, previous; } State;
 extern PositionEntry *D_801407FC;
 extern Position *D_801407F4;

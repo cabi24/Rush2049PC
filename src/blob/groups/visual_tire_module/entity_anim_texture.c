@@ -12,8 +12,18 @@ typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef f
 typedef struct ModelObj {u8 opaque0[6];s16 model,player;u16 opaque10;u32 flags,opaque16,active;} ModelObj;
 typedef struct Pose {f32 values[9];} Pose;
 typedef struct Model68 {u32 flags,opaque4;Pose *pose;u8 opaque12[56];} Model68;
+#ifdef TARGET_PC
+/* PC: side[i] starts at the data word of car visual 16 + i (0x20 bytes on the PC); its func and the next
+ * visual's next pointer are host pointers. */
+typedef struct Side24 {u32 flags;u8 opaque4[4];void *func,*next;u8 opaque24[8];} Side24;
+#else
 typedef struct Side24 {u32 flags;u8 opaque4[20];} Side24;
+#endif
+#ifdef TARGET_PC
+typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[16]; void *opaque236_290; u8 opaque236_294[0x29C - 0x294];Side24 side[2];u8 opaque716[0x2D4 - 0x2CC]; void *opaque716_2D4; struct pc_visual opaque716_2D8[2]; u8 opaque716_308[0x35C - 0x308];s8 shift,quality,opaque862,disabled;u8 opaque864[32];Pose *pose;u8 opaque900[52];} Player952;
+#else
 typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[432];Side24 side[2];u8 opaque716[144];s8 shift,quality,opaque862,disabled;u8 opaque864[32];Pose *pose;u8 opaque900[52];} Player952;
+#endif
 extern Player952 player_array[];
 extern Model68 D_8012E700[];
 extern Pose D_8011418C;

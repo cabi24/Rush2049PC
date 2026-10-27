@@ -36,7 +36,11 @@ typedef struct OSMesgQueue OSMesgQueue;
 typedef struct ArIdx { u16 h[64]; } ArIdx;
 typedef struct TextState { void *word0; char **fixed; void *word8; ArIdx *indices; char **strings; } TextState;
 typedef struct Model { u8 pad0[1990]; s16 car; u8 pad1992[4]; s8 f1996; u8 pad1997[27]; s8 lap; u8 pad2025[31]; } Model; /* 2056 B */
+#ifdef TARGET_PC
+typedef struct GameCar { u8 pad0[238]; s8 place; s8 f239; f32 time; u8 pad244[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 pad244_308[0x380 - 0x308]; void *input; u8 pad244_384[0x3A3 - 0x384]; s8 f931; u8 pad932[20]; } GameCar; /* 952 B */
+#else
 typedef struct GameCar { u8 pad0[238]; s8 place; s8 f239; f32 time; u8 pad244[687]; s8 f931; u8 pad932[20]; } GameCar; /* 952 B */
+#endif
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
 typedef struct Pos { s32 x, y; } Pos;
 typedef struct StuntPlayer { s32 score; u8 pad[116]; } StuntPlayer;                      /* 120 B */

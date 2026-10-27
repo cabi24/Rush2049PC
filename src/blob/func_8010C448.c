@@ -20,7 +20,11 @@ typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef struct GameCar {
     u8 pad0[8];
     f32 RWR[3];             /* 0x08 */
+#ifdef TARGET_PC
+    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384];
+#else
     u8 pad14[932];
+#endif
 } GameCar;                  /* 0x3B8 */
 
 typedef struct ModelDat {

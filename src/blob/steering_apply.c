@@ -23,7 +23,11 @@ typedef struct ProximityEnabled {
 typedef struct ProximityPlayer {
     unsigned char unknown0[8];
     float position[3];
+#ifdef TARGET_PC
+    unsigned char unknown14[0x110 - 0x14]; struct pc_visual visuals[21]; unsigned char unknown14_308[0x380 - 0x308]; void *input; unsigned char unknown14_384[0x3B8 - 0x384];
+#else
     unsigned char unknown14[0x3B8 - 0x14];
+#endif
 } ProximityPlayer;
 extern ProximityEnabled D_8014AA3A[];
 extern ProximityPlayer player_array[];

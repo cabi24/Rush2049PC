@@ -17,9 +17,17 @@ typedef struct Effect {
 typedef struct CAR_DATA {
     u8 pad0[8];
     f32 pos[3];             /* 8 */
+#ifdef TARGET_PC
+    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x358 - 0x308];
+#else
     u8 pad14[856 - 20];
+#endif
     s8 hidden;              /* 856 */
+#ifdef TARGET_PC
+    u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x38C - 0x384];
+#else
     u8 pad359[908 - 857];
+#endif
     u32 flags;              /* 908 */
     u8 pad390[928 - 912];
     s8 color_index;         /* 928 */

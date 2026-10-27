@@ -14,7 +14,11 @@ typedef int s32;
 typedef float f32;
 
 typedef struct Player {
+#ifdef TARGET_PC
+    u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x3A3 - 0x384];
+#else
     u8 unknown000[0x3A3];
+#endif
     s8 remaining;
     u8 unknown3A4[0x14];
 } Player;

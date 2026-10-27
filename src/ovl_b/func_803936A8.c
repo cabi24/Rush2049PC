@@ -15,7 +15,11 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef float f32;
+#ifdef TARGET_PC
+typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x3A3 - 0x384]; s8 remaining; u8 unknown3A4[0x14]; } Player;
+#else
 typedef struct Player { u8 unknown000[0x3A3]; s8 remaining; u8 unknown3A4[0x14]; } Player;
+#endif
 typedef struct Event {
     s8 active, age, column, row;
     f32 from_x, from_y, to_x, to_y;

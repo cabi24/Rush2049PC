@@ -541,11 +541,20 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
+#ifdef TARGET_PC
+  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
   u8 pad0EC[0x35B - 0xEC];
+#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+  void *unk380;
+  u8 pad384[0x3A3 - 0x384];
+#else
   u8 unk380;
   u8 pad381[0x3A3 - 0x381];
+#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3792,6 +3801,9 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifndef TARGET_PC
+#define VIS_OFS(x) x
+#endif
 void func_800B1F30(s16 arg0)
 {
   GameCar *temp_s2;
@@ -3800,5 +3812,5 @@ void func_800B1F30(s16 arg0)
   s16 var_s1;
   u8 *var_s0;
   int new_var;
- do { temp_s2 = &player_array[arg0]; if ((*((s32 *) (((s8 *) temp_s2) + 0xF4))) >= 0) { model_data_load((*((s32 *) (((u8 *) (&D_80139320)) + (arg0 << 6)))), 2, 0xF); var_s0 = &temp_s2->pad0EC[0x24]; var_s1 = 0; do { temp_v0 = *((M2C_UNK (**)(u8 *, M2C_UNK)) (((s8 *) var_s0) + 0x14)); if (temp_v0 != ((void *) 0)) { temp_v0(var_s0, 0); } else { temp_a0 = *((s16 *) (((s8 *) var_s0) + 6)); if (temp_a0 >= 0) { model_data_load(temp_a0, 1, 0xF); *((s16 *) (((s8 *) var_s0) + 6)) = -(new_var = 1); } } var_s1 += 1; var_s0 += 0x18; } while (var_s1 < 0x15); } } while (0);
+ do { temp_s2 = &player_array[arg0]; if ((*((s32 *) (((s8 *) temp_s2) + 0xF4))) >= 0) { model_data_load((*((s32 *) (((u8 *) (&D_80139320)) + (arg0 << 6)))), 2, 0xF); var_s0 = &temp_s2->pad0EC[0x24]; var_s1 = 0; do { temp_v0 = *((M2C_UNK (**)(u8 *, M2C_UNK)) (((s8 *) var_s0) + VIS_OFS(0x14))); if (temp_v0 != ((void *) 0)) { temp_v0(var_s0, 0); } else { temp_a0 = *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))); if (temp_a0 >= 0) { model_data_load(temp_a0, 1, 0xF); *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))) = -(new_var = 1); } } var_s1 += 1; var_s0 += VIS_OFS(0x18); } while (var_s1 < 0x15); } } while (0);
 }

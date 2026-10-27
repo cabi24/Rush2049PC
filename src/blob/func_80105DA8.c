@@ -449,11 +449,20 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
+#ifdef TARGET_PC
+    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
     u8 pad0EC[0x35B - 0xEC];
+#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+    void *unk380;
+    u8 pad384[0x3A3 - 0x384];
+#else
     u8 unk380;
     u8 pad381[0x3A3 - 0x381];
+#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -785,11 +794,14 @@ extern M2C_UNK D_80152907;
 s32 func_80105DA8(void *arg0);
 
 
+#ifndef TARGET_PC
+#define CAR_OFS(n) n
+#endif
 s32 func_80105DA8(void *arg0) {
     s32 temp_v0;
     u32 temp_v1;
 
-    if (((s8) D_80142760 == 0) || (temp_v1 = M2C_FIELD(arg0, u32 *, 0x2C), (temp_v1 >= (u32) (s16) gNumWindows)) || (*((s8 *) &D_80152907 + (*(s16 *)((u8 *)&D_8014AA16 + temp_v1 * 0x808) * 0x3B8)) == 1)) {
+    if (((s8) D_80142760 == 0) || (temp_v1 = M2C_FIELD(arg0, u32 *, 0x2C), (temp_v1 >= (u32) (s16) gNumWindows)) || (*((s8 *) &D_80152907 + (*(s16 *)((u8 *)&D_8014AA16 + temp_v1 * 0x808) * CAR_OFS(0x3B8))) == 1)) {
         if (M2C_FIELD(arg0, s8 *, 0x1A) != 1) {
             M2C_FIELD(arg0, s8 *, 0x1A) = 1;
             Input_ApplyPadConfig(arg0);

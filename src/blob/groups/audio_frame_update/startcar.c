@@ -31,7 +31,11 @@ typedef s32 intptr_t;
 typedef float f32;
 
 typedef struct tVisual {         /* 0x18 bytes; gGameCar[slot].visuals[] at 0x110 */
+#ifdef TARGET_PC
+    void *next;                  /* a host pointer on the PC */
+#else
     u8 pad00[4];
+#endif
     s16 index;                   /* 0x04 */
     s16 objnum;                  /* 0x06 */
     s16 slot;                    /* 0x08 */
@@ -43,7 +47,11 @@ typedef struct tVisual {         /* 0x18 bytes; gGameCar[slot].visuals[] at 0x11
 typedef struct tCarData {        /* gGameCar[slot], 0x3B8 bytes */
     u8 pad000[0x110];
     tVisual visuals[20];         /* 0x110 */
+#ifdef TARGET_PC
+    struct pc_visual pad2F0[1]; u8 pad2F0_308[0x380 - 0x308]; void *input; u8 pad2F0_384[0x3B8 - 0x384];
+#else
     u8 pad2F0[0x3B8 - 0x2F0];
+#endif
 } tCarData;
 typedef struct tCarParts {       /* gCarParts[slot], 0x40 bytes */
     s32 frame;

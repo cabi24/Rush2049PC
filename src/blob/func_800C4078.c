@@ -540,11 +540,20 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
+#ifdef TARGET_PC
+  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
+#else
   u8 pad0EC[0x35B - 0xEC];
+#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
+#ifdef TARGET_PC
+  void *unk380;
+  u8 pad384[0x3A3 - 0x384];
+#else
   u8 unk380;
   u8 pad381[0x3A3 - 0x381];
+#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3791,11 +3800,14 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifndef TARGET_PC
+#define CAR_OFS(n) n
+#endif
 void func_800C4078(s16 arg0)
 {
   s8 *car;
 
   car = (s8 *) (&player_array[arg0]);
-  *((s16 *) (car + 0x33A)) = *((s16 *) (((s8 *) (&D_80151D18)) + (((*((s16 *) (car + 0x33C))) * 2) + ((*((s16 *) (((s8 *) (&D_8014AA32)) + (arg0 * 0x808)))) * 0x50))));
+  *((s16 *) (car + CAR_OFS(0x33A))) = *((s16 *) (((s8 *) (&D_80151D18)) + (((*((s16 *) (car + CAR_OFS(0x33C)))) * 2) + ((*((s16 *) (((s8 *) (&D_8014AA32)) + (arg0 * 0x808)))) * 0x50))));
 }
 
