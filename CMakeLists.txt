@@ -384,6 +384,10 @@ add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
     VERBATIM)
 add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
 add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
+# tools/port/endian_check.py (docs/port/ENDIAN.md): the detector on its synthetic cases, and the loader's element
+# widths where game declarations were made to agree with how the game reads the data.
+add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_check.py --build ${CMAKE_BINARY_DIR}
+    --selftest --check-loader)
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)

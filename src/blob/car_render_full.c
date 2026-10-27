@@ -38,7 +38,15 @@ extern u8 D_80146204;
 extern s8 D_8017A63C;
 extern s32 D_8002AFC0, D_8002AFC4;
 extern f32 D_80154188;
+#ifdef TARGET_PC
+/* PC: the windows' viewports are Vp records (s16 scale[4], translate[4]; window_init's Viewport16). The PC loader
+ * fills initialized data by its declarations: as s32 the first two halves would be swapped together and the rest
+ * left big-endian (docs/port/ENDIAN.md). */
+typedef struct { s16 scale[4], translate[4]; } PcViewport;
+extern PcViewport D_8011EA30, D_8011EA40, D_8011EA50, D_8011EA60, D_8011EA70, D_8011EA80, D_8011EA90;
+#else
 extern s32 D_8011EA30, D_8011EA40, D_8011EA50, D_8011EA60, D_8011EA70, D_8011EA80, D_8011EA90;
+#endif
 extern s16 D_80149870[4], D_80149B00[4], D_80149B20[4], D_80149B40[4], D_80149B58[4], D_80149B68[4], D_80149B78[4];
 extern ArbEntry D_8017A510[];
 

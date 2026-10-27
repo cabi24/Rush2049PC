@@ -36,7 +36,13 @@ typedef struct Coin {
     u16 missing;        /* 72 */
     s16 number;         /* 74 */
 } Coin;
+#ifdef TARGET_PC
+/* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
+ * on a little-endian host (docs/port/ENDIAN.md). */
+typedef union Id { s32 handle; struct { s16 index, high; } part; } Id;
+#else
 typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
+#endif
 typedef struct Entity {
     u8 pad0[4];
     u8 flags;           /* 4 */
@@ -47,7 +53,12 @@ typedef struct Entity {
     u8 pad68[40];
     Coin *coin;         /* 108 */
 } Entity;
+#ifdef TARGET_PC
+/* PC: the low half of the coin's s32 model handle comes first. */
+typedef struct EntityHdr { s16 handle; u8 pad2[2]; } EntityHdr;
+#else
 typedef struct EntityHdr { u8 pad0[2]; s16 handle; } EntityHdr;
+#endif
 typedef struct Node { u8 pad0[12]; Entity *entity; } Node;
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
@@ -62,6 +73,11 @@ typedef struct Player { u8 pad0[860]; s8 slot; u8 pad861[91]; } Player;
 #endif
 extern s32 D_801170FC;
 extern u32 D_80118E14, D_80118E18;
+/* PC: the gold and silver colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
+ * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
+#ifndef TARGET_PC
+#define PC_RGBA(x) x
+#endif
 extern s32 D_80151610, D_80151964;
 extern u8 gNumModels;
 extern s16 D_8014A108;
@@ -115,8 +131,8 @@ void func_8010E0FC(Node *node, s16 update)
         return;
     }
     if (!(entity->flags & 1)) {
-        gold[0] = D_80118E14;
-        silver[0] = D_80118E18;
+        gold[0] = PC_RGBA(D_80118E14);
+        silver[0] = PC_RGBA(D_80118E18);
         if (entity->flags & 0x40) {
             number = D_80151610 + 8;
             coin->number = number;

@@ -51,7 +51,13 @@ static void tlut_copy_in(u16 *dst, u32 src, u32 size)
 #define TLUT_COPY_IN memcpy
 #endif
 typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
+#ifdef TARGET_PC
+/* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
+ * little-endian host (docs/port/ENDIAN.md). */
+typedef union Handle { s32 value; struct { s16 id, bank; } halves; } Handle;
+#else
 typedef union Handle { s32 value; struct { s16 bank, id; } halves; } Handle;
+#endif
 typedef struct Handles64 { Handle root; u32 unknown04[3]; Handle secondary, body; u32 unknown18[10]; } Handles64;
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */

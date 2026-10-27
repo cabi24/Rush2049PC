@@ -49,7 +49,13 @@ typedef struct Car { u8 pad0[8]; f32 pos[3]; f32 dir[3]; u8 pad32[12]; f32 right
 typedef struct Car { u8 pad0[8]; f32 pos[3]; f32 dir[3]; u8 pad32[12]; f32 right[3]; f32 up[3]; f32 forward[3]; u8 pad80[36]; f32 wheel[4][3]; u8 pad164[84]; s16 mph; u8 pad250[610]; s8 viewport; s8 visibility; u8 pad862[90]; } Car;
 #endif
 typedef struct Model {u8 pad0[8];u8 type;u8 pad9[1555];u16 surface[8];u8 pad1580[304];f32 suspension[4];u8 pad1900[156];} Model;
+#ifdef TARGET_PC
+/* PC: the handle is the s32 MBOX_NewObject returned, and id its low half: the second s16 on the N64, the first on a
+ * little-endian host (docs/port/ENDIAN.md). */
+typedef struct Effect { void *next; f32 basis[9]; f32 pos[3]; union { s32 word; struct {s16 id,bank;} part; } handle; s32 unknown56; f32 lifetime; f32 timestep; f32 velocity[3]; u32 flags; s16 slot; s16 object; } Effect;
+#else
 typedef struct Effect { void *next; f32 basis[9]; f32 pos[3]; union { s32 word; struct {s16 bank,id;} part; } handle; s32 unknown56; f32 lifetime; f32 timestep; f32 velocity[3]; u32 flags; s16 slot; s16 object; } Effect;
+#endif
 #ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Scene { u32 flags; u32 flags4; void *owner; f32 scaleA; f32 scaleB; u16 id; s16 links[3]; void *words[8]; union { u8 byte[4]; u32 word; } rgba; s32 tail; } Scene;
@@ -70,6 +76,11 @@ extern Bank gTexDefPtrs[];
 extern s8 D_80111299[];
 extern f32 D_8011744C[];
 extern s32 D_8011749C,D_801174A0,D_801174A4,D_801174A8,D_801174AC,D_801174B0;
+/* PC: the six surface colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
+ * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
+#ifndef TARGET_PC
+#define PC_RGBA(x) x
+#endif
 void func_8008D870(s16 handle,void *resource,s32 mode);
 f32 func_8008E0B8(f32 *v);
 s32 func_8008E26C(s32 object,void *basis,s16 parent,s32 flags);
@@ -119,12 +130,12 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
     s32 count;
     s32 i;
     s32 pC1, pC2, pC3;
-    s32 color0 = D_8011749C;
-    s32 color1 = D_801174A0;
-    s32 color2 = D_801174A4;
-    s32 color3 = D_801174A8;
-    s32 color4 = D_801174AC;
-    s32 color5 = D_801174B0;
+    s32 color0 = PC_RGBA(D_8011749C);
+    s32 color1 = PC_RGBA(D_801174A0);
+    s32 color2 = PC_RGBA(D_801174A4);
+    s32 color3 = PC_RGBA(D_801174A8);
+    s32 color4 = PC_RGBA(D_801174AC);
+    s32 color5 = PC_RGBA(D_801174B0);
     s32 pD00;
     s32 pD01;
     s32 pD02;

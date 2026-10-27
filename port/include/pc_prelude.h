@@ -32,6 +32,15 @@ static __inline__ void pc_be16_set(void *p, unsigned short v) {
     b[1] = (unsigned char)v;
 }
 
+/* A colour word as the N64 holds it in a register, 0xRRGGBBAA: the word whose bytes in host memory are R, G, B, A.
+ * That is how the game's byte readers (the model draw's prim and env, the fill and font colours) and the renderer
+ * take a colour. For a word the game stores into colour storage that is read as bytes: a constant, or a colour read
+ * from data the PC loader swapped as a u32 (docs/port/ENDIAN.md). Each game file that uses it defines the N64 side:
+ *     #ifndef TARGET_PC
+ *     #define PC_RGBA(x) x
+ *     #endif */
+#define PC_RGBA(x) __builtin_bswap32(x)
+
 /* N64 addresses (K0, K1 or physical) the game computes as integers, and back (port/ultra). */
 void *pc_n64_ptr(unsigned int n64_addr);
 unsigned int pc_n64_addr(const void *host);

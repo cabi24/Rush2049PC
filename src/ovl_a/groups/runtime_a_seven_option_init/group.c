@@ -209,7 +209,13 @@ void func_80399D10(void)
     }
 }
 
+#ifdef TARGET_PC
+/* PC: the buttons' colour D_803B46A4 is R,G,B,A bytes in the ROM, copied whole into the scene nodes (read as bytes).
+ * The PC loader fills initialized data by its declarations: as a word it would swap them (docs/port/ENDIAN.md). */
+typedef struct Color4 { u8 c[4]; } Color4;
+#else
 typedef struct Color4 { u32 word; } Color4;
+#endif
 typedef struct MultiBlit {
     const char *texname;
     s16 dulx,duly,width,height,top,bot,left,right;

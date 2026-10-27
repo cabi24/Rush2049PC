@@ -40,6 +40,11 @@ typedef struct Node { u8 pad[60]; u32 color; u8 tail[4]; } Node;
 #endif
 
 extern s32 D_801140EC;
+/* PC: the button colour is R,G,B,A bytes in the ROM, which the loader swaps as the word it is declared; PC_RGBA gives
+ * back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
+#ifndef TARGET_PC
+#define PC_RGBA(x) x
+#endif
 extern Item D_80111998[4][17];
 extern char *D_8011196C[];
 extern f32 D_8011418C[3][3];
@@ -76,7 +81,7 @@ void drone_throttle_calc(s8 player) {
     s32 h;
     f32 scale;
 
-    color = D_801140EC;
+    color = PC_RGBA(D_801140EC);
     scale = 1.0f;
     none = -1;
     if (player < 0) {}
