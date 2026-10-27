@@ -3,9 +3,11 @@
  * and its free list (pool_linked_list_init), GetStatLLE and FreeStatLLE on a singly and a doubly linked list, and
  * the initializers that give overlay B's trail and fade lists (func_8038D1A8) and the skid-mark effects
  * (func_800B0580) their arrays and host element sizes. Elements are linked through their first pointer, and the
- * doubly linked ones back through their second.
+ * doubly linked ones back through their second. The skid-mark reset clears the whole skid table at its PC size, and
+ * StopSkid (func_800AF844) writes a skid's midpoint and its done flag at the effect's PC offsets, past its links and
+ * its display handle (docs/port/BRINGUP.md 5).
  * game: src/blob/struct_fields_init.c src/blob/pool_linked_list_init.c src/blob/func_8008E3C0.c
- * game: src/blob/func_800AFA84.c src/ovl_b/func_8038D1A8.c src/blob/func_800B0580.c
+ * game: src/blob/func_800AFA84.c src/ovl_b/func_8038D1A8.c src/blob/func_800B0580.c src/blob/func_800AF844.c
  */
 #include <string.h>
 
@@ -38,18 +40,25 @@ typedef struct Effect {
     uint8_t color[4];
     int32_t f20;
 } Effect;  /* skid_marks' EffectObj */
+typedef struct {
+    Effect *obj;
+    float start[3], pos[3], lenSq, dir[3], quad[6], left[3], right[3];
+} WheelSlot;   /* skid_marks' (N64 0x5C bytes) */
+_Static_assert(sizeof(WheelSlot) == 0x60, "a skid slot's host size");
 
 StatLL D_80395EE8, D_80396B80, D_80155220;
 Trail D_80395F00[50];
 Fade D_80396B98[150];
 Effect D_80155B30[100];
-uint8_t D_80155290[2208];
+WheelSlot D_80155290[6][4];
+uint8_t after_skids[16];   /* what follows the skid table: the reset must not reach it */
 
 void struct_fields_init(void *head, void *array, int32_t size, int32_t count, uint8_t dbl);
 void *func_8008E3C0(void *list);             /* GetStatLLE */
 void func_800AFA84(void *list, void *e);     /* FreeStatLLE */
 void func_8038D1A8(void);
 void func_800B0580(void);
+void func_800AF844(WheelSlot *slot);         /* StopSkid */
 static int g_freed_dl;
 void func_8008D0C0(void *dl) { g_freed_dl++; }
 void *n64_memset(void *p, int c, uint32_t n) { return memset(p, c, n); }
@@ -93,8 +102,16 @@ int main(void)
         CHECK(func_8008E3C0(&D_80395EE8) != NULL);
     CHECK(func_8008E3C0(&D_80395EE8) == NULL);   /* all 50 out */
 
-    /* Doubly linked (the skid-mark effects): re-initialising frees what is active first. */
+    /* Doubly linked (the skid-mark effects): re-initialising frees what is active first, and clears all of the skid
+     * table (24 slots of 0x60 bytes here), the last car's last wheel too. */
+    memset(D_80155290, 0xA5, sizeof D_80155290);
+    memset(after_skids, 0x5A, sizeof after_skids);
     func_800B0580();
+    for (i = 0; i < (int)sizeof D_80155290; i++)
+        if (((uint8_t *)D_80155290)[i] != 0)
+            break;
+    CHECK(i == (int)sizeof D_80155290 && D_80155290[5][3].obj == NULL);
+    CHECK(after_skids[0] == 0x5A && after_skids[15] == 0x5A);
     CHECK(D_80155220.dbl == 1 && D_80155220.list == D_80155B30 && D_80155220.elementSize == (int32_t)sizeof(Effect));
     e0 = func_8008E3C0(&D_80155220);
     e1 = func_8008E3C0(&D_80155220);
@@ -105,6 +122,18 @@ int main(void)
     CHECK(e2->next == e0 && e0->prev == e2 && D_80155220.store == e1);
     func_800AFA84(&D_80155220, e2);   /* the head */
     CHECK(D_80155220.head == e0 && e0->prev == NULL);
+    /* StopSkid: the effect gets the midpoint of the skid's start and end and its done flag; its links, its time and
+     * its display handle stay. */
+    e0->f8 = 2.5f;
+    e0->dl = &g_freed_dl;
+    D_80155290[2][1].obj = e0;
+    for (i = 0; i < 3; i++)
+        D_80155290[2][1].start[i] = (float)i, D_80155290[2][1].pos[i] = 10.0f + i;
+    func_800AF844(&D_80155290[2][1]);
+    CHECK(D_80155290[2][1].obj == NULL && e0->f20 == 1);
+    CHECK(e0->pos[0] == 5.0f && e0->pos[1] == 6.0f && e0->pos[2] == 7.0f);
+    CHECK(e0->f8 == 2.5f && e0->dl == &g_freed_dl && e0->next == NULL && e0->prev == NULL);
+    e0->dl = NULL;
     g_freed_dl = 0;
     func_800B0580();
     CHECK(g_freed_dl == 1 && D_80155220.head == NULL && count_free(&D_80155220) == 100);
