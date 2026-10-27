@@ -36,7 +36,12 @@ typedef struct Coin {
     u16 missing;        /* 72 */
     s16 number;         /* 74 */
 } Coin;
+#ifdef TARGET_PC
+/* PC: index is the handle's low half, which comes first on a little-endian host (docs/port/POINTERS.md 10). */
+typedef union Id { s32 handle; struct { s16 index, high; } part; } Id;
+#else
 typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
+#endif
 #ifdef TARGET_PC
 /* PC: node is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data the target, a
  * level-object node, which keeps its N64 layout: both as 32-bit window addresses, as is the target's state, the

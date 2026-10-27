@@ -153,7 +153,7 @@ int main(void)
         struct pc_visual o;
         memset(m, 0, 0x70);
         memset(&o, 0, sizeof(o));
-        *(int16_t *)(m + 0xE) = c;
+        *(int32_t *)(m + 0xC) = c;               /* its handle: the low half is the model id */
         strcpy(name, "FLAG_GRN_OFF3");
         *(uint32_t *)(m + 0x6C) = (uint32_t)(uintptr_t)name;
         o.data = (uint32_t)(uintptr_t)m;

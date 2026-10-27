@@ -28,8 +28,8 @@ typedef struct Phys {
 enum n64p_Phys { n64p_Phys_ };
 enum n64p_Model { n64p_Model_ };
 typedef struct Model {
-    u8 pad0[0xE];
-    s16 id;
+    u8 pad0[0xC];
+    s32 id;                 /* the target's handle, whose low half is the model id (N64 +0xE): +0xC here */
     s16 type;
     u8 pad12[2];
     f32 UV[3][3];

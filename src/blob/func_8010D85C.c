@@ -30,8 +30,8 @@ enum n64p_char { n64p_char_ };
 typedef struct Model {
     u8 pad0[4];
     u8 flags;
-    u8 pad5[9];
-    s16 id;
+    u8 pad5[7];
+    s32 id;                 /* the target's handle, whose low half is the model id (N64 +0xE): +0xC here */
     u8 pad10[0x5A - 0x10];
     s16 f5A;
     u8 pad5C[0x6C - 0x5C];

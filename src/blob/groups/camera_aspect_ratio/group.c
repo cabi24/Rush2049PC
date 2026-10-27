@@ -171,8 +171,15 @@ typedef struct CamCtl {
 typedef struct Camera {
     u8 pad00[4];
     u8 flags;                    /* 0x04 */
+#ifdef TARGET_PC
+    /* PC: the slot is the low half of the camera node's handle (an s32 at +0xC), at +0xC on a little-endian
+     * host, not +0xE: the view reads the word (docs/port/POINTERS.md 10). */
+    u8 pad05[7];
+    s32 slot;                    /* 0x0C */
+#else
     u8 pad05[9];
     s16 slot;                    /* 0x0E */
+#endif
     s16 tbl;                     /* 0x10 */
     u8 pad12[2];
     f32 m[3][3];                 /* 0x14 */

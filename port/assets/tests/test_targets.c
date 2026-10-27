@@ -406,7 +406,7 @@ static void test_visuals(void)
     CHECK(((float *)g_rate)[0] == 1.0f && ((float *)g_rate)[2] == 3.0f);
 
     /* the frame stepper: the last frame of a kind with flag 0x2000 removes the object */
-    NF(t, 0x10, int16_t) = DEBRIS, NF(t, 0x0E, int16_t) = 33;
+    NF(t, 0x10, int16_t) = DEBRIS, NF(t, 0x0C, int32_t) = 33;   /* the handle; its low half is the model id */
     NF(t, 0x58, int16_t) = 4, NF(t, 0x5A, int16_t) = 2, NF(t, 0x50, int16_t) = 4;
     v.index = 1, v.timeStamp = 0.0f, g_nspawned = 0, g_nreleased = 0;
     audio_channel_setup(&v, 1);
@@ -423,7 +423,7 @@ static void test_debris(void)
 
     memset(phys, 0, 24);
     NF(t, 0x6C, uint32_t) = W32(phys);
-    NF(t, 0x10, int16_t) = DEBRIS, NF(t, 0x0E, int16_t) = 44, NF(t, 0x38, float) = 1.0f;
+    NF(t, 0x10, int16_t) = DEBRIS, NF(t, 0x0C, int32_t) = 44, NF(t, 0x38, float) = 1.0f;
     memset(&v, 0, sizeof v);
     v.data = W32(t), v.timeStamp = 1.0f;
     g_nspawned = 0, g_nreleased = 0;

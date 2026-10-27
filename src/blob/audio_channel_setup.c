@@ -20,8 +20,15 @@
 typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef float f32;
 typedef struct Model {
+#ifdef TARGET_PC
+    /* PC: id is the low half of the target's handle (an s32 at +0xC), at +0xC on a little-endian host, not +0xE:
+     * the view reads the word (docs/port/POINTERS.md 10). */
+    u8 pad0[0xC];
+    s32 id;
+#else
     u8 pad0[0xE];
     s16 id;
+#endif
     s16 type;
     u8 pad12[0x50 - 0x12];
     s16 cur;
