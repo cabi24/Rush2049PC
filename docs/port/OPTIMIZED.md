@@ -122,7 +122,7 @@ functions of one file that the file's calls may inline into one function. Over 2
 |---|---|---|
 | image A, `updateTrackScreen` | `D_80146108[29] += add`, then the wrap to 3 through `D_80146125` (= `&gOptions[29]`) | `D_80146125` is `D_80146108[29]` |
 | image A, the track map | `mapObj[6].displayList` written through `D_803BAAE8`, read as `D_803BAB50`, by functions `updateTrackScreen` may inline | `D_803BAB50` is `D_803BAAE8[6].displayList` |
-| MusyX sequencer (`lib_17dc0.c`) | `func_800198C8` stores the current sequence `D_8004BE78`, the helpers it calls read its byte `D_8004BE7B` | `D_8004BE7B` is byte 3 of `D_8004BE78` (section 8) |
+| MusyX sequencer (`lib_17dc0.c`) | `func_800198C8` stores the current sequence `D_8004BE78`, the helpers it calls read its byte `D_8004BE7B` | `D_8004BE7B` is the low byte of `D_8004BE78` (section 8) |
 
 The current `-O2` objects happened to keep the order in all three; the fixes make that a guarantee. The other pairs
 it lists are read and judged in its `REVIEWED` table (the player rows `D_803B5CFC[n][0]`, which land in a table no
@@ -235,14 +235,14 @@ The mingw-w64 cross build (`cmake/mingw-w64.cmake`) builds as RelWithDebInfo wit
 it on Windows: the self-test, the boot without a ROM and all 14 synthetic paths. Its tables are the same files as the
 Debug cross build's.
 
-## 8. Found on the way, not changed: the sequencer's byte
+## 8. Found on the way: the sequencer's byte
 
 `func_800198C8` stores the current sequence slot as a word, `D_8004BE78 = i` (0 to 7), before it runs that slot's
 sequence. `func_80020610(controller, channel, slot, value)` takes the slot third: `func_80017D38` passes it as
 `(unsigned char)D_8004BE78` for some controllers, but `func_800177EC` (controller 130), `func_80017824` (controller 7)
 and `func_80017D38`'s other controller events pass the byte `D_8004BE7B`. On the N64 that byte is the word's low
 byte, the slot; the PC holds the word little-endian, so byte 3 is its high byte, 0, and those messages of every
-sequence go to slot 0's channels. It is the same in Debug, and `endian_check.py` doesn't see it (the word is BSS,
-stored as a word and read through another symbol). Fixing it changes what Debug does, which this work doesn't, so it
-is left for a decision: the fix is to read the low byte, `#define D_8004BE7B ((u8)D_8004BE78)` in
-`src/rom/lib_17dc0.c`, in place of today's byte 3.
+sequence went to slot 0's channels, in Debug too; `endian_check.py` doesn't see it (the word is BSS, stored as a
+word and read through another symbol). The optimized build kept that byte 3, so that it would do what Debug did; the
+fix came after, in both: `src/rom/lib_17dc0.c` reads the low byte, `#define D_8004BE7B ((u8)D_8004BE78)`, as the
+N64 does.

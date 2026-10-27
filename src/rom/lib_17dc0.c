@@ -305,11 +305,12 @@ void func_80017720(SequenceContext *context, unsigned char program, unsigned cha
  */
 extern u8 D_8004BE7B;
 #ifdef TARGET_PC
-/* PC: byte 3 of the word D_8004BE78 (the current sequence, func_800198C8) under one name: an optimizing GCC takes
- * two external variables for two objects, and func_800198C8 stores the word, then calls the sequencer, which reads
- * this byte and may be inlined into it (tools/port/alias_check.py, docs/port/OPTIMIZED.md). It is the byte the
- * data symbol was: byte 3 as the PC holds the word, which is not the one the N64 reads (OPTIMIZED.md). */
-#define D_8004BE7B (((u8 *)&D_8004BE78)[3])
+/* PC: the low byte of the word D_8004BE78 (the current sequence slot, func_800198C8), which the N64 reads as the
+ * word's byte 3. One name, as an optimizing GCC takes two external variables for two objects and func_800198C8
+ * stores the word, then calls the sequencer, which reads this byte and may be inlined into it
+ * (tools/port/alias_check.py); and the low byte, as the PC holds the word little-endian, where byte 3 is its high
+ * byte, 0, which sent these controller messages of every sequence to slot 0 (docs/port/OPTIMIZED.md section 8). */
+#define D_8004BE7B ((u8)D_8004BE78)
 #endif
 extern void func_80020610(u8 controller, u8 channel, u8 set, u8 value);
 void func_800177EC(u8 value, u8 channel)
