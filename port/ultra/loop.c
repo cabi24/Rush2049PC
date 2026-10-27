@@ -17,6 +17,7 @@
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -43,12 +44,18 @@ static void on_signal(int sig)
 }
 
 static uint32_t (*g_game_state)(void);
+static void (*g_game_info)(char *, size_t);
 
 static void status(const char *tag)
 {
-    char state[32] = "";
+    char state[192] = "";
     if (g_game_state)
         snprintf(state, sizeof state, " state=0x%08X", (unsigned)g_game_state());
+    if (g_game_info) {
+        size_t n = strlen(state);
+        snprintf(state + n, sizeof state - n, ": ");
+        g_game_info(state + n + 2, sizeof state - n - 2);
+    }
     fprintf(stderr, "rush2049pc: %s t=%.1fs vi=%u gfx_tasks=%u audio_tasks=%u%s\n", tag, pc_host_ns() / 1e9,
             pc_frame, pc_rcp_gfx_tasks, pc_rcp_audio_tasks, state);
 }
@@ -60,8 +67,13 @@ static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
     static uint32_t last, seen;
     uint32_t s = g_game_state();
     if (s != last || !seen) {
-        fprintf(stderr, "rush2049pc: game state 0x%08X (was 0x%08X) at vi %u, after %u graphics tasks\n",
-                (unsigned)s, (unsigned)last, pc_frame, pc_rcp_gfx_tasks);
+        char info[160] = "";
+        if (opt->game_info) {
+            info[0] = ':', info[1] = ' ';
+            opt->game_info(info + 2, sizeof info - 2);
+        }
+        fprintf(stderr, "rush2049pc: game state 0x%08X (was 0x%08X) at vi %u, after %u graphics tasks%s\n",
+                (unsigned)s, (unsigned)last, pc_frame, pc_rcp_gfx_tasks, info);
         last = s, seen = 1;
     }
     if (opt->until_state && !until_gfx && (s & opt->until_state))
@@ -116,6 +128,7 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint32_t until_gfx = 0;                /* --until-state: the graphics task to run to, once the state is seen */
     uint64_t last_vi_real = pc_real_ns();  /* --fast: when the last retrace was, in real time */
     g_game_state = opt->game_state;
+    g_game_info = opt->game_info;
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
     signal(SIGQUIT, on_signal);

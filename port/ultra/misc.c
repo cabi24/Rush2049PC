@@ -5,6 +5,7 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <execinfo.h>
+#include <fenv.h>
 #include <signal.h>
 #include <unistd.h>
 #endif
@@ -210,12 +211,18 @@ static void fault(int sig, siginfo_t *si, void *ctx)
     raise(sig);
 }
 
+/* Per host thread: an alternate signal stack, and with RUSH_TRAP_FP set (glibc) a SIGFPE at the first invalid
+ * floating-point operation or division by zero, which finds where a NaN or an infinity starts. */
 void pc_fault_thread_init(void)
 {
     static const size_t size = 64 << 10;
     stack_t ss = {.ss_sp = malloc(size), .ss_size = size};
     if (ss.ss_sp)
         sigaltstack(&ss, NULL);
+#ifdef __GLIBC__
+    if (getenv("RUSH_TRAP_FP"))
+        feenableexcept(FE_INVALID | FE_DIVBYZERO);
+#endif
 }
 
 void pc_fault_install(void)

@@ -146,6 +146,7 @@ typedef struct {
     /* The game's state word (gGameState), read once per retrace on the host main thread: each change is logged.
      * NULL: none (the self-test). */
     uint32_t (*game_state)(void);
+    void (*game_info)(char *out, size_t size);   /* more to log with each change (players, mode...), or NULL */
     uint32_t until_state;        /* stop once the state word has one of these bits... */
     uint32_t until_state_frames; /* ...and this many more graphics tasks have run; a time limit reached first
                                     is a failure (exit 1). 0: no such stop */
