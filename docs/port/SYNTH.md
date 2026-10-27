@@ -66,6 +66,8 @@ copies those as they are, so they are bytes, or zero.
 | | `D_801118E4[26]` | gControlTable: SetControls makes each control option byte k the mask table[k], which the car's readers test against the game buttons; 0x13-0x19 they take as analog sources. So k < 19 is game button k and 19-25 are those codes (gas A, brake B, steering the stick with the code-set default controls) |
 | | `D_803B65E4[10]` | the main menu's valid options: 0-4 (race, then four screens); none loops forever in updateStartScreen |
 | | `D_803B4679` rows 1-4 | the modes valid per player count: all; none loops forever in updateModeScreen |
+| | `D_80116D14[14]` | the options screen's valid items: all; none loops forever in options_initScreen (from the main menu or the pause screen) |
+| | `D_80110030[12]` | gSongNames: "SONG 1".. (the audio screen copies each) |
 | | `D_803B7738[20]` | the track select's map objects: a name each (it swaps their LODs and puts them back) |
 | | `D_8011B3A0`, `D_8011B400`, `D_8011B404`, `D_8011B438` | the car select's texture, model and sheen names: "" (a NULL name faults) |
 | race | `D_8011A924[19]` | gWorldNames: "WORLD" |
@@ -78,6 +80,7 @@ copies those as they are, so they are bytes, or zero.
 | | `D_80117510[5]` | category 5's record size, 136 (Slot136): battle mode writes 16 of them; 0 is a zero-size heap block and the writes go over the next blocks' headers |
 | | `D_80121D60[8]`, `D_8011F844[13]` | the weapons' ammunition (5) and the bodies' collision boxes (4.5, 4.5, 2.5, 3: the tires are 4 ahead and behind, 2.5 aside) |
 | | `D_80117480[6]` | the arenas' puff textures: "" (physics_collision_test looks them up from track 6 on) |
+| | `D_80111754[6]` | a gRace 2 race's time limit on tracks 0-5 (func_800FBED8): 15 s. Zero ended the race in its first frame |
 | | `D_801173D8[12]`, `D_80117408[12]` | the demo paths' start points: one, point 0 |
 | | `D_80110D08[13]`, `D_801108C8` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (one 23-word record) |
 | | `D_80111560[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
@@ -100,7 +103,15 @@ copies those as they are, so they are bytes, or zero.
 | 139-157 | road | one empty collision quadtree leaf, no surfaces |
 | 158-182 | paths | a 2000-unit square: four checkpoints, an eight-point resurrection path, four drone paths |
 
-Every model draws nothing (a display list that is just G_ENDDL), so nothing visible is drawn in the race.
+**The models** (`model_objs`): each has a display list and vertices of its own (SetupWaveModel relocates every
+model's lists in place, so two models sharing one list would have its addresses relocated twice). A list sets the
+state it draws with (one-cycle, the shade combiner, an opaque z-buffered surface, no texture, smooth shading without
+fog, lighting or culling), then loads its vertices eight quads at a time and draws them with G_TRI2. Vertices are in
+sixteenths of a foot (the scene's matrices and the projection's near and far are x16). The world node's model TRACK
+is the ground: 16 x 16 tiles of 250 feet, a checker of greens with the tiles under the square loop grey, centred on
+the node, which the world puts at the loop's middle. Every other model (AAANULLOBJ, which the game takes for a NULL or
+empty name: the cars, the buttons, the weapon icons; MINEG1; the map objects) is a car-sized box, 9 x 3 x 5 feet with a
+colour per face (the front red, the top yellow).
 
 ## 2. How far it boots: the paths
 
@@ -146,10 +157,19 @@ CI step runs them all on both Linux jobs and keeps the logs.
 | `circuit` | gRace 3, through the circuit screen | 6 cars | 0.4 s |
 | `stunt` | gRace 4 in the first stunt arena (track 14), image B | 1 car | 0.4 s |
 | `battle2p` | gRace 6, two players in the first battle arena (track 6), image B: weapons, the four weapon icons as power-ups | 2 cars, 4 power-up slots | 0.4 s |
-| `drive` | the one-player race with gas, steering and brake for 30 s | | 0.4 s |
+| `drive` | the one-player race with gas, steering and brake for 30 s; a screenshot (below) | | 0.5 s |
+| `pause` | the race paused (START), the four screens the pause menu opens (options, controls, audio, video), then quit, confirmed: the race is retired, its results and the game over screen | 0x800000 | 0.5 s |
+| `raceend` | gRace 2, whose race has a time limit: when it runs out, _EndGame, the results (30 s), the game over screen, its Quit and back to the main menu | 0x10 after the race | 0.8 s |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 
-The races run every thread (game, model, audio manager, MusyX, scheduler) with no fault. Nothing visible is drawn yet:
+**Screenshots.** `--screenshot-at N` of a race now shows the game's own display lists drawn: its matrices and
+viewports put the models where the cars are, in one view or split in two (top and bottom) or four (quarters).
+`drive`, `race2p` and `race4p` take one and check it (`# check:` runs `tools/port/synth_shot.py SHOT VIEWS`): the
+picture is the game's 320 x 220, each view the split screen should have shows drawing (a share of non-black pixels),
+and the borders between them stay dark. The menus are still black: their buttons and backgrounds come from
+MultiBlit tables and button records that are zero.
+
+The races run every thread (game, model, audio manager, MusyX, scheduler) with no fault. Earlier, nothing was drawn:
 the textures are solid and the models empty. The physics turn the cars' positions into NaN (section 4).
 
 ## 3. The stops, in order
@@ -201,6 +221,9 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 | 38 | the car-car collision (menu_options_screen) and the push (menu_load_options) divide 0 by 0 | no weights; the push's constants | data | weights, push constants |
 | 39 | (looking for 37) | **the cars' masses D_80110DD8, the tunes D_801116D0 and D_801117B4 are indexed past their one-element declarations, so the loader converted only the first element and left the others in the ROM's byte order** | **port bug** | declarations of their size, an extent; `index_check` |
 | | the cars drive without NaN (they fall: the road has no surfaces) | | | |
+| 40 | (with models) SetupWaveModel faults in the vertex chain walk at 0x6 | **the generator's**: the models shared one display list, which each model's relocation moved again | data (the generator's) | lists of their own |
+| 41 | the pause screen's options screen spins | no valid option (`while (!valid[i]) i++`) | data | `D_80116D14` |
+| 42 | the pause screen's audio screen copies a NULL name | gSongNames; and its declaration ran by the gap to 131 pointers (the loader would have made the 119 words after the 12 names pointer slots), so `extents.txt` gives it 12 | data; extent | `D_80110030` |
 
 Stops 26-34 came with the paths of section 2 (`--fast`, the virtual clock, makes each a second's run), 35-39 with
 looking for what makes the picture and the physics: the state log's car position, `RUSH_TRAP_FP` (which also stops at

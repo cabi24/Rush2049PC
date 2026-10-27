@@ -37,6 +37,7 @@ ROOT = n64syms.ROOT
 ROM_SIZE = 0xC00000
 FILES_ROM = 0x100000        # the file table's files go from here (below the game image's slot at 0xB0CB10)
 N_WAVES = 183               # docs/port/ASSETS.md 2.2
+SQUARE = 2000               # the tracks: a square loop this many feet a side, at y = 0 (paths, road, ground)
 
 KIND_WIDTH = {"u8": 1, "u16": 2, "u32": 4, "f32": 4, "u64": 8, "f64": 8, "ptr": 4}
 
@@ -484,16 +485,16 @@ CODE_MODELS = ["AAANULLOBJ", "MINEG1"]
 WAD_OBJS = 8                   # the OBJS chunk comes first in these WADs, right after the header
 
 
-def obhd(name, dl, vtx):
+def obhd(name, dl, vtx, radius=100.0):
     """An OBHD model record, 0x58 bytes: one LOD whose display list and vertices are file-relative (SetupWaveModel
     adds the file's address); the other three LODs zero."""
     b = Buf()
     b.raw(name16(name))
-    b.f32(100.0)                # radius
+    b.f32(radius)               # radius
     b.u16(0)                    # kind
     b.u16(1)                    # lodCount
     b.u16(0)                    # lod 0: texidx
-    b.u16(0)                    #        flags
+    b.u16(0)                    #        flags: no texture of its own (0x8000), no lighting (0x10)
     b.f32(1e6)                  #        lodRad
     b.u32(dl)                   #        displayList
     b.u32(vtx)                  #        vtxList
@@ -501,9 +502,121 @@ def obhd(name, dl, vtx):
     return b.b
 
 
-def model_objs():
-    """OBJS: a display list that ends at once (G_ENDDL), then one Vtx (16 bytes) for the vertex list."""
-    return be32(0xDF000000) + be32(0) + bytes(16)
+# ---------------------------------------------------------------- display lists (F3DEX2, port/gfx/gfx_gbi.h)
+
+def gfx(w0, w1=0):
+    return be32(w0) + be32(w1)
+
+
+# Each model's list sets the state it draws with, so it doesn't depend on what the game set before it: one-cycle
+# mode, the shade colour (G_CC_SHADE in both cycles), an opaque z-buffered surface without blending, no texture, and
+# smooth shading without fog, lighting or culling. Then its vertices (G_VTX, w1 file-relative: the WAD relocator,
+# entity_lod_select, adds the file's address) and triangles (G_TRI2), then G_ENDDL.
+RM_ZB_OPA = 0x10 | 0x20 | 0x4000 | (3 << 26) | (2 << 18) | (3 << 24) | (2 << 16)   # Z_CMP Z_UPD FORCE_BL, CLR_IN x 1
+DL_STATE = (gfx(0xE7000000) +                                   # G_RDPPIPESYNC
+            gfx(0xE3000A01, 0) +                                # G_SETOTHERMODE_H cycle type: G_CYC_1CYCLE
+            gfx(0xFCFFFFFF, 0xFFFE793C) +                       # G_SETCOMBINE G_CC_SHADE, G_CC_SHADE
+            gfx(0xE200001C, RM_ZB_OPA) +                        # G_SETOTHERMODE_L render mode
+            gfx(0xD7000000, 0xFFFFFFFF) +                       # G_TEXTURE off
+            gfx(0xD9000000 | (~(0x00010000 | 0x00020000 | 0x00040000 | 0x00080000 | 0x600) & 0xFFFFFF),
+                0x1 | 0x4 | 0x00200000))                        # G_GEOMETRYMODE: - fog, lighting, texgen, culling;
+                                                                # + z-buffer, shade, smooth
+
+
+def vtx(x, y, z, rgba, last):
+    """A Vtx (16 bytes): s16 position, the u16 flags at +6 (bit 15: another vertex follows, which func_800966D8's walk
+    of the vertex chain reads), s16 texture coordinates, the colour."""
+    b = Buf()
+    for v in (x, y, z):
+        b.u16(int(v))
+    b.u16(0 if last else 0x8000)
+    b.u16(0)
+    b.u16(0)
+    b.raw(bytes(rgba))
+    return b.b
+
+
+def mesh(quads):
+    """Vertices and a display list for quads [(four (x, y, z), rgba)], eight quads (32 vertices) a G_VTX: returns
+    (vertex bytes, a function of the vertices' file offset giving the list's bytes)."""
+    verts = b""
+    count = 4 * len(quads)
+    for qi, (corners, rgba) in enumerate(quads):
+        for k, (x, y, z) in enumerate(corners):
+            verts += vtx(x, y, z, rgba, 4 * qi + k == count - 1)
+
+    def dlist(vtx_off):
+        out = DL_STATE
+        for first in range(0, len(quads), 8):
+            n = 4 * min(8, len(quads) - first)
+            out += gfx((0x01 << 24) | (n << 12) | (n << 1), vtx_off + 16 * 4 * first)   # G_VTX n, v0 = 0
+            for q in range(n // 4):
+                a = 4 * q
+                out += gfx((0x06 << 24) | (2 * a << 16) | (2 * (a + 1) << 8) | 2 * (a + 2),
+                           (2 * a << 16) | (2 * (a + 2) << 8) | 2 * (a + 3))           # G_TRI2: two halves
+        return out + gfx(0xDF000000)                                                  # G_ENDDL
+    return verts, dlist
+
+
+def box_quads(dx, dy, dz):
+    """A box from -dx..dx, 0..dy, -dz..dz with a colour per face: +x (the front) red, -x blue, the top yellow, the
+    bottom grey, the sides green and cyan."""
+    x0, x1, y0, y1, z0, z1 = -dx, dx, 0, dy, -dz, dz
+    return [(((x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)), (230, 40, 40, 255)),
+            (((x0, y0, z1), (x0, y1, z1), (x0, y1, z0), (x0, y0, z0)), (40, 60, 230, 255)),
+            (((x0, y1, z0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0)), (240, 220, 40, 255)),
+            (((x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1)), (110, 110, 110, 255)),
+            (((x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)), (40, 200, 60, 255)),
+            (((x0, y0, z0), (x0, y1, z0), (x1, y1, z0), (x1, y0, z0)), (40, 200, 200, 255))]
+
+
+# Model vertices are in sixteenths of a foot (the scene's matrices and the projection's near and far, x16; a world
+# position is in feet). The ground is a 16 x 16 grid of 250-foot tiles, 4000 feet a side, centred on the TRACK
+# node, which the world puts at the middle of the 2000-foot square loop.
+UNITS = 16
+GROUND_TILE = 250
+GROUND_CENTRE = (SQUARE / 2, 0.0, SQUARE / 2)
+
+
+def ground_quads():
+    """The track's ground at y = 0 round its node: a checker of two greens, with the tiles under the square loop
+    (the paths' and the road's) grey."""
+    quads = []
+    half = 8 * GROUND_TILE
+    for i in range(16):
+        for j in range(16):
+            x, z = -half + GROUND_TILE * i, -half + GROUND_TILE * j      # the tile's corner, from the node
+            wx, wz = x + GROUND_CENTRE[0], z + GROUND_CENTRE[2]          # in the world
+            on_loop = ((wx <= 0 < wx + GROUND_TILE or wx <= SQUARE < wx + GROUND_TILE) and 0 <= wz + 1 <= SQUARE) or \
+                      ((wz <= 0 < wz + GROUND_TILE or wz <= SQUARE < wz + GROUND_TILE) and 0 <= wx + 1 <= SQUARE)
+            rgba = (120, 120, 130, 255) if on_loop else (60, 150, 60, 255) if (i + j) % 2 else (40, 110, 40, 255)
+            t, x, z = GROUND_TILE * UNITS, x * UNITS, z * UNITS
+            quads.append((((x, 0, z), (x, 0, z + t), (x + t, 0, z + t), (x + t, 0, z)), rgba))
+    return quads
+
+
+# The models: a car-sized box for the models the game finds by an empty or no name (AAANULLOBJ: the cars, the
+# front end's buttons, the weapon icons) and the code's others, and the ground for the world node's TRACK.
+BOX = (4.5 * UNITS, 3.0 * UNITS, 2.5 * UNITS)
+
+
+def model_objs(models):
+    """OBJS for the models (names): each model's vertices and display list, in the chunk that starts at file offset
+    WAD_OBJS. Returns (the chunk, {name: (list offset, vertex offset, radius)}), offsets file-relative. Each model has
+    lists of its own: SetupWaveModel relocates every model's lists in place (entity_lod_select adds the file's
+    address to each address), so a list two models shared would be relocated twice."""
+    out, where = b"", {}
+    for m in models:
+        ground = m == WORLD_NODE
+        verts, dlist = mesh(ground_quads() if ground else box_quads(*BOX))
+        vtx_off = WAD_OBJS + len(out)
+        out += verts
+        dl_off = WAD_OBJS + len(out)
+        out += dlist(vtx_off)
+        where[m] = (dl_off, vtx_off, 3000.0 if ground else 10.0)
+    if not out:                                   # no models: one list that ends at once
+        out = gfx(0xDF000000)
+    return out, where
 
 
 def plhd(name, pal_base):
@@ -519,7 +632,7 @@ def plhd(name, pal_base):
 
 def texture_wad(names, models=(), palettes=("",)):
     """A WAD of textures (TXHD sorted by name: MBOX_FindTexture bsearches it with strcmp), all sharing one solid
-    RGBA16 image in IMAG, models (OBHD, sorted the same way for MBOX_FindModel) that draw nothing, and palettes
+    RGBA16 image in IMAG, models (OBHD, sorted the same way for MBOX_FindModel: boxes, and the ground), and palettes
     (PLHD: the car paint looks its palette up by a name from a format string, which is "" here) of 256 greys."""
     image = be16(0x7BDF) * (TEX_W * TEX_H)      # a light grey, opaque (5-5-5-1)
     palette = be16(0x7BDF) * 256
@@ -527,9 +640,10 @@ def texture_wad(names, models=(), palettes=("",)):
     models = sorted(set(models), key=lambda n: n.encode())
     palettes = sorted(set(palettes), key=lambda n: n.encode())
     recs = b"".join(txhd(n, TEX_W, TEX_H, 2, 0, 0) for n in names)
-    chunks = [("OBJS", model_objs(), None)]
+    objs, where = model_objs(models)
+    chunks = [("OBJS", objs, None)]
     if models:
-        chunks.append(("OBHD", b"".join(obhd(m, WAD_OBJS, WAD_OBJS + 8) for m in models), len(models)))
+        chunks.append(("OBHD", b"".join(obhd(m, *where[m]) for m in models), len(models)))
     chunks.append(("TXHD", recs, len(names)))
     if palettes:
         chunks.append(("PLHD", b"".join(plhd(n, len(image)) for n in palettes), len(palettes)))
@@ -542,7 +656,6 @@ def empty_wad():
     return wad([])
 
 
-SQUARE = 2000                  # a path's track: a square loop this many units a side, at y = 0
 
 
 def square_points(n):
@@ -630,7 +743,7 @@ def world_wad(targets=()):
     (differential_output) offers each node to the target table (transmission_ratio_get), which makes a level object
     of a node whose name starts with a target's. GDAT one quadtree node, a leaf with nothing in it; GTLD no target
     keys."""
-    nodes = [(WORLD_NODE, (0.0, 0.0, 0.0))] + list(targets)
+    nodes = [(WORLD_NODE, GROUND_CENTRE)] + list(targets)
     wobj = b"".join(world_node(n, pos, i + 1 if i + 1 < len(nodes) else 0xFFFF) for i, (n, pos) in enumerate(nodes))
     whdr_at = WAD_OBJS          # chunks are laid out in order from just after the header
     whdr = Buf()
@@ -930,6 +1043,15 @@ def front_end(c):
     c.set_all("ovl_a", "D_803B65E4", "u8", [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
               "the main menu's valid options: the five screens 0-4")
 
+    # The options screen's valid items (validOption, D_80116D14, s32[14]; optionscr_buttons): options_initScreen
+    # starts at the first valid one with `while (!valid[i]) i++`, which never ends when none is. All fourteen.
+    c.set_all("game", "D_80116D14", "u32", [1] * 14, "the options screen's valid items: all fourteen")
+
+    # The songs' names (gSongNames, D_80110030, char *[12]): the audio screen copies each (func_800BE6A4), so NULL
+    # faults.
+    for i in range(12):
+        c.set("game", "D_80110030", "ptr", c.string(f"SONG {i + 1}"), "a song's name" if i == 0 else "(same)", index=i)
+
     # The mode screen's table of which of its 7 modes each player count may pick (D_803B4679[players][mode], image
     # A, s8; optionValid@modescr.c). updateModeScreen skips to a valid mode with `while (!optionValid(i)) i++`, which
     # never ends when none is. Rows 1-4 (0x803B4680-0x803B469B) are bytes no declaration covers; row 0 is never read.
@@ -1021,6 +1143,11 @@ def race(c):
     c.set("game", "D_80117510", "u8", 136, "category 5's record size (battle's power-up slots, Slot136)", index=5)
 
     battle(c)
+
+    # The time limit of a gRace 2 race on tracks 0-5 (D_80111754, f32[6]; func_800FBED8, 600 s for the others): the
+    # race ends when it runs out (countdown's last branch), then the results (0x2000000, 4 s) and the game over
+    # screen (0x800000). Zero ended the race in its first frame. 15 s.
+    c.set_all("game", "D_80111754", "f32", [15.0] * 6, "a gRace 2 race's time limit, s")
 
     # The demo path start points per track (D_801173D8, s16 *[12], with their counts D_80117408[12]): one start
     # point, the path's first (0, so its byte order doesn't matter).

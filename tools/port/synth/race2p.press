@@ -2,6 +2,8 @@
 # until: 0x400000:600
 # seconds: 90
 # expect: state=0x00400000: players 2, windows 2, cars 6, mode 0, track 0
+# args: --screenshot-at 1300 --screenshot race2p.png
+# check: tools/port/synth_shot.py race2p.png 2
 5 A            # the controller pak warning
 8 START        # the start prompt
 9 RIGHT 0.1    # the main menu's first option: one player more (as many as controllers)

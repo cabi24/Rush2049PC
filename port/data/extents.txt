@@ -36,3 +36,7 @@ D_8014A250 0x3030   # Car[6] of 0x808, world_physics_tick.c
 # three 44-byte Tune44 records (func_800D0B14 reads ((F2C *)&D_801116D4)[tune], D_801116D4 being record 0's +4; the
 # declarations leave one record, and the other two kept the ROM's byte order).
 D_801116D0 0x84
+# gSongNames: the twelve songs' names (audio_calcMenuRect reads [0..11], the audio screen [D_80110640]). By the gap
+# the declaration ran 131 pointers to the next known address, so the loader turned 119 words of whatever follows into
+# pointer slots of its own storage.
+D_80110030 0x30

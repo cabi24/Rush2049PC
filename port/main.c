@@ -117,21 +117,22 @@ static uint32_t game_state(void)
 }
 
 /* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
- * gTrackNum) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second),
+ * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second),
  * so a scripted run shows which path it took and whether the car moved. */
 extern int16_t active_player_count, gNumWindows;
 extern int32_t gameplay_mode;
 extern int8_t D_80152744, D_8014978C;
 extern uint8_t D_8014A250[];   /* the model records (0x808 bytes, N64 layout): RWV at +0x220, RWR at +0x22C */
+extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 its screens */
 
 static void game_info(char *out, size_t size)
 {
     const volatile float *v = (const volatile float *)(D_8014A250 + 0x220), *r = v + 3;
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
-    snprintf(out, size, "players %d, windows %d, cars %d, mode %d, track %d; car 0 at %.0f %.0f %.0f, speed %.0f",
-             *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
+    snprintf(out, size, "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f %.0f, "
+             "speed %.0f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
              *(volatile int8_t *)&D_80152744, (int)*(volatile int32_t *)&gameplay_mode, *(volatile int8_t *)&D_8014978C,
-             (double)r[0], (double)r[1], (double)r[2], speed);
+             (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed);
 }
 
 /* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */

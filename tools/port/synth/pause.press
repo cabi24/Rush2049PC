@@ -1,0 +1,32 @@
+# The pause screen (RaceStateMachine_Update) in a one-player race, and the screens it opens, then a retirement from
+# it, which ends the race (docs/port/SYNTH.md 2). Its menu: 0 resume, 1-4 the options, controls, video and audio
+# screens (pause states 5, 4, 2, 3), 5, 6 restart, 7 quit (pause state 8, confirmed with LEFT/RIGHT and A).
+# until: 0x800000:60
+# seconds: 120
+# expect: state=0x00800000: players 1, windows 1, cars 6, mode 0, track 0, pause 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select
+23 A           # the car select; the race from 23.6 s, its countdown to 27 s
+30 START       # pause
+31 DOWN 0.1    # its second item
+32 A           # the screen it opens
+35 B           # back to the pause menu
+36 DOWN 0.1    # the third item
+37 A
+40 B
+41 DOWN 0.1    # the fourth
+42 A
+45 B
+46 DOWN 0.1    # the fifth
+47 A
+50 B
+51 DOWN 0.1    # down to quit (item 7)
+51.5 DOWN 0.1
+52 DOWN 0.1
+53 A           # quit: are you sure?
+54 RIGHT 0.1   # yes
+55 A           # the race is retired: _EndGame, the results, the game over screen
