@@ -646,7 +646,14 @@ s8 func_80094FC4(s32 pak) {
     return D_80144030[pak].busy;
 }
 extern u8 D_80152020[];        /* GC gGhostFiles (list head at +8) */
+#ifdef TARGET_PC
+void track_render_process(s32 forceUpdate, s32 rumbleOnly);
+/* SaveServer calls it before touching a0/a1, so on the N64 it receives SaveServer's own forceUpdate and
+ * rumbleOnly; the decomp's call passes nothing (docs/port/PROTOTYPES.md). */
+#define track_render_process() track_render_process(forceUpdate, rumbleOnly)
+#else
 void track_render_process(void);
+#endif
                  /* GC PS_PakServer */
 s32 func_800950AC(char *, char *, s32);          /* strncmp */
 Handle func_800C7200(void);                      /* GC _NewGhost */

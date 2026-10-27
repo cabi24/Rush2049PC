@@ -89,14 +89,22 @@ s32 func_80395E24(s32 skip,Profile **owner)
     if(owner)for(i=0;i<D_8014A108;i++)if(i!=skip && owner==D_8014A118[i].owner)found=1;
     return found;
 }
-s32 func_80396EE8(s32 skip)
+#ifdef TARGET_PC
+/* func_80396EE8/func_80396F44 (playerBeingDeleted/Created) take `skip` in a1 under IDO's IPA: their owners
+ * (src/ovl_a/func_80396EE8.c, func_80396F44.c) read it as a second parameter after a dummy, and these calls
+ * pass it alone. On the PC the dummy is explicit (docs/port/PROTOTYPES.md). */
+#define PC_IPA_A0 s32 pc_a0,
+#else
+#define PC_IPA_A0
+#endif
+s32 func_80396EE8(PC_IPA_A0 s32 skip)
 {
     s8 i;
     s32 found=0;
     for(i=0;i<D_8014A108;i++)if(i!=skip && D_803BACE0[i]==4)found=1;
     return found;
 }
-s32 func_80396F44(s32 skip)
+s32 func_80396F44(PC_IPA_A0 s32 skip)
 {
     s8 i;
     s32 found=0;
@@ -104,8 +112,12 @@ s32 func_80396F44(s32 skip)
     return found;
 }
 s32 func_80395E24(s32,Profile **);
-s32 func_80396F44(s32);
-s32 func_80396EE8(s32);
+s32 func_80396F44(PC_IPA_A0 s32);
+s32 func_80396EE8(PC_IPA_A0 s32);
+#ifdef TARGET_PC
+#define func_80396EE8(skip) func_80396EE8(0, skip)
+#define func_80396F44(skip) func_80396F44(0, skip)
+#endif
 void func_803A7B58(s32 player)
 {
     s32 draw_x,y,x;
