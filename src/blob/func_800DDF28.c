@@ -3653,6 +3653,12 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
+#ifdef TARGET_PC
+/* lui 0x8015 base of D_80149B64[arg0]; the symbol lives in an N64-layout arena on PC */
+#define N64_HI_80150000 ((intptr_t) &D_80149B64 + 0x649C)
+#else
+#define N64_HI_80150000 0x80150000
+#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))
@@ -3708,5 +3714,5 @@ s8 func_800DDF28(s32 arg0) {
         }
         return 1;
     }
-    return M2C_FIELD((arg0 + 0x80150000), s8 *, -0x649C);
+    return M2C_FIELD((arg0 + N64_HI_80150000), s8 *, -0x649C);
 }
