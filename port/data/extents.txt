@@ -49,3 +49,8 @@ D_8011A840 0x4C
 # By the gap the table was one row, and the rows after it kept the ROM's byte order: a battle car's drive torque
 # came out near 1e26 and its wheels never turned.
 D_80110EBC 0xC0
+# The player screens' model slots (image A, Slot64[players][22]: unknown0 picks the model name): four players. A
+# known address 0x1080 in left the extent at three, and the fourth player's slots kept the ROM's byte order (a
+# four-player game faulted on its model names). The table ends at D_803B5D0C; D_803B5CFC's row 0, which is never
+# read, lies in its last 16 bytes.
+D_803B470C 0x1600

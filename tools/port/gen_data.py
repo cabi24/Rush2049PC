@@ -1027,6 +1027,8 @@ OVERLAPS_REVIEWED = {
     ("D_8011AC84", "D_8011A994"): "&buttonInfo[11].pos, the video screen's title position (f32)",
     ("D_803B5CFC", "D_803B5D2C"): "read as [n][0] for n = 1..4 players, in D_803B5D50; row 0 never",
     ("D_803B4679", "D_803B467C"): "read as [n][i] for n = 1..4 players, after D_803B467C; row 0 never",
+    ("D_803B5CFC", "D_803B470C"): "read as [n][0] for n = 1..4 players; row 0's first 16 bytes are the model slots' "
+                                  "last (extents.txt), which keep theirs",
 }
 
 

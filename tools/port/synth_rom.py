@@ -1136,6 +1136,16 @@ def front_end(c):
         for i in range(n):
             c.set("game", sym, "ptr", empty, "a car select name: the empty one" if i == 0 else "(same)", index=i)
 
+    # The player screens' model slots (D_803B470C, image A, Slot64[4][22]: unknown0 picks the model name from
+    # D_803B46DC, id -1 makes it): every player's, the fourth's too, with name 1 (NULL there: AAANULLOBJ). The value
+    # reads 0x01000000 in the ROM's byte order, past the names (BRINGUP.md 12).
+    for p in range(4):
+        for j in range(22):
+            first = p == 0 and j == 0
+            c.set("ovl_a", "D_803B470C", "u32", 1, "a player screen model slot: name 1" if first else "(same)",
+                  offset=0x40 * (22 * p + j))
+            c.set("ovl_a", "D_803B470C", "u32", 0xFFFFFFFF, "(same): id -1, to be made", offset=0x40 * (22 * p + j) + 4)
+
     # The track select's fog (BlowFog, func_8038A634): with option 14 valid for a single race (validOption,
     # D_803B77D4[gRace][21], image A, s32), the screen makes a blit of the texture named D_803B9260 (image A, char[])
     # whose palette is D_803BA1E8, a Palette whose colour table is the word at +0x14 (D_803BA1FC): FOG, an IA texture,
