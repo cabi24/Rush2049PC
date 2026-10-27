@@ -275,8 +275,11 @@ also makes a **draft** GitHub release with them, which a person checks and publi
   - SDL2 is built with the X11, Wayland, libdecor, PulseAudio, PipeWire, ALSA, udev and D-Bus headers there and
     linked statically. It loads those libraries at run time (SDL's default), so the program runs without them,
     and with a window wherever they are.
-  - The program itself links the system's libc, libm, zlib, EGL and GLES (through GLVND or Mesa), and ALSA's
-    libasound (port/audio's ALSA output). The job prints the list (`readelf -d`).
+  - The program itself needs only `libc.so.6`, `libm.so.6`, `libz.so.1`, `libEGL.so.1` (GLES comes through EGL)
+    and `libasound.so.2` (port/audio's ALSA output), and glibc symbols up to `GLIBC_2.35`. The job prints both
+    (`readelf -d`, `objdump -T`).
+  - The tarball needs CMake 3.24 to build (`$<LINK_LIBRARY:WHOLE_ARCHIVE>`), and Ubuntu 22.04 has 3.22: the job
+    installs CMake 3.30.5 from PyPI. Configuring with an older CMake now stops with that message.
   - **No AppImage.** It would need FUSE on the player's system (or an extract step), and it must not carry
     GL, which comes from the player's driver. A folder with one program, which needs only what every desktop
     has, is as portable and simpler.
@@ -296,7 +299,12 @@ also makes a **draft** GitHub release with them, which a person checks and publi
   branch, a dispatch on another branch gets HTTP 404. One push of a commit with a temporary `push` trigger, to
   the CI branch only, registers it.
 
-**Results:** release run 40572061761 (workflow_dispatch on `port-release`, commit edc9445): `windows` 1 min 36 s,
-then `windows-check` unzipped the zip and passed the self-test (26 of 26) and the boot without a ROM (waves 0, 6, 7,
-8, then the blank cartridge's access violation at 0xC, as in pc.yml). pc.yml run 40572065582 on the same commit
-passed every job.
+**Results** (workflow_dispatch on `port-release`):
+
+| Commit | Release run | pc.yml run | What was new |
+|---|---|---|---|
+| edc9445 | 40572061761 | 40572065582 | the Windows zip; unzipped: the self-test (26 of 26), the boot without a ROM |
+| 590baca | 40574335614 | 40574338828 | the ROM lookup and its messages |
+| d69f864 | 40576309316 | 40576314199 | the log: on windows-latest the zip's exe wrote `rush2049pc.log` with its header, the fault line and a symbolized backtrace; `--version` named the Actions run; the forced wait |
+| 72d47b5 | 40578906382 | 40578911258 | the data folder; the zip's empty ini filled by the first run |
+| 12bf09a | 40579937190 | | the Linux tarballs, x86-64 and aarch64, built in Ubuntu 22.04 and run on Fedora 40: `--version`, the self-test, the first run, the boot without a ROM on llvmpipe with its fault and backtrace in the log |
