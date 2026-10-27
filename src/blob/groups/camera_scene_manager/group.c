@@ -4109,9 +4109,9 @@ void func_800C3578(s32 idx) {
 }
 /* camera_scene_manager: NOT matched. */
 #ifdef TARGET_PC
-/* The manifest owners of func_800C2418, func_800C2420, func_800C2428 are empty deleted-procedure stubs (src/blob/func_800C2418.c, src/blob/func_800C2420.c, src/blob/func_800C2428.c),
- * which this group's calls bind to on PC. The bodies written here get their own names
- * (docs/port/PROTOTYPES.md). */
+/* The manifest owners of func_800C2418, func_800C2420 and func_800C2428 are empty deleted-procedure
+ * stubs (src/blob/func_800C2418.c, func_800C2420.c, func_800C2428.c), which this group's calls bind
+ * to on PC. The bodies written here get their own names (docs/port/PROTOTYPES.md). */
 #define func_800C2418 pc_func_800C2418
 #define func_800C2420 pc_func_800C2420
 #define func_800C2428 pc_func_800C2428

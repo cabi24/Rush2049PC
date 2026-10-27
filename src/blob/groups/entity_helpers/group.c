@@ -55,8 +55,8 @@ s32 entity_state_check(s32);
 
 Entity *func_80091BA8(s32 h);
 #ifdef TARGET_PC
-/* The manifest owners of func_800BF01C are empty deleted-procedure stubs (src/blob/func_800BF01C.c),
- * which this group's calls bind to on PC. The bodies written here get their own names
+/* The manifest owner of func_800BF01C is an empty deleted-procedure stub (src/blob/func_800BF01C.c),
+ * which this group's calls bind to on PC. The body written here gets its own name
  * (docs/port/PROTOTYPES.md). */
 #define func_800BF01C pc_func_800BF01C
 #endif
