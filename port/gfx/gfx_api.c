@@ -12,7 +12,7 @@
 #include "gfx_internal.h"
 #include "pc_port.h"
 
-GfxConfig pcgfx_cfg = {1, 1, 0.0f, 0.0f, 0, 0};
+GfxConfig pcgfx_cfg = {1, 1, 0.0f, 0.0f, 0, 0, 0};
 
 void pcgfx_rdp_new_frame(void);
 void pcgfx_rdp_forget_targets(void);
@@ -104,6 +104,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
         pcgfx_cfg.internal_scale = 1;
     pcgfx_cfg.frame_height = env_int("RUSH_GFX_HEIGHT", pcgfx_cfg.frame_height);
     pcgfx_cfg.verbose = env_int("RUSH_GFX_VERBOSE", pcgfx_cfg.verbose);
+    pcgfx_cfg.trace_task = env_int("RUSH_GFX_TRACE", 0);
     if (getenv("RUSH_GFX_WIDESCREEN") != NULL) {
         int ok;
         float a = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);

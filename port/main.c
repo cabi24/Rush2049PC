@@ -5,6 +5,7 @@
  * (port/data), opens the renderer (port/gfx) and live input (port/input), then starts the game's own main
  * (0x800020F0, compiled as n64_main) on an N64 thread and runs the host main loop (port/ultra/loop.c) until the
  * window closes or a limit is reached. */
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +33,9 @@ static void usage(FILE *f)
             "  --size WxH          window size (default 640x480)\n"
             "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
-            "  --seconds N         stop after N seconds\n"
+            "  --seconds N         stop after N seconds (of game time with --fast)\n"
+            "  --fast              run as fast as the host can: the N64 clock moves on only while every N64\n"
+            "                      thread waits, so a run is the same on any host (tests, scripted runs)\n"
             "  --frames N          stop after N graphics tasks (at the retrace that shows the last)\n"
             "  --screenshot-at N   save a PNG once N graphics tasks have run (--screenshot PATH, default\n"
             "                      rush2049pc-N.png)\n"
@@ -113,13 +116,38 @@ static uint32_t game_state(void)
     return *(volatile uint32_t *)&state_word_a;
 }
 
+/* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
+ * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second),
+ * so a scripted run shows which path it took and whether the car moved. */
+extern int16_t active_player_count, gNumWindows;
+extern int32_t gameplay_mode;
+extern int8_t D_80152744, D_8014978C;
+extern uint8_t D_8014A250[];   /* the model records (0x808 bytes, N64 layout): RWV at +0x220, RWR at +0x22C */
+extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 its screens */
+
+static void game_info(char *out, size_t size)
+{
+    const volatile float *v = (const volatile float *)(D_8014A250 + 0x220), *r = v + 3;
+    double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
+    snprintf(out, size, "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f %.0f, "
+             "speed %.0f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
+             *(volatile int8_t *)&D_80152744, (int)*(volatile int32_t *)&gameplay_mode, *(volatile int8_t *)&D_8014978C,
+             (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed);
+}
+
+/* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
+static double fast_clock(void)
+{
+    return pc_host_ns() / 1e9;
+}
+
 #define MAX_OVERRIDES 64
 
 int main(int argc, char **argv)
 {
     const char *dump_audio = getenv("RUSH2049_DUMP_AUDIO"), *config = NULL;
     int no_rom = 0, headless = !getenv("DISPLAY") && !getenv("WAYLAND_DISPLAY"), selftest = 0, use_config = 1;
-    int print_config = 0;
+    int print_config = 0, fast = 0;
     PcRunOptions run = {0};
     PcSettingValue over[MAX_OVERRIDES + 1];   /* the command line's settings, in order; [0] for a press file */
     int nover = 1;
@@ -171,6 +199,8 @@ int main(int argc, char **argv)
             run.screenshot = ARG();
         else if (!strcmp(a, "--seconds"))
             run.seconds = atof(ARG());
+        else if (!strcmp(a, "--fast"))
+            fast = 1;
         else if (!strcmp(a, "--frames"))
             run.frames = (uint32_t)atoi(ARG());
         else if (!strcmp(a, "--stop-at-gfx"))
@@ -292,8 +322,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "rush2049pc: cannot map the RDRAM window\n");
         return 1;
     }
-    if (selftest)
+    if (selftest) {
+        pc_time_set_virtual(fast);
         return pc_selftest();
+    }
 
     if (no_rom ? pc_rom_blank() != 0 : pc_rom_load(cfg.rom, cfg.rom_check) != 0)
         return 1;
@@ -320,6 +352,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
 
     run.game_state = game_state;
+    run.game_info = game_info;
+    if (fast) {
+        pc_time_set_virtual(1);
+        pc_audio_set_clock(fast_clock);
+    }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
     pc_input_shutdown();

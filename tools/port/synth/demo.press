@@ -1,0 +1,6 @@
+# The attract demo (state 8): nobody presses START at the start prompt, which after 5 s starts a demo race with
+# the drones on track 0, 30 s long, and goes back to the prompt (docs/port/SYNTH.md 2).
+# until: 0x8:900
+# seconds: 90
+# expect: state=0x00000008: players 1, windows 1, cars 6, mode 0, track 0
+5 A            # the controller pak warning; the start prompt (4) times out at 10 s

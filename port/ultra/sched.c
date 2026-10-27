@@ -11,7 +11,11 @@
  *
  * State lives in side tables keyed by the game's object addresses. Nothing is written into the game's
  * OSThread or OSMesgQueue: they are N64-sized in the BSS arenas, and the native structs are larger. Message
- * buffers are host-side for the same reason (OSMesg slots are 8 bytes here, 4 in the game's arrays). */
+ * buffers are host-side for the same reason (OSMesg slots are 8 bytes here, 4 in the game's arrays).
+ *
+ * With --fast (timer.c's virtual clock) the main thread moves the clock to its next deadline only when the
+ * system is idle: no thread holds the baton, or its holder waits for events with nothing else runnable. Each
+ * change to idle wakes the main thread for that. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <pthread.h>
@@ -52,6 +56,7 @@ typedef struct PcThread {
     PcQueue *wait_q;           /* blocked in recv (wait_send 0) or send (1) on this queue */
     int wait_send;
     int event_wait;            /* holds the baton but waits for an event (idle, spin yield) */
+    uint64_t nap_until;        /* --fast: a busy-wait's nap ends at this time of the virtual clock */
     uint32_t spins;            /* consecutive busy-wait yields with nothing to run */
     char name[24];
 } PcThread;
@@ -189,6 +194,28 @@ static PcQueue *queue_used(const void *key)
 
 /* ---------------------------------------------------------------- the baton (lock held) */
 
+static PcThread *best(const PcThread *except);
+
+/* --fast: nothing will happen until the main thread sends an event, so it may move the clock on. The holder of
+ * the baton waits for events and no thread that would take it over is runnable (a lower-priority one runs only
+ * after a busy-wait's 200 naps). */
+static int system_idle(void)
+{
+    if (!g_running)
+        return 1;
+    PcThread *b = best(g_running);
+    return g_running->event_wait && !(b && b->pri >= g_running->pri);
+}
+
+static void main_signal(void);
+
+/* --fast: the system may have become idle; the main thread looks again. */
+static void idle_changed(void)
+{
+    if (pc_time_virtual())
+        main_signal();
+}
+
 static PcThread *best(const PcThread *except)
 {
     PcThread *b = NULL;
@@ -244,6 +271,8 @@ static void switch_from(PcThread *self)
     g_running = NULL;
     if (next)
         give(next);
+    else
+        idle_changed();
     while (g_running != self)
         pthread_cond_wait(&self->cv, &g_lock);
 }
@@ -588,7 +617,16 @@ void pc_os_spin_yield(const char *site)
     PcThread *b = best(self);
     if (!(b && b->pri >= self->pri)) {
         self->event_wait = 1;
-        nap(&self->cv, 1000000);
+        if (pc_time_virtual()) {
+            /* 1 ms of the virtual clock: the main thread moves it on and wakes us (wait_main_virtual) */
+            self->nap_until = pc_host_ns() + 1000000;
+            idle_changed();
+            while (pc_host_ns() < self->nap_until && !((b = best(self)) && b->pri >= self->pri))
+                pthread_cond_wait(&self->cv, &g_lock);
+            self->nap_until = 0;
+        } else {
+            nap(&self->cv, 1000000);
+        }
         self->event_wait = 0;
         b = best(self);
     }
@@ -633,16 +671,55 @@ void pc_os_idle(void)
             break;
         }
         self->event_wait = 1;
+        idle_changed();
         pthread_cond_wait(&self->cv, &g_lock);
         self->event_wait = 0;
     }
     pthread_mutex_unlock(&g_lock);
 }
 
+/* --fast: wait for a wake-up, or for the system to go idle and then move the clock to the deadline. At most
+ * 100 ms of real time, so that the main loop sees a run that stopped moving the clock (a hang). */
+static void wait_main_virtual(uint64_t deadline_ns)
+{
+    uint64_t until = pc_real_ns() + 100000000u;
+    pthread_mutex_lock(&g_lock);
+    while (!g_main_wake && pc_real_ns() < until) {
+        if (system_idle()) {
+            PcThread *t = g_running;
+            if (t && t->nap_until && t->nap_until < deadline_ns)
+                deadline_ns = t->nap_until;   /* a busy-wait's nap ends first */
+            pc_time_advance(deadline_ns);
+            if (t && t->nap_until)
+                pthread_cond_signal(&t->cv);
+            break;
+        }
 #ifdef _WIN32
+        pthread_mutex_unlock(&g_lock);
+        WaitForSingleObject(g_main_event, 1);
+        pthread_mutex_lock(&g_lock);
+#else
+        nap(&g_main_cv, 1000000);
+#endif
+    }
+    g_main_wake = 0;
+    pthread_mutex_unlock(&g_lock);
+}
+
+#ifdef _WIN32
+static void main_signal(void)
+{
+    if (g_main_event)
+        SetEvent(g_main_event);
+}
+
 /* The main thread's wake-up is an auto-reset event, so a wake between the check and the wait isn't lost. */
 void pc_os_wait_main(uint64_t deadline_ns)
 {
+    if (pc_time_virtual()) {
+        wait_main_virtual(deadline_ns);
+        return;
+    }
     pthread_mutex_lock(&g_lock);
     uint64_t now = pc_host_ns();
     int wait = !g_main_wake && deadline_ns > now;
@@ -665,8 +742,14 @@ void pc_os_wake_main(void)
     pthread_mutex_unlock(&g_lock);
 }
 #else
+static void main_signal(void) { pthread_cond_signal(&g_main_cv); }
+
 void pc_os_wait_main(uint64_t deadline_ns)
 {
+    if (pc_time_virtual()) {
+        wait_main_virtual(deadline_ns);
+        return;
+    }
     pthread_mutex_lock(&g_lock);
     uint64_t now = pc_host_ns();
     if (!g_main_wake && deadline_ns > now)

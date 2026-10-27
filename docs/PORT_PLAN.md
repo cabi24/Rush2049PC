@@ -227,6 +227,24 @@ Numbers: 105 tests on x86-64 Linux with SDL2, 0 harmful prototype mismatches, 32
 classified), 0 neutrality failures in 987 changed files, 0 objects that differ under IDO. The synthetic cartridge
 reaches a race; `--no-rom` (all zeros) still stops in AudioSfxInit, as it should.
 
+## Fifth session results (2026-10-27)
+
+The synthetic cartridge widened ([port/SYNTH.md](port/SYNTH.md)):
+
+| Part | What it does |
+|---|---|
+| The virtual clock | `--fast`: the N64 clock moves on only while every thread waits, so a run is as fast as the host allows (the race's 28 s in about 0.4 s) and the same on any host to within a graphics task ([port/ULTRA.md](port/ULTRA.md) 1). The self-test runs on it too |
+| Paths | press scripts in `tools/port/synth` say what to reach; `tools/port/synth_paths.py` runs and checks them (the state, players, windows, cars, mode and track, the states on the way, a non-NaN car, screenshots). 14 paths: the front end and its screens, races for 1-4 players in split screen, circuit, stunt, battle (two players, weapon icons as power-ups), the attract demo, driving, the pause screen and its four screens, a retirement through results and the game over screen back to the main menu, a controller pak. About 45 s in all on the build host, 36 of them the one real-time race |
+| Pictures | a VI mode that shows, the screen size, the elementary functions' constants (computed), models that draw (a 4000-foot ground, car-sized boxes), flat pavement under it, the HUD's speedometer: `--screenshot-at` of a race shows the game's display lists, matrices and viewports; `synth_shot.py` checks one, two and four views |
+| Tools | the state log names the players, windows, cars, mode, track, pause state and the first car's position; `RUSH_TRAP_FP` traps the first invalid floating-point operation; `RUSH_GFX_TRACE=N` prints a graphics task's commands; `index_check.py` finds initialized tables indexed past a scalar declaration |
+| Windows | the synthetic paths in the native job's ctest and, with the cross-built program, in `windows-run` (not yet run) |
+
+Port bugs found and fixed, each with a test: `effect_system_init` walked the player records up to the address of the
+next symbol, which has its own storage on the PC (`assets_effects`); the car masses, the car tunes and `D_801117B4`
+were indexed past their one-element declarations, so the loader would have left all but the first element in the
+ROM's byte order (`index_check`). Also: gSongNames' extent (131 pointers by the gap, 12 by the code). The rest of the
+40-odd stops were data the cartridge lacked, now synthesized and documented (SYNTH.md 3).
+
 ## Next
 
 1. **The ROM.** Put `baserom.us.z64` in the repository root (git-ignored). Then:

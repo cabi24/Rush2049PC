@@ -32,3 +32,11 @@ D_8012E688 8        # s64, object_render.c (both copies)
 D_80146180 4        # s8[4], func_800DE45C.c
 D_80149AF8 8        # s8[4][2] (gStickCal), func_800E7038.c
 D_8014A250 0x3030   # Car[6] of 0x808, world_physics_tick.c
+# Tables the code indexes past their declaration (tools/port/index_check.py, docs/port/SYNTH.md 3): the car tunes,
+# three 44-byte Tune44 records (func_800D0B14 reads ((F2C *)&D_801116D4)[tune], D_801116D4 being record 0's +4; the
+# declarations leave one record, and the other two kept the ROM's byte order).
+D_801116D0 0x84
+# gSongNames: the twelve songs' names (audio_calcMenuRect reads [0..11], the audio screen [D_80110640]). By the gap
+# the declaration ran 131 pointers to the next known address, so the loader turned 119 words of whatever follows into
+# pointer slots of its own storage.
+D_80110030 0x30

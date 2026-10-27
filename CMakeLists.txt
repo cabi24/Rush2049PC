@@ -365,23 +365,25 @@ endfunction()
 pc_link_scripts(rush2049pc ${PC_DATA_DIR}/aliases.ld ${PC_DATA_PE_OUTPUTS})   # PE: data.c's weak references
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
+add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
 # The synthetic test cartridge (tools/port/synth_rom.py, docs/port/SYNTH.md): original, minimal data, generated into
-# the build directory from the data report. synth_boot_menu boots it to the front end's mode screen (state 0x40)
-# and runs 240 more frames there; synth_boot_race goes on through the track and car selects into a race on an empty
-# track (0x400000) and runs 300 frames of it. The presses take the pak warning, the player screen, the mode, the
-# track and the car. Linux only for now.
-if(NOT WIN32)
-    set(SYNTH_ROM ${CMAKE_BINARY_DIR}/synth/rush2049_synth.z64)
-    set(SYNTH_RUN rush2049pc --rom ${SYNTH_ROM} --no-rom-check --headless --no-config --audio null --no-pak)
-    add_test(NAME synth_rom COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/synth_rom.py --out ${SYNTH_ROM}
-        --data-symbols ${PC_DATA_DIR}/data_symbols.txt)
-    set_tests_properties(synth_rom PROPERTIES FIXTURES_SETUP synth_rom)
-    add_test(NAME synth_boot_menu COMMAND ${SYNTH_RUN} --press 5:A,8:A --until-state 0x40:240 --seconds 45)
-    add_test(NAME synth_boot_race COMMAND ${SYNTH_RUN} --press 5:A,8:A,11:A,14:A,17:A --until-state 0x400000:300
-        --seconds 75)
-    set_tests_properties(synth_boot_menu synth_boot_race PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/synth)
-endif()
+# the build directory from the data report. synth_boot_<path> drives the game along one of its paths with the press
+# script tools/port/synth/<path>.press (the races for 1-4 players, circuit, stunt, battle, the attract demo, the pause
+# screen, the end of a race...), through tools/port/synth_paths.py: the script's leading comments say which state to
+# reach, for how many frames, what the state log must say there (players, windows, cars, mode, track), and which
+# screenshot checks to make. Most run on the virtual clock (--fast, about a second each); synth_boot_race runs in real
+# time (28 s). On Windows too (CI's native job).
+set(SYNTH_ROM ${CMAKE_BINARY_DIR}/synth/rush2049_synth.z64)
+add_test(NAME synth_rom COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_rom.py --out ${SYNTH_ROM}
+    --data-symbols ${PC_DATA_DIR}/data_symbols.txt)
+set_tests_properties(synth_rom PROPERTIES FIXTURES_SETUP synth_rom)
+file(GLOB SYNTH_PATHS CONFIGURE_DEPENDS ${PORT_TOOLS}/synth/*.press)
+foreach(script ${SYNTH_PATHS})
+    get_filename_component(name ${script} NAME_WE)
+    add_test(NAME synth_boot_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_paths.py
+        --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths ${name})
+    set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150)
+endforeach()
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
@@ -561,6 +563,9 @@ if(NOT WIN32)
     add_test(NAME layout_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/layout_check.py --build ${CMAKE_BINARY_DIR}
         --selftest)
 endif()
+# tools/port/index_check.py: initialized data the code indexes past a scalar declaration must have the table's extent
+# in the data report, or its other elements keep the ROM's byte order (docs/port/SYNTH.md 3).
+add_test(NAME index_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/index_check.py --build ${CMAKE_BINARY_DIR})
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game

@@ -53,7 +53,21 @@ does, and is logged.
 once and logs the site. That escape exists for writers the N64 would have run from an interrupt; the self-test
 exercises both paths.
 
+**The virtual clock (`--fast`).** By default the N64 clock is the host's. With `--fast` it is virtual
+(`timer.c`): it stands still while a thread computes, and when the system is idle the main thread moves it straight
+to its next deadline (a retrace, a timer, the AI) instead of sleeping. Idle means no thread holds the baton, or the
+holder waits for events and nothing that would take the baton over is runnable (a lower-priority thread doesn't
+count: it runs only through the busy-wait escape). Each change to idle wakes the main thread (`idle_changed`). A
+busy-wait's 1 ms nap is 1 ms of the virtual clock, so its 200 ms escape keeps its length. Timers, `osGetTime`, the
+AI, scripted presses, `--seconds` and the null audio output's drain all run on the virtual clock; the renderer and
+the RSP tasks take no N64 time. A run is then as fast as the host allows (the synthetic race's 28 s in about
+0.4 s) and the same on any host, to within a graphics task. A run whose clock stops for 30 s of real time (a thread
+computing without a libultra call) is stopped as hung, with the threads' states. The self-test runs on it too
+(`--selftest --fast`, CTest `ultra_selftest_fast`).
+
 `--trace-os` logs every switch and blocking call. Ctrl-\ (SIGQUIT) prints every thread's state and what it waits on.
+With `RUSH_TRAP_FP` set (glibc), every host thread traps the first invalid floating-point operation or division by
+zero (SIGFPE, reported with a backtrace like any fault): where a NaN or an infinity starts.
 
 ## 2. Memory
 
@@ -180,7 +194,8 @@ loop on the host main thread.
 | `--rom PATH`, `--no-rom-check`, `--no-rom` | the ROM; run another dump; bring-up on a blank cartridge (data stays zero) |
 | `--headless`, `--window` | EGL surfaceless (default without `DISPLAY`/`WAYLAND_DISPLAY`); an SDL2 window |
 | `--seconds N`, `--frames N`, `--stop-at-gfx` | stop after N s, N graphics tasks, or at the first one |
-| `--until-state MASK[:N]` | stop once the game's state word (gGameState) has a bit of MASK and N more graphics tasks have run; with `--seconds`, not getting there is exit code 1. Every change of the state word is logged ([SYNTH.md](SYNTH.md)) |
+| `--fast` | the virtual clock (section 1): as fast as the host can, the same run on any host; `--seconds` is game time |
+| `--until-state MASK[:N]` | stop once the game's state word (gGameState) has a bit of MASK and N more graphics tasks have run; with `--seconds`, not getting there is exit code 1. Every change of the state word is logged, with the players, windows, cars, mode (gRace) and track, and the first car's position and speed ([SYNTH.md](SYNTH.md)) |
 | `--screenshot-at N`, `--screenshot PATH` | a PNG once N graphics tasks have run (default `rush2049pc-N.png`) |
 | `--press T:BUTTON[@PORT][:DUR],...`, `--press-file PATH` | scripted input in v5's format |
 | `--pak PATH`, `--no-pak`, `--rumble`, `--expansion-pak` | accessories; 8 MiB of RDRAM |
@@ -296,7 +311,8 @@ the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
 
-- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 26 of 26 in about 1 s. It covers:
+- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 26 of 26 in about 1 s; `--selftest --fast`
+  (`ultra_selftest_fast`) runs the same on the virtual clock, with one check more, in under 0.1 s. It covers:
   - threads: preemption on start, priorities, FIFO among equals and yield, `osSetThreadPri` both ways,
     `osStopThread` on a waiting thread;
   - queues: FIFO, jam, full and empty, a blocking send;

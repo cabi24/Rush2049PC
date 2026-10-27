@@ -230,6 +230,7 @@ typedef struct {
     float aspect;           /* the aspect in effect (the window's for < 0), taken at each color image; 0 = 4:3 */
     int verbose;
     int frame_height;       /* rows shown; 0 = the largest scissor bottom drawn with */
+    int trace_task;         /* RUSH_GFX_TRACE: print every command of this graphics task (1 = the first); 0 none */
 } GfxConfig;
 extern GfxConfig pcgfx_cfg;
 

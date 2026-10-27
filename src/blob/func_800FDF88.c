@@ -883,7 +883,15 @@ extern s32 D_8011176C;
 extern s32 D_80111784;
 extern s32 D_80111794;
 extern s32 D_801117A4;
+#ifdef TARGET_PC
+/* PC: a table of four, indexed below as (&D_801117B4)[arg0] (the gap to D_801117C4). Declared as one, the loader
+ * converted only the first and left the other three in the ROM's byte order; the name stands for its first element,
+ * so the code reads as before (docs/port/SYNTH.md 3). */
+extern s32 D_801117B4[4];
+#define D_801117B4 D_801117B4[0]
+#else
 extern s32 D_801117B4;
+#endif
 extern s32 D_801117C4;
 extern s32 D_801118E4;
 extern s8 D_8011194C;

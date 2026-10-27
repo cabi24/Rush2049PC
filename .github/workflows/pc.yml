@@ -58,16 +58,14 @@ jobs:
           grep -q "wave 0 loaded" boot.log
       - name: Boot the synthetic cartridge
         # tools/port/synth_rom.py writes a cartridge of original, minimal data (docs/port/SYNTH.md). The game boots
-        # on it through the front end's screens into a race on an empty track and runs 300 frames of it; the run
-        # fails if it faults or doesn't get there in time. (ctest's synth_boot_menu and synth_boot_race do the same.)
+        # on it through the front end's screens into each of the paths the press scripts in tools/port/synth take
+        # (races for 1-4 players, circuit, stunt, battle, the attract demo...) and runs each for a while, on the
+        # virtual clock (--fast); the step fails if one faults or doesn't get there. The one-player race also runs
+        # in real time. (ctest's synth_boot_* do the same; this keeps the logs.)
         run: |
           python3 tools/port/synth_rom.py
-          status=0
-          RUSH_TRACE_WAVES=1 build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headless \
-            --no-config --audio null --no-pak --press 5:A,8:A,11:A,14:A,17:A --until-state 0x400000:300 \
-            --seconds 75 > synth.log 2>&1 || status=$?
-          grep -v "wave .* loaded\|wad .* converted" synth.log || true
-          exit $status
+          python3 tools/port/synth_paths.py --exe build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 \
+            --logs build/synth/paths
       - name: Census
         run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20
       - uses: actions/upload-artifact@v4
@@ -76,7 +74,7 @@ jobs:
           name: logs-${{ matrix.os }}
           path: |
             boot.log
-            synth.log
+            build/synth/paths/
             build/synth/rush2049_synth.txt
             build/pc/pc-data/data_layout.txt
           if-no-files-found: ignore
@@ -108,13 +106,16 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-cross
-          path: build/win/rush2049pc.exe
+          # The executable, and its data report, from which windows-run generates the synthetic cartridge.
+          path: |
+            build/win/rush2049pc.exe
+            build/win/pc-data/data_symbols.txt
           if-no-files-found: error
 
   windows-run:
-    # The cross-compiled program on Windows: the self-test and the boot without a ROM. Mesa's opengl32.dll
-    # (llvmpipe, from mesa-dist-win) next to it gives the headless WGL context a GL 3 driver on a runner without
-    # a GPU.
+    # The cross-compiled program on Windows: the self-test, the boot without a ROM and the synthetic cartridge's
+    # paths (generated here from the cross build's data report). Mesa's opengl32.dll (llvmpipe, from
+    # mesa-dist-win) next to it gives the headless WGL context a GL 3 driver on a runner without a GPU.
     needs: windows-cross
     runs-on: windows-latest
     env:
@@ -142,11 +143,27 @@ jobs:
             --audio null --seconds 10 > boot.log 2>&1 || true
           cat boot.log
           grep -q "wave 0 loaded" boot.log
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Boot the synthetic cartridge
+        # As on Linux (docs/port/SYNTH.md): the generator reads the build's data report, then each press script's
+        # path runs.
+        env:
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          python -X utf8 src/tools/port/synth_rom.py --data-symbols bin/pc-data/data_symbols.txt \
+            --out synth/rush2049_synth.z64
+          python -X utf8 src/tools/port/synth_paths.py --exe bin/rush2049pc.exe --rom synth/rush2049_synth.z64 \
+            --logs synth/paths
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: logs-windows-run
-          path: boot.log
+          path: |
+            boot.log
+            synth/paths/
+            synth/rush2049_synth.txt
           if-no-files-found: ignore
 
   windows:

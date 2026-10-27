@@ -1,0 +1,20 @@
+# The main menu's other screens, each entered with A and left with B (docs/port/SYNTH.md 2): its second to fifth
+# options (states 0x2000, 0x200, 0x800 and 0x1000), then back on the main menu.
+# until: 0x10:900
+# visits: 0x2000 0x200 0x800 0x1000
+# seconds: 120
+# expect: state=0x00000010: players 1, windows 1
+5 A            # the controller pak warning
+8 START        # the start prompt; the main menu from 8 s
+10 DOWN 0.1    # its second option
+11 A
+14 B           # back
+16 DOWN 0.1    # the third
+17 A
+20 B
+22 DOWN 0.1    # the fourth
+23 A
+26 B
+28 DOWN 0.1    # the fifth
+29 A
+32 B

@@ -1,0 +1,16 @@
+# One player, stunt mode (gRace 4) in its arena (track 14): image B ("Extra") is loaded for it
+# (docs/port/SYNTH.md 2).
+# until: 0x400000:600
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 1, mode 4, track 14
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+15 DOWN 0.1    # the mode screen: four modes down
+15.2 DOWN 0.1
+15.4 DOWN 0.1
+15.6 DOWN 0.1
+17 A           # stunt mode
+20 A           # the track select: the stunt arena
+23 A           # the car select

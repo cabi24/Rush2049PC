@@ -1,0 +1,16 @@
+# One player, a circuit (gRace 3): the mode screen's fourth mode, the circuit screen (0x4000), then the track and
+# car selects and a race with the drones (docs/port/SYNTH.md 2).
+# until: 0x400000:600
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 3, track 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+15 DOWN 0.1    # the mode screen: three modes down
+15.2 DOWN 0.1
+15.4 DOWN 0.1
+17 A           # the circuit
+20 A           # the circuit screen (0x4000)
+23 A           # the track select
+26 A           # the car select
