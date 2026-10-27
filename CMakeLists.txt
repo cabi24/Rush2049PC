@@ -352,6 +352,23 @@ target_link_options(rush2049pc PRIVATE "LINKER:-T,${PC_OVERLAYS_LD}")
 set_property(TARGET rush2049pc APPEND PROPERTY LINK_DEPENDS ${PC_OVERLAYS_LD})
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
+# The synthetic test cartridge (tools/port/synth_rom.py, docs/port/SYNTH.md): original, minimal data, generated into
+# the build directory from the data report. synth_boot_menu boots it to the front end's mode screen (state 0x40)
+# and runs 240 more frames there; synth_boot_race goes on through the track and car selects into a race on an empty
+# track (0x400000) and runs 300 frames of it. The presses take the pak warning, the player screen, the mode, the
+# track and the car. Linux only for now.
+if(NOT WIN32)
+    set(SYNTH_ROM ${CMAKE_BINARY_DIR}/synth/rush2049_synth.z64)
+    set(SYNTH_RUN rush2049pc --rom ${SYNTH_ROM} --no-rom-check --headless --no-config --audio null --no-pak)
+    add_test(NAME synth_rom COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/synth_rom.py --out ${SYNTH_ROM}
+        --data-symbols ${PC_DATA_DIR}/data_symbols.txt)
+    set_tests_properties(synth_rom PROPERTIES FIXTURES_SETUP synth_rom)
+    add_test(NAME synth_boot_menu COMMAND ${SYNTH_RUN} --press 5:A,8:A --until-state 0x40:240 --seconds 45)
+    add_test(NAME synth_boot_race COMMAND ${SYNTH_RUN} --press 5:A,8:A,11:A,14:A,17:A --until-state 0x400000:300
+        --seconds 75)
+    set_tests_properties(synth_boot_menu synth_boot_race PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/synth)
+endif()
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
