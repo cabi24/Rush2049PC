@@ -264,7 +264,10 @@ of `-O0` objects in every build type (optimized DWARF had dropped declarations);
 (`-fno-toplevel-reorder` on data.c) and `ambient_sounds_clear`'s walk ends at its own end; no fused multiply-adds and
 no loop bounds from declared array sizes in the game C; `tools/port/alias_check.py` for one storage under two names
 (three places given one name). `tools/port/synth_compare.py` compares two builds along the paths, to the bit
-(`RUSH_STATE_EXACT`). CI builds and compares both build types. Default build type: still Debug.
+(`RUSH_STATE_EXACT`). CI builds and compares both build types. The release archives are RelWithDebInfo; a local
+build's default type is still Debug. Found on the way and fixed after: the MusyX sequencer read the high byte of
+the current slot's word, so some controller messages (volume among them) of every sequence went to slot 0
+(OPTIMIZED.md section 8).
 
 ## Next
 
