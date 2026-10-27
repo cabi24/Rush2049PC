@@ -59,7 +59,7 @@ typedef struct {
 } PadState;              /* tPadState, 0x4C */
 typedef struct { s32 x, y, w, h, cx, cy; } PlayerRect;        /* 0x18 */
 
-s32 *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);   /* InitPane */
+s32 *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);   /* InitPane */
 void drone_target_update(s32);                                  /* SetControls */
 s32 entity_flags_apply(s32, s32, s32, u8);                       /* AudPlayEffect */
 s32 func_800A1910(u8 *, u8 *, u32);                              /* memcmp (size_t count) */

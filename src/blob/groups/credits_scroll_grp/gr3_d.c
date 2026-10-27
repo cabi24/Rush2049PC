@@ -38,7 +38,11 @@ void fcvt_wrapper(char *, char *, ...);
 s32 object_manager_update(char *, s32);
 s16 object_bytes_sum_global(void);
 void crowd_cheer_play(s32, s32, s32, s32, s32);
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+s32 ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+#else
 s32 ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
+#endif
 void render_helper(f32);
 void dispatch_handler(s32);
 void camera_auto_follow(s32, s32, s32, s32, s32, s32, char *);

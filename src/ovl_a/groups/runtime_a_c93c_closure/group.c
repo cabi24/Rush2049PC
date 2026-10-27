@@ -355,7 +355,7 @@ extern Color D_803B8354;           /* buildRaceTrackMaps static map vertex colou
 extern f32 D_803B8358[3],D_803B8364[3];  /* buildRaceTrackMaps static mapPos (x2) */
 extern f32 D_803B8370[3];          /* buildStuntTrackMaps static mapPos */
 extern f32 D_803B837C[3];          /* buildBattleTrackMaps static mapPos */
-extern s32 audio_frame_sync(s32,s32,s32,s32,s32);  /* LoadWave */
+extern s32 audio_frame_sync(s32,s32,s32,s32,intptr_t);  /* LoadWave */
 extern void *slot_value_get(s32);  /* GetWaveInstanceAddr */
 extern void audio_dsp_process(void);   /* ReadCheckpointData */
 extern void audio_effect_apply(void);  /* ReadPathData */

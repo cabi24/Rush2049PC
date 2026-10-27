@@ -151,7 +151,7 @@ differ:
 - *zcfree.* The game's deflate code defines `zcfree`. On Linux the shared zlib's is hidden, but a static zlib's is
   global, so on Windows the game's is compiled as `n64_zcfree`.
 
-## 4. LLP64
+## 4. LLP64 and the calling convention
 
 `long` is 32 bits on Windows, as on the N64.
 
@@ -172,17 +172,50 @@ differ:
 - *Formats.* On mingw-w64, a `printf` format attribute checks Microsoft's formats, so `pc_log` uses
   `__MINGW_PRINTF_FORMAT`; its printf family takes C99's `%zu`.
 
+**Stack arguments.** The Microsoft x64 convention passes the first four arguments in registers, whatever their
+class, and every later one in an 8-byte stack slot. Linux passes six integer arguments in registers (x86-64; eight
+on aarch64).
+
+- *What differs.* A caller whose prototype says `s32` stores 4 bytes of the slot (`movl $0, 0x20(%rsp)`). A
+  definition that reads a pointer there gets the upper half of whatever the slot held. In a register a 32-bit move
+  zero-extends, so on Linux a constant 0 for a pointer arrives as NULL, and [PROTOTYPES.md](PROTOTYPES.md) counted
+  such views harmless. `char` and `short` arguments are extended and stored as 4 bytes, so they are fine.
+- *What it broke.* Every synthetic boot faulted 0.4 s in, when `playgame_state_change` entered state 0x2:
+  `resource_slot_clear` calls `audio_frame_sync(id, 0, 0, 0, 0)` (LoadWave) through an all-`s32` prototype, and
+  the definition's fifth parameter is the heap. It read 0x00007FF6_00000000, the upper half of a host address left
+  in the slot, and `audio_helper` faulted reading the heap's first block at +8. The boot without a ROM stops before
+  that.
+- *The check.* `tools/port/proto_check.py --abi win64` applies the convention to a Linux build's DWARF and reports
+  such views as `stack` ([PROTOTYPES.md](PROTOTYPES.md) 3.6). It found 20 views of three functions, all passing a
+  constant 0: LoadWave's heap (5 views), InitPane's (`ambient_sound_set`) sixth argument, the pane's animation (14),
+  and one weak copy of `input_process_controller` whose only callers are matching stand-ins nothing calls. The first
+  two pass a pointer-sized argument on the PC now. Nothing harmful is left.
+- *Not checked.* Calls through function pointers, which proto_check doesn't see. The 14 synthetic paths (the front
+  end, races for 1-4 players, circuit, stunt, battle, the demo, the pause screens, the end of a race, a pak) run
+  without another fault.
+
 ## 5. Threads and time
 
 - **N64 threads** are winpthreads threads, as they are pthreads on Linux (`sched.c` unchanged in design).
-- **Timed waits don't use the system timer.** Its timeouts run at 15.6 ms by default, too coarse for a 60 Hz
-  retrace and the 1 ms busy-wait naps. On the windows-latest runner it stayed at 15.6 ms whatever was asked:
+- **Timed waits don't use winpthreads' timeouts.** winpthreads judges a timed wait's deadline by
+  `GetTickCount64`, which moves in 15.6 ms steps whatever the timer period. That is too coarse for a 60 Hz retrace
+  and the 1 ms busy-wait naps. When the scheduler used them:
   - the self-test's lower-writer busy-wait took 3.1 s, 200 naps of 15.6 ms;
   - a 100 ms OS timer fired 24 ms late.
 
-  That was with `timeBeginPeriod(1)`, and with the opt-out from Windows 11's power throttling of timer requests
-  (`SetProcessInformation` with `PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION`). The loop still makes both
-  requests.
+  Windows' own timeouts follow the timer period. The loop asks for 1 ms (`timeBeginPeriod(1)`, with the opt-out from
+  Windows 11's power throttling of timer requests, `SetProcessInformation` with
+  `PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION`). A probe on the runner (4 CPUs) measured:
+
+  | Wait | Default period | After `timeBeginPeriod(1)` |
+  |---|---|---|
+  | `WaitForSingleObject`, 1 ms timeout | 10-11 ms | 1.3 ms |
+  | `Sleep(1)` | 9-13 ms | 2.0 ms |
+  | `pthread_cond_timedwait`, `nanosleep`, 1 ms | 15-16 ms | 15-16 ms |
+  | high-resolution waitable timer, 1 ms | 1.5 ms | 1.5 ms |
+
+  A condition variable round trip between two threads took 18-25 µs, and `SetEvent` woke a waiting thread in
+  9-13 µs.
 - **The two timed waits** (`sched.c`) use a high-resolution waitable timer instead (`CreateWaitableTimerExW` with
   `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`, Windows 10 1803 and later; a plain one before):
   - a busy-wait naps on it with the scheduler lock released, and an event that comes meanwhile is seen when the
@@ -190,7 +223,15 @@ differ:
   - the main thread waits for it or for its auto-reset wake-up event.
 
   Everything else is the same condition variables as on Linux.
-- **Clocks.** `clock_gettime(CLOCK_MONOTONIC)` and `nanosleep` are winpthreads' (QueryPerformanceCounter).
+- **The virtual clock** is as fast as on Linux. On the runner the self-test with `--fast` once reported 687 ms of N64
+  time in 8 s of real time. With a timestamp on each check, the scheduler's part of that run took 4 ms. The other
+  8 s went to the AI test's first `osAiSetFrequency`, which opened the default audio output: with SDL2 in the build
+  that is SDL's audio initialization, which on a machine without an audio endpoint takes 8 s before it fails and
+  the null output takes over. (The self-test in real time lost the same 8 s: 9 s instead of 0.8.) The self-test
+  uses the null output now, unless `RUSH2049_AUDIO` names another. The game opens SDL's audio only with
+  `audio = auto` or `sdl`; CI's runs pass `--audio null`.
+- **Clocks.** `clock_gettime(CLOCK_MONOTONIC)` is winpthreads' (QueryPerformanceCounter, 100 ns steps). So is
+  `nanosleep`, in the 15.6 ms steps above; only the pause's hold loop (`loop.c`) uses it.
 - **Signals.** Windows has no SIGQUIT. Ctrl-Break (SIGBREAK) prints the thread dump. Ctrl-C quits.
 
 ## 6. Faults
@@ -245,14 +286,24 @@ differ:
 |---|---|---|
 | `windows-cross` | ubuntu-24.04, in `debian:12` | the toolchain file, Debian 12's mingw-w64 (GCC 12.2) and zlib, SDL2 built from source; uploads `rush2049pc.exe` |
 | `windows-run` | windows-latest | that executable: `--selftest`, the boot without a ROM (`grep "wave 0 loaded"`), and the synthetic cartridge's paths ([SYNTH.md](SYNTH.md): generated from the cross build's data report, which `windows-cross` uploads with the executable) |
-| `windows` | windows-latest | MSYS2 UCRT64 with its SDL2: the build, `ctest` (with the synthetic cartridge's `synth_boot_*`), `--selftest` and the boot without a ROM |
+| `windows` | windows-latest | MSYS2 UCRT64 with its SDL2: the build, `ctest` (with `ultra_selftest_fast` and the synthetic cartridge's `synth_boot_*`), `--selftest` and the boot without a ROM |
 
 - **OpenGL.** The runners have no GPU. Mesa 26.2.4's llvmpipe (mesa-dist-win, SHA-256 pinned, `GALLIUM_DRIVER=llvmpipe`)
   is copied next to the programs.
 - **Retries.** A failing test is run again under gdb.
 - **The other jobs.** The Linux and n64-neutral jobs are unchanged.
 
-**Results** (run 40503877913, 2026-10-27; all six jobs pass):
+**Results** (run 40558632666, 2026-10-27; all six jobs pass):
+
+- `windows`: 114 of 114 tests in 127 s.
+  - The self-test: 0.9 s, and 0.04 s on the virtual clock.
+  - The 14 synthetic paths reach their states, the same as on Linux (players, windows, cars, mode, track; the
+    frame counts within a few).
+- `windows-run`: the self-test, the boot without a ROM and the 14 paths with the cross-built program. The paths on
+  the virtual clock take 1.1 to 6.0 s each, and the real-time race 36 s. The Linux runners are in the same range:
+  in the same run 0.6 to 3.3 s (x86-64) and 1.2 to 9.6 s (aarch64), and in run 40551639233 1.0 to 6.4 s (x86-64).
+
+Before the synthetic paths (run 40503877913, 2026-10-27):
 
 - `windows`: 63 of 63 tests, among them:
   - the 21 renderer tests on llvmpipe, headless and in an SDL window;
@@ -271,7 +322,9 @@ differ:
 
 - A real Windows desktop: a GPU driver's WGL contexts (only llvmpipe ran), a visible window, fullscreen,
   vsync, high DPI.
-- Audio through a real device (SDL's WASAPI/DirectSound). CI uses the null backend and SDL's disk driver.
+- Audio through a real device (SDL's WASAPI/DirectSound). CI uses the null backend and SDL's disk driver. On a
+  machine with no audio endpoint, as the runners, `audio = auto` spends about 8 s in SDL's audio initialization
+  before it falls back to null (section 5).
 - Controllers and rumble (XInput, DirectInput through SDL), and the keyboard on a live window.
 - Anything with the ROM, as on Linux.
 - Windows on arm64, and 32-bit Windows (the port needs a 64-bit host).

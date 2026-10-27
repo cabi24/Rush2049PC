@@ -40,7 +40,11 @@ s32 slot_state_setup(s32);
 void fcvt_wrapper(char *,const char *,...);
 s32 object_manager_update(u8 *,s16);
 s16 object_bytes_sum_global(void);
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+void *ambient_sound_set(s32,s32,s32,s32,s32,intptr_t,s32,s32);
+#else
 void *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
+#endif
 void crowd_cheer_play(void *,s32,s32,s32,s32);
 void vs_header_lock(void) { osRecvMesg(D_801461D0,0,1); } void vs_header_unlock(void) { osSendMesg(D_801461D0,0,0); } s32 vs_header_font(s32 font) { s32 old; vs_header_lock(); old=slot_state_setup(font); vs_header_unlock(); return old; }
 void voice_stop(void)

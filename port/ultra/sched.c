@@ -86,11 +86,11 @@ static void init_cv(pthread_cond_t *cv)
 }
 
 #ifdef _WIN32
-/* Windows' timeouts run on the system timer, which some machines keep at 15.6 ms whatever timeBeginPeriod asks for
- * (the windows-latest runner did: 200 one-millisecond busy-wait naps took 3.1 s). So the two timed waits use a
- * high-resolution waitable timer (Windows 10 1803 and later; a plain one before) instead of a condition
- * variable's timeout: a busy-wait naps on it with the lock released, and the main thread waits for it or for its
- * wake-up event (docs/port/WINDOWS.md). */
+/* winpthreads' timed waits judge their deadline by GetTickCount64, which moves in 15.6 ms steps whatever
+ * timeBeginPeriod asks for: a 1 ms pthread_cond_timedwait or nanosleep takes 15-16 ms (on the windows-latest runner
+ * 200 one-millisecond busy-wait naps took 3.1 s). So the two timed waits use a high-resolution waitable timer
+ * (Windows 10 1803 and later; a plain one before) instead of a condition variable's timeout: a busy-wait naps on
+ * it with the lock released, and the main thread waits for it or for its wake-up event (docs/port/WINDOWS.md). */
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
 #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x2
 #endif

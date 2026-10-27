@@ -94,7 +94,11 @@ extern CarSlot D_803B9BC8[][13];
 extern MultiBlit D_803B2AB8[];
 extern Blit *D_803B28AC;
 extern char D_803B85B0[],D_803B85BC[];
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+extern void audio_frame_sync(s32,s32,s32,s32,void *);
+#else
 extern void audio_frame_sync(s32,s32,s32,s32,s32);
+#endif
 extern void *func_800A7D6C(void);
 extern void init_state_begin(void);
 extern void func_800A5A40(void);
@@ -102,7 +106,11 @@ extern void car_render_full(s16);
 extern void audio_interrupt_handler(s32);
 extern void sfx_position_3d(s32);
 extern void particle_lifetime_set(void);
+#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,intptr_t,s32,s32);
+#else
 extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
+#endif
 extern void math_utility(void *,void *);
 extern s32 string_copy_format(char *,s8,s8,s32); /* : 4th parameter int (MAT3 MBOX_FindObject_WORK) */
 extern s32 sign_extend_call(s32,void *,s32,u32);
