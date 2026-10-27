@@ -38,7 +38,11 @@ extern s32 D_8011EAA0;
 extern u8 D_80152750[],D_8015276C[];
 extern u8 D_80035260[],D_800350B0[],D_80033EA0[],D_8002F660[];
 extern Resource20 D_80156D38[];
+#ifdef TARGET_PC
+extern Instrument4 D_8011F0A0[4];   /* the four sfx groups pushed at boot; the song names' text follows */
+#else
 extern Instrument4 D_8011F0A0[];
+#endif
 extern void *D_80152464,*D_801526D8,*D_80152690;
 extern intptr_t D_801525FC;
 extern u8 D_00039B40[];

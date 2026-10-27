@@ -71,6 +71,7 @@ ABS(D_80139320, 0x80139320);               /* gCarParts, 0x40 bytes a car */
 #define PARTS(i) ((uint32_t *)(uintptr_t)0x80139320 + (i) * 16)
 ABS(D_801116D0, 0x801116D0);               /* the tune table, 44 bytes an entry */
 ABS(D_8011F724, 0x8011F724);               /* the torque curve */
+ABS(D_8011F814, 0x8011F814);               /* the tire records after it (car_resistance names them) */
 #define TUNES ((float *)(uintptr_t)0x801116D0)
 #define DESC_AT 0x80300000u                /* the physics descriptors (0xB4 bytes) and tire curves, as game data */
 #define CURVES_AT 0x80301000u

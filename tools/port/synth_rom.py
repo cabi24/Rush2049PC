@@ -189,6 +189,23 @@ class Cart:
         self.strings[s] = self.blob(s.encode() + b"\0", f"string {s!r}")
         return self.strings[s]
 
+    def strings_after(self, sym, size, texts, why, image="game"):
+        """The N64 addresses of the strings `texts`, placed one after another (8-aligned) right after sym's first
+        `size` bytes, where the images keep strings after some tables. No symbol may cover those bytes: a declaration
+        sized by the gap to the next known address would, and the loader would swap the strings with its elements
+        (BRINGUP.md 2)."""
+        addr, out = self.syms.addr(sym) + size, []
+        for text in texts:
+            data = text.encode() + b"\0"
+            for a, n, kinds, name in self.syms.by_addr:
+                if a < addr + len(data) and addr < a + max(n, 1):
+                    raise SystemExit(f"synth_rom: {why}: 0x{addr:08X} is inside {name} ({n} bytes from 0x{a:08X}), "
+                                     f"which should end at 0x{self.syms.addr(sym) + size:08X}")
+            self.set_bytes(image, addr, data, f"{why}: {text!r}")
+            out.append(addr)
+            addr = (addr + len(data) + 7) & ~7
+        return out
+
     def blob(self, data, why):
         """The N64 address of bytes (big-endian data, 4-aligned) in the same free bytes of the game image's data."""
         if not hasattr(self, "pool"):
@@ -1078,8 +1095,11 @@ def front_end(c):
 
     # The songs' names (gSongNames, D_80110030, char *[12]): the audio screen copies each (func_800BE6A4), so NULL
     # faults.
+    # They follow the four sfx groups' table (D_8011F0A0, Instrument4[4]), as the game image has its strings after
+    # some tables.
+    songs = c.strings_after("D_8011F0A0", 4 * 4, [f"SONG {i + 1}" for i in range(12)], "a song's name")
     for i in range(12):
-        c.set("game", "D_80110030", "ptr", c.string(f"SONG {i + 1}"), "a song's name" if i == 0 else "(same)", index=i)
+        c.set("game", "D_80110030", "ptr", songs[i], "a song's name" if i == 0 else "(same)", index=i)
 
     # The mode screen's table of which of its 7 modes each player count may pick (D_803B4679[players][mode], image
     # A, s8; optionValid@modescr.c). updateModeScreen skips to a valid mode with `while (!optionValid(i)) i++`, which
@@ -1101,6 +1121,10 @@ def front_end(c):
     # there faults (on the N64 too: address 0 is unmapped). Each is the empty name, which every texture WAD here has
     # a texture for; MBOX_FindModel takes "" as AAANULLOBJ.
     empty = c.string("")
+    # The car select's first blit (D_803B2AB8, image A, NewMultiBlit's 38): the empty texture name, kept after the
+    # warning screen's blit (D_803B83A4, image A: one MultiBlit) as image A keeps its strings after some tables.
+    c.set("ovl_a", "D_803B2AB8", "ptr", c.strings_after("D_803B83A4", 36, [""], "a car select blit's name", "ovl_a")[0],
+          "the car select's first blit: the empty texture name")
     for sym, n in (("D_8011B3A0", 24), ("D_8011B400", 1), ("D_8011B404", 10), ("D_8011B438", 11)):
         for i in range(n):
             c.set("game", sym, "ptr", empty, "a car select name: the empty one" if i == 0 else "(same)", index=i)
@@ -1199,18 +1223,21 @@ def race(c):
 
     # The cars' physics descriptors (D_80110D08, Car *[13], docs/port/CARS.md): 0xB4-byte records of words, which
     # the research puts at 0x801108D0.. inside D_801108C8 (f32[], so the loader swaps them as words). One descriptor
-    # for every car type: zero but for a mass, an engine inertia, four tire curves (all one 23-word record, right
-    # after it) and the four tires' positions (x forward: the wheelbase is front x - rear x).
+    # for every car type: zero but for a mass, an engine inertia, four tire curves and the four tires' positions (x
+    # forward: the wheelbase is front x - rear x). The tire curves are the two six-float records after the torque
+    # curve, D_8011F814[2][6] (front, rear: func_800D09E8 copies six), which only these u32 fields reach: declared in
+    # car_resistance for the PC, so the loader swaps them as floats (BRINGUP.md 3). Every value 1.
     base = c.syms.addr("D_801108C8")
-    desc, curve, susp = 0x801108D0, 0x801108D0 + 0xB4, 0x80110A00
-    for i in range(23):
-        c.set("game", "D_801108C8", "f32", 1.0, "a tire curve: every value 1" if i == 0 else "(same)",
-              offset=curve + 4 * i - base)
+    desc, susp = 0x801108D0, 0x80110A00
+    curves = c.syms.addr("D_8011F814")
+    for i in range(12):
+        c.set("game", "D_8011F814", "f32", 1.0, "the tire curves (front, rear): every value 1" if i == 0 else "(same)",
+              index=i)
     c.set("game", "D_801108C8", "f32", 3000.0, "car descriptor: mass", offset=desc + 80 - base)
     c.set("game", "D_801108C8", "f32", 1.0, "car descriptor: engine inertia", offset=desc + 84 - base)
     for i in range(4):
-        c.set("game", "D_801108C8", "u32", curve, f"car descriptor: tire {i}'s curve (a u32 window address)",
-              offset=desc + 96 + 4 * i - base, elem="f32")
+        c.set("game", "D_801108C8", "u32", curves + 24 * (i // 2),
+              f"car descriptor: tire {i}'s curve (a u32 window address)", offset=desc + 96 + 4 * i - base, elem="f32")
     for i, pos in enumerate(((4.0, 0.0, 2.5), (4.0, 0.0, -2.5), (-4.0, 0.0, 2.5), (-4.0, 0.0, -2.5))):
         for k, v in enumerate(pos):
             c.set("game", "D_801108C8", "f32", v, f"car descriptor: tire {i}'s position",
@@ -1225,6 +1252,12 @@ def race(c):
     for i in range(3):
         c.set("game", "D_80111560", "ptr", susp, "carSuspensions: the one suspension" if i == 0 else "(same)",
               index=i)
+
+    # The car types' names (D_80110D3C, char *[13]), which sfx_volume_set puts in front of each car part's name:
+    # after the shadow scales (D_8011F914, f32[14][4]: AnimateShadow's per body type, 13 with the appearance bit).
+    names = c.strings_after("D_8011F914", 14 * 16, [f"CAR{t}" for t in range(13)], "a car type's name")
+    for t in range(13):
+        c.set("game", "D_80110D3C", "ptr", names[t], "a car type's name" if t == 0 else "(same)", index=t)
 
     car_tables(c)
     hud(c)
