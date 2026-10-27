@@ -209,6 +209,32 @@ static int system_idle(void)
 
 static void main_signal(void);
 
+/* --fast with RUSH_FAST_STRICT set: the host main thread acts only while every N64 thread waits. Plain --fast runs an
+ * RSP task as soon as it is queued and posts its events, and reads the state log, while a thread may still compute,
+ * so where in that thread's work they land depends on the host's speed. Strict, the main thread runs the tasks, posts
+ * the retraces, timers and device events and reads the game's state only when the system is idle, and after each
+ * event it posts it waits until the threads that event woke wait again. A run then depends on the N64 clock alone:
+ * two runs, or two builds, give the same states at the same retraces (tools/port/synth_compare.py,
+ * docs/port/OPTIMIZED.md). The main thread is the one that called pc_os_boot. */
+static int g_strict = -1;
+static pthread_t g_main_thread;
+
+static int strict(void)
+{
+    if (g_strict < 0)
+        g_strict = pc_time_virtual() && getenv("RUSH_FAST_STRICT") != NULL;
+    return g_strict;
+}
+
+/* g_lock held, strict: wait until the system is idle, for 30 s of real time at most (the main loop then reports a
+ * hang, as it does for a run whose clock stops). */
+static void wait_idle(void)
+{
+    uint64_t until = pc_real_ns() + 30000000000u;
+    while (!system_idle() && !pc_quit && pc_real_ns() < until)
+        nap(&g_main_cv, 1000000);
+}
+
 /* --fast: the system may have become idle; the main thread looks again. */
 static void idle_changed(void)
 {
@@ -328,6 +354,7 @@ static void start_host(PcThread *t)
 
 void pc_os_boot(void (*entry)(void *), void *arg, const char *name)
 {
+    g_main_thread = pthread_self();
     init_cv(&g_main_cv);
 #ifdef _WIN32
     g_main_event = CreateEventW(NULL, FALSE, FALSE, NULL);
@@ -572,6 +599,8 @@ int pc_os_post(void *mq, OSMesg msg)
         q->valid++;
         wake_one(q, 0);
         r = 0;
+        if (!tls_self && strict() && pthread_equal(pthread_self(), g_main_thread))
+            wait_idle();   /* strict --fast: the threads the event woke run until they wait again */
     }
     pthread_mutex_unlock(&g_lock);
     return r;
@@ -624,6 +653,8 @@ void pc_os_spin_yield(const char *site)
             while (pc_host_ns() < self->nap_until && !((b = best(self)) && b->pri >= self->pri))
                 pthread_cond_wait(&self->cv, &g_lock);
             self->nap_until = 0;
+            if (strict())
+                main_signal();   /* the main thread waits for this before it carries on */
         } else {
             nap(&self->cv, 1000000);
         }
@@ -679,19 +710,30 @@ void pc_os_idle(void)
 }
 
 /* --fast: wait for a wake-up, or for the system to go idle and then move the clock to the deadline. At most
- * 100 ms of real time, so that the main loop sees a run that stopped moving the clock (a hang). */
+ * 100 ms of real time, so that the main loop sees a run that stopped moving the clock (a hang). Strict (above):
+ * wait for the system to go idle whether woken or not; then, if woken (a task queued), return without moving the
+ * clock, and if a busy-wait's nap ended, wait until that thread waits again. */
 static void wait_main_virtual(uint64_t deadline_ns)
 {
-    uint64_t until = pc_real_ns() + 100000000u;
+    int st = strict();
+    uint64_t until = pc_real_ns() + (st ? 30000000000u : 100000000u);
     pthread_mutex_lock(&g_lock);
-    while (!g_main_wake && pc_real_ns() < until) {
+    while ((st || !g_main_wake) && !(st && pc_quit) && pc_real_ns() < until) {
         if (system_idle()) {
+            if (st && g_main_wake)
+                break;
             PcThread *t = g_running;
             if (t && t->nap_until && t->nap_until < deadline_ns)
                 deadline_ns = t->nap_until;   /* a busy-wait's nap ends first */
             pc_time_advance(deadline_ns);
-            if (t && t->nap_until)
+            if (t && t->nap_until) {
                 pthread_cond_signal(&t->cv);
+                if (st) {   /* its nap is over: it clears nap_until (and signals) once it runs */
+                    while (t->nap_until && t->nap_until <= pc_host_ns() && !pc_quit && pc_real_ns() < until)
+                        nap(&g_main_cv, 1000000);
+                    wait_idle();
+                }
+            }
             break;
         }
 #ifdef _WIN32
