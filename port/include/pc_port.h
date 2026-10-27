@@ -66,8 +66,16 @@ void pc_gfx_shutdown(void);
 
 /* ---------------------------------------------------------------- audio (port/audio) */
 
-/* One audio task: OSTask.t.data_ptr / data_size (the command list). Runs to completion. */
-void pc_audio_run_task(const void *cmdlist, size_t size_bytes);
+/* Output setup, from main before the game starts. backend: "auto" (SDL2, then ALSA, then null), "sdl",
+ * "alsa", "null" or "wav"; dump_wav_path: NULL, or a WAV file that receives every pushed frame
+ * (--dump-audio). 0 on success; otherwise output falls back to null. Without it, the first audio call
+ * initializes from the environment (port/audio/pc_audio.h). */
+int pc_audio_init(const char *backend, const char *dump_wav_path);
+void pc_audio_shutdown(void);
+/* One audio task: OSTask.t.data_ptr / data_size, as the game sets them. Runs to completion. The game's
+ * microcode is MusyX v1, not Acmd: data_ptr is an array of subframe descriptors and data_size is how many
+ * (not bytes); each writes 192 stereo frames into an AI buffer (port/audio/musyx_abi.h). */
+void pc_audio_run_task(const void *cmdlist, size_t data_size);
 /* osAiSetFrequency / osAiSetNextBuffer / osAiGetLength. Samples are the game's interleaved stereo s16 in
  * native byte order. */
 void pc_audio_set_frequency(uint32_t hz);

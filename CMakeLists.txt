@@ -100,19 +100,38 @@ add_library(game OBJECT ${GAME_SOURCES})
 target_link_libraries(game PRIVATE game_flags)
 
 # ---------------------------------------------------------------- generated data
-# Data the game C declares but doesn't define. bss.c: zeroed storage at the N64 offsets of the boot and
-# game BSS (tools/port/gen_bss.py), from the game objects' undefined symbols.
+# Storage for the data the game C declares but doesn't define (boot, game and both runtime images: initialized
+# data and BSS), and the descriptors that fill it from the ROM at startup (docs/port/DATA.md). gen_data.py reads
+# the game objects' DWARF (types), nm (what is undefined) and the symbol tables (addresses). data.c holds no ROM
+# bytes; port/data/pc_data.c (pcdata_rt) is the loader, reached from data.c through weak references so the link
+# test links without it.
 set(PC_DATA_DIR ${CMAKE_BINARY_DIR}/pc-data)
+if(NOT CMAKE_READELF)
+    set(CMAKE_READELF readelf)
+endif()
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_objects.txt CONTENT "$<JOIN:$<TARGET_OBJECTS:game>,\n>\n")
 add_custom_command(
-    OUTPUT ${PC_DATA_DIR}/bss.c
-    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_bss.py --objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
-            --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/bss.c
-    DEPENDS $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_bss.py ${PORT_TOOLS}/n64syms.py
-            ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt
-    COMMENT "BSS definitions (tools/port/gen_bss.py)"
+    OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json
+           ${PC_DATA_DIR}/data_symbols.txt
+    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
+            --nm ${CMAKE_NM} --readelf ${CMAKE_READELF} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
+    DEPENDS $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
+            ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
+            ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/manifest/static.json
+            ${CMAKE_SOURCE_DIR}/port/data/extents.txt
+            ${CMAKE_SOURCE_DIR}/asm/us/blob/symbols.json ${CMAKE_SOURCE_DIR}/asm/us/ovl_a/symbols.json
+            ${CMAKE_SOURCE_DIR}/asm/us/ovl_b/symbols.json ${CMAKE_SOURCE_DIR}/layout/game.json
+            ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
+    COMMENT "Data storage and descriptors (tools/port/gen_data.py)"
     VERBATIM)
-add_library(pcdata OBJECT ${PC_DATA_DIR}/bss.c)
+add_library(pcdata OBJECT ${PC_DATA_DIR}/data.c)
+target_include_directories(pcdata PRIVATE port/data)
+target_compile_options(pcdata PRIVATE -fno-common)   # the .set aliases need the arenas in a section
+find_package(ZLIB REQUIRED)
+add_library(pcdata_rt OBJECT port/data/pc_data.c)
+target_include_directories(pcdata_rt PUBLIC port/data)
+target_compile_definitions(pcdata_rt PRIVATE PC_DATA_REPORT_DEFAULT="${CMAKE_BINARY_DIR}/data_report.txt")
+target_link_libraries(pcdata_rt PUBLIC ZLIB::ZLIB)
 
 # ---------------------------------------------------------------- link test
 # Everything still undefined becomes an aborting stub or a zeroed placeholder (tools/port/gen_stubs.py), to
@@ -130,3 +149,27 @@ set_source_files_properties(${PC_DATA_DIR}/stubs.c PROPERTIES COMPILE_OPTIONS "-
 add_executable(rush2049pc_linktest port/main.c ${PC_DATA_DIR}/stubs.c
     $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:pcdata>)
 target_link_libraries(rush2049pc_linktest PRIVATE m)
+
+# ---------------------------------------------------------------- generated data: checks
+# pc_data_test: the loader on a synthetic ROM (ctest). rush2049pc_datacheck: the loader on your ROM with the
+# game's tables (it says so and passes when there is no ROM); after linking it, gen_data.py --check verifies every
+# placement and own-storage size in the executable against data_layout.json.
+enable_testing()
+add_executable(pc_data_test port/data/test_pc_data.c)
+target_link_libraries(pc_data_test PRIVATE pcdata_rt)
+add_test(NAME pc_data_test COMMAND pc_data_test)
+add_executable(rush2049pc_datacheck port/data/datacheck.c ${PC_DATA_DIR}/stubs.c
+    $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:pcdata>)
+target_link_libraries(rush2049pc_datacheck PRIVATE pcdata_rt m)
+target_compile_definitions(rush2049pc_datacheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64")
+add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --check $<TARGET_FILE:rush2049pc_datacheck>
+            --layout ${PC_DATA_DIR}/data_layout.json --nm ${CMAKE_NM}
+    VERBATIM)
+add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
+add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
+# Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
+# and the PC layer.
+set_target_properties(pc_data_test rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+
+add_subdirectory(port/audio)
