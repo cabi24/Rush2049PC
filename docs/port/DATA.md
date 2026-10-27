@@ -29,6 +29,12 @@ variable it uses. `gen_data.py` reads them with `readelf --debug-dump=info` (25 
 the whole generator runs in about 3 s on the Pi 5). Typedefs and qualifiers are dropped; a struct one file leaves
 incomplete is completed from a file that defines it.
 
+The objects must be unoptimized: an optimized object's DWARF leaves out the variables whose uses the optimizer
+removed, and the types nothing left uses. So gen_data reads `types_objects.txt`, the Debug build's game objects or,
+in any other build type, a second copy compiled at `-O0 -g` with the game's own flags (`game_types`), and it refuses
+DWARF whose producer line records optimization. The tables are then the same files in every build type
+([OPTIMIZED.md](OPTIMIZED.md) 2.1); CI compares them.
+
 Files often disagree. The generator ranks each distinct declaration of a symbol: with a known size (below), one of
 exactly that size first, then a larger one, then a smaller; then struct with pointers, struct, pointer, words,
 bytes, unknown; then the larger N64 size, then the number of files that agree. The winner sets the layout.
