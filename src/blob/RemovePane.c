@@ -633,7 +633,7 @@ extern void Effects_UpdateEmitters(void);
    extern s32 PhysicsObjectList_Update(void);
 extern void UpdateActiveObjects(void);
 extern void input_aux_handler(void);
-extern void sound_stop(s32 sound_id);
+extern void sound_stop(intptr_t sound_id);
 extern s32 input_init_flag_get(void);
 extern void viUpdateTime(void);
 extern void sound_init(void);
@@ -3692,6 +3692,25 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: a pane group (FiveParts, ambient_sound_set.c) keeps its five blits pointer-sized from +0x10; the m2c body
+ * reads them as s32 at the N64 offsets (+0xC, 4 apart). */
+typedef struct { s8 active; u8 own; u8 rgba1[4]; u8 rgba2[4]; u8 other10[2]; void *part[5]; } PcFiveParts;
+void RemovePane(s8 *arg0) {
+    PcFiveParts *group = (PcFiveParts *) arg0;
+    s32 i;
+
+    if (group != NULL && group->active != 0) {
+        for (i = 0; i < 5; i++) {
+            if (group->part[i] != NULL) {
+                sound_stop((intptr_t) group->part[i]);
+                group->part[i] = NULL;
+            }
+        }
+        group->active = 0;
+    }
+}
+#else
 void RemovePane(s8 *arg0) {
     s32 temp_a0;
     s32 var_s1;
@@ -3714,3 +3733,4 @@ void RemovePane(s8 *arg0) {
         }
     }
 }
+#endif

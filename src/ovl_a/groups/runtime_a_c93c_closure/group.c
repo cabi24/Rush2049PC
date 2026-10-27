@@ -247,8 +247,14 @@ extern s32 D_803B77D4[][21];   /* validOption */
 extern s8 D_803B8314[19];      /* TrackValid static trackReady */
 extern s32 D_803AF980;
 /* SetFogIntensity: research body */
+#ifdef TARGET_PC
+/* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
+struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
+    s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
+#else
 struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
     u8 other28[24];u16 resource;};
+#endif
 typedef struct RGB { u8 r, g, b; } RGB;
 extern s8 D_801427A0;
 extern s8 D_8013F1D8;
@@ -287,7 +293,12 @@ extern void *D_803BABC8[7],*D_803BABE8[7];
 extern ModelBank D_801161F4[];   /* gRomObjDefPtrs */
 extern char *D_803B7738[];       /* trackMapObjNames */
 extern void func_800960D4(void *);  /* DeallocateMemory */
+#ifdef TARGET_PC
+/* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
+typedef struct ImageMeta {void *pal,*tex;u16 model;s16 x,y;u16 mode;s16 w,h;u8 color;u8 flags;s8 hidden;u8 pad17;s16 t0,s0,t1,s1;} ImageMeta;
+#else
 typedef struct ImageMeta {u8 other0[21];u8 flags;u8 other22[10];} ImageMeta;
+#endif
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
 extern ImageMeta D_80140BF0[];
 extern char *D_803B7788[];

@@ -24,6 +24,23 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Blit {
+    uintptr_t word0, word4, word8;
+    u16 half12;
+    s16 x, y;
+    u16 half18;
+    s16 w, h;
+    u8 alpha, byte25;
+    s8 hidden;
+    u8 byte27;
+    s16 left, right, top, bottom;
+    u32 word36;
+    intptr_t state;     /* AnimFunc */
+    u32 data;
+} Blit;
+#else
 typedef struct Blit {
     u32 word0, word4, word8;
     u16 half12;
@@ -38,6 +55,7 @@ typedef struct Blit {
     s32 state;
     u32 data;
 } Blit;
+#endif
 
 typedef struct ButtonName {
     u8 pad0[48];

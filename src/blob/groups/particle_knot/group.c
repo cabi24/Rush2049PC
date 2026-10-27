@@ -1528,7 +1528,11 @@ extern volatile s8 D_8015F72D;
 extern Vtx D_80161498[][3200];
 extern u8 D_80146204;
 extern s32 D_801613AC;
+#ifdef TARGET_PC
+extern Sprite D_80140BF0[200];   /* the sprite list's extent, to 0x801424F0, for gen_data */
+#else
 extern Sprite D_80140BF0[];
+#endif
 extern u8 D_8011ED08[4];
 extern u16 D_8011ED0C[];
 void func_8008705C(u32 mask);

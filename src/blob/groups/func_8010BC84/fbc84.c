@@ -20,10 +20,23 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
+#ifdef TARGET_PC
+/* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Blit {
+    void *name, *image, *info;
+    u16 texIndex;
+    s16 x, y;
+    u16 z;
+    s16 width, height;
+    u8 alpha, flip;
+    s8 hidden;
+} Blit;
+#else
 typedef struct Blit {
     u8 pad0[0x1A];
     s8 hidden;
 } Blit;
+#endif
 
 #ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */

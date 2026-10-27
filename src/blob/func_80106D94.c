@@ -40,6 +40,28 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
+typedef struct Blit {
+    void *Name, *Image, *Info;
+    u16 TexIndex;
+    s16 X;
+    s16 Y;
+    s16 pad12;
+    s16 Width;
+    s16 Height;
+    u8 pad18[2];
+    s8 Hide;
+    u8 Init;
+    s16 Top;
+    s16 Bot;
+    s16 Left;
+    s16 Right;
+    s32 pad24;
+    intptr_t AnimDTA;   /* the AnimFunc slot */
+    u32 AnimID;
+} Blit;
+#else
 typedef struct Blit {
     /* 0x00 */ char pad0[0xE];
     /* 0x0E */ s16 X;
@@ -57,6 +79,7 @@ typedef struct Blit {
     /* 0x28 */ s32 AnimDTA;
     /* 0x2C */ u32 AnimID;
 } Blit;
+#endif
 
 typedef struct {
     /* 0x000 */ char pad0[0xEF];
