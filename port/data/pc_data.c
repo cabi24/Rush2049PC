@@ -470,7 +470,7 @@ static void swap_arena(const PcDataTables *t, const PcDataArena *ar)
 /* The N64 bytes src (n64_size of them, `avail` in the image) to host bytes dst (host_size) through the runs
  * runs[first..first+count): byte order per element, N64 pointers to host pointers. */
 static void convert_runs(const PcDataTables *t, uint32_t first, uint32_t count, const uint8_t *src, uint32_t n64_size,
-                         uint32_t avail, uint8_t *dst, uint32_t host_size, int image, const char *where)
+                         uint32_t avail, uint8_t *dst, uint32_t host_size, int image, const char *where, int quiet)
 {
     memset(dst, 0, host_size);
     for (uint32_t k = 0; k < count; k++) {
@@ -494,7 +494,7 @@ static void convert_runs(const PcDataTables *t, uint32_t first, uint32_t count, 
                 case PC_K_S32_64: { int64_t v = (int32_t)rd32(p); memcpy(q, &v, 8); break; }
                 case PC_K_U32_64: { uint64_t v = rd32(p); memcpy(q, &v, 8); break; }
                 case PC_K_PTR: {
-                    void *h = resolve(t, rd32(p), image, where, no, !g_scan);
+                    void *h = resolve(t, rd32(p), image, where, no, quiet);
                     memcpy(q, &h, sizeof h);
                     break;
                 }
@@ -511,8 +511,12 @@ static void convert_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t
         memset(s->host, 0, s->host_size);
         return;
     }
+    /* A table of pointers a reach rule follows is quiet in the report: the rule rewrites its pointers. */
+    int quiet = !g_scan;
+    for (uint32_t k = 0; k < t->n_reach && !quiet; k++)
+        quiet = t->reach[k].sym >= 0 && &t->syms[t->reach[k].sym] == s;
     convert_runs(t, s->run_first, s->run_count, img + base, s->n64_size, img_size - base, s->host, s->host_size, image,
-                 s->name);
+                 s->name, quiet);
 }
 
 /* ---------------------------------------------------------------- tables only pointers reach */
@@ -649,7 +653,7 @@ static void *reach_target(const PcDataTables *t, int32_t ri, uint32_t v, const u
         return resolve(t, v, image, r->what, 0, 1);
     for (uint32_t e = 0; e < n; e++)
         convert_runs(t, r->run_first, r->run_count, src + e * r->n64_size, r->n64_size, avail - e * r->n64_size,
-                     blk->host + e * r->host_size, r->host_size, image, r->what);
+                     blk->host + e * r->host_size, r->host_size, image, r->what, 1);
     for (uint32_t c = 0; c < t->n_reach; c++) {
         const PcDataReach *cr = &t->reach[c];
         if (cr->parent != ri)
