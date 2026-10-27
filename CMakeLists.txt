@@ -155,7 +155,7 @@ add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
 target_include_directories(pcultra PRIVATE port/include port/ultra ${ZLIB_INCLUDE_DIRS})
 target_compile_options(pcultra PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcdata_rt)   # port/data's loader (docs/port/DATA.md)
-list(APPEND PC_PORT_ARCHIVES pcaudio)                  # port/audio (docs/port/AUDIO.md)
+list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (docs/port/AUDIO.md, GFX.md)
 
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
 # backtrace, or a zeroed placeholder (tools/port/gen_stubs.py); names that differ from a definition only by the
@@ -192,6 +192,8 @@ foreach(lib ${PC_PORT_ARCHIVES})
 endforeach()
 target_link_options(rush2049pc PRIVATE ${PC_DATA_DIR}/aliases.ld)
 set_target_properties(rush2049pc PROPERTIES LINK_DEPENDS ${PC_DATA_DIR}/aliases.ld)
+enable_testing()
+add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 
 # The same stubs without the PC layer, for test programs that link the game alone (rush2049pc_datacheck): every
 # libultra name is stubbed, and the stubs abort by themselves.
@@ -227,3 +229,4 @@ add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
 set_target_properties(pc_data_test rush2049pc_datacheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_subdirectory(port/audio)
+add_subdirectory(port/gfx)

@@ -20,9 +20,12 @@ static void usage(FILE *f)
             "  --rom PATH          the San Francisco Rush 2049 (USA) ROM, .z64/.v64/.n64 (default baserom.us.z64)\n"
             "  --no-rom-check      run a ROM whose SHA-1 differs\n"
             "  --no-rom            bring-up: a blank cartridge instead of the ROM (every ROM read is zero)\n"
-            "  --headless          no window (port/gfx renders off screen or not at all)\n"
+            "  --headless          render off screen (EGL surfaceless; the default without DISPLAY or\n"
+            "                      WAYLAND_DISPLAY); --window: an SDL2 window\n"
             "  --seconds N         stop after N seconds\n"
-            "  --frames N          stop after N graphics tasks\n"
+            "  --frames N          stop after N graphics tasks (at the retrace that shows the last)\n"
+            "  --screenshot-at N   save a PNG once N graphics tasks have run (--screenshot PATH, default\n"
+            "                      rush2049pc-N.png)\n"
             "  --stop-at-gfx       stop at the first graphics task (osSpTaskStartGo), reporting it\n"
             "  --press T:BUTTON[@PORT][:DUR],...   scripted input (v5's format; T, DUR in seconds)\n"
             "  --press-file PATH   a .press input script\n"
@@ -41,7 +44,7 @@ int main(int argc, char **argv)
 {
     const char *rom = "baserom.us.z64", *pak = "rush2049pc.mpk";
     const char *audio = getenv("RUSH2049_AUDIO"), *dump_audio = getenv("RUSH2049_DUMP_AUDIO");
-    int check = 1, no_rom = 0, headless = 0, pak_kind = PC_PAK_MEMORY, pak_set = 0, selftest = 0;
+    int check = 1, no_rom = 0, headless = !getenv("DISPLAY") && !getenv("WAYLAND_DISPLAY"), pak_kind = PC_PAK_MEMORY, pak_set = 0, selftest = 0;
     PcRunOptions run = {0};
 
     for (int i = 1; i < argc; i++) {
@@ -56,6 +59,12 @@ int main(int argc, char **argv)
             no_rom = 1;
         else if (!strcmp(a, "--headless"))
             headless = 1;
+        else if (!strcmp(a, "--window"))
+            headless = 0;
+        else if (!strcmp(a, "--screenshot-at"))
+            run.screenshot_at = (uint32_t)atoi(ARG());
+        else if (!strcmp(a, "--screenshot"))
+            run.screenshot = ARG();
         else if (!strcmp(a, "--seconds"))
             run.seconds = atof(ARG());
         else if (!strcmp(a, "--frames"))
@@ -102,6 +111,11 @@ int main(int argc, char **argv)
         pak_kind = PC_PAK_NONE;
     if (!run.frames && pc_input_script_frames)
         run.frames = pc_input_script_frames;
+    char shot_path[64];
+    if (run.screenshot_at && !run.screenshot) {
+        snprintf(shot_path, sizeof shot_path, "rush2049pc-%u.png", run.screenshot_at);
+        run.screenshot = shot_path;
+    }
 
     setvbuf(stderr, NULL, _IOLBF, 0);
     pc_mem_fix_absolute();
@@ -121,7 +135,7 @@ int main(int argc, char **argv)
         if (!no_rom)
             return 1;   /* --no-rom goes on with the data zeroed */
     }
-    if (pc_gfx_init(headless, 640, 480) != 0) {
+    if (pc_gfx_init(headless, 640, 480) != 0) {   /* the game draws 320 x 220: a 2x window */
         fprintf(stderr, "rush2049pc: no renderer\n");
         return 1;
     }

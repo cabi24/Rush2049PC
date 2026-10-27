@@ -906,7 +906,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          " * the ROM at startup (docs/port/DATA.md). Holds no ROM bytes. */",
          "#include <stddef.h>", "#include <stdint.h>", "#include \"pc_data.h\"", "",
          "#if defined(__APPLE__)", "#define N64_SYM(name) \"_\" name", "#else", "#define N64_SYM(name) name",
-         "#endif", "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", ""]
+         "#endif",
+         "/* An alias takes its own size, not the arena's (the linker compares it with the game's common symbols). */",
+         "#if defined(__ELF__)", "#define PC_SIZE(name, n) \"\\n.size \" N64_SYM(name) \", \" #n", "#else",
+         "#define PC_SIZE(name, n) \"\"", "#endif", "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", ""]
     L.append("/* One arena per image's data and BSS, laid out as on the N64. */")
     for (img, lo, init, hi), var in zip(arenas, arena_var):
         L.append(f"__attribute__((aligned(16))) uint8_t {var}[0x{(lo & 15) + hi - lo:X}];   "
@@ -933,19 +936,19 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
             base, off = arena_var[s.arena], s.addr - (arenas[s.arena][1] & ~15)
             names = sorted(s.names)
         for n in names:
-            sets.append((n, base, off))
+            sets.append((n, base, off, s.host_size))
             layout["sets"].append([n, base, off])
     for s in sorted(syms.values(), key=lambda x: x.addr):
         if s.end_marker:   # one past an overlay's BSS (the loaders pass it as bssEnd)
             for n in sorted(s.names):
-                sets.append((n, arena_var[s.arena], s.addr - (arenas[s.arena][1] & ~15)))
-                layout["sets"].append(list(sets[-1]))
+                sets.append((n, arena_var[s.arena], s.addr - (arenas[s.arena][1] & ~15), 0))
+                layout["sets"].append(list(sets[-1][:3]))
     if sets:
         L += ["", "/* Symbols at their N64 offsets in the arenas, or at the matching offset in own storage. */",
               "__asm__("]
-        for n, base, off in sets:
+        for n, base, off, size in sets:
             L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", \" N64_SYM(\"{base}\")"
-                     f" \" + 0x{off:X}\\n\"")
+                     f" \" + 0x{off:X}\" PC_SIZE(\"{n}\", {size}) \"\\n\"")
         L += [");", ""]
     if thunks:
         L += ["/* Labels the game calls for a function defined under another name (symbols.json). */",

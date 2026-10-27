@@ -127,6 +127,8 @@ typedef struct {
     double seconds;          /* stop after this long (0: run until quit) */
     uint32_t frames;         /* stop after this many graphics tasks (0: no limit) */
     int status_every;        /* print a status line every N seconds (0: never) */
+    uint32_t screenshot_at;  /* save a screenshot once this many graphics tasks have run (0: never) */
+    const char *screenshot;  /* its path */
 } PcRunOptions;
 int pc_ultra_run(const PcRunOptions *opt);   /* the host main loop; returns the exit code */
 extern uint32_t pc_frame;                    /* retraces since boot */

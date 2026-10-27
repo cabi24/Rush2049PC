@@ -2,9 +2,10 @@
  * (docs/port/ULTRA.md).
  *
  * The N64 threads run on their own host threads; this loop owns the window and the GL context. It runs the
- * RSP tasks they submit (graphics, then the SP and DP events; audio, then SP), fires the OS timers, plays the
- * AI FIFO, and at each 60 Hz retrace polls input, sends the VI event, shows a swapped framebuffer and handles
- * window events. Between deadlines it sleeps until a thread submits work. */
+ * RSP tasks they submit (graphics, then the SP and DP events; audio, then SP), fires the OS timers, sends the
+ * AI events, and at each 60 Hz retrace polls input, sends the VI event, shows a swapped framebuffer and handles
+ * window events. Between deadlines it sleeps until a thread submits work. --screenshot-at and --frames act two
+ * retraces after their graphics task, once the scheduler has swapped its frame in and it has been shown. */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
@@ -33,6 +34,8 @@ int pc_ultra_run(const PcRunOptions *opt)
 {
     const uint64_t vi_ns = 1000000000u / PC_VI_HZ;
     uint64_t next_vi = pc_host_ns() + vi_ns, next_status = 0, next_flush = 0;
+    int shot = 0;
+    uint32_t shot_vi = 0, frames_vi = 0;   /* the retrace at which each limit was reached */
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
     signal(SIGQUIT, on_signal);
@@ -50,10 +53,6 @@ int pc_ultra_run(const PcRunOptions *opt)
         pc_rcp_service(now, &ai);
         if (ai && ai < deadline)
             deadline = ai;
-        if (opt->frames && pc_rcp_gfx_tasks >= opt->frames) {
-            status("frames reached:");
-            break;
-        }
 
         if (now >= next_vi) {
             PcPad pads[4];
@@ -66,6 +65,23 @@ int pc_ultra_run(const PcRunOptions *opt)
                 pc_gfx_present(fb);
             if (pc_gfx_poll_events())
                 pc_quit = 1;
+            if (opt->screenshot_at && !shot_vi && pc_rcp_gfx_tasks >= opt->screenshot_at)
+                shot_vi = pc_frame;
+            if (opt->frames && !frames_vi && pc_rcp_gfx_tasks >= opt->frames)
+                frames_vi = pc_frame;
+            if (shot_vi && !shot && pc_frame >= shot_vi + 2) {
+                shot = 1;
+                if (pc_gfx_save_screenshot(opt->screenshot) == 0)
+                    fprintf(stderr, "rush2049pc: screenshot after %u graphics tasks: %s\n", pc_rcp_gfx_tasks,
+                            opt->screenshot);
+                else
+                    fprintf(stderr, "rush2049pc: no screenshot (%s)\n", opt->screenshot);
+            }
+            int shot_due = opt->screenshot_at && opt->screenshot_at <= opt->frames && !shot;
+            if (frames_vi && pc_frame >= frames_vi + 2 && !shot_due) {
+                status("frames reached:");
+                break;
+            }
             next_vi += vi_ns;
             if (next_vi <= now)   /* stalled (a debugger, a slow frame): resynchronize */
                 next_vi = now + vi_ns;
