@@ -96,18 +96,41 @@ jobs:
           cp mesa/x64/*.dll "$GAME_DIR/"
       - name: Self-test
         run: cd "$GAME_DIR" && ./rush2049pc.exe --selftest
+      - name: Version
+        run: cd "$GAME_DIR" && ./rush2049pc.exe --version | tee version.txt && grep -q "GitHub Actions run" version.txt
       - name: Boot without a ROM
+        # It faults where the blank cartridge's zero data runs out (docs/port/WINDOWS.md); the log the program
+        # writes must have the run, the fault and its backtrace.
         run: |
           cd "$GAME_DIR"
           RUSH_TRACE_WAVES=1 GALLIUM_DRIVER=llvmpipe ./rush2049pc.exe --no-rom --headless --no-config \
             --audio null --seconds 10 > "$GITHUB_WORKSPACE/boot.log" 2>&1 || true
           cat "$GITHUB_WORKSPACE/boot.log"
           grep -q "wave 0 loaded" "$GITHUB_WORKSPACE/boot.log"
+          log=$(sed -n 's/^rush2049pc .*: the log is //p' "$GITHUB_WORKSPACE/boot.log" | head -1 | tr -d '\r')
+          cp "$(cygpath -u "$log")" "$GITHUB_WORKSPACE/rush2049pc.log"
+          echo "::group::$log"; cat "$GITHUB_WORKSPACE/rush2049pc.log"; echo "::endgroup::"
+          for want in "commit " "GitHub Actions run" "wave 0 loaded" "Access violation (read) (0xC0000005) at address" \
+                      "  #1 "; do
+            grep -qF "$want" "$GITHUB_WORKSPACE/rush2049pc.log" || { echo "the log lacks '$want'"; exit 1; }
+          done
+      - name: An error with the program's own console
+        # A double-clicked program waits for a key after an error; forced here, where the console is shared
+        run: |
+          cd "$GAME_DIR"
+          rc=0
+          printf 'x\n' | RUSH2049_WAIT_KEY=1 ./rush2049pc.exe --headless --no-config --rom missing.z64 \
+            > "$GITHUB_WORKSPACE/wait.log" 2>&1 || rc=$?
+          cat "$GITHUB_WORKSPACE/wait.log"
+          test "$rc" = 1 && grep -q "press a key to close this window" "$GITHUB_WORKSPACE/wait.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: logs-windows-check
-          path: boot.log
+          path: |
+            boot.log
+            rush2049pc.log
+            wait.log
           if-no-files-found: ignore
 
   release:

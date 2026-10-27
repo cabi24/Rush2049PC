@@ -1,6 +1,7 @@
 /* port/app/paths.c: the program's folders and the places the ROM is looked for (docs/port/RELEASE.md). Only
  * named places are checked, in a fixed order; no folder is ever searched. */
 #define _GNU_SOURCE
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,7 @@
 #endif
 
 #include "app.h"
+#include "pc_compat.h"
 
 void pc_app_join(char *out, size_t size, const char *dir, const char *name)
 {
@@ -37,6 +39,45 @@ int pc_app_exists(const char *path)
 {
     struct stat st;
     return path[0] && stat(path, &st) == 0;
+}
+
+void pc_app_dirname(const char *path, char *out, size_t size)
+{
+    const char *slash = strrchr(path, '/');
+#ifdef _WIN32
+    const char *back = strrchr(path, '\\');
+    if (back && (!slash || back > slash))
+        slash = back;
+#endif
+    if (!slash)
+        snprintf(out, size, ".");
+    else if (slash == path)
+        snprintf(out, size, "%c", *path);
+    else
+        snprintf(out, size, "%.*s", (int)(slash - path), path);
+}
+
+static int is_dir(const char *path)
+{
+    struct stat st;
+    return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+int pc_app_mkdirs(const char *dir)
+{
+    char p[PC_APP_PATH];
+    snprintf(p, sizeof p, "%s", dir);
+    for (char *c = p + 1;; c++)
+        if (*c == '/' || *c == PC_APP_SEP || !*c) {
+            char sep = *c;
+            *c = 0;
+            /* a drive ("C:") or a folder that is there is skipped: making one fails with EACCES on Windows */
+            if (c[-1] != ':' && !is_dir(p) && mkdir(p, 0755) != 0 && errno != EEXIST)
+                return -1;
+            if (!sep)
+                return 0;
+            *c = sep;
+        }
 }
 
 static int is_file(const char *path)

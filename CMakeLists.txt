@@ -297,7 +297,16 @@ endif()
 # port/app: the program around the game (docs/port/RELEASE.md): its folders, the ROM lookup and what is wrong with a
 # ROM, message boxes. Only the executable links it (it calls port/ultra).
 file(GLOB PC_APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/app/*.c)
-add_library(pcapp OBJECT ${PC_APP_SOURCES})
+# The version (git describe), the commit and the build (a GitHub Actions run or a local build), written at every
+# build when they change (cmake/version.cmake): --version and the log's first lines.
+set(PC_VERSION_C ${CMAKE_BINARY_DIR}/version/pc_version.c)
+add_custom_target(pc_version
+    COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR} -DOUT=${PC_VERSION_C} -P ${CMAKE_SOURCE_DIR}/cmake/version.cmake
+    BYPRODUCTS ${PC_VERSION_C}
+    COMMENT "Version (cmake/version.cmake)"
+    VERBATIM)
+add_library(pcapp OBJECT ${PC_APP_SOURCES} ${PC_VERSION_C})
+add_dependencies(pcapp pc_version)
 target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app)
 target_compile_options(pcapp PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 if(RUSH_SDL2_TARGET)

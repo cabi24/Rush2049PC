@@ -53,7 +53,7 @@ def read_script(path):
 def run(name, exe, rom, logs):
     spec = read_script(PRESS_DIR / f"{name}.press")
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve()), "--no-rom-check", "--headless", "--no-config",
-           "--audio", "null", "--no-pak", "--press-file", str(PRESS_DIR / f"{name}.press"),
+           "--audio", "null", "--no-pak", "--log", f"{name}.game.log", "--press-file", str(PRESS_DIR / f"{name}.press"),
            "--until-state", spec["until"], "--seconds", spec["seconds"]]
     if not spec["realtime"]:
         cmd.append("--fast")
@@ -79,6 +79,9 @@ def run(name, exe, rom, logs):
         why.append("the state was not reached")
     elif spec["expect"] and spec["expect"] not in last:
         why.append(f"expected '{spec['expect']}'")
+    game_log = Path(logs) / f"{name}.game.log"   # the program's own log (docs/port/RELEASE.md) has it all too
+    if last and (not game_log.exists() or last not in game_log.read_text(encoding="utf-8", errors="replace")):
+        why.append(f"{game_log.name} lacks the state reached")
     if "nan" in last.split("car 0 at", 1)[-1]:
         why.append("the first car's position is NaN")
     for state in spec["visits"]:

@@ -154,6 +154,8 @@ void pc_stub_hit(const char *name)
 }
 
 /* ---------------------------------------------------------------- faults */
+void (*pc_on_fault)(const char *what);
+void (*pc_on_exit)(int code);
 #ifndef _WIN32
 
 /* The calling stack, symbolized with addr2line when it is installed: frames in the executable by their offset
@@ -207,6 +209,10 @@ static void fault(int sig, siginfo_t *si, void *ctx)
     if (write(2, line, (size_t)n) < 0)
         _exit(128 + sig);
     pc_print_backtrace(1);
+    if (pc_on_fault && n > 13 && n < (int)sizeof line) {
+        line[n - 1] = 0;          /* the line without its newlines */
+        pc_on_fault(line + 13);   /* nor "\nrush2049pc: " */
+    }
     signal(sig, SIG_DFL);
     raise(sig);
 }
