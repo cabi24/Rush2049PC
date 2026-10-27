@@ -89,6 +89,11 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
 GL_FUNCS(DECL)
 #undef DECL
 static PFNGLBINDFRAGDATALOCATIONPROC glBindFragDataLocation;
+/* Fences (GLES 3.0, GL 3.2, ARB_sync), optional: the frame interpolator's check that the GPU keeps up. */
+static PFNGLFENCESYNCPROC glFenceSync;
+static PFNGLCLIENTWAITSYNCPROC glClientWaitSync;
+static PFNGLDELETESYNCPROC glDeleteSync;
+static GLsync g_fence;
 
 struct GfxShader {
     GfxShaderKey key;
@@ -172,6 +177,11 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
     if (!ok)
         return -1;
     glBindFragDataLocation = (PFNGLBINDFRAGDATALOCATIONPROC)get_proc("glBindFragDataLocation");
+    glFenceSync = (PFNGLFENCESYNCPROC)get_proc("glFenceSync");
+    glClientWaitSync = (PFNGLCLIENTWAITSYNCPROC)get_proc("glClientWaitSync");
+    glDeleteSync = (PFNGLDELETESYNCPROC)get_proc("glDeleteSync");
+    if (glFenceSync == NULL || glClientWaitSync == NULL || glDeleteSync == NULL)
+        glFenceSync = NULL;
     G.gles = gles;
     G.glsl = 300;
     ver = (const char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
@@ -204,6 +214,9 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
 
 void pcgfx_gl_shutdown(void) {
     int b;
+    if (g_fence != NULL)
+        glDeleteSync(g_fence);
+    g_fence = NULL;
     for (b = 0; b < SHADER_BUCKETS; b++)
         while (G.shaders[b]) {
             GfxShader *s = G.shaders[b];
@@ -716,6 +729,25 @@ GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, int s) {
 
 void pcgfx_gl_finish(void) {
     glFinish();
+}
+
+void pcgfx_gl_fence_set(void) {
+    if (glFenceSync == NULL)
+        return;
+    if (g_fence != NULL)
+        glDeleteSync(g_fence);
+    g_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+int pcgfx_gl_fence_busy(void) {
+    if (g_fence == NULL || glFenceSync == NULL)
+        return 0;
+    /* work just handed over is in flight, not late: up to 2 ms for it */
+    if (glClientWaitSync(g_fence, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000u) == GL_TIMEOUT_EXPIRED)
+        return 1;
+    glDeleteSync(g_fence);
+    g_fence = NULL;
+    return 0;
 }
 
 void pcgfx_gl_aux_free(GfxTarget *t) {

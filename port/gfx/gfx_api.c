@@ -45,6 +45,8 @@ static struct {
     uint32_t vi;              /* the last retrace (pc_gfx_retrace) */
     GfxTarget *shown;         /* high frame rate: the target last shown instead of the presented image, or NULL */
     int shown_rows;
+    uint32_t present_gen, shown_gen;   /* presented images so far; the one last shown (high frame rate) */
+    int shown_w, shown_h;     /* the window size it was shown at */
     int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
     /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
     uint32_t tasks, drawn;
@@ -247,8 +249,10 @@ void pc_gfx_run_dl(const void *dl) {
     if (pcgfx_cfg.frame_rate != 0)   /* a high frame rate: recorded, to be drawn again between frames */
         pcgfx_rec_task_begin();
     pcgfx_run_list(dl);
-    if (pcgfx_rec != NULL)
+    if (pcgfx_rec != NULL) {
         pcgfx_rec_task_end();
+        pcgfx_gl_fence_set();   /* frames between are drawn only once the GPU has done this (pcgfx_hfr_frame) */
+    }
     if (S.times > 1)
         pcgfx_gl_finish();
     S.tasks++;
@@ -290,6 +294,7 @@ void pc_gfx_present(const void *framebuffer) {
         if (t != NULL) {
             pcgfx_gl_present_image(t);
             pcgfx_hfr_presented(t, S.vi);
+            S.present_gen++;
         }
         resolve_auto();
         pcgfx_rdp_new_frame();
@@ -312,18 +317,21 @@ void pc_gfx_present(const void *framebuffer) {
 
 /* A high frame rate's tick (the main loop, video.frame_rate times a second): the frame for time vt, in retraces.
  * The presented frame when it is due, else one drawn between it and the next, or the next one when it is late. */
-void pc_gfx_present_tick(double vt) {
+int pc_gfx_present_tick(double vt, int mode) {
     GfxTarget *t = NULL;
     int rows = 0, kind;
     double t0, t1;
     if (!S.inited || pcgfx_cfg.frame_rate == 0)
-        return;
+        return 0;
     if (S.times > 1)
         pcgfx_gl_finish();
     t0 = now_ms();
     pcgfx_flush();
     window_size();
-    kind = pcgfx_hfr_frame(vt, &t, &rows);
+    kind = pcgfx_hfr_frame(vt, &t, &rows, mode);
+    if (kind == 3 || (kind == 0 && S.shown == NULL && S.shown_gen == S.present_gen && S.shown_w == S.win_w &&
+                      S.shown_h == S.win_h && !pcgfx_ui_active()))
+        return 0;   /* nothing new: the screen keeps what it shows */
     if (S.times > 1)
         pcgfx_gl_finish();
     t1 = now_ms() - t0;
@@ -340,11 +348,15 @@ void pc_gfx_present_tick(double vt) {
     } else {
         pcgfx_gl_show(S.win_w, S.win_h, S.use_sdl);   /* black before the first frame */
         S.shown = NULL;
+        S.shown_gen = S.present_gen;
     }
+    S.shown_w = S.win_w;
+    S.shown_h = S.win_h;
     pcgfx_hfr_dump(S.shown, kind == 2);
     pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
     swap();
     S.tick_ms += now_ms() - t0;
+    return 1;
 }
 
 /* The last frame shown again (the presented image, not a render target, which the game may have drawn into
@@ -424,8 +436,9 @@ void pc_gfx_shutdown(void) {
         PcGfxHfrStats st;
         pcgfx_hfr_stats(&st);
         if (pcgfx_cfg.frame_rate != 0)
-            fprintf(stderr, "gfx: frame rate %d: %u frames shown, %u drawn between two, %u next ones early, %u held\n",
-                    pc_gfx_frame_rate(), st.ticks, st.drawn, st.early, st.held);
+            fprintf(stderr, "gfx: frame rate %d: %u frames shown, %u drawn between two, %u next ones early, %u held, "
+                    "%u not drawn (the host or its GPU was behind)\n", pc_gfx_frame_rate(), st.ticks, st.drawn, st.early, st.held,
+                    st.busy);
         if (pcgfx_cfg.frame_rate != 0 || pcgfx_cfg.verbose || S.times)   /* GL may finish the work later */
             fprintf(stderr, "gfx: %s time: %u graphics tasks, %.3f ms each; %u frames drawn between two, %.3f ms "
                     "each (at most %.3f); %u frames shown, %.3f ms each\n", S.times > 1 ? "GPU and CPU" : "CPU", S.tasks,

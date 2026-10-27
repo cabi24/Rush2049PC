@@ -86,7 +86,10 @@ void pc_gfx_shutdown(void);
 void pc_gfx_set_frame_rate(int rate);
 int pc_gfx_frame_rate(void);                 /* frames shown a second (-1 resolved), 0 for the game's own */
 void pc_gfx_retrace(uint32_t vi);            /* each retrace, before the VI's present: its number */
-void pc_gfx_present_tick(double vi_time);    /* show the frame for this moment, in retraces (pc_gfx_retrace's) */
+/* Show the frame for this moment, in retraces (pc_gfx_retrace's). mode 0: as the moment says (--fast); 1: on the
+ * host's clock, a frame between two isn't drawn while the GPU hasn't finished what it was given; 2: no frame is drawn
+ * between two, only the game's are shown (the host is behind). 1 when something new was shown, 0 if not. */
+int pc_gfx_present_tick(double vi_time, int mode);
 
 /* Drawing over the frame, in window pixels (port/gfx/gfx_ui.c), for port/input's settings overlay. While a UI hook
  * is set, each present (and pc_gfx_redraw) calls it with the window's size after the frame is shown and before

@@ -248,7 +248,10 @@ void pcgfx_gl_show_target(GfxTarget *t, int rows, int win_w, int win_h, int to_w
  * w x h N64 pixels and scale s when t is NULL or differs. The frame interpolator draws into it. */
 GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, int s);
 void pcgfx_gl_aux_free(GfxTarget *t);
-void pcgfx_gl_finish(void);   /* glFinish: for timing the GPU's part (RUSH_GFX_TIME_SYNC) */
+void pcgfx_gl_finish(void);   /* glFinish: for timing the GPU's part (RUSH_GFX_TIMES=2) */
+/* A fence after the GL work so far; whether the GPU hasn't passed the last one within 2 ms (0 without fences). */
+void pcgfx_gl_fence_set(void);
+int pcgfx_gl_fence_busy(void);
 /* The overlay's triangles (gfx_ui.c), in window pixels, blended over the window; the atlas is uploaded once. */
 void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_window, const uint8_t *atlas,
                       int atlas_w, int atlas_h);
@@ -284,8 +287,10 @@ void pcgfx_rec_viewport(void);    /* after G_MV_VIEWPORT */
 /* The presentation side (gfx_api.c). */
 void pcgfx_hfr_presented(GfxTarget *t, uint32_t vi);   /* t's frame was swapped in at retrace vi */
 /* What to show at time vt (retraces): 0 the presented image; else the target *t, its top *rows rows: 1 the next
- * frame, as the game drew it (it is due and not swapped in yet), 2 a frame drawn between the two. */
-int pcgfx_hfr_frame(double vt, GfxTarget **t, int *rows);
+ * frame, as the game drew it (it is due and not swapped in yet), 2 a frame drawn between the two; 3 nothing new
+ * (mode 1 and the GPU hasn't finished what it was given, or mode 2: the screen keeps what it shows). The mode is
+ * pc_gfx_present_tick's. */
+int pcgfx_hfr_frame(double vt, GfxTarget **t, int *rows, int mode);
 void pcgfx_hfr_dump(GfxTarget *t, int drawn);   /* RUSH_GFX_HFR_DUMP: the frame just shown (t NULL: presented) */
 void pcgfx_hfr_reset(void);       /* forget the recorded frames */
 void pcgfx_hfr_shutdown(void);

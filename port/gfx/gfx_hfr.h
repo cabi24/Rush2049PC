@@ -12,6 +12,7 @@ extern "C" {
 
 typedef struct {
     uint32_t ticks, drawn, early, held;   /* frames shown: in total, drawn between two, the next early, held */
+    uint32_t busy;                        /* frames between not drawn: the host or its GPU was behind */
     uint32_t xf, xf_lerp, xf_camera, xf_snap, cuts;   /* the last drawn frame's transforms and its views cut */
     double last_alpha;
 } PcGfxHfrStats;

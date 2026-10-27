@@ -200,7 +200,10 @@ loop on the host main thread.
   that many times a second, in step with the retraces (the first tick at a retrace), with the moment in retraces;
   port/gfx shows nothing at the retraces then. On the host's clock the ticks are deadlines; with `--fast` they are
   not (they run when the loop wakes for something else), so the virtual clock stops at the same moments with the
-  setting on or off. The ticks post nothing to the game.
+  setting on or off. The ticks post nothing to the game. On the host's clock they give way to it: a tick waits while
+  an RSP task is queued (`pc_rcp_pending`), is skipped when it would run into the next retrace (by how long the last
+  ones took), and draws no frame between two while the host is behind (two retraces dropped within a second). At
+  exit the loop says how many it skipped and how many retraces were dropped.
 
 | Option | |
 |---|---|

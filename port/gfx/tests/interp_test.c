@@ -540,7 +540,7 @@ static uint8_t *reference(const Scene *sc, float a, int expect) {
 }
 
 static uint8_t *tick(double vt) {
-    pc_gfx_present_tick(vt);
+    pc_gfx_present_tick(vt, 0);
     return read_window();
 }
 
@@ -927,7 +927,7 @@ static void case_timing(void) {
     w0 = read_window();
     build(&sc, 1, 1.0f, 0);
     pc_gfx_run_dl(s_list[1]);
-    pc_gfx_present_tick(10.5);
+    pc_gfx_present_tick(10.5, 0);
     w1 = read_window();
     expect_match("off: a tick changes nothing", w1, w0, 0);
     free(w1);

@@ -1131,7 +1131,7 @@ static RFrame *next_frame(void) {
     return best;
 }
 
-int pcgfx_hfr_frame(double vt, GfxTarget **show, int *rows) {
+int pcgfx_hfr_frame(double vt, GfxTarget **show, int *rows, int mode) {
     RFrame *b = H.cur, *c, *r, *o;
     double period = 2.0, a;
     int w;
@@ -1174,10 +1174,18 @@ int pcgfx_hfr_frame(double vt, GfxTarget **show, int *rows) {
         H.stats.held++;
         return 0;
     }
+    /* On the host's clock, drawn only when the GPU has done the game's last frame and the last one drawn here (and not
+     * while the host is behind on retraces, mode 2): the
+     * frames between take only the time the GPU has to spare, never the game's. The screen keeps what it shows. */
+    if (mode == 2 || (mode == 1 && pcgfx_gl_fence_busy())) {
+        H.stats.busy++;
+        return 3;
+    }
     H.aux = pcgfx_gl_aux_target(H.aux, r->tw, r->th, r->scale);
     if (H.aux == NULL)
         return 0;
     draw_between(o, r, (float)(r == c ? a : 1.0 - a));
+    pcgfx_gl_fence_set();
     *show = H.aux;
     pcgfx_gl_target_shown(r->target, &w, rows);
     H.stats.drawn++;

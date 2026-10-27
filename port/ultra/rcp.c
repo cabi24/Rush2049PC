@@ -156,6 +156,14 @@ static int ai_service(uint64_t now, uint64_t *next)
 
 /* ---------------------------------------------------------------- main thread */
 
+int pc_rcp_pending(void)
+{
+    pthread_mutex_lock(&g_rlock);
+    int n = g_ntasks;
+    pthread_mutex_unlock(&g_rlock);
+    return n;
+}
+
 int pc_rcp_service(uint64_t now, uint64_t *next)
 {
     PcOSTask tasks[MAX_TASKS];

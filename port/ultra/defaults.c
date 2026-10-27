@@ -32,7 +32,7 @@ WEAK void pc_gfx_shutdown(void) {}
 WEAK void pc_gfx_set_frame_rate(int rate) { (void)rate; }
 WEAK int pc_gfx_frame_rate(void) { return 0; }
 WEAK void pc_gfx_retrace(uint32_t vi) { (void)vi; }
-WEAK void pc_gfx_present_tick(double vi_time) { (void)vi_time; }
+WEAK int pc_gfx_present_tick(double vi_time, int mode) { (void)vi_time, (void)mode; return 0; }
 
 WEAK int pc_audio_init(const char *backend, const char *dump_wav_path)
 {
