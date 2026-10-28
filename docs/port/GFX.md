@@ -419,12 +419,14 @@ screen's edge that it has on a 4:3 screen. Everything else stays as the section 
   queue is drawn (`pcgfx_hud_resolve`) before anything else is drawn or cleared (a 3D triangle, a fill-mode
   rectangle), at a new color or depth image and at the task's end, in its order, so the picture's order is the
   game's:
-  - **Layers.** A panel, a box at least half the frame wide and an eighth of it high (the pause screen's full-frame
-    darkening, a menu's pane), starts a layer. What is drawn after it belongs to it, never to what is under it: the
-    pause screen's option pane over the radar's side doesn't take the radar with it.
-  - **Groups.** In a layer, pieces whose boxes (within their scissor) overlap or nearly touch, 8 pixels apart along
-    a line and 3 between lines, are one group: a bezel and its digits, a text run with its word spaces, the radar
-    and its blips, a pane and its text.
+  - **Groups.** Pieces whose boxes (within their scissor) overlap or nearly touch, 8 pixels apart along a line and
+    3 between lines, are one group: a bezel and its digits, a text run with its word spaces, the radar and its
+    blips, a pane and its text.
+  - **Panels.** A panel is a box at least half the frame wide and an eighth of it high (the pause screen's
+    full-frame darkening, a menu's pane). It covers what was drawn before it: a piece drawn on a panel (or the
+    panel itself) never groups with a piece drawn before that panel. So the pause screen's option pane over the
+    radar's side doesn't take the radar with it, while a value the video page draws on its pane after drawing
+    another panel (its test pattern) still groups with its pane.
   - **The move.** A group wider than half the frame stays (a full-width bar, a menu pane). Otherwise its box's
     centre decides: left of the middle band (the frame's middle sixth on each side: 107-213 of 320) the group moves
     left by ox, right of it right by ox, in it it stays (a centred banner: "insert rumble pak", the pause menu).
@@ -732,7 +734,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `autosize` | headless window sizes from 640 × 480 to 2880 × 1620: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), native the fit at any fraction (2876 × 1620 at 2880 × 1620, 1363 × 768 at 1366 × 768), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
 | `seams` | at the scale in effect, every internal pixel of the 4:3 frame against its N64 pixel's color: copy-mode tiles side by side, 13-pixel 1-cycle tiles from x 3, glyph-sized rectangles a pixel apart, 2× magnified tiles, 1-pixel fill columns and 1-cycle rows, a fill to the bottom: no gap, no bleed |
 | `screenshot` | PNG |
-| `hud` | the race HUD at the screen's edges, on a made-up race frame (GFX.md "The HUD at the screen's edges"), at 16:9 and 21:9: a bezel fill with a copy-mode digit on it and an orthographic triangle at the left side end up ox further left, texel for texel; a run of digits a pixel apart at the right ox further right, together; a fill cut by its scissor at the right moves with its scissor; a banner with a digit at each end and a run of digits across the middle band's side stay; a full-width fill spans the target; a panel drawn over a radar fill's side stays, the radar moves; the 3D strip spans the target; `pc_gfx_hud_dx` for points; `centered`, `edges` outside a race and `edges` at 4:3 give the same frames, byte for byte, as `centered` |
+| `hud` | the race HUD at the screen's edges, on a made-up race frame (GFX.md "The HUD at the screen's edges"), at 16:9 and 21:9: a bezel fill with a copy-mode digit on it and an orthographic triangle at the left side end up ox further left, texel for texel; a run of digits a pixel apart at the right ox further right, together; a fill cut by its scissor at the right moves with its scissor; a banner with a digit at each end and a run of digits across the middle band's side stay; a full-width fill spans the target; a panel drawn over a radar fill's side stays, the radar moves; a digit drawn on that panel after a second panel stays with it; the 3D strip spans the target; `pc_gfx_hud_dx` for points; `centered`, `edges` outside a race and `edges` at 4:3 give the same frames, byte for byte, as `centered` |
 
 - **Variants.** `gfx.all.gles`, `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun
   every case on GLES, on desktop GL, at 2× and on llvmpipe's GLES; `gfx.all.desktop-gl-software` on llvmpipe's

@@ -1522,7 +1522,8 @@ static void case_widescreen(void) {
  * digits a pixel apart (270-305, rows 10-18) and a radar fill (240-300, rows 100-140) cut by its scissor (250-290);
  * in the middle a banner (90-230, rows 60-80) with a digit at each end (95, 217) and a run of digits 3 pixels apart
  * across the band's left side (60-156, rows 90-98); a full-width fill (rows 200-210); then a pause-like panel
- * (40-280, rows 145-195, drawn after a radar fill 10-42 under its left side) with a digit in it (50, rows 160-168). */
+ * (40-280, rows 145-195, drawn after a radar fill 10-42 under its left side) with a digit in it (50, rows 160-168),
+ * a second panel (20-300, rows 205-240) and then another digit on the first panel (270, rows 185-193). */
 static int s_race;
 static int test_race(void) { return s_race; }
 static uint16_t s_hdig[8 * 8];
@@ -1585,6 +1586,9 @@ static void hud_scene(void) {
     hud_fill(40, 145, 280, 195, 64, 0, 64);
     hud_copy();
     hud_digit(50, 160);
+    hud_fill(20, 205, 300, 240, 0, 64, 64);
+    hud_copy();
+    hud_digit(270, 185);
     frame_end();
 }
 
@@ -1707,6 +1711,9 @@ static void case_hud(void) {
         check_at("panel's digit stays", ox + 51, 162, w, w, w, 0);
         check_at("radar under the panel moves left", 12, 170, 128, 128, 128, 0);
         check_at("radar under the panel: its right side", 41, 170, 128, 128, 128, 0);
+        check_at("a digit drawn after the second panel stays on the first", ox + 271, 187, w, w, w, 0);
+        check_at("that digit: not moved right", 2 * ox + 271, 187, 0, 0, 255, 0);
+        check_at("the second panel stays", ox + 25, 230, 0, 64, 64, 0);
     }
     pc_gfx_set_hud_race(NULL);
     pc_gfx_set_hud(env_hud);

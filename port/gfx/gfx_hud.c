@@ -9,10 +9,11 @@
  * Pieces move as wholes. While it is on, the task's 2D primitives (texture rectangles, 1/2-cycle fills, orthographic
  * triangles) are queued here instead of drawn, until something else is drawn (3D, a clear, another color image) or
  * the task ends. Then they are grouped, each group gets one move, and they are drawn in their order:
- *   - layers: a panel (a box at least half the frame wide and an eighth of it high: the pause menu's darkening, a
- *     menu's pane) starts a new layer; what is drawn after it belongs to it, and never to what is under it;
- *   - groups: within a layer, pieces whose boxes overlap or nearly touch (8 pixels apart on a line, 3 between lines)
- *     are one group: a speedometer's frame and digits, a text run, the radar and its blips, a pane and its text;
+ *   - groups: pieces whose boxes overlap or nearly touch (8 pixels apart on a line, 3 between lines) are one group:
+ *     a speedometer's frame and digits, a text run, the radar and its blips, a pane and its text;
+ *   - panels: a box at least half the frame wide and an eighth of it high (the pause menu's darkening, a menu's
+ *     pane) covers what was drawn before it: a piece drawn on a panel never groups with a piece drawn before that
+ *     panel, so the pause menu's pane doesn't take the radar under its side with it;
  *   - the move: a group wider than half the frame stays; else by its box's centre against the frame's middle, with
  *     a band of a sixth of the frame on each side that stays (centred banners, menus): left of it the group moves
  *     left by the widening, right of it right. Its scissor moves with it.
@@ -30,6 +31,7 @@
 #define HUD_MAX_ITEMS 2048
 #define HUD_GAP_X 8.0f      /* pieces on one line this far apart are one group (a text run's word spaces) */
 #define HUD_GAP_Y 3.0f      /* and lines this far apart */
+#define HUD_MAX_PANELS 64
 
 typedef struct {
     uint32_t state;         /* its draw state, in S.st */
@@ -40,7 +42,6 @@ typedef struct {
     int ox;                 /* the widening */
     int fw;                 /* the frame's width */
     int parent;             /* union-find */
-    uint16_t layer;
     uint8_t movable, tri;
 } HudItem;
 
@@ -58,7 +59,8 @@ static struct {
     GfxOutVtx *out;         /* a run of vertices to draw */
     uint32_t cout;
     int dx[HUD_MAX_ITEMS];
-    uint16_t layer;         /* panels so far in this run */
+    int panel[HUD_MAX_PANELS];   /* the panels' items, in order */
+    int npanel;
 } S = {.mode = PC_GFX_HUD_EDGES};
 
 void pc_gfx_set_hud(int mode) {
@@ -98,7 +100,7 @@ void pcgfx_hud_task_begin(void) {
     S.on = S.mode == PC_GFX_HUD_EDGES && S.race != NULL && S.race();
     S.n = 0;
     S.nv = S.nst = 0;
-    S.layer = 0;
+    S.npanel = 0;
 }
 
 int pc_gfx_hud_dx(int x) {
@@ -206,10 +208,10 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
     it->sc_x0 = (int32_t)(pcgfx.sc_ulx >> 2) + ox;
     it->sc_x1 = (int32_t)(pcgfx.sc_lrx >> 2) + ox;
     it->movable = (uint8_t)movable;   /* the HUD's translucent panels are drawn with the primitive depth too */
-    /* a panel starts a layer: it and what comes after it never group with what is under it */
-    if (it->x1 - it->x0 >= 0.5f * (float)fw && it->y1 - it->y0 >= (float)fw * 0.75f / 8.0f)
-        S.layer++;
-    it->layer = S.layer;
+    /* a panel: what is drawn on it doesn't group with what it covers */
+    if (it->x1 - it->x0 >= 0.5f * (float)fw && it->y1 - it->y0 >= (float)fw * 0.75f / 8.0f &&
+        S.npanel < HUD_MAX_PANELS)
+        S.panel[S.npanel++] = S.n;
     it->parent = S.n;
     S.n++;
     return 0;
@@ -229,12 +231,29 @@ static int near_boxes(const HudItem *a, const HudItem *b) {
     return gx <= HUD_GAP_X && gy <= HUD_GAP_Y;
 }
 
+static int overlap(const HudItem *a, const HudItem *b) {
+    return a->x0 < b->x1 && b->x0 < a->x1 && a->y0 < b->y1 && b->y0 < a->y1;
+}
+
+/* Item j (drawn after i) is on a panel drawn after i (or is that panel): it belongs to the panel, not to i. */
+static int covered(int i, int j) {
+    int k;
+    for (k = 0; k < S.npanel; k++) {
+        int p = S.panel[k];
+        if (p > j)
+            break;
+        if (p > i && overlap(&S.it[j], &S.it[p]))
+            return 1;
+    }
+    return 0;
+}
+
 /* Each item's move, N64 pixels: its group's (GFX.md "The HUD at the screen's edges"). */
 static void place(void) {
     int i, j;
     for (i = 0; i < S.n; i++)
-        for (j = i + 1; j < S.n && S.it[j].layer == S.it[i].layer; j++)
-            if (S.it[i].movable && S.it[j].movable && near_boxes(&S.it[i], &S.it[j])) {
+        for (j = i + 1; j < S.n; j++)
+            if (S.it[i].movable && S.it[j].movable && near_boxes(&S.it[i], &S.it[j]) && !covered(i, j)) {
                 int a = root(i), b = root(j);
                 if (a != b)
                     S.it[a > b ? a : b].parent = a < b ? a : b;
@@ -309,5 +328,5 @@ void pcgfx_hud_resolve(void) {
     }
     S.n = 0;
     S.nv = S.nst = 0;
-    S.layer = 0;
+    S.npanel = 0;
 }
