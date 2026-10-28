@@ -619,6 +619,11 @@ def load_decoupled(path, tables, symfile, refs, defs):
         if not cands or len(set(cands)) != 1:
             sys.exit(f"{path}:{n}: no single N64 address for {n64}")
         lo = cands[0]
+        # BSS of an image that stays loaded only: the loader would leave initialized data unconverted, and a runtime
+        # image's load would not clear it again.
+        w, w_end = arena_of(lo, {"game"}), arena_of(lo + size - 1, {"game"})
+        if not w or not w[1] or w_end != w or n64syms.ARENAS[w[0]][0] not in ("boot", "game"):
+            sys.exit(f"{path}:{n}: {n64} (0x{lo:08X}, {size} B) is not inside the game's or the boot segment's BSS")
         inside = {name for t in tables.values() for name, x in t.items() if lo <= x < lo + size}
         inside |= {name for name, (x, kind, _) in symfile.items() if kind == "data" and lo <= x < lo + size}
         retired = sorted({n64, *aliases} | inside)
