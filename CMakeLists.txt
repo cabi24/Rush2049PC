@@ -360,6 +360,9 @@ add_custom_target(pc_version
 add_library(pcapp OBJECT ${PC_APP_SOURCES} ${PC_VERSION_C})
 add_dependencies(pcapp pc_version)
 target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app)
+if(WIN32)
+    target_link_libraries(pcapp PUBLIC winmm)   # timeBeginPeriod (startup.c)
+endif()
 target_compile_options(pcapp PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 if(RUSH_SDL2_TARGET)
     target_compile_definitions(pcapp PRIVATE PC_HAVE_SDL2)
@@ -435,14 +438,21 @@ function(pc_link_scripts target)
     endif()
 endfunction()
 pc_link_scripts(rush2049pc ${PC_DATA_DIR}/aliases.ld ${PC_DATA_PE_OUTPUTS})   # PE: data.c's weak references
-# Windows (docs/port/WINDOWS.md, "Icon and version"): an icon and version information.
+# Windows (docs/port/WINDOWS.md, "The console"; "Icon and version"): a GUI program, so Windows opens no console
+# window with it (port/app/startup.c attaches to the parent's console instead, or keeps the output for a message box
+# when there is none), with an icon and version information. RUSH_WINDOWS_CONSOLE builds a console program, which
+# gets a console window of its own when double-clicked (and waits for a key after an error, port/app/log.c).
 if(WIN32)
+    option(RUSH_WINDOWS_CONSOLE "Build rush2049pc.exe as a console program (a console window opens with it)" OFF)
     target_sources(rush2049pc PRIVATE port/app/rush2049pc.rc)
     target_include_directories(rush2049pc PRIVATE $<$<COMPILE_LANGUAGE:RC>:${CMAKE_BINARY_DIR}/version>
                                $<$<COMPILE_LANGUAGE:RC>:${CMAKE_SOURCE_DIR}/dist>)
     set_source_files_properties(port/app/rush2049pc.rc PROPERTIES
         OBJECT_DEPENDS "${PC_VERSION_RC_H};${CMAKE_SOURCE_DIR}/dist/rush2049pc.ico")
     add_dependencies(rush2049pc pc_version)
+    if(NOT RUSH_WINDOWS_CONSOLE)
+        set_target_properties(rush2049pc PROPERTIES WIN32_EXECUTABLE ON)   # -mwindows
+    endif()
 endif()
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)

@@ -207,7 +207,7 @@ static int rush_main(int argc, char **argv)
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
         const char *v = i + 1 < argc ? argv[i + 1] : NULL;
-#define ARG() (v ? (i++, v) : (fprintf(stderr, "rush2049pc: %s needs a value\n", a), exit(2), ""))
+#define ARG() (v ? (i++, v) : (fprintf(stderr, "rush2049pc: %s needs a value\n", a), pc_app_finish(2), exit(2), ""))
 #define SET(s, k, val)                                                                                        \
     do {                                                                                                      \
         if (nover > MAX_OVERRIDES) {                                                                          \
@@ -480,6 +480,7 @@ static int rush_main(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+    pc_app_startup();   /* Windows: the console (or none), the timer period (port/app/startup.c) */
     int code = rush_main(argc, argv);   /* returns only when it stops early: an error, --help, --print-config... */
     pc_app_finish(code);
     return code;

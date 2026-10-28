@@ -4,9 +4,10 @@
  * the file. Everything the program and its libraries print reaches both, the fault reports included: port/ultra's
  * fault handlers call pc_on_fault after the report, which empties the pipe into the file before the process ends.
  * The file is rush2049pc.log where the program keeps what it writes (port/app/paths.c), and the run before is
- * kept as rush2049pc.old.log. On Windows, a program that owns its console (a double-click: the window closes with
- * the program) waits for a key before it ends after an error or a fault, and a fault shows a message box saying
- * where the log is. */
+ * kept as rush2049pc.old.log. A fault with a window (Windows) and an error or a fault that nobody would see on a
+ * console (startup.c's quiet: rush2049pc.exe double-clicked) show a message box saying what and where the log is.
+ * On Windows, a program that owns its console (a console build double-clicked: the window closes with the program)
+ * waits for a key before it ends after an error or a fault. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -269,8 +270,10 @@ void pc_app_log_window(int window)
 /* ---------------------------------------------------------------- the end */
 
 #ifdef _WIN32
-/* A double-clicked program has a console of its own, which closes when it ends: then (or with RUSH2049_WAIT_KEY=1)
- * it waits for a key, so the last messages can be read. RUSH2049_WAIT_KEY=0 never waits. */
+/* A program with a console of its own, which closes when it ends, waits for a key then (or with RUSH2049_WAIT_KEY=1),
+ * so the last messages can be read. That is a console build (RUSH_WINDOWS_CONSOLE) double-clicked. The usual GUI
+ * build never has one: it shares its parent's console (GetConsoleProcessList counts both) or has none (it fails),
+ * and with none an error is shown in a message box instead (error_box). RUSH2049_WAIT_KEY=0 never waits. */
 static void wait_for_key(void)
 {
     const char *e = getenv("RUSH2049_WAIT_KEY");
@@ -304,18 +307,40 @@ void pc_app_on_fault(const char *what)
     if (log)
         fprintf(stderr, "rush2049pc: the log is %s\n", log);
 #ifdef _WIN32
-    pc_app_alert_native(L.window, "Rush 2049 PC stopped", text);
+    pc_app_alert_native(L.window || pc_app_console_quiet(), "Rush 2049 PC stopped", text);
     wait_for_key();
 #endif
+}
+
+/* An error with nobody to see the console (startup.c, quiet) that no message box has explained yet: a box with the
+ * last lines printed, each indented as the paths in the other boxes. */
+static void error_box(int code)
+{
+    char tail[1200], lines[1600], text[1600 + 2 * PC_APP_PATH];
+    const char *log = pc_app_log_path();
+    if (code == 0 || !pc_app_console_quiet() || pc_app_box_was_shown())
+        return;
+    pc_app_console_tail(tail, sizeof tail);
+    size_t n = 0;
+    for (const char *p = tail; *p && n < sizeof lines - 6; p++) {
+        if (p == tail || p[-1] == '\n')
+            memcpy(lines + n, "    ", 4), n += 4;
+        lines[n++] = *p;
+    }
+    lines[n] = 0;
+    snprintf(text, sizeof text, "The program stopped with an error (exit code %d).%s%s\n\n%s%s%s"
+             "If it isn't clear what is wrong, please report it at https://github.com/cabi24/Rush2049PC/issues%s.",
+             code, n ? " Its last messages:\n\n" : "", lines, log ? "The log, with the details, is\n    " : "",
+             log ? log : "", log ? "\n\n" : "", log ? ", with the log" : "");
+    pc_app_alert(1, "Rush 2049 PC stopped", text);
 }
 
 void pc_app_finish(int code)
 {
     pc_app_log_close();
+    error_box(code);
 #ifdef _WIN32
     if (code != 0)
         wait_for_key();
-#else
-    (void)code;
 #endif
 }
