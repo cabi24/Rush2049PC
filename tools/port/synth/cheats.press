@@ -1,0 +1,23 @@
+# The cheat screen (docs/port/QA.md 2): the main menu's cheat code (the cartridge's: hold L, press Z) makes its
+# option 6 valid, five down reach it, A opens the cheat screen (0x8000000); there cheat 0's code (hold R and press
+# Z, hold C-up and press Z) and RIGHT switch it, and B goes back to the main menu.
+# until: 0x10:700
+# seconds: 60
+# visits: 0x8000000
+# expect: state=0x00000010: players 1, windows 1
+5 A            # the controller pak warning
+8 START        # the start prompt; the main menu from 8 s
+10 L 0.6       # the main menu's cheat code
+10.3 Z 0.1
+12 DOWN 0.1    # five down: 1-4, then 6, the cheats
+12.5 DOWN 0.1
+13 DOWN 0.1
+13.5 DOWN 0.1
+14 DOWN 0.1
+15 A           # the cheat screen
+18 R 0.4       # cheat 0's code
+18.2 Z 0.1
+18.8 CU 0.4
+19.0 Z 0.1
+20 RIGHT 0.1   # switch it
+22 B           # back to the main menu

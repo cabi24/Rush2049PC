@@ -662,15 +662,25 @@ endif()
 if(NOT WIN32)
     add_test(NAME layout_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/layout_check.py --build ${CMAKE_BINARY_DIR}
         --selftest)
+    # tools/port/offset_check.py (docs/port/LAYOUT.md 9): raw N64 offsets into records whose PC layout moved the
+    # field, on its synthetic cases (CI runs it over the game).
+    add_test(NAME offset_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/offset_check.py --build ${CMAKE_BINARY_DIR}
+        --selftest)
 endif()
 # tools/port/index_check.py: initialized data the code indexes past a scalar declaration must have the table's extent
 # in the data report, or its other elements keep the ROM's byte order (docs/port/SYNTH.md 3).
 add_test(NAME index_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/index_check.py --build ${CMAKE_BINARY_DIR})
+# tools/port/weak_copies_check.py: a function several files define with no manifest owner must be the same in each,
+# since gen_weak keeps one copy for every caller (docs/port/QA.md 2: the start screen's InitEgg).
+add_test(NAME weak_copies_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/weak_copies_check.py --build ${CMAKE_BINARY_DIR}
+    --root ${CMAKE_SOURCE_DIR})
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test pc_reach_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
     PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
+# Before port/gfx, whose renderer links pcupscale (and makes it itself when nothing has).
+add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port/UPSCALE.md)
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)

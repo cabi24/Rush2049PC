@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -145,15 +146,18 @@ int pcgfx_tex_variant(int is3d) {
     return 0;
 }
 
+/* The upscale factor: the largest power of two up to the internal scale in effect, at most 4, fractions too
+ * (native at 2880 x 1620, 6.76: 4x; at 1366 x 768, 3.2: 2x). */
 int pcgfx_tex_factor(void) {
-    int s = pcgfx_cfg.scale;
+    float s = pcgfx_cfg.scale;
     if (C.factor_env)
         return C.factor_env;
-    return s >= 4 ? 4 : s >= 2 ? 2 : 1;
+    return s >= 4.0f ? 4 : s >= 2.0f ? 2 : 1;
 }
 
+/* A pack's texture is kept up to this many times the N64's: the internal scale, a fraction rounded up. */
 int pcgfx_tex_pack_limit(void) {
-    return pcgfx_cfg.scale < 1 ? 1 : pcgfx_cfg.scale;
+    return pcgfx_cfg.scale < 1.0f ? 1 : (int)ceilf(pcgfx_cfg.scale - 1e-4f);
 }
 
 int pcgfx_tex_dumping(void) {

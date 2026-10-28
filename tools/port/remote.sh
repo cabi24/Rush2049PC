@@ -15,7 +15,10 @@ list=$(mktemp)
 trap 'rm -f "$list"' EXIT
 (cd "$top" && git ls-files -co --exclude-standard -z | while IFS= read -r -d '' f; do [ -e "$f" ] && printf '%s\0' "$f"; done) > "$list"
 ssh -o BatchMode=yes "$host" "mkdir -p ~/$dir"
-rsync -a --from0 --files-from="$list" "$top/" "$host:$dir/"
+# By content, without the files' times: a changed file arrives with the time it arrives, so it is always newer than
+# what the last build there made from it (with -a, a file edited while a build ran there kept an older time than
+# that build's object, and ninja skipped it).
+rsync -rlpD --checksum --from0 --files-from="$list" "$top/" "$host:$dir/"
 # Drop files that are gone here (outside build/), so CMake globs see the same tree.
 tr '\0' '\n' < "$list" | LC_ALL=C sort | ssh -o BatchMode=yes "$host" "cd ~/$dir && keep=\$(mktemp) && cat > \$keep && find . -path ./build -prune -o -type f -print | sed 's|^\./||' | LC_ALL=C sort | LC_ALL=C comm -23 - \$keep | while IFS= read -r f; do rm -f -- \"\$f\"; done; rm -f \$keep"
 ssh -o BatchMode=yes "$host" "cd ~/$dir && bash -lc $(printf '%q' "$*")"

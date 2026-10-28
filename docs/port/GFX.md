@@ -17,13 +17,14 @@ documentation and n64brew.
 | `gfx_combine.c` | combiner and blender to GLSL |
 | `gfx_gl.c` | OpenGL backend: loader, render targets, depth buffers, shader cache, draws, present, readback |
 | `gfx_egl.c` | headless context (EGL surfaceless, then EGL device, then the default display) |
-| `gfx_sdl.c` | SDL2 window and context (built only when SDL2 is found) |
+| `gfx_sdl.c` | SDL2 window and context, display modes (built only when SDL2 is found) |
+| `gfx_size.c` | sizes without GL: the scale for a window, internal sizes, N64 edges in internal pixels, where the frame goes, pixels against window units |
 | `gfx_png.c` | PNG writer and reader on zlib |
 | `gfx_tex.c`, `gfx_tex.h` | upscaled textures and texture packs: identities, the worker thread, the disk cache ([TEXTURES.md](TEXTURES.md)) |
 | `gfx_ui.c`, `gfx_font.c` | drawing over the frame in window pixels, and its font: the settings overlay ("The overlay" below) |
 | `gfx_interp.c`, `gfx_hfr.h` | a high frame rate: graphics tasks recorded, frames drawn between the game's ("High frame rate" below) |
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
-| `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between) |
+| `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between); `gfx_size_test` (gfx_size.c with made-up sizes) |
 
 Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game has its own `gfx_*` functions
 (`gfx_frame_begin`, `gfx_lock`), and the renderer links into the same executable.
@@ -192,7 +193,8 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   what V3D offers). Attributes are bound by name, so there are no layout qualifiers. GL entry points are loaded at run
   time, so the same build runs on GLES 3.0+ and desktop GL 3.1+.
 - **Render targets.** One FBO per color image address, with a depth renderbuffer per z image and size.
-  - A target is cimg width × width·3/4 (320 × 240), times the internal scale. Widescreen widens it (below).
+  - A target is cimg width × width·3/4 (320 × 240) N64 pixels, round(n × scale) internal pixels on each side, at
+    any scale from 1 ("Resolution and scale" below). Widescreen widens it (below).
   - Each target and depth buffer keeps the scale it was made at, and is made again at the next color image when
     the scale or the size changes (the auto settings follow the window). Depth buffers of a size no target has
     any more are dropped.
@@ -200,8 +202,9 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     with, or `RUSH_GFX_HEIGHT`.
   - Offscreen color images get their own target. Nothing reads one back as a texture yet.
 - **Present.** `pc_gfx_present(fb)` copies fb's target (or the last one drawn) into a "presented" image. In a window
-  it shows that image at the largest integer multiple that fits, otherwise aspect-fit, letterboxed, with square N64
-  pixels. Headless, it does the same into an offscreen image of the window's size, which `pc_gfx_read_window`
+  it shows that image with square N64 pixels, letterboxed: at a native scale pixel for pixel (it was drawn for the
+  window), else fitted; at other scales at the largest integer multiple that fits, otherwise aspect-fit
+  (`pcgfx_fit`). Headless, it does the same into an offscreen image of the window's size, which `pc_gfx_read_window`
   reads. Screenshots read the presented image. The overlay, when there is one, is drawn after the frame is shown
   and before the swap (below).
 - **Context.** `pc_gfx_init(headless, w, h)`:
@@ -212,7 +215,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | Variable | Effect |
 |---|---|
 | `RUSH_GFX_API=auto`, `gl`, `gles` | which API to try first, the other after it: `gl` desktop GL (3.3 core, then 3.1), `gles` GLES 3.0; `auto` (`video.api`'s default) desktop GL on Windows, whose drivers are made and tested for it (their ES profile through WGL is a side path), GLES elsewhere, where Mesa serves both alike (`pcgfx_want_gles`). `gfx.all.gles`, `.desktop-gl`, `.desktop-gl-software` and `.desktop-gl-wide-scale2` run every case on each |
-| `RUSH_GFX_SCALE=n` | internal resolution multiple (1–8), or `auto`: the largest whole multiple of the frame the window holds, taken at each present, so the frame is drawn at the size it is shown |
+| `RUSH_GFX_SCALE=s` | internal resolution: `native` (`video.scale`'s default: the window's own pixels, any fraction, 1-16), `auto` (the largest whole multiple of the frame the window holds), a multiple 1–8, or for tests and tools a fixed fraction up to 16 (`2.25`); native and auto are taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
@@ -226,15 +229,78 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     window pixels, for tests and tools; headless, the window's are the offscreen image the present fills.
     `pc_gfx_set_widescreen` and `pc_gfx_set_scale` (there too) change those settings at run time, which the
     settings overlay does ([FRONTEND.md](FRONTEND.md)); `pc_gfx_set_window_size` sets the size the auto settings
-    follow, and the headless window's size, when there is no window.
-  - **An internal resolution of the window's size** (a scale that isn't a whole number) is not implemented. Three
-    parts assume a whole scale: the point-sampled rectangle snap (`mod(floor(gl_FragCoord), uScale)` finds a
-    fragment's place inside its N64 pixel), `rect_start` (the first sample sits half an internal pixel from the
-    N64 pixel's corner, the same in every pixel), and the scissor and clears (N64 pixel edges land on internal
-    pixel edges). With a fractional scale, N64 pixel edges fall inside internal pixels, so each of these needs a
-    per-pixel rule, and the exactness the tests check (texel for texel at every scale) would have to be redefined.
-    Until then `RUSH_GFX_SCALE=auto` comes closest: the frame is drawn at the largest whole multiple the window
-    holds and shown pixel for pixel, with a border for the rest.
+    follow, and the headless window's size, when there is no window. `pc_gfx_framebuffer_dims` gives a target's
+    N64 and internal sizes (tests).
+
+### Resolution and scale
+
+`GfxConfig.internal_scale` (`RUSH_GFX_SCALE`, `video.scale`): native (-1, the PC default), auto (0) or a multiple.
+Added 2026-10-27 night: before, every scale was a whole number.
+
+- **Native.** At each present the scale is the next frame's fit in the window (its 4:3 frame widened to the aspect
+  in effect, the rows shown): min(window w / frame w, window h / rows), any fraction from 1 to 16
+  (`pcgfx_window_scale`). At 2880 × 1620 with widescreen auto, the 426 × 220 frame gets 6.76: a 2880 × 1623 target,
+  shown 2880 × 1488 pixel for pixel; at 4:3, 7.36: 2356 × 1620 shown. A render size (`pc_gfx_set_render_size`:
+  `video.resolution` in desktop fullscreen) stands in for the window, and the frame is then fitted, filtered.
+- **Internal sizes.** A target of n N64 pixels is round(n × s) internal pixels (`pcgfx_scaled`), so the scale per
+  axis is px / n (a hair different across and down; the drawing uses each). Targets wider than the GPU's largest
+  render target get the largest scale that fits.
+- **Edges.** An N64 edge v of a side n pixels long drawn as px internal pixels lands at the first internal pixel
+  whose centre is at or past it: ceil(v · px / n − 1/2), in whole numbers (`pcgfx_edge`). That is how GL covers a
+  rectangle, so the scissor and clears (glScissor + glClear) and rectangles and triangles meet without a gap or an
+  overlap. A centre exactly on an edge (2.5, 6.75: an N64 edge at x.5) goes, in GL's window coordinates, to the
+  rectangle right of it and above it: rows are counted from the bottom for that (`pcgfx_row_edge`, `pcgfx_row_of`),
+  as iris and llvmpipe draw. At a whole scale every edge is v × s, as before.
+- **Point-sampled rectangles** (copy mode, and 1/2-cycle with point sampling, above 1×: `GFX_KF_SNAP`). The RDP
+  samples each pixel at its top-left corner. The shader finds the fragment's N64 pixel from `gl_FragCoord` in whole
+  numbers (`uTarget`: the N64 and internal sizes; the same rule as the edges) and moves the texture coordinate back
+  by the centre's distance from that pixel's corner (`dFdx`, `dFdy`), so every internal pixel of an N64 pixel
+  shows the N64's texel; `rect_start` puts the RDP's value at the rectangle's corner (plus 1/64 against float
+  error). Filtered rectangles interpolate across, per axis (`rect_start`'s half internal pixel).
+- **LOD** is measured in N64 pixels: the shader's steps per internal pixel times the scale per axis (`uScale`).
+- **Widescreen** works in N64 pixels (ox is whole), so it is the same at any scale. **Frame interpolation** draws
+  into an auxiliary target of the frame's N64 size and scale, so the same internal size.
+- **What it costs.** The game's lists are small; the fill rate grows with the pixels: at 2880 × 1620 the target has
+  about 60 times the N64's. The synthetic cartridge's drive path on rocky (Intel UHD 770, Mesa 25.2, iris GLES,
+  headless, RelWithDebInfo; `RUSH_GFX_TIMES=2`: GPU and CPU per graphics task, the mean of 1602), 2026-10-27, with
+  other jobs on the GPU, so the larger sizes are upper bounds that varied 2-3× between runs:
+
+  | Window, scale | Target shown | ms a task |
+  |---|---|---:|
+  | 640 × 480, 1 | 320 × 220 | 1.3 |
+  | 640 × 480, native | 640 × 440 | 2.5 |
+  | 1366 × 768, native | 1366 × 706 | 3.3 |
+  | 1920 × 1080, native | 1920 × 992 | 3.9 |
+  | 2880 × 1620, native | 2880 × 1488 | 13-17 |
+  | 2880 × 1620, native, 4:3 | 2356 × 1620 | 24 |
+  | 2880 × 1620, auto (6×) | 2556 × 1320 | 34 |
+  | 3840 × 2160, native | 3840 × 1983 | 19 |
+
+  The game's own rate (30 frames a second, 33 ms) holds at 2880 × 1620 on that iGPU; a high frame rate draws a frame
+  between at about the same cost each, so 60 a second there is marginal. A discrete GPU has several times the fill
+  rate. `video.resolution` in desktop fullscreen (1080p on a 1620p panel) or a whole scale trades sharpness for it.
+
+### Window and display
+
+`gfx_sdl.c`, `pc_port.h`'s window section. Added 2026-10-27 night. Sizes the settings give are pixels.
+
+- **DPI.** `SDL_WINDOWS_DPI_AWARENESS=permonitorv2` before the video subsystem starts, and
+  `SDL_WINDOW_ALLOW_HIGHDPI`: on a 200% Windows desktop the window has real pixels, where a DPI-unaware program gets
+  a 1440 × 810 window that Windows scales up blurred. Rendering and the overlay use the drawable's size
+  (`SDL_GL_GetDrawableSize`) throughout. Where the window system counts in points (macOS, Wayland at 2×), a size in
+  pixels becomes points by the drawable against the window (`pcgfx_units_of_pixels`).
+- **The first window.** 0 × 0 (`video.width = auto`) is two thirds of the desktop at the picture's aspect (the
+  desktop's when widescreen is auto, 4:3 when off), within 90% of the usable area, at least 480 rows
+  (`pcgfx_default_window`): 1920 × 1080 on a 2880 × 1620 desktop. Headless, 320 × 240. A saved place opens there
+  when a display still shows it, else centred.
+- **Fullscreen.** `pc_gfx_set_fullscreen`: desktop (`SDL_WINDOW_FULLSCREEN_DESKTOP`, borderless) or exclusive
+  (`SDL_SetWindowDisplayMode` with the closest mode to `video.resolution`, at the desktop's refresh when there is
+  one, then `SDL_WINDOW_FULLSCREEN`). Desktop fullscreen at a resolution draws the frame for that size and fits it.
+  Switching the mode or the resolution while in fullscreen applies at once.
+- **Vsync** is the swap interval. On, frames shown are capped at the display's refresh; `pc_gfx_set_vsync` logs when
+  `video.frame_rate` asks for more. Off, `frame_rate` paces alone and frames may tear.
+- **The window's place** (`pc_gfx_window_geometry`): kept at every move and resize while it is neither fullscreen
+  nor maximized; main writes it at exit (`video.remember_window`).
 
 ### Widescreen
 
@@ -449,6 +515,7 @@ display-list interpreter (`gfx_ui.c`, `pc_port.h`'s graphics section). Added 202
 
 ### SDL2
 
+- **DPI awareness** and the display modes: "Window and display" above.
 - **Detection.** The window backend builds when CMake finds SDL2 (config package or pkg-config). The Pi has the
   SDL2 runtime but no development package. In the top-level build, SDL2 is found (or fetched) once and shared
   with port/audio and port/input ([FRONTEND.md](FRONTEND.md)). `cmake -S port/gfx` on its own still looks for
@@ -581,7 +648,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 22, one CTest each:
+- **Cases.** 23, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -605,7 +672,8 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `clip` | on the CPU (`tests/clip_check.c`): 40,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
 | `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
-| `autosize` | headless window sizes from 640 × 480 to 1920 × 1080: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
+| `autosize` | headless window sizes from 640 × 480 to 2880 × 1620: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), native the fit at any fraction (2876 × 1620 at 2880 × 1620, 1363 × 768 at 1366 × 768), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
+| `seams` | at the scale in effect, every internal pixel of the 4:3 frame against its N64 pixel's color: copy-mode tiles side by side, 13-pixel 1-cycle tiles from x 3, glyph-sized rectangles a pixel apart, 2× magnified tiles, 1-pixel fill columns and 1-cycle rows, a fill to the bottom: no gap, no bleed |
 | `screenshot` | PNG |
 
 - **Variants.** `gfx.all.gles`, `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun
@@ -614,8 +682,19 @@ build/gfx/gfx_test texrect --png /tmp/out
   desktop GL on Windows, GLES elsewhere). `gfx.all.sdl-window` runs them in window mode (SDL builds). `gfx.all.wide` (16:9) and
   `gfx.all.wide21-scale3` (21:9 at 3×) rerun every case in widescreen, with every sample taken ox pixels in: the
   4:3 frame's pixels must come out the same in the middle of the wider target. `gfx.all.scale-auto` reruns them
-  with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Each variant has its own
-  directory for the screenshot case's PNG, since they run in parallel.
+  with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Fractional scales:
+  `gfx.all.scale1.5`, `.scale2.25-desktop-gl`, `.scale2.5-software` (ties: N64 edges on internal pixel centres),
+  `.wide-scale6.75` (16:9, 2876 × 1620), `.native-2880x1620` and `.native-1366x768` (`RUSH_GFX_TEST_WINDOW` sets the
+  headless size): every case's N64 pixels, texel for texel, and `seams` every internal pixel.
+  `gfx.interp.all.scale2.5` and `.wide-scale3.4` run the frame interpolation's cases at fractions. Each variant has
+  its own directory for the screenshot case's PNG, since they run in parallel.
+- **Sizes alone** (`gfx_size_test`, no GL): `gfx.size.scale` (native and auto scales for 2880 × 1620, 1440 × 810,
+  1920 × 1080, 3840 × 2160 and the limits; internal sizes), `.edge` (at 1.5-9 and the 3K sizes: every N64 pixel at
+  least one internal pixel, edges at 0 and the end, each internal pixel inside its N64 pixel's edges, rows the same
+  with GL's ties; whole scales v × s), `.fit` (native pixel for pixel and fitted, whole multiples, small windows),
+  `.units` (pixels and window units with per-monitor DPI awareness, a 2× points output, 175%), `.window` (the first
+  window's size on 3K, 1080p, 4K, 4:3, small and no displays), `.texfactor` (the upscaled textures' factor, the
+  largest power of two up to the scale, and a pack's limit, the scale rounded up, at whole and fractional scales).
 - **The overlay** has its own program, `gfx_ui_test`, headless: it reads the window's offscreen image.
 
 | Case | Checks |

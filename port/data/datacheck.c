@@ -146,6 +146,12 @@ static const struct {
     {"gViewportPendingFrames", 0x8002B010, 2, 0, 2},
     {"gInitFlag and the byte after it", 0x8002B028, 2, 0, 1},
     {"gDmaInitialized and the byte after it", 0x8002B030, 2, 0, 1},
+    /* The cheat codes (Egg: a step count, then u32 held and pressed button masks, 20 each; CheckForEgg reads
+     * the masks as words). An opaque Rec164 view (func_8038FF90.c) once left them in the ROM's order. */
+    {"D_803B3460, the first cheat code's step count", 0x803B3460, 4, 2, 1},
+    {"D_803B3460, the first cheat code's button masks", 0x803B3464, 160, 2, 4},
+    {"D_803B3460, the last cheat code's button masks", 0x803B4134, 160, 2, 4},
+    {"D_803B41D4, the main menu's code for the cheat screen", 0x803B41D8, 160, 2, 4},
 };
 
 /* Checks known_widths against the images' bytes (after both runtime images are loaded); the number that differ. */

@@ -117,6 +117,12 @@ which fits `D_803B9260`'s 4 bytes) and `SYN_BAR`.
 | the HUD set's four crossbones blits (animBones, BUTTON) and `D_801160C8`, their places in deaths mode for every view | the crossbones' place table, declared whole (15) |
 | the idle overlay's blit `D_801146C4` (no name, callback_init) and its colour `D_801146FC` as bytes; the `idle` path | the colour callback at the Blit's host offsets, and the colour declared as bytes (15) |
 
+**From the QA sweep** ([QA.md](QA.md)), made up the same way:
+
+| Values | Why (QA.md section) |
+|---|---|
+| `D_803B41D4`, the main menu's cheat code (hold L, press Z); `D_803B3460[0]`, cheat 0's (hold R and press Z, hold C-up and press Z): a step count and u32 button masks | the start screen's own InitEgg (2), and the cheat codes' word layout (1): a byte view stops the generator |
+
 **The files:**
 
 | Waves | Format | Content |
@@ -197,6 +203,7 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `screens` | the main menu's other four options, each screen entered with A and left with B (`# visits:` checks the states 0x2000, 0x200, 0x800, 0x1000) | back on the main menu | 0.3 s |
 | `pak` | the one-player race with a fresh controller pak (`--pak`): the warning finds it, and the save code runs on it at the race's start | 0x400000, 300 frames | 0.4 s |
 | `raceend` | the race retired from the pause screen, then _EndGame, the results, the game over screen, its Quit and back to the main menu (`# visits:` the results, the game over screen and state 4). gRace 2's time limit would end a race by itself once the car has stopped, which the cartridge's car physics doesn't do | 0x10 after the race | 0.6 s |
+| `cheats` | the main menu's cheat code, five down to its new option, the cheat screen (0x8000000); cheat 0's code and RIGHT switch it; B back (`# visits:` 0x8000000) | back on the main menu | 1.7 s (Pi) |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 | `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
 

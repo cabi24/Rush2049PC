@@ -34,9 +34,11 @@ static void usage(FILE *f)
             "  --no-rom            bring-up: a blank cartridge instead of the ROM (every ROM read is zero)\n"
             "  --headless          render off screen (EGL surfaceless, WGL on Windows; on Linux the default\n"
             "                      without DISPLAY or WAYLAND_DISPLAY); --window: an SDL2 window\n"
-            "  --fullscreen        start in fullscreen (Alt+Enter or F11 toggles)\n"
-            "  --size WxH          window size (default 640x480)\n"
-            "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
+            "  --fullscreen        start in fullscreen (Alt+Enter or F11 toggles); --exclusive: the display's mode\n"
+            "                      changes to --resolution (desktop, 720p, 1080p, 1440p, 1620p, 2160p or WxH)\n"
+            "  --size WxH          window size in pixels (default: two thirds of the desktop; headless 320x240)\n"
+            "  --scale N           internal resolution: native (the window's pixels, the default), auto (the\n"
+            "                      largest whole multiple of the N64's), or a multiple, 1-8 (1: the N64's)\n"
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
             "  --frame-rate R      frames shown a second: original (the game's own), display, or 60, 120...;\n"
             "                      the frames between the game's are drawn from its last two\n"
@@ -119,6 +121,43 @@ static void musyx_services(int no_rom)
             fprintf(stderr, "rush2049pc: MusyX service %d is %p in the ROM's table, not %p as the port expects\n", i,
                     (void *)D_8011EAAC[i], (void *)known[i]);
     }
+}
+
+/* The window and the display before port/gfx opens them (docs/port/GFX.md "Window and display"). */
+static void window_setup(const PcSettings *cfg)
+{
+    int x, y, w, h;
+    char tail;
+    pc_gfx_set_fullscreen_mode(cfg->fullscreen_mode);
+    if (pc_settings_resolution(cfg->resolution, &w, &h) == 0)
+        pc_gfx_set_resolution(w, h);
+    if (sscanf(cfg->position, "%d,%d%c", &x, &y, &tail) == 2)
+        pc_gfx_set_window_position(x, y);
+}
+
+/* video.remember_window: the window's size and place out of fullscreen go into the settings file read at start
+ * when they changed (not with --no-config, nor headless). */
+static void remember_window(const PcSettings *cfg, int headless)
+{
+    static char w_text[16], h_text[16], pos[32];
+    char why[PC_CFG_PATH + 64];
+    PcSettingValue ch[3];
+    int n = 0, x, y, w, h;
+    if (headless || !cfg->remember_window || !cfg->source[0] || pc_gfx_window_geometry(&x, &y, &w, &h) != 0)
+        return;
+    snprintf(w_text, sizeof w_text, "%d", w);
+    snprintf(h_text, sizeof h_text, "%d", h);
+    snprintf(pos, sizeof pos, "%d,%d", x, y);
+    if (w != cfg->width || h != cfg->height) {
+        ch[n++] = (PcSettingValue){"video", "width", w_text};
+        ch[n++] = (PcSettingValue){"video", "height", h_text};
+    }
+    if (strcmp(pos, cfg->position))
+        ch[n++] = (PcSettingValue){"video", "position", pos};
+    if (n && pc_settings_save(cfg->source, ch, n, why, sizeof why) != 0)
+        fprintf(stderr, "rush2049pc: the window's size and place not kept: %s\n", why);
+    else if (n)
+        fprintf(stderr, "rush2049pc: window %d x %d at %s kept in %s\n", w, h, pos, cfg->source);
 }
 
 /* The game's state word (gGameState, groups/state/state.c), which the host loop logs and --until-state waits
@@ -240,6 +279,11 @@ static int rush_main(int argc, char **argv)
             headless = 0;
         else if (!strcmp(a, "--fullscreen"))
             SET("video", "fullscreen", "on");
+        else if (!strcmp(a, "--exclusive")) {
+            SET("video", "fullscreen", "on");
+            SET("video", "fullscreen_mode", "exclusive");
+        } else if (!strcmp(a, "--resolution"))
+            SET("video", "resolution", ARG());
         else if (!strcmp(a, "--size")) {
             const char *s = ARG();
             unsigned w, h;
@@ -389,7 +433,7 @@ static int rush_main(int argc, char **argv)
     int pak_kind = cfg.pak == PC_CFG_PAK_MEMORY ? PC_PAK_MEMORY : cfg.pak == PC_CFG_PAK_RUMBLE ? PC_PAK_RUMBLE
                                                                                               : PC_PAK_NONE;
     /* port/gfx reads its settings from the environment; the resolved values already include it */
-    char scale[8], aspect[16], rate[16];
+    char scale[16], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);
     setenv("RUSH_GFX_SCALE", scale, 1);
     setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : cfg.api == PC_CFG_API_GLES ? "gles" : "auto", 1);
@@ -452,7 +496,8 @@ static int rush_main(int argc, char **argv)
         pc_app_data_file(&dirs, "texture_cache", 0, tex_dir, sizeof tex_dir);
         setenv("RUSH_GFX_TEXTURE_CACHE", tex_dir, 0);
     }
-    if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220 */
+    window_setup(&cfg);
+    if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220; 0 x 0: auto */
         fprintf(stderr, "rush2049pc: no renderer: no OpenGL ES 3.0 or OpenGL 3.1 context\n");
         pc_app_alert(!headless, "Rush 2049 PC: no graphics",
                      "The program could not start OpenGL: it needs OpenGL ES 3.0 or OpenGL 3.1 or later.\n\n"
@@ -494,6 +539,7 @@ static int rush_main(int argc, char **argv)
     }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
+    remember_window(&cfg, headless);
     pc_input_shutdown();
     pc_audio_shutdown();
     pc_gfx_shutdown();

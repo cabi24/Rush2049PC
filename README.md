@@ -73,16 +73,19 @@ sensitivity set, in the overlay. The details are in
 
 ### Settings
 
-`rush2049pc.ini` holds them all, with comments. While you play, the F1 overlay changes the video settings
-(widescreen, internal resolution, fullscreen, vsync, window size, textures), the volume and the key and button
-mapping. It
+`rush2049pc.ini` holds them all, with comments. The picture is drawn at the window's own pixels by default
+(`video.scale = native`, any display scaling, 2880 × 1620 included); `video.scale = 1` is the N64's 320 × 240 in
+square pixels. Fullscreen is borderless, or exclusive at `video.resolution` (720p to 2160p, or WxH). While you
+play, the F1 overlay changes the video settings (render scale, widescreen, fullscreen and its mode, resolution,
+window size, vsync, frame rate, textures), the volume and the key and button mapping. It
 can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
 (`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
 
 ### Textures
 
 `video.textures` (Textures on the overlay's Video page): `original`; `upscaled`, the 3D world's textures upscaled 2x
-(4x from internal scale 4) in the background as they appear and kept in `texture_cache/` for the next run, the HUD
+(4x from internal scale 4) by a small neural network trained for N64 textures on CC0 images and built into the port
+([docs/port/UPSCALE.md](docs/port/UPSCALE.md)), in the background as they appear and kept in `texture_cache/` for the next run, the HUD
 and menus as they are (it needs an internal scale of 2 or more); or `pack`, PNG replacements from `textures/`. A
 pack is made from your own ROM: `video.texture_dump = dump` writes every texture drawn into `dump/`, and
 `tools/texpack/texpack.py` runs an upscaler you install (realesrgan-ncnn-vulkan, ...) over them. Packs are never

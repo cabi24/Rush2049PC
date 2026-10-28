@@ -61,12 +61,23 @@ Without rush2049pc.ini next to it, the program keeps them in %APPDATA%\rush2049p
 The F1 overlay changes most settings while you play and can save them into rush2049pc.ini. To move to a new
 version, copy rush2049pc.mpk and rush2049pc.ini into its folder.
 
+Picture
+-------
+The game is drawn at the window's own pixels by default (F1 > Video > Render scale: native), so it is sharp at
+any size and at any Windows display scaling: a 2880x1620 screen at 200% gets all 2880x1620 pixels. Render
+scale N64 (1x) is the original 320x240 in square pixels; 2x-8x and auto (the largest whole multiple) are there
+too. Widescreen is auto (the window's shape). Fullscreen (F11) is borderless over the desktop; Fullscreen mode
+exclusive switches the display to the Resolution setting (720p ... 1620p = 2880x1620, 2160p). The window opens
+at two thirds of the desktop and remembers its size and place. A slow GPU: Resolution 1080p in fullscreen, or
+a lower render scale.
+
 Textures
 --------
 The F1 overlay's Video page has Textures:
   original   the game's own textures
-  upscaled   the 3D world's textures (road, buildings, signs, cars, sky) upscaled 2x, or 4x from internal scale 4;
-             the HUD and menus as they are. It needs an internal scale of 2 or more (Internal scale: auto, 2, 3...).
+  upscaled   the 3D world's textures (road, buildings, signs, cars, sky) upscaled 2x, or 4x from render scale
+             4 (native at 1080p and up); the HUD and menus as they are. It needs a render scale of 2 or more
+             (native in a window of 480 rows or more, or 2x-8x).
              New textures are upscaled in the background as they appear, and kept in texture_cache\, so the next
              run has them at once. Deleting that folder is safe.
   pack       a texture pack: PNG replacements in the textures\ folder (video.texture_pack in rush2049pc.ini)
