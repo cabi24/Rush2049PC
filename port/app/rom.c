@@ -114,6 +114,22 @@ static void unusable(const char *path, const char *where, const PcRomInfo *info,
         add(&t, "\n\nYou can choose another file, or quit.");
 }
 
+/* The ROM loaded, for the settings overlay's About page. */
+static char s_rom[PC_APP_PATH], s_rom_where[64];
+
+const char *pc_app_rom_path(const char **where)
+{
+    if (where)
+        *where = s_rom_where;
+    return s_rom;
+}
+
+static void loaded(const PcAppPlace *place)
+{
+    snprintf(s_rom, sizeof s_rom, "%s", place->path);
+    snprintf(s_rom_where, sizeof s_rom_where, "%s", place->where);
+}
+
 static void remember_rom(const char *remember, const char *path)
 {
     char why[PC_APP_PATH + 64];
@@ -183,6 +199,9 @@ static int choose(const PcAppDirs *d, int check_sha1, const char *remember, cons
             else
                 fprintf(stderr, "rush2049pc: warning: the ROM %s (chosen; .%s): %s; running it anyway "
                         "(--no-rom-check)\n", path, info.order, info.what);
+            PcAppPlace place = {"", "chosen in the file dialog"};
+            snprintf(place.path, sizeof place.path, "%s", path);
+            loaded(&place);
             remember_rom(remember, path);
             return 0;
         }
@@ -208,6 +227,7 @@ int pc_app_load_rom(const PcAppDirs *d, const char *name, int from_command_line,
     int status = at < 0 ? PC_ROM_MISSING : pc_rom_open(places[at].path, check_sha1, &info);
     if (status == PC_ROM_OK) {
         fprintf(stderr, "rush2049pc: ROM: %s (%s; .%s)\n", places[at].path, places[at].where, info.order);
+        loaded(&places[at]);
         return 0;
     }
     if (status == PC_ROM_MISSING) {   /* none there, or gone between the two looks */
@@ -220,6 +240,7 @@ int pc_app_load_rom(const PcAppDirs *d, const char *name, int from_command_line,
     } else if (pc_rom_bytes()) {   /* --no-rom-check */
         fprintf(stderr, "rush2049pc: warning: the ROM %s (%s): %s; running it anyway (--no-rom-check)\n",
                 places[at].path, places[at].where, info.what);
+        loaded(&places[at]);
         return 0;
     } else {
         title = "Rush 2049 PC: wrong ROM";

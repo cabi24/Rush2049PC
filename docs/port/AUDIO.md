@@ -519,16 +519,7 @@ front-back pan; the pitch 0.5 is 4095 and goes to the effect's voice), and the c
 
 **Left**
 
-- **The engines are silent, because their volume is 0.** Traced in a retail race (`gdb` `dprintf` on
-  `camera_target_track`, `audio_state_save`, `entity_transform_calc`): the engine loops are created as positioned
-  effects while the race loads and stay pending. `_UpdateFx` (`updatefx/updatefx.c`) starts a pending loop only once
-  its volume is over 0.1, and the per-car engine update `func_800E0050` (`mode_select/mode.c`) sends a pitch that
-  follows the revs but a volume of exactly 0 every retrace. (Its variables are named the other way round: `vol` is
-  the pitch ratio from the revs, `pitch` the level from `EngTbl`'s p0-p2, through `client_sync`, which sets the
-  volume.) It reads the car through `MODELDAT`, N64 offsets 0x22C, 0x404, 0x7C6, 0x7CC and 0x7D0 inside pads, and
-  `EngTbl` through `D_80140420[slot].tbl`: the car record's PC layout (`CAR_OFS`, [ENDIAN.md](ENDIAN.md) 4 lists
-  `mode.c` among the views at N64 offsets) is the struct-offset audit's. Next: print `m->f404`, `slot`, `rpm`
-  and `t->p0..p2` there; a 0 level would be the table or the load read from the wrong place.
+- (The engines: fixed, see below.)
 - IDO converts to `u8` and `u16` through the same unsigned sequence; the library's direct `(unsigned short)` and
   `(unsigned char)` conversions only see values that can't be negative, so they are left as they are.
 - `(float)` of an unsigned int at 2^31 or more rounds twice on the N64 (`cvt.s.w`, then + 2^32) and once on the PC:
@@ -537,3 +528,35 @@ front-back pan; the pitch 0.5 is 4095 and goes to the effect's voice), and the c
 - Signed conversions out of the int range trap on the N64 (the VR4300's unimplemented operation), so the game never
   does them; the PC gives 0x80000000 (x86-64) or saturates (AArch64).
 - Conversions outside the sound code (`GetCarsIRColor`'s `(u8)` colours, `audio_voice_set`'s fade) weren't changed.
+
+**The engines** (found after the first pass, 2026-10-28). Traced in a retail race with `gdb` `dprintf` on
+`camera_target_track`, `audio_state_save` and `entity_transform_calc`, and breakpoints printing the records: the
+engine loops are created as positioned effects while the race loads and stay pending until `_UpdateFx`
+(`updatefx/updatefx.c`) sees a level over 0.1. Two faults kept every one of them there:
+
+4. **The engine table was loaded big-endian.** `func_800E0050` (`mode_select/mode.c`, the per-car engine update;
+   its `vol` is the pitch ratio from the revs and its `pitch` the level, which `client_sync` sets as the volume) reads
+   the car category's two 32-byte entries of `D_8010FD80` as rev points (u16) and levels (f32). The only typed
+   declaration, `d5e64.c`'s, was `{s32 object; u8 rest[28];}`, so the loader swapped the word and left the rest in
+   the ROM's byte order: the levels came out as denormals and every engine's volume as 0. Its PC `Definition32` has
+   the fields; `endian_check --check-loader` pins their widths.
+5. **The listener was out of range.** The game's listener is a packet (`func_800D63EC`) that `main_menu_render` fills
+   every frame through `main_menu_input` with the car's position and the camera's vectors, and `engine_sound_sync`
+   reads to give each positioned source its gain and pans. `main_menu_input` wrote the vectors at the N64's +0xC,
+   while the packet's two host-sized links put them at +0x14: the listener's position was the car's z and two zeros,
+   400 units and more from every car, so all positioned sounds (the other cars' engines among them) had a gain of 0,
+   and the write went over the packet's back link. `object_activate` read and wrote the packet's bytes at +8/+9,
+   inside that link. (Fixed the same way in 7eed16b on main, from the battle-quit fault.)
+
+`test_casts` runs a packet through `main_menu_input` and `object_activate` (the vectors at the PC offsets, the links
+intact, the free list). With 4 and 5, the race has the player's engine layers following the revs and every other
+car's engine with its distance, pans and doppler pitch.
+
+Also: `func_8001D5C0`'s and `func_8001D660`'s views of the MusyX library's own listener (`Listener_8001C860`, linked
+by `func_8001D764`) had the N64's +0xC for its vectors, before two host-sized links (`offset_check --strict` on
+arm64). The game never calls that 3D API, so it changed nothing audible.
+
+The other race sounds that start or update effects (the tires in `func_800E05F0`, the bumps and crashes in
+`mode_select_handler`, the tire visuals' `buffer_swap`) read the model record, which keeps its N64 layout
+([CARS.md](CARS.md) 4), and tables the loader swaps at the widths they are read (`D_8011F060` f32, `D_8011F020` and
+`D_8011F040` s16); `offset_check --strict` reports no open view on either host.

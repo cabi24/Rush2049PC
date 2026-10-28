@@ -75,6 +75,7 @@ typedef struct PcSettings {
     int textures;                   /* 0 original, 1 upscaled, 2 pack (RUSH_GFX_TEXTURES; docs/port/TEXTURES.md) */
     char texture_pack[PC_CFG_PATH];     /* the pack's folder; a name alone is in the data folder */
     char texture_dump[PC_CFG_PATH];     /* where every texture drawn is written as PNG; empty: off */
+    int hud;                        /* the race HUD in widescreen: 1 edges, 0 centered (PC_GFX_HUD_*; RUSH_GFX_HUD) */
     /* [audio] */
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */

@@ -55,7 +55,13 @@ typedef struct {
 } PathPt; /* 0x08 */
 
 
+#ifdef TARGET_PC
+/* the route's records, (&D_80151CE8)[i]: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern Route D_80151CE8[];
+#define D_80151CE8 (D_80151CE8[0])
+#else
 extern Route D_80151CE8;
+#endif
 typedef struct {
     /* 0x00 */ u16 num;
     /* 0x04 */ PathPt *pts;

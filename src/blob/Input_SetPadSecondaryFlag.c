@@ -512,7 +512,13 @@ typedef struct PadConfig_s {
     s16 unk1C;
     s16 unk1E;
 } PadConfig;
+#ifdef TARGET_PC
+/* each pad's record, (&pad_config)[pad], declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
+extern PadConfig pad_config[4];
+#define pad_config (pad_config[0])
+#else
 extern PadConfig pad_config;
+#endif
 typedef struct {
     PadConfig *unk0;
     s32 unk4;

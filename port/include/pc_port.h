@@ -113,6 +113,18 @@ int pc_gfx_present_tick(double vi_time, int mode);
  * for anything else. */
 void pc_gfx_set_textures(int mode);
 int pc_gfx_parse_textures(const char *text, int *ok);
+/* The race HUD in widescreen (docs/port/GFX.md "The HUD at the screen's edges"). PC_GFX_HUD_EDGES (the default) moves
+ * the HUD's pieces at the 4:3 frame's sides out by the widening, so they keep their distance to the screen's edges,
+ * while race() says a race with one view is on; PC_GFX_HUD_CENTERED keeps all 2D in the 4:3 frame. From the next
+ * graphics task. pc_gfx_parse_hud: "edges", "centered"; *ok = 0 for anything else. */
+enum { PC_GFX_HUD_CENTERED = 0, PC_GFX_HUD_EDGES = 1 };
+void pc_gfx_set_hud(int mode);
+int pc_gfx_hud(void);
+int pc_gfx_parse_hud(const char *text, int *ok);
+void pc_gfx_set_hud_race(int (*race)(void));
+/* Where the HUD moves a point at frame x (N64 pixels of the 4:3 frame), in N64 pixels: what the game's 3D models
+ * placed at HUD points (ZOID_WindowTo3D) add to their x. 0 unless edges is in effect. */
+int pc_gfx_hud_dx(int x);
 
 /* Drawing over the frame, in window pixels (port/gfx/gfx_ui.c), for port/input's settings overlay. While a UI hook
  * is set, each present (and pc_gfx_redraw) calls it with the window's size after the frame is shown and before
@@ -130,6 +142,9 @@ int pc_gfx_ui_text(int x, int y, int scale, uint32_t rgba, const char *text);
 int pc_gfx_font_glyph(int c, uint8_t rows[PC_GFX_FONT_H]);
 /* Show the last presented frame again, with the UI over it, and swap (the overlay while the game is held). */
 void pc_gfx_redraw(void);
+/* The GL driver as the log's "gfx:" line names it: GL_VENDOR, GL_RENDERER, GL_VERSION and the shading language's
+ * version; "" before pc_gfx_init. For the overlay's About page. */
+void pc_gfx_driver(const char **vendor, const char **renderer, const char **version, const char **glsl);
 /* Called by pc_gfx_poll_events after the window's events, also without a window: port/input's turn at each
  * retrace and while the game is held. A nonzero return quits. NULL removes it. */
 void pc_gfx_set_tick_hook(int (*tick)(void));

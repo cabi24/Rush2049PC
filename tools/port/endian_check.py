@@ -307,6 +307,11 @@ def host_to_n64(c, h):
 
 _LOC = re.compile(r"\[[^\[\]\s]+:(\d+):\d+(?: discrim \d+)?\] ")   # gcc 14 adds discriminators
 _FUNC = re.compile(r"^;; Function (\S+) \(")
+# A call to a global function of the same file, made through GCC's local alias of it: `func_8001D5C0.localalias
+# (state_15(D));`. With -fPIC -fno-semantic-interposition (the x86-64 build's flags, CMakeLists.txt) GCC calls the
+# file's own definition through `<name>.localalias`, which binds locally; PIE code (aarch64's) calls `<name>` for most
+# of them. The call is to <name>: read as such, the analysis is the same on both (docs/port/LAYOUT.md 9.6).
+_LOCALALIAS = re.compile(r"\b([A-Za-z_$][\w$]*)\.localalias\b")
 _SSA = re.compile(r"^(.*?)_(\d+)(?:\((?:D|ab)\))?$")
 _INT = re.compile(r"^-?\d+$")
 
@@ -480,7 +485,7 @@ def read_gimple(text):
         if state == "body" and line:
             m = _LOC.search(line)
             ln = int(m.group(1)) if m else 0
-            f.stmts.append((ln, _LOC.sub("", line)))
+            f.stmts.append((ln, _LOCALALIAS.sub(r"\1", _LOC.sub("", line))))
     return funcs
 
 
@@ -2136,7 +2141,10 @@ LOADER_EXPECT = [("D_80114264", 0x0, 4), ("D_80114264", 0xC, 4), ("D_801164A4", 
                  ("D_803AF9A8", 0x0, 4), ("D_803AF9A8", 0x3C, 1), ("D_80111950", 0x0, 1), ("D_8011195C", 0x0, 1),
                  ("D_80111960", 0x0, 1), ("D_8011028C", 0x0, 1), ("D_8011EA40", 0x0, 2), ("D_8011EA40", 0xC, 2),
                  ("D_8011EA90", 0x6, 2), ("D_803B46A4", 0x0, 1), ("D_803B46A4", 0x3, 1),
-                 ("D_80120E50", 0x0, 1), ("D_80120E50", 0x3, 1)]
+                 ("D_80120E50", 0x0, 1), ("D_80120E50", 0x3, 1),
+                 # the engine sound table (mode_select/d5e64.c): rev points u16, levels f32, in both 32-byte entries
+                 ("D_8010FD80", 0x0, 4), ("D_8010FD80", 0x4, 2), ("D_8010FD80", 0xC, 2), ("D_8010FD80", 0x10, 4),
+                 ("D_8010FD80", 0x18, 4), ("D_8010FD80", 0x24, 2), ("D_8010FD80", 0x30, 4)]
 # The colour unions gen_data copies as bytes (a byte member covers them), D_801146BC's element 1 under
 # D_801146C0's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
 # table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).

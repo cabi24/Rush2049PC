@@ -538,7 +538,13 @@ void func_8001D578(void)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: a listener (Listener_8001C860, func_8001D764's view) has two host-sized links before its flags, so its vectors
+ * start at +0x14, not +0xC. */
+typedef struct SpatialState { LinkNode *next, *previous; u32 flags08; Vector position; unsigned char unknown18[12]; Vector forward; Vector side; Vector up; float inverse[12]; } SpatialState;
+#else
 typedef struct SpatialState { unsigned char unknown00[12]; Vector position; unsigned char unknown18[12]; Vector forward; Vector side; Vector up; float inverse[12]; } SpatialState;
+#endif
 extern void func_80024D04(Vector *, const Vector *, const Vector *);
 extern void func_80024D74(float *, const float *);
 void func_8001D5C0(SpatialState *state)
@@ -566,7 +572,12 @@ void func_8001D5C0(SpatialState *state)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: the same listener, as func_8001D764 links it (SpatialState above). */
+typedef struct SpatialState_8001D660 { LinkNode *next, *previous; u32 flags08; Vector position; Vector velocity; Vector forward; Vector side; Vector up; float inverse[12]; u8 unknown78[12]; float gain84; } SpatialState_8001D660;
+#else
 typedef struct SpatialState_8001D660 { u8 unknown00[12]; Vector position; Vector velocity; Vector forward; Vector side; Vector up; float inverse[12]; u8 unknown78[12]; float gain84; } SpatialState_8001D660;
+#endif
 extern void func_8001D5C0(SpatialState *);
 int func_8001D660(SpatialState_8001D660 *state, const Vector *position, const Vector *velocity,
                   const Vector *forward, const Vector *up, u8 level)

@@ -291,6 +291,18 @@ void pcgfx_default_window(int desk_w, int desk_h, int usable_w, int usable_h, fl
 /* gfx_png.c */
 int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
 
+/* gfx_hud.c: the race HUD at the screen's edges (GFX.md "The HUD at the screen's edges"). While pcgfx_hud_on(), 2D
+ * primitives are queued with pcgfx_hud_add (their GL vertices as drawn 4:3, and for rectangles each vertex's x at the
+ * 4:3 place in target N64 pixels; NULL for triangles) instead of drawn, and pcgfx_hud_resolve draws the queue, each
+ * group moved to its side. It runs before anything else is drawn or cleared, at a new color image and at the task's
+ * end. pcgfx_hud_add returns -1 when it can't queue (draw it as usual). */
+void pcgfx_hud_init(void);         /* RUSH_GFX_HUD */
+void pcgfx_hud_task_begin(void);
+int pcgfx_hud_on(void);
+int pcgfx_hud_pending(void);
+int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, int n, int movable, int tri);
+void pcgfx_hud_resolve(void);
+
 /* gfx_interp.c: frame interpolation (GFX.md "High frame rate"). While pcgfx_rec is set, a graphics task is being
  * recorded: the interpreter reports its vertex loads, triangles, rectangles and clears, so that the frame can be
  * drawn again later with its transforms moved between the previous frame's and its own. */

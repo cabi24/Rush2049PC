@@ -4,6 +4,7 @@
  * RUSH_GFX_SCALE=native|auto|<n> (internal resolution: native, the window's own pixels; auto, the largest whole
  * multiple the window shows whole; or a multiple, 1-8, any fraction up to 16 for tests and tools),
  * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
+ * RUSH_GFX_HUD=edges|centered (the race HUD in widescreen: at the screen's edges, or in the 4:3 frame: gfx_hud.c),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
  * RUSH_GFX_TEXTURES=original|upscaled|pack and the other RUSH_GFX_TEXTURE_* (gfx_tex.c, docs/port/TEXTURES.md),
@@ -361,6 +362,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
             fprintf(stderr, "gfx: RUSH_GFX_WIDESCREEN=%s is not off, auto or an aspect from 4:3 to 4; ignored\n",
                     getenv("RUSH_GFX_WIDESCREEN"));
     }
+    pcgfx_hud_init();   /* RUSH_GFX_HUD */
     /* 0 x 0: the window's from the desktop (gfx_sdl.c); headless, the N64's frame, which native and auto draw at 1x */
     S.win_w = window_width > 0 && window_height > 0 ? window_width : 320;
     S.win_h = window_width > 0 && window_height > 0 ? window_height : 240;
@@ -446,7 +448,9 @@ void pc_gfx_run_dl(const void *dl) {
     pcgfx.stat_cmds = pcgfx.stat_tris = pcgfx.stat_draws = pcgfx.stat_unknown = 0;
     if (pcgfx_cfg.frame_rate != 0)   /* a high frame rate: recorded, to be drawn again between frames */
         pcgfx_rec_task_begin();
+    pcgfx_hud_task_begin();          /* the HUD at the screen's edges, in a race (gfx_hud.c) */
     pcgfx_run_list(dl);
+    pcgfx_hud_resolve();
     if (pcgfx_rec != NULL) {
         pcgfx_rec_task_end();
         pcgfx_gl_fence_set();   /* frames between are drawn only once the GPU has done this (pcgfx_hfr_frame) */

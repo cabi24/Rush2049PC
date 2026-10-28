@@ -110,6 +110,9 @@ void pc_app_window_icon(void);
 /* ---------------------------------------------------------------- log.c: the version, the log, the end */
 
 const char *pc_app_version(void);                   /* git describe at build time (cmake/version.cmake) */
+const char *pc_app_version_commit(void);            /* the full commit hash, or "unknown" */
+const char *pc_app_version_build(void);             /* "local build", or "GitHub Actions run N (owner/repo)" */
+const char *pc_app_build_type(void);                /* CMake's build type: Debug, RelWithDebInfo, ...; "unknown" */
 void pc_app_version_text(char *out, size_t size);   /* --version: the version, commit, build, platform */
 /* The run's output into path as well as the console, from now on; the run before is kept as *.old.log. The log
  * starts with the version, the time, the folders and the command line. 0 when it is open; otherwise a warning is
@@ -133,6 +136,9 @@ void pc_app_finish(int code);
  * remember (the settings file read; NULL or "" for none). 0 when the cartridge is loaded. */
 int pc_app_load_rom(const PcAppDirs *d, const char *name, int from_command_line, int check_sha1, const char *config,
                     const char *remember, int window);
+/* The ROM pc_app_load_rom loaded ("" before, or without one), and *where the place it was found ("next to the
+ * program", ..., "chosen in the file dialog") when where is set. */
+const char *pc_app_rom_path(const char **where);
 
 /* ---------------------------------------------------------------- saves.c: the controller pak's file at start */
 

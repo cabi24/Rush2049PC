@@ -155,6 +155,104 @@ stores. No warning. **Fix**: under `TARGET_PC` the file declares `extern f32 D_8
 reader does; an incomplete array has no size to reason from. Other views in the game C over one-element
 declarations can meet the same rule where one function stores two elements without `volatile`.
 
+**The mechanism**, read in mingw-w64 12's dumps of the file before the fix: the loop optimizer (`ivopts`) made both
+stores indexed references on the symbol's address, `MEM[(float *)&D_80140620 + ivtmp * 8]` and `MEM[(float
+*)&D_80140620 + 4B + ivtmp * 8]` (TARGET_MEM_REFs). GCC's `get_ref_base_and_extent` hands such a reference back as
+offset 0 of the declared object, with an unknown extent cut to the declaration's size: 4 bytes. Both stores are then
+"the whole of `D_80140620`", and the late dead-store pass (`dse5`) deleted the first ("Deleted dead store: MEM[(float
+*)&D_80140620 + ivtmp.108_155 * 8] = v_108"). The same view of two references as one place can forward a stored value
+to a load of the other place (the value numbering and dominator passes after the loop optimizer), and a reference cut
+to [0, size) is taken not to touch an access past the declaration. A related rule: an access through a pointer that
+is wider than a variable's declaration is taken not to alias that variable. `-fno-strict-aliasing` covers none of
+these (they are offset rules, not type rules). An array of unknown size (`T x[]`) has no size to cut to; a declaration
+of the true size is cut correctly. GCC 14 (the build host's) and aarch64 didn't make the references here, which is why
+the scripted checks, run there, passed.
+
+**The inventory.** `tools/port/bounds_check.py` compiles every live game file again at `-O2 -g` with the build's
+flags, `-Warray-bounds=2 -Wstringop-overflow=4 -Wstringop-overread -Wzero-length-bounds` and two GIMPLE dumps, and
+lists, per file and symbol, every access outside the extent the file declares (weak context copies skipped):
+
+- *view*: through a pointer computed from the symbol's address plus a variable (`_5 = &D_x + _4; MEM[(f32 *)_5 + 4B]
+  = y`), or a view's variable index, past the declaration's size (the "alias" dump, after inlining, so the functions a
+  file inlines into one are one). An array's own index (`D_x[i].f`) is inside it as GCC takes it and isn't listed;
+- *const*: at a constant offset past the declaration;
+- *tmr*: the loop optimizer's indexed references on the symbol's address (the "ivopts" dump, before the passes that
+  act on them);
+- *warn*: GCC's warnings, by the symbol their note names.
+
+The class's shape is a function that reaches **two or more places** of such a symbol, one a write, one through a
+variable (*view*, `two offsets`), or two indexed references at the declared size, or one beside another access, with
+a write (*tmr*, `clamped`: this compiler made the references that are taken for one place). Constant offsets alone
+are exact to GCC, and a function with one place, or only reads, has nothing to confuse. On the stick file before its
+fix, GCC 13 finds both: `D_80140620 view [two offsets] +0:4[_57], +4:4[_57]` and `tmr [clamped]`.
+
+| Compiler (x86-64), with the fixes | Files | *view* | *const* | *tmr* | *warn* | `two offsets` | `clamped` |
+|---|---|---|---|---|---|---|---|
+| GCC 13.3, Ubuntu 24.04 (CI's runner) | 1,308 | 109 | 1 | 49 | 53 | 0 | 0 |
+| GCC 14.3, Rocky Linux 10 (the build host) | 1,308 | 109 | 1 | 48 | 53 | 0 | 0 |
+| mingw-w64 GCC 12.2, Debian (the Pi; the release's) | 1,308 | 109 | 1 | 46 | 54 | 0 | 0 |
+
+(Pairs of file and symbol; the 260 accesses of 2.4 were counted per access, weak copies included. Before the fixes,
+main with the stick fixed: 122 *view* pairs and 20 `two offsets` on GCC 13 and on GCC 14.)
+None of the 20 was `clamped` on these compilers: their loops index through `int` arithmetic the loop optimizer
+doesn't fold into the symbol's address, or have one place per iteration. But each is the shape the stick had, and
+which compiler folds which loop changes with versions and targets, so all 20 are declared whole.
+
+**The fixes** (e353117), declarations only, under `TARGET_PC`, the `#else` the N64's: open-ended (`T x[]`) where the
+file only takes the address; the true size where the data tables already had it; and where the file also uses the
+symbol as one element (`x = v`, `(&x)[i]`), `#define x (x[0])` after it, so that every use means what it did (`&x` is
+the same `T *`, `x` the same lvalue), as 2.2's second names do.
+
+| File | Symbol | Declared | Was | What the function reaches |
+|---|---|---|---|---|
+| `src/blob/Input_SetAnalogBounds.c`, `Input_SetPadEnabledFlag.c`, `Input_SetPadSecondaryFlag.c` | `pad_config` | `PadConfig [4]` + macro | `PadConfig` | `(&pad_config)[pad].unk18`... per pad |
+| `src/blob/camera_smooth_lerp.c` | `D_80154660` | `s32 []` | `s32` | five words of a record, by a byte pointer |
+| `src/blob/car_mass_set.c`, `groups/camera_aspect_ratio/group.c` | `D_8012E700` | `s32 []` | `s32` | the 0x44-byte nodes' fields |
+| `src/blob/func_80092484.c` | `D_801392D8` | `s32 []` + macro | `s32` | `&(&D_801392D8)[i]`, twice |
+| `src/blob/func_800D4D84.c`, `func_800D5828.c` | `D_8014A250` | `D_8014A250_Record []` | a 2,026-byte record | the cars, 0x808 bytes each, fields to +2052 |
+| `src/blob/func_800E9234.c` | `D_801526E0`, `D_801526F8` | `f32 []` + macro | `f32` | `(&x)[car] = 5.0f`, `= 3.0f` |
+| `src/blob/func_800F8E90.c` | `D_801526A8` | `s32 []` | `s32` | +0, +4, +8 of 12-byte records |
+| `src/blob/func_800FBE60.c` | `D_80152218` | `s32 []` | `s32` | x, y, z of each car's 12 bytes in a loop: the stick's shape, three stores |
+| `src/blob/groups/controller_poll/group.c` | `D_80149AF8` (`gStickCal`), `D_80149B10` (`gPrevPressed`), `D_80149B50` (`gStickRaw`), `D_80149B90` (`gRepeatTime`) | `s8 [4][2]` + macro, `s32 [4]`, `s32 [2]`, `s32 [128]` | `s8`, `s32` | per pad, in the loop that had the stick's bug |
+| `src/blob/groups/func_800E56F8/group.c` | `D_801440AD` | `s8 []` + macro | `s8` | the rumble byte of each pak record, three stores |
+| `src/blob/groups/read_path_data/physics_response.c` | `D_80151CE8` | `Route []` + macro | `Route` (80 B) | the header and `(&D_80151CE8)[i]`'s records |
+| `src/blob/save_load_data.c` | `D_80139320` | `s32 []` | `s32` | four words of 64-byte records |
+
+The data tables: gen_data ranks every file's declaration of a symbol (DATA.md 1), so a new one can change the
+winner. The first try (`[]` for all) changed `pad_config`'s and `D_80149AF8`'s winning types (no layout); with
+their true sizes the winners are the old ones. `data.c` and `data_symbols.txt` are the files before but for two
+arena BSS symbols the tables had as one word and that are now as long as the code reaches: `D_80149B50` 4 -> 8 bytes
+and `D_80149B90` 4 -> 512 (the next known address bounds both; they sit in the RDRAM window at their N64 addresses, so
+nothing moves). Debug and RelWithDebInfo give the same files, on GCC 13 and 14.
+
+The other findings were judged by class, and each is in `tools/port/bounds_reviewed.txt` with its verdict: a *view*
+whose functions reach one place of the symbol, or only read it; *const* offsets; *tmr* references with no other place
+or write beside them; *warn* findings of symbols no function writes two places of. The `-Warray-bounds` findings are
+mostly reads at a constant index past a one-element declaration, and `pad0EC[788]`-style members (2.4), which GCC
+addresses exactly.
+
+**The proof.** With the fixes, RelWithDebInfo against Debug along the 16 synthetic paths, `synth_compare.py --same
+--runs 2`: the same trace, to the bit, every path, with GCC 14 (the build host) and with GCC 13 (Ubuntu 24.04, a
+container on the build host: the CI runner's compiler, one that dropped the stick's x); `input_check.py` on GCC 13's
+RelWithDebInfo program: all passed (the stick steers right and left). The Windows program runs only in CI
+(`windows-run`: the paths and the steering check, on the cross-built RelWithDebInfo program); on the Pi the cross
+build compiles with the fixes, and mingw-w64 12 finds no `two offsets` or `clamped` place with them (without the
+stick's fix its `dse5` drops the x, as above). The full ctest passes on the build host in Debug and RelWithDebInfo
+(190 of 190 each). Without the fixes the gate fails on the stick's file: `NEW ... D_80140620 view [two offsets]`.
+
+**Flags considered** (the stick file before its fix, mingw-w64 12 at `-O2`, stores of the stick left):
+`-fno-tree-dse` 2 and `-fno-ivopts` 2 (each stops this instance: no dead-store pass, or no indexed references to
+cut); `-fno-ipa-modref`, `-fno-delete-null-pointer-checks`, `-fno-strict-aliasing` (already on) 1. Neither of the two
+covers the class: without dead-store elimination the forwarding and the disjointness remain, and without `ivopts` the
+member-array and wider-pointer rules remain, at the cost of every loop's addressing. Not used: the declarations are
+the fix, and `bounds_check.py` keeps them so.
+
+**The gate.** CI's Linux x86-64 RelWithDebInfo job runs `bounds_check.py` (section 4): a finding not in
+`tools/port/bounds_reviewed.txt`, or a `two offsets` or `clamped` one whose verdict doesn't start with "fixed" or
+"judged", fails it. The list holds what GCC 13 (the runner's), GCC 14 and mingw-w64 12 find; aarch64's GCC inlines
+and warns otherwise, so the step runs on x86-64. A new finding is read like these: where its function reaches two
+places of the symbol, declare the symbol whole; otherwise add it with its verdict.
+
 ## 3. The flags
 
 | Flag | Where | Why | Debug |
@@ -183,7 +281,7 @@ Considered and not used:
 - gen_data refuses optimized DWARF (2.1); `gen_data.py --check` verifies the own storage's order (2.2).
 - CI (`.github/workflows/pc.yml`) builds Linux on both architectures and the Windows cross build as Debug and as
   RelWithDebInfo, and runs every test, the boot without a ROM and the synthetic paths in each. The RelWithDebInfo Linux
-  jobs also run `alias_check.py`. Then:
+  jobs also run `alias_check.py`, and the x86-64 one `bounds_check.py` (2.7). Then:
   - `optimized` (per architecture): the two builds' `data.c` and `data_symbols.txt` must be the same files, and
     `synth_compare.py --same` runs every path with both programs, twice each, on the virtual clock: every trace must
     be the same, to the bit;
