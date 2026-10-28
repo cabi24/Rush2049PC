@@ -188,6 +188,20 @@ void audio_update_d(void)
     D_80114728 = 0;
 }
 
+#ifdef TARGET_PC
+/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
+ * transform/group.c's entity_transform_calc says when). The stop of the song or of every effect posted on the
+ * way out of a race is then dropped, but nothing else is: with no message it is written into a scratch message
+ * that is never sent, so the cars, the effects' emitters and the next state are set as before; a message the
+ * full queue refuses is given back. */
+static SceneMsg pc_scratch_msg;
+static SceneMsg *pc_cmd(SceneMsg *m) { return m ? m : &pc_scratch_msg; }
+#define PC_CMD(m) pc_cmd(m)
+#define PC_CMD_SEND(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->used=0
+#else
+#define PC_CMD(m) m
+#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
+#endif
 void func_800F87A0(void)
 {
     SceneMsg *msg;
@@ -202,9 +216,9 @@ void func_800F87A0(void)
         case 1:
             if (gameplay_mode == 2) {
                 osRecvMesg(&D_80142728, 0, 1);
-                (msg = func_80091B00())->unk2 = 1;
+                (msg = PC_CMD(func_80091B00()))->unk2 = 1;
                 osSendMesg(&D_80142728, 0, 0);
-                osSendMesg(&D_801427A8, msg, 0);
+                PC_CMD_SEND(&D_801427A8, msg);
                 func_800B912C(D_8014978C);
                 while (D_801391F0 != 0) {
                     entity_transform_apply(D_801391F0, 1);
@@ -223,9 +237,9 @@ void func_800F87A0(void)
                 audio_update_d();
                 D_80114650 = 1;
                 osRecvMesg(&D_80142728, 0, 1);
-                (msg = func_80091B00())->unk2 = 7;
+                (msg = PC_CMD(func_80091B00()))->unk2 = 7;
                 osSendMesg(&D_80142728, 0, 0);
-                osSendMesg(&D_801427A8, msg, 0);
+                PC_CMD_SEND(&D_801427A8, msg);
                 func_800D5A04();
             }
             break;
@@ -235,9 +249,9 @@ void func_800F87A0(void)
         case 5:
         case 6:
             osRecvMesg(&D_80142728, 0, 1);
-            (msg = func_80091B00())->unk2 = 1;
+            (msg = PC_CMD(func_80091B00()))->unk2 = 1;
             osSendMesg(&D_80142728, 0, 0);
-            osSendMesg(&D_801427A8, msg, 0);
+            PC_CMD_SEND(&D_801427A8, msg);
             func_800B912C(D_8014978C);
             while (D_801391F0 != 0) {
                 entity_transform_apply(D_801391F0, 1);
@@ -303,8 +317,8 @@ void finish_state_alt(void)
     func_800CFCA8();
     if (D_80157244) {
         osRecvMesg(&D_80142728, 0, 1);
-        msg = func_80091B00(); msg->unk2 = 1; osSendMesg(&D_80142728, 0, 0);
-        osSendMesg(&D_801427A8, msg, 0);
+        msg = PC_CMD(func_80091B00()); msg->unk2 = 1; osSendMesg(&D_80142728, 0, 0);
+        PC_CMD_SEND(&D_801427A8, msg);
         func_800B912C(D_8014978C);
         entity = D_801391F0;
         if (entity) {

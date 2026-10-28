@@ -220,12 +220,23 @@ void highscore_InitScreen(void)
 }
 
 /* = object_type1_create (GC AudKillSong), inlined by umerge in retail (its locked copy is an -O2 single) */
+#ifdef TARGET_PC
+/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
+ * transform/group.c's entity_transform_calc says when). The stop of the song (command 1) posted here
+ * is then dropped: with no message the lock is given back and nothing is sent, and a message the full queue
+ * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
+#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&D_80142728,(void *)0,0);return;}
+#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)((s8 *)(m))[3]=0
+#else
+#define PC_CMD_OR_UNLOCK(m)
+#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
+#endif
 void AudKillSong_TTL(void)
 {
     AudMsg *msg;
 
     osRecvMesg(&D_80142728, (void **)0, 1);
-    msg = func_80091B00(); msg->cmd = 1;
+    msg = func_80091B00(); PC_CMD_OR_UNLOCK(msg) msg->cmd = 1;
     osSendMesg(&D_80142728, (void *)0, 0);
-    osSendMesg(&D_801427A8, msg, 0);
+    PC_CMD_SEND(&D_801427A8, msg);
 }
