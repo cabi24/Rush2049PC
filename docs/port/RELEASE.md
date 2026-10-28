@@ -86,7 +86,8 @@ rush2049pc:   /home/me/baserom.us.z64 (the working directory)
 rush2049pc: copy your San Francisco Rush 2049 (USA) ROM next to the program as baserom.us.z64, or give its path: rush2049pc --rom PATH
 ```
 
-The box on Windows, titled "Rush 2049 PC: no ROM":
+The box on Windows, titled "Rush 2049 PC: no ROM", with the buttons **Open ROM...** and **Quit** ("Choosing the
+ROM" below):
 
 ```
 This program plays your own copy of the San Francisco Rush 2049 (USA) cartridge, from a ROM file, and none was found.
@@ -95,10 +96,19 @@ It looked for baserom.us.z64 in:
     C:\Games\rush2049pc\baserom.us.z64 (next to the program)
     C:\Users\me\AppData\Roaming\rush2049pc\baserom.us.z64 (the user data folder)
 
+Open ROM... lets you choose the ROM file now; the program checks it and keeps where it is in its settings (game.rom), so it finds it from then on. .z64, .v64 and .n64 files all work.
+
+Or copy your ROM next to the program and name it baserom.us.z64, or drag the ROM file onto rush2049pc.exe.
+```
+
+Where no file dialog can be shown (Linux without zenity or kdialog, where the last line says "or start the program
+with: rush2049pc --rom PATH"; Windows after "No file dialog could be shown."), the box asks nothing and ends:
+
+```
 Copy your ROM next to the program and name it baserom.us.z64, or drag the ROM file onto rush2049pc.exe. .z64, .v64 and .n64 files all work.
 
 Or set game.rom to its path in
-    C:\Users\me\AppData\Roaming\rush2049pc\rush2049pc.ini
+    C:\Games\rush2049pc\rush2049pc.ini
 ```
 
 A path that isn't there:
@@ -374,7 +384,8 @@ also makes a **draft** GitHub release with them, which a person checks and publi
 | `linux-check` | the same, in `fedora:40` | the tarball unpacked on another distribution; from its folder: `--version`, `--selftest`, the first run, the boot without a ROM headless on Mesa's llvmpipe with its log |
 | `release` | ubuntu-24.04 | tags only: `gh release create --draft` with the three archives |
 
-- **The Windows zip:** `rush2049pc.exe`, `README.txt` (`dist/README-windows.txt`, CRLF line ends) and `LICENSES/`:
+- **The Windows zip:** `rush2049pc.exe`, an empty `rush2049pc.ini`, `README.txt` (`dist/README-windows.txt`, CRLF line
+  ends) and `LICENSES/`:
   - `SDL2.txt`, from the SDL2 source built;
   - `zlib.txt`, the licence comment of the `zlib.h` compiled against;
   - `mingw-w64.txt` and `gcc-runtime.txt`, Debian's copyright files for the mingw-w64 runtime (CRT, winpthreads)
