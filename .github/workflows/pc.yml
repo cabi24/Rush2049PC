@@ -178,11 +178,11 @@ jobs:
         include:
           - os: ubuntu-24.04
             sanitize: undefined
-            skip_tests: '^(audio_realtime|input_live_drive)$'
+            skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60)$'
           - os: ubuntu-24.04-arm
             sanitize: address,undefined
             # and the race on the host's clock, which under ASan on 4 cores doesn't reach its state in time
-            skip_tests: '^(audio_realtime|input_live_drive|synth_boot_race)$'
+            skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|synth_boot_race)$'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -213,8 +213,9 @@ jobs:
           cmake --build build/san -j4 2>&1 | cut -c1-2000
           ccache -s | grep -iE "hits|misses|cache size" || true
       - name: Tests
-        # The tests that run on the host's clock and measure it (matrix.skip_tests): the sanitizers slow the program
-        # down several times (docs/port/SANITIZE.md 5).
+        # The tests that run on the host's clock and measure it (matrix.skip_tests: audio_realtime, input_live_drive,
+        # the hfr_paced ones, and on the arm runner the real-time race): the sanitizers slow the program down several
+        # times (docs/port/SANITIZE.md 5).
         run: ctest --test-dir build/san --output-on-failure -j4 -E '${{ matrix.skip_tests }}'
       - uses: actions/upload-artifact@v4
         if: always()

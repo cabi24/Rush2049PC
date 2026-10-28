@@ -336,8 +336,8 @@ frontend menu tests on the Pi's V3D driver).
 ## 5. CI
 
 `.github/workflows/pc.yml`'s `sanitize` job: UBSan on `ubuntu-24.04` (x86-64) and ASan with UBSan on
-`ubuntu-24.04-arm`, Debug, every test but `audio_realtime` and `input_live_drive`, which measure real time, and on
-the arm runner `synth_boot_race` too: the one synthetic path on the host's clock, which under ASan on 4 cores didn't
+`ubuntu-24.04-arm`, Debug, every test but `audio_realtime`, `input_live_drive` and the `hfr_paced` ones, which measure
+real time, and on the arm runner `synth_boot_race` too: the one synthetic path on the host's clock, which under ASan on 4 cores didn't
 reach its state in its 75 s (every other path runs on the virtual clock, where the slowdown costs only time, and
 `drive`, `race2p` and the others race there). The synthetic paths are among the tests. Ubuntu's GCC 13 runtime
 checks stack use after return by default and the Pi's GCC 12 doesn't (`detect_stack_use_after_return`), which is how
