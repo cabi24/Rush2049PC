@@ -99,6 +99,32 @@ static PFNGLFENCESYNCPROC glFenceSync;
 static PFNGLCLIENTWAITSYNCPROC glClientWaitSync;
 static PFNGLDELETESYNCPROC glDeleteSync;
 static GLsync g_fence;
+/* GPU timers (RUSH_GFX_TIMES=3), optional: GL_TIME_ELAPSED queries (desktop GL 3.3, ARB_timer_query,
+ * EXT_disjoint_timer_query on GLES), read back when they are ready. */
+#ifndef GL_TIME_ELAPSED
+#define GL_TIME_ELAPSED 0x88BF
+#endif
+typedef void(GL_APIENTRYP PcGlGenQueries)(GLsizei n, GLuint *ids);
+typedef void(GL_APIENTRYP PcGlDeleteQueries)(GLsizei n, const GLuint *ids);
+typedef void(GL_APIENTRYP PcGlBeginQuery)(GLenum target, GLuint id);
+typedef void(GL_APIENTRYP PcGlEndQuery)(GLenum target);
+typedef void(GL_APIENTRYP PcGlGetQueryObjectuiv)(GLuint id, GLenum pname, GLuint *params);
+typedef void(GL_APIENTRYP PcGlGetQueryObjectui64v)(GLuint id, GLenum pname, uint64_t *params);
+#define GPU_TIMERS 256
+static struct {
+    PcGlGenQueries gen;
+    PcGlDeleteQueries del;
+    PcGlBeginQuery begin;
+    PcGlEndQuery end;
+    PcGlGetQueryObjectuiv get;
+    PcGlGetQueryObjectui64v get64;
+    GLuint q[GPU_TIMERS];
+    uint8_t cat[GPU_TIMERS];
+    uint32_t head, tail;          /* pending queries: tail .. head - 1 (mod GPU_TIMERS) */
+    int active, ok;
+    double ms[PCGFX_GPU_TIMER_CATS];
+    uint32_t n[PCGFX_GPU_TIMER_CATS];
+} GT;
 
 struct GfxShader {
     GfxShaderKey key;
@@ -144,6 +170,8 @@ static struct {
     int ui_failed;
     GLuint bound_fbo;
     int max_size;                   /* the largest render target side (GL_MAX_TEXTURE_SIZE, _RENDERBUFFER_SIZE) */
+    uint32_t draws;                 /* pcgfx_gl_draw calls and their vertices so far (RUSH_GFX_TIMES) */
+    uint64_t verts;
 } G;
 
 /* The scale new targets get: the setting, or the window's for auto (gfx_api.c). A target keeps its own until it
@@ -264,6 +292,12 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
 
 void pcgfx_gl_shutdown(void) {
     int b;
+    if (GT.ok) {
+        if (GT.active)
+            GT.end(GL_TIME_ELAPSED);
+        GT.del(GPU_TIMERS, GT.q);
+    }
+    memset(&GT, 0, sizeof(GT));
     if (g_fence != NULL)
         glDeleteSync(g_fence);
     g_fence = NULL;
@@ -648,6 +682,13 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     glBindBuffer(GL_ARRAY_BUFFER, G.vbo);
     glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(sizeof(*v) * (size_t)n), v, GL_STREAM_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, n);
+    G.draws++;
+    G.verts += (uint64_t)n;
+}
+
+void pcgfx_gl_draw_counts(uint32_t *draws, uint64_t *verts) {
+    *draws = G.draws;
+    *verts = G.verts;
 }
 
 /* ---------------------------------------------------------------- present and readback */
@@ -798,6 +839,98 @@ GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, float s) {
 
 void pcgfx_gl_finish(void) {
     glFinish();
+}
+
+/* ---------------------------------------------------------------- GPU timers (RUSH_GFX_TIMES=3) */
+
+static int has_extension(const char *name) {
+    const char *ext = (const char *)glGetString(GL_EXTENSIONS);
+    size_t n = strlen(name);
+    while (ext != NULL && (ext = strstr(ext, name)) != NULL) {
+        if (ext[n] == ' ' || ext[n] == '\0')
+            return 1;
+        ext += n;
+    }
+    return 0;
+}
+
+int pcgfx_gl_timers_init(GfxGetProc get_proc) {
+    const char *ver = (const char *)glGetString(GL_VERSION);
+    int maj = 0, min = 0;
+    if (GT.ok)
+        return 0;
+    /* GL_EXTENSIONS through glGetString is gone from core profiles: the version decides there */
+    if (ver != NULL && !G.gles)
+        sscanf(ver, "%d.%d", &maj, &min);
+    while (glGetError() != GL_NO_ERROR)
+        ;
+    GT.gen = (PcGlGenQueries)get_proc("glGenQueries");
+    GT.del = (PcGlDeleteQueries)get_proc("glDeleteQueries");
+    GT.begin = (PcGlBeginQuery)get_proc("glBeginQuery");
+    GT.end = (PcGlEndQuery)get_proc("glEndQuery");
+    GT.get = (PcGlGetQueryObjectuiv)get_proc("glGetQueryObjectuiv");
+    if (G.gles) {
+        if (!has_extension("GL_EXT_disjoint_timer_query"))
+            return -1;
+        GT.get64 = (PcGlGetQueryObjectui64v)get_proc("glGetQueryObjectui64vEXT");
+    } else {
+        if (maj * 10 + min < 33 && !has_extension("GL_ARB_timer_query"))
+            return -1;
+        GT.get64 = (PcGlGetQueryObjectui64v)get_proc("glGetQueryObjectui64v");
+    }
+    while (glGetError() != GL_NO_ERROR)
+        ;
+    if (GT.gen == NULL || GT.del == NULL || GT.begin == NULL || GT.end == NULL || GT.get == NULL || GT.get64 == NULL)
+        return -1;
+    GT.gen(GPU_TIMERS, GT.q);
+    GT.ok = glGetError() == GL_NO_ERROR;
+    return GT.ok ? 0 : -1;
+}
+
+/* Results that are ready (all of them, waiting, when wait is set). */
+static void timers_collect(int wait) {
+    while (GT.tail != GT.head) {
+        GLuint id = GT.q[GT.tail % GPU_TIMERS], avail = 0;
+        uint64_t ns = 0;
+        if (!wait) {
+            GT.get(id, GL_QUERY_RESULT_AVAILABLE, &avail);
+            if (!avail)
+                break;
+        }
+        GT.get64(id, GL_QUERY_RESULT, &ns);
+        GT.ms[GT.cat[GT.tail % GPU_TIMERS]] += (double)ns / 1e6;
+        GT.n[GT.cat[GT.tail % GPU_TIMERS]]++;
+        GT.tail++;
+    }
+}
+
+void pcgfx_gl_timer_begin(int cat) {
+    if (!GT.ok || GT.active)
+        return;
+    timers_collect(GT.head - GT.tail >= GPU_TIMERS - 1);
+    GT.cat[GT.head % GPU_TIMERS] = (uint8_t)cat;
+    GT.begin(GL_TIME_ELAPSED, GT.q[GT.head % GPU_TIMERS]);
+    GT.active = 1;
+}
+
+void pcgfx_gl_timer_end(void) {
+    if (!GT.ok || !GT.active)
+        return;
+    GT.end(GL_TIME_ELAPSED);
+    GT.head++;
+    GT.active = 0;
+}
+
+int pcgfx_gl_timer_stats(double ms[PCGFX_GPU_TIMER_CATS], uint32_t n[PCGFX_GPU_TIMER_CATS]) {
+    int i;
+    if (!GT.ok)
+        return -1;
+    timers_collect(1);
+    for (i = 0; i < PCGFX_GPU_TIMER_CATS; i++) {
+        ms[i] = GT.ms[i];
+        n[i] = GT.n[i];
+    }
+    return 0;
 }
 
 void pcgfx_gl_fence_set(void) {

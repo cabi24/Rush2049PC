@@ -1184,7 +1184,9 @@ int pcgfx_hfr_frame(double vt, GfxTarget **show, int *rows, int mode) {
     H.aux = pcgfx_gl_aux_target(H.aux, r->tw, r->th, r->scale);
     if (H.aux == NULL)
         return 0;
+    pcgfx_gl_timer_begin(PCGFX_GPU_BETWEEN);   /* RUSH_GFX_TIMES=3 */
     draw_between(o, r, (float)(r == c ? a : 1.0 - a));
+    pcgfx_gl_timer_end();
     pcgfx_gl_fence_set();
     *show = H.aux;
     pcgfx_gl_target_shown(r->target, &w, rows);
