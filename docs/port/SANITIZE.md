@@ -185,6 +185,7 @@ after the fixes: clean. Each ran the game time its script needs (40-130 s); 70 s
 | 17 | port/assets/tests/test_text.c | ASan stack-use-after-scope | `D_8014A160` held a pointer to a block's local name, which `voice_stop` read after the block | static | `assets_text` |
 | 18 | port/audio/tests/test_forms.c | LSan | the scenes' buffers were held by main's locals only | static | `audio_forms` |
 | 19 | port/ultra/loop.c, rcp.c (new on main: the RSP yield) | TSan | the exit line read the audio task and graphics yield counts while the game's scheduler could still count | relaxed atomics on both sides | `synth_boot_race` under TSan |
+| 20 | port/assets/tests/test_targets.c | ASan stack-use-after-return (CI's arm runner) | the stand-in `sound_position_set` kept the pointer `func_8010E694` passes, its own frame's `xyz`, and the test read the floats after the function returned | the stand-in copies them | `assets_targets` |
 
 **The first fix for 5 was wrong, and a retail run caught it.** It gave the table a ninth row under `TARGET_PC`. But
 gen_data takes a C-defined symbol's size from its DWARF and maps the N64 addresses it covers to the C object
@@ -195,8 +196,9 @@ ASan+UBSan build then runs `race4p` to the same states, to the same car position
 the size of C data that has an N64 address.**
 
 The port's own code, run through every test and path, had no other finding under UBSan, ASan or LSan: no buffer
-overflow, use after free, leak, misaligned or out-of-range access, and no other race than 1-3, 15 and 19. The 5
-synthetic paths run with `detect_stack_use_after_return=1` (game C included) had no report either.
+overflow, use after free, leak, misaligned or out-of-range access, and no other race than 1-3, 15 and 19. Five
+synthetic paths run on the Pi with `detect_stack_use_after_return=1` (game C included) gave no report as far as they
+got; CI's runtime, which checks it by default, then found finding 20 in a test.
 
 **Arch-dependent behaviour.** Finding 12 is the one that changed what the game does: a float out of an integer's
 range converts differently on each host (x86-64's `cvttss2si` gives INT_MIN for anything out of an int's range and
@@ -334,8 +336,13 @@ frontend menu tests on the Pi's V3D driver).
 ## 5. CI
 
 `.github/workflows/pc.yml`'s `sanitize` job: UBSan on `ubuntu-24.04` (x86-64) and ASan with UBSan on
-`ubuntu-24.04-arm`, Debug, every test but `audio_realtime` and `input_live_drive`, which measure real time. The
-synthetic paths are among the tests. It sets `vm.mmap_rnd_bits=28` first: GCC 13's runtimes predate 32 bits of
+`ubuntu-24.04-arm`, Debug, every test but `audio_realtime` and `input_live_drive`, which measure real time, and on
+the arm runner `synth_boot_race` too: the one synthetic path on the host's clock, which under ASan on 4 cores didn't
+reach its state in its 75 s (every other path runs on the virtual clock, where the slowdown costs only time, and
+`drive`, `race2p` and the others race there). The synthetic paths are among the tests. Ubuntu's GCC 13 runtime
+checks stack use after return by default and the Pi's GCC 12 doesn't (`detect_stack_use_after_return`), which is how
+CI found finding 20 and the Pi didn't. Turned on for the Pi's ctest, it slowed the synthetic paths past their 150 s on
+the busy Pi, so ctest leaves it at the runtime's default; set it by hand for a hunt there. It sets `vm.mmap_rnd_bits=28` first: GCC 13's runtimes predate 32 bits of
 randomization, which can put a mapping inside their shadow. On the build host the UBSan build and its whole ctest
 take under 3 minutes at -j12/-j3; on CI's 4 cores, about the Debug job's time again, less with its ccache (keyed
 apart from the other jobs'). `app_firstrun` and `hfr_timing`, which start the game many times, get 1,200 s in a
