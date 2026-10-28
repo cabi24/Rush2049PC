@@ -472,6 +472,15 @@ set_target_properties(test_romcheck test_app PROPERTIES EXPORT_COMPILE_COMMANDS 
 add_test(NAME hfr_timing COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr --require-drawn race2p drive demo)
 set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+# Live input drives the game (docs/port/FRONTEND.md "Testing live input"): the drive path through SDL virtual
+# controllers, a virtual joystick with the generic mapping, key events and a controller plugged in late, each the same
+# run as the scripted one, with the car's steering input following the stick; race2p with two controllers
+# (tools/port/input_check.py). Headless: live input pumps SDL's events itself.
+if(RUSH_SDL2_TARGET)
+    add_test(NAME input_live_drive COMMAND ${PC_PYTHON} ${PORT_TOOLS}/input_check.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/input)
+    set_tests_properties(input_live_drive PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 SKIP_RETURN_CODE 77)
+endif()
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)

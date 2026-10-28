@@ -217,6 +217,9 @@ static const Item items[] = {
      "Controllers take players from this one up, in the order they are plugged in. 2 leaves player 1 to the keyboard."},
     {"input", "deadzone", T_REAL, F(deadzone), 0, 0.9, NULL, "0.15",
      "Stick and trigger dead zone, 0-0.9 of the travel; the rest is rescaled from 0."},
+    {"input", "sensitivity", T_REAL, F(sensitivity), 0.5, 2, NULL, "1.0",
+     "The stick's travel past the dead zone times this, 0.5-2: above 1 full tilt comes sooner, below 1 it is never "
+     "reached. Keys and buttons on the stick still give full tilt."},
     {"input", "axis_threshold", T_REAL, F(axis_threshold), 0.05, 1, NULL, "0.5",
      "A trigger or stick direction bound to a button presses it past this."},
     {"input", "stick_range", T_INT, F(stick_range), 1, 127, NULL, "80",

@@ -31,7 +31,7 @@
 
 enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, NUM_PAGES };
 
-typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT } Kind;
+typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT, I_PLAYER } Kind;
 
 typedef struct {
     Kind kind;
@@ -40,7 +40,7 @@ typedef struct {
     const char *const *choices;   /* I_CHOICE, I_WINDOW: the values in turn, as the file writes them */
     double min, max, step;        /* I_NUMBER */
     int percent;                  /* I_NUMBER: shown as a percentage, with a bar */
-    int page;                     /* I_PAGE: the page it opens */
+    int page;                     /* I_PAGE: the page it opens; I_PLAYER: the player (0-3) */
     int restart;                  /* applies after a restart */
 } Item;
 
@@ -115,12 +115,16 @@ static void build(void)
     add(P_KEYBOARD, I_DEFAULTS, "Defaults", NULL, NULL);
 
     pages[P_CONTROLLER].title = "Controllers (all players)";
+    for (int p = 0; p < 4; p++)   /* who plays each player, and the stick it gives: not choosable */
+        add(P_CONTROLLER, I_PLAYER, "", NULL, NULL)->page = p;
     for (int c = 0; c < PC_NUM_CONTROLS; c++)
         add(P_CONTROLLER, I_BIND, control_labels[c], "controller", pc_control_names[c]);
     add(P_CONTROLLER, I_BIND, "Settings button", "controller", "menu");
     add(P_CONTROLLER, I_CHOICE, "N64 stick", "controller", "analog")->choices = analog_choices;
     it = add(P_CONTROLLER, I_NUMBER, "Dead zone", "input", "deadzone");
     it->min = 0, it->max = 0.9, it->step = 0.05;
+    it = add(P_CONTROLLER, I_NUMBER, "Sensitivity", "input", "sensitivity");
+    it->min = 0.5, it->max = 2, it->step = 0.1;
     it = add(P_CONTROLLER, I_NUMBER, "Rumble", "input", "rumble");
     it->min = 0, it->max = 1, it->step = 0.1, it->percent = 1;
     add(P_CONTROLLER, I_DEFAULTS, "Defaults", NULL, NULL);
@@ -144,6 +148,7 @@ static struct {
     int ntouched;
     char status[160];
     uint32_t status_color;
+    char players[256];               /* the Controllers page's player rows as last drawn */
 } M;
 
 #define C_DIM 0x00000060u
@@ -420,6 +425,19 @@ static void scroll(void)
         *top = sel - ROWS + 1;
 }
 
+/* The player rows can't be chosen: the selection steps over them, the way it moved (down when it stopped). */
+static void skip_rows(int dir, int wrap)
+{
+    const Page *p = &pages[M.page];
+    int *sel = &M.sel[M.page];
+    for (int k = 0; k < p->n && p->item[*sel].kind == I_PLAYER; k++) {
+        int next = *sel + (dir < 0 ? -1 : 1);
+        if (!wrap && (next < 0 || next >= p->n))
+            dir = -dir, next = *sel + (dir < 0 ? -1 : 1);
+        *sel = (next % p->n + p->n) % p->n;
+    }
+}
+
 static void move(int by, int wrap)
 {
     int n = pages[M.page].n, *sel = &M.sel[M.page];
@@ -427,7 +445,10 @@ static void move(int by, int wrap)
         *sel = ((*sel + by) % n + n) % n;
     else
         *sel = *sel + by < 0 ? 0 : *sel + by >= n ? n - 1 : *sel + by;
+    skip_rows(by, wrap);
     scroll();
+    if (M.page == P_CONTROLLER && M.sel[M.page] <= 4)   /* near the top: the player rows above it show */
+        M.top[M.page] = 0;
 }
 
 static void start_capture(int add_to)
@@ -443,6 +464,7 @@ static void accept(Item *it)
     switch (it->kind) {
     case I_PAGE:
         M.page = it->page;
+        skip_rows(1, 0);
         break;
     case I_CHOICE:
     case I_WINDOW:
@@ -465,6 +487,8 @@ static void accept(Item *it)
         break;
     case I_QUIT:
         M.quit = 1;
+        break;
+    case I_PLAYER:
         break;
     }
 }
@@ -563,10 +587,34 @@ int pc_menu_is_open(void)
     return M.open;
 }
 
+/* A player row: "P1 keyboard + Xbox One" and its stick. */
+static void player_row(int p, char *label, size_t ln, char *value, size_t vn)
+{
+    char who[96];
+    int8_t x, y;
+    int what = pc_input_live_describe(p, who, sizeof who, &x, &y);
+    snprintf(label, ln, "P%d %s", p + 1, what ? who : "-");
+    if (what == 2)
+        snprintf(value, vn, "stick %+4d %+4d", x, y);
+    else
+        value[0] = 0;
+}
+
 int pc_menu_tick(void)
 {
     if (M.capture && pc_host_ns() >= M.capture_until)
         pc_menu_capture(NULL);
+    if (M.open && M.page == P_CONTROLLER) {   /* the player rows follow the controllers live */
+        char rows[256] = "", l[64], v[32];
+        for (int p = 0; p < 4; p++) {
+            player_row(p, l, sizeof l, v, sizeof v);
+            snprintf(rows + strlen(rows), sizeof rows - strlen(rows), "%s|%s|", l, v);
+        }
+        if (strcmp(rows, M.players)) {
+            snprintf(M.players, sizeof M.players, "%s", rows);
+            M.dirty = 1;
+        }
+    }
     if (M.dirty) {   /* while the game is held nothing else draws */
         M.dirty = 0;
         pc_gfx_redraw();
@@ -691,6 +739,13 @@ static void draw(int w, int h)
         uint32_t color = here && M.capture ? C_CAPTURE : changed(it) ? C_CHANGED : here ? C_WHITE : C_VALUE;
         if (here)
             rect(2, y, PANEL_W - 4, ROW_H, C_SELECT);
+        if (it->kind == I_PLAYER) {
+            player_row(it->page, line, sizeof line, v, sizeof v);
+            fit(line, 26, 0);
+            text(8, y + 2, C_HINT, line);
+            text(VALUE_X, y + 2, C_HINT, v);
+            continue;
+        }
         snprintf(line, sizeof line, "%s%s", it->label, it->restart ? " *" : "");
         text(8, y + 2, here ? C_WHITE : C_LABEL, line);
         if (here && M.capture)

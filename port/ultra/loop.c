@@ -56,7 +56,7 @@ static void (*g_game_info)(char *, size_t);
  * else: with --fast every N64 thread waits then (pc_os_wait_main), so the log, the status lines and --until-state
  * see the same values in every run; read after the retrace's event they would race the threads it wakes. */
 static uint32_t g_snap_state;
-static char g_snap_info[160];
+static char g_snap_info[256];
 
 static void snapshot(void)
 {
@@ -68,7 +68,7 @@ static void snapshot(void)
 
 static void status(const char *tag)
 {
-    char state[192] = "";
+    char state[288] = "";
     if (g_game_state)
         snprintf(state, sizeof state, " state=0x%08X", (unsigned)g_snap_state);
     if (g_game_info) {
@@ -89,7 +89,7 @@ static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
         first = s;
     entered |= s != first;
     if (s != last || !seen) {
-        char info[164] = "";
+        char info[260] = "";
         if (opt->game_info)
             snprintf(info, sizeof info, ": %s", g_snap_info);
         fprintf(stderr, "rush2049pc: game state 0x%08X (was 0x%08X) at vi %u, after %u graphics tasks%s\n",

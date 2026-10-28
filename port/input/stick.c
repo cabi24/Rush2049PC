@@ -35,6 +35,7 @@ void pc_stick_shape(double x, double y, const PcStickShape *shape, int8_t *out_x
         return;
     }
     double c = fabs(x) / m, s = fabs(y) / m, t = (m - shape->deadzone) / (1 - shape->deadzone);
+    t *= shape->gain > 0 ? shape->gain : 1;
     if (t > 1)
         t = 1;
     if (shape->diagonal > 0) {

@@ -405,7 +405,8 @@ static void stick(double x, double y, const PcStickShape *sh, int ex, int ey, co
 
 static void test_stick(void)
 {
-    PcStickShape oct = {0.15, 80, 70}, round = {0.15, 80, 0}, digital = {0, 80, 70};
+    PcStickShape oct = {0.15, 80, 70, 1}, round = {0.15, 80, 0, 1}, digital = {0, 80, 70, 1};
+    PcStickShape quick = {0.15, 80, 70, 2}, slow = {0.15, 80, 70, 0.5}, unset = {0.15, 80, 70, 0};
     stick(0, 0, &oct, 0, 0, "center");
     stick(0.1, 0.1, &oct, 0, 0, "inside the dead zone (radial: |v| = 0.141)");
     stick(0.14, 0, &oct, 0, 0, "dead zone edge");
@@ -425,8 +426,13 @@ static void test_stick(void)
     stick(1, 0, &round, 80, 0, "round gate right");
     stick(1, 1, &digital, 70, 70, "two keys");
     stick(-1, 0, &digital, -80, 0, "one key");
-    PcStickShape big = {0, 127, 0};
+    PcStickShape big = {0, 127, 0, 1};
     stick(1, 0, &big, 127, 0, "127");
+    /* input.sensitivity: the travel past the dead zone times it, then clamped */
+    stick(0.575, 0, &quick, 80, 0, "sensitivity 2: full tilt at half the travel");
+    stick(0.3625, 0, &quick, 40, 0, "sensitivity 2: a quarter of the travel is half tilt");
+    stick(1, 0, &slow, 40, 0, "sensitivity 0.5: full travel is half tilt");
+    stick(0.575, 0, &unset, 40, 0, "a gain of 0 is 1");
     /* past the dead zone the value starts small, not with a jump */
     int8_t ox, oy;
     pc_stick_shape(0.16, 0, &oct, &ox, &oy);
