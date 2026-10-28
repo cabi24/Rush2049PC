@@ -124,6 +124,10 @@ on, through `soak.py` (SDL's disk audio; the Windows model: `RUSH_SIM_VSYNC_HZ=6
   none. The same with vsync off, and with the vsync model alone (no coarse waits). The synthetic
   `realtime_check.py --pacing 60,120` on the Pi: 150 frames drawn between in 30 s at each rate, under the check's
   250 (rocky passes it). Reported; there is no real-time run of round 4 to say whether it is new.
+- Again on 30b5ab7 (a tick planned by its cost's spread, not its mean), the Pi busy with other work as before: with
+  the vsync model alone the late retraces fell to a small share and many times more frames were drawn between; under
+  the coarse-wait model too more were drawn, but a large share of the retraces still came late, the case
+  FRAMERATE.md 6 describes (Windows refusing both its high-resolution timer and the 1 ms period).
 
 ## Found and fixed
 
