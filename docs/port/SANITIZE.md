@@ -149,7 +149,7 @@ What was run, all Debug:
 | Build | Host | Runs | Result |
 |---|---|---|---|
 | UBSan | x86-64 (GCC 14) | the whole ctest, 194 tests: the unit tests, the 17 synthetic paths, the real-time ones | after the fixes, every test passes with the suppressions of section 4 |
-| ASan + UBSan | Pi 5 (GCC 12) | the whole ctest; 31 retail paths with `--fast` | after the fixes, every test passes; on the retail paths no ASan or LSan report, and UBSan's findings are 12-14 (fixed) and two suppressed (section 4) |
+| ASan + UBSan | Pi 5 (GCC 12) | the whole ctest; 31 retail paths with `--fast` | after the fixes every test passes but `gfx.all.wide-scale6.75` and `gfx.all.native-2880x1620`, whose `eyeplane` and `seams` cases fail on the Pi's V3D in the normal build too (a few pixels' rounding at 6.75x and 2880x1620; not the sanitizers'); on the retail paths no ASan or LSan report, and UBSan's findings are 12-14 (fixed) and two suppressed (section 4) |
 | TSan (port/ instrumented) | x86-64 (GCC 14) | the whole ctest | after the fixes (and main's HUD fix), races only inside Mesa and SDL (section 4) |
 
 The retail paths ran on the Pi only, with the ROM by its path there, one at a time, with the press scripts the QA
@@ -182,6 +182,7 @@ after the fixes: clean. Each ran the game time its script needs (40-130 s); 70 s
 | 16 | port/assets/tests/test_targets.c | ASan | the camera record names texture 361, and the test's stand-in `D_801427C0` had 64 entries: the game read past it | 1,024 entries | `assets_targets` |
 | 17 | port/assets/tests/test_text.c | ASan stack-use-after-scope | `D_8014A160` held a pointer to a block's local name, which `voice_stop` read after the block | static | `assets_text` |
 | 18 | port/audio/tests/test_forms.c | LSan | the scenes' buffers were held by main's locals only | static | `audio_forms` |
+| 19 | port/ultra/loop.c, rcp.c (new on main: the RSP yield) | TSan | the exit line read the audio task and graphics yield counts while the game's scheduler could still count | relaxed atomics on both sides | `synth_boot_race` under TSan |
 
 **The first fix for 5 was wrong, and a retail run caught it.** It gave the table a ninth row under `TARGET_PC`. But
 gen_data takes a C-defined symbol's size from its DWARF and maps the N64 addresses it covers to the C object
@@ -192,7 +193,7 @@ ASan+UBSan build then runs `race4p` to the same states, to the same car position
 the size of C data that has an N64 address.**
 
 The port's own code, run through every test and path, had no other finding under UBSan, ASan or LSan: no buffer
-overflow, use after free, leak, misaligned or out-of-range access, and no other race than 1-3 and 15. The 5
+overflow, use after free, leak, misaligned or out-of-range access, and no other race than 1-3, 15 and 19. The 5
 synthetic paths run with `detect_stack_use_after_return=1` (game C included) had no report either.
 
 **Arch-dependent behaviour.** Finding 12 is the one that changed what the game does: a float out of an integer's
@@ -230,7 +231,10 @@ tests and the synthetic paths, each with the driver's frames on one side), and l
 lock looks like a lock-order inversion. A race between port/ code and the driver would be hidden too. After the fixes of
 section 3, no report has port/ frames on both sides.
 
-**asan.supp**, **lsan.supp**: empty.
+**lsan.supp**: `leak:libgallium`: Mesa keeps blocks to the end of the process that nothing of ours holds (the
+frontend menu tests on the Pi's V3D driver).
+
+**asan.supp**: empty.
 
 ## 5. CI
 
