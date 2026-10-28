@@ -164,8 +164,10 @@ bits and counts the samples (`clipped`). `pc_audio_queued_frames` reports game-r
 | `alsa` | `snd_pcm_set_params` at 48 kHz, 40 ms, with `soft_resample`; the buffer is filled with silence but for a period before the writer thread starts pulling a period at a time |
 | `auto` | SDL2, then ALSA, then null |
 
-Without `pc_audio_init`, the first call initializes from the environment:
-- `RUSH2049_AUDIO` sets the backend; `RUSH2049_DUMP_AUDIO` sets the dump path.
+The environment:
+- `RUSH2049_AUDIO` sets the backend and `RUSH2049_DUMP_AUDIO` the dump path: in rush2049pc as a layer of
+  `audio.backend` and as `--dump-audio` ([FRONTEND.md](FRONTEND.md) "Settings: rush2049pc.ini"), and without
+  `pc_audio_init` at the first call.
 - `RUSH2049_AUDIO_RATE` forces a device rate.
 - `RUSH2049_AUDIO_STATS` (seconds) adds the counters' line every so often, as `-v` does every 10 s.
 - `RUSH2049_ALSA_DEVICE` names the ALSA device (`default` otherwise).
@@ -333,7 +335,7 @@ crackle, stutter or a buzz, worse with a vsync swap:
 | audio tasks | in real time, run at once, in `osSpTaskStartGo`, on the game's scheduler thread (ULTRA.md), as the RSP runs them beside the CPU; the scheduler takes the SP event from its queue after the call. With `--fast` the main loop runs them while every N64 thread waits, so a run stays the same every time |
 | AI events | while the queue and the events not yet answered are short of the target; up to 3 outstanding (the game's queue holds 4) |
 | who checks | the main loop, and in real time the device's thread after each pull (`pc_audio_set_pull_hook`); with `--fast` the main loop alone, so a run stays the same every time |
-| the target | 384 frames until a device pulls; then two pulls, a retrace and a buffer (SDL at 48 kHz with 10 ms periods: 1000 frames, 45 ms); one buffer more at each underrun, up to 200 ms; `audio.latency` (ms) sets a floor |
+| the target | 384 frames until a device pulls; then two pulls, a retrace and a buffer (SDL at 48 kHz with 10 ms periods: 1000 frames, 45 ms); one buffer more at each underrun, up to 200 ms; `audio.latency` (ms, in rush2049pc.ini; not on the F1 overlay) sets a floor |
 | retraces | a retrace a whole period late is caught up, so the game, which counts its time in retraces, and its renderer keep 60 a second; a stall of 6 periods or more drops them (ULTRA.md §4) |
 | a push before its render | held in the queue until the render for that push comes, as the N64's AI reads a buffer only as it plays it (below) |
 | the device | SDL: its own rate, float, a pull per device period; ALSA: 48 kHz, prefilled with silence; the queue converts (section 3) |

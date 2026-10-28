@@ -18,8 +18,9 @@ aarch64) builds come from the release workflow ([docs/port/RELEASE.md](docs/port
 
 - **A release.** The [releases page](https://github.com/cabi24/Rush2049PC/releases) has a Windows x86-64 zip and Linux
   x86-64 and aarch64 tarballs, once one is published. Between releases, each run of the Release workflow (Actions,
-  "Release") has the same archives as artifacts. Each is one folder: the program, `README.txt` and the licences of
-  the libraries it includes. There is no game data in it.
+  "Release") has the same archives as artifacts. Each is one folder: the program, an empty `rush2049pc.ini` (which
+  keeps everything in that folder), `README.txt` and the licences of the libraries it includes. There is no game
+  data in it.
 - **Your own build:** see [Building](#building) below.
 
 ### The ROM
@@ -90,12 +91,15 @@ old one pulled out, then the new one put in.
 
 `rush2049pc.ini` holds them all, with comments. The picture is drawn at the window's own pixels by default
 (`video.scale = native`, any display scaling, 2880 × 1620 included); `video.scale = 1` is the N64's 320 × 240 in
-square pixels. Fullscreen is borderless, or exclusive at `video.resolution` (720p to 2160p, or WxH). While you
-play, the F1 overlay changes the video settings (render scale, widescreen, fullscreen and its mode, resolution,
-window size, vsync, frame rate, textures, race HUD), the volume and the key and button mapping. In widescreen the
-race HUD sits at the screen's edges (`video.hud = edges`); `centered` keeps it in the 4:3 frame, as on the N64. It
-can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
-(`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
+square pixels. Fullscreen is borderless, or exclusive at `video.resolution` (720p to 2160p, or WxH). In widescreen
+the race HUD sits at the screen's edges (`video.hud = edges`); `centered` keeps it in the 4:3 frame, as on the
+N64. While you play, the F1 overlay changes the video settings (render scale, widescreen, fullscreen and its mode,
+resolution, window size, vsync, frame rate, pause in background, graphics API, textures, race HUD), the volume
+and the sound output, the key and button mapping, the stick, rumble and each player's accessory, and can save
+them into the file in place; the graphics API and the sound output take effect at the next start.
+`audio.latency` (more sound queued: fewer dropouts, more delay) is in the file only. `--set SECTION.KEY=VALUE`
+sets any setting for one run (`--set video.widescreen=16:9`), `--print-config` prints them all, and
+`rush2049pc --help` lists the options.
 
 ### Textures
 
@@ -143,14 +147,15 @@ a message box says so.
 - **"no renderer", or no window:** update the graphics driver. The program needs OpenGL ES 3.0, or OpenGL 3.1 or
   later. On Windows desktop GL comes first, elsewhere OpenGL ES; `--set video.api=gl` or `gles` picks the one tried
   first.
-- **No sound:** `--audio sdl` (or `alsa` on Linux) picks the output; the volume is `audio.volume`.
+- **No sound:** `--audio sdl` (or `alsa` on Linux) picks the output; the volume is `audio.volume`. Crackle or
+  dropouts: a larger `audio.latency` in `rush2049pc.ini` (in ms, 0-200; 0 sizes it from the device).
 - **A controller does nothing, or its stick doesn't steer:** F1 > Controllers shows who plays each player and what
   the stick gives, and the log names each controller found and its player. A pad SDL doesn't know gets a generic
   mapping and takes a player at its first button press; rebind it there, or put SDL's `gamecontrollerdb.txt`, with a
   line for it, next to `rush2049pc.ini`. On Windows, Xbox pads go through XInput (`SDL_JOYSTICK_RAWINPUT=1` uses
   SDL's raw input instead).
-- **It stopped with an error:** the log says why. On Windows a message box gives the log's path, and the console
-  waits for a key. Report it on the [issues page](https://github.com/cabi24/Rush2049PC/issues) with
+- **It stopped with an error:** the log says why. On Windows a message box says what went wrong and gives the
+  log's path. Report it on the [issues page](https://github.com/cabi24/Rush2049PC/issues) with
   `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was; F1 > About shows where
   the log is, and its Copy item puts the version, driver and paths on the clipboard.
 

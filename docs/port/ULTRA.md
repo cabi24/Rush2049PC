@@ -297,16 +297,18 @@ loop on the host main thread.
 | Option | |
 |---|---|
 | `--rom PATH`, `--no-rom-check`, `--no-rom` | the ROM; run another dump; bring-up on a blank cartridge (data stays zero) |
-| `--headless`, `--window` | EGL surfaceless (default without `DISPLAY`/`WAYLAND_DISPLAY`); an SDL2 window |
+| `--headless`, `--window` | EGL surfaceless, WGL on Windows (on Linux the default without `DISPLAY`/`WAYLAND_DISPLAY`); an SDL2 window |
 | `--seconds N`, `--frames N`, `--stop-at-gfx` | stop after N s, N graphics tasks, or at the first one |
 | `--fast` | the virtual clock (section 1): as fast as the host can, the same run on any host; `--seconds` is game time |
 | `--until-state MASK[:N]` | stop once the game's state word (gGameState) has a bit of MASK and N more graphics tasks have run; with `--seconds`, not getting there is exit code 1. Every change of the state word is logged, with the players, windows, cars, mode (gRace) and track, and the first car's position, speed and steering input ([SYNTH.md](SYNTH.md)); in whole feet, or as exact hex floats with `RUSH_STATE_EXACT` set |
 | `--screenshot-at N`, `--screenshot PATH` | a PNG once N graphics tasks have run (default `rush2049pc-N.png`) |
-| `--press T:BUTTON[@PORT][:DUR],...`, `--press-file PATH` | scripted input in v5's format |
+| `--press T:BUTTON[@PORT][:DUR],...`, `--press-file PATH` | scripted input in v5's format; `--press-via K[:T]` sends it through SDL as live input (FRONTEND.md "Testing live input") |
 | `--pak PATH`, `--no-pak`, `--rumble`, `--expansion-pak` | accessories; 8 MiB of RDRAM |
 | `--audio BACKEND`, `--dump-audio PATH` | port/audio's output (`RUSH2049_AUDIO`, `RUSH2049_DUMP_AUDIO` too) |
 | `-v`, `--trace-os`, `--status N`, `--selftest` | logging; switches; a status line every N s; the self-test |
-| `--fullscreen`, `--size WxH`, `--scale N`, `--log-input` | the window and live input ([FRONTEND.md](FRONTEND.md)) |
+| `--log PATH`, `--no-log` | the log file ([RELEASE.md](RELEASE.md) "The log") |
+| `--version`, `-h`, `--help` | the version and the build; the options |
+| `--fullscreen`, `--exclusive`, `--resolution R`, `--size WxH`, `--scale N`, `--widescreen A`, `--log-input` | the window and live input ([FRONTEND.md](FRONTEND.md)) |
 | `--frame-rate R` | frames shown a second: `original`, `display` or 30-1000 ([FRAMERATE.md](FRAMERATE.md)) |
 | `--config PATH`, `--no-config`, `--set S.KEY=VALUE`, `--print-config` | the settings file ([FRONTEND.md](FRONTEND.md)) |
 

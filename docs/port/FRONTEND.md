@@ -38,8 +38,8 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | Key | Does |
 |---|---|
 | F1 | open and close the [settings overlay](#the-settings-overlay), which holds the game; on a controller, both stick clicks together |
-| Alt+Enter, F11 | toggle desktop fullscreen |
-| F12 | save the shown frame as `rush2049pc-YYYYMMDD-HHMMSS.png` (in `video.screenshot_dir`) |
+| Alt+Enter, F11 | toggle fullscreen, borderless or exclusive as `video.fullscreen_mode` says |
+| F12 | save the shown frame as `rush2049pc-YYYYMMDD-HHMMSS.png` (in `video.screenshot_dir`; by default `screenshots/` in the data folder) |
 | Pause | hold the game, and press again to go on |
 | Escape | quit |
 
@@ -164,11 +164,13 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   rule: [RELEASE.md](RELEASE.md) "Files".)
   - `rush2049pc.ini` next to the executable, when there is one (a portable install).
   - Otherwise `$XDG_CONFIG_HOME/rush2049pc/rush2049pc.ini`. That is `~/.config/rush2049pc/` when
-    `XDG_CONFIG_HOME` is unset, or relative, as the XDG spec says.
+    `XDG_CONFIG_HOME` is unset, or relative, as the XDG spec says. On Windows, `%APPDATA%\rush2049pc\rush2049pc.ini`.
   - `--config PATH` reads another file, and `--no-config` reads none.
 - **First run.** When the located file doesn't exist, it is written with every setting and a comment on each,
-  and then read. A setting at its default is written commented out (`; key = value`), so it follows the program's
-  defaults when they change in a later version; the overlay's saves and a removed `;` keep a value. `--config`, `--print-config` and `--selftest` never write it.
+  and then read; an empty one next to the program (as the release archives ship it) is filled the same way. A
+  setting at its default is written commented out (`; key = value`), so it follows the program's defaults when
+  they change in a later version; the overlay's saves and a removed `;` keep a value. `--config`, `--no-config`,
+  `--print-config` and `--selftest` never write it.
 - **Written by the program** only in place, through `pc_ini_update` (the rest of the file byte for byte): the
   overlay's Save, the window's size and place at exit (`video.remember_window`), and `game.rom` when the player
   chooses the ROM in the first run's file dialog ([RELEASE.md](RELEASE.md) "Choosing the ROM").
@@ -176,7 +178,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   1. the defaults;
   2. the file;
   3. the environment variables other parts already read: `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
-     `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`;
+     `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`;
   4. a press file's `pak on|off`;
   5. command-line options, in order.
 - **Bad values.** A bad line in the file, or a bad environment value, is reported with its line and skipped.
@@ -205,7 +207,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.vsync` | on | | swap interval 1 or 0; on, no more frames are shown than the display refreshes, whatever `frame_rate` asks (logged) |
 | `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
 | `video.scale` | native | `--scale N` | internal resolution: `native` (the window's own pixels, any fraction), `auto` (the largest whole multiple the window holds), or 1-8 (`1` or `n64`: the N64's) (`RUSH_GFX_SCALE`) |
-| `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend") |
+| `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend, frame and settings") |
 | `video.widescreen` | auto | `--widescreen` | auto (the window's), off, 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |
@@ -241,19 +243,42 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   - Axes: `lefttrigger`, `righttrigger`, and `+leftx -leftx +lefty -lefty` with the same for `rightx` and
     `righty`. +x is right and +y is down, as SDL has them.
 - **Unknown names** are reported and skipped. The rest of the list still works.
-- The environment variables `RUSH_GFX_HEIGHT`, `RUSH_GFX_VERBOSE`, `RUSH2049_DUMP_AUDIO`, `RUSH2049_AUDIO_RATE`
-  and `RUSH2049_ALSA_DEVICE` stay environment-only, as do `--dump-audio` and the run-limit options.
+- Every other environment variable the program reads is environment-only ([below](#environment-variables)), as
+  are `--dump-audio` and the run-limit options.
 - **How settings reach the parts.**
   - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
-    `RUSH_GFX_WIDESCREEN` and `RUSH_GFX_FRAME_RATE` to the resolved values before `pc_gfx_init`. The main loop asks
-    port/gfx for the frame rate in effect (`pc_gfx_frame_rate`) at each pass, so the overlay's change applies at once.
+    `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES` and `RUSH_GFX_HUD` to the resolved values
+    before `pc_gfx_init`, and `RUSH_GFX_TEXTURE_PACK`, `RUSH_GFX_TEXTURE_DUMP` and `RUSH_GFX_TEXTURE_CACHE` to the
+    data folder's paths unless they are set already. The main loop asks port/gfx for the frame rate in effect
+    (`pc_gfx_frame_rate`) at each pass, so the overlay's change applies at once.
   - The window size goes to `pc_gfx_init`; the fullscreen mode, the resolution and the place to
     `pc_gfx_set_fullscreen_mode`, `pc_gfx_set_resolution` and `pc_gfx_set_window_position` before it.
   - port/input sets vsync and fullscreen at start through port/gfx (`pc_gfx_set_vsync`, `pc_gfx_set_fullscreen`),
     and the title and the minimum size on the SDL window.
   - Old defaults: a file an older build wrote with every default (no `video.resolution` line; scale 1, 640 × 480,
     widescreen off) gets the new ones, native, auto and auto, in the file too, with a line in the log.
-  - main sets the volume with `pc_audio_set_volume` after `pc_audio_init`.
+  - main sets the volume and the latency with `pc_audio_set_volume` and `pc_audio_set_latency` after
+    `pc_audio_init`.
+
+### Environment variables
+
+Every variable the program (`port/`) reads. The settings' seven are a layer of their own (above); the rest are
+environment-only.
+
+| Variable | What |
+|---|---|
+| `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`, `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD` | `audio.backend`, `video.scale`, `video.api`, `video.widescreen`, `video.frame_rate`, `video.textures`, `video.hud` |
+| `RUSH_GFX_TEXTURE_PACK`, `RUSH_GFX_TEXTURE_DUMP`, `RUSH_GFX_TEXTURE_CACHE` | the pack's, the dump's and the upscaled textures' cache's folders, over `video.texture_pack`, `video.texture_dump` and the data folder's `texture_cache` ([TEXTURES.md](TEXTURES.md)) |
+| `RUSH_GFX_UPSCALE=1\|2\|4`, `RUSH_GFX_UPSCALE_2D=1`, `RUSH_GFX_TEXTURE_SYNC=1` | the upscale factor instead of the internal scale's; 2D upscaled too; upscaling on the render thread (tests) ([TEXTURES.md](TEXTURES.md)) |
+| `RUSH_GFX_HEIGHT`, `RUSH_GFX_VERBOSE`, `RUSH_GFX_TIMES`, `RUSH_GFX_TRACE`, `RUSH_GFX_DUMP`, `RUSH_GFX_HFR_DUMP` | the renderer's diagnostics ([GFX.md](GFX.md) "Backend, frame and settings", "High frame rate") |
+| `RUSH2049_DUMP_AUDIO`, `RUSH2049_AUDIO_RATE`, `RUSH2049_AUDIO_STATS`, `RUSH2049_ALSA_DEVICE`, `RUSH2049_AUDIO_CAPTURE` | a WAV of the output (`--dump-audio`), the device's rate, the output's counters every N s, the ALSA device, every audio task to a file ([AUDIO.md](AUDIO.md)) |
+| `RUSH2049_CONSOLE=none`, `RUSH2049_MESSAGE_BOX=print\|off`, `RUSH2049_WAIT_KEY=0\|1`, `RUSH2049_TEST_ROM_PICK` | the console, the message boxes, the wait for a key and the ROM's file dialog, for tests ([RELEASE.md](RELEASE.md)) |
+| `RUSH_SIM_TIMER_STEP_US`, `RUSH_SIM_VSYNC_HZ`, `RUSH_SIM_PRESENT_MS` | Windows' timing modelled on Linux ([WINDOWS.md](WINDOWS.md) 5) |
+| `RUSH_STATE_EXACT`, `RUSH_TRAP_FP`, `RUSH_TRACE_WAVES`, `PC_DATA_REPORT` | the state log's exact floats ([ULTRA.md](ULTRA.md) 4), a trap at the first invalid float operation, each wave's conversion logged ([LOADERS.md](LOADERS.md)), the data loader's report ([RELEASE.md](RELEASE.md) "Files") |
+| `APPDATA` (Windows); `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `HOME` | the settings and data folders |
+| `DISPLAY`, `WAYLAND_DISPLAY` | on Linux, without either the program renders headless unless `--window` is given |
+| `XDG_CURRENT_DESKTOP`, `PATH` | the ROM's file dialog: kdialog first on KDE, zenity or kdialog found on `PATH` |
+| `SDL_JOYSTICK_RAWINPUT=1` | SDL's own: on Windows, SDL's raw input for Xbox pads instead of XInput ("Windows" above) |
 
 ## The settings overlay
 
@@ -315,7 +340,7 @@ restart.
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
 | Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; P1-P4 accessory: controller pak, rumble pak, auto (shown with what it gives now: "auto: rumble pak"), none; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble`, `game.pak`, `game.pak2`... | at once; an accessory as a hot swap (the game sees the old one pulled at its next poll, then the new one) |
 | Help | read-only: each N64 control, its keys (the keyboard's player) and its controller inputs in Xbox names (`a, righttrigger` is "A, RT", `-righty` "RS up", the N64 stick's own stick on the stick rows); the hotkeys (Alt+Enter with fullscreen); this menu's keys and the mouse | the bindings in effect, made again each time it opens | |
-| About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Copy to the clipboard** (the page as text, for a bug report; with a window); **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display) | main's facts (`pc_menu_set_about`), made each time it opens | |
+| About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display); **Copy to the clipboard** (the page as text, for a bug report; with a window) | main's facts (`pc_menu_set_about`), made each time it opens | |
 | (main) | Video, Audio, Keyboard, Controllers, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
@@ -588,9 +613,10 @@ python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-ch
   on virtual joysticks.
 - What fullscreen does on a real window manager.
 - Real rumble motors, and HIDAPI pads.
-- Live input with the game running. The game doesn't reach its first frame yet (ULTRA.md); scripted input on
-  the boot path is unchanged.
-- Windows and macOS. The INI location there would also need `%APPDATA%` and `~/Library/Application Support`.
+- Live input with the game running was untested when this was written, before the game reached its first
+  frame; it has run since ("Testing live input" above, [QA.md](QA.md)).
+- macOS. Its INI location would need `~/Library/Application Support`; Windows uses `%APPDATA%` ("Location"
+  above).
 - **The settings overlay:**
   - over the game's own frames, and the game resuming after it (the boot without a ROM faults before its first
     frame, 0.25 s in, so the hold was tested with the test programs' frames and clock, not the game's threads);

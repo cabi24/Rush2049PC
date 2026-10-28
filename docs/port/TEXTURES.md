@@ -127,8 +127,8 @@ their own ROM on their own machine; the project never ships or hosts one.
 
 ### Making a pack with an upscaler
 
-1. Dump: run with `--set video.texture_dump=dump` and play; the files land in `dump/` in the data folder
-   (RELEASE.md says where that is).
+1. Dump: set `video.texture_dump = dump` in rush2049pc.ini and play; the files land in `dump/` in the data folder
+   (RELEASE.md says where that is). `--set video.texture_dump=DIR` takes DIR from the working directory instead.
 2. Install an upscaler yourself, for example realesrgan-ncnn-vulkan (a command-line program, from its own
    project's releases). The helper doesn't download or bundle one.
 3. Upscale the dump into the pack folder:

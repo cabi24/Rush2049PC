@@ -231,7 +231,7 @@ static const Item items[] = {
     {"video", "pause_on_focus_loss", T_BOOL, F(pause_on_focus_loss), 0, 0, NULL, "off",
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
-     "Where F12 saves screenshots; empty for screenshots in the data folder (as pak_file)."},
+     "Where F12 saves screenshots; empty for the screenshots folder in the data folder (as pak_file)."},
     {"video", "textures", T_ENUM, F(textures), 0, 0, textures_choices, "original",
      "original; upscaled: the 3D world's textures 2x (internal scale 2-3) or 4x (scale 4 and up), the menus and the "
      "HUD as they are; the first time in the background, then kept in texture_cache in the data folder; pack: "
@@ -248,7 +248,8 @@ static const Item items[] = {
      "banners and split screen stay in the 4:3 frame either way (RUSH_GFX_HUD)."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
-     "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},
+     "auto (SDL2, then ALSA on Linux, then none), sdl, alsa (Linux), null (no sound) or wav (no sound, only "
+     "--dump-audio's file) (RUSH2049_AUDIO)."},
     {"audio", "volume", T_INT, F(volume), 0, 100, NULL, "100", "Master volume, 0-100."},
     {"audio", "latency", T_INT, F(audio_latency), 0, 200, NULL, "0",
      "The least sound kept ready for the device, in ms (0-200). 0 sizes it from the device, and it grows after each "
