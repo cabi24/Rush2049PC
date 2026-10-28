@@ -533,6 +533,15 @@ add_executable(test_saves port/app/tests/test_saves.c port/app/saves.c port/app/
 target_include_directories(test_saves PRIVATE port/app port/ultra port/include)
 target_compile_options(test_saves PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 add_test(NAME app_saves COMMAND test_saves ${CMAKE_BINARY_DIR}/test-scratch-saves)
+# The paks' writer thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak") with a slow, held or failing
+# fake write: submits never wait for a write, newer images replace queued ones, the order, one write at a time, a
+# failure kept and tried again, the wait at the end, the fault path, and the real atomic write.
+add_executable(test_pakwrite port/ultra/tests/test_pakwrite.c port/ultra/pakwrite.c port/ultra/pakfile.c)
+target_include_directories(test_pakwrite PRIVATE port/ultra port/include)
+target_compile_options(test_pakwrite PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(test_pakwrite PRIVATE Threads::Threads)
+add_test(NAME ultra_pakwrite COMMAND test_pakwrite ${CMAKE_BINARY_DIR}/test-scratch-pakwrite)
+set_target_properties(test_pakwrite PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 add_test(NAME app_firstrun COMMAND ${PC_PYTHON} ${PORT_TOOLS}/firstrun_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM})
 set_tests_properties(app_firstrun PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)

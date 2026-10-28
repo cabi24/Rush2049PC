@@ -177,6 +177,30 @@ int pc_pak_file_load(const char *path, uint8_t *image, char *why, size_t why_siz
  * the folder flushed). 0 on success; -1 with errno set, path untouched and no PATH.tmp left. The pak's writes. */
 int pc_file_write_atomic(const char *path, const void *data, size_t size);
 
+/* ---------------------------------------------------------------- pakwrite.c: the paks' writer thread */
+/* The paks' files written on a thread of their own, so a slow disk never holds the main loop. Thread-safe.
+ * pc_pakw_submit: the data copied and queued for path, at once (label names it in the messages: "controller 1's
+ * pak"); a newer image of a file not yet written replaces the older one in its place in the line. -1: not queued
+ * (no memory, every slot in use). A write that fails keeps the latest image until pc_pakw_retry queues it again.
+ * pc_pakw_wait: until nothing is queued or being written, at most timeout_ns (retry: each failed file queued again
+ * first); returns the number of files not written. */
+typedef int (*PcPakWriteFn)(const char *path, const void *data, size_t size);
+typedef struct {
+    unsigned submits, superseded, writes, failures;
+    uint64_t longest_ns;   /* the longest write, in real time */
+} PcPakWriteStats;
+int pc_pakw_submit(const char *path, const char *label, const void *data, size_t size);
+void pc_pakw_retry(void);
+int pc_pakw_wait(int retry, uint64_t timeout_ns);
+int pc_pakw_unwritten(char *what, size_t size);   /* files not written yet, named in what ("label (path), ...") */
+void pc_pakw_stats(PcPakWriteStats *out);
+void pc_pakw_set_write(PcPakWriteFn fn);          /* tests: the write itself (NULL: pc_file_write_atomic) */
+int pc_pakw_is_writer(void);                      /* the calling thread is the writer */
+/* After a fault: a submit that never blocks for long (-1: the lock not had in 50 ms), and a wait without the lock
+ * (the files still not written; at once when the writer is the thread that faulted). */
+int pc_pakw_fault_submit(const char *path, const char *label, const void *data, size_t size);
+int pc_pakw_fault_wait(uint64_t timeout_ns);
+
 /* ---------------------------------------------------------------- memory.c */
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */
 int pc_mem_fixed(void);         /* the window is at host 0x80000000 */
