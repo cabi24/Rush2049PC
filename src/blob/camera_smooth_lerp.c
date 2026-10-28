@@ -2841,7 +2841,12 @@ extern s8 D_80154640;
 extern f32 D_80154644;
 extern s32 D_80154648;
 extern s32 D_80154658;
+#ifdef TARGET_PC
+/* a table of words, through a byte pointer: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern s32 D_80154660[];
+#else
 extern s32 D_80154660;
+#endif
 extern f32 D_80154FC0;
 extern s32 D_80154FD0;
 extern s32 D_80154FD8;

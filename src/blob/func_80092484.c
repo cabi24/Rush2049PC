@@ -2093,7 +2093,13 @@ extern f32 D_801392B8;
 extern s32 D_801392C8;
 extern s32 D_801392D0;
 extern s32 D_801392D4;
+#ifdef TARGET_PC
+/* a table, (&D_801392D8)[i]: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern s32 D_801392D8[];
+#define D_801392D8 (D_801392D8[0])
+#else
 extern s32 D_801392D8;
+#endif
 extern s32 D_801392F0;
 extern s8 D_80139300;
 extern f32 D_80139308;

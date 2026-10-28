@@ -2391,7 +2391,13 @@ extern s32 D_80149870;
 extern s16 D_80149878;
 extern f32 D_80149A4C;
 extern s32 D_80149A78;
+#ifdef TARGET_PC
+/* the sticks' calibration, gStickCal: [pad][x, y], declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
+extern s8 D_80149AF8[4][2];
+#define D_80149AF8 (D_80149AF8[0][0])
+#else
 extern s8 D_80149AF8;
+#endif
 extern s8 D_80149AF9;
 extern s8 D_80149AFA;
 extern s8 D_80149AFB;
@@ -2402,7 +2408,12 @@ extern s8 D_80149AFF;
 extern s32 D_80149B00;
 extern s32 D_80149B08;
 extern u16 D_80149B0A;
+#ifdef TARGET_PC
+/* the previous buttons, gPrevPressed: one per pad, declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
+extern s32 D_80149B10[4];
+#else
 extern s32 D_80149B10;
+#endif
 extern s32 D_80149B14;
 extern s32 D_80149B18;
 extern s32 D_80149B1C;
@@ -2413,7 +2424,12 @@ extern s32 D_80149B30;
 extern s32 D_80149B40;
 extern s32 D_80149B48;
 extern s8 D_80149B4B;
+#ifdef TARGET_PC
+/* the raw sticks, gStickRaw: s8 [pad][x, y], declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
+extern s32 D_80149B50[2];
+#else
 extern s32 D_80149B50;
+#endif
 extern s32 D_80149B58;
 extern s8 D_80149B60;
 PC_ONLY(extern) s8 D_80149B64[4];
@@ -2430,7 +2446,12 @@ extern s32 D_80149B78;
 extern s32 D_80149B80;
 extern s16 D_80149B84;
 extern s32 D_80149B88;
+#ifdef TARGET_PC
+/* the repeat times, gRepeatTime: u32 [pad][32], declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
+extern s32 D_80149B90[128];
+#else
 extern s32 D_80149B90;
+#endif
 extern s16 D_80149D90;
 extern s16 D_80149D92;
 extern s32 D_80149D94;
