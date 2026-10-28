@@ -197,10 +197,11 @@ static void game_info(char *out, size_t size)
 }
 
 /* video.hud = edges moves the HUD to the screen's edges only in a race with one view (port/gfx/gfx_hud.c): the
- * countdown (0x200000) and the race (0x400000), its pause screen included, with gNumWindows 1. */
+ * countdown (0x200000) and the race (0x400000), its pause screen included, with gNumWindows 1 (not the boot's -1). */
 static int hud_race(void)
 {
-    return (game_state() & 0x00600000u) != 0 && *(volatile int16_t *)&gNumWindows == 1;
+    uint32_t s = game_state();
+    return s != 0xFFFFFFFFu && (s & 0x00600000u) != 0 && *(volatile int16_t *)&gNumWindows == 1;
 }
 
 /* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
