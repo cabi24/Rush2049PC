@@ -57,6 +57,16 @@ Without rush2049pc.ini next to it (an installed copy), the settings are in ~/.co
 The F1 overlay changes most settings while you play and can save them into rush2049pc.ini. To move to a new
 version, copy rush2049pc.mpk and rush2049pc.ini into its folder.
 
+Picture
+-------
+The game is drawn at the window's own pixels by default (F1 > Video > Render scale: native), so it is sharp at
+any size and on a high-DPI display: a 2880x1620 screen gets all 2880x1620 pixels. Render
+scale N64 (1x) is the original 320x240 in square pixels; 2x-8x and auto (the largest whole multiple) are there
+too. Widescreen is auto (the window's shape). Fullscreen (F11) is borderless over the desktop; Fullscreen mode
+exclusive switches the display to the Resolution setting (720p ... 1620p = 2880x1620, 2160p). The window opens
+at two thirds of the desktop and remembers its size and place. A slow GPU: Resolution 1080p in fullscreen, or
+a lower render scale.
+
 Troubleshooting
 ---------------
 - Everything the program prints is also written to rush2049pc.log in this folder (in
