@@ -27,6 +27,7 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | 2, 3 and 4 players | 2: practice and battle; 3 and 4: the mode screen offers stunt and battle only, the stunt arena in three and four views | run |
 | battle arenas | two players in the arenas 7-9 (6 in the bring-up; the four unlocked from the start) | run |
 | stunt arena | one player, the first arena, 50 s of driving | runs |
+| stunt round to its end | MINUTES set to 1 on the track select, gas and steering until the time is up | the round never ended (fix 4); now the scoreboard, the game over screen and Quit |
 | track select | every option row, wrap-around | as the code says (TRACK, LAPS, BACKWARD, MIRROR, FOG, WIND, DRONES, DIFFICULTY, DEATHS) |
 | main menu screens | records (with and without a pak: totals pages), options (every HUD toggle row, wrap-around) | as the code says |
 | cheats | the main menu's code, the cheat screen, two cheats' codes, the unlock cheat, then a race on a track it unlocks | works after fixes 1 and 2 |
@@ -76,6 +77,19 @@ gen_weak keeps one copy of a function several files define when the manifest nam
 bodies differ between its files (comments and spacing ignored), unless reviewed: one equivalent spelling
 (`hs_font_set`) and four stand-in callers nothing calls. On a report with InitEgg's two copies it fails.
 
+### 4. A stunt round never ended (gStuntsDone's low half)
+
+When a stunt round's time is up and the cars have settled, camera_scene_manager sets gStuntsDone, the s32
+`D_80152738`, to 1. The race end asks func_800E7DD0 whether it may end, and in stunt mode it answers with
+`D_8015273A`, the halfword at +2: on the N64, big-endian, the word's low half. On a little-endian host the halfword
+at +2 is the high one, always 0: on the retail cartridge the stunt timer ran down to 0:00, the car stopped and the
+race went on for ever (only the pause menu's Quit got out).
+
+Fix: under `TARGET_PC` func_800E7DD0 reads the word's low half (`(s16)D_80152738`; 4129379). It is the only arena
+symbol nested inside a wider one that code uses by both names (a scan of the data report and the C), so the class
+has no other case of this form; values read back in parts through views are ENDIAN.md's. Test: `assets_stuntend`
+runs func_800E7DD0 with the two names overlapping as in the arena; without the fix it says the round may not end.
+
 ## Not bugs (checked)
 
 - Every weak copy of an owned function (gen_weak's headers) against its owner: none carries a `TARGET_PC` fix,
@@ -92,6 +106,8 @@ bodies differ between its files (comments and spacing ignored), unless reviewed:
 - **Ghost races**: a ghost race reaches its results and RACE AGAIN, but a script driving with the gas alone can't
   finish its three laps within the time limit, even with the super speed cheat, so no ghost was saved, compressed
   (zlib) or raced against. That needs a run with real steering (a recorded input script, or a person).
+- **A battle to its end** (a points limit, or the time limit when set): not run (gas-only cars score nothing, and
+  the default time is long). Its end goes through the same func_800E7DD0, but not through gStuntsDone.
 - **The Expansion Pak is off by default** (`game.expansion_pak`): without it the sixth race track can't be chosen
   (OptionValid, and the unlock code), and the per-track animated objects, the front end's song and the extra race
   WADs are skipped. With `--expansion-pak` the demo, the races tried and the sixth track run. Whether the PC should
