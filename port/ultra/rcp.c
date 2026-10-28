@@ -3,7 +3,10 @@
  * osSpTaskStartGo queues a copy of a graphics task for the host main thread, which owns the GL context: it goes
  * to pc_gfx_run_dl and is followed by the SP and DP done events. In real time an audio task runs at once, in
  * osSpTaskStartGo (pc_audio_run_task), and sends the SP event; with --fast the main loop runs it with the graphics
- * tasks. Tasks run to completion, so osSpTaskYield never yields.
+ * tasks. In real time a graphics task the main loop hasn't taken yet yields to an audio task (osSpTaskYield, as the
+ * game's scheduler asks when one arrives): it leaves the queue with an SP event, osSpTaskYielded says so, and the
+ * scheduler starts it again after the audio task. Nothing of it ran, so it runs whole then. One the main loop has
+ * taken runs to completion, as every task does with --fast.
  *
  * The AI hands each buffer to port/audio's output queue (pc_audio_push) and sends AI events while the queue and
  * the events not yet answered come to less than pc_audio_target_frames() (384 frames, two of the game's 192-frame
@@ -15,17 +18,23 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "ultra.h"
 
 #define MAX_TASKS 8
 #define VI_CLOCK_NTSC 48681812u
+#define TASK_YIELDED 1           /* OSTask flags (libultra's OS_TASK_YIELDED, OS_TASK_DP_WAIT) */
+#define TASK_DP_WAIT 2
 
 static pthread_mutex_t g_rlock = PTHREAD_MUTEX_INITIALIZER;
 static PcOSTask g_tasks[MAX_TASKS];
+static void *g_task_of[MAX_TASKS];   /* the game's task each queued copy is of */
+static void *g_yielded;              /* the game's task that yielded, until osSpTaskYielded hears of it */
 static int g_ntasks, g_dp_pending;
-uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks;
+static int g_hold_gfx;               /* pc_rcp_hold_gfx */
+uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks, pc_rcp_gfx_yields;
 int pc_rcp_stop_at_gfx;
 
 #define AI_BUFFER_FRAMES 192
@@ -43,7 +52,13 @@ static struct {
 
 /* ---------------------------------------------------------------- RSP and RDP */
 
-void osSpTaskLoad(void *task) { (void)task; }
+/* A yielded task loads its yield data and comes back at its start (libultra's osSpTaskLoad): here nothing of it
+ * ran, so it simply runs whole. */
+void osSpTaskLoad(void *task)
+{
+    PcOSTask *t = task;
+    t->flags &= ~(uint32_t)TASK_YIELDED;
+}
 
 void osSpTaskStartGo(void *task)
 {
@@ -63,13 +78,53 @@ void osSpTaskStartGo(void *task)
     pthread_mutex_lock(&g_rlock);
     if (g_ntasks == MAX_TASKS)
         pc_fatal("RSP task queue full");
+    g_task_of[g_ntasks] = task;
     g_tasks[g_ntasks++] = *(const PcOSTask *)task;
     pthread_mutex_unlock(&g_rlock);
     pc_os_wake_main();
 }
 
-void osSpTaskYield(void) {}
-uint32_t osSpTaskYielded(void *task) { (void)task; return 0; }
+/* The game's scheduler asks the graphics task on the RSP to yield to an audio task that came (its __scYield). In
+ * real time, if the main loop hasn't taken it, it leaves the queue and the SP event says it stopped; behind a swap
+ * or a slow present the audio task would otherwise wait for it past the next retrace, and the game's renderer would
+ * fall behind the AI. Taken, it runs to completion and its own SP event follows. With --fast it never yields: the
+ * main loop runs every task in the order it came, at moments the virtual clock fixes. */
+void osSpTaskYield(void)
+{
+    if (pc_time_virtual())
+        return;
+    int yielded = 0;
+    pthread_mutex_lock(&g_rlock);
+    for (int i = 0; i < g_ntasks && !yielded; i++) {
+        if (g_tasks[i].type != M_GFXTASK)
+            continue;
+        g_yielded = g_task_of[i];
+        g_ntasks--;
+        memmove(&g_tasks[i], &g_tasks[i + 1], (size_t)(g_ntasks - i) * sizeof g_tasks[0]);
+        memmove(&g_task_of[i], &g_task_of[i + 1], (size_t)(g_ntasks - i) * sizeof g_task_of[0]);
+        pc_rcp_gfx_yields++;
+        yielded = 1;
+    }
+    pthread_mutex_unlock(&g_rlock);
+    if (yielded)
+        pc_os_event(OS_EVENT_SP);
+}
+
+/* At the SP event: whether the task stopped at a yield (libultra marks it OS_TASK_YIELDED for osSpTaskLoad). */
+uint32_t osSpTaskYielded(void *task)
+{
+    PcOSTask *t = task;
+    pthread_mutex_lock(&g_rlock);
+    int yielded = task && task == g_yielded;
+    if (yielded)
+        g_yielded = NULL;
+    pthread_mutex_unlock(&g_rlock);
+    if (!yielded)
+        return 0;
+    t->flags |= TASK_YIELDED;
+    t->flags &= ~(uint32_t)TASK_DP_WAIT;
+    return TASK_YIELDED;
+}
 
 int32_t osDpSetNextBuffer(void *buf, uint64_t size)
 {
@@ -229,14 +284,29 @@ int pc_rcp_pending(void)
     return n;
 }
 
+/* The selftest's: graphics tasks stay in the queue (there is no GL context to run them), where they can yield. */
+void pc_rcp_hold_gfx(int on)
+{
+    pthread_mutex_lock(&g_rlock);
+    g_hold_gfx = on;
+    pthread_mutex_unlock(&g_rlock);
+}
+
 int pc_rcp_service(uint64_t now, uint64_t *next)
 {
     PcOSTask tasks[MAX_TASKS];
     pthread_mutex_lock(&g_rlock);
-    int n = g_ntasks, dp = g_dp_pending;
-    for (int i = 0; i < n; i++)
-        tasks[i] = g_tasks[i];
-    g_ntasks = g_dp_pending = 0;
+    int n = 0, kept = 0, dp = g_dp_pending;
+    for (int i = 0; i < g_ntasks; i++) {
+        if (g_hold_gfx && g_tasks[i].type == M_GFXTASK) {
+            g_task_of[kept] = g_task_of[i];
+            g_tasks[kept++] = g_tasks[i];
+        } else {
+            tasks[n++] = g_tasks[i];
+        }
+    }
+    g_ntasks = kept;
+    g_dp_pending = 0;
     pthread_mutex_unlock(&g_rlock);
 
     int ai = ai_service(now, next);

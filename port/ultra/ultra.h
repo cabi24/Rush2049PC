@@ -76,6 +76,8 @@ void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 /* Main thread: wait for wake-ups (task submitted, timer set) until the deadline (pc_host_ns), unlocked. */
 int pc_os_wait_main(uint64_t deadline_ns);   /* 0: --fast, a thread still computes (see sched.c) */
+void pc_os_quiet_mark(void);   /* real time: the main thread sends a retrace now */
+int pc_os_quiet(void);         /* real time: the threads are done with it; if not, the main wait ends when they are */
 void pc_os_wake_main(void);
 /* Name of the running N64 thread for logs ("main" on the host main thread). */
 const char *pc_os_thread_name(void);
@@ -91,7 +93,9 @@ void pc_vi_retrace(const void **present_fb);     /* main thread: one retrace; *p
 /* ---------------------------------------------------------------- rcp.c: RSP tasks and the AI */
 int pc_rcp_service(uint64_t now_ns, uint64_t *next_ns);   /* main thread, unlocked; nonzero if work was done */
 int pc_rcp_pending(void);                                  /* RSP tasks queued and not run yet */
+void pc_rcp_hold_gfx(int on);                              /* the selftest's: graphics tasks wait in the queue */
 extern uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks;     /* counts, for status lines */
+extern uint32_t pc_rcp_gfx_yields;                         /* graphics tasks that yielded to an audio task */
 extern int pc_rcp_stop_at_gfx;                            /* --stop-at-gfx: exit at the first graphics task */
 
 /* ---------------------------------------------------------------- romcheck.c, pi.c: ROM */
