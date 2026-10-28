@@ -76,6 +76,8 @@ void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 /* Main thread: wait for wake-ups (task submitted, timer set) until the deadline (pc_host_ns), unlocked. */
 int pc_os_wait_main(uint64_t deadline_ns);   /* 0: --fast, a thread still computes (see sched.c) */
+void pc_os_quiet_mark(void);   /* real time: the main thread sends a retrace now */
+int pc_os_quiet(void);         /* real time: the threads are done with it; if not, the main wait ends when they are */
 void pc_os_wake_main(void);
 /* Name of the running N64 thread for logs ("main" on the host main thread). */
 const char *pc_os_thread_name(void);
@@ -91,7 +93,9 @@ void pc_vi_retrace(const void **present_fb);     /* main thread: one retrace; *p
 /* ---------------------------------------------------------------- rcp.c: RSP tasks and the AI */
 int pc_rcp_service(uint64_t now_ns, uint64_t *next_ns);   /* main thread, unlocked; nonzero if work was done */
 int pc_rcp_pending(void);                                  /* RSP tasks queued and not run yet */
+void pc_rcp_hold_gfx(int on);                              /* the selftest's: graphics tasks wait in the queue */
 extern uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks;     /* counts, for status lines */
+extern uint32_t pc_rcp_gfx_yields;                         /* graphics tasks that yielded to an audio task */
 extern int pc_rcp_stop_at_gfx;                            /* --stop-at-gfx: exit at the first graphics task */
 
 /* ---------------------------------------------------------------- romcheck.c, pi.c: ROM */
@@ -132,10 +136,21 @@ int pc_rom_copy(uint32_t rom_offset, void *dst, uint32_t size);   /* 0 if inside
 uint32_t pc_rom_word(uint32_t rom_offset);           /* big-endian word, 0 past the end */
 void pc_sha1(const void *data, size_t size, uint8_t out[20]);
 
-/* ---------------------------------------------------------------- si.c: PIF, pads, controller pak */
-int pc_si_init(const char *pak_path, int pak_kind);  /* pak_kind: PC_PAK_* */
-enum { PC_PAK_NONE = 0, PC_PAK_MEMORY = 1, PC_PAK_RUMBLE = 2 };
+/* ---------------------------------------------------------------- si.c: PIF, pads, controller paks */
+/* Each controller's accessory. AUTO: a rumble pak while the port's controller can rumble (PcPad.rumble), else none. */
+enum { PC_PAK_NONE = 0, PC_PAK_MEMORY = 1, PC_PAK_RUMBLE = 2, PC_PAK_AUTO = 3 };   /* = port/config's PC_CFG_PAK_* */
+int pc_si_init(const char *pak_path, int pak_kind);  /* controller 1's: pc_si_set_pak_file, then pc_si_set_pak */
+/* Where channel ch's (0-3) controller pak is kept (NULL: in memory only, a formatted pak), before it is chosen. */
+void pc_si_set_pak_file(int ch, const char *path);
+/* Channel ch's accessory, PC_PAK_*: before the game starts, or later as a hot swap (the old one out at once, the new
+ * one in after the game's next poll of every port has found the port empty). Main thread. A memory pak's file is
+ * read when it is first chosen, and written when it comes out. Returns kind, or PC_PAK_NONE when the file isn't a
+ * controller pak (logged). */
+int pc_si_set_pak(int ch, int kind);
+int pc_si_pak(int ch);                     /* what the game finds in the port now: PC_PAK_NONE, MEMORY or RUMBLE */
+const char *pc_si_pak_path(int ch);        /* the memory pak's file when that is the port's choice, else NULL */
 void pc_si_set_pads(const PcPad pads[4]);            /* main thread, each retrace */
+void pc_si_test_pads(const PcPad pads[4]);  /* --selftest: these pads until NULL, whatever the main loop sets */
 /* The rumble pak's motor on a channel: 1 while it is on, or if it was turned on since the last call (a pulse
  * between two calls counts). For port/input, which passes it to the controller. */
 int pc_si_motor(int channel);

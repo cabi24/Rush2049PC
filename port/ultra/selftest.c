@@ -1,9 +1,9 @@
 /* port/ultra/selftest.c: rush2049pc --selftest. Exercises the PC libultra without the ROM: thread priorities
  * and preemption, blocking and non-blocking message calls, jam, stop/start, osSetThreadPri, yield, events,
  * the VI retrace, timers, busy-wait yields, the RDRAM window and big-endian ranges, and the PIF with the
- * game's own osContInit / osContStartReadData / osPfsInitPak C (src/rom). Runs on the real main loop; with
- * --fast, on the virtual clock (timer.c), where the same bounds hold and the whole run takes a fraction of the
- * time. */
+ * game's own osContInit / osContStartReadData / osPfsInitPak / osMotorInit C (src/rom), with an accessory on each
+ * port. Runs on the real main loop; with --fast, on the virtual clock (timer.c), where the same bounds hold and the
+ * whole run takes a fraction of the time. */
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
@@ -33,6 +33,10 @@ uint64_t osGetTime(void);
 int32_t osContInit(void *mq, uint8_t *bits, void *status);
 int32_t osContStartReadData(void *mq);
 void osContGetReadData(void *pads);
+int32_t osContStartQuery(void *mq);
+void osContGetQuery(void *status);
+int32_t osMotorInit(void *mq, void *pfs, int32_t channel);
+int32_t __osMotorAccess(void *pfs, int32_t on);
 int32_t osPfsInitPak(void *mq, void *pfs, int32_t channel);
 int32_t osPfsFreeBlocks(void *pfs, int32_t *bytes);
 int32_t osPfsAllocateFile(void *pfs, uint16_t company, uint32_t game, uint8_t *name, uint8_t *ext, int32_t size,
@@ -41,6 +45,8 @@ int32_t osPfsReadWriteFile(void *pfs, int32_t file, uint8_t flag, int32_t offset
 int32_t osPfsDeleteFile(void *pfs, uint16_t company, uint32_t game, uint8_t *name, uint8_t *ext);
 void osSpTaskLoad(void *task);
 void osSpTaskStartGo(void *task);
+void osSpTaskYield(void);
+uint32_t osSpTaskYielded(void *task);
 int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
@@ -401,8 +407,8 @@ static void t_pif(void)
     snprintf(d, sizeof d, "ret %d, pattern 0x%02X, type 0x%04X, status 0x%02X", (int)r, bits, type, status[0][2]);
     check("osContInit (game C) via PIF", r == 0 && bits == 0x01 && type == 0x0005 && status[0][2] == 0x01, d);
 
-    PcPad p[4] = {{0x9000, 12, -34, 1}};   /* A + START */
-    pc_si_set_pads(p);
+    PcPad p[4] = {{.buttons = 0x9000, .stick_x = 12, .stick_y = -34, .connected = 1}};   /* A + START */
+    pc_si_test_pads(p);
     osContStartReadData(si);
     osRecvMesg(si, NULL, OS_MESG_BLOCK);
     osContGetReadData(pads);
@@ -412,8 +418,8 @@ static void t_pif(void)
              pads[0][4]);
     check("osContGetReadData (game C)", buttons == 0x9000 && (int8_t)pads[0][2] == 12 &&
                                             (int8_t)pads[0][3] == -34 && pads[0][4] == 0, d);
-    PcPad none[4] = {{0, 0, 0, 1}};
-    pc_si_set_pads(none);
+    PcPad none[4] = {{.connected = 1}};
+    pc_si_test_pads(none);
 
     r = osPfsInitPak(si, pfs, 0);
     int32_t r2 = r == 0 ? osPfsFreeBlocks(pfs, &bytes) : -1;
@@ -445,6 +451,124 @@ static void t_pif(void)
     check("pak image after the delete", image == PC_PAK_IMAGE_OK, why);
 }
 
+/* The OSPfs the game's Pfs and motor C fill, with its host pointer (as paksys' PcPfs). */
+typedef struct {
+    int32_t status;
+    void *queue;
+    int32_t channel;
+    uint8_t id[32], label[32];
+    int32_t version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
+    uint8_t banks, activebank;
+} SelfPfs;
+
+/* The game's poll of every port (ControllerUpdate's osContStartQuery and osContGetQuery). */
+static void query(void *si, uint8_t st[4][4])
+{
+    memset(st, 0xEE, 16);
+    osContStartQuery(si);
+    osRecvMesg(si, NULL, OS_MESG_BLOCK);
+    osContGetQuery(st);
+}
+
+/* Each port's accessory (si.c), through the game's own query, Pfs and motor C: controller 2 a controller pak of its
+ * own, 3 auto with a pad that can rumble (a rumble pak), 4 nothing; then hot swaps, and auto following its pad. */
+static void t_ports(void)
+{
+    enum { NOPACK = 1, DEVICE = 11 };
+    void *si = queue(12, 1);
+    static SelfPfs pfs[4], scratch;
+    uint8_t st[4][4], name[16] = {0x1D, 0x1E, 0x1F, 0x20}, ext[4] = {0}, out[256], in[256];
+    char d[256];
+    osSetEventMesg(OS_EVENT_SI, si, NULL);
+    PcPad pads[4] = {{.connected = 1}, {.connected = 1}, {.connected = 1, .rumble = 1}, {.connected = 1}};
+    pc_si_test_pads(pads);
+    pc_si_set_pak_file(1, NULL);   /* in memory */
+    int k1 = pc_si_set_pak(1, PC_PAK_MEMORY), k2 = pc_si_set_pak(2, PC_PAK_AUTO), k3 = pc_si_set_pak(3, PC_PAK_NONE);
+    query(si, st);
+    snprintf(d, sizeof d, "kinds %d %d %d; status %02X %02X %02X %02X; in %d %d %d", k1, k2, k3, st[0][2], st[1][2],
+             st[2][2], st[3][2], pc_si_pak(1), pc_si_pak(2), pc_si_pak(3));
+    check("SI: an accessory per port", k1 == PC_PAK_MEMORY && k2 == PC_PAK_AUTO && k3 == PC_PAK_NONE &&
+                                           st[0][2] == 1 && st[1][2] == 1 && st[2][2] == 1 && st[3][2] == 2 &&
+                                           pc_si_pak(1) == PC_PAK_MEMORY && pc_si_pak(2) == PC_PAK_RUMBLE &&
+                                           pc_si_pak(3) == PC_PAK_NONE, d);
+
+    /* controller 2's pak is its own: a note on it, none on controller 1's, and another ID */
+    int32_t r1 = osPfsInitPak(si, &pfs[1], 1), r0 = osPfsInitPak(si, &pfs[0], 0);
+    int32_t file = -1, free0 = -1, free1 = -1;
+    for (int i = 0; i < 256; i++)
+        out[i] = (uint8_t)(i ^ 0x5A);
+    int32_t ra = osPfsAllocateFile(&pfs[1], 0x3459, 0x4E525545, name, ext, 256, &file);
+    int32_t rw = osPfsReadWriteFile(&pfs[1], file, 1, 0, 256, out);
+    osPfsFreeBlocks(&pfs[0], &free0);
+    osPfsFreeBlocks(&pfs[1], &free1);
+    snprintf(d, sizeof d, "init %d %d, alloc %d, write %d, free %d %d, IDs %s", (int)r0, (int)r1, (int)ra, (int)rw,
+             (int)free0, (int)free1, memcmp(pfs[0].id, pfs[1].id, 32) ? "differ" : "the same");
+    check("SI: controller 2's own pak", r0 == 0 && r1 == 0 && ra == 0 && rw == 0 && free0 == 123 * 256 &&
+                                            free1 == 122 * 256 && memcmp(pfs[0].id, pfs[1].id, 32) != 0, d);
+
+    /* controller 3's rumble pak drives its motor alone; controller 4 has nothing; a controller pak isn't a motor */
+    int32_t m2 = osMotorInit(si, &pfs[2], 2), on = __osMotorAccess(&pfs[2], 1);
+    int motor = pc_si_motor(2), others = pc_si_motor(0) | pc_si_motor(1) | pc_si_motor(3);
+    int32_t off = __osMotorAccess(&pfs[2], 0);
+    pc_si_motor(2);
+    int after = pc_si_motor(2);
+    int32_t m3 = osMotorInit(si, &pfs[3], 3), p3 = osPfsInitPak(si, &pfs[3], 3), m1 = osMotorInit(si, &scratch, 1);
+    snprintf(d, sizeof d, "motor init %d, on %d (%d, others %d), off %d (%d); controller 4: motor %d, pak %d; "
+             "controller 2's motor %d", (int)m2, (int)on, motor, others, (int)off, after, (int)m3, (int)p3, (int)m1);
+    check("SI: rumble on 3, nothing on 4", m2 == 0 && on == 0 && motor && !others && off == 0 && !after && m3 != 0 &&
+                                               p3 == NOPACK && m1 == DEVICE, d);
+
+    /* a hot swap: controller 2's pak out for a rumble pak. Out at once, it stays out through libultra's own status
+     * reads, until the poll of every port has found the port empty; then the rumble pak is in. */
+    pc_si_set_pak(1, PC_PAK_RUMBLE);
+    int gone = pc_si_pak(1);
+    int32_t during = osPfsInitPak(si, &scratch, 1);
+    int still = pc_si_pak(1);
+    query(si, st);
+    int empty = st[1][2], now_in = pc_si_pak(1);
+    query(si, st);
+    int32_t m = osMotorInit(si, &scratch, 1);
+    snprintf(d, sizeof d, "out %d, init %d, still %d, poll %02X then %d, %02X, motor init %d", gone, (int)during,
+             still, empty, now_in, st[1][2], (int)m);
+    check("SI: hot swap, pak to rumble", gone == PC_PAK_NONE && during == NOPACK && still == PC_PAK_NONE &&
+                                             empty == 2 && now_in == PC_PAK_RUMBLE && st[1][2] == 1 && m == 0, d);
+
+    /* and back: the note is still on it */
+    pc_si_set_pak(1, PC_PAK_MEMORY);
+    query(si, st);
+    int32_t ri = osPfsInitPak(si, &pfs[1], 1), rr = osPfsReadWriteFile(&pfs[1], file, 0, 0, 256, in);
+    int32_t rd = osPfsDeleteFile(&pfs[1], 0x3459, 0x4E525545, name, ext);
+    snprintf(d, sizeof d, "in %d, init %d, read %d (%s), delete %d", pc_si_pak(1), (int)ri, (int)rr,
+             memcmp(in, out, 256) ? "differs" : "same", (int)rd);
+    check("SI: hot swap back, note kept", pc_si_pak(1) == PC_PAK_MEMORY && ri == 0 && rr == 0 &&
+                                              !memcmp(in, out, 256) && rd == 0, d);
+
+    /* auto follows the pad: no rumble any more, out at once; rumble again, in after the poll; unplugged, out, and
+     * plugged in again after a poll without it, in at once */
+    pads[2].rumble = 0;
+    pc_si_test_pads(pads);
+    int a0 = pc_si_pak(2);
+    pads[2].rumble = 1;
+    pc_si_test_pads(pads);
+    int a1 = pc_si_pak(2);
+    query(si, st);
+    int a2 = pc_si_pak(2);
+    pads[2].connected = 0;
+    pc_si_test_pads(pads);
+    int a3 = pc_si_pak(2);
+    query(si, st);
+    int gone3 = st[2][3];
+    pads[2].connected = 1;
+    pc_si_test_pads(pads);
+    int a4 = pc_si_pak(2);
+    snprintf(d, sizeof d, "%d %d %d, unplugged %d (error %d), back %d", a0, a1, a2, a3, gone3, a4);
+    check("SI: auto follows the pad", a0 == PC_PAK_NONE && a1 == PC_PAK_NONE && a2 == PC_PAK_RUMBLE &&
+                                          a3 == PC_PAK_NONE && gone3 == 8 && a4 == PC_PAK_RUMBLE, d);
+    for (int ch = 1; ch < 4; ch++)
+        pc_si_set_pak(ch, PC_PAK_NONE);
+    pc_si_test_pads(NULL);
+}
+
 /* RSP tasks are answered with SP (and DP) events; audio tasks run in osSpTaskStartGo in real time, in the main loop
  * with --fast. The AI event comes when the output queue is low. No graphics task: that needs a GL context (port/gfx
  * has its own tests). */
@@ -470,6 +594,29 @@ static void t_rcp(void)
              (int)(intptr_t)m[2], pc_rcp_audio_tasks - before);
     check("RSP tasks and DP buffers", m[0] == (OSMesg)4 && m[1] == (OSMesg)4 && m[2] == (OSMesg)9 &&
                                           pc_rcp_audio_tasks - before == 1, d);
+    if (!pc_time_virtual()) {
+        /* In real time a graphics task the main loop hasn't taken yields when the game's scheduler asks (an audio
+         * task came): out of the queue with an SP event; osSpTaskYielded says so once and marks it, and
+         * osSpTaskLoad clears the mark when the scheduler starts it again. With nothing queued, nothing yields.
+         * (With --fast tasks run to completion, in order.) */
+        PcOSTask gfx = {0};
+        gfx.type = M_GFXTASK;
+        pc_rcp_hold_gfx(1);
+        osSpTaskStartGo(&gfx);
+        int queued = pc_rcp_pending();
+        osSpTaskYield();
+        int sp = osRecvMesg(q, &m[3], OS_MESG_NOBLOCK) == 0 && m[3] == (OSMesg)4;
+        uint32_t first = osSpTaskYielded(&gfx), flags = gfx.flags, second = osSpTaskYielded(&gfx);
+        osSpTaskLoad(&gfx);
+        osSpTaskYield();
+        int none = osRecvMesg(q, &m[3], OS_MESG_NOBLOCK) == -1;
+        int left = pc_rcp_pending();
+        pc_rcp_hold_gfx(0);
+        snprintf(d, sizeof d, "queued %d, SP %d, yielded %u then %u, flags %u then %u, a second SP %d, left %d",
+                 queued, sp, (unsigned)first, (unsigned)second, (unsigned)flags, (unsigned)gfx.flags, !none, left);
+        check("a graphics task yields", queued == 1 && sp && first == 1 && second == 0 && (flags & 1) &&
+                                            !(gfx.flags & 1) && none && left == 0, d);
+    }
     osSetEventMesg(OS_EVENT_SP, NULL, NULL);
     osSetEventMesg(OS_EVENT_DP, NULL, NULL);
 
@@ -556,6 +703,7 @@ static void controller(void *arg)
     t_rcp();
     t_ai_device();
     t_pif();
+    t_ports();
     if (pc_time_virtual()) {
         char d[64];
         snprintf(d, sizeof d, "%.0f ms of N64 time in %.0f ms", pc_host_ns() / 1e6, pc_real_ns() / 1e6);

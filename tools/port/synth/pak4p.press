@@ -1,0 +1,24 @@
+# Four players, each with an accessory (port/ultra/si.c): controller paks on 1, 2 and 4, each a fresh file of its
+# own, and a rumble pak on 3. The game's pak code reads every one, and each file is a pak with an ID of its own
+# (docs/port/SYNTH.md 2). No drones: four cars.
+# until: 0x400000:300
+# seconds: 90
+# expect: state=0x00400000: players 4, windows 4, cars 4, mode 0, track 0
+# args: --pak pak1.mpk --set game.pak2=memory --set game.pak2_file=pak2.mpk --set game.pak3=rumble --set game.pak4=memory --set game.pak4_file=pak4.mpk
+# check: tools/port/pak_check.py pak1.mpk pak2.mpk pak4.mpk --log pak4p.game.log --found 1:memory --found 2:memory --found 3:rumble --found 4:memory
+5 A            # the controller pak warning
+8 START        # the start prompt
+9 RIGHT 0.1    # the main menu's first option: one player more, three times
+9.5 RIGHT 0.1
+10 RIGHT 0.1
+11 A           # the main menu: the race
+14 A           # the player screen: each player is ready
+14 A@2
+14 A@3
+14 A@4
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select: each player's car
+23 A@2
+23 A@3
+23 A@4

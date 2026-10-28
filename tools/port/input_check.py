@@ -19,7 +19,8 @@ with STICKLEFT and STICKRIGHT (default: the synthetic cartridge's drive) runs:
 
 and in the reference the steering input is nonzero while the stick is pushed, one way for right and the other for
 left. With --rumble the game's motor must rumble the virtual controller. Then race2p with two virtual controllers
-must give its reference, the second on player 2. The lines are
+must give its reference, the second on player 2; and with a rumble pak on player 1 and auto on player 2 (a virtual
+controller can rumble), each player's motor must rumble its own controller. The lines are
 compared without their audio task counts, which can differ by one between runs in a window. Exit status: the
 number of failed checks; 77 (skipped) when the program has no virtual joysticks (SDL before 2.24) or no SDL2.
 """
@@ -155,6 +156,14 @@ def main():
         # (SDL names a controller by its mapping, which both virtual ones share; Windows' lines end in \r\n)
         players = re.findall(r"controller 'rush2049pc virtual controller \d' \([^)]*\) -> player (\d)", out)
         check(sorted(players) == ["1", "2"], f"race2p: the controllers are players 1 and 2 ({players})")
+        # each player's rumble pak rumbles that player's controller: a rumble pak on player 1, and player 2 on auto,
+        # which a controller that can rumble (a virtual one with a rumble callback) makes a rumble pak
+        race = read_script(two)
+        code, out, lines = run(args.exe, args.rom, two, race, "controller", args.rom_check, logs / "race2p-rumble.log",
+                               ["--rumble", "--set", "game.pak2=auto"])
+        for n in (1, 2):
+            check(code == 0 and f"virtual controller {n} rumble 65535 65535" in out,
+                  f"race2p, rumble paks on both: player {n}'s motor rumbles controller {n} (exit {code})")
     print(f"input_check: {len(fails)} failed" if fails else "input_check: all passed")
     return len(fails)
 

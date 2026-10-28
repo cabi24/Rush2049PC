@@ -35,7 +35,8 @@
 
 #include "ultra.h"
 
-#define VI_CATCH_UP 6   /* retraces up to this many periods late are sent at once; a longer stall drops them */
+#define VI_CATCH_UP 6   /* retraces up to this many periods late are caught up; a longer stall drops them */
+#define VI_CATCH_UP_GAP_NS 2000000u   /* a late retrace waits at most this long for the game to take the last */
 
 uint32_t pc_frame;
 volatile int pc_quit;
@@ -180,7 +181,10 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint64_t tick_ns = 0;                  /* how long showing one takes, in real time (a running mean) */
     uint32_t ticks_skipped = 0;            /* frames not shown, to keep the game's retraces on time */
     uint32_t vi_dropped = 0;               /* retraces dropped: the loop stalled VI_CATCH_UP periods or more */
-    uint32_t vi_caught_up = 0;             /* retraces a whole period late, sent at once */
+    uint32_t vi_caught_up = 0;             /* retraces a whole period late, caught up */
+    uint32_t vi_not_taken = 0;             /* of them, sent before the game was done with the last */
+    uint64_t vi_late_cap = 0;              /* real time: the next retrace is late; it goes out once the game is
+                                            * done with the last (pc_os_quiet), and at the latest at this time */
     uint64_t late_at[2] = {0, 0};          /* real time of the last two retraces late (the loop fell behind) */
     int tick_rate = 0;
     g_game_state = opt->game_state;
@@ -198,11 +202,23 @@ int pc_ultra_run(const PcRunOptions *opt)
         if (pc_input_paused()) {
             hold();
             next_vi = pc_host_ns() + vi_ns;
+            vi_late_cap = 0;
             next_tick = 0;
             continue;
         }
         uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
-        if (now >= next_vi)
+        int vi_due = now >= next_vi;
+        if (vi_due && vi_late_cap) {   /* late: the game's threads take each retrace before the next comes */
+            int quiet = pc_os_quiet();
+            if (!quiet && now < vi_late_cap) {
+                vi_due = 0;
+                deadline = vi_late_cap;
+            } else {
+                vi_not_taken += !quiet;
+                vi_late_cap = 0;
+            }
+        }
+        if (vi_due)
             snapshot();
         uint64_t timer = pc_timer_service(ticks);
         if (timer && timer > ticks && now + pc_ticks_to_ns(timer - ticks) < deadline)
@@ -214,7 +230,7 @@ int pc_ultra_run(const PcRunOptions *opt)
         if (ai && ai < deadline)
             deadline = ai;
 
-        if (now >= next_vi) {
+        if (vi_due) {
             PcPad pads[4];
             const void *fb;
             pc_frame++;
@@ -224,6 +240,8 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_input_poll(pads);
             pc_si_set_pads(pads);
             pc_gfx_retrace(pc_frame);
+            if (!pc_time_virtual())
+                pc_os_quiet_mark();
             pc_vi_retrace(&fb);
             if (fb) {
                 pc_gfx_present(fb);
@@ -257,15 +275,19 @@ int pc_ultra_run(const PcRunOptions *opt)
             if (next_vi <= now) {   /* behind (a slow frame, a swap waiting for vsync) */
                 late_at[0] = late_at[1];   /* when the last two were */
                 late_at[1] = pc_real_ns();
-                /* A late retrace comes at once, so the game keeps its 60 a second: it counts its time in
+                /* A late retrace comes soon after, so the game keeps its 60 a second: it counts its time in
                  * retraces, and its audio renders the buffers the AI has passed at each, skipping some when it
-                 * finds more than its cap (docs/port/AUDIO.md 7). A stall (a debugger, a long hitch)
-                 * resynchronizes. */
+                 * finds more than its cap (docs/port/AUDIO.md 7). In real time it waits until the game's threads
+                 * are done with this one, up to 2 ms: sent at once, a burst of them filled the queues of the
+                 * scheduler's clients (the audio manager's holds a command per sound source per retrace). A
+                 * stall (a debugger, a long hitch) resynchronizes. */
                 if (now - next_vi >= VI_CATCH_UP * vi_ns) {
                     vi_dropped += (uint32_t)((now - next_vi) / vi_ns + 1);
                     next_vi = now + vi_ns;
                 } else {
                     vi_caught_up++;
+                    if (!pc_time_virtual())
+                        vi_late_cap = pc_host_ns() + VI_CATCH_UP_GAP_NS;
                 }
             }
             vi_at = next_vi - vi_ns;
@@ -345,8 +367,10 @@ int pc_ultra_run(const PcRunOptions *opt)
         fprintf(stderr, "rush2049pc: frame rate %d: %u frames not shown to keep the retraces on time\n", tick_rate,
                 ticks_skipped);
     fprintf(stderr, "rush2049pc: %u retraces in %.1f s; %u came a whole retrace late and were caught up, %u dropped "
-            "(the host stalled %u retraces or more)\n", pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped,
-            VI_CATCH_UP);
+            "(the host stalled %u retraces or more); %u late ones went out before the game was done with the last\n",
+            pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped, VI_CATCH_UP, vi_not_taken);
+    fprintf(stderr, "rush2049pc: %u audio tasks; %u graphics tasks yielded to one\n", pc_rcp_audio_tasks,
+            pc_rcp_gfx_yields);
 #ifdef _WIN32
     timer_period(0);
 #endif

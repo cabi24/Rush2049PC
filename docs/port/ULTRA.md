@@ -14,7 +14,7 @@ owns `main()`. About 3,300 lines of C11.
 | `vi.c` | the video interface: mode, blackout, framebuffer swaps, the retrace event |
 | `rcp.c` | RSP tasks (graphics on the main thread, audio at once in real time), SP/DP done, the AI |
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
-| `si.c` | the PIF: controller status and buttons, the controller pak (`.mpk`), the rumble pak |
+| `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `memory.c` | the RDRAM window, `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, address conversion, faults, stubs |
 | `loop.c` | the host main loop |
@@ -142,7 +142,15 @@ registers its two DMA caches when it allocates them and drops them when it frees
   runs of a path differed by one, `hfr_timing`).
 - Any other task gets only the SP event.
 
-Tasks run to completion, so `osSpTaskYielded` is 0. `osDpSetNextBuffer` gets a DP event. `--stop-at-gfx` reports the
+**Yields.** When an audio task comes while a graphics task is on the RSP, the game's scheduler asks that task to
+yield (`osSpTaskYield`), takes its SP event, and asks `osSpTaskYielded` whether it stopped. If it did, the scheduler
+runs the audio task and then starts the graphics task again. In real time the port does this for a graphics task
+the main loop hasn't taken yet: it leaves the queue with an SP event, `osSpTaskYielded` returns `OS_TASK_YIELDED`
+once and marks the task, and `osSpTaskLoad` clears the mark when the task is started again. None of the task ran, so
+it runs whole then: the interpreter never sees half a task. A task the main loop has taken runs to completion, and
+its own SP event follows. Without yields, an audio task waited behind a swap or a slow present, past the next
+retrace (AUDIO.md §7). With `--fast` nothing yields: the main loop runs every task in the order it came. The
+exit line counts the yields. `osDpSetNextBuffer` gets a DP event. `--stop-at-gfx` reports the
 first graphics task and stops: the Phase 2 goal.
 
 **AI.**
@@ -185,14 +193,50 @@ and 0x02/0x03 accessory read/write of 32-byte blocks with the address CRC and a 
 u8 fields. The one u16 field, the buttons, is read natively, so it is written in host order. There is no EEPROM:
 the game saves only to the controller pak.
 
+**Accessories: one per controller.** Each of the four ports holds a controller pak, a rumble pak or nothing
+(`pc_si_set_pak`, from `game.pak`, `game.pak2`, `pak3`, `pak4`; [FRONTEND.md](FRONTEND.md) "Settings").
+- Each port is its own: the status command reports its accessory (0x01, or 0x02 for none), the 32-byte reads and
+  writes reach its pak, and a rumble pak's motor (0xC000) is that port's (`pc_si_motor(channel)`, which port/input
+  sends to the player's controller).
+- A controller pak has a file of its own per port (`rush2049pc.mpk`, `rush2049pc-p2.mpk`...), loaded, written and
+  backed up the same way (below). A new one is formatted with an ID of the port's own: `pakfile.c`'s blank pak's
+  random word, changed by the port number (controller 1's is the same as before). The game compares pak IDs
+  across ports and takes two paks with one ID for one pak moved between them (PS_PakServer's "move"), so a file
+  copied to another player's name is logged as such.
+- **Auto** is a rumble pak while the port's controller can rumble (`PcPad.rumble`, from SDL), else nothing: a pad
+  that leaves or comes takes its rumble pak with it. It is the default for players 2-4.
+- **Hot swaps.** The game polls every port for accessories every 30 frames (ControllerUpdate's
+  `osContStartQuery`, then `func_800A43FC` marks each pak record inserted or changed), and its pak server
+  (PS_PakServer, from SaveServer) handles a pak that left (its files dropped, rumble stopped) or came (osPfsInitPak,
+  or osMotorInit when that fails). So a change while the game runs (the overlay, a pad on auto plugged or
+  unplugged) is made as a player makes one: the old accessory comes out at once, and the new one goes in only after
+  a poll of every port has found the port empty (or without its controller). The game's other status reads
+  (`__osPfsGetStatus`, one port each, from osPfsInitPak, osMotorInit and the CRC retries) don't count, so the pak
+  code always sees the old one leave. A memory pak taken out is written first, and keeps its image in memory if it
+  goes back in. CONT_CARD_PULL (0x02 with 0x01) is never reported: osPfsInitPak would return PFS_ERR_NEW_PACK, which
+  the pak server takes for a damaged pak.
+- The log says when the game first reads each accessory put in ("controller 2: the game reads the controller
+  pak"); `-v` when one goes in or out, `-v -v` each motor change.
+- **On the retail cartridge** (the Pi, 2026-10-28, scripted, `--fast`): a two-player race with controller paks on
+  controllers 1 and 2 reads both (each a new file, its own ID); with rumble paks on both, the game finds both
+  (osMotorInit on each port). In a minute of a gas-held race with crashes neither motor went on, for player 1 as
+  for player 2: func_800E56F8 sets each player's rumble request (`D_801440AD`, at the PC stride) from the impact,
+  scaled by the player's own rumble setting (its profile's byte 0x2B: 0 none, 1 weaker), and the scripted runs'
+  default player has it at 0. The synthetic race's data turns both motors on, and they reach both players'
+  controllers (`rumble2p`, `input_live_drive`). A retail run with a player whose rumble is on is not yet made. The
+  pak server's prompt port (`D_8011EAE8`) is -1 at start there, so it scans every port.
+- `func_800A13C4(index, value)`, a setter of the same request, still strides by the N64's 772 bytes; nothing calls
+  it, so it is left as it is (on the PC it would reach players 2-4's requests 12, 24, 36 bytes early).
+
 **Controller pak.**
-- `--pak PATH`: default `rush2049pc.mpk`, created formatted when missing and written within a second of each change
-  (`pakfile.c`'s `pc_file_write_atomic`: a temp file flushed to the disk, then renamed over it; a failed write is
-  tried again at the next flush). Only a missing file is new: one that can't be read, or is damaged
+- `--pak PATH` (controller 1's; the others' are `game.pak2_file`...): default `rush2049pc.mpk`, created formatted
+  when missing and written within a second of each change (`pakfile.c`'s `pc_file_write_atomic`: a temp file
+  flushed to the disk, then renamed over it; a failed write is tried again at the next flush). Only a missing file is new: one that can't be read, or is damaged
   (`pc_pak_image_check`: not 32 KiB, no good ID block copy, no good inode table), plugs in no pak and is never
   written over. port/app's saves.c sets such a file aside before the game starts, and keeps three backups
   ([RELEASE.md](RELEASE.md) "Saves").
-- `--no-pak` plugs in nothing, and `--rumble` a rumble pak (0x8000 probe, 0xC000 motor).
+- `--no-pak` plugs in nothing on any port, and `--rumble` a rumble pak on controller 1 (0x8000 probe, 0xC000
+  motor).
 - The image keeps the `.mpk` page layout, but its multi-byte fields are in the native Pfs C's order: the ID
   checksums are sums of host-order u16, and `PFS_EOF`/`PFS_PAGE_NOT_USED` are host-order u16. Page links keep
   their `{bank, page}` bytes, which is how the rest of the Pfs C reads them.
@@ -216,11 +260,20 @@ loop on the host main thread.
 - Each pass runs due timers, queued graphics tasks and the AI.
 - At each retrace it calls `pc_gfx_poll_events` (window events, which also reach port/input), polls
   `pc_input_poll`, sends the VI event and presents a swapped framebuffer.
-- A retrace that comes a whole period late (a slow graphics task, a swap waiting for vsync) is caught up: the
-  ones due come at once, so the game keeps its 60 a second: it counts its time in retraces, and its audio renders
-  the buffers the AI has passed at each one, skipping some when it finds too many ([AUDIO.md](AUDIO.md) §7). A stall
-  of 6 periods or more (a debugger, a long hitch) resynchronizes and drops them.
-  At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped`.
+- A retrace that comes a whole period late (a slow graphics task, a swap waiting for vsync) is caught up, so the
+  game keeps its 60 a second: it counts its time in retraces, and its audio renders the buffers the AI has passed
+  at each one, skipping some when it finds too many ([AUDIO.md](AUDIO.md) §7). A stall of 6 periods or more (a
+  debugger, a long hitch) resynchronizes and drops them.
+- The late ones come one at a time. In real time each waits until the game's threads are done with the one before
+  (`pc_os_quiet`): the system is idle, or the baton is back with the thread that held it when that retrace went out,
+  with no thread above it waiting. The wait is at most 2 ms. Sent at once, a burst of them reached the scheduler's
+  clients together, and the audio manager, whose 128-message queue also takes a command per sound source per
+  retrace, overflowed it on a loaded host. With `--fast` they come at once, as before.
+- At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped (...); L
+  late ones went out before the game was done with the last` (L: those the 2 ms wait sent anyway). On rocky (load
+  2), `realtime_check` with slow presents (`RUSH_SIM_PRESENT_MS=20`): the fullest 128-message queue peaked at 24
+  and 27 messages, down from 28 and 40 when they came at once. One late retrace in each run went out at the 2 ms
+  limit, and none were dropped.
 - Between deadlines it sleeps until a thread submits work.
 - While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
   events. Afterwards it sets the N64 clock back by the time held.
@@ -359,9 +412,9 @@ the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
 
-- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 27 of 27 in about 1.5 s; `--selftest --fast`
+- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 31 of 31 in about 1.5 s; `--selftest --fast`
   (`ultra_selftest_fast`) runs the same on the virtual clock, with the clock's own check in place of the
-  device-paced AI's (real time only), in under 0.1 s. It covers:
+  device-paced AI's and without the yield (real time only): 30 of 30 in under 0.1 s. It covers:
   - threads: preemption on start, priorities, FIFO among equals and yield, `osSetThreadPri` both ways,
     `osStopThread` on a waiting thread;
   - queues: FIFO, jam, full and empty, a blocking send;
@@ -370,11 +423,16 @@ the libgsm kernels, now `gsm.c` (§8).
   - busy-waits: both yield paths;
   - memory: the window and its KSEG1 alias, the absolute symbols, game data at its N64 addresses, host addresses
     above 4 GiB, big-endian ranges;
-  - RSP tasks and DP buffers, and the AI rate and event;
+  - RSP tasks and DP buffers, a queued graphics task yielding (real time only), and the AI rate and event;
   - in real time, the AI paced by a device: 30 pulls of 512 frames from a host thread, 10 ms apart, answered by
     88 buffers, only the first pull short;
   - the SI through the game's own C: `osContInit`, `osContGetReadData`, `osPfsInitPak`, `osPfsFreeBlocks`, and a
-    three-page note allocated, written, read back after a new `osPfsInitPak`, and deleted.
+    three-page note allocated, written, read back after a new `osPfsInitPak`, and deleted;
+  - each port's accessory (`pc_si_test_pads` holds the pads the test sets): `osContStartQuery`'s status per port, a
+    note on controller 2's pak alone and its own ID, controller 3's rumble pak (auto, a pad that can rumble) driving
+    its motor alone, nothing on 4 (`PFS_ERR_NOPACK`), a controller pak refusing `osMotorInit` (`PFS_ERR_DEVICE`);
+    a hot swap from controller pak to rumble pak (out at once, still out through a single-port status read, in
+    after the poll) and back (the note still there); auto following its pad's rumble and its unplugging.
 - CTest `ultra_gsm` (`port/ultra/tests/test_gsm.c`, 2 s) checks `gsm.c`'s three GSM kernels against their own MIPS
   code, interpreted from the words in `asm/us/boot_data/kernels.s`, and against a GSM 06.10 reference decoder
   written from the spec. Kernel by kernel on random and edge inputs, and over 6,160 frames through the game's own

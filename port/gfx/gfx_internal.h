@@ -256,8 +256,17 @@ void pcgfx_gl_show_target(GfxTarget *t, int rows, int win_w, int win_h, int to_w
 GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, float s);
 void pcgfx_gl_aux_free(GfxTarget *t);
 void pcgfx_gl_finish(void);   /* glFinish: for timing the GPU's part (RUSH_GFX_TIMES=2) */
+/* GPU timers (RUSH_GFX_TIMES=3): GL_TIME_ELAPSED queries around the parts timed, one at a time, by category; the
+ * totals and counts read back at the end. Without timer queries (-1) they do nothing. */
+enum { PCGFX_GPU_TASK, PCGFX_GPU_BETWEEN, PCGFX_GPU_SHOW, PCGFX_GPU_TIMER_CATS };
+int pcgfx_gl_timers_init(GfxGetProc get_proc);
+void pcgfx_gl_timer_begin(int cat);
+void pcgfx_gl_timer_end(void);
+int pcgfx_gl_timer_stats(double ms[PCGFX_GPU_TIMER_CATS], uint32_t n[PCGFX_GPU_TIMER_CATS]);
+void pcgfx_gl_draw_counts(uint32_t *draws, uint64_t *verts);   /* pcgfx_gl_draw calls and vertices so far */
 /* A fence after the GL work so far; whether the GPU hasn't passed the last one within 2 ms (0 without fences). */
 void pcgfx_gl_fence_set(void);
+void pcgfx_gl_frame_done(void);   /* at each present: at most two frames of GL work in flight */
 int pcgfx_gl_fence_busy(void);
 /* The overlay's triangles (gfx_ui.c), in window pixels, blended over the window; the atlas is uploaded once. */
 void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_window, const uint8_t *atlas,
@@ -297,6 +306,7 @@ int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
  * group moved to its side. It runs before anything else is drawn or cleared, at a new color image and at the task's
  * end. pcgfx_hud_add returns -1 when it can't queue (draw it as usual). */
 void pcgfx_hud_init(void);         /* RUSH_GFX_HUD */
+void pcgfx_hud_publish(int frame_width, int ox);   /* at SETCIMG: what pc_gfx_hud_dx (the game's thread) reads */
 void pcgfx_hud_task_begin(void);
 int pcgfx_hud_on(void);
 int pcgfx_hud_pending(void);

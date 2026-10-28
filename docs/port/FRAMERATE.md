@@ -191,6 +191,8 @@ result line the same, on rocky (ctest `hfr_timing`) and on the Pi.
 | rocky (Intel UHD 770, GLES 3.2, Mesa 25.2) | drive, 1 view | 1.08 / 1.11 / 1.09 ms | 1.7 / 1.5 ms (3.7 / 4.1) |
 | | race4p, 4 views | 1.09 / 1.23 / 1.44 ms | 1.5 / 1.5 ms (5.0 / 6.3) |
 
+At the window's own pixels (1920 × 1080 and 2880 × 1620, upscaled textures or not), the CPU's and the GPU's parts
+apart (`RUSH_GFX_TIMES=3`), before and after the renderer's work of 2026-10-28: [GFX.md](GFX.md) "What it costs".
 Recording adds up to a few tenths of a millisecond to a graphics task. A frame between redoes the same triangles,
 including those the frame rejected (another moment may show them), but not the display-list walk, the texture
 lookups or the game's matrices; with the game's scenes it costs about half a graphics task.

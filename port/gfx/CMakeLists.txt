@@ -169,7 +169,8 @@ set_target_properties(gfx_interp_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIR
     EXPORT_COMPILE_COMMANDS OFF)
 target_include_directories(gfx_interp_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gfx_interp_test PRIVATE pcgfx)
-foreach(c exact move camera cut teleport split hud appear instances children spin eyerel timing parse hudedges)
+foreach(c exact move camera cut teleport split hud appear instances children spin eyerel timing parse hudedges
+        depthclear)
     add_test(NAME gfx.interp.${c} COMMAND gfx_interp_test ${c})
 endforeach()
 foreach(v "scale2;RUSH_GFX_SCALE=2" "scale2.5;RUSH_GFX_SCALE=2.5" "wide-scale3.4;RUSH_GFX_WIDESCREEN=16:9,RUSH_GFX_SCALE=3.4"

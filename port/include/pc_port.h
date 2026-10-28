@@ -192,6 +192,7 @@ typedef struct {
     int8_t stick_x;
     int8_t stick_y;
     int connected;
+    int rumble;         /* its controller has a rumble motor (an accessory set to auto is then a rumble pak) */
 } PcPad;
 void pc_input_poll(PcPad pads[4]);
 

@@ -231,11 +231,40 @@ static int system_idle(void)
 
 static void main_signal(void);
 
+/* Real time: the main loop sends a late retrace once the threads have taken the last (pc_os_quiet). The holder of
+ * the baton when it sent that one, or NULL if the system was idle then; and whether the main loop waits for it. */
+static PcThread *g_quiet_holder;
+static int g_quiet_wait;
+
+/* The last retrace's work is done: the system is idle, or the baton is back with the thread that held it then
+ * and no thread above that one waits for it (an event never takes the baton from a computing thread). */
+static int system_quiet(void)
+{
+    if (system_idle())
+        return 1;
+    if (!g_quiet_holder || g_running != g_quiet_holder)
+        return 0;
+    PcThread *b = best(g_running);
+    return !(b && b->pri > g_running->pri);
+}
+
+/* The baton moved or the system went idle: wake the main loop if it waits for the threads to be done. */
+static void quiet_changed(void)
+{
+    if (g_quiet_wait && system_quiet()) {
+        g_quiet_wait = 0;
+        g_main_wake = 1;
+        main_signal();
+    }
+}
+
 /* --fast: the system may have become idle; the main thread looks again. */
 static void idle_changed(void)
 {
     if (pc_time_virtual())
         main_signal();
+    else
+        quiet_changed();
 }
 
 static PcThread *best(const PcThread *except)
@@ -291,10 +320,12 @@ static void switch_from(PcThread *self)
         pc_log("switch %s -> %s", self->name, next ? next->name : "(none)");
     self->spins = 0;
     g_running = NULL;
-    if (next)
+    if (next) {
         give(next);
-    else
+        quiet_changed();
+    } else {
         idle_changed();
+    }
     while (g_running != self)
         pthread_cond_wait(&self->cv, &g_lock);
 }
@@ -710,6 +741,26 @@ void pc_os_spin_yield(const char *site)
             pthread_cond_wait(&self->cv, &g_lock);
     }
     pthread_mutex_unlock(&g_lock);
+}
+
+/* Real time, the main thread, just before it sends a retrace: whom the threads' work on it returns the baton to. */
+void pc_os_quiet_mark(void)
+{
+    pthread_mutex_lock(&g_lock);
+    g_quiet_holder = system_idle() ? NULL : g_running;
+    g_quiet_wait = 0;
+    pthread_mutex_unlock(&g_lock);
+}
+
+/* Real time, the main thread: whether the threads are done with the last retrace (system_quiet). If not, the main
+ * loop's wait (pc_os_wait_main) ends when they are. */
+int pc_os_quiet(void)
+{
+    pthread_mutex_lock(&g_lock);
+    int quiet = system_quiet();
+    g_quiet_wait = !quiet;
+    pthread_mutex_unlock(&g_lock);
+    return quiet;
 }
 
 void pc_os_idle(void)

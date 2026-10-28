@@ -79,6 +79,13 @@ graphics driver, the sound output, the controllers and where the settings, saves
 it all on the clipboard for a bug report). The mouse cursor hides during play until the mouse moves. The details are
 in [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
 
+Each player has an N64 accessory, set in F1 > Controllers (P1-P4 accessory) or the settings file (`game.pak`,
+`game.pak2`...): a controller pak (the saves), a rumble pak, or none. Player 1 has the controller pak, as before.
+Players 2-4 are on auto: a rumble pak when their controller can rumble, so in multiplayer each player's rumble goes
+to their own pad. A player can have a controller pak of their own instead (`rush2049pc-p2.mpk`...), which the game
+reads as the pak in that N64 controller. A change in the overlay is a swap, as on the console: the game sees the
+old one pulled out, then the new one put in.
+
 ### Settings
 
 `rush2049pc.ini` holds them all, with comments. The picture is drawn at the window's own pixels by default
@@ -108,7 +115,8 @@ that folder:
 | File | What |
 |---|---|
 | `rush2049pc.ini` | the settings |
-| `rush2049pc.mpk` | the saves: the game's controller pak |
+| `rush2049pc.mpk` | the saves: the game's controller pak (player 1's) |
+| `rush2049pc-p2.mpk`, `-p3`, `-p4` | players 2-4's controller paks, when they have one (F1 > Controllers); backed up as player 1's |
 | `rush2049pc.mpk.bak`, `.bak2`, `.bak3` | the saves as the last three runs that changed them started (newest first) |
 | `screenshots/` | F12's pictures |
 | `texture_cache/` | upscaled textures kept for the next run (`video.textures = upscaled`); safe to delete |

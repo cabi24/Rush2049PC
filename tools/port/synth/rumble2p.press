@@ -1,0 +1,17 @@
+# Two players, each with a rumble pak (port/ultra/si.c): the game finds both, and its rumble thread turns each
+# player's motor on in the race (docs/port/SYNTH.md 2; the motor's log lines need -v -v).
+# until: 0x400000:600
+# seconds: 90
+# expect: state=0x00400000: players 2, windows 2, cars 6, mode 0, track 0
+# args: --rumble --set game.pak2=rumble -v -v
+# check: tools/port/pak_check.py --log rumble2p.game.log --found 1:rumble --found 2:rumble --motor 1 --motor 2
+5 A            # the controller pak warning
+8 START        # the start prompt
+9 RIGHT 0.1    # the main menu's first option: one player more (as many as controllers)
+11 A           # the main menu: the race
+14 A           # the player screen: each player is ready
+14 A@2
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select: each player's car
+23 A@2
