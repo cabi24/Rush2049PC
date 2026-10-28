@@ -2,7 +2,10 @@
 """The first run's messages, end to end (docs/port/RELEASE.md, "The ROM"): rush2049pc with no ROM, a missing one, a
 file dropped on it, another game, another region, a bad dump in each byte order, a short file, an archive, a folder,
 an unreadable file; the message box printed (RUSH2049_MESSAGE_BOX=print) or tried through SDL's dummy video driver;
---no-rom-check and the lookup order with the synthetic cartridge.
+--no-rom-check and the lookup order with the synthetic cartridge. The "Open ROM..." file dialog, its answers given by
+RUSH2049_TEST_ROM_PICK: cancelled, quit, a wrong file then another, .v64 and .n64 dumps, the choice kept in
+rush2049pc.ini and found by the next start. The saves: the controller pak backed up when it changed, the backups
+rotated, a damaged pak set aside and the newest good backup put in its place.
 
 Every run happens in a temporary folder that is the working directory and the user data and settings folders
 (XDG_DATA_HOME, XDG_CONFIG_HOME, HOME, APPDATA), so nothing of the user's is read or written. No retail ROM is read:
@@ -14,6 +17,7 @@ import argparse
 import os
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
@@ -47,6 +51,28 @@ def swap32(b):
     return bytes(a)
 
 
+def fresh_pak(changed=0):
+    """A blank formatted controller pak as port/ultra/pakfile.c makes it (host order: little-endian), with one byte of
+    a data page (no checksum covers it) set to changed: a save that changed."""
+    img = bytearray(32768)
+    img[0] = 0x81
+    img[1:32] = bytes(range(1, 32))
+    ident = bytearray(32)
+    ident[0:8] = struct.pack("<II", 0xFFFFFFFF, 0x135F1A05)
+    ident[0x18:0x1C] = struct.pack("<HBB", 1, 1, 0)
+    words = struct.unpack_from("<14H", ident)
+    ident[0x1C:0x20] = struct.pack("<HH", sum(words) & 0xFFFF, sum(~w & 0xFFFF for w in words) & 0xFFFF)
+    for at in (0x20, 0x60, 0x80, 0xC0):
+        img[at:at + 32] = ident
+    inode = bytearray(256)
+    for page in range(5, 128):
+        inode[2 * page:2 * page + 2] = struct.pack("<H", 3)
+    inode[1] = sum(inode[10:]) & 0xFF
+    img[0x100:0x200] = img[0x200:0x300] = inode
+    img[0x500] = changed
+    return bytes(img)
+
+
 def run(exe, case, args, expect, unexpect=(), code=1, env_extra=None, box="print", files=None, user_files=None,
         locked=(), copy_exe=False, program_files=None, runs=1, after=None, stdin=None, no_config=True):
     """Runs the program in a fresh folder holding files; checks its exit code and that its output has each of expect
@@ -72,6 +98,7 @@ def run(exe, case, args, expect, unexpect=(), code=1, env_extra=None, box="print
             if content is None:
                 (work / name).mkdir()
             else:
+                (work / name).parent.mkdir(parents=True, exist_ok=True)
                 (work / name).write_bytes(content)
         for name, content in (user_files or {}).items():
             user.mkdir(exist_ok=True)
@@ -83,7 +110,7 @@ def run(exe, case, args, expect, unexpect=(), code=1, env_extra=None, box="print
             env.pop(v, None)
         if box:
             env["RUSH2049_MESSAGE_BOX"] = box
-        env.update(env_extra or {})
+        env.update({k: v.replace("@WORK@", str(work)) for k, v in (env_extra or {}).items()})
         cmd = [exe] + (["--no-config"] if no_config else []) + ["--audio", "null"] + \
             [a.replace("@WORK@", str(work)) for a in args]
         for _ in range(runs):
@@ -96,10 +123,11 @@ def run(exe, case, args, expect, unexpect=(), code=1, env_extra=None, box="print
                 out, rc = "(timed out)", None
         for name in locked:   # readable again, for the clean-up
             os.chmod(work / name, stat.S_IRWXU)
-        more = after({"work": work, "user": user, "program": prog}, out) if after else []
-        out = out.replace(str(work), "@WORK@").replace(str(user), "@USER@").replace(str(prog), "@PROGRAM@")
+        more = after({"work": work, "user": user, "program": prog, "config": conf / "rush2049pc"}, out) if after else []
+        out = out.replace(str(work), "@WORK@").replace(str(user), "@USER@").replace(str(prog), "@PROGRAM@") \
+            .replace(str(conf), "@CONFIG@")
     why = list(more)
-    if rc != code:
+    if code != "any" and rc != code:
         why.append(f"exit {rc}, expected {code}")
     why += [f"no '{e}'" for e in expect if e not in out]
     why += [f"unexpected '{e}'" for e in unexpect if e in out]
@@ -127,7 +155,7 @@ def main():
         "no ROM: baserom.us.z64 is in none of these places:",
         f"(next to the program)", f"@USER@{sep}baserom.us.z64 (the user data folder)",
         f"@WORK@{sep}baserom.us.z64 (the working directory)",
-        "message box: Rush 2049 PC: no ROM", "It looked for baserom.us.z64 in:", drag])
+        "message box: Rush 2049 PC: no ROM", "It looked for baserom.us.z64 in:", drag], ["Open ROM", "buttons:"])
     run(exe, "no ROM, headless", ["--headless"], ["no ROM: baserom.us.z64 is in none"], ["message box:"])
     run(exe, "--rom missing", ["--window", "--rom", "missing.z64"],
         ["no ROM at missing.z64 (the path given; the working directory is @WORK@)", "message box:",
@@ -186,6 +214,127 @@ def main():
     if not win:
         run(exe, "SDL box, no display", ["--window"], ["no ROM: baserom.us.z64 is in none"], ["message box: Rush"],
             box=None, env_extra={"SDL_VIDEODRIVER": "dummy"})
+
+    # The "Open ROM..." dialog (docs/port/RELEASE.md, "Choosing the ROM"): RUSH2049_TEST_ROM_PICK answers for the
+    # player. The box asks; its answer is the first button while answers are left, else the last (Quit).
+    def pick(*answers):
+        return {"RUSH2049_TEST_ROM_PICK": "|".join(answers)}
+
+    asked = "buttons: [Open ROM...] [Quit]; chosen: Open ROM..."
+    again = "buttons: [Choose another...] [Quit]; chosen: "
+    other = header(synth, "SOME OTHER RACER", "NXRE", 0)
+    run(exe, "pick: cancelled", ["--window"], [
+        "no ROM: baserom.us.z64 is in none of these places:", "message box: Rush 2049 PC: no ROM",
+        "Open ROM... lets you choose the ROM file now.", asked, "file dialog (RUSH2049_TEST_ROM_PICK): :cancel",
+        "no ROM chosen (the file dialog was cancelled)"], ["Rush 2049 PC stopped"], box=None, env_extra=pick(":cancel"))
+    run(exe, "pick: quit", ["--window"], ["buttons: [Open ROM...] [Quit]; chosen: Quit", "no ROM chosen (Quit)"],
+        ["file dialog"], box=None, env_extra=pick())
+    run(exe, "pick: another game", ["--window"], [
+        asked, f"the ROM @WORK@{sep}other.z64 (the file chosen) can't be used: it is another N64 game",
+        "message box: Rush 2049 PC: wrong ROM", "You can choose another file, or quit.", again + "Quit",
+        "no ROM chosen (Quit)"], ["--no-rom-check runs it"], box=None, files={"other.z64": other},
+        env_extra=pick(f"@WORK@{sep}other.z64"))
+    run(exe, "pick: Europe, a bad dump", ["--window"], [
+        "San Francisco Rush 2049 for Europe (game code NRUP)", "--no-rom-check runs it anyway",
+        "its header says San Francisco Rush 2049 (USA), but its contents differ", again + "Choose another...",
+        "the file dialog was cancelled"], box=None,
+        files={"eu.z64": header(synth, "Rush 2049", "NRUP", 0), "bad.v64": swap16(usa_header)},
+        env_extra=pick(f"@WORK@{sep}eu.z64", f"@WORK@{sep}bad.v64", ":cancel"))
+    run(exe, "pick: no dialog", ["--window"], ["no file dialog could be shown", "No file dialog could be shown.",
+                                               "Copy your ROM"], box=None, env_extra=pick(":fail"))
+    run(exe, "pick: a wrong ROM found", ["--window"], [
+        "message box: Rush 2049 PC: wrong ROM", "(the working directory) can't be used: it is another N64 game",
+        "buttons: [Open ROM...] [Quit]"], box=None, files={"baserom.us.z64": other}, env_extra=pick(":cancel"))
+    run(exe, "pick: game.rom moved", ["--window", "--set", f"game.rom=@WORK@{sep}moved.z64"], [
+        f"no ROM at @WORK@{sep}moved.z64 (the path given)", "There is no ROM at", asked], box=None,
+        env_extra=pick(":cancel"))
+    run(exe, "pick: headless", ["--headless"], ["no ROM: baserom.us.z64 is in none"],
+        ["buttons:", "file dialog", "message box:"], box=None, env_extra=pick(":cancel"))
+    run(exe, "pick: --no-rom", ["--no-rom", "--headless", "--fast", "--seconds", "0.2"], [], ["buttons:", "no ROM:"],
+        code="any", box=None, env_extra=pick(":cancel"))
+    if not win:   # the ROM chosen runs: a window (SDL's offscreen driver)
+        play = ["--window", "--fast", "--seconds", "0.5", "--no-rom-check"]
+        offscreen = {"SDL_VIDEODRIVER": "offscreen"}
+        run(exe, "pick: chosen", play, [
+            asked, f"warning: the ROM @WORK@{sep}synth.z64 (chosen; .z64): it is another N64 game",
+            "the ROM chosen is not kept: no settings file (--no-config)", "saves (the controller pak)"], code=0,
+            box=None, files={"synth.z64": synth}, env_extra=dict(offscreen, **pick(f"@WORK@{sep}synth.z64")))
+        run(exe, "pick: text, then .v64", play, [
+            f"the ROM @WORK@{sep}notes.txt (the file chosen) can't be used: it is not an N64 ROM",
+            again + "Choose another...", f"the ROM @WORK@{sep}my roms{sep}synth.v64 (chosen; .v64)"], code=0,
+            box=None, files={"notes.txt": b"# not a rom" * 1000, "my roms/synth.v64": swap16(synth)},
+            env_extra=dict(offscreen, **pick(f"@WORK@{sep}notes.txt", f"@WORK@{sep}my roms{sep}synth.v64")))
+        run(exe, "pick: .n64, relative", play, ["(chosen; .n64)", f"@WORK@{sep}synth.n64"], code=0, box=None,
+            files={"synth.n64": swap32(synth)}, env_extra=dict(offscreen, **pick("synth.n64")))
+
+        # The choice kept in rush2049pc.ini (the user settings folder here): the next start finds it there, with no
+        # box and no dialog
+        kept = f"@WORK@{sep}my roms{sep}synth.z64"
+
+        def ini_has(d, out):
+            ini = d["config"] / "rush2049pc.ini"
+            text = ini.read_text() if ini.exists() else ""
+            want = f"rom = {d['work']}{sep}my roms{sep}synth.z64"
+            return [] if want in text else [f"rush2049pc.ini lacks '{want}'"]
+
+        run(exe, "pick: kept in the ini", play, [
+            f"game.rom = {kept} kept in @CONFIG@{sep}rush2049pc{sep}rush2049pc.ini"], code=0, box=None,
+            no_config=False, files={"my roms/synth.z64": synth}, env_extra=dict(offscreen, **pick(kept)),
+            after=ini_has)
+        run(exe, "pick: the next start", play, [
+            f"the ROM {kept} (the path in the settings (game.rom)): it is another N64 game"],
+            ["message box:", "file dialog"], code=0, box=None, no_config=False, files={"my roms/synth.z64": synth}, runs=2, env_extra=dict(offscreen, **pick(kept)),
+            after=ini_has)
+
+    # The saves (docs/port/RELEASE.md, "Saves"): a changed pak backed up, the backups rotated; a damaged one set
+    # aside, unchanged, and the newest good backup in its place, or a new pak
+    mpk = "rush2049pc.mpk"
+    play = ["--headless", "--fast", "--seconds", "0.5", "--no-rom-check", "synth.z64"]
+    p1, p2, p3 = fresh_pak(1), fresh_pak(2), fresh_pak(3)
+
+    def holds(folder, name, data):
+        return lambda d, out: [] if (d[folder] / name).exists() and (d[folder] / name).read_bytes() == data else \
+            [f"{folder}/{name} is not as expected"]
+
+    def there(folder, name):
+        return lambda d, out: [] if (d[folder] / name).exists() else [f"no {folder}/{name}"]
+
+    def corrupt(data):
+        def check(d, out):
+            kept = list(d["user"].glob(mpk + ".corrupt-*"))
+            if len(kept) != 1:
+                return [f"{len(kept)} .corrupt- files"]
+            return [] if kept[0].read_bytes() == data else ["the file set aside changed"]
+        return check
+
+    def all_of(*checks):
+        return lambda d, out: sum((c(d, out) for c in checks), [])
+
+    run(exe, "saves: backed up", play, [f"saves backed up, since they changed: @USER@{sep}{mpk}.bak"], code=0,
+        files={"synth.z64": synth}, user_files={mpk: p1}, after=holds("user", mpk + ".bak", p1))
+    run(exe, "saves: unchanged", play, [], ["backed up"], code=0, files={"synth.z64": synth},
+        user_files={mpk: p1, mpk + ".bak": p1},
+        after=lambda d, out: [".bak2 made"] if (d["user"] / (mpk + ".bak2")).exists() else [])
+    run(exe, "saves: rotated", play, ["saves backed up"], code=0, files={"synth.z64": synth},
+        user_files={mpk: p3, mpk + ".bak": p2, mpk + ".bak2": p1},
+        after=all_of(holds("user", mpk + ".bak", p3), holds("user", mpk + ".bak2", p2),
+                     holds("user", mpk + ".bak3", p1)))
+    run(exe, "saves: damaged", play, [
+        f"the saves (the controller pak) @USER@{sep}{mpk} can't be used: its ID block and the three copies of it are "
+        "damaged", f"it is kept, unchanged, as @USER@{sep}{mpk}.corrupt-",
+        "there is no good backup: the game starts with a new, empty controller pak"], code=0,
+        files={"synth.z64": synth}, user_files={mpk: bytes(32768)},
+        after=all_of(corrupt(bytes(32768)), there("user", mpk)))
+    run(exe, "saves: restored", play, [
+        "can't be used: it is 100 bytes, not 32 KiB", f"the saves are restored from @USER@{sep}{mpk}.bak2"], code=0,
+        files={"synth.z64": synth}, user_files={mpk: b"x" * 100, mpk + ".bak": b"y" * 32768, mpk + ".bak2": p2},
+        after=all_of(corrupt(b"x" * 100), holds("user", mpk, p2)))
+    if not win:   # the box, with a window
+        run(exe, "saves: the box", ["--window"] + play[1:], [
+            "message box: Rush 2049 PC: saves", "Your saves, the controller pak", "Nothing was written over it",
+            "The saves were restored from the backup of"], code=0, files={"synth.z64": synth},
+            user_files={mpk: bytes(32768), mpk + ".bak": p1}, env_extra={"SDL_VIDEODRIVER": "offscreen"},
+            after=holds("user", mpk, p1))
 
     # The log (docs/port/RELEASE.md, "The log"): in the user data folder, with the version first, everything the
     # console got, a fault's report and backtrace; the run before kept; next to a portable program; --log, --no-log
