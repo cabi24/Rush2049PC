@@ -169,7 +169,9 @@ one). Two causes:
 - **The road under the car vanished for single frames**, and the sky below it showed. A road triangle reaches
   behind the eye in most frames; it was clipped at w ≥ 1e-4 with a float lerp from w in the thousands, which lost
   the 1e-4: the new vertex's w came out at 0 (without fused multiply-adds, x86-64's way) or below 0, and a w below
-  0 turned the polygon around, so back-face culling dropped it. GL also got vertices at w = 0 nearly every frame.
+  0 turned the polygon around, so back-face culling dropped it. GL also got vertices at w = 0 nearly every frame,
+  and when the road was drawn its depth near the camera came out far too deep, so what lay under it and was drawn
+  after it (walls' feet below the road, on the attract demo's first track) showed through.
   Fixed by clipping to the guard band as the RSP does ([GFX.md](GFX.md) "Clipping"; ec6e03c). Tests:
   `gfx.eyeplane`, `gfx.clip`.
 - **The far road and scenery sparkled.** The world is drawn with texture LOD from mip chains, and the renderer

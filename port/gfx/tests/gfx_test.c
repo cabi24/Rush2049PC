@@ -1098,8 +1098,11 @@ static void case_nearclip(void) {
 /* A road under the camera and a wall beside it, both from behind the eye to far ahead, back faces culled: the game's
  * track at every frame. Clipped at the eye plane with a float lerp, the new vertices' w (lerped from tens of
  * thousands down to 1e-4) came out at or below zero for some of these, which turned the polygon around and culled
- * the whole road (the retail game showed the sky under the car for a frame). Clipped to the guard band as the RSP
- * does, each is drawn to the screen's bottom and right edges. */
+ * the whole road (the retail game showed the sky under the car for a frame). Even when drawn, the road's depth near
+ * the camera came out far too deep: GL interpolated it from the vertex at the eye plane, at depth 0 but projected
+ * millions of pixels out, so what lay under or behind the road and was drawn after it showed through. Clipped to the
+ * guard band as the RSP does, each is drawn to the screen's bottom and right edges, and a floor 20 units under the
+ * road stays hidden. */
 static void case_eyeplane(void) {
     /* (behind, ahead): the road's near vertices' distance behind the eye and its far vertex's ahead. The first five
      * gave the float lerp a w below zero with and without fused multiply-adds (aarch64 builds fuse, x86-64 ones
@@ -1107,7 +1110,7 @@ static void case_eyeplane(void) {
     static const int cfg[][2] = {{124, 8190}, {160, 8106}, {214, 8107}, {235, 8175}, {268, 8058}, {3, 8000},
                                  {40, 8001},  {90, 8011},  {235, 8005}, {1, 20000},  {100, 25000}, {300, 30000}};
     static Mtx persp;
-    static Vtx v[12][6];
+    static Vtx v[12][9];
     int k;
     mtx_persp(&persp, 60.0f, 4.0f / 3.0f, 10.0f, 10000.0f);
     for (k = 0; k < 12; k++) {
@@ -1119,14 +1122,30 @@ static void case_eyeplane(void) {
         vtx(&f[3], 30, -40, behind, 0, 0, 255, 0, 255, 255);      /* wall at x 30, facing the camera */
         vtx(&f[4], 30, -40, far, 0, 0, 255, 0, 255, 255);
         vtx(&f[5], 30, 400, behind + 7, 0, 0, 255, 0, 255, 255);
+        /* a red floor 20 units under the road, drawn after it: the road hides it everywhere */
+        vtx(&f[6], -half, -60, behind + 40, 0, 0, 255, 0, 0, 255);
+        vtx(&f[7], half, -60, behind + 40, 0, 0, 255, 0, 0, 255);
+        vtx(&f[8], 0, -60, -2000, 0, 0, 255, 0, 0, 255);
         frame_begin(0, 0, 0);
         gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
         gsDPSetRenderMode(RM_ZB_OPA_SURF(1), RM_ZB_OPA_SURF(2));
         gsSPGeometryMode(0, G_ZBUFFER | G_CULL_BACK);
         cc_shade();
-        gsSPVertex((uintptr_t)f, 6, 0);
+        gsSPVertex((uintptr_t)f, 9, 0);
         gsSP2Triangles(0, 1, 2, 3, 5, 4);
+        gsSP1Triangle(6, 7, 8);
         frame_end();
+        {
+            int x, y, red = 0;
+            for (y = 130; y < 240; y += 3)
+                for (x = 0; x < 300; x += 3)
+                    red += px(x, y)[0] > 128 && px(x, y)[1] < 64 && px(x, y)[2] < 64;
+            if (red) {
+                printf("  FAIL %s: the floor under the road shows through it at %d samples (placement %d)\n", s_case,
+                       red, k);
+                s_fail++;
+            }
+        }
         check("road under the camera", 160, 236, 0, 255, 255, 0);
         check("road, bottom left", 4, 236, 0, 255, 255, 0);
         check("road, horizon", 160, 125, 0, 255, 255, 0);

@@ -83,10 +83,12 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     2026-10-27 the polygon was clipped at w ≥ 1e-4 alone, with the new vertex's w lerped in float. From w in the
     thousands that lerp loses the 1e-4: the vertex came out at w = 0 (most of the time without fused multiply-adds,
     as x86-64 builds are), or below 0, with x/w beyond 1e30. The road under the camera reaches behind the eye in
-    most frames of a race, so GL got such vertices nearly every frame. Mesa's clippers took w = 0; other GL drivers
-    need not (the first player on a Windows laptop, on its Intel or NVIDIA driver, reported "lots of graphical
-    errors on the world"). A w below 0 turned the polygon around: on the retail cartridge, on Mesa too, the whole
-    road under the car was culled for single frames, and the sky under it showed.
+    most frames of a race, so GL got such vertices nearly every frame. A w below 0 turned the polygon around: the
+    whole road under the car was culled for single frames, and the sky under it showed (the first player on a
+    Windows PC reported it as "lots of graphical errors on the world", flickering road; on the Pi, on Mesa, the
+    same). And when the road was drawn, its depth near the camera came out far too deep: the vertex on the eye
+    plane had depth 0 but lay millions of pixels out, so GL's depth across the screen was nearly the far vertex's,
+    and what lay under or behind the road and was drawn after it showed through.
   - New vertices on the guard band have their own depth, as the RSP's do. Depth is clamped to [0, 1] per vertex.
     Geometry closer than the near plane is therefore drawn at depth 0, as on the N64, instead of vanishing.
   - The winding is summed in double, from the first vertex.
@@ -590,7 +592,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `cull` | front/back, mirrored modelview, CULLDL |
 | `branchz` | BRANCH_Z |
 | `nearclip` | a floor behind the eye; a triangle inside the near plane |
-| `eyeplane` | a road under the camera and a wall beside it, from behind the eye to far ahead, back faces culled, in 12 placements (five of them gave the old float lerp a w below 0 with and without fused multiply-adds): the road reaches the screen's bottom and the horizon, the wall the right edge |
+| `eyeplane` | a road under the camera and a wall beside it, from behind the eye to far ahead, back faces culled, in 12 placements (five of them gave the old float lerp a w below 0 with and without fused multiply-adds): the road reaches the screen's bottom and the horizon, the wall the right edge, and a floor 20 units under the road, drawn after it, stays hidden (the old clipping showed it through the whole near road in every placement) |
 | `clip` | on the CPU (`tests/clip_check.c`): 40,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
 | `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
