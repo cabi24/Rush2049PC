@@ -1343,6 +1343,15 @@ extern void func_80011D24(void);
 extern void func_8001C508(void);
 extern void func_800119E0(void);
 extern void func_8001C3CC(void);
+#ifdef TARGET_PC
+/* PC: the wrapping range's second loop starts at the ring's start only once the first loop got to its end. Stopped
+ * short by the per-task cap, the N64's loop set index to 0 anyway, and the buffers between were never rendered:
+ * they played their last turn's sound again. The PC's retraces come in bunches (a swap waiting for vsync), so more
+ * buffers than the cap are often passed between two of them (docs/port/AUDIO.md 7). */
+#define PC_RING_START(index) ((index) >= D_80038292 ? 0 : (index))
+#else
+#define PC_RING_START(index) 0
+#endif
 void func_80013DEC(void)
 {
     unsigned short index;
@@ -1384,7 +1393,7 @@ void func_80013DEC(void)
                 for (index = D_80038360; index < D_80038292 && count < D_800382CE; offset += 192, count++) {
                     func_80013D70(index++, offset);
                 }
-                for (index = 0; index < target && count < D_800382CE; offset += 192, count++) {
+                for (index = PC_RING_START(index); index < target && count < D_800382CE; offset += 192, count++) {
                     func_80013D70(index++, offset);
                 }
             }

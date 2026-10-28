@@ -17,6 +17,9 @@
 
 static int16_t ring[R][2 * N];
 static uint64_t renders, pushes, pulls;   /* made so far: renders are for pushes 0, 1, ... */
+static double fake_s;                     /* the queue's clock where a test sets it */
+
+static double fake_clock(void) { return fake_s; }
 static long heard[20000];
 static int channels_ok = 1;                /* every block's right channel is its left negated */                 /* per pulled block: the render heard + 1, or 0 for silence */
 
@@ -281,6 +284,34 @@ int main(void)
     CHECK(first == (long)pushes - 1 && second == 7777 && st.rematched == rematches && st.skipped == 1,
           "a render again: %ld %ld, rematched %llu, skipped %llu", first, second, (unsigned long long)st.rematched,
           (unsigned long long)st.skipped);
+
+    /* 4c. The renderer passing buffers over (func_80013DEC on the N64, docs/port/AUDIO.md 7): a render two buffers on
+     * right after the one before is counted as one skipped; the same jump after 20 ms without a render is a restart. */
+    reset();
+    pc_audio_set_clock(fake_clock);
+    fake_s = 100;
+    first_turn();
+    for (int i = 0; i < 2 * R; i++) {
+        render(renders++);
+        push();
+        pull();
+    }
+    renders++;               /* passed over */
+    render(renders++);
+    pc_audio_get_stats(&st);
+    uint64_t skips = st.renderer_skips;
+    for (int i = 0; i < R; i++) {
+        render(renders++);
+        push();
+        pull();
+    }
+    fake_s += 0.020;
+    renders++;               /* a restart, a retrace later */
+    render(renders++);
+    pc_audio_get_stats(&st);
+    CHECK(skips == 1 && st.renderer_skips == 1, "renderer skips: %llu, then %llu after a pause", (unsigned long long)skips,
+          (unsigned long long)st.renderer_skips);
+    pc_audio_set_clock(NULL);
 
     /* 5. Before any render (the tests' and the boot's pushes), and pushes longer than an AI buffer: as pushed. */
     {

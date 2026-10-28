@@ -282,7 +282,7 @@ gcc's preprocessor against main; the IDO build itself was not run):
 |---|---|
 | `lib_2cf0.c` | the idle loop calls `pc_os_idle`; `game_init`'s game-BSS `bzero` is skipped (zero at startup; the BSS with pointers lives outside that range) |
 | `lib_1050_sdk.c` | the scheduler's layout and its N64 names (below) |
-| `lib_11640.c` | `__unaligned`; the native task records (`unknown44` a pointer, the real types in `func_800139D4`, `sizeof` for the SFD and delay sizes); the DMA caches registered big-endian; host pointers count as RAM (`func_800146B4`, `func_80014CAC`); two busy-waits |
+| `lib_11640.c` | `__unaligned`; the native task records (`unknown44` a pointer, the real types in `func_800139D4`, `sizeof` for the SFD and delay sizes); the DMA caches registered big-endian; host pointers count as RAM (`func_800146B4`, `func_80014CAC`); two busy-waits; the renderer's wrapping range goes on where the cap stopped it (`func_80013DEC`, [AUDIO.md](AUDIO.md) §7) |
 | `lib_15a10.c`, `lib_17dc0.c` | `func_8001558C`/`func_800156E8` take pointer-sized integers (a stack address passed through a u32) |
 | `lib_f700.c` | `__osIdCheckSum` adds to a pointer, not a truncated one |
 | `lib_b300.c` | `__osPfsReleasePages` builds its first link through the byte fields, like every other link |
