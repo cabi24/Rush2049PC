@@ -164,7 +164,7 @@ typedef struct {
     const char *comment;
 } Item;
 
-static const char *const pak_choices[] = {"none", "memory", "rumble", NULL};
+static const char *const pak_choices[] = {"none", "memory", "rumble", "auto", NULL};   /* PC_CFG_PAK_* */
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const scale_choices[] = {"auto", "native", NULL};   /* 0, -1; "n64" reads as 1 */
@@ -183,11 +183,20 @@ static const Item items[] = {
     {"game", "expansion_pak", T_BOOL, F(expansion_pak), 0, 0, NULL, "on",
      "Report 8 MiB of RDRAM (the Expansion Pak): the game then offers its sixth race track, the tracks' extra "
      "animated objects and the front end's song. off: 4 MiB, a console without one."},
-    {"game", "pak", T_ENUM, F(pak), 0, 0, pak_choices, "memory",
-     "Controller 1's accessory: memory (the controller pak, for saves), rumble or none."},
-    {"game", "pak_file", T_STR, F(pak_file), 0, 0, NULL, "rush2049pc.mpk",
+    {"game", "pak", T_ENUM, F(pak[0]), 0, 0, pak_choices, "memory",
+     "Controller 1's accessory: memory (the controller pak, for saves), rumble, none, or auto (a rumble pak when "
+     "the player's controller can rumble, else none)."},
+    {"game", "pak_file", T_STR, F(pak_file[0]), 0, 0, NULL, "rush2049pc.mpk",
      "The controller pak image (the saves). A name alone is in the data folder: next to the program when this file "
      "is there, else the user data folder."},
+    {"game", "pak2", T_ENUM, F(pak[1]), 0, 0, pak_choices, "auto",
+     "Controller 2's accessory, as pak: auto gives a player whose controller can rumble a rumble pak."},
+    {"game", "pak2_file", T_STR, F(pak_file[1]), 0, 0, NULL, "rush2049pc-p2.mpk",
+     "Controller 2's controller pak image (pak2 = memory), as pak_file."},
+    {"game", "pak3", T_ENUM, F(pak[2]), 0, 0, pak_choices, "auto", "Controller 3's accessory, as pak2."},
+    {"game", "pak3_file", T_STR, F(pak_file[2]), 0, 0, NULL, "rush2049pc-p3.mpk", "Controller 3's pak image."},
+    {"game", "pak4", T_ENUM, F(pak[3]), 0, 0, pak_choices, "auto", "Controller 4's accessory, as pak2."},
+    {"game", "pak4_file", T_STR, F(pak_file[3]), 0, 0, NULL, "rush2049pc-p4.mpk", "Controller 4's pak image."},
 
     {"video", "width", T_INT, F(width), 160, 16384, size_choices, "auto",
      "Window size in pixels, or auto: two thirds of the desktop. The game draws 320 x 220; the frame is drawn at the "
@@ -260,7 +269,7 @@ static const Item items[] = {
     {"input", "stick_diagonal", T_INT, F(stick_diagonal), 0, 127, NULL, "70",
      "Each axis at full diagonal tilt: the N64's octagonal gate. 0 for a round gate."},
     {"input", "rumble", T_REAL, F(rumble), 0, 1, NULL, "1.0",
-     "Rumble strength, 0-1, when the rumble pak is in (game.pak = rumble)."},
+     "Rumble strength, 0-1, for each player with a rumble pak (game.pak, pak2... = rumble, or auto)."},
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)
