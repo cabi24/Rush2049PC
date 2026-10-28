@@ -80,7 +80,6 @@ src/blob/func_800C54F0.c pad0EC warn safe: GCC proves an access past the declara
 src/blob/func_800CB718.c D_801392D8 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/func_800CF604.c D_8014A250 warn safe: GCC proves an access past the declaration; no function writes two places of it (view, const) [gcc13,gcc14,mingw12]
 src/blob/func_800CF604.c D_80152B70 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
-src/blob/func_800CFCA8.c D_8014A250 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/func_800CFCA8.c pad0EC warn safe: GCC proves an access past the declaration; no function writes two places of it (view, const) [gcc13,gcc14,mingw12]
 src/blob/func_800D0380.c D_8014A96C view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/func_800D0A1C.c D_8011121C view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
