@@ -20,7 +20,15 @@ typedef signed int s32;
 typedef float f32;
 
 typedef struct Node {
+#ifdef TARGET_PC
+    /* A packet (func_800D63EC's Packet): its Link is two host pointers on the PC, then the type and ready bytes,
+       so the vectors start at +20. With the N64's 12 bytes before them, each frame's copy wrote the listener's
+       position over the link's prev pointer and the two bytes (docs/port/QA.md 5). */
+    void *link[2];
+    unsigned char type, ready, pad[2];
+#else
     /* 0x00 */ s32 unk0[3];
+#endif
     /* 0x0C */ f32 a[3];
     /* 0x18 */ f32 b[3];
     /* 0x24 */ f32 c[3];
