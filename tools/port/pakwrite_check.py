@@ -12,6 +12,9 @@ at every flush, once a second, changed or not (RUSH_SIM_PAK_REWRITE), so the rac
     the retraces    none dropped, at most 6 caught up (the line the program writes at exit)
     the pak         a good controller pak at exit (pc_pak_image_check's rules, checked here by its ID checksums)
     the end         SIGTERM during a held write (3 s): the program waits for it, and the file is written
+    a fault         the blank cartridge's boot (--no-rom), which faults at once, during a held write (1.5 s): the
+                    fault handler waits for it, and the file is written (when the fault came after the first
+                    hand-over; before it there is nothing to wait for, and the step says so)
 
 and, unless --no-control, the same race with the writes on the main loop as before (RUSH_SIM_PAK_WRITE_SYNC=1),
 which must drop retraces: the check sees the stall it is there to catch. Exit status 0 when all hold. Stdlib only.
@@ -29,15 +32,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def run(args, logs, name, env_extra, until="0x400000:600", seconds="90", term_after=None):
+def run(args, logs, name, env_extra, until="0x400000:600", seconds="90", term_after=None, no_rom=False):
     pak = logs / f"{name}.mpk"
     if pak.exists():
         pak.unlink()
     env = dict(os.environ, **env_extra)
-    cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
-           "--no-config", "--audio", "null", "--log", f"{name}.game.log", "-v",
-           "--press-file", str(ROOT / "tools/port/synth/pak.press"), "--pak", pak.name,
-           "--until-state", until, "--seconds", seconds]
+    cmd = [str(Path(args.exe).resolve()), "--headless", "--no-config", "--audio", "null", "--log", f"{name}.game.log",
+           "-v", "--pak", pak.name, "--seconds", seconds]
+    if no_rom:
+        cmd += ["--no-rom"]
+    else:
+        cmd += ["--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--until-state", until,
+                "--press-file", str(ROOT / "tools/port/synth/pak.press")]
     p = subprocess.Popen(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if term_after:
         time.sleep(term_after)
@@ -123,6 +129,16 @@ def main():
         fails.append("SIGTERM during a write: the pak was not written")
     if "could not all be written" in out:
         fails.append("SIGTERM during a write: the end gave up")
+
+    # A fault during a held write: the blank cartridge's boot faults in its first retraces.
+    code, out, pak = run(args, logs, "pakwrite-fault", {"RUSH_SIM_PAK_WRITE_MS": "1500"}, seconds="20", no_rom=True)
+    faulted = "Segmentation fault" in out or "Access violation" in out
+    waited = "writing the saves before the program stops" in out
+    print(f"pakwrite_check: a fault during a 1.5 s write: exit {code}, "
+          f"{'faulted' if faulted else 'no fault'}, the handler {'waited' if waited else 'had nothing to wait for'}, "
+          f"{pak.name} {'written, a good pak' if good_pak(pak) else 'not written'}")
+    if waited and ("the saves are written" not in out or not good_pak(pak)):
+        fails.append("a fault during a write: the handler did not see it written")
 
     if not args.no_control:
         code, out, pak = run(args, logs, "pakwrite-sync", dict(slow, RUSH_SIM_PAK_WRITE_SYNC="1"))

@@ -491,8 +491,10 @@ the libgsm kernels, now `gsm.c` (§8).
 - CTest `pak_realtime` (`tools/port/pakwrite_check.py`, POSIX, 105 s alone) runs the synthetic pak path in real time
   with each write held 200 ms and the pak written every second (`RUSH_SIM_PAK_WRITE_MS`, `RUSH_SIM_PAK_REWRITE`): on
   rocky 47 writes, 21 of them in the race, cost 0 retraces (none caught up, none dropped), and the pak is good at
-  exit. SIGTERM during a held 3 s write waits for it, and the file is written. The control, the same writes on the
-  main loop (`RUSH_SIM_PAK_WRITE_SYNC=1`), dropped 561 retraces.
+  exit. SIGTERM during a held 3 s write waits for it, and the file is written. The blank cartridge's boot
+  (`--no-rom`), which faults in its first retraces, during a held 1.5 s write: the fault handler waits for it, and
+  the file is written. The control, the same writes on the main loop (`RUSH_SIM_PAK_WRITE_SYNC=1`), dropped 561
+  and 573 retraces in two runs.
 - **Boot on a blank cartridge** (`rush2049pc --no-rom --no-pak --audio null`). The game's own boot runs on the PC
   layer: `main` starts the idle thread, the idle thread starts `game_init`, and `game_init` creates the queues and
   starts the scheduler (thread 4, priority 12), the audio thread (8) and the render thread (5). It goes into
