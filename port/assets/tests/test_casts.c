@@ -370,12 +370,23 @@ struct { uint32_t pad[2]; void *tail, *head; } D_80146138, D_80146160;   /* the 
 static int sfx_calls;
 int32_t func_800201d0(int32_t voice) { return voice == 100 ? -1 : 0; }   /* 100 has finished */
 void audio_timing_sync(int32_t voice) { sfx_calls++; }
+/* What the MusyX calls got: the sfx item started, and each volume, pan, front-back pan and pitch as (voice, value). */
+static struct { int32_t item, voice[4], value[4], n[4]; } sfx_got;
+static void sfx_set(int k, uint32_t voice, uint32_t value)
+{
+    sfx_got.voice[k] = (int32_t)voice, sfx_got.value[k] = (int32_t)value, sfx_got.n[k]++;
+}
 int32_t func_8001fe58() { return sfx_calls++, 0; }
-int32_t func_8001fea4() { return sfx_calls++, 0; }
-int32_t func_8001ff4c() { return sfx_calls++, 0; }
-int32_t func_8001ffa0() { return sfx_calls++, 0; }
-int32_t func_8001fff4() { return sfx_calls++, 0; }
-int32_t func_80020174() { return sfx_calls++, 0; }
+int32_t func_8001fea4(uint32_t voice, uint8_t value) { sfx_set(0, voice, value); return sfx_calls++, 0; }
+int32_t func_8001fff4(uint32_t voice, uint8_t value) { sfx_set(1, voice, value); return sfx_calls++, 0; }
+int32_t func_8001ff4c(uint32_t voice, uint8_t value) { sfx_set(2, voice, value); return sfx_calls++, 0; }
+int32_t func_8001ffa0(uint32_t voice, uint16_t value) { sfx_set(3, voice, value); return sfx_calls++, 0; }
+#define SFX_VOICE 0x4401   /* a made-up MusyX voice id */
+int32_t func_80020174(uint16_t item, uint8_t channel, uint8_t value)
+{
+    sfx_got.item = item;
+    return sfx_calls++, SFX_VOICE;
+}
 void func_80020518() { sfx_calls++; }
 void func_80091FBC() { sfx_calls++; }
 void func_8009211C() { sfx_calls++; }
@@ -402,6 +413,61 @@ static void test_sound_requests(void)
     CHECK(e[0] == 0 && *(int32_t *)(e + 8) == 0);   /* retired in place */
     CHECK(e[24] == 1 && *(int32_t *)(e + 32) == 8);
     CHECK(D_801460D8 == 1 && sfx_calls == 0);
+}
+
+/* A request to start an effect, then one to change it (docs/port/AUDIO.md 9): the effect started is the entry's
+ * resource (its low half, which the N64 reads as the u16 at +0xE); the floats become bytes the way IDO converts
+ * them (a negative volume is 0xFF); the pitch goes to the effect's voice. Values made up. */
+typedef struct { void *prev, *next; uint8_t kind, busy, pad[2]; void *entry; float value, stream, priority, route; }
+    TestSfxNode;
+
+static void test_sound_effect(void)
+{
+    uint8_t *e = (uint8_t *)(uintptr_t)SFX_AT;
+    static TestSfxNode start, change;
+
+    if (!test_rdram())
+        return;
+    memset(e, 0, 24);
+    e[0] = 1, *(int32_t *)(e + 8) = 9, *(int32_t *)(e + 12) = 0x123;   /* in use, handle 9, effect 0x123 */
+    *(int32_t *)(e + 0x10) = -1;
+    memset(&start, 0, sizeof start), memset(&change, 0, sizeof change);
+    start.kind = 0, start.entry = e, start.value = 0.5f, start.stream = 0.0f, start.next = &change;
+    change.kind = 3, change.entry = e, change.value = -0.25f, change.stream = -2.0f, change.priority = 0.25f;
+    change.route = 0.5f;
+    D_80146160.head = &start;
+    D_80144C48 = e;
+    D_801460F4 = 1;
+    D_80110284 = 1;
+    D_8011028C = 0;
+    D_801460D8 = 0;
+    D_80144DB8 = 1;   /* one start allowed this retrace */
+    memset(&sfx_got, 0, sizeof sfx_got);
+    camera_transform();
+    D_80146160.head = NULL;
+    CHECK(sfx_got.item == 0x123);                                   /* not 0, the resource's high half */
+    CHECK(*(int32_t *)(e + 0x10) == SFX_VOICE && e[1] == 1);
+    CHECK(sfx_got.n[0] == 2 && sfx_got.voice[0] == SFX_VOICE);     /* the start's volume, then the change's */
+    CHECK(sfx_got.value[0] == 0xFF);                                /* -0.25 * 127: IDO's u32 is 0xFFFFFFFF */
+    CHECK(sfx_got.n[1] == 1 && sfx_got.value[1] == 63);             /* the start's pan, (0 + 1) / 2 * 127 */
+    CHECK(sfx_got.n[2] == 1 && sfx_got.value[2] == 79);             /* (0.25 + 1) / 2 * 127 = 79.375 */
+    CHECK(sfx_got.n[3] == 1 && sfx_got.voice[3] == SFX_VOICE);     /* the pitch: to the voice, */
+    CHECK(sfx_got.value[3] == 4095);                                /* 0.5 * 8192 - 1 */
+}
+
+/* pc_prelude.h's IDO conversions, on made-up values. */
+static void test_ido_f2u(void)
+{
+    volatile float nan = 0.0f;
+    CHECK(pc_mips_f2u(0.0f) == 0 && pc_mips_f2u(-0.0f) == 0 && pc_mips_f2u(-0.75f) == 0);
+    CHECK(pc_mips_f2u(127.9f) == 127 && pc_mips_f2u(65536.5f) == 65536);
+    CHECK(pc_mips_f2u(-1.0f) == 0xFFFFFFFFu && pc_mips_f2u(-31.75f) == 0xFFFFFFFFu);
+    CHECK((uint8_t)pc_mips_f2u(-200.0f) == 0xFF && pc_mips_f2u(-3e9f) == 0xFFFFFFFFu);
+    CHECK(pc_mips_f2u(2147483648.0f) == 0x80000000u && pc_mips_f2u(3000000000.0f) == 3000000000u);
+    CHECK(pc_mips_f2u(4294967296.0f) == 0xFFFFFFFFu && pc_mips_f2u(1e20f) == 0xFFFFFFFFu);
+    CHECK(pc_mips_f2u(nan / nan) == 0xFFFFFFFFu);
+    CHECK(pc_mips_d2u(-0.5) == 0 && pc_mips_d2u(-2.5) == 0xFFFFFFFFu && pc_mips_d2u(4294967295.75) == 0xFFFFFFFFu);
+    CHECK(pc_mips_d2u(2147483649.5) == 0x80000001u && pc_mips_d2u(1234.99) == 1234);
 }
 
 /* ---------------------------------------------------------------- RUSH_CHECK_CASTS */
@@ -440,6 +506,8 @@ int main(void)
     test_player_names();
     test_ghosts();
     test_sound_requests();
+    test_sound_effect();
+    test_ido_f2u();
     test_check_casts();
     return TEST_DONE();
 }

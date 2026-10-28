@@ -2157,7 +2157,14 @@ extern s32 D_801403D8;
 extern s8 D_80140418;
 extern s32 D_80140420;
 extern s8 D_8014061A;
+#ifdef TARGET_PC
+/* The scaled sticks, [pad][x, y], written through gStickF. Declared as one f32, an optimizing GCC (mingw-w64 12, Linux
+ * 13 on x86-64) takes gStickF[i][0] and gStickF[i][1], 4-byte stores into a 4-byte object, for two stores to the
+ * whole object and drops the first: the x never reached the car, which then didn't steer. */
+extern f32 D_80140620[][2];
+#else
 extern f32 D_80140620;
+#endif
 extern f32 D_80140624;
 extern s32 D_80140640;
 extern s32 D_801406C0;

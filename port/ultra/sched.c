@@ -71,7 +71,12 @@ static uint64_t g_order;
 static _Thread_local PcThread *tls_self;
 #define QHASH 256
 static PcQueue *g_queues[QHASH];
-static struct { const void *mq; OSMesg msg; } g_events[OS_NUM_EVENTS];
+static struct {
+    const void *mq;
+    OSMesg msg;
+    uint32_t held;   /* sent while the queue was full: delivered as it empties */
+    int logged;
+} g_events[OS_NUM_EVENTS];
 int pc_os_trace;
 
 const char *pc_os_thread_name(void) { return tls_self ? tls_self->name : "main"; }
@@ -537,6 +542,18 @@ int32_t osJamMesg(void *mq, OSMesg msg, int32_t flags)
     return r;
 }
 
+/* With g_lock: events held for q go in while it has room, each waking a receiver. */
+static void deliver_held(PcQueue *q)
+{
+    for (int e = 0; e < OS_NUM_EVENTS; e++)
+        while (g_events[e].held && g_events[e].mq == q->key && q->valid < q->count) {
+            q->msg[(q->first + q->valid) % q->count] = g_events[e].msg;
+            q->valid++;
+            g_events[e].held--;
+            wake_one(q, 0);
+        }
+}
+
 int32_t osRecvMesg(void *mq, OSMesg *msg, int32_t flags)
 {
     pthread_mutex_lock(&g_lock);
@@ -555,6 +572,7 @@ int32_t osRecvMesg(void *mq, OSMesg *msg, int32_t flags)
         *msg = q->msg[q->first];
     q->first = (q->first + 1) % q->count;
     q->valid--;
+    deliver_held(q);
     wake_one(q, 1);
     if (self)
         preempt(self);
@@ -585,18 +603,37 @@ void osSetEventMesg(uint32_t event, void *mq, OSMesg msg)
     if (event < OS_NUM_EVENTS) {
         g_events[event].mq = mq;
         g_events[event].msg = msg;
+        g_events[event].held = 0;
     }
     pthread_mutex_unlock(&g_lock);
 }
 
+/* An event that finds its queue full is held, not lost, and delivered as the queue empties (osRecvMesg), except a
+ * retrace, which is dropped as the N64's would be. A lost SP or DP event leaves the game's scheduler waiting for a
+ * task that has ended: its current RSP task stays set, and dma_wait_complete, which runs the audio callback, waits
+ * for it to clear for ever. The queue fills when the scheduler can't run for a while (a thread computing without a
+ * libultra call), and an audio task started then posts its SP event from the scheduler's own thread. */
 void pc_os_event(int event)
 {
     pthread_mutex_lock(&g_lock);
     const void *mq = g_events[event].mq;
-    OSMesg msg = g_events[event].msg;
-    pthread_mutex_unlock(&g_lock);
-    if (mq && pc_os_post((void *)mq, msg) < 0 && pc_verbose > 1)
+    PcQueue *q = mq ? queue_of(mq, 0) : NULL;
+    if (q)
+        deliver_held(q);   /* first, in case the queue was made anew */
+    if (q && q->valid < q->count) {
+        q->msg[(q->first + q->valid) % q->count] = g_events[event].msg;
+        q->valid++;
+        wake_one(q, 0);
+    } else if (q && event != OS_EVENT_VI) {
+        g_events[event].held++;
+        if (!g_events[event].logged) {
+            g_events[event].logged = 1;
+            pc_log("event %d held: queue %p full (the receiver is behind)", event, mq);
+        }
+    } else if (mq && pc_verbose > 1) {
         pc_log("event %d dropped: queue %p full", event, mq);
+    }
+    pthread_mutex_unlock(&g_lock);
 }
 
 /* ---------------------------------------------------------------- waiting for events */

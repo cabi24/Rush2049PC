@@ -258,6 +258,28 @@ static void t_events(void)
     check("osSetEventMesg", r == 0 && m == (OSMesg)0x42, NULL);
     osSetEventMesg(OS_EVENT_SW2, NULL, NULL);
 
+    /* An event that finds its queue full waits for room, so a scheduler that was behind still gets every SP done;
+     * a retrace is dropped, as on the N64. */
+    {
+        void *small = queue(11, 2);
+        char d[64];
+        int got = 0, vi = 0;
+        osSetEventMesg(OS_EVENT_SP, small, (OSMesg)4);
+        for (int i = 0; i < 4; i++)
+            pc_os_event(OS_EVENT_SP);
+        while (osRecvMesg(small, &m, OS_MESG_NOBLOCK) == 0)
+            got += m == (OSMesg)4;
+        osSetEventMesg(OS_EVENT_SP, NULL, NULL);
+        osSetEventMesg(OS_EVENT_VI, small, (OSMesg)7);
+        for (int i = 0; i < 3; i++)
+            pc_os_event(OS_EVENT_VI);
+        while (osRecvMesg(small, &m, OS_MESG_NOBLOCK) == 0)
+            vi += m == (OSMesg)7;
+        osSetEventMesg(OS_EVENT_VI, NULL, NULL);
+        snprintf(d, sizeof d, "%d of 4 SP events, %d of 3 retraces into 2 slots", got, vi);
+        check("events into a full queue", got == 4 && vi == 2, d);
+    }
+
     uint64_t t0 = osGetTime();
     osViSetEvent(q, (OSMesg)0x66, 1);
     int n = 0;

@@ -308,19 +308,27 @@ extern int func_8001B7C0(u32, u8);
 extern int func_8001B29C(u32, u8);
 extern int func_8001B3A0(u32, u8);
 extern int func_8001B4A4(u32, u16);
+#ifdef TARGET_PC
+/* PC: IDO's float to u32 (pc_prelude.h), here also the implicit one of the doppler factor, which is negative once
+ * a source closes in faster than sound: 0xFFFFFFFF, the top pitch, on the N64 and x86-64, 0 on AArch64. */
+#define F2U_ARG(x) pc_mips_f2u(x)
+#else
+#define F2U_ARG(x) x
+#define N64_F2U(x) (u32)(x)
+#endif
 void func_8001CCDC(StateNode *em, float vol, float xPan, float yPan,
                    float zPan, float doppler)
 {
     u32 identifier;
     identifier = em->identifier34;
     if (em->flags08 & 0x100000) {
-        func_8001B7C0(identifier, func_8001CC9C((u32)((em->fade * vol) * 127.0f)));
+        func_8001B7C0(identifier, func_8001CC9C(N64_F2U((em->fade * vol) * 127.0f)));
     } else {
-        func_8001B7C0(identifier, func_8001CC9C((u32)(vol * 127.0f)));
+        func_8001B7C0(identifier, func_8001CC9C(N64_F2U(vol * 127.0f)));
     }
-    func_8001B29C(identifier, func_8001CC9C((u32)((1.0f + xPan) * 64.0f)));
-    func_8001B3A0(identifier, func_8001CC9C((u32)((1.0f - zPan) * 64.0f)));
-    func_8001B4A4(identifier, func_8001CCC0(doppler * 8192.0f));
+    func_8001B29C(identifier, func_8001CC9C(N64_F2U((1.0f + xPan) * 64.0f)));
+    func_8001B3A0(identifier, func_8001CC9C(N64_F2U((1.0f - zPan) * 64.0f)));
+    func_8001B4A4(identifier, func_8001CCC0(F2U_ARG(doppler * 8192.0f)));
 }
 
 /* PROMOTED 2026-10-04 — func_8001D084

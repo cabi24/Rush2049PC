@@ -256,6 +256,14 @@ jobs:
             --out synth/rush2049_synth.z64
           python -X utf8 src/tools/port/synth_paths.py --exe bin/rush2049pc.exe --rom synth/rush2049_synth.z64 \
             --logs synth/paths
+      - name: Live input steers
+        # The release's toolchain (docs/port/FRONTEND.md "Testing live input"): virtual controllers, a joystick and
+        # keys drive the synthetic race as the scripts do, and the car's steering input follows the stick.
+        env:
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          python -X utf8 src/tools/port/input_check.py --exe bin/rush2049pc.exe --rom synth/rush2049_synth.z64 \
+            --logs synth/input
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -263,6 +271,7 @@ jobs:
           path: |
             boot.log
             synth/paths/
+            synth/input/
             synth/rush2049_synth.txt
           if-no-files-found: ignore
 

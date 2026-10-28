@@ -6,7 +6,10 @@ typedef unsigned char u8;
 typedef int s32;
 extern f32 D_80123A6C;
 extern void func_80020494(u8, u16, s32, s32);
+#ifndef TARGET_PC
+#define N64_F2U(x) (u32)(x)
+#endif
 void music_track_control(f32 value, u16 channel, s32 first, s32 second) {
-    if (first) func_80020494((u8)(u32)(value * 127.0f * D_80123A6C), channel, 1, 0);
-    if (second) func_80020494((u8)(u32)(value * 127.0f), channel, 0, 1);
+    if (first) func_80020494((u8)N64_F2U(value * 127.0f * D_80123A6C), channel, 1, 0);
+    if (second) func_80020494((u8)N64_F2U(value * 127.0f), channel, 0, 1);
 }

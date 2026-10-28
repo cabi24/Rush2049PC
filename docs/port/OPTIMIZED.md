@@ -142,6 +142,19 @@ one function with a write. CI runs it (section 4).
   copies of `path_D169C_path.c` both named their bodies after the common `D_80152818`, and the link failed. The anchor
   is `__attribute__((no_reorder))` now.
 
+### 2.7 Two stores taken for one: a view over a one-element declaration
+
+Found 2026-10-28 by `input_live_drive` ([FRONTEND.md](FRONTEND.md) "Testing live input"): in the RelWithDebInfo build
+from mingw-w64's GCC 12.2 (the release's) and from Ubuntu 24.04's GCC 13 on x86-64, the car didn't steer. The
+controller code's `func_800E7134` writes each pad's scaled stick through `#define gStickF ((f32 (*)[2])
+&D_80140620)`, and its file declared `extern f32 D_80140620;`. A 4-byte store at a variable offset into a 4-byte
+object can only be at offset 0, so GCC's dead-store elimination took `gStickF[i][0] = x` and `gStickF[i][1] = y` for
+two stores to the whole object and dropped the first, the x the car steers by (the raw x and its calibration were
+still loaded: they are volatile). GCC 14 (the build host's) and GCC 13 on aarch64 kept it; Debug doesn't eliminate
+stores. No warning. **Fix**: under `TARGET_PC` the file declares `extern f32 D_80140620[][2]`, as the steering's
+reader does; an incomplete array has no size to reason from. Other views in the game C over one-element
+declarations can meet the same rule where one function stores two elements without `volatile`.
+
 ## 3. The flags
 
 | Flag | Where | Why | Debug |
