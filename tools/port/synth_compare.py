@@ -2,7 +2,7 @@
 """Compare two builds of the game along the press scripts' paths, on the virtual clock (docs/port/OPTIMIZED.md).
 
     python3 tools/port/synth_compare.py --exe build/pc/rush2049pc --exe build/rel/rush2049pc \
-        [--rom build/synth/rush2049_synth.z64] [--runs 2] [--status 1] [--logs DIR] [NAME ...]
+        [--rom build/synth/rush2049_synth.z64] [--runs 2] [--status 1] [--logs DIR] [-j 4] [NAME ...]
     python3 tools/port/synth_compare.py --exe A --exe B --rom ROM --script PRESS --until MASK:N --seconds S
 
 Each path (tools/port/synth/NAME.press, as tools/port/synth_paths.py runs it, but always with --fast) runs --runs
@@ -28,6 +28,7 @@ graphics-task counts. Runs of one executable give the baseline. The verdict per 
 or with --same (CI) that aren't the same. Stdlib only, Python 3.9+.
 """
 import argparse
+import concurrent.futures
 import os
 import re
 import subprocess
@@ -101,17 +102,32 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail):
     return trace(text), p.returncode, took
 
 
-def compare(name, exes, rom, cmd_tail, runs, logs, retail):
-    traces = []   # per executable: [trace, ...]
-    times = []
-    for k, exe in enumerate(exes):
-        ts, tt = [], []
-        for r in range(runs):
-            t, code, took = run_one(exe, rom, cmd_tail, logs, f"{name}.{k}.{r}", retail)
-            ts.append(t + ((("exit", None, "", str(code)),) if code else ()))
-            tt.append(took)
-        traces.append(ts)
-        times.append(min(tt))
+def compare(name, exes, rom, cmd_tail, runs, logs, retail, pool=None):
+    """The path's verdict (0 or 1), printed. With a pool, its runs are submitted to it and this returns a function
+    that waits for them and judges: each run is a process of its own on the virtual clock, whose course doesn't
+    depend on what else runs."""
+    jobs = [(k, (pool.submit if pool else _now)(run_one, exe, rom, cmd_tail, logs, f"{name}.{k}.{r}", retail))
+            for k, exe in enumerate(exes) for r in range(runs)]
+    return (lambda: judge(name, jobs)) if pool else judge(name, jobs)
+
+
+class _now:
+    """A finished future: run_one called at once."""
+
+    def __init__(self, fn, *args):
+        self.value = fn(*args)
+
+    def result(self):
+        return self.value
+
+
+def judge(name, jobs):
+    traces, times = [[], []], [[], []]   # per executable: [trace, ...], [seconds, ...]
+    for k, fut in jobs:
+        t, code, took = fut.result()
+        traces[k].append(t + ((("exit", None, "", str(code)),) if code else ()))
+        times[k].append(took)
+    times = [min(tt) for tt in times]
     sets = [set(ts) for ts in traces]
     events = len(traces[0][0])
     timing = ", ".join(f"{t:.2f} s" for t in times)
@@ -154,6 +170,7 @@ def main():
     ap.add_argument("--coarse", action="store_true",
                     help="positions in whole feet, as builds without RUSH_STATE_EXACT print them")
     ap.add_argument("--same", action="store_true", help="a path whose runs aren't all the same fails")
+    ap.add_argument("-j", "--jobs", type=int, default=1, help="runs at once (each a process on the virtual clock)")
     ap.add_argument("names", nargs="*", help="the paths (default: every tools/port/synth/*.press)")
     a = ap.parse_args()
     if len(a.exe) != 2:
@@ -170,12 +187,16 @@ def main():
         differ += compare(Path(a.script).stem, a.exe, a.rom, tail, a.runs, a.logs, retail=True)
     else:
         names = a.names or sorted(p.stem for p in synth_paths.PRESS_DIR.glob("*.press"))
-        for name in names:
-            press = synth_paths.PRESS_DIR / f"{name}.press"
-            spec = synth_paths.read_script(press)
-            tail = ["--press-file", str(press), "--until-state", spec["until"], "--seconds", spec["seconds"],
-                    "--status", a.status] + spec["args"]
-            differ += compare(name, a.exe, a.rom, tail, a.runs, a.logs, retail=False)
+        with concurrent.futures.ThreadPoolExecutor(max(1, a.jobs)) as pool:
+            verdicts = []
+            for name in names:
+                press = synth_paths.PRESS_DIR / f"{name}.press"
+                spec = synth_paths.read_script(press)
+                tail = ["--press-file", str(press), "--until-state", spec["until"], "--seconds", spec["seconds"],
+                        "--status", a.status] + spec["args"]
+                verdicts.append(compare(name, a.exe, a.rom, tail, a.runs, a.logs, retail=False,
+                                        pool=pool if a.jobs > 1 else None))
+            differ += sum(v() if callable(v) else v for v in verdicts)   # printed in the paths' order
         if len(names) > 1:
             print(f"synth_compare: {len(names) - differ} of {len(names)} paths agree")
     sys.exit(differ)
