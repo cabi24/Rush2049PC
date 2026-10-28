@@ -152,6 +152,11 @@ static const struct {
     {"D_803B3460, the first cheat code's button masks", 0x803B3464, 160, 2, 4},
     {"D_803B3460, the last cheat code's button masks", 0x803B4134, 160, 2, 4},
     {"D_803B41D4, the main menu's code for the cheat screen", 0x803B41D8, 160, 2, 4},
+    /* The six car physics descriptors D_80110D08 points at (0xB4 bytes each: floats and the u32 tire_info words),
+     * and the car select's stat factor tables (f32[][4], indexed by each car's parts): all 4-byte elements, so a
+     * narrower declaration over either (the engine table D_8010FD80's kind of bug) shows here (QA.md round 3). */
+    {"D_801108C8, the car physics descriptors", 0x801108D0, 6 * 0xB4, 1, 4},
+    {"D_803B28C8..D_803B2A58, the car select's stat factors", 0x803B28C8, 0x1F0, 2, 4},
 };
 
 /* Checks known_widths against the images' bytes (after both runtime images are loaded); the number that differ. */
