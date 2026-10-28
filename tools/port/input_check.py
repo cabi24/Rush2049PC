@@ -18,7 +18,8 @@ with STICKLEFT and STICKRIGHT (default: the synthetic cartridge's drive) runs:
   shows both);
 
 and in the reference the steering input is nonzero while the stick is pushed, one way for right and the other for
-left. Then race2p with two virtual controllers must give its reference, the second on player 2. The lines are
+left. With --rumble the game's motor must rumble the virtual controller. Then race2p with two virtual controllers
+must give its reference, the second on player 2. The lines are
 compared without their audio task counts, which can differ by one between runs in a window. Exit status: the
 number of failed checks; 77 (skipped) when the program has no virtual joysticks (SDL before 2.24) or no SDL2.
 """
@@ -135,6 +136,12 @@ def main():
     if args.expect_turn:
         check(any(moved), "without the stick the car goes elsewhere")
     check(all(s == 0 for _, s in steering(lines)), "without the stick its steering input stays 0")
+
+    if not args.press:   # the rumble pak's motor reaches the controller (the synthetic race turns it on)
+        code, out, lines = run(args.exe, args.rom, press, spec, "controller", args.rom_check, logs / "rumble.log",
+                               ["--rumble"])
+        check(code == 0 and "virtual controller 1 rumble 65535 65535" in out,
+              "--rumble: the game's motor rumbles the controller at full strength")
 
     if not args.no_two and not args.press:
         two = PRESS_DIR / "race2p.press"
