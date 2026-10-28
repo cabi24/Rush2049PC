@@ -310,7 +310,7 @@ static void test_instantiate(void)
     CHECK(D_80150E28[2] == 1 && D_80150E28[4] == 1 && D_80150F78 == 1);
 
     engine_sound_update();
-    ctl = NF(cam, 0x6C, uint8_t *) ? WP(NF(cam, 0x6C, uint32_t)) : NULL;
+    ctl = NF(cam, 0x6C, uint32_t) ? WP(NF(cam, 0x6C, uint32_t)) : NULL;   /* an N64 address, 4-aligned */
     CHECK(W32(D_80150E68[2]) >= HEAP && NF(cone, 0x6C, uint32_t) == W32(D_80150E68[2]));
     CHECK(D_80150E98[2] == D_80150E68[2] + 24 && ctl == D_80150E68[4]);
     CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* CamCtl.scene: &D_801392D0[1] */

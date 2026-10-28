@@ -104,8 +104,8 @@ enum { G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b, G_IM_SIZ_32b };
 #define G_BL_A_SHADE 2
 #define G_BL_1 2
 #define G_BL_0 3
-#define GBL_c1(m1a, m1b, m2a, m2b) ((m1a) << 30 | (m1b) << 26 | (m2a) << 22 | (m2b) << 18)
-#define GBL_c2(m1a, m1b, m2a, m2b) ((m1a) << 28 | (m1b) << 24 | (m2a) << 20 | (m2b) << 16)
+#define GBL_c1(m1a, m1b, m2a, m2b) ((unsigned)(m1a) << 30 | (m1b) << 26 | (m2a) << 22 | (m2b) << 18)   /* 3 << 30 */
+#define GBL_c2(m1a, m1b, m2a, m2b) ((unsigned)(m1a) << 28 | (m1b) << 24 | (m2a) << 20 | (m2b) << 16)
 #define RM_OPA_SURF(c) (CVG_DST_CLAMP | FORCE_BL | ZMODE_OPA | GBL_c##c(G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1))
 #define RM_ZB_OPA_SURF(c) (Z_CMP | Z_UPD | CVG_DST_FULL | ALPHA_CVG_SEL | ZMODE_OPA | \
                            GBL_c##c(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM))
