@@ -45,6 +45,7 @@ add_library(pcgfx STATIC
     gfx_combine.c
     gfx_gl.c
     gfx_interp.c
+    gfx_hud.c
     gfx_ui.c
     gfx_font.c
     gfx_size.c

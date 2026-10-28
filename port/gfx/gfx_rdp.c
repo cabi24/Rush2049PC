@@ -1003,6 +1003,8 @@ const GfxDrawState *pcgfx_draw_state_peek(int rect_tile, int wide) {
 }
 
 void pcgfx_emit(const GfxOutVtx *v, int n) {
+    if (pcgfx_hud_pending())   /* the HUD's queued 2D was drawn before this (gfx_hud.c) */
+        pcgfx_hud_resolve();
     if (s_batch_n + n > GFX_BATCH_MAX)
         pcgfx_flush();
     memcpy(&s_batch[s_batch_n], v, sizeof(*v) * (size_t)n);
@@ -1063,14 +1065,17 @@ static float rect_start(float c0, float d, float scale, int snap) {
 static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s, float t, float dsdx, float dtdy,
                       int flip) {
     GfxOutVtx q[4], tri[6];
-    int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap;
+    int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap, stretched = 0;
     float w, h = y1 - y0, sx = 1.0f, sy = 1.0f;
+    /* the corners' x at the 4:3 place, for the HUD at the screen's edges (gfx_hud.c) */
+    float a0 = x0 + (float)pcgfx.wide_ox, a1 = x1 + (float)pcgfx.wide_ox;
     if (pcgfx.wide_ox != 0) {
         /* Widescreen (GFX.md): a fill's sides at the frame's go to the target's, and a textured rectangle across
          * the whole frame is stretched across the target. Other textured rectangles stay 4:3, in the middle. */
         wide = !textured || (pcgfx_wide_x(x0) == x0 && pcgfx_wide_x(x1) == x1 + 2.0f * pcgfx.wide_ox);
         if (wide) {
             float nx0 = pcgfx_wide_x(x0), nx1 = pcgfx_wide_x(x1), k = (x1 - x0) / (nx1 - nx0);
+            stretched = textured;
             if (flip)   /* the step along x */
                 dtdy *= k;
             else
@@ -1107,6 +1112,11 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     tri[3] = q[1];
     tri[4] = q[2];
     tri[5] = q[3];
+    if (pcgfx_hud_on()) {   /* the HUD at the screen's edges: queued, moved with its group (gfx_hud.c) */
+        const float x43[6] = {a0, a0, a1, a1, a0, a1};   /* q[0], q[2], q[1], q[1], q[2], q[3] */
+        if (pcgfx_hud_add(&s_state, tri, x43, 6, !stretched, 0) == 0)
+            return;
+    }
     if (pcgfx_rec != NULL)
         pcgfx_rec_verts(&s_state, tri, 6);
     pcgfx_emit(tri, 6);
@@ -1151,6 +1161,8 @@ static void fill_rect(uint32_t w0, uint32_t w1) {
             r[0] = (int32_t)pcgfx_wide_x((float)r[0]);
             r[2] = (int32_t)pcgfx_wide_x((float)r[2]);
         }
+        if (pcgfx_hud_pending())    /* the HUD's queued 2D first (gfx_hud.c) */
+            pcgfx_hud_resolve();
         pcgfx_flush();
         if (pcgfx.cimg.addr != NULL && pcgfx.cimg.addr == pcgfx.zimg) {
             /* the z buffer as color image: a depth clear (packed z: 14 bits after the 2-bit dz) */
@@ -1311,12 +1323,16 @@ void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
         pcgfx.timg.width = (uint16_t)((w0 & 0xFFF) + 1);
         break;
     case G_SETZIMG:
+        if (pcgfx_hud_pending())   /* the HUD's queued 2D goes where it was drawn (gfx_hud.c) */
+            pcgfx_hud_resolve();
         pcgfx.zimg = pcgfx_resolve(w1p);
         pcgfx.zimg_width = pcgfx.cimg.width;
         pcgfx.state_dirty = 1;
         break;
     case G_SETCIMG: {
         const uint8_t *a = pcgfx_resolve(w1p);
+        if (pcgfx_hud_pending())   /* the HUD's queued 2D goes where it was drawn (gfx_hud.c) */
+            pcgfx_hud_resolve();
         pcgfx.cimg.fmt = (w0 >> 21) & 7;
         pcgfx.cimg.siz = (w0 >> 19) & 3;
         pcgfx.cimg.width = (uint16_t)((w0 & 0xFFF) + 1);
