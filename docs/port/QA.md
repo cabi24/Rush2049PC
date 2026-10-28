@@ -70,10 +70,11 @@ line of a fault, warning or error. A first pass at 6e98d65 gave the same.
 | Path | Against the earlier runs |
 |---|---|
 | single race to the finish, practice, stunt, 3 and 4 players, the three 2-player battles, race options (both sets) | the same states and setups; no fault, no new warning. The race start's state 0x40000 that round 1's logs show no longer lasts a retrace, as in round 1's own Expansion Pak runs (the default since) |
-| unlockables: the unlock cheat, then the sixth race track, mode 5, stunt arenas 15-17, battle arenas 10-13 | the same |
+| unlockables: the unlock cheat, then the sixth race track, mode 5, stunt arenas 15-17, battle arenas 10-13; mode 5 to its end | the same; mode 5's time limit ends it (DNF) and the game over screen follows, as in round 2 |
 | the cheat screen; cheats in a race; all cars | the same; round 1's cheat run, which never reached the cheat screen, now reaches it (fix 2) |
 | battle quit, 2 and 4 players | round 1's 2-player quit faulted; now the game over screen, as in round 2 (fix 5) |
 | the stunt round to its end | the same: the scoreboard, the game over screen, Quit |
+| back to back: seven races in a row, each quit from the pause screen | the same |
 | the circuit (car 0 marked finished by gdb) | the whole first circuit and the next one's first race, the same tracks in the same order. One race's end came later (the gdb mark lands at another moment under load), so the script's fixed-time presses moved on one cycle later and the run's time held one race fewer |
 | main menu rows (records, options) | the same |
 | pak across restarts (a fresh image) | create a player, race, records, restart: the same states; the image holds the player as before |
