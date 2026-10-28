@@ -151,6 +151,27 @@ void pc_si_test_pads(const PcPad pads[4]);  /* --selftest: these pads until NULL
  * between two calls counts). For port/input, which passes it to the controller. */
 int pc_si_motor(int channel);
 void pc_si_flush(void);                              /* write the .mpk if it changed */
+int pc_si_pak_check(char *why, size_t why_size);     /* the pak in memory: pc_pak_image_check (self-test) */
+
+/* ---------------------------------------------------------------- pakfile.c: the controller pak's file */
+#define PC_PAK_SIZE 0x8000u
+enum { PC_PAK_IMAGE_OK = 0, PC_PAK_IMAGE_N64 = 1, PC_PAK_IMAGE_DAMAGED = 2 };
+/* What a .mpk image is: one the game can use, one in N64 byte order (left alone), or one the game's libultra would
+ * write over (the wrong size, no good ID block, no good inode table). why gets a sentence ("it is ...") unless OK. */
+int pc_pak_image_check(const uint8_t *image, size_t size, char *why, size_t why_size);
+void pc_pak_format(uint8_t *image);                  /* a blank formatted pak, PC_PAK_SIZE bytes */
+void pc_pak_id_sums(const uint8_t *id, int be, uint16_t *sum, uint16_t *isum);   /* __osIdCheckSum */
+int pc_pak_id_valid(const uint8_t *id, int be);
+/* Any pak file (each player's), as the game is to see it, into image (PC_PAK_SIZE bytes). PC_PAK_LOAD_FILE: the
+ * file's image. PC_PAK_LOAD_NEW: no file yet; image formatted, to be written. PC_PAK_LOAD_N64: the file is in N64
+ * byte order; image formatted, and the file is not to be written. PC_PAK_LOAD_NONE: the file can't be used
+ * (unreadable, damaged; port/app's saves.c sets such a file aside before the game starts); no pak, and the file is
+ * not to be written. why says why for the last two. The game never writes over a file it can't use. */
+enum { PC_PAK_LOAD_FILE, PC_PAK_LOAD_NEW, PC_PAK_LOAD_N64, PC_PAK_LOAD_NONE };
+int pc_pak_file_load(const char *path, uint8_t *image, char *why, size_t why_size);
+/* path written whole or not at all: PATH.tmp written, flushed to the disk, then renamed over path (and, on POSIX,
+ * the folder flushed). 0 on success; -1 with errno set, path untouched and no PATH.tmp left. The pak's writes. */
+int pc_file_write_atomic(const char *path, const void *data, size_t size);
 
 /* ---------------------------------------------------------------- memory.c */
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */

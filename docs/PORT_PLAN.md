@@ -269,11 +269,26 @@ build's default type is still Debug. Found on the way and fixed after: the MusyX
 the current slot's word, so some controller messages (volume among them) of every sequence went to slot 0
 (OPTIMIZED.md section 8).
 
+## The first play test and the night after (2026-10-27/28)
+
+The Windows release build was played on a laptop (NVIDIA and Intel GPUs). It booted, its menus worked and races
+loaded; the sound was bad, the near road flickered, a skull showed in every race and the stick didn't steer. The
+night's work, in [CHANGES.md](../CHANGES.md), fixed those and what a sweep of the retail cartridge found
+([port/QA.md](port/QA.md)), and added native resolution, a widescreen HUD, upscaled textures, the overlay's mouse
+and pages, and a Windows GUI build. Most of the bugs were of four classes, each now checked in CI:
+- m2c code reaching a record's field at its N64 offset through an untyped pointer (`offset_check.py`,
+  [port/LAYOUT.md](port/LAYOUT.md) 9);
+- a table loaded with one typed declaration covering only its first word (`endian_check --check-loader`,
+  datacheck's `known_widths`);
+- a symbol declared narrower than the code writes it, which an optimizing GCC exploits (`bounds_check.py`,
+  [port/OPTIMIZED.md](port/OPTIMIZED.md) 2.7);
+- a sub-word read inside a word, the N64's low byte being the PC's high one.
+
 ## Next
 
-1. **A person playing it.** Everything above ran headless with scripted input. Still untried: a window on a desktop
-   GPU, sound through SDL, real controllers, a race to its finish, ghost saves (zlib), and the whole thing on Windows
-   with the retail cartridge.
+1. **More people playing it.** One Windows laptop so far. Still untried by a person: a desktop GPU, AMD and Intel
+   drivers, controllers other than the tester's, vsync and the display frame rate on a real display, a race to its
+   finish by hand, and a ghost written to the pak.
 2. **The retail cartridge's loose ends** ([port/BRINGUP.md](port/BRINGUP.md) "What's next"): the report's remaining
    `undescribed` targets, more tables sized by the gap (`index_check.py`, the report's `text-in-words` lines).
 3. **N64 check.** `tools/port/ido_check.sh` builds every N64 object with IDO at `09da2f0` and at HEAD and compares

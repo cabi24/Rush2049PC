@@ -12,9 +12,9 @@
  * field (the buttons in __OSContReadFormat) is read natively by the game, so it is written in host order.
  *
  * Each of the four controllers holds one accessory (pc_si_set_pak): a 32 KiB controller pak backed by a file of its
- * own (controller 1's game.pak_file, the others' game.pak2_file...) written shortly after each change (temp file +
- * rename); a rumble pak; or nothing. Auto is a rumble pak while the port's controller can rumble (PcPad.rumble),
- * else nothing. A change while the game runs is a hot swap, as a player makes one: the old accessory comes out at
+ * own (controller 1's game.pak_file, the others' game.pak2_file...) written shortly after each change (pakfile.c: a
+ * temp file flushed to the disk, then renamed over it; a failed write is tried again); a rumble pak; or nothing.
+ * Auto is a rumble pak while the port's controller can rumble (PcPad.rumble), else nothing. A change while the game runs is a hot swap, as a player makes one: the old accessory comes out at
  * once, and the new one goes in only after the game's poll of every port (osContStartQuery, every 30 frames) has
  * found the port empty, so the game's pak code sees the old one leave before the new one arrives.
  *
@@ -25,6 +25,7 @@
  * (docs/port/ULTRA.md). Each port formats a new pak with an ID of its own: the game takes two paks with one ID for
  * one pak moved from port to port. */
 #define _GNU_SOURCE
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,7 +34,7 @@
 #include "pc_compat.h"
 #include "ultra.h"
 
-#define PAK_SIZE 0x8000
+#define PAK_SIZE PC_PAK_SIZE
 #define CONT_TYPE_NORMAL 0x0005
 
 extern uint8_t __osContDataCrc(uint8_t *data);   /* src/rom/lib_105f0.c */
@@ -50,125 +51,69 @@ typedef struct {
     int memory_ok;             /* img is a usable pak: its file read, or formatted */
     char *path;                /* the memory pak's file; NULL: in memory only */
     int dirty;
+    int failing;               /* its last write failed (said once; tried again at the next flush) */
     int rumble, rumble_seen;   /* the motor; turned on since the last pc_si_motor */
     uint8_t img[PAK_SIZE];
 } Port;
 static Port g_port[4];
 static const char *const kind_names[] = {"nothing", "the controller pak", "the rumble pak", "auto"};
 
-/* ---------------------------------------------------------------- the .mpk image */
+/* ---------------------------------------------------------------- the .mpk image (pakfile.c) */
 
-static uint16_t be16(const uint8_t *p) { return (uint16_t)(p[0] << 8 | p[1]); }
-
-/* The ID block's checksums as __osIdCheckSum computes them: over 14 u16 words, host order (big-endian when
- * be is set, as the N64 wrote them). */
-static void id_sums(const uint8_t *id, int be, uint16_t *sum, uint16_t *isum)
+/* A new pak's ID of the port's own: the random word of pc_pak_format's ID block (controller 1's as it always was)
+ * changed by the port, in the block and its three copies, with its checksums. */
+static void own_id(uint8_t *img, int ch)
 {
-    *sum = *isum = 0;
-    for (int j = 0; j < 28; j += 2) {
-        uint16_t w;
-        if (be)
-            w = be16(id + j);
-        else
-            memcpy(&w, id + j, 2);
-        *sum = (uint16_t)(*sum + w);
-        *isum = (uint16_t)(*isum + (uint16_t)~w);
-    }
-}
-
-static int id_valid(const uint8_t *id, int be)
-{
-    uint16_t sum, isum, s2, i2;
-    id_sums(id, be, &sum, &isum);
-    if (be)
-        s2 = be16(id + 0x1C), i2 = be16(id + 0x1E);
-    else
-        memcpy(&s2, id + 0x1C, 2), memcpy(&i2, id + 0x1E, 2);
-    return sum == s2 && isum == i2;
-}
-
-/* A blank, formatted pak for the native Pfs C: label block, ID block (one bank) and its three copies, an inode
- * table (and backup) with pages 5-127 free, an empty note table. The ID's random word is the port's own
- * (controller 1's as it always was), so the four ports' new paks differ. */
-static void pak_format(uint8_t *img, int ch)
-{
-    memset(img, 0, PAK_SIZE);
-    img[0] = 0x81;
-    for (int i = 1; i < 32; i++)
-        img[i] = (uint8_t)i;
-    uint8_t id[32] = {0};
-    uint32_t repaired = 0xFFFFFFFFu, random = 0x135F1A05u ^ (uint32_t)ch * 0x2545F491u;
-    uint16_t device = 0x0001, sum, isum;   /* device id bit 0: the ID is valid */
-    memcpy(id, &repaired, 4);
+    static const int copies[] = {0x20, 0x60, 0x80, 0xC0};   /* PFS_ID_0AREA..3AREA */
+    uint8_t *id = img + copies[0];
+    uint32_t random;
+    uint16_t sum, isum;
+    memcpy(&random, id + 4, 4);
+    random ^= (uint32_t)ch * 0x2545F491u;
     memcpy(id + 4, &random, 4);
-    memcpy(id + 0x18, &device, 2);
-    id[0x1A] = 1;   /* banks */
-    id[0x1B] = 0;   /* version */
-    id_sums(id, 0, &sum, &isum);
+    pc_pak_id_sums(id, 0, &sum, &isum);
     memcpy(id + 0x1C, &sum, 2);
     memcpy(id + 0x1E, &isum, 2);
-    static const int copies[] = {0x20, 0x60, 0x80, 0xC0};   /* PFS_ID_0AREA..3AREA */
-    for (int i = 0; i < 4; i++)
+    for (int i = 1; i < 4; i++)
         memcpy(img + copies[i], id, 32);
-    uint8_t *inode = img + 0x100;
-    for (int page = 5; page < 128; page++) {
-        uint16_t unused = 0x0003;   /* PFS_PAGE_NOT_USED */
-        memcpy(inode + 2 * page, &unused, 2);
-    }
-    int bytes = 0;
-    for (int i = 10; i < 256; i++)   /* __osSumcalc from the first data page's entry */
-        bytes += inode[i];
-    inode[1] = (uint8_t)bytes;       /* inode_page[0].inode_t.page */
-    memcpy(img + 0x200, inode, 256);
 }
 
-/* Controller ch's pak from path into its image (which the game can't reach meanwhile): 0 when it is used (a missing
- * file is formatted, and written at the next flush), 1 for an N64-order image (left unchanged on disk; a blank pak in
- * memory instead), -1 when the file is not a pak (not used). */
+static void pak_format(uint8_t *img, int ch)
+{
+    pc_pak_format(img);
+    own_id(img, ch);
+}
+
+/* Controller ch's pak from path into its image (which the game can't reach meanwhile): 0 when the file's image is
+ * the pak (or a new one, formatted, when there is no file: written at the next flush); 1 for a blank pak in memory,
+ * the file left alone (N64 byte order); -1 for no pak at all, the file left alone (pakfile.c's pc_pak_file_load). */
 static int pak_load(int ch, const char *path)
 {
-    uint8_t *img = g_port[ch].img;
-    FILE *f = fopen(path, "rb");
-    if (!f) {
-        pak_format(img, ch);
+    char why[200];
+    switch (pc_pak_file_load(path, g_port[ch].img, why, sizeof why)) {
+    case PC_PAK_LOAD_NEW:
+        own_id(g_port[ch].img, ch);
         pthread_mutex_lock(&g_slock);
         g_port[ch].dirty = 1;
         pthread_mutex_unlock(&g_slock);
         pc_log("controller %d's pak %s: new, formatted", ch + 1, path);
         return 0;
-    }
-    size_t n = fread(img, 1, PAK_SIZE, f);
-    fclose(f);
-    if (n != PAK_SIZE) {
-        pc_log("controller %d's pak %s: %zu bytes, not a 32 KiB .mpk; not used", ch + 1, path, n);
+    case PC_PAK_LOAD_FILE:
+        if (pc_verbose)
+            pc_log("controller %d's pak %s", ch + 1, path);
+        return 0;
+    case PC_PAK_LOAD_N64:
+        own_id(g_port[ch].img, ch);
+        pc_log("controller %d's pak %s: %s; left unchanged, and a blank pak is used in memory", ch + 1, path, why);
+        return 1;
+    default:
+        pc_log("controller %d's pak %s: %s; left unchanged, and no pak is plugged in", ch + 1, path, why);
         return -1;
     }
-    if (!id_valid(img + 0x20, 0) && id_valid(img + 0x20, 1)) {
-        pc_log("controller %d's pak %s is in N64 byte order (v5, an emulator): left unchanged, and a blank pak is "
-               "used in memory", ch + 1, path);
-        pak_format(img, ch);
-        return 1;
-    }
-    if (pc_verbose)
-        pc_log("controller %d's pak %s", ch + 1, path);
-    return 0;
 }
 
-/* An image to its file: a temp file, then renamed over it. */
-static void pak_write_file(const char *path, const uint8_t *img)
-{
-    size_t len = strlen(path) + 5;
-    char *tmp = malloc(len);
-    snprintf(tmp, len, "%s.tmp", path);
-    FILE *f = fopen(tmp, "wb");
-    if (!f || fwrite(img, 1, PAK_SIZE, f) != PAK_SIZE || fclose(f) != 0)
-        pc_log("controller pak: cannot write %s", tmp);
-    else if (pc_rename_replace(tmp, path) != 0)
-        pc_log("controller pak: cannot replace %s", path);
-    free(tmp);
-}
-
-/* The main thread's (the main loop, pc_si_set_pak; --stop-at-gfx's exit), so the path stays. */
+/* The main thread's (the main loop, pc_si_set_pak; --stop-at-gfx's exit), so the path stays. A write that fails
+ * keeps the pak dirty: it is tried again at the next flush. */
 static void flush_port(int ch)
 {
     uint8_t copy[PAK_SIZE];
@@ -179,8 +124,21 @@ static void flush_port(int ch)
         memcpy(copy, p->img, PAK_SIZE);
     p->dirty = 0;
     pthread_mutex_unlock(&g_slock);
-    if (dirty)
-        pak_write_file(p->path, copy);
+    if (!dirty)
+        return;
+    if (pc_file_write_atomic(p->path, copy, PAK_SIZE) == 0) {
+        if (p->failing)
+            pc_log("controller %d's pak: %s written", ch + 1, p->path);
+        p->failing = 0;
+        return;
+    }
+    if (!p->failing)
+        pc_log("controller %d's pak: cannot write %s: %s (the saves are kept in memory and tried again)", ch + 1,
+               p->path, strerror(errno));
+    p->failing = 1;
+    pthread_mutex_lock(&g_slock);
+    p->dirty = 1;
+    pthread_mutex_unlock(&g_slock);
 }
 
 void pc_si_flush(void)
@@ -500,3 +458,14 @@ int32_t __osSiDeviceBusy(void) { return 0; }
 
 /* __osContRamRead's name for the data CRC (not in the symbol file). */
 uint8_t __osPfsDataChecksum(uint8_t *data) { return __osContDataCrc(data); }
+
+/* Controller 1's pak in memory as pakfile.c judges a file (the self-test: what the game's own Pfs C writes is a good
+ * image). */
+int pc_si_pak_check(char *why, size_t why_size)
+{
+    static uint8_t copy[PAK_SIZE];
+    pthread_mutex_lock(&g_slock);
+    memcpy(copy, g_port[0].img, PAK_SIZE);
+    pthread_mutex_unlock(&g_slock);
+    return pc_pak_image_check(copy, PAK_SIZE, why, why_size);
+}

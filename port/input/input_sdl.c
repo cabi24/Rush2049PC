@@ -731,8 +731,13 @@ static void mouse_event(const SDL_Event *e)
     uint64_t now = pc_host_ns();
     switch (e->type) {
     case SDL_MOUSEMOTION:
-        if (L.mouse_seen && e->motion.x == L.mouse_x && e->motion.y == L.mouse_y)
-            break;   /* not a move (a window shown or raised under it) */
+        /* Not a move: SDL's first event for the mouse, which has no relative motion (Windows sends one when the
+         * window opens or is raised under a cursor at rest), or one at the same place. */
+        if ((!e->motion.xrel && !e->motion.yrel) ||
+            (L.mouse_seen && e->motion.x == L.mouse_x && e->motion.y == L.mouse_y)) {
+            L.mouse_x = e->motion.x, L.mouse_y = e->motion.y, L.mouse_seen = 1;
+            break;
+        }
         L.mouse_x = e->motion.x, L.mouse_y = e->motion.y, L.mouse_seen = 1;
         L.mouse_ns = now;
         show_cursor(1);

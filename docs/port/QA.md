@@ -133,6 +133,20 @@ func_800D63EC returns (LAYOUT.md 9).
 
 ## Not bugs (checked)
 
+- **The car select's stat bars (round 3).** Top speed and acceleration differ little between cars, which a
+  scaled-down screenshot hides. The bars are func_8039D300's product of factor tables
+  (`D_803B28C8`..`D_803B2A58`, f32[][4]) indexed by each car's chosen parts (`D_80110E78`, `D_8011103C`,
+  `D_80111080`, `D_8011119C`, `D_80111230`: s8 rows, the player's from the profile's car settings at +1860).
+  func_8039D300 is byte-matched C and runs every update; the cartridge's defaults choose part 0 of every kind for
+  every car but the frame, so with default parts the frame alone moves top speed and acceleration (a few percent)
+  and control and strength more. On the screen the bars' widths change with the frames. The tables load as the game reads them: the factors are sane floats, the part
+  tables bytes. Guard: datacheck's `known_widths` covers the factor tables and the six car physics descriptors.
+- **The cars' physics differs by car (round 3).** Two car types with the same input on track 0
+  accelerate differently. The six physics descriptors `D_80110D08` points at load as floats and window addresses
+  (every word checked after the loader); mass, spring, damping and brake factors are one value for every car on the
+  cartridge, so the differences come from the descriptors, the gear and torque classes and the engine table
+  (`D_8010FD80`, fixed in main this night).
+
 - Every weak copy of an owned function (gen_weak's headers) against its owner: none carries a `TARGET_PC` fix,
   `PC_N64W`, `CAR_OFS`, `INPUT_SIZE` or `PROFILE_OFS` its owner lacks (a PC fix in a copy would be dropped by the link).
 - The HUD's place, "6/6", read as "6/5" in a scaled-down picture of the fog; at full size it is right, and the car
@@ -152,7 +166,6 @@ func_800D63EC returns (LAYOUT.md 9).
   a scripted pair of cars doesn't score; the battle's results run through the pause screen's quit (fix 5) instead.
 - **Controller paks on players 2-4**: the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c),
   so players 2-4 can't load or save a player. A feature to add, not a game bug.
-- **The car select's stat bars**: top speed and acceleration are the same for every car; unverified against the N64.
 - **Not reached on the retail cartridge**: the records screen's pages beyond the totals; the rumble pak; a window
   (`--window`) and sound through a device.
 - **Scripted runs and the user's pak**: without `--pak` or `--no-pak` a run uses, and on first use formats, the
