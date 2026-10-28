@@ -2693,7 +2693,12 @@ extern s32 D_80152034;
 extern s32 D_80152038;
 extern s32 D_80152040;
 extern s32 D_80152050;
+#ifdef TARGET_PC
+/* 12-byte records (x, y, z) per car: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern s32 D_80152218[];
+#else
 extern s32 D_80152218;
+#endif
 extern u8 D_80152260;
 extern u8 D_80152360;
 extern s32 D_80152460;

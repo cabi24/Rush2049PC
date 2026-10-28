@@ -90,7 +90,14 @@ static struct {
     SDL_JoystickID generic[16];        /* joysticks given the generic mapping */
     Slot pending[8];                   /* generic ones waiting for their first button press */
     int nskipped, ngeneric, npending, waiting_said;
+    int cursor;                        /* the mouse cursor is shown: while the overlay is open, or just moved */
+    int mouse_x, mouse_y, mouse_seen;  /* where it was last, in the window's units */
+    uint64_t mouse_ns;                 /* when it last moved; the cursor hides CURSOR_NS after */
+    uint64_t focus_ns;                 /* when the window got the focus back (0: not since start) */
 } L;
+
+#define CURSOR_NS 2000000000u          /* during play the cursor hides 2 s after it last moved */
+#define FOCUS_CLICK_NS 250000000u      /* a click this soon after the focus came back is the one that brought it */
 
 /* ---------------------------------------------------------------- binding names */
 
@@ -689,6 +696,99 @@ static void menu_axis(SDL_GameControllerAxis a, int value, int menu)
     L.stick_dir[y] = dir;
 }
 
+/* ---------------------------------------------------------------- the mouse */
+
+/* The cursor shows while the overlay is open, and during play only for a moment after the mouse moves: a cursor
+ * resting over the race is in the way. */
+static void show_cursor(int on)
+{
+    if (!L.win || on == L.cursor)
+        return;
+    SDL_ShowCursor(on ? SDL_ENABLE : SDL_DISABLE);
+    L.cursor = on;
+}
+
+/* A mouse event while the overlay is open goes to it, in the drawable's pixels; the game never gets the mouse. */
+static void menu_mouse(int what, int x, int y, int amount)
+{
+    int ww = 0, wh = 0, dw = 0, dh = 0, px, py;
+    SDL_GetWindowSize(L.win, &ww, &wh);
+    SDL_GL_GetDrawableSize(L.win, &dw, &dh);
+    pc_menu_mouse_pixels(x, y, ww, wh, dw, dh, &px, &py);
+    pc_menu_mouse(what, px, py, dw, dh, amount);
+}
+
+static void mouse_event(const SDL_Event *e)
+{
+    uint64_t now = pc_host_ns();
+    switch (e->type) {
+    case SDL_MOUSEMOTION:
+        if (L.mouse_seen && e->motion.x == L.mouse_x && e->motion.y == L.mouse_y)
+            break;   /* not a move (a window shown or raised under it) */
+        L.mouse_x = e->motion.x, L.mouse_y = e->motion.y, L.mouse_seen = 1;
+        L.mouse_ns = now;
+        show_cursor(1);
+        if (pc_menu_is_open())
+            menu_mouse(PC_MOUSE_MOVE, e->motion.x, e->motion.y, 0);
+        break;
+    case SDL_MOUSEBUTTONDOWN:
+        L.mouse_x = e->button.x, L.mouse_y = e->button.y, L.mouse_seen = 1;
+        if (!pc_menu_is_open() || (L.focus_ns && now >= L.focus_ns && now - L.focus_ns < FOCUS_CLICK_NS))
+            break;
+        if (e->button.button == SDL_BUTTON_LEFT) {
+            menu_mouse(PC_MOUSE_MOVE, e->button.x, e->button.y, 0);   /* a click without a move first (touch) */
+            menu_mouse(PC_MOUSE_LEFT, e->button.x, e->button.y, 0);
+        } else if (e->button.button == SDL_BUTTON_RIGHT || e->button.button == SDL_BUTTON_X1)
+            menu_mouse(PC_MOUSE_RIGHT, e->button.x, e->button.y, 0);
+        break;
+    case SDL_MOUSEWHEEL: {
+        int y = e->wheel.y;
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+        if (e->wheel.direction == SDL_MOUSEWHEEL_FLIPPED)
+            y = -y;
+#endif
+        if (pc_menu_is_open() && y)
+            menu_mouse(PC_MOUSE_WHEEL, L.mouse_x, L.mouse_y, y);
+        break;
+    }
+    }
+}
+
+/* ---------------------------------------------------------------- the About page's desktop */
+
+int pc_input_live_desktop(void)
+{
+    const char *driver = SDL_GetCurrentVideoDriver();
+    if (!L.on || !L.win)
+        return 0;
+    return driver && (!strcmp(driver, "offscreen") || !strcmp(driver, "dummy")) ? 1 : 2;
+}
+
+int pc_input_live_clipboard(const char *text)
+{
+    if (pc_input_live_desktop() < 1 || SDL_SetClipboardText(text) != 0)
+        return -1;
+    fprintf(stderr, "rush2049pc: the About page is on the clipboard\n");
+    return 0;
+}
+
+int pc_input_live_open_folder(const char *path)
+{
+    if (pc_input_live_desktop() < 2 || !path || !path[0])
+        return -1;
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    /* Windows: ShellExecute's "open"; elsewhere xdg-open (or open on macOS), started apart from this process */
+    if (SDL_OpenURL(path) != 0) {
+        fprintf(stderr, "rush2049pc: cannot open %s: %s\n", path, SDL_GetError());
+        return -1;
+    }
+    fprintf(stderr, "rush2049pc: opening %s\n", path);
+    return 0;
+#else
+    return -1;
+#endif
+}
+
 /* ---------------------------------------------------------------- the interface */
 
 int pc_input_live_event(const void *event)
@@ -748,6 +848,12 @@ int pc_input_live_event(const void *event)
     case SDL_CONTROLLERBUTTONUP:
         menu_combo_pressed(e->cbutton.which);   /* a combo let go can be pressed again */
         break;
+    case SDL_MOUSEMOTION:
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEWHEEL:
+        if (L.win)
+            mouse_event(e);   /* the overlay's, or the cursor's: never the game's */
+        break;
     case SDL_CONTROLLERAXISMOTION: {
         int menu = menu_combo_pressed(e->caxis.which);
         if (pc_menu_is_open())
@@ -767,6 +873,7 @@ int pc_input_live_event(const void *event)
             break;
         case SDL_WINDOWEVENT_FOCUS_GAINED:
             set_pause(&L.paused_focus, 0, "focus back");
+            L.focus_ns = pc_host_ns() ? pc_host_ns() : 1;   /* 0 is "not since start" */
             break;
         case SDL_WINDOWEVENT_EXPOSED:
         case SDL_WINDOWEVENT_SIZE_CHANGED:
@@ -1056,6 +1163,8 @@ int pc_input_live_init(const PcSettings *s)
         if (s->fullscreen)
             set_fullscreen(1);
         pc_gfx_set_vsync(s->vsync);
+        L.cursor = -1;
+        show_cursor(0);   /* no cursor over the game until the mouse moves */
     }
     if (V.kind != PC_VIA_PADS && V.kind != PC_VIA_KEYBOARD && V.at <= 0)
         via_attach();   /* there at start */
@@ -1081,6 +1190,7 @@ void pc_input_live_shutdown(void)
         }
     for (int k = 0; k < L.npending; k++)
         SDL_GameControllerClose(L.pending[k].gc);
+    show_cursor(1);
     via_detach();
     SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
     if (!L.win)
@@ -1099,9 +1209,11 @@ void pc_input_live_menu(int open)
     if (!L.on)
         return;
     L.nav_dir = L.stick_dir[0] = L.stick_dir[1] = -1;
-    if (open)
+    L.mouse_ns = pc_host_ns();   /* closed, the cursor stays a moment, then hides (pc_input_live_tick) */
+    if (open) {
         memset(L.down, 0, sizeof L.down);   /* the game's keys are released while it is open */
-    else {
+        show_cursor(1);
+    } else {
         memcpy(L.mute, L.held, sizeof L.mute);
         for (int p = 0; p < 4; p++) {
             Slot *slot = &L.slot[p];
@@ -1123,6 +1235,15 @@ void pc_input_live_tick(void)
     SDL_Event e;
     while (L.on && !L.win && SDL_PollEvent(&e))   /* no window: port/gfx pumps no SDL events */
         pc_input_live_event(&e);
+    if (L.on && L.win) {   /* the cursor: shown while the overlay is open, else for a moment after a move */
+        uint64_t now = pc_host_ns();
+        if (now < L.mouse_ns)   /* the N64 clock was set back after a hold */
+            L.mouse_ns = now;
+        if (pc_menu_is_open())
+            show_cursor(1);
+        else if (L.cursor && now - L.mouse_ns >= CURSOR_NS)
+            show_cursor(0);
+    }
     if (!L.on || !pc_menu_is_open() || pc_menu_capturing()) {
         L.nav_dir = -1;
         return;
@@ -1281,5 +1402,8 @@ void pc_input_live_fullscreen(int on) { (void)on; }
 int pc_input_live_is_fullscreen(void) { return -1; }
 void pc_input_live_vsync(int on) { (void)on; }
 void pc_input_live_window_size(int w, int h) { pc_gfx_set_window_size(w, h); }
+int pc_input_live_desktop(void) { return 0; }
+int pc_input_live_clipboard(const char *text) { (void)text; return -1; }
+int pc_input_live_open_folder(const char *path) { (void)path; return -1; }
 
 #endif

@@ -44,6 +44,10 @@ Controls
   F12               screenshot (PNG)
   Pause             hold the game
   Escape            quit
+  The overlay takes the mouse too: point and click (left or right of a value changes it), the wheel scrolls, the
+  right button or a click outside goes back. F1 > Help lists what each key and button does with your bindings;
+  F1 > About gives the version, graphics driver, sound output, controllers and where every file is. During play
+  the mouse cursor hides until the mouse moves.
 
 Settings and saves
 ------------------
@@ -66,10 +70,11 @@ Picture
 The game is drawn at the window's own pixels by default (F1 > Video > Render scale: native), so it is sharp at
 any size and on a high-DPI display: a 2880x1620 screen gets all 2880x1620 pixels. Render
 scale N64 (1x) is the original 320x240 in square pixels; 2x-8x and auto (the largest whole multiple) are there
-too. Widescreen is auto (the window's shape). Fullscreen (F11) is borderless over the desktop; Fullscreen mode
-exclusive switches the display to the Resolution setting (720p ... 1620p = 2880x1620, 2160p). The window opens
-at two thirds of the desktop and remembers its size and place. A slow GPU: Resolution 1080p in fullscreen, or
-a lower render scale.
+too. Widescreen is auto (the window's shape); in a race the HUD then sits at the screen's edges (F1 > Video >
+Race HUD: centered keeps it in the middle 4:3 area, as on the N64). Fullscreen (F11) is borderless over the
+desktop; Fullscreen mode exclusive switches the display to the Resolution setting (720p ... 1620p = 2880x1620,
+2160p). The window opens at two thirds of the desktop and remembers its size and place. A slow GPU: Resolution
+1080p in fullscreen, or a lower render scale.
 
 Textures
 --------
@@ -95,7 +100,8 @@ Troubleshooting
   gets a generic mapping and takes a player at its first button press: rebind it in F1 > Controllers, or put
   SDL's gamecontrollerdb.txt (with a line for it) next to rush2049pc.ini.
 - Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; ./rush2049pc --version says
-  which build you have)
+  which build you have). F1 > About > Copy to the clipboard gives the version, driver and paths to paste in, and
+  Open the data folder shows the log's folder in the file manager (xdg-open).
 
 Licences
 --------

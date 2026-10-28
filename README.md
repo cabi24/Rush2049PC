@@ -68,8 +68,11 @@ Other pads use the button in the same place.
 
 F1 (or both stick clicks) opens the settings overlay. Alt+Enter or F11 toggles fullscreen, F12 saves a screenshot,
 Pause holds the game and Escape quits. Every key and button can be remapped, and the stick's dead zone and
-sensitivity set, in the overlay. The details are in
-[docs/port/FRONTEND.md](docs/port/FRONTEND.md).
+sensitivity set, in the overlay. It takes the mouse too: point and click, the wheel scrolls, the right button goes
+back. Its Help page lists what each key and button does with your bindings, and About gives the version, the
+graphics driver, the sound output, the controllers and where the settings, saves, screenshots and log are (Copy puts
+it all on the clipboard for a bug report). The mouse cursor hides during play until the mouse moves. The details are
+in [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
 
 ### Settings
 
@@ -77,7 +80,8 @@ sensitivity set, in the overlay. The details are in
 (`video.scale = native`, any display scaling, 2880 × 1620 included); `video.scale = 1` is the N64's 320 × 240 in
 square pixels. Fullscreen is borderless, or exclusive at `video.resolution` (720p to 2160p, or WxH). While you
 play, the F1 overlay changes the video settings (render scale, widescreen, fullscreen and its mode, resolution,
-window size, vsync, frame rate, textures), the volume and the key and button mapping. It
+window size, vsync, frame rate, textures, race HUD), the volume and the key and button mapping. In widescreen the
+race HUD sits at the screen's edges (`video.hud = edges`); `centered` keeps it in the 4:3 frame, as on the N64. It
 can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
 (`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
 
@@ -126,7 +130,8 @@ there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into
   SDL's raw input instead).
 - **It stopped with an error:** the log says why. On Windows a message box gives the log's path, and the console
   waits for a key. Report it on the [issues page](https://github.com/cabi24/Rush2049PC/issues) with
-  `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was.
+  `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was; F1 > About shows where
+  the log is, and its Copy item puts the version, driver and paths on the clipboard.
 
 ## Building
 

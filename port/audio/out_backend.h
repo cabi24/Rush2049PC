@@ -6,9 +6,18 @@
 
 #include <stdint.h>
 
+/* What the device opened as, for the queue and the log. */
+typedef struct PcAudioDevice {
+    uint32_t rate;            /* frames a second */
+    uint32_t period;          /* frames a pull takes (SDL's callback, ALSA's period) */
+    uint32_t buffer;          /* frames the device itself holds, when the backend knows (0 otherwise) */
+    char driver[32];          /* the system's driver: SDL's (wasapi, directsound, pulseaudio, disk...), ALSA's PCM */
+} PcAudioDevice;
+
 typedef struct PcAudioBackendOps {
     const char *name;
-    int (*open)(uint32_t want_rate, uint32_t *got_rate);   /* 0 on success, then pulling has started */
+    /* want_rate 0: the device's own rate. 0 on success, then pulling has started. */
+    int (*open)(uint32_t want_rate, PcAudioDevice *dev);
     void (*close)(void);
 } PcAudioBackendOps;
 

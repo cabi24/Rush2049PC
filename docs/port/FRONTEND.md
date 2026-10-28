@@ -8,8 +8,8 @@ The settings overlay (Phase 8, 2026-10-27) has [its own section](#the-settings-o
 | File | What |
 |---|---|
 | `port/input/input.c` | `pc_input_poll`: live input, then `--press` scripts over it, then rumble; `--log-input`; the overlay's turn at each event pump |
-| `port/input/input_sdl.c` | SDL2 builds: keyboard, controllers, hot-plug, rumble, hotkeys, focus and pause; the overlay's keys and buttons (no-ops without SDL2) |
-| `port/input/menu.c` | the settings overlay: pages, live changes, Save, its drawing |
+| `port/input/input_sdl.c` | SDL2 builds: keyboard, controllers, hot-plug, rumble, hotkeys, focus and pause; the overlay's keys, buttons and mouse, the cursor, About's clipboard and folder (no-ops without SDL2) |
+| `port/input/menu.c` | the settings overlay: pages (Help and About too), live changes, Save, the mouse's hit test, its drawing |
 | `port/input/stick.c` | dead zone, the N64 range, the octagonal gate |
 | `port/config/config.c` | the INI reader, the settings table, the file's location, the first-run file, the layers, saving changes in place |
 | `port/input/tests/` | `frontend_test` (no SDL), `frontend_menu_test` (the overlay, headless) and `frontend_sdl_test` (SDL2 builds) |
@@ -88,6 +88,8 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
     the title says "paused";
   - the N64 clock is set back by the time held, so `osGetTime` and the timers don't jump.
 - **Hotkeys** never reach the game. Binding a hotkey's key to a control does nothing for that key.
+- **The mouse** never reaches the game: it is the [overlay's](#the-mouse) only. During play the cursor is hidden from
+  the start, shows when the mouse moves, and hides again 2 s after it stops; while the overlay is open it shows.
 - **Mappings.** A `gamecontrollerdb.txt` next to `rush2049pc.ini` is loaded at start (SDL's format), for pads
   that SDL doesn't know.
 - **Pads SDL has no mapping for** (DirectInput pads, N64-style USB pads, wheels) used to be passed over without a
@@ -133,9 +135,13 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   `--no-config`, nor headless. A place on a display that is gone opens centred.
 - **Widescreen.** `video.widescreen` (`--widescreen`, `RUSH_GFX_WIDESCREEN`) widens the picture to a display
   aspect: `off`, `auto`, `16:9`, `16:10`, `21:9`, any `W:H` or a ratio from 4:3 to 4. The 3D view shows more at
-  the sides at the same scale; menus, the HUD and sprites stay 4:3 in the middle; full-width fills and
-  backgrounds span the width. The renderer does it all ([GFX.md](GFX.md) "Widescreen"); the game code is
-  unchanged.
+  the sides at the same scale; menus and sprites stay 4:3 in the middle; full-width fills and backgrounds span
+  the width. The renderer does it all ([GFX.md](GFX.md) "Widescreen"); the game code is unchanged.
+  - `video.hud` (`RUSH_GFX_HUD`): `edges`, the default, puts the race HUD at the screen's edges: in a race with one
+    view, the speedometer and radar keep their distance to the left edge, the place, laps, coins, map and timer to
+    the right one, as on a 4:3 screen; centred banners, the pause menu, other screens and split screen stay in the
+    4:3 frame. `centered` keeps the HUD in the 4:3 frame, as the N64 draws it ([GFX.md](GFX.md) "The HUD at the
+    screen's edges"). Its one game C change places the coin icons beside their moved counts.
   - `auto`, the default, takes the window's aspect at each frame, so resizing the window or going fullscreen
     changes it. A 4:3 window is off.
   - With a fixed aspect and an auto window, the window opens at the picture's aspect; with 640 × 480 it opens at
@@ -195,6 +201,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.textures` | original | | `original`, `upscaled` (the 3D world's textures 2x at internal scale 2-3, 4x from 4; the HUD and menus as they are) or `pack` (replacements from `video.texture_pack`) ([TEXTURES.md](TEXTURES.md); `RUSH_GFX_TEXTURES`) |
 | `video.texture_pack` | `textures` (in the data folder) | | the texture pack's folder: PNG files named as the dump names them |
 | `video.texture_dump` | (empty: off) | | a folder to write every texture drawn into, as PNG, for making a pack ([TEXTURES.md](TEXTURES.md) "Texture packs") |
+| `video.hud` | edges | | the race HUD in widescreen: `edges` (at the screen's edges) or `centered` (in the 4:3 frame) (`RUSH_GFX_HUD`; "Widescreen" above) |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
@@ -264,16 +271,16 @@ frame, to look at.
 - **When it closes,** keys and controller buttons still held are ignored until they are released (sticks and
   triggers until they are back in their dead zone), so the key or button that closed it doesn't reach the game.
 
-| | Keyboard | Controller | Script |
-|---|---|---|---|
-| move (held, it repeats) | arrows | D-pad, left stick (after 0.4 s, every 0.1 s) | UP DOWN, STICK* |
-| change a value | Left, Right | D-pad left, right | LEFT RIGHT |
-| choose; set a binding | Enter, Space | A | A |
-| back; cancel | Escape | B | B |
-| clear a binding | Delete, Backspace | X | Z |
-| add to a binding | Insert | Y | |
-| a page up, down | Page Up, Page Down | LB, RB | L, R |
-| close | F1 | the menu button, Start | MENU, START |
+| | Keyboard | Controller | Mouse | Script |
+|---|---|---|---|---|
+| move (held, it repeats) | arrows | D-pad, left stick (after 0.4 s, every 0.1 s) | point at an item | UP DOWN, STICK* |
+| change a value | Left, Right | D-pad left, right | click left or right of its middle (`<`, `>`); a bar where clicked | LEFT RIGHT |
+| choose; set a binding | Enter, Space | A | click | A |
+| back; cancel | Escape | B | right button, back button, a click outside the panel; any click cancels a binding's wait | B |
+| clear a binding | Delete, Backspace | X | | Z |
+| add to a binding | Insert | Y | | |
+| a page up, down | Page Up, Page Down | LB, RB | the wheel, the list's `^` `v` (3 rows) | L, R |
+| close | F1 | the menu button, Start | a click outside on the first page | MENU, START |
 
 **What it covers.** Changes apply at once where the part allows it. `*` in the overlay marks the two that need a
 restart.
@@ -291,15 +298,27 @@ restart.
 | | Pause in background | `video.pause_on_focus_loss` | at once |
 | | Graphics API * | `video.api` | after a restart: the GL context and its shaders are made at start |
 | | Textures: original, upscaled, pack | `video.textures` | from the game's next frame (`pc_gfx_set_textures`): the texture cache is made again; what was upscaled or loaded before is kept in memory ([TEXTURES.md](TEXTURES.md)) |
+| | Race HUD (widescreen): screen edges, centered (4:3) | `video.hud` | from the game's next frame (`pc_gfx_set_hud`) |
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
 | Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble` | at once |
-| (main) | Save to rush2049pc.ini; Resume; Quit | | |
+| Help | read-only: each N64 control, its keys (the keyboard's player) and its controller inputs in Xbox names (`a, righttrigger` is "A, RT", `-righty` "RS up", the N64 stick's own stick on the stick rows); the hotkeys (Alt+Enter with fullscreen); this menu's keys and the mouse | the bindings in effect, made again each time it opens | |
+| About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Copy to the clipboard** (the page as text, for a bug report; with a window); **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display) | main's facts (`pc_menu_set_about`), made each time it opens | |
+| (main) | Video, Audio, Keyboard, Controllers, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
   then go to either end of the list.
-- Changed values that aren't saved yet are yellow, and the Save item counts them.
+- Changed values that aren't saved yet are yellow, and the Save item counts them (yellow too). Once saved it says
+  "saved" in green, and the message names the file ("Saved 4 settings to rush2049pc.ini"); closing the overlay
+  with changes not saved says how many in the log.
+- **The footer's first line** says what the selected item does ("Internal resolution; native: the window's pixels"),
+  in at most 49 characters; a binding gives its whole list ("N64 A: X, Space"), Save the file's path, an About row
+  its whole value (a long path over both footer lines, its end kept), a Help row both bindings. A setting without a
+  line of its own (one added later) shows its name, `video.key in rush2049pc.ini`. A message (a capture's result,
+  Saved) takes the line until the next key, button or click, or until the mouse points at another item 1.5 s on.
+- The pages' order: the settings' pages, then Help and About, then the actions; on each settings page the
+  settings, then the hotkeys or the settings button, then Defaults last; Help in the binding pages' order.
 - **Bindings.** Enter or A waits for the next key (Keyboard page), or controller button, stick direction or
   trigger pushed past 0.6 (Controllers page), which replaces the binding. Insert or Y adds it to the binding
   instead; Delete or X clears it. Escape cancels, as do B for a key and the menu button for a controller input, and
@@ -323,9 +342,42 @@ restart.
   same at every internal scale and in widescreen. A panel of 304 x 224 units in the middle of the window, a unit
   being the largest whole number of pixels that fits 320 x 240 units in the window: 2 pixels at 640 x 480, 4 at
   1280 x 960 and at 1920 x 1080, 6 at 2880 x 1620. The window's size is the drawable's, in pixels, so a high-DPI
-  display gets a sharp panel of the same proportion. The overlay takes no mouse input. The frame around it is dimmed and the panel is semi-transparent (alpha 0.78). A
-  title bar, up to 15 items with the selected one highlighted (the list scrolls), and at the bottom a message and
-  the keys. The text is the port's own 5 x 9 font (`gfx_font.c`).
+  display gets a sharp panel of the same proportion. The frame around it is dimmed and the panel is semi-transparent (alpha 0.78). A
+  title bar, up to 15 items with the selected one highlighted (the list scrolls, `^` and `v` at its right edge
+  when there is more), the selected value between `<` and `>`, and at the bottom the selected item's line (or a
+  message) and the keys. The text is the port's own 5 x 9 font (`gfx_font.c`).
+
+### The mouse
+
+`input_sdl.c` passes the mouse to the overlay while it is open (`pc_menu_mouse`), and to nothing else.
+
+- **Where it points.** SDL's mouse events are in the window system's units. `pc_menu_mouse_pixels` turns them into
+  the drawable's pixels by the drawable's size against the window's (`SDL_GL_GetDrawableSize`,
+  `SDL_GetWindowSize`): the same on Windows, which is per-monitor DPI aware (a 200% 2880 × 1620 desktop is 2880 ×
+  1620 of both), and on X11; 2 pixels a unit on a 2x macOS or Wayland output, 1.5 at 1.5x. The middle of the unit
+  is taken, so at 2x a point lands on the second of its two pixels.
+- **What is there.** `pc_menu_hit` uses the drawing's own layout (the unit, the panel's corner, the rows), so the
+  hit test and the picture can't disagree at any window size, in fullscreen (desktop or exclusive: the window is the
+  screen's or the mode's size), at a fullscreen resolution (the overlay is drawn at the window's pixels, not the
+  frame's) or in widescreen (the panel stays in the middle of the window).
+- **Pointing** selects the item under it, except the player rows and Help's headings, and not while a binding
+  waits for its input (the input goes to the item chosen). Only a move selects: a mouse resting where a page puts
+  another item doesn't, and the keys and buttons still move the selection as before.
+- **Clicks.** Left: choose (as Enter); on a choice or a number, left of the value's middle is the previous one and
+  right of it the next; on the volume's and rumble's bar, the value where it is clicked. Right, or the back
+  button (X1), or a click outside the panel: back, and close on the first page. Any click while a binding waits
+  cancels the wait. The second press of a double click (within 0.5 s, Windows' double-click time) on the page the
+  first one opened or went back to is ignored, so a double click on Video doesn't also change its first setting.
+- **The wheel** scrolls a long page (Keyboard, Controllers, Help, About) by 3 rows a notch; the selection stays on
+  screen, and when the list moved the item now under the mouse is selected. It never changes a value. The list's
+  `^` and `v` scroll the same way when clicked.
+- **The cursor** shows while the overlay is open. During play it is hidden from the start and shows only when the
+  mouse moves (an event at the same place isn't a move), for 2 s after it stops; after the overlay closes it stays
+  2 s and hides. Times are port/ultra's clock (`pc_host_ns`), which the hold sets back; a time from before is
+  taken as now.
+- **The focusing click.** A click within 250 ms after the window gets the focus back is the one that gave it the
+  focus (Windows and most window managers pass it on), so it doesn't act on the overlay.
+- **Never the game.** Mouse events reach no pad; a click while the overlay is closed does nothing at all.
 
 ## Building with SDL2
 
@@ -369,11 +421,14 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.sdl.hotplug` | `... hotplug` | six pads plugged and unplugged: players filled in order, kept while others leave, a waiting pad takes a freed player, ports disconnect when unplugged; `first_controller_player = 2`; a pad present before input starts |
 | `frontend.sdl.rumble` | `... rumble` | the motor drives the pad's rumble callback at full strength, only on that player; a steady rumble outlives SDL's 1 s duration; the fade over 4 retraces; a pulsed motor stays at least half; strength from the settings; another player's motor; stopped at shutdown; strength 0 |
 | `frontend.sdl.script` | `... script` | `--press` merged over live input: buttons OR'ed, a scripted stick axis replaces the live one, a scripted port connected; `--log-input` runs |
-| `frontend.menu.nav` | `frontend_menu_test nav` | the overlay, headless: opening holds the game and its pads read idle; the panel shows over the frame (the frame dimmed around it, the selected row's color); moving and wrapping, pages, a long page scrolled by a page, back, close; closed, the window is the frame again byte for byte, and so is the next frame; each page keeps its place; Quit stops the main loop |
-| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s |
-| `frontend.menu.save` | `... save` | `pc_ini_update`: a value replaced in place (key case, spacing, the inline comment kept), the last of two lines, a new key after its section's last, an empty section, a new section after a last line without its end, CRLF, a binding, quoting, a BOM and bad lines kept, no changes; the overlay's Save over a hand-written file: the expected text exactly, a setting changed and back not written, the command line's scale not written, nothing more to save, the file reads back; a missing file and its directories, written whole |
+| `frontend.menu.nav` | `frontend_menu_test nav` | the overlay, headless: opening holds the game and its pads read idle; the panel shows over the frame (the frame dimmed around it, the selected row's color); moving and wrapping, pages, a long page scrolled by a page, back, close; Help opens past its heading, its rows don't change, up wraps past the heading; About without main's facts; closed, the window is the frame again byte for byte, and so is the next frame; each page keeps its place; Quit stops the main loop |
+| `frontend.menu.mouse` | `... mouse` | hit-testing at ten window and drawable sizes (640 × 480, 1080p, a 200% DPI-aware 2880 × 1620, 2x points, 1.5x, 1.25x square, 853 × 480, 21:9 3440 × 1440, 320 × 240, 1366 × 768): every window unit lands in its own pixels; rows 0, 7 and 14 from the window's units; the panel's edges and corners to the pixel; a row's first and last pixel lines; the footer; the scroll arrow; a value's label, left and right parts. Then by mouse at 640 × 480: pointing selects and the highlight is drawn there; clicks right and left of a value, on a label, on the title (nothing); the right button; a double click on Video (opens it, the second press changes nothing; a click 0.6 s later does); the volume's bar at its middle, end and start and right of it; the wheel (3 rows, the item under the mouse selected, at most to the last page); the up arrow; a binding's wait (pointing doesn't move it, a click cancels); at 2x points into a 1280 × 960 window, the row and its highlight; outside: back, then closed; closed, clicks don't open it nor reach the pads |
+| `frontend.menu.pages` | `... pages` | About's content (`pc_menu_about_text`) from mocked main facts: version and build type, commit, build, the GL driver's own strings, audio and buffer, four players (none headless), ROM, settings file, saves, screenshots, log, data folder; made again each time it opens (main's fill called each time); no Open or Copy headless. Help from the bindings in effect: two keys, Xbox names, the right stick as the N64 stick, a combination as the settings button, Alt+Enter with fullscreen, a binding cleared on the Keyboard page shown on return |
+| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the race HUD reaches it (centered, then edges); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s |
+| `frontend.menu.save` | `... save` | `pc_ini_update`: a value replaced in place (key case, spacing, the inline comment kept), the last of two lines, a new key after its section's last, an empty section, a new section after a last line without its end, CRLF, a binding, quoting, a BOM and bad lines kept, no changes; the overlay's Save over a hand-written file: the expected text exactly, a setting changed and back not written, the command line's scale not written, "saved" and the message naming the file, nothing more to save, a change after it counted, changed back "saved" again, the file reads back; a missing file and its directories, written whole |
 | `frontend.menu.script` | `... script` | a `--press` script over time: MENU opens it, a press held across the opening doesn't act, the game's pads are idle meanwhile, DOWN, A, LEFT (the volume), B, the stick, START closes; scripted game input works after |
 | `frontend.sdl.menu` | `frontend_sdl_test menu` | the overlay through the real window: F1 opens it, the game's held key released and its input suppressed, the title; (not on Windows) the panel in the window; arrows, Enter, a key captured (Space; Comma by its alias); Escape goes back and doesn't quit; the game then has the new keys; Enter that closed it and its key repeat aren't START until released; a virtual pad: one stick click doesn't open it, both do; the D-pad, A, a button and a stick direction captured, B, Start closes it and stays ignored until released, Y now A; guide as the menu button opens and closes it and isn't a game button; fullscreen from the overlay at once; F11 works in it and the overlay follows |
+| `frontend.sdl.mouse` | `frontend_sdl_test mouse` | the mouse through the real window: no cursor at start; a move shows it, 2 s without one hides it, an event at the same place isn't a move; clicks and the wheel during play reach no pad, don't open the overlay and don't show the cursor; F1 shows the cursor; pointing, a click opening a page, a click starting a capture, the back button, the wheel not changing a value, the right button; the click right after the focus comes back ignored, a later one outside the panel closes it and doesn't reach the game; the cursor stays 2 s after closing; About by mouse, Copy as its last item (no Open on the offscreen driver), the clipboard holding the page |
 
 - **The SDL tests** use port/gfx's real window and event loop on SDL's offscreen driver (`SDL_VIDEODRIVER=offscreen`),
   so they need no display.
@@ -386,6 +441,12 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
   window's size that `pc_gfx_read_window` reads ([GFX.md](GFX.md) "The overlay"). Input comes as the overlay's
   actions (what input_sdl.c sends for keys and buttons), captured names and `--press` scripts, with the test's
   clock. The overlay's drawing and font have their own tests in port/gfx (`gfx.ui.*`).
+- **The mouse, Help and About (2026-10-28):** 193 of 193 CTests pass on rocky in Debug and RelWithDebInfo, three of
+  them new (`frontend.menu.mouse`, `frontend.menu.pages`, `frontend.sdl.mouse`); the Windows cross build builds
+  every test program. Mutation check: of twelve deliberate bugs, eleven were caught (window units taken as pixels,
+  pointing during a capture, the wheel, a click outside, the double-click guard, the cursor shown at start or never
+  hidden, the focusing click, "saved", About without main's facts, the bar); the twelfth, input_sdl.c passing a
+  click on while the overlay is closed, changes nothing, since `pc_menu_mouse` ignores it then too.
 - **Results on rocky (x86-64, Mesa, SDL2 2.30), 2026-10-27:** 92 of 92 CTests pass (80 before: the 5 `frontend.menu`
   and `frontend.sdl.menu` above, the 6 `gfx.ui` tests and `audio_volume` are new). Without SDL2, 82 of 82. The
   Windows cross build (mingw-w64, with and without the fetched SDL2) builds every test program.
@@ -494,6 +555,17 @@ python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-ch
   - `pc_input_paused` is also true while the overlay is open, and `pc_input_init` starts it; main sets the volume.
   - The pause key's redraw of an exposed or resized window now shows the presented frame again (`pc_gfx_redraw`)
     rather than presenting the last render target.
+- **The mouse, Help and About** (2026-10-28) changed no game C and nothing in port/ultra.
+  - `pc_port.h` gains `pc_gfx_driver` (the GL strings `gfx_gl.c` logs); `pc_audio.h`'s `PcAudioStats` gains
+    `game_rate`; `app.h` gains `pc_app_rom_path`, `pc_app_version_commit`, `pc_app_version_build` and
+    `pc_app_build_type` (pcapp is built with `PC_BUILD_TYPE`, which `--version` and the log now print).
+  - `input_internal.h`: `pc_menu_mouse`, `pc_menu_mouse_pixels`, `pc_menu_hit`, `PcAbout`, `pc_menu_set_about`,
+    `pc_menu_about_text`, `pc_menu_message`, and the live part's `pc_input_live_desktop`, `_clipboard`,
+    `_open_folder`.
+  - `main.c` fills About's facts (`about_fill`: the version, the audio output's stats, the ROM, the saves, the log,
+    the data folder); it includes port/input's and port/audio's headers for that.
+  - menu.c's `Item` gains `desc` and `row`, `Page` gains its info rows and columns; the descriptions of the
+    existing settings are a table at the end of `build()`, so the pages' item lists didn't change.
 
 ## Untested
 
@@ -517,4 +589,7 @@ python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-ch
   - key names captured on other keyboard layouts (scan codes are named by their US position, as in the file);
   - its window readback on Windows: the SDL test skips the pixel check there, since WGL leaves the back buffer
     undefined after the swap; the headless pixel tests run there.
-  - No mouse.
+  - a real mouse: the events were SDL's, pushed into the offscreen window, and the display scales were the hit
+    test's with made-up sizes (SDL's window and drawable sizes on a real 200% Windows desktop or a 2x Wayland
+    output weren't seen); the cursor's hiding on a real window manager; Open the data folder (SDL_OpenURL) on
+    Windows and Linux desktops, which the tests never run.

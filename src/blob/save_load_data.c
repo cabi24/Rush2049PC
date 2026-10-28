@@ -2336,7 +2336,12 @@ extern s32 D_801392F0;
 extern s8 D_80139300;
 extern f32 D_80139308;
 extern f32 D_80139318;
+#ifdef TARGET_PC
+/* 64-byte records: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern s32 D_80139320[];
+#else
 extern s32 D_80139320;
+#endif
 extern s32 D_80139334;
 extern s8 D_8013A020;
 extern s32 D_8013A028;

@@ -15,6 +15,8 @@
 
 #include "app.h"
 #include "config.h"
+#include "input_internal.h"
+#include "pc_audio.h"
 #include "pc_compat.h"
 #include "ultra.h"
 
@@ -196,6 +198,14 @@ static void game_info(char *out, size_t size)
              (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed, (double)*steer);
 }
 
+/* video.hud = edges moves the HUD to the screen's edges only in a race with one view (port/gfx/gfx_hud.c): the
+ * countdown (0x200000) and the race (0x400000), its pause screen included, with gNumWindows 1 (not the boot's -1). */
+static int hud_race(void)
+{
+    uint32_t s = game_state();
+    return s != 0xFFFFFFFFu && (s & 0x00600000u) != 0 && *(volatile int16_t *)&gNumWindows == 1;
+}
+
 /* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
 static double fast_clock(void)
 {
@@ -217,6 +227,36 @@ static void fill_portable_ini(const PcAppDirs *d)
         fprintf(stderr, "rush2049pc: wrote the default settings to %s\n", ini);
     else
         fprintf(stderr, "rush2049pc: cannot write %s; using the defaults\n", ini);
+}
+
+/* The settings overlay's About page (port/input/menu.c): what only main knows, filled each time the page is made. */
+static struct {
+    char saves[PC_APP_PATH], data[PC_APP_PATH];
+    int no_rom;
+} g_about;
+
+static void about_fill(PcAbout *a)
+{
+    PcAudioStats st;
+    const char *where = NULL, *rom = pc_app_rom_path(&where);
+    snprintf(a->version, sizeof a->version, "%s", pc_app_version());
+    snprintf(a->build_type, sizeof a->build_type, "%s", pc_app_build_type());
+    snprintf(a->commit, sizeof a->commit, "%s", pc_app_version_commit());
+    snprintf(a->build, sizeof a->build, "%s", pc_app_version_build());
+    pc_audio_get_stats(&st);
+    snprintf(a->audio, sizeof a->audio, "%s at %u Hz", pc_audio_backend_name(), (unsigned)pc_audio_device_rate());
+    if (st.device_rate && st.game_rate)   /* as the "audio:" line at exit says it */
+        snprintf(a->audio_buffer, sizeof a->audio_buffer, "pulls of %u (%.0f ms), queue %u (%.0f ms)",
+                 (unsigned)st.period_frames, st.period_frames * 1000.0 / st.device_rate, (unsigned)st.target_frames,
+                 st.target_frames * 1000.0 / st.game_rate);
+    if (g_about.no_rom)
+        snprintf(a->rom, sizeof a->rom, "none (--no-rom)");
+    else
+        snprintf(a->rom, sizeof a->rom, "%s%s%s%s", rom, where && *where ? " (" : "", where ? where : "",
+                 where && *where ? ")" : "");
+    snprintf(a->saves, sizeof a->saves, "%s", g_about.saves[0] ? g_about.saves : "none (no controller pak)");
+    snprintf(a->log, sizeof a->log, "%s", pc_app_log_path() ? pc_app_log_path() : "none");
+    snprintf(a->data, sizeof a->data, "%s", g_about.data);
 }
 
 /* Whether the command line set this setting (its path is then from the working directory). */
@@ -445,6 +485,7 @@ static int rush_main(int argc, char **argv)
     pc_settings_get(&cfg, "video", "frame_rate", rate, sizeof rate);
     setenv("RUSH_GFX_FRAME_RATE", rate, 1);
     setenv("RUSH_GFX_TEXTURES", cfg.textures == 1 ? "upscaled" : cfg.textures == 2 ? "pack" : "original", 1);
+    setenv("RUSH_GFX_HUD", cfg.hud == PC_GFX_HUD_CENTERED ? "centered" : "edges", 1);
     if (cfg.widescreen > 0 && cfg.width == 640 && cfg.height == 480)   /* the default window, at the picture's aspect */
         cfg.width = (int)(cfg.height * cfg.widescreen + 0.5);
     if (!run.frames && pc_input_script_frames)
@@ -522,7 +563,11 @@ static int rush_main(int argc, char **argv)
         pc_app_mkdirs(dir);
         fprintf(stderr, "rush2049pc: saves (the controller pak): %s%s\n", pak_path,
                 old ? ", in the working directory, where earlier builds kept it" : "");
+        snprintf(g_about.saves, sizeof g_about.saves, "%s", pak_path);
     }
+    snprintf(g_about.data, sizeof g_about.data, "%s", dirs.data);
+    g_about.no_rom = no_rom;
+    pc_menu_set_about(about_fill);
     pc_app_data_file(&dirs, cfg.screenshot_dir[0] ? cfg.screenshot_dir : "screenshots",
                      cfg.screenshot_dir[0] && from_command_line(over, nover, "video", "screenshot_dir"), dir,
                      sizeof dir);
@@ -536,11 +581,14 @@ static int rush_main(int argc, char **argv)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     pc_audio_set_volume(cfg.volume / 100.0);
     pc_audio_set_latency((unsigned)cfg.audio_latency);
+    if (pc_verbose)
+        pc_audio_set_report_every(10);   /* the output's counters every 10 s, besides the exit line */
     if (!pc_mem_fixed())
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
 
     run.game_state = game_state;
     run.game_info = game_info;
+    pc_gfx_set_hud_race(hud_race);
     if (fast) {
         pc_time_set_virtual(1);
         pc_audio_set_clock(fast_clock);
