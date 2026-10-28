@@ -347,6 +347,7 @@ void pcgfx_hfr_presented(GfxTarget *t, uint32_t vi);   /* t's frame was swapped 
  * (mode 1 and the GPU hasn't finished what it was given, or mode 2: the screen keeps what it shows). The mode is
  * pc_gfx_present_tick's. */
 int pcgfx_hfr_frame(double vt, GfxTarget **t, int *rows, int mode);
+int pcgfx_hfr_wants_next(double vt);   /* a frame at vt is between the shown one and the next, not drawn yet */
 void pcgfx_hfr_dump(GfxTarget *t, int drawn);   /* RUSH_GFX_HFR_DUMP: the frame just shown (t NULL: presented) */
 void pcgfx_hfr_reset(void);       /* forget the recorded frames */
 void pcgfx_hfr_shutdown(void);

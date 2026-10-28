@@ -55,6 +55,8 @@ static struct {
     uint32_t ticked_gen;               /* present_gen at the last tick that showed anything */
     int shown_w, shown_h;     /* the window size it was shown at */
     int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
+    int vsync;                /* the window's swap waits for a vblank (swap interval 1) */
+    int tick_unswapped;       /* a tick drew into the window and left its swap to the main loop (pc_gfx_swap_tick) */
     /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
     uint32_t tasks, drawn;
     double task_ms, task_ms_max, drawn_ms, drawn_ms_max, tick_ms;
@@ -280,6 +282,8 @@ int pc_gfx_set_vsync(int on) {
     if (S.use_sdl)
         rc = pcgfx_sdl_set_vsync(on);
 #endif
+    if (rc == 0)
+        S.vsync = on != 0;
     if (rc == 0 && on && pcgfx_cfg.frame_rate > 0) {
         display_refresh();
         if (pcgfx_cfg.frame_rate > S.display_hz)
@@ -380,7 +384,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
         if (pcgfx_sdl_init(window_width > 0 && window_height > 0 ? window_width : 0,
                            window_width > 0 && window_height > 0 ? window_height : 0, want_gles, &get_proc,
                            &is_gles) == 0)
-            S.use_sdl = 1;
+            S.use_sdl = 1, S.vsync = 1;   /* gfx_sdl.c sets swap interval 1 */
         else
             fprintf(stderr, "gfx: no window; rendering headless\n");
 #else
@@ -501,6 +505,28 @@ static void swap(void) {
     if (S.use_sdl)
         pcgfx_sdl_swap();
 #endif
+    S.tick_unswapped = 0;
+}
+
+/* A high frame rate paced by the display (docs/port/FRAMERATE.md 2): the loop times the swap apart from the
+ * drawing, and swaps when the vblank it drew for comes; a swap since (pc_gfx_redraw) has shown something else. */
+void pc_gfx_swap_tick(void) {
+    if (S.tick_unswapped)
+        swap();
+}
+
+int pc_gfx_tick_waits(double vt) {
+    return S.inited && pcgfx_cfg.frame_rate != 0 && pcgfx_hfr_wants_next(vt);
+}
+
+int pc_gfx_vsync(void) {
+    return S.inited && S.use_sdl && S.vsync;
+}
+
+int pc_gfx_display_hz(void) {
+    if (S.display_hz <= 0)
+        display_refresh();
+    return S.display_hz;
 }
 
 void pc_gfx_retrace(uint32_t vi) {
@@ -573,10 +599,11 @@ int pc_gfx_frame_waiting(void) {
  * The presented frame when it is due, else one drawn between it and the next, or the next one when it is late. */
 int pc_gfx_present_tick(double vt, int mode) {
     GfxTarget *t = NULL;
-    int rows = 0, kind;
+    int rows = 0, kind, no_swap = mode & PC_GFX_TICK_NO_SWAP;
     double t0, t1, ts;
     uint32_t d0 = 0, d1;
     uint64_t v0 = 0, v1;
+    mode &= ~PC_GFX_TICK_NO_SWAP;
     if (!S.inited || pcgfx_cfg.frame_rate == 0)
         return 0;
     if (S.times > 1)
@@ -616,7 +643,10 @@ int pc_gfx_present_tick(double vt, int mode) {
     S.ticked_gen = S.present_gen;   /* the window has had a tick since the game's last frame (pc_gfx_frame_waiting) */
     pcgfx_hfr_dump(S.shown, kind == 2);
     pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
-    swap();
+    if (no_swap)
+        S.tick_unswapped = 1;
+    else
+        swap();
     show_end(ts);
     S.tick_ms += now_ms() - t0;
     return 1;

@@ -108,6 +108,15 @@ void pc_gfx_retrace(uint32_t vi);            /* each retrace, before the VI's pr
  * host's clock, a frame between two isn't drawn while the GPU hasn't finished what it was given; 2: no frame is drawn
  * between two, only the game's are shown (the host is behind). 1 when something new was shown, 0 if not. */
 int pc_gfx_present_tick(double vi_time, int mode);
+/* A mode bit: the frame is drawn into the window and its swap left to pc_gfx_swap_tick (the main loop times it, and
+ * with vsync swaps when the vblank it was drawn for comes). pc_gfx_vsync: 1 when the window's swap waits for vsync;
+ * pc_gfx_display_hz: the display's refresh (60 without one). */
+#define PC_GFX_TICK_NO_SWAP 4
+void pc_gfx_swap_tick(void);
+/* 1 when a tick at vi_time would draw a frame between the one shown and the game's next, which isn't drawn yet. */
+int pc_gfx_tick_waits(double vi_time);
+int pc_gfx_vsync(void);
+int pc_gfx_display_hz(void);
 /* 1 when the game has swapped in a frame the window hasn't shown yet (a high frame rate): a tick the main loop
  * skips to keep the retraces on time still shows it, as the setting off would at its swap. */
 int pc_gfx_frame_waiting(void);

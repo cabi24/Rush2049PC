@@ -35,6 +35,10 @@ WEAK void pc_gfx_set_textures(int mode) { (void)mode; }
 WEAK void pc_gfx_retrace(uint32_t vi) { (void)vi; }
 WEAK int pc_gfx_present_tick(double vi_time, int mode) { (void)vi_time, (void)mode; return 0; }
 WEAK int pc_gfx_frame_waiting(void) { return 0; }
+WEAK void pc_gfx_swap_tick(void) {}
+WEAK int pc_gfx_tick_waits(double vi_time) { (void)vi_time; return 0; }
+WEAK int pc_gfx_vsync(void) { return 0; }
+WEAK int pc_gfx_display_hz(void) { return 60; }
 
 WEAK int pc_audio_init(const char *backend, const char *dump_wav_path)
 {
