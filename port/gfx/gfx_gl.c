@@ -196,6 +196,7 @@ static struct {
     uint32_t draws;                 /* pcgfx_gl_draw calls and their vertices so far (RUSH_GFX_TIMES) */
     uint64_t verts;
     size_t vbo_size, vbo_used;      /* the vertex buffer: its size, and the bytes written since it was orphaned */
+    float nudge[2];                 /* tests: every drawn vertex moved by this many internal pixels */
 } G;
 
 /* ---------------------------------------------------------------- GL state as last set */
@@ -337,7 +338,7 @@ static void dc_tex_params(int unit, GLuint tex, int linear, int repeat_s, int re
  * Returns the first vertex's index for glDrawArrays. */
 #define VBO_SIZE ((size_t)4 << 20)
 
-static GLint stream_vertices(const GfxOutVtx *v, int n) {
+static GLint stream_vertices(const GfxOutVtx *v, int n, const float nudge[2]) {
     size_t bytes = sizeof(*v) * (size_t)n;
     GLint first;
     void *dst;
@@ -356,6 +357,14 @@ static GLint stream_vertices(const GfxOutVtx *v, int n) {
         return 0;
     }
     memcpy(dst, v, bytes);
+    if (nudge != NULL) {   /* clip x, y per pixel: 2 w / size */
+        GfxOutVtx *o = (GfxOutVtx *)dst;
+        int i;
+        for (i = 0; i < n; i++) {
+            o[i].pos[0] += nudge[0] * o[i].pos[3];
+            o[i].pos[1] += nudge[1] * o[i].pos[3];
+        }
+    }
     glUnmapBuffer(GL_ARRAY_BUFFER);
     first = (GLint)(G.vbo_used / sizeof(*v));
     G.vbo_used += bytes;
@@ -943,9 +952,23 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     dc_enable(GL_CULL_FACE, &DC.cull, 0);   /* culling happens in gfx_rsp.c, in N64 screen space */
     set_scissor(t, st->scissor);
     note_rows(t, st->scissor[3]);
-    glDrawArrays(GL_TRIANGLES, stream_vertices(v, n), n);
+    if (G.nudge[0] != 0.0f || G.nudge[1] != 0.0f) {
+        float nd[2];
+        nd[0] = G.nudge[0] * 2.0f / (float)t->pw;
+        nd[1] = G.nudge[1] * 2.0f / (float)t->ph;
+        glDrawArrays(GL_TRIANGLES, stream_vertices(v, n, nd), n);
+    } else {
+        glDrawArrays(GL_TRIANGLES, stream_vertices(v, n, NULL), n);
+    }
     G.draws++;
     G.verts += (uint64_t)n;
+}
+
+/* Tests (gfx_test's ties): the game's draws from here on with every vertex moved dx internal pixels right and dy up,
+ * as a GPU with another tie rule or rounding would move the edges; the scissor and clears stay. */
+void pcgfx_gl_test_nudge(float dx, float dy) {
+    G.nudge[0] = dx;
+    G.nudge[1] = dy;
 }
 
 void pcgfx_gl_draw_counts(uint32_t *draws, uint64_t *verts) {
@@ -1328,7 +1351,7 @@ void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_wi
     glUniform1i(G.u_ui_tex, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, G.ui_tex);
-    glDrawArrays(GL_TRIANGLES, stream_vertices(v, n), n);
+    glDrawArrays(GL_TRIANGLES, stream_vertices(v, n, NULL), n);
     glDisable(GL_BLEND);
     bind_fbo(0);
 }
