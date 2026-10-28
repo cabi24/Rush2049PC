@@ -1076,7 +1076,6 @@ static void draw_between(RFrame *b, RFrame *c, float a) {
                 in[0] = H.gv[t->v[0]];
                 in[1] = H.gv[t->v[1]];
                 in[2] = H.gv[t->v[2]];
-                tc.robust = 1;   /* clipped at the eye plane exactly, and the winding in double (gfx_rsp.c) */
                 n = pcgfx_tri_visible(in, &tc, poly);
                 if (n == 0)
                     continue;

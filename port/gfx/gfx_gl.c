@@ -80,6 +80,7 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
     X(PFNGLTEXPARAMETERIPROC, glTexParameteri) \
     X(PFNGLUNIFORM1FPROC, glUniform1f) \
     X(PFNGLUNIFORM1IPROC, glUniform1i) \
+    X(PFNGLUNIFORM2FVPROC, glUniform2fv) \
     X(PFNGLUNIFORM4FVPROC, glUniform4fv) \
     X(PFNGLUSEPROGRAMPROC, glUseProgram) \
     X(PFNGLVERTEXATTRIBPOINTERPROC, glVertexAttribPointer) \
@@ -98,7 +99,7 @@ static GLsync g_fence;
 struct GfxShader {
     GfxShaderKey key;
     GLuint prog;
-    GLint u_prim, u_env, u_fog, u_blend, u_fill, u_primlod, u_lodfrac, u_noise, u_scale;
+    GLint u_prim, u_env, u_fog, u_blend, u_fill, u_primlod, u_lodfrac, u_noise, u_scale, u_loda, u_lodb;
     GfxShader *next;
 };
 
@@ -190,9 +191,9 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
         if (sscanf(ver, "%d.%d", &maj, &min) == 2)
             G.glsl = maj * 100 + min;
     }
-    if (pcgfx_cfg.verbose)
-        fprintf(stderr, "gfx: %s / %s / %s\n", (const char *)glGetString(GL_RENDERER),
-                (const char *)glGetString(GL_VERSION), ver ? ver : "?");
+    /* always: which GPU and driver drew a run is the first question about a log (two-GPU laptops) */
+    fprintf(stderr, "gfx: %s / %s / %s / %s\n", (const char *)glGetString(GL_VENDOR),
+            (const char *)glGetString(GL_RENDERER), (const char *)glGetString(GL_VERSION), ver ? ver : "?");
     glGenVertexArrays(1, &G.vao);
     glBindVertexArray(G.vao);
     glGenBuffers(1, &G.vbo);
@@ -503,6 +504,18 @@ GfxShader *pcgfx_gl_shader(const GfxShaderKey *key) {
     glUseProgram(prog);
     glUniform1i(glGetUniformLocation(prog, "uTex0"), 0);
     glUniform1i(glGetUniformLocation(prog, "uTex1"), 1);
+    if (key->lod_levels) {   /* texture LOD: a sampler per mip level (gfx_combine.c) */
+        int k;
+        for (k = 2; k < key->lod_levels; k++) {
+            char name[8];
+            snprintf(name, sizeof(name), "uTex%d", k);
+            glUniform1i(glGetUniformLocation(prog, name), k);
+        }
+        s->u_loda = glGetUniformLocation(prog, "uLodA");
+        s->u_lodb = glGetUniformLocation(prog, "uLodB");
+    } else {
+        s->u_loda = s->u_lodb = -1;
+    }
     s->next = G.shaders[b];
     G.shaders[b] = s;
     return s;
@@ -528,7 +541,11 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     glUniform1f(sh->u_lodfrac, st->lod_frac);
     glUniform1f(sh->u_noise, st->noise_seed);
     glUniform1f(sh->u_scale, st->scale);
-    for (u = 0; u < 2; u++) {
+    if (st->lod_levels) {
+        glUniform4fv(sh->u_loda, GFX_LOD_MAX, &st->lod_a[0][0]);
+        glUniform2fv(sh->u_lodb, GFX_LOD_MAX, &st->lod_b[0][0]);
+    }
+    for (u = 0; u < (st->lod_levels > 2 ? st->lod_levels : 2); u++) {
         glActiveTexture(GL_TEXTURE0 + u);
         if (st->tex[u]) {
             GLint f = st->linear[u] ? GL_LINEAR : GL_NEAREST;

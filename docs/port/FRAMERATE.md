@@ -211,10 +211,6 @@ its numbers vary from run to run.
 
 - A real display: vsync and `display` pacing were checked only headless. With vsync the swap waits for the display;
   the ticks are scheduled by the clock, so a rate that isn't a multiple of the display's judders.
-- The live interpreter has the eye-plane clipping error the frames between avoid (a vertex lerped down to w = 1e-4 in
-  float can come out below zero): a triangle through the eye plane can be culled or drawn wrongly in a frame of the
-  game. Clipping at the plane exactly (`GfxTriCtx.robust`) would fix it there too, at the cost of changing the
-  default output's pixels on those triangles.
 - Per-vertex effects of the moment (lighting, texture generation) and LOD and culling choices are the nearer frame's.
 - Instances of one model with no paired parent, closer together than they move in a frame, can pair with a neighbour
   (a smoke trail behind a fast car).

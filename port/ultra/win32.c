@@ -17,6 +17,12 @@
 
 #define MAX_FRAMES 48
 
+/* Laptops with two GPUs (NVIDIA Optimus, AMD switchable graphics) run a program on the integrated one unless the
+ * program exports these, the drivers' documented way to ask for the discrete GPU. A choice made for the program in
+ * the driver's control panel or in Windows' graphics settings still wins. */
+__declspec(dllexport) DWORD NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+
 /* 1 if [p, p + n) is committed and readable: the unwinder reads saved return addresses through it. */
 static int readable(const void *p, size_t n)
 {

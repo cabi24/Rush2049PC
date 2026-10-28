@@ -728,6 +728,66 @@ static void case_twocycle(void) {
     }
 }
 
+/* Texture LOD (G_TL_LOD), as the game draws its world: four mip levels in tiles 0-3 (32, 16, 8 and 4 texels, each
+ * shifted by its level), 2-cycle with (TEXEL1 - TEXEL0) x LOD_FRACTION + TEXEL0, point sampled. Screen-aligned
+ * quads step r texels of the first level a pixel. Below 1 the first level; from 2^l the level l, toward l + 1 by
+ * r / 2^l - 1; from the last level's on, the last level. The steps are in N64 pixels at every internal scale.
+ * Without G_TL_LOD, TEXEL0 is tile 0 and the fraction 0. */
+static void case_lod(void) {
+    static uint16_t lv[4][32 * 32];
+    static Vtx v[8][4];
+    static const float r[8] = {0.5f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 16.0f, 4.0f};
+    static const int col[4][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}};
+    int k, i, tmem = 0;
+    for (k = 0; k < 4; k++) {   /* level 1: green and black columns, the others solid */
+        int w = 32 >> k;
+        for (i = 0; i < w * w; i++)
+            lv[k][i] = k == 1 && (i & 1) ? rgba16(0, 0, 0, 1) : rgba16(col[k][0], col[k][1], col[k][2], 1);
+    }
+    frame_begin(0, 0, 0);
+    gsDPSetCycleType(G_CYC_2CYCLE);
+    gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
+    for (k = 0; k < 4; k++) {
+        int w = 32 >> k;
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, (uintptr_t)lv[k]);
+        gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, tmem, G_TX_LOADTILE, 0, 0, 0, 0, 0, 0, 0);
+        gsDPLoadSync();
+        gsDPLoadBlock(G_TX_LOADTILE, 0, 0, w * w - 1, calc_dxt(w, 2));
+        gsDPPipeSync();
+        gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, (w * 2 + 7) >> 3, tmem, k, 0, G_TX_WRAP, 5 - k, k, G_TX_WRAP,
+                    5 - k, k);
+        gsDPSetTileSize(k, 0, 0, (w - 1) << 2, (w - 1) << 2);
+        tmem += w * w * 2 / 8;
+    }
+    gsSPTexture(0xFFFF, 0xFFFF, 3, 0, 1);
+    gsDPSetCombineLERP(CC_TEXEL1, CC_TEXEL0, CC_LOD_FRACTION, CC_TEXEL0, AC_TEXEL1, AC_TEXEL0, AC_LOD_FRACTION,
+                       AC_TEXEL0, CC_0, CC_0, CC_0, CC_COMBINED, AC_0, AC_0, AC_0, AC_COMBINED);
+    for (i = 0; i < 8; i++) {   /* 24 x 24 pixels at x 8 + 36 i, rows 20-44 */
+        int x = 8 + 36 * i, st = (int)lrintf(24 * r[i] * 32);
+        vtx(&v[i][0], x, 20, 0, 0, 0, 255, 255, 255, 255);
+        vtx(&v[i][1], x, 44, 0, 0, st, 255, 255, 255, 255);
+        vtx(&v[i][2], x + 24, 20, 0, st, 0, 255, 255, 255, 255);
+        vtx(&v[i][3], x + 24, 44, 0, st, st, 255, 255, 255, 255);
+        if (i == 7)
+            gsDPSetTextureLOD(G_TL_TILE);
+        else if (i == 0)
+            gsDPSetTextureLOD(G_TL_LOD);
+        gsSPVertex((uintptr_t)v[i], 4, 0);
+        gsSP2Triangles(0, 1, 2, 2, 1, 3);
+    }
+    frame_end();
+    check("magnified: the first level", 8 + 12, 32, 255, 0, 0, 2);
+    check("2: level 1, even column", 8 + 36 + 12, 32, 0, 255, 0, 3);
+    check("2: level 1, odd column", 8 + 36 + 13, 32, 0, 0, 0, 3);
+    check("3: halfway to level 2, even", 8 + 72 + 12, 32, 0, 128, 128, 4);   /* level 1 column 1.5 (x + 0.5) */
+    check("3: halfway to level 2, odd", 8 + 72 + 14, 32, 0, 0, 128, 4);
+    check("4: level 2", 8 + 108 + 12, 32, 0, 0, 255, 3);
+    check("6: halfway to level 3", 8 + 144 + 12, 32, 128, 128, 128, 4);
+    check("8: the last level", 8 + 180 + 12, 32, 255, 255, 0, 3);
+    check("16: the last level", 8 + 216 + 12, 32, 255, 255, 0, 3);
+    check("no G_TL_LOD: tile 0", 8 + 252 + 12, 32, 255, 0, 0, 2);
+}
+
 /* the game's dual tile: one CI8 load read by tile 0 as CI8 and by tile 1 as CI4 (shift 15, palette bank 1) */
 static void case_dualtile(void) {
     int x, y;
@@ -1034,6 +1094,117 @@ static void case_nearclip(void) {
     check("sky above", 160, 5, 0, 0, 0, 0);
     check("sky corner", 5, 5, 0, 0, 0, 0);
     check("inside near plane", 160, 120, 255, 0, 255, 0);
+}
+
+/* A road under the camera and a wall beside it, both from behind the eye to far ahead, back faces culled: the game's
+ * track at every frame. Clipped at the eye plane with a float lerp, the new vertices' w (lerped from tens of
+ * thousands down to 1e-4) came out at or below zero for some of these, which turned the polygon around and culled
+ * the whole road (the retail game showed the sky under the car for a frame). Even when drawn, the road's depth near
+ * the camera came out far too deep: GL interpolated it from the vertex at the eye plane, at depth 0 but projected
+ * millions of pixels out, so what lay under or behind the road and was drawn after it showed through. Clipped to the
+ * guard band as the RSP does, each is drawn to the screen's bottom and right edges, and a floor 20 units under the
+ * road stays hidden. */
+static void case_eyeplane(void) {
+    /* (behind, ahead): the road's near vertices' distance behind the eye and its far vertex's ahead. The first five
+     * gave the float lerp a w below zero with and without fused multiply-adds (aarch64 builds fuse, x86-64 ones
+     * don't), the next four with them only (exactly 0 without); the rest are ordinary. */
+    static const int cfg[][2] = {{124, 8190}, {160, 8106}, {214, 8107}, {235, 8175}, {268, 8058}, {3, 8000},
+                                 {40, 8001},  {90, 8011},  {235, 8005}, {1, 20000},  {100, 25000}, {300, 30000}};
+    static Mtx persp;
+    static Vtx v[12][9];
+    int k;
+    mtx_persp(&persp, 60.0f, 4.0f / 3.0f, 10.0f, 10000.0f);
+    for (k = 0; k < 12; k++) {
+        int behind = cfg[k][0], far = -cfg[k][1], half = 3000 + k * 251;
+        Vtx *f = v[k];
+        vtx(&f[0], -half, -40, behind, 0, 0, 0, 255, 255, 255);   /* road: counterclockwise from above */
+        vtx(&f[1], half, -40, behind, 0, 0, 0, 255, 255, 255);
+        vtx(&f[2], 0, -40, far, 0, 0, 0, 255, 255, 255);
+        vtx(&f[3], 30, -40, behind, 0, 0, 255, 0, 255, 255);      /* wall at x 30, facing the camera */
+        vtx(&f[4], 30, -40, far, 0, 0, 255, 0, 255, 255);
+        vtx(&f[5], 30, 400, behind + 7, 0, 0, 255, 0, 255, 255);
+        /* a red floor 20 units under the road, drawn after it: the road hides it everywhere */
+        vtx(&f[6], -half, -60, behind + 40, 0, 0, 255, 0, 0, 255);
+        vtx(&f[7], half, -60, behind + 40, 0, 0, 255, 0, 0, 255);
+        vtx(&f[8], 0, -60, -2000, 0, 0, 255, 0, 0, 255);
+        frame_begin(0, 0, 0);
+        gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsDPSetRenderMode(RM_ZB_OPA_SURF(1), RM_ZB_OPA_SURF(2));
+        gsSPGeometryMode(0, G_ZBUFFER | G_CULL_BACK);
+        cc_shade();
+        gsSPVertex((uintptr_t)f, 9, 0);
+        gsSP2Triangles(0, 1, 2, 3, 5, 4);
+        gsSP1Triangle(6, 7, 8);
+        frame_end();
+        {
+            int x, y, red = 0;
+            for (y = 130; y < 240; y += 3)
+                for (x = 0; x < 300; x += 3)
+                    red += px(x, y)[0] > 128 && px(x, y)[1] < 64 && px(x, y)[2] < 64;
+            if (red) {
+                printf("  FAIL %s: the floor under the road shows through it at %d samples (placement %d)\n", s_case,
+                       red, k);
+                s_fail++;
+            }
+        }
+        check("road under the camera", 160, 236, 0, 255, 255, 0);
+        check("road, bottom left", 4, 236, 0, 255, 255, 0);
+        check("road, horizon", 160, 125, 0, 255, 255, 0);
+        check("sky", 160, 5, 0, 0, 0, 0);
+        check("wall at the right edge", 318, 60, 255, 0, 255, 0);
+        check("wall, low", 318, 200, 255, 0, 255, 0);
+    }
+    /* A chase camera's angles: the camera 30-120 units over a road of two big triangles around it (one corner well
+     * behind the eye), pitched 4-16 degrees down and turned to 8 headings; the road fills the bottom of the screen
+     * and the floor under it stays hidden. */
+    for (k = 0; k < 24; k++) {
+        static Mtx view;
+        static Vtx road[8];
+        float f[4][4], yaw = (float)(k % 8) * 45.0f + 7.0f, pitch = 4.0f + (float)(k / 8) * 6.0f;
+        float cy = cosf(yaw * 3.14159265f / 180), sy = sinf(yaw * 3.14159265f / 180);
+        float cp = cosf(pitch * 3.14159265f / 180), sp = sinf(pitch * 3.14159265f / 180);
+        int h = 30 + (k / 8) * 45, x, y, bad = 0;
+        /* row vectors: turn about y by yaw, then tilt about x so that the view looks down by pitch */
+        mtx_ident_f(f);
+        f[0][0] = cy, f[0][1] = sy * sp, f[0][2] = -sy * cp;
+        f[1][0] = 0, f[1][1] = cp, f[1][2] = sp;
+        f[2][0] = sy, f[2][1] = -cy * sp, f[2][2] = cy * cp;
+        f[3][1] = -(float)h * cp, f[3][2] = -(float)h * sp;
+        mtx_f2l(f, &view);
+        vtx(&road[0], -20000, 0, -20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[1], -20000, 0, 20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[2], 20000, 0, -20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[3], 20000, 0, 20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[4], -20000, -20, -20000, 0, 0, 255, 0, 0, 255);
+        vtx(&road[5], -20000, -20, 20000, 0, 0, 255, 0, 0, 255);
+        vtx(&road[6], 20000, -20, -20000, 0, 0, 255, 0, 0, 255);
+        vtx(&road[7], 20000, -20, 20000, 0, 0, 255, 0, 0, 255);
+        frame_begin(0, 0, 0);
+        gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsSPMatrix((uintptr_t)&view, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsDPSetRenderMode(RM_ZB_OPA_SURF(1), RM_ZB_OPA_SURF(2));
+        gsSPGeometryMode(0, G_ZBUFFER | G_CULL_BACK);
+        cc_shade();
+        gsSPVertex((uintptr_t)road, 8, 0);
+        gsSP2Triangles(0, 1, 2, 2, 1, 3);
+        gsSP2Triangles(4, 5, 6, 6, 5, 7);
+        frame_end();
+        for (y = 200; y < 240; y += 4)
+            for (x = 0; x < 320; x += 8)
+                bad += !(px(x, y)[0] < 64 && px(x, y)[1] > 192 && px(x, y)[2] > 192);
+        if (bad) {
+            printf("  FAIL %s: chase camera %d (heading %.0f, pitch %.0f, height %d): %d samples of the bottom rows "
+                   "aren't the road\n", s_case, k, yaw, pitch, h, bad);
+            s_fail++;
+        }
+    }
+}
+
+/* What the clipping hands on to GL, on the CPU (tests/clip_check.c). */
+int gfx_clip_check(void);
+
+static void case_clip(void) {
+    s_fail += gfx_clip_check();
 }
 
 /* translucency, alpha compare and texture edge */
@@ -1416,8 +1587,9 @@ static const Case s_cases[] = {
     {"fill", case_fill},         {"shade", case_shade},       {"zbuf", case_zbuf},
     {"textures", case_textures}, {"texwrap", case_texwrap},   {"texrect", case_texrect},
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
-    {"dualtile", case_dualtile}, {"belist", case_belist},     {"matrix", case_matrix},
-    {"cull", case_cull},         {"branchz", case_branchz},   {"nearclip", case_nearclip},
+    {"lod", case_lod},           {"dualtile", case_dualtile}, {"belist", case_belist},
+    {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
+    {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
     {"screenshot", case_screenshot},
 };

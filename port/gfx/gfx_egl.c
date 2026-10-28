@@ -1,6 +1,6 @@
 /* port/gfx/gfx_egl.c: headless GL context through EGL without a window system: Mesa's surfaceless platform,
  * then an EGL device, then the default display. Rendering goes to framebuffer objects only.
- * RUSH_GFX_API=gl asks for desktop GL (3.3 core, else 3.1), anything else GLES 3.0 first. */
+ * want_gles (RUSH_GFX_API: pcgfx_want_gles) asks for GLES 3.0 first, else desktop GL (3.3 core, else 3.1) first. */
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdio.h>

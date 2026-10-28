@@ -261,11 +261,14 @@ on aarch64).
 
 - **Headless GL** is WGL on a hidden window (`port/gfx/gfx_wgl.c`, in place of `gfx_egl.c`; it keeps EGL's entry
   points). It tries:
-  1. GLES 3.0, when `RUSH_GFX_API` isn't `gl` and the driver offers ES profiles;
-  2. desktop GL 3.3 core;
-  3. desktop GL 3.1.
+  1. desktop GL 3.3 core;
+  2. desktop GL 3.1;
+  3. GLES 3.0, when the driver offers ES profiles (`WGL_EXT_create_context_es2_profile`).
 
-  GL 1.1 entry points come from `opengl32.dll` itself. Rendering goes to framebuffer objects, as with EGL.
+  With `RUSH_GFX_API=gles` (`video.api = gles`) GLES comes first. The window (SDL) takes the same order. `auto`, the
+  default, is desktop GL on Windows since 2026-10-27 (GLES before): it is what Windows GL drivers are made and
+  tested for, and their ES profile is a side path. GL 1.1 entry points come from `opengl32.dll` itself. Rendering
+  goes to framebuffer objects, as with EGL.
 - **GL declarations.** mingw-w64 has no `GLES3/gl3.h`. `gfx_gl.c` takes `GL/glcorearb.h` there, which has the same
   names and no prototypes.
 - **SDL2** is optional, as on Linux: window, keyboard, controllers and audio. Without it the build is headless with

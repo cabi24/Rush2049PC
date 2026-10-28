@@ -105,7 +105,7 @@ static const char *cc_c(int v) {
     case 10: return "vec3(uPrim.a)";
     case 11: return "vec3(sh.a)";
     case 12: return "vec3(uEnv.a)";
-    case 13: return "vec3(uLodFrac)";
+    case 13: return "vec3(lodf)";
     case 14: return "vec3(uPrimLod)";
     default: return "vec3(0.0)";   /* key scale, K5 */
     }
@@ -139,7 +139,7 @@ static const char *ac_abd(int v) {
 
 static const char *ac_c(int v) {
     switch (v) {
-    case 0: return "uLodFrac";
+    case 0: return "lodf";
     case 1: return "t0.a";
     case 2: return "t1.a";
     case 3: return "uPrim.a";
@@ -307,16 +307,59 @@ char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
             "in vec4 vShade;\nin vec4 vUV;\nout vec4 fragColor;\n"
             "float noise() {\n"
             "    return fract(sin(dot(gl_FragCoord.xy + vec2(uNoise), vec2(12.9898, 78.233))) * 43758.5453);\n"
-            "}\n"
-            "void main() {\n"
+            "}\n");
+    if (k->lod_levels) {
+        /* Mip level n of a vertex's s, t (texels): its tile's texture, through the tile's shift and origin. Each
+         * level has its own sampler and constant indices (GLES 3.0 indexes sampler arrays by constants only);
+         * textureLod, since the level is chosen in control flow that varies per pixel. */
+        int n, last = k->lod_levels - 1;
+        for (n = 2; n <= last; n++)
+            put(&s, "uniform sampler2D uTex%d;\n", n);
+        put(&s, "uniform vec4 uLodA[%d];\nuniform vec2 uLodB[%d];\n", GFX_LOD_MAX, GFX_LOD_MAX);
+        put(&s, "vec4 lodtex(int n, vec2 st) {\n");
+        for (n = 0; n < last; n++)
+            put(&s, "    if (n == %d)\n"
+                    "        return textureLod(uTex%d, (st * uLodA[%d].xy - uLodA[%d].zw) * uLodB[%d], 0.0);\n",
+                n, n, n, n, n);
+        put(&s, "    return textureLod(uTex%d, (st * uLodA[%d].xy - uLodA[%d].zw) * uLodB[%d], 0.0);\n}\n", last, last,
+            last, last);
+    }
+    put(&s, "void main() {\n"
             "    vec4 sh = vShade;\n"
             "    vec4 cmb = vec4(0.0);\n"
-            "    vec4 uv = vUV;\n");
+            "    vec4 uv = vUV;\n"
+            "    float lodf = uLodFrac;\n");
     if (k->flags & GFX_KF_SNAP)   /* back to the top-left sample of this N64 pixel (GL rows run bottom-up) */
         put(&s, "    vec2 j = mod(floor(gl_FragCoord.xy), uScale);\n"
                 "    uv = uv - j.x * dFdx(vUV) + (uScale - 1.0 - j.y) * dFdy(vUV);\n");
-    put(&s, "    vec4 t0 = %s;\n", (k->flags & GFX_KF_TEX0) ? "texture(uTex0, uv.xy)" : "vec4(0.0)");
-    put(&s, "    vec4 t1 = %s;\n", (k->flags & GFX_KF_TEX1) ? "texture(uTex1, uv.zw)" : "vec4(0.0)");
+    if (k->lod_levels) {
+        /* The RDP's LOD: the largest step of s or t (texels of the first level) to the next pixel across or down.
+         * Below 1 (magnified) the first level, fraction 0; past the last level that level, fraction 1; else the
+         * level of the step's power of two, the next one, and the fraction between them. In N64 pixels (a step
+         * across an internal pixel times the scale): every internal scale shows the levels the N64 shows. */
+        put(&s, "    vec2 dx = dFdx(uv.xy), dy = dFdy(uv.xy);\n"
+                "    float lod = uScale * max(max(abs(dx.x), abs(dx.y)), max(abs(dy.x), abs(dy.y)));\n"
+                "    int l0 = 0, l1 = 0;\n"
+                "    lodf = 0.0;\n"
+                "    if (lod >= 1.0) {\n"
+                "        float lg = floor(log2(lod));\n"
+                "        l0 = int(lg);\n"
+                "        if (l0 >= %d) {\n"
+                "            l0 = %d;\n"
+                "            l1 = l0;\n"
+                "            lodf = 1.0;\n"
+                "        } else {\n"
+                "            l1 = l0 + 1;\n"
+                "            lodf = clamp(lod / exp2(lg) - 1.0, 0.0, 1.0);\n"
+                "        }\n"
+                "    }\n"
+                "    vec4 t0 = lodtex(l0, uv.xy);\n"
+                "    vec4 t1 = lodtex(l1, uv.xy);\n",
+            k->lod_levels - 1, k->lod_levels - 1);
+    } else {
+        put(&s, "    vec4 t0 = %s;\n", (k->flags & GFX_KF_TEX0) ? "texture(uTex0, uv.xy)" : "vec4(0.0)");
+        put(&s, "    vec4 t1 = %s;\n", (k->flags & GFX_KF_TEX1) ? "texture(uTex1, uv.zw)" : "vec4(0.0)");
+    }
 
     if (k->mode == GFX_MODE_FILL) {
         put(&s, "    fragColor = vec4(uFill.rgb, 1.0);\n}\n");

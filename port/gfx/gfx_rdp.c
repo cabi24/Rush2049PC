@@ -328,7 +328,7 @@ static struct {
     int tile;
     uint32_t epoch;
     TexEntry *e;
-} s_unit_cache[2];
+} s_unit_cache[GFX_LOD_MAX];
 
 static uint64_t mix64(uint64_t h, uint64_t v) {
     h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
@@ -474,6 +474,21 @@ void pcgfx_tex_cache_clear(void) {
     s_decode = NULL;
 }
 
+/* Texture unit u's texture for tile ti: its last lookup while nothing changed, else a cache lookup. */
+static TexEntry *unit_texture(int u, int ti) {
+    TexEntry *e;
+    if (s_unit_cache[u].tile == ti && s_unit_cache[u].epoch == s_tex_epoch && s_unit_cache[u].e != NULL) {
+        e = s_unit_cache[u].e;
+        e->last_use = s_frame;
+        return e;
+    }
+    e = tex_lookup(ti);
+    s_unit_cache[u].tile = ti;
+    s_unit_cache[u].epoch = s_tex_epoch;
+    s_unit_cache[u].e = e;
+    return e;
+}
+
 /* ---------------------------------------------------------------- texture coordinates */
 
 static GfxUnitInfo s_unit[2];
@@ -557,8 +572,35 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
         key.flags = 0;
     }
 
-    /* Textures */
-    for (u = 0; u < 2; u++) {
+    /* Texture LOD (G_TL_LOD) on a triangle: the RDP picks the mip level per pixel, each a tile from the G_TEXTURE
+     * tile on, G_TEXTURE's level field the last; the shader does the same (gfx_combine.c). Detail and sharpen
+     * textures are not emulated: those draw as without LOD, from the tile and the next. */
+    if (rect_tile < 0 && pcgfx.tex_on && (key.mode == GFX_MODE_1CYC || key.mode == GFX_MODE_2CYC) &&
+        ((pcgfx.om_h >> G_MDSFT_TEXTLOD) & 1) && ((pcgfx.om_h >> G_MDSFT_TEXTDETAIL) & 3) == 0 &&
+        (pcgfx_combine_uses(&key, 0) || pcgfx_combine_uses(&key, 1))) {
+        int levels = pcgfx.tex_level + 1, k;
+        unsigned filt = (pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3;
+        for (k = 0; k < levels; k++) {
+            int ti = (tile + k) & 7;
+            const GfxTile *tl = &pcgfx.tiles[ti];
+            TexEntry *e = unit_texture(k, ti);
+            int lin = filt != G_TF_POINT;
+            st->tex[k] = e->gl;
+            st->repeat_s[k] = (uint8_t)e->repeat_s;
+            st->repeat_t[k] = (uint8_t)e->repeat_t;
+            st->linear[k] = (uint8_t)lin;
+            st->lod_a[k][0] = tile_shift(1.0f, tl->shifts);
+            st->lod_a[k][1] = tile_shift(1.0f, tl->shiftt);
+            st->lod_a[k][2] = tl->uls / 4.0f - (lin ? 0.5f : 0.0f);   /* bilinear centres texels on integers */
+            st->lod_a[k][3] = tl->ult / 4.0f - (lin ? 0.5f : 0.0f);
+            st->lod_b[k][0] = 1.0f / (float)e->w;
+            st->lod_b[k][1] = 1.0f / (float)e->h;
+        }
+        key.lod_levels = (uint8_t)levels;
+        st->lod_levels = (uint8_t)levels;
+        key.flags |= GFX_KF_TEX0 | GFX_KF_TEX1;
+    }
+    for (u = 0; u < 2 && !key.lod_levels; u++) {
         int want = key.mode == GFX_MODE_COPY ? u == 0
                  : (key.mode == GFX_MODE_FILL ? 0 : pcgfx_combine_uses(&key, (int)u));
         if (rect_tile < 0 && !pcgfx.tex_on)
@@ -566,16 +608,7 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
         if (want) {
             int ti = (tile + (int)u) & 7;
             const GfxTile *tl = &pcgfx.tiles[ti];
-            TexEntry *e;
-            if (s_unit_cache[u].tile == ti && s_unit_cache[u].epoch == s_tex_epoch) {
-                e = s_unit_cache[u].e;
-                e->last_use = s_frame;
-            } else {
-                e = tex_lookup(ti);
-                s_unit_cache[u].tile = ti;
-                s_unit_cache[u].epoch = s_tex_epoch;
-                s_unit_cache[u].e = e;
-            }
+            TexEntry *e = unit_texture((int)u, ti);
             unsigned filt = (pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3;
             st->tex[u] = e->gl;
             st->repeat_s[u] = (uint8_t)e->repeat_s;

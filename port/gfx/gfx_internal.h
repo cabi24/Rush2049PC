@@ -34,7 +34,7 @@ typedef struct {
     float x, y, z, w;   /* clip space */
     float r, g, b, a;   /* shade, 0..1 (alpha holds fog when G_FOG) */
     float s, t;         /* texture coordinates after the G_TEXTURE scale, in texel*32 (s10.5) units */
-    uint8_t clip;       /* outcodes: 1 x<-w, 2 x>w, 4 y<-w, 8 y>w */
+    uint8_t clip;       /* outcodes: 1 x<-w, 2 x>w, 4 y<-w, 8 y>w, 16 w<1e-4, 32 outside the guard band (gfx_rsp.c) */
 } GfxVtx;
 
 typedef struct {
@@ -126,8 +126,11 @@ typedef struct {
     uint8_t mode;            /* GFX_MODE_* */
     uint8_t ac;              /* 0 none, 1 threshold, 3 dither, 4 copy-mode alpha test */
     uint8_t flags;           /* GFX_KF_* */
-    uint8_t pad[3];
+    uint8_t lod_levels;      /* texture LOD (G_TL_LOD): the mip levels, tiles from the G_TEXTURE tile on; 0 none */
+    uint8_t pad[2];
 } GfxShaderKey;
+
+#define GFX_LOD_MAX 8   /* mip levels: tiles t .. t + 7, as G_TEXTURE's level field (0-7) allows */
 
 enum { GFX_MODE_1CYC, GFX_MODE_2CYC, GFX_MODE_COPY, GFX_MODE_FILL };
 enum {
@@ -145,9 +148,13 @@ typedef struct GfxTarget GfxTarget;
 typedef struct {
     GfxShader *shader;
     GfxTarget *target;
-    uint32_t tex[2];                /* GL texture names, 0 = unused */
-    uint8_t linear[2], repeat_s[2], repeat_t[2];
+    uint32_t tex[GFX_LOD_MAX];      /* GL texture names, 0 = unused: TEXEL0, TEXEL1; with LOD, each mip level's */
+    uint8_t linear[GFX_LOD_MAX], repeat_s[GFX_LOD_MAX], repeat_t[GFX_LOD_MAX];
+    uint8_t lod_levels;             /* the key's: 0, or the mip levels bound (units 0 .. lod_levels - 1) */
     uint8_t depth_test, depth_write, decal, blend;
+    /* With LOD, mip level k's texture coordinates from a vertex's s, t (texels): uv = (st * a.xy - a.zw) * b.xy:
+     * the tile's shift, its origin (half a texel back when filtered) and its texture's size. */
+    float lod_a[GFX_LOD_MAX][4], lod_b[GFX_LOD_MAX][2];
     int32_t scissor[4];             /* x0, y0, x1, y1 in N64 pixels, exclusive */
     float prim[4], env[4], fog[4], blendc[4], fill[4];
     float prim_lod, lod_frac;
@@ -183,10 +190,9 @@ typedef struct {
     uint8_t zs_prim;        /* G_ZS_PRIM: the primitive depth */
     uint8_t tex;            /* G_TEXTURE on */
     uint8_t wide;           /* widescreen 3D: the draw state's scissor widens */
-    uint8_t robust;         /* the screen winding in double precision (the frame interpolator's; see gfx_rsp.c) */
 } GfxTriCtx;
 
-/* A triangle's visible polygon: trivially rejected, clipped against the eye plane, culled by its screen winding.
+/* A triangle's visible polygon: trivially rejected, clipped to the guard band and the eye plane, culled by its winding.
  * Returns its vertex count (0: nothing to draw). */
 int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]);
 /* The polygon as GL triangles (up to 18 vertices); flat shading takes first's colour. Returns the vertex count. */
@@ -299,7 +305,8 @@ void pcgfx_hfr_shutdown(void);
 /* Context backends: gfx_egl.c (headless), gfx_sdl.c (window, when built with SDL2) */
 int pcgfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles);
 void pcgfx_egl_shutdown(void);
-int pcgfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles);
+int pcgfx_sdl_init(int w, int h, int want_gles, GfxGetProc *get_proc, int *is_gles);
+int pcgfx_want_gles(const char *api);   /* RUSH_GFX_API: which API to try first (gfx_api.c) */
 void pcgfx_sdl_swap(void);
 int pcgfx_sdl_poll(void);
 void pcgfx_sdl_size(int *w, int *h);

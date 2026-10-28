@@ -595,10 +595,9 @@ static void case_exact(void) {
     uint8_t *got, *want;
     int ground;
     for (ground = 0; ground < 2; ground++) {
-        /* With a ground through the eye plane, the frame between is clipped there exactly (gfx_rsp.c's robust
-         * clipping) where the game's frame lerps w down to the plane in float: a few pixels on the clipped edges
-         * may differ. Without it, the frame between is the game's frame to the pixel. */
-        int allowed = ground ? 32 : 0, n;
+        /* With a ground through the eye plane too: the frame between and the game's frame clip it the same way
+         * (gfx_rsp.c's clip_guard), so they agree to the pixel. */
+        int allowed = 0, n;
         scene_init(&sc, 2);
         sc.extras = ground;
         add_static(&sc, 0);

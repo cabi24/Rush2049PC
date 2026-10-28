@@ -10,9 +10,13 @@
 
 GfxState pcgfx;
 
-/* Vertices with w below this are clipped away before the divide (the NoN microcode has no near plane; see
- * GFX.md "Clipping"). */
+/* Clipping (GFX.md "Clipping"). The NoN microcode has no near plane. As the RSP does, a polygon that crosses the
+ * guard band, |x| <= GFX_GUARD w and |y| <= GFX_GUARD w (x as the view sees it), is clipped to it, on the CPU, so GL
+ * only ever gets vertices within twice the view; that leaves nothing behind the eye. A polygon through the eye point
+ * itself is also clipped at w >= GFX_W_EPS. */
 #define GFX_W_EPS 1e-4f
+#define GFX_GUARD 2.0f
+#define GFX_CLIP_MAX 16
 
 /* ---------------------------------------------------------------- memory */
 
@@ -207,6 +211,8 @@ uint8_t pcgfx_outcode(const GfxVtx *v, float xs) {
     if (v->y < -v->w) c |= 4;
     if (v->y > v->w) c |= 8;
     if (v->w < GFX_W_EPS) c |= 16;
+    if (x < -GFX_GUARD * v->w || x > GFX_GUARD * v->w || v->y < -GFX_GUARD * v->w || v->y > GFX_GUARD * v->w)
+        c |= 32;
     return c;
 }
 
@@ -352,24 +358,53 @@ static void vtx_lerp(GfxVtx *o, const GfxVtx *a, const GfxVtx *b, float t) {
     o->clip = 0;
 }
 
-/* exact: a new vertex's w is the plane's (robust, the frame interpolator's): lerped from w in the thousands, its float
- * w is off by about the plane's own 1e-4 and can come out below zero, which turns its projection around. The live
- * interpreter keeps the lerped w, so its output is what it was. */
-static int clip_w(const GfxVtx *in, int n, GfxVtx *out, int exact) {
+/* The planes, inside >= 0: the guard band's four sides, then the eye plane. */
+static float plane_dist(const GfxVtx *v, int plane, float xs) {
+    switch (plane) {
+    case 0: return GFX_GUARD * v->w - v->x * xs;
+    case 1: return GFX_GUARD * v->w + v->x * xs;
+    case 2: return GFX_GUARD * v->w - v->y;
+    case 3: return GFX_GUARD * v->w + v->y;
+    default: return v->w - GFX_W_EPS;
+    }
+}
+
+/* One plane of Sutherland-Hodgman. A new vertex is lerped from the end inside, toward the one outside. On the eye
+ * plane its w is the plane's exactly: lerped from w in the thousands, a float w is off by about the plane's own 1e-4
+ * and could come out below zero, which turns its projection around (a road triangle under the camera vanished). */
+static int clip_plane(const GfxVtx *in, int n, GfxVtx *out, int plane, float xs) {
     int i, m = 0;
-    for (i = 0; i < n; i++) {
+    for (i = 0; i < n && m + 2 <= GFX_CLIP_MAX; i++) {
         const GfxVtx *a = &in[i], *b = &in[(i + 1) % n];
-        float da = a->w - GFX_W_EPS, db = b->w - GFX_W_EPS;
+        float da = plane_dist(a, plane, xs), db = plane_dist(b, plane, xs);
         if (da >= 0.0f)
             out[m++] = *a;
         if ((da >= 0.0f) != (db >= 0.0f)) {
-            vtx_lerp(&out[m], a, b, da / (da - db));
-            if (exact)
+            if (da >= 0.0f)
+                vtx_lerp(&out[m], a, b, da / (da - db));
+            else
+                vtx_lerp(&out[m], b, a, db / (db - da));
+            if (plane == 4)
                 out[m].w = GFX_W_EPS;
             m++;
         }
     }
     return m;
+}
+
+/* A triangle with a vertex outside the guard band, or at or behind the eye, clipped to the guard band and the eye
+ * plane. Its new vertices sit on the guard band's sides with their own depth, as the RSP's do, instead of far out:
+ * x/w in the millions next to the eye, which some GL drivers' clippers mishandle. Up to 8 vertices. */
+static int clip_guard(const GfxVtx in[3], GfxVtx poly[8], float xs) {
+    GfxVtx buf[2][GFX_CLIP_MAX];
+    int n = 3, plane, k = 0;
+    memcpy(buf[0], in, sizeof(GfxVtx) * 3);
+    for (plane = 0; plane < 5 && n >= 3; plane++, k ^= 1)
+        n = clip_plane(buf[k], n, buf[k ^ 1], plane, xs);
+    if (n < 3 || n > 8)   /* a convex polygon gains a vertex a plane at most: more is float noise on a sliver */
+        return 0;
+    memcpy(poly, buf[k], sizeof(GfxVtx) * (size_t)n);
+    return n;
 }
 
 static float screen_z_at(const GfxVtx *v, const GfxTriCtx *c) {
@@ -379,15 +414,14 @@ static float screen_z_at(const GfxVtx *v, const GfxTriCtx *c) {
 
 int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]) {
     int n = 3, i;
-    float ax, ay, bx, by;
     uint32_t cull = c->geom & G_CULL_BOTH;
 
-    if (in[0].clip & in[1].clip & in[2].clip)
+    if (in[0].clip & in[1].clip & in[2].clip & 31)
         return 0;
     if (cull == G_CULL_BOTH)
         return 0;
-    if ((in[0].clip | in[1].clip | in[2].clip) & 16) {
-        n = clip_w(in, 3, poly, c->robust);
+    if ((in[0].clip | in[1].clip | in[2].clip) & 48) {
+        n = clip_guard(in, poly, c->xs);
         if (n < 3)
             return 0;
     } else {
@@ -395,41 +429,23 @@ int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]) {
     }
 
     /* Cull on the screen-space winding (y down): front faces (counterclockwise with y up) have negative area,
-     * and a mirrored viewport flips it, as on the RSP. A polygon clipped at the eye plane has vertices at w = 1e-4,
-     * x/w near 1e7, and float sums of their products can lose the sign: the frame interpolator, whose moments put
-     * the road under the camera there often, sums in double (c->robust). The live interpreter keeps its float sum,
-     * so its output is what it was. */
-    if (cull && c->robust) {
-        double area = 0.0;
-        for (i = 0; i < n; i++) {
-            const GfxVtx *a = &poly[i], *b = &poly[(i + 1) % n];
-            double dax = c->vp_trans[0] + (double)a->x / a->w * c->vp_scale[0];
-            double day = c->vp_trans[1] - (double)a->y / a->w * c->vp_scale[1];
-            double dbx = c->vp_trans[0] + (double)b->x / b->w * c->vp_scale[0];
-            double dby = c->vp_trans[1] - (double)b->y / b->w * c->vp_scale[1];
-            area += dax * dby - dbx * day;
+     * and a mirrored viewport flips it, as on the RSP. Summed in double, from the first vertex: a vertex near the
+     * eye projects far out (x/w in the thousands, millions on the eye plane), and float sums of such products can
+     * lose the sign. */
+    if (cull) {
+        double area = 0.0, sx = c->vp_scale[0], sy = -c->vp_scale[1];
+        double x0 = (double)poly[0].x / poly[0].w * sx, y0 = (double)poly[0].y / poly[0].w * sy;
+        for (i = 1; i + 1 < n; i++) {
+            const GfxVtx *a = &poly[i], *b = &poly[i + 1];
+            double ax = (double)a->x / a->w * sx - x0, ay = (double)a->y / a->w * sy - y0;
+            double bx = (double)b->x / b->w * sx - x0, by = (double)b->y / b->w * sy - y0;
+            area += ax * by - bx * ay;
         }
         if (area == 0.0)
             return 0;
         if ((cull & G_CULL_BACK) && area > 0.0)
             return 0;
         if ((cull & G_CULL_FRONT) && area < 0.0)
-            return 0;
-    } else if (cull) {
-        float area = 0.0f;
-        for (i = 0; i < n; i++) {
-            const GfxVtx *a = &poly[i], *b = &poly[(i + 1) % n];
-            ax = c->vp_trans[0] + a->x / a->w * c->vp_scale[0];
-            ay = c->vp_trans[1] - a->y / a->w * c->vp_scale[1];
-            bx = c->vp_trans[0] + b->x / b->w * c->vp_scale[0];
-            by = c->vp_trans[1] - b->y / b->w * c->vp_scale[1];
-            area += ax * by - bx * ay;
-        }
-        if (area == 0.0f)
-            return 0;
-        if ((cull & G_CULL_BACK) && area > 0.0f)
-            return 0;
-        if ((cull & G_CULL_FRONT) && area < 0.0f)
             return 0;
     }
     return n;
@@ -467,11 +483,17 @@ int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTr
         } else {
             memcpy(o->shade, flat, sizeof(flat));
         }
-        for (k = 0; k < 2; k++) {
-            if (c->tex && st->tex[k])
-                pcgfx_unit_uv(&units[k], v->s / 32.0f, v->t / 32.0f, &o->uv[2 * k], &o->uv[2 * k + 1]);
-            else
-                o->uv[2 * k] = o->uv[2 * k + 1] = 0.0f;
+        if (c->tex && st->lod_levels) {   /* LOD: the shader maps s, t per mip level (gfx_combine.c) */
+            o->uv[0] = v->s / 32.0f;
+            o->uv[1] = v->t / 32.0f;
+            o->uv[2] = o->uv[3] = 0.0f;
+        } else {
+            for (k = 0; k < 2; k++) {
+                if (c->tex && st->tex[k])
+                    pcgfx_unit_uv(&units[k], v->s / 32.0f, v->t / 32.0f, &o->uv[2 * k], &o->uv[2 * k + 1]);
+                else
+                    o->uv[2 * k] = o->uv[2 * k + 1] = 0.0f;
+            }
         }
     }
     for (i = 1; i + 1 < n; i++) {
@@ -493,7 +515,6 @@ static void tri_ctx(GfxTriCtx *c) {
     c->zs_prim = (pcgfx.om_l & G_ZS_PRIM) != 0;
     c->tex = pcgfx.tex_on;
     c->wide = pcgfx.wide_ox != 0 && pcgfx.persp;
-    c->robust = 0;
 }
 
 static void triangle(unsigned i0, unsigned i1, unsigned i2) {

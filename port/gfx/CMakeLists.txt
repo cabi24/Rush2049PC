@@ -95,15 +95,16 @@ else()
 endif()
 
 # ---------------------------------------------------------------- tests
-add_executable(gfx_test tests/gfx_test.c)
+add_executable(gfx_test tests/gfx_test.c tests/clip_check.c)
 set_target_properties(gfx_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_include_directories(gfx_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})   # clip_check.c: gfx_internal.h
 target_link_libraries(gfx_test PRIVATE pcgfx)
 # A test program defines main: keep it out of compile_commands.json (census.py reads the game and the PC layer).
 set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
-foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle dualtile belist matrix cull branchz nearclip
-          xlu widescreen autosize screenshot)
+foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
+          eyeplane clip xlu widescreen autosize screenshot)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The same cases on desktop GL, at 2x, on the software rasterizer (llvmpipe) and in widescreen (the 4:3 frame's
@@ -114,9 +115,14 @@ function(pcgfx_all_variant name env)
     add_test(NAME gfx.all.${name} COMMAND gfx_test all ${ARGN})
     set_tests_properties(gfx.all.${name} PROPERTIES ENVIRONMENT "${env};TMPDIR=${PCGFX_TEST_OUT}/${name}")
 endfunction()
+# Both APIs explicitly, each also on llvmpipe and at 2x in 16:9: the default (video.api auto) is desktop GL first
+# on Windows, GLES first elsewhere (pcgfx_want_gles).
+pcgfx_all_variant(gles "RUSH_GFX_API=gles")
 pcgfx_all_variant(desktop-gl "RUSH_GFX_API=gl")
+pcgfx_all_variant(desktop-gl-software "RUSH_GFX_API=gl;LIBGL_ALWAYS_SOFTWARE=1")
+pcgfx_all_variant(desktop-gl-wide-scale2 "RUSH_GFX_API=gl;RUSH_GFX_WIDESCREEN=16:9;RUSH_GFX_SCALE=2")
 pcgfx_all_variant(scale2 "RUSH_GFX_SCALE=2")
-pcgfx_all_variant(software "LIBGL_ALWAYS_SOFTWARE=1")
+pcgfx_all_variant(software "RUSH_GFX_API=gles;LIBGL_ALWAYS_SOFTWARE=1")
 pcgfx_all_variant(wide "RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(wide21-scale3 "RUSH_GFX_WIDESCREEN=21:9;RUSH_GFX_SCALE=3")
 pcgfx_all_variant(scale-auto "RUSH_GFX_SCALE=auto")   # 2 in the 640 x 480 headless size
@@ -131,10 +137,12 @@ target_link_libraries(gfx_interp_test PRIVATE pcgfx)
 foreach(c exact move camera cut teleport split hud appear instances children spin eyerel timing parse)
     add_test(NAME gfx.interp.${c} COMMAND gfx_interp_test ${c})
 endforeach()
-foreach(v "scale2;RUSH_GFX_SCALE=2" "wide;RUSH_GFX_WIDESCREEN=16:9" "desktop-gl;RUSH_GFX_API=gl"
-          "software;LIBGL_ALWAYS_SOFTWARE=1")
+foreach(v "scale2;RUSH_GFX_SCALE=2" "wide;RUSH_GFX_WIDESCREEN=16:9" "gles;RUSH_GFX_API=gles"
+          "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_GFX_API=gles,LIBGL_ALWAYS_SOFTWARE=1"
+          "desktop-gl-software;RUSH_GFX_API=gl,LIBGL_ALWAYS_SOFTWARE=1")
     list(GET v 0 name)
     list(GET v 1 env)
+    string(REPLACE "," ";" env "${env}")
     add_test(NAME gfx.interp.all.${name} COMMAND gfx_interp_test all)
     set_tests_properties(gfx.interp.all.${name} PROPERTIES ENVIRONMENT "${env}")
 endforeach()
@@ -146,9 +154,11 @@ target_link_libraries(gfx_ui_test PRIVATE pcgfx)
 foreach(c font panel closed scaled)
     add_test(NAME gfx.ui.${c} COMMAND gfx_ui_test ${c} ${PCGFX_TEST_OUT})
 endforeach()
-foreach(v "desktop-gl;RUSH_GFX_API=gl" "software;LIBGL_ALWAYS_SOFTWARE=1")
+foreach(v "gles;RUSH_GFX_API=gles" "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_GFX_API=gles,LIBGL_ALWAYS_SOFTWARE=1"
+          "desktop-gl-software;RUSH_GFX_API=gl,LIBGL_ALWAYS_SOFTWARE=1")
     list(GET v 0 name)
     list(GET v 1 env)
+    string(REPLACE "," ";" env "${env}")
     file(MAKE_DIRECTORY ${PCGFX_TEST_OUT}/ui-${name})
     add_test(NAME gfx.ui.all.${name} COMMAND gfx_ui_test all ${PCGFX_TEST_OUT}/ui-${name})
     set_tests_properties(gfx.ui.all.${name} PROPERTIES ENVIRONMENT "${env}")

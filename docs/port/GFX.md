@@ -75,13 +75,25 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     G_MW_LIGHTCOL.
 - **Texgen.** s = (n·lookatX + 1)/4 × scale_s; t the same with lookatY. The linear variant uses acos.
 - **Fog** (G_FOG). The shade alpha becomes clamp(z/w × fm + fo, 0, 255) from G_MW_FOG.
-- **Clipping.** The NoN microcode has no near plane.
-  - Before the divide, polygons are clipped on the CPU against w ≥ 1e-4. This removes the eye plane and everything
-    behind it, which the x/y planes would remove on the RSP anyway.
-  - Depth is clamped to [0, 1] per vertex. Geometry closer than the near plane is therefore drawn at depth 0, as on
-    the N64, instead of vanishing.
-  - GL then clips x/y in clip space. Vertices go to GL as clip coordinates with the N64 viewport folded in, so GL
-    never near-clips and nothing wraps around.
+- **Clipping.** The NoN microcode has no near plane. As on the RSP, a triangle with a vertex outside the guard band
+  (|x| ≤ 2w, |y| ≤ 2w; x as the view sees it in widescreen) is clipped to the guard band, on the CPU, before the
+  divide (`clip_guard`, gfx_rsp.c). Those planes leave nothing behind the eye, since |x| ≤ 2w needs w ≥ 0. Only a
+  polygon through the eye point itself is also clipped at w ≥ 1e-4, and a vertex made there gets w = 1e-4 exactly.
+  - So GL only ever gets vertices within twice the view, in front of the eye: x/w and y/w within ±2. Until
+    2026-10-27 the polygon was clipped at w ≥ 1e-4 alone, with the new vertex's w lerped in float. From w in the
+    thousands that lerp loses the 1e-4: the vertex came out at w = 0 (most of the time without fused multiply-adds,
+    as x86-64 builds are), or below 0, with x/w beyond 1e30. The road under the camera reaches behind the eye in
+    most frames of a race, so GL got such vertices nearly every frame. A w below 0 turned the polygon around: the
+    whole road under the car was culled for single frames, and the sky under it showed (the first player on a
+    Windows PC reported it as "lots of graphical errors on the world", flickering road; on the Pi, on Mesa, the
+    same). And when the road was drawn, its depth near the camera came out far too deep: the vertex on the eye
+    plane had depth 0 but lay millions of pixels out, so GL's depth across the screen was nearly the far vertex's,
+    and what lay under or behind the road and was drawn after it showed through.
+  - New vertices on the guard band have their own depth, as the RSP's do. Depth is clamped to [0, 1] per vertex.
+    Geometry closer than the near plane is therefore drawn at depth 0, as on the N64, instead of vanishing.
+  - The winding is summed in double, from the first vertex.
+  - GL then clips x/y at the screen in clip space. Vertices go to GL as clip coordinates with the N64 viewport
+    folded in, so GL never near-clips and nothing wraps around.
 - **Culling** uses the winding in N64 screen space after clipping (front = counterclockwise on screen). The game's
   mirrored modelview (x = −1) and mirrored viewports therefore flip it, as on the RSP. GL face culling stays off.
 - **Display-list control.**
@@ -111,6 +123,20 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     (two when mirrored) and drawn with GL_REPEAT.
   - Shift (1–10 divide, 11–15 multiply) and the tile origin (uls/ult, fractions kept) are applied per vertex, so the
     game's scrolling tile-size windows need no new decode.
+- **Texture LOD** (G_TL_LOD on a triangle in 1- or 2-cycle mode; added 2026-10-27). The retail cartridge's world
+  is drawn so, trilinearly in 2-cycle mode ((TEXEL1 − TEXEL0) × LOD_FRACTION + TEXEL0) from mip chains, G_TEXTURE's
+  level field the last level. Before, every level but the first was ignored: the far road and scenery were drawn
+  from the largest texture, a texel here and there, and sparkled as they moved.
+  - Each level is its tile (G_TEXTURE's tile + k), decoded as any other into its own GL texture, on texture unit
+    k. A vertex then carries its s, t in texels, and the shader maps them per level through the tile's shift and
+    origin (`GfxDrawState.lod_a`, `lod_b`).
+  - The shader picks the levels per pixel as the RDP does: the step is the largest change of s or t (texels of
+    the first level) to the next pixel across or down (`dFdx`, `dFdy`), times the internal scale, so every scale
+    shows the levels the N64 shows. Below 1 (magnified): the first level, LOD_FRACTION 0. From 2^l: TEXEL0 level l,
+    TEXEL1 level l + 1, LOD_FRACTION step / 2^l − 1. From the last level's power on: the last level in both,
+    LOD_FRACTION 1.
+  - Not emulated: detail and sharpen textures (those draw as without LOD), the primitive's minimum level, LOD on
+    texture rectangles.
 - **Formats.** RGBA16, RGBA32, IA16, IA8, IA4, I8, I4, CI8 and CI4.
   - CI formats go through the TLUT, RGBA16 or IA16. As on the RDP, any 4b/8b texel is an index whenever the TLUT is
     enabled.
@@ -180,12 +206,13 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 
 | Variable | Effect |
 |---|---|
-| `RUSH_GFX_API=gl` | desktop GL (3.3 core, then 3.1) instead of GLES 3.0 |
+| `RUSH_GFX_API=auto`, `gl`, `gles` | which API to try first, the other after it: `gl` desktop GL (3.3 core, then 3.1), `gles` GLES 3.0; `auto` (`video.api`'s default) desktop GL on Windows, whose drivers are made and tested for it (their ES profile through WGL is a side path), GLES elsewhere, where Mesa serves both alike (`pcgfx_want_gles`). `gfx.all.gles`, `.desktop-gl`, `.desktop-gl-software` and `.desktop-gl-wide-scale2` run every case on each |
 | `RUSH_GFX_SCALE=n` | internal resolution multiple (1–8), or `auto`: the largest whole multiple of the frame the window holds, taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
 | `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (w0, w1, and the depth of the list it is in) |
+| `RUSH_GFX_DUMP=DIR[:FIRST[:COUNT]]` | the color image of each graphics task from the FIRST (1-based) on, COUNT of them (100), as `DIR/task-NNNNN.png` at the internal scale: every frame the game draws, where a screenshot takes one. `tools/port/frame_spikes.py DIR` lists the frames that differ from both neighbours far more than those from each other (a polygon lost for a frame), which is how the road lost under the camera was found (BRINGUP.md 14) |
 | `LIBGL_ALWAYS_SOFTWARE=1` | Mesa llvmpipe |
 
 - **Hooks for later.**
@@ -346,12 +373,9 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
     transform that didn't move while the camera did (eye-relative skid marks under the identity modelview);
   - 2D, transforms in a cut view, and vertices placed on screen (G_MODIFYVTX XY/Z) keep their recorded clip position;
   - fog is recomputed from the new position; lighting, texture generation and colours are the frame's;
-  - triangles go through the interpreter's own `pcgfx_tri_visible` and `pcgfx_tri_output`, with two changes
-    (`GfxTriCtx.robust`): a vertex made by clipping at the eye plane gets w = 1e-4 exactly, and the screen winding
-    is summed in double. Lerping w from the thousands down to 1e-4 in float leaves an error of about 1e-4, so the
-    new vertex's w could come out below zero and its projection turn around, which culled a whole road triangle at
-    some moments. The live interpreter keeps its float lerp, so its output is what it was (it has the same latent
-    error for triangles through the eye plane; see FRAMERATE.md);
+  - triangles go through the interpreter's own `pcgfx_tri_visible` and `pcgfx_tri_output`, clipped as the game's
+    frames are ("Clipping" above: this replay found the eye-plane error, which the live path then had too, until
+    2026-10-27);
   - batches are drawn with the recorded draw state into the auxiliary target; it is shown like the presented image
     (`pcgfx_gl_show_target`), with the frame's rows.
 - **The window and screenshots.** `pc_gfx_redraw` shows the last thing shown (a frame between, while the overlay holds
@@ -371,7 +395,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 
 | Case (`gfx.interp.*`) | Checks |
 |---|---|
-| `exact` | a pair of identical frames (two views, a textured back-face-culled quad, a texture rectangle, an orthographic triangle): the frame between is the game's frame to the pixel; with a fogged ground through the eye plane, within 32 pixels (the exact eye-plane clipping) |
+| `exact` | a pair of identical frames (two views, a textured back-face-culled quad, a texture rectangle, an orthographic triangle), with and without a fogged ground through the eye plane: the frame between is the game's frame to the pixel |
 | `move` | an object moving across a still camera, at 0.25, 0.5 and 0.75 against frames drawn at those moments; its centroid halfway |
 | `camera` | the camera turning in the projection and moving in the modelviews; within 2 pixels of the true turn |
 | `cut` | a quarter turn: no frame between, B until C is due, then C as drawn |
@@ -385,7 +409,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 | `eyerel` | eye-relative native vertices under the identity modelview, in the frame's buffer and at one address: they stay put in the world |
 | `timing` | held, drawn, drawn, early (C late), then C; a period of 3; the presented image (screenshots) unchanged by a frame between; a redraw shows the frame between; off, a tick shows nothing and the present shows the frame |
 | `parse` | the setting's text; `display` is 60 without a display |
-| `gfx.interp.all.*` | every case at 2x, in 16:9, on desktop GL and on llvmpipe |
+| `gfx.interp.all.*` | every case at 2x, in 16:9, on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 ### The overlay
 
@@ -499,6 +523,7 @@ walkers. **T** = covered by `gfx_test`.
 | CI8 + CI4 dual tile (CI8 read as CI4, shift 15, palette bank) | code | done, T |
 | Geometry | ZBUFFER, FOG, LIGHTING, TEXTURE_GEN; SHADE, CULL_*, SHADING_SMOOTH from the static lists | done, T |
 | Filter | POINT, BILERP, AVERAGE (menu) | POINT/BILERP; AVERAGE = BILERP |
+| Texture LOD | G_TL_LOD, 2-cycle trilinear over mip chains (the world, from ROM lists) | done, T |
 | Alpha compare | THRESHOLD (blend alpha 16) | done, T |
 | Depth source | PIXEL, PRIM | done, T |
 | Dither (MAGICSQ, BAYER, NOISE) | code | ignored |
@@ -519,8 +544,8 @@ walkers. **T** = covered by `gfx_test`.
   - NOISE is a hash.
   - COMBINED in the first cycle is 0.
   - In cycle 2, TEXEL0/TEXEL1 mean tiles t and t+1, without the hardware's swap.
-- **Filtering and LOD.** No mipmap or LOD selection: LOD_FRACTION is 0, and TEXEL1 is always tile+1. GL bilinear
-  stands in for the 3-point filter.
+- **Filtering and LOD.** GL bilinear stands in for the 3-point filter. Without G_TL_LOD, LOD_FRACTION is 0 and
+  TEXEL1 is tile+1; with it, see "Texture LOD" (no detail or sharpen textures).
 - **Interpolation.** Shade is interpolated perspective-correctly (the RDP is affine there). Triangles ignore
   TEXTPERSP.
 - **Depth.**
@@ -547,7 +572,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 19, one CTest each:
+- **Cases.** 22, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -560,19 +585,24 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `lit` | directional and ambient light, a light through a rotated modelview, texgen |
 | `fog` | 2-cycle FOG_SHADE_A at three depths |
 | `twocycle` | a TEXEL0/TEXEL1 lerp, then a lerp toward env by the primitive LOD fraction |
+| `lod` | G_TL_LOD with four mip levels (one striped, to check its coordinates), point sampled, at steps of 0.5-16 texels a pixel: the first level magnified, level 1 and 2 exactly, halfway between levels, the last level from its power on; without G_TL_LOD, tile 0 |
 | `dualtile` | CI8 read as CI4 |
 | `belist` | N64-form lists through a host segment, a K0 address, a physical address and a segment set from a BE list; native K0 texture |
 | `matrix` | push/mul/pop |
 | `cull` | front/back, mirrored modelview, CULLDL |
 | `branchz` | BRANCH_Z |
 | `nearclip` | a floor behind the eye; a triangle inside the near plane |
+| `eyeplane` | a road under the camera and a wall beside it, from behind the eye to far ahead, back faces culled, in 12 placements (five of them gave the old float lerp a w below 0 with and without fused multiply-adds): the road reaches the screen's bottom and the horizon, the wall the right edge, and a floor 20 units under the road, drawn after it, stays hidden (the old clipping showed it through the whole near road in every placement); then a chase camera over a road of two big triangles, 30-120 units up, pitched 4-16 degrees down, at 8 headings: the road fills the bottom rows (the old clipping lost it in 12 of the 24) |
+| `clip` | on the CPU (`tests/clip_check.c`): 40,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
 | `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
 | `autosize` | headless window sizes from 640 × 480 to 1920 × 1080: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
 | `screenshot` | PNG |
 
-- **Variants.** `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun every case on desktop
-  GL, at 2× and on llvmpipe. `gfx.all.sdl-window` runs them in window mode (SDL builds). `gfx.all.wide` (16:9) and
+- **Variants.** `gfx.all.gles`, `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun
+  every case on GLES, on desktop GL, at 2× and on llvmpipe's GLES; `gfx.all.desktop-gl-software` on llvmpipe's
+  desktop GL, `gfx.all.desktop-gl-wide-scale2` on desktop GL at 2× in 16:9 (the plain cases take the default API:
+  desktop GL on Windows, GLES elsewhere). `gfx.all.sdl-window` runs them in window mode (SDL builds). `gfx.all.wide` (16:9) and
   `gfx.all.wide21-scale3` (21:9 at 3×) rerun every case in widescreen, with every sample taken ox pixels in: the
   4:3 frame's pixels must come out the same in the middle of the wider target. `gfx.all.scale-auto` reruns them
   with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Each variant has its own
@@ -585,7 +615,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `gfx.ui.panel` | a rectangle at alpha 128 blends over the frame by its alpha, to its last pixel and not past it; an opaque one covers it; the 640 x 480 headless window |
 | `gfx.ui.closed` | the overlay shows when presented and when redrawn; a screenshot with it is byte for byte the one without; without the hook the window, after a redraw and after presents, and the render target are byte for byte what they were before |
 | `gfx.ui.scaled` | the overlay's pixels at internal scale 1 and at 3 in 16:9 (a 1278 x 720 target) are the same; the hook gets the window's size, which follows `pc_gfx_set_window_size` (1280 x 960) |
-| `gfx.ui.all.desktop-gl`, `.software` | every case on desktop GL and on llvmpipe |
+| `gfx.ui.all.gles`, `.desktop-gl`, `.software`, `.desktop-gl-software` | every case on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 - **Results on rocky (x86-64, Mesa, 2026-10-27):** the 19 cases and their variants pass as before, with the headless
   window image now filled at each present; the 6 `gfx.ui` tests pass.

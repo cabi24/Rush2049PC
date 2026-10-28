@@ -70,6 +70,8 @@ enum { G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b, G_IM_SIZ_32b };
 #define G_TT_RGBA16 (2u << 14)
 #define G_TT_IA16 (3u << 14)
 #define G_TF_POINT 0
+#define G_TL_TILE 0
+#define G_TL_LOD (1u << 16)
 #define G_TF_BILERP (2u << 12)
 #define G_AC_NONE 0
 #define G_AC_THRESHOLD 1
@@ -117,10 +119,10 @@ enum { G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b, G_IM_SIZ_32b };
 enum {
     CC_COMBINED = 0, CC_TEXEL0 = 1, CC_TEXEL1 = 2, CC_PRIMITIVE = 3, CC_SHADE = 4, CC_ENVIRONMENT = 5,
     CC_1 = 6, CC_TEXEL0_ALPHA = 8, CC_PRIM_ALPHA = 10, CC_SHADE_ALPHA = 11, CC_ENV_ALPHA = 12,
-    CC_PRIM_LOD_FRAC = 14, CC_0 = 31,
+    CC_LOD_FRACTION = 13, CC_PRIM_LOD_FRAC = 14, CC_0 = 31,
 };
 enum { AC_COMBINED = 0, AC_TEXEL0 = 1, AC_TEXEL1 = 2, AC_PRIMITIVE = 3, AC_SHADE = 4, AC_ENVIRONMENT = 5,
-       AC_1 = 6, AC_0 = 7 };
+       AC_1 = 6, AC_0 = 7, AC_LOD_FRACTION = 0 };
 
 /* ---------------------------------------------------------------- RSP */
 
@@ -216,6 +218,7 @@ static void gsDPSetCycleType(uint32_t t) { gsSPSetOtherMode(0xE3, 20, 2, t); }
 static void gsDPSetTextureLUT(uint32_t t) { gsSPSetOtherMode(0xE3, 14, 2, t); }
 static void gsDPSetTextureFilter(uint32_t t) { gsSPSetOtherMode(0xE3, 12, 2, t); }
 static void gsDPSetTexturePersp(uint32_t t) { gsSPSetOtherMode(0xE3, 19, 1, t); }
+static void gsDPSetTextureLOD(uint32_t t) { gsSPSetOtherMode(0xE3, 16, 1, t); }
 static void gsDPSetAlphaCompare(uint32_t t) { gsSPSetOtherMode(0xE2, 0, 2, t); }
 static void gsDPSetDepthSource(uint32_t t) { gsSPSetOtherMode(0xE2, 2, 1, t); }
 static void gsDPSetRenderMode(uint32_t c0, uint32_t c1) { gsSPSetOtherMode(0xE2, 3, 29, c0 | c1); }

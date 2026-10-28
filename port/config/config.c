@@ -165,7 +165,7 @@ typedef struct {
 } Item;
 
 static const char *const pak_choices[] = {"none", "memory", "rumble", NULL};
-static const char *const api_choices[] = {"gles", "gl", NULL};
+static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const scale_choices[] = {"auto", NULL};
 static const char *const frame_rate_choices[] = {"original", "display", NULL};
@@ -194,7 +194,9 @@ static const Item items[] = {
      "(RUSH_GFX_FRAME_RATE)."},
     {"video", "scale", T_INT, F(scale), 1, 8, scale_choices, "1",
      "Internal resolution, a multiple of the N64's (1-8), or auto: the largest the window shows whole (RUSH_GFX_SCALE)."},
-    {"video", "api", T_ENUM, F(api), 0, 0, api_choices, "gles", "gles (OpenGL ES 3.0) or gl (desktop GL; RUSH_GFX_API)."},
+    {"video", "api", T_ENUM, F(api), 0, 0, api_choices, "auto",
+     "auto (desktop GL first on Windows, OpenGL ES first elsewhere), gl (desktop GL 3.3 or 3.1) or gles (OpenGL ES "
+     "3.0); each falls back to the other (RUSH_GFX_API)."},
     {"video", "widescreen", T_ASPECT, F(widescreen), 4.0 / 3.0, 4, NULL, "off",
      "Widen the picture: off (4:3), auto (the window's aspect), 16:9, 16:10, 21:9, W:H or a ratio up to 4. The 3D view "
      "shows more at the sides; menus and the HUD stay 4:3 (RUSH_GFX_WIDESCREEN)."},

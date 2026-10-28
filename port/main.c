@@ -384,7 +384,7 @@ static int rush_main(int argc, char **argv)
     char scale[8], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);
     setenv("RUSH_GFX_SCALE", scale, 1);
-    setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : "gles", 1);
+    setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : cfg.api == PC_CFG_API_GLES ? "gles" : "auto", 1);
     pc_settings_get(&cfg, "video", "widescreen", aspect, sizeof aspect);
     setenv("RUSH_GFX_WIDESCREEN", aspect, 1);
     pc_settings_get(&cfg, "video", "frame_rate", rate, sizeof rate);
