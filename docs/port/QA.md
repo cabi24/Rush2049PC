@@ -32,32 +32,32 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | 2, 3 and 4 players | 2: practice and battle; 3 and 4: the mode screen offers stunt and battle only, the stunt arena in three and four views | run |
 | battle arenas | two players in the arenas 7-9 (6 in the bring-up; the four unlocked from the start) | run |
 | stunt arena | one player, the first arena, 50 s of driving | runs |
-| stunt round to its end | one and two players, MINUTES set to 1 on the track select, gas and steering until the time is up | the round never ended (fix 4); now the scoreboard (both players ranked), the game over screen and Quit |
-| track select | every option row, wrap-around | as the code says (TRACK, LAPS, BACKWARD, MIRROR, FOG, WIND, DRONES, DIFFICULTY, DEATHS) |
+| stunt round to its end | one and two players, the round's time option set to one minute on the track select, gas and steering until the time is up | the round never ended (fix 4); now the scoreboard (both players ranked), the game over screen and Quit |
+| track select | every option row, wrap-around | as the code says (track, laps, backward, mirror, fog, wind, drones, difficulty, deaths) |
 | main menu screens | records (with and without a pak: totals pages), options (every HUD toggle row, wrap-around) | as the code says |
 | cheats | the main menu's code, the cheat screen, two cheats' codes, the unlock cheat, then a race on a track it unlocks | works after fixes 1 and 2 |
 | cheats in a race | cone mines, car mines, super speed, frame scale and others switched on, then a race with gas and steering | runs; no fault, no odd frames but a wall beside the camera at speed |
 | controller pak across restarts | a fresh `--pak` image: create a player (name entry), select it, race one lap to the finish (the record takes the player's name), quit; restart with the same image: the records screen lists the player with the race's totals, the player screen lists the player | as the code says; the image is written when the player is created and again by the race |
 | name entry after a race | without a player: the grid, letters, END | the cursor starts on END; a scripted gas press still held when the entry opens gives no new A edge (a script's mistake, not the game's) |
 | pause | the pause menu and each of its screens: options (the HUD toggles), controls, audio, video (the test pattern), rumble pak (none: its prompt), back with B, then continue | as the code says |
-| ghost race (gRace 2) | track 0, three laps, gas only: the time limit ends it (DNF), the results, the game over screen, RACE AGAIN | the race restarts with its time limit; no ghost was saved (an unfinished race) |
+| ghost race (gRace 2) | track 0, three laps, gas only: the time limit ends it (DNF), the results, the game over screen, race again | the race restarts with its time limit; no ghost was saved (an unfinished race) |
 
 ### Round 2 (Expansion Pak on by default)
 
 | Path | How | Result |
 |---|---|---|
-| all cars | the ALL CARS cheat, every car on the car select, a race with the last | each car's model loads and turns; the race runs. The top speed and acceleration bars are the same for every car (control and strength differ): unverified against the N64 (the bars multiply per-car tuning tables that are all zero in the attract demo) |
-| audio, video, controls screens | every row of the main menu's audio and video screens, each value changed both ways, RESET TO DEFAULTS; the player screen's controls screen, every row | as the code says |
-| two players with a pak | controller 1's pak with a player on it; player 1 picks it, player 2 walks its pak row | works for player 1; player 2's row offers controllers 2-4 only, each "no controller pak" or "not connected": the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c), so players 2-4 can't save |
-| a two-player battle quit from the pause screen | battle, 15 s, pause, QUIT | faulted (fix 5); now the game over screen |
-| a ghost kept and raced | the ghost race of one lap set first (ghost mode keeps three), car 0 marked finished with gdb mid-race (no script finishes three laps in the time limit, even with super speed), then RACE AGAIN | the ghost is compressed at the race's end and kept in memory ("limbo": `SaveGhost(..., 1)`; the game writes a ghost file only after its save prompt, which only a special profile name enables, `D_801148E4`), and RACE AGAIN loads it: that second race's start faulted (fix 5); with the fix the race against the ghost runs (two cars, the place out of two, the ghost on the map) |
-| circuit, race to race | the beginner circuit, car 0 marked finished by gdb 12 s into each race (laps can't be set for a circuit, and a gas-only car doesn't finish track 1) | after each race the circuit code (no pak), the game over screen's NEXT RACE, the circuit screen with the standings and races to go, the next track; the whole beginner circuit (tracks 0-3 twice) to its end, then a new circuit's first two races; no fault |
-| a four-player battle quit from the pause screen | four players, battle, pause, QUIT | the game over screen; no fault (fix 5) |
+| all cars | the all-cars cheat, every car on the car select, a race with the last | each car's model loads and turns; the race runs. The top speed and acceleration bars are the same for every car (control and strength differ): unverified against the N64 (the bars multiply per-car tuning tables that are all zero in the attract demo) |
+| audio, video, controls screens | every row of the main menu's audio and video screens, each value changed both ways, the reset row; the player screen's controls screen, every row | as the code says |
+| two players with a pak | controller 1's pak with a player on it; player 1 picks it, player 2 walks its pak row | works for player 1; player 2's row offers controllers 2-4 only, each no pak or nothing connected: the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c), so players 2-4 can't save |
+| a two-player battle quit from the pause screen | battle, 15 s, pause, quit | faulted (fix 5); now the game over screen |
+| a ghost kept and raced | the ghost race of one lap set first (ghost mode keeps three), car 0 marked finished with gdb mid-race (no script finishes three laps in the time limit, even with super speed), then race again | the ghost is compressed at the race's end and kept in memory ("limbo": `SaveGhost(..., 1)`; the game writes a ghost file only after its save prompt, which only a special profile name enables, `D_801148E4`), and race again loads it: that second race's start faulted (fix 5); with the fix the race against the ghost runs (two cars, the place out of two, the ghost on the map) |
+| circuit, race to race | the first circuit, car 0 marked finished by gdb 12 s into each race (laps can't be set for a circuit, and a gas-only car doesn't finish track 1) | after each race the circuit code (no pak), the game over screen's next race, the circuit screen with the standings and races to go, the next track; the whole first circuit (tracks 0-3 twice) to its end, then a new circuit's first two races; no fault |
+| a four-player battle quit from the pause screen | four players, battle, pause, quit | the game over screen; no fault (fix 5) |
 | back to back | cycles of a race in a mode (single, practice, stunt), quit from the pause screen, the game over screen's Quit | the second race faulted (fix 5); with the fix seven races in a row, no fault |
 | widescreen HUD | a one-player race at `--widescreen 16:9` with `video.hud=edges` (main 76a8344) | the speedometer and the left gauge at the left edge; place, laps, coins, the map and the timer at the right edge; nothing overlaps or is cut |
 | long session | the attract demo for an hour of game time, its memory sampled | 80 demo cycles, no fault; the resident memory stays flat |
 | mode 5 (the obstacle course) to its end | the unlock cheat, mode 5, gas and steering until its time runs out | the time limit ends it (DNF), the game over screen |
-| unlocked tracks | the unlock cheat (ALL TRACKS), then a race on the sixth race track, mode 5 (the obstacle course, track 18), stunt arenas 15-17 and, two players, battle arenas 10-13 | each starts and runs 20 s of driving; no fault; no spikes in the frame dumps but a lit wall beside the camera on track 5 |
+| unlocked tracks | the unlock cheat (all tracks), then a race on the sixth race track, mode 5 (the obstacle course, track 18), stunt arenas 15-17 and, two players, battle arenas 10-13 | each starts and runs 20 s of driving; no fault; no spikes in the frame dumps but a lit wall beside the camera on track 5 |
 
 ## Found and fixed
 
@@ -121,7 +121,7 @@ wrote them from +0x0C (over the link's prev pointer and the two bytes), and obje
 the race's end, read and wrote the type and ready bytes at +8 and +9 (the prev pointer again). A single race
 corrupted the lists (the read found the head's NULL prev, so the packet stayed in both, and the write made its prev
 1), and the next race's allocation unlinked through it: on the retail cartridge, a second race after a race quit from
-the pause screen, and a ghost race's RACE AGAIN, faulted at address 0x1. Quitting a two-player battle from the pause
+the pause screen, and a ghost race's race again, faulted at address 0x1. Quitting a two-player battle from the pause
 screen faulted at once (retail and synthetic cartridges alike).
 
 Fix: object_activate's offsets go through `PKT(n)` (host `2 * sizeof(void *) + n - 8`) and main_menu_input's `Node`
@@ -146,7 +146,7 @@ func_800D63EC returns (LAYOUT.md 9).
 
 - **Ghost races**: kept, loaded and raced (round 2) only with car 0 marked finished by gdb: a script driving with
   the gas alone can't finish a ghost race's three laps within its time limit, even with super speed. A ghost from a
-  real finish is untried; the car select's ghost slots on a fresh boot say "no ghost available", as they should
+  real finish is untried; the car select's ghost slots on a fresh boot say there is no ghost, as they should
   with no ghost file on the pak.
 - **A battle to its end**: the track select offers only a points limit for battle, and points come from kills, which
   a scripted pair of cars doesn't score; the battle's results run through the pause screen's quit (fix 5) instead.
