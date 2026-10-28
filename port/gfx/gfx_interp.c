@@ -643,12 +643,10 @@ static void eye_pos(const Xf *x, float e[3]) {
         e[k] = c[0] * x->mv[0][k] + c[1] * x->mv[1][k] + c[2] * x->mv[2][k] + x->mv[3][k];
 }
 
-/* How far apart the two are against the camera, the older one moved by the camera's move de. */
-static float moved_dist2(const Xf *xb, const Xf *xc, const float de[3]) {
-    float eb[3], ec[3], d2 = 0.0f;
+/* How far apart the two are against the camera (their eye_pos), the older one moved by the camera's move de. */
+static float moved_dist2(const float eb[3], const float ec[3], const float de[3]) {
+    float d2 = 0.0f;
     int k;
-    eye_pos(xb, eb);
-    eye_pos(xc, ec);
     for (k = 0; k < 3; k++)
         d2 += (eb[k] - de[k] - ec[k]) * (eb[k] - de[k] - ec[k]);
     return d2;
@@ -656,6 +654,7 @@ static float moved_dist2(const Xf *xb, const Xf *xc, const float de[3]) {
 
 static void match_pair(RFrame *b, RFrame *c, float period) {
     SigIdx *sb, *sc;
+    float(*eb)[3], (*ec)[3];
     uint32_t i, j, nv = c->n_view;
     float *samples[3];
     uint32_t ns;
@@ -754,7 +753,15 @@ static void match_pair(RFrame *b, RFrame *c, float period) {
      *    matched, the k-th instance of the parent pairs with the k-th of the parent's partner (a car's wheels come
      *    in its order). The rest pair as mutual nearest neighbours, by where each is against the camera, the
      *    older frame's moved by the camera's move (they stay put in the world). */
-    for (i = 0, j = 0; i < c->n_xf;) {
+    /* where each transform is against its camera, once (the nearest-neighbour search below compares every pair of
+     * a model's instances) */
+    eb = (float(*)[3])malloc(sizeof(*eb) * (b->n_xf + 1));
+    ec = (float(*)[3])malloc(sizeof(*ec) * (c->n_xf + 1));
+    for (i = 0; eb != NULL && i < b->n_xf; i++)
+        eye_pos(&b->xf[i], eb[i]);
+    for (i = 0; ec != NULL && i < c->n_xf; i++)
+        eye_pos(&c->xf[i], ec[i]);
+    for (i = 0, j = 0; i < c->n_xf && eb != NULL && ec != NULL;) {
         uint32_t i2 = i, j2, a, q;
         while (i2 < c->n_xf && sc[i2].sig == sc[i].sig)
             i2++;
@@ -800,7 +807,7 @@ static void match_pair(RFrame *b, RFrame *c, float period) {
                     float d2;
                     if (taken[q - j] || xb->view != xc->view)
                         continue;
-                    d2 = moved_dist2(xb, xc, de);
+                    d2 = moved_dist2(eb[sb[q].idx], ec[sc[a].idx], de);
                     if (d2 < best)
                         best = d2, bq = (int32_t)q;
                 }
@@ -809,7 +816,7 @@ static void match_pair(RFrame *b, RFrame *c, float period) {
                 for (r = i; r < i2 && mutual; r++) {   /* no other of C's is nearer to that one of B's */
                     Xf *xo = &c->xf[sc[r].idx];
                     if (r != a && xo->match < 0 && xo->view == xc->view &&
-                        moved_dist2(&b->xf[sb[bq].idx], xo, de) < best)
+                        moved_dist2(eb[sb[bq].idx], ec[sc[r].idx], de) < best)
                         mutual = 0;
                 }
                 if (mutual) {
@@ -826,6 +833,8 @@ static void match_pair(RFrame *b, RFrame *c, float period) {
         free(samples[j]);
     free(sb);
     free(sc);
+    free(eb);
+    free(ec);
 
     /* 4. Per view: a cut? Per transform: motion, or a jump? */
     for (j = 0; j < nv; j++) {
