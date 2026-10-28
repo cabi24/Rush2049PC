@@ -1036,6 +1036,54 @@ static void case_nearclip(void) {
     check("inside near plane", 160, 120, 255, 0, 255, 0);
 }
 
+/* A road under the camera and a wall beside it, both from behind the eye to far ahead, back faces culled: the game's
+ * track at every frame. Clipped at the eye plane with a float lerp, the new vertices' w (lerped from tens of
+ * thousands down to 1e-4) came out at or below zero for some of these, which turned the polygon around and culled
+ * the whole road (the retail game showed the sky under the car for a frame). Clipped to the guard band as the RSP
+ * does, each is drawn to the screen's bottom and right edges. */
+static void case_eyeplane(void) {
+    /* (behind, ahead): the road's near vertices' distance behind the eye and its far vertex's ahead. The first five
+     * gave the float lerp a w below zero with and without fused multiply-adds (aarch64 builds fuse, x86-64 ones
+     * don't), the next four with them only (exactly 0 without); the rest are ordinary. */
+    static const int cfg[][2] = {{124, 8190}, {160, 8106}, {214, 8107}, {235, 8175}, {268, 8058}, {3, 8000},
+                                 {40, 8001},  {90, 8011},  {235, 8005}, {1, 20000},  {100, 25000}, {300, 30000}};
+    static Mtx persp;
+    static Vtx v[12][6];
+    int k;
+    mtx_persp(&persp, 60.0f, 4.0f / 3.0f, 10.0f, 10000.0f);
+    for (k = 0; k < 12; k++) {
+        int behind = cfg[k][0], far = -cfg[k][1], half = 3000 + k * 251;
+        Vtx *f = v[k];
+        vtx(&f[0], -half, -40, behind, 0, 0, 0, 255, 255, 255);   /* road: counterclockwise from above */
+        vtx(&f[1], half, -40, behind, 0, 0, 0, 255, 255, 255);
+        vtx(&f[2], 0, -40, far, 0, 0, 0, 255, 255, 255);
+        vtx(&f[3], 30, -40, behind, 0, 0, 255, 0, 255, 255);      /* wall at x 30, facing the camera */
+        vtx(&f[4], 30, -40, far, 0, 0, 255, 0, 255, 255);
+        vtx(&f[5], 30, 400, behind + 7, 0, 0, 255, 0, 255, 255);
+        frame_begin(0, 0, 0);
+        gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsDPSetRenderMode(RM_ZB_OPA_SURF(1), RM_ZB_OPA_SURF(2));
+        gsSPGeometryMode(0, G_ZBUFFER | G_CULL_BACK);
+        cc_shade();
+        gsSPVertex((uintptr_t)f, 6, 0);
+        gsSP2Triangles(0, 1, 2, 3, 5, 4);
+        frame_end();
+        check("road under the camera", 160, 236, 0, 255, 255, 0);
+        check("road, bottom left", 4, 236, 0, 255, 255, 0);
+        check("road, horizon", 160, 125, 0, 255, 255, 0);
+        check("sky", 160, 5, 0, 0, 0, 0);
+        check("wall at the right edge", 318, 60, 255, 0, 255, 0);
+        check("wall, low", 318, 200, 255, 0, 255, 0);
+    }
+}
+
+/* What the clipping hands on to GL, on the CPU (tests/clip_check.c). */
+int gfx_clip_check(void);
+
+static void case_clip(void) {
+    s_fail += gfx_clip_check();
+}
+
 /* translucency, alpha compare and texture edge */
 static void case_xlu(void) {
     static uint16_t t[4 * 4];
@@ -1418,7 +1466,7 @@ static const Case s_cases[] = {
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
     {"dualtile", case_dualtile}, {"belist", case_belist},     {"matrix", case_matrix},
     {"cull", case_cull},         {"branchz", case_branchz},   {"nearclip", case_nearclip},
-    {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
+    {"eyeplane", case_eyeplane}, {"clip", case_clip},         {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
     {"screenshot", case_screenshot},
 };
 

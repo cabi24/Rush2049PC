@@ -34,7 +34,7 @@ typedef struct {
     float x, y, z, w;   /* clip space */
     float r, g, b, a;   /* shade, 0..1 (alpha holds fog when G_FOG) */
     float s, t;         /* texture coordinates after the G_TEXTURE scale, in texel*32 (s10.5) units */
-    uint8_t clip;       /* outcodes: 1 x<-w, 2 x>w, 4 y<-w, 8 y>w */
+    uint8_t clip;       /* outcodes: 1 x<-w, 2 x>w, 4 y<-w, 8 y>w, 16 w<1e-4, 32 outside the guard band (gfx_rsp.c) */
 } GfxVtx;
 
 typedef struct {
@@ -183,10 +183,9 @@ typedef struct {
     uint8_t zs_prim;        /* G_ZS_PRIM: the primitive depth */
     uint8_t tex;            /* G_TEXTURE on */
     uint8_t wide;           /* widescreen 3D: the draw state's scissor widens */
-    uint8_t robust;         /* the screen winding in double precision (the frame interpolator's; see gfx_rsp.c) */
 } GfxTriCtx;
 
-/* A triangle's visible polygon: trivially rejected, clipped against the eye plane, culled by its screen winding.
+/* A triangle's visible polygon: trivially rejected, clipped to the guard band and the eye plane, culled by its winding.
  * Returns its vertex count (0: nothing to draw). */
 int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]);
 /* The polygon as GL triangles (up to 18 vertices); flat shading takes first's colour. Returns the vertex count. */

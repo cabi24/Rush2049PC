@@ -75,13 +75,23 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     G_MW_LIGHTCOL.
 - **Texgen.** s = (n·lookatX + 1)/4 × scale_s; t the same with lookatY. The linear variant uses acos.
 - **Fog** (G_FOG). The shade alpha becomes clamp(z/w × fm + fo, 0, 255) from G_MW_FOG.
-- **Clipping.** The NoN microcode has no near plane.
-  - Before the divide, polygons are clipped on the CPU against w ≥ 1e-4. This removes the eye plane and everything
-    behind it, which the x/y planes would remove on the RSP anyway.
-  - Depth is clamped to [0, 1] per vertex. Geometry closer than the near plane is therefore drawn at depth 0, as on
-    the N64, instead of vanishing.
-  - GL then clips x/y in clip space. Vertices go to GL as clip coordinates with the N64 viewport folded in, so GL
-    never near-clips and nothing wraps around.
+- **Clipping.** The NoN microcode has no near plane. As on the RSP, a triangle with a vertex outside the guard band
+  (|x| ≤ 2w, |y| ≤ 2w; x as the view sees it in widescreen) is clipped to the guard band, on the CPU, before the
+  divide (`clip_guard`, gfx_rsp.c). Those planes leave nothing behind the eye, since |x| ≤ 2w needs w ≥ 0. Only a
+  polygon through the eye point itself is also clipped at w ≥ 1e-4, and a vertex made there gets w = 1e-4 exactly.
+  - So GL only ever gets vertices within twice the view, in front of the eye: x/w and y/w within ±2. Until
+    2026-10-27 the polygon was clipped at w ≥ 1e-4 alone, with the new vertex's w lerped in float. From w in the
+    thousands that lerp loses the 1e-4: the vertex came out at w = 0 (most of the time without fused multiply-adds,
+    as x86-64 builds are), or below 0, with x/w beyond 1e30. The road under the camera reaches behind the eye in
+    most frames of a race, so GL got such vertices nearly every frame. Mesa's clippers took w = 0; other GL drivers
+    need not (the first player on a Windows laptop, on its Intel or NVIDIA driver, reported "lots of graphical
+    errors on the world"). A w below 0 turned the polygon around: on the retail cartridge, on Mesa too, the whole
+    road under the car was culled for single frames, and the sky under it showed.
+  - New vertices on the guard band have their own depth, as the RSP's do. Depth is clamped to [0, 1] per vertex.
+    Geometry closer than the near plane is therefore drawn at depth 0, as on the N64, instead of vanishing.
+  - The winding is summed in double, from the first vertex.
+  - GL then clips x/y at the screen in clip space. Vertices go to GL as clip coordinates with the N64 viewport
+    folded in, so GL never near-clips and nothing wraps around.
 - **Culling** uses the winding in N64 screen space after clipping (front = counterclockwise on screen). The game's
   mirrored modelview (x = −1) and mirrored viewports therefore flip it, as on the RSP. GL face culling stays off.
 - **Display-list control.**
@@ -346,12 +356,9 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
     transform that didn't move while the camera did (eye-relative skid marks under the identity modelview);
   - 2D, transforms in a cut view, and vertices placed on screen (G_MODIFYVTX XY/Z) keep their recorded clip position;
   - fog is recomputed from the new position; lighting, texture generation and colours are the frame's;
-  - triangles go through the interpreter's own `pcgfx_tri_visible` and `pcgfx_tri_output`, with two changes
-    (`GfxTriCtx.robust`): a vertex made by clipping at the eye plane gets w = 1e-4 exactly, and the screen winding
-    is summed in double. Lerping w from the thousands down to 1e-4 in float leaves an error of about 1e-4, so the
-    new vertex's w could come out below zero and its projection turn around, which culled a whole road triangle at
-    some moments. The live interpreter keeps its float lerp, so its output is what it was (it has the same latent
-    error for triangles through the eye plane; see FRAMERATE.md);
+  - triangles go through the interpreter's own `pcgfx_tri_visible` and `pcgfx_tri_output`, clipped as the game's
+    frames are ("Clipping" above: this replay found the eye-plane error, which the live path then had too, until
+    2026-10-27);
   - batches are drawn with the recorded draw state into the auxiliary target; it is shown like the presented image
     (`pcgfx_gl_show_target`), with the frame's rows.
 - **The window and screenshots.** `pc_gfx_redraw` shows the last thing shown (a frame between, while the overlay holds
@@ -371,7 +378,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 
 | Case (`gfx.interp.*`) | Checks |
 |---|---|
-| `exact` | a pair of identical frames (two views, a textured back-face-culled quad, a texture rectangle, an orthographic triangle): the frame between is the game's frame to the pixel; with a fogged ground through the eye plane, within 32 pixels (the exact eye-plane clipping) |
+| `exact` | a pair of identical frames (two views, a textured back-face-culled quad, a texture rectangle, an orthographic triangle), with and without a fogged ground through the eye plane: the frame between is the game's frame to the pixel |
 | `move` | an object moving across a still camera, at 0.25, 0.5 and 0.75 against frames drawn at those moments; its centroid halfway |
 | `camera` | the camera turning in the projection and moving in the modelviews; within 2 pixels of the true turn |
 | `cut` | a quarter turn: no frame between, B until C is due, then C as drawn |
@@ -547,7 +554,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 19, one CTest each:
+- **Cases.** 21, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -566,6 +573,8 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `cull` | front/back, mirrored modelview, CULLDL |
 | `branchz` | BRANCH_Z |
 | `nearclip` | a floor behind the eye; a triangle inside the near plane |
+| `eyeplane` | a road under the camera and a wall beside it, from behind the eye to far ahead, back faces culled, in 12 placements (five of them gave the old float lerp a w below 0 with and without fused multiply-adds): the road reaches the screen's bottom and the horizon, the wall the right edge |
+| `clip` | on the CPU (`tests/clip_check.c`): 40,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
 | `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
 | `autosize` | headless window sizes from 640 × 480 to 1920 × 1080: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |

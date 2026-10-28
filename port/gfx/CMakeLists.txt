@@ -95,15 +95,16 @@ else()
 endif()
 
 # ---------------------------------------------------------------- tests
-add_executable(gfx_test tests/gfx_test.c)
+add_executable(gfx_test tests/gfx_test.c tests/clip_check.c)
 set_target_properties(gfx_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_include_directories(gfx_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})   # clip_check.c: gfx_internal.h
 target_link_libraries(gfx_test PRIVATE pcgfx)
 # A test program defines main: keep it out of compile_commands.json (census.py reads the game and the PC layer).
 set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle dualtile belist matrix cull branchz nearclip
-          xlu widescreen autosize screenshot)
+          eyeplane clip xlu widescreen autosize screenshot)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The same cases on desktop GL, at 2x, on the software rasterizer (llvmpipe) and in widescreen (the 4:3 frame's
