@@ -121,6 +121,12 @@ void func_8038FFD0(void);
 void func_8038F734(void); /* uninitButtons@startscr.c: deleted stub 0x8038F734 */
 void func_8038F73C(void); /* uninitScreen@startscr.c: deleted stub 0x8038F73C */
 void func_8038F79C(void);
+#ifdef TARGET_PC
+/* This file's InitEgg (inlined on the N64) points at the main menu's code, D_803B41D4; eggs.c's InitEgg at cheat
+   `egg` of D_803B3460. Under one name the PC linked eggs.c's for both, so InitEgg(23) pointed past the table and
+   the cheat screen could never be opened (docs/port/QA.md). */
+#define InitEgg startscr_InitEgg
+#endif
 void InitEgg(s32);
 void func_80390418(void);
 
