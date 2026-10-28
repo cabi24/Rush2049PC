@@ -60,7 +60,14 @@ void best_times_display(s16 idx)
 
 typedef unsigned int u32;
 typedef struct State20 {s32 handle;float a,b,c,d;} State20;
+#ifdef TARGET_PC
+/* PC: the engine sound table D_8010FD80 (ROM data) with the fields func_800E0050 reads (mode.c's EngTbl): the loader
+ * swaps each element by this declaration, and as rest[28] the rev points and levels stayed big-endian, which made
+ * every engine's level 0 (docs/port/AUDIO.md 9). */
+typedef struct Definition32 {s32 object;unsigned short r0,r1,b0,b1,b2;u8 padE[2];f32 p0,p1,p2;u8 pad1C[4];} Definition32;
+#else
 typedef struct Definition32 {s32 object;u8 rest[28];} Definition32;
+#endif
 typedef struct Definitions64 {Definition32 item[2];} Definitions64;
 typedef struct Player84 {Definitions64 *definition;State20 pair[3];State20 extra;} Player84;
 typedef struct States60 {State20 values[3];} States60;
