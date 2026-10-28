@@ -123,6 +123,7 @@ static struct {
     const int16_t *last_render_buf;
     uint64_t last_heard;              /* the push whose render last went to the converter: what plays keeps order */
     uint64_t pushes_at_render;        /* pushes made at the last render */
+    double last_render_t;             /* when it came (clock_now) */
     Held held[HOLD_MAX];
     unsigned held_first, held_n;
     size_t held_frames;               /* game frames held */
@@ -452,6 +453,7 @@ static void report(const char *span, const PcAudioStats *from, uint32_t lmin, ui
     d.underruns -= f->underruns, d.underrun_frames -= f->underrun_frames, d.idle_frames -= f->idle_frames;
     d.waited -= f->waited, d.rescued -= f->rescued, d.played_late -= f->played_late, d.silenced -= f->silenced;
     d.missed -= f->missed, d.skipped -= f->skipped, d.rematched -= f->rematched, d.clipped -= f->clipped;
+    d.renderer_skips -= f->renderer_skips;
     d.dropped_frames -= f->dropped_frames, d.pushed_frames -= f->pushed_frames, d.pulls -= f->pulls;
     d.level_sum -= f->level_sum, d.level_count -= f->level_count;
     double mean = d.level_count ? (double)d.level_sum / (double)d.level_count : 0;
@@ -464,13 +466,14 @@ static void report(const char *span, const PcAudioStats *from, uint32_t lmin, ui
     fprintf(stderr,
             "audio: %s at %u Hz (%s%u Hz converted x%.5f)%s: %.1f s played; %llu underruns (%.0f ms of silence); %s, "
             "target %u frames (%.0f ms); %llu buffers pushed before their render: %llu rendered in time, %llu played "
-            "late, %llu as silence (%llu replacing sound); %llu renders not played, %llu rematches; %llu samples "
-            "clipped, %llu frames dropped, %.0f ms idle\n",
+            "late, %llu as silence (%llu replacing sound); %llu renders not played, %llu rematches, %llu buffers the "
+            "renderer skipped; %llu samples clipped, %llu frames dropped, %.0f ms idle\n",
             g.name, (unsigned)g.dev_rate, device, (unsigned)src, g.dev_rate / src, span, d.pushed_frames / src,
             (unsigned long long)d.underruns, d.underrun_frames * 1000.0 / rate, queue, (unsigned)d.target_frames,
             d.target_frames * 1000.0 / src, (unsigned long long)d.waited, (unsigned long long)d.rescued,
             (unsigned long long)d.played_late, (unsigned long long)d.silenced, (unsigned long long)d.missed,
-            (unsigned long long)d.skipped, (unsigned long long)d.rematched, (unsigned long long)d.clipped,
+            (unsigned long long)d.skipped, (unsigned long long)d.rematched, (unsigned long long)d.renderer_skips,
+            (unsigned long long)d.clipped,
             (unsigned long long)d.dropped_frames, d.idle_frames * 1000.0 / rate);
 }
 
@@ -747,6 +750,7 @@ void pc_audio_note_rendered(const int16_t *buf)
         if (g.bufs[i].buf == g.last_render_buf && g.bufs[i].pushed)
             prev = &g.bufs[i];
     int again = g.anchored && len > 1 && prev == b && g.pushes - g.pushes_at_render < len;   /* rendered again */
+    double now = clock_now();
     int follows = g.anchored && prev && (prev->pushed + 1) % len == b->pushed % len &&
                   g.pushes - g.pushes_at_render < len;
     uint64_t estimate = !g.anchored ? 0 : again ? g.last_render : g.last_render + 1;
@@ -765,6 +769,10 @@ void pc_audio_note_rendered(const int16_t *buf)
     g.last_render = index;
     g.last_render_buf = buf;
     g.pushes_at_render = g.pushes;
+    /* Further on in the ring right after the last render: the renderer passed buffers over (docs/port/AUDIO.md 7). */
+    if (estimate && !follows && !again && prev && now - g.last_render_t < 0.005)
+        g.stats.renderer_skips += (b->pushed + len - prev->pushed - 1) % len;
+    g.last_render_t = now;
 
     Held *h = NULL;
     for (unsigned i = 0; i < g.held_n && !h; i++)

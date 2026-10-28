@@ -57,6 +57,8 @@ typedef struct {
     uint64_t missed;            /* of the silenced, where the buffer held sound (the N64 plays it again) */
     uint64_t skipped;           /* renders a later one replaced before they played, or dropped by a new match */
     uint64_t rematched;         /* times the renderer's position was matched anew (a restart, a stall) */
+    uint64_t renderer_skips;    /* buffers the game's renderer passed over: a render further on in the ring
+                                 * within 5 ms of the one before (a restart comes after a retrace or more) */
     uint64_t clipped;           /* samples pc_audio_pull clamped to 16 bits: the converter's overshoot of loud input */
     uint64_t pulls;
     uint64_t level_sum;         /* the queue at each pull while the game plays, device-rate frames: sum, count, */

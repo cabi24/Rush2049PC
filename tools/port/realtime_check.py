@@ -13,8 +13,8 @@ exit:
 
     retraces    at least 59 a second, at most 12 dropped (late ones are caught up; a stall of 6 drops them)
     audio       with a device: no underrun after the first second; under 2% of the buffers played as silence or
-                late, where their render came after the device needed them (the game's renderer also skips buffers
-                when its retraces bunch up, docs/port/AUDIO.md 7)
+                late, where their render came after the device needed them; none skipped by the game's renderer
+                (func_80013DEC, which the PC build fixes: docs/port/AUDIO.md 7)
 
 Exit status 0 when all hold. Stdlib only, Python 3.9+.
 """
@@ -71,14 +71,16 @@ def main():
     backend, played, underruns, waited = m[1], float(m[4]), int(m[5]), int(m[6])
     late, silent = int(m[8]), int(m[9])
     buffers = played * 22047 / 192
+    s = re.search(r"(\d+) buffers the renderer skipped", out)
+    skipped = int(s[1]) if s else -1
     first = [float(t) for t in re.findall(r"^audio: underrun \d+, ([\d.]+) s in", out, re.M)]
     after_start = sum(1 for t in first if t > 1.0) if underruns <= len(first) else underruns
     if backend == "sdl":
-        good = after_start == 0 and late + silent < 0.02 * buffers
+        good = after_start == 0 and late + silent < 0.02 * buffers and skipped == 0
         ok &= good
         print(f"realtime_check: audio through {backend} ({m[3]}): {underruns} underruns ({after_start} after the first "
               f"second); of {buffers:.0f} buffers {waited} pushed before their render, {late} played late, {silent} as "
-              f"silence: {'ok' if good else 'FAIL'}")
+              f"silence; {skipped} skipped by the renderer: {'ok' if good else 'FAIL'}")
     else:
         print(f"realtime_check: audio through {backend}: no device, not checked")
     return 0 if ok and p.returncode == 0 else 1
