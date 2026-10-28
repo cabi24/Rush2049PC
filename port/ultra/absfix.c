@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 int pc_fix_absolute_got(void);
+void pc_relro_pages(uintptr_t start, uintptr_t size, uintptr_t page, uintptr_t *lo, uintptr_t *hi);
 
 #ifdef _WIN32
 /* PE has nothing to fix: code reaches every extern through a .refptr slot, which the linker fills with an
@@ -15,6 +16,16 @@ int pc_fix_absolute_got(void) { return 0; }
 #include <link.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+/* The pages of a RELRO segment the loader made read-only: both ends rounded down, as glibc's _dl_protect_relro
+ * does. A RELRO end inside a page leaves that page writable, with the start of .data in it (16 KiB or 64 KiB
+ * pages, and binutils that align the end to 4 KiB): rounding up made that .data read-only, and the first write to
+ * it faulted (a Pi 5 running an Ubuntu 22.04 build). Nothing to protect when hi <= lo. */
+void pc_relro_pages(uintptr_t start, uintptr_t size, uintptr_t page, uintptr_t *lo, uintptr_t *hi)
+{
+    *lo = start & ~(page - 1);
+    *hi = (start + size) & ~(page - 1);
+}
 
 /* gen_stubs puts data the game uses by its N64 address at that address (aliases.ld: the low-memory globals,
  * the heap start, cartridge offsets), and gen_data every arena symbol (data.c: about 1,800 names of the game's
@@ -56,8 +67,8 @@ static int fix_absolute(struct dl_phdr_info *info, size_t size, void *count)
 #else
     const unsigned relative = ~0u;
 #endif
-    long page = sysconf(_SC_PAGESIZE);
-    uintptr_t lo = relro & ~(uintptr_t)(page - 1), hi = (relro + relro_size + (uintptr_t)page - 1) & ~(uintptr_t)(page - 1);
+    uintptr_t lo, hi;
+    pc_relro_pages(relro, relro_size, (uintptr_t)sysconf(_SC_PAGESIZE), &lo, &hi);
     int opened = 0;
     for (const ElfW(Rela) *r = (const ElfW(Rela) *)rela; (uintptr_t)(r + 1) <= rela + relasz; r++) {
         uint64_t v = (uint64_t)r->r_addend;
@@ -66,7 +77,7 @@ static int fix_absolute(struct dl_phdr_info *info, size_t size, void *count)
         uint64_t *slot = (uint64_t *)(base + r->r_offset);
         if (*slot != base + v)
             continue;
-        if (!opened && relro_size && mprotect((void *)lo, hi - lo, PROT_READ | PROT_WRITE) == 0)
+        if (!opened && hi > lo && mprotect((void *)lo, hi - lo, PROT_READ | PROT_WRITE) == 0)
             opened = 1;
         *slot = v;
         ++*(int *)count;
