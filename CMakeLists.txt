@@ -541,7 +541,9 @@ foreach(t ${PC_ASSETS_TESTS})
     add_test(NAME assets_${n} COMMAND test_assets_${n})
     # A test that runs the game's own readers on its converted files names their sources on ` * game: ...` lines
     # of its leading comment: they are compiled as the game is (game_flags) and linked in, with the test
-    # standing in for everything else they reference.
+    # standing in for everything else they reference. The lines are read when configuring, so the test file is a
+    # configure dependency (an edited list once left a build linking without the new sources).
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${t})
     file(STRINGS ${t} game_lines REGEX "^ \\* game: ")
     set(game_srcs "")
     foreach(l ${game_lines})
