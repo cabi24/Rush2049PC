@@ -2914,7 +2914,13 @@ extern s32 D_8015F728;
 extern s8 D_8015F72C;
 extern s32 D_8015F730;
 extern s8 D_8015F734;
+#ifdef TARGET_PC
+/* PC: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7): the records func_800A7D6C zeroes
+ * x, y and z of */
+extern s32 D_8015F740[];
+#else
 extern s32 D_8015F740;
+#endif
 extern s32 D_80161360;
 extern u16 D_80161368;
 extern u16 D_80161378;

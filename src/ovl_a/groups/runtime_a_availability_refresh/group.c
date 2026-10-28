@@ -351,6 +351,13 @@ extern void *memcpy(void *,const void *,u32);
 extern void *string_copy_format(char *,s32,s8,s32);
 extern s32 sign_extend_call(void *,f32 (*)[3],s32,u32);
 extern void func_8008E06C(s16,u8 *),model_data_load(s32,s32,s32),model_transform_setup(s32,s32,s32);
+#ifdef TARGET_PC
+/* PC: func_8008E06C reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
+ * frame has them (docs/port/SANITIZE.md 3.2) */
+#define PC_WORD_ALIGNED __attribute__((aligned(4)))
+#else
+#define PC_WORD_ALIGNED
+#endif
 extern void *func_800B24EC(char *,s16 *,s8,s8,s32);
 extern void func_8008D870(s16,void *,s32);
 extern void func_800B5898(f32,f32 (*)[3]),func_800B5940(f32,f32 (*)[3]);
@@ -371,7 +378,7 @@ extern void particle_velocity_set(void);
 /* Existing matched texture lookup declares this table-count byte volatile. */
 void func_80397AD8(s8 player)
 {
-    u8 color[4]={255,255,255,255};
+    u8 color[4] PC_WORD_ALIGNED = {255,255,255,255};
     f32 scale=1.0f;
     s16 count;
     s32 j;
@@ -460,7 +467,7 @@ void func_80394DD8(s8 p)
     s8 clearScrollSpeed = 1;
     void *tex;
     s16 texIdx;
-    u8 buttonColor[4] = {255,255,255,255};
+    u8 buttonColor[4] PC_WORD_ALIGNED = {255,255,255,255};
     if (!D_803BA868[p]) return;
     if (D_803BACE0[p] == 1) {
         for (buttonIdx = 0; buttonIdx < 22; buttonIdx++) {

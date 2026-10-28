@@ -2214,7 +2214,13 @@ extern s32 D_8012E6D0;
 extern s32 D_8012E6D8;
 extern f32 D_8012E6E8;
 extern s32 D_8012E6F8;
+#ifdef TARGET_PC
+/* PC: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7): the scene nodes, whose four
+ * texture slots func_8008D870 writes */
+extern s32 D_8012E700[];
+#else
 extern s32 D_8012E700;
+#endif
 extern s32 D_8012E708;
 extern f32 D_8012E70C;
 extern f32 D_8012E710;
