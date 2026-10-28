@@ -41,6 +41,15 @@ it from a thread that is computing, which an N64 interrupt would. That is the on
 hardware. A woken high-priority thread therefore runs at the holder's next libultra call. The game blocks often,
 but its busy-waits must yield (section 6).
 
+**An event never finds its queue full and is lost** (`pc_os_event`), except a retrace, which is dropped as the
+N64's VI interrupt would drop it. Others are held and go in as the receiver empties the queue. The scheduler's queue
+(8 messages) fills when a thread computes long enough without a libultra call; an audio task it starts then posts its
+SP event from the scheduler's own thread (section 3), and until 2026-10-27 that event could be lost. The scheduler
+then kept the ended task as its current RSP task, and `dma_wait_complete`, which runs the audio callback after each
+retrace once that task is done, waited for ever: the game hung at the start prompt or the main menu, now and then in
+real-time runs on the Pi 5, more often when the main loop sends late retraces in a burst. The log names the first
+event of each kind held (`event N held`).
+
 **Side tables, not the game's structs.** The game's `OSThread`, `OSMesgQueue` and `OSTimer` are N64-sized in the BSS
 arenas (port/data), and the native structs are larger, so nothing is written into them. Threads, queues and timers
 are kept in tables keyed by the game's object address. Message buffers are host-side too: the game's `OSMesg`
