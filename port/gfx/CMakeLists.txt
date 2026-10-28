@@ -47,12 +47,27 @@ add_library(pcgfx STATIC
     gfx_interp.c
     gfx_ui.c
     gfx_font.c
+    gfx_tex.c
     ${PCGFX_HEADLESS}
     gfx_png.c)
 set_target_properties(pcgfx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_include_directories(pcgfx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include
                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PCGFX_GLES3_INCLUDE})
 target_link_libraries(pcgfx PUBLIC ${PCGFX_HEADLESS_LIBS} ZLIB::ZLIB m)
+
+# Texture replacement (gfx_tex.c, docs/port/TEXTURES.md): a worker thread, and the 2x upscaler in port/upscale. That
+# directory's own CMakeLists.txt makes the target pcupscale when it has one; else its upscale.c is the library.
+find_package(Threads REQUIRED)
+if(NOT TARGET pcupscale)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../upscale/CMakeLists.txt)
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../upscale ${CMAKE_CURRENT_BINARY_DIR}/upscale)
+    else()
+        add_library(pcupscale STATIC ${CMAKE_CURRENT_SOURCE_DIR}/../upscale/upscale.c)
+        target_include_directories(pcupscale PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../upscale)
+        set_target_properties(pcupscale PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+    endif()
+endif()
+target_link_libraries(pcgfx PUBLIC pcupscale Threads::Threads)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(pcgfx PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
@@ -163,6 +178,24 @@ foreach(v "gles;RUSH_GFX_API=gles" "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_G
     add_test(NAME gfx.ui.all.${name} COMMAND gfx_ui_test all ${PCGFX_TEST_OUT}/ui-${name})
     set_tests_properties(gfx.ui.all.${name} PROPERTIES ENVIRONMENT "${env}")
 endforeach()
+# Texture replacement (gfx_tex.c, docs/port/TEXTURES.md), headless, on synthetic textures: the PNG reader, texture
+# identities, a pack's round trip, wrap and mirror seams at 2x, mip levels, cut-outs, the worker and the disk cache.
+# Each case has its own folders under test-png/tex/<case>.
+add_executable(gfx_tex_test tests/tex_test.c)
+set_target_properties(gfx_tex_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    EXPORT_COMPILE_COMMANDS OFF)
+target_compile_definitions(gfx_tex_test PRIVATE _POSIX_C_SOURCE=200809L)
+target_include_directories(gfx_tex_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gfx_tex_test PRIVATE pcgfx)
+foreach(c png identity roundtrip seams lod alpha async)
+    add_test(NAME gfx.tex.${c} COMMAND gfx_tex_test ${c} ${PCGFX_TEST_OUT}/tex)
+endforeach()
+# The pack helper (tools/texpack), on a synthetic dump with its built-in nearest upscaler.
+find_program(PCGFX_PYTHON NAMES python3 python)
+if(PCGFX_PYTHON AND NOT CMAKE_CROSSCOMPILING)
+    add_test(NAME gfx.tex.texpack COMMAND ${PCGFX_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/texpack/texpack.py
+             --self-test)
+endif()
 if(PCGFX_SDL_TARGET)   # the window path, on SDL's offscreen driver (no display needed)
     # Windows: SDL's offscreen driver makes its GL contexts through EGL, which Windows lacks, so a real window
     # through WGL, where the back buffer doesn't survive the swap for the window comparison (docs/port/WINDOWS.md)

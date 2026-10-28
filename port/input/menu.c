@@ -6,9 +6,10 @@
  * of items, each a setting or an action, drawn by port/gfx in window pixels over the last frame (pc_gfx_set_ui_hook)
  * and drawn again after each change (pc_gfx_redraw).
  *
- * - Changes apply at once where the part allows it: the renderer's widescreen and scale (from the game's next
- *   frame) and frame rate, the window's size, fullscreen and vsync, the volume, and everything port/input reads (bindings,
- *   hotkeys, sticks, rumble). The graphics API and the audio backend apply after a restart; they are marked so.
+ * - Changes apply at once where the part allows it: the renderer's widescreen, scale and textures (from the game's
+ *   next frame) and frame rate, the window's size, fullscreen and vsync, the volume, and everything port/input reads
+ *   (bindings, hotkeys, sticks, rumble). The graphics API and the audio backend apply after a restart; they are
+ *   marked so.
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
  *   environment that weren't changed here are not written.
@@ -58,6 +59,7 @@ static const char *const wide_choices[] = {"off", "auto", "16:10", "16:9", "21:9
 static const char *const scale_choices[] = {"auto", "1", "2", "3", "4", "5", "6", "7", "8", NULL};
 static const char *const rate_choices[] = {"original", "60", "120", "144", "display", NULL};
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
+static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const backend_choices[] = {"auto", "sdl", "alsa", "null", "wav", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const window_choices[] = {"640x480",  "960x720",  "1280x960",  "854x480", "1280x720",
@@ -99,6 +101,7 @@ static void build(void)
     it = add(P_VIDEO, I_CHOICE, "Graphics API", "video", "api");
     it->choices = api_choices;
     it->restart = 1;
+    add(P_VIDEO, I_CHOICE, "Textures", "video", "textures")->choices = textures_choices;   /* TEXTURES.md */
 
     pages[P_AUDIO].title = "Audio";
     it = add(P_AUDIO, I_NUMBER, "Volume", "audio", "volume");
@@ -231,6 +234,8 @@ static void apply(const char *section, const char *key)
             pc_input_live_vsync(s->vsync);
         else if (!strcasecmp(key, "frame_rate"))
             pc_gfx_set_frame_rate(s->frame_rate);
+        else if (!strcasecmp(key, "textures"))
+            pc_gfx_set_textures(s->textures);
         else if (!strcasecmp(key, "width") || !strcasecmp(key, "height"))
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))

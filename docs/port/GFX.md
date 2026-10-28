@@ -18,7 +18,8 @@ documentation and n64brew.
 | `gfx_gl.c` | OpenGL backend: loader, render targets, depth buffers, shader cache, draws, present, readback |
 | `gfx_egl.c` | headless context (EGL surfaceless, then EGL device, then the default display) |
 | `gfx_sdl.c` | SDL2 window and context (built only when SDL2 is found) |
-| `gfx_png.c` | PNG writer on zlib |
+| `gfx_png.c` | PNG writer and reader on zlib |
+| `gfx_tex.c`, `gfx_tex.h` | upscaled textures and texture packs: identities, the worker thread, the disk cache ([TEXTURES.md](TEXTURES.md)) |
 | `gfx_ui.c`, `gfx_font.c` | drawing over the frame in window pixels, and its font: the settings overlay ("The overlay" below) |
 | `gfx_interp.c`, `gfx_hfr.h` | a high frame rate: graphics tasks recorded, frames drawn between the game's ("High frame rate" below) |
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
@@ -144,7 +145,11 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 - **Texture cache.** The key is the tile parameters, the TLUT mode and a 64-bit hash of the TMEM bytes the tile
   reads, including the palette. So identical content loaded at different times shares one GL texture.
   - A texture unit reuses its last lookup until a tile, load or TLUT-mode change.
-  - Entries unused for 2 frames are evicted once there are 3072.
+  - Entries unused for 2 frames are evicted once there are 3072. Their GL textures, and textures replaced by a
+    better one, are deleted 3 frames later (the frame interpolator may draw the last two frames again).
+  - The key also has the variant (the original, or the upscaled or replaced texture, which 3D and 2D draws may
+    want differently). With `video.textures` the GL texture may be k times the N64 texture; the entry's size,
+    and with it every coordinate, the tile maths and the LOD, stays the N64's ([TEXTURES.md](TEXTURES.md)).
 - **Combiner.** Generated GLSL from the 64-bit combine mode: (A − B) × C + D for color and alpha, clamped per cycle.
   Programs are cached by key.
   - 1-cycle runs the second cycle's settings, as the RDP does. The game sets both cycles alike there; its "X then
@@ -212,6 +217,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
 | `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (w0, w1, and the depth of the list it is in) |
+| `RUSH_GFX_TEXTURES=original\|upscaled\|pack` | the textures ([TEXTURES.md](TEXTURES.md)); with `RUSH_GFX_TEXTURE_PACK=DIR` (the pack), `RUSH_GFX_TEXTURE_DUMP=DIR` (every texture drawn, as PNG), `RUSH_GFX_TEXTURE_CACHE=DIR` (the upscaled textures kept on disk; empty: none), `RUSH_GFX_UPSCALE=2\|4` (the factor, instead of the internal scale's), `RUSH_GFX_UPSCALE_2D=1` (2D upscaled too), `RUSH_GFX_TEXTURE_SYNC=1` (upscale and load at once, on the game's thread: tests and screenshots) |
 | `RUSH_GFX_DUMP=DIR[:FIRST[:COUNT]]` | the color image of each graphics task from the FIRST (1-based) on, COUNT of them (100), as `DIR/task-NNNNN.png` at the internal scale: every frame the game draws, where a screenshot takes one. `tools/port/frame_spikes.py DIR` lists the frames that differ from both neighbours far more than those from each other (a polygon lost for a frame), which is how the road lost under the camera was found (BRINGUP.md 14) |
 | `LIBGL_ALWAYS_SOFTWARE=1` | Mesa llvmpipe |
 
@@ -568,6 +574,9 @@ cmake -S . -B build/pc -G Ninja && cmake --build build/pc --target gfx_test && c
 build/gfx/gfx_test texrect --png /tmp/out
 ```
 
+- **Textures.** `gfx_tex_test` (`gfx.tex.*`): the PNG reader, texture identities, a pack's round trip, wrap and
+  mirror seams at 2x, LOD levels at 2x, cut-out edges, the worker and the disk cache ([TEXTURES.md](TEXTURES.md)
+  "Tests").
 - **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`, written from
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
