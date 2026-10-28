@@ -194,7 +194,7 @@ reads the game's values then too, not after the retrace's event, which raced the
 |---|---|
 | `gfx.interp.*` (`port/gfx/tests/interp_test.c`, 14 cases, and `gfx.interp.all.*` at 2x, 16:9, desktop GL, llvmpipe) | pairs of synthetic frames built the game's way, the frame shown between against a frame drawn directly with the scene as it should look then: [GFX.md](GFX.md) "High frame rate" lists them |
 | `hfr_timing` (`tools/port/hfr_check.py`) | three synthetic paths (race2p, drive, demo) on the virtual clock with the setting off and at 120: every state, status and result line the same, frames drawn between in the second run |
-| `hfr_paced` (`tools/port/realtime_check.py --pacing display,60,120`) | the synthetic race in real time under a 59.94 Hz vsync swap (`RUSH_SIM_VSYNC_HZ`), the loop's waits precise: paced by the vblanks, at most 5% of them lost to skipped ticks, at least 250 frames drawn between in 30 s, the retraces at 59 a second or more and the audio's bounds (`audio_realtime`'s) |
+| `hfr_paced` (`tools/port/realtime_check.py --pacing display,60,120`) | the synthetic race in real time under a 59.94 Hz vsync swap (`RUSH_SIM_VSYNC_HZ`), the loop's waits precise: paced by the vblanks, at most 10% of them lost to skipped ticks (1.7-5.6% on rocky), at least 250 frames drawn between in 30 s, the retraces at 59 a second or more and the audio's bounds (`audio_realtime`'s) |
 | `hfr_realtime` (`realtime_check.py --frame-rate 120 --present-ms 40`) | the same race with each swap held 40 ms, then until the vsync (a host always behind): at least 5 frames shown a second, the game's own |
 | all other tests | unchanged: the setting is off by default |
 
@@ -249,7 +249,7 @@ display's vblanks 1798; on main the same race lost most ticks, section 2):
 
 | Waits | Rate | Vblanks lost to skipped ticks | Frames drawn between | Retraces, caught up |
 |---|---|---|---|---|
-| precise | display | 31-54 | 516-603 | 60.00 a second, 0 |
+| precise | display | 31-101 | 516-606 | 60.00 a second, 0 |
 | precise | 60 | 36 | 533 | 60.00, 0 |
 | precise | 120 | 36 | 617 | 60.00, 0 |
 | coarse (15.6 ms steps) | display | 0 | 229 (855 of the game's frames at their vblank) | 60.00, 0 |

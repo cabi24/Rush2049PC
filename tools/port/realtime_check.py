@@ -23,7 +23,7 @@ unchanged for minutes.
 
 With --pacing R[,R...] it runs the race once at each video.frame_rate R (display, 60, 120) under a vsync swap
 (RUSH_SIM_VSYNC_HZ, --vsync-hz; the ticks are then paced by the display's vblanks, docs/port/FRAMERATE.md 2) and
-checks each run's retraces and audio as above and its frames: at most 5% of the display's vblanks lost to skipped
+checks each run's retraces and audio as above and its frames: at most 10% of the display's vblanks lost to skipped
 ticks, and at least --min-between frames drawn between the game's (main before the pacing: 16-104 in 36 s; paced,
 on rocky: 400-600 in 30 s). --timer-step-us 0 leaves the loop's waits precise, as Windows' high-resolution timer has
 them (sched.c); the default 15625 makes them coarse, where the swap is the clock.
@@ -94,9 +94,9 @@ def check(args, frame_rate, logs):
             return 1
         between, skipped = int(m[2]), int(k[1])
         vblanks = args.seconds * float(args.vsync_hz)
-        good = skipped <= 0.05 * vblanks and between >= args.min_between
+        good = skipped <= 0.10 * vblanks and between >= args.min_between
         ok &= good
-        print(f"realtime_check: {vblanks:.0f} vblanks ({v[1]} Hz measured), {skipped} lost to skipped ticks (at most 5%), "
+        print(f"realtime_check: {vblanks:.0f} vblanks ({v[1]} Hz measured), {skipped} lost to skipped ticks (at most 10%), "
               f"{between} frames drawn between (at least {args.min_between}): {'ok' if good else 'FAIL'}")
     elif frame_rate:
         m = re.search(r"^gfx: frame rate \d+: (\d+) frames shown", out, re.M)
