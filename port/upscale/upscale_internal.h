@@ -19,8 +19,9 @@ enum {
  * intensity cases are the same for every method. */
 int pc_upscale_rgba2x_method(const uint8_t *in, int w, int h, int wrap_s, int wrap_t, uint8_t *out, int method);
 
-/* Threads per texture for the network: 0 (the default) is one per processor up to 8, fewer for small textures
- * (each takes at least 4 rows and 256 texels). The result doesn't depend on it. Not for use during a call. */
+/* Threads per texture for the network: 0 (the default) is half the processors, at most 4, each taking at least
+ * 8 rows and 1024 texels (so 32 x 32 and smaller run on the caller's thread alone); n asks for n, each taking at
+ * least 4 rows and 256 texels. The result doesn't depend on it. Not for use during a call. */
 void pc_upscale_set_threads(int n);
 
 /* The network's name and size, for logs and tools. */

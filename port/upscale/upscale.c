@@ -278,7 +278,7 @@ static void *net_rows(void *arg) {
 }
 
 #define UPS_MAX_THREADS 16
-static int s_threads;   /* pc_upscale_set_threads(); 0: one per processor, up to 8 */
+static int s_threads;   /* pc_upscale_set_threads(); 0: the default below */
 
 void pc_upscale_set_threads(int n) {
     s_threads = n < 0 ? 0 : n > UPS_MAX_THREADS ? UPS_MAX_THREADS : n;
@@ -309,10 +309,21 @@ static int run_net(const float *lr, int w, int h, int ws, int wt, float *hr, flo
     int rc = -1;
     if (!run.in || !run.f || !run.a || !run.b || !run.r)
         goto done;
-    /* Threads when it's worth it: at least 4 rows and 256 texels each. */
-    int t = s_threads ? s_threads : processors() < 8 ? processors() : 8;
-    t = t > h / 4 ? h / 4 : t;
-    t = t > w * h / 256 ? w * h / 256 : t;
+    /* Threads only when it's worth it: by default half the processors (the game runs beside it), at most 4, and
+     * at least 8 rows and 1024 texels each, so most N64 textures (32 x 32 and under) take one. A wait per layer
+     * costs little on an idle machine but a lot on a busy one. pc_upscale_set_threads(n) asks for n, still at
+     * least 4 rows and 256 texels each. */
+    int t;
+    if (s_threads) {
+        t = s_threads;
+        t = t > h / 4 ? h / 4 : t;
+        t = t > w * h / 256 ? w * h / 256 : t;
+    } else {
+        t = processors() / 2;
+        t = t > 4 ? 4 : t;
+        t = t > h / 8 ? h / 8 : t;
+        t = t > w * h / 1024 ? w * h / 1024 : t;
+    }
     t = t < 1 ? 1 : t;
     NetJob jobs[UPS_MAX_THREADS];
     pthread_t tid[UPS_MAX_THREADS];
