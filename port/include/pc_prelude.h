@@ -156,4 +156,32 @@ void pc_mem_unregister_be(const void *start);
 void pc_wave_loaded(int wave, void *buf, __SIZE_TYPE__ size);
 void pc_wave_released(int wave, void *buf);
 
+/* IDO's float (or double) to unsigned int, `(u32)f` in the game C: cvt.w.s rounding toward zero; at 2^31 or more
+ * again on f - 2^31 with the top bit set; a negative result (f <= -1), NaN or 2^32 and more give 0xFFFFFFFF, and
+ * (-1, 0) gives 0. C leaves these undefined, and the PC compilers differ: x86-64 wraps a negative value (-3 gives
+ * 0xFFFFFFFD), AArch64 saturates it to 0 (docs/port/AUDIO.md 9). Game files that use them define the N64 side,
+ * `#define N64_F2U(x) (u32)(x)`. */
+static __inline__ unsigned int pc_mips_f2u(float f)
+{
+    if (!(f > -1.0f))
+        return 0xFFFFFFFFu;
+    if (f < 2147483648.0f)
+        return (unsigned int)(int)f;
+    if (f < 4294967296.0f)
+        return (unsigned int)(int)(f - 2147483648.0f) | 0x80000000u;
+    return 0xFFFFFFFFu;
+}
+static __inline__ unsigned int pc_mips_d2u(double d)
+{
+    if (!(d > -1.0))
+        return 0xFFFFFFFFu;
+    if (d < 2147483648.0)
+        return (unsigned int)(int)d;
+    if (d < 4294967296.0)
+        return (unsigned int)(int)(d - 2147483648.0) | 0x80000000u;
+    return 0xFFFFFFFFu;
+}
+#define N64_F2U(x) pc_mips_f2u(x)
+#define N64_D2U(x) pc_mips_d2u(x)
+
 #endif
