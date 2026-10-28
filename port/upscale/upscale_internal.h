@@ -11,8 +11,9 @@ enum {
     PC_UPSCALE_METHODS
 };
 
-/* The largest texture accepted, in texels (pc_upscale_rgba2x returns -1 above it). */
-#define PC_UPSCALE_MAX_TEXELS (512 * 256)
+/* The largest texture accepted, in texels (pc_upscale_rgba2x returns -1 above it): 512 x 512, the second pass of
+ * a 4x of the renderer's largest upscaled texture (256 x 256). About 70 MB of scratch at that size. */
+#define PC_UPSCALE_MAX_TEXELS (512 * 512)
 
 /* pc_upscale_rgba2x with the colour scaler chosen. Alpha, the fill under transparent texels and the grey and
  * intensity cases are the same for every method. */

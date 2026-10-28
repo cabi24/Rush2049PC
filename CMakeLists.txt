@@ -369,7 +369,6 @@ target_include_directories(pcassets PRIVATE port/include port/assets)
 target_compile_options(pcassets PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcfrontend pcapp pcdata_rt pcassets)   # port/data's loader (docs/port/DATA.md)
 list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (docs/port/AUDIO.md, GFX.md)
-list(APPEND PC_PORT_ARCHIVES pcupscale)                # port/upscale: upscaled textures (docs/port/UPSCALE.md)
 
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
 # backtrace, or a zeroed placeholder (tools/port/gen_stubs.py); names that differ from a definition only by the
@@ -663,10 +662,11 @@ add_test(NAME index_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/index_check.py --bu
 set_target_properties(pc_data_test pc_reach_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
     PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
+# Before port/gfx, whose renderer links pcupscale (and makes it itself when nothing has).
+add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port/UPSCALE.md)
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
-add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port/UPSCALE.md)
 
 # ---------------------------------------------------------------- install (docs/port/RELEASE.md)
 # `cmake --install build/pc --prefix DIR`. Portable (the default on Windows, and the release archives): one folder

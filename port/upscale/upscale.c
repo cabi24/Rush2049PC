@@ -16,6 +16,7 @@
  * Plain C, single precision, no FMA contraction (CMake builds this file with -ffp-contract=off): the result is the
  * same bytes on every machine and compiler, which tests/test_upscale.c checks. Reentrant: no state between calls.
  */
+#define _POSIX_C_SOURCE 200809L   /* sysconf, pthreads under a strict -std */
 #include "upscale.h"
 #include "upscale_internal.h"
 
