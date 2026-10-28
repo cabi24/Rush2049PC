@@ -205,8 +205,11 @@ int pc_si_set_pak(int ch, int kind)
     if (ch < 0 || ch > 3 || kind < PC_PAK_NONE || kind > PC_PAK_AUTO)
         return PC_PAK_NONE;
     Port *p = &g_port[ch];
-    int was = p->kind;
-    if (kind == PC_PAK_MEMORY && !p->memory_ok && p->in != PC_PAK_MEMORY) {   /* the game can't reach img */
+    int was = p->kind;   /* kind, memory_ok and path change on this thread alone */
+    pthread_mutex_lock(&g_slock);
+    int in = p->in;
+    pthread_mutex_unlock(&g_slock);
+    if (kind == PC_PAK_MEMORY && !p->memory_ok && in != PC_PAK_MEMORY) {   /* the game can't reach img */
         int r = 0;
         if (p->path)
             r = pak_load(ch, p->path);
