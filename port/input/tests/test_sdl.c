@@ -1006,12 +1006,16 @@ static void test_menu(void)
 /* A mouse event in the window's units (the offscreen window's are its pixels): motion, a button, or wheel notches. */
 static void mouse(Uint32 type, int x, int y, int button)
 {
+    static int last_x = -1, last_y = -1;   /* where the last motion was, for its relative motion, as SDL gives it */
     SDL_Event e;
     SDL_zero(e);
     e.type = type;
     if (type == SDL_MOUSEMOTION) {
         e.motion.windowID = SDL_GetWindowID(g_win);
         e.motion.x = x, e.motion.y = y;
+        e.motion.xrel = last_x < 0 ? 1 : x - last_x;
+        e.motion.yrel = last_y < 0 ? 0 : y - last_y;
+        last_x = x, last_y = y;
     } else if (type == SDL_MOUSEWHEEL) {
         e.wheel.windowID = SDL_GetWindowID(g_win);
         e.wheel.y = button;
@@ -1056,6 +1060,16 @@ static void test_mouse(void)
     show_frame();
     pump();
     CHECK(!cursor_shown(), "no cursor over the game at start");
+    {   /* SDL's first event for a cursor at rest under the window (Windows sends it): no relative motion, no move */
+        SDL_Event e;
+        SDL_zero(e);
+        e.type = SDL_MOUSEMOTION;
+        e.motion.windowID = SDL_GetWindowID(g_win);
+        e.motion.x = 320, e.motion.y = 240;
+        SDL_PushEvent(&e);
+        pump();
+        CHECK(!cursor_shown(), "the window opened under the cursor: still no cursor");
+    }
     /* during play the game gets nothing from the mouse; the cursor shows when it moves, and hides 2 s after */
     click(100, 100, SDL_BUTTON_LEFT);
     click(100, 100, SDL_BUTTON_RIGHT);
@@ -1127,6 +1141,8 @@ static void test_mouse(void)
     SDL_SetClipboardText("");
     tap(SDL_SCANCODE_RETURN);
     char *clip = SDL_GetClipboardText();
+    for (char *r = clip, *w = clip; r && (*w = *r); r++)   /* Windows' clipboard has CRLF line ends (SDL adds the CR) */
+        w += !(r[0] == '\r' && r[1] == '\n');
     CHECK(clip && !strncmp(clip, "Rush 2049 PC\nVersion: unknown\n", 30) && strstr(clip, "\nPlayer 1: keyboard\n") &&
               strstr(clip, "\nGL renderer: "),
           "the clipboard:\n%s", clip ? clip : "(none)");
