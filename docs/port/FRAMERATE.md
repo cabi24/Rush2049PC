@@ -101,8 +101,45 @@ retrace slows the game in real time:
 - a tick that would show what is already on screen (a held frame) shows nothing.
 
 So on a host with headroom every frame between is drawn; on one without, fewer are, down to none, and the game runs
-as it would with the setting off. At exit the loop and the renderer say how many frames were shown, drawn, skipped
-and not drawn, and `RUSH_GFX_TIMES` adds what they cost.
+as it would with the setting off. The game's own frames are never lost to skipped ticks: a frame the VI swapped in
+that no tick has shown by the next retrace, or every frame when no tick fits between two retraces, is shown at that
+retrace's present, with its swap, as the setting off shows each (`of the game's frames shown at their retrace`). At
+exit the loop and the renderer say how many frames were shown, drawn, skipped and not drawn, and `RUSH_GFX_TIMES`
+adds what they cost.
+
+**Paced by the display, with vsync** (2026-10-28). A swap that waits for vsync (the window's with `video.vsync`, its
+default; headless, `RUSH_SIM_VSYNC_HZ`) changes the screen only at the display's vblanks, and blocks the loop until
+one. The ticks were deadlines of the retrace grid, and their running cost included that wait (up to a refresh), so
+nearly every tick looked too slow and was skipped, and a swap that blocked past a retrace made it late. On main, the
+synthetic race under the model (rocky, 36 s, a 60 Hz vsync and coarse waits): 1310 of 2400 ticks skipped and 46
+frames drawn between at 60, 1459 and 16 at `display`, 1911 and 104 at 120. So with vsync on, the loop now paces the
+ticks by the display (`vb` in port/ultra/loop.c):
+
+- **The vblanks.** A grid at the display's refresh (`pc_gfx_display_hz`: SDL's, whole hertz, 59 for 59.94), its
+  phase and period corrected by each swap that blocked (it returned at a vblank; the period moves an eighth of the
+  way toward the time between two, within 2% of the display's). A driver that queues frames (WGL on NVIDIA and
+  Intel: a swap blocks only once the queue is full) blocks rarely while one frame a vblank is submitted; the grid
+  then runs on the refresh until a swap blocks again.
+- **One tick a vblank**, its moment that vblank (where the frame appears), not when the tick began. At a rate at or
+  above the refresh (`display`, 120 on a 60 Hz display, 60 on 60) every vblank gets one; below it (60 on 144 Hz),
+  the vblank at or after each tick of the rate. A rate that isn't a divisor of the refresh still holds frames for
+  uneven counts of vblanks, but each shows its own moment.
+- **As late as it makes its vblank.** A tick starts when its drawing (the running mean of its cost, without the
+  swap's wait) ends 1 ms before the vblank, plus how late the loop's timed waits return (a decaying maximum). Its
+  swap then waits about a millisecond, if at all. A frame between the shown one and the game's next, which isn't
+  drawn yet, waits for its graphics task (which wakes the loop) as long as the tick still makes the vblank.
+- **Never across a retrace.** A tick whose drawing would run into the next retrace is drawn after it, if that still
+  makes the vblank, else before it; a tick drawn before a retrace due before its vblank leaves its swap until the
+  retrace has gone out (`swapped after a retrace`), and drops it if the vblank went by meanwhile (`missed it`). A
+  tick that fits none of these is skipped: the vblank shows what the last one did. A swap that takes longer than a
+  vblank and one more (a slow GPU, `RUSH_SIM_PRESENT_MS`) counts in the cost, so such a host skips ticks as before.
+- **Coarse timers.** Where the loop's timed waits return more than 2 ms late (`RUSH_SIM_TIMER_STEP_US`'s model, or a
+  Windows without the high-resolution waitable timer that `pc_os_wait_main` uses), sleeping until a tick's start
+  would miss its vblank: the swap is the clock. Each tick is drawn once the vblank before its own has come and its
+  swap waits for the vblank, across a retrace if one comes, as the setting off waits after each of the game's frames.
+
+With vsync off, or `--fast`, the ticks are scheduled as before. The exit line `paced by the display's vblanks (H Hz,
+N swaps returned at one): ...` gives the measured refresh and the counts above.
 
 **Determinism.** Checking that the setting changes nothing needs runs that repeat. `--fast` runs didn't quite: the
 main loop ran RSP tasks and posted their events while a game thread was still computing, and which of its next
@@ -141,10 +178,11 @@ reads the game's values then too, not after the retrace's event, which raced the
 - `original` shows each frame when the VI swaps it in, as before: nothing is recorded, nothing drawn between, the
   output is what it was.
 - `display` is the display's refresh rate (SDL's mode for the window's display, taken again at each event pump), or
-  60 without one. Use it with vsync on: each frame shown waits for a refresh.
+  60 without one. Use it with vsync on: a frame at each vblank, for that vblank's moment (section 2).
 - A number shows that many frames a second, in step with the retraces: 60 and 120 put a frame on every (half)
-  retrace, 60 shows the game's frame and one halfway. With vsync on, a rate above the display's waits for refreshes;
-  a rate that isn't a multiple of the display's judders, so prefer `display`, or vsync off.
+  retrace, 60 shows the game's frame and one halfway. With vsync on the ticks follow the display's vblanks: a rate
+  at or above the refresh is the same as `display`; a rate below it that doesn't divide it (60 on 144 Hz) holds
+  frames for uneven counts of vblanks, so prefer `display`.
 - Screenshots (`--screenshot-at`, F12) are the game's frames, at any rate.
 - `RUSH_GFX_VERBOSE=1` prints a line per frame pair (transforms blended, moved with the camera, as drawn; views
   cut), 2 the camera's move per view, 3 every transform. `RUSH_GFX_HFR_DUMP=DIR[:FIRST[:COUNT]]` writes the frames
@@ -156,6 +194,8 @@ reads the game's values then too, not after the retrace's event, which raced the
 |---|---|
 | `gfx.interp.*` (`port/gfx/tests/interp_test.c`, 14 cases, and `gfx.interp.all.*` at 2x, 16:9, desktop GL, llvmpipe) | pairs of synthetic frames built the game's way, the frame shown between against a frame drawn directly with the scene as it should look then: [GFX.md](GFX.md) "High frame rate" lists them |
 | `hfr_timing` (`tools/port/hfr_check.py`) | three synthetic paths (race2p, drive, demo) on the virtual clock with the setting off and at 120: every state, status and result line the same, frames drawn between in the second run |
+| `hfr_paced` (`tools/port/realtime_check.py --pacing display,60,120`) | the synthetic race in real time under a 59.94 Hz vsync swap (`RUSH_SIM_VSYNC_HZ`), the loop's waits precise: paced by the vblanks, at most 5% of them lost to skipped ticks, at least 250 frames drawn between in 30 s, the retraces at 59 a second or more and the audio's bounds (`audio_realtime`'s) |
+| `hfr_realtime` (`realtime_check.py --frame-rate 120 --present-ms 40`) | the same race with each swap held 40 ms, then until the vsync (a host always behind): at least 5 frames shown a second, the game's own |
 | all other tests | unchanged: the setting is off by default |
 
 A mutation check of `gfx_interp.c` (14 deliberate bugs: no blend, always one frame's list, no camera move for new
@@ -204,6 +244,23 @@ lookups or the game's matrices; with the game's scenes it costs about half a gra
 | rocky | race4p | 60.0 retraces/s, 30 fps | | 60.0, 30 fps; 2,010 drawn between, 10 not drawn | 60.0, 30 fps; 4,658 drawn, 55 not |
 | Pi 5 | race4p | 60.0, 30 fps | 60.0, 30 fps; 480 drawn, 15 skipped | 60.0, 30 fps; 1,796 drawn, 104 skipped or not drawn | |
 
+**With vsync** (the synthetic race in real time, 30 s, a 59.94 Hz vsync swap, rocky, one run at a time; the
+display's vblanks 1798; on main the same race lost most ticks, section 2):
+
+| Waits | Rate | Vblanks lost to skipped ticks | Frames drawn between | Retraces, caught up |
+|---|---|---|---|---|
+| precise | display | 31-54 | 516-603 | 60.00 a second, 0 |
+| precise | 60 | 36 | 533 | 60.00, 0 |
+| precise | 120 | 36 | 617 | 60.00, 0 |
+| coarse (15.6 ms steps) | display | 0 | 229 (855 of the game's frames at their vblank) | 60.00, 0 |
+| none (vsync off, the old scheduling) | display | 3 | 264 | 60.00, 0 |
+
+With precise waits (Windows' high-resolution timer) each vblank gets its tick; the frames drawn between are more
+than the retrace grid gave without vsync, since a tick waits for the game's next frame while it can. With coarse
+waits the swap is the clock: every vblank still gets a frame, but drawn a refresh ahead, more of them are the
+game's own. The audio's bounds held in every run (one underrun at the start, a few buffers as silence of 3400, none
+skipped).
+
 Hosts with headroom draw nearly every frame between and keep the game's retraces exactly. A host without it draws
 fewer: the ticks that would come too close to a retrace, or find the GPU busy, are skipped, and while the host drops
 retraces none is drawn, so the game runs as it would with the setting off. The Pi 5 is shared with other work here;
@@ -211,8 +268,12 @@ its numbers vary from run to run.
 
 ## 6. What's left
 
-- A real display: vsync and `display` pacing were checked only headless. With vsync the swap waits for the display;
-  the ticks are scheduled by the clock, so a rate that isn't a multiple of the display's judders.
+- A real display: vsync pacing was checked only headless, under the model (a swap that blocks until the next
+  vblank). A driver that queues frames and never blocks gives no vblank to correct the grid by; the grid then runs
+  at SDL's whole-hertz refresh, and where that is off (59 for a 59.94 display) a frame is held twice about once a
+  second. DwmGetCompositionTimingInfo (the compositor's vblank and refresh) would give the grid there.
+- Adaptive vsync (swap interval -1) and a present thread of its own were weighed and not done: the first still
+  blocks when on time, the second moves the GL context off the thread that runs the graphics tasks.
 - Per-vertex effects of the moment (lighting, texture generation) and LOD and culling choices are the nearer frame's.
 - Instances of one model with no paired parent, closer together than they move in a frame, can pair with a neighbour
   (a smoke trail behind a fast car).

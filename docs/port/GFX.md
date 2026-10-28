@@ -539,6 +539,15 @@ VI swaps it in, and nothing below runs. Otherwise `pc_gfx_present` only makes th
 screenshots read) and notes the retrace (`pc_gfx_retrace`); the main loop calls `pc_gfx_present_tick(vt)` that many
 times a second, vt in retraces, and it shows the frame for that moment. Added 2026-10-27, `gfx_interp.c`.
 
+- **The swap.** With `PC_GFX_TICK_NO_SWAP` in the mode, `pc_gfx_present_tick` draws into the window and leaves the
+  swap to `pc_gfx_swap_tick`, so the main loop times the drawing apart from a swap that waits for vsync, and swaps
+  when the vblank it drew for comes (after a retrace due before it: [FRAMERATE.md](FRAMERATE.md) 2). A swap since
+  (`pc_gfx_redraw`) makes `pc_gfx_swap_tick` do nothing. `pc_gfx_vsync` says whether the window's swap waits for
+  vsync, `pc_gfx_display_hz` the display's refresh, and `pc_gfx_tick_waits(vt)` whether the frame for vt is between
+  the one shown and the game's next, not drawn yet (`pcgfx_hfr_wants_next`): the loop then waits for that graphics
+  task while the tick still makes its vblank. `pc_gfx_frame_waiting` says the game has swapped in a frame no tick has
+  shown: the loop shows it at the next retrace.
+
 - **Recording.** While it is on, `pc_gfx_run_dl` records each task as the interpreter runs it; what the interpreter
   draws doesn't change. The hooks (`pcgfx_rec_*`):
   - a vertex load: each vertex in model space (read again from the Vtx), its clip position, shade, s, t and fog flag

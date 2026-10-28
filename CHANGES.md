@@ -33,6 +33,9 @@ everything a night of testing on the retail cartridge found.
 - **Sound dropouts**: audio tasks no longer wait behind graphics tasks (the RSP yields, as the game expects),
   and the game's audio renderer no longer builds over a buffer set before it plays.
 - **Cheats** could not be entered and the cheat screen could not be opened.
+- **Stutter at a high frame rate with vsync on** (60, 120 or `display` with `video.vsync`, its default): most frames
+  between were skipped. The frames are now paced by the display's refresh, one for each, drawn for the moment it
+  appears ([FRAMERATE.md](docs/port/FRAMERATE.md) 2).
 
 ### New
 
