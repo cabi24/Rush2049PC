@@ -16,7 +16,7 @@ symbol's address, and tables indexed past their declarations. Each is fixed with
 | Needs | the PC build's data report, `build/pc/pc-data/data_symbols.txt`: build the port first |
 | Run | `build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headless --no-config --audio null --no-pak` |
 | Paths | `tools/port/synth/*.press`, run by `tools/port/synth_paths.py` (section 2) |
-| Checks | ctest `synth_rom` and a `synth_boot_<path>` per path; CI step "Boot the synthetic cartridge" (both Linux jobs) |
+| Checks | ctest `synth_rom` and a `synth_boot_<path>` per path (every CI job that runs ctest; the Linux jobs keep the logs) |
 
 **Provenance note (2026-10-27).** While the paths were widened, a research helper of the agent doing it decoded
 the retail control and button-map tables from a local ROM, against the project's rules. Nothing from it was used:
@@ -185,8 +185,10 @@ cars, mode (gRace) and track, and the first car's position, speed and steering i
 must reach (`# until:`, `# seconds:`, `# expect:` the state line's text, `# visits:` states on the way, `# realtime`,
 `# args:`, `# check:`);
 `tools/port/synth_paths.py` runs them (on the virtual clock, `--fast`, unless `# realtime`), checks the exit code and
-the last state line (and that the first car's position isn't NaN), and keeps each log in `build/synth/paths`. ctest has one `synth_boot_NAME` per script, and the
-CI step runs them all on both Linux jobs and keeps the logs. On Windows the native job's ctest runs them, and
+the last state line (and that the first car's position isn't NaN), and keeps each log in `build/synth/paths` (ctest's in
+`build/pc/synth/paths`). ctest has one `synth_boot_NAME` per script, a `# realtime` one `RUN_SERIAL` (alone under
+`ctest -j`, as CI runs it); the Linux jobs upload ctest's logs (until 2026-10-28 a CI step ran every path a second
+time to keep them). On Windows the native job's ctest runs them, and
 `windows-run` generates the cartridge from the cross build's data report and runs every path with the cross-built
 program ([WINDOWS.md](WINDOWS.md) 9).
 

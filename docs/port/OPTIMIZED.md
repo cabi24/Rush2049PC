@@ -284,7 +284,8 @@ Considered and not used:
   jobs also run `alias_check.py`, and the x86-64 one `bounds_check.py` (2.7). Then:
   - `optimized` (per architecture): the two builds' `data.c` and `data_symbols.txt` must be the same files, and
     `synth_compare.py --same` runs every path with both programs, twice each, on the virtual clock: every trace must
-    be the same, to the bit;
+    be the same, to the bit. Its runs go four at once (`-j 4`): each is a process of its own on the virtual clock,
+    whose course doesn't depend on what else the host runs;
   - `optimized-windows`: the cross builds' `data.c` and `data_symbols.txt` must be the same files;
   - `windows-run` runs the self-test, the boot without a ROM and the 14 paths with both cross-built programs.
 

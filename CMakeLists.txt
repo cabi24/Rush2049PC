@@ -458,6 +458,7 @@ if(WIN32)
 endif()
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
+set_tests_properties(ultra_selftest PROPERTIES RUN_SERIAL TRUE)   # its timers on the host's clock: alone (ctest -j)
 add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
 if(WIN32)
     # The subsystem, the image base and ASLR, the icon's sizes and the version information, from the file itself
@@ -486,6 +487,11 @@ foreach(script ${SYNTH_PATHS})
     add_test(NAME synth_boot_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_paths.py
         --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths ${name})
     set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150)
+    # a path on the host's clock (`# realtime`: the race) runs alone under `ctest -j`, as the other real-time tests
+    file(STRINGS ${script} realtime REGEX "^#[ \t]*realtime[ \t]*$")
+    if(realtime)
+        set_tests_properties(synth_boot_${name} PROPERTIES RUN_SERIAL TRUE)
+    endif()
 endforeach()
 # The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
 # ROM lookup order in temporary folders; and the program's own messages for each kind of missing or wrong ROM, and
