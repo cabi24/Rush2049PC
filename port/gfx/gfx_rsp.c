@@ -451,9 +451,63 @@ int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]) {
     return n;
 }
 
+/* GL's own guard band, in its clip coordinates (x and y within GFX_GL_GUARD w): the polygon as GL gets it is
+ * clipped to it, on the CPU, when a vertex lies beyond it (GFX.md "Clipping"). The guard band above is the view's;
+ * where the view spans the target, as a perspective view does in widescreen, the two are the same planes, and the
+ * view's clip leaves a vertex there a float's rounding beyond (x = 2.000005 w). V3D clips a triangle with a vertex
+ * past 2 w itself, and a triangle it has clipped comes out with its colours and texture coordinates off by up to
+ * 1.6 % at 2876 internal pixels across (a road of one colour, 255, came out 251 in a corner). Here a new vertex is
+ * put on the plane exactly (x = 2 w is exact in floats), so no GPU clips anything GL gets inside its view volume's
+ * twice; and the planes being GL's, a viewport the size of the screen or larger (its guard band past GL's) is held
+ * to GL's too. Linear in clip space, as GL's own clipping is, so the picture is the same. */
+#define GFX_GL_GUARD 2.0f
+
+static void out_lerp(GfxOutVtx *o, const GfxOutVtx *a, const GfxOutVtx *b, float t) {
+    int k;
+    for (k = 0; k < 4; k++) {
+        o->pos[k] = a->pos[k] + (b->pos[k] - a->pos[k]) * t;
+        o->shade[k] = a->shade[k] + (b->shade[k] - a->shade[k]) * t;
+        o->uv[k] = a->uv[k] + (b->uv[k] - a->uv[k]) * t;
+    }
+}
+
+/* plane 0-3: x <= g w, x >= -g w, y <= g w, y >= -g w; inside >= 0 */
+static float out_dist(const GfxOutVtx *v, int plane) {
+    float gw = GFX_GL_GUARD * v->pos[3], c = v->pos[plane >> 1];
+    return (plane & 1) ? gw + c : gw - c;
+}
+
+static int out_clip(GfxOutVtx *poly, int n) {
+    GfxOutVtx buf[2][GFX_OUT_POLY_MAX];
+    int plane, k = 0, i, m;
+    memcpy(buf[0], poly, sizeof(GfxOutVtx) * (size_t)n);
+    for (plane = 0; plane < 4 && n >= 3; plane++, k ^= 1) {
+        for (i = 0, m = 0; i < n && m + 2 <= GFX_OUT_POLY_MAX; i++) {
+            const GfxOutVtx *a = &buf[k][i], *b = &buf[k][(i + 1) % n];
+            float da = out_dist(a, plane), db = out_dist(b, plane);
+            if (da >= 0.0f)
+                buf[k ^ 1][m++] = *a;
+            if ((da >= 0.0f) != (db >= 0.0f)) {   /* lerped from the end inside, as clip_plane does */
+                GfxOutVtx *o = &buf[k ^ 1][m++];
+                if (da >= 0.0f)
+                    out_lerp(o, a, b, da / (da - db));
+                else
+                    out_lerp(o, b, a, db / (db - da));
+                o->pos[plane >> 1] = (plane & 1 ? -GFX_GL_GUARD : GFX_GL_GUARD) * o->pos[3];
+            }
+        }
+        n = m;
+    }
+    if (n < 3)
+        return 0;
+    memcpy(poly, buf[k], sizeof(GfxOutVtx) * (size_t)n);
+    return n;
+}
+
 int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTriCtx *c, const GfxDrawState *st,
                      const GfxUnitInfo units[2], GfxOutVtx *tri) {
-    GfxOutVtx out[8];
+    GfxOutVtx out[GFX_OUT_POLY_MAX];
+    int outside = 0;
     float flat[4];
     int i, k, m = 0;
 
@@ -475,6 +529,7 @@ int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTr
         o->pos[1] = v->w * (1.0f - 2.0f * c->vp_trans[1] / c->th) + v->y * 2.0f * c->vp_scale[1] / c->th;
         o->pos[2] = (2.0f * d - 1.0f) * v->w;
         o->pos[3] = v->w;
+        outside |= fabsf(o->pos[0]) > GFX_GL_GUARD * o->pos[3] || fabsf(o->pos[1]) > GFX_GL_GUARD * o->pos[3];
         if (c->geom & G_SHADING_SMOOTH) {
             o->shade[0] = v->r;
             o->shade[1] = v->g;
@@ -496,6 +551,8 @@ int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTr
             }
         }
     }
+    if (outside)
+        n = out_clip(out, n);
     for (i = 1; i + 1 < n; i++) {
         tri[m++] = out[0];
         tri[m++] = out[i];
@@ -531,7 +588,7 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
     tri_ctx(&c);
     n = pcgfx_tri_visible(in, &c, poly);
     if (n > 0) {
-        GfxOutVtx tri[18];
+        GfxOutVtx tri[GFX_TRI_OUT_MAX];
         int m;
         st = pcgfx_draw_state(-1, c.wide);
         m = pcgfx_tri_output(poly, n, &in[0], &c, st, pcgfx_units(), tri);

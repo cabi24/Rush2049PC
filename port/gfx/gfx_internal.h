@@ -195,7 +195,10 @@ typedef struct {
 /* A triangle's visible polygon: trivially rejected, clipped to the guard band and the eye plane, culled by its winding.
  * Returns its vertex count (0: nothing to draw). */
 int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]);
-/* The polygon as GL triangles (up to 18 vertices); flat shading takes first's colour. Returns the vertex count. */
+/* The polygon as GL triangles (up to GFX_TRI_OUT_MAX vertices), clipped to GL's guard band when it reaches past it
+ * (gfx_rsp.c); flat shading takes first's colour. Returns the vertex count. */
+#define GFX_OUT_POLY_MAX 12   /* the polygon's 8 vertices, and a vertex more for each of GL's guard band's 4 sides */
+#define GFX_TRI_OUT_MAX (3 * (GFX_OUT_POLY_MAX - 2))
 int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTriCtx *c, const GfxDrawState *st,
                      const GfxUnitInfo units[2], GfxOutVtx *tri);
 uint8_t pcgfx_outcode(const GfxVtx *v, float xs);
