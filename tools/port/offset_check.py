@@ -52,14 +52,21 @@ ROOT = ec.ROOT
 # A function's parameter that only the ROM's tables (or an indirect call the flow does not follow) give a record:
 # (function regex, parameter, (unit regex, view name) of the record's PC layout, why).
 ROLES = []
-# Raw accesses read and judged: (unit regex, function regex, why). A finding whose accesses all match is reviewed.
+# Findings read and judged: (unit regex, regex on the function or the storage, why).
 REVIEWED = [
     (r"src/blob/func_800AED20\.c$", r"^func_800AED20$",
      "by design: _GetSource clears the 3D-sound source's active byte at EMITTER_ACTIVE (PC +0x10), which "
      "engine_sound_sync.c's Source names as the first byte of a u32 flags word no code reads whole (LAYOUT.md 7)"),
     (r"src/blob/object_action_clear\.c$", r"^object_action_clear$",
-     "unreachable as far as the code shows: no C calls object_action_clear, no asm references it and no C takes "
-     "its address (LAYOUT.md 9.3)"),
+     "unreachable: no C calls object_action_clear, no asm references it, no C takes its address, and no table of "
+     "the ROM's data holds it (the loader's conversions, LAYOUT.md 9.3)"),
+    (r".", r"^\*pc_text_strings\(\)",
+     "by design: the text bank's string table holds host pointers (port/assets/text.c), read by index (strs[22]) "
+     "8 bytes wide: PC code"),
+    (r"src/blob/groups/results_table/results_table\.c$", r"^(drawBattleScore|func_80102448|func_80102F30)$",
+     "by design: the name pointer is made with PROFILE_OFS(20) a few lines before the call (POINTERS.md 9.10)"),
+    (r"src/ovl_b/func_803936A8\.c$", r"^func_803936A8$",
+     "by design: NameData is a PC-only view padded to the profile's name at +0x20 (PROFILE_OFS, POINTERS.md 9.10)"),
 ]
 
 
@@ -444,7 +451,8 @@ class Check:
     def review(self, found):
         out = []
         for f in found:
-            why = next((r for ure, fre, r in REVIEWED if re.search(ure, f.unit) and re.search(fre, f.func)), None)
+            why = next((r for ure, fre, r in REVIEWED if re.search(ure, f.unit)
+                        and (re.search(fre, f.func) or re.search(fre, lc.fmt_root(f.root)))), None)
             out.append(f._replace(why=why))
         return sorted(out, key=lambda f: (f.why is not None, -f.score, f.unit, f.func))
 
