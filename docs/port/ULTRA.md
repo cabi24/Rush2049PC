@@ -142,7 +142,15 @@ registers its two DMA caches when it allocates them and drops them when it frees
   runs of a path differed by one, `hfr_timing`).
 - Any other task gets only the SP event.
 
-Tasks run to completion, so `osSpTaskYielded` is 0. `osDpSetNextBuffer` gets a DP event. `--stop-at-gfx` reports the
+**Yields.** When an audio task comes while a graphics task is on the RSP, the game's scheduler asks that task to
+yield (`osSpTaskYield`), takes its SP event, and asks `osSpTaskYielded` whether it stopped. If it did, the scheduler
+runs the audio task and then starts the graphics task again. In real time the port does this for a graphics task
+the main loop hasn't taken yet: it leaves the queue with an SP event, `osSpTaskYielded` returns `OS_TASK_YIELDED`
+once and marks the task, and `osSpTaskLoad` clears the mark when the task is started again. None of the task ran, so
+it runs whole then: the interpreter never sees half a task. A task the main loop has taken runs to completion, and
+its own SP event follows. Without yields, an audio task waited behind a swap or a slow present, past the next
+retrace (AUDIO.md §7). With `--fast` nothing yields: the main loop runs every task in the order it came. The
+exit line counts the yields. `osDpSetNextBuffer` gets a DP event. `--stop-at-gfx` reports the
 first graphics task and stops: the Phase 2 goal.
 
 **AI.**
@@ -252,11 +260,20 @@ loop on the host main thread.
 - Each pass runs due timers, queued graphics tasks and the AI.
 - At each retrace it calls `pc_gfx_poll_events` (window events, which also reach port/input), polls
   `pc_input_poll`, sends the VI event and presents a swapped framebuffer.
-- A retrace that comes a whole period late (a slow graphics task, a swap waiting for vsync) is caught up: the
-  ones due come at once, so the game keeps its 60 a second: it counts its time in retraces, and its audio renders
-  the buffers the AI has passed at each one, skipping some when it finds too many ([AUDIO.md](AUDIO.md) §7). A stall
-  of 6 periods or more (a debugger, a long hitch) resynchronizes and drops them.
-  At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped`.
+- A retrace that comes a whole period late (a slow graphics task, a swap waiting for vsync) is caught up, so the
+  game keeps its 60 a second: it counts its time in retraces, and its audio renders the buffers the AI has passed
+  at each one, skipping some when it finds too many ([AUDIO.md](AUDIO.md) §7). A stall of 6 periods or more (a
+  debugger, a long hitch) resynchronizes and drops them.
+- The late ones come one at a time. In real time each waits until the game's threads are done with the one before
+  (`pc_os_quiet`): the system is idle, or the baton is back with the thread that held it when that retrace went out,
+  with no thread above it waiting. The wait is at most 2 ms. Sent at once, a burst of them reached the scheduler's
+  clients together, and the audio manager, whose 128-message queue also takes a command per sound source per
+  retrace, overflowed it on a loaded host. With `--fast` they come at once, as before.
+- At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped (...); L
+  late ones went out before the game was done with the last` (L: those the 2 ms wait sent anyway). On rocky (load
+  2), `realtime_check` with slow presents (`RUSH_SIM_PRESENT_MS=20`): the fullest 128-message queue peaked at 24
+  and 27 messages, down from 28 and 40 when they came at once. One late retrace in each run went out at the 2 ms
+  limit, and none were dropped.
 - Between deadlines it sleeps until a thread submits work.
 - While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
   events. Afterwards it sets the N64 clock back by the time held.
@@ -395,9 +412,9 @@ the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
 
-- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 27 of 27 in about 1.5 s; `--selftest --fast`
+- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 31 of 31 in about 1.5 s; `--selftest --fast`
   (`ultra_selftest_fast`) runs the same on the virtual clock, with the clock's own check in place of the
-  device-paced AI's (real time only), in under 0.1 s. It covers:
+  device-paced AI's and without the yield (real time only): 30 of 30 in under 0.1 s. It covers:
   - threads: preemption on start, priorities, FIFO among equals and yield, `osSetThreadPri` both ways,
     `osStopThread` on a waiting thread;
   - queues: FIFO, jam, full and empty, a blocking send;
@@ -406,7 +423,7 @@ the libgsm kernels, now `gsm.c` (§8).
   - busy-waits: both yield paths;
   - memory: the window and its KSEG1 alias, the absolute symbols, game data at its N64 addresses, host addresses
     above 4 GiB, big-endian ranges;
-  - RSP tasks and DP buffers, and the AI rate and event;
+  - RSP tasks and DP buffers, a queued graphics task yielding (real time only), and the AI rate and event;
   - in real time, the AI paced by a device: 30 pulls of 512 frames from a host thread, 10 ms apart, answered by
     88 buffers, only the first pull short;
   - the SI through the game's own C: `osContInit`, `osContGetReadData`, `osPfsInitPak`, `osPfsFreeBlocks`, and a

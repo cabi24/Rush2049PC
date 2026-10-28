@@ -16,6 +16,10 @@
 #include <string.h>
 
 #include "gfx_hfr.h"
+
+/* gfx_internal.h's test access (it carries GBI definitions of its own) */
+int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
+int pc_gfx_framebuffer_dims(const void *cimg, int *n64_w, int *n64_h, int *px_w, int *px_h);
 #include "pc_port.h"
 #include "test_gbi.h"
 
@@ -990,6 +994,38 @@ static void case_timing(void) {
     free(w1);
 }
 
+/* A frame clears the depth buffer through the last target drawn (the z buffer as the color image), right after the
+ * present made the frame before it the presented image, with no tick between: the clear must reach the depth
+ * buffer. B far, C near, then D far again: D's object must not be hidden by C's depth. Until 2026-10-28 the
+ * present's copy left the presented image's framebuffer bound for drawing while the renderer took C's as still
+ * bound, so from the second present on that clear went nowhere. */
+static void case_depthclear(void) {
+    Scene sc;
+    uint8_t *px;
+    int w, h, nw, nh, pw, ph, x, y;
+    scene_init(&sc, 1);
+    add_obj(&sc, 0, M_RED, 0, 0, -600, 0, 0, -60);
+    pair(&sc, 120);   /* B presented, C drawn */
+    pc_gfx_retrace(12);
+    pc_gfx_present(s_fb[1]);
+    build(&sc, 0, 0.0f, 0);   /* D: as B, into B's buffer, with no tick since C's present */
+    pc_gfx_run_dl(s_list[0]);
+    if (pc_gfx_framebuffer_dims(s_fb[0], &nw, &nh, &pw, &ph) != 0 ||
+        pc_gfx_read_framebuffer(s_fb[0], NULL, &w, &h) != 0) {
+        printf("  FAIL %s: no target for D\n", s_case), s_fail++;
+        return;
+    }
+    px = (uint8_t *)malloc((size_t)w * h * 4);
+    pc_gfx_read_framebuffer(s_fb[0], px, &w, &h);
+    x = w / 2;
+    y = (int)((float)h * (float)(FB_H / 2) / (float)nh);   /* the view's centre: the object's */
+    if (px[((size_t)y * w + x) * 4] < 200 || px[((size_t)y * w + x) * 4 + 2] > 60)
+        printf("  FAIL %s: D's far object is hidden by C's depth: %d %d %d at its centre\n", s_case,
+               px[((size_t)y * w + x) * 4], px[((size_t)y * w + x) * 4 + 1], px[((size_t)y * w + x) * 4 + 2]),
+            s_fail++;
+    free(px);
+}
+
 /* The setting's text. */
 static void case_parse(void) {
     static const struct {
@@ -1021,7 +1057,7 @@ static const struct {
     {"exact", case_exact},   {"move", case_move},           {"camera", case_camera}, {"cut", case_cut},
     {"teleport", case_teleport}, {"split", case_split},     {"hud", case_hud},       {"appear", case_appear},
     {"instances", case_instances}, {"children", case_children}, {"spin", case_spin}, {"eyerel", case_eyerel},
-    {"timing", case_timing}, {"parse", case_parse},   {"hudedges", case_hudedges},
+    {"timing", case_timing}, {"parse", case_parse},   {"hudedges", case_hudedges}, {"depthclear", case_depthclear},
 };
 
 int main(int argc, char **argv) {

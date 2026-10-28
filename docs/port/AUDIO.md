@@ -413,14 +413,29 @@ counted skips now and then: 3 or 4 on shared Linux runners, 3 to 27 on Windows, 
 (`RUSH_SIM_PRESENT_MS=20`) 61 jumps in 30 s. They were real. Each callback builds its SFDs into one of two buffers
 (`func_80013964`) and submits the task for the other, built by the callback before; it waits for the last task
 (`func_800118C0`) only after building, before the submit. On the N64 the RSP has run that task long before the next
-retrace. On the PC an audio task goes through the game's scheduler, which yields to it a graphics task on the RSP:
-the PC's RSP doesn't yield, so the audio task waits until the main loop has run the graphics task, and a swap that
-waits for vsync, a slow present or a loaded host can hold that past the next retrace. The next callback then built
+retrace. On the PC an audio task goes through the game's scheduler, which asks the graphics task on the RSP to
+yield to it. The PC's RSP didn't yield then, so the audio task waited until the main loop had run the graphics task,
+and a swap that waits for vsync, a slow present or a loaded host could hold that past the next retrace. The next callback then built
 into the buffer the task hadn't read: the task rendered the new SFDs in place of its own, which were lost, and the
 next two tasks rendered the sets out of order, one twice (seen with a count of tasks submitted against tasks run:
 49 callbacks in that run built over a pending task). Under `TARGET_PC` the callback waits for the last task before
 it builds (`PC_SFD_WAIT`, on the line of `func_80013964`'s call); the wait before the submit then returns at once.
 Under the same slow presents: no callback builds over a pending task, and 0 buffers skipped.
+
+**Audio tasks waited behind graphics tasks** (fixed, 2026-10-28). The same wait made renders late: buffers were
+pushed before their render, and some played as silence. Now a graphics task the main loop hasn't taken yields to
+the audio task, as the scheduler asks ([ULTRA.md](ULTRA.md) §3). On rocky (20 threads, load 2), `realtime_check`
+30 s per run, two runs each, RelWithDebInfo:
+
+| | buffers pushed before their render | as silence | graphics tasks yielded |
+|---|---:|---:|---:|
+| the model, no yield | 7, 12 | 1, 3 | 0 |
+| the model, yields | 2, 1 | 2, 1 | 863, 787 |
+| slow presents (`RUSH_SIM_PRESENT_MS=20`), no yield | 405, 431 | 12, 19 | 0 |
+| slow presents, yields | 3, 3 | 2, 2 | 467, 482 |
+
+The one or two silent buffers left come at any host's pace. On the Pi at a load of 12 (four cores, other builds
+running), the silences are the host's: 30 and 49 with yields.
 
 **What is left.**
 - Stalls. A host whose retraces stall for 100 ms or more (6 periods) drops them; the buffers the renderer can't
