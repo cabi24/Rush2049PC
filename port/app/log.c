@@ -49,7 +49,7 @@ extern const char pc_version[], pc_version_commit[], pc_version_build[];   /* cm
 static struct {
     int active;               /* stderr goes through the pipe */
     int log_fd, console_fd, pipe_r;
-    volatile int done;        /* the copying thread saw the pipe's end */
+    int done;                 /* the copying thread saw the pipe's end (__atomic: polled by pc_app_log_close) */
     int window;               /* the program has (or would have) a window: a fault shows a box */
     char path[PC_APP_PATH];
 } L = {0, -1, -1, -1, 0, 0, ""};
@@ -118,7 +118,7 @@ static void *copy(void *arg)
         if (L.log_fd >= 0)
             write_all(L.log_fd, buf, (size_t)n);
     }
-    L.done = 1;
+    __atomic_store_n(&L.done, 1, __ATOMIC_RELEASE);
     return NULL;
 }
 
@@ -250,7 +250,7 @@ void pc_app_log_close(void)
 #ifdef _WIN32
     SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(2));
 #endif
-    for (int i = 0; i < 3000 && !L.done; i++)
+    for (int i = 0; i < 3000 && !__atomic_load_n(&L.done, __ATOMIC_ACQUIRE); i++)
         nap_ms(1);
 #ifndef _WIN32
     fsync(L.log_fd);
