@@ -589,13 +589,18 @@ def is_function_name(name, symfile):
 
 
 def score(t, runs):
-    """Most informative declaration first: struct over pointer over words over bytes."""
+    """Most informative declaration first: struct over pointer over words over bytes; between two structs, an
+    opaque one (no union, bytes only: `struct { u8 pad[164]; }`, an m2c record) after one with wider elements. A
+    tie with the real record must not leave its words in the ROM's byte order: the cheat codes' button masks
+    (`D_803B3460`: `Egg` in cheatscr.c, `Rec164` in func_8038FF90.c) were swapped by nobody (docs/port/QA.md).
+    A union whose bytes cover it (the colours) is not opaque: its bytes are the layout (DATA.md 2)."""
     has_struct = contains(t, ("struct", "union"))
     has_ptr = any(r[0] == K_PTR for r in runs)
     width = max((N64_ESZ[r[0]] for r in runs), default=0)
     rank = 5 if has_struct and has_ptr else 4 if has_struct else 3 if has_ptr else 2 if width > 1 else \
         1 if runs else 0
-    return rank, n64_layout(t)[0] or 0
+    opaque = has_struct and width <= 1 and not contains(t, ("union",))
+    return rank, 0 if opaque else 1, n64_layout(t)[0] or 0
 
 
 def signature(runs, limit):
