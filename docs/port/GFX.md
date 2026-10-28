@@ -882,3 +882,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   - Every case also passes at internal scales 1–4, on GLES, on desktop GL and on llvmpipe, and in widescreen
     (16:9 on GLES and desktop GL, 16:10 on llvmpipe, 21:9 at 3× and 4×).
   - On x86-64 (Intel UHD 770, Mesa 25.2, with SDL2) all 26 pass as well.
+- **Texture LOD at fractions (2026-10-28).** `lod` passes, every internal pixel, at 1-4, 1.25, 1.5, 2.25, 2.5, 3.2,
+  6.75 (4:3 and 16:9) and native in 2880 × 1620 and 1366 × 768 windows, on GLES and desktop GL, on the Pi's V3D,
+  rocky's iris and llvmpipe on both; `gfx_test all` passes at 1.25 and 3.2 on V3D. The Pi's 111 gfx CTest entries
+  and rocky's 225 (Debug and RelWithDebInfo) pass.
