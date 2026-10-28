@@ -53,6 +53,10 @@ everything a night of testing on the retail cartridge found.
   ([RELEASE.md](docs/port/RELEASE.md) "Choosing the ROM").
 - **Saves are kept safe**: the controller pak is backed up when it changes (three copies), written atomically, and
   a damaged one is set aside, not formatted over ([RELEASE.md](docs/port/RELEASE.md) "Saves").
+- **An accessory for every player** (F1 > Controllers, `game.pak2`...): players 2-4 get a rumble pak when their
+  pad can rumble, so every pad rumbles in multiplayer, or a controller pak of their own (`rush2049pc-p2.mpk`...),
+  kept as player 1's; a change while playing is a swap the game sees, as on the console
+  ([ULTRA.md](docs/port/ULTRA.md) "Accessories").
 
 ### Known limits
 
