@@ -5,6 +5,7 @@
  * --fast, on the virtual clock (timer.c), where the same bounds hold and the whole run takes a fraction of the
  * time. */
 #define _GNU_SOURCE
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -416,8 +417,8 @@ static void t_pif(void)
                                      !memcmp(in, out, 768) && rd == 0 && after_delete == 123 * 256, d);
 }
 
-/* The main thread runs RSP tasks and answers with SP (and DP) events; the AI event comes when the output
- * queue is low. No graphics task: that needs a GL context (port/gfx has its own tests). */
+/* RSP tasks are answered with SP (and DP) events; audio tasks run in osSpTaskStartGo. The AI event comes when the
+ * output queue is low. No graphics task: that needs a GL context (port/gfx has its own tests). */
 static void t_rcp(void)
 {
     void *q = queue(10, 8);
@@ -460,6 +461,56 @@ static void t_rcp(void)
     check("AI frequency and event", rate == 22047 && r == 0 && m[3] == (OSMesg)6 && ms < SLACK_MS, d);
 }
 
+/* In real time a device pulls from its own thread, and after each pull the AI asks for what the queue lacks
+ * (port/audio's pull hook), so a main thread that waits (a vsync swap) can't starve it. Here 30 pulls of 512
+ * frames, 10 ms apart, from a host thread, answered by a buffer per AI event: 80 buffers' worth, and the queue
+ * that the target adds; only the first pulls may find it short. */
+size_t pc_audio_pull(int16_t *out, size_t frames);   /* port/audio/pc_audio.h */
+
+static volatile int g_dev_short;
+
+static void *device_thread(void *q)
+{
+    static int16_t out[512 * 2];
+    for (int i = 0; i < 30; i++) {
+        struct timespec ts = {0, 10 * 1000 * 1000};
+        nanosleep(&ts, NULL);
+        g_dev_short += pc_audio_pull(out, 512) < 512;
+    }
+    pc_os_post(q, (OSMesg)99);
+    return NULL;
+}
+
+static void t_ai_device(void)
+{
+    static int16_t buffer[192 * 2];
+    char d[96];
+    if (pc_time_virtual())
+        return;   /* --fast: the main loop alone sends AI events, at moments the virtual clock fixes */
+    void *q = queue(9, 8);
+    pc_audio_init("manual", NULL);
+    osAiSetFrequency(22050);
+    osSetEventMesg(OS_EVENT_AI, q, (OSMesg)6);
+    osAiSetNextBuffer(buffer, sizeof buffer);
+    pthread_t dev;
+    int events = 0, started = pthread_create(&dev, NULL, device_thread, q) == 0;
+    while (started) {
+        OSMesg m;
+        osRecvMesg(q, &m, OS_MESG_BLOCK);
+        if (m == (OSMesg)99)
+            break;
+        events++;
+        osAiSetNextBuffer(buffer, sizeof buffer);
+    }
+    if (started)
+        pthread_join(dev, NULL);
+    osSetEventMesg(OS_EVENT_AI, NULL, NULL);
+    size_t target = pc_audio_target_frames();
+    pc_audio_init("null", NULL);
+    snprintf(d, sizeof d, "%d events, %d short pulls, target %zu frames", events, g_dev_short, target);
+    check("AI paced by a device", started && events >= 80 && events <= 100 && g_dev_short <= 3 && target >= 1024, d);
+}
+
 static void controller(void *arg)
 {
     (void)arg;
@@ -474,6 +525,7 @@ static void controller(void *arg)
     t_spin();
     t_memory();
     t_rcp();
+    t_ai_device();
     t_pif();
     if (pc_time_virtual()) {
         char d[64];

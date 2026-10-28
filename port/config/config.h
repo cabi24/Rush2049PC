@@ -70,6 +70,7 @@ typedef struct PcSettings {
     /* [audio] */
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */
+    int audio_latency;              /* ms of sound the output keeps queued at least; 0: from the device */
     /* [input] */
     int keyboard_player;            /* 1-4, 0: no keyboard */
     int first_controller_player;    /* controllers fill players from here, in the order they are plugged in */

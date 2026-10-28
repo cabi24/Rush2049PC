@@ -155,6 +155,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
+| `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
 | `input.keyboard_player` | 1 | | 1-4, 0 for none |
 | `input.first_controller_player` | 1 | | controllers fill players from here |
 | `input.deadzone` | 0.15 | | 0-0.9 |

@@ -458,6 +458,7 @@ static int rush_main(int argc, char **argv)
     if (pc_audio_init(cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     pc_audio_set_volume(cfg.volume / 100.0);
+    pc_audio_set_latency((unsigned)cfg.audio_latency);
     if (!pc_mem_fixed())
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
 

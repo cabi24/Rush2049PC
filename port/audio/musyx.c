@@ -12,6 +12,8 @@
  *   5. output: interleave left + base left and right + base right, native s16
  * and store the state back. Arithmetic follows the RSP's style (Q15 products, arithmetic shifts, saturation
  * to s16); rounding inside the microcode's vector ops is not reproduced (docs/port/AUDIO.md). */
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "musyx.h"
@@ -517,10 +519,249 @@ void musyx_run_task(const void *sfds, size_t count, int form)
         int16_t *out = voice_stage(&m, &s, form, st);
         delay_stage(&m, &s, form);
         memcpy(m.surround, m.ch[2], sizeof m.surround);
-        if (out)
+        if (out) {
             interleave(&m, out);
+            pc_audio_note_rendered(out);
+        }
     }
     save_state(&m, st);
+}
+
+/* ---------------------------------------------------------------- task capture (RUSH2049_AUDIO_CAPTURE) */
+
+/* Each task as a self-contained N64-form image, to replay it on another implementation of the microcode
+ * (docs/port/AUDIO.md, "Checking against the microcode"). The file is "MXCAP1\0\0", then per task:
+ *   u32 'TASK', u32 SFD count, u32 regions, u32 outputs   (little-endian)
+ *   regions: u32 address, u32 size, the bytes (big-endian, as in RDRAM), padded to 4
+ *   outputs: u32 address, 384 s16 (little-endian): what this interpreter wrote there
+ * The SFD array is the first region, at CAP_SFD; every pointer in it is moved to a fresh address of the same
+ * alignment mod 8. The state block is CAP_STATE for every task and is not written: the microcode's own state
+ * carries over, starting from zero as the game's does. */
+#define CAP_STATE 0x80010000u
+#define CAP_SFD 0x80100000u
+#define CAP_OUT 0x80180000u
+#define CAP_ARENA 0x80200000u
+#define CAP_ARENA_END 0x80400000u
+
+static struct {
+    FILE *f;
+    int checked;
+    uint8_t *buf;          /* the regions being built */
+    size_t len, cap;
+    uint32_t nregions, next;
+    uint32_t out_addr[64];
+    int16_t *out_ptr[64];
+    uint32_t nouts;
+    uint8_t *state;        /* the state block, and its bytes after the last task */
+    uint8_t state_after[MX_STATE_SIZE];
+} cap;
+
+static void cap_put(const void *p, size_t n)
+{
+    if (cap.len + n > cap.cap) {
+        size_t c = cap.cap ? cap.cap * 2 : 1 << 20;
+        while (c < cap.len + n)
+            c *= 2;
+        uint8_t *b = realloc(cap.buf, c);
+        if (!b)
+            return;
+        cap.buf = b;
+        cap.cap = c;
+    }
+    memcpy(cap.buf + cap.len, p, n);
+    cap.len += n;
+}
+
+static void cap_u32(uint32_t v)
+{
+    uint8_t b[4] = {(uint8_t)v, (uint8_t)(v >> 8), (uint8_t)(v >> 16), (uint8_t)(v >> 24)};
+    cap_put(b, 4);
+}
+
+static void be16(uint8_t *p, uint16_t v)
+{
+    p[0] = (uint8_t)(v >> 8), p[1] = (uint8_t)v;
+}
+
+static void be32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)(v >> 24), p[1] = (uint8_t)(v >> 16), p[2] = (uint8_t)(v >> 8), p[3] = (uint8_t)v;
+}
+
+/* A region holding size bytes from src at a fresh address with src's alignment mod 8; returns the address of src's
+ * first byte there. The region runs from the 8-byte boundary before src to the one after its end, plus 8 bytes, as
+ * the RSP's DMA reads whole 8-byte units: inside the RDRAM window those bytes are copied too, elsewhere they are
+ * zero. PCM16 (swap16) is stored big-endian, whatever src's order; a NULL src gives zeros. */
+static uint32_t cap_region(const void *src, size_t size, int swap16)
+{
+    unsigned lead = (unsigned)((uintptr_t)src & 7);
+    int window = src && pc_n64_addr(src);
+    size_t n = ((lead + size + 7) & ~(size_t)7) + 8;
+    uint32_t at = (cap.next + 15) & ~15u;
+    if (at + n > CAP_ARENA_END)
+        return 0;
+    cap.next = at + (uint32_t)n;
+    cap_u32(at);
+    cap_u32((uint32_t)n);
+    size_t start = cap.len;
+    uint8_t zero[8] = {0};
+    for (size_t i = 0; i < n; i += 8)
+        cap_put(zero, 8);
+    if (cap.len != start + n)
+        return 0;
+    if (src) {
+        uint8_t *dst = cap.buf + start;
+        if (window)
+            memcpy(dst, (const uint8_t *)src - lead, n);
+        else
+            memcpy(dst + lead, src, size);
+        if (swap16 && !pc_mem_is_be(src))
+            for (size_t i = 0; i + 1 < n; i += 2) {
+                uint8_t t = dst[i];
+                dst[i] = dst[i + 1];
+                dst[i + 1] = t;
+            }
+    }
+    cap.nregions++;
+    return at + lead;
+}
+
+static uint16_t sfd_count_field(const uint8_t *p, int form)
+{
+    if (form == PC_AUDIO_FORM_N64)
+        return ld16(p + MX_SFD_COUNT, pc_mem_is_be(p));
+    return ((const PcMusyxSfd *)p)->count;
+}
+
+static void capture_inputs(const void *sfds, size_t count, int form)
+{
+    if (!cap.checked) {
+        const char *path = getenv("RUSH2049_AUDIO_CAPTURE");
+        cap.checked = 1;
+        if (path && *path) {
+            cap.f = fopen(path, "wb");
+            if (cap.f)
+                fwrite("MXCAP1\0\0", 1, 8, cap.f);
+            fprintf(stderr, "audio: %s the tasks to %s\n", cap.f ? "capturing" : "can't capture", path);
+        }
+    }
+    if (!cap.f || !sfds || !count || count > 64)
+        return;
+    const uint8_t *p = sfds;
+    size_t stride = form == PC_AUDIO_FORM_N64 ? MX_SFD_SIZE : sizeof(PcMusyxSfd);
+    uint8_t *img = calloc(count, MX_SFD_SIZE);
+    if (!img)
+        return;
+    cap.len = 0;
+    cap.nregions = 0;
+    cap.nouts = 0;
+    cap.next = CAP_ARENA;
+    for (size_t n = 0; n < count; n++) {
+        Sfd s;
+        uint8_t *o = img + n * MX_SFD_SIZE;
+        read_sfd(&s, p + n * stride, form);
+        be16(o + MX_SFD_COUNT, sfd_count_field(p + n * stride, form));
+        be16(o + MX_SFD_DELAY_INDEX, s.delay_index);
+        be32(o + MX_SFD_RELEASE_MASK, s.mask);
+        be32(o + MX_SFD_STATE, CAP_STATE);
+        be32(o + MX_SFD_DELAY, 0);   /* the game never sets the delay effect (docs/port/AUDIO.md) */
+        if (s.delay)
+            fprintf(stderr, "audio: capture: an SFD has a delay effect; not captured\n");
+        int empty = first_size(&s, form) == 0;
+        for (int i = 0; i < MX_VOICES; i++) {
+            Voice v;
+            uint8_t *r = o + MX_SFD_VOICES + i * MX_V_SIZE;
+            if (empty) {
+                v.output = voice_output(&s, 0, form);
+            } else {
+                read_voice(&v, &s, i, form);
+                for (int k = 0; k < 4; k++) {
+                    be32(r + MX_V_ENV + 4 * k, (uint32_t)v.env[k]);
+                    be32(r + MX_V_ENV_STEP + 4 * k, (uint32_t)v.step[k]);
+                }
+                be16(r + MX_V_PITCH_FRAC, v.frac);
+                be16(r + MX_V_PITCH, v.pitch);
+                for (int seg = 0; seg < 2; seg++) {
+                    /* the loop segment only when the microcode reads it: its fields are stale otherwise */
+                    int used = seg == 0 || (v.frames[0] ? v.frames[1] != 0 : v.count[1] != 0);
+                    uint8_t *c = r + MX_V_SRC + seg * MX_CAT_SIZE;
+                    for (int k = 0; k < 2; k++) {
+                        unsigned size = used ? v.src[seg].size[k] : 0;
+                        int read = size && (k == 0 || v.src[seg].size[1]);
+                        uint32_t at = read && v.src[seg].ptr[k] ? cap_region(v.src[seg].ptr[k], size, !v.frames[0]) : 0;
+                        be32(c + (k ? MX_CAT_PTR2 : MX_CAT_PTR1), at);
+                        be16(c + (k ? MX_CAT_SIZE2 : MX_CAT_SIZE1), (uint16_t)size);
+                    }
+                }
+                memcpy(r + MX_V_FRAMES, v.frames, 2);
+                memcpy(r + MX_V_SKIP, v.skip, 2);
+                if (v.frames[0]) {
+                    be32(r + MX_V_BOOK, v.book ? cap_region(v.book, 256, 1) : 0);
+                } else {
+                    be16(r + MX_V_PCM_COUNT, v.count[0]);
+                    be16(r + MX_V_PCM_COUNT + 2, v.count[1]);
+                }
+                be16(r + MX_V_END, v.end);
+                be16(r + MX_V_RESTART, v.restart);
+                be16(r + MX_V_START, v.start);
+            }
+            if (v.output) {
+                uint32_t at = CAP_OUT + (uint32_t)n * 0x300;
+                be32(r + MX_V_OUTPUT, at);
+                if (cap.nouts < 64) {
+                    cap.out_addr[cap.nouts] = at;
+                    cap.out_ptr[cap.nouts++] = v.output;
+                }
+                break;
+            }
+            if (empty)
+                break;
+        }
+    }
+    /* Flag 1: the game set the state block up again (a new block, or the bytes changed since the last task); the
+     * replay then starts both states from zero. Flag 2: and it isn't zero. */
+    Sfd s0;
+    read_sfd(&s0, p, form);
+    uint32_t flags = 0;
+    if (s0.state && (s0.state != cap.state || memcmp(s0.state, cap.state_after, MX_STATE_SIZE))) {
+        flags = 1;
+        for (int i = 0; i < MX_STATE_SIZE; i++)
+            if (s0.state[i])
+                flags = 3;
+    }
+    cap.state = s0.state;
+    /* the header and the SFD array go first; the regions built above follow */
+    uint8_t h[28];
+    uint32_t vals[7] = {0x4B534154u, (uint32_t)count, cap.nregions + 1, cap.nouts, flags, CAP_SFD,
+                        (uint32_t)(count * MX_SFD_SIZE)};
+    for (int i = 0; i < 7; i++)
+        for (int b = 0; b < 4; b++)
+            h[4 * i + b] = (uint8_t)(vals[i] >> (8 * b));
+    fwrite(h, 1, sizeof h, cap.f);
+    fwrite(img, 1, count * MX_SFD_SIZE, cap.f);
+    fwrite(cap.buf, 1, cap.len, cap.f);
+    free(img);
+}
+
+static void capture_outputs(void)
+{
+    if (!cap.f)
+        return;
+    if (cap.state)
+        memcpy(cap.state_after, cap.state, MX_STATE_SIZE);
+    for (uint32_t i = 0; i < cap.nouts; i++) {
+        uint8_t b[4];
+        for (int k = 0; k < 4; k++)
+            b[k] = (uint8_t)(cap.out_addr[i] >> (8 * k));
+        fwrite(b, 1, 4, cap.f);
+        int16_t le[2 * SUB];
+        for (int k = 0; k < 2 * SUB; k++) {
+            uint16_t v = (uint16_t)cap.out_ptr[i][k];
+            ((uint8_t *)le)[2 * k] = (uint8_t)v;
+            ((uint8_t *)le)[2 * k + 1] = (uint8_t)(v >> 8);
+        }
+        fwrite(le, 1, sizeof le, cap.f);
+    }
 }
 
 /* ---------------------------------------------------------------- pc_port.h entry points */
@@ -548,5 +789,7 @@ void pc_audio_run_task_form(const void *sfds, size_t count, int form)
 
 void pc_audio_run_task(const void *cmdlist, size_t data_size)
 {
+    capture_inputs(cmdlist, data_size, task_form);
     musyx_run_task(cmdlist, data_size, task_form);
+    capture_outputs();
 }

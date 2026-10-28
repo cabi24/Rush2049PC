@@ -3,7 +3,16 @@
  * pc_audio_push takes the game's AI buffers (interleaved stereo s16, native order, at the AI rate), tees them
  * to the dump file, converts them to the device rate and appends them to a one-second ring. Backends drain
  * the ring with pc_audio_pull; the null backend drains it by the clock, so queue lengths behave as with a
- * device. When the ring is full the oldest frames go. */
+ * device. When the ring is full the oldest frames go.
+ *
+ * The AI (port/ultra/rcp.c) keeps pc_audio_target_frames() queued. With a device (or the tests' manual pulls) the
+ * target is two of its pulls, a retrace and a buffer (at least 384 frames), and it grows by a buffer at each
+ * underrun, up to 200 ms; audio.latency sets a floor.
+ * The pull hook lets the AI ask the game for buffers from the device's own thread, so the main thread's waits
+ * (a vsync swap, a long frame) don't starve the device. An underrun plays silence, faded from the last frame
+ * over 32 frames, and the sound after it fades in over 32: no repeated or torn buffer, and no click. Silence
+ * while the game pushes nothing (before its first buffer, paused, a long load) is counted apart from
+ * underruns. */
 #if !defined(_WIN32)
 #define _POSIX_C_SOURCE 200809L
 #endif
@@ -32,6 +41,14 @@ typedef pthread_mutex_t PcLock;
 #include "resample.h"
 
 #define DEFAULT_RATE 22050u   /* what the game asks for (audio_init_sys) */
+#define TARGET_MIN 384u       /* game frames: two of the game's buffers, the N64's AI depth */
+#define TARGET_STEP 192u      /* one buffer more after each underrun */
+#define TARGET_MAX_MS 200u
+#define FADE 32u              /* frames */
+#define PLAYING_S 0.25        /* a push this recent: an empty queue is an underrun, not the game being quiet */
+#define REPORT_MAX 10u        /* underruns logged one by one */
+#define RING_MAX 32           /* AI buffers tracked (the game has 8) */
+#define RING_RECENT 64u       /* a buffer neither rendered nor pushed in this many of those is forgotten */
 
 enum { KIND_NULL, KIND_MANUAL, KIND_DEVICE };
 
@@ -51,7 +68,25 @@ static struct {
     PcAudioStats stats;
     double clock_last, clock_carry;   /* null backend */
     int32_t gain;                     /* the master volume, Q16 (pc_audio_set_volume) */
-} g = {.mutex = PC_LOCK_INIT, .gain = 65536};
+    double last_push;                 /* when the game last pushed (clock_now) */
+    int pushed;                       /* the game has pushed since the output opened */
+    int dry;                          /* the last pull or drain ran out */
+    uint32_t target;                  /* game frames the AI keeps queued (pc_audio_target_frames) */
+    uint32_t min_ms;                  /* pc_audio_set_latency */
+    int16_t last[2];                  /* the last frame played: an underrun's fade starts there */
+    uint32_t fade_in;                 /* frames of fade-in left after an underrun */
+    void (*pull_hook)(void);
+    uint32_t reported;                /* underruns logged so far */
+    int paused;                       /* pc_audio_set_paused: the game is held, its silence isn't an underrun */
+    struct {                          /* the game's AI buffers: rendered since they were last pushed? */
+        const int16_t *buf;
+        int fresh;
+        uint32_t op;
+    } bufs[RING_MAX];
+    uint32_t ops;
+    int rendered;                     /* a task has rendered a buffer since the output opened */
+    double t0;                        /* when the output opened (clock_now) */
+} g = {.mutex = PC_LOCK_INIT, .gain = 65536, .target = TARGET_MIN};
 
 static double now_seconds(void)
 {
@@ -65,6 +100,13 @@ static double now_seconds(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 #endif
+}
+
+static double (*g_clock)(void);   /* pc_audio_set_clock */
+
+static double clock_now(void)
+{
+    return g_clock ? g_clock() : now_seconds();
 }
 
 /* ---------------------------------------------------------------- with the lock held */
@@ -115,13 +157,72 @@ static size_t ring_read(int16_t *out, size_t n)
     return got;
 }
 
-static double (*g_clock)(void);   /* pc_audio_set_clock */
+static uint32_t game_frames(uint64_t device_frames)
+{
+    return g.dev_rate && g.src_rate ? (uint32_t)(device_frames * g.src_rate / g.dev_rate) : (uint32_t)device_frames;
+}
+
+/* The AI's target: from the device's pulls when it has them, at least the latency asked for, never below what it
+ * has grown to. */
+static void retarget(void)
+{
+    uint32_t rate = g.src_rate ? g.src_rate : DEFAULT_RATE;
+    uint32_t max = rate * TARGET_MAX_MS / 1000 > TARGET_MIN ? rate * TARGET_MAX_MS / 1000 : TARGET_MIN;
+    uint32_t t = TARGET_MIN;
+    if (g.stats.period_frames)
+        t = game_frames(2 * (uint64_t)g.stats.period_frames) + rate / 60 + TARGET_STEP;
+    if (rate * g.min_ms / 1000 > t)
+        t = rate * g.min_ms / 1000;
+    if (t > g.target)
+        g.target = t;
+    if (g.target > max)
+        g.target = max;
+    g.stats.target_frames = g.target;
+}
+
+/* n device frames found the queue empty. Returns 1 when that starts an underrun: the game was playing. */
+static int ran_dry(size_t n, double now)
+{
+    int start = 0;
+    if (g.pushed && !g.paused && now - g.last_push < PLAYING_S) {
+        g.stats.underrun_frames += n;
+        start = !g.dry;
+        g.stats.underruns += (uint64_t)start;
+    } else {
+        g.stats.idle_frames += n;
+    }
+    g.dry = 1;
+    return start;
+}
+
+/* buf was rendered (fresh) or pushed. A push of a buffer known and not rendered since it was last pushed plays
+ * the sound of the game's ring's last turn again (the game rendered late: stats.replayed). */
+static void note_buffer(const int16_t *buf, int fresh)
+{
+    int at = 0, found = 0;
+    g.ops++;
+    for (int i = 0; i < RING_MAX; i++) {
+        if (g.bufs[i].buf == buf) {
+            at = i;
+            found = 1;
+            break;
+        }
+        if (g.bufs[i].op < g.bufs[at].op)
+            at = i;
+    }
+    if (found && !fresh && g.ops - g.bufs[at].op < RING_RECENT && !g.bufs[at].fresh)
+        g.stats.replayed++;
+    g.bufs[at].buf = buf;
+    g.bufs[at].fresh = fresh;
+    g.bufs[at].op = g.ops;
+}
 
 void pc_audio_set_clock(double (*now)(void))
 {
     lock();
     g_clock = now;
     g.clock_last = g.clock_carry = 0;
+    g.t0 = clock_now();
     unlock();
 }
 
@@ -129,17 +230,18 @@ static void null_drain(void)
 {
     if (g.kind != KIND_NULL || !g.dev_rate)
         return;
-    double t = g_clock ? g_clock() : now_seconds();
+    double t = clock_now();
     if (g.clock_last > 0) {
         double frames = (t - g.clock_last) * g.dev_rate + g.clock_carry;
         size_t n = (size_t)frames;
         g.clock_carry = frames - (double)n;
-        if (n >= g.count) {
-            g.stats.underrun_frames += n - g.count;
+        if (n > g.count) {
+            ran_dry(n - g.count, t);
             g.rd = g.count = 0;
-        } else {
+        } else if (n) {
             g.rd = (g.rd + n) % g.cap;
             g.count -= n;
+            g.dry = 0;
         }
     }
     g.clock_last = t;
@@ -161,6 +263,23 @@ static void configure(uint32_t src)
     if (g.cap < g.dev_rate || !g.ring)
         ring_reset(g.dev_rate);
     pc_wav_set_rate(&g.dump, src);
+    g.stats.device_rate = g.dev_rate;
+    retarget();
+}
+
+/* The run's output in one line, for the log. */
+static void report(void)
+{
+    const PcAudioStats *st = &g.stats;
+    double rate = g.dev_rate ? g.dev_rate : 1, src = g.src_rate ? g.src_rate : DEFAULT_RATE;
+    fprintf(stderr,
+            "audio: %s at %u Hz: %.1f s played; %llu underruns (%.0f ms of silence), %llu buffers played again, "
+            "%.0f ms idle, %llu frames dropped; pulls of %u frames, queue target %u frames (%.0f ms), at most %.0f ms "
+            "queued\n",
+            g.name, (unsigned)g.dev_rate, st->pushed_frames / src, (unsigned long long)st->underruns,
+            st->underrun_frames * 1000.0 / rate, (unsigned long long)st->replayed, st->idle_frames * 1000.0 / rate,
+            (unsigned long long)st->dropped_frames, (unsigned)st->period_frames, (unsigned)st->target_frames,
+            st->target_frames * 1000.0 / src, st->max_queued * 1000.0 / rate);
 }
 
 /* ---------------------------------------------------------------- setup */
@@ -197,6 +316,15 @@ int pc_audio_init(const char *backend, const char *dump_wav_path)
     g.forced_rate = env_rate ? (uint32_t)strtoul(env_rate, NULL, 10) : 0;
     memset(&g.stats, 0, sizeof g.stats);
     g.clock_last = g.clock_carry = 0;
+    g.pushed = g.dry = 0;
+    g.target = TARGET_MIN;
+    g.last[0] = g.last[1] = 0;
+    g.fade_in = 0;
+    g.reported = 0;
+    g.t0 = clock_now();
+    memset(g.bufs, 0, sizeof g.bufs);
+    g.ops = 0;
+    g.rendered = 0;
     if (dump_wav_path && *dump_wav_path) {
         if (pc_wav_open(&g.dump, dump_wav_path, g.src_rate ? g.src_rate : DEFAULT_RATE) != 0) {
             fprintf(stderr, "audio: can't write %s\n", dump_wav_path);
@@ -262,6 +390,8 @@ void pc_audio_shutdown(void)
     if (!g.inited)
         return;
     lock();
+    if (g.stats.pushed_frames)
+        report();
     dev = g.kind == KIND_DEVICE ? g.dev : NULL;
     g.kind = KIND_NULL;
     g.dev = NULL;
@@ -304,6 +434,12 @@ void pc_audio_push(const int16_t *samples, size_t stereo_frames)
     null_drain();
     pc_wav_write(&g.dump, samples, stereo_frames);
     g.stats.pushed_frames += stereo_frames;
+    if (stereo_frames) {
+        g.pushed = 1;
+        g.last_push = clock_now();
+        if (g.rendered)
+            note_buffer(samples, 0);
+    }
     while (stereo_frames && g.tmp) {
         size_t n = stereo_frames > RS_CHUNK ? RS_CHUNK : stereo_frames;
         size_t made = rs_process(&g.rs, samples, n, g.tmp);
@@ -311,6 +447,8 @@ void pc_audio_push(const int16_t *samples, size_t stereo_frames)
         samples += 2 * n;
         stereo_frames -= n;
     }
+    if (g.count > g.stats.max_queued)
+        g.stats.max_queued = (uint32_t)g.count;
     unlock();
 }
 
@@ -320,9 +458,36 @@ size_t pc_audio_queued_frames(void)
     ensure_init();
     lock();
     null_drain();
-    n = g.dev_rate && g.src_rate ? (size_t)((uint64_t)g.count * g.src_rate / g.dev_rate) : g.count;
+    n = game_frames(g.count);
     unlock();
     return n;
+}
+
+/* The interpreter wrote one of the game's AI buffers (musyx.c). */
+void pc_audio_note_rendered(const int16_t *buf)
+{
+    lock();
+    note_buffer(buf, 1);
+    g.rendered = 1;
+    unlock();
+}
+
+size_t pc_audio_target_frames(void)
+{
+    size_t t;
+    lock();
+    t = g.paused ? 0 : g.target;
+    unlock();
+    return t;
+}
+
+/* The main loop holds the game (the pause key, the settings overlay): the AI asks for nothing, and the queue plays
+ * out into silence that is not an underrun. */
+void pc_audio_set_paused(int paused)
+{
+    lock();
+    g.paused = paused != 0;
+    unlock();
 }
 
 /* ---------------------------------------------------------------- backends' side */
@@ -331,17 +496,87 @@ size_t pc_audio_pull(int16_t *out, size_t frames)
 {
     size_t got;
     int32_t gain;
+    int log_it = 0;
+    uint64_t underruns = 0;
+    double at = 0;
+    void (*hook)(void);
+
     lock();
     got = g.ring ? ring_read(out, frames) : 0;
-    if (got < frames)
-        g.stats.underrun_frames += frames - got;
+    if (g.kind != KIND_NULL && frames > g.stats.period_frames && frames < g.dev_rate) {   /* a device's pull */
+        g.stats.period_frames = (uint32_t)frames;
+        retarget();
+    }
+    if (got && g.fade_in) {   /* after an underrun the sound comes back from silence */
+        uint32_t n = got < g.fade_in ? (uint32_t)got : g.fade_in;
+        for (uint32_t i = 0; i < n; i++) {
+            int32_t k = (int32_t)(FADE - g.fade_in + i + 1);
+            out[2 * i] = (int16_t)(out[2 * i] * k / (int32_t)FADE);
+            out[2 * i + 1] = (int16_t)(out[2 * i + 1] * k / (int32_t)FADE);
+        }
+        g.fade_in -= n;
+    }
+    if (got) {
+        g.last[0] = out[2 * got - 2];
+        g.last[1] = out[2 * got - 1];
+        g.dry = 0;
+    }
+    if (got < frames) {
+        size_t n = frames - got, f = n < FADE ? n : FADE;
+        double now = clock_now();
+        int16_t *z = out + 2 * got;
+        if (ran_dry(n, now)) {
+            if (g.kind != KIND_NULL) {   /* the queue was too short for this device and host */
+                g.target += TARGET_STEP;
+                retarget();
+            }
+            log_it = g.reported < REPORT_MAX;
+            g.reported += (uint32_t)log_it;
+            underruns = g.stats.underruns;
+            at = now - g.t0;
+        }
+        /* the last frame fades to silence: a step to zero would click */
+        for (size_t i = 0; i < f; i++) {
+            int32_t k = (int32_t)(FADE - 1 - i);
+            z[2 * i] = (int16_t)(g.last[0] * k / (int32_t)FADE);
+            z[2 * i + 1] = (int16_t)(g.last[1] * k / (int32_t)FADE);
+        }
+        memset(z + 2 * f, 0, (n - f) * 4);
+        g.last[0] = g.last[1] = 0;
+        g.fade_in = FADE;
+    }
+    g.stats.pulls++;
     gain = g.gain;
+    hook = g.pull_hook;
     unlock();
+
     if (gain != 65536)   /* full volume leaves the samples as they are */
-        for (size_t i = 0; i < 2 * got; i++)
+        for (size_t i = 0; i < 2 * frames; i++)
             out[i] = (int16_t)(out[i] * gain >> 16);
-    memset(out + 2 * got, 0, (frames - got) * 4);
+    if (log_it)
+        fprintf(stderr, "audio: underrun %llu, %.1f s in: the queue target is now %u frames%s\n",
+                (unsigned long long)underruns, at, (unsigned)pc_audio_target_frames(),
+                underruns == REPORT_MAX ? " (the exit line counts the rest)" : "");
+    if (hook)
+        hook();
     return got;
+}
+
+void pc_audio_set_pull_hook(void (*hook)(void))
+{
+    lock();
+    g.pull_hook = hook;
+    unlock();
+}
+
+/* The least the queue keeps, in milliseconds (audio.latency); 0 leaves it to the device's pulls and underruns. */
+void pc_audio_set_latency(unsigned ms)
+{
+    lock();
+    g.min_ms = ms > TARGET_MAX_MS ? TARGET_MAX_MS : ms;
+    g.target = TARGET_MIN;
+    retarget();
+    unlock();
 }
 
 /* The volume is a slider: its square is the gain, so 50 is about -12 dB and 10 about -40 dB. It applies where the

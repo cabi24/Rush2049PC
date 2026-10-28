@@ -45,3 +45,7 @@ WEAK void pc_audio_run_task(const void *cmdlist, size_t data_size) { (void)cmdli
 WEAK void pc_audio_set_frequency(uint32_t hz) { (void)hz; }
 WEAK void pc_audio_push(const int16_t *samples, size_t stereo_frames) { (void)samples, (void)stereo_frames; }
 WEAK size_t pc_audio_queued_frames(void) { return 0; }
+WEAK size_t pc_audio_target_frames(void) { return 384; }
+WEAK void pc_audio_set_pull_hook(void (*hook)(void)) { (void)hook; }
+WEAK void pc_audio_set_latency(unsigned ms) { (void)ms; }
+WEAK void pc_audio_set_paused(int paused) { (void)paused; }

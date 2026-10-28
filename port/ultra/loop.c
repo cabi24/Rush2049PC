@@ -132,12 +132,14 @@ static void timer_period(int on)
 static void hold(void)
 {
     uint64_t ticks = pc_ticks_now();
+    pc_audio_set_paused(1);
     while (pc_input_paused() && !pc_quit) {
         if (pc_gfx_poll_events())
             pc_quit = 1;
         struct timespec ts = {0, 1000000000 / PC_VI_HZ};
         nanosleep(&ts, NULL);
     }
+    pc_audio_set_paused(0);
     osSetTime(ticks);
 }
 

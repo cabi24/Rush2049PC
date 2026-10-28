@@ -12,7 +12,7 @@ owns `main()`. About 3,300 lines of C11.
 | `sched.c` | N64 threads on host threads (the baton), message queues, events, busy-wait and idle yields |
 | `timer.c` | `osGetTime`/`osGetCount` at 46.875 MHz, `osSetTimer`/`osStopTimer` |
 | `vi.c` | the video interface: mode, blackout, framebuffer swaps, the retrace event |
-| `rcp.c` | RSP tasks (graphics and audio) on the main thread, SP/DP done, the AI |
+| `rcp.c` | RSP tasks (graphics on the main thread, audio at once), SP/DP done, the AI |
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, the controller pak (`.mpk`), the rumble pak |
 | `memory.c` | the RDRAM window, `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
@@ -122,10 +122,12 @@ registers its two DMA caches when it allocates them and drops them when it frees
 `retraceCount` retraces. A framebuffer passed to `osViSwapBuffer` becomes current at the next retrace and is shown
 (`pc_gfx_present`), unless the VI is blacked out. Mode, special features and scale are recorded.
 
-**RSP and RDP.** `osSpTaskStartGo` copies the task for the main thread, which owns the GL context:
+**RSP and RDP.** `osSpTaskStartGo` copies a graphics task for the main thread, which owns the GL context:
 - `M_GFXTASK` goes to `pc_gfx_run_dl(t.data_ptr)`, then the SP and DP events.
-- `M_AUDTASK` goes to `pc_audio_run_task(t.data_ptr, t.data_size)`, then SP. `data_size` is the SFD count,
-  passed through ([AUDIO.md](AUDIO.md)).
+- `M_AUDTASK` runs at once, on the thread that starts it (the game's scheduler): `pc_audio_run_task(t.data_ptr,
+  t.data_size)`, then SP, which the scheduler finds in its queue after `osSpTaskStartGo` returns. `data_size` is the
+  SFD count, passed through ([AUDIO.md](AUDIO.md)). On the main thread, behind graphics tasks and vsync swaps, the
+  tasks ran late enough that the AI pushed ring buffers they hadn't rendered yet (AUDIO.md §7).
 - Any other task gets only the SP event.
 
 Tasks run to completion, so `osSpTaskYielded` is 0. `osDpSetNextBuffer` gets a DP event. `--stop-at-gfx` reports the
@@ -135,9 +137,14 @@ first graphics task and stops: the Phase 2 goal.
 - `osAiSetFrequency` rounds as libultra does and returns the real rate (22047 for 22050). It tells port/audio
   the same rate.
 - `osAiSetNextBuffer` pushes the buffer to port/audio's queue.
-- The AI event goes out when fewer than 384 frames (two of the game's 192-frame buffers) are queued. One event is
-  outstanding at a time, resent after 50 ms. Events are at least half a buffer apart, so a missing output can't
-  make the audio thread run flat out.
+- AI events go out while the queue and the events not yet answered come to less than port/audio's target:
+  384 frames (two of the game's 192-frame buffers) with the null output, two device pulls, a retrace and a buffer
+  with a device, more after underruns (AUDIO.md §7). Up to 3 are outstanding (the game's queue holds 4); an
+  event not answered in 50 ms counts as dropped. While pushes leave the queue empty (no output), events are half
+  a buffer apart, so the audio thread can't run flat out.
+- The main loop checks each pass. In real time the device's thread checks too, after each pull (port/audio's
+  pull hook), so a main thread blocked in a swap doesn't starve the device; with `--fast` only the main loop sends
+  them. While the game is held (`hold()`), port/audio's target is 0.
 - `osAiGetLength` reports the queued frames × 4.
 
 **PI and the ROM.**
@@ -190,7 +197,7 @@ fixes the absolute symbols, maps the window, loads and checks the ROM and runs `
 `pc_data_init(rom, size)`, `pc_gfx_init(headless, 640, 480)` (the window size is a setting; the game draws
 320 × 220), `pc_input_init`, `pc_si_init` and `pc_audio_init`. It starts `n64_main` on an N64 thread and runs the
 loop on the host main thread.
-- Each pass runs due timers, queued RSP tasks and the AI.
+- Each pass runs due timers, queued graphics tasks and the AI.
 - At each retrace it calls `pc_gfx_poll_events` (window events, which also reach port/input), polls
   `pc_input_poll`, sends the VI event and presents a swapped framebuffer.
 - Between deadlines it sleeps until a thread submits work.
@@ -331,8 +338,9 @@ the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
 
-- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 26 of 26 in about 1 s; `--selftest --fast`
-  (`ultra_selftest_fast`) runs the same on the virtual clock, with one check more, in under 0.1 s. It covers:
+- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 27 of 27 in about 1.5 s; `--selftest --fast`
+  (`ultra_selftest_fast`) runs the same on the virtual clock, with the clock's own check in place of the
+  device-paced AI's (real time only), in under 0.1 s. It covers:
   - threads: preemption on start, priorities, FIFO among equals and yield, `osSetThreadPri` both ways,
     `osStopThread` on a waiting thread;
   - queues: FIFO, jam, full and empty, a blocking send;
@@ -342,6 +350,8 @@ the libgsm kernels, now `gsm.c` (§8).
   - memory: the window and its KSEG1 alias, the absolute symbols, game data at its N64 addresses, host addresses
     above 4 GiB, big-endian ranges;
   - RSP tasks and DP buffers, and the AI rate and event;
+  - in real time, the AI paced by a device: 30 pulls of 512 frames from a host thread, 10 ms apart, answered by
+    88 buffers, only the first pull short;
   - the SI through the game's own C: `osContInit`, `osContGetReadData`, `osPfsInitPak`, `osPfsFreeBlocks`, and a
     three-page note allocated, written, read back after a new `osPfsInitPak`, and deleted.
 - CTest `ultra_gsm` (`port/ultra/tests/test_gsm.c`, 2 s) checks `gsm.c`'s three GSM kernels against their own MIPS

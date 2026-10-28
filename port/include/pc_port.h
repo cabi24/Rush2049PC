@@ -133,6 +133,14 @@ void pc_audio_run_task(const void *cmdlist, size_t data_size);
 void pc_audio_set_frequency(uint32_t hz);
 void pc_audio_push(const int16_t *samples, size_t stereo_frames);
 size_t pc_audio_queued_frames(void);
+/* The AI's pacing: the game frames to keep queued (from the device's pulls; it grows after an underrun), and a
+ * function the device's thread calls after each pull, so the AI can ask for buffers without the main thread. */
+size_t pc_audio_target_frames(void);
+void pc_audio_set_pull_hook(void (*hook)(void));
+/* The least the queue keeps, in milliseconds (audio.latency); 0: from the device. */
+void pc_audio_set_latency(unsigned ms);
+/* The main loop holds the game: the AI asks for no buffers, and the silence isn't counted as underruns. */
+void pc_audio_set_paused(int paused);
 
 /* ---------------------------------------------------------------- input (port/input) */
 

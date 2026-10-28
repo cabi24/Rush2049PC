@@ -34,6 +34,12 @@ static size_t convert(PcResampler *rs, const int16_t *in, size_t n, int16_t *out
     return made;
 }
 
+static double fake_seconds;
+static int hook_calls;
+
+static double fake_clock(void) { return fake_seconds; }
+static void count_hook(void) { hook_calls++; }
+
 int main(void)
 {
     static int16_t buf[48000 * 2 * 2];
@@ -50,24 +56,110 @@ int main(void)
         CHECK(pc_audio_queued_frames() == 1000, "queued %zu", pc_audio_queued_frames());
         CHECK(pc_audio_pull(buf, 600) == 600 && !memcmp(buf, t, 600 * 4), "first pull");
         CHECK(pc_audio_queued_frames() == 400, "queued after pull %zu", pc_audio_queued_frames());
-        CHECK(pc_audio_pull(buf, 600) == 400 && !memcmp(buf, t + 1200, 400 * 4) && buf[2 * 400] == 0 &&
-                  buf[2 * 599 + 1] == 0,
-              "short pull");
+        /* An underrun: the last frame fades to silence over 32 frames, then zeros. */
+        CHECK(pc_audio_pull(buf, 600) == 400 && !memcmp(buf, t + 1200, 400 * 4), "short pull");
+        int fade_ok = 1;
+        for (int i = 0; i < 32; i++)
+            fade_ok &= buf[2 * (400 + i)] == t[2 * 999] * (31 - i) / 32 &&
+                       buf[2 * (400 + i) + 1] == t[2 * 999 + 1] * (31 - i) / 32;
+        CHECK(fade_ok && buf[2 * 432] == 0 && buf[2 * 599 + 1] == 0, "fade out: %d %d from %d %d", buf[800], buf[801],
+              t[1998], t[1999]);
         pc_audio_get_stats(&st);
-        CHECK(st.underrun_frames == 200 && st.pushed_frames == 1000, "stats %llu %llu",
-              (unsigned long long)st.underrun_frames, (unsigned long long)st.pushed_frames);
+        CHECK(st.underrun_frames == 200 && st.underruns == 1 && st.pushed_frames == 1000 && st.idle_frames == 0,
+              "stats %llu %llu %llu %llu", (unsigned long long)st.underrun_frames, (unsigned long long)st.underruns,
+              (unsigned long long)st.pushed_frames, (unsigned long long)st.idle_frames);
+        /* Another empty pull is the same underrun, all zeros. */
+        pc_audio_pull(buf, 100);
+        pc_audio_get_stats(&st);
+        CHECK(st.underruns == 1 && st.underrun_frames == 300 && buf[0] == 0 && buf[199] == 0, "still one underrun");
         free(t);
-        /* Overflow keeps the newest second. */
+        /* Overflow keeps the newest second; after the underrun the sound fades in over 32 frames. */
         t = tone(30000, 300, 22050, 8000);
         pc_audio_push(t, 30000);
         pc_audio_get_stats(&st);
         CHECK(pc_audio_queued_frames() == 22050 && st.dropped_frames == 7950, "overflow: queued %zu dropped %llu",
               pc_audio_queued_frames(), (unsigned long long)st.dropped_frames);
-        pc_audio_pull(buf, 10);
-        CHECK(!memcmp(buf, t + 2 * 7950, 40), "oldest frames should go first");
+        pc_audio_pull(buf, 64);
+        int in_ok = 1;
+        for (int i = 0; i < 32; i++)
+            in_ok &= buf[2 * i] == t[2 * (7950 + i)] * (i + 1) / 32;
+        CHECK(in_ok && !memcmp(buf + 64, t + 2 * (7950 + 32), 32 * 4), "the oldest frames go first, faded in");
         free(t);
     }
     pc_audio_shutdown();
+
+    /* 1b. The AI's target: two pulls, a retrace and a buffer; a buffer more per underrun, at most 200 ms; a floor
+     * from audio.latency. Silence while the game pushes nothing is idle, not an underrun; so is a pause. The pull
+     * hook; buffers pushed again before a render. */
+    {
+        int16_t *t = tone(2000, 440, 22050, 8000);
+        pc_audio_init("manual", NULL);
+        pc_audio_set_frequency(22050);
+        CHECK(pc_audio_target_frames() == 384, "target before a pull %zu", pc_audio_target_frames());
+        pc_audio_set_clock(fake_clock);
+        fake_seconds = 10;
+        pc_audio_pull(buf, 500);   /* before the first push: idle */
+        pc_audio_get_stats(&st);
+        CHECK(st.underruns == 0 && st.idle_frames == 500, "idle before the game plays: %llu %llu",
+              (unsigned long long)st.underruns, (unsigned long long)st.idle_frames);
+        size_t t0 = 2 * 500 + 22050 / 60 + 192;
+        CHECK(pc_audio_target_frames() == t0 && st.period_frames == 500, "target from pulls of 500: %zu (expected %zu)",
+              pc_audio_target_frames(), t0);
+        pc_audio_push(t, 300);
+        pc_audio_pull(buf, 400);   /* runs out while playing */
+        pc_audio_get_stats(&st);
+        CHECK(st.underruns == 1 && pc_audio_target_frames() == t0 + 192, "an underrun grows the target: %zu",
+              pc_audio_target_frames());
+        for (int i = 0; i < 100; i++) {
+            pc_audio_push(t, 10);
+            pc_audio_pull(buf, 20);
+        }
+        CHECK(pc_audio_target_frames() == 22050 / 5, "at most 200 ms: %zu", pc_audio_target_frames());
+        pc_audio_get_stats(&st);
+        uint64_t u = st.underruns;
+        fake_seconds = 11;         /* nothing pushed for a second: idle */
+        pc_audio_pull(buf, 400);
+        pc_audio_get_stats(&st);
+        CHECK(st.underruns == u, "a quiet game isn't an underrun");
+        pc_audio_push(t, 100);
+        pc_audio_set_paused(1);
+        CHECK(pc_audio_target_frames() == 0, "paused: the AI asks for nothing");
+        pc_audio_pull(buf, 400);
+        pc_audio_get_stats(&st);
+        CHECK(st.underruns == u, "paused: not an underrun");
+        pc_audio_set_paused(0);
+        pc_audio_set_clock(NULL);
+        pc_audio_shutdown();
+
+        pc_audio_init("manual", NULL);
+        pc_audio_set_frequency(22050);
+        pc_audio_set_latency(100);
+        CHECK(pc_audio_target_frames() == 2205, "a 100 ms floor: %zu", pc_audio_target_frames());
+        pc_audio_set_latency(0);
+        CHECK(pc_audio_target_frames() == 384, "no floor: %zu", pc_audio_target_frames());
+        pc_audio_set_pull_hook(count_hook);
+        hook_calls = 0;
+        pc_audio_pull(buf, 10);
+        pc_audio_pull(buf, 10);
+        CHECK(hook_calls == 2, "the pull hook runs after each pull: %d", hook_calls);
+        pc_audio_set_pull_hook(NULL);
+
+        /* A buffer pushed again before a task rendered it plays its last turn again. */
+        static int16_t a[2 * 192], b[2 * 192];
+        pc_audio_note_rendered(a);
+        pc_audio_note_rendered(b);
+        pc_audio_push(a, 192);
+        pc_audio_push(b, 192);
+        pc_audio_note_rendered(a);
+        pc_audio_push(a, 192);
+        pc_audio_get_stats(&st);
+        CHECK(st.replayed == 0, "rendered buffers: %llu replayed", (unsigned long long)st.replayed);
+        pc_audio_push(b, 192);
+        pc_audio_get_stats(&st);
+        CHECK(st.replayed == 1, "b again without a render: %llu replayed", (unsigned long long)st.replayed);
+        pc_audio_shutdown();
+        free(t);
+    }
 
     /* 2. 22050 -> 48000: ratio, frequency, amplitude; chunked equals whole. */
     {
