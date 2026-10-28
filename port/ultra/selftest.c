@@ -417,8 +417,9 @@ static void t_pif(void)
                                      !memcmp(in, out, 768) && rd == 0 && after_delete == 123 * 256, d);
 }
 
-/* RSP tasks are answered with SP (and DP) events; audio tasks run in osSpTaskStartGo. The AI event comes when the
- * output queue is low. No graphics task: that needs a GL context (port/gfx has its own tests). */
+/* RSP tasks are answered with SP (and DP) events; audio tasks run in osSpTaskStartGo in real time, in the main loop
+ * with --fast. The AI event comes when the output queue is low. No graphics task: that needs a GL context (port/gfx
+ * has its own tests). */
 static void t_rcp(void)
 {
     void *q = queue(10, 8);

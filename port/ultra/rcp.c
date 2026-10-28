@@ -1,8 +1,9 @@
 /* port/ultra/rcp.c: RSP tasks, the RDP and the audio interface (docs/port/ULTRA.md).
  *
  * osSpTaskStartGo queues a copy of a graphics task for the host main thread, which owns the GL context: it goes
- * to pc_gfx_run_dl and is followed by the SP and DP done events. An audio task runs at once, in osSpTaskStartGo
- * (pc_audio_run_task), and sends the SP event. Tasks run to completion, so osSpTaskYield never yields.
+ * to pc_gfx_run_dl and is followed by the SP and DP done events. In real time an audio task runs at once, in
+ * osSpTaskStartGo (pc_audio_run_task), and sends the SP event; with --fast the main loop runs it with the graphics
+ * tasks. Tasks run to completion, so osSpTaskYield never yields.
  *
  * The AI hands each buffer to port/audio's output queue (pc_audio_push) and sends AI events while the queue and
  * the events not yet answered come to less than pc_audio_target_frames() (384 frames, two of the game's 192-frame
@@ -47,10 +48,13 @@ void osSpTaskLoad(void *task) { (void)task; }
 void osSpTaskStartGo(void *task)
 {
     const PcOSTask *t = task;
-    if (t->type == M_AUDTASK) {
-        /* The RSP runs audio tasks at once, on the thread that starts them (the game's scheduler): behind the main
-         * thread's graphics and swaps they would be late, and the AI would push ring buffers they hadn't rendered
-         * yet. The scheduler takes the SP event from its queue after this returns. */
+    if (t->type == M_AUDTASK && !pc_time_virtual()) {
+        /* In real time the RSP runs audio tasks at once, on the thread that starts them (the game's scheduler):
+         * behind the main thread's graphics and swaps they would be late, and the AI would push ring buffers they
+         * hadn't rendered yet. The scheduler takes the SP event from its queue after this returns. With --fast
+         * the main loop runs them, as it sends the AI events, while every N64 thread waits: its count and its
+         * events then come at moments the virtual clock fixes, the same in every run (counted here, it raced the
+         * main loop's status lines). */
         pc_rcp_audio_tasks++;
         pc_audio_run_task(t->data_ptr, t->data_size);
         pc_os_event(OS_EVENT_SP);
@@ -245,7 +249,12 @@ int pc_rcp_service(uint64_t now, uint64_t *next)
             pc_os_event(OS_EVENT_SP);
             pc_os_event(OS_EVENT_DP);
         } else {
-            pc_log("RSP task of type %u ignored", t->type);
+            if (t->type == M_AUDTASK) {   /* --fast (osSpTaskStartGo) */
+                pc_rcp_audio_tasks++;
+                pc_audio_run_task(t->data_ptr, t->data_size);
+            } else {
+                pc_log("RSP task of type %u ignored", t->type);
+            }
             pc_os_event(OS_EVENT_SP);
         }
     }
