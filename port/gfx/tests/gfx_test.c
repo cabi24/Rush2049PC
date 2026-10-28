@@ -754,7 +754,8 @@ static void case_lod(void) {
         gsDPLoadSync();
         gsDPLoadBlock(G_TX_LOADTILE, 0, 0, w * w - 1, calc_dxt(w, 2));
         gsDPPipeSync();
-        gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, (w * 2 + 7) >> 3, tmem, k, 0, G_TX_WRAP, 5 - k, k, G_TX_WRAP, 5 - k, k);
+        gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, (w * 2 + 7) >> 3, tmem, k, 0, G_TX_WRAP, 5 - k, k, G_TX_WRAP,
+                    5 - k, k);
         gsDPSetTileSize(k, 0, 0, (w - 1) << 2, (w - 1) << 2);
         tmem += w * w * 2 / 8;
     }
@@ -1586,9 +1587,10 @@ static const Case s_cases[] = {
     {"fill", case_fill},         {"shade", case_shade},       {"zbuf", case_zbuf},
     {"textures", case_textures}, {"texwrap", case_texwrap},   {"texrect", case_texrect},
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
-    {"lod", case_lod},           {"dualtile", case_dualtile}, {"belist", case_belist},     {"matrix", case_matrix},
-    {"cull", case_cull},         {"branchz", case_branchz},   {"nearclip", case_nearclip},
-    {"eyeplane", case_eyeplane}, {"clip", case_clip},         {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
+    {"lod", case_lod},           {"dualtile", case_dualtile}, {"belist", case_belist},
+    {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
+    {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
+    {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
     {"screenshot", case_screenshot},
 };
 

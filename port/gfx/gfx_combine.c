@@ -318,7 +318,8 @@ char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
         put(&s, "uniform vec4 uLodA[%d];\nuniform vec2 uLodB[%d];\n", GFX_LOD_MAX, GFX_LOD_MAX);
         put(&s, "vec4 lodtex(int n, vec2 st) {\n");
         for (n = 0; n < last; n++)
-            put(&s, "    if (n == %d) return textureLod(uTex%d, (st * uLodA[%d].xy - uLodA[%d].zw) * uLodB[%d], 0.0);\n",
+            put(&s, "    if (n == %d)\n"
+                    "        return textureLod(uTex%d, (st * uLodA[%d].xy - uLodA[%d].zw) * uLodB[%d], 0.0);\n",
                 n, n, n, n, n);
         put(&s, "    return textureLod(uTex%d, (st * uLodA[%d].xy - uLodA[%d].zw) * uLodB[%d], 0.0);\n}\n", last, last,
             last, last);
