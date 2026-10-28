@@ -6,11 +6,14 @@
  * block, or -1; func_800D5374 activates it; main_menu_render hands it on), and a new record of the player's save
  * data reached from its input record (func_800FDF88: the profile, SaveSlot.data, the data pointer read whole). Every
  * check is on records 1 to 3 too, so a 76-byte stride reads or writes the wrong bytes. The pause screen's title
- * (func_8010B5D0) names the player from its profile, whose name is at +0x20 on the PC (PROFILE_OFS(20)).
+ * (func_8010B5D0) names the player from its profile, whose name is at +0x20 on the PC (PROFILE_OFS(20)). The pause
+ * screen's pages (the title, the language list func_8010B7FC, the two-choice page func_8010B9C8) show and hide their
+ * blit through its Hide, at +0x26 of the Blit's host layout: the N64's +0x1A is the low byte of X (LAYOUT.md 9).
  * game: src/blob/process_inputs.c src/blob/entity_audio_update.c src/blob/random_seed_init.c
  * game: src/blob/drone_target_update.c src/blob/groups/vsync/func_800D6530.c
  * game: src/blob/groups/main_menu_input/object_activate.c src/blob/main_menu_render.c src/blob/func_800FDF88.c
- * game: src/blob/groups/func_8010B5D0/fb5d0.c
+ * game: src/blob/groups/func_8010B5D0/fb5d0.c src/blob/groups/func_8010B7FC/fb7fc.c
+ * game: src/blob/groups/func_8010B9C8/fb9c8.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -201,12 +204,13 @@ static void test_save_record(uint8_t *w)
 struct { uint32_t opaque[6]; } D_801461D0;
 int16_t D_80117280[2] = {160, 40};
 int32_t D_80149D98, D_801170FC, D_8015698C, D_801146AC[4];
-int8_t D_80117350;
+int8_t D_80117350, D_80117354;
 char D_801210CC[] = "PLAYER %d", D_801210E0[] = "%s %s";
 static struct { uint16_t pad[0x70 / 2]; uint16_t lang; } g_lang;
-static intptr_t g_strings[4];
+static intptr_t g_strings[12];
+static intptr_t g_hdr[0x3A4 / 4 + 1];   /* the text header: host pointers, so N64 byte offsets / 4 are indices */
 struct { uint8_t pad0[4]; void *hdr; uint8_t pad8[4]; void *info; intptr_t *strings; } D_8017A4E0 = {
-    {0}, NULL, {0}, &g_lang, g_strings};
+    {0}, g_hdr, {0}, &g_lang, g_strings};
 static const char *g_named;
 void fcvt_wrapper(char *buf, const char *fmt, ...)
 {
@@ -217,18 +221,51 @@ void fcvt_wrapper(char *buf, const char *fmt, ...)
     strcpy(buf, "title");
 }
 int32_t slot_state_setup(int32_t font) { return 0; }
-void Input_ApplyPadConfig(void *item) {}
+int16_t object_bytes_sum_global(void) { return 10; }   /* the line height */
+/* sound_control.c's Blit: the layout every PC view has (POINTERS.md 9.3). */
+typedef struct PauseBlit {
+    const char *Name;
+    void *Image, *Info;
+    uint16_t TexIndex;
+    int16_t X, Y;
+    uint16_t Z;
+    int16_t Width, Height;
+    uint8_t Alpha, Flip;
+    int8_t Hide, Init;
+    int16_t Top, Bot, Left, Right, color;
+    uint16_t reserved;
+    void *AnimFunc;
+    uint32_t AnimID;
+    intptr_t AnimDTA;
+    uint16_t BLIdx, reserved36;
+    void *data, *child;
+} PauseBlit;
+_Static_assert(offsetof(PauseBlit, Hide) == 0x26 && offsetof(PauseBlit, X) == 0x1A, "the Blit's host offsets");
+static int g_updates;
+static PauseBlit g_seen;
+void Input_ApplyPadConfig(void *item) { g_updates++, g_seen = *(PauseBlit *)item; }   /* UpdateBlit */
 void render_helper(float a) {}
 uint32_t object_manager_update(void *text, int32_t n) { return 40; }
 void dispatch_handler(int32_t colour) {}
 static const char *g_drawn;
 void state_utility(int16_t x, int16_t y, void *text) { g_drawn = text; }
 int32_t func_8010B5D0(void *item);
+int32_t func_8010B7FC(void *item);
+int32_t func_8010B9C8(void *item);
+
+static const char g_page[] = "PAGE";
+
+static void page_blit(PauseBlit *b, int8_t hide)
+{
+    memset(b, 0, sizeof *b);
+    b->Name = g_page, b->X = 0x1234, b->Y = 0x56, b->Width = 200, b->Height = 30, b->Alpha = 255, b->Hide = hide;
+    g_updates = 0;
+}
 
 static void test_pause_title(void)
 {
     static SaveSlot slot;
-    static uint8_t item[0x20];
+    static PauseBlit item;
 
     strcpy((char *)&slot + PROFILE_OFS(20), "ALICE");
     D_80146150[6] = &slot;
@@ -236,8 +273,55 @@ static void test_pause_title(void)
     D_8015698C = 1;
     g_strings[0] = (intptr_t)"PAUSED";
     g_named = g_drawn = NULL;
-    CHECK(func_8010B5D0(item) == 1);
+    page_blit(&item, 0);
+    CHECK(func_8010B5D0(&item) == 1);
     CHECK(g_named == (char *)&slot + PROFILE_OFS(20) && strcmp(g_named, "ALICE") == 0 && g_drawn != NULL);
+    CHECK(item.X == 0x1234 && item.Hide == 0 && g_updates == 0);   /* shown already: nothing to update */
+
+    /* hidden: the title shows its blit (Hide, host +0x26), once, and leaves X (host +0x1A) as it was */
+    page_blit(&item, 1);
+    g_drawn = NULL;
+    CHECK(func_8010B5D0(&item) == 1 && g_drawn != NULL);
+    CHECK(item.Hide == 0 && item.X == 0x1234 && item.Y == 0x56 && item.Name == g_page);
+    CHECK(g_updates == 1 && g_seen.Hide == 0 && g_seen.X == 0x1234);
+    CHECK(func_8010B5D0(&item) == 1 && g_updates == 1);
+}
+
+/* the language list: shown the same way, eight strings after the current language's */
+static void test_pause_languages(void)
+{
+    static PauseBlit item;
+    int i;
+
+    for (i = 0; i < 12; i++)
+        g_strings[i] = (intptr_t)"LANGUAGE";
+    g_strings[9] = (intptr_t)"LAST";
+    g_lang.lang = 1;
+    page_blit(&item, 1);
+    g_drawn = NULL;
+    CHECK(func_8010B7FC(&item) == 1);
+    CHECK(item.Hide == 0 && item.X == 0x1234 && g_updates == 1 && g_seen.Hide == 0);
+    CHECK(g_drawn != NULL && strcmp(g_drawn, "LAST") == 0);   /* strings[lang + 8], the last one drawn */
+    g_lang.lang = 0;
+}
+
+/* the two-choice page: hidden while D_801170FC < 7 (nothing drawn), shown from 7 on */
+static void test_pause_choice(void)
+{
+    static PauseBlit item;
+
+    g_hdr[0x360 / 4] = (intptr_t)"QUIT?";
+    g_strings[0] = (intptr_t)"YES", g_strings[1] = (intptr_t)"NO";
+    page_blit(&item, 0);
+    D_801170FC = 3;
+    g_drawn = NULL;
+    CHECK(func_8010B9C8(&item) == 1 && g_drawn == NULL);
+    CHECK(item.Hide == 1 && item.X == 0x1234 && g_updates == 1 && g_seen.Hide == 1);
+    CHECK(func_8010B9C8(&item) == 1 && g_updates == 1 && g_drawn == NULL);   /* hidden already */
+    D_801170FC = 7;
+    CHECK(func_8010B9C8(&item) == 1 && g_drawn != NULL && strcmp(g_drawn, "NO") == 0);
+    CHECK(item.Hide == 0 && item.X == 0x1234 && g_updates == 2 && g_seen.Hide == 0);
+    D_801170FC = 0;
 }
 
 int main(void)
@@ -255,5 +339,7 @@ int main(void)
     test_packets();
     test_save_record(w);
     test_pause_title();
+    test_pause_languages();
+    test_pause_choice();
     return TEST_DONE();
 }
