@@ -84,7 +84,7 @@ endif()
 enable_testing()
 include(CheckPIESupported)
 check_pie_supported()
-set(PCAUDIO_TESTS adpcm pcm resample envmix mix delay rsp forms output hold convert e2e volume)
+set(PCAUDIO_TESTS adpcm pcm resample envmix mix delay rsp forms output hold renderer convert e2e volume)
 if(PCAUDIO_HAVE_SDL2 OR ALSA_FOUND)
     list(APPEND PCAUDIO_TESTS backends)   # SDL2's disk driver, ALSA's null device
 endif()

@@ -1349,8 +1349,15 @@ extern void func_8001C3CC(void);
  * they played their last turn's sound again. The PC's retraces come in bunches (a swap waiting for vsync), so more
  * buffers than the cap are often passed between two of them (docs/port/AUDIO.md 7). */
 #define PC_RING_START(index) ((index) >= D_80038292 ? 0 : (index))
+/* PC: the last callback's task reads the SFD buffer this one builds into (func_80013964 starts it). On the N64 the RSP
+ * has run it long before; on the PC an audio task waits behind a graphics task the main loop hasn't run (the RSP
+ * doesn't yield), and a swap or a loaded host can hold that past the next retrace. Built over, that task renders
+ * this callback's SFDs instead of its own, which are lost, and the next two render the sets out of order, one of
+ * them twice. So wait for it first (func_800118C0 waits once; the wait before the submit then returns at once). */
+#define PC_SFD_WAIT() func_800118C0();
 #else
 #define PC_RING_START(index) 0
+#define PC_SFD_WAIT()
 #endif
 void func_80013DEC(void)
 {
@@ -1380,7 +1387,7 @@ void func_80013DEC(void)
             D_80038020();
         }
         func_80012200();
-        func_80013964();
+        PC_SFD_WAIT() func_80013964();
         if (D_80038360 != target) {
             func_80013C84();
             offset = 0;
