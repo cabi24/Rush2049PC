@@ -166,6 +166,10 @@ static const struct {
     {"D_8011B4B4, the wings' place per car type", 0x8011B4B4, 156, 1, 4},
     {"D_801202F8, gravityArray", 0x801202F8, 16, 1, 4},
     {"the strings after gravityArray", 0x80120308, 20, 1, 1},
+    /* The respawn records after FSCLS (D_801106C4): an s8 flag and pad, then the place as f32. */
+    {"D_801106C4, the first respawn record's flag", 0x801106D0, 4, 1, 1},
+    {"D_801106C4, the first respawn record's place", 0x801106D4, 12, 1, 4},
+    {"D_801106C4, the last respawn record's flag", 0x801108A0, 4, 1, 1},
 };
 
 /* Checks known_widths against the images' bytes (after both runtime images are loaded); the number that differ. */

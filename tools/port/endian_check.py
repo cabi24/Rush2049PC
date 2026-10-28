@@ -2149,7 +2149,9 @@ LOADER_EXPECT = [("D_80114264", 0x0, 4), ("D_80114264", 0xC, 4), ("D_801164A4", 
                  # and static states (level_objects), the rumble thresholds (func_800E56F8), the wings' place per
                  # car type (extents.txt)
                  ("D_80118C10", 0x0, 4), ("D_80118C10", 0x1C, 4), ("D_80118C10", 0x1C8, 4), ("D_801163F8", 0x4, 4),
-                 ("D_801163F8", 0x8C, 4), ("D_8011B4B4", 0xC, 4), ("D_8011B4B4", 0x98, 4)]
+                 ("D_801163F8", 0x8C, 4), ("D_8011B4B4", 0xC, 4), ("D_8011B4B4", 0x98, 4),
+                 # FSCLS and the respawn records after it (runtime_a_joint_transforms): flag bytes, f32 places
+                 ("D_801106C4", 0x8, 4), ("D_801106C4", 0xC, 1), ("D_801106C4", 0x10, 4), ("D_801106C4", 0x1DC, 1)]
 # The colour unions gen_data copies as bytes (a byte member covers them), D_801146BC's element 1 under
 # D_801146C0's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
 # table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).

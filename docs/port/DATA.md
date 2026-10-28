@@ -368,7 +368,7 @@ and the loader left the rest in the ROM's byte order. The engine table `D_8010FD
 so its levels read as denormals and no engine played (AUDIO.md 9). The cheat codes `D_803B3460` had a byte-only
 view that won the ranking (QA.md 1). This section is the sweep of the whole class.
 
-**How.** Four passes, each over every initialized symbol:
+**How.** Six passes, each over every initialized symbol:
 
 1. **Every file's declaration against the loader's elements.** gen_data's own `generate` was run with its `emit`
    hooked, so the types, extents and choices were exactly the generator's. Each declaration's elements (open arrays
@@ -383,11 +383,28 @@ view that won the ranking (QA.md 1). This section is the sweep of the whole clas
    strings, and the images' read-only data (jump tables, literal pools: unused on the PC) were left out.
 4. Each hit was judged against the game C's reads of that address: by name, by index past a declared element, by
    pointer.
+5. **The pointer graph.** For every pointer field of the converted tables (1,623 typed fields in 36 tables), the
+   declared pointee's elements were taken from the DWARF of the file whose declaration was chosen. They were
+   compared with what the loader made of the target at the value the pointer holds after loading: wider elements
+   left as bytes, and bytes under a wider element. The untyped pointers (`void *`, `char *`) were grouped by their
+   targets as well. Pointers into no symbol are the report's `undescribed` lines, all text or judged below. Into
+   described data: the bodies (fixed above), zlib's tables, the car descriptors, and the respawn records (fixed
+   below).
+6. **Values plausible in both byte orders.** For every u16, u32 and f32 element the loader converts, in arenas and
+   own storage, the test asks whether the byte-reversed reading is systematically simpler than the loaded one: an
+   integer 16 (u16) or 256 (u32) times smaller, or a float with ten more trailing zero mantissa bits and a sane
+   exponent. That is the shape of a wrong width that plausibility alone misses. The few tables where the reversed
+   reading wins are the PVS bitmasks (no preference either way), display-list words (right as loaded), floats under
+   the reviewed `s32[][24]` overlap (a u32 swap is an f32 swap), and the car's UV tables `D_8011B57C`..`D_8011B59C`,
+   which every reader copies as u16, the width they are swapped at. endian_check's section 3 (ROM data accessed at
+   another width than the loader's, through casts and `M2C_FIELD` too) is empty.
 
 The scripts and their output stay out of the repository: they read the cartridge.
 
 **Fixed** (ab7f592). Each table's rest was in the ROM's order. LOADER_EXPECT and datacheck's `known_widths` pin
-them; `--check-loader` fails 7 places with the old tables.
+them; `--check-loader` fails 7 places with the old tables. The synthetic cartridge sets the bodies (body 0 and the
+last element), every car type's wings and the 36 rumble thresholds (small, so `rumble2p`'s motors still run). Its
+generator refuses each of the three with its old declaration, so `synth_rom` fails and no synthetic path runs.
 
 | Symbol | Found by | What the game reads | On the PC before | Fix |
 |---|---|---|---|---|
@@ -419,15 +436,24 @@ them; `--check-loader` fails 7 places with the old tables.
   to it; after `D_80115CA8`, `D_80117360`, `D_801140F0` (the asm's `D_801140F4`, `D_801140F8`), `D_80116198` (the
   asm's `D_801161B8`, `D_801161BC`), `D_80110F80`, `D_8011E7A8`, and image A's `D_803B3030`, `D_803B832C`,
   `D_803B837C`. A C reader added later must declare them.
-- `D_801106C4` (FSCLS, `f32[]` by the gap): a byte in each 16 bytes after the first three floats is swapped as part
-  of an f32. The PC C reads only FSCLS[0..2].
 - f32 elements not plausible as loaded: -1 handles under f32 views (a word either way), the car descriptors'
-  `tire_info` words (`D_801108C8`, QA.md round 3), `D_801106C4`'s bytes, and read-only constants.
+  `tire_info` words (`D_801108C8`, QA.md round 3), and read-only constants.
+- Pass 5's other hits: the suspensions (`D_80111560`) and the s16 tables of `D_801173D8`, which reached.txt's rules
+  swap in place (the report's `reached` lines); the shared frames' `resource` pointers (`D_8011905C`), which
+  camera_shake_start sets from the WAD before any use; and byte pads in the `Car` and `Resource32` views, which
+  nothing reads.
 - The boot data: libultra's VI modes and zlib's tables, which port/ultra and zlib replace (datacheck checks the
   inflate tables in the N64 order), and the RSP microcode's data.
 
-Not swept: data that only pointers reach, beyond reached.txt's rules and the report's `undescribed` lines, and
-BSS (zeroed). Debug and RelWithDebInfo make the same `data.c` and `data_symbols.txt` with these fixes.
+**Fixed later** (614c8f9, pass 5). `D_801106C4` was FSCLS's `f32[]`, sized by the gap. The gap holds the
+tracks' respawn records, `{s8 flag; f32 pos[3]}`, which `D_801108B0` points at and world_object_destroy walks. The
+loader swapped each flag byte as part of an f32, so the PC read every flag as 0: func_800E9C70 got mode 0 where
+the track's point asked for 1 (it sets `D_8012E670[car]`, which no PC C names a reader of; what a player sees is
+unverified). runtime_a_joint_transforms declares FSCLS and the 30 records up to `D_801108B0` under TARGET_PC
+(`FSCLS` keeps the N64 tokens). LOADER_EXPECT, `known_widths`, and a flag byte on the synthetic cartridge pin it.
+
+Not swept: BSS (zeroed), and the ROM files port/assets converts (the tracks' and cars' WADs: LOADERS.md). Debug and
+RelWithDebInfo make the same `data.c` and `data_symbols.txt` with these fixes.
 
 ## The names missing from the symbol file
 
