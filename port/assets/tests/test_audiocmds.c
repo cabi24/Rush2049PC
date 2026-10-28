@@ -13,6 +13,7 @@
  * game: src/blob/groups/audio_options_menu/func_800D7634.c src/blob/groups/billboard_render/track_texture_load.c
  * game: src/blob/groups/gameover/gameover.c src/blob/groups/slot18_alloc/group.c
  * game: nonmatching/game/RaceStateMachine_Update.c nonmatching/game/display_list_flush.c
+ * game: src/blob/groups/carcolor/ctx_func_800C8918.c
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -93,9 +94,10 @@ STUB_FN(entity_transform_apply) STUB_FN(func_8008B32C) STUB_FN(func_8008D870) ST
 STUB_FN(func_800A1910) STUB_FN(func_800A7480) STUB_FN(func_800AB18C) STUB_FN(func_800B0580) STUB_FN(func_800B24EC)
 STUB_FN(func_800B5898) STUB_FN(func_800B5940) STUB_FN(func_800B8810) STUB_FN(func_800B912C) STUB_FN(func_800C885C)
 STUB_FN(func_800CFCA8) STUB_FN(func_800D5374) STUB_FN(func_800D5828) STUB_FN(func_800D60AC) STUB_FN(func_800D6530)
-STUB_FN(func_800D91A0) STUB_FN(func_800DB1E0) STUB_FN(func_800E543C) STUB_FN(func_800EC914) STUB_FN(func_800F1114)
-STUB_FN(func_800F2888) STUB_FN(func_800F42C8) STUB_FN(func_800F45F8) STUB_FN(func_800F7448) STUB_FN(func_800F7EB0)
-STUB_FN(func_800FAEE4) STUB_FN(func_800FAF50) STUB_FN(func_8038CA24) STUB_FN(func_8038F454) STUB_FN(func_803908D0)
+STUB_FN(func_800960CC) STUB_FN(func_800D91A0) STUB_FN(func_800DB1E0) STUB_FN(func_800E543C) STUB_FN(func_800EC914)
+STUB_FN(func_800F1114) STUB_FN(func_800F2888) STUB_FN(func_800F42C8) STUB_FN(func_800F45F8) STUB_FN(func_800F7448)
+STUB_FN(func_800F7EB0) STUB_FN(func_800FAEE4) STUB_FN(func_800FAF50) STUB_FN(func_8038CA24) STUB_FN(func_8038F454)
+STUB_FN(func_803908D0)
 STUB_FN(gameover_validOption) STUB_FN(ghost_race_setup) STUB_FN(init_wait_completion) STUB_FN(model_data_load)
 STUB_FN(model_transform_setup) STUB_FN(music_control) STUB_FN(music_tempo_set) STUB_FN(net_state_validate)
 STUB_FN(object_bytes_sum_global) STUB_FN(object_manager_update) STUB_FN(particle_velocity_set)
@@ -151,7 +153,7 @@ void AudKillSong(void);                                   /* display_list_flush.
 void AudPauseAllEffects(void);                            /* RaceStateMachine_Update.c's */
 void AudResumeAllEffects(void);
 void AudStopAllEffects(void);
-void post_type1(void);                                    /* the audio shutdown's */
+void post_type1(void);                                    /* the audio shutdown's (carcolor's, their owner) */
 void post_type7(void);
 void func_800C8918(void);                                 /* the audio shutdown */
 void func_800F87A0(void);                                 /* the game over screen's choice */
