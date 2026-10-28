@@ -183,6 +183,40 @@ Also changed: `video.api` defaults to `auto`, desktop GL first on Windows (e1195
 the decals (car liveries over the bodies and the shadows are coplanar with what they lie on, so the polygon
 offset hardly matters), the cut-out trees (their holes show what is behind), the TLUT palettes and the fog.
 
+### 15. The skull in every race, and the idle overlay: blit callbacks at N64 offsets
+
+A player's single race with the default options (2026-10-27) showed a skull and crossbones at the top left, by the
+speedometer, which the N64 shows only in deaths mode; a headless race on the Pi showed it too. A temporary print in
+NewMultiBlit (`sound_control`) listed the race's tables: the race set `D_80114C58` (89 blits) and the HUD set
+`D_801158DC` (8), whose crossbones blits, one per player as in the GC's HudMultiBlit, run animBones
+(`func_80105DA8`, the GC's hud.c). It hides them unless gDeathMode (`D_80142760`, option 31, 0 by default) is on, and
+for a player past the windows or whose car is locked in place. The function was still m2c code at the blit's N64 offsets: on the PC's Blit
+(POINTERS.md 9.3) +0x1A is the low byte of X, not Hide, and +0x2C is Left and Right, not the AnimID. So it set X's
+low byte to 1, left Hide 0, and every race drew the skull at the left edge. Its place table, bonesPos (`D_801160C8`,
+s32 [windows][player][2]), was an `M2C_UNK`: the loader described its first word and left the rest in the ROM's byte
+order, which deaths mode reads. It has a PC version over the host layout, and the table is declared whole.
+
+Three more blit animation functions were m2c code at N64 offsets (the functions that call UpdateBlit and use raw
+offsets: there are no others). callback_init gives the idle overlay its colour: game_loop makes that blit
+(`D_801146C4`) once no button has been held for 300 s outside the title and the attract demo, and the 8-byte store
+at the N64's +4 split the colour's address over the Name and the Image, which came out NULL. The retail game faulted
+in the 2D fill (`func_8008A46C`) after five idle minutes on a menu; with the fix the overlay draws. struct_callback_init
+does the same for the settings dialog's blit (`save_settings`, which nothing calls that was found) and clears its
+AnimFunc, and sound_volume_helper shows its blit on the results screen. Each has a PC version, and their two colours
+(`D_801146FC`, `D_80116DE0`), which the fill reads as R, G, B, A bytes, are declared as bytes: as `s32` the loader
+reversed them.
+
+Checked on the way, and right: the "000" under MPH is the odometer (animOdometer, `func_80106D94`: gShowOdometer,
+option 6), whose tenths digit rolls (from the right half of its digit strip), and the tall translucent panel down the
+left side, with its V and the blue marker, is the radar (animRadar, `func_80108DA8`, and its blips, `func_80108F40`:
+gShowRadar, option 1). GetDefaultOption (`func_800CCB40`, byte-matched) turns both options on, and
+both functions read the blit with its PC layout, as do the race and HUD sets' other animation functions.
+
+Tests: `assets_hudblit` runs the four functions on a host blit (each old body fails it). The synthetic cartridge's HUD
+set has the four crossbones blits, and bonesPos a place for every view, which its generator refuses past a one-word
+declaration; its idle overlay table has callback_init and a colour of bytes, which the generator refuses in a word;
+and its `idle` path waits 320 s on the mode screen, where it faulted without the fix.
+
 ## How the stops were found
 
 - The fault handler's backtrace names the function; `gdb -batch` with `bt -15` gives the outer frames of a deep
@@ -194,6 +228,9 @@ offset hardly matters), the cut-out trees (their holes show what is behind), the
   which one appears.
 - Looking an address up in `build/pc/pc-data/data_symbols.txt`: which symbol's extent holds it, and as what
   elements; and `index_check.py`.
+- A temporary print from the game C, where watchpoints are too slow (they never got past the boot in section 15):
+  through a function the port defines, since gen_data places any name the game objects leave undefined as data. A
+  `printf` or `getenv` declared in a game file becomes a data symbol, and the program faults at its first call.
 
 ## What's next
 

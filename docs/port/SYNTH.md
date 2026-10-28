@@ -94,7 +94,7 @@ copies those as they are, so they are bytes, or zero.
 | | `D_80110D08[13]`, `D_801108C8` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (the records `D_8011F814`, below) |
 | | `D_80111560[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
 | | `D_8011AF90[19]` | gTrackColors: sixteen greys |
-| | `D_801158DC[0..1]`, `D_80115A68` | the HUD set (ShowHUD): a BUTTON panel, and a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos). With zeros every HUD blit had no texture or size |
+| | `D_801158DC[0, 1, 4..7]`, `D_80115A68` | the HUD set (ShowHUD): a BUTTON panel, a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos), and the four players' crossbones (animBones, which only deaths mode shows). With zeros every HUD blit had no texture or size |
 | battle | `D_80394330[5]`, `D_80394344[5]` (image B) | the weapons' texture names: "" (func_803908D0 looks each up); their model names stay NULL (AAANULLOBJ) |
 
 **From the retail cartridge's bring-up** ([BRINGUP.md](BRINGUP.md)): data at the places the retail cartridge showed
@@ -114,6 +114,8 @@ which fits `D_803B9260`'s 4 bytes) and `SYN_BAR`.
 | battle HUD: an IA blit (`SYN_FOG`) and player 1's health bar (`SYN_BAR`, I8, animHealth) | the health bar's palette (10) |
 | `D_80110EBC`, every gear ratio row: 1 | the eight-row gear table (11) |
 | `D_803B470C`, every player's model slots: name 1, id -1 | the four-player slot table (12) |
+| the HUD set's four crossbones blits (animBones, BUTTON) and `D_801160C8`, their places in deaths mode for every view | the crossbones' place table, declared whole (15) |
+| the idle overlay's blit `D_801146C4` (no name, callback_init) and its colour `D_801146FC` as bytes; the `idle` path | the colour callback at the Blit's host offsets, and the colour declared as bytes (15) |
 
 **The files:**
 
@@ -196,6 +198,7 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `pak` | the one-player race with a fresh controller pak (`--pak`): the warning finds it, and the save code runs on it at the race's start | 0x400000, 300 frames | 0.4 s |
 | `raceend` | the race retired from the pause screen, then _EndGame, the results, the game over screen, its Quit and back to the main menu (`# visits:` the results, the game over screen and state 4). gRace 2's time limit would end a race by itself once the car has stopped, which the cartridge's car physics doesn't do | 0x10 after the race | 0.6 s |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
+| `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
 
 **Screenshots.** `--screenshot-at N` of a race now shows the game's own display lists drawn: its matrices and
 viewports put the models where the cars are, in one view or split in two (top and bottom) or four (quarters).

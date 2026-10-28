@@ -949,7 +949,14 @@ extern s32 D_801146BC;
 extern s32 D_801146C0;
 extern s32 D_801146C4;
 extern s8 D_801146F4;
+#ifdef TARGET_PC
+/* PC: a colour, R, G, B, A in memory: the blit's Image, which the 2D draw fills its rectangle with byte by byte
+ * (func_8008A46C). Bytes, so the loader keeps them in order (an s32 reversed them). */
+typedef struct { u8 r, g, b, a; } BlitColor;
+extern BlitColor D_801146FC;
+#else
 extern s32 D_801146FC;
+#endif
 extern s32 D_80114700;
 extern s32 D_80114724;
 extern s8 D_80114728;
@@ -3701,8 +3708,36 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: the idle overlay's blit (game_loop's, after 300 s without a button, multiblit D_801146C4) takes its colour as
+ * its Image, over the Blit's host layout (sound_control.c's, docs/port/POINTERS.md 9.3): the Image is the pointer at
+ * +8. The m2c body's 8-byte store at the N64 +4 split the colour's address over the Name and the Image, and the
+ * draw read the colour from NULL. */
+typedef struct HostBlit {
+    void *Name, *Image, *Info;
+    u16 TexIndex;
+    s16 X, Y;
+    u16 Z;
+    s16 Width, Height;
+    u8 Alpha, Flip;
+    s8 Hide, Init;
+    s16 Top, Bot, Left, Right, color;
+    u16 reserved;
+    intptr_t AnimFunc;
+    u32 AnimID;
+} HostBlit;
+
+s32 callback_init(void *arg0) {
+    HostBlit *blt = arg0;
+
+    blt->Image = &D_801146FC;
+    Input_ApplyPadConfig(blt);
+    return 1;
+}
+#else
 s32 callback_init(void *arg0) {
     M2C_FIELD(arg0, s32 **, 4) = &D_801146FC;
     Input_ApplyPadConfig(arg0);
     return 1;
 }
+#endif

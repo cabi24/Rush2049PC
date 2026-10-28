@@ -48,7 +48,8 @@ Settings and saves
 ------------------
 This folder is portable: because rush2049pc.ini is next to rush2049pc.exe, everything the program keeps is in
 this folder:
-  rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each
+  rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each,
+                    commented out at its default (remove the ; to keep a value)
   rush2049pc.mpk    the saves (the game's controller pak)
   screenshots\      F12's pictures
   texture_cache\    upscaled textures kept for the next run (Textures: upscaled)

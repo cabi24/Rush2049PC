@@ -178,7 +178,8 @@ holding pointers; the offsets themselves are N64 layout and wrong wherever the r
 `particles_spawn_emitter`, `camera_smooth_lerp` (50 pointer slots as `s32`) and `PhysicsObjectList_Update` are done
 (CASTS.md 2); `func_800F42C8` reads the input records (another part's); `func_800949D4` never runs;
 `entity_flag_check/group.c` (20) and `credits_scroll_grp/gr3_e.c` are weak copies. `UpdateActiveObjects`, `menu_confirm_dialog`, `func_8008AE2C`, `func_800A3598`/`35BC`/`35F8` and
-`func_800A79DC` are done (section 9). The car record's raw offsets (`save_load_data`, `func_800B27E4`,
+`func_800A79DC` are done (section 9), and so is animBones `func_80105DA8`, the HUD's crossbones, whose blit offsets
+hid nothing on the PC ([BRINGUP.md](BRINGUP.md) 15). The car record's raw offsets (`save_load_data`, `func_800B27E4`,
 `func_800E56F8/group.c` and the others) go through `CAR_OFS` now, and the model record keeps its N64 layout:
 [CARS.md](CARS.md).
 
