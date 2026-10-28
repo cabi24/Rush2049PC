@@ -366,8 +366,11 @@ int pc_ultra_run(const PcRunOptions *opt)
                      * game's new frame is shown here, at its swap, as with the setting off: the game's frames are
                      * never lost to skipped ticks, and showing them costs no retrace (docs/port/QA.md "Integration
                      * soak"). */
+                    uint64_t r0 = pc_real_ns();
                     if (pc_gfx_present_tick(pc_frame, 2 | PC_GFX_TICK_NO_SWAP)) {
-                        vb_swap_now(0);
+                        uint64_t cost = pc_real_ns() - r0;
+                        cost += vb_swap_now(0);   /* the swap beyond a refresh: a slow GPU */
+                        tick_ns = (tick_ns * 3 + cost) / 4;   /* so the ticks come back once the host has time */
                         vb.shown = vb.seen;   /* the vblank it waited for, if it did */
                         vb.target = 0;
                         vb.retrace_shows++;
@@ -527,6 +530,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             }
         } else if (rate > 0) {   /* a high frame rate: a frame shown, in step with the retraces */
             uint64_t period = 1000000000u / (uint64_t)rate, t = pc_host_ns();
+            vb.swap = vb.target = 0;   /* vsync just turned off: a swap left is the next tick's */
             if (!next_tick || rate != tick_rate)
                 next_tick = vi_at;
             tick_rate = rate;
@@ -556,6 +560,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                 deadline = next_tick;
         } else {
             next_tick = 0;
+            vb.swap = vb.target = 0;
         }
         if (g_dump) {
             g_dump = 0;

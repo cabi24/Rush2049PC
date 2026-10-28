@@ -680,7 +680,7 @@ int pc_gfx_poll_events(void) {
     if (S.use_sdl)
         quit = pcgfx_sdl_poll();
 #endif
-    if (pcgfx_cfg.frame_rate < 0)
+    if (pcgfx_cfg.frame_rate != 0)   /* display, and the main loop's pacing by the vblanks */
         display_refresh();
     if (s_tick != NULL && s_tick() != 0)
         quit = 1;
