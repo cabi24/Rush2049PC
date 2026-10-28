@@ -542,6 +542,7 @@ void pc_gfx_present(const void *framebuffer) {
             S.present_gen++;
         }
         show_end(ts);
+        pcgfx_gl_frame_done();
         resolve_auto();
         pcgfx_rdp_new_frame();
         return;
@@ -558,6 +559,7 @@ void pc_gfx_present(const void *framebuffer) {
         swap();
     }
     show_end(ts);
+    pcgfx_gl_frame_done();
     resolve_auto();
     pcgfx_rdp_new_frame();
 }

@@ -266,6 +266,7 @@ int pcgfx_gl_timer_stats(double ms[PCGFX_GPU_TIMER_CATS], uint32_t n[PCGFX_GPU_T
 void pcgfx_gl_draw_counts(uint32_t *draws, uint64_t *verts);   /* pcgfx_gl_draw calls and vertices so far */
 /* A fence after the GL work so far; whether the GPU hasn't passed the last one within 2 ms (0 without fences). */
 void pcgfx_gl_fence_set(void);
+void pcgfx_gl_frame_done(void);   /* at each present: at most two frames of GL work in flight */
 int pcgfx_gl_fence_busy(void);
 /* The overlay's triangles (gfx_ui.c), in window pixels, blended over the window; the atlas is uploaded once. */
 void pcgfx_gl_ui_draw(const GfxOutVtx *v, int n, int win_w, int win_h, int to_window, const uint8_t *atlas,

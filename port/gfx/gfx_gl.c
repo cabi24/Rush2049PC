@@ -102,6 +102,10 @@ static PFNGLFENCESYNCPROC glFenceSync;
 static PFNGLCLIENTWAITSYNCPROC glClientWaitSync;
 static PFNGLDELETESYNCPROC glDeleteSync;
 static GLsync g_fence;
+/* The frames in flight (pcgfx_gl_frame_done): a fence after each of the last two presents. */
+#define FRAMES_IN_FLIGHT 2
+static GLsync g_frames[FRAMES_IN_FLIGHT];
+static int g_frame_i;
 /* GPU timers (RUSH_GFX_TIMES=3), optional: GL_TIME_ELAPSED queries (desktop GL 3.3, ARB_timer_query,
  * EXT_disjoint_timer_query on GLES), read back when they are ready. */
 #ifndef GL_TIME_ELAPSED
@@ -486,6 +490,11 @@ void pcgfx_gl_shutdown(void) {
     if (g_fence != NULL)
         glDeleteSync(g_fence);
     g_fence = NULL;
+    for (b = 0; b < FRAMES_IN_FLIGHT; b++) {
+        if (g_frames[b] != NULL)
+            glDeleteSync(g_frames[b]);
+        g_frames[b] = NULL;
+    }
     for (b = 0; b < SHADER_BUCKETS; b++)
         while (G.shaders[b]) {
             GfxShader *s = G.shaders[b];
@@ -1216,6 +1225,24 @@ int pcgfx_gl_timer_stats(double ms[PCGFX_GPU_TIMER_CATS], uint32_t n[PCGFX_GPU_T
         n[i] = GT.n[i];
     }
     return 0;
+}
+
+/* At each present: at most FRAMES_IN_FLIGHT frames of GL work queued. A window's swap holds the game back so, in
+ * the driver; headless (tests, tools, --fast) nothing did, and the game's frames piled up in the GPU's queue by
+ * the hundred: seconds of work behind the CPU, single calls blocking for seconds when the driver ran out of room,
+ * and on Intel's i915 with several such processes at once, contexts reset for not yielding the GPU in time. A wait
+ * here only ever holds the CPU back to the GPU; what is drawn doesn't change. */
+void pcgfx_gl_frame_done(void) {
+    GLsync *f;
+    if (glFenceSync == NULL)
+        return;
+    f = &g_frames[g_frame_i];
+    if (*f != NULL) {
+        glClientWaitSync(*f, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000u);   /* at most 2 s: never stuck */
+        glDeleteSync(*f);
+    }
+    *f = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    g_frame_i = (g_frame_i + 1) % FRAMES_IN_FLIGHT;
 }
 
 void pcgfx_gl_fence_set(void) {
