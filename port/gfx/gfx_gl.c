@@ -732,6 +732,9 @@ void pcgfx_gl_present_image(GfxTarget *t) {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, t->fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, G.present_fbo);
     glBlitFramebuffer(0, t->ph - ph, pw, t->ph, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    /* bound for drawing and reading are two others now: the next bind_fbo binds (with a high frame rate nothing may
+     * come between this and the next task's depth clear through t: it must not take t's as still bound) */
+    G.bound_fbo = (GLuint)-1;
     G.present_valid = 1;
     G.present_fw = t->w;
     G.present_rows = rows;

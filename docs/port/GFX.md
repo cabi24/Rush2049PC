@@ -540,6 +540,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 | `timing` | held, drawn, drawn, early (C late), then C; a period of 3; the presented image (screenshots) unchanged by a frame between; a redraw shows the frame between; off, a tick shows nothing and the present shows the frame |
 | `parse` | the setting's text; `display` is 60 without a display |
 | `hudedges` | the race HUD at the screen's edges in 16:9: a frame between draws the HUD's rectangle where the nearer frame has it, as the frames drawn directly do with `edges` and with `centered`, and further left with `edges` |
+| `depthclear` | B far, C near, D far again, with no tick between C's present and D's task: D's depth clear (through the last target, the z buffer as the color image) reaches the depth buffer, so D's object shows. Until 2026-10-28 the present's copy left another framebuffer bound for drawing while the renderer took C's as still bound, and from the second present on that clear went nowhere: with a high frame rate a frame could keep the last one's depth when no frame was shown between |
 | `gfx.interp.all.*` | every case at 2x, in 16:9, on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 ### The overlay
