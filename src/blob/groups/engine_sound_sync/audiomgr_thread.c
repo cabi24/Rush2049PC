@@ -197,7 +197,19 @@ static void _InsertSorted(tFxSequence *tag)
     InsertBSTE(&gSortedFxTagTree, stag);
 }
 
+#ifdef TARGET_PC
+/* PC: a start or stop the full queue refuses gives its message back (transform/group.c's entity_transform_calc says
+ * when the queue and the pool run out); the next priority pass sends it again. */
+static void _SendCmd(tAudioMsg *cmd)
+{
+    if (osSendMesg(&D_801427A8, cmd, 0) != 0) {
+        cmd->startEffect.tag->numCmds--;
+        cmd->hdr.used = 0;
+    }
+}
+#else
 static void _SendCmd(tAudioMsg *cmd) { osSendMesg(&D_801427A8, cmd, 0); }
+#endif
 
 static void _ProcessPriorities(void)
 {

@@ -211,6 +211,15 @@ void camera_clip_planes(s32 h, f32 *p, s32 unused, f32 a, f32 b)
     osSendMesg(&D_80142728, 0, 0);
 }
 
+#ifdef TARGET_PC
+/* PC: a stop that finds the message pool empty, or the manager's queue full, as entity_transform_calc
+ * (transform/group.c) handles a change. */
+#define PC_MSG_OR_UNLOCK(m) if((m)==0){osSendMesg(&D_80142728,0,0);return;}
+#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->msgCount--;(m)->used=0;}
+#else
+#define PC_MSG_OR_UNLOCK(m)
+#define PC_SEND_OR_GIVE_BACK(q,m,e) osSendMesg(q,m,0)
+#endif
 void scheduler_recv(s32 h)
 {
     Msg *m = 0;
@@ -219,14 +228,14 @@ void scheduler_recv(s32 h)
     osRecvMesg(&D_80142728, 0, 1);
     e = func_80091BA8(h);
     if (e != 0) {
-        m = func_80091B00();
+        m = func_80091B00(); PC_MSG_OR_UNLOCK(m)
         m->type = 6;
         m->ent = e;
         e->msgCount++;
     }
     osSendMesg(&D_80142728, 0, 0);
     if (m != 0) {
-        osSendMesg(&D_801427A8, m, 0);
+        PC_SEND_OR_GIVE_BACK(&D_801427A8, m, e);
     }
 }
 

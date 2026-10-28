@@ -52,13 +52,25 @@ Msg *func_80091B00(void) {
     }
     return 0;
 }
+#ifdef TARGET_PC
+/* PC: the message pool (128) and the manager's queue (128) can run out, which the N64's even retraces never
+ * let happen: on a loaded host the manager thread falls behind, and each retrace message it then finds queues
+ * another change per sound source. A change that finds no message, or no room in the queue, is dropped (the
+ * next retrace sends the sound's values again) and its message given back, instead of a write through NULL
+ * or a message lost for good (docs/port/QA.md "Integration soak"). */
+#define PC_MSG_OR_RETURN(m) if((m)==0)return;
+#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->msgCount--;(m)->used=0;}
+#else
+#define PC_MSG_OR_RETURN(m)
+#define PC_SEND_OR_GIVE_BACK(q,m,e) osSendMesg(q,m,0)
+#endif
 void entity_transform_calc(s32 h,f32 x,f32 y,f32 z,f32 w) {
     Msg *m=0;
     Entity *e=func_80091BA8(h);
     if(e!=0){
         if((x!=-2.0f && x!=e->x) || (y!=-2.0f && y!=e->y) ||
            (z!=-2.0f && z!=e->z) || (w!=-2.0f && w!=e->w)) {
-            m=func_80091B00();
+            m=func_80091B00();PC_MSG_OR_RETURN(m)
             m->type=4;
             m->ent=e;
             e->msgCount++;
@@ -68,7 +80,7 @@ void entity_transform_calc(s32 h,f32 x,f32 y,f32 z,f32 w) {
             if(w!=-2.0f && w!=e->w)m->payload.value.w=w; else m->payload.value.w=-2.0f;
         }
     }
-    if(m!=0)osSendMesg(&D_801427A8,m,0);
+    if(m!=0)PC_SEND_OR_GIVE_BACK(&D_801427A8,m,e);
 }
 void client_sync(s32 h,f32 opacity) {
     osRecvMesg(&D_80142728,0,1);

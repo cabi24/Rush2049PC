@@ -99,10 +99,12 @@ ALIAS(D_80149868, D_80149860, 8);                   /* the active sequences' hea
 /* ---------------------------------------------------------------- what the code under test calls */
 
 static void *g_sent[8];
-static int g_nsent;
+static int g_nsent, g_queue_full;
 int32_t osRecvMesg(void *mq, void *msg, int32_t flag) { return 0; }
 int32_t osSendMesg(void *mq, void *msg, int32_t flag)
 {
+    if (mq == D_801427A8 && g_queue_full)
+        return -1;   /* OS_MESG_NOBLOCK on a full queue */
     if (mq == D_801427A8 && g_nsent < 8)
         g_sent[g_nsent++] = msg;
     return 0;
@@ -213,6 +215,26 @@ static void fx_tags(void)
     CHECK(D_80142DD8[2].intr.tag == &g_tags[2] && g_tags[2].numCmds == 2);
     /* the pool's slots are 0x20 bytes apart */
     CHECK(func_80091B00() == &D_80142DD8[3] && D_80142DD8[3].hdr.used == 1 && D_80142DD8[3].hdr.type == -1);
+
+    /* The pool and the queue running out (docs/port/QA.md "Integration soak": a retail race faulted at address 2
+     * when the manager thread fell behind): a change or a stop with every message in use is dropped, and one the
+     * full queue refuses gives its message back, the tag's command count as it was. */
+    for (int i = 0; i < 128; i++)
+        D_80142DD8[i].hdr.used = 1;
+    g_nsent = 0;
+    g_tags[2].numCmds = 0;
+    entity_transform_calc(0x102, 0.75f, -2.0f, -2.0f, -2.0f);
+    scheduler_recv(0x102);
+    CHECK(g_nsent == 0 && g_tags[2].numCmds == 0);
+    D_80142DD8[77].hdr.used = 0;
+    g_queue_full = 1;
+    entity_transform_calc(0x102, 0.75f, -2.0f, -2.0f, -2.0f);
+    CHECK(g_nsent == 0 && g_tags[2].numCmds == 0 && D_80142DD8[77].hdr.used == 0);
+    scheduler_recv(0x102);
+    CHECK(g_nsent == 0 && g_tags[2].numCmds == 0 && D_80142DD8[77].hdr.used == 0);
+    g_queue_full = 0;
+    entity_transform_calc(0x102, 0.75f, -2.0f, -2.0f, -2.0f);
+    CHECK(g_nsent == 1 && g_sent[0] == &D_80142DD8[77] && g_tags[2].numCmds == 1 && D_80142DD8[77].hdr.used == 1);
 }
 
 static void sequences(void)
