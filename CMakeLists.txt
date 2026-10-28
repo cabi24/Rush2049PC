@@ -470,13 +470,14 @@ enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
 # A sanitizer build's fault handler names the N64 thread, then hands the fault to AddressSanitizer's, which reports
-# it with its own stack (docs/port/SANITIZE.md 1): the blank cartridge's boot faults in audio_helper.
+# it with its own stack (docs/port/SANITIZE.md 1): the blank cartridge's boot faults in audio_helper. (CMake's "."
+# takes a newline; an alternation such as (.|\n)* backtracks for minutes over the report.)
 if(PC_SANITIZE_ADDRESS)
     add_test(NAME sanitize_fault_chain COMMAND rush2049pc --no-rom --headless --fast --seconds 10 --no-config
         --audio null --no-pak --no-log)
     set_tests_properties(sanitize_fault_chain PROPERTIES
         ENVIRONMENT "ASAN_OPTIONS=handle_segv=1:detect_leaks=0;UBSAN_OPTIONS=halt_on_error=0"
-        PASS_REGULAR_EXPRESSION "Segmentation fault at address [^\n]* in N64 thread [^\n]*\n(.|\n)*ERROR: AddressSanitizer: SEGV")
+        PASS_REGULAR_EXPRESSION "Segmentation fault at address [^\n]* in N64 thread .*ERROR: AddressSanitizer: SEGV")
 endif()
 if(WIN32)
     # The subsystem, the image base and ASLR, the icon's sizes and the version information, from the file itself
