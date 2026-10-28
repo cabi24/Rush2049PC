@@ -24,8 +24,12 @@ unchanged for minutes.
 With --pacing R[,R...] it runs the race once at each video.frame_rate R (display, 60, 120) under a vsync swap
 (RUSH_SIM_VSYNC_HZ, --vsync-hz; the ticks are then paced by the display's vblanks, docs/port/FRAMERATE.md 2) and
 checks each run's retraces and audio as above and its frames: at most 10% of the display's vblanks lost to skipped
-ticks, and at least --min-between frames drawn between the game's (main before the pacing: 16-104 in 36 s; paced,
-on rocky: 400-600 in 30 s). --timer-step-us 0 leaves the loop's waits precise, as Windows' high-resolution timer has
+ticks, and at least --between-ratio (0.5) of the frames drawn between the game's that the same host draws in the
+same race with vsync off (the scheduling before the pacing, a run of its own at 60 first), and at least
+--min-between. How many frames between a host draws depends on its GPU (or CPU renderer: llvmpipe on CI's runners
+draws 80-140 in 30 s, the Pi 5 150, rocky 600-670) far more than on the pacing, which this bound is about: main
+before the pacing drew 16-104 in 36 s where vsync off drew 264. On Windows --pacing is skipped (exit 77): the model
+is Linux's, and a headless run there has no vsync swap to pace by. --timer-step-us 0 leaves the loop's waits precise, as Windows' high-resolution timer has
 them (sched.c); the default 15625 makes them coarse, where the swap is the clock.
 
 The modelled display (the headless model in port/ultra/loop.c, docs/port/FRAMERATE.md 4): --vsync-queue N makes it a
@@ -60,7 +64,9 @@ def main():
     ap.add_argument("--pacing", help="frame rates to check the pacing of under a vsync swap, e.g. display,60,120")
     ap.add_argument("--vsync-hz", default="59.94", help="the modelled display's refresh (RUSH_SIM_VSYNC_HZ)")
     ap.add_argument("--timer-step-us", default="15625", help="the modelled timed waits' step (0: precise)")
-    ap.add_argument("--min-between", type=int, default=250, help="--pacing: frames drawn between, at least")
+    ap.add_argument("--min-between", type=int, default=0, help="--pacing: frames drawn between, at least")
+    ap.add_argument("--between-ratio", type=float, default=0.5, help="--pacing: frames drawn between, at least this "
+                    "fraction of the same race's with vsync off on this host (0: no reference run)")
     ap.add_argument("--vsync-queue", default="", help="the modelled driver queues this many frames (never: no swap "
                     "blocks; RUSH_SIM_VSYNC_QUEUE)")
     ap.add_argument("--vsync-phase", default="", help="the vblanks this fraction of a refresh after the first retrace")
@@ -71,7 +77,15 @@ def main():
                     "decided for them, at most")
     args = ap.parse_args()
     if args.pacing:
+        if os.name == "nt":
+            print("realtime_check: --pacing models a vsync swap on Linux; a headless run on Windows has none: skipped")
+            return 77
         ok = True
+        args.ref_between = 0
+        if args.between_ratio > 0:
+            args.ref_between = reference(args, Path(args.logs).resolve() / "reference")
+            if args.ref_between < 0:
+                return 1
         for timing in (args.display_timing.split(",") if args.display_timing else [""]):
             for rate in args.pacing.split(","):
                 drv = {"": "a vsync swap", "0": "a vsync swap", "never": "a queueing driver whose swap never blocks"}
@@ -86,6 +100,31 @@ def main():
                 ok &= check(args, rate, Path(args.logs).resolve() / name, timing) == 0
         return 0 if ok else 1
     return check(args, args.frame_rate, Path(args.logs).resolve())
+
+
+def reference(args, logs):
+    """The frames drawn between in the same race at 60 with vsync off (the scheduling before the pacing): what this
+    host's renderer manages, the frames-between bound's reference. -1 when the run has no frame rate line."""
+    logs.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, SDL_AUDIODRIVER="disk", SDL_DISKAUDIOFILE=str(logs / "disk.raw"),
+               RUSH2049_AUDIO_RATE="48000")
+    if args.timer_step_us not in ("", "0"):
+        env.update(RUSH_SIM_TIMER_STEP_US=args.timer_step_us)
+    for key in ("RUSH_SIM_VSYNC_HZ", "RUSH_SIM_VSYNC_QUEUE", "RUSH_SIM_VSYNC_PHASE", "RUSH_SIM_DISPLAY_HZ",
+                "RUSH_SIM_DISPLAY_TIMING", "RUSH_SIM_PRESENT_MS"):
+        env.pop(key, None)
+    cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
+           "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
+           "--seconds", str(args.seconds), "--audio", "sdl", "--frame-rate", "60"]
+    p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
+    out = p.stdout.decode(errors="replace")
+    (logs / "run.log").write_text(out)
+    m = re.search(r"^gfx: frame rate \d+: (\d+) frames shown, (\d+) drawn between two", out, re.M)
+    if not m:
+        print("realtime_check: the reference run (vsync off, 60) has no frame rate line")
+        return -1
+    print(f"realtime_check: reference, the same race at 60 with vsync off on this host: {m[2]} frames drawn between")
+    return int(m[2])
 
 
 def check(args, frame_rate, logs, timing=""):
@@ -122,10 +161,12 @@ def check(args, frame_rate, logs, timing=""):
             return 1
         between, skipped = int(m[2]), int(k[1])
         vblanks = args.seconds * float(args.vsync_hz)
-        good = skipped <= 0.10 * vblanks and between >= args.min_between
+        need = max(args.min_between, int(args.between_ratio * getattr(args, "ref_between", 0) + 0.5))
+        good = skipped <= 0.10 * vblanks and between >= need
         ok &= good
         print(f"realtime_check: {vblanks:.0f} vblanks ({v[1]} Hz measured), {skipped} lost to skipped ticks (at most 10%), "
-              f"{between} frames drawn between (at least {args.min_between}): {'ok' if good else 'FAIL'}")
+              f"{between} frames drawn between (at least {need}: {args.between_ratio:g} of vsync off's"
+              f"{', and ' + str(args.min_between) if args.min_between else ''}): {'ok' if good else 'FAIL'}")
         if args.max_doubled >= 0:
             d = re.search(r"^rush2049pc: simulated vsync at [\d.]+ Hz, [^:]*: (\d+) vblanks, (\d+) showed no new frame, "
                           r"(\d+) of them with none decided", out, re.M)

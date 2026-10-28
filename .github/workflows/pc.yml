@@ -210,8 +210,8 @@ jobs:
           cmake --build build/san -j4 2>&1 | cut -c1-2000
           ccache -s | grep -iE "hits|misses|cache size" || true
       - name: Tests
-        # audio_realtime and input_live_drive measure real time, which the sanitizers slow down.
-        run: ctest --test-dir build/san --output-on-failure -j4 -E '^(audio_realtime|input_live_drive)$'
+        # audio_realtime, input_live_drive and the hfr_paced tests measure real time, which the sanitizers slow down.
+        run: ctest --test-dir build/san --output-on-failure -j4 -E '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60)$'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
