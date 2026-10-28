@@ -22,9 +22,20 @@ typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x1C]; } Slot18;
 typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x14]; } Slot18;
 #endif
 extern volatile Slot18 D_80142DD8[128];
+#ifdef TARGET_PC
+/* PC test hook (docs/port/QA.md "Integration soak", fix 6): with pc_audio_pool_fail_every N > 0, every Nth call
+ * finds the pool empty, as a starved host's would, to run its callers' guards; port/main.c sets it from
+ * RUSH2049_TEST_AUDIO_POOL_FAIL. 0, the default, never. */
+int pc_audio_pool_fail_every;
+static unsigned int pc_audio_pool_calls;
+#define PC_POOL_TEST_FAIL() \
+    if(pc_audio_pool_fail_every>0&&++pc_audio_pool_calls%(unsigned int)pc_audio_pool_fail_every==0)return 0;
+#else
+#define PC_POOL_TEST_FAIL()
+#endif
 Slot18 *func_80091B00(void)
 {
-    s32 i;
+    s32 i; PC_POOL_TEST_FAIL()
     for (i = 0; i < 128; i++) {
         if (D_80142DD8[i].f3 == 0) {
             D_80142DD8[i].f3 = 1;

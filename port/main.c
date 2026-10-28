@@ -543,6 +543,23 @@ static int rush_main(int argc, char **argv)
     if (no_rom)
         blank_files();
     musyx_services(no_rom);
+    /* RUSH2049_TEST_AUDIO_POOL_FAIL=N (tests): every Nth audio command finds the audio manager's message pool
+     * empty, as on a starved host, so its callers' guards run in menus, race starts and object creation
+     * (docs/port/QA.md "Integration soak", fix 6). N >= 2: the audio shutdown waits for a message, and with 1
+     * none would ever come. */
+    {
+        extern int pc_audio_pool_fail_every;   /* src/blob/groups/slot18_alloc/func_80091B00.c */
+        const char *e = getenv("RUSH2049_TEST_AUDIO_POOL_FAIL");
+        if (e && *e) {
+            int n = atoi(e);
+            if (n >= 2) {
+                pc_audio_pool_fail_every = n;
+                fprintf(stderr, "rush2049pc: test: one audio command in %d finds the message pool empty\n", n);
+            } else {
+                fprintf(stderr, "rush2049pc: RUSH2049_TEST_AUDIO_POOL_FAIL takes a number from 2, not '%s'\n", e);
+            }
+        }
+    }
     /* Textures (docs/port/TEXTURES.md): the pack, the dump and the upscaled textures' cache are in the data folder;
      * the environment's own (RUSH_GFX_TEXTURE_*) stay. */
     {
