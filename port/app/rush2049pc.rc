@@ -1,0 +1,37 @@
+/* port/app/rush2049pc.rc: rush2049pc.exe's resources (docs/port/WINDOWS.md, "Icon and version"), compiled by
+ * mingw-w64's windres. The icon is dist/rush2049pc.ico, which tools/port/make_icon.py makes from
+ * dist/rush2049pc.svg (16 to 256 px). The version is git describe's, as --version and the log give it:
+ * cmake/version.cmake writes pc_version_rc.h at each build. The names are the project's own: no company, and
+ * nothing of the game's. */
+#include <winver.h>
+#include "pc_version_rc.h"
+
+1 ICON "rush2049pc.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION PC_VERSION_NUM
+PRODUCTVERSION PC_VERSION_NUM
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "Comments", "An unofficial PC port, compiled from a decompilation. It holds no game data: it plays the player's own ROM of the cartridge. https://github.com/cabi24/Rush2049PC"
+            VALUE "FileDescription", "Rush2049PC (unofficial PC port)"
+            VALUE "FileVersion", PC_VERSION_STR
+            VALUE "InternalName", "rush2049pc"
+            VALUE "OriginalFilename", "rush2049pc.exe"
+            VALUE "ProductName", "Rush2049PC"
+            VALUE "ProductVersion", PC_VERSION_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

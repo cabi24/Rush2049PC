@@ -9,6 +9,8 @@
  * doesn't move with the image; the others are printed as module + offset. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <fcntl.h>
+#include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,6 +81,53 @@ static HMODULE module_of(const void *pc, uintptr_t *text_off)
     return m;
 }
 
+/* addr2line's output, or NULL when there is none on PATH. Run directly (not through cmd.exe, as _popen would), with
+ * no window: rush2049pc.exe is a GUI program, and a console program it starts without a console of its own to share
+ * would get a new console window. *proc is the process, for close_tool. */
+static FILE *run_tool(char *cmd, HANDLE *proc)
+{
+    SECURITY_ATTRIBUTES sa = {sizeof sa, NULL, TRUE};
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    HANDLE r, w, nul;
+    *proc = NULL;
+    if (!CreatePipe(&r, &w, &sa, 0))
+        return NULL;
+    SetHandleInformation(r, HANDLE_FLAG_INHERIT, 0);
+    nul = CreateFileA("NUL", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING, 0,
+                      NULL);
+    memset(&si, 0, sizeof si);
+    si.cb = sizeof si;
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = nul, si.hStdOutput = w, si.hStdError = nul;
+    BOOL ok = CreateProcessA(NULL, cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+    CloseHandle(w);
+    if (nul != INVALID_HANDLE_VALUE)
+        CloseHandle(nul);
+    if (!ok) {
+        CloseHandle(r);
+        return NULL;
+    }
+    CloseHandle(pi.hThread);
+    *proc = pi.hProcess;
+    int fd = _open_osfhandle((intptr_t)r, _O_RDONLY | _O_TEXT);
+    FILE *f = fd >= 0 ? _fdopen(fd, "r") : NULL;
+    if (!f) {
+        fd >= 0 ? _close(fd) : CloseHandle(r);
+        TerminateProcess(pi.hProcess, 1);
+        CloseHandle(pi.hProcess);
+        *proc = NULL;
+    }
+    return f;
+}
+
+static void close_tool(FILE *f, HANDLE proc)
+{
+    fclose(f);
+    WaitForSingleObject(proc, 5000);
+    CloseHandle(proc);
+}
+
 /* fault_first: pcs[0] is the faulting instruction itself, looked up at its own address; the others are return
  * addresses, looked up 1 byte before (inside the call), as a fault on a function's first instruction would otherwise
  * be put in the function before. */
@@ -89,6 +138,7 @@ static void print_frames(void **pcs, int n, int fault_first)
     uintptr_t off[MAX_FRAMES];
     int len, i;
     FILE *p = NULL;
+    HANDLE proc = NULL;
     if (n > MAX_FRAMES)
         n = MAX_FRAMES;
     for (i = 0; i < n; i++)
@@ -98,8 +148,7 @@ static void print_frames(void **pcs, int n, int fault_first)
         for (i = 0; i < n && len < (int)sizeof cmd - 24; i++)
             if (mod[i] == self && off[i] != (uintptr_t)-1)
                 len += snprintf(cmd + len, sizeof cmd - (size_t)len, " 0x%llx", (unsigned long long)off[i]);
-        snprintf(cmd + len, sizeof cmd - (size_t)len, " 2>NUL");
-        p = _popen(cmd, "r");
+        p = run_tool(cmd, &proc);
     }
     for (i = 0; i < n; i++) {
         if (mod[i] == self && off[i] != (uintptr_t)-1 && p && fgets(line, sizeof line, p) && strncmp(line, "??", 2))
@@ -112,7 +161,7 @@ static void print_frames(void **pcs, int n, int fault_first)
             fprintf(stderr, "  #%-2d %p\n", i + 1, pcs[i]);
     }
     if (p)
-        _pclose(p);
+        close_tool(p, proc);
 }
 
 void pc_print_backtrace(int skip)

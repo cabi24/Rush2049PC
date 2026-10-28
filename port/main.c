@@ -250,7 +250,7 @@ static int rush_main(int argc, char **argv)
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
         const char *v = i + 1 < argc ? argv[i + 1] : NULL;
-#define ARG() (v ? (i++, v) : (fprintf(stderr, "rush2049pc: %s needs a value\n", a), exit(2), ""))
+#define ARG() (v ? (i++, v) : (fprintf(stderr, "rush2049pc: %s needs a value\n", a), pc_app_finish(2), exit(2), ""))
 #define SET(s, k, val)                                                                                        \
     do {                                                                                                      \
         if (nover > MAX_OVERRIDES) {                                                                          \
@@ -385,7 +385,10 @@ static int rush_main(int argc, char **argv)
             return 0;
         } else {
             fprintf(stderr, "rush2049pc: unknown option %s\n", a);
-            usage(stderr);
+            if (pc_app_console_quiet())   /* the error's message box shows the last lines: not the usage's */
+                fprintf(stderr, "rush2049pc: rush2049pc --help lists the options\n");
+            else
+                usage(stderr);
             return 2;
         }
 #undef SET
@@ -504,6 +507,11 @@ static int rush_main(int argc, char **argv)
                      "Updating the graphics driver usually fixes this. The log says more.");
         return 1;
     }
+    if (!headless)
+        pc_app_window_icon();   /* Linux; Windows' window has the executable's icon */
+    static char title_tag[80];
+    snprintf(title_tag, sizeof title_tag, "Rush2049PC %s", pc_app_version());
+    pc_input_title_tag = title_tag;
     /* What the program writes goes into the data folder: next to it when portable, else the user data folder
      * (port/app/paths.c); paths from the command line are from the working directory. */
     char pak_path[PC_APP_PATH], dir[PC_APP_PATH];
@@ -550,6 +558,7 @@ static int rush_main(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+    pc_app_startup();   /* Windows: the console (or none), the timer period (port/app/startup.c) */
     int code = rush_main(argc, argv);   /* returns only when it stops early: an error, --help, --print-config... */
     pc_app_finish(code);
     return code;

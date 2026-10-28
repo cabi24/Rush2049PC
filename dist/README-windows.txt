@@ -9,11 +9,13 @@ Playing
 1. Copy your ROM into this folder and name it baserom.us.z64. It must be San Francisco Rush 2049 (USA),
    SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. .z64, .v64 and .n64 dumps all work; a .zip must be
    extracted first.
-2. Double-click rush2049pc.exe. A console window opens next to the game's window and shows what the program
-   is doing; closing either one quits.
+2. Double-click rush2049pc.exe. The game opens in its own window.
 
 Or drag the ROM file onto rush2049pc.exe, whatever it is called and wherever it is. From a command prompt:
-rush2049pc.exe D:\roms\rush2049.z64 (or --rom PATH). rush2049pc.exe --help lists every option.
+rush2049pc.exe D:\roms\rush2049.z64 (or --rom PATH). rush2049pc.exe --help lists every option. The program
+prints into the command prompt's window, but the prompt doesn't wait for it, so its output can come after the
+next prompt (press Enter for a new one). To wait for it: start /wait rush2049pc.exe --help (cmd), or
+rush2049pc.exe --help | Out-Host (PowerShell).
 
 Where the program looks for the ROM, in this order:
   - the file dropped on it, or named on the command line;
@@ -97,11 +99,10 @@ Troubleshooting
   what the stick gives, live, and the log names each controller found and its player. A pad SDL doesn't know
   gets a generic mapping and takes a player at its first button press: rebind it in F1 > Controllers, or put
   SDL's gamecontrollerdb.txt (with a line for it) in this folder. Xbox pads go through XInput.
-- The log: everything the console shows is also written to rush2049pc.log, in this folder (or in
-  %APPDATA%\rush2049pc without rush2049pc.ini: type that into Explorer's address bar). The console's first
-  line says where. The run before is kept as rush2049pc.old.log.
-- If the program stops with an error, a message box says where the log is, and the console window stays
-  open until you press a key.
+- The log: everything the program prints is written to rush2049pc.log, in this folder (or in
+  %APPDATA%\rush2049pc without rush2049pc.ini: type that into Explorer's address bar). The run before is kept
+  as rush2049pc.old.log.
+- If the program stops with an error, a message box says what went wrong and where the log is.
 - Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; rush2049pc.exe --version
   says which build you have)
 

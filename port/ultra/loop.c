@@ -106,23 +106,17 @@ static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
 void osSetTime(uint64_t ticks);   /* timer.c */
 
 #ifdef _WIN32
-/* A 1 ms timer period while the loop runs. Windows 11 may ignore the request from a process nobody sees (a
- * headless run, the hidden GL window) unless the process opts out of that power throttling, which needs Windows 8's
- * SetProcessInformation (looked up, so older Windows still start). winpthreads' timed waits stay at 15.6 ms steps
- * anyway (sched.c), and a machine may refuse the period, so the scheduler doesn't rely on it. */
+/* A 1 ms timer period while the loop runs. The program asks for it at startup too, for the whole run, with the
+ * opt-out from Windows 11's power throttling that would otherwise ignore it in a process nobody sees (a headless
+ * run, the game minimized): port/app/startup.c. A program that runs the loop without that startup still gets the
+ * period here. winpthreads' timed waits stay at 15.6 ms steps anyway (sched.c), and a machine may refuse the period,
+ * so the scheduler doesn't rely on it. */
 static void timer_period(int on)
 {
-    typedef BOOL(WINAPI * SetInfo)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
-    if (!on) {
+    if (on)
+        timeBeginPeriod(1);
+    else
         timeEndPeriod(1);
-        return;
-    }
-    SetInfo set = (SetInfo)(void *)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetProcessInformation");
-    PROCESS_POWER_THROTTLING_STATE s = {PROCESS_POWER_THROTTLING_CURRENT_VERSION,
-                                        PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION, 0};
-    if (set)
-        set(GetCurrentProcess(), ProcessPowerThrottling, &s, sizeof s);
-    timeBeginPeriod(1);
 }
 #endif
 

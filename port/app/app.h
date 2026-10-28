@@ -69,6 +69,24 @@ int pc_app_alert(int show, const char *title, const char *text);
 /* The same with Windows' own MessageBoxA there (no SDL: for a fault, inside the exception filter). */
 int pc_app_alert_native(int show, const char *title, const char *text);
 
+/* ---------------------------------------------------------------- startup.c: the console, the process */
+
+/* First thing in main. Windows: a program started without standard handles (rush2049pc.exe is a GUI program)
+ * attaches to its parent's console and prints there, or, with none to attach to, keeps what it prints in memory
+ * (quiet); then the timer period and power throttling for the run. RUSH2049_CONSOLE=none: quiet on any system. */
+void pc_app_startup(void);
+int pc_app_console_quiet(void);   /* nobody sees what the program prints: errors need a message box */
+/* The last lines printed (quiet only; "" otherwise): up to 12. */
+void pc_app_console_tail(char *out, size_t size);
+int pc_app_console_print_fd(void);   /* where RUSH2049_MESSAGE_BOX=print writes: the real stderr */
+void pc_app_box_shown(void);         /* alert.c: a box was shown (or printed) */
+int pc_app_box_was_shown(void);
+
+/* ---------------------------------------------------------------- icon.c: the window's icon */
+
+/* The program's icon on the SDL window (Linux; on Windows the window takes the executable's icon resource). */
+void pc_app_window_icon(void);
+
 /* ---------------------------------------------------------------- log.c: the version, the log, the end */
 
 const char *pc_app_version(void);                   /* git describe at build time (cmake/version.cmake) */

@@ -30,16 +30,19 @@ pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x
 cmake -S . -B build/pc -G Ninja && cmake --build build/pc && ctest --test-dir build/pc
 ```
 
-**The program.** `rush2049pc.exe` is a console program. It takes the same options as on Linux
-([ULTRA.md](ULTRA.md) §4).
+**The program.** `rush2049pc.exe` is a GUI program: no console window opens with it, and from cmd.exe or
+PowerShell it prints into their window (section 10). It takes the same options as on Linux ([ULTRA.md](ULTRA.md)
+§4).
 
 - zlib and the MinGW runtime are linked in. An MSYS2 build with MSYS2's SDL2 also needs `SDL2.dll`.
 - Settings: `rush2049pc.ini` next to the program (a portable install), else `%APPDATA%\rush2049pc\rush2049pc.ini`.
   `XDG_CONFIG_HOME` and `HOME` are not used. The controller pak, screenshots and `rush2049pc.log` go next to the
   program when the ini is there, else into `%APPDATA%\rush2049pc` ([RELEASE.md](RELEASE.md) "Files").
-- A double-clicked program (its own console) waits for a key after an error or a fault, and a fault shows a
-  message box naming the log ([RELEASE.md](RELEASE.md) "The log"). The log's first lines name the commit and the
-  Actions run, so its `rush2049pc.exe+0x...` frames can be symbolized with that run's exe.
+- A double-clicked program has no console to show what it prints: an error or a fault shows a message box with
+  what went wrong and the log's path (section 10, [RELEASE.md](RELEASE.md) "The log"). The log's first lines name
+  the commit and the Actions run, so its `rush2049pc.exe+0x...` frames can be symbolized with that run's exe.
+- The executable has an icon and version information (section 10): Explorer's Properties, Details tab, shows the
+  version as `--version` gives it.
 - A ROM dropped on `rush2049pc.exe` arrives as its first argument, which the program takes for `--rom`.
 - **Ctrl-Break** prints the N64 threads' states (Ctrl-\ on Linux). Ctrl-C quits.
 - **Headless rendering** needs an OpenGL 3 driver. With a GPU driver installed there is one. Windows' own renderer
@@ -303,6 +306,9 @@ on aarch64).
   is copied next to the programs.
 - **Retries.** A failing test is run again under gdb.
 - **The other jobs.** The Linux and n64-neutral jobs are unchanged.
+- **The GUI program** (section 10) runs in these jobs as the console program did: they redirect its output to files
+  and pipes, which it uses as they are. `win_pe` is one of the `windows` job's tests; `windows-cross` runs no ctest,
+  but `ctest --test-dir build/win -R win_pe` works on its host.
 
 **Results** (run 40558632666, 2026-10-27; all six jobs pass):
 
@@ -329,10 +335,124 @@ Before the synthetic paths (run 40503877913, 2026-10-27):
     `car_shadow_render` ← … ← `game_init`, symbolized. That is the blank cartridge's zero data in AudioSfxInit,
     the same fault Linux stops at.
 
-## 10. Untested
+## 10. A Windows program: the console, the icon, the version
+
+`rush2049pc.exe` behaves as a Windows game does: no console window, an icon, version information. Written
+2026-10-27; checked on the cross build's PE header (`win_pe`) and, for what CI can see, by `app_firstrun`. Not yet on
+a desktop (section 11).
+
+### The console
+
+**A GUI program.** The executable is linked with `-mwindows` (CMake's `WIN32_EXECUTABLE`), so its PE subsystem is
+GUI (2), and Windows never makes a console for it. `-DRUSH_WINDOWS_CONSOLE=ON` builds the console program it was
+before.
+
+Why not a console program that hides or frees its console when it is the console's only process? Windows makes a
+console program's console in `CreateProcess`, from the PE header, before any of the program runs. So:
+
+- the program can only remove the console after it has appeared: a window that flashes up at every launch;
+- on Windows 11 the console is usually Windows Terminal's (the default terminal since 22H2). That window is the
+  terminal's: `ShowWindow(GetConsoleWindow(), SW_HIDE)` doesn't hide it, and after `FreeConsole` the terminal still
+  waits on the program, so its tab stays open until the game ends.
+
+A GUI program never gets a console it didn't ask for, wherever it is started from: Explorer, a shortcut, a launcher.
+
+**Where the output goes.** First thing in `main` (`pc_app_startup`, `port/app/startup.c`), for stdin, stdout and
+stderr:
+
+| Started from | Its standard handles | What the program does |
+|---|---|---|
+| a script, CI, a launcher that redirects (`> file`, a pipe) | files or pipes | nothing: they are used as they are |
+| cmd.exe, PowerShell, Windows Terminal | none: a GUI program gets no console | `AttachConsole(ATTACH_PARENT_PROCESS)`, and the streams without a handle are opened on `CONIN$`/`CONOUT$`: the output appears in the prompt's window |
+| Explorer (a double-click, a ROM dropped on it), a shortcut | none, and no console to attach to | "quiet": stdin is `NUL`; stdout and stderr go into a pipe whose reader keeps the last 4 KiB |
+
+- A `NUL` the user asked for (`2>nul`) stays: attaching leaves a handle the parent passed alone.
+- The C runtime set up its descriptors before `main`, from the handles it had. A stream without one is reopened with
+  `freopen` on the descriptor it should have (0, 1 or 2: its slot is closed first, and the lowest free descriptor is
+  taken), so that the log's redirection of fd 2 ([RELEASE.md](RELEASE.md) "The log") still gets everything printed
+  to `stderr`. msvcrt leaves such a stream on its descriptor with no handle behind it; the UCRT also sets the
+  stream's own descriptor to -2.
+- `SetStdHandle` then gives Windows the same handles, for the fault handler's `WriteFile` and for SDL.
+
+**The cost:** cmd.exe and PowerShell don't wait for a GUI program. `rush2049pc.exe --help` prints after the prompt
+has come back (Enter gives a new prompt), and `%ERRORLEVEL%` or `$LASTEXITCODE` isn't the program's. A batch file
+does wait. To wait from a prompt: `start /wait rush2049pc.exe --version` (cmd.exe), `rush2049pc.exe --version |
+Out-Host` (PowerShell), or redirect the output (`> out.txt`), which works from anywhere. Ctrl-C and Ctrl-Break
+reach an attached program as before (section 5).
+
+**Errors with nobody to see them.** When the program is quiet:
+
+- the log is written as always: `log.c` copies stderr to `rush2049pc.log` and to what fd 2 was, the pipe;
+- an error exit (`pc_app_finish` with a nonzero code: no ROM with `--headless`, a command-line or settings error, no
+  RDRAM window, ...) that no message box has explained yet shows one, "Rush 2049 PC stopped", with the last lines
+  printed (up to 12), the log's path and where to report it. An unknown option prints a line that `--help` lists
+  the options, not the usage itself, which would fill the box;
+- a fault shows its box ("Rush 2049 PC stopped", the fault's line) with or without a window;
+- there is no "press a key" wait: there is no console window to keep open. The wait stays for a console build and
+  for `RUSH2049_WAIT_KEY=1`.
+
+`RUSH2049_CONSOLE=none` makes any run quiet, on Linux too; with `RUSH2049_MESSAGE_BOX=print` the boxes are printed to
+the real stderr. `app_firstrun` uses it: an error (two ROMs dropped), an unknown option (the box has the error, not
+the usage), no ROM with a window (the ROM's own box and no second one, the log written), `--version` (nothing), and on
+Windows a fault (its box, the log with the report). It also checks that `--help` and `--print-config` reach a pipe.
+
+**Also:**
+
+- The C runtime's own messages (`abort`, `assert`) go to stderr, `_set_error_mode(_OUT_TO_STDERR)`. A GUI program's
+  would be message boxes, which would hold a test run until someone clicks them.
+- The fault handler runs `addr2line` with `CreateProcess` and `CREATE_NO_WINDOW` (`win32.c`'s `run_tool`), not
+  `_popen`, which runs `cmd.exe`: a console program, which a GUI program without a console would show in a new
+  console window.
+
+### Icon and version
+
+- **`port/app/rush2049pc.rc`**, compiled by the toolchain's windres (`enable_language(RC)`):
+  - icon 1, `dist/rush2049pc.ico`: `dist/rush2049pc.svg` drawn at 16, 20, 24, 32, 40, 48, 64, 128 and 256 px (the
+    small and large icons at 100% to 250% scaling, and 256), each at its own size; BMP below 64 px, PNG from 64;
+  - VERSIONINFO: ProductName `Rush2049PC`, FileDescription `Rush2049PC (unofficial PC port)` (Task Manager shows
+    it), a comment that it is an unofficial port that holds no game data, FileVersion and ProductVersion as
+    `git describe` gives them (the log's version), and FILEVERSION their numbers: `v1.2.0-3-gabc1234` is 1.2.0.3,
+    0.0.0.0 before any tag. No company, and none of the game's names.
+- `cmake/version.cmake` writes `pc_version_rc.h` next to `pc_version.c` at each build, when it changes.
+- **`tools/port/make_icon.py`** makes the .ico and `port/app/icon_data.h` from the SVG, with pycairo. Both are
+  committed, so a build needs neither. It draws only what the SVG uses (`rect`, `path` with M, L, H, V and Z, fill,
+  stroke) and stops at anything else.
+- **The window's icon.** SDL 2.30 registers its window class with the executable's first icon group and leaves the
+  small icon to Windows, which picks the size for the DPI. So the window, the taskbar and Alt-Tab get the .ico's own
+  images. `SDL_SetWindowIcon` would replace them with one scaled image, so it is used on Linux only
+  (`port/app/icon.c`, a 64 px copy).
+- **The window's title** ends with the version: "San Francisco Rush 2049 - Rush2049PC v1.0", "(paused)" after the
+  name while the game is held.
+- **`win_pe`** (`tools/port/pe_check.py`; Python only, so it runs on the host that cross-compiles too): the subsystem,
+  the image base 0x140000000 with high-entropy ASLR (section 3), the icon's nine sizes, and the version strings and
+  numbers against the build's `pc_version_rc.h`.
+
+### The process
+
+- **The timer period**: `timeBeginPeriod(1)` at startup, for the whole run. The main loop's own request (section 5)
+  stays; requests nest. Since Windows 10 2004 the period is the process's own, and SDL asks for 1 ms as well while it
+  is initialized.
+- **Power throttling**: `SetProcessInformation(ProcessPowerThrottling)` turns off both the timer-resolution and the
+  execution-speed throttling (EcoQoS) for the process, the documented opt-outs, so a headless run, or the game in
+  the background with `pause_on_focus_loss` off, keeps its timing. Looked up (Windows 8 and later); a Windows that
+  doesn't know the timer flag refuses the pair, and gets execution speed alone. It moved here from the main loop:
+  a second call with one flag would hand the other back to the system.
+- **Game Mode**: no documented API asks for it (`HasExpandedResources` only reports it). Windows decides, from its
+  list of games or the Game Bar's "Remember this is a game". Nothing is done.
+- **Alt-Tab in fullscreen.** `SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS` stays at SDL's default ("auto"), which fits
+  both of `video.fullscreen_mode`'s modes ([GFX.md](GFX.md) "Window and display"): `desktop`, a borderless window,
+  isn't minimized and stays drawn (on a second monitor too); `exclusive` is minimized, so that the desktop's display
+  mode comes back. Whether the game holds meanwhile is `video.pause_on_focus_loss`, a separate matter (off by
+  default: it keeps running, controllers too). Setting the hint to 0 would leave an exclusive mode's resolution on
+  the desktop after Alt-Tab; 1 would minimize the borderless window as well.
+
+## 11. Untested
 
 - A real Windows desktop: a GPU driver's WGL contexts (only llvmpipe ran), a visible window, fullscreen,
   vsync, high DPI.
+- The console (section 10) from cmd.exe, PowerShell and Windows Terminal, and a double-click's message boxes: CI
+  runs the program with redirected output only, and its quiet case through `RUSH2049_CONSOLE=none`. The icon in
+  Explorer, the taskbar and Alt-Tab.
 - Audio through a real device (SDL's WASAPI/DirectSound). CI uses the null backend and SDL's disk driver. On a
   machine with no audio endpoint, as the runners, `audio = auto` spends about 8 s in SDL's audio initialization
   before it falls back to null (section 5).

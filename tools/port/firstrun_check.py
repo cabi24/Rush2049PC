@@ -222,6 +222,31 @@ def main():
         run(exe, "wait for a key", ["--window"], ["press a key to close this window"], stdin=b"x\n",
             env_extra={"RUSH2049_WAIT_KEY": "1"})
 
+    # What prints on stdout reaches a pipe (Windows: the GUI program's redirected handles; docs/port/WINDOWS.md,
+    # "The console")
+    run(exe, "--help", ["--help"], ["usage: rush2049pc", "--print-config"], code=0)
+    run(exe, "--print-config", ["--print-config"], ["[game]", "; in effect: "], code=0)
+
+    # Nobody to see the console (rush2049pc.exe double-clicked; RUSH2049_CONSOLE=none here): what is printed is kept,
+    # and an error that no box explained yet shows a box with the last lines. The box is printed to the real stderr.
+    def only_box(d, out):
+        return [] if out.startswith("rush2049pc: message box:") else ["something printed outside the box"]
+
+    quiet = {"RUSH2049_CONSOLE": "none"}
+    run(exe, "no console: an error", ["a.z64", "b.z64"], [
+        "message box: Rush 2049 PC stopped", "The program stopped with an error (exit code 2). Its last messages:",
+        "\n    rush2049pc: one ROM at a time (a.z64, then b.z64)\n"], code=2, env_extra=quiet, after=only_box)
+    run(exe, "no console: bad option", ["--frobnicate"], ["unknown option --frobnicate"], ["usage: rush2049pc"],
+        code=2, env_extra=quiet, after=only_box)
+    run(exe, "no console: no ROM", ["--window"], ["message box: Rush 2049 PC: no ROM"],
+        ["message box: Rush 2049 PC stopped"], env_extra=quiet,
+        after=both(only_box, log_has("user", "rush2049pc.log", "no ROM: baserom.us.z64", "the log is ")))
+    run(exe, "no console: --version", ["--version"], [], ["rush2049pc "], code=0, env_extra=quiet)
+    if win:   # a fault: its own box, the log has the report
+        run(exe, "no console: a fault", boot, ["message box: Rush 2049 PC stopped", fault, "The log, with the "
+                                               "details, is"], ["exit code"], code=0xC0000005, env_extra=quiet,
+            after=both(only_box, log_has("user", "rush2049pc.log", f"{fault} at address", "  #1 ")))
+
     # Where saves go (docs/port/RELEASE.md, "Files"): the controller pak in the user data folder; one an earlier build
     # left in the working directory used where it is; --pak from the working directory; a portable copy's empty
     # rush2049pc.ini filled with the defaults, and everything next to the program

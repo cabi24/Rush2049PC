@@ -27,6 +27,10 @@
 
 #include "input_internal.h"
 
+/* What the window's title ends with: the program and its version, set by main (port/ultra/ultra.h); NULL in the
+ * tests. */
+const char *pc_input_title_tag;
+
 #ifdef PC_HAVE_SDL2
 
 #include <SDL.h>
@@ -490,10 +494,13 @@ static void unmute(Slot *slot)
 
 static void set_title(void)
 {
-    if (L.win)
-        SDL_SetWindowTitle(L.win, L.paused_focus || L.paused_key || pc_menu_is_open()
-                                      ? "San Francisco Rush 2049 (paused)"
-                                      : "San Francisco Rush 2049");
+    char title[160];
+    if (!L.win)
+        return;
+    snprintf(title, sizeof title, "San Francisco Rush 2049%s%s%s",
+             L.paused_focus || L.paused_key || pc_menu_is_open() ? " (paused)" : "",
+             pc_input_title_tag ? " - " : "", pc_input_title_tag ? pc_input_title_tag : "");
+    SDL_SetWindowTitle(L.win, title);
 }
 
 static void set_fullscreen(int on)

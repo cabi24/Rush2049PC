@@ -9,6 +9,9 @@ if(CMAKE_VERSION VERSION_LESS 3.24)   # $<LINK_LIBRARY:WHOLE_ARCHIVE,...> below
     message(FATAL_ERROR "The PC build needs CMake 3.24 or later; this is ${CMAKE_VERSION} (pip install cmake gives a newer one)")
 endif()
 project(Rush2049PC C)
+if(WIN32)
+    enable_language(RC)   # windres: the executable's icon and version (port/app/rush2049pc.rc)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
@@ -347,14 +350,19 @@ file(GLOB PC_APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/app/*.c)
 # The version (git describe), the commit and the build (a GitHub Actions run or a local build), written at every
 # build when they change (cmake/version.cmake): --version and the log's first lines.
 set(PC_VERSION_C ${CMAKE_BINARY_DIR}/version/pc_version.c)
+set(PC_VERSION_RC_H ${CMAKE_BINARY_DIR}/version/pc_version_rc.h)   # the same for the Windows resources
 add_custom_target(pc_version
-    COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR} -DOUT=${PC_VERSION_C} -P ${CMAKE_SOURCE_DIR}/cmake/version.cmake
-    BYPRODUCTS ${PC_VERSION_C}
+    COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR} -DOUT=${PC_VERSION_C} -DOUT_RC=${PC_VERSION_RC_H}
+            -P ${CMAKE_SOURCE_DIR}/cmake/version.cmake
+    BYPRODUCTS ${PC_VERSION_C} ${PC_VERSION_RC_H}
     COMMENT "Version (cmake/version.cmake)"
     VERBATIM)
 add_library(pcapp OBJECT ${PC_APP_SOURCES} ${PC_VERSION_C})
 add_dependencies(pcapp pc_version)
-target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app)
+target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app ${ZLIB_INCLUDE_DIRS})
+if(WIN32)
+    target_link_libraries(pcapp PUBLIC winmm)   # timeBeginPeriod (startup.c)
+endif()
 target_compile_options(pcapp PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 if(RUSH_SDL2_TARGET)
     target_compile_definitions(pcapp PRIVATE PC_HAVE_SDL2)
@@ -430,9 +438,35 @@ function(pc_link_scripts target)
     endif()
 endfunction()
 pc_link_scripts(rush2049pc ${PC_DATA_DIR}/aliases.ld ${PC_DATA_PE_OUTPUTS})   # PE: data.c's weak references
+# Windows (docs/port/WINDOWS.md, "The console"; "Icon and version"): a GUI program, so Windows opens no console
+# window with it (port/app/startup.c attaches to the parent's console instead, or keeps the output for a message box
+# when there is none), with an icon and version information. RUSH_WINDOWS_CONSOLE builds a console program, which
+# gets a console window of its own when double-clicked (and waits for a key after an error, port/app/log.c).
+if(WIN32)
+    option(RUSH_WINDOWS_CONSOLE "Build rush2049pc.exe as a console program (a console window opens with it)" OFF)
+    target_sources(rush2049pc PRIVATE port/app/rush2049pc.rc)
+    target_include_directories(rush2049pc PRIVATE $<$<COMPILE_LANGUAGE:RC>:${CMAKE_BINARY_DIR}/version>
+                               $<$<COMPILE_LANGUAGE:RC>:${CMAKE_SOURCE_DIR}/dist>)
+    set_source_files_properties(port/app/rush2049pc.rc PROPERTIES
+        OBJECT_DEPENDS "${PC_VERSION_RC_H};${CMAKE_SOURCE_DIR}/dist/rush2049pc.ico")
+    add_dependencies(rush2049pc pc_version)
+    if(NOT RUSH_WINDOWS_CONSOLE)
+        set_target_properties(rush2049pc PROPERTIES WIN32_EXECUTABLE ON)   # -mwindows
+    endif()
+endif()
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
+if(WIN32)
+    # The subsystem, the image base and ASLR, the icon's sizes and the version information, from the file itself
+    # (Python only: it runs on a Linux host that cross-compiles too, ctest -R win_pe)
+    set(PE_CHECK_ARGS "")
+    if(RUSH_WINDOWS_CONSOLE)
+        set(PE_CHECK_ARGS --console)
+    endif()
+    add_test(NAME win_pe COMMAND ${PC_PYTHON} ${PORT_TOOLS}/pe_check.py --exe $<TARGET_FILE:rush2049pc>
+        --version-file ${PC_VERSION_RC_H} ${PE_CHECK_ARGS})
+endif()
 # The synthetic test cartridge (tools/port/synth_rom.py, docs/port/SYNTH.md): original, minimal data, generated into
 # the build directory from the data report. synth_boot_<path> drives the game along one of its paths with the press
 # script tools/port/synth/<path>.press (the races for 1-4 players, circuit, stunt, battle, the attract demo, the pause
