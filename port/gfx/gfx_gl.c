@@ -190,9 +190,9 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
         if (sscanf(ver, "%d.%d", &maj, &min) == 2)
             G.glsl = maj * 100 + min;
     }
-    if (pcgfx_cfg.verbose)
-        fprintf(stderr, "gfx: %s / %s / %s\n", (const char *)glGetString(GL_RENDERER),
-                (const char *)glGetString(GL_VERSION), ver ? ver : "?");
+    /* always: which GPU and driver drew a run is the first question about a log (two-GPU laptops) */
+    fprintf(stderr, "gfx: %s / %s / %s / %s\n", (const char *)glGetString(GL_VENDOR),
+            (const char *)glGetString(GL_RENDERER), (const char *)glGetString(GL_VERSION), ver ? ver : "?");
     glGenVertexArrays(1, &G.vao);
     glBindVertexArray(G.vao);
     glGenBuffers(1, &G.vbo);
