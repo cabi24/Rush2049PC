@@ -184,4 +184,7 @@ static __inline__ unsigned int pc_mips_d2u(double d)
 #define N64_F2U(x) pc_mips_f2u(x)
 #define N64_D2U(x) pc_mips_d2u(x)
 
+/* Game data the PC owns, with no N64 address: the race roster (docs/port/DECOUPLE.md). */
+#include "pc_game_types.h"
+
 #endif
