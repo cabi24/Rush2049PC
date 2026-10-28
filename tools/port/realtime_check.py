@@ -5,10 +5,11 @@
                                          [--seconds 30] [--logs DIR] [--no-sim]
 
 Runs the synthetic cartridge's race (tools/port/synth/race.press) on the host's clock with SDL's disk audio driver
-(48 kHz, consumed in real time) when the program has SDL2, else the null output. Unless --no-sim, the run models a
-Windows desktop: each present waits for the next vblank of a 60 Hz display that isn't in step with the game's
-retraces (RUSH_SIM_VSYNC_HZ=59.94), and on Linux every timed wait ends at a 15.625 ms step, as winpthreads' do
-(RUSH_SIM_TIMER_STEP_US). It checks the lines the program writes at exit:
+(48 kHz, consumed in real time) when the program has SDL2, else the null output. Unless --no-sim, a run on Linux
+models a Windows desktop: each present waits for the next vblank of a 60 Hz display that isn't in step with the
+game's retraces (RUSH_SIM_VSYNC_HZ=59.94), and every timed wait ends at a 15.625 ms step, as winpthreads' do
+(RUSH_SIM_TIMER_STEP_US). On Windows the run has Windows' own timing. It checks the lines the program writes at
+exit:
 
     retraces    at least 59 a second, at most 12 dropped (late ones are caught up; a stall of 6 drops them)
     audio       with a device: no underrun after the first second; under 2% of the buffers played as silence or
@@ -39,7 +40,8 @@ def main():
     logs.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, SDL_AUDIODRIVER="disk", SDL_DISKAUDIOFILE=str(logs / "disk.raw"),
                RUSH2049_AUDIO_RATE="48000")
-    if not args.no_sim:
+    if not args.no_sim and os.name != "nt":
+        # On Windows the timing is its own; the model's sleeps would be winpthreads' 15.6 ms ones there.
         env.update(RUSH_SIM_VSYNC_HZ="59.94", RUSH_SIM_TIMER_STEP_US="15625")
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
