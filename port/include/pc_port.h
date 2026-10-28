@@ -117,6 +117,10 @@ void pc_gfx_swap_tick(void);
 int pc_gfx_tick_waits(double vi_time);
 int pc_gfx_vsync(void);
 int pc_gfx_display_hz(void);
+/* The display's exact refresh where the platform gives it (docs/port/FRAMERATE.md 2: Windows' display configuration
+ * and compositor, X11's XRandR): bit 1, *period_ns is its period; bit 2, a vblank was *vblank_age_ns ago (negative: to
+ * come). 0: nothing beyond pc_gfx_display_hz's whole hertz (headless, Wayland). */
+int pc_gfx_display_timing(double *period_ns, int64_t *vblank_age_ns);
 /* 1 when the game has swapped in a frame the window hasn't shown yet (a high frame rate): a tick the main loop
  * skips to keep the retraces on time still shows it, as the setting off would at its swap. */
 int pc_gfx_frame_waiting(void);

@@ -50,6 +50,7 @@ add_library(pcgfx STATIC
     gfx_font.c
     gfx_size.c
     gfx_tex.c
+    gfx_display.c
     ${PCGFX_HEADLESS}
     gfx_png.c)
 set_target_properties(pcgfx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
@@ -106,6 +107,16 @@ if(PCGFX_SDL_TARGET)
     target_sources(pcgfx PRIVATE gfx_sdl.c)
     target_compile_definitions(pcgfx PRIVATE PC_GFX_HAVE_SDL)
     target_link_libraries(pcgfx PUBLIC ${PCGFX_SDL_TARGET})
+    # The display's exact refresh on X11 (gfx_display.c): XRandR's headers at build time, libXrandr loaded at run
+    # time as SDL loads it, so the program needs nothing new.
+    if(NOT WIN32)
+        include(CheckIncludeFile)
+        check_include_file(X11/extensions/Xrandr.h PCGFX_HAVE_XRANDR_H)
+        if(PCGFX_HAVE_XRANDR_H)
+            target_compile_definitions(pcgfx PRIVATE PCGFX_HAVE_XRANDR)
+            target_link_libraries(pcgfx PUBLIC ${CMAKE_DL_LIBS})
+        endif()
+    endif()
     message(STATUS "port/gfx: SDL2 window backend (${PCGFX_SDL_TARGET})")
 else()
     message(STATUS "port/gfx: no SDL2, headless only")
@@ -178,6 +189,15 @@ target_include_directories(gfx_size_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gfx_size_test PRIVATE pcgfx)
 foreach(c scale edge rectedge fit units window texfactor)
     add_test(NAME gfx.size.${c} COMMAND gfx_size_test ${c})
+endforeach()
+# The display's exact refresh (gfx_display.c) from made-up modes, ratios and counter values (no window, no GL).
+add_executable(gfx_display_test tests/display_test.c)
+set_target_properties(gfx_display_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    EXPORT_COMPILE_COMMANDS OFF)
+target_include_directories(gfx_display_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gfx_display_test PRIVATE pcgfx)
+foreach(c mode ratio plausible counter pick)
+    add_test(NAME gfx.display.${c} COMMAND gfx_display_test ${c})
 endforeach()
 # Frame interpolation (gfx_interp.c, a high frame rate): pairs of frames built as the game builds them, and the
 # frames shown between against frames drawn directly at those moments. Headless; again at 2x, in widescreen, on

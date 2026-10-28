@@ -362,6 +362,9 @@ void pcgfx_sdl_swap(void);
 int pcgfx_sdl_poll(void);
 void pcgfx_sdl_size(int *w, int *h);
 int pcgfx_sdl_refresh(void);   /* the window's display's refresh rate, Hz; 0 unknown */
+/* The window's display's exact refresh and vblanks, where the platform gives them (gfx_display.c): PCGFX_TIMING_*
+ * bits, *period_ns and *vblank_age_ns (how long ago a vblank was; negative: to come) set for those. */
+int pcgfx_sdl_display_timing(double *period_ns, int64_t *vblank_age_ns);
 /* The window and the display (pc_port.h's pc_gfx_set_fullscreen and the rest, through gfx_api.c) */
 void pcgfx_sdl_place(int x, int y);
 void pcgfx_sdl_set_fullscreen_mode(int mode);
@@ -409,6 +412,18 @@ float pc_gfx_parse_scale(const char *text, int *ok);
 int pc_gfx_framebuffer_dims(const void *cimg, int *n64_w, int *n64_h, int *px_w, int *px_h);
 /* The size the auto settings follow when there is no window (headless tests and tools). */
 void pc_gfx_set_window_size(int w, int h);
+
+/* ---------------------------------------------------------------- the display's refresh (gfx_display.c) */
+#define PCGFX_TIMING_PERIOD 1   /* the refresh period is the display's own, not SDL's whole hertz */
+#define PCGFX_TIMING_VBLANK 2   /* and a vblank's time */
+double pcgfx_mode_hz(uint64_t dot_clock, uint32_t htotal, uint32_t vtotal, int interlace, int doublescan);
+double pcgfx_ratio_hz(uint32_t num, uint32_t den);
+int pcgfx_refresh_plausible(double exact_hz, int whole_hz);
+int64_t pcgfx_counter_age_ns(uint64_t at, uint64_t now, uint64_t freq);
+int pcgfx_display_pick(double mon_hz, double comp_hz, int comp_vblank, int64_t comp_age_ns, int whole_hz,
+                       double *period_ns, int64_t *vblank_age_ns);
+int pcgfx_win_display_timing(void *hwnd, int whole_hz, double *period_ns, int64_t *vblank_age_ns);
+int pcgfx_x11_display_timing(void *display, int x, int y, int whole_hz, double *period_ns);
 
 #ifdef __cplusplus
 }

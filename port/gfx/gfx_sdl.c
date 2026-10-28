@@ -8,6 +8,7 @@
  * and where the window system counts in points (macOS, Wayland) they are turned into its units by the drawable's
  * size against the window's. Fullscreen is borderless over the desktop, or exclusive at video.resolution. */
 #include <SDL.h>
+#include <SDL_syswm.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -303,6 +304,33 @@ int pcgfx_sdl_refresh(void) {
     if (d < 0 || SDL_GetCurrentDisplayMode(d, &mode) != 0)
         return 0;
     return mode.refresh_rate;
+}
+
+/* The window's display's exact refresh, and its vblanks where the platform gives them (gfx_display.c): Windows
+ * (its monitor's mode, the compositor's vblank) and X11 (XRandR); 0 elsewhere (Wayland). */
+int pcgfx_sdl_display_timing(double *period_ns, int64_t *vblank_age_ns) {
+    SDL_SysWMinfo wm;
+    int hz = pcgfx_sdl_refresh();
+    if (s_win == NULL)
+        return 0;
+    SDL_VERSION(&wm.version);
+    if (!SDL_GetWindowWMInfo(s_win, &wm))
+        return 0;
+#if defined(_WIN32) && defined(SDL_VIDEO_DRIVER_WINDOWS)
+    if (wm.subsystem == SDL_SYSWM_WINDOWS)
+        return pcgfx_win_display_timing(wm.info.win.window, hz, period_ns, vblank_age_ns);
+#elif defined(PCGFX_HAVE_XRANDR) && defined(SDL_VIDEO_DRIVER_X11)
+    if (wm.subsystem == SDL_SYSWM_X11) {
+        int x, y, w, h;
+        SDL_GetWindowPosition(s_win, &x, &y);
+        SDL_GetWindowSize(s_win, &w, &h);
+        (void)vblank_age_ns;
+        return pcgfx_x11_display_timing(wm.info.x11.display, x + w / 2, y + h / 2, hz, period_ns);
+    }
+#else
+    (void)period_ns, (void)vblank_age_ns, (void)hz;
+#endif
+    return 0;
 }
 
 void pcgfx_sdl_shutdown(void) {
