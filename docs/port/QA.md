@@ -333,7 +333,8 @@ menus, a race and the demo. Every call of the posters those paths make failed: `
 rest: the shutdown (`hud_setup` on an inited audio system), AbortGame, the soft reset, unpausing, the audio screen's
 init and update, `object_type1_create`/`object_type7_create` (image A's `func_80390418`), and
 `object_type7_create_alt` and `func_800D6348`, which nothing calls directly (the data's function table names them).
-`assets_audiocmds` covers those.
+`assets_audiocmds` covers those. Two last runs had gdb refuse the game over screen's own post at its line
+(gameover.c's scratch message): battle quit and race end still went on to their next states, 0x80 and the main menu.
 
 #### 7. The Windows timing model waited in the wrong place with a high frame rate
 
