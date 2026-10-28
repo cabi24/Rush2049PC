@@ -17,10 +17,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <zlib.h>
-#ifdef _WIN32
-#include <direct.h>
-#define mkdir(p, m) _mkdir(p)
-#endif
+
+#include "pc_compat.h"   /* Windows: setenv, mkdir */
 
 #include "gfx_tex.h"
 #include "pc_port.h"
