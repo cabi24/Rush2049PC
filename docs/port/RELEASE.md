@@ -9,7 +9,9 @@ executable only), `port/ultra/romcheck.c`, and `.github/workflows/release.yml`.
 | `port/app/paths.c` | the program's folders (its own, the user data folder, the working directory, portable or not) and the places the ROM is looked for |
 | `port/app/rom.c` | the ROM at startup: the lookup, then the console message and the message box when it fails |
 | `port/app/alert.c` | message boxes: SDL2's `SDL_ShowSimpleMessageBox`, or Windows' `MessageBoxA` without SDL2 (and for a fault) |
-| `port/app/log.c` | the version; the log file; the end of a run: the log emptied, on Windows the wait for a key and the fault's message box |
+| `port/app/log.c` | the version; the log file; the end of a run: the log emptied, the error's or the fault's message box when nobody sees the console, on Windows a console's wait for a key |
+| `port/app/startup.c` | first in `main`: on Windows the console (the parent's, or none: "quiet", the output kept for an error's box), the timer period and power throttling ([WINDOWS.md](WINDOWS.md) 10) |
+| `port/app/icon.c`, `port/app/rush2049pc.rc` | the window's icon (Linux), the executable's icon and version information (Windows), from `dist/rush2049pc.svg` by `tools/port/make_icon.py` |
 | `cmake/version.cmake` | the version, the commit and the build, written into `build/.../version/pc_version.c` at each build |
 | `port/ultra/romcheck.c` | what a file is: byte order (swapped in place), SHA-1, header, and a sentence saying what it is when it isn't the USA cartridge |
 | `port/app/tests/test_app.c` | `app_paths`: the folders and the lookup order, in temporary folders |
@@ -220,18 +222,30 @@ it opens with a double click on Windows). `--log PATH` writes another file, and 
   - after a fault's report and backtrace (`pc_on_fault`, from `misc.c`'s signal handler and `win32.c`'s exception
     filter), so the report is in the file. Only calls that are safe in a signal handler are used.
   - `abort()` (`pc_fatal`, the CRT): a SIGABRT handler prints a backtrace, empties the pipe, then aborts.
-- **Windows, a double-click.** The console is the program's own and closes when it ends (`GetConsoleProcessList`
-  returns 1). Then, after an error exit or a fault, it prints "press a key to close this window" and waits
-  (`_getch`). A program started from a command prompt shares the console and doesn't wait. `RUSH2049_WAIT_KEY=1`
-  forces the wait (with stdin not a console, it reads a line from stdin), `=0` turns it off.
-- **Windows, a fault** with a window also shows a message box, "Rush 2049 PC stopped", with the fault's first
-  line, the log's path and where to report it. The box is `MessageBoxA`, not SDL's, since it is shown from inside
-  the exception filter.
+- **Windows, a double-click.** `rush2049pc.exe` is a GUI program, so a double-click opens no console, and nobody
+  sees what it prints ([WINDOWS.md](WINDOWS.md) 10). The program is "quiet": what it prints goes to the log as
+  always and into a pipe whose reader keeps the last 4 KiB. An error exit that no box has explained yet (no ROM
+  headless, a command-line or settings error, ...) shows a message box, "Rush 2049 PC stopped", with the last lines
+  printed, the log's path and where to report it.
+- **Windows, from a command prompt**, the program attaches to the prompt's console and prints there; cmd.exe and
+  PowerShell don't wait for it (WINDOWS.md 10).
+- **Windows, a fault** with a window, or with nobody to see the console, shows a message box, "Rush 2049 PC
+  stopped", with the fault's first line, the log's path and where to report it. The box is `MessageBoxA`, not
+  SDL's, since it is shown from inside the exception filter.
+- **The wait for a key.** A program that owns its console, which closes when it ends (`GetConsoleProcessList`
+  returns 1), prints "press a key to close this window" after an error exit or a fault and waits (`_getch`). That
+  is a console build (`-DRUSH_WINDOWS_CONSOLE=ON`) double-clicked; the GUI program never owns a console.
+  `RUSH2049_WAIT_KEY=1` forces the wait (with stdin not a console, it reads a line from stdin), `=0` turns it off.
+- **`RUSH2049_CONSOLE=none`** makes a run quiet on any system, for the tests: with `RUSH2049_MESSAGE_BOX=print` the
+  box is printed to the real stderr.
 
 Tested by `app_firstrun` (`tools/port/firstrun_check.py`): the boot without a ROM, which faults, leaves a log with
 the header, the run, the fault line and its backtrace; two runs keep the first as `rush2049pc.old.log`; a copy of
-the program with `rush2049pc.ini` next to it logs next to it; `--log` and `--no-log`; `--version`; on Windows the
-forced wait for a key. Every synthetic path (`synth_paths.py`) runs with `--log NAME.game.log` and checks that the
+the program with `rush2049pc.ini` next to it logs next to it; `--log` and `--no-log`; `--version`, `--help` and
+`--print-config` on a pipe; on Windows the forced wait for a key. Quiet (`RUSH2049_CONSOLE=none`): two ROMs dropped
+(the error's box with the line, nothing printed outside it), an unknown option (the box has the error, not the
+usage), no ROM with a window (the ROM's box and no second one, the log written), `--version` (nothing shown), and on
+Windows a fault (its box; the log has the report). Every synthetic path (`synth_paths.py`) runs with `--log NAME.game.log` and checks that the
 log has the state the console reached. `release.yml`'s `windows-check` checks the log of the zip's program after
 its boot without a ROM (the fault and backtrace in it), `--version`'s Actions run, and the forced wait.
 
@@ -254,7 +268,7 @@ also makes a **draft** GitHub release with them, which a person checks and publi
 
 | Job | Runner | What |
 |---|---|---|
-| `windows` | ubuntu-24.04, in `debian:12` | cross-built as pc.yml's `windows-cross` (mingw-w64 GCC 12.2, SDL2 2.30.9 from source); `cmake --install` into `rush2049pc-<version>-windows-x86_64/`; the zip; checks what is in it |
+| `windows` | ubuntu-24.04, in `debian:12` | cross-built as pc.yml's `windows-cross` (mingw-w64 GCC 12.2, SDL2 2.30.9 from source); `cmake --install` into `rush2049pc-<version>-windows-x86_64/`; the zip; checks what is in it, and its DLLs |
 | `windows-check` | windows-latest | the zip unzipped; from its folder: `--version`, the first run (the empty ini filled, the log next to the program), `--selftest`, the boot without a ROM (the log has its fault and backtrace), the forced wait for a key. Mesa's llvmpipe `opengl32.dll` is copied in for the run, since the runner has no GPU; it is not in the zip |
 | `linux` | ubuntu-24.04 and ubuntu-24.04-arm, in `ubuntu:22.04` | x86-64 and aarch64: built with SDL2 2.30.9 from source; `cmake --install` into `rush2049pc-<version>-linux-<arch>/`; the tarball; checks what is in it, its libraries and the newest glibc symbol it needs |
 | `linux-check` | the same, in `fedora:40` | the tarball unpacked on another distribution; from its folder: `--version`, `--selftest`, the first run, the boot without a ROM headless on Mesa's llvmpipe with its log |
@@ -266,6 +280,8 @@ also makes a **draft** GitHub release with them, which a person checks and publi
   - `mingw-w64.txt` and `gcc-runtime.txt`, Debian's copyright files for the mingw-w64 runtime (CRT, winpthreads)
     and GCC's (libgcc, under the runtime library exception).
 
+  `rush2049pc.exe` is a GUI program with an icon and version information: Explorer's Properties show
+  "Rush2049PC (unofficial PC port)" and the version `--version` gives ([WINDOWS.md](WINDOWS.md) 10).
   SDL2, zlib and the runtime are linked statically, so the program needs only Windows' own DLLs (`objdump -p`:
   ADVAPI32, GDI32, IMM32, KERNEL32, msvcrt, ole32, OLEAUT32, OPENGL32, SETUPAPI, SHELL32, USER32, VERSION,
   WINMM). The executable is built RelWithDebInfo (-O2 -g, [OPTIMIZED.md](OPTIMIZED.md)) and is not stripped, so its

@@ -306,6 +306,9 @@ on aarch64).
   is copied next to the programs.
 - **Retries.** A failing test is run again under gdb.
 - **The other jobs.** The Linux and n64-neutral jobs are unchanged.
+- **The GUI program** (section 10) runs in these jobs as the console program did: they redirect its output to files
+  and pipes, which it uses as they are. `win_pe` is one of the `windows` job's tests; `windows-cross` runs no ctest,
+  but `ctest --test-dir build/win -R win_pe` works on its host.
 
 **Results** (run 40558632666, 2026-10-27; all six jobs pass):
 
@@ -435,11 +438,12 @@ Windows a fault (its box, the log with the report). It also checks that `--help`
   a second call with one flag would hand the other back to the system.
 - **Game Mode**: no documented API asks for it (`HasExpandedResources` only reports it). Windows decides, from its
   list of games or the Game Bar's "Remember this is a game". Nothing is done.
-- **Alt-Tab in fullscreen.** The port's fullscreen is SDL's desktop fullscreen (a borderless window).
-  `SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS` stays at SDL's default, which minimizes only exclusive fullscreen, whose
-  display mode has to be put back; a borderless window stays where it is. Whether the game holds meanwhile is
-  `video.pause_on_focus_loss` (off by default: it keeps running, controllers too). An exclusive mode, if one comes,
-  will minimize on Alt-Tab, as it should.
+- **Alt-Tab in fullscreen.** `SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS` stays at SDL's default ("auto"), which fits
+  both of `video.fullscreen_mode`'s modes ([GFX.md](GFX.md) "Window and display"): `desktop`, a borderless window,
+  isn't minimized and stays drawn (on a second monitor too); `exclusive` is minimized, so that the desktop's display
+  mode comes back. Whether the game holds meanwhile is `video.pause_on_focus_loss`, a separate matter (off by
+  default: it keeps running, controllers too). Setting the hint to 0 would leave an exclusive mode's resolution on
+  the desktop after Alt-Tab; 1 would minimize the borderless window as well.
 
 ## 11. Untested
 
