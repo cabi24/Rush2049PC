@@ -38,7 +38,10 @@ HOST_LIBC = {"bcopy", "bzero", "bcmp", "memcpy", "memset", "memmove", "memcmp", 
              "vsprintf", "modff"}
 # Names the host linker defines itself; x86-64 code references _GLOBAL_OFFSET_TABLE_ directly. Never stubbed.
 LINKER_DEFINED = {"_GLOBAL_OFFSET_TABLE_", "_DYNAMIC", "__dso_handle", "__ehdr_start", "__executable_start",
-                  "_edata", "_end", "__bss_start", "__TMC_END__"}
+                  "_edata", "_end", "__bss_start", "__TMC_END__",
+                  # port/data/overlays.ld's range bounds, which data.c names (stubbed, they were 4 KiB arrays the
+                  # script's symbols overrode)
+                  "pc_ovl_a_start", "pc_ovl_a_end", "pc_ovl_b_start", "pc_ovl_b_end"}
 # The sanitizer runtimes' entry points, which instrumented objects reference (docs/port/SANITIZE.md). Never stubbed.
 SANITIZER_PREFIXES = ("__asan_", "__ubsan_", "__tsan_", "__lsan_", "__sanitizer_", "__hwasan_")
 # On Windows (PE), data.c's weak references are to pc_weak.<symbol>, which pc-data/weak.ld defines (gen_data.py).
