@@ -149,7 +149,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `video.vsync` | on | | swap interval 1 or 0 |
 | `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
 | `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8, or auto: the largest whole multiple the window holds, so the frame is drawn at the size it is shown (`RUSH_GFX_SCALE`) |
-| `video.api` | gles | | `gles` or `gl` (`RUSH_GFX_API`) |
+| `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend") |
 | `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |

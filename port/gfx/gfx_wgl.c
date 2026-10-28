@@ -1,7 +1,8 @@
 /* port/gfx/gfx_wgl.c: headless GL context on Windows, in place of gfx_egl.c (it keeps that file's entry points):
- * WGL on a hidden window that is never shown, so rendering goes to framebuffer objects only. RUSH_GFX_API=gl asks
- * for desktop GL (3.3 core, else 3.1), anything else GLES 3.0 first when the driver offers ES profiles
- * (WGL_EXT_create_context_es2_profile), then desktop GL. wglCreateContextAttribsARB comes from a first, legacy
+ * WGL on a hidden window that is never shown, so rendering goes to framebuffer objects only. Without want_gles
+ * (RUSH_GFX_API gl or auto, the default here: pcgfx_want_gles) desktop GL (3.3 core, else 3.1) first, then GLES 3.0
+ * when the driver offers ES profiles (WGL_EXT_create_context_es2_profile); with it (gles) the other way round.
+ * wglCreateContextAttribsARB comes from a first, legacy
  * context. GL 1.1 entry points are exported by opengl32.dll itself, and wglGetProcAddress doesn't return them.
  * Without a GPU driver (Windows' own GDI renderer is GL 1.1), Mesa's opengl32.dll next to the program gives
  * llvmpipe (docs/port/WINDOWS.md). */

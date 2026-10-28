@@ -114,7 +114,7 @@ static void test_settings(void)
     CHECK(!strcmp(s.rom, "baserom.us.z64") && s.rom_check == 1 && s.expansion_pak == 0, "game defaults");
     CHECK(s.pak == PC_CFG_PAK_MEMORY && !strcmp(s.pak_file, "rush2049pc.mpk"), "pak defaults");
     CHECK(s.width == 640 && s.height == 480 && !s.fullscreen && s.vsync && s.scale == 1, "video defaults");
-    CHECK(s.api == PC_CFG_API_GLES && !s.widescreen && !s.pause_on_focus_loss && !s.screenshot_dir[0], "video");
+    CHECK(s.api == PC_CFG_API_AUTO && !s.widescreen && !s.pause_on_focus_loss && !s.screenshot_dir[0], "video");
     CHECK(!strcmp(s.audio, "auto"), "audio default");
     CHECK(s.keyboard_player == 1 && s.first_controller_player == 1, "players");
     CHECK(fabs(s.deadzone - 0.15) < 1e-9 && fabs(s.axis_threshold - 0.5) < 1e-9 && s.stick_range == 80 &&

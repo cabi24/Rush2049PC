@@ -97,7 +97,8 @@ there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into
   cartridge only, and a ZIP must be extracted first. `--no-rom-check` tries another revision or a dump with other
   contents anyway; it probably won't work.
 - **"no renderer", or no window:** update the graphics driver. The program needs OpenGL ES 3.0, or OpenGL 3.1 or
-  later. `--set video.api=gl` tries desktop GL first.
+  later. On Windows desktop GL comes first, elsewhere OpenGL ES; `--set video.api=gl` or `gles` picks the one tried
+  first.
 - **No sound:** `--audio sdl` (or `alsa` on Linux) picks the output; the volume is `audio.volume`.
 - **A controller isn't recognized:** put SDL's `gamecontrollerdb.txt`, with a line for it, next to `rush2049pc.ini`.
 - **It stopped with an error:** the log says why. On Windows a message box gives the log's path, and the console

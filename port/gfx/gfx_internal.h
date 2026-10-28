@@ -298,7 +298,8 @@ void pcgfx_hfr_shutdown(void);
 /* Context backends: gfx_egl.c (headless), gfx_sdl.c (window, when built with SDL2) */
 int pcgfx_egl_init(int want_gles, GfxGetProc *get_proc, int *is_gles);
 void pcgfx_egl_shutdown(void);
-int pcgfx_sdl_init(int w, int h, GfxGetProc *get_proc, int *is_gles);
+int pcgfx_sdl_init(int w, int h, int want_gles, GfxGetProc *get_proc, int *is_gles);
+int pcgfx_want_gles(const char *api);   /* RUSH_GFX_API: which API to try first (gfx_api.c) */
 void pcgfx_sdl_swap(void);
 int pcgfx_sdl_poll(void);
 void pcgfx_sdl_size(int *w, int *h);

@@ -44,7 +44,7 @@ extern const char *const pc_hotkey_names[PC_NUM_HOTKEYS];     /* "fullscreen", .
 /* ---------------------------------------------------------------- settings */
 
 enum { PC_CFG_PAK_NONE = 0, PC_CFG_PAK_MEMORY = 1, PC_CFG_PAK_RUMBLE = 2 };   /* = port/ultra's PC_PAK_* */
-enum { PC_CFG_API_GLES = 0, PC_CFG_API_GL = 1 };
+enum { PC_CFG_API_AUTO = 0, PC_CFG_API_GL = 1, PC_CFG_API_GLES = 2 };   /* the order of the file's choices */
 enum { PC_CFG_STICK_LEFT = 0, PC_CFG_STICK_RIGHT = 1, PC_CFG_STICK_NONE = 2 };
 
 #define PC_CFG_PATH 1024

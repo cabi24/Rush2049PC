@@ -190,7 +190,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 
 | Variable | Effect |
 |---|---|
-| `RUSH_GFX_API=gl` | desktop GL (3.3 core, then 3.1) instead of GLES 3.0 |
+| `RUSH_GFX_API=auto`, `gl`, `gles` | which API to try first, the other after it: `gl` desktop GL (3.3 core, then 3.1), `gles` GLES 3.0; `auto` (`video.api`'s default) desktop GL on Windows, whose drivers are made and tested for it (their ES profile through WGL is a side path), GLES elsewhere, where Mesa serves both alike (`pcgfx_want_gles`). `gfx.all.gles`, `.desktop-gl`, `.desktop-gl-software` and `.desktop-gl-wide-scale2` run every case on each |
 | `RUSH_GFX_SCALE=n` | internal resolution multiple (1–8), or `auto`: the largest whole multiple of the frame the window holds, taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
@@ -392,7 +392,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 | `eyerel` | eye-relative native vertices under the identity modelview, in the frame's buffer and at one address: they stay put in the world |
 | `timing` | held, drawn, drawn, early (C late), then C; a period of 3; the presented image (screenshots) unchanged by a frame between; a redraw shows the frame between; off, a tick shows nothing and the present shows the frame |
 | `parse` | the setting's text; `display` is 60 without a display |
-| `gfx.interp.all.*` | every case at 2x, in 16:9, on desktop GL and on llvmpipe |
+| `gfx.interp.all.*` | every case at 2x, in 16:9, on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 ### The overlay
 
@@ -580,8 +580,10 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `autosize` | headless window sizes from 640 × 480 to 1920 × 1080: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
 | `screenshot` | PNG |
 
-- **Variants.** `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun every case on desktop
-  GL, at 2× and on llvmpipe. `gfx.all.sdl-window` runs them in window mode (SDL builds). `gfx.all.wide` (16:9) and
+- **Variants.** `gfx.all.gles`, `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun
+  every case on GLES, on desktop GL, at 2× and on llvmpipe's GLES; `gfx.all.desktop-gl-software` on llvmpipe's
+  desktop GL, `gfx.all.desktop-gl-wide-scale2` on desktop GL at 2× in 16:9 (the plain cases take the default API:
+  desktop GL on Windows, GLES elsewhere). `gfx.all.sdl-window` runs them in window mode (SDL builds). `gfx.all.wide` (16:9) and
   `gfx.all.wide21-scale3` (21:9 at 3×) rerun every case in widescreen, with every sample taken ox pixels in: the
   4:3 frame's pixels must come out the same in the middle of the wider target. `gfx.all.scale-auto` reruns them
   with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Each variant has its own
@@ -594,7 +596,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `gfx.ui.panel` | a rectangle at alpha 128 blends over the frame by its alpha, to its last pixel and not past it; an opaque one covers it; the 640 x 480 headless window |
 | `gfx.ui.closed` | the overlay shows when presented and when redrawn; a screenshot with it is byte for byte the one without; without the hook the window, after a redraw and after presents, and the render target are byte for byte what they were before |
 | `gfx.ui.scaled` | the overlay's pixels at internal scale 1 and at 3 in 16:9 (a 1278 x 720 target) are the same; the hook gets the window's size, which follows `pc_gfx_set_window_size` (1280 x 960) |
-| `gfx.ui.all.desktop-gl`, `.software` | every case on desktop GL and on llvmpipe |
+| `gfx.ui.all.gles`, `.desktop-gl`, `.software`, `.desktop-gl-software` | every case on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 - **Results on rocky (x86-64, Mesa, 2026-10-27):** the 19 cases and their variants pass as before, with the headless
   window image now filled at each present; the 6 `gfx.ui` tests pass.
