@@ -1062,8 +1062,8 @@ static float rect_start(float c0, float d, float scale, int snap) {
     return c0 - d + 0.5f * d / scale + 1.0f / 64;
 }
 
-/* A texture coordinate c0 at N64 coordinate 0 of a rectangle's side, at d (from that side): c0 + step * d. At d = 0,
- * c0 itself, and at the far side (d the side's length), c0 + step * length, as before the boundaries. */
+/* A texture coordinate d N64 pixels from the rectangle's first corner, where it is c0, with step per pixel. At d = 0
+ * c0 itself, and at the far corner (d the side's length) c0 + step * length, as before the boundaries. */
 static float rect_lin(float c0, float step, float d) {
     return d == 0.0f ? c0 : c0 + step * d;
 }
