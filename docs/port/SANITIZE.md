@@ -28,13 +28,13 @@ results below come from; the option works with any.
 `integer-divide-by-zero`, `float-cast-overflow`, `pointer-overflow`, `null`, `vla-bound`, `unreachable`. Left out,
 because the m2c code is written that way on purpose and the build already says so, or because there are too many to
 read now:
-- `object-size`: the class of OPTIMIZED.md 2.7, a symbol declared narrower than the code reaches it. One run of
-  three synthetic paths with the game C under all of `undefined` (`-DRUSH_SANITIZE_GAME_UB=undefined`) gave 119
-  distinct sites in 101 lines (`Effects_UpdateEmitters.c`, `Input_SetAnalogBounds.c`, controller_poll's group...).
-  `tools/port/bounds_check.py` (on main) triages that class statically, with GCC's own view of each access;
-- `alignment`: the same run found one site, `func_8008E06C` reading a `Color` through a pointer 2 bytes off a word
-  (an N64 `lw` there would have taken an address error, so the caller's local is laid out differently on the PC:
-  worth a look). The port's own code keeps the check;
+- `object-size`: the class of OPTIMIZED.md 2.7, a symbol declared narrower than the code reaches it. The game C
+  under all of `undefined` (`-DRUSH_SANITIZE_GAME_UB=undefined`) over the whole ctest reaches 152 such sites; each
+  was read against `tools/port/bounds_check.py`'s inventory (section 3.1), which took six declarations open-ended
+  and closed two holes in the tool. The rest are views by design, judged there one by one, so the check stays out;
+- `alignment`: the same run found one site, `func_8008E06C` reading a `Color` from a caller's `u8 [4]` 2 bytes off
+  a word (section 3.2, fixed), and the retail paths one more, harmless (3.3). The port's own code keeps the check;
+  the game C leaves it out because the m2c code reads N64 records through PC types whose alignment can be larger;
 - `signed-integer-overflow`: the game C is compiled `-fwrapv`, so overflow is defined (GCC doesn't check it under
   `-fwrapv`: the full run found none); IDO's arithmetic wraps;
 - `return`: C++ only in GCC and Clang;
@@ -151,6 +151,8 @@ What was run, all Debug:
 | UBSan | x86-64 (GCC 14) | the whole ctest, 194 tests: the unit tests, the 17 synthetic paths, the real-time ones | after the fixes, every test passes with the suppressions of section 4 |
 | ASan + UBSan | Pi 5 (GCC 12) | the whole ctest; 31 retail paths with `--fast` | after the fixes every test passes but `gfx.all.wide-scale6.75` and `gfx.all.native-2880x1620`, whose `eyeplane` and `seams` cases fail on the Pi's V3D in the normal build too (a few pixels' rounding at 6.75x and 2880x1620; not the sanitizers'); on the retail paths no ASan or LSan report, and UBSan's findings are 12-14 (fixed) and two suppressed (section 4) |
 | TSan (port/ instrumented) | x86-64 (GCC 14) | the whole ctest | after the fixes (and main's HUD fix), races only inside Mesa and SDL (section 4) |
+| UBSan, the game C under all of `undefined` (`-DRUSH_SANITIZE_GAME_UB=undefined,float-cast-overflow`, `halt_on_error=0`) | x86-64 (GCC 14) | the whole ctest, 208 tests, the 19 synthetic paths among them | 152 object-size sites in 133 lines of 52 files and one alignment site, no other check; after the fixes of 3.1 and 3.2, 116 object-size sites in 107 lines of 46 files, each judged, and none of alignment; every test passes |
+| the same, with the fixes | Pi 5 (GCC 12) | 7 retail paths with `--fast` (section 3.3) | 35 object-size sites the synthetic paths don't reach, all loads, judged; one alignment site, harmless; no other check |
 
 The retail paths ran on the Pi only, with the ROM by its path there, one at a time, with the press scripts the QA
 sweep wrote ([QA.md](QA.md)), copied to the ignored `build/scratch/`: the attract demo, a drive and a single race on
@@ -207,7 +209,100 @@ and the view code converts them to integers. That is undefined too, and x86-64 g
 None of those conversions happened on a retail path. If a NaN ever reaches them in a real game, the picture, not the
 game state, differs between the builds.
 
-## 4. Suppressions
+### 3.1 The game C's object-size sites
+
+The game C under all of UBSan (section 2's table) reports each access a run makes past the size its file declares
+for the object: 152 sites on the synthetic paths and the unit tests. Each was joined with `tools/port/bounds_check.py`'s
+accesses on its line (`--dump`: symbol, offset, width, read or write, at `-O2`) and with the address UBSan gives
+(in the RDRAM window, the name whose storage holds it), and its function's other accesses to that symbol were read.
+
+**What GCC can do with a declared size** ([OPTIMIZED.md](OPTIMIZED.md) 2.7). It cuts the extent of a reference
+that has a variable offset on the symbol's own address (the loop optimizer's TARGET_MEM_REFs, an array's variable
+index) to [0, declared size), and takes a pointer access wider than the declaration not to touch it. A reference
+through a pointer variable at a constant offset (`MEM[(f32 *)e_5 + 84B]`) is exact to the pointer and isn't cut;
+constant offsets on the symbol are exact. So:
+- a store is dropped only when a later store is taken to cover it: two cut references in one function, each as wide
+  as the declaration (the stick: 4-byte stores, a 4-byte symbol);
+- a load is forwarded from a store to another place only under the same equality;
+- one access is taken not to touch another when one is cut and the other is at a constant offset past the
+  declaration, or a direct access sits beside a wider pointer access;
+- a loop bound is derived from a declaration only by `-faggressive-loop-optimizations`, off for the game C (2.4).
+
+All of these need two places of the symbol in one function, one a write: bounds_check's `two offsets` and `clamped`.
+
+**Two holes in bounds_check**, which hid that shape, and are fixed:
+- a read at a constant offset from a pointer computed from the symbol (`_8 = MEM[(s8 *)p_14 + 1600B]`) had the
+  ` + ` inside its brackets taken for an addition and wasn't listed: a function that wrote one place and read
+  another counted one place. 19 sites were in no finding at all;
+- a view through a declared pointer variable (`e = (EmitA *) &gCamera + i; e->f54 = e->f24;`): the SSA name `e_2`
+  has no declaration of its own in GCC's dump, so the tool had no pointee type and took every field for one place
+  of unknown width.
+
+With both, every site is in a finding, 11 new (file, symbol) pairs (reads only, or constant offsets: listed in
+`bounds_reviewed.txt`), and six functions have the class's shape. Each is declared open-ended under `TARGET_PC`, as
+2.7's fixes, and its sites are gone:
+
+| Sites | File | Symbol (declared) | What the function reaches |
+|---|---|---|---|
+| 8 | `src/blob/func_800CFCA8.c` | `D_8014A250` (a 2,026-byte record) | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
+| 14 | `src/blob/Effects_UpdateEmitters.c` | `gCamera` (`s32`) | each window's 0x98-byte camera in a loop: three stores, four read-modify-writes, 4 bytes each: the stick's shape |
+| 3 | `src/blob/func_800A7D6C.c` | `D_8015F740` (`s32`) | x, y and z of one record, set to 0 |
+| 5 | `src/blob/func_8008D870.c` | `D_8012E700` (`s32`) | a scene node's four 8-byte texture slots |
+| 2 | `src/blob/func_800A5518.c` | `D_8017A510` (`s32`) | a ZOID window's first and bounds pointers |
+| 4 | `src/blob/input_status_update.c` | `pad_config` (one record) | three fields of one of the 200 records |
+
+None had indexed references on any of the three compilers (no *tmr* finding), so none was miscompiled in these
+builds; Effects_UpdateEmitters is where a compiler that indexes its loop on the symbol would drop two of every three
+stores, as with the stick. The data tables are the files before but for `D_8015F740` (arena BSS, one word in them),
+now as long as the next known address allows, 2,240 bytes, as 2.7's `D_80149B50`; Debug and RelWithDebInfo agree.
+
+**The 116 left**, by what each function does with the symbol:
+
+| Sites | What | Where (symbol) | Verdict |
+|---|---|---|---|
+| 16 | one field of one record, picked by a variable, 1 or 2 bytes, read or written | `Input_SetAnalogBounds.c`, `Input_SetPadEnabledFlag.c`, `Input_SetPadSecondaryFlag.c` (`pad_config`) | safe. 2.7 declared it `[4]` as "its extent", but its storage is the 200 records at 0x80140BF0 (`Sprite[200]`) and the paths reach records 4 to 91. A cut to 160 bytes makes no reference as wide as the declaration, and no access there is at a constant offset past it. `[200]` would make the declaration true; it changes the tables' type label of `D_80140BF0` (`PadConfig[200]` for `Sprite[200]`, the layout the same), so it waits for after the beta |
+| 15 | one place written (a store or a read-modify-write of that place), nothing else of the symbol in the function | `InitBlits.c` (`D_80149450`, a loop's one store), `CarSetup.c` (`D_801439F8`), `func_800CB718.c` (`D_801392D8`), `audio_effect_remove.c` (`D_80153F28`, `D_80153F48`, `D_80153F68`), `func_800A79DC.c` (`pad_config`), `func_800D1248.c` (`D_8014A96C`), `func_800E9234.c` (`D_80152574`), controller_poll's `func_800E7134` (`D_8013FED0`, `D_801403C0`: a loop's one store each, indexed on the symbol by GCC; `D_80149B30`, volatile) | safe: nothing to drop it for or forward it to; a loop's stores don't cover each other while the loop can exit |
+| 77 | reads only, one place or several | the cars' records (`D_8014A250` in `CarSetup.c`, `car_select_handler.c`, `func_800CF604.c`, audio_frame's and audio_frame_update's groups, func_8008B640's group; `D_8014A258`, `D_8014AA32`, `D_8014A964`), the scene nodes (`D_8012E700` in six files), the route (`D_80151CE8`, `D_80151D18`, `D_8012E5E8`), the cameras (`gCamera`, `D_80124FD0` in `particles_spawn_emitter.c`), the controllers (`gControllerData`, `D_80149B50`), the windows (`D_8017A510` in `func_800A7428.c`), and the rest `bounds_reviewed.txt` lists | safe: nothing written |
+| 8 | constant offsets past the declaration | `func_800AED20.c` (`D_801461B0`), camera_transform (`D_80146138`, `D_80146160`), `entity_flag_check` (`D_80149808`) | safe: GCC keeps them exact |
+
+A view that runs from its name into another name's storage is 2.5's class (`alias_check.py`), which takes a variable
+access to cover its name's own extent: for every site in the window, the names holding the address UBSan reports
+were checked against the names its file accesses. One pair is both, `D_8014A964` and `D_8014A250` in
+`car_select_handler.c` (reads only), and alias_check pairs them already (`D_8014A964` is inside `D_8014A250`'s
+storage). These are the synthetic paths' sites; another path can reach others, and the same reading applies.
+
+### 3.2 The misaligned colour
+
+`func_8008E06C` (ZOID_SetColor) reads the colour it is given as one word, `col->w`. Image A's `func_80394DD8` passes
+its `u8 buttonColor[4]`, which GCC put at 2 mod 4 (UBSan's alignment check, in 32 of the runs, from image A's front
+end). An N64 `lw` there would have taken an address error, so IDO's frame had it on a word. The same in five more
+locals: `func_80397AD8`'s `u8 color[4]`, `func_803998B8`'s `Color4` (a struct of four bytes only on the PC: its
+`TARGET_PC` typedef reads the ROM's bytes as bytes, [ENDIAN.md](ENDIAN.md)) and three functions of
+`runtime_a_callers_deep` (`Color4`, four `u8`, in both builds). The other callers' colours are unions with a word.
+
+It didn't change the game: x86-64 and aarch64 load a misaligned word from ordinary memory and give the value an
+aligned load of those bytes gives (Linux and Windows leave alignment checking off for user code; at worst a split
+across a cache line costs time). A misaligned atomic (`LDXR`, `CAS`, a locked x86 access across a line) or an aligned
+vector access would fault or trap, and GCC uses neither for a one-word copy. It is undefined in C. **Fix**: the six
+locals are aligned to 4 under `TARGET_PC` (`PC_WORD_ALIGNED`, empty for the N64, on the declarations' own lines, so
+`n64_neutral.py` sees the functions shifted, not changed). The full-UBSan run has no alignment site after it.
+
+### 3.3 The retail paths under all of UBSan
+
+The same game-C checks, on the Pi (GCC 12, Debug, UBSan only), with the fixes of 3.1 and 3.2, along 7 of the QA
+sweep's press scripts: the front end's screens, its options rows, a 4-player race, battle, stunt and its end, the
+pause screen's items, the attract demo. Each reached its time and exited 0. Besides the object-size sites the
+synthetic paths reach, they reach 35 more in 11 files: all loads, each in a function bounds_check lists as reading
+that symbol only, or at a constant offset (23 of them are `camera_scene_manager`'s reads of the other cars' HUD
+records through `D_8014A250`, in the 4-player race). Nothing written, so nothing new to judge.
+
+One more alignment site, `menu_control_settings`: `N64P(m->car)->TIRER[i]` takes the address of a car's tyre
+positions in a `CarRec` the game keeps in the RDRAM window at a word-aligned N64 address, and the PC's `CarRec`,
+whose host pointers (`input`, the visuals) make it 8-aligned, says that address can't hold one. Nothing is loaded
+through the `CarRec` type there: the address goes to `func_8009E820`, which reads three floats through an `f32 *`.
+Harmless on every host. Lowering the type's alignment (`packed, aligned(4)`, as transform's `MsgTarget`) would
+change a type the data tables read (`D_80152818` is declared with it), so it isn't done the morning of the beta.
+
 
 In `tools/port/sanitize/`, each with its reason; patterns are anchored to one function.
 
@@ -266,5 +361,7 @@ thread at a time) leaves it little to find. Run it after changing the threads, t
 - **x86-64 ASan** (section 1.1). The aarch64 runs cover the same C; what differs between the hosts is code under
   `#ifdef __x86_64__` (the fault handler's register, absfix's relocation type) and the C library.
 - **Game C checks left out** (section 1): object-size, alignment, signed overflow. A UBSan build with
-  `-DRUSH_SANITIZE_GAME_UB=undefined` turns them on (object-size's 119 sites are the work list).
+  `-DRUSH_SANITIZE_GAME_UB=undefined` turns them on; section 3.1 is the reading of what they find on the synthetic
+  paths, and a new object-size site is read the same way (its symbol, the function's other places of it, whether
+  bounds_check lists it). 7 retail paths have run with them (3.3), not all 31.
 - **Windows**: MinGW has no sanitizers. The Windows-only code (win32.c, the WGL and console paths) is unchecked.
