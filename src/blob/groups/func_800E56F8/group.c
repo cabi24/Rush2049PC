@@ -1121,7 +1121,15 @@ extern f32 D_801161D4;
 extern f32 D_801161E4;
 extern s32 D_801161F4;
 extern s16 D_801163F4;
+#ifdef TARGET_PC
+/* PC: the rumble's 36 rising thresholds (the race counts how many the car's speed passes for the rumble request
+ * D_801440AD), ROM data the loader swaps by its declaration: as one s32 the other 35 stayed big-endian (DATA.md 8). */
+extern s32 D_801163F8[36];
+#define RUMBLE_STEPS D_801163F8
+#else
 extern s32 D_801163F8;
+#define RUMBLE_STEPS &D_801163F8
+#endif
 extern s8 D_80116488;
 extern s8 D_801164A1;
 extern s32 D_801164A4;
@@ -3948,7 +3956,7 @@ void func_800E56F8(s32 ipa_s4) {
                         M2C_FIELD(temp_s2, s16 *, CAR_OFS(0x388)) = 0;
                     }
                 }
-                var_v0_2 = &D_801163F8;
+                var_v0_2 = RUMBLE_STEPS;
                 var_v1 = 0;
 loop_34:
                 if (var_a0 >= *var_v0_2) {

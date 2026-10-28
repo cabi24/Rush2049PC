@@ -54,3 +54,7 @@ D_80110EBC 0xC0
 # four-player game faulted on its model names). The table ends at D_803B5D0C; D_803B5CFC's row 0, which is never
 # read, lies in its last 16 bytes.
 D_803B470C 0x1600
+
+# Tables declared as their first element or row, which the game reads whole (docs/port/DATA.md 8).
+D_8011B4B4 0x9C     # f32[13][3], per car type (buffer_swap, the wings; D_8011B4B8 is its [0][1]); D_8011B550 follows
+D_801202F8 0x10     # gravityArray f32[4] (display_list_flush: by the gravity option); by the gap it ran over strings

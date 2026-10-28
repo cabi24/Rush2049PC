@@ -247,7 +247,17 @@ extern u16 D_801427C0[];
 extern Ent D_8012E700[];
 extern Animation24 *D_801391F0;
 extern f32 D_8011418C[];
+#ifdef TARGET_PC
+/* PC: D_80118C10 is ROM data the loader byte-swaps by its declaration, and every word of it is an f32: 11 bodies of
+ * 32 bytes (CollisionReckon's Body in random_float.c: the bounds, then mass at +0x1C), then the static state records
+ * of categories 0-2 (D_80118DDC). As u8[] the floats stayed big-endian, so a kind-4 object's bounds and mass read as
+ * about 0 (docs/port/DATA.md 8). The record address is still taken in bytes. */
+extern f32 D_80118C10[115];
+#define BODY_TABLE ((u8 *)D_80118C10)
+#else
 extern u8 D_80118C10[];
+#define BODY_TABLE D_80118C10
+#endif
 extern Vec3 D_80118DFC;
 extern volatile u8 gNumModels;
 extern s32 D_801515F0;
@@ -335,7 +345,7 @@ void func_800AB7D0(Node *node,Metadata48 *metadata,s32 category)
                 matrix->position[index]=0.0f;
             }
             index=(s32)D_80117530[node->metadata].value;
-            matrix->record=N64W(D_80118C10+index*32);
+            matrix->record=N64W(BODY_TABLE+index*32);
         }
     } else if((metadata->flags&8) && metadata->category==5) {
         slot=(Slot136 *)D_80150E68[5];
