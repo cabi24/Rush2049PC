@@ -157,6 +157,15 @@ static const struct {
      * narrower declaration over either (the engine table D_8010FD80's kind of bug) shows here (QA.md round 3). */
     {"D_801108C8, the car physics descriptors", 0x801108D0, 6 * 0xB4, 1, 4},
     {"D_803B28C8..D_803B2A58, the car select's stat factors", 0x803B28C8, 0x1F0, 2, 4},
+    /* Tables declared as one element, one row or bytes, which the game reads whole at wider widths (DATA.md 8):
+     * the level objects' bodies and static states (all f32), the rumble thresholds (s32[36], walked by a
+     * pointer), the wings' place per car type (f32[13][3]); and gravityArray's four floats, whose extent by the gap
+     * once swapped the strings after it as floats. */
+    {"D_80118C10, the level objects' bodies and static states", 0x80118C10, 460, 1, 4},
+    {"D_801163F8, the rumble thresholds", 0x801163F8, 144, 1, 4},
+    {"D_8011B4B4, the wings' place per car type", 0x8011B4B4, 156, 1, 4},
+    {"D_801202F8, gravityArray", 0x801202F8, 16, 1, 4},
+    {"the strings after gravityArray", 0x80120308, 20, 1, 1},
 };
 
 /* Checks known_widths against the images' bytes (after both runtime images are loaded); the number that differ. */

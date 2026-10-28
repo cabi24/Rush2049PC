@@ -2144,7 +2144,12 @@ LOADER_EXPECT = [("D_80114264", 0x0, 4), ("D_80114264", 0xC, 4), ("D_801164A4", 
                  ("D_80120E50", 0x0, 1), ("D_80120E50", 0x3, 1),
                  # the engine sound table (mode_select/d5e64.c): rev points u16, levels f32, in both 32-byte entries
                  ("D_8010FD80", 0x0, 4), ("D_8010FD80", 0x4, 2), ("D_8010FD80", 0xC, 2), ("D_8010FD80", 0x10, 4),
-                 ("D_8010FD80", 0x18, 4), ("D_8010FD80", 0x24, 2), ("D_8010FD80", 0x30, 4)]
+                 ("D_8010FD80", 0x18, 4), ("D_8010FD80", 0x24, 2), ("D_8010FD80", 0x30, 4),
+                 # tables declared as one element, one row or bytes (docs/port/DATA.md 8): the level objects' bodies
+                 # and static states (level_objects), the rumble thresholds (func_800E56F8), the wings' place per
+                 # car type (extents.txt)
+                 ("D_80118C10", 0x0, 4), ("D_80118C10", 0x1C, 4), ("D_80118C10", 0x1C8, 4), ("D_801163F8", 0x4, 4),
+                 ("D_801163F8", 0x8C, 4), ("D_8011B4B4", 0xC, 4), ("D_8011B4B4", 0x98, 4)]
 # The colour unions gen_data copies as bytes (a byte member covers them), D_801146BC's element 1 under
 # D_801146C0's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
 # table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).
