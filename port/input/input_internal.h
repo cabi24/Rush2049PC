@@ -131,6 +131,8 @@ size_t pc_menu_about_text(char *out, size_t size);
 /* ---------------------------------------------------------------- port/ultra */
 uint64_t pc_host_ns(void);
 int pc_si_motor(int channel);
+int pc_si_set_pak(int channel, int kind);   /* a controller's accessory, PC_CFG_PAK_* (a hot swap) */
+int pc_si_pak(int channel);                 /* what the game finds in it now: none, memory or rumble */
 
 /* ---------------------------------------------------------------- port/gfx (gfx_internal.h): the live settings */
 void pc_gfx_set_widescreen(float aspect);
