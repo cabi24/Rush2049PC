@@ -607,13 +607,15 @@ static void hit_is(int w, int h, int x, int y, int area, int item, int part, con
           hit.item, hit.part, area, item, part);
 }
 
-/* A mouse event at (x, y) in the window system's units of a ww x wh window whose drawable is dw x dh. */
+/* A mouse event at (x, y) in the window system's units of a ww x wh window whose drawable is dw x dh; then 0.6 s
+ * pass, so that two clicks aren't a double click. */
 static void mouse_at(int what, int x, int y, int ww, int wh, int dw, int dh, int amount)
 {
     int px, py;
     pc_menu_mouse_pixels(x, y, ww, wh, dw, dh, &px, &py);
     pc_menu_mouse(what, px, py, dw, dh, amount);
     pump();
+    test_now_ns += 600000000u;
 }
 
 /* The selected row's highlight is drawn at row i: the window's pixel left of the labels there. */
@@ -738,6 +740,20 @@ static void test_mouse(void)
     mouse_at(PC_MOUSE_RIGHT, x, y, 640, 480, 640, 480, 0);
     at("Settings", "Video", NULL, "the right button goes back");
     CHECK(pc_menu_is_open(), "still open");
+
+    /* a double click on Video: the second press, on the page the first opened, changes nothing there */
+    row_px(&p, 0, 20, 6, &x, &y);
+    pc_menu_mouse(PC_MOUSE_LEFT, x, y, 640, 480, 0);
+    test_now_ns += 200000000u;
+    pc_menu_mouse(PC_MOUSE_LEFT, x, y, 640, 480, 0);
+    pump();
+    at("Video", "Vsync", "on", "a double click opens the page (on the item it was left on), and no more");
+    test_now_ns += 400000000u;
+    mouse_at(PC_MOUSE_LEFT, x, y, 640, 480, 640, 480, 0);
+    at("Video", "Render scale", "N64 (1x)", "a click later counts");
+    mouse_at(PC_MOUSE_LEFT, p.ox + 161 * p.k, y, 640, 480, 640, 480, 0);
+    at("Video", "Render scale", "native", "and back");
+    mouse_at(PC_MOUSE_RIGHT, x, y, 640, 480, 640, 480, 0);
 
     /* the volume's bar: where it is clicked */
     row_px(&p, 1, 20, 6, &x, &y);

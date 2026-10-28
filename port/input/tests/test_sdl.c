@@ -1027,10 +1027,12 @@ static void mouse(Uint32 type, int x, int y, int button)
     pump();
 }
 
+/* A press and release; then 0.6 s pass, so that two clicks aren't a double click. */
 static void click(int x, int y, int button)
 {
     mouse(SDL_MOUSEBUTTONDOWN, x, y, button);
     mouse(SDL_MOUSEBUTTONUP, x, y, button);
+    test_now_ns += 600000000u;
 }
 
 static int cursor_shown(void)
@@ -1054,15 +1056,16 @@ static void test_mouse(void)
     show_frame();
     pump();
     CHECK(!cursor_shown(), "no cursor over the game at start");
-    /* during play: the cursor shows when the mouse moves, and hides 2 s after it stops; the game gets nothing */
-    mouse(SDL_MOUSEMOTION, 100, 100, 0);
-    CHECK(cursor_shown(), "the mouse moved: the cursor shows");
+    /* during play the game gets nothing from the mouse; the cursor shows when it moves, and hides 2 s after */
     click(100, 100, SDL_BUTTON_LEFT);
     click(100, 100, SDL_BUTTON_RIGHT);
     mouse(SDL_MOUSEWHEEL, 0, 0, 1);
     poll_pads();
     pad_is(0, 0, 0, 0, 1, "clicks and the wheel during play");
     CHECK(!pc_menu_is_open() && !pc_input_paused(), "clicks don't open the overlay");
+    CHECK(!cursor_shown(), "nor show the cursor");
+    mouse(SDL_MOUSEMOTION, 101, 100, 0);
+    CHECK(cursor_shown(), "the mouse moved: the cursor shows");
     test_now_ns += 1500000000u;
     pump();
     CHECK(cursor_shown(), "1.5 s later it is still there");
@@ -1105,7 +1108,6 @@ static void test_mouse(void)
     pump();
     click(4, 4, SDL_BUTTON_LEFT);
     CHECK(pc_menu_is_open(), "the focusing click outside the panel doesn't close it");
-    test_now_ns += 300000000u;
     click(4, 4, SDL_BUTTON_LEFT);
     CHECK(!pc_menu_is_open() && !pc_input_paused(), "a click outside on the first page closes it");
     poll_pads();

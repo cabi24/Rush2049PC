@@ -244,6 +244,7 @@ static struct {
     char players[256];               /* the Controllers page's player rows as last drawn */
     int saved;                       /* Save wrote the file, and nothing changed since */
     int mouse, mx, my, mw, mh;       /* the mouse's last place over the window (drawable pixels), and its size */
+    uint64_t page_click_ns;          /* when a click last changed the page (0: not yet) */
     char data_dir[PC_CFG_PATH];      /* About's data folder, for Open */
 } M;
 
@@ -1018,6 +1019,7 @@ int pc_menu_tick(void)
 #define BAR_W 60
 #define FOOT_CHARS 49                               /* a footer line */
 #define WHEEL_ROWS 3                                /* rows a wheel notch or a scroll arrow moves */
+#define DOUBLE_CLICK_NS 500000000u                  /* Windows' double-click time */
 
 static int g_k, g_ox, g_oy;
 
@@ -1354,11 +1356,16 @@ void pc_menu_mouse(int what, int x, int y, int w, int h, int amount)
     case PC_MOUSE_RIGHT:   /* back, or cancel a capture */
         pc_menu_action(PC_MENU_BACK);
         break;
-    case PC_MOUSE_LEFT:
+    case PC_MOUSE_LEFT: {
+        uint64_t now = pc_host_ns();
+        int page = M.page;
         if (M.capture) {   /* a click cancels a capture */
             pc_menu_capture(NULL);
             break;
         }
+        /* a double click's second press, on the page the first one opened (or went back to), is no click there */
+        if (M.page_click_ns && now >= M.page_click_ns && now - M.page_click_ns < DOUBLE_CLICK_NS)
+            break;
         pc_menu_hit(w, h, x, y, &hit);
         if (hit.area == PC_HIT_OUTSIDE)
             pc_menu_action(PC_MENU_BACK);
@@ -1376,7 +1383,10 @@ void pc_menu_mouse(int what, int x, int y, int w, int h, int amount)
             } else
                 pc_menu_action(PC_MENU_ACCEPT);
         }
+        if (M.page != page)
+            M.page_click_ns = now ? now : 1;
         break;
+    }
     case PC_MOUSE_WHEEL:   /* scrolls a long page; the item under the mouse is then the selected one */
         if (M.capture || !amount)
             break;
