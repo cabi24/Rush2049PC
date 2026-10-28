@@ -523,7 +523,9 @@ set_target_properties(test_romcheck test_app test_saves PROPERTIES EXPORT_COMPIL
 # (tools/port/hfr_check.py), and frames drawn between the game's in the second run.
 add_test(NAME hfr_timing COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr --require-drawn race2p drive demo)
-set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+# Six runs one after another, the longest test (about a minute alone on a CI runner): alone under ctest -j, where
+# four other game processes made it two to three times as long, toward its timeout.
+set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
 # Live input drives the game (docs/port/FRONTEND.md "Testing live input"): the drive path through SDL virtual
 # controllers, a virtual joystick with the generic mapping, key events and a controller plugged in late, each the same
 # run as the scripted one, with the car's steering input following the stick; race2p with two controllers

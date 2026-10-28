@@ -48,7 +48,8 @@ jobs:
           ccache -s | grep -iE "hits|misses|cache size" || true
       - name: Tests
         # Four at once; the tests on the host's clock (the real-time race, the ultra self-test, the audio output's
-        # drains, audio_realtime) are RUN_SERIAL and run alone. A failing test is run again under gdb for a backtrace.
+        # drains, audio_realtime) and the long hfr_timing are RUN_SERIAL and run alone. A failing test is run again
+        # under gdb for a backtrace.
         run: |
           ctest --test-dir build/pc -j4 --output-on-failure && exit 0
           sudo apt-get install -y --no-install-recommends gdb > /dev/null
