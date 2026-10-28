@@ -85,7 +85,7 @@ int8_t D_80156994, D_80150DD0, D_80114650, D_80152570, D_8013FECC, D_8013FECD;
 int32_t D_8014A110, gameplay_mode, D_801170FC, D_8013F1DC;
 int16_t D_8014A108;
 volatile uint8_t gNumModels = 2;
-uint16_t D_801427C0[64], D_80142A78, D_80142A7A;
+uint16_t D_801427C0[1024], D_80142A78, D_80142A7A;   /* textures: the camera record names 361 */
 float D_8011418C[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 float D_80118DFC[3], D_80121DDC[3] = {0.0f, -0.25f, 0.0f}, D_801141B0[3];
 float D_801249BC = 0.75f, D_801249C0 = 1.25f;

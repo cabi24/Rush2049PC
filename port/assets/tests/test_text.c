@@ -172,7 +172,7 @@ int main(void)
     CHECK(g_measured == D_8017A4E0.taba[3 + 7]);
     D_801170FC = 5;
     {
-        char name[32] = "....................PLAYER";
+        static char name[32] = "....................PLAYER";   /* static: voice_stop reads it after the block */
         void *p = name;
         memcpy(D_8014A160, &p, sizeof p);
     }

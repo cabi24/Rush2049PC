@@ -208,7 +208,7 @@ int main(void)
         free(pcm);
     }
 
-    Scene native, nk0, n64le, n64be;
+    static Scene native, nk0, n64le, n64be;   /* static: what they hold lives to the end (LeakSanitizer) */
     build(&native, 0);
     build(&nk0, 0);
     to_k0(&nk0);
