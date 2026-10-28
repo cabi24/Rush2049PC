@@ -1,0 +1,13 @@
+# ThreadSanitizer suppressions for the sanitizer builds (docs/port/SANITIZE.md 4). Keep each narrow and say why.
+
+# Mesa's driver threads (iris, llvmpipe: libgallium) and SDL's and PulseAudio's are not instrumented, so their
+# own locking is invisible to ThreadSanitizer and every buffer they hand over looks like a race.
+called_from_lib:libgallium
+race:libgallium
+race:libpulsecommon
+race:libSDL2
+# The same libraries' own lock order (llvmpipe's JIT under EGL's display lock), seen as a potential deadlock.
+deadlock:libLLVM
+deadlock:libEGL_mesa
+deadlock:libgallium
+

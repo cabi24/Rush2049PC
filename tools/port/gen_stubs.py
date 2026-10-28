@@ -146,6 +146,7 @@ def main():
     defined = set(game_defs) | set(port_defs)
     undefined = (game_refs - defined) - n64syms.HOST_LIBC - n64syms.LINKER_DEFINED
     undefined = {n for n in undefined if not n.startswith(n64syms.PE_WEAK_PREFIX)}   # weak.ld's
+    undefined = {n for n in undefined if not n.startswith(n64syms.SANITIZER_PREFIXES)}
     alias = {} if a.standalone else aliases_for(undefined, defined, syms)
     undefined -= alias.keys()
     absolute = {} if a.standalone else absolute_for(undefined, syms)

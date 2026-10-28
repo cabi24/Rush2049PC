@@ -582,7 +582,7 @@ static void case_texrect(void) {
     gsSPTextureRectangle(10 << 2, 10 << 2, 17 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);
     gsSPTextureRectangleFlip(30 << 2, 10 << 2, 37 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);
     /* mirrored horizontally: start at the right column, step back */
-    gsSPTextureRectangle(50 << 2, 10 << 2, 57 << 2, 17 << 2, 0, 7 << 5, 0, (uint16_t)(-4 << 10), 1 << 10);
+    gsSPTextureRectangle(50 << 2, 10 << 2, 57 << 2, 17 << 2, 0, 7 << 5, 0, (uint16_t)-(4 << 10), 1 << 10);
     /* alpha compare in copy mode: the transparent column is skipped */
     gsDPSetAlphaCompare(G_AC_THRESHOLD);
     gsSPTextureRectangle(70 << 2, 10 << 2, 77 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);

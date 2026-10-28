@@ -137,6 +137,7 @@ def main():
             defs.setdefault(name, []).append((str(aliases), "A"))
     defined = set(defs)
     undefined -= defined | n64syms.HOST_LIBC | n64syms.LINKER_DEFINED
+    undefined = {n for n in undefined if not n.startswith(n64syms.SANITIZER_PREFIXES)}
     # One strong definition per symbol (tools/port/gen_weak.py makes the non-owned copies weak).
     strong_dups = sorted(n for n, d in defs.items() if sum(1 for _, t in d if t in "TDBRS") > 1)
     weak_resolved = sum(1 for d in defs.values() for _, t in d if t in "WV")

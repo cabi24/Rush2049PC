@@ -166,7 +166,13 @@ typedef struct Vehicle2056 {
 #endif
 extern Car *D_80110D08[];
 extern Tune44 D_801116D0[];
+#ifdef TARGET_PC
+/* PC: a table of 13-entry rows, indexed mode * 13 + type (mode up to 4); declared with its first row's size, an
+ * optimizer may take every index for one below 13 (docs/port/SANITIZE.md, OPTIMIZED.md 2.7) */
+extern s8 D_8011128C[],D_801114E4[];
+#else
 extern s8 D_8011128C[13],D_801114E4[];
+#endif
 extern float D_801112D0[],D_80111274[],D_8011121C[],D_80110E0C[],D_80110E44[],D_80110DA4[];
 extern float D_80124158,D_8012415C,D_80142764;
 #ifdef TARGET_PC

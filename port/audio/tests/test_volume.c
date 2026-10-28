@@ -51,5 +51,10 @@ int main(void)
     CHECK(s_out[0] == 8191, "the volume holds across a re-init: %d", s_out[0]);
     pc_audio_set_volume(1.0);
     pc_audio_shutdown();
+    /* At exit the game's threads go on pushing after main shut the output down: that mustn't open it again
+     * (docs/port/SANITIZE.md 3) */
+    pc_audio_set_frequency(22050);
+    pc_audio_push(s_in, 400);
+    CHECK(!strcmp(pc_audio_backend_name(), "none") && pc_audio_queued_frames() == 0, "closed after the shutdown");
     return test_finish("volume");
 }

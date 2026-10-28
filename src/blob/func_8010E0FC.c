@@ -90,6 +90,13 @@ typedef struct Player { u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 p
 #else
 typedef struct Player { u8 pad0[860]; s8 slot; u8 pad861[91]; } Player;
 #endif
+#ifdef TARGET_PC
+/* PC: a player's view bit; a slot of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
+ * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
+#define SLOT_BIT(s) 1 << ((s) & 31)
+#else
+#define SLOT_BIT(s) 1 << s
+#endif
 extern s32 D_801170FC;
 extern u32 D_80118E14, D_80118E18;
 /* PC: the gold and silver colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
@@ -184,8 +191,8 @@ void func_8010E0FC(Node *node, s16 update)
                 coin->missing |= 1 << i;
             } else {
                 player = &D_80152818[i];
-                model_data_load(entity->id.handle, 1, 1 << player->slot);
-                model_data_load(coin->model, 1, 1 << player->slot);
+                model_data_load(entity->id.handle, 1, SLOT_BIT(player->slot));
+                model_data_load(coin->model, 1, SLOT_BIT(player->slot));
             }
         }
         if (alone) {

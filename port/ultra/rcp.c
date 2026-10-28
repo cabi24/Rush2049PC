@@ -69,8 +69,8 @@ void osSpTaskStartGo(void *task)
          * hadn't rendered yet. The scheduler takes the SP event from its queue after this returns. With --fast
          * the main loop runs them, as it sends the AI events, while every N64 thread waits: its count and its
          * events then come at moments the virtual clock fixes, the same in every run (counted here, it raced the
-         * main loop's status lines). */
-        pc_rcp_audio_tasks++;
+         * main loop's status lines). The main thread reads the count for its status lines meanwhile: atomic. */
+        __atomic_fetch_add(&pc_rcp_audio_tasks, 1, __ATOMIC_RELAXED);
         pc_audio_run_task(t->data_ptr, t->data_size);
         pc_os_event(OS_EVENT_SP);
         return;
@@ -102,7 +102,7 @@ void osSpTaskYield(void)
         g_ntasks--;
         memmove(&g_tasks[i], &g_tasks[i + 1], (size_t)(g_ntasks - i) * sizeof g_tasks[0]);
         memmove(&g_task_of[i], &g_task_of[i + 1], (size_t)(g_ntasks - i) * sizeof g_task_of[0]);
-        pc_rcp_gfx_yields++;
+        __atomic_fetch_add(&pc_rcp_gfx_yields, 1, __ATOMIC_RELAXED);   /* the exit line reads it unlocked */
         yielded = 1;
     }
     pthread_mutex_unlock(&g_rlock);
@@ -320,7 +320,7 @@ int pc_rcp_service(uint64_t now, uint64_t *next)
             pc_os_event(OS_EVENT_DP);
         } else {
             if (t->type == M_AUDTASK) {   /* --fast (osSpTaskStartGo) */
-                pc_rcp_audio_tasks++;
+                __atomic_fetch_add(&pc_rcp_audio_tasks, 1, __ATOMIC_RELAXED);
                 pc_audio_run_task(t->data_ptr, t->data_size);
             } else {
                 pc_log("RSP task of type %u ignored", t->type);

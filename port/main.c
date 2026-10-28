@@ -297,7 +297,9 @@ static int rush_main(int argc, char **argv)
     const char *bare_rom = NULL, *log_path = NULL;
     int use_log = 1;
     PcRunOptions run = {0};
-    PcSettingValue over[MAX_OVERRIDES + 1];   /* the command line's settings, in order; [0] for a press file */
+    /* the command line's settings, in order; [0] for a press file. Static: the --set strings it points into live as
+     * long as the program, and LeakSanitizer looks for them from here (docs/port/SANITIZE.md). */
+    static PcSettingValue over[MAX_OVERRIDES + 1];
     int nover = 1;
     char width[16], height[16];
 

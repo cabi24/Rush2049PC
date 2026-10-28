@@ -52,6 +52,14 @@ typedef struct Scene { u8 unknown00[16]; f32 scale; u8 unknown14[48]; } Scene;
 #endif
 typedef struct Point { s16 x, y; } Point;
 typedef union Color { u32 word; struct { u8 r,g,b,a; } rgba; } Color;
+#ifdef TARGET_PC
+/* PC: the fade's alpha passes 255 while a score's start is ahead of the clock; a float out of a u8's range is
+ * undefined in C, so it goes through an int and keeps its low byte, as the N64's trunc.w.s and sb do
+ * (docs/port/SANITIZE.md). */
+#define ALPHA_U8 (u8)(s32)
+#else
+#define ALPHA_U8 (u8)
+#endif
 typedef struct NameQuad { char *name[4]; } NameQuad;
 typedef struct ScoreState {
     s16 active, lock;
@@ -232,7 +240,7 @@ void func_80391B00(void)
             if (score->lock) alpha = (1.0f - (D_801543CC - score->started) / 2.69f) * 255.0f;
             else alpha = 255.0f;
             if (alpha < 0.0f) alpha = 0.0f;
-            color.rgba.a = (u8)alpha;
+            color.rgba.a = ALPHA_U8 alpha;
             if (score->active && (D_801543CC - score->started < 2.69f || score->working)) {
                 for (kind = 0; kind < 10; kind++) {
                     if (!score->state) score->counts[kind] = score->source_counts[kind];
@@ -279,7 +287,7 @@ void func_80391B00(void)
                             func_8008B32C(D_80150B70[i].uv, selected->uv,
                                 D_80151AD0 == 1 ? 0.005f : D_80151AD0 == 2 ? 0.0035f : 0.005f);
                             selected->alpha = alpha;
-                            color.rgba.a = (u8)alpha;
+                            color.rgba.a = ALPHA_U8 alpha;
                             func_8008E06C(selected->handle, &color.word);
                             model_transform_setup(selected->handle, 0, D_80393B74[i]);
                         }

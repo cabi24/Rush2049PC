@@ -1,0 +1,28 @@
+# UndefinedBehaviorSanitizer suppressions for the sanitizer builds (docs/port/SANITIZE.md 4): check:function, each
+# with its reason. A finding not listed fails its test (halt_on_error=1 in ctest's environment).
+
+# The game C's design: Tracker.idx is declared with 17 slots and the records carry 20, which the N64 code fills
+# (route_cross/group.c's own comment). A member array used past its end, as -Warray-bounds sees 260 times; the
+# writes stay inside D_80151CE8 at its N64 layout.
+bounds:^audio_mixer_main$
+
+# The pause menu's rows (the retail pause paths): animControls tests (conflict && !gConflict[p][action]) ||
+# action >= 10, so with action 10 it reads the next row's first flag (an arena in the RDRAM window, at its N64
+# layout, as the N64 reads it), and the || makes the result true whatever it read.
+bounds:^animControls$
+
+# A blank cartridge only (--no-rom, app_firstrun): with every file empty no heap block fits, and the N64 code reads
+# the null block's size too.
+null:^audio_helper$
+
+# The synthetic cartridge's data (docs/port/SYNTH.md 4): its camera and particle positions are NaN, and the view and
+# particle code converts them to integers. None of these on the retail paths (SANITIZE.md 3).
+float-cast-overflow:^func_8009F058$
+float-cast-overflow:^func_8009E8B4$
+float-cast-overflow:^func_8009D45C$
+float-cast-overflow:^func_8009D99C$
+float-cast-overflow:^func_800A557C$
+float-cast-overflow:^particle_system$
+float-cast-overflow:^input_deadzone_apply$
+float-cast-overflow:^display_update$
+

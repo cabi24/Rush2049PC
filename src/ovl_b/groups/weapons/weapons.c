@@ -154,6 +154,16 @@ f32 D_803943A4[8][13][3] = {
 #else
 #define WEAPON_STATE static
 #endif
+#ifdef TARGET_PC
+/* PC: battle.type 8 is no weapon. The update reads its row of D_803943A4 when a car loses its weapon, and doesn't
+ * use it: past the table's 8 rows, on the N64 into the data after it, on the PC into whatever the linker put there
+ * (UBSan, docs/port/SANITIZE.md 3). It reads zeros instead. The table keeps its N64 size: port/data maps the N64
+ * addresses a C-defined symbol covers to it, and a ninth row took the next data's. */
+static const f32 pc_no_weapon[13][3];
+#define WEAPON_OFF(type) ((type) < 8 ? D_803943A4[type] : pc_no_weapon)
+#else
+#define WEAPON_OFF(type) D_803943A4[type]
+#endif
 WEAPON_STATE s8 D_80399118[4];            /* gCurWeaponType */
 WEAPON_STATE MuzzleObj D_80399120[4];     /* gGattMuzzleObjs */
 WEAPON_STATE CMuzzleObj D_80399550[4];    /* gCannMuzzleObjs */
@@ -229,9 +239,9 @@ void func_8038AA8C(Visual *v, s16 op)
         model_transform_setup(v->objnum, 0, 15);
     }
     if (D_80399118[v->slot] != car->battle.type) {
-        off[0] = D_803943A4[car->battle.type][D_8014A250[v->slot].body_type][0];
-        off[1] = D_803943A4[car->battle.type][D_8014A250[v->slot].body_type][1];
-        off[2] = D_803943A4[car->battle.type][D_8014A250[v->slot].body_type][2];
+        off[0] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][0];
+        off[1] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][1];
+        off[2] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][2];
         if (D_80399118[v->slot] == 1)
             func_8038AA14(v->slot);
         else if (D_80399118[v->slot] == 0)
@@ -309,12 +319,12 @@ void func_8038AA8C(Visual *v, s16 op)
         case 7: def = 223; break;
         }
         func_80090770(D_80139320[v->slot].weap, D_8014254C[def + 314]);
-        func_8008D6FC(D_80139320[v->slot].weap, D_803943A4[car->battle.type][D_8014A250[v->slot].body_type], 0);
+        func_8008D6FC(D_80139320[v->slot].weap, WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type], 0);
     }
     {
-        off[0] = D_803943A4[car->battle.type][D_8014A250[v->slot].body_type][0];
-        off[1] = D_803943A4[car->battle.type][D_8014A250[v->slot].body_type][1];
-        off[2] = D_803943A4[car->battle.type][D_8014A250[v->slot].body_type][2];
+        off[0] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][0];
+        off[1] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][1];
+        off[2] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][2];
         if (D_80399118[v->slot] == 1) {
             off[0] += 0.01f;
             off[1] += 0.65f;

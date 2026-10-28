@@ -85,7 +85,7 @@ int8_t D_80156994, D_80150DD0, D_80114650, D_80152570, D_8013FECC, D_8013FECD;
 int32_t D_8014A110, gameplay_mode, D_801170FC, D_8013F1DC;
 int16_t D_8014A108;
 volatile uint8_t gNumModels = 2;
-uint16_t D_801427C0[64], D_80142A78, D_80142A7A;
+uint16_t D_801427C0[1024], D_80142A78, D_80142A7A;   /* textures: the camera record names 361 */
 float D_8011418C[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 float D_80118DFC[3], D_80121DDC[3] = {0.0f, -0.25f, 0.0f}, D_801141B0[3];
 float D_801249BC = 0.75f, D_801249C0 = 1.25f;
@@ -310,7 +310,7 @@ static void test_instantiate(void)
     CHECK(D_80150E28[2] == 1 && D_80150E28[4] == 1 && D_80150F78 == 1);
 
     engine_sound_update();
-    ctl = NF(cam, 0x6C, uint8_t *) ? WP(NF(cam, 0x6C, uint32_t)) : NULL;
+    ctl = NF(cam, 0x6C, uint32_t) ? WP(NF(cam, 0x6C, uint32_t)) : NULL;   /* an N64 address, 4-aligned */
     CHECK(W32(D_80150E68[2]) >= HEAP && NF(cone, 0x6C, uint32_t) == W32(D_80150E68[2]));
     CHECK(D_80150E98[2] == D_80150E68[2] + 24 && ctl == D_80150E68[4]);
     CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* CamCtl.scene: &D_801392D0[1] */

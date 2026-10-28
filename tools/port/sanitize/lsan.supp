@@ -1,0 +1,5 @@
+# LeakSanitizer suppressions for the sanitizer builds (docs/port/SANITIZE.md). Keep each narrow and say why.
+
+# Mesa (libgallium: V3D on the Pi, llvmpipe on CI) keeps allocations to the end of the process that nothing of
+# ours holds (the frontend menu tests at exit).
+leak:libgallium

@@ -43,6 +43,15 @@ extern f32 D_8002EB90;
 extern void func_8008C074(intptr_t, s32, s32, s32, u8 *, s32, s32);
 extern void func_8008D0C0(intptr_t);
 extern void func_800AFA84(VoiceLists *, Voice *);
+#ifdef TARGET_PC
+/* PC: a float to u32 that is negative while a voice's start is ahead of the clock. Undefined in C, and the hosts
+ * differ: x86-64 and IDO's code for the N64 go through a signed conversion and keep the bits (-125 is 0xFFFFFF83, no
+ * fade), aarch64's fcvtzu gives 0 (the fade at full). So through s32 below 0, as the N64 (docs/port/SANITIZE.md). */
+static u32 pc_f2u(f32 x) { return x < 0.0f ? (u32)(s32)x : (u32)x; }
+#define F2U pc_f2u
+#else
+#define F2U (u32)
+#endif
 void audio_voice_set(void) {
     Voice *p, *next;
     s32 count = 0;
@@ -57,7 +66,7 @@ void audio_voice_set(void) {
         }
         {
             rate = (D_8002EB90 - p->start) / (((f32)count + (f32)count)/100.0f + 2.0f);
-            amount = (u32)(rate * 255.0f + 63.0f);
+            amount = F2U(rate * 255.0f + 63.0f);
             if (amount < 255) {
                 p->bytes[3] = 255 - amount;
                 if (p->bytes[3] > 192) p->bytes[3] = 192;

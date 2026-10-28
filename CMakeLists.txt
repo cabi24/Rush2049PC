@@ -162,6 +162,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64" AND NOT WIN32)
     add_compile_options(-fPIC -fno-semantic-interposition -Wa,-mrelax-relocations=no)
     add_link_options(-Wl,--no-relax)   # ld would still turn GOT loads of absolute symbols into PC32
 endif()
+include(cmake/sanitize.cmake)   # RUSH_SANITIZE (docs/port/SANITIZE.md)
 # ---------------------------------------------------------------- Windows (mingw-w64, docs/port/WINDOWS.md)
 # The image links above 4 GiB (0x140000000) and moves with high-entropy ASLR, which keeps the heap and the thread
 # stacks above 4 GiB too: the renderer and the audio interpreter read values below 4 GiB as N64 addresses.
@@ -224,6 +225,7 @@ add_library(game_probe OBJECT ${PROBE_SOURCES})
 target_link_libraries(game_probe PRIVATE game_flags)
 # Only its global definitions are read, which are the same at every optimization level: -O0 is the quickest.
 target_compile_options(game_probe PRIVATE -w -O0)
+set_target_properties(game_probe PROPERTIES PC_NO_SANITIZE ON)
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/probe_objects.txt CONTENT "$<JOIN:$<TARGET_OBJECTS:game_probe>,\n>\n")
 add_custom_command(
     OUTPUT ${WEAK_HEADERS}
@@ -244,12 +246,15 @@ target_link_libraries(game PRIVATE game_flags)
 # so the data tables lost symbols at -O2 (D_80117498, a word the loader then left in the ROM's byte order).
 # A Debug build's game objects are -O0 already; any other build type compiles a second copy for its types, with the
 # game's own flags and weak headers (set on the sources). gen_data.py refuses optimized DWARF.
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}" MATCHES "(^| )-O[^0 ]")
+# A sanitizer build's game objects are instrumented, so it compiles the copy too, without (docs/port/SANITIZE.md).
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}" MATCHES "(^| )-O[^0 ]"
+   AND NOT PC_SANITIZE)
     set(PC_TYPES_TARGET game)
 else()
     add_library(game_types OBJECT ${GAME_SOURCES})
     target_link_libraries(game_types PRIVATE game_flags)
     target_compile_options(game_types PRIVATE -O0 -g -UNDEBUG -w)
+    set_target_properties(game_types PROPERTIES PC_NO_SANITIZE ON)
     set_target_properties(game_types PROPERTIES EXPORT_COMPILE_COMMANDS OFF)   # census.py, endian_check.py
     set(PC_TYPES_TARGET game_types)
 endif()
@@ -299,6 +304,7 @@ add_custom_command(
 add_library(pcdata OBJECT ${PC_DATA_DIR}/data.c)
 target_include_directories(pcdata PRIVATE port/data)
 target_compile_options(pcdata PRIVATE -fno-common)   # the .set aliases need the arenas in a section
+set_target_properties(pcdata PROPERTIES PC_NO_SANITIZE ON)   # no redzones between own storages (SANITIZE.md)
 # Own storage in the order data.c defines it, which is N64 address order: GCC reorders top-level definitions from -O1
 # on (at -O2 it put them in reverse), and game C that walks from one symbol to the next relies on the N64's order
 # (docs/port/OPTIMIZED.md). -O0 keeps the order anyway; gen_data.py --check verifies it in the executable.
@@ -331,6 +337,9 @@ endif()
 add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
 target_include_directories(pcultra PRIVATE port/include port/ultra port/config ${ZLIB_INCLUDE_DIRS})
 target_compile_options(pcultra PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+if(PC_SANITIZE)
+    target_compile_definitions(pcultra PRIVATE PC_SANITIZE)   # the fault handler chains to the runtime's
+endif()
 if(WIN32)
     target_link_libraries(pcultra PUBLIC winmm)   # timeBeginPeriod (loop.c)
 endif()
@@ -461,6 +470,16 @@ enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 set_tests_properties(ultra_selftest PROPERTIES RUN_SERIAL TRUE)   # its timers on the host's clock: alone (ctest -j)
 add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
+# A sanitizer build's fault handler names the N64 thread, then hands the fault to AddressSanitizer's, which reports
+# it with its own stack (docs/port/SANITIZE.md 1): the blank cartridge's boot faults in audio_helper. (CMake's "."
+# takes a newline; an alternation such as (.|\n)* backtracks for minutes over the report.)
+if(PC_SANITIZE_ADDRESS)
+    add_test(NAME sanitize_fault_chain COMMAND rush2049pc --no-rom --headless --fast --seconds 10 --no-config
+        --audio null --no-pak --no-log)
+    set_tests_properties(sanitize_fault_chain PROPERTIES
+        ENVIRONMENT "ASAN_OPTIONS=handle_segv=1:detect_leaks=0;UBSAN_OPTIONS=halt_on_error=0"
+        PASS_REGULAR_EXPRESSION "Segmentation fault at address [^\n]* in N64 thread .*ERROR: AddressSanitizer: SEGV")
+endif()
 if(WIN32)
     # The subsystem, the image base and ASLR, the icon's sizes and the version information, from the file itself
     # (Python only: it runs on a Linux host that cross-compiles too, ctest -R win_pe)
@@ -746,6 +765,11 @@ add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
+# A sanitizer build runs the programs several times slower: the tests that start the game many times get more time
+# (docs/port/SANITIZE.md 5).
+if(PC_SANITIZE)
+    set_tests_properties(app_firstrun hfr_timing PROPERTIES TIMEOUT 1200)
+endif()
 
 # ---------------------------------------------------------------- install (docs/port/RELEASE.md)
 # `cmake --install build/pc --prefix DIR`. Portable (the default on Windows, and the release archives): one folder

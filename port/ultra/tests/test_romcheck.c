@@ -29,7 +29,8 @@ static uint8_t *image(size_t size, const char *title, const char *code, int vers
         memcpy(p, "\x80\x37\x12\x40", 4);
         memset(p + 0x20, ' ', 20);
         memcpy(p + 0x20, title, strlen(title));
-        memcpy(p + 0x3B, code, 4);
+        memset(p + 0x3B, 0, 4);
+        memcpy(p + 0x3B, code, strnlen(code, 4));   /* "" is one byte: 4 read past it (AddressSanitizer) */
         p[0x3F] = (uint8_t)version;
     }
     return p;
