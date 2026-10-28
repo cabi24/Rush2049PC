@@ -428,6 +428,10 @@ static void t_pif(void)
     int32_t ra = osPfsAllocateFile(pfs, 0x3459, 0x4E525545, name, ext, 768, &file);
     osPfsFreeBlocks(pfs, &after_alloc);
     int32_t rw = osPfsReadWriteFile(pfs, file, 1, 0, 768, out);
+    char why[160];
+    /* the image the game's Pfs C wrote is one the saves' check (pakfile.c) calls good */
+    int image = pc_si_pak_check(why, sizeof why);
+    check("pak image, a note in it", image == PC_PAK_IMAGE_OK, why);
     int32_t ri = osPfsInitPak(si, pfs, 0);
     int32_t rr = osPfsReadWriteFile(pfs, file, 0, 0, 768, in);
     int32_t rd = osPfsDeleteFile(pfs, 0x3459, 0x4E525545, name, ext);
@@ -437,6 +441,8 @@ static void t_pif(void)
              (int)rd, (int)after_delete);
     check("pak note round trip", ra == 0 && after_alloc == 120 * 256 && rw == 0 && ri == 0 && rr == 0 &&
                                      !memcmp(in, out, 768) && rd == 0 && after_delete == 123 * 256, d);
+    image = pc_si_pak_check(why, sizeof why);
+    check("pak image after the delete", image == PC_PAK_IMAGE_OK, why);
 }
 
 /* RSP tasks are answered with SP (and DP) events; audio tasks run in osSpTaskStartGo in real time, in the main loop

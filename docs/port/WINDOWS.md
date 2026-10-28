@@ -407,6 +407,20 @@ the real stderr. `app_firstrun` uses it: an error (two ROMs dropped), an unknown
 the usage), no ROM with a window (the ROM's own box and no second one, the log written), `--version` (nothing), and on
 Windows a fault (its box, the log with the report). It also checks that `--help` and `--print-config` reach a pipe.
 
+**The first run, double-clicked.** With no ROM (or one that can't be used), the box asks: **Open ROM...** or
+**Quit** ([RELEASE.md](RELEASE.md) "Choosing the ROM"). Open ROM... shows Windows' own file dialog,
+`IFileOpenDialog` (COM, `CoInitializeEx` apartment-threaded for the call; ole32, which SDL2 already imports, so the
+executable imports no new DLL: `pe_check.py --dlls`). The GUIDs are the program's own copies, so no `uuid` library
+is needed. The path the dialog gives is UTF-16; it goes to the C runtime's ANSI code page, as the program's other
+paths (`argv`, `fopen`) are in, or its 8.3 short name when the code page can't spell it; failing both, the box says
+to copy the ROM to a folder such as `C:\Games`. The file chosen is checked, offered again while it can't be used,
+and kept as `game.rom` in `rush2049pc.ini` (next to a portable program), so the next double-click starts the
+game. A box answered Quit, or a cancelled dialog, ends the run without the "stopped" box: a box has explained it.
+
+**Saves, on Windows**: the pak is written as a temp file, `_commit` to the disk, then `MoveFileEx` with
+`MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH` over the pak; a write that fails (an antivirus holding the
+file, say) is tried again a second later. Backups and a damaged pak set aside: RELEASE.md "Saves".
+
 **Also:**
 
 - The C runtime's own messages (`abort`, `assert`) go to stderr, `_set_error_mode(_OUT_TO_STDERR)`. A GUI program's
@@ -464,6 +478,9 @@ Windows a fault (its box, the log with the report). It also checks that `--help`
 - The console (section 10) from cmd.exe, PowerShell and Windows Terminal, and a double-click's message boxes: CI
   runs the program with redirected output only, and its quiet case through `RUSH2049_CONSOLE=none`. The icon in
   Explorer, the taskbar and Alt-Tab.
+- The "Open ROM..." box's buttons and `IFileOpenDialog` itself: CI answers them through `RUSH2049_TEST_ROM_PICK`,
+  which leaves the COM calls unrun; they were only compiled (the cross build). A path with letters outside the
+  code page (the 8.3 fallback).
 - Audio through a real device (SDL's WASAPI/DirectSound): the device's own rate and period, float, as section 5
   says. CI uses the null backend and SDL's disk driver. On a machine with no audio endpoint, as the runners,
   `audio = auto` spends about 8 s in SDL's audio initialization before it falls back to null (section 5).

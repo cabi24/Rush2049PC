@@ -36,15 +36,20 @@ you can also drop it on `rush2049pc.exe`. The program looks only in these places
 
 If there is no ROM, or the file isn't the right one, the program says so on the console and in a message box. It
 gives where it looked, what the file is (another game, another region or revision, a bad dump, an archive to
-extract first) and what it needs. [docs/port/RELEASE.md](docs/port/RELEASE.md) quotes every message.
+extract first) and what it needs. The box has an **Open ROM...** button: choose the file there (Windows' own file
+dialog; zenity or kdialog on Linux), and the program checks it, says what it is if it is the wrong one, and keeps
+its path as `game.rom` in `rush2049pc.ini`, so it is found from then on. [docs/port/RELEASE.md](docs/port/RELEASE.md)
+quotes every message.
 
 ### First run
 
-- **Windows:** unzip the archive somewhere you can write to (not Program Files). Copy the ROM into the folder as
-  `baserom.us.z64` and double-click `rush2049pc.exe`. A console window opens next to the game's window and shows
-  what the program is doing. You need an OpenGL 3 driver, which any graphics driver from the last ten years has.
-- **Linux:** unpack the tarball, copy the ROM in, and run `./rush2049pc`. You need glibc 2.35 or later (Ubuntu 22.04,
-  Debian 12, Fedora 36 or newer) and OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver).
+- **Windows:** unzip the archive somewhere you can write to (not Program Files) and double-click `rush2049pc.exe`.
+  The first time, it asks for the ROM: click Open ROM... and choose the file (or copy it into the folder as
+  `baserom.us.z64` first). No console window opens; what the program prints is in `rush2049pc.log`. You need an
+  OpenGL 3 driver, which any graphics driver from the last ten years has.
+- **Linux:** unpack the tarball and run `./rush2049pc`; it asks for the ROM the same way when zenity or kdialog is
+  installed, or copy the ROM in as `baserom.us.z64`. You need glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora
+  36 or newer) and OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver).
 
 The first run fills `rush2049pc.ini` with every setting and a comment on each, commented out at its default (remove
 the `;` to keep a value). Every run prints which ROM it
@@ -104,6 +109,7 @@ that folder:
 |---|---|
 | `rush2049pc.ini` | the settings |
 | `rush2049pc.mpk` | the saves: the game's controller pak |
+| `rush2049pc.mpk.bak`, `.bak2`, `.bak3` | the saves as the last three runs that changed them started (newest first) |
 | `screenshots/` | F12's pictures |
 | `texture_cache/` | upscaled textures kept for the next run (`video.textures = upscaled`); safe to delete |
 | `textures/` | a texture pack, if you make one (`video.textures = pack`) |
@@ -114,11 +120,18 @@ Without `rush2049pc.ini` next to it (an installed copy, or a build run from its 
 `~/.local/share/rush2049pc`. A `rush2049pc.mpk` that an earlier build left in the working directory keeps being used
 there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into its folder.
 
+The saves are written whole or not at all (a temp file, then a rename), so a crash can't leave half a file. If
+`rush2049pc.mpk` is damaged when the program starts, it is not overwritten: it is renamed
+`rush2049pc.mpk.corrupt-DATE`, the newest good backup takes its place (or the game starts with an empty pak), and
+a message box says so.
+
 ### Troubleshooting
 
-- **"no ROM" or "wrong ROM":** the message says where the program looked and what the file is. It runs the USA
-  cartridge only, and a ZIP must be extracted first. `--no-rom-check` tries another revision or a dump with other
-  contents anyway; it probably won't work.
+- **"no ROM" or "wrong ROM":** the message says where the program looked and what the file is; Open ROM... lets
+  you choose another. It runs the USA cartridge only, and a ZIP must be extracted first. `--no-rom-check` tries
+  another revision or a dump with other contents anyway; it probably won't work.
+- **Lost saves:** copy `rush2049pc.mpk.bak` (or `.bak2`, `.bak3`) over `rush2049pc.mpk` while the program isn't
+  running.
 - **"no renderer", or no window:** update the graphics driver. The program needs OpenGL ES 3.0, or OpenGL 3.1 or
   later. On Windows desktop GL comes first, elsewhere OpenGL ES; `--set video.api=gl` or `gles` picks the one tried
   first.

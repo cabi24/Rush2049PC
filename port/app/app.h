@@ -68,6 +68,26 @@ int pc_app_rom_find(const PcAppPlace *places, int n);
 int pc_app_alert(int show, const char *title, const char *text);
 /* The same with Windows' own MessageBoxA there (no SDL: for a fault, inside the exception filter). */
 int pc_app_alert_native(int show, const char *title, const char *text);
+enum { PC_APP_BOX_ERROR, PC_APP_BOX_WARNING, PC_APP_BOX_INFO };
+int pc_app_alert_kind(int show, int kind, const char *title, const char *text);   /* with that icon */
+/* A box with up to 4 buttons (the first is Enter's, the last Escape's and the close button's): the index of the one
+ * pressed, or -1 when no box could ask (not show, RUSH2049_MESSAGE_BOX=print or off, no display). With
+ * RUSH2049_TEST_ROM_PICK the box is printed with its buttons, and the answer is the first button while the hook has
+ * answers left for the file dialog, else the last. */
+int pc_app_ask(int show, int kind, const char *title, const char *text, const char *const *buttons, int n);
+int pc_app_box_interactive(int show);   /* pc_app_ask would get an answer: a real box, or the test hook */
+
+/* ---------------------------------------------------------------- pick.c: the "Open ROM" file dialog */
+
+/* A file dialog can be shown: Windows' (IFileOpenDialog), zenity or kdialog on Linux, or the test hook. */
+int pc_app_pick_available(void);
+/* The dialog: 0 with the file's path in out, 1 when the player cancelled, -1 when no dialog could be shown, 2 when
+ * the file chosen can't be named in the program's paths (Windows: letters outside the code page), out saying so. The
+ * test hook, RUSH2049_TEST_ROM_PICK="ANSWER|ANSWER|...", answers from its list instead: a path, or :cancel, or
+ * :fail (no dialog), or :dialog (the real one, for a stand-in zenity on PATH). */
+int pc_app_pick_rom(char *out, size_t size);
+int pc_app_pick_test(void);      /* RUSH2049_TEST_ROM_PICK is set */
+int pc_app_pick_pending(void);   /* ... and has answers left */
 
 /* ---------------------------------------------------------------- startup.c: the console, the process */
 
@@ -110,13 +130,27 @@ void pc_app_finish(int code);
 /* ---------------------------------------------------------------- rom.c: the ROM at startup */
 
 /* Finds the ROM by the lookup order and loads it (port/ultra's pc_rom_open). On a problem, prints a short reason
- * and what to do, and shows the same in a message box when window is set. config is the settings file's path,
- * for the message. 0 when the cartridge is loaded. */
+ * and what to do, and shows the same in a message box when window is set; when a file dialog can be shown, the box
+ * offers one ("Open ROM..."), and the file chosen is checked the same way, and offered again until it is usable or
+ * the player quits. config is the settings file's path, for the message; a file chosen is kept as game.rom in
+ * remember (the settings file read; NULL or "" for none). 0 when the cartridge is loaded. */
 int pc_app_load_rom(const PcAppDirs *d, const char *name, int from_command_line, int check_sha1, const char *config,
-                    int window);
+                    const char *remember, int window);
 /* The ROM pc_app_load_rom loaded ("" before, or without one), and *where the place it was found ("next to the
- * program", ...) when where is set. */
+ * program", ..., "chosen in the file dialog") when where is set. */
 const char *pc_app_rom_path(const char **where);
+
+/* ---------------------------------------------------------------- saves.c: the controller pak's file at start */
+
+/* Before the game reads a pak file (pc_si_init), for each pak file there is (any player's): one the game would write
+ * over (unreadable, the wrong size, a damaged ID block or file table) is renamed PATH.corrupt-DATE, and the newest
+ * good backup, if any, put in its place; a good one is copied to PATH.bak when it differs from it, the older
+ * backups moved to PATH.bak2 and PATH.bak3. Says what it did on the console, and in a message box (when window) for
+ * a pak set aside. Only the file at path and its own backups are touched. Returns PC_APP_SAVES_*. */
+enum { PC_APP_SAVES_OK, PC_APP_SAVES_NEW, PC_APP_SAVES_BACKED_UP, PC_APP_SAVES_RESTORED, PC_APP_SAVES_SET_ASIDE,
+       PC_APP_SAVES_LEFT, PC_APP_SAVES_N64 };
+int pc_app_saves_prepare(const char *path, int window);
+#define PC_APP_BACKUPS 3
 
 #ifdef __cplusplus
 }

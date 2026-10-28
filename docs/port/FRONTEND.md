@@ -163,6 +163,9 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 - **First run.** When the located file doesn't exist, it is written with every setting and a comment on each,
   and then read. A setting at its default is written commented out (`; key = value`), so it follows the program's
   defaults when they change in a later version; the overlay's saves and a removed `;` keep a value. `--config`, `--print-config` and `--selftest` never write it.
+- **Written by the program** only in place, through `pc_ini_update` (the rest of the file byte for byte): the
+  overlay's Save, the window's size and place at exit (`video.remember_window`), and `game.rom` when the player
+  chooses the ROM in the first run's file dialog ([RELEASE.md](RELEASE.md) "Choosing the ROM").
 - **Layers.** Each overrides the one before:
   1. the defaults;
   2. the file;
@@ -180,7 +183,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 
 | Setting | Default | Option | |
 |---|---|---|---|
-| `game.rom` | `baserom.us.z64` | `--rom`, a path alone | the ROM: a full path, or a name looked for next to the program, in the user data folder, then in the working directory ([RELEASE.md](RELEASE.md) "The ROM") |
+| `game.rom` | `baserom.us.z64` | `--rom`, a path alone | the ROM: a full path, or a name looked for next to the program, in the user data folder, then in the working directory ([RELEASE.md](RELEASE.md) "The ROM"). A ROM chosen in the first run's "Open ROM..." dialog is written here as a full path, in place (`pc_settings_save`), in the file that was read; not with `--no-config` |
 | `game.rom_check` | on | `--no-rom-check` | refuse a ROM whose SHA-1 isn't the USA ROM's |
 | `game.expansion_pak` | on | `--expansion-pak` | 8 MiB of RDRAM (off: 4 MiB) |
 | `game.pak` | memory | `--no-pak`, `--rumble`, `--pak` | controller 1's accessory: memory, rumble, none |

@@ -48,6 +48,11 @@ everything a night of testing on the retail cartridge found.
 - **Windows**: no console window; an icon and version information; errors in a message box
   ([WINDOWS.md](docs/port/WINDOWS.md) 10).
 - **Settings**: those left at their default stay commented out in `rush2049pc.ini`, so new defaults reach you.
+- **Choosing the ROM**: with no usable ROM, an Open ROM... dialog picks one, says what is wrong with a wrong file,
+  and remembers a good one; byte-swapped (.v64) and little-endian (.n64) dumps play
+  ([RELEASE.md](docs/port/RELEASE.md) "Choosing the ROM").
+- **Saves are kept safe**: the controller pak is backed up when it changes (three copies), written atomically, and
+  a damaged one is set aside, not formatted over ([RELEASE.md](docs/port/RELEASE.md) "Saves").
 
 ### Known limits
 

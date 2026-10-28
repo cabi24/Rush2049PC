@@ -514,7 +514,7 @@ static int rush_main(int argc, char **argv)
     int rom_from_command_line = from_command_line(over, nover, "game", "rom");
     if (no_rom ? pc_rom_blank() != 0
                : pc_app_load_rom(&dirs, cfg.rom, rom_from_command_line, cfg.rom_check,
-                                 cfg.source[0] ? cfg.source : cfg.save_path, !headless) != 0)
+                                 cfg.source[0] ? cfg.source : cfg.save_path, cfg.source, !headless) != 0)
         return 1;
     pc_os_initialize();
     if (pc_data_init(pc_rom_bytes(), pc_rom_size()) != 0) {
@@ -540,6 +540,19 @@ static int rush_main(int argc, char **argv)
         pc_app_data_file(&dirs, "texture_cache", 0, tex_dir, sizeof tex_dir);
         setenv("RUSH_GFX_TEXTURE_CACHE", tex_dir, 0);
     }
+    /* What the program writes goes into the data folder: next to it when portable, else the user data folder
+     * (port/app/paths.c); paths from the command line are from the working directory. The pak is backed up, or
+     * set aside when the game can't use it (port/app/saves.c), before the window opens: its box comes first. */
+    char pak_path[PC_APP_PATH], dir[PC_APP_PATH];
+    if (pak_kind == PC_PAK_MEMORY) {
+        int old = pc_app_pak_file(&dirs, cfg.pak_file, from_command_line(over, nover, "game", "pak_file"), pak_path,
+                                  sizeof pak_path);
+        pc_app_dirname(pak_path, dir, sizeof dir);
+        pc_app_mkdirs(dir);
+        fprintf(stderr, "rush2049pc: saves (the controller pak): %s%s\n", pak_path,
+                old ? ", in the working directory, where earlier builds kept it" : "");
+        pc_app_saves_prepare(pak_path, !headless);
+    }
     window_setup(&cfg);
     if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220; 0 x 0: auto */
         fprintf(stderr, "rush2049pc: no renderer: no OpenGL ES 3.0 or OpenGL 3.1 context\n");
@@ -553,18 +566,8 @@ static int rush_main(int argc, char **argv)
     static char title_tag[80];
     snprintf(title_tag, sizeof title_tag, "Rush2049PC %s", pc_app_version());
     pc_input_title_tag = title_tag;
-    /* What the program writes goes into the data folder: next to it when portable, else the user data folder
-     * (port/app/paths.c); paths from the command line are from the working directory. */
-    char pak_path[PC_APP_PATH], dir[PC_APP_PATH];
-    if (pak_kind == PC_PAK_MEMORY) {
-        int old = pc_app_pak_file(&dirs, cfg.pak_file, from_command_line(over, nover, "game", "pak_file"), pak_path,
-                                  sizeof pak_path);
-        pc_app_dirname(pak_path, dir, sizeof dir);
-        pc_app_mkdirs(dir);
-        fprintf(stderr, "rush2049pc: saves (the controller pak): %s%s\n", pak_path,
-                old ? ", in the working directory, where earlier builds kept it" : "");
+    if (pak_kind == PC_PAK_MEMORY)
         snprintf(g_about.saves, sizeof g_about.saves, "%s", pak_path);
-    }
     snprintf(g_about.data, sizeof g_about.data, "%s", dirs.data);
     g_about.no_rom = no_rom;
     pc_menu_set_about(about_fill);
