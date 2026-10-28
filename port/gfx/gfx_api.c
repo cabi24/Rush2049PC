@@ -52,6 +52,7 @@ static struct {
     GfxTarget *shown;         /* high frame rate: the target last shown instead of the presented image, or NULL */
     int shown_rows;
     uint32_t present_gen, shown_gen;   /* presented images so far; the one last shown (high frame rate) */
+    uint32_t ticked_gen;               /* present_gen at the last tick that showed anything */
     int shown_w, shown_h;     /* the window size it was shown at */
     int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
     /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
@@ -564,6 +565,10 @@ void pc_gfx_present(const void *framebuffer) {
     pcgfx_rdp_new_frame();
 }
 
+int pc_gfx_frame_waiting(void) {
+    return S.inited && pcgfx_cfg.frame_rate != 0 && S.ticked_gen != S.present_gen;
+}
+
 /* A high frame rate's tick (the main loop, video.frame_rate times a second): the frame for time vt, in retraces.
  * The presented frame when it is due, else one drawn between it and the next, or the next one when it is late. */
 int pc_gfx_present_tick(double vt, int mode) {
@@ -608,6 +613,7 @@ int pc_gfx_present_tick(double vt, int mode) {
     }
     S.shown_w = S.win_w;
     S.shown_h = S.win_h;
+    S.ticked_gen = S.present_gen;   /* the window has had a tick since the game's last frame (pc_gfx_frame_waiting) */
     pcgfx_hfr_dump(S.shown, kind == 2);
     pcgfx_ui_run(S.win_w, S.win_h, S.use_sdl);
     swap();

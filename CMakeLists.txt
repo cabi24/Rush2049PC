@@ -560,6 +560,11 @@ endif()
 add_test(NAME audio_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime --seconds 30)
 set_tests_properties(audio_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE)
+# The same race at 120 frames a second with each swap held 40 ms, then until the vsync (a host always behind): the
+# window must still show the game's frames (docs/port/QA.md "Integration soak").
+add_test(NAME hfr_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_realtime --seconds 30 --frame-rate 120 --present-ms 40)
+set_tests_properties(hfr_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)

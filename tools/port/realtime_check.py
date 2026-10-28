@@ -16,6 +16,11 @@ exit:
                 late, where their render came after the device needed them; none skipped by the game's renderer
                 (func_80013DEC, which the PC build fixes: docs/port/AUDIO.md 7)
 
+With --frame-rate R [--present-ms MS] it checks the high frame rate's window instead (docs/port/QA.md "Integration
+soak"): the run at R frames a second, each swap held MS longer (a slow GPU) and then until the vsync, must still
+show at least 5 frames a second, the game's own when no frame between fits; a skipped tick once left the window
+unchanged for minutes.
+
 Exit status 0 when all hold. Stdlib only, Python 3.9+.
 """
 import argparse
@@ -35,6 +40,8 @@ def main():
     ap.add_argument("--seconds", type=float, default=30)
     ap.add_argument("--logs", default=str(ROOT / "build/synth/realtime"))
     ap.add_argument("--no-sim", action="store_true", help="the host's own timing, no Windows model")
+    ap.add_argument("--frame-rate", help="check the frames shown at this video.frame_rate instead of the audio")
+    ap.add_argument("--present-ms", type=float, default=0, help="each swap held this long first (RUSH_SIM_PRESENT_MS)")
     args = ap.parse_args()
     logs = Path(args.logs).resolve()
     logs.mkdir(parents=True, exist_ok=True)
@@ -46,10 +53,24 @@ def main():
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
            "--seconds", str(args.seconds), "--audio", "sdl"]
+    if args.frame_rate:
+        cmd += ["--frame-rate", args.frame_rate]
+        if args.present_ms > 0:
+            env["RUSH_SIM_PRESENT_MS"] = str(args.present_ms)
     p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
     out = p.stdout.decode(errors="replace")
     (logs / "run.log").write_text(out)
     ok = True
+
+    if args.frame_rate:
+        m = re.search(r"^gfx: frame rate \d+: (\d+) frames shown", out, re.M)
+        if not m or p.returncode != 0:
+            print(f"realtime_check: {'no frame rate line' if not m else 'exit ' + str(p.returncode)}")
+            return 1
+        shown = int(m[1]) / args.seconds
+        print(f"realtime_check: frame rate {args.frame_rate}, swaps held {args.present_ms:g} ms: {shown:.1f} frames "
+              f"shown a second (at least 5): {'ok' if shown >= 5 else 'FAIL'}")
+        return 0 if shown >= 5 else 1
 
     m = re.search(r"rush2049pc: (\d+) retraces in ([\d.]+) s; (\d+) came a whole retrace late and were caught up, "
                   r"(\d+) dropped", out)

@@ -331,6 +331,16 @@ int pc_ultra_run(const PcRunOptions *opt)
                     if (pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, mode))
                         sim_swap();
                     tick_ns = (tick_ns * 3 + (pc_real_ns() - r0)) / 4;
+                } else if (pc_gfx_frame_waiting()) {
+                    /* Skipped, but the game has swapped in a frame the window hasn't shown: shown now, with no
+                     * frame between (mode 2), as the setting off shows each at its swap whatever that costs. A host
+                     * always behind (a swap that waits for vsync counts in tick_ns) otherwise hardly changed the
+                     * window for minutes (docs/port/QA.md "Integration soak"). */
+                    uint64_t r0 = pc_real_ns();
+                    if (pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, 2))
+                        sim_swap();
+                    tick_ns = (tick_ns * 3 + (pc_real_ns() - r0)) / 4;
+                    ticks_skipped++;
                 } else {
                     ticks_skipped++;
                 }

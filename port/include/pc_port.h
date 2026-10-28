@@ -108,6 +108,9 @@ void pc_gfx_retrace(uint32_t vi);            /* each retrace, before the VI's pr
  * host's clock, a frame between two isn't drawn while the GPU hasn't finished what it was given; 2: no frame is drawn
  * between two, only the game's are shown (the host is behind). 1 when something new was shown, 0 if not. */
 int pc_gfx_present_tick(double vi_time, int mode);
+/* 1 when the game has swapped in a frame the window hasn't shown yet (a high frame rate): a tick the main loop
+ * skips to keep the retraces on time still shows it, as the setting off would at its swap. */
+int pc_gfx_frame_waiting(void);
 /* Textures (docs/port/TEXTURES.md): 0 original, 1 upscaled (3D textures, by the internal scale), 2 pack (replacements
  * from the texture pack folder). From the next frame. pc_gfx_parse_textures: "original", "upscaled", "pack"; *ok = 0
  * for anything else. */
