@@ -2713,7 +2713,12 @@ extern f32 D_80152680;
 extern s32 D_80152690;
 extern s32 D_80152698;
 extern s32 D_801526A4;
+#ifdef TARGET_PC
+/* 12-byte records, through a byte pointer: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern s32 D_801526A8[];
+#else
 extern s32 D_801526A8;
+#endif
 extern s32 D_801526D8;
 extern s32 D_801526DC;
 extern f32 D_801526E0;
