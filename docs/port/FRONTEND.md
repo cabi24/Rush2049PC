@@ -207,7 +207,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.vsync` | on | | swap interval 1 or 0; on, no more frames are shown than the display refreshes, whatever `frame_rate` asks (logged) |
 | `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
 | `video.scale` | native | `--scale N` | internal resolution: `native` (the window's own pixels, any fraction), `auto` (the largest whole multiple the window holds), or 1-8 (`1` or `n64`: the N64's) (`RUSH_GFX_SCALE`) |
-| `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend") |
+| `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend, frame and settings") |
 | `video.widescreen` | auto | `--widescreen` | auto (the window's), off, 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |

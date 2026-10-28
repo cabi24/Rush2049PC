@@ -1,7 +1,7 @@
 # A high frame rate (video.frame_rate)
 
 Phase 8 of [PORT_PLAN.md](../PORT_PLAN.md), written 2026-10-27. The game draws at most 30 frames a second; with
-`video.frame_rate` the port shows 60, 120, the display's refresh or any rate up to 1000, while the game's timing
+`video.frame_rate` the port shows 60, 120, the display's refresh or any rate from 30 to 1000, while the game's timing
 stays the N64's. The frames between the game's are drawn by the renderer from the game's last two
 ([GFX.md](GFX.md) "High frame rate"); no game C changed. This file says how the game paces itself, why that leads to
 interpolation in the renderer, what the setting does, how it is tested and what it costs.

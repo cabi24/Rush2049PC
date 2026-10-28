@@ -17,6 +17,7 @@ documentation and n64brew.
 | `gfx_combine.c` | combiner and blender to GLSL |
 | `gfx_gl.c` | OpenGL backend: loader, render targets, depth buffers, shader cache, draws, present, readback |
 | `gfx_egl.c` | headless context (EGL surfaceless, then EGL device, then the default display) |
+| `gfx_wgl.c` | the headless context on Windows (WGL on a hidden window), in place of `gfx_egl.c` |
 | `gfx_sdl.c` | SDL2 window and context, display modes (built only when SDL2 is found) |
 | `gfx_size.c` | sizes without GL: the scale for a window, internal sizes, N64 edges in internal pixels, where the frame goes, pixels against window units |
 | `gfx_png.c` | PNG writer and reader on zlib |
@@ -248,18 +249,19 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   the frame's draws read made the Pi's V3D finish its tiles at each draw). The output is the same: every frame of
   the gfx tests, 2,512 images over the variants, byte for byte.
 - **Context.** `pc_gfx_init(headless, w, h)`:
-  - Headless uses EGL surfaceless (Mesa), which needs no display and works on a tty.
+  - Headless uses EGL surfaceless (Mesa), which needs no display and works on a tty; on Windows, WGL on a hidden
+    window (`gfx_wgl.c`, [WINDOWS.md](WINDOWS.md) 7).
   - A window needs SDL2. When the window can't be created, or the build has no SDL2, it falls back to headless and
     says so.
 
 | Variable | Effect |
 |---|---|
 | `RUSH_GFX_API=auto`, `gl`, `gles` | which API to try first, the other after it: `gl` desktop GL (3.3 core, then 3.1), `gles` GLES 3.0; `auto` (`video.api`'s default) desktop GL on Windows, whose drivers are made and tested for it (their ES profile through WGL is a side path), GLES elsewhere, where Mesa serves both alike (`pcgfx_want_gles`). `gfx.all.gles`, `.desktop-gl`, `.desktop-gl-software` and `.desktop-gl-wide-scale2` run every case on each |
-| `RUSH_GFX_SCALE=s` | internal resolution: `native` (`video.scale`'s default: the window's own pixels, any fraction, 1-16), `auto` (the largest whole multiple of the frame the window holds), a multiple 1–8, or for tests and tools a fixed fraction up to 16 (`2.25`); native and auto are taken at each present, so the frame is drawn at the size it is shown |
+| `RUSH_GFX_SCALE=s` | internal resolution: `native` (`video.scale`'s default: the window's own pixels, any fraction, 1-16), `auto` (the largest whole multiple of the frame the window holds), a multiple 1–8, or in the renderer's tests a fixed fraction up to 16 (`2.25`; rush2049pc takes `video.scale`'s values only); native and auto are taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HUD=edges\|centered` | the race HUD in widescreen: at the screen's edges (`video.hud`'s default) or in the 4:3 frame ("The HUD at the screen's edges" below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
-| `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
+| `RUSH_GFX_VERBOSE=1/2/3` | renderer and per-task counts / generated shaders; with a high frame rate, the pairing's lines ("High frame rate" below) |
 | `RUSH_GFX_TIMES=1\|2\|3` | at exit, the time of graphics tasks, frames drawn between two and frames shown: 1 the CPU's, 2 with the GPU's (glFinish around each part), 3 the CPU's alone from an idle GPU (glFinish before each part) and the GPU's from timer queries (`GL_TIME_ELAPSED`: desktop GL 3.3, `ARB_timer_query`, `EXT_disjoint_timer_query`; not on the Pi's V3D), with the draws and vertices per task and per frame between ("What it costs" below) |
 | `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (w0, w1, and the depth of the list it is in) |
 | `RUSH_GFX_TEXTURES=original\|upscaled\|pack` | the textures ([TEXTURES.md](TEXTURES.md)); with `RUSH_GFX_TEXTURE_PACK=DIR` (the pack), `RUSH_GFX_TEXTURE_DUMP=DIR` (every texture drawn, as PNG), `RUSH_GFX_TEXTURE_CACHE=DIR` (the upscaled textures kept on disk; empty: none), `RUSH_GFX_UPSCALE=2\|4` (the factor, instead of the internal scale's), `RUSH_GFX_UPSCALE_2D=1` (2D upscaled too), `RUSH_GFX_TEXTURE_SYNC=1` (upscale and load at once, on the game's thread: tests and screenshots) |
