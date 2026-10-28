@@ -573,6 +573,21 @@ add_test(NAME hfr_paced COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --e
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced --seconds 30 --pacing display,60,120
     --timer-step-us 0)
 set_tests_properties(hfr_paced PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE)
+# A driver that queues frames and never blocks (WGL on NVIDIA and Intel in steady state) on a 59.94 Hz display that SDL
+# calls 59: no blocking swap corrects the vblank grid, so it runs at the display's own refresh, from the platform (its
+# exact rate as XRandR gives it, and its vblanks as Windows' compositor does). At most 5 vblanks in 30 s show a frame
+# twice with nothing decided for them (1 measured; a grid at SDL's 59: about 22).
+add_test(NAME hfr_paced_queue COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_queue --seconds 30 --pacing display
+    --timer-step-us 0 --vsync-queue never --display-hz 59 --display-timing rate,vblank --max-doubled 5)
+set_tests_properties(hfr_paced_queue PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
+# An exact 60.000 Hz display, its vblanks 0.05 of a refresh after the retraces (the worst phase: 1114 of 1200 ticks
+# lost, none drawn between): the retraces are moved once to sit halfway between two vblanks (FRAMERATE.md 2), and
+# at most 10% of the vblanks are lost to skipped ticks (2 measured), at least 250 frames drawn between (666).
+add_test(NAME hfr_paced_60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_60 --seconds 30 --pacing display
+    --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank)
+set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
