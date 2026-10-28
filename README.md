@@ -84,7 +84,8 @@ can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting
 ### Textures
 
 `video.textures` (Textures on the overlay's Video page): `original`; `upscaled`, the 3D world's textures upscaled 2x
-(4x from internal scale 4) in the background as they appear and kept in `texture_cache/` for the next run, the HUD
+(4x from internal scale 4) by a small neural network trained for N64 textures on CC0 images and built into the port
+([docs/port/UPSCALE.md](docs/port/UPSCALE.md)), in the background as they appear and kept in `texture_cache/` for the next run, the HUD
 and menus as they are (it needs an internal scale of 2 or more); or `pack`, PNG replacements from `textures/`. A
 pack is made from your own ROM: `video.texture_dump = dump` writes every texture drawn into `dump/`, and
 `tools/texpack/texpack.py` runs an upscaler you install (realesrgan-ncnn-vulkan, ...) over them. Packs are never

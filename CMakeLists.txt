@@ -675,6 +675,8 @@ add_test(NAME index_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/index_check.py --bu
 set_target_properties(pc_data_test pc_reach_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
     PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
+# Before port/gfx, whose renderer links pcupscale (and makes it itself when nothing has).
+add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port/UPSCALE.md)
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)

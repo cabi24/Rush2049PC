@@ -20,7 +20,7 @@ next frame. `RUSH_GFX_TEXTURES` sets it for a run.
 | `port/gfx/gfx_tex.c`, `gfx_tex.h` | the setting, identities and names, the upscaler's results, packs, the dump, the worker thread, the disk cache |
 | `port/gfx/gfx_rdp.c` (texture decode) | the tile's distinct texels and their identity, the GL image at k sub-texels per texel, the cache's variants, upgrades |
 | `port/gfx/gfx_png.c` | the PNG reader (and the RGBA writer the dump uses) |
-| `port/upscale/upscale.h` | `pc_upscale_rgba2x`: the 2x upscaler (a classical stand-in in `upscale.c` until the learned one lands) |
+| `port/upscale/upscale.h` | `pc_upscale_rgba2x`: the 2x upscaler, a small trained network in plain C ([UPSCALE.md](UPSCALE.md)) |
 | `port/gfx/tests/tex_test.c` | `gfx.tex.*`: synthetic textures only |
 | `tools/texpack/texpack.py`, `README.md` | batch-upscales a dump into a pack with an upscaler the user installs |
 
@@ -103,8 +103,9 @@ sub-texels per texel, so the same coordinates sample the same place, finer.
   another upscaler's (or version's) files are never read. The second run reads each texture from there, on the
   worker; deleting the folder is safe.
 - **Cost**: the exit's log line says how many were upscaled and how long each took on the worker ("N upscaled
-  (x ms each on the worker, at most y)"). The stand-in takes about 1 ms for a 32 x 32 texture at 2x on a desktop
-  CPU (`gfx_tex_test`'s line); 4x is about four times that, and a 256 x 256 texture at 4x the most. The game's
+  (x ms each on the worker, at most y)"). The upscaler takes about 1 ms for a 32 x 32 texture at 2x on one core of
+  a desktop CPU ([UPSCALE.md](UPSCALE.md) 7); 4x is about five times that, and a 256 x 256 texture at 4x the most
+  (a few tenths of a second; large textures use up to 4 threads). The game's
   thread only hashes and copies a new texture and later uploads the result, so a race's frames take as long as
   with the originals (RUSH_GFX_TIMES=1's summary, "graphics tasks ... at most"); the second run reads the disk
   cache instead.
@@ -159,8 +160,10 @@ their own ROM on their own machine; the project never ships or hosts one.
 
 ## Limits and what is left
 
-- The learned upscaler (`port/upscale/upscale.c`) is a separate piece of work; the stand-in is Catmull-Rom with
-  anti-ringing and a light sharpen. The interface (`upscale.h`) stays.
+- The upscaler (`port/upscale/upscale.c`, [UPSCALE.md](UPSCALE.md)) replaced the first, classical stand-in
+  (Catmull-Rom with anti-ringing and a light sharpen); it does its own fill under transparent texels and keeps
+  binary alpha binary, so the bleed and the re-threshold around it here change little. The interface
+  (`upscale.h`) stayed.
 - No GL mip maps: a pack bigger than the internal scale is filtered down instead.
 - Detail and sharpen textures (not emulated in GFX.md) are drawn without LOD, from the tile and the next, upscaled
   as any other.
