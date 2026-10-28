@@ -582,6 +582,15 @@ add_test(NAME hfr_paced COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --e
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced --seconds 30 --pacing display,60,120
     --timer-step-us 0)
 set_tests_properties(hfr_paced PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE)
+# A slow disk (each pak write held 200 ms, one a second through the race) costs the main loop no retraces: the writes
+# are on the writer's thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak"); SIGTERM during a held
+# write waits for it; and the same writes on the main loop, as before, drop retraces (tools/port/pakwrite_check.py).
+# POSIX: it sends SIGTERM.
+if(NOT WIN32)
+    add_test(NAME pak_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/pakwrite_check.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/pakwrite)
+    set_tests_properties(pak_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE)
+endif()
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
