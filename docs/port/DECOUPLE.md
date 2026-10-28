@@ -65,17 +65,18 @@ props.c and cleanup_colortrace) are only stored to, so one `unsigned char` type 
 is one byte through an index or a record pointer: no file reaches a neighbour from it or it from a neighbour
 (`bounds_reviewed.txt` and the data tables have no view across it). The image symbol tables name five addresses in
 it: `D_80153E88`, `D_80153E89` (`[0].car`), `D_80153E8F` (`[0].owner`, read by `stat_lap_split` and func_800E56F8's
-group with a stride of 8), `D_80153E97` (`[1].owner`) and `D_80153EB8` (`&[6]`, likely the end pointer of a 6-slot loop); only
-the first and third had C users. No PC code stores its address (`PC_N64W`, a u32 field, an absolute address). A scan
-of the four images inflated from the retail cartridge found no data word in 0x80153E88-0x80153EF0, and 38 code
-references (`lui 0x8015` plus an offset in range: 36 in the game image, 2 in image A), which are the C above.
+group with a stride of 8), `D_80153E97` (`[1].owner`) and `D_80153EB8` (`&[6]`, likely the end pointer of a
+6-slot loop); only the first and third had C users. No PC code stores its address (`PC_N64W`, a u32 field, an
+absolute address). A scan of the four images inflated from the retail cartridge found no data word in
+0x80153E88-0x80153EF0, and 38 code references (`lui 0x8015` plus an offset in range: 36 in the game image, 2 in image
+A), which are the C above.
 `layout_check.py --storage` before: 123 accesses on `D_80153E88` and 2 on `D_80153E8F`, which it could not place in
 the record (`N64 ?`); after: 125 on `pc_links`, every one a byte at the offset of the reference layout, the two
 through the alias at +7.
 
 **The size.** A race on the N64 activates `MAX_LINKS` 6 slots (the per-car arrays are 6 long; gen_data had the 104
-bytes by the gap). But three functions walk 13 slots: LoadCars (slots 6-12 copy slot 0's car), func_8039156C (each slot's
-car is its index) and sfx_position_3d (an engine sound per slot, with `D_80142B08[13]`). The gap is exactly 13
+bytes by the gap). But three functions walk 13 slots: LoadCars (slots 6-12 copy slot 0's car), func_8039156C (each
+slot's car is its index) and sfx_position_3d (an engine sound per slot, with `D_80142B08[13]`). The gap is exactly 13
 records. So the storage is `PC_LINK_SLOTS` = the larger of 13 (`PC_N64_LINK_SLOTS`) and `PC_MAX_LINKS` (8, the cars a
 race may hold on the PC); with 8 it is 13, 104 bytes, and the game still activates 6.
 
