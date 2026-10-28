@@ -43,6 +43,7 @@ int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
 int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
 extern uint64_t test_now_ns;
 extern double test_volume;
+extern int test_pak[4], test_pak_sets;   /* tests/stubs.c: each pc_si_set_pak */
 
 static int g_fail, g_checks;
 static const char *g_dir;
@@ -384,6 +385,25 @@ static void test_live(void)
     pump();
     CHECK(!pc_menu_capturing(), "timed out");
     at("Controllers (all players)", "A", "+leftx", "unchanged");
+    /* each player's accessory, swapped at once (port/ultra's pc_si_set_pak): player 2's from auto */
+    act(PC_MENU_UP);   /* round to the last item, Defaults */
+    act_n(PC_MENU_UP, 3);
+    at("Controllers (all players)", "P2 accessory", "auto: none", "player 2's accessory: auto, no rumble now");
+    int sets = test_pak_sets;
+    act(PC_MENU_LEFT);
+    at("Controllers (all players)", "P2 accessory", "rumble pak", "player 2's rumble pak");
+    CHECK(test_pak[1] == PC_CFG_PAK_RUMBLE && test_pak_sets == sets + 1, "swapped at once: %d", test_pak[1]);
+    act(PC_MENU_LEFT);
+    at("Controllers (all players)", "P2 accessory", "controller pak", "player 2's controller pak");
+    CHECK(test_pak[1] == PC_CFG_PAK_MEMORY && pc_menu_settings()->pak[1] == PC_CFG_PAK_MEMORY &&
+              pc_menu_settings()->pak[0] == PC_CFG_PAK_MEMORY, "the setting, player 1's unchanged");
+    act(PC_MENU_RIGHT);
+    act(PC_MENU_RIGHT);
+    at("Controllers (all players)", "P2 accessory", "auto: none", "auto again: what it gives now");
+    CHECK(test_pak[1] == PC_CFG_PAK_AUTO, "auto: %d", test_pak[1]);
+    act(PC_MENU_UP);
+    at("Controllers (all players)", "P1 accessory", "controller pak", "player 1's: the controller pak");
+    CHECK(test_pak[0] == -1, "player 1's not touched: %d", test_pak[0]);
     act(PC_MENU_CLOSE);
     stop();
 }

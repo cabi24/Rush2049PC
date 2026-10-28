@@ -48,7 +48,7 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 |---|---|---|
 | all cars | the all-cars cheat, every car on the car select, a race with the last | each car's model loads and turns; the race runs. The top speed and acceleration bars are the same for every car (control and strength differ): unverified against the N64 (the bars multiply per-car tuning tables that are all zero in the attract demo) |
 | audio, video, controls screens | every row of the main menu's audio and video screens, each value changed both ways, the reset row; the player screen's controls screen, every row | as the code says |
-| two players with a pak | controller 1's pak with a player on it; player 1 picks it, player 2 walks its pak row | works for player 1; player 2's row offers controllers 2-4 only, each no pak or nothing connected: the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c), so players 2-4 can't save |
+| two players with a pak | controller 1's pak with a player on it; player 1 picks it, player 2 walks its pak row | works for player 1; at the sweep player 2's row offered no pak, as the port gave only controller 1 an accessory (since added: `game.pak2`-`pak4`) |
 | a two-player battle quit from the pause screen | battle, 15 s, pause, quit | faulted (fix 5); now the game over screen |
 | a ghost kept and raced | the ghost race of one lap set first (ghost mode keeps three), car 0 marked finished with gdb mid-race (no script finishes three laps in the time limit, even with super speed), then race again | the ghost is compressed at the race's end and kept in memory ("limbo": `SaveGhost(..., 1)`; the game writes a ghost file only after its save prompt, which only a special profile name enables, `D_801148E4`), and race again loads it: that second race's start faulted (fix 5); with the fix the race against the ghost runs (two cars, the place out of two, the ghost on the map) |
 | circuit, race to race | the first circuit, car 0 marked finished by gdb 12 s into each race (laps can't be set for a circuit, and a gas-only car doesn't finish track 1) | after each race the circuit code (no pak), the game over screen's next race, the circuit screen with the standings and races to go, the next track; the whole first circuit (tracks 0-3 twice) to its end, then a new circuit's first two races; no fault |
@@ -164,8 +164,9 @@ func_800D63EC returns (LAYOUT.md 9).
   with no ghost file on the pak.
 - **A battle to its end**: the track select offers only a points limit for battle, and points come from kills, which
   a scripted pair of cars doesn't score; the battle's results run through the pause screen's quit (fix 5) instead.
-- **Controller paks on players 2-4**: the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c),
-  so players 2-4 can't load or save a player. A feature to add, not a game bug.
+- **Controller paks on players 2-4**: added after the sweep (`game.pak2`-`pak4`, each player's own file or a rumble
+  pak; docs/port/ULTRA.md). The game reads each player's pak in a 2-player race; saving a player onto player 2's pak
+  on the retail cartridge is still to be tried.
 - **Not reached on the retail cartridge**: the records screen's pages beyond the totals; the rumble pak; a window
   (`--window`) and sound through a device.
 - **Scripted runs and the user's pak**: without `--pak` or `--no-pak` a run uses, and on first use formats, the

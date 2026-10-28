@@ -7,8 +7,9 @@
  * and drawn again after each change (pc_gfx_redraw).
  *
  * - Changes apply at once where the part allows it: the renderer's widescreen, scale and textures (from the game's
- *   next frame) and frame rate, the window's size, fullscreen, its mode and resolution, and vsync, the volume, and
- *   everything port/input reads (bindings, hotkeys, sticks, rumble). The graphics API and the audio backend apply
+ *   next frame) and frame rate, the window's size, fullscreen, its mode and resolution, and vsync, the volume, each
+ *   player's accessory (a hot swap: port/ultra/si.c), and everything port/input reads (bindings, hotkeys, sticks,
+ *   rumble). The graphics API and the audio backend apply
  *   after a restart; they are marked so.
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
@@ -49,7 +50,7 @@ typedef struct {
     const char *const *labels;    /* I_CHOICE: what each choice shows, when not its value; NULL for all values */
     double min, max, step;        /* I_NUMBER */
     int percent;                  /* I_NUMBER: shown as a percentage, with a bar */
-    int page;                     /* I_PAGE: the page it opens; I_PLAYER: the player (0-3) */
+    int page;                     /* I_PAGE: the page it opens; I_PLAYER and an accessory: the player (0-3) */
     int restart;                  /* applies after a restart */
     const char *desc;             /* the footer's line about it (NULL: made from the item, or the setting's name) */
     int row;                      /* I_INFO, I_HEADING: its text in the page's rows */
@@ -93,6 +94,9 @@ static const char *const hud_choices[] = {"edges", "centered", NULL};
 static const char *const hud_labels[] = {"screen edges", "centered (4:3)", NULL};
 static const char *const backend_choices[] = {"auto", "sdl", "alsa", "null", "wav", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
+static const char *const pak_choices[] = {"memory", "rumble", "auto", "none", NULL};
+static const char *const pak_labels[] = {"controller pak", "rumble pak", "auto", "none", NULL};
+static const char *const pak_keys[4] = {"pak", "pak2", "pak3", "pak4"};   /* game.pak, game.pak2... */
 static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
                                              "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
                                              "3840x2160", "auto",      NULL};
@@ -190,6 +194,12 @@ static void build(void)
     it->min = 0.5, it->max = 2, it->step = 0.1;
     it = add(P_CONTROLLER, I_NUMBER, "Rumble", "input", "rumble");
     it->min = 0, it->max = 1, it->step = 0.1, it->percent = 1;
+    for (int p = 0; p < 4; p++) {   /* each player's accessory: a hot swap */
+        static const char *const labels[4] = {"P1 accessory", "P2 accessory", "P3 accessory", "P4 accessory"};
+        it = add(P_CONTROLLER, I_CHOICE, labels[p], "game", pak_keys[p]);
+        it->choices = pak_choices, it->labels = pak_labels, it->page = p;
+        it->desc = "Saves, rumble or none; auto: rumble if its pad can";
+    }
     add(P_CONTROLLER, I_DEFAULTS, "Defaults", NULL, NULL);
 
     /* each setting's line in the footer (a setting without one shows its name in the file) */
@@ -247,7 +257,7 @@ static struct {
     char status[160];
     uint32_t status_color;
     uint64_t status_ns;              /* when it was set: pointing elsewhere clears it after a moment */
-    char players[256];               /* the Controllers page's player rows as last drawn */
+    char players[512];               /* the Controllers page's player rows and accessories as last drawn */
     int saved;                       /* Save wrote the file, and nothing changed since */
     int mouse, mx, my, mw, mh;       /* the mouse's last place over the window (drawable pixels), and its size */
     uint64_t page_click_ns;          /* when a click last changed the page (0: not yet) */
@@ -363,6 +373,10 @@ static void apply(const char *section, const char *key)
     } else if (!strcasecmp(section, "audio")) {
         if (!strcasecmp(key, "volume"))
             pc_audio_set_volume(s->volume / 100.0);
+    } else if (!strcasecmp(section, "game")) {
+        for (int p = 0; p < 4; p++)   /* the player takes the old accessory out and puts the new one in */
+            if (!strcasecmp(key, pak_keys[p]))
+                pc_si_set_pak(p, s->pak[p]);
     } else
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }
@@ -993,11 +1007,11 @@ int pc_menu_tick(void)
         pc_menu_capture(NULL);
     if (M.open && M.page == P_ABOUT && about_players())   /* About's players follow the controllers live */
         M.dirty = 1;
-    if (M.open && M.page == P_CONTROLLER) {   /* the player rows follow the controllers live */
-        char rows[256] = "", l[64], v[32];
+    if (M.open && M.page == P_CONTROLLER) {   /* the player rows and auto accessories follow the controllers live */
+        char rows[512] = "", l[64], v[32];
         for (int p = 0; p < 4; p++) {
             player_row(p, l, sizeof l, v, sizeof v);
-            snprintf(rows + strlen(rows), sizeof rows - strlen(rows), "%s|%s|", l, v);
+            snprintf(rows + strlen(rows), sizeof rows - strlen(rows), "%s|%s|%d|", l, v, pc_si_pak(p));
         }
         if (strcmp(rows, M.players)) {
             snprintf(M.players, sizeof M.players, "%s", rows);
@@ -1112,6 +1126,8 @@ static void shown(const Item *it, char *out, size_t n)
         for (int i = 0; it->labels && it->choices[i]; i++)
             if (!strcasecmp(v, it->choices[i]))
                 snprintf(out, n, "%s", it->labels[i]);
+        if (it->labels == pak_labels && !strcasecmp(v, "auto"))   /* what auto is now */
+            snprintf(out, n, "auto: %s", pc_si_pak(it->page) == PC_CFG_PAK_RUMBLE ? "rumble pak" : "none");
     }
 }
 

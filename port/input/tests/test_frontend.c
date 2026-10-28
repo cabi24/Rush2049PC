@@ -112,7 +112,12 @@ static void test_settings(void)
     char why[200];
     pc_settings_defaults(&s);
     CHECK(!strcmp(s.rom, "baserom.us.z64") && s.rom_check == 1 && s.expansion_pak == 1, "game defaults");
-    CHECK(s.pak == PC_CFG_PAK_MEMORY && !strcmp(s.pak_file, "rush2049pc.mpk"), "pak defaults");
+    CHECK(s.pak[0] == PC_CFG_PAK_MEMORY && !strcmp(s.pak_file[0], "rush2049pc.mpk"), "pak defaults");
+    /* controllers 2-4: auto (a rumble pak where the pad can rumble), each with a file of its own */
+    CHECK(s.pak[1] == PC_CFG_PAK_AUTO && s.pak[2] == PC_CFG_PAK_AUTO && s.pak[3] == PC_CFG_PAK_AUTO &&
+              !strcmp(s.pak_file[1], "rush2049pc-p2.mpk") && !strcmp(s.pak_file[2], "rush2049pc-p3.mpk") &&
+              !strcmp(s.pak_file[3], "rush2049pc-p4.mpk"),
+          "controllers 2-4's pak defaults");
     CHECK(s.width == 0 && s.height == 0 && !s.fullscreen && s.vsync && s.scale == -1, "video defaults: auto, native");
     CHECK(s.api == PC_CFG_API_AUTO && s.widescreen == -1 && !s.pause_on_focus_loss && !s.screenshot_dir[0], "video");
     CHECK(s.fullscreen_mode == 0 && !strcmp(s.resolution, "desktop") && s.remember_window &&
@@ -168,10 +173,14 @@ static void test_settings(void)
     CHECK(pc_settings_set(&s, "video", "vsync", "maybe", why, sizeof why) == -2 && s.vsync, "bool bad");
     CHECK(pc_settings_set(&s, "input", "deadzone", "0.25", why, sizeof why) == 0 && s.deadzone == 0.25, "real");
     CHECK(pc_settings_set(&s, "input", "deadzone", "0.95", why, sizeof why) == -2 && s.deadzone == 0.25, "real range");
-    CHECK(pc_settings_set(&s, "game", "pak", "Rumble", why, sizeof why) == 0 && s.pak == PC_CFG_PAK_RUMBLE, "enum");
-    CHECK(pc_settings_set(&s, "game", "pak", "eeprom", why, sizeof why) == -2 && s.pak == PC_CFG_PAK_RUMBLE &&
-              strstr(why, "none, memory, rumble"),
+    CHECK(pc_settings_set(&s, "game", "pak", "Rumble", why, sizeof why) == 0 && s.pak[0] == PC_CFG_PAK_RUMBLE, "enum");
+    CHECK(pc_settings_set(&s, "game", "pak", "eeprom", why, sizeof why) == -2 && s.pak[0] == PC_CFG_PAK_RUMBLE &&
+              strstr(why, "none, memory, rumble, auto"),
           "enum bad: %s", why);
+    CHECK(pc_settings_set(&s, "game", "pak3", "memory", why, sizeof why) == 0 && s.pak[2] == PC_CFG_PAK_MEMORY &&
+              s.pak[0] == PC_CFG_PAK_RUMBLE && s.pak[1] == PC_CFG_PAK_AUTO && s.pak[3] == PC_CFG_PAK_AUTO,
+          "controller 3's accessory alone");
+    CHECK(pc_settings_set(&s, "game", "pak5", "memory", why, sizeof why) == -1, "no controller 5");
     CHECK(pc_settings_set(&s, "video", "api", "gl", why, sizeof why) == 0 && s.api == PC_CFG_API_GL, "api");
     {   /* an aspect: off, auto, W:H or a ratio from 4:3 to 4, written back by name */
         static const struct { const char *in, *out; } wide[] = {
@@ -214,13 +223,15 @@ static void test_settings(void)
     /* the written file reads back to the same settings, odd strings included */
     pc_settings_set(&s, "video", "screenshot_dir", " /tmp/a dir ; x ", why, sizeof why);
     pc_settings_set(&s, "game", "pak_file", "#hash.mpk", why, sizeof why);
+    pc_settings_set(&s, "game", "pak4_file", "saves/four.mpk", why, sizeof why);
     char *text = pc_settings_format(&s);
     pc_settings_defaults(&t);
     int problems = pc_settings_load_text(&t, text, "formatted");
     char *again = pc_settings_format(&t);
     CHECK(problems == 0, "%d problems reading the formatted file", problems);
     CHECK(!strcmp(text, again), "round trip differs");
-    CHECK(!strcmp(t.screenshot_dir, " /tmp/a dir ; x ") && !strcmp(t.pak_file, "#hash.mpk") && t.scale == 4 &&
+    CHECK(!strcmp(t.pak_file[3], "saves/four.mpk") && t.pak[2] == PC_CFG_PAK_MEMORY, "round trip: controller 4's file");
+    CHECK(!strcmp(t.screenshot_dir, " /tmp/a dir ; x ") && !strcmp(t.pak_file[0], "#hash.mpk") && t.scale == 4 &&
               t.deadzone == 0.25 && t.analog == PC_CFG_STICK_RIGHT && !t.hotkey[PC_HOTKEY_QUIT][0],
           "round trip values");
     free(text);
@@ -275,7 +286,7 @@ static void test_layers(void)
     PcSettingValue over[] = {{"video", "scale", "3"}, {"game", "pak", "none"}, {"game", "pak", "rumble"},
                              {"audio", "backend", "sdl"}};
     CHECK(pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, over, 4) == 0, "resolve overrides");
-    CHECK(s.scale == 3 && s.pak == PC_CFG_PAK_RUMBLE && !strcmp(s.audio, "sdl") && !strcmp(s.rom, "/from/file.z64"),
+    CHECK(s.scale == 3 && s.pak[0] == PC_CFG_PAK_RUMBLE && !strcmp(s.audio, "sdl") && !strcmp(s.rom, "/from/file.z64"),
           "override layer");
 
     /* a bad override is an error; the good ones still apply */

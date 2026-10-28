@@ -19,7 +19,8 @@
  *   it is open its keys and buttons go to it and not to the game, and a binding item gets the next key or
  *   controller input. When it closes, what is still held is ignored until it is released, so the key or button
  *   that closed it doesn't reach the game.
- * - Rumble: the rumble pak's motor (port/ultra/si.c) drives SDL_GameControllerRumble on that player's pad. */
+ * - Rumble: each player's rumble pak motor (port/ultra/si.c) drives SDL_GameControllerRumble on that player's pad;
+ *   a pad that can rumble gives its player a rumble pak where the accessory is auto (PcPad.rumble). */
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
@@ -58,6 +59,7 @@ typedef struct {
     SDL_JoystickID id;
     double rumble;
     Uint32 rumble_sent;
+    int can_rumble;          /* SDL says it has a rumble motor */
     uint32_t mute_buttons;   /* held when the overlay closed: ignored until released */
     uint8_t mute_axes;
     uint8_t menu_held;       /* the overlay's combos held on this pad, one bit each */
@@ -332,11 +334,17 @@ static void take_player(int p, SDL_GameController *gc, SDL_JoystickID id, int ge
 {
     char guid[64];
     SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(SDL_GameControllerGetJoystick(gc)), guid, sizeof guid);
-    L.slot[p] = (Slot){.gc = gc, .id = id};
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    int can_rumble = SDL_GameControllerHasRumble(gc) == SDL_TRUE;
+#else
+    int can_rumble = 1;   /* SDL can't say: rumble is tried */
+#endif
+    L.slot[p] = (Slot){.gc = gc, .id = id, .can_rumble = can_rumble};
     L.waiting_said = 0;
     SDL_GameControllerSetPlayerIndex(gc, p);
-    fprintf(stderr, "rush2049pc: controller '%s' (%s, %s mapping, GUID %s) -> player %d%s\n",
+    fprintf(stderr, "rush2049pc: controller '%s' (%s, %s mapping, GUID %s) -> player %d%s%s\n",
             SDL_GameControllerName(gc), pad_type(gc), generic ? "generic" : "SDL", guid, p + 1,
+            can_rumble ? "" : "; no rumble motor",
             L.analog == PC_CFG_STICK_NONE ? "; its sticks are not the N64 stick (controller.analog = none)" : "");
 }
 
@@ -1326,6 +1334,7 @@ void pc_input_live_poll(PcPad pads[4])
         pads[p].stick_x = stronger(x, ax);
         pads[p].stick_y = stronger(y, ay);
         pads[p].connected = 1;
+        pads[p].rumble = gc && slot->can_rumble;
     }
 }
 
