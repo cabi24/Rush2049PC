@@ -426,13 +426,18 @@ converters are hand-written from the formats as the decomp's readers read them. 
    different stride); and views whose layout changes on a 64-bit host. `endian_check.py`'s loader section was not
    extended. Its storages are data symbols and what their pointers reach, while these files live in heap blocks
    that only `LoadWave`'s slots reach.
-2. **The retail cartridge, on the Pi.** A scratch harness (outside the repository: it and its output read the
-   cartridge) runs every one of the 183 waves the way `_ReadWave` does. It takes the wave's entries in the file
-   table (`D_8011B5BC`, `gWaveSizes`, `D_80123564`), decompresses it (raw, LZSS or DEFLATE) into a 32-byte-rounded
-   block in the RDRAM window, and calls `pc_wave_loaded`. It then checks the converted buffer as the readers read
-   it. This covers every track, car, world, road, path, text bank, font and MusyX file, not only those a press
-   script reaches. A hash of every converted block also showed that the fixes below convert the retail files byte
-   for byte as before.
+2. **The retail cartridge, on the Pi.** A harness runs every one of the 183 waves the way `_ReadWave` does. It
+   takes the wave's entries in the file table (`D_8011B5BC`, `gWaveSizes`, `D_80123564`), decompresses it (raw,
+   LZSS or DEFLATE) into a 32-byte-rounded block in the RDRAM window, and calls `pc_wave_loaded`. It then checks
+   the converted buffer as the readers read it. This covers every track, car, world, road, path, text bank, font
+   and MusyX file, not only those a press script reaches. A hash of every converted block also showed that the
+   fixes below convert the retail files byte for byte as before.
+
+   The checks that hold for any good file are kept as **`rush2049pc_assetcheck [rom]`**
+   (`port/assets/tests/assetcheck.c`; ctest `assets_rom`, skipped without `baserom.us.z64` in the source tree). It
+   prints counts and failures only, never the files' contents. On the retail cartridge every check passes. With
+   PTHD's numPts swapped as one u32, or the checkpoint floats as u16s, it fails hundreds of them. The scratch
+   version's measurements, used for §8.1, stay out of the repository.
 
 ### 8.1 On the cartridge
 
