@@ -79,7 +79,7 @@ static void status(const char *tag)
         snprintf(state + n, sizeof state - n, ": %s", g_snap_info);
     }
     fprintf(stderr, "rush2049pc: %s t=%.1fs vi=%u gfx_tasks=%u audio_tasks=%u%s\n", tag, pc_host_ns() / 1e9,
-            pc_frame, pc_rcp_gfx_tasks, pc_rcp_audio_tasks, state);
+            pc_frame, pc_rcp_gfx_tasks, __atomic_load_n(&pc_rcp_audio_tasks, __ATOMIC_RELAXED), state);
 }
 
 /* Once per retrace: logs each change of the game's state word, and says when --until-state is met (the
