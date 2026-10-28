@@ -326,6 +326,15 @@ void pcgfx_sdl_swap(void);
 int pcgfx_sdl_poll(void);
 void pcgfx_sdl_size(int *w, int *h);
 int pcgfx_sdl_refresh(void);   /* the window's display's refresh rate, Hz; 0 unknown */
+/* The window and the display (pc_port.h's pc_gfx_set_fullscreen and the rest, through gfx_api.c) */
+void pcgfx_sdl_place(int x, int y);
+void pcgfx_sdl_set_fullscreen_mode(int mode);
+void pcgfx_sdl_set_resolution(int w, int h);
+int pcgfx_sdl_set_fullscreen(int on);
+int pcgfx_sdl_is_fullscreen(void);
+int pcgfx_sdl_set_vsync(int on);
+void pcgfx_sdl_set_window_pixels(int w, int h);
+int pcgfx_sdl_geometry(int *x, int *y, int *w, int *h);
 void pcgfx_sdl_shutdown(void);
 
 /* Settings (gfx_api.c). The internal scale multiplies the N64 frame size. Widescreen widens the frame to a display

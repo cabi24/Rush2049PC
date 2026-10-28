@@ -217,6 +217,91 @@ void pc_gfx_set_window_size(int w, int h) {
     }
 }
 
+/* ---------------------------------------------------------------- the window and the display (gfx_sdl.c) */
+
+void pc_gfx_set_fullscreen_mode(int mode) {
+#ifdef PC_GFX_HAVE_SDL
+    pcgfx_sdl_set_fullscreen_mode(mode);
+#else
+    (void)mode;
+#endif
+}
+
+void pc_gfx_set_resolution(int w, int h) {
+#ifdef PC_GFX_HAVE_SDL
+    pcgfx_sdl_set_resolution(w, h);
+#else
+    (void)w, (void)h;
+#endif
+}
+
+int pc_gfx_set_fullscreen(int on) {
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        return pcgfx_sdl_set_fullscreen(on);
+#endif
+    (void)on;
+    return -1;
+}
+
+int pc_gfx_is_fullscreen(void) {
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        return pcgfx_sdl_is_fullscreen();
+#endif
+    return -1;
+}
+
+int pc_gfx_toggle_fullscreen(void) {
+    int fs = pc_gfx_is_fullscreen();
+    return fs < 0 ? -1 : pc_gfx_set_fullscreen(!fs);
+}
+
+/* Vsync, and what it does to video.frame_rate: with it on, no more frames are shown than the display refreshes. */
+int pc_gfx_set_vsync(int on) {
+    int rc = -1;
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        rc = pcgfx_sdl_set_vsync(on);
+#endif
+    if (rc == 0 && on && pcgfx_cfg.frame_rate > 0) {
+        display_refresh();
+        if (pcgfx_cfg.frame_rate > S.display_hz)
+            fprintf(stderr, "gfx: vsync on: %d frames a second at most (the display's refresh), not the %d of "
+                    "video.frame_rate\n", S.display_hz, pcgfx_cfg.frame_rate);
+    }
+    return rc;
+}
+
+void pc_gfx_set_window_pixels(int w, int h) {
+    if (w <= 0 || h <= 0)
+        return;
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl) {
+        pcgfx_sdl_set_window_pixels(w, h);
+        return;
+    }
+#endif
+    pc_gfx_set_window_size(w, h);
+}
+
+void pc_gfx_set_window_position(int x, int y) {
+#ifdef PC_GFX_HAVE_SDL
+    pcgfx_sdl_place(x, y);
+#else
+    (void)x, (void)y;
+#endif
+}
+
+int pc_gfx_window_geometry(int *x, int *y, int *w, int *h) {
+#ifdef PC_GFX_HAVE_SDL
+    if (S.use_sdl)
+        return pcgfx_sdl_geometry(x, y, w, h);
+#endif
+    (void)x, (void)y, (void)w, (void)h;
+    return -1;
+}
+
 /* RUSH_GFX_API (video.api): "gl" tries desktop GL first, "gles" OpenGL ES 3.0 first; each falls back to the other.
  * auto (or anything else): desktop GL on Windows, whose drivers are made and tested for it (their ES profile, through
  * WGL_EXT_create_context_es2_profile, is a side path); ES elsewhere, where Mesa serves both alike. */
@@ -267,13 +352,16 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
             fprintf(stderr, "gfx: RUSH_GFX_WIDESCREEN=%s is not off, auto or an aspect from 4:3 to 4; ignored\n",
                     getenv("RUSH_GFX_WIDESCREEN"));
     }
-    S.win_w = window_width > 0 ? window_width : 960;
-    S.win_h = window_height > 0 ? window_height : 720;
+    /* 0 x 0: the window's from the desktop (gfx_sdl.c); headless, the N64's frame, which native and auto draw at 1x */
+    S.win_w = window_width > 0 && window_height > 0 ? window_width : 320;
+    S.win_h = window_width > 0 && window_height > 0 ? window_height : 240;
     S.headless = headless;
     S.use_sdl = 0;
     if (!headless) {
 #ifdef PC_GFX_HAVE_SDL
-        if (pcgfx_sdl_init(S.win_w, S.win_h, want_gles, &get_proc, &is_gles) == 0)
+        if (pcgfx_sdl_init(window_width > 0 && window_height > 0 ? window_width : 0,
+                           window_width > 0 && window_height > 0 ? window_height : 0, want_gles, &get_proc,
+                           &is_gles) == 0)
             S.use_sdl = 1;
         else
             fprintf(stderr, "gfx: no window; rendering headless\n");

@@ -10,7 +10,8 @@
  *   and controller are merged: buttons OR'ed, the stronger stick per axis.
  * - The N64 stick: the bound controller stick with a radial dead zone, rescaled, shaped to the octagonal gate
  *   (stick.c); keys and buttons bound to STICK_* give full tilt.
- * - Window: Alt+Enter and the fullscreen hotkey toggle desktop fullscreen; the screenshot hotkey saves a PNG of
+ * - Window: Alt+Enter and the fullscreen hotkey toggle fullscreen (port/gfx: desktop or exclusive, as
+ *   video.fullscreen_mode says); the screenshot hotkey saves a PNG of
  *   the shown frame; the pause hotkey, and losing focus with pause_on_focus_loss, hold the game (the main loop
  *   asks pc_input_paused); the quit hotkey quits. Hotkeys never reach the game.
  * - The settings overlay (menu.c): the menu hotkey (F1) or the controller's menu button (controller.menu, both
@@ -347,13 +348,12 @@ static void set_title(void)
 
 static void set_fullscreen(int on)
 {
-    if (SDL_SetWindowFullscreen(L.win, on ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0)
-        fprintf(stderr, "rush2049pc: fullscreen: %s\n", SDL_GetError());
+    pc_gfx_set_fullscreen(on);   /* port/gfx owns the window's modes (GFX.md "Window and display") */
 }
 
 static void toggle_fullscreen(void)
 {
-    set_fullscreen(!(SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN));
+    pc_gfx_toggle_fullscreen();
 }
 
 static void screenshot(void)
@@ -664,8 +664,7 @@ int pc_input_live_init(const PcSettings *s)
     SDL_SetWindowMinimumSize(L.win, 320, 240);
     if (s->fullscreen)
         set_fullscreen(1);
-    if (SDL_GL_SetSwapInterval(s->vsync ? 1 : 0) != 0)
-        fprintf(stderr, "rush2049pc: vsync %s: %s\n", s->vsync ? "on" : "off", SDL_GetError());
+    pc_gfx_set_vsync(s->vsync);
     assign_pads();
     return 0;
 }
@@ -743,16 +742,13 @@ int pc_input_live_is_fullscreen(void)
 
 void pc_input_live_vsync(int on)
 {
-    if (L.on && SDL_GL_SetSwapInterval(on ? 1 : 0) != 0)
-        fprintf(stderr, "rush2049pc: vsync %s: %s\n", on ? "on" : "off", SDL_GetError());
+    if (L.on)
+        pc_gfx_set_vsync(on);
 }
 
 void pc_input_live_window_size(int w, int h)
 {
-    if (!L.on)
-        pc_gfx_set_window_size(w, h);
-    else if (!(SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN))
-        SDL_SetWindowSize(L.win, w, h);
+    pc_gfx_set_window_pixels(w, h);   /* pixels at any display scaling; headless, the size the scales follow */
 }
 
 static int8_t stronger(int8_t a, int8_t b)
