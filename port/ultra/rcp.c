@@ -152,7 +152,7 @@ static void report_first_gfx(const PcOSTask *t)
     if (pc_rcp_stop_at_gfx) {
         pc_os_dump_threads();
         fprintf(stderr, "rush2049pc: --stop-at-gfx: stopping here\n");
-        pc_si_flush();
+        pc_si_finish();
         fflush(NULL);
         if (pc_on_exit)
             pc_on_exit(0);

@@ -154,7 +154,17 @@ void pc_si_test_pads(const PcPad pads[4]);  /* --selftest: these pads until NULL
 /* The rumble pak's motor on a channel: 1 while it is on, or if it was turned on since the last call (a pulse
  * between two calls counts). For port/input, which passes it to the controller. */
 int pc_si_motor(int channel);
-void pc_si_flush(void);                              /* write the .mpk if it changed */
+/* The changed paks handed to the writer thread (pakwrite.c), and the failed ones queued again: main loop, once a
+ * second. Returns at once, except with --fast, where it waits for the writes (the virtual clock is still meanwhile). */
+void pc_si_flush(void);
+/* The end of a run: pc_si_flush, then up to 15 s for the writer to finish (each failed file tried once more), saying
+ * what is not written. Any thread; once is enough (later calls, and pc_si_finished, say it is done). */
+void pc_si_finish(void);
+int pc_si_finished(void);
+/* After a fault (port/ultra's fault handlers, port/app's SIGABRT): what the writer has queued is let finish (up to 2
+ * s), and a changed image not handed over yet is written too, if that is safe: no pak transfer in progress (si.c's
+ * lock had) and the image a good pak (pc_pak_image_check). Never when the writer thread faulted. Once. */
+void pc_si_fault_flush(void);
 int pc_si_pak_check(char *why, size_t why_size);     /* the pak in memory: pc_pak_image_check (self-test) */
 
 /* ---------------------------------------------------------------- pakfile.c: the controller pak's file */

@@ -166,6 +166,7 @@ static void on_abort(int sig)
     static const char msg[] = "\nrush2049pc: aborted\n";
     write_all(2, msg, sizeof msg - 1);
     pc_print_backtrace(1);
+    pc_si_fault_flush();   /* the saves, if that is safe (port/ultra/si.c) */
     pc_app_on_fault("the program aborted");
     signal(sig, SIG_DFL);
     raise(sig);
