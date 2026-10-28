@@ -394,3 +394,71 @@ voices, then written to the output buffer.
 **Fixes** (`musyx.c`): the taps (each product rounded, the pairs saturated), the mix (rounded, saturated once), the
 volumes' saturating high half, the 8-lane position update, the ADPCM sum's 32 bits, the delay's tap gains and
 filter. `audio_rsp` pins each (section 4).
+
+## 9. The game's side: where the PC asked for other sounds than the N64
+
+Written 2026-10-27. Section 8 makes the interpreter match the microcode on the tasks it gets; this section checks
+the tasks themselves: the MusyX driver, sequencer and voices (`src/rom/lib_113e0.c` … `lib_26f60.c`, compiled from
+the decomp's C) and the game's sound calls (the audio manager in `engine_sound_sync/` and `MP_TargetSteerPos/`, the
+request queue in `audio_fade_control/`, `music_track_control.c`), for places where the PC computes other voice
+parameters than the N64 from the same state.
+
+**What was checked, and how**
+
+| Class | Method | Result |
+|---|---|---|
+| float to integer | every conversion GCC sees (`fix_trunc_expr` in the raw SSA dump, `-fdump-tree-ssa-raw-lineno`) in the 17 MusyX units and the 125 game files with sound in their path, with source and target types | 24 in the library: all `(s16)`, `(int)` or of values that can't be negative (sizes at init, the position and its fraction, rates), except the emitters' `(u32)`; 19 in the game's sound files, 4 of them `(u32)` of a volume or pan; fixed below |
+| bytes or halves of words | the data symbols placed inside another (`nm -S` of the window), `endian_check.py` (0 open conflicts, none in the library), and every sub-word `M2C_FIELD` read in the audio manager | one: the effect id (fixed below). `D_8004F314` is the `type` byte of `D_8004F300`'s 40-byte faders, as it should be |
+| calls with other arguments | each m2c call into the library compared with the definition's parameters | 5 calls with more arguments than the function takes; 4 have the right ones first, one doesn't (fixed below) |
+| `char` | `-funsigned-char` for all game C, as IDO | nothing to do |
+| shifts, overflow | `-fwrapv`; GCC defines `<<` of negative values; the library shifts only by constants and by slot numbers below 32 | nothing to do |
+| LP64 records | the 0x68 voice record's two views, the SFD (section 8's captures are bit-exact), the audio manager's messages and fx tags (`tAudioMsg`, `Msg`, `tFxSequence` and their PC views agree), the request nodes | nothing new |
+| timing | the envelope clock (`func_80011A64`, 32 kHz units from the output rate), the frame count (`frequency / 60`), the sequencer's tick (per buffer) | as on the N64 |
+| the retail game | races captured with `RUSH2049_AUDIO_CAPTURE` and summarized per subframe: voices, samples (by codebook), pitch, volumes, steps; `gdb` `dprintf` on the effect starts (`func_8001B1D0`), pitch changes (`func_8001B4A4`) and macro starts | led to the first two fixes; numbers stay out of the repository |
+
+**Found and fixed**
+
+1. **Every effect was sfx 0** (`MP_TargetSteerPos`, which starts an effect for the audio manager). It read the effect
+   to start as the u16 at +0xE of the request entry, which is the low half of the entry's s32 resource at +0xC on the
+   N64 and its high half, 0, on the PC. So the countdown, the crashes, the tires and the menu sounds all played the
+   same sample, and since that one loops, every effect left a voice running at a fixed pitch: the countdown's four
+   alone kept four going for the whole race (the "engines" that never followed the speed), and the mix clipped. The PC
+   reads the low half at +0xC (`SFX_ENTRY_ITEM`).
+2. **No effect's pitch ever changed** (`camera_transform`, the audio manager's periodic maintenance, m2c). m2c wrote
+   the pitch call as `func_8001ffa0(0, voice, pitch)`; in the ROM a0 is the voice and a1 the pitch, the two
+   parameters `func_8001FFA0(identifier, value)` takes. The PC passed 0 as the voice and the voice id as the pitch,
+   so the pitch changes were lost and voice id 0 took pitch bends made of voice ids. A file-scope macro drops the 0.
+3. **IDO's float to unsigned int.** IDO converts with `cvt.w.s` rounding toward zero, retries at 2^31 or more on
+   f − 2^31 with the top bit set, and gives 0xFFFFFFFF when the result is negative (its `bltz`), for NaN and from
+   2^32. So `(u8)(u32)(-0.25f * 127)` is 0xFF on the N64, 0xE1 on x86-64 (which wraps) and 0 on AArch64 (which
+   saturates). `pc_prelude.h` has `pc_mips_f2u`, `pc_mips_d2u` and `N64_F2U(x)` (each game file defines the N64
+   side, `(u32)(x)`), used by the effect start's volume and pan, the master volume (`music_track_control`) and the
+   emitters' update (`func_8001CCDC`: volume, pans, and the doppler factor, which turns negative when a source
+   closes in faster than sound: the top pitch on the N64 and x86-64, none on AArch64). The audio manager's own
+   change requests already had IDO's sequence spelled out by m2c (`M2C_ERROR(/* cfc1 */)` is 0: the in-range path).
+
+`assets_casts` (`port/assets/tests/test_casts.c`) pins them: a start and a change request through `camera_transform`
+(the effect started is the resource 0x123, not 0; a negative volume is 0xFF; the start's pan and the change's
+front-back pan; the pitch 0.5 is 4095 and goes to the effect's voice), and the conversions on made-up values
+(negative, (−1, 0), 2^31 and up, 2^32, NaN, doubles). Reverting the first two fixes fails 3 checks.
+
+**Left**
+
+- **The engines are silent, because their volume is 0.** Traced in a retail race (`gdb` `dprintf` on
+  `camera_target_track`, `audio_state_save`, `entity_transform_calc`): the engine loops are created as positioned
+  effects while the race loads and stay pending. `_UpdateFx` (`updatefx/updatefx.c`) starts a pending loop only once
+  its volume is over 0.1, and the per-car engine update `func_800E0050` (`mode_select/mode.c`) sends a pitch that
+  follows the revs but a volume of exactly 0 every retrace. (Its variables are named the other way round: `vol` is
+  the pitch ratio from the revs, `pitch` the level from `EngTbl`'s p0-p2, through `client_sync`, which sets the
+  volume.) It reads the car through `MODELDAT`, N64 offsets 0x22C, 0x404, 0x7C6, 0x7CC and 0x7D0 inside pads, and
+  `EngTbl` through `D_80140420[slot].tbl`: the car record's PC layout (`CAR_OFS`, [ENDIAN.md](ENDIAN.md) 4 lists
+  `mode.c` among the views at N64 offsets) is the struct-offset audit's. Next: print `m->f404`, `slot`, `rpm`
+  and `t->p0..p2` there; a 0 level would be the table or the load read from the wrong place.
+- IDO converts to `u8` and `u16` through the same unsigned sequence; the library's direct `(unsigned short)` and
+  `(unsigned char)` conversions only see values that can't be negative, so they are left as they are.
+- `(float)` of an unsigned int at 2^31 or more rounds twice on the N64 (`cvt.s.w`, then + 2^32) and once on the PC:
+  the envelope ratio in `func_80011A64` can differ in its last bit on envelopes longer than about a second. Not
+  reproduced.
+- Signed conversions out of the int range trap on the N64 (the VR4300's unimplemented operation), so the game never
+  does them; the PC gives 0x80000000 (x86-64) or saturates (AArch64).
+- Conversions outside the sound code (`GetCarsIRColor`'s `(u8)` colours, `audio_voice_set`'s fade) weren't changed.
