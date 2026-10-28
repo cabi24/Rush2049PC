@@ -361,6 +361,74 @@ s16 arrays swapped in place by a table of counts, the report, a reload); `datach
 rules' roots (their targets would be random); the synthetic cartridge's track 0 has a palette and an object
 animation, and its race faults in `camera_shake_start` without the rules.
 
+### 8. Declarations that cover part of a table: the sweep (2026-10-28)
+
+Two bugs of one class were found the night before the beta: one typed declaration covered only part of a table,
+and the loader left the rest in the ROM's byte order. The engine table `D_8010FD80` was `{s32 object; u8 rest[28];}`,
+so its levels read as denormals and no engine played (AUDIO.md 9). The cheat codes `D_803B3460` had a byte-only
+view that won the ranking (QA.md 1). This section is the sweep of the whole class.
+
+**How.** Four passes, each over every initialized symbol:
+
+1. **Every file's declaration against the loader's elements.** gen_data's own `generate` was run with its `emit`
+   hooked, so the types, extents and choices were exactly the generator's. Each declaration's elements (open arrays
+   sized as gen_data sizes them) were compared, offset by offset, with what the loader swaps there: the arena's
+   resolved elements, or the own symbol's runs. 11 symbols have a declaration that reads something wider than the
+   loader swaps. For each, a gdb script on `rush2049pc_datacheck` (stopped after both runtime images load) checked
+   whether the ROM value at every such place is byte-order neutral.
+2. **The loader's report** on the retail cartridge: `text-in-words` and the `undescribed` targets that aren't text.
+3. **The converted memory.** The same stop, and every 4-byte place the loader left as bytes, outside read-only data.
+   A place is a hit if its big-endian reading is a plausible float, an N64 address or a small integer and its
+   little-endian reading isn't. Every f32 element that isn't plausible as loaded is also listed. Text, short
+   strings, and the images' read-only data (jump tables, literal pools: unused on the PC) were left out.
+4. Each hit was judged against the game C's reads of that address: by name, by index past a declared element, by
+   pointer.
+
+The scripts and their output stay out of the repository: they read the cartridge.
+
+**Fixed** (ab7f592). Each table's rest was in the ROM's order. LOADER_EXPECT and datacheck's `known_widths` pin
+them; `--check-loader` fails 7 places with the old tables.
+
+| Symbol | Found by | What the game reads | On the PC before | Fix |
+|---|---|---|---|---|
+| `D_80118C10` | pass 3: a `u8[]` whose every word is a float | the level objects' bodies, 32 bytes each: CollisionReckon (`random_float.c`) reads bounds and mass as f32 through `Matrix64.record` (level_objects, kind 4). Then the static state records of the categories `D_80118DDC` points at (three of the report's `undescribed` lines) | the bounds and mass of every kind-4 object were denormals: car-to-object collisions used a size and mass of about 0 | `f32[115]` in level_objects (`BODY_TABLE` keeps the record address in bytes) |
+| `D_801163F8` | pass 3: small words after an `s32` | func_800E56F8 walks 36 rising thresholds by pointer (`0x24` steps) to set the rumble request `D_801440AD` from the car's speed, minus 4 | only the first was swapped, and the other 35 compared as byte-reversed words, so the count, and the rumble request, came out wrong: little or no rumble | `s32[36]` in func_800E56F8 (`RUMBLE_STEPS`) |
+| `D_8011B4B4` | pass 3: floats after one row | the wings' place per car type: buffer_swap reads `[model->type][0..1]` (visual_tire_module); func_800B0A88 reads column 1 by the car's byte `b8` (`audio_frame`, `audio_frame_update`) | `D_8011B4B8` (its `[0][1]`) bounded the gap to one row, so every car type but the first put its wings at about 0, the car's centre | `extents.txt`: 13 rows, to `D_8011B550` |
+| `D_801202F8` gravityArray | pass 3: f32 elements that are text | its four floats, by the gravity option | its floats were right, but the gap ran over the strings after it (the asm's `D_80120308`, `D_8012030C`, which no PC C uses) and swapped them as floats | `extents.txt`: 16 bytes |
+
+**Judged and left.**
+
+- Image A's button and model slots `D_803B6610`, `D_803B6B14`, `D_803B470C` (pass 1). A view with byte pads
+  (`Slot60`, settings_values' `Slot`: `u8 unknown0C[36]` over the 3x3 matrix) ties with the record (`ButtonInfo`,
+  `MenuObjectSlot`, `Slot64`) and wins by its name. That is the cheat codes' mistake with a struct that isn't all
+  bytes. So the matrices, and `Slot64`'s word at +0x3C, stay in the ROM's order. On the cartridge every one of those
+  places (162, 432 and 88 elements) reads the same in either byte order. The screens' init also copies the unit
+  matrix into each slot whose handle is -1 before using it. If they ever need fixing, the fix is the records' fields
+  in the padded views, as `D_803AF9A8`'s (ENDIAN.md 3.3), not a ranking rule. A rule that prefers more bytes in wider
+  elements would rank settings_bar's `MenuSlot` (`float matrix[16]`) over the record, and swap the alpha byte at
+  +0x3C, `D_803AF9A8`'s first bug.
+- Pass 1's others: the colour unions `D_801146BC`, `D_801146C0`, `D_8011ADC0` (bytes by design, section 2);
+  `D_8011B58C` and `D_8011B5AC` (`tUVPair`, read as u16) and `D_8011EA30` (a viewport, s16), whose `s32` views only
+  take the address; `D_80116DE4`, an `s32` view over a byte place that is neutral; `D_803B5CFC` (section 3).
+- The report: no `text-in-words`. The `undescribed` targets that aren't text are those BRINGUP.md "What's next"
+  lists: `gTrackColors` (`D_8011AF90`) to the colours `D_8011AE58` (bytes); pointer tables of short labels shorter
+  than the text mark (`D_801147C8`, `D_801149B4`, `D_80114A0C`, `D_801164D0`, `D_8011EAD0`, `D_80117530`); and the
+  shared frames `D_8011905C`'s pointers into the bytes after `D_80118EE4`.
+- Words after a declared table that read as floats, addresses or integers in the ROM's order, which no PC C reads:
+  after `gSongNames` (`D_80110030`, 12 used: `songIdx < 12`), a table of string pointers with no name and no pointer
+  to it; after `D_80115CA8`, `D_80117360`, `D_801140F0` (the asm's `D_801140F4`, `D_801140F8`), `D_80116198` (the
+  asm's `D_801161B8`, `D_801161BC`), `D_80110F80`, `D_8011E7A8`, and image A's `D_803B3030`, `D_803B832C`,
+  `D_803B837C`. A C reader added later must declare them.
+- `D_801106C4` (FSCLS, `f32[]` by the gap): a byte in each 16 bytes after the first three floats is swapped as part
+  of an f32. The PC C reads only FSCLS[0..2].
+- f32 elements not plausible as loaded: -1 handles under f32 views (a word either way), the car descriptors'
+  `tire_info` words (`D_801108C8`, QA.md round 3), `D_801106C4`'s bytes, and read-only constants.
+- The boot data: libultra's VI modes and zlib's tables, which port/ultra and zlib replace (datacheck checks the
+  inflate tables in the N64 order), and the RSP microcode's data.
+
+Not swept: data that only pointers reach, beyond reached.txt's rules and the report's `undescribed` lines, and
+BSS (zeroed). Debug and RelWithDebInfo make the same `data.c` and `data_symbols.txt` with these fixes.
+
 ## The names missing from the symbol file
 
 All resolved from the image symbol tables. Data (each is placed like any other symbol):

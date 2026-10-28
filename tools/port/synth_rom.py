@@ -1329,8 +1329,9 @@ def car_tables(c):
     model record. With zeros the gravity is 0, so a car's mass is 0 and the model thread's first step divides 0 by
     0 (func_800E1540): every car's position is NaN from the first frame. Units are the model's: feet, seconds,
     pounds (its gravity is 32.2)."""
-    # PrePlay sets gravity to 32.2 x D_801202F8[the gravity option]: the option's factor, 1 for each of the nine.
-    c.set_all("game", "D_801202F8", "f32", [1.0] * 9, "the gravity option's factor (32.2 ft/s^2 x): 1 for each")
+    # PrePlay sets gravity to 32.2 x D_801202F8[the gravity option]: the option's factor, 1 for each of the four
+    # (f32[4], extents.txt: strings follow it, docs/port/DATA.md 8).
+    c.set_all("game", "D_801202F8", "f32", [1.0] * 4, "the gravity option's factor (32.2 ft/s^2 x): 1 for each")
     # func_800D0B14, a car's mass in slugs (its weight is that x gravity): (D_80110DD8[type] + (D_80111274[mass
     # option] - D_80124154 + the pak's mass bonus) x D_80124150) x the tune's factor. 3000 lb is 93 slugs; the mass
     # options add nothing; one slug a unit.
