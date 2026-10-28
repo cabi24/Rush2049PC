@@ -44,6 +44,10 @@ Controls
   F12               screenshot (PNG)
   Pause             hold the game
   Escape            quit
+  The overlay takes the mouse too: point and click (left or right of a value changes it), the wheel scrolls, the
+  right button or a click outside goes back. F1 > Help lists what each key and button does with your bindings;
+  F1 > About gives the version, graphics driver, sound output, controllers and where every file is. During play
+  the mouse cursor hides until the mouse moves.
 
 Settings and saves
 ------------------
@@ -95,7 +99,8 @@ Troubleshooting
   gets a generic mapping and takes a player at its first button press: rebind it in F1 > Controllers, or put
   SDL's gamecontrollerdb.txt (with a line for it) next to rush2049pc.ini.
 - Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; ./rush2049pc --version says
-  which build you have)
+  which build you have). F1 > About > Copy to the clipboard gives the version, driver and paths to paste in, and
+  Open the data folder shows the log's folder in the file manager (xdg-open).
 
 Licences
 --------

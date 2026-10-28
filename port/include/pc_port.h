@@ -130,6 +130,9 @@ int pc_gfx_ui_text(int x, int y, int scale, uint32_t rgba, const char *text);
 int pc_gfx_font_glyph(int c, uint8_t rows[PC_GFX_FONT_H]);
 /* Show the last presented frame again, with the UI over it, and swap (the overlay while the game is held). */
 void pc_gfx_redraw(void);
+/* The GL driver as the log's "gfx:" line names it: GL_VENDOR, GL_RENDERER, GL_VERSION and the shading language's
+ * version; "" before pc_gfx_init. For the overlay's About page. */
+void pc_gfx_driver(const char **vendor, const char **renderer, const char **version, const char **glsl);
 /* Called by pc_gfx_poll_events after the window's events, also without a window: port/input's turn at each
  * retrace and while the game is held. A nonzero return quits. NULL removes it. */
 void pc_gfx_set_tick_hook(int (*tick)(void));

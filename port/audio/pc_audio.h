@@ -68,6 +68,7 @@ typedef struct {
     uint32_t period_frames;     /* the largest pull a device made, device-rate frames */
     uint32_t target_frames;     /* the queue the AI keeps (pc_audio_target_frames), game-rate frames */
     uint32_t max_queued;        /* the most the queue held, device-rate frames */
+    uint32_t game_rate;         /* the game's rate (osAiSetFrequency), Hz; target_frames is at this rate */
 } PcAudioStats;
 void pc_audio_get_stats(PcAudioStats *stats);
 

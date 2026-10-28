@@ -486,7 +486,9 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 ### The overlay
 
 port/input's settings overlay ([FRONTEND.md](FRONTEND.md) "The settings overlay") is drawn here, outside the
-display-list interpreter (`gfx_ui.c`, `pc_port.h`'s graphics section). Added 2026-10-27.
+display-list interpreter (`gfx_ui.c`, `pc_port.h`'s graphics section). Added 2026-10-27. Its mouse input is
+port/input's: the drawable's pixels against the window's units, the same sizes as here ([FRONTEND.md](FRONTEND.md)
+"The mouse"). `pc_gfx_driver` gives its About page the GL strings the `gfx:` log line prints.
 
 - **When.** While a UI hook is set (`pc_gfx_set_ui_hook`), each present calls it after the frame is shown in the
   window, and before the swap, with the window's size in pixels. With no frame yet it draws over black. The overlay
