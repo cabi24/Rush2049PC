@@ -36,13 +36,13 @@ void *slot_value_get(int32_t index) { return g_bank; }
 int8_t D_801613E8;
 uint8_t D_803B8D64[4];
 static void *g_drawn;
-static int32_t g_value;
+static void *g_value;
 void func_800B65B4(float v) {}
 void func_800B669C(int32_t a, int32_t b) {}
 void func_800B42F0(int32_t id) {}
 void func_800B74A0(int32_t id) {}
 void func_800BE078(int32_t x, int32_t y, int32_t w, int32_t h, int32_t color, int32_t flags, void *text) { g_drawn = text; }
-void func_800B71D4(int32_t x, int32_t y, int32_t value) { g_value = value; }
+void func_800B71D4(int16_t x, int16_t y, void *text) { g_value = text; }   /* state_utility */
 
 uint8_t D_801461D0[24], D_80117280[4], D_8014A160[76 * 2];
 char D_801210B0[] = "%d %s", D_801210C4[] = "%s %s";
@@ -162,7 +162,7 @@ int main(void)
     D_801613E8 = 0;
     func_803AE51C(0);
     CHECK(g_drawn == D_8017A4E0.single[32]);
-    CHECK((uint32_t)g_value == (uint32_t)(uintptr_t)D_8017A4E0.single[235]);
+    CHECK(g_value == D_8017A4E0.single[235]);
     D_80117350 = 1;
     voice_stop();
     CHECK(g_formatted == D_8017A4E0.single[233]);

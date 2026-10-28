@@ -1,6 +1,6 @@
 /* port/assets/tests/test_world.c: the world WAD converter (port/assets/world.c) on a synthetic world WAD whose
  * table of contents is big-endian (before pc_assets_wad) or already native (after it), with and without a WOBJ
- * entry; then the game's own NewWorld (wheel_torque_apply and its bsearch over the WHDR names) on the converted
+ * entry, and with WOBJ and GDAT count words that don't fit; then the game's own NewWorld (wheel_torque_apply and its bsearch over the WHDR names) on the converted
  * file, and LoadTrack's native GTLD array (pc_world_chunk).
  * game: src/blob/wheel_torque_apply.c src/blob/entity_name_copy.c src/blob/pointer_offset_wrapper.c
  * game: src/blob/func_800A473C.c src/blob/func_8008AD04.c
@@ -60,11 +60,12 @@ static void put_node(uint8_t *f, int n, int16_t next, int16_t child)
 }
 
 /* ALPHA: nodes 0 -> 1 (siblings). BRAVO starts at node 2, whose child is its node 1 (WOBJ node 3). Node 4 is
- * reached from neither. With_wobj leaves the WOBJ entry out of the TOC. */
-static void make_world(uint8_t *f, int with_wobj, int native_toc)
+ * reached from neither. With_wobj leaves the WOBJ entry out of the TOC. GDAT node 0 has four children, all
+ * node 1, a leaf. wobj_count and gdat_count are the TOC's count words (record counts in a good file). */
+static void make_world_counts(uint8_t *f, int with_wobj, int native_toc, uint32_t wobj_count, uint32_t gdat_count)
 {
     static const uint32_t tags[4] = {0x57484452u, 0x574F424Au, 0x47444154u, 0x47544C44u};
-    uint32_t offs[4] = {WHDR, WOBJ, GDAT, GTLD}, counts[4] = {44, NODES, 2, 3}, n = 0;
+    uint32_t offs[4] = {WHDR, WOBJ, GDAT, GTLD}, counts[4] = {44, wobj_count, gdat_count, 3}, n = 0;
     int i, k;
 
     memset(f, 0, 0x400);
@@ -85,7 +86,7 @@ static void make_world(uint8_t *f, int with_wobj, int native_toc)
         for (k = 0; k < 4; k++)
             put_f(g + 4 + 4 * k, (float)(1000 * i + k));
         for (k = 0; k < 4; k++)
-            test_put16(g + 0x14 + 2 * k, (uint16_t)(10 * i + k));
+            test_put16(g + 0x14 + 2 * k, (uint16_t)(i ? 10 * i + k : 1));
     }
     test_put32(f + GTLD, 5);
     test_put32(f + GTLD + 4, 0xFFFFFFFFu);
@@ -105,6 +106,11 @@ static void make_world(uint8_t *f, int with_wobj, int native_toc)
         pc_swap32_n(f, 2);
         pc_swap32_n(f + TOC, 3 * n);
     }
+}
+
+static void make_world(uint8_t *f, int with_wobj, int native_toc)
+{
+    make_world_counts(f, with_wobj, native_toc, NODES, 2);
 }
 
 static void check_node(const uint8_t *f, int n, int16_t next, int16_t child)
@@ -139,6 +145,11 @@ static void check_world(uint8_t *f, int node4_converted)
         check_node(f, 4, -1, -1);
     else
         CHECK(pc_be32(f + WOBJ + 0x68 * 4 + 0x40) == 0xA0000004u);
+    memcpy(&h, f + GDAT, 2);
+    memcpy(&x, f + GDAT + 4, 4);
+    CHECK(h == -1 && f[GDAT + 3] == 1 && x == 0.0f);
+    memcpy(&h, f + GDAT + 0x14, 2);
+    CHECK(h == 1);
     memcpy(&h, f + GDAT + 0x1C, 2);
     memcpy(&x, f + GDAT + 0x1C + 0x10, 4);
     CHECK(h == 0 && f[GDAT + 0x1C + 3] == 0x10 && x == 1003.0f);
@@ -161,6 +172,19 @@ int main(void)
             pc_assets_world(120, f, 0x400);
             check_world(f, wobj);
         }
+
+    /* The WOBJ and GDAT count words are record counts, which the game itself never reads: one that doesn't fit
+     * the file (0, or a byte length) is not reread as bytes; the nodes NewWorld reaches and the quadtree
+     * race_setup_2 walks are converted instead, and GTLD, after them, is converted once. */
+    {
+        static const uint32_t bad[3][2] = {{0, 0}, {NODES * 0x68, 2 * 0x1C}, {0x10000, 0xFFFFFFFFu}};
+        int b;
+        for (b = 0; b < 3; b++) {
+            make_world_counts(f, 1, b & 1, bad[b][0], bad[b][1]);
+            pc_assets_world(120, f, 0x400);
+            check_world(f, 0);
+        }
+    }
 
     /* A WHDR that claims more worlds than fit is left as it is. */
     make_world(f, 1, 1);

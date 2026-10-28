@@ -639,7 +639,7 @@ add_library(test_wad_game OBJECT src/blob/groups/audio_frame_sync/waves.c src/bl
     src/blob/entity_lod_select.c src/blob/func_800966D8.c src/blob/groups/slot_sound/entity_render_mode.c
     src/blob/display_list_traverse.c src/blob/func_8008AD6C.c src/blob/func_80092D80.c src/blob/func_800B24EC.c
     src/blob/MBOX_FindPalette_WORK.c src/blob/camera_shake_start.c src/blob/race_setup_1.c src/blob/func_800BDA24.c
-    src/blob/func_800BD080.c src/blob/camera_smooth_follow.c)
+    src/blob/func_800BD080.c src/blob/camera_smooth_follow.c src/blob/pointer_compare_thunk.c src/blob/func_8008AD04.c)
 target_link_libraries(test_wad_game PRIVATE game_flags)
 target_compile_options(test_wad_game PRIVATE -w)
 add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c port/ultra/n64mem.c
@@ -647,6 +647,17 @@ add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tes
 target_include_directories(test_assets_wad_game PRIVATE port/include port/assets port/assets/tests)
 target_compile_options(test_assets_wad_game PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 set_target_properties(test_assets_wad_game test_wad_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+# rush2049pc_assetcheck: every wave of your ROM through the converters, checked as the game reads it
+# (port/assets/tests/assetcheck.c, docs/port/ASSETS.md 8). Skipped (77) without a ROM.
+add_executable(rush2049pc_assetcheck port/assets/tests/assetcheck.c port/assets/tests/support.c port/ultra/n64mem.c
+    port/ultra/absfix.c $<TARGET_OBJECTS:pcassets>)
+target_include_directories(rush2049pc_assetcheck PRIVATE port/include port/assets port/assets/tests)
+target_compile_options(rush2049pc_assetcheck PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+target_compile_definitions(rush2049pc_assetcheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64")
+target_link_libraries(rush2049pc_assetcheck PRIVATE ZLIB::ZLIB m)
+set_target_properties(rush2049pc_assetcheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+add_test(NAME assets_rom COMMAND rush2049pc_assetcheck)
+set_tests_properties(assets_rom PROPERTIES SKIP_RETURN_CODE 77)
 add_test(NAME assets_wad_game COMMAND test_assets_wad_game)
 set_tests_properties(assets_wad_game PROPERTIES SKIP_RETURN_CODE 77)
 # A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
