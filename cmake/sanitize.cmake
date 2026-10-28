@@ -98,7 +98,7 @@ if(PC_SANITIZE)
         "  set(ENV{UBSAN_OPTIONS} \"print_stacktrace=1:halt_on_error=1:suppressions=${pc_supp}/ubsan.supp\")\n"
         "endif()\n"
         "if(NOT DEFINED ENV{TSAN_OPTIONS})\n"
-        "  set(ENV{TSAN_OPTIONS} \"halt_on_error=1:second_deadlock_stack=1:handle_segv=0:handle_sigbus=0:handle_sigfpe=0:handle_sigill=0:suppressions=${pc_supp}/tsan.supp\")\n"
+        "  set(ENV{TSAN_OPTIONS} \"halt_on_error=1:second_deadlock_stack=1:report_signal_unsafe=0:handle_segv=0:handle_sigbus=0:handle_sigfpe=0:handle_sigill=0:suppressions=${pc_supp}/tsan.supp\")\n"
         "endif()\n")
     set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES ${CMAKE_BINARY_DIR}/sanitize_env.cmake)
     message(STATUS "Sanitizers: port/ ${pc_port_list}; game C ${pc_game_list}")

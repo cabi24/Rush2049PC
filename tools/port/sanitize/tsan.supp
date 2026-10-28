@@ -11,3 +11,7 @@ deadlock:libLLVM
 deadlock:libEGL_mesa
 deadlock:libgallium
 
+# Reported to port/gfx's owners (SANITIZE.md 3): the widescreen HUD's offset (pc_gfx_hud_dx), which the game's
+# threads ask for while they draw, reads the frame's width and the resolved widescreen setting, which the main thread
+# writes as it runs the previous frame's display list and presents it. In real time only.
+race:^pc_gfx_hud_dx$
