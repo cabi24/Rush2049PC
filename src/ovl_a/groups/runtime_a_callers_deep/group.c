@@ -521,6 +521,13 @@ extern void *memcpy(void *, const void *, u32);
 extern s32 string_copy_format(char *, s8, s8, s8);
 extern s32 sign_extend_call(s32, f32 (*)[3], s32, u32);
 extern void func_8008E06C(s16, Color4 *);
+#ifdef TARGET_PC
+/* PC: func_8008E06C reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
+ * frame has them (docs/port/SANITIZE.md 3.2) */
+#define PC_WORD_ALIGNED __attribute__((aligned(4)))
+#else
+#define PC_WORD_ALIGNED
+#endif
 extern void model_data_load(s32, s32, s32), model_transform_setup(s32, s32, s32);
 extern void *func_800B24EC(char *, s16 *, s32, s8, s32);
 extern void func_8008D870(s16, void *, s32);
@@ -587,7 +594,7 @@ void func_803932DC(void)
 
 void func_80393B34(void)
 {
-    Color4 buttonColor = {255, 255, 255, 255};
+    Color4 buttonColor PC_WORD_ALIGNED = {255, 255, 255, 255};
     void *tex;
     s16 texIdx;
     s32 buttonIdx;
@@ -694,7 +701,7 @@ void func_803915E8(void)
     s8 clearScrollSpeed = 1;
     void *tex;
     s16 texIdx;
-    Color4 buttonColor = {255, 255, 255, 255};
+    Color4 buttonColor PC_WORD_ALIGNED = {255, 255, 255, 255};
 
     if (D_803BA84D == 1 || D_803BA854 == 1) {
         for (buttonIdx = 0; buttonIdx < 23; buttonIdx++) {
@@ -894,7 +901,7 @@ void func_803915E0(void)
     s8 clearScrollSpeed = 1;
     void *tex;
     u16 texIdx;
-    Color4 buttonColor = {255, 255, 255, 255};
+    Color4 buttonColor PC_WORD_ALIGNED = {255, 255, 255, 255};
     gViewMenuCount = 0;
     whichItem = 0;
     for (i = 0; i < 2; i++) {
