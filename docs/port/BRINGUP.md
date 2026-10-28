@@ -157,6 +157,30 @@ The report's last undescribed table that wasn't text, colours or short strings: 
 ghost is compressed. `zlib_deflate` references it on the PC, so it is described. Test: the synthetic cartridge sets
 it (zlib's own constants), which its generator refuses without the declaration. (48b304c.)
 
+### 14. The world on a PC: the road under the camera, and the far textures
+
+The first player on a Windows PC (2026-10-27, the RelWithDebInfo release) saw "lots of graphical errors on the
+world", on an NVIDIA GPU with GLES and with desktop GL alike: so not a driver's. Races on tracks 0-3 and the attract
+demo were rendered on the Pi, every frame of a race dumped (`RUSH_GFX_DUMP`) and scanned for frames that differ
+from both neighbours far more than the neighbours from each other (`tools/port/frame_spikes.py`), and draws picked
+apart one by one (a local draw log: each draw's combiner, other modes, tiles and textures, and frames drawn without
+one). Two causes:
+
+- **The road under the car vanished for single frames**, and the sky below it showed. A road triangle reaches
+  behind the eye in most frames; it was clipped at w ≥ 1e-4 with a float lerp from w in the thousands, which lost
+  the 1e-4: the new vertex's w came out at 0 (without fused multiply-adds, x86-64's way) or below 0, and a w below
+  0 turned the polygon around, so back-face culling dropped it. GL also got vertices at w = 0 nearly every frame.
+  Fixed by clipping to the guard band as the RSP does ([GFX.md](GFX.md) "Clipping"; ec6e03c). Tests:
+  `gfx.eyeplane`, `gfx.clip`.
+- **The far road and scenery sparkled.** The world is drawn with texture LOD from mip chains, and the renderer
+  sampled only the first level: in the distance a texel here and there, crawling as the camera moves (on the
+  road, a noise of gravel where the N64 shows smooth asphalt and fading lane marks). Fixed by picking the levels
+  per pixel as the RDP does ([GFX.md](GFX.md) "Texture LOD"; bf70a43). Test: `gfx.lod`.
+
+Also changed: `video.api` defaults to `auto`, desktop GL first on Windows (e119563). Not causes, checked on the way:
+the decals (car liveries over the bodies and the shadows are coplanar with what they lie on, so the polygon
+offset hardly matters), the cut-out trees (their holes show what is behind), the TLUT palettes and the fog.
+
 ## How the stops were found
 
 - The fault handler's backtrace names the function; `gdb -batch` with `bt -15` gives the outer frames of a deep

@@ -252,6 +252,41 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     return 0;
 }
 
+/* RUSH_GFX_DUMP=DIR[:FIRST[:COUNT]]: the color image of each graphics task from FIRST (1, the first) on, COUNT of them
+ * (100), as DIR/task-NNNNN.png, at the internal scale, as drawn: every frame the game draws, where screenshots take
+ * one. tools/port/frame_spikes.py finds frames among them that differ from both neighbours. */
+static void dump_task(void) {
+    static const char *spec;
+    static int checked, first = 1, count = 100;
+    const char *colon;
+    char path[512];
+    uint8_t *px;
+    int w, h;
+    if (!checked) {
+        checked = 1;
+        spec = getenv("RUSH_GFX_DUMP");
+        if (spec != NULL && !*spec)
+            spec = NULL;
+        if (spec != NULL && (colon = strchr(spec, ':')) != NULL) {
+            first = atoi(colon + 1);
+            if ((colon = strchr(colon + 1, ':')) != NULL)
+                count = atoi(colon + 1);
+        }
+    }
+    if (spec == NULL || (int)S.tasks < first || (int)S.tasks >= first + count ||
+        pcgfx_gl_read_target(pcgfx_gl_last_target(), NULL, &w, &h) != 0)
+        return;
+    px = (uint8_t *)malloc((size_t)w * h * 4);
+    if (px == NULL)
+        return;
+    colon = strchr(spec, ':');
+    snprintf(path, sizeof(path), "%.*s/task-%05u.png", colon != NULL ? (int)(colon - spec) : (int)strlen(spec), spec,
+             S.tasks);
+    if (pcgfx_gl_read_target(pcgfx_gl_last_target(), px, &w, &h) == 0)
+        pcgfx_png_write(path, px, w, h);
+    free(px);
+}
+
 void pc_gfx_run_dl(const void *dl) {
     if (!S.inited || dl == NULL)
         return;
@@ -271,6 +306,7 @@ void pc_gfx_run_dl(const void *dl) {
         pcgfx_gl_finish();
     S.tasks++;
     S.task_ms += now_ms() - t0;
+    dump_task();
     if (pcgfx_cfg.verbose)
         fprintf(stderr, "gfx: task: %u commands, %u triangles, %u draws, %u unknown\n", pcgfx.stat_cmds,
                 pcgfx.stat_tris, pcgfx.stat_draws, pcgfx.stat_unknown);
