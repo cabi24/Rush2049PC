@@ -1253,6 +1253,10 @@ def race(c):
     c.set_all("game", "D_80118C10", "f32", [-3.0, 3.0, 3.0, -3.0, 0.0, 0.0, 0.0, 50.0],
               "body 0: a 6 ft box of 50 slugs")
     c.set("game", "D_80118C10", "f32", 0.0, "the bodies' and states' last element", index=114)
+    # The respawn records after FSCLS (D_801106C4: f32[3], then {s8 flag; f32 pos[3]} up to D_801108B0, which
+    # world_object_destroy reads by D_801108B0's pointers, NULL here). As f32[] the flag was swapped with its pad
+    # (docs/port/DATA.md 8): the generator refuses a byte there.
+    c.set("game", "D_801106C4", "u8", 1, "the first respawn record's flag", offset=0xC)
 
     battle(c)
 

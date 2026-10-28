@@ -56,7 +56,17 @@ extern s8 D_80111589[][13];
 extern s8 D_8011157C[5][13];      /* gTireRims */
 extern intptr_t D_80143F68[];
 extern f32 D_8011418C[3][3],D_801106C0[];
+#ifdef TARGET_PC
+/* PC: D_801106C4 is FSCLS[3] and then, up to D_801108B0, the tracks' respawn records world_object_destroy reads
+ * ({s8 flag; f32 pos[3]}, 16 bytes; D_801108B0 points at each track's). The loader converts ROM data by its
+ * declaration: as f32[] each flag byte was swapped as part of an f32 and read as 0 (docs/port/DATA.md 8). */
+typedef struct PcRespawn { s8 flag; u8 pad1[3]; f32 pos[3]; } PcRespawn;
+extern struct PcFscls { f32 fscls[3]; PcRespawn respawn[30]; } D_801106C4;
+#define FSCLS D_801106C4.fscls
+#else
 extern f32 D_801106C4[];         /* FSCLS[3] */
+#define FSCLS D_801106C4
+#endif
 extern s16 D_80151AD0,D_80142B08[];
 extern s8 D_801613AB,D_80156994,D_8014978C;
 extern Color D_803B65B4;
@@ -190,9 +200,9 @@ void func_80390DCC(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *po
         func_80092FE0(slot, (s32 *)&alphaCol);
         math_utility(uvs, newuvs);
         if (D_801613AB) {
-            newuvs[0][1] *= D_801106C4[D_801613AB - 1];
-            newuvs[1][1] *= D_801106C4[D_801613AB - 1];
-            newuvs[2][1] *= D_801106C4[D_801613AB - 1];
+            newuvs[0][1] *= FSCLS[D_801613AB - 1];
+            newuvs[1][1] *= FSCLS[D_801613AB - 1];
+            newuvs[2][1] *= FSCLS[D_801613AB - 1];
         }
         func_8008D6FC(D_80139320[slot].handle, pos, newuvs);
         if (D_803BA2F0[slot].texture != D_8011157C[player + 1][idx]) {
