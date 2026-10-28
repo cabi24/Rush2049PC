@@ -1,0 +1,10 @@
+# The idle overlay: the mode screen with no button held for over 300 s, on the virtual clock. game_loop makes the
+# blit D_801146C4 then, and its animation function (callback_init) gives it its colour (docs/port/SYNTH.md 2,
+# BRINGUP.md 15); the run must go on drawing with it.
+# until: 0x40:9600
+# seconds: 400
+# expect: state=0x00000040: players 1, windows 1
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen; the mode screen follows, and the last button is let go at about 14 s

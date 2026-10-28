@@ -1362,11 +1362,23 @@ def multiblit(c, sym, index, texname, x, y, w, h, func=None, image="game", animi
 
 def hud(c):
     """The race HUD (ShowHUD, skid_mark_render: NewMultiBlit of the HUD set D_801158DC[8] and the race set
-    D_80114C58[89]). With zeros every blit has no texture and no size. Two of the HUD set's eight: a 48 x 12 panel
-    of the BUTTON texture top left, and the digital speedometer (animSpeedText, which the 2D sprite pass calls every
-    frame: gShowSpeed is option 5, 1 by default), whose digits go at speedPos (D_80115A68, s32 [windows][slot][2])."""
+    D_80114C58[89]). With zeros every blit has no texture and no size. Six of the HUD set's eight: a 48 x 12 panel
+    of the BUTTON texture top left, the digital speedometer (animSpeedText, which the 2D sprite pass calls every
+    frame: gShowSpeed is option 5, 1 by default), whose digits go at speedPos (D_80115A68, s32 [windows][slot][2]),
+    and the four players' crossbones (animBones, func_80105DA8, animid the player), which only deaths mode shows
+    (option 31, 0 by default): an N64-offset body left them drawn top left in every race (BRINGUP.md 15). Their
+    places in deaths mode, bonesPos (D_801160C8, s32 [windows][player][2]), fill the table: a declaration that
+    describes its first word only leaves the rest outside, which the generator refuses."""
     multiblit(c, "D_801158DC", 0, "BUTTON", 8, 8, 48, 12)
     multiblit(c, "D_801158DC", 1, None, 0, 0, 0, 0, func="animSpeedText")
+    for player in range(4):
+        multiblit(c, "D_801158DC", 4 + player, "BUTTON", 120, 60, 24, 12, func="func_80105DA8", animid=player)
+    for windows in range(1, 5):
+        for player in range(4):
+            for k, v in enumerate((90 + 70 * (player % 2), 10 + 105 * (player // 2))):
+                c.set("game", "D_801160C8", "u32", v, "bonesPos: the crossbones' place per view, in deaths mode"
+                      if windows == 1 and player == k == 0 else "(same)",
+                      offset=32 * (windows - 1) + 8 * player + 4 * k)
     corners = {1: [(300, 200)], 2: [(300, 95), (300, 205)], 3: [(140, 95), (300, 95), (140, 205)],
                4: [(140, 95), (300, 95), (140, 205), (300, 205)]}
     for windows, slots in corners.items():
@@ -1395,6 +1407,15 @@ def blits(c):
     # NewMultiBlit gets them: one-blit declarations left the second outside its table (BRINGUP.md 9).
     for sym in ("D_8011ACA0", "D_8011ACE8", "D_801105E4"):
         multiblit(c, sym, 1, "BUTTON", 16, 200, 48, 12)
+    # The idle overlay (game_loop: NewMultiBlit of D_801146C4 once no button was held for 300 s, outside the title
+    # and the attract demo): an untextured blit over the screen whose animation function, callback_init, makes its
+    # colour D_801146FC its Image, R, G, B, A bytes the 2D draw fills it with (func_8008A46C). An N64-offset body
+    # put NULL there and the draw faulted; a word declaration of the colour reversed its bytes (BRINGUP.md 15). The
+    # idle path waits for it.
+    multiblit(c, "D_801146C4", 0, "", 0, 0, 320, 220, func="callback_init", null_name=True)
+    for i, v in enumerate((0, 0, 0, 96)):
+        c.set("game", "D_801146FC", "u8", v, "the idle overlay's colour: black, a third opaque" if i == 0
+              else "(same)", index=i)
 
 
 def track_animations(c):
