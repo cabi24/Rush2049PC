@@ -352,7 +352,7 @@ class Check:
             if m is None:
                 continue
             for raw, vn, typed in self.on.get(root, ()):
-                f = self.judge(m, how, raw, typed)
+                f = self.judge(m, how, raw, vn if typed else None)
                 if f:
                     out.append(f)
             for raw in self.rawargs.get(root, ()):
@@ -361,7 +361,7 @@ class Check:
                     out.append(f)
         return self.review(self.merge(out))
 
-    def judge(self, m, how, raw, typed=False):
+    def judge(self, m, how, raw, view=None):
         """A finding for a raw access on a record of type m, or None. A record known as an array (a symbol's
         reference) takes the N64 stride for an N64 offset past its element; a record known through a view or a
         callee is that one record (a prefix of what the pointer points to), and an offset past it says nothing."""
@@ -372,9 +372,17 @@ class Check:
             return None   # an index (layout_check's strides), or no offset of the function's own
         array = getattr(m, "array", False)
         rw = "write" if raw.rw == "W" else "read"
+        shaped = False
         offh = h % m.eh if array else h
-        if typed and (pc or raw.kind == "arg" or m.fits_pc(offh, raw.width, raw.kind)):
-            return None   # a view's field (a typed access through a view of another record is layout_check's)
+        # a typed access: through a view with the PC layout, the view's field (layout_check compares the views);
+        # through a struct view that keeps the N64 shape (bytes up to the field: `u8 pad0[0x1A]; s8 dirty;`), its
+        # field is the N64's, and the offset is in the declaration, not on the line; through a scalar (an m2c
+        # offset from `&sym`), the access must not fit the record's PC field
+        shaped = view is not None and not SCALAR_VIEW.search(view) and (raw.unit, view) not in self.moved
+        vm = self.moved.get((raw.unit, view)) if view is not None else None
+        if view is not None and (pc or raw.kind == "arg" or m.fits_pc(offh, raw.width, raw.kind) or (
+                vm is not None and vm.eh and vm.fits_pc(raw.lo % vm.eh, raw.width, raw.kind))):
+            return None
         if pc == "pc":   # PC code: a host offset, which must start a field of its width
             if offh >= m.eh:
                 return None
@@ -411,10 +419,10 @@ class Check:
         if f_pc and (not f_n64 or pc == "macro"):
             return None   # the PC's field at the PC's offset: code written for the host layout (CAR_OFS...)
         score = (5 if raw.rw == "W" or raw.width == 8 else 4) if f_n64 and not f_pc else 3 if not f_n64 else 4
-        if raw.lo and not src.literal(raw.line, raw.lo):
+        if raw.lo and not shaped and not src.literal(raw.line, raw.lo):
             score = min(score, 2)   # no such offset in the source: an index or a pointer step the compiler folded
         what = f"a pointer to N64 +0x{off:X} passed as {raw.via}" if raw.kind == "arg" else \
-            f"{raw.width}-byte {rw} at N64 +0x{off:X}"
+            f"{raw.width}-byte {rw} at N64 +0x{off:X}" + (f" through the N64-shaped view {view}" if shaped else "")
         return Finding(score, raw.root, raw.func, raw.unit,
                        f"{what}: the N64's {x[5]} (PC +0x{want - k * m.eh:X}); "
                        f"on the PC +0x{offh:X} is {m.field(offh)} ({m.origin[1]}, {m.origin[0]}; {how})",
@@ -616,6 +624,14 @@ s32 cb_low(void *arg0) {           /* before the first pointer moves: nothing */
     update(arg0);
     return 1;
 }
+typedef struct { u8 pad0[0xC]; s8 dirty; } Item;   /* 6. an N64-shaped view: bytes up to the N64's hide */
+s32 cb_item(Item *item) {
+    if (item->dirty) {
+        item->dirty = 0;
+        update((Rec *) item);
+    }
+    return item->dirty;
+}
 void caller(Rec *a, Rec *b, Rec *c, Rec *d) { update(a); update(b); update(c); update(d); }
 """
 SELFTEST_ROLES = [(r"^cb_role$", 0, (r"selftest\.c$", "Rec"), "the synthetic role: a Rec")]
@@ -626,6 +642,7 @@ SELFTEST_EXPECT = [
     (r"^cb_arg$", r"a pointer to N64 \+0xA passed as set_y argument 0: the N64's y \(PC \+0x12\)"),
     (r"^touch_sym$", r"4-byte write at N64 \+0x14: the N64's id \(PC \+0x20\)"),
     (r"^cb_role$", r"4-byte read at N64 \+0x14: the N64's id .*role: the synthetic role"),
+    (r"^cb_item$", r"1-byte write at N64 \+0xC through the N64-shaped view Item: the N64's hide \(PC \+0x14\)"),
 ]
 SELFTEST_ABSENT = [r"^cb_pc$", r"^cb_macro$", r"^cb_vec$", r"^vec_inc$", r"^cb_win$", r"^cb_low$", r"^update$"]
 
