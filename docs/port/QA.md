@@ -267,8 +267,73 @@ Fix (1a39ed2, under `TARGET_PC`, as macros above each function, so the N64 build
 
 Test: `assets_audiomgr` drains the pool and fills the queue. It faults without the fix.
 Main's spaced catch-up (late retraces go out one at a time, once the game has taken the last) removes the burst
-that made it likely. The other callers of the pool fire on a screen's or an object's event, not per retrace, and
-are left as they are.
+that made it likely.
+
+**The other callers.** The rest of the pool's callers post on a screen's or an object's event, not per retrace,
+but a starved host (a laptop on battery, background load) can still find the pool empty at a screen change, and
+each of them wrote through the NULL too. The list is the linked program's, not the sources': every call to
+`func_80091B00` in `objdump -d rush2049pc`, mapped to the strong definition it sits in. That is 32 calls in 29
+functions. The 33 calls in the group copies' bodies are dead: `gen_weak.py` makes those copies weak, and nothing
+reaches their code. That covers the copies in credits_scroll_grp, mode_init and input_aux, the transform_b109.c
+files and the camera_target_track_group.c files. Fix 6 had 7 of the 29. Nothing else takes a message from the pool.
+Only `func_80091B00` sets the in-use bytes. The manager clears them, `hud_setup` (AudioInit) clears the pool, and
+the shutdown reads it. The other 22 are guarded the same way, under `TARGET_PC` with file-scope macros
+(n64_neutral: shifted):
+
+- **Sixteen posters** take the lock, fill one command and send it, and do nothing else:
+  - `sync_entry_register` (play a song) and `speed_set` (the volumes);
+  - `object_type1_create`, `us_AudKillSong`, `di_post_type1`, `post_msg_a`/`_b`, `AudKillSong_TTL` and
+    `AudKillSong`, which all stop the song;
+  - `object_type7_create` and `_alt` and `AudStopAllEffects` (stop every effect), and `AudPauseAllEffects`, which
+    posts the same 7, as retail does;
+  - `func_800D6348` and `AudResumeAllEffects` (resume), and `func_800D6E00` (mono).
+
+  Despite their names, the `object_type*_create` functions create nothing. With the pool empty, each gives the
+  lock back and returns. With the queue full, it gives its message back (in-use byte +3). `AudSend`, the send in
+  the nonmatching drafts, gives it back the same way.
+- **The audio shutdown's two posts wait.** `func_800C8918` posts a stop of the song and of every effect, busy-waits
+  until the manager has freed every message, then frees the effects' blocks. Its `post_type1`/`post_type7` don't drop
+  their stops ahead of those frees. With the pool empty, they give the lock back and yield (`PC_SPIN`) until the
+  manager frees a message; with the queue full, they send with `OS_MESG_BLOCK` (the lock is free by then). This
+  waits on nothing new: the shutdown waits on the same manager right after.
+- **The way out of a race goes on after its stop.** The game over screen's choice (`func_800F87A0`, three posts),
+  `finish_state_alt` and AbortGame (`func_800D5A04`) stop the cars, release the environs and set the next state
+  after posting. An early return would leave the exit half done. With no message, they write the command into a
+  file-static scratch message, which is never sent; with the queue full, they give the message back.
+- `__standin_a` (entity_lookup/group.c) takes two messages and keeps them, but nothing calls it
+  (`weak_copies_check.py`).
+
+None of the callers returns a result, so their own callers see nothing. The handle-returning starts are fix 6's.
+The manager never answers a command. Only the shutdown waits on it, for the pool to drain. Before fix 6, one
+message lost to a full queue would have held that wait forever; now none is lost.
+A dropped command only changes what is heard. A dropped stop of the song leaves it playing until the next stop.
+The manager starts a song only when none is playing, so the next screen's song is skipped too. A dropped stop or
+pause of the effects leaves them sounding until the next stop.
+
+Test: `assets_audiocmds` runs all 22 through the game's code with the pool empty, the queue full, and room.
+With the pool empty, the lock must be balanced, nothing sent and no message taken. With the queue full, the
+message must be given back; with room, the command must be sent. The shutdown must end, and the exits must still
+set their next state. It faults without the guards. Retail: `RUSH2049_TEST_AUDIO_POOL_FAIL=N`, a PC-only test
+hook in `func_80091B00` that port/main.c reads, makes every Nth call find the pool empty. N must be 2 or more:
+the shutdown waits for a message, and with 1 none would ever come.
+
+On the Pi, the retail cartridge ran `--fast` under gdb with the hook at 1 in 2 and 1 in 3, through the synthetic
+paths' scripts. A Python breakpoint on the hook counted each caller's calls and the ones that failed. 17 runs
+covered the screens, single, 2- and 4-player races, circuit, stunt, a 2-player battle, battle quit, pause, race end,
+the attract demo, cheats and idle (13 at 1 in 2; race, race end, pause and battle quit at 1 in 3). Each ran to its
+state with no fault, and 6,097 of 15,013 `entity_transform_calc` changes were dropped. Of the event posters, these
+found the pool empty and went on: `sync_entry_register` (45 times), `speed_set` (79), `AudKillSong` (12),
+`AudKillSong_TTL` (3), `AudPauseAllEffects` (6), `AudStopAllEffects` (4), `us_AudKillSong` (2), `func_800D6E00` (4)
+and the game over screen's `func_800F87A0` (1). Fix 6's starts did too: `entity_flags_apply` (140),
+`high_scores_display` (22) and `camera_target_track` (90). Seven more runs had gdb set the hook's phase on entry to
+each poster, so that the poster's own message was the one refused: race end, battle quit, the screens, pause, the
+menus, a race and the demo. Every call of the posters those paths make failed: `speed_set` 74 of 74,
+`sync_entry_register` 28, `func_800D6E00` 7, `AudStopAllEffects` 7, `AudKillSong` 4, `AudKillSong_TTL` 3,
+`AudPauseAllEffects` 3 and `us_AudKillSong` 2. Each run still reached its state. The scripted paths never reach the
+rest: the shutdown (`hud_setup` on an inited audio system), AbortGame, the soft reset, unpausing, the audio screen's
+init and update, `object_type1_create`/`object_type7_create` (image A's `func_80390418`), and
+`object_type7_create_alt` and `func_800D6348`, which nothing calls directly (the data's function table names them).
+`assets_audiocmds` covers those.
 
 #### 7. The Windows timing model waited in the wrong place with a high frame rate
 
