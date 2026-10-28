@@ -7,8 +7,9 @@
  * and drawn again after each change (pc_gfx_redraw).
  *
  * - Changes apply at once where the part allows it: the renderer's widescreen, scale and textures (from the game's
- *   next frame) and frame rate, the window's size, fullscreen and vsync, the volume, and everything port/input reads (bindings,
- *   hotkeys, sticks, rumble). The graphics API and the audio backend apply after a restart; they are marked so.
+ *   next frame) and frame rate, the window's size, fullscreen and vsync, the volume, and everything port/input reads
+ *   (bindings, hotkeys, sticks, rumble). The graphics API and the audio backend apply after a restart; they are
+ *   marked so.
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
  *   environment that weren't changed here are not written.

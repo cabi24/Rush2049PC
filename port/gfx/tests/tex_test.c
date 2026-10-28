@@ -289,7 +289,8 @@ static void case_png(void) {
         uint8_t *r = raw + y * (1 + W * BPP);
         r[0] = (uint8_t)y;
         for (x = 0; x < W * BPP; x++) {
-            int a = x >= BPP ? img[y][x - BPP] : 0, b = y ? img[y - 1][x] : 0, c = (y && x >= BPP) ? img[y - 1][x - BPP] : 0;
+            int a = x >= BPP ? img[y][x - BPP] : 0, b = y ? img[y - 1][x] : 0;
+            int c = (y && x >= BPP) ? img[y - 1][x - BPP] : 0;
             int pred = y == 0 ? 0 : y == 1 ? a : y == 2 ? b : y == 3 ? (a + b) / 2 : paeth_ref(a, b, c);
             r[1 + x] = (uint8_t)(img[y][x] - pred);
         }
@@ -303,7 +304,8 @@ static void case_png(void) {
             for (y = 0; y < H; y++)
                 for (x = 0; x < W; x++) {
                     const uint8_t *p = out + (y * W + x) * 4;
-                    if (p[0] != img[y][x * 2] || p[1] != img[y][x * 2] || p[2] != img[y][x * 2] || p[3] != img[y][x * 2 + 1])
+                    if (p[0] != img[y][x * 2] || p[1] != img[y][x * 2] || p[2] != img[y][x * 2] ||
+                        p[3] != img[y][x * 2 + 1])
                         bad++;
                 }
             CHECK(bad == 0, "gray+alpha: %d texels differ (filters 0-4)", bad);
@@ -450,9 +452,9 @@ static void case_identity(void) {
         char path[900];
         uint8_t *img = NULL;
         int w, h, bad = 0;
-        static const char *const golden[] = {"rgba16_16x8_81568407ed53e77c.png", "ci8_16x8_17369b244b606ef4_d9d9ac65.png",
-                                             "ci4_16x8_9c536938f44ff2ba_826481f4.png",
-                                             "ci4_16x8_9c536938f44ff2ba_008664d3.png"};
+        static const char *const golden[] = {
+            "rgba16_16x8_81568407ed53e77c.png", "ci8_16x8_17369b244b606ef4_d9d9ac65.png",
+            "ci4_16x8_9c536938f44ff2ba_826481f4.png", "ci4_16x8_9c536938f44ff2ba_008664d3.png"};
         int gi, j;
         for (gi = 0; gi < 4; gi++) {
             for (j = 0; j < n && strcmp(names[j], golden[gi]) != 0; j++)
@@ -468,7 +470,8 @@ static void case_identity(void) {
                         uint16_t v = s_t16[y * 16 + x];
                         const uint8_t *p = img + (y * 16 + x) * 4;
                         int r = (v >> 11) & 31, g = (v >> 6) & 31, b = (v >> 1) & 31;
-                        if (p[0] != (r << 3 | r >> 2) || p[1] != (g << 3 | g >> 2) || p[2] != (b << 3 | b >> 2) || p[3] != 255)
+                        if (p[0] != (r << 3 | r >> 2) || p[1] != (g << 3 | g >> 2) || p[2] != (b << 3 | b >> 2) ||
+                            p[3] != 255)
                             bad++;
                     }
                 free(img);

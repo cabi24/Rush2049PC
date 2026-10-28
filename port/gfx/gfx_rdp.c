@@ -249,8 +249,8 @@ static uint32_t texel_raw(const GfxTile *tl, unsigned s, unsigned t) {
         return tmem16((row + s * 2) ^ swap);
     default:
         a = ((row + s * 2) ^ swap) & 0x7FF;
-        return (uint32_t)pcgfx.tmem[a] << 24 | (uint32_t)pcgfx.tmem[a + 1] << 16 | (uint32_t)pcgfx.tmem[a + 0x800] << 8 |
-               pcgfx.tmem[a + 0x801];
+        return (uint32_t)pcgfx.tmem[a] << 24 | (uint32_t)pcgfx.tmem[a + 1] << 16 |
+               (uint32_t)pcgfx.tmem[a + 0x800] << 8 | pcgfx.tmem[a + 0x801];
     }
 }
 

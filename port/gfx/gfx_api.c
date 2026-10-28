@@ -52,7 +52,7 @@ static struct {
     int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
     /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
     uint32_t tasks, drawn;
-    double task_ms, drawn_ms, drawn_ms_max, tick_ms;
+    double task_ms, task_ms_max, drawn_ms, drawn_ms_max, tick_ms;
     int times;                /* RUSH_GFX_TIMES: 1 the summary at exit; 2 with glFinish around each timed part, so
                                * its time includes the GPU's */
 } S;
@@ -314,7 +314,10 @@ void pc_gfx_run_dl(const void *dl) {
     if (S.times > 1)
         pcgfx_gl_finish();
     S.tasks++;
-    S.task_ms += now_ms() - t0;
+    t0 = now_ms() - t0;
+    S.task_ms += t0;
+    if (t0 > S.task_ms_max)
+        S.task_ms_max = t0;
     dump_task();
     if (pcgfx_cfg.verbose)
         fprintf(stderr, "gfx: task: %u commands, %u triangles, %u draws, %u unknown\n", pcgfx.stat_cmds,
@@ -499,10 +502,11 @@ void pc_gfx_shutdown(void) {
                     "%u not drawn (the host or its GPU was behind)\n", pc_gfx_frame_rate(), st.ticks, st.drawn, st.early, st.held,
                     st.busy);
         if (pcgfx_cfg.frame_rate != 0 || pcgfx_cfg.verbose || S.times)   /* GL may finish the work later */
-            fprintf(stderr, "gfx: %s time: %u graphics tasks, %.3f ms each; %u frames drawn between two, %.3f ms "
-                    "each (at most %.3f); %u frames shown, %.3f ms each\n", S.times > 1 ? "GPU and CPU" : "CPU", S.tasks,
-                    S.tasks ? S.task_ms / S.tasks : 0.0, S.drawn, S.drawn ? S.drawn_ms / S.drawn : 0.0,
-                    S.drawn_ms_max, st.ticks, st.ticks ? S.tick_ms / st.ticks : 0.0);
+            fprintf(stderr, "gfx: %s time: %u graphics tasks, %.3f ms each (at most %.3f); %u frames drawn "
+                    "between two, %.3f ms each (at most %.3f); %u frames shown, %.3f ms each\n",
+                    S.times > 1 ? "GPU and CPU" : "CPU", S.tasks, S.tasks ? S.task_ms / S.tasks : 0.0, S.task_ms_max,
+                    S.drawn, S.drawn ? S.drawn_ms / S.drawn : 0.0, S.drawn_ms_max, st.ticks,
+                    st.ticks ? S.tick_ms / st.ticks : 0.0);
         pcgfx_hfr_shutdown();
         pcgfx_tex_cache_clear();
         pcgfx_rdp_forget_targets();
