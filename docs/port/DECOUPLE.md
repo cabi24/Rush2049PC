@@ -56,15 +56,16 @@ times, a version, a model pointer); the N64's is bytes only:
 | +6 | `flags` | 0x80 active (`LINK_ACTIVE`), 0xB0 in a race | func_800EC190, CalcPolePositions, props.c, cleanup_colortrace | world_physics_tick, func_800EC914 |
 | +7 | `owner` | 0-5 a drone that node drives (0 here), 6 a human, 7 empty | func_800EC190, CalcPolePositions, props.c, display_list_flush (`-= 6`) | 20 files: the race, camera, music, menus, resurrect, checkpoints, stat_lap_split (through `D_80153E8F`) |
 
-**Inventory.** 30 objects reference the two names (nm): 28 game files, two of them context copies
-(`loadcars/setup.c` of func_800BB02C, `input_aux/ctx_init_state_continue.c`), and `nonmatching/display_list_flush.c`.
+**Inventory.** 30 objects reference the two names (nm): 29 game files under `src/`, some of them copies of one
+function in another group (`loadcars/setup.c` of func_800BB02C, `input_aux/ctx_init_state_continue.c`, `demo_pair`'s
+two), and `nonmatching/display_list_flush.c`.
 They had 13 views of the record (`tLink`, `Link`, `Config`, `Slot`, `Player`, `Selection8`...), all 8 bytes, all
 bytes; the signed ones (`s8 owner` at +0 in func_800EC190, `s8 type` in CalcPolePositions, the colours in LoadCars,
 props.c and cleanup_colortrace) are only stored to, so one `unsigned char` type reads the same values. Every access
 is one byte through an index or a record pointer: no file reaches a neighbour from it or it from a neighbour
 (`bounds_reviewed.txt` and the data tables have no view across it). The image symbol tables name five addresses in
 it: `D_80153E88`, `D_80153E89` (`[0].car`), `D_80153E8F` (`[0].owner`, read by `stat_lap_split` and func_800E56F8's
-group with a stride of 8), `D_80153E97` (`[1].owner`) and `D_80153EB8` (`&[6]`, the end of the 6-car loops); only
+group with a stride of 8), `D_80153E97` (`[1].owner`) and `D_80153EB8` (`&[6]`, likely the end pointer of a 6-slot loop); only
 the first and third had C users. No PC code stores its address (`PC_N64W`, a u32 field, an absolute address). A scan
 of the four images inflated from the retail cartridge found no data word in 0x80153E88-0x80153EF0, and 38 code
 references (`lui 0x8015` plus an offset in range: 36 in the game image, 2 in image A), which are the C above.
@@ -72,8 +73,8 @@ references (`lui 0x8015` plus an offset in range: 36 in the game image, 2 in ima
 the record (`N64 ?`); after: 125 on `pc_links`, every one a byte at the offset of the reference layout, the two
 through the alias at +7.
 
-**The size.** The task's premise was the N64's `MAX_LINKS` 6 (the per-car arrays are 6 long; gen_data had the 104 bytes
-by the gap). But three functions walk 13 slots: LoadCars (slots 6-12 copy slot 0's car), func_8039156C (each slot's
+**The size.** A race on the N64 activates `MAX_LINKS` 6 slots (the per-car arrays are 6 long; gen_data had the 104
+bytes by the gap). But three functions walk 13 slots: LoadCars (slots 6-12 copy slot 0's car), func_8039156C (each slot's
 car is its index) and sfx_position_3d (an engine sound per slot, with `D_80142B08[13]`). The gap is exactly 13
 records. So the storage is `PC_LINK_SLOTS` = the larger of 13 (`PC_N64_LINK_SLOTS`) and `PC_MAX_LINKS` (8, the cars a
 race may hold on the PC); with 8 it is 13, 104 bytes, and the game still activates 6.

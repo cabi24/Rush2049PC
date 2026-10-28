@@ -23,7 +23,7 @@
 struct pc_link {
     unsigned char track;     /* +0 the track (CalcPolePositions, func_800EC190: D_8014978C) */
     unsigned char car;       /* +1 the car model, 0-12 (LoadCars, the car select) */
-    unsigned char color[3];  /* +2 the car's three colours (the car select, LoadCars; the car record's +0x7CD) */
+    unsigned char color[3];  /* +2 the car's three colours (the car select, LoadCars; the model record's +0x7CD) */
     unsigned char place;     /* +5 the start place (CalcPolePositions; the car record's place) */
     unsigned char flags;     /* +6 0x80 active (LINK_ACTIVE), 0x20 track and 0x10 car locked: 0xB0 in a race */
     unsigned char owner;     /* +7 0-5 a drone that node drives (0 here), 6 a human player, 7 an empty slot */
