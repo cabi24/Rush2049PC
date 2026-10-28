@@ -660,6 +660,10 @@ foreach(t ${PC_ASSETS_TESTS})
         target_sources(test_assets_${n} PRIVATE $<TARGET_OBJECTS:test_assets_${n}_game>)
     endif()
 endforeach()
+# The race roster's test declares more slots than the game walks: 16 where the game build has 13
+# (port/include/pc_game_types.h, docs/port/DECOUPLE.md).
+target_compile_definitions(test_assets_roster PRIVATE PC_MAX_LINKS=16)
+target_compile_definitions(test_assets_roster_game PRIVATE PC_MAX_LINKS=16)
 # test_assets_musyx also runs the game's own MusyX readers on the converted files: the boot library's units that
 # read them, built with the game's flags (one wrapper per unit, like test_gsm_game).
 file(GLOB PC_ASSETS_MUSYX_GAME CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/tests/musyx_lib_*.c)
