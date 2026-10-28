@@ -112,13 +112,17 @@ jobs:
           ./rush2049pc.exe --headless --rom missing.z64 > "$GITHUB_WORKSPACE/first.log" 2>&1 || rc=$?
           cat "$GITHUB_WORKSPACE/first.log"
           test "$rc" = 1 || { echo "the first run's exit code is $rc, not 1 (no ROM)"; exit 1; }
-          # the first start a player makes: no ROM anywhere, no path
+          grep -q "wrote the default settings to" "$GITHUB_WORKSPACE/first.log"
+          grep -q "^\[game\]" rush2049pc.ini
+          grep -q "no ROM at missing.z64" rush2049pc.log
+          # the first start a player makes: no ROM anywhere, no path. Its log moves the first run's to
+          # rush2049pc.old.log.
           rc=0
           ./rush2049pc.exe --headless > "$GITHUB_WORKSPACE/norom.log" 2>&1 || rc=$?
           cat "$GITHUB_WORKSPACE/norom.log"
-          test "$rc" = 1 && grep -q "no ROM: baserom.us.z64 is in none of these places" "$GITHUB_WORKSPACE/norom.log"
-          grep -q "wrote the default settings to" "$GITHUB_WORKSPACE/first.log"
-          grep -q "^\[game\]" rush2049pc.ini && grep -q "no ROM at missing.z64" rush2049pc.log
+          test "$rc" = 1 || { echo "the start with no ROM's exit code is $rc, not 1"; exit 1; }
+          grep -q "no ROM: baserom.us.z64 is in none of these places" "$GITHUB_WORKSPACE/norom.log"
+          grep -q "no ROM at missing.z64" rush2049pc.old.log
       - name: Boot without a ROM
         # It faults where the blank cartridge's zero data runs out (docs/port/WINDOWS.md); the log the program
         # writes must have the run, the fault and its backtrace.
@@ -273,13 +277,17 @@ jobs:
           ./rush2049pc --headless --rom missing.z64 > "$GITHUB_WORKSPACE/first.log" 2>&1 || rc=$?
           cat "$GITHUB_WORKSPACE/first.log"
           test "$rc" = 1 || { echo "the first run's exit code is $rc, not 1 (no ROM)"; exit 1; }
-          # the first start a player makes: no ROM anywhere, no path
+          grep -q "wrote the default settings to" "$GITHUB_WORKSPACE/first.log"
+          grep -q "^\[game\]" rush2049pc.ini
+          grep -q "no ROM at missing.z64" rush2049pc.log
+          # the first start a player makes: no ROM anywhere, no path. Its log moves the first run's to
+          # rush2049pc.old.log.
           rc=0
           ./rush2049pc --headless > "$GITHUB_WORKSPACE/norom.log" 2>&1 || rc=$?
           cat "$GITHUB_WORKSPACE/norom.log"
-          test "$rc" = 1 && grep -q "no ROM: baserom.us.z64 is in none of these places" "$GITHUB_WORKSPACE/norom.log"
-          grep -q "wrote the default settings to" "$GITHUB_WORKSPACE/first.log"
-          grep -q "^\[game\]" rush2049pc.ini && grep -q "no ROM at missing.z64" rush2049pc.log
+          test "$rc" = 1 || { echo "the start with no ROM's exit code is $rc, not 1"; exit 1; }
+          grep -q "no ROM: baserom.us.z64 is in none of these places" "$GITHUB_WORKSPACE/norom.log"
+          grep -q "no ROM at missing.z64" rush2049pc.old.log
       - name: Boot without a ROM
         run: |
           cd "$GAME_DIR"
