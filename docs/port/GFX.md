@@ -144,6 +144,21 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     shows the levels the N64 shows. Below 1 (magnified): the first level, LOD_FRACTION 0. From 2^l: TEXEL0 level l,
     TEXEL1 level l + 1, LOD_FRACTION step / 2^l − 1. From the last level's power on: the last level in both,
     LOD_FRACTION 1.
+  - **At any scale, a fraction too.** The scale per axis is the target's internal pixels over its N64 pixels
+    (`uScale` = px / n across and down, the sizes `pcgfx_scaled` rounded, as the edges use), so a step across an
+    internal pixel times it is the step across an N64 pixel exactly, in N64 texels, whatever the GL texture's size.
+    What comes out is continuous in the step (at 2^l, TEXEL1 at fraction 1 is the next TEXEL0 at 0; at 1 and at the
+    last level's power the fraction meets 0 and 1), so a float's rounding of a derivative moves a blend by as much
+    and never makes a level jump.
+  - **Texels are the internal pixel's own.** A triangle is drawn at the internal resolution: each internal pixel
+    samples each level at its own centre (only point-sampled rectangles are snapped to their N64 pixel: "Resolution
+    and scale"). So where a level's texels are smaller than an N64 pixel's step through them, an N64 pixel's internal
+    pixels show more than one of them, at whole scales as at fractions; the level and the blend are the N64's. Found
+    2026-10-28: `lod` failed at 1.25 (0,127,128 where 0,0,128 was wanted at (94,32)) with the levels and fraction
+    right: the internal pixel it read has its centre 0.8 of the way across N64 pixel 94, and level 1's one-texel
+    stripes are 1.5 N64 pixels wide at that step, so it is in the next stripe. The case expected the N64 pixel's own
+    texel at one internal pixel, which held at whole scales by luck of where the centres fell; it now checks every
+    internal pixel against the N64's levels and fraction and its own texels ("Tests"). The renderer did not change.
   - Not emulated: detail and sharpen textures (those draw as without LOD), the primitive's minimum level, LOD on
     texture rectangles.
 - **Formats.** RGBA16, RGBA32, IA16, IA8, IA4, I8, I4, CI8 and CI4.
@@ -319,7 +334,9 @@ Added 2026-10-27 night: before, every scale was a whole number.
   by the centre's distance from that pixel's corner (`dFdx`, `dFdy`), so every internal pixel of an N64 pixel
   shows the N64's texel; `rect_start` puts the RDP's value at the rectangle's corner (plus 1/64 against float
   error). Filtered rectangles interpolate across, per axis (`rect_start`'s half internal pixel).
-- **LOD** is measured in N64 pixels: the shader's steps per internal pixel times the scale per axis (`uScale`).
+- **LOD** is measured in N64 pixels: the shader's steps per internal pixel times the scale per axis (`uScale`, px /
+  n of the target), so the levels and the blend are the N64's at any scale; the texels are each internal pixel's own
+  ("Texture LOD" above). `gfx.lod.*` checks it at the fractions on GLES and desktop GL.
 - **Widescreen** works in N64 pixels (ox is whole), so it is the same at any scale. **Frame interpolation** draws
   into an auxiliary target of the frame's N64 size and scale, so the same internal size.
 - **What it costs** (2026-10-28, before and after that night's work on the renderer). The synthetic cartridge's
@@ -786,8 +803,8 @@ build/gfx/gfx_test texrect --png /tmp/out
 ```
 
 - **Textures.** `gfx_tex_test` (`gfx.tex.*`): the PNG reader, texture identities, a pack's round trip, wrap and
-  mirror seams at 2x, LOD levels at 2x, cut-out edges, the worker and the disk cache ([TEXTURES.md](TEXTURES.md)
-  "Tests").
+  mirror seams at 2x, LOD levels at 2x, 6.75 and 2.25, cut-out edges, the worker and the disk cache
+  ([TEXTURES.md](TEXTURES.md) "Tests").
 - **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`, written from
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
@@ -805,7 +822,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `lit` | directional and ambient light, a light through a rotated modelview, texgen |
 | `fog` | 2-cycle FOG_SHADE_A at three depths |
 | `twocycle` | a TEXEL0/TEXEL1 lerp, then a lerp toward env by the primitive LOD fraction |
-| `lod` | G_TL_LOD with four mip levels (one striped, to check its coordinates), point sampled, at steps of 0.5-16 texels a pixel: the first level magnified, level 1 and 2 exactly, halfway between levels, the last level from its power on; without G_TL_LOD, tile 0 |
+| `lod` | G_TL_LOD with four mip levels (level 1 striped a texel wide, to check its coordinates), point sampled, quads with their corners on whole N64 pixels (a projection exact in fixed point) at steps of 0.5-16 texels an N64 pixel: the first level magnified, level 1 and 2 exactly, halfway between levels, the last level from its power on, 3 across and 0.5 down and the other way round (each axis at its own scale); without G_TL_LOD, tile 0. Every internal pixel inside a quad against the N64's levels and fraction for its step and the texels at its own centre (those within 1/16 texel of a stripe's side left out) |
 | `dualtile` | CI8 read as CI4 |
 | `belist` | N64-form lists through a host segment, a K0 address, a physical address and a segment set from a BE list; native K0 texture |
 | `matrix` | push/mul/pop |
@@ -829,11 +846,13 @@ build/gfx/gfx_test texrect --png /tmp/out
   `gfx.all.wide21-scale3` (21:9 at 3×) rerun every case in widescreen, with every sample taken ox pixels in: the
   4:3 frame's pixels must come out the same in the middle of the wider target. `gfx.all.scale-auto` reruns them
   with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Fractional scales:
-  `gfx.all.scale1.5`, `.scale2.25-desktop-gl`, `.scale2.5-software` (ties: N64 edges on internal pixel centres),
-  `.wide-scale6.75` (16:9, 2876 × 1620), `.native-2880x1620` and `.native-1366x768` (`RUSH_GFX_TEST_WINDOW` sets the
-  headless size): every case's N64 pixels, texel for texel, and `seams` and `ties` every internal pixel.
-  `gfx.scale1.25.seams` and `.ties` run those two at 1.25 (every case there fails `lod`: a point-sampled
-  triangle's N64 pixel (94,32) samples the next stripe of a mip level, on every GPU, before 2026-10-28 too).
+  `gfx.all.scale1.25`, `.scale1.5`, `.scale2.25-desktop-gl`, `.scale2.5-software` (ties: N64 edges on internal
+  pixel centres), `.wide-scale6.75` (16:9, 2876 × 1620), `.native-2880x1620` and `.native-1366x768`
+  (`RUSH_GFX_TEST_WINDOW` sets the headless size): every case's N64 pixels, texel for texel (`lod` every internal
+  pixel's), and `seams` and `ties` every internal pixel. (Until 2026-10-28 1.25 ran `seams` and `ties` alone, as
+  `lod` failed there: "Texture LOD".)
+  `gfx.lod.<scale>.gles` and `.desktop-gl` run `lod` on each API at 1.25, 1.5, 2.25, 2.5, 3.2, 6.75 (`scale6.75`,
+  and `wide-scale6.75` in 16:9) and native in 2880 × 1620 (16:9 auto) and 1366 × 768 windows.
   `gfx.interp.all.scale2.5` and `.wide-scale3.4` run the frame interpolation's cases at fractions. Each variant has
   its own directory for the screenshot case's PNG, since they run in parallel.
 - **Sizes alone** (`gfx_size_test`, no GL): `gfx.size.scale` (native and auto scales for 2880 × 1620, 1440 × 810,
@@ -863,3 +882,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   - Every case also passes at internal scales 1–4, on GLES, on desktop GL and on llvmpipe, and in widescreen
     (16:9 on GLES and desktop GL, 16:10 on llvmpipe, 21:9 at 3× and 4×).
   - On x86-64 (Intel UHD 770, Mesa 25.2, with SDL2) all 26 pass as well.
+- **Texture LOD at fractions (2026-10-28).** `lod` passes, every internal pixel, at 1-4, 1.25, 1.5, 2.25, 2.5, 3.2,
+  6.75 (4:3 and 16:9) and native in 2880 × 1620 and 1366 × 768 windows, on GLES and desktop GL, on the Pi's V3D,
+  rocky's iris and llvmpipe on both; `gfx_test all` passes at 1.25 and 3.2 on V3D. The Pi's 111 gfx CTest entries
+  and rocky's 225 (Debug and RelWithDebInfo) pass.
