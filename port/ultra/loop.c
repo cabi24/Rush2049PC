@@ -269,6 +269,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             deadline = next_vi;
             if (now >= next_flush) {
                 pc_si_flush();
+                pc_audio_periodic();
                 next_flush = now + 1000000000u;
             }
             if (next_status && now >= next_status) {

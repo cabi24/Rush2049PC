@@ -164,6 +164,11 @@ void pc_audio_set_pull_hook(void (*hook)(void));
 void pc_audio_set_latency(unsigned ms);
 /* The main loop holds the game: the AI asks for no buffers, and the silence isn't counted as underruns. */
 void pc_audio_set_paused(int paused);
+/* The output's counters (underruns, the queue's level, buffers late for their render...) go to the log at exit;
+ * with this, also every `seconds` while the game plays (-v: 10). pc_audio_periodic is the main loop's, about once a
+ * second. */
+void pc_audio_set_report_every(unsigned seconds);
+void pc_audio_periodic(void);
 
 /* ---------------------------------------------------------------- input (port/input) */
 

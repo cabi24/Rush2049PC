@@ -515,6 +515,12 @@ if(RUSH_SDL2_TARGET)
         --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/input)
     set_tests_properties(input_live_drive PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 SKIP_RETURN_CODE 77)
 endif()
+# The output in real time under a model of a Windows desktop (docs/port/AUDIO.md 7): the synthetic race with SDL's
+# disk driver, a 59.94 Hz vsync and 15.6 ms timed waits; the retraces and the audio counters at exit. Alone, since
+# it measures time.
+add_test(NAME audio_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime --seconds 30)
+set_tests_properties(audio_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
