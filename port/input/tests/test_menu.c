@@ -844,7 +844,7 @@ static void mock_about(PcAbout *a)
     snprintf(a->rom, sizeof a->rom, "/roms/baserom.us.z64 (next to the program)");
     snprintf(a->saves, sizeof a->saves, "/home/player/.local/share/rush2049pc/rush2049pc.mpk");
     snprintf(a->log, sizeof a->log, "/home/player/.local/share/rush2049pc/rush2049pc.log");
-    snprintf(a->data, sizeof a->data, "/home/player/.local/share/rush2049pc");
+    snprintf(a->data, sizeof a->data, "/home/player/Games/San Francisco Rush 2049/rush2049pc-v1.0-linux-x86_64");
 }
 
 static void has_line(const char *text, const char *line, const char *what)
@@ -893,7 +893,8 @@ static void test_pages(void)
     has_line(text, "\nSaves: /home/player/.local/share/rush2049pc/rush2049pc.mpk\n", "saves");
     has_line(text, "\nScreenshots: /home/player/.local/share/rush2049pc/screenshots\n", "screenshots");
     has_line(text, "\nLog: /home/player/.local/share/rush2049pc/rush2049pc.log\n", "log");
-    has_line(text, "\nData folder: /home/player/.local/share/rush2049pc\n", "data folder");
+    has_line(text, "\nData folder: /home/player/Games/San Francisco Rush 2049/rush2049pc-v1.0-linux-x86_64\n",
+             "data folder");
 
     /* the page: made again each time it opens, so it follows main's numbers */
     act(PC_MENU_TOGGLE);
@@ -909,7 +910,8 @@ static void test_pages(void)
     act_n(PC_MENU_UP, 7);
     at("About", "Version", NULL, "up to the first");
     act(PC_MENU_UP);
-    at("About", "Data folder", "/home/player/.local/share/rush2049pc", "wraps to the last: no actions headless");
+    at("About", "Data folder", "/home/player/Games/San Francisco Rush 2049/rush2049pc-v1.0-linux-x86_64",
+       "wraps to the last: no actions headless");
     act(PC_MENU_ACCEPT);
     at("About", "Data folder", NULL, "Enter on a row does nothing");
     act(PC_MENU_BACK);
@@ -963,6 +965,8 @@ static void pictures(void)
     char path[PC_CFG_PATH];
     int w, h;
     pc_settings_defaults(&s);
+    snprintf(s.save_path, sizeof s.save_path, "/home/player/.config/rush2049pc/rush2049pc.ini");
+    pc_menu_set_about(mock_about);
     if (start(&s) != 0)
         return;
     pc_gfx_set_window_size(1280, 960);
@@ -976,6 +980,8 @@ static void pictures(void)
             act_n(PC_MENU_DOWN, 17);
             act(PC_MENU_ACCEPT);
         }
+        if (i == 6)   /* About's last row: a path over both footer lines */
+            act(PC_MENU_UP);
         pc_gfx_read_window(px, &w, &h);
         snprintf(path, sizeof path, "%s/menu-%s.png", g_dir, shots[i].name);
         pcgfx_png_write(path, px, w, h);
