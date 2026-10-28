@@ -460,8 +460,12 @@ add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the 
 if(WIN32)
     # The subsystem, the image base and ASLR, the icon's sizes and the version information, from the file itself
     # (Python only: it runs on a Linux host that cross-compiles too, ctest -R win_pe)
+    set(PE_CHECK_ARGS "")
+    if(RUSH_WINDOWS_CONSOLE)
+        set(PE_CHECK_ARGS --console)
+    endif()
     add_test(NAME win_pe COMMAND ${PC_PYTHON} ${PORT_TOOLS}/pe_check.py --exe $<TARGET_FILE:rush2049pc>
-        --version-file ${PC_VERSION_RC_H} $<$<BOOL:${RUSH_WINDOWS_CONSOLE}>:--console>)
+        --version-file ${PC_VERSION_RC_H} ${PE_CHECK_ARGS})
 endif()
 # The synthetic test cartridge (tools/port/synth_rom.py, docs/port/SYNTH.md): original, minimal data, generated into
 # the build directory from the data report. synth_boot_<path> drives the game along one of its paths with the press
