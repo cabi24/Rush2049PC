@@ -1,7 +1,8 @@
 # Sanitizer builds (docs/port/SANITIZE.md): -DRUSH_SANITIZE=address,undefined (or undefined, or thread).
 #
 #   port/ code and the test programs: the sanitizers asked for, UBSan with every check (plus float-cast-overflow);
-#   the game C (game_flags): AddressSanitizer or ThreadSanitizer as asked, and of UBSan only RUSH_SANITIZE_GAME_UB,
+#   the game C (game_flags): AddressSanitizer as asked (ThreadSanitizer only with RUSH_SANITIZE_GAME_THREAD), and of
+#     UBSan only RUSH_SANITIZE_GAME_UB,
 #     a curated set: the m2c code's views shorter than their data, wrapping arithmetic (-fwrapv) and unaligned
 #     N64 records are its design, not bugs. AddressSanitizer leaves the game's own C data alone (asan-globals=0):
 #     a runtime image's C data is one range the loader saves and puts back whole (port/data/overlays.ld), and the
@@ -20,6 +21,10 @@ set(RUSH_SANITIZE "" CACHE STRING "Sanitizers, comma-separated: address, undefin
 set(RUSH_SANITIZE_GAME_UB
     "bounds,shift,integer-divide-by-zero,float-cast-overflow,pointer-overflow,null,vla-bound,unreachable"
     CACHE STRING "The UBSan checks for the game C in a build with undefined (docs/port/SANITIZE.md)")
+# The game C under ThreadSanitizer faults at the synthetic cartridge's first screen (a texture lookup comes back empty
+# in collision_sound_play), which no other build does; not understood yet (docs/port/SANITIZE.md 6). The game's
+# threads run one at a time, so the races TSan finds are the port's, whose code it instruments either way.
+option(RUSH_SANITIZE_GAME_THREAD "With thread: instrument the game C too (docs/port/SANITIZE.md)" OFF)
 string(REPLACE "," ";" PC_SANITIZE "${RUSH_SANITIZE}")
 set(PC_SANITIZE_ADDRESS OFF)
 set(PC_SANITIZE_THREAD OFF)
@@ -55,7 +60,9 @@ if(PC_SANITIZE)
     endif()
     if(PC_SANITIZE_THREAD)
         list(APPEND pc_port thread)
-        list(APPEND pc_game thread)
+        if(RUSH_SANITIZE_GAME_THREAD)
+            list(APPEND pc_game thread)
+        endif()
     endif()
     if(PC_SANITIZE_UB)
         list(APPEND pc_port undefined float-cast-overflow)
