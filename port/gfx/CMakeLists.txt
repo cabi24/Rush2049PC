@@ -152,11 +152,23 @@ pcgfx_all_variant(scale2.5-software "RUSH_GFX_SCALE=2.5;LIBGL_ALWAYS_SOFTWARE=1"
 pcgfx_all_variant(wide-scale6.75 "RUSH_GFX_SCALE=6.75;RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(native-2880x1620 "RUSH_GFX_SCALE=native;RUSH_GFX_WIDESCREEN=auto;RUSH_GFX_TEST_WINDOW=2880x1620")
 pcgfx_all_variant(native-1366x768 "RUSH_GFX_SCALE=native;RUSH_GFX_TEST_WINDOW=1366x768")
-# 1.25, seams and ties alone: every case at 1.25 fails lod (a point-sampled triangle's N64 pixel (94,32) samples the
-# next stripe of a mip level, on iris and llvmpipe too, before rectangles' sides went on pixel boundaries as after).
-foreach(c seams ties)
-    add_test(NAME gfx.scale1.25.${c} COMMAND gfx_test ${c})
-    set_tests_properties(gfx.scale1.25.${c} PROPERTIES ENVIRONMENT "RUSH_GFX_SCALE=1.25")
+pcgfx_all_variant(scale1.25 "RUSH_GFX_SCALE=1.25")
+# Texture LOD at the fractional scales, on GLES and desktop GL: every internal pixel's mip levels, fraction and
+# texels (GFX.md "Texture LOD").
+foreach(v "scale1.25;RUSH_GFX_SCALE=1.25" "scale1.5;RUSH_GFX_SCALE=1.5" "scale2.25;RUSH_GFX_SCALE=2.25"
+          "scale2.5;RUSH_GFX_SCALE=2.5" "scale3.2;RUSH_GFX_SCALE=3.2" "scale6.75;RUSH_GFX_SCALE=6.75"
+          "wide-scale6.75;RUSH_GFX_SCALE=6.75,RUSH_GFX_WIDESCREEN=16:9"
+          "native-2880x1620;RUSH_GFX_SCALE=native,RUSH_GFX_WIDESCREEN=auto,RUSH_GFX_TEST_WINDOW=2880x1620"
+          "native-1366x768;RUSH_GFX_SCALE=native,RUSH_GFX_TEST_WINDOW=1366x768")
+    list(GET v 0 name)
+    list(GET v 1 env)
+    string(REPLACE "," ";" env "${env}")
+    foreach(api "gles;gles" "desktop-gl;gl")
+        list(GET api 0 aname)
+        list(GET api 1 aval)
+        add_test(NAME gfx.lod.${name}.${aname} COMMAND gfx_test lod)
+        set_tests_properties(gfx.lod.${name}.${aname} PROPERTIES ENVIRONMENT "${env};RUSH_GFX_API=${aval}")
+    endforeach()
 endforeach()
 # The size logic alone, with made-up window, drawable and desktop sizes (no GL).
 add_executable(gfx_size_test tests/size_test.c)
