@@ -324,9 +324,22 @@ def main():
     play = ["--headless", "--fast", "--seconds", "0.5", "--no-rom-check", "synth.z64"]
     p1, p2, p3 = fresh_pak(1), fresh_pak(2), fresh_pak(3)
 
+    def differs(got, want):
+        """Where two images differ, for the message: the sizes, or the first offsets."""
+        if len(got) != len(want):
+            return f"{len(got)} bytes, not {len(want)}"
+        at = [i for i in range(len(got)) if got[i] != want[i]]
+        return f"{len(at)} bytes differ, from 0x{at[0]:x}: " + ", ".join(f"0x{i:x} {want[i]:02x}->{got[i]:02x}"
+                                                                          for i in at[:8])
+
     def holds(folder, name, data):
-        return lambda d, out: [] if (d[folder] / name).exists() and (d[folder] / name).read_bytes() == data else \
-            [f"{folder}/{name} is not as expected"]
+        def check(d, out):
+            f = d[folder] / name
+            if not f.exists():
+                return [f"no {folder}/{name}"]
+            got = f.read_bytes()
+            return [] if got == data else [f"{folder}/{name} is not as expected: {differs(got, data)}"]
+        return check
 
     def there(folder, name):
         return lambda d, out: [] if (d[folder] / name).exists() else [f"no {folder}/{name}"]
@@ -357,16 +370,36 @@ def main():
         "there is no good backup: the game starts with a new, empty controller pak"], code=0,
         files={"synth.z64": synth}, user_files={mpk: bytes(32768)},
         after=all_of(corrupt(bytes(32768)), there("user", mpk)))
-    run(exe, "saves: restored", play, [
-        "can't be used: it is 100 bytes, not 32 KiB", f"the saves are restored from @USER@{sep}{mpk}.bak2"], code=0,
-        files={"synth.z64": synth}, user_files={mpk: b"x" * 100, mpk + ".bak": b"y" * 32768, mpk + ".bak2": p2},
+    # What is in the pak's place is checked byte for byte before the game can reach it: the run stops at the first
+    # graphics task (--stop-at-gfx), and the game must not have read the pak by then. Afterwards the game's own Pfs
+    # C may write the pak (osPfsChecker writes its inode table back at every osPfsInitPak), which is the game's
+    # business, not the restore's.
+    before_game = ["--headless", "--fast", "--stop-at-gfx", "--no-rom-check", "synth.z64"]
+    unread = ["the game reads the controller pak"]
+    run(exe, "saves: restored", before_game, [
+        "can't be used: it is 100 bytes, not 32 KiB", f"the saves are restored from @USER@{sep}{mpk}.bak2",
+        "--stop-at-gfx: stopping here"], unread, code=0, files={"synth.z64": synth},
+        user_files={mpk: b"x" * 100, mpk + ".bak": b"y" * 32768, mpk + ".bak2": p2},
         after=all_of(corrupt(b"x" * 100), holds("user", mpk, p2)))
     if not win:   # the box, with a window
-        run(exe, "saves: the box", ["--window"] + play[1:], [
+        run(exe, "saves: the box", ["--window"] + before_game[1:], [
             "message box: Rush 2049 PC: saves", "Your saves, the controller pak", "Nothing was written over it",
-            "The saves were restored from the backup of"], code=0, files={"synth.z64": synth},
+            "The saves were restored from the backup of"], unread, code=0, files={"synth.z64": synth},
             user_files={mpk: bytes(32768), mpk + ".bak": p1}, env_extra={"SDL_VIDEODRIVER": "offscreen"},
             after=holds("user", mpk, p1))
+
+    # A good pak through a short boot in which the game reads it: said, not failed, when the game changed it (the
+    # offsets), since that is the game's Pfs C at work; a pak that is no longer a good image fails.
+    def kept_good(d, out):
+        f = d["user"] / mpk
+        got = f.read_bytes() if f.exists() else b""
+        if got != p2:
+            print(f"firstrun: note: the game changed a good pak in a short boot: {differs(got, p2)}")
+        ok = len(got) == 32768 and got[0x20:0x40] == p2[0x20:0x40]
+        return [] if ok else [f"the pak is no longer the same pak: {differs(got, p2)}"]
+
+    run(exe, "saves: through a boot", play, ["the game reads the controller pak"], code=0,
+        files={"synth.z64": synth}, user_files={mpk: p2, mpk + ".bak": p2}, after=kept_good)
 
     # The log (docs/port/RELEASE.md, "The log"): in the user data folder, with the version first, everything the
     # console got, a fault's report and backtrace; the run before kept; next to a portable program; --log, --no-log
