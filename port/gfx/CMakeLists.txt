@@ -190,6 +190,12 @@ target_link_libraries(gfx_tex_test PRIVATE pcgfx)
 foreach(c png identity roundtrip seams lod alpha async)
     add_test(NAME gfx.tex.${c} COMMAND gfx_tex_test ${c} ${PCGFX_TEST_OUT}/tex)
 endforeach()
+# The pack helper (tools/texpack), on a synthetic dump with its built-in nearest upscaler.
+find_program(PCGFX_PYTHON NAMES python3 python)
+if(PCGFX_PYTHON AND NOT CMAKE_CROSSCOMPILING)
+    add_test(NAME gfx.tex.texpack COMMAND ${PCGFX_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/texpack/texpack.py
+             --self-test)
+endif()
 if(PCGFX_SDL_TARGET)   # the window path, on SDL's offscreen driver (no display needed)
     # Windows: SDL's offscreen driver makes its GL contexts through EGL, which Windows lacks, so a real window
     # through WGL, where the back buffer doesn't survive the swap for the window comparison (docs/port/WINDOWS.md)
