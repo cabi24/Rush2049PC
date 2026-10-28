@@ -831,7 +831,9 @@ build/gfx/gfx_test texrect --png /tmp/out
   with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Fractional scales:
   `gfx.all.scale1.5`, `.scale2.25-desktop-gl`, `.scale2.5-software` (ties: N64 edges on internal pixel centres),
   `.wide-scale6.75` (16:9, 2876 × 1620), `.native-2880x1620` and `.native-1366x768` (`RUSH_GFX_TEST_WINDOW` sets the
-  headless size): every case's N64 pixels, texel for texel, and `seams` every internal pixel.
+  headless size): every case's N64 pixels, texel for texel, and `seams` and `ties` every internal pixel.
+  `gfx.scale1.25.seams` and `.ties` run those two at 1.25 (every case there fails `lod`: a point-sampled
+  triangle's N64 pixel (94,32) samples the next stripe of a mip level, on every GPU, before 2026-10-28 too).
   `gfx.interp.all.scale2.5` and `.wide-scale3.4` run the frame interpolation's cases at fractions. Each variant has
   its own directory for the screenshot case's PNG, since they run in parallel.
 - **Sizes alone** (`gfx_size_test`, no GL): `gfx.size.scale` (native and auto scales for 2880 × 1620, 1440 × 810,
