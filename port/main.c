@@ -435,6 +435,11 @@ static int rush_main(int argc, char **argv)
                      "Updating the graphics driver usually fixes this. The log says more.");
         return 1;
     }
+    if (!headless)
+        pc_app_window_icon();   /* Linux; Windows' window has the executable's icon */
+    static char title_tag[80];
+    snprintf(title_tag, sizeof title_tag, "Rush2049PC %s", pc_app_version());
+    pc_input_title_tag = title_tag;
     /* What the program writes goes into the data folder: next to it when portable, else the user data folder
      * (port/app/paths.c); paths from the command line are from the working directory. */
     char pak_path[PC_APP_PATH], dir[PC_APP_PATH];

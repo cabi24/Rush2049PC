@@ -82,6 +82,11 @@ int pc_app_console_print_fd(void);   /* where RUSH2049_MESSAGE_BOX=print writes:
 void pc_app_box_shown(void);         /* alert.c: a box was shown (or printed) */
 int pc_app_box_was_shown(void);
 
+/* ---------------------------------------------------------------- icon.c: the window's icon */
+
+/* The program's icon on the SDL window (Linux; on Windows the window takes the executable's icon resource). */
+void pc_app_window_icon(void);
+
 /* ---------------------------------------------------------------- log.c: the version, the log, the end */
 
 const char *pc_app_version(void);                   /* git describe at build time (cmake/version.cmake) */

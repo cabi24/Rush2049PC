@@ -359,7 +359,7 @@ add_custom_target(pc_version
     VERBATIM)
 add_library(pcapp OBJECT ${PC_APP_SOURCES} ${PC_VERSION_C})
 add_dependencies(pcapp pc_version)
-target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app)
+target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app ${ZLIB_INCLUDE_DIRS})
 if(WIN32)
     target_link_libraries(pcapp PUBLIC winmm)   # timeBeginPeriod (startup.c)
 endif()
