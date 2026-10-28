@@ -102,7 +102,7 @@ void osSpTaskYield(void)
         g_ntasks--;
         memmove(&g_tasks[i], &g_tasks[i + 1], (size_t)(g_ntasks - i) * sizeof g_tasks[0]);
         memmove(&g_task_of[i], &g_task_of[i + 1], (size_t)(g_ntasks - i) * sizeof g_task_of[0]);
-        pc_rcp_gfx_yields++;
+        __atomic_fetch_add(&pc_rcp_gfx_yields, 1, __ATOMIC_RELAXED);   /* the exit line reads it unlocked */
         yielded = 1;
     }
     pthread_mutex_unlock(&g_rlock);
