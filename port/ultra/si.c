@@ -13,7 +13,8 @@
  *
  * Each of the four controllers holds one accessory (pc_si_set_pak): a 32 KiB controller pak backed by a file of its
  * own (controller 1's game.pak_file, the others' game.pak2_file...) written shortly after each change (pakfile.c: a
- * temp file flushed to the disk, then renamed over it; a failed write is tried again); a rumble pak; or nothing.
+ * temp file flushed to the disk, then renamed over it; a failed write is tried again), on the writer's thread
+ * (pakwrite.c), so a slow disk never holds the main loop; a rumble pak; or nothing.
  * Auto is a rumble pak while the port's controller can rumble (PcPad.rumble), else nothing. A change while the
  * game runs is a hot swap, as a player makes one: the old accessory comes out at once, and the new one goes in
  * only after the game's poll of every port (osContStartQuery, every 30 frames) has found the port empty, so the
@@ -31,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "pc_compat.h"
 #include "ultra.h"
@@ -52,8 +54,7 @@ typedef struct {
     int found;                 /* the game has read the accessory in now (logged once) */
     int memory_ok;             /* img is a usable pak: its file read, or formatted */
     char *path;                /* the memory pak's file; NULL: in memory only */
-    int dirty;
-    int failing;               /* its last write failed (said once; tried again at the next flush) */
+    int dirty;                 /* changed since it was last handed to the writer */
     int rumble, rumble_seen;   /* the motor; turned on since the last pc_si_motor */
     uint8_t img[PAK_SIZE];
 } Port;
@@ -114,39 +115,116 @@ static int pak_load(int ch, const char *path)
     }
 }
 
-/* The main thread's (the main loop, pc_si_set_pak; --stop-at-gfx's exit), so the path stays. A write that fails
- * keeps the pak dirty: it is tried again at the next flush. */
+/* The port's image handed to the writer (pakwrite.c) when it changed (lock held): the copy and the queueing under the
+ * lock, so two threads' flushes (the main loop's, a console's close) queue their copies in the order they took them.
+ * The writer keeps a failed write's image and tries it again (pc_pakw_retry); one it can't queue stays dirty.
+ * RUSH_SIM_PAK_REWRITE=1 hands over every memory pak at every flush, changed or not (a write each second, for
+ * tools/port/pakwrite_check.py). */
+static int g_rewrite = -1;
+
+static void hand_over(int ch)
+{
+    char label[32];
+    Port *p = &g_port[ch];
+    if (g_rewrite < 0) {
+        const char *e = getenv("RUSH_SIM_PAK_REWRITE");
+        g_rewrite = e && !strcmp(e, "1");
+    }
+    if (!(p->dirty || (g_rewrite && p->memory_ok && p->kind == PC_PAK_MEMORY)) || !p->path)
+        return;
+    snprintf(label, sizeof label, "controller %d's pak", ch + 1);
+    if (pc_pakw_submit(p->path, label, p->img, PAK_SIZE) == 0) {
+        if (pc_verbose)
+            pc_log("controller %d's pak handed to the writer at retrace %u", ch + 1, pc_frame);
+        p->dirty = 0;
+    }
+}
+
 static void flush_port(int ch)
 {
-    uint8_t copy[PAK_SIZE];
-    Port *p = &g_port[ch];
     pthread_mutex_lock(&g_slock);
-    int dirty = p->dirty && p->path;
-    if (dirty)
-        memcpy(copy, p->img, PAK_SIZE);
-    p->dirty = 0;
-    pthread_mutex_unlock(&g_slock);
-    if (!dirty)
-        return;
-    if (pc_file_write_atomic(p->path, copy, PAK_SIZE) == 0) {
-        if (p->failing)
-            pc_log("controller %d's pak: %s written", ch + 1, p->path);
-        p->failing = 0;
-        return;
-    }
-    if (!p->failing)
-        pc_log("controller %d's pak: cannot write %s: %s (the saves are kept in memory and tried again)", ch + 1,
-               p->path, strerror(errno));
-    p->failing = 1;
-    pthread_mutex_lock(&g_slock);
-    p->dirty = 1;
+    hand_over(ch);
     pthread_mutex_unlock(&g_slock);
 }
 
+/* With --fast the loop waits for the writes: the virtual clock moves only in the main loop's waits, so the game's
+ * run is the same, a test finds the file written when the loop goes on, and a failure is said, and tried again at
+ * the next flush, at the same point of every run. */
 void pc_si_flush(void)
 {
     for (int ch = 0; ch < 4; ch++)
         flush_port(ch);
+    if (pc_time_virtual())
+        pc_pakw_wait(1, 15000000000u);
+    else
+        pc_pakw_retry();
+}
+
+static int g_finished;
+
+void pc_si_finish(void)
+{
+    char what[400];
+    if (__atomic_load_n(&g_finished, __ATOMIC_ACQUIRE))
+        return;
+    for (int ch = 0; ch < 4; ch++)
+        flush_port(ch);
+    int left = pc_pakw_wait(1, 1000000000u);
+    if (left) {
+        pc_pakw_unwritten(what, sizeof what);
+        fprintf(stderr, "rush2049pc: the saves are still being written: %s\n", what);
+        left = pc_pakw_wait(0, 14000000000u);
+    }
+    if (left) {
+        pc_pakw_unwritten(what, sizeof what);
+        fprintf(stderr, "rush2049pc: the saves could not all be written: %s (each file keeps its last write)\n",
+                what);
+    }
+    if (pc_verbose) {
+        PcPakWriteStats st;
+        pc_pakw_stats(&st);
+        fprintf(stderr, "rush2049pc: paks: %u writes on the writer's thread (%u images replaced by a newer one before "
+                "they were written, %u writes failed), the longest %.1f ms\n", st.writes, st.superseded,
+                st.failures, st.longest_ns / 1e6);
+    }
+    __atomic_store_n(&g_finished, 1, __ATOMIC_RELEASE);
+}
+
+int pc_si_finished(void)
+{
+    return __atomic_load_n(&g_finished, __ATOMIC_ACQUIRE);
+}
+
+void pc_si_fault_flush(void)
+{
+    static int once;
+    if (__atomic_exchange_n(&once, 1, __ATOMIC_ACQ_REL) || pc_pakw_is_writer())
+        return;
+    for (int ch = 0; ch < 4; ch++) {
+        int locked = 0;
+        for (int i = 0; i < 50 && !(locked = pthread_mutex_trylock(&g_slock) == 0); i++) {
+            struct timespec ts = {0, 1000000};
+            nanosleep(&ts, NULL);
+        }
+        if (!locked)
+            break;   /* held by the thread that faulted, inside a pak transfer: no image is safe to take */
+        Port *p = &g_port[ch];
+        if (p->dirty && p->path && pc_pak_image_check(p->img, PAK_SIZE, NULL, 0) == PC_PAK_IMAGE_OK) {
+            char label[32];
+            snprintf(label, sizeof label, "controller %d's pak", ch + 1);
+            if (pc_pakw_fault_submit(p->path, label, p->img, PAK_SIZE) == 0)
+                p->dirty = 0;
+        }
+        pthread_mutex_unlock(&g_slock);
+    }
+    if (!pc_pakw_fault_wait(0))
+        return;
+    fprintf(stderr, "rush2049pc: writing the saves before the program stops\n");
+    int left = pc_pakw_fault_wait(2000000000u);
+    if (left)
+        fprintf(stderr, "rush2049pc: the saves: %d pak files not written\n", left);
+    else
+        fprintf(stderr, "rush2049pc: the saves are written\n");
 }
 
 /* ---------------------------------------------------------------- the accessories */

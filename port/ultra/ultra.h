@@ -154,7 +154,17 @@ void pc_si_test_pads(const PcPad pads[4]);  /* --selftest: these pads until NULL
 /* The rumble pak's motor on a channel: 1 while it is on, or if it was turned on since the last call (a pulse
  * between two calls counts). For port/input, which passes it to the controller. */
 int pc_si_motor(int channel);
-void pc_si_flush(void);                              /* write the .mpk if it changed */
+/* The changed paks handed to the writer thread (pakwrite.c), and the failed ones queued again: main loop, once a
+ * second. Returns at once, except with --fast, where it waits for the writes (the virtual clock is still meanwhile). */
+void pc_si_flush(void);
+/* The end of a run: pc_si_flush, then up to 15 s for the writer to finish (each failed file tried once more), saying
+ * what is not written. Any thread; once is enough (later calls, and pc_si_finished, say it is done). */
+void pc_si_finish(void);
+int pc_si_finished(void);
+/* After a fault (port/ultra's fault handlers, port/app's SIGABRT): what the writer has queued is let finish (up to 2
+ * s), and a changed image not handed over yet is written too, if that is safe: no pak transfer in progress (si.c's
+ * lock had) and the image a good pak (pc_pak_image_check). Never when the writer thread faulted. Once. */
+void pc_si_fault_flush(void);
 int pc_si_pak_check(char *why, size_t why_size);     /* the pak in memory: pc_pak_image_check (self-test) */
 
 /* ---------------------------------------------------------------- pakfile.c: the controller pak's file */
@@ -176,6 +186,30 @@ int pc_pak_file_load(const char *path, uint8_t *image, char *why, size_t why_siz
 /* path written whole or not at all: PATH.tmp written, flushed to the disk, then renamed over path (and, on POSIX,
  * the folder flushed). 0 on success; -1 with errno set, path untouched and no PATH.tmp left. The pak's writes. */
 int pc_file_write_atomic(const char *path, const void *data, size_t size);
+
+/* ---------------------------------------------------------------- pakwrite.c: the paks' writer thread */
+/* The paks' files written on a thread of their own, so a slow disk never holds the main loop. Thread-safe.
+ * pc_pakw_submit: the data copied and queued for path, at once (label names it in the messages: "controller 1's
+ * pak"); a newer image of a file not yet written replaces the older one in its place in the line. -1: not queued
+ * (no memory, every slot in use). A write that fails keeps the latest image until pc_pakw_retry queues it again.
+ * pc_pakw_wait: until nothing is queued or being written, at most timeout_ns (retry: each failed file queued again
+ * first); returns the number of files not written. */
+typedef int (*PcPakWriteFn)(const char *path, const void *data, size_t size);
+typedef struct {
+    unsigned submits, superseded, writes, failures;
+    uint64_t longest_ns;   /* the longest write, in real time */
+} PcPakWriteStats;
+int pc_pakw_submit(const char *path, const char *label, const void *data, size_t size);
+void pc_pakw_retry(void);
+int pc_pakw_wait(int retry, uint64_t timeout_ns);
+int pc_pakw_unwritten(char *what, size_t size);   /* files not written yet, named in what ("label (path), ...") */
+void pc_pakw_stats(PcPakWriteStats *out);
+void pc_pakw_set_write(PcPakWriteFn fn);          /* tests: the write itself (NULL: pc_file_write_atomic) */
+int pc_pakw_is_writer(void);                      /* the calling thread is the writer */
+/* After a fault: a submit that never blocks for long (-1: the lock not had in 50 ms), and a wait without the lock
+ * (the files still not written; at once when the writer is the thread that faulted). */
+int pc_pakw_fault_submit(const char *path, const char *label, const void *data, size_t size);
+int pc_pakw_fault_wait(uint64_t timeout_ns);
 
 /* ---------------------------------------------------------------- memory.c */
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */

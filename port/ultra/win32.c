@@ -6,7 +6,13 @@
  * exception's own context with the image's unwind tables (.pdata, which GCC writes for every function). Then the
  * process ends with the exception code, without Windows Error Reporting. Frames in the executable are symbolized
  * by addr2line when it is on PATH (MSYS2's, or mingw-w64's on the build machine), by their offset in .text, which
- * doesn't move with the image; the others are printed as module + offset. */
+ * doesn't move with the image; the others are printed as module + offset.
+ *
+ * The console's close (its window closed, a logoff or a shutdown while the program has a console) ends the process
+ * when the handler returns, and at the latest 5 s after: the handler stops the main loop (pc_quit, as SIGTERM does)
+ * and waits while it writes the saves (pc_si_finish); main's _exit then ends the process first. A loop that doesn't
+ * stop in 3 s (held elsewhere) gets the saves written from the handler itself. Ctrl-C and Ctrl-Break are left to
+ * the C runtime's signals (loop.c). */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <fcntl.h>
@@ -150,16 +156,23 @@ static void print_frames(void **pcs, int n, int fault_first)
                 len += snprintf(cmd + len, sizeof cmd - (size_t)len, " 0x%llx", (unsigned long long)off[i]);
         p = run_tool(cmd, &proc);
     }
-    for (i = 0; i < n; i++) {
+    /* The frames are put together and written at once: stderr is unbuffered (log.c), so line by line other
+     * threads' lines could land between them. */
+    static char out[MAX_FRAMES * 600];
+    size_t at = 0;
+    for (i = 0; i < n && at < sizeof out; i++) {
         if (mod[i] == self && off[i] != (uintptr_t)-1 && p && fgets(line, sizeof line, p) && strncmp(line, "??", 2))
-            fprintf(stderr, "  #%-2d %s", i + 1, line);
+            at += (size_t)snprintf(out + at, sizeof out - at, "  #%-2d %s", i + 1, line);
         else if (mod[i] && GetModuleFileNameA(mod[i], name, sizeof name)) {
             const char *base = strrchr(name, '\\');
-            fprintf(stderr, "  #%-2d %s+0x%llx\n", i + 1, base ? base + 1 : name,
-                    (unsigned long long)((uintptr_t)pcs[i] - (uintptr_t)mod[i]));
+            at += (size_t)snprintf(out + at, sizeof out - at, "  #%-2d %s+0x%llx\n", i + 1, base ? base + 1 : name,
+                                   (unsigned long long)((uintptr_t)pcs[i] - (uintptr_t)mod[i]));
         } else
-            fprintf(stderr, "  #%-2d %p\n", i + 1, pcs[i]);
+            at += (size_t)snprintf(out + at, sizeof out - at, "  #%-2d %p\n", i + 1, pcs[i]);
     }
+    if (at > sizeof out - 1)
+        at = sizeof out - 1;
+    fwrite(out, 1, at, stderr);
     if (p)
         close_tool(p, proc);
 }
@@ -213,6 +226,7 @@ static LONG WINAPI fault(EXCEPTION_POINTERS *ep)
     CONTEXT ctx = *ep->ContextRecord;
     int frames = unwind(&ctx, pcs, MAX_FRAMES);
     print_frames(pcs, frames, 1);
+    pc_si_fault_flush();   /* the saves, if that is safe (si.c), before the log is closed */
     fflush(stderr);
     if (pc_on_fault && n > 13 && n < (int)sizeof line) {
         line[n - 1] = 0;          /* the line without its newlines */
@@ -228,9 +242,23 @@ void pc_fault_thread_init(void)
     SetThreadStackGuarantee(&size);
 }
 
+static BOOL WINAPI console_event(DWORD event)
+{
+    if (event != CTRL_CLOSE_EVENT && event != CTRL_LOGOFF_EVENT && event != CTRL_SHUTDOWN_EVENT)
+        return FALSE;   /* Ctrl-C, Ctrl-Break: the C runtime's SIGINT and SIGBREAK */
+    if (!pc_quit)
+        pc_quit = 1 + 130;
+    for (int i = 0; i < 300 && !pc_si_finished(); i++)
+        Sleep(10);
+    pc_si_finish();   /* at once if the loop's end has done it */
+    Sleep(1000);      /* main's _exit, with the log emptied, ends the process meanwhile */
+    return TRUE;
+}
+
 void pc_fault_install(void)
 {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     SetUnhandledExceptionFilter(fault);
+    SetConsoleCtrlHandler(console_event, TRUE);
     pc_fault_thread_init();
 }

@@ -264,12 +264,24 @@ pak can have it.
   backup yet) is copied there: `.bak2` becomes `.bak3` (the oldest goes), `.bak` becomes `.bak2`, then the new
   `.bak` is written. So the last three versions that started a run are kept, next to the pak. An unchanged pak
   makes no backup. `rush2049pc: saves backed up, since they changed: PATH.bak`.
-- **The write.** si.c writes the pak within a second of each change and at the end of a run (unchanged), through
+- **The write.** si.c writes the pak within a second of each change and at the end of a run, through
   `pakfile.c`'s `pc_file_write_atomic`: `PATH.tmp` is written, flushed to the disk (`fsync`; `_commit` on
   Windows), and renamed over the pak (`rename`; `MoveFileEx` with `MOVEFILE_WRITE_THROUGH`), then the folder is
   flushed (POSIX). A crash or a power cut leaves the old pak or the new one, never part of one. A write that fails
   is said once in the log and tried again a second later; the saves stay in memory meanwhile. The backups and a
-  restored pak are written the same way.
+  restored pak are written the same way, at start, before the game runs.
+- **In the background** (2026-10-28). The pak's writes are on a thread of their own (`port/ultra/pakwrite.c`): the
+  main loop copies the changed image and goes on, so a slow disk (a laptop's hard disk, a USB stick, a network
+  folder, an antivirus scanning the file) no longer makes the game stutter or the sound drop out when it saves. A
+  newer image replaces one not written yet; a file is never written twice at once; the files are written in the
+  order they changed (ULTRA.md "Controller pak").
+- **The end.** Every way a run ends waits for the writer before the process does, so no save is lost: Quit in the
+  F1 menu, the quit key, the window's close, Ctrl-C, SIGTERM, the terminal closing (SIGHUP), and on Windows the
+  console window's close. After a second the console and the log say `the saves are still being written`; after 15
+  s the program ends anyway and names what it could not write (each file then has its last write, whole). A fault
+  writes what it safely can before the program stops: the writes already queued, and the changed image if no pak
+  transfer was under way and it is a good pak (`pc_si_fault_flush`). Windows' logoff or shutdown while the GUI
+  program runs without a console can still lose the last second of changes, as before.
 - **A pak the game can't use** is set aside before the game sees it, since the game's libultra would write over it:
   `pc_pak_image_check` (`port/ultra/pakfile.c`) calls a pak damaged when it is not 32 KiB, when none of the four
   copies of its ID block has a right checksum (`__osGetId` would then write a new ID with `__osRepairPackId`), or
@@ -294,7 +306,9 @@ order); `pc_pak_file_load` (none, good, N64 order, too big, unreadable); the ato
 file left by a crash, a temp file that can't be made, a read-only folder: the old file stays and no temp file is
 left); the first backup, none when unchanged, four changes keeping three; a damaged pak restored from `.bak` (and
 the next start making no backup), a second one the same day, `.bak` damaged too and `.bak2` used, no backup, a
-folder, an unreadable pak, an N64-order pak left alone. And by `app_firstrun`, end to end (above).
+folder, an unreadable pak, an N64-order pak left alone. And by `app_firstrun`, end to end (above). The writer thread
+by `ultra_pakwrite` (superseding, the order, one write at a time, failure and retry, the wait at the end) and
+`pak_realtime` (writes held 200 ms cost a race no retraces; SIGTERM during a write waits for it), ULTRA.md 8.
 
 ## The log
 

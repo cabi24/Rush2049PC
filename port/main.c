@@ -6,6 +6,7 @@
  * (0x800020F0, compiled as n64_main) on an N64 thread and runs the host main loop (port/ultra/loop.c) until the
  * window closes or a limit is reached. */
 #include <math.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -284,6 +285,17 @@ static int from_command_line(const PcSettingValue *over, int n, const char *sect
 }
 
 #define MAX_OVERRIDES 64
+
+#ifdef SIGHUP
+/* The terminal closed (SIGHUP's default ended the process at once): the loop stops as for SIGTERM, and its end
+ * writes the saves (port/ultra/si.c's pc_si_finish). Not under nohup, which ignores it for the program. */
+static void on_hangup(int sig)
+{
+    (void)sig;
+    if (!pc_quit)
+        pc_quit = 1 + 129;
+}
+#endif
 
 static int rush_main(int argc, char **argv)
 {
@@ -626,6 +638,11 @@ static int rush_main(int argc, char **argv)
         pc_time_set_virtual(1);
         pc_audio_set_clock(fast_clock);
     }
+#ifdef SIGHUP
+    struct sigaction hup;
+    if (sigaction(SIGHUP, NULL, &hup) == 0 && hup.sa_handler != SIG_IGN)
+        signal(SIGHUP, on_hangup);
+#endif
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
     remember_window(&cfg, headless);
