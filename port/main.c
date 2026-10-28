@@ -196,6 +196,13 @@ static void game_info(char *out, size_t size)
              (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed, (double)*steer);
 }
 
+/* video.hud = edges moves the HUD to the screen's edges only in a race with one view (port/gfx/gfx_hud.c): the
+ * countdown (0x200000) and the race (0x400000), its pause screen included, with gNumWindows 1. */
+static int hud_race(void)
+{
+    return (game_state() & 0x00600000u) != 0 && *(volatile int16_t *)&gNumWindows == 1;
+}
+
 /* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
 static double fast_clock(void)
 {
@@ -442,6 +449,7 @@ static int rush_main(int argc, char **argv)
     pc_settings_get(&cfg, "video", "frame_rate", rate, sizeof rate);
     setenv("RUSH_GFX_FRAME_RATE", rate, 1);
     setenv("RUSH_GFX_TEXTURES", cfg.textures == 1 ? "upscaled" : cfg.textures == 2 ? "pack" : "original", 1);
+    setenv("RUSH_GFX_HUD", cfg.hud == PC_GFX_HUD_CENTERED ? "centered" : "edges", 1);
     if (cfg.widescreen > 0 && cfg.width == 640 && cfg.height == 480)   /* the default window, at the picture's aspect */
         cfg.width = (int)(cfg.height * cfg.widescreen + 0.5);
     if (!run.frames && pc_input_script_frames)
@@ -533,6 +541,7 @@ static int rush_main(int argc, char **argv)
 
     run.game_state = game_state;
     run.game_info = game_info;
+    pc_gfx_set_hud_race(hud_race);
     if (fast) {
         pc_time_set_virtual(1);
         pc_audio_set_clock(fast_clock);

@@ -172,6 +172,7 @@ static const char *const size_choices[] = {"auto", NULL};
 static const char *const fullscreen_mode_choices[] = {"desktop", "exclusive", NULL};
 static const char *const frame_rate_choices[] = {"original", "display", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
+static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GFX_HUD_* */
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -231,6 +232,10 @@ static const Item items[] = {
     {"video", "texture_dump", T_STR, F(texture_dump), 0, 0, NULL, "",
      "A folder to write every texture drawn into, as PNG named for a pack (making a pack: TEXTURES.md); empty: off. "
      "A name alone is in the data folder."},
+    {"video", "hud", T_ENUM, F(hud), 0, 0, hud_choices, "edges",
+     "The race HUD in widescreen: edges (the speedometer, the radar, the position, the map and the timer keep their "
+     "distance to the screen's edges, as on a 4:3 screen) or centered (in the 4:3 frame, as the N64 draws it). Menus, "
+     "banners and split screen stay in the 4:3 frame either way (RUSH_GFX_HUD)."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},
@@ -680,7 +685,7 @@ int pc_settings_apply_env(PcSettings *s)
     static const struct { const char *var, *section, *key; } env[] = {
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
         {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
-        {"RUSH_GFX_TEXTURES", "video", "textures"}};
+        {"RUSH_GFX_TEXTURES", "video", "textures"}, {"RUSH_GFX_HUD", "video", "hud"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);
