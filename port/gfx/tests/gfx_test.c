@@ -728,6 +728,65 @@ static void case_twocycle(void) {
     }
 }
 
+/* Texture LOD (G_TL_LOD), as the game draws its world: four mip levels in tiles 0-3 (32, 16, 8 and 4 texels, each
+ * shifted by its level), 2-cycle with (TEXEL1 - TEXEL0) x LOD_FRACTION + TEXEL0, point sampled. Screen-aligned
+ * quads step r texels of the first level a pixel. Below 1 the first level; from 2^l the level l, toward l + 1 by
+ * r / 2^l - 1; from the last level's on, the last level. The steps are in N64 pixels at every internal scale.
+ * Without G_TL_LOD, TEXEL0 is tile 0 and the fraction 0. */
+static void case_lod(void) {
+    static uint16_t lv[4][32 * 32];
+    static Vtx v[8][4];
+    static const float r[8] = {0.5f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 16.0f, 4.0f};
+    static const int col[4][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}};
+    int k, i, tmem = 0;
+    for (k = 0; k < 4; k++) {   /* level 1: green and black columns, the others solid */
+        int w = 32 >> k;
+        for (i = 0; i < w * w; i++)
+            lv[k][i] = k == 1 && (i & 1) ? rgba16(0, 0, 0, 1) : rgba16(col[k][0], col[k][1], col[k][2], 1);
+    }
+    frame_begin(0, 0, 0);
+    gsDPSetCycleType(G_CYC_2CYCLE);
+    gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
+    for (k = 0; k < 4; k++) {
+        int w = 32 >> k;
+        gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, (uintptr_t)lv[k]);
+        gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, tmem, G_TX_LOADTILE, 0, 0, 0, 0, 0, 0, 0);
+        gsDPLoadSync();
+        gsDPLoadBlock(G_TX_LOADTILE, 0, 0, w * w - 1, calc_dxt(w, 2));
+        gsDPPipeSync();
+        gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, (w * 2 + 7) >> 3, tmem, k, 0, G_TX_WRAP, 5 - k, k, G_TX_WRAP, 5 - k, k);
+        gsDPSetTileSize(k, 0, 0, (w - 1) << 2, (w - 1) << 2);
+        tmem += w * w * 2 / 8;
+    }
+    gsSPTexture(0xFFFF, 0xFFFF, 3, 0, 1);
+    gsDPSetCombineLERP(CC_TEXEL1, CC_TEXEL0, CC_LOD_FRACTION, CC_TEXEL0, AC_TEXEL1, AC_TEXEL0, AC_LOD_FRACTION,
+                       AC_TEXEL0, CC_0, CC_0, CC_0, CC_COMBINED, AC_0, AC_0, AC_0, AC_COMBINED);
+    for (i = 0; i < 8; i++) {   /* 24 x 24 pixels at x 8 + 36 i, rows 20-44 */
+        int x = 8 + 36 * i, st = (int)lrintf(24 * r[i] * 32);
+        vtx(&v[i][0], x, 20, 0, 0, 0, 255, 255, 255, 255);
+        vtx(&v[i][1], x, 44, 0, 0, st, 255, 255, 255, 255);
+        vtx(&v[i][2], x + 24, 20, 0, st, 0, 255, 255, 255, 255);
+        vtx(&v[i][3], x + 24, 44, 0, st, st, 255, 255, 255, 255);
+        if (i == 7)
+            gsDPSetTextureLOD(G_TL_TILE);
+        else if (i == 0)
+            gsDPSetTextureLOD(G_TL_LOD);
+        gsSPVertex((uintptr_t)v[i], 4, 0);
+        gsSP2Triangles(0, 1, 2, 2, 1, 3);
+    }
+    frame_end();
+    check("magnified: the first level", 8 + 12, 32, 255, 0, 0, 2);
+    check("2: level 1, even column", 8 + 36 + 12, 32, 0, 255, 0, 3);
+    check("2: level 1, odd column", 8 + 36 + 13, 32, 0, 0, 0, 3);
+    check("3: halfway to level 2, even", 8 + 72 + 12, 32, 0, 128, 128, 4);   /* level 1 column 1.5 (x + 0.5) */
+    check("3: halfway to level 2, odd", 8 + 72 + 14, 32, 0, 0, 128, 4);
+    check("4: level 2", 8 + 108 + 12, 32, 0, 0, 255, 3);
+    check("6: halfway to level 3", 8 + 144 + 12, 32, 128, 128, 128, 4);
+    check("8: the last level", 8 + 180 + 12, 32, 255, 255, 0, 3);
+    check("16: the last level", 8 + 216 + 12, 32, 255, 255, 0, 3);
+    check("no G_TL_LOD: tile 0", 8 + 252 + 12, 32, 255, 0, 0, 2);
+}
+
 /* the game's dual tile: one CI8 load read by tile 0 as CI8 and by tile 1 as CI4 (shift 15, palette bank 1) */
 static void case_dualtile(void) {
     int x, y;
@@ -1464,7 +1523,7 @@ static const Case s_cases[] = {
     {"fill", case_fill},         {"shade", case_shade},       {"zbuf", case_zbuf},
     {"textures", case_textures}, {"texwrap", case_texwrap},   {"texrect", case_texrect},
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
-    {"dualtile", case_dualtile}, {"belist", case_belist},     {"matrix", case_matrix},
+    {"lod", case_lod},           {"dualtile", case_dualtile}, {"belist", case_belist},     {"matrix", case_matrix},
     {"cull", case_cull},         {"branchz", case_branchz},   {"nearclip", case_nearclip},
     {"eyeplane", case_eyeplane}, {"clip", case_clip},         {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
     {"screenshot", case_screenshot},

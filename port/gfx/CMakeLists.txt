@@ -103,7 +103,7 @@ target_link_libraries(gfx_test PRIVATE pcgfx)
 set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
-foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle dualtile belist matrix cull branchz nearclip
+foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
           eyeplane clip xlu widescreen autosize screenshot)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()

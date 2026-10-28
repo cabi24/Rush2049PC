@@ -121,6 +121,20 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     (two when mirrored) and drawn with GL_REPEAT.
   - Shift (1–10 divide, 11–15 multiply) and the tile origin (uls/ult, fractions kept) are applied per vertex, so the
     game's scrolling tile-size windows need no new decode.
+- **Texture LOD** (G_TL_LOD on a triangle in 1- or 2-cycle mode; added 2026-10-27). The retail cartridge's world
+  is drawn so, trilinearly in 2-cycle mode ((TEXEL1 − TEXEL0) × LOD_FRACTION + TEXEL0) from mip chains, G_TEXTURE's
+  level field the last level. Before, every level but the first was ignored: the far road and scenery were drawn
+  from the largest texture, a texel here and there, and sparkled as they moved.
+  - Each level is its tile (G_TEXTURE's tile + k), decoded as any other into its own GL texture, on texture unit
+    k. A vertex then carries its s, t in texels, and the shader maps them per level through the tile's shift and
+    origin (`GfxDrawState.lod_a`, `lod_b`).
+  - The shader picks the levels per pixel as the RDP does: the step is the largest change of s or t (texels of
+    the first level) to the next pixel across or down (`dFdx`, `dFdy`), times the internal scale, so every scale
+    shows the levels the N64 shows. Below 1 (magnified): the first level, LOD_FRACTION 0. From 2^l: TEXEL0 level l,
+    TEXEL1 level l + 1, LOD_FRACTION step / 2^l − 1. From the last level's power on: the last level in both,
+    LOD_FRACTION 1.
+  - Not emulated: detail and sharpen textures (those draw as without LOD), the primitive's minimum level, LOD on
+    texture rectangles.
 - **Formats.** RGBA16, RGBA32, IA16, IA8, IA4, I8, I4, CI8 and CI4.
   - CI formats go through the TLUT, RGBA16 or IA16. As on the RDP, any 4b/8b texel is an index whenever the TLUT is
     enabled.
@@ -506,6 +520,7 @@ walkers. **T** = covered by `gfx_test`.
 | CI8 + CI4 dual tile (CI8 read as CI4, shift 15, palette bank) | code | done, T |
 | Geometry | ZBUFFER, FOG, LIGHTING, TEXTURE_GEN; SHADE, CULL_*, SHADING_SMOOTH from the static lists | done, T |
 | Filter | POINT, BILERP, AVERAGE (menu) | POINT/BILERP; AVERAGE = BILERP |
+| Texture LOD | G_TL_LOD, 2-cycle trilinear over mip chains (the world, from ROM lists) | done, T |
 | Alpha compare | THRESHOLD (blend alpha 16) | done, T |
 | Depth source | PIXEL, PRIM | done, T |
 | Dither (MAGICSQ, BAYER, NOISE) | code | ignored |
@@ -526,8 +541,8 @@ walkers. **T** = covered by `gfx_test`.
   - NOISE is a hash.
   - COMBINED in the first cycle is 0.
   - In cycle 2, TEXEL0/TEXEL1 mean tiles t and t+1, without the hardware's swap.
-- **Filtering and LOD.** No mipmap or LOD selection: LOD_FRACTION is 0, and TEXEL1 is always tile+1. GL bilinear
-  stands in for the 3-point filter.
+- **Filtering and LOD.** GL bilinear stands in for the 3-point filter. Without G_TL_LOD, LOD_FRACTION is 0 and
+  TEXEL1 is tile+1; with it, see "Texture LOD" (no detail or sharpen textures).
 - **Interpolation.** Shade is interpolated perspective-correctly (the RDP is affine there). Triangles ignore
   TEXTPERSP.
 - **Depth.**
@@ -554,7 +569,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 21, one CTest each:
+- **Cases.** 22, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -567,6 +582,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `lit` | directional and ambient light, a light through a rotated modelview, texgen |
 | `fog` | 2-cycle FOG_SHADE_A at three depths |
 | `twocycle` | a TEXEL0/TEXEL1 lerp, then a lerp toward env by the primitive LOD fraction |
+| `lod` | G_TL_LOD with four mip levels (one striped, to check its coordinates), point sampled, at steps of 0.5-16 texels a pixel: the first level magnified, level 1 and 2 exactly, halfway between levels, the last level from its power on; without G_TL_LOD, tile 0 |
 | `dualtile` | CI8 read as CI4 |
 | `belist` | N64-form lists through a host segment, a K0 address, a physical address and a segment set from a BE list; native K0 texture |
 | `matrix` | push/mul/pop |

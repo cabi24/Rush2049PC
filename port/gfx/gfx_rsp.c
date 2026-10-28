@@ -483,11 +483,17 @@ int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTr
         } else {
             memcpy(o->shade, flat, sizeof(flat));
         }
-        for (k = 0; k < 2; k++) {
-            if (c->tex && st->tex[k])
-                pcgfx_unit_uv(&units[k], v->s / 32.0f, v->t / 32.0f, &o->uv[2 * k], &o->uv[2 * k + 1]);
-            else
-                o->uv[2 * k] = o->uv[2 * k + 1] = 0.0f;
+        if (c->tex && st->lod_levels) {   /* LOD: the shader maps s, t per mip level (gfx_combine.c) */
+            o->uv[0] = v->s / 32.0f;
+            o->uv[1] = v->t / 32.0f;
+            o->uv[2] = o->uv[3] = 0.0f;
+        } else {
+            for (k = 0; k < 2; k++) {
+                if (c->tex && st->tex[k])
+                    pcgfx_unit_uv(&units[k], v->s / 32.0f, v->t / 32.0f, &o->uv[2 * k], &o->uv[2 * k + 1]);
+                else
+                    o->uv[2 * k] = o->uv[2 * k + 1] = 0.0f;
+            }
         }
     }
     for (i = 1; i + 1 < n; i++) {
