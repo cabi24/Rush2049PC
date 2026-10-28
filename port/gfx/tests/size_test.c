@@ -14,6 +14,13 @@
 #include "gfx_internal.h"
 #include "gfx_tex.h"
 
+/* What port/ultra provides: the texture factor (gfx_tex.c) brings in the interpreter, which names these. */
+void *pc_n64_ptr(uint32_t a) { (void)a; return NULL; }
+uint32_t pc_n64_addr(const void *h) { (void)h; return 0; }
+void pc_mem_register_be(const void *start, size_t size) { (void)start, (void)size; }
+void pc_mem_unregister_be(const void *start) { (void)start; }
+int pc_mem_is_be(const void *p) { (void)p; return 0; }
+
 static int s_fail;
 
 static void expect_i(const char *what, int got, int want) {
