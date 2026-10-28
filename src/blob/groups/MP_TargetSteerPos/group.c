@@ -3710,6 +3710,15 @@ typedef s64 M2C_UNK64;
 M2C_UNK func_8001fea4();                    /* extern */
 M2C_UNK func_8001fff4(s32, s32);                    /* extern */
 s32 func_80020174(u16, M2C_UNK, M2C_UNK);           /* extern */
+#ifdef TARGET_PC
+/* PC: the sound entry's resource (audio_fade_control/group.c's Entry, s32 at +0xC) is the effect to start, read
+ * as its low half, the u16 at +0xE on the N64 and at +0xC here; +0xE is its high half, 0, so every effect started
+ * sfx 0 (docs/port/AUDIO.md 9). The volume and pan conversions are IDO's (pc_prelude.h). */
+#define SFX_ENTRY_ITEM 0xC
+#else
+#define SFX_ENTRY_ITEM 0xE
+#define N64_F2U(x) (u32)(x)
+#endif
 
 
 /* group members */
@@ -3717,11 +3726,11 @@ s32 MP_TargetSteerPos(void *ipa_s0, f32 ipa_f20, f32 ipa_f22);
 void camera_transform(void);
 
 s32 MP_TargetSteerPos(void *ipa_s0, f32 ipa_f20, f32 ipa_f22) {
-    if ((M2C_FIELD(ipa_s0, s32 *, 0x10) = func_80020174(M2C_FIELD(ipa_s0, u16 *, 0xE), 0xFF, 0xFF)) == -1) {
+    if ((M2C_FIELD(ipa_s0, s32 *, 0x10) = func_80020174(M2C_FIELD(ipa_s0, u16 *, SFX_ENTRY_ITEM), 0xFF, 0xFF)) == -1) {
         return 0;
     }
-    func_8001fea4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) (u32) (ipa_f20 * 127.0f));
-    func_8001fff4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) (u32) ((ipa_f22 + 1.0f) * 0.5f * 127.0f));
+    func_8001fea4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U(ipa_f20 * 127.0f));
+    func_8001fff4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U((ipa_f22 + 1.0f) * 0.5f * 127.0f));
     M2C_FIELD(ipa_s0, s8 *, 1) = 1;
     return 1;
 }
@@ -3751,6 +3760,14 @@ typedef struct { u32 pad[2]; void *tail, *head; } PcSfxList;
 #define SFX_NODE_PRIORITY 0x18
 #define SFX_NODE_ROUTE 0x1C
 #define SFX_LIST_HEAD 0xC
+#endif
+#ifdef TARGET_PC
+/* PC: the pitch change below is func_8001FFA0(identifier, value) (lib_207b0.c): in the ROM a0 holds the effect's
+ * voice id (entry +0x10) and a1 the pitch, but m2c spelled the call with a 0 in front. The PC passed that 0 as the
+ * identifier and the id as the pitch, so no effect's pitch ever changed (the engines kept their start pitch) and
+ * voice id 0 got pitch bends from the ids (docs/port/AUDIO.md 9). */
+s32 func_8001ffa0(u32 identifier, u16 value);
+#define func_8001ffa0(m2c_zero, identifier, value) func_8001ffa0(identifier, value)
 #endif
 
 void camera_transform(void) {
