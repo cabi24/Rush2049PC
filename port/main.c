@@ -15,6 +15,8 @@
 
 #include "app.h"
 #include "config.h"
+#include "input_internal.h"
+#include "pc_audio.h"
 #include "pc_compat.h"
 #include "ultra.h"
 
@@ -217,6 +219,36 @@ static void fill_portable_ini(const PcAppDirs *d)
         fprintf(stderr, "rush2049pc: wrote the default settings to %s\n", ini);
     else
         fprintf(stderr, "rush2049pc: cannot write %s; using the defaults\n", ini);
+}
+
+/* The settings overlay's About page (port/input/menu.c): what only main knows, filled each time the page is made. */
+static struct {
+    char saves[PC_APP_PATH], data[PC_APP_PATH];
+    int no_rom;
+} g_about;
+
+static void about_fill(PcAbout *a)
+{
+    PcAudioStats st;
+    const char *where = NULL, *rom = pc_app_rom_path(&where);
+    snprintf(a->version, sizeof a->version, "%s", pc_app_version());
+    snprintf(a->build_type, sizeof a->build_type, "%s", pc_app_build_type());
+    snprintf(a->commit, sizeof a->commit, "%s", pc_app_version_commit());
+    snprintf(a->build, sizeof a->build, "%s", pc_app_version_build());
+    pc_audio_get_stats(&st);
+    snprintf(a->audio, sizeof a->audio, "%s at %u Hz", pc_audio_backend_name(), (unsigned)pc_audio_device_rate());
+    if (st.device_rate && st.game_rate)   /* as the "audio:" line at exit says it */
+        snprintf(a->audio_buffer, sizeof a->audio_buffer, "pulls of %u (%.0f ms), queue %u (%.0f ms)",
+                 (unsigned)st.period_frames, st.period_frames * 1000.0 / st.device_rate, (unsigned)st.target_frames,
+                 st.target_frames * 1000.0 / st.game_rate);
+    if (g_about.no_rom)
+        snprintf(a->rom, sizeof a->rom, "none (--no-rom)");
+    else
+        snprintf(a->rom, sizeof a->rom, "%s%s%s%s", rom, where && *where ? " (" : "", where ? where : "",
+                 where && *where ? ")" : "");
+    snprintf(a->saves, sizeof a->saves, "%s", g_about.saves[0] ? g_about.saves : "none (no controller pak)");
+    snprintf(a->log, sizeof a->log, "%s", pc_app_log_path() ? pc_app_log_path() : "none");
+    snprintf(a->data, sizeof a->data, "%s", g_about.data);
 }
 
 /* Whether the command line set this setting (its path is then from the working directory). */
@@ -514,7 +546,11 @@ static int rush_main(int argc, char **argv)
         pc_app_mkdirs(dir);
         fprintf(stderr, "rush2049pc: saves (the controller pak): %s%s\n", pak_path,
                 old ? ", in the working directory, where earlier builds kept it" : "");
+        snprintf(g_about.saves, sizeof g_about.saves, "%s", pak_path);
     }
+    snprintf(g_about.data, sizeof g_about.data, "%s", dirs.data);
+    g_about.no_rom = no_rom;
+    pc_menu_set_about(about_fill);
     pc_app_data_file(&dirs, cfg.screenshot_dir[0] ? cfg.screenshot_dir : "screenshots",
                      cfg.screenshot_dir[0] && from_command_line(over, nover, "video", "screenshot_dir"), dir,
                      sizeof dir);
