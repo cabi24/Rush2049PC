@@ -224,11 +224,20 @@ loop on the host main thread.
 - Each pass runs due timers, queued graphics tasks and the AI.
 - At each retrace it calls `pc_gfx_poll_events` (window events, which also reach port/input), polls
   `pc_input_poll`, sends the VI event and presents a swapped framebuffer.
-- A retrace that comes a whole period late (a slow graphics task, a swap waiting for vsync) is caught up: the
-  ones due come at once, so the game keeps its 60 a second: it counts its time in retraces, and its audio renders
-  the buffers the AI has passed at each one, skipping some when it finds too many ([AUDIO.md](AUDIO.md) §7). A stall
-  of 6 periods or more (a debugger, a long hitch) resynchronizes and drops them.
-  At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped`.
+- A retrace that comes a whole period late (a slow graphics task, a swap waiting for vsync) is caught up, so the
+  game keeps its 60 a second: it counts its time in retraces, and its audio renders the buffers the AI has passed
+  at each one, skipping some when it finds too many ([AUDIO.md](AUDIO.md) §7). A stall of 6 periods or more (a
+  debugger, a long hitch) resynchronizes and drops them.
+- The late ones come one at a time. In real time each waits until the game's threads are done with the one before
+  (`pc_os_quiet`): the system is idle, or the baton is back with the thread that held it when that retrace went out,
+  with no thread above it waiting. The wait is at most 2 ms. Sent at once, a burst of them reached the scheduler's
+  clients together, and the audio manager, whose 128-message queue also takes a command per sound source per
+  retrace, overflowed it on a loaded host. With `--fast` they come at once, as before.
+- At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped (...); L
+  late ones went out before the game was done with the last` (L: those the 2 ms wait sent anyway). On rocky (load
+  2), `realtime_check` with slow presents (`RUSH_SIM_PRESENT_MS=20`): the fullest 128-message queue peaked at 24
+  and 27 messages, down from 28 and 40 when they came at once. One late retrace in each run went out at the 2 ms
+  limit, and none were dropped.
 - Between deadlines it sleeps until a thread submits work.
 - While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
   events. Afterwards it sets the N64 clock back by the time held.

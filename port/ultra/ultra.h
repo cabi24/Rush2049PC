@@ -76,6 +76,8 @@ void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 /* Main thread: wait for wake-ups (task submitted, timer set) until the deadline (pc_host_ns), unlocked. */
 int pc_os_wait_main(uint64_t deadline_ns);   /* 0: --fast, a thread still computes (see sched.c) */
+void pc_os_quiet_mark(void);   /* real time: the main thread sends a retrace now */
+int pc_os_quiet(void);         /* real time: the threads are done with it; if not, the main wait ends when they are */
 void pc_os_wake_main(void);
 /* Name of the running N64 thread for logs ("main" on the host main thread). */
 const char *pc_os_thread_name(void);
