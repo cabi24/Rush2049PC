@@ -209,6 +209,12 @@ the game saves only to the controller pak.
   the pak server takes for a damaged pak.
 - The log says when the game first reads each accessory put in ("controller 2: the game reads the controller
   pak"); `-v` when one goes in or out, `-v -v` each motor change.
+- **On the retail cartridge** (the Pi, 2026-10-28, scripted, `--fast`): a two-player race with controller paks on
+  controllers 1 and 2 reads both (each a new file, its own ID); with rumble paks on both, the game finds both
+  (osMotorInit on each port). In 30 s of a gas-held race neither motor went on, for player 1 as for player 2; the
+  synthetic race turns both on, and they reach both players' controllers (`rumble2p`, `input_live_drive`). What
+  makes the retail game rumble (a crash, a landing, the pause menu's rumble pak screen) is not yet tried. The pak
+  server's prompt port (`D_8011EAE8`) is -1 at start there, so it scans every port.
 
 **Controller pak.**
 - `--pak PATH` (controller 1's; the others' are `game.pak2_file`...): default `rush2049pc.mpk`, created formatted

@@ -47,8 +47,8 @@ Controls
   zone and sensitivity.
   Each player's N64 accessory is in F1 > Controllers (P1-P4 accessory): a controller pak (saves), a rumble pak
   or none. Player 1 has the controller pak; players 2-4 are on auto, a rumble pak when their pad can rumble, so
-  every player's pad rumbles in multiplayer. A player given a controller pak keeps their own players and ghosts
-  on it (rush2049pc-p2.mpk...). A change there is a swap, as on the console.
+  in multiplayer each player's rumble goes to their own pad. A player can have a controller pak of their own
+  instead (rush2049pc-p2.mpk...). A change there is a swap, as on the console.
 
   F1                settings overlay (both stick clicks on a controller): video, sound, key and button mapping
   Alt+Enter, F11    fullscreen

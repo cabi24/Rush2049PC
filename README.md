@@ -81,10 +81,10 @@ in [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
 
 Each player has an N64 accessory, set in F1 > Controllers (P1-P4 accessory) or the settings file (`game.pak`,
 `game.pak2`...): a controller pak (the saves), a rumble pak, or none. Player 1 has the controller pak, as before.
-Players 2-4 are on auto: a rumble pak when their controller can rumble, so every player's pad rumbles in
-multiplayer. Give a player a controller pak of their own (`rush2049pc-p2.mpk`...) to keep their own players and
-ghosts on it, as with a pak in that N64 controller. A change in the overlay is a swap, as on the console: the game
-sees the old one pulled out, then the new one put in.
+Players 2-4 are on auto: a rumble pak when their controller can rumble, so in multiplayer each player's rumble goes
+to their own pad. A player can have a controller pak of their own instead (`rush2049pc-p2.mpk`...), which the game
+reads as the pak in that N64 controller. A change in the overlay is a swap, as on the console: the game sees the
+old one pulled out, then the new one put in.
 
 ### Settings
 
