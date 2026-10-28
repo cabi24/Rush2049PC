@@ -231,7 +231,7 @@ static const Item items[] = {
     {"video", "pause_on_focus_loss", T_BOOL, F(pause_on_focus_loss), 0, 0, NULL, "off",
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
-     "Where F12 saves screenshots; empty for screenshots in the data folder (as pak_file)."},
+     "Where F12 saves screenshots; empty for the screenshots folder in the data folder (as pak_file)."},
     {"video", "textures", T_ENUM, F(textures), 0, 0, textures_choices, "original",
      "original; upscaled: the 3D world's textures 2x (internal scale 2-3) or 4x (scale 4 and up), the menus and the "
      "HUD as they are; the first time in the background, then kept in texture_cache in the data folder; pack: "
