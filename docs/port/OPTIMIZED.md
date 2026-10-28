@@ -188,12 +188,13 @@ fix, GCC 13 finds both: `D_80140620 view [two offsets] +0:4[_57], +4:4[_57]` and
 
 | Compiler (x86-64), with the fixes | Files | *view* | *const* | *tmr* | *warn* | `two offsets` | `clamped` |
 |---|---|---|---|---|---|---|---|
-| GCC 13.3, Ubuntu 24.04 (CI's runner) | 1,308 | 109 | 1 | 49 | 53 | 0 | 0 |
-| GCC 14.3, Rocky Linux 10 (the build host) | 1,308 | 109 | 1 | 48 | 53 | 0 | 0 |
-| mingw-w64 GCC 12.2, Debian (the Pi; the release's) | 1,308 | 109 | 1 | 46 | 54 | 0 | 0 |
+| GCC 13.3, Ubuntu 24.04 (CI's runner) | 1,308 | 108 | 7 | 49 | 49 | 0 | 0 |
+| GCC 14.3, Rocky Linux 10 (the build host) | 1,308 | 108 | 7 | 48 | 49 | 0 | 0 |
+| mingw-w64 GCC 12.2, Debian (the Pi; the release's) | 1,308 | 108 | 7 | 46 | 50 | 0 | 0 |
 
 (Pairs of file and symbol; the 260 accesses of 2.4 were counted per access, weak copies included. Before the fixes,
-main with the stick fixed: 122 *view* pairs and 20 `two offsets` on GCC 13 and on GCC 14.)
+main with the stick fixed: 122 *view* pairs and 20 `two offsets` on GCC 13 and on GCC 14. The counts are the tool's
+and the declarations' after the UBSan cross-check below; before it, 109 *view*, 1 *const* and 53-54 *warn*.)
 None of the 20 was `clamped` on these compilers: their loops index through `int` arithmetic the loop optimizer
 doesn't fold into the symbol's address, or have one place per iteration. But each is the shape the stick had, and
 which compiler folds which loop changes with versions and targets, so all 20 are declared whole.
@@ -256,8 +257,9 @@ places of the symbol, declare the symbol whole; otherwise add it with its verdic
 **The compilers agree on the list** (checked 2026-10-28 on main, `--write-reviewed` per compiler): GCC 13.3 (the
 Ubuntu 24.04 container on the build host, CI's runner's compiler), GCC 14.3 (the build host) and mingw-w64 12.2 (the
 Pi's cross build, the release's compiler) each pass with none new, and each finds exactly the keys the list tags with
-it: GCC 13 212 of the 218, GCC 14 211, mingw-w64 210. The entries some compiler doesn't find are *tmr* references
-the loop optimizer makes or not, judged safe, and one *warn*:
+it: GCC 13 213 of the 219, GCC 14 212, mingw-w64 211 (after the cross-check below; before it 212, 211 and 210 of
+218). The entries some compiler doesn't find are *tmr* references the loop optimizer makes or not, judged safe, and
+one *warn*:
 
 | Found by | Entries |
 |---|---|
@@ -269,6 +271,32 @@ the loop optimizer makes or not, judged safe, and one *warn*:
 So a GCC 13 run reports 6 reviewed keys it doesn't find, GCC 14 7 and mingw-w64 8 ("kept: other GCC versions");
 none has a key the list lacks. A GCC update on the runner can add or drop *tmr* entries of this kind: a new one fails
 the step until it is read and added with its compiler's tag.
+
+**The UBSan cross-check** (later on 2026-10-28). The game C under all of UBSan reports each access a run makes past
+its file's declaration: 152 object-size sites over the whole ctest ([SANITIZE.md](SANITIZE.md) 3.1). Read against
+the inventory, they showed two holes in bounds_check, each of which hid a second place of a symbol in one function:
+a read at a constant offset from a derived pointer (`_8 = MEM[(s8 *)p_14 + 1600B]`) was taken for an addition and
+not listed; and a view through a declared pointer variable (`e = (EmitA *) &gCamera + i; e->f54 = ...`) had no
+pointee type (the SSA name `e_2` isn't declared in the dump), so all its fields were one place. With both fixed, six
+functions have the class's shape, and are declared open-ended under `TARGET_PC` like the fixes above:
+
+| File | Symbol | Was | What the function reaches |
+|---|---|---|---|
+| `src/blob/func_800CFCA8.c` | `D_8014A250` | a 2,026-byte record | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
+| `src/blob/Effects_UpdateEmitters.c` | `gCamera` | `s32` | each window's camera in a loop: three stores and four read-modify-writes, 4 bytes each |
+| `src/blob/func_800A7D6C.c` | `D_8015F740` | `s32` | x, y and z of one record |
+| `src/blob/func_8008D870.c` | `D_8012E700` | `s32` | a scene node's four texture slots |
+| `src/blob/func_800A5518.c` | `D_8017A510` | `s32` | a window's first and bounds |
+| `src/blob/input_status_update.c` | `pad_config` | `PadConfig` | three fields of one record (with the Input_ files' macro) |
+
+None had *tmr* references on the three compilers, so this build compiled them as written; Effects_UpdateEmitters is
+the stick's shape exactly (4-byte stores into a 4-byte symbol, in a loop). The tables are the files before but for
+`D_8015F740`, arena BSS the tables had as one word, now 2,240 bytes to the next known address (as `D_80149B50`
+above); Debug and RelWithDebInfo agree. The Input_ files' `pad_config[4]` isn't its extent: the storage is the 200
+records at 0x80140BF0 and the paths reach records 4 to 91. Each of those functions reaches one field of the record
+a variable picks, 1 or 2 bytes, so the cut to 160 bytes gives no reference as wide as the declaration and nothing at
+a constant offset past it: no store or load to confuse. `[200]` would change the tables' type label of `D_80140BF0`
+(`PadConfig[200]` for `Sprite[200]`, the layout the same), and waits for after the beta.
 
 ## 3. The flags
 

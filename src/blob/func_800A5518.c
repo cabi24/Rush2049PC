@@ -2786,7 +2786,13 @@ extern s32 D_8017A4B8;
 extern s8 D_8017A4D8;
 extern s32 D_8017A4EC;
 extern s32 D_8017A4F0;
+#ifdef TARGET_PC
+/* PC: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7): the ZOID windows, whose first and
+ * bounds func_800A5518 writes */
+extern s32 D_8017A510[];
+#else
 extern s32 D_8017A510;
+#endif
 extern s32 D_8017A558;
 extern s32 D_8017A5A0;
 extern f32 D_8017A630;
