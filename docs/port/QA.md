@@ -172,3 +172,121 @@ func_800D63EC returns (LAYOUT.md 9).
 - **Scripted runs and the user's pak**: without `--pak` or `--no-pak` a run uses, and on first use formats, the
   user's own `rush2049pc.mpk`. Tests and scripts should pass one of the two.
 - The Expansion Pak (`game.expansion_pak`) is on by default since round 1's note (4ce46fa).
+
+## Integration soak
+
+2026-10-28, the morning before the beta. The features of the night before had each been tested alone: native and
+fractional scales, the HUD at the screen's edges, upscaled textures and packs, the high frame rate, the audio output
+with the device's rate, ring matching and retrace catch-up, the overlay's mouse and pages, first run and the saves'
+backups. This soak ran them together, in the configuration the beta's first player has (a Windows laptop with a
+2880 × 1620 panel, the release build): RelWithDebInfo, the defaults (`video.scale = native`, `widescreen = auto`,
+`hud = edges`, the Expansion Pak on) plus `video.textures = upscaled` and `video.frame_rate = 120`. The runs were in
+real time, not `--fast`. It started on main at fd86e03 and finished on 4f21620, after merging main.
+
+```
+python3 tools/port/soak.py --exe build/opt/rush2049pc --rom ROM --press-file SCRIPT --seconds N --out DIR [--name NAME]
+python3 tools/port/soak.py --exe ... --rom build/opt/synth/rush2049_synth.z64 --no-rom-check --path NAME --out DIR
+```
+
+`soak.py` runs headless at `--size 2880x1620` (the window's pixels, which `native` and `auto` follow). Audio goes
+through SDL's disk driver at 48 kHz (consumed in real time). Windows' timing is modelled: `RUSH_SIM_TIMER_STEP_US=15625`
+(winpthreads' timed waits) and `RUSH_SIM_VSYNC_HZ=60` (a vsync swap). The settings, the data folder (the log, the
+texture cache) and the pak are in the run's folder. It reads the resident memory every 10 s, then prints the exit
+lines, the memory's growth over the run's second half and the log's most repeated lines. With `--path NAME` it runs
+a synthetic path with that path's own targets and `synth_paths.py`'s checks. The overlay was driven by `--press`
+scripts (`MENU`, then the Video page's rows), with the race going on between the changes. The retail scripts, logs
+and frames stay in `build/scratch`.
+
+### What ran
+
+| Run | Where | Result |
+|---|---|---|
+| every synthetic path (19 on 4f21620: the races for 1-4 players, circuit, stunt, battle, battle quit, pause, race end, pak, 4-player paks, rumble, cheats, screens, menu, demo, idle) | rocky, real time | each reaches its state, no fault. On 4f21620: no retrace dropped (at most 62 caught up in a path); one underrun in each run, at its start, none after the first second; under 2% of the buffers played as silence; none skipped by the game's renderer |
+| synthetic attract demo, 660 s (15 demo races) | rocky | no fault; resident memory 70-81 MB with no growth; one stall of the host (below) |
+| synthetic races back to back, 700 s: a mode (single race, practice, stunt and others), a race, the pause screen's quit, the game over screen's Quit, again (11 races) | rocky | no fault, no retrace dropped; memory flat (+1 MB a minute over the second half, within the sampling's noise) |
+| live changes mid-race, 225 s: textures upscaled → original → upscaled → pack → upscaled; frame rate 120 → original → 120 → display → 120; HUD edges → centered → edges; scale native → N64 → 4x → native; widescreen auto → off → auto | rocky (synthetic), the Pi (retail) | no fault; each change takes effect from the next frame; memory follows what is upscaled again for the new scale, within `video.textures`' cap |
+| retail: the attract demo (660 s), races back to back (700 s), the live changes, a race with frame dumps | the Pi, real time | the audio manager fault (fix 6) before its fix, none after. With the high frame rate, the world was missing from the game's frames (8) before main's fix and is drawn after it. The demo's memory grows as it goes through the tracks, whose textures are upscaled 4x, toward the upscaled images' cap in memory (384 MB, `gfx_tex.c`) |
+| retail frames at 2880 × 1620, 16:9: the game's frames (`RUSH_GFX_DUMP`) and the frames shown at 120 (`RUSH_GFX_HFR_DUMP`), on the virtual clock so that every frame between is drawn | the Pi, `--fast` | the HUD at the screen's edges in the game's frames and in those between, which keep the nearer frame's HUD; the 3D world upscaled 4x, the HUD and text original; `frame_spikes.py`: no spike in the game's frames or in those shown |
+| the log | all | only the state and status lines a scripted run asks for, settings opened and closed, and the first underruns; nothing repeats per frame or per second, so an hour of play doesn't fill `rush2049pc.log` |
+
+### Found and fixed
+
+#### 6. A race faulted in the audio manager (its message pool ran out)
+
+On the retail cartridge, in real time on a loaded host, a race faulted at address 0x2 in the audio manager's
+thread: `entity_transform_calc` (transform/group.c) wrote through the NULL that `func_80091B00` returns when all 128
+messages in its pool `D_80142DD8` are in use. The manager posts its commands to its own queue `D_801427A8` (128
+slots), the same queue the scheduler's retrace messages come in on. Each retrace message it takes queues one change
+per sound source. When the manager falls behind (a burst of caught-up retraces, a host that doesn't give it the
+CPU), the changes add up past 128. A command sent to a full queue (no block) also kept its message for good. The
+N64's evenly spaced retraces never get there. It hit a plain race as well as one with the overlay used.
+
+Fix (1a39ed2, under `TARGET_PC`, as macros above each function, so the N64 build's lines don't move):
+- The per-retrace senders drop a command that finds no message, and give back the message of one the queue
+  refuses: `entity_transform_calc`, the priority pass's starts and stops (`sound_position_update` in updatefx.c,
+  `_SendCmd`), and the stop `scheduler_recv` (entity_lookup/group.c, the copy the game links). The next pass sends
+  the sound's values again.
+- The three sound starts (`entity_flags_apply`, `high_scores_display`, `camera_target_track`) return handle -1
+  ("none" to every lookup) and give back the emitter.
+
+Test: `assets_audiomgr` drains the pool and fills the queue. It faults without the fix.
+Main's spaced catch-up (late retraces go out one at a time, once the game has taken the last) removes the burst
+that made it likely. The other callers of the pool fire on a screen's or an object's event, not per retrace, and
+are left as they are.
+
+#### 7. The Windows timing model waited in the wrong place with a high frame rate
+
+`RUSH_SIM_VSYNC_HZ` (and `RUSH_SIM_PRESENT_MS`) held the main loop after every retrace's present. With
+`video.frame_rate` on, that present only keeps the frame for the ticks and swaps nothing, while the ticks swap and
+never waited. A headless run of the player's configuration therefore slept where a real window doesn't, and never
+where it does. The wait now follows the swap (471bb85): after a retrace's present at the game's own rate, after a
+tick that showed a frame otherwise. Runs with the setting off are unchanged, `audio_realtime`'s among them.
+
+#### 8. With a high frame rate, in real time, the game's frames lost most of the world
+
+Found on fd86e03 with the retail cartridge in real time. With `video.frame_rate` on, at 640 × 480 and at
+2880 × 1620, with original or upscaled textures, the game's own frames (dumped, and screenshots) lost the road and
+the buildings. The ground showed as flat fog colour, with fragments of geometry and the cars. `--fast` runs were
+right, and so were runs with the setting off. Cause: with the setting on, the present copies the frame into the
+presented image with its own framebuffer binds, and `bind_fbo`'s cache wasn't told. In real time the next graphics
+task runs before any tick (a tick waits while an RSP task is pending), so its depth clear went to the presented
+image, and the frame kept the last one's depth. Already fixed on main by 538cd5a (renderer performance, test
+`gfx.interp.depthclear`). The same retail frames on 4f21620 are right.
+
+### Reported, not fixed here
+
+- **Few frames between at 2880 × 1620 on an integrated GPU.** On rocky (UHD 770), the synthetic race at 120 frames a
+  second drew frames between for about one tick in ten at 2880 × 1620. The rest were "not drawn (the GPU was
+  behind)". At 640 × 480 it was about two in three. The frame fence works as designed: the frames between take only
+  the GPU time the game leaves. At the panel's native size a laptop's iGPU shows mostly the game's own 30 frames a
+  second. `video.resolution` in desktop fullscreen (1080p), or a whole scale, gives the frames between room. This
+  is renderer performance. The same synthetic race on 4f21620, after main's renderer work (one copy per frame,
+  tracked GL state), still drew about one in ten.
+- **Stalls on rocky's shared GPU.** Runs on rocky that overlapped other GL work (two of these soaks at once, and the
+  other agents' GL tests) stalled for 1 to 50 s, the main thread waiting in the kernel's i915 request wait. Over the
+  same minutes the kernel log shows GPU hangs and "preemption time out" resets across many processes, this soak's
+  among them. Runs alone had no such stall. The cause is the host, not the program; whether anything this program
+  submits can trip the preemption timeout wasn't established.
+- **The pak's write** (`pc_si_flush`: a temp file, fsync, rename, the folder's fsync) runs on the main loop's
+  thread. It took under 20 ms here, but on a slow or busy disk it would hold the retraces. That is si.c's area.
+
+### Not bugs
+
+- After a live change the overlay counts "changes not saved" against the file (or the defaults with `--no-config`),
+  not the command line: `--set video.textures=upscaled` changed to `original` is "no change". As FRONTEND.md says.
+- SDL 2.30.9's disk audio driver (the Pi's fetched build) refuses `/dev/null` and falls back to the null output.
+  `soak.py` gives it a file and deletes it afterwards.
+- On the Pi 5 at 2880 × 1620 the retail game can't keep its 60 retraces a second. Graphics tasks take longer than a
+  retrace, the host drops and catches up retraces, no frame between is drawn, and scripted presses land late.
+  The Pi is not a target at that size.
+
+### Left
+
+- A real display: the vsync swap with a high frame rate and the overlay's mouse at 2880 × 1620 were modelled and
+  tested headless only.
+- GL errors: the renderer has no error check in the live path. Mesa's own log of the program's GL errors
+  (`MESA_DEBUG=1`) printed nothing during the synthetic live changes on rocky; it wasn't run on the retail cartridge.
+- An hour of the attract demo with upscaled textures, to see the memory settle at the cap. Round 2's hour (above)
+  had the original textures.
+- The per-player paks (`game.pak2`-`pak4`) came in after this soak's runs were planned and weren't part of the
+  configuration.
