@@ -1,6 +1,7 @@
 /* port/input/tests/stubs.c: the port/ultra (and port/audio) functions port/input and port/gfx call, for
- * frontend_sdl_test and frontend_menu_test. The clock and the rumble pak's motor are the test's to set; the volume and
- * each controller's accessory (pc_si_set_pak) are recorded. Host pointers (the test is PIE) are the only addresses used, so there is no RDRAM. */
+ * frontend_sdl_test and frontend_menu_test. The clock and the rumble pak's motor are the test's to set; the volume
+ * and each controller's accessory (pc_si_set_pak) are recorded. Host pointers (the test is PIE) are the only
+ * addresses used, so there is no RDRAM. */
 #include <stddef.h>
 #include <stdint.h>
 

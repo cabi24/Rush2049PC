@@ -14,9 +14,10 @@
  * Each of the four controllers holds one accessory (pc_si_set_pak): a 32 KiB controller pak backed by a file of its
  * own (controller 1's game.pak_file, the others' game.pak2_file...) written shortly after each change (pakfile.c: a
  * temp file flushed to the disk, then renamed over it; a failed write is tried again); a rumble pak; or nothing.
- * Auto is a rumble pak while the port's controller can rumble (PcPad.rumble), else nothing. A change while the game runs is a hot swap, as a player makes one: the old accessory comes out at
- * once, and the new one goes in only after the game's poll of every port (osContStartQuery, every 30 frames) has
- * found the port empty, so the game's pak code sees the old one leave before the new one arrives.
+ * Auto is a rumble pak while the port's controller can rumble (PcPad.rumble), else nothing. A change while the
+ * game runs is a hot swap, as a player makes one: the old accessory comes out at once, and the new one goes in
+ * only after the game's poll of every port (osContStartQuery, every 30 frames) has found the port empty, so the
+ * game's pak code sees the old one leave before the new one arrives.
  *
  * The image has the .mpk page layout (v5's pak.cpp), but its multi-byte fields are in the order the natively
  * compiled Pfs C writes them: the ID checksums are sums of host-order u16 words, and inode entries hold PFS_EOF and
