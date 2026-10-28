@@ -539,6 +539,15 @@ add_executable(test_saves port/app/tests/test_saves.c port/app/saves.c port/app/
 target_include_directories(test_saves PRIVATE port/app port/ultra port/include)
 target_compile_options(test_saves PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 add_test(NAME app_saves COMMAND test_saves ${CMAKE_BINARY_DIR}/test-scratch-saves)
+# The paks' writer thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak") with a slow, held or failing
+# fake write: submits never wait for a write, newer images replace queued ones, the order, one write at a time, a
+# failure kept and tried again, the wait at the end, the fault path, and the real atomic write.
+add_executable(test_pakwrite port/ultra/tests/test_pakwrite.c port/ultra/pakwrite.c port/ultra/pakfile.c)
+target_include_directories(test_pakwrite PRIVATE port/ultra port/include)
+target_compile_options(test_pakwrite PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(test_pakwrite PRIVATE Threads::Threads)
+add_test(NAME ultra_pakwrite COMMAND test_pakwrite ${CMAKE_BINARY_DIR}/test-scratch-pakwrite)
+set_target_properties(test_pakwrite PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 add_test(NAME app_firstrun COMMAND ${PC_PYTHON} ${PORT_TOOLS}/firstrun_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM})
 set_tests_properties(app_firstrun PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
@@ -594,6 +603,15 @@ add_test(NAME hfr_paced_60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py 
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_60 --seconds 30 --pacing display
     --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank)
 set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE)
+# A slow disk (each pak write held 200 ms, one a second through the race) costs the main loop no retraces: the writes
+# are on the writer's thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak"); SIGTERM during a held
+# write waits for it; and the same writes on the main loop, as before, drop retraces (tools/port/pakwrite_check.py).
+# POSIX: it sends SIGTERM.
+if(NOT WIN32)
+    add_test(NAME pak_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/pakwrite_check.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/pakwrite)
+    set_tests_properties(pak_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE)
+endif()
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)

@@ -37,6 +37,7 @@ void pc_fatal(const char *fmt, ...)
     vsnprintf(buf, sizeof buf, fmt, ap);
     va_end(ap);
     fprintf(stderr, "rush2049pc: fatal: [%s] %s\n", pc_os_thread_name(), buf);
+    pc_si_fault_flush();
     fflush(NULL);
     abort();
 }
@@ -150,6 +151,7 @@ void pc_stub_hit(const char *name)
     fprintf(stderr, "rush2049pc: not implemented yet: %s (N64 thread %s, frame %u)\n", name, pc_os_thread_name(),
             pc_frame);
     pc_print_backtrace(1);
+    pc_si_fault_flush();
     fflush(NULL);
     abort();
 }
@@ -236,6 +238,7 @@ static void fault(int sig, siginfo_t *si, void *ctx)
     if (!chain)
 #endif
         pc_print_backtrace(1);
+    pc_si_fault_flush();   /* the saves, if that is safe (si.c), before the log is closed */
     if (pc_on_fault && n > 13 && n < (int)sizeof line) {
         line[n - 1] = 0;          /* the line without its newlines */
         pc_on_fault(line + 13);   /* nor "\nrush2049pc: " */

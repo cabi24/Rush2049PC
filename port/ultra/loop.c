@@ -798,7 +798,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                 wake_late = w1 - deadline > keep ? w1 - deadline : keep;
         }
     }
-    pc_si_flush();
+    pc_si_finish();   /* the paks' writes done before the process ends (si.c) */
     if (tick_rate)
         fprintf(stderr, "rush2049pc: frame rate %d: %u frames not shown to keep the retraces on time\n", tick_rate,
                 ticks_skipped);

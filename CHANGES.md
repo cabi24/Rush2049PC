@@ -47,6 +47,9 @@ everything a night of testing on the retail cartridge found.
   appears ([FRAMERATE.md](docs/port/FRAMERATE.md) 2). The refresh is the display's own on Windows and X11 (59.94, not
   the 59 or 60 reported), so a driver that queues frames no longer holds one twice about once a second, and on an
   exact 60 Hz display the frames between no longer depend on where its refresh falls against the game's.
+- **A stutter when the game saved** on a slow disk (a laptop's hard disk, a USB stick, a network folder, an
+  antivirus scan): the saves are now written in the background, and every way of quitting waits for them
+  ([RELEASE.md](docs/port/RELEASE.md) "Saves").
 
 ### New
 
