@@ -670,6 +670,10 @@ endif()
 # tools/port/index_check.py: initialized data the code indexes past a scalar declaration must have the table's extent
 # in the data report, or its other elements keep the ROM's byte order (docs/port/SYNTH.md 3).
 add_test(NAME index_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/index_check.py --build ${CMAKE_BINARY_DIR})
+# tools/port/weak_copies_check.py: a function several files define with no manifest owner must be the same in each,
+# since gen_weak keeps one copy for every caller (docs/port/QA.md 2: the start screen's InitEgg).
+add_test(NAME weak_copies_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/weak_copies_check.py --build ${CMAKE_BINARY_DIR}
+    --root ${CMAKE_SOURCE_DIR})
 # Test programs define main: keep them out of compile_commands.json, which census.py reads as the game
 # and the PC layer.
 set_target_properties(pc_data_test pc_reach_test pc_data_test_decls rush2049pc_datacheck test_overlay_data test_overlay_data_game
