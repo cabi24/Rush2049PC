@@ -96,7 +96,7 @@ retrace slows the game in real time:
   ones took;
 - a frame between is drawn only when the GPU has finished what it was given (a fence after each graphics task and
   each frame drawn between, waited on for at most 2 ms);
-- while the host is behind (two retraces dropped within a second), no frame is drawn between: only the game's are
+- while the host is behind (two retraces late within a second), no frame is drawn between: only the game's are
   shown;
 - a tick that would show what is already on screen (a held frame) shows nothing.
 

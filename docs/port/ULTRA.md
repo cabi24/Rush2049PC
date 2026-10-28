@@ -212,6 +212,11 @@ loop on the host main thread.
 - Each pass runs due timers, queued graphics tasks and the AI.
 - At each retrace it calls `pc_gfx_poll_events` (window events, which also reach port/input), polls
   `pc_input_poll`, sends the VI event and presents a swapped framebuffer.
+- A retrace that comes a whole period late (a slow graphics task, a swap waiting for vsync) is caught up: the
+  ones due come at once, so the game keeps its 60 a second: it counts its time in retraces, and its audio renders
+  the buffers the AI has passed at each one, skipping some when it finds too many ([AUDIO.md](AUDIO.md) §7). A stall
+  of 6 periods or more (a debugger, a long hitch) resynchronizes and drops them.
+  At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped`.
 - Between deadlines it sleeps until a thread submits work.
 - While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
   events. Afterwards it sets the N64 clock back by the time held.
@@ -224,8 +229,8 @@ loop on the host main thread.
   not (they run when the loop wakes for something else), so the virtual clock stops at the same moments with the
   setting on or off. The ticks post nothing to the game. On the host's clock they give way to it: a tick waits while
   an RSP task is queued (`pc_rcp_pending`), is skipped when it would run into the next retrace (by how long the last
-  ones took), and draws no frame between two while the host is behind (two retraces dropped within a second). At
-  exit the loop says how many it skipped and how many retraces were dropped.
+  ones took), and draws no frame between two while the host is behind (two retraces late within a second). At
+  exit the loop says how many it skipped.
 
 | Option | |
 |---|---|
