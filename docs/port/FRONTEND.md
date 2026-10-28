@@ -447,13 +447,20 @@ scripted presses steered, so each link between a real device and the pad the gam
   car also goes elsewhere than without the stick; the synthetic cartridge's car physics don't turn the car, so
   there the steering input is the check (`input_check.py --expect-turn` asks for both). A second boot with a
   controller pak written by the first steers too.
-- **So the port's path was sound** for a pad SDL maps on player 1. What could still have stopped the user's pad,
-  each handled now: a pad SDL has no mapping for was passed over silently (the generic mapping); a device holding
-  player 1 before the pad (generic pads take a player at a button press); on Windows, SDL's raw input reading an
-  Xbox pad's sticks from window messages while its triggers come from XInput, which would leave gas and brake on
-  the triggers working and the stick dead (XInput now); and nothing in the log said which. Which one it was isn't
-  known yet. The log and the overlay's
-  Controllers page now say which controller is on which player and what its stick gives.
+- **The cause** (2026-10-28, when CI's x86-64 RelWithDebInfo job failed `input_live_drive`): the release build
+  didn't steer at all, from a controller or the keys. Optimized by mingw-w64's GCC 12 (the release's toolchain) or by
+  GCC 13 on x86-64, `func_800E7134` (controller_poll) stored each pad's scaled stick y and dropped its x, which is
+  what the car steers by: the scaled sticks `D_80140620` were declared there as one `f32` and written through a
+  `[pad][2]` view ([OPTIMIZED.md](OPTIMIZED.md) 2.7). Debug builds, rocky's GCC 14 and the arm64 builds kept the
+  store, and every scripted steering check had run one of those. The declaration has its shape on the PC now; the
+  scripted and the live runs steer in both build types. The release zip the user played was RelWithDebInfo.
+- **Also handled,** found on the way, each a way a real pad could still fail: a pad SDL has no mapping for was
+  passed over silently (the generic mapping); a device holding player 1 before the pad (generic pads take a player
+  at a button press); on Windows, SDL's raw input reading an Xbox pad's sticks from window messages while its
+  triggers come from XInput (XInput now); and nothing in the log said which pad was where. The log and the
+  overlay's Controllers page now say which controller is on which player and what its stick gives.
+- **CI** runs `input_check.py` as `input_live_drive` in every ctest, and on the cross-built program (the release's
+  toolchain) in the windows-run job, Debug and RelWithDebInfo.
 
 ```
 python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom build/pc/synth/rush2049_synth.z64
