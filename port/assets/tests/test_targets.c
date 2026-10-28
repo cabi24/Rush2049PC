@@ -145,7 +145,12 @@ static int32_t g_sound;
 static void *g_sound_pos;
 int32_t stat_lap_split(int32_t sound, int32_t slot, void *pos, uint8_t mode) { g_sound = sound, g_sound_pos = pos; return 0; }
 static void *g_rate, *g_uvs;
-void sound_position_set(void *rate, void *uvs) { g_rate = rate, g_uvs = uvs; }
+static float g_rate_copy[3];   /* what g_rate pointed to then: func_8010E694 passes its own frame's floats */
+void sound_position_set(void *rate, void *uvs)
+{
+    g_rate = rate, g_uvs = uvs;
+    memcpy(g_rate_copy, rate, sizeof g_rate_copy);
+}
 void func_80090E9C(float a, void *pos) {}
 void vector_normalize_length(void *v, void *m) {}
 void save_write_data(void *pos, int32_t a, float s, int32_t b) {}
@@ -406,7 +411,7 @@ static void test_visuals(void)
     g_uvs = NULL;
     func_8010E694(&v, 1);
     CHECK(g_uvs == t + 0x14 && g_rate != rate);   /* rate * frame time, on the stack */
-    CHECK(((float *)g_rate)[0] == 1.0f && ((float *)g_rate)[2] == 3.0f);
+    CHECK(g_rate_copy[0] == 1.0f && g_rate_copy[2] == 3.0f);   /* g_rate itself points into a returned frame */
 
     /* the frame stepper: the last frame of a kind with flag 0x2000 removes the object */
     NF(t, 0x10, int16_t) = DEBRIS, NF(t, 0x0C, int32_t) = 33;   /* the handle; its low half is the model id */
