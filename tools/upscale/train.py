@@ -2,10 +2,12 @@
 """Train the 2x texture network on make_pairs.py's pairs, on the CPU (docs/port/UPSCALE.md).
 
     train.py --pairs pairs.npz --out net.pt [--channels 16 --blocks 4 --iters 40000 --batch 64 --threads 6]
+             [--stop N] [--init earlier.pt --lr 4e-4]
 
-L1 loss on RGB in [0, 1], Adam, cosine learning-rate decay; every 2000 steps the validation PSNR (model and
-Catmull-Rom) is printed and the best model is kept. Seeded: the same pairs, options and thread count give the
-same weights.
+L1 loss on RGB in [0, 1], Adam, cosine learning-rate decay over --iters steps; every 2000 steps the validation
+PSNR (model and Catmull-Rom) is printed and the best model is kept. --stop ends the run after N steps (the decay
+still planned over --iters); --init starts from another run's weights (a fresh optimiser), for a second stage.
+Seeded: the same pairs, options and thread count give the same weights.
 """
 import argparse
 import math
@@ -44,6 +46,8 @@ def main():
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--threads", type=int, default=6)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--stop", type=int, help="end after this many steps")
+    ap.add_argument("--init", help="start from this checkpoint's weights")
     args = ap.parse_args()
     torch.set_num_threads(args.threads)
     torch.manual_seed(args.seed)
@@ -54,6 +58,12 @@ def main():
     v = np.load(vpath)
     vhr, vlr = to_t(v["hr"]), to_t(v["lr"])
     net = Net(args.channels, args.blocks)
+    if args.init:
+        ck = torch.load(args.init, map_location="cpu")
+        net = Net(ck["channels"], ck["blocks"])
+        net.load_state_dict(ck["state"])
+        args.channels, args.blocks = ck["channels"], ck["blocks"]
+        print(f"from {args.init}: {ck['iters']} steps, val {ck['val_psnr']:.3f} dB", file=sys.stderr)
     print(f"{net.params()} parameters, {len(hr)} pairs, {len(vhr)} validation", file=sys.stderr)
     opt = torch.optim.Adam(net.parameters(), lr=args.lr, betas=(0.9, 0.99))
     sched = torch.optim.lr_scheduler.LambdaLR(
@@ -61,7 +71,7 @@ def main():
     with torch.no_grad():
         base = psnr(cubic2x(vlr), vhr).mean().item()
     best, t0 = -1.0, time.time()
-    for it in range(1, args.iters + 1):
+    for it in range(1, (args.stop or args.iters) + 1):
         idx = rng.integers(0, len(hr), args.batch)
         x, y = to_t(lr[idx]), to_t(hr[idx])
         loss = F.l1_loss(net(x), y)
@@ -69,7 +79,7 @@ def main():
         loss.backward()
         opt.step()
         sched.step()
-        if it % 2000 == 0 or it == args.iters:
+        if it % 2000 == 0 or it == (args.stop or args.iters):
             net.eval()
             with torch.no_grad():
                 p = torch.cat([psnr(net(vlr[i:i + 512]), vhr[i:i + 512])
