@@ -11,6 +11,11 @@ build/pc/rush2049pc --rom <rom> --headless --no-config --audio null --fast --no-
 RUSH_GFX_DUMP=DIR:FIRST:COUNT ...      then tools/port/frame_spikes.py DIR, and look at the frames
 ```
 
+Where a script can't finish a race (a ghost race's three laps within its time limit, the circuit's tracks with the
+gas alone), the run marks car 0 finished from outside: gdb attaches some seconds into the race and sets the car's
+place-locked byte (`player_array` +0xEF), and the game's own race end, results, saves and next race follow. The
+cheat codes the scripts enter are read from the cartridge and stay in `build/scratch` too.
+
 A note on the default pak: without `--pak` or `--no-pak`, a run uses (and creates) the user's own
 `~/.local/share/rush2049pc/rush2049pc.mpk`. Scripted runs should pass one of the two.
 
@@ -46,7 +51,8 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | two players with a pak | controller 1's pak with a player on it; player 1 picks it, player 2 walks its pak row | works for player 1; player 2's row offers controllers 2-4 only, each "no controller pak" or "not connected": the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c), so players 2-4 can't save |
 | a two-player battle quit from the pause screen | battle, 15 s, pause, QUIT | faulted (fix 5); now the game over screen |
 | a ghost saved and raced | the ghost race of one lap set first (ghost mode keeps three), car 0 marked finished with gdb mid-race (no script finishes three laps in the time limit, even with super speed), then RACE AGAIN | the ghost is compressed and saved to the pak at the race's end, and RACE AGAIN loads it: that second race's start faulted (fix 5); with the fix the race against the ghost runs (two cars, the place out of two, the ghost on the map) |
-| circuit to its end | laps set to 1 in a single race first, then the circuit | not reached: the circuit keeps its own laps, and a gas-only car takes longer than the run allowed for its first race; the inter-race standings are still untried |
+| circuit, race to race | the beginner circuit, car 0 marked finished by gdb 12 s into each race (laps can't be set for a circuit, and a gas-only car doesn't finish track 1) | after each race the circuit code (no pak), the game over screen's NEXT RACE, the circuit screen with the standings and races to go, the next track: tracks 0, 1, 2, 3 in a row (the whole circuit: see below) |
+| a four-player battle quit from the pause screen | four players, battle, pause, QUIT | the game over screen; no fault (fix 5) |
 | back to back | cycles of a race in a mode (single, practice, stunt), quit from the pause screen, the game over screen's Quit | the second race faulted (fix 5); with the fix seven races in a row, no fault |
 | long session | the attract demo for an hour of game time, its memory sampled | 80 demo cycles, no fault; the resident memory stays flat |
 | mode 5 (the obstacle course) to its end | the unlock cheat, mode 5, gas and steering until its time runs out | the time limit ends it (DNF), the game over screen |
