@@ -33,6 +33,13 @@ everything a night of testing on the retail cartridge found.
 - **Sound dropouts**: audio tasks no longer wait behind graphics tasks (the RSP yields, as the game expects),
   and the game's audio renderer no longer builds over a buffer set before it plays.
 - **Cheats** could not be entered and the cheat screen could not be opened.
+- **Tables only half converted** from the cartridge's byte order: the trackside objects' collision size and mass
+  (read as about zero), the cars' wing positions (all but one car type had them at the centre), the race rumble's
+  speed steps (rumble came out near zero) ([DATA.md](docs/port/DATA.md) 8).
+- **Undefined behaviour** a sanitizer run found: a weapons table read past its end, a table declared one row
+  long, a float conversion that differed on ARM, and three more ([SANITIZE.md](docs/port/SANITIZE.md)).
+- **The same picture on any GPU** at native resolution: rectangles land on whole pixels and triangles are clipped
+  before the GPU's own clipper, so a one-pixel seam can't depend on the driver ([GFX.md](docs/port/GFX.md)).
 
 ### New
 
