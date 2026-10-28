@@ -55,6 +55,13 @@ extern AudioMsg *D_80143AE8[];      /* gStartCmds */
 AudioMsg *func_80091B00(void);      /* _GetCmd */
 s32 func_80095198(f32 startTime, f32 interval);   /* AudioTimeout */
 
+#ifdef TARGET_PC
+/* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
+ * priority pass. */
+#define PC_CMD_OR_RETURN(c) if ((c) == 0) return;
+#else
+#define PC_CMD_OR_RETURN(c)
+#endif
 void sound_position_update(void *element, int elNum)
 {
     SortedTag *stag = element;
@@ -65,7 +72,7 @@ void sound_position_update(void *element, int elNum)
             (stag->tag->loop && stag->tag->state == 2 && stag->tag->vol <= 0.0f &&
              func_80095198(stag->tag->startTime, 0.2f))) {
             if (stag->tag->state == 2) {
-                cmd = func_80091B00();
+                cmd = func_80091B00(); PC_CMD_OR_RETURN(cmd)
                 D_80143CF0[D_80110250++] = cmd;
                 cmd->cmd = 5;
                 cmd->tag = stag->tag;
@@ -73,7 +80,7 @@ void sound_position_update(void *element, int elNum)
             }
         } else if (stag->tag->state != 2 &&
                    (stag->tag->vol > 0.1f || (!stag->tag->loop && stag->tag->type == 1))) {
-            cmd = func_80091B00();
+            cmd = func_80091B00(); PC_CMD_OR_RETURN(cmd)
             D_80143AE8[D_8011024C++] = cmd;
             cmd->cmd = 3;
             cmd->tag = stag->tag;
