@@ -90,7 +90,8 @@ def run(exe, case, args, expect, unexpect=(), code=1, env_extra=None, box="print
             try:
                 p = subprocess.run(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    timeout=60, input=stdin)
-                out, rc = p.stdout.decode(errors="replace"), p.returncode
+                # LF line ends: on Windows the CRT writes CRLF to text-mode files and pipes
+                out, rc = p.stdout.decode(errors="replace").replace("\r\n", "\n"), p.returncode
             except subprocess.TimeoutExpired:
                 out, rc = "(timed out)", None
         for name in locked:   # readable again, for the clean-up
