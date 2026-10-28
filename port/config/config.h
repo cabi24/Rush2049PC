@@ -125,7 +125,8 @@ int pc_settings_load_text(PcSettings *s, const char *text, const char *name);
 /* The same for a file: -1 when it can't be read. Records source and source_dir. */
 int pc_settings_load_file(PcSettings *s, const char *path);
 /* The environment variables that other parts already read: RUSH2049_AUDIO, RUSH_GFX_SCALE, RUSH_GFX_API,
- * RUSH_GFX_WIDESCREEN. Bad values are reported and ignored. Returns how many were bad. */
+ * RUSH_GFX_WIDESCREEN, RUSH_GFX_FRAME_RATE, RUSH_GFX_TEXTURES, RUSH_GFX_HUD. Bad values are reported and ignored.
+ * Returns how many were bad. */
 int pc_settings_apply_env(PcSettings *s);
 /* The whole file, with comments, as malloc'd text. */
 char *pc_settings_format(const PcSettings *s);
@@ -148,8 +149,9 @@ char *pc_ini_update(const char *text, const PcSettingValue *changes, int n);
 int pc_settings_save(const char *path, const PcSettingValue *changes, int n, char *why, size_t why_size);
 
 /* Where the file is: rush2049pc.ini next to the executable when there is one (a portable install), else
- * $XDG_CONFIG_HOME/rush2049pc/rush2049pc.ini (~/.config/... without XDG_CONFIG_HOME). *exists says whether that
- * file exists. -1 when there is no place at all (no exe_dir file, no XDG_CONFIG_HOME and no HOME). */
+ * $XDG_CONFIG_HOME/rush2049pc/rush2049pc.ini (~/.config/... without XDG_CONFIG_HOME; %APPDATA%\rush2049pc on
+ * Windows). *exists says whether that file exists. -1 when there is no place at all (no exe_dir file, no
+ * XDG_CONFIG_HOME and no HOME; no APPDATA). */
 int pc_config_locate(char *out, size_t out_size, const char *exe_dir, int *exists);
 /* The directory of the running executable ("" if unknown). */
 void pc_config_exe_dir(char *out, size_t out_size, const char *argv0);

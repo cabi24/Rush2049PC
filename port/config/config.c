@@ -248,7 +248,8 @@ static const Item items[] = {
      "banners and split screen stay in the 4:3 frame either way (RUSH_GFX_HUD)."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
-     "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},
+     "auto (SDL2, then ALSA on Linux, then none), sdl, alsa (Linux), null (no sound) or wav (no sound, only "
+     "--dump-audio's file) (RUSH2049_AUDIO)."},
     {"audio", "volume", T_INT, F(volume), 0, 100, NULL, "100", "Master volume, 0-100."},
     {"audio", "latency", T_INT, F(audio_latency), 0, 200, NULL, "0",
      "The least sound kept ready for the device, in ms (0-200). 0 sizes it from the device, and it grows after each "
