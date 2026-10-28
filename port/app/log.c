@@ -77,15 +77,34 @@ static struct {
 #define COMPILER "unknown compiler"
 #endif
 
+#ifndef PC_BUILD_TYPE   /* CMakeLists.txt: $<CONFIG> */
+#define PC_BUILD_TYPE ""
+#endif
+
 const char *pc_app_version(void)
 {
     return pc_version;
 }
 
+const char *pc_app_version_commit(void)
+{
+    return pc_version_commit;
+}
+
+const char *pc_app_version_build(void)
+{
+    return pc_version_build;
+}
+
+const char *pc_app_build_type(void)
+{
+    return PC_BUILD_TYPE[0] ? PC_BUILD_TYPE : "unknown";
+}
+
 void pc_app_version_text(char *out, size_t size)
 {
-    snprintf(out, size, "rush2049pc %s\ncommit %s, %s\n%s %s, %s\n", pc_version, pc_version_commit, pc_version_build,
-             OS, ARCH, COMPILER);
+    snprintf(out, size, "rush2049pc %s\ncommit %s, %s, %s\n%s %s, %s\n", pc_version, pc_version_commit,
+             pc_version_build, pc_app_build_type(), OS, ARCH, COMPILER);
 }
 
 /* ---------------------------------------------------------------- the file */

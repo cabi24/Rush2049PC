@@ -356,11 +356,13 @@ add_library(pcapp OBJECT ${PC_APP_SOURCES} ${PC_VERSION_C})
 add_dependencies(pcapp pc_version)
 target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app)
 target_compile_options(pcapp PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+target_compile_definitions(pcapp PRIVATE "PC_BUILD_TYPE=\"$<CONFIG>\"")   # --version, the log, the About page
 if(RUSH_SDL2_TARGET)
     target_compile_definitions(pcapp PRIVATE PC_HAVE_SDL2)
     target_link_libraries(pcapp PUBLIC ${RUSH_SDL2_TARGET})
 endif()
-target_include_directories(pcultra PRIVATE port/app)   # main.c
+# main.c: port/app, and the settings overlay's About page (port/input's interface, port/audio's numbers)
+target_include_directories(pcultra PRIVATE port/app port/input port/audio)
 # port/assets: the game's files converted to the host's byte order as _ReadWave loads them (docs/port/ASSETS.md).
 # One file per format; assets.c has the dispatcher and weak no-ops for formats not converted yet.
 file(GLOB PC_ASSETS_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/*.c)
