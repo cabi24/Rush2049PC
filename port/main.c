@@ -473,7 +473,7 @@ static int rush_main(int argc, char **argv)
     int rom_from_command_line = from_command_line(over, nover, "game", "rom");
     if (no_rom ? pc_rom_blank() != 0
                : pc_app_load_rom(&dirs, cfg.rom, rom_from_command_line, cfg.rom_check,
-                                 cfg.source[0] ? cfg.source : cfg.save_path, !headless) != 0)
+                                 cfg.source[0] ? cfg.source : cfg.save_path, cfg.source, !headless) != 0)
         return 1;
     pc_os_initialize();
     if (pc_data_init(pc_rom_bytes(), pc_rom_size()) != 0) {
