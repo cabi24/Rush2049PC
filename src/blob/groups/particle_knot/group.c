@@ -839,6 +839,13 @@ f32 func_8009C3F8(f32 x, s32 flag)
     return r;
 }
 
+#ifdef TARGET_PC
+/* PC: a vertex's float coordinate to s16, out of range for far geometry (32800); undefined in C. Through s32, whose
+ * low half the conversion keeps, as the N64's trunc.w.s and sh do (docs/port/SANITIZE.md). */
+#define V16 (s32)
+#else
+#define V16
+#endif
 s32 particle_system(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32 view, Palette *pal)
 {
     Gfx *gfx = *gp;
@@ -1386,9 +1393,9 @@ void func_8009F058(s32 view, View *eye)
             } else {
                 func_8009E820(poly->u.v[j].pos, p, (f32 *)&gCamera[view]);
             }
-            D_80161434[j].v.ob[0] = p[0];
-            D_80161434[j].v.ob[1] = p[1];
-            D_80161434[j].v.ob[2] = p[2];
+            D_80161434[j].v.ob[0] = V16 p[0];
+            D_80161434[j].v.ob[1] = V16 p[1];
+            D_80161434[j].v.ob[2] = V16 p[2];
             memcpy((j + D_80161434)->v.tc, poly->u.v[j].tc, 8);
         }
         if ((poly->flags & 0x100) && fog) {
