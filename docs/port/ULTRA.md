@@ -290,7 +290,9 @@ loop on the host main thread.
   setting on or off. The ticks post nothing to the game. On the host's clock they give way to it: a tick waits while
   an RSP task is queued (`pc_rcp_pending`), is skipped when it would run into the next retrace (by how long the last
   ones took), and draws no frame between two while the host is behind (two retraces late within a second). At
-  exit the loop says how many it skipped.
+  exit the loop says how many it skipped. With a swap that waits for vsync the ticks follow the display's vblanks
+  instead, one each, drawn as late as they make it, never across a retrace; the game's frames no tick showed are
+  shown at the next retrace's present (FRAMERATE.md 2).
 
 | Option | |
 |---|---|
