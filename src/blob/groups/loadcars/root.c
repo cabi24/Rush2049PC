@@ -26,7 +26,15 @@ typedef struct Vehicle2056 {void *car;void *parameters;u8 opaque[1988];s8 mode;u
 #define N64P(x) x
 #define N64W(x) x
 #endif
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Selection8 D_80153E88[13];
+#define PC_LINK_CAR(i) D_80153E88[i].model
+#define PC_LINK_COLOR0(i) D_80153E88[i].type
+#define PC_LINK_COLOR1(i) D_80153E88[i].tune
+#define PC_LINK_COLOR2(i) D_80153E88[i].variant
+#endif
 extern Vehicle2056 D_8014A250[6];
 extern u32 D_8002E580[];
 extern u32 D_801174B4;
@@ -54,49 +62,49 @@ void LoadCars(s32 select)
  for(i=0;i<13;i++) {
   if(i<6 && ((D_801174B4&8)||D_8014A250[i].mode==1)) {
 again:
-   D_80153E88[i].model=func_8008B2E4(13.0f);
+   PC_LINK_CAR(i)=func_8008B2E4(13.0f);
    for(j=0;j<i;j++) {
-    if(D_80153E88[i].model==D_80153E88[j].model)goto again;
+    if(PC_LINK_CAR(i)==PC_LINK_CAR(j))goto again;
    }
-   D_80153E88[i].type=D_80111604[D_80153E88[i].model];
-   D_80153E88[i].tune=D_80111648[D_80153E88[i].model];
-   D_80153E88[i].variant=D_8011168C[D_80153E88[i].model];
-   if(audio_output_setup(0)<D_8002E580[D_80153E88[i].model+88]+512) {
+   PC_LINK_COLOR0(i)=D_80111604[PC_LINK_CAR(i)];
+   PC_LINK_COLOR1(i)=D_80111648[PC_LINK_CAR(i)];
+   PC_LINK_COLOR2(i)=D_8011168C[PC_LINK_CAR(i)];
+   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) {
     for(j=0;j<13;j++) {
-     if(func_8009768C(D_80153E88[i].model+88)<0 &&
-        audio_output_setup(0)>=D_8002E580[D_80153E88[i].model+88]+512)goto load;
-     D_80153E88[i].model=(D_80153E88[i].model+1)%13;
+     if(func_8009768C(PC_LINK_CAR(i)+88)<0 &&
+        audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load;
+     PC_LINK_CAR(i)=(PC_LINK_CAR(i)+1)%13;
     }
     for(j=0;j<13;j++) {
-     if(audio_output_setup(0)>=D_8002E580[D_80153E88[i].model+88]+512)goto load;
-     D_80153E88[i].model=(D_80153E88[i].model+1)%13;
+     if(audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load;
+     PC_LINK_CAR(i)=(PC_LINK_CAR(i)+1)%13;
     }
     do { j=func_8008B2E4(numLoadedCars); }
-    while(numLoadedCars>D_8014A108 && D_80153E88[j].model>=13);
-    D_80153E88[i].model=D_80153E88[j].model;
+    while(numLoadedCars>D_8014A108 && PC_LINK_CAR(j)>=13);
+    PC_LINK_CAR(i)=PC_LINK_CAR(j);
     D_80142B08[i]=D_80142B08[j];
    } else {
 load:
-    D_80142B08[i]=audio_frame_sync(D_80153E88[i].model+88,1,0,0,0);
+    D_80142B08[i]=audio_frame_sync(PC_LINK_CAR(i)+88,1,0,0,0);
     numLoadedCars++;
    }
-   func_800BB02C(i,D_80153E88[i].model,0);
+   func_800BB02C(i,PC_LINK_CAR(i),0);
   } else if(i<6 && D_8014A250[i].mode==2) {
-   if(audio_output_setup(0)<D_8002E580[D_80153E88[i].model+88]+512) {
-    for(D_80153E88[i].model=0;D_80153E88[i].model<13;D_80153E88[i].model++) {
-     if(audio_output_setup(0)>=D_8002E580[D_80153E88[i].model+88]+512)goto load2;
+   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) {
+    for(PC_LINK_CAR(i)=0;PC_LINK_CAR(i)<13;PC_LINK_CAR(i)++) {
+     if(audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load2;
     }
-    D_80153E88[i].model=D_80153E88[0].model;
+    PC_LINK_CAR(i)=PC_LINK_CAR(0);
     D_80142B08[i]=D_80142B08[0];
-    func_800BB02C(i,D_80153E88[i].model,0);
+    func_800BB02C(i,PC_LINK_CAR(i),0);
    } else {
 load2:
-    D_80142B08[i]=audio_frame_sync(D_80153E88[i].model+88,1,0,0,0);
-    func_800BB02C(i,D_80153E88[i].model,0);
+    D_80142B08[i]=audio_frame_sync(PC_LINK_CAR(i)+88,1,0,0,0);
+    func_800BB02C(i,PC_LINK_CAR(i),0);
     numLoadedCars++;
    }
   } else {
-   D_80153E88[i].model=D_80153E88[0].model;
+   PC_LINK_CAR(i)=PC_LINK_CAR(0);
    D_80142B08[i]=D_80142B08[0];
   }
  }

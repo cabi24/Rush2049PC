@@ -61,7 +61,13 @@ extern tRGBA D_8011AE58[];              /* Track1Colors */
 extern tRGBA *D_8011AF90[];             /* gTrackColors */
 extern s8 D_8014978C;                   /* gTrackNum */
 extern s8 D_80156994;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tLink D_80153E88[];              /* gLink */
+#define PC_LINK_CAR(i) D_80153E88[i].car
+#define PC_LINK_OWNER(i) D_80153E88[i].owner
+#endif
 extern s8 D_8011157C[][13];             /* gTireRims */
 extern void *D_80143F74[];              /* gWheelTextures */
 extern tCarData player_array[];         /* gGameCar */
@@ -118,7 +124,7 @@ void music_seq_load(s16 slot, s16 camlink, int for_game)
     car->tires[2] = save_slot_valid(D_801427C0[156], camlink, car->frame, flags2 | 0x2000, slot, 5, for_game);
     car->tires[3] = save_slot_valid(D_801427C0[156], camlink, car->frame, flags2 | 0x2000, slot, 6, for_game);
     if (D_80156994 || D_8014978C >= 6) {
-        func_8008D870(car->tires[0], D_80143F74[D_8011157C[D_80153E88[idx].owner == 6 ? idx + 1 : 0][idx]], -1);
+        func_8008D870(car->tires[0], D_80143F74[D_8011157C[PC_LINK_OWNER(idx) == 6 ? idx + 1 : 0][idx]], -1);
     } else func_8008D870(car->tires[0], D_80143F74[13], -1);
     if (for_game) {
         car->lfSpark = save_slot_valid(D_801427C0[194], camlink, car->frame, 0xf00, slot, 7, for_game);
@@ -137,7 +143,7 @@ void music_seq_load(s16 slot, s16 camlink, int for_game)
         player_array[slot].sheenAlpha = 255;
         player_array[slot].IRclr.rgba = D_8011AF90[D_8014978C][0].rgba;
         player_array[slot].prevIRclr.rgba = D_8011AF90[D_8014978C][0].rgba;
-        sound_bank_unload(slot, D_80153E88[slot].car, D_8014A250[slot].a, D_8014A250[slot].b, D_8014A250[slot].c);
+        sound_bank_unload(slot, PC_LINK_CAR(slot), D_8014A250[slot].a, D_8014A250[slot].b, D_8014A250[slot].c);
     }
     func_80092FE0(slot, &D_8011AE58[0]);
 }

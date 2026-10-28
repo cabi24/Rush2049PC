@@ -49,7 +49,15 @@ typedef struct Config8 {u8 prefix[5],camera,unknown,mode;} Config8;
 extern s8 D_80142760;
 extern Model952 player_array[];
 extern Vehicle2056 D_8014A250[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Config8 D_80153E88[];
+#define PC_LINK Config8
+#define PC_LINKS D_80153E88
+#define PC_LINK_PLACE(i) D_80153E88[i].camera
+#define PC_LINKP_OWNER(p) p->mode
+#endif
 extern int gameplay_mode;
 extern volatile s16 D_801525F0;
 extern void car_setup_confirm(int,float);
@@ -62,7 +70,7 @@ void func_800E543C(s16 action,s16 index)
 {
  Model952 *model=&player_array[index];
  Vehicle2056 *vehicle=&D_8014A250[index];
- Config8 *config;
+ PC_LINK *config;
  if(D_80142760 && !model->active && action==2) {
   model->active=1;
   vehicle->state=0;
@@ -71,8 +79,8 @@ void func_800E543C(s16 action,s16 index)
   if(model->active<0)model->active=0;
   vehicle->selected=0;
   multiinit_n64(action,index);
-  config=&D_80153E88[index];
-  if(config->mode==6) {
+  config=&PC_LINKS[index];
+  if(PC_LINKP_OWNER(config)==6) {
    if(action!=0) {if(vehicle->speed>=44.0f)
     vehicle->mode=2;
    else
@@ -89,7 +97,7 @@ static void multiinit_n64(s16 action,s16 index)
  int i;
  if(action==0) {
   if(gameplay_mode==2) vehicle->camera=0;
-  else vehicle->camera=D_80153E88[index].camera;
+  else vehicle->camera=PC_LINK_PLACE(index);
   func_800C4F68(0,vehicle,0);
  } else {
   if(gameplay_mode==2) vehicle->camera=6;

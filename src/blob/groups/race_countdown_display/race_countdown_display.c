@@ -62,7 +62,14 @@ typedef struct Track {
 } Track;
 
 extern Track D_80151CE8;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80153E88[];
+#define PC_LINK Player
+#define PC_LINKS D_80153E88
+#define PC_LINKP_OWNER(p) p->type
+#endif
 extern GameCar D_80152818[];
 extern s32 D_8014A110;
 extern u32 D_801174B4;
@@ -85,7 +92,7 @@ void race_countdown_display(Model *m, f32 time)
 {
     s32 old_remaining;
     s32 player;
-    Player *link;
+    PC_LINK *link;
     GameCar *gc;
     s32 completed_lap;
 
@@ -101,9 +108,9 @@ void race_countdown_display(Model *m, f32 time)
     if (!m->lap_enabled && m->last_cp == D_80151CE8.before_finish) {
         m->lap_enabled = 1;
     }
-    link = &D_80153E88[player];
+    link = &PC_LINKS[player];
     gc = &D_80152818[player];
-    if (link->type == 6) {
+    if (PC_LINKP_OWNER(link) == 6) {
         if (m->last_cp == D_80151CE8.finish_line && !(D_801174B4 & 8)) {
             func_800D2458(player, time);
         }
@@ -115,7 +122,7 @@ void race_countdown_display(Model *m, f32 time)
         if (m->laps == D_80152734 && !gc->place_locked) {
             car_setup_confirm(m->slot, time);
         }
-        if (link->type == 6 && (D_8014A110 != 2 || player == 0)) {
+        if (PC_LINKP_OWNER(link) == 6 && (D_8014A110 != 2 || player == 0)) {
             old_remaining = D_80152014;
             D_80152014 = D_80152014 < D_80152734 - m->laps ?
                 D_80152014 : D_80152734 - m->laps;

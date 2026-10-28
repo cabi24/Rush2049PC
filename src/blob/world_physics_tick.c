@@ -212,7 +212,18 @@ extern Car D_8014A250[6];
 Car D_8014A250[6];
 #endif
 extern Player D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Config D_80153E88[];
+#define PC_LINK_CAR(i) D_80153E88[i].body
+#define PC_LINK_COLOR0(i) D_80153E88[i].field2
+#define PC_LINK_COLOR1(i) D_80153E88[i].field3
+#define PC_LINK_COLOR2(i) D_80153E88[i].field4
+#define PC_LINK_PLACE(i) D_80153E88[i].place
+#define PC_LINK_FLAGS(i) D_80153E88[i].flags
+#define PC_LINK_OWNER(i) D_80153E88[i].owner
+#endif
 extern Reference D_8014A118[];
 extern Bounds D_8011F844[];
 extern Route D_80151CE8;
@@ -248,11 +259,11 @@ void world_physics_tick(void) {
         for(j=0;j<sizeof(Player);j++)
             ((s8 *)player)[j]=0;
         car->object=N64W(D_80110D08);
-        car->half1994=D_80153E88[i].owner==0;
+        car->half1994=PC_LINK_OWNER(i)==0;
         player->byte862=2;
         player->byte860=-1;
         player->byte861=player->byte862;
-        index=D_80153E88[i].owner==6?6-i:i-D_8014A108+1;
+        index=PC_LINK_OWNER(i)==6?6-i:i-D_8014A108+1;
         player->distance=(float)-index;
         car->byte2027=1;
         car->byte2026=1;
@@ -268,12 +279,12 @@ void world_physics_tick(void) {
         player->byte856=0;
         car->word1020=-1;
         func_800B27E4(player);
-        car->half1992=(D_80153E88[i].flags&0x80)!=0;
+        car->half1992=(PC_LINK_FLAGS(i)&0x80)!=0;
         if(car->half1992) {
             D_8014A250[D_80152744++].half1990=i;
             player->byte859=i;
-            player->byte238=D_80153E88[i].place;
-            car->byte1996=D_80153E88[i].owner<6?1:2;
+            player->byte238=PC_LINK_PLACE(i);
+            car->byte1996=PC_LINK_OWNER(i)<6?1:2;
             if(car->byte1996==2) {
                 player->reference=&D_8014A118[i];
                 switch(D_80146180[i]) {
@@ -288,7 +299,7 @@ void world_physics_tick(void) {
                 }
             }
             if(player->reference) {
-                car->byte8=D_80153E88[i].body;
+                car->byte8=PC_LINK_CAR(i);
                 car->byte9=player->reference->flags;
                 car->byte10=(car->byte9&1)^1;
                 car->byte11=D_8011103C[car->half1990+1][(u8)car->byte8];
@@ -296,13 +307,13 @@ void world_physics_tick(void) {
                 car->byte13=D_8011119C[car->half1990+1][(u8)car->byte8];
                 car->byte14=D_80111230[car->half1990+1][(u8)car->byte8];
                 car->byte15=D_8011157C[car->half1990+1][(u8)car->byte8];
-                car->byte1997=D_80153E88[i].field2;
-                car->byte1998=D_80153E88[i].field3;
-                car->byte1999=D_80153E88[i].field4;
+                car->byte1997=PC_LINK_COLOR0(i);
+                car->byte1998=PC_LINK_COLOR1(i);
+                car->byte1999=PC_LINK_COLOR2(i);
                 car->byte2013=1;
                 player->byte236=1;
             } else if(car->half1994) {
-                car->byte8=D_80153E88[i].body;
+                car->byte8=PC_LINK_CAR(i);
                 car->byte9=0;
                 car->byte10=1;
                 car->byte11=D_8011103C[0][(u8)car->byte8];
@@ -310,9 +321,9 @@ void world_physics_tick(void) {
                 car->byte13=D_8011119C[0][(u8)car->byte8];
                 car->byte14=D_80111230[0][(u8)car->byte8];
                 car->byte15=D_8011157C[0][(u8)car->byte8];
-                car->byte1997=D_80153E88[i].field2;
-                car->byte1998=D_80153E88[i].field3;
-                car->byte1999=D_80153E88[i].field4;
+                car->byte1997=PC_LINK_COLOR0(i);
+                car->byte1998=PC_LINK_COLOR1(i);
+                car->byte1999=PC_LINK_COLOR2(i);
                 car->byte2013=1;
                 player->byte236=1;
             }
@@ -346,7 +357,7 @@ void world_physics_tick(void) {
     }
     for(i=D_801543CA;i<6;i++) {
         car=&D_8014A250[i];
-        car->half1994=D_80153E88[i].owner==0;
+        car->half1994=PC_LINK_OWNER(i)==0;
         car->byte1996=0;
         car->half1992=0;
     }

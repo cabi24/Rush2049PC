@@ -70,7 +70,12 @@ extern s8 D_8010FFC0;
 extern Obj40 **D_80152698[];
 extern u8 D_801141B0[];
 extern u32 D_801392D8[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Info8 D_80153E88[];
+#define PC_LINK_OWNER(i) D_80153E88[i].state
+#endif
 extern s8 D_80114650;
 
 void race_init_helper(void);
@@ -158,7 +163,7 @@ void render_viewport_init(void) {
             car->restart = 0;
         }
         cpak_read(slot);
-        if ((D_80153E88[slot].state == 0 || D_80153E88[slot].state == 6) && (D_8014A110 != 2 || (D_8014A110 == 2 && slot == 0))) {
+        if ((PC_LINK_OWNER(slot) == 0 || PC_LINK_OWNER(slot) == 6) && (D_8014A110 != 2 || (D_8014A110 == 2 && slot == 0))) {
             race_setup_2(slot);
         }
     }

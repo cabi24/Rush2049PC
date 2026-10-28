@@ -58,7 +58,12 @@ extern s8 gCarTeam[];                 /* gCarTeam */
 extern s32 D_8014A110;                  /* gRace */
 extern s16 D_80151AD0;                  /* gNumWindows */
 extern s16 active_player_count;         /* gNumPlayers */
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tLink D_80153E88[];              /* gLink */
+#define PC_LINK_OWNER(i) D_80153E88[i].owner
+#endif
 
 void music_seq_load(s16 slot, s16 camlink, int for_game);          /* CreateCar */
 void audio_frame_update(s16 slot);                                  /* StartCar */
@@ -136,7 +141,7 @@ void music_control(void)
     for (i = 0; i < 6; i++) {
         if (D_8014A250[i].in_game) {
             StartShadow(i);
-            if (active_player_count > 1 && D_80153E88[i].owner == 6) StartArrow(i);
+            if (active_player_count > 1 && PC_LINK_OWNER(i) == 6) StartArrow(i);
         }
     }
 }

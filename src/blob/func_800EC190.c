@@ -28,7 +28,15 @@ typedef struct Slot {
 
 extern s8 D_8014978C;
 extern volatile s16 D_801543CA;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Slot D_80153E88[6];
+#define PC_LINK_TRACK(i) D_80153E88[i].owner
+#define PC_LINK_PLACE(i) D_80153E88[i].ordinal
+#define PC_LINK_FLAGS(i) D_80153E88[i].flags
+#define PC_LINK_OWNER(i) D_80153E88[i].index
+#endif
 extern s8 D_8014A118;
 extern s8 D_80150C04;
 extern s8 D_80150F14;
@@ -43,13 +51,13 @@ void func_800EC190(s8 owner)
     D_801543CA = 6;
     for (i = 0, n = 0; i < 6; i++) {
         if (i >= 6) {
-            D_80153E88[i].flags = 0;
-            D_80153E88[i].index = i + 6;
+            PC_LINK_FLAGS(i) = 0;
+            PC_LINK_OWNER(i) = i + 6;
         } else {
-            D_80153E88[i].index = 0;
-            D_80153E88[i].ordinal = n++;
-            D_80153E88[i].owner = D_8014978C;
-            D_80153E88[i].flags = 176;
+            PC_LINK_OWNER(i) = 0;
+            PC_LINK_PLACE(i) = n++;
+            PC_LINK_TRACK(i) = D_8014978C;
+            PC_LINK_FLAGS(i) = 176;
         }
     }
     if (D_8014A118) {}

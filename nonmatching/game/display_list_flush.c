@@ -76,7 +76,12 @@ extern s16 active_player_count; /* gNumPlayers */
 extern Player76 input_rec0[];   /* gPlayers */
 extern Model2056 D_8014A250[];  /* model */
 extern Car952 player_array[];   /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Link8 D_80153E88[];      /* gLink */
+#define PC_LINK_OWNER(i) D_80153E88[i].owner
+#endif
 extern s8 D_80152744;           /* gNumActiveCars */
 extern s16 D_8015274C;          /* num_our_drones */
 extern s16 D_80152768;          /* num_drones */
@@ -278,7 +283,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
             *(volatile s16 *)&D_80153FD2 = D_8015274C;
             for (i = 0; i < active_player_count; i++) {
                 slot = input_rec0[i].slot;
-                D_80153E88[slot].owner -= 6;
+                PC_LINK_OWNER(slot) -= 6;
                 player_array[slot].dead = 0;
                 player_array[slot].place_locked = 0;
                 player_array[slot].player = 0;
@@ -351,7 +356,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
     D_80142764 = 32.2f * D_801202F8[D_801543C8];
     for (i = 0; i < D_80152744; i++) {
         slot = D_8014A250[i].slot;
-        if (D_80153E88[slot].owner == 0 || D_80153E88[slot].owner == 6) func_800E543C(0, slot);
+        if (PC_LINK_OWNER(slot) == 0 || PC_LINK_OWNER(slot) == 6) func_800E543C(0, slot);
     }
     music_control();
     render_post_process();

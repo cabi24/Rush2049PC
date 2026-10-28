@@ -41,7 +41,12 @@ extern Model952 player_array[];
 extern Vehicle2056 D_8014A250[];
 extern Slot64 D_80139320[];
 extern Resource68 D_8012E700[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Config8 D_80153E88[];
+#define PC_LINK_OWNER(i) D_80153E88[i].mode
+#endif
 extern OSThread D_80034840;
 extern s8 D_80146180[],D_80156994,D_8014978C;
 extern u16 D_801427C2[],D_801428F8;
@@ -67,7 +72,7 @@ void music_tempo_set(s16 player,u8 mode,int apply)
  if(apply && mode!=13) {
   if(player_array[player].flags&0x10) {
    osStopThread(&D_80034840);
-   if(D_80153E88[player].mode!=6 || D_80146180[player]==0)mask=~0x10;
+   if(PC_LINK_OWNER(player)!=6 || D_80146180[player]==0)mask=~0x10;
    else if(D_80146180[player]==2)mask=~0x60;
    else mask=-1;
    D_8014A250[player].flags&=mask;

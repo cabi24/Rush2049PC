@@ -588,6 +588,80 @@ def is_function_name(name, symfile):
     return name.startswith("func_") or (name in symfile and symfile[name][1] == "func")
 
 
+class Decoupled:
+    """A game data item the PC owns outright (port/data/decoupled.txt, docs/port/DECOUPLE.md): its N64 symbol is
+    retired, with every name inside its N64 extent, and the PC symbol has storage in data.c and no N64 address."""
+
+    def __init__(self, pc, n64, size, aliases, lo, retired):
+        self.pc, self.n64, self.size, self.aliases, self.lo, self.retired = pc, n64, size, aliases, lo, retired
+        self.t = self.disp = None
+        self.host_size = 0
+
+
+def load_decoupled(path, tables, symfile, refs, defs):
+    """The rules of port/data/decoupled.txt: `PC_NAME N64_NAME N64_SIZE [ALIAS ...]`. Each N64 name, alias and
+    symbol-table name in [address, address + size) is retired: a game object that still references or defines one
+    is an error (it would reach the N64 address the PC no longer gives the data). The PC name must not be defined
+    by the game C: data.c defines it."""
+    out, bad = [], []
+    if not path.exists():
+        return out
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        f = line.split("#", 1)[0].split()
+        if not f:
+            continue
+        if len(f) < 3:
+            sys.exit(f"{path}:{n}: expected PC_NAME N64_NAME N64_SIZE [ALIAS ...]")
+        pc, n64, size, aliases = f[0], f[1], int(f[2], 0), f[3:]
+        cands = [t[n64] for t in tables.values() if n64 in t] + ([symfile[n64][0]] if n64 in symfile else [])
+        if not cands and re.fullmatch(r"D_[0-9A-F]{8}", n64):
+            cands = [int(n64[2:], 16)]
+        if not cands or len(set(cands)) != 1:
+            sys.exit(f"{path}:{n}: no single N64 address for {n64}")
+        lo = cands[0]
+        # BSS of an image that stays loaded only: the loader would leave initialized data unconverted, and a runtime
+        # image's load would not clear it again.
+        w, w_end = arena_of(lo, {"game"}), arena_of(lo + size - 1, {"game"})
+        if not w or not w[1] or w_end != w or n64syms.ARENAS[w[0]][0] not in ("boot", "game"):
+            sys.exit(f"{path}:{n}: {n64} (0x{lo:08X}, {size} B) is not inside the game's or the boot segment's BSS")
+        inside = {name for t in tables.values() for name, x in t.items() if lo <= x < lo + size}
+        inside |= {name for name, (x, kind, _) in symfile.items() if kind == "data" and lo <= x < lo + size}
+        retired = sorted({n64, *aliases} | inside)
+        for name in retired:
+            users = sorted(Path(o).name for o in refs.get(name, ())) + sorted(Path(o).name for o, _, _ in
+                                                                                 defs.get(name, ()))
+            if users:
+                bad.append(f"{name} (retired for {pc}, docs/port/DECOUPLE.md): {', '.join(users[:4])}"
+                           + (" ..." if len(users) > 4 else ""))
+        if defs.get(pc):
+            bad.append(f"{pc}: defined by {', '.join(sorted(Path(o).name for o, _, _ in defs[pc]))}; data.c defines it")
+        out.append(Decoupled(pc, n64, size, aliases, lo, retired))
+    if bad:
+        sys.exit("gen_data: game objects still reach retired N64 names (port/data/decoupled.txt):\n  "
+                 + "\n  ".join(bad))
+    return out
+
+
+def decoupled_type(d, decls, tags):
+    """The PC symbol's one type: every reader's declaration must be the same (the shared PC declaration)."""
+    types = collections.Counter()
+    disp = {}
+    for obj, t, dsp, _ in decls:
+        t = complete(t, tags)
+        types[t] += 1
+        disp.setdefault(t, (dsp, Path(obj).name))
+    if not types:
+        sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): no game object declares it")
+    if len(types) > 1:
+        sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): the readers disagree on its type: "
+                 + "; ".join(f"{dsp} ({obj}, {n} files)" for t, n in types.items() for dsp, obj in [disp[t]]))
+    d.t = next(iter(types))
+    d.disp = disp[d.t][0]
+    d.host_size = host_size(d.t) or 0
+    if d.t[0] == "array" and d.t[2] is None or not d.host_size:
+        sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): {d.disp} has no size")
+
+
 def score(t, runs):
     """Most informative declaration first: struct over pointer over words over bytes; between two structs, an
     opaque one (no union, bytes only: `struct { u8 pad[164]; }`, an m2c record) after one with wider elements. A
@@ -660,6 +734,8 @@ def generate(a):
     extra = n64syms.load_symbols(root / "undefined_syms_auto.us.txt")
     tables = {img: n64syms.load_image_symbols(img, root) for img in ("game", "ovl_a", "ovl_b")}
     report = collections.defaultdict(list)
+    decoupled = load_decoupled(root / "port" / "data" / "decoupled.txt", tables, symfile, refs, defs)
+    dec_pc = {d.pc for d in decoupled}
 
     # Addresses of what we place (undefined data, commons) and of the game's own data (for pointers).
     syms, skipped, addr_conflicts = {}, collections.defaultdict(list), []
@@ -671,7 +747,7 @@ def generate(a):
         if conf:
             addr_conflicts.append((name, conf))
         placed = name in undefined or name in commons
-        if is_function_name(name, symfile) or name in PC_EXPORTS:
+        if is_function_name(name, symfile) or name in PC_EXPORTS or name in dec_pc:
             continue
         if addr is None:
             if name in undefined:
@@ -709,8 +785,10 @@ def generate(a):
                 skipped["shares a C definition's address"].append((n, s.addr))
 
     # Types from DWARF.
-    wanted = {n for s in syms.values() for n in s.names}
+    wanted = {n for s in syms.values() for n in s.names} | dec_pc
     found, tags = read_variables(objects, a.readelf, wanted)
+    for d in decoupled:
+        decoupled_type(d, found.get(d.pc, ()), tags)
     for s in syms.values():
         for n in sorted(s.names):
             for obj, t, disp, is_def in found.get(n, ()):
@@ -732,6 +810,10 @@ def generate(a):
             known[w[0]].add(addr)
     for i, (_, lo, init, hi) in enumerate(n64syms.ARENAS):
         known[i] |= {init, hi}
+    for d in decoupled:   # a retired range still ends the gap before it, as its symbol did
+        w = arena_of(d.lo, {"game", "ovl_a", "ovl_b"})
+        if w:
+            known[w[0]].add(d.lo)
     known = {i: sorted(v) for i, v in known.items()}
 
     def gap(s):
@@ -930,7 +1012,7 @@ def generate(a):
                       if n64syms.object_image(o) == img for n, k in image_data(o, a.nm)] for img in OVL_RANGES}
     syms_by_name = {n: s for s in ordered for n in s.names}
     reach = reach_rules(root / "port" / "data" / "reached.txt", tags, syms_by_name, ordered)
-    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach)
+    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach, decoupled)
 
     # Report.
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
@@ -985,6 +1067,9 @@ def generate(a):
     section("Gap extents crossing symbol-table addresses (give the declaration a size, or port/data/extents.txt)",
             crossing)
     section("Overlaps", overlaps)
+    section("Decoupled: game data the PC owns, with no N64 address (port/data/decoupled.txt, docs/port/DECOUPLE.md)",
+            [f"{d.pc}: {d.disp}, host {d.host_size} B in data.c; retired {d.n64} at 0x{d.lo:08X}, {d.size} B, and "
+             f"every name inside it: {', '.join(d.retired)}" for d in decoupled])
     section("Layouts that differ without pointers or long (check for packing)", sorted(LAYOUT_ODDITIES))
     section("No declaration with a type (filled as bytes)", [f"0x{s.addr:08X} {'/'.join(sorted(s.names))}"
                                                              for s in untyped])
@@ -1255,7 +1340,8 @@ def reach_rules(path, tags, syms_by_name, ordered):
     return rules
 
 
-def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach=()):
+def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach=(),
+         decoupled=()):
     arenas = n64syms.ARENAS
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
     cdefs = [s for s in ordered if s.cdef]
@@ -1287,7 +1373,15 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     layout = {"window": [WINDOW_LO, WINDOW_HI], "arenas": [[lo, hi] for _, lo, _, hi in arenas], "absolute": [],
               "sets": [], "own": [],
               "ovl_data": {img: sorted(n for _, n, k in v if k in "dbDB") for img, v in ovl_data.items()},
-              "ovl_ranges": OVL_RANGES}
+              "ovl_ranges": OVL_RANGES,
+              "decoupled": [[d.pc, d.host_size, d.retired] for d in decoupled]}
+    if decoupled:
+        L += ["", "/* Game data the PC owns, with no N64 address (port/data/decoupled.txt, docs/port/DECOUPLE.md): zero at",
+              " * startup like BSS, outside the RDRAM window, and not in the loader's tables. Aligned as own storage. */"]
+    for i, d in enumerate(decoupled):
+        al = 32 if d.host_size >= 32 else 16
+        L.append(f"__attribute__((aligned({al}))) uint8_t pc_decoupled_{i}[{d.host_size}] __asm__(N64_SYM({c_str(d.pc)}));"
+                 f"   /* {d.disp}; was {d.n64} at 0x{d.lo:08X}, {d.size} B */")
     for s in ordered:
         if s.cdef:
             continue
@@ -1524,11 +1618,20 @@ def check(exe, layout_path, nm, pe=False):
             n_ovl += min(got, want)
             if got < want:
                 bad.append(f"{img} {name}: {want - got} of {want} outside its C range")
+    # Decoupled data: in the executable at its host size, outside the window; no retired N64 name defined.
+    for name, n, retired in layout.get("decoupled", []):
+        if name not in addr:
+            bad.append(f"decoupled {name}: not in the executable")
+        elif letter[name] in "Aa" or lo <= addr[name] < hi:
+            bad.append(f"decoupled {name}: at 0x{addr[name]:X}, in the RDRAM window")
+        elif size.get(name) != n and not pe:
+            bad.append(f"decoupled {name}: size {size.get(name)} != {n}")
+        bad += [f"decoupled {name}: the retired {r} is defined (0x{addr[r]:X})" for r in retired if r in addr]
     for b in bad[:50]:
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "
           f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own in N64 order, "
-          f"{n_ovl} runtime-image C data in their C ranges, "
+          f"{n_ovl} runtime-image C data in their C ranges, {len(layout.get('decoupled', []))} decoupled, "
           f"nothing else in the window: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
 

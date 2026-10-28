@@ -142,7 +142,16 @@ extern s8 D_80157244,D_803BA04C[],D_8012E67C[],D_80138664[];
 extern s16 D_801164BE,D_803B28B0[];
 extern Slot D_803AF9A8[][44];
 extern Vec3 D_803B3030;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern PreparedCar D_80153E88[];
+#define PC_LINK_CAR(i) D_80153E88[i].car
+#define PC_LINK_COLOR0(i) D_80153E88[i].color[0]
+#define PC_LINK_COLOR1(i) D_80153E88[i].color[1]
+#define PC_LINK_COLOR2(i) D_80153E88[i].color[2]
+#define PC_LINK_FLAGS(i) D_80153E88[i].flags
+#endif
 extern u8 D_803B857C[],D_803B8590[],D_803B85A0[];
 extern s8 D_80110E78[][13],D_8011103C[][13],D_80111080[][13],D_8011119C[][13],D_80111230[][13],D_8011128C[][13];
 extern s8 D_80111604[][13],D_80111648[][13],D_8011168C[][13],D_8011157C[][13],D_801115C0[][13];
@@ -668,16 +677,16 @@ void func_803A1EAC(void)
         if (D_8014A118[p].pressed & 3) {
             resource_type_select(D_8014A118[p].pressed);
             D_803BA028[p] = 1;
-            D_80153E88[p].flags = 160;
-            D_80153E88[p].car = D_803B9FD0[p];
+            PC_LINK_FLAGS(p) = 160;
+            PC_LINK_CAR(p) = D_803B9FD0[p];
             if (D_8014A110 == 6 && D_801164BE == 0) {
-                D_80153E88[p].color[0] = D_80138664[D_8012E67C[p]];
-                D_80153E88[p].color[1] = D_80138664[D_8012E67C[p]];
-                D_80153E88[p].color[2] = D_80138664[D_8012E67C[p]];
+                PC_LINK_COLOR0(p) = D_80138664[D_8012E67C[p]];
+                PC_LINK_COLOR1(p) = D_80138664[D_8012E67C[p]];
+                PC_LINK_COLOR2(p) = D_80138664[D_8012E67C[p]];
             } else {
-                D_80153E88[p].color[0] = D_80111604[p + 1][D_803B9FD0[p]];
-                D_80153E88[p].color[1] = D_80111648[p + 1][D_803B9FD0[p]];
-                D_80153E88[p].color[2] = D_8011168C[p + 1][D_803B9FD0[p]];
+                PC_LINK_COLOR0(p) = D_80111604[p + 1][D_803B9FD0[p]];
+                PC_LINK_COLOR1(p) = D_80111648[p + 1][D_803B9FD0[p]];
+                PC_LINK_COLOR2(p) = D_8011168C[p + 1][D_803B9FD0[p]];
             }
             D_803BA030 = 0;
         }

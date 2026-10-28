@@ -132,7 +132,19 @@ extern Ghost *D_80140AF8[];                                 /* GC gGhostPlayers 
 extern Ghost D_80140B28[];                                  /* GC gGhostPlayers + 0x2A0 */
 extern Ghost **D_80152698[];                                /* GC gGhosts */
 extern Player input_rec0[];                                 /* GC gPlayers */
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Link D_80153E88[];                                   /* GC gLink */
+#define PC_LINK_TRACK(i) D_80153E88[i].track
+#define PC_LINK_CAR(i) D_80153E88[i].car
+#define PC_LINK_COLOR0(i) D_80153E88[i].b2
+#define PC_LINK_COLOR1(i) D_80153E88[i].b3
+#define PC_LINK_COLOR2(i) D_80153E88[i].b4
+#define PC_LINK_PLACE(i) D_80153E88[i].np
+#define PC_LINK_FLAGS(i) D_80153E88[i].b6
+#define PC_LINK_OWNER(i) D_80153E88[i].b7
+#endif
 extern Model D_8014A250[];                                  /* GC model */
 extern s8 D_8014978C;                                       /* GC gTrackNum */
 extern s8 D_80152570;                                       /* GC gBackwards */
@@ -189,8 +201,8 @@ void GhostStart(void) {
         memcpy(g->name, (*input_rec0[i].handle)->name, 13);
         memcpy(g->playerId, (*input_rec0[i].handle)->playerId, 8);
         g->carTrans = func_800CDDE8(input_rec0[i].handle);
-        memcpy(g->settings, ((CarCfg *)(*(*input_rec0[i].handle)->datah + 1860))[D_80153E88[i].car].s, 12);
-        g->car = D_80153E88[i].car;
+        memcpy(g->settings, ((CarCfg *)(*(*input_rec0[i].handle)->datah + 1860))[PC_LINK_CAR(i)].s, 12);
+        g->car = PC_LINK_CAR(i);
         g->frameTime = D_8002AFB8;
         if (!D_80114650) {
             g->size = (f32)(D_80111754[D_8014978C] + 10.0) * D_8002AFB4;
@@ -229,14 +241,14 @@ void GhostStart(void) {
         D_801115C0[i + 1][car] = g->settings[9];
         D_801112DC[i + 1][car] = g->settings[10] / 100.0f + 0.75f;
         D_801113E0[i + 1][car] = g->settings[11] / 100.0f + 0.75f;
-        D_80153E88[np].track = g->track;
-        D_80153E88[np].car = car;
-        D_80153E88[np].b2 = g->settings[5];
-        D_80153E88[np].b3 = g->settings[6];
-        D_80153E88[np].b4 = g->settings[7];
-        D_80153E88[np].np = np;
-        D_80153E88[np].b6 = 176;
-        D_80153E88[np].b7 = 6;
+        PC_LINK_TRACK(np) = g->track;
+        PC_LINK_CAR(np) = car;
+        PC_LINK_COLOR0(np) = g->settings[5];
+        PC_LINK_COLOR1(np) = g->settings[6];
+        PC_LINK_COLOR2(np) = g->settings[7];
+        PC_LINK_PLACE(np) = np;
+        PC_LINK_FLAGS(np) = 176;
+        PC_LINK_OWNER(np) = 6;
         D_8014A250[np].state = 2;
         D_8014A250[np].frameTime = g->frameTime;
         np++;

@@ -2735,7 +2735,12 @@ extern s32 D_80153E80;
 extern s16 D_80153E84;
 extern s32 D_80153E88;
 extern u8 D_80153E89;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern u8 D_80153E8F;
+#define PC_LINK_OWNER(i) *(&D_80153E8F + (i * 8))
+#endif
 extern u8 D_80153E97;
 extern s32 D_80153EB8;
 extern s32 D_80153EF0;
@@ -4004,7 +4009,7 @@ block_40:
         } else {
             var_f0 = M2C_FIELD(temp_s0_2, f32 *, 0x714) - M2C_FIELD(temp_s2, f32 *, CAR_OFS(0x30C));
         }
-        if ((((s8) D_8013FECB != 0) || (((gameplay_mode != 6) || (gameplay_mode != 5)) && (var_f0 >= 5.0f)) || (((gameplay_mode == 6) || (gameplay_mode == 5)) && (D_80124480 < var_f0))) && ((temp_v0_3 = *(&D_80153E8F + (M2C_FIELD(temp_s0_2, s16 *, 0x7C6) * 8)), (temp_v0_3 == 0)) || (temp_v0_3 == 6))) {
+        if ((((s8) D_8013FECB != 0) || (((gameplay_mode != 6) || (gameplay_mode != 5)) && (var_f0 >= 5.0f)) || (((gameplay_mode == 6) || (gameplay_mode == 5)) && (D_80124480 < var_f0))) && ((temp_v0_3 = PC_LINK_OWNER(M2C_FIELD(temp_s0_2, s16 *, 0x7C6)), (temp_v0_3 == 0)) || (temp_v0_3 == 6))) {
             M2C_FIELD(temp_s0_2, s8 *, 0x7EA) = 1;
             M2C_FIELD(temp_s0_2, s8 *, 0x7EB) = 1;
             M2C_FIELD(temp_s2, f32 *, CAR_OFS(0x30C)) = 0.0f;

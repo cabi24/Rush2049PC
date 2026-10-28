@@ -113,7 +113,12 @@ extern f32 D_801543CC;
 extern s8 D_80152744;
 extern MODELDAT D_8014A250[];
 extern CAR_DATA D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern NodeInfo D_80153E88[];
+#define PC_LINK_OWNER(i) D_80153E88[i].unk7
+#endif
 extern s32 D_8014A110;
 extern u32 D_801174B4;
 extern s8 D_801403D0;
@@ -161,7 +166,7 @@ void menu_controller_remap(void) {
         node = D_8014A250[i].slot;
         m = &D_8014A250[node];
         gc = &D_80152818[node];
-        if (m->we_control || D_80153E88[node].unk7 == 6) {
+        if (m->we_control || PC_LINK_OWNER(node) == 6) {
             abort_me = m->please_abort_me;
             if (gc->dr_pos[1] < -190.0f && gc->unk359 == 0 && gc->we_died == 0 && m->unk6C4 == -1) {
                 m->unk6CC = 1;

@@ -71,7 +71,12 @@ typedef struct {
 
 extern f32 D_80154390;
 extern f32 D_80161450[][3];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern NodeInfo D_80153E88[];
+#define PC_LINK_OWNER(i) D_80153E88[i].state
+#endif
 extern s8 D_801427A1;
 
 f32 func_8008B3C8(f32 *v);
@@ -108,7 +113,7 @@ void track_select_handler(MODELDAT *m) {
             m->appearance &= ~0x10;
         }
         m->moving_state = -2;
-        if (D_80153E88[node].state == 6 || m->we_control) {
+        if (PC_LINK_OWNER(node) == 6 || m->we_control) {
             m->hide_car = 0;
         }
     } else {
@@ -121,7 +126,7 @@ void track_select_handler(MODELDAT *m) {
             func_800CFDEC(m->quat_start, m->quat_end, 4, 0.0, D_80154390 / 2, scale, quat);
             menu_vibration_test(quat, uvs);
             scale = 1 - 2 * scale / D_80154390;
-            if (D_80153E88[node].state == 6) {
+            if (PC_LINK_OWNER(node) == 6) {
                 for (i = 0; i < 3; i++) {
                     if (fabsf(m->RWV[i] *= scale) < .01f) {
                         m->RWV[i] = 0;

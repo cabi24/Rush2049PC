@@ -69,7 +69,14 @@ extern volatile s16 D_801543CA;        /* number of cars */
 extern s8 D_80152744;         /* num_active_cars */
 extern MODELDAT D_8014A250[]; /* model */
 extern CAR_DATA D_80152818[]; /* game_car */
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Link D_80153E88[];     /* gLink */
+#define PC_LINK_PLACE(i) D_80153E88[i].unk5
+#define PC_LINK_FLAGS(i) D_80153E88[i].flags
+#define PC_LINK_OWNER(i) D_80153E88[i].owner
+#endif
 extern s16 D_8015274C;        /* num_our_drones */
 extern volatile s16 D_80152768; /* num_drones */
 extern volatile s16 D_80153FD2; /* num_humans */
@@ -89,19 +96,19 @@ void func_800EC914(void) {
     for (i = 0; i < D_801543CA; i++) {
         m = &D_8014A250[i];
         gc = &D_80152818[i];
-        m->we_control = (D_80153E88[i].owner == 0);
+        m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = 0;
-        m->in_game = (D_80153E88[i].flags & LINK_ACTIVE) != 0;
+        m->in_game = (PC_LINK_FLAGS(i) & LINK_ACTIVE) != 0;
         if (m->in_game) {
             D_8014A250[D_80152744++].slot = i;
             gc->place = i;
-            gc->unkEE = D_80153E88[i].unk5;
-            m->drone_type = (D_80153E88[i].owner < MAX_LINKS) ? DRONE : HUMAN;
+            gc->unkEE = PC_LINK_PLACE(i);
+            m->drone_type = (PC_LINK_OWNER(i) < MAX_LINKS) ? DRONE : HUMAN;
         }
     }
     for (i = D_801543CA; i < MAX_LINKS; i++) {
         m = &D_8014A250[i];
-        m->we_control = (D_80153E88[i].owner == 0);
+        m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = 0;
         m->in_game = 0;
     }

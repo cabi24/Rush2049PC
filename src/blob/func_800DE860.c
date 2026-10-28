@@ -71,7 +71,12 @@ extern Rec player_array[];
 extern s16 active_player_count;
 extern s8 D_80152030;
 extern s8 D_80150F14;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Slot D_80153E88[];
+#define PC_LINK_OWNER(i) D_80153E88[i].flag
+#endif
 
 void func_800DE860(void)
 {
@@ -86,7 +91,7 @@ void func_800DE860(void)
 
     if ((active_player_count == 1 && D_80152030 < 5) || D_80150F14 == 0) {
         for (j = 0; j < 6; j++) {
-            if (D_80153E88[j].flag == 0 || D_80153E88[j].flag == 6) {
+            if (PC_LINK_OWNER(j) == 0 || PC_LINK_OWNER(j) == 6) {
                 D_8014A250[j].scale = 1.0f;
             }
         }

@@ -241,7 +241,12 @@ extern int D_8014A110;              /* gRace */
 extern tDronePath D_8012E5E8[];     /* gDronePaths */
 extern tCheckpoints D_80151CE8;     /* gCheckpoints */
 extern tResPath D_801407F0;         /* gResPath */
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tLink D_80153E88[];          /* gLink */
+#define PC_LINK_OWNER(i) gLink[i].owner
+#endif
 extern u32 D_801174B4;              /* gGameState */
 extern s8 D_801407B0;               /* gResurrectInPlace */
 extern s16 D_8014A108;              /* gNumPlayers */
@@ -258,7 +263,9 @@ extern float D_801210E8[12][3];     /* pole_pos_offset */
 #define gDronePaths D_8012E5E8
 #define gCheckpoints D_80151CE8
 #define gResPath D_801407F0
+#ifndef TARGET_PC
 #define gLink D_80153E88
+#endif
 #define gGameState D_801174B4
 #define gResurrectInPlace D_801407B0
 #define gNumPlayers D_8014A108
@@ -438,7 +445,7 @@ void stunt_combo_display(tModelData *m)
     float c_dist, dist_e, dist_d, dist_bc, dist_b1, dist_b2, half_dist;
     if (gDeathMode && m->resurrect.crash_time != 0.0f && !m->resurrect.autoAbort) return;
     m->resurrect.autoAbort = 0;
-    human = gLink[node].owner == LINK_OWNER_HUMAN;
+    human = PC_LINK_OWNER(node) == LINK_OWNER_HUMAN;
     if (human && m->fastin.modelTime < res_last_time[m->slot]) res_last_time[m->slot] = 0;
     inPlace = 0;
     if (human && !m->resurrect.waterAbort && gResurrectInPlace &&
