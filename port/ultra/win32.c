@@ -150,16 +150,23 @@ static void print_frames(void **pcs, int n, int fault_first)
                 len += snprintf(cmd + len, sizeof cmd - (size_t)len, " 0x%llx", (unsigned long long)off[i]);
         p = run_tool(cmd, &proc);
     }
-    for (i = 0; i < n; i++) {
+    /* The frames are put together and written at once: stderr is unbuffered (log.c), so line by line other
+     * threads' lines could land between them. */
+    static char out[MAX_FRAMES * 600];
+    size_t at = 0;
+    for (i = 0; i < n && at < sizeof out; i++) {
         if (mod[i] == self && off[i] != (uintptr_t)-1 && p && fgets(line, sizeof line, p) && strncmp(line, "??", 2))
-            fprintf(stderr, "  #%-2d %s", i + 1, line);
+            at += (size_t)snprintf(out + at, sizeof out - at, "  #%-2d %s", i + 1, line);
         else if (mod[i] && GetModuleFileNameA(mod[i], name, sizeof name)) {
             const char *base = strrchr(name, '\\');
-            fprintf(stderr, "  #%-2d %s+0x%llx\n", i + 1, base ? base + 1 : name,
-                    (unsigned long long)((uintptr_t)pcs[i] - (uintptr_t)mod[i]));
+            at += (size_t)snprintf(out + at, sizeof out - at, "  #%-2d %s+0x%llx\n", i + 1, base ? base + 1 : name,
+                                   (unsigned long long)((uintptr_t)pcs[i] - (uintptr_t)mod[i]));
         } else
-            fprintf(stderr, "  #%-2d %p\n", i + 1, pcs[i]);
+            at += (size_t)snprintf(out + at, sizeof out - at, "  #%-2d %p\n", i + 1, pcs[i]);
     }
+    if (at > sizeof out - 1)
+        at = sizeof out - 1;
+    fwrite(out, 1, at, stderr);
     if (p)
         close_tool(p, proc);
 }
