@@ -14,7 +14,7 @@ owns `main()`. About 3,300 lines of C11.
 | `vi.c` | the video interface: mode, blackout, framebuffer swaps, the retrace event |
 | `rcp.c` | RSP tasks (graphics on the main thread, audio at once in real time), SP/DP done, the AI |
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
-| `si.c` | the PIF: controller status and buttons, the controller pak (`.mpk`), the rumble pak |
+| `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `memory.c` | the RDRAM window, `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, address conversion, faults, stubs |
 | `loop.c` | the host main loop |
@@ -185,14 +185,40 @@ and 0x02/0x03 accessory read/write of 32-byte blocks with the address CRC and a 
 u8 fields. The one u16 field, the buttons, is read natively, so it is written in host order. There is no EEPROM:
 the game saves only to the controller pak.
 
+**Accessories: one per controller.** Each of the four ports holds a controller pak, a rumble pak or nothing
+(`pc_si_set_pak`, from `game.pak`, `game.pak2`, `pak3`, `pak4`; [FRONTEND.md](FRONTEND.md) "Settings").
+- Each port is its own: the status command reports its accessory (0x01, or 0x02 for none), the 32-byte reads and
+  writes reach its pak, and a rumble pak's motor (0xC000) is that port's (`pc_si_motor(channel)`, which port/input
+  sends to the player's controller).
+- A controller pak has a file of its own per port (`rush2049pc.mpk`, `rush2049pc-p2.mpk`...), loaded, written and
+  backed up the same way (below). A new one is formatted with an ID of the port's own: `pakfile.c`'s blank pak's
+  random word, changed by the port number (controller 1's is the same as before). The game compares pak IDs
+  across ports and takes two paks with one ID for one pak moved between them (PS_PakServer's "move"), so a file
+  copied to another player's name is logged as such.
+- **Auto** is a rumble pak while the port's controller can rumble (`PcPad.rumble`, from SDL), else nothing: a pad
+  that leaves or comes takes its rumble pak with it. It is the default for players 2-4.
+- **Hot swaps.** The game polls every port for accessories every 30 frames (ControllerUpdate's
+  `osContStartQuery`, then `func_800A43FC` marks each pak record inserted or changed), and its pak server
+  (PS_PakServer, from SaveServer) handles a pak that left (its files dropped, rumble stopped) or came (osPfsInitPak,
+  or osMotorInit when that fails). So a change while the game runs (the overlay, a pad on auto plugged or
+  unplugged) is made as a player makes one: the old accessory comes out at once, and the new one goes in only after
+  a poll of every port has found the port empty (or without its controller). The game's other status reads
+  (`__osPfsGetStatus`, one port each, from osPfsInitPak, osMotorInit and the CRC retries) don't count, so the pak
+  code always sees the old one leave. A memory pak taken out is written first, and keeps its image in memory if it
+  goes back in. CONT_CARD_PULL (0x02 with 0x01) is never reported: osPfsInitPak would return PFS_ERR_NEW_PACK, which
+  the pak server takes for a damaged pak.
+- The log says when the game first reads each accessory put in ("controller 2: the game reads the controller
+  pak"); `-v` when one goes in or out, `-v -v` each motor change.
+
 **Controller pak.**
-- `--pak PATH`: default `rush2049pc.mpk`, created formatted when missing and written within a second of each change
-  (`pakfile.c`'s `pc_file_write_atomic`: a temp file flushed to the disk, then renamed over it; a failed write is
-  tried again at the next flush). Only a missing file is new: one that can't be read, or is damaged
+- `--pak PATH` (controller 1's; the others' are `game.pak2_file`...): default `rush2049pc.mpk`, created formatted
+  when missing and written within a second of each change (`pakfile.c`'s `pc_file_write_atomic`: a temp file
+  flushed to the disk, then renamed over it; a failed write is tried again at the next flush). Only a missing file is new: one that can't be read, or is damaged
   (`pc_pak_image_check`: not 32 KiB, no good ID block copy, no good inode table), plugs in no pak and is never
   written over. port/app's saves.c sets such a file aside before the game starts, and keeps three backups
   ([RELEASE.md](RELEASE.md) "Saves").
-- `--no-pak` plugs in nothing, and `--rumble` a rumble pak (0x8000 probe, 0xC000 motor).
+- `--no-pak` plugs in nothing on any port, and `--rumble` a rumble pak on controller 1 (0x8000 probe, 0xC000
+  motor).
 - The image keeps the `.mpk` page layout, but its multi-byte fields are in the native Pfs C's order: the ID
   checksums are sums of host-order u16, and `PFS_EOF`/`PFS_PAGE_NOT_USED` are host-order u16. Page links keep
   their `{bank, page}` bytes, which is how the rest of the Pfs C reads them.
@@ -374,7 +400,12 @@ the libgsm kernels, now `gsm.c` (§8).
   - in real time, the AI paced by a device: 30 pulls of 512 frames from a host thread, 10 ms apart, answered by
     88 buffers, only the first pull short;
   - the SI through the game's own C: `osContInit`, `osContGetReadData`, `osPfsInitPak`, `osPfsFreeBlocks`, and a
-    three-page note allocated, written, read back after a new `osPfsInitPak`, and deleted.
+    three-page note allocated, written, read back after a new `osPfsInitPak`, and deleted;
+  - each port's accessory (`pc_si_test_pads` holds the pads the test sets): `osContStartQuery`'s status per port, a
+    note on controller 2's pak alone and its own ID, controller 3's rumble pak (auto, a pad that can rumble) driving
+    its motor alone, nothing on 4 (`PFS_ERR_NOPACK`), a controller pak refusing `osMotorInit` (`PFS_ERR_DEVICE`);
+    a hot swap from controller pak to rumble pak (out at once, still out through a single-port status read, in
+    after the poll) and back (the note still there); auto following its pad's rumble and its unplugging.
 - CTest `ultra_gsm` (`port/ultra/tests/test_gsm.c`, 2 s) checks `gsm.c`'s three GSM kernels against their own MIPS
   code, interpreted from the words in `asm/us/boot_data/kernels.s`, and against a GSM 06.10 reference decoder
   written from the spec. Kernel by kernel on random and edge inputs, and over 6,160 frames through the game's own
