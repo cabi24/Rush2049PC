@@ -16,6 +16,7 @@ is the same fill run again for one image.
 | Loader | `port/data/pc_data.c`, descriptor types in `port/data/pc_data.h` |
 | Size overrides for open-ended arrays | `port/data/extents.txt` |
 | Rules for tables only pointers reach | `port/data/reached.txt` (section 7) |
+| Game data the PC owns, with no N64 address | `port/data/decoupled.txt` ([DECOUPLE.md](DECOUPLE.md)) |
 | Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM), `port/data/test_overlay_data.c` (a runtime image's C data on reload), `port/data/test_reach.c` (the reach rules) |
 | Overlay loads | `src/blob/groups/{heap_release,score_insert}/overlay_loader.c`, `{carcolor,state}/ctx_overlay_loader.c` |
 | The runtime images' C data, one range each | `port/data/overlays.ld` (linked with `-T`), section 5 |
@@ -119,6 +120,9 @@ offset (`input_rec1 = D_8014A118 + 0x50`). Names at one address are aliases. Ten
 symbols) in game and runtime-image C get the same treatment; the linker prefers the strong definition. The two
 names one past an overlay's BSS (`D_803BAE20`, `D_8039B440`, the loaders' `bssEnd`) are absolute one past its
 arena. The window bytes under own storage hold that data's N64 form and are not used.
+A **decoupled** symbol (`port/data/decoupled.txt`) has neither: the PC owns it with one declaration of its own, data.c
+defines it outside the window at its host size, and its N64 name and every name inside its N64 extent are retired
+([DECOUPLE.md](DECOUPLE.md)). The first is the race roster, `pc_links` (was `D_80153E88`).
 
 **Why the window can hold them.**
 - Those ranges are free on the PC. No code is linked there (the game's code is host code), the heap starts at
