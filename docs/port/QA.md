@@ -18,16 +18,22 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 
 | Path | How | Result |
 |---|---|---|
-| attract demo | no input for 900 s of game time | cycles title and demo through the race tracks for the whole run; no fault |
+| attract demo | no input for 900 s of game time | title and demo cycle through the race tracks the whole run; no fault |
 | attract demo, Expansion Pak | `--expansion-pak`, 240 s | the demo also shows the sixth race track; no fault |
-| single race to the finish | track 0, laps set to 1 on the track select, gas held | the finish, the results (place and time), the name entry, best laps, the game over screen and its lap times, Quit back to the main menu |
-| single races | tracks 0-3 with gas and steering; one lap on track 1 | the race runs; no spikes in the frame dumps but crashes, camera cuts and a resurrecting car's blinking |
-| race options | backward + mirror + fog; laps 8 + wind + no drones + difficulty | the race starts with the options; HUD as expected (no place with one car) |
-| practice (gRace 1), Expansion Pak races | track 2; tracks 0 and 3 with `--expansion-pak` | run; the Expansion Pak's per-track objects load |
-| 3 and 4 players | the mode screen offers stunt and battle only; the stunt arena in three and four views | run |
+| single race to the finish | track 0, laps set to 1 on the track select, gas held | the finish, the results (place and time), the name entry, best laps, the game over screen and its lap times, Quit to the main menu |
+| single races | tracks 0-3 with gas and steering; one lap on track 1 | run; the frame dumps' spikes are crashes, camera cuts, a resurrecting car's blinking and the stunt floor's fast grid |
+| race options | backward + mirror + fog; laps 8 + wind + no drones + difficulty | the race starts with them; the HUD as the code says (no place with one car) |
+| practice, Expansion Pak races | practice on track 2 (1 and 2 players); tracks 0 and 3 with `--expansion-pak` | run; the Expansion Pak's per-track objects load |
+| 2, 3 and 4 players | 2: practice and battle; 3 and 4: the mode screen offers stunt and battle only, the stunt arena in three and four views | run |
+| battle arenas | two players in the arenas 7-9 (6 in the bring-up; the four unlocked from the start) | run |
+| stunt arena | one player, the first arena, 50 s of driving | runs |
 | track select | every option row, wrap-around | as the code says (TRACK, LAPS, BACKWARD, MIRROR, FOG, WIND, DRONES, DIFFICULTY, DEATHS) |
-| main menu screens | records (no pak: its totals page), options (every HUD toggle row, wrap-around) | as the code says |
-| controller pak | `--pak` on a fresh image: a race to the finish, the records screen | see "Left" |
+| main menu screens | records (with and without a pak: totals pages), options (every HUD toggle row, wrap-around) | as the code says |
+| cheats | the main menu's code, the cheat screen, two cheats' codes, the unlock cheat, then a race on a track it unlocks | works after fixes 1 and 2 |
+| controller pak across restarts | a fresh `--pak` image: create a player (name entry), select it, race one lap to the finish (the record takes the player's name), quit; restart with the same image: the records screen lists the player with the race's totals, the player screen lists the player | as the code says; the image is written when the player is created and again by the race |
+| name entry after a race | without a player: the grid, letters, END | the cursor starts on END; a scripted gas press still held when the entry opens gives no new A edge (a script's mistake, not the game's) |
+| pause | the pause menu and each of its screens: options (the HUD toggles), controls, audio, video (the test pattern), rumble pak (none: its prompt), back with B, then continue | as the code says |
+| ghost race (gRace 2) | track 0, three laps, gas only: the time limit ends it (DNF), the results, the game over screen, RACE AGAIN | the race restarts with its time limit; no ghost was saved (an unfinished race) |
 
 ## Found and fixed
 
@@ -62,6 +68,39 @@ spellings, or stand-in callers nothing calls. Test: the synthetic cartridge has 
 cheat 0, and the `cheats` path opens the cheat screen, enters cheat 0's code, switches it and goes back
 (`# visits: 0x8000000`); without the fix it fails, never in state 0x8000000.
 
+### 3. A guard for the class: `weak_copies_check`
+
+gen_weak keeps one copy of a function several files define when the manifest names no owner. The ctest
+`weak_copies_check` (`tools/port/weak_copies_check.py`) reads gen_weak's report and fails when such a function's
+bodies differ between its files (comments and spacing ignored), unless reviewed: one equivalent spelling
+(`hs_font_set`) and four stand-in callers nothing calls. On a report with InitEgg's two copies it fails.
+
+## Not bugs (checked)
+
+- Every weak copy of an owned function (gen_weak's headers) against its owner: none carries a `TARGET_PC` fix,
+  `PC_N64W`, `CAR_OFS`, `INPUT_SIZE` or `PROFILE_OFS` its owner lacks (a PC fix in a copy would be dropped by the link).
+- The HUD's place, "6/6", read as "6/5" in a scaled-down picture of the fog; at full size it is right, and the car
+  count is written once at the race start (a watchpoint on it).
+- The name entry after a race "ignored A": the script still held A (the gas) when the entry opened, so there was no
+  new A edge. The cursor starts on END, as the code says.
+- Multiplayer mode screens offer fewer modes (stunt and battle for three and four players; no ghost or circuit for
+  two), so a script's DOWNs wrap: as the validity table says.
+
 ## Left
 
-(being filled in)
+- **Ghost races**: a ghost race reaches its results and RACE AGAIN, but a script driving with the gas alone can't
+  finish its three laps within the time limit, so no ghost was saved, compressed (zlib) or raced against. A run
+  with real steering, or a cheat, should do it.
+- **Cheats in a race**: several cheats switched on (mines, super speed, mass, frame scale, fog colour) and a race:
+  being run (`cheats2`).
+- **The Expansion Pak is off by default** (`game.expansion_pak`): without it the sixth race track can't be chosen
+  (OptionValid, and the unlock code), and the per-track animated objects, the front end's song and the extra race
+  WADs are skipped. With `--expansion-pak` the demo, the races tried and the sixth track run. Whether the PC should
+  default to it is a product decision.
+- **Unlockable content** beyond the cheat: tracks 4-5, stunt arenas 15-17, battle arenas 10-13 and mode 5 (track
+  18) unlock through circuit and stunt results; only track 4 was raced (through the unlock cheat).
+- **Not reached on the retail cartridge**: the audio, video and controls screens' every row; the records screen's
+  other pages; circuit mode to its end; a controller pak on players 2-4; the rumble pak; a window (`--window`) and
+  sound through a device.
+- **Scripted runs and the user's pak**: without `--pak` or `--no-pak` a run uses, and on first use formats, the
+  user's own `rush2049pc.mpk`. Tests and scripts should pass one of the two.
