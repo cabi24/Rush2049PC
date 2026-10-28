@@ -22,7 +22,12 @@ typedef struct GameCar { s32 header[2]; f32 position[3]; s32 middle[6]; f32 matr
 typedef struct GameCar { s32 header[2]; f32 position[3]; s32 middle[6]; f32 matrix[9]; unsigned char rest[872]; } GameCar;
 #endif
 extern s8 D_8010FFC0;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern u8 D_80153E8F[];
+#define PC_LINK_OWNER(i) D_80153E8F[i * 8]
+#endif
 extern GameCar player_array[];
 extern s16 D_8011F020[], D_8011F040[];
 
@@ -43,7 +48,7 @@ s32 stat_lap_split(s32 sound, s32 slot, f32 *position, u8 mode) {
     if (D_8010FFC0 == 0) {
         return -1;
     }
-    if (D_80153E8F[slot * 8] != 6) {
+    if (PC_LINK_OWNER(slot) != 6) {
         return -1;
     }
     vecsub(position, car->position, delta);

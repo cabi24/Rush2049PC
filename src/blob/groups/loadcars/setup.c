@@ -32,7 +32,15 @@ typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; DE
 typedef struct Link { u8 state; u8 kind; u8 payload[3]; u8 other5[3]; } Link;
 
 extern Slot24 D_8013FEE0[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Link D_80153E88[];
+#define PC_LINK_CAR(i) D_80153E88[i].kind
+#define PC_LINK_COLOR0(i) D_80153E88[i].payload[0]
+#define PC_LINK_COLOR1(i) D_80153E88[i].payload[1]
+#define PC_LINK_COLOR2(i) D_80153E88[i].payload[2]
+#endif
 extern u32 audio_output_setup(Owner *);
 extern void *AllocateMemoryHeap(int, int);
 
@@ -48,11 +56,11 @@ void func_800BB02C(int index, int kind, void *data)
         D_8013FEE0[index].data = data;
     } else if (audio_output_setup(0) < 512) {
         for (i = 0; i < index; i++) {
-            if (kind == D_80153E88[i].kind) {
+            if (kind == PC_LINK_CAR(i)) {
                 D_8013FEE0[index].data = D_8013FEE0[i].data;
-                D_80153E88[index].payload[0] = D_80153E88[i].payload[0];
-                D_80153E88[index].payload[1] = D_80153E88[i].payload[1];
-                D_80153E88[index].payload[2] = D_80153E88[i].payload[2];
+                PC_LINK_COLOR0(index) = PC_LINK_COLOR0(i);
+                PC_LINK_COLOR1(index) = PC_LINK_COLOR1(i);
+                PC_LINK_COLOR2(index) = PC_LINK_COLOR2(i);
                 break;
             }
         }

@@ -2,7 +2,12 @@
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef float f32;
 typedef struct { u8 b0; u8 id; u8 pad[6]; } Slot8;
 typedef struct { s32 a; s8 b; s8 c; u8 pad[6]; } Rec12;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Slot8 D_80153E88[];
+#define PC_LINK_CAR(i) D_80153E88[i].id
+#endif
 extern Rec12 D_803BA230[];
 
 void func_8039156C(void)
@@ -10,7 +15,7 @@ void func_8039156C(void)
     s32 i;
 
     for (i = 0; i < 13; i++) {
-        D_80153E88[i].id = i;
+        PC_LINK_CAR(i) = i;
     }
     for (i = 0; i < 16; i++) {
         D_803BA230[i].a = -1;

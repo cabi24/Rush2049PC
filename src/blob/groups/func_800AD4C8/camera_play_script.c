@@ -82,7 +82,12 @@ typedef struct Link {
     u8 p0[7];
     u8 kind;
 } Link;
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Link D_80153E88[];
+#define PC_LINK_OWNER(i) D_80153E88[i].kind
+#endif
 void func_800C36A0(CCar *car, CCol *col);
 void camera_play_script(CCar *car, Poly *poly, CCol *col);
 
@@ -232,7 +237,7 @@ void camera_play_script(CCar *car, Poly *poly, CCol *col) {
                             if (((PCar *) player_array)[car->pidx].f359 == 0 && ((PCar *) player_array)[car->pidx].f358 == 0 && car->f6C4 == -1) {
                                 car->b1741 = 1;
                                 func_800C54F0(car->pidx, 1);
-                                if (D_80153E88[car->pidx].kind == 6) {
+                                if (PC_LINK_OWNER(car->pidx) == 6) {
                                     func_800B61A8(21, 0, 1, 2);
                                 }
                             }

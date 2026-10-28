@@ -201,7 +201,12 @@ typedef struct tLink { u8 pad[7]; u8 owner; } tLink;
 
 extern tModelData D_8014A250[];   /* model */
 extern tCarData D_80152818[];     /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tLink D_80153E88[];        /* gLink */
+#define PC_LINK_OWNER(i) D_80153E88[i].owner
+#endif
 extern f32 D_801543CC;            /* gModelTime */
 extern const _tSusp *D_80111560[]; /* carSuspensions */
 extern s8 D_8011156C[];           /* gCarSuspensions */
@@ -404,7 +409,7 @@ void update_game_data(void)
             gc->dr_acc[0] = m->rwa[0];
             gc->dr_acc[1] = m->rwa[1];
             gc->dr_acc[2] = m->rwa[2];
-            if (D_80153E88[i].owner == 0 || D_80153E88[i].owner == 6) {
+            if (PC_LINK_OWNER(i) == 0 || PC_LINK_OWNER(i) == 6) {
                 high_index = 0;
                 for (k = 0; k < 4; k++) {
                     gc->sound_flags[k] = m->sound_flags[k];

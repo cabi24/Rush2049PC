@@ -6,3 +6,8 @@
 # RDRAM window and not in the loader's tables. N64_NAME at its N64 address and N64_SIZE bytes from it are retired:
 # the arena has no symbol there, and a game object that still references N64_NAME, an ALIAS or any symbol-table
 # name in that range fails the build. Only BSS so far: data the ROM fills needs a conversion rule first.
+
+# The race roster (arcade gLink): struct pc_link[PC_LINK_SLOTS], 13 records of 8 bytes on the N64 (0x80153E88-
+# 0x80153EF0). D_80153E8F was its [0].owner (+7), read with a stride of 8; the image symbol tables also name
+# D_80153E89 ([0].car), D_80153E97 ([1].owner) and D_80153EB8 (&[6], the end of the 6-car loops).
+pc_links   D_80153E88   0x68   D_80153E8F

@@ -37,7 +37,12 @@ extern Four D_80138664;
 extern u8 D_80139320[];
 extern u32 D_801174B4;
 extern s16 D_801427C0[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarInfo D_80153E88[];
+#define PC_LINK_CAR(i) D_80153E88[i].car
+#endif
 extern s16 D_80142B08[];
 extern u8 D_8013FE90[];
 extern char *D_8011B3A0[24];
@@ -77,7 +82,7 @@ void sfx_position_3d(s32 for_game) {
         }
     } else {
         for (i = 0; i < 13; i++) {
-            sfx_volume_set(i, D_80153E88[i].car, D_80142B08[i]);
+            sfx_volume_set(i, PC_LINK_CAR(i), D_80142B08[i]);
             D_8013FE90[i] = 0;
         }
     }

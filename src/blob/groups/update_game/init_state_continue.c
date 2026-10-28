@@ -58,7 +58,18 @@ extern s8 D_80154628;
 extern s8 D_8014978C;
 extern u8 D_801543D4;
 extern Player D_80154450[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Config D_80153E88[];
+#define PC_LINK Config
+#define PC_LINKS D_80153E88
+#define PC_LINK_PLACE(i) D_80153E88[i].selection
+#define PC_LINKP_TRACK(p) p->type
+#define PC_LINKP_PLACE(p) p->selection
+#define PC_LINKP_FLAGS(p) p->flags
+#define PC_LINKP_OWNER(p) p->kind
+#endif
 
 f32 func_8008B2E4(f32 max);
 void CalcPolePositions(void)
@@ -67,7 +78,7 @@ void CalcPolePositions(void)
     s32 slot;
     s32 prior;
     u8 next = 0;
-    Config *config;
+    PC_LINK *config;
 
     extra = D_80142724;
     if (6 - D_8014A108 < extra) {
@@ -77,25 +88,25 @@ void CalcPolePositions(void)
         extra = 0;
     }
     D_801543CA = D_8014A108 + extra;
-    for (slot = 0, config = D_80153E88; slot < 6; slot++, config++) {
+    for (slot = 0, config = PC_LINKS; slot < 6; slot++, config++) {
         if (D_8014A110 == 3 && slot < D_801543CA && D_80154628 > 0) {
-            config->selection = D_80154450[(slot == 0) ? D_801543D4 : ((slot == 1) ? D_801543D4 ^ 1 : slot)].id;
-            config->flags = 176;
+            PC_LINKP_PLACE(config) = D_80154450[(slot == 0) ? D_801543D4 : ((slot == 1) ? D_801543D4 ^ 1 : slot)].id;
+            PC_LINKP_FLAGS(config) = 176;
             if (slot < D_8014A108) {
-                config->kind = 6;
+                PC_LINKP_OWNER(config) = 6;
             } else {
-                config->kind = 0;
+                PC_LINKP_OWNER(config) = 0;
             }
         } else if (slot < D_8014A108) {
-            config->selection = extra++;
-            config->kind = 6;
-            config->flags = 176;
+            PC_LINKP_PLACE(config) = extra++;
+            PC_LINKP_OWNER(config) = 6;
+            PC_LINKP_FLAGS(config) = 176;
         } else if (slot < D_801543CA) {
             if (D_8014A110 == 3) {
                 while (1) {
-                    config->selection = func_8008B2E4(D_801543CA);
+                    PC_LINKP_PLACE(config) = func_8008B2E4(D_801543CA);
                     for (prior = 0; prior < slot; prior++) {
-                        if (config->selection == D_80153E88[prior].selection) {
+                        if (PC_LINKP_PLACE(config) == PC_LINK_PLACE(prior)) {
                             break;
                         }
                     }
@@ -104,14 +115,14 @@ void CalcPolePositions(void)
                     }
                 }
             } else {
-                config->selection = next++;
+                PC_LINKP_PLACE(config) = next++;
             }
-            config->kind = 0;
-            config->flags = 176;
+            PC_LINKP_OWNER(config) = 0;
+            PC_LINKP_FLAGS(config) = 176;
         } else {
-            config->kind = 7;
-            config->flags = 0;
+            PC_LINKP_OWNER(config) = 7;
+            PC_LINKP_FLAGS(config) = 0;
         }
-        config->type = D_8014978C;
+        PC_LINKP_TRACK(config) = D_8014978C;
     }
 }

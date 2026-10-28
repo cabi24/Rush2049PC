@@ -85,7 +85,12 @@ extern CarData D_80152818[];
 extern Model D_8014A250[];
 extern f32 D_80152218[][3];
 extern CheckPoint D_80151CF4[];
+#ifdef TARGET_PC
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80153E88[];
+#define PC_LINK_OWNER(i) D_80153E88[i].type
+#endif
 extern f32 D_801527E8[];
 extern volatile s16 D_801543CA;
 extern s32 D_8014A110;
@@ -127,7 +132,7 @@ void func_800F8EC8(void)
         prev[0] = gc->pos[0];
         prev[1] = gc->pos[1];
         prev[2] = gc->pos[2];
-        if ((D_80153E88[index].type == 0 || D_80153E88[index].type == 6) && gc->crashed == 0) {
+        if ((PC_LINK_OWNER(index) == 0 || PC_LINK_OWNER(index) == 6) && gc->crashed == 0) {
             m = (Model *)((uintptr_t)D_8014A250 + index * sizeof(Model));
             if (m->moving == -1) {
                 diff[0] = gc->pos[0] - D_80151CF4[m->next_cp].pos[0];

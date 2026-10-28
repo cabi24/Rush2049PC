@@ -78,7 +78,7 @@ ABS(D_8011F814, 0x8011F814);               /* the tire records after it (car_res
 
 void *D_80110D08[13];                      /* Car *[]: own storage, pointing into the game arena */
 uint8_t D_8014A118[6 * 80] __attribute__((aligned(16)));   /* the input records */
-uint8_t D_80153E88[13 * 8];                /* gLink: field0, body, field2..4, place, flags, owner */
+struct pc_link pc_links[PC_LINK_SLOTS];    /* gLink, the race roster (pc_game_types.h) */
 int8_t D_8011103C[7][13], D_80111080[7][13], D_8011119C[7][13], D_80111230[7][13], D_8011157C[7][13];
 float D_8011F844[13][4];                   /* collision box: front, rear, side, height */
 int8_t D_80146180[4];
@@ -219,9 +219,9 @@ static void test_init_cars(void)
     memset(MODEL(0), 0x55, 0x808 * 3);
     D_801543CA = 3;
     D_8014A108 = 1;
-    D_80153E88[0 * 8 + 1] = 3, D_80153E88[0 * 8 + 5] = 1, D_80153E88[0 * 8 + 6] = 0x80, D_80153E88[0 * 8 + 7] = 6;
-    D_80153E88[1 * 8 + 1] = 5, D_80153E88[1 * 8 + 5] = 2, D_80153E88[1 * 8 + 6] = 0x80, D_80153E88[1 * 8 + 7] = 2;
-    D_80153E88[2 * 8 + 1] = 4, D_80153E88[2 * 8 + 5] = 3, D_80153E88[2 * 8 + 6] = 0x80, D_80153E88[2 * 8 + 7] = 7;
+    pc_links[0].car = 3, pc_links[0].place = 1, pc_links[0].flags = 0x80, pc_links[0].owner = 6;
+    pc_links[1].car = 5, pc_links[1].place = 2, pc_links[1].flags = 0x80, pc_links[1].owner = 2;
+    pc_links[2].car = 4, pc_links[2].place = 3, pc_links[2].flags = 0x80, pc_links[2].owner = 7;
     D_8014A118[66] = 0x21;                       /* the humans' input record flags (+0x42) */
     D_8014A118[2 * 80 + 66] = 0x42;
     D_8011F844[0][0] = 4.0f, D_8011F844[0][1] = 3.0f, D_8011F844[0][2] = 1.5f, D_8011F844[0][3] = 2.0f;
@@ -274,7 +274,7 @@ static void start_all(int mode)
             PARTS(i)[11 + k] = (uint32_t)(60 + 10 * i + k);   /* the sparks' ids at +0x2C */
         PARTS(i)[0] = (uint32_t)(20 + i);                   /* the frame object */
     }
-    D_80153E88[0 * 8 + 7] = 6, D_80153E88[1 * 8 + 7] = 2;
+    pc_links[0].owner = 6, pc_links[1].owner = 2;
     gameplay_mode = mode;
     state_word_a = 0;
     active_player_count = 2;
