@@ -115,11 +115,36 @@ synthetic race under the model (rocky, 36 s, a 60 Hz vsync and coarse waits): 13
 frames drawn between at 60, 1459 and 16 at `display`, 1911 and 104 at 120. So with vsync on, the loop now paces the
 ticks by the display (`vb` in port/ultra/loop.c):
 
-- **The vblanks.** A grid at the display's refresh (`pc_gfx_display_hz`: SDL's, whole hertz, 59 for 59.94), its
-  phase and period corrected by each swap that blocked (it returned at a vblank; the period moves an eighth of the
-  way toward the time between two, within 2% of the display's). A driver that queues frames (WGL on NVIDIA and
-  Intel: a swap blocks only once the queue is full) blocks rarely while one frame a vblank is submitted; the grid
-  then runs on the refresh until a swap blocks again.
+- **The vblanks.** A grid at the display's own refresh where the platform gives it (`pc_gfx_display_timing`,
+  port/gfx/gfx_display.c, asked every 100 ms), else at SDL's (`pc_gfx_display_hz`: whole hertz, 59 or 60 for 59.94):
+  - Windows: the window's monitor's mode from `QueryDisplayConfig` (user32: the target's `vSyncFreq`, a ratio such as
+    60000/1001), and the compositor's last vblank (`qpcVBlank`) from `DwmGetCompositionTimingInfo`, used as the
+    grid's phase when the compositor's refresh (`rateRefresh`) is the monitor's within 0.05% (a desktop whose
+    monitors differ composes at one of them). dwmapi.dll is loaded at run time, so the program imports no new DLL
+    (`pe_check.py --dlls` unchanged);
+  - X11: the CRTC under the window's centre, its mode's dot clock / (htotal x vtotal) from XRandR (libXrandr loaded
+    at run time, as SDL loads it; the headers at build time). No vblank times: GLX_OML_sync_control would give
+    them, but the default GL here is GLES through EGL;
+  - Wayland and headless: nothing (wp_presentation feedback is not done), SDL's whole hertz as before.
+  An exact refresh is taken only when SDL's whole hertz could be its rounding (within 1 Hz). Each swap that blocked
+  (it returned at a vblank) corrects the phase, unless the display gives its vblanks, and without the display's own
+  period the period too (an eighth of the way toward the time between two, within 2% of SDL's). A driver that queues
+  frames (WGL on NVIDIA and Intel: a swap blocks only once the queue is full) blocks rarely while one frame a vblank
+  is submitted, so without the display's period the grid runs at SDL's whole hertz until a swap blocks again: at 59 on
+  a 59.94 Hz display a frame is held twice about once a second. With it, one tick a vblank: under the model, 15
+  frames held twice in 20 s at SDL's 59, 1 with the exact rate or the vblank times (section 5).
+- **Retraces halfway between vblanks, on a display that keeps its phase.** Where the display's own period makes its
+  refresh a whole multiple of 60 Hz, drifting less than a quarter refresh a minute against the retraces (60.000,
+  120.000 Hz; not 59.94, whose vblanks pass through every phase against the retraces in 17 s), the phase between
+  the two stays for good, and one phase is bad: a vblank just after a retrace leaves no time to draw its tick after
+  the retrace, and one drawn before it lacks the game's next frame. Under the model at 60.000 Hz, a vblank 0.8 ms
+  after the retrace lost 1114 of 1200 ticks and drew none between; 1.7 ms after, 70 lost and 100 drawn; on the
+  retrace, 89 drawn, half of them the next frame shown early; 0.25 to 0.95 of a refresh after it, 173-178 drawn and
+  none lost. So the loop moves the retraces, once, to sit halfway between two vblanks (`vb_lock`): one retrace
+  interval is up to half a refresh longer or shorter (as a pause or a slow frame makes one), and the retraces stay
+  a 60 Hz grid of their own, `vi_ns` apart on the host's clock, never slaved to the display's. They move again only
+  if the phase drifts out of the middle half, at most every 10 s. The game's timing is in retraces, so it doesn't
+  see the move; with vsync off, `--fast` or `original` nothing moves. With the move every phase drew 177-178.
 - **One tick a vblank**, its moment that vblank (where the frame appears), not when the tick began. At a rate at or
   above the refresh (`display`, 120 on a 60 Hz display, 60 on 60) every vblank gets one; below it (60 on 144 Hz),
   the vblank at or after each tick of the rate. A rate that isn't a divisor of the refresh still holds frames for
@@ -139,7 +164,8 @@ ticks by the display (`vb` in port/ultra/loop.c):
   swap waits for the vblank, across a retrace if one comes, as the setting off waits after each of the game's frames.
 
 With vsync off, or `--fast`, the ticks are scheduled as before. The exit line `paced by the display's vblanks (H Hz,
-N swaps returned at one): ...` gives the measured refresh and the counts above.
+the display's | from SDL's whole hertz; N swaps returned at one, M vblank times from the display): ...; the retraces
+moved K times ...` gives the refresh paced by, where it came from and the counts above.
 
 **Determinism.** Checking that the setting changes nothing needs runs that repeat. `--fast` runs didn't quite: the
 main loop ran RSP tasks and posted their events while a game thread was still computing, and which of its next
@@ -195,6 +221,9 @@ reads the game's values then too, not after the retrace's event, which raced the
 | `gfx.interp.*` (`port/gfx/tests/interp_test.c`, 14 cases, and `gfx.interp.all.*` at 2x, 16:9, desktop GL, llvmpipe) | pairs of synthetic frames built the game's way, the frame shown between against a frame drawn directly with the scene as it should look then: [GFX.md](GFX.md) "High frame rate" lists them |
 | `hfr_timing` (`tools/port/hfr_check.py`) | three synthetic paths (race2p, drive, demo) on the virtual clock with the setting off and at 120: every state, status and result line the same, frames drawn between in the second run |
 | `hfr_paced` (`tools/port/realtime_check.py --pacing display,60,120`) | the synthetic race in real time under a 59.94 Hz vsync swap (`RUSH_SIM_VSYNC_HZ`), the loop's waits precise: paced by the vblanks, at most 10% of them lost to skipped ticks (1.7-5.6% on rocky), at least 250 frames drawn between in 30 s, the retraces at 59 a second or more and the audio's bounds (`audio_realtime`'s) |
+| `hfr_paced_queue` (`--vsync-queue never --display-hz 59 --display-timing rate,vblank --max-doubled 5`) | the same at `display` with a driver whose swap never blocks (`RUSH_SIM_VSYNC_QUEUE=never`) and SDL saying 59, once with the platform giving the exact rate (as XRandR) and once its vblanks too (as Windows' compositor): as `hfr_paced`, and at most 5 vblanks in 30 s showing a frame twice with nothing decided for them (1 and 1 on rocky; at SDL's 59, about 22) |
+| `hfr_paced_60` (`--vsync-hz 60 --vsync-phase 0.05 --display-timing vblank`) | an exact 60.000 Hz display, its vblanks 0.05 of a refresh after the retraces (the worst phase): as `hfr_paced` (2 ticks lost, 666 drawn between on rocky; 1114 of 1200 lost before the retraces moved) |
+| `gfx.display.*` (`port/gfx/tests/display_test.c`) | the refresh arithmetic on made-up values: XRandR modes (1080p60, 59.94, 1440p "144", interlaced, doublescan), Windows' ratios, a refresh SDL's whole hertz could be the rounding of, the compositor's counter as an age, and which period and vblanks are taken from a monitor's, a compositor's (the same monitor, another one, stale, none) and SDL's |
 | `hfr_realtime` (`realtime_check.py --frame-rate 120 --present-ms 40`) | the same race with each swap held 40 ms, then until the vsync (a host always behind): at least 5 frames shown a second, the game's own |
 | all other tests | unchanged: the setting is off by default |
 
@@ -255,6 +284,27 @@ display's vblanks 1798; on main the same race lost most ticks, section 2):
 | coarse (15.6 ms steps) | display | 0 | 229 (855 of the game's frames at their vblank) | 60.00, 0 |
 | none (vsync off, the old scheduling) | display | 3 | 264 | 60.00, 0 |
 
+**A driver that queues frames, and an exact 60 Hz** (2026-10-28, the same race under the model, rocky, `display`,
+precise waits; "held twice": vblanks the model's display reached with no tick's decision queued for them, a frame
+shown twice that the pacing meant to replace; ticks that show nothing new or are skipped decide to keep the frame):
+
+| Display | Swap | The platform gives | Run | Held twice | Vblanks lost to skipped ticks | Frames drawn between |
+|---|---|---|---|---|---|---|
+| 59.94 Hz, SDL says 59 | never blocks | nothing (Wayland's case) | 20 s | 15 | 26 | 165 |
+| | | the exact rate (X11) | 20 s | 1 | 17 | 178 |
+| | | the rate and vblanks (Windows) | 20 s | 1 | 49 | 178 |
+| | | the exact rate, `hfr_paced_queue` | 30 s | 1 | 20 | 666 |
+| | | the rate and vblanks, `hfr_paced_queue` | 30 s | 1 | 44 | 602 |
+| 59.94 Hz, SDL says 60 | blocks | nothing / the vblanks | 20 s | 1 / 0 | | 178 / 178 |
+| 60.000 Hz, vblank 0.05 after the retrace | blocks | the vblanks, retraces not moved | 20 s | | 1114 | 0 |
+| | | the vblanks, retraces moved 7.5 ms | 20 s | | 2 | 177 |
+| 60.000 Hz, at 0.0, 0.1, 0.95 | blocks | the vblanks, retraces moved | 20 s | | 0-1 | 177-178 |
+| 60.000 Hz, at 0.5 | blocks | the vblanks, none moved | 30 s | 16 | | |
+
+The races' frames between are the last 10 s of a 20 s run (the front end draws no 3D), hence 165-178 there and
+600-666 in 30 s. At 60.000 Hz the blocking model shows 16-17 frames held twice in 30 s at any phase, moved or not,
+all after the first 10 s: a tick that waits for the game's next frame and then overruns its vblank (section 6).
+
 With precise waits (Windows' high-resolution timer) each vblank gets its tick; the frames drawn between are more
 than the retrace grid gave without vsync, since a tick waits for the game's next frame while it can. With coarse
 waits the swap is the clock: every vblank still gets a frame, but drawn a refresh ahead, more of them are the
@@ -268,10 +318,23 @@ its numbers vary from run to run.
 
 ## 6. What's left
 
-- A real display: vsync pacing was checked only headless, under the model (a swap that blocks until the next
-  vblank). A driver that queues frames and never blocks gives no vblank to correct the grid by; the grid then runs
-  at SDL's whole-hertz refresh, and where that is off (59 for a 59.94 display) a frame is held twice about once a
-  second. DwmGetCompositionTimingInfo (the compositor's vblank and refresh) would give the grid there.
+- A real display: vsync pacing was checked only headless, under the model (a swap that blocks until the next vblank,
+  or a driver that queues frames). The display's own refresh and vblanks (section 2) were run on no real Windows or
+  X11 desktop yet: `paced by the display's vblanks (... the display's; ..., M vblank times from the display)` in the
+  log says they were found. A display the queries don't cover (Wayland: wp_presentation feedback, not done; a
+  queueing driver there) still runs at SDL's whole hertz between blocking swaps, and holds a frame twice about once
+  a second where that is off.
+- Windows' compositor's timing is the composition clock's (`DwmGetCompositionTimingInfo(NULL)`): with monitors of
+  different refreshes, a window on one the compositor doesn't follow gets its monitor's exact period but no vblank
+  times (the phase from blocking swaps). In exclusive fullscreen the compositor may not present at all; its vblank
+  still comes from the display's clock.
+- With a swap that blocks at an exact 60.000 Hz, 16-17 vblanks in 30 s show a frame twice with no decision for them
+  (at any phase): a tick waiting for the game's next frame (`pc_gfx_tick_waits`) starts as late as its mean cost
+  allows and overruns its vblank when its drawing takes longer. At 59.94 the same race shows 0-1. A margin from the
+  cost's spread, not its mean, would cover it.
+- The retraces are moved against the vblanks only on displays that keep their phase (section 2). At 59.94 the bad
+  phase comes for about 2.5 s in every 17 (the vblank just after a retrace); moving the retraces to follow it would
+  make them the display's grid, not their own 60 Hz, so it isn't done.
 - Adaptive vsync (swap interval -1) and a present thread of its own were weighed and not done: the first still
   blocks when on time, the second moves the GL context off the thread that runs the graphics tasks.
 - Per-vertex effects of the moment (lighting, texture generation) and LOD and culling choices are the nearer frame's.

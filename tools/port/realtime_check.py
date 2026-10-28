@@ -28,6 +28,14 @@ ticks, and at least --min-between frames drawn between the game's (main before t
 on rocky: 400-600 in 30 s). --timer-step-us 0 leaves the loop's waits precise, as Windows' high-resolution timer has
 them (sched.c); the default 15625 makes them coarse, where the swap is the clock.
 
+The modelled display (the headless model in port/ultra/loop.c, docs/port/FRAMERATE.md 4): --vsync-queue N makes it a
+driver that queues frames (a swap blocks only with N queued; never: no swap blocks, WGL on NVIDIA and Intel in steady
+state), --display-hz H the whole hertz SDL says (59 for 59.94 on Windows), --display-timing none,rate,vblank what the
+platform's query gives (nothing; the exact refresh, as XRandR; and the vblanks' times, as Windows' compositor), each
+run once per rate, and --vsync-phase F places the vblanks F of a refresh after the first retrace. --max-doubled N then
+checks that at most N vblanks showed a frame twice with nothing decided for them (a vblank grid at 59 on a 59.94 Hz
+display: about one a second).
+
 Exit status 0 when all hold. Stdlib only, Python 3.9+.
 """
 import argparse
@@ -53,18 +61,34 @@ def main():
     ap.add_argument("--vsync-hz", default="59.94", help="the modelled display's refresh (RUSH_SIM_VSYNC_HZ)")
     ap.add_argument("--timer-step-us", default="15625", help="the modelled timed waits' step (0: precise)")
     ap.add_argument("--min-between", type=int, default=250, help="--pacing: frames drawn between, at least")
+    ap.add_argument("--vsync-queue", default="", help="the modelled driver queues this many frames (never: no swap "
+                    "blocks; RUSH_SIM_VSYNC_QUEUE)")
+    ap.add_argument("--vsync-phase", default="", help="the vblanks this fraction of a refresh after the first retrace")
+    ap.add_argument("--display-hz", default="", help="the whole hertz SDL says (RUSH_SIM_DISPLAY_HZ)")
+    ap.add_argument("--display-timing", default="", help="none, rate, vblank, or a list: what the platform gives "
+                    "(RUSH_SIM_DISPLAY_TIMING), a run each")
+    ap.add_argument("--max-doubled", type=int, default=-1, help="--pacing: vblanks showing a frame twice with nothing "
+                    "decided for them, at most")
     args = ap.parse_args()
     if args.pacing:
         ok = True
-        for rate in args.pacing.split(","):
-            print(f"realtime_check: frame rate {rate}, a {args.vsync_hz} Hz vsync swap, timed waits "
-                  f"{'precise' if args.timer_step_us in ('', '0') else 'in steps of ' + args.timer_step_us + ' us'}:")
-            ok &= check(args, rate, Path(args.logs).resolve() / f"pacing-{rate}") == 0
+        for timing in (args.display_timing.split(",") if args.display_timing else [""]):
+            for rate in args.pacing.split(","):
+                drv = {"": "a vsync swap", "0": "a vsync swap", "never": "a queueing driver whose swap never blocks"}
+                print(f"realtime_check: frame rate {rate}, a {args.vsync_hz} Hz display"
+                      f"{' (SDL: ' + args.display_hz + ')' if args.display_hz else ''}, "
+                      f"{drv.get(args.vsync_queue, 'a driver queueing ' + args.vsync_queue + ' frames')}"
+                      f"{', the platform giving ' + timing if timing else ''}"
+                      f"{', vblanks ' + args.vsync_phase + ' of a refresh after the retraces' if args.vsync_phase else ''}"
+                      f", timed waits "
+                      f"{'precise' if args.timer_step_us in ('', '0') else 'in steps of ' + args.timer_step_us + ' us'}:")
+                name = f"pacing-{rate}" + (f"-{timing}" if timing else "")
+                ok &= check(args, rate, Path(args.logs).resolve() / name, timing) == 0
         return 0 if ok else 1
     return check(args, args.frame_rate, Path(args.logs).resolve())
 
 
-def check(args, frame_rate, logs):
+def check(args, frame_rate, logs, timing=""):
     logs.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, SDL_AUDIODRIVER="disk", SDL_DISKAUDIOFILE=str(logs / "disk.raw"),
                RUSH2049_AUDIO_RATE="48000")
@@ -73,6 +97,10 @@ def check(args, frame_rate, logs):
         env.update(RUSH_SIM_VSYNC_HZ=args.vsync_hz)
         if args.timer_step_us not in ("", "0"):
             env.update(RUSH_SIM_TIMER_STEP_US=args.timer_step_us)
+        for key, value in (("RUSH_SIM_VSYNC_QUEUE", args.vsync_queue), ("RUSH_SIM_VSYNC_PHASE", args.vsync_phase),
+                           ("RUSH_SIM_DISPLAY_HZ", args.display_hz), ("RUSH_SIM_DISPLAY_TIMING", timing)):
+            if value:
+                env[key] = value
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
            "--seconds", str(args.seconds), "--audio", "sdl"]
@@ -98,6 +126,17 @@ def check(args, frame_rate, logs):
         ok &= good
         print(f"realtime_check: {vblanks:.0f} vblanks ({v[1]} Hz measured), {skipped} lost to skipped ticks (at most 10%), "
               f"{between} frames drawn between (at least {args.min_between}): {'ok' if good else 'FAIL'}")
+        if args.max_doubled >= 0:
+            d = re.search(r"^rush2049pc: simulated vsync at [\d.]+ Hz, [^:]*: (\d+) vblanks, (\d+) showed no new frame, "
+                          r"(\d+) of them with none decided", out, re.M)
+            if not d:
+                print("realtime_check: no simulated vsync line")
+                return 1
+            doubled = int(d[3])
+            good = doubled <= args.max_doubled
+            ok &= good
+            print(f"realtime_check: of {d[1]} vblanks, {doubled} showed a frame twice with nothing decided for them "
+                  f"(at most {args.max_doubled}): {'ok' if good else 'FAIL'}")
     elif frame_rate:
         m = re.search(r"^gfx: frame rate \d+: (\d+) frames shown", out, re.M)
         if not m or p.returncode != 0:

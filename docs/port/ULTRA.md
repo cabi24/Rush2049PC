@@ -292,7 +292,9 @@ loop on the host main thread.
   ones took), and draws no frame between two while the host is behind (two retraces late within a second). At
   exit the loop says how many it skipped. With a swap that waits for vsync the ticks follow the display's vblanks
   instead, one each, drawn as late as they make it, never across a retrace; the game's frames no tick showed are
-  shown at the next retrace's present (FRAMERATE.md 2).
+  shown at the next retrace's present (FRAMERATE.md 2). The vblanks are at the display's own period and vblank times
+  where the platform gives them (`pc_gfx_display_timing`), and on a display that keeps its phase against the
+  retraces (60.000 Hz) the retrace grid is moved once to sit halfway between two vblanks, its 60 Hz unchanged.
 
 | Option | |
 |---|---|

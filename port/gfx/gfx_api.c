@@ -529,6 +529,21 @@ int pc_gfx_display_hz(void) {
     return S.display_hz;
 }
 
+int pc_gfx_display_timing(double *period_ns, int64_t *vblank_age_ns) {
+    double p = 0.0;
+    int64_t age = 0;
+    int bits = 0;
+#ifdef PC_GFX_HAVE_SDL
+    if (S.inited && S.use_sdl)
+        bits = pcgfx_sdl_display_timing(&p, &age);
+#endif
+    if (period_ns != NULL)
+        *period_ns = bits & PCGFX_TIMING_PERIOD ? p : 0.0;
+    if (vblank_age_ns != NULL)
+        *vblank_age_ns = bits & PCGFX_TIMING_VBLANK ? age : 0;
+    return bits;
+}
+
 void pc_gfx_retrace(uint32_t vi) {
     S.vi = vi;
 }

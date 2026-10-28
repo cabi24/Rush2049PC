@@ -39,6 +39,11 @@ WEAK void pc_gfx_swap_tick(void) {}
 WEAK int pc_gfx_tick_waits(double vi_time) { (void)vi_time; return 0; }
 WEAK int pc_gfx_vsync(void) { return 0; }
 WEAK int pc_gfx_display_hz(void) { return 60; }
+WEAK int pc_gfx_display_timing(double *period_ns, int64_t *vblank_age_ns)
+{
+    (void)period_ns, (void)vblank_age_ns;
+    return 0;
+}
 
 WEAK int pc_audio_init(const char *backend, const char *dump_wav_path)
 {
