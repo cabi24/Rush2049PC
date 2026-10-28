@@ -128,16 +128,24 @@ static void timer_period(int on)
  * long (a slow GPU), then RUSH_SIM_VSYNC_HZ until the next vblank of a display at that rate (a vsync swap). Called
  * where the window swaps: after a retrace's present, or with a high frame rate after a tick that showed a frame
  * (the retrace's present then only keeps the frame for the ticks, and swaps nothing). */
-static void sim_swap(void)
+static double sim_extra_ms, sim_hz;
+
+static void sim_read(void)
 {
     static int read;
-    static double extra_ms, hz;
     if (!read) {
         const char *a = getenv("RUSH_SIM_PRESENT_MS"), *b = getenv("RUSH_SIM_VSYNC_HZ");
-        extra_ms = a ? atof(a) : 0;
-        hz = b ? atof(b) : 0;
+        sim_extra_ms = a ? atof(a) : 0;
+        sim_hz = b ? atof(b) : 0;
         read = 1;
     }
+}
+
+static void sim_swap(void)
+{
+    double extra_ms, hz;
+    sim_read();
+    extra_ms = sim_extra_ms, hz = sim_hz;
     if (pc_time_virtual() || (extra_ms <= 0 && hz <= 0))
         return;
     uint64_t t = pc_real_ns() + (uint64_t)(extra_ms * 1e6);
@@ -149,6 +157,105 @@ static void sim_swap(void)
         struct timespec ts = {(time_t)((t - now) / 1000000000u), (long)((t - now) % 1000000000u)};
         nanosleep(&ts, NULL);
     }
+}
+
+/* A high frame rate paced by the display (docs/port/FRAMERATE.md 2). With a swap that waits for vsync (the window's,
+ * or RUSH_SIM_VSYNC_HZ's headless), what is shown changes only at the display's vblanks, so each tick is for one:
+ * its moment is that vblank, it is drawn as late as it still makes it, and the swap then waits briefly, if at all.
+ * The vblanks: the display's refresh, the phase and period corrected by each swap that waited (it returned at one).
+ * A swap that blocks holds the loop, so it never waits across a retrace: the retrace goes out first. */
+#define VB_MARGIN_NS 1000000u    /* a tick's drawing ends this long before its vblank (and the loop's wake lateness) */
+#define VB_GUARD_NS 300000u      /* ... and this long before a retrace due during it */
+#define VB_VI_WORK_NS 500000u    /* the loop's own work at a retrace (events, the VI's present), about */
+#define VB_BLOCKED_NS 300000u    /* a swap that took longer waited for a vblank */
+#define VB_PRECISE_NS 2000000u   /* the loop's timed waits return within this: a swap can wait for a retrace */
+
+static struct {
+    double period;           /* ns: the display's refresh, corrected by the swaps that waited for a vblank */
+    int hz;                  /* the display's refresh it started from */
+    uint64_t at;             /* a vblank, real ns; 0 none yet */
+    uint64_t seen;           /* the last swap that returned at one */
+    uint64_t target;         /* the vblank the next tick is for; 0 to choose */
+    uint64_t shown;          /* the vblank the last tick was for */
+    uint64_t swap;           /* a tick drawn, its swap after the retrace due before its vblank: that vblank */
+    uint32_t swap_vi;        /* the retrace count when it was drawn */
+    uint32_t shown_n, deferred, missed, retrace_shows, observed;
+} vb;
+
+static void vb_reset(void)
+{
+    vb.at = vb.seen = vb.target = vb.shown = vb.swap = 0;
+}
+
+/* The first vblank at or after t; while none is known, t itself, and the vblanks are counted from there. */
+static uint64_t vb_next(uint64_t t)
+{
+    double k;
+    int64_t ki;
+    if (!vb.at) {
+        vb.at = t;
+        return t;
+    }
+    k = ((double)t - (double)vb.at) / vb.period;
+    ki = (int64_t)k;
+    ki += (double)ki < k;   /* ceil */
+    uint64_t v = (uint64_t)((int64_t)vb.at + (int64_t)((double)ki * vb.period + 0.5));
+    return v < t ? v + (uint64_t)vb.period : v;
+}
+
+/* A swap that took longer than VB_BLOCKED_NS returned at a vblank: the phase is there, and the period moves toward the
+ * time since the last one seen (within 2% of the display's: SDL's refresh is whole hertz, 59 for 59.94). */
+static void vb_observe(uint64_t o)
+{
+    if (vb.seen && o > vb.seen && vb.hz > 0) {
+        double d = (double)(o - vb.seen), n = (double)(uint64_t)(d / vb.period + 0.5), nominal = 1e9 / vb.hz;
+        if (n >= 1 && n <= 16) {
+            double p = vb.period + (d / n - vb.period) / 8;
+            if (p > nominal * 0.98 && p < nominal * 1.02)
+                vb.period = p;
+        }
+    }
+    vb.at = vb.seen = o;
+    vb.observed++;
+}
+
+/* The swap of a tick drawn for vblank v (0: none, the next one): timed, and the time beyond that vblank and one more
+ * (a slow GPU, not the display) returned as the tick's cost. */
+static uint64_t vb_swap_now(uint64_t v)
+{
+    uint64_t s0 = pc_real_ns(), s1;
+    pc_gfx_swap_tick();
+    sim_swap();
+    s1 = pc_real_ns();
+    if (s1 - s0 > VB_BLOCKED_NS)
+        vb_observe(s1);
+    if (!v)
+        v = s0;
+    return s1 > v + (uint64_t)vb.period ? s1 - v - (uint64_t)vb.period : 0;
+}
+
+/* When a tick for vblank v starts, from now t: as late as its drawing (cost) still ends VB_MARGIN_NS before v, after
+ * the loop's wake lateness. Not while the retrace due at r would come during it: then after that retrace if it still
+ * makes v, else early enough to end before it (its swap then waits for the retrace). 0: none of these. With waits
+ * that return late by more than VB_PRECISE_NS (coarse timers: RUSH_SIM_TIMER_STEP_US, a Windows without the
+ * high-resolution timer) the swap is the clock: each tick is drawn as soon as the last swap returns, and its swap
+ * waits for the vblank, across a retrace if one comes, as the setting off waits after each of the game's frames;
+ * not before the vblank before its own. */
+static uint64_t vb_start(uint64_t v, uint64_t cost, uint64_t late, uint64_t r, uint64_t t)
+{
+    uint64_t need = cost + VB_MARGIN_NS + late, s;
+    if (v < t + cost + VB_GUARD_NS)
+        return 0;
+    if (late >= VB_PRECISE_NS)
+        return v > t + (uint64_t)vb.period ? v - (uint64_t)vb.period : t;   /* from the vblank before it */
+    s = v > t + need ? v - need : t;
+    if (r <= s || r >= s + late + cost + VB_GUARD_NS)
+        return s;
+    if (r + late + VB_VI_WORK_NS + cost + VB_GUARD_NS <= v)
+        return r;
+    if (r >= t + late + cost + VB_GUARD_NS)
+        return r - late - cost - VB_GUARD_NS;
+    return 0;
 }
 
 /* The pause key, or focus lost with pause_on_focus_loss (port/input): no retraces, timers, RSP tasks or AI
@@ -178,7 +285,9 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint64_t last_vi_real = pc_real_ns();  /* --fast: when the last retrace was, in real time */
     uint64_t vi_at = next_vi - vi_ns;      /* when retrace pc_frame was due */
     uint64_t next_tick = 0;                /* a high frame rate: the next frame to show; 0 to start again */
-    uint64_t tick_ns = 0;                  /* how long showing one takes, in real time (a running mean) */
+    uint64_t tick_ns = 0;                  /* how long showing one takes, in real time (a running mean); paced by
+                                            * the display, without the swap's wait for its vblank */
+    uint64_t wake_late = 0;                /* how late the loop's timed waits return (a decaying maximum) */
     uint32_t ticks_skipped = 0;            /* frames not shown, to keep the game's retraces on time */
     uint32_t vi_dropped = 0;               /* retraces dropped: the loop stalled VI_CATCH_UP periods or more */
     uint32_t vi_caught_up = 0;             /* retraces a whole period late, caught up */
@@ -204,6 +313,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             next_vi = pc_host_ns() + vi_ns;
             vi_late_cap = 0;
             next_tick = 0;
+            vb_reset();
             continue;
         }
         uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
@@ -242,11 +352,27 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_gfx_retrace(pc_frame);
             if (!pc_time_virtual())
                 pc_os_quiet_mark();
+            /* a high frame rate: the game's last frame, swapped in a retrace or more ago, not shown by any tick */
+            int stale = !pc_time_virtual() && pc_gfx_frame_rate() != 0 && pc_gfx_frame_waiting();
             pc_vi_retrace(&fb);
             if (fb) {
                 pc_gfx_present(fb);
-                if (pc_gfx_frame_rate() == 0)
+                if (pc_gfx_frame_rate() == 0) {
                     sim_swap();
+                } else if (!pc_time_virtual() && !vb.swap &&
+                           (stale || tick_ns + VB_MARGIN_NS + VB_VI_WORK_NS >= vi_ns)) {
+                    /* With the setting on, ticks show the game's frames. When none showed the last one (they were
+                     * skipped to keep the retraces on time), or none fits between two retraces (a host behind), the
+                     * game's new frame is shown here, at its swap, as with the setting off: the game's frames are
+                     * never lost to skipped ticks, and showing them costs no retrace (docs/port/QA.md "Integration
+                     * soak"). */
+                    if (pc_gfx_present_tick(pc_frame, 2 | PC_GFX_TICK_NO_SWAP)) {
+                        vb_swap_now(0);
+                        vb.shown = vb.seen;   /* the vblank it waited for, if it did */
+                        vb.target = 0;
+                        vb.retrace_shows++;
+                    }
+                }
             }
             if (opt->screenshot_at && !shot_vi && pc_rcp_gfx_tasks >= opt->screenshot_at)
                 shot_vi = pc_frame;
@@ -312,7 +438,94 @@ int pc_ultra_run(const PcRunOptions *opt)
             }
         }
         int rate = pc_gfx_frame_rate();
-        if (rate > 0) {   /* a high frame rate: a frame shown, in step with the retraces */
+        if (rate > 0 && !pc_time_virtual() && (pc_gfx_vsync() || (sim_read(), sim_hz > 0))) {
+            /* A high frame rate with a swap that waits for vsync: paced by the display's vblanks (vb above). */
+            uint64_t period = 1000000000u / (uint64_t)rate, t = pc_host_ns();
+            int hz = pc_gfx_display_hz(), every = rate >= hz;   /* a rate at or above the refresh: every vblank */
+            if (!next_tick || rate != tick_rate)
+                next_tick = vi_at;
+            tick_rate = rate;
+            if (hz != vb.hz) {   /* the first tick, or another display */
+                vb.hz = hz;
+                vb.period = 1e9 / hz;
+                vb_reset();
+            }
+            if (vb.swap) {   /* drawn; its swap after the retrace due before its vblank */
+                if (pc_frame != vb.swap_vi || t + VB_VI_WORK_NS >= vb.swap) {
+                    if (t < vb.swap) {
+                        tick_ns += vb_swap_now(vb.swap) / 4;
+                        vb.deferred++;
+                    } else {   /* the vblank went by (a graphics task ran first): a swap now would wait for the next */
+                        vb.missed++;
+                        ticks_skipped++;
+                    }
+                    vb.swap = 0;
+                } else if (vb.swap - VB_VI_WORK_NS < deadline) {
+                    deadline = vb.swap - VB_VI_WORK_NS;
+                }
+            }
+            if (!vb.swap && tick_ns + VB_MARGIN_NS + VB_VI_WORK_NS < vi_ns) {
+                /* else no tick fits between two retraces: the game's frames are shown at the retraces (above) */
+                uint64_t late = wake_late < vi_ns / 2 ? wake_late : vi_ns / 2;
+                if (!vb.target) {   /* the next vblank: one a tick can still make, one after the last, and with a
+                                     * rate below the refresh the one at or after the rate's next tick */
+                    uint64_t from = t + tick_ns + VB_MARGIN_NS;
+                    if (vb.shown && from < vb.shown + (uint64_t)vb.period / 2)
+                        from = vb.shown + (uint64_t)vb.period / 2;
+                    if (!every && from < next_tick)
+                        from = next_tick;
+                    vb.target = vb_next(from);
+                }
+                uint64_t v = vb.target, start = vb_start(v, tick_ns, late, next_vi, t), last;
+                double vt = pc_frame + ((double)v - (double)vi_at) / (double)vi_ns;   /* its moment, in retraces */
+                if (!start) {   /* it can't make that vblank without running into a retrace: the screen keeps what
+                                 * it shows */
+                    ticks_skipped++;
+                    vb.shown = v;
+                    vb.target = 0;
+                    deadline = t;
+                } else if (t >= start) {
+                    if (pc_rcp_pending()) {
+                        deadline = t;   /* the game first: its task runs in the next pass, then this frame */
+                    } else if (next_vi <= t + tick_ns + VB_GUARD_NS && late < VB_PRECISE_NS) {
+                        if (next_vi > t && next_vi < deadline)   /* the retrace first (a late one: its own wait) */
+                            deadline = next_vi;
+                    } else if (pc_gfx_tick_waits(vt) &&
+                               (last = v - tick_ns - VB_GUARD_NS - (late < VB_PRECISE_NS ? late : 0)) > t &&
+                               last < v) {
+                        /* the frame is between the shown one and the game's next, which isn't drawn yet: its
+                         * graphics task wakes the loop, and runs first, as long as the tick still makes its vblank */
+                        if (last < deadline)
+                            deadline = last;
+                    } else {
+                        /* the mode: the GPU's spare time only; only the game's frames while the host is behind (two
+                         * retraces dropped within a second) */
+                        uint64_t r0 = pc_real_ns(), cost;
+                        int mode = late_at[0] && r0 - late_at[0] < 1000000000u ? 2 : 1;
+                        int drew = pc_gfx_present_tick(vt, mode | PC_GFX_TICK_NO_SWAP);
+                        cost = pc_real_ns() - r0;
+                        if (drew && next_vi + VB_VI_WORK_NS < v && wake_late < VB_PRECISE_NS) {
+                            vb.swap = v;   /* a retrace comes first: the swap waits for it, not it for the swap */
+                            vb.swap_vi = pc_frame;
+                            if (next_vi < deadline)
+                                deadline = next_vi;
+                        } else if (drew) {
+                            cost += vb_swap_now(v);
+                        }
+                        tick_ns = (tick_ns * 3 + cost) / 4;
+                        vb.shown_n += drew;
+                        vb.shown = v;
+                        vb.target = 0;
+                        if (next_tick <= v)
+                            next_tick += ((v - next_tick) / period + 1) * period;
+                        if (!vb.swap)
+                            deadline = t;   /* the next one chosen in the next pass */
+                    }
+                } else if (start < deadline) {
+                    deadline = start;
+                }
+            }
+        } else if (rate > 0) {   /* a high frame rate: a frame shown, in step with the retraces */
             uint64_t period = 1000000000u / (uint64_t)rate, t = pc_host_ns();
             if (!next_tick || rate != tick_rate)
                 next_tick = vi_at;
@@ -322,7 +535,8 @@ int pc_ultra_run(const PcRunOptions *opt)
             } else if (t >= next_tick) {
                 /* On the host's clock a frame is skipped (the screen keeps the last one) when drawing it would run
                  * into the next retrace, by how long the last ones took: the frames between never delay the
-                 * game's retraces or frames, which would slow the game in real time. */
+                 * game's retraces or frames, which would slow the game in real time. The game's frames are then
+                 * shown at the retraces (above). */
                 if (pc_time_virtual() || t + tick_ns <= next_vi) {
                     /* the mode: exact with --fast; else the GPU's spare time only; and only the game's frames
                      * while the host is behind (two retraces dropped within a second) */
@@ -331,16 +545,6 @@ int pc_ultra_run(const PcRunOptions *opt)
                     if (pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, mode))
                         sim_swap();
                     tick_ns = (tick_ns * 3 + (pc_real_ns() - r0)) / 4;
-                } else if (pc_gfx_frame_waiting()) {
-                    /* Skipped, but the game has swapped in a frame the window hasn't shown: shown now, with no
-                     * frame between (mode 2), as the setting off shows each at its swap whatever that costs. A host
-                     * always behind (a swap that waits for vsync counts in tick_ns) otherwise hardly changed the
-                     * window for minutes (docs/port/QA.md "Integration soak"). */
-                    uint64_t r0 = pc_real_ns();
-                    if (pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, 2))
-                        sim_swap();
-                    tick_ns = (tick_ns * 3 + (pc_real_ns() - r0)) / 4;
-                    ticks_skipped++;
                 } else {
                     ticks_skipped++;
                 }
@@ -369,13 +573,24 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_quit = 1 + 1;
             break;
         }
+        uint64_t w0 = pc_host_ns();
         if (!pc_os_wait_main(deadline) && !pc_quit)
             goto wait;   /* --fast: a thread still computes; the loop's work waits until it waits (sched.c) */
+        if (!pc_time_virtual() && deadline > w0) {   /* a timed wait: how late it returned, if it timed out */
+            uint64_t w1 = pc_host_ns(), keep = wake_late - wake_late / 32;
+            if (w1 >= deadline)
+                wake_late = w1 - deadline > keep ? w1 - deadline : keep;
+        }
     }
     pc_si_flush();
     if (tick_rate)
         fprintf(stderr, "rush2049pc: frame rate %d: %u frames not shown to keep the retraces on time\n", tick_rate,
                 ticks_skipped);
+    if (vb.hz)
+        fprintf(stderr, "rush2049pc: paced by the display's vblanks (%.3f Hz, %u swaps returned at one): %u ticks "
+                "shown at their vblank, %u of them swapped after a retrace, %u missed it; %u of the game's frames "
+                "shown at their retrace; the loop's waits up to %.1f ms late\n", 1e9 / vb.period, vb.observed,
+                vb.shown_n, vb.deferred, vb.missed, vb.retrace_shows, wake_late / 1e6);
     fprintf(stderr, "rush2049pc: %u retraces in %.1f s; %u came a whole retrace late and were caught up, %u dropped "
             "(the host stalled %u retraces or more); %u late ones went out before the game was done with the last\n",
             pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped, VI_CATCH_UP, vi_not_taken);
