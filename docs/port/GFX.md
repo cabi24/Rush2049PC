@@ -202,12 +202,30 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   - The game's frame buffer is 320 × 220 (survey). Presentation shows rows down to the largest scissor bottom drawn
     with, or `RUSH_GFX_HEIGHT`.
   - Offscreen color images get their own target. Nothing reads one back as a texture yet.
-- **Present.** `pc_gfx_present(fb)` copies fb's target (or the last one drawn) into a "presented" image. In a window
+- **Present.** `pc_gfx_present(fb)` makes fb's target (or the last one drawn) the "presented" image. In a window
   it shows that image with square N64 pixels, letterboxed: at a native scale pixel for pixel (it was drawn for the
   window), else fitted; at other scales at the largest integer multiple that fits, otherwise aspect-fit
   (`pcgfx_fit`). Headless, it does the same into an offscreen image of the window's size, which `pc_gfx_read_window`
   reads. Screenshots read the presented image. The overlay, when there is one, is drawn after the frame is shown
   and before the swap (below).
+  - The presented image is the target's own rows until that target is drawn into, cleared or made again; only
+    then are they copied into a texture of its own (`present_copy`). The game draws its next frame into another
+    frame buffer, so a frame is copied once, into the window, where it was copied twice (2026-10-28; 17 MB each way
+    at 2880 × 1488). A frame shown filtered (not pixel for pixel or a whole multiple) is shown from the copy, as
+    before. The copy is flushed before its source is drawn into: on Mesa's iris a fast clear of the copy's source
+    in the same batch kept 8 × 4 pixel blocks of the old frame.
+  - At each present the renderer waits for the GPU to finish the frame two presents back (`pcgfx_gl_frame_done`):
+    at most two frames of GL work in flight. A window's swap holds the game back so in the driver; headless
+    (tests, tools, `--fast`) nothing did, and frames piled up in the GPU's queue, single GL calls blocked for
+    seconds, and on rocky's i915 several such processes at once got contexts reset for not yielding the GPU
+    (7.5 s preemption timeout). It holds the CPU back to the GPU only; what is drawn doesn't change.
+- **Draws.** Batches of triangles with one draw state each (gfx_rdp.c). The draw state is set through a record of
+  what GL has (`dc_*` in gfx_gl.c; everything else that changes GL state forgets it), so a draw makes only the calls
+  that change something: uniforms per program when their values change, texture parameters when the texture's
+  differ, enables, masks, scissor. Vertices are streamed into one 4 MB buffer through unsynchronized mappings of
+  each draw's range, orphaned when full (2026-10-28; a buffer per draw before, and `glBufferSubData` into a buffer
+  the frame's draws read made the Pi's V3D finish its tiles at each draw). The output is the same: every frame of
+  the gfx tests, 2,512 images over the variants, byte for byte.
 - **Context.** `pc_gfx_init(headless, w, h)`:
   - Headless uses EGL surfaceless (Mesa), which needs no display and works on a tty.
   - A window needs SDL2. When the window can't be created, or the build has no SDL2, it falls back to headless and
@@ -221,6 +239,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | `RUSH_GFX_HUD=edges\|centered` | the race HUD in widescreen: at the screen's edges (`video.hud`'s default) or in the 4:3 frame ("The HUD at the screen's edges" below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
+| `RUSH_GFX_TIMES=1\|2\|3` | at exit, the time of graphics tasks, frames drawn between two and frames shown: 1 the CPU's, 2 with the GPU's (glFinish around each part), 3 the CPU's alone from an idle GPU (glFinish before each part) and the GPU's from timer queries (`GL_TIME_ELAPSED`: desktop GL 3.3, `ARB_timer_query`, `EXT_disjoint_timer_query`; not on the Pi's V3D), with the draws and vertices per task and per frame between ("What it costs" below) |
 | `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (w0, w1, and the depth of the list it is in) |
 | `RUSH_GFX_TEXTURES=original\|upscaled\|pack` | the textures ([TEXTURES.md](TEXTURES.md)); with `RUSH_GFX_TEXTURE_PACK=DIR` (the pack), `RUSH_GFX_TEXTURE_DUMP=DIR` (every texture drawn, as PNG), `RUSH_GFX_TEXTURE_CACHE=DIR` (the upscaled textures kept on disk; empty: none), `RUSH_GFX_UPSCALE=2\|4` (the factor, instead of the internal scale's), `RUSH_GFX_UPSCALE_2D=1` (2D upscaled too), `RUSH_GFX_TEXTURE_SYNC=1` (upscale and load at once, on the game's thread: tests and screenshots) |
 | `RUSH_GFX_DUMP=DIR[:FIRST[:COUNT]]` | the color image of each graphics task from the FIRST (1-based) on, COUNT of them (100), as `DIR/task-NNNNN.png` at the internal scale: every frame the game draws, where a screenshot takes one. `tools/port/frame_spikes.py DIR` lists the frames that differ from both neighbours far more than those from each other (a polygon lost for a frame), which is how the road lost under the camera was found (BRINGUP.md 14) |
@@ -262,25 +281,44 @@ Added 2026-10-27 night: before, every scale was a whole number.
 - **LOD** is measured in N64 pixels: the shader's steps per internal pixel times the scale per axis (`uScale`).
 - **Widescreen** works in N64 pixels (ox is whole), so it is the same at any scale. **Frame interpolation** draws
   into an auxiliary target of the frame's N64 size and scale, so the same internal size.
-- **What it costs.** The game's lists are small; the fill rate grows with the pixels: at 2880 × 1620 the target has
-  about 60 times the N64's. The synthetic cartridge's drive path on rocky (Intel UHD 770, Mesa 25.2, iris GLES,
-  headless, RelWithDebInfo; `RUSH_GFX_TIMES=2`: GPU and CPU per graphics task, the mean of 1602), 2026-10-27, with
-  other jobs on the GPU, so the larger sizes are upper bounds that varied 2-3× between runs:
+- **What it costs** (2026-10-28, before and after that night's work on the renderer). The synthetic cartridge's
+  drive path (`--fast`, 1,669 graphics tasks, the race 900 of them) on rocky: Intel UHD 770 (ADL-S GT1), Mesa 25.2
+  iris, GLES, headless, RelWithDebInfo, `--scale native --widescreen auto`, `RUSH_GFX_TIMES=3`: CPU milliseconds
+  from an idle GPU, GPU milliseconds from timer queries, means over the run. "Copy" is the frame into the window
+  (with a high frame rate, each frame shown); with the frame rate original, the copy into the presented image as
+  well. The synthetic scenes are a few boxes over a checkered ground drawn as large overlapping triangles: the
+  GPU's time is fill (a race frame at 2880 x 1623 covers its pixels about ten times over, 74 draws), which no
+  change to the renderer reduces without changing the picture.
 
-  | Window, scale | Target shown | ms a task |
-  |---|---|---:|
-  | 640 × 480, 1 | 320 × 220 | 1.3 |
-  | 640 × 480, native | 640 × 440 | 2.5 |
-  | 1366 × 768, native | 1366 × 706 | 3.3 |
-  | 1920 × 1080, native | 1920 × 992 | 3.9 |
-  | 2880 × 1620, native | 2880 × 1488 | 13-17 |
-  | 2880 × 1620, native, 4:3 | 2356 × 1620 | 24 |
-  | 2880 × 1620, auto (6×) | 2556 × 1320 | 34 |
-  | 3840 × 2160, native | 3840 × 1983 | 19 |
+  | Window | Textures | Frame rate | CPU a task | CPU between | GPU a task | GPU between | GPU a copy |
+  |---|---|---|---|---|---|---|---|
+  | 1920 × 1080 | original | original | 0.33 → 0.26 |  | 3.34 → 3.15 |  | 1.20 → 0.59 |
+  | 1920 × 1080 | original | 120 | 0.52 → 0.28 | 0.66 → 0.24 | 3.41 → 2.81 | 4.41 → 3.71 | 0.56 → 0.27 |
+  | 1920 × 1080 | upscaled | original | 0.25 → 0.17 |  | 3.60 → 2.92 |  | 1.23 → 0.41 |
+  | 1920 × 1080 | upscaled | 120 | 0.30 → 0.22 | 0.38 → 0.19 | 2.76 → 2.75 | 3.64 → 3.58 | 0.34 → 0.27 |
+  | 2880 × 1620 | original | original | 0.33 → 0.16 |  | 6.01 → 5.85 |  | 2.05 → 0.83 |
+  | 2880 × 1620 | original | 120 | 0.35 → 0.22 | 0.45 → 0.20 | 5.88 → 5.51 | 7.88 → 7.38 | 0.83 → 0.55 |
+  | 2880 × 1620 | upscaled | original | 0.38 → 0.15 |  | 6.22 → 5.55 |  | 1.51 → 0.85 |
+  | 2880 × 1620 | upscaled | 120 | 0.43 → 0.29 | 0.54 → 0.30 | (11.26) → 5.83 | (15.92) → 7.98 | 1.09 → 0.56 |
 
-  The game's own rate (30 frames a second, 33 ms) holds at 2880 × 1620 on that iGPU; a high frame rate draws a frame
-  between at about the same cost each, so 60 a second there is marginal. A discrete GPU has several times the fill
-  rate. `video.resolution` in desktop fullscreen (1080p on a 1620p panel) or a whole scale trades sharpness for it.
+  (In brackets: measured with other agents' work on the GPU, which timer queries count; the other runs had the
+  GPU to themselves.)
+
+  - **The CPU's part** is small on that machine: the interpreter, the draws' GL calls and, with a high frame rate,
+    the recording and the frames between. Draws that set only the state that changes, with the vertices streamed
+    into one buffer, took a task's down by a quarter to a half. With the pairing of a frame between working out
+    each transform's place once (the synthetic scenes are many instances of a few models, and the
+    nearest-neighbour search compared every pair), a frame between's CPU time halved.
+  - **The copies** halved: the window is filled straight from the frame's target, without the copy into the
+    presented image ("Present" above).
+  - **The GPU's part** of a task or a frame between is the scene's fill: 3-18 % less with fewer state changes,
+    much of it within the runs' spread. A race frame at 2880 × 1620 takes 7-8 ms of this iGPU, so at 120 frames
+    a second it has no room for every frame between (8.3 ms a tick): the host draws those it has time for
+    (FRAMERATE.md 2); 60 fits. A discrete GPU has several times the fill rate. `video.resolution` in desktop
+    fullscreen (1080p on a 1620p panel) or a whole scale trades sharpness for it.
+  - **Left as they were, measured:** texture loads and lookups and the HUD's grouping (each under 1 % of a
+    sampled profile of the synthetic race at 120 frames a second); the upscaled textures' uploads (a task's
+    largest CPU time with them, 4x at 2880 × 1620, was 7-9 ms against 6-9 without: the 4 MB a frame cap holds).
 
 ### Window and display
 
