@@ -746,21 +746,147 @@ static void case_twocycle(void) {
 
 /* Texture LOD (G_TL_LOD), as the game draws its world: four mip levels in tiles 0-3 (32, 16, 8 and 4 texels, each
  * shifted by its level), 2-cycle with (TEXEL1 - TEXEL0) x LOD_FRACTION + TEXEL0, point sampled. Screen-aligned
- * quads step r texels of the first level a pixel. Below 1 the first level; from 2^l the level l, toward l + 1 by
- * r / 2^l - 1; from the last level's on, the last level. The steps are in N64 pixels at every internal scale.
- * Without G_TL_LOD, TEXEL0 is tile 0 and the fraction 0. */
+ * quads step rs texels of the first level an N64 pixel across and rt down; the LOD is the larger. Below 1 the first
+ * level; from 2^l the level l, toward l + 1 by lod / 2^l - 1; from the last level's on, the last level. Without
+ * G_TL_LOD, TEXEL0 is tile 0 and the fraction 0.
+ *
+ * Every internal pixel inside a quad is checked, at any scale (lod_scan): the levels and the fraction are the N64's
+ * for the quad's step in N64 pixels, and each level's texel is the one at the internal pixel's own centre, since a
+ * triangle is drawn at the internal resolution (rectangles are snapped to N64 pixels; triangles are not: GFX.md
+ * "Texture LOD"). Level 1 is striped, one texel wide: at step 3 its stripes are 1.5 N64 pixels wide, so above 1x an
+ * N64 pixel's internal pixels show both. Before 2026-10-28 the case took the N64 pixel's own texel at the internal
+ * pixel in its middle: at 1.25 that pixel's centre is 0.8 of the way across N64 pixel 94, in the next stripe, so
+ * the case failed there on every GPU; at whole scales it held by luck of where the centres fell. Pixels within 1/16
+ * texel of a stripe's side, where a GPU's rounding of the coordinate may pick either, are left out.
+ *
+ * The corners are on whole N64 pixels exactly: this case's projection and viewport are exact in fixed point (the
+ * other cases' ortho has 2/320 as 410/65536, which puts x 80 at 80.08). */
+typedef struct {
+    int x, y;        /* top-left corner, N64 pixels of the 4:3 frame; 24 x 24 */
+    float rs, rt;    /* texels of the first level an N64 pixel, across and down */
+    int lod;         /* G_TL_LOD */
+    const char *what;
+} LodQuad;
+
+static const int s_lod_col[4][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}};
+
+/* Level l's texel colour at s (texels of the first level): level 1's odd columns are black. *edge: s within 1/16
+ * texel of a level 1 column's side. */
+static void lod_texel(int l, double s, double rgb[3], int *edge, int *odd) {
+    int c;
+    if (l == 1) {
+        double u = s / 2.0, f = u - floor(u);
+        *odd = (int)floor(u) & 1;
+        if (f < 1.0 / 16 || f > 1.0 - 1.0 / 16)
+            *edge = 1;
+        for (c = 0; c < 3; c++)
+            rgb[c] = *odd ? 0.0 : s_lod_col[1][c];
+        return;
+    }
+    for (c = 0; c < 3; c++)
+        rgb[c] = s_lod_col[l][c];
+}
+
+/* Every internal pixel whose centre is half an N64 pixel or more inside quad q against the N64's levels and fraction
+ * and the texels at its own centre. */
+static void lod_scan(const LodQuad *q) {
+    const double k = 65535.0 / 65536.0;   /* G_TEXTURE's 0xFFFF */
+    double lod = (q->rs > q->rt ? q->rs : q->rt) * k, f = 0.0;
+    int l0 = 0, l1 = 0, ix, iy, checked = 0, inside = 0, bad = 0, seen[2] = {0, 0}, ox = frame_x0();
+    if (!q->lod)
+        lod = 0.0;   /* tile 0, fraction 0 */
+    if (lod >= 1.0) {
+        int lg = (int)floor(log2(lod));
+        if (lg >= 3)
+            l0 = l1 = 3, f = 1.0;
+        else
+            l0 = lg, l1 = lg + 1, f = lod / ldexp(1.0, lg) - 1.0;
+    }
+    for (iy = 0; iy < s_px_h; iy++) {
+        double Y = (iy + 0.5) * s_n64_h / s_px_h - q->y;
+        if (Y < 0.5 || Y > 23.5)
+            continue;
+        for (ix = 0; ix < s_px_w; ix++) {
+            double X = (ix + 0.5) * s_n64_w / s_px_w - ox - q->x, t0[3], t1[3], want[3];
+            const uint8_t *p = s_px + ((size_t)iy * s_px_w + ix) * 4;
+            int edge = 0, odd0 = -1, odd1 = -1, c, off = 0;
+            if (X < 0.5 || X > 23.5)
+                continue;
+            inside++;
+            lod_texel(l0, X * q->rs * k, t0, &edge, &odd0);
+            if (l0 == 1 && 1.0 - f < 1.0 / 64)
+                edge = 0, odd0 = -1;   /* level 1 at no weight */
+            lod_texel(l1, X * q->rs * k, t1, &edge, &odd1);
+            if (l1 == 1 && f < 1.0 / 64)
+                edge = 0, odd1 = -1;
+            if (edge)
+                continue;
+            checked++;
+            if (odd0 >= 0 || odd1 >= 0)
+                seen[odd0 >= 0 ? odd0 : odd1] = 1;
+            for (c = 0; c < 3; c++) {
+                want[c] = t0[c] + (t1[c] - t0[c]) * f;
+                off |= fabs(p[c] - want[c]) > 4.0;
+            }
+            if (off && bad++ < 3)
+                printf("  FAIL %s %s: internal pixel (%d,%d), N64 (%.3f,%.3f) of the quad: got %d,%d,%d want "
+                       "%.0f,%.0f,%.0f (levels %d, %d, fraction %.3f)\n",
+                       s_case, q->what, ix, iy, X, Y, p[0], p[1], p[2], want[0], want[1], want[2], l0, l1, f);
+        }
+    }
+    if (bad) {
+        printf("  FAIL %s %s: %d of %d internal pixels\n", s_case, q->what, bad, checked);
+        s_fail++;
+    }
+    if (checked * 2 < inside) {
+        printf("  FAIL %s %s: only %d of %d internal pixels checked\n", s_case, q->what, checked, inside);
+        s_fail++;
+    }
+    if ((l0 == 1 && f < 1.0 - 1.0 / 64) || (l1 == 1 && f >= 1.0 / 64)) {
+        if (!seen[0] || !seen[1]) {
+            printf("  FAIL %s %s: level 1's even and odd columns not both checked\n", s_case, q->what);
+            s_fail++;
+        }
+    }
+}
+
 static void case_lod(void) {
     static uint16_t lv[4][32 * 32];
-    static Vtx v[8][4];
-    static const float r[8] = {0.5f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 16.0f, 4.0f};
-    static const int col[4][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}};
+    static const LodQuad q[] = {
+        {8, 20, 0.5f, 0.5f, 1, "magnified: the first level"},
+        {44, 20, 2.0f, 2.0f, 1, "2: level 1"},
+        {80, 20, 3.0f, 3.0f, 1, "3: halfway to level 2"},
+        {116, 20, 4.0f, 4.0f, 1, "4: level 2"},
+        {152, 20, 6.0f, 6.0f, 1, "6: halfway to level 3"},
+        {188, 20, 8.0f, 8.0f, 1, "8: the last level"},
+        {224, 20, 16.0f, 16.0f, 1, "16: the last level"},
+        {8, 56, 0.5f, 3.0f, 1, "0.5 across, 3 down: halfway to level 2"},
+        {44, 56, 3.0f, 0.5f, 1, "3 across, 0.5 down: halfway to level 2"},
+        {260, 20, 4.0f, 4.0f, 0, "no G_TL_LOD: tile 0"},
+    };
+    enum { NQ = sizeof(q) / sizeof(q[0]) };
+    static Vtx v[NQ][4];
+    /* N64 x, y = viewport (160, 120) + (x / 128 - 1.25, 0.9375 - y / 128) x (128, -128): exact in S15.16 and S13.2 */
+    static Vp vp = {{128 * 4, 128 * 4, 511, 0}, {160 * 4, 120 * 4, 511, 0}};
+    static Mtx proj;
+    float pf[4][4];
     int k, i, tmem = 0;
     for (k = 0; k < 4; k++) {   /* level 1: green and black columns, the others solid */
         int w = 32 >> k;
         for (i = 0; i < w * w; i++)
-            lv[k][i] = k == 1 && (i & 1) ? rgba16(0, 0, 0, 1) : rgba16(col[k][0], col[k][1], col[k][2], 1);
+            lv[k][i] = k == 1 && (i & 1) ? rgba16(0, 0, 0, 1)
+                                         : rgba16(s_lod_col[k][0], s_lod_col[k][1], s_lod_col[k][2], 1);
     }
+    mtx_ident_f(pf);
+    pf[0][0] = 1.0f / 128;
+    pf[1][1] = -1.0f / 128;
+    pf[2][2] = -1.0f / 1024;
+    pf[3][0] = -1.25f;
+    pf[3][1] = 0.9375f;
+    mtx_f2l(pf, &proj);
     frame_begin(0, 0, 0);
+    gsSPViewport((uintptr_t)&vp);
+    gsSPMatrix((uintptr_t)&proj, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
     gsDPSetCycleType(G_CYC_2CYCLE);
     gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
     for (k = 0; k < 4; k++) {
@@ -778,30 +904,19 @@ static void case_lod(void) {
     gsSPTexture(0xFFFF, 0xFFFF, 3, 0, 1);
     gsDPSetCombineLERP(CC_TEXEL1, CC_TEXEL0, CC_LOD_FRACTION, CC_TEXEL0, AC_TEXEL1, AC_TEXEL0, AC_LOD_FRACTION,
                        AC_TEXEL0, CC_0, CC_0, CC_0, CC_COMBINED, AC_0, AC_0, AC_0, AC_COMBINED);
-    for (i = 0; i < 8; i++) {   /* 24 x 24 pixels at x 8 + 36 i, rows 20-44 */
-        int x = 8 + 36 * i, st = (int)lrintf(24 * r[i] * 32);
-        vtx(&v[i][0], x, 20, 0, 0, 0, 255, 255, 255, 255);
-        vtx(&v[i][1], x, 44, 0, 0, st, 255, 255, 255, 255);
-        vtx(&v[i][2], x + 24, 20, 0, st, 0, 255, 255, 255, 255);
-        vtx(&v[i][3], x + 24, 44, 0, st, st, 255, 255, 255, 255);
-        if (i == 7)
-            gsDPSetTextureLOD(G_TL_TILE);
-        else if (i == 0)
-            gsDPSetTextureLOD(G_TL_LOD);
+    for (i = 0; i < NQ; i++) {   /* 24 x 24 N64 pixels each */
+        int x = q[i].x, y = q[i].y, ss = (int)lrintf(24 * q[i].rs * 32), tt = (int)lrintf(24 * q[i].rt * 32);
+        vtx(&v[i][0], x, y, 0, 0, 0, 255, 255, 255, 255);
+        vtx(&v[i][1], x, y + 24, 0, 0, tt, 255, 255, 255, 255);
+        vtx(&v[i][2], x + 24, y, 0, ss, 0, 255, 255, 255, 255);
+        vtx(&v[i][3], x + 24, y + 24, 0, ss, tt, 255, 255, 255, 255);
+        gsDPSetTextureLOD(q[i].lod ? G_TL_LOD : G_TL_TILE);
         gsSPVertex((uintptr_t)v[i], 4, 0);
         gsSP2Triangles(0, 1, 2, 2, 1, 3);
     }
     frame_end();
-    check("magnified: the first level", 8 + 12, 32, 255, 0, 0, 2);
-    check("2: level 1, even column", 8 + 36 + 12, 32, 0, 255, 0, 3);
-    check("2: level 1, odd column", 8 + 36 + 13, 32, 0, 0, 0, 3);
-    check("3: halfway to level 2, even", 8 + 72 + 12, 32, 0, 128, 128, 4);   /* level 1 column 1.5 (x + 0.5) */
-    check("3: halfway to level 2, odd", 8 + 72 + 14, 32, 0, 0, 128, 4);
-    check("4: level 2", 8 + 108 + 12, 32, 0, 0, 255, 3);
-    check("6: halfway to level 3", 8 + 144 + 12, 32, 128, 128, 128, 4);
-    check("8: the last level", 8 + 180 + 12, 32, 255, 255, 0, 3);
-    check("16: the last level", 8 + 216 + 12, 32, 255, 255, 0, 3);
-    check("no G_TL_LOD: tile 0", 8 + 252 + 12, 32, 255, 0, 0, 2);
+    for (i = 0; i < NQ; i++)
+        lod_scan(&q[i]);
 }
 
 /* the game's dual tile: one CI8 load read by tile 0 as CI8 and by tile 1 as CI4 (shift 15, palette bank 1) */
