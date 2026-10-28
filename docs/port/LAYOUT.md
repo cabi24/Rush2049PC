@@ -425,8 +425,10 @@ its N64-shaped view, and nothing typed it. The same calls were lost to layout_ch
 **Fix**: `endian_check.read_gimple` reads `<name>.localalias` as `<name>` (all three checks use it). With it, the
 pre-fix tree gives the same report and the same untyped list on the Pi (aarch64, GCC 12) and on the build host
 (x86-64, GCC 14), the listener's finding included; over main the x86-64 run now has CI's aarch64 numbers (59,383
-accesses on 3,475 storages, 659 typed; 0 open, 20 reviewed; 323 untyped in 46 functions). The access counts of 7
-files still differ by one or two between GCC 12 and 14 (other temporaries and folds), with no effect on a storage.
+accesses on 3,475 storages, 659 typed; 0 open, 20 reviewed; 323 untyped in 46 functions). Over main, built, the Pi
+(GCC 12), the GCC 13 container (CI's x86-64 compiler) and the build host (GCC 14) give the same report and untyped
+list, line for line; only the access counts differ (59,374, 59,380 and 59,383: a few files where the GCC versions make
+other temporaries and folds, with no effect on a storage).
 
 **Test**: the selftest compiles its cases twice, as PIE code and with `-fPIC -fno-semantic-interposition`, on every
 host, and fails unless both give the same findings; a new case is a helper with an N64-shaped view that only its two
