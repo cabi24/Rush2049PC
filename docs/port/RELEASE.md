@@ -239,7 +239,9 @@ its boot without a ROM (the fault and backtrace in it), `--version`'s Actions ru
 
 `rush2049pc --version`, the log's first lines and the console's first line give the version: `git describe --tags
 --always --dirty` at build time (`v1.0`, `v1.0-3-gabc1234`, `abc1234` before any tag, `-dirty` with uncommitted
-changes), the full commit, and "GitHub Actions run N (owner/repo)" or "local build".
+changes), the full commit, "GitHub Actions run N (owner/repo)" or "local build", and the build type (CMake's
+`$<CONFIG>`: `Debug`, `RelWithDebInfo`, ...). The settings overlay's About page shows the same, with the GL driver,
+the audio output, the players, the ROM and where the files are ([FRONTEND.md](FRONTEND.md)).
 
 - `cmake/version.cmake` runs at every build (the `pc_version` target) and rewrites `pc_version.c` only when the
   text changes, so a build that changes nothing relinks nothing.
