@@ -255,7 +255,24 @@ Added 2026-10-27 night: before, every scale was a whole number.
 - **Widescreen** works in N64 pixels (ox is whole), so it is the same at any scale. **Frame interpolation** draws
   into an auxiliary target of the frame's N64 size and scale, so the same internal size.
 - **What it costs.** The game's lists are small; the fill rate grows with the pixels: at 2880 × 1620 the target has
-  27 times the N64's (FRAMERATE.md has the measured cost).
+  about 60 times the N64's. The synthetic cartridge's drive path on rocky (Intel UHD 770, Mesa 25.2, iris GLES,
+  headless, RelWithDebInfo; `RUSH_GFX_TIMES=2`: GPU and CPU per graphics task, the mean of 1602), 2026-10-27, with
+  other jobs on the GPU, so the larger sizes are upper bounds that varied 2-3× between runs:
+
+  | Window, scale | Target shown | ms a task |
+  |---|---|---:|
+  | 640 × 480, 1 | 320 × 220 | 1.3 |
+  | 640 × 480, native | 640 × 440 | 2.5 |
+  | 1366 × 768, native | 1366 × 706 | 3.3 |
+  | 1920 × 1080, native | 1920 × 992 | 3.9 |
+  | 2880 × 1620, native | 2880 × 1488 | 13-17 |
+  | 2880 × 1620, native, 4:3 | 2356 × 1620 | 24 |
+  | 2880 × 1620, auto (6×) | 2556 × 1320 | 34 |
+  | 3840 × 2160, native | 3840 × 1983 | 19 |
+
+  The game's own rate (30 frames a second, 33 ms) holds at 2880 × 1620 on that iGPU; a high frame rate draws a frame
+  between at about the same cost each, so 60 a second there is marginal. A discrete GPU has several times the fill
+  rate. `video.resolution` in desktop fullscreen (1080p on a 1620p panel) or a whole scale trades sharpness for it.
 
 ### Window and display
 
