@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
+#include "pc_compat.h"
 #include "ultra.h"
 
 static int g_failed;
