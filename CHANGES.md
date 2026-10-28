@@ -33,6 +33,8 @@ everything a night of testing on the retail cartridge found.
 - **Sound dropouts**: audio tasks no longer wait behind graphics tasks (the RSP yields, as the game expects),
   and the game's audio renderer no longer builds over a buffer set before it plays.
 - **Cheats** could not be entered and the cheat screen could not be opened.
+- **The Linux aarch64 build faulted at startup** on kernels with 16 KiB pages, a Raspberry Pi 5's among them.
+- **Windows' log** was written in 4 KiB bursts, and a crash's first line came before what led to it.
 - **Tables only half converted** from the cartridge's byte order: the trackside objects' collision size and mass
   (read as about zero), the cars' wing positions (all but one car type had them at the centre), the race rumble's
   speed steps (rumble came out near zero) ([DATA.md](docs/port/DATA.md) 8).

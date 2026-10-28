@@ -92,7 +92,11 @@ static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"edges", "centered", NULL};
 static const char *const hud_labels[] = {"screen edges", "centered (4:3)", NULL};
+#ifdef _WIN32
+static const char *const backend_choices[] = {"auto", "sdl", "null", "wav", NULL};   /* no ALSA on Windows */
+#else
 static const char *const backend_choices[] = {"auto", "sdl", "alsa", "null", "wav", NULL};
+#endif
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const pak_choices[] = {"memory", "rumble", "auto", "none", NULL};
 static const char *const pak_labels[] = {"controller pak", "rumble pak", "auto", "none", NULL};
