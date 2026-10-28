@@ -444,12 +444,16 @@ front-back pan; the pitch 0.5 is 4095 and goes to the effect's voice), and the c
 
 **Left**
 
-- **The engine.** In the retail runs, with the fixes, no effect is asked for while the cars drive apart from
-  collisions and the like: every request reaches `audio_state_save` and `func_8001B1D0`, and none is an engine
-  loop. Whether the N64 plays one here isn't known without a reference. If the engines are positioned sources
-  (`camera_target_track` links them into `D_801461E8`, whose head `D_801461F0` `engine_sound_sync` walks every
-  retrace with the gain, pans and pitch), the car code that would start them isn't covered here. Next: break on
-  `camera_target_track` and the kind 2 command posts in a race.
+- **The engines are silent, because their volume is 0.** Traced in a retail race (`gdb` `dprintf` on
+  `camera_target_track`, `audio_state_save`, `entity_transform_calc`): the engine loops are created as positioned
+  effects while the race loads and stay pending. `_UpdateFx` (`updatefx/updatefx.c`) starts a pending loop only once
+  its volume is over 0.1, and the per-car engine update `func_800E0050` (`mode_select/mode.c`) sends a pitch that
+  follows the revs but a volume of exactly 0 every retrace. (Its variables are named the other way round: `vol` is
+  the pitch ratio from the revs, `pitch` the level from `EngTbl`'s p0-p2, through `client_sync`, which sets the
+  volume.) It reads the car through `MODELDAT`, N64 offsets 0x22C, 0x404, 0x7C6, 0x7CC and 0x7D0 inside pads, and
+  `EngTbl` through `D_80140420[slot].tbl`: the car record's PC layout (`CAR_OFS`, [ENDIAN.md](ENDIAN.md) 4 lists
+  `mode.c` among the views at N64 offsets) is the struct-offset audit's. Next: print `m->f404`, `slot`, `rpm`
+  and `t->p0..p2` there; a 0 level would be the table or the load read from the wrong place.
 - IDO converts to `u8` and `u16` through the same unsigned sequence; the library's direct `(unsigned short)` and
   `(unsigned char)` conversions only see values that can't be negative, so they are left as they are.
 - `(float)` of an unsigned int at 2^31 or more rounds twice on the N64 (`cvt.s.w`, then + 2^32) and once on the PC:
