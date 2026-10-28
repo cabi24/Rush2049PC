@@ -71,9 +71,11 @@ if(PC_SANITIZE)
     # so that a hunt can print every finding of a run.
     add_compile_options("$<${pc_on}:-fsanitize=${pc_port_list}>" "$<${pc_on}:-fno-omit-frame-pointer>"
                         "$<${pc_off}:-fno-sanitize=all>")
-    target_compile_options(game_flags INTERFACE "$<${pc_on}:-fno-sanitize=all>")
+    # SHELL: keeps CMake from dropping these as repeats of the port's options: with thread, or a game list equal to
+    # the port's, the game C was left with -fno-sanitize=all.
+    target_compile_options(game_flags INTERFACE "$<${pc_on}:SHELL:-fno-sanitize=all>")
     if(pc_game_list)
-        target_compile_options(game_flags INTERFACE "$<${pc_on}:-fsanitize=${pc_game_list}>")
+        target_compile_options(game_flags INTERFACE "$<${pc_on}:SHELL:-fsanitize=${pc_game_list}>")
     endif()
     if(PC_SANITIZE_ADDRESS)
         if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
