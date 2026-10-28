@@ -119,10 +119,6 @@ void pc_app_console_tail(char *out, size_t size)
         text[i] = C.ring[(C.total - n + i) % RING];
     pthread_mutex_unlock(&C.lock);
     text[n] = 0;
-    /* After an option the program doesn't know comes the whole usage: what came before it says what was wrong. */
-    char *usage = strstr(text, "usage: rush2049pc");
-    if (usage)
-        *usage = 0, n = (size_t)(usage - text);
     for (size_t i = 0, j = 0; i <= n; i++)   /* no CRs */
         if (text[i] != '\r')
             text[j++] = text[i];

@@ -385,7 +385,10 @@ static int rush_main(int argc, char **argv)
             return 0;
         } else {
             fprintf(stderr, "rush2049pc: unknown option %s\n", a);
-            usage(stderr);
+            if (pc_app_console_quiet())   /* the error's message box shows the last lines: not the usage's */
+                fprintf(stderr, "rush2049pc: rush2049pc --help lists the options\n");
+            else
+                usage(stderr);
             return 2;
         }
 #undef SET

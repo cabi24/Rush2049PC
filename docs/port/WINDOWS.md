@@ -385,7 +385,8 @@ reach an attached program as before (section 5).
 - the log is written as always: `log.c` copies stderr to `rush2049pc.log` and to what fd 2 was, the pipe;
 - an error exit (`pc_app_finish` with a nonzero code: no ROM with `--headless`, a command-line or settings error, no
   RDRAM window, ...) that no message box has explained yet shows one, "Rush 2049 PC stopped", with the last lines
-  printed (up to 12; those before the usage text, after an unknown option), the log's path and where to report it;
+  printed (up to 12), the log's path and where to report it. An unknown option prints a line that `--help` lists
+  the options, not the usage itself, which would fill the box;
 - a fault shows its box ("Rush 2049 PC stopped", the fault's line) with or without a window;
 - there is no "press a key" wait: there is no console window to keep open. The wait stays for a console build and
   for `RUSH2049_WAIT_KEY=1`.

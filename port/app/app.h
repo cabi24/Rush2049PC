@@ -76,7 +76,7 @@ int pc_app_alert_native(int show, const char *title, const char *text);
  * (quiet); then the timer period and power throttling for the run. RUSH2049_CONSOLE=none: quiet on any system. */
 void pc_app_startup(void);
 int pc_app_console_quiet(void);   /* nobody sees what the program prints: errors need a message box */
-/* The last lines printed (quiet only; "" otherwise), up to what came before a usage text. */
+/* The last lines printed (quiet only; "" otherwise): up to 12. */
 void pc_app_console_tail(char *out, size_t size);
 int pc_app_console_print_fd(void);   /* where RUSH2049_MESSAGE_BOX=print writes: the real stderr */
 void pc_app_box_shown(void);         /* alert.c: a box was shown (or printed) */
