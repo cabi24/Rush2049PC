@@ -329,8 +329,10 @@ It uses layout_check's analysis (the same compile cache; a run takes about 15 s 
    - a PC macro on the line or the two before (one defined under `TARGET_PC` in the unit, `pc_prelude.h` or
      `include/`: `CAR_OFS`, `PROFILE_OFS`, `EMITTER_ACTIVE`, ...) makes it a PC offset when the access fits the PC
      field there;
-   - a typed access counts only where it does not fit its record's PC field (`M2C_FIELD(&sym, T *, off)` on a
-     symbol declared as the record);
+   - a typed access through a view with the PC layout counts only where it fits neither that view's field nor the
+     record's (`M2C_FIELD(&sym, T *, off)` on a symbol declared as the record); through a struct view that keeps the
+     N64 shape (bytes up to the field: `u8 pad0[0x1A]; s8 dirty;`), it is the N64's field, judged as a raw offset,
+     and the offset is in the declaration rather than on the line;
    - a pointer passed at a raw offset (`f((u8 *)arg0 + 0xA)`) is judged the same way;
    - an offset that is not written on the line, in hex or decimal (an index such as `strs[22]`, a pointer step the
      compiler folded), scores 2: listed in the report, not counted.
@@ -351,22 +353,30 @@ that is open.
 
 Each is typed through UpdateBlit (`Input_ApplyPadConfig`), its argument at +0. The selftest has the same kinds of
 case on an invented record (a hide flag, a pointer store over the first pointer's high half, a pointer argument, a
-symbol declared as the record, a role) and the ones that must give nothing (PC code, a PC macro, a typed pointer into
+symbol declared as the record, a role, an N64-shaped view) and the ones that must give nothing (PC code, a PC macro, a typed pointer into
 the record passed to a helper, an N64-layout record, an offset before the first pointer).
 
 ### 9.3 Over the game
 
-1,308 units; 56,656 accesses placed on 3,828 storages, 816 of them typed as a moved record. **0 open findings**;
-2 reviewed; 44 at score 2; 392 untyped raw accesses in 59 functions.
+1,308 units; 56,656 accesses placed on 3,828 storages, 816 of them typed as a moved record. The first run found
+none open; the rule for N64-shaped views (9.1) then found the pause screen's pages, fixed below. **0 open
+findings** after, 20 reviewed, 0 at score 2; 392 untyped raw accesses in 59 functions (9.4).
+
+Reachability was checked on the retail ROM once (2026-10-28, on the Pi): `rush2049pc_datacheck` with a temporary print
+of every function pointer the loader converts from the ROM's data (neither the print nor its output is
+committed). The pause pages are each in a table; `object_action_clear` and the five setters of 9.4 are in none, and
+no word of a non-pointer field points at code.
 
 | Finding | Verdict | Why |
 |---|---|---|
 | the four of section 9.2 | fixed (`8285bd3`) | BRINGUP.md 15 |
-| `object_action_clear` (1-byte write at N64 +8 of a list element: the PC's `link.prev`, the N64's flag after the links) | unreachable as far as the code shows (reviewed) | no C calls it, no asm references it (only its definition in `blob_800d1004.s`), no C takes its address; whether a ROM table holds its address needs the ROM (not run: the Pi was loaded). `func_800D63EC` (packet_alloc), which takes from the same list, has the PC layout |
+| the pause screen's pages: the title `func_8010B5D0`, the language list `func_8010B7FC`, the two-choice page `func_8010B9C8` (`item_refresh_*`, `item_disable_B9C8`: a byte at N64 +0x1A through `MenuItem { u8 pad0[0x1A]; s8 dirty; }`) | **fixed** | each is its blit's AnimFunc (pausescr_state's NewMultiBlit sets; in the ROM's tables). `dirty` is the N64's Hide; on the PC +0x1A is X's low byte, so each page cleared or set X's low byte, called UpdateBlit, and never showed or hid its blit. `MenuItem` has the Blit's host layout on the PC. Test: `assets_input` (the three pages on a host blit; the old views fail 6 checks) |
+| `object_action_clear` (1-byte write at N64 +8 of a list element: the PC's `link.prev`, the N64's flag after the links) | unreachable (reviewed) | no C calls it, no asm references it (only its definition in `blob_800d1004.s`), no C takes its address, and no table in the ROM's data holds it (above). `func_800D63EC` (packet_alloc), which takes from the same list, has the PC layout |
 | `func_800AED20` (`_GetSource`, a byte at `EMITTER_ACTIVE`) | false positive (reviewed) | by design, as in section 7: the source's active byte, which `Source` names as the first byte of a u32 flags word |
-| the text bank's string table (`pc_text_strings()`, 16 functions in the front end and the results) | false positive (score 2) | an index (`strs[22]`) of the host pointers, read 8 bytes wide: PC code |
-| the profile's and a ghost's name passed to the text functions (`results_table`, `controls`, `fbc84`) | false positive (score 2) | the pointer is made with `PROFILE_OFS` on an earlier line (POINTERS.md 9.10) |
-| the other score-2 lines (MBSetupWad, hud_speed_display, hud_render, the 3D-sound and skid-mark code, ...) | not read yet | listed in `offset.txt`; an index or a folded step, which the N64 code would also need to write as an offset |
+| the text bank's string table (`pc_text_strings()`, 10 functions in the front end and the results) | false positive (reviewed) | an index (`strs[22]`) of the host pointers, read 8 bytes wide: PC code |
+| the profile's name passed to the text functions (`drawBattleScore`, `func_80102448`, `func_80102F30`) | false positive (reviewed) | the pointer is made with `PROFILE_OFS(20)` three lines before the call (POINTERS.md 9.10) |
+| `func_803936A8` (overlay B), the same name | false positive (reviewed) | `NameData`, a PC-only view padded to the name at +0x20 |
+| MBSetupWad and `func_80096B00` (the WAD table), the packets (`func_800D63EC`, `engine_sound_sync`), the 3D-sound sources (`camera_target_track`, `audio_effect_setup`), the skid marks (`func_800AF844`), `FindGhosts`, `entity_spawn_init`, `camera_lerp_position` | false positive | typed accesses through views with the PC layout that fit their own fields (the first run counted them through another view of the same record family); layout_check compares those views |
 
 ### 9.4 The untyped storages
 
@@ -378,7 +388,11 @@ The 59 functions of `offset_untyped.txt`, by kind:
 | libultra and the audio library | the other `src/rom` functions | not game records (ENDIAN.md, ULTRA.md) |
 | the level-object nodes (the targets), N64 layout with a u32 state at +0x6C (POINTERS.md 10.2) | `func_8010DF90`, `func_8010C7F4`, `func_8010E694`, `sound_position_set`, `func_8010D680`, `func_8008B3C8` (through `func_8010D9CC`), `stat_lap_split` | false positive: the record keeps its N64 layout; `NODE_STATE` reads the state |
 | byte strings and pak file data | `func_8008AD04` (strcmp), `func_800950AC`, `func_800A473C`, `menu_option_toggle` (a pak file's bytes) | false positive |
-| others | `func_8008D0B0`, `func_80098860`, `func_800A553C`, `func_800A78B0`, `func_800BEA58`, `func_800C8774`, `MP_TargetSteerPos`, `camera_transform`, `func_800B0F60`, `func_800AD650`, `func_8009F058`, `track_collision_wall`, `param_reshuffle_wrapper`, `particles_spawn_emitter`, `func_803ABEC8`, `func_8038DA78` | not read yet: small offsets before any pointer of a blit or a car (+2..+8), an 8-byte read (PC code), and `particles_spawn_emitter` (CASTS.md 2) |
+| small m2c setters with no caller | `func_8008D0B0` (u16 at +2), `func_80098860` and `func_800C8774` (words at +0..+8), `func_800A78B0` (s16 at +6), `func_800BEA58` (+0x60, +0x64) | unreachable: no C or asm calls them, no C takes their address, and no table in the ROM's data holds them (9.3) |
+| the SFX server's voices (`tSfxVoice`: bytes, a bank, an id and a u32 handle; no pointer) | `MP_TargetSteerPos`, `camera_transform` (the voice behind a command's `sound`) | false positive: the same layout on both |
+| more floats, shorts and display lists | `func_800AD650` (a matrix from angles), `func_8038DA78` (a shot's `f32 old[3]`), `func_800A553C` (four u16), `func_800B0F60` (MakeRamps: u16 colours), `func_8009F058` (a viewport's s16), `track_collision_wall` (a Gfx word by index), `particles_spawn_emitter` (a matrix's floats from gCamera, which has no pointer: 152 bytes on both) | false positive |
+| `param_reshuffle_wrapper` | the list head at +8 (8 bytes: a host pointer, where a List has its head on both) | false positive |
+| `func_803ABEC8` (the stats screen) | a profile's save data read through `U32_AT`/`U16_AT` (bytes) | false positive |
 
 ### 9.5 Limits
 
@@ -389,3 +403,6 @@ The 59 functions of `offset_untyped.txt`, by kind:
 - The PC macro test is textual (the macro's name on the line or the two before); a line with a macro and another
   raw offset is still judged, but an access that fits the PC field there is taken as ported.
 - Indexes and pointer steps are layout_check's (strides): an access with a variable index is not judged here.
+- A view's family is its sizes and the host offset of every N64 word, so two records of the same shape (the packet
+  list's elements and the sequence tags) share field names in the report; typed accesses through a PC view are
+  judged by that view's own fields.

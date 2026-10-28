@@ -27,10 +27,25 @@ typedef s32 intptr_t;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
+#ifdef TARGET_PC
+/* PC: the page's blit (the pause screen's NewMultiBlit set; the page runs as its AnimFunc), over the Blit's host
+ * layout (sound_control.c's, docs/port/POINTERS.md 9.3): `dirty` is its Hide, at +0x26. The N64's +0x1A is the low
+ * byte of X on the PC, so the page moved its blit and never showed or hid it (docs/port/LAYOUT.md 9). */
+typedef struct {
+    void *Name, *Image, *Info;
+    u16 TexIndex;
+    s16 X, Y;
+    u16 Z;
+    s16 Width, Height;
+    u8 Alpha, Flip;
+    s8 dirty;
+} MenuItem;
+#else
 typedef struct {
     u8 pad0[0x1A];
     s8 dirty;
 } MenuItem;
+#endif
 
 typedef struct {
     u8 pad0[0x70];
