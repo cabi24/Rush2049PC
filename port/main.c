@@ -287,7 +287,7 @@ static int from_command_line(const PcSettingValue *over, int n, const char *sect
 
 #ifdef SIGHUP
 /* The terminal closed (SIGHUP's default ended the process at once): the loop stops as for SIGTERM, and its end
- * writes the saves (port/ultra/si.c's pc_si_finish). */
+ * writes the saves (port/ultra/si.c's pc_si_finish). Not under nohup, which ignores it for the program. */
 static void on_hangup(int sig)
 {
     (void)sig;
@@ -638,7 +638,9 @@ static int rush_main(int argc, char **argv)
         pc_audio_set_clock(fast_clock);
     }
 #ifdef SIGHUP
-    signal(SIGHUP, on_hangup);
+    struct sigaction hup;
+    if (sigaction(SIGHUP, NULL, &hup) == 0 && hup.sa_handler != SIG_IGN)
+        signal(SIGHUP, on_hangup);
 #endif
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
