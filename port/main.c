@@ -389,6 +389,7 @@ static int rush_main(int argc, char **argv)
     setenv("RUSH_GFX_WIDESCREEN", aspect, 1);
     pc_settings_get(&cfg, "video", "frame_rate", rate, sizeof rate);
     setenv("RUSH_GFX_FRAME_RATE", rate, 1);
+    setenv("RUSH_GFX_TEXTURES", cfg.textures == 1 ? "upscaled" : cfg.textures == 2 ? "pack" : "original", 1);
     if (cfg.widescreen > 0 && cfg.width == 640 && cfg.height == 480)   /* the default window, at the picture's aspect */
         cfg.width = (int)(cfg.height * cfg.widescreen + 0.5);
     if (!run.frames && pc_input_script_frames)
@@ -428,6 +429,21 @@ static int rush_main(int argc, char **argv)
     if (no_rom)
         blank_files();
     musyx_services(no_rom);
+    /* Textures (docs/port/TEXTURES.md): the pack, the dump and the upscaled textures' cache are in the data folder;
+     * the environment's own (RUSH_GFX_TEXTURE_*) stay. */
+    {
+        char tex_dir[PC_APP_PATH];
+        pc_app_data_file(&dirs, cfg.texture_pack, from_command_line(over, nover, "video", "texture_pack"), tex_dir,
+                         sizeof tex_dir);
+        setenv("RUSH_GFX_TEXTURE_PACK", tex_dir, 0);
+        if (cfg.texture_dump[0]) {
+            pc_app_data_file(&dirs, cfg.texture_dump, from_command_line(over, nover, "video", "texture_dump"),
+                             tex_dir, sizeof tex_dir);
+            setenv("RUSH_GFX_TEXTURE_DUMP", tex_dir, 0);
+        }
+        pc_app_data_file(&dirs, "texture_cache", 0, tex_dir, sizeof tex_dir);
+        setenv("RUSH_GFX_TEXTURE_CACHE", tex_dir, 0);
+    }
     if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220 */
         fprintf(stderr, "rush2049pc: no renderer: no OpenGL ES 3.0 or OpenGL 3.1 context\n");
         pc_app_alert(!headless, "Rush 2049 PC: no graphics",
