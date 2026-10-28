@@ -7,7 +7,8 @@
  * and drawn again after each change (pc_gfx_redraw).
  *
  * - Changes apply at once where the part allows it: the renderer's widescreen and scale (from the game's next
- *   frame) and frame rate, the window's size, fullscreen and vsync, the volume, and everything port/input reads (bindings,
+ *   frame) and frame rate, the window's size, fullscreen, its mode and resolution, and vsync, the volume, and
+ *   everything port/input reads (bindings,
  *   hotkeys, sticks, rumble). The graphics API and the audio backend apply after a restart; they are marked so.
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
@@ -38,6 +39,7 @@ typedef struct {
     const char *label;
     const char *section, *key;    /* the setting, as the file names it */
     const char *const *choices;   /* I_CHOICE, I_WINDOW: the values in turn, as the file writes them */
+    const char *const *labels;    /* I_CHOICE: what each choice shows, when not its value; NULL for all values */
     double min, max, step;        /* I_NUMBER */
     int percent;                  /* I_NUMBER: shown as a percentage, with a bar */
     int page;                     /* I_PAGE: the page it opens */
@@ -54,14 +56,21 @@ typedef struct {
 static Page pages[NUM_PAGES];
 
 static const char *const onoff[] = {"off", "on", NULL};
-static const char *const wide_choices[] = {"off", "auto", "16:10", "16:9", "21:9", NULL};
-static const char *const scale_choices[] = {"auto", "1", "2", "3", "4", "5", "6", "7", "8", NULL};
+static const char *const wide_choices[] = {"auto", "off", "16:10", "16:9", "21:9", NULL};
+static const char *const scale_choices[] = {"native", "1", "2", "3", "4", "5", "6", "7", "8", "auto", NULL};
+static const char *const scale_labels[] = {"native", "N64 (1x)", "2x", "3x", "4x", "5x", "6x", "7x", "8x",
+                                           "auto (whole)", NULL};
+static const char *const fs_mode_choices[] = {"desktop", "exclusive", NULL};
+static const char *const res_choices[] = {"desktop", "720p", "1080p", "1440p", "1620p", "2160p", NULL};
+static const char *const res_labels[] = {"desktop", "720p (1280x720)", "1080p (1920x1080)", "1440p (2560x1440)",
+                                         "1620p (2880x1620)", "2160p (3840x2160)", NULL};
 static const char *const rate_choices[] = {"original", "60", "120", "144", "display", NULL};
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const backend_choices[] = {"auto", "sdl", "alsa", "null", "wav", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
-static const char *const window_choices[] = {"640x480",  "960x720",  "1280x960",  "854x480", "1280x720",
-                                             "1600x900", "1920x1080", "2560x1440", NULL};
+static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
+                                             "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
+                                             "3840x2160", "auto",      NULL};
 static const char *const control_labels[PC_NUM_CONTROLS] = {
     "A", "B", "Z", "Start", "D-pad up", "D-pad down", "D-pad left", "D-pad right", "L", "R",
     "C-up", "C-down", "C-left", "C-right", "Stick up", "Stick down", "Stick left", "Stick right"};
@@ -89,12 +98,18 @@ static void build(void)
     add(P_MAIN, I_QUIT, "Quit", NULL, NULL);
 
     pages[P_VIDEO].title = "Video";
+    it = add(P_VIDEO, I_CHOICE, "Render scale", "video", "scale");
+    it->choices = scale_choices;
+    it->labels = scale_labels;
     add(P_VIDEO, I_CHOICE, "Widescreen", "video", "widescreen")->choices = wide_choices;
-    add(P_VIDEO, I_CHOICE, "Internal scale", "video", "scale")->choices = scale_choices;
     add(P_VIDEO, I_CHOICE, "Fullscreen", "video", "fullscreen")->choices = onoff;
+    add(P_VIDEO, I_CHOICE, "Fullscreen mode", "video", "fullscreen_mode")->choices = fs_mode_choices;
+    it = add(P_VIDEO, I_CHOICE, "Resolution", "video", "resolution");
+    it->choices = res_choices;
+    it->labels = res_labels;
+    add(P_VIDEO, I_WINDOW, "Window size", "video", "width")->choices = window_choices;
     add(P_VIDEO, I_CHOICE, "Vsync", "video", "vsync")->choices = onoff;
     add(P_VIDEO, I_CHOICE, "Frame rate", "video", "frame_rate")->choices = rate_choices;
-    add(P_VIDEO, I_WINDOW, "Window size", "video", "width")->choices = window_choices;
     add(P_VIDEO, I_CHOICE, "Pause in background", "video", "pause_on_focus_loss")->choices = onoff;
     it = add(P_VIDEO, I_CHOICE, "Graphics API", "video", "api");
     it->choices = api_choices;
@@ -183,7 +198,9 @@ static Item *current(void)
 static void value_of(const PcSettings *s, const Item *it, char *out, size_t n)
 {
     out[0] = 0;
-    if (it->kind == I_WINDOW)
+    if (it->kind == I_WINDOW && (s->width <= 0 || s->height <= 0))
+        snprintf(out, n, "auto");
+    else if (it->kind == I_WINDOW)
         snprintf(out, n, "%dx%d", s->width, s->height);
     else if (it->section)
         pc_settings_get(s, it->section, it->key, out, n);
@@ -222,6 +239,13 @@ static void apply(const char *section, const char *key)
             pc_gfx_set_scale(s->scale);
         else if (!strcasecmp(key, "fullscreen"))
             pc_input_live_fullscreen(s->fullscreen);
+        else if (!strcasecmp(key, "fullscreen_mode"))
+            pc_gfx_set_fullscreen_mode(s->fullscreen_mode);
+        else if (!strcasecmp(key, "resolution")) {
+            int w, h;
+            if (pc_settings_resolution(s->resolution, &w, &h) == 0)
+                pc_gfx_set_resolution(w, h);
+        }
         else if (!strcasecmp(key, "vsync"))
             pc_input_live_vsync(s->vsync);
         else if (!strcasecmp(key, "frame_rate"))
@@ -243,10 +267,14 @@ static int set_value(const Item *it, const char *v)
     if (it->kind == I_WINDOW) {
         char w[16], h[16], tail;
         unsigned uw, uh;
-        if (sscanf(v, "%ux%u%c", &uw, &uh, &tail) != 2)
+        if (!strcasecmp(v, "auto"))   /* two thirds of the desktop, from the next start */
+            snprintf(w, sizeof w, "auto"), snprintf(h, sizeof h, "auto");
+        else if (sscanf(v, "%ux%u%c", &uw, &uh, &tail) != 2)
             return -1;
-        snprintf(w, sizeof w, "%u", uw);
-        snprintf(h, sizeof h, "%u", uh);
+        else {
+            snprintf(w, sizeof w, "%u", uw);
+            snprintf(h, sizeof h, "%u", uh);
+        }
         if (pc_settings_set(&M.eff, "video", "width", w, why, sizeof why) != 0 ||
             pc_settings_set(&M.eff, "video", "height", h, why, sizeof why) != 0) {
             status(C_WARN, "%s", why);
@@ -638,6 +666,9 @@ static void shown(const Item *it, char *out, size_t n)
     }
     default:
         snprintf(out, n, "%s", v);
+        for (int i = 0; it->labels && it->choices[i]; i++)
+            if (!strcasecmp(v, it->choices[i]))
+                snprintf(out, n, "%s", it->labels[i]);
     }
 }
 
