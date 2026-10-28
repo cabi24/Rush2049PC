@@ -152,9 +152,9 @@ def main():
         code, out, lines = run(args.exe, args.rom, two, spec2, "controller", args.rom_check,
                                logs / "race2p-controller.log")
         check(code == 0 and lines == ref2, "race2p, two virtual controllers: the same run as the scripted one")
-        # (SDL names a controller by its mapping, which both virtual ones share)
-        check(len(re.findall(r"controller 'rush2049pc virtual controller \d' \(.*\) -> player [12]\n", out)) == 2 and
-              "-> player 2" in out, "race2p: the controllers are players 1 and 2")
+        # (SDL names a controller by its mapping, which both virtual ones share; Windows' lines end in \r\n)
+        players = re.findall(r"controller 'rush2049pc virtual controller \d' \([^)]*\) -> player (\d)", out)
+        check(sorted(players) == ["1", "2"], f"race2p: the controllers are players 1 and 2 ({players})")
     print(f"input_check: {len(fails)} failed" if fails else "input_check: all passed")
     return len(fails)
 
