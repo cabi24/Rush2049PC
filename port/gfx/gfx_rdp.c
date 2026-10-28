@@ -1193,6 +1193,7 @@ void pcgfx_rdp_reset(void) {
     pcgfx.state_dirty = pcgfx.tex_dirty = 1;
     s_target = NULL;
     s_state_valid = 0;
+    s_tex_gen = pcgfx_tex_generation();   /* the settings at init: no needless drop of the cache at the first frame */
 }
 
 void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
