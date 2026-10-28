@@ -48,6 +48,22 @@ static int all(const int16_t *o, int16_t l, int16_t r)
     return 1;
 }
 
+/* A DC source of value v through the resampler at phase 0, times volume vol: the microcode's rounding (each tap's
+ * product rounded half up and saturated, the pairs and their sum saturated; the volume's product rounded). */
+static int32_t dc_mix(int32_t v, int32_t vol)
+{
+    const int16_t *t = musyx_lut[0];
+    int32_t r[4], x;
+    for (int j = 0; j < 4; j++) {
+        r[j] = (int32_t)(((int64_t)v * t[j] * 2 + 0x8000) >> 16);
+        r[j] = r[j] > 32767 ? 32767 : r[j];
+    }
+    x = r[0] + r[1] > 32767 ? 32767 : r[0] + r[1] < -32768 ? -32768 : r[0] + r[1];
+    int32_t y = r[2] + r[3] > 32767 ? 32767 : r[2] + r[3] < -32768 ? -32768 : r[2] + r[3];
+    x = x + y > 32767 ? 32767 : x + y < -32768 ? -32768 : x + y;
+    return (int32_t)(((int64_t)x * vol * 2 + 0x8000) >> 16);
+}
+
 static int32_t decay(int32_t b)
 {
     return (int32_t)(((int64_t)b * 0xF850) >> 16);
@@ -123,9 +139,10 @@ int main(void)
     sfd_setup(3, v, 0, 0);
     pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
     pc_audio_run_task_form(sfds + 2, 2, PC_AUDIO_FORM_NATIVE);
+    int16_t sv = (int16_t)dc_mix(16384, 0x4000);   /* about 8192 */
     CHECK(all(out[0], 0, 0), "surround, first subframe: %d %d", out[0][0], out[0][1]);
-    CHECK(all(out[1], 8192, -8192), "surround, second: %d %d", out[1][0], out[1][1]);
-    CHECK(all(out[2], 8192, -8192), "surround after the voice ends, across tasks: %d %d", out[2][0], out[2][1]);
+    CHECK(all(out[1], sv, (int16_t)-sv), "surround, second: %d %d", out[1][0], out[1][1]);
+    CHECK(all(out[2], sv, (int16_t)-sv), "surround after the voice ends, across tasks: %d %d", out[2][0], out[2][1]);
     CHECK(all(out[3], 0, 0), "surround gone: %d %d", out[3][0], out[3][1]);
 
     /* A stopped voice's surround carry goes the same way. */
@@ -134,8 +151,8 @@ int main(void)
     sfd_setup(1, v, 0, 1);
     pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
     {
-        int32_t bs = decay(8192);
-        CHECK(all(out[1], (int16_t)(8192 + bs), (int16_t)(-8192 - bs)), "surround base: %d %d (base %d)", out[1][0],
+        int32_t bs = decay(sv);
+        CHECK(all(out[1], (int16_t)(sv + bs), (int16_t)(-sv - bs)), "surround base: %d %d (base %d)", out[1][0],
               out[1][1], bs);
     }
 

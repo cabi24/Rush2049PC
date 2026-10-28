@@ -11,7 +11,20 @@
 static PcMusyxSfd sfds[4];
 static uint8_t state[MX_STATE_SIZE];
 
-/* Reference: the whole stream at once, as one pointer and Q16 phase, wrapping at the loop end. */
+static int32_t clamp16(int32_t v)
+{
+    return v > 32767 ? 32767 : v < -32768 ? -32768 : v;
+}
+
+/* VMULF: rounded half up, saturated. */
+static int32_t mulf(int32_t a, int32_t b)
+{
+    return clamp16((int32_t)(((int64_t)a * b * 2 + 0x8000) >> 16));
+}
+
+/* Reference: the whole stream at once, as one pointer and Q16 phase, wrapping at the loop end (frame by frame:
+ * the microcode checks once every 8 frames, the same for loops longer than 8 frames' input). Each tap's product
+ * rounded and saturated, the pairs and their sum saturated; the volume's product rounded. */
 static void ref_stream(const int16_t *in, double pos0, uint16_t pitch, uint32_t loop_start, uint32_t loop_len,
                        int16_t vol, int16_t *out, size_t n)
 {
@@ -23,11 +36,9 @@ static void ref_stream(const int16_t *in, double pos0, uint16_t pitch, uint32_t 
         acc = (acc & 0xFFFF) + ((uint32_t)pitch << 4);
         if (loop_len && p >= (long)(loop_start + loop_len))
             p -= loop_len;
-        int64_t s = 0;
-        for (int j = 0; j < 4; j++)
-            s += (int32_t)in[p + j] * tap[j];
-        int32_t x = s >> 15 > 32767 ? 32767 : s >> 15 < -32768 ? -32768 : (int32_t)(s >> 15);
-        out[i] = (int16_t)((x * vol) >> 15);
+        int32_t x = clamp16(clamp16(mulf(in[p], tap[0]) + mulf(in[p + 1], tap[1])) +
+                            clamp16(mulf(in[p + 2], tap[2]) + mulf(in[p + 3], tap[3])));
+        out[i] = (int16_t)mulf(x, vol);
     }
 }
 
@@ -105,7 +116,8 @@ int main(void)
               mine[32][1], mine[32][2]);
     }
 
-    /* 2. DC through every phase is exact: 10000 * 0x7FFF >> 15 = 9999. */
+    /* 2. DC through every phase: 10000, give or take the taps' rounding (each product rounds on its own), and
+     * exactly the reference. */
     {
         static int16_t dc[1024];
         for (int k = 0; k < 1024; k++)
@@ -114,8 +126,10 @@ int main(void)
         render(&tv, 0x7FFF, 2, 2, got);
         int bad = 0;
         for (int i = 0; i < 2 * SUB; i++)
-            bad += got[i] != 9999;
-        CHECK(!bad, "DC: %d samples not 9999 (first %d)", bad, got[0]);
+            bad += abs(got[i] - 10000) > 2;
+        CHECK(!bad, "DC: %d samples not 10000 +- 2 (first %d)", bad, got[0]);
+        ref_stream(dc, 10.5, 0x15F3, 0, 0, 0x7FFF, want, 2 * SUB);
+        CHECK(!compare(got, want, 2 * SUB, &first), "DC: differs from the reference at %zu", first);
     }
 
     /* 3. Pitch ratios: a 500 Hz tone comes out at 500 * pitch. */

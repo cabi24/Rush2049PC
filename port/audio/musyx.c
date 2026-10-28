@@ -10,8 +10,10 @@
  *   4. delay effect, if any: sum up to 8 taps of the circular line into a wet subframe, add it to left and
  *      right, and write aux + FIR(wet) * feedback back into the line
  *   5. output: interleave left + base left and right + base right, native s16
- * and store the state back. Arithmetic follows the RSP's style (Q15 products, arithmetic shifts, saturation
- * to s16); rounding inside the microcode's vector ops is not reproduced (docs/port/AUDIO.md). */
+ * and store the state back. The arithmetic is the microcode's, lane by lane (docs/port/AUDIO.md §8): products
+ * rounded half up as VMULF rounds them, saturation where its VADD and VMADH saturate, positions and volumes in
+ * 8-frame vectors with a saturating high half, the ADPCM predictor's sum in 32 bits. Checked bit for bit against
+ * the microcode translated by RSPRecomp, on the game's tasks (RUSH2049_AUDIO_CAPTURE) and on random ones. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +29,49 @@
 static inline int16_t sat16(int64_t v)
 {
     return v > 32767 ? 32767 : v < -32768 ? -32768 : (int16_t)v;
+}
+
+/* ---------------------------------------------------------------- the vector unit's arithmetic, lane by lane */
+
+/* VMULF as the accumulator holds it: a * b / 32768, rounded half up, not saturated. */
+static inline int32_t mulf_acc(int32_t a, int32_t b)
+{
+    return (int32_t)(((int64_t)a * b * 2 + 0x8000) >> 16);
+}
+
+/* VMULF's result. */
+static inline int16_t mulf(int32_t a, int32_t b)
+{
+    return sat16(mulf_acc(a, b));
+}
+
+/* A 16.16 value the way the microcode keeps one in two vectors: a u16 low half and an s16 high half. */
+typedef struct {
+    uint16_t lo;
+    int16_t hi;
+} Split;
+
+/* VADDC then VADD: the low halves' carry goes into the high half, which saturates. */
+static inline void split_add(Split *s, uint32_t inc)
+{
+    uint32_t lo = (uint32_t)s->lo + (inc & 0xFFFF);
+    s->lo = (uint16_t)lo;
+    s->hi = sat16((int32_t)s->hi + (int16_t)(inc >> 16) + (int32_t)(lo >> 16));
+}
+
+/* value + k * step for lane k, as the microcode spreads a ramp over its 8 lanes (VMUDN, VMADH, VADDC, VADD). */
+static inline Split split_lane(uint32_t value, uint32_t step, int k)
+{
+    uint32_t low = (step & 0xFFFF) * (uint32_t)k;
+    Split s = {(uint16_t)low, sat16((int64_t)(int16_t)(step >> 16) * k + (int64_t)(low >> 16))};
+    split_add(&s, value);
+    return s;
+}
+
+/* The 4-tap filter: each product rounded (VMULF), the pairs and then their sum saturated (VADD). */
+static inline int16_t tap4(const int16_t *x, const int16_t t[4])
+{
+    return sat16((int32_t)sat16(mulf(x[0], t[0]) + mulf(x[1], t[1])) + sat16(mulf(x[2], t[2]) + mulf(x[3], t[3])));
 }
 
 static inline uint16_t ld16(const uint8_t *p, int be)
@@ -299,12 +344,13 @@ void musyx_adpcm_decode(int16_t *dst, const uint8_t *src, size_t src_len, const 
         dst[1] = (int16_t)(b[2] << 8 | b[3]);
         for (int grp = 0; grp < 4; grp++) {
             int s0 = group_start[grp];
-            int64_t p2 = dst[s0 - 2], p1 = dst[s0 - 1];
+            int32_t p2 = dst[s0 - 2], p1 = dst[s0 - 1];
             for (int i = 0; i < group_len[grp]; i++) {
-                int64_t acc = ((int64_t)res[s0 + i] << 11) + c0[i] * p2 + c1[i] * p1;
+                /* the accumulator's 32 bits above its low 16 (VMADH), then >> 11 saturated (VMUDN, VMADH) */
+                uint32_t acc = (uint32_t)(res[s0 + i] * 2048) + (uint32_t)(c0[i] * p2) + (uint32_t)(c1[i] * p1);
                 for (int j = 0; j < i; j++)
-                    acc += (int64_t)c1[i - 1 - j] * res[s0 + j];
-                dst[s0 + i] = sat16(acc >> 11);
+                    acc += (uint32_t)(c1[i - 1 - j] * res[s0 + j]);
+                dst[s0 + i] = sat16((int32_t)acc >> 11);
             }
         }
     }
@@ -392,38 +438,51 @@ static void render_voice(Mix *m, const Voice *v, int16_t last[4])
         offset = v->skip[0] & 31;
     }
 
-    int pos = base + offset + v->start;
-    int end = base + v->end;
-    int restart = (v->restart & 0x7FFF) + (v->restart & 0x8000 ? 0 : base);
-    uint32_t acc = v->frac;
+    /* Eight frames at a time, as the microcode's vectors hold them: lane k of a block is frame 8 * block + k. A
+     * lane's position (input samples, 16.16) and its four volumes (Q15 in the high half) start at value + k * step
+     * and move by 8 * step a block; a position at or past the end goes back to the restart point, checked per lane
+     * once a block. Positions are DMEM halfwords there: the buffer is DMEM 0x600-0xA00, halfword 0x300. */
+    const int dmem = 0x300;
+    int16_t end = (int16_t)(dmem + base + v->end);
+    int16_t restart = (int16_t)(v->restart & 0x8000 ? dmem + (v->restart & 0x7FFF) : dmem + base + v->restart);
+    uint32_t pos = (uint32_t)(uint16_t)(dmem + base + offset + v->start) << 16 | v->frac;
     uint32_t step = (uint32_t)v->pitch << 4;
-    uint32_t env[4];
-    for (int k = 0; k < 4; k++)
-        env[k] = (uint32_t)v->env[k];
+    Split p[8], e[4][8];
+    for (int k = 0; k < 8; k++) {
+        p[k] = split_lane(pos, step, k);
+        if (p[k].hi >= end)
+            p[k].hi = sat16(sat16(p[k].hi - end) + restart);
+        for (int c = 0; c < 4; c++)
+            e[c][k] = split_lane((uint32_t)v->env[c], (uint32_t)v->step[c], k);
+    }
 
-    for (int i = 0; i < SUB; i++) {
-        const int16_t *tap = musyx_lut[(acc >> 10) & 63];
-        pos += (int)(acc >> 16);
-        acc = (acc & 0xFFFF) + step;
-        if (pos >= end)
-            pos = restart + (pos - end);
-
-        int64_t s = 0;
-        if (pos >= 0 && pos <= BUF + BUF_PAD - 4) {
-            for (int j = 0; j < 4; j++)
-                s += (int32_t)buf[pos + j] * tap[j];
-        } else {
-            for (int j = 0; j < 4; j++)
-                if (pos + j >= 0 && pos + j < BUF + BUF_PAD)
-                    s += (int32_t)buf[pos + j] * tap[j];
+    for (int i = 0; i < SUB; i += 8) {
+        int16_t x[8];
+        for (int k = 0; k < 8; k++) {
+            int at = p[k].hi - dmem;
+            const int16_t *tap = musyx_lut[p[k].lo >> 10];
+            if (at >= 0 && at <= BUF + BUF_PAD - 4) {
+                x[k] = tap4(buf + at, tap);
+            } else {   /* outside the buffer: zeros (the microcode would read other DMEM) */
+                int16_t w[4];
+                for (int j = 0; j < 4; j++)
+                    w[j] = at + j >= 0 && at + j < BUF + BUF_PAD ? buf[at + j] : 0;
+                x[k] = tap4(w, tap);
+            }
+            split_add(&p[k], step << 3);
+            if (p[k].hi >= end)
+                p[k].hi = sat16(sat16(p[k].hi - end) + restart);
         }
-        int32_t x = sat16(s >> 15);
-
-        for (int k = 0; k < 4; k++) {
-            int32_t a = (x * ((int32_t)env[k] >> 16)) >> 15;
-            last[k] = sat16(a);
-            m->ch[k][i] = sat16((int32_t)m->ch[k][i] + a);
-            env[k] += (uint32_t)v->step[k];
+        /* each channel: mix + x * volume (VMULF, VMADH: rounded, saturated once); the last frame's product, saturated,
+         * is the slot's last output */
+        for (int c = 0; c < 4; c++) {
+            for (int k = 0; k < 8; k++) {
+                int32_t a = mulf_acc(x[k], e[c][k].hi);
+                m->ch[c][i + k] = sat16((int32_t)m->ch[c][i + k] + a);
+                if (i + k == SUB - 1)
+                    last[c] = sat16(a);
+                split_add(&e[c][k], (uint32_t)v->step[c] << 3);
+            }
         }
     }
 }
@@ -459,8 +518,7 @@ static void delay_stage(Mix *m, const Sfd *s, int form)
     for (unsigned t = 0; t < d.taps; t++) {
         int64_t at = ((pos - (int64_t)d.tap_delay[t]) % len + len) % len;
         for (int i = 0; i < SUB; i++) {
-            int16_t v = d.buffer[at];
-            wet[i] = sat16(wet[i] + ((v * d.tap_gain[t]) >> 15));
+            wet[i] = sat16(wet[i] + mulf_acc(d.buffer[at], d.tap_gain[t]));   /* VMULF, VMADH */
             if (++at == len)
                 at = 0;
         }
@@ -470,15 +528,14 @@ static void delay_stage(Mix *m, const Sfd *s, int form)
         m->ch[1][i] = sat16(m->ch[1][i] + wet[i]);
     }
 
-    int32_t h[4];
+    int16_t h[4];
     for (int k = 0; k < 4; k++)
-        h[k] = (d.feedback * d.filter[k]) >> 15;
+        h[k] = mulf(d.filter[k], d.feedback);
     memcpy(x, m->hist + 1, 3 * sizeof *x);
     memcpy(m->hist, wet + SUB - 4, sizeof m->hist);
     int64_t w = pos;
     for (int i = 0; i < SUB; i++) {
-        int64_t f = ((int64_t)h[0] * x[i] + (int64_t)h[1] * x[i + 1] + (int64_t)h[2] * x[i + 2] +
-                     (int64_t)h[3] * x[i + 3]) >> 15;
+        int32_t f = tap4(x + i, h);
         m->ch[3][i] = sat16(m->ch[3][i] + f);
         d.buffer[w] = m->ch[3][i];
         if (++w == len)

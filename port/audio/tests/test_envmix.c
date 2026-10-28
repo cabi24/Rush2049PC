@@ -23,6 +23,26 @@ static void dc_voice(PcMusyxVoice *v, const int16_t *src)
     v->end = 0x4000;
 }
 
+static int32_t clamp16(int32_t v)
+{
+    return v > 32767 ? 32767 : v < -32768 ? -32768 : v;
+}
+
+/* The microcode's VMULF as its accumulator holds it: rounded half up, not saturated. */
+static int32_t mulf_acc(int32_t a, int32_t b)
+{
+    return (int32_t)(((int64_t)a * b * 2 + 0x8000) >> 16);
+}
+
+/* A DC source of value v through the resampler at phase 0 (unity pitch, no fraction): each tap's product rounded
+ * and saturated, the pairs and their sum saturated. Not quite v: the products round one by one. */
+static int32_t dc_through(int32_t v)
+{
+    const int16_t *t = musyx_lut[0];
+    return clamp16(clamp16(clamp16(mulf_acc(v, t[0])) + clamp16(mulf_acc(v, t[1]))) +
+                   clamp16(clamp16(mulf_acc(v, t[2])) + clamp16(mulf_acc(v, t[3]))));
+}
+
 static void run(int voices)
 {
     sfd.count = (uint16_t)voices;
@@ -38,7 +58,11 @@ int main(void)
         dc30k[k] = 30000;
     }
 
-    /* 1. Left ramps up from 0 to 0x7FFF, right ramps down from 0x7FFF to -0x8000, over one subframe. */
+    /* 1. Left ramps up from 0 to 0x7FFF, right ramps down from 0x7FFF to -0x8000, over one subframe: each frame is
+     * x * volume / 32768 rounded half up, the volume moving by its step every frame. */
+    musyx_lut_init();
+    int32_t x16 = dc_through(16384), x30 = dc_through(30000);
+    CHECK(abs(x16 - 16384) <= 2 && abs(x30 - 30000) <= 2, "DC through the table: %d %d", x16, x30);
     memset(&sfd, 0, sizeof sfd);
     dc_voice(&sfd.voices[0], dc16k);
     sfd.voices[0].env[0] = 0;
@@ -51,7 +75,7 @@ int main(void)
         for (int i = 0; i < SUB; i++) {
             int32_t vl = (int32_t)((uint32_t)i * (uint32_t)sfd.voices[0].env_step[0]) >> 16;
             int32_t vr = (int32_t)((uint32_t)sfd.voices[0].env[1] + (uint32_t)i * (uint32_t)sfd.voices[0].env_step[1]) >> 16;
-            bad += out[2 * i] != (int16_t)((16384 * vl) >> 15) || out[2 * i + 1] != (int16_t)((16384 * vr) >> 15);
+            bad += out[2 * i] != clamp16(mulf_acc(x16, vl)) || out[2 * i + 1] != clamp16(mulf_acc(x16, vr));
             if (i)
                 mono &= out[2 * i] >= out[2 * i - 2] && out[2 * i + 1] <= out[2 * i - 1];
         }
@@ -82,8 +106,8 @@ int main(void)
         }
         /* the steepest ramp, 0 -> 0x7FFF at half scale, moves 0x7FFF / 2 / 192 = 85.3 per frame */
         CHECK(worst <= 86, "largest step between frames %d", worst);
-        CHECK(joined[SUB] >= 16380 && joined[2 * SUB] >= 4090 && joined[2 * SUB] <= 4100 &&
-                  joined[3 * SUB] == -8192 && joined[4 * SUB - 1] == -8192,
+        CHECK(joined[SUB] == mulf_acc(x16, 0x7FFF) && joined[2 * SUB] == mulf_acc(x16, 0x2000) &&
+                  joined[3 * SUB] == mulf_acc(x16, -0x4000) && joined[4 * SUB - 1] == mulf_acc(x16, -0x4000),
               "subframe starts %d %d %d", joined[SUB], joined[2 * SUB], joined[3 * SUB]);
     }
 
@@ -106,7 +130,9 @@ int main(void)
         for (int s = 0; s < 3; s++) {
             int16_t last[4];
             memcpy(last, state + MX_ST_LAST + s * 8, sizeof last);
-            CHECK(last[0] == 29999 && last[1] == -30000 && last[2] == 3750 && last[3] == (30000 * (0x2000 + s)) >> 15,
+            /* the last frame's product per channel, rounded, saturated */
+            CHECK(last[0] == clamp16(mulf_acc(x30, 0x7FFF)) && last[1] == clamp16(mulf_acc(x30, -0x8000)) &&
+                      last[2] == clamp16(mulf_acc(x30, 0x1000)) && last[3] == clamp16(mulf_acc(x30, 0x2000 + s)),
                   "slot %d last %d %d %d %d", s, last[0], last[1], last[2], last[3]);
         }
     }

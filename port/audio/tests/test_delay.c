@@ -34,6 +34,25 @@ static void setup(int k, unsigned index, int aux_voice)
     sfds[k].voices[0].output = out[k];
 }
 
+static int32_t clamp16(int32_t v)
+{
+    return v > 32767 ? 32767 : v < -32768 ? -32768 : v;
+}
+
+/* The microcode's VMULF: a * b / 32768 rounded half up, saturated. Every product in the effect is one. */
+static int32_t mulf(int32_t a, int32_t b)
+{
+    return clamp16((int32_t)(((int64_t)a * b * 2 + 0x8000) >> 16));
+}
+
+/* The aux voice's output: DC 16384 through the resampler at phase 0 (each tap rounded), at volume 0x7FFF. */
+static int32_t aux_level(void)
+{
+    const int16_t *t = musyx_lut[0];
+    int32_t x = clamp16(clamp16(mulf(16384, t[0]) + mulf(16384, t[1])) + clamp16(mulf(16384, t[2]) + mulf(16384, t[3])));
+    return mulf(x, 0x7FFF);
+}
+
 static int all(const int16_t *o, int16_t l, int16_t r)
 {
     for (int i = 0; i < SUB; i++)
@@ -47,7 +66,8 @@ int main(void)
     for (int k = 0; k < 1024; k++)
         dc16k[k] = 16384;
 
-    /* 1. One tap, two subframes back, gain 0.5, no feedback: aux 16383 in subframe 0 is heard in subframe 2. */
+    /* 1. One tap, two subframes back, gain 0.5, no feedback: aux (about 16384) in subframe 0 is heard in
+     * subframe 2. */
     memset(&d, 0, sizeof d);
     d.buffer = line;
     d.length = LINE;
@@ -61,9 +81,10 @@ int main(void)
     for (int k = 1; k < 4; k++)
         setup(k, (unsigned)k, 0);
     pc_audio_run_task_form(sfds, 4, PC_AUDIO_FORM_NATIVE);
-    CHECK(line[0] == 16383 && line[SUB - 1] == 16383 && line[SUB] == 0, "line %d %d %d", line[0], line[SUB - 1], line[SUB]);
+    int16_t aux = (int16_t)aux_level(), echo = (int16_t)mulf(aux, 0x4000);
+    CHECK(line[0] == aux && line[SUB - 1] == aux && line[SUB] == 0, "line %d %d %d", line[0], line[SUB - 1], line[SUB]);
     CHECK(all(out[0], 0, 0) && all(out[1], 0, 0), "early echo %d %d", out[0][0], out[1][0]);
-    CHECK(all(out[2], 8191, 8191), "echo %d %d", out[2][0], out[2][1]);
+    CHECK(all(out[2], echo, echo), "echo %d %d, expected %d", out[2][0], out[2][1], echo);
     CHECK(all(out[3], 0, 0), "after the echo %d", out[3][0]);
 
     /* 2. Feedback 0.5 through the pass-through filter: each repeat is half the last. */
@@ -75,10 +96,10 @@ int main(void)
         setup(k, (unsigned)k, 0);
     pc_audio_run_task_form(sfds, 8, PC_AUDIO_FORM_NATIVE);
     {
-        int h3 = (0x4000 * 32767) >> 15;   /* 16383 */
-        int w2 = (16383 * 0x4000) >> 15;   /* 8191 */
-        int l4 = (h3 * w2) >> 15, w4 = (l4 * 0x4000) >> 15;
-        int l6 = (h3 * w4) >> 15, w6 = (l6 * 0x4000) >> 15;
+        int h3 = mulf(32767, 0x4000);   /* the filter's tap times the feedback: 16384 */
+        int w2 = mulf(aux, 0x4000);
+        int l4 = mulf(w2, h3), w4 = mulf(l4, 0x4000);
+        int l6 = mulf(w4, h3), w6 = mulf(l6, 0x4000);
         CHECK(all(out[2], (int16_t)w2, (int16_t)w2), "first echo %d", out[2][0]);
         CHECK(all(out[4], (int16_t)w4, (int16_t)w4), "second echo %d, expected %d", out[4][0], w4);
         CHECK(all(out[6], (int16_t)w6, (int16_t)w6), "third echo %d, expected %d", out[6][0], w6);
@@ -98,7 +119,7 @@ int main(void)
         int bad = 0;
         for (int i = 0; i < SUB; i++) {
             int at = (LINE - 100 + i) % LINE;
-            int16_t w = (int16_t)(((at * 16) * 0x7FFF) >> 15);
+            int16_t w = (int16_t)mulf(at * 16, 0x7FFF);
             bad += out[0][2 * i] != w || out[0][2 * i + 1] != w;
         }
         CHECK(!bad, "wrapping tap: %d samples wrong", bad);
@@ -118,12 +139,12 @@ int main(void)
     setup(1, 5, 0);   /* pos 960: wet from line[192..383] */
     pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
     {
-        int h2 = (0x7FFF * 32767) >> 15, bad = 0;
+        int h2 = mulf(0x7FFF, 32767), bad = 0;
         for (int k = 0; k < 2; k++) {
             for (int i = 0; i < SUB; i++) {
                 int src = k * SUB + i - 1;   /* the wet sample one before */
-                int prev_wet = src < 0 ? 0 : ((src * 8) * 0x7FFF) >> 15;
-                int16_t want = (int16_t)((h2 * prev_wet) >> 15);
+                int prev_wet = src < 0 ? 0 : mulf(src * 8, 0x7FFF);
+                int16_t want = (int16_t)mulf(prev_wet, h2);
                 bad += line[(4 + k) * SUB + i] != want;
             }
         }

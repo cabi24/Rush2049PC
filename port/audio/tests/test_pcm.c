@@ -10,6 +10,11 @@ static PcMusyxSfd sfd;
 static uint8_t state[MX_STATE_SIZE];
 static int16_t out[2 * MX_SUBFRAME];
 
+static int32_t clamp16(int32_t v)
+{
+    return v > 32767 ? 32767 : v < -32768 ? -32768 : v;
+}
+
 static void run_voice(const PcMusyxVoice *v)
 {
     memset(&sfd, 0, sizeof sfd);
@@ -50,7 +55,9 @@ int main(void)
         noise[k] = (int16_t)(test_rand(&seed) - 16384);
     }
 
-    /* 1. The real table, against the closed form: input index (frac + i * step) >> 16, phase bits 15..10. */
+    /* 1. The real table, against the closed form: input index (frac + i * step) >> 16, phase bits 15..10; each tap's
+     * product rounded half up and saturated, the two pairs' sums and their sum saturated, then the volume's
+     * product rounded (the microcode's VMULF and VADD). */
     musyx_lut_init();
     for (int t = 0; t < 3; t++) {
         static const uint16_t pitches[3] = {0x1357, 0x0A00, 0x1FFF};
@@ -62,11 +69,11 @@ int main(void)
         for (int i = 0; i < MX_SUBFRAME; i++) {
             uint32_t p = fracs[t] + (uint32_t)i * (pitches[t] << 4);
             const int16_t *tap = musyx_lut[(p >> 10) & 63];
-            int64_t s = 0;
+            int32_t r[4];
             for (int j = 0; j < 4; j++)
-                s += noise[a + (p >> 16) + j] * tap[j];
-            int32_t x = s >> 15 > 32767 ? 32767 : s >> 15 < -32768 ? -32768 : (int32_t)(s >> 15);
-            bad += out[2 * i] != (int16_t)((x * 0x4000) >> 15) || out[2 * i + 1] != 0;
+                r[j] = clamp16((noise[a + (p >> 16) + j] * tap[j] * 2 + 0x8000) >> 16);
+            int32_t x = clamp16(clamp16(r[0] + r[1]) + clamp16(r[2] + r[3]));
+            bad += out[2 * i] != (int16_t)((x * 0x4000 * 2 + 0x8000) >> 16) || out[2 * i + 1] != 0;
         }
         CHECK(!bad, "pitch %04x: %d samples differ from the closed form", pitches[t], bad);
     }
@@ -107,7 +114,9 @@ int main(void)
     }
 
     /* 4. End and restart: the main segment (12 samples at the buffer's end) runs to its end point 10, then
-     * continues in the loop segment (at the buffer's start) at 2; or restarts inside the main segment at 4. */
+     * continues in the loop segment (at the buffer's start) at 2; or (20 samples, end 18) restarts inside the main
+     * segment at 4. The microcode checks the end once every 8 frames for each of the 8 frames in its vector, so a
+     * loop is at least as long as 8 frames' input: 14 samples here. */
     for (int k = 0; k < 256; k++)
         loopdata[k] = (int16_t)(4 * (3000 + k));
     main_voice(&v, ramp, 1000, 12, 0x1000, 0);
@@ -123,15 +132,14 @@ int main(void)
             bad += out[2 * i] != (int16_t)(i < 10 ? 1000 + i + 1 : 3000 + (i - 10) + 3);
         CHECK(!bad, "restart in the loop segment: %d wrong (out[10] %d)", bad, out[20]);
     }
-    v.src[1].ptr1 = NULL;
-    v.src[1].size1 = 0;
-    v.u.pcm.count[1] = 0;
+    main_voice(&v, ramp, 1000, 20, 0x1000, 0);
+    v.end = 18;
     v.restart = 4;
     run_voice(&v);
     {
         int bad = 0;
         for (int i = 0; i < MX_SUBFRAME; i++)
-            bad += out[2 * i] != (int16_t)(i < 10 ? 1000 + i + 1 : 1005 + (i - 10) % 6);
+            bad += out[2 * i] != (int16_t)(i < 18 ? 1000 + i + 1 : 1005 + (i - 18) % 14);
         CHECK(!bad, "restart in the main segment: %d wrong", bad);
     }
     /* start (0x4E) adds to the first sample's offset. */

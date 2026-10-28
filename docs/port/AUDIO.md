@@ -79,18 +79,20 @@ feedback filter ({0, 0, 0, 32767} when mode ≠ 1).
 
 **State (0x298, private to the interpreter, native byte order)**: last enveloped output per slot and channel
 s16[32][4] @0x000, base volumes s32[4] @0x100, the previous subframe's surround mix s16[192] @0x110, and the
-feedback filter's history s16[4] @0x290.
+feedback filter's history s16[4] @0x290. The microcode lays it out the same way, except the base: its high halves
+s16[4] @0x100 and low halves u16[4] @0x108 (section 8). Only the interpreter reads its own.
 
-**Pipeline per SFD** (`port/audio/musyx.c`):
+**Pipeline per SFD** (`port/audio/musyx.c`). `mulf(a, b)` is the vector unit's VMULF, `(2ab + 0x8000) >> 16`: a
+Q15 product rounded half up; `sat` saturates to s16 (section 8 has each instruction):
 
 | Stage | Behavior |
 |---|---|
 | base | add `last[slot]` for each mask bit, then `base = base * 0xF850 >> 16` (all four channels) |
 | init | aux = base aux; left = surround(prev) + base surround; right = −(surround(prev) + base surround); surround = 0 |
 | load | PCM16: main at `0x200 − align4(count + skip)`, loop at 0; ADPCM: decode `frames[0]` × 32 at `0x200 − frames × 32`, loop frames at 0 |
-| resample | pointer = base + skip (& 31 for ADPCM) + start; per frame: phase row `acc[15:10]`, pointer += `acc >> 16`, `acc = (acc & 0xFFFF) + pitch << 4`, if pointer ≥ end: pointer = restart + overshoot; `x = sat(Σ in[p+j] · lut[row][j] >> 15)` |
-| envmix | per channel: `a = x · (env >> 16) >> 15`; `mix = sat(mix + a)`; `env += step`; the last frame's `sat(a)` goes to `last[slot]` |
-| delay | wet = Σ taps `sat(wet + line[pos − delay] · gain >> 15)` (circular); left += wet, right += wet; `line[pos..] = sat(aux + FIR(hist, wet) · feedback)` |
+| resample | 8 frames at a time: lane k of block b is frame 8b + k. Position (16.16) = (base + skip (& 31 for ADPCM) + start) << 16 + frac, lane k starts at + k · step (step = pitch << 4) and moves 8 · step a block; at or past end it goes to restart + overshoot, checked per lane once a block. Phase row `pos[15:10]`; `x = sat(sat(mulf(in[p], t0) + mulf(in[p+1], t1)) + sat(mulf(in[p+2], t2) + mulf(in[p+3], t3)))` |
+| envmix | per channel: volume = env + frame · step (its high half saturates rather than wrap); `mix = sat(mix + (2 · x · vol + 0x8000) >> 16)` (the product isn't saturated first); the last frame's saturated product goes to `last[slot]` |
+| delay | wet = Σ taps `sat(wet + mulf(line[pos − delay], gain))` (circular); left += wet, right += wet; `h = mulf(filter, feedback)`; `line[pos..] = sat(aux + sat(sat(mulf(x0, h0) + mulf(x1, h1)) + sat(mulf(x2, h2) + mulf(x3, h3))))` over the history and wet |
 | out | `out[2i] = sat(left + base left)`, `out[2i+1] = sat(right + base right)`, native s16 |
 
 ADPCM frame layout: a 40-byte block holds two 32-sample frames. Bytes 0–3 and 4–7 are each frame's first two
@@ -98,8 +100,10 @@ samples as big-endian s16. Bytes 8–23 and 24–39 are each frame's header byte
 and 15 bytes of nibbles, high nibble first. Residual = `(s16)(nibble << 12) >> shift`. Groups are samples 2–7, 8–15,
 16–23 and 24–31. Within a group:
 `out[i] = sat((r[i] << 11 + c0[i]·p2 + c1[i]·p1 + Σ_{j<i} c1[i−1−j]·r[j]) >> 11)`, where c0 and c1 are the book's
-two 8-entry vectors and p2 and p1 the two samples before the group. Frames are self-contained, with no state
-between them.
+two 8-entry vectors and p2 and p1 the two samples before the group. The sum is 32 bits and wraps, as the
+accumulator's bits 47–16 do. Frames are self-contained, with no state between them. (The microcode takes the book
+as `h >> 4` unmasked; 8–15 would read past the codebook. The game's samples never use them, and the interpreter
+masks with 7.)
 
 ## 3. Implementation
 
@@ -187,43 +191,42 @@ The tests link their own copies of the port/ultra functions (`tests/stubs.c`), i
 | Test | Checks | What it verifies |
 |---|---:|---|
 | `audio_adpcm` | 21 | residual nibbles, sign and shift; book selection (an integrator book); block layout and skip ≥ 32 against the reference; zero bytes past the source; encode and decode a sine with an order-2 predictor book: SNR 44.4 dB |
-| `audio_pcm` | 14 | closed-form resampling at three pitches; segment placement for each skip; pitch 2.0 and 0.5; end and restart into the loop segment and inside the main segment; start offset; big-endian source; split source ranges |
-| `audio_resample` | 17 | the table from a fake ROM (found at +0x20) and rejection of random bytes; computed rows sum to 1.0; DC exact at every phase; output frequency = input × pitch at five pitches; **bit-exact continuity across subframes and tasks** (1, 2 or 3 SFDs per task) for looping PCM16, a loop shorter than the window, and looping ADPCM, against one continuous reference stream |
-| `audio_envmix` | 10 | up and down ramps against the closed form; ramps joined across subframes (largest step 86); saturation; last sample per slot and channel; aux silent without the effect |
+| `audio_pcm` | 14 | closed-form resampling at three pitches, with the microcode's rounding; segment placement for each skip; pitch 2.0 and 0.5; end and restart into the loop segment and inside the main segment (a 14-sample loop: at least 8 frames' input, as the microcode checks the end once every 8 frames); start offset; big-endian source; split source ranges |
+| `audio_resample` | 18 | the table from a fake ROM (found at +0x20) and rejection of random bytes; computed rows sum to 1.0; DC within 2 at every phase (the taps round one by one) and equal to the reference; output frequency = input × pitch at five pitches; **bit-exact continuity across subframes and tasks** (1, 2 or 3 SFDs per task) for looping PCM16, a loop shorter than the window, and looping ADPCM, against one continuous reference stream |
+| `audio_envmix` | 11 | up and down ramps against the closed form (rounded products); ramps joined across subframes (largest step 86); saturation; last sample per slot and channel; aux silent without the effect |
 | `audio_mix` | 16 | empty SFD; the voice list ends at the output voice; release-mask fade (0xF850 per subframe) across SFDs and tasks; an empty SFD keeps slot records; surround one subframe late and antiphase, across tasks; surround in the base; 6 SFDs in one task = 2 + 4 |
 | `audio_delay` | 10 | echo at the tap delay and gain; feedback halving per pass; taps wrapping the line; filter history carried between subframes |
 | `audio_forms` | 32 | one scene (big-endian PCM, ADPCM with a big-endian book, native PCM, release mask, delay effect) rendered as native structs, native structs with K0 addresses, N64 form native order, and N64 form big-endian: identical outputs, states and lines; LP64 layout; host data above 4 GB |
 | `audio_output` | 40 | queue counts, pulls, underruns (the fade out and in, one underrun per dry spell), overflow; the AI's target from pulls, its growth per underrun and 200 ms cap, the `audio.latency` floor; idle and paused silence apart from underruns; the pull hook; buffers played again; 22050 → 48000 frequency, amplitude, ratio, chunked = whole; 48000 → 22050 alias rejection; a forced device rate; WAV round trip; the null backend's clock |
 | `audio_e2e` | 14 | four SFDs per task from the game's builder, `pc_audio_run_task`, `pc_audio_push`, the WAV read back. ADPCM 1 kHz at 32 kHz, played at 22050: 999.9480 Hz (expected 999.9481), left 9964.8 (expected about 9960), right/left 0.5, residual 0.19 % rms, worst 0.6 %. PCM16 big-endian 750 Hz at 24 kHz: 749.9611 Hz (expected 749.9611), right inverted at half volume |
 | `audio_backends` | 9 | only when SDL2 or ALSA is built: SDL2's `disk` driver gives a 440.000 Hz tone of the right length; ALSA opens alsa-lib's `null` device and drains |
+| `audio_rsp` | 10 | the microcode's arithmetic case by case, hand-worked: each tap's product rounded (3 · 0.5 is 2); the pairs saturated before they add; the volume's product rounded half up, positive and negative; the mix saturated once after an unsaturated product (−1 + 32768 = 32767) and the saturated last output; a volume ramp's high half saturating; the ADPCM sum wrapping at 32 bits; the delay's tap gain and feedback filter rounded |
 | `audio_volume` | 14 | the master volume through the manual backend's pulls: 1 leaves the samples as they were, 0.5 gives a quarter (the extremes 8191 and -8192), 0 silence, values past either end clamp, and it holds across a re-init |
 
-Result on the Pi 5: 9 of 9 tests pass (159 checks). With SDL2 2.26.5 and ALSA 1.2.8 headers unpacked locally
-(not installed, not committed), 10 of 10 pass (168 checks).
+Result on the Pi 5 (2026-10-27, with SDL2 2.30.9 fetched, no ALSA headers): 12 of 12 tests pass (206 checks).
 
 A mutation check broke 11 points in `musyx.c`, one at a time: surround sign, decay constant, nibble order, phase
 bits, restart segment, in-group predictor index, surround carry, tap direction, filter history, ADPCM skip mask,
-and the empty-SFD shortcut. The tests caught all 11.
+and the empty-SFD shortcut. The tests caught all 11. A second one reverted each of section 8's fixes in turn (the
+taps floored as one sum, products floored, the product saturated before the mix, volumes wrapping, the ADPCM sum
+in 64 bits, the delay's gain and filter floored): `audio_rsp` caught all 7; the first version of `musyx.c` fails 8
+of its 10 checks.
 
 ## 5. What's approximate or unverified
 
-- **No reference output exists here.** There is no ROM, microcode or LLE run. The game's C gives every field's
-  meaning, and the record sizes match: 0xA10, 0x50, 0x48 and the 0x298 state block. The DSP behavior the C doesn't
-  show follows the MusyX v1 behavior the N64 emulation community reverse-engineered, whose public description is
-  mupen64plus-rsp-hle's `musyx.c` (GPL). No code was taken from it; this implementation is written from that
-  behavior and the game's records. That covers:
-  - the ADPCM frame layout inside a block and the predictor
-  - the 4-tap resample table's shape
-  - the 0xF850 decay of the base volumes
-  - the surround channel delayed a subframe and mixed antiphase
-  - the delay effect's mixing
-  - the state block's layout
-- **Rounding.** The arithmetic is Q15 products, arithmetic shifts and saturation per stage. The RSP's vector
-  rounding and its exact clamp points are not reproduced, so outputs may differ from hardware by an LSB or so.
-- **Resample table.** The ROM search is tested only against a fake ROM. Without a match, the computed table is close
-  to the N64's in character but not equal to it.
-- **ADPCM against real data.** The format is self-consistent (44 dB round trip) but untested on the game's samples.
-  With a ROM, decode a few samples from 0x39B40 first: a wrong frame layout would be obvious.
+- **Checked against the microcode** (section 8, 2026-10-27): the interpreter matches it bit for bit on the retail
+  game's tasks and on random ones, the delay effect included. Written first from the game's C and the MusyX v1
+  behavior the N64 emulation community described (mupen64plus-rsp-hle's `musyx.c`, GPL; no code taken), it had the
+  pipeline right and its rounding wrong (Q15 products floored, one saturation per stage): a few LSB from the
+  microcode, mostly 1. The ROM search finds the microcode's own resample table; the computed one is only for a
+  ROM without it.
+- **Not reproduced** (the game never does these; the microcode then reads or writes what it shouldn't):
+  - an ADPCM book index of 8-15 (masked with 7 here);
+  - reads outside the 0x200-sample buffer, which see other DMEM there and zeros here (the game's windows always
+    hold the 4 taps);
+  - a delay effect with 0 taps (the microcode's tap loop runs 65536 times), or a tap delay longer than the line;
+  - a source range whose length isn't a multiple of 8 bytes (the RSP's DMA moves 8-byte units; the game's
+    cache ranges always are).
 - **Output.**
   - Real time is section 7: what is left is the game's own limits there.
   - For the `null` and `manual` backends, a frequency change clears the queue.
@@ -337,3 +340,57 @@ swap that blocks for vsync), stay out of the repository.
   changes and loads. On the N64 the retrace interrupt would run it.
 - Holding AI events back until the next buffer is rendered was tried and dropped: the renderer only renders the
   buffers the AI has passed, and at a re-init (a race's start) the game waits for the AI, so the game hung.
+
+## 8. Checking against the microcode
+
+Written 2026-10-27. The reference is the game's own audio microcode (`D_8002A050`, 0xF40 bytes of text at IMEM
+0x1080; its data, `ucode_data_size` 0x800 bytes at `D_8002E210`) translated to C++ by RSPRecomp, as Rush2049Recompiled
+builds it (N64Recomp and N64ModernRuntime's RSP headers, MIT, from their own checkouts). The translation comes from
+the ROM, so it, the harness built on it, and everything they produce stay on the machine that has the ROM, outside
+the repository.
+
+**Capture.** `RUSH2049_AUDIO_CAPTURE=path` makes `pc_audio_run_task` write every task as a self-contained N64-form
+image before running it (`musyx.c`): the SFD array with each pointer moved to a fresh address of the same alignment
+mod 8, each source range (to the 8-byte boundaries the RSP's DMA reads), each codebook, PCM16 big-endian whatever
+its order in memory, then the interpreter's outputs. A flag marks the tasks where the game set its state block up
+again (a race's start), so a replay starts both implementations' state from zero there. The microcode's state and
+the interpreter's are each their own: neither is copied into the other.
+
+**Harness.** Each task's bytes go into two RDRAMs, N64Recomp's word-swapped layout for the microcode and the tests'
+fake RDRAM (big-endian, `PC_AUDIO_FORM_N64`) for the interpreter; the OSTask at DMEM 0xFC0 and the data at DMEM 0;
+both run; the outputs are compared sample by sample. The results don't change with DMEM's other contents or with
+0xF80 data bytes loaded, as N64ModernRuntime loads them. A random mode builds tasks with the tests' copy of the
+game's builder (`tb_voice`) over random PCM16 samples and random ADPCM blocks and codebooks, with random volumes up
+to both extremes, release masks, 1-4 SFDs a task, and the delay effect with random taps, gains, feedback and filter.
+
+**Result.** The interpreter matches the microcode bit for bit on every captured task of the retail game (the title,
+menus, the attract demo, races for one and two players, with the state carried from the first task) and on the
+random tasks, PCM16 and the delay effect included. The game's own tasks only use ADPCM voices (no PCM16 stream, no
+delay effect in those runs), with loops, both kinds of restart, release masks, split ranges, surround, ramps and
+pitches up to 2.0; the random ones cover the rest. Before the fixes, most samples of the game's music and engines
+differed by a few LSB, random tasks by up to full scale where the saturation points differed. Neither is what made the Windows build sound bad (section 7): the error was well under audibility in
+music.
+
+**The microcode's arithmetic**, from its instructions (VMULF is `(2ab + 0x8000) >> 16`, rounded half up; VMADH adds
+to the 48-bit accumulator and saturates its bits 47-16; VADD saturates):
+
+| Stage | Instructions | Arithmetic |
+|---|---|---|
+| positions, volumes | VMUDN, VMADH by the lane numbers, VADDC, VADD | 8 lanes: value + k · step as a u16 low half and an s16 high half that saturates; + 8 · step a block |
+| end, restart | VSUB, VADD, VLT, VMRG | per lane, once a block: at or past the end, restart + (position − end) |
+| taps | LDV per lane (4 samples), VMULF by the table row, VADD [1q], VADD [2h], VMUDN/VMADN to gather | `sat(sat(r0 + r1) + sat(r2 + r3))` of the rounded, saturated products |
+| mix | VMULF x · volume, VMADH mix · 1 | `sat(mix + (2 · x · vol + 0x8000) >> 16)`: the product isn't saturated first; `last[slot]` is VMULF's (saturated) result for frame 191 |
+| base | VMUDN, VMADH, VMADM (the masked `last[]`), VSAR, VMUDL/VMADM/VMADN by 0xF850 | `(base + Σ last) · 0xF850 >> 16` exactly, as before |
+| init, interleave | VMUDH, VMADH by ±1 | `sat(surround + base)`, `sat(−surround − base)`; `sat(mix + base)` |
+| ADPCM | VAND, VMUDN (nibbles to the top), VMUDM (the shift), VMUDH/VMADH (the predictor), VSAR, VMUDN/VMADH by 32 | `sat(sum >> 11)` with the sum in 32 bits |
+| delay | VMULF/VMADH per tap; VMULF, VADD and VMUDH/VMADH for the filter | as the taps and the mix above |
+
+DMEM while it runs: the SFD header at 0x250, two voice records at 0x260 and 0x2B0 (the next one is fetched while
+one plays), left 0x300, right 0x480, the sample buffer 0x600-0xA00 (the loop segment from 0x600, the main segment
+ending at 0xA00), raw ADPCM from 0xA00, `last[]` for 16 voices at 0xB40, the state's base, surround and history at
+0xBC0, aux at 0xD60, the codebook at 0xEE0, the OSTask at 0xFC0. The output is interleaved at 0x600 after the
+voices, then written to the output buffer.
+
+**Fixes** (`musyx.c`): the taps (each product rounded, the pairs saturated), the mix (rounded, saturated once), the
+volumes' saturating high half, the 8-lane position update, the ADPCM sum's 32 bits, the delay's tap gains and
+filter. `audio_rsp` pins each (section 4).
