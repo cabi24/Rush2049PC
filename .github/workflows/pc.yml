@@ -148,6 +148,49 @@ jobs:
           path: synth/compare/*.log
           if-no-files-found: ignore
 
+  sanitize:
+    # The sanitizer builds (docs/port/SANITIZE.md): UndefinedBehaviorSanitizer on x86-64, every check on port/ code and a
+    # curated set on the game C; AddressSanitizer with it on aarch64 (its x86-64 shadow memory covers the RDRAM window
+    # at 0x80000000). Every test but the two that measure real time, the synthetic paths among them; a finding not in
+    # tools/port/sanitize/*.supp fails its test (halt_on_error, set by the build's ctest environment).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            sanitize: undefined
+          - os: ubuntu-24.04-arm
+            sanitize: address,undefined
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 \
+            zlib1g-dev libegl-dev libgles-dev libsdl2-dev libasound2-dev
+          # GCC 13's sanitizer runtimes predate 32 bits of mmap randomization, which can place a mapping inside
+          # their shadow memory
+          sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Configure
+        run: cmake -S . -B build/san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRUSH_SANITIZE=${{ matrix.sanitize }}
+      - name: Build
+        run: |
+          set -o pipefail
+          cmake --build build/san -j4 2>&1 | cut -c1-2000
+      - name: Tests
+        # audio_realtime and input_live_drive measure real time, which the sanitizers slow down.
+        run: ctest --test-dir build/san --output-on-failure -j4 -E '^(audio_realtime|input_live_drive)$'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-sanitize-${{ matrix.os }}
+          path: |
+            build/san/synth/paths/
+            build/san/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
+
   windows-cross:
     # Windows x86-64 cross-compiled with mingw-w64 (cmake/mingw-w64.cmake, docs/port/WINDOWS.md), with SDL2 built
     # from source: the window, controllers and SDL audio compile and link. The windows-run job runs the program.
