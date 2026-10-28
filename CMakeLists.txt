@@ -465,6 +465,9 @@ if(WIN32)
     if(RUSH_WINDOWS_CONSOLE)
         set(PE_CHECK_ARGS --console)
     endif()
+    if(RUSH_FETCH_SDL2)   # SDL2 linked statically, as in the release: only Windows' own DLLs imported
+        list(APPEND PE_CHECK_ARGS --dlls)
+    endif()
     add_test(NAME win_pe COMMAND ${PC_PYTHON} ${PORT_TOOLS}/pe_check.py --exe $<TARGET_FILE:rush2049pc>
         --version-file ${PC_VERSION_RC_H} ${PE_CHECK_ARGS})
 endif()
