@@ -47,12 +47,28 @@ add_library(pcgfx STATIC
     gfx_interp.c
     gfx_ui.c
     gfx_font.c
+    gfx_size.c
+    gfx_tex.c
     ${PCGFX_HEADLESS}
     gfx_png.c)
 set_target_properties(pcgfx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_include_directories(pcgfx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include
                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PCGFX_GLES3_INCLUDE})
 target_link_libraries(pcgfx PUBLIC ${PCGFX_HEADLESS_LIBS} ZLIB::ZLIB m)
+
+# Texture replacement (gfx_tex.c, docs/port/TEXTURES.md): a worker thread, and the 2x upscaler in port/upscale. That
+# directory's own CMakeLists.txt makes the target pcupscale when it has one; else its upscale.c is the library.
+find_package(Threads REQUIRED)
+if(NOT TARGET pcupscale)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../upscale/CMakeLists.txt)
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../upscale ${CMAKE_CURRENT_BINARY_DIR}/upscale)
+    else()
+        add_library(pcupscale STATIC ${CMAKE_CURRENT_SOURCE_DIR}/../upscale/upscale.c)
+        target_include_directories(pcupscale PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../upscale)
+        set_target_properties(pcupscale PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+    endif()
+endif()
+target_link_libraries(pcgfx PUBLIC pcupscale Threads::Threads)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(pcgfx PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
@@ -104,7 +120,7 @@ set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
-          eyeplane clip xlu widescreen autosize screenshot)
+          eyeplane clip xlu widescreen autosize seams screenshot)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The same cases on desktop GL, at 2x, on the software rasterizer (llvmpipe) and in widescreen (the 4:3 frame's
@@ -126,6 +142,24 @@ pcgfx_all_variant(software "RUSH_GFX_API=gles;LIBGL_ALWAYS_SOFTWARE=1")
 pcgfx_all_variant(wide "RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(wide21-scale3 "RUSH_GFX_WIDESCREEN=21:9;RUSH_GFX_SCALE=3")
 pcgfx_all_variant(scale-auto "RUSH_GFX_SCALE=auto")   # 2 in the 640 x 480 headless size
+# Fractional scales (GFX.md "Resolution and scale"): every case's N64 pixels, texel for texel, at 1.5, 2.25 and 2.5
+# (ties: N64 edges on internal pixel centres), 6.75 in 16:9 (2876 x 1620, a 3K panel's rows), and native in a
+# 2880 x 1620 window (6.76: 2880 across) and a 1366 x 768 one; seams checks every internal pixel.
+pcgfx_all_variant(scale1.5 "RUSH_GFX_SCALE=1.5")
+pcgfx_all_variant(scale2.25-desktop-gl "RUSH_GFX_SCALE=2.25;RUSH_GFX_API=gl")
+pcgfx_all_variant(scale2.5-software "RUSH_GFX_SCALE=2.5;LIBGL_ALWAYS_SOFTWARE=1")
+pcgfx_all_variant(wide-scale6.75 "RUSH_GFX_SCALE=6.75;RUSH_GFX_WIDESCREEN=16:9")
+pcgfx_all_variant(native-2880x1620 "RUSH_GFX_SCALE=native;RUSH_GFX_WIDESCREEN=auto;RUSH_GFX_TEST_WINDOW=2880x1620")
+pcgfx_all_variant(native-1366x768 "RUSH_GFX_SCALE=native;RUSH_GFX_TEST_WINDOW=1366x768")
+# The size logic alone, with made-up window, drawable and desktop sizes (no GL).
+add_executable(gfx_size_test tests/size_test.c)
+set_target_properties(gfx_size_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    EXPORT_COMPILE_COMMANDS OFF)
+target_include_directories(gfx_size_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gfx_size_test PRIVATE pcgfx)
+foreach(c scale edge fit units window texfactor)
+    add_test(NAME gfx.size.${c} COMMAND gfx_size_test ${c})
+endforeach()
 # Frame interpolation (gfx_interp.c, a high frame rate): pairs of frames built as the game builds them, and the
 # frames shown between against frames drawn directly at those moments. Headless; again at 2x, in widescreen, on
 # desktop GL and on llvmpipe.
@@ -137,7 +171,8 @@ target_link_libraries(gfx_interp_test PRIVATE pcgfx)
 foreach(c exact move camera cut teleport split hud appear instances children spin eyerel timing parse)
     add_test(NAME gfx.interp.${c} COMMAND gfx_interp_test ${c})
 endforeach()
-foreach(v "scale2;RUSH_GFX_SCALE=2" "wide;RUSH_GFX_WIDESCREEN=16:9" "gles;RUSH_GFX_API=gles"
+foreach(v "scale2;RUSH_GFX_SCALE=2" "scale2.5;RUSH_GFX_SCALE=2.5" "wide-scale3.4;RUSH_GFX_WIDESCREEN=16:9,RUSH_GFX_SCALE=3.4"
+          "wide;RUSH_GFX_WIDESCREEN=16:9" "gles;RUSH_GFX_API=gles"
           "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_GFX_API=gles,LIBGL_ALWAYS_SOFTWARE=1"
           "desktop-gl-software;RUSH_GFX_API=gl,LIBGL_ALWAYS_SOFTWARE=1")
     list(GET v 0 name)
@@ -163,6 +198,24 @@ foreach(v "gles;RUSH_GFX_API=gles" "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_G
     add_test(NAME gfx.ui.all.${name} COMMAND gfx_ui_test all ${PCGFX_TEST_OUT}/ui-${name})
     set_tests_properties(gfx.ui.all.${name} PROPERTIES ENVIRONMENT "${env}")
 endforeach()
+# Texture replacement (gfx_tex.c, docs/port/TEXTURES.md), headless, on synthetic textures: the PNG reader, texture
+# identities, a pack's round trip, wrap and mirror seams at 2x, mip levels, cut-outs, the worker and the disk cache.
+# Each case has its own folders under test-png/tex/<case>.
+add_executable(gfx_tex_test tests/tex_test.c)
+set_target_properties(gfx_tex_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    EXPORT_COMPILE_COMMANDS OFF)
+target_compile_definitions(gfx_tex_test PRIVATE _POSIX_C_SOURCE=200809L)
+target_include_directories(gfx_tex_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gfx_tex_test PRIVATE pcgfx)
+foreach(c png identity roundtrip seams lod alpha async)
+    add_test(NAME gfx.tex.${c} COMMAND gfx_tex_test ${c} ${PCGFX_TEST_OUT}/tex)
+endforeach()
+# The pack helper (tools/texpack), on a synthetic dump with its built-in nearest upscaler.
+find_program(PCGFX_PYTHON NAMES python3 python)
+if(PCGFX_PYTHON AND NOT CMAKE_CROSSCOMPILING)
+    add_test(NAME gfx.tex.texpack COMMAND ${PCGFX_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/texpack/texpack.py
+             --self-test)
+endif()
 if(PCGFX_SDL_TARGET)   # the window path, on SDL's offscreen driver (no display needed)
     # Windows: SDL's offscreen driver makes its GL contexts through EGL, which Windows lacks, so a real window
     # through WGL, where the back buffer doesn't survive the swap for the window comparison (docs/port/WINDOWS.md)

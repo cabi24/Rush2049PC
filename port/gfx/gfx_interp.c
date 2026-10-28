@@ -104,7 +104,8 @@ typedef struct {
     uint32_t seq;
     int64_t shown;              /* the retrace it was swapped in at; -1 not yet */
     GfxTarget *target;          /* the color image it drew */
-    int tw, th, scale;
+    int tw, th;
+    float scale;                /* the internal scale the target was drawn at */
     uint32_t n3d;               /* perspective transforms that can move */
     ARRAY(Xf, xf);
     ARRAY(RVtx, vtx);

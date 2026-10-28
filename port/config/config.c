@@ -152,7 +152,7 @@ static const char *const default_pad_menu = "leftstick+rightstick";
 
 /* ---------------------------------------------------------------- the settings table */
 
-typedef enum { T_STR, T_BOOL, T_INT, T_REAL, T_ENUM, T_ASPECT } ItemType;
+typedef enum { T_STR, T_BOOL, T_INT, T_REAL, T_ENUM, T_ASPECT, T_RES } ItemType;
 
 typedef struct {
     const char *section, *key;
@@ -167,8 +167,11 @@ typedef struct {
 static const char *const pak_choices[] = {"none", "memory", "rumble", NULL};
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
-static const char *const scale_choices[] = {"auto", NULL};
+static const char *const scale_choices[] = {"auto", "native", NULL};   /* 0, -1; "n64" reads as 1 */
+static const char *const size_choices[] = {"auto", NULL};
+static const char *const fullscreen_mode_choices[] = {"desktop", "exclusive", NULL};
 static const char *const frame_rate_choices[] = {"original", "display", NULL};
+static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -184,26 +187,50 @@ static const Item items[] = {
      "The controller pak image (the saves). A name alone is in the data folder: next to the program when this file "
      "is there, else the user data folder."},
 
-    {"video", "width", T_INT, F(width), 160, 16384, NULL, "640", "Window size. The game draws 320 x 220."},
-    {"video", "height", T_INT, F(height), 120, 16384, NULL, "480", NULL},
+    {"video", "width", T_INT, F(width), 160, 16384, size_choices, "auto",
+     "Window size in pixels, or auto: two thirds of the desktop. The game draws 320 x 220; the frame is drawn at the "
+     "window's own pixels (scale)."},
+    {"video", "height", T_INT, F(height), 120, 16384, size_choices, "auto", NULL},
+    {"video", "position", T_STR, F(position), 0, 0, NULL, "center", "Where the window opens: center, or X,Y."},
+    {"video", "remember_window", T_BOOL, F(remember_window), 0, 0, NULL, "on",
+     "Keep the window's size and place at exit (width, height and position above)."},
     {"video", "fullscreen", T_BOOL, F(fullscreen), 0, 0, NULL, "off", "Start in fullscreen (Alt+Enter or F11 toggles)."},
-    {"video", "vsync", T_BOOL, F(vsync), 0, 0, NULL, "on", NULL},
+    {"video", "fullscreen_mode", T_ENUM, F(fullscreen_mode), 0, 0, fullscreen_mode_choices, "desktop",
+     "desktop: borderless over the whole screen, at the desktop's resolution; exclusive: the display switches to "
+     "the resolution below."},
+    {"video", "resolution", T_RES, F(resolution), 0, 0, NULL, "desktop",
+     "Fullscreen resolution: desktop, 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p or WxH. Exclusive fullscreen "
+     "sets the display to it; desktop fullscreen draws the frame at it and fits it to the screen."},
+    {"video", "vsync", T_BOOL, F(vsync), 0, 0, NULL, "on",
+     "Wait for the display's refresh: no tearing, and no more frames shown than it refreshes (frame_rate)."},
     {"video", "frame_rate", T_INT, F(frame_rate), 30, 1000, frame_rate_choices, "original",
      "Frames shown a second: original (the game's own: 30, or fewer), display (the display's refresh; with vsync) or "
      "a number (60, 120, 144). Frames between the game's are drawn from its last two; its timing is unchanged "
      "(RUSH_GFX_FRAME_RATE)."},
-    {"video", "scale", T_INT, F(scale), 1, 8, scale_choices, "1",
-     "Internal resolution, a multiple of the N64's (1-8), or auto: the largest the window shows whole (RUSH_GFX_SCALE)."},
+    {"video", "scale", T_INT, F(scale), 1, 8, scale_choices, "native",
+     "Internal resolution: native (the window's own pixels, sharp at any size), auto (the largest whole multiple of "
+     "the N64's the window holds), or a multiple, 1-8: 1 (or n64) is the N64's 320 x 240 in square pixels "
+     "(RUSH_GFX_SCALE)."},
     {"video", "api", T_ENUM, F(api), 0, 0, api_choices, "auto",
      "auto (desktop GL first on Windows, OpenGL ES first elsewhere), gl (desktop GL 3.3 or 3.1) or gles (OpenGL ES "
      "3.0); each falls back to the other (RUSH_GFX_API)."},
-    {"video", "widescreen", T_ASPECT, F(widescreen), 4.0 / 3.0, 4, NULL, "off",
-     "Widen the picture: off (4:3), auto (the window's aspect), 16:9, 16:10, 21:9, W:H or a ratio up to 4. The 3D view "
-     "shows more at the sides; menus and the HUD stay 4:3 (RUSH_GFX_WIDESCREEN)."},
+    {"video", "widescreen", T_ASPECT, F(widescreen), 4.0 / 3.0, 4, NULL, "auto",
+     "Widen the picture: auto (the window's aspect: off in a 4:3 window), off (4:3), 16:9, 16:10, 21:9, W:H or a "
+     "ratio up to 4. The 3D view shows more at the sides; menus and the HUD stay 4:3 (RUSH_GFX_WIDESCREEN)."},
     {"video", "pause_on_focus_loss", T_BOOL, F(pause_on_focus_loss), 0, 0, NULL, "off",
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
      "Where F12 saves screenshots; empty for screenshots in the data folder (as pak_file)."},
+    {"video", "textures", T_ENUM, F(textures), 0, 0, textures_choices, "original",
+     "original; upscaled: the 3D world's textures 2x (internal scale 2-3) or 4x (scale 4 and up), the menus and the "
+     "HUD as they are; the first time in the background, then kept in texture_cache in the data folder; pack: "
+     "replacements from texture_pack (RUSH_GFX_TEXTURES)."},
+    {"video", "texture_pack", T_STR, F(texture_pack), 0, 0, NULL, "textures",
+     "The texture pack's folder (for textures = pack): PNG files named as texture_dump names them, any whole multiple "
+     "of the original's size. A name alone is in the data folder."},
+    {"video", "texture_dump", T_STR, F(texture_dump), 0, 0, NULL, "",
+     "A folder to write every texture drawn into, as PNG named for a pack (making a pack: TEXTURES.md); empty: off. "
+     "A name alone is in the data folder."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},
@@ -217,6 +244,9 @@ static const Item items[] = {
      "Controllers take players from this one up, in the order they are plugged in. 2 leaves player 1 to the keyboard."},
     {"input", "deadzone", T_REAL, F(deadzone), 0, 0.9, NULL, "0.15",
      "Stick and trigger dead zone, 0-0.9 of the travel; the rest is rescaled from 0."},
+    {"input", "sensitivity", T_REAL, F(sensitivity), 0.5, 2, NULL, "1.0",
+     "The stick's travel past the dead zone times this, 0.5-2: above 1 full tilt comes sooner, below 1 it is never "
+     "reached. Keys and buttons on the stick still give full tilt."},
     {"input", "axis_threshold", T_REAL, F(axis_threshold), 0.05, 1, NULL, "0.5",
      "A trigger or stick direction bound to a button presses it past this."},
     {"input", "stick_range", T_INT, F(stick_range), 1, 127, NULL, "80",
@@ -268,6 +298,30 @@ static int parse_aspect(const char *v, double min, double max, double *out)
     return 0;
 }
 
+/* video.resolution: the presets, then WxH. */
+static const struct { const char *name; int w, h; } resolutions[] = {
+    {"720p", 1280, 720}, {"1080p", 1920, 1080}, {"1440p", 2560, 1440}, {"1620p", 2880, 1620}, {"2160p", 3840, 2160},
+};
+
+int pc_settings_resolution(const char *text, int *w, int *h)
+{
+    unsigned uw, uh;
+    char tail;
+    *w = *h = 0;
+    if (!strcasecmp(text, "desktop"))
+        return 0;
+    for (size_t i = 0; i < sizeof resolutions / sizeof *resolutions; i++)
+        if (!strcasecmp(text, resolutions[i].name)) {
+            *w = resolutions[i].w, *h = resolutions[i].h;
+            return 0;
+        }
+    if (sscanf(text, "%u%*[xX]%u%c", &uw, &uh, &tail) == 2 && uw >= 320 && uw <= 16384 && uh >= 240 && uh <= 16384) {
+        *w = (int)uw, *h = (int)uh;
+        return 0;
+    }
+    return -1;
+}
+
 static int set_item(PcSettings *s, const Item *it, const char *v, char *why, size_t why_size)
 {
     char *base = (char *)s + it->offset, *end;
@@ -295,6 +349,10 @@ static int set_item(PcSettings *s, const Item *it, const char *v, char *why, siz
                 *(int *)base = -i;
                 return 0;
             }
+        if (it->choices == scale_choices && !strcasecmp(v, "n64")) {
+            *(int *)base = 1;
+            return 0;
+        }
         errno = 0;
         long n = strtol(v, &end, 10);
         if (!*v || *end || errno || n < it->min || n > it->max) {
@@ -326,6 +384,17 @@ static int set_item(PcSettings *s, const Item *it, const char *v, char *why, siz
         *(double *)base = a;
         return 0;
     }
+    case T_RES: {
+        int w, h;
+        if (pc_settings_resolution(v, &w, &h) != 0 || strlen(v) >= it->size) {
+            snprintf(why, why_size, "'%s' is not desktop, 720p, 1080p, 1440p, 1620p, 2160p or WxH", v);
+            return -2;
+        }
+        snprintf(base, it->size, "%s", v);
+        for (char *c = base; *c; c++)
+            *c = *c == 'X' ? 'x' : (char)tolower((unsigned char)*c);
+        return 0;
+    }
     case T_ENUM:
         for (int i = 0; it->choices[i]; i++)
             if (!strcasecmp(v, it->choices[i])) {
@@ -347,6 +416,7 @@ static void format_item(const PcSettings *s, const Item *it, char *out, size_t n
     const char *base = (const char *)s + it->offset;
     switch (it->type) {
     case T_STR:
+    case T_RES:
         snprintf(out, n, "%s", base);
         break;
     case T_BOOL:
@@ -609,7 +679,8 @@ int pc_settings_apply_env(PcSettings *s)
 {
     static const struct { const char *var, *section, *key; } env[] = {
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
-        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"}};
+        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
+        {"RUSH_GFX_TEXTURES", "video", "textures"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);
@@ -1059,10 +1130,45 @@ int pc_settings_save(const char *path, const PcSettingValue *ch, int n, char *wh
 
 /* ---------------------------------------------------------------- the layers */
 
+/* A file written with every default by a build before native resolution (no video.resolution in it) that still
+ * has those defaults (scale 1, widescreen off, a 640 x 480 window): the new ones, sharp at the window's size, in
+ * memory and in the file, said in the log. A file whose video settings were changed is left alone. */
+static int has_resolution(void *user, const char *section, const char *key, const char *value, int line)
+{
+    (void)value, (void)line;
+    if (!strcmp(section, "video") && !strcmp(key, "resolution"))
+        *(int *)user = 1;
+    return 0;
+}
+
+static void upgrade_video_defaults(PcSettings *s, const char *path)
+{
+    static const PcSettingValue now[] = {
+        {"video", "scale", "native"}, {"video", "widescreen", "auto"}, {"video", "width", "auto"},
+        {"video", "height", "auto"},
+    };
+    char *text, why[PC_CFG_PATH + 64];
+    int found = 0;
+    if (!path || !path[0] || !file_exists(path) || s->scale != 1 || s->widescreen != 0 || s->width != 640 ||
+        s->height != 480 || (text = read_file(path)) == NULL)
+        return;
+    pc_ini_parse(text, has_resolution, NULL, &found);
+    free(text);
+    if (found)
+        return;
+    for (size_t i = 0; i < sizeof now / sizeof *now; i++)
+        pc_settings_set(s, now[i].section, now[i].key, now[i].value, why, sizeof why);
+    if (pc_settings_save(path, now, (int)(sizeof now / sizeof *now), why, sizeof why) == 0)
+        fprintf(stderr, "rush2049pc: %s had the old video defaults (scale 1, 640 x 480); now scale native, "
+                "widescreen auto, window auto (video.scale = 1 is the N64 look)\n", path);
+    else
+        fprintf(stderr, "rush2049pc: the new video defaults apply (not saved: %s)\n", why);
+}
+
 int pc_settings_resolve(PcSettings *s, int use_file, const char *path, const char *exe_dir,
                         const PcSettingValue *overrides, int n_overrides)
 {
-    char located[PC_CFG_PATH], why[200];
+    char located[PC_CFG_PATH] = "", why[200];
     int rc = 0, exists = 0;
     pc_settings_defaults(s);
     /* where the settings overlay saves: the file named, else the located one (with --no-config too) */
@@ -1086,6 +1192,8 @@ int pc_settings_resolve(PcSettings *s, int use_file, const char *path, const cha
         if (file_exists(located))
             pc_settings_load_file(s, located);
     }
+    if (use_file)
+        upgrade_video_defaults(s, path ? path : located);
     pc_settings_apply_env(s);
     for (int i = 0; i < n_overrides; i++) {
         const PcSettingValue *o = &overrides[i];

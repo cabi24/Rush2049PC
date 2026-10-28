@@ -26,6 +26,13 @@ extern f32 D_8002EB94;
 extern Car D_8014A250[];
 extern s16 D_80152734;
 extern s16 D_8015273A;
+#ifdef TARGET_PC
+/* D_8015273A is the low half of gStuntsDone (D_80152738, s32), which camera_scene_manager sets to 1 when the stunt
+   round's time is up and the cars have settled: on the N64, big-endian, its halfword at +2. On a little-endian host
+   that halfword is the high one, always 0, and a stunt round never ended (docs/port/QA.md 4). */
+extern s32 D_80152738;
+#define D_8015273A ((s16)D_80152738)
+#endif
 extern s32 gameplay_mode;
 extern s8 D_80152744;
 

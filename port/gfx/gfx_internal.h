@@ -159,7 +159,7 @@ typedef struct {
     float prim[4], env[4], fog[4], blendc[4], fill[4];
     float prim_lod, lod_frac;
     float noise_seed;
-    float scale;                    /* internal resolution multiple */
+    float scale;                    /* internal resolution multiple (any fraction from 1: GFX.md "Resolution and scale") */
     uint32_t shader_flags;          /* the key's GFX_KF_* */
 } GfxDrawState;
 
@@ -243,6 +243,7 @@ void pcgfx_gl_delete_texture(uint32_t tex);
 GfxShader *pcgfx_gl_shader(const GfxShaderKey *key);
 void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n);
 void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
+/* The presented frame in the window: fitted (gfx_size.c's pcgfx_fit) natively when the scale is native. */
 /* The frame in t becomes the presented image (screenshots read it), without showing it. */
 void pcgfx_gl_present_image(GfxTarget *t);
 /* The presented frame in the window (black if none yet): to_window, the default framebuffer; else the headless
@@ -252,7 +253,7 @@ void pcgfx_gl_show(int win_w, int win_h, int to_window);
 void pcgfx_gl_show_target(GfxTarget *t, int rows, int win_w, int win_h, int to_window);
 /* A render target of its own, outside the targets the color images name, with its own depth buffer: (re)made at
  * w x h N64 pixels and scale s when t is NULL or differs. The frame interpolator draws into it. */
-GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, int s);
+GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, float s);
 void pcgfx_gl_aux_free(GfxTarget *t);
 void pcgfx_gl_finish(void);   /* glFinish: for timing the GPU's part (RUSH_GFX_TIMES=2) */
 /* A fence after the GL work so far; whether the GPU hasn't passed the last one within 2 ms (0 without fences). */
@@ -269,9 +270,23 @@ int pcgfx_gl_read_headless_window(uint8_t *rgba, int *w, int *h);   /* -1 before
 /* gfx_ui.c */
 int pcgfx_ui_active(void);                          /* a UI hook is set */
 void pcgfx_ui_run(int w, int h, int to_window);     /* the hook's drawing, over the window */
-int pcgfx_gl_target_scale(const GfxTarget *t);   /* NULL: the scale a new target gets */
+float pcgfx_gl_target_scale(const GfxTarget *t);   /* NULL: the scale a new target gets */
+/* The target's size in internal pixels (pcgfx_scaled of its N64 size), and its scale per axis: px / N64 pixels. */
+void pcgfx_gl_target_px(const GfxTarget *t, int *pw, int *ph, float *sx, float *sy);
 void pcgfx_gl_target_shown(const GfxTarget *t, int *w, int *rows);   /* N64 pixels the present shows */
 void pcgfx_gl_target_dims(const GfxTarget *t, int *w, int *h);       /* N64 pixels */
+
+/* gfx_size.c: sizes without GL (GFX.md "Resolution and scale"; gfx_size_test) */
+#define PCGFX_SCALE_MAX 16   /* native's most: 5120 pixels across a 4:3 frame */
+int pcgfx_scaled(int n, float s);            /* n N64 pixels at scale s, round(n * s) */
+int pcgfx_edge(int v, int n, int px);        /* N64 edge v of n pixels drawn as px: its internal pixel */
+int pcgfx_pixel_of(int i, int n, int px);    /* internal pixel i's N64 pixel (its centre's) */
+int pcgfx_row_edge(int v, int n, int px);    /* the same for rows, from the top, by GL's y-up tie rule */
+int pcgfx_row_of(int i, int n, int px);
+float pcgfx_window_scale(int mode, int win_w, int win_h, int fw, int rows);   /* 0 auto (whole), < 0 native */
+int pcgfx_fit(int src_w, int src_h, int fw, int rows, int win_w, int win_h, int native, int r[4]);
+void pcgfx_units_of_pixels(int px_w, int px_h, int win_w, int win_h, int draw_w, int draw_h, int *w, int *h);
+void pcgfx_default_window(int desk_w, int desk_h, int usable_w, int usable_h, float aspect, int *w, int *h);
 
 /* gfx_png.c */
 int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
@@ -311,13 +326,23 @@ void pcgfx_sdl_swap(void);
 int pcgfx_sdl_poll(void);
 void pcgfx_sdl_size(int *w, int *h);
 int pcgfx_sdl_refresh(void);   /* the window's display's refresh rate, Hz; 0 unknown */
+/* The window and the display (pc_port.h's pc_gfx_set_fullscreen and the rest, through gfx_api.c) */
+void pcgfx_sdl_place(int x, int y);
+void pcgfx_sdl_set_fullscreen_mode(int mode);
+void pcgfx_sdl_set_resolution(int w, int h);
+int pcgfx_sdl_set_fullscreen(int on);
+int pcgfx_sdl_is_fullscreen(void);
+int pcgfx_sdl_set_vsync(int on);
+void pcgfx_sdl_set_window_pixels(int w, int h);
+int pcgfx_sdl_geometry(int *x, int *y, int *w, int *h);
 void pcgfx_sdl_shutdown(void);
 
 /* Settings (gfx_api.c). The internal scale multiplies the N64 frame size. Widescreen widens the frame to a display
  * aspect (GFX.md "Widescreen"). The auto values follow the window and are taken again at each present. */
 typedef struct {
-    int internal_scale;     /* 1 = the N64 frame size; 0 = auto: the largest whole multiple the window shows */
-    int scale;              /* the scale in effect, taken at each color image */
+    float internal_scale;   /* 1 = the N64 frame size, up to 8 (a fraction from RUSH_GFX_SCALE too); 0 = auto: the
+                             * largest whole multiple the window shows; -1 = native: the window's own pixels */
+    float scale;            /* the scale in effect, taken at each color image */
     float widescreen;       /* display aspect to widen the 4:3 frame to: 0 off, < 0 the window's */
     float aspect;           /* the aspect in effect (the window's for < 0), taken at each color image; 0 = 4:3 */
     int verbose;
@@ -336,8 +361,16 @@ int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
  * next color image (SETCIMG). */
 void pc_gfx_set_widescreen(float aspect);
 float pc_gfx_parse_aspect(const char *text, int *ok);   /* "off", "auto", "16:9", "2.39" -> as above */
-/* The internal scale at run time: 1-8, or 0 for auto. It applies from the next color image. */
+/* The internal scale at run time: 1-8, 0 for auto, -1 for native. It applies from the next color image. */
 void pc_gfx_set_scale(int scale);
+void pc_gfx_set_scale_value(float scale);   /* the same, or a fixed fraction from 1 to 16 (tests, tools) */
+/* The size the native and auto scales fit instead of the window's (0 x 0: the window's): video.resolution in
+ * desktop fullscreen. The frame is drawn for that size, then fitted to the window. */
+void pc_gfx_set_render_size(int w, int h);
+/* "native", "auto", "n64" (1), or a multiple from 1 to 16 (fractions too: 2.25); *ok = 0 for anything else. */
+float pc_gfx_parse_scale(const char *text, int *ok);
+/* The frame's internal size in N64 and in internal pixels (tests: where an N64 pixel is in the target). */
+int pc_gfx_framebuffer_dims(const void *cimg, int *n64_w, int *n64_h, int *px_w, int *px_h);
 /* The size the auto settings follow when there is no window (headless tests and tools). */
 void pc_gfx_set_window_size(int w, int h);
 

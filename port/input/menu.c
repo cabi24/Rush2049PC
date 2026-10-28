@@ -6,9 +6,10 @@
  * of items, each a setting or an action, drawn by port/gfx in window pixels over the last frame (pc_gfx_set_ui_hook)
  * and drawn again after each change (pc_gfx_redraw).
  *
- * - Changes apply at once where the part allows it: the renderer's widescreen and scale (from the game's next
- *   frame) and frame rate, the window's size, fullscreen and vsync, the volume, and everything port/input reads (bindings,
- *   hotkeys, sticks, rumble). The graphics API and the audio backend apply after a restart; they are marked so.
+ * - Changes apply at once where the part allows it: the renderer's widescreen, scale and textures (from the game's
+ *   next frame) and frame rate, the window's size, fullscreen, its mode and resolution, and vsync, the volume, and
+ *   everything port/input reads (bindings, hotkeys, sticks, rumble). The graphics API and the audio backend apply
+ *   after a restart; they are marked so.
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
  *   environment that weren't changed here are not written.
@@ -31,16 +32,17 @@
 
 enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, NUM_PAGES };
 
-typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT } Kind;
+typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT, I_PLAYER } Kind;
 
 typedef struct {
     Kind kind;
     const char *label;
     const char *section, *key;    /* the setting, as the file names it */
     const char *const *choices;   /* I_CHOICE, I_WINDOW: the values in turn, as the file writes them */
+    const char *const *labels;    /* I_CHOICE: what each choice shows, when not its value; NULL for all values */
     double min, max, step;        /* I_NUMBER */
     int percent;                  /* I_NUMBER: shown as a percentage, with a bar */
-    int page;                     /* I_PAGE: the page it opens */
+    int page;                     /* I_PAGE: the page it opens; I_PLAYER: the player (0-3) */
     int restart;                  /* applies after a restart */
 } Item;
 
@@ -54,14 +56,22 @@ typedef struct {
 static Page pages[NUM_PAGES];
 
 static const char *const onoff[] = {"off", "on", NULL};
-static const char *const wide_choices[] = {"off", "auto", "16:10", "16:9", "21:9", NULL};
-static const char *const scale_choices[] = {"auto", "1", "2", "3", "4", "5", "6", "7", "8", NULL};
+static const char *const wide_choices[] = {"auto", "off", "16:10", "16:9", "21:9", NULL};
+static const char *const scale_choices[] = {"native", "1", "2", "3", "4", "5", "6", "7", "8", "auto", NULL};
+static const char *const scale_labels[] = {"native", "N64 (1x)", "2x", "3x", "4x", "5x", "6x", "7x", "8x",
+                                           "auto (whole)", NULL};
+static const char *const fs_mode_choices[] = {"desktop", "exclusive", NULL};
+static const char *const res_choices[] = {"desktop", "720p", "1080p", "1440p", "1620p", "2160p", NULL};
+static const char *const res_labels[] = {"desktop", "720p (1280x720)", "1080p (1920x1080)", "1440p (2560x1440)",
+                                         "1620p (2880x1620)", "2160p (3840x2160)", NULL};
 static const char *const rate_choices[] = {"original", "60", "120", "144", "display", NULL};
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
+static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const backend_choices[] = {"auto", "sdl", "alsa", "null", "wav", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
-static const char *const window_choices[] = {"640x480",  "960x720",  "1280x960",  "854x480", "1280x720",
-                                             "1600x900", "1920x1080", "2560x1440", NULL};
+static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
+                                             "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
+                                             "3840x2160", "auto",      NULL};
 static const char *const control_labels[PC_NUM_CONTROLS] = {
     "A", "B", "Z", "Start", "D-pad up", "D-pad down", "D-pad left", "D-pad right", "L", "R",
     "C-up", "C-down", "C-left", "C-right", "Stick up", "Stick down", "Stick left", "Stick right"};
@@ -89,16 +99,23 @@ static void build(void)
     add(P_MAIN, I_QUIT, "Quit", NULL, NULL);
 
     pages[P_VIDEO].title = "Video";
+    it = add(P_VIDEO, I_CHOICE, "Render scale", "video", "scale");
+    it->choices = scale_choices;
+    it->labels = scale_labels;
     add(P_VIDEO, I_CHOICE, "Widescreen", "video", "widescreen")->choices = wide_choices;
-    add(P_VIDEO, I_CHOICE, "Internal scale", "video", "scale")->choices = scale_choices;
     add(P_VIDEO, I_CHOICE, "Fullscreen", "video", "fullscreen")->choices = onoff;
+    add(P_VIDEO, I_CHOICE, "Fullscreen mode", "video", "fullscreen_mode")->choices = fs_mode_choices;
+    it = add(P_VIDEO, I_CHOICE, "Resolution", "video", "resolution");
+    it->choices = res_choices;
+    it->labels = res_labels;
+    add(P_VIDEO, I_WINDOW, "Window size", "video", "width")->choices = window_choices;
     add(P_VIDEO, I_CHOICE, "Vsync", "video", "vsync")->choices = onoff;
     add(P_VIDEO, I_CHOICE, "Frame rate", "video", "frame_rate")->choices = rate_choices;
-    add(P_VIDEO, I_WINDOW, "Window size", "video", "width")->choices = window_choices;
     add(P_VIDEO, I_CHOICE, "Pause in background", "video", "pause_on_focus_loss")->choices = onoff;
     it = add(P_VIDEO, I_CHOICE, "Graphics API", "video", "api");
     it->choices = api_choices;
     it->restart = 1;
+    add(P_VIDEO, I_CHOICE, "Textures", "video", "textures")->choices = textures_choices;   /* TEXTURES.md */
 
     pages[P_AUDIO].title = "Audio";
     it = add(P_AUDIO, I_NUMBER, "Volume", "audio", "volume");
@@ -115,12 +132,16 @@ static void build(void)
     add(P_KEYBOARD, I_DEFAULTS, "Defaults", NULL, NULL);
 
     pages[P_CONTROLLER].title = "Controllers (all players)";
+    for (int p = 0; p < 4; p++)   /* who plays each player, and the stick it gives: not choosable */
+        add(P_CONTROLLER, I_PLAYER, "", NULL, NULL)->page = p;
     for (int c = 0; c < PC_NUM_CONTROLS; c++)
         add(P_CONTROLLER, I_BIND, control_labels[c], "controller", pc_control_names[c]);
     add(P_CONTROLLER, I_BIND, "Settings button", "controller", "menu");
     add(P_CONTROLLER, I_CHOICE, "N64 stick", "controller", "analog")->choices = analog_choices;
     it = add(P_CONTROLLER, I_NUMBER, "Dead zone", "input", "deadzone");
     it->min = 0, it->max = 0.9, it->step = 0.05;
+    it = add(P_CONTROLLER, I_NUMBER, "Sensitivity", "input", "sensitivity");
+    it->min = 0.5, it->max = 2, it->step = 0.1;
     it = add(P_CONTROLLER, I_NUMBER, "Rumble", "input", "rumble");
     it->min = 0, it->max = 1, it->step = 0.1, it->percent = 1;
     add(P_CONTROLLER, I_DEFAULTS, "Defaults", NULL, NULL);
@@ -144,6 +165,7 @@ static struct {
     int ntouched;
     char status[160];
     uint32_t status_color;
+    char players[256];               /* the Controllers page's player rows as last drawn */
 } M;
 
 #define C_DIM 0x00000060u
@@ -183,7 +205,9 @@ static Item *current(void)
 static void value_of(const PcSettings *s, const Item *it, char *out, size_t n)
 {
     out[0] = 0;
-    if (it->kind == I_WINDOW)
+    if (it->kind == I_WINDOW && (s->width <= 0 || s->height <= 0))
+        snprintf(out, n, "auto");
+    else if (it->kind == I_WINDOW)
         snprintf(out, n, "%dx%d", s->width, s->height);
     else if (it->section)
         pc_settings_get(s, it->section, it->key, out, n);
@@ -222,10 +246,19 @@ static void apply(const char *section, const char *key)
             pc_gfx_set_scale(s->scale);
         else if (!strcasecmp(key, "fullscreen"))
             pc_input_live_fullscreen(s->fullscreen);
+        else if (!strcasecmp(key, "fullscreen_mode"))
+            pc_gfx_set_fullscreen_mode(s->fullscreen_mode);
+        else if (!strcasecmp(key, "resolution")) {
+            int w, h;
+            if (pc_settings_resolution(s->resolution, &w, &h) == 0)
+                pc_gfx_set_resolution(w, h);
+        }
         else if (!strcasecmp(key, "vsync"))
             pc_input_live_vsync(s->vsync);
         else if (!strcasecmp(key, "frame_rate"))
             pc_gfx_set_frame_rate(s->frame_rate);
+        else if (!strcasecmp(key, "textures"))
+            pc_gfx_set_textures(s->textures);
         else if (!strcasecmp(key, "width") || !strcasecmp(key, "height"))
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))
@@ -243,10 +276,14 @@ static int set_value(const Item *it, const char *v)
     if (it->kind == I_WINDOW) {
         char w[16], h[16], tail;
         unsigned uw, uh;
-        if (sscanf(v, "%ux%u%c", &uw, &uh, &tail) != 2)
+        if (!strcasecmp(v, "auto"))   /* two thirds of the desktop, from the next start */
+            snprintf(w, sizeof w, "auto"), snprintf(h, sizeof h, "auto");
+        else if (sscanf(v, "%ux%u%c", &uw, &uh, &tail) != 2)
             return -1;
-        snprintf(w, sizeof w, "%u", uw);
-        snprintf(h, sizeof h, "%u", uh);
+        else {
+            snprintf(w, sizeof w, "%u", uw);
+            snprintf(h, sizeof h, "%u", uh);
+        }
         if (pc_settings_set(&M.eff, "video", "width", w, why, sizeof why) != 0 ||
             pc_settings_set(&M.eff, "video", "height", h, why, sizeof why) != 0) {
             status(C_WARN, "%s", why);
@@ -420,6 +457,19 @@ static void scroll(void)
         *top = sel - ROWS + 1;
 }
 
+/* The player rows can't be chosen: the selection steps over them, the way it moved (down when it stopped). */
+static void skip_rows(int dir, int wrap)
+{
+    const Page *p = &pages[M.page];
+    int *sel = &M.sel[M.page];
+    for (int k = 0; k < p->n && p->item[*sel].kind == I_PLAYER; k++) {
+        int next = *sel + (dir < 0 ? -1 : 1);
+        if (!wrap && (next < 0 || next >= p->n))
+            dir = -dir, next = *sel + (dir < 0 ? -1 : 1);
+        *sel = (next % p->n + p->n) % p->n;
+    }
+}
+
 static void move(int by, int wrap)
 {
     int n = pages[M.page].n, *sel = &M.sel[M.page];
@@ -427,7 +477,10 @@ static void move(int by, int wrap)
         *sel = ((*sel + by) % n + n) % n;
     else
         *sel = *sel + by < 0 ? 0 : *sel + by >= n ? n - 1 : *sel + by;
+    skip_rows(by, wrap);
     scroll();
+    if (M.page == P_CONTROLLER && M.sel[M.page] <= 4)   /* near the top: the player rows above it show */
+        M.top[M.page] = 0;
 }
 
 static void start_capture(int add_to)
@@ -443,6 +496,7 @@ static void accept(Item *it)
     switch (it->kind) {
     case I_PAGE:
         M.page = it->page;
+        skip_rows(1, 0);
         break;
     case I_CHOICE:
     case I_WINDOW:
@@ -465,6 +519,8 @@ static void accept(Item *it)
         break;
     case I_QUIT:
         M.quit = 1;
+        break;
+    case I_PLAYER:
         break;
     }
 }
@@ -563,10 +619,34 @@ int pc_menu_is_open(void)
     return M.open;
 }
 
+/* A player row: "P1 keyboard + Xbox One" and its stick. */
+static void player_row(int p, char *label, size_t ln, char *value, size_t vn)
+{
+    char who[96];
+    int8_t x, y;
+    int what = pc_input_live_describe(p, who, sizeof who, &x, &y);
+    snprintf(label, ln, "P%d %s", p + 1, what ? who : "-");
+    if (what == 2)
+        snprintf(value, vn, "stick %+4d %+4d", x, y);
+    else
+        value[0] = 0;
+}
+
 int pc_menu_tick(void)
 {
     if (M.capture && pc_host_ns() >= M.capture_until)
         pc_menu_capture(NULL);
+    if (M.open && M.page == P_CONTROLLER) {   /* the player rows follow the controllers live */
+        char rows[256] = "", l[64], v[32];
+        for (int p = 0; p < 4; p++) {
+            player_row(p, l, sizeof l, v, sizeof v);
+            snprintf(rows + strlen(rows), sizeof rows - strlen(rows), "%s|%s|", l, v);
+        }
+        if (strcmp(rows, M.players)) {
+            snprintf(M.players, sizeof M.players, "%s", rows);
+            M.dirty = 1;
+        }
+    }
     if (M.dirty) {   /* while the game is held nothing else draws */
         M.dirty = 0;
         pc_gfx_redraw();
@@ -638,6 +718,9 @@ static void shown(const Item *it, char *out, size_t n)
     }
     default:
         snprintf(out, n, "%s", v);
+        for (int i = 0; it->labels && it->choices[i]; i++)
+            if (!strcasecmp(v, it->choices[i]))
+                snprintf(out, n, "%s", it->labels[i]);
     }
 }
 
@@ -691,6 +774,13 @@ static void draw(int w, int h)
         uint32_t color = here && M.capture ? C_CAPTURE : changed(it) ? C_CHANGED : here ? C_WHITE : C_VALUE;
         if (here)
             rect(2, y, PANEL_W - 4, ROW_H, C_SELECT);
+        if (it->kind == I_PLAYER) {
+            player_row(it->page, line, sizeof line, v, sizeof v);
+            fit(line, 26, 0);
+            text(8, y + 2, C_HINT, line);
+            text(VALUE_X, y + 2, C_HINT, v);
+            continue;
+        }
         snprintf(line, sizeof line, "%s%s", it->label, it->restart ? " *" : "");
         text(8, y + 2, here ? C_WHITE : C_LABEL, line);
         if (here && M.capture)

@@ -58,15 +58,23 @@ typedef struct PcSettings {
     int pak;                        /* PC_CFG_PAK_*: controller 1's accessory */
     char pak_file[PC_CFG_PATH];     /* the controller pak image */
     /* [video] */
-    int width, height;              /* window size */
-    int fullscreen;                 /* desktop fullscreen */
+    int width, height;              /* window size, pixels; 0: auto (two thirds of the desktop) */
+    char position[32];              /* where the window opens: "center" or "X,Y" */
+    int remember_window;            /* save the window's size and place at exit */
+    int fullscreen;                 /* start in fullscreen */
+    int fullscreen_mode;            /* 0 desktop (borderless), 1 exclusive (PC_GFX_FULLSCREEN_*) */
+    char resolution[16];            /* "desktop", a preset ("1620p") or "WxH": pc_settings_resolution */
     int vsync;
     int frame_rate;                 /* frames shown a second: 0 the game's own, -1 the display's (RUSH_GFX_FRAME_RATE) */
-    int scale;                      /* internal resolution multiple (RUSH_GFX_SCALE); 0: auto, the window's */
+    int scale;                      /* internal resolution multiple (RUSH_GFX_SCALE); 0: auto, the window's whole
+                                     * multiple; -1: native, the window's own pixels */
     int api;                        /* PC_CFG_API_* (RUSH_GFX_API) */
     double widescreen;              /* display aspect the 4:3 frame widens to: 0 off, -1 the window's (auto) */
     int pause_on_focus_loss;
     char screenshot_dir[PC_CFG_PATH];   /* empty: the working directory */
+    int textures;                   /* 0 original, 1 upscaled, 2 pack (RUSH_GFX_TEXTURES; docs/port/TEXTURES.md) */
+    char texture_pack[PC_CFG_PATH];     /* the pack's folder; a name alone is in the data folder */
+    char texture_dump[PC_CFG_PATH];     /* where every texture drawn is written as PNG; empty: off */
     /* [audio] */
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */
@@ -75,6 +83,7 @@ typedef struct PcSettings {
     int keyboard_player;            /* 1-4, 0: no keyboard */
     int first_controller_player;    /* controllers fill players from here, in the order they are plugged in */
     double deadzone;                /* radial, for sticks; also triggers */
+    double sensitivity;             /* the stick's travel past the dead zone is multiplied by this (0.5-2) */
     double axis_threshold;          /* a trigger or a stick axis bound to a button presses it past this */
     int stick_range;                /* N64 stick value at full tilt, left/right/up/down */
     int stick_diagonal;             /* each axis at full diagonal tilt (the octagonal gate); 0: a round gate */
@@ -92,6 +101,9 @@ typedef struct PcSettings {
     char source_dir[PC_CFG_PATH];
     char save_path[PC_CFG_PATH];
 } PcSettings;
+
+/* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
+int pc_settings_resolution(const char *text, int *w, int *h);
 
 /* One setting by name, as the file has it: ("video", "scale", "2"). */
 typedef struct {

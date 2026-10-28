@@ -69,6 +69,12 @@ jobs:
           python3 tools/port/synth_rom.py
           python3 tools/port/synth_paths.py --exe build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 \
             --logs build/synth/paths
+      - name: Raw N64 offsets into moved records
+        # m2c code that reaches a blit's, a car's or another pointer-holding record's field at its N64 offset,
+        # through a pointer typed void * or s32 (tools/port/offset_check.py, docs/port/LAYOUT.md 9). Fails on an
+        # open finding.
+        if: matrix.build == 'Debug'
+        run: python3 tools/port/offset_check.py --build build/pc -j 4 --strict
       - name: One storage under two names
         # What an optimizing compiler takes for two objects (tools/port/alias_check.py, docs/port/OPTIMIZED.md).
         if: matrix.build == 'RelWithDebInfo'

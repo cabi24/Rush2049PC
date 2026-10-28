@@ -78,6 +78,24 @@ int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event));
 int pc_gfx_save_screenshot(const char *path);   /* last presented frame as PNG; 0 on success */
 void pc_gfx_shutdown(void);
 
+/* The window and the display (docs/port/GFX.md "Window and display"). Sizes are pixels (the drawable's, at any
+ * display scaling). pc_gfx_init's window size 0 x 0 is two thirds of the desktop (headless: 320 x 240, the N64's
+ * frame). Without a window these keep their values; pc_gfx_set_window_pixels then sets the headless size. */
+enum { PC_GFX_FULLSCREEN_DESKTOP = 0, PC_GFX_FULLSCREEN_EXCLUSIVE = 1 };   /* video.fullscreen_mode's order */
+void pc_gfx_set_fullscreen_mode(int mode);       /* what fullscreen means; applies at once when in fullscreen */
+/* video.resolution, 0 x 0 for the desktop's: exclusive fullscreen's display mode (the closest one), and the size
+ * desktop fullscreen draws the frame at (fitted to the screen). */
+void pc_gfx_set_resolution(int w, int h);
+int pc_gfx_set_fullscreen(int on);               /* 0 on success */
+int pc_gfx_toggle_fullscreen(void);              /* Alt+Enter, the fullscreen hotkey */
+int pc_gfx_is_fullscreen(void);                  /* -1 without a window */
+int pc_gfx_set_vsync(int on);                    /* 0 on success */
+void pc_gfx_set_window_pixels(int w, int h);     /* the window's size (applies after fullscreen when in it) */
+void pc_gfx_set_window_position(int x, int y);   /* before pc_gfx_init: where the window opens, if on a display */
+/* The window's last place and size out of fullscreen (video.remember_window): x, y in the desktop's coordinates,
+ * w x h pixels. -1 without a window. */
+int pc_gfx_window_geometry(int *x, int *y, int *w, int *h);
+
 /* A high frame rate (video.frame_rate; docs/port/GFX.md "High frame rate"). 0, the default, is the game's own: each
  * frame is shown when the VI swaps it in (pc_gfx_present). Otherwise the main loop shows a frame this many times a
  * second (pc_gfx_present_tick), drawn between the game's last two; -1 is the display's refresh rate. The game's
@@ -90,6 +108,11 @@ void pc_gfx_retrace(uint32_t vi);            /* each retrace, before the VI's pr
  * host's clock, a frame between two isn't drawn while the GPU hasn't finished what it was given; 2: no frame is drawn
  * between two, only the game's are shown (the host is behind). 1 when something new was shown, 0 if not. */
 int pc_gfx_present_tick(double vi_time, int mode);
+/* Textures (docs/port/TEXTURES.md): 0 original, 1 upscaled (3D textures, by the internal scale), 2 pack (replacements
+ * from the texture pack folder). From the next frame. pc_gfx_parse_textures: "original", "upscaled", "pack"; *ok = 0
+ * for anything else. */
+void pc_gfx_set_textures(int mode);
+int pc_gfx_parse_textures(const char *text, int *ok);
 
 /* Drawing over the frame, in window pixels (port/gfx/gfx_ui.c), for port/input's settings overlay. While a UI hook
  * is set, each present (and pc_gfx_redraw) calls it with the window's size after the frame is shown and before

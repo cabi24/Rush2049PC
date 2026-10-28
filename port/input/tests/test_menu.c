@@ -187,7 +187,7 @@ static void test_nav(void)
     at("Settings", "Quit", NULL, "up from the top wraps");
     act(PC_MENU_DOWN);
     act(PC_MENU_ACCEPT);
-    at("Video", "Widescreen", "off", "Video page");
+    at("Video", "Render scale", "native", "Video page");
     act(PC_MENU_BACK);
     at("Settings", "Video", NULL, "back to the main page, on Video");
     act_n(PC_MENU_DOWN, 2);
@@ -241,6 +241,9 @@ static void test_live(void)
     CHECK(w == 320 && h == 240, "4:3 at 1x: %dx%d", w, h);
     act(PC_MENU_TOGGLE);
     act(PC_MENU_ACCEPT);
+    at("Video", "Render scale", "native", "the first item: the render scale");
+    act(PC_MENU_DOWN);
+    at("Video", "Widescreen", "auto", "widescreen auto");
     act_n(PC_MENU_RIGHT, 3);
     at("Video", "Widescreen", "16:9", "widescreen 16:9");
     act(PC_MENU_CLOSE);
@@ -250,34 +253,55 @@ static void test_live(void)
 
     act(PC_MENU_TOGGLE);
     act(PC_MENU_ACCEPT);
-    act(PC_MENU_DOWN);
-    act(PC_MENU_RIGHT);
-    at("Video", "Internal scale", "2", "scale 2");
+    act(PC_MENU_UP);
+    act_n(PC_MENU_RIGHT, 2);
+    at("Video", "Render scale", "2x", "scale 2");
     act(PC_MENU_LEFT);
+    at("Video", "Render scale", "N64 (1x)", "scale 1: the N64's");
     act(PC_MENU_LEFT);
-    at("Video", "Internal scale", "auto", "scale auto (before 1)");
+    at("Video", "Render scale", "native", "scale native");
+    act(PC_MENU_CLOSE);
+    show_frame();   /* native in the 640 x 480 window: 426 x 240 at 640 / 426 */
+    target_size(&w, &h);
+    CHECK(w == 640 && h == 361, "native, 16:9: %dx%d", w, h);
+    act(PC_MENU_TOGGLE);
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_LEFT);
+    at("Video", "Render scale", "auto (whole)", "scale auto (before native)");
+    act_n(PC_MENU_RIGHT, 3);
+    at("Video", "Render scale", "2x", "scale 2 again");
+    act_n(PC_MENU_DOWN, 3);
+    at("Video", "Fullscreen mode", "desktop", "fullscreen mode");
     act(PC_MENU_RIGHT);
-    act(PC_MENU_RIGHT);
+    CHECK(pc_menu_settings()->fullscreen_mode == 1, "exclusive");
+    act(PC_MENU_LEFT);
     act(PC_MENU_DOWN);
-    act(PC_MENU_DOWN);
-    act(PC_MENU_DOWN);
+    at("Video", "Resolution", "desktop", "resolution");
+    act_n(PC_MENU_RIGHT, 4);
+    at("Video", "Resolution", "1620p (2880x1620)", "resolution 1620p");
+    CHECK(!strcmp(pc_menu_settings()->resolution, "1620p"), "the setting: %s", pc_menu_settings()->resolution);
+    act_n(PC_MENU_LEFT, 4);
+    act_n(PC_MENU_DOWN, 3);
     at("Video", "Frame rate", "original", "frame rate");
     act(PC_MENU_RIGHT);
     at("Video", "Frame rate", "60", "frame rate 60");
     CHECK(pc_gfx_frame_rate() == 60, "the renderer's frame rate: %d", pc_gfx_frame_rate());
     act(PC_MENU_LEFT);
     CHECK(pc_gfx_frame_rate() == 0, "the game's own again: %d", pc_gfx_frame_rate());
-    act(PC_MENU_DOWN);
-    at("Video", "Window size", "640x480", "window size");
+    act_n(PC_MENU_UP, 2);
+    at("Video", "Window size", "auto", "window size");
+    act(PC_MENU_RIGHT);
+    at("Video", "Window size", "640x480", "the first size after auto");
     act(PC_MENU_RIGHT);
     at("Video", "Window size", "960x720", "a bigger window");
     pc_gfx_read_window(NULL, &w, &h);
     CHECK(w == 960 && h == 720, "the window follows: %dx%d", w, h);
-    act(PC_MENU_DOWN);
-    act(PC_MENU_DOWN);
+    act_n(PC_MENU_DOWN, 4);
     act(PC_MENU_RIGHT);
     at("Video", "Graphics API", "gl", "the API: a restart");
     CHECK(pc_menu_settings()->api == PC_CFG_API_GL, "the setting changed");
+    act(PC_MENU_DOWN);
+    at("Video", "Textures", NULL, "textures: the last item");
     act(PC_MENU_CLOSE);
     show_frame();
     target_size(&w, &h);
@@ -392,11 +416,12 @@ static void test_save(void)
     }
     act(PC_MENU_TOGGLE);
     act(PC_MENU_ACCEPT);
+    act(PC_MENU_DOWN);
     act_n(PC_MENU_RIGHT, 3);   /* widescreen 16:9 */
-    act_n(PC_MENU_DOWN, 3);
+    act_n(PC_MENU_DOWN, 5);
     act(PC_MENU_RIGHT);        /* vsync off, then on again: the same as the file, so not written */
     act(PC_MENU_RIGHT);
-    act_n(PC_MENU_DOWN, 2);    /* past the frame rate */
+    act(PC_MENU_UP);           /* the window size */
     act(PC_MENU_RIGHT);        /* 800x600 isn't a choice: from the start of the list, 640x480 */
     at("Video", "Window size", "640x480", "window size");
     act(PC_MENU_BACK);
@@ -430,7 +455,7 @@ static void test_save(void)
     PcSettings back;
     pc_settings_defaults(&back);
     CHECK(pc_settings_load_file(&back, path) == 1, "reads back with its one unknown line");
-    CHECK(back.widescreen > 1.7 && back.width == 640 && back.vsync && back.scale == 1 &&
+    CHECK(back.widescreen > 1.7 && back.width == 640 && back.vsync && back.scale == -1 &&
               !strcmp(back.key[PC_CTL_A], "Space") && !strcmp(back.rom, "/roms/rush.z64"),
           "the saved values; the command line's scale not among them");
     act(PC_MENU_CLOSE);

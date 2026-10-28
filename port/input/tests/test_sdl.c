@@ -627,6 +627,86 @@ static void test_hotplug(void)
     stop();
 }
 
+/* A joystick SDL has no mapping for: the generic one (axes 1-2 the stick, hat 1 the D-pad, buttons in XInput's
+ * order, axes 5-6 triggers from the middle up), and a player only from its first button press. */
+static void attach_joystick(Pad *p, const char *name, int axes, int buttons, int hats)
+{
+    SDL_VirtualJoystickDesc d;
+    SDL_zero(d);
+    memset(p, 0, sizeof *p);
+    d.version = SDL_VIRTUAL_JOYSTICK_DESC_VERSION;
+    d.type = SDL_JOYSTICK_TYPE_UNKNOWN;
+    d.naxes = (Uint16)axes;
+    d.nbuttons = (Uint16)buttons;
+    d.nhats = (Uint16)hats;
+    d.name = name;
+    int index = SDL_JoystickAttachVirtualEx(&d);
+    CHECK(index >= 0, "attach %s: %s", name, SDL_GetError());
+    if (index < 0)
+        return;
+    CHECK(!SDL_IsGameController(index), "%s has no mapping", name);
+    p->joy = SDL_JoystickOpen(index);
+    p->id = SDL_JoystickInstanceID(p->joy);
+}
+
+static void test_generic(void)
+{
+    PcSettings s;
+    Pad pad, odd;
+    pc_settings_defaults(&s);
+    s.first_controller_player = 2;   /* the keyboard alone on player 1 */
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    attach_joystick(&pad, "generic pad", 6, 12, 1);
+    attach_joystick(&odd, "no stick", 1, 4, 0);   /* one axis, no hat: not a pad */
+    poll_pads();
+    pad_is(1, 0, 0, 0, 0, "a generic pad has no player before a button");
+    SDL_JoystickSetVirtualAxis(pad.joy, 0, 32767);
+    poll_pads();
+    pad_is(1, 0, 0, 0, 0, "nor from its stick");
+    SDL_JoystickSetVirtualAxis(pad.joy, 0, 0);
+    SDL_JoystickSetVirtualButton(pad.joy, 0, 1);
+    poll_pads();
+    pad_is(1, 0x8000, 0, 0, 1, "its first button (a: A) takes player 2, and counts");
+    SDL_JoystickSetVirtualButton(pad.joy, 0, 0);
+    SDL_JoystickSetVirtualAxis(pad.joy, 0, -32768);
+    SDL_JoystickSetVirtualAxis(pad.joy, 1, 0);
+    poll_pads();
+    pad_is(1, 0, -80, 0, 1, "axis 1: the stick's x");
+    SDL_JoystickSetVirtualAxis(pad.joy, 0, 0);
+    SDL_JoystickSetVirtualAxis(pad.joy, 1, -32768);
+    poll_pads();
+    pad_is(1, 0, 0, 80, 1, "axis 2: its y, up");
+    SDL_JoystickSetVirtualAxis(pad.joy, 1, 0);
+    SDL_JoystickSetVirtualHat(pad.joy, 0, SDL_HAT_UP);
+    SDL_JoystickSetVirtualButton(pad.joy, 2, 1);   /* x: B */
+    SDL_JoystickSetVirtualButton(pad.joy, 7, 1);   /* start */
+    poll_pads();
+    pad_is(1, 0x0800 | 0x4000 | 0x1000, 0, 0, 1, "hat 1: the D-pad; buttons 3 and 8: x (B) and start");
+    SDL_JoystickSetVirtualHat(pad.joy, 0, SDL_HAT_CENTERED);
+    SDL_JoystickSetVirtualButton(pad.joy, 2, 0);
+    SDL_JoystickSetVirtualButton(pad.joy, 7, 0);
+    SDL_JoystickSetVirtualAxis(pad.joy, 4, -32768);   /* a trigger axis at rest, either way: released */
+    SDL_JoystickSetVirtualAxis(pad.joy, 5, 0);
+    poll_pads();
+    pad_is(1, 0, 0, 0, 1, "axes 5-6 at rest or in the middle: released");
+    SDL_JoystickSetVirtualAxis(pad.joy, 5, 32767);
+    poll_pads();
+    pad_is(1, 0x8000, 0, 0, 1, "axis 6 pulled: the right trigger (A)");
+    pad_is(0, 0, 0, 0, 1, "player 1: the keyboard alone");
+    pad_is(2, 0, 0, 0, 0, "the joystick without a stick has no player");
+    SDL_JoystickSetVirtualButton(odd.joy, 0, 1);
+    poll_pads();
+    pad_is(2, 0, 0, 0, 0, "not even with a button");
+    detach(&odd);
+    detach(&pad);
+    poll_pads();
+    pad_is(1, 0, 0, 0, 0, "unplugged");
+    stop();
+}
+
 static void test_rumble(void)
 {
     PcSettings s;
@@ -904,7 +984,7 @@ static void test_menu(void)
     /* fullscreen from the overlay, at once */
     CHECK(pc_menu_is_open(), "open again");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
-    menu_at("Video", "Widescreen", "off", "Video");
+    menu_at("Video", "Render scale", "native", "Video");
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
@@ -926,10 +1006,11 @@ int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"keyboard", test_keyboard}, {"hotkeys", test_hotkeys}, {"focus", test_focus},
-        {"controller", test_controller}, {"hotplug", test_hotplug}, {"rumble", test_rumble},
-        {"menu", test_menu}, {"script", test_script}};
+        {"controller", test_controller}, {"hotplug", test_hotplug}, {"generic", test_generic},
+        {"rumble", test_rumble}, {"menu", test_menu}, {"script", test_script}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|rumble|menu|script|all DIR\n");
+        fprintf(stderr, "usage: frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|generic|rumble|menu|script|"
+                        "all DIR\n");
         return 2;
     }
     g_dir = argv[2];

@@ -282,3 +282,110 @@ engine_sound_sync's `Source` (also for entity_helpers' `CamSlot`), sound_control
 - References are as good as their views: gen_data's choice is merged with the symbol's other declarations of the
   same size, and a storage without one only compares its views with each other (a tie reports both).
 - Weak context copies are skipped, as endian_check skips them; units that aren't in the build aren't seen.
+- A function whose record arrives only from the ROM's tables (a blit's AnimFunc) has a root of its own with no
+  reference, and its raw offsets are not checked: `offset_check.py` (section 9) types them.
+
+## 9. Raw offsets through untyped pointers: offset_check
+
+The four blit callbacks of [BRINGUP.md](BRINGUP.md) 15 (animBones, callback_init, struct_callback_init,
+sound_volume_helper) were m2c code at the N64 blit's offsets, and none of the checks saw them: each takes its blit as
+`void *` from NewMultiBlit's call through the AnimFunc it copied from a MultiBlit in the ROM, so its parameter is a
+storage of its own (section 8), and UpdateBlit, to which each passes it, has more callers than `Flow.CAP` and keeps
+its parameter apart too. `tools/port/offset_check.py` types such storages and checks each raw offset as what it is in
+code both builds compile: an N64 offset. 2026-10-27.
+
+```
+python3 tools/port/offset_check.py [--build build/pc] [-j 2] [--reuse] [--strict]   # build/pc/endian/offset.txt
+python3 tools/port/offset_check.py --cached --func func_80105DA8   # a function's accesses and its storages' types
+python3 tools/port/offset_check.py --selftest                        # ctest offset_check
+```
+
+It uses layout_check's analysis (the same compile cache; a run takes about 15 s on the x86-64 build host with
+`--reuse`). CI runs it over the game in the Linux Debug jobs with `--strict`, which fails on an open finding.
+
+### 9.1 Method
+
+1. **The records that moved.** Every struct view whose PC layout puts a field at another offset than the N64's (a
+   pointer before it) is recorded per unit (`layout_check.moved`). The views of one record are one family: the same
+   sizes and the same host offset for every N64 word. Fields are named from the family's most informative view
+   (UpdateBlit's calls Hide `unk1A`; func_80109A60's names it).
+2. **The record a storage holds** (each access placed on its storages as in section 1):
+   - its reference (section 1.4), when that is a moved record; else
+   - the moved record the typed views of most accesses on it give (another function's view of the same slot, a
+     callee's parameter the flow follows); else
+   - through the calls the flow keeps apart: a storage passed at +0 to a parameter whose storage has a type has it
+     (a callback passing its blit to UpdateBlit), and a parameter whose callers' storages all have one type has it;
+   - `ROLES`: a function's parameter by its role, for a function only the ROM's tables call and nothing typed
+     reaches (empty: section 9.4 found none that needs it).
+   A storage whose struct views all keep the N64 layout (the model record, the level-object nodes) holds an N64
+   record, and its raw offsets are right.
+3. **Judging an access** on a moved record, by the offset the function writes (its own, from its base):
+   - in PC code (under `#ifdef TARGET_PC`) it is a host offset and must start a field of its width (score 3);
+   - in code both builds compile it is an N64 offset, from a base whose N64 position the flow knows where its steps
+     were typed (a caller's `&rec->field`), else from a base taken as right on the PC (a raw step that made it is
+     judged where it is written, at a caller's argument). A finding when the N64 field there is at another host
+     offset and the access fits that N64 field, not the PC's field at the offset it uses: 5 for a write or an
+     8-byte access, 4 for a read;
+   - a PC macro on the line or the two before (one defined under `TARGET_PC` in the unit, `pc_prelude.h` or
+     `include/`: `CAR_OFS`, `PROFILE_OFS`, `EMITTER_ACTIVE`, ...) makes it a PC offset when the access fits the PC
+     field there;
+   - a typed access counts only where it does not fit its record's PC field (`M2C_FIELD(&sym, T *, off)` on a
+     symbol declared as the record);
+   - a pointer passed at a raw offset (`f((u8 *)arg0 + 0xA)`) is judged the same way;
+   - an offset that is not written on the line, in hex or decimal (an index such as `strs[22]`, a pointer step the
+     compiler folded), scores 2: listed in the report, not counted.
+4. **Untyped storages**: raw accesses on storages nothing types (not the function's locals, nor bytes from the
+   start: strings) are listed by function in `build/pc/endian/offset_untyped.txt`, for review (section 9.4).
+
+### 9.2 Re-finding the known bugs
+
+`8285bd3` (the HUD fixes, BRINGUP.md 15) reversed over the tree: the check finds the four, at score 5, and nothing else
+that is open.
+
+| Function | Found |
+|---|---|
+| animBones `func_80105DA8` | 1-byte read and write at N64 +0x1A (Hide; PC +0x1A is X), 4-byte read at +0x2C (AnimID; PC Left), 2-byte writes at +0xE and +0x10 (X, Y; PC Image and Info), read at +0x14 (Width) |
+| `callback_init` | 8-byte write at N64 +0x4 (Image; PC +0x4 is inside Name) |
+| `struct_callback_init` | the same, and a 4-byte write at N64 +0x28 (AnimFunc; PC Top) |
+| `sound_volume_helper` | 1-byte read and write at N64 +0x1A (Hide; PC X) |
+
+Each is typed through UpdateBlit (`Input_ApplyPadConfig`), its argument at +0. The selftest has the same kinds of
+case on an invented record (a hide flag, a pointer store over the first pointer's high half, a pointer argument, a
+symbol declared as the record, a role) and the ones that must give nothing (PC code, a PC macro, a typed pointer into
+the record passed to a helper, an N64-layout record, an offset before the first pointer).
+
+### 9.3 Over the game
+
+1,308 units; 56,656 accesses placed on 3,828 storages, 816 of them typed as a moved record. **0 open findings**;
+2 reviewed; 44 at score 2; 392 untyped raw accesses in 59 functions.
+
+| Finding | Verdict | Why |
+|---|---|---|
+| the four of section 9.2 | fixed (`8285bd3`) | BRINGUP.md 15 |
+| `object_action_clear` (1-byte write at N64 +8 of a list element: the PC's `link.prev`, the N64's flag after the links) | unreachable as far as the code shows (reviewed) | no C calls it, no asm references it (only its definition in `blob_800d1004.s`), no C takes its address; whether a ROM table holds its address needs the ROM (not run: the Pi was loaded). `func_800D63EC` (packet_alloc), which takes from the same list, has the PC layout |
+| `func_800AED20` (`_GetSource`, a byte at `EMITTER_ACTIVE`) | false positive (reviewed) | by design, as in section 7: the source's active byte, which `Source` names as the first byte of a u32 flags word |
+| the text bank's string table (`pc_text_strings()`, 16 functions in the front end and the results) | false positive (score 2) | an index (`strs[22]`) of the host pointers, read 8 bytes wide: PC code |
+| the profile's and a ghost's name passed to the text functions (`results_table`, `controls`, `fbc84`) | false positive (score 2) | the pointer is made with `PROFILE_OFS` on an earlier line (POINTERS.md 9.10) |
+| the other score-2 lines (MBSetupWad, hud_speed_display, hud_render, the 3D-sound and skid-mark code, ...) | not read yet | listed in `offset.txt`; an index or a folded step, which the N64 code would also need to write as an offset |
+
+### 9.4 The untyped storages
+
+The 59 functions of `offset_untyped.txt`, by kind:
+
+| Kind | Functions | Verdict |
+|---|---|---|
+| vector and matrix helpers: three floats at +0/+4/+8, a 4x4 matrix | `math_utility`, `vector_diff_process`, `lsq` (two), `PitchUV`, `WorldDistance`, `steering_apply`, `func_800A61B0`, `func_800FD724`, `func_8010C448`, `func_8010C588`, `func_800BFD8C`, `camera_clip_planes`, `func_800E397C`, `brake_light_update`, `func_800D09E8`, `func_8009D99C`, guOrthoF/guPerspectiveF/guLookAtF | false positive: float arrays, no pointers |
+| libultra and the audio library | the other `src/rom` functions | not game records (ENDIAN.md, ULTRA.md) |
+| the level-object nodes (the targets), N64 layout with a u32 state at +0x6C (POINTERS.md 10.2) | `func_8010DF90`, `func_8010C7F4`, `func_8010E694`, `sound_position_set`, `func_8010D680`, `func_8008B3C8` (through `func_8010D9CC`), `stat_lap_split` | false positive: the record keeps its N64 layout; `NODE_STATE` reads the state |
+| byte strings and pak file data | `func_8008AD04` (strcmp), `func_800950AC`, `func_800A473C`, `menu_option_toggle` (a pak file's bytes) | false positive |
+| others | `func_8008D0B0`, `func_80098860`, `func_800A553C`, `func_800A78B0`, `func_800BEA58`, `func_800C8774`, `MP_TargetSteerPos`, `camera_transform`, `func_800B0F60`, `func_800AD650`, `func_8009F058`, `track_collision_wall`, `param_reshuffle_wrapper`, `particles_spawn_emitter`, `func_803ABEC8`, `func_8038DA78` | not read yet: small offsets before any pointer of a blit or a car (+2..+8), an 8-byte read (PC code), and `particles_spawn_emitter` (CASTS.md 2) |
+
+### 9.5 Limits
+
+- A storage is typed only where some code reaches it with a moved record's view or passes it at +0 to a typed
+  parameter; a callback that does neither is listed as untyped, not checked (`ROLES` types it once it is read).
+- A record known through a view or a callee is that one record: an offset past its N64 size says nothing (a prefix
+  such as a list link before the element).
+- The PC macro test is textual (the macro's name on the line or the two before); a line with a macro and another
+  raw offset is still judged, but an access that fits the PC field there is taken as ported.
+- Indexes and pointer steps are layout_check's (strides): an access with a variable index is not judged here.

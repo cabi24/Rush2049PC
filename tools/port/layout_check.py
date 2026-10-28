@@ -106,6 +106,7 @@ class LAnalyzer(ec.Analyzer):
         self.rets = collections.defaultdict(list)   # func -> [(ident, host offset, N64 offset)]
         self.fstores = []      # (store access index, function): a function's address stored into a slot
         self.icalls = []       # (index of the load of the called pointer, [(ident, host offset, N64 offset) | None])
+        self.moved = {}        # view name -> canon struct, for the views whose PC layout differs from the N64's
 
     # -- pointers
     def pointer_sources(self, f):
@@ -312,8 +313,12 @@ class LAnalyzer(ec.Analyzer):
             ni = self.opinion(cc, off - coff, a.width)
             opinion = None if nb is None or ni is None else nb + ni
             vn = view_name(self.T, cast)
+            vc = elem(cc)
         else:
             opinion = self.opinion(btc, off, a.width)
+            vc = elem(btc)
+        if vc is not None and vc[0] in ("struct", "union") and vn not in self.moved and moved(vc):
+            self.moved[vn] = vc   # offset_check.py: the views a raw offset's record may have
         self.extra[i] = (vn, r["path"], opinion, None)
         if r["var"] is not None and r["var"][1] and not is_bytes(btc):
             aoff, es, ens = r["var"]
@@ -477,6 +482,14 @@ class LAnalyzer(ec.Analyzer):
                 self.accesses[i] = self.accesses[i]._replace(flow=self.flow(rw, x, w))
 
 
+def moved(c):
+    """A struct whose PC layout puts some field at another offset than the N64's (a pointer before it)."""
+    runs = gd.program(c)
+    return bool(runs) and (gd.host_size(c) != gd.n64_layout(c)[0] or any(
+        r[2] != r[3] or (r[4] > 1 and r[5] != r[6]) or (r[1] > 1 and gd.N64_ESZ[r[0]] != gd.esz_host(r[0]))
+        for r in runs))
+
+
 def analyze_unit(job):
     """One unit's accesses and links (LAnalyzer), and the declarations of its data symbols."""
     uid, cache, build, readelf = job[:4]
@@ -507,6 +520,7 @@ def analyze_unit(job):
                      selflinks=an.selflinks, treelinks=an.treelinks, pstores=an.pstores, sites=an.sites,
                      rets=dict(an.rets), decls=decls, fstores=an.fstores, icalls=an.icalls,
                      view_types=view_types(an, T), pc_views=pc_views(dies, source or ROOT / an.unit),
+                     moved_views=an.moved,
                      errors=an.errors,
                      defined=[f.name for f in funcs if f.name not in an.weak],
                      funcs=sum(1 for f in funcs if f.name not in an.weak))

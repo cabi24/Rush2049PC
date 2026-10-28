@@ -17,20 +17,23 @@ The settings overlay (Phase 8, 2026-10-27) has [its own section](#the-settings-o
 ## Controls
 
 The defaults. Keys are named by their position on a US keyboard, so W/A/S/D stay in place on other layouts.
-Controllers use SDL's GameController layout: XInput positions, so "A" is the south button on any pad.
+Controllers use SDL's GameController layout: XInput positions, so "A" is the south button on any pad, Cross on a
+PlayStation pad and B on a Nintendo one.
 
-| N64 | Keyboard (player 1) | Controller |
-|---|---|---|
-| Stick | arrow keys | left stick |
-| A (accelerate) | X | A (south), right trigger |
-| B (brake) | C | X (west), left trigger |
-| Z | Z | left shoulder (LB) |
-| L | Q | Back (View) |
-| R | E | right shoulder (RB) |
-| START | Enter | Start (Menu) |
-| C-up / C-down | I / K | right stick up / down, or Y (north) / B (east) |
-| C-left / C-right | J / L | right stick left / right |
-| D-pad | W / S / A / D | D-pad |
+| N64 | Keyboard (player 1) | Xbox | PlayStation |
+|---|---|---|---|
+| Stick | arrow keys | left stick | left stick |
+| A (accelerate) | X | A (south), RT | Cross, R2 |
+| B (brake) | C | X (west), LT | Square, L2 |
+| Z | Z | LB | L1 |
+| L | Q | Back (View) | Share (Create) |
+| R | E | RB | R1 |
+| START | Enter | Start (Menu) | Options |
+| C-up / C-down | I / K | right stick up / down, or Y / B | right stick up / down, or Triangle / Circle |
+| C-left / C-right | J / L | right stick left / right | right stick left / right |
+| D-pad | W / S / A / D | D-pad | D-pad |
+
+The triggers are buttons here: past `input.axis_threshold` they press A and B.
 
 | Key | Does |
 |---|---|
@@ -49,7 +52,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   `ControllerUpdate`), and the game has its own control setup screen.
 - **Players.** The keyboard is player 1 (`input.keyboard_player`).
   - Controllers take players from `input.first_controller_player` up, in the order they are plugged in. They
-    keep that player until unplugged.
+    keep that player until unplugged. A pad with the generic mapping (below) takes one at its first button press.
   - A pad plugged in while every player has one waits, and takes the first player that frees up.
   - A player's keyboard and controller are merged: buttons are OR'ed, and the stronger stick wins on each axis.
   - With `first_controller_player = 2`, the keyboard has player 1 to itself (v5's `--keyboard-alone`).
@@ -58,6 +61,8 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - **The stick.**
   - The dead zone (`input.deadzone`, 0.15) is radial. The travel past it is rescaled from 0, so movement starts
     small instead of jumping.
+  - `input.sensitivity` (1) multiplies the travel past the dead zone: at 2 full tilt comes at half the travel; at
+    0.5 it is never reached. Keys and buttons on the stick still give full tilt.
   - Full tilt reaches `input.stick_range` (80) left, right, up and down. On the diagonals it reaches
     (`stick_diagonal`, `stick_diagonal`) = (70, 70): the octagonal gate of an N64 stick. Between those, it
     follows the octagon's edges.
@@ -85,6 +90,23 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - **Hotkeys** never reach the game. Binding a hotkey's key to a control does nothing for that key.
 - **Mappings.** A `gamecontrollerdb.txt` next to `rush2049pc.ini` is loaded at start (SDL's format), for pads
   that SDL doesn't know.
+- **Pads SDL has no mapping for** (DirectInput pads, N64-style USB pads, wheels) used to be passed over without a
+  word. They get a generic mapping: axes 1-2 the stick, axes 3-4 the right stick, hat 1 the D-pad, buttons 1-10 in
+  XInput's order (a b x y, LB RB, back start, the stick clicks), then guide and the extras, so the overlay can
+  bind every one; axes 5-6 are the triggers from their middle up, so an axis resting in the middle reads released.
+  - It takes a player at its first button press, not when it is found, since a joystick may be something other
+    than a pad (a phantom device would otherwise hold player 1).
+  - Something with neither two axes nor a hat, or without buttons, is not used, and the log says so.
+  - A line for it in `gamecontrollerdb.txt` replaces the generic mapping.
+- **Windows.** Xbox-style pads go through XInput, which is polled. SDL's default for them, its raw input driver,
+  takes the sticks and buttons from window messages to a hidden window and only the triggers and guide from XInput,
+  so a pad whose raw input doesn't arrive has working triggers and dead sticks. `SDL_JOYSTICK_RAWINPUT=1` in the
+  environment brings raw input back. PlayStation and Switch pads stay on HIDAPI, others on DirectInput. The window
+  is raised at start, so the keys reach it rather than the console it was started from.
+- **The log** (`rush2049pc.log`) names each controller as it is found, and its player:
+  `controller 'Xbox Series X Controller' (Xbox One, SDL mapping, GUID 030000005e04...) -> player 1`. It also says
+  when a controller leaves, waits for a free player, gets the generic mapping, isn't used, or when there is none
+  at start. The overlay's Controllers page shows the same live (below).
 
 ## The window
 
@@ -93,22 +115,34 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   main thread, which holds the GL context.
 - The main loop now pumps events first at each retrace, then reads the pads, so the pads hold that retrace's
   input rather than the previous one's.
-- **Resizing.** The window is resizable, with a minimum of 320 × 240. The frame keeps its aspect: square N64
-  pixels, which is 4:3 for the N64's 320 × 240, at the largest integer multiple that fits, letterboxed
-  (port/gfx's present, [GFX.md](GFX.md)). The default window is 640 × 480.
+- **Size and sharpness.** By default (`video.scale = native`) the frame is drawn at the window's own pixels, any
+  fraction of the N64's (6.75× at 2880 × 1620), and shown pixel for pixel, with square N64 pixels and bars for the
+  rest. `video.scale = 1` (or `n64`) is the N64's 320 × 240 shown in square pixels; 2-8 and `auto` (the largest whole
+  multiple) as before ([GFX.md](GFX.md) "Resolution and scale"). The window is resizable, with a minimum of
+  320 × 240. The default window (`video.width = auto`) is two thirds of the desktop at the picture's aspect:
+  1920 × 1080 on a 2880 × 1620 screen.
+- **Display scaling.** Sizes are pixels. On Windows the program is per-monitor DPI aware, so a 200% desktop gives it
+  real pixels, not a half-size window that Windows blurs up; where the window system counts in points (macOS,
+  Wayland), port/gfx converts by the drawable's size against the window's ([GFX.md](GFX.md) "Window and display").
+- **Fullscreen.** Alt+Enter and F11 toggle it; `video.fullscreen_mode` is `desktop` (borderless over the screen,
+  the default) or `exclusive` (the display switches to `video.resolution`, the closest mode it has).
+  `video.resolution` in desktop fullscreen is the size the frame is drawn at, fitted to the screen (`1080p` on a
+  1620p panel draws less and scales up).
+- **Remembered.** With `video.remember_window` (on), the window's size and place out of fullscreen go into the file
+  read at start when the program ends, if they changed (`video.width`, `height`, `position`); not with
+  `--no-config`, nor headless. A place on a display that is gone opens centred.
 - **Widescreen.** `video.widescreen` (`--widescreen`, `RUSH_GFX_WIDESCREEN`) widens the picture to a display
   aspect: `off`, `auto`, `16:9`, `16:10`, `21:9`, any `W:H` or a ratio from 4:3 to 4. The 3D view shows more at
   the sides at the same scale; menus, the HUD and sprites stay 4:3 in the middle; full-width fills and
   backgrounds span the width. The renderer does it all ([GFX.md](GFX.md) "Widescreen"); the game code is
   unchanged.
-  - `auto` takes the window's aspect at each frame, so resizing the window or going fullscreen changes it. A
-    640 × 480 window is 4:3, so `auto` is off there.
-  - With a fixed aspect and the default window (640 × 480), the window opens at the picture's aspect (853 × 480
-    at 16:9), so the frame shows at 2× as at 4:3. A window size set in the file or with `--size` is kept.
-  - At 16:9 the frame is 426 × 220. A 1280 × 720 window shows it at 3×, and a 1920 × 1080 screen at 4×, with a
-    border: the present uses whole multiples. `video.scale = auto` draws it at that multiple too, instead of
-    scaling a smaller frame up. A scale of the window's exact size is not implemented ([GFX.md](GFX.md) "Hooks
-    for later" says why).
+  - `auto`, the default, takes the window's aspect at each frame, so resizing the window or going fullscreen
+    changes it. A 4:3 window is off.
+  - With a fixed aspect and an auto window, the window opens at the picture's aspect; with 640 × 480 it opens at
+    853 × 480 at 16:9. Another size set in the file or with `--size` is kept.
+  - At 16:9 the frame is 426 × 220 (the game's 220 rows of the 240-row screen, with its bands above and below, as
+    on a TV). Native draws it 2880 pixels across on a 2880 × 1620 screen; `auto` and whole scales at 6×, with a
+    border.
 - **Quit.** Closing the window, the quit key, Ctrl-C and SIGTERM all end the loop the same way. The controller
   pak is flushed, rumble stops, and audio and the renderer shut down.
 
@@ -145,21 +179,29 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `game.expansion_pak` | off | `--expansion-pak` | 8 MiB of RDRAM |
 | `game.pak` | memory | `--no-pak`, `--rumble`, `--pak` | controller 1's accessory: memory, rumble, none |
 | `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image; a name alone is in the data folder (RELEASE.md "Files"), `--pak` from the working directory |
-| `video.width`, `video.height` | 640, 480 | `--size WxH` | window size |
-| `video.fullscreen` | off | `--fullscreen` | start in desktop fullscreen |
-| `video.vsync` | on | | swap interval 1 or 0 |
+| `video.width`, `video.height` | auto | `--size WxH` | window size in pixels; auto: two thirds of the desktop at the picture's aspect (headless: 320 × 240) |
+| `video.position` | center | | where the window opens: `center` or `X,Y` |
+| `video.remember_window` | on | | write the window's size and place at exit (above) |
+| `video.fullscreen` | off | `--fullscreen` | start in fullscreen |
+| `video.fullscreen_mode` | desktop | `--exclusive` | `desktop` (borderless) or `exclusive` (the display's mode changes) |
+| `video.resolution` | desktop | `--resolution` | `desktop`, `720p`, `1080p`, `1440p`, `1620p` (2880 × 1620), `2160p` or `WxH`: exclusive fullscreen's display mode; the size desktop fullscreen draws at |
+| `video.vsync` | on | | swap interval 1 or 0; on, no more frames are shown than the display refreshes, whatever `frame_rate` asks (logged) |
 | `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
-| `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8, or auto: the largest whole multiple the window holds, so the frame is drawn at the size it is shown (`RUSH_GFX_SCALE`) |
+| `video.scale` | native | `--scale N` | internal resolution: `native` (the window's own pixels, any fraction), `auto` (the largest whole multiple the window holds), or 1-8 (`1` or `n64`: the N64's) (`RUSH_GFX_SCALE`) |
 | `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend") |
-| `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
+| `video.widescreen` | auto | `--widescreen` | auto (the window's), off, 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |
+| `video.textures` | original | | `original`, `upscaled` (the 3D world's textures 2x at internal scale 2-3, 4x from 4; the HUD and menus as they are) or `pack` (replacements from `video.texture_pack`) ([TEXTURES.md](TEXTURES.md); `RUSH_GFX_TEXTURES`) |
+| `video.texture_pack` | `textures` (in the data folder) | | the texture pack's folder: PNG files named as the dump names them |
+| `video.texture_dump` | (empty: off) | | a folder to write every texture drawn into, as PNG, for making a pack ([TEXTURES.md](TEXTURES.md) "Texture packs") |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
 | `input.keyboard_player` | 1 | | 1-4, 0 for none |
 | `input.first_controller_player` | 1 | | controllers fill players from here |
 | `input.deadzone` | 0.15 | | 0-0.9 |
+| `input.sensitivity` | 1.0 | | 0.5-2: the stick's travel past the dead zone times this |
 | `input.axis_threshold` | 0.5 | | a trigger or stick direction bound to a button presses it past this |
 | `input.stick_range` | 80 | | full tilt along an axis, 1-127 |
 | `input.stick_diagonal` | 70 | | each axis at full diagonal tilt; 0 for round |
@@ -187,8 +229,12 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
     `RUSH_GFX_WIDESCREEN` and `RUSH_GFX_FRAME_RATE` to the resolved values before `pc_gfx_init`. The main loop asks
     port/gfx for the frame rate in effect (`pc_gfx_frame_rate`) at each pass, so the overlay's change applies at once.
-  - The window size goes to `pc_gfx_init`.
-  - Vsync, fullscreen, the title and the minimum size are set by port/input on the SDL window.
+  - The window size goes to `pc_gfx_init`; the fullscreen mode, the resolution and the place to
+    `pc_gfx_set_fullscreen_mode`, `pc_gfx_set_resolution` and `pc_gfx_set_window_position` before it.
+  - port/input sets vsync and fullscreen at start through port/gfx (`pc_gfx_set_vsync`, `pc_gfx_set_fullscreen`),
+    and the title and the minimum size on the SDL window.
+  - Old defaults: a file an older build wrote with every default (no `video.resolution` line; scale 1, 640 × 480,
+    widescreen off) gets the new ones, native, auto and auto, in the file too, with a line in the log.
   - main sets the volume with `pc_audio_set_volume` after `pc_audio_init`.
 
 ## The settings overlay
@@ -234,18 +280,21 @@ restart.
 
 | Page | Item | Setting | Applies |
 |---|---|---|---|
-| Video | Widescreen: off, auto, 16:10, 16:9, 21:9 | `video.widescreen` | from the game's next frame (`pc_gfx_set_widescreen`) |
-| | Internal scale: auto, 1-8 | `video.scale` | from the next frame (`pc_gfx_set_scale`) |
+| Video | Render scale: native, N64 (1x), 2x-8x, auto (whole) | `video.scale` | from the next frame (`pc_gfx_set_scale`) |
+| | Widescreen: auto, off, 16:10, 16:9, 21:9 | `video.widescreen` | from the game's next frame (`pc_gfx_set_widescreen`) |
 | | Fullscreen | `video.fullscreen` | at once; opening the overlay takes F11's state |
+| | Fullscreen mode: desktop, exclusive | `video.fullscreen_mode` | at once when in fullscreen; F11 uses it |
+| | Resolution: desktop, 720p-2160p | `video.resolution` | at once: exclusive fullscreen's display mode, desktop fullscreen's drawing size |
+| | Window size: 640x480 to 3840x2160, auto | `video.width`, `height` | at once when windowed, in pixels (`pc_gfx_set_window_pixels`); in fullscreen when it ends; auto from the next start; headless, the size the scales follow |
 | | Vsync | `video.vsync` | at once (the swap interval) |
 | | Frame rate: original, 60, 120, 144, display | `video.frame_rate` | at once (`pc_gfx_set_frame_rate`): frames between the game's from the next two it draws |
-| | Window size: 640x480 to 2560x1440 | `video.width`, `height` | at once when windowed (`SDL_SetWindowSize`); headless, the size the auto settings follow |
 | | Pause in background | `video.pause_on_focus_loss` | at once |
 | | Graphics API * | `video.api` | after a restart: the GL context and its shaders are made at start |
+| | Textures: original, upscaled, pack | `video.textures` | from the game's next frame (`pc_gfx_set_textures`): the texture cache is made again; what was upscaled or loaded before is kept in memory ([TEXTURES.md](TEXTURES.md)) |
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
-| Controllers | the 18 N64 controls; the settings button; the N64 stick; dead zone; rumble; Defaults | `[controller]`, `input.deadzone`, `input.rumble` | at once |
+| Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble` | at once |
 | (main) | Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
@@ -273,7 +322,8 @@ restart.
 - **Drawing** (port/gfx, [GFX.md](GFX.md) "The overlay"): after the game's frame, in window pixels, so it is the
   same at every internal scale and in widescreen. A panel of 304 x 224 units in the middle of the window, a unit
   being the largest whole number of pixels that fits 320 x 240 units in the window: 2 pixels at 640 x 480, 4 at
-  1280 x 960 and at 1920 x 1080. The frame around it is dimmed and the panel is semi-transparent (alpha 0.78). A
+  1280 x 960 and at 1920 x 1080, 6 at 2880 x 1620. The window's size is the drawable's, in pixels, so a high-DPI
+  display gets a sharp panel of the same proportion. The overlay takes no mouse input. The frame around it is dimmed and the panel is semi-transparent (alpha 0.78). A
   title bar, up to 15 items with the selected one highlighted (the list scrolls), and at the bottom a message and
   the keys. The text is the port's own 5 x 9 font (`gfx_font.c`).
 
@@ -314,6 +364,8 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.sdl.hotkeys` | `... hotkeys` | title and minimum size; Alt+Enter toggles fullscreen and is not START; F11 back; key repeat ignored; F12 saves PNGs of the shown frame (two in one second get two names); Pause holds and the exposed window is redrawn; Escape quits and isn't a game key; rebound and cleared hotkeys; closing the window quits; fullscreen from the settings |
 | `frontend.sdl.focus` | `... focus` | focus loss releases held keys; no hold by default; with `pause_on_focus_loss` it holds and focus back releases it; the pause key and focus are separate reasons |
 | `frontend.sdl.controller` | `... controller` | a virtual XInput-style pad: every default button (guide and the stick clicks unbound), triggers and right-stick directions with their threshold, the left stick (dead zone, rescaled travel, full tilt, the diagonal, +y up), merging with the keyboard; rebinding: the right stick as the N64 stick, a bigger dead zone, buttons on Z and on the stick, bad names skipped |
+| `frontend.sdl.generic` | `... generic` | a virtual joystick without a mapping: no player before a button press (nor from its stick), its first button takes player 2 and counts; axis 1 the stick's x, axis 2 its y (up), hat 1 the D-pad, buttons 3 and 8 x (B) and start, a trigger axis at rest either way released, axis 6 the right trigger; a joystick with one axis and no hat isn't used, even with a button |
+| `input_live_drive` | `tools/port/input_check.py` | the synthetic cartridge through SDL, headless ([below](#testing-live-input)): `drive` with `--press-via controller`, `joystick`, `keyboard` and `controller:2` each the scripted run line for line, the car's steering input +1 and -1 while the stick is pushed and 0 without it; with `--rumble` the game's motor rumbles the virtual controller at full strength; `race2p` with two virtual controllers, players 1 and 2 |
 | `frontend.sdl.hotplug` | `... hotplug` | six pads plugged and unplugged: players filled in order, kept while others leave, a waiting pad takes a freed player, ports disconnect when unplugged; `first_controller_player = 2`; a pad present before input starts |
 | `frontend.sdl.rumble` | `... rumble` | the motor drives the pad's rumble callback at full strength, only on that player; a steady rumble outlives SDL's 1 s duration; the fade over 4 retraces; a pulsed motor stays at least half; strength from the settings; another player's motor; stopped at shutdown; strength 0 |
 | `frontend.sdl.script` | `... script` | `--press` merged over live input: buttons OR'ed, a scripted stick axis replaces the live one, a scripted port connected; `--log-input` runs |
@@ -370,6 +422,44 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
   - a round gate instead of the octagon;
   - no dead-zone rescale.
 
+## Testing live input
+
+The user's first play with a controller on Windows (2026-10-27): "the analog stick wasn't working for steering". The
+scripted presses steered, so each link between a real device and the pad the game reads was checked:
+
+- **The device to the pads.** `--press-via KIND[:SECONDS]` sends the press scripts the way live input goes, instead of
+  into the pads:
+  - `controller`: an SDL virtual GameController per port the scripts use; `joystick`: a virtual joystick without a
+    mapping, which gets the generic one; both plugged in at `SECONDS` on the N64 clock (0, the default: before input
+    starts; later: a hot-plug, and the presses before it are lost). Each N64 control the script holds presses the
+    first input bound to it; the script's stick tilts the `controller.analog` stick by the same share of its travel
+    (80 is full tilt), or presses the `STICK_*` bindings with `analog = none`; `MENU` holds the parts of the first
+    `controller.menu`. The state goes in with `SDL_JoystickUpdate` before the pads are read, as a device's report
+    would.
+  - `keyboard`: key events for the first key bound to each control, handled before the pads are read.
+  - With a window or `--headless`: without one, live input pumps SDL's events itself at port/gfx's tick. The
+    virtual pads log the rumble they are sent.
+- **What the game does with it.** The state line (`--status`, `--until-state`) ends with the first car's steering
+  input, its model record's +0x720 (-1 to 1; `test_save.c` reads the same field).
+- **Results.** On the synthetic cartridge (rocky) and the retail ROM (the Pi, locally): each kind gives the scripted
+  run line for line, so the device path, the mapping, the dead zone, the gate, the stick's sign and the players
+  are right, and the steering input is +1 while the stick is right and -1 while it is left. On the retail ROM the
+  car also goes elsewhere than without the stick; the synthetic cartridge's car physics don't turn the car, so
+  there the steering input is the check (`input_check.py --expect-turn` asks for both). A second boot with a
+  controller pak written by the first steers too.
+- **So the port's path was sound** for a pad SDL maps on player 1. What could still have stopped the user's pad,
+  each handled now: a pad SDL has no mapping for was passed over silently (the generic mapping); a device holding
+  player 1 before the pad (generic pads take a player at a button press); on Windows, SDL's raw input reading an
+  Xbox pad's sticks from window messages while its triggers come from XInput, which would leave gas and brake on
+  the triggers working and the stick dead (XInput now); and nothing in the log said which. Which one it was isn't
+  known yet. The log and the overlay's
+  Controllers page now say which controller is on which player and what its stick gives.
+
+```
+python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom build/pc/synth/rush2049_synth.z64
+python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-check --press <script> --expect-turn
+```
+
 ## Interfaces
 
 - **`pc_port.h`** gains one function: `int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event))`.
@@ -399,6 +489,9 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
     rather than presenting the last render target.
 
 ## Untested
+
+- (2026-10-28) A real controller on Windows, through XInput rather than SDL's raw input, and a pad with the generic
+  mapping: only virtual ones ran. The next play test's log names the pad and its player.
 
 - A real display (X11, Wayland, KMSDRM) and a real controller. Everything above ran on the offscreen driver and
   on virtual joysticks.

@@ -172,6 +172,7 @@ void pc_input_shutdown(void);
 int pc_input_paused(void);                 /* the pause key, or focus lost with pause_on_focus_loss */
 extern int pc_input_log;                   /* --log-input: print every change of a player's pad */
 extern const char *pc_input_title_tag;     /* after the window's title ("Rush2049PC v1.0"); NULL: none */
+int pc_input_set_via(const char *spec);      /* --press-via KIND[:SECONDS]; 0 on success */
 
 /* ---------------------------------------------------------------- loop.c */
 typedef struct {

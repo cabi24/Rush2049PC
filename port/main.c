@@ -34,9 +34,11 @@ static void usage(FILE *f)
             "  --no-rom            bring-up: a blank cartridge instead of the ROM (every ROM read is zero)\n"
             "  --headless          render off screen (EGL surfaceless, WGL on Windows; on Linux the default\n"
             "                      without DISPLAY or WAYLAND_DISPLAY); --window: an SDL2 window\n"
-            "  --fullscreen        start in fullscreen (Alt+Enter or F11 toggles)\n"
-            "  --size WxH          window size (default 640x480)\n"
-            "  --scale N           internal resolution, a multiple of the N64's (1-8), or auto (the window's)\n"
+            "  --fullscreen        start in fullscreen (Alt+Enter or F11 toggles); --exclusive: the display's mode\n"
+            "                      changes to --resolution (desktop, 720p, 1080p, 1440p, 1620p, 2160p or WxH)\n"
+            "  --size WxH          window size in pixels (default: two thirds of the desktop; headless 320x240)\n"
+            "  --scale N           internal resolution: native (the window's pixels, the default), auto (the\n"
+            "                      largest whole multiple of the N64's), or a multiple, 1-8 (1: the N64's)\n"
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
             "  --frame-rate R      frames shown a second: original (the game's own), display, or 60, 120...;\n"
             "                      the frames between the game's are drawn from its last two\n"
@@ -52,6 +54,8 @@ static void usage(FILE *f)
             "  --press T:BUTTON[@PORT][:DUR],...   scripted input (v5's format; T, DUR in seconds)\n"
             "  --press-file PATH   a .press input script\n"
             "  --log-input         print every change of a player's buttons and stick\n"
+            "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
+            "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
             "                      folder: next to the program when rush2049pc.ini is there, else the user data\n"
             "                      folder; it also holds screenshots/ and rush2049pc.log)\n"
@@ -119,6 +123,43 @@ static void musyx_services(int no_rom)
     }
 }
 
+/* The window and the display before port/gfx opens them (docs/port/GFX.md "Window and display"). */
+static void window_setup(const PcSettings *cfg)
+{
+    int x, y, w, h;
+    char tail;
+    pc_gfx_set_fullscreen_mode(cfg->fullscreen_mode);
+    if (pc_settings_resolution(cfg->resolution, &w, &h) == 0)
+        pc_gfx_set_resolution(w, h);
+    if (sscanf(cfg->position, "%d,%d%c", &x, &y, &tail) == 2)
+        pc_gfx_set_window_position(x, y);
+}
+
+/* video.remember_window: the window's size and place out of fullscreen go into the settings file read at start
+ * when they changed (not with --no-config, nor headless). */
+static void remember_window(const PcSettings *cfg, int headless)
+{
+    static char w_text[16], h_text[16], pos[32];
+    char why[PC_CFG_PATH + 64];
+    PcSettingValue ch[3];
+    int n = 0, x, y, w, h;
+    if (headless || !cfg->remember_window || !cfg->source[0] || pc_gfx_window_geometry(&x, &y, &w, &h) != 0)
+        return;
+    snprintf(w_text, sizeof w_text, "%d", w);
+    snprintf(h_text, sizeof h_text, "%d", h);
+    snprintf(pos, sizeof pos, "%d,%d", x, y);
+    if (w != cfg->width || h != cfg->height) {
+        ch[n++] = (PcSettingValue){"video", "width", w_text};
+        ch[n++] = (PcSettingValue){"video", "height", h_text};
+    }
+    if (strcmp(pos, cfg->position))
+        ch[n++] = (PcSettingValue){"video", "position", pos};
+    if (n && pc_settings_save(cfg->source, ch, n, why, sizeof why) != 0)
+        fprintf(stderr, "rush2049pc: the window's size and place not kept: %s\n", why);
+    else if (n)
+        fprintf(stderr, "rush2049pc: window %d x %d at %s kept in %s\n", w, h, pos, cfg->source);
+}
+
 /* The game's state word (gGameState, groups/state/state.c), which the host loop logs and --until-state waits
  * for: 1 initGameState, 2 the start prompt, 0x40000000 the pak warning, 4 the front end's menus, ... */
 extern uint32_t state_word_a;
@@ -129,7 +170,8 @@ static uint32_t game_state(void)
 }
 
 /* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
- * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second),
+ * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second;
+ * and its steering input, -1..1),
  * so a scripted run shows which path it took and whether the car moved. */
 extern int16_t active_player_count, gNumWindows;
 extern int32_t gameplay_mode;
@@ -145,12 +187,13 @@ static void game_info(char *out, size_t size)
     if (exact < 0)
         exact = getenv("RUSH_STATE_EXACT") != NULL;
     const volatile float *v = (const volatile float *)(D_8014A250 + 0x220), *r = v + 3;
+    const volatile float *steer = (const volatile float *)(D_8014A250 + 0x720);   /* its controls: steer -1..1 */
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
     snprintf(out, size, exact ? "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %a %a %a, "
-             "speed %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f %.0f, "
-             "speed %.0f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
+             "speed %a, steer %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f "
+             "%.0f, speed %.0f, steer %.2f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
              *(volatile int8_t *)&D_80152744, (int)*(volatile int32_t *)&gameplay_mode, *(volatile int8_t *)&D_8014978C,
-             (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed);
+             (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed, (double)*steer);
 }
 
 /* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
@@ -236,6 +279,11 @@ static int rush_main(int argc, char **argv)
             headless = 0;
         else if (!strcmp(a, "--fullscreen"))
             SET("video", "fullscreen", "on");
+        else if (!strcmp(a, "--exclusive")) {
+            SET("video", "fullscreen", "on");
+            SET("video", "fullscreen_mode", "exclusive");
+        } else if (!strcmp(a, "--resolution"))
+            SET("video", "resolution", ARG());
         else if (!strcmp(a, "--size")) {
             const char *s = ARG();
             unsigned w, h;
@@ -284,6 +332,10 @@ static int rush_main(int argc, char **argv)
                 return 2;
         } else if (!strcmp(a, "--log-input"))
             pc_input_log = 1;
+        else if (!strcmp(a, "--press-via")) {
+            if (pc_input_set_via(ARG()) != 0)
+                return 2;
+        }
         else if (!strcmp(a, "--pak")) {
             SET("game", "pak", "memory");
             SET("game", "pak_file", ARG());
@@ -381,7 +433,7 @@ static int rush_main(int argc, char **argv)
     int pak_kind = cfg.pak == PC_CFG_PAK_MEMORY ? PC_PAK_MEMORY : cfg.pak == PC_CFG_PAK_RUMBLE ? PC_PAK_RUMBLE
                                                                                               : PC_PAK_NONE;
     /* port/gfx reads its settings from the environment; the resolved values already include it */
-    char scale[8], aspect[16], rate[16];
+    char scale[16], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);
     setenv("RUSH_GFX_SCALE", scale, 1);
     setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : cfg.api == PC_CFG_API_GLES ? "gles" : "auto", 1);
@@ -389,6 +441,7 @@ static int rush_main(int argc, char **argv)
     setenv("RUSH_GFX_WIDESCREEN", aspect, 1);
     pc_settings_get(&cfg, "video", "frame_rate", rate, sizeof rate);
     setenv("RUSH_GFX_FRAME_RATE", rate, 1);
+    setenv("RUSH_GFX_TEXTURES", cfg.textures == 1 ? "upscaled" : cfg.textures == 2 ? "pack" : "original", 1);
     if (cfg.widescreen > 0 && cfg.width == 640 && cfg.height == 480)   /* the default window, at the picture's aspect */
         cfg.width = (int)(cfg.height * cfg.widescreen + 0.5);
     if (!run.frames && pc_input_script_frames)
@@ -428,7 +481,23 @@ static int rush_main(int argc, char **argv)
     if (no_rom)
         blank_files();
     musyx_services(no_rom);
-    if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220 */
+    /* Textures (docs/port/TEXTURES.md): the pack, the dump and the upscaled textures' cache are in the data folder;
+     * the environment's own (RUSH_GFX_TEXTURE_*) stay. */
+    {
+        char tex_dir[PC_APP_PATH];
+        pc_app_data_file(&dirs, cfg.texture_pack, from_command_line(over, nover, "video", "texture_pack"), tex_dir,
+                         sizeof tex_dir);
+        setenv("RUSH_GFX_TEXTURE_PACK", tex_dir, 0);
+        if (cfg.texture_dump[0]) {
+            pc_app_data_file(&dirs, cfg.texture_dump, from_command_line(over, nover, "video", "texture_dump"),
+                             tex_dir, sizeof tex_dir);
+            setenv("RUSH_GFX_TEXTURE_DUMP", tex_dir, 0);
+        }
+        pc_app_data_file(&dirs, "texture_cache", 0, tex_dir, sizeof tex_dir);
+        setenv("RUSH_GFX_TEXTURE_CACHE", tex_dir, 0);
+    }
+    window_setup(&cfg);
+    if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220; 0 x 0: auto */
         fprintf(stderr, "rush2049pc: no renderer: no OpenGL ES 3.0 or OpenGL 3.1 context\n");
         pc_app_alert(!headless, "Rush 2049 PC: no graphics",
                      "The program could not start OpenGL: it needs OpenGL ES 3.0 or OpenGL 3.1 or later.\n\n"
@@ -475,6 +544,7 @@ static int rush_main(int argc, char **argv)
     }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
+    remember_window(&cfg, headless);
     pc_input_shutdown();
     pc_audio_shutdown();
     pc_gfx_shutdown();

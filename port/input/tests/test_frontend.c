@@ -113,8 +113,27 @@ static void test_settings(void)
     pc_settings_defaults(&s);
     CHECK(!strcmp(s.rom, "baserom.us.z64") && s.rom_check == 1 && s.expansion_pak == 0, "game defaults");
     CHECK(s.pak == PC_CFG_PAK_MEMORY && !strcmp(s.pak_file, "rush2049pc.mpk"), "pak defaults");
-    CHECK(s.width == 640 && s.height == 480 && !s.fullscreen && s.vsync && s.scale == 1, "video defaults");
-    CHECK(s.api == PC_CFG_API_AUTO && !s.widescreen && !s.pause_on_focus_loss && !s.screenshot_dir[0], "video");
+    CHECK(s.width == 0 && s.height == 0 && !s.fullscreen && s.vsync && s.scale == -1, "video defaults: auto, native");
+    CHECK(s.api == PC_CFG_API_AUTO && s.widescreen == -1 && !s.pause_on_focus_loss && !s.screenshot_dir[0], "video");
+    CHECK(s.fullscreen_mode == 0 && !strcmp(s.resolution, "desktop") && s.remember_window &&
+              !strcmp(s.position, "center"), "display defaults");
+    {
+        int w, h;
+        CHECK(pc_settings_resolution("1620p", &w, &h) == 0 && w == 2880 && h == 1620, "1620p");
+        CHECK(pc_settings_resolution("2560X1080", &w, &h) == 0 && w == 2560 && h == 1080, "WxH");
+        CHECK(pc_settings_resolution("desktop", &w, &h) == 0 && w == 0 && h == 0, "desktop");
+        CHECK(pc_settings_resolution("1620", &w, &h) == -1 && pc_settings_resolution("100x100", &w, &h) == -1,
+              "bad resolutions");
+        CHECK(pc_settings_set(&s, "video", "resolution", "1440P", why, sizeof why) == 0 &&
+                  !strcmp(s.resolution, "1440p"), "resolution set: %s", s.resolution);
+        CHECK(pc_settings_set(&s, "video", "resolution", "big", why, sizeof why) == -2 &&
+                  !strcmp(s.resolution, "1440p"), "bad resolution kept the old one");
+        CHECK(pc_settings_set(&s, "video", "scale", "n64", why, sizeof why) == 0 && s.scale == 1, "scale n64");
+        CHECK(pc_settings_set(&s, "video", "scale", "native", why, sizeof why) == 0 && s.scale == -1, "scale native");
+        CHECK(pc_settings_set(&s, "video", "fullscreen_mode", "exclusive", why, sizeof why) == 0 &&
+                  s.fullscreen_mode == 1, "fullscreen_mode");
+        pc_settings_defaults(&s);
+    }
     CHECK(!strcmp(s.audio, "auto"), "audio default");
     CHECK(s.keyboard_player == 1 && s.first_controller_player == 1, "players");
     CHECK(fabs(s.deadzone - 0.15) < 1e-9 && fabs(s.axis_threshold - 0.5) < 1e-9 && s.stick_range == 80 &&
@@ -210,7 +229,7 @@ static void test_settings(void)
     /* a bad line is skipped and counted, and the rest still applies */
     pc_settings_defaults(&t);
     problems = pc_settings_load_text(&t, "[video]\nscale = 99\nwidth = 800\nnonsense\n[keyboard]\nQQ = X\n", "bad");
-    CHECK(problems == 3 && t.scale == 1 && t.width == 800, "bad lines: %d problems, scale %d width %d", problems,
+    CHECK(problems == 3 && t.scale == -1 && t.width == 800, "bad lines: %d problems, scale %d width %d", problems,
           t.scale, t.width);
 }
 
@@ -240,7 +259,7 @@ static void test_layers(void)
     /* file over the defaults */
     CHECK(pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, NULL, 0) == 0, "resolve");
     CHECK(!strcmp(s.rom, "/from/file.z64") && s.scale == 2 && s.api == PC_CFG_API_GL && !strcmp(s.audio, "wav") &&
-              s.deadzone == 0.3 && s.width == 640,
+              s.deadzone == 0.3 && s.width == 0,
           "file layer");
     CHECK(!strcmp(s.source, path), "source %s", s.source);
 
@@ -275,7 +294,24 @@ static void test_layers(void)
     snprintf(path, sizeof path, "%s/missing.ini", g_dir);
     unlink(path);
     pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, NULL, 0);
-    CHECK(s.scale == 1 && access(path, F_OK) != 0, "missing explicit file");
+    CHECK(s.scale == -1 && access(path, F_OK) != 0, "missing explicit file");
+
+    /* a file an older build filled with its video defaults gets the new ones, in the file too; a changed one doesn't */
+    snprintf(path, sizeof path, "%s/old.ini", g_dir);
+    write_text(path, "[video]\nwidth = 640\nheight = 480\nscale = 1   ; was the default\nwidescreen = off\n");
+    pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, NULL, 0);
+    CHECK(s.scale == -1 && s.widescreen == -1 && s.width == 0 && s.height == 0, "old defaults: now native, auto");
+    PcSettings again;
+    pc_settings_defaults(&again);
+    again.scale = 7;
+    pc_settings_load_file(&again, path);
+    CHECK(again.scale == -1 && again.width == 0, "and saved: scale %d", again.scale);
+    write_text(path, "[video]\nwidth = 640\nheight = 480\nscale = 1\nwidescreen = off\nresolution = desktop\n");
+    pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, NULL, 0);
+    CHECK(s.scale == 1 && s.width == 640, "a file of this build keeps scale 1");
+    write_text(path, "[video]\nwidth = 640\nheight = 480\nscale = 1\nwidescreen = 16:9\n");
+    pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, NULL, 0);
+    CHECK(s.scale == 1 && s.widescreen > 1.7, "changed video settings are kept");
 }
 
 /* ---------------------------------------------------------------- locate and first run */
@@ -405,7 +441,8 @@ static void stick(double x, double y, const PcStickShape *sh, int ex, int ey, co
 
 static void test_stick(void)
 {
-    PcStickShape oct = {0.15, 80, 70}, round = {0.15, 80, 0}, digital = {0, 80, 70};
+    PcStickShape oct = {0.15, 80, 70, 1}, round = {0.15, 80, 0, 1}, digital = {0, 80, 70, 1};
+    PcStickShape quick = {0.15, 80, 70, 2}, slow = {0.15, 80, 70, 0.5}, unset = {0.15, 80, 70, 0};
     stick(0, 0, &oct, 0, 0, "center");
     stick(0.1, 0.1, &oct, 0, 0, "inside the dead zone (radial: |v| = 0.141)");
     stick(0.14, 0, &oct, 0, 0, "dead zone edge");
@@ -425,8 +462,13 @@ static void test_stick(void)
     stick(1, 0, &round, 80, 0, "round gate right");
     stick(1, 1, &digital, 70, 70, "two keys");
     stick(-1, 0, &digital, -80, 0, "one key");
-    PcStickShape big = {0, 127, 0};
+    PcStickShape big = {0, 127, 0, 1};
     stick(1, 0, &big, 127, 0, "127");
+    /* input.sensitivity: the travel past the dead zone times it, then clamped */
+    stick(0.575, 0, &quick, 80, 0, "sensitivity 2: full tilt at half the travel");
+    stick(0.3625, 0, &quick, 40, 0, "sensitivity 2: a quarter of the travel is half tilt");
+    stick(1, 0, &slow, 40, 0, "sensitivity 0.5: full travel is half tilt");
+    stick(0.575, 0, &unset, 40, 0, "a gain of 0 is 1");
     /* past the dead zone the value starts small, not with a jump */
     int8_t ox, oy;
     pc_stick_shape(0.16, 0, &oct, &ox, &oy);

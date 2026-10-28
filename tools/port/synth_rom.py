@@ -1103,6 +1103,21 @@ def front_end(c):
     c.set_all("ovl_a", "D_803B65E4", "u8", [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
               "the main menu's valid options: the five screens 0-4")
 
+    # Cheat codes (eggs.c's Egg: a step count, then u32 held[20] and pressed[20] game-button masks; CheckForEgg).
+    # Made up here, with the button map above: the main menu's code (D_803B41D4, the start screen's own InitEgg),
+    # hold L and press Z, makes option 6 valid (D_801164A1), the cheat screen (0x8000000); cheat 0's
+    # (D_803B3460[0]), hold R and press Z, then hold C-up and press Z, lets RIGHT switch it. The masks are u32
+    # elements: a byte view of D_803B3460 (an opaque Rec164 that once won gen_data's ranking) stops this generator.
+    # The cheats path (synth/cheats.press) opens the screen: the start screen once called eggs.c's InitEgg, whose
+    # InitEgg(23) pointed past the table, and the screen never opened (docs/port/QA.md).
+    c.set("ovl_a", "D_803B41D4", "u8", 1, "the main menu's cheat code: one step")
+    c.set("ovl_a", "D_803B41D4", "u32", 1 << 4, "its held mask: L", offset=4)
+    c.set("ovl_a", "D_803B41D4", "u32", 1 << 3, "its pressed mask: Z", offset=84)
+    c.set("ovl_a", "D_803B3460", "u8", 2, "cheat 0's code: two steps")
+    for i, held in enumerate((1 << 5, 1 << 6)):
+        c.set("ovl_a", "D_803B3460", "u32", held, "its held masks: R, then C-up", offset=4 + 4 * i)
+        c.set("ovl_a", "D_803B3460", "u32", 1 << 3, "its pressed masks: Z", offset=84 + 4 * i)
+
     # The options screen's valid items (validOption, D_80116D14, s32[14]; optionscr_buttons): options_initScreen
     # starts at the first valid one with `while (!valid[i]) i++`, which never ends when none is. All fourteen.
     c.set_all("game", "D_80116D14", "u32", [1] * 14, "the options screen's valid items: all fourteen")

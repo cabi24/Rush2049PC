@@ -21,10 +21,11 @@ typedef struct {
     double deadzone;   /* radial, 0-0.9 */
     int range;         /* full tilt along an axis */
     int diagonal;      /* each axis at full diagonal tilt; 0: round */
+    double gain;       /* input.sensitivity: the travel past the dead zone times this; 0 is 1 */
 } PcStickShape;
 
-/* x, y in -1..1, +y up. Applies the dead zone (rescaling the rest from 0), clamps to full tilt, and shapes the
- * result to the gate. */
+/* x, y in -1..1, +y up. Applies the dead zone (rescaling the rest from 0) and the gain, clamps to full tilt, and
+ * shapes the result to the gate. */
 void pc_stick_shape(double x, double y, const PcStickShape *shape, int8_t *out_x, int8_t *out_y);
 /* One axis or trigger, -1..1, with the dead zone rescaled away. */
 double pc_axis_deadzone(double v, double deadzone);
@@ -37,6 +38,9 @@ void pc_input_live_shutdown(void);
 /* Merge the keyboard and controllers into pads (buttons OR'ed, the stronger stick per axis) and mark ports
  * with a controller connected. */
 void pc_input_live_poll(PcPad pads[4]);
+/* For the overlay: who plays a player ("keyboard", the controller's name, or both) and the N64 stick its controller
+ * gives now. 2 with a controller, 1 with the keyboard alone, 0 for nobody. */
+int pc_input_live_describe(int port, char *who, size_t n, int8_t *x, int8_t *y);
 /* Rumble strength 0-1 for a port's controller, if it has one. */
 void pc_input_live_rumble(int port, double level);
 int pc_input_live_paused(void);
@@ -52,6 +56,12 @@ void pc_input_live_fullscreen(int on);
 int pc_input_live_is_fullscreen(void);        /* -1 without a window */
 void pc_input_live_vsync(int on);
 void pc_input_live_window_size(int w, int h); /* headless: the size port/gfx's auto settings follow */
+/* --press-via: the press scripts through SDL instead of into the pads (tests). The kind, when its virtual pads
+ * are plugged in (seconds on the N64 clock; 0: before input starts) and how many, before pc_input_live_init; then
+ * the scripts' pads (and whether MENU is held) at each poll, before pc_input_live_poll. -1 without live input. */
+enum { PC_VIA_PADS, PC_VIA_CONTROLLER, PC_VIA_JOYSTICK, PC_VIA_KEYBOARD };
+void pc_input_live_via_setup(int kind, double at, int nports);
+int pc_input_live_via(const PcPad script[4], int menu, double now);
 
 /* ---------------------------------------------------------------- input.c */
 void pc_input_apply(const PcSettings *s);     /* the overlay's input changes, rumble strength included */

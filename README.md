@@ -52,28 +52,44 @@ found, where the saves are and where its log is.
 
 ### Controls
 
-| N64 | Keyboard | Controller (Xbox layout) |
-|---|---|---|
-| Stick | arrow keys | left stick |
-| A (accelerate) | X | A, right trigger |
-| B (brake) | C | X, left trigger |
-| Z | Z | LB |
-| L | Q | Back |
-| R | E | RB |
-| START | Enter | Start |
-| C buttons | I, J, K, L | right stick; Y and B for C-up and C-down |
-| D-pad | W, A, S, D | D-pad |
+| N64 | Keyboard | Xbox | PlayStation |
+|---|---|---|---|
+| Stick | arrow keys | left stick | left stick |
+| A (accelerate) | X | A, RT | Cross, R2 |
+| B (brake) | C | X, LT | Square, L2 |
+| Z | Z | LB | L1 |
+| L | Q | Back | Share |
+| R | E | RB | R1 |
+| START | Enter | Start | Options |
+| C buttons | I, J, K, L | right stick; Y and B for C-up and C-down | right stick; Triangle and Circle |
+| D-pad | W, A, S, D | D-pad | D-pad |
+
+Other pads use the button in the same place.
 
 F1 (or both stick clicks) opens the settings overlay. Alt+Enter or F11 toggles fullscreen, F12 saves a screenshot,
-Pause holds the game and Escape quits. Every key and button can be remapped. The details are in
+Pause holds the game and Escape quits. Every key and button can be remapped, and the stick's dead zone and
+sensitivity set, in the overlay. The details are in
 [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
 
 ### Settings
 
-`rush2049pc.ini` holds them all, with comments. While you play, the F1 overlay changes the video settings
-(widescreen, internal resolution, fullscreen, vsync, window size), the volume and the key and button mapping. It
+`rush2049pc.ini` holds them all, with comments. The picture is drawn at the window's own pixels by default
+(`video.scale = native`, any display scaling, 2880 × 1620 included); `video.scale = 1` is the N64's 320 × 240 in
+square pixels. Fullscreen is borderless, or exclusive at `video.resolution` (720p to 2160p, or WxH). While you
+play, the F1 overlay changes the video settings (render scale, widescreen, fullscreen and its mode, resolution,
+window size, vsync, frame rate, textures), the volume and the key and button mapping. It
 can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
 (`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
+
+### Textures
+
+`video.textures` (Textures on the overlay's Video page): `original`; `upscaled`, the 3D world's textures upscaled 2x
+(4x from internal scale 4) by a small neural network trained for N64 textures on CC0 images and built into the port
+([docs/port/UPSCALE.md](docs/port/UPSCALE.md)), in the background as they appear and kept in `texture_cache/` for the next run, the HUD
+and menus as they are (it needs an internal scale of 2 or more); or `pack`, PNG replacements from `textures/`. A
+pack is made from your own ROM: `video.texture_dump = dump` writes every texture drawn into `dump/`, and
+`tools/texpack/texpack.py` runs an upscaler you install (realesrgan-ncnn-vulkan, ...) over them. Packs are never
+shipped with the port; don't share yours. [docs/port/TEXTURES.md](docs/port/TEXTURES.md) has the details.
 
 ### Saves and other files
 
@@ -85,6 +101,8 @@ that folder:
 | `rush2049pc.ini` | the settings |
 | `rush2049pc.mpk` | the saves: the game's controller pak |
 | `screenshots/` | F12's pictures |
+| `texture_cache/` | upscaled textures kept for the next run (`video.textures = upscaled`); safe to delete |
+| `textures/` | a texture pack, if you make one (`video.textures = pack`) |
 | `rush2049pc.log`, `rush2049pc.old.log` | this run's output and the run before |
 
 Without `rush2049pc.ini` next to it (an installed copy, or a build run from its build folder), the settings go in
@@ -101,7 +119,11 @@ there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into
   later. On Windows desktop GL comes first, elsewhere OpenGL ES; `--set video.api=gl` or `gles` picks the one tried
   first.
 - **No sound:** `--audio sdl` (or `alsa` on Linux) picks the output; the volume is `audio.volume`.
-- **A controller isn't recognized:** put SDL's `gamecontrollerdb.txt`, with a line for it, next to `rush2049pc.ini`.
+- **A controller does nothing, or its stick doesn't steer:** F1 > Controllers shows who plays each player and what
+  the stick gives, and the log names each controller found and its player. A pad SDL doesn't know gets a generic
+  mapping and takes a player at its first button press; rebind it there, or put SDL's `gamecontrollerdb.txt`, with a
+  line for it, next to `rush2049pc.ini`. On Windows, Xbox pads go through XInput (`SDL_JOYSTICK_RAWINPUT=1` uses
+  SDL's raw input instead).
 - **It stopped with an error:** the log says why. On Windows a message box gives the log's path, and the console
   waits for a key. Report it on the [issues page](https://github.com/cabi24/Rush2049PC/issues) with
   `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was.
