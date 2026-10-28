@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define GOLDEN 0x7a43f56bfeaa1e04ull
+#define GOLDEN 0xc9aca2dcc991df4aull
 
 static int failures;
 #define CHECK(c, ...)                                                                                              \
@@ -164,26 +164,40 @@ static int t_seams(void) {
         free(ob);
         free(big);
     }
-    /* Black left half, white right half (then top and bottom): a clamped edge stays black, a wrapped one
-     * takes some of the white from the far edge. */
+    /* Black left half, white right half (then top and bottom). Clamped, the first new column (row) stays black:
+     * nothing comes from the far edge. Wrapped, it is exactly what the same place gives in the middle of the
+     * texture turned half a period (the network sharpens the edge there, so it may be nearly black too), and
+     * Catmull-Rom alone, which can't sharpen, takes some of the white across the wrap. */
     for (int axis = 0; axis < 2; axis++) {
-        uint8_t in[W * W * 4];
+        uint8_t in[W * W * 4], turned[W * W * 4];
         for (int y = 0; y < W; y++)
             for (int x = 0; x < W; x++)
                 memset(in + (y * W + x) * 4, (axis ? y : x) < W / 2 ? 0 : 255, 3), in[(y * W + x) * 4 + 3] = 255;
+        for (int y = 0; y < W; y++)   /* turned half a period: the wrap's edge in the middle */
+            for (int x = 0; x < W; x++) {
+                const int tx = axis ? x : (x + W / 2) % W, ty = axis ? (y + W / 2) % W : y;
+                memcpy(turned + (y * W + x) * 4, in + (ty * W + tx) * 4, 4);
+            }
         uint8_t *c = up(in, W, W, 0, 0, PC_UPSCALE_NET);
         uint8_t *r = up(in, W, W, !axis, axis, PC_UPSCALE_NET);
-        int cmax = 0, rmin = 255;
+        uint8_t *t = up(turned, W, W, !axis, axis, PC_UPSCALE_NET);
+        uint8_t *k = up(in, W, W, !axis, axis, PC_UPSCALE_CUBIC);
+        int cmax = 0, kmin = 255, same = 1;
         for (int i = 0; i < 2 * W; i++) {
             const int o = axis ? i * 4 : i * 2 * W * 4;   /* first row or first column */
+            const int m = axis ? (W * 2 * W + i) * 4 : (i * 2 * W + W) * 4;   /* the same place, turned */
             cmax = c[o] > cmax ? c[o] : cmax;
-            rmin = r[o] < rmin ? r[o] : rmin;
+            kmin = k[o] < kmin ? k[o] : kmin;
+            same &= !memcmp(r + o, t + m, 4);
         }
         CHECK(cmax <= 8, "clamped %s edge took colour from the far edge (%d)", axis ? "top" : "left", cmax);
-        CHECK(rmin >= cmax + 8, "wrapped %s edge didn't take colour from the far edge (%d)", axis ? "top" : "left",
-              rmin);
+        CHECK(same, "wrapped %s edge differs from the same place inside", axis ? "top" : "left");
+        CHECK(kmin >= 30, "Catmull-Rom's wrapped %s edge didn't take colour from the far edge (%d)",
+              axis ? "top" : "left", kmin);
         free(c);
         free(r);
+        free(t);
+        free(k);
     }
     return 0;
 }
