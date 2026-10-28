@@ -101,6 +101,8 @@ def main():
     ap.add_argument("--tool", required=True)
     ap.add_argument("--out", default="upscale-eval")
     ap.add_argument("--sheets", action="store_true")
+    ap.add_argument("--extra", action="append", default=[], metavar="NAME=TOOL",
+                    help="another upscale_tool build (another upscale.c) as a method named NAME")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     index = json.load(open(os.path.join(args.data, "index.json")))
@@ -123,13 +125,20 @@ def main():
         res, log = run_tool(args.tool, m, items)
         outs["c-" + m] = [r[..., :3].astype(np.float32) / 255 for r in res]
         print(f"C {m}: {log}", file=sys.stderr)
+    extra = []
+    for spec in args.extra:
+        name, tool = spec.split("=", 1)
+        res, log = run_tool(tool, "net", items)
+        outs[name] = [r[..., :3].astype(np.float32) / 255 for r in res]
+        extra.append(name)
+        print(f"{name}: {log}", file=sys.stderr)
     for name, fn in CLASSICAL.items():
         outs[name] = [np.clip(fn(c[4].astype(np.float32), 1, 1), 0, 1) for c in cases]
     # the C classical scalers agree with the numpy ones
     for cm, pm in (("c-cubic", "catmull-rom"), ("c-bilinear", "bilinear")):
         diff = max(np.abs(to8(a).astype(int) - to8(b).astype(int)).max() for a, b in zip(outs[cm], outs[pm]))
         print(f"{cm} vs numpy {pm}: max difference {diff} levels", file=sys.stderr)
-    methods = ["bilinear", "catmull-rom", "lanczos3", "c-net"]
+    methods = ["bilinear", "catmull-rom", "lanczos3"] + extra + ["c-net"]
     table = {}
     for i, c in enumerate(cases):
         for m in methods:
@@ -151,35 +160,50 @@ def main():
     report = [f"{len(mats)} held-out materials x 2 sizes x {len(n64tex.FORMATS)} formats = {len(cases)} cases; "
               "PSNR dB / SSIM (mean)", ""] + lines
     # how often the network beats the best classical method, per case
-    wins = sum(n64tex.psnr(outs["c-net"][i], c[3]) > max(n64tex.psnr(outs[m][i], c[3]) for m in CLASSICAL)
+    others = list(CLASSICAL) + extra
+    wins = sum(n64tex.psnr(outs["c-net"][i], c[3]) > max(n64tex.psnr(outs[m][i], c[3]) for m in others)
                for i, c in enumerate(cases))
     report.append("")
-    report.append(f"network PSNR above the best classical method in {wins} of {len(cases)} cases")
+    report.append(f"network PSNR above the best of {', '.join(others)} in {wins} of {len(cases)} cases")
+    pn = [n64tex.psnr(outs["c-net"][i], c[3]) for i, c in enumerate(cases)]
+    for m in others:
+        pm = [n64tex.psnr(outs[m][i], c[3]) for i, c in enumerate(cases)]
+        report.append(f"network PSNR above {m} in {sum(a > b for a, b in zip(pn, pm))} of {len(cases)} cases, "
+                      f"mean gain {np.mean(np.array(pn) - np.array(pm)):+.2f} dB")
 
     # ---------------------------------------------------------------- alpha
-    ious = {"nearest": [], "bilinear>0.5": [], "port": []}
-    alpha_items, alpha_hr = [], []
-    for e in atlases:
-        col = load_rgb(os.path.join(args.data, e["files"]["color"]), 128)
-        op = Image.open(os.path.join(args.data, e["files"]["opacity"])).convert("L")
-        a128 = np.asarray(op.resize((128, 128), Image.Resampling.LANCZOS), np.float32) / 255 >= 0.5
-        a64 = np.asarray(op.resize((64, 64), Image.Resampling.LANCZOS), np.float32) / 255 >= 0.5
-        lr = to8(n64tex.downscale2(col, "box"))
-        lr = np.concatenate([lr, (a64 * 255).astype(np.uint8)[..., None]], 2)
-        lr[~a64, :3] = 0   # black under transparent texels, as many N64 cut-outs have
-        alpha_items.append((lr, 0, 0))
-        alpha_hr.append((col, a128, lr))
-    if alpha_items:
-        res, _ = run_tool(args.tool, "net", alpha_items)
-        for (col, a128, lr), out in zip(alpha_hr, res):
-            a = lr[..., 3:4].astype(np.float32) / 255
-            cand = {"nearest": n64tex.nearest2x(a)[..., 0] >= 0.5,
-                    "bilinear>0.5": n64tex.bilinear2x(a)[..., 0] >= 0.5, "port": out[..., 3] >= 128}
-            for k, v in cand.items():
-                ious[k].append((v & a128).sum() / max(1, (v | a128).sum()))
-        report.append("")
-        report.append(f"cut-out alpha, {len(alpha_items)} held-out leaf/foliage atlases 64x64 -> 128x128, IoU with "
-                      "the 128x128 cut-out: " + ", ".join(f"{k} {np.mean(v):.4f}" for k, v in ious.items()))
+    # Held-out atlases, and all of them (EPX was chosen over the alternatives on the train ones).
+    every = [e for e in index if e.get("kind") == "atlas" and "opacity" in e["files"]]
+    alpha_items, alpha_hr, res = [], [], []
+    for label, group in (("held-out", atlases), ("all", every)):
+        for size in (64, 32):
+            ious = {"nearest": [], "bilinear>0.5": [], "port": []}
+            items, hrs = [], []
+            for e in group:
+                col = load_rgb(os.path.join(args.data, e["files"]["color"]), 2 * size)
+                op = Image.open(os.path.join(args.data, e["files"]["opacity"])).convert("L")
+                ahi = np.asarray(op.resize((2 * size, 2 * size), Image.Resampling.LANCZOS), np.float32) / 255 >= 0.5
+                alo = np.asarray(op.resize((size, size), Image.Resampling.LANCZOS), np.float32) / 255 >= 0.5
+                lr = to8(n64tex.downscale2(col, "box"))
+                lr = np.concatenate([lr, (alo * 255).astype(np.uint8)[..., None]], 2)
+                lr[~alo, :3] = 0   # black under transparent texels, as many N64 cut-outs have
+                items.append((lr, 0, 0))
+                hrs.append((col, ahi, lr))
+            if not items:
+                continue
+            out, _ = run_tool(args.tool, "net", items)
+            for (col, ahi, lr), o in zip(hrs, out):
+                a = lr[..., 3:4].astype(np.float32) / 255
+                cand = {"nearest": n64tex.nearest2x(a)[..., 0] >= 0.5,
+                        "bilinear>0.5": n64tex.bilinear2x(a)[..., 0] >= 0.5, "port": o[..., 3] >= 128}
+                for k, v in cand.items():
+                    ious[k].append((v & ahi).sum() / max(1, (v | ahi).sum()))
+            if label == "held-out" and size == 64:
+                alpha_items, alpha_hr, res = items, hrs, out
+            report.append("")
+            report.append(f"cut-out alpha, {len(items)} {label} leaf/foliage/graffiti atlases {size}x{size} -> "
+                          f"{2 * size}x{2 * size}, IoU with the real cut-out at that size: "
+                          + ", ".join(f"{k} {np.mean(v):.4f}" for k, v in ious.items()))
     text = "\n".join(report)
     print(text)
     with open(os.path.join(args.out, "report.md"), "w") as f:
