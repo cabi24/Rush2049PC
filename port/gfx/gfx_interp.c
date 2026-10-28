@@ -1060,7 +1060,7 @@ static void draw_between(RFrame *b, RFrame *c, float a) {
             for (k = o->first; k < o->first + o->count; k++) {
                 const RTri *t = &c->tri[k];
                 GfxVtx in[3], poly[8];
-                GfxOutVtx out[18];
+                GfxOutVtx out[GFX_TRI_OUT_MAX];
                 int n, m;
                 if (t->ctx != last_ctx) {
                     const RCtx *rc = &c->ctx[t->ctx];

@@ -1,9 +1,10 @@
 /* port/gfx/tests/size_test.c: gfx_size.c with made-up window, drawable and desktop sizes (no GL, no window).
  *
- *   gfx_size_test [scale|edge|fit|units|window|texfactor|all]
+ *   gfx_size_test [scale|edge|rectedge|fit|units|window|texfactor|all]
  *
  * The internal scale a window gets (native: any fraction; auto: whole), the internal size of a target, where N64
- * pixel edges land at fractional scales (no gap, no overlap, the shader's pixel rule the same), where the frame goes
+ * pixel edges land at fractional scales (no gap, no overlap, the shader's pixel rule the same), where rectangles'
+ * sides go to GL (on pixel boundaries: the same pixels on any GPU), where the frame goes
  * in the window, and window sizes in pixels against the window system's units (Windows with and without DPI
  * awareness, a 2x macOS or Wayland output). Exit status 0 = pass. */
 #include <math.h>
@@ -216,9 +217,85 @@ static void case_texfactor(void) {
     pcgfx_cfg.scale = was;
 }
 
+/* Rectangles' sides at every quarter pixel (GFX.md "Resolution and scale"): the internal pixels a side at q/4 starts
+ * are those whose centres are at or past it (in GL's y-up window coordinates for rows), counted in whole numbers
+ * here independently of pcgfx_edge_q; whole N64 pixels agree with the scissor's pcgfx_edge; and the GL coordinate
+ * pcgfx_rect_x gives, as a GPU computes the window coordinate from it in floats, is on that boundary to within
+ * 1/1000 pixel: half a pixel from every centre, so no tie rule or subpixel precision can change the pixels it
+ * covers. At a whole scale a whole N64 pixel's side is where it was before boundaries, bit for bit. */
+static void rect_sides(int n, int px) {
+    char what[96];
+    int bad_x = 0, bad_y = 0, bad_scissor = 0, bad_gl = 0, bad_whole = 0;
+    long long q;
+    for (q = -16; q <= 4LL * n + 16; q++) {
+        int ex, ey, i, cx = 0, cy = 0, e, ee;
+        float xe, w;
+        for (i = 0; i < px; i++) {
+            cx += 2LL * (2 * i + 1) * n < q * px;                 /* centres left of the side */
+            cy += 2LL * (2 * i + 1) * n >= (4LL * n - q) * px;    /* GL rows (from the bottom) at or above it */
+        }
+        e = pcgfx_edge_q(q, n, px, &ex);
+        if (q >= 0 && q <= 4LL * n && e != cx)
+            bad_x++;
+        ee = pcgfx_row_edge_q(q, n, px, &ey);
+        if (q >= 0 && q <= 4LL * n && ee != cy)
+            bad_y++;
+        if (q % 4 == 0 && q >= 0 && q <= 4LL * n &&
+            (e != pcgfx_edge((int)(q / 4), n, px) || ee != pcgfx_row_edge((int)(q / 4), n, px)))
+            bad_scissor++;
+        w = (pcgfx_rect_x((float)q / 4.0f, n, px, &xe) + 1.0f) * 0.5f * (float)px;
+        e = e < 0 ? 0 : e > px ? px : e;
+        if (fabsf(w - (float)e) > 1e-3f || fabsf(xe * (float)px / (float)n - (float)e) > 1e-3f)
+            bad_gl++;
+        w = (1.0f - pcgfx_rect_y((float)q / 4.0f, n, px, &xe)) * 0.5f * (float)px;
+        ee = ee < 0 ? 0 : ee > px ? px : ee;
+        if (fabsf(w - (float)ee) > 1e-3f || fabsf(xe * (float)px / (float)n - (float)ee) > 1e-3f)
+            bad_gl++;
+        if (px % n == 0 && q % 4 == 0 && q >= 0 && q <= 4LL * n) {
+            float x = (float)q / 4.0f;
+            bad_whole += pcgfx_rect_x(x, n, px, &xe) != x * 2.0f / (float)n - 1.0f || xe != x;
+            bad_whole += pcgfx_rect_y(x, n, px, &xe) != 1.0f - x * 2.0f / (float)n || xe != x;
+        }
+    }
+    snprintf(what, sizeof(what), "%d as %d: sides not at the first centre past them", n, px);
+    expect_i(what, bad_x, 0);
+    snprintf(what, sizeof(what), "%d as %d: rows' sides", n, px);
+    expect_i(what, bad_y, 0);
+    snprintf(what, sizeof(what), "%d as %d: sides not the scissor's", n, px);
+    expect_i(what, bad_scissor, 0);
+    snprintf(what, sizeof(what), "%d as %d: GL coordinates off their boundary", n, px);
+    expect_i(what, bad_gl, 0);
+    snprintf(what, sizeof(what), "%d as %d: whole scale changed", n, px);
+    expect_i(what, bad_whole, 0);
+}
+
+static void case_rectedge(void) {
+    static const float scales[] = {1.0f, 1.25f, 1.5f, 2.0f, 2.25f, 2.5f, 3.0f, 3.2f, 3.375f, 4.0f, 6.75f, 6.7606f,
+                                   7.3636f, 8.0f};
+    int i, ex;
+    for (i = 0; i < (int)(sizeof(scales) / sizeof(scales[0])); i++) {
+        rect_sides(240, pcgfx_scaled(240, scales[i]));
+        rect_sides(320, pcgfx_scaled(320, scales[i]));
+        rect_sides(426, pcgfx_scaled(426, scales[i]));
+    }
+    rect_sides(426, 2880);   /* native at 2880 x 1620 */
+    rect_sides(240, 1623);
+    rect_sides(426, 1363);   /* native at 1366 x 768 */
+    rect_sides(240, 768);
+    /* the seam V3D showed: N64 x 215 of 426 at 2876 is 1451.502 internal pixels, a 500th past pixel 1451's centre; V3D
+     * (6 subpixel bits) rounded it onto the centre and left the pixel out, iris (8) didn't */
+    expect_i("V3D's seam: side 215 at 2876", pcgfx_edge_q(4 * 215, 426, 2876, &ex), 1452);
+    expect_i("V3D's seam: on a boundary", (int)lrintf((pcgfx_rect_x(215.0f, 426, 2876, &(float){0}) + 1.0f) * 1438.0f),
+             1452);
+    /* past the target: held to it */
+    expect_i("left of the target", (int)pcgfx_rect_x(-3.25f, 320, 720, &(float){0}), -1);
+    expect_i("right of the target", (int)pcgfx_rect_x(1023.75f, 320, 720, &(float){0}), 1);
+}
+
 int main(int argc, char **argv) {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
-        {"scale", case_scale}, {"edge", case_edge}, {"fit", case_fit}, {"units", case_units}, {"window", case_window},
+        {"scale", case_scale}, {"edge", case_edge}, {"rectedge", case_rectedge}, {"fit", case_fit},
+        {"units", case_units}, {"window", case_window},
         {"texfactor", case_texfactor},
     };
     const char *which = argc > 1 ? argv[1] : "all";

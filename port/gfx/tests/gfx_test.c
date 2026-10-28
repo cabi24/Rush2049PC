@@ -28,6 +28,7 @@ int pcgfx_pixel_of(int i, int n, int px);
 int pcgfx_row_of(int i, int n, int px);
 float pc_gfx_parse_scale(const char *text, int *ok);
 void pc_gfx_set_scale_value(float scale);
+void pcgfx_gl_test_nudge(float dx, float dy);
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
@@ -1860,6 +1861,93 @@ static void case_seams(void) {
     }
 }
 
+/* Rectangles cover the same pixels on any GL (GFX.md "Resolution and scale"): rectangles at every quarter-pixel phase
+ * of both sides, side by side and row on row, each a color its neighbours aren't. Drawn as they are, then with every
+ * GL vertex moved 3/8 of an internal pixel left, right, down and up (pcgfx_gl_test_nudge): more than a GPU's
+ * rounding moves a vertex (1/32 pixel at most, with GL's least 4 subpixel bits; V3D has 6, iris 8), less than the
+ * half pixel between a side on its pixel boundary and every pixel centre. Each time every internal pixel must have
+ * the rectangle its centre is in, counted in whole numbers here (rows in GL's y-up coordinates, as pcgfx_edge). With
+ * the sides where the scale put them (before 2026-10-28), at a fractional scale a side could lie on a centre, or a
+ * 500th of a pixel from one, and V3D left out a column of pixels that iris filled; moved, they'd fail everywhere. */
+#define TIES_COLS 32
+#define TIES_ROWS 16
+
+static int ties_x(int k) {   /* quarter pixels, the 4:3 frame's */
+    return 4 * (4 + k * 9) + (k % 4);
+}
+
+static int ties_y(int r) {
+    return 4 * (8 + r * 13) + (r * 3) % 4;
+}
+
+static void ties_color(int k, int r, int c[3]) {   /* neighbours across and down differ */
+    int i = (k + 2 * r) % 3;
+    c[0] = i == 0 ? 255 : 0, c[1] = i == 1 ? 255 : 0, c[2] = i == 2 ? 255 : 0;
+}
+
+static void case_ties(void) {
+    static const float nudge[][2] = {{0, 0}, {-0.375f, 0}, {0.375f, 0}, {0, -0.375f}, {0, 0.375f}};
+    static uint16_t t[8 * 8];
+    int i, k, r, n;
+    for (i = 0; i < 64; i++)
+        t[i] = rgba16(64, 64, 64, 1);
+    for (n = 0; n < (int)(sizeof(nudge) / sizeof(nudge[0])); n++) {
+        int *col, *row, x, y, ox, bad = 0, shown = 0;
+        long long tw, th, pw, ph;
+        frame_begin(0, 0, 0);
+        load_texture_block((uintptr_t)t, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+        cc_prim();
+        for (r = 0; r < TIES_ROWS; r++)
+            for (k = 0; k < TIES_COLS; k++) {
+                int c[3];
+                ties_color(k, r, c);
+                gsDPSetPrimColor(0, 0, c[0], c[1], c[2], 255);
+                gsSPTextureRectangle(ties_x(k), ties_y(r), ties_x(k + 1), ties_y(r + 1), 0, 0, 0, 1 << 10, 1 << 10);
+            }
+        pcgfx_gl_test_nudge(nudge[n][0], nudge[n][1]);
+        frame_end();
+        pcgfx_gl_test_nudge(0, 0);
+        tw = s_n64_w, th = s_n64_h, pw = s_px_w, ph = s_px_h, ox = frame_x0();
+        col = (int *)malloc(sizeof(int) * (size_t)s_px_w);
+        row = (int *)malloc(sizeof(int) * (size_t)s_px_h);
+        for (x = 0; x < s_px_w; x++) {   /* the rectangle whose sides hold the centre: a <= c < b */
+            col[x] = -1;
+            for (k = 0; k < TIES_COLS; k++) {
+                long long a = ties_x(k) + 4LL * ox, b = ties_x(k + 1) + 4LL * ox, c2 = 2LL * (2 * x + 1) * tw;
+                if (c2 >= a * pw && c2 < b * pw)
+                    col[x] = k;
+            }
+        }
+        for (y = 0; y < s_px_h; y++) {   /* GL row g from the bottom: bottom side <= centre < top side */
+            long long g = ph - 1 - y, c2 = 2LL * (2 * g + 1) * th;
+            row[y] = -1;
+            for (r = 0; r < TIES_ROWS; r++)
+                if (c2 >= (4 * th - ties_y(r + 1)) * ph && c2 < (4 * th - ties_y(r)) * ph)
+                    row[y] = r;
+        }
+        for (y = 0; y < s_px_h; y++)
+            for (x = 0; x < s_px_w; x++) {
+                const uint8_t *p = s_px + ((size_t)y * s_px_w + x) * 4;
+                int c[3] = {0, 0, 0};
+                if (col[x] >= 0 && row[y] >= 0)
+                    ties_color(col[x], row[y], c);
+                if (p[0] != c[0] || p[1] != c[1] || p[2] != c[2]) {
+                    if (shown++ < 6)
+                        printf("  FAIL ties: moved %+.3f,%+.3f: internal pixel (%d,%d): %d,%d,%d, not %d,%d,%d\n",
+                               nudge[n][0], nudge[n][1], x, y, p[0], p[1], p[2], c[0], c[1], c[2]);
+                    bad++;
+                }
+            }
+        if (bad) {
+            printf("  FAIL ties: moved %+.3f,%+.3f: %d of %d internal pixels (%dx%d for %dx%d N64 pixels)\n",
+                   nudge[n][0], nudge[n][1], bad, s_px_w * s_px_h, s_px_w, s_px_h, s_n64_w, s_n64_h);
+            s_fail++;
+        }
+        free(col);
+        free(row);
+    }
+}
+
 /* the screenshot is a PNG of the presented frame */
 static void case_screenshot(void) {
     char path[512];
@@ -1902,7 +1990,8 @@ static const Case s_cases[] = {
     {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
-    {"seams", case_seams},       {"screenshot", case_screenshot}, {"hud", case_hud},
+    {"seams", case_seams},       {"ties", case_ties},         {"screenshot", case_screenshot},
+    {"hud", case_hud},
 };
 
 int main(int argc, char **argv) {

@@ -97,6 +97,12 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   - The winding is summed in double, from the first vertex.
   - GL then clips x/y at the screen in clip space. Vertices go to GL as clip coordinates with the N64 viewport
     folded in, so GL never near-clips and nothing wraps around.
+  - GL's own guard band: a polygon with a vertex past |x| = 2w or |y| = 2w in GL's clip coordinates (the target's,
+    not the view's) is clipped to it on the CPU as well (`out_clip` in `pcgfx_tri_output`), linearly in clip space as
+    GL clips, with each new vertex on the plane exactly (2026-10-28). Where the view spans the target, as a
+    perspective view does in widescreen, the view's band is GL's, and its float lerp left vertices a rounding
+    beyond it (x = 2.000005 w): V3D clipped those triangles itself, with their colours off ("The same pixels on any
+    GPU" below). A viewport larger than the screen is held to GL's band too. Polygons within it are untouched.
 - **Culling** uses the winding in N64 screen space after clipping (front = counterclockwise on screen). The game's
   mirrored modelview (x = −1) and mirrored viewports therefore flip it, as on the RSP. GL face culling stays off.
 - **Display-list control.**
@@ -267,11 +273,46 @@ Added 2026-10-27 night: before, every scale was a whole number.
   axis is px / n (a hair different across and down; the drawing uses each). Targets wider than the GPU's largest
   render target get the largest scale that fits.
 - **Edges.** An N64 edge v of a side n pixels long drawn as px internal pixels lands at the first internal pixel
-  whose centre is at or past it: ceil(v · px / n − 1/2), in whole numbers (`pcgfx_edge`). That is how GL covers a
-  rectangle, so the scissor and clears (glScissor + glClear) and rectangles and triangles meet without a gap or an
-  overlap. A centre exactly on an edge (2.5, 6.75: an N64 edge at x.5) goes, in GL's window coordinates, to the
-  rectangle right of it and above it: rows are counted from the bottom for that (`pcgfx_row_edge`, `pcgfx_row_of`),
-  as iris and llvmpipe draw. At a whole scale every edge is v × s, as before.
+  whose centre is at or past it: ceil(v · px / n − 1/2), in whole numbers (`pcgfx_edge`; `pcgfx_edge_q` for the
+  rectangles' quarter pixels). A centre exactly on an edge (2.5, 6.75: an N64 edge at x.5) goes, in GL's window
+  coordinates, to the rectangle right of it and above it: rows are counted from the bottom for that
+  (`pcgfx_row_edge`, `pcgfx_row_of`), as iris and llvmpipe draw. The scissor and clears (glScissor + glClear) are
+  set in those whole pixels, and rectangles are drawn to them (below), so they meet without a gap or an overlap. At
+  a whole scale every edge is v × s, as before.
+- **The same pixels on any GPU** (2026-10-28). GL promises only that triangles sharing an edge neither overlap nor
+  leave a gap, and that its tie rule is the same within one implementation; which side gets a centre on an edge, and
+  how finely a vertex is placed (at least 4 subpixel bits; the Pi's V3D has 6, iris 8), differ. So:
+  - **Rectangles** (texture rectangles, 1/2-cycle fills) go to GL with their sides on internal pixel boundaries,
+    the ones `pcgfx_edge`'s rule gives them, held within the target (`pcgfx_rect_x`, `pcgfx_rect_y`, gfx_size.c),
+    and their texture coordinates are taken where the sides are. Every pixel centre is half a pixel from every
+    side, so a rectangle covers the pixels whose centres are in it on any GL, whatever its tie rule or rounding, and
+    GL never clips one. The HUD at the screen's edges puts moved corners on the boundaries of their new place. A
+    side on a boundary already (a whole scale and a whole N64 pixel) keeps its old vertex, bit for bit. Before,
+    the sides went where the scale put them: on V3D, N64 x 215 of 426 at 2876 internal pixels (1451.502)
+    was rounded onto pixel 1451's centre and the pixel was left out, a column of the clear through `seams` that
+    iris filled.
+  - **Point-sampled rectangles' texels** come from `gl_FragCoord` in whole numbers (below), the same on any GL.
+  - **Scissors and clears** are whole pixels.
+  - **Triangles** keep GL's own promise: the game's meshes share their vertices, so they are watertight on any
+    GPU. Their vertices come from the float transform, as on any PC renderer: where a 2D triangle's side meets a
+    rectangle's at a fractional scale, two GPUs may differ by one internal pixel along it at an exact tie. The 3D
+    has no N64 pixel grid to keep.
+  - **No GPU clips:** GL gets no triangle vertex past its own guard band, |x|, |y| ≤ 2w ("Clipping" above). Past it
+    V3D clips the triangle itself, and its clipped triangles' colours and texture coordinates were off by up to
+    1.6 % at 2876 pixels across (the `eyeplane` road, 255 at every vertex, came out 254 and 251 in a corner): not a
+    precision qualifier (GLES has `highp` throughout) but V3D's clipper. Rectangles stay within the target.
+  - What is left to a GPU: a 2D triangle's side at an exact tie (above), and a guard band of its own smaller than
+    twice the viewport (it would clip what GL gets, as GL allows). NVIDIA and AMD haven't run this; nothing in it
+    depends on their tie rule or subpixel bits.
+  - Checked by `ties` (every quarter-pixel phase, moved 3/8 pixel each way), `gfx.size.rectedge` and `clip`
+    ("Tests").
+  - **What changed in the pictures:** every frame of `gfx_test all` (88) in 15 variants, at 1, 2, 3 and auto, in
+    16:9 and 21:9, at 1.5, 2.25, 2.5, 6.75 and both native sizes, on GLES and desktop GL, on iris and llvmpipe, is
+    the same byte for byte before and after but one: in one `eyeplane` frame at 2876 across, 24 pixels along the
+    line where the wall stands on the road (equal depths there; the road clipped to GL's band, its depth a rounding
+    different) show the wall instead of the road. On V3D the whole-scale variants are the same byte for byte; the
+    fractional ones now pass where they failed. So iris's and llvmpipe's tie rule and rounding gave the pictures
+    these rules define, and V3D now gives them too.
 - **Point-sampled rectangles** (copy mode, and 1/2-cycle with point sampling, above 1×: `GFX_KF_SNAP`). The RDP
   samples each pixel at its top-left corner. The shader finds the fragment's N64 pixel from `gl_FragCoord` in whole
   numbers (`uTarget`: the N64 and internal sizes; the same rule as the edges) and moves the texture coordinate back
@@ -751,7 +792,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 24, one CTest each:
+- **Cases.** 25, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -772,11 +813,12 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `branchz` | BRANCH_Z |
 | `nearclip` | a floor behind the eye; a triangle inside the near plane |
 | `eyeplane` | a road under the camera and a wall beside it, from behind the eye to far ahead, back faces culled, in 12 placements (five of them gave the old float lerp a w below 0 with and without fused multiply-adds): the road reaches the screen's bottom and the horizon, the wall the right edge, and a floor 20 units under the road, drawn after it, stays hidden (the old clipping showed it through the whole near road in every placement); then a chase camera over a road of two big triangles, 30-120 units up, pitched 4-16 degrees down, at 8 headings: the road fills the bottom rows (the old clipping lost it in 12 of the 24) |
-| `clip` | on the CPU (`tests/clip_check.c`): 40,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped |
+| `clip` | on the CPU (`tests/clip_check.c`): 40,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped; and every GL vertex `pcgfx_tri_output` gives is within GL's own band, \|x\|, \|y\| ≤ 2w exactly (over 1,000 of the widened view's polygons clipped to it) |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
 | `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
 | `autosize` | headless window sizes from 640 × 480 to 2880 × 1620: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), native the fit at any fraction (2876 × 1620 at 2880 × 1620, 1363 × 768 at 1366 × 768), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
 | `seams` | at the scale in effect, every internal pixel of the 4:3 frame against its N64 pixel's color: copy-mode tiles side by side, 13-pixel 1-cycle tiles from x 3, glyph-sized rectangles a pixel apart, 2× magnified tiles, 1-pixel fill columns and 1-cycle rows, a fill to the bottom: no gap, no bleed |
+| `ties` | rectangles at every quarter-pixel phase of both sides, side by side and row on row, drawn as they are and with every GL vertex moved 3/8 of an internal pixel left, right, down and up (`pcgfx_gl_test_nudge`: more than a GPU rounds a vertex, 1/32 pixel at most, less than the half pixel between a side on its boundary and every centre): each time every internal pixel has the rectangle its centre is in, counted in whole numbers (rows in GL's y-up coordinates). With the sides where the scale put them (before 2026-10-28) the moved frames fail at every scale, 1 too |
 | `screenshot` | PNG |
 | `hud` | the race HUD at the screen's edges, on a made-up race frame (GFX.md "The HUD at the screen's edges"), at 16:9 and 21:9: a bezel fill with a copy-mode digit on it and an orthographic triangle at the left side end up ox further left, texel for texel; a run of digits a pixel apart at the right ox further right, together; a fill cut by its scissor at the right moves with its scissor; a banner with a digit at each end and a run of digits across the middle band's side stay; a full-width fill spans the target; a panel drawn over a radar fill's side stays, the radar moves; a digit drawn on that panel after a second panel stays with it; the 3D strip spans the target; `pc_gfx_hud_dx` for points; `centered`, `edges` outside a race and `edges` at 4:3 give the same frames, byte for byte, as `centered` |
 
@@ -789,13 +831,18 @@ build/gfx/gfx_test texrect --png /tmp/out
   with the auto scale (2 in the 640 × 480 headless size, 1 while a case widens to 16:9). Fractional scales:
   `gfx.all.scale1.5`, `.scale2.25-desktop-gl`, `.scale2.5-software` (ties: N64 edges on internal pixel centres),
   `.wide-scale6.75` (16:9, 2876 × 1620), `.native-2880x1620` and `.native-1366x768` (`RUSH_GFX_TEST_WINDOW` sets the
-  headless size): every case's N64 pixels, texel for texel, and `seams` every internal pixel.
+  headless size): every case's N64 pixels, texel for texel, and `seams` and `ties` every internal pixel.
+  `gfx.scale1.25.seams` and `.ties` run those two at 1.25 (every case there fails `lod`: a point-sampled
+  triangle's N64 pixel (94,32) samples the next stripe of a mip level, on every GPU, before 2026-10-28 too).
   `gfx.interp.all.scale2.5` and `.wide-scale3.4` run the frame interpolation's cases at fractions. Each variant has
   its own directory for the screenshot case's PNG, since they run in parallel.
 - **Sizes alone** (`gfx_size_test`, no GL): `gfx.size.scale` (native and auto scales for 2880 × 1620, 1440 × 810,
   1920 × 1080, 3840 × 2160 and the limits; internal sizes), `.edge` (at 1.5-9 and the 3K sizes: every N64 pixel at
   least one internal pixel, edges at 0 and the end, each internal pixel inside its N64 pixel's edges, rows the same
-  with GL's ties; whole scales v × s), `.fit` (native pixel for pixel and fitted, whole multiples, small windows),
+  with GL's ties; whole scales v × s), `.rectedge` (rectangles' sides at every quarter pixel at 1-8, the fractions
+  and the native sizes: the first internal pixel whose centre is at or past the side, counted, rows by GL's ties,
+  the scissor's edges at whole pixels, the GL coordinate within 1/1000 pixel of its boundary as a GPU computes it in
+  floats, past the target held to it, and at whole scales the old vertex bit for bit), `.fit` (native pixel for pixel and fitted, whole multiples, small windows),
   `.units` (pixels and window units with per-monitor DPI awareness, a 2× points output, 175%), `.window` (the first
   window's size on 3K, 1080p, 4K, 4:3, small and no displays), `.texfactor` (the upscaled textures' factor, the
   largest power of two up to the scale, and a pack's limit, the scale rounded up, at whole and fractional scales).

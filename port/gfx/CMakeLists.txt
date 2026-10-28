@@ -121,7 +121,7 @@ set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
-          eyeplane clip xlu widescreen autosize seams screenshot hud)
+          eyeplane clip xlu widescreen autosize seams ties screenshot hud)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The same cases on desktop GL, at 2x, on the software rasterizer (llvmpipe) and in widescreen (the 4:3 frame's
@@ -152,13 +152,19 @@ pcgfx_all_variant(scale2.5-software "RUSH_GFX_SCALE=2.5;LIBGL_ALWAYS_SOFTWARE=1"
 pcgfx_all_variant(wide-scale6.75 "RUSH_GFX_SCALE=6.75;RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(native-2880x1620 "RUSH_GFX_SCALE=native;RUSH_GFX_WIDESCREEN=auto;RUSH_GFX_TEST_WINDOW=2880x1620")
 pcgfx_all_variant(native-1366x768 "RUSH_GFX_SCALE=native;RUSH_GFX_TEST_WINDOW=1366x768")
+# 1.25, seams and ties alone: every case at 1.25 fails lod (a point-sampled triangle's N64 pixel (94,32) samples the
+# next stripe of a mip level, on iris and llvmpipe too, before rectangles' sides went on pixel boundaries as after).
+foreach(c seams ties)
+    add_test(NAME gfx.scale1.25.${c} COMMAND gfx_test ${c})
+    set_tests_properties(gfx.scale1.25.${c} PROPERTIES ENVIRONMENT "RUSH_GFX_SCALE=1.25")
+endforeach()
 # The size logic alone, with made-up window, drawable and desktop sizes (no GL).
 add_executable(gfx_size_test tests/size_test.c)
 set_target_properties(gfx_size_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
     EXPORT_COMPILE_COMMANDS OFF)
 target_include_directories(gfx_size_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gfx_size_test PRIVATE pcgfx)
-foreach(c scale edge fit units window texfactor)
+foreach(c scale edge rectedge fit units window texfactor)
     add_test(NAME gfx.size.${c} COMMAND gfx_size_test ${c})
 endforeach()
 # Frame interpolation (gfx_interp.c, a high frame rate): pairs of frames built as the game builds them, and the
