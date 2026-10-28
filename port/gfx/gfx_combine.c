@@ -302,7 +302,8 @@ char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
 
     put(&s, "%s", preamble(gles, glsl_version));
     put(&s, "uniform vec4 uPrim;\nuniform vec4 uEnv;\nuniform vec4 uFog;\nuniform vec4 uBlend;\nuniform vec4 uFill;\n"
-            "uniform float uPrimLod;\nuniform float uLodFrac;\nuniform float uNoise;\nuniform float uScale;\n"
+            "uniform float uPrimLod;\nuniform float uLodFrac;\nuniform float uNoise;\nuniform vec2 uScale;\n"
+            "uniform highp ivec4 uTarget;\n"
             "uniform sampler2D uTex0;\nuniform sampler2D uTex1;\n"
             "in vec4 vShade;\nin vec4 vUV;\nout vec4 fragColor;\n"
             "float noise() {\n"
@@ -329,16 +330,28 @@ char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
             "    vec4 cmb = vec4(0.0);\n"
             "    vec4 uv = vUV;\n"
             "    float lodf = uLodFrac;\n");
-    if (k->flags & GFX_KF_SNAP)   /* back to the top-left sample of this N64 pixel (GL rows run bottom-up) */
-        put(&s, "    vec2 j = mod(floor(gl_FragCoord.xy), uScale);\n"
-                "    uv = uv - j.x * dFdx(vUV) + (uScale - 1.0 - j.y) * dFdy(vUV);\n");
+    if (k->flags & GFX_KF_SNAP) {
+        /* Back to the top-left corner of this N64 pixel, where the RDP samples. uTarget is the target's N64 size
+         * and its internal size: the N64 pixel is the one the internal pixel's centre is in, counted in GL's window
+         * coordinates (y up), where its fill rule settles a centre on an edge (gfx_size.c's pcgfx_pixel_of and
+         * pcgfx_row_of); o is how far the centre is from that pixel's left side and from its top, in internal
+         * pixels. In whole numbers, so at any scale, a fraction too, it picks the pixel that the scissor and the
+         * rectangle's edges do. */
+        put(&s, "    highp ivec2 fc = ivec2(gl_FragCoord.xy);\n"
+                "    highp int nx = (2 * fc.x + 1) * uTarget.x / (2 * uTarget.z);\n"
+                "    highp int my = (2 * fc.y + 1) * uTarget.y / (2 * uTarget.w);\n"
+                "    vec2 o = vec2(float((2 * fc.x + 1) * uTarget.x - 2 * nx * uTarget.z) / float(2 * uTarget.x),\n"
+                "                  float(2 * (my + 1) * uTarget.w - (2 * fc.y + 1) * uTarget.y) / float(2 * uTarget.y));\n"
+                "    uv = uv - o.x * dFdx(vUV) + o.y * dFdy(vUV);\n");
+    }
     if (k->lod_levels) {
         /* The RDP's LOD: the largest step of s or t (texels of the first level) to the next pixel across or down.
          * Below 1 (magnified) the first level, fraction 0; past the last level that level, fraction 1; else the
          * level of the step's power of two, the next one, and the fraction between them. In N64 pixels (a step
-         * across an internal pixel times the scale): every internal scale shows the levels the N64 shows. */
+         * across an internal pixel times the scale, per axis): every internal scale, a fraction too, shows the
+         * levels the N64 shows. */
         put(&s, "    vec2 dx = dFdx(uv.xy), dy = dFdy(uv.xy);\n"
-                "    float lod = uScale * max(max(abs(dx.x), abs(dx.y)), max(abs(dy.x), abs(dy.y)));\n"
+                "    float lod = max(max(abs(dx.x), abs(dx.y)) * uScale.x, max(abs(dy.x), abs(dy.y)) * uScale.y);\n"
                 "    int l0 = 0, l1 = 0;\n"
                 "    lodf = 0.0;\n"
                 "    if (lod >= 1.0) {\n"

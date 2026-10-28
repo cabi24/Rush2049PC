@@ -47,6 +47,7 @@ add_library(pcgfx STATIC
     gfx_interp.c
     gfx_ui.c
     gfx_font.c
+    gfx_size.c
     gfx_tex.c
     ${PCGFX_HEADLESS}
     gfx_png.c)
@@ -119,7 +120,7 @@ set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
-          eyeplane clip xlu widescreen autosize screenshot)
+          eyeplane clip xlu widescreen autosize seams screenshot)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The same cases on desktop GL, at 2x, on the software rasterizer (llvmpipe) and in widescreen (the 4:3 frame's
@@ -141,6 +142,24 @@ pcgfx_all_variant(software "RUSH_GFX_API=gles;LIBGL_ALWAYS_SOFTWARE=1")
 pcgfx_all_variant(wide "RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(wide21-scale3 "RUSH_GFX_WIDESCREEN=21:9;RUSH_GFX_SCALE=3")
 pcgfx_all_variant(scale-auto "RUSH_GFX_SCALE=auto")   # 2 in the 640 x 480 headless size
+# Fractional scales (GFX.md "Resolution and scale"): every case's N64 pixels, texel for texel, at 1.5, 2.25 and 2.5
+# (ties: N64 edges on internal pixel centres), 6.75 in 16:9 (2876 x 1620, a 3K panel's rows), and native in a
+# 2880 x 1620 window (6.76: 2880 across) and a 1366 x 768 one; seams checks every internal pixel.
+pcgfx_all_variant(scale1.5 "RUSH_GFX_SCALE=1.5")
+pcgfx_all_variant(scale2.25-desktop-gl "RUSH_GFX_SCALE=2.25;RUSH_GFX_API=gl")
+pcgfx_all_variant(scale2.5-software "RUSH_GFX_SCALE=2.5;LIBGL_ALWAYS_SOFTWARE=1")
+pcgfx_all_variant(wide-scale6.75 "RUSH_GFX_SCALE=6.75;RUSH_GFX_WIDESCREEN=16:9")
+pcgfx_all_variant(native-2880x1620 "RUSH_GFX_SCALE=native;RUSH_GFX_WIDESCREEN=auto;RUSH_GFX_TEST_WINDOW=2880x1620")
+pcgfx_all_variant(native-1366x768 "RUSH_GFX_SCALE=native;RUSH_GFX_TEST_WINDOW=1366x768")
+# The size logic alone, with made-up window, drawable and desktop sizes (no GL).
+add_executable(gfx_size_test tests/size_test.c)
+set_target_properties(gfx_size_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    EXPORT_COMPILE_COMMANDS OFF)
+target_include_directories(gfx_size_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gfx_size_test PRIVATE pcgfx)
+foreach(c scale edge fit units window texfactor)
+    add_test(NAME gfx.size.${c} COMMAND gfx_size_test ${c})
+endforeach()
 # Frame interpolation (gfx_interp.c, a high frame rate): pairs of frames built as the game builds them, and the
 # frames shown between against frames drawn directly at those moments. Headless; again at 2x, in widescreen, on
 # desktop GL and on llvmpipe.
@@ -152,7 +171,8 @@ target_link_libraries(gfx_interp_test PRIVATE pcgfx)
 foreach(c exact move camera cut teleport split hud appear instances children spin eyerel timing parse)
     add_test(NAME gfx.interp.${c} COMMAND gfx_interp_test ${c})
 endforeach()
-foreach(v "scale2;RUSH_GFX_SCALE=2" "wide;RUSH_GFX_WIDESCREEN=16:9" "gles;RUSH_GFX_API=gles"
+foreach(v "scale2;RUSH_GFX_SCALE=2" "scale2.5;RUSH_GFX_SCALE=2.5" "wide-scale3.4;RUSH_GFX_WIDESCREEN=16:9,RUSH_GFX_SCALE=3.4"
+          "wide;RUSH_GFX_WIDESCREEN=16:9" "gles;RUSH_GFX_API=gles"
           "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_GFX_API=gles,LIBGL_ALWAYS_SOFTWARE=1"
           "desktop-gl-software;RUSH_GFX_API=gl,LIBGL_ALWAYS_SOFTWARE=1")
     list(GET v 0 name)

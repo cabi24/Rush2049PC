@@ -115,22 +115,34 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   main thread, which holds the GL context.
 - The main loop now pumps events first at each retrace, then reads the pads, so the pads hold that retrace's
   input rather than the previous one's.
-- **Resizing.** The window is resizable, with a minimum of 320 × 240. The frame keeps its aspect: square N64
-  pixels, which is 4:3 for the N64's 320 × 240, at the largest integer multiple that fits, letterboxed
-  (port/gfx's present, [GFX.md](GFX.md)). The default window is 640 × 480.
+- **Size and sharpness.** By default (`video.scale = native`) the frame is drawn at the window's own pixels, any
+  fraction of the N64's (6.75× at 2880 × 1620), and shown pixel for pixel, with square N64 pixels and bars for the
+  rest. `video.scale = 1` (or `n64`) is the N64's 320 × 240 shown in square pixels; 2-8 and `auto` (the largest whole
+  multiple) as before ([GFX.md](GFX.md) "Resolution and scale"). The window is resizable, with a minimum of
+  320 × 240. The default window (`video.width = auto`) is two thirds of the desktop at the picture's aspect:
+  1920 × 1080 on a 2880 × 1620 screen.
+- **Display scaling.** Sizes are pixels. On Windows the program is per-monitor DPI aware, so a 200% desktop gives it
+  real pixels, not a half-size window that Windows blurs up; where the window system counts in points (macOS,
+  Wayland), port/gfx converts by the drawable's size against the window's ([GFX.md](GFX.md) "Window and display").
+- **Fullscreen.** Alt+Enter and F11 toggle it; `video.fullscreen_mode` is `desktop` (borderless over the screen,
+  the default) or `exclusive` (the display switches to `video.resolution`, the closest mode it has).
+  `video.resolution` in desktop fullscreen is the size the frame is drawn at, fitted to the screen (`1080p` on a
+  1620p panel draws less and scales up).
+- **Remembered.** With `video.remember_window` (on), the window's size and place out of fullscreen go into the file
+  read at start when the program ends, if they changed (`video.width`, `height`, `position`); not with
+  `--no-config`, nor headless. A place on a display that is gone opens centred.
 - **Widescreen.** `video.widescreen` (`--widescreen`, `RUSH_GFX_WIDESCREEN`) widens the picture to a display
   aspect: `off`, `auto`, `16:9`, `16:10`, `21:9`, any `W:H` or a ratio from 4:3 to 4. The 3D view shows more at
   the sides at the same scale; menus, the HUD and sprites stay 4:3 in the middle; full-width fills and
   backgrounds span the width. The renderer does it all ([GFX.md](GFX.md) "Widescreen"); the game code is
   unchanged.
-  - `auto` takes the window's aspect at each frame, so resizing the window or going fullscreen changes it. A
-    640 × 480 window is 4:3, so `auto` is off there.
-  - With a fixed aspect and the default window (640 × 480), the window opens at the picture's aspect (853 × 480
-    at 16:9), so the frame shows at 2× as at 4:3. A window size set in the file or with `--size` is kept.
-  - At 16:9 the frame is 426 × 220. A 1280 × 720 window shows it at 3×, and a 1920 × 1080 screen at 4×, with a
-    border: the present uses whole multiples. `video.scale = auto` draws it at that multiple too, instead of
-    scaling a smaller frame up. A scale of the window's exact size is not implemented ([GFX.md](GFX.md) "Hooks
-    for later" says why).
+  - `auto`, the default, takes the window's aspect at each frame, so resizing the window or going fullscreen
+    changes it. A 4:3 window is off.
+  - With a fixed aspect and an auto window, the window opens at the picture's aspect; with 640 × 480 it opens at
+    853 × 480 at 16:9. Another size set in the file or with `--size` is kept.
+  - At 16:9 the frame is 426 × 220 (the game's 220 rows of the 240-row screen, with its bands above and below, as
+    on a TV). Native draws it 2880 pixels across on a 2880 × 1620 screen; `auto` and whole scales at 6×, with a
+    border.
 - **Quit.** Closing the window, the quit key, Ctrl-C and SIGTERM all end the loop the same way. The controller
   pak is flushed, rumble stops, and audio and the renderer shut down.
 
@@ -167,13 +179,17 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `game.expansion_pak` | off | `--expansion-pak` | 8 MiB of RDRAM |
 | `game.pak` | memory | `--no-pak`, `--rumble`, `--pak` | controller 1's accessory: memory, rumble, none |
 | `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image; a name alone is in the data folder (RELEASE.md "Files"), `--pak` from the working directory |
-| `video.width`, `video.height` | 640, 480 | `--size WxH` | window size |
-| `video.fullscreen` | off | `--fullscreen` | start in desktop fullscreen |
-| `video.vsync` | on | | swap interval 1 or 0 |
+| `video.width`, `video.height` | auto | `--size WxH` | window size in pixels; auto: two thirds of the desktop at the picture's aspect (headless: 320 × 240) |
+| `video.position` | center | | where the window opens: `center` or `X,Y` |
+| `video.remember_window` | on | | write the window's size and place at exit (above) |
+| `video.fullscreen` | off | `--fullscreen` | start in fullscreen |
+| `video.fullscreen_mode` | desktop | `--exclusive` | `desktop` (borderless) or `exclusive` (the display's mode changes) |
+| `video.resolution` | desktop | `--resolution` | `desktop`, `720p`, `1080p`, `1440p`, `1620p` (2880 × 1620), `2160p` or `WxH`: exclusive fullscreen's display mode; the size desktop fullscreen draws at |
+| `video.vsync` | on | | swap interval 1 or 0; on, no more frames are shown than the display refreshes, whatever `frame_rate` asks (logged) |
 | `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
-| `video.scale` | 1 | `--scale N` | internal resolution multiple, 1-8, or auto: the largest whole multiple the window holds, so the frame is drawn at the size it is shown (`RUSH_GFX_SCALE`) |
+| `video.scale` | native | `--scale N` | internal resolution: `native` (the window's own pixels, any fraction), `auto` (the largest whole multiple the window holds), or 1-8 (`1` or `n64`: the N64's) (`RUSH_GFX_SCALE`) |
 | `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend") |
-| `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
+| `video.widescreen` | auto | `--widescreen` | auto (the window's), off, 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |
 | `video.textures` | original | | `original`, `upscaled` (the 3D world's textures 2x at internal scale 2-3, 4x from 4; the HUD and menus as they are) or `pack` (replacements from `video.texture_pack`) ([TEXTURES.md](TEXTURES.md); `RUSH_GFX_TEXTURES`) |
@@ -213,8 +229,12 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
     `RUSH_GFX_WIDESCREEN` and `RUSH_GFX_FRAME_RATE` to the resolved values before `pc_gfx_init`. The main loop asks
     port/gfx for the frame rate in effect (`pc_gfx_frame_rate`) at each pass, so the overlay's change applies at once.
-  - The window size goes to `pc_gfx_init`.
-  - Vsync, fullscreen, the title and the minimum size are set by port/input on the SDL window.
+  - The window size goes to `pc_gfx_init`; the fullscreen mode, the resolution and the place to
+    `pc_gfx_set_fullscreen_mode`, `pc_gfx_set_resolution` and `pc_gfx_set_window_position` before it.
+  - port/input sets vsync and fullscreen at start through port/gfx (`pc_gfx_set_vsync`, `pc_gfx_set_fullscreen`),
+    and the title and the minimum size on the SDL window.
+  - Old defaults: a file an older build wrote with every default (no `video.resolution` line; scale 1, 640 × 480,
+    widescreen off) gets the new ones, native, auto and auto, in the file too, with a line in the log.
   - main sets the volume with `pc_audio_set_volume` after `pc_audio_init`.
 
 ## The settings overlay
@@ -260,12 +280,14 @@ restart.
 
 | Page | Item | Setting | Applies |
 |---|---|---|---|
-| Video | Widescreen: off, auto, 16:10, 16:9, 21:9 | `video.widescreen` | from the game's next frame (`pc_gfx_set_widescreen`) |
-| | Internal scale: auto, 1-8 | `video.scale` | from the next frame (`pc_gfx_set_scale`) |
+| Video | Render scale: native, N64 (1x), 2x-8x, auto (whole) | `video.scale` | from the next frame (`pc_gfx_set_scale`) |
+| | Widescreen: auto, off, 16:10, 16:9, 21:9 | `video.widescreen` | from the game's next frame (`pc_gfx_set_widescreen`) |
 | | Fullscreen | `video.fullscreen` | at once; opening the overlay takes F11's state |
+| | Fullscreen mode: desktop, exclusive | `video.fullscreen_mode` | at once when in fullscreen; F11 uses it |
+| | Resolution: desktop, 720p-2160p | `video.resolution` | at once: exclusive fullscreen's display mode, desktop fullscreen's drawing size |
+| | Window size: 640x480 to 3840x2160, auto | `video.width`, `height` | at once when windowed, in pixels (`pc_gfx_set_window_pixels`); in fullscreen when it ends; auto from the next start; headless, the size the scales follow |
 | | Vsync | `video.vsync` | at once (the swap interval) |
 | | Frame rate: original, 60, 120, 144, display | `video.frame_rate` | at once (`pc_gfx_set_frame_rate`): frames between the game's from the next two it draws |
-| | Window size: 640x480 to 2560x1440 | `video.width`, `height` | at once when windowed (`SDL_SetWindowSize`); headless, the size the auto settings follow |
 | | Pause in background | `video.pause_on_focus_loss` | at once |
 | | Graphics API * | `video.api` | after a restart: the GL context and its shaders are made at start |
 | | Textures: original, upscaled, pack | `video.textures` | from the game's next frame (`pc_gfx_set_textures`): the texture cache is made again; what was upscaled or loaded before is kept in memory ([TEXTURES.md](TEXTURES.md)) |
@@ -300,7 +322,8 @@ restart.
 - **Drawing** (port/gfx, [GFX.md](GFX.md) "The overlay"): after the game's frame, in window pixels, so it is the
   same at every internal scale and in widescreen. A panel of 304 x 224 units in the middle of the window, a unit
   being the largest whole number of pixels that fits 320 x 240 units in the window: 2 pixels at 640 x 480, 4 at
-  1280 x 960 and at 1920 x 1080. The frame around it is dimmed and the panel is semi-transparent (alpha 0.78). A
+  1280 x 960 and at 1920 x 1080, 6 at 2880 x 1620. The window's size is the drawable's, in pixels, so a high-DPI
+  display gets a sharp panel of the same proportion. The overlay takes no mouse input. The frame around it is dimmed and the panel is semi-transparent (alpha 0.78). A
   title bar, up to 15 items with the selected one highlighted (the list scrolls), and at the bottom a message and
   the keys. The text is the port's own 5 x 9 font (`gfx_font.c`).
 

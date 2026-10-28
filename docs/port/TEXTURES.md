@@ -7,7 +7,7 @@ files. Added 2026-10-27.
 | `video.textures` | What is drawn |
 |---|---|
 | `original` (default) | the N64's textures |
-| `upscaled` | the 3D world's textures upscaled: 2x at internal scale 2 and 3, 4x from 4; at scale 1 the originals (a bigger texture would only be sampled coarser than its texels). The menus, the HUD and text stay original |
+| `upscaled` | the 3D world's textures upscaled: 2x at internal scale 2 and 3, 4x from 4 (fractions the same: native at 2880 × 1620, 6.76, is 4x; at 1366 × 768, 3.2, 2x); at scale 1 the originals (a bigger texture would only be sampled coarser than its texels). The menus, the HUD and text stay original |
 | `pack` | each texture with a file in the pack folder (`video.texture_pack`, default `textures/` in the data folder) replaced by it, the 2D ones too; the rest original |
 
 The F1 overlay's Video page has it as **Textures** ([FRONTEND.md](FRONTEND.md)); a change applies from the game's
@@ -71,7 +71,8 @@ sub-texels per texel, so the same coordinates sample the same place, finer.
   pack at the internal scale then shows each of its texels on one pixel (`gfx.tex.roundtrip`).
 - **Coarser than the screen**: a texture with more texels than the screen has pixels shimmers (there are no GL
   mip maps). So the upscale factor follows the internal scale, and a pack's replacement past the internal scale is
-  box filtered down by a divisor of its factor (a 4x pack at scale 2 is drawn at 2x).
+  box filtered down by a divisor of its factor (a 4x pack at scale 2 is drawn at 2x; a fractional scale counts
+  rounded up).
 
 ## Upscaled
 

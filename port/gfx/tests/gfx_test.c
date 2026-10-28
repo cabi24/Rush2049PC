@@ -7,7 +7,8 @@
  * --no-window-readback leaves that comparison out: it reads the back buffer after the swap, which GL leaves
  * undefined (SDL's offscreen driver keeps it; WGL gives an earlier frame).
  * Each case builds its lists with test_gbi.h, runs them through pc_gfx_run_dl, presents, and compares sample
- * points against values worked out from the N64 semantics. Exit status 0 = pass. */
+ * points against values worked out from the N64 semantics. Exit status 0 = pass.
+ * RUSH_GFX_TEST_WINDOW=WxH: the headless window's size (640x480), which the native and auto scales follow. */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,11 @@ void pc_gfx_set_widescreen(float aspect);
 float pc_gfx_parse_aspect(const char *text, int *ok);
 void pc_gfx_set_scale(int scale);
 void pc_gfx_set_window_size(int w, int h);
+int pc_gfx_framebuffer_dims(const void *cimg, int *n64_w, int *n64_h, int *px_w, int *px_h);
+int pcgfx_pixel_of(int i, int n, int px);
+int pcgfx_row_of(int i, int n, int px);
+float pc_gfx_parse_scale(const char *text, int *ok);
+void pc_gfx_set_scale_value(float scale);
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
@@ -76,6 +82,8 @@ static uint16_t s_fb[FB_W * FB_H], s_zb[FB_W * FB_H];
 static PcGfxWords s_list[16384], s_sub[4096];
 static uint8_t *s_px;
 static int s_px_w, s_px_h, s_fail, s_window, s_window_readback = 1;
+static int s_n64_w, s_n64_h;          /* the target in N64 pixels (s_px_w x s_px_h internal ones) */
+static int s_win_w = 640, s_win_h = 480;   /* the headless window (RUSH_GFX_TEST_WINDOW) */
 static const char *s_case, *s_png_dir;
 
 typedef struct {
@@ -212,6 +220,11 @@ static void frame_end(void) {
     pc_gfx_read_framebuffer(s_fb, NULL, &s_px_w, &s_px_h);
     s_px = (uint8_t *)malloc((size_t)s_px_w * s_px_h * 4);
     pc_gfx_read_framebuffer(s_fb, s_px, &s_px_w, &s_px_h);
+    {
+        int pw, ph;
+        if (pc_gfx_framebuffer_dims(s_fb, &s_n64_w, &s_n64_h, &pw, &ph) != 0)
+            s_n64_w = s_n64_h = 1;
+    }
     if (s_window && s_window_readback && s_px_w == FB_W) {   /* 640x480 window, 320x240 frame: at 2x */
         int ww, wh, x, y, bad = 0;
         uint8_t *win;
@@ -238,15 +251,17 @@ static void frame_end(void) {
     }
 }
 
-/* Target pixel (x, y) in N64 pixels: the middle of its block at the internal scale (RUSH_GFX_SCALE). */
+/* Target pixel (x, y) in N64 pixels: the internal pixel at the middle of its block at the internal scale
+ * (RUSH_GFX_SCALE; a fraction too: the pixel its centre is in). */
 static const uint8_t *tpx(int x, int y) {
-    int k = s_px_h / FB_H;
-    return s_px + ((size_t)(y * k + k / 2) * s_px_w + x * k + k / 2) * 4;
+    int ix = (int)(((long long)2 * x + 1) * s_px_w / (2LL * s_n64_w));
+    int iy = (int)(((long long)2 * y + 1) * s_px_h / (2LL * s_n64_h));
+    return s_px + ((size_t)iy * s_px_w + ix) * 4;
 }
 
 /* The 4:3 frame's left side in the target: 0, or in widescreen (RUSH_GFX_WIDESCREEN) the pixels added on each side. */
 static int frame_x0(void) {
-    return (s_px_w / (s_px_h / FB_H) - FB_W) / 2;
+    return (s_n64_w - FB_W) / 2;
 }
 
 /* N64 pixel (x, y) of the 4:3 frame */
@@ -1378,7 +1393,7 @@ static void case_widescreen(void) {
         {"2.39", 2.39f, 1}, {"4:3", 0.0f, 1}, {"5:4", 0.0f, 0}, {"9:16", 0.0f, 0}, {"16:9x", 0.0f, 0},
         {"wide", 0.0f, 0}, {"5", 0.0f, 0},
     };
-    int i, x, y, ok, scale;
+    int i, x, y, ok;
     float f[4][4], env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
     uint8_t *off;
     size_t n;
@@ -1400,8 +1415,8 @@ static void case_widescreen(void) {
     /* off: nothing past x/w = +-1 is drawn; the square is at 120..200 */
     pc_gfx_set_widescreen(0.0f);
     wide_scene();
-    if (s_px_w != FB_W * (s_px_h / FB_H)) {
-        printf("  FAIL widescreen off: the target is %dx%d\n", s_px_w, s_px_h);
+    if (s_n64_w != FB_W) {
+        printf("  FAIL widescreen off: the target is %dx%d\n", s_n64_w, s_n64_h);
         s_fail++;
         pc_gfx_set_widescreen(env_aspect);
         return;
@@ -1417,10 +1432,8 @@ static void case_widescreen(void) {
 
     pc_gfx_set_widescreen(16.0f / 9.0f);
     wide_scene();
-    scale = s_px_h / FB_H;
-    if (s_px_w != WIDE_W * scale || s_px_h != FB_H * scale) {
-        printf("  FAIL widescreen 16:9: the target is %dx%d, not %dx%d\n", s_px_w, s_px_h, WIDE_W * scale,
-               FB_H * scale);
+    if (s_n64_w != WIDE_W || s_n64_h != FB_H) {
+        printf("  FAIL widescreen 16:9: the target is %dx%d N64 pixels, not %dx%d\n", s_n64_w, s_n64_h, WIDE_W, FB_H);
         s_fail++;
         free(off);
         pc_gfx_set_widescreen(env_aspect);
@@ -1504,19 +1517,25 @@ static void case_widescreen(void) {
 }
 
 /* the auto settings follow the window (here the headless size, pc_gfx_set_window_size): widescreen takes its aspect,
- * and the scale the largest whole multiple of the frame that it holds */
+ * the auto scale the largest whole multiple of the frame that it holds, and native the window's own pixels (any
+ * fraction; the frame here shows all 240 rows) */
 static void case_autosize(void) {
     static uint16_t t[8 * 8];
-    const char *env_scale = getenv("RUSH_GFX_SCALE");
-    int i, x, y, ok, scale = env_scale && !strcmp(env_scale, "auto") ? 0 : env_scale ? atoi(env_scale) : 1;
+    int i, x, y, ok;
     float env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
-    static const struct { int win_w, win_h; float aspect; int scale, w, s; } steps[] = {
-        {1280, 720, -1.0f, 0, 426, 3},    /* 16:9: 426 x 240, 3 x 3 fits 1280 x 720 */
-        {1920, 1080, -1.0f, 0, 426, 4},   /* 4 x 426 = 1704 */
-        {1024, 768, -1.0f, 0, 320, 3},    /* 4:3: widescreen off */
-        {1280, 720, -1.0f, 2, 426, 2},    /* a fixed scale stays */
-        {1280, 720, 21.0f / 9, 0, 560, 2},   /* a fixed aspect: 560 x 240, 2 x 560 fits 1280 */
-        {640, 480, 0.0f, 0, 320, 2},
+    float env_scale = getenv("RUSH_GFX_SCALE") ? pc_gfx_parse_scale(getenv("RUSH_GFX_SCALE"), &ok) : 1.0f;
+    static const struct { int win_w, win_h; float aspect; int scale, w, px_w, px_h; } steps[] = {
+        {1280, 720, -1.0f, 0, 426, 1278, 720},    /* 16:9: 426 x 240, 3 x 3 fits 1280 x 720 */
+        {1920, 1080, -1.0f, 0, 426, 1704, 960},   /* 4 x 426 = 1704 */
+        {1024, 768, -1.0f, 0, 320, 960, 720},     /* 4:3: widescreen off */
+        {1280, 720, -1.0f, 2, 426, 852, 480},     /* a fixed scale stays */
+        {1280, 720, 21.0f / 9, 0, 560, 1120, 480},   /* a fixed aspect: 560 x 240, 2 x 560 fits 1280 */
+        {640, 480, 0.0f, 0, 320, 640, 480},
+        {2880, 1620, -1.0f, -1, 426, 2876, 1620},  /* native: 6.75, the rows' fit (2875.5 rounds up) */
+        {2880, 1620, 0.0f, -1, 320, 2160, 1620},   /* native 4:3 */
+        {1366, 768, -1.0f, -1, 426, 1363, 768},    /* native 3.2 */
+        {1440, 810, -1.0f, -1, 426, 1438, 810},    /* native 3.375 (a 200% desktop without DPI awareness) */
+        {2880, 1620, -1.0f, 1, 426, 426, 240},     /* N64 pixels */
     };
     if (s_window) {   /* the window has its own size */
         printf("  (autosize: headless only)\n");
@@ -1534,9 +1553,9 @@ static void case_autosize(void) {
         gsDPSetRenderMode(0, 0);
         gsSPTextureRectangle(10 << 2, 10 << 2, 17 << 2, 17 << 2, 0, 0, 0, 4 << 10, 1 << 10);
         frame_end();
-        if (s_px_w != steps[i].w * steps[i].s || s_px_h != FB_H * steps[i].s) {
-            printf("  FAIL autosize %dx%d: the target is %dx%d, not %dx%d\n", steps[i].win_w, steps[i].win_h, s_px_w,
-                   s_px_h, steps[i].w * steps[i].s, FB_H * steps[i].s);
+        if (s_n64_w != steps[i].w || s_px_w != steps[i].px_w || s_px_h != steps[i].px_h) {
+            printf("  FAIL autosize %dx%d scale %d: the target is %dx%d (%d across), not %dx%d (%d)\n", steps[i].win_w,
+                   steps[i].win_h, steps[i].scale, s_px_w, s_px_h, s_n64_w, steps[i].px_w, steps[i].px_h, steps[i].w);
             s_fail++;
             continue;
         }
@@ -1544,9 +1563,97 @@ static void case_autosize(void) {
             for (x = 0; x < 8; x++)
                 check("texrect", 10 + x, 10 + y, x5(x * 32), x5(y * 32), x5(128), 1);
     }
-    pc_gfx_set_window_size(640, 480);
+    pc_gfx_set_window_size(s_win_w, s_win_h);
     pc_gfx_set_widescreen(env_aspect);
-    pc_gfx_set_scale(scale);
+    pc_gfx_set_scale_value(env_scale);
+}
+
+/* 2D at the internal scale, fractional ones above all: tiles of copy-mode and point-sampled texture rectangles side
+ * by side (a background, menu art), glyph-sized rectangles a pixel apart (the game's fonts), magnified rectangles,
+ * fill and 1-cycle bars a pixel wide or tall, a wide fill to the frame's bottom. Every internal pixel of the 4:3
+ * frame must have its N64 pixel's color (the one its centre is in): no gap (the clear showing between neighbours),
+ * no bleed (a neighbouring texel or rectangle), no seam. */
+static void seams_expect(int x, int y, int c[3]) {
+    int u = -1, v = 0;
+    c[0] = 255, c[1] = 0, c[2] = 255;   /* the clear */
+    if (y < 64)
+        u = x % 16, v = y % 16;
+    else if (y < 112 && x >= 3 && x < 3 + 13 * 24)
+        u = (x - 3) % 13, v = (y - 64) % 16;
+    else if (y >= 120 && y < 129 && x >= 1 && (x - 1) % 6 < 5 && (x - 1) / 6 < 53)
+        u = (x - 1) % 6, v = y - 120;
+    else if (y >= 136 && y < 168)
+        u = (x % 32) / 2, v = (y - 136) / 2;
+    else if (y >= 172 && y < 180 && x >= 8 && x < 312)
+        c[0] = (x & 1) ? 255 : 0, c[1] = (x & 1) ? 0 : 255, c[2] = 0;
+    else if (y >= 182 && y < 190 && x >= 8 && x < 312)
+        c[0] = c[1] = (y & 1) ? 255 : 0, c[2] = 255;
+    else if (y >= 200 && x >= 8 && x < 312)
+        c[0] = c[1] = 255, c[2] = 0;
+    if (u >= 0)
+        c[0] = x5(u * 16), c[1] = x5(v * 16), c[2] = x5(128);
+}
+
+static void case_seams(void) {
+    static uint16_t t[16 * 16];
+    int i, k, x, y, bad = 0, ox, shown = 0;
+    for (i = 0; i < 256; i++)
+        t[i] = rgba16((i & 15) * 16, (i >> 4) * 16, 128, 1);
+    frame_begin(255, 0, 255);
+    load_texture_block((uintptr_t)t, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 16, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    gsDPSetCycleType(G_CYC_COPY);
+    gsDPSetRenderMode(0, 0);
+    for (y = 0; y < 64; y += 16)
+        for (x = 0; x < FB_W; x += 16)   /* copy mode: the lower right is inclusive */
+            gsSPTextureRectangle(x << 2, y << 2, (x + 15) << 2, (y + 15) << 2, 0, 0, 0, 4 << 10, 1 << 10);
+    gsDPSetCycleType(G_CYC_1CYCLE);
+    gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
+    cc_decalrgba();
+    for (y = 64; y < 112; y += 16)
+        for (k = 0; k < 24; k++)
+            gsSPTextureRectangle((3 + 13 * k) << 2, y << 2, (16 + 13 * k) << 2, (y + 16) << 2, 0, 0, 0, 1 << 10,
+                                 1 << 10);
+    for (k = 0; k < 53; k++)
+        gsSPTextureRectangle((1 + 6 * k) << 2, 120 << 2, (6 + 6 * k) << 2, 129 << 2, 0, 0, 0, 1 << 10, 1 << 10);
+    for (x = 0; x < FB_W; x += 32)
+        gsSPTextureRectangle(x << 2, 136 << 2, (x + 32) << 2, 168 << 2, 0, 0, 0, 1 << 9, 1 << 9);
+    gsDPPipeSync();
+    gsDPSetCycleType(G_CYC_FILL);
+    for (x = 8; x < 312; x++) {
+        uint16_t c = (x & 1) ? rgba16(255, 0, 0, 1) : rgba16(0, 255, 0, 1);
+        gsDPSetFillColor((uint32_t)c << 16 | c);
+        gsDPFillRectangle(x, 172, x, 179);
+    }
+    gsDPPipeSync();
+    gsDPSetCycleType(G_CYC_1CYCLE);
+    cc_prim();
+    for (y = 182; y < 190; y++) {
+        gsDPSetPrimColor(0, 0, (y & 1) ? 255 : 0, (y & 1) ? 255 : 0, 255, 255);
+        gsDPFillRectangle(8, y, 312, y + 1);
+    }
+    gsDPSetPrimColor(0, 0, 255, 255, 0, 255);
+    gsDPFillRectangle(8, 200, 312, FB_H);
+    frame_end();
+    ox = frame_x0();
+    for (y = 0; y < s_px_h; y++)
+        for (x = 0; x < s_px_w; x++) {
+            int nx = pcgfx_pixel_of(x, s_n64_w, s_px_w) - ox, ny = pcgfx_row_of(y, s_n64_h, s_px_h), c[3];
+            const uint8_t *p = s_px + ((size_t)y * s_px_w + x) * 4;
+            if (nx < 0 || nx >= FB_W || ny >= FB_H)
+                continue;
+            seams_expect(nx, ny, c);
+            if (abs(p[0] - c[0]) > 1 || abs(p[1] - c[1]) > 1 || abs(p[2] - c[2]) > 1) {
+                if (shown++ < 8)
+                    printf("  FAIL seams: internal pixel (%d,%d), N64 (%d,%d): %d,%d,%d, not %d,%d,%d\n", x, y, nx,
+                           ny, p[0], p[1], p[2], c[0], c[1], c[2]);
+                bad++;
+            }
+        }
+    if (bad) {
+        printf("  FAIL seams: %d of %d internal pixels (%dx%d for %dx%d N64 pixels)\n", bad, s_px_w * s_px_h, s_px_w,
+               s_px_h, s_n64_w, s_n64_h);
+        s_fail++;
+    }
 }
 
 /* the screenshot is a PNG of the presented frame */
@@ -1591,7 +1698,7 @@ static const Case s_cases[] = {
     {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
-    {"screenshot", case_screenshot},
+    {"seams", case_seams},       {"screenshot", case_screenshot},
 };
 
 int main(int argc, char **argv) {
@@ -1613,7 +1720,10 @@ int main(int argc, char **argv) {
         mtx_f2l(f, &s_ident);
     }
     s_window = window;
-    if (pc_gfx_init(!window, 640, 480) != 0) {
+    if (getenv("RUSH_GFX_TEST_WINDOW") != NULL &&
+        sscanf(getenv("RUSH_GFX_TEST_WINDOW"), "%dx%d", &s_win_w, &s_win_h) != 2)
+        s_win_w = 640, s_win_h = 480;
+    if (pc_gfx_init(!window, s_win_w, s_win_h) != 0) {
         printf("FAIL: pc_gfx_init\n");
         return 2;
     }

@@ -984,7 +984,7 @@ static void test_menu(void)
     /* fullscreen from the overlay, at once */
     CHECK(pc_menu_is_open(), "open again");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
-    menu_at("Video", "Widescreen", "off", "Video");
+    menu_at("Video", "Render scale", "native", "Video");
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
