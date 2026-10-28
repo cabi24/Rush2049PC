@@ -284,6 +284,12 @@ and pages, and a Windows GUI build. Most of the bugs were of four classes, each 
   [port/OPTIMIZED.md](port/OPTIMIZED.md) 2.7);
 - a sub-word read inside a word, the N64's low byte being the PC's high one.
 
+The sanitizer builds ([port/SANITIZE.md](port/SANITIZE.md), `-DRUSH_SANITIZE=address,undefined`; UBSan on x86-64, ASan
+on aarch64 only, since ASan's x86-64 shadow covers the RDRAM window) run the tests and the synthetic paths in CI, and
+ran the retail paths on the Pi. Fixed from them: a read past the battle weapons table, a table of rows declared as
+one row and an out-of-range float conversion in the game C, and three data races in port/ (one could reopen the audio
+output at exit).
+
 ## Next
 
 1. **More people playing it.** One Windows laptop so far. Still untried by a person: a desktop GPU, AMD and Intel
