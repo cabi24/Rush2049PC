@@ -87,15 +87,26 @@ Msg *func_80091B00(void);
 void func_80091AF0(void);
 void func_80091AF8(void);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
+#ifdef TARGET_PC
+/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
+ * transform/group.c's entity_transform_calc says when). The stop of the song (command 1) that di_post_type1 posts
+ * is then dropped: with no message the lock is given back and nothing is sent, and a message the full queue
+ * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
+#define PC_CMD_OR_UNLOCK(m) if((m)==0){func_80091AF8();return;}
+#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
+#else
+#define PC_CMD_OR_UNLOCK(m)
+#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
+#endif
 void di_ProcessCommand(Msg *task)
 {
-    osSendMesg((OSMesgQueue *) &D_801427A8, task, 0);
+    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, task);
 }
 void di_post_type1(void)
 {
     Msg *task;
     func_80091AF0();
-    task = func_80091B00(); task->type = 1;
+    task = func_80091B00(); PC_CMD_OR_UNLOCK(task) task->type = 1;
     func_80091AF8();
     di_ProcessCommand(task);
 }

@@ -3701,15 +3701,26 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
+ * transform/group.c's entity_transform_calc says when). The command posted here (7: stop every effect) is then dropped:
+ * with no message the lock is given back and nothing is sent, and a message the full queue refuses is given
+ * back (its in-use byte, +3). Nothing else is made here. */
+#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg((OSMesgQueue *)&D_80142728,NULL,0);return;}
+#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)((s8 *)(m))[3]=0
+#else
+#define PC_CMD_OR_UNLOCK(m)
+#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
+#endif
 void object_type7_create(void) {
     s32 *sp1C;
     s32 *temp_v0;
 
     osRecvMesg((OSMesgQueue *) &D_80142728, NULL, 1);
-    temp_v0 = func_80091B00();
+    temp_v0 = func_80091B00(); PC_CMD_OR_UNLOCK(temp_v0)
     sp1C = temp_v0;
     M2C_FIELD(temp_v0, s8 *, 2) = 7;
     osSendMesg((OSMesgQueue *) &D_80142728, NULL, 0);
-    osSendMesg((OSMesgQueue *) &D_801427A8, sp1C, 0);
+    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, sp1C);
 }
 /* Warning: struct __OSThreadprofile_s is not defined (only forward-declared) */
