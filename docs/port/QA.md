@@ -105,7 +105,7 @@ Pi, one retail game at a time, `--fast`, each log compared with round 4's as the
 | Path | Against round 4 |
 |---|---|
 | every mode (single race to the finish, practice, stunt, 3 and 4 players, the three 2-player battles, both option sets); unlockables and mode 5 to its end; the cheat screen, cheats in a race, all cars; battle quits (2 and 4 players); seven races back to back; the stunt round's end; the main menu's rows | the same states and setups; no fault, no new warning |
-| the pak across restarts; player 2's pak | the same states; each image holds its player as before (player 2's on player 2's file alone) |
+| the pak across restarts; player 2's pak; again on 07f6a91 (the paks written on a thread of their own) | the same states; each image holds its player as before (player 2's on player 2's file alone); 07f6a91's images differ from 80a2c7f's only in the six bytes in which round 4's and 80a2c7f's differ too (each new player's ID among them) |
 | the circuit (car 0 marked finished by gdb) | the same tracks in the same order and the same states as far as both runs went; as in round 4, one race's end moved the script's fixed-time presses on a cycle, at another race this time |
 | the attract demo, 900 s | the same states, cycle for cycle; no fault |
 | widescreen frame dumps (as round 4) | the same two spikes (the crash's camera swing, the tree); a third of the frames differ from round 4's by one or two pixels at the edge of the left gauge (rectangles' sides on internal pixel boundaries, the fractional-scale work), the rest byte for byte the same |
