@@ -59,6 +59,42 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | mode 5 (the obstacle course) to its end | the unlock cheat, mode 5, gas and steering until its time runs out | the time limit ends it (DNF), the game over screen |
 | unlocked tracks | the unlock cheat (all tracks), then a race on the sixth race track, mode 5 (the obstacle course, track 18), stunt arenas 15-17 and, two players, battle arenas 10-13 | each starts and runs 20 s of driving; no fault; no spikes in the frame dumps but a lit wall beside the camera on track 5 |
 
+### Regression sweep, beta candidate (round 4)
+
+Main 4f21620 (the merge 50b8377: the audio manager's guards, the HUD race fix, the RSP's yield, the renderer's
+performance work), in the RelWithDebInfo build users run (`build/opt`, here with SDL2 2.30.9 built in as a release
+has it), on the Pi, `--fast`: every script of rounds 1-3 again, each log compared with the earlier one's: the game
+state lines (each state, in order), each race's setup (players, views, cars, mode, track), the exit status, and every
+line of a fault, warning or error. A first pass at 6e98d65 gave the same.
+
+| Path | Against the earlier runs |
+|---|---|
+| single race to the finish, practice, stunt, 3 and 4 players, the three 2-player battles, race options (both sets) | the same states and setups; no fault, no new warning. The race start's state 0x40000 that round 1's logs show no longer lasts a retrace, as in round 1's own Expansion Pak runs (the default since) |
+| unlockables: the unlock cheat, then the sixth race track, mode 5, stunt arenas 15-17, battle arenas 10-13; mode 5 to its end | the same; mode 5's time limit ends it (DNF) and the game over screen follows, as in round 2 |
+| the cheat screen; cheats in a race; all cars | the same; round 1's cheat run, which never reached the cheat screen, now reaches it (fix 2) |
+| battle quit, 2 and 4 players | round 1's 2-player quit faulted; now the game over screen, as in round 2 (fix 5) |
+| the stunt round to its end | the same: the scoreboard, the game over screen, Quit |
+| back to back: seven races in a row, each quit from the pause screen | the same |
+| the circuit (car 0 marked finished by gdb) | the whole first circuit and the next one's first race, the same tracks in the same order. One race's end came later (the gdb mark lands at another moment under load), so the script's fixed-time presses moved on one cycle later and the run's time held one race fewer |
+| main menu rows (records, options) | the same |
+| pak across restarts (a fresh image) | create a player, race, records, restart: the same states; the image holds the player as before |
+| a pak on player 2 (`game.pak2=memory`, its own file) | player 2 creates a player on its pak, which reaches player 2's file alone; after a restart player 2's panel on the player screen lists it |
+| the attract demo, 900 s | the same states as round 2's hour, cycle for cycle; no fault |
+| widescreen: a race at 426x240, `--widescreen 16:9`, the edges HUD, frame dumps | frame_spikes finds two: a crash's camera swing and the camera passing through a tree beside the road; every frame both runs dumped is identical to round 2's, byte for byte, through the renderer's new state tracking and streamed vertices; the HUD at the edges, nothing cut or overlapping |
+| rumble | below |
+
+**Rumble.** The player screen's controls screen has a rumble row: with a rumble pak in, LEFT and RIGHT cycle its
+three settings, off, weaker and full (else it says there is no rumble pak). The label is the text bank's entry
+`rumbleNames` + the setting, read live: the three names in that order, so label and setting agree. The setting
+is the profile's byte 0x2B, which func_800E56F8 reads: 0 no rumble, 1 the impact's level less four, 2 the level as
+it is. The default is 1, not 0: the profile check (`draw_speedometer`, a misnamed save.c function) gives a profile
+without valid controls the default controls and 1, and the default player (no pak) has 1 too. With the setting
+at full, a race with crashes turns the motor on, and through `--press-via controller` (input_check's virtual SDL
+controller) the motor reaches the controller: the log has it rumbling at full and at a pulsed, weaker strength,
+then stopping. At the default, the scripted crashes (into the side walls, at full speed too) left the motor off;
+whether a head-on crash reaches it at the default is untried. func_800E56F8 is byte-matched C, so the default's
+weak effect is the game's own.
+
 ## Found and fixed
 
 ### 1. No cheat could be entered (the cheat codes' table in the ROM's byte order)
@@ -164,11 +200,11 @@ func_800D63EC returns (LAYOUT.md 9).
   with no ghost file on the pak.
 - **A battle to its end**: the track select offers only a points limit for battle, and points come from kills, which
   a scripted pair of cars doesn't score; the battle's results run through the pause screen's quit (fix 5) instead.
-- **Controller paks on players 2-4**: added after the sweep (`game.pak2`-`pak4`, each player's own file or a rumble
-  pak; docs/port/ULTRA.md). The game reads each player's pak in a 2-player race; saving a player onto player 2's pak
-  on the retail cartridge is still to be tried.
-- **Not reached on the retail cartridge**: the records screen's pages beyond the totals; the rumble pak; a window
-  (`--window`) and sound through a device.
+- **Controller paks on players 2-4**: added after round 2 (`game.pak2`-`pak4`, each player's own file or a rumble
+  pak; docs/port/ULTRA.md). Round 4 saved a player onto player 2's pak and read it back after a restart; players 3
+  and 4's paks are untried on the retail cartridge.
+- **Not reached on the retail cartridge**: the records screen's pages beyond the totals; a physical controller's
+  rumble (round 4's went to a virtual one); a window (`--window`) and sound through a device.
 - **Scripted runs and the user's pak**: without `--pak` or `--no-pak` a run uses, and on first use formats, the
   user's own `rush2049pc.mpk`. Tests and scripts should pass one of the two.
 - The Expansion Pak (`game.expansion_pak`) is on by default since round 1's note (4ce46fa).
