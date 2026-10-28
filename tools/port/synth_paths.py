@@ -14,7 +14,8 @@ Each tools/port/synth/NAME.press is a --press-file script whose leading comments
     # realtime                 run on the host's clock (the default is --fast, the virtual clock)
     # args: --screenshot-at 900 --screenshot race.png
     #                          more options (a path is relative to the logs directory, where the run happens;
-    #                          a .png or .mpk named there is deleted first, so each run starts afresh)
+    #                          a .png or .mpk named there, alone or as --set's value, is deleted first, so each
+    #                          run starts afresh)
     # check: tools/port/synth_shot.py race.png 1
     #                          then this command, in the logs directory (tools/ is the repository's)
 
@@ -59,6 +60,7 @@ def run(name, exe, rom, logs):
         cmd.append("--fast")
     cmd += spec["args"]
     for a in spec["args"]:              # what the run writes starts afresh: a screenshot, a controller pak
+        a = a.split("=", 1)[-1]         # --set game.pak2_file=NAME too
         if a.endswith((".png", ".mpk")) and (Path(logs) / a).exists():
             (Path(logs) / a).unlink()
     env = dict(os.environ, RUSH_TRACE_WAVES="1")

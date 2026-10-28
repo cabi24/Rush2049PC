@@ -876,6 +876,9 @@ def boot_and_sound(c):
     # unless it is 1, which every screen writes back once it is reached (and the race start, gameover's
     # "Quit"...). 0 skips the start prompt and the main menu; 1 is "no skip".
     c.set("game", "gSkipToGameState", "u32", 0x1, "gSkipToGameState: 1, no screen skipped")
+    # The pak server's port in a prompt (paksys' D_8011EAE8): it scans only that port while one is set, and puts
+    # -1 back after each prompt. -1 at start, so the paks on controllers 2-4 are scanned too (0 scans port 1 only).
+    c.set("game", "D_8011EAE8", "u8", 0xFF, "the pak server's prompt port: -1, none (every port is scanned)")
 
     for lang, wave in zip(("EN", "ES", "IT", "DE", "NL", "FR"), range(6)):
         c.file(wave, text_bank(lang=lang), f"text bank {lang}")

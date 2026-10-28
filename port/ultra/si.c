@@ -48,6 +48,7 @@ typedef struct {
     int kind;                  /* the setting: PC_PAK_NONE, MEMORY, RUMBLE or AUTO */
     int in;                    /* what the game finds plugged in: PC_PAK_NONE, MEMORY or RUMBLE */
     int seen_empty;            /* the game's poll found the port empty since an accessory last came out */
+    int found;                 /* the game has read the accessory in now (logged once) */
     int memory_ok;             /* img is a usable pak: its file read, or formatted */
     char *path;                /* the memory pak's file; NULL: in memory only */
     int dirty;
@@ -180,6 +181,7 @@ static void update(int ch)
         if (pc_verbose)
             pc_log("controller %d: %s in", ch + 1, kind_names[want]);
         p->in = want;
+        p->found = 0;
     }
 }
 
@@ -297,7 +299,12 @@ static uint8_t data_crc(uint8_t *data, int present)
 
 static void pak_read(int ch, uint16_t addr, uint8_t *out)
 {
-    switch (g_port[ch].in) {
+    Port *p = &g_port[ch];
+    if (!p->found && (p->in == PC_PAK_MEMORY ? addr < PAK_SIZE : addr >= 0x8000 && addr < 0x9000)) {
+        p->found = 1;   /* the game's Pfs C (osPfsInitPak) or its motor's (osMotorInit) found it: once each time */
+        pc_log("controller %d: the game reads %s", ch + 1, kind_names[p->in]);
+    }
+    switch (p->in) {
     case PC_PAK_MEMORY:
         if (addr < PAK_SIZE)
             memcpy(out, g_port[ch].img + addr, 32);
