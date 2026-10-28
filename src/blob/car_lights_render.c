@@ -7,6 +7,8 @@
  * mirrors it for the two mirror flags, rotates it with func_8009E820
  * (row-vector x matrix) and adds the camera position. No arcade ancestor
  * found (N64 viewport code). Also matches at -O2.
+ * On the PC the screen point moves as the race HUD does in widescreen (pc_gfx_hud_dx, docs/port/GFX.md "The HUD at
+ * the screen's edges"): the game places the coin icons, and the battle and stunt HUD's models, at HUD points.
  *
  * Shaping quirks: the viewport pointer is formed as `v = D_8017A510; v += view;`
  * -- the typed `&D_8017A510[view]` gives ugen a `.noalias v,$sp` and lets as1
@@ -42,6 +44,12 @@ extern View D_8017A510[];
 extern s8 D_80140A04;
 extern s8 D_80151AD8;
 void func_8009E820(f32 *in, f32 *out, Camera *cam);
+#ifdef TARGET_PC
+int pc_gfx_hud_dx(int x);
+#define HUD_X(x) ((x) + pc_gfx_hud_dx(x))
+#else
+#define HUD_X(x) x
+#endif
 
 void car_lights_render(int view, s16 *screen, Camera *cam, f32 depth, f32 *out)
 {
@@ -51,7 +59,7 @@ void car_lights_render(int view, s16 *screen, Camera *cam, f32 depth, f32 *out)
 
     v += view;
 
-    in[0] = ((screen[0] - v->center_x) * depth) / (v->scale_x * v->proj_x);
+    in[0] = ((HUD_X(screen[0]) - v->center_x) * depth) / (v->scale_x * v->proj_x);
     in[1] = ((v->center_y - screen[1]) * depth) / (v->scale_y * v->proj_y);
     in[2] = depth;
     if (D_80140A04) {
