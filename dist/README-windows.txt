@@ -74,7 +74,7 @@ Textures
 The F1 overlay's Video page has Textures:
   original   the game's own textures
   upscaled   the 3D world's textures (road, buildings, signs, cars, sky) upscaled 2x, or 4x from render scale
-             3.5 (native at 1080p and up); the HUD and menus as they are. It needs a render scale of 1.5 or more
+             4 (native at 1080p and up); the HUD and menus as they are. It needs a render scale of 2 or more
              (native in a window of 480 rows or more, or 2x-8x).
              New textures are upscaled in the background as they appear, and kept in texture_cache\, so the next
              run has them at once. Deleting that folder is safe.

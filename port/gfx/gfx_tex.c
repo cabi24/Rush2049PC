@@ -146,13 +146,13 @@ int pcgfx_tex_variant(int is3d) {
     return 0;
 }
 
-/* The upscale factor from the internal scale in effect, any fraction (native: 6.76 at 2880 x 1620): 2x from 1.5,
- * 4x from 3.5; whole scales as before (2x at 2 and 3, 4x from 4, none at 1). */
+/* The upscale factor: the largest power of two up to the internal scale in effect, at most 4, fractions too
+ * (native at 2880 x 1620, 6.76: 4x; at 1366 x 768, 3.2: 2x). */
 int pcgfx_tex_factor(void) {
     float s = pcgfx_cfg.scale;
     if (C.factor_env)
         return C.factor_env;
-    return s >= 3.5f ? 4 : s >= 1.5f ? 2 : 1;
+    return s >= 4.0f ? 4 : s >= 2.0f ? 2 : 1;
 }
 
 /* A pack's texture is kept up to this many times the N64's: the internal scale, a fraction rounded up. */

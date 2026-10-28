@@ -193,8 +193,8 @@ static void case_window(void) {
 /* The upscaled textures' factor and a pack's limit follow the internal scale in effect, fractions too (gfx_tex.c). */
 static void case_texfactor(void) {
     static const struct { float s; int factor, limit; } t[] = {
-        {1.0f, 1, 1}, {1.4f, 1, 2}, {1.5f, 2, 2}, {2.0f, 2, 2}, {3.0f, 2, 3}, {3.375f, 2, 4}, {3.5f, 4, 4},
-        {4.0f, 4, 4}, {6.0f, 4, 6}, {2880.0f / 426, 4, 7}, {8.0f, 4, 8},
+        {1.0f, 1, 1}, {1.5f, 1, 2}, {2.0f, 2, 2}, {3.0f, 2, 3}, {3.2066f, 2, 4}, {3.9f, 2, 4}, {4.0f, 4, 4},
+        {6.0f, 4, 6}, {2880.0f / 426, 4, 7}, {8.0f, 4, 8},
     };
     float was = pcgfx_cfg.scale;
     char what[64];

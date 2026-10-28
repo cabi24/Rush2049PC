@@ -693,8 +693,8 @@ build/gfx/gfx_test texrect --png /tmp/out
   least one internal pixel, edges at 0 and the end, each internal pixel inside its N64 pixel's edges, rows the same
   with GL's ties; whole scales v × s), `.fit` (native pixel for pixel and fitted, whole multiples, small windows),
   `.units` (pixels and window units with per-monitor DPI awareness, a 2× points output, 175%), `.window` (the first
-  window's size on 3K, 1080p, 4K, 4:3, small and no displays), `.texfactor` (the upscaled textures' factor, 2x
-  from 1.5 and 4x from 3.5, and a pack's limit, the scale rounded up, at whole and fractional scales).
+  window's size on 3K, 1080p, 4K, 4:3, small and no displays), `.texfactor` (the upscaled textures' factor, the
+  largest power of two up to the scale, and a pack's limit, the scale rounded up, at whole and fractional scales).
 - **The overlay** has its own program, `gfx_ui_test`, headless: it reads the window's offscreen image.
 
 | Case | Checks |

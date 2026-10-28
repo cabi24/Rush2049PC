@@ -7,7 +7,7 @@ files. Added 2026-10-27.
 | `video.textures` | What is drawn |
 |---|---|
 | `original` (default) | the N64's textures |
-| `upscaled` | the 3D world's textures upscaled: 2x at internal scale 2 and 3, 4x from 4 (fractions: 2x from 1.5, 4x from 3.5, so native at 2880 × 1620, 6.76, is 4x); at scale 1 the originals (a bigger texture would only be sampled coarser than its texels). The menus, the HUD and text stay original |
+| `upscaled` | the 3D world's textures upscaled: 2x at internal scale 2 and 3, 4x from 4 (fractions the same: native at 2880 × 1620, 6.76, is 4x; at 1366 × 768, 3.2, 2x); at scale 1 the originals (a bigger texture would only be sampled coarser than its texels). The menus, the HUD and text stay original |
 | `pack` | each texture with a file in the pack folder (`video.texture_pack`, default `textures/` in the data folder) replaced by it, the 2D ones too; the rest original |
 
 The F1 overlay's Video page has it as **Textures** ([FRONTEND.md](FRONTEND.md)); a change applies from the game's
