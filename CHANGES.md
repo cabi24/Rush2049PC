@@ -40,6 +40,9 @@ everything a night of testing on the retail cartridge found.
   long, a float conversion that differed on ARM, and three more ([SANITIZE.md](docs/port/SANITIZE.md)).
 - **The same picture on any GPU** at native resolution: rectangles land on whole pixels and triangles are clipped
   before the GPU's own clipper, so a one-pixel seam can't depend on the driver ([GFX.md](docs/port/GFX.md)).
+- **Stutter at a high frame rate with vsync on** (60, 120 or `display` with `video.vsync`, its default): most frames
+  between were skipped. The frames are now paced by the display's refresh, one for each, drawn for the moment it
+  appears ([FRAMERATE.md](docs/port/FRAMERATE.md) 2).
 
 ### New
 
@@ -47,9 +50,11 @@ everything a night of testing on the retail cartridge found.
   borderless or exclusive fullscreen, resolution presets ([GFX.md](docs/port/GFX.md) "Resolution and scale").
 - **Widescreen** by default, with the race HUD at the screen's edges (`video.hud`).
 - **Upscaled textures** (F1 > Video > Textures): a small neural network trained on public-domain textures sharpens
-  the game's own at load time; texture packs and a texture dump for making them
+  the 3D world's own as they first appear, in the background, and keeps them for the next run; texture packs and a
+  texture dump for making them
   ([TEXTURES.md](docs/port/TEXTURES.md), [UPSCALE.md](docs/port/UPSCALE.md)).
-- **High frame rate** (F1 > Video > Frame rate): 60, 120 or the display's rate, drawn between the game's own 30
+- **High frame rate** (F1 > Video > Frame rate): 60, 120, 144 or the display's rate (any from 30 to 1000 in the
+  file), drawn between the game's own 30
   ([FRAMERATE.md](docs/port/FRAMERATE.md)).
 - **The F1 menu** takes the mouse, and has Help (every control's bindings) and About (version, graphics, sound,
   controllers, files; copy for a bug report) pages.
@@ -68,7 +73,6 @@ everything a night of testing on the retail cartridge found.
   pad can rumble, each player's rumble going to their own pad, or a controller pak of their own
   (`rush2049pc-p2.mpk`...), kept as player 1's; a change while playing is a swap the game sees, as on the console
   ([ULTRA.md](docs/port/ULTRA.md) "Accessories").
-
 - **Faster rendering**: GL state is sent only when it changes, vertices stream through one buffer and each frame
   is copied once; a race uses roughly 40% less CPU ([GFX.md](docs/port/GFX.md) "What it costs").
 
@@ -77,6 +81,9 @@ everything a night of testing on the retail cartridge found.
 - Tested on real hardware on one Windows laptop so far; the rest by scripted headless runs.
 - In loud scenes the mix clips, as the game's own mixer saturates; whether the N64 sounds the same is unchecked.
 - Split screen keeps its HUD centred.
+- With a high frame rate at a laptop panel's full resolution (2880x1620), an integrated GPU draws few frames
+  between the game's own; Resolution 1080p in desktop fullscreen, or a whole render scale, gives it room
+  ([QA.md](docs/port/QA.md) "Reported, not fixed here").
 - A ghost is written to the controller pak only after the game's save prompt.
 
 ## First test builds (2026-10-27)

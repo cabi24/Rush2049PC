@@ -60,7 +60,6 @@ void *entity_name_copy(void *key, void *base, uint32_t n, uint32_t size, int (*c
 {
     return bsearch(key, base, n, size, cmp);
 }
-int32_t pointer_compare_thunk(const void *a, const void *b) { return strcmp(a, b); }
 int32_t func_8009508C(const void *a, const void *b) { return strcmp(a, b); }
 
 /* The texture-animation tables, in the host layout both of their game views agree on (camera_shake_start's

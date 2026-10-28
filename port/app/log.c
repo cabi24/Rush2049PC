@@ -239,6 +239,10 @@ int pc_app_log_open(const char *path, int argc, char **argv, const PcAppDirs *d)
     p_close(fds[1]);   /* fd 2 is the only writing end, so restoring it ends the pipe */
 #ifdef _WIN32
     SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(2));   /* for WriteFile(GetStdHandle(...)) */
+    /* msvcrt buffers a stderr that isn't a console fully (4 KiB; its _IOLBF is full buffering too): the log and
+     * the console lagged in bursts, a killed run lost the tail, and a fault's first line (WriteFile, unbuffered)
+     * came ahead of the lines before it. Unbuffered, each line reaches the pipe as it is printed. */
+    setvbuf(stderr, NULL, _IONBF, 0);
 #else
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif

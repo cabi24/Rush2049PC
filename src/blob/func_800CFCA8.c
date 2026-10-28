@@ -728,7 +728,12 @@ typedef struct
   u8 pad7C8[0x7E8 - 0x7C8];
   u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+/* the cars, 0x808 bytes each: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern D_8014A250_Record D_8014A250[];
+#else
 extern D_8014A250_Record D_8014A250;
+#endif
 typedef struct 
 {
   u8 pad00[0x0C];

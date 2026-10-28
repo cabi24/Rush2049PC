@@ -241,6 +241,13 @@ extern void particle_velocity_set(void),entity_audio_update(void);
 extern s32 string_copy_format(char *,s8,s8,s8);
 extern s32 sign_extend_call(u32,uintptr_t,s32,u32);
 extern void func_8008E06C(s16,Color4 *);
+#ifdef TARGET_PC
+/* PC: func_8008E06C reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
+ * frame has them (docs/port/SANITIZE.md 3.2) */
+#define PC_WORD_ALIGNED __attribute__((aligned(4)))
+#else
+#define PC_WORD_ALIGNED
+#endif
 extern Blit *sound_control(s16,s16,const MultiBlit *,s16);
 extern u8 func_800CDED8(void **);
 
@@ -269,7 +276,7 @@ void func_803998C0(void)
 /* initButtons@modescr.c (MAT3 GC initButtons): deleted stub 0x803998B8 */
 void func_803998B8(void)
 {
-    Color4 color;
+    Color4 color PC_WORD_ALIGNED;
     s32 i;
     s16 texture;
     Slot64 *slot;

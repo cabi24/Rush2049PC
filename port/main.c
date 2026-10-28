@@ -63,7 +63,8 @@ static void usage(FILE *f)
             "                      folder; it also holds screenshots/ and rush2049pc.log)\n"
             "  --no-pak            no accessory on any controller; --rumble: a rumble pak on controller 1\n"
             "                      (controllers 2-4: game.pak2... = auto, memory, rumble or none; --set)\n"
-            "  --expansion-pak     report 8 MiB of RDRAM, the Expansion Pak (the default; game.expansion_pak=off: 4 MiB)\n"
+            "  --expansion-pak     report 8 MiB of RDRAM, the Expansion Pak (the default; game.expansion_pak=off:\n"
+            "                      4 MiB)\n"
             "  --audio BACKEND     auto (default), sdl, alsa, null or wav (port/audio)\n"
             "  --dump-audio PATH   also write everything the game plays to a WAV file\n"
             "  --config PATH       read this settings file instead (it is not created); --no-config: none\n"
@@ -76,7 +77,7 @@ static void usage(FILE *f)
             "  --selftest          test the thread scheduler, queues, events and timers (no ROM needed)\n"
             "  --version           print the version and the build, and exit\n"
             "F1 (or both stick clicks on a controller) opens the settings overlay, which holds the game; a\n"
-            "--press script's MENU does too. Ctrl-\\ prints the N64 threads' states.\n");
+            "--press script's MENU does too. Ctrl-\\ (Ctrl-Break on Windows) prints the N64 threads' states.\n");
 }
 
 /* --no-rom: the file table (docs/port/ASSETS.md §2.2) is ROM data, so on a blank cartridge every wave is a

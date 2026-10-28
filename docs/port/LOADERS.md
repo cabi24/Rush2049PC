@@ -114,7 +114,9 @@ descriptor's block is then native, which port/gfx reads natively because it isn'
 
 ### Until the ROM is available
 
-These points can't be checked without real files. What to look at then:
+Checked on the retail cartridge on 2026-10-28 ([ASSETS.md](ASSETS.md) §8): every WAD converts whole. The record
+chunks' count word is a record count, TXLD's and PATH's a byte length; `trigPtr` targets are PTHD records. What
+was to be looked at:
 - **The TOC count field.** For TXLD it is a byte length (`entity_cull_check(TXLD, TXLD + count)`). For the record
   chunks it is a record count. Check one real WAD: OBHD offset + count × 0x58 must not run into the next chunk.
 - **Real WADs are left unconverted.** `RUSH_TRACE_WAVES=1` names any file wad.c refused (no TOC, chunk outside the
@@ -226,6 +228,9 @@ and unread byte pads.
   (ASSETS.md §4 #19): `intptr_t first` if they stay native, as now in gen_data.
 - **Weak copies** of `sound_update_channel` (in `ctx_gr3.c` and seven other context files) and of
   `func_800A4E58` keep their N64-sized views; they never run.
+- Checked on the retail cartridge ([ASSETS.md](ASSETS.md) §8.1): none of the messages below appears for any wave;
+  WOBJ is the tag and its count word a record count (the converter now takes it as records only, and walks from
+  WHDR when it doesn't fit); the text tables and path counts end their walks at the file's end. The list was:
 - With the ROM: run `RUSH_TRACE_WAVES=1` to the front end and the first race and look for the converters'
   "runs past" / "no WHDR that fits" messages. Check that the TOC count word of WOBJ is a record count (the
   converter also accepts bytes), that `WOBJ` is the tag (else the converter walks from WHDR, which covers only the

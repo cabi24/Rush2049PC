@@ -1,129 +1,186 @@
-Rush 2049 PC for Linux
-======================
+Rush 2049 PC for Linux - beta
+=============================
 
-A native PC port of San Francisco Rush 2049 (Nintendo 64, USA), compiled from the decompilation's C. It holds no
-game data: you need your own ROM of the cartridge. https://github.com/cabi24/Rush2049PC
+An unofficial PC port of San Francisco Rush 2049 (Nintendo 64, USA),
+compiled from the decompilation's C. It holds no game data: you need your
+own ROM of the cartridge. https://github.com/cabi24/Rush2049PC
 
-Playing
--------
-1. Copy your ROM next to the program and name it baserom.us.z64. It must be San Francisco Rush 2049 (USA),
-   SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. .z64, .v64 and .n64 dumps all work; a .zip must be
-   extracted first.
-2. Run ./rush2049pc, or ./rush2049pc ~/roms/rush2049.z64 to name the ROM. ./rush2049pc --help lists every
-   option.
+You need x86-64 or aarch64 (64-bit ARM, such as a Raspberry Pi 4 or 5),
+glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora 36 or newer), and
+OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver). SDL2 is built in; X11
+or Wayland, PulseAudio, PipeWire or ALSA, and controllers are used through
+the system's own libraries.
 
-Where the program looks for the ROM, in this order:
-  - the path on the command line (rush2049pc PATH, or --rom PATH);
-  - game.rom in rush2049pc.ini, when it is a full path;
-  - otherwise baserom.us.z64 (or the name game.rom gives) next to the program, then in
-    ~/.local/share/rush2049pc ($XDG_DATA_HOME), then in the working directory.
-If there is no ROM, or the file is not the right one, the program says where it looked, what the file is and
-what is needed (in a message box too, when it has a display). With a display and zenity or kdialog installed,
-the box has Open ROM...: choose the file, and the program checks it (offering another choice if it is the
-wrong one) and keeps its path as game.rom in rush2049pc.ini, so it is found from then on.
 
-You need OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver) and glibc 2.35 or later (Ubuntu 22.04, Debian 12,
-Fedora 36 or newer), on x86-64 or aarch64 (64-bit ARM, such as a Raspberry Pi 4 or 5). SDL2 is built into the
-program; X11 or Wayland, PulseAudio, PipeWire or ALSA, and controllers are used through the system's libraries.
+Starting
+--------
+1. Run ./rush2049pc (or ./rush2049pc ~/roms/rush2049.z64 to name the ROM).
+2. The first time, a box says no ROM was found. With zenity or kdialog
+   installed it has Open ROM...: choose your ROM file, San Francisco
+   Rush 2049 (USA), SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c.
+   .z64, .v64 and .n64 dumps all work; a .zip must be extracted first.
+3. The program checks the file. If it is not the right one, it says what
+   it is (another game, another region, a bad dump) and offers Choose
+   another... . A good one is kept as game.rom in rush2049pc.ini, so from
+   then on the game starts at once.
+
+Or copy the ROM next to the program as baserom.us.z64 first: then nothing
+is asked (and without zenity or kdialog, that is the way).
+
+The program looks for the ROM only here, in this order: the path on the
+command line (or --rom PATH); game.rom in rush2049pc.ini when it is a full
+path; else baserom.us.z64 next to the program, then in
+~/.local/share/rush2049pc ($XDG_DATA_HOME), then in the working directory.
+./rush2049pc --help lists the options.
+
 
 Controls
 --------
-  N64               Keyboard          Xbox                      PlayStation
-  Stick             arrow keys        left stick                left stick
-  A (accelerate)    X                 A, right trigger (RT)     Cross, R2
-  B (brake)         C                 X, left trigger (LT)      Square, L2
-  Z                 Z                 LB                        L1
-  L                 Q                 Back (View)               Share (Create)
-  R                 E                 RB                        R1
-  START             Enter             Start (Menu)              Options
-  C buttons         I J K L           right stick; Y C-up, B C-down  right stick; Triangle, Circle
-  D-pad             W A S D           D-pad                     D-pad
-  Other pads: the button in the same place. F1 > Controllers rebinds every button, and sets the stick's dead
-  zone and sensitivity.
-  Each player's N64 accessory is in F1 > Controllers (P1-P4 accessory): a controller pak (saves), a rumble pak
-  or none. Player 1 has the controller pak; players 2-4 are on auto, a rumble pak when their pad can rumble, so
-  in multiplayer each player's rumble goes to their own pad. A player can have a controller pak of their own
-  instead (rush2049pc-p2.mpk...). A change there is a swap, as on the console.
+  N64             Keyboard    Xbox pad            PlayStation pad
+  Stick           arrows      left stick          left stick
+  A (accelerate)  X           A or RT             Cross or R2
+  B (brake)       C           X or LT             Square or L2
+  Z               Z           LB                  L1
+  L               Q           Back (View)         Share (Create)
+  R               E           RB                  R1
+  START           Enter       Start (Menu)        Options
+  C-up, C-down    I, K        Y, B; or RS up,     Triangle, Circle;
+                              down                or RS up, down
+  C-left, right   J, L        RS left, right      RS left, right
+  D-pad           W A S D     D-pad               D-pad
+  (RS: the right stick. Other pads: the button in the same place.)
 
-  F1                settings overlay (both stick clicks on a controller): video, sound, key and button mapping
-  Alt+Enter, F11    fullscreen
-  F12               screenshot (PNG)
-  Pause             hold the game
-  Escape            quit
-  The overlay takes the mouse too: point and click (left or right of a value changes it), the wheel scrolls, the
-  right button or a click outside goes back. F1 > Help lists what each key and button does with your bindings;
-  F1 > About gives the version, graphics driver, sound output, controllers and where every file is. During play
-  the mouse cursor hides until the mouse moves.
+  F1          the settings overlay (on a pad: both stick clicks together)
+  Alt+Enter   fullscreen on and off (F11 too)
+  F12         a screenshot (PNG, in screenshots/)
+  Pause       hold the game; press again to go on
+  Escape      quit at once
 
-Settings and saves
-------------------
-The release archive is portable: because rush2049pc.ini is next to the program, everything it keeps is in its
-folder:
-  rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each,
-                    commented out at its default (remove the ; to keep a value)
-  rush2049pc.mpk    the saves (the game's controller pak, player 1's)
-  rush2049pc-p2.mpk, -p3, -p4
-                    players 2-4's controller paks, when they have one (backed up the same way)
+The keyboard and the first controller play player 1; more controllers take
+players 2-4 in the order they are plugged in. Every key and button can be
+changed in F1 > Keyboard and F1 > Controllers, with the stick's dead zone
+and sensitivity.
+
+
+The settings overlay (F1)
+-------------------------
+F1 holds the game and opens the settings: Video, Audio, Keyboard,
+Controllers, Help, About, then Save to rush2049pc.ini, Resume and Quit.
+Arrows or the D-pad move, Left/Right change a value, Enter or A chooses,
+Escape or B goes back. The mouse works too: point, click (left or right of
+a value changes it), the wheel scrolls, the right button goes back.
+
+Changes apply at once (those marked * at the next start). Save keeps them
+in rush2049pc.ini; changes not saved are lost when the program ends.
+Help lists what each key and button does with your bindings.
+
+The settings most worth knowing (F1 > Video unless said):
+  Render scale   native (the default): drawn at the window's own pixels,
+                 sharp at any size and on a high-DPI display. N64 (1x) is
+                 the original 320x240 look; 2x-8x and auto (the largest
+                 whole multiple) too. A slow GPU: lower it.
+  Fullscreen     F11. Borderless by default; Fullscreen mode exclusive
+                 switches the display to Resolution.
+  Resolution     desktop, 720p ... 2160p: exclusive fullscreen's mode;
+                 in borderless fullscreen the size the game is drawn at
+                 (1080p on a big panel is less work for the GPU).
+  Window size    the window opens at two thirds of the desktop and
+                 remembers its size and place.
+  Widescreen     auto (the window's shape, the default), off (4:3),
+                 16:10, 16:9, 21:9. The 3D view shows more at the sides.
+  Race HUD       screen edges (the default) or centered (4:3, as on the
+                 N64). Menus stay 4:3 either way.
+  Textures       original; upscaled: the 3D world's textures 2x, or 4x
+                 at render scale 4 or more (native in a window of 960 rows
+                 or more), the HUD and menus as they are; it needs a
+                 render scale of 2 or more (native: 480 rows). New ones
+                 are upscaled in the background as they appear and kept in
+                 texture_cache/ for the next run. pack: a texture pack.
+  Frame rate     original (the game's own 30, the default), 60, 120,
+                 144 or display. The frames between the game's are drawn
+                 from its last two; the game's speed is unchanged.
+  Vsync          on (the default): no tearing, and no more frames than
+                 the display shows.
+  Audio          F1 > Audio: Volume, and Output * (auto, sdl, alsa...).
+  Audio latency  in rush2049pc.ini only: [audio] latency = 0 (from the
+                 device). If the sound crackles or drops out, try 60 or
+                 100 (ms): more delay, fewer dropouts.
+
+rush2049pc.ini has every setting with a comment; one left at its default
+is commented out (remove the ; to keep a value).
+
+
+Saves and other files
+---------------------
+This folder is portable: since rush2049pc.ini is next to the program,
+everything it keeps is here:
+  rush2049pc.ini        the settings
+  rush2049pc.mpk        your saves (player 1's controller pak)
+  rush2049pc-p2.mpk ... players 2-4's controller paks, if they have one
   rush2049pc.mpk.bak, .bak2, .bak3
-                    backups of the saves: the last three that a run started with (newest first)
-  screenshots/      F12's pictures
-  texture_cache/    upscaled textures kept for the next run (Textures: upscaled)
-  rush2049pc.log    what the program printed last time (rush2049pc.old.log: the time before)
-Without rush2049pc.ini next to it (an installed copy), the settings are in ~/.config/rush2049pc
-($XDG_CONFIG_HOME) and the rest in ~/.local/share/rush2049pc ($XDG_DATA_HOME).
+                        backups: the saves as the last three runs that
+                        changed them started (newest first)
+  screenshots/          F12's pictures
+  texture_cache/        upscaled textures; safe to delete
+  rush2049pc.log        what the program printed this run
+  rush2049pc.old.log    the run before
+Without rush2049pc.ini next to it (an installed copy), the settings are in
+~/.config/rush2049pc ($XDG_CONFIG_HOME) and the rest in
+~/.local/share/rush2049pc ($XDG_DATA_HOME).
 
-The F1 overlay changes most settings while you play and can save them into rush2049pc.ini. To move to a new
-version, copy rush2049pc.mpk and rush2049pc.ini into its folder.
+The saves are written whole or not at all. A damaged rush2049pc.mpk is
+never written over: it is renamed rush2049pc.mpk.corrupt-DATE, the newest
+good backup takes its place, and the program says so. To restore by hand,
+close the program and copy rush2049pc.mpk.bak over rush2049pc.mpk.
 
-The saves are written whole or not at all (a temp file, synced, then renamed), so a crash or a power cut can't
-leave half a file. If rush2049pc.mpk is damaged when the program starts, it is not overwritten: it is renamed
-rush2049pc.mpk.corrupt-DATE, the newest good backup takes its place (or the game starts with an empty pak), and
-the program says so (in a message box too, with a display).
+To move to a new version, copy rush2049pc.mpk and rush2049pc.ini into its
+folder.
 
-Picture
--------
-The game is drawn at the window's own pixels by default (F1 > Video > Render scale: native), so it is sharp at
-any size and on a high-DPI display: a 2880x1620 screen gets all 2880x1620 pixels. Render
-scale N64 (1x) is the original 320x240 in square pixels; 2x-8x and auto (the largest whole multiple) are there
-too. Widescreen is auto (the window's shape); in a race the HUD then sits at the screen's edges (F1 > Video >
-Race HUD: centered keeps it in the middle 4:3 area, as on the N64). Fullscreen (F11) is borderless over the
-desktop; Fullscreen mode exclusive switches the display to the Resolution setting (720p ... 1620p = 2880x1620,
-2160p). The window opens at two thirds of the desktop and remembers its size and place. A slow GPU: Resolution
-1080p in fullscreen, or a lower render scale.
+Each player's N64 accessory is in F1 > Controllers (P1-P4 accessory):
+player 1 has the controller pak (the saves); players 2-4 are on auto, a
+rumble pak when their pad can rumble.
 
-Textures
---------
-The F1 overlay's Video page has Textures:
-  original   the game's own textures
-  upscaled   the 3D world's textures (road, buildings, signs, cars, sky) upscaled 2x, or 4x from render scale
-             4 (native at 1080p and up); the HUD and menus as they are. It needs a render scale of 2 or more
-             (native in a window of 480 rows or more, or 2x-8x).
-             New textures are upscaled in the background as they appear, and kept in texture_cache/, so the next
-             run has them at once. Deleting that folder is safe.
-  pack       a texture pack: PNG replacements in the textures/ folder (texture_pack in rush2049pc.ini's
-             [video] section)
-To make a pack from your own ROM: in rush2049pc.ini's [video] section, change "; texture_dump = " to
-"texture_dump = dump" and play; every texture drawn is written into dump/ as PNG. Edit or upscale them
-(tools/texpack/texpack.py in the source runs an upscaler you install, such as realesrgan-ncnn-vulkan, over the
-whole folder), put the results in textures/ under the same names (any whole multiple of the size), and choose
-pack. Packs are made from your own ROM: don't share them.
+
+Reporting a bug
+---------------
+https://github.com/cabi24/Rush2049PC/issues
+1. F1 > About > Copy to the clipboard, and paste it into the report: the
+   version, the graphics driver, the sound output, the controllers and
+   where the files are.
+2. Attach rush2049pc.log (rush2049pc.old.log if it happened in the run
+   before). F1 > About > Open the data folder shows where it is.
+3. Say what you did and what happened.
+Everything the program prints is in the log too; ./rush2049pc --version
+says which build you have.
+
+
+Known limits
+------------
+- Played on one Windows laptop so far; the rest by scripted test runs.
+- In loud scenes the sound clips, as the game's own mixer saturates.
+- Split screen keeps its HUD in the middle.
+- A ghost is written to the controller pak only after the game's save
+  prompt.
+- A high frame rate at a laptop panel's full resolution (2880x1620): an
+  integrated GPU draws few frames between the game's own. Resolution
+  1080p in fullscreen, or a whole render scale, gives it room.
+
 
 Troubleshooting
 ---------------
-- Everything the program prints is also written to rush2049pc.log in this folder (in
-  ~/.local/share/rush2049pc without rush2049pc.ini); the run before is kept as rush2049pc.old.log.
-- No Open ROM... button: install zenity (or kdialog), or copy the ROM next to the program as baserom.us.z64.
-- Saves gone after a crash or a full disk: with the program closed, copy rush2049pc.mpk.bak (or .bak2,
-  .bak3) over rush2049pc.mpk.
-- A controller does nothing, or its stick doesn't steer: F1 > Controllers shows who plays each player and
-  what the stick gives, live, and the log names each controller found and its player. A pad SDL doesn't know
-  gets a generic mapping and takes a player at its first button press: rebind it in F1 > Controllers, or put
-  SDL's gamecontrollerdb.txt (with a line for it) next to rush2049pc.ini.
-- Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; ./rush2049pc --version says
-  which build you have). F1 > About > Copy to the clipboard gives the version, driver and paths to paste in, and
-  Open the data folder shows the log's folder in the file manager (xdg-open).
+- No window, or "no graphics": update Mesa or the GPU driver. Without
+  DISPLAY or WAYLAND_DISPLAY the program draws off screen (--window asks
+  for a window).
+- No Open ROM... button: install zenity (or kdialog), or copy the ROM next
+  to the program as baserom.us.z64.
+- A controller does nothing: F1 > Controllers shows who plays each player
+  and what the stick gives, and the log names each controller found. A pad
+  the program doesn't know takes a player at its first button press;
+  rebind it there, or put SDL's gamecontrollerdb.txt (with a line for it)
+  next to rush2049pc.ini.
+
 
 Licences
 --------
-This package contains no game data: you need your own ROM of the cartridge. The program includes
-SDL2 and uses the system's zlib; their licences are in LICENSES/.
+This package contains no game data. The program includes SDL2 and zlib;
+their licences are in LICENSES/.

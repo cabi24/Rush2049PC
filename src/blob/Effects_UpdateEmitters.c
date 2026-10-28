@@ -2620,7 +2620,13 @@ extern s32 D_80150004;
 extern s32 D_80150B60;
 extern s32 D_80150B64;
 extern s32 D_80150B68;
+#ifdef TARGET_PC
+/* PC: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7): each window's 0x98-byte camera,
+ * seven places written in the loop */
+extern s32 gCamera[];
+#else
 extern s32 gCamera;
+#endif
 extern s32 D_80150B7C;
 extern s32 D_80150B94;
 extern s32 D_80150BA0;

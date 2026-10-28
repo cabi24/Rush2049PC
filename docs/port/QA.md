@@ -241,7 +241,7 @@ and frames stay in `build/scratch`.
 | synthetic attract demo, 660 s (15 demo races) | rocky | no fault; resident memory 70-81 MB with no growth; one stall of the host (below) |
 | synthetic races back to back, 700 s: a mode (single race, practice, stunt and others), a race, the pause screen's quit, the game over screen's Quit, again (11 races) | rocky | no fault, no retrace dropped; memory flat (+1 MB a minute over the second half, within the sampling's noise) |
 | live changes mid-race, 225 s: textures upscaled → original → upscaled → pack → upscaled; frame rate 120 → original → 120 → display → 120; HUD edges → centered → edges; scale native → N64 → 4x → native; widescreen auto → off → auto | rocky (synthetic), the Pi (retail) | no fault; each change takes effect from the next frame; memory follows what is upscaled again for the new scale, within `video.textures`' cap |
-| retail: the attract demo (660 s), races back to back (700 s), the live changes, a race with frame dumps | the Pi, real time | the audio manager fault (fix 6) before its fix, none after. With the high frame rate, the world was missing from the game's frames (8) before main's fix and is drawn after it. The demo's memory grows as it goes through the tracks, whose textures are upscaled 4x, toward the upscaled images' cap in memory (384 MB, `gfx_tex.c`) |
+| retail: the attract demo (660 s), races back to back (700 s), the live changes, a race with frame dumps | the Pi, real time | the audio manager fault (fix 6) before its fix, none after. With the high frame rate, the world was missing from the game's frames (8) before main's fix and is drawn after it, and the window hardly changed while the host was behind (9) before its fix. The demo's memory grows as it goes through the tracks, whose textures are upscaled 4x, toward the upscaled images' cap in memory (384 MB, `gfx_tex.c`) |
 | retail frames at 2880 × 1620, 16:9: the game's frames (`RUSH_GFX_DUMP`) and the frames shown at 120 (`RUSH_GFX_HFR_DUMP`), on the virtual clock so that every frame between is drawn | the Pi, `--fast` | the HUD at the screen's edges in the game's frames and in those between, which keep the nearer frame's HUD; the 3D world upscaled 4x, the HUD and text original; `frame_spikes.py`: no spike in the game's frames or in those shown |
 | the log | all | only the state and status lines a scripted run asks for, settings opened and closed, and the first underruns; nothing repeats per frame or per second, so an hour of play doesn't fill `rush2049pc.log` |
 
@@ -289,15 +289,35 @@ task runs before any tick (a tick waits while an RSP task is pending), so its de
 image, and the frame kept the last one's depth. Already fixed on main by 538cd5a (renderer performance, test
 `gfx.interp.depthclear`). The same retail frames on 4f21620 are right.
 
+#### 9. With a high frame rate, a host that is behind hardly updated the window
+
+With `video.frame_rate` on, only the main loop's ticks show anything; the retrace's present just keeps the game's
+frame for them. The loop skips a tick that would run into the next retrace, by the running mean of how long ticks
+take (`tick_ns`). That mean includes the swap, which with vsync waits for the display. On a host that is behind,
+nearly every tick was skipped, the game's own new frames with them. On the retail cartridge in real time on the Pi
+at 2880 × 1620, the window hardly changed for minutes of races while the game ran on. With the setting
+off, each of the game's frames is shown at its swap whatever that costs. Fix (2747ce9): a tick skipped to keep the
+retraces on time still shows a frame the game has swapped in and the window hasn't shown (`pc_gfx_frame_waiting`).
+It shows it with no frame drawn between (mode 2), so the result is no worse than the setting off. Test:
+`hfr_realtime` (`realtime_check.py --frame-rate 120 --present-ms 40`: the synthetic race with each swap held 40 ms,
+then until the vsync) needs at least 5 frames shown a second. Without the fix it got 0.1. The cost: on a host far
+behind (the Pi at that size), the forced show comes at a tick that is already late, and it holds the next retraces
+more than the setting off does. The setting off shows each frame at its swap, a whole period ahead. Showing the
+waiting frame at the retrace's present instead is left to the high frame rate's pacing work.
+
 ### Reported, not fixed here
 
-- **Few frames between at 2880 × 1620 on an integrated GPU.** On rocky (UHD 770), the synthetic race at 120 frames a
-  second drew frames between for about one tick in ten at 2880 × 1620. The rest were "not drawn (the GPU was
-  behind)". At 640 × 480 it was about two in three. The frame fence works as designed: the frames between take only
-  the GPU time the game leaves. At the panel's native size a laptop's iGPU shows mostly the game's own 30 frames a
-  second. `video.resolution` in desktop fullscreen (1080p), or a whole scale, gives the frames between room. This
-  is renderer performance. The same synthetic race on 4f21620, after main's renderer work (one copy per frame,
-  tracked GL state), still drew about one in ten.
+- **Few frames between, with vsync or on an integrated GPU at 2880 × 1620.** Two limits, both on the synthetic race
+  at 120 frames a second on rocky (UHD 770):
+  - Without a vsync wait, at 2880 × 1620 about one tick in ten drew a frame between; the rest were "not drawn (the
+    GPU was behind)", as the frame fence intends. This held on 4f21620 too, after main's renderer work. At
+    640 × 480 it was about two in three.
+  - With the vsync model (fix 7), most ticks are skipped: the running mean `tick_ns` includes the swap's wait for
+    the display, so a tick looks as if it would run into the next retrace. At 640 × 480, rates 60, display and 120
+    drew 46, 16 and 104 frames between in 36 s; without the vsync wait, 120 drew 1044.
+
+  vsync is on by default, so on a 60 Hz panel the setting mostly shows the game's own frames. The tick
+  scheduling with a blocking swap belongs to the high frame rate's pacing work (another agent's).
 - **Stalls on rocky's shared GPU.** Runs on rocky that overlapped other GL work (two of these soaks at once, and the
   other agents' GL tests) stalled for 1 to 50 s, the main thread waiting in the kernel's i915 request wait. Over the
   same minutes the kernel log shows GPU hangs and "preemption time out" resets across many processes, this soak's

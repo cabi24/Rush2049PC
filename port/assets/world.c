@@ -14,7 +14,11 @@
  * The chunks are found through the WAD's table of contents (file +0: TOC offset, +4: entry count; entries
  * {u32 tag, u32 offset, u32 count}). pc_assets_wad may already have swapped it to host order, or not: each word
  * is read in whichever order makes it valid (a tag matches in exactly one order). The TOC's third word is a
- * byte length for WHDR and a record count for the others; both readings are accepted where they fit. */
+ * byte length for WHDR (unused: the chunk has its own count) and a record count for the others: LoadTrack hands
+ * GTLD's to race setup as the number of keys (D_801497EC), and the retail worlds' WOBJ and GDAT counts are
+ * record counts too (ASSETS.md §8). Neither of those two is read by the game, which reaches the nodes from WHDR
+ * and the quadtree from its node 0; so when their count doesn't fit the file, both are converted by walking them
+ * as the game does instead. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -69,15 +73,13 @@ static int find_chunk(const uint8_t *buf, size_t size, uint32_t tag, size_t *off
     return 0;
 }
 
-/* Records of rec bytes in a chunk whose count word is a record count or a byte length; 0 if neither fits. */
+/* Records of rec bytes in a chunk whose count word is a record count; 0 if they don't fit the block. */
 static size_t chunk_records(int wave, const char *what, size_t off, uint32_t count, size_t rec, size_t size)
 {
-    size_t room = (size - off) / rec;
-    if (count <= room)
+    if (count <= (size - off) / rec)
         return count;
-    if (count % rec == 0 && count / rec <= room)
-        return count / rec;
-    fprintf(stderr, "rush2049pc: world wave %d: %s runs past the 0x%zx-byte block, left as is\n", wave, what, size);
+    fprintf(stderr, "rush2049pc: world wave %d: %s's %u records run past the 0x%zx-byte block\n", wave, what, count,
+            size);
     return 0;
 }
 
@@ -89,13 +91,17 @@ static void swap_node(uint8_t *n)
     pc_swap32_n(n + 0x4C, 7);    /* tidx, min[3], max[3] */
 }
 
-/* Without a WOBJ entry: swap the nodes each world reaches from its first node, once each. */
+/* Without a WOBJ entry that fits: swap the nodes each world reaches from its first node through next and child,
+ * as NewWorld and differential_output do, once each. */
 static void swap_reached_nodes(uint8_t *buf, size_t size, const uint8_t *whdr, uint32_t worlds)
 {
+    size_t cap = size / WOBJ_SIZE + 1;
     uint8_t *done = (uint8_t *)calloc(size / 4 / 8 + 1, 1);
-    int16_t *stack = (int16_t *)malloc(sizeof *stack * 4096);
+    size_t *stack = (size_t *)malloc(sizeof *stack * cap);
     uint32_t w;
 
+#define NODE_SEEN(at) (done[(at) / 32] & (1 << ((at) / 4 % 8)))
+#define NODE_MARK(at) (done[(at) / 32] |= (uint8_t)(1 << ((at) / 4 % 8)))
     if (!done || !stack)
         abort();
     for (w = 0; w < worlds; w++) {
@@ -103,23 +109,68 @@ static void swap_reached_nodes(uint8_t *buf, size_t size, const uint8_t *whdr, u
         size_t sp = 0;
 
         memcpy(&base, whdr + 4 + 0x14 * w, 4);
-        if (base > size || (base & 3))
+        if (base > size || (base & 3) || size - base < WOBJ_SIZE || NODE_SEEN(base))
             continue;
-        stack[sp++] = 0;
+        NODE_MARK(base);   /* a node is marked when it is pushed, so each is pushed once: at most cap */
+        stack[sp++] = base;
         while (sp) {
-            size_t at = base + (size_t)WOBJ_SIZE * (uint16_t)stack[--sp];
-            int16_t next, child;
+            size_t at = stack[--sp];
+            int16_t link[2];
+            int k;
 
-            if (at + WOBJ_SIZE > size || (done[at / 32] & (1 << (at / 4 % 8))))
-                continue;
-            done[at / 32] |= 1 << (at / 4 % 8);
             swap_node(buf + at);
-            memcpy(&next, buf + at + 0x44, 2);
-            memcpy(&child, buf + at + 0x46, 2);
-            if (next >= 0 && sp < 4096)
-                stack[sp++] = next;
-            if (child >= 0 && sp < 4096)
-                stack[sp++] = child;
+            memcpy(&link[0], buf + at + 0x44, 2);   /* next */
+            memcpy(&link[1], buf + at + 0x46, 2);   /* child */
+            for (k = 0; k < 2; k++) {
+                size_t to = base + (size_t)WOBJ_SIZE * (uint16_t)link[k];
+                if (link[k] >= 0 && to + WOBJ_SIZE <= size && !NODE_SEEN(to)) {
+                    NODE_MARK(to);
+                    stack[sp++] = to;
+                }
+            }
+        }
+    }
+#undef NODE_SEEN
+#undef NODE_MARK
+    free(stack);
+    free(done);
+}
+
+static void swap_gdat(uint8_t *g)
+{
+    pc_swap16_at(g);             /* parent; then two bytes */
+    pc_swap32_n(g + 4, 4);       /* minh, maxh, minv, maxv */
+    pc_swap16_n(g + 0x14, 4);    /* child[4] (leaves: count, first, 0) */
+}
+
+/* Without a GDAT count that fits: the quadtree race_setup_2 walks, from node 0; a node with flags bit 0 has four
+ * children (GDAT indices), the others are leaves. */
+static void swap_gdat_tree(uint8_t *buf, size_t size, size_t off)
+{
+    size_t n = (size - off) / GDAT_SIZE, sp = 0;
+    uint8_t *done = (uint8_t *)calloc(n + 1, 1);
+    uint32_t *stack = (uint32_t *)malloc(sizeof *stack * (n + 1));
+
+    if (!done || !stack)
+        abort();
+    if (n) {
+        done[0] = 1;
+        stack[sp++] = 0;
+    }
+    while (sp) {
+        uint8_t *g = buf + off + (size_t)GDAT_SIZE * stack[--sp];
+        int k;
+
+        swap_gdat(g);
+        if (!(g[3] & 1))
+            continue;
+        for (k = 0; k < 4; k++) {
+            uint16_t c;
+            memcpy(&c, g + 0x14 + 2 * k, 2);
+            if (c < n && !done[c]) {
+                done[c] = 1;
+                stack[sp++] = c;
+            }
         }
     }
     free(stack);
@@ -142,21 +193,20 @@ void pc_assets_world(int wave, uint8_t *buf, size_t size)
     } else
         fprintf(stderr, "rush2049pc: world wave %d: no WHDR that fits\n", wave);
 
-    if (find_chunk(buf, size, TAG_WOBJ, &off, &count)) {
-        n = chunk_records(wave, "WOBJ", off, count, WOBJ_SIZE, size);
+    n = 0;
+    if (find_chunk(buf, size, TAG_WOBJ, &off, &count) && (n = chunk_records(wave, "WOBJ", off, count, WOBJ_SIZE,
+                                                                             size)) != 0)
         for (i = 0; i < n; i++)
             swap_node(buf + off + WOBJ_SIZE * i);
-    } else if (whdr)
+    else if (whdr)
         swap_reached_nodes(buf, size, whdr, worlds);
 
     if (find_chunk(buf, size, TAG_GDAT, &off, &count)) {
         n = chunk_records(wave, "GDAT", off, count, GDAT_SIZE, size);
-        for (i = 0; i < n; i++) {
-            uint8_t *g = buf + off + GDAT_SIZE * i;
-            pc_swap16_at(g);             /* parent; then two bytes */
-            pc_swap32_n(g + 4, 4);       /* minh, maxh, minv, maxv */
-            pc_swap16_n(g + 0x14, 4);    /* child[4] (leaves: count, first, 0) */
-        }
+        for (i = 0; i < n; i++)
+            swap_gdat(buf + off + GDAT_SIZE * i);
+        if (!n)
+            swap_gdat_tree(buf, size, off);
     }
 
     if (find_chunk(buf, size, TAG_GTLD, &off, &count))
