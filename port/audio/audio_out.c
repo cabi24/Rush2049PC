@@ -85,6 +85,7 @@ typedef struct {
 static struct {
     PcLock mutex;
     int inited;
+    int closed;          /* pc_audio_shutdown ran: the game's threads still push, and mustn't open it again */
     int kind;
     const PcAudioBackendOps *dev;
     char name[16];
@@ -518,6 +519,7 @@ int pc_audio_init(const char *backend, const char *dump_wav_path)
 
     lock();
     g.inited = 1;
+    g.closed = 0;
     g.src_rate = keep_rate;
     g.kind = KIND_NULL;
     g.dev = NULL;
@@ -596,18 +598,29 @@ int pc_audio_init(const char *backend, const char *dump_wav_path)
     return rc;
 }
 
-static void ensure_init(void)
+/* 0 once the output is shut down. The game's threads still run while main shuts it down at exit, and a push then
+ * opened it again (with the old unlocked test, a data race ThreadSanitizer found: docs/port/SANITIZE.md). */
+static int ensure_init(void)
 {
-    if (!g.inited)
+    lock();
+    int inited = g.inited, closed = g.closed;
+    unlock();
+    if (closed)
+        return 0;
+    if (!inited)
         pc_audio_init(getenv("RUSH2049_AUDIO"), getenv("RUSH2049_DUMP_AUDIO"));
+    return 1;
 }
 
 void pc_audio_shutdown(void)
 {
     const PcAudioBackendOps *dev;
-    if (!g.inited)
-        return;
     lock();
+    g.closed = 1;
+    if (!g.inited) {
+        unlock();
+        return;
+    }
     if (g.stats.pushed_frames) {
         report("", NULL, g.stats.level_min, g.stats.level_max);
     }
@@ -634,10 +647,13 @@ void pc_audio_shutdown(void)
 
 void pc_audio_set_frequency(uint32_t hz)
 {
-    ensure_init();
-    if (!hz)
+    if (!ensure_init() || !hz)
         return;
     lock();
+    if (g.closed) {
+        unlock();
+        return;
+    }
     if (hz != g.src_rate) {
         flush_held();
         configure(hz);
@@ -649,8 +665,13 @@ void pc_audio_set_frequency(uint32_t hz)
 
 void pc_audio_push(const int16_t *samples, size_t stereo_frames)
 {
-    ensure_init();
+    if (!ensure_init())
+        return;
     lock();
+    if (g.closed) {
+        unlock();
+        return;
+    }
     if (!g.src_rate)
         configure(DEFAULT_RATE);
     null_drain();
@@ -715,7 +736,8 @@ void pc_audio_push(const int16_t *samples, size_t stereo_frames)
 size_t pc_audio_queued_frames(void)
 {
     size_t n;
-    ensure_init();
+    if (!ensure_init())
+        return 0;
     lock();
     null_drain();
     n = game_frames(g.count) + g.held_frames;
