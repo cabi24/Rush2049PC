@@ -175,7 +175,13 @@ class Unit:
         self.acc = []    # (func, sym, off, width, var, rw, line, via, index)
 
     def pointee(self, f, p):
-        t = self.T.from_str(f.decls.get(p, f.params.get(p, "")) or "")
+        s = f.decls.get(p) or f.params.get(p)
+        if not s:
+            # an SSA name of a declared pointer (`e_2` of `EmitA * e;`) has its variable's type: until 2026-10-28
+            # its fields were all taken for one place of unknown width, which hid two places written
+            m = ec._SSA.match(p)
+            s = (f.decls.get(m.group(1)) or f.params.get(m.group(1))) if m and m.group(1) else None
+        t = self.T.from_str(s or "")
         return canon_t(t[1]) if t and t[0] == "ptr" else None
 
     def beyond(self, sym, base, reach):
@@ -336,12 +342,24 @@ class Unit:
                 r = self.ref(f, derived, lhs)
                 if r:
                     self.acc.append((f.name, r[0], r[1], r[2], r[3], "W", line, r[4], r[5]))
+            # GIMPLE loads one memory reference per statement; an operator outside its brackets is arithmetic
+            # (inside them, `MEM[(s8 *)p_14 + 1600B]` is the reference's own offset: until 2026-10-28 such loads
+            # were taken for additions and not listed, which hid a read beside a write at another offset)
             load = not rhs.startswith(("&", "PHI", "(")) or rhs.startswith("(*")
-            if load and not re.search(r" [-+*/%&|^<>]=? | [<>]=? ", rhs) \
+            if load and not re.search(r" [-+*/%&|^<>]=? | [<>]=? ", bare(rhs)) \
                     and not re.match(r"^\w+ \(", rhs):
                 r = self.ref(f, derived, rhs)
                 if r:
                     self.acc.append((f.name, r[0], r[1], r[2], r[3], "R", line, r[4], r[5]))
+
+
+def bare(s):
+    """s with its brackets emptied: a MEM_REF's `[(s8 *)p_14 + 1600B]` is one operand, not an addition."""
+    while True:
+        t = re.sub(r"\[[^\[\]]*\]", "", s)
+        if t == s:
+            return t
+        s = t
 
 
 def var_names(chain):
