@@ -11,6 +11,7 @@
  * game: src/blob/func_800C9480.c src/blob/func_800F1D04.c src/blob/audio_channel_priority.c
  * game: src/blob/menu_confirm_dialog.c src/blob/groups/func_800F2888_grp/func_800F2888.c
  * game: src/blob/groups/menu_save_options/ctx_newghost.c src/blob/groups/MP_TargetSteerPos/group.c
+ * game: src/blob/groups/main_menu_input/main_menu_input.c src/blob/groups/main_menu_input/object_activate.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -388,8 +389,10 @@ int32_t func_80020174(uint16_t item, uint8_t channel, uint8_t value)
     return sfx_calls++, SFX_VOICE;
 }
 void func_80020518() { sfx_calls++; }
-void func_80091FBC() { sfx_calls++; }
-void func_8009211C() { sfx_calls++; }
+static void *list_last;   /* the list the last link or unlink was on */
+static int list_links, list_unlinks;
+void func_80091FBC(void *list) { list_last = list, list_links++, sfx_calls++; }
+void func_8009211C(void *list) { list_last = list, list_unlinks++, sfx_calls++; }
 #define SFX_AT 0x80310000u
 
 static void test_sound_requests(void)
@@ -455,6 +458,38 @@ static void test_sound_effect(void)
     CHECK(sfx_got.value[3] == 4095);                                /* 0.5 * 8192 - 1 */
 }
 
+/* The listener packets (docs/port/AUDIO.md 9): main_menu_render hands main_menu_input the car's position and the
+ * camera's vectors for its packet, and engine_sound_sync reads them as its listener; object_activate stops one. The
+ * packet (func_800D63EC's Packet) has two host-sized links, then a type and a posted byte, then the vectors. */
+typedef struct { void *next, *prev; uint8_t type, posted, pad[2]; float a[3], b[3], c[3], d[3]; } TestPacket;
+int __unit_dead[8];
+uint8_t D_80142728[24];
+struct { uint8_t indirect, doubly, pad[2]; uint32_t count; void *head, *tail; } D_80146170, D_80146188;
+int16_t D_8014A108;
+uint8_t D_8014A118[4 * 80];
+void main_menu_input(void *node, float *a, float *b, float *c, float *d);
+void object_activate(void *packet);
+
+static void test_listener_packet(void)
+{
+    static TestPacket p;
+    float pos[3] = {123.5f, -7.25f, 900.0f}, b[3] = {1, 2, 3}, right[3] = {0, 0, -1}, fwd[3] = {0.5f, 0, 0.5f};
+    void *link = &p;
+
+    p.next = link, p.prev = link, p.type = 0, p.posted = 1;
+    main_menu_input(&p, pos, b, right, fwd);
+    CHECK(p.next == link && p.prev == link && p.type == 0 && p.posted == 1);   /* the links and bytes intact */
+    CHECK(p.a[0] == 123.5f && p.a[1] == -7.25f && p.a[2] == 900.0f);         /* the listener's position */
+    CHECK(p.b[2] == 3 && p.c[2] == -1 && p.d[0] == 0.5f && p.d[2] == 0.5f);
+    list_links = list_unlinks = 0;
+    object_activate(&p);                       /* posted: off the listener list, onto the free list */
+    CHECK(list_unlinks == 1 && list_links == 1 && list_last == (void *)&D_80146170);
+    CHECK(p.posted == 0 && p.type == 1 && p.next == link && p.prev == link);
+    list_links = list_unlinks = 0;
+    object_activate(&p);                       /* not posted: only the free list */
+    CHECK(list_unlinks == 0 && list_links == 1);
+}
+
 /* pc_prelude.h's IDO conversions, on made-up values. */
 static void test_ido_f2u(void)
 {
@@ -508,6 +543,7 @@ int main(void)
     test_sound_requests();
     test_sound_effect();
     test_ido_f2u();
+    test_listener_packet();
     test_check_casts();
     return TEST_DONE();
 }

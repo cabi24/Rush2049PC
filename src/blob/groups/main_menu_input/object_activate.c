@@ -62,6 +62,15 @@ void func_8009211C(List *list, s32 *object);
 void func_80091FBC(List *list, s32 *object, Link *before);
 
 void func_800D52CC(s32 *arg0);
+#ifdef TARGET_PC
+/* PC: a listener packet's type and posted bytes follow its two host-sized links (func_800D63EC's Packet, the pool's
+ * RecA): +0x10 and +0x11, not +8 and +9, which are inside the back link (docs/port/AUDIO.md 9). */
+#define PACKET_TYPE 0x10
+#define PACKET_POSTED 0x11
+#else
+#define PACKET_TYPE 8
+#define PACKET_POSTED 9
+#endif
 
 __inline void object_activate(s32 *arg0)
 {
@@ -70,12 +79,12 @@ __inline void object_activate(s32 *arg0)
     }
     osRecvMesg(&D_80142728, 0, 1);
     func_800D52CC(arg0);
-    if (((s8 *)arg0)[9] != 0) {
+    if (((s8 *)arg0)[PACKET_POSTED] != 0) {
         func_8009211C(&D_80146188, arg0);
-        ((s8 *)arg0)[9] = 0;
+        ((s8 *)arg0)[PACKET_POSTED] = 0;
     }
     func_80091FBC(&D_80146170, arg0, D_80146170.head);
-    ((s8 *)arg0)[8] = 1;
+    ((s8 *)arg0)[PACKET_TYPE] = 1;
     osSendMesg(&D_80142728, 0, 0);
 }
 

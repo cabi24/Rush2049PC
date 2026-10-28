@@ -19,6 +19,20 @@
 typedef signed int s32;
 typedef float f32;
 
+#ifdef TARGET_PC
+/* PC: the node is a listener packet (func_800D63EC's Packet, which engine_sound_sync reads as its Listener): its
+ * two links are host pointers, so the vectors start at +0x14. With the N64 view the listener's position was the
+ * car's z and two zeros, every positioned sound (the other cars' engines among them) was out of range, and the
+ * first vector's write went over the packet's back link (docs/port/AUDIO.md 9). */
+typedef struct Node {
+    void *link[2];
+    s32 unk10;
+    f32 a[3];
+    f32 b[3];
+    f32 c[3];
+    f32 d[3];
+} Node;
+#else
 typedef struct Node {
     /* 0x00 */ s32 unk0[3];
     /* 0x0C */ f32 a[3];
@@ -26,6 +40,7 @@ typedef struct Node {
     /* 0x24 */ f32 c[3];
     /* 0x30 */ f32 d[3];
 } Node;
+#endif
 
 typedef struct OSMesgQueue OSMesgQueue;
 extern OSMesgQueue D_80142728;
