@@ -211,10 +211,14 @@ the game saves only to the controller pak.
   pak"); `-v` when one goes in or out, `-v -v` each motor change.
 - **On the retail cartridge** (the Pi, 2026-10-28, scripted, `--fast`): a two-player race with controller paks on
   controllers 1 and 2 reads both (each a new file, its own ID); with rumble paks on both, the game finds both
-  (osMotorInit on each port). In 30 s of a gas-held race neither motor went on, for player 1 as for player 2; the
-  synthetic race turns both on, and they reach both players' controllers (`rumble2p`, `input_live_drive`). What
-  makes the retail game rumble (a crash, a landing, the pause menu's rumble pak screen) is not yet tried. The pak
-  server's prompt port (`D_8011EAE8`) is -1 at start there, so it scans every port.
+  (osMotorInit on each port). In a minute of a gas-held race with crashes neither motor went on, for player 1 as
+  for player 2: func_800E56F8 sets each player's rumble request (`D_801440AD`, at the PC stride) from the impact,
+  scaled by the player's own rumble setting (its profile's byte 0x2B: 0 none, 1 weaker), and the scripted runs'
+  default player has it at 0. The synthetic race's data turns both motors on, and they reach both players'
+  controllers (`rumble2p`, `input_live_drive`). A retail run with a player whose rumble is on is not yet made. The
+  pak server's prompt port (`D_8011EAE8`) is -1 at start there, so it scans every port.
+- `func_800A13C4(index, value)`, a setter of the same request, still strides by the N64's 772 bytes; nothing calls
+  it, so it is left as it is (on the PC it would reach players 2-4's requests 12, 24, 36 bytes early).
 
 **Controller pak.**
 - `--pak PATH` (controller 1's; the others' are `game.pak2_file`...): default `rush2049pc.mpk`, created formatted
