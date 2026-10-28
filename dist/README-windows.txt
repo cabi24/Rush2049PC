@@ -6,10 +6,14 @@ game data: you need your own ROM of the cartridge. https://github.com/cabi24/Rus
 
 Playing
 -------
-1. Copy your ROM into this folder and name it baserom.us.z64. It must be San Francisco Rush 2049 (USA),
-   SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. .z64, .v64 and .n64 dumps all work; a .zip must be
-   extracted first.
-2. Double-click rush2049pc.exe. The game opens in its own window.
+1. Double-click rush2049pc.exe.
+2. The first time, it asks for your ROM: click Open ROM... and choose the file. It must be San Francisco
+   Rush 2049 (USA), SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. .z64, .v64 and .n64 dumps all work; a
+   .zip must be extracted first. If the file is not the right one, the program says what it is and lets you
+   choose another. It remembers the file (game.rom in rush2049pc.ini), so from then on a double-click starts
+   the game in its own window.
+
+Or copy your ROM into this folder as baserom.us.z64 before the first start: then it asks nothing.
 
 Or drag the ROM file onto rush2049pc.exe, whatever it is called and wherever it is. From a command prompt:
 rush2049pc.exe D:\roms\rush2049.z64 (or --rom PATH). rush2049pc.exe --help lists every option. The program
@@ -23,7 +27,7 @@ Where the program looks for the ROM, in this order:
   - otherwise baserom.us.z64 (or the name game.rom gives) in this folder, then in %APPDATA%\rush2049pc, then
     in the folder the program was started in.
 If there is no ROM, or the file is not the right one, a message box says where it looked, what the file is,
-and what is needed.
+and what is needed, with Open ROM... to choose the file.
 
 You need a graphics driver with OpenGL 3 (any GPU from the last ten years), on 64-bit Windows 10 or 11.
 
@@ -59,6 +63,8 @@ this folder:
   rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each,
                     commented out at its default (remove the ; to keep a value)
   rush2049pc.mpk    the saves (the game's controller pak)
+  rush2049pc.mpk.bak, .bak2, .bak3
+                    backups of the saves: the last three that a run started with (newest first)
   screenshots\      F12's pictures
   texture_cache\    upscaled textures kept for the next run (Textures: upscaled)
   rush2049pc.log    what the program printed last time (rush2049pc.old.log: the time before)
@@ -66,6 +72,11 @@ Without rush2049pc.ini next to it, the program keeps them in %APPDATA%\rush2049p
 
 The F1 overlay changes most settings while you play and can save them into rush2049pc.ini. To move to a new
 version, copy rush2049pc.mpk and rush2049pc.ini into its folder.
+
+The saves are written whole or not at all, so a crash or a power cut can't leave half a file. If
+rush2049pc.mpk is damaged when the program starts, it is not overwritten: it is renamed
+rush2049pc.mpk.corrupt-DATE, the newest good backup takes its place (or the game starts with an empty pak),
+and a message box says so.
 
 Picture
 -------
@@ -95,10 +106,14 @@ install, such as realesrgan-ncnn-vulkan, over the whole folder), put the results
 
 Troubleshooting
 ---------------
-- "no ROM": the ROM isn't where the program looked. Put it in this folder as baserom.us.z64, or drop it on
-  rush2049pc.exe.
+- "no ROM": the ROM isn't where the program looked. Click Open ROM... and choose it, put it in this folder as
+  baserom.us.z64, or drop it on rush2049pc.exe.
 - "wrong ROM": the message says what the file is: another game, another region (the port runs the USA
-  cartridge only), a bad or modified dump, or an archive to extract first.
+  cartridge only), a bad or modified dump, or an archive to extract first. Choose another... picks again.
+- If the ROM you chose has moved, the program asks again. A path with letters Windows' code page can't spell
+  (some non-Latin folder names) may not open: copy the ROM to a folder such as C:\Games and choose it there.
+- Saves gone after a crash or a full disk: close the program and copy rush2049pc.mpk.bak (or .bak2, .bak3)
+  over rush2049pc.mpk.
 - No window, or "no renderer": update the graphics driver; the game needs OpenGL 3.
 - A controller does nothing, or its stick doesn't steer: F1 > Controllers shows who plays each player and
   what the stick gives, live, and the log names each controller found and its player. A pad SDL doesn't know

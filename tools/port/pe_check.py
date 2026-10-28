@@ -5,7 +5,9 @@
   - the image base and ASLR the port relies on (WINDOWS.md 3): 0x140000000, high-entropy and dynamic base;
   - the icon: one icon group with 16 to 256 px images, each one there;
   - the version information: ProductName Rush2049PC, FileVersion and ProductVersion as git describe gave them
-    (the build's pc_version_rc.h), and the same numbers in the fixed part.
+    (the build's pc_version_rc.h), and the same numbers in the fixed part;
+  - with --dlls, the DLLs it imports: only Windows' own, the list in docs/port/RELEASE.md (the release build: SDL2,
+    zlib and the runtime linked statically; the "Open ROM..." dialog is ole32's, which SDL2 imports already).
 
 Pure Python, so it runs where the program was built, a Linux host cross-compiling included:
 
@@ -17,6 +19,9 @@ import struct
 import sys
 
 RT_ICON, RT_GROUP_ICON, RT_VERSION = 3, 14, 16
+# Windows' own DLLs, which every Windows 10 and 11 has: what the release's rush2049pc.exe may import
+SYSTEM_DLLS = {"advapi32.dll", "gdi32.dll", "imm32.dll", "kernel32.dll", "msvcrt.dll", "ole32.dll", "oleaut32.dll",
+               "opengl32.dll", "setupapi.dll", "shell32.dll", "user32.dll", "version.dll", "winmm.dll"}
 SIZES = {16, 20, 24, 32, 40, 48, 64, 128, 256}
 
 
@@ -34,6 +39,7 @@ class PE:
             raise SystemExit("pe_check: not PE32+ (64-bit)")
         self.image_base = struct.unpack_from("<Q", data, opt + 24)[0]
         self.subsystem, self.dll_chars = struct.unpack_from("<HH", data, opt + 68)
+        self.import_rva = struct.unpack_from("<I", data, opt + 112 + 1 * 8)[0]
         self.rsrc_rva, self.rsrc_size = struct.unpack_from("<II", data, opt + 112 + 2 * 8)
         self.sections = []
         for i in range(nsec):
@@ -46,6 +52,19 @@ class PE:
             if va <= rva < va + size:
                 return raw + rva - va
         raise SystemExit(f"pe_check: RVA 0x{rva:x} is in no section")
+
+    def imports(self):
+        """The names of the DLLs in the import directory, in order."""
+        names = []
+        at = self.offset(self.import_rva) if self.import_rva else None
+        while at is not None:
+            name_rva = struct.unpack_from("<I", self.data, at + 12)[0]
+            if not name_rva:
+                break
+            o = self.offset(name_rva)
+            names.append(self.data[o:self.data.index(b"\0", o)].decode("ascii", "replace"))
+            at += 20
+        return names
 
     def resources(self):
         """{type: {name: data}} (the first language of each)."""
@@ -101,6 +120,8 @@ def main():
     ap.add_argument("--exe", required=True)
     ap.add_argument("--version-file", required=True, help="the build's pc_version_rc.h")
     ap.add_argument("--console", action="store_true", help="a console build (RUSH_WINDOWS_CONSOLE)")
+    ap.add_argument("--dlls", action="store_true", help="only Windows' own DLLs imported (SDL2 built here and linked "
+                    "statically, as the release is)")
     a = ap.parse_args()
     pe = PE(open(a.exe, "rb").read())
     header = open(a.version_file).read()
@@ -153,6 +174,11 @@ def main():
         got = [ms >> 16, ms & 0xFFFF, ls >> 16, ls & 0xFFFF]
         if got != want_num:
             bad.append(f"file version {got}, expected {want_num}")
+
+    dlls = pe.imports()
+    print(f"pe_check: imports {', '.join(dlls)}")
+    if a.dlls:
+        bad += [f"imports {d}, not one of Windows' own DLLs" for d in dlls if d.lower() not in SYSTEM_DLLS]
 
     print(f"pe_check: subsystem {pe.subsystem}, image base 0x{pe.image_base:x}, DLL characteristics "
           f"0x{pe.dll_chars:x}")
