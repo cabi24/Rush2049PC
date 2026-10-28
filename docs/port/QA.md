@@ -27,7 +27,7 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | 2, 3 and 4 players | 2: practice and battle; 3 and 4: the mode screen offers stunt and battle only, the stunt arena in three and four views | run |
 | battle arenas | two players in the arenas 7-9 (6 in the bring-up; the four unlocked from the start) | run |
 | stunt arena | one player, the first arena, 50 s of driving | runs |
-| stunt round to its end | MINUTES set to 1 on the track select, gas and steering until the time is up | the round never ended (fix 4); now the scoreboard, the game over screen and Quit |
+| stunt round to its end | one and two players, MINUTES set to 1 on the track select, gas and steering until the time is up | the round never ended (fix 4); now the scoreboard (both players ranked), the game over screen and Quit |
 | track select | every option row, wrap-around | as the code says (TRACK, LAPS, BACKWARD, MIRROR, FOG, WIND, DRONES, DIFFICULTY, DEATHS) |
 | main menu screens | records (with and without a pak: totals pages), options (every HUD toggle row, wrap-around) | as the code says |
 | cheats | the main menu's code, the cheat screen, two cheats' codes, the unlock cheat, then a race on a track it unlocks | works after fixes 1 and 2 |
