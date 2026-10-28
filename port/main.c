@@ -60,7 +60,7 @@ static void usage(FILE *f)
             "                      folder: next to the program when rush2049pc.ini is there, else the user data\n"
             "                      folder; it also holds screenshots/ and rush2049pc.log)\n"
             "  --no-pak            no accessory; --rumble: a rumble pak instead\n"
-            "  --expansion-pak     report 8 MiB of RDRAM (default 4 MiB: no Expansion Pak)\n"
+            "  --expansion-pak     report 8 MiB of RDRAM, the Expansion Pak (the default; game.expansion_pak=off: 4 MiB)\n"
             "  --audio BACKEND     auto (default), sdl, alsa, null or wav (port/audio)\n"
             "  --dump-audio PATH   also write everything the game plays to a WAV file\n"
             "  --config PATH       read this settings file instead (it is not created); --no-config: none\n"

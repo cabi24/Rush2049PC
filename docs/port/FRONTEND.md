@@ -176,7 +176,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 |---|---|---|---|
 | `game.rom` | `baserom.us.z64` | `--rom`, a path alone | the ROM: a full path, or a name looked for next to the program, in the user data folder, then in the working directory ([RELEASE.md](RELEASE.md) "The ROM") |
 | `game.rom_check` | on | `--no-rom-check` | refuse a ROM whose SHA-1 isn't the USA ROM's |
-| `game.expansion_pak` | off | `--expansion-pak` | 8 MiB of RDRAM |
+| `game.expansion_pak` | on | `--expansion-pak` | 8 MiB of RDRAM (off: 4 MiB) |
 | `game.pak` | memory | `--no-pak`, `--rumble`, `--pak` | controller 1's accessory: memory, rumble, none |
 | `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image; a name alone is in the data folder (RELEASE.md "Files"), `--pak` from the working directory |
 | `video.width`, `video.height` | auto | `--size WxH` | window size in pixels; auto: two thirds of the desktop at the picture's aspect (headless: 320 × 240) |
