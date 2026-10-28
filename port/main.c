@@ -52,6 +52,8 @@ static void usage(FILE *f)
             "  --press T:BUTTON[@PORT][:DUR],...   scripted input (v5's format; T, DUR in seconds)\n"
             "  --press-file PATH   a .press input script\n"
             "  --log-input         print every change of a player's buttons and stick\n"
+            "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
+            "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
             "                      folder: next to the program when rush2049pc.ini is there, else the user data\n"
             "                      folder; it also holds screenshots/ and rush2049pc.log)\n"
@@ -129,7 +131,8 @@ static uint32_t game_state(void)
 }
 
 /* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
- * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second),
+ * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second;
+ * and its steering input, -1..1),
  * so a scripted run shows which path it took and whether the car moved. */
 extern int16_t active_player_count, gNumWindows;
 extern int32_t gameplay_mode;
@@ -145,12 +148,13 @@ static void game_info(char *out, size_t size)
     if (exact < 0)
         exact = getenv("RUSH_STATE_EXACT") != NULL;
     const volatile float *v = (const volatile float *)(D_8014A250 + 0x220), *r = v + 3;
+    const volatile float *steer = (const volatile float *)(D_8014A250 + 0x720);   /* its controls: steer -1..1 */
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
     snprintf(out, size, exact ? "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %a %a %a, "
-             "speed %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f %.0f, "
-             "speed %.0f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
+             "speed %a, steer %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f "
+             "%.0f, speed %.0f, steer %.2f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
              *(volatile int8_t *)&D_80152744, (int)*(volatile int32_t *)&gameplay_mode, *(volatile int8_t *)&D_8014978C,
-             (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed);
+             (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed, (double)*steer);
 }
 
 /* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
@@ -284,6 +288,10 @@ static int rush_main(int argc, char **argv)
                 return 2;
         } else if (!strcmp(a, "--log-input"))
             pc_input_log = 1;
+        else if (!strcmp(a, "--press-via")) {
+            if (pc_input_set_via(ARG()) != 0)
+                return 2;
+        }
         else if (!strcmp(a, "--pak")) {
             SET("game", "pak", "memory");
             SET("game", "pak_file", ARG());

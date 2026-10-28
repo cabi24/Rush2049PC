@@ -27,16 +27,18 @@ You need a graphics driver with OpenGL 3 (any GPU from the last ten years), on 6
 
 Controls
 --------
-  N64               Keyboard          Controller (Xbox layout)
-  Stick             arrow keys        left stick
-  A (accelerate)    X                 A, right trigger
-  B (brake)         C                 X, left trigger
-  Z                 Z                 left shoulder (LB)
-  L                 Q                 Back (View)
-  R                 E                 right shoulder (RB)
-  START             Enter             Start (Menu)
-  C buttons         I J K L           right stick, or Y (C-up) and B (C-down)
-  D-pad             W A S D           D-pad
+  N64               Keyboard          Xbox                      PlayStation
+  Stick             arrow keys        left stick                left stick
+  A (accelerate)    X                 A, right trigger (RT)     Cross, R2
+  B (brake)         C                 X, left trigger (LT)      Square, L2
+  Z                 Z                 LB                        L1
+  L                 Q                 Back (View)               Share (Create)
+  R                 E                 RB                        R1
+  START             Enter             Start (Menu)              Options
+  C buttons         I J K L           right stick; Y C-up, B C-down  right stick; Triangle, Circle
+  D-pad             W A S D           D-pad                     D-pad
+  Other pads: the button in the same place. F1 > Controllers rebinds every button, and sets the stick's dead
+  zone and sensitivity.
 
   F1                settings overlay (both stick clicks on a controller): video, sound, key and button mapping
   Alt+Enter, F11    fullscreen
@@ -80,6 +82,10 @@ Troubleshooting
 - "wrong ROM": the message says what the file is: another game, another region (the port runs the USA
   cartridge only), a bad or modified dump, or an archive to extract first.
 - No window, or "no renderer": update the graphics driver; the game needs OpenGL 3.
+- A controller does nothing, or its stick doesn't steer: F1 > Controllers shows who plays each player and
+  what the stick gives, live, and the log names each controller found and its player. A pad SDL doesn't know
+  gets a generic mapping and takes a player at its first button press: rebind it in F1 > Controllers, or put
+  SDL's gamecontrollerdb.txt (with a line for it) in this folder. Xbox pads go through XInput.
 - The log: everything the console shows is also written to rush2049pc.log, in this folder (or in
   %APPDATA%\rush2049pc without rush2049pc.ini: type that into Explorer's address bar). The console's first
   line says where. The run before is kept as rush2049pc.old.log.

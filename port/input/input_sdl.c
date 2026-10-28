@@ -29,6 +29,7 @@
 #ifdef PC_HAVE_SDL2
 
 #include <SDL.h>
+#include <math.h>
 #include <sys/stat.h>
 #include <time.h>
 
@@ -80,6 +81,10 @@ static struct {
     int nav_dir;                       /* the overlay: a held direction (PC_MENU_UP...), -1 for none */
     uint64_t nav_next;                 /* when it repeats */
     int stick_dir[2];                  /* where the left stick's x and y were last pushed, -1 for the middle */
+    SDL_JoystickID skipped[16];        /* joysticks not used (no stick or buttons), said once */
+    SDL_JoystickID generic[16];        /* joysticks given the generic mapping */
+    Slot pending[8];                   /* generic ones waiting for their first button press */
+    int nskipped, ngeneric, npending, waiting_said;
 } L;
 
 /* ---------------------------------------------------------------- binding names */
@@ -219,7 +224,7 @@ static void configure(const PcSettings *s)
     L.analog = s->analog;
     L.pause_on_focus = s->pause_on_focus_loss;
     L.threshold = s->axis_threshold;
-    L.shape = (PcStickShape){s->deadzone, s->stick_range, s->stick_diagonal};
+    L.shape = (PcStickShape){s->deadzone, s->stick_range, s->stick_diagonal, s->sensitivity};
     snprintf(L.shot_dir, sizeof L.shot_dir, "%s", s->screenshot_dir);
     for (int c = 0; c < PC_NUM_CONTROLS; c++) {
         parse_list(s->key[c], "keyboard", pc_control_names[c], add_key, c, &L.nkeys[c]);
@@ -232,37 +237,181 @@ static void configure(const PcSettings *s)
 
 /* ---------------------------------------------------------------- controllers */
 
+/* A joystick SDL has no GameController mapping for (a DirectInput pad, an N64-style USB pad, a wheel) gets a
+ * generic one, so that it plays instead of being passed over: the first two axes are the stick, the next two the
+ * right stick, the first hat the D-pad, and the buttons in XInput's order (a b x y, the shoulders, back, start,
+ * the stick clicks), then guide and the extras, so every button can be bound in the overlay. Two more axes are
+ * the triggers from their middle up, so an axis that rests in the middle reads released. A line for the pad in
+ * gamecontrollerdb.txt (next to rush2049pc.ini) is used instead. Only for something with a stick or a hat, and
+ * buttons. Returns 1 when it made one. */
+static int generic_mapping(int index)
+{
+    static const char *const buttons[] = {"a", "b", "x", "y", "leftshoulder", "rightshoulder", "back", "start",
+                                          "leftstick", "rightstick", "guide", "misc1", "paddle1", "paddle2",
+                                          "paddle3", "paddle4", "touchpad"};
+    static const char *const axes[] = {"leftx", "lefty", "rightx", "righty", "lefttrigger:+", "righttrigger:+"};
+    char map[1024], guid[64], name[128];
+    SDL_Joystick *j = SDL_JoystickOpen(index);
+    if (!j)
+        return 0;
+    int na = SDL_JoystickNumAxes(j), nb = SDL_JoystickNumButtons(j), nh = SDL_JoystickNumHats(j);
+    SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(j), guid, sizeof guid);
+    snprintf(name, sizeof name, "%s", SDL_JoystickName(j) ? SDL_JoystickName(j) : "joystick");
+    SDL_JoystickClose(j);
+    for (char *c = name; *c; c++)
+        if (*c == ',')
+            *c = ' ';
+    if ((na < 2 && nh < 1) || nb < 1) {
+        fprintf(stderr, "rush2049pc: joystick '%s' (%d axes, %d buttons, %d hats) is not used: no stick or no buttons\n",
+                name, na, nb, nh);
+        return 0;
+    }
+    size_t n = (size_t)snprintf(map, sizeof map, "%s,%s,", guid, name);
+    for (int b = 0; b < nb && b < (int)(sizeof buttons / sizeof *buttons); b++)
+        n += (size_t)snprintf(map + n, sizeof map - n, "%s:b%d,", buttons[b], b);
+    for (int a = 0; a < na && a < (int)(sizeof axes / sizeof *axes); a++) {
+        const char *colon = strchr(axes[a], ':');
+        if (colon)   /* "lefttrigger:+" -> lefttrigger:+a4 */
+            n += (size_t)snprintf(map + n, sizeof map - n, "%.*s:+a%d,", (int)(colon - axes[a]), axes[a], a);
+        else
+            n += (size_t)snprintf(map + n, sizeof map - n, "%s:a%d,", axes[a], a);
+    }
+    if (nh > 0)
+        snprintf(map + n, sizeof map - n, "dpup:h0.1,dpright:h0.2,dpdown:h0.4,dpleft:h0.8,");
+    if (SDL_GameControllerAddMapping(map) < 0) {
+        fprintf(stderr, "rush2049pc: joystick '%s': no generic mapping: %s\n", name, SDL_GetError());
+        return 0;
+    }
+    fprintf(stderr,
+            "rush2049pc: joystick '%s' (%s; %d axes, %d buttons, %d hats) has no SDL controller mapping: a generic "
+            "one (axes 1-2 the stick, hat 1 the D-pad, buttons in order); gamecontrollerdb.txt next to rush2049pc.ini "
+            "can give it its own\n", name, guid, na, nb, nh);
+    return 1;
+}
+
+static const char *pad_type(SDL_GameController *gc)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+    switch (SDL_GameControllerGetType(gc)) {
+    case SDL_CONTROLLER_TYPE_XBOX360: return "Xbox 360";
+    case SDL_CONTROLLER_TYPE_XBOXONE: return "Xbox One";
+    case SDL_CONTROLLER_TYPE_PS3: return "PS3";
+    case SDL_CONTROLLER_TYPE_PS4: return "PS4";
+    case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO: return "Switch Pro";
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    case SDL_CONTROLLER_TYPE_PS5: return "PS5";
+    case SDL_CONTROLLER_TYPE_VIRTUAL: return "virtual";
+#endif
+    default: break;
+    }
+#endif
+    return "other";
+}
+
+static int in_list(const SDL_JoystickID *list, int n, SDL_JoystickID id)
+{
+    for (int k = 0; k < n; k++)
+        if (list[k] == id)
+            return 1;
+    return 0;
+}
+
+static void take_player(int p, SDL_GameController *gc, SDL_JoystickID id, int generic)
+{
+    char guid[64];
+    SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(SDL_GameControllerGetJoystick(gc)), guid, sizeof guid);
+    L.slot[p] = (Slot){.gc = gc, .id = id};
+    L.waiting_said = 0;
+    SDL_GameControllerSetPlayerIndex(gc, p);
+    fprintf(stderr, "rush2049pc: controller '%s' (%s, %s mapping, GUID %s) -> player %d%s\n",
+            SDL_GameControllerName(gc), pad_type(gc), generic ? "generic" : "SDL", guid, p + 1,
+            L.analog == PC_CFG_STICK_NONE ? "; its sticks are not the N64 stick (controller.analog = none)" : "");
+}
+
+static int free_player(void)
+{
+    int p;
+    for (p = L.first_port; p < 4 && L.slot[p].gc; p++)
+        ;
+    return p;
+}
+
+/* Each controller takes the first free player from first_controller_player up, in the order they are found; a
+ * joystick without a mapping gets the generic one, and takes a player only at its first button press, since it
+ * may be something other than a pad (a phantom device would otherwise hold player 1). Each is logged with its
+ * name, kind, mapping, GUID and player. */
 static void assign_pads(void)
 {
     for (int i = 0; i < SDL_NumJoysticks(); i++) {
-        if (!SDL_IsGameController(i))
-            continue;
         SDL_JoystickID id = SDL_JoystickGetDeviceInstanceID(i);
-        int p, taken = 0;
+        int p, taken = 0, generic = in_list(L.generic, L.ngeneric, id);
         for (p = 0; p < 4; p++)
             taken |= L.slot[p].gc && L.slot[p].id == id;
-        if (taken)
+        for (int k = 0; k < L.npending; k++)
+            taken |= L.pending[k].id == id;
+        if (taken || in_list(L.skipped, L.nskipped, id))
             continue;
-        for (p = L.first_port; p < 4 && L.slot[p].gc; p++)
-            ;
-        if (p == 4)
+        if (!SDL_IsGameController(i)) {
+            int room = L.nskipped < (int)(sizeof L.skipped / sizeof *L.skipped) &&
+                       L.ngeneric < (int)(sizeof L.generic / sizeof *L.generic);
+            if (!room || !generic_mapping(i) || !SDL_IsGameController(i)) {
+                if (L.nskipped < (int)(sizeof L.skipped / sizeof *L.skipped))
+                    L.skipped[L.nskipped++] = id;   /* said once */
+                continue;
+            }
+            L.generic[L.ngeneric++] = id;
+            generic = 1;
+        }
+        if (generic && L.npending == (int)(sizeof L.pending / sizeof *L.pending))
+            continue;
+        p = free_player();
+        if (p == 4 && !generic) {
+            if (!L.waiting_said)
+                fprintf(stderr, "rush2049pc: controller '%s' waits: players %d-4 each have one\n",
+                        SDL_GameControllerNameForIndex(i), L.first_port + 1);
+            L.waiting_said = 1;
             return;   /* every player has one: it waits until one is unplugged */
+        }
         SDL_GameController *gc = SDL_GameControllerOpen(i);
         if (!gc) {
             fprintf(stderr, "rush2049pc: controller %d: %s\n", i, SDL_GetError());
             continue;
         }
-        L.slot[p] = (Slot){.gc = gc, .id = id};
-        SDL_GameControllerSetPlayerIndex(gc, p);
-        fprintf(stderr, "rush2049pc: controller -> player %d: %s\n", p + 1, SDL_GameControllerName(gc));
+        if (generic) {
+            L.pending[L.npending++] = (Slot){.gc = gc, .id = id};
+            fprintf(stderr, "rush2049pc: controller '%s' takes a player at its first button press\n",
+                    SDL_GameControllerName(gc));
+        } else {
+            take_player(p, gc, id, 0);
+        }
+    }
+}
+
+/* A generic-mapped pad with a button down takes the first free player (before the pads are read, so that press
+ * counts). */
+static void claim_pending(void)
+{
+    for (int k = 0; k < L.npending; k++) {
+        int down = 0, p = free_player();
+        for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX && !down; b++)
+            down = SDL_GameControllerGetButton(L.pending[k].gc, (SDL_GameControllerButton)b);
+        if (!down || p == 4)
+            continue;
+        take_player(p, L.pending[k].gc, L.pending[k].id, 1);
+        L.pending[k--] = L.pending[--L.npending];
     }
 }
 
 static void remove_pad(SDL_JoystickID id)
 {
+    for (int k = 0; k < L.npending; k++)
+        if (L.pending[k].id == id) {
+            SDL_GameControllerClose(L.pending[k].gc);
+            L.pending[k--] = L.pending[--L.npending];
+        }
     for (int p = 0; p < 4; p++)
         if (L.slot[p].gc && L.slot[p].id == id) {
-            fprintf(stderr, "rush2049pc: controller left player %d\n", p + 1);
+            fprintf(stderr, "rush2049pc: controller '%s' left player %d\n", SDL_GameControllerName(L.slot[p].gc), p + 1);
             SDL_GameControllerClose(L.slot[p].gc);
             memset(&L.slot[p], 0, sizeof L.slot[p]);
         }
@@ -340,20 +489,22 @@ static void unmute(Slot *slot)
 
 static void set_title(void)
 {
-    SDL_SetWindowTitle(L.win, L.paused_focus || L.paused_key || pc_menu_is_open()
-                                  ? "San Francisco Rush 2049 (paused)"
-                                  : "San Francisco Rush 2049");
+    if (L.win)
+        SDL_SetWindowTitle(L.win, L.paused_focus || L.paused_key || pc_menu_is_open()
+                                      ? "San Francisco Rush 2049 (paused)"
+                                      : "San Francisco Rush 2049");
 }
 
 static void set_fullscreen(int on)
 {
-    if (SDL_SetWindowFullscreen(L.win, on ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0)
+    if (L.win && SDL_SetWindowFullscreen(L.win, on ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0)
         fprintf(stderr, "rush2049pc: fullscreen: %s\n", SDL_GetError());
 }
 
 static void toggle_fullscreen(void)
 {
-    set_fullscreen(!(SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN));
+    if (L.win)
+        set_fullscreen(!(SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN));
 }
 
 static void screenshot(void)
@@ -619,14 +770,236 @@ int pc_input_live_event(const void *event)
         }
         break;
     case SDL_CONTROLLERDEVICEADDED:
+    case SDL_JOYDEVICEADDED:   /* a joystick without a mapping gets no controller event */
         assign_pads();
         break;
     case SDL_CONTROLLERDEVICEREMOVED:
         remove_pad(e->cdevice.which);
         assign_pads();   /* a waiting controller takes the free player */
         break;
+    case SDL_JOYDEVICEREMOVED:
+        remove_pad(e->jdevice.which);
+        assign_pads();
+        break;
     }
     return 0;
+}
+
+/* ---------------------------------------------------------------- the scripts through SDL (--press-via) */
+
+/* --press-via controller|joystick|keyboard[:SECONDS] (tests, docs/port/FRONTEND.md): the press scripts go the way
+ * live input does instead of into the pads.
+ * - controller: an SDL virtual GameController for each port the scripts use; joystick: a virtual joystick SDL
+ *   has no mapping for, which gets the generic one. Both are plugged in at SECONDS on the N64 clock: 0 (the
+ *   default) before input starts, so they are found at start; later, as a hot-plug. Each N64 control the script
+ *   holds presses the first input bound to it; the script's stick tilts the controller.analog stick by the same
+ *   share of its travel (80 is full tilt), or presses the STICK_* bindings with analog = none; MENU holds the
+ *   parts of the first controller.menu. The joystick state goes in with SDL_JoystickUpdate before the pads are
+ *   read, as a device's report would have.
+ * - keyboard: key events for the first key bound to each control, for the keyboard's player, handled before the
+ *   pads are read; MENU is the menu hotkey's first key. */
+static const char *const generic_buttons[] = {"a", "b", "x", "y", "leftshoulder", "rightshoulder", "back", "start",
+                                              "leftstick", "rightstick", "guide", "misc1", "paddle1", "paddle2",
+                                              "paddle3", "paddle4", "touchpad"};
+#define VIA_BUTTONS (int)(sizeof generic_buttons / sizeof *generic_buttons)
+
+static struct {
+    int kind;                      /* PC_VIA_* */
+    double at;
+    int nports, attached, warned;
+    SDL_Joystick *joy[4];
+    Uint16 rumble[4][2];
+    uint8_t key[SDL_NUM_SCANCODES];   /* keys the script holds */
+} V;
+
+void pc_input_live_via_setup(int kind, double at, int nports)
+{
+    V.kind = kind;
+    V.at = at;
+    V.nports = nports < 1 ? 1 : nports > 4 ? 4 : nports;
+}
+
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+static int SDLCALL via_rumble(void *user, Uint16 low, Uint16 high)
+{
+    int i = (int)(intptr_t)user;
+    if (V.rumble[i][0] != low || V.rumble[i][1] != high)
+        fprintf(stderr, "rush2049pc: virtual controller %d rumble %u %u\n", i + 1, low, high);
+    V.rumble[i][0] = low, V.rumble[i][1] = high;
+    return 0;
+}
+#endif
+
+static void via_attach(void)
+{
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+    static char names[4][48];   /* SDL keeps the pointer */
+    for (int i = V.attached; i < V.nports; i++) {
+        char *name = names[i];
+        SDL_VirtualJoystickDesc d;
+        SDL_zero(d);
+        snprintf(name, sizeof names[i], "rush2049pc virtual %s %d",
+                 V.kind == PC_VIA_JOYSTICK ? "joystick" : "controller", i + 1);
+        d.version = SDL_VIRTUAL_JOYSTICK_DESC_VERSION;
+        d.type = V.kind == PC_VIA_JOYSTICK ? SDL_JOYSTICK_TYPE_UNKNOWN : SDL_JOYSTICK_TYPE_GAMECONTROLLER;
+        d.naxes = SDL_CONTROLLER_AXIS_MAX;
+        d.nbuttons = V.kind == PC_VIA_JOYSTICK ? VIA_BUTTONS : SDL_CONTROLLER_BUTTON_MAX;
+        d.nhats = V.kind == PC_VIA_JOYSTICK;
+        d.name = name;
+        d.userdata = (void *)(intptr_t)i;
+        d.Rumble = via_rumble;
+        int index = SDL_JoystickAttachVirtualEx(&d);
+        if (index < 0 || !(V.joy[i] = SDL_JoystickOpen(index))) {
+            fprintf(stderr, "rush2049pc: --press-via: no virtual %s: %s\n", name, SDL_GetError());
+            break;
+        }
+        for (int a = SDL_CONTROLLER_AXIS_TRIGGERLEFT; a < SDL_CONTROLLER_AXIS_MAX && V.kind == PC_VIA_CONTROLLER; a++)
+            SDL_JoystickSetVirtualAxis(V.joy[i], a, SDL_JOYSTICK_AXIS_MIN);   /* a released trigger */
+        V.attached = i + 1;
+    }
+    SDL_JoystickUpdate();
+#else
+    fprintf(stderr, "rush2049pc: --press-via needs SDL 2.24 or later for virtual joysticks\n");
+    V.attached = V.nports;
+#endif
+}
+
+/* One input pressed: a button, an axis at full travel its way, or a trigger pulled. */
+static void via_press(const PadSource *s, Uint8 *buttons, Sint16 *axes, Uint8 *hat)
+{
+    if (s->axis) {
+        axes[s->id] = s->id >= SDL_CONTROLLER_AXIS_TRIGGERLEFT || s->sign > 0 ? 32767 : -32767;
+        return;
+    }
+    if (V.kind == PC_VIA_CONTROLLER) {
+        buttons[s->id] = 1;
+        return;
+    }
+    switch (s->id) {   /* the generic mapping: the D-pad is hat 1, the buttons in generic_buttons' order */
+    case SDL_CONTROLLER_BUTTON_DPAD_UP: *hat |= SDL_HAT_UP; return;
+    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: *hat |= SDL_HAT_RIGHT; return;
+    case SDL_CONTROLLER_BUTTON_DPAD_DOWN: *hat |= SDL_HAT_DOWN; return;
+    case SDL_CONTROLLER_BUTTON_DPAD_LEFT: *hat |= SDL_HAT_LEFT; return;
+    }
+    for (int b = 0; b < VIA_BUTTONS; b++)
+        if (!strcmp(generic_buttons[b], SDL_GameControllerGetStringForButton((SDL_GameControllerButton)s->id)))
+            buttons[b] = 1;
+}
+
+static Sint16 via_tilt(int v)
+{
+    long n = lround(v * 32767.0 / 80);
+    return (Sint16)(n > 32767 ? 32767 : n < -32767 ? -32767 : n);
+}
+
+static void via_pad(int i, const PcPad *p, int menu)
+{
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+    Uint8 buttons[SDL_CONTROLLER_BUTTON_MAX > VIA_BUTTONS ? SDL_CONTROLLER_BUTTON_MAX : VIA_BUTTONS] = {0}, hat = 0;
+    Sint16 axes[SDL_CONTROLLER_AXIS_MAX] = {0};
+    int nb = V.kind == PC_VIA_JOYSTICK ? VIA_BUTTONS : SDL_CONTROLLER_BUTTON_MAX;
+    if (V.kind == PC_VIA_CONTROLLER)
+        axes[SDL_CONTROLLER_AXIS_TRIGGERLEFT] = axes[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] = SDL_JOYSTICK_AXIS_MIN;
+    if (!V.joy[i])
+        return;
+    if (L.analog != PC_CFG_STICK_NONE) {
+        int ox = L.analog == PC_CFG_STICK_LEFT ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX;
+        axes[ox] = via_tilt(p->stick_x);
+        axes[ox + 1] = via_tilt(-p->stick_y);   /* SDL's +y is down */
+    } else {
+        int dir[4] = {p->stick_y > 0, p->stick_y < 0, p->stick_x < 0, p->stick_x > 0};   /* STICK_UP... */
+        for (int d = 0; d < 4; d++)
+            if (dir[d] && L.npads[PC_CTL_STICK_UP + d])
+                via_press(&L.pads[PC_CTL_STICK_UP + d][0], buttons, axes, &hat);
+    }
+    for (int c = 0; c < PC_NUM_CONTROLS; c++)
+        if ((p->buttons & pc_control_masks[c]) && pc_control_masks[c] && L.npads[c])
+            via_press(&L.pads[c][0], buttons, axes, &hat);
+    for (int k = 0; menu && L.nmenu_pad && k < L.menu_pad[0].n; k++)
+        via_press(&L.menu_pad[0].part[k], buttons, axes, &hat);
+    for (int b = 0; b < nb; b++)
+        SDL_JoystickSetVirtualButton(V.joy[i], b, buttons[b]);
+    for (int a = 0; a < SDL_CONTROLLER_AXIS_MAX; a++)
+        SDL_JoystickSetVirtualAxis(V.joy[i], a, axes[a]);
+    if (V.kind == PC_VIA_JOYSTICK)
+        SDL_JoystickSetVirtualHat(V.joy[i], 0, hat);
+#endif
+}
+
+static void via_key(SDL_Scancode sc, int down)
+{
+    if (V.key[sc] == down)
+        return;
+    SDL_Event e;
+    SDL_zero(e);
+    e.type = down ? SDL_KEYDOWN : SDL_KEYUP;
+    e.key.state = down ? SDL_PRESSED : SDL_RELEASED;
+    e.key.windowID = L.win ? SDL_GetWindowID(L.win) : 0;
+    e.key.keysym.scancode = sc;
+    e.key.keysym.sym = SDL_GetKeyFromScancode(sc);
+    SDL_PushEvent(&e);
+    V.key[sc] = (uint8_t)down;
+}
+
+static void via_keys(const PcPad pads[4], int menu)
+{
+    uint8_t want[SDL_NUM_SCANCODES] = {0};
+    for (int port = 0; port < 4; port++) {
+        const PcPad *p = &pads[port];
+        if (port == L.kb_port || (!p->buttons && !p->stick_x && !p->stick_y) || V.warned)
+            continue;
+        fprintf(stderr, "rush2049pc: --press-via keyboard: player %d is not the keyboard's; its presses are not sent\n",
+                port + 1);
+        V.warned = 1;
+    }
+    if (L.kb_port >= 0 && L.kb_port < 4) {
+        const PcPad *p = &pads[L.kb_port];
+        int dir[4] = {p->stick_y > 0, p->stick_y < 0, p->stick_x < 0, p->stick_x > 0};
+        for (int c = 0; c < PC_NUM_CONTROLS; c++) {
+            int on = c >= PC_CTL_STICK_UP ? dir[c - PC_CTL_STICK_UP] : (p->buttons & pc_control_masks[c]) != 0;
+            if (on && L.nkeys[c])
+                want[L.keys[c][0]] = 1;
+        }
+    }
+    if (menu && L.nhot[PC_HOTKEY_MENU])
+        want[L.hot[PC_HOTKEY_MENU][0]] = 1;
+    for (int sc = 0; sc < SDL_NUM_SCANCODES; sc++)
+        via_key((SDL_Scancode)sc, want[sc]);
+    SDL_Event e;   /* handled now, as port/gfx's event loop would at the next retrace */
+    while (SDL_PeepEvents(&e, 1, SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYUP) > 0)
+        pc_input_live_event(&e);
+}
+
+int pc_input_live_via(const PcPad script[4], int menu, double now)
+{
+    if (!L.on || V.kind == PC_VIA_PADS)
+        return -1;
+    if (V.kind == PC_VIA_KEYBOARD) {
+        via_keys(script, menu);
+        return 0;
+    }
+    if (V.attached < V.nports && now >= V.at)
+        via_attach();
+    for (int i = 0; i < V.attached; i++)
+        via_pad(i, &script[i], menu && i == 0);
+    SDL_JoystickUpdate();
+    return 0;
+}
+
+static void via_detach(void)
+{
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+    for (int i = 0; i < V.attached; i++)
+        if (V.joy[i]) {
+            SDL_JoystickID id = SDL_JoystickInstanceID(V.joy[i]);
+            SDL_JoystickClose(V.joy[i]);
+            for (int k = 0; k < SDL_NumJoysticks(); k++)
+                if (SDL_JoystickGetDeviceInstanceID(k) == id)
+                    SDL_JoystickDetachVirtual(k);
+            V.joy[i] = NULL;
+        }
+#endif
+    V.attached = 0;
 }
 
 int pc_input_live_init(const PcSettings *s)
@@ -635,12 +1008,14 @@ int pc_input_live_init(const PcSettings *s)
     struct stat st;
     memset(&L, 0, sizeof L);
     L.nav_dir = L.stick_dir[0] = L.stick_dir[1] = -1;
-    if (!SDL_WasInit(SDL_INIT_VIDEO) || pc_gfx_set_event_hook(pc_input_live_event) != 0)
-        return -1;   /* no window: scripted input only */
-    L.win = SDL_GL_GetCurrentWindow();
+    if (SDL_WasInit(SDL_INIT_VIDEO) && pc_gfx_set_event_hook(pc_input_live_event) == 0)
+        L.win = SDL_GL_GetCurrentWindow();
     if (!L.win) {
+        /* No window: scripted input only, unless --press-via asks for SDL's controllers and events alone
+         * (tests, --headless): pc_input_live_tick pumps their events then, as port/gfx's loop would. */
         pc_gfx_set_event_hook(NULL);
-        return -1;
+        if (V.kind == PC_VIA_PADS || SDL_InitSubSystem(SDL_INIT_EVENTS) != 0)
+            return -1;
     }
     L.kb_port = s->keyboard_player - 1;
     L.first_port = s->first_controller_player - 1;
@@ -650,6 +1025,14 @@ int pc_input_live_init(const PcSettings *s)
      * their buttons' positions (south is a), not their labels. */
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
+#ifdef _WIN32
+    /* Xbox-style pads through XInput, which is polled: SDL's raw input driver takes their sticks and buttons from
+     * window messages to a hidden window, and only the triggers and guide from XInput, so a pad whose raw input
+     * doesn't arrive has working triggers and dead sticks. SDL_JOYSTICK_RAWINPUT=1 in the environment brings raw
+     * input back (an environment variable wins over this). Other pads are unchanged: HIDAPI (PlayStation,
+     * Switch) or DirectInput. */
+    SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "0");
+#endif
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0)
         fprintf(stderr, "rush2049pc: no game controllers: %s\n", SDL_GetError());
     else if (s->source_dir[0]) {
@@ -660,13 +1043,24 @@ int pc_input_live_init(const PcSettings *s)
         }
     }
     L.on = 1;
-    set_title();
-    SDL_SetWindowMinimumSize(L.win, 320, 240);
-    if (s->fullscreen)
-        set_fullscreen(1);
-    if (SDL_GL_SetSwapInterval(s->vsync ? 1 : 0) != 0)
-        fprintf(stderr, "rush2049pc: vsync %s: %s\n", s->vsync ? "on" : "off", SDL_GetError());
+    if (L.win) {
+        set_title();
+        SDL_SetWindowMinimumSize(L.win, 320, 240);
+        SDL_RaiseWindow(L.win);   /* the keys go to it, not the console it was started from */
+        if (s->fullscreen)
+            set_fullscreen(1);
+        if (SDL_GL_SetSwapInterval(s->vsync ? 1 : 0) != 0)
+            fprintf(stderr, "rush2049pc: vsync %s: %s\n", s->vsync ? "on" : "off", SDL_GetError());
+    }
+    if (V.kind != PC_VIA_PADS && V.kind != PC_VIA_KEYBOARD && V.at <= 0)
+        via_attach();   /* there at start */
     assign_pads();
+    int n = L.npending;
+    for (int p = 0; p < 4; p++)
+        n += L.slot[p].gc != NULL;
+    if (!n)
+        fprintf(stderr, "rush2049pc: no controllers yet (%d joysticks); one plugged in later is found then\n",
+                SDL_WasInit(SDL_INIT_JOYSTICK) ? SDL_NumJoysticks() : 0);
     return 0;
 }
 
@@ -680,7 +1074,12 @@ void pc_input_live_shutdown(void)
             SDL_GameControllerRumble(L.slot[p].gc, 0, 0, 0);
             SDL_GameControllerClose(L.slot[p].gc);
         }
+    for (int k = 0; k < L.npending; k++)
+        SDL_GameControllerClose(L.pending[k].gc);
+    via_detach();
     SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+    if (!L.win)
+        SDL_QuitSubSystem(SDL_INIT_EVENTS);
     memset(&L, 0, sizeof L);
 }
 
@@ -716,6 +1115,9 @@ void pc_input_live_menu(int open)
 
 void pc_input_live_tick(void)
 {
+    SDL_Event e;
+    while (L.on && !L.win && SDL_PollEvent(&e))   /* no window: port/gfx pumps no SDL events */
+        pc_input_live_event(&e);
     if (!L.on || !pc_menu_is_open() || pc_menu_capturing()) {
         L.nav_dir = -1;
         return;
@@ -738,18 +1140,18 @@ void pc_input_live_fullscreen(int on)
 
 int pc_input_live_is_fullscreen(void)
 {
-    return L.on ? (SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN) != 0 : -1;
+    return L.on && L.win ? (SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN) != 0 : -1;
 }
 
 void pc_input_live_vsync(int on)
 {
-    if (L.on && SDL_GL_SetSwapInterval(on ? 1 : 0) != 0)
+    if (L.on && L.win && SDL_GL_SetSwapInterval(on ? 1 : 0) != 0)
         fprintf(stderr, "rush2049pc: vsync %s: %s\n", on ? "on" : "off", SDL_GetError());
 }
 
 void pc_input_live_window_size(int w, int h)
 {
-    if (!L.on)
+    if (!L.on || !L.win)
         pc_gfx_set_window_size(w, h);
     else if (!(SDL_GetWindowFlags(L.win) & SDL_WINDOW_FULLSCREEN))
         SDL_SetWindowSize(L.win, w, h);
@@ -764,6 +1166,7 @@ void pc_input_live_poll(PcPad pads[4])
 {
     if (!L.on)
         return;
+    claim_pending();
     for (int p = 0; p < 4; p++) {
         Slot *slot = &L.slot[p];
         SDL_GameController *gc = slot->gc;
@@ -783,6 +1186,7 @@ void pc_input_live_poll(PcPad pads[4])
         /* keys and buttons on the stick give full tilt, without a dead zone */
         PcStickShape digital = L.shape;
         digital.deadzone = 0;
+        digital.gain = 1;
         int8_t x = 0, y = 0, ax = 0, ay = 0;
         pc_stick_shape(held[PC_CTL_STICK_RIGHT] - held[PC_CTL_STICK_LEFT],
                        held[PC_CTL_STICK_UP] - held[PC_CTL_STICK_DOWN], &digital, &x, &y);
@@ -795,6 +1199,24 @@ void pc_input_live_poll(PcPad pads[4])
         pads[p].stick_y = stronger(y, ay);
         pads[p].connected = 1;
     }
+}
+
+/* The overlay's view of a player: who plays it ("keyboard", a controller's name, both) and, with a controller, its
+ * N64 stick as the game would get it now. 0 when nobody does. */
+int pc_input_live_describe(int port, char *who, size_t n, int8_t *x, int8_t *y)
+{
+    *x = *y = 0;
+    who[0] = 0;
+    if (!L.on || port < 0 || port > 3)
+        return 0;
+    SDL_GameController *gc = L.slot[port].gc;
+    snprintf(who, n, "%s%s%s", port == L.kb_port ? "keyboard" : "", port == L.kb_port && gc ? " + " : "",
+             gc ? SDL_GameControllerName(gc) : "");
+    if (gc && L.analog != PC_CFG_STICK_NONE) {
+        int ox = L.analog == PC_CFG_STICK_LEFT ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX;
+        pc_stick_shape(axis_value(gc, ox), -axis_value(gc, ox + 1), &L.shape, x, y);
+    }
+    return gc ? 2 : who[0] != 0;
 }
 
 void pc_input_live_rumble(int port, double level)
@@ -832,6 +1254,19 @@ void pc_input_live_shutdown(void) {}
 void pc_input_live_poll(PcPad pads[4]) { (void)pads; }
 void pc_input_live_rumble(int port, double level) { (void)port, (void)level; }
 int pc_input_live_paused(void) { return 0; }
+int pc_input_live_describe(int port, char *who, size_t n, int8_t *x, int8_t *y)
+{
+    (void)port, (void)n;
+    *x = *y = 0;
+    who[0] = 0;
+    return 0;
+}
+void pc_input_live_via_setup(int kind, double at, int nports) { (void)kind, (void)at, (void)nports; }
+int pc_input_live_via(const PcPad script[4], int menu, double now)
+{
+    (void)script, (void)menu, (void)now;
+    return -1;
+}
 int pc_input_live_event(const void *event)
 {
     (void)event;

@@ -17,20 +17,23 @@ The settings overlay (Phase 8, 2026-10-27) has [its own section](#the-settings-o
 ## Controls
 
 The defaults. Keys are named by their position on a US keyboard, so W/A/S/D stay in place on other layouts.
-Controllers use SDL's GameController layout: XInput positions, so "A" is the south button on any pad.
+Controllers use SDL's GameController layout: XInput positions, so "A" is the south button on any pad, Cross on a
+PlayStation pad and B on a Nintendo one.
 
-| N64 | Keyboard (player 1) | Controller |
-|---|---|---|
-| Stick | arrow keys | left stick |
-| A (accelerate) | X | A (south), right trigger |
-| B (brake) | C | X (west), left trigger |
-| Z | Z | left shoulder (LB) |
-| L | Q | Back (View) |
-| R | E | right shoulder (RB) |
-| START | Enter | Start (Menu) |
-| C-up / C-down | I / K | right stick up / down, or Y (north) / B (east) |
-| C-left / C-right | J / L | right stick left / right |
-| D-pad | W / S / A / D | D-pad |
+| N64 | Keyboard (player 1) | Xbox | PlayStation |
+|---|---|---|---|
+| Stick | arrow keys | left stick | left stick |
+| A (accelerate) | X | A (south), RT | Cross, R2 |
+| B (brake) | C | X (west), LT | Square, L2 |
+| Z | Z | LB | L1 |
+| L | Q | Back (View) | Share (Create) |
+| R | E | RB | R1 |
+| START | Enter | Start (Menu) | Options |
+| C-up / C-down | I / K | right stick up / down, or Y / B | right stick up / down, or Triangle / Circle |
+| C-left / C-right | J / L | right stick left / right | right stick left / right |
+| D-pad | W / S / A / D | D-pad | D-pad |
+
+The triggers are buttons here: past `input.axis_threshold` they press A and B.
 
 | Key | Does |
 |---|---|
@@ -49,7 +52,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   `ControllerUpdate`), and the game has its own control setup screen.
 - **Players.** The keyboard is player 1 (`input.keyboard_player`).
   - Controllers take players from `input.first_controller_player` up, in the order they are plugged in. They
-    keep that player until unplugged.
+    keep that player until unplugged. A pad with the generic mapping (below) takes one at its first button press.
   - A pad plugged in while every player has one waits, and takes the first player that frees up.
   - A player's keyboard and controller are merged: buttons are OR'ed, and the stronger stick wins on each axis.
   - With `first_controller_player = 2`, the keyboard has player 1 to itself (v5's `--keyboard-alone`).
@@ -58,6 +61,8 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - **The stick.**
   - The dead zone (`input.deadzone`, 0.15) is radial. The travel past it is rescaled from 0, so movement starts
     small instead of jumping.
+  - `input.sensitivity` (1) multiplies the travel past the dead zone: at 2 full tilt comes at half the travel; at
+    0.5 it is never reached. Keys and buttons on the stick still give full tilt.
   - Full tilt reaches `input.stick_range` (80) left, right, up and down. On the diagonals it reaches
     (`stick_diagonal`, `stick_diagonal`) = (70, 70): the octagonal gate of an N64 stick. Between those, it
     follows the octagon's edges.
@@ -85,6 +90,23 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 - **Hotkeys** never reach the game. Binding a hotkey's key to a control does nothing for that key.
 - **Mappings.** A `gamecontrollerdb.txt` next to `rush2049pc.ini` is loaded at start (SDL's format), for pads
   that SDL doesn't know.
+- **Pads SDL has no mapping for** (DirectInput pads, N64-style USB pads, wheels) used to be passed over without a
+  word. They get a generic mapping: axes 1-2 the stick, axes 3-4 the right stick, hat 1 the D-pad, buttons 1-10 in
+  XInput's order (a b x y, LB RB, back start, the stick clicks), then guide and the extras, so the overlay can
+  bind every one; axes 5-6 are the triggers from their middle up, so an axis resting in the middle reads released.
+  - It takes a player at its first button press, not when it is found, since a joystick may be something other
+    than a pad (a phantom device would otherwise hold player 1).
+  - Something with neither two axes nor a hat, or without buttons, is not used, and the log says so.
+  - A line for it in `gamecontrollerdb.txt` replaces the generic mapping.
+- **Windows.** Xbox-style pads go through XInput, which is polled. SDL's default for them, its raw input driver,
+  takes the sticks and buttons from window messages to a hidden window and only the triggers and guide from XInput,
+  so a pad whose raw input doesn't arrive has working triggers and dead sticks. `SDL_JOYSTICK_RAWINPUT=1` in the
+  environment brings raw input back. PlayStation and Switch pads stay on HIDAPI, others on DirectInput. The window
+  is raised at start, so the keys reach it rather than the console it was started from.
+- **The log** (`rush2049pc.log`) names each controller as it is found, and its player:
+  `controller 'Xbox Series X Controller' (Xbox One, SDL mapping, GUID 030000005e04...) -> player 1`. It also says
+  when a controller leaves, waits for a free player, gets the generic mapping, isn't used, or when there is none
+  at start. The overlay's Controllers page shows the same live (below).
 
 ## The window
 
@@ -163,6 +185,7 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `input.keyboard_player` | 1 | | 1-4, 0 for none |
 | `input.first_controller_player` | 1 | | controllers fill players from here |
 | `input.deadzone` | 0.15 | | 0-0.9 |
+| `input.sensitivity` | 1.0 | | 0.5-2: the stick's travel past the dead zone times this |
 | `input.axis_threshold` | 0.5 | | a trigger or stick direction bound to a button presses it past this |
 | `input.stick_range` | 80 | | full tilt along an axis, 1-127 |
 | `input.stick_diagonal` | 70 | | each axis at full diagonal tilt; 0 for round |
@@ -249,7 +272,7 @@ restart.
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
-| Controllers | the 18 N64 controls; the settings button; the N64 stick; dead zone; rumble; Defaults | `[controller]`, `input.deadzone`, `input.rumble` | at once |
+| Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble` | at once |
 | (main) | Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
@@ -318,6 +341,8 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.sdl.hotkeys` | `... hotkeys` | title and minimum size; Alt+Enter toggles fullscreen and is not START; F11 back; key repeat ignored; F12 saves PNGs of the shown frame (two in one second get two names); Pause holds and the exposed window is redrawn; Escape quits and isn't a game key; rebound and cleared hotkeys; closing the window quits; fullscreen from the settings |
 | `frontend.sdl.focus` | `... focus` | focus loss releases held keys; no hold by default; with `pause_on_focus_loss` it holds and focus back releases it; the pause key and focus are separate reasons |
 | `frontend.sdl.controller` | `... controller` | a virtual XInput-style pad: every default button (guide and the stick clicks unbound), triggers and right-stick directions with their threshold, the left stick (dead zone, rescaled travel, full tilt, the diagonal, +y up), merging with the keyboard; rebinding: the right stick as the N64 stick, a bigger dead zone, buttons on Z and on the stick, bad names skipped |
+| `frontend.sdl.generic` | `... generic` | a virtual joystick without a mapping: no player before a button press (nor from its stick), its first button takes player 2 and counts; axis 1 the stick's x, axis 2 its y (up), hat 1 the D-pad, buttons 3 and 8 x (B) and start, a trigger axis at rest either way released, axis 6 the right trigger; a joystick with one axis and no hat isn't used, even with a button |
+| `input_live_drive` | `tools/port/input_check.py` | the synthetic cartridge through SDL, headless ([below](#testing-live-input)): `drive` with `--press-via controller`, `joystick`, `keyboard` and `controller:2` each the scripted run line for line, the car's steering input +1 and -1 while the stick is pushed and 0 without it; with `--rumble` the game's motor rumbles the virtual controller at full strength; `race2p` with two virtual controllers, players 1 and 2 |
 | `frontend.sdl.hotplug` | `... hotplug` | six pads plugged and unplugged: players filled in order, kept while others leave, a waiting pad takes a freed player, ports disconnect when unplugged; `first_controller_player = 2`; a pad present before input starts |
 | `frontend.sdl.rumble` | `... rumble` | the motor drives the pad's rumble callback at full strength, only on that player; a steady rumble outlives SDL's 1 s duration; the fade over 4 retraces; a pulsed motor stays at least half; strength from the settings; another player's motor; stopped at shutdown; strength 0 |
 | `frontend.sdl.script` | `... script` | `--press` merged over live input: buttons OR'ed, a scripted stick axis replaces the live one, a scripted port connected; `--log-input` runs |
@@ -374,6 +399,44 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
   - a round gate instead of the octagon;
   - no dead-zone rescale.
 
+## Testing live input
+
+The user's first play with a controller on Windows (2026-10-27): "the analog stick wasn't working for steering". The
+scripted presses steered, so each link between a real device and the pad the game reads was checked:
+
+- **The device to the pads.** `--press-via KIND[:SECONDS]` sends the press scripts the way live input goes, instead of
+  into the pads:
+  - `controller`: an SDL virtual GameController per port the scripts use; `joystick`: a virtual joystick without a
+    mapping, which gets the generic one; both plugged in at `SECONDS` on the N64 clock (0, the default: before input
+    starts; later: a hot-plug, and the presses before it are lost). Each N64 control the script holds presses the
+    first input bound to it; the script's stick tilts the `controller.analog` stick by the same share of its travel
+    (80 is full tilt), or presses the `STICK_*` bindings with `analog = none`; `MENU` holds the parts of the first
+    `controller.menu`. The state goes in with `SDL_JoystickUpdate` before the pads are read, as a device's report
+    would.
+  - `keyboard`: key events for the first key bound to each control, handled before the pads are read.
+  - With a window or `--headless`: without one, live input pumps SDL's events itself at port/gfx's tick. The
+    virtual pads log the rumble they are sent.
+- **What the game does with it.** The state line (`--status`, `--until-state`) ends with the first car's steering
+  input, its model record's +0x720 (-1 to 1; `test_save.c` reads the same field).
+- **Results.** On the synthetic cartridge (rocky) and the retail ROM (the Pi, locally): each kind gives the scripted
+  run line for line, so the device path, the mapping, the dead zone, the gate, the stick's sign and the players
+  are right, and the steering input is +1 while the stick is right and -1 while it is left. On the retail ROM the
+  car also goes elsewhere than without the stick; the synthetic cartridge's car physics don't turn the car, so
+  there the steering input is the check (`input_check.py --expect-turn` asks for both). A second boot with a
+  controller pak written by the first steers too.
+- **So the port's path was sound** for a pad SDL maps on player 1. What could still have stopped the user's pad,
+  each handled now: a pad SDL has no mapping for was passed over silently (the generic mapping); a device holding
+  player 1 before the pad (generic pads take a player at a button press); on Windows, SDL's raw input reading an
+  Xbox pad's sticks from window messages while its triggers come from XInput, which would leave gas and brake on
+  the triggers working and the stick dead (XInput now); and nothing in the log said which. Which one it was isn't
+  known yet. The log and the overlay's
+  Controllers page now say which controller is on which player and what its stick gives.
+
+```
+python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom build/pc/synth/rush2049_synth.z64
+python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-check --press <script> --expect-turn
+```
+
 ## Interfaces
 
 - **`pc_port.h`** gains one function: `int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event))`.
@@ -403,6 +466,9 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
     rather than presenting the last render target.
 
 ## Untested
+
+- (2026-10-28) A real controller on Windows, through XInput rather than SDL's raw input, and a pad with the generic
+  mapping: only virtual ones ran. The next play test's log names the pad and its player.
 
 - A real display (X11, Wayland, KMSDRM) and a real controller. Everything above ran on the offscreen driver and
   on virtual joysticks.

@@ -78,6 +78,7 @@ typedef struct PcSettings {
     int keyboard_player;            /* 1-4, 0: no keyboard */
     int first_controller_player;    /* controllers fill players from here, in the order they are plugged in */
     double deadzone;                /* radial, for sticks; also triggers */
+    double sensitivity;             /* the stick's travel past the dead zone is multiplied by this (0.5-2) */
     double axis_threshold;          /* a trigger or a stick axis bound to a button presses it past this */
     int stick_range;                /* N64 stick value at full tilt, left/right/up/down */
     int stick_diagonal;             /* each axis at full diagonal tilt (the octagonal gate); 0: a round gate */

@@ -171,6 +171,7 @@ int pc_input_init(const struct PcSettings *settings);
 void pc_input_shutdown(void);
 int pc_input_paused(void);                 /* the pause key, or focus lost with pause_on_focus_loss */
 extern int pc_input_log;                   /* --log-input: print every change of a player's pad */
+int pc_input_set_via(const char *spec);      /* --press-via KIND[:SECONDS]; 0 on success */
 
 /* ---------------------------------------------------------------- loop.c */
 typedef struct {

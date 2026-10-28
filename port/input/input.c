@@ -33,6 +33,8 @@ typedef struct {
 
 static Press *g_press;
 static int g_npress, g_max_port;
+static int g_via = PC_VIA_PADS;   /* --press-via */
+static double g_via_at;
 int pc_input_script_pak = -1;          /* `pak on|off` in a press file: -1 none */
 uint32_t pc_input_script_frames;       /* `frames N` */
 
@@ -178,6 +180,28 @@ static void log_changes(const PcPad pads[4])
     }
 }
 
+/* ---------------------------------------------------------------- the scripts' pads */
+
+/* What the scripts hold at now on each port: buttons OR'ed, a stick direction replacing that axis. Returns whether
+ * MENU is held. */
+static int script_pads(double now, PcPad script[4])
+{
+    int menu = 0;
+    memset(script, 0, 4 * sizeof *script);
+    for (int i = 0; i < g_npress; i++) {
+        const Press *p = &g_press[i];
+        if (now < p->t || now >= p->t + p->dur)
+            continue;
+        menu |= p->menu;
+        script[p->port].buttons |= p->mask;
+        if (p->x)
+            script[p->port].stick_x = p->x;
+        if (p->y)
+            script[p->port].stick_y = p->y;
+    }
+    return menu;
+}
+
 /* ---------------------------------------------------------------- the overlay's turn */
 
 /* MENU opens and closes the overlay. While it is open, the script's buttons drive it as a controller's do: the
@@ -217,7 +241,14 @@ static void script_menu(void)
 /* port/gfx's event pump calls this after the window's events: at each retrace, and while the game is held. */
 static int input_tick(void)
 {
-    script_menu();
+    if (g_via == PC_VIA_PADS) {
+        script_menu();
+    } else {   /* --press-via: the scripts' state goes in after the events, so the pads read below have it */
+        PcPad script[4];
+        int menu = script_pads(pc_host_ns() / 1e9, script);
+        if (pc_input_live_via(script, menu, pc_host_ns() / 1e9) != 0)
+            g_via = PC_VIA_PADS;
+    }
     pc_input_live_tick();
     return pc_menu_tick();
 }
@@ -229,7 +260,34 @@ int pc_input_init(const PcSettings *s)
     g_rumble_strength = s->rumble;
     pc_menu_init(s);
     pc_gfx_set_tick_hook(input_tick);
-    return pc_input_live_init(s);
+    pc_input_live_via_setup(g_via, g_via_at, g_max_port + 1);
+    int r = pc_input_live_init(s);
+    if (r != 0 && g_via != PC_VIA_PADS) {
+        fprintf(stderr, "rush2049pc: --press-via needs SDL2's controllers; the presses go to the pads\n");
+        g_via = PC_VIA_PADS;
+    }
+    return r;
+}
+
+/* --press-via controller|joystick|keyboard[:SECONDS] (input_sdl.c says what each does). */
+int pc_input_set_via(const char *spec)
+{
+    static const char *const kinds[] = {"pads", "controller", "joystick", "keyboard"};
+    const char *colon = strchr(spec, ':');
+    size_t n = colon ? (size_t)(colon - spec) : strlen(spec);
+    char *end = NULL;
+    for (int k = 0; k < 4; k++)
+        if (strlen(kinds[k]) == n && !strncmp(spec, kinds[k], n)) {
+            double at = colon ? strtod(colon + 1, &end) : 0;
+            if (colon && (end == colon + 1 || *end || at < 0))
+                break;
+            g_via = k;
+            g_via_at = at;
+            return 0;
+        }
+    fprintf(stderr, "rush2049pc: --press-via takes pads, controller, joystick or keyboard, and :SECONDS for when the "
+                    "virtual controllers are plugged in, not '%s'\n", spec);
+    return -1;
 }
 
 void pc_input_shutdown(void)
@@ -255,20 +313,19 @@ int pc_input_paused(void)
 
 void pc_input_poll(PcPad pads[4])
 {
-    double now = pc_host_ns() / 1e9;
+    PcPad script[4];
+    int via = g_via != PC_VIA_PADS;   /* the scripts went through SDL (input_tick); controllers connect ports */
     memset(pads, 0, 4 * sizeof *pads);
+    script_pads(pc_host_ns() / 1e9, script);
     pc_input_live_poll(pads);
-    for (int i = 0; i <= g_max_port; i++)
+    for (int i = 0; i <= (via ? 0 : g_max_port); i++)
         pads[i].connected = 1;
-    for (int i = 0; i < g_npress; i++) {
-        const Press *p = &g_press[i];
-        if (now < p->t || now >= p->t + p->dur || p->menu)
-            continue;
-        pads[p->port].buttons |= p->mask;
-        if (p->x)
-            pads[p->port].stick_x = p->x;
-        if (p->y)
-            pads[p->port].stick_y = p->y;
+    for (int i = 0; i < 4 && !via; i++) {
+        pads[i].buttons |= script[i].buttons;
+        if (script[i].stick_x)
+            pads[i].stick_x = script[i].stick_x;
+        if (script[i].stick_y)
+            pads[i].stick_y = script[i].stick_y;
     }
     if (pc_menu_is_open())   /* the overlay has the input: the game sees idle pads */
         for (int i = 0; i < 4; i++)
