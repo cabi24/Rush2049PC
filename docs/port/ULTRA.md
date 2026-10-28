@@ -12,7 +12,7 @@ owns `main()`. About 3,300 lines of C11.
 | `sched.c` | N64 threads on host threads (the baton), message queues, events, busy-wait and idle yields |
 | `timer.c` | `osGetTime`/`osGetCount` at 46.875 MHz, `osSetTimer`/`osStopTimer` |
 | `vi.c` | the video interface: mode, blackout, framebuffer swaps, the retrace event |
-| `rcp.c` | RSP tasks (graphics on the main thread, audio at once), SP/DP done, the AI |
+| `rcp.c` | RSP tasks (graphics on the main thread, audio at once in real time), SP/DP done, the AI |
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, the controller pak (`.mpk`), the rumble pak |
 | `memory.c` | the RDRAM window, `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
@@ -124,10 +124,13 @@ registers its two DMA caches when it allocates them and drops them when it frees
 
 **RSP and RDP.** `osSpTaskStartGo` copies a graphics task for the main thread, which owns the GL context:
 - `M_GFXTASK` goes to `pc_gfx_run_dl(t.data_ptr)`, then the SP and DP events.
-- `M_AUDTASK` runs at once, on the thread that starts it (the game's scheduler): `pc_audio_run_task(t.data_ptr,
-  t.data_size)`, then SP, which the scheduler finds in its queue after `osSpTaskStartGo` returns. `data_size` is the
-  SFD count, passed through ([AUDIO.md](AUDIO.md)). On the main thread, behind graphics tasks and vsync swaps, the
-  tasks ran late enough that the AI pushed ring buffers they hadn't rendered yet (AUDIO.md §7).
+- `M_AUDTASK`, in real time, runs at once on the thread that starts it (the game's scheduler):
+  `pc_audio_run_task(t.data_ptr, t.data_size)`, then SP, which the scheduler finds in its queue after
+  `osSpTaskStartGo` returns. `data_size` is the SFD count, passed through ([AUDIO.md](AUDIO.md)). On the main thread,
+  behind graphics tasks and vsync swaps, the tasks ran late enough that the AI pushed ring buffers they hadn't
+  rendered yet (AUDIO.md §7). With `--fast` the main loop runs them, with the graphics tasks, while every N64 thread
+  waits, as it sends the AI events. Run at once there, the task count in the status lines raced the main loop (two
+  runs of a path differed by one, `hfr_timing`).
 - Any other task gets only the SP event.
 
 Tasks run to completion, so `osSpTaskYielded` is 0. `osDpSetNextBuffer` gets a DP event. `--stop-at-gfx` reports the
