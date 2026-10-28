@@ -30,6 +30,7 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | track select | every option row, wrap-around | as the code says (TRACK, LAPS, BACKWARD, MIRROR, FOG, WIND, DRONES, DIFFICULTY, DEATHS) |
 | main menu screens | records (with and without a pak: totals pages), options (every HUD toggle row, wrap-around) | as the code says |
 | cheats | the main menu's code, the cheat screen, two cheats' codes, the unlock cheat, then a race on a track it unlocks | works after fixes 1 and 2 |
+| cheats in a race | cone mines, car mines, super speed, frame scale and others switched on, then a race with gas and steering | runs; no fault, no odd frames but a wall beside the camera at speed |
 | controller pak across restarts | a fresh `--pak` image: create a player (name entry), select it, race one lap to the finish (the record takes the player's name), quit; restart with the same image: the records screen lists the player with the race's totals, the player screen lists the player | as the code says; the image is written when the player is created and again by the race |
 | name entry after a race | without a player: the grid, letters, END | the cursor starts on END; a scripted gas press still held when the entry opens gives no new A edge (a script's mistake, not the game's) |
 | pause | the pause menu and each of its screens: options (the HUD toggles), controls, audio, video (the test pattern), rumble pak (none: its prompt), back with B, then continue | as the code says |
@@ -89,10 +90,8 @@ bodies differ between its files (comments and spacing ignored), unless reviewed:
 ## Left
 
 - **Ghost races**: a ghost race reaches its results and RACE AGAIN, but a script driving with the gas alone can't
-  finish its three laps within the time limit, so no ghost was saved, compressed (zlib) or raced against. A run
-  with real steering, or a cheat, should do it.
-- **Cheats in a race**: several cheats switched on (mines, super speed, mass, frame scale, fog colour) and a race:
-  being run (`cheats2`).
+  finish its three laps within the time limit, even with the super speed cheat, so no ghost was saved, compressed
+  (zlib) or raced against. That needs a run with real steering (a recorded input script, or a person).
 - **The Expansion Pak is off by default** (`game.expansion_pak`): without it the sixth race track can't be chosen
   (OptionValid, and the unlock code), and the per-track animated objects, the front end's song and the extra race
   WADs are skipped. With `--expansion-pak` the demo, the races tried and the sixth track run. Whether the PC should
