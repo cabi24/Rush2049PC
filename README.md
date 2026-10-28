@@ -5,12 +5,12 @@ PC port was built from the SM64 decompilation: the game's C is compiled for the 
 N64 hardware. You bring your own ROM. Its data is read at startup, and nothing derived from it is built into the
 program.
 
-**Status: first test builds.** On the retail cartridge the game runs its attract demo, the front end, and races in
-every mode tried: one to four players, circuit, stunt and battle ([docs/port/BRINGUP.md](docs/port/BRINGUP.md)).
-Windows x86-64 and Linux (x86-64, aarch64) builds come from the release workflow
-([docs/port/RELEASE.md](docs/port/RELEASE.md)). So far it has been checked headless with scripted input; play on a
-desktop GPU, with sound and real controllers, is being tested now. The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md),
-and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
+**Status: beta candidate.** On the retail cartridge the game runs its attract demo, the front end, and races in
+every mode: one to four players, circuit, stunt, battle, ghosts and the unlockable tracks and arenas
+([docs/port/QA.md](docs/port/QA.md)). It has been played on a Windows laptop, and the problems found there (sound,
+steering, a flickering road) are fixed; [CHANGES.md](CHANGES.md) lists what changed. Windows x86-64 and Linux (x86-64,
+aarch64) builds come from the release workflow ([docs/port/RELEASE.md](docs/port/RELEASE.md)). The plan is
+[docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
 
 ## Playing
 
