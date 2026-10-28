@@ -187,7 +187,11 @@ the game saves only to the controller pak.
 
 **Controller pak.**
 - `--pak PATH`: default `rush2049pc.mpk`, created formatted when missing and written within a second of each change
-  (temp file + rename).
+  (`pakfile.c`'s `pc_file_write_atomic`: a temp file flushed to the disk, then renamed over it; a failed write is
+  tried again at the next flush). Only a missing file is new: one that can't be read, or is damaged
+  (`pc_pak_image_check`: not 32 KiB, no good ID block copy, no good inode table), plugs in no pak and is never
+  written over. port/app's saves.c sets such a file aside before the game starts, and keeps three backups
+  ([RELEASE.md](RELEASE.md) "Saves").
 - `--no-pak` plugs in nothing, and `--rumble` a rumble pak (0x8000 probe, 0xC000 motor).
 - The image keeps the `.mpk` page layout, but its multi-byte fields are in the native Pfs C's order: the ID
   checksums are sums of host-order u16, and `PFS_EOF`/`PFS_PAGE_NOT_USED` are host-order u16. Page links keep
