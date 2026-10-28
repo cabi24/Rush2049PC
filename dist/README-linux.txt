@@ -182,5 +182,5 @@ Troubleshooting
 
 Licences
 --------
-This package contains no game data. The program includes SDL2 and zlib;
-their licences are in LICENSES/.
+This package contains no game data. The program includes SDL2 and uses
+the system's zlib; their licences are in LICENSES/.

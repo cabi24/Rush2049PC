@@ -439,3 +439,43 @@ also makes a **draft** GitHub release with them, which a person checks and publi
 | d69f864 | 40576309316 | 40576314199 | the log: on windows-latest the zip's exe wrote `rush2049pc.log` with its header, the fault line and a symbolized backtrace; `--version` named the Actions run; the forced wait |
 | 72d47b5 | 40578906382 | 40578911258 | the data folder; the zip's empty ini filled by the first run |
 | 12bf09a | 40579937190 | | the Linux tarballs, x86-64 and aarch64, built in Ubuntu 22.04 and run on Fedora 40: `--version`, the self-test, the first run, the boot without a ROM on llvmpipe with its fault and backtrace in the log |
+
+## Release check
+
+Written 2026-10-28. The archives of Release run 40665715547 (main 7ce7406), as a beta tester gets them. Each one was
+unpacked into a new, empty folder and run from there, with a new user's home (no `~/.local/share/rush2049pc`,
+no `~/.config/rush2049pc`). Run 40666433273 (53cad66) built the same packages again, with the first-run checks
+below in `linux-check` and `windows-check`. Since then only its docs and the menu's audio choices on Windows
+changed. All six of its jobs passed. On windows-latest, the zip's log now has the fault's line after the run,
+not ahead of it.
+
+**What a tester gets.** The tester gets one folder:
+
+- **Windows zip:** `rush2049pc.exe`, an empty `rush2049pc.ini`, `README.txt` and `LICENSES/` (SDL2, zlib,
+  mingw-w64, GCC runtime). The exe is a GUI program with an icon and version information, and imports only
+  Windows' own DLLs.
+- **Linux tarballs (x86-64, aarch64):** `rush2049pc`, an empty `rush2049pc.ini`, `README.txt` and `LICENSES/`
+  (SDL2, zlib). The program needs libc, libm, libz, libEGL and libasound, glibc 2.35.
+
+None of them holds a ROM-like file, a build tree or a test program. The only build paths in the programs' loaded
+data are four of SDL2's own `__FILE__` strings. The rest are in the debug information, which the backtraces use.
+
+| Archive | Where | What was run | Result |
+|---|---|---|---|
+| aarch64 | the Pi 5 (Debian 12, 16 KiB pages), the retail ROM by its path | no ROM; a missing `--rom`; `--rom`; `game.rom` set by hand in the ini; "Open ROM..." answered through `RUSH2049_TEST_ROM_PICK` (SDL's offscreen driver), then a second start; three `--press-file` runs on the portable pak (create a player, race, restart) | each no-ROM case exits 1 with its message (and its box with `RUSH2049_MESSAGE_BOX=print`). The first run fills the ini, all of it commented out. The ROM chosen is kept as `rom =` and found at the next start with no box. The player created is on the pak (a note `NRUE`) and listed on the player screen after a restart. `.bak`, `.bak2`, `.bak3` rotate as the pak changes, and no backup is made when it doesn't. Every run exits 0 with the `audio:` exit line, and the log holds only expected lines |
+| x86-64 | rocky (Rocky Linux 10, Intel UHD 770), the synthetic cartridge | the same without the retail ROM: `--version`, `--help`, `--print-config`, no ROM, "Open ROM...", two races (`synth/pak.press`) on the portable pak | the same results; the race reaches its state |
+| Windows | inspected on the Pi; run by `windows-check` | its files, `README.txt` (CRLF), `LICENSES/`, `pe_check.py --dlls`, `objdump -p` | GUI subsystem; the icon's nine sizes; FileVersion and ProductVersion `7ce7406`; the 13 DLLs listed above; the NVIDIA and AMD GPU hints exported |
+
+**Found and fixed.**
+
+- **The Pi 5.** Every aarch64 tarball before 6417099 faulted at startup on a 16 KiB-page kernel, the Pi 5's
+  default. `absfix.c` rounded the RELRO end up, and so made the start of `.data` read-only. Ubuntu 22.04's
+  binutils aligns RELRO to 4 KiB only. Local builds (binutils 2.40, aligned to 64 KiB) and CI's 4 KiB runners
+  never showed it.
+- **Windows:** stderr is unbuffered once the log takes it (0600dcd). Before that, the log came in 4 KiB pieces,
+  and a fault's first line came ahead of the run.
+- **`release.yml`:** the first runs must exit 1, and a start with no ROM at all is checked (48d5821, 53cad66).
+- **The Linux README:** the program uses the system's zlib, which it doesn't include.
+
+**Not checked here:** a real window, sound through a real device beyond `--fast` (where its underruns are
+expected), controllers, and Windows on a desktop (WINDOWS.md 11).
