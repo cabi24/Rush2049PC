@@ -267,6 +267,38 @@ def main():
         run(exe, "pick: .n64, relative", play, ["(chosen; .n64)", f"@WORK@{sep}synth.n64"], code=0, box=None,
             files={"synth.n64": swap32(synth)}, env_extra=dict(offscreen, **pick("synth.n64")))
 
+        # The real dialog code (:dialog) with stand-ins for zenity and kdialog on PATH: each writes its arguments
+        # next to itself and prints FAKE_PICK, or exits 1 (cancelled) when FAKE_PICK is empty
+        fake = Path(tempfile.mkdtemp(prefix="rush2049pc-fakebin-"))
+        for tool in ("zenity", "kdialog"):
+            (fake / tool).write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{fake}/{tool}.args"\n'
+                                     '[ -n "$FAKE_PICK" ] || exit 1\nprintf "%s\\n" "$FAKE_PICK"\n')
+            (fake / tool).chmod(0o755)
+
+        def used(tool, *want):
+            def check(d, out):
+                f = fake / f"{tool}.args"
+                args = f.read_text() if f.exists() else ""
+                if f.exists():
+                    f.unlink()
+                return [f"{tool} not run with '{w}'" for w in want if w not in args]
+            return check
+
+        path_env = f"{fake}:{os.environ.get('PATH', '/usr/bin:/bin')}"
+        run(exe, "pick: zenity", play, [asked, "file dialog (RUSH2049_TEST_ROM_PICK): :dialog",
+                                        f"the ROM @WORK@{sep}a b{sep}synth.z64 (chosen; .z64)"], code=0, box=None,
+            files={"a b/synth.z64": synth}, after=used("zenity", "--file-selection", "*.z64 *.v64 *.n64"),
+            env_extra=dict(offscreen, PATH=path_env, XDG_CURRENT_DESKTOP="GNOME",
+                           FAKE_PICK=f"@WORK@{sep}a b{sep}synth.z64", **pick(":dialog")))
+        run(exe, "pick: kdialog on KDE", play, ["(chosen; .z64)"], code=0, box=None, files={"synth.z64": synth},
+            after=used("kdialog", "--getopenfilename"),
+            env_extra=dict(offscreen, PATH=path_env, XDG_CURRENT_DESKTOP="KDE", FAKE_PICK=f"@WORK@{sep}synth.z64",
+                           **pick(":dialog")))
+        run(exe, "pick: zenity cancelled", ["--window"], ["no ROM chosen (the file dialog was cancelled)"], box=None,
+            after=used("zenity", "--file-selection"),
+            env_extra=dict(PATH=path_env, XDG_CURRENT_DESKTOP="GNOME", FAKE_PICK="", **pick(":dialog")))
+        shutil.rmtree(fake)
+
         # The choice kept in rush2049pc.ini (the user settings folder here): the next start finds it there, with no
         # box and no dialog
         kept = f"@WORK@{sep}my roms{sep}synth.z64"

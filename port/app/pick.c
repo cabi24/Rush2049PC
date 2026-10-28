@@ -7,8 +7,9 @@
  * library the program doesn't link.
  *
  * RUSH2049_TEST_ROM_PICK="ANSWER|ANSWER|..." stands in for the player (tools/port/firstrun_check.py): each dialog
- * takes the next answer, a path or :cancel (the player cancelled) or :fail (no dialog could be shown), and alert.c
- * prints every box and answers its question with the first button while answers are left, else the last. */
+ * takes the next answer, a path or :cancel (the player cancelled) or :fail (no dialog could be shown) or :dialog (the
+ * real dialog: the tests put a stand-in zenity or kdialog on PATH), and alert.c prints every box and answers its
+ * question with the first button while answers are left, else the last. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -80,6 +81,8 @@ static int test_pick(char *out, size_t size)
         return 1;
     if (!strcmp(a, ":fail"))
         return -1;
+    if (!strcmp(a, ":dialog"))   /* the real dialog (the tests: a stand-in zenity or kdialog on PATH) */
+        return 3;
     snprintf(out, size, "%s", a);
     return 0;
 }
@@ -264,8 +267,11 @@ int pc_app_pick_available(void)
 int pc_app_pick_rom(char *out, size_t size)
 {
     out[0] = 0;
-    if (pc_app_pick_test())
-        return test_pick(out, size);
+    if (pc_app_pick_test()) {
+        int rc = test_pick(out, size);
+        if (rc != 3)
+            return rc;
+    }
 #ifdef _WIN32
     int rc = windows_pick(out, size);
     if (rc == -2) {   /* a path the program can't open: said by the caller as the file's problem */

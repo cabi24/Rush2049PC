@@ -84,7 +84,7 @@ int pc_app_pick_available(void);
 /* The dialog: 0 with the file's path in out, 1 when the player cancelled, -1 when no dialog could be shown, 2 when
  * the file chosen can't be named in the program's paths (Windows: letters outside the code page), out saying so. The
  * test hook, RUSH2049_TEST_ROM_PICK="ANSWER|ANSWER|...", answers from its list instead: a path, or :cancel, or
- * :fail (no dialog). */
+ * :fail (no dialog), or :dialog (the real one, for a stand-in zenity on PATH). */
 int pc_app_pick_rom(char *out, size_t size);
 int pc_app_pick_test(void);      /* RUSH2049_TEST_ROM_PICK is set */
 int pc_app_pick_pending(void);   /* ... and has answers left */

@@ -174,7 +174,9 @@ saying: its buttons are **Open ROM...** (Enter) and **Quit** (Escape, or closing
 - `RUSH2049_TEST_ROM_PICK="ANSWER|ANSWER|..."` stands in for the player: every box is printed as with `print`,
   followed by `rush2049pc: buttons: [Open ROM...] [Quit]; chosen: ...`; a box's answer is its first button while
   answers are left, else the last (Quit). Each file dialog takes the next answer: a path (from the working directory
-  when relative), `:cancel` (the player cancelled) or `:fail` (no dialog could be shown).
+  when relative), `:cancel` (the player cancelled), `:fail` (no dialog could be shown), or `:dialog`: the real
+  dialog, which on Linux the test makes a stand-in `zenity` or `kdialog` script on `PATH` answer, so that the
+  search, `posix_spawn`, the arguments, the output and the exit status are the real code's.
 - `app_firstrun` runs the program for each case above: no ROM; `--rom` and a dropped path that don't exist; two
   dropped paths (exit 2); an absolute `game.rom`; another game; Europe; revision 1; a bad dump as `.z64`, `.v64`
   and `.n64`; a cut dump; a short file; an empty one; a text file; a ZIP; a folder; an unreadable file (Linux, not
