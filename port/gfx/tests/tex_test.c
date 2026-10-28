@@ -5,7 +5,7 @@
  *             unused palette entries; a CI texture's palette is its own part; the names are fixed values
  *   roundtrip dump a texture, make a 3x replacement from the dumped PNG, draw it from a pack at scale 3
  *   seams     wrap and mirror at 2x: the upscaled period is seamless where it repeats and where it turns
- *   lod       a mip chain upscaled 2x picks the same levels as the original
+ *   lod       a mip chain upscaled picks the same levels as the original, at 2x, 6.75 and 2.25
  *   alpha     a cut-out upscaled stays binary, doesn't grow and gets no dark fringe; drawn with an alpha test too
  *   async     without RUSH_GFX_TEXTURE_SYNC the original is drawn until the worker is done, then the upscaled
  *   live      pc_gfx_set_textures switches at the next frame, and back
@@ -28,6 +28,7 @@
 /* test and tool access (gfx_internal.h, which test_gbi.h's definitions clash with) */
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
 void pc_gfx_set_scale(int scale);
+void pc_gfx_set_scale_value(float scale);
 
 int pcgfx_png_write_rgba(const char *path, const uint8_t *rgba, int w, int h);
 int pcgfx_png_read(const char *path, uint8_t **rgba, int *w, int *h, char *why, size_t why_size);
@@ -741,36 +742,46 @@ static void lod_frame(void) {
     frame_end();
 }
 
+/* At 2x, then at fractions: 6.75 (textures upscaled 4x) and 2.25 (2x, from the cache by then). The levels are
+ * picked in N64 pixels and N64 texels at every scale, whatever the GL texture's size. */
 static void case_lod(void) {
-    uint8_t *orig;
-    int x, y, s, differ = 0, total = 0, seen[4] = {0, 0, 0, 0};
-    unsigned up0, up1, d, rp, dm;
+    static const float scales[3] = {2.0f, 6.75f, 2.25f};
+    int i;
+    for (i = 0; i < 3; i++) {
+        uint8_t *orig;
+        int x, y, differ = 0, total = 0, seen[4] = {0, 0, 0, 0};
+        unsigned up0, up1, d, rp, dm;
+        float sx, sy;
+        pc_gfx_set_scale_value(scales[i]);
+        textures("original", NULL, NULL, NULL, 1, 0);
+        lod_frame();
+        sx = (float)s_px_w / FB_W;
+        sy = (float)s_px_h / FB_H;
+        orig = (uint8_t *)malloc((size_t)s_px_w * s_px_h * 4);
+        memcpy(orig, s_px, (size_t)s_px_w * s_px_h * 4);
+        pcgfx_tex_counts(&up0, &d, &rp, &dm);
+        textures("upscaled", NULL, NULL, NULL, 1, 1);   /* the triangles are orthographic: 2D upscaled too */
+        lod_frame();
+        pcgfx_tex_counts(&up1, &d, &rp, &dm);
+        if (i < 2)   /* 2.25's factor is 2's */
+            CHECK(up1 + d > up0, "at %g no level was upscaled", scales[i]);
+        for (y = (int)(20 * sy); y < (int)(60 * sy); y += 3)
+            for (x = (int)(8 * sx); x < (int)(308 * sx); x += 3) {
+                const uint8_t *a = orig + ((size_t)y * s_px_w + x) * 4, *b = ipx(x, y);
+                if (a[0] + a[1] + a[2] == 0)
+                    continue;   /* between the quads */
+                total++;
+                seen[nearest_level(a)]++;
+                if (level_clear(a) && nearest_level(a) != nearest_level(b))
+                    differ++;
+            }
+        CHECK(seen[0] && seen[1] && seen[2] && seen[3], "at %g the frame shows every level: %d %d %d %d",
+              scales[i], seen[0], seen[1], seen[2], seen[3]);
+        CHECK(differ * 1000 <= total, "at %g the level differs at %d of %d samples", scales[i], differ, total);
+        free(orig);
+    }
+    textures("original", NULL, NULL, NULL, 1, 0);
     pc_gfx_set_scale(2);
-    textures("original", NULL, NULL, NULL, 1, 0);
-    lod_frame();
-    s = scale();
-    orig = (uint8_t *)malloc((size_t)s_px_w * s_px_h * 4);
-    memcpy(orig, s_px, (size_t)s_px_w * s_px_h * 4);
-    pcgfx_tex_counts(&up0, &d, &rp, &dm);
-    textures("upscaled", NULL, NULL, NULL, 1, 1);   /* the triangles are orthographic: 2D upscaled too */
-    lod_frame();
-    pcgfx_tex_counts(&up1, &d, &rp, &dm);
-    CHECK(up1 + d > up0, "no level was upscaled");
-    for (y = 20 * s; y < 60 * s; y += 3)
-        for (x = 8 * s; x < 308 * s; x += 3) {
-            const uint8_t *a = orig + ((size_t)y * s_px_w + x) * 4, *b = ipx(x, y);
-            if (a[0] + a[1] + a[2] == 0)
-                continue;   /* between the quads */
-            total++;
-            seen[nearest_level(a)]++;
-            if (level_clear(a) && nearest_level(a) != nearest_level(b))
-                differ++;
-        }
-    CHECK(seen[0] && seen[1] && seen[2] && seen[3], "the frame shows every level: %d %d %d %d", seen[0], seen[1],
-          seen[2], seen[3]);
-    CHECK(differ * 1000 <= total, "the level differs at %d of %d samples", differ, total);
-    free(orig);
-    textures("original", NULL, NULL, NULL, 1, 0);
 }
 
 /* ---------------------------------------------------------------- alpha */
