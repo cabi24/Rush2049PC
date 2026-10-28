@@ -42,7 +42,9 @@ everything a night of testing on the retail cartridge found.
   before the GPU's own clipper, so a one-pixel seam can't depend on the driver ([GFX.md](docs/port/GFX.md)).
 - **Stutter at a high frame rate with vsync on** (60, 120 or `display` with `video.vsync`, its default): most frames
   between were skipped. The frames are now paced by the display's refresh, one for each, drawn for the moment it
-  appears ([FRAMERATE.md](docs/port/FRAMERATE.md) 2).
+  appears ([FRAMERATE.md](docs/port/FRAMERATE.md) 2). The refresh is the display's own on Windows and X11 (59.94, not
+  the 59 or 60 reported), so a driver that queues frames no longer holds one twice about once a second, and on an
+  exact 60 Hz display the frames between no longer depend on where its refresh falls against the game's.
 
 ### New
 
