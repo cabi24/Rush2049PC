@@ -217,7 +217,7 @@ static const Item items[] = {
      "3.0); each falls back to the other (RUSH_GFX_API)."},
     {"video", "widescreen", T_ASPECT, F(widescreen), 4.0 / 3.0, 4, NULL, "auto",
      "Widen the picture: auto (the window's aspect: off in a 4:3 window), off (4:3), 16:9, 16:10, 21:9, W:H or a "
-     "ratio up to 4. The 3D view shows more at the sides; menus and the HUD stay 4:3 (RUSH_GFX_WIDESCREEN)."},
+     "ratio up to 4. The 3D view shows more at the sides; menus stay 4:3, the race HUD as hud says (RUSH_GFX_WIDESCREEN)."},
     {"video", "pause_on_focus_loss", T_BOOL, F(pause_on_focus_loss), 0, 0, NULL, "off",
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",

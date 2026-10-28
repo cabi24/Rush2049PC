@@ -133,9 +133,13 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   `--no-config`, nor headless. A place on a display that is gone opens centred.
 - **Widescreen.** `video.widescreen` (`--widescreen`, `RUSH_GFX_WIDESCREEN`) widens the picture to a display
   aspect: `off`, `auto`, `16:9`, `16:10`, `21:9`, any `W:H` or a ratio from 4:3 to 4. The 3D view shows more at
-  the sides at the same scale; menus, the HUD and sprites stay 4:3 in the middle; full-width fills and
-  backgrounds span the width. The renderer does it all ([GFX.md](GFX.md) "Widescreen"); the game code is
-  unchanged.
+  the sides at the same scale; menus and sprites stay 4:3 in the middle; full-width fills and backgrounds span
+  the width. The renderer does it all ([GFX.md](GFX.md) "Widescreen"); the game code is unchanged.
+  - `video.hud` (`RUSH_GFX_HUD`): `edges`, the default, puts the race HUD at the screen's edges: in a race with one
+    view, the speedometer and radar keep their distance to the left edge, the place, laps, coins, map and timer to
+    the right one, as on a 4:3 screen; centred banners, the pause menu, other screens and split screen stay in the
+    4:3 frame. `centered` keeps the HUD in the 4:3 frame, as the N64 draws it ([GFX.md](GFX.md) "The HUD at the
+    screen's edges"). Its one game C change places the coin icons beside their moved counts.
   - `auto`, the default, takes the window's aspect at each frame, so resizing the window or going fullscreen
     changes it. A 4:3 window is off.
   - With a fixed aspect and an auto window, the window opens at the picture's aspect; with 640 × 480 it opens at
@@ -195,6 +199,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.textures` | original | | `original`, `upscaled` (the 3D world's textures 2x at internal scale 2-3, 4x from 4; the HUD and menus as they are) or `pack` (replacements from `video.texture_pack`) ([TEXTURES.md](TEXTURES.md); `RUSH_GFX_TEXTURES`) |
 | `video.texture_pack` | `textures` (in the data folder) | | the texture pack's folder: PNG files named as the dump names them |
 | `video.texture_dump` | (empty: off) | | a folder to write every texture drawn into, as PNG, for making a pack ([TEXTURES.md](TEXTURES.md) "Texture packs") |
+| `video.hud` | edges | | the race HUD in widescreen: `edges` (at the screen's edges) or `centered` (in the 4:3 frame) (`RUSH_GFX_HUD`; "Widescreen" above) |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
@@ -291,6 +296,7 @@ restart.
 | | Pause in background | `video.pause_on_focus_loss` | at once |
 | | Graphics API * | `video.api` | after a restart: the GL context and its shaders are made at start |
 | | Textures: original, upscaled, pack | `video.textures` | from the game's next frame (`pc_gfx_set_textures`): the texture cache is made again; what was upscaled or loaded before is kept in memory ([TEXTURES.md](TEXTURES.md)) |
+| | Race HUD (widescreen): screen edges, centered (4:3) | `video.hud` | from the game's next frame (`pc_gfx_set_hud`) |
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
@@ -370,7 +376,7 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.sdl.rumble` | `... rumble` | the motor drives the pad's rumble callback at full strength, only on that player; a steady rumble outlives SDL's 1 s duration; the fade over 4 retraces; a pulsed motor stays at least half; strength from the settings; another player's motor; stopped at shutdown; strength 0 |
 | `frontend.sdl.script` | `... script` | `--press` merged over live input: buttons OR'ed, a scripted stick axis replaces the live one, a scripted port connected; `--log-input` runs |
 | `frontend.menu.nav` | `frontend_menu_test nav` | the overlay, headless: opening holds the game and its pads read idle; the panel shows over the frame (the frame dimmed around it, the selected row's color); moving and wrapping, pages, a long page scrolled by a page, back, close; closed, the window is the frame again byte for byte, and so is the next frame; each page keeps its place; Quit stops the main loop |
-| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s |
+| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the race HUD reaches it (centered, then edges); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s |
 | `frontend.menu.save` | `... save` | `pc_ini_update`: a value replaced in place (key case, spacing, the inline comment kept), the last of two lines, a new key after its section's last, an empty section, a new section after a last line without its end, CRLF, a binding, quoting, a BOM and bad lines kept, no changes; the overlay's Save over a hand-written file: the expected text exactly, a setting changed and back not written, the command line's scale not written, nothing more to save, the file reads back; a missing file and its directories, written whole |
 | `frontend.menu.script` | `... script` | a `--press` script over time: MENU opens it, a press held across the opening doesn't act, the game's pads are idle meanwhile, DOWN, A, LEFT (the volume), B, the stick, START closes; scripted game input works after |
 | `frontend.sdl.menu` | `frontend_sdl_test menu` | the overlay through the real window: F1 opens it, the game's held key released and its input suppressed, the title; (not on Windows) the panel in the window; arrows, Enter, a key captured (Space; Comma by its alias); Escape goes back and doesn't quit; the game then has the new keys; Enter that closed it and its key repeat aren't START until released; a virtual pad: one stick click doesn't open it, both do; the D-pad, A, a button and a stick direction captured, B, Start closes it and stays ignored until released, Y now A; guide as the menu button opens and closes it and isn't a game button; fullscreen from the overlay at once; F11 works in it and the overlay follows |

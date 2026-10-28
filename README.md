@@ -77,7 +77,8 @@ sensitivity set, in the overlay. The details are in
 (`video.scale = native`, any display scaling, 2880 × 1620 included); `video.scale = 1` is the N64's 320 × 240 in
 square pixels. Fullscreen is borderless, or exclusive at `video.resolution` (720p to 2160p, or WxH). While you
 play, the F1 overlay changes the video settings (render scale, widescreen, fullscreen and its mode, resolution,
-window size, vsync, frame rate, textures), the volume and the key and button mapping. It
+window size, vsync, frame rate, textures, race HUD), the volume and the key and button mapping. In widescreen the
+race HUD sits at the screen's edges (`video.hud = edges`); `centered` keeps it in the 4:3 frame, as on the N64. It
 can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
 (`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
 
