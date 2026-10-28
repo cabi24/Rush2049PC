@@ -113,6 +113,15 @@ int pcgfx_sdl_init(int w, int h, int want_gles, GfxGetProc *get_proc, int *is_gl
         fprintf(stderr, "gfx: SDL video: %s\n", SDL_GetError());
         return -1;
     }
+    if (w > 0 && h > 0) {   /* a size kept from a larger desktop than this one: the default instead */
+        SDL_Rect u;
+        if (SDL_GetDisplayUsableBounds(0, &u) == 0 && u.w > 0 && u.h > 0 && (w > u.w || h > u.h) &&
+            SDL_GetNumVideoDisplays() == 1) {
+            fprintf(stderr, "gfx: a %d x %d window is larger than the desktop (%d x %d usable); the default instead\n",
+                    w, h, u.w, u.h);
+            w = h = 0;
+        }
+    }
     if (w <= 0 || h <= 0) {
         SDL_DisplayMode m;
         SDL_Rect u = {0, 0, 0, 0};
