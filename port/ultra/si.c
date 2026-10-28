@@ -1,4 +1,4 @@
-/* port/ultra/si.c: the serial interface: PIF commands, pads, the controller pak and the rumble pak
+/* port/ultra/si.c: the serial interface: PIF commands, pads, the controller paks and the rumble paks
  * (docs/port/ULTRA.md).
  *
  * The game's own libultra C (osContInit, osContStartReadData, __osContRamRead/Write, the whole osPfs file
@@ -11,12 +11,19 @@
  * The block layout is the hardware's, byte for byte, because the game fills it through u8 fields; the one u16
  * field (the buttons in __OSContReadFormat) is read natively by the game, so it is written in host order.
  *
- * Controller 1's pak is a 32 KiB controller pak backed by a file written shortly after each change (temp file
- * + rename), or a rumble pak, or nothing. The image has the .mpk page layout (v5's pak.cpp), but its multi-byte
- * fields are in the order the natively compiled Pfs C writes them: the ID checksums are sums of host-order u16
- * words, and inode entries hold PFS_EOF and PFS_PAGE_NOT_USED as host-order u16 while page links keep their
- * {bank, page} bytes. So N64-order images (v5's, emulators') are detected and left alone, not read; converting
- * between the two needs the save formats too (docs/port/ULTRA.md). */
+ * Each of the four controllers holds one accessory (pc_si_set_pak): a 32 KiB controller pak backed by a file of its
+ * own (controller 1's game.pak_file, the others' game.pak2_file...) written shortly after each change (temp file +
+ * rename); a rumble pak; or nothing. Auto is a rumble pak while the port's controller can rumble (PcPad.rumble),
+ * else nothing. A change while the game runs is a hot swap, as a player makes one: the old accessory comes out at
+ * once, and the new one goes in only after the game's poll of every port (osContStartQuery, every 30 frames) has
+ * found the port empty, so the game's pak code sees the old one leave before the new one arrives.
+ *
+ * The image has the .mpk page layout (v5's pak.cpp), but its multi-byte fields are in the order the natively
+ * compiled Pfs C writes them: the ID checksums are sums of host-order u16 words, and inode entries hold PFS_EOF and
+ * PFS_PAGE_NOT_USED as host-order u16 while page links keep their {bank, page} bytes. So N64-order images (v5's,
+ * emulators') are detected and left alone, not read; converting between the two needs the save formats too
+ * (docs/port/ULTRA.md). Each port formats a new pak with an ID of its own: the game takes two paks with one ID for
+ * one pak moved from port to port. */
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
@@ -34,12 +41,20 @@ extern uint8_t __osContDataCrc(uint8_t *data);   /* src/rom/lib_105f0.c */
 static pthread_mutex_t g_slock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t g_pif[64];
 static PcPad g_pads[4];
-static int g_pak_kind[4];
-static uint8_t g_pak[PAK_SIZE];
-static char *g_pak_path;
-static int g_pak_dirty;
-static int g_rumble[4];
-static int g_rumble_seen[4];   /* turned on since the last pc_si_motor */
+
+/* A controller's accessory. */
+typedef struct {
+    int kind;                  /* the setting: PC_PAK_NONE, MEMORY, RUMBLE or AUTO */
+    int in;                    /* what the game finds plugged in: PC_PAK_NONE, MEMORY or RUMBLE */
+    int seen_empty;            /* the game's poll found the port empty since an accessory last came out */
+    int memory_ok;             /* img is a usable pak: its file read, or formatted */
+    char *path;                /* the memory pak's file; NULL: in memory only */
+    int dirty;
+    int rumble, rumble_seen;   /* the motor; turned on since the last pc_si_motor */
+    uint8_t img[PAK_SIZE];
+} Port;
+static Port g_port[4];
+static const char *const kind_names[] = {"nothing", "the controller pak", "the rumble pak", "auto"};
 
 /* ---------------------------------------------------------------- the .mpk image */
 
@@ -73,15 +88,16 @@ static int id_valid(const uint8_t *id, int be)
 }
 
 /* A blank, formatted pak for the native Pfs C: label block, ID block (one bank) and its three copies, an inode
- * table (and backup) with pages 5-127 free, an empty note table. */
-static void pak_format(uint8_t *img)
+ * table (and backup) with pages 5-127 free, an empty note table. The ID's random word is the port's own
+ * (controller 1's as it always was), so the four ports' new paks differ. */
+static void pak_format(uint8_t *img, int ch)
 {
     memset(img, 0, PAK_SIZE);
     img[0] = 0x81;
     for (int i = 1; i < 32; i++)
         img[i] = (uint8_t)i;
     uint8_t id[32] = {0};
-    uint32_t repaired = 0xFFFFFFFFu, random = 0x135F1A05u;
+    uint32_t repaired = 0xFFFFFFFFu, random = 0x135F1A05u ^ (uint32_t)ch * 0x2545F491u;
     uint16_t device = 0x0001, sum, isum;   /* device id bit 0: the ID is valid */
     memcpy(id, &repaired, 4);
     memcpy(id + 4, &random, 4);
@@ -106,80 +122,210 @@ static void pak_format(uint8_t *img)
     memcpy(img + 0x200, inode, 256);
 }
 
-static int pak_load(const char *path)
+/* Controller ch's pak from path into its image (which the game can't reach meanwhile): 0 when it is used (a missing
+ * file is formatted, and written at the next flush), 1 for an N64-order image (left unchanged on disk; a blank pak in
+ * memory instead), -1 when the file is not a pak (not used). */
+static int pak_load(int ch, const char *path)
 {
+    uint8_t *img = g_port[ch].img;
     FILE *f = fopen(path, "rb");
     if (!f) {
-        pak_format(g_pak);
-        g_pak_dirty = 1;
-        pc_log("controller pak %s: new, formatted", path);
+        pak_format(img, ch);
+        pthread_mutex_lock(&g_slock);
+        g_port[ch].dirty = 1;
+        pthread_mutex_unlock(&g_slock);
+        pc_log("controller %d's pak %s: new, formatted", ch + 1, path);
         return 0;
     }
-    size_t n = fread(g_pak, 1, PAK_SIZE, f);
+    size_t n = fread(img, 1, PAK_SIZE, f);
     fclose(f);
     if (n != PAK_SIZE) {
-        pc_log("controller pak %s: %zu bytes, not a 32 KiB .mpk; not used", path, n);
+        pc_log("controller %d's pak %s: %zu bytes, not a 32 KiB .mpk; not used", ch + 1, path, n);
         return -1;
     }
-    if (!id_valid(g_pak + 0x20, 0) && id_valid(g_pak + 0x20, 1)) {
-        pc_log("controller pak %s is in N64 byte order (v5, an emulator): left unchanged, and a blank pak is used "
-               "in memory", path);
-        pak_format(g_pak);
+    if (!id_valid(img + 0x20, 0) && id_valid(img + 0x20, 1)) {
+        pc_log("controller %d's pak %s is in N64 byte order (v5, an emulator): left unchanged, and a blank pak is "
+               "used in memory", ch + 1, path);
+        pak_format(img, ch);
         return 1;
     }
     if (pc_verbose)
-        pc_log("controller pak %s", path);
+        pc_log("controller %d's pak %s", ch + 1, path);
     return 0;
+}
+
+/* An image to its file: a temp file, then renamed over it. */
+static void pak_write_file(const char *path, const uint8_t *img)
+{
+    size_t len = strlen(path) + 5;
+    char *tmp = malloc(len);
+    snprintf(tmp, len, "%s.tmp", path);
+    FILE *f = fopen(tmp, "wb");
+    if (!f || fwrite(img, 1, PAK_SIZE, f) != PAK_SIZE || fclose(f) != 0)
+        pc_log("controller pak: cannot write %s", tmp);
+    else if (pc_rename_replace(tmp, path) != 0)
+        pc_log("controller pak: cannot replace %s", path);
+    free(tmp);
+}
+
+/* The main thread's (the main loop, pc_si_set_pak; --stop-at-gfx's exit), so the path stays. */
+static void flush_port(int ch)
+{
+    uint8_t copy[PAK_SIZE];
+    Port *p = &g_port[ch];
+    pthread_mutex_lock(&g_slock);
+    int dirty = p->dirty && p->path;
+    if (dirty)
+        memcpy(copy, p->img, PAK_SIZE);
+    p->dirty = 0;
+    pthread_mutex_unlock(&g_slock);
+    if (dirty)
+        pak_write_file(p->path, copy);
 }
 
 void pc_si_flush(void)
 {
-    uint8_t copy[PAK_SIZE];
-    pthread_mutex_lock(&g_slock);
-    int dirty = g_pak_dirty && g_pak_path;
-    if (dirty)
-        memcpy(copy, g_pak, PAK_SIZE);
-    g_pak_dirty = 0;
-    pthread_mutex_unlock(&g_slock);
-    if (!dirty)
+    for (int ch = 0; ch < 4; ch++)
+        flush_port(ch);
+}
+
+/* ---------------------------------------------------------------- the accessories */
+
+/* What goes in the port, by its setting (lock held). */
+static int wanted(int ch)
+{
+    const Port *p = &g_port[ch];
+    switch (p->kind) {
+    case PC_PAK_MEMORY: return p->memory_ok ? PC_PAK_MEMORY : PC_PAK_NONE;
+    case PC_PAK_RUMBLE: return PC_PAK_RUMBLE;
+    case PC_PAK_AUTO: return g_pads[ch].connected && g_pads[ch].rumble ? PC_PAK_RUMBLE : PC_PAK_NONE;
+    default: return PC_PAK_NONE;
+    }
+}
+
+/* The port's accessory follows its setting (lock held): the old one out at once, the new one in once the game's
+ * poll has found the port empty. */
+static void update(int ch)
+{
+    Port *p = &g_port[ch];
+    int want = wanted(ch);
+    if (want == p->in)
         return;
-    size_t len = strlen(g_pak_path) + 5;
-    char *tmp = malloc(len);
-    snprintf(tmp, len, "%s.tmp", g_pak_path);
-    FILE *f = fopen(tmp, "wb");
-    if (!f || fwrite(copy, 1, PAK_SIZE, f) != PAK_SIZE || fclose(f) != 0)
-        pc_log("controller pak: cannot write %s", tmp);
-    else if (pc_rename_replace(tmp, g_pak_path) != 0)
-        pc_log("controller pak: cannot replace %s", g_pak_path);
-    free(tmp);
+    if (p->in != PC_PAK_NONE) {
+        if (pc_verbose)
+            pc_log("controller %d: %s out", ch + 1, kind_names[p->in]);
+        p->in = PC_PAK_NONE;
+        p->rumble = p->rumble_seen = 0;
+        p->seen_empty = 0;
+    }
+    if (want != PC_PAK_NONE && p->seen_empty) {
+        if (pc_verbose)
+            pc_log("controller %d: %s in", ch + 1, kind_names[want]);
+        p->in = want;
+    }
+}
+
+void pc_si_set_pak_file(int ch, const char *path)
+{
+    if (ch < 0 || ch > 3)
+        return;
+    Port *p = &g_port[ch];
+    if (p->kind == PC_PAK_MEMORY)
+        flush_port(ch);
+    pthread_mutex_lock(&g_slock);
+    free(p->path);
+    p->path = path ? strdup(path) : NULL;
+    p->memory_ok = 0;   /* read when it is chosen next */
+    update(ch);         /* a memory pak in now comes out */
+    pthread_mutex_unlock(&g_slock);
+}
+
+int pc_si_set_pak(int ch, int kind)
+{
+    if (ch < 0 || ch > 3 || kind < PC_PAK_NONE || kind > PC_PAK_AUTO)
+        return PC_PAK_NONE;
+    Port *p = &g_port[ch];
+    int was = p->kind;
+    if (kind == PC_PAK_MEMORY && !p->memory_ok && p->in != PC_PAK_MEMORY) {   /* the game can't reach img */
+        int r = 0;
+        if (p->path)
+            r = pak_load(ch, p->path);
+        else
+            pak_format(p->img, ch);   /* in memory only */
+        if (r != 0) {
+            pthread_mutex_lock(&g_slock);
+            free(p->path);
+            p->path = NULL;   /* in memory only, or not used */
+            pthread_mutex_unlock(&g_slock);
+        }
+        for (int o = 0; o < 4 && r >= 0; o++)
+            if (o != ch && g_port[o].memory_ok && !memcmp(g_port[o].img + 0x20, p->img + 0x20, 32))
+                pc_log("controller %d's pak has the ID of controller %d's (a copy of its file?): the game takes the "
+                       "two for one pak", ch + 1, o + 1);
+        pthread_mutex_lock(&g_slock);
+        p->memory_ok = r >= 0;
+        pthread_mutex_unlock(&g_slock);
+    }
+    pthread_mutex_lock(&g_slock);
+    p->kind = kind;
+    update(ch);
+    pthread_mutex_unlock(&g_slock);
+    if (was == PC_PAK_MEMORY && kind != PC_PAK_MEMORY)
+        flush_port(ch);   /* taken out: its file is up to date */
+    return kind == PC_PAK_MEMORY && !p->memory_ok ? PC_PAK_NONE : kind;
+}
+
+int pc_si_pak(int ch)
+{
+    if (ch < 0 || ch > 3)
+        return PC_PAK_NONE;
+    pthread_mutex_lock(&g_slock);
+    int in = g_port[ch].in;
+    pthread_mutex_unlock(&g_slock);
+    return in;
+}
+
+const char *pc_si_pak_path(int ch)
+{
+    if (ch < 0 || ch > 3)
+        return NULL;
+    const Port *p = &g_port[ch];
+    return p->kind == PC_PAK_MEMORY && p->memory_ok ? p->path : NULL;
 }
 
 int pc_si_init(const char *pak_path, int pak_kind)
 {
-    g_pak_kind[0] = pak_kind;
-    if (pak_kind == PC_PAK_MEMORY) {
-        if (pak_path) {
-            g_pak_path = strdup(pak_path);
-            int r = pak_load(pak_path);
-            if (r != 0) {
-                free(g_pak_path);
-                g_pak_path = NULL;   /* in memory only */
-                if (r < 0)
-                    g_pak_kind[0] = PC_PAK_NONE;
-            }
-        } else {
-            pak_format(g_pak);   /* in memory only */
-        }
-    }
+    for (int ch = 0; ch < 4; ch++)
+        g_port[ch].seen_empty = 1;   /* nothing in yet: the first accessory goes in at once */
+    pc_si_set_pak_file(0, pak_path);
+    pc_si_set_pak(0, pak_kind);
+    pthread_mutex_lock(&g_slock);
     if (!g_pads[0].connected)
         g_pads[0].connected = 1;   /* until pc_input_poll says otherwise */
+    pthread_mutex_unlock(&g_slock);
     return 0;
 }
+
+static int g_pads_held;   /* the self-test's pads */
 
 void pc_si_set_pads(const PcPad pads[4])
 {
     pthread_mutex_lock(&g_slock);
-    memcpy(g_pads, pads, sizeof g_pads);
+    if (!g_pads_held)
+        memcpy(g_pads, pads, sizeof g_pads);
+    for (int ch = 0; ch < 4; ch++)
+        update(ch);   /* auto follows the port's controller */
+    pthread_mutex_unlock(&g_slock);
+}
+
+void pc_si_test_pads(const PcPad pads[4])
+{
+    pthread_mutex_lock(&g_slock);
+    g_pads_held = pads != NULL;
+    if (pads)
+        memcpy(g_pads, pads, sizeof g_pads);
+    for (int ch = 0; ch < 4; ch++)
+        update(ch);
     pthread_mutex_unlock(&g_slock);
 }
 
@@ -193,10 +339,10 @@ static uint8_t data_crc(uint8_t *data, int present)
 
 static void pak_read(int ch, uint16_t addr, uint8_t *out)
 {
-    switch (g_pak_kind[ch]) {
+    switch (g_port[ch].in) {
     case PC_PAK_MEMORY:
         if (addr < PAK_SIZE)
-            memcpy(out, g_pak + addr, 32);
+            memcpy(out, g_port[ch].img + addr, 32);
         else
             memset(out, 0, 32);
         break;
@@ -210,16 +356,17 @@ static void pak_read(int ch, uint16_t addr, uint8_t *out)
 
 static void pak_write(int ch, uint16_t addr, const uint8_t *in)
 {
-    if (g_pak_kind[ch] == PC_PAK_MEMORY && addr < PAK_SIZE) {
-        if (memcmp(g_pak + addr, in, 32) != 0) {
-            memcpy(g_pak + addr, in, 32);
-            g_pak_dirty = 1;
+    Port *p = &g_port[ch];
+    if (p->in == PC_PAK_MEMORY && addr < PAK_SIZE) {
+        if (memcmp(p->img + addr, in, 32) != 0) {
+            memcpy(p->img + addr, in, 32);
+            p->dirty = 1;
         }
-    } else if (g_pak_kind[ch] == PC_PAK_RUMBLE && addr >= 0xC000) {
-        if (g_rumble[ch] != (in[0] != 0) && pc_verbose > 1)
+    } else if (p->in == PC_PAK_RUMBLE && addr >= 0xC000) {
+        if (p->rumble != (in[0] != 0) && pc_verbose > 1)
             pc_log("rumble %d %s", ch + 1, in[0] ? "on" : "off");
-        g_rumble[ch] = in[0] != 0;
-        g_rumble_seen[ch] |= in[0] != 0;
+        p->rumble = in[0] != 0;
+        p->rumble_seen |= in[0] != 0;
     }
 }
 
@@ -228,8 +375,8 @@ int pc_si_motor(int ch)
     if (ch < 0 || ch > 3)
         return 0;
     pthread_mutex_lock(&g_slock);
-    int on = g_rumble[ch] || g_rumble_seen[ch];
-    g_rumble_seen[ch] = 0;
+    int on = g_port[ch].rumble || g_port[ch].rumble_seen;
+    g_port[ch].rumble_seen = 0;
     pthread_mutex_unlock(&g_slock);
     return on;
 }
@@ -246,7 +393,7 @@ static int run_command(int ch, uint8_t *cmd, int tx, uint8_t *res, int rx)
         if (rx >= 3) {
             res[0] = CONT_TYPE_NORMAL & 0xFF;   /* typeh: the game reads type = typel << 8 | typeh */
             res[1] = CONT_TYPE_NORMAL >> 8;
-            res[2] = g_pak_kind[ch] ? 0x01 : 0x02;   /* accessory present / not */
+            res[2] = g_port[ch].in ? 0x01 : 0x02;   /* accessory present / not */
         }
         return 0;
     case 0x01:
@@ -261,14 +408,14 @@ static int run_command(int ch, uint8_t *cmd, int tx, uint8_t *res, int rx)
         if (tx >= 3 && rx >= 33) {
             uint16_t addr = (uint16_t)((cmd[1] << 8 | cmd[2]) & ~0x1F);
             pak_read(ch, addr, res);
-            res[32] = data_crc(res, g_pak_kind[ch] != PC_PAK_NONE);
+            res[32] = data_crc(res, g_port[ch].in != PC_PAK_NONE);
         }
         return 0;
     case 0x03:
         if (tx >= 35 && rx >= 1) {
             uint16_t addr = (uint16_t)((cmd[1] << 8 | cmd[2]) & ~0x1F);
             pak_write(ch, addr, cmd + 3);
-            res[0] = data_crc(cmd + 3, g_pak_kind[ch] != PC_PAK_NONE);
+            res[0] = data_crc(cmd + 3, g_port[ch].in != PC_PAK_NONE);
         }
         return 0;
     default:
@@ -277,10 +424,12 @@ static int run_command(int ch, uint8_t *cmd, int tx, uint8_t *res, int rx)
 }
 
 /* Walk the channel blocks: 0x00 skips a channel, 0xFF pads, 0xFE ends, else tx/rx sizes and the command.
- * Bytes 60-63 are the status word, which the game writes as a native u32 (CONT_CMD_EXE). */
+ * Bytes 60-63 are the status word, which the game writes as a native u32 (CONT_CMD_EXE). A status command to every
+ * port is the game's poll for accessories (osContStartQuery, osContInit; libultra's own status reads ask one port):
+ * a port it finds empty, or without its controller, may take the next accessory. */
 static void pif_run(void)
 {
-    int ch = 0;
+    int ch = 0, polled = 0;
     for (int i = 0; i < 60 && ch < 5;) {
         uint8_t tx = g_pif[i];
         if (tx == 0xFE)
@@ -300,9 +449,16 @@ static void pif_run(void)
         uint8_t *cmd = &g_pif[i + 2], *res = cmd + txn;
         int err = run_command(ch, cmd, txn, res, rxn);
         g_pif[i + 1] = (uint8_t)((g_pif[i + 1] & 0x3F) | err);
+        if (ch < 4 && txn >= 1 && (cmd[0] == 0x00 || cmd[0] == 0xFF))
+            polled |= 1 << ch;
         i += 2 + txn + rxn;
         ch++;
     }
+    for (ch = 0; ch < 4 && polled == 0xF; ch++)
+        if (g_port[ch].in == PC_PAK_NONE || !g_pads[ch].connected) {
+            g_port[ch].seen_empty = 1;
+            update(ch);
+        }
 }
 
 /* ---------------------------------------------------------------- libultra's raw SI */
