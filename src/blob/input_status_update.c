@@ -613,7 +613,14 @@ typedef struct PadConfig_s
   s16 unk1C;
   s16 unk1E;
 } PadConfig;
+#ifdef TARGET_PC
+/* PC: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7): the 200 records at 0x80140BF0,
+ * three fields of one written */
+extern PadConfig pad_config[];
+#define pad_config (pad_config[0])
+#else
 extern PadConfig pad_config;
+#endif
 typedef struct 
 {
   PadConfig *unk0;
