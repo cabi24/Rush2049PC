@@ -6,6 +6,11 @@
 # writes stay inside D_80151CE8 at its N64 layout.
 bounds:^audio_mixer_main$
 
+# The pause menu's rows (the retail pause paths): animControls tests (conflict && !gConflict[p][action]) ||
+# action >= 10, so with action 10 it reads the next row's first flag (an arena in the RDRAM window, at its N64
+# layout, as the N64 reads it), and the || makes the result true whatever it read.
+bounds:^animControls$
+
 # A blank cartridge only (--no-rom, app_firstrun): with every file empty no heap block fits, and the N64 code reads
 # the null block's size too.
 null:^audio_helper$
