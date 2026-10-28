@@ -155,7 +155,7 @@ build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headle
 ```
 
 The host loop logs each change of the game's state word (`state_word_a`, gGameState), with the players, windows,
-cars, mode (gRace) and track, and the first car's position and speed. The front end, on x86-64 (Rocky) and aarch64
+cars, mode (gRace) and track, and the first car's position, speed and steering input. The front end, on x86-64 (Rocky) and aarch64
 (the Pi 5) alike:
 
 | State | Screen | Reached | Left by |

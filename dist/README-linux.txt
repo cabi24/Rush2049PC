@@ -26,16 +26,18 @@ program; X11 or Wayland, PulseAudio, PipeWire or ALSA, and controllers are used 
 
 Controls
 --------
-  N64               Keyboard          Controller (Xbox layout)
-  Stick             arrow keys        left stick
-  A (accelerate)    X                 A, right trigger
-  B (brake)         C                 X, left trigger
-  Z                 Z                 left shoulder (LB)
-  L                 Q                 Back (View)
-  R                 E                 right shoulder (RB)
-  START             Enter             Start (Menu)
-  C buttons         I J K L           right stick, or Y (C-up) and B (C-down)
-  D-pad             W A S D           D-pad
+  N64               Keyboard          Xbox                      PlayStation
+  Stick             arrow keys        left stick                left stick
+  A (accelerate)    X                 A, right trigger (RT)     Cross, R2
+  B (brake)         C                 X, left trigger (LT)      Square, L2
+  Z                 Z                 LB                        L1
+  L                 Q                 Back (View)               Share (Create)
+  R                 E                 RB                        R1
+  START             Enter             Start (Menu)              Options
+  C buttons         I J K L           right stick; Y C-up, B C-down  right stick; Triangle, Circle
+  D-pad             W A S D           D-pad                     D-pad
+  Other pads: the button in the same place. F1 > Controllers rebinds every button, and sets the stick's dead
+  zone and sensitivity.
 
   F1                settings overlay (both stick clicks on a controller): video, sound, key and button mapping
   Alt+Enter, F11    fullscreen
@@ -62,6 +64,10 @@ Troubleshooting
 ---------------
 - Everything the program prints is also written to rush2049pc.log in this folder (in
   ~/.local/share/rush2049pc without rush2049pc.ini); the run before is kept as rush2049pc.old.log.
+- A controller does nothing, or its stick doesn't steer: F1 > Controllers shows who plays each player and
+  what the stick gives, live, and the log names each controller found and its player. A pad SDL doesn't know
+  gets a generic mapping and takes a player at its first button press: rebind it in F1 > Controllers, or put
+  SDL's gamecontrollerdb.txt (with a line for it) next to rush2049pc.ini.
 - Problems: https://github.com/cabi24/Rush2049PC/issues (attach rush2049pc.log; ./rush2049pc --version says
   which build you have)
 

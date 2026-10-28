@@ -52,20 +52,23 @@ found, where the saves are and where its log is.
 
 ### Controls
 
-| N64 | Keyboard | Controller (Xbox layout) |
-|---|---|---|
-| Stick | arrow keys | left stick |
-| A (accelerate) | X | A, right trigger |
-| B (brake) | C | X, left trigger |
-| Z | Z | LB |
-| L | Q | Back |
-| R | E | RB |
-| START | Enter | Start |
-| C buttons | I, J, K, L | right stick; Y and B for C-up and C-down |
-| D-pad | W, A, S, D | D-pad |
+| N64 | Keyboard | Xbox | PlayStation |
+|---|---|---|---|
+| Stick | arrow keys | left stick | left stick |
+| A (accelerate) | X | A, RT | Cross, R2 |
+| B (brake) | C | X, LT | Square, L2 |
+| Z | Z | LB | L1 |
+| L | Q | Back | Share |
+| R | E | RB | R1 |
+| START | Enter | Start | Options |
+| C buttons | I, J, K, L | right stick; Y and B for C-up and C-down | right stick; Triangle and Circle |
+| D-pad | W, A, S, D | D-pad | D-pad |
+
+Other pads use the button in the same place.
 
 F1 (or both stick clicks) opens the settings overlay. Alt+Enter or F11 toggles fullscreen, F12 saves a screenshot,
-Pause holds the game and Escape quits. Every key and button can be remapped. The details are in
+Pause holds the game and Escape quits. Every key and button can be remapped, and the stick's dead zone and
+sensitivity set, in the overlay. The details are in
 [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
 
 ### Settings
@@ -101,7 +104,11 @@ there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into
   later. On Windows desktop GL comes first, elsewhere OpenGL ES; `--set video.api=gl` or `gles` picks the one tried
   first.
 - **No sound:** `--audio sdl` (or `alsa` on Linux) picks the output; the volume is `audio.volume`.
-- **A controller isn't recognized:** put SDL's `gamecontrollerdb.txt`, with a line for it, next to `rush2049pc.ini`.
+- **A controller does nothing, or its stick doesn't steer:** F1 > Controllers shows who plays each player and what
+  the stick gives, and the log names each controller found and its player. A pad SDL doesn't know gets a generic
+  mapping and takes a player at its first button press; rebind it there, or put SDL's `gamecontrollerdb.txt`, with a
+  line for it, next to `rush2049pc.ini`. On Windows, Xbox pads go through XInput (`SDL_JOYSTICK_RAWINPUT=1` uses
+  SDL's raw input instead).
 - **It stopped with an error:** the log says why. On Windows a message box gives the log's path, and the console
   waits for a key. Report it on the [issues page](https://github.com/cabi24/Rush2049PC/issues) with
   `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was.
