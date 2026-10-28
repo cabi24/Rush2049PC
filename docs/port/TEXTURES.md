@@ -65,7 +65,7 @@ sub-texels per texel, so the same coordinates sample the same place, finer.
 - **Mip chains** (G_TL_LOD): the level is chosen in the shader from the change of s, t in N64 texels of the first
   level, times the internal scale; the texture sizes never enter it. Each level is its own texture, upscaled or
   replaced on its own (tiny levels stay original). `gfx.tex.lod` draws a chain from magnified to past the last
-  level, original and upscaled, and compares the level shown at each pixel.
+  level, original and upscaled (2x, 4x at 6.75, 2x at 2.25), and compares the level shown at each pixel.
 - **Rectangles**: above 1x a point-sampled or copy-mode rectangle snaps each sample to its N64 pixel's corner
   (GFX.md). With a bigger texture bound that would throw its detail away, so the snap is off there; at 1:1 a
   pack at the internal scale then shows each of its texels on one pixel (`gfx.tex.roundtrip`).
