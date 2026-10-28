@@ -167,7 +167,7 @@ Chunks:
 | OBHD | count × 0x58 | `tModelDef` (`waves.c:59-72`): `char name[16]`; `f32 radius` +0x10; `s16 unused` (kind) +0x14; `s16 lodCount` +0x16; `tLod lod[4]` +0x18, each 0x10: `u16 texidx` +0, `u16 flags` +2, `f32 lodRad` +4, `u32 *displayList` +8, `u32 *vtxList` +0xC | `displayList` and `vtxList` are file-relative and get `+= file` (`waves.c:195-196`). `vtxList` is never read [R] | swap 0x10 (32), 0x14/0x16 (16); per LOD 16, 16, 32, 32, 32 [M `waves.c:362-367`] | C |
 | TXHD | count × 0x24 | `tTexture` (`waves.c:73-83`): `char name[16]`; `u16 width` +0x10, `height` +0x12; `u8 size` +0x14, `format` +0x15; `s16 palIndex` +0x16; `char *texBase` +0x18; `u32 flags` +0x1C (0x08000000 = texels, otherwise a TXLD list; clamp/mirror bits [R]); `u32 xflags` +0x20 | `texBase` is IMAG-relative, `+= IMAG` (`waves.c:185`) | 16 at 0x10, 0x12, 0x16; 32 at 0x18, 0x1C, 0x20 [M `waves.c:372`; the GC record is 0x30] | C |
 | PLHD | count × 0x18 | `char name[16]`; `u8 start` +0x10, `end` +0x11; `u16 format` +0x12; `char *palBase` +0x14 (`waves.c:84-90`) | `palBase += IMAG` (`waves.c:190`) | 16 at 0x12, 32 at 0x14 [M `:377`] | C |
-| PTHD | count × 0x24, waves 101–119 | `tBasicTargetPath` (`waves.c:91-99`): `char name[16]`; `u32 flags` +0x10; `s16 numPts` +0x14; `s16 collIdx` +0x16; `trigPtr` +0x18; `pts` +0x1C; `parent` +0x20 (set at run time) | `pts` and `trigPtr` are file-relative, `+= file` (`waves.c:203-204`). No reader of `trigPtr` found. `parent` is written at run time | 32 at 0x10, 0x18, 0x1C, 0x20; 16 at 0x14, 0x16 [M `:384`] | C |
+| PTHD | count × 0x24, waves 101–119 | `tBasicTargetPath` (`waves.c:91-99`): `char name[16]`; `u32 flags` +0x10; `s16 numPts` +0x14; `s16 collIdx` +0x16; `trigPtr` +0x18; `pts` +0x1C; `parent` +0x20 (set at run time) | `pts` and `trigPtr` are file-relative, `+= file` (`waves.c:203-204`). The camera reads `trigPtr` as the linked scene, another PTHD record (§8.2). `parent` is a file key that level objects read and the camera then overwrites | 32 at 0x10, 0x18, 0x1C, 0x20; 16 at 0x14, 0x16 [M `:384`] | C |
 | PATH | bytes | path points, numPts × 0x44: `f32 pos[3], norm[3], scale[3], quat[4], distToNext, timeToNext, speed; u32 flags` [M `rush_types.h:2435`] | none | 17 × u32 per point [M `waves.c:418`] | M |
 | TXLD | bytes | texture-load display lists, 8-byte F3DEX2 commands | `G_SETTIMG` (0xFD) w1, and w1 of `G_RDPHALF_1` (0xE1) followed by 0x04, are IMAG-relative. `entity_cull_check` (0x80096A00, `src/blob/entity_cull_check.c:19-37`) rebases them to `(w1 & 0x0F000000) \| ((w1 + IMAG) & 0xFFFFFF)` | stays N64 form | C |
 | OBJS | bytes | object display lists and `Vtx` (16 B: `s16 ob[3]`, `u16 flag` +6, `s16 tc[2]` +8, `u8 cn[4]` +0xC) | VTX/DL/MTX/MOVEMEM/SETxIMG w1 are file-relative with segment nibble 0. The relocator rewrites them (§3.2) | stays N64 form | C |
@@ -254,7 +254,7 @@ M `pathcommon.c:25-80`, `rush_types.h:1329`]
 
 | Offset | Content | Fixup |
 |---|---|---|
-| 0 | checkpoint block 0x32C: `s16 startTime, loopPt, finishPt, startPt, numPoints`, pad, then 10 × 0x50 `{f32 pos[3], normal[3], radius; u16 flags; s16 time[2]; s16 pathPts[20]; f32 distToNext}` | `memcpy` of 812 B to `gCheckpoints` `D_80151CE8` |
+| 0 | checkpoint block 0x32C: `s16 startTime, loopPt, finishPt, startPt, numPoints`, pad, then 10 × 0x50 `{f32 pos[3], normal[3]; s32 radius (squared, read as an integer); s16 flags; s16 time[2]; s16 pathPts[20]; f32 distToNext}` | `memcpy` of 812 B to `gCheckpoints` `D_80151CE8` |
 | 0x32C | `ResPath` 0x10: `u16 numPrimary, u16; pts (u32 slot); u8 numAlt, pad[3]; alt (u32 slot)` | `memcpy` of 16 B into `D_801407F0`, whose pointer fields are filled afterwards |
 | +0x10 | numAlt × `AltPath` 0x10: `u8 type; …; u16 numPts +0xA; pts +0xC` | **`pts` written in place** (`:96`) |
 | | u16 resurrection point count `D_801527A4`; numPrimary × `s16[3]` | |
@@ -404,8 +404,163 @@ Expansion Pak waves (61, 65, 78, 82–87), which is a smaller first target. Swit
    reader uses whole-field loads except WAITMS's byte store (given a PC version), the little-endian envelopes,
    the layer count's halfword and two fields read at either width by record kind, which the converter swaps
    accordingly. The formats are now from the C; what to check with the ROM is MUSYX_DATA.md §7.
-6. **Unidentified**: waves 9 and 69–75 (no load site), 61, 79, 80, 81 (N64-only), `trigPtr` targets (relocated, no
-   reader found) and the contents of WOBJ beyond the 0x68 records [M]. The storage kind per wave is ROM data, so read
-   it from the table rather than guessing.
+6. **Unidentified**: waves 9 and 69–75 (no load site), 61, 79, 80, 81 (N64-only). `trigPtr` targets and the WOBJ
+   chunk are settled (§8.1–8.3). The storage kind per wave is ROM data, so read it from the table rather than
+   guessing.
 7. **Handle blocks move** during compaction. Only font data uses handles today; a BE registration on a moving block
    would also have to move.
+
+## 8. The converter sweep (2026-10-28)
+
+The data loader's sweep ([DATA.md](DATA.md) §8) found five tables converted at the wrong width: fields whose
+readers use a wider or different type than the conversion assumed. This is the same sweep for `port/assets`, whose
+converters are hand-written from the formats as the decomp's readers read them. Two passes, over every format:
+
+1. **The readers.** For each converted buffer, and each copy the game makes of it (`gCheckpoints`, `gResPath`, the
+   alternative and drone paths, gText's tables, the GTLD keys), every live game C reader was found and compared
+   field by field with the converter. Readers are found through struct views, `M2C_FIELD` offsets, casts and raw
+   strides, starting from the section and table pointers (`D_80152034`…, `D_801161F4`, `D_80151AE8`,
+   `D_80138670`, `D_801392D0`, `D_80149770`, `D_801497C0`, `D_8017A4E0`, the font letters). Live means a strong
+   definition in the PC link: weak context copies never run. The checks were: the width and signedness of each
+   read; fields left unconverted but read wider than a byte; counts read as something else (records or bytes, a
+   different stride); and views whose layout changes on a 64-bit host. `endian_check.py`'s loader section was not
+   extended. Its storages are data symbols and what their pointers reach, while these files live in heap blocks
+   that only `LoadWave`'s slots reach.
+2. **The retail cartridge, on the Pi.** A scratch harness (outside the repository: it and its output read the
+   cartridge) runs every one of the 183 waves the way `_ReadWave` does. It takes the wave's entries in the file
+   table (`D_8011B5BC`, `gWaveSizes`, `D_80123564`), decompresses it (raw, LZSS or DEFLATE) into a 32-byte-rounded
+   block in the RDRAM window, and calls `pc_wave_loaded`. It then checks the converted buffer as the readers read
+   it. This covers every track, car, world, road, path, text bank, font and MusyX file, not only those a press
+   script reaches. A hash of every converted block also showed that the fixes below convert the retail files byte
+   for byte as before.
+
+### 8.1 On the cartridge
+
+No converter refused or cut a file: none of the 183 waves printed "runs past", "outside the file", "no WHDR that
+fits" or "doesn't parse". Per format:
+
+| Format | Checked | Result |
+|---|---|---|
+| WAD (waves 22–37, 54–119) | Every TOC count × record size against the room before the next chunk; duplicate tags; OBHD radius, lodRad, lodCount, display-list and vertex offsets; TXHD sizes and texBase; PLHD range and palBase; PTHD points | The four record chunks' count word is a record count. Chunks with a zero count share their offset with the next chunk. TXLD's, IMAG's, OBJS's and PATH's count word is a byte length. Each tag appears once. Floats are plausible, offsets fall inside the file, display lists are 8-aligned, texidx < the TXHD count. On every path the normals have unit length, and `distToNext` equals the distance to the next point to float precision: the 17-word point layout is right |
+| PTHD links | `trigPtr` targets; the key after a path's last one (`keys[count]`, which the camera reads, below) | Every `trigPtr` is 0 or a record of the same, converted PTHD chunk. Every path the camera could read past ends where another path's points begin, so `keys[count]` is converted too (it is that path's first key) |
+| World (120–138) | TOC counts; WHDR names and offsets; the nodes WHDR reaches; node floats, bounds, links; GDAT bounds and children; GTLD against GDAT's leaves | WHDR's count word is a byte length, WOBJ's, GDAT's and GTLD's are record counts, each filling its chunk exactly. Every world has a WOBJ entry, and the nodes WHDR reaches are exactly the WOBJ records. Interior quadtree nodes (flags bit 0) have children inside GDAT; leaves' key ranges fit GTLD |
+| Road (139–157) | Section sizes; the five record sections; the surfaces' 3 × 3 basis | Every file ends exactly at the last slist byte (header counts × record sizes + vlnum + slnum). The path floats are plausible. Tree parents fall within the tree and bounds are ordered. Every surface basis row has the same length, the format's fixed-point unit (unit normals). Several slists start at odd offsets: those sections can only be read byte by byte, as their readers do |
+| Path (158–182) | The walk the converter makes; checkpoint floats; resurrection, alternative and drone points | Every walk ends at the file's last byte. Checkpoint normals have unit length. `radius` is not a float: it is an integer (a squared radius, compared with `dx² + dz²` in `route_cross`), and 32-bit either way. Point steps are short (connected paths). Alternative-path indices are within the resurrection path. The u16 after the alternative headers (`D_801527A4`) is not numPrimary; it is read only by `func_800B9740` |
+| Text (0–5) | Section counts; offsets; strings; the u16 tables | All offsets fall inside the file and each starts right after a NUL. `tab` and `tab2a` hold indices below their offset tables' counts |
+| Font data (38–53) | Letters and kern table against the block | All fit. The kern slots are empty in the file |
+| MusyX (6–8, 10–21) | The converter's own walk (MUSYX_DATA.md §7.1–3) | Every file parses to its end. The tables swapped as envelopes (named by steps 0x0C) and the curve ids of steps 0x0D, 0x0F and 0x14 are disjoint |
+
+### 8.2 WAD records (`wad.c`)
+
+| Record: field | Converted | Readers | Verdict |
+|---|---|---|---|
+| OBHD radius +0x10 | 32 | `func_800ABB58` f32 | OK |
+| OBHD +0x14 / lodCount +0x16 | 16 / 16 | +0x14 has no reader; lodCount s16 (`waves.c`, model draw `particle_knot`, `func_8008B000`) | OK |
+| LOD texidx, flags +0, +2 | 16 each | u16 (model draw; `func_8008B000` sets flag 0x8000; the track map writes both) | OK |
+| LOD lodRad, dl, vtx +4, +8, +0xC | 32 | f32; u32 window addresses in every view (`waves.c`, model draw, `entity_render_mode`, `MapLod` copies in overlay A) | OK |
+| TXHD width, height +0x10, +0x12 | 16 | u16 in every view (`Texture`, `Texture36`, the font draw, the minimap, overlay A) | OK |
+| TXHD size, format +0x14, +0x15 | bytes | u8 only | OK |
+| TXHD palIndex +0x16 | 16 | s16 | OK |
+| TXHD texBase, flags, xflags +0x18… | 32 | u32 (`render_display_list`, texture animation); xflags unread | OK |
+| PLHD start, end +0x10, +0x11 | bytes | u8 (`func_80099B30`) | OK |
+| PLHD format +0x12 | 16 | no reader | OK |
+| PLHD palBase +0x14 | 32 | u32 (TLUT load, texture animation, car paint) | OK |
+| PTHD flags +0x10 | 32 | s32/u32 (level objects, the camera's `CamScene`, `func_8010C2E4`'s `>> 24`) | OK |
+| PTHD numPts, id +0x14, +0x16 | 16 | s16 | OK |
+| PTHD trigPtr +0x18 | 32 | **read**: the camera's `CamScene.link`, another scene whose flags it tests and clears (`camera_aspect_ratio`). On the cartridge it is always 0 or a converted PTHD record (§8.1) | OK |
+| PTHD pts, key +0x1C, +0x20 | 32 | u32 window address (`PTHD_PTS`, `CamScene.keys`); key read as s32 by level objects, then the camera's `cur` | OK |
+| PATH point +0x00…+0x3C | 15 × 32 | f32 (`CamKey`); `Resource68`'s prefix unread | OK |
+| PATH point flags +0x40 | 32 | u32 / s32 | OK |
+| TOC count word | 32 | Record count for OBHD, TXHD, PLHD, PTHD (`waves.c` loops, the bsearches, level objects); byte length for TXLD (`entity_cull_check`); unused for IMAG. No other tag is fetched by name | OK |
+
+Every view of these records keeps the N64 size on the host (pointer fields u32 or `enum n64p_*` under TARGET_PC).
+Strides are literal 88/36/24, or `sizeof` of such a view. The `{pointer, count}` slot tables are 16 bytes in
+every live view.
+
+### 8.3 World (`world.c`)
+
+| Chunk: field | Converted | Readers | Verdict |
+|---|---|---|---|
+| WHDR count, woff | 32 | `LoadTrack` s32/u32, `NewWorld`'s 20-byte `NameEntry` (u32 node) | OK |
+| WOBJ mat, min, max | 32 | f32 (`differential_output`, `level_objects`' `Place`, `func_800AB53C`, `physics_float_calc`) | OK |
+| WOBJ dlflags +0x40 | 32 | u32 | OK |
+| WOBJ next, child +0x44 | 16 | s16 | OK |
+| WOBJ sfx1, sfx2 +0x48 | 16 | no reader (`Place.w72` unread) | OK |
+| WOBJ tidx +0x4C | 32 | s32 key, sign-extended where compared, as `pc_world_chunk` does | OK |
+| GDAT parent +0, byte +2 | 16 / byte | unread | OK |
+| GDAT flags +3 | byte | u8 `& 1` (`race_setup_2`) | OK |
+| GDAT bounds, children | 32 / 16 | f32, u16 (`race_setup_2`'s `Tree`, 0x1C) | OK |
+| GTLD keys | 32 | the native key array (`pc_world_chunk`); its count is `D_801497EC`, the loop bound in `engine_sound_update` | OK |
+| TOC count words | — | WHDR: none (fetched with NULL). GTLD: a record count, as the game uses it. GDAT: stored in `D_80149790`, never read. WOBJ: never fetched. The game reaches the nodes from WHDR only | see the fix below |
+
+### 8.4 Road (`road.c`)
+
+The 23 reader functions use exactly the converted widths, record strides and section order.
+- The header is six u16, then `slnum`, which nothing reads.
+- The tree's byte at +3 is read as a u8 mask; the byte at +2 is unread.
+- Surface `type` and `cnt` are u16 everywhere, with no byte-wise reads (`camera_victory` does a read-modify-write at
+  u16).
+- `vlist` and `slist` are read only as bytes. Their two-byte values are assembled as `(b[0] << 8) + b[1]`
+  (`func_800AD5D0`, `run_decode`).
+- No view holds a pointer. The section pointers kept in cars are u32 window addresses.
+
+### 8.5 Paths (`path.c`)
+
+Every live view of the checkpoint block and of the point arrays reads the converted widths:
+- The checkpoint radius is s32 in every reader, and the flags are s16.
+- `time[2]`, `pathPts[20]` and `distToNext` are rewritten at load before anything reads them.
+- The alternative-path header bytes are u8/s8, and its u16 fields are u16.
+- The drone point's speed and hint bytes are read only as bytes. Several views declare an s16 over them, but none
+  reads it.
+
+The native `gResPath` (32 bytes), alternative paths (24) and drone paths (16) agree with every PC view, including
+the two that line up only by alignment (`menu_controller_remap`, `camera_pair`).
+
+### 8.6 Text and fonts (`text.c`, `font.c`)
+
+- **Text.** The six counts are read only by the parser. The three offset sections are read as native `char *`
+  tables by 50 live files, all through host-layout views. The u16 tables are u16 at even offsets (`tab2` and
+  `tab2a` only in `cheatscr`). Wide glyphs are assembled from bytes.
+- **Fonts.** Header, letters and kern table are bytes in every reader. The kern slot is a u32 window address
+  wherever it is written or read.
+
+### 8.7 MusyX (`musyx.c`)
+
+MUSYX_DATA.md §4 is the reader audit. The cartridge checks it left (§7.1–3) pass (§8.1). Pool record kinds the
+retail pool doesn't use are covered only by `assets_musyx`'s synthetic files.
+
+### 8.8 Fixed
+
+No converter swapped a field at a width its readers don't use. On the cartridge every format converts as its
+readers expect. The fixes are to the converter's handling of counts and to two game views next to the loaded data:
+
+| Commit | What | Pinned by |
+|---|---|---|
+| c0e0c50 | `world.c`: `chunk_records()` took a TOC count as records or bytes, whichever fit. The game reads GTLD's as a record count, and the retail WOBJ and GDAT counts are record counts too, so a count is now records only. A WOBJ or GDAT count that doesn't fit the file (0, garbage, a byte length) used to leave the chunk big-endian, or convert a guessed part of it, and a bad WOBJ count also skipped the WHDR walk. The converter now walks the nodes NewWorld reaches and the quadtree `race_setup_2` walks instead. The walk's stack is sized from the file; it used to drop pushes past 4096 without a word. The retail files convert byte for byte as before | `assets_world`: counts of 0, byte lengths and garbage. The old converter fails 43 checks |
+| c42b614 | `func_803AE51C` (overlay A): text entry 235 was read as an s32 (the low word of the host pointer) and passed to `state_utility(s16, s16, void *)` through an `(s32, s32, s32)` prototype. It worked only while the load happened to zero-extend; a window address is negative as an s32. Now read as `char *`, with the callee's prototype | `assets_text` compares the pointer whole |
+| c879bd7 | `pointer_compare_thunk`, the bsearch comparator of the TXHD and PLHD name lookups (`MBOX_FindTexture_Sub`, `MBOX_FindPalette_WORK`), was `void`. The result got through only because `func_8008AD04` left it in the return register. It now returns s32 under TARGET_PC | `assets_wad_game` now links the game's comparator instead of its own `strcmp`. No test can fail the old version: gcc keeps the register at every level we build |
+
+Game C files changed: `src/ovl_a/func_803AE51C.c`, `src/blob/pointer_compare_thunk.c` (both "shifted" for
+`n64_neutral.py`).
+
+### 8.9 Judged and left
+
+- **The camera reads one key past a path** (`camera_aspect_ratio`, `keys[next]` with `next == count` when the
+  scene doesn't wrap). The converter swaps only `numPts` points. On the cartridge, the rotation read needs the last
+  key's duration to be nonzero, and it never is. The `f3C` read happens on paths that are each followed by another
+  path's converted points, so the PC reads the N64's values. A path at the end of its chunk would read
+  whatever follows.
+- **Place records as state.** A level object whose kind has info flag 0x400 keeps its WOBJ or PTHD record as its
+  state. On the cartridge only a flag object's kind has it, with no callback, and that state's reader
+  (`func_8010D85C`) takes only the record's name, which is bytes.
+- **The track map's lists in a WAD.** Overlay A's track select puts native display lists into the OBHD `lod[0]` of
+  the map objects, in the track-select screen's WAD, until `func_8038B930` restores them. A mirror pass
+  (`entity_render_mode`) over that wave in that window would walk them with big-endian accessors. Mirror passes come from `LoadWave` of a loaded
+  wave whose mirror state changed and from `input_aux` (wave 54), and the mirror state is set at race set-up. No path
+  to one during track select was found, so this is left open, not guarded.
+- **Converted blocks stay in the big-endian registry** (wad.c registers the block; the PI DMA and decompressors
+  register every file). Only port/gfx and port/audio ask, and only about display lists, vertices, texels, TLUTs and
+  samples, never about the records.
+- **Latent declarations:** `game_types.h`'s `CountdownState` and `game_globals.h`'s `D_8017A4EC`/`D_8017A4F0` read
+  gText at N64 offsets but have no live user. `faeac.c`'s `TextHdr` indexes past its declared 64 entries. The weak
+  `Pair {s32, s32}` views of `gTexDefPtrs` would be wrong if one became strong.
