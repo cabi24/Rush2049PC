@@ -152,7 +152,7 @@ One rule, for an installed copy (the program's folder read-only) and a portable 
 
 - **Portable**: `rush2049pc.ini` is next to the program. Everything the program keeps is in the program's folder.
   The release archives are portable: they ship an empty `rush2049pc.ini`, which the first run fills with the
-  defaults and their comments (`fill_portable_ini` in `port/main.c`), as it writes a missing one elsewhere.
+  settings and their comments, the defaults commented out (`fill_portable_ini` in `port/main.c`), as it writes a missing one elsewhere.
 - **Installed**: no `rush2049pc.ini` next to the program. The settings file is in the user settings folder,
   as before (`%APPDATA%\rush2049pc`, `$XDG_CONFIG_HOME/rush2049pc`), and the rest in the user data folder:
   `%APPDATA%\rush2049pc` on Windows, `$XDG_DATA_HOME/rush2049pc` (`~/.local/share/rush2049pc`) on Linux. With no

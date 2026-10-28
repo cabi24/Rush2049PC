@@ -169,6 +169,7 @@ static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const scale_choices[] = {"auto", NULL};
 static const char *const frame_rate_choices[] = {"original", "display", NULL};
+static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -204,6 +205,16 @@ static const Item items[] = {
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
      "Where F12 saves screenshots; empty for screenshots in the data folder (as pak_file)."},
+    {"video", "textures", T_ENUM, F(textures), 0, 0, textures_choices, "original",
+     "original; upscaled: the 3D world's textures 2x (internal scale 2-3) or 4x (scale 4 and up), the menus and the "
+     "HUD as they are; the first time in the background, then kept in texture_cache in the data folder; pack: "
+     "replacements from texture_pack (RUSH_GFX_TEXTURES)."},
+    {"video", "texture_pack", T_STR, F(texture_pack), 0, 0, NULL, "textures",
+     "The texture pack's folder (for textures = pack): PNG files named as texture_dump names them, any whole multiple "
+     "of the original's size. A name alone is in the data folder."},
+    {"video", "texture_dump", T_STR, F(texture_dump), 0, 0, NULL, "",
+     "A folder to write every texture drawn into, as PNG named for a pack (making a pack: TEXTURES.md); empty: off. "
+     "A name alone is in the data folder."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},
@@ -609,7 +620,8 @@ int pc_settings_apply_env(PcSettings *s)
 {
     static const struct { const char *var, *section, *key; } env[] = {
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
-        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"}};
+        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
+        {"RUSH_GFX_TEXTURES", "video", "textures"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);
@@ -669,14 +681,25 @@ static void put_comment(Buf *b, const char *text)
         put(b, "; %s\n", text);
 }
 
+/* A setting at its default is written commented out, so that it follows the program's defaults as they change;
+ * one that differs is written as a setting. */
+static void put_key(Buf *b, const char *key, const char *value, const char *def)
+{
+    put(b, strcmp(value, def) ? "%s = " : "; %s = ", key);
+    put_value(b, value);
+}
+
 char *pc_settings_format(const PcSettings *s)
 {
     Buf b = {malloc(8192), 0, 8192};
-    char v[PC_CFG_PATH + 8];
+    char v[PC_CFG_PATH + 8], dv[PC_CFG_PATH + 8];
+    PcSettings *def = malloc(sizeof *def);
+    pc_settings_defaults(def);
     b.p[0] = 0;
     put(&b, "; rush2049pc.ini: settings for the San Francisco Rush 2049 PC port (docs/port/FRONTEND.md).\n"
-            "; Command-line options and the environment variables named below override these. Delete a line,\n"
-            "; or the whole file, for the default; the file is written with the defaults when it is missing.\n");
+            "; Command-line options and the environment variables named below override these. A setting at its\n"
+            "; default is written commented out (\"; key = value\"), so it follows the program's default; remove the\n"
+            "; \"; \" to keep a value. The file is written this way when it is missing.\n");
     const char *section = "";
     for (size_t i = 0; i < NUM_ITEMS; i++) {
         if (strcmp(section, items[i].section)) {
@@ -685,8 +708,8 @@ char *pc_settings_format(const PcSettings *s)
         }
         put_comment(&b, items[i].comment);
         format_item(s, &items[i], v, sizeof v);
-        put(&b, "%s = ", items[i].key);
-        put_value(&b, v);
+        format_item(def, &items[i], dv, sizeof dv);
+        put_key(&b, items[i].key, v, dv);
     }
     put(&b, "\n; Bindings: N64 control = a comma-separated list; empty for none. The N64 controls are A B Z START,\n"
             "; DUP DDOWN DLEFT DRIGHT (the D-pad), L R, CUP CDOWN CLEFT CRIGHT and STICK_UP STICK_DOWN STICK_LEFT\n"
@@ -695,10 +718,8 @@ char *pc_settings_format(const PcSettings *s)
             "; SDL key names: letters, digits, Return, Space, Tab, Backspace, Left Shift, Right Ctrl, Up, Keypad 8,\n"
             "; F1... Punctuation by name: Comma, Period, Slash, Semicolon, Apostrophe, Minus, Equals, LeftBracket,\n"
             "; RightBracket, Backslash, Grave, Hash.\n");
-    for (int i = 0; i < PC_NUM_CONTROLS; i++) {
-        put(&b, "%s = ", pc_control_names[i]);
-        put_value(&b, s->key[i]);
-    }
+    for (int i = 0; i < PC_NUM_CONTROLS; i++)
+        put_key(&b, pc_control_names[i], s->key[i], def->key[i]);
     put(&b, "\n[controller]\n"
             "; SDL GameController names (XInput positions): a b x y (south east west north), back, guide, start,\n"
             "; leftshoulder, rightshoulder, leftstick, rightstick (clicks), dpup dpdown dpleft dpright, misc1,\n"
@@ -706,22 +727,18 @@ char *pc_settings_format(const PcSettings *s)
             "; for rightx, righty (+x is right, +y is down). v5's layout instead: A = a, B = x, Z = lefttrigger,\n"
             "; L = leftshoulder, R = rightshoulder, righttrigger.\n"
             "; analog: the stick that is the N64 stick: left, right or none.\n");
-    put(&b, "analog = %s\n", analog_choices[s->analog]);
+    put_key(&b, "analog", analog_choices[s->analog], analog_choices[def->analog]);
     put(&b, "; menu: what opens the settings overlay (not an N64 control): a button, or buttons held together\n"
-            "; joined by + (guide; back+start); empty for none.\n"
-            "menu = ");
-    put_value(&b, s->pad_menu);
-    for (int i = 0; i < PC_NUM_CONTROLS; i++) {
-        put(&b, "%s = ", pc_control_names[i]);
-        put_value(&b, s->pad[i]);
-    }
+            "; joined by + (guide; back+start); empty for none.\n");
+    put_key(&b, "menu", s->pad_menu, def->pad_menu);
+    for (int i = 0; i < PC_NUM_CONTROLS; i++)
+        put_key(&b, pc_control_names[i], s->pad[i], def->pad[i]);
     put(&b, "\n[hotkeys]\n"
             "; Keys (names as in [keyboard]). Alt+Enter also toggles fullscreen. A hotkey is not also a game key.\n"
             "; menu opens and closes the settings overlay.\n");
-    for (int i = 0; i < PC_NUM_HOTKEYS; i++) {
-        put(&b, "%s = ", pc_hotkey_names[i]);
-        put_value(&b, s->hotkey[i]);
-    }
+    for (int i = 0; i < PC_NUM_HOTKEYS; i++)
+        put_key(&b, pc_hotkey_names[i], s->hotkey[i], def->hotkey[i]);
+    free(def);
     return b.p;
 }
 

@@ -3701,6 +3701,33 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: a blit's AnimFunc that shows it on the results screen (gGameState bit 25), over the Blit's host layout
+ * (sound_control.c's, docs/port/POINTERS.md 9.3): Hide is at +0x26, where the N64's +0x1A is the low byte of X. */
+typedef struct HostBlit {
+    void *Name, *Image, *Info;
+    u16 TexIndex;
+    s16 X, Y;
+    u16 Z;
+    s16 Width, Height;
+    u8 Alpha, Flip;
+    s8 Hide, Init;
+    s16 Top, Bot, Left, Right, color;
+    u16 reserved;
+    intptr_t AnimFunc;
+    u32 AnimID;
+} HostBlit;
+
+s32 sound_volume_helper(void *arg0) {
+    HostBlit *blt = arg0;
+
+    if ((state_word_a & 0x02000000) && (blt->Hide != 0)) {
+        blt->Hide = 0;
+        Input_ApplyPadConfig(blt);
+    }
+    return 1;
+}
+#else
 s32 sound_volume_helper(void *arg0) {
     if ((state_word_a & 0x02000000) && (M2C_FIELD(arg0, s8 *, 0x1A) != 0)) {
         M2C_FIELD(arg0, s8 *, 0x1A) = 0;
@@ -3708,3 +3735,4 @@ s32 sound_volume_helper(void *arg0) {
     }
     return 1;
 }
+#endif

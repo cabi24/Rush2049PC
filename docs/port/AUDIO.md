@@ -305,7 +305,7 @@ wrote. Both faults sound as crackle and stutter, worse with a vsync swap:
 
 | | |
 |---|---|
-| audio tasks | run at once, in `osSpTaskStartGo`, on the game's scheduler thread (ULTRA.md), as the RSP runs them beside the CPU; the scheduler takes the SP event from its queue after the call |
+| audio tasks | in real time, run at once, in `osSpTaskStartGo`, on the game's scheduler thread (ULTRA.md), as the RSP runs them beside the CPU; the scheduler takes the SP event from its queue after the call. With `--fast` the main loop runs them while every N64 thread waits, so a run stays the same every time |
 | AI events | while the queue and the events not yet answered are short of the target; up to 3 outstanding (the game's queue holds 4) |
 | who checks | the main loop, and in real time the device's thread after each pull (`pc_audio_set_pull_hook`); with `--fast` the main loop alone, so a run stays the same every time |
 | the target | 384 frames until a device pulls; then two pulls, a retrace and a buffer (SDL at 48 kHz: 1029 frames, 47 ms); one buffer more at each underrun, up to 200 ms; `audio.latency` (ms) sets a floor |

@@ -120,8 +120,9 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   - Otherwise `$XDG_CONFIG_HOME/rush2049pc/rush2049pc.ini`. That is `~/.config/rush2049pc/` when
     `XDG_CONFIG_HOME` is unset, or relative, as the XDG spec says.
   - `--config PATH` reads another file, and `--no-config` reads none.
-- **First run.** When the located file doesn't exist, it is written with the defaults and every setting
-  commented, and then read. `--config`, `--print-config` and `--selftest` never write it.
+- **First run.** When the located file doesn't exist, it is written with every setting and a comment on each,
+  and then read. A setting at its default is written commented out (`; key = value`), so it follows the program's
+  defaults when they change in a later version; the overlay's saves and a removed `;` keep a value. `--config`, `--print-config` and `--selftest` never write it.
 - **Layers.** Each overrides the one before:
   1. the defaults;
   2. the file;
@@ -153,6 +154,9 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
 | `video.widescreen` | off | `--widescreen` | off, auto (the window's), 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |
+| `video.textures` | original | | `original`, `upscaled` (the 3D world's textures 2x at internal scale 2-3, 4x from 4; the HUD and menus as they are) or `pack` (replacements from `video.texture_pack`) ([TEXTURES.md](TEXTURES.md); `RUSH_GFX_TEXTURES`) |
+| `video.texture_pack` | `textures` (in the data folder) | | the texture pack's folder: PNG files named as the dump names them |
+| `video.texture_dump` | (empty: off) | | a folder to write every texture drawn into, as PNG, for making a pack ([TEXTURES.md](TEXTURES.md) "Texture packs") |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
@@ -241,6 +245,7 @@ restart.
 | | Window size: 640x480 to 2560x1440 | `video.width`, `height` | at once when windowed (`SDL_SetWindowSize`); headless, the size the auto settings follow |
 | | Pause in background | `video.pause_on_focus_loss` | at once |
 | | Graphics API * | `video.api` | after a restart: the GL context and its shaders are made at start |
+| | Textures: original, upscaled, pack | `video.textures` | from the game's next frame (`pc_gfx_set_textures`): the texture cache is made again; what was upscaled or loaded before is kept in memory ([TEXTURES.md](TEXTURES.md)) |
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |

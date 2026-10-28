@@ -46,7 +46,8 @@ extract first) and what it needs. [docs/port/RELEASE.md](docs/port/RELEASE.md) q
 - **Linux:** unpack the tarball, copy the ROM in, and run `./rush2049pc`. You need glibc 2.35 or later (Ubuntu 22.04,
   Debian 12, Fedora 36 or newer) and OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver).
 
-The first run fills `rush2049pc.ini` with every setting and a comment on each. Every run prints which ROM it
+The first run fills `rush2049pc.ini` with every setting and a comment on each, commented out at its default (remove
+the `;` to keep a value). Every run prints which ROM it
 found, where the saves are and where its log is.
 
 ### Controls
@@ -70,9 +71,19 @@ Pause holds the game and Escape quits. Every key and button can be remapped. The
 ### Settings
 
 `rush2049pc.ini` holds them all, with comments. While you play, the F1 overlay changes the video settings
-(widescreen, internal resolution, fullscreen, vsync, window size), the volume and the key and button mapping. It
+(widescreen, internal resolution, fullscreen, vsync, window size, textures), the volume and the key and button
+mapping. It
 can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
 (`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
+
+### Textures
+
+`video.textures` (Textures on the overlay's Video page): `original`; `upscaled`, the 3D world's textures upscaled 2x
+(4x from internal scale 4) in the background as they appear and kept in `texture_cache/` for the next run, the HUD
+and menus as they are (it needs an internal scale of 2 or more); or `pack`, PNG replacements from `textures/`. A
+pack is made from your own ROM: `video.texture_dump = dump` writes every texture drawn into `dump/`, and
+`tools/texpack/texpack.py` runs an upscaler you install (realesrgan-ncnn-vulkan, ...) over them. Packs are never
+shipped with the port; don't share yours. [docs/port/TEXTURES.md](docs/port/TEXTURES.md) has the details.
 
 ### Saves and other files
 
@@ -84,6 +95,8 @@ that folder:
 | `rush2049pc.ini` | the settings |
 | `rush2049pc.mpk` | the saves: the game's controller pak |
 | `screenshots/` | F12's pictures |
+| `texture_cache/` | upscaled textures kept for the next run (`video.textures = upscaled`); safe to delete |
+| `textures/` | a texture pack, if you make one (`video.textures = pack`) |
 | `rush2049pc.log`, `rush2049pc.old.log` | this run's output and the run before |
 
 Without `rush2049pc.ini` next to it (an installed copy, or a build run from its build folder), the settings go in
