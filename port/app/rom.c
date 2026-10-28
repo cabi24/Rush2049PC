@@ -15,7 +15,7 @@
 #define EXE "rush2049pc.exe"
 #define HOW_TO_NAME "or drag the ROM file onto " EXE
 #else
-#define EXE "rush2049pc"
+#define EXE "./rush2049pc"   /* as typed in the program's folder */
 #define HOW_TO_NAME "or start the program with: " EXE " --rom PATH"
 #endif
 #define NEEDED "San Francisco Rush 2049 (USA)"

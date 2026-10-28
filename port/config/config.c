@@ -240,7 +240,8 @@ static const Item items[] = {
      "The texture pack's folder (for textures = pack): PNG files named as texture_dump names them, any whole multiple "
      "of the original's size. A name alone is in the data folder."},
     {"video", "texture_dump", T_STR, F(texture_dump), 0, 0, NULL, "",
-     "A folder to write every texture drawn into, as PNG named for a pack (making a pack: TEXTURES.md); empty: off. "
+     "A folder to write every texture drawn into, as PNG named for a pack (making a pack: the project's "
+     "docs/port/TEXTURES.md); empty: off. "
      "A name alone is in the data folder."},
     {"video", "hud", T_ENUM, F(hud), 0, 0, hud_choices, "edges",
      "The race HUD in widescreen: edges (the speedometer, the radar, the position, the map and the timer keep their "
@@ -771,7 +772,7 @@ char *pc_settings_format(const PcSettings *s)
     PcSettings *def = malloc(sizeof *def);
     pc_settings_defaults(def);
     b.p[0] = 0;
-    put(&b, "; rush2049pc.ini: settings for the San Francisco Rush 2049 PC port (docs/port/FRONTEND.md).\n"
+    put(&b, "; rush2049pc.ini: settings for the San Francisco Rush 2049 PC port (README.txt has the main ones).\n"
             "; Command-line options and the environment variables named below override these. A setting at its\n"
             "; default is written commented out (\"; key = value\"), so it follows the program's default; remove the\n"
             "; \"; \" to keep a value. The file is written this way when it is missing.\n");
@@ -799,8 +800,8 @@ char *pc_settings_format(const PcSettings *s)
             "; SDL GameController names (XInput positions): a b x y (south east west north), back, guide, start,\n"
             "; leftshoulder, rightshoulder, leftstick, rightstick (clicks), dpup dpdown dpleft dpright, misc1,\n"
             "; paddle1-4, touchpad; and axes: lefttrigger, righttrigger, +leftx -leftx +lefty -lefty and the same\n"
-            "; for rightx, righty (+x is right, +y is down). v5's layout instead: A = a, B = x, Z = lefttrigger,\n"
-            "; L = leftshoulder, R = rightshoulder, righttrigger.\n"
+            "; for rightx, righty (+x is right, +y is down). Another layout some prefer: A = a, B = x,\n"
+            "; Z = lefttrigger, L = leftshoulder, R = rightshoulder, righttrigger.\n"
             "; analog: the stick that is the N64 stick: left, right or none.\n");
     put_key(&b, "analog", analog_choices[s->analog], analog_choices[def->analog]);
     put(&b, "; menu: what opens the settings overlay (not an N64 control): a button, or buttons held together\n"

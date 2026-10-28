@@ -53,7 +53,7 @@ static void usage(FILE *f)
             "  --stop-at-gfx       stop at the first graphics task (osSpTaskStartGo), reporting it\n"
             "  --until-state M[:N] stop once the game's state word (gGameState) has a bit of M and N more\n"
             "                      graphics tasks have run; with --seconds, not getting there is exit code 1\n"
-            "  --press T:BUTTON[@PORT][:DUR],...   scripted input (v5's format; T, DUR in seconds)\n"
+            "  --press T:BUTTON[@PORT][:DUR],...   scripted input (T, DUR in seconds)\n"
             "  --press-file PATH   a .press input script\n"
             "  --log-input         print every change of a player's buttons and stick\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"

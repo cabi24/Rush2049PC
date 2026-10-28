@@ -83,7 +83,7 @@ rush2049pc: no ROM: baserom.us.z64 is in none of these places:
 rush2049pc:   /opt/rush2049pc/baserom.us.z64 (next to the program)
 rush2049pc:   /home/me/.local/share/rush2049pc/baserom.us.z64 (the user data folder)
 rush2049pc:   /home/me/baserom.us.z64 (the working directory)
-rush2049pc: copy your San Francisco Rush 2049 (USA) ROM next to the program as baserom.us.z64, or give its path: rush2049pc --rom PATH
+rush2049pc: copy your San Francisco Rush 2049 (USA) ROM next to the program as baserom.us.z64, or give its path: ./rush2049pc --rom PATH
 ```
 
 The box on Windows, titled "Rush 2049 PC: no ROM", with the buttons **Open ROM...** and **Quit** ("Choosing the
@@ -102,7 +102,7 @@ Or copy your ROM next to the program and name it baserom.us.z64, or drag the ROM
 ```
 
 Where no file dialog can be shown (Linux without zenity or kdialog, where the last line says "or start the program
-with: rush2049pc --rom PATH"; Windows after "No file dialog could be shown."), the box asks nothing and ends:
+with: ./rush2049pc --rom PATH"; Windows after "No file dialog could be shown."), the box asks nothing and ends:
 
 ```
 Copy your ROM next to the program and name it baserom.us.z64, or drag the ROM file onto rush2049pc.exe. .z64, .v64 and .n64 files all work.
