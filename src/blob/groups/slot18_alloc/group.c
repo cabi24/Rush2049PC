@@ -41,6 +41,18 @@ void playgame_state_change(void);
 void func_8038F454();
 void entity_audio_update(void);
 void func_800D5524(void *);
+#ifdef TARGET_PC
+/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
+ * transform/group.c's entity_transform_calc says when). Abandoning a race then drops its stop of every effect,
+ * but nothing else: with no message it is written into a scratch message that is never sent, so the cars, the
+ * listeners and the next state are set as before; a message the full queue refuses is given back. */
+static MessageNode pc_scratch_msg;
+#define PC_CMD_OR_SCRATCH(m) if((m)==0)(m)=&pc_scratch_msg;
+#define PC_CMD_SEND(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->used=0
+#else
+#define PC_CMD_OR_SCRATCH(m)
+#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
+#endif
 void func_800D5A04(void)
 {
     s16 i;
@@ -58,11 +70,11 @@ void func_800D5A04(void)
     while((node=D_801391F0)!=0) entity_transform_apply(node,1);
     func_800B0580();
     osRecvMesg(D_80142728,0,1);
-    node=func_80091B00();
+    node=func_80091B00();PC_CMD_OR_SCRATCH(node)
     ((MessageNode *)node)->operation=7;
     message=node;
     osSendMesg(D_80142728,0,0);
-    osSendMesg(D_801427A8,message,0);
+    PC_CMD_SEND(D_801427A8,message);
     if(D_80114650) state_word_b=0x40000;
     else {
         ghost_race_setup();

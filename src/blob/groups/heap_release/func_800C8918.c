@@ -100,15 +100,28 @@ void func_800C8918(void) {
     }
 }
 
+#ifdef TARGET_PC
+/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
+ * transform/group.c's entity_transform_calc says when). The shutdown's stop of the song and of every effect are
+ * not dropped: func_800C8918 frees the effects' blocks next, once the manager has drained the pool, so a post
+ * that finds no message gives the lock back and waits for the manager to free one, and a full queue is waited
+ * on (the lock is free by then). The other copy of these two (carcolor/ctx_func_800C8918.c,
+ * heap_release/func_800C8918.c) is the same. */
+#define PC_CMD_OR_WAIT(m) while((m)==0){func_80091AF8();PC_SPIN("post_type")func_80091AF0();(m)=func_80091B00();}
+#define PC_CMD_SEND(q,m) osSendMesg(q,m,1)
+#else
+#define PC_CMD_OR_WAIT(m)
+#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
+#endif
 void post_type1(void) {
     ShutdownMsg *sp1C;
     ShutdownMsg *temp_v0;
 
     func_80091AF0();
-    temp_v0 = func_80091B00();
+    temp_v0 = func_80091B00(); PC_CMD_OR_WAIT(temp_v0)
     sp1C = temp_v0;
     temp_v0->type = 1; func_80091AF8();
-    osSendMesg((OSMesgQueue *) &D_801427A8, sp1C, 0);
+    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, sp1C);
 }
 
 void post_type7(void) {
@@ -116,9 +129,9 @@ void post_type7(void) {
     ShutdownMsg *temp_v0;
 
     func_80091AF0();
-    temp_v0 = func_80091B00();
+    temp_v0 = func_80091B00(); PC_CMD_OR_WAIT(temp_v0)
     sp1C = temp_v0;
     temp_v0->type = 7; func_80091AF8();
-    osSendMesg((OSMesgQueue *) &D_801427A8, sp1C, 0);
+    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, sp1C);
 }
 
