@@ -360,7 +360,9 @@ the record passed to a helper, an N64-layout record, an offset before the first 
 
 1,308 units; 56,656 accesses placed on 3,828 storages, 816 of them typed as a moved record. The first run found
 none open; the rule for N64-shaped views (9.1) then found the pause screen's pages, fixed below. **0 open
-findings** after, 20 reviewed, 0 at score 2; 392 untyped raw accesses in 59 functions (9.4).
+findings** after, 20 reviewed, 0 at score 2; 392 untyped raw accesses in 59 functions (9.4). Those were x86-64's
+numbers, which missed every call through a local alias (9.6); read as calls, 59,383 accesses on 3,475 storages, 659
+typed, the same 20 reviewed and none open, and 323 untyped raw accesses in 46 functions, on every host.
 
 Reachability was checked on the retail ROM once (2026-10-28, on the Pi): `rush2049pc_datacheck` with a temporary print
 of every function pointer the loader converts from the ROM's data (neither the print nor its output is
@@ -381,11 +383,11 @@ no word of a non-pointer field points at code.
 
 ### 9.4 The untyped storages
 
-The 59 functions of `offset_untyped.txt`, by kind:
+The functions of `offset_untyped.txt` (59 before 9.6's fix, 46 after), by kind:
 
 | Kind | Functions | Verdict |
 |---|---|---|
-| vector and matrix helpers: three floats at +0/+4/+8, a 4x4 matrix | `math_utility`, `vector_diff_process`, `lsq` (two), `PitchUV`, `WorldDistance`, `steering_apply`, `func_800A61B0`, `func_800FD724`, `func_8010C448`, `func_8010C588`, `func_800BFD8C`, `camera_clip_planes`, `func_800E397C`, `brake_light_update`, `func_800D09E8`, `func_8009D99C`, guOrthoF/guPerspectiveF/guLookAtF | false positive: float arrays, no pointers |
+| vector and matrix helpers: three floats at +0/+4/+8, a 4x4 matrix | `math_utility`, `vector_diff_process`, `lsq` (two), `PitchUV`, `WorldDistance`, `steering_apply`, `func_800A61B0`, `func_800FD724`, `func_8010C448`, `func_8010C588`, `func_800BFD8C`, `camera_clip_planes`, `func_800E397C`, `brake_light_update`, `func_800D09E8`, `func_8009D99C`, `func_80090E9C` (a yaw rotation's `F32 uv[][3]`), guOrthoF/guPerspectiveF/guLookAtF | false positive: float arrays, no pointers |
 | libultra and the audio library | the other `src/rom` functions | not game records (ENDIAN.md, ULTRA.md) |
 | the level-object nodes (the targets), N64 layout with a u32 state at +0x6C (POINTERS.md 10.2) | `func_8010DF90`, `func_8010C7F4`, `func_8010E694`, `sound_position_set`, `func_8010D680`, `func_8008B3C8` (through `func_8010D9CC`), `stat_lap_split` | false positive: the record keeps its N64 layout; `NODE_STATE` reads the state |
 | byte strings and pak file data | `func_8008AD04` (strcmp), `func_800950AC`, `func_800A473C`, `menu_option_toggle` (a pak file's bytes) | false positive |
@@ -407,3 +409,27 @@ The 59 functions of `offset_untyped.txt`, by kind:
 - A view's family is its sizes and the host offset of every N64 word, so two records of the same shape (the packet
   list's elements and the sequence tags) share field names in the report; typed accesses through a PC view are
   judged by that view's own fields.
+
+### 9.6 The same verdict on every host
+
+Found 2026-10-28: CI's aarch64 job reported the MusyX listener's `func_8001D5C0` (its `SpatialState` view at the N64
+offsets, fixed since: AUDIO.md 9) and the x86-64 jobs, on the same source, did not. The cause was the compile flags,
+not the architecture's types: x86-64 compiles the game with `-fPIC -fno-semantic-interposition` (CMakeLists.txt, for
+the absolute N64 symbols), and under those GCC calls a global function of the same file through a local alias,
+`func_8001D5C0.localalias (state_15(D));`, where aarch64's PIE code calls `func_8001D5C0`. The GIMPLE reader took
+`func_8001D5C0.localalias` for another, unknown function, so on x86-64 every such call (1,834 in 224 files) linked no
+argument to its callee's parameter: func_8001D5C0's parameter had no callers, stayed a storage of its own with only
+its N64-shaped view, and nothing typed it. The same calls were lost to layout_check and endian_check. On aarch64,
+47 calls in 12 files had the alias too.
+
+**Fix**: `endian_check.read_gimple` reads `<name>.localalias` as `<name>` (all three checks use it). With it, the
+pre-fix tree gives the same report and the same untyped list on the Pi (aarch64, GCC 12) and on the build host
+(x86-64, GCC 14), the listener's finding included; over main the x86-64 run now has CI's aarch64 numbers (59,383
+accesses on 3,475 storages, 659 typed; 0 open, 20 reviewed; 323 untyped in 46 functions). The access counts of 7
+files still differ by one or two between GCC 12 and 14 (other temporaries and folds), with no effect on a storage.
+
+**Test**: the selftest compiles its cases twice, as PIE code and with `-fPIC -fno-semantic-interposition`, on every
+host, and fails unless both give the same findings; a new case is a helper with an N64-shaped view that only its two
+callers in the file type (func_8001D5C0's shape). Without the fix the `-fPIC` variant misses six of the eight on
+aarch64 as on x86-64. A run over a build without `pc-data/data_symbols.txt` (an unbuilt tree, whose storages are other
+ones) stops with an error instead of reporting.

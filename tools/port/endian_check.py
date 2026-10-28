@@ -307,6 +307,11 @@ def host_to_n64(c, h):
 
 _LOC = re.compile(r"\[[^\[\]\s]+:(\d+):\d+(?: discrim \d+)?\] ")   # gcc 14 adds discriminators
 _FUNC = re.compile(r"^;; Function (\S+) \(")
+# A call to a global function of the same file, made through GCC's local alias of it: `func_8001D5C0.localalias
+# (state_15(D));`. With -fPIC -fno-semantic-interposition (the x86-64 build's flags, CMakeLists.txt) GCC calls the
+# file's own definition through `<name>.localalias`, which binds locally; PIE code (aarch64's) calls `<name>` for most
+# of them. The call is to <name>: read as such, the analysis is the same on both (docs/port/LAYOUT.md 9.6).
+_LOCALALIAS = re.compile(r"\b([A-Za-z_$][\w$]*)\.localalias\b")
 _SSA = re.compile(r"^(.*?)_(\d+)(?:\((?:D|ab)\))?$")
 _INT = re.compile(r"^-?\d+$")
 
@@ -480,7 +485,7 @@ def read_gimple(text):
         if state == "body" and line:
             m = _LOC.search(line)
             ln = int(m.group(1)) if m else 0
-            f.stmts.append((ln, _LOC.sub("", line)))
+            f.stmts.append((ln, _LOCALALIAS.sub(r"\1", _LOC.sub("", line))))
     return funcs
 
 
