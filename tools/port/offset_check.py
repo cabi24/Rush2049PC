@@ -21,7 +21,8 @@ blit's Hide) is the first byte of the PC blit's X. This check types each such st
      accesses gives; or
    - ROLES names the function's parameter: a function only the ROM's tables call (an animation callback that
      NewMultiBlit runs through the AnimFunc it copied from a MultiBlit, an object's or a menu's handler), which no C
-     calls and no typed view reaches, typed by its role.
+     calls and no typed view reaches, typed by its role; or what a function returns, where the flow follows it into
+     storage no moved view reaches (the players' packets, kept as window addresses: QA.md 5).
    A storage whose typed views all keep the N64 layout (the model record, the level-object nodes) holds an N64
    record, and its raw offsets are right.
 3. **Findings.** For a raw access in code both builds compile (not under `#ifdef TARGET_PC`, no PC macro on its line:
@@ -50,8 +51,18 @@ import layout_check as lc  # noqa: E402
 ROOT = ec.ROOT
 
 # A function's parameter that only the ROM's tables (or an indirect call the flow does not follow) give a record:
-# (function regex, parameter, (unit regex, view name) of the record's PC layout, why).
-ROLES = []
+# (function regex, parameter (-1: what it returns), (unit regex, view name) of the record's PC layout, why).
+ROLES = [
+    # The players' pending packets (func_800D63EC's Packet, the pool hud_speed_display builds): each player record
+    # keeps its packet as a 32-bit window address (D_8014A118[i] +0x44, the OBJECT and NODE macros), so nothing
+    # typed reaches the two functions that take it back (docs/port/QA.md 5).
+    (r"^object_activate$", 0, (r"src/blob/func_800D63EC\.c$", "Packet"),
+     "func_800D5374's pending packet: OBJECT(D_8014A118[i].object), a window address made a pointer"),
+    # what func_800D63EC returns (k = -1): the flow follows it through the player record's slot to main_menu_input
+    # (main_menu_render's NODE), whose only view of it (`Node`, no pointers) would otherwise make it an N64 record
+    (r"^func_800D63EC$", -1, (r"src/blob/func_800D63EC\.c$", "Packet"),
+     "the packet func_800D63EC allocates and posts (its Packet)"),
+]
 # Findings read and judged: (unit regex, regex on the function or the storage, why).
 REVIEWED = [
     (r"src/blob/func_800AED20\.c$", r"^func_800AED20$",
@@ -307,9 +318,10 @@ class Check:
                 self.types[root] = (m, "view " + how + (f"; also {len(votes) - 1} other moved views" if len(votes) > 1
                                                          else ""))
                 continue
-            if root[0] == "param":
+            if root[0] in ("param", "retp"):   # a parameter, or (k = -1) what a call returns
                 fn = root[1] if isinstance(root[1], str) else root[1][0]
-                hit = next(((m, why) for fre, k, m, why in roles if k == root[2] and fre.search(fn) and m), None)
+                k0 = root[2] if root[0] == "param" else -1
+                hit = next(((m, why) for fre, k, m, why in roles if k == k0 and fre.search(fn) and m), None)
                 if hit:
                     self.types[root] = (hit[0], "role: " + hit[1])
                     continue

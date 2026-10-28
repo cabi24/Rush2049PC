@@ -124,15 +124,32 @@ static void nap(pthread_cond_t *cv, uint64_t ns_from_now)
     pthread_mutex_lock(&g_lock);
 }
 #else
+/* RUSH_SIM_TIMER_STEP_US: a test of Windows' coarse timeouts on Linux. Each timed wait ends at the first multiple
+ * of the step at or after its deadline, as winpthreads' do (15625 µs, GetTickCount64's steps) and as Windows' own
+ * would where the 1 ms timer period is refused. */
+static uint64_t g_sim_step;
+static pthread_once_t g_sim_once = PTHREAD_ONCE_INIT;
+
+static void sim_read(void)
+{
+    const char *s = getenv("RUSH_SIM_TIMER_STEP_US");
+    g_sim_step = s ? strtoull(s, NULL, 10) * 1000u : 0;
+}
+
+static uint64_t sim_step_ns(void)
+{
+    pthread_once(&g_sim_once, sim_read);
+    return g_sim_step;
+}
+
 static void deadline_ts(struct timespec *ts, uint64_t ns_from_now)
 {
     clock_gettime(CLOCK_MONOTONIC, ts);
-    ts->tv_sec += (time_t)(ns_from_now / 1000000000u);
-    ts->tv_nsec += (long)(ns_from_now % 1000000000u);
-    if (ts->tv_nsec >= 1000000000L) {
-        ts->tv_sec++;
-        ts->tv_nsec -= 1000000000L;
-    }
+    uint64_t at = (uint64_t)ts->tv_sec * 1000000000u + (uint64_t)ts->tv_nsec + ns_from_now, step = sim_step_ns();
+    if (step)
+        at = (at + step - 1) / step * step;
+    ts->tv_sec = (time_t)(at / 1000000000u);
+    ts->tv_nsec = (long)(at % 1000000000u);
 }
 
 /* Up to ns, or until cv is signalled: a busy-wait's nap, and the main thread's wait. */

@@ -244,6 +244,17 @@ on aarch64).
 - **Clocks.** `clock_gettime(CLOCK_MONOTONIC)` is winpthreads' (QueryPerformanceCounter, 100 ns steps). So is
   `nanosleep`, in the 15.6 ms steps above; only the pause's hold loop (`loop.c`) uses it.
 - **Signals.** Windows has no SIGQUIT. Ctrl-Break (SIGBREAK) prints the thread dump. Ctrl-C quits.
+- **Audio** ([AUDIO.md](AUDIO.md) §7). SDL's WASAPI driver opens at the default device's mix rate (asked for 22050 Hz,
+  SDL 2.30 would leave the conversion to WASAPI's own resampler), in float, and calls back once per WASAPI period
+  (10 ms): the queue converts 22047 Hz to the mix rate itself, and the pull hook asks the game for buffers from that
+  callback, which the WASAPI event paces, so no coarse wait is in the sound's path. The scheduler's own waits are
+  the high-resolution timers above.
+- **A test of this timing on Linux.** `RUSH_SIM_TIMER_STEP_US=15625` ends every timed wait in `sched.c` at a
+  15.625 ms step, as winpthreads' timed waits do (and Windows' own where the 1 ms period is refused: the worst
+  case); `RUSH_SIM_VSYNC_HZ=59.94` holds each present until the next vblank of a display at that rate, and
+  `RUSH_SIM_PRESENT_MS` for longer (a slow GPU). `tools/port/realtime_check.py` runs the synthetic race in real
+  time with SDL's disk driver under the first two and checks the retraces and the audio counters (CTest
+  `audio_realtime`; on Windows, where the timer step doesn't apply, under Windows' own timing).
 
 ## 6. Faults
 
@@ -453,9 +464,9 @@ Windows a fault (its box, the log with the report). It also checks that `--help`
 - The console (section 10) from cmd.exe, PowerShell and Windows Terminal, and a double-click's message boxes: CI
   runs the program with redirected output only, and its quiet case through `RUSH2049_CONSOLE=none`. The icon in
   Explorer, the taskbar and Alt-Tab.
-- Audio through a real device (SDL's WASAPI/DirectSound). CI uses the null backend and SDL's disk driver. On a
-  machine with no audio endpoint, as the runners, `audio = auto` spends about 8 s in SDL's audio initialization
-  before it falls back to null (section 5).
+- Audio through a real device (SDL's WASAPI/DirectSound): the device's own rate and period, float, as section 5
+  says. CI uses the null backend and SDL's disk driver. On a machine with no audio endpoint, as the runners,
+  `audio = auto` spends about 8 s in SDL's audio initialization before it falls back to null (section 5).
 - Controllers and rumble (XInput, DirectInput through SDL), and the keyboard on a live window.
 - Anything with the ROM, as on Linux.
 - Windows on arm64, and 32-bit Windows (the port needs a 64-bit host).

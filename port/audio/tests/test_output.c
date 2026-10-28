@@ -144,19 +144,21 @@ int main(void)
         CHECK(hook_calls == 2, "the pull hook runs after each pull: %d", hook_calls);
         pc_audio_set_pull_hook(NULL);
 
-        /* A buffer pushed again before a task rendered it plays its last turn again. */
+        /* A buffer pushed again before a task rendered it for that push waits for the render (test_hold.c has the
+         * rest). */
         static int16_t a[2 * 192], b[2 * 192];
+        pc_audio_push(a, 192);
+        pc_audio_push(b, 192);
         pc_audio_note_rendered(a);
+        pc_audio_push(a, 192);   /* the ring is two buffers long: a was rendered for this push */
         pc_audio_note_rendered(b);
-        pc_audio_push(a, 192);
-        pc_audio_push(b, 192);
-        pc_audio_note_rendered(a);
-        pc_audio_push(a, 192);
-        pc_audio_get_stats(&st);
-        CHECK(st.replayed == 0, "rendered buffers: %llu replayed", (unsigned long long)st.replayed);
         pc_audio_push(b, 192);
         pc_audio_get_stats(&st);
-        CHECK(st.replayed == 1, "b again without a render: %llu replayed", (unsigned long long)st.replayed);
+        CHECK(st.waited == 0, "rendered buffers: %llu waited", (unsigned long long)st.waited);
+        pc_audio_push(a, 192);
+        pc_audio_get_stats(&st);
+        CHECK(st.waited == 1 && pc_audio_queued_frames() == 5 * 192, "a again without a render: %llu waited, %zu queued",
+              (unsigned long long)st.waited, pc_audio_queued_frames());
         pc_audio_shutdown();
         free(t);
     }
