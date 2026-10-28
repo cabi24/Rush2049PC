@@ -19,6 +19,9 @@
 #include "pc_port.h"
 #include "test_gbi.h"
 
+void pc_gfx_set_widescreen(float aspect);
+float pc_gfx_parse_aspect(const char *text, int *ok);
+
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
 static uint8_t *s_rdram;
@@ -785,6 +788,47 @@ static void case_hud(void) {
     }
 }
 
+/* The race HUD at the screen's edges (gfx_hud.c), in 16:9: a frame between draws the 2D where the nearer frame has
+ * it, at the screen's edges as the frames drawn directly have it: the rectangle at the left moves left, by the
+ * widening, against centered. */
+static int hud_race(void) { return 1; }
+
+static void case_hudedges(void) {
+    Scene sc;
+    int ok, k;
+    float env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok), x[2] = {0, 0}, xr[2] = {0, 0}, y;
+    int env_hud = pc_gfx_hud();
+    pc_gfx_set_widescreen(16.0f / 9.0f);
+    pc_gfx_set_hud_race(hud_race);
+    scene_init(&sc, 1);
+    add_static(&sc, 0);
+    add_obj(&sc, 0, M_RED, -40, 0, -200, 40, 0, -200);
+    sc.hud = 1, sc.hud_x0 = 20, sc.hud_x1 = 60;
+    sc.ortho = 1, sc.ortho_x0 = 150, sc.ortho_x1 = 250;
+    for (k = 0; k < 2; k++) {
+        uint8_t *m, *f;
+        pc_gfx_set_hud(k ? PC_GFX_HUD_EDGES : PC_GFX_HUD_CENTERED);
+        check_moment(&sc, 0.25f, 40);
+        check_moment(&sc, 0.75f, 40);
+        pair(&sc, 120);
+        m = tick(10.5);
+        f = reference(&sc, 0.0f, 0);
+        if (!centroid(m, 255, 0, 255, &x[k], &y) || !centroid(f, 255, 0, 255, &xr[k], &y))
+            printf("  FAIL %s: no rectangle\n", s_case), s_fail++;
+        else
+            expect_near(k ? "edges: the rectangle at 0.25 is B's" : "centered: the rectangle at 0.25 is B's", x[k],
+                        xr[k], 0.01f);
+        free(m);
+        free(f);
+    }
+    if (!(x[0] - x[1] > 30.0f))
+        printf("  FAIL %s: the rectangle at the left edge is at %.1f, centered at %.1f\n", s_case, x[1], x[0]),
+            s_fail++;
+    pc_gfx_set_hud_race(NULL);
+    pc_gfx_set_hud(env_hud);
+    pc_gfx_set_widescreen(env_aspect);
+}
+
 /* An object only C has appears past halfway, where C has it (through the moving camera); one only B has stays
  * where B has it until halfway. */
 static void case_appear(void) {
@@ -977,7 +1021,7 @@ static const struct {
     {"exact", case_exact},   {"move", case_move},           {"camera", case_camera}, {"cut", case_cut},
     {"teleport", case_teleport}, {"split", case_split},     {"hud", case_hud},       {"appear", case_appear},
     {"instances", case_instances}, {"children", case_children}, {"spin", case_spin}, {"eyerel", case_eyerel},
-    {"timing", case_timing}, {"parse", case_parse},
+    {"timing", case_timing}, {"parse", case_parse},   {"hudedges", case_hudedges},
 };
 
 int main(int argc, char **argv) {

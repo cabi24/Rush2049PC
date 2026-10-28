@@ -89,6 +89,8 @@ static const char *const res_labels[] = {"desktop", "720p (1280x720)", "1080p (1
 static const char *const rate_choices[] = {"original", "60", "120", "144", "display", NULL};
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
+static const char *const hud_choices[] = {"edges", "centered", NULL};
+static const char *const hud_labels[] = {"screen edges", "centered (4:3)", NULL};
 static const char *const backend_choices[] = {"auto", "sdl", "alsa", "null", "wav", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
@@ -157,6 +159,9 @@ static void build(void)
     it->choices = api_choices;
     it->restart = 1;
     add(P_VIDEO, I_CHOICE, "Textures", "video", "textures")->choices = textures_choices;   /* TEXTURES.md */
+    it = add(P_VIDEO, I_CHOICE, "Race HUD (widescreen)", "video", "hud");   /* GFX.md: at the screen's edges */
+    it->choices = hud_choices;
+    it->labels = hud_labels;
 
     pages[P_AUDIO].title = "Audio";
     it = add(P_AUDIO, I_NUMBER, "Volume", "audio", "volume");
@@ -348,6 +353,8 @@ static void apply(const char *section, const char *key)
             pc_gfx_set_frame_rate(s->frame_rate);
         else if (!strcasecmp(key, "textures"))
             pc_gfx_set_textures(s->textures);
+        else if (!strcasecmp(key, "hud"))
+            pc_gfx_set_hud(s->hud);
         else if (!strcasecmp(key, "width") || !strcasecmp(key, "height"))
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))

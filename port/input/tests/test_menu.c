@@ -324,7 +324,15 @@ static void test_live(void)
     at("Video", "Graphics API", "gl", "the API: a restart");
     CHECK(pc_menu_settings()->api == PC_CFG_API_GL, "the setting changed");
     act(PC_MENU_DOWN);
-    at("Video", "Textures", NULL, "textures: the last item");
+    at("Video", "Textures", NULL, "textures");
+    act(PC_MENU_DOWN);
+    at("Video", "Race HUD (widescreen)", "screen edges", "the race HUD: the last item");
+    act(PC_MENU_RIGHT);
+    at("Video", "Race HUD (widescreen)", "centered (4:3)", "the race HUD centered");
+    CHECK(pc_gfx_hud() == PC_GFX_HUD_CENTERED && pc_menu_settings()->hud == 0, "the renderer has it at once: %d",
+          pc_gfx_hud());
+    act(PC_MENU_LEFT);
+    CHECK(pc_gfx_hud() == PC_GFX_HUD_EDGES, "edges again: %d", pc_gfx_hud());
     act(PC_MENU_CLOSE);
     show_frame();
     target_size(&w, &h);

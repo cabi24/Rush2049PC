@@ -54,6 +54,7 @@ float func_800A557C(float x) { return tanf(x); }
 float func_8008C720(float x) { return atanf(x); }
 static void *g_v2p;
 uint32_t osVirtualToPhysical(void *p) { g_v2p = p; return (uint32_t)(uintptr_t)p & 0x1FFFFFFF; }
+int pc_gfx_hud_dx(int x) { (void)x; return 0; }   /* port/gfx's race HUD at the screen's edges: no move here */
 /* View-space rotation (row vector times matrix) and its inverse; the camera matrices here are rotations. */
 void func_800A61B0(float *v, float *out, float *m)
 {
