@@ -2394,7 +2394,13 @@ extern s8 D_80144030;
 extern s8 D_80144031;
 extern s8 D_80144036;
 extern s8 D_80144038;
+#ifdef TARGET_PC
+/* a byte of each pak record: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern s8 D_801440AD[];
+#define D_801440AD (D_801440AD[0])
+#else
 extern s8 D_801440AD;
+#endif
 extern s8 D_801440B5;
 extern s8 D_801440B6;
 extern s8 D_80144334;

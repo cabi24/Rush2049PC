@@ -5,12 +5,12 @@ PC port was built from the SM64 decompilation: the game's C is compiled for the 
 N64 hardware. You bring your own ROM. Its data is read at startup, and nothing derived from it is built into the
 program.
 
-**Status: first test builds.** On the retail cartridge the game runs its attract demo, the front end, and races in
-every mode tried: one to four players, circuit, stunt and battle ([docs/port/BRINGUP.md](docs/port/BRINGUP.md)).
-Windows x86-64 and Linux (x86-64, aarch64) builds come from the release workflow
-([docs/port/RELEASE.md](docs/port/RELEASE.md)). So far it has been checked headless with scripted input; play on a
-desktop GPU, with sound and real controllers, is being tested now. The plan is [docs/PORT_PLAN.md](docs/PORT_PLAN.md),
-and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
+**Status: beta candidate.** On the retail cartridge the game runs its attract demo, the front end, and races in
+every mode: one to four players, circuit, stunt, battle, ghosts and the unlockable tracks and arenas
+([docs/port/QA.md](docs/port/QA.md)). It has been played on a Windows laptop, and the problems found there (sound,
+steering, a flickering road) are fixed; [CHANGES.md](CHANGES.md) lists what changed. Windows x86-64 and Linux (x86-64,
+aarch64) builds come from the release workflow ([docs/port/RELEASE.md](docs/port/RELEASE.md)). The plan is
+[docs/PORT_PLAN.md](docs/PORT_PLAN.md), and the live numbers are in [docs/port/STATUS.md](docs/port/STATUS.md).
 
 ## Playing
 
@@ -36,15 +36,20 @@ you can also drop it on `rush2049pc.exe`. The program looks only in these places
 
 If there is no ROM, or the file isn't the right one, the program says so on the console and in a message box. It
 gives where it looked, what the file is (another game, another region or revision, a bad dump, an archive to
-extract first) and what it needs. [docs/port/RELEASE.md](docs/port/RELEASE.md) quotes every message.
+extract first) and what it needs. The box has an **Open ROM...** button: choose the file there (Windows' own file
+dialog; zenity or kdialog on Linux), and the program checks it, says what it is if it is the wrong one, and keeps
+its path as `game.rom` in `rush2049pc.ini`, so it is found from then on. [docs/port/RELEASE.md](docs/port/RELEASE.md)
+quotes every message.
 
 ### First run
 
-- **Windows:** unzip the archive somewhere you can write to (not Program Files). Copy the ROM into the folder as
-  `baserom.us.z64` and double-click `rush2049pc.exe`. A console window opens next to the game's window and shows
-  what the program is doing. You need an OpenGL 3 driver, which any graphics driver from the last ten years has.
-- **Linux:** unpack the tarball, copy the ROM in, and run `./rush2049pc`. You need glibc 2.35 or later (Ubuntu 22.04,
-  Debian 12, Fedora 36 or newer) and OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver).
+- **Windows:** unzip the archive somewhere you can write to (not Program Files) and double-click `rush2049pc.exe`.
+  The first time, it asks for the ROM: click Open ROM... and choose the file (or copy it into the folder as
+  `baserom.us.z64` first). No console window opens; what the program prints is in `rush2049pc.log`. You need an
+  OpenGL 3 driver, which any graphics driver from the last ten years has.
+- **Linux:** unpack the tarball and run `./rush2049pc`; it asks for the ROM the same way when zenity or kdialog is
+  installed, or copy the ROM in as `baserom.us.z64`. You need glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora
+  36 or newer) and OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver).
 
 The first run fills `rush2049pc.ini` with every setting and a comment on each, commented out at its default (remove
 the `;` to keep a value). Every run prints which ROM it
@@ -68,8 +73,11 @@ Other pads use the button in the same place.
 
 F1 (or both stick clicks) opens the settings overlay. Alt+Enter or F11 toggles fullscreen, F12 saves a screenshot,
 Pause holds the game and Escape quits. Every key and button can be remapped, and the stick's dead zone and
-sensitivity set, in the overlay. The details are in
-[docs/port/FRONTEND.md](docs/port/FRONTEND.md).
+sensitivity set, in the overlay. It takes the mouse too: point and click, the wheel scrolls, the right button goes
+back. Its Help page lists what each key and button does with your bindings, and About gives the version, the
+graphics driver, the sound output, the controllers and where the settings, saves, screenshots and log are (Copy puts
+it all on the clipboard for a bug report). The mouse cursor hides during play until the mouse moves. The details are
+in [docs/port/FRONTEND.md](docs/port/FRONTEND.md).
 
 ### Settings
 
@@ -77,7 +85,8 @@ sensitivity set, in the overlay. The details are in
 (`video.scale = native`, any display scaling, 2880 × 1620 included); `video.scale = 1` is the N64's 320 × 240 in
 square pixels. Fullscreen is borderless, or exclusive at `video.resolution` (720p to 2160p, or WxH). While you
 play, the F1 overlay changes the video settings (render scale, widescreen, fullscreen and its mode, resolution,
-window size, vsync, frame rate, textures), the volume and the key and button mapping. It
+window size, vsync, frame rate, textures, race HUD), the volume and the key and button mapping. In widescreen the
+race HUD sits at the screen's edges (`video.hud = edges`); `centered` keeps it in the 4:3 frame, as on the N64. It
 can save them into the file in place. `--set SECTION.KEY=VALUE` sets any setting for one run
 (`--set video.widescreen=16:9`), `--print-config` prints them all, and `rush2049pc --help` lists the options.
 
@@ -100,6 +109,7 @@ that folder:
 |---|---|
 | `rush2049pc.ini` | the settings |
 | `rush2049pc.mpk` | the saves: the game's controller pak |
+| `rush2049pc.mpk.bak`, `.bak2`, `.bak3` | the saves as the last three runs that changed them started (newest first) |
 | `screenshots/` | F12's pictures |
 | `texture_cache/` | upscaled textures kept for the next run (`video.textures = upscaled`); safe to delete |
 | `textures/` | a texture pack, if you make one (`video.textures = pack`) |
@@ -110,11 +120,18 @@ Without `rush2049pc.ini` next to it (an installed copy, or a build run from its 
 `~/.local/share/rush2049pc`. A `rush2049pc.mpk` that an earlier build left in the working directory keeps being used
 there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into its folder.
 
+The saves are written whole or not at all (a temp file, then a rename), so a crash can't leave half a file. If
+`rush2049pc.mpk` is damaged when the program starts, it is not overwritten: it is renamed
+`rush2049pc.mpk.corrupt-DATE`, the newest good backup takes its place (or the game starts with an empty pak), and
+a message box says so.
+
 ### Troubleshooting
 
-- **"no ROM" or "wrong ROM":** the message says where the program looked and what the file is. It runs the USA
-  cartridge only, and a ZIP must be extracted first. `--no-rom-check` tries another revision or a dump with other
-  contents anyway; it probably won't work.
+- **"no ROM" or "wrong ROM":** the message says where the program looked and what the file is; Open ROM... lets
+  you choose another. It runs the USA cartridge only, and a ZIP must be extracted first. `--no-rom-check` tries
+  another revision or a dump with other contents anyway; it probably won't work.
+- **Lost saves:** copy `rush2049pc.mpk.bak` (or `.bak2`, `.bak3`) over `rush2049pc.mpk` while the program isn't
+  running.
 - **"no renderer", or no window:** update the graphics driver. The program needs OpenGL ES 3.0, or OpenGL 3.1 or
   later. On Windows desktop GL comes first, elsewhere OpenGL ES; `--set video.api=gl` or `gles` picks the one tried
   first.
@@ -126,7 +143,8 @@ there. To move to a new version, copy `rush2049pc.mpk` and `rush2049pc.ini` into
   SDL's raw input instead).
 - **It stopped with an error:** the log says why. On Windows a message box gives the log's path, and the console
   waits for a key. Report it on the [issues page](https://github.com/cabi24/Rush2049PC/issues) with
-  `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was.
+  `rush2049pc.log`. Its first lines (like `rush2049pc --version`) say which build it was; F1 > About shows where
+  the log is, and its Copy item puts the version, driver and paths on the clipboard.
 
 ## Building
 

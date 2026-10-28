@@ -441,6 +441,7 @@ static void configure(uint32_t src)
         ring_reset(g.dev_rate);
     pc_wav_set_rate(&g.dump, src);
     g.stats.device_rate = g.dev_rate;
+    g.stats.game_rate = src;
     retarget();
 }
 

@@ -79,6 +79,13 @@ jobs:
         # What an optimizing compiler takes for two objects (tools/port/alias_check.py, docs/port/OPTIMIZED.md).
         if: matrix.build == 'RelWithDebInfo'
         run: python3 tools/port/alias_check.py --build build/pc -j 4
+      - name: Data reached past its declaration
+        # Game C that reaches outside the extent its own file declares for a data symbol, which an optimizing GCC
+        # takes for the object's size (tools/port/bounds_check.py, docs/port/OPTIMIZED.md 2.7). It compiles the game
+        # at -O2 with the array-bounds warnings and fails on a finding not in tools/port/bounds_reviewed.txt, made
+        # with this runner's GCC 13 on x86-64 (and GCC 14, mingw-w64 12): aarch64's warns and inlines otherwise.
+        if: matrix.build == 'RelWithDebInfo' && matrix.os == 'ubuntu-24.04'
+        run: python3 tools/port/bounds_check.py --build build/pc -j 4
       - name: Census
         if: matrix.build == 'Debug'
         run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20

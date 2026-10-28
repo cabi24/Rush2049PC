@@ -2561,9 +2561,21 @@ extern s32 D_801526A4;
 extern s32 D_801526A8;
 extern s32 D_801526D8;
 extern s32 D_801526DC;
+#ifdef TARGET_PC
+/* per car, (&D_801526E0)[car]: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern f32 D_801526E0[];
+#define D_801526E0 (D_801526E0[0])
+#else
 extern f32 D_801526E0;
+#endif
 extern s32 D_801526F0;
+#ifdef TARGET_PC
+/* per car, (&D_801526F8)[car]: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern f32 D_801526F8[];
+#define D_801526F8 (D_801526F8[0])
+#else
 extern f32 D_801526F8;
+#endif
 extern s32 D_80152708;
 extern s8 D_80152718;
 extern f32 D_80152720;

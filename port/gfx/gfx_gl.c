@@ -187,6 +187,19 @@ void pcgfx_gl_target_dims(const GfxTarget *t, int *w, int *h) {
 
 /* ---------------------------------------------------------------- init */
 
+static char s_driver[4][160];   /* GL_VENDOR, GL_RENDERER, GL_VERSION, GL_SHADING_LANGUAGE_VERSION, as logged */
+
+void pc_gfx_driver(const char **vendor, const char **renderer, const char **version, const char **glsl) {
+    *vendor = s_driver[0];
+    *renderer = s_driver[1];
+    *version = s_driver[2];
+    *glsl = s_driver[3];
+}
+
+static void keep_driver(int i, const char *s) {
+    snprintf(s_driver[i], sizeof(s_driver[i]), "%s", s != NULL ? s : "?");
+}
+
 int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
     const char *ver;
     int ok = 1;
@@ -218,6 +231,10 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
     /* always: which GPU and driver drew a run is the first question about a log (two-GPU laptops) */
     fprintf(stderr, "gfx: %s / %s / %s / %s\n", (const char *)glGetString(GL_VENDOR),
             (const char *)glGetString(GL_RENDERER), (const char *)glGetString(GL_VERSION), ver ? ver : "?");
+    keep_driver(0, (const char *)glGetString(GL_VENDOR));   /* the same for the overlay's About page */
+    keep_driver(1, (const char *)glGetString(GL_RENDERER));
+    keep_driver(2, (const char *)glGetString(GL_VERSION));
+    keep_driver(3, ver);
     glGenVertexArrays(1, &G.vao);
     glBindVertexArray(G.vao);
     glGenBuffers(1, &G.vbo);

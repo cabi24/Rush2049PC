@@ -550,6 +550,12 @@ def main():
     build = a.build.resolve()
     if a.selftest:
         return selftest(build, a.readelf)
+    if not (build / "pc-data" / "data_symbols.txt").exists():
+        # the symbols' containers, second names and the declarations gen_data chose: without them the storages are
+        # other ones, and so are the findings
+        print(f"offset_check: no {ec.rel(build / 'pc-data' / 'data_symbols.txt')}: build the program first",
+              file=sys.stderr)
+        return 2
     pick = build / "endian" / "offset.pickle"
     if a.cached and pick.exists():
         results = pickle.loads(pick.read_bytes())
@@ -652,6 +658,12 @@ s32 cb_item(Item *item) {
     }
     return item->dirty;
 }
+/* 7. a helper with an N64-shaped view that only its two callers in this file type (the MusyX listener's
+ * func_8001D5C0, LAYOUT.md 9.6): with -fPIC -fno-semantic-interposition both calls are to hide_helper.localalias */
+typedef struct { u8 pad0[0xC]; s8 hide; } HideView;
+void hide_helper(HideView *v) { v->hide = 0; }
+void hide_rec(Rec *r) { r->x = 0; hide_helper((HideView *) r); }
+void hide_rec2(Rec *r) { r->y = 0; hide_helper((HideView *) r); }
 void caller(Rec *a, Rec *b, Rec *c, Rec *d) { update(a); update(b); update(c); update(d); }
 """
 SELFTEST_ROLES = [(r"^cb_role$", 0, (r"selftest\.c$", "Rec"), "the synthetic role: a Rec")]
@@ -663,22 +675,32 @@ SELFTEST_EXPECT = [
     (r"^touch_sym$", r"4-byte write at N64 \+0x14: the N64's id \(PC \+0x20\)"),
     (r"^cb_role$", r"4-byte read at N64 \+0x14: the N64's id .*role: the synthetic role"),
     (r"^cb_item$", r"1-byte write at N64 \+0xC through the N64-shaped view Item: the N64's hide \(PC \+0x14\)"),
+    (r"^hide_helper$", r"1-byte write at N64 \+0xC through the N64-shaped view HideView: the N64's hide \(PC \+0x14\)"),
 ]
-SELFTEST_ABSENT = [r"^cb_pc$", r"^cb_macro$", r"^cb_vec$", r"^vec_inc$", r"^cb_win$", r"^cb_low$", r"^update$"]
+SELFTEST_ABSENT = [r"^cb_pc$", r"^cb_macro$", r"^cb_vec$", r"^vec_inc$", r"^cb_win$", r"^cb_low$", r"^update$",
+                   r"^hide_rec2?$"]
+# The selftest is compiled as each host's game is: PIE code (aarch64's), and -fPIC -fno-semantic-interposition (the
+# x86-64 build's, CMakeLists.txt), under which GCC calls a file's own global functions through `<name>.localalias`.
+# Both on every host, so a reading that depends on either fails here on both (LAYOUT.md 9.6).
+SELFTEST_VARIANTS = [("pie", []), ("pic", ["-fPIC", "-fno-semantic-interposition"])]
 
 
-def selftest(build, readelf):
-    """Run the check on SELFTEST_C with SELFTEST_ROLES as ROLES and update() a generic helper (Flow.CAP 3)."""
+def selftest_variant(build, readelf, name, flags):
+    """The findings of SELFTEST_C compiled with flags, with SELFTEST_ROLES as ROLES and update() a generic helper
+    (Flow.CAP 3); and whether the dump has a call through a local alias."""
     global ROLES, REVIEWED
-    d = build / "endian" / "offset_selftest"
+    d = build / "endian" / "offset_selftest" / name
     d.mkdir(parents=True, exist_ok=True)
     src = d / "selftest.c"
     src.write_text(SELFTEST_C)
-    r = subprocess.run(["cc", "-std=gnu89", "-g", "-w", "-fno-strict-aliasing", "-DTARGET_PC", *ec.DUMP_FLAGS,
+    for old in d.glob("selftest.c.*t.forwprop1"):
+        old.unlink()
+    r = subprocess.run(["cc", "-std=gnu89", "-g", "-w", "-fno-strict-aliasing", "-DTARGET_PC", *flags, *ec.DUMP_FLAGS,
                         "-c", str(src), "-o", str(d / "selftest.o")], cwd=d, capture_output=True, text=True)
     if r.returncode:
         print(r.stderr)
-        return 1
+        return None, False
+    localalias = any(".localalias (" in p.read_text(errors="replace") for p in d.glob("selftest.c.*t.forwprop1"))
     saved = ROLES, REVIEWED, lc.Flow.CAP
     ROLES, REVIEWED, lc.Flow.CAP = SELFTEST_ROLES, [], 3
     try:
@@ -688,17 +710,36 @@ def selftest(build, readelf):
         found = Check(flow).findings()
     finally:
         ROLES, REVIEWED, lc.Flow.CAP = saved
-    text = [(f.func, " | ".join(f.lines)) for f in found if f.score > 2]
-    bad = 0
-    for func_re, what_re in SELFTEST_EXPECT:
-        ok = any(re.search(func_re, fn) and re.search(what_re, t) for fn, t in text)
-        bad += not ok
-        print(f"{'ok  ' if ok else 'MISS'} {func_re}: {what_re}")
-    for func_re in SELFTEST_ABSENT:
-        hit = [t for fn, t in text if re.search(func_re, fn)]
-        bad += bool(hit)
-        print(f"{'ok  ' if not hit else 'FALSE'} nothing in {func_re}" + (f": {hit[0][:160]}" if hit else ""))
-    print(f"selftest: {len(found)} findings, {bad} wrong")
+    return found, localalias
+
+
+def selftest(build, readelf):
+    """Run the check on SELFTEST_C in each of SELFTEST_VARIANTS: the expected findings, and the same in each."""
+    bad, first = 0, None
+    for name, flags in SELFTEST_VARIANTS:
+        found, localalias = selftest_variant(build, readelf, name, flags)
+        if found is None:
+            return 1
+        verdicts = sorted((f.score, f.func, lc.fmt_root(f.root), tuple(f.lines)) for f in found)
+        if first is None:
+            first = (name, verdicts)
+        elif verdicts != first[1]:
+            bad += 1
+            print(f"DIFF {name} against {first[0]}: " + "; ".join(
+                f"{v[1]} on {v[2]} [{v[0]}]" for v in sorted(set(verdicts) ^ set(first[1]))))
+        text = [(f.func, " | ".join(f.lines)) for f in found if f.score > 2]
+        print(f"-- {name} ({' '.join(flags) or 'the compiler default'}"
+              f"{'; calls through .localalias' if localalias else ''})")
+        for func_re, what_re in SELFTEST_EXPECT:
+            ok = any(re.search(func_re, fn) and re.search(what_re, t) for fn, t in text)
+            bad += not ok
+            print(f"{'ok  ' if ok else 'MISS'} {func_re}: {what_re}")
+        for func_re in SELFTEST_ABSENT:
+            hit = [t for fn, t in text if re.search(func_re, fn)]
+            bad += bool(hit)
+            print(f"{'ok  ' if not hit else 'FALSE'} nothing in {func_re}" + (f": {hit[0][:160]}" if hit else ""))
+        print(f"selftest {name}: {len(found)} findings")
+    print(f"selftest: {bad} wrong")
     return 1 if bad else 0
 
 

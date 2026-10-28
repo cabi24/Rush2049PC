@@ -1516,6 +1516,210 @@ static void case_widescreen(void) {
     pc_gfx_set_widescreen(env_aspect);
 }
 
+/* ---- the race HUD at the screen's edges (GFX.md "The HUD at the screen's edges"): a race frame's 2D, made up for the
+ * test. On blue: a perspective strip across the target (rows 212-220); left, a bezel fill (6-54, rows 5-23) with a
+ * copy-mode digit on it (14-22, rows 8-16) and an orthographic triangle (8-28, rows 40-50); right, a run of four
+ * digits a pixel apart (270-305, rows 10-18) and a radar fill (240-300, rows 100-140) cut by its scissor (250-290);
+ * in the middle a banner (90-230, rows 60-80) with a digit at each end (95, 217) and a run of digits 3 pixels apart
+ * across the band's left side (60-156, rows 90-98); a full-width fill (rows 200-210); then a pause-like panel
+ * (40-280, rows 145-195, drawn after a radar fill 10-42 under its left side) with a digit in it (50, rows 160-168),
+ * a second panel (20-300, rows 205-240) and then another digit on the first panel (270, rows 185-193). */
+static int s_race;
+static int test_race(void) { return s_race; }
+static uint16_t s_hdig[8 * 8];
+
+static void hud_digit(int x, int y) {
+    gsSPTextureRectangle(x << 2, y << 2, (x + 7) << 2, (y + 7) << 2, 0, 0, 0, 4 << 10, 1 << 10);
+}
+
+static void hud_fill(int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8_t b) {
+    gsDPSetCycleType(G_CYC_1CYCLE);
+    gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
+    gsDPSetPrimColor(0, 0, r, g, b, 255);
+    cc_prim();
+    gsDPFillRectangle(x0, y0, x1, y1);
+}
+
+static void hud_copy(void) {
+    load_texture_block((uintptr_t)s_hdig, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    gsDPSetCycleType(G_CYC_COPY);
+    gsDPSetRenderMode(0, 0);
+}
+
+static void hud_scene(void) {
+    static Vtx v[8];
+    int i;
+    for (i = 0; i < 64; i++)
+        s_hdig[i] = rgba16(255, 255, 255, 1);
+    frame_begin(0, 0, 255);
+    cc_shade();
+    gsSPMatrix((uintptr_t)&s_frustum, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    quad(&v[0], -200, -84, 200, -76, -100, 255, 128, 0);
+    gsSPVertex((uintptr_t)v, 4, 0);
+    gsSP2Triangles(0, 1, 2, 2, 1, 3);
+    gsSPMatrix((uintptr_t)&s_ortho, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    hud_fill(6, 5, 54, 23, 255, 0, 0);
+    hud_copy();
+    hud_digit(14, 8);
+    gsDPSetCycleType(G_CYC_1CYCLE);
+    gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
+    cc_shade();
+    vtx(&v[4], 8, 40, 0, 0, 0, 255, 0, 255, 255);
+    vtx(&v[5], 8, 50, 0, 0, 0, 255, 0, 255, 255);
+    vtx(&v[6], 28, 40, 0, 0, 0, 255, 0, 255, 255);
+    gsSPVertex((uintptr_t)&v[4], 3, 0);
+    gsSP1Triangle(0, 1, 2);
+    hud_copy();
+    for (i = 0; i < 4; i++)
+        hud_digit(270 + 9 * i, 10);
+    gsDPSetScissor(250, 100, 290, 140);
+    hud_fill(240, 100, 300, 140, 0, 255, 0);
+    gsDPSetScissor(0, 0, FB_W, FB_H);
+    hud_fill(90, 60, 230, 80, 255, 255, 0);
+    hud_copy();
+    hud_digit(95, 64);
+    hud_digit(217, 64);
+    for (i = 0; i < 9; i++)
+        hud_digit(60 + 11 * i, 90);
+    hud_fill(0, 200, FB_W, 210, 0, 255, 255);
+    hud_fill(10, 150, 42, 190, 128, 128, 128);
+    hud_fill(40, 145, 280, 195, 64, 0, 64);
+    hud_copy();
+    hud_digit(50, 160);
+    hud_fill(20, 205, 300, 240, 0, 64, 64);
+    hud_copy();
+    hud_digit(270, 185);
+    frame_end();
+}
+
+static void case_hud(void) {
+    static const struct { const char *name; float aspect; int ox; } wide[] = {{"16:9", 16.0f / 9, 53},
+                                                                              {"21:9", 21.0f / 9, 120}};
+    int ok, k, i, w = 255;
+    float env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
+    int env_hud = pc_gfx_hud();
+    uint8_t *ref;
+    size_t n;
+    float f[4][4];
+
+    if (pc_gfx_parse_hud("edges", &ok) != PC_GFX_HUD_EDGES || !ok || pc_gfx_parse_hud("centered", &ok) !=
+        PC_GFX_HUD_CENTERED || !ok || (pc_gfx_parse_hud("left", &ok), ok)) {
+        printf("  FAIL hud: parsing edges, centered, left\n");
+        s_fail++;
+    }
+    memset(f, 0, sizeof(f));
+    f[0][0] = f[1][1] = 1.0f;
+    f[2][2] = (10.0f + 1000.0f) / (10.0f - 1000.0f);
+    f[2][3] = -1.0f;
+    f[3][2] = 2.0f * 10.0f * 1000.0f / (10.0f - 1000.0f);
+    mtx_f2l(f, &s_frustum);
+    pc_gfx_set_hud_race(test_race);
+
+    /* 4:3: edges in a race draws what centered draws */
+    pc_gfx_set_widescreen(0.0f);
+    s_race = 0;
+    pc_gfx_set_hud(PC_GFX_HUD_CENTERED);
+    hud_scene();
+    n = (size_t)s_px_w * s_px_h * 4;
+    ref = (uint8_t *)malloc(n);
+    memcpy(ref, s_px, n);
+    s_race = 1;
+    pc_gfx_set_hud(PC_GFX_HUD_EDGES);
+    hud_scene();
+    if ((size_t)s_px_w * s_px_h * 4 != n || memcmp(ref, s_px, n) != 0) {
+        printf("  FAIL hud 4:3: edges in a race differs from centered\n");
+        s_fail++;
+    }
+    free(ref);
+
+    for (k = 0; k < 2; k++) {
+        int ox = wide[k].ox, W = FB_W + 2 * ox;
+        pc_gfx_set_widescreen(wide[k].aspect);
+        /* centered (and edges outside a race): the 2D at the 4:3 frame's place, the same frame either way */
+        s_race = 1;
+        pc_gfx_set_hud(PC_GFX_HUD_CENTERED);
+        hud_scene();
+        if (s_n64_w != W) {
+            printf("  FAIL hud %s: the target is %d wide, not %d\n", wide[k].name, s_n64_w, W);
+            s_fail++;
+            break;
+        }
+        check_at("centered: the bezel with the frame", ox + 8, 20, 255, 0, 0, 0);
+        check_at("centered: the digit run with the frame", ox + 271, 12, w, w, w, 0);
+        check_at("centered: nothing at the right edge", W - 10, 12, 0, 0, 255, 0);
+        if (pc_gfx_hud_dx(30) != 0 || pc_gfx_hud_dx(290) != 0) {
+            printf("  FAIL hud %s: centered moves a point\n", wide[k].name);
+            s_fail++;
+        }
+        n = (size_t)s_px_w * s_px_h * 4;
+        ref = (uint8_t *)malloc(n);
+        memcpy(ref, s_px, n);
+        s_race = 0;
+        pc_gfx_set_hud(PC_GFX_HUD_EDGES);
+        hud_scene();
+        if ((size_t)s_px_w * s_px_h * 4 != n || memcmp(ref, s_px, n) != 0) {
+            printf("  FAIL hud %s: edges outside a race differs from centered\n", wide[k].name);
+            s_fail++;
+        }
+        free(ref);
+
+        /* edges in a race */
+        s_race = 1;
+        hud_scene();
+        if (pc_gfx_hud_dx(30) != -ox || pc_gfx_hud_dx(290) != ox || pc_gfx_hud_dx(160) != 0 ||
+            pc_gfx_hud_dx(110) != 0 || pc_gfx_hud_dx(210) != 0) {
+            printf("  FAIL hud %s: a point's move %d %d %d %d %d\n", wide[k].name, pc_gfx_hud_dx(30),
+                   pc_gfx_hud_dx(290), pc_gfx_hud_dx(160), pc_gfx_hud_dx(110), pc_gfx_hud_dx(210));
+            s_fail++;
+        }
+        /* 3D as before: the strip across the target */
+        check_at("3D strip at the left edge", 0, 216, 255, 128, 0, 0);
+        check_at("3D strip at the right edge", W - 1, 216, 255, 128, 0, 0);
+        /* left: the bezel, its digit and the triangle keep their distance to the left edge */
+        check_at("bezel at the left edge", 6, 20, 255, 0, 0, 0);
+        check_at("bezel's right side", 53, 20, 255, 0, 0, 0);
+        check_at("bezel: nothing after it", 55, 20, 0, 0, 255, 0);
+        check_at("bezel: not at the 4:3 place", ox + 50, 20, 0, 0, 255, 0);
+        for (i = 0; i < 8; i++)
+            check_at("digit on the bezel, texel for texel", 14 + i, 8 + i, w, w, w, 0);
+        check_at("digit on the bezel: the bezel beside it", 13, 12, 255, 0, 0, 0);
+        check_at("orthographic triangle at the left", 10, 42, 255, 0, 255, 0);
+        check_at("orthographic triangle: not at the 4:3 place", ox + 12, 42, 0, 0, 255, 0);
+        /* right: the run of digits, together */
+        for (i = 0; i < 4; i++) {
+            check_at("digit run at the right", 2 * ox + 270 + 9 * i, 12, w, w, w, 0);
+            check_at("digit run: the gap between", 2 * ox + 278 + 9 * i, 12, 0, 0, 255, 0);
+        }
+        check_at("digit run: not at the 4:3 place", ox + 271, 12, 0, 0, 255, 0);
+        /* the radar's scissor moved with it */
+        check_at("radar inside its scissor", 2 * ox + 251, 120, 0, 255, 0, 0);
+        check_at("radar to its scissor's right side", 2 * ox + 289, 120, 0, 255, 0, 0);
+        check_at("radar cut at its scissor's left side", 2 * ox + 248, 120, 0, 0, 255, 0);
+        check_at("radar cut at its scissor's right side", 2 * ox + 292, 120, 0, 0, 255, 0);
+        /* the middle stays: the banner and its end digits; the run across the band's side */
+        check_at("banner stays", ox + 92, 62, 255, 255, 0, 0);
+        check_at("banner's left digit stays", ox + 96, 66, w, w, w, 0);
+        check_at("banner's right digit stays", ox + 218, 66, w, w, w, 0);
+        check_at("run across the band: first digit stays", ox + 61, 92, w, w, w, 0);
+        check_at("run across the band: last digit stays", ox + 149, 92, w, w, w, 0);
+        check_at("run across the band: not moved left", 61, 92, 0, 0, 255, 0);
+        /* the full-width fill spans the target */
+        check_at("full-width fill: left edge", 0, 205, 0, 255, 255, 0);
+        check_at("full-width fill: right edge", W - 1, 205, 0, 255, 255, 0);
+        /* the panel stays and keeps its digit; the radar under its side moves left */
+        check_at("panel stays", ox + 45, 150, 64, 0, 64, 0);
+        check_at("panel's digit stays", ox + 51, 162, w, w, w, 0);
+        check_at("radar under the panel moves left", 12, 170, 128, 128, 128, 0);
+        check_at("radar under the panel: its right side", 41, 170, 128, 128, 128, 0);
+        check_at("a digit drawn after the second panel stays on the first", ox + 271, 187, w, w, w, 0);
+        check_at("that digit: not moved right", 2 * ox + 271, 187, 0, 0, 255, 0);
+        check_at("the second panel stays", ox + 25, 230, 0, 64, 64, 0);
+    }
+    pc_gfx_set_hud_race(NULL);
+    pc_gfx_set_hud(env_hud);
+    pc_gfx_set_widescreen(env_aspect);
+}
+
 /* the auto settings follow the window (here the headless size, pc_gfx_set_window_size): widescreen takes its aspect,
  * the auto scale the largest whole multiple of the frame that it holds, and native the window's own pixels (any
  * fraction; the frame here shows all 240 rows) */
@@ -1698,7 +1902,7 @@ static const Case s_cases[] = {
     {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
-    {"seams", case_seams},       {"screenshot", case_screenshot},
+    {"seams", case_seams},       {"screenshot", case_screenshot}, {"hud", case_hud},
 };
 
 int main(int argc, char **argv) {

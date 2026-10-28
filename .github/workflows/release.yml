@@ -64,7 +64,7 @@ jobs:
           ! unzip -Z1 "$name.zip" | grep -iE '\.(z64|v64|n64|rom|bin)$'
           x86_64-w64-mingw32-objdump -p "stage/$name/rush2049pc.exe" | grep 'DLL Name'
           # a GUI program (no console window on a double-click) with its icon and version (docs/port/WINDOWS.md 10)
-          python3 tools/port/pe_check.py --exe "stage/$name/rush2049pc.exe" --version-file build/win/version/pc_version_rc.h
+          python3 tools/port/pe_check.py --exe "stage/$name/rush2049pc.exe" --version-file build/win/version/pc_version_rc.h --dlls
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64

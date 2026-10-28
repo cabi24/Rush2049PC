@@ -23,6 +23,7 @@ documentation and n64brew.
 | `gfx_tex.c`, `gfx_tex.h` | upscaled textures and texture packs: identities, the worker thread, the disk cache ([TEXTURES.md](TEXTURES.md)) |
 | `gfx_ui.c`, `gfx_font.c` | drawing over the frame in window pixels, and its font: the settings overlay ("The overlay" below) |
 | `gfx_interp.c`, `gfx_hfr.h` | a high frame rate: graphics tasks recorded, frames drawn between the game's ("High frame rate" below) |
+| `gfx_hud.c` | the race HUD at the screen's edges in widescreen: 2D queued, grouped and moved ("The HUD at the screen's edges" below) |
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
 | `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between); `gfx_size_test` (gfx_size.c with made-up sizes) |
 
@@ -217,6 +218,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | `RUSH_GFX_API=auto`, `gl`, `gles` | which API to try first, the other after it: `gl` desktop GL (3.3 core, then 3.1), `gles` GLES 3.0; `auto` (`video.api`'s default) desktop GL on Windows, whose drivers are made and tested for it (their ES profile through WGL is a side path), GLES elsewhere, where Mesa serves both alike (`pcgfx_want_gles`). `gfx.all.gles`, `.desktop-gl`, `.desktop-gl-software` and `.desktop-gl-wide-scale2` run every case on each |
 | `RUSH_GFX_SCALE=s` | internal resolution: `native` (`video.scale`'s default: the window's own pixels, any fraction, 1-16), `auto` (the largest whole multiple of the frame the window holds), a multiple 1–8, or for tests and tools a fixed fraction up to 16 (`2.25`); native and auto are taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
+| `RUSH_GFX_HUD=edges\|centered` | the race HUD in widescreen: at the screen's edges (`video.hud`'s default) or in the 4:3 frame ("The HUD at the screen's edges" below) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2` | renderer and per-task counts / generated shaders |
 | `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (w0, w1, and the depth of the list it is in) |
@@ -352,7 +354,8 @@ the next frame. A new value applies from the next SETCIMG.
   `pcgfx_wide_x` too.
 - **2D** (orthographic triangles, texture rectangles) moves ox, with the frame, at its 4:3 size. Its scissor
   moves ox as well, so 2D that the N64 clipped at the frame's edge (a sprite sliding in, something parked off
-  screen) stays hidden instead of showing in the side bars.
+  screen) stays hidden instead of showing in the side bars. In a race, the HUD's 2D goes to the screen's edges
+  instead (`video.hud = edges`, the next section).
 - **Fills** (FILLRECT in every cycle type, z clears included) go through `pcgfx_wide_x` with their scissor: a
   full-width clear covers the target, a view's own clear covers the widened view, and a divider in the middle
   stays in the middle. A fill that touches only one side of the frame (a HUD bar from x 0) reaches the target's
@@ -390,6 +393,61 @@ the next frame. A new value applies from the next SETCIMG.
   - The 2-player screen's right panel and the empty band beside it.
   - Whatever the game draws at the frame's edges to hide something (a border fill, a fade) that touches only
     one side: it now reaches the target's side.
+
+### The HUD at the screen's edges
+
+`video.hud` (`RUSH_GFX_HUD`, `pc_gfx_set_hud`; F1's Video page, [FRONTEND.md](FRONTEND.md)): `edges`, the default,
+or `centered`. Added 2026-10-28, `gfx_hud.c`. In widescreen the 2D stays in the 4:3 frame, in the middle (above),
+so on a 16:9 screen the race HUD sits ox pixels in from the screen's sides: the speedometer and the radar panel
+left, the position, laps, coin counts, map and timer right. With `edges`, in a race, a piece of the HUD at the
+frame's left side moves left by ox and one at its right side moves right by ox, so it keeps the distance to the
+screen's edge that it has on a 4:3 screen. Everything else stays as the section above has it.
+
+- **When.** In a race with one view: main.c tells the renderer (`pc_gfx_set_hud_race`) from the game's state word
+  (the countdown, 0x200000, and the race, 0x400000, its pause screen included) and gNumWindows 1, taken at each
+  graphics task. Menus, the attract demo, the results and game-over screens, and split screen are `centered`
+  whatever the setting. `centered`, 4:3 (ox 0) and those screens run none of it: the drawing is the same as without
+  it (the `hud` test compares the frames byte for byte).
+- **Split screen** is left as it is: the 2-player screen's views widen to the left and its side panel stays with
+  the frame, the 3- and 4-player views widen in proportion (above). Moving each view's HUD would need the rule per
+  viewport, and the 2-player panel's place against the widened views; it is not done.
+- **Pieces move whole.** The game draws its race HUD (the speedometer's bezel, digits and odometer, the radar and
+  its blips, the place, laps and coin counts, the map and its dots, the timer's bezel and digits) as texture
+  rectangles and 1-cycle fills, in one list after the 3D; text is a rectangle per glyph, and the bezels are drawn
+  with the primitive depth. While the rule is on, each 2D primitive (a texture rectangle, a 1/2-cycle fill, an
+  orthographic triangle) is queued with its draw state and GL vertices (`pcgfx_hud_add`) instead of drawn. The
+  queue is drawn (`pcgfx_hud_resolve`) before anything else is drawn or cleared (a 3D triangle, a fill-mode
+  rectangle), at a new color or depth image and at the task's end, in its order, so the picture's order is the
+  game's:
+  - **Groups.** Pieces whose boxes (within their scissor) overlap or nearly touch, 8 pixels apart along a line and
+    3 between lines, are one group: a bezel and its digits, a text run with its word spaces, the radar and its
+    blips, a pane and its text.
+  - **Panels.** A panel is a box at least half the frame wide and an eighth of it high (the pause screen's
+    full-frame darkening, a menu's pane). It covers what was drawn before it: a piece drawn on a panel (or the
+    panel itself) never groups with a piece drawn before that panel. So the pause screen's option pane over the
+    radar's side doesn't take the radar with it, while a value the video page draws on its pane after drawing
+    another panel (its test pattern) still groups with its pane.
+  - **The move.** A group wider than half the frame stays (a full-width bar, a menu pane). Otherwise its box's
+    centre decides: left of the middle band (the frame's middle sixth on each side: 107-213 of 320) the group moves
+    left by ox, right of it right by ox, in it it stays (a centred banner: "insert rumble pak", the pause menu).
+    ox is whole, so the 2D stays on the N64 pixel grid and texel-exact at any scale.
+  - **The scissor** of a moved piece is its 2D scissor (the frame's, at the 4:3 place) moved by the same amount:
+    a scissored sub-view (a radar clipped to its window) is clipped where it is drawn. A fill that touches the
+    frame's side, which "Widescreen" stretches to the target's side, is moved at its 4:3 size instead.
+  - Fill-mode rectangles (clears) are not queued and stay as above; the game's race HUD has none.
+- **3D models at HUD points.** The coin icons beside their counts are coin models the game places in 3D at a 2D
+  point (ZOID_WindowTo3D, `car_lights_render`), so the rule above can't see them. On the PC that function moves its
+  point's x by `pc_gfx_hud_dx` (the same rule for a point: -ox, 0 or ox), so they stay beside their counts; the
+  battle and stunt HUD's models go through it too (ovl_b's status scene). It is the one game C change
+  (`src/blob/car_lights_render.c`, N64-neutral: one macro).
+- **A high frame rate** records the queue as it is drawn (`pcgfx_rec_verts`, the moved vertices and scissor), so
+  frames between keep the HUD where the nearer frame has it ("High frame rate" below; `gfx.interp.hudedges`).
+  Screenshots read the presented image, which has it. 2D keeps its original textures with `video.textures`
+  (the draw state is the one 2D always gets). The overlay is drawn over the window, not through this.
+- **Checked on the retail cartridge** (2026-10-28, the Pi, 16:9, local screenshots only): a single race's countdown
+  and race, the pause screen and its options, controls, audio and video pages, the stunt arena, a frame between at
+  60 frames a second, all with the HUD at the edges and the menus, banners and the countdown in the middle; the
+  2-player race and the results screen came out byte for byte the same with `edges` and `centered`.
 
 ### High frame rate
 
@@ -481,12 +539,15 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 | `eyerel` | eye-relative native vertices under the identity modelview, in the frame's buffer and at one address: they stay put in the world |
 | `timing` | held, drawn, drawn, early (C late), then C; a period of 3; the presented image (screenshots) unchanged by a frame between; a redraw shows the frame between; off, a tick shows nothing and the present shows the frame |
 | `parse` | the setting's text; `display` is 60 without a display |
+| `hudedges` | the race HUD at the screen's edges in 16:9: a frame between draws the HUD's rectangle where the nearer frame has it, as the frames drawn directly do with `edges` and with `centered`, and further left with `edges` |
 | `gfx.interp.all.*` | every case at 2x, in 16:9, on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 ### The overlay
 
 port/input's settings overlay ([FRONTEND.md](FRONTEND.md) "The settings overlay") is drawn here, outside the
-display-list interpreter (`gfx_ui.c`, `pc_port.h`'s graphics section). Added 2026-10-27.
+display-list interpreter (`gfx_ui.c`, `pc_port.h`'s graphics section). Added 2026-10-27. Its mouse input is
+port/input's: the drawable's pixels against the window's units, the same sizes as here ([FRONTEND.md](FRONTEND.md)
+"The mouse"). `pc_gfx_driver` gives its About page the GL strings the `gfx:` log line prints.
 
 - **When.** While a UI hook is set (`pc_gfx_set_ui_hook`), each present calls it after the frame is shown in the
   window, and before the swap, with the window's size in pixels. With no frame yet it draws over black. The overlay
@@ -648,7 +709,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 23, one CTest each:
+- **Cases.** 24, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -675,6 +736,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `autosize` | headless window sizes from 640 × 480 to 2880 × 1620: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), native the fit at any fraction (2876 × 1620 at 2880 × 1620, 1363 × 768 at 1366 × 768), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
 | `seams` | at the scale in effect, every internal pixel of the 4:3 frame against its N64 pixel's color: copy-mode tiles side by side, 13-pixel 1-cycle tiles from x 3, glyph-sized rectangles a pixel apart, 2× magnified tiles, 1-pixel fill columns and 1-cycle rows, a fill to the bottom: no gap, no bleed |
 | `screenshot` | PNG |
+| `hud` | the race HUD at the screen's edges, on a made-up race frame (GFX.md "The HUD at the screen's edges"), at 16:9 and 21:9: a bezel fill with a copy-mode digit on it and an orthographic triangle at the left side end up ox further left, texel for texel; a run of digits a pixel apart at the right ox further right, together; a fill cut by its scissor at the right moves with its scissor; a banner with a digit at each end and a run of digits across the middle band's side stay; a full-width fill spans the target; a panel drawn over a radar fill's side stays, the radar moves; a digit drawn on that panel after a second panel stays with it; the 3D strip spans the target; `pc_gfx_hud_dx` for points; `centered`, `edges` outside a race and `edges` at 4:3 give the same frames, byte for byte, as `centered` |
 
 - **Variants.** `gfx.all.gles`, `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun
   every case on GLES, on desktop GL, at 2× and on llvmpipe's GLES; `gfx.all.desktop-gl-software` on llvmpipe's

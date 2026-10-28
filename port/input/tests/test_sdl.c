@@ -899,9 +899,8 @@ static void test_menu(void)
     /* the key that closes it doesn't reach the game while it is still held */
     tap(SDL_SCANCODE_F1);
     menu_at("Settings", "Keyboard", NULL, "reopened");
-    tap(SDL_SCANCODE_DOWN);
-    tap(SDL_SCANCODE_DOWN);
-    tap(SDL_SCANCODE_DOWN);
+    for (int i = 0; i < 5; i++)   /* past Controllers, Help, About and Save */
+        tap(SDL_SCANCODE_DOWN);
     menu_at("Settings", "Resume", NULL, "Resume");
     key(SDL_SCANCODE_RETURN, 1, 0);
     poll_pads();
@@ -934,9 +933,9 @@ static void test_menu(void)
     button(&pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK, 0);
     pump();
     menu_at("Settings", "Resume", NULL, "where it was");
-    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
-    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
-    menu_at("Settings", "Controllers", NULL, "D-pad up twice");
+    for (int i = 0; i < 4; i++)
+        press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
+    menu_at("Settings", "Controllers", NULL, "D-pad up four times");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
     menu_at("Controllers (all players)", "A", "a, righttrigger", "A opens the page");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
@@ -1002,12 +1001,162 @@ static void test_menu(void)
     stop();
 }
 
+/* ---------------------------------------------------------------- the mouse */
+
+/* A mouse event in the window's units (the offscreen window's are its pixels): motion, a button, or wheel notches. */
+static void mouse(Uint32 type, int x, int y, int button)
+{
+    static int last_x = -1, last_y = -1;   /* where the last motion was, for its relative motion, as SDL gives it */
+    SDL_Event e;
+    SDL_zero(e);
+    e.type = type;
+    if (type == SDL_MOUSEMOTION) {
+        e.motion.windowID = SDL_GetWindowID(g_win);
+        e.motion.x = x, e.motion.y = y;
+        e.motion.xrel = last_x < 0 ? 1 : x - last_x;
+        e.motion.yrel = last_y < 0 ? 0 : y - last_y;
+        last_x = x, last_y = y;
+    } else if (type == SDL_MOUSEWHEEL) {
+        e.wheel.windowID = SDL_GetWindowID(g_win);
+        e.wheel.y = button;
+        e.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+    } else {
+        e.button.windowID = SDL_GetWindowID(g_win);
+        e.button.button = (Uint8)button;
+        e.button.state = type == SDL_MOUSEBUTTONDOWN ? SDL_PRESSED : SDL_RELEASED;
+        e.button.clicks = 1;
+        e.button.x = x, e.button.y = y;
+    }
+    SDL_PushEvent(&e);
+    pump();
+}
+
+/* A press and release; then 0.6 s pass, so that two clicks aren't a double click. */
+static void click(int x, int y, int button)
+{
+    mouse(SDL_MOUSEBUTTONDOWN, x, y, button);
+    mouse(SDL_MOUSEBUTTONUP, x, y, button);
+    test_now_ns += 600000000u;
+}
+
+static int cursor_shown(void)
+{
+    return SDL_ShowCursor(SDL_QUERY) == SDL_ENABLE;
+}
+
+/* Row i's middle at 640 x 480: the panel at (16, 16) in units of 2 pixels, rows of 12 units from y 18. */
+#define ROW_X 216
+#define ROW_Y(i) (16 + (18 + 12 * (i) + 6) * 2)
+
+static void test_mouse(void)
+{
+    PcSettings s;
+    pc_settings_defaults(&s);
+    test_now_ns = 1000000000u;
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    show_frame();
+    pump();
+    CHECK(!cursor_shown(), "no cursor over the game at start");
+    {   /* SDL's first event for a cursor at rest under the window (Windows sends it): no relative motion, no move */
+        SDL_Event e;
+        SDL_zero(e);
+        e.type = SDL_MOUSEMOTION;
+        e.motion.windowID = SDL_GetWindowID(g_win);
+        e.motion.x = 320, e.motion.y = 240;
+        SDL_PushEvent(&e);
+        pump();
+        CHECK(!cursor_shown(), "the window opened under the cursor: still no cursor");
+    }
+    /* during play the game gets nothing from the mouse; the cursor shows when it moves, and hides 2 s after */
+    click(100, 100, SDL_BUTTON_LEFT);
+    click(100, 100, SDL_BUTTON_RIGHT);
+    mouse(SDL_MOUSEWHEEL, 0, 0, 1);
+    poll_pads();
+    pad_is(0, 0, 0, 0, 1, "clicks and the wheel during play");
+    CHECK(!pc_menu_is_open() && !pc_input_paused(), "clicks don't open the overlay");
+    CHECK(!cursor_shown(), "nor show the cursor");
+    mouse(SDL_MOUSEMOTION, 101, 100, 0);
+    CHECK(cursor_shown(), "the mouse moved: the cursor shows");
+    test_now_ns += 1500000000u;
+    pump();
+    CHECK(cursor_shown(), "1.5 s later it is still there");
+    mouse(SDL_MOUSEMOTION, 110, 100, 0);
+    test_now_ns += 1000000000u;
+    pump();
+    CHECK(cursor_shown(), "moved again: 1 s since");
+    test_now_ns += 1100000000u;
+    pump();
+    CHECK(!cursor_shown(), "2 s without a move: hidden");
+    mouse(SDL_MOUSEMOTION, 110, 100, 0);
+    CHECK(!cursor_shown(), "an event at the same place isn't a move");
+
+    /* the overlay: the cursor shows at once; pointing selects, a click chooses */
+    tap(SDL_SCANCODE_F1);
+    CHECK(pc_menu_is_open() && cursor_shown(), "F1: the overlay, and the cursor with it");
+    test_now_ns += 5000000000u;
+    pump();
+    CHECK(cursor_shown(), "the cursor stays while it is open");
+    mouse(SDL_MOUSEMOTION, ROW_X, ROW_Y(2), 0);
+    menu_at("Settings", "Keyboard", NULL, "pointing at row 2");
+    click(ROW_X, ROW_Y(2), SDL_BUTTON_LEFT);
+    menu_at("Keyboard", "A", "X", "a click opens it");
+    click(ROW_X, ROW_Y(1), SDL_BUTTON_LEFT);
+    CHECK(pc_menu_capturing() == PC_MENU_CAPTURE_KEY, "a click on B waits for a key");
+    tap(SDL_SCANCODE_V);
+    menu_at("Keyboard", "B", "V", "the key it got");
+    click(ROW_X, ROW_Y(1), SDL_BUTTON_X1);
+    menu_at("Settings", "Keyboard", NULL, "the mouse's back button");
+    mouse(SDL_MOUSEMOTION, ROW_X, ROW_Y(1), 0);
+    click(ROW_X, ROW_Y(1), SDL_BUTTON_LEFT);
+    menu_at("Audio", "Volume", "100 %", "Audio");
+    mouse(SDL_MOUSEWHEEL, 0, 0, -1);
+    menu_at("Audio", "Volume", "100 %", "the wheel doesn't change a value");
+    click(ROW_X, ROW_Y(1), SDL_BUTTON_RIGHT);
+    menu_at("Settings", "Audio", NULL, "the right button goes back");
+
+    /* a click just after the window got the focus back is the one that brought it: not the overlay's */
+    window_event(SDL_WINDOWEVENT_FOCUS_GAINED);
+    pump();
+    click(4, 4, SDL_BUTTON_LEFT);
+    CHECK(pc_menu_is_open(), "the focusing click outside the panel doesn't close it");
+    click(4, 4, SDL_BUTTON_LEFT);
+    CHECK(!pc_menu_is_open() && !pc_input_paused(), "a click outside on the first page closes it");
+    poll_pads();
+    pad_is(0, 0, 0, 0, 1, "and doesn't reach the game");
+    CHECK(cursor_shown(), "closed: the cursor stays a moment");
+    test_now_ns += 2100000000u;
+    pump();
+    CHECK(!cursor_shown(), "then hides");
+
+    /* About: Copy puts the page on the clipboard (SDL keeps one on the offscreen driver); no Open without a desktop */
+    tap(SDL_SCANCODE_F1);
+    mouse(SDL_MOUSEMOTION, ROW_X, ROW_Y(5), 0);
+    click(ROW_X, ROW_Y(5), SDL_BUTTON_LEFT);
+    menu_at("About", "Version", "unknown", "About");
+    tap(SDL_SCANCODE_UP);
+    menu_at("About", "Copy to the clipboard", "", "its last item: Copy, no Open (offscreen)");
+    SDL_SetClipboardText("");
+    tap(SDL_SCANCODE_RETURN);
+    char *clip = SDL_GetClipboardText();
+    for (char *r = clip, *w = clip; r && (*w = *r); r++)   /* Windows' clipboard has CRLF line ends (SDL adds the CR) */
+        w += !(r[0] == '\r' && r[1] == '\n');
+    CHECK(clip && !strncmp(clip, "Rush 2049 PC\nVersion: unknown\n", 30) && strstr(clip, "\nPlayer 1: keyboard\n") &&
+              strstr(clip, "\nGL renderer: "),
+          "the clipboard:\n%s", clip ? clip : "(none)");
+    SDL_free(clip);
+    tap(SDL_SCANCODE_F1);
+    stop();
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"keyboard", test_keyboard}, {"hotkeys", test_hotkeys}, {"focus", test_focus},
         {"controller", test_controller}, {"hotplug", test_hotplug}, {"generic", test_generic},
-        {"rumble", test_rumble}, {"menu", test_menu}, {"script", test_script}};
+        {"rumble", test_rumble}, {"menu", test_menu}, {"mouse", test_mouse}, {"script", test_script}};
     if (argc < 3) {
         fprintf(stderr, "usage: frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|generic|rumble|menu|script|"
                         "all DIR\n");
