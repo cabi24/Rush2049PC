@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "gfx_internal.h"
+#include "gfx_tex.h"
 
 #define GFX_BATCH_MAX (3 * 2048)
 #define TEX_BUCKETS 4096
@@ -234,32 +235,43 @@ static void i_px(unsigned i, unsigned a, uint8_t *o) {
     o[3] = (uint8_t)a;
 }
 
-/* One texel at tile coordinates (s, t), already clamped and masked. */
-static void texel(const GfxTile *tl, unsigned tlut, unsigned s, unsigned t, uint8_t *o) {
-    uint32_t row = tl->tmem * 8u + t * tl->line * 8u, swap = (t & 1) ? 4u : 0u, v = 0, a;
-    unsigned siz = tl->siz;
-    switch (siz) {
+/* One texel's raw value at tile coordinates (s, t), already clamped and masked: 4b and 8b the bits as loaded (a
+ * palette index when the TLUT applies), 16b the 16-bit word, 32b 0xRRGGBBAA. */
+static uint32_t texel_raw(const GfxTile *tl, unsigned s, unsigned t) {
+    uint32_t row = tl->tmem * 8u + t * tl->line * 8u, swap = (t & 1) ? 4u : 0u, v, a;
+    switch (tl->siz) {
     case G_IM_SIZ_4b:
         v = pcgfx.tmem[((row + (s >> 1)) ^ swap) & 0xFFF];
-        v = (s & 1) ? (v & 0xF) : (v >> 4);
-        break;
+        return (s & 1) ? (v & 0xF) : (v >> 4);
     case G_IM_SIZ_8b:
-        v = pcgfx.tmem[((row + s) ^ swap) & 0xFFF];
-        break;
+        return pcgfx.tmem[((row + s) ^ swap) & 0xFFF];
     case G_IM_SIZ_16b:
-        v = tmem16((row + s * 2) ^ swap);
-        break;
+        return tmem16((row + s * 2) ^ swap);
     default:
         a = ((row + s * 2) ^ swap) & 0x7FF;
-        o[0] = pcgfx.tmem[a];
-        o[1] = pcgfx.tmem[a + 1];
-        o[2] = pcgfx.tmem[a + 0x800];
-        o[3] = pcgfx.tmem[a + 0x801];
+        return (uint32_t)pcgfx.tmem[a] << 24 | (uint32_t)pcgfx.tmem[a + 1] << 16 | (uint32_t)pcgfx.tmem[a + 0x800] << 8 |
+               pcgfx.tmem[a + 0x801];
+    }
+}
+
+/* The TLUT entry a 4b/8b texel value selects. */
+static uint16_t tlut_entry(const GfxTile *tl, uint32_t v) {
+    uint32_t idx = tl->siz == G_IM_SIZ_4b ? ((uint32_t)tl->palette << 4 | v) : v;
+    return tmem16(0x800 + idx * 8);
+}
+
+/* A raw texel value as RGBA8. */
+static void texel_rgba(const GfxTile *tl, unsigned tlut, uint32_t v, uint8_t *o) {
+    unsigned siz = tl->siz;
+    if (siz == G_IM_SIZ_32b) {
+        o[0] = (uint8_t)(v >> 24);
+        o[1] = (uint8_t)(v >> 16);
+        o[2] = (uint8_t)(v >> 8);
+        o[3] = (uint8_t)v;
         return;
     }
     if (siz <= G_IM_SIZ_8b && (tlut & 2)) {   /* palette: TLUT enabled turns any 4b/8b texel into an index */
-        uint32_t idx = siz == G_IM_SIZ_4b ? ((uint32_t)tl->palette << 4 | v) : v;
-        uint16_t e = tmem16(0x800 + idx * 8);
+        uint16_t e = tlut_entry(tl, v);
         if (tlut & 1)
             ia16_px(e, o);
         else
@@ -294,41 +306,73 @@ static void texel(const GfxTile *tl, unsigned tlut, unsigned s, unsigned t, uint
     }
 }
 
-static unsigned map_coord(unsigned c, int clamp, unsigned size, unsigned mask, int mirror) {
-    if (clamp && c > size - 1)
+/* The RDP's clamp, mirror and mask of texel coordinate c, for a texture k times bigger than the N64's (an upscaled
+ * or replaced one; k = 1 the N64's): sub-texel f (0 .. k-1) of N64 texel c. The N64 texel comes out as on the RDP;
+ * *fo is its sub-texel: the last one where the clamp holds the edge, the mirror image where the mirror turns it. So
+ * the tile maths stays in N64 texels and only the sampling gets finer. */
+static unsigned map_sub(unsigned c, unsigned f, int clamp, unsigned size, unsigned mask, int mirror, unsigned k,
+                        unsigned *fo) {
+    if (clamp && c > size - 1) {
         c = size - 1;
+        f = k - 1;
+    }
     if (mask) {
-        if (mirror && ((c >> mask) & 1))
+        if (mirror && ((c >> mask) & 1)) {
             c = ~c;
+            f = k - 1 - f;
+        }
         c &= (1u << mask) - 1;
     }
+    *fo = f;
     return c;
 }
 
 typedef struct {
     uint8_t fmt, siz, palette, tlut, cms, cmt, masks, maskt;
     uint16_t line, tmem, tw, th;
+    uint8_t variant, pad[3];   /* pcgfx_tex_variant: the original, or the replaced or upscaled texture */
 } TexKey;
+
+enum { PEND_NONE, PEND_UPSCALE, PEND_PACK };
 
 typedef struct TexEntry {
     TexKey key;
     uint64_t hash;
     uint32_t gl;
-    int w, h, repeat_s, repeat_t;
-    uint32_t last_use;
+    int w, h, repeat_s, repeat_t;   /* N64 texels: the tile maths and the LOD never see the GL texture's size */
+    int scale;                      /* the GL texture is this many times w x h (upscaled or replaced) */
+    int pending;                    /* PEND_*: a better texture may come; until then this is the original */
+    int factor;                     /* PEND_UPSCALE: the factor and the upscaler's key */
+    uint64_t ukey;
+    PcgfxTexId id;                  /* PEND_PACK: the identity */
+    uint32_t last_use, checked;
     struct TexEntry *next;
 } TexEntry;
 
+#define TEX_GRAVE 8192
+#define TEX_UPLOAD_BUDGET (4L << 20)   /* bytes of better textures uploaded a frame */
+#define TEX_GL_MAX 2048                /* the largest GL texture side made (GLES 3.0's least maximum) */
+#define TEX_UP_MAX_TEXELS 65536        /* textures larger than 256 x 256 are not upscaled */
+
 static TexEntry *s_tex_buckets[TEX_BUCKETS];
 static int s_tex_count;
-static uint8_t *s_decode;
+static uint8_t *s_decode, *s_src;
 /* The last lookup per texture unit, valid while no tile, TMEM or TLUT-mode change happened (epoch). */
 static uint32_t s_tex_epoch = 1;
 static struct {
-    int tile;
+    int tile, variant;
     uint32_t epoch;
     TexEntry *e;
 } s_unit_cache[GFX_LOD_MAX];
+/* GL textures replaced or evicted, deleted a few frames later: the frame interpolator may draw the last two frames
+ * again (gfx_interp.c), with the texture names they had. */
+static struct {
+    uint32_t gl, frame;
+} s_grave[TEX_GRAVE];
+static int s_grave_n;
+static uint32_t s_tex_gen;       /* pcgfx_tex_generation of the textures cached */
+static long s_upload_left = TEX_UPLOAD_BUDGET;
+static int s_tex_retry;          /* a better texture waited for the budget: look again next frame */
 
 static uint64_t mix64(uint64_t h, uint64_t v) {
     h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
@@ -348,6 +392,30 @@ static uint64_t hash_tmem(uint64_t h, uint32_t start, uint32_t len) {
     return h;
 }
 
+static void grave_add(uint32_t gl) {
+    if (gl == 0)
+        return;
+    if (s_grave_n == TEX_GRAVE) {
+        pcgfx_gl_delete_texture(s_grave[0].gl);
+        memmove(s_grave, s_grave + 1, sizeof(s_grave[0]) * (TEX_GRAVE - 1));
+        s_grave_n--;
+    }
+    s_grave[s_grave_n].gl = gl;
+    s_grave[s_grave_n].frame = s_frame;
+    s_grave_n++;
+}
+
+static void grave_sweep(int all) {
+    int i, n = 0;
+    for (i = 0; i < s_grave_n; i++) {
+        if (all || s_frame - s_grave[i].frame > 3)
+            pcgfx_gl_delete_texture(s_grave[i].gl);
+        else
+            s_grave[n++] = s_grave[i];
+    }
+    s_grave_n = n;
+}
+
 static void tex_evict(void) {
     int b;
     s_tex_epoch++;
@@ -357,7 +425,7 @@ static void tex_evict(void) {
             TexEntry *e = *pp;
             if (s_frame - e->last_use > 2) {
                 *pp = e->next;
-                pcgfx_gl_delete_texture(e->gl);
+                grave_add(e->gl);
                 free(e);
                 s_tex_count--;
             } else {
@@ -367,13 +435,160 @@ static void tex_evict(void) {
     }
 }
 
-static TexEntry *tex_lookup(int tile_idx) {
+/* Every cached texture dropped (a textures setting changed): now, or through the grave. */
+static void tex_cache_drop(int now) {
+    int b;
+    for (b = 0; b < TEX_BUCKETS; b++) {
+        while (s_tex_buckets[b]) {
+            TexEntry *e = s_tex_buckets[b];
+            s_tex_buckets[b] = e->next;
+            if (now)
+                pcgfx_gl_delete_texture(e->gl);
+            else
+                grave_add(e->gl);
+            free(e);
+        }
+    }
+    s_tex_count = 0;
+    s_tex_epoch++;
+}
+
+static void key_clamps(const TexKey *k, int *clamp_s, int *clamp_t) {
+    *clamp_s = (k->cms & G_TX_CLAMP) || k->masks == 0;
+    *clamp_t = (k->cmt & G_TX_CLAMP) || k->maskt == 0;
+}
+
+/* The GL image: W x H N64 texels at f x f sub-texels each, from src (the tile's distinct texels at f, sw texels
+ * wide), with the clamp, mask and mirror baked in. f = 1 is the N64 texture itself. */
+static void expand(const TexKey *k, const uint8_t *src, unsigned sw, unsigned W, unsigned H, unsigned f,
+                   uint8_t *out) {
+    unsigned X, Y;
+    int clamp_s, clamp_t;
+    key_clamps(k, &clamp_s, &clamp_t);
+    for (Y = 0; Y < H * f; Y++) {
+        unsigned ft, t = map_sub(Y / f, Y % f, clamp_t, k->th, k->maskt, k->cmt & G_TX_MIRROR, f, &ft);
+        const uint8_t *row = src + (size_t)(t * f + ft) * sw * 4;
+        uint8_t *o = out + (size_t)Y * W * f * 4;
+        for (X = 0; X < W * f; X++) {
+            unsigned fs, s = map_sub(X / f, X % f, clamp_s, k->tw, k->masks, k->cms & G_TX_MIRROR, f, &fs);
+            memcpy(o + (size_t)X * 4, row + (size_t)(s * f + fs) * 4, 4);
+        }
+    }
+}
+
+static uint64_t image_hash(const uint8_t *img, unsigned w, unsigned h, unsigned extra) {
+    uint64_t hh = pcgfx_tex_mix(0x55505343u, (uint64_t)w << 32 | (uint64_t)h << 8 | extra);
+    unsigned i;
+    for (i = 0; i < w * h; i++, img += 4)
+        hh = pcgfx_tex_mix(hh, (uint32_t)img[0] << 24 | (uint32_t)img[1] << 16 | (uint32_t)img[2] << 8 | img[3]);
+    return hh;
+}
+
+static int is_solid(const uint8_t *img, unsigned n) {
+    unsigned i;
+    for (i = 1; i < n; i++)
+        if (memcmp(img + i * 4, img, 4) != 0)
+            return 0;
+    return 1;
+}
+
+/* A replacement d times smaller (box filtered), malloc'd. */
+static uint8_t *box_down(const uint8_t *img, int w, int h, int d) {
+    int W = w / d, H = h / d, x, y, i, j, c;
+    uint8_t *o = (uint8_t *)malloc((size_t)W * H * 4);
+    if (o == NULL)
+        return NULL;
+    for (y = 0; y < H; y++)
+        for (x = 0; x < W; x++)
+            for (c = 0; c < 4; c++) {
+                unsigned s = 0;
+                for (j = 0; j < d; j++)
+                    for (i = 0; i < d; i++)
+                        s += img[((size_t)(y * d + j) * w + x * d + i) * 4 + c];
+                o[((size_t)y * W + x) * 4 + c] = (uint8_t)((s + (unsigned)(d * d) / 2) / (unsigned)(d * d));
+            }
+    return o;
+}
+
+static void tex_swap(TexEntry *e, uint32_t gl, int scale) {
+    if (gl == 0)
+        return;
+    grave_add(e->gl);
+    e->gl = gl;
+    e->scale = scale;
+}
+
+/* A pack's replacement (iw x ih, a whole multiple f of the tile's distinct texels) as e's GL texture. Above the
+ * internal scale, or past the GL size, it is box filtered down by a divisor of f: a texture sampled coarser than
+ * its texels shimmers. */
+static void pack_upload(TexEntry *e, const uint8_t *img, int iw, int ih) {
+    int f = iw / e->id.w, d, limit = pcgfx_tex_pack_limit();
+    const uint8_t *src = img;
+    uint8_t *small = NULL, *out;
+    for (d = 1; d < f; d++)
+        if (f % d == 0 && f / d <= limit && e->w * (f / d) <= TEX_GL_MAX && e->h * (f / d) <= TEX_GL_MAX)
+            break;
+    if (d > 1) {
+        small = box_down(img, iw, ih, d);
+        if (small == NULL)
+            return;
+        src = small;
+        f /= d;
+    }
+    out = (uint8_t *)malloc((size_t)e->w * f * e->h * f * 4);
+    if (out != NULL) {
+        expand(&e->key, src, (unsigned)(e->id.w * f), (unsigned)e->w, (unsigned)e->h, (unsigned)f, out);
+        if (f == 1)
+            tex_swap(e, pcgfx_gl_texture(out, e->w, e->h), 1);
+        else
+            tex_swap(e, pcgfx_gl_texture(out, e->w * f, e->h * f), f);
+        s_upload_left -= (long)e->w * f * e->h * f * 4;
+    }
+    free(out);
+    free(small);
+}
+
+/* A texture waiting for a better one: once a frame, has it come? Uploads stop for the frame past the budget (one
+ * always goes), so a burst of results spreads over frames. */
+static void tex_upgrade(TexEntry *e) {
+    const uint8_t *img = NULL;
+    int iw = 0, ih = 0, r;
+    if (e->checked == s_frame)
+        return;
+    if (s_upload_left <= 0) {
+        s_tex_retry = 1;
+        return;
+    }
+    e->checked = s_frame;
+    if (e->pending == PEND_UPSCALE) {
+        r = pcgfx_tex_upscaled(e->ukey, e->factor, s_frame, NULL, 0, 0, 0, 0, 0, &img);
+        if (r == PCGFX_TEX_READY) {
+            tex_swap(e, pcgfx_gl_texture(img, e->w * e->factor, e->h * e->factor), e->factor);
+            s_upload_left -= (long)e->w * e->factor * e->h * e->factor * 4;
+        }
+    } else {
+        r = pcgfx_tex_pack(&e->id, &img, &iw, &ih);
+        if (r == PCGFX_TEX_READY)
+            pack_upload(e, img, iw, ih);
+    }
+    if (r != PCGFX_TEX_WAIT)
+        e->pending = PEND_NONE;
+}
+
+static void tex_touch(TexEntry *e) {
+    e->last_use = s_frame;
+    if (e->pending)
+        tex_upgrade(e);
+}
+
+static TexEntry *tex_lookup(int tile_idx, int variant) {
     const GfxTile *tl = &pcgfx.tiles[tile_idx & 7];
     TexKey k;
     TexEntry *e;
+    PcgfxTexId id;
     uint64_t h;
-    unsigned W, H, x, y, tw, th, bytes, line;
-    int clamp_s, clamp_t;
+    unsigned W, H, S, T, x, y, tw, th, bytes, line;
+    int clamp_s, clamp_t, ci, need_id, mode;
     memset(&k, 0, sizeof(k));
     k.fmt = tl->fmt;
     k.siz = tl->siz;
@@ -385,6 +600,7 @@ static TexEntry *tex_lookup(int tile_idx) {
     k.maskt = tl->maskt > 10 ? 10 : tl->maskt;
     k.line = tl->line;
     k.tmem = tl->tmem;
+    k.variant = (uint8_t)variant;
     tw = tl->lrs >= tl->uls ? (tl->lrs >> 2) - (tl->uls >> 2) + 1 : 1;
     th = tl->lrt >= tl->ult ? (tl->lrt >> 2) - (tl->ult >> 2) + 1 : 1;
     if (tw > TEX_MAX_DIM) tw = TEX_MAX_DIM;
@@ -393,8 +609,7 @@ static TexEntry *tex_lookup(int tile_idx) {
     k.th = (uint16_t)th;
 
     /* Decoded size: the tile when it clamps (mask/mirror baked in), one period when it wraps. */
-    clamp_s = (k.cms & G_TX_CLAMP) || k.masks == 0;
-    clamp_t = (k.cmt & G_TX_CLAMP) || k.maskt == 0;
+    key_clamps(&k, &clamp_s, &clamp_t);
     W = clamp_s ? tw : (1u << k.masks) << ((k.cms & G_TX_MIRROR) ? 1 : 0);
     H = clamp_t ? th : (1u << k.maskt) << ((k.cmt & G_TX_MIRROR) ? 1 : 0);
     if (W > TEX_MAX_DIM) W = TEX_MAX_DIM;
@@ -428,7 +643,7 @@ static TexEntry *tex_lookup(int tile_idx) {
 
     for (e = s_tex_buckets[h % TEX_BUCKETS]; e != NULL; e = e->next)
         if (e->hash == h && memcmp(&e->key, &k, sizeof(k)) == 0) {
-            e->last_use = s_frame;
+            tex_touch(e);
             return e;
         }
 
@@ -436,13 +651,49 @@ static TexEntry *tex_lookup(int tile_idx) {
         tex_evict();
     if (s_decode == NULL)
         s_decode = (uint8_t *)malloc(TEX_MAX_DIM * TEX_MAX_DIM * 4);
-    for (y = 0; y < H; y++) {
-        unsigned t = map_coord(y, clamp_t, th, k.maskt, k.cmt & G_TX_MIRROR);
-        for (x = 0; x < W; x++) {
-            unsigned s = map_coord(x, clamp_s, tw, k.masks, k.cms & G_TX_MIRROR);
-            texel(tl, k.tlut, s, t, s_decode + (y * W + x) * 4);
+    if (s_src == NULL)
+        s_src = (uint8_t *)malloc(TEX_MAX_DIM * TEX_MAX_DIM * 4);
+
+    /* The tile's distinct texels, S x T: what a mask period or the clamped tile holds. Their identity (TEXTURES.md)
+     * when a replacement or the dump needs it: the raw values (CI: the indices) with the format and the size, and
+     * for CI the TLUT entries up to the largest index used, so TMEM placement, the load's kind, the memory's byte
+     * order and unused palette entries don't change it. */
+    S = k.masks ? (clamp_s ? (tw < (1u << k.masks) ? tw : (1u << k.masks)) : (1u << k.masks)) : tw;
+    T = k.maskt ? (clamp_t ? (th < (1u << k.maskt) ? th : (1u << k.maskt)) : (1u << k.maskt)) : th;
+    if (S > TEX_MAX_DIM) S = TEX_MAX_DIM;
+    if (T > TEX_MAX_DIM) T = TEX_MAX_DIM;
+    ci = k.siz <= G_IM_SIZ_8b && (k.tlut & 2);
+    mode = variant ? pcgfx_tex_mode() : PCGFX_TEX_ORIGINAL;
+    need_id = mode == PCGFX_TEX_PACK || pcgfx_tex_dumping();
+    memset(&id, 0, sizeof(id));
+    id.fmt = (uint8_t)(ci ? G_IM_FMT_CI : k.fmt);
+    id.siz = k.siz;
+    id.w = (uint16_t)S;
+    id.h = (uint16_t)T;
+    {
+        uint64_t ih = pcgfx_tex_mix(pcgfx_tex_mix(0x52323034u, (uint64_t)id.fmt << 8 | id.siz), S << 16 | T);
+        uint32_t maxv = 0;
+        for (y = 0; y < T; y++)
+            for (x = 0; x < S; x++) {
+                uint32_t v = texel_raw(tl, x, y);
+                if (need_id)
+                    ih = pcgfx_tex_mix(ih, v);
+                if (v > maxv)
+                    maxv = v;
+                texel_rgba(tl, k.tlut, v, s_src + ((size_t)y * S + x) * 4);
+            }
+        id.texels = ih;
+        if (need_id && ci) {
+            uint64_t ph = pcgfx_tex_mix(0x544C5554u, k.tlut & 1);
+            for (x = 0; x <= maxv; x++)
+                ph = pcgfx_tex_mix(ph, tlut_entry(tl, x));
+            id.palette = (uint32_t)(ph ^ (ph >> 32));
         }
     }
+    if (pcgfx_tex_dumping())
+        pcgfx_tex_dump(&id, s_src);
+    expand(&k, s_src, S, W, H, 1, s_decode);
+
     e = (TexEntry *)calloc(1, sizeof(*e));
     e->key = k;
     e->hash = h;
@@ -450,40 +701,86 @@ static TexEntry *tex_lookup(int tile_idx) {
     e->h = (int)H;
     e->repeat_s = !clamp_s;
     e->repeat_t = !clamp_t;
-    e->gl = pcgfx_gl_texture(s_decode, (int)W, (int)H);
-    e->last_use = s_frame;
+    e->scale = 1;
+    e->last_use = e->checked = s_frame;
+    if (mode == PCGFX_TEX_UPSCALED) {
+        /* Upscaled: the GL image itself (the period, mirror baked in, wrapping as it repeats), so that the upscaler
+         * sees each edge's real neighbours. Left alone: textures under 4 texels a side (bars, gradients, dots), over
+         * 256 x 256, and of one colour, which upscaling can't improve. */
+        int f = pcgfx_tex_factor();
+        if (f > 1 && W >= 4 && H >= 4 && W * H <= TEX_UP_MAX_TEXELS && W * f <= TEX_GL_MAX && H * f <= TEX_GL_MAX &&
+            !is_solid(s_decode, W * H)) {
+            int indep = ci || k.fmt == G_IM_FMT_IA || (k.fmt == G_IM_FMT_RGBA && k.siz >= G_IM_SIZ_16b);
+            const uint8_t *img = NULL;
+            int r;
+            e->ukey = image_hash(s_decode, W, H, (unsigned)(e->repeat_s << 2 | e->repeat_t << 1 | indep));
+            e->factor = f;
+            r = pcgfx_tex_upscaled(e->ukey, f, s_frame, s_decode, (int)W, (int)H, e->repeat_s, e->repeat_t, indep,
+                                   &img);
+            if (r == PCGFX_TEX_READY) {
+                e->gl = pcgfx_gl_texture(img, (int)W * f, (int)H * f);
+                e->scale = f;
+            } else if (r == PCGFX_TEX_WAIT) {
+                e->pending = PEND_UPSCALE;
+            }
+        }
+    } else if (mode == PCGFX_TEX_PACK) {
+        const uint8_t *img = NULL;
+        int iw = 0, ih = 0, r;
+        e->id = id;
+        r = pcgfx_tex_pack(&id, &img, &iw, &ih);
+        if (r == PCGFX_TEX_READY)
+            pack_upload(e, img, iw, ih);
+        else if (r == PCGFX_TEX_WAIT)
+            e->pending = PEND_PACK;
+    }
+    if (e->gl == 0)
+        e->gl = pcgfx_gl_texture(s_decode, (int)W, (int)H);
     e->next = s_tex_buckets[h % TEX_BUCKETS];
     s_tex_buckets[h % TEX_BUCKETS] = e;
     s_tex_count++;
     return e;
 }
 
+/* At shutdown: every texture and the replacement's tables and worker. */
 void pcgfx_tex_cache_clear(void) {
-    int b;
-    for (b = 0; b < TEX_BUCKETS; b++) {
-        while (s_tex_buckets[b]) {
-            TexEntry *e = s_tex_buckets[b];
-            s_tex_buckets[b] = e->next;
-            pcgfx_gl_delete_texture(e->gl);
-            free(e);
-        }
-    }
-    s_tex_count = 0;
-    s_tex_epoch++;
+    tex_cache_drop(1);
+    grave_sweep(1);
     free(s_decode);
     s_decode = NULL;
+    free(s_src);
+    s_src = NULL;
+    pcgfx_tex_shutdown();
+}
+
+/* Each frame: the textures setting (a change drops every texture), results that arrived, the upload budget. */
+static void tex_new_frame(void) {
+    uint32_t g = pcgfx_tex_generation();
+    if (g != s_tex_gen) {
+        s_tex_gen = g;
+        tex_cache_drop(0);
+    }
+    if (pcgfx_tex_new_frame(s_frame) || s_tex_retry) {
+        s_tex_retry = 0;
+        s_tex_epoch++;   /* the texture units look their textures up again, and find what arrived */
+        pcgfx.tex_dirty = 1;
+    }
+    s_upload_left = TEX_UPLOAD_BUDGET;
+    grave_sweep(0);
 }
 
 /* Texture unit u's texture for tile ti: its last lookup while nothing changed, else a cache lookup. */
-static TexEntry *unit_texture(int u, int ti) {
+static TexEntry *unit_texture(int u, int ti, int variant) {
     TexEntry *e;
-    if (s_unit_cache[u].tile == ti && s_unit_cache[u].epoch == s_tex_epoch && s_unit_cache[u].e != NULL) {
+    if (s_unit_cache[u].tile == ti && s_unit_cache[u].variant == variant && s_unit_cache[u].epoch == s_tex_epoch &&
+        s_unit_cache[u].e != NULL) {
         e = s_unit_cache[u].e;
-        e->last_use = s_frame;
+        tex_touch(e);
         return e;
     }
-    e = tex_lookup(ti);
+    e = tex_lookup(ti, variant);
     s_unit_cache[u].tile = ti;
+    s_unit_cache[u].variant = variant;
     s_unit_cache[u].epoch = s_tex_epoch;
     s_unit_cache[u].e = e;
     return e;
@@ -552,6 +849,9 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
     unsigned cyc = cycle_type(), u;
     uint32_t oml = pcgfx.om_l;
     int tile = rect_tile >= 0 ? rect_tile : pcgfx.tex_tile;
+    /* Replaced and upscaled textures (TEXTURES.md): 3D draws, under a perspective projection; 2D as the setting
+     * says. scaled: a texture bound is bigger than the N64's. */
+    int variant = pcgfx_tex_variant(rect_tile < 0 && pcgfx.persp), scaled = 0;
 
     memset(st, 0, sizeof(*st));
     memset(&key, 0, sizeof(key));
@@ -583,7 +883,7 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
         for (k = 0; k < levels; k++) {
             int ti = (tile + k) & 7;
             const GfxTile *tl = &pcgfx.tiles[ti];
-            TexEntry *e = unit_texture(k, ti);
+            TexEntry *e = unit_texture(k, ti, variant);
             int lin = filt != G_TF_POINT;
             st->tex[k] = e->gl;
             st->repeat_s[k] = (uint8_t)e->repeat_s;
@@ -608,9 +908,10 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
         if (want) {
             int ti = (tile + (int)u) & 7;
             const GfxTile *tl = &pcgfx.tiles[ti];
-            TexEntry *e = unit_texture((int)u, ti);
+            TexEntry *e = unit_texture((int)u, ti, variant);
             unsigned filt = (pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3;
             st->tex[u] = e->gl;
+            scaled |= e->scale > 1;
             st->repeat_s[u] = (uint8_t)e->repeat_s;
             st->repeat_t[u] = (uint8_t)e->repeat_t;
             st->linear[u] = key.mode != GFX_MODE_COPY && filt != G_TF_POINT;
@@ -629,7 +930,8 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
     {
         int scale = pcgfx_gl_target_scale(current_target());
         st->scale = (float)scale;
-        if (rect_tile >= 0 && rect_tile < 8 && scale > 1 &&
+        /* A replaced texture has texels finer than the N64 pixel: its samples are not snapped to the pixel's corner */
+        if (rect_tile >= 0 && rect_tile < 8 && scale > 1 && !scaled &&
             (key.mode == GFX_MODE_COPY || ((pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3) == G_TF_POINT))
             key.flags |= GFX_KF_SNAP;
     }
@@ -718,6 +1020,7 @@ void pcgfx_flush(void) {
 void pcgfx_rdp_new_frame(void) {
     s_frame++;
     pcgfx.state_dirty = 1;
+    tex_new_frame();
 }
 
 void pcgfx_rdp_forget_targets(void) {

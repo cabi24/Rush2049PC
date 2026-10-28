@@ -5,6 +5,7 @@
  * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
+ * RUSH_GFX_TEXTURES=original|upscaled|pack and the other RUSH_GFX_TEXTURE_* (gfx_tex.c, docs/port/TEXTURES.md),
  * RUSH_GFX_VERBOSE=1|2|3, RUSH_GFX_TIMES=1|2 (the CPU time of tasks and frames at exit; 2: with the GPU's, glFinish). */
 #define _POSIX_C_SOURCE 200809L   /* clock_gettime */
 #include <stdio.h>
@@ -17,6 +18,7 @@
 #endif
 
 #include "gfx_internal.h"
+#include "gfx_tex.h"
 #include "pc_port.h"
 
 /* Milliseconds on a monotonic clock: the CPU time the renderer spends (GL calls return before the GPU is done). */
@@ -114,6 +116,12 @@ void pc_gfx_set_scale(int scale) {
     resolve_auto();
 }
 
+/* Textures at run time (PCGFX_TEX_*: original, upscaled, pack): the texture cache is made again from the next
+ * frame on; what was upscaled or loaded before is kept in memory. */
+void pc_gfx_set_textures(int mode) {
+    pcgfx_tex_set_mode(mode);
+}
+
 /* "original" (or 0, "off") 0; "display" -1; else frames a second, 1-1000. *ok = 0 for anything else. */
 int pc_gfx_parse_frame_rate(const char *text, int *ok) {
     char *end;
@@ -195,6 +203,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     if (pcgfx_cfg.internal_scale < 0 || pcgfx_cfg.internal_scale > 8)
         pcgfx_cfg.internal_scale = 1;
     pcgfx_cfg.frame_height = env_int("RUSH_GFX_HEIGHT", pcgfx_cfg.frame_height);
+    pcgfx_tex_configure();
     pcgfx_cfg.verbose = env_int("RUSH_GFX_VERBOSE", pcgfx_cfg.verbose);
     pcgfx_cfg.trace_task = env_int("RUSH_GFX_TRACE", 0);
     S.times = env_int("RUSH_GFX_TIMES", 0);
