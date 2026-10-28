@@ -437,7 +437,10 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
   clock. The overlay's drawing and font have their own tests in port/gfx (`gfx.ui.*`).
 - **The mouse, Help and About (2026-10-28):** 193 of 193 CTests pass on rocky in Debug and RelWithDebInfo, three of
   them new (`frontend.menu.mouse`, `frontend.menu.pages`, `frontend.sdl.mouse`); the Windows cross build builds
-  every test program.
+  every test program. Mutation check: of twelve deliberate bugs, eleven were caught (window units taken as pixels,
+  pointing during a capture, the wheel, a click outside, the double-click guard, the cursor shown at start or never
+  hidden, the focusing click, "saved", About without main's facts, the bar); the twelfth, input_sdl.c passing a
+  click on while the overlay is closed, changes nothing, since `pc_menu_mouse` ignores it then too.
 - **Results on rocky (x86-64, Mesa, SDL2 2.30), 2026-10-27:** 92 of 92 CTests pass (80 before: the 5 `frontend.menu`
   and `frontend.sdl.menu` above, the 6 `gfx.ui` tests and `audio_volume` are new). Without SDL2, 82 of 82. The
   Windows cross build (mingw-w64, with and without the fetched SDL2) builds every test program.
