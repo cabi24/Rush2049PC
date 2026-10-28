@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Train the 2x texture network on make_pairs.py's pairs, on the CPU (docs/port/UPSCALE.md).
 
-    train.py --pairs pairs.npz --out net.pt [--channels 16 --blocks 4 --iters 40000 --batch 64 --threads 16]
+    train.py --pairs pairs.npz --out net.pt [--channels 16 --blocks 4 --iters 40000 --batch 64 --threads 6]
 
 L1 loss on RGB in [0, 1], Adam, cosine learning-rate decay; every 2000 steps the validation PSNR (model and
 Catmull-Rom) is printed and the best model is kept. Seeded: the same pairs, options and thread count give the
@@ -42,7 +42,7 @@ def main():
     ap.add_argument("--iters", type=int, default=40000)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--lr", type=float, default=2e-3)
-    ap.add_argument("--threads", type=int, default=16)
+    ap.add_argument("--threads", type=int, default=6)
     ap.add_argument("--seed", type=int, default=1)
     args = ap.parse_args()
     torch.set_num_threads(args.threads)

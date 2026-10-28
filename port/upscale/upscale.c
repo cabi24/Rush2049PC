@@ -131,10 +131,12 @@ static void fill_row(float *m, int w, int h, int c, int wt, int bottom) {
  * its 9 x cin products to the bias one at a time in one fixed order, however the texels are grouped or the rows
  * shared out, so neither changes any result. cin and cout are constants at every call. */
 typedef float v4f __attribute__((vector_size(16)));
+#ifndef UPS_PB
 #if defined(__aarch64__)
 #define UPS_PB 4   /* 32 vector registers */
 #else
 #define UPS_PB 2   /* 16 on x86-64 */
+#endif
 #endif
 
 UPS_INLINE void conv_px(const float *px, size_t sin, int cin, int cout, const v4f *wv, const v4f *bv,
