@@ -662,6 +662,10 @@ endif()
 if(NOT WIN32)
     add_test(NAME layout_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/layout_check.py --build ${CMAKE_BINARY_DIR}
         --selftest)
+    # tools/port/offset_check.py (docs/port/LAYOUT.md 9): raw N64 offsets into records whose PC layout moved the
+    # field, on its synthetic cases (CI runs it over the game).
+    add_test(NAME offset_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/offset_check.py --build ${CMAKE_BINARY_DIR}
+        --selftest)
 endif()
 # tools/port/index_check.py: initialized data the code indexes past a scalar declaration must have the table's extent
 # in the data report, or its other elements keep the ROM's byte order (docs/port/SYNTH.md 3).
