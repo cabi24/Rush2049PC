@@ -132,8 +132,9 @@ Controllers use SDL's GameController layout: XInput positions, so "A" is the sou
   - Otherwise `$XDG_CONFIG_HOME/rush2049pc/rush2049pc.ini`. That is `~/.config/rush2049pc/` when
     `XDG_CONFIG_HOME` is unset, or relative, as the XDG spec says.
   - `--config PATH` reads another file, and `--no-config` reads none.
-- **First run.** When the located file doesn't exist, it is written with the defaults and every setting
-  commented, and then read. `--config`, `--print-config` and `--selftest` never write it.
+- **First run.** When the located file doesn't exist, it is written with every setting and a comment on each,
+  and then read. A setting at its default is written commented out (`; key = value`), so it follows the program's
+  defaults when they change in a later version; the overlay's saves and a removed `;` keep a value. `--config`, `--print-config` and `--selftest` never write it.
 - **Layers.** Each overrides the one before:
   1. the defaults;
   2. the file;

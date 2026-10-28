@@ -46,7 +46,8 @@ extract first) and what it needs. [docs/port/RELEASE.md](docs/port/RELEASE.md) q
 - **Linux:** unpack the tarball, copy the ROM in, and run `./rush2049pc`. You need glibc 2.35 or later (Ubuntu 22.04,
   Debian 12, Fedora 36 or newer) and OpenGL ES 3.0 or OpenGL 3.1 (Mesa or a GPU driver).
 
-The first run fills `rush2049pc.ini` with every setting and a comment on each. Every run prints which ROM it
+The first run fills `rush2049pc.ini` with every setting and a comment on each, commented out at its default (remove
+the `;` to keep a value). Every run prints which ROM it
 found, where the saves are and where its log is.
 
 ### Controls

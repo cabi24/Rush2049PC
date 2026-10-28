@@ -47,7 +47,8 @@ Settings and saves
 ------------------
 The release archive is portable: because rush2049pc.ini is next to the program, everything it keeps is in its
 folder:
-  rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each
+  rush2049pc.ini    the settings; the first run fills it with every setting and a comment on each,
+                    commented out at its default (remove the ; to keep a value)
   rush2049pc.mpk    the saves (the game's controller pak)
   screenshots/      F12's pictures
   rush2049pc.log    what the program printed last time (rush2049pc.old.log: the time before)

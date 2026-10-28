@@ -725,14 +725,25 @@ static void put_comment(Buf *b, const char *text)
         put(b, "; %s\n", text);
 }
 
+/* A setting at its default is written commented out, so that it follows the program's defaults as they change;
+ * one that differs is written as a setting. */
+static void put_key(Buf *b, const char *key, const char *value, const char *def)
+{
+    put(b, strcmp(value, def) ? "%s = " : "; %s = ", key);
+    put_value(b, value);
+}
+
 char *pc_settings_format(const PcSettings *s)
 {
     Buf b = {malloc(8192), 0, 8192};
-    char v[PC_CFG_PATH + 8];
+    char v[PC_CFG_PATH + 8], dv[PC_CFG_PATH + 8];
+    PcSettings *def = malloc(sizeof *def);
+    pc_settings_defaults(def);
     b.p[0] = 0;
     put(&b, "; rush2049pc.ini: settings for the San Francisco Rush 2049 PC port (docs/port/FRONTEND.md).\n"
-            "; Command-line options and the environment variables named below override these. Delete a line,\n"
-            "; or the whole file, for the default; the file is written with the defaults when it is missing.\n");
+            "; Command-line options and the environment variables named below override these. A setting at its\n"
+            "; default is written commented out (\"; key = value\"), so it follows the program's default; remove the\n"
+            "; \"; \" to keep a value. The file is written this way when it is missing.\n");
     const char *section = "";
     for (size_t i = 0; i < NUM_ITEMS; i++) {
         if (strcmp(section, items[i].section)) {
@@ -741,8 +752,8 @@ char *pc_settings_format(const PcSettings *s)
         }
         put_comment(&b, items[i].comment);
         format_item(s, &items[i], v, sizeof v);
-        put(&b, "%s = ", items[i].key);
-        put_value(&b, v);
+        format_item(def, &items[i], dv, sizeof dv);
+        put_key(&b, items[i].key, v, dv);
     }
     put(&b, "\n; Bindings: N64 control = a comma-separated list; empty for none. The N64 controls are A B Z START,\n"
             "; DUP DDOWN DLEFT DRIGHT (the D-pad), L R, CUP CDOWN CLEFT CRIGHT and STICK_UP STICK_DOWN STICK_LEFT\n"
@@ -751,10 +762,8 @@ char *pc_settings_format(const PcSettings *s)
             "; SDL key names: letters, digits, Return, Space, Tab, Backspace, Left Shift, Right Ctrl, Up, Keypad 8,\n"
             "; F1... Punctuation by name: Comma, Period, Slash, Semicolon, Apostrophe, Minus, Equals, LeftBracket,\n"
             "; RightBracket, Backslash, Grave, Hash.\n");
-    for (int i = 0; i < PC_NUM_CONTROLS; i++) {
-        put(&b, "%s = ", pc_control_names[i]);
-        put_value(&b, s->key[i]);
-    }
+    for (int i = 0; i < PC_NUM_CONTROLS; i++)
+        put_key(&b, pc_control_names[i], s->key[i], def->key[i]);
     put(&b, "\n[controller]\n"
             "; SDL GameController names (XInput positions): a b x y (south east west north), back, guide, start,\n"
             "; leftshoulder, rightshoulder, leftstick, rightstick (clicks), dpup dpdown dpleft dpright, misc1,\n"
@@ -762,22 +771,18 @@ char *pc_settings_format(const PcSettings *s)
             "; for rightx, righty (+x is right, +y is down). v5's layout instead: A = a, B = x, Z = lefttrigger,\n"
             "; L = leftshoulder, R = rightshoulder, righttrigger.\n"
             "; analog: the stick that is the N64 stick: left, right or none.\n");
-    put(&b, "analog = %s\n", analog_choices[s->analog]);
+    put_key(&b, "analog", analog_choices[s->analog], analog_choices[def->analog]);
     put(&b, "; menu: what opens the settings overlay (not an N64 control): a button, or buttons held together\n"
-            "; joined by + (guide; back+start); empty for none.\n"
-            "menu = ");
-    put_value(&b, s->pad_menu);
-    for (int i = 0; i < PC_NUM_CONTROLS; i++) {
-        put(&b, "%s = ", pc_control_names[i]);
-        put_value(&b, s->pad[i]);
-    }
+            "; joined by + (guide; back+start); empty for none.\n");
+    put_key(&b, "menu", s->pad_menu, def->pad_menu);
+    for (int i = 0; i < PC_NUM_CONTROLS; i++)
+        put_key(&b, pc_control_names[i], s->pad[i], def->pad[i]);
     put(&b, "\n[hotkeys]\n"
             "; Keys (names as in [keyboard]). Alt+Enter also toggles fullscreen. A hotkey is not also a game key.\n"
             "; menu opens and closes the settings overlay.\n");
-    for (int i = 0; i < PC_NUM_HOTKEYS; i++) {
-        put(&b, "%s = ", pc_hotkey_names[i]);
-        put_value(&b, s->hotkey[i]);
-    }
+    for (int i = 0; i < PC_NUM_HOTKEYS; i++)
+        put_key(&b, pc_hotkey_names[i], s->hotkey[i], def->hotkey[i]);
+    free(def);
     return b.p;
 }
 

@@ -1046,7 +1046,14 @@ extern s32 D_80116DB0;
 extern s8 D_80116DB4;
 extern s8 D_80116DB8;
 extern s32 D_80116DBC;
+#ifdef TARGET_PC
+/* PC: a colour, R, G, B, A in memory: the blit's Image, which the 2D draw fills its rectangle with byte by byte
+ * (func_8008A46C). Bytes, so the loader keeps them in order (an s32 reversed them). */
+typedef struct { u8 r, g, b, a; } BlitColor;
+extern BlitColor D_80116DE0;
+#else
 extern s32 D_80116DE0;
+#endif
 extern s32 D_80116DE4;
 extern s32 D_80116FE4;
 extern s32 D_80116FE8;
@@ -3701,9 +3708,37 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* PC: the settings dialog's blit (save_settings, multiblit D_80116DBC) takes its colour as its Image and clears its
+ * AnimFunc, over the Blit's host layout (sound_control.c's, docs/port/POINTERS.md 9.3): the Image at +8, the
+ * AnimFunc slot pointer-sized at +0x38. */
+typedef struct HostBlit {
+    void *Name, *Image, *Info;
+    u16 TexIndex;
+    s16 X, Y;
+    u16 Z;
+    s16 Width, Height;
+    u8 Alpha, Flip;
+    s8 Hide, Init;
+    s16 Top, Bot, Left, Right, color;
+    u16 reserved;
+    intptr_t AnimFunc;
+    u32 AnimID;
+} HostBlit;
+
+s32 struct_callback_init(void *arg0) {
+    HostBlit *blt = arg0;
+
+    blt->Image = &D_80116DE0;
+    Input_ApplyPadConfig(blt);
+    blt->AnimFunc = 0;
+    return 1;
+}
+#else
 s32 struct_callback_init(void *arg0) {
     M2C_FIELD(arg0, s32 **, 4) = &D_80116DE0;
     Input_ApplyPadConfig(arg0);
     M2C_FIELD(arg0, s32 *, 0x28) = 0;
     return 1;
 }
+#endif
