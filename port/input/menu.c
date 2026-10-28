@@ -205,6 +205,7 @@ static void build(void)
         {"video", "pause_on_focus_loss", "Hold the game while in the background"},
         {"video", "api", "OpenGL or OpenGL ES; applies after a restart"},
         {"video", "textures", "Original, upscaled 2x or 4x, or a texture pack"},
+        {"video", "hud", "Widescreen races: the HUD at the screen's edges"},
         {"audio", "volume", "The master volume"},
         {"audio", "backend", "The sound output; applies after a restart"},
         {"controller", "menu", "Opens this menu; + joins buttons held together"},
