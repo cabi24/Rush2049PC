@@ -253,6 +253,23 @@ the fix, and `bounds_check.py` keeps them so.
 and warns otherwise, so the step runs on x86-64. A new finding is read like these: where its function reaches two
 places of the symbol, declare the symbol whole; otherwise add it with its verdict.
 
+**The compilers agree on the list** (checked 2026-10-28 on main, `--write-reviewed` per compiler): GCC 13.3 (the
+Ubuntu 24.04 container on the build host, CI's runner's compiler), GCC 14.3 (the build host) and mingw-w64 12.2 (the
+Pi's cross build, the release's compiler) each pass with none new, and each finds exactly the keys the list tags with
+it: GCC 13 212 of the 218, GCC 14 211, mingw-w64 210. The entries some compiler doesn't find are *tmr* references
+the loop optimizer makes or not, judged safe, and one *warn*:
+
+| Found by | Entries |
+|---|---|
+| GCC 13 and mingw-w64 12, not GCC 14 | `func_800A150C.c` D_8011EAEC, `ctx_newghost.c` pc_ghost_slot, `lib_1f5b0.c` D_80050440 (*tmr*) |
+| GCC 14 only | `controller_poll/group.c` D_80149B64 and D_80156958 (*tmr*) |
+| GCC 13 and 14, not mingw-w64 12 | `func_800F0914.c` D_80143FE0, `controlscr/caller.c` D_8015418C, `controlscr/rows.c` D_8014A10C, D_8015418C and D_80154618, `runtime_b_status_scene` D_803950C0 (*tmr*) |
+| mingw-w64 12 only | `func_800B4DA4.c` D_80146108, `sfx_position_3d.c` D_8011B3A0 and D_80143F68 (*tmr*); `runtime_b_nearest_steering` `?` (*warn*: a note that names no symbol) |
+
+So a GCC 13 run reports 6 reviewed keys it doesn't find, GCC 14 7 and mingw-w64 8 ("kept: other GCC versions");
+none has a key the list lacks. A GCC update on the runner can add or drop *tmr* entries of this kind: a new one fails
+the step until it is read and added with its compiler's tag.
+
 ## 3. The flags
 
 | Flag | Where | Why | Debug |
@@ -284,7 +301,8 @@ Considered and not used:
   jobs also run `alias_check.py`, and the x86-64 one `bounds_check.py` (2.7). Then:
   - `optimized` (per architecture): the two builds' `data.c` and `data_symbols.txt` must be the same files, and
     `synth_compare.py --same` runs every path with both programs, twice each, on the virtual clock: every trace must
-    be the same, to the bit;
+    be the same, to the bit. Its runs go four at once (`-j 4`): each is a process of its own on the virtual clock,
+    whose course doesn't depend on what else the host runs;
   - `optimized-windows`: the cross builds' `data.c` and `data_symbols.txt` must be the same files;
   - `windows-run` runs the self-test, the boot without a ROM and the 14 paths with both cross-built programs.
 

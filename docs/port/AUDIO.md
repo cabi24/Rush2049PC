@@ -205,13 +205,14 @@ The tests link their own copies of the port/ultra functions (`tests/stubs.c`), i
 | `audio_forms` | 32 | one scene (big-endian PCM, ADPCM with a big-endian book, native PCM, release mask, delay effect) rendered as native structs, native structs with K0 addresses, N64 form native order, and N64 form big-endian: identical outputs, states and lines; LP64 layout; host data above 4 GB |
 | `audio_output` | 40 | queue counts, pulls, underruns (the fade out and in, one underrun per dry spell), overflow; the AI's target from pulls, its growth per underrun and 200 ms cap, the `audio.latency` floor; idle and paused silence apart from underruns; the pull hook; a push before its render waits (counted with the queue); 22050 → 48000 frequency, amplitude, ratio, chunked = whole; 48000 → 22050 alias rejection; a forced device rate; WAV round trip; the null backend's clock |
 | `audio_hold` | 151 | pushes held for their render, against a model of the game's ring (8 buffers, renders in order at most 5 past the pushes): renders ahead play each push's own; renders late but before the device needs them play as on time; a render too late is silence, never the ring's last turn, and never plays a turn later out of place; a renderer three behind plays a turn late, in order, and on time again once caught up; the same buffer rendered twice; the renderer's skips counted (a jump right after a render, not one after a pause); 60 runs of random timings with stalls and the game's stop and restart: what plays is in order, never early, never twice, and exact once the renderer is ahead; pushes before any render and long pushes play as pushed |
+| `audio_renderer` | 484 | `func_80013DEC`'s scheduling loops, copied, in the PC and the N64 form: the wrapping range cut by the cap, by hand; rings of 8, 12, 16 and 24 buffers, caps of 1 to 6, 20 runs each of random AI steps (some past the cap, never a turn ahead): the PC loops render every buffer the AI passes once, in the ring's order, and catch up; the N64 loops pass buffers over in the same runs |
 | `audio_convert` | 14 | 22047 Hz to 48000 and 44100: flat to 8 kHz within 0.05 dB, images at least 60 dB down, DC exact, left and right apart; 10 s without drift; the game's 192-frame buffers the same stream as one piece; a clipped full-scale tone: the float pull keeps the overshoot (peak 1.0-1.25), the 16-bit pull clamps and counts it, at a volume below 1 nothing clamps; in range, float = 16-bit / 32768 |
 | `audio_e2e` | 14 | four SFDs per task from the game's builder, `pc_audio_run_task`, `pc_audio_push`, the WAV read back. ADPCM 1 kHz at 32 kHz, played at 22050: 999.9480 Hz (expected 999.9481), left 9964.8 (expected about 9960), right/left 0.5, residual 0.19 % rms, worst 0.6 %. PCM16 big-endian 750 Hz at 24 kHz: 749.9611 Hz (expected 749.9611), right inverted at half volume |
 | `audio_backends` | 9 | only when SDL2 or ALSA is built: SDL2's `disk` driver (float, at its own rate) gives a 440.000 Hz tone of the right length; ALSA opens alsa-lib's `null` device and drains |
 | `audio_rsp` | 10 | the microcode's arithmetic case by case, hand-worked: each tap's product rounded (3 · 0.5 is 2); the pairs saturated before they add; the volume's product rounded half up, positive and negative; the mix saturated once after an unsaturated product (−1 + 32768 = 32767) and the saturated last output; a volume ramp's high half saturating; the ADPCM sum wrapping at 32 bits; the delay's tap gain and feedback filter rounded |
 | `audio_volume` | 14 | the master volume through the manual backend's pulls: 1 leaves the samples as they were, 0.5 gives a quarter (the extremes 8191 and -8192), 0 silence, values past either end clamp, and it holds across a re-init |
 
-Result on the Pi 5 (2026-10-27, with SDL2 2.30.9 fetched, no ALSA headers): 12 of 12 tests pass (206 checks).
+Result on the Pi 5 (2026-10-28, with SDL2 2.30.9 fetched, no ALSA headers): 15 of 15 tests pass (858 checks).
 
 A mutation check broke 11 points in `musyx.c`, one at a time: surround sign, decay constant, nibble order, phase
 bits, restart segment, in-group predictor index, surround carry, tap direction, filter history, ADPCM skip mask,
@@ -405,6 +406,21 @@ starts at the ring's start only once the first got to its end (`PC_RING_START`, 
 N64 build's tokens and lines don't move); stopped by the cap, the renderer goes on from there at its next callback.
 The output counts the buffers it still skips (`buffers the renderer skipped`: a render further on in the ring within
 5 ms of the one before; a restart comes a retrace or more after it), and `audio_realtime` requires none.
+`audio_renderer` runs the function's two loops in both forms over random timings.
+
+**A task's SFDs were built over** (fixed for the PC, 2026-10-28). With the loops fixed, `audio_realtime` still
+counted skips now and then: 3 or 4 on shared Linux runners, 3 to 27 on Windows, and on the Pi with slow presents
+(`RUSH_SIM_PRESENT_MS=20`) 61 jumps in 30 s. They were real. Each callback builds its SFDs into one of two buffers
+(`func_80013964`) and submits the task for the other, built by the callback before; it waits for the last task
+(`func_800118C0`) only after building, before the submit. On the N64 the RSP has run that task long before the next
+retrace. On the PC an audio task goes through the game's scheduler, which yields to it a graphics task on the RSP:
+the PC's RSP doesn't yield, so the audio task waits until the main loop has run the graphics task, and a swap that
+waits for vsync, a slow present or a loaded host can hold that past the next retrace. The next callback then built
+into the buffer the task hadn't read: the task rendered the new SFDs in place of its own, which were lost, and the
+next two tasks rendered the sets out of order, one twice (seen with a count of tasks submitted against tasks run:
+49 callbacks in that run built over a pending task). Under `TARGET_PC` the callback waits for the last task before
+it builds (`PC_SFD_WAIT`, on the line of `func_80013964`'s call); the wait before the submit then returns at once.
+Under the same slow presents: no callback builds over a pending task, and 0 buffers skipped.
 
 **What is left.**
 - Stalls. A host whose retraces stall for 100 ms or more (6 periods) drops them; the buffers the renderer can't

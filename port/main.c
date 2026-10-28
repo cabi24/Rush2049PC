@@ -61,7 +61,8 @@ static void usage(FILE *f)
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
             "                      folder: next to the program when rush2049pc.ini is there, else the user data\n"
             "                      folder; it also holds screenshots/ and rush2049pc.log)\n"
-            "  --no-pak            no accessory; --rumble: a rumble pak instead\n"
+            "  --no-pak            no accessory on any controller; --rumble: a rumble pak on controller 1\n"
+            "                      (controllers 2-4: game.pak2... = auto, memory, rumble or none; --set)\n"
             "  --expansion-pak     report 8 MiB of RDRAM, the Expansion Pak (the default; game.expansion_pak=off: 4 MiB)\n"
             "  --audio BACKEND     auto (default), sdl, alsa, null or wav (port/audio)\n"
             "  --dump-audio PATH   also write everything the game plays to a WAV file\n"
@@ -231,7 +232,7 @@ static void fill_portable_ini(const PcAppDirs *d)
 
 /* The settings overlay's About page (port/input/menu.c): what only main knows, filled each time the page is made. */
 static struct {
-    char saves[PC_APP_PATH], data[PC_APP_PATH];
+    char data[PC_APP_PATH];
     int no_rom;
 } g_about;
 
@@ -254,7 +255,20 @@ static void about_fill(PcAbout *a)
     else
         snprintf(a->rom, sizeof a->rom, "%s%s%s%s", rom, where && *where ? " (" : "", where ? where : "",
                  where && *where ? ")" : "");
-    snprintf(a->saves, sizeof a->saves, "%s", g_about.saves[0] ? g_about.saves : "none (no controller pak)");
+    /* the controller paks chosen now: controller 1's path alone, or each with its controller */
+    int n = 0, only1 = pc_si_pak_path(0) != NULL;
+    for (int ch = 1; ch < 4; ch++)
+        only1 &= !pc_si_pak_path(ch);
+    for (int ch = 0; ch < 4; ch++) {
+        const char *path = pc_si_pak_path(ch);
+        size_t at = strlen(a->saves);
+        if (path && only1)
+            snprintf(a->saves, sizeof a->saves, "%s", path);
+        else if (path)
+            snprintf(a->saves + at, sizeof a->saves - at, "%sP%d %s", n++ ? ", " : "", ch + 1, path);
+    }
+    if (!a->saves[0])
+        snprintf(a->saves, sizeof a->saves, "none (no controller pak)");
     snprintf(a->log, sizeof a->log, "%s", pc_app_log_path() ? pc_app_log_path() : "none");
     snprintf(a->data, sizeof a->data, "%s", g_about.data);
 }
@@ -381,8 +395,12 @@ static int rush_main(int argc, char **argv)
         else if (!strcmp(a, "--pak")) {
             SET("game", "pak", "memory");
             SET("game", "pak_file", ARG());
-        } else if (!strcmp(a, "--no-pak"))
+        } else if (!strcmp(a, "--no-pak")) {
             SET("game", "pak", "none");
+            SET("game", "pak2", "none");
+            SET("game", "pak3", "none");
+            SET("game", "pak4", "none");
+        }
         else if (!strcmp(a, "--rumble"))
             SET("game", "pak", "rumble");
         else if (!strcmp(a, "--audio"))
@@ -475,8 +493,6 @@ static int rush_main(int argc, char **argv)
     }
 
     pc_os_set_expansion_pak(cfg.expansion_pak);
-    int pak_kind = cfg.pak == PC_CFG_PAK_MEMORY ? PC_PAK_MEMORY : cfg.pak == PC_CFG_PAK_RUMBLE ? PC_PAK_RUMBLE
-                                                                                              : PC_PAK_NONE;
     /* port/gfx reads its settings from the environment; the resolved values already include it */
     char scale[16], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);
@@ -543,17 +559,26 @@ static int rush_main(int argc, char **argv)
         setenv("RUSH_GFX_TEXTURE_CACHE", tex_dir, 0);
     }
     /* What the program writes goes into the data folder: next to it when portable, else the user data folder
-     * (port/app/paths.c); paths from the command line are from the working directory. The pak is backed up, or
-     * set aside when the game can't use it (port/app/saves.c), before the window opens: its box comes first. */
-    char pak_path[PC_APP_PATH], dir[PC_APP_PATH];
-    if (pak_kind == PC_PAK_MEMORY) {
-        int old = pc_app_pak_file(&dirs, cfg.pak_file, from_command_line(over, nover, "game", "pak_file"), pak_path,
-                                  sizeof pak_path);
-        pc_app_dirname(pak_path, dir, sizeof dir);
+     * (port/app/paths.c); paths from the command line are from the working directory. Each controller's pak file is
+     * resolved now, so the overlay can choose memory later; controller 1's may be where an earlier build kept it. A
+     * pak in use is backed up, or set aside when the game can't use it (port/app/saves.c), before the window opens:
+     * its box comes first. */
+    static char pak_path[4][PC_APP_PATH];
+    char dir[PC_APP_PATH];
+    for (int ch = 0; ch < 4; ch++) {
+        static const char *const keys[4] = {"pak_file", "pak2_file", "pak3_file", "pak4_file"};
+        int old = pc_app_pak_file(&dirs, cfg.pak_file[ch], from_command_line(over, nover, "game", keys[ch]),
+                                  pak_path[ch], sizeof pak_path[ch]);
+        if (cfg.pak[ch] != PC_CFG_PAK_MEMORY)
+            continue;
+        pc_app_dirname(pak_path[ch], dir, sizeof dir);
         pc_app_mkdirs(dir);
-        fprintf(stderr, "rush2049pc: saves (the controller pak): %s%s\n", pak_path,
-                old ? ", in the working directory, where earlier builds kept it" : "");
-        pc_app_saves_prepare(pak_path, !headless);
+        if (ch == 0)
+            fprintf(stderr, "rush2049pc: saves (the controller pak): %s%s\n", pak_path[ch],
+                    old ? ", in the working directory, where earlier builds kept it" : "");
+        else
+            fprintf(stderr, "rush2049pc: saves (controller %d's pak): %s\n", ch + 1, pak_path[ch]);
+        pc_app_saves_prepare(pak_path[ch], !headless);
     }
     window_setup(&cfg);
     if (pc_gfx_init(headless, cfg.width, cfg.height) != 0) {   /* the game draws 320 x 220; 0 x 0: auto */
@@ -568,8 +593,6 @@ static int rush_main(int argc, char **argv)
     static char title_tag[80];
     snprintf(title_tag, sizeof title_tag, "Rush2049PC %s", pc_app_version());
     pc_input_title_tag = title_tag;
-    if (pak_kind == PC_PAK_MEMORY)
-        snprintf(g_about.saves, sizeof g_about.saves, "%s", pak_path);
     snprintf(g_about.data, sizeof g_about.data, "%s", dirs.data);
     g_about.no_rom = no_rom;
     pc_menu_set_about(about_fill);
@@ -581,7 +604,11 @@ static int rush_main(int argc, char **argv)
         pc_app_mkdirs(cfg.screenshot_dir);   /* F12's folder */
     if (pc_input_init(&cfg) != 0 && !headless)
         fprintf(stderr, "rush2049pc: no window: scripted input only\n");
-    pc_si_init(pak_kind == PC_PAK_MEMORY ? pak_path : NULL, pak_kind);
+    pc_si_init(pak_path[0], cfg.pak[0]);   /* PC_CFG_PAK_* = PC_PAK_* */
+    for (int ch = 1; ch < 4; ch++) {
+        pc_si_set_pak_file(ch, pak_path[ch]);
+        pc_si_set_pak(ch, cfg.pak[ch]);
+    }
     if (pc_audio_init(cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     pc_audio_set_volume(cfg.volume / 100.0);

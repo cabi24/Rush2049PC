@@ -21,6 +21,7 @@
  * at HUD points (the coin icons beside their counts, ZOID_WindowTo3D): on the PC that function moves its point by
  * pc_gfx_hud_dx, the same rule for a point.
  * Off (centered, 4:3, a menu, split screen) nothing here runs and the drawing is the same as without this file. */
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,9 +46,13 @@ typedef struct {
     uint8_t movable, tri;
 } HudItem;
 
+/* Read by the game's thread too (pc_gfx_hud_dx), so atomic: the setting, and the color image's frame width and
+ * widening as the renderer last set them up (pcgfx_hud_publish, at each SETCIMG): (frame width << 16) | widening. */
+static _Atomic int s_mode = PC_GFX_HUD_EDGES;
+static _Atomic int s_wide;
+
 static struct {
-    int mode;               /* PC_GFX_HUD_* */
-    int (*race)(void);
+    int (*race)(void);      /* set before the game's threads start */
     int on;                 /* this task: edges, in a race with one view */
     HudItem *it;
     int n, cap;
@@ -61,14 +66,19 @@ static struct {
     int dx[HUD_MAX_ITEMS];
     int panel[HUD_MAX_PANELS];   /* the panels' items, in order */
     int npanel;
-} S = {.mode = PC_GFX_HUD_EDGES};
+} S;
 
 void pc_gfx_set_hud(int mode) {
-    S.mode = mode == PC_GFX_HUD_CENTERED ? PC_GFX_HUD_CENTERED : PC_GFX_HUD_EDGES;
+    atomic_store_explicit(&s_mode, mode == PC_GFX_HUD_CENTERED ? PC_GFX_HUD_CENTERED : PC_GFX_HUD_EDGES,
+                          memory_order_relaxed);
 }
 
 int pc_gfx_hud(void) {
-    return S.mode;
+    return atomic_load_explicit(&s_mode, memory_order_relaxed);
+}
+
+void pcgfx_hud_publish(int frame_width, int ox) {
+    atomic_store_explicit(&s_wide, frame_width << 16 | ox, memory_order_relaxed);
 }
 
 int pc_gfx_parse_hud(const char *text, int *ok) {
@@ -90,22 +100,24 @@ void pcgfx_hud_init(void) {
     if (e != NULL && *e) {
         int ok, m = pc_gfx_parse_hud(e, &ok);
         if (ok)
-            S.mode = m;
+            pc_gfx_set_hud(m);
         else
             fprintf(stderr, "gfx: RUSH_GFX_HUD=%s is not edges or centered; ignored\n", e);
     }
 }
 
 void pcgfx_hud_task_begin(void) {
-    S.on = S.mode == PC_GFX_HUD_EDGES && S.race != NULL && S.race();
+    S.on = pc_gfx_hud() == PC_GFX_HUD_EDGES && S.race != NULL && S.race();
     S.n = 0;
     S.nv = S.nst = 0;
     S.npanel = 0;
 }
 
+/* On the game's thread: only the atomics above and the game's own state (the race hook). The widening is the last
+ * color image's, so on a resize the models at HUD points follow a frame later than the 2D. */
 int pc_gfx_hud_dx(int x) {
-    int fw = pcgfx_frame_width(), ox = (pcgfx_wide_width(fw) - fw) / 2;
-    if (S.mode != PC_GFX_HUD_EDGES || S.race == NULL || ox == 0 || !S.race())
+    int wide = atomic_load_explicit(&s_wide, memory_order_relaxed), fw = wide >> 16, ox = wide & 0xFFFF;
+    if (pc_gfx_hud() != PC_GFX_HUD_EDGES || S.race == NULL || ox == 0 || !S.race())
         return 0;
     if (6 * x < 2 * fw)        /* left of the middle band (fw / 2 - fw / 6) */
         return -ox;

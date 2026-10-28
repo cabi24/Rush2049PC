@@ -468,6 +468,7 @@ if(WIN32)
 endif()
 enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
+set_tests_properties(ultra_selftest PROPERTIES RUN_SERIAL TRUE)   # its timers on the host's clock: alone (ctest -j)
 add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
 # A sanitizer build's fault handler names the N64 thread, then hands the fault to AddressSanitizer's, which reports
 # it with its own stack (docs/port/SANITIZE.md 1): the blank cartridge's boot faults in audio_helper. (CMake's "."
@@ -509,6 +510,11 @@ foreach(script ${SYNTH_PATHS})
     add_test(NAME synth_boot_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_paths.py
         --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths ${name})
     set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150)
+    # a path on the host's clock (`# realtime`: the race) runs alone under `ctest -j`, as the other real-time tests
+    file(STRINGS ${script} realtime REGEX "^#[ \t]*realtime[ \t]*$")
+    if(realtime)
+        set_tests_properties(synth_boot_${name} PROPERTIES RUN_SERIAL TRUE)
+    endif()
 endforeach()
 # The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
 # ROM lookup order in temporary folders; and the program's own messages for each kind of missing or wrong ROM, and
@@ -536,7 +542,9 @@ set_target_properties(test_romcheck test_app test_saves PROPERTIES EXPORT_COMPIL
 # (tools/port/hfr_check.py), and frames drawn between the game's in the second run.
 add_test(NAME hfr_timing COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr --require-drawn race2p drive demo)
-set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+# Six runs one after another, the longest test (about a minute alone on a CI runner): alone under ctest -j, where
+# four other game processes made it two to three times as long, toward its timeout.
+set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
 # Live input drives the game (docs/port/FRONTEND.md "Testing live input"): the drive path through SDL virtual
 # controllers, a virtual joystick with the generic mapping, key events and a controller plugged in late, each the same
 # run as the scripted one, with the car's steering input following the stick; race2p with two controllers

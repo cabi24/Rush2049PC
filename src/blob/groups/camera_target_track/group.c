@@ -72,10 +72,25 @@ Node68 *func_80092278(void) {
  node->list=&D_80144C50;
  return node;
 }
+#ifdef TARGET_PC
+/* PC: the message pool and the manager's queue can run out (transform/group.c's entity_transform_calc says
+ * when): a sound start that finds no message is not started (handle -1, which every handle lookup takes as
+ * none; camera_target_track gives its emitter back), and one the full queue refuses gives its message back,
+ * its tag left to the next priority pass. */
+extern List D_801461B0;
+#define PC_OBJ_OR_UNLOCK(o) if((o)==0){osSendMesg(&D_80142728,0,0);return (u32)-1;}
+#define PC_OBJ_OR_UNLOCK_CAM(o,c) \
+    if((o)==0){func_80091FBC(&D_801461B0,(Link*)(c),D_801461B0.head);osSendMesg(&D_80142728,0,0);return -1;}
+#define PC_OBJ_SEND(q,o) if(osSendMesg(q,o,0)!=0)(o)->p3=0
+#else
+#define PC_OBJ_OR_UNLOCK(o)
+#define PC_OBJ_OR_UNLOCK_CAM(o,c)
+#define PC_OBJ_SEND(q,o) osSendMesg(q,o,0)
+#endif
 u32 entity_flags_apply(u32 index,u32 other,u32 value,u8 mode) {
  Object24 *object;u32 result;
  osRecvMesg(&D_80142728,0,1);
- object=func_80091B00();object->kind=2;object->value=value;
+ object=func_80091B00();PC_OBJ_OR_UNLOCK(object)object->kind=2;object->value=value;
  object->node=func_80092278();object->node->p20=0;
  object->node->index=index;object->node->value=other;object->node->mode=mode;
  object->node->state=1;object->node->flag=0;
@@ -86,13 +101,13 @@ u32 entity_flags_apply(u32 index,u32 other,u32 value,u8 mode) {
  object->f16=-2.0f;
  result=object->node->tag;
  osSendMesg(&D_80142728,0,0);
- osSendMesg(&D_801427A8,object,0);
+ PC_OBJ_SEND(&D_801427A8,object);
  return result;
 }
 u32 high_scores_display(u32 index,u32 other,u32 value,u8 mode,f32 x,f32 y,f32 z) {
  Object24 *object;u32 result;
  osRecvMesg(&D_80142728,0,1);
- object=func_80091B00();object->kind=2;object->value=value;
+ object=func_80091B00();PC_OBJ_OR_UNLOCK(object)object->kind=2;object->value=value;
  object->node=func_80092278();object->node->p20=0;
  object->node->index=index;object->node->value=other;object->node->mode=mode;
  object->node->state=1;object->node->flag=0;
@@ -103,7 +118,7 @@ u32 high_scores_display(u32 index,u32 other,u32 value,u8 mode,f32 x,f32 y,f32 z)
  object->f16=(z<-1.0f)?-1.0f:((1.0f<z)?1.0f:z);
  result=object->node->tag;
  osSendMesg(&D_80142728,0,0);
- osSendMesg(&D_801427A8,object,0);
+ PC_OBJ_SEND(&D_801427A8,object);
  return result;
 }
 
@@ -132,7 +147,7 @@ s32 camera_target_track(f32 *pos,CTT_A1 a1,f32 volume,f32 a3,f32 x,f32 y,u32 ind
  cam->x=(x<0.0f)?0.0f:((1.0f<x)?1.0f:x);
  cam->y=(y<0.0f)?0.0f:((1.0f<y)?1.0f:y);
  cam->f36=1.0f;
- object=func_80091B00();object->kind=2;object->value=value;
+ object=func_80091B00();PC_OBJ_OR_UNLOCK_CAM(object,cam)object->kind=2;object->value=value;
  object->node=func_80092278();object->node->p20=1;
  object->node->index=index;object->node->value=other;object->node->mode=mode;
  object->node->state=1;object->node->flag=0;
@@ -144,7 +159,7 @@ s32 camera_target_track(f32 *pos,CTT_A1 a1,f32 volume,f32 a3,f32 x,f32 y,u32 ind
  object->node->p64=(uintptr_t)cam;
  result=cam->tag=object->node->tag;
  osSendMesg(&D_80142728,0,0);
- osSendMesg(&D_801427A8,object,0);
+ PC_OBJ_SEND(&D_801427A8,object);
  osRecvMesg(&D_80142728,0,1);
  if(cam->active==0){func_80091FBC(&D_801461E8,(Link*)cam,D_801461E8.head);cam->queued=1;}
  osSendMesg(&D_80142728,0,0);

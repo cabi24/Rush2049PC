@@ -16,7 +16,7 @@ symbol's address, and tables indexed past their declarations. Each is fixed with
 | Needs | the PC build's data report, `build/pc/pc-data/data_symbols.txt`: build the port first |
 | Run | `build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headless --no-config --audio null --no-pak` |
 | Paths | `tools/port/synth/*.press`, run by `tools/port/synth_paths.py` (section 2) |
-| Checks | ctest `synth_rom` and a `synth_boot_<path>` per path; CI step "Boot the synthetic cartridge" (both Linux jobs) |
+| Checks | ctest `synth_rom` and a `synth_boot_<path>` per path (every CI job that runs ctest; the Linux jobs keep the logs) |
 
 **Provenance note (2026-10-27).** While the paths were widened, a research helper of the agent doing it decoded
 the retail control and button-map tables from a local ROM, against the project's rules. Nothing from it was used:
@@ -185,8 +185,10 @@ cars, mode (gRace) and track, and the first car's position, speed and steering i
 must reach (`# until:`, `# seconds:`, `# expect:` the state line's text, `# visits:` states on the way, `# realtime`,
 `# args:`, `# check:`);
 `tools/port/synth_paths.py` runs them (on the virtual clock, `--fast`, unless `# realtime`), checks the exit code and
-the last state line (and that the first car's position isn't NaN), and keeps each log in `build/synth/paths`. ctest has one `synth_boot_NAME` per script, and the
-CI step runs them all on both Linux jobs and keeps the logs. On Windows the native job's ctest runs them, and
+the last state line (and that the first car's position isn't NaN), and keeps each log in `build/synth/paths` (ctest's in
+`build/pc/synth/paths`). ctest has one `synth_boot_NAME` per script, a `# realtime` one `RUN_SERIAL` (alone under
+`ctest -j`, as CI runs it); the Linux jobs upload ctest's logs (until 2026-10-28 a CI step ran every path a second
+time to keep them). On Windows the native job's ctest runs them, and
 `windows-run` generates the cartridge from the cross build's data report and runs every path with the cross-built
 program ([WINDOWS.md](WINDOWS.md) 9).
 
@@ -202,6 +204,8 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `pause` | the race paused (START), the four screens the pause menu opens (options, controls, audio, video), then quit, confirmed: the race is retired, its results and the game over screen | 0x800000 | 0.5 s |
 | `screens` | the main menu's other four options, each screen entered with A and left with B (`# visits:` checks the states 0x2000, 0x200, 0x800, 0x1000) | back on the main menu | 0.3 s |
 | `pak` | the one-player race with a fresh controller pak (`--pak`): the warning finds it, and the save code runs on it at the race's start | 0x400000, 300 frames | 0.4 s |
+| `pak4p` | four players, each with an accessory (ULTRA.md "Accessories"): fresh controller paks on 1, 2 and 4 (`--set game.pak2_file=...`), a rumble pak on 3. `# check:` runs `tools/port/pak_check.py`: the game read each port's accessory (si.c's log line), and each file is a pak with an ID of its own. The cartridge sets the pak server's prompt port (`D_8011EAE8`) to -1, as the game expects; at 0 it scanned port 1 alone | 0x400000, 300 frames: 4 players | 1.2 s |
+| `rumble2p` | two players, each with a rumble pak: the game finds both, and its rumble thread turns each player's motor on in the race (`pak_check.py --motor`, the log at `-v -v`) | 0x400000, 600 frames | 1.6 s |
 | `raceend` | the race retired from the pause screen, then _EndGame, the results, the game over screen, its Quit and back to the main menu (`# visits:` the results, the game over screen and state 4). gRace 2's time limit would end a race by itself once the car has stopped, which the cartridge's car physics doesn't do | 0x10 after the race | 0.6 s |
 | `battlequit` | two players in battle, quit from the pause screen: the race end gives each player's packet back (QA.md 5), the game over screen | 0x800000 | 7.5 s (Pi) |
 | `cheats` | the main menu's cheat code, five down to its new option, the cheat screen (0x8000000); cheat 0's code and RIGHT switch it; B back (`# visits:` 0x8000000) | back on the main menu | 1.7 s (Pi) |

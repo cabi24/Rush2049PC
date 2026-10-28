@@ -24,19 +24,34 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 \
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 ccache \
             zlib1g-dev libegl-dev libgles-dev libsdl2-dev libasound2-dev
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+      - name: Compiler cache
+        # ccache's objects from the last run of this configuration: a merge that changes a few files compiles those
+        # (the checks compile from compile_commands.json, which has no launcher in it)
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.os }}-${{ matrix.build }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.os }}-${{ matrix.build }}-
       - name: Configure
-        run: cmake -S . -B build/pc -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+        run: |
+          cmake -S . -B build/pc -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
         # Lines cut short: a failed link's command line lists every object and hides the error after it.
         run: |
           set -o pipefail
+          ccache -z -M 1G > /dev/null
           cmake --build build/pc -j4 2>&1 | cut -c1-2000
+          ccache -s | grep -iE "hits|misses|cache size" || true
       - name: Tests
-        # A failing test is run again under gdb for a backtrace.
+        # Four at once; the tests on the host's clock (the real-time race, the ultra self-test, the audio output's
+        # drains, audio_realtime) and the long hfr_timing are RUN_SERIAL and run alone. A failing test is run again
+        # under gdb for a backtrace.
         run: |
-          ctest --test-dir build/pc --output-on-failure && exit 0
+          ctest --test-dir build/pc -j4 --output-on-failure && exit 0
           sudo apt-get install -y --no-install-recommends gdb > /dev/null
           ctest --test-dir build/pc --show-only=json-v1 > tests.json
           python3 - <<'PY'
@@ -59,16 +74,6 @@ jobs:
             > boot.log 2>&1 || true
           cat boot.log
           grep -q "wave 0 loaded" boot.log
-      - name: Boot the synthetic cartridge
-        # tools/port/synth_rom.py writes a cartridge of original, minimal data (docs/port/SYNTH.md). The game boots
-        # on it through the front end's screens into each of the paths the press scripts in tools/port/synth take
-        # (races for 1-4 players, circuit, stunt, battle, the attract demo...) and runs each for a while, on the
-        # virtual clock (--fast); the step fails if one faults or doesn't get there. The one-player race also runs
-        # in real time. (ctest's synth_boot_* do the same; this keeps the logs.)
-        run: |
-          python3 tools/port/synth_rom.py
-          python3 tools/port/synth_paths.py --exe build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 \
-            --logs build/synth/paths
       - name: Raw N64 offsets into moved records
         # m2c code that reaches a blit's, a car's or another pointer-holding record's field at its N64 offset,
         # through a pointer typed void * or s32 (tools/port/offset_check.py, docs/port/LAYOUT.md 9). Fails on an
@@ -92,11 +97,18 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
+          # The synthetic cartridge's paths run in ctest (synth_boot_*: tools/port/synth_rom.py's cartridge of
+          # original data, docs/port/SYNTH.md, booted through the front end into each press script's path, the race
+          # in real time too), with the high frame rate, live input and real-time checks: their logs and the
+          # cartridge's report.
           name: logs-${{ matrix.os }}-${{ matrix.build }}
           path: |
             boot.log
-            build/synth/paths/
-            build/synth/rush2049_synth.txt
+            build/pc/synth/paths/
+            build/pc/synth/hfr/
+            build/pc/synth/input/
+            build/pc/synth/realtime/*.log
+            build/pc/synth/rush2049_synth.txt
             build/pc/pc-data/data_layout.txt
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
@@ -147,7 +159,7 @@ jobs:
           chmod +x debug/rush2049pc rel/rush2049pc
           python3 tools/port/synth_rom.py --data-symbols debug/pc-data/data_symbols.txt --out synth/rush2049_synth.z64
           python3 tools/port/synth_compare.py --exe debug/rush2049pc --exe rel/rush2049pc \
-            --rom synth/rush2049_synth.z64 --runs 2 --same --logs synth/compare
+            --rom synth/rush2049_synth.z64 --runs 2 --same --logs synth/compare -j 4
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -216,18 +228,29 @@ jobs:
       - name: Dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build python3 \
+          apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build python3 ccache \
             binutils-mingw-w64-x86-64 gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix mingw-w64-x86-64-dev \
             libz-mingw-w64-dev
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
+      - name: Compiler cache
+        # the game, the port and SDL2's own sources (fetched by RUSH_FETCH_SDL2), as on Linux
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-windows-cross-${{ matrix.build }}-${{ github.sha }}
+          restore-keys: ccache-windows-cross-${{ matrix.build }}-
       - name: Configure
         run: |
           cmake -S . -B build/win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64.cmake -DRUSH_FETCH_SDL2=ON \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+            -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
         run: |
           set -o pipefail
+          ccache -z -M 1G > /dev/null
           cmake --build build/win -j4 2>&1 | cut -c1-2000
+          ccache -s | grep -iE "hits|misses|cache size" || true
       - uses: actions/upload-artifact@v4
         with:
           name: windows-cross-${{ matrix.build }}

@@ -43,7 +43,8 @@ extern const char *const pc_hotkey_names[PC_NUM_HOTKEYS];     /* "fullscreen", .
 
 /* ---------------------------------------------------------------- settings */
 
-enum { PC_CFG_PAK_NONE = 0, PC_CFG_PAK_MEMORY = 1, PC_CFG_PAK_RUMBLE = 2 };   /* = port/ultra's PC_PAK_* */
+/* = port/ultra's PC_PAK_*; auto: a rumble pak while the player's controller can rumble, else none */
+enum { PC_CFG_PAK_NONE = 0, PC_CFG_PAK_MEMORY = 1, PC_CFG_PAK_RUMBLE = 2, PC_CFG_PAK_AUTO = 3 };
 enum { PC_CFG_API_AUTO = 0, PC_CFG_API_GL = 1, PC_CFG_API_GLES = 2 };   /* the order of the file's choices */
 enum { PC_CFG_STICK_LEFT = 0, PC_CFG_STICK_RIGHT = 1, PC_CFG_STICK_NONE = 2 };
 
@@ -55,8 +56,8 @@ typedef struct PcSettings {
     char rom[PC_CFG_PATH];          /* the ROM (.z64/.v64/.n64) */
     int rom_check;                  /* refuse a ROM whose SHA-1 differs */
     int expansion_pak;              /* 8 MiB of RDRAM */
-    int pak;                        /* PC_CFG_PAK_*: controller 1's accessory */
-    char pak_file[PC_CFG_PATH];     /* the controller pak image */
+    int pak[4];                     /* PC_CFG_PAK_*: each controller's accessory (game.pak, game.pak2...) */
+    char pak_file[4][PC_CFG_PATH];  /* each controller's pak image (game.pak_file, game.pak2_file...) */
     /* [video] */
     int width, height;              /* window size, pixels; 0: auto (two thirds of the desktop) */
     char position[32];              /* where the window opens: "center" or "X,Y" */
