@@ -1153,6 +1153,50 @@ static void case_eyeplane(void) {
         check("wall at the right edge", 318, 60, 255, 0, 255, 0);
         check("wall, low", 318, 200, 255, 0, 255, 0);
     }
+    /* A chase camera's angles: the camera 30-120 units over a road of two big triangles around it (one corner well
+     * behind the eye), pitched 4-16 degrees down and turned to 8 headings; the road fills the bottom of the screen
+     * and the floor under it stays hidden. */
+    for (k = 0; k < 24; k++) {
+        static Mtx view;
+        static Vtx road[8];
+        float f[4][4], yaw = (float)(k % 8) * 45.0f + 7.0f, pitch = 4.0f + (float)(k / 8) * 6.0f;
+        float cy = cosf(yaw * 3.14159265f / 180), sy = sinf(yaw * 3.14159265f / 180);
+        float cp = cosf(pitch * 3.14159265f / 180), sp = sinf(pitch * 3.14159265f / 180);
+        int h = 30 + (k / 8) * 45, x, y, bad = 0;
+        /* row vectors: turn about y by yaw, then tilt about x so that the view looks down by pitch */
+        mtx_ident_f(f);
+        f[0][0] = cy, f[0][1] = sy * sp, f[0][2] = -sy * cp;
+        f[1][0] = 0, f[1][1] = cp, f[1][2] = sp;
+        f[2][0] = sy, f[2][1] = -cy * sp, f[2][2] = cy * cp;
+        f[3][1] = -(float)h * cp, f[3][2] = -(float)h * sp;
+        mtx_f2l(f, &view);
+        vtx(&road[0], -20000, 0, -20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[1], -20000, 0, 20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[2], 20000, 0, -20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[3], 20000, 0, 20000, 0, 0, 0, 255, 255, 255);
+        vtx(&road[4], -20000, -20, -20000, 0, 0, 255, 0, 0, 255);
+        vtx(&road[5], -20000, -20, 20000, 0, 0, 255, 0, 0, 255);
+        vtx(&road[6], 20000, -20, -20000, 0, 0, 255, 0, 0, 255);
+        vtx(&road[7], 20000, -20, 20000, 0, 0, 255, 0, 0, 255);
+        frame_begin(0, 0, 0);
+        gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsSPMatrix((uintptr_t)&view, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsDPSetRenderMode(RM_ZB_OPA_SURF(1), RM_ZB_OPA_SURF(2));
+        gsSPGeometryMode(0, G_ZBUFFER | G_CULL_BACK);
+        cc_shade();
+        gsSPVertex((uintptr_t)road, 8, 0);
+        gsSP2Triangles(0, 1, 2, 2, 1, 3);
+        gsSP2Triangles(4, 5, 6, 6, 5, 7);
+        frame_end();
+        for (y = 200; y < 240; y += 4)
+            for (x = 0; x < 320; x += 8)
+                bad += !(px(x, y)[0] < 64 && px(x, y)[1] > 192 && px(x, y)[2] > 192);
+        if (bad) {
+            printf("  FAIL %s: chase camera %d (heading %.0f, pitch %.0f, height %d): %d samples of the bottom rows "
+                   "aren't the road\n", s_case, k, yaw, pitch, h, bad);
+            s_fail++;
+        }
+    }
 }
 
 /* What the clipping hands on to GL, on the CPU (tests/clip_check.c). */
