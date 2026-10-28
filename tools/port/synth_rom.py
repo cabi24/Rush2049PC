@@ -1246,6 +1246,13 @@ def race(c):
     # its power-up slots, and writes all 16 136-byte records (Slot136): a size of 0 is a zero-size block, and the
     # writes go over the next blocks' headers.
     c.set("game", "D_80117510", "u8", 136, "category 5's record size (battle's power-up slots, Slot136)", index=5)
+    # The level objects' bodies (D_80118C10, f32[115]): 32 bytes a body (x min, x max, z max, z min, three more, the
+    # mass at +0x1C), which CollisionReckon reads as f32 for a kind-4 object, then the static states of categories
+    # 0-2. Declared u8[], they kept the ROM's byte order (docs/port/DATA.md 8): the generator refuses an f32 there,
+    # and its last element past a shorter table.
+    c.set_all("game", "D_80118C10", "f32", [-3.0, 3.0, 3.0, -3.0, 0.0, 0.0, 0.0, 50.0],
+              "body 0: a 6 ft box of 50 slugs")
+    c.set("game", "D_80118C10", "f32", 0.0, "the bodies' and states' last element", index=114)
 
     battle(c)
 
@@ -1332,6 +1339,14 @@ def car_tables(c):
     # PrePlay sets gravity to 32.2 x D_801202F8[the gravity option]: the option's factor, 1 for each of the four
     # (f32[4], extents.txt: strings follow it, docs/port/DATA.md 8).
     c.set_all("game", "D_801202F8", "f32", [1.0] * 4, "the gravity option's factor (32.2 ft/s^2 x): 1 for each")
+    # The wings' place per car type (D_8011B4B4, f32[13][3], extents.txt): buffer_swap puts a car's two wings at
+    # (-x, y, 0) and (x, y, 0), func_800B0A88 their sound at height y. Its gap was one row, so the other twelve kept
+    # the ROM's byte order (docs/port/DATA.md 8); the generator refuses a value outside the table.
+    c.set_all("game", "D_8011B4B4", "f32", [3.0, 0.5, 0.0] * 13, "a car type's wings: half their span, their height")
+    # The rumble request's 36 rising thresholds (D_801163F8, s32[36]): func_800E56F8 counts how many the car's speed
+    # passes, less 4, for the player's rumble. As one s32 the other 35 kept the ROM's byte order (DATA.md 8), which
+    # the generator refuses. Small, so a moving car rumbles as with zeros (the rumble2p path's motors).
+    c.set_all("game", "D_801163F8", "u32", [2 * (i + 1) for i in range(36)], "a rumble threshold (speed, ft/s)")
     # func_800D0B14, a car's mass in slugs (its weight is that x gravity): (D_80110DD8[type] + (D_80111274[mass
     # option] - D_80124154 + the pak's mass bonus) x D_80124150) x the tune's factor. 3000 lb is 93 slugs; the mass
     # options add nothing; one slug a unit.

@@ -387,7 +387,9 @@ view that won the ranking (QA.md 1). This section is the sweep of the whole clas
 The scripts and their output stay out of the repository: they read the cartridge.
 
 **Fixed** (ab7f592). Each table's rest was in the ROM's order. LOADER_EXPECT and datacheck's `known_widths` pin
-them; `--check-loader` fails 7 places with the old tables.
+them; `--check-loader` fails 7 places with the old tables. The synthetic cartridge sets the bodies (body 0 and the
+last element), every car type's wings and the 36 rumble thresholds (small, so `rumble2p`'s motors still run). Its
+generator refuses each of the three with its old declaration, so `synth_rom` fails and no synthetic path runs.
 
 | Symbol | Found by | What the game reads | On the PC before | Fix |
 |---|---|---|---|---|
