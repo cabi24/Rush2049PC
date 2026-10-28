@@ -1141,7 +1141,7 @@ static void description(const Item *it, char *out, size_t n, int *wrap)
         if (r->desc)
             snprintf(out, n, "%s", r->desc);
         else if (pages[M.page].col_b)
-            snprintf(out, n, "Keys: %s   Controller: %s", r->a, r->b[0] ? r->b : "-");
+            snprintf(out, n, "Keys: %.*s   Controller: %s", PC_CFG_BIND + 16, r->a, r->b[0] ? r->b : "-");
         else {
             snprintf(out, n, "%s", r->a);
             *wrap = strlen(out) > FOOT_CHARS;
