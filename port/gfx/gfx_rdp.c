@@ -627,9 +627,9 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
     }
 
     {
-        int scale = pcgfx_gl_target_scale(current_target());
-        st->scale = (float)scale;
-        if (rect_tile >= 0 && rect_tile < 8 && scale > 1 &&
+        float scale = pcgfx_gl_target_scale(current_target());
+        st->scale = scale;
+        if (rect_tile >= 0 && rect_tile < 8 && scale != 1.0f &&
             (key.mode == GFX_MODE_COPY || ((pcgfx.om_h >> G_MDSFT_TEXTFILT) & 3) == G_TF_POINT))
             key.flags |= GFX_KF_SNAP;
     }
@@ -744,10 +744,14 @@ static void rect_vertex(GfxOutVtx *o, float x, float y, float s, float t, int te
 }
 
 /* The RDP samples a rectangle pixel at its corner: pixel k gets texel floor(c0 + k * d). GL samples at (internal)
- * pixel centers, so start the interpolation so that each of the scale x scale samples inside N64 pixel k stays in
- * that texel (exact for |d| <= 1), plus a small bias against float error on texel boundaries. */
-static float rect_start(float c0, float d, int scale, int snap) {
-    if (d >= 0.0f || snap)   /* snap: the shader moves every sample to the first one of its N64 pixel */
+ * pixel centers, so start the interpolation so that each of the samples inside N64 pixel k stays in that texel
+ * (exact for |d| <= 1), plus a small bias against float error on texel boundaries. scale: internal pixels per N64
+ * pixel along this coordinate's axis. Snapped (point-sampled above 1x), the shader moves every sample to its N64
+ * pixel's corner (gfx_combine.c), so the corner's value is the RDP's at any scale, a fraction too. */
+static float rect_start(float c0, float d, float scale, int snap) {
+    if (snap)
+        return c0 + 1.0f / 64;
+    if (d >= 0.0f)
         return c0 - 0.5f * d / scale + 1.0f / 64;
     return c0 - d + 0.5f * d / scale + 1.0f / 64;
 }
@@ -756,8 +760,8 @@ static float rect_start(float c0, float d, int scale, int snap) {
 static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s, float t, float dsdx, float dtdy,
                       int flip) {
     GfxOutVtx q[4], tri[6];
-    int tw, th, scale, textured = tile >= 0, wide = 0;
-    float w, h = y1 - y0;
+    int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap;
+    float w, h = y1 - y0, sx = 1.0f, sy = 1.0f;
     if (pcgfx.wide_ox != 0) {
         /* Widescreen (GFX.md): a fill's sides at the frame's go to the target's, and a textured rectangle across
          * the whole frame is stretched across the target. Other textured rectangles stay 4:3, in the middle. */
@@ -778,9 +782,11 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     w = x1 - x0;
     pcgfx_draw_state(textured ? tile : 8, wide);
     pcgfx_target_dims(&tw, &th);
-    scale = (int)s_state.scale;
-    s = rect_start(s, dsdx, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
-    t = rect_start(t, dtdy, scale, (s_state.shader_flags & GFX_KF_SNAP) != 0);
+    if (s_state.target != NULL)
+        pcgfx_gl_target_px(s_state.target, &pw, &ph, &sx, &sy);
+    snap = (s_state.shader_flags & GFX_KF_SNAP) != 0;
+    s = rect_start(s, dsdx, flip ? sy : sx, snap);   /* flipped, s follows y */
+    t = rect_start(t, dtdy, flip ? sx : sy, snap);
     if (!flip) {
         rect_vertex(&q[0], x0, y0, s, t, textured, tw, th);
         rect_vertex(&q[1], x1, y0, s + dsdx * w, t, textured, tw, th);

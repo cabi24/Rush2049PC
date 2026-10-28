@@ -10,6 +10,7 @@
 #define GL_GLES_PROTOTYPES 0
 #include <GLES3/gl3.h>
 #endif
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,6 +63,7 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
     X(PFNGLGENTEXTURESPROC, glGenTextures) \
     X(PFNGLGENVERTEXARRAYSPROC, glGenVertexArrays) \
     X(PFNGLGETERRORPROC, glGetError) \
+    X(PFNGLGETINTEGERVPROC, glGetIntegerv) \
     X(PFNGLGETPROGRAMINFOLOGPROC, glGetProgramInfoLog) \
     X(PFNGLGETPROGRAMIVPROC, glGetProgramiv) \
     X(PFNGLGETSHADERINFOLOGPROC, glGetShaderInfoLog) \
@@ -80,7 +82,9 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
     X(PFNGLTEXPARAMETERIPROC, glTexParameteri) \
     X(PFNGLUNIFORM1FPROC, glUniform1f) \
     X(PFNGLUNIFORM1IPROC, glUniform1i) \
+    X(PFNGLUNIFORM2FPROC, glUniform2f) \
     X(PFNGLUNIFORM2FVPROC, glUniform2fv) \
+    X(PFNGLUNIFORM4IPROC, glUniform4i) \
     X(PFNGLUNIFORM4FVPROC, glUniform4fv) \
     X(PFNGLUSEPROGRAMPROC, glUseProgram) \
     X(PFNGLVERTEXATTRIBPOINTERPROC, glVertexAttribPointer) \
@@ -99,13 +103,14 @@ static GLsync g_fence;
 struct GfxShader {
     GfxShaderKey key;
     GLuint prog;
-    GLint u_prim, u_env, u_fog, u_blend, u_fill, u_primlod, u_lodfrac, u_noise, u_scale, u_loda, u_lodb;
+    GLint u_prim, u_env, u_fog, u_blend, u_fill, u_primlod, u_lodfrac, u_noise, u_scale, u_target, u_loda, u_lodb;
     GfxShader *next;
 };
 
 typedef struct GfxDepth {
     const void *addr;
-    int w, h, s;
+    int w, h;           /* N64 pixels */
+    int pw, ph;         /* internal pixels */
     GLuint rb;
     struct GfxDepth *next;
 } GfxDepth;
@@ -113,7 +118,8 @@ typedef struct GfxDepth {
 struct GfxTarget {
     const void *addr;
     int w, h, vis_h;    /* N64 pixels; vis_h: rows shown (the largest scissor bottom drawn with) */
-    int s;              /* the internal scale it was made at */
+    float s;            /* the internal scale it was made at */
+    int pw, ph;         /* its size in internal pixels: pcgfx_scaled(w, s) x pcgfx_scaled(h, s) */
     GLuint fbo, color;
     GfxDepth *depth;
     GfxTarget *next;
@@ -137,16 +143,34 @@ static struct {
     GLint u_ui_tex;
     int ui_failed;
     GLuint bound_fbo;
+    int max_size;                   /* the largest render target side (GL_MAX_TEXTURE_SIZE, _RENDERBUFFER_SIZE) */
 } G;
 
 /* The scale new targets get: the setting, or the window's for auto (gfx_api.c). A target keeps its own until it
  * is made again, so a change applies from the next color image. */
-static int scale(void) {
-    return pcgfx_cfg.scale > 0 ? pcgfx_cfg.scale : 1;
+static float scale(void) {
+    return pcgfx_cfg.scale > 0.0f ? pcgfx_cfg.scale : 1.0f;
 }
 
-int pcgfx_gl_target_scale(const GfxTarget *t) {
+float pcgfx_gl_target_scale(const GfxTarget *t) {
     return t != NULL ? t->s : scale();
+}
+
+void pcgfx_gl_target_px(const GfxTarget *t, int *pw, int *ph, float *sx, float *sy) {
+    *pw = t->pw;
+    *ph = t->ph;
+    *sx = (float)t->pw / (float)t->w;
+    *sy = (float)t->ph / (float)t->h;
+}
+
+/* A scale that keeps w x h within the GPU's largest render target. */
+static float fit_scale(int w, int h, float s) {
+    if (G.max_size > 0 && (pcgfx_scaled(w, s) > G.max_size || pcgfx_scaled(h, s) > G.max_size)) {
+        float a = (float)G.max_size / (float)w, b = (float)G.max_size / (float)h;
+        s = a < b ? a : b;
+        s = s < 1.0f ? 1.0f : floorf(s * 64.0f) / 64.0f;
+    }
+    return s;
 }
 
 static int target_rows(const GfxTarget *t);
@@ -210,6 +234,14 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
     }
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    {
+        GLint tex = 0, rb = 0;
+        glGetIntegerv(GL_MAX_TEXTURE_SIZE, &tex);
+        glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &rb);
+        G.max_size = tex < rb ? tex : rb;
+        while (glGetError() != GL_NO_ERROR)
+            ;
+    }
     return 0;
 }
 
@@ -285,7 +317,7 @@ static void drop_unused_depths(void) {
         GfxDepth *d = *pd;
         const GfxTarget *t;
         for (t = G.targets; t != NULL; t = t->next)
-            if (t->w == d->w && t->h == d->h && t->s == d->s)
+            if (t->w == d->w && t->h == d->h && t->pw == d->pw && t->ph == d->ph)
                 break;
         if (t != NULL) {
             pd = &d->next;
@@ -299,7 +331,8 @@ static void drop_unused_depths(void) {
 
 GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
     GfxTarget *t = pcgfx_gl_find_target(addr);
-    int s = scale(), resized = t != NULL;
+    float s = fit_scale(w, h, scale());
+    int resized = t != NULL;
     static const float black[4] = {0, 0, 0, 1};
     if (t != NULL && t->w == w && t->h == h && t->s == s) {
         G.last = t;
@@ -316,9 +349,11 @@ GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
     t->w = w;
     t->h = h;
     t->s = s;
+    t->pw = pcgfx_scaled(w, s);
+    t->ph = pcgfx_scaled(h, s);
     t->depth = NULL;
     glBindTexture(GL_TEXTURE_2D, t->color);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w * s, h * s, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t->pw, t->ph, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     bind_fbo(t->fbo);
@@ -335,12 +370,10 @@ GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
 
 void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
     GfxDepth *d;
-    int s;
     if (t == NULL)
         return;
-    s = t->s;
     for (d = G.depths; d != NULL; d = d->next)
-        if (d->addr == zaddr && d->w == t->w && d->h == t->h && d->s == s)
+        if (d->addr == zaddr && d->w == t->w && d->h == t->h && d->pw == t->pw && d->ph == t->ph)
             break;
     if (d == NULL) {
         float one = 1.0f;
@@ -348,10 +381,11 @@ void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
         d->addr = zaddr;
         d->w = t->w;
         d->h = t->h;
-        d->s = s;
+        d->pw = t->pw;
+        d->ph = t->ph;
         glGenRenderbuffers(1, &d->rb);
         glBindRenderbuffer(GL_RENDERBUFFER, d->rb);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, t->w * s, t->h * s);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, t->pw, t->ph);
         d->next = G.depths;
         G.depths = d;
         t->depth = NULL;
@@ -369,14 +403,21 @@ void pcgfx_gl_attach_depth(GfxTarget *t, const void *zaddr) {
     }
 }
 
+/* N64 pixel edges to internal pixels by pcgfx_edge, the rule GL covers rectangles by (rows in GL's y-up window
+ * coordinates, where its tie rule works), so a scissor or a clear and the rectangles beside it meet without a gap
+ * or an overlap at any scale (GFX.md "Resolution and scale"). */
 static void set_scissor(const GfxTarget *t, const int32_t r[4]) {
-    int s = t->s;
     int x0 = r[0] < 0 ? 0 : r[0], y0 = r[1] < 0 ? 0 : r[1];
     int x1 = r[2] > t->w ? t->w : r[2], y1 = r[3] > t->h ? t->h : r[3];
+    int px0, px1, py0, py1;
     if (x1 < x0) x1 = x0;
     if (y1 < y0) y1 = y0;
+    px0 = pcgfx_edge(x0, t->w, t->pw);
+    px1 = pcgfx_edge(x1, t->w, t->pw);
+    py0 = pcgfx_edge(t->h - y1, t->h, t->ph);   /* GL rows, from the bottom */
+    py1 = pcgfx_edge(t->h - y0, t->h, t->ph);
     glEnable(GL_SCISSOR_TEST);
-    glScissor(x0 * s, (t->h - y1) * s, (x1 - x0) * s, (y1 - y0) * s);
+    glScissor(px0, py0, px1 - px0, py1 - py0);
 }
 
 static void note_rows(GfxTarget *t, int32_t bottom) {
@@ -390,7 +431,7 @@ void pcgfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float 
     if (t == NULL)
         return;
     bind_fbo(t->fbo);
-    glViewport(0, 0, t->w * t->s, t->h * t->s);
+    glViewport(0, 0, t->pw, t->ph);
     set_scissor(t, rect);
     if (depth) {
         if (t->depth == NULL)
@@ -501,6 +542,7 @@ GfxShader *pcgfx_gl_shader(const GfxShaderKey *key) {
     s->u_lodfrac = glGetUniformLocation(prog, "uLodFrac");
     s->u_noise = glGetUniformLocation(prog, "uNoise");
     s->u_scale = glGetUniformLocation(prog, "uScale");
+    s->u_target = glGetUniformLocation(prog, "uTarget");
     glUseProgram(prog);
     glUniform1i(glGetUniformLocation(prog, "uTex0"), 0);
     glUniform1i(glGetUniformLocation(prog, "uTex1"), 1);
@@ -530,7 +572,7 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     if (t == NULL || sh == NULL || n <= 0)
         return;
     bind_fbo(t->fbo);
-    glViewport(0, 0, t->w * t->s, t->h * t->s);
+    glViewport(0, 0, t->pw, t->ph);
     glUseProgram(sh->prog);
     glUniform4fv(sh->u_prim, 1, st->prim);
     glUniform4fv(sh->u_env, 1, st->env);
@@ -540,7 +582,10 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     glUniform1f(sh->u_primlod, st->prim_lod);
     glUniform1f(sh->u_lodfrac, st->lod_frac);
     glUniform1f(sh->u_noise, st->noise_seed);
-    glUniform1f(sh->u_scale, st->scale);
+    /* N64 pixels to internal ones, per axis (the LOD's steps, point-sampled rectangles: gfx_combine.c) */
+    glUniform2f(sh->u_scale, (float)t->pw / (float)t->w, (float)t->ph / (float)t->h);
+    if (sh->u_target >= 0)
+        glUniform4i(sh->u_target, t->w, t->h, t->pw, t->ph);
     if (st->lod_levels) {
         glUniform4fv(sh->u_loda, GFX_LOD_MAX, &st->lod_a[0][0]);
         glUniform2fv(sh->u_lodb, GFX_LOD_MAX, &st->lod_b[0][0]);
@@ -605,13 +650,12 @@ void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
 }
 
 void pcgfx_gl_present_image(GfxTarget *t) {
-    int s, rows, pw, ph;
+    int rows, pw, ph;
     if (t == NULL)
         return;
-    s = t->s;
     rows = target_rows(t);
-    pw = t->w * s;
-    ph = rows * s;
+    pw = t->pw;
+    ph = t->ph - pcgfx_edge(t->h - rows, t->h, t->ph);   /* the internal rows of N64 rows 0 .. rows */
     if (G.present_fbo == 0) {
         glGenFramebuffers(1, &G.present_fbo);
         glGenTextures(1, &G.present_tex);
@@ -626,17 +670,19 @@ void pcgfx_gl_present_image(GfxTarget *t) {
     }
     glDisable(GL_SCISSOR_TEST);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    /* N64 row 0 is the top: GL rows (h - rows) .. h of the target */
+    /* N64 row 0 is the top: GL rows ph - shown .. ph of the target */
     glBindFramebuffer(GL_READ_FRAMEBUFFER, t->fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, G.present_fbo);
-    glBlitFramebuffer(0, (t->h - rows) * s, pw, t->h * s, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, t->ph - ph, pw, t->ph, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     G.present_valid = 1;
     G.present_fw = t->w;
     G.present_rows = rows;
 }
 
 /* Clear the window (or the headless window's image) and blit (sx0, sy0)-(sx0 + pw, sy0 + ph) of src into it: a
- * frame fw x rows N64 pixels, with square pixels, at a whole multiple when one fits, else aspect fit. src 0: none. */
+ * frame fw x rows N64 pixels, with square pixels, placed by pcgfx_fit (gfx_size.c): at a native scale, pixel for
+ * pixel when it was drawn for this window, else fitted; otherwise at a whole multiple when one fits, else aspect
+ * fit. src 0: none. */
 static void show_from(GLuint src, int sx0, int sy0, int pw, int ph, int fw, int rows, int win_w, int win_h,
                       int to_window) {
     static const float black[4] = {0, 0, 0, 1};
@@ -665,23 +711,10 @@ static void show_from(GLuint src, int sx0, int sy0, int pw, int ph, int fw, int 
         glClearBufferfv(GL_COLOR, 0, black);
     }
     if (src != 0 && fw > 0 && rows > 0 && win_w > 0 && win_h > 0) {
-        /* square N64 pixels; integer multiples when they fit, else aspect fit */
-        int k = win_w / fw < win_h / rows ? win_w / fw : win_h / rows, dw, dh, dx, dy;
-        if (k >= 1) {
-            dw = fw * k;
-            dh = rows * k;
-        } else if ((long)win_w * rows > (long)win_h * fw) {
-            dh = win_h;
-            dw = win_h * fw / rows;
-        } else {
-            dw = win_w;
-            dh = win_w * rows / fw;
-        }
-        dx = (win_w - dw) / 2;
-        dy = (win_h - dh) / 2;
+        int r[4], exact = pcgfx_fit(pw, ph, fw, rows, win_w, win_h, pcgfx_cfg.internal_scale < 0.0f, r);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, src);
-        glBlitFramebuffer(sx0, sy0, sx0 + pw, sy0 + ph, dx, dy, dx + dw, dy + dh, GL_COLOR_BUFFER_BIT,
-                          (dw % pw == 0 && dh % ph == 0) ? GL_NEAREST : GL_LINEAR);
+        glBlitFramebuffer(sx0, sy0, sx0 + pw, sy0 + ph, r[0], r[1], r[0] + r[2], r[1] + r[3], GL_COLOR_BUFFER_BIT,
+                          exact ? GL_NEAREST : GL_LINEAR);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     G.bound_fbo = 0;
@@ -693,17 +726,17 @@ void pcgfx_gl_show(int win_w, int win_h, int to_window) {
 }
 
 void pcgfx_gl_show_target(GfxTarget *t, int rows, int win_w, int win_h, int to_window) {
-    int s;
+    int ph;
     if (t == NULL)
         return;
-    s = t->s;
     if (rows <= 0 || rows > t->h)
         rows = t->h;
-    /* N64 row 0 is the top: GL rows (h - rows) .. h of the target, as the present copies them */
-    show_from(t->fbo, 0, (t->h - rows) * s, t->w * s, rows * s, t->w, rows, win_w, win_h, to_window);
+    /* N64 row 0 is the top: the internal rows of N64 rows 0 .. rows, as the present copies them */
+    ph = t->ph - pcgfx_edge(t->h - rows, t->h, t->ph);
+    show_from(t->fbo, 0, t->ph - ph, t->pw, ph, t->w, rows, win_w, win_h, to_window);
 }
 
-GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, int s) {
+GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, float s) {
     static const float black[4] = {0, 0, 0, 1};
     float one = 1.0f;
     if (t != NULL && t->w == w && t->h == h && t->s == s)
@@ -725,14 +758,16 @@ GfxTarget *pcgfx_gl_aux_target(GfxTarget *t, int w, int h, int s) {
     }
     t->w = t->depth->w = w;
     t->h = t->depth->h = h;
-    t->s = t->depth->s = s;
+    t->s = s;
+    t->pw = t->depth->pw = pcgfx_scaled(w, s);
+    t->ph = t->depth->ph = pcgfx_scaled(h, s);
     t->vis_h = 0;
     glBindTexture(GL_TEXTURE_2D, t->color);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w * s, h * s, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t->pw, t->ph, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindRenderbuffer(GL_RENDERBUFFER, t->depth->rb);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w * s, h * s);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, t->pw, t->ph);
     bind_fbo(t->fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t->color, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, t->depth->rb);
@@ -852,12 +887,10 @@ static int read_fbo(GLuint fbo, int x, int y, int w, int h, uint8_t *rgba) {
 }
 
 int pcgfx_gl_read_target(GfxTarget *t, uint8_t *rgba, int *w, int *h) {
-    int s;
     if (t == NULL)
         return -1;
-    s = t->s;
-    *w = t->w * s;
-    *h = t->h * s;
+    *w = t->pw;
+    *h = t->ph;
     if (rgba == NULL)
         return 0;
     return read_fbo(t->fbo, 0, 0, *w, *h, rgba);

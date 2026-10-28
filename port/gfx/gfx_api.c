@@ -1,7 +1,8 @@
 /* port/gfx/gfx_api.c: the pc_gfx_* interface (port/include/pc_port.h).
  *
  * Environment: RUSH_GFX_API=auto|gl|gles (which API to try first: pcgfx_want_gles),
- * RUSH_GFX_SCALE=<n>|auto (internal resolution multiple; auto: the largest the window shows whole),
+ * RUSH_GFX_SCALE=native|auto|<n> (internal resolution: native, the window's own pixels; auto, the largest whole
+ * multiple the window shows whole; or a multiple, 1-8, any fraction up to 16 for tests and tools),
  * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
@@ -42,6 +43,7 @@ void pcgfx_tex_cache_clear(void);
 static struct {
     int inited, headless, use_sdl;
     int win_w, win_h;
+    int render_w, render_h;   /* the size the native and auto scales fit instead of the window's; 0 the window's */
     uint32_t vi;              /* the last retrace (pc_gfx_retrace) */
     GfxTarget *shown;         /* high frame rate: the target last shown instead of the presented image, or NULL */
     int shown_rows;
@@ -81,27 +83,69 @@ float pc_gfx_parse_aspect(const char *text, int *ok) {
 
 /* The values in effect, taken at init and at each present, so a resize applies from the next frame's color image:
  * - the aspect: the setting, or the window's for auto;
- * - the scale: the setting, or for auto the largest whole multiple of the next frame (the last one's 4:3 frame,
- *   widened to that aspect, and its rows shown) that the window holds, so the present shows it pixel for pixel. */
+ * - the scale: the setting; for native the next frame's fit in the window (the last one's 4:3 frame, widened to
+ *   that aspect, and its rows shown), any fraction, so it is drawn at the window's own pixels; for auto the largest
+ *   whole multiple of it that the window holds, so the present shows it pixel for pixel. A render size
+ *   (pc_gfx_set_render_size: video.resolution in desktop fullscreen) stands in for the window's. */
 static void resolve_auto(void) {
     GfxTarget *t = S.inited ? pcgfx_gl_last_target() : NULL;
-    float a = pcgfx_cfg.widescreen;
-    int s = pcgfx_cfg.internal_scale;
+    float a = pcgfx_cfg.widescreen, s = pcgfx_cfg.internal_scale;
+    int rw = S.render_w > 0 ? S.render_w : S.win_w, rh = S.render_h > 0 ? S.render_h : S.win_h;
     if (a < 0.0f)
         a = S.win_h > 0 ? (float)S.win_w / (float)S.win_h : 0.0f;
     pcgfx_cfg.aspect = a > 4.0f / 3.0f + 1e-4f ? a : 0.0f;
-    if (s <= 0) {
-        int fw = 320, rows = pcgfx_cfg.frame_height > 0 ? pcgfx_cfg.frame_height : 240, w;
+    if (s <= 0.0f) {
+        int fw = 320, rows = pcgfx_cfg.frame_height > 0 ? pcgfx_cfg.frame_height : 240;
         if (t != NULL) {
             int tw, th;
             pcgfx_gl_target_shown(t, &tw, &rows);
             pcgfx_gl_target_dims(t, &tw, &th);
             fw = th * 4 / 3;
         }
-        w = pcgfx_wide_width(fw);
-        s = S.win_w / w < S.win_h / rows ? S.win_w / w : S.win_h / rows;
+        s = pcgfx_window_scale(s < 0.0f ? -1 : 0, rw, rh, pcgfx_wide_width(fw), rows);
     }
-    pcgfx_cfg.scale = s < 1 ? 1 : s > 8 ? 8 : s;
+    pcgfx_cfg.scale = s < 1.0f ? 1.0f : s > PCGFX_SCALE_MAX ? (float)PCGFX_SCALE_MAX : s;
+}
+
+/* "native" -1, "auto" 0, "n64" 1, else a multiple from 1 to 16. *ok = 0 for anything else (and 1 is returned). */
+float pc_gfx_parse_scale(const char *text, int *ok) {
+    char *end;
+    double v;
+    *ok = 1;
+    if (text != NULL && !strcmp(text, "native"))
+        return -1.0f;
+    if (text != NULL && !strcmp(text, "auto"))
+        return 0.0f;
+    if (text != NULL && !strcmp(text, "n64"))
+        return 1.0f;
+    v = text != NULL ? strtod(text, &end) : 0.0;
+    if (text != NULL && end != text && *end == '\0' && v >= 1.0 && v <= PCGFX_SCALE_MAX)
+        return (float)v;
+    *ok = 0;
+    return 1.0f;
+}
+
+/* The size the native and auto scales fit (video.resolution in desktop fullscreen; 0 x 0: the window's). The frame
+ * is then drawn for that size and shown fitted to the window. */
+void pc_gfx_set_render_size(int w, int h) {
+    S.render_w = w > 0 && h > 0 ? w : 0;
+    S.render_h = w > 0 && h > 0 ? h : 0;
+    resolve_auto();
+}
+
+int pc_gfx_framebuffer_dims(const void *cimg, int *n64_w, int *n64_h, int *px_w, int *px_h) {
+    GfxTarget *t;
+    float sx, sy;
+    if (!S.inited)
+        return -1;
+    t = pcgfx_gl_find_target(pcgfx_resolve((uintptr_t)cimg));
+    if (t == NULL)
+        t = pcgfx_gl_last_target();
+    if (t == NULL)
+        return -1;
+    pcgfx_gl_target_dims(t, n64_w, n64_h);
+    pcgfx_gl_target_px(t, px_w, px_h, &sx, &sy);
+    return 0;
 }
 
 void pc_gfx_set_widescreen(float aspect) {
@@ -110,7 +154,12 @@ void pc_gfx_set_widescreen(float aspect) {
 }
 
 void pc_gfx_set_scale(int scale) {
-    pcgfx_cfg.internal_scale = scale >= 0 && scale <= 8 ? scale : 1;
+    pcgfx_cfg.internal_scale = scale >= -1 && scale <= 8 ? (float)scale : 1.0f;
+    resolve_auto();
+}
+
+void pc_gfx_set_scale_value(float scale) {
+    pcgfx_cfg.internal_scale = scale >= -1.0f && scale <= (float)PCGFX_SCALE_MAX ? scale : 1.0f;
     resolve_auto();
 }
 
@@ -188,12 +237,15 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     int want_gles = pcgfx_want_gles(getenv("RUSH_GFX_API")), is_gles = want_gles;
     if (S.inited)
         return 0;
-    if (getenv("RUSH_GFX_SCALE") != NULL && !strcmp(getenv("RUSH_GFX_SCALE"), "auto"))
-        pcgfx_cfg.internal_scale = 0;
-    else
-        pcgfx_cfg.internal_scale = env_int("RUSH_GFX_SCALE", pcgfx_cfg.internal_scale);
-    if (pcgfx_cfg.internal_scale < 0 || pcgfx_cfg.internal_scale > 8)
-        pcgfx_cfg.internal_scale = 1;
+    if (getenv("RUSH_GFX_SCALE") != NULL && *getenv("RUSH_GFX_SCALE")) {
+        int ok;
+        float s = pc_gfx_parse_scale(getenv("RUSH_GFX_SCALE"), &ok);
+        if (ok)
+            pcgfx_cfg.internal_scale = s;
+        else
+            fprintf(stderr, "gfx: RUSH_GFX_SCALE=%s is not native, auto or a multiple from 1 to %d; ignored\n",
+                    getenv("RUSH_GFX_SCALE"), PCGFX_SCALE_MAX);
+    }
     pcgfx_cfg.frame_height = env_int("RUSH_GFX_HEIGHT", pcgfx_cfg.frame_height);
     pcgfx_cfg.verbose = env_int("RUSH_GFX_VERBOSE", pcgfx_cfg.verbose);
     pcgfx_cfg.trace_task = env_int("RUSH_GFX_TRACE", 0);
