@@ -40,6 +40,9 @@ everything a night of testing on the retail cartridge found.
   long, a float conversion that differed on ARM, and three more ([SANITIZE.md](docs/port/SANITIZE.md)).
 - **The same picture on any GPU** at native resolution: rectangles land on whole pixels and triangles are clipped
   before the GPU's own clipper, so a one-pixel seam can't depend on the driver ([GFX.md](docs/port/GFX.md)).
+- **Stutter at a high frame rate with vsync on** (60, 120 or `display` with `video.vsync`, its default): most frames
+  between were skipped. The frames are now paced by the display's refresh, one for each, drawn for the moment it
+  appears ([FRAMERATE.md](docs/port/FRAMERATE.md) 2).
 
 ### New
 

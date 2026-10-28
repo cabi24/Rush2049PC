@@ -1140,6 +1140,19 @@ static RFrame *next_frame(void) {
     return best;
 }
 
+/* 1 when the frame for vt would be drawn between the frame shown and the game's next one, which isn't drawn yet: the
+ * main loop then waits for the game's graphics task while the tick still makes its vblank (pc_gfx_tick_waits). */
+int pcgfx_hfr_wants_next(double vt) {
+    RFrame *b = H.cur;
+    double period = 2.0, a;
+    if (b == NULL || b->shown < 0 || !b->ok || b->n3d == 0 || next_frame() != NULL)
+        return 0;
+    if (H.prev_shown >= 0 && b->shown - H.prev_shown >= 1 && b->shown - H.prev_shown <= 4)
+        period = (double)(b->shown - H.prev_shown);
+    a = (vt - (double)b->shown) / period;
+    return a > 0.0 && a < 1.0;
+}
+
 int pcgfx_hfr_frame(double vt, GfxTarget **show, int *rows, int mode) {
     RFrame *b = H.cur, *c, *r, *o;
     double period = 2.0, a;
