@@ -187,17 +187,28 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 \
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 ccache \
             zlib1g-dev libegl-dev libgles-dev libsdl2-dev libasound2-dev
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
           # GCC 13's sanitizer runtimes predate 32 bits of mmap randomization, which can place a mapping inside
           # their shadow memory
           sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-sanitize-${{ matrix.os }}-${{ github.sha }}
+          restore-keys: ccache-sanitize-${{ matrix.os }}-
       - name: Configure
-        run: cmake -S . -B build/san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRUSH_SANITIZE=${{ matrix.sanitize }}
+        run: |
+          cmake -S . -B build/san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRUSH_SANITIZE=${{ matrix.sanitize }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
       - name: Build
         run: |
           set -o pipefail
+          ccache -z -M 1G > /dev/null
           cmake --build build/san -j4 2>&1 | cut -c1-2000
+          ccache -s | grep -iE "hits|misses|cache size" || true
       - name: Tests
         # audio_realtime and input_live_drive measure real time, which the sanitizers slow down.
         run: ctest --test-dir build/san --output-on-failure -j4 -E '^(audio_realtime|input_live_drive)$'
