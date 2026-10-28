@@ -248,8 +248,8 @@ extern Ent D_8012E700[];
 extern Animation24 *D_801391F0;
 extern f32 D_8011418C[];
 #ifdef TARGET_PC
-/* PC: D_80118C10 is ROM data the loader byte-swaps by its declaration, and every word of it is an f32: 11 bodies of
- * 32 bytes (CollisionReckon's Body in random_float.c: the bounds, then mass at +0x1C), then the static state records
+/* PC: D_80118C10 is ROM data the loader byte-swaps by its declaration, and every word of it is an f32: bodies of 32
+ * bytes (CollisionReckon's Body in random_float.c: the bounds, then mass at +0x1C), then the static state records
  * of categories 0-2 (D_80118DDC). As u8[] the floats stayed big-endian, so a kind-4 object's bounds and mass read as
  * about 0 (docs/port/DATA.md 8). The record address is still taken in bytes. */
 extern f32 D_80118C10[115];
