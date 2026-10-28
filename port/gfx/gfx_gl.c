@@ -34,7 +34,6 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
     X(PFNGLBLENDFUNCSEPARATEPROC, glBlendFuncSeparate) \
     X(PFNGLBLITFRAMEBUFFERPROC, glBlitFramebuffer) \
     X(PFNGLBUFFERDATAPROC, glBufferData) \
-    X(PFNGLBUFFERSUBDATAPROC, glBufferSubData) \
     X(PFNGLCHECKFRAMEBUFFERSTATUSPROC, glCheckFramebufferStatus) \
     X(PFNGLCLEARBUFFERFVPROC, glClearBufferfv) \
     X(PFNGLCOLORMASKPROC, glColorMask) \
@@ -73,6 +72,7 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
     X(PFNGLGETSTRINGPROC, glGetString) \
     X(PFNGLGETUNIFORMLOCATIONPROC, glGetUniformLocation) \
     X(PFNGLLINKPROGRAMPROC, glLinkProgram) \
+    X(PFNGLMAPBUFFERRANGEPROC, glMapBufferRange) \
     X(PFNGLPIXELSTOREIPROC, glPixelStorei) \
     X(PFNGLPOLYGONOFFSETPROC, glPolygonOffset) \
     X(PFNGLREADBUFFERPROC, glReadBuffer) \
@@ -88,6 +88,7 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
     X(PFNGLUNIFORM2FVPROC, glUniform2fv) \
     X(PFNGLUNIFORM4IPROC, glUniform4i) \
     X(PFNGLUNIFORM4FVPROC, glUniform4fv) \
+    X(PFNGLUNMAPBUFFERPROC, glUnmapBuffer) \
     X(PFNGLUSEPROGRAMPROC, glUseProgram) \
     X(PFNGLVERTEXATTRIBPOINTERPROC, glVertexAttribPointer) \
     X(PFNGLVIEWPORTPROC, glViewport)
@@ -325,14 +326,17 @@ static void dc_tex_params(int unit, GLuint tex, int linear, int repeat_s, int re
     tex_params_note(tex, bits);
 }
 
-/* The vertex buffer as a stream: each draw's vertices go after the last one's, and the buffer is orphaned (new
- * storage, the old one left to the draws that read it) only when it is full, so the driver neither waits for the
- * GPU nor makes a buffer per draw. Returns the first vertex's index for glDrawArrays. */
+/* The vertex buffer as a stream: each draw's vertices go after the last one's, written through an unsynchronized
+ * mapping of just their range, and the buffer is orphaned (new storage, the old one left to the draws that read it)
+ * only when it is full. So the driver neither waits for the GPU nor makes a buffer per draw. (glBufferSubData into a
+ * buffer the frame's draws use made the Pi's V3D finish its tiles at each draw: a frame of the game took a second.)
+ * Returns the first vertex's index for glDrawArrays. */
 #define VBO_SIZE ((size_t)4 << 20)
 
 static GLint stream_vertices(const GfxOutVtx *v, int n) {
     size_t bytes = sizeof(*v) * (size_t)n;
     GLint first;
+    void *dst;
     glBindBuffer(GL_ARRAY_BUFFER, G.vbo);
     if (G.vbo_used + bytes > G.vbo_size) {
         size_t size = bytes > VBO_SIZE ? bytes : VBO_SIZE;
@@ -340,7 +344,15 @@ static GLint stream_vertices(const GfxOutVtx *v, int n) {
         G.vbo_size = size;
         G.vbo_used = 0;
     }
-    glBufferSubData(GL_ARRAY_BUFFER, (GLintptr)G.vbo_used, (GLsizeiptr)bytes, v);
+    dst = glMapBufferRange(GL_ARRAY_BUFFER, (GLintptr)G.vbo_used, (GLsizeiptr)bytes,
+                           GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_INVALIDATE_RANGE_BIT);
+    if (dst == NULL) {   /* no mapping: a buffer of their own, as data */
+        glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)bytes, v, GL_STREAM_DRAW);
+        G.vbo_size = G.vbo_used = bytes;
+        return 0;
+    }
+    memcpy(dst, v, bytes);
+    glUnmapBuffer(GL_ARRAY_BUFFER);
     first = (GLint)(G.vbo_used / sizeof(*v));
     G.vbo_used += bytes;
     return first;
