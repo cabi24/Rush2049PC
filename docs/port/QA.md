@@ -41,6 +41,15 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 
 | Path | How | Result |
 |---|---|---|
+| all cars | the ALL CARS cheat, every car on the car select, a race with the last | each car's model loads and turns; the race runs. The top speed and acceleration bars are the same for every car (control and strength differ): unverified against the N64 (the bars multiply per-car tuning tables that are all zero in the attract demo) |
+| audio, video, controls screens | every row of the main menu's audio and video screens, each value changed both ways, RESET TO DEFAULTS; the player screen's controls screen, every row | as the code says |
+| two players with a pak | controller 1's pak with a player on it; player 1 picks it, player 2 walks its pak row | works for player 1; player 2's row offers controllers 2-4 only, each "no controller pak" or "not connected": the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c), so players 2-4 can't save |
+| a two-player battle quit from the pause screen | battle, 15 s, pause, QUIT | faulted (fix 5); now the game over screen |
+| a ghost saved and raced | the ghost race of one lap set first (ghost mode keeps three), car 0 marked finished with gdb mid-race (no script finishes three laps in the time limit, even with super speed), then RACE AGAIN | the ghost is compressed and saved to the pak at the race's end, and RACE AGAIN loads it: that second race's start faulted (fix 5); with the fix the race against the ghost runs (two cars, the place out of two, the ghost on the map) |
+| circuit to its end | laps set to 1 in a single race first, then the circuit | not reached: the circuit keeps its own laps, and a gas-only car takes longer than the run allowed for its first race; the inter-race standings are still untried |
+| back to back | cycles of a race in a mode (single, practice, stunt), quit from the pause screen, the game over screen's Quit | the second race faulted (fix 5); with the fix seven races in a row, no fault |
+| long session | the attract demo for an hour of game time, its memory sampled | 80 demo cycles, no fault; the resident memory stays flat |
+| mode 5 (the obstacle course) to its end | the unlock cheat, mode 5, gas and steering until its time runs out | the time limit ends it (DNF), the game over screen |
 | unlocked tracks | the unlock cheat (ALL TRACKS), then a race on the sixth race track, mode 5 (the obstacle course, track 18), stunt arenas 15-17 and, two players, battle arenas 10-13 | each starts and runs 20 s of driving; no fault; no spikes in the frame dumps but a lit wall beside the camera on track 5 |
 
 ## Found and fixed
@@ -102,9 +111,11 @@ Each player gets a packet at the race start (func_800D63EC: a Link, a type and a
 the player record as a window address. Two functions reached it at the N64's offsets, where on the PC the Link's
 two host pointers make it 8 bytes longer: main_menu_input, which copies the listener's vectors into it every frame,
 wrote them from +0x0C (over the link's prev pointer and the two bytes), and object_activate, which gives it back at
-the race's end, read and wrote the type and ready bytes at +8 and +9 (the prev pointer again). A single race only
-corrupted the lists (the read found the head's NULL prev, so the packet stayed in both); quitting a two-player battle
-from the pause screen unlinked through the corrupted pointer and faulted (retail and synthetic cartridges alike).
+the race's end, read and wrote the type and ready bytes at +8 and +9 (the prev pointer again). A single race
+corrupted the lists (the read found the head's NULL prev, so the packet stayed in both, and the write made its prev
+1), and the next race's allocation unlinked through it: on the retail cartridge, a second race after a race quit from
+the pause screen, and a ghost race's RACE AGAIN, faulted at address 0x1. Quitting a two-player battle from the pause
+screen faulted at once (retail and synthetic cartridges alike).
 
 Fix: object_activate's offsets go through `PKT(n)` (host `2 * sizeof(void *) + n - 8`) and main_menu_input's `Node`
 has the packet's host layout, both under `TARGET_PC`. Either alone is not enough: with only the first, the packet's
@@ -126,19 +137,16 @@ func_800D63EC returns (LAYOUT.md 9).
 
 ## Left
 
-- **Ghost races**: a ghost race reaches its results and RACE AGAIN, but a script driving with the gas alone can't
-  finish its three laps within the time limit, even with the super speed cheat, so no ghost was saved, compressed
-  (zlib) or raced against. That needs a run with real steering (a recorded input script, or a person).
-- **A battle to its end** (a points limit, or the time limit when set): not run (gas-only cars score nothing, and
-  the default time is long). Its end goes through the same func_800E7DD0, but not through gStuntsDone.
-- **The Expansion Pak is off by default** (`game.expansion_pak`): without it the sixth race track can't be chosen
-  (OptionValid, and the unlock code), and the per-track animated objects, the front end's song and the extra race
-  WADs are skipped. With `--expansion-pak` the demo, the races tried and the sixth track run. Whether the PC should
-  default to it is a product decision.
-- **Unlockable content** beyond the cheat: tracks 4-5, stunt arenas 15-17, battle arenas 10-13 and mode 5 (track
-  18) unlock through circuit and stunt results; only track 4 was raced (through the unlock cheat).
-- **Not reached on the retail cartridge**: the audio, video and controls screens' every row; the records screen's
-  other pages; circuit mode to its end; a controller pak on players 2-4; the rumble pak; a window (`--window`) and
-  sound through a device.
+- **Ghost races**: saved, loaded and raced (round 2) only with car 0 marked finished by gdb: a script driving with
+  the gas alone can't finish a ghost race's three laps within its time limit, even with super speed. A ghost from a
+  real finish, and the ghost menu that picks a saved ghost on the car select, are untried.
+- **A battle to its end**: the track select offers only a points limit for battle, and points come from kills, which
+  a scripted pair of cars doesn't score; the battle's results run through the pause screen's quit (fix 5) instead.
+- **Controller paks on players 2-4**: the port gives only controller 1 an accessory (`game.pak`, port/ultra/si.c),
+  so players 2-4 can't load or save a player. A feature to add, not a game bug.
+- **The car select's stat bars**: top speed and acceleration are the same for every car; unverified against the N64.
+- **Not reached on the retail cartridge**: the records screen's pages beyond the totals; the rumble pak; a window
+  (`--window`) and sound through a device.
 - **Scripted runs and the user's pak**: without `--pak` or `--no-pak` a run uses, and on first use formats, the
   user's own `rush2049pc.mpk`. Tests and scripts should pass one of the two.
+- The Expansion Pak (`game.expansion_pak`) is on by default since round 1's note (4ce46fa).
