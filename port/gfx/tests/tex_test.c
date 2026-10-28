@@ -565,7 +565,7 @@ static int ch(const uint8_t *img, int w, int x, int y) {
 
 static void case_seams(void) {
     enum { N = 16 };
-    uint8_t in[N * N * 4], mir[2 * N * N * 4], *out = NULL;
+    uint8_t in[N * N * 4], turned[N * N * 4], mir[2 * N * N * 4], *out = NULL, *out2 = NULL;
     int x, y, worst_in, jump;
     for (y = 0; y < N; y++)
         for (x = 0; x < N; x++) {
@@ -575,24 +575,41 @@ static void case_seams(void) {
             p[2] = 50;
             p[3] = 255;
         }
-    /* wrap: the period's last column flows into its first as any column into the next */
+    /* wrap: the period's last column flows into its first as any column into the next. Across the t wrap (rows),
+     * where nothing jumps, red steps no more than inside. Across the s wrap the green ramp jumps: an edge of the
+     * texture itself, which an upscaler that looks at all channels together (port/upscale's network) sharpens in
+     * red too; so there red must step just as it does at the same place moved into the middle (the texture turned
+     * half a period in s), which any upscaler that wraps without a seam does. */
     CHECK(pcgfx_tex_upscale_image(in, N, N, 1, 1, 1, 2, &out) == 0, "upscale");
     if (out == NULL)
         return;
+    for (y = 0; y < N; y++)
+        for (x = 0; x < N; x++)
+            memcpy(turned + (y * N + x) * 4, in + (y * N + (x + N / 2) % N) * 4, 4);
+    CHECK(pcgfx_tex_upscale_image(turned, N, N, 1, 1, 1, 2, &out2) == 0, "upscale turned");
+    if (out2 == NULL) {
+        free(out);
+        return;
+    }
     worst_in = 0;
     jump = 0;
     for (y = 0; y < 2 * N; y++) {
-        for (x = 0; x + 1 < 2 * N; x++) {
-            int d = abs(ch(out, 2 * N, x + 1, y) - ch(out, 2 * N, x, y));
-            if (d > worst_in)
-                worst_in = d;
+        int s_seam = abs(ch(out, 2 * N, 0, y) - ch(out, 2 * N, 2 * N - 1, y));
+        int s_mid = abs(ch(out2, 2 * N, N, y) - ch(out2, 2 * N, N - 1, y));
+        for (x = 0; x < 2 * N; x++) {
+            if (y + 1 < 2 * N) {
+                int d = abs(ch(out, 2 * N, x, y + 1) - ch(out, 2 * N, x, y));
+                if (d > worst_in)
+                    worst_in = d;
+            }
         }
-        if (abs(ch(out, 2 * N, 0, y) - ch(out, 2 * N, 2 * N - 1, y)) > jump)
-            jump = abs(ch(out, 2 * N, 0, y) - ch(out, 2 * N, 2 * N - 1, y));
         if (abs(ch(out, 2 * N, y, 0) - ch(out, 2 * N, y, 2 * N - 1)) > jump)
             jump = abs(ch(out, 2 * N, y, 0) - ch(out, 2 * N, y, 2 * N - 1));
+        CHECK(abs(s_seam - s_mid) <= 2, "wrap seam in s, row %d: a step of %d across the edge, %d at the same place "
+              "inside", y, s_seam, s_mid);
     }
-    CHECK(jump <= worst_in + 4, "wrap seam: %d across the edge, at most %d inside", jump, worst_in);
+    free(out2);
+    CHECK(jump <= worst_in + 4, "wrap seam in t: %d across the edge, at most %d inside", jump, worst_in);
     free(out);
     out = NULL;
     /* mirror: the period is the texture and its mirror image (as the GL texture holds it), wrapping; upscaled, both
