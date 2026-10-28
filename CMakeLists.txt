@@ -497,10 +497,16 @@ add_executable(test_app port/app/tests/test_app.c port/app/paths.c)
 target_include_directories(test_app PRIVATE port/app port/include)
 target_compile_options(test_app PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 add_test(NAME app_paths COMMAND test_app ${CMAKE_BINARY_DIR}/test-scratch)
+# The saves (docs/port/RELEASE.md "Saves"): what a pak image is, the atomic write, the backups and their rotation,
+# a damaged pak set aside and the newest good backup put in its place, in a temporary folder.
+add_executable(test_saves port/app/tests/test_saves.c port/app/saves.c port/app/paths.c port/ultra/pakfile.c)
+target_include_directories(test_saves PRIVATE port/app port/ultra port/include)
+target_compile_options(test_saves PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+add_test(NAME app_saves COMMAND test_saves ${CMAKE_BINARY_DIR}/test-scratch-saves)
 add_test(NAME app_firstrun COMMAND ${PC_PYTHON} ${PORT_TOOLS}/firstrun_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM})
 set_tests_properties(app_firstrun PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
-set_target_properties(test_romcheck test_app PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+set_target_properties(test_romcheck test_app test_saves PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # A high frame rate leaves the game's timing alone (docs/port/GFX.md "High frame rate"): three paths on the virtual
 # clock with video.frame_rate original and 120, their state and status lines compared line for line
 # (tools/port/hfr_check.py), and frames drawn between the game's in the second run.

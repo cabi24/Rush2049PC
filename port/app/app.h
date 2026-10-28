@@ -134,6 +134,18 @@ void pc_app_finish(int code);
 int pc_app_load_rom(const PcAppDirs *d, const char *name, int from_command_line, int check_sha1, const char *config,
                     const char *remember, int window);
 
+/* ---------------------------------------------------------------- saves.c: the controller pak's file at start */
+
+/* Before the game reads a pak file (pc_si_init), for each pak file there is (any player's): one the game would write
+ * over (unreadable, the wrong size, a damaged ID block or file table) is renamed PATH.corrupt-DATE, and the newest
+ * good backup, if any, put in its place; a good one is copied to PATH.bak when it differs from it, the older
+ * backups moved to PATH.bak2 and PATH.bak3. Says what it did on the console, and in a message box (when window) for
+ * a pak set aside. Only the file at path and its own backups are touched. Returns PC_APP_SAVES_*. */
+enum { PC_APP_SAVES_OK, PC_APP_SAVES_NEW, PC_APP_SAVES_BACKED_UP, PC_APP_SAVES_RESTORED, PC_APP_SAVES_SET_ASIDE,
+       PC_APP_SAVES_LEFT, PC_APP_SAVES_N64 };
+int pc_app_saves_prepare(const char *path, int window);
+#define PC_APP_BACKUPS 3
+
 #ifdef __cplusplus
 }
 #endif
