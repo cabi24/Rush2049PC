@@ -43,6 +43,15 @@ typedef struct Entry {
 #endif
 } Entry;
 #ifdef TARGET_PC
+/* PC: a packet's type (N64 +8) and ready (+9) bytes follow its Link, two host pointers here (func_800D63EC's
+ * Packet, hud_speed_display's RecA), so they are at host +16 and +17. At the N64 offsets object_activate read and
+ * wrote the low bytes of the link's prev pointer: quitting a two-player battle unlinked through it and faulted
+ * (docs/port/QA.md 5). */
+#define PKT(n) (2 * (s32)sizeof(void *) + (n) - 8)
+#else
+#define PKT(n) n
+#endif
+#ifdef TARGET_PC
 /* PC: an input record is 80 bytes (its pointer at +0x48 is 8 bytes); +0x44 stays 32 bits and holds a packet's
  * window address (the packets are a heap block, func_800D63EC) or -1, which the node pointer zero-extends from
  * and -1 keeps (docs/port/POINTERS.md 10). */
@@ -70,12 +79,12 @@ __inline void object_activate(s32 *arg0)
     }
     osRecvMesg(&D_80142728, 0, 1);
     func_800D52CC(arg0);
-    if (((s8 *)arg0)[9] != 0) {
+    if (((s8 *)arg0)[PKT(9)] != 0) {
         func_8009211C(&D_80146188, arg0);
-        ((s8 *)arg0)[9] = 0;
+        ((s8 *)arg0)[PKT(9)] = 0;
     }
     func_80091FBC(&D_80146170, arg0, D_80146170.head);
-    ((s8 *)arg0)[8] = 1;
+    ((s8 *)arg0)[PKT(8)] = 1;
     osSendMesg(&D_80142728, 0, 0);
 }
 

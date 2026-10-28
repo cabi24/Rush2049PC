@@ -37,6 +37,12 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | pause | the pause menu and each of its screens: options (the HUD toggles), controls, audio, video (the test pattern), rumble pak (none: its prompt), back with B, then continue | as the code says |
 | ghost race (gRace 2) | track 0, three laps, gas only: the time limit ends it (DNF), the results, the game over screen, RACE AGAIN | the race restarts with its time limit; no ghost was saved (an unfinished race) |
 
+### Round 2 (Expansion Pak on by default)
+
+| Path | How | Result |
+|---|---|---|
+| unlocked tracks | the unlock cheat (ALL TRACKS), then a race on the sixth race track, mode 5 (the obstacle course, track 18), stunt arenas 15-17 and, two players, battle arenas 10-13 | each starts and runs 20 s of driving; no fault; no spikes in the frame dumps but a lit wall beside the camera on track 5 |
+
 ## Found and fixed
 
 ### 1. No cheat could be entered (the cheat codes' table in the ROM's byte order)
@@ -89,6 +95,23 @@ Fix: under `TARGET_PC` func_800E7DD0 reads the word's low half (`(s16)D_80152738
 symbol nested inside a wider one that code uses by both names (a scan of the data report and the C), so the class
 has no other case of this form; values read back in parts through views are ENDIAN.md's. Test: `assets_stuntend`
 runs func_800E7DD0 with the two names overlapping as in the arena; without the fix it says the round may not end.
+
+### 5. Quitting a two-player battle faulted (the players' packets at N64 offsets)
+
+Each player gets a packet at the race start (func_800D63EC: a Link, a type and a ready byte, four vectors), kept in
+the player record as a window address. Two functions reached it at the N64's offsets, where on the PC the Link's
+two host pointers make it 8 bytes longer: main_menu_input, which copies the listener's vectors into it every frame,
+wrote them from +0x0C (over the link's prev pointer and the two bytes), and object_activate, which gives it back at
+the race's end, read and wrote the type and ready bytes at +8 and +9 (the prev pointer again). A single race only
+corrupted the lists (the read found the head's NULL prev, so the packet stayed in both); quitting a two-player battle
+from the pause screen unlinked through the corrupted pointer and faulted (retail and synthetic cartridges alike).
+
+Fix: object_activate's offsets go through `PKT(n)` (host `2 * sizeof(void *) + n - 8`) and main_menu_input's `Node`
+has the packet's host layout, both under `TARGET_PC`. Either alone is not enough: with only the first, the packet's
+bytes read correctly and the unlink follows the prev pointer the vectors overwrote, and single-race quits fault.
+Tests: the synthetic `battlequit` path (a two-player battle quit from the pause screen) faults without the fixes;
+`offset_check --strict` now finds both (score 5): its ROLES types object_activate's parameter and, a new form, what
+func_800D63EC returns (LAYOUT.md 9).
 
 ## Not bugs (checked)
 

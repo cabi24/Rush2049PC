@@ -1,0 +1,27 @@
+# A two-player battle quit from the pause screen (docs/port/QA.md 5): the race end gives each player's pending
+# packet back (object_activate), then the game over screen. The packet's flag bytes follow its Link, and each
+# frame's listener copy (main_menu_input) writes its vectors after them: at the N64's offsets the two wrote the
+# link's prev pointer, and the unlink faulted.
+# until: 0x800000:200
+# seconds: 120
+# expect: state=0x00800000: players 2, windows 2
+5 A            # the controller pak warning
+8 START        # the start prompt
+9 RIGHT 0.1    # the main menu's first option: two players
+11 A           # the main menu: the race
+14 A           # the player screen: both ready
+14 A@2
+15 DOWN 0.1    # the mode screen: five modes down
+15.2 DOWN 0.1
+15.4 DOWN 0.1
+15.6 DOWN 0.1
+15.8 DOWN 0.1
+17 A           # battle mode
+20 A           # the track select: the battle arena
+23 A           # the car select: each player's car
+23 A@2
+30 START       # pause
+31 UP 0.1      # its last item, quit
+32 A           # are you sure?
+33 RIGHT 0.1   # yes
+34 A           # retired: the game over screen
