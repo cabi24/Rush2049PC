@@ -343,6 +343,8 @@ int pc_ultra_run(const PcRunOptions *opt)
     fprintf(stderr, "rush2049pc: %u retraces in %.1f s; %u came a whole retrace late and were caught up, %u dropped "
             "(the host stalled %u retraces or more)\n", pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped,
             VI_CATCH_UP);
+    fprintf(stderr, "rush2049pc: %u audio tasks; %u graphics tasks yielded to one\n", pc_rcp_audio_tasks,
+            pc_rcp_gfx_yields);
 #ifdef _WIN32
     timer_period(0);
 #endif

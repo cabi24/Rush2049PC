@@ -41,6 +41,8 @@ int32_t osPfsReadWriteFile(void *pfs, int32_t file, uint8_t flag, int32_t offset
 int32_t osPfsDeleteFile(void *pfs, uint16_t company, uint32_t game, uint8_t *name, uint8_t *ext);
 void osSpTaskLoad(void *task);
 void osSpTaskStartGo(void *task);
+void osSpTaskYield(void);
+uint32_t osSpTaskYielded(void *task);
 int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
@@ -470,6 +472,29 @@ static void t_rcp(void)
              (int)(intptr_t)m[2], pc_rcp_audio_tasks - before);
     check("RSP tasks and DP buffers", m[0] == (OSMesg)4 && m[1] == (OSMesg)4 && m[2] == (OSMesg)9 &&
                                           pc_rcp_audio_tasks - before == 1, d);
+    if (!pc_time_virtual()) {
+        /* In real time a graphics task the main loop hasn't taken yields when the game's scheduler asks (an audio
+         * task came): out of the queue with an SP event; osSpTaskYielded says so once and marks it, and
+         * osSpTaskLoad clears the mark when the scheduler starts it again. With nothing queued, nothing yields.
+         * (With --fast tasks run to completion, in order.) */
+        PcOSTask gfx = {0};
+        gfx.type = M_GFXTASK;
+        pc_rcp_hold_gfx(1);
+        osSpTaskStartGo(&gfx);
+        int queued = pc_rcp_pending();
+        osSpTaskYield();
+        int sp = osRecvMesg(q, &m[3], OS_MESG_NOBLOCK) == 0 && m[3] == (OSMesg)4;
+        uint32_t first = osSpTaskYielded(&gfx), flags = gfx.flags, second = osSpTaskYielded(&gfx);
+        osSpTaskLoad(&gfx);
+        osSpTaskYield();
+        int none = osRecvMesg(q, &m[3], OS_MESG_NOBLOCK) == -1;
+        int left = pc_rcp_pending();
+        pc_rcp_hold_gfx(0);
+        snprintf(d, sizeof d, "queued %d, SP %d, yielded %u then %u, flags %u then %u, a second SP %d, left %d",
+                 queued, sp, (unsigned)first, (unsigned)second, (unsigned)flags, (unsigned)gfx.flags, !none, left);
+        check("a graphics task yields", queued == 1 && sp && first == 1 && second == 0 && (flags & 1) &&
+                                            !(gfx.flags & 1) && none && left == 0, d);
+    }
     osSetEventMesg(OS_EVENT_SP, NULL, NULL);
     osSetEventMesg(OS_EVENT_DP, NULL, NULL);
 

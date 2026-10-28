@@ -91,7 +91,9 @@ void pc_vi_retrace(const void **present_fb);     /* main thread: one retrace; *p
 /* ---------------------------------------------------------------- rcp.c: RSP tasks and the AI */
 int pc_rcp_service(uint64_t now_ns, uint64_t *next_ns);   /* main thread, unlocked; nonzero if work was done */
 int pc_rcp_pending(void);                                  /* RSP tasks queued and not run yet */
+void pc_rcp_hold_gfx(int on);                              /* the selftest's: graphics tasks wait in the queue */
 extern uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks;     /* counts, for status lines */
+extern uint32_t pc_rcp_gfx_yields;                         /* graphics tasks that yielded to an audio task */
 extern int pc_rcp_stop_at_gfx;                            /* --stop-at-gfx: exit at the first graphics task */
 
 /* ---------------------------------------------------------------- romcheck.c, pi.c: ROM */
