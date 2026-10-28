@@ -124,7 +124,9 @@ static void timer_period(int on)
 #endif
 
 /* A test of a window's swap on a headless run (docs/port/AUDIO.md): RUSH_SIM_PRESENT_MS holds each present that
- * long (a slow GPU), then RUSH_SIM_VSYNC_HZ until the next vblank of a display at that rate (a vsync swap). */
+ * long (a slow GPU), then RUSH_SIM_VSYNC_HZ until the next vblank of a display at that rate (a vsync swap). Called
+ * where the window swaps: after a retrace's present, or with a high frame rate after a tick that showed a frame
+ * (the retrace's present then only keeps the frame for the ticks, and swaps nothing). */
 static void sim_swap(void)
 {
     static int read;
@@ -225,7 +227,8 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_vi_retrace(&fb);
             if (fb) {
                 pc_gfx_present(fb);
-                sim_swap();
+                if (pc_gfx_frame_rate() == 0)
+                    sim_swap();
             }
             if (opt->screenshot_at && !shot_vi && pc_rcp_gfx_tasks >= opt->screenshot_at)
                 shot_vi = pc_frame;
@@ -303,7 +306,8 @@ int pc_ultra_run(const PcRunOptions *opt)
                      * while the host is behind (two retraces dropped within a second) */
                     uint64_t r0 = pc_real_ns();
                     int mode = pc_time_virtual() ? 0 : late_at[0] && r0 - late_at[0] < 1000000000u ? 2 : 1;
-                    pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, mode);
+                    if (pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, mode))
+                        sim_swap();
                     tick_ns = (tick_ns * 3 + (pc_real_ns() - r0)) / 4;
                 } else {
                     ticks_skipped++;
