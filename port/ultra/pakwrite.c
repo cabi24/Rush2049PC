@@ -243,16 +243,23 @@ static int put(const char *path, const char *label, const void *data, size_t siz
     return 0;
 }
 
-/* Without the thread: the queue written here, in the caller (lock held, released for each write and message). */
+/* Without the thread: the queue written here, in the caller (lock held, released for each write and message). One
+ * caller at a time writes: another's submits meanwhile are written by its loop, so a file still has one write at a
+ * time. */
 static void write_here(void)
 {
+    static int writing;
     Message m;
+    if (writing)
+        return;
+    writing = 1;
     while (g_threadless && g_queued) {
         write_one(&m);
         pthread_mutex_unlock(&g_lock);
         say(&m);
         pthread_mutex_lock(&g_lock);
     }
+    writing = 0;
 }
 
 int pc_pakw_submit(const char *path, const char *label, const void *data, size_t size)
@@ -358,12 +365,13 @@ int pc_pakw_is_writer(void)
 }
 
 /* After a fault: no blocking on a lock the faulted thread may hold. The lock is tried for up to 50 ms (the main
- * loop or the writer hold it only for a copy); then the queue is left to the thread, polled without the lock. */
+ * loop or the writer hold it only for a copy); then the queue is left to the thread, polled without the lock. No
+ * thread is started from a fault handler: before the first submit there is nothing to hand over but a new pak. */
 int pc_pakw_fault_submit(const char *path, const char *label, const void *data, size_t size)
 {
     for (int i = 0; i < 50; i++) {
         if (pthread_mutex_trylock(&g_lock) == 0) {
-            int r = put(path, label, data, size);
+            int r = g_started || g_threadless ? put(path, label, data, size) : -1;
             write_here();
             pthread_mutex_unlock(&g_lock);
             return r;
