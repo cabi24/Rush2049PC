@@ -100,11 +100,13 @@ The F1 overlay's Video page has Textures:
              (native in a window of 480 rows or more, or 2x-8x).
              New textures are upscaled in the background as they appear, and kept in texture_cache/, so the next
              run has them at once. Deleting that folder is safe.
-  pack       a texture pack: PNG replacements in the textures/ folder (video.texture_pack in rush2049pc.ini)
-To make a pack from your own ROM: set video.texture_dump = dump in rush2049pc.ini and play; every texture drawn is
-written into dump/ as PNG. Edit or upscale them (tools/texpack/texpack.py in the source runs an upscaler you
-install, such as realesrgan-ncnn-vulkan, over the whole folder), put the results in textures/ under the same names
-(any whole multiple of the size), and choose pack. Packs are made from your own ROM: don't share them.
+  pack       a texture pack: PNG replacements in the textures/ folder (texture_pack in rush2049pc.ini's
+             [video] section)
+To make a pack from your own ROM: in rush2049pc.ini's [video] section, change "; texture_dump = " to
+"texture_dump = dump" and play; every texture drawn is written into dump/ as PNG. Edit or upscale them
+(tools/texpack/texpack.py in the source runs an upscaler you install, such as realesrgan-ncnn-vulkan, over the
+whole folder), put the results in textures/ under the same names (any whole multiple of the size), and choose
+pack. Packs are made from your own ROM: don't share them.
 
 Troubleshooting
 ---------------
@@ -124,4 +126,4 @@ Troubleshooting
 Licences
 --------
 This package contains no game data: you need your own ROM of the cartridge. The program includes
-SDL2 and zlib; their licences are in LICENSES/.
+SDL2 and uses the system's zlib; their licences are in LICENSES/.
