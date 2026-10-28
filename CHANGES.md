@@ -43,6 +43,9 @@ everything a night of testing on the retail cartridge found.
 - **Stutter at a high frame rate with vsync on** (60, 120 or `display` with `video.vsync`, its default): most frames
   between were skipped. The frames are now paced by the display's refresh, one for each, drawn for the moment it
   appears ([FRAMERATE.md](docs/port/FRAMERATE.md) 2).
+- **A stutter when the game saved** on a slow disk (a laptop's hard disk, a USB stick, a network folder, an
+  antivirus scan): the saves are now written in the background, and every way of quitting waits for them
+  ([RELEASE.md](docs/port/RELEASE.md) "Saves").
 
 ### New
 

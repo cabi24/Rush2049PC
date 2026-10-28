@@ -15,6 +15,7 @@ owns `main()`. About 3,300 lines of C11.
 | `rcp.c` | RSP tasks (graphics on the main thread, audio at once in real time), SP/DP done, the AI |
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
+| `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
 | `memory.c` | the RDRAM window, `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, address conversion, faults, stubs |
 | `loop.c` | the host main loop |
@@ -234,10 +235,44 @@ the game saves only to the controller pak.
 **Controller pak.**
 - `--pak PATH` (controller 1's; the others' are `game.pak2_file`...): default `rush2049pc.mpk`, created formatted
   when missing and written within a second of each change (`pakfile.c`'s `pc_file_write_atomic`: a temp file
-  flushed to the disk, then renamed over it; a failed write is tried again at the next flush). Only a missing file is new: one that can't be read, or is damaged
-  (`pc_pak_image_check`: not 32 KiB, no good ID block copy, no good inode table), plugs in no pak and is never
-  written over. port/app's saves.c sets such a file aside before the game starts, and keeps three backups
-  ([RELEASE.md](RELEASE.md) "Saves").
+  flushed to the disk, then renamed over it, then the folder flushed). Only a missing file is new: one that can't be
+  read, or is damaged (`pc_pak_image_check`: not 32 KiB, no good ID block copy, no good inode table), plugs in no pak
+  and is never written over. port/app's saves.c sets such a file aside before the game starts, and keeps three
+  backups ([RELEASE.md](RELEASE.md) "Saves").
+- **The writes are on a thread of their own** (`pakwrite.c`, since 2026-10-28). The flushes to the disk take under
+  20 ms on a fast disk, but far more on a laptop's hard disk, a USB stick, a network folder, or while an antivirus
+  scans the file; on the main loop that held the retraces and the audio's AI events (a stutter, the sound dropping
+  out). Once a second the main loop's `pc_si_flush` copies each changed image (32 KiB, under si.c's lock, as the game
+  can't change it halfway) and hands it to the writer, and returns:
+  - a newer image of a file not yet written replaces the older one in its place in the line, so the files are
+    written in the order they changed, each with its latest image, never an older one after a newer one;
+  - one thread writes them, one at a time: a file never has two writes at once;
+  - a write that fails keeps its image (unless a newer one came meanwhile) and is said once in the log
+    (`[pak writer] controller 1's pak: cannot write ...`); the next flush tries it again, a second later, as before;
+  - with `--fast` the flush waits for the writes. The virtual clock moves only in the main loop's waits, so the
+    game's run is the same either way, a test finds the file written when the loop goes on, and a failure is said
+    and tried again at the same point of every run. The thread still does the writes, so the TSan build checks it
+    on every `--fast` path with a pak.
+- **The end of a run waits for the writer** (`pc_si_finish`: every changed image handed over, each failed one tried
+  once more, then up to 15 s; after 1 s the log says `the saves are still being written: ...`, and what is still
+  not written after 15 s is named). That is the loop's end, however it stops: Quit in the F1 overlay, the quit key,
+  the window's close, `--seconds`, `--frames`, `--until-state`, SIGINT and SIGTERM (the loop's handlers), SIGHUP
+  (the terminal closed; main.c stops the loop, where it used to end the process at once), and on Windows the
+  console's close, a logoff or a shutdown with a console (`win32.c`'s `SetConsoleCtrlHandler`: the handler stops the
+  loop and waits while it writes, as Windows ends the process when the handler returns or 5 s after; a loop that
+  doesn't stop in 3 s gets the writes done from the handler). And `--stop-at-gfx`'s `_exit`. A GUI program's
+  logoff or shutdown without a console (`WM_ENDSESSION`, which SDL doesn't pass on) isn't covered: the last second
+  of changes can be lost there, as before.
+- **A fault** (`misc.c`'s signal handler, `win32.c`'s exception filter, `pc_fatal`, a stub, port/app's SIGABRT
+  handler) calls `pc_si_fault_flush` before the log is closed: the writer finishes what it has (up to 2 s), and a
+  changed image not handed over yet is written too, if that is safe: si.c's lock had within 50 ms (so no pak
+  transfer was in progress on the thread that faulted) and the image a good pak (`pc_pak_image_check`). Nothing waits
+  on a lock: the locks are only tried. When the writer is the thread that faulted, nothing more is written. A crash
+  mid-write still leaves the old file or the new one (the atomic write).
+- **Test hooks**: `RUSH_SIM_PAK_WRITE_MS` holds each write that long (a slow disk), `RUSH_SIM_PAK_REWRITE=1` writes
+  every memory pak at every flush, changed or not, and `RUSH_SIM_PAK_WRITE_SYNC=1` writes on the main loop, as
+  before. With `-v` each hand-over is logged with its retrace, and the end says how many writes there were and the
+  longest.
 - `--no-pak` plugs in nothing on any port, and `--rumble` a rumble pak on controller 1 (0x8000 probe, 0xC000
   motor).
 - The image keeps the `.mpk` page layout, but its multi-byte fields are in the native Pfs C's order: the ID
@@ -278,6 +313,8 @@ loop on the host main thread.
   and 27 messages, down from 28 and 40 when they came at once. One late retrace in each run went out at the 2 ms
   limit, and none were dropped.
 - Between deadlines it sleeps until a thread submits work.
+- Once a second it hands the changed controller paks to their writer thread (`pc_si_flush`, section 3 "Controller
+  pak"), which writes them to the disk while the loop goes on; at exit it waits for them (`pc_si_finish`).
 - While `pc_input_paused` (the pause key, or focus lost with `pause_on_focus_loss`), it only handles window
   events. Afterwards it sets the N64 clock back by the time held.
 - The state log, the status lines and `--until-state` read the game's values when a retrace is due, before the
@@ -445,6 +482,17 @@ the libgsm kernels, now `gsm.c` (§8).
   where the spec saturates (the filter state and `msr` stay 32-bit, `drp` wraps to 16 bits). So they match the
   MIPS code always, and the spec until the spec saturates something.
 - All 32 CTests of the other parts still pass with the PC layer linked in.
+- CTest `ultra_pakwrite` (`port/ultra/tests/test_pakwrite.c`, 1 s) checks the paks' writer with a fake write that is
+  slow, held or failing: a submit returns at once while a write takes 200 ms (38 more meanwhile, none held); a
+  newer image replaces a queued one in its place (A, B, C queued behind A's write, then A and B again: written A, B's
+  newer, C, A's newest); one write at a time; a failed write kept, not tried again on its own, tried by
+  `pc_pakw_retry`, and dropped for a newer image; the wait at the end and its timeout; the fault path; and the real
+  atomic write into a folder with a space.
+- CTest `pak_realtime` (`tools/port/pakwrite_check.py`, POSIX, 105 s alone) runs the synthetic pak path in real time
+  with each write held 200 ms and the pak written every second (`RUSH_SIM_PAK_WRITE_MS`, `RUSH_SIM_PAK_REWRITE`): on
+  rocky 47 writes, 21 of them in the race, cost 0 retraces (none caught up, none dropped), and the pak is good at
+  exit. SIGTERM during a held 3 s write waits for it, and the file is written. The control, the same writes on the
+  main loop (`RUSH_SIM_PAK_WRITE_SYNC=1`), dropped 561 retraces.
 - **Boot on a blank cartridge** (`rush2049pc --no-rom --no-pak --audio null`). The game's own boot runs on the PC
   layer: `main` starts the idle thread, the idle thread starts `game_init`, and `game_init` creates the queues and
   starts the scheduler (thread 4, priority 12), the audio thread (8) and the render thread (5). It goes into
