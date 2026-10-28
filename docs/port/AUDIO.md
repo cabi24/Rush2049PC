@@ -112,8 +112,8 @@ masks with 7.)
 | `musyx_abi.h` | the records: N64-form offsets, native-form structs (`PcMusyxSfd`, `PcMusyxVoice`, `PcMusyxCat`, `PcMusyxDelay`) |
 | `musyx.c` | the interpreter; `pc_audio_run_task` |
 | `musyx_lut.c` | the resample table |
-| `audio_out.c` | the queue: `pc_audio_init/shutdown/set_frequency/push/queued_frames/pull`; the volume |
-| `resample.c` | device-rate conversion: polyphase windowed sinc, 32 taps, 256 phases, Kaiser β 6, cutoff 0.45 × the lower rate |
+| `audio_out.c` | the queue: `pc_audio_init/shutdown/set_frequency/push/queued_frames/pull/pull_f32`; pushes held for their render (section 7); the volume; the counters and the log lines |
+| `resample.c` | device-rate conversion: polyphase windowed sinc, 32 taps, 256 phases, Kaiser β 6, cutoff 0.45 × the lower rate; 16-bit output (clamped, counted) or 32-bit (the overshoot kept) |
 | `out_wav.c` | WAV writer (header rewritten about every second) and reader (tests) |
 | `out_sdl.c`, `out_alsa.c` | device backends, compiled only when CMake finds SDL2 or the ALSA headers |
 | `pc_audio.h` | port/audio's API beyond `pc_port.h`: form selection, `pc_audio_pull`, stats |
@@ -146,30 +146,36 @@ If none is found, it uses this port's own table, a Hann-windowed sinc low-pass a
 that table smooths even at phase 0. Nintendo's table is not in the repository. The log line
 `audio: resample table: rom+0x...` or `computed` says which was used.
 
-**Output.** `pc_audio_push` takes the game's AI buffers at the AI rate. It tees them to the dump file, converts them
-to the device rate, and appends them to a one-second ring; when the ring is full, the oldest frames go.
-`pc_audio_queued_frames` reports game-rate frames, and `pc_audio_target_frames` how many the AI keeps queued
-(section 7). The backends:
+**Output.** `pc_audio_push` takes the game's AI buffers at the AI rate. A buffer whose render hasn't come waits in
+the queue for it (section 7); the others go on at once. On their way to the converter they go to the dump file
+(what plays: a held buffer's render, or the silence in its place), then are converted to the device rate and
+appended to a one-second ring of 32-bit frames; when the ring is full, the oldest frames go. The ring is 32-bit
+because the converter overshoots full scale between the samples of a signal at full scale (the game's mix saturates
+in places): `pc_audio_pull_f32` (SDL) hands that to the device in float, `pc_audio_pull` (ALSA, tests) clamps it to 16
+bits and counts the samples (`clipped`). `pc_audio_queued_frames` reports game-rate frames, held ones included, and
+`pc_audio_target_frames` how many the AI keeps queued (section 7). The backends:
 
 | Backend | Behavior |
 |---|---|
 | `null` | drains the ring by the wall clock, so queue lengths behave as with a device |
 | `wav` | `null`, plus the dump file (which it requires) |
 | `manual` | holds frames until `pc_audio_pull` (tests) |
-| `sdl` | `SDL_OpenAudioDevice`; the callback pulls; the frequency may change, and SDL converts format and channels |
-| `alsa` | `snd_pcm_set_params` with `soft_resample`; a writer thread pulls 10 ms periods |
+| `sdl` | `SDL_OpenAudioDevice` at the default device's own rate (`SDL_GetDefaultAudioInfo`, else 48 kHz), float, a pull per device period (`SDL_AUDIO_ALLOW_SAMPLES_CHANGE`; WASAPI: 10 ms); SDL converts the format and channels where the device needs it |
+| `alsa` | `snd_pcm_set_params` at 48 kHz, 40 ms, with `soft_resample`; the buffer is filled with silence but for a period before the writer thread starts pulling a period at a time |
 | `auto` | SDL2, then ALSA, then null |
 
 Without `pc_audio_init`, the first call initializes from the environment:
 - `RUSH2049_AUDIO` sets the backend; `RUSH2049_DUMP_AUDIO` sets the dump path.
 - `RUSH2049_AUDIO_RATE` forces a device rate.
+- `RUSH2049_AUDIO_STATS` (seconds) adds the counters' line every so often, as `-v` does every 10 s.
 - `RUSH2049_ALSA_DEVICE` names the ALSA device (`default` otherwise).
 
 **The volume** (2026-10-27). `pc_audio_set_volume(v)`, v from 0 to 1, is `audio.volume / 100`: main sets it at
 start and the settings overlay as it changes ([FRONTEND.md](FRONTEND.md)).
 - The gain is v², so the slider's middle is about -12 dB and 10 about -40 dB, in Q16 under the queue's lock.
-- It scales what `pc_audio_pull` returns, so it applies to the device backends at once, and the dump file keeps
-  what the game played. At 1 the samples are untouched.
+- It scales what `pc_audio_pull` and `pc_audio_pull_f32` return, so it applies to the device backends at once, and
+  the dump file keeps what the game played. At 1 the samples are untouched. It comes before the 16-bit clamp, so it
+  never clips.
 - It holds across `pc_audio_init`. The backend itself changes only at start: `pc_audio_init` shuts the output down
   and opens it again, which isn't safe while the game's threads may call into port/audio, so the overlay marks
   `audio.backend` as needing a restart.
@@ -197,9 +203,11 @@ The tests link their own copies of the port/ultra functions (`tests/stubs.c`), i
 | `audio_mix` | 16 | empty SFD; the voice list ends at the output voice; release-mask fade (0xF850 per subframe) across SFDs and tasks; an empty SFD keeps slot records; surround one subframe late and antiphase, across tasks; surround in the base; 6 SFDs in one task = 2 + 4 |
 | `audio_delay` | 10 | echo at the tap delay and gain; feedback halving per pass; taps wrapping the line; filter history carried between subframes |
 | `audio_forms` | 32 | one scene (big-endian PCM, ADPCM with a big-endian book, native PCM, release mask, delay effect) rendered as native structs, native structs with K0 addresses, N64 form native order, and N64 form big-endian: identical outputs, states and lines; LP64 layout; host data above 4 GB |
-| `audio_output` | 40 | queue counts, pulls, underruns (the fade out and in, one underrun per dry spell), overflow; the AI's target from pulls, its growth per underrun and 200 ms cap, the `audio.latency` floor; idle and paused silence apart from underruns; the pull hook; buffers played again; 22050 → 48000 frequency, amplitude, ratio, chunked = whole; 48000 → 22050 alias rejection; a forced device rate; WAV round trip; the null backend's clock |
+| `audio_output` | 40 | queue counts, pulls, underruns (the fade out and in, one underrun per dry spell), overflow; the AI's target from pulls, its growth per underrun and 200 ms cap, the `audio.latency` floor; idle and paused silence apart from underruns; the pull hook; a push before its render waits (counted with the queue); 22050 → 48000 frequency, amplitude, ratio, chunked = whole; 48000 → 22050 alias rejection; a forced device rate; WAV round trip; the null backend's clock |
+| `audio_hold` | 150 | pushes held for their render, against a model of the game's ring (8 buffers, renders in order at most 5 past the pushes): renders ahead play each push's own; renders late but before the device needs them play as on time; a render too late is silence, never the ring's last turn, and never plays a turn later out of place; a renderer three behind plays a turn late, in order, and on time again once caught up; the same buffer rendered twice; 60 runs of random timings with stalls and the game's stop and restart: what plays is in order, never early, never twice, and exact once the renderer is ahead; pushes before any render and long pushes play as pushed |
+| `audio_convert` | 14 | 22047 Hz to 48000 and 44100: flat to 8 kHz within 0.05 dB, images at least 60 dB down, DC exact, left and right apart; 10 s without drift; the game's 192-frame buffers the same stream as one piece; a clipped full-scale tone: the float pull keeps the overshoot (peak 1.0-1.25), the 16-bit pull clamps and counts it, at a volume below 1 nothing clamps; in range, float = 16-bit / 32768 |
 | `audio_e2e` | 14 | four SFDs per task from the game's builder, `pc_audio_run_task`, `pc_audio_push`, the WAV read back. ADPCM 1 kHz at 32 kHz, played at 22050: 999.9480 Hz (expected 999.9481), left 9964.8 (expected about 9960), right/left 0.5, residual 0.19 % rms, worst 0.6 %. PCM16 big-endian 750 Hz at 24 kHz: 749.9611 Hz (expected 749.9611), right inverted at half volume |
-| `audio_backends` | 9 | only when SDL2 or ALSA is built: SDL2's `disk` driver gives a 440.000 Hz tone of the right length; ALSA opens alsa-lib's `null` device and drains |
+| `audio_backends` | 9 | only when SDL2 or ALSA is built: SDL2's `disk` driver (float, at its own rate) gives a 440.000 Hz tone of the right length; ALSA opens alsa-lib's `null` device and drains |
 | `audio_rsp` | 10 | the microcode's arithmetic case by case, hand-worked: each tap's product rounded (3 · 0.5 is 2); the pairs saturated before they add; the volume's product rounded half up, positive and negative; the mix saturated once after an unsaturated product (−1 + 32768 = 32767) and the saturated last output; a volume ramp's high half saturating; the ADPCM sum wrapping at 32 bits; the delay's tap gain and feedback filter rounded |
 | `audio_volume` | 14 | the master volume through the manual backend's pulls: 1 leaves the samples as they were, 0.5 gives a quarter (the extremes 8191 and -8192), 0 silence, values past either end clamp, and it holds across a re-init |
 
@@ -286,20 +294,36 @@ submits an audio task every retrace (470 in 8 s) through the scheduler to `pc_au
 
 ## 7. Real time: pacing, underruns, latency
 
-Written 2026-10-27, after the first play on Windows ("the sound is terrible"). Nobody had listened before, and two
-real-time faults showed in runs on the Pi with SDL's `disk` driver (`SDL_AUDIODRIVER=disk`, which consumes in real
-time, headless), counted by the gap search in the output and by tracing which ring buffer each push and each task
-wrote. Both faults sound as crackle and stutter, worse with a vsync swap:
+Written 2026-10-27, after the first play on Windows ("the sound is terrible"). Nobody had listened before. Runs on
+the Pi with SDL's `disk` driver (`SDL_AUDIODRIVER=disk`, which consumes in real time, headless), the gap search in
+the output, and traces of which ring buffer each push and each task wrote, showed these faults. All of them sound as
+crackle, stutter or a buzz, worse with a vsync swap:
 
 1. **The queue ran dry.** The AI kept 384 frames (17 ms) queued, and only the main loop sent AI events. A device
    pulls in steps (SDL: 512 frames, 10.7 ms at 48 kHz) from its own thread, and the main loop waits in the swap
    (vsync, up to a refresh) and in graphics tasks, so the queue emptied between its checks: silence in steps of a
    pull, played as clicks.
 2. **The AI played buffers twice.** The game keeps 8 AI buffers in a ring (`func_80010A40`); its retrace callback
-   (`func_80013DEC`) renders the ones the AI has passed, up to `D_800382CE` SFDs per task, with the task one
-   retrace after the SFDs were built. The audio task ran on the main thread, behind graphics tasks and swaps; when
-   it was late, the AI pushed a buffer whose task hadn't run yet, and that buffer's sound from the ring's last turn
-   (8 buffers, 70 ms back) played again.
+   (`func_80013DEC`, run by `dma_wait_complete`) renders the ones the AI has passed, up to `D_800382CE` SFDs per
+   task, with the task one retrace after the SFDs were built. When a buffer's task hadn't run by the time the AI
+   pushed it, its sound from the ring's last turn (8 buffers, 70 ms back) played again. Three things made it late:
+   - the audio task ran on the main thread, behind graphics tasks and swaps;
+   - the main loop dropped a retrace whenever it fell a whole period behind (a slow graphics task, a swap): the
+     callback after it found twice the buffers passed, and the renderer skips some when it finds more than its cap
+     (below), so a race on the Pi, which drops some, replayed buffers every second;
+   - at loads and screen changes the renderer stops, or stalls while a game thread computes, and the AI goes on.
+3. **WASAPI converted the rate.** The device opened at the rate the game asks for (22050 Hz). SDL 2.30's WASAPI
+   driver then leaves the conversion to the mix rate to WASAPI's own resampler (`AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM`),
+   which SDL's source says has been reported to distort, and with 512 samples asked for it put a rebuffering stream
+   between its 221-frame periods and the callback.
+4. **The converter's overshoot clipped.** A band-limited signal at full scale overshoots it between its samples,
+   and the game's mix saturates in places: converted to 16 bits, a third of the samples of a full-scale clipped tone
+   were clamped.
+5. **ALSA started dry.** With a 60 ms buffer and nothing in it, the writer took several periods at once, faster
+   than the AI had queued them.
+6. **The game could hang** at the start prompt or the main menu, once audio tasks ran at once: an SP event lost to
+   a full scheduler queue ([ULTRA.md](ULTRA.md) §1), now and then in real-time runs here; the AI went on pushing
+   the ring, which without the holds below plays as a buzz.
 
 **What the port does now:**
 
@@ -308,38 +332,85 @@ wrote. Both faults sound as crackle and stutter, worse with a vsync swap:
 | audio tasks | in real time, run at once, in `osSpTaskStartGo`, on the game's scheduler thread (ULTRA.md), as the RSP runs them beside the CPU; the scheduler takes the SP event from its queue after the call. With `--fast` the main loop runs them while every N64 thread waits, so a run stays the same every time |
 | AI events | while the queue and the events not yet answered are short of the target; up to 3 outstanding (the game's queue holds 4) |
 | who checks | the main loop, and in real time the device's thread after each pull (`pc_audio_set_pull_hook`); with `--fast` the main loop alone, so a run stays the same every time |
-| the target | 384 frames until a device pulls; then two pulls, a retrace and a buffer (SDL at 48 kHz: 1029 frames, 47 ms); one buffer more at each underrun, up to 200 ms; `audio.latency` (ms) sets a floor |
+| the target | 384 frames until a device pulls; then two pulls, a retrace and a buffer (SDL at 48 kHz with 10 ms periods: 1000 frames, 45 ms); one buffer more at each underrun, up to 200 ms; `audio.latency` (ms) sets a floor |
+| retraces | a retrace a whole period late is caught up, so the game, which counts its time in retraces, and its renderer keep 60 a second; a stall of 6 periods or more drops them (ULTRA.md §4) |
+| a push before its render | held in the queue until the render for that push comes, as the N64's AI reads a buffer only as it plays it (below) |
+| the device | SDL: its own rate, float, a pull per device period; ALSA: 48 kHz, prefilled with silence; the queue converts (section 3) |
 | an underrun | the last frame fades to silence over 32 frames, then zeros; the sound after it fades in over 32: no repeated or torn buffer, no click |
 | the game held | (`hold()`: the pause key, the F1 overlay) the target is 0: the queue plays out, and its silence isn't an underrun |
 | idle | silence while the game pushes nothing for 0.25 s (before its first buffer, a long load) is counted apart |
 
+**Holding a push for its render** (`audio_out.c`). Renders are matched to pushes exactly. The game pushes its ring
+in order and renders it in order, so a render is for the push after the previous render's (`pc_audio_note_rendered`
+gets each one from the interpreter). A render after the order jumps, or after a whole ring turn of pushes without
+one, is taken as a restart of the renderer: it is for the buffer's next push, as at the ring's front (the game's stop,
+`func_80014140`, lets it render 8 more first, and its start, `func_800140F8`, begins at the new front). A push whose
+render hasn't come waits in the queue, the pushes after it behind it; its render, when it comes, plays it. When the
+device needs it first, it plays the buffer's previous render if that never played and comes after what last did
+(a renderer a turn behind plays in order, late), else silence, faded as an underrun is. So nothing plays twice, out
+of order or early. Before any render, and for pushes longer than 1024 frames, pushes play as they come; before the
+first match, a buffer pushed again without a render since plays as silence. A renderer that stalled for a ring turn
+and goes on in order is matched a turn ahead, plays a turn late, and is matched again when it catches up; one that
+stopped while behind and starts again exactly a whole number of turns of pushes later is the case the matching
+can't see. `test_hold.c` checks these against a model of the game's ring with random timings, stalls and restarts.
+
 The latency the port adds is the target: about 45-50 ms with a 10 ms device period, on top of the game's own ring
 (up to 6 buffers, 52 ms, as on the N64) and the device's buffer.
 
-**The log.** At exit (`pc_audio_shutdown`), one line:
+**The log.** At exit (`pc_audio_shutdown`), one line, and with `-v` (or `RUSH2049_AUDIO_STATS=seconds`) one for each
+10 s while the game plays:
 
 ```
-audio: sdl at 48000 Hz: 41.7 s played; 0 underruns (0 ms of silence), 6 buffers played again, 0 ms idle,
-0 frames dropped; pulls of 512 frames, queue target 1029 frames (47 ms), at most 55 ms queued
+audio: sdl at 48000 Hz (wasapi, pulls of 480 frames; 22047 Hz converted x2.17717): 61.2 s played; 0 underruns
+(0 ms of silence); queue 40/45/53 ms (least/mean/most), target 1000 frames (45 ms); 12 buffers pushed before their
+render: 12 rendered in time, 0 played late, 0 as silence (0 replacing sound); 0 renders not played, 1 rematches;
+0 samples clipped, 0 frames dropped, 10 ms idle
 ```
 
-and while playing, the first 10 underruns each as `audio: underrun N, T s in: the queue target is now F frames`.
-"Played again" counts pushes of a buffer no task had rendered since its last push (`pc_audio_note_rendered`).
+- the backend, the system driver (SDL's `wasapi`, `directsound`, `pulseaudio`, `disk`; ALSA's device), the device's
+  rate and pull, and the conversion from the game's rate;
+- underruns; the queue at each pull while the game plays, from its first second on (device frames, held pushes
+  included), and the target;
+- pushes that came before their render, and how each played: rescued (`rendered in time`), `played late`, or
+  `as silence` (of which `replacing sound` would have been the ring's last turn again on the N64);
+- renders that never played (a later one took their place, or a new match dropped them), and how often the
+  renderer's position was matched anew;
+- samples the 16-bit output clamped (0 with SDL, which takes float), frames dropped by a full queue, idle silence.
+
+While playing, the first 10 underruns are each logged as `audio: underrun N, T s in: the queue target is now F
+frames`. The main loop's exit line says how many retraces came late and were caught up or dropped.
+
+**A Windows desktop on Linux.** `RUSH_SIM_TIMER_STEP_US=15625` (every timed wait in `sched.c` ends at a 15.625 ms
+step, as winpthreads' do), `RUSH_SIM_VSYNC_HZ=59.94` (each present waits for the next vblank of such a display) and
+`RUSH_SIM_PRESENT_MS` (a slow GPU) model its timing ([WINDOWS.md](WINDOWS.md) §5). `tools/port/realtime_check.py`
+(CTest `audio_realtime`) runs the synthetic race in real time under the first two with SDL's disk driver at 48 kHz
+and checks the exit lines.
 
 **Measured** on the synthetic cartridge (silent, but the AI, the ring and the tasks run as with sound), the Pi 5,
-SDL 2.30.9's disk driver at 48 kHz, 40 s of `race.press` in real time: 0 underruns, 6 buffers played again. The
-same checks on the retail cartridge, also with the main loop slowed by a sleep after every present (roughly a
-swap that blocks for vsync), stay out of the repository.
+SDL 2.30.9's disk driver at 48 kHz, 30 s of `race.press` in real time under the model: 60.00 retraces a second (6
+caught up, none dropped); 0 underruns; the queue 38/50/54 ms (least/mean/most) against a 45 ms target; of 3261
+buffers 21 pushed before their render, 17 of them rendered in time and 4 played as silence; 1 rematch; nothing
+played twice (0835358's count for 40 s of the same path, without the model: 6 buffers played again). The same
+checks on the retail cartridge, with and without the model and with slow presents, stay out of the repository.
 
-**What is left: the game's limits.**
-- The renderer's rate. It renders at most `D_800382CE` buffers a retrace (from the rate and a tuning value in the
-  boot data), little more than the AI plays at 60 Hz (114.8 a second: 22047 Hz over 192): a host that keeps the
-  retrace rate low plays some buffers twice. The status lines' `vi=` counts show the retrace rate.
+**What is left.**
+- The renderer skips buffers when it is behind. `func_80013DEC` renders the buffers the AI has passed, from
+  `D_80038360` up to the one before the AI's, in two loops when that range wraps past the ring's end, each loop
+  capped by the task's `D_800382CE` SFDs. When the cap stops the first loop before the ring's end, the
+  second loop's `index = 0` still becomes `D_80038360`: the buffers between are never rendered. It happens when more
+  buffers than the cap were passed since the renderer's last callback, which on the N64's even retraces is rare, and on
+  the PC whenever retraces come in bunches: a swap that blocks for vsync, a slow graphics task, the catch-up after
+  them. On the N64 such a buffer plays its sound from the ring's last turn again; here it plays as silence (a dip of
+  about 9 ms, faded). The trace showed it as renders that jump one to five buffers ahead in the ring. A model of a
+  vsync swap on the Pi, whose GL is slow, brings many of these; a desktop GPU that queues its frames brings few.
+- Stalls. A host whose retraces stall for 100 ms or more (6 periods) drops them; the buffers the renderer can't
+  render in time play as silence instead of again. The exit line's `caught up` and `dropped` counts show it.
 - Loads. The scheduler doesn't preempt a computing thread (ULTRA.md): while a game thread computes for tens of
-  milliseconds without a libultra call, the retrace callback can't render, and buffers can play twice at screen
-  changes and loads. On the N64 the retrace interrupt would run it.
+  milliseconds without a libultra call, the retrace callback can't render; those buffers play as silence (or late,
+  in order) rather than as the ring's last turn.
 - Holding AI events back until the next buffer is rendered was tried and dropped: the renderer only renders the
-  buffers the AI has passed, and at a re-init (a race's start) the game waits for the AI, so the game hung.
+  buffers the AI has passed, and at a re-init (a race's start) the game waits for the AI, so the game hung. The
+  holds above hold the sound, not the events.
 
 ## 8. Checking against the microcode
 

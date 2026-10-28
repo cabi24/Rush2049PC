@@ -22,6 +22,7 @@
  * high-resolution timers (sched.c), and the loop asks for a 1 ms period for the rest (SDL's waits). */
 #define _GNU_SOURCE
 #include <signal.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -33,6 +34,8 @@
 #endif
 
 #include "ultra.h"
+
+#define VI_CATCH_UP 6   /* retraces up to this many periods late are sent at once; a longer stall drops them */
 
 uint32_t pc_frame;
 volatile int pc_quit;
@@ -120,6 +123,31 @@ static void timer_period(int on)
 }
 #endif
 
+/* A test of a window's swap on a headless run (docs/port/AUDIO.md): RUSH_SIM_PRESENT_MS holds each present that
+ * long (a slow GPU), then RUSH_SIM_VSYNC_HZ until the next vblank of a display at that rate (a vsync swap). */
+static void sim_swap(void)
+{
+    static int read;
+    static double extra_ms, hz;
+    if (!read) {
+        const char *a = getenv("RUSH_SIM_PRESENT_MS"), *b = getenv("RUSH_SIM_VSYNC_HZ");
+        extra_ms = a ? atof(a) : 0;
+        hz = b ? atof(b) : 0;
+        read = 1;
+    }
+    if (pc_time_virtual() || (extra_ms <= 0 && hz <= 0))
+        return;
+    uint64_t t = pc_real_ns() + (uint64_t)(extra_ms * 1e6);
+    if (hz > 0) {
+        uint64_t period = (uint64_t)(1e9 / hz);
+        t = (t / period + 1) * period;
+    }
+    for (uint64_t now = pc_real_ns(); now < t; now = pc_real_ns()) {
+        struct timespec ts = {(time_t)((t - now) / 1000000000u), (long)((t - now) % 1000000000u)};
+        nanosleep(&ts, NULL);
+    }
+}
+
 /* The pause key, or focus lost with pause_on_focus_loss (port/input): no retraces, timers, RSP tasks or AI
  * events while held, so the game's threads stop where they wait for them; window events are still handled.
  * The N64 clock is set back by the time held, so osGetTime and the OS timers don't jump. */
@@ -149,8 +177,9 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint64_t next_tick = 0;                /* a high frame rate: the next frame to show; 0 to start again */
     uint64_t tick_ns = 0;                  /* how long showing one takes, in real time (a running mean) */
     uint32_t ticks_skipped = 0;            /* frames not shown, to keep the game's retraces on time */
-    uint32_t vi_dropped = 0;               /* retraces the loop fell a whole period or more behind on */
-    uint64_t late_at[2] = {0, 0};          /* real time of the last two retraces dropped (the loop fell behind) */
+    uint32_t vi_dropped = 0;               /* retraces dropped: the loop stalled VI_CATCH_UP periods or more */
+    uint32_t vi_caught_up = 0;             /* retraces a whole period late, sent at once */
+    uint64_t late_at[2] = {0, 0};          /* real time of the last two retraces late (the loop fell behind) */
     int tick_rate = 0;
     g_game_state = opt->game_state;
     g_game_info = opt->game_info;
@@ -194,8 +223,10 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_si_set_pads(pads);
             pc_gfx_retrace(pc_frame);
             pc_vi_retrace(&fb);
-            if (fb)
+            if (fb) {
                 pc_gfx_present(fb);
+                sim_swap();
+            }
             if (opt->screenshot_at && !shot_vi && pc_rcp_gfx_tasks >= opt->screenshot_at)
                 shot_vi = pc_frame;
             if (opt->frames && !frames_vi && pc_rcp_gfx_tasks >= opt->frames)
@@ -220,16 +251,25 @@ int pc_ultra_run(const PcRunOptions *opt)
                 break;
             }
             next_vi += vi_ns;
-            if (next_vi <= now) {   /* stalled (a debugger, a slow frame): resynchronize */
-                vi_dropped += (uint32_t)((now - next_vi) / vi_ns + 1);
-                next_vi = now + vi_ns;
+            if (next_vi <= now) {   /* behind (a slow frame, a swap waiting for vsync) */
                 late_at[0] = late_at[1];   /* when the last two were */
                 late_at[1] = pc_real_ns();
+                /* A late retrace comes at once, so the game keeps its 60 a second: it counts its time in
+                 * retraces, and its audio renders the buffers the AI has passed at each, skipping some when it
+                 * finds more than its cap (docs/port/AUDIO.md 7). A stall (a debugger, a long hitch)
+                 * resynchronizes. */
+                if (now - next_vi >= VI_CATCH_UP * vi_ns) {
+                    vi_dropped += (uint32_t)((now - next_vi) / vi_ns + 1);
+                    next_vi = now + vi_ns;
+                } else {
+                    vi_caught_up++;
+                }
             }
             vi_at = next_vi - vi_ns;
             deadline = next_vi;
             if (now >= next_flush) {
                 pc_si_flush();
+                pc_audio_periodic();
                 next_flush = now + 1000000000u;
             }
             if (next_status && now >= next_status) {
@@ -298,8 +338,11 @@ int pc_ultra_run(const PcRunOptions *opt)
     }
     pc_si_flush();
     if (tick_rate)
-        fprintf(stderr, "rush2049pc: frame rate %d: %u frames not shown to keep the retraces on time; %u retraces "
-                "late by a whole retrace or more (the host fell behind)\n", tick_rate, ticks_skipped, vi_dropped);
+        fprintf(stderr, "rush2049pc: frame rate %d: %u frames not shown to keep the retraces on time\n", tick_rate,
+                ticks_skipped);
+    fprintf(stderr, "rush2049pc: %u retraces in %.1f s; %u came a whole retrace late and were caught up, %u dropped "
+            "(the host stalled %u retraces or more)\n", pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped,
+            VI_CATCH_UP);
 #ifdef _WIN32
     timer_period(0);
 #endif

@@ -57,17 +57,17 @@ size_t rs_max_out(const PcResampler *rs, size_t n)
     return (size_t)((((uint64_t)n + RS_TAPS) << 32) / rs->step) + 2;
 }
 
-static inline int16_t to_s16(float v)
-{
-    long r = lrintf(v);
-    return (int16_t)(r > 32767 ? 32767 : r < -32768 ? -32768 : r);
-}
-
-size_t rs_process(PcResampler *rs, const int16_t *in, size_t n, int16_t *out)
+/* Either output: s16 (clamped, counted in rs->clipped) or int32 (as computed: the filter's overshoot of loud input
+ * is kept, for an output that can carry it). */
+static size_t process(PcResampler *rs, const int16_t *in, size_t n, int16_t *out16, int32_t *out32)
 {
     size_t made = 0;
     if (!rs->step) {
-        memcpy(out, in, n * 4);
+        if (out16)
+            memcpy(out16, in, n * 4);
+        else
+            for (size_t i = 0; i < 2 * n; i++)
+                out32[i] = in[i];
         return n;
     }
     while (n) {
@@ -99,8 +99,15 @@ size_t rs_process(PcResampler *rs, const int16_t *in, size_t n, int16_t *out)
                 l += c * x[k][0];
                 r += c * x[k][1];
             }
-            out[2 * made] = to_s16(l);
-            out[2 * made + 1] = to_s16(r);
+            long li = lrintf(l), ri = lrintf(r);
+            if (out16) {
+                rs->clipped += (li > 32767 || li < -32768) + (ri > 32767 || ri < -32768);
+                out16[2 * made] = (int16_t)(li > 32767 ? 32767 : li < -32768 ? -32768 : li);
+                out16[2 * made + 1] = (int16_t)(ri > 32767 ? 32767 : ri < -32768 ? -32768 : ri);
+            } else {
+                out32[2 * made] = (int32_t)li;
+                out32[2 * made + 1] = (int32_t)ri;
+            }
             made++;
             rs->pos += rs->step;
         }
@@ -114,4 +121,14 @@ size_t rs_process(PcResampler *rs, const int16_t *in, size_t n, int16_t *out)
         rs->pos -= (uint64_t)keep_from << 32;
     }
     return made;
+}
+
+size_t rs_process(PcResampler *rs, const int16_t *in, size_t n, int16_t *out)
+{
+    return process(rs, in, n, out, NULL);
+}
+
+size_t rs_process32(PcResampler *rs, const int16_t *in, size_t n, int32_t *out)
+{
+    return process(rs, in, n, NULL, out);
 }

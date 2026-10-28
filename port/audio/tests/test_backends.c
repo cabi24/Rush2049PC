@@ -41,9 +41,12 @@ int main(void)
         FILE *f = fopen("test_backends_sdl.raw", "rb");
         CHECK(f != NULL, "no disk output");
         if (f) {
+            static float fl[48000 * 4 * 2];   /* the backend's samples are float (out_sdl.c) */
             static int16_t raw[48000 * 4 * 2];
-            size_t n = fread(raw, 4, sizeof raw / 4, f), first = 0, last = 0;
+            size_t n = fread(fl, 8, sizeof fl / 8, f), first = 0, last = 0;
             fclose(f);
+            for (size_t i = 0; i < 2 * n; i++)
+                raw[i] = (int16_t)lrintf(fl[i] * 32768.0f);
             for (size_t i = 0; i < n; i++)
                 if (raw[2 * i]) {
                     if (!first)

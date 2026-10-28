@@ -50,3 +50,5 @@ WEAK size_t pc_audio_target_frames(void) { return 384; }
 WEAK void pc_audio_set_pull_hook(void (*hook)(void)) { (void)hook; }
 WEAK void pc_audio_set_latency(unsigned ms) { (void)ms; }
 WEAK void pc_audio_set_paused(int paused) { (void)paused; }
+WEAK void pc_audio_set_report_every(unsigned seconds) { (void)seconds; }
+WEAK void pc_audio_periodic(void) {}
