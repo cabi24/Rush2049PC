@@ -171,6 +171,7 @@ static const char *const scale_choices[] = {"auto", "native", NULL};   /* 0, -1;
 static const char *const size_choices[] = {"auto", NULL};
 static const char *const fullscreen_mode_choices[] = {"desktop", "exclusive", NULL};
 static const char *const frame_rate_choices[] = {"original", "display", NULL};
+static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -220,6 +221,16 @@ static const Item items[] = {
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
      "Where F12 saves screenshots; empty for screenshots in the data folder (as pak_file)."},
+    {"video", "textures", T_ENUM, F(textures), 0, 0, textures_choices, "original",
+     "original; upscaled: the 3D world's textures 2x (internal scale 2-3) or 4x (scale 4 and up), the menus and the "
+     "HUD as they are; the first time in the background, then kept in texture_cache in the data folder; pack: "
+     "replacements from texture_pack (RUSH_GFX_TEXTURES)."},
+    {"video", "texture_pack", T_STR, F(texture_pack), 0, 0, NULL, "textures",
+     "The texture pack's folder (for textures = pack): PNG files named as texture_dump names them, any whole multiple "
+     "of the original's size. A name alone is in the data folder."},
+    {"video", "texture_dump", T_STR, F(texture_dump), 0, 0, NULL, "",
+     "A folder to write every texture drawn into, as PNG named for a pack (making a pack: TEXTURES.md); empty: off. "
+     "A name alone is in the data folder."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA, then none), sdl, alsa, null or wav (RUSH2049_AUDIO)."},
@@ -665,7 +676,8 @@ int pc_settings_apply_env(PcSettings *s)
 {
     static const struct { const char *var, *section, *key; } env[] = {
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
-        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"}};
+        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
+        {"RUSH_GFX_TEXTURES", "video", "textures"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);

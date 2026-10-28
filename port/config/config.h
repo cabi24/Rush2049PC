@@ -72,6 +72,9 @@ typedef struct PcSettings {
     double widescreen;              /* display aspect the 4:3 frame widens to: 0 off, -1 the window's (auto) */
     int pause_on_focus_loss;
     char screenshot_dir[PC_CFG_PATH];   /* empty: the working directory */
+    int textures;                   /* 0 original, 1 upscaled, 2 pack (RUSH_GFX_TEXTURES; docs/port/TEXTURES.md) */
+    char texture_pack[PC_CFG_PATH];     /* the pack's folder; a name alone is in the data folder */
+    char texture_dump[PC_CFG_PATH];     /* where every texture drawn is written as PNG; empty: off */
     /* [audio] */
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */

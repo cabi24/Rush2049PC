@@ -300,6 +300,8 @@ static void test_live(void)
     act(PC_MENU_RIGHT);
     at("Video", "Graphics API", "gl", "the API: a restart");
     CHECK(pc_menu_settings()->api == PC_CFG_API_GL, "the setting changed");
+    act(PC_MENU_DOWN);
+    at("Video", "Textures", NULL, "textures: the last item");
     act(PC_MENU_CLOSE);
     show_frame();
     target_size(&w, &h);

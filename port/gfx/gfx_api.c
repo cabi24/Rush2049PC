@@ -6,6 +6,7 @@
  * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
+ * RUSH_GFX_TEXTURES=original|upscaled|pack and the other RUSH_GFX_TEXTURE_* (gfx_tex.c, docs/port/TEXTURES.md),
  * RUSH_GFX_VERBOSE=1|2|3, RUSH_GFX_TIMES=1|2 (the CPU time of tasks and frames at exit; 2: with the GPU's, glFinish). */
 #define _POSIX_C_SOURCE 200809L   /* clock_gettime */
 #include <stdio.h>
@@ -18,6 +19,7 @@
 #endif
 
 #include "gfx_internal.h"
+#include "gfx_tex.h"
 #include "pc_port.h"
 
 /* Milliseconds on a monotonic clock: the CPU time the renderer spends (GL calls return before the GPU is done). */
@@ -52,7 +54,7 @@ static struct {
     int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
     /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
     uint32_t tasks, drawn;
-    double task_ms, drawn_ms, drawn_ms_max, tick_ms;
+    double task_ms, task_ms_max, drawn_ms, drawn_ms_max, tick_ms;
     int times;                /* RUSH_GFX_TIMES: 1 the summary at exit; 2 with glFinish around each timed part, so
                                * its time includes the GPU's */
 } S;
@@ -161,6 +163,12 @@ void pc_gfx_set_scale(int scale) {
 void pc_gfx_set_scale_value(float scale) {
     pcgfx_cfg.internal_scale = scale >= -1.0f && scale <= (float)PCGFX_SCALE_MAX ? scale : 1.0f;
     resolve_auto();
+}
+
+/* Textures at run time (PCGFX_TEX_*: original, upscaled, pack): the texture cache is made again from the next
+ * frame on; what was upscaled or loaded before is kept in memory. */
+void pc_gfx_set_textures(int mode) {
+    pcgfx_tex_set_mode(mode);
 }
 
 /* "original" (or 0, "off") 0; "display" -1; else frames a second, 1-1000. *ok = 0 for anything else. */
@@ -332,6 +340,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
                     getenv("RUSH_GFX_SCALE"), PCGFX_SCALE_MAX);
     }
     pcgfx_cfg.frame_height = env_int("RUSH_GFX_HEIGHT", pcgfx_cfg.frame_height);
+    pcgfx_tex_configure();
     pcgfx_cfg.verbose = env_int("RUSH_GFX_VERBOSE", pcgfx_cfg.verbose);
     pcgfx_cfg.trace_task = env_int("RUSH_GFX_TRACE", 0);
     S.times = env_int("RUSH_GFX_TIMES", 0);
@@ -445,7 +454,10 @@ void pc_gfx_run_dl(const void *dl) {
     if (S.times > 1)
         pcgfx_gl_finish();
     S.tasks++;
-    S.task_ms += now_ms() - t0;
+    t0 = now_ms() - t0;
+    S.task_ms += t0;
+    if (t0 > S.task_ms_max)
+        S.task_ms_max = t0;
     dump_task();
     if (pcgfx_cfg.verbose)
         fprintf(stderr, "gfx: task: %u commands, %u triangles, %u draws, %u unknown\n", pcgfx.stat_cmds,
@@ -630,10 +642,11 @@ void pc_gfx_shutdown(void) {
                     "%u not drawn (the host or its GPU was behind)\n", pc_gfx_frame_rate(), st.ticks, st.drawn, st.early, st.held,
                     st.busy);
         if (pcgfx_cfg.frame_rate != 0 || pcgfx_cfg.verbose || S.times)   /* GL may finish the work later */
-            fprintf(stderr, "gfx: %s time: %u graphics tasks, %.3f ms each; %u frames drawn between two, %.3f ms "
-                    "each (at most %.3f); %u frames shown, %.3f ms each\n", S.times > 1 ? "GPU and CPU" : "CPU", S.tasks,
-                    S.tasks ? S.task_ms / S.tasks : 0.0, S.drawn, S.drawn ? S.drawn_ms / S.drawn : 0.0,
-                    S.drawn_ms_max, st.ticks, st.ticks ? S.tick_ms / st.ticks : 0.0);
+            fprintf(stderr, "gfx: %s time: %u graphics tasks, %.3f ms each (at most %.3f); %u frames drawn "
+                    "between two, %.3f ms each (at most %.3f); %u frames shown, %.3f ms each\n",
+                    S.times > 1 ? "GPU and CPU" : "CPU", S.tasks, S.tasks ? S.task_ms / S.tasks : 0.0, S.task_ms_max,
+                    S.drawn, S.drawn ? S.drawn_ms / S.drawn : 0.0, S.drawn_ms_max, st.ticks,
+                    st.ticks ? S.tick_ms / st.ticks : 0.0);
         pcgfx_hfr_shutdown();
         pcgfx_tex_cache_clear();
         pcgfx_rdp_forget_targets();

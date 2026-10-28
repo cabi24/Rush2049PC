@@ -108,6 +108,11 @@ void pc_gfx_retrace(uint32_t vi);            /* each retrace, before the VI's pr
  * host's clock, a frame between two isn't drawn while the GPU hasn't finished what it was given; 2: no frame is drawn
  * between two, only the game's are shown (the host is behind). 1 when something new was shown, 0 if not. */
 int pc_gfx_present_tick(double vi_time, int mode);
+/* Textures (docs/port/TEXTURES.md): 0 original, 1 upscaled (3D textures, by the internal scale), 2 pack (replacements
+ * from the texture pack folder). From the next frame. pc_gfx_parse_textures: "original", "upscaled", "pack"; *ok = 0
+ * for anything else. */
+void pc_gfx_set_textures(int mode);
+int pc_gfx_parse_textures(const char *text, int *ok);
 
 /* Drawing over the frame, in window pixels (port/gfx/gfx_ui.c), for port/input's settings overlay. While a UI hook
  * is set, each present (and pc_gfx_redraw) calls it with the window's size after the frame is shown and before

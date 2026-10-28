@@ -1,6 +1,6 @@
 /* port/gfx/tests/size_test.c: gfx_size.c with made-up window, drawable and desktop sizes (no GL, no window).
  *
- *   gfx_size_test [scale|edge|fit|units|window|all]
+ *   gfx_size_test [scale|edge|fit|units|window|texfactor|all]
  *
  * The internal scale a window gets (native: any fraction; auto: whole), the internal size of a target, where N64
  * pixel edges land at fractional scales (no gap, no overlap, the shader's pixel rule the same), where the frame goes
@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "gfx_internal.h"
+#include "gfx_tex.h"
 
 static int s_fail;
 
@@ -189,9 +190,29 @@ static void case_window(void) {
     expect_i("no display h", h, 480);
 }
 
+/* The upscaled textures' factor and a pack's limit follow the internal scale in effect, fractions too (gfx_tex.c). */
+static void case_texfactor(void) {
+    static const struct { float s; int factor, limit; } t[] = {
+        {1.0f, 1, 1}, {1.4f, 1, 2}, {1.5f, 2, 2}, {2.0f, 2, 2}, {3.0f, 2, 3}, {3.375f, 2, 4}, {3.5f, 4, 4},
+        {4.0f, 4, 4}, {6.0f, 4, 6}, {2880.0f / 426, 4, 7}, {8.0f, 4, 8},
+    };
+    float was = pcgfx_cfg.scale;
+    char what[64];
+    int i;
+    for (i = 0; i < (int)(sizeof(t) / sizeof(t[0])); i++) {
+        pcgfx_cfg.scale = t[i].s;
+        snprintf(what, sizeof(what), "factor at %.3f", t[i].s);
+        expect_i(what, pcgfx_tex_factor(), t[i].factor);
+        snprintf(what, sizeof(what), "pack limit at %.3f", t[i].s);
+        expect_i(what, pcgfx_tex_pack_limit(), t[i].limit);
+    }
+    pcgfx_cfg.scale = was;
+}
+
 int main(int argc, char **argv) {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"scale", case_scale}, {"edge", case_edge}, {"fit", case_fit}, {"units", case_units}, {"window", case_window},
+        {"texfactor", case_texfactor},
     };
     const char *which = argc > 1 ? argv[1] : "all";
     int i, ran = 0, failed = 0;

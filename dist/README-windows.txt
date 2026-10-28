@@ -52,6 +52,7 @@ this folder:
                     commented out at its default (remove the ; to keep a value)
   rush2049pc.mpk    the saves (the game's controller pak)
   screenshots\      F12's pictures
+  texture_cache\    upscaled textures kept for the next run (Textures: upscaled)
   rush2049pc.log    what the program printed last time (rush2049pc.old.log: the time before)
 Without rush2049pc.ini next to it, the program keeps them in %APPDATA%\rush2049pc instead.
 
@@ -67,6 +68,21 @@ too. Widescreen is auto (the window's shape). Fullscreen (F11) is borderless ove
 exclusive switches the display to the Resolution setting (720p ... 1620p = 2880x1620, 2160p). The window opens
 at two thirds of the desktop and remembers its size and place. A slow GPU: Resolution 1080p in fullscreen, or
 a lower render scale.
+
+Textures
+--------
+The F1 overlay's Video page has Textures:
+  original   the game's own textures
+  upscaled   the 3D world's textures (road, buildings, signs, cars, sky) upscaled 2x, or 4x from render scale
+             3.5 (native at 1080p and up); the HUD and menus as they are. It needs a render scale of 1.5 or more
+             (native in a window of 480 rows or more, or 2x-8x).
+             New textures are upscaled in the background as they appear, and kept in texture_cache\, so the next
+             run has them at once. Deleting that folder is safe.
+  pack       a texture pack: PNG replacements in the textures\ folder (video.texture_pack in rush2049pc.ini)
+To make a pack from your own ROM: set video.texture_dump = dump in rush2049pc.ini and play; every texture drawn is
+written into dump\ as PNG. Edit or upscale them (tools\texpack\texpack.py in the source runs an upscaler you
+install, such as realesrgan-ncnn-vulkan, over the whole folder), put the results in textures\ under the same names
+(any whole multiple of the size), and choose pack. Packs are made from your own ROM: don't share them.
 
 Troubleshooting
 ---------------
