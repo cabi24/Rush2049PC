@@ -56,6 +56,7 @@ typedef void(GL_APIENTRYP PFNGLBINDFRAGDATALOCATIONPROC)(GLuint program, GLuint 
     X(PFNGLENABLEPROC, glEnable) \
     X(PFNGLENABLEVERTEXATTRIBARRAYPROC, glEnableVertexAttribArray) \
     X(PFNGLFINISHPROC, glFinish) \
+    X(PFNGLFLUSHPROC, glFlush) \
     X(PFNGLFRAMEBUFFERRENDERBUFFERPROC, glFramebufferRenderbuffer) \
     X(PFNGLFRAMEBUFFERTEXTURE2DPROC, glFramebufferTexture2D) \
     X(PFNGLGENBUFFERSPROC, glGenBuffers) \
@@ -175,6 +176,11 @@ static struct {
     GLuint present_fbo, present_tex;
     int present_w, present_h, present_valid;
     int present_fw, present_rows;   /* the presented frame in N64 pixels */
+    /* The presented image is the rows from present_sy up of present_src's color, until that target is drawn into or
+     * remade; then (present_copy) it is copied to present_tex first. The game draws into another frame buffer next,
+     * so the copy is seldom needed. NULL: present_tex holds it. */
+    GfxTarget *present_src;
+    int present_sy, present_tex_w, present_tex_h;
     GLuint window_fbo, window_tex;  /* headless: the window, offscreen */
     int window_w, window_h;
     GLuint ui_prog, ui_tex;         /* the overlay (gfx_ui.c) */
@@ -208,6 +214,8 @@ static struct {
 static uint8_t *s_tex_params;
 static uint32_t s_tex_params_n;
 #define TEX_PARAMS_MAX (1u << 20)
+
+static void present_copy(const GfxTarget *t);
 
 static void dc_forget(void) {
     DC.valid = 0;
@@ -566,6 +574,7 @@ GfxTarget *pcgfx_gl_target(const void *addr, int w, int h) {
         glGenFramebuffers(1, &t->fbo);
         glGenTextures(1, &t->color);
     }
+    present_copy(t);   /* made again: the presented image keeps its pixels */
     t->w = w;
     t->h = h;
     t->s = s;
@@ -663,6 +672,13 @@ void pcgfx_gl_clear(GfxTarget *t, const int32_t rect[4], int depth, const float 
         glClearBufferfv(GL_DEPTH, 0, &z);
     } else {
         float c[4];
+        if (t == G.present_src) {
+            present_copy(t);
+            bind_fbo(t->fbo);
+            dc_check();
+            dc_viewport(0, 0, t->pw, t->ph);
+            set_scissor(t, rect);
+        }
         memcpy(c, rgba, sizeof(c));
         c[3] = 1.0f;
         dc_color_mask(1);
@@ -823,6 +839,8 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     float sc[2];
     if (t == NULL || sh == NULL || n <= 0)
         return;
+    if (t == G.present_src)
+        present_copy(t);
     bind_fbo(t->fbo);
     dc_check();
     dc_viewport(0, 0, t->pw, t->ph);
@@ -931,37 +949,51 @@ void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window) {
 }
 
 void pcgfx_gl_present_image(GfxTarget *t) {
-    int rows, pw, ph;
+    int rows, ph;
     if (t == NULL)
         return;
     rows = target_rows(t);
-    pw = t->pw;
     ph = t->ph - pcgfx_edge(t->h - rows, t->h, t->ph);   /* the internal rows of N64 rows 0 .. rows */
+    G.present_src = t;
+    G.present_sy = t->ph - ph;   /* N64 row 0 is the top: GL rows ph - shown .. ph of the target */
+    G.present_w = t->pw;
+    G.present_h = ph;
+    G.present_valid = 1;
+    G.present_fw = t->w;
+    G.present_rows = rows;
+}
+
+/* The presented image into present_tex, from its target: before that target changes (t, or any: NULL). */
+static void present_copy(const GfxTarget *t) {
+    GfxTarget *src = G.present_src;
+    int pw = G.present_w, ph = G.present_h;
+    if (src == NULL || (t != NULL && t != src))
+        return;
+    G.present_src = NULL;
     dc_forget();
     if (G.present_fbo == 0) {
         glGenFramebuffers(1, &G.present_fbo);
         glGenTextures(1, &G.present_tex);
     }
-    if (G.present_w != pw || G.present_h != ph) {
+    if (G.present_tex_w != pw || G.present_tex_h != ph) {
         glBindTexture(GL_TEXTURE_2D, G.present_tex);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, pw, ph, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
         bind_fbo(G.present_fbo);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, G.present_tex, 0);
-        G.present_w = pw;
-        G.present_h = ph;
+        G.present_tex_w = pw;
+        G.present_tex_h = ph;
     }
     glDisable(GL_SCISSOR_TEST);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    /* N64 row 0 is the top: GL rows ph - shown .. ph of the target */
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, t->fbo);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, src->fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, G.present_fbo);
-    glBlitFramebuffer(0, t->ph - ph, pw, t->ph, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, G.present_sy, pw, G.present_sy + ph, 0, 0, pw, ph, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    /* Before the target is drawn into or cleared: on Mesa's iris (Intel) a fast clear of the copy's source in the
+     * same batch left 8 x 4 pixel blocks of what was there before (gfx tests at 1x, UHD 770, Mesa 25.2). */
+    glFlush();
     /* bound for drawing and reading are two others now: the next bind_fbo binds (with a high frame rate nothing may
-     * come between this and the next task's depth clear through t: it must not take t's as still bound) */
+     * come between this and the next task's depth clear through src: it must not take src's as still bound) */
     G.bound_fbo = (GLuint)-1;
-    G.present_valid = 1;
-    G.present_fw = t->w;
-    G.present_rows = rows;
 }
 
 /* Clear the window (or the headless window's image) and blit (sx0, sy0)-(sx0 + pw, sy0 + ph) of src into it: a
@@ -1007,8 +1039,20 @@ static void show_from(GLuint src, int sx0, int sy0, int pw, int ph, int fw, int 
 }
 
 void pcgfx_gl_show(int win_w, int win_h, int to_window) {
-    show_from(G.present_valid ? G.present_fbo : 0, 0, 0, G.present_w, G.present_h, G.present_fw, G.present_rows,
-              win_w, win_h, to_window);
+    if (G.present_src != NULL && win_w > 0 && win_h > 0) {
+        /* straight from its target when shown pixel for pixel or at a whole multiple (nearest): the same pixels as
+         * from a copy; a filtered fit samples the copy, as it always did */
+        int r[4];
+        if (!pcgfx_fit(G.present_w, G.present_h, G.present_fw, G.present_rows, win_w, win_h,
+                       pcgfx_cfg.internal_scale < 0.0f, r))
+            present_copy(NULL);
+    }
+    if (G.present_src != NULL)
+        show_from(G.present_src->fbo, 0, G.present_sy, G.present_w, G.present_h, G.present_fw, G.present_rows, win_w,
+                  win_h, to_window);
+    else
+        show_from(G.present_valid ? G.present_fbo : 0, 0, 0, G.present_w, G.present_h, G.present_fw,
+                  G.present_rows, win_w, win_h, to_window);
 }
 
 void pcgfx_gl_show_target(GfxTarget *t, int rows, int win_w, int win_h, int to_window) {
@@ -1297,5 +1341,7 @@ int pcgfx_gl_read_presented(uint8_t *rgba, int *w, int *h) {
     *h = G.present_h;
     if (rgba == NULL)
         return 0;
+    if (G.present_src != NULL)
+        return read_fbo(G.present_src->fbo, 0, G.present_sy, *w, *h, rgba);
     return read_fbo(G.present_fbo, 0, 0, *w, *h, rgba);
 }
