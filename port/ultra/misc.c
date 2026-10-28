@@ -208,6 +208,12 @@ void pc_print_backtrace(int skip)
         pclose(p);
 }
 
+#ifdef PC_SANITIZE
+/* A sanitizer build (docs/port/SANITIZE.md): the runtime's handlers, installed before main, get each fault after
+ * this one names the N64 thread, and report it with their own stack. */
+static struct sigaction g_prev_fault[NSIG];
+#endif
+
 static void fault(int sig, siginfo_t *si, void *ctx)
 {
     const ucontext_t *uc = ctx;
@@ -223,11 +229,25 @@ static void fault(int sig, siginfo_t *si, void *ctx)
                      si->si_addr, pc_os_thread_name());
     if (write(2, line, (size_t)n) < 0)
         _exit(128 + sig);
-    pc_print_backtrace(1);
+#ifdef PC_SANITIZE
+    const struct sigaction *prev = &g_prev_fault[sig];
+    int chain = (prev->sa_flags & SA_SIGINFO) ? prev->sa_sigaction != NULL
+                                              : prev->sa_handler != SIG_DFL && prev->sa_handler != SIG_IGN;
+    if (!chain)
+#endif
+        pc_print_backtrace(1);
     if (pc_on_fault && n > 13 && n < (int)sizeof line) {
         line[n - 1] = 0;          /* the line without its newlines */
         pc_on_fault(line + 13);   /* nor "\nrush2049pc: " */
     }
+#ifdef PC_SANITIZE
+    if (chain) {
+        sigaction(sig, prev, NULL);
+        if (si->si_code <= 0)   /* sent, not a fault: send it again for the runtime's handler */
+            raise(sig);
+        return;                 /* a fault: the instruction faults again, into the runtime's handler */
+    }
+#endif
     signal(sig, SIG_DFL);
     raise(sig);
 }
@@ -237,8 +257,13 @@ static void fault(int sig, siginfo_t *si, void *ctx)
 void pc_fault_thread_init(void)
 {
     static const size_t size = 64 << 10;
-    stack_t ss = {.ss_sp = malloc(size), .ss_size = size};
-    if (ss.ss_sp)
+    stack_t ss = {.ss_sp = NULL, .ss_size = size};
+#ifdef PC_SANITIZE
+    stack_t cur;
+    if (sigaltstack(NULL, &cur) == 0 && !(cur.ss_flags & SS_DISABLE))
+        ss.ss_size = 0;   /* the runtime's own, which its handlers run on */
+#endif
+    if (ss.ss_size && (ss.ss_sp = malloc(size)) != NULL)
         sigaltstack(&ss, NULL);
 #ifdef __GLIBC__
     if (getenv("RUSH_TRAP_FP"))
@@ -252,10 +277,17 @@ void pc_fault_install(void)
     memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = fault;
     sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+#ifdef PC_SANITIZE
+    sigaction(SIGSEGV, &sa, &g_prev_fault[SIGSEGV]);
+    sigaction(SIGBUS, &sa, &g_prev_fault[SIGBUS]);
+    sigaction(SIGILL, &sa, &g_prev_fault[SIGILL]);
+    sigaction(SIGFPE, &sa, &g_prev_fault[SIGFPE]);
+#else
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGBUS, &sa, NULL);
     sigaction(SIGILL, &sa, NULL);
     sigaction(SIGFPE, &sa, NULL);
+#endif
     pc_fault_thread_init();
 }
 #endif

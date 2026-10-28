@@ -31,6 +31,16 @@
 
 #include "ultra.h"
 
+#if defined(__SANITIZE_ADDRESS__)
+#include <sanitizer/lsan_interface.h>
+#define PC_LSAN 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#include <sanitizer/lsan_interface.h>
+#define PC_LSAN 1
+#endif
+#endif
+
 #ifndef MAP_FIXED_NOREPLACE
 #define MAP_FIXED_NOREPLACE 0x100000
 #endif
@@ -128,6 +138,10 @@ int pc_mem_init(void)
     }
     if (fd >= 0)
         close(fd);
+#ifdef PC_LSAN
+    /* Host allocations the game holds only in RDRAM are not leaks (docs/port/SANITIZE.md). */
+    __lsan_register_root_region(g_rdram, PC_RDRAM_SIZE);
+#endif
     if (pc_verbose)
         pc_log("RDRAM window at %p%s", (void *)g_rdram, g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
     return 0;
