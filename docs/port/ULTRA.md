@@ -106,10 +106,10 @@ PIE a RELATIVE relocation, so at run time the slot holds load address + value. `
 addend is at 0x80000000 or above, where nothing the linker places can be (`gen_data.py --check` verifies that),
 and whose slot holds exactly base + addend. Initialized pointers to them are resolved at link time.
 
-**osMemSize is 4 MiB** (no Expansion Pak) by default. The game then leaves its Expansion Pak flag (`D_80156994`)
-clear and skips overlay B and the extra waves in races, the smaller first target ASSETS.md suggests.
-`--expansion-pak` reports 8 MiB, as N64ModernRuntime and v5 do. Parity runs against v5 need it. The window is 8 MiB
-either way.
+**osMemSize is 8 MiB** (the Expansion Pak) by default, as N64ModernRuntime and v5 report: the game sets its
+Expansion Pak flag (`D_80156994`) and loads overlay B and the extra waves in races, which give it its sixth race
+track, the tracks' animated objects and the front end's song (docs/port/QA.md). `game.expansion_pak = off` reports
+4 MiB, a console without one, where the game skips them. The window is 8 MiB either way.
 
 **Big-endian ranges** (`pc_mem_register_be`): sorted, disjoint. A range that overlaps existing ones merges with
 them, so a DMA into a registered buffer keeps it one range. Adjacent ranges stay apart. `pc_mem_unregister_be(p)`

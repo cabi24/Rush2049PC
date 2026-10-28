@@ -111,7 +111,7 @@ static void test_settings(void)
     PcSettings s, t;
     char why[200];
     pc_settings_defaults(&s);
-    CHECK(!strcmp(s.rom, "baserom.us.z64") && s.rom_check == 1 && s.expansion_pak == 0, "game defaults");
+    CHECK(!strcmp(s.rom, "baserom.us.z64") && s.rom_check == 1 && s.expansion_pak == 1, "game defaults");
     CHECK(s.pak == PC_CFG_PAK_MEMORY && !strcmp(s.pak_file, "rush2049pc.mpk"), "pak defaults");
     CHECK(s.width == 0 && s.height == 0 && !s.fullscreen && s.vsync && s.scale == -1, "video defaults: auto, native");
     CHECK(s.api == PC_CFG_API_AUTO && s.widescreen == -1 && !s.pause_on_focus_loss && !s.screenshot_dir[0], "video");

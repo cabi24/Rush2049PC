@@ -179,8 +179,9 @@ static const Item items[] = {
      "The San Francisco Rush 2049 (USA) ROM: .z64, .v64 or .n64. A full path, or a name looked for next to the "
      "program, in the user data folder, then in the working directory."},
     {"game", "rom_check", T_BOOL, F(rom_check), 0, 0, NULL, "on", "Refuse a ROM whose SHA-1 is not the USA ROM's."},
-    {"game", "expansion_pak", T_BOOL, F(expansion_pak), 0, 0, NULL, "off",
-     "Report 8 MiB of RDRAM (the Expansion Pak). v5 parity runs need it."},
+    {"game", "expansion_pak", T_BOOL, F(expansion_pak), 0, 0, NULL, "on",
+     "Report 8 MiB of RDRAM (the Expansion Pak): the game then offers its sixth race track, the tracks' extra "
+     "animated objects and the front end's song. off: 4 MiB, a console without one."},
     {"game", "pak", T_ENUM, F(pak), 0, 0, pak_choices, "memory",
      "Controller 1's accessory: memory (the controller pak, for saves), rumble or none."},
     {"game", "pak_file", T_STR, F(pak_file), 0, 0, NULL, "rush2049pc.mpk",
