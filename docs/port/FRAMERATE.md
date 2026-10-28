@@ -149,9 +149,13 @@ ticks by the display (`vb` in port/ultra/loop.c):
   above the refresh (`display`, 120 on a 60 Hz display, 60 on 60) every vblank gets one; below it (60 on 144 Hz),
   the vblank at or after each tick of the rate. A rate that isn't a divisor of the refresh still holds frames for
   uneven counts of vblanks, but each shows its own moment.
-- **As late as it makes its vblank.** A tick starts when its drawing (the running mean of its cost, without the
-  swap's wait) ends 1 ms before the vblank, plus how late the loop's timed waits return (a decaying maximum). Its
-  swap then waits about a millisecond, if at all. A frame between the shown one and the game's next, which isn't
+- **As late as it makes its vblank.** A tick starts when its drawing ends 1 ms before the vblank, plus how late the
+  loop's timed waits return (a decaying maximum). Its drawing is planned at the mean of its cost (without the swap's
+  wait) plus twice the mean deviation, both a quarter of the way per tick (`cost_note`, `vb_cost`): ticks that draw
+  a frame between two cost several times those that show the game's own or nothing new, so after a cheap one the
+  mean alone was far below the next, and that tick drew past its vblank (2-4.7 ms against a mean of 0.2-1.9 ms on
+  the synthetic race; a blocking swap then waits for the vblank after, a frame held twice). Its swap then waits
+  about a millisecond, if at all. A frame between the shown one and the game's next, which isn't
   drawn yet, waits for its graphics task (which wakes the loop) as long as the tick still makes the vblank.
 - **Never across a retrace.** A tick whose drawing would run into the next retrace is drawn after it, if that still
   makes the vblank, else before it; a tick drawn before a retrace due before its vblank leaves its swap until the
@@ -302,8 +306,20 @@ shown twice that the pacing meant to replace; ticks that show nothing new or are
 | 60.000 Hz, at 0.5 | blocks | the vblanks, none moved | 30 s | 16 | | |
 
 The races' frames between are the last 10 s of a 20 s run (the front end draws no 3D), hence 165-178 there and
-600-666 in 30 s. At 60.000 Hz the blocking model shows 16-17 frames held twice in 30 s at any phase, moved or not,
-all after the first 10 s: a tick that waits for the game's next frame and then overruns its vblank (section 6).
+600-666 in 30 s. The rows above planned a tick by the mean of its cost. At 60.000 Hz the blocking model then showed
+16-24 frames held twice in 30 s at any phase, moved or not, and the 30 s runs of `hfr_paced` at 59.94 too: ticks
+drawing a frame between that started by the mean and drew past their vblank (section 2, "As late as it makes its
+vblank"). Planned by the mean and twice the deviation (the ctest runs, rocky, 30 s, before and after):
+
+| Test | Held twice | Vblanks lost to skipped ticks | Frames drawn between |
+|---|---|---|---|
+| `hfr_paced_60` (60.000 Hz, the worst phase, moved) | 24 -> 9 | 6 -> 2 | 644 -> 669 |
+| `hfr_paced` (59.94 Hz, blocking): display, 60, 120 | 55, 24, 35 -> 4, 4, 5 | 39, 45, 40 -> 37, 36, 36 | 571, 641, 573 -> 669, 672, 640 |
+| `hfr_paced_queue` (never blocks): rate, vblank | 1, 1 -> 1, 1 | 21, 45 -> 43, 44 | 660, 592 -> 637, 660 |
+
+`audio_realtime` was the same (0 underruns, 2 buffers as silence). Three and four deviations were tried on the
+60.000 Hz and 59.94 Hz races: 1-6 held twice, but 18-122 ticks lost in a run. What remains at two is the first frame
+between after a run of cheap ticks (the race starting) and a frame that costs more than its neighbours.
 
 With precise waits (Windows' high-resolution timer) each vblank gets its tick; the frames drawn between are more
 than the retrace grid gave without vsync, since a tick waits for the game's next frame while it can. With coarse
@@ -328,10 +344,16 @@ its numbers vary from run to run.
   different refreshes, a window on one the compositor doesn't follow gets its monitor's exact period but no vblank
   times (the phase from blocking swaps). In exclusive fullscreen the compositor may not present at all; its vblank
   still comes from the display's clock.
-- With a swap that blocks at an exact 60.000 Hz, 16-17 vblanks in 30 s show a frame twice with no decision for them
-  (at any phase): a tick waiting for the game's next frame (`pc_gfx_tick_waits`) starts as late as its mean cost
-  allows and overruns its vblank when its drawing takes longer. At 59.94 the same race shows 0-1. A margin from the
-  cost's spread, not its mean, would cover it.
+- With a swap that blocks, 4-9 vblanks in 30 s still show a frame twice with no decision for them (section 5): the
+  first frame between after a run of cheap ticks, and a frame that costs more than its neighbours. Planning by what
+  the tick will draw (a frame between or the game's own: the renderer knows) would cover the first kind.
+- On the Pi 5 the synthetic race draws about 150 frames between in 30 s, against 650 on rocky, with the vsync
+  pacing and without it alike (151 and 151 at 60, vsync off and on; 0 not drawn, the rest held), and the race's
+  states come at the same retraces on both: which frames are interpolated differs on that host, not when the ticks
+  run. `hfr_paced`'s bound of 250 is rocky's. With the coarse-wait model (15.6 ms steps for every timed wait, the
+  main loop's included) the Pi's race at 60 or 120 has 806 of 1800 retraces late and none drawn between; on Windows
+  the main loop waits on a high-resolution waitable timer (and asks for a 1 ms period), so that model is the case
+  where Windows refuses both.
 - The retraces are moved against the vblanks only on displays that keep their phase (section 2). At 59.94 the bad
   phase comes for about 2.5 s in every 17 (the vblank just after a retrace); moving the retraces to follow it would
   make them the display's grid, not their own 60 Hz, so it isn't done.
