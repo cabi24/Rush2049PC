@@ -439,7 +439,10 @@ screen's edge that it has on a 4:3 screen. Everything else stays as the section 
   point (ZOID_WindowTo3D, `car_lights_render`), so the rule above can't see them. On the PC that function moves its
   point's x by `pc_gfx_hud_dx` (the same rule for a point: -ox, 0 or ox), so they stay beside their counts; the
   battle and stunt HUD's models go through it too (ovl_b's status scene). It is the one game C change
-  (`src/blob/car_lights_render.c`, N64-neutral: one macro).
+  (`src/blob/car_lights_render.c`, N64-neutral: one macro). `pc_gfx_hud_dx` runs on the game's thread while the
+  renderer runs in real time on the main thread, so it reads only atomics: the setting, and the frame width and
+  widening the renderer publishes at each color image (`pcgfx_hud_publish`). After a resize or a widescreen change
+  the models follow one frame later than the 2D.
 - **A high frame rate** records the queue as it is drawn (`pcgfx_rec_verts`, the moved vertices and scissor), so
   frames between keep the HUD where the nearer frame has it ("High frame rate" below; `gfx.interp.hudedges`).
   Screenshots read the presented image, which has it. 2D keeps its original textures with `video.textures`

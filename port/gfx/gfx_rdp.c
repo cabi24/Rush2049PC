@@ -1337,8 +1337,10 @@ void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
         pcgfx.cimg.siz = (w0 >> 19) & 3;
         pcgfx.cimg.width = (uint16_t)((w0 & 0xFFF) + 1);
         pcgfx.cimg.addr = a;
-        if (a != pcgfx.zimg)   /* the z buffer as color image clears the frame's depth: keep its geometry */
+        if (a != pcgfx.zimg) {   /* the z buffer as color image clears the frame's depth: keep its geometry */
             pcgfx.wide_ox = wide_offset(pcgfx.cimg.width);
+            pcgfx_hud_publish(pcgfx_frame_width(), pcgfx.wide_ox);   /* for pc_gfx_hud_dx (gfx_hud.c) */
+        }
         if (a == NULL || a != pcgfx.zimg) {   /* drawing into the z buffer only ever clears it */
             int tw, th;
             pcgfx_target_dims(&tw, &th);

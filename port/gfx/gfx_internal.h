@@ -297,6 +297,7 @@ int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);
  * group moved to its side. It runs before anything else is drawn or cleared, at a new color image and at the task's
  * end. pcgfx_hud_add returns -1 when it can't queue (draw it as usual). */
 void pcgfx_hud_init(void);         /* RUSH_GFX_HUD */
+void pcgfx_hud_publish(int frame_width, int ox);   /* at SETCIMG: what pc_gfx_hud_dx (the game's thread) reads */
 void pcgfx_hud_task_begin(void);
 int pcgfx_hud_on(void);
 int pcgfx_hud_pending(void);
