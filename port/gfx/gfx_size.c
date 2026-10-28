@@ -44,6 +44,57 @@ int pcgfx_row_of(int i, int n, int px) {
     return n - 1 - pcgfx_pixel_of(px - 1 - i, n, px);
 }
 
+/* An edge at q/4 N64 pixels (rectangles are in quarter pixels; any sign, not clamped) of a side n N64 pixels drawn
+ * as px internal ones: pcgfx_edge's rule, the first internal pixel whose centre is at or past it,
+ * ceil(q/4 * px / n - 1/2) in whole numbers. *exact: q/4 * px / n is that boundary itself (a whole scale and a whole
+ * N64 pixel, or a quarter that lands on one). */
+static long long ceil_div(long long a, long long b) {   /* b > 0 */
+    return a >= 0 ? (a + b - 1) / b : -((-a) / b);
+}
+
+int pcgfx_edge_q(long long q, int n, int px, int *exact) {
+    if (n <= 0) {
+        *exact = 1;
+        return 0;
+    }
+    *exact = (q * px) % (4LL * n) == 0;
+    return (int)ceil_div(2 * q * px - 4LL * n, 8LL * n);
+}
+
+/* The same for rows, from the top, by GL's y-up rule (pcgfx_row_edge). */
+int pcgfx_row_edge_q(long long q, int n, int px, int *exact) {
+    return px - pcgfx_edge_q(4LL * n - q, n, px, exact);
+}
+
+/* Where a rectangle's side goes in GL's clip x (y: pcgfx_rect_y), for any GL (GFX.md "Resolution and scale"): side x
+ * in target N64 pixels (a multiple of 1/4) of a target n N64 pixels wide, px internal pixels. On the internal pixel
+ * boundary pcgfx_edge_q gives it, within the target: every pixel centre is half a pixel from it, so which pixels the
+ * rectangle covers doesn't depend on a GPU's tie rule (a centre exactly on an edge) or its subpixel precision (GL
+ * asks for 4 bits; V3D has 6, iris 8), and it never reaches past the viewport, where a GPU would clip it. *xe is the
+ * boundary in N64 pixels, where the rectangle's texture coordinates are taken. A side on a boundary already and
+ * within the target is x itself, as before the boundaries (a whole scale and a whole N64 pixel). */
+float pcgfx_rect_x(float x, int n, int px, float *xe) {
+    int exact, e = pcgfx_edge_q(llround((double)x * 4.0), n, px, &exact);
+    if (exact && x >= 0.0f && x <= (float)n) {
+        *xe = x;
+        return x * 2.0f / (float)n - 1.0f;
+    }
+    e = e < 0 ? 0 : e > px ? px : e;
+    *xe = (float)((double)e * n / px);
+    return (float)e * 2.0f / (float)px - 1.0f;
+}
+
+float pcgfx_rect_y(float y, int n, int px, float *ye) {
+    int exact, e = pcgfx_row_edge_q(llround((double)y * 4.0), n, px, &exact);
+    if (exact && y >= 0.0f && y <= (float)n) {
+        *ye = y;
+        return 1.0f - y * 2.0f / (float)n;
+    }
+    e = e < 0 ? 0 : e > px ? px : e;
+    *ye = (float)((double)e * n / px);
+    return 1.0f - (float)e * 2.0f / (float)px;
+}
+
 /* The scale for a window of win_w x win_h pixels showing a frame fw x rows N64 pixels:
  * mode 0 (auto) the largest whole multiple it holds (1-8); mode < 0 (native) the frame's fit, any fraction (1-16):
  * the frame drawn at the window's own pixels. */

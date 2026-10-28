@@ -1032,11 +1032,12 @@ void pcgfx_rdp_forget_targets(void) {
 
 /* ---------------------------------------------------------------- rectangles */
 
-static void rect_vertex(GfxOutVtx *o, float x, float y, float s, float t, int textured, int tw, int th) {
+/* A corner at clip x, y (pcgfx_rect_x, pcgfx_rect_y) with texture coordinates s, t there. */
+static void rect_vertex(GfxOutVtx *o, float x, float y, float s, float t, int textured) {
     float d = (pcgfx.om_l & G_ZS_PRIM) ? pcgfx.prim_z / 32767.0f : 0.0f;
     int k;
-    o->pos[0] = x * 2.0f / tw - 1.0f;
-    o->pos[1] = 1.0f - y * 2.0f / th;
+    o->pos[0] = x;
+    o->pos[1] = y;
     o->pos[2] = 2.0f * d - 1.0f;
     o->pos[3] = 1.0f;
     o->shade[0] = o->shade[1] = o->shade[2] = o->shade[3] = 0.0f;   /* rectangles have no shade */
@@ -1061,12 +1062,20 @@ static float rect_start(float c0, float d, float scale, int snap) {
     return c0 - d + 0.5f * d / scale + 1.0f / 64;
 }
 
-/* Corners in N64 pixels; s/t at (x0, y0) for the pixel's corner, per-pixel steps. */
+/* A texture coordinate c0 at N64 coordinate 0 of a rectangle's side, at d (from that side): c0 + step * d. At d = 0,
+ * c0 itself, and at the far side (d the side's length), c0 + step * length, as before the boundaries. */
+static float rect_lin(float c0, float step, float d) {
+    return d == 0.0f ? c0 : c0 + step * d;
+}
+
+/* Corners in N64 pixels; s/t at (x0, y0) for the pixel's corner, per-pixel steps. The sides go to GL on internal
+ * pixel boundaries (pcgfx_rect_x), so the pixels a rectangle covers are the same on any GL; the texture coordinates
+ * are taken where the sides are. */
 static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s, float t, float dsdx, float dtdy,
                       int flip) {
     GfxOutVtx q[4], tri[6];
-    int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap, stretched = 0;
-    float w, h = y1 - y0, sx = 1.0f, sy = 1.0f;
+    int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap, stretched = 0, u;
+    float sx = 1.0f, sy = 1.0f, cx0, cx1, cy0, cy1, xe0, xe1, ye0, ye1, du[4] = {0, 0, 0, 0};
     /* the corners' x at the 4:3 place, for the HUD at the screen's edges (gfx_hud.c) */
     float a0 = x0 + (float)pcgfx.wide_ox, a1 = x1 + (float)pcgfx.wide_ox;
     if (pcgfx.wide_ox != 0) {
@@ -1087,24 +1096,30 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
             x1 += (float)pcgfx.wide_ox;
         }
     }
-    w = x1 - x0;
     pcgfx_draw_state(textured ? tile : 8, wide);
     pcgfx_target_dims(&tw, &th);
+    pw = tw;
+    ph = th;
     if (s_state.target != NULL)
         pcgfx_gl_target_px(s_state.target, &pw, &ph, &sx, &sy);
     snap = (s_state.shader_flags & GFX_KF_SNAP) != 0;
     s = rect_start(s, dsdx, flip ? sy : sx, snap);   /* flipped, s follows y */
     t = rect_start(t, dtdy, flip ? sx : sy, snap);
+    cx0 = pcgfx_rect_x(x0, tw, pw, &xe0);
+    cx1 = pcgfx_rect_x(x1, tw, pw, &xe1);
+    cy0 = pcgfx_rect_y(y0, th, ph, &ye0);
+    cy1 = pcgfx_rect_y(y1, th, ph, &ye1);
+    xe0 -= x0, xe1 -= x0, ye0 -= y0, ye1 -= y0;   /* from the corner (x0, y0) */
     if (!flip) {
-        rect_vertex(&q[0], x0, y0, s, t, textured, tw, th);
-        rect_vertex(&q[1], x1, y0, s + dsdx * w, t, textured, tw, th);
-        rect_vertex(&q[2], x0, y1, s, t + dtdy * h, textured, tw, th);
-        rect_vertex(&q[3], x1, y1, s + dsdx * w, t + dtdy * h, textured, tw, th);
+        rect_vertex(&q[0], cx0, cy0, rect_lin(s, dsdx, xe0), rect_lin(t, dtdy, ye0), textured);
+        rect_vertex(&q[1], cx1, cy0, rect_lin(s, dsdx, xe1), rect_lin(t, dtdy, ye0), textured);
+        rect_vertex(&q[2], cx0, cy1, rect_lin(s, dsdx, xe0), rect_lin(t, dtdy, ye1), textured);
+        rect_vertex(&q[3], cx1, cy1, rect_lin(s, dsdx, xe1), rect_lin(t, dtdy, ye1), textured);
     } else {   /* s follows y, t follows x */
-        rect_vertex(&q[0], x0, y0, s, t, textured, tw, th);
-        rect_vertex(&q[1], x1, y0, s, t + dtdy * w, textured, tw, th);
-        rect_vertex(&q[2], x0, y1, s + dsdx * h, t, textured, tw, th);
-        rect_vertex(&q[3], x1, y1, s + dsdx * h, t + dtdy * w, textured, tw, th);
+        rect_vertex(&q[0], cx0, cy0, rect_lin(s, dsdx, ye0), rect_lin(t, dtdy, xe0), textured);
+        rect_vertex(&q[1], cx1, cy0, rect_lin(s, dsdx, ye0), rect_lin(t, dtdy, xe1), textured);
+        rect_vertex(&q[2], cx0, cy1, rect_lin(s, dsdx, ye1), rect_lin(t, dtdy, xe0), textured);
+        rect_vertex(&q[3], cx1, cy1, rect_lin(s, dsdx, ye1), rect_lin(t, dtdy, xe1), textured);
     }
     tri[0] = q[0];
     tri[1] = q[2];
@@ -1114,7 +1129,17 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     tri[5] = q[3];
     if (pcgfx_hud_on()) {   /* the HUD at the screen's edges: queued, moved with its group (gfx_hud.c) */
         const float x43[6] = {a0, a0, a1, a1, a0, a1};   /* q[0], q[2], q[1], q[1], q[2], q[3] */
-        if (pcgfx_hud_add(&s_state, tri, x43, 6, !stretched, 0) == 0)
+        const float y43[6] = {y0, y1, y0, y0, y1, y1};
+        for (u = 0; u < 2 && textured; u++) {   /* the texture coordinates' change per N64 pixel across */
+            if (s_state.tex[u]) {
+                float u0, v0, u1, v1;
+                pcgfx_tile_uv(u, s, t, &u0, &v0);
+                pcgfx_tile_uv(u, flip ? s : s + dsdx, flip ? t + dtdy : t, &u1, &v1);
+                du[2 * u] = u1 - u0;
+                du[2 * u + 1] = v1 - v0;
+            }
+        }
+        if (pcgfx_hud_add(&s_state, tri, x43, y43, du, 6, !stretched, 0) == 0)
             return;
     }
     if (pcgfx_rec != NULL)

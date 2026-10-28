@@ -40,6 +40,8 @@ typedef struct {
     float x0, y0, x1, y1;   /* its box in the 4:3 frame, N64 pixels (within its scissor) */
     int32_t sc_x0, sc_x1;   /* its scissor's sides as 2D has them (the frame's, moved with the frame) */
     int tw;                 /* the target's width, N64 pixels */
+    int pw;                 /* and internal ones */
+    float du[4];            /* a rectangle's texture coordinates' change per N64 pixel across */
     int ox;                 /* the widening */
     int fw;                 /* the frame's width */
     int parent;             /* union-find */
@@ -160,7 +162,8 @@ static uint32_t keep_state(const GfxDrawState *st) {
     return S.nst++;
 }
 
-int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, int n, int movable, int tri) {
+int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, const float *y43, const float *du,
+                  int n, int movable, int tri) {
     HudItem *it;
     uint32_t si;
     int i, tw, th, fw = pcgfx_frame_width(), ox = pcgfx.wide_ox;
@@ -188,6 +191,14 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
     it->first = S.nv;
     it->count = (uint32_t)n;
     it->tw = tw;
+    it->pw = tw;
+    if (st->target != NULL) {
+        int ph;
+        float sx, sy;
+        pcgfx_gl_target_px(st->target, &it->pw, &ph, &sx, &sy);
+    }
+    if (du != NULL)
+        memcpy(it->du, du, sizeof(it->du));
     it->ox = ox;
     it->fw = fw;
     it->tri = (uint8_t)tri;
@@ -196,7 +207,7 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
     for (i = 0; i < n; i++) {
         float w = v[i].pos[3] != 0.0f ? v[i].pos[3] : 1.0f;
         float x = x43 != NULL ? x43[i] : (v[i].pos[0] / w + 1.0f) * 0.5f * (float)tw;
-        float y = (1.0f - v[i].pos[1] / w) * 0.5f * (float)th;
+        float y = y43 != NULL ? y43[i] : (1.0f - v[i].pos[1] / w) * 0.5f * (float)th;
         S.v[S.nv + i] = v[i];
         S.x43[S.nv + i] = x;
         x -= (float)ox;   /* the frame's */
@@ -300,6 +311,20 @@ static void draw_run(const GfxDrawState *st, uint32_t n) {
         pcgfx_rec_verts(st, S.out, (int)n);
 }
 
+/* A rectangle's corner at x (target N64 pixels, the 4:3 place) moved by dx N64 pixels: on the internal pixel boundary
+ * of its new place (pcgfx_rect_x), with the texture coordinates there. At a whole scale the boundary moves by dx
+ * too, and the texture coordinates stay. */
+static void move_corner(GfxOutVtx *o, const HudItem *it, float x, int dx) {
+    float xe0, xe1, d;
+    int k;
+    (void)pcgfx_rect_x(x, it->tw, it->pw, &xe0);
+    o->pos[0] = pcgfx_rect_x(x + (float)dx, it->tw, it->pw, &xe1);
+    d = xe1 - (float)dx - xe0;
+    if (d != 0.0f)
+        for (k = 0; k < 4; k++)
+            o->uv[k] += d * it->du[k];
+}
+
 void pcgfx_hud_resolve(void) {
     GfxDrawState run_st;
     uint32_t run_n = 0;
@@ -331,8 +356,8 @@ void pcgfx_hud_resolve(void) {
                     continue;
                 if (it->tri)   /* clip x: w * 2 / tw per N64 pixel */
                     o->pos[0] += (float)dx * 2.0f / (float)it->tw * o->pos[3];
-                else           /* a rectangle's corner, as draw_rect places it */
-                    o->pos[0] = (S.x43[it->first + k] + (float)dx) * 2.0f / (float)it->tw - 1.0f;
+                else           /* a rectangle's corner, as draw_rect places it: on its pixel boundary */
+                    move_corner(o, it, S.x43[it->first + k], dx);
             }
             run_n += it->count;
         }

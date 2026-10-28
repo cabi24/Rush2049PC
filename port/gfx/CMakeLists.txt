@@ -158,7 +158,7 @@ set_target_properties(gfx_size_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED
     EXPORT_COMPILE_COMMANDS OFF)
 target_include_directories(gfx_size_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gfx_size_test PRIVATE pcgfx)
-foreach(c scale edge fit units window texfactor)
+foreach(c scale edge rectedge fit units window texfactor)
     add_test(NAME gfx.size.${c} COMMAND gfx_size_test ${c})
 endforeach()
 # Frame interpolation (gfx_interp.c, a high frame rate): pairs of frames built as the game builds them, and the

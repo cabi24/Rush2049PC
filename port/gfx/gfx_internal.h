@@ -292,6 +292,12 @@ int pcgfx_edge(int v, int n, int px);        /* N64 edge v of n pixels drawn as 
 int pcgfx_pixel_of(int i, int n, int px);    /* internal pixel i's N64 pixel (its centre's) */
 int pcgfx_row_edge(int v, int n, int px);    /* the same for rows, from the top, by GL's y-up tie rule */
 int pcgfx_row_of(int i, int n, int px);
+int pcgfx_edge_q(long long q, int n, int px, int *exact);       /* an edge at q/4 N64 pixels, any sign */
+int pcgfx_row_edge_q(long long q, int n, int px, int *exact);
+/* A rectangle's side at N64 x (y) in GL clip coordinates, on its internal pixel boundary within the target; *xe the
+ * boundary in N64 pixels, where its texture coordinates are taken */
+float pcgfx_rect_x(float x, int n, int px, float *xe);
+float pcgfx_rect_y(float y, int n, int px, float *ye);
 float pcgfx_window_scale(int mode, int win_w, int win_h, int fw, int rows);   /* 0 auto (whole), < 0 native */
 int pcgfx_fit(int src_w, int src_h, int fw, int rows, int win_w, int win_h, int native, int r[4]);
 void pcgfx_units_of_pixels(int px_w, int px_h, int win_w, int win_h, int draw_w, int draw_h, int *w, int *h);
@@ -310,7 +316,11 @@ void pcgfx_hud_publish(int frame_width, int ox);   /* at SETCIMG: what pc_gfx_hu
 void pcgfx_hud_task_begin(void);
 int pcgfx_hud_on(void);
 int pcgfx_hud_pending(void);
-int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, int n, int movable, int tri);
+/* Rectangles also give each vertex's y in target N64 pixels (y43: the box, since the GL vertex is on its internal
+ * pixel boundary) and the texture coordinates' change per N64 pixel across (du: both units' u and v), so that a move
+ * puts the sides on the boundaries of their new place, with the texture coordinates there. NULL for triangles. */
+int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, const float *y43, const float *du,
+                  int n, int movable, int tri);
 void pcgfx_hud_resolve(void);
 
 /* gfx_interp.c: frame interpolation (GFX.md "High frame rate"). While pcgfx_rec is set, a graphics task is being

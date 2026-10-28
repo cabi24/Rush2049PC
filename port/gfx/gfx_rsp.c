@@ -537,7 +537,7 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
         m = pcgfx_tri_output(poly, n, &in[0], &c, st, pcgfx_units(), tri);
         pcgfx.stat_tris++;
         /* 2D and the HUD at the screen's edges: queued, moved with its group, recorded as drawn (gfx_hud.c) */
-        if (!c.wide && pcgfx_hud_on() && pcgfx_hud_add(st, tri, NULL, m, 1, 1) == 0)
+        if (!c.wide && pcgfx_hud_on() && pcgfx_hud_add(st, tri, NULL, NULL, NULL, m, 1, 1) == 0)
             return;
         pcgfx_emit(tri, m);
     }
