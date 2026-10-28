@@ -757,6 +757,11 @@ add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
+# A sanitizer build runs the programs several times slower: the tests that start the game many times get more time
+# (docs/port/SANITIZE.md 5).
+if(PC_SANITIZE)
+    set_tests_properties(app_firstrun hfr_timing PROPERTIES TIMEOUT 1200)
+endif()
 
 # ---------------------------------------------------------------- install (docs/port/RELEASE.md)
 # `cmake --install build/pc --prefix DIR`. Portable (the default on Windows, and the release archives): one folder
