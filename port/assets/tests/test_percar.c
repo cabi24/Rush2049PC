@@ -16,7 +16,7 @@
  * drone cameras of PC_RACE_CARS cars; render_post_process clears every finish camera, mode_flags_clear the first
  * two.
  * game: src/blob/groups/mode_select/d5e64.c src/blob/groups/mode_select/mode.c src/blob/func_800D5524.c
- * game: src/blob/player_conditional_call.c src/blob/func_800FBE60.c
+ * game: src/blob/player_conditional_call.c src/blob/player_conditional_check.c src/blob/func_800FBE60.c
  * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800F8EC8.c
  * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c
  * game: src/blob/groups/race_countdown_display/race_countdown_display.c src/blob/func_800E9E2C.c
