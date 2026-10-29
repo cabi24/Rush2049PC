@@ -181,6 +181,17 @@ int pc_race_cars(void)
     return PC_N64_CARS;
 }
 
+/* PLACEHOLDER until [game] cars is wired up (docs/port/MORECARS.md 10.2, item 7, which defines both): the race's
+ * start latches nothing, and the setting is the N64's 6. */
+void pc_race_cars_begin(void)
+{
+}
+
+int pc_cars_setting(void)
+{
+    return PC_N64_CARS;
+}
+
 /* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
  * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second;
  * and its steering input, -1..1),

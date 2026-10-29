@@ -71,6 +71,22 @@ extern Config D_80153E88[];
 #define PC_LINKP_OWNER(p) p->kind
 #endif
 
+#ifdef TARGET_PC
+/* PC: a race holds up to the setting's cars (pc_game_types.h, docs/port/MORECARS.md 3.1). The race's start latches
+ * the setting; the results screen calls this again for the cars that race on behind it (display_list_flush, state
+ * 0x2000000), which keep the race's count. The drones fill up to the race's cars, but the circuit stays the N64's 6
+ * (MORECARS.md 3.3: its standings, points and records are six). Every slot a PC race can use is filled, so the slots
+ * after this race's cars are empty (owner 7, flags 0), whatever an earlier race of more cars left in them. */
+extern u32 state_word_a;
+#define PC_LATCH_CARS() if (!(state_word_a & 0x2000000)) pc_race_cars_begin();
+#define RACE_CARS (D_8014A110 == 3 ? PC_N64_CARS : PC_RACE_CARS)
+#define LINK_SLOTS PC_MAX_LINKS
+#else
+#define PC_LATCH_CARS()
+#define RACE_CARS 6
+#define LINK_SLOTS 6
+#endif
+
 f32 func_8008B2E4(f32 max);
 void CalcPolePositions(void)
 {
@@ -80,15 +96,15 @@ void CalcPolePositions(void)
     u8 next = 0;
     PC_LINK *config;
 
-    extra = D_80142724;
-    if (6 - D_8014A108 < extra) {
-        extra = 6 - D_8014A108;
+    PC_LATCH_CARS() extra = D_80142724;
+    if (RACE_CARS - D_8014A108 < extra) {
+        extra = RACE_CARS - D_8014A108;
     }
     if (D_8014A110 == 4 || D_8014A110 == 5 || D_8014A110 == 6) {
         extra = 0;
     }
     D_801543CA = D_8014A108 + extra;
-    for (slot = 0, config = PC_LINKS; slot < 6; slot++, config++) {
+    for (slot = 0, config = PC_LINKS; slot < LINK_SLOTS; slot++, config++) {
         if (D_8014A110 == 3 && slot < D_801543CA && D_80154628 > 0) {
             PC_LINKP_PLACE(config) = D_80154450[(slot == 0) ? D_801543D4 : ((slot == 1) ? D_801543D4 ^ 1 : slot)].id;
             PC_LINKP_FLAGS(config) = 176;

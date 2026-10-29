@@ -3719,10 +3719,14 @@ typedef s64 M2C_UNK64;
 #define PAD0EC(a, x) a[x]
 #define CAR_OFS(n) n
 #endif
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void players_race_update(void) {
     D_8014A250_Record *r;
     s32 i;
-    for (i = 0, r = PC_MODELS; i != 6; i++, r = (D_8014A250_Record *) ((s8 *) r + 0x808)) {
+    for (i = 0, r = PC_MODELS; i != PC_RACE_CARS; i++, r = (D_8014A250_Record *) ((s8 *) r + 0x808)) {
         if ((*(s16 *) ((s8 *) r + 0x7C8) != 0) && ((s8) PC_CAR_STATE(i) < 2)) {
             func_800D4DFC(r);
         }

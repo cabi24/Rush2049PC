@@ -10,7 +10,9 @@
  * func_800D18C8 raises record 0's obResPt through what was D_8014AA14 (+0x7C4); func_800D60AC hands each car's
  * record to func_800D5E64 by a pointer walk of 0x808 from the array's start; steering_apply reads collidable through
  * what was D_8014AA3A (+0x7EA); menu_audio_settings, the car-to-car collision, walks the cars after one up to the
- * array's end, the next symbol (D_8014D280) on the N64.
+ * array's end, the next symbol (D_8014D280) on the N64. A race of more cars (docs/port/MORECARS.md 3.1),
+ * test_race_cars 12 (what pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to
+ * the 12th, PC_MODELS_END being the end of the race's cars.
  * game: src/blob/func_800E762C.c src/blob/func_800D1248.c src/blob/func_800D0380.c src/blob/groups/path_D169C/path.c
  * game: src/blob/func_800D60AC.c src/blob/steering_apply.c src/blob/menu_audio_settings.c
  */
@@ -118,21 +120,33 @@ static void test_layout(void)
     CHECK(offsetof(struct pc_model, time_boost) == 0x7F0);
     CHECK(PC_MODEL(3) == (void *)((uint8_t *)pc_models + 3 * 0x808) && PC_MODELS == (void *)pc_models);
     CHECK(PC_MODELS_END == (void *)((uint8_t *)pc_models + 6 * 0x808));
+    test_race_cars = 12;
+    CHECK(PC_MODELS_END == (void *)((uint8_t *)pc_models + 12 * 0x808));
+    test_race_cars = 6;
 }
 
-/* func_800E762C: the 6 records' model clock (iteration, modelTime, dt at +0x710..+0x71B); nothing else. */
-static void test_clock(void)
+/* func_800E762C: the race's records' model clock (iteration, modelTime, dt at +0x710..+0x71B), the N64's 6 or 12;
+ * nothing else. */
+static void model_clock(int cars)
 {
     sentinels();
+    test_race_cars = cars;
     gameplay_mode = 0;
     func_800E762C(3);
     CHECK(D_80143FF4 == -3 && D_801543CC == -3 * D_8002AFB8);
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < cars; i++) {
         CHECK(M32(i, 0x710) == -3 && MF(i, 0x714) == D_801543CC && MF(i, 0x718) == D_8002AFB8);
         CHECK(PC_MODEL_ITERATION(i) == -3 && PC_MODEL_DT(i) == D_8002AFB8);
         CHECK(only(i, 0x710, 0x71C, 0, 0));
     }
-    CHECK(untouched_from(6));
+    CHECK(untouched_from(cars));
+    test_race_cars = 6;
+}
+
+static void test_clock(void)
+{
+    model_clock(6);
+    model_clock(12);
 }
 
 /* func_800D1248 on record 2, a resurrect that ends (+0x6C4 == -2) with slot (+0x7C6) 4: record 2's own fields
@@ -212,6 +226,21 @@ static void test_collisions(void)
     g_nseen = 0;
     menu_audio_settings(PC_MODEL(5));   /* the last of the 6: nothing after it */
     CHECK(g_nseen == 0);
+
+    /* 12 cars: from record 7, records 8 to 11, not 12 to 15 */
+    test_race_cars = 12;
+    g_nseen = 0;
+    menu_audio_settings(PC_MODEL(7));
+    CHECK(g_nseen == 32);
+    for (int n = 0; n < 32 && n < g_nseen; n++)
+        CHECK(index_of(g_seen[n]) == (n % 8 < 4 ? 8 + n / 8 : 7));
+    g_nseen = 0;
+    menu_audio_settings(PC_MODEL(3));   /* from record 3: the 8 after it */
+    CHECK(g_nseen == 64 && index_of(g_seen[56]) == 11 && index_of(g_seen[63]) == 3);
+    g_nseen = 0;
+    menu_audio_settings(PC_MODEL(11));  /* the last of the 12 */
+    CHECK(g_nseen == 0);
+    test_race_cars = 6;
 }
 
 int main(void)

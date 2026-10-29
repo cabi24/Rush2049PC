@@ -3826,6 +3826,10 @@ typedef s64 M2C_UNK64;
 #define PAD0EC(a, x) a[x]
 #define CAR_OFS(n) n
 #endif
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void func_800CFCA8(void)
 {
   GameCar *temp_a0;
@@ -3833,7 +3837,7 @@ void func_800CFCA8(void)
   float new_var;
   unsigned int temp_f8;
   void *temp_v1;
-  for (var_v0 = 0; var_v0 < 6; var_v0++)
+  for (var_v0 = 0; var_v0 < PC_RACE_CARS; var_v0++)
   {
     temp_v1 = PC_MODEL(var_v0);
     if ((*((s16 *) (((s8 *) temp_v1) + 0x7C8))) != 0)
