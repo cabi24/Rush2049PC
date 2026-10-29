@@ -4,5 +4,5 @@
 # seconds: 90
 # expect: state=0x00000008: players 1, windows 1, cars 12, mode 0, track 0
 # args: --set game.cars=12 --log-cars
-# check: tools/port/cars_check.py demo12.log 12
+# check: tools/port/cars_check.py demo12.log 12 --count 12
 5 A            # the controller pak warning; the start prompt (4) times out at 10 s

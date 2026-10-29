@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Check that a run's race held the cars it should (docs/port/MORECARS.md 10.3), from the line --log-cars prints at
-the end ("cars at the end: N in the race; 0 active place P lap L distance D moved M at X Y Z; ...").
+the end ("cars at the end: N in the race, count C; 0 active place P lap L distance D moved M at X Y Z; ...").
 
-    python3 tools/port/cars_check.py LOG CARS [--moved FEET] [--still SLOTS] [--shot PNG VIEWS]
+    python3 tools/port/cars_check.py LOG CARS [--count C] [--moved FEET] [--still SLOTS] [--shot PNG VIEWS]
 
 It passes if the race has CARS slots, each active, their places are 0 to CARS - 1 once each, and each car is at
 least FEET (default 20) from where it stood as the race began, but the slots --still names (comma-separated: a
 player's car the script doesn't drive); and with --shot, if tools/port/synth_shot.py passes on the screenshot (a
-path has one check line). Stdlib only."""
+path has one check line); with --count, if the race's latched count (pc_race_cars()) is C. Stdlib only."""
 import argparse
 import re
 import subprocess
@@ -22,6 +22,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("log")
     ap.add_argument("cars", type=int)
+    ap.add_argument("--count", type=int, help="the race's latched count, pc_race_cars()")
     ap.add_argument("--moved", type=float, default=20.0, help="the least distance a car must be from its start")
     ap.add_argument("--still", default="", help="slots not expected to move (comma-separated)")
     ap.add_argument("--shot", nargs=2, metavar=("PNG", "VIEWS"), help="also synth_shot.py's check of a screenshot")
@@ -33,11 +34,14 @@ def main():
         return 1
     head, *cars = lines[-1].split("cars at the end: ", 1)[1].split("; ")
     why = []
-    m = re.match(r"(\d+) in the race(.*)$", head)
-    if not m or m.group(2):
+    m = re.match(r"(\d+) in the race, count (\d+)(.*)$", head)
+    if not m or m.group(3):
         why.append(f"the race: '{head}'")
-    elif int(m.group(1)) != a.cars:
-        why.append(f"{m.group(1)} cars in the race, not {a.cars}")
+    else:
+        if int(m.group(1)) != a.cars:
+            why.append(f"{m.group(1)} cars in the race, not {a.cars}")
+        if a.count is not None and int(m.group(2)) != a.count:
+            why.append(f"the race's count is {m.group(2)}, not {a.count}")
     places = []
     for c in cars:
         f = CAR.match(c)

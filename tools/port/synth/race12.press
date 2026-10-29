@@ -5,7 +5,7 @@
 # seconds: 90
 # expect: state=0x00400000: players 1, windows 1, cars 12, mode 0, track 0
 # args: --set game.cars=12 --log-cars
-# check: tools/port/cars_check.py race12.log 12
+# check: tools/port/cars_check.py race12.log 12 --count 12
 5 A            # the controller pak warning (0x40000000)
 8 START        # the start prompt (4)
 11 A           # the main menu (0x10): the race

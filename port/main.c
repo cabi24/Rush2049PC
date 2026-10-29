@@ -188,6 +188,7 @@ extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 i
 
 /* --log-cars (docs/port/MORECARS.md 10.3): each car of the race at the run's end, its slot, whether its model is in
  * the race (active), its place (0 the first), lap and distance along the track and its position (its car record's),
+ * the race's latched count (pc_race_cars(), which the setting changes only from the next race),
  * and how far its model is from where it stood as the race began (the first state log snapshot in the race, 0x400000,
  * or in the attract demo, 8, with its cars in the race), so a test can tell that a race of N cars held N, each at a
  * place of its own and each moving (tools/port/cars_check.py). Off by default, and only this line: the traces are the
@@ -214,7 +215,8 @@ static void cars_info(char *out, size_t size)
     int n = *(volatile int16_t *)&D_801543CA, len;
     if (n < 0 || n > PC_MODEL_SLOTS)
         n = PC_MODEL_SLOTS;
-    len = snprintf(out, size, "cars at the end: %d in the race%s", n, g_cars_started ? "" : " (it never began)");
+    len = snprintf(out, size, "cars at the end: %d in the race, count %d%s", n, pc_race_cars(),
+                   g_cars_started ? "" : " (it never began)");
     for (int i = 0; i < n && len > 0 && (size_t)len < size; i++) {
         const volatile float *r = pc_models[i].rwr;
         double d[3], moved;
