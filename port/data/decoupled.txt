@@ -26,3 +26,17 @@ pc_models  D_8014A250  0x3030  D_8014A250_alias D_8014A258 D_8014A640 D_8014A890
 # (+0xF0), D_80152B70 (+0x358), D_80152B74 (+0x35C) and D_80152BBB (+0x3A3), and [1]'s D_80152BD0 (+0), D_80152BD8
 # (+0x8) and D_80152C20 (+0x50), read with a stride of 0x3B8 (CAR_OFS on the PC).
 pc_cars    D_80152818  0x1650  player_array D_801528F0 D_80152900 D_80152906 D_80152907 D_80152908 D_80152B70 D_80152B74 D_80152BBB D_80152BD0 D_80152BD8 D_80152C20
+
+# The effects' per-car arrays (docs/port/DECOUPLE.md 6), 6 cars each on the N64, PC_MAX_LINKS on the PC: the tire-effect
+# latches (u32), the smoke's grey (u8; 8 bytes by the gap to D_8013A028), the trails' last points (f32[6]), the blasts
+# (struct pc_blast, 0x190), the blast rings (struct pc_blast_ring, 0x3C; 6 of them to D_80155140: the symbol file's
+# gCheckpointTimes, gLapCounts, gBestLapTimes and gCurrentLapTimes, inside them, are names nothing uses), the skid
+# state of each car's four tires (struct pc_skid: 0x5C on the N64, 0x60 on the PC, its effect pointer a host pointer;
+# own storage before) and the resurrect's midpoint (f32[3]).
+pc_tire_fx        D_801392D8  0x18
+pc_smoke_shade    D_8013A020  0x8
+pc_trail_pts      D_8013C098  0x90
+pc_blasts         D_80154660  0x960
+pc_blast_rings    D_80154FD8  0x168
+pc_skids          D_80155290  0x8A0
+pc_resurrect_mid  D_80161450  0x48

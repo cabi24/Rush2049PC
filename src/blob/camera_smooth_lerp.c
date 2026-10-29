@@ -2842,14 +2842,21 @@ extern f32 D_80154644;
 extern s32 D_80154648;
 extern s32 D_80154658;
 #ifdef TARGET_PC
-/* a table of words, through a byte pointer: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
-extern s32 D_80154660[];
+/* tables of words, through a byte pointer: on the PC the blasts and their rings, pc_blasts and pc_blast_rings,
+ * PC_MAX_LINKS long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6), declared whole (OPTIMIZED.md
+ * 2.7); InitBlasts sets up all PC_MAX_LINKS of them, on the N64 the 6 it has */
+#define D_80154660 (*(s32 *)PC_BLASTS)
 #else
 extern s32 D_80154660;
+#define PC_MAX_LINKS 6
 #endif
 extern f32 D_80154FC0;
 extern s32 D_80154FD0;
+#ifdef TARGET_PC
+#define D_80154FD8 (*(s32 *)PC_BLAST_RINGS)
+#else
 extern s32 D_80154FD8;
+#endif
 extern s8 D_80155140;
 extern s32 D_80155148;
 extern s32 D_80155178;
@@ -3829,7 +3836,7 @@ void camera_smooth_lerp(void)
   for (i = 0; i < 50; i++) { BLAST_MAT(p, i) = BLAST_MAT_PTR func_800A7D6C(); }
   p2 = (u8 *) (&D_80154FD8);
   p3 = (u8 *) (&D_80154660);
-  for (i = 0; i < 6; i++) {
+  for (i = 0; i < PC_MAX_LINKS; i++) {
     *((s32 *) (p2 + (i * 0x3C))) = -1;
     *((s32 *) (p3 + i * 0x190 + 0x150)) = -1;
     *((s32 *) (p3 + i * 0x190)) = -1;

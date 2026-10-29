@@ -2094,9 +2094,9 @@ extern s32 D_801392C8;
 extern s32 D_801392D0;
 extern s32 D_801392D4;
 #ifdef TARGET_PC
-/* a table, (&D_801392D8)[i]: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
-extern s32 D_801392D8[];
-#define D_801392D8 (D_801392D8[0])
+/* a table, (&D_801392D8)[i]: on the PC the tire-effect latches pc_tire_fx, PC_MAX_LINKS long, with no N64 address
+ * (pc_game_types.h, docs/port/DECOUPLE.md 6), declared whole (OPTIMIZED.md 2.7), its first word here */
+#define D_801392D8 (*(s32 *)pc_tire_fx)
 #else
 extern s32 D_801392D8;
 #endif
