@@ -11,6 +11,7 @@
  */
 #include <string.h>
 
+#include "pc_game_types.h"
 #include "support.h"
 
 typedef struct {
@@ -50,7 +51,9 @@ StatLL D_80395EE8, D_80396B80, D_80155220;
 Trail D_80395F00[50];
 Fade D_80396B98[150];
 Effect D_80155B30[100];
-WheelSlot D_80155290[6][4];
+_Static_assert(sizeof(WheelSlot) == sizeof(struct pc_skid), "the PC declaration's size");
+struct pc_skid pc_skids[PC_MAX_LINKS][4];   /* the skid table (data.c's in the game), PC_MAX_LINKS cars */
+#define D_80155290 (*(WheelSlot (*)[PC_MAX_LINKS][4])pc_skids)
 uint8_t after_skids[16];   /* what follows the skid table: the reset must not reach it */
 
 void struct_fields_init(void *head, void *array, int32_t size, int32_t count, uint8_t dbl);
@@ -103,14 +106,14 @@ int main(void)
     CHECK(func_8008E3C0(&D_80395EE8) == NULL);   /* all 50 out */
 
     /* Doubly linked (the skid-mark effects): re-initialising frees what is active first, and clears all of the skid
-     * table (24 slots of 0x60 bytes here), the last car's last wheel too. */
+     * table (PC_MAX_LINKS cars of four slots of 0x60 bytes here), the last car's last wheel too. */
     memset(D_80155290, 0xA5, sizeof D_80155290);
     memset(after_skids, 0x5A, sizeof after_skids);
     func_800B0580();
     for (i = 0; i < (int)sizeof D_80155290; i++)
         if (((uint8_t *)D_80155290)[i] != 0)
             break;
-    CHECK(i == (int)sizeof D_80155290 && D_80155290[5][3].obj == NULL);
+    CHECK(i == (int)sizeof D_80155290 && D_80155290[PC_MAX_LINKS - 1][3].obj == NULL);
     CHECK(after_skids[0] == 0x5A && after_skids[15] == 0x5A);
     CHECK(D_80155220.dbl == 1 && D_80155220.list == D_80155B30 && D_80155220.elementSize == (int32_t)sizeof(Effect));
     e0 = func_8008E3C0(&D_80155220);
