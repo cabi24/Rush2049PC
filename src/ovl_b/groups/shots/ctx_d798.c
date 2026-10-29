@@ -47,7 +47,14 @@ typedef struct Player {
     u8 unknown385[51];
 } Player;
 typedef struct Vehicle { u8 unknown000[1600]; s8 disabled; u8 unknown641[455]; } Vehicle;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#define PC_CARS D_80152818
+#define PC_CARS_END(n) D_80152818 + n
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -69,7 +76,7 @@ void func_8038D798(f32 *origin, f32 *endpoint, s32 source_index, f32 radius_squa
     Player *source;
     f32 delta[3];
     f32 distance_squared;
-    for (target = D_80152818; target < D_80152818 + D_801543CA; target++) {
+    for (target = PC_CARS; target < PC_CARS_END(D_801543CA); target++) {
         if (!PC_MODEL_CRASHFLAG(target->index) && target->active && !target->blocked) {
             delta[0] = origin[0] - target->position[0];
             delta[1] = origin[1] - target->position[1];
@@ -77,7 +84,7 @@ void func_8038D798(f32 *origin, f32 *endpoint, s32 source_index, f32 radius_squa
             distance_squared = delta[0]*delta[0] + delta[1]*delta[1] + delta[2]*delta[2];
             if (distance_squared < radius_squared) {
                 distance_squared = (radius_squared - distance_squared) / radius_squared;
-                source = &D_80152818[source_index];
+                source = PC_CAR(source_index);
                 if (target->kind == 5) {
                     direction[0] = endpoint[0] - origin[0];
                     direction[1] = endpoint[1] - origin[1];

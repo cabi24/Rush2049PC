@@ -47,7 +47,13 @@ typedef struct Model952 {u8 prefix[4];float setup;u8 gap8[848];s8 clear,active;u
 #endif
 typedef struct Config8 {u8 prefix[5],camera,unknown,mode;} Config8;
 extern s8 D_80142760;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model952 player_array[];
+#define PC_CAR(i) &player_array[i]
+#define PC_CAR_B358(i) player_array[i].clear
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -73,7 +79,7 @@ static void multiinit_n64(s16,s16);
 
 void func_800E543C(s16 action,s16 index)
 {
- Model952 *model=&player_array[index];
+ Model952 *model=PC_CAR(index);
  Vehicle2056 *vehicle=PC_MODEL(index);
  PC_LINK *config;
  if(D_80142760 && !model->active && action==2) {
@@ -109,7 +115,7 @@ static void multiinit_n64(s16 action,s16 index)
   else vehicle->camera=index+6;
  }
  stunt_combo_display(vehicle);
- player_array[index].clear=0;
+ PC_CAR_B358(index)=0;
  for(i=0;i<4;i++) {
   vehicle->wheels[i]=0.0f;
   vehicle->tires[i].a=0.0f;

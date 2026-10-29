@@ -121,7 +121,12 @@ typedef struct Tree {
 extern s32 D_801174B4;
 extern s32 D_8014A110;
 extern s8 D_80156994;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern Pool D_80151AA8;
 extern ObjType D_80117530[];
 extern HitFunc D_80117518[];
@@ -136,7 +141,7 @@ void race_setup_2(s16 player) {
     Car *car;
     Node *node; Node *next; Object *obj; ObjType *type; Tree *tree; s32 idx; s32 i; s32 shape; void *a0; void *a1; void *a2; f32 x; f32 z;
 
-    car = &D_80152818[player];
+    car = PC_CAR(player);
     if ((D_801174B4 & 8) && D_80156994 == 0) {
         return;
     }

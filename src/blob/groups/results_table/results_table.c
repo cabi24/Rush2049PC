@@ -122,7 +122,10 @@ extern s8 D_80152744,D_80143F54[],gCarTeam[];
 extern s8 D_80149428[][4];
 extern s16 active_player_count;
 extern PlayerRow input_rec0[];
+#ifdef TARGET_PC
+#else
 extern VehicleScore D_80152BBB[];
+#endif
 extern PlayerStats D_80152038[];
 extern s32 D_801146AC[],D_80118E20[2],D_801391E0,gameplay_mode;
 extern u8 D_80114724[];
@@ -147,9 +150,17 @@ typedef struct CarF8 {f32 best;u8 rest[948];} CarF8;
 #endif
 typedef struct Rec808 {s16 car;u8 rest[2054];} Rec808;
 typedef struct TextIdx2 {u8 other[108];u16 cars;} TextIdx2;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarB6 D_80152906[];
 extern CarB7 D_80152907[];
 extern CarF8 D_80152908[];
+#define PC_CAR_FINISHED(i) D_80152907[i].flag
+#define PC_CAR_PLACE(i) D_80152906[i].lap
+#define PC_CAR_POINTS(i) D_80152BBB[i].score
+#define PC_CAR_TIME(i) D_80152908[i].best
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -211,7 +222,7 @@ void drawRaceStandings(void)
     RGBA c;
 
     rows = active_player_count + 1;
-    cols = (D_801543CA == 1 || (gameplay_mode == 3 && !D_80152907[D_801543D4].flag)) ? 3 : 4;
+    cols = (D_801543CA == 1 || (gameplay_mode == 3 && !PC_CAR_FINISHED(D_801543D4))) ? 3 : 4;
     for (row = 0; row < rows; row++) {
         for (col = 0; col < cols; col++) {
             if (row == 0 && col == 0) continue;
@@ -259,7 +270,7 @@ void drawRaceStandings(void)
             } else {
                 if (col == 1) {
                     if (D_80144018[D_80143F54[row - 1]] == D_80152734) {
-                        time = D_80152908[D_80143F54[row - 1]].best;
+                        time = PC_CAR_TIME(D_80143F54[row - 1]);
                         rt_font_set(3);
                         dispatch_handler(1);
                         fcvt_wrapper(str1, D_80120324, (u32)(time / 60.0f), (u32)time % 60, (u32)(time * 1000.0f) % 1000);
@@ -284,7 +295,7 @@ void drawRaceStandings(void)
                 } else if (col == 3) {
                     rt_font_set(11);
                     dispatch_handler(1);
-                    str = countdown_state.strings[((TextIdx2 *)countdown_state.indices)->cars + D_80152906[PC_MODEL_SLOT(D_80143F54[row - 1])].lap];
+                    str = countdown_state.strings[((TextIdx2 *)countdown_state.indices)->cars + PC_CAR_PLACE(PC_MODEL_SLOT(D_80143F54[row - 1]))];
                 }
             }
             if (col != 0) state_utility(col * 60 - cols * 60 / 2 + 190, y + 7, str);
@@ -360,7 +371,7 @@ void func_80101904(void)
                     total=0;
                     text=value;
                     if(column==1) {
-                        total=D_80152BBB[input_rec0[D_80143F54[row-1]].vehicle].score;
+                        total=PC_CAR_POINTS(input_rec0[D_80143F54[row-1]].vehicle);
                     } else if(column==2) {
                         for(i=0;i<active_player_count;i++) {
                             total+=(D_80149428[i][D_80143F54[row-1]]>=0 ? D_80149428[i][D_80143F54[row-1]] : -D_80149428[i][D_80143F54[row-1]]);
@@ -687,7 +698,7 @@ void drawBattleScore(void)
                     }
                 } else {
                     if(row==1) {
-                        total=D_80152BBB[input_rec0[column-1].vehicle].score;
+                        total=PC_CAR_POINTS(input_rec0[column-1].vehicle);
                         dispatch_handler(1);
                         fcvt_wrapper(value,D_8012039C,total);
                         text=value;
@@ -803,7 +814,7 @@ s32 func_80102F30(s32 arg0)
                             }
                         } else if(row==1) {
                             if(D_80144018[input_rec0[column-1].vehicle]==D_80152734) {
-                                t=D_80152908[input_rec0[column-1].vehicle].best;
+                                t=PC_CAR_TIME(input_rec0[column-1].vehicle);
                                 rt_font_set(3);
                                 dispatch_handler(1);
                                 fcvt_wrapper(value,D_80120360,(u32)(t/60.0f),(u32)t%60,(u32)(t*1000.0f)%1000);

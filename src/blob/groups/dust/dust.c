@@ -82,7 +82,12 @@ extern s8 D_8015F72C;
 extern Model D_8014A250[];
 #define PC_MODEL_SLOT(i) D_8014A250[i].slot
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].f239
+#endif
 extern u8 D_80116187;
 extern Pos D_80115A68[][4];
 
@@ -140,7 +145,7 @@ s32 dust_cloud_effect(Blit *blt)
         blt->state = 0;
         return 1;
     }
-    hide = !D_8015F72C || D_80152818[PC_MODEL_SLOT(win)].f239 == 1;
+    hide = !D_8015F72C || PC_CAR_FINISHED(PC_MODEL_SLOT(win)) == 1;
     if (Hidden_dust(blt, hide)) {
         return 1;
     }

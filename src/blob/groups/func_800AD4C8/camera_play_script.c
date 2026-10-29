@@ -77,7 +77,13 @@ typedef struct PCar {
     u8 p35A[0x3B8 - 0x35A];
 #endif
 } PCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern PCar player_array[8];
+#define PC_CAR_B358(i) ((PCar *) player_array)[i].f358
+#define PC_CAR_STATE(i) ((PCar *) player_array)[i].f359
+#endif
 typedef struct Link {
     u8 p0[7];
     u8 kind;
@@ -224,17 +230,17 @@ void camera_play_script(CCar *car, Poly *poly, CCol *col) {
                             }
                         }
                         if (type == 4) {
-                            if (((PCar *) player_array)[car->pidx].f359 == 0 && ((PCar *) player_array)[car->pidx].f358 == 0 && car->f6C4 == -1) {
+                            if (PC_CAR_STATE(car->pidx) == 0 && PC_CAR_B358(car->pidx) == 0 && car->f6C4 == -1) {
                                 effect_cleanup(car->pidx, car->pidx, -1);
                                 car->b1600 = 1;
                             }
                         } else if (type == 7) {
-                            if (((PCar *) player_array)[car->pidx].f359 == 0 && ((PCar *) player_array)[car->pidx].f358 == 0 && car->f6C4 == -1) {
+                            if (PC_CAR_STATE(car->pidx) == 0 && PC_CAR_B358(car->pidx) == 0 && car->f6C4 == -1) {
                                 car->b1741 = 1;
                                 func_800C54F0(car->pidx, 1);
                             }
                         } else if (type == 3) {
-                            if (((PCar *) player_array)[car->pidx].f359 == 0 && ((PCar *) player_array)[car->pidx].f358 == 0 && car->f6C4 == -1) {
+                            if (PC_CAR_STATE(car->pidx) == 0 && PC_CAR_B358(car->pidx) == 0 && car->f6C4 == -1) {
                                 car->b1741 = 1;
                                 func_800C54F0(car->pidx, 1);
                                 if (PC_LINK_OWNER(car->pidx) == 6) {

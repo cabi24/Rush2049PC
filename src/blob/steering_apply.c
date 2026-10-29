@@ -35,7 +35,12 @@ typedef struct ProximityPlayer {
 extern ProximityEnabled D_8014AA3A[];
 #define PC_MODEL_COLLIDABLE(i) D_8014AA3A[i].enabled
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern ProximityPlayer player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 
 int steering_apply(short *player_index, float *point, float *radius_in,
                   float *radial_error)
@@ -47,7 +52,7 @@ int steering_apply(short *player_index, float *point, float *radius_in,
     float radius;
 
     index = *player_index;
-    player = &player_array[index];
+    player = PC_CAR(index);
     radius = *radius_in;
     if (!PC_MODEL_COLLIDABLE(index)) return 0;
     mveccopy(point,position);

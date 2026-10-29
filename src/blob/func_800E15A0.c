@@ -94,7 +94,12 @@ typedef struct State {
 #define N64W(x) x
 #endif
 extern s32 gameplay_mode;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 extern s8 D_80140A04;
 /* Native Y is the arcade vertical Z; vectors follow native axes.
  * Arcade ancestry: drivsym.c:torques, vecmath.h vector macros.
@@ -125,7 +130,7 @@ void func_800E15A0(State *state) {
     if (!(state->flags & 16) && state->check[0]>5.0f && state->check[1]>5.0f && state->check[2]>5.0f && state->check[3]>5.0f && gameplay_mode != 6) {
         if(state->enabled) state->active=1; else state->active=0;
         if(state->active) {
-            player=&player_array[state->player];
+            player=PC_CAR(state->player);
             model=player->model;
             if(model) {
                 gain=state->gain;

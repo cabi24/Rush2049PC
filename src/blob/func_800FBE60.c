@@ -3806,7 +3806,12 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern u8 D_80152818[];
+#define PC_CARS D_80152818
+#endif
 #ifndef TARGET_PC
 #define CAR_OFS(n) n
 #endif
@@ -3818,9 +3823,9 @@ void func_800FBE60(void)
   D_80152018 = 0;
   D_80152031 = 0;
   for (i = 0; i < (s8) D_80152744; i++) {
-    *(f32 *) (D_80152818 + i * CAR_OFS(952) + 264) = 0.0f;
-    *(f32 *) ((u8 *) &D_80152218 + i * 12) = *(f32 *) (D_80152818 + i * CAR_OFS(952) + 8);
-    *(f32 *) ((u8 *) &D_80152218 + i * 12 + 4) = *(f32 *) (D_80152818 + i * CAR_OFS(952) + 12);
-    *(f32 *) ((u8 *) &D_80152218 + i * 12 + 8) = *(f32 *) (D_80152818 + i * CAR_OFS(952) + 16);
+    *(f32 *) (PC_CARS + i * CAR_OFS(952) + 264) = 0.0f;
+    *(f32 *) ((u8 *) &D_80152218 + i * 12) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 8);
+    *(f32 *) ((u8 *) &D_80152218 + i * 12 + 4) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 12);
+    *(f32 *) ((u8 *) &D_80152218 + i * 12 + 8) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 16);
   }
 }

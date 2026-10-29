@@ -117,7 +117,12 @@ typedef struct Resource {
 #endif
 extern Puff *D_8013F1F0;
 extern s32 D_8013F1E0;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -190,7 +195,7 @@ void hud_render(void)
         car = puff->car;
         type = (puff->flags >> 17) & 0xF;
         if (puff->flags & 0x10) {
-            player = (Player *)(uintptr_t)&D_80152818[car];
+            player = (Player *)(uintptr_t)PC_CAR(car);
             speed = player->speed >> 2;
             aspeed = fabsf((f32)speed);
             if (player->view < 2) {
@@ -270,7 +275,7 @@ void hud_render(void)
                         puff->frame++;
                     }
                 }
-                player = (Player *)(uintptr_t)&D_80152818[car];
+                player = (Player *)(uintptr_t)PC_CAR(car);
                 position[0] = player->position[0];
                 position[1] = player->position[1];
                 position[2] = player->position[2];

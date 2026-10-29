@@ -2750,7 +2750,12 @@ extern f32 D_80152824;
 extern f32 D_80152828;
 extern s32 D_80152900;
 extern s8 D_80152906;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern s8 D_80152907;
+#define PC_CAR_FINISHED(i) *((&D_80152907) + (i * CAR_OFS(0x3B8)))
+#endif
 extern f32 D_80152908;
 extern s32 D_80152ABC;
 extern s32 D_80152AEC;
@@ -3806,7 +3811,7 @@ s32 gameover_validOption(s32 arg0)
     if (arg0 == 1 || arg0 == 2 || arg0 == 3 || arg0 == 4) {
       result = 0;
     }
-    if (arg0 == 5 && (*((&D_80152907) + (D_801543D4 * CAR_OFS(0x3B8)))) == 0) {
+    if (arg0 == 5 && (PC_CAR_FINISHED(D_801543D4)) == 0) {
       result = 0;
     }
   } else if (gameplay_mode == 1) {

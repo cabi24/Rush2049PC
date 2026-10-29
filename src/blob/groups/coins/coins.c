@@ -73,7 +73,12 @@ extern f32 D_80116178;
 extern s32 D_80394050[][4][2];
 extern s32 D_80115E28[][4][2];
 extern s8 D_80146113;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car952 player_array[];
+#define PC_CAR_FINISHED(i) player_array[i].mode
+#endif
 extern s32 D_80114C48[];
 extern u8 D_801461D0[];
 extern char D_80120E0C[], D_80120E1C[]; /* "GOLDCOING_COIN", "SILVERCOINS_COI" */
@@ -134,7 +139,7 @@ s32 particles_update(void *arg0) {
                 pos.y = D_80115E28[D_80151AD0 - 1][i][1] + j * ((D_80151AD0 == 1) ? 15 : (D_80151AD0 == 2) ? 12 : 8);
             }
             car_lights_render(i, &pos, &D_80150B70[i], 2.0f, D_801541A8[i].slot[j].obj);
-            if (D_80146113 && player_array[i].mode != 1) {
+            if (D_80146113 && PC_CAR_FINISHED(i) != 1) {
                 s16 x;
                 s16 y;
                 f32 xoffset, yoffset;

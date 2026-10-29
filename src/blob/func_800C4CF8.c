@@ -27,7 +27,12 @@ extern Position *D_801407F4;
 extern CountEntry D_8012E5E8[];
 extern PointEntry D_8012E5EC[];
 extern Waypoint D_80151D18[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player player_array[];
+#define PC_CAR_NAV(i) player_array[i].region
+#endif
 extern f32 D_80123F88;
 extern s16 func_800B9338(s16,s16);
 extern void func_800C4C9C(State *,s16);
@@ -52,7 +57,7 @@ void func_800C4CF8(State *state, s16 selector, s16 point) {
         y=(f32)D_801407F4[point].y;
         z=(f32)D_801407F4[point].z;
     }
-    region=&player_array[state->player].region;
+    region=&PC_CAR_NAV(state->player);
     if(state->previous<state->next) stop=D_8012E5E8[region->path].count;
     else stop=D_80151D18[state->previous].index[region->path];
     i=D_80151D18[state->next].index[region->path];

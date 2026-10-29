@@ -40,8 +40,8 @@ _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TIN
 #define NODE(i) ((uint8_t *)WP(0x8014D280u + 0x70u * (i)))   /* the node block D_8014D280 (game arena) */
 #define HEAP 0x80300000u
 TInfo D_80117530[122];
-__attribute__((aligned(16))) uint8_t D_80152818[6 * PC_CAR_SIZE];
-#define CAR(i) (D_80152818 + PC_CAR_SIZE * (i))
+struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
+#define CAR(i) ((uint8_t *)&pc_cars[i])
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
 int32_t D_80121D60[8] = {10, 11, 12, 13, 14, 15, 16, 17};

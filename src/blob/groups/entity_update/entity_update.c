@@ -136,7 +136,14 @@ typedef struct EUSlot {
     u8 pad35C[952 - 860];
 #endif
 } EUSlot;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern EUSlot D_80152818[];
+#define PC_CAR_B358(i) D_80152818[i].b856
+#define PC_CAR_SLOT(i) D_80152818[i].place
+#define PC_CAR_STATE(i) D_80152818[i].b857
+#endif
 extern s8 D_8010FFC0;
 extern f32 D_8011418C[];
 void effect_cleanup(s8 a, s8 b, s8 c);
@@ -233,8 +240,8 @@ void entity_update(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32
         car->attr[wheel] &= 0x7FF;
     }
     if ((*surf == 3 || *surf == 4 || *surf == 7) && out[1] < 0.25f) {
-        if (D_80152818[car->id].b857 == 0 && D_80152818[car->id].b856 == 0 && car->s1732 == -1) {
-            if (D_80152818[car->id].place) {}
+        if (PC_CAR_STATE(car->id) == 0 && PC_CAR_B358(car->id) == 0 && car->s1732 == -1) {
+            if (PC_CAR_SLOT(car->id)) {}
             if (*surf == 4) {
                 effect_cleanup(car->id, car->id, -1);
                 car->b1600 = 1;

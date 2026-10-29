@@ -99,7 +99,12 @@ extern WorldPoint D_801407B4, D_801407D4;
 extern s32 D_801161C4;
 extern MapOrigin D_801160A8[];
 extern s8 D_80140A04;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -136,7 +141,7 @@ s32 func_80109A60(Blit *blt)
     if (Hidden(blt, gNumWindows >= 5 || slot == -1 || !D_80156BDC))
         return 1;
     m = PC_MODEL(slot);
-    car = &D_80152818[slot];
+    car = PC_CAR(slot);
 
     world_width = D_801407B4.x - D_801407D4.x;
     world_height = D_801407B4.z - D_801407D4.z;

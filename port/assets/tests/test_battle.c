@@ -51,7 +51,7 @@ struct {
 volatile float D_8002EB94 = 0.5f;    /* gFrameSeconds */
 uint16_t D_80142A82 = 0x82, D_80142A84 = 0x84, D_80142A8E = 0x8E;
 int16_t D_8014A108;                  /* gNumPlayers: 0, so UpdateInvs leaves the cars alone */
-uint8_t D_80152818[6 * PC_CAR_SIZE] __attribute__((aligned(16)));
+struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h) */
 
 /* ---------------------------------------------------------------- what the code under test calls */
 

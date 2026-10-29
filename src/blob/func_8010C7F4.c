@@ -466,7 +466,12 @@ typedef struct {
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[8];
+#define PC_CAR(i) &player_array[i]
+#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -812,19 +817,19 @@ void func_8010C7F4(void *arg0) {
     f32 delta[3];
     f32 local[3];
     if (PC_MODEL_CRASHFLAG(M2C_FIELD(arg0, s8 *, 0x5C)) == 0) {
-        car = &player_array[M2C_FIELD(arg0, s8 *, 0x5C)];
+        car = PC_CAR(M2C_FIELD(arg0, s8 *, 0x5C));
         if (M2C_FIELD(car, s8 *, CAR_OFS(0x384)) == 5) {
             delta[0] = M2C_FIELD(arg0, f32 *, 0x44) - M2C_FIELD(car, f32 *, 8);
             delta[1] = M2C_FIELD(arg0, f32 *, 0x48) - M2C_FIELD(car, f32 *, 12);
             delta[2] = M2C_FIELD(arg0, f32 *, 0x4C) - M2C_FIELD(car, f32 *, 16);
             func_800A61B0(delta, local, (u8 *)car + 0x2C);
             if (local[2] >= 0.0f) {
-                func_8038d3a4(&player_array[M2C_FIELD(arg0, s8 *, 0x65)], car, 0x118);
+                func_8038d3a4(PC_CAR(M2C_FIELD(arg0, s8 *, 0x65)), car, 0x118);
             } else {
-                func_8038d3a4(&player_array[M2C_FIELD(arg0, s8 *, 0x65)], car, 0x320);
+                func_8038d3a4(PC_CAR(M2C_FIELD(arg0, s8 *, 0x65)), car, 0x320);
             }
         } else {
-            func_8038d3a4(&player_array[M2C_FIELD(arg0, s8 *, 0x65)], car, 0x320);
+            func_8038d3a4(PC_CAR(M2C_FIELD(arg0, s8 *, 0x65)), car, 0x320);
         }
         M2C_FIELD(arg0, u8 *, 4) &= 0xFFFD;
         stat_lap_split(*(s32 *)((u8 *)&D_8011754C + M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *)arg0 + 0x38, 2);

@@ -197,7 +197,7 @@ volatile int8_t D_80114738;
 int32_t D_80143FF4;
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
 #define D_8014A250 ((uint8_t (*)[0x808])pc_models)
-uint8_t D_80152818[6][PC_CAR_SIZE];             /* the cars */
+struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 int16_t D_803B9BBA;
 int8_t D_8011103C[13], D_80111080[13], D_8011119C[13], D_80111230[13], D_8011128C[13], D_80111604[13],
     D_80111648[13], D_8011168C[13], D_8011157C[13], D_801115C0[13];   /* the default car settings */

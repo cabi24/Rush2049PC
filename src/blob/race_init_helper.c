@@ -2756,9 +2756,18 @@ extern s8 D_80152B70;
 extern s8 D_80152B71;
 extern s32 D_80152B98;
 extern s8 D_80152BBB;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md).
+ * These names were inside them: car 1's +0, its position (+8) and +0x50, which the loop below steps from by
+ * CAR_OFS(0x3B8) to car j + 1. */
+#define D_80152BD0 (*(s32 *) PC_CAR(1))
+#define D_80152BD8 (*(s32 *) PC_CAR_POS(1))
+#define D_80152C20 (*(s32 *) PC_CAR_UVS50(1))
+#else
 extern s32 D_80152BD0;
 extern s32 D_80152BD8;
 extern s32 D_80152C20;
+#endif
 extern s8 D_80152CBE;
 extern s32 D_80153E68;
 extern s32 D_80153E80;

@@ -69,7 +69,12 @@ typedef struct ObjInstance { unsigned int flags; char pad4[8]; float scale; char
 extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;                  /* gFrameSeconds */
 extern tBlastStruct D_80154660[];       /* gBlastObjs */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData player_array[];         /* gGameCar */
+#define PC_CAR_POS(i) player_array[i].dr_pos
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -154,9 +159,9 @@ release:
         entity_transform_apply(v, 1);
         return;
     }
-    D_80154660[v->slot].mat.pos[0] = player_array[v->slot].dr_pos[0];
-    D_80154660[v->slot].mat.pos[1] = player_array[v->slot].dr_pos[1];
-    D_80154660[v->slot].mat.pos[2] = player_array[v->slot].dr_pos[2];
+    D_80154660[v->slot].mat.pos[0] = PC_CAR_POS(v->slot)[0];
+    D_80154660[v->slot].mat.pos[1] = PC_CAR_POS(v->slot)[1];
+    D_80154660[v->slot].mat.pos[2] = PC_CAR_POS(v->slot)[2];
     D_80154660[v->slot].incTime -= D_8002EB94;
     if (D_80154660[v->slot].incTime <= 0.0f) {
         if (D_80154660[v->slot].alphaCnt == 0) D_80154660[v->slot].alpha -= 31;
@@ -187,9 +192,9 @@ release:
                 case 2: x = -0.5f * b->ht; y = -0.5f * b->ht; break;
                 case 3: x = -0.5f * b->ht; y = 0.5f * b->ht; break;
             }
-            b->mat.pos[0] = x + player_array[v->slot].dr_pos[0];
-            b->mat.pos[2] = y + player_array[v->slot].dr_pos[2];
-            b->mat.pos[1] = b->ht + player_array[v->slot].dr_pos[1] - 3.0f;
+            b->mat.pos[0] = x + PC_CAR_POS(v->slot)[0];
+            b->mat.pos[2] = y + PC_CAR_POS(v->slot)[2];
+            b->mat.pos[1] = b->ht + PC_CAR_POS(v->slot)[1] - 3.0f;
             b->ht += 0.2f;
             PitchUV(b->pitch, b->mat.uvs);
             func_80090E9C(b->yaw, b->mat.uvs);

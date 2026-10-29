@@ -462,7 +462,12 @@ typedef struct {
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[8];
+#define PC_CAR_STATE(i) PAD0EC(player_array[i].pad0EC, 0x26D)
+#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -3718,7 +3723,7 @@ void players_race_update(void) {
     D_8014A250_Record *r;
     s32 i;
     for (i = 0, r = PC_MODELS; i != 6; i++, r = (D_8014A250_Record *) ((s8 *) r + 0x808)) {
-        if ((*(s16 *) ((s8 *) r + 0x7C8) != 0) && ((s8) PAD0EC(player_array[i].pad0EC, 0x26D) < 2)) {
+        if ((*(s16 *) ((s8 *) r + 0x7C8) != 0) && ((s8) PC_CAR_STATE(i) < 2)) {
             func_800D4DFC(r);
         }
     }

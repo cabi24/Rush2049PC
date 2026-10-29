@@ -28,7 +28,12 @@ extern s8 D_8010FFC0;
 extern u8 D_80153E8F[];
 #define PC_LINK_OWNER(i) D_80153E8F[i * 8]
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 extern s16 D_8011F020[], D_8011F040[];
 
 void func_800A61B0(void *, void *, void *);
@@ -36,7 +41,7 @@ u32 high_scores_display(u32, u32, u32, u8, f32, f32, f32);
 
 #define vecsub(a,b,r) {r[0]=a[0]-b[0]; r[1]=a[1]-b[1]; r[2]=a[2]-b[2];}
 s32 stat_lap_split(s32 sound, s32 slot, f32 *position, u8 mode) {
-    GameCar *car = &player_array[slot];
+    GameCar *car = PC_CAR(slot);
     f32 output[3];
     f32 delta[3];
     f32 threshold;

@@ -75,7 +75,13 @@ extern s8 D_801613A0;
 extern Pair D_80118E20;
 extern StrTable D_8017A4E0;
 extern s16 gNumWindows;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].f239
+#define PC_CAR_HEADING(i) D_80152818[i].heading
+#endif
 extern f32 D_801543B8[];
 extern volatile f32 D_8002EB90;
 extern f32 D_8017A630;
@@ -143,8 +149,8 @@ s32 animWrongWay(void *item)
     render_helper(0.0f);
     TB_SetJust_8AB0(1, 1);
     for (slot = 0; slot < gNumWindows; slot++) {
-        if ((-1.5707964f <= D_80152818[slot].heading && D_80152818[slot].heading <= 1.5707964f) ||
-            !(D_801174B4 & 0x400000) || D_80152818[slot].f239 == 1 || !D_801613A0 || D_8014A110 == 1) {
+        if ((-1.5707964f <= PC_CAR_HEADING(slot) && PC_CAR_HEADING(slot) <= 1.5707964f) ||
+            !(D_801174B4 & 0x400000) || PC_CAR_FINISHED(slot) == 1 || !D_801613A0 || D_8014A110 == 1) {
             D_801543B8[slot] = D_8002EB90;
             wasStrayed[slot] = 0;
             continue;

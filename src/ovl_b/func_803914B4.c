@@ -38,7 +38,12 @@ typedef struct Event {
 
 extern void func_800F7E30(s8 row, s8 column, s8 delta);
 extern s8 D_80146130;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR_POINTS(i) D_80152818[i].remaining
+#endif
 extern s8 D_80395ED0;
 extern Event D_80395E70[];
 extern s16 D_80151AD0;
@@ -53,8 +58,8 @@ void func_803914B4(s8 row, s8 column, s8 delta) {
         if (D_80146130 == 0) {
             return;
         }
-        if (D_80152818[row].remaining <= 0) {
-            D_80152818[row].remaining = 0;
+        if (PC_CAR_POINTS(row) <= 0) {
+            PC_CAR_POINTS(row) = 0;
             return;
         }
     }

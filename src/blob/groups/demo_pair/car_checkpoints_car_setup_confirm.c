@@ -56,7 +56,16 @@ extern s16 D_80152734;
 #else
 extern Model D_8014A250[];
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar D_80152818[];
+#define PC_CAR_DISTANCE(i) D_80152818[i].distance
+#define PC_CAR_FINISHED(i) D_80152818[i].place_locked
+#define PC_CAR_PLACE(i) D_80152818[i].place
+#define PC_CAR_STATE(i) D_80152818[i].unk359
+#define PC_CAR_TIME(i) D_80152818[i].score
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -82,21 +91,21 @@ void car_setup_confirm(s32 slot, f32 score) {
     f32 scores[6];
     f32 ftemp;
 
-    D_80152818[slot].place_locked = 1;
-    D_80152818[slot].score = score;
+    PC_CAR_FINISHED(slot) = 1;
+    PC_CAR_TIME(slot) = score;
     num_humans_locked = 0;
     for (i = 0, num_locked = -1; i < D_80152744; i++) {
         index = PC_MODEL_SLOT(i);
-        if (D_80152818[index].place_locked == 1) {
+        if (PC_CAR_FINISHED(index) == 1) {
             place[++num_locked] = index;
-            scores[num_locked] = D_80152818[index].score;
+            scores[num_locked] = PC_CAR_TIME(index);
             if (PC_MODEL_DRONE_TYPE(index) == 2) {
                 if (D_8014A110 != 2 || PC_MODELS == PC_MODEL(index)) {
                     num_humans_locked++;
                 }
             }
-            if (D_80152818[index].unk359 > 0 && PC_MODEL_LAP(index) < D_80152734) {
-                scores[num_locked] = 5999.999f + (f32) (s32) (9.0f * D_801543AC) - D_80152818[index].distance;
+            if (PC_CAR_STATE(index) > 0 && PC_MODEL_LAP(index) < D_80152734) {
+                scores[num_locked] = 5999.999f + (f32) (s32) (9.0f * D_801543AC) - PC_CAR_DISTANCE(index);
             }
         }
     }
@@ -119,10 +128,10 @@ void car_setup_confirm(s32 slot, f32 score) {
         }
     }
     for (i = 0; i < num_locked + 1; i++) {
-        if (D_80152818[place[i]].unk359 > 0 && PC_MODEL_LAP(place[i]) < D_80152734) {
-            D_80152818[place[i]].place = D_801543CA - num_locked + i - 1;
+        if (PC_CAR_STATE(place[i]) > 0 && PC_MODEL_LAP(place[i]) < D_80152734) {
+            PC_CAR_PLACE(place[i]) = D_801543CA - num_locked + i - 1;
         } else {
-            D_80152818[place[i]].place = i;
+            PC_CAR_PLACE(place[i]) = i;
         }
     }
     func_800D1AB0();

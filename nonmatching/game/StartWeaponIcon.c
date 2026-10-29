@@ -88,7 +88,12 @@ typedef struct Target {
     s8 slot;              /* 0x5c */
 } Target;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];        /* gGameCar */
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -125,7 +130,7 @@ void StartWeaponIcon(Target *t)
     s32 wep;
     CollSize *sizep;
     if (t->Flags & 4) {
-        car = &D_80152818[t->slot];
+        car = PC_CAR(t->slot);
         m = PC_MODEL(t->slot);
         t->Flags &= ~6;
         if (car->appearance & 0x10) {

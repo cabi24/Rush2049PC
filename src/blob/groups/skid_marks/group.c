@@ -85,7 +85,13 @@ typedef struct {
     /* 0x4 */ u8 pad4[0x18 - 4];
 } Surface;                              /* 0x18 */
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car player_array[8];
+#define PC_CAR_FLAGS(i) player_array[i].wheelFlags
+#define PC_CAR_WHEEL_POS(i) player_array[i].wheelPos
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -145,14 +151,14 @@ void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     f32 dir[3];
     f32 wid;
 
-    orth[0] = player_array[player].wheelPos[wheel | 1][0] - player_array[player].wheelPos[wheel & 2][0];
-    orth[1] = player_array[player].wheelPos[wheel | 1][1] - player_array[player].wheelPos[wheel & 2][1];
-    orth[2] = player_array[player].wheelPos[wheel | 1][2] - player_array[player].wheelPos[wheel & 2][2];
+    orth[0] = PC_CAR_WHEEL_POS(player)[wheel | 1][0] - PC_CAR_WHEEL_POS(player)[wheel & 2][0];
+    orth[1] = PC_CAR_WHEEL_POS(player)[wheel | 1][1] - PC_CAR_WHEEL_POS(player)[wheel & 2][1];
+    orth[2] = PC_CAR_WHEEL_POS(player)[wheel | 1][2] - PC_CAR_WHEEL_POS(player)[wheel & 2][2];
     orth[1] += m->wheelHeight[wheel | 1] - m->wheelHeight[wheel & 2];
     vector_copy_scale(orth, dir);
     for (i = 0; i < 3; i++) {
         wid = dir[i] * 0.75f;
-        slot->pos[i] = player_array[player].wheelPos[wheel][i];
+        slot->pos[i] = PC_CAR_WHEEL_POS(player)[wheel][i];
         slot->left[i] = slot->pos[i] - wid;
         slot->right[i] = slot->pos[i] + wid;
     }
@@ -255,9 +261,9 @@ void func_800AFD54(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 
     func_800AF8C0(ns, slot, tire, color);
 
-    vec[0] = player_array[slot].wheelPos[tire][0] - ns->start[0];
-    vec[1] = player_array[slot].wheelPos[tire][1] - ns->start[1];
-    vec[2] = player_array[slot].wheelPos[tire][2] - ns->start[2];
+    vec[0] = PC_CAR_WHEEL_POS(slot)[tire][0] - ns->start[0];
+    vec[1] = PC_CAR_WHEEL_POS(slot)[tire][1] - ns->start[1];
+    vec[2] = PC_CAR_WHEEL_POS(slot)[tire][2] - ns->start[2];
     lensq = magsq(vec);
 
     if (ns->lenSq > 0.0f) {
@@ -301,7 +307,7 @@ void cpak_init(s32 slot)
     m = PC_MODEL(slot);
     ns = D_80155290[slot];
     for (i = 0; i < 4; i++, ns++) {
-        on = ((player_array[slot].wheelFlags & D_8011743C[i]) != 0) && (m->airborne[0] == -1) &&
+        on = ((PC_CAR_FLAGS(slot) & D_8011743C[i]) != 0) && (m->airborne[0] == -1) &&
              (m->terrain[i] != 8) && ((D_801497F8[m->surface[i]].flags & 0x30) == 0);
         laston = (ns->obj != 0);
         color = (m->terrain[i] == 0) ? D_8011AD8C : D_80117438;

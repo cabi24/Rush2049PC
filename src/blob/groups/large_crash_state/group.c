@@ -19,7 +19,12 @@ typedef struct CarView {
 #endif
 } CarView;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarView player_array[];
+#define PC_CAR_STATE(i) player_array[i].state
+#endif
 extern s32 gameplay_mode;
 extern s8 D_80142B00;
 extern f32 D_80124394, D_80124398, D_8012439C, D_801243A0;
@@ -54,7 +59,7 @@ void func_800E0B20(void *arg0)
     model = arg0;
     level = 0;
     mask = 0;
-    if (player_array[MS(1990)].state != 0) {
+    if (PC_CAR_STATE(MS(1990)) != 0) {
         return;
     }
     for (i = 0; i < 4; i++) {

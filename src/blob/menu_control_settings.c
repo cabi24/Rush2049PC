@@ -133,7 +133,13 @@ typedef struct {
 #endif
 
 extern s8 D_801427A1;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarRec D_80152818[];
+#define PC_CAR_POS(i) D_80152818[i].RWR
+#define PC_CAR_UVS(i) D_80152818[i].uvs
+#endif
 
 void math_utility(f32 (*src)[3], f32 (*dst)[3]);
 void func_8009E820(f32 *in, f32 *out, f32 (*uvs)[3]);
@@ -148,12 +154,12 @@ void menu_control_settings(MODELDAT *m) {
         menu_video_settings(m);
     }
     math_utility(m->inituvs, m->uvs2);
-    math_utility(m->inituvs, D_80152818[m->slot].uvs);
+    math_utility(m->inituvs, PC_CAR_UVS(m->slot));
     func_8009E820(m->initoffset, temp, m->uvs);
     vecadd(m->initpos, temp, m->RWR);
     veccopy(m->RWR, m->EPRWR);
     veccopy(m->RWR, m->base_RWR);
-    veccopy(m->RWR, D_80152818[m->slot].RWR);
+    veccopy(m->RWR, PC_CAR_POS(m->slot));
     for (i = 0; i < 4; i++) {
         func_8009E820(N64P(m->car)->TIRER[i], m->TIRERWR[i], m->uvs);
         vecadd(m->TIRERWR[i], m->RWR, m->TIRERWR[i]);

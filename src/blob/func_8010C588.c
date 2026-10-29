@@ -33,7 +33,12 @@ typedef struct ModelDat {
     u8 pad7EB[0x808 - 0x7EB];
 } ModelDat;                 /* 0x808 */
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[];
+#define PC_CARS player_array
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -56,7 +61,7 @@ s32 func_8010C588(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist)
     p[0] = pos[0];
     p[1] = pos[1];
     p[2] = pos[2];
-    gc = player_array;
+    gc = PC_CARS;
     gc += slot;
     vec[0] = gc->RWR[0] - p[0];
     vec[1] = gc->RWR[1] - p[1];

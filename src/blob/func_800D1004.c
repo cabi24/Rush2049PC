@@ -32,7 +32,18 @@ typedef struct Player952 {
     u8 opaque912[16]; u8 x928, x929, x930;
     u8 opaque931[13]; f32 x944, x948;
 } Player952;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player952 player_array[];
+#define PC_CAR_B358(i) player_array[i].x856
+#define PC_CAR_B3A0(i) player_array[i].x928
+#define PC_CAR_B3A2(i) player_array[i].x930
+#define PC_CAR_BATTLE_FLAGS(i) player_array[i].x908
+#define PC_CAR_F3B0(i) player_array[i].x944
+#define PC_CAR_F3B4(i) player_array[i].x948
+#define PC_CAR_HEALTH(i) player_array[i].x902
+#endif
 extern f32 D_8011418C[9];
 extern f32 D_80124160, D_80124164, D_80124168;
 extern s8 D_801427A1;
@@ -64,13 +75,13 @@ void func_800D1004(Car *car) {
     menu_control_settings(car);
     func_800D0810(car);
     car->x1600=0;
-    player_array[car->index1990].x902=800;
-    player_array[car->index1990].x928=0;
-    player_array[car->index1990].x930=0;
-    player_array[car->index1990].x908=0;
-    player_array[car->index1990].x944=0.0f;
-    player_array[car->index1990].x948=0.0f;
-    player_array[car->index1990].x856=0;
+    PC_CAR_HEALTH(car->index1990)=800;
+    PC_CAR_B3A0(car->index1990)=0;
+    PC_CAR_B3A2(car->index1990)=0;
+    PC_CAR_BATTLE_FLAGS(car->index1990)=0;
+    PC_CAR_F3B0(car->index1990)=0.0f;
+    PC_CAR_F3B4(car->index1990)=0.0f;
+    PC_CAR_B358(car->index1990)=0;
     car->x1616=0.0f;
     car->x1628=3;
 }

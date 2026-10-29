@@ -101,7 +101,13 @@ typedef struct PCar {            /* player_array[], 0x3B8 bytes */
     u8 pad374[0x3B8 - 0x374];
 #endif
 } PCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern PCar player_array[];
+#define PC_CAR(i) &player_array[i]
+#define PC_CAR_FLAGS(i) player_array[i].fE8
+#endif
 typedef struct HudRec {          /* D_8014A250[], 0x808 bytes */
     u8 pad000[0x3F8];
     s16 f3F8;
@@ -3933,7 +3939,7 @@ void func_800C2430(s32 idx) {
         if (D_80156BC8 != 0 || D_80157238 >= 3) {
             p->flags = fl & ~0x40;
         } else {
-            c = (PCar *)(uintptr_t)&player_array[idx];
+            c = (PCar *)(uintptr_t)PC_CAR(idx);
             p->a10 += c->vx;
             p->a14 += c->vy;
             p->a18 += c->vz;
@@ -3945,7 +3951,7 @@ void func_800C2430(s32 idx) {
             p->flags &= ~0x40;
             return;
         }
-        if ((D_80123EF0 < v[0] && v[0] < D_80123EF4) || ((D_80156BC8 != 0 || D_80157238 > 0 || ((c = (PCar *)(uintptr_t)&player_array[idx])->fE8 & 0x100000)) && D_80123EF8 < v[0])) {
+        if ((D_80123EF0 < v[0] && v[0] < D_80123EF4) || ((D_80156BC8 != 0 || D_80157238 > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->fE8 & 0x100000)) && D_80123EF8 < v[0])) {
             p->flags &= ~0x80;
             if (p->a10 > 0.0f) {
                 func_800C1B60(idx, 0);
@@ -3959,7 +3965,7 @@ void func_800C2430(s32 idx) {
         }
     } else if (D_80161360 != 0 && D_80161388[1] < D_80161388[0] && D_80161388[2] < D_80161388[0]) {
         p->flags = fl | 0x40;
-        c = (PCar *)(uintptr_t)&player_array[idx];
+        c = (PCar *)(uintptr_t)PC_CAR(idx);
         p->a10 = c->vx;
         p->a14 = c->vy;
         p->a18 = c->vz;
@@ -3979,7 +3985,7 @@ void func_800C26C4(s32 idx) {
         if (D_80156BD8 != 0 || D_80157238 >= 3) {
             p->flags = fl & ~0x10;
         } else {
-            c = (PCar *)(uintptr_t)&player_array[idx];
+            c = (PCar *)(uintptr_t)PC_CAR(idx);
             p->a1C += c->vx;
             p->a20 += c->vy;
             p->a24 += c->vz;
@@ -3991,7 +3997,7 @@ void func_800C26C4(s32 idx) {
             p->flags &= ~0x10;
             return;
         }
-        if ((D_80123F08 < v[1] && v[1] < D_80123F0C) || ((D_80156BD8 != 0 || D_80157238 > 0 || ((c = (PCar *)(uintptr_t)&player_array[idx])->fE8 & 0x100000)) && D_80123F10 < v[1])) {
+        if ((D_80123F08 < v[1] && v[1] < D_80123F0C) || ((D_80156BD8 != 0 || D_80157238 > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->fE8 & 0x100000)) && D_80123F10 < v[1])) {
             p->flags &= ~0x80;
             func_800C1B60(idx, 4);
             d = (p->a20 > 0.0f) ? D_80123F14 : D_80123F18;
@@ -4001,7 +4007,7 @@ void func_800C26C4(s32 idx) {
         }
     } else if (D_80161360 != 0 && D_80161388[0] < D_80161388[1] && D_80161388[2] < D_80161388[1]) {
         p->flags = fl | 0x10;
-        c = (PCar *)(uintptr_t)&player_array[idx];
+        c = (PCar *)(uintptr_t)PC_CAR(idx);
         p->a1C = c->vx;
         p->a20 = c->vy;
         p->a24 = c->vz;
@@ -4020,7 +4026,7 @@ void func_800C2944(s32 idx) {
         if (D_80156CE4 != 0 || D_80157238 >= 3) {
             p->flags = fl & ~0x20;
         } else {
-            c = (PCar *)(uintptr_t)&player_array[idx];
+            c = (PCar *)(uintptr_t)PC_CAR(idx);
             p->a04 += c->vx;
             p->a08 += c->vy;
             p->a0C += c->vz;
@@ -4032,7 +4038,7 @@ void func_800C2944(s32 idx) {
             p->flags &= ~0x20;
             return;
         }
-        if ((D_80123F24 < v[2] && v[2] < D_80123F28) || ((D_80156CE4 != 0 || D_80157238 > 0 || (player_array[idx].fE8 & 0x100000)) && D_80123F2C < v[2])) {
+        if ((D_80123F24 < v[2] && v[2] < D_80123F28) || ((D_80156CE4 != 0 || D_80157238 > 0 || (PC_CAR_FLAGS(idx) & 0x100000)) && D_80123F2C < v[2])) {
             p->flags &= ~0x80;
             if (p->a0C > 0.0f) {
                 func_800C1B60(idx, 3);
@@ -4046,7 +4052,7 @@ void func_800C2944(s32 idx) {
         }
     } else if (D_80161360 != 0 && D_80161388[1] < D_80161388[2] && D_80161388[0] < D_80161388[2]) {
         p->flags = fl | 0x20;
-        c = (PCar *)(uintptr_t)&player_array[idx];
+        c = (PCar *)(uintptr_t)PC_CAR(idx);
         p->a04 = c->vx;
         p->a08 = c->vy;
         p->a0C = c->vz;
@@ -4192,7 +4198,7 @@ void func_800C2420(s32 idx) {
 
     p = &D_801569B8[idx];
     if (p->flags & 0x100) {
-        if (D_80157238 > 0 || (player_array[idx].fE8 & 0x100000)) {
+        if (D_80157238 > 0 || (PC_CAR_FLAGS(idx) & 0x100000)) {
             p->t38 = D_801543CC;
             r = p->t38 - p->t34;
             p->flags &= ~0x100;
@@ -4215,7 +4221,7 @@ void func_800C2428(s32 idx) {
     f32 s;
 
     p = &D_801569B8[idx];
-    c = &player_array[idx];
+    c = PC_CAR(idx);
     if (p->flags & 0x80) {
         n = 0;
         if (D_80157238 >= 3) {
@@ -4275,7 +4281,7 @@ void camera_scene_manager(void) {
     }
     for (i = 0; i < active_player_count; i++) {
         ply = &D_801569B8[i];
-        car = &player_array[i];
+        car = PC_CAR(i);
         hud = PC_MODEL(i);
         if ((ply->flags & 0x1F0) && hud->f3F8 != 0) {
             D_80152038[i].f60 += *pdt;

@@ -101,7 +101,13 @@ extern Player D_8014A118[];
 extern Profile *D_80146150[];
 extern u8 D_80144018[];        /* laps driven per player */
 extern f32 D_80149A78[][8];    /* lap times per player */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarData D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#define PC_CAR_FINISHED(i) D_80152818[i].finished
+#endif
 extern Record D_80150F88[];
 extern Owner gTotalNames[];
 extern s8 D_80151AC0[];
@@ -131,8 +137,8 @@ void assign_drones(void)
                 r = &(*(*D_8014A118[i].prof)->save)->rec[track];
             else
                 r = &D_80150F88[track];
-            car = &D_80152818[D_8014A118[i].car];
-            if (D_80152818[D_8014A118[i].car].finished) {
+            car = PC_CAR(D_8014A118[i].car);
+            if (PC_CAR_FINISHED(D_8014A118[i].car)) {
                 time = car->time;
                 for (k = 0; k < 5; k++) {
                     if (r->times[k] == 0.0f || time < r->times[k]) {

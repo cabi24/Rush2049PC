@@ -41,7 +41,12 @@ extern s16 gNumWindows;
 extern Pair D_80118E20;
 extern f32 D_80142740[];
 extern f32 D_80142770[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].place_locked
+#endif
 extern Pos D_80115EA8[][4];
 extern s32 D_801170FC;
 extern volatile f32 D_8002EB94;
@@ -114,7 +119,7 @@ s32 animLapTimeText(s32 arg0)
         if (D_801170FC == 0) {
             D_80142740[slot] -= D_8002EB94;
         }
-        if (D_80142740[slot] <= 0.f || D_80152818[slot].place_locked == 1) {
+        if (D_80142740[slot] <= 0.f || PC_CAR_FINISHED(slot) == 1) {
             D_80142740[slot] = 0.f;
             continue;
         }

@@ -77,7 +77,13 @@ typedef struct ScoreState {
 typedef struct Effect { s16 state, handle; f32 uv[3][3], position[3], alpha; s16 x,y,from_x,from_y,to_x,to_y; f32 timer; } Effect;
 extern s16 D_80151AD0, D_8014A108;
 extern s32 D_8014A110, D_80393B74[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR_BATTLE_FLAGS(i) D_80152818[i].flags
+#define PC_CAR_KIND(i) D_80152818[i].kind
+#endif
 extern Status D_80395C00[], D_80395CD0[];
 extern Handle D_80395DA0[];
 extern Camera D_80150B70[];
@@ -115,9 +121,9 @@ s32 func_80391650(void *unused)
     s32 kind, i;
     Status *status;
     for (i = 0; i < D_80151AD0; i++) {
-        if (D_80152818[i].flags) {
-            if (D_80152818[i].flags & 1) kind = 1;
-            else if (D_80152818[i].flags & 2) kind = 2;
+        if (PC_CAR_BATTLE_FLAGS(i)) {
+            if (PC_CAR_BATTLE_FLAGS(i) & 1) kind = 1;
+            else if (PC_CAR_BATTLE_FLAGS(i) & 2) kind = 2;
         } else {
             kind = 0;
         }
@@ -152,13 +158,13 @@ s32 func_80391864(void *unused)
     Color color;
     s32 player_kind;
     for (i = 0; i < D_80151AD0; i++) {
-        player_kind = D_80152818[i].kind;
+        player_kind = PC_CAR_KIND(i);
         kind = D_80395C00[i].kind;
         if (player_kind != kind) {
             if (D_80395C00[i].handle != -1) {
                 sound_call_minimal(D_80395C00[i].handle);
                 D_80395C00[i].handle = -1;
-                player_kind = D_80152818[i].kind;
+                player_kind = PC_CAR_KIND(i);
             }
             D_80395C00[i].kind = player_kind;
             kind = D_80395C00[i].kind;

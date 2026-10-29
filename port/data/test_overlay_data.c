@@ -27,7 +27,7 @@ __attribute__((aligned(16))) uint8_t D_80139320[6 * 0x40];      /* CarParts[] */
 uint16_t D_8014254C[64];
 struct pc_model pc_models[PC_MODEL_SLOTS];     /* model[] (pc_game_types.h) */
 __attribute__((aligned(16))) uint8_t D_80151AE8[64 * 16];       /* TexDefSet[] */
-__attribute__((aligned(16))) uint8_t D_80152818[6 * 0x468];     /* the cars, PC layout */
+struct pc_car pc_cars[PC_CAR_SLOTS];                           /* the car records (pc_game_types.h) */
 uint16_t D_80399B08[5];
 int32_t D_80399B40[7];
 

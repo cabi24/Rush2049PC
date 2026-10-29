@@ -70,7 +70,12 @@ typedef struct View {
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct Mesh {s16 count;u16 flags,parameter,unknown;Vertex20 vertices[4];} Mesh;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CAR_DATA D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -105,7 +110,7 @@ void entity_render_setup(Effect *effect, s16 op) {
     f32 x, y, depth, len, slope, threshold;
     u32 side;
 
-    record = &D_80152818[effect->player];
+    record = PC_CAR(effect->player);
     vehicle = PC_MODEL(effect->player);
     type = effect->view;
     color = D_8011B578;

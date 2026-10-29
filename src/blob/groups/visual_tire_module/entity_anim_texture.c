@@ -34,7 +34,12 @@ typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[0x110 - 0xEC]; 
 #else
 typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[432];Side24 side[2];u8 opaque716[144];s8 shift,quality,opaque862,disabled;u8 opaque864[32];Pose *pose;u8 opaque900[52];} Player952;
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player952 player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 extern Model68 D_8012E700[];
 extern Pose D_8011418C;
 extern s8 D_80140418;
@@ -62,7 +67,7 @@ void entity_anim_texture(ModelObj *record,s16 mode) {
         return;
     }
     index=(record->flags&1)?1:0;
-    player=&player_array[slot];
+    player=PC_CAR(slot);
     if(player->side[index].flags&0x10) {
         model_transform_setup(record->model,0,15);
         pose=func_8008B3A0(record->model);

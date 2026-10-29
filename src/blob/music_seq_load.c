@@ -70,7 +70,14 @@ extern tLink D_80153E88[];              /* gLink */
 #endif
 extern s8 D_8011157C[][13];             /* gTireRims */
 extern void *D_80143F74[];              /* gWheelTextures */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData player_array[];         /* gGameCar */
+#define PC_CAR_IR_COLOR(i) player_array[i].IRclr.rgba
+#define PC_CAR_PREV_IR_COLOR(i) player_array[i].prevIRclr.rgba
+#define PC_CAR_SHEEN_ALPHA(i) player_array[i].sheenAlpha
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -147,9 +154,9 @@ void music_seq_load(s16 slot, s16 camlink, int for_game)
         car->bSpark = -1;
     }
     if (for_game) {
-        player_array[slot].sheenAlpha = 255;
-        player_array[slot].IRclr.rgba = D_8011AF90[D_8014978C][0].rgba;
-        player_array[slot].prevIRclr.rgba = D_8011AF90[D_8014978C][0].rgba;
+        PC_CAR_SHEEN_ALPHA(slot) = 255;
+        PC_CAR_IR_COLOR(slot) = D_8011AF90[D_8014978C][0].rgba;
+        PC_CAR_PREV_IR_COLOR(slot) = D_8011AF90[D_8014978C][0].rgba;
         sound_bank_unload(slot, PC_LINK_CAR(slot), PC_MODEL_COLOR0(slot), PC_MODEL_COLOR1(slot), PC_MODEL_COLOR2(slot));
     }
     func_80092FE0(slot, &D_8011AE58[0]);

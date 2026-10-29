@@ -20,7 +20,12 @@ extern Player input_rec0[];
 extern Object *D_80146150[];
 extern u8 D_80144018[];
 extern Stats24 D_801515F8[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model952 player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 extern void func_800CD8EC(Handle *,u8);
 void graphics_chunk_b(void) {
  int player,which,table=D_8014978C-18;
@@ -34,7 +39,7 @@ void graphics_chunk_b(void) {
   for(which=0;which<2;which++) {
    if(which==0)stats=(Stats24 *)(record->handle->object->resource->data+table*24+1644);
    else stats=&D_801515F8[table];
-   model=&player_array[record->index];
+   model=PC_CAR(record->index);
    stats->total+=model->time;
    stats->count++;
    if(D_80144018[player]==1) {

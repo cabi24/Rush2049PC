@@ -36,7 +36,13 @@ extern Rec D_8014A250[];
 #define PC_MODEL_SLOT(i) D_8014A250[i].idx
 #endif
 extern Ent D_80152038[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_PLACE(i) D_80152818[i].b238
+#define PC_CAR_POINTS(i) D_80152818[i].b931
+#endif
 extern s8 gCarTeam[];
 extern s8 D_8015256C[];
 extern s32 D_80150B60;
@@ -83,7 +89,7 @@ void FindWinner(void)
         b = D_80143F54[j + 1];
         ia = PC_MODEL_SLOT(a);
         ib = PC_MODEL_SLOT(b);
-        if (D_80152818[ia].b931 < D_80152818[ib].b931) {
+        if (PC_CAR_POINTS(ia) < PC_CAR_POINTS(ib)) {
           D_80143F54[j + 1] = a & 0xFF;
           D_80143F54[j] = b;
         }
@@ -104,7 +110,7 @@ void FindWinner(void)
     for (i = 1; i < D_8014A108; i++) {
       f = PC_MODEL_SLOT(D_80143F54[0]);
       c = PC_MODEL_SLOT(D_80143F54[i]);
-      if (D_80152818[f].b931 == D_80152818[c].b931) {
+      if (PC_CAR_POINTS(f) == PC_CAR_POINTS(c)) {
         D_80150B60++;
         D_80150B68[i] = 1;
       }
@@ -117,7 +123,7 @@ void FindWinner(void)
         b = D_80143F54[j + 1];
         ia = PC_MODEL_SLOT(a);
         ib = PC_MODEL_SLOT(b);
-        if (D_80152818[ib].b238 < D_80152818[ia].b238) {
+        if (PC_CAR_PLACE(ib) < PC_CAR_PLACE(ia)) {
           D_80143F54[j + 1] = a & 0xFF;
           D_80143F54[j] = b;
         }
@@ -126,7 +132,7 @@ void FindWinner(void)
     for (i = 1; i < D_8014A108; i++) {
       f = PC_MODEL_SLOT(D_80143F54[0]);
       c = PC_MODEL_SLOT(D_80143F54[i]);
-      if (D_80152818[f].b238 == D_80152818[c].b238) {
+      if (PC_CAR_PLACE(f) == PC_CAR_PLACE(c)) {
         D_80150B60++;
         D_80150B68[i] = 1;
       }

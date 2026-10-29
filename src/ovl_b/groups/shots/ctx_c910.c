@@ -63,7 +63,12 @@ typedef struct tModel {
     u8 unknown09[0x7ff];
 } tModel;                           /* 0x808 */
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData D_80152818[];
+#define PC_CAR_VISUALS(i) D_80152818[i].visuals
+#endif
 extern tCarParts D_80139320[];
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -82,7 +87,7 @@ void func_8038C910(s16 slot)
 {
     tVisual *v;
 
-    v = &D_80152818[slot].visuals[20];
+    v = &PC_CAR_VISUALS(slot)[20];
     if (v->objnum < 0) {
         v->index = 0;
         v->func = func_8038AA8C;

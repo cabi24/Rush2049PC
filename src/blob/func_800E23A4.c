@@ -50,7 +50,12 @@ typedef struct GameCar {u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8
 #else
 typedef struct GameCar {u8 prefix[858];s8 disabled;u8 tail[93];} GameCar;
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[];
+#define PC_CAR_DISABLED(i) player_array[i].disabled
+#endif
 extern s8 D_80142726,D_80142DB0,D_8011128C[][13];
 extern float D_801243CC,D_801243D0,D_801243D4;
 extern float D_80114160,D_80114164,D_80114168,D_8011416C[];
@@ -82,11 +87,11 @@ void func_800E23A4(VehicleModel *vehicle)
  camera_follow_target(vehicle,&vehicle->tire_velocity[2],&vehicle->tire_basis[2],vehicle->wheel_state[2],vehicle->wheel_torque[2],&vehicle->tire_force[2],vehicle->suspension[2],vehicle->suspension[3],N64P(vehicle->parameters)->values[8],N64P(vehicle->parameters)->values[10],N64P(vehicle->parameters)->values[14],N64P(vehicle->parameters)->values[18],poortract,airfact);
  camera_follow_target(vehicle,&vehicle->tire_velocity[3],&vehicle->tire_basis[3],vehicle->wheel_state[3],vehicle->wheel_torque[3],&vehicle->tire_force[3],vehicle->suspension[3],vehicle->suspension[2],N64P(vehicle->parameters)->values[9],N64P(vehicle->parameters)->values[10],N64P(vehicle->parameters)->values[15],N64P(vehicle->parameters)->values[19],poortract,airfact);
  if(vehicle->direction)func_800E1F80(vehicle);
- if(!player_array[vehicle->index].disabled && vehicle->wheel_mode[0]==8 && vehicle->wheel_mode[1]==8 && vehicle->wheel_mode[2]==8 && vehicle->wheel_mode[3]==8) {
+ if(!PC_CAR_DISABLED(vehicle->index) && vehicle->wheel_mode[0]==8 && vehicle->wheel_mode[1]==8 && vehicle->wheel_mode[2]==8 && vehicle->wheel_mode[3]==8) {
   vehicle->wind_lateral=((vehicle->transform.rows[0].x*D_80142726)*D_80142726)*80.0f;
   vehicle->wind_vertical=((vehicle->transform.rows[1].x*D_80142726)*D_80142726)*80.0f;
  } else {vehicle->wind_lateral=0.0f;vehicle->wind_vertical=0.0f;}
- if(!player_array[vehicle->index].disabled) speed=vehicle->velocity.z-(vehicle->transform.rows[2].x*D_80142726)*20.0f;
+ if(!PC_CAR_DISABLED(vehicle->index)) speed=vehicle->velocity.z-(vehicle->transform.rows[2].x*D_80142726)*20.0f;
  else speed=vehicle->velocity.z;
  if(vehicle->flags&0x10) {drag_base=5000.0f;drag_scale=10.0f;}
  else {drag_base=30.0f;drag_scale=N64P(vehicle->parameters)->values[22];}

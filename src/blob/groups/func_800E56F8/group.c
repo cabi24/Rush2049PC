@@ -527,7 +527,15 @@ typedef struct GC2 {
 #endif
     u8 pad384[0x3B8 - 0x384];
 } GC2;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[8];
+#define PC_CAR(i) &player_array[i]
+#define PC_CARS player_array
+#define PC_CAR_INPUT(i) ((GC2 *) player_array)[i].w380
+#define PC_CAR_STATE(i) ((GC2 *) player_array)[i].b359
+#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -3902,7 +3910,7 @@ void func_800E56F8(s32 ipa_s4) {
     void *temp_s0_2;
     void *temp_s3;
 
-    temp_s2 = &player_array[ipa_s4];
+    temp_s2 = PC_CAR(ipa_s4);
     temp_s3 = M2C_FIELD(temp_s2, void **, CAR_OFS(0x380));
     if (((s8) PAD0EC(temp_s2->pad0EC, 0x26D) == 1) && ((temp_s0 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) PC_MODELS), (M2C_FIELD(temp_s0, f32 *, 0x3F0) < 5.0f)) || (M2C_FIELD(temp_s0, s16 *, 0x71C) == 0))) {
         *(s8 *)&PAD0EC(temp_s2->pad0EC, 0x26D) = 2;
@@ -4063,7 +4071,7 @@ void model_iteration(void) {
         D_80143FF4 = D_80143FF4 + 1;
         D_801543CC = (f32) D_80143FF4 * D_8002AFB8;
         for (v = 0; v != 6; v++) {
-            if (((GC2 *) player_array)[v].w380 == 0) {
+            if (PC_CAR_INPUT(v) == 0) {
                 car = PC_MODEL(v);
                 if (car->s7CA == 0) {
                     fz = car->vel[2];
@@ -4095,7 +4103,7 @@ void model_iteration(void) {
                     }
                     func_800E5C9C(car);
                     if ((car->b732 != 0) && ((gameplay_mode != 6) || (car->b640 != 0)) && (state_word_a & 0x400000) && (car->s6C4 == -1)) {
-                        gc = &((GC2 *) player_array)[rec->car];
+                        gc = &((GC2 *) PC_CARS)[rec->car];
                         if ((gc->bEF == 0) && (gc->b359 == 0) && ((s8) D_8013FECB == 0) && (((s8) D_80142760 == 0) || ((car->speed < 10.0f) && (gc->b358 == 0)))) {
                             if (gameplay_mode == 4) {
                                 func_800C3578(i);
@@ -4104,7 +4112,7 @@ void model_iteration(void) {
                             func_800C54F0(rec->car, 0);
                         }
                     }
-                    if (((GC2 *) player_array)[rec->car].b359 < 2) {
+                    if (PC_CAR_STATE(rec->car) < 2) {
                         func_800E56F8(rec->car);
                     } else {
                         menu_audio_settings(car);

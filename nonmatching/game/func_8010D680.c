@@ -72,7 +72,12 @@ typedef struct ObjInstance { u32 flags; u8 pad04[0x44 - 4]; } ObjInstance;
 extern s32 D_801170FC;               /* gPauseState */
 extern volatile f32 D_8002EB94;      /* gFrameSeconds */
 extern s16 D_8014A108;               /* gNumPlayers */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];             /* gGameCar */
+#define PC_CAR_KIND(i) D_80152818[i].battle.type
+#endif
 extern ObjInstance D_8012E700[];     /* ObjInstanceList */
 void entity_transform_apply(Visual *v, s32 flag);           /* ReleaseEnviron */
 void sound_position_set(f32 *angV, f32 (*uvs)[3]);          /* RotateUV */
@@ -125,7 +130,7 @@ void func_8010D680(Visual *v, s16 op)
         if (wep != -1) {
             ok = 1;
             for (i = 0; i < D_8014A108; i++) {
-                if (wep == D_80152818[i].battle.type) ok = 0;
+                if (wep == PC_CAR_KIND(i)) ok = 0;
             }
             if (ok) {
                 model_transform_setup(t->dlIdx, 0, 15);

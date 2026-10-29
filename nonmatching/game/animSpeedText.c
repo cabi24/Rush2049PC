@@ -55,7 +55,13 @@ extern s16 gNumWindows;              /* D_80151AD0 */
 extern tModelData model[];           /* D_8014A250 */
 #define PC_MODEL_SLOT(i) model[i].slot
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData gGameCar[];          /* D_80152818 */
+#define PC_CAR_FINISHED(i) gGameCar[i].place_locked
+#define PC_CAR_MPH(i) gGameCar[i].rwmph
+#endif
 extern s8 gShowMetric;               /* D_801613AA */
 extern s32 speedPos[4][4][2];        /* D_80115A68 */
 extern tText gText;                  /* D_8017A4E0 */
@@ -98,9 +104,9 @@ s32 animSpeedText(void *blt)
     digitW = HAL_GetCharWidth('8') + 1;
     for (slot = 0; slot < gNumWindows; slot++) {
         if (y) {}
-        if (gGameCar[PC_MODEL_SLOT(slot)].place_locked == 1)
+        if (PC_CAR_FINISHED(PC_MODEL_SLOT(slot)) == 1)
             continue;
-        mph = gGameCar[slot].rwmph >> 2;
+        mph = PC_CAR_MPH(slot) >> 2;
         mph *= 1.2f;
         if (gShowMetric)
             mph *= 1.61f;

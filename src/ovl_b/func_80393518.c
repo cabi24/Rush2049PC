@@ -15,7 +15,13 @@ typedef struct Player952 {
 } Player952;
 typedef struct TextPosition { s16 x, y; } TextPosition;
 extern s16 D_80151AD0;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player952 player_array[];
+#define PC_CAR_KIND(i) player_array[i].kind
+#define PC_CAR_LIVES(i) player_array[i].lives
+#endif
 extern TextPosition D_803941D0[4][4];
 extern char D_80394AB0[];
 extern void render_helper(float);
@@ -33,11 +39,11 @@ int func_80393518(void *callback_context)
     object_create(10);
     func_800B669C(1, 1);
     for (i = 0; i < D_80151AD0; i++) {
-        if (i < D_80151AD0 && player_array[i].kind != 8) {
+        if (i < D_80151AD0 && PC_CAR_KIND(i) != 8) {
             x = D_803941D0[D_80151AD0 - 1][i].x;
             y = D_803941D0[D_80151AD0 - 1][i].y;
-            if (player_array[i].lives >= 0) {
-                fcvt_wrapper(text, D_80394AB0, player_array[i].lives);
+            if (PC_CAR_LIVES(i) >= 0) {
+                fcvt_wrapper(text, D_80394AB0, PC_CAR_LIVES(i));
                 dispatch_handler(0);
                 state_utility(x + 1, y + 1, text);
                 dispatch_handler(1);

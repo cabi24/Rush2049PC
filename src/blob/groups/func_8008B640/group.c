@@ -461,7 +461,12 @@ typedef struct {
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[8];
+#define PC_CAR(i) &player_array[i]
+#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -3788,7 +3793,7 @@ void physics_velocity_integrate_a(ModelObj *ipa_s1, s32 arg1, s32 ipa_s2, f32 ip
     s16 t;
     f32 *m;
 
-    car = &player_array[ipa_s1->player];
+    car = PC_CAR(ipa_s1->player);
     if (arg0 != 0 && !(state_word_a & 8)) {
         if (ipa_s1->state < 0) {
             if (arg1 == 0) {
@@ -3843,7 +3848,7 @@ void physics_velocity_integrate_b(ModelObj *arg0, s16 arg1) {
     s16 lvl;
     s32 t;
 
-    car = &player_array[arg0->player];
+    car = PC_CAR(arg0->player);
     lvl = (s32) M2C_FIELD((PC_MODEL(arg0->player)), f32 *, 0x3F0);
     t = M2C_FIELD((PC_MODEL(arg0->player)), s8 *, 0x641);
     physics_velocity_integrate_a(arg0, lvl >= 13 && (t != 0 || (M2C_FIELD(car, s32 *, 0xE8) & 0x800) != 0), 194,
@@ -3861,7 +3866,7 @@ void physics_velocity_integrate_c(ModelObj *arg0, s16 arg1) {
     s16 lvl;
     f32 f24;
 
-    car = &player_array[arg0->player];
+    car = PC_CAR(arg0->player);
     rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x4000) != 0;
@@ -3881,7 +3886,7 @@ void physics_velocity_integrate_d(ModelObj *arg0, s16 arg1) {
     s16 lvl;
     f32 f24;
 
-    car = &player_array[arg0->player];
+    car = PC_CAR(arg0->player);
     rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x80) != 0;
@@ -3901,7 +3906,7 @@ void physics_velocity_integrate_e(ModelObj *arg0, s16 arg1) {
     s16 lvl;
     f32 f24;
 
-    car = &player_array[arg0->player];
+    car = PC_CAR(arg0->player);
     rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x2000) != 0;
@@ -3921,7 +3926,7 @@ void physics_velocity_integrate_f(ModelObj *arg0, s16 arg1) {
     s16 lvl;
     f32 f24;
 
-    car = &player_array[arg0->player];
+    car = PC_CAR(arg0->player);
     rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x100) != 0;

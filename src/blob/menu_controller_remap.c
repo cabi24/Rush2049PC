@@ -119,7 +119,14 @@ extern MODELDAT D_8014A250[];
 #define PC_MODEL_SLOT(i) D_8014A250[i].slot
 #define PC_MODEL_STUCK_TIME(i) D_8014A250[i].stuck_time
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CAR_DATA D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#define PC_CAR_FWD_PROGRESS(i) D_80152818[i].fwd_progress_t
+#define PC_CAR_HEADING(i) D_80152818[i].stray_angle
+#endif
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -163,8 +170,8 @@ void menu_controller_remap(void) {
     if (D_801543CC < 5.0f) {
         for (i = 0; i < 6; i++) {
             PC_MODEL_STUCK_TIME(i) = 0.0f;
-            D_80152818[i].fwd_progress_t = 0.0f;
-            D_80152818[i].stray_angle = 0.0f;
+            PC_CAR_FWD_PROGRESS(i) = 0.0f;
+            PC_CAR_HEADING(i) = 0.0f;
         }
         return;
     }
@@ -172,7 +179,7 @@ void menu_controller_remap(void) {
     for (i = 0; i < D_80152744; i++) {
         node = PC_MODEL_SLOT(i);
         m = PC_MODEL(node);
-        gc = &D_80152818[node];
+        gc = PC_CAR(node);
         if (m->we_control || PC_LINK_OWNER(node) == 6) {
             abort_me = m->please_abort_me;
             if (gc->dr_pos[1] < -190.0f && gc->unk359 == 0 && gc->we_died == 0 && m->unk6C4 == -1) {
@@ -218,7 +225,7 @@ void menu_controller_remap(void) {
 
     for (node = 0; node < D_8014A108; node++) {
         m = PC_MODEL(D_8014A118[node].node);
-        gc = &D_80152818[D_8014A118[node].node];
+        gc = PC_CAR(D_8014A118[node].node);
         if (gc->last_distance < gc->distance) {
             gc->fwd_progress_t = 0.0f;
             gc->last_distance = gc->distance;

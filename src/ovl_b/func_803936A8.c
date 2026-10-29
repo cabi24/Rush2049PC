@@ -42,7 +42,12 @@ typedef struct NameData { u8 before_name[20]; char name[1]; } NameData;
 #endif
 typedef struct NameRef { NameData *data; } NameRef;
 typedef struct PlayerInfo { NameRef *name_ref; u8 unknown04[72]; } PlayerInfo;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR_POINTS(i) D_80152818[i].remaining
+#endif
 extern Event D_80395E70[4];
 extern s16 D_8014A108, D_80151AD0;
 extern s32 D_803940D0[4][4][2], D_80115F28[4][4][2];
@@ -72,7 +77,7 @@ s32 func_803936A8(void *callback_context)
     for (i = 0; i < D_8014A108; i++) {
         x = D_803940D0[D_80151AD0 - 1][i][0];
         y = D_803940D0[D_80151AD0 - 1][i][1];
-        sprintf(text, D_80394AF0, D_80152818[i].remaining);
+        sprintf(text, D_80394AF0, PC_CAR_POINTS(i));
         dispatch_handler(0);
         state_utility(x + 1, y + 1, text);
         dispatch_handler(1);
@@ -86,7 +91,7 @@ s32 func_803936A8(void *callback_context)
                 if (event->delta > 0) {
                     func_800F7E30(event->row, event->column, event->delta);
                 }
-                D_80152818[event->row].remaining += event->delta;
+                PC_CAR_POINTS(event->row) += event->delta;
             } else {
                 x = ((event->to_x - event->from_x) / 40.0f) * event->age + event->from_x;
                 y = ((event->to_y - event->from_y) / 40.0f) * event->age + event->from_y;

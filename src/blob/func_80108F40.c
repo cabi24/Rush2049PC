@@ -84,7 +84,13 @@ extern Pos D_80116028[][4];
 extern MODELDAT D_8014A250[];
 #define PC_MODEL(i) &D_8014A250[i]
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CAR_DATA D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#define PC_CAR_FINISHED(i) D_80152818[i].state
+#endif
 extern void Input_ApplyPadConfig(void *);
 extern s32 func_800CF604(s16);
 extern void func_800A61B0(f32 *, f32 *, f32 *);
@@ -121,11 +127,11 @@ s32 func_80108F40(Blit *blt) {
         return Hidden(blt, 1);
     }
     slot = blt->AnimID & 0xF;
-    if (Hidden(blt, !D_80156CE8 || D_80152818[me].state == 1)) {
+    if (Hidden(blt, !D_80156CE8 || PC_CAR_FINISHED(me) == 1)) {
         return 1;
     }
     m = PC_MODEL(slot);
-    gc = &D_80152818[slot];
+    gc = PC_CAR(slot);
     if (!m->in_game) {
         blt->AnimFunc = 0;
         return Hidden(blt, 1);
@@ -133,7 +139,7 @@ s32 func_80108F40(Blit *blt) {
     if (Hidden(blt, slot != me && !func_800CF604(slot))) {
         return 1;
     }
-    mc = &D_80152818[me];
+    mc = PC_CAR(me);
     lpos[0] = gc->dr_pos[0] - mc->dr_pos[0];
     lpos[1] = gc->dr_pos[1] - mc->dr_pos[1];
     lpos[2] = gc->dr_pos[2] - mc->dr_pos[2];

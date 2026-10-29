@@ -18,3 +18,11 @@ pc_links   D_80153E88   0x68   D_80153E8F
 # D_8014A914 (+0x6C4), D_8014A964 (+0x714), D_8014A96C (+0x71C), D_8014AA14 (+0x7C4), D_8014AA16 (+0x7C6),
 # D_8014AA32 (+0x7E2) and D_8014AA3A (+0x7EA), read with a stride of 0x808; the image symbol tables name 12 more.
 pc_models  D_8014A250  0x3030  D_8014A250_alias D_8014A258 D_8014A640 D_8014A890 D_8014A914 D_8014A964 D_8014A96C D_8014AA14 D_8014AA16 D_8014AA32 D_8014AA3A
+
+# The car records (MAT3 gGameCar, tCarData, player_array): struct pc_car[PC_CAR_SLOTS], 6 records of 0x3B8 bytes on
+# the N64 (0x80152818-0x80153E68; D_80153E68, a message queue, follows), 0x468 on the PC (docs/port/CARS.md 2). They
+# were own storage already (host layout). The aliases are player_array and the names inside it the game C reached:
+# [0]'s fields D_801528F0 (seen from +0xD8), D_80152900 (+0xE8), D_80152906 (+0xEE), D_80152907 (+0xEF), D_80152908
+# (+0xF0), D_80152B70 (+0x358), D_80152B74 (+0x35C) and D_80152BBB (+0x3A3), and [1]'s D_80152BD0 (+0), D_80152BD8
+# (+0x8) and D_80152C20 (+0x50), read with a stride of 0x3B8 (CAR_OFS on the PC).
+pc_cars    D_80152818  0x1650  player_array D_801528F0 D_80152900 D_80152906 D_80152907 D_80152908 D_80152B70 D_80152B74 D_80152BBB D_80152BD0 D_80152BD8 D_80152C20

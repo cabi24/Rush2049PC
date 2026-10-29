@@ -76,7 +76,12 @@ extern MODELDAT D_8014A250[]; /* model */
 #define PC_MODEL_SLOT(i) D_8014A250[i].slot
 #define PC_MODEL_WE_CONTROL(i) D_8014A250[i].we_control
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CAR_DATA D_80152818[]; /* game_car */
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -103,7 +108,7 @@ void func_800EC914(void) {
     D_80152744 = 0;
     for (i = 0; i < D_801543CA; i++) {
         m = PC_MODEL(i);
-        gc = &D_80152818[i];
+        gc = PC_CAR(i);
         m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = 0;
         m->in_game = (PC_LINK_FLAGS(i) & LINK_ACTIVE) != 0;

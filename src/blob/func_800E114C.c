@@ -43,7 +43,12 @@ typedef struct Car952 {u8 other0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 
 #else
 typedef struct Car952 {u8 other0[857];s8 mode;u8 other858[94];} Car952;
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car952 D_80152818[];
+#define PC_CAR_STATE(i) D_80152818[i].mode
+#endif
 extern f32 D_80114184,D_80114188;
 extern f32 fabsf(f32),func_8008B3C8(f32 *);
 #pragma intrinsic (fabsf)
@@ -60,7 +65,7 @@ void func_800E114C(ModelView *m)
         if(fabsf(m->V[0])<0.025f)m->V[0]=0.0f;
         if(fabsf(m->V[2])<0.025f)m->V[2]=0.0f;
     }
-    if(D_80152818[m->node].mode!=2)m->magvel=func_8008B3C8(m->V);
+    if(PC_CAR_STATE(m->node)!=2)m->magvel=func_8008B3C8(m->V);
     if(m->magvel>300.0f) {
         velfact=300.0f/m->magvel;
         m->V[0]*=velfact;

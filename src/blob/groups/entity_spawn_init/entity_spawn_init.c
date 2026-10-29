@@ -63,7 +63,12 @@ typedef struct Scene { u32 flags; u32 flags4; void *owner; f32 scaleA; f32 scale
 typedef struct Scene {u32 flags;u32 flags4;void *owner;f32 scaleA;f32 scaleB;u16 id;s16 links[3];s32 words[8];union { u8 byte[4]; u32 word; } rgba;s32 tail;} Scene;
 #endif
 typedef struct Bank {u8 *data;u32 other;} Bank;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -446,5 +451,5 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
     } while (count != i);
 }
 
-static Car *get_car(s16 slot) { return &D_80152818[slot]; }
+static Car *get_car(s16 slot) { return PC_CAR(slot); }
 static s16 get_mph(Car *c) { return c->mph >> 2; }

@@ -49,7 +49,12 @@ typedef struct {
 } Rec40;
 
 extern u32 D_801174B4;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern Rec40 D_80139320[];
 extern void func_8008BD9C();
 extern void func_8008BC94();
@@ -64,7 +69,7 @@ void func_800AC8D4(s16 idx) {
     if (D_801174B4 & 8) {
         return;
     }
-    car = &D_80152818[idx];
+    car = PC_CAR(idx);
     r = &D_80139320[idx];
     car->slot[0].func = func_8008BD9C;
     car->slot[0].state = -1;

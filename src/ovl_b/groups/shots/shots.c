@@ -189,7 +189,13 @@ typedef struct ObjInst { u8 pad00[12]; f32 scale; u8 pad10[0x44 - 16]; } ObjInst
 extern volatile f32 D_8002EB94;          /* gFrameSeconds */
 extern f32 D_80142764;          /* gGravity */
 extern volatile s16 D_801543CA;          /* gNumCars */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];        /* gGameCar */
+#define PC_CAR(i) &D_80152818[i]
+#define PC_CARS D_80152818
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -279,7 +285,7 @@ void func_8038F568(Car *car)
     f32 pitch = 0.0f;
     f32 h;
 
-    for (hit = D_80152818; hit < &D_80152818[D_801543CA]; hit++) {
+    for (hit = PC_CARS; hit < PC_CAR(D_801543CA); hit++) {
         if (car->slot == hit->slot || D_8012E67C[car->slot] == D_8012E67C[hit->slot] ||
             PC_MODEL_CRASHFLAG(hit->slot) || !hit->collidable || hit->dead)
             goto next;
@@ -343,7 +349,7 @@ Car *func_8038DA78(Shot *shot, f32 *old)
         return 0;
     t0 = 1.0f;
     hit = 0;
-    for (i = 0, car = D_80152818; i < D_801543CA; i++, car++) {
+    for (i = 0, car = PC_CARS; i < D_801543CA; i++, car++) {
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || PC_MODEL_CRASHFLAG(i))
             continue;
@@ -398,7 +404,7 @@ void func_8038D498(Shot *shot)
     f32 mul;
     f32 scale;
 
-    our = &D_80152818[shot->slot];
+    our = PC_CAR(shot->slot);
     scale = D_8012E700[shot->obj->mbIdx].scale;
     if (scale <= 8.0f) {
         mul = 1.0f;
@@ -413,7 +419,7 @@ void func_8038D498(Shot *shot)
     pos[0] = shot->obj->mat.pos[0];
     pos[1] = shot->obj->mat.pos[1];
     pos[2] = shot->obj->mat.pos[2];
-    for (car = D_80152818, i = 0; i < D_801543CA; i++, car++) {
+    for (car = PC_CARS, i = 0; i < D_801543CA; i++, car++) {
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || (shot->slotDamaged & (1 << car->slot)))
             continue;
@@ -609,7 +615,7 @@ void func_8038E114(void)
     for (shot = D_8039A520.head; shot; shot = nexts) {
         nexts = shot->next;
         if (shot->type == 3) {
-            car = &D_80152818[shot->slot];
+            car = PC_CAR(shot->slot);
             m = PC_MODEL(shot->slot);
             if (shot->incTime == 0) {
                 shot->pos[0] = car->pos[0];
@@ -706,7 +712,7 @@ void func_8038E114(void)
             func_800AFA84(&D_8039A520, shot);
             continue;
         }
-        car = &D_80152818[shot->slot];
+        car = PC_CAR(shot->slot);
         old[0] = shot->pos[0];
         old[1] = shot->pos[1];
         old[2] = shot->pos[2];
@@ -1023,7 +1029,7 @@ void func_8038FCE0(void)
     f32 off[3];
 
     func_8038FCD8();
-    for (i = 0, car = D_80152818; i < D_801543CA; i++, car++) {
+    for (i = 0, car = PC_CARS; i < D_801543CA; i++, car++) {
         m = PC_MODEL(car->slot);
         if (car->battle.defense.active)
             func_8038F938(car, m, &car->battle.defense, car->slot);

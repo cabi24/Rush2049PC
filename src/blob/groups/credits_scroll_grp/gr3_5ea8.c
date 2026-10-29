@@ -62,7 +62,15 @@ extern Model D_8014A250[];                       /* model */
 #define PC_MODEL_LAP(i) D_8014A250[i].lap
 #define PC_MODEL_SLOT(i) D_8014A250[i].car
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[];                   /* gGameCar */
+#define PC_CAR_FINISHED(i) player_array[i].f239
+#define PC_CAR_PLACE(i) player_array[i].place
+#define PC_CAR_POINTS(i) player_array[i].f931
+#define PC_CAR_TIME(i) player_array[i].time
+#endif
 extern PlayerRow input_rec0[];                   /* gPlayers */
 extern Pos D_80115F28[][4];                      /* wrongWayPos */
 extern s32 gameplay_mode;                        /* gRace */
@@ -121,7 +129,7 @@ s32 animResults(s32 arg0)
     aFinished = 0;
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
         if (D_80152734 == PC_MODEL_LAP(playerIdx)) aFinished = 1;
-        if (player_array[PC_MODEL_SLOT(playerIdx)].f239 == 1) numFinished++;
+        if (PC_CAR_FINISHED(PC_MODEL_SLOT(playerIdx)) == 1) numFinished++;
     }
     render_helper(0.0f);
     ar_SetJust(1, 1);
@@ -144,7 +152,7 @@ s32 animResults(s32 arg0)
     dispatch_handler(1);
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
         if (D_80142760 && D_80152734 != PC_MODEL_LAP(playerIdx)) continue;
-        if (player_array[PC_MODEL_SLOT(playerIdx)].f239 != 1) continue;
+        if (PC_CAR_FINISHED(PC_MODEL_SLOT(playerIdx)) != 1) continue;
         x = D_80115F28[gNumWindows - 1][playerIdx].x;
         y = D_80115F28[gNumWindows - 1][playerIdx].y;
         if (gNumWindows == 4 && playerIdx >= 2) y += 12;
@@ -164,20 +172,20 @@ s32 animResults(s32 arg0)
                 u32 sec;
                 u32 thou;
 
-                min = (u32)player_array[input_rec0[playerIdx].vehicle].time;
+                min = (u32)PC_CAR_TIME(input_rec0[playerIdx].vehicle);
                 min = min / 60 % 100;
-                sec = (u32)player_array[input_rec0[playerIdx].vehicle].time % 60;
-                thou = (u32)(1000.0f * player_array[input_rec0[playerIdx].vehicle].time);
+                sec = (u32)PC_CAR_TIME(input_rec0[playerIdx].vehicle) % 60;
+                thou = (u32)(1000.0f * PC_CAR_TIME(input_rec0[playerIdx].vehicle));
                 thou %= 1000;
                 fcvt_wrapper(str, "%s\n%s %d:%02d.%03d", *input_rec0[playerIdx].name + PROFILE_OFS(20), countdown_state.fixed[208],
                              min, sec, thou);
             }
         } else if (gameplay_mode == 6) {
-            fcvt_wrapper(str, "%s\n%d %s", *input_rec0[playerIdx].name + PROFILE_OFS(20), player_array[playerIdx].f931,
+            fcvt_wrapper(str, "%s\n%d %s", *input_rec0[playerIdx].name + PROFILE_OFS(20), PC_CAR_POINTS(playerIdx),
                          countdown_state.fixed[130]);
         } else {
             char str1[32], str2[32];
-            s32 place = player_array[input_rec0[playerIdx].vehicle].place;
+            s32 place = PC_CAR_PLACE(input_rec0[playerIdx].vehicle);
 
             fcvt_wrapper(str1, countdown_state.fixed[198], place + 1,
                          countdown_state.strings[countdown_state.indices->h[55] + place]);
@@ -188,10 +196,10 @@ s32 animResults(s32 arg0)
                 u32 sec;
                 u32 thou;
 
-                min = (u32)player_array[input_rec0[playerIdx].vehicle].time;
+                min = (u32)PC_CAR_TIME(input_rec0[playerIdx].vehicle);
                 min = min / 60 % 100;
-                sec = (u32)player_array[input_rec0[playerIdx].vehicle].time % 60;
-                thou = (u32)(1000.0f * player_array[input_rec0[playerIdx].vehicle].time);
+                sec = (u32)PC_CAR_TIME(input_rec0[playerIdx].vehicle) % 60;
+                thou = (u32)(1000.0f * PC_CAR_TIME(input_rec0[playerIdx].vehicle));
                 thou %= 1000;
                 fcvt_wrapper(str2, "%s %d:%02d.%03d", countdown_state.fixed[208], min, sec, thou);
             }

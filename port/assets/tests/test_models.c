@@ -36,8 +36,7 @@ int32_t gameplay_mode, D_80143FF4, state_word_a;
 float D_8002AFB8 = 1.0f / 60, D_801543CC;
 int8_t D_80152744, D_8017A4D8, D_8011EAE4, D_801525F0;
 struct { uint16_t count; void *points; } D_801407F0;          /* the track's path graph (path.c's Route) */
-uint8_t D_80152818[6 * PC_CAR_SIZE] __attribute__((aligned(16)));   /* the car records, PC layout */
-ALIAS(player_array, D_80152818, 0);
+struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 
 /* What the code under test calls: each records what it was given. */
 static const void *g_seen[64];
@@ -185,7 +184,7 @@ static void test_collidable(void)
     short index = 3;
 
     sentinels();
-    memset(D_80152818, 0, sizeof D_80152818);
+    memset(pc_cars, 0, sizeof pc_cars);
     M8(3, 0x7EA) = 0;
     CHECK(steering_apply(&index, point, &radius, &err) == 0);
     M8(3, 0x7EA) = 1;

@@ -73,7 +73,12 @@ extern u32 D_801174B4;
 extern s16 gNumWindows;
 extern s8 D_8015723C;
 extern f32 D_80142740[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].f239
+#endif
 extern u8 D_80116188[][4];
 extern Pos D_80115EA8[][4];
 
@@ -130,7 +135,7 @@ s32 animLapTime(Blit *blt)
         Hidden_8154(blt, 1);
         return 1;
     }
-    show = (D_801174B4 & 8) || !D_8015723C || D_80142740[win] <= 0.0f || D_80152818[win].f239 == 1;
+    show = (D_801174B4 & 8) || !D_8015723C || D_80142740[win] <= 0.0f || PC_CAR_FINISHED(win) == 1;
     if (Hidden_8154(blt, show)) {
         return 1;
     }

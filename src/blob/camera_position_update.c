@@ -35,7 +35,12 @@ extern s8 D_801613C0[4][4];    /* visibility matrix */
 extern s8 D_801613A8;          /* enable flag */
 extern s32 gameplay_mode;
 extern s16 active_player_count;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player player_array[];
+#define PC_CAR_POS(i) player_array[i].position
+#endif
 
 u16 *input_deadzone_apply(void *arg0, void *arg1, f32 *arg2, f32 arg3, s32 arg4, s32 arg5);
 
@@ -49,14 +54,14 @@ void camera_position_update(void) {
             D_801613C0[i][k] = 0;
     if (D_801613A8 && gameplay_mode == 6) {
         for (i = 0; i < active_player_count - 1; i++) {
-            first[0] = player_array[i].position[0];
-            first[1] = player_array[i].position[1];
-            first[2] = player_array[i].position[2];
+            first[0] = PC_CAR_POS(i)[0];
+            first[1] = PC_CAR_POS(i)[1];
+            first[2] = PC_CAR_POS(i)[2];
             first[1] += 5.0f;
             for (j = 1; j < active_player_count; j++) {
-                second[0] = player_array[j].position[0];
-                second[1] = player_array[j].position[1];
-                second[2] = player_array[j].position[2];
+                second[0] = PC_CAR_POS(j)[0];
+                second[1] = PC_CAR_POS(j)[1];
+                second[2] = PC_CAR_POS(j)[2];
                 second[1] += 5.0f;
                 if (input_deadzone_apply(first, second, result, 0.5f, 0, 0xFFFF)) {
                     D_801613C0[i][j] = 1;

@@ -37,7 +37,13 @@ typedef struct Resource68 {u8 prefix[20];u16 object;u8 tail[46];} Resource68;
 #endif
 typedef struct Config8 {u8 prefix[7];u8 mode;} Config8;
 typedef struct OSThread OSThread;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model952 player_array[];
+#define PC_CAR(i) &player_array[i]
+#define PC_CAR_FLAGS(i) player_array[i].flags
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -76,17 +82,17 @@ void music_tempo_set(s16 player,u8 mode,int apply)
  u16 color;
  s16 i;
  if(apply && mode!=13) {
-  if(player_array[player].flags&0x10) {
+  if(PC_CAR_FLAGS(player)&0x10) {
    osStopThread(&D_80034840);
    if(PC_LINK_OWNER(player)!=6 || D_80146180[player]==0)mask=~0x10;
    else if(D_80146180[player]==2)mask=~0x60;
    else mask=-1;
    PC_MODEL_FLAGS(player)&=mask;
-   player_array[player].flags&=mask;
+   PC_CAR_FLAGS(player)&=mask;
    osStartThread(&D_80034840);
   }
  }
- model=&player_array[player];
+ model=PC_CAR(player);
  if(model){}
  color=func_80092B80(player,mode);
  slot=&D_80139320[player];

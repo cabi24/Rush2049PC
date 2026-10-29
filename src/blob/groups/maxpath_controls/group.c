@@ -151,7 +151,12 @@ typedef struct GameCar {
     u8 suffix[0x3B8 - 0x340];
 #endif
 } GameCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[];
+#define PC_CAR_NAV(i) player_array[i].nav
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -428,7 +433,7 @@ void func_800E398C(s16 drone_index) {
     D_8014A250_Record *m;
 
     m = PC_MODEL(drone_index);
-    cp = &player_array[drone_index].nav;
+    cp = &PC_CAR_NAV(drone_index);
 
     veccopy(cp->tgt, tpos);
 
@@ -577,7 +582,7 @@ void func_800E4B58(D_8014A250_Record *m)
     f32 tspd;
     Nav *cp;
 
-    cp = &player_array[m->unk7C6].nav;
+    cp = &PC_CAR_NAV(m->unk7C6);
     func_800E4B50(m, cp);
     func_800E42F0(m, cp);
     func_800E42E8(m, cp);

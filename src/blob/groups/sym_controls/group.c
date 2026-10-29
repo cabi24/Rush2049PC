@@ -108,7 +108,13 @@ typedef struct CAR_DATA {
 #endif
 } CAR_DATA;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CAR_DATA player_array[];
+#define PC_CAR(i) &player_array[i]
+#define PC_CAR_STATE(i) player_array[i].unk359
+#endif
 extern S8 D_80152718;
 extern S8 D_8013FECB;
 extern void func_800E32CC(MODELDAT *m);
@@ -119,7 +125,7 @@ void func_800E3430(MODELDAT *m) {
     F32 rolloff;
     S32 i;
     tiredes *td;
-    CAR_DATA *gc = &player_array[m->net_node];
+    CAR_DATA *gc = PC_CAR(m->net_node);
 
     m->dt = m->in_modeltime;
     m->idt = 1 / m->dt;
@@ -185,7 +191,7 @@ void func_800E3724(MODELDAT *m) {
     S32 absvel, i, j;
 
     func_800E3430(m);
-    if (m->crashflag || player_array[m->net_node].unk359) {
+    if (m->crashflag || PC_CAR_STATE(m->net_node)) {
         m->steerangle = 0.0f;
         m->clutch = 0.0f;
         m->brake = 0.0f;

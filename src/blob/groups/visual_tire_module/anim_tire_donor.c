@@ -132,7 +132,12 @@ extern Model2056 D_8014A250[];
 #define PC_MODEL(i) &D_8014A250[i]
 #define PC_MODEL_VISCODE(i) D_8014A250[i].visual_code
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car952 player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 extern CarConfig *D_80110D08[];
 extern Control152 gCamera[];
 extern Object68 D_8012E700[];
@@ -173,7 +178,7 @@ void anim_state_update(Visual *v, s16 op)
         return;
     }
     slot = v->slot;
-    car = &player_array[slot];
+    car = PC_CAR(slot);
     tire = v->tire;
     m = PC_MODEL(slot);
     spring = m->suspension[tire];

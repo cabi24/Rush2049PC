@@ -62,7 +62,12 @@ extern Model D_8014A250[];
 #define PC_MODEL_GEAR(i) D_8014A250[i].gear
 #define PC_MODEL_STEER(i) D_8014A250[i].steer
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].locked
+#endif
 
 #define ABS(x) ((x) >= 0 ? (x) : -(x))
 
@@ -111,7 +116,7 @@ s32 func_800E5D64(s32 idx, f32 *out)
         }
         return 0;
     } else {
-        if (D_80152818[idx].locked) {
+        if (PC_CAR_FINISHED(idx)) {
             return 0;
         }
         if (!(s->pos < s->count)) {

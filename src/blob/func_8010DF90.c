@@ -787,7 +787,12 @@ float sqrtf(float);
 
 /* referenced data (types guessed from access width) */
 extern M2C_UNK D_8011754C;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern M2C_UNK D_80152B74;
+#define PC_CAR_VIEW(i) *((s8 *) &D_80152B74 + (i * CAR_OFS(0x3B8)))
+#endif
 
 /* callees outside the group */
 s32 func_800F7A98();
@@ -815,11 +820,11 @@ void func_8010DF90(void *arg0) {
     temp_a2 = M2C_FIELD(arg0, s8 *, 0x5C);
     M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFFB);
     temp_s1 = NODE_STATE(arg0);
-    if ((*((s8 *) &D_80152B74 + (temp_a2 * CAR_OFS(0x3B8))) >= 0) && (func_800F7A98(temp_a2, M2C_FIELD(temp_s1, u16 *, 0x4A)) == 0)) {
+    if ((PC_CAR_VIEW(temp_a2) >= 0) && (func_800F7A98(temp_a2, M2C_FIELD(temp_s1, u16 *, 0x4A)) == 0)) {
         linear_interp(M2C_FIELD(arg0, s8 *, 0x5C), M2C_FIELD(temp_s1, u16 *, 0x4A));
-        model_data_load(M2C_FIELD(arg0, s32 *, 0xC), 1, 1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))));
-        model_data_load(M2C_FIELD(temp_s1, s32 *, 0), 1, 1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))));
-        if ((M2C_FIELD(temp_s1, u16 *, 0x48) &= ~(1 << *((s8 *) &D_80152B74 + (M2C_FIELD(arg0, s8 *, 0x5C) * CAR_OFS(0x3B8))))) == 0) {
+        model_data_load(M2C_FIELD(arg0, s32 *, 0xC), 1, 1 << PC_CAR_VIEW(M2C_FIELD(arg0, s8 *, 0x5C)));
+        model_data_load(M2C_FIELD(temp_s1, s32 *, 0), 1, 1 << PC_CAR_VIEW(M2C_FIELD(arg0, s8 *, 0x5C)));
+        if ((M2C_FIELD(temp_s1, u16 *, 0x48) &= ~(1 << PC_CAR_VIEW(M2C_FIELD(arg0, s8 *, 0x5C)))) == 0) {
             M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) | 0x80);
         }
         stat_lap_split(*(s32*)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30))), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);

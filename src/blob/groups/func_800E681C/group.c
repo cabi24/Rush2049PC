@@ -93,7 +93,13 @@ extern InputRecord input_rec0[];
 extern CarState D_8014A250[];
 #define PC_MODEL(i) &D_8014A250[i]
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car player_array[8];
+#define PC_CAR_MPH(i) player_array[i].speed
+#define PC_CAR_STATE(i) player_array[i].f359
+#endif
 extern s16 active_player_count;
 extern s32 state_word_a;
 extern s32 D_801170FC;
@@ -253,7 +259,7 @@ void func_800E6AE8(CarState *st, InputRecord *in)
     if (st->autoGear != 0) {
         return;
     }
-    if (player_array[st->car].f359 > 0 || D_8013FECB != 0) {
+    if (PC_CAR_STATE(st->car) > 0 || D_8013FECB != 0) {
         return;
     }
     if (D_8013FED0[in->pad] & in->map[5]) {
@@ -277,7 +283,7 @@ void func_800E6AE8(CarState *st, InputRecord *in)
     } else if (st->gear >= 0) {
         return;
     }
-    speed = player_array[st->car].speed >> 2;
+    speed = PC_CAR_MPH(st->car) >> 2;
     if (speed >= 111) {
         st->gear = 4;
     } else if (speed >= 81) {
