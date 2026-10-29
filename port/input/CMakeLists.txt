@@ -2,7 +2,7 @@
 # pcfrontend there); run them with ctest --test-dir build/pc -R frontend.
 #
 #   frontend_test       no SDL: the INI reader, the settings and their layers, the file's location and first run,
-#                       the stick math
+#                       the stick math, the race's cars (game.cars) and their latch
 #   frontend_sdl_test   SDL2 builds: keyboard and hotkey events (SDL_PushEvent), controllers through SDL's virtual
 #                       joysticks (hot-plug, every binding, sticks, triggers, rumble), focus and pause, and
 #                       scripted presses merged over live input; through port/gfx's real window and event loop on
@@ -15,24 +15,25 @@ set(PC_FRONTEND_TEST_FLAGS -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 set(PC_FRONTEND_TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/test-scratch)
 file(MAKE_DIRECTORY ${PC_FRONTEND_TEST_DIR})
 
-add_executable(frontend_test tests/test_frontend.c ${CMAKE_SOURCE_DIR}/port/config/config.c stick.c)
+add_executable(frontend_test tests/test_frontend.c ${CMAKE_SOURCE_DIR}/port/config/config.c
+               ${CMAKE_SOURCE_DIR}/port/config/race_cars.c stick.c)
 target_include_directories(frontend_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config ${CMAKE_SOURCE_DIR}/port/input
                            ${CMAKE_SOURCE_DIR}/port/include)
 target_compile_options(frontend_test PRIVATE ${PC_FRONTEND_TEST_FLAGS})
 target_link_libraries(frontend_test PRIVATE m)
-foreach(c ini settings layers locate stick)
+foreach(c ini settings layers locate stick cars)
     add_test(NAME frontend.${c} COMMAND frontend_test ${c} ${PC_FRONTEND_TEST_DIR})
 endforeach()
 
 # The real program's layers: the file says scale 2, audio wav and a ROM path; the environment says audio null;
 # the command line says scale 3. Expected: the ROM from the file, audio from the environment, scale from the
-# command line, and a --set binding.
+# command line, a --set binding and a --set game.cars.
 set(PC_FRONTEND_INI ${PC_FRONTEND_TEST_DIR}/precedence.ini)
 file(WRITE ${PC_FRONTEND_INI} "[game]\nrom = /roms/rush2049.z64\n[video]\nscale = 2\n[audio]\nbackend = wav\n")
 add_test(NAME frontend.precedence
-         COMMAND rush2049pc --config ${PC_FRONTEND_INI} --scale 3 --set keyboard.A=Space --print-config)
+         COMMAND rush2049pc --config ${PC_FRONTEND_INI} --scale 3 --set keyboard.A=Space --set game.cars=12 --print-config)
 set_tests_properties(frontend.precedence PROPERTIES ENVIRONMENT "RUSH2049_AUDIO=null;RUSH_GFX_SCALE=4"
-    PASS_REGULAR_EXPRESSION "rom = /roms/rush2049.z64.*\nscale = 3.*\nbackend = null.*\\[keyboard\\].*\nA = Space\n")
+    PASS_REGULAR_EXPRESSION "rom = /roms/rush2049.z64.*\ncars = 12\n.*\nscale = 3.*\nbackend = null.*\\[keyboard\\].*\nA = Space\n")
 
 # The settings overlay, headless (no SDL needed): port/input with port/gfx's renderer, whose window is then an
 # offscreen image; input as the overlay's actions and --press scripts. One directory per case: they run in parallel.

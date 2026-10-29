@@ -33,6 +33,7 @@
 #include "config.h"
 #include "input_internal.h"
 #include "pc_compat.h"
+#include "pc_game_types.h"   /* pc_race_cars, its latch (port/config/race_cars.c) */
 #include "test_gbi.h"
 
 int pc_input_init(const PcSettings *s);
@@ -189,6 +190,8 @@ static void test_nav(void)
     at("Settings", "Audio", NULL, "down");
     act_n(PC_MENU_DOWN, 2);
     at("Settings", "Controllers", NULL, "down to Controllers");
+    act(PC_MENU_DOWN);
+    at("Settings", "Game", NULL, "the Game page, the last settings' page");
     /* Help and About, after the settings' pages: read-only, a heading stepped over */
     act(PC_MENU_DOWN);
     at("Settings", "Help", NULL, "Help after the settings' pages");
@@ -239,7 +242,7 @@ static void test_nav(void)
     act(PC_MENU_CLOSE);
     CHECK(!pc_menu_is_open(), "close");
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     at("Settings", "Quit", NULL, "Quit");
     pc_menu_action(PC_MENU_ACCEPT);
     CHECK(pump() != 0, "Quit stops the main loop");
@@ -404,6 +407,36 @@ static void test_live(void)
     act(PC_MENU_UP);
     at("Controllers (all players)", "P1 accessory", "controller pak", "player 1's: the controller pak");
     CHECK(test_pak[0] == -1, "player 1's not touched: %d", test_pak[0]);
+    /* the cars a race holds (game.cars): the setting at once, the race's count only from a race's start, when the
+     * game latches it (pc_race_cars_begin) */
+    act(PC_MENU_BACK);
+    act(PC_MENU_DOWN);
+    act(PC_MENU_ACCEPT);
+    at("Game", "Cars in a race", "original (6)", "the Game page: original");
+    CHECK(pc_cars_setting() == 6 && pc_race_cars() == 6, "6 and 6: %d, %d", pc_cars_setting(), pc_race_cars());
+    act(PC_MENU_RIGHT);
+    at("Game", "Cars in a race", "7", "7 cars");
+    CHECK(pc_cars_setting() == 7 && pc_menu_settings()->cars == 7 && pc_race_cars() == 6,
+          "the setting 7 at once, the race's 6 kept: %d, %d", pc_cars_setting(), pc_race_cars());
+    act_n(PC_MENU_RIGHT, 5);
+    at("Game", "Cars in a race", "12", "12 cars, the most");
+    pc_race_cars_begin();   /* a race starts */
+    CHECK(pc_race_cars() == 12, "the race latched 12: %d", pc_race_cars());
+    act(PC_MENU_RIGHT);
+    at("Game", "Cars in a race", "original (6)", "past 12: original");
+    CHECK(pc_cars_setting() == 6 && pc_race_cars() == 12, "during the race: the setting 6, the race's 12 kept: %d, %d",
+          pc_cars_setting(), pc_race_cars());
+    act(PC_MENU_LEFT);
+    at("Game", "Cars in a race", "12", "before original: 12");
+    act(PC_MENU_DOWN);
+    at("Game", "Defaults", NULL, "the page's Defaults");
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_UP);
+    at("Game", "Cars in a race", "original (6)", "Defaults: original");
+    CHECK(pc_menu_settings()->cars == 0 && pc_cars_setting() == 6 && pc_race_cars() == 12, "%d, %d, %d",
+          pc_menu_settings()->cars, pc_cars_setting(), pc_race_cars());
+    pc_race_cars_begin();
+    CHECK(pc_race_cars() == 6, "the next race: 6 (%d)", pc_race_cars());
     act(PC_MENU_CLOSE);
     stop();
 }
@@ -481,7 +514,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     pc_menu_capture("Space");  /* keyboard A, which the file lacks */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 4);
+    act_n(PC_MENU_DOWN, 5);
     at("Settings", "Save to rush2049pc.ini", "4 changes", "four to save");
     act(PC_MENU_ACCEPT);
     at("Settings", "Save to rush2049pc.ini", "saved", "saved");
@@ -506,17 +539,17 @@ static void test_save(void)
     CHECK(text && !strcmp(read_text(path), want), "nothing more to save: unchanged");
     CHECK(!strcmp(pc_menu_message(), "Nothing to save"), "the message: '%s'", pc_menu_message());
     at("Settings", "Save to rush2049pc.ini", "saved", "still saved");
-    act_n(PC_MENU_UP, 5);
+    act_n(PC_MENU_UP, 6);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);         /* the volume 95: something to save again */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     at("Settings", "Save to rush2049pc.ini", "1 change", "a change after the save");
-    act_n(PC_MENU_UP, 5);
+    act_n(PC_MENU_UP, 6);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_RIGHT);        /* and back to what the file has */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     at("Settings", "Save to rush2049pc.ini", "saved", "the file has it all again");
     PcSettings back;
     pc_settings_defaults(&back);
@@ -541,7 +574,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     act(PC_MENU_ACCEPT);
     pc_settings_defaults(&back);
     back.volume = 95;
@@ -926,7 +959,7 @@ static void test_pages(void)
 
     /* the page: made again each time it opens, so it follows main's numbers */
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     act(PC_MENU_ACCEPT);
     at("About", "Version", "v9.9.9-1-gabcdef1 (RelWithDebInfo)", "About opens on the version");
     act_n(PC_MENU_DOWN, 7);
@@ -962,12 +995,12 @@ static void test_pages(void)
     at("Help", "Move", "arrows, PgUp/PgDn | D-pad, LS, LB/RB", "this menu's keys, after another heading");
     act(PC_MENU_BACK);
     /* a binding changed: Help has it */
-    act_n(PC_MENU_UP, 2);
+    act_n(PC_MENU_UP, 3);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_DOWN);
     act(PC_MENU_CLEAR);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 2);
+    act_n(PC_MENU_DOWN, 3);
     act(PC_MENU_ACCEPT);
     at("Help", "Move", NULL, "Help keeps its place");
     act_n(PC_MENU_PAGE_UP, 2);

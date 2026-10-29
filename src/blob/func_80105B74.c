@@ -84,8 +84,20 @@ extern s16 D_80142D70;
 
 s32 func_800D2128(f32 value, u8 *digits, u8 format);
 
+#ifdef TARGET_PC
+/* PC: races of up to PC_MAX_LINKS cars (docs/port/MORECARS.md 2.5, 7). order[] has a place for every car (the N64's
+ * 8 hold its 6; AddressSanitizer saw 12 cars write past them), and in a race of more than 6 cars the HUD order
+ * D_80142DB4 (12 entries by the gap), which the minimap's dots read by their AnimID, is cleared whole, so a dot past
+ * the race's cars is hidden. A race of 6 clears the N64's 6, as the N64 does. */
+#define PC_HUD_ORDER_N PC_MAX_LINKS
+#define PC_HUD_CLEAR_N (PC_RACE_CARS > PC_N64_CARS ? PC_MAX_LINKS : 6)
+#else
+#define PC_HUD_ORDER_N 8
+#define PC_HUD_CLEAR_N 6
+#endif
+
 s32 func_80105B74(s32 arg0) {
-    s16 order[8];
+    s16 order[PC_HUD_ORDER_N];
     s32 k;
     s16 i;
     s16 j;
@@ -95,7 +107,7 @@ s32 func_80105B74(s32 arg0) {
     for (k = 0; k < 4; k++) {
         func_800D2128((PC_CAR_FINISHED(k) == 1) ? PC_CAR_TIME(k) : D_801543CC, D_801439D8[k], 'f');
     }
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < PC_HUD_CLEAR_N; i++) {
         D_80142DB4[i] = -1;
     }
     num = D_80152744;

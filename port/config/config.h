@@ -56,6 +56,7 @@ typedef struct PcSettings {
     char rom[PC_CFG_PATH];          /* the ROM (.z64/.v64/.n64) */
     int rom_check;                  /* refuse a ROM whose SHA-1 differs */
     int expansion_pak;              /* 8 MiB of RDRAM */
+    int cars;                       /* the most cars a race holds: 0 original (the N64's 6), else 6-12 */
     int pak[4];                     /* PC_CFG_PAK_*: each controller's accessory (game.pak, game.pak2...) */
     char pak_file[4][PC_CFG_PATH];  /* each controller's pak image (game.pak_file, game.pak2_file...) */
     /* [video] */
@@ -103,6 +104,11 @@ typedef struct PcSettings {
     char source_dir[PC_CFG_PATH];
     char save_path[PC_CFG_PATH];
 } PcSettings;
+
+/* [game] cars at run time (race_cars.c): the setting the game latches at each race's start (pc_race_cars_begin,
+ * pc_game_types.h). main sets it at start and the settings overlay when it changes; 0 (original) is the N64's 6, and
+ * anything outside 6 to PC_MAX_LINKS is taken to the nearest end. */
+void pc_race_cars_set(int cars);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);

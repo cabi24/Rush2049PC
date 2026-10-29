@@ -64,14 +64,14 @@ size_t test_be_range_count(void) { return g_nbe; }
 void test_be_reset(void) { g_nbe = 0; }
 
 /* The cars a race holds (pc_game_types.h), for tests that build game C reading PC_RACE_CARS: the N64's 6 unless the
- * test sets test_race_cars. */
+ * test sets test_race_cars, which is both the setting (pc_cars_setting) and the race's count (pc_race_cars), so a
+ * test sets the count and calls a loop without a race's start. pc_race_cars_begin latches the setting into the count
+ * (port/config/race_cars.c's rule), here the same number; test_race_begins counts its calls. */
 int test_race_cars = 6;
+int test_race_begins;
+void pc_race_cars_begin(void) { test_race_begins++; }
+int pc_cars_setting(void) { return test_race_cars; }
 int pc_race_cars(void) { return test_race_cars; }
-
-/* PLACEHOLDER until [game] cars is wired up (docs/port/MORECARS.md 10.2, item 7): the race's start latches nothing
- * (test_race_cars is what the race holds), and the setting is the N64's 6. */
-void pc_race_cars_begin(void) {}
-int pc_cars_setting(void) { return 6; }
 
 /* A pool past its end (pc_game_types.h; the game's is port/ultra/pool_overflow.c), for tests that build game C with a
  * checked pool: the test's handler if it set one (assets_pools), else the test fails. */
