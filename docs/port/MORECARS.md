@@ -887,12 +887,12 @@ proofs), plus the five checks and the IDO check of every changed game file.
 | | **1d** effects (`D_801392D8`, `D_8013A020`, `D_8013C098`, `D_80154660`, `D_80154FD8`, `D_80155290`, `D_80161450`) | `entity_spawn_init.c`, `func_8008E408.c`, `hud_render.c`, `physics_collision_test.c`, `func_80092484.c`, `func_800CB718.c`, `blast.c`, `entity_update_callback.c`, `entity_collision_detect.c`, `camera_smooth_lerp.c`, `skid_marks/group.c`, `func_800B0580.c` (two), `track_select_handler.c` | the default; the effects with 12 cars in `assets_cars`-style tests |
 | | **1e** cameras (`D_80110680`, `D_80110668`: ROM data, filled from the image, `init=image`; the drone cameras' `j < 6`): done (DECOUPLE.md 7) | `render_post_process.c`, `func_800E9E2C.c`, `race_countdown_display.c`, `func_800EB90C.c` | the default |
 | 2 | The pools: GetMatrix's pool to 150 + 12 a car in the window (the model records' freed range, a gen_data reservation); `pc_frame_dl`'s glist and the frame's matrix region sized for 12 cars and two views, with a PC check that stops (in Debug) or logs (in Release) when either runs past its end | `func_800A7D6C.c`, `initgraphics/initgfx.c`, `world_collision_response.c`, the `Dynamic` views | the default; high-water marks of 12-car runs under a test; the checks themselves fail a test that shrinks the pools |
-| 3 | The count: CalcPolePositions, `func_800EC190`, LoadCars and every loop of 3.1 follow `pc_race_cars()`; the locals of 2.5; `PC_MODELS_END` → the race's end; `world_physics_tick`'s `6 - i`; `func_8010C2E4`'s per-car bits | the files of 3.1 (many overlap with 1: do 3 after 1) | the default (the count is 6); `assets_roster`/`assets_models` at 12; the synthetic paths with `cars=12` |
+| 3 | The count: CalcPolePositions, `func_800EC190`, LoadCars and every loop of 3.1 follow `pc_race_cars()`; the locals of 2.5; `PC_MODELS_END` → the race's end; `world_physics_tick`'s `6 - i`; `func_8010C2E4`'s per-car bits: done (3.1; the fx tags and the engine speed, 10.4) | the files of 3.1 (many overlap with 1: do 3 after 1) | the default (the count is 6); `assets_roster`/`assets_models` at 12; the synthetic paths with `cars=12` |
 | 4 | The start grid: `pc_pole_offsets` (rows 0-5 the ROM's, read at startup), the respawn coding (`index + 12`) | `init_mdrive/group.c`, `resurrect/resurrect.c` | the default; a test placing 12 cars (positions on the computed rows, no two within a car's length) |
 | 5 | The drone schedule for 7-11 drones (PC rows: with one human, the N64's pattern of at most two groups; with two, the same): done (DECOUPLE.md 8: the N64's rows from the game's data, past them as many iterations a round as the N64's last row of the kind) | `func_800E56F8/group.c`, `world_physics_tick.c` | the default; a test stepping `update_drone_models` for 7-11 drones (each drone updated once per round) |
 | 6 | The HUD: two-digit place, ordinals 7-12 (number + the bank's suffix), 4 more minimap dots and radar icons per viewer | `credits_scroll_grp/gr3_7af4.c`, `results_table/results_table.c`, `showhud/showhud.c` and a PC table of the added blits | the default; screenshots of 12-car races in the synthetic paths' checks (`synth_shot.py`: the place and the dots drawn) |
 | 7 | The setting: `[game] cars`, the F1 menu, `pc_race_cars()`, the Drones option's range | `port/config/config.c`, the F1 menu, `runtime_a_c93c_closure/group.c` | config tests; the menu's wrap at the setting |
-| 8 | Tests (10.3) and the doc's proof table | `tools/port/synth/*.press`, ctest | |
+| 8 | Tests (10.3) and the doc's proof table: done (10.4) | `tools/port/synth/*.press`, ctest | |
 
 **What can run in parallel.** 1a-1e touch disjoint files (1c's `car_checkpoints` group and 1b's are different files)
 and can run at once after item 0; 2 and 4 and 5 are disjoint from each other and from 1 (5 shares
@@ -915,14 +915,109 @@ item but 7 keeps the default exactly, so each merges on its own.
 - **The default stays the N64's:** `synth_compare.py --same` against main on every path at `cars = original`, on both
   hosts, and the retail scripts on the Pi; the IDO check for the changed game files.
 
+### 10.4 Done: races of 12 cars, tested (item 8 and item 3's second part, 2026-10-29)
+
+On main 448047e, where every item of 10.2 is in. **A race of 12 cars works from the menu to the finish**: on the
+retail cartridge (Pi 5, the Debug build and the ASan + UBSan one), one or two players and 10 or 11 drones race on each
+of the six race tracks with every car at a place of its own and every car driving; races on tracks 0 and 5 run to
+their finish line, through the results and back to the main menu; and nothing faults.
+
+**How to use it.** Set the cars a race holds: F1 > Game > Cars in a race (7-12), or `--set game.cars=12`, or
+`cars = 12` under `[game]` in rush2049pc.ini. Then raise the drones: in the track select's options list, the Drones
+option now goes up to the cars less one (11 at 12). Its default stays 5, so until it is raised every race holds 6 cars.
+A single race takes them; the circuit stays 6 cars (3.3), and practice, ghost, stunt, obstacle and battle have no
+drones. The attract demo races the setting's cars, all drones. A change applies from the next race.
+
+**What a race of 12 does.** The grid: the drones in two staggered columns ahead of the player, who starts at the back
+(behind every drone, `-(max(6, cars) - slot)`, 3.1), all on the road (screenshots of the countdown on tracks 0, 2
+and 4). The HUD: the place in two digits ("12/12"), the lap and the timer, the minimap and radar with every car (7.1).
+The finish: each car's place locked as it crosses the line (car_setup_confirm, 3.1), the record screens (a lap record
+asks for a name), and the game over screen's standings with places past the sixth ("12TH"). Sound: each car's engine,
+within the sound manager's 80 fx tags (16 without the Expansion Pak): a start that finds none is not started (below).
+
+**The synthetic paths.** Six press scripts, each with `--set game.cars=12` and, for a single race, the track select's
+Drones option raised as a player does (DOWN to it in the options list, then RIGHT), never through a debugger:
+
+| Path | What it does | The check |
+|---|---|---|
+| `race12` | one player and 11 drones on track 0, the player driving for 15 s | `cars 12`; cars_check: 12 cars, the count 12, places 0-11 once each, every car moved |
+| `race2p12` | two players and 10 drones, split screen | the same, and both views drawn (synth_shot.py) |
+| `demo12` | the attract demo: 12 drones | the same |
+| `pause12` | the pause screen's four screens, then a retirement: the results, the game over screen | `cars 12` at the game over screen; the results visited |
+| `raceend12` | 20 s of driving, the retirement, the results, the game over screen, Quit, the main menu | the results, the game over screen and state 4 visited, the main menu reached |
+| `circuit12` | the circuit with the setting at 12 | 6 cars, the count 12, places 0-5 once each, every car moved |
+
+`--log-cars` (port/main.c) prints at the run's end one line with each car of the race: in it or not, its place, lap,
+distance, position, how far it is from where it stood as the race began, and the race's latched count
+(`pc_race_cars()`); `tools/port/cars_check.py` checks it. Off by default, so every trace is as before. ctest runs each
+path (`synth_boot_race12`...), so every CI job that runs ctest does: Linux and Windows, the UBSan job (x86-64) and the
+ASan + UBSan job (aarch64). Their timeouts need no change: the slowest, raceend12, takes 3 s in a Debug build on the
+build host and 4.6 s under UBSan, and the six take 6.5 to 11.2 s each under ASan + UBSan through ctest on the Pi
+(race2p, for comparison, 12.2 s), against SYNTH_PATH_TIMEOUT's 1,500 s. CI's Debug-against-RelWithDebInfo comparison
+runs them too (the same trace, 6 of 6, on the build host). The synthetic cartridge's laps don't count (its cars' distances never
+grow, with 6 cars as with 12), so no synthetic race finishes; the races to the finish are the retail cartridge's.
+A screenshot check of the place and the player's minimap dot (10.3's `drive12`) is not made: the synthetic
+cartridge's race HUD set is zero (7.1 lists what it would need), and the retail screenshots show both.
+
+**On the retail cartridge** (Pi 5, `--fast`, one game at a time; the press scripts, logs and screenshots in the ignored
+`build/scratch/`; tracks 4 and 5 are locked on a fresh profile, so for them gdb set the player's two unlock bytes
+(`D_80150DD8`) as the track select opened, as a profile that had won them would have them; everything else is the menu):
+
+| Run | Result |
+|---|---|
+| each race track, 0-5, one player and 11 drones, then two players and 10 drones: 60 s of racing with gas (12 runs) | each reaches its state with 12 cars, the count 12, places 0-11 once each, every car moved; no fault |
+| track 0, one lap, 11 drones, the player holding the gas | the race ends 98 s in with every car on lap 1 at places 0-11, the player last; the name entry (a lap record), the game over screen's standings, "12TH", 1:36.234; Quit; the main menu |
+| track 5, the same | the race ends after 370 s of the gas alone (resurrections carry the car round), every car on lap 1 at places 0-11; "you just unlocked", the name entry, the best laps, the game over screen, "12TH", 6:10.675; the main menu |
+| 12 cars, then 6: track 0 with 11 drones, retired from the pause screen, the results and back to the menu, then track 1 with the Drones option back to 5 (six LEFT) | the second race holds 6 cars at places 0-5, each moving, and the count stays 12: a race of fewer cars after one of more |
+| the setting changed in the overlay in the middle of a race of 12 (F1, Game, Cars in a race from 12 to 11; in real time, since the overlay holds the virtual clock too), then the race goes on, is retired, and the next one starts | the race keeps its count, 12: 12 cars at places 0-11, each moving after the change ("settings closed; 1 change not saved"); the next race holds 11 cars, the count 11, places 0-10, the Drones option's 11 capped at 10 drones. 9,599 retraces in 165 s, none dropped |
+| without the Expansion Pak (`game.expansion_pak=off`): track 0 and track 4, 60 s, 12 cars | each reaches its state with 12 cars at 12 places, every car moving; the same with the base build (448047e) |
+| ASan + UBSan (the whole game): the attract demo of 12, one player and two players on track 0, and without the Expansion Pak | no fault, no ASan report; one UBSan report in each, `route_cross/group.c:164`'s `s16 [17]` at 17, which 6 cars give too (9); the races end with the cars where the Debug build's do |
+
+**The leads the other items left.**
+- (a) `func_80092278` takes the sound manager's fx tag list's head unchecked (`camera_target_track/group.c:62-64`), and
+  the engines of 12 cars can use up its tags: 80 with the Expansion Pak, 16 without (`hud_setup` makes the larger of
+  twice its voices, at most 64, and its voices and emitters). On the PC its three callers now check the list as they
+  check the command pool: a start that finds no tag gives its command back and
+  returns -1, camera_target_track its emitter too (`PC_TAG_OR_UNLOCK`); a race of 6 never gets there. `assets_sound`
+  runs both with the list empty. None of the runs above, with the base build either, ran out: the fault (at NULL +
+  0x18, on track 4) was under the old grid, with cars piled up.
+- (b) Cars 6-11 sinking through the road: not seen. At the countdown on tracks 0, 2 and 4 every car stands on the
+  road, and in the races every car moves and keeps its place; on tracks 0 and 5 all 12 finished.
+- (c) The NaN-to-int casts in `func_8009D99C`: none, in the 25 synthetic paths under UBSan (build host) and the four
+  retail runs under ASan + UBSan. They came from positions already NaN, with the old grid; not changed.
+- (d) The engine speed, `(S16)` of a float (`sym_controls/group.c:211`, and `func_800D11BC.c:52` at a resurrect):
+  undefined in C past an s16; not seen in these runs. Through s32 now, whose low half the N64's trunc.w.s and sh
+  keep (particle_knot's `V16`), so the PC gives what the N64 gives.
+- (e) Nothing else: the race's end with 12 cars (the record screens, the standings), the results' retirement, the
+  pause screen, two players, the Expansion Pak off.
+
+**Proof** (`game.cars` at `original`; "base" is a build of main 448047e):
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, base against the branch, Debug, build host (x86-64, GCC 14), the 19 synthetic paths | the same trace, every run: 19 of 19 |
+| the same, Pi 5 (aarch64, GCC 12) | the same trace, every run: 19 of 19 |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` | the same trace, every run, each reaching its state: 6 of 6 |
+| the six 12-car paths, Debug against RelWithDebInfo (CI's `optimized` job), build host | the same trace, every run: 6 of 6 |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 255 of 255 each (`assets_rom` skipped: no ROM there) |
+| every synthetic path under UBSan (build host, halt_on_error=0): the 19 and the six | all 25 reach their states; no runtime error |
+| `data.c`, `data_symbols.txt`, the synthetic cartridge | the same files as the base's (build host and Pi; Debug and RelWithDebInfo the same) |
+| `n64_neutral.py --base 09da2f0` | passes (1,015 files: 92 code-exact, 923 shifted) |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, 7efb7e6) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, base and branch; offset_check 59,458 accesses, layout_check 48,203 (7 more each); endian_check's 2 open value conflicts in 1 storage and 3,525 puns the same; check-loader 96 places, 0 wrong |
+| `view_audit.py` on `pc_cars`, `pc_models` | 223 views, 0 disagree; 165, 0 |
+| `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`; the same counts as the base's |
+| Windows cross build (Pi, mingw-w64, fresh configure) | builds; gen_data's check of the PE: OK, 26 decoupled, 1 reserved in the window |
+
 ## 11. What was not checked
 
-- Tracks other than track 0 with 12 cars (the grid's rows on a curved start, the frame matrices and the glist on
-  denser tracks); a race to its finish with 12 cars; the circuit past its first race; ghosts; the obstacle mode.
-- Without the Expansion Pak (no positional emitters; LoadCars' sharing).
-- Sound through a device: which engines are heard.
-- The window-address question for each array of 2.3 beyond what the spike's runs exercised.
-- Windows and the optimized build with N > 6 (OPTIMIZED.md 2.7's class applies to every new declaration).
-- The text bank's other language sections (the ordinal and suffix strings were read in the first).
-- `bounds_check.py` and `view_audit.py`: they check declarations and views, which the fixes of section 10 add; run
-  them on each item, as [DECOUPLE.md](DECOUPLE.md)'s proofs do.
+As of 10.4 (2026-10-29); the races, tracks and modes checked are there.
+- A race of 12 to its finish on tracks 1-4, and with two players (both were checked racing, 60 s each, not to the
+  finish); laps above one; the circuit past its first race; ghosts; the obstacle mode.
+- Without the Expansion Pak, more than 60 s of a race, and whether LoadCars fell back to sharing a loaded car type
+  (not logged); a race that uses up the fx tags (none of the runs did, 10.4 (a)).
+- Sound through a device: which engines are heard, and whether a start the tags refuse is missed.
+- The window-address question for each array of 2.3 beyond what the races exercised.
+- The Windows program and the RelWithDebInfo build with 12 cars on the retail cartridge: the synthetic 12-car paths
+  run in CI's Windows jobs and its Debug-against-RelWithDebInfo comparison (6 of 6 the same on the build host).
+- `bounds_check.py` with GCC 13 (CI's runner) and mingw-w64 12 on the new code.

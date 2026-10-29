@@ -287,13 +287,11 @@ let a single race hold that many: the players and the drones the track select's 
   option shows it, the race holds 6 cars (the roster's cap is the latched count, item 3), and LEFT or RIGHT wraps
   it to 0, as the N64's rule does for a value past its 5 (seen on the retail cartridge: 11 with `game.cars=12`, the
   setting put back to `original` in the overlay, then LEFT: 0); an N64 reading such a profile does the same.
-- **Status (2026-10-29).** The setting, its latch, the overlay's item, the Drones option's range and the HUD for
-  up to 12 cars ([MORECARS.md](MORECARS.md) 7) are in, merged with main 5e108ff: item 3's first part, which latches
-  the count at a race's start and lets a single race take drones up to it, and items 1a, 1c-1e, 2 and 4. With the
-  Drones option at its default, any setting races 6 cars. A race of more than 6 needs the drones' arrays and their
-  schedule too ([MORECARS.md](MORECARS.md) 10.2 items 1b and 5): without them, `game.cars=12` with the Drones option
-  raised to 11 faults on the retail cartridge as the countdown begins, in the model thread (`update_drone_models`;
-  Pi, track 0).
+- **Status (2026-10-29).** Races of up to 12 cars work: every item of [MORECARS.md](MORECARS.md) 10.2 is in, and
+  the retail cartridge races 12 on each race track, for one and two players, to the finish and back to the menu
+  ([MORECARS.md](MORECARS.md) 10.4). To race more than 6, set the cars (the overlay's Game page, or
+  `--set game.cars=12`) and raise the track select's Drones option, whose default, 5, races 6 at any setting. The
+  synthetic paths `race12`, `race2p12`, `demo12`, `pause12`, `raceend12` and `circuit12` raise it through the menu.
 
 ### Environment variables
 
