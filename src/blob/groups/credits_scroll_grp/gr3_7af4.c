@@ -90,6 +90,95 @@ void pair_set_7AF4(s32 first, s32 second)
     D_80118E20.first = first;
 }
 
+#ifdef TARGET_PC
+/* PC: the place's and the count's digits (docs/port/MORECARS.md 7), n from 1 to 99: one or two. */
+static s32 place_digits_7AF4(char *out, s32 n)
+{
+    if (n >= 10) {
+        out[0] = '0' + n / 10;
+        out[1] = '0' + n % 10;
+        return 2;
+    }
+    out[0] = '0' + n;
+    return 1;
+}
+
+/* PC: animPlace with numbers of two digits (docs/port/MORECARS.md 7). The N64 makes the place and the car count one
+ * character each, '1' + place and '0' + cars, so a race of 10 or more cars gave ':', ';' and '<', which the font has
+ * no glyph for: the place vanished, and in split screen a '/' was left. Here each number has its digits. A place of
+ * two digits starts one digit further left, so the '/' and the count's first digit stay where the N64 draws them; a
+ * count's second digit follows its first by a digit of the count's own font. Up to 9 cars this makes the N64's calls
+ * in the N64's order, at the same places. */
+s32 animPlace(s32 arg0)
+{
+    char str[8];
+    char ch[2];
+    s32 w;
+    s32 cw;
+    s32 i;
+    s32 x;
+    s32 y;
+    s32 k;
+    s32 n;
+    s32 slash;
+
+    if ((state_word_a & 8) || D_801543CA < 2 || gameplay_mode == 1 || !D_8016137C) {
+        return 1;
+    }
+    render_helper(0.0f);
+    pair_set_7AF4(1, 3);
+    if (gNumWindows == 1) {
+        font_set_7AF4(8);
+    } else {
+        font_set_7AF4(5);
+    }
+    w = HAL_GetCharWidth('8');
+    for (i = 0; i < gNumWindows; i++) {
+        if (func_800CF604(i) == 0 || PC_CAR_FINISHED(i) == 1) {
+            continue;
+        }
+        x = D_80115CA8[gNumWindows - 1][i].x;
+        y = D_80115CA8[gNumWindows - 1][i].y;
+        slash = place_digits_7AF4(str, PC_CAR_PLACE(i) + 1);
+        str[slash] = '/';
+        n = slash + 1 + place_digits_7AF4(str + slash + 1, D_801543CA);
+        x -= w * slash;
+        cw = w;
+        for (k = 0; k < n; k++) {
+            ch[0] = str[k];
+            ch[1] = 0;
+            if (k <= slash) {
+                if (gNumWindows == 1) {
+                    font_set_7AF4(8);
+                } else {
+                    font_set_7AF4(5);
+                }
+            } else {
+                if (gNumWindows == 1) {
+                    font_set_7AF4(5);
+                } else {
+                    font_set_7AF4(6);
+                }
+                if (k == slash + 1 && n > slash + 2) {
+                    cw = HAL_GetCharWidth('8');   /* the count's font: its second digit */
+                }
+            }
+            dispatch_handler(0);
+            state_utility(x + 1, y + 1, ch);
+            if (k < slash) {
+                func_800B7360(D_80116168[i].r, D_80116168[i].g, D_80116168[i].b, 255);
+            } else {
+                dispatch_handler(1);
+            }
+            state_utility(x, y, ch);
+            x += k > slash ? cw : w;
+        }
+    }
+    pair_set_7AF4(0, 3);
+    render_helper(-1.0f);
+    return 1;
+}
+#else
 s32 animPlace(s32 arg0)
 {
     char str[4];
@@ -153,3 +242,4 @@ s32 animPlace(s32 arg0)
     render_helper(-1.0f);
     return 1;
 }
+#endif

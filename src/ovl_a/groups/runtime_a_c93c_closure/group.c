@@ -67,6 +67,14 @@ extern s8 D_80146125;             /* gOptions[29] under its own name (retail cas
  * (docs/port/OPTIMIZED.md, tools/port/alias_check.py). */
 #define D_80146125 (D_80146108[29])
 #endif
+#ifdef TARGET_PC
+/* PC: the Drones option (gOptions[22], item 17) goes up to the cars a race may hold less one ([game] cars,
+ * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
+ * (GetDefaultOption, func_800CCB40) stay 5, so a player who never touches it races 6 cars. */
+#define PC_DRONES_MAX (pc_cars_setting() - 1)
+#else
+#define PC_DRONES_MAX 5
+#endif
 extern s8 D_80157244;              /* gSoftReset */
 extern u32 D_8015694C;             /* gActiveEdges */
 extern u32 D_80156944;             /* gActiveLevels */
@@ -553,8 +561,8 @@ void func_8038E5DC(void)
         case 17:
             if (add) {
                 D_80146108[22] += add;
-                if (D_80146108[22] > 5) D_80146108[22] = 0;
-                else if (D_80146108[22] < 0) D_80146108[22] = 5;
+                if (D_80146108[22] > PC_DRONES_MAX) D_80146108[22] = 0;
+                else if (D_80146108[22] < 0) D_80146108[22] = PC_DRONES_MAX;
             } else D_80146108[22] = 5;
             break;
         case 18:

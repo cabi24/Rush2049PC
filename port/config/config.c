@@ -17,6 +17,7 @@
 
 #include "config.h"
 #include "pc_compat.h"
+#include "pc_game_types.h"   /* PC_N64_CARS, PC_MAX_LINKS: game.cars' range */
 
 #define FILE_NAME "rush2049pc.ini"
 
@@ -173,6 +174,7 @@ static const char *const fullscreen_mode_choices[] = {"desktop", "exclusive", NU
 static const char *const frame_rate_choices[] = {"original", "display", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GFX_HUD_* */
+static const char *const cars_choices[] = {"original", NULL};          /* 0: the N64's 6 */
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -183,6 +185,11 @@ static const Item items[] = {
     {"game", "expansion_pak", T_BOOL, F(expansion_pak), 0, 0, NULL, "on",
      "Report 8 MiB of RDRAM (the Expansion Pak): the game then offers its sixth race track, the tracks' extra "
      "animated objects and the front end's song. off: 4 MiB, a console without one."},
+    {"game", "cars", T_INT, F(cars), PC_N64_CARS, PC_MAX_LINKS, cars_choices, "original",
+     "The most cars in a race: original (the N64's 6) or 6-12. A single race holds the players and the drones the "
+     "track select's Drones option asks for, up to this many; the option then goes up to one less than this (its "
+     "default, 5, still races 6 cars). The circuit stays 6 cars; the attract demo races this many. Applies from the "
+     "next race."},
     {"game", "pak", T_ENUM, F(pak[0]), 0, 0, pak_choices, "memory",
      "Controller 1's accessory: memory (the controller pak, for saves), rumble, none, or auto (a rumble pak when "
      "the player's controller can rumble, else none)."},

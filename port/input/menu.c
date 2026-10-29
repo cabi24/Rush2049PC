@@ -10,7 +10,8 @@
  *   next frame) and frame rate, the window's size, fullscreen, its mode and resolution, and vsync, the volume, each
  *   player's accessory (a hot swap: port/ultra/si.c), and everything port/input reads (bindings, hotkeys, sticks,
  *   rumble). The graphics API and the audio backend apply
- *   after a restart; they are marked so.
+ *   after a restart; they are marked so. The cars a race holds (game.cars) apply from the next race: the game latches
+ *   them where a race's roster is filled (port/config/race_cars.c).
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
  *   environment that weren't changed here are not written.
@@ -35,7 +36,7 @@
 
 /* ---------------------------------------------------------------- the pages */
 
-enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_HELP, P_ABOUT, NUM_PAGES };
+enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_HELP, P_ABOUT, NUM_PAGES };
 
 /* I_INFO: a read-only row of Help or About, which can be selected (its whole text is in the footer); I_HEADING: one
  * that can't; I_OPEN, I_COPY: About's actions, the data folder in the file manager and the page to the clipboard. */
@@ -101,6 +102,9 @@ static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const pak_choices[] = {"memory", "rumble", "auto", "none", NULL};
 static const char *const pak_labels[] = {"controller pak", "rumble pak", "auto", "none", NULL};
 static const char *const pak_keys[4] = {"pak", "pak2", "pak3", "pak4"};   /* game.pak, game.pak2... */
+/* game.cars: 6 is the same as original, so the list has original and 7-12 (a 6 from the file is shown as it is) */
+static const char *const cars_choices[] = {"original", "7", "8", "9", "10", "11", "12", NULL};
+static const char *const cars_labels[] = {"original (6)", "7", "8", "9", "10", "11", "12", NULL};
 static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
                                              "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
                                              "3840x2160", "auto",      NULL};
@@ -134,6 +138,8 @@ static void build(void)
     it->page = P_KEYBOARD, it->desc = "Keys for the N64 controls, and the hotkeys";
     it = add(P_MAIN, I_PAGE, "Controllers", NULL, NULL);
     it->page = P_CONTROLLER, it->desc = "Players, buttons, the stick, dead zone, rumble";
+    it = add(P_MAIN, I_PAGE, "Game", NULL, NULL);
+    it->page = P_GAME, it->desc = "The cars in a race";
     it = add(P_MAIN, I_PAGE, "Help", NULL, NULL);
     it->page = P_HELP, it->desc = "What each key and button does";
     it = add(P_MAIN, I_PAGE, "About", NULL, NULL);
@@ -206,6 +212,12 @@ static void build(void)
     }
     add(P_CONTROLLER, I_DEFAULTS, "Defaults", NULL, NULL);
 
+    pages[P_GAME].title = "Game";
+    it = add(P_GAME, I_CHOICE, "Cars in a race", "game", "cars");   /* MORECARS.md 10.1 */
+    it->choices = cars_choices;
+    it->labels = cars_labels;
+    add(P_GAME, I_DEFAULTS, "Defaults", NULL, NULL);
+
     /* each setting's line in the footer (a setting without one shows its name in the file) */
     static const struct { const char *section, *key, *desc; } descs[] = {
         {"video", "scale", "Internal resolution; native: the window's pixels"},
@@ -227,6 +239,7 @@ static void build(void)
         {"input", "deadzone", "How far the stick moves before it counts"},
         {"input", "sensitivity", "Stick speed: at 2, full tilt at half the travel"},
         {"input", "rumble", "Rumble strength, with the rumble pak in"},
+        {"game", "cars", "The most cars a race holds; from the next race"},
     };
     for (int pg = 0; pg < NUM_PAGES; pg++)
         for (int i = 0; i < pages[pg].n; i++) {
@@ -381,6 +394,8 @@ static void apply(const char *section, const char *key)
         for (int p = 0; p < 4; p++)   /* the player takes the old accessory out and puts the new one in */
             if (!strcasecmp(key, pak_keys[p]))
                 pc_si_set_pak(p, s->pak[p]);
+        if (!strcasecmp(key, "cars"))   /* the game latches it at the next race's start (race_cars.c) */
+            pc_race_cars_set(s->cars);
     } else
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }

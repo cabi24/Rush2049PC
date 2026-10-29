@@ -175,23 +175,6 @@ static uint32_t game_state(void)
     return *(volatile uint32_t *)&state_word_a;
 }
 
-/* The cars a race holds (pc_game_types.h): the N64's 6 until [game] cars is wired up (docs/port/MORECARS.md 10.1). */
-int pc_race_cars(void)
-{
-    return PC_N64_CARS;
-}
-
-/* PLACEHOLDER until [game] cars is wired up (docs/port/MORECARS.md 10.2, item 7, which defines both): the race's
- * start latches nothing, and the setting is the N64's 6. */
-void pc_race_cars_begin(void)
-{
-}
-
-int pc_cars_setting(void)
-{
-    return PC_N64_CARS;
-}
-
 /* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
  * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second;
  * and its steering input, -1..1),
@@ -523,6 +506,9 @@ static int rush_main(int argc, char **argv)
     }
 
     pc_os_set_expansion_pak(cfg.expansion_pak);
+    pc_race_cars_set(cfg.cars);   /* [game] cars: the game latches it at each race's start (race_cars.c) */
+    if (cfg.cars)
+        fprintf(stderr, "rush2049pc: up to %d cars a race (game.cars)\n", pc_cars_setting());
     /* port/gfx reads its settings from the environment; the resolved values already include it */
     char scale[16], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);

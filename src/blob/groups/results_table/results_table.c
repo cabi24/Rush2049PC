@@ -208,6 +208,40 @@ void rs_SetJust(s32 h, s32 v)
     D_80118E20[1] = v;
 }
 
+#ifdef TARGET_PC
+/* PC: the finishing place's text (docs/port/MORECARS.md 7). The text bank holds six ordinals from `first`, first to
+ * sixth, in the language in effect; what follows them is other text (in English, Dutch and French each ordinal's
+ * suffix alone, in Italian the six again, in Spanish and German empty strings), so a 7th to 12th place read there
+ * showed no number. A place past the sixth is its number followed by what the sixth ordinal has after its own number
+ * (a suffix, a full stop or nothing), read from the bank at run time. */
+static char *pc_place_text(char **strings, s32 first, s32 place)
+{
+    static char text[24];
+    const char *suffix;
+    s32 n = place + 1, k = 0;
+
+    if (place < 6) {
+        return strings[first + place];
+    }
+    suffix = strings[first + 5];
+    while (*suffix >= '0' && *suffix <= '9') {
+        suffix++;
+    }
+    if (n >= 10) {
+        text[k++] = '0' + n / 10 % 10;
+    }
+    text[k++] = '0' + n % 10;
+    while (*suffix && k < (s32)sizeof text - 1) {
+        text[k++] = *suffix++;
+    }
+    text[k] = 0;
+    return text;
+}
+#define PC_PLACE_TEXT(strings, first, place) pc_place_text(strings, first, place)
+#else
+#define PC_PLACE_TEXT(strings, first, place) strings[first + place]
+#endif
+
 void drawRaceStandings(void)
 {
     s32 x;
@@ -295,7 +329,7 @@ void drawRaceStandings(void)
                 } else if (col == 3) {
                     rt_font_set(11);
                     dispatch_handler(1);
-                    str = countdown_state.strings[((TextIdx2 *)countdown_state.indices)->cars + PC_CAR_PLACE(PC_MODEL_SLOT(D_80143F54[row - 1]))];
+                    str = PC_PLACE_TEXT(countdown_state.strings, ((TextIdx2 *)countdown_state.indices)->cars, PC_CAR_PLACE(PC_MODEL_SLOT(D_80143F54[row - 1])));
                 }
             }
             if (col != 0) state_utility(col * 60 - cols * 60 / 2 + 190, y + 7, str);
