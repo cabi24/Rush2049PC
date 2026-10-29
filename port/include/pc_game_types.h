@@ -1,8 +1,9 @@
 /* port/include/pc_game_types.h: game data the PC owns outright, with no N64 address (docs/port/DECOUPLE.md).
  * pc_prelude.h includes it, so every game C file sees it on TARGET_PC; the N64 build never does. Each item has one
  * PC declaration here, storage gen_data defines in data.c (port/data/decoupled.txt: outside the RDRAM window, zero
- * at startup), and accessors the game C reaches it through. A game file that uses an accessor defines its N64 side
- * itself, with its own view of the record, so the N64 tokens are the original ones:
+ * at startup, or filled from the image if the N64's was initialized data), and accessors the game C reaches it
+ * through. A game file that uses an accessor defines its N64 side itself, with its own view of the record, so the
+ * N64 tokens are the original ones:
  *     #ifndef TARGET_PC
  *     #define PC_LINK_OWNER(i) D_80153E88[i].owner
  *     #endif
@@ -330,5 +331,60 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_RELOADING_TIME(i) (pc_cars[i].reloading_time)
 #define PC_CAR_F3B0(i) (pc_cars[i].f3B0)
 #define PC_CAR_F3B4(i) (pc_cars[i].f3B4)
+
+/* ---- The cars' sounds, checkpoints and finish cameras (docs/port/MORECARS.md 2.3, docs/port/DECOUPLE.md 6). Per car
+ * slot, 6 on the N64, PC_MAX_LINKS here; the N64 symbols are retired. A sound record is a sound manager handle and the
+ * values last sent to it (player_conditional_call sets -1 and -2.0f: none); each file reads it through its own view
+ * (State20, SndRec, LayerState: 20 bytes on both), so the record accessors are void *.
+ *   pc_engine_sounds (D_80140420, 6 x 84 B, BSS; own storage before, the table pointer making it 88 B here):
+ *     StartCarSounds (d5e64.c) sets the car type's engine table and starts layers 0 and 1, the engine update
+ *     (func_800E0050, mode.c) sets their pitch and volume and keeps a random sound in record 3, StopCarSounds
+ *     (func_800D5524) releases 0, 1 and 3. Record 2 is never used.
+ *   pc_screech_sounds (D_80140640, 6 x 20 B, BSS): the tire screech, reset per car, played for humans (mode.c).
+ *   pc_car_sounds_on (D_8010FFC4, 6 B, data, zero in the image): StartCarSounds sets it, StopCarSounds clears it.
+ *   pc_engine_phase (D_8010FFCC, 6 B, data): each car's engine is updated every other frame, the cars alternating
+ *     (func_800E05F0 skips the frames it is 1, toggling it; StopCarSounds sets it to (slot & 1) == 0). The image's
+ *     alternation is filled in at startup, and slots 6 on continue it with a period of 2 (decoupled.txt).
+ *   pc_cp_last_pos (D_80152218, 6 x 12 B, BSS): each car's position at the last CheckCPs, for the distance it
+ *     drove (car_checkpoints_func_800F8EC8.c), set at the race's start by func_800FBE60.
+ *   pc_cp_plane (D_801527E8, 6 x 4 B, BSS): each car's distance to its next checkpoint's plane at the last CheckCPs.
+ *   pc_finish_cam, pc_finish_cam_time (D_80110680, 6 B, and D_80110668, 6 x 4 B, data, zero in the image): a human's
+ *     circling camera after the finish (race_countdown_display sets 1 and the time, func_800E9E2C freezes it at 2
+ *     after 10 s, func_800EB90C turns the view to it, render_post_process and mode_flags_clear clear it). */
+struct pc_sound_rec {
+    int handle;                 /* +0x0 the sound manager's handle, -1 none */
+    float level;                /* +0x4 the last level sent (client_sync: the engine's pitch) */
+    float style;                /* +0x8 the last style sent (entity_hierarchy_update: the volume) */
+    float f0C, f10;             /* +0xC, +0x10 */
+};
+struct pc_engine_sound {
+    void *table;                /* +0x0 the car type's engine table, &D_8010FD80[type] (two 32-byte layers) */
+    struct pc_sound_rec rec[4]; /* +0x4 (PC +0x8) layers 0 and 1, an unused one, the random sound */
+};
+extern struct pc_engine_sound pc_engine_sounds[PC_MAX_LINKS];
+extern struct pc_sound_rec pc_screech_sounds[PC_MAX_LINKS];
+extern signed char pc_car_sounds_on[PC_MAX_LINKS];
+extern signed char pc_engine_phase[PC_MAX_LINKS];
+extern float pc_cp_last_pos[PC_MAX_LINKS][3];
+extern float pc_cp_plane[PC_MAX_LINKS];
+extern unsigned char pc_finish_cam[PC_MAX_LINKS];
+extern float pc_finish_cam_time[PC_MAX_LINKS];
+
+/* The accessors: car i's records (void *, for each file's view) and fields. */
+#define PC_ENGINE_SOUND(i) ((void *)&pc_engine_sounds[i])
+#define PC_ENGINE_SOUND_REC(i, k) ((void *)&pc_engine_sounds[i].rec[k])
+#define PC_ENGINE_SOUND_HANDLE(i, k) (pc_engine_sounds[i].rec[k].handle)
+#define PC_SCREECH(i) ((void *)&pc_screech_sounds[i])
+#define PC_SCREECH_LEVEL(i) (pc_screech_sounds[i].level)
+#define PC_SCREECH_STYLE(i) (pc_screech_sounds[i].style)
+#define PC_CAR_SOUNDS_ON(i) (pc_car_sounds_on[i])
+#define PC_ENGINE_PHASE(i) (pc_engine_phase[i])
+#define PC_CP_LAST_POS(i) (pc_cp_last_pos[i])
+#define PC_CP_LAST_POS_X(i) (pc_cp_last_pos[i][0])
+#define PC_CP_LAST_POS_Y(i) (pc_cp_last_pos[i][1])
+#define PC_CP_LAST_POS_Z(i) (pc_cp_last_pos[i][2])
+#define PC_CP_PLANE(i) (pc_cp_plane[i])
+#define PC_FINISH_CAM(i) (pc_finish_cam[i])
+#define PC_FINISH_CAM_TIME(i) (pc_finish_cam_time[i])
 
 #endif
