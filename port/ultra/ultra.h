@@ -230,6 +230,9 @@ extern void (*pc_on_fault)(const char *what);
 extern void (*pc_on_exit)(int code);
 void pc_fault_thread_init(void);   /* per host thread: an alternate signal stack */
 
+/* ---------------------------------------------------------------- pools.c */
+void pc_pools_report(void);   /* the game's pools' high-water marks, at the end of a run (docs/port/MORECARS.md 8) */
+
 /* ---------------------------------------------------------------- port/input */
 int pc_input_add_spec(const char *spec);   /* --press T:BUTTON[@PORT][:DUR],...; 0 on success */
 int pc_input_add_file(const char *path);   /* --press-file */
