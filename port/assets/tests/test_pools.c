@@ -5,8 +5,9 @@
  * one again; world_collision_response (EndGraphics) closes the frame's list in the frame's buffer as pc_game_types.h
  * lays it out and hands the list's and the matrices' ends to pc_frame_pools (port/ultra/pools.c), which says when
  * either ran past its end, or the frame's lookats did, and not when one is exactly full. The handler is this test's
- * (pc_pool_overflow_hook).
- * game: src/blob/func_800A7D6C.c src/blob/world_collision_response.c
+ * (pc_pool_overflow_hook). The scene nodes' allocator (func_8008E26C) hands out free nodes, then grows the table to
+ * its 600, then says it ran out and hands out the last one again, where the N64 writes past the table.
+ * game: src/blob/func_800A7D6C.c src/blob/world_collision_response.c src/blob/func_8008E26C.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -54,6 +55,12 @@ void osStopThread(void *t) { (void)t; }
 void osStartThread(void *t) { (void)t; }
 int32_t osSendMesg(void *q, void *m, int32_t f) { (void)q; (void)f; g_sent = m; return 0; }
 void world_collision_response(void);
+
+/* The scene nodes' (func_8008E26C: the host record, 0x68 bytes, its id at +0x18) */
+uint8_t D_8012E700[PC_SCENE_NODES][0x68] __attribute__((aligned(16)));
+int32_t D_80156990;
+void render_mode_select(int16_t index, int16_t parent) { (void)index; (void)parent; }
+int32_t func_8008E26C(int32_t a, void *b, int16_t parent, int32_t d);
 
 /* port/ultra/pools.c's */
 int32_t D_801569A8, D_8013C234;
@@ -153,10 +160,39 @@ static void test_frame(void)
     D_80124F84 = 0;
 }
 
+/* ---------------------------------------------------------------- the scene nodes */
+
+static uint16_t node_id(int i)
+{
+    uint16_t v;
+    memcpy(&v, D_8012E700[i] + 0x18, 2);
+    return v;
+}
+
+static void test_nodes(void)
+{
+    static int owner;
+    CHECK(PC_SCENE_NODES == 600);
+    memset(D_8012E700, 0, sizeof D_8012E700);
+    D_80156990 = D_801569A8 = 0;
+    g_overflows = 0;
+    for (int i = 0; i < PC_SCENE_NODES; i++)
+        CHECK(func_8008E26C(5, &owner, -1, 0) == i && node_id(i) == 5);
+    CHECK(D_80156990 == PC_SCENE_NODES && D_801569A8 == PC_SCENE_NODES && g_overflows == 0);
+    /* None free: said, the last one handed out again, the table not grown past its end. */
+    CHECK(func_8008E26C(6, &owner, -1, 0) == PC_SCENE_NODES - 1 && node_id(PC_SCENE_NODES - 1) == 6);
+    CHECK(g_overflows == 1 && g_pool && strstr(g_pool, "scene nodes") && g_used == 601 && g_capacity == 600);
+    CHECK(D_80156990 == PC_SCENE_NODES);
+    /* A node freed (its id 0xFFFF) is the next one handed out. */
+    memset(D_8012E700[7] + 0x18, 0xFF, 2);
+    CHECK(func_8008E26C(8, &owner, -1, 0) == 7 && node_id(7) == 8 && g_overflows == 1);
+}
+
 int main(void)
 {
     pc_pool_overflow_hook = overflow;
     test_matrices();
     test_frame();
+    test_nodes();
     return TEST_DONE();
 }

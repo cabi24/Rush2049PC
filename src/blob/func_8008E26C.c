@@ -80,7 +80,14 @@ s32 func_8008E26C(s32 a, void *b, s16 parent, s32 d) {
         }
     }
     if (i == D_80156990) {
-        D_80156990++;
+        /* None free: the N64 has no limit and writes past the table; the PC says so (pc_pool_overflow: a Debug
+         * build stops) and hands out the last one again (docs/port/MORECARS.md 8). */
+        if (i >= PC_SCENE_NODES) {
+            pc_pool_overflow("the scene nodes", i + 1, PC_SCENE_NODES);
+            i = PC_SCENE_NODES - 1;
+        } else {
+            D_80156990++;
+        }
     }
     if (D_801569A8 < D_80156990) {
         D_801569A8 = D_80156990;

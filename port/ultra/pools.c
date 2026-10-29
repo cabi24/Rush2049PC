@@ -12,8 +12,8 @@
 #include "ultra.h"
 
 /* The game's own high-water marks, never reset: GetMatrix's highest index (func_800A7D6C), the scene nodes in use
- * (func_8008E26C: D_8012E700, 600, no limit), the environment visuals (func_80090284: D_80138880, 100, none left
- * gives NULL) and the sprites (func_800A79F4: D_80140BF0, 200, none left gives -1). */
+ * (func_8008E26C: D_8012E700, PC_SCENE_NODES, checked on the PC), the environment visuals (func_80090284:
+ * D_80138880, 100, none left gives NULL) and the sprites (func_800A79F4: D_80140BF0, 200, none left gives -1). */
 extern int32_t D_80156BD0, D_801569A8, D_8013C234;
 extern int16_t D_8012E678;
 /* The frame's lookats so far: the scene draw gives each environment-mapped node of each view one of the frame buffer's
@@ -76,9 +76,9 @@ int pc_frame_pools(const void *frame, const void *glist_end, const void *matrice
 
 void pc_pools_report(void)
 {
-    fprintf(stderr, "rush2049pc: pools: persistent matrices %d of %d, scene nodes %d of 600, environment visuals %d of "
+    fprintf(stderr, "rush2049pc: pools: persistent matrices %d of %d, scene nodes %d of %d, environment visuals %d of "
                     "100, sprites %d of 200, frame lookats %ld of %d, frame matrices %ld of %d, display list %ld of %d "
-                    "commands (high-water marks)\n", (int)D_80156BD0, PC_MATRICES - 1, (int)D_801569A8, (int)D_8012E678,
-            (int)D_8013C234, g_lookats_max, PC_FRAME_LOOKATS, g_matrices_max, PC_FRAME_MATRICES, g_glist_max,
-            PC_GLIST_LEN);
+                    "commands (high-water marks)\n", (int)D_80156BD0, PC_MATRICES - 1, (int)D_801569A8, PC_SCENE_NODES,
+            (int)D_8012E678, (int)D_8013C234, g_lookats_max, PC_FRAME_LOOKATS, g_matrices_max, PC_FRAME_MATRICES,
+            g_glist_max, PC_GLIST_LEN);
 }
