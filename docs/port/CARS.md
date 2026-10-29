@@ -48,7 +48,7 @@ So the car can't keep its N64 size, and the PC layout is the N64 field order wit
 | 0x110 + 0x18k + f | 0x110 + 0x20k + f' | f' = f for `next` (f < 4), f + 4 after it (`index` +8, `objnum` +0xA, `slot` +0xC, `data` +0x10, `timeStamp` +0x14, `func` +0x18) |
 | 0x308–0x380 | 0x3B0–0x428 | +0xA8 |
 | 0x380 (`input`) | 0x428 | 8 bytes |
-| 0x384–0x3B8 | 0x430–0x464 | +0xAC, then 4 bytes of padding to 8-byte alignment |
+| 0x384–0x3B8 | 0x430–0x464 | +0xAC, then 4 bytes to 8-byte alignment: `struct pc_car` names them `scenes`, a PC field with no N64 one (a scene trigger's cars from 8 on, [MORECARS.md](MORECARS.md) 3.1); every view leaves them as its alignment padding |
 | stride 0x3B8 | **0x468** | |
 
 `port/include/pc_prelude.h` has it as `PC_CAR_SIZE` and `CAR_OFS(n)` (the PC offset of N64 offset n, which may run

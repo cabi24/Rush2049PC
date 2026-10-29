@@ -64,13 +64,14 @@ size_t test_be_range_count(void) { return g_nbe; }
 void test_be_reset(void) { g_nbe = 0; }
 
 /* The cars a race holds (pc_game_types.h), for tests that build game C reading PC_RACE_CARS: the N64's 6 unless the
- * test sets test_race_cars. Here the setting is test_race_cars and the race's count what pc_race_cars_begin latched
- * from it (port/config/race_cars.c's rule), so a test can change the setting in the middle of a race. */
+ * test sets test_race_cars, which is both the setting (pc_cars_setting) and the race's count (pc_race_cars), so a
+ * test sets the count and calls a loop without a race's start. pc_race_cars_begin latches the setting into the count
+ * (port/config/race_cars.c's rule), here the same number; test_race_begins counts its calls. */
 int test_race_cars = 6;
-static int test_race_latched = 6;
-void pc_race_cars_begin(void) { test_race_latched = test_race_cars; }
+int test_race_begins;
+void pc_race_cars_begin(void) { test_race_begins++; }
 int pc_cars_setting(void) { return test_race_cars; }
-int pc_race_cars(void) { return test_race_latched; }
+int pc_race_cars(void) { return test_race_cars; }
 
 #ifndef MAP_FIXED_NOREPLACE
 #define MAP_FIXED_NOREPLACE 0x100000
