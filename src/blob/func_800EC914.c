@@ -94,8 +94,17 @@ extern s16 D_8015274C;        /* num_our_drones */
 extern volatile s16 D_80152768; /* num_drones */
 extern volatile s16 D_80153FD2; /* num_humans */
 extern s16 D_80143A40[];      /* humans */
+#ifdef TARGET_PC
+/* On the PC the drone lists are pc_drones and pc_our_drones, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 8), and the slots after the race's are cleared up to the model records' PC_MODEL_SLOTS. The
+ * human list keeps its N64 storage: the humans are the players, 4 at most. */
+#else
 extern s16 D_801527D8[];      /* drones */
 extern s16 D_80152808[];      /* our_drones */
+#define PC_DRONE(j) D_801527D8[j]
+#define PC_OUR_DRONE(j) D_80152808[j]
+#define PC_MODEL_SLOTS MAX_LINKS
+#endif
 extern s32 D_80143FF4;
 
 void func_800EC914(void) {
@@ -119,7 +128,7 @@ void func_800EC914(void) {
             m->drone_type = (PC_LINK_OWNER(i) < MAX_LINKS) ? DRONE : HUMAN;
         }
     }
-    for (i = D_801543CA; i < MAX_LINKS; i++) {
+    for (i = D_801543CA; i < PC_MODEL_SLOTS; i++) {
         m = PC_MODEL(i);
         m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = 0;
@@ -137,10 +146,10 @@ void func_800EC914(void) {
             D_80153FD2 = j + 1;
         } else {
             j = D_80152768;
-            D_801527D8[j] = index;
+            PC_DRONE(j) = index;
             D_80152768 = j + 1;
             if (PC_MODEL_WE_CONTROL(index)) {
-                D_80152808[D_8015274C++] = index;
+                PC_OUR_DRONE(D_8015274C++) = index;
             }
         }
     }

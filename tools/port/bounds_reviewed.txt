@@ -4,7 +4,7 @@
 # A `two offsets` or `clamped` finding needs a verdict that starts with fixed or judged.
 
 nonmatching/game/createBG.c D_80114628 tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
-src/blob/CarSetup.c D_801439F8 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
+src/blob/CarSetup.c pc_carsetup_flags view safe: declared at the storage's true size (pc_carsetup_flags, PC_MAX_LINKS flags, which data.c defines); the function reaches one place of it, the flag of slot (an active car's slot, below D_80152744), read and then set [gcc14]
 src/blob/ControllerUpdate.c D_8011FAD4 tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
 src/blob/InitBlits.c D_80149450 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/Input_SetAnalogBounds.c pad_config view fixed: declared pad_config[4] under TARGET_PC; the storage is 200 records (Sprite[200]) and the paths reach past 4 (SANITIZE.md 3.1), but each access is one field of the record a variable picks [gcc13,gcc14,mingw12]
@@ -13,12 +13,6 @@ src/blob/Input_SetPadSecondaryFlag.c pad_config view fixed: declared pad_config[
 src/blob/ambient_sounds_clear.c D_80114628 warn safe: GCC proves an access past the declaration; no function writes two places of it (view, const) [gcc13,gcc14,mingw12]
 src/blob/audio_channel_priority.c D_80150F88 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/audio_channel_priority.c gTotalNames view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
-src/blob/audio_effect_remove.c D_80153F28 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
-src/blob/audio_effect_remove.c D_80153F28 warn safe: GCC proves an access past the declaration; no function writes two places of it (view, const) [gcc13,gcc14,mingw12]
-src/blob/audio_effect_remove.c D_80153F48 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
-src/blob/audio_effect_remove.c D_80153F48 warn safe: GCC proves an access past the declaration; no function writes two places of it (view, const) [gcc13,gcc14,mingw12]
-src/blob/audio_effect_remove.c D_80153F68 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
-src/blob/audio_effect_remove.c D_80153F68 warn safe: GCC proves an access past the declaration; no function writes two places of it (view, const) [gcc13,gcc14,mingw12]
 src/blob/camera_smooth_lerp.c D_8013C238 view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/camera_smooth_lerp.c pc_blast_rings view safe: declared at the storage's true size (pc_blast_rings, PC_MAX_LINKS records, which data.c defines); InitBlasts writes one word of each record (its ring's handle, +0 at m2c's stride of 0x3C from the array) for i below PC_MAX_LINKS, inside the storage [gcc14,mingw12]
 src/blob/camera_smooth_lerp.c pc_blasts view safe: declared at the storage's true size (pc_blasts, PC_MAX_LINKS records, which data.c defines); InitBlasts writes five words of record i (+0, +0x54, +0xA8, +0xFC, +0x150 at m2c's stride of 0x190 from the array) for i below PC_MAX_LINKS, every one inside record i [gcc14,mingw12]

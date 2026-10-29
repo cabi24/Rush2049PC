@@ -107,8 +107,15 @@ extern s8 D_80152744;           /* gNumActiveCars */
 extern s16 D_8015274C;          /* num_our_drones */
 extern s16 D_80152768;          /* num_drones */
 extern s16 D_80153FD2;          /* num_humans */
+#ifdef TARGET_PC
+/* On the PC the drone lists and CarSetup's flags are pc_drones, pc_our_drones and pc_carsetup_flags, PC_MAX_LINKS
+ * long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
+#else
 extern s16 D_801527D8[];        /* drones */
 extern s16 D_80152808[];        /* our_drones */
+#define PC_DRONE(j) D_801527D8[j]
+#define PC_OUR_DRONE(j) D_80152808[j]
+#endif
 extern s16 D_80153E84;          /* sched_to_use */
 extern s16 D_80153F08;          /* new_sched_to_use */
 extern s16 D_80153F24;          /* sched_index */
@@ -123,7 +130,11 @@ extern f32 D_80154188;          /* HFOV */
 extern s16 gNumWindows;
 extern Cam152 gCamera[];
 extern u8 gFogColors[][3]; /* gFogColors */
+#ifndef TARGET_PC
 extern s8 D_801439F8[6];        /* carsetup_flag */
+#define PC_CARSETUP_FLAG(i) D_801439F8[i]
+#define PC_MAX_LINKS 6
+#endif
 extern s8 D_801543C8;           /* gGravityScale */
 extern f32 D_801202F8[];        /* gravityArray */
 extern u8 D_80142728[];         /* audio lock queue */
@@ -314,8 +325,8 @@ s32 display_list_flush(s32 useHud, s32 cancel)
                 PC_MODEL_FLAGS(slot) = 0;
                 PC_CAR_FLAGS(slot) = 0;
                 music_tempo_set(slot, PC_MODEL_BODY(slot), 1);
-                D_801527D8[D_80152768++] = i;
-                D_80152808[D_8015274C++] = i;
+                PC_DRONE(D_80152768++) = i;
+                PC_OUR_DRONE(D_8015274C++) = i;
             }
             for (; i < D_80152744; i++) {
                 PC_CAR_STATE(i) = 0;
@@ -323,8 +334,8 @@ s32 display_list_flush(s32 useHud, s32 cancel)
                 PC_CAR_FLAGS(i) = 0;
                 PC_MODEL_FLAGS(i) = 0;
                 music_tempo_set(i, PC_MODEL_BODY(i), 1);
-                D_801527D8[D_80152768++] = i;
-                D_80152808[D_8015274C++] = i;
+                PC_DRONE(D_80152768++) = i;
+                PC_OUR_DRONE(D_8015274C++) = i;
             }
             D_80153F08 = D_80153E84 = D_8015274C;
             D_80153F24 = -1;
@@ -371,7 +382,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
     if (!(state_word_a & 8)) AudStopAllEffects();
     func_800FAF50();
     world_physics_tick();
-    for (i = 0; i < 6; i++) D_801439F8[i] = 0;
+    for (i = 0; i < PC_MAX_LINKS; i++) PC_CARSETUP_FLAG(i) = 0;
     func_800FAEE4();
     D_8013FECB = 0; D_80142699 = 0; D_80142690 = 0;
     D_80142764 = 32.2f * D_801202F8[D_801543C8];

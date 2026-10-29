@@ -498,4 +498,40 @@ extern float pc_finish_cam_time[PC_MAX_LINKS];
 #define PC_FINISH_CAM(i) (pc_finish_cam[i])
 #define PC_FINISH_CAM_TIME(i) (pc_finish_cam_time[i])
 
+/* ---- The drones (docs/port/DECOUPLE.md 8): MAT3 drones[] and our_drones[], N64 D_801527D8 and D_80152808 (s16 lists
+ * of car slots, 6 long, BSS): the drones in the race (D_80152768 of them) and those this node drives (D_8015274C),
+ * built by munge (func_800EC914) and display_list_flush's restart, read by maxpath's camera pick (func_800E451C) and
+ * update_drone_models. And maxpath's controls per car slot (arcade maxpath.c), BSS, 6 on the N64: the steer, brake
+ * and gas AdjustSteer and AdjustSpeed keep (D_80153F28, D_80153F48, D_80153F68: f32), and avoid_areas' last
+ * direction and last direction to the target (D_80153F88, D_80154138: f32[3]). The race's 12 cars may all be drones
+ * (the attract demo), so each is PC_MAX_LINKS long. The N64's extents end at the next symbol, or at a static of
+ * HAL_DrawText (menu_input_process: lastFontColor at 0x80153F60, lastTrans 0x80153F80, lastFontXpos 0x80153FD0,
+ * lastFontYpos 0x80154180), which is a host static on the PC. */
+extern short pc_drones[PC_MAX_LINKS];
+extern short pc_our_drones[PC_MAX_LINKS];
+extern float pc_mp_steer[PC_MAX_LINKS];
+extern float pc_mp_brake[PC_MAX_LINKS];
+extern float pc_mp_gas[PC_MAX_LINKS];
+extern float pc_mp_dir[PC_MAX_LINKS][3];
+extern float pc_mp_save_dir[PC_MAX_LINKS][3];
+#define PC_DRONE(j) (pc_drones[j])
+#define PC_OUR_DRONE(j) (pc_our_drones[j])
+#define PC_MP_STEER(slot) (pc_mp_steer[slot])
+#define PC_MP_BRAKE(slot) (pc_mp_brake[slot])
+#define PC_MP_GAS(slot) (pc_mp_gas[slot])
+#define PC_MP_DIR(slot) (pc_mp_dir[slot])
+#define PC_MP_SAVE_DIR(slot) (pc_mp_save_dir[slot])
+
+/* CarSetup's flag per car slot (carsetup_flag, N64 D_801439F8: s8, 6 cleared by display_list_flush, BSS; the
+ * controllers' D_80143A00 follows at +8): set once the car's visuals were started at the race start. */
+extern signed char pc_carsetup_flags[PC_MAX_LINKS];
+#define PC_CARSETUP_FLAG(slot) (pc_carsetup_flags[slot])
+
+/* The drone schedule's rows (MAT3 drone_sched, N64 D_80120E74, ROM data, Row3[12]: rows 0-6 for 0-6 drones with one
+ * human or none, rows 7-11 for 0-4 with two or more). world_physics_tick picks row D_8015274C, plus 7 with two
+ * humans; a human's retirement takes 7 off, a drone's 1. On the PC the second kind starts at PC_DRONE_SCHED_TWO,
+ * past the most drones a race may hold, and update_drone_models reads the N64's rows where it has them and a PC
+ * rule past them (func_800E56F8/group.c). */
+#define PC_DRONE_SCHED_TWO (PC_MAX_LINKS + 1)
+
 #endif

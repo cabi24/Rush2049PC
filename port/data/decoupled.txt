@@ -57,3 +57,21 @@ pc_cp_last_pos      D_80152218  0x48
 pc_cp_plane         D_801527E8  0x18
 pc_finish_cam_time  D_80110668  0x18  init=image
 pc_finish_cam       D_80110680  6     init=image
+
+# The drones (docs/port/DECOUPLE.md 8): MAT3 drones[] and our_drones[] (short[PC_MAX_LINKS]; 6 s16 on the N64,
+# 0x801527D8-0x801527E4, the own D_801527E4 after it, and 0x80152808-0x80152814, the car records after the gap), and
+# maxpath's controls per car slot (float[PC_MAX_LINKS], float[PC_MAX_LINKS][3]; 6 on the N64): steer, brake, gas
+# (0x80153F28, 0x80153F48, 0x80153F68: 24 B each, D_80153F40 and HAL_DrawText's statics at 0x80153F60 and 0x80153F80
+# after them) and avoid_areas' two directions (0x80153F88, 0x80154138: 72 B each, statics at 0x80153FD0, 0x80154180).
+pc_drones       D_801527D8  0xC
+pc_our_drones   D_80152808  0xC
+pc_mp_steer     D_80153F28  0x18
+pc_mp_brake     D_80153F48  0x18
+pc_mp_gas       D_80153F68  0x18
+pc_mp_dir       D_80153F88  0x48
+pc_mp_save_dir  D_80154138  0x48
+
+# CarSetup's flag per car slot (carsetup_flag): signed char[PC_MAX_LINKS], 6 bytes on the N64 (0x801439F8; the gap is
+# 8, the controllers' D_80143A00 after it). The image symbol tables name D_801439FE inside it, +6: the end of
+# display_list_flush's clear of 6, which no C names.
+pc_carsetup_flags  D_801439F8  0x8

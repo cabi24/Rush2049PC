@@ -2247,8 +2247,14 @@ extern s8 D_80142DB0;
 extern s8 D_80142DC0;
 extern s32 D_80142DD8;
 extern s32 D_801439D8;
+#ifdef TARGET_PC
+/* On the PC carsetup_flag is pc_carsetup_flags, a flag per car slot with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 8); CarSetup steps from its first byte by the slot. */
+#define D_801439F8 PC_CARSETUP_FLAG(0)
+#else
 extern s32 D_801439F8;
 extern s32 D_801439FE;
+#endif
 extern s32 D_80143A04;
 extern s32 D_80143A08;
 extern s32 D_80143A0C;

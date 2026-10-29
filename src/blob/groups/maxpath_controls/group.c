@@ -170,7 +170,19 @@ extern D_8014A250_Record D_8014A250[];
 extern Section D_80151CE8[];
 extern Track D_8012E5E8[];
 extern volatile s16 D_80152768;
+#ifdef TARGET_PC
+/* On the PC the drone list and maxpath's controls per car slot are pc_drones, pc_mp_steer, pc_mp_brake, pc_mp_gas,
+ * pc_mp_dir and pc_mp_save_dir, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
+extern s16 D_80154182;
+#else
 extern s16 D_80154182, D_801527D8[];
+#define PC_DRONE(j) D_801527D8[j]
+#define PC_MP_STEER(slot) D_80153F28[slot]
+#define PC_MP_BRAKE(slot) D_80153F48[slot]
+#define PC_MP_GAS(slot) D_80153F68[slot]
+#define PC_MP_DIR(slot) D_80153F88[slot]
+#define PC_MP_SAVE_DIR(slot) D_80154138[slot]
+#endif
 extern s8 D_80152744;
 extern s8 D_801543C8;
 #ifdef TARGET_PC
@@ -183,8 +195,10 @@ extern PcText4 D_80120E50;
 extern s32 D_80120E50;
 #endif
 extern f32 D_801161D4[], D_801161E4[];
+#ifndef TARGET_PC
 extern f32 D_80153F28[], D_80153F48[], D_80153F68[];
 extern f32 D_80153F88[][3], D_80154138[][3];
+#endif
 extern f32 D_80154190, D_801543CC;
 
 extern f32 sqrtf(f32), fabsf(f32);
@@ -300,12 +314,12 @@ void func_800E451C(D_8014A250_Record *m, Nav *cp, s32 change_flag) {
     }
     cur_time = D_801543CC;
     if (change_flag && ((cur_time - D_80154190) > 0.5f) &&
-        ((D_80154182 == -1) || (D_801527D8[D_80154182] == node))) {
+        ((D_80154182 == -1) || (PC_DRONE(D_80154182) == node))) {
         for (j = 0; j < D_80152768; j++) {
             if (++D_80154182 >= D_80152768) {
                 D_80154182 = 0;
             }
-            if (PC_MODEL_WE_CONTROL(D_801527D8[D_80154182])) {
+            if (PC_MODEL_WE_CONTROL(PC_DRONE(D_80154182))) {
                 break;
             }
         }
@@ -446,7 +460,7 @@ void func_800E398C(s16 drone_index) {
         cp->spd = 100.0f;
         veccopy(rpos, cp->tgt);
         for (i = 0; i < 3; i++) {
-            D_80153F88[drone_index][i] =  0.0f ;
+            PC_MP_DIR(drone_index)[i] =  0.0f ;
         }
         return;
     }
@@ -456,7 +470,7 @@ void func_800E398C(s16 drone_index) {
         cp->spd = (f32) (u32) D_8012E5E8[cp->sel].points[cp->pt].flag * 1.4666667f * 1.5f;
         veccopy(rpos, cp->tgt);
         for (i = 0; i < 3; i++) {
-            D_80153F88[drone_index][i] = 0;
+            PC_MP_DIR(drone_index)[i] = 0;
         }
         PC_MODEL_CAN_CHEAT(drone_index) = 0;
         return;
@@ -465,7 +479,7 @@ void func_800E398C(s16 drone_index) {
     if (rpos[2] < fabsf(rpos[0] + rpos[0])) {
         veccopy(rpos, cp->tgt);
         for (i = 0; i < 3; i++) {
-            D_80153F88[drone_index][i] = 0;
+            PC_MP_DIR(drone_index)[i] = 0;
         }
         PC_MODEL_CAN_CHEAT(drone_index) = 0;
         return;
@@ -535,37 +549,37 @@ void func_800E398C(s16 drone_index) {
 
     hint = ((s8 *) &D_8012E5E8[cp->sel].points[cp->pt])[7];
 
-    if (D_80153F88[drone_index][0] == 0 && D_80153F88[drone_index][2] == 0) {
+    if (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0) {
         dir[0] = 0;
         cp->spd *= 1.0f - (1.0f - scale1) * .3f;
     } else if (hint == 5 || m->s6C4 >= 0) {
         dir[0] *= .4f;
-    } else if (hint == 2 || (D_80153F88[drone_index][0] == 0 && D_80153F88[drone_index][2] == 0)) {
+    } else if (hint == 2 || (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0)) {
         veccopy(save_dir, dir);
         cp->spd *= 1.0f - (1.0f - scale1) * .3f;
     } else if (hint == 1) {
-        if (D_80153F88[drone_index][0] == 0 && D_80153F88[drone_index][2] == 0) {
+        if (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0) {
             veccopy(save_dir, dir);
         } else {
-            dir[0] = save_dir[0] * .15f + D_80153F88[drone_index][0] * .85f;
+            dir[0] = save_dir[0] * .15f + PC_MP_DIR(drone_index)[0] * .85f;
         }
         cp->spd *= 1.0f - (1.0f - scale1) * .1f;
     } else if (hint == 3) {
-        dir[0] = save_dir[0] - D_80154138[drone_index][0];
-        veccopy(D_80154138[drone_index], save_dir);
+        dir[0] = save_dir[0] - PC_MP_SAVE_DIR(drone_index)[0];
+        veccopy(PC_MP_SAVE_DIR(drone_index), save_dir);
     } else if (hint == 4) {
-        dir[0] = save_dir[0] - D_80154138[drone_index][0];
+        dir[0] = save_dir[0] - PC_MP_SAVE_DIR(drone_index)[0];
     } else {
-        dir[0] = dir[0] * .5f + D_80153F88[drone_index][0] * .5f;
+        dir[0] = dir[0] * .5f + PC_MP_DIR(drone_index)[0] * .5f;
     }
 
     PC_MODEL_CAN_CHEAT(drone_index) = can_we_cheat;
 
     veccopy(dir, cp->tgt);
 
-    veccopy(dir, D_80153F88[drone_index]);
+    veccopy(dir, PC_MP_DIR(drone_index));
 
-    veccopy(save_dir, D_80154138[drone_index]);
+    veccopy(save_dir, PC_MP_SAVE_DIR(drone_index));
 }
 
 #define range_it(v,l,h)		( ((v) < (l)) ? (l) : (((v) > (h)) ? (h) : (v)) )
@@ -699,8 +713,8 @@ void func_800E3984(D_8014A250_Record *m, f32 tspd)
     tspd *= 1.05f;
 
     if ((D_801543C8 < 2) && ((m->b488 == 40) || (m->b4E4 == 40))) {
-        D_80153F48[node] = 0;
-        D_80153F68[node] = 0;
+        PC_MP_BRAKE(node) = 0;
+        PC_MP_GAS(node) = 0;
     } else {
         x = m->vx;
         y = m->vy;
@@ -713,29 +727,29 @@ void func_800E3984(D_8014A250_Record *m, f32 tspd)
             delta_speed *= 0.5f;
         }
 
-        D_80153F68[node] += (delta_speed * 0.183f);
+        PC_MP_GAS(node) += (delta_speed * 0.183f);
 
-        if (D_80153F68[node] < -0.75f) {
-            D_80153F48[node] -= (D_80153F68[node] + 0.75f) / 4;
+        if (PC_MP_GAS(node) < -0.75f) {
+            PC_MP_BRAKE(node) -= (PC_MP_GAS(node) + 0.75f) / 4;
         } else {
-            D_80153F48[node] = 0;
+            PC_MP_BRAKE(node) = 0;
         }
     }
 
-    if (D_80153F68[node] < 0) {
-        D_80153F68[node] = 0;
-    } else if (D_80153F68[node] > 1.0f) {
-        D_80153F68[node] = 1.0f;
+    if (PC_MP_GAS(node) < 0) {
+        PC_MP_GAS(node) = 0;
+    } else if (PC_MP_GAS(node) > 1.0f) {
+        PC_MP_GAS(node) = 1.0f;
     }
 
-    if (D_80153F48[node] < 0) {
-        D_80153F48[node] = 0;
-    } else if (D_80153F48[node] > 1.0f) {
-        D_80153F48[node] = 1.0f;
+    if (PC_MP_BRAKE(node) < 0) {
+        PC_MP_BRAKE(node) = 0;
+    } else if (PC_MP_BRAKE(node) > 1.0f) {
+        PC_MP_BRAKE(node) = 1.0f;
     }
 
-    m->f72C = D_80153F68[node];
-    m->f728 = D_80153F48[node];
+    m->f72C = PC_MP_GAS(node);
+    m->f728 = PC_MP_BRAKE(node);
 }
 
 /* arcade AdjustSteer; inlined, the retail 2-word stub remains */
@@ -752,7 +766,7 @@ void func_800E397C(D_8014A250_Record *m, f32 *pos)
 
     angle = range_it(angle, 0, 3.1415927f);
 
-    D_80153F28[node] = 1.0f - angle * 0.63661975f;
-    m->f720 = D_80153F28[node];
+    PC_MP_STEER(node) = 1.0f - angle * 0.63661975f;
+    m->f720 = PC_MP_STEER(node);
 }
 

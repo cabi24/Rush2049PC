@@ -703,6 +703,10 @@ target_compile_definitions(test_assets_pools PRIVATE ${PC_POOLS_TEST_SIZES})
 target_compile_definitions(test_assets_pools_game PRIVATE ${PC_POOLS_TEST_SIZES})
 target_sources(test_assets_pools PRIVATE port/ultra/pools.c)
 target_include_directories(test_assets_pools PRIVATE port/ultra)
+
+# And the drones' (the lists, maxpath's controls, the schedule; docs/port/DECOUPLE.md 8).
+target_compile_definitions(test_assets_drones PRIVATE PC_MAX_LINKS=16)
+target_compile_definitions(test_assets_drones_game PRIVATE PC_MAX_LINKS=16)
 # test_assets_musyx also runs the game's own MusyX readers on the converted files: the boot library's units that
 # read them, built with the game's flags (one wrapper per unit, like test_gsm_game).
 file(GLOB PC_ASSETS_MUSYX_GAME CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/tests/musyx_lib_*.c)

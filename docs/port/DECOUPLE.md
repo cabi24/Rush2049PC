@@ -685,3 +685,198 @@ race_countdown_display, and mode_flags_clear's two slots. The finish camera is o
 and the humans are slots 0-3, so it stays per player in practice; func_800E9E2C reads it for any car whose camera
 shows view 5. The engines of 12 cars ask MusyX for about twice the voices (MORECARS.md 6); the sound records only hold
 their handles.
+
+## 8. The drones
+
+**What it is.** [MORECARS.md](MORECARS.md) 10.2 items 1b and 5: the arrays the drones keep per car, the locals that
+order them, and the schedule that updates them. Eight arrays in the game's BSS, 6 entries on the N64, each a plain array
+(no record, no pointer):
+
+| N64 | PC | Type | MAT3 / arcade | Indexed by | Users (C) |
+|---|---|---|---|---|---|
+| `D_801527D8` (0x801527D8, 12 B; the own `D_801527E4` at +12) | `pc_drones` | short[12] | `drones[]` | the drones in the race, `D_80152768` of them | munge (func_800EC914) and display_list_flush's restart write it; MP_IntervalPos (func_800E451C) reads it for the camera's drone pick (`D_80154182`) |
+| `D_80152808` (0x80152808, 12 B, 16 by the gap; the car records after it) | `pc_our_drones` | short[12] | `our_drones[]` | the drones this node drives, `D_8015274C` | munge and display_list_flush write it; update_drone_models walks it; func_800E56F8 takes a retired drone out |
+| `D_80153F28` (24 B; `D_80153F40`, update_drone_models' cursor, at +24) | `pc_mp_steer` | float[12] | AdjustSteer's steer | car slot | maxpath (func_800E397C); audio_effect_remove clears 6 |
+| `D_80153F48`, `D_80153F68` (24 B each) | `pc_mp_brake`, `pc_mp_gas` | float[12] | AdjustSpeed's brake, gas | car slot | maxpath (func_800E3984); audio_effect_remove clears 6 |
+| `D_80153F88` (72 B; HAL_DrawText's lastFontXpos, then `num_humans`, after it) | `pc_mp_dir` | float[12][3] | avoid_areas' last direction | car slot | maxpath (func_800E398C) |
+| `D_80154138` (72 B) | `pc_mp_save_dir` | float[12][3] | avoid_areas' last direction to the target | car slot | maxpath (func_800E398C) |
+| `D_801439F8` (6 B, 8 by the gap; the controllers' `D_80143A00` at +8) | `pc_carsetup_flags` | signed char[12] | carsetup_flag | car slot | CarSetup sets a car's when it starts the car's visuals; display_list_flush clears 6 |
+
+The last one isn't in MORECARS.md 2.3: display_list_flush's `for (i = 0; i < 6; i++) D_801439F8[i] = 0` (its line 374
+at c1ab1d7) is a per-car bound, and CarSetup reaches the flag as `(u8 *) &D_801439F8 + slot` for every active car, so a
+9th car's flag would write the first controller's pressed buttons. The image symbol tables give the N64 extents: past
+the brake, the gas and the two directions sit HAL_DrawText's statics (menu_input_process, `hal_drawtext.c`:
+lastFontColor at 0x80153F60, lastTrans 0x80153F80, lastFontXpos 0x80153FD0, lastFontYpos 0x80154180), which are host
+statics of that file on the PC, so `data_symbols.txt`'s 32 bytes for `D_80153F48` and `D_80153F68` were the gap, not the
+arrays; on the N64 a 7th car's brake would have changed the text's colour state. Not moved: the human list
+`D_80143A40` (16 B by the gap, written by munge, read by nothing) holds the players, 4 at most; the counts
+(`D_80152768`, `D_8015274C`, `D_80153FD2`: s16) hold 12; the schedule's state (`D_80153E84`, `D_80153F08`,
+`D_80153F24`, `D_80153F40`) is scalars.
+
+**Inventory.** nm over `game_objects.txt` (main, 8ff5be1, build host; 597098e and c1ab1d7 change no use of them):
+`D_801527D8` 3 objects (func_800EC914, maxpath_controls/group.c, nonmatching/display_list_flush.c), `D_80152808` 3
+(func_800EC914, func_800E56F8/group.c, display_list_flush), `D_80153F28`, `D_80153F48`, `D_80153F68` 2 each
+(audio_effect_remove, maxpath_controls), `D_80153F88`, `D_80154138` 1 each (maxpath_controls), `D_801439F8` 2 (CarSetup,
+display_list_flush): 6 objects, no context copies. Every file declares them as what they are (s16 lists, f32 and f32[3]
+by slot, bytes), but two through a scalar and a cast: audio_effect_remove's `((f32 *) &D_80153F28)[i]` (its m2c block
+declares `D_80153F48` and `D_80153F68` as s32, stored as f32) and CarSetup's `(u8 *) &D_801439F8 + slot` (declared s32,
+stored as s8). The image symbol tables name one address inside the extents, `D_801439FE` (+6 of the flags:
+display_list_flush's loop end), which no C names. The other names nearby are neighbours used by their own names:
+`D_80153F40` (the cursor), the HAL_DrawText statics, `D_80153FD2`, `D_801527E4` (a message queue's buffer, 11 objects),
+`D_80154138` as display_settings' end of `D_80153FD8` (by index on the PC), `D_801439F8` as func_80105B74's end of
+`D_801439D8` (likewise).
+
+**What holds an address.** Nothing in memory. A scan of the four images inflated from the retail cartridge (in memory,
+on the Pi) found no data word in any of the ranges, and code references (a `lui` of the high half and an offset in
+range) only in functions whose C is among the 6 objects: munge, MP_IntervalPos, MaxPathControls (AdjustSpeed and
+AdjustSteer inlined), avoid_areas, func_800E56F8, model_iteration (update_drone_models inlined), audio_effect_remove,
+CarSetup, display_list_flush; besides them, the ends of the arrays before two of them (display_settings' of
+`D_80153FD8` at 0x80154138, func_80105B74's of `D_801439D8` at 0x801439F8) and HAL_DrawText's 4 references to each of
+its statics.
+No C takes an address to keep: the casts are local, and no `PC_N64W` or u32 field names them. A `RUSH_CHECK_CASTS` build
+ran every synthetic path without a stop (below). So nothing needs a window address (MORECARS.md 2.7).
+
+**What it reaches past its end.** Nothing: no C names an array plus 6, or the next symbol as an end. The ends are
+`D_801527E4`, 0x80152814 (no name), `D_80153F40`, the HAL_DrawText statics and `D_801439FE`; the retail references to
+0x80153F40 (6) are update_drone_models' cursor's (world_physics_tick, display_list_flush, func_800E56F8,
+model_iteration), and those to the statics HAL_DrawText's. bounds_check, offset_check and layout_check list no access
+from a neighbour into the ranges or out of them (below).
+
+**The size.** The lists hold every drone of a race of `PC_MAX_LINKS` cars (the attract demo's are all drones), the
+controls and flags one entry per car slot: `PC_MAX_LINKS` (12) each, 492 bytes in all. The walks: munge and
+display_list_flush append to the lists for the active cars (`D_80152744`), update_drone_models walks `D_8015274C`,
+MP_IntervalPos `D_80152768`, maxpath indexes by the model's slot, CarSetup by the active cars' slots; the two clears
+(audio_effect_remove, display_list_flush) were `i < 6` and are `i < PC_MAX_LINKS`, every slot.
+
+**The change.** `pc_game_types.h`: the 8 declarations and their accessors (`PC_DRONE(j)`, `PC_OUR_DRONE(j)`,
+`PC_MP_STEER(slot)`, `PC_MP_BRAKE`, `PC_MP_GAS`, `PC_MP_DIR(slot)` and `PC_MP_SAVE_DIR(slot)` (a row of 3),
+`PC_CARSETUP_FLAG(slot)`). The 6 files use them, each defining the N64 side (`#define PC_MP_DIR(slot)
+D_80153F88[slot]`, `#define PC_MP_STEER(i) ((f32 *) &D_80153F28)[i]`); CarSetup keeps its spelling and on the PC
+defines `D_801439F8` as `PC_CARSETUP_FLAG(0)`, the first flag (func_800D1248's way with `D_8014A96C`, section 3).
+`decoupled.txt`: the 8 lines, sizes the N64 extents (0xC, 0xC, 0x18 three times, 0x48 twice, 0x8). In the same files,
+the bounds that walk them or the cars (MORECARS.md 3.1, 2.5): munge's clear of the model records after the race's,
+`i < MAX_LINKS`, is `PC_MODEL_SLOTS` (its owner test, `owner < MAX_LINKS`, keeps 6: an owner code, MORECARS.md 1.4);
+model_iteration's speed walk `v != 6` is `PC_RACE_CARS`; DoDrones (render_large_objects and its car_checkpoints and
+demo_pair copies) sizes its locals (`humans`, `drones`, `total_drones`, `car_in_conflict`, `cars_in_order`, `place`,
+`car_distance[][]`) by its `MAX_LINKS`, which is `PC_MAX_LINKS` on the PC (it has no owner-code use; its loops walk
+`D_80152744`). assets_roster, assets_audiocmds define the PC storage where they defined the N64 names.
+
+**The drone schedule.** `update_drone_models` updates, each model iteration, the next `drone_sched[row][k]` of our
+drones round the list (`D_80153F40`), k counting up until -1, which ends a round and takes the next round's row
+(`D_80153F08`). `drone_sched` is `D_80120E74`, ROM data, `Row3[12]` of s16. world_physics_tick picks row
+`D_8015274C`, plus 7 with two humans or more; a drone's retirement takes 1 off the next round's row (func_800E56F8),
+and a human's, of two, 7, to the one-human rows. Rows 0-6 are 0-6 drones with one human or none,
+7-11 0-4 drones with two: 7-12 drones with one human would read the two-human rows, and 5-10 drones with two would
+read past the table (the spike's UBSan, MORECARS.md 2.6). In the retail cartridge no row has more than two groups, so a
+round is at most two model iterations, and the rows with two split the drones as evenly as they can, the larger part
+first (read on the Pi with gdb; the values stay there). The PC keeps every N64 row as the game's data has it and adds a
+rule past them (func_800E56F8/group.c, `pc_drone_sched`):
+
+- **Rows.** The second kind starts at `PC_DRONE_SCHED_TWO` = `PC_MAX_LINKS` + 1 (13), so a row is n for n drones with
+  one human or none and 13 + n with two, n up to 12, and the two kinds never meet. world_physics_tick's `+= 7` and
+  func_800E56F8's `>= 7`, `-= 7` use it; display_list_flush's restart (every car a drone, row `D_8015274C`) and the
+  drone's `-= 1` stay as they are.
+- **The N64's rows.** For n up to 6 (one human) and up to 4 (two), entry k is `D_80120E74[n].v[k]` and
+  `D_80120E74[7 + n].v[k]`, read as the N64 reads it, k unbounded as there.
+- **Past them.** A round has as many iterations as the N64's last row of the kind (row 6, row 11) has groups before its
+  -1; iteration k updates n / groups drones, plus one for the first n % groups: each drone once a round, and a round as
+  long as the N64's longest, so a drone's model step (the ticks since its last update) stays what the N64 gives its
+  most crowded race. With the retail cartridge's rows, 7-12 drones are two iterations a round, half the drones each;
+  with the synthetic cartridge's ({n, -1}), one, every drone.
+
+So the rule keeps a drone's step, not the number of drones an iteration: up to 6 an iteration on the PC. It reads
+only the game's data, so nothing from the cartridge is in the build. world_physics_tick.c is item 3's file for its
+other loops; the row choice at its line 388 (c1ab1d7) changed here (the car records' item left it, and item 3 doesn't
+touch the line). With 6 cars every row is one the N64 has, read as before: the default is the N64's schedule.
+
+**What the tables say.** `data_symbols.txt` loses the 8 rows; `data.c` loses their 8 `.set` lines and 8 report names
+(2,170 to 2,162 at c1ab1d7) and gains the 8 storages (`.bss`, 492 bytes); 45 diff lines. The loader's tables are the
+same (416 entries, 7,704 runs), and no ROM word pointed into the ranges. Debug and RelWithDebInfo give the same files.
+
+**Proof** (`game.cars` at `original`; "before" is a build of main c1ab1d7 and "after" the branch merged with it,
+unless a row says otherwise).
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, the build before (main, c1ab1d7) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run, each reaching its state: 6 of 6 |
+| `synth_compare.py --same --runs 2`, the same, build host (x86-64, GCC 14) | 19 of 19 paths |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 245 of 245 each (`assets_rom` skipped: no ROM there); in Debug `pak_realtime`, which measures the host's clock, failed under the other tests of `ctest -j3` (8 retraces caught up, 0 dropped) and passed alone, as CI runs it (`-L realtime`, one at a time, up to three tries) |
+| Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files (build host); before against after, `data_symbols.txt` 8 lines, `data.c` 45 |
+| the synthetic cartridge, before against after | the same file (build host and Pi) |
+| `n64_neutral.py --base 09da2f0` | passes (1,014 files: 92 code-exact, 922 shifted); against c1ab1d7, 9 changed game files under `src/`, all shifted |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after, and the same counts: offset_check 59,461 accesses on 3,468 storages, layout_check 48,102, endian_check its 2 open value conflicts in 1 storage (the same) and 3,518 puns, with one live function more (`pc_drone_sched`: 2,545); `--check-loader` 96 places, 0 wrong |
+| `layout_check.py --storage` on the 8 | 58 accesses before (on the N64 names) and after (on the PC names), the same per storage at the same offsets (one, display_list_flush's clear of the flags, unplaced in both) |
+| `bounds_check`, build host (GCC 14) | 1 new, not `clamped` or `two offsets`: CarSetup's `view` on `pc_carsetup_flags`, added to `bounds_reviewed.txt` as `[gcc14]`; the 7 entries on the retired names (CarSetup's `D_801439F8`, audio_effect_remove's three, `view` and `warn`) removed; then none new, 9 kept (as before); pairs found 96 through a variable and 44 with warnings before, 93 and 41 after (the constant and indexed ones the same). GCC 13 (CI's runner) and mingw-w64 12 not run on it |
+| `view_audit.py` | nothing to audit: the 8 are plain arrays, no record views |
+| the old window ranges filled with 0x5A at the race's start (gdb, build host, Debug): race, race2p, demo, circuit, pause | each the same trace as without; every byte of the 8 ranges still 0x5A at the end |
+| a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
+| Windows cross build (Pi, mingw-w64 12, RelWithDebInfo, fresh configure, a356a95) | builds; `gen_data.py --check --pe`: OK, 26 decoupled |
+| the PC rule on the retail cartridge's table (gdb, Pi, `pc_drone_sched` called for every row) | every PC row, 7-12 drones with one human and 5-12 with two, is two iterations whose counts add up to its drones; each of the 12 N64 rows adds up to its drones too |
+| `assets_drones`, `assets_roster` (16 slots declared) | pass, in Debug, under UBSan (`-DRUSH_SANITIZE=undefined`, build host) and under ASan + UBSan (Pi 5, GCC 12); the mutations below |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, a356a95: the branch's game C) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| after merging main 5e108ff (items 2, 4) and eb4511d (items 6, 7): ctest, build host, Debug and RelWithDebInfo, CI's way (the real-time tests alone, up to three tries) | 248 of 248 each at 5e108ff, 250 of 250 at eb4511d (`assets_rom` skipped) |
+| the same: `synth_compare.py --same --runs 2`, build host, against a build of 5e108ff, then of eb4511d | 19 of 19 paths each time |
+| the same: `data.c`, `data_symbols.txt` and the synthetic cartridge against eb4511d's | the same 8 rows and 45 lines; the same cartridge |
+| the same on the Pi against eb4511d: synth_compare on every synthetic path, the six retail scripts | 19 of 19 paths; the retail scripts 6 of 6, each reaching its state; the synthetic cartridge the same file |
+
+**The tests.** `assets_drones` (`port/assets/tests/test_drones.c`) builds func_800E56F8's group, maxpath_controls,
+audio_effect_remove and render_large_objects with `PC_MAX_LINKS` 16, so the storages have 16 entries and the
+schedule's second kind starts at 17:
+- MaxPathControls for each of 12 cars on a straight path, 400 feet apart: the steer, brake and gas land in the car's
+  slot and in its model record (+0x720, +0x728, +0x72C), the direction's x is half the slot's last one and the
+  direction to the target is kept in the slot, and every other slot's five values stay as they were; the brakes of
+  slots 7-11 differ (the gas fell below -0.75 there). audio_effect_remove clears all 16 slots' controls.
+- the camera's pick among 11 drones (slots 1-11, slot 7 not this node's): MP_IntervalPos moves it to list indices 0-5,
+  7-10 and round again, once each half second.
+- update_drone_models on the test's own table (rows 0-2 and 7-8 one group, the rest two: one drone then the others
+  with one human, the others then one with two; neither cartridge's), then on the synthetic cartridge's kind
+  ({n, -1}): for 0-6 drones with one human and 0-4 with two, 60 iterations give the same slots in the same order as
+  the N64's code on the same table (a copy of it in the test); for 7-12 and 5-10, each of 5 rounds updates every drone
+  once, in 2 iterations (1 with the second table) of n / 2 and the rest, and ends with the cursor at the first
+  drone. Then a drone done at the cursor in a race of 11 drones and two humans (6 asked, 5 updated, then 5: every
+  other drone once), and a human done (the next round on the one-human row of 10).
+- model_iteration's speed for every car with no input and no node driving it: the first 6 records with
+  `PC_RACE_CARS` 6, the first 12 with 12, never the rest.
+- DoDrones for one human (slot 4, in place 6) and 11 drones: each drone's weight is its order by place, the nearer of
+  the human's two neighbours (behind) targets the human, every other drone itself, and every drone's catch-up scale
+  moves below 1. Its locals at 6 for 12 cars pass these checks in a plain build (the overrun lands where no check
+  looks); the sanitizer job's UBSan stops the test (`index 6 out of bounds for type 'S16 [6]'`, checked on the build
+  host).
+
+`assets_roster`'s new case runs munge for 12 slots: one human and 11 drones (slot 7 a drone another node drives: in
+`pc_drones`, not in `pc_our_drones`), then the attract demo's 12 drones; every active slot is counted and listed in
+order, the lists' entries after the last stay as they were, and the model records 12-15 are cleared.
+
+| Mutation | Checks that fail |
+|---|---|
+| `PC_MP_BRAKE` reading the gas | 38 (assets_drones) |
+| `PC_MP_DIR` reading the direction to the target | 23 |
+| the second kind of row at 7 (`PC_DRONE_SCHED_TWO`) | 21 |
+| every drone each iteration past the N64's rows | 36 |
+| past them, the smaller group first | 8 |
+| model_iteration's walk at 6 | 6 |
+| audio_effect_remove clearing 6 | 10 |
+| munge's clear up to `MAX_LINKS` (6) | 8 (assets_roster) |
+| munge listing the drones in `pc_our_drones` | 36 (assets_roster) |
+| DoDrones' locals at 6 | none in Debug; the UBSan build stops at the first overrun |
+
+**Races of 12 cars** (the branch merged with eb4511d, whose setting makes them possible: `--set game.cars=12`, and the
+drones asked raised to fill the race, which gdb did by setting `D_80142724` to 12 minus the players as CalcPolePositions
+starts, as six presses of RIGHT on the Drones option would; Debug, Pi, the retail cartridge). One player and 11 drones
+on `race` and on `drive` (gas and steering, to 107 s of game time, then to 147 s), two players and 10 drones on
+`race2p`, and the attract demo's 12 drones: each reached its state with no fault, the schedule's rows 11, 13 + 10 and
+12, every car at a place of its own, 0 to 11, and every car moving at the end, but on `drive` at 107 s a drone just
+crashed, moving again at 147 s; no pool ran out (item 2's marks). The same four under ASan + UBSan (the whole game, Pi,
+GCC 12): no fault, and one UBSan report in each, `route_cross/group.c:164`'s `s16 [17]` at 17, which 6 cars give too
+(MORECARS.md 9). On 5e108ff, without this item, the same race faulted in the model thread as the countdown began
+(MORECARS.md 7.1). The synthetic cartridge (build host) ran `race`, `race2p`, `drive` and `demo` the same way: each
+reached its state, no fault, the 12 cars on `drive` at 12 places, all moving.
+
+**Left to others.** Nothing in these files: item 3's first part (597098e) did the rest of MORECARS.md 3.1 around them
+(world_physics_tick's first distances and its reset of the slots after the race's, set_catchup, car_setup_confirm's
+locals), and relies on munge's clear reaching `PC_MODEL_SLOTS` (above) so that LoadCars, which reads every record's
+drone type below the race's cars, doesn't load cars for records an earlier race of more cars left as drones. DoDrones
+reads the circuit's per-slot ratings `D_80154484[slot][38]` in mode 3 only: the circuit stays 6 cars (MORECARS.md
+3.3). MORECARS.md 2.3 lists `D_80153F48` and `D_80153F68` as 32 bytes, 8 by the gap: they are 24, with HAL_DrawText's
+statics after them.
