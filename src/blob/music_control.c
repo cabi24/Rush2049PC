@@ -139,16 +139,20 @@ static void StartArrow(s16 slot)
     }
 }
 
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void music_control(void)
 {
     s16 i;
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < PC_RACE_CARS; i++) {
         if (PC_MODEL_ACTIVE(i)) {
             music_seq_load(i, 15, 1);
             audio_frame_update(i);
         }
     }
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < PC_RACE_CARS; i++) {
         if (PC_MODEL_ACTIVE(i)) {
             StartShadow(i);
             if (active_player_count > 1 && PC_LINK_OWNER(i) == 6) StartArrow(i);

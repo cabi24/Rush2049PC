@@ -41,6 +41,10 @@ extern Model D_8014A250[6];
 #define PC_MODEL_ITERATION(i) D_8014A250[i].unk710
 #endif
 
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void func_800E762C(s32 arg0)
 {
     f32 q;
@@ -66,5 +70,5 @@ loop:
         PC_MODEL_MODEL_TIME(i) = D_801543CC;
     }
     i++;
-    if (i < 6) goto loop;
+    if (i < PC_RACE_CARS) goto loop;
 }

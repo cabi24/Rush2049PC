@@ -248,6 +248,17 @@ extern void func_800B27E4(Player *);
 extern void func_800EC270(Car *,Player *);
 extern float sqrtf(float);
 #pragma intrinsic (sqrtf)
+#ifdef TARGET_PC
+/* PC: a race of more cars than the N64's 6 (docs/port/MORECARS.md 3.1). A human's first distance puts it behind
+ * every drone: minus the larger of 6 and the race's cars, plus its slot, which is the N64's -(6 - i) in any race of
+ * 6 or fewer. The records after the race's cars are reset up to the most a PC race holds, whatever an earlier race
+ * of more cars left in them. */
+#define GRID_CARS (D_801543CA > PC_N64_CARS ? D_801543CA : PC_N64_CARS)
+#define CLEAR_SLOTS PC_MODEL_SLOTS
+#else
+#define GRID_CARS 6
+#define CLEAR_SLOTS 6
+#endif
 s32 func_800B930C(s32 index) {if(index+1 == D_80151CE8.count)return D_80151CE8.first;return index+1;}
 void world_physics_tick(void) {
     s32 i,j,index;
@@ -270,7 +281,7 @@ void world_physics_tick(void) {
         player->byte862=2;
         player->byte860=-1;
         player->byte861=player->byte862;
-        index=PC_LINK_OWNER(i)==6?6-i:i-D_8014A108+1;
+        index=PC_LINK_OWNER(i)==6?GRID_CARS-i:i-D_8014A108+1;
         player->distance=(float)-index;
         car->byte2027=1;
         car->byte2026=1;
@@ -362,7 +373,7 @@ void world_physics_tick(void) {
             }
         }
     }
-    for(i=D_801543CA;i<6;i++) {
+    for(i=D_801543CA;i<CLEAR_SLOTS;i++) {
         car=PC_MODEL(i);
         car->half1994=PC_LINK_OWNER(i)==0;
         car->byte1996=0;

@@ -149,6 +149,10 @@ void func_800B9F60(s32 idx, s32 seg, s32 *nidx, s32 *nseg);
 void func_800A61B0(f32 *in, f32 *out, f32 (*uvs)[3]);
 f32 func_8008C768(f32 x, f32 z);
 
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void menu_controller_remap(void) {
     s16 i;
     s16 node;
@@ -168,7 +172,7 @@ void menu_controller_remap(void) {
     s32 seg;
 
     if (D_801543CC < 5.0f) {
-        for (i = 0; i < 6; i++) {
+        for (i = 0; i < PC_RACE_CARS; i++) {
             PC_MODEL_STUCK_TIME(i) = 0.0f;
             PC_CAR_FWD_PROGRESS(i) = 0.0f;
             PC_CAR_HEADING(i) = 0.0f;

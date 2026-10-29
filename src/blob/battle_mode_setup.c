@@ -59,12 +59,16 @@ extern CAR_DATA D_80152818[6];
 void math_utility(void *src, void *dst);
 void sound_position_set(F32 *rv, void *uvs);
 
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void battle_mode_setup(F32 time) {
     MODELDAT *m;
     S32 i;
     F32 deltime, temp[3];
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < PC_RACE_CARS; i++) {
         m = PC_MODEL(i);
         if (m->in_game && PC_CAR_STATE(i) < 2) {
             deltime = (time - m->lasttime) * m->time_fudge;
