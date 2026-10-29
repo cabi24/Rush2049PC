@@ -130,8 +130,8 @@ engine phase and finish cameras, [DECOUPLE.md](DECOUPLE.md) 7) is filled from th
 (section 4, step 4).
 A **reserved** symbol (`port/data/reserved.txt`) is PC data with no N64 symbol that must still sit in the window,
 because something keeps its address as a 32-bit N64 address: data.c defines it absolute at the address the rule
-gives, at the size of its one declaration (laid out alike on the N64 and the host), inside a range a decoupled item
-freed and over no placed symbol; it is zeroed with the arena's BSS, the loader's tables and `data_symbols.txt` don't
+gives, at the size of its one declaration (laid out alike on the N64 and the host), in the game's BSS inside a range
+a decoupled item freed, and over no placed symbol; it is zeroed with the arena's BSS, the loader's tables and `data_symbols.txt` don't
 have it, `data_layout.txt` lists it under "Reserved", and `--check` verifies it in the executable. The first is
 GetMatrix's spill, `pc_matrix_spill` at 0x8014A250 ([MORECARS.md](MORECARS.md) 8).
 

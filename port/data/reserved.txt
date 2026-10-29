@@ -3,8 +3,9 @@
 #
 # PC_NAME is declared once for the game C (port/include/pc_game_types.h); data.c defines it as an absolute symbol at
 # ADDRESS, the size its declaration gives (every reader's must be the same type, laid out alike on the N64 and the
-# host), zeroed with the arena's BSS and not in the loader's tables. The range must lie inside a range a decoupled
-# item freed (port/data/decoupled.txt) and over no placed symbol or other reservation; the build fails otherwise, and
+# host), zeroed with the arena's BSS and not in the loader's tables. The range must lie in the game's BSS, inside a
+# range a decoupled item freed (port/data/decoupled.txt), and over no placed symbol or other reservation (an
+# initialized item's range gets the image's bytes at load); the build fails otherwise, and
 # gen_data.py --check fails if the executable doesn't have it there.
 
 # GetMatrix's persistent matrices past the N64's 150 (func_800A7D6C): float[PC_MATRIX_SPILL][12], 48 bytes each,

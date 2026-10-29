@@ -745,6 +745,9 @@ def reserved_place(r, decls, tags, decoupled, syms, others):
             any(x[0] in (K_PTR, K_S32_64, K_U32_64) or x[2] != x[3] or x[5] != x[6] for x in runs):
         sys.exit(f"gen_data: {r.pc} ({r.where}): {r.disp} needs one layout on the N64 and the host, with a size")
     hi = r.lo + r.size
+    w = arena_of(r.lo, {"game"})
+    if not w or not w[1] or arena_of(hi - 1, {"game"}) != w:   # BSS: the loader zeroes it, copies nothing into it
+        sys.exit(f"gen_data: {r.pc} ({r.where}): 0x{r.lo:08X}-0x{hi:08X} is not inside the game's BSS")
     if not any(d.lo <= r.lo and hi <= d.lo + d.size for d in decoupled):
         sys.exit(f"gen_data: {r.pc} ({r.where}): 0x{r.lo:08X}-0x{hi:08X} is not inside a range a decoupled item "
                  f"freed (port/data/decoupled.txt)")
