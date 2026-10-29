@@ -408,17 +408,18 @@ arrays; on the N64 a 7th car's brake would have changed the text's colour state.
 (`D_80152768`, `D_8015274C`, `D_80153FD2`: s16) hold 12; the schedule's state (`D_80153E84`, `D_80153F08`,
 `D_80153F24`, `D_80153F40`) is scalars.
 
-**Inventory.** nm over `game_objects.txt` (main, 8ff5be1, build host; 597098e changes no use of them): `D_801527D8` 3 objects (func_800EC914,
-maxpath_controls/group.c, nonmatching/display_list_flush.c), `D_80152808` 3 (func_800EC914, func_800E56F8/group.c,
-display_list_flush), `D_80153F28`, `D_80153F48`, `D_80153F68` 2 each (audio_effect_remove, maxpath_controls),
-`D_80153F88`, `D_80154138` 1 each (maxpath_controls), `D_801439F8` 2 (CarSetup, display_list_flush): 6 objects, no
-context copies. Every file declares them as what they are (s16 lists, f32 and f32[3] by slot, bytes), but two through a
-scalar and a cast: audio_effect_remove's `((f32 *) &D_80153F28)[i]` (its m2c block declares `D_80153F48` and
-`D_80153F68` as s32, stored as f32) and CarSetup's `(u8 *) &D_801439F8 + slot` (declared s32, stored as s8). The image
-symbol tables name one address inside the extents, `D_801439FE` (+6 of the flags: display_list_flush's loop end), which
-no C names. The other names nearby are neighbours used by their own names: `D_80153F40` (the cursor), the HAL_DrawText
-statics, `D_80153FD2`, `D_801527E4` (a message queue's buffer, 11 objects), `D_80154138` as display_settings' end of
-`D_80153FD8` (by index on the PC), `D_801439F8` as func_80105B74's end of `D_801439D8` (likewise).
+**Inventory.** nm over `game_objects.txt` (main, 8ff5be1, build host; 597098e changes no use of them): `D_801527D8` 3
+objects (func_800EC914, maxpath_controls/group.c, nonmatching/display_list_flush.c), `D_80152808` 3 (func_800EC914,
+func_800E56F8/group.c, display_list_flush), `D_80153F28`, `D_80153F48`, `D_80153F68` 2 each (audio_effect_remove,
+maxpath_controls), `D_80153F88`, `D_80154138` 1 each (maxpath_controls), `D_801439F8` 2 (CarSetup, display_list_flush):
+6 objects, no context copies. Every file declares them as what they are (s16 lists, f32 and f32[3] by slot, bytes), but
+two through a scalar and a cast: audio_effect_remove's `((f32 *) &D_80153F28)[i]` (its m2c block declares `D_80153F48`
+and `D_80153F68` as s32, stored as f32) and CarSetup's `(u8 *) &D_801439F8 + slot` (declared s32, stored as s8). The
+image symbol tables name one address inside the extents, `D_801439FE` (+6 of the flags: display_list_flush's loop end),
+which no C names. The other names nearby are neighbours used by their own names: `D_80153F40` (the cursor), the
+HAL_DrawText statics, `D_80153FD2`, `D_801527E4` (a message queue's buffer, 11 objects), `D_80154138` as
+display_settings' end of `D_80153FD8` (by index on the PC), `D_801439F8` as func_80105B74's end of `D_801439D8`
+(likewise).
 
 **What holds an address.** Nothing in memory. A scan of the four images inflated from the retail cartridge (in memory,
 on the Pi) found no data word in any of the ranges, and code references (a `lui` of the high half and an offset in
