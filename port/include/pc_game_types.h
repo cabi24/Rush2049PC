@@ -43,8 +43,8 @@ int pc_cars_setting(void);
 #endif
 #define PC_MATRICES (PC_N64_MATRICES + PC_MATRIX_SPILL)
 extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
-/* The scene nodes (func_8008E26C: D_8012E700, own storage), the N64's 600 and checked: about 18 a car, a 12-car race
- * on the retail tracks takes up to 526 in two views. */
+/* The scene nodes (func_8008E26C: D_8012E700, own storage), the N64's 600 and checked: 12-13 a car on the retail
+ * tracks, where a 12-car race takes up to 526 (two views; a 6-car one 454). */
 #define PC_SCENE_NODES 600
 /* The frame's command buffers, two that alternate (pc_frame_dl, initgraphics/initgfx.c; gfx_frame_begin.c): 1,728
  * bytes of viewports, vertices, projections, lookats and the identity (particle_knot's GfxBuf), PC_FRAME_MATRICES
