@@ -507,10 +507,17 @@ add_test(NAME synth_rom COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_rom.py --out ${
 set_tests_properties(synth_rom PROPERTIES FIXTURES_SETUP synth_rom)
 file(GLOB SYNTH_PATHS CONFIGURE_DEPENDS ${PORT_TOOLS}/synth/*.press)
 set(SYNTH_BOOT_TESTS)
+# A sanitizer build runs the paths many times slower: under ASan on CI's 4-core arm runner 17-37 times (battle2p 4 s
+# to 135 s, drive about 375 s alone), its stack-use-after-return checks among the cost.
+set(SYNTH_PATH_TIMEOUT 300)
+if(PC_SANITIZE)
+    set(SYNTH_PATH_TIMEOUT 1500)
+endif()
 foreach(script ${SYNTH_PATHS})
     get_filename_component(name ${script} NAME_WE)
     add_test(NAME synth_boot_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_paths.py
-        --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths ${name})
+        --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths
+        --timeout ${SYNTH_PATH_TIMEOUT} ${name})
     set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150)
     list(APPEND SYNTH_BOOT_TESTS synth_boot_${name})
     # a path on the host's clock (`# realtime`: the race) runs alone under `ctest -j`, as the other real-time tests,
@@ -848,10 +855,10 @@ add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
 # A sanitizer build runs the programs several times slower: the tests that start the game many times get more time,
-# and so do the synthetic paths (100-150 s each under ASan on CI's 4-core arm runner, four at once; SANITIZE.md 5).
+# and so do the synthetic paths (SYNTH_PATH_TIMEOUT; docs/port/SANITIZE.md 5).
 if(PC_SANITIZE)
     set_tests_properties(app_firstrun hfr_timing PROPERTIES TIMEOUT 1200)
-    set_tests_properties(${SYNTH_BOOT_TESTS} PROPERTIES TIMEOUT 600)
+    set_tests_properties(${SYNTH_BOOT_TESTS} PROPERTIES TIMEOUT 1800)
 endif()
 
 # ---------------------------------------------------------------- install (docs/port/RELEASE.md)

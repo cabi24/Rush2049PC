@@ -347,8 +347,9 @@ the busy Pi, so ctest leaves it at the runtime's default; set it by hand for a h
 randomization, which can put a mapping inside their shadow. On the build host the UBSan build and its whole ctest
 take under 3 minutes at -j12/-j3; on CI's 4 cores, about the Debug job's time again, less with its ccache (keyed
 apart from the other jobs'). `app_firstrun` and `hfr_timing`, which start the game many times, get 1,200 s in a
-sanitizer build, and the synthetic paths 600 s (100-150 s each there, four at once, against their 150 s); under ASan
-`hfr_timing` runs `drive` alone, its three paths having taken over 1,200 s. A finding fails the job.
+sanitizer build, and the synthetic paths 1,500 s a run (`synth_paths.py --timeout`): ASan on the arm runner runs them
+17-37 times slower (`battle2p` 4 s to 135 s, `drive` about 375 s alone), its stack-use-after-return checks among the
+cost; under ASan `hfr_timing` runs `drive` alone, its three paths having taken over 1,200 s. A finding fails the job.
 
 TSan isn't in CI: it only runs on x86-64, half its reports are the driver's, and the scheduler's design (one N64
 thread at a time) leaves it little to find. Run it after changing the threads, the audio device thread or the log.

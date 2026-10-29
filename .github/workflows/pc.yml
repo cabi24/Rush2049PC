@@ -19,12 +19,12 @@ jobs:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
         build: [Debug, RelWithDebInfo]
         include:
-          # Two of the high frame rate's pacing checks, whose bounds are the host's own (at most 10% of the vblanks
-          # lost to skipped ticks, frames between at least half of vsync off's): llvmpipe on the 4-core arm runner
-          # draws about 150 of a race's 900 frames between, and lands on both bounds' edges run after run (12% lost,
-          # 70 of 75). They run on the x86-64 runners, whose pacing is the same C.
+          # The high frame rate's pacing checks, whose bounds are the host's own (at most 10% of the vblanks lost to
+          # skipped ticks, frames between at least half of vsync off's): llvmpipe on the 4-core arm runner draws
+          # about 150 of a race's 900 frames between, and lands on the bounds' edges run after run (10-13% lost, 70
+          # of 75), three tries alike. They run on the x86-64 runners, whose pacing is the same C.
           - os: ubuntu-24.04-arm
-            skip_tests: '^(hfr_paced_queue|hfr_paced_60)$'
+            skip_tests: '^(hfr_paced|hfr_paced_queue|hfr_paced_60)$'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -203,7 +203,7 @@ jobs:
             skip_tests: >-
               ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|synth_boot_race|pak_realtime)$
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies

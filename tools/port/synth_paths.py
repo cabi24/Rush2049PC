@@ -51,7 +51,7 @@ def read_script(path):
     return spec
 
 
-def run(name, exe, rom, logs):
+def run(name, exe, rom, logs, timeout=300):
     spec = read_script(PRESS_DIR / f"{name}.press")
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve()), "--no-rom-check", "--headless", "--no-config",
            "--audio", "null", "--no-pak", "--log", f"{name}.game.log", "--press-file", str(PRESS_DIR / f"{name}.press"),
@@ -66,7 +66,7 @@ def run(name, exe, rom, logs):
     env = dict(os.environ, RUSH_TRACE_WAVES="1")
     t0 = time.time()
     try:
-        p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
+        p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
         out, code = p.stdout.decode(errors="replace"), p.returncode
     except subprocess.TimeoutExpired as e:
         out, code = (e.stdout or b"").decode(errors="replace") + "\nsynth_paths: timed out\n", -1
@@ -113,11 +113,13 @@ def main():
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
     ap.add_argument("--rom", default=str(ROOT / "build/synth/rush2049_synth.z64"))
     ap.add_argument("--logs", default=str(ROOT / "build/synth/paths"))
+    ap.add_argument("--timeout", type=float, default=300, help="seconds a path's run may take (a sanitizer build "
+                    "needs several times the default)")
     ap.add_argument("names", nargs="*", help="the paths to run (default: every tools/port/synth/*.press)")
     args = ap.parse_args()
     names = args.names or sorted(p.stem for p in PRESS_DIR.glob("*.press"))
     Path(args.logs).mkdir(parents=True, exist_ok=True)
-    failed = sum(not run(n, args.exe, args.rom, args.logs) for n in names)
+    failed = sum(not run(n, args.exe, args.rom, args.logs, args.timeout) for n in names)
     if len(names) > 1:
         print(f"synth_paths: {len(names) - failed} of {len(names)} paths reached")
     sys.exit(failed)
