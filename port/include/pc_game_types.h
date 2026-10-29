@@ -206,6 +206,19 @@ struct pc_visual {
     void (*func)(void *, short);
 };
 
+/* The drone's path state inside the car record (maxpath's Nav, func_800C4CF8's Region): no pointers, the same layout
+ * on both. Code takes its address (&PC_CAR_NAV(i)) and reads it in its own view. */
+struct pc_car_nav {
+    float a, b, c, d;                   /* +0x00 */
+    float spd;                          /* +0x10 the target speed */
+    float tgt[3];                       /* +0x14 the target point */
+    float tm;                           /* +0x20 the model time it was set */
+    short pt;                           /* +0x24 the point on the path */
+    short flag;                         /* +0x26 */
+    short sel;                          /* +0x28 the path (Region's path) */
+    short tk;                           /* +0x2A */
+};
+
 struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS(n) */
     unsigned char pad000[0x008];
     float pos[3];                       /* +0x008 the position (MAT3 dr_pos), what the cameras and effects follow */
@@ -228,7 +241,7 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     unsigned char pad10C[0x110 - 0x10C];
     struct pc_visual visuals[21];       /* +0x110 the car's visuals (tVisual; the weapon's is [20]) */
     unsigned char pad308[0x314 - 0x308];
-    unsigned char nav[0x340 - 0x314];   /* +0x314 the drone's path state (maxpath's Nav, Region) */
+    struct pc_car_nav nav;              /* +0x314 the drone's path state (maxpath's Nav, Region) */
     float fwd_progress;                 /* +0x340 */
     unsigned char pad344[0x34C - 0x344];
     unsigned int ir_color;              /* +0x34C the IR colour (tRGBA's word) */
