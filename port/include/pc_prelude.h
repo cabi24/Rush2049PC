@@ -77,15 +77,8 @@ void pc_os_idle(void);
 #define N64_ONLY(stmt)
 #define PC_ONLY(stmt) stmt
 
-/* A car visual (tVisual: N64 0x18 bytes, PC 0x20) on the PC, for views of the car record that pad over the
- * car's 21 visuals at +0x110: next and func are host pointers there, data a u32 (docs/port/CARS.md). */
-struct pc_visual {
-    void *next;
-    short index, objnum, slot;
-    unsigned int data;
-    float timeStamp;
-    void (*func)(void *, short);
-};
+/* A car visual (tVisual: N64 0x18 bytes, PC 0x20), struct pc_visual, is declared with the car record in
+ * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
 
 /* NewMultiBlit's descriptor (sound_control; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
  * animation function being pointers. A file whose declaration of such a table has no layout (s32, u8[]) declares it
@@ -184,7 +177,8 @@ static __inline__ unsigned int pc_mips_d2u(double d)
 #define N64_F2U(x) pc_mips_f2u(x)
 #define N64_D2U(x) pc_mips_d2u(x)
 
-/* Game data the PC owns, with no N64 address: the race roster (docs/port/DECOUPLE.md). */
+/* Game data the PC owns, with no N64 address: the race roster, the model records, the car records
+ * (docs/port/DECOUPLE.md). */
 #include "pc_game_types.h"
 
 #endif
