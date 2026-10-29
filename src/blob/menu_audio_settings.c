@@ -12,7 +12,8 @@ extern s8 D_8017A4D8;
 extern int gameplay_mode;
 #ifdef TARGET_PC
 /* The loop's end is the model records' end, the next symbol on the N64 (D_8014D280, the level-object nodes): on
- * the PC the records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+ * the PC the records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md), and the end is
+ * that of the race's cars, PC_RACE_CARS records (docs/port/MORECARS.md 3.1). */
 #else
 extern Vehicle2056 D_8014D280[];
 #define PC_MODELS_END D_8014D280

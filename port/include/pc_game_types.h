@@ -27,6 +27,8 @@
  * ini code. */
 #define PC_N64_CARS 6
 int pc_race_cars(void);
+void pc_race_cars_begin(void);
+int pc_cars_setting(void);
 #define PC_RACE_CARS (pc_race_cars())
 
 struct pc_link {
@@ -137,12 +139,12 @@ struct pc_model {
 };
 extern struct pc_model pc_models[PC_MODEL_SLOTS];
 
-/* The accessors: the array (PC_MODELS), record i's address (PC_MODEL) and the end of the N64's 6 (PC_MODELS_END:
- * menu_audio_settings walks the cars up to it, which on the N64 is the next symbol, D_8014D280), all void * so each
- * file's own view pointer takes them, and record i's fields. */
+/* The accessors: the array (PC_MODELS), record i's address (PC_MODEL) and the end of the race's cars (PC_MODELS_END,
+ * the first PC_RACE_CARS records: menu_audio_settings walks the cars up to it, which on the N64 is the next symbol,
+ * D_8014D280, the end of its 6), all void * so each file's own view pointer takes them, and record i's fields. */
 #define PC_MODELS ((void *)pc_models)
 #define PC_MODEL(i) ((void *)&pc_models[i])
-#define PC_MODELS_END ((void *)&pc_models[PC_N64_MODEL_SLOTS])
+#define PC_MODELS_END ((void *)&pc_models[PC_RACE_CARS])
 #define PC_MODEL_CAR(i) (pc_models[i].car)
 #define PC_MODEL_BODY(i) (pc_models[i].body)
 #define PC_MODEL_INPUT_FLAGS(i) (pc_models[i].input_flags)
