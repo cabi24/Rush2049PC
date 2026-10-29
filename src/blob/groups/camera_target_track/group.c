@@ -82,7 +82,7 @@ extern List D_801461B0;
 #define PC_OBJ_OR_UNLOCK_CAM(o,c) \
     if((o)==0){func_80091FBC(&D_801461B0,(Link*)(c),D_801461B0.head);osSendMesg(&D_80142728,0,0);return -1;}
 #define PC_OBJ_SEND(q,o) if(osSendMesg(q,o,0)!=0)(o)->p3=0
-/* So can the tags (D_80143FF8: 2 a voice, at most 64, and 16 without the Expansion Pak, hud_setup), which
+/* So can the tags (D_80143FF8: 80 with the Expansion Pak, 16 without, as hud_setup makes them), which
  * func_80092278 takes from the list's head unchecked: in a race of more cars than the N64's 6 their engines can take
  * the last one (docs/port/MORECARS.md 6). A start that finds none gives its message back (the in-use byte, +3) and
  * is not started either. */
