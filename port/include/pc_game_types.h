@@ -70,7 +70,8 @@ int pc_frame_pools(const void *frame, const void *glist_end, const void *matrice
  * place of 6 or more (index + 6, 6 in a ghost race), so places 6-11 have no grid row. On the PC a respawn is a place
  * of PC_RESPAWN_BASE or more and reads the ROM's respawn rows as before (place - PC_RESPAWN_BASE + 6), and
  * pc_pole_row gives every start place a row: 0-5 the loaded table's, 6 on the two columns continued backwards at
- * the loaded rows' spacing (groups/resurrect/resurrect.c). */
+ * the loaded rows' spacing; a place from 6 on starts from the resurrection path's point its row's distance behind the
+ * start point, so the rows follow the road (groups/resurrect/resurrect.c: pc_grid_start). */
 #define PC_RESPAWN_BASE PC_MAX_LINKS
 float *pc_pole_row(int place);
 
