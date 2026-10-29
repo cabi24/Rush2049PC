@@ -96,7 +96,7 @@ extern volatile s16 D_80153FD2; /* num_humans */
 extern s16 D_80143A40[];      /* humans */
 #ifdef TARGET_PC
 /* On the PC the drone lists are pc_drones and pc_our_drones, with no N64 address (pc_game_types.h,
- * docs/port/DECOUPLE.md 6), and the slots after the race's are cleared up to the model records' PC_MODEL_SLOTS. The
+ * docs/port/DECOUPLE.md 8), and the slots after the race's are cleared up to the model records' PC_MODEL_SLOTS. The
  * human list keeps its N64 storage: the humans are the players, 4 at most. */
 #else
 extern s16 D_801527D8[];      /* drones */

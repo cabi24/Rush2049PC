@@ -2694,10 +2694,13 @@ extern s32 D_80152038;
 extern s32 D_80152040;
 extern s32 D_80152050;
 #ifdef TARGET_PC
-/* 12-byte records (x, y, z) per car: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
-extern s32 D_80152218[];
+/* On the PC the cars' last positions (12-byte records, x, y, z) are pc_cp_last_pos, with no N64 address
+ * (pc_game_types.h, docs/port/DECOUPLE.md 7). */
 #else
 extern s32 D_80152218;
+#define PC_CP_LAST_POS_X(i) *(f32 *) ((u8 *) &D_80152218 + i * 12)
+#define PC_CP_LAST_POS_Y(i) *(f32 *) ((u8 *) &D_80152218 + i * 12 + 4)
+#define PC_CP_LAST_POS_Z(i) *(f32 *) ((u8 *) &D_80152218 + i * 12 + 8)
 #endif
 extern u8 D_80152260;
 extern u8 D_80152360;
@@ -3824,8 +3827,8 @@ void func_800FBE60(void)
   D_80152031 = 0;
   for (i = 0; i < (s8) D_80152744; i++) {
     *(f32 *) (PC_CARS + i * CAR_OFS(952) + 264) = 0.0f;
-    *(f32 *) ((u8 *) &D_80152218 + i * 12) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 8);
-    *(f32 *) ((u8 *) &D_80152218 + i * 12 + 4) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 12);
-    *(f32 *) ((u8 *) &D_80152218 + i * 12 + 8) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 16);
+    PC_CP_LAST_POS_X(i) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 8);
+    PC_CP_LAST_POS_Y(i) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 12);
+    PC_CP_LAST_POS_Z(i) = *(f32 *) (PC_CARS + i * CAR_OFS(952) + 16);
   }
 }

@@ -728,6 +728,20 @@ int pc_data_load_image(const PcDataTables *t, int image)
                 memcpy(s->host, st->snapshot[i], s->host_size);
         }
     }
+    /* Decoupled data the image initializes: its N64 bytes converted into the first elements, the rest continued. */
+    for (uint32_t i = 0; i < t->n_inits; i++) {
+        const PcDataInit *d = &t->inits[i];
+        if (d->image != image)
+            continue;
+        uint32_t base = d->n64_addr - img_base;
+        uint8_t *h = d->host;
+        if (base > img_size)
+            base = img_size;
+        convert_runs(t, d->run_first, d->run_count, img + base, d->n64_size, img_size - base, h, d->host_size, image,
+                     d->name, !g_scan);
+        for (uint32_t o = d->host_init; d->period && o < d->host_size; o++)
+            h[o] = h[o - d->period];
+    }
     for (uint32_t i = 0; is_overlay(t, image) && st->loaded && st->crange_snapshot && i < t->n_cranges; i++) {
         const PcDataCRange *r = &t->cranges[i];
         if (r->image == image && st->crange_snapshot[i])

@@ -109,7 +109,7 @@ extern s16 D_80152768;          /* num_drones */
 extern s16 D_80153FD2;          /* num_humans */
 #ifdef TARGET_PC
 /* On the PC the drone lists and CarSetup's flags are pc_drones, pc_our_drones and pc_carsetup_flags, PC_MAX_LINKS
- * long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+ * long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
 #else
 extern s16 D_801527D8[];        /* drones */
 extern s16 D_80152808[];        /* our_drones */

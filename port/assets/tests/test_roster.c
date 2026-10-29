@@ -6,7 +6,7 @@
  * func_8039156C names the 13 slots' cars; func_800EC190 resets the attract demo's cars; CalcPolePositions
  * (init_state_continue) fills them for a race; func_800EC914 (munge_gLink_data) counts the active ones into the
  * race's car count D_80152744 and builds the human and drone lists (pc_drones, pc_our_drones: PC_MAX_LINKS long,
- * docs/port/DECOUPLE.md 6); stat_lap_split reads a slot's owner through what was the alias D_80153E8F, +7 with a
+ * docs/port/DECOUPLE.md 8); stat_lap_split reads a slot's owner through what was the alias D_80153E8F, +7 with a
  * stride of 8.
  * A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what pc_race_cars() returns, support.c): the
  * demo's 12 drones and its camera's car going round them; CalcPolePositions for 1 or 2 humans and 10 or 11 drones,

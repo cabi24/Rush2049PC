@@ -124,7 +124,9 @@ A **decoupled** symbol (`port/data/decoupled.txt`) has neither: the PC owns it w
 defines it outside the window at its host size, and its N64 name and every name inside its N64 extent are retired
 ([DECOUPLE.md](DECOUPLE.md)). The first is the race roster, `pc_links` (was `D_80153E88`), the second the model
 records, `pc_models` (was `D_8014A250`), the third the car records, `pc_cars` (was `D_80152818`, which was own
-storage: it leaves the loader's table).
+storage: it leaves the loader's table). One that was initialized data (`init=image`: the cars' sounds-started flags,
+engine phase and finish cameras, [DECOUPLE.md](DECOUPLE.md) 7) is filled from the image when the image loads
+(section 4, step 4).
 
 **Why the window can hold them.**
 - Those ranges are free on the PC. No code is linked there (the game's code is host code), the heap starts at
@@ -190,9 +192,12 @@ and `layout/game.json` agree with each other.
 2. Each arena, in place in the window: copy the initialized part, zero the BSS, byte-swap every described element.
    Pointers stay N64 addresses there (in host byte order).
 3. Each symbol with its own storage: convert from the image element by element through its runs.
-4. Game-C data in a runtime image: its bytes are saved at startup and put back on every load (zeroed if BSS): the
+4. Each decoupled symbol whose N64 data the image initialized (`pc_inits`, [DECOUPLE.md](DECOUPLE.md) 7): its first
+   elements converted from the image's bytes at the retired N64 address, the rest zero or continuing them with a
+   period. It has no N64 address the tables resolve, and the arena's bytes there are left as the image has them.
+5. Game-C data in a runtime image: its bytes are saved at startup and put back on every load (zeroed if BSS): the
    symbols the tables name, and each image's C range, which holds its file-local statics too (section 5).
-5. After the first load, the runtime images' arenas are cleared (section 3).
+6. After the first load, the runtime images' arenas are cleared (section 3).
 
 Pointer values are turned into host pointers in this order:
 

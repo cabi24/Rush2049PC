@@ -84,8 +84,15 @@ typedef struct ObjInstance { unsigned int flags; char pad4[4]; tUVMatrix *mat; f
 extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;         /* gFrameSeconds */
 extern f32 D_801543CC;                  /* gModelTime */
+#ifdef TARGET_PC
+/* On the PC the blasts and their rings are pc_blasts and pc_blast_rings, PC_MAX_LINKS long, with no N64 address
+ * (pc_game_types.h, docs/port/DECOUPLE.md 6), with these views' MAT3 field names. */
+#define D_80154660 pc_blasts
+#define D_80154FD8 pc_blast_rings
+#else
 extern tBlastStruct D_80154660[];       /* gBlastObjs */
 extern tBlastRingStruct D_80154FD8[];   /* gBlastRingObjs */
+#endif
 extern tBlastMat D_8013C238[];          /* gBlastMats */
 extern s16 D_8013C094;                  /* gBlastMatCnt */
 #ifdef TARGET_PC

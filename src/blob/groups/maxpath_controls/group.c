@@ -172,7 +172,7 @@ extern Track D_8012E5E8[];
 extern volatile s16 D_80152768;
 #ifdef TARGET_PC
 /* On the PC the drone list and maxpath's controls per car slot are pc_drones, pc_mp_steer, pc_mp_brake, pc_mp_gas,
- * pc_mp_dir and pc_mp_save_dir, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+ * pc_mp_dir and pc_mp_save_dir, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
 extern s16 D_80154182;
 #else
 extern s16 D_80154182, D_801527D8[];

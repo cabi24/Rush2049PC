@@ -94,7 +94,12 @@ extern CarData D_80152818[];
 extern Model D_8014A250[];
 #define PC_MODEL(i) (Model *)((uintptr_t)D_8014A250 + i * sizeof(Model))
 #endif
+#ifdef TARGET_PC
+/* On the PC the cars' checkpoint state is PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
+#else
 extern f32 D_80152218[][3];
+#define PC_CP_LAST_POS(i) D_80152218[i]
+#endif
 extern CheckPoint D_80151CF4[];
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -102,7 +107,10 @@ extern CheckPoint D_80151CF4[];
 extern Player D_80153E88[];
 #define PC_LINK_OWNER(i) D_80153E88[i].type
 #endif
+#ifndef TARGET_PC
 extern f32 D_801527E8[];
+#define PC_CP_PLANE(i) D_801527E8[i]
+#endif
 extern volatile s16 D_801543CA;
 extern s32 D_8014A110;
 extern f32 D_80152018;
@@ -135,7 +143,7 @@ void func_800F8EC8(void)
 
     for (index = 0; index < D_801543CA; index++) {
         gc = PC_CAR(index);
-        prev = D_80152218[index];
+        prev = PC_CP_LAST_POS(index);
         move[0] = gc->pos[0] - prev[0];
         move[1] = gc->pos[1] - prev[1];
         move[2] = gc->pos[2] - prev[2];
@@ -158,12 +166,12 @@ void func_800F8EC8(void)
                 if (side != m->side) {
                     m->side = side;
                     if (diff[0] * diff[0] + diff[2] * diff[2] < D_80151CF4[m->next_cp].radius) {
-                        cent_dist = plane / (plane - D_801527E8[index]);
+                        cent_dist = plane / (plane - PC_CP_PLANE(index));
                         cent_dist = D_8002EB94 * cent_dist;
                         race_countdown_display(m, gc->time - cent_dist);
                     }
                 }
-                D_801527E8[index] = plane;
+                PC_CP_PLANE(index) = plane;
             }
         }
     }

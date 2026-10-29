@@ -52,7 +52,14 @@ extern Pool D_8013F1E0;
 extern char D_8013C378[];
 #define ELEMENT_SIZE(n64, type) n64
 #endif
+#ifdef TARGET_PC
+/* On the PC the tire-effect latches are pc_tire_fx, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6),
+ * and the reset clears all PC_MAX_LINKS of them: on the N64 the 6 it has. */
+#define D_801392D8 pc_tire_fx
+#else
 extern int D_801392D8[6];
+#define PC_MAX_LINKS 6
+#endif
 extern s8 D_80156994;
 extern s8 D_8014978C;
 #ifdef TARGET_PC
@@ -78,7 +85,7 @@ void physics_collision_test(void)
 
     POOL_SETUP(D_8013F1E0, D_8013C378, 100, ELEMENT_SIZE(88, PcPuff));
     pool_linked_list_init(&D_8013F1E0);
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < PC_MAX_LINKS; i++) {
         D_801392D8[i] = 0;
     }
     if (D_80156994 || D_8014978C >= 6) {

@@ -130,7 +130,15 @@ extern Camera gCamera[];
 extern Player76 input_rec0[];
 extern Vec3 D_801526A8[];
 extern f32 D_801106A4[], D_801106B4[];
+#ifdef TARGET_PC
+/* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7), and
+ * the drone cameras are placed for every car the race holds (docs/port/MORECARS.md 3.1). */
+#define RACE_CARS PC_RACE_CARS
+#else
 extern s8 D_80110680[];
+#define PC_FINISH_CAM(i) D_80110680[i]
+#define RACE_CARS 6
+#endif
 extern s8 D_801525F8[];
 extern f32 D_80152680[];
 extern Node68 D_8012E700[];
@@ -228,7 +236,7 @@ void func_800EB90C(void)
                     break;
                 }
             }
-        } else if (D_80110680[pl->index] != 0 && view != 4) {
+        } else if (PC_FINISH_CAM(pl->index) != 0 && view != 4) {
             view = 5;
         } else if (view != 4 && (pl->edges & pl->mask)) {
             view++;
@@ -268,7 +276,7 @@ void func_800EB90C(void)
         }
     }
     func_800CFCA8();
-    for (j = 0; j < 6; j++) {
+    for (j = 0; j < RACE_CARS; j++) {
         if (PC_MODEL_ACTIVE(j) != 0 && PC_CAR_NODE(j) >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
             cam = node_camera(PC_CAR_NODE(j));
             cam->pos[0] = PC_CAR_POS(j)[0];

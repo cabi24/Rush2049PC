@@ -244,7 +244,7 @@ extern volatile s16 D_80153FD2;
 extern s16 D_8014A108,D_8015274C,D_80153F08,D_80153F24,D_80153F40;
 #ifndef TARGET_PC
 /* The drone schedule's rows for two humans or more start at 7 on the N64; on the PC past the most drones a race may
- * hold (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+ * hold (pc_game_types.h, docs/port/DECOUPLE.md 8). */
 #define PC_DRONE_SCHED_TWO 7
 #endif
 extern void *D_80110D08;

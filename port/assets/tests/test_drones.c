@@ -1,4 +1,4 @@
-/* port/assets/tests/test_drones.c: the drones (docs/port/DECOUPLE.md 6) through the game's own code, with more car
+/* port/assets/tests/test_drones.c: the drones (docs/port/DECOUPLE.md 8) through the game's own code, with more car
  * slots declared than a race holds: the drone lists pc_drones and pc_our_drones, maxpath's controls per car slot
  * (pc_mp_steer, pc_mp_brake, pc_mp_gas, pc_mp_dir, pc_mp_save_dir) and the drone schedule update_drone_models
  * walks. This test and its game objects are built with PC_MAX_LINKS 16 (CMakeLists.txt), so the storages have 16

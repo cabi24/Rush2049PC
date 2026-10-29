@@ -52,7 +52,7 @@ typedef float F32;
 
 #ifdef TARGET_PC
 /* DoDrones' locals are indexed by a car slot or count the cars: on the PC as many as a race may hold
- * (pc_game_types.h, docs/port/DECOUPLE.md 6). MAX_LINKS has no other use here. */
+ * (pc_game_types.h, docs/port/DECOUPLE.md 8). MAX_LINKS has no other use here. */
 #define MAX_LINKS PC_MAX_LINKS
 #else
 #define MAX_LINKS 6

@@ -2727,7 +2727,7 @@ extern s32 D_801527E4;
 extern s32 D_801527E8;
 extern f32 D_80152800;
 #ifdef TARGET_PC
-/* On the PC our_drones is pc_our_drones, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+/* On the PC our_drones is pc_our_drones, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
 #else
 extern s16 D_80152808[];
 #define PC_OUR_DRONE(j) D_80152808[j]
@@ -3900,7 +3900,7 @@ void model_iteration(void);
 #define PC_RACE_CARS 6
 #endif
 #ifdef TARGET_PC
-/* The drone schedule on the PC (docs/port/DECOUPLE.md 6). Row r is for n drones with one human or none (r = n) or
+/* The drone schedule on the PC (docs/port/DECOUPLE.md 8). Row r is for n drones with one human or none (r = n) or
  * with two or more (r = PC_DRONE_SCHED_TWO + n, pc_game_types.h), n up to PC_MAX_LINKS; entry k is how many drones
  * the k-th model iteration of a round updates, -1 ending the round. Where the N64 has the row (0-6 drones with one
  * human, 0-4 with two: its rows n and 7 + n) it is read from the game's data as the N64 reads it. Past them a round

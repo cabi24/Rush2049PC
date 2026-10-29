@@ -72,7 +72,13 @@ extern Car D_80152818[];
 #define PC_CAR(i) &D_80152818[i]
 #endif
 extern s32 D_80117498;
+#ifdef TARGET_PC
+/* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 6). */
+#define D_801392D8 pc_tire_fx
+#else
 extern u32 D_801392D8[];
+#endif
 extern u8 D_8013F1E0[];
 extern u16 D_8014295A[];
 extern int D_8011735C;
