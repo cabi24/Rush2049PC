@@ -15,7 +15,7 @@ symbols live), [PROTOTYPES.md](PROTOTYPES.md).
 |---|---:|---:|---|---|
 | car, `player_array[6]` | 0x3B8 | **0x468** | own storage (host, above 4 GB) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
 | visual, `tVisual` (21 per car at +0x110; the environment pool `D_80138880[100]`) | 0x18 | **0x20** | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds flags or a window address |
-| model, `pc_models[8]` (N64 `D_8014A250[6]`) | 0x808 | **0x808** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | every pointee of its five pointer fields is in the RDRAM window, so they are u32 window addresses and the N64 layout stays |
+| model, `pc_models[12]` (N64 `D_8014A250[6]`) | 0x808 | **0x808** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | every pointee of its five pointer fields is in the RDRAM window, so they are u32 window addresses and the N64 layout stays |
 | car physics descriptor (`model->car`, 0xB4) | 0xB4 | 0xB4 | the game arena (data, 0x801108D0..) | its four tire-curve pointers point at game data: u32 |
 
 Results: `view_audit.py` finds 0 disagreeing views of the car (134 views) and of the model (120), and one of the
@@ -114,7 +114,7 @@ standing for `next`.
 
 The model record keeps its N64 layout (0x808 bytes): its pointer fields are u32 window addresses on the PC, so it has
 no pointers, the 122 views (most of them padding plus a few fields) agree with it, and the 0x808 strides of m2c code
-stay right. Since 2026-10-28 it is PC data with no N64 address: `pc_models[PC_MODEL_SLOTS]` (8 records) of
+stay right. Since 2026-10-28 it is PC data with no N64 address: `pc_models[PC_MODEL_SLOTS]` (12 records) of
 `struct pc_model` in `port/include/pc_game_types.h`, which names the 45 fields the game reaches by index; the game
 reaches them through `PC_MODEL_<FIELD>(i)`, a record through `PC_MODEL(i)` in its own view, and the names that were
 inside the array (`D_8014A964` and 10 others) are the accessors of the fields they named ([DECOUPLE.md](DECOUPLE.md)
@@ -166,7 +166,7 @@ The physics descriptor keeps its N64 layout too, since it is arena data: its tir
 | | Before | After |
 |---|---:|---:|
 | `player_array` storage | 6,720 B (1,120 a car), link warning | 6,768 B (0x468 a car), no warning |
-| `D_8014A250` storage | own, 12,384 B (0x810 a model) | arena at 0x8014A250, 12,336 B; since DECOUPLE.md 3, `pc_models`: own, 16,448 B (8 of 0x808) |
+| `D_8014A250` storage | own, 12,384 B (0x810 a model) | arena at 0x8014A250, 12,336 B; since DECOUPLE.md 3, `pc_models`: own, 24,672 B (12 of 0x808) |
 | gen_data pointer conflicts, all symbols / these | 394 / 154 | 241 / 1 |
 | view_audit, car views disagreeing | 137 of 140 | 0 of 134 |
 | model views with pointer fields | 15 | 0 (120 views agree) |

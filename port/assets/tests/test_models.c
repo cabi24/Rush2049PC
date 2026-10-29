@@ -1,7 +1,7 @@
 /* port/assets/tests/test_models.c: the model records (MAT3 model[]: pc_models, struct pc_model,
  * port/include/pc_game_types.h) through the game's own readers and writers, with more records declared than the
  * game walks (docs/port/DECOUPLE.md). This test and its game objects are built with PC_MAX_LINKS 16
- * (CMakeLists.txt), so the storage has 16 records where the game build has 8 and the N64 6. Every record starts as
+ * (CMakeLists.txt), so the storage has 16 records where the game build has 12 and the N64 6. Every record starts as
  * a sentinel: the code must write and read the fields at their N64 offsets, step 0x808 between records, and stop at
  * the 6 it walks on the N64, whatever the storage's size.
  * func_800E762C sets the 6 records' model clock (an index walk); func_800D1248 ends a resurrect through a record

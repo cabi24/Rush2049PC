@@ -4,8 +4,8 @@ Most of the game's data sits at its N64 address in the RDRAM window ([DATA.md](D
 unchanged. That costs the port: an array can't grow (its neighbours follow it), address arithmetic between symbols
 is baked in, AddressSanitizer can't run on x86-64, and macOS arm64 can't map the address. Decoupling moves one item
 to storage the PC owns outright, with one PC declaration and no N64 address. The first item is the race roster
-(`D_80153E88`, arcade `gLink`), the second the model records (`D_8014A250`, MAT3 `model[]`): steps toward 8 cars a
-race. 2026-10-28.
+(`D_80153E88`, arcade `gLink`), the second the model records (`D_8014A250`, MAT3 `model[]`): steps toward 12 cars a
+race (`PC_MAX_LINKS`, 8 until 2026-10-29). 2026-10-28.
 
 | Piece | Where |
 |---|---|
@@ -84,7 +84,7 @@ through the alias at +7.
 bytes by the gap). But three functions walk 13 slots: LoadCars (slots 6-12 copy slot 0's car), func_8039156C (each
 slot's car is its index) and sfx_position_3d (an engine sound per slot, with `D_80142B08[13]`). The gap is exactly 13
 records. So the storage is `PC_LINK_SLOTS` = the larger of 13 (`PC_N64_LINK_SLOTS`) and `PC_MAX_LINKS` (8, the cars a
-race may hold on the PC); with 8 it is 13, 104 bytes, and the game still activates 6.
+race may hold on the PC, then; 12 since 2026-10-29); with 8 or 12 it is 13, 104 bytes, and the game still activates 6.
 
 **The change.** `pc_game_types.h`: `struct pc_link`, `pc_links[PC_LINK_SLOTS]`, accessors `PC_LINK_TRACK(i)` ...
 `PC_LINK_OWNER(i)`, `PC_LINKP_*(p)` for record pointers, `PC_LINK` and `PC_LINKS`. The 30 files use them; each
@@ -174,7 +174,8 @@ through the parameters above; after: 4,271 on `pc_models`, none off the referenc
 func_800DE860, func_800EB90C, battle_mode_setup, menu_controller_remap, func_800CFCA8, players_race_update,
 func_800E56F8's group, LoadCars' `i < 6` guard), to the cars in the race (`D_801543CA`, `D_80152744`), the players or
 the windows, and the collision's end pointer. So the storage is `PC_MODEL_SLOTS` = the larger of 6
-(`PC_N64_MODEL_SLOTS`) and `PC_MAX_LINKS` (8): 8 records, 16,448 bytes, and the game still activates 6.
+(`PC_N64_MODEL_SLOTS`) and `PC_MAX_LINKS` (8): 8 records, 16,448 bytes, and the game still activates 6. With
+`PC_MAX_LINKS` 12 (2026-10-29) it is 12 records, 24,672 bytes.
 
 **The change.** `pc_game_types.h`: `struct pc_model`, `pc_models[PC_MODEL_SLOTS]`, the accessors `PC_MODEL_<FIELD>(i)`
 for the indexed fields, and three `void *` ones for code that keeps a record pointer in its own view: `PC_MODEL(i)` (a
@@ -223,7 +224,7 @@ end through a record pointer and another record's modelrun through what was `D_8
 obResPt through `D_8014AA14`; the pointer walk from the array's start; collidable through `D_8014AA3A`; the collision's
 walk from record 3 visiting 4 and 5 and nothing after. It checks `struct pc_model`'s offsets too.
 
-## 4. Next, toward 8 cars
+## 4. Next, toward 12 cars
 
 A quick inventory: objects referencing each name and its aliases (nm, context copies included), sizes from
 `data_symbols.txt`. The model records, which were first here, are done (section 3): 112 objects, not 100 (the names

@@ -13,9 +13,10 @@
 /* ---- The race roster: arcade gLink, N64 D_80153E88 (13 records of 8 bytes at 0x80153E88-0x80153EF0, BSS).
  * One record per car slot: who drives it and how it starts. The N64 game activates 6 slots (its MAX_LINKS: the
  * per-car arrays are 6 long), but LoadCars, sfx_position_3d and func_8039156C walk all 13, so the storage is never
- * shorter than that. PC_MAX_LINKS is the most cars a race may hold on the PC; nothing activates more than 6 yet. */
+ * shorter than that. PC_MAX_LINKS is the most cars a race may hold on the PC (12, twice the N64's 6); nothing
+ * activates more than 6 yet. */
 #ifndef PC_MAX_LINKS
-#define PC_MAX_LINKS 8
+#define PC_MAX_LINKS 12
 #endif
 #define PC_N64_LINK_SLOTS 13
 #define PC_LINK_SLOTS (PC_MAX_LINKS > PC_N64_LINK_SLOTS ? PC_MAX_LINKS : PC_N64_LINK_SLOTS)
