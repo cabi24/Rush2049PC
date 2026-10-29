@@ -70,7 +70,12 @@ typedef struct {
 } CollisionReckon;
 #define BODY(r) r->body
 #endif
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CollisionModel D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern CollisionReckon *D_80150F38;
 void func_8009E820(f32 *, f32 *, f32 *);
 void func_800A61B0(f32 *, f32 *, f32 *);
@@ -87,7 +92,7 @@ s32 func_8010C02C(CollisionObject *object, s16 *index, void *arg2, s32 arg3) {
     f32 local[3], distance;
     s32 i, hit;
     mnum = *index;
-    car = &D_8014A250[mnum];
+    car = PC_MODEL(mnum);
     other = &D_80150F38[object->index];
     if (!car->collidable) {
         return 0;

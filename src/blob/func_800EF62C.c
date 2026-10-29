@@ -42,7 +42,14 @@ typedef struct { u8 other0[239]; s8 mode; u8 other240[0x110 - 0xF0]; struct pc_v
 #else
 typedef struct { u8 other0[239]; s8 mode; u8 other240[712]; } Object952;
 #endif
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car2056 D_8014A250[];
+#define PC_MODEL_AUTOTRANS(i) D_8014A250[i].flag
+#define PC_MODEL_S7D0(i) D_8014A250[i].value
+#define PC_MODEL_SLOT(i) D_8014A250[i].index
+#endif
 extern Object952 D_80152818[];
 extern s16 gNumWindows,D_8014A108;
 extern s8 D_8015B25C;
@@ -65,8 +72,8 @@ s32 func_800EF62C(Blit *blt)
         }
         return 1;
     }
-    hide = D_8015B25C == 0 || D_8014A250[slot].flag != 0 ||
-           D_80152818[D_8014A250[slot].index].mode == 1;
+    hide = D_8015B25C == 0 || PC_MODEL_AUTOTRANS(slot) != 0 ||
+           D_80152818[PC_MODEL_SLOT(slot)].mode == 1;
     if (hide != blt->Hide) {
         blt->Hide = hide;
         Input_ApplyPadConfig(blt);
@@ -78,7 +85,7 @@ s32 func_800EF62C(Blit *blt)
     blt->Y=D_80115B68[gNumWindows-1][slot][1];
     if(kind==0) blt->Bot=blt->Height/2-1;
     else if(kind==1) {
-        amount=(D_8014A250[slot].value*1.35f)*0.0001f;
+        amount=(PC_MODEL_S7D0(slot)*1.35f)*0.0001f;
         if(amount<0.0f) amount=-amount;
         if(amount>1.0f) amount=1.0f;
         blt->Right=(s32)((blt->Width-1)*amount);

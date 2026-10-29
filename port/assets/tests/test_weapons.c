@@ -42,8 +42,8 @@ _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TIN
 TInfo D_80117530[122];
 __attribute__((aligned(16))) uint8_t D_80152818[6 * PC_CAR_SIZE];
 #define CAR(i) (D_80152818 + PC_CAR_SIZE * (i))
-__attribute__((aligned(16))) uint8_t D_8014A250[6 * 0x808];
-#define MODEL(i) (D_8014A250 + 0x808 * (i))
+struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
+#define MODEL(i) ((uint8_t *)&pc_models[i])
 int32_t D_80121D60[8] = {10, 11, 12, 13, 14, 15, 16, 17};
 float D_8011F844[4][4] = {{0}, {2.0f, 4.0f, 3.0f, 0.0f}, {0}, {0}};   /* colfront, colrear, colside, colheight */
 uint8_t D_8012E700[600 * 0x68];      /* the scene nodes, host layout: the flags first */

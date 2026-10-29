@@ -728,7 +728,12 @@ typedef struct
   u8 pad7C8[0x7E8 - 0x7C8];
   u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern D_8014A250_Record D_8014A250;
+#define PC_MODELS &D_8014A250
+#endif
 typedef struct 
 {
   u8 pad00[0x0C];
@@ -3805,7 +3810,7 @@ void players_frame_update(void) {
     s32 i;
     D_8014A250_Record *r;
     D_801525F0 = 0;
-    for (i = 0, r = &D_8014A250; i < (s8) D_80152744; i++, r = (D_8014A250_Record *) ((u8 *) r + 0x808)) {
+    for (i = 0, r = PC_MODELS; i < (s8) D_80152744; i++, r = (D_8014A250_Record *) ((u8 *) r + 0x808)) {
         func_800D5524(r);
     }
     if (!(state_word_a & 8)) {

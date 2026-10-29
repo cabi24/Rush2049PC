@@ -60,7 +60,13 @@ typedef struct {
 } Pad;
 
 extern Car D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].active
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#endif
 extern Pad D_8014A118[];
 extern u8 D_801439D8[6][8];
 extern f32 D_801543CC;
@@ -89,7 +95,7 @@ s32 func_80105B74(s32 arg0) {
     for (i = 0; i < num; i++) {
         idx = 0;
         for (j = 0; j < num; j++) {
-            idx = D_8014A250[j].slot;
+            idx = PC_MODEL_SLOT(j);
             if (i == D_80152818[idx].place) {
                 break;
             }
@@ -102,7 +108,7 @@ s32 func_80105B74(s32 arg0) {
     }
     for (; i < num; i++) {
         idx = order[i];
-        if (D_8014A250[idx].active == 1) {
+        if (PC_MODEL_DRONE_TYPE(idx) == 1) {
             D_80142DB4[num - j++ - 1] = idx;
         }
         if (j == num) {

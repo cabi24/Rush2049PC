@@ -2612,7 +2612,12 @@ extern s16 D_8014A96C;
 extern s16 D_8014AA14;
 extern s16 D_8014AA16;
 extern s16 D_8014AA18;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern s16 D_8014AA32;
+#define PC_MODEL_LAST_CP(i) *((s16 *) (((s8 *) (&D_8014AA32)) + (i * 0x808)))
+#endif
 extern s8 D_8014AA38;
 extern f32 D_8014AE58;
 extern s32 D_8014D280;
@@ -3808,6 +3813,6 @@ void func_800C4078(s16 arg0)
   s8 *car;
 
   car = (s8 *) (&player_array[arg0]);
-  *((s16 *) (car + CAR_OFS(0x33A))) = *((s16 *) (((s8 *) (&D_80151D18)) + (((*((s16 *) (car + CAR_OFS(0x33C)))) * 2) + ((*((s16 *) (((s8 *) (&D_8014AA32)) + (arg0 * 0x808)))) * 0x50))));
+  *((s16 *) (car + CAR_OFS(0x33A))) = *((s16 *) (((s8 *) (&D_80151D18)) + (((*((s16 *) (car + CAR_OFS(0x33C)))) * 2) + ((PC_MODEL_LAST_CP(arg0)) * 0x50))));
 }
 

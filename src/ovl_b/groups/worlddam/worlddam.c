@@ -44,7 +44,12 @@ typedef struct DamageRing {
     tPoly *polys[25];
 } DamageRing;
 
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern DamageRing D_80399A70;
 extern u16 D_80399AD8;
 extern f32 D_80394888[4][3];
@@ -103,7 +108,7 @@ void func_8038A408(f32 *pos, s32 slot) /* newWorldDamage */
     tModelData *m;
     s32 unused_0, unused_1, unused_2, unused_3, unused_4, unused_5, unused_6, unused_7, unused_8, unused_9;
 
-    m = &D_8014A250[slot];
+    m = PC_MODEL(slot);
     if (m->airdist[0] > 8.0f || m->airdist[1] > 8.0f || m->airdist[2] > 8.0f || m->airdist[3] > 8.0f) {
         return;
     }

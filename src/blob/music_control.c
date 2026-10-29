@@ -46,7 +46,12 @@ typedef struct tPoly { s16 nverts; u16 flags; u16 texidx; s16 z; u8 verts[80]; }
 typedef struct tLink { u8 pad0; u8 car; u8 pad2[5]; u8 owner; } tLink;
 
 extern tCarData player_array[];         /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData D_8014A250[];         /* model */
+#define PC_MODEL_ACTIVE(i) D_8014A250[i].in_game
+#endif
 extern f32 D_801543CC;                  /* gModelTime */
 extern tRGBA D_8011AD8C;                /* gShadowColor */
 extern f32 D_8011AD90[4][3];            /* gDummyVtx */
@@ -133,13 +138,13 @@ void music_control(void)
 {
     s16 i;
     for (i = 0; i < 6; i++) {
-        if (D_8014A250[i].in_game) {
+        if (PC_MODEL_ACTIVE(i)) {
             music_seq_load(i, 15, 1);
             audio_frame_update(i);
         }
     }
     for (i = 0; i < 6; i++) {
-        if (D_8014A250[i].in_game) {
+        if (PC_MODEL_ACTIVE(i)) {
             StartShadow(i);
             if (active_player_count > 1 && PC_LINK_OWNER(i) == 6) StartArrow(i);
         }

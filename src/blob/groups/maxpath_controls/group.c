@@ -152,7 +152,16 @@ typedef struct GameCar {
 #endif
 } GameCar;
 extern GameCar player_array[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern D_8014A250_Record D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_CAN_CHEAT(i) D_8014A250[i].b7DE
+#define PC_MODEL_SLOT(i) D_8014A250[i].unk7C6
+#define PC_MODEL_RECKON_RWR(i) D_8014A250[i].pos
+#define PC_MODEL_WE_CONTROL(i) D_8014A250[i].s7CA
+#endif
 extern Section D_80151CE8[];
 extern Track D_8012E5E8[];
 extern volatile s16 D_80152768;
@@ -291,7 +300,7 @@ void func_800E451C(D_8014A250_Record *m, Nav *cp, s32 change_flag) {
             if (++D_80154182 >= D_80152768) {
                 D_80154182 = 0;
             }
-            if (D_8014A250[D_801527D8[D_80154182]].s7CA) {
+            if (PC_MODEL_WE_CONTROL(D_801527D8[D_80154182])) {
                 break;
             }
         }
@@ -418,7 +427,7 @@ void func_800E398C(s16 drone_index) {
     Nav *cp;
     D_8014A250_Record *m;
 
-    m = &D_8014A250[drone_index];
+    m = PC_MODEL(drone_index);
     cp = &player_array[drone_index].nav;
 
     veccopy(cp->tgt, tpos);
@@ -427,7 +436,7 @@ void func_800E398C(s16 drone_index) {
     func_800A61B0(pos, rpos, (f32 *) ((u8 *) m + 0x7A0));
 
     if ((m->f638 ==  0.f ) || (m->speed < .1f)) {
-        D_8014A250[drone_index].b7DE = 0;
+        PC_MODEL_CAN_CHEAT(drone_index) = 0;
         rpos[0] =  0.0f ;
         cp->spd = 100.0f;
         veccopy(rpos, cp->tgt);
@@ -444,7 +453,7 @@ void func_800E398C(s16 drone_index) {
         for (i = 0; i < 3; i++) {
             D_80153F88[drone_index][i] = 0;
         }
-        D_8014A250[drone_index].b7DE = 0;
+        PC_MODEL_CAN_CHEAT(drone_index) = 0;
         return;
     }
 
@@ -453,7 +462,7 @@ void func_800E398C(s16 drone_index) {
         for (i = 0; i < 3; i++) {
             D_80153F88[drone_index][i] = 0;
         }
-        D_8014A250[drone_index].b7DE = 0;
+        PC_MODEL_CAN_CHEAT(drone_index) = 0;
         return;
     }
 
@@ -462,20 +471,20 @@ void func_800E398C(s16 drone_index) {
     scalmul(rpos, scale, dir);
     veccopy(dir, save_dir);
 
-    veccopy(D_8014A250[drone_index].pos, own_rwr);
+    veccopy(PC_MODEL_RECKON_RWR(drone_index), own_rwr);
 
     can_we_cheat = 1;
     scale1 =  1 ;
 
     for (i = 0; i < D_80152744; i++) {
-        index = D_8014A250[i].unk7C6;
+        index = PC_MODEL_SLOT(i);
         if (index == drone_index) {
             continue;
         }
-        m = &D_8014A250[index];
+        m = PC_MODEL(index);
 
         vecsub(m->pos, own_rwr, pos);
-        func_800A61B0(pos, rpos, (f32 *) ((u8 *) &D_8014A250[drone_index] + 0x7A0));
+        func_800A61B0(pos, rpos, (f32 *) ((u8 *) PC_MODEL(drone_index) + 0x7A0));
 
         dist = rpos[0] * rpos[0] + rpos[2] * rpos[2];
         if (dist > 90000.0f) {
@@ -503,7 +512,7 @@ void func_800E398C(s16 drone_index) {
         }
     }
 
-    camera_blend_between(&D_8014A250[drone_index], &scale1);
+    camera_blend_between(PC_MODEL(drone_index), &scale1);
 
     if (fabsf(dir[0]) * 4 < fabsf(dir[2])) {
         if (dir[0] <  0.0f ) {
@@ -545,7 +554,7 @@ void func_800E398C(s16 drone_index) {
         dir[0] = dir[0] * .5f + D_80153F88[drone_index][0] * .5f;
     }
 
-    D_8014A250[drone_index].b7DE = can_we_cheat;
+    PC_MODEL_CAN_CHEAT(drone_index) = can_we_cheat;
 
     veccopy(dir, cp->tgt);
 

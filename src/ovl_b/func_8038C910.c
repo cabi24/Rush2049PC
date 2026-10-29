@@ -65,7 +65,12 @@ typedef struct tModel {
 
 extern tCarData D_80152818[];
 extern tCarParts D_80139320[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModel D_8014A250[];
+#define PC_MODEL_BODY(i) D_8014A250[i].body_type
+#endif
 extern f32 D_803943A4[8][13][3];
 extern volatile f32 D_8002EB90;
 extern u16 D_8014254C[];
@@ -85,6 +90,6 @@ void func_8038C910(s16 slot)
         v->slot = slot;
         v->objnum = D_80139320[slot].weap =
             func_800AF5E0(D_8014254C[531], 15, D_80139320[slot].frame, 0x2000, slot, -1, 1);
-        func_8008D6FC(v->objnum, D_803943A4[1][D_8014A250[slot].body_type], 0);
+        func_8008D6FC(v->objnum, D_803943A4[1][PC_MODEL_BODY(slot)], 0);
     }
 }

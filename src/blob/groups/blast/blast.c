@@ -89,7 +89,12 @@ extern tBlastRingStruct D_80154FD8[];   /* gBlastRingObjs */
 extern tBlastMat D_8013C238[];          /* gBlastMats */
 extern s16 D_8013C094;                  /* gBlastMatCnt */
 extern tCarData player_array[];         /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData D_8014A250[];         /* model */
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
+#endif
 extern ObjInstance D_8012E700[];        /* ObjInstanceList */
 extern u16 D_801427C0[];                /* gObjList */
 extern float D_8011418C[4][3];          /* unitmatrix */
@@ -258,7 +263,7 @@ release:
         return;
     }
     if (v->slot >= 0) {
-        if (!D_8014A250[v->slot].crashflag) goto release;
+        if (!PC_MODEL_CRASHFLAG(v->slot)) goto release;
         D_8012E700[v->objnum].mat->pos[0] = player_array[v->slot].dr_pos[0];
         D_8012E700[v->objnum].mat->pos[1] = player_array[v->slot].dr_pos[1];
         D_8012E700[v->objnum].mat->pos[2] = player_array[v->slot].dr_pos[2];

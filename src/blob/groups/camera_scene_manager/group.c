@@ -644,7 +644,12 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern D_8014A250_Record D_8014A250;
+#define PC_MODEL(i) &((HudRec *) &D_8014A250)[i]
+#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -4061,7 +4066,7 @@ void func_800C2004(s32 idx) {
     f32 zero;
 
     p = &D_801569B8[idx];
-    h = &((HudRec *) &D_8014A250)[idx];
+    h = PC_MODEL(idx);
     fl = p->flags;
     if (fl & 4) {
         if (D_80157238 >= 3 || D_8015F730 > 0 || h->f5F4 > 0.75f || h->f5F8 > 0.75f || h->f5EC < 1.0f || h->f5F0 < 1.0f) {
@@ -4092,7 +4097,7 @@ void func_800C220C(s32 idx) {
     f32 zero;
 
     p = &D_801569B8[idx];
-    h = &((HudRec *) &D_8014A250)[idx];
+    h = PC_MODEL(idx);
     fl = p->flags;
     if (fl & 2) {
         if (D_80157238 >= 3 || D_8015F728 > 0 || h->f5EC > 0.75f || h->f5F0 > 0.75f || h->f5F4 < 1.0f || h->f5F8 < 1.0f) {
@@ -4271,7 +4276,7 @@ void camera_scene_manager(void) {
     for (i = 0; i < active_player_count; i++) {
         ply = &D_801569B8[i];
         car = &player_array[i];
-        hud = &((HudRec *) &D_8014A250)[i];
+        hud = PC_MODEL(i);
         if ((ply->flags & 0x1F0) && hud->f3F8 != 0) {
             D_80152038[i].f60 += *pdt;
         }

@@ -60,9 +60,8 @@ typedef struct { uint8_t doubly, n64; int32_t count, size; void *mem, *active, *
 #define NODE(i) ((uint8_t *)WP(NODES + 0x70u * (i)))
 ABS(D_8014D280, 0x8014D280);
 ABS(D_80118C10, 0x80118C10);         /* the dead-reckoning bodies (arena data) */
-ABS(D_8014A250, 0x8014A250);         /* model[6] */
-ABS(D_8014A890, 0x8014A890);
-#define MODEL(i) ((uint8_t *)WP(0x8014A250u + 0x808u * (i)))
+struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[] (pc_game_types.h), which data.c defines */
+#define MODEL(i) ((uint8_t *)&pc_models[i])
 #define HEAP 0x80300000u             /* the game heap (AllocateMemoryHeap), the track's records */
 
 TInfo D_80117530[122];

@@ -34,7 +34,12 @@ typedef struct ModelDat {
 } ModelDat;                 /* 0x808 */
 
 extern GameCar player_array[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern ModelDat D_8014A250[];
+#define PC_MODEL_COLLIDABLE(i) D_8014A250[i].collidable
+#endif
 
 s32 func_8010C588(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist)
 {
@@ -45,7 +50,7 @@ s32 func_8010C588(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist)
     f32 radius = *radiusp;
     GameCar *gc;
 
-    if (D_8014A250[slot].collidable == 0) {
+    if (PC_MODEL_COLLIDABLE(slot) == 0) {
         return 0;
     }
     p[0] = pos[0];

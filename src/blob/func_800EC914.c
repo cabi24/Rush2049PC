@@ -67,7 +67,15 @@ typedef struct {
 
 extern volatile s16 D_801543CA;        /* number of cars */
 extern s8 D_80152744;         /* num_active_cars */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern MODELDAT D_8014A250[]; /* model */
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].drone_type
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#define PC_MODEL_WE_CONTROL(i) D_8014A250[i].we_control
+#endif
 extern CAR_DATA D_80152818[]; /* game_car */
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -94,20 +102,20 @@ void func_800EC914(void) {
 
     D_80152744 = 0;
     for (i = 0; i < D_801543CA; i++) {
-        m = &D_8014A250[i];
+        m = PC_MODEL(i);
         gc = &D_80152818[i];
         m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = 0;
         m->in_game = (PC_LINK_FLAGS(i) & LINK_ACTIVE) != 0;
         if (m->in_game) {
-            D_8014A250[D_80152744++].slot = i;
+            PC_MODEL_SLOT(D_80152744++) = i;
             gc->place = i;
             gc->unkEE = PC_LINK_PLACE(i);
             m->drone_type = (PC_LINK_OWNER(i) < MAX_LINKS) ? DRONE : HUMAN;
         }
     }
     for (i = D_801543CA; i < MAX_LINKS; i++) {
-        m = &D_8014A250[i];
+        m = PC_MODEL(i);
         m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = 0;
         m->in_game = 0;
@@ -117,8 +125,8 @@ void func_800EC914(void) {
     D_80152768 = j;
     D_80153FD2 = j;
     for (i = 0; i < D_80152744; i++) {
-        index = D_8014A250[i].slot;
-        if (D_8014A250[index].drone_type == HUMAN) {
+        index = PC_MODEL_SLOT(i);
+        if (PC_MODEL_DRONE_TYPE(index) == HUMAN) {
             j = D_80153FD2;
             D_80143A40[j] = index;
             D_80153FD2 = j + 1;
@@ -126,7 +134,7 @@ void func_800EC914(void) {
             j = D_80152768;
             D_801527D8[j] = index;
             D_80152768 = j + 1;
-            if (D_8014A250[index].we_control) {
+            if (PC_MODEL_WE_CONTROL(index)) {
                 D_80152808[D_8015274C++] = index;
             }
         }

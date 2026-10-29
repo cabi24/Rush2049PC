@@ -2453,7 +2453,12 @@ extern u16 D_8014A86C;
 extern s8 D_8014A890;
 extern s16 D_8014A914;
 extern f32 D_8014A964;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern s16 D_8014A96C;
+#define PC_MODEL_MODELRUN(i) *((s16 *) ((u8 *) &D_8014A96C + (i * 0x808)))
+#endif
 extern s16 D_8014AA14;
 extern s16 D_8014AA16;
 extern s16 D_8014AA18;
@@ -3702,5 +3707,5 @@ typedef s64 M2C_UNK64;
 #endif
 
 void func_800D0380(s16 arg0) {
-    *((s16 *) ((u8 *) &D_8014A96C + (arg0 * 0x808))) = 1;
+    PC_MODEL_MODELRUN(arg0) = 1;
 }

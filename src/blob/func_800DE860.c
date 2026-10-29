@@ -66,7 +66,14 @@ typedef struct {
 #endif
 } Rec;
 
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_8014A250[];
+#define PC_MODEL_ACTIVE(i) D_8014A250[i].active
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].kind
+#define PC_MODEL_SCALE(i) D_8014A250[i].scale
+#endif
 extern Rec player_array[];
 extern s16 active_player_count;
 extern s8 D_80152030;
@@ -92,14 +99,14 @@ void func_800DE860(void)
     if ((active_player_count == 1 && D_80152030 < 5) || D_80150F14 == 0) {
         for (j = 0; j < 6; j++) {
             if (PC_LINK_OWNER(j) == 0 || PC_LINK_OWNER(j) == 6) {
-                D_8014A250[j].scale = 1.0f;
+                PC_MODEL_SCALE(j) = 1.0f;
             }
         }
     } else {
         best = -1;
         for (i = 0; i < 6; i++) {
-            if (D_8014A250[i].active != 0 && player_array[i].state < 2 &&
-                (D_8014A250[i].kind == 2 || D_80152030 == 5)) {
+            if (PC_MODEL_ACTIVE(i) != 0 && player_array[i].state < 2 &&
+                (PC_MODEL_DRONE_TYPE(i) == 2 || D_80152030 == 5)) {
                 if (best == -1) {
                     best = i;
                 } else if (player_array[best].dist < player_array[i].dist) {
@@ -111,8 +118,8 @@ void func_800DE860(void)
         k2 = 1500.0f;
         bd = player_array[best].dist;
         for (i = 0; i < 6; i++) {
-            if (D_8014A250[i].active != 0 && player_array[i].state < 2 &&
-                (D_8014A250[i].kind == 2 || D_80152030 == 5)) {
+            if (PC_MODEL_ACTIVE(i) != 0 && player_array[i].state < 2 &&
+                (PC_MODEL_DRONE_TYPE(i) == 2 || D_80152030 == 5)) {
                 d = bd - player_array[i].dist;
                 if (d > k2) {
                     s = k1 + 1.0f;
@@ -122,7 +129,7 @@ void func_800DE860(void)
                 if (D_80150F14 == 1) {
                     s = (1 - s) * 0.5f + 1;
                 }
-                D_8014A250[i].scale = D_8014A250[i].scale * 0.97f + 0.03f * s;
+                PC_MODEL_SCALE(i) = PC_MODEL_SCALE(i) * 0.97f + 0.03f * s;
             }
         }
     }

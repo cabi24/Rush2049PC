@@ -118,7 +118,14 @@ typedef struct Resource {
 extern Puff *D_8013F1F0;
 extern s32 D_8013F1E0;
 extern Player D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_8014A250[];
+#define PC_MODEL_BODY(i) D_8014A250[i].model
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].enabled
+#define PC_MODEL_VISCODE(i) D_8014A250[i].exhaust
+#endif
 extern u32 D_801392D8[];
 extern s32 D_8011735C;
 extern Resource D_8012E700[];
@@ -191,7 +198,7 @@ void hud_render(void)
             } else {
                 model_transform_setup(puff->id.handle, 0, 1 << player->slot);
             }
-            if (D_8014A250[car].exhaust[type] != 2 || aspeed < 10) {
+            if (PC_MODEL_VISCODE(car)[type] != 2 || aspeed < 10) {
                 switch (type) {
                 case 0:
                     D_801392D8[car] &= ~0x100;
@@ -242,7 +249,7 @@ void hud_render(void)
             }
         } else if (type == 5) {
             do {
-                if (!D_8014A250[car].enabled) {
+                if (!PC_MODEL_CRASHFLAG(car)) {
                     goto kill;
                 }
                 if (puff->frame == -1) {
@@ -273,9 +280,9 @@ void hud_render(void)
                 position[0] = position[0] + player->matrix[2][0] * puff->velocity[2];
                 position[1] = position[1] + player->matrix[2][1] * puff->velocity[2];
                 position[2] = position[2] + player->matrix[2][2] * puff->velocity[2];
-                position[0] = position[0] + player->matrix[1][0] * D_8011744C[D_8014A250[car].model];
-                position[1] = position[1] + player->matrix[1][1] * D_8011744C[D_8014A250[car].model];
-                position[2] = position[2] + player->matrix[1][2] * D_8011744C[D_8014A250[car].model];
+                position[0] = position[0] + player->matrix[1][0] * D_8011744C[PC_MODEL_BODY(car)];
+                position[1] = position[1] + player->matrix[1][1] * D_8011744C[PC_MODEL_BODY(car)];
+                position[2] = position[2] + player->matrix[1][2] * D_8011744C[PC_MODEL_BODY(car)];
                 puff->position[0] = position[0];
                 puff->position[1] = position[1];
                 puff->position[2] = position[2];

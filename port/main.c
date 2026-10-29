@@ -19,6 +19,7 @@
 #include "input_internal.h"
 #include "pc_audio.h"
 #include "pc_compat.h"
+#include "pc_game_types.h"
 #include "ultra.h"
 
 extern void n64_main(void *argument);   /* src/rom/lib_2cf0.c */
@@ -181,7 +182,6 @@ static uint32_t game_state(void)
 extern int16_t active_player_count, gNumWindows;
 extern int32_t gameplay_mode;
 extern int8_t D_80152744, D_8014978C;
-extern uint8_t D_8014A250[];   /* the model records (0x808 bytes, N64 layout): RWV at +0x220, RWR at +0x22C */
 extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 its screens */
 
 static void game_info(char *out, size_t size)
@@ -191,8 +191,8 @@ static void game_info(char *out, size_t size)
     static int exact = -1;
     if (exact < 0)
         exact = getenv("RUSH_STATE_EXACT") != NULL;
-    const volatile float *v = (const volatile float *)(D_8014A250 + 0x220), *r = v + 3;
-    const volatile float *steer = (const volatile float *)(D_8014A250 + 0x720);   /* its controls: steer -1..1 */
+    const volatile float *v = pc_models[0].rwv, *r = pc_models[0].rwr;   /* the model record (pc_game_types.h) */
+    const volatile float *steer = &pc_models[0].steer;                     /* its controls: steer -1..1 */
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
     snprintf(out, size, exact ? "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %a %a %a, "
              "speed %a, steer %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f "

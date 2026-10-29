@@ -86,7 +86,12 @@ typedef struct {
 } ModelDat;
 
 extern CarData D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern ModelDat D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern Poly D_8015B268[];
 extern s8 D_80140418;
 #ifdef TARGET_PC
@@ -126,7 +131,7 @@ void entity_process_main(Visual *v, s16 op) {
     f32 pos[3], mat[3][3], xyz[4][3], dist[4], d1, d2;
     s16 i, whl;
     CarData *car = &D_80152818[v->slot];
-    ModelDat *m = &D_8014A250[v->slot];
+    ModelDat *m = PC_MODEL(v->slot);
     f32 fscale, bscale, len, offset;
     s32 body;
 

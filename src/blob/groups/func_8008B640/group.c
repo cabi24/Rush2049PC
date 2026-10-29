@@ -576,7 +576,10 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+#else
 extern D_8014A250_Record D_8014A250;
+#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -3719,7 +3722,13 @@ typedef struct {
     /* 0x4 */ u8 pad4[0x804];
 } Rec808;
 
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Rec808 D_8014A640[];
+#define PC_MODEL_SPEED(i) D_8014A640[i].v
+#define PC_MODEL(i) &((Rec808 *) &D_8014A250)[i]
+#endif
 s32 model_bounds_calc(ModelObj *obj, s32 flag);
 void func_8008B640(s32 idx, f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz);
 void physics_velocity_integrate_a(ModelObj *ipa_s1, s32 arg1, s32 ipa_s2, f32 ipa_f20, f32 ipa_f22, f32 ipa_f24, s16 arg0);
@@ -3787,14 +3796,14 @@ void physics_velocity_integrate_a(ModelObj *ipa_s1, s32 arg1, s32 ipa_s2, f32 ip
             }
             ipa_s1->state = 0;
             func_8008B640(ipa_s1->model, M2C_FIELD(car, f32 *, 0xA4), M2C_FIELD(car, f32 *, 0xA8), M2C_FIELD(car, f32 *, 0xAC), ipa_f20, ipa_f22, ipa_f24);
-            t = (s32) D_8014A640[ipa_s1->player].v;
+            t = (s32) PC_MODEL_SPEED(ipa_s1->player);
             if (t < 100) {
                 m = model_mat(ipa_s1->model);
                 func_8008B32C(m, m, (f32) t / 100.0f);
             }
         } else if (arg1 != 0) {
             func_8008B640(ipa_s1->model, M2C_FIELD(car, f32 *, 0xA4), M2C_FIELD(car, f32 *, 0xA8), M2C_FIELD(car, f32 *, 0xAC), ipa_f20, ipa_f22, ipa_f24);
-            t = (s32) D_8014A640[ipa_s1->player].v;
+            t = (s32) PC_MODEL_SPEED(ipa_s1->player);
             if (t < 100) {
                 m = model_mat(ipa_s1->model);
                 func_8008B32C(m, m, (f32) t / 100.0f);
@@ -3835,11 +3844,11 @@ void physics_velocity_integrate_b(ModelObj *arg0, s16 arg1) {
     s32 t;
 
     car = &player_array[arg0->player];
-    lvl = (s32) M2C_FIELD((&((Rec808 *) &D_8014A250)[arg0->player]), f32 *, 0x3F0);
-    t = M2C_FIELD((&((Rec808 *) &D_8014A250)[arg0->player]), s8 *, 0x641);
+    lvl = (s32) M2C_FIELD((PC_MODEL(arg0->player)), f32 *, 0x3F0);
+    t = M2C_FIELD((PC_MODEL(arg0->player)), s8 *, 0x641);
     physics_velocity_integrate_a(arg0, lvl >= 13 && (t != 0 || (M2C_FIELD(car, s32 *, 0xE8) & 0x800) != 0), 194,
                                  0.0f,
-                                 M2C_FIELD(car, f32 *, 0xD8) + (t != 0 ? 2.0f : M2C_FIELD((&((Rec808 *) &D_8014A250)[arg0->player]), f32 *, 0x544)),
+                                 M2C_FIELD(car, f32 *, 0xD8) + (t != 0 ? 2.0f : M2C_FIELD((PC_MODEL(arg0->player)), f32 *, 0x544)),
                                  M2C_FIELD(car, f32 *, 0xDC) - 2.0f,
                                  arg1);
 }
@@ -3853,7 +3862,7 @@ void physics_velocity_integrate_c(ModelObj *arg0, s16 arg1) {
     f32 f24;
 
     car = &player_array[arg0->player];
-    rec = &((Rec808 *) &D_8014A250)[arg0->player];
+    rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x4000) != 0;
     f24 = M2C_FIELD(car, f32 *, 0xD0);
@@ -3873,7 +3882,7 @@ void physics_velocity_integrate_d(ModelObj *arg0, s16 arg1) {
     f32 f24;
 
     car = &player_array[arg0->player];
-    rec = &((Rec808 *) &D_8014A250)[arg0->player];
+    rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x80) != 0;
     f24 = M2C_FIELD(car, f32 *, 0xB8);
@@ -3893,7 +3902,7 @@ void physics_velocity_integrate_e(ModelObj *arg0, s16 arg1) {
     f32 f24;
 
     car = &player_array[arg0->player];
-    rec = &((Rec808 *) &D_8014A250)[arg0->player];
+    rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x2000) != 0;
     f24 = M2C_FIELD(car, f32 *, 0xDC);
@@ -3913,7 +3922,7 @@ void physics_velocity_integrate_f(ModelObj *arg0, s16 arg1) {
     f32 f24;
 
     car = &player_array[arg0->player];
-    rec = &((Rec808 *) &D_8014A250)[arg0->player];
+    rec = PC_MODEL(arg0->player);
     lvl = (s32) M2C_FIELD(rec, f32 *, 0x3F0);
     flag = lvl >= 21 && (M2C_FIELD(car, s32 *, 0xE8) & 0x100) != 0;
     f24 = M2C_FIELD(car, f32 *, 0xC4);

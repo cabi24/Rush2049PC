@@ -37,7 +37,12 @@ typedef struct Object {
     f32 lifetime, timer, elapsed, velocity[3], position[3], previous[3], uv[3][3];
 } Object;
 extern Player D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle D_8014A250[];
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].disabled
+#endif
 extern s16 D_801543CA;
 extern s8 D_8012E67C[];
 extern void func_800A61B0(f32 *,f32 *,f32 *);
@@ -57,7 +62,7 @@ void func_8038DDDC(Object *object)
     for (player = D_80152818; player < D_80152818 + D_801543CA; player++) {
         if (object->owner != player->index &&
             D_8012E67C[object->owner] != D_8012E67C[player->index] &&
-            !D_8014A250[player->index].disabled && player->active && !player->blocked) {
+            !PC_MODEL_CRASHFLAG(player->index) && player->active && !player->blocked) {
             delta[0] = player->position[0] - object->position[0];
             delta[1] = player->position[1] - object->position[1];
             delta[2] = player->position[2] - object->position[2];

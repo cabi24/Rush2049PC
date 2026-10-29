@@ -58,7 +58,12 @@ typedef struct Model68 { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 
 #else
 typedef struct Model68 { u32 flags; u8 opaque4[64]; } Model68;
 #endif
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model2056 D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern Player952 player_array[];
 extern Model68 D_8012E700[];
 extern f32 D_8011B4B4[][3];
@@ -130,7 +135,7 @@ void buffer_swap(Visual *v, s16 op)
         v->object = -1;
         return;
     }
-    model = (Model2056 *)(uintptr_t)&D_8014A250[slot];
+    model = (Model2056 *)(uintptr_t)PC_MODEL(slot);
     reverse = (v->flags & 1) ? 1 : 0;
     sign = reverse ? 1.0f : -1.0f;
     position[0] = D_8011B4B4[model->type][0] * (0, sign);

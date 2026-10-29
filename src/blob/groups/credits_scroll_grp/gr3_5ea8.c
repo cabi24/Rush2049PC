@@ -54,7 +54,14 @@ extern OSMesgQueue D_801461D0;
 extern TextState countdown_state;                /* gText */
 extern s16 gNumWindows;
 extern s16 D_80152734;                           /* gNumLaps */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];                       /* model */
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].f1996
+#define PC_MODEL_LAP(i) D_8014A250[i].lap
+#define PC_MODEL_SLOT(i) D_8014A250[i].car
+#endif
 extern GameCar player_array[];                   /* gGameCar */
 extern PlayerRow input_rec0[];                   /* gPlayers */
 extern Pos D_80115F28[][4];                      /* wrongWayPos */
@@ -113,8 +120,8 @@ s32 animResults(s32 arg0)
     numFinished = 0;
     aFinished = 0;
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
-        if (D_80152734 == D_8014A250[playerIdx].lap) aFinished = 1;
-        if (player_array[D_8014A250[playerIdx].car].f239 == 1) numFinished++;
+        if (D_80152734 == PC_MODEL_LAP(playerIdx)) aFinished = 1;
+        if (player_array[PC_MODEL_SLOT(playerIdx)].f239 == 1) numFinished++;
     }
     render_helper(0.0f);
     ar_SetJust(1, 1);
@@ -125,7 +132,7 @@ s32 animResults(s32 arg0)
             D_80154350[4] = ambient_sound_set(91, 106 - h, 229, h + 114, 192, 0, 0, 1);
         }
         dispatch_handler(22);
-        if (D_8014A250[D_8014A250[D_80143F54].car].f1996 == 1) {
+        if (PC_MODEL_DRONE_TYPE(PC_MODEL_SLOT(D_80143F54)) == 1) {
             fcvt_wrapper(str, countdown_state.fixed[200]);
         } else if (D_80150B60) {
             fcvt_wrapper(str, countdown_state.fixed[201], D_80150B60 + 1);
@@ -136,8 +143,8 @@ s32 animResults(s32 arg0)
     }
     dispatch_handler(1);
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
-        if (D_80142760 && D_80152734 != D_8014A250[playerIdx].lap) continue;
-        if (player_array[D_8014A250[playerIdx].car].f239 != 1) continue;
+        if (D_80142760 && D_80152734 != PC_MODEL_LAP(playerIdx)) continue;
+        if (player_array[PC_MODEL_SLOT(playerIdx)].f239 != 1) continue;
         x = D_80115F28[gNumWindows - 1][playerIdx].x;
         y = D_80115F28[gNumWindows - 1][playerIdx].y;
         if (gNumWindows == 4 && playerIdx >= 2) y += 12;
@@ -174,8 +181,8 @@ s32 animResults(s32 arg0)
 
             fcvt_wrapper(str1, countdown_state.fixed[198], place + 1,
                          countdown_state.strings[countdown_state.indices->h[55] + place]);
-            if (D_80152734 != D_8014A250[input_rec0[playerIdx].vehicle].lap) {
-                fcvt_wrapper(str2, countdown_state.fixed[207], D_8014A250[input_rec0[playerIdx].vehicle].lap, D_80152734);
+            if (D_80152734 != PC_MODEL_LAP(input_rec0[playerIdx].vehicle)) {
+                fcvt_wrapper(str2, countdown_state.fixed[207], PC_MODEL_LAP(input_rec0[playerIdx].vehicle), D_80152734);
             } else {
                 u32 min;
                 u32 sec;

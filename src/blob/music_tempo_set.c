@@ -38,7 +38,13 @@ typedef struct Resource68 {u8 prefix[20];u16 object;u8 tail[46];} Resource68;
 typedef struct Config8 {u8 prefix[7];u8 mode;} Config8;
 typedef struct OSThread OSThread;
 extern Model952 player_array[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle2056 D_8014A250[];
+#define PC_MODEL_B00F(i) D_8014A250[i].type
+#define PC_MODEL_FLAGS(i) D_8014A250[i].flags
+#endif
 extern Slot64 D_80139320[];
 extern Resource68 D_8012E700[];
 #ifdef TARGET_PC
@@ -75,7 +81,7 @@ void music_tempo_set(s16 player,u8 mode,int apply)
    if(PC_LINK_OWNER(player)!=6 || D_80146180[player]==0)mask=~0x10;
    else if(D_80146180[player]==2)mask=~0x60;
    else mask=-1;
-   D_8014A250[player].flags&=mask;
+   PC_MODEL_FLAGS(player)&=mask;
    player_array[player].flags&=mask;
    osStartThread(&D_80034840);
   }
@@ -89,7 +95,7 @@ void music_tempo_set(s16 player,u8 mode,int apply)
  resource_set_object(slot->body,D_801427C2[(s16)(player*3)]);
  for(i=0;i<4;i++)resource_set_object(D_80139320[player].wheels[i],D_801428F8);
  if(D_80156994 || D_8014978C>=6) {
-  func_8008D870((s16)slot->wheels[0],D_80143F74[D_8014A250[player].type],-1);
+  func_8008D870((s16)slot->wheels[0],D_80143F74[PC_MODEL_B00F(player)],-1);
  } else {
   func_8008D870((s16)slot->wheels[0],D_80143F74[13],-1);
  }
@@ -106,7 +112,7 @@ void music_tempo_set(s16 player,u8 mode,int apply)
    if(mode==13) {
     model_data_load(slot->body,1,15);
     osStopThread(&D_80034840);
-    D_8014A250[player].flags|=0x10;
+    PC_MODEL_FLAGS(player)|=0x10;
     model->flags|=0x10;
     osStartThread(&D_80034840);
    }

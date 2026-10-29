@@ -26,7 +26,12 @@ typedef struct { u8 other[859]; s8 car,slot; } Object;
 #endif
 typedef struct { s16 status;u8 other[2054]; } CarField2056;
 typedef struct { u8 other[96];Mat3 matrix;f32 position[3];u8 tail[8]; } Slot152;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarField2056 D_8014A914[];
+#define PC_MODEL_MOVING_STATE(i) D_8014A914[i].status
+#endif
 extern f32 D_80152708[],D_80152720[];
 extern volatile s32 D_8002EB98;
 extern Slot152 gCamera[];
@@ -38,7 +43,7 @@ void func_800E8D50(Object *object,f32 *carpos,Mat3 *matrix,f32 *res)
     f32 rpos[3];
     s32 slot=object->slot;
     if(matrix) func_800E8CB8(object,carpos,matrix);
-    if(D_8014A914[object->car].status>=0) {
+    if(PC_MODEL_MOVING_STATE(object->car)>=0) {
         D_80152708[slot]=0.0f;
     } else {
         D_80152708[slot]=D_80152720[slot]*0.6f;

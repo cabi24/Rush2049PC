@@ -23,7 +23,15 @@ extern s16 active_player_count;
 extern s32 D_80143F10;
 extern f32 D_801525F4;
 extern f32 D_8002EB94;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_8014A250[];
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].unk7CC
+#define PC_MODEL_SPEED(i) D_8014A250[i].unk3F0
+#define PC_MODEL_LAP(i) D_8014A250[i].unk7E8
+#define PC_MODEL_SLOT(i) D_8014A250[i].unk7C6
+#endif
 extern s16 D_80152734;
 extern s16 D_8015273A;
 #ifdef TARGET_PC
@@ -51,7 +59,7 @@ s32 func_800E7DD0(void)
             }
         } else {
             for (i = 0; i < active_player_count; i++) {
-                if (D_80152734 == D_8014A250[i].unk7E8) {
+                if (D_80152734 == PC_MODEL_LAP(i)) {
                     D_801525F4 = D_8002EB94;
                 }
             }
@@ -65,10 +73,10 @@ s32 func_800E7DD0(void)
         n = D_80152744;
     }
     for (i = 0; i < n; i++) {
-        idx = D_8014A250[i].unk7C6;
-        if (D_8014A250[idx].unk7CC == 2) {
-            if (D_80142760 == 0 || D_80152734 == D_8014A250[idx].unk7E8) {
-                if (D_8014A250[idx].unk3F0 > 5.0f) {
+        idx = PC_MODEL_SLOT(i);
+        if (PC_MODEL_DRONE_TYPE(idx) == 2) {
+            if (D_80142760 == 0 || D_80152734 == PC_MODEL_LAP(idx)) {
+                if (PC_MODEL_SPEED(idx) > 5.0f) {
                     result = 0;
                     break;
                 }

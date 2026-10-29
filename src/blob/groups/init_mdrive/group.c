@@ -48,7 +48,12 @@ typedef struct Model952 {u8 prefix[4];float setup;u8 gap8[848];s8 clear,active;u
 typedef struct Config8 {u8 prefix[5],camera,unknown,mode;} Config8;
 extern s8 D_80142760;
 extern Model952 player_array[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle2056 D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -69,7 +74,7 @@ static void multiinit_n64(s16,s16);
 void func_800E543C(s16 action,s16 index)
 {
  Model952 *model=&player_array[index];
- Vehicle2056 *vehicle=&D_8014A250[index];
+ Vehicle2056 *vehicle=PC_MODEL(index);
  PC_LINK *config;
  if(D_80142760 && !model->active && action==2) {
   model->active=1;
@@ -93,7 +98,7 @@ void func_800E543C(s16 action,s16 index)
 
 static void multiinit_n64(s16 action,s16 index)
 {
- Vehicle2056 *vehicle=&D_8014A250[index];
+ Vehicle2056 *vehicle=PC_MODEL(index);
  int i;
  if(action==0) {
   if(gameplay_mode==2) vehicle->camera=0;

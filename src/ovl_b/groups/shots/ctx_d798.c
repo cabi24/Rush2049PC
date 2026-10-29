@@ -48,7 +48,12 @@ typedef struct Player {
 } Player;
 typedef struct Vehicle { u8 unknown000[1600]; s8 disabled; u8 unknown641[455]; } Vehicle;
 extern Player D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle D_8014A250[];
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].disabled
+#endif
 extern volatile s16 D_801543CA;
 extern void func_800A61B0(f32 *,f32 *,f32 *);
 extern f32 func_8008C768(f32,f32);
@@ -65,7 +70,7 @@ void func_8038D798(f32 *origin, f32 *endpoint, s32 source_index, f32 radius_squa
     f32 delta[3];
     f32 distance_squared;
     for (target = D_80152818; target < D_80152818 + D_801543CA; target++) {
-        if (!D_8014A250[target->index].disabled && target->active && !target->blocked) {
+        if (!PC_MODEL_CRASHFLAG(target->index) && target->active && !target->blocked) {
             delta[0] = origin[0] - target->position[0];
             delta[1] = origin[1] - target->position[1];
             delta[2] = origin[2] - target->position[2];

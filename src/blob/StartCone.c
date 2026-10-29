@@ -165,7 +165,12 @@ extern s8 D_8013FECD;
 extern s8 D_8013FECC;
 extern ObjType D_80117530[];
 extern Car D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Lap D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern Node *D_801391F0;
 
 void model_data_load(s32, s32, s32);
@@ -207,7 +212,7 @@ void StartCone(Obj *obj)
     if (D_8013FECC && tInfo->id == 236) {
         model_data_load(obj->model, 0, 15);
         save_write_data(obj->f68, 0, 0.4f, 1);
-        Flag1600(&D_8014A250[obj->car]);
+        Flag1600(PC_MODEL(obj->car));
         obj->flags &= ~6;
         return;
     }

@@ -35,7 +35,12 @@ extern Selection8 D_80153E88[13];
 #define PC_LINK_COLOR1(i) D_80153E88[i].tune
 #define PC_LINK_COLOR2(i) D_80153E88[i].variant
 #endif
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle2056 D_8014A250[6];
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].mode
+#endif
 extern u32 D_8002E580[];
 extern u32 D_801174B4;
 extern s16 D_8014A108;
@@ -60,7 +65,7 @@ void LoadCars(s32 select)
  }
  numLoadedCars=0;
  for(i=0;i<13;i++) {
-  if(i<6 && ((D_801174B4&8)||D_8014A250[i].mode==1)) {
+  if(i<6 && ((D_801174B4&8)||PC_MODEL_DRONE_TYPE(i)==1)) {
 again:
    PC_LINK_CAR(i)=func_8008B2E4(13.0f);
    for(j=0;j<i;j++) {
@@ -89,7 +94,7 @@ load:
     numLoadedCars++;
    }
    func_800BB02C(i,PC_LINK_CAR(i),0);
-  } else if(i<6 && D_8014A250[i].mode==2) {
+  } else if(i<6 && PC_MODEL_DRONE_TYPE(i)==2) {
    if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) {
     for(PC_LINK_CAR(i)=0;PC_LINK_CAR(i)<13;PC_LINK_CAR(i)++) {
      if(audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load2;

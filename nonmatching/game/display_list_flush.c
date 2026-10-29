@@ -74,7 +74,17 @@ extern s8 D_80114654;           /* gGamePointPlayed */
 extern s32 gameplay_mode;       /* gRace */
 extern s16 active_player_count; /* gNumPlayers */
 extern Player76 input_rec0[];   /* gPlayers */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model2056 D_8014A250[];  /* model */
+#define PC_MODEL_AUTOTRANS(i) D_8014A250[i].autotrans
+#define PC_MODEL_BODY(i) D_8014A250[i].body_type
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].drone_type
+#define PC_MODEL_FLAGS(i) D_8014A250[i].appearance
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#define PC_MODEL_WE_CONTROL(i) D_8014A250[i].we_control
+#endif
 extern Car952 player_array[];   /* gGameCar */
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -287,12 +297,12 @@ s32 display_list_flush(s32 useHud, s32 cancel)
                 player_array[slot].dead = 0;
                 player_array[slot].place_locked = 0;
                 player_array[slot].player = 0;
-                D_8014A250[slot].drone_type = 1;
-                D_8014A250[slot].we_control = 1;
-                D_8014A250[slot].autotrans = 1;
-                D_8014A250[slot].appearance = 0;
+                PC_MODEL_DRONE_TYPE(slot) = 1;
+                PC_MODEL_WE_CONTROL(slot) = 1;
+                PC_MODEL_AUTOTRANS(slot) = 1;
+                PC_MODEL_FLAGS(slot) = 0;
                 player_array[slot].appearance = 0;
-                music_tempo_set(slot, D_8014A250[slot].body_type, 1);
+                music_tempo_set(slot, PC_MODEL_BODY(slot), 1);
                 D_801527D8[D_80152768++] = i;
                 D_80152808[D_8015274C++] = i;
             }
@@ -300,8 +310,8 @@ s32 display_list_flush(s32 useHud, s32 cancel)
                 player_array[i].dead = 0;
                 player_array[i].place_locked = 0;
                 player_array[i].appearance = 0;
-                D_8014A250[i].appearance = 0;
-                music_tempo_set(i, D_8014A250[i].body_type, 1);
+                PC_MODEL_FLAGS(i) = 0;
+                music_tempo_set(i, PC_MODEL_BODY(i), 1);
                 D_801527D8[D_80152768++] = i;
                 D_80152808[D_8015274C++] = i;
             }
@@ -314,7 +324,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
             D_8013FECB = 0;
             D_80142699 = 0;
             D_80142764 = 32.2f;
-            for (i = 0; i < D_80152744; i++) func_800E543C(0, D_8014A250[i].slot);
+            for (i = 0; i < D_80152744; i++) func_800E543C(0, PC_MODEL_SLOT(i));
             skid_mark_render();
             inited = 0;
             return 1;
@@ -355,7 +365,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
     D_8013FECB = 0; D_80142699 = 0; D_80142690 = 0;
     D_80142764 = 32.2f * D_801202F8[D_801543C8];
     for (i = 0; i < D_80152744; i++) {
-        slot = D_8014A250[i].slot;
+        slot = PC_MODEL_SLOT(i);
         if (PC_LINK_OWNER(slot) == 0 || PC_LINK_OWNER(slot) == 6) func_800E543C(0, slot);
     }
     music_control();

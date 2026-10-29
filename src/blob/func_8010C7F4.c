@@ -787,7 +787,12 @@ float sqrtf(float);
 
 /* referenced data (types guessed from access width) */
 extern M2C_UNK D_8011754C;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern M2C_UNK D_8014A890;
+#define PC_MODEL_CRASHFLAG(i) *(s8 *)((u8 *)&D_8014A890 + i * 0x808)
+#endif
 
 /* callees outside the group */
 void func_800A61B0();
@@ -806,7 +811,7 @@ void func_8010C7F4(void *arg0) {
     GameCar *car;
     f32 delta[3];
     f32 local[3];
-    if (*(s8 *)((u8 *)&D_8014A890 + M2C_FIELD(arg0, s8 *, 0x5C) * 0x808) == 0) {
+    if (PC_MODEL_CRASHFLAG(M2C_FIELD(arg0, s8 *, 0x5C)) == 0) {
         car = &player_array[M2C_FIELD(arg0, s8 *, 0x5C)];
         if (M2C_FIELD(car, s8 *, CAR_OFS(0x384)) == 5) {
             delta[0] = M2C_FIELD(arg0, f32 *, 0x44) - M2C_FIELD(car, f32 *, 8);

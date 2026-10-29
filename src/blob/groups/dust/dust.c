@@ -76,7 +76,12 @@ extern OSMesgQueue D_801461D0;
 extern s16 D_80151AD0;
 #define gNumWindows D_80151AD0
 extern s8 D_8015F72C;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#endif
 extern Car D_80152818[];
 extern u8 D_80116187;
 extern Pos D_80115A68[][4];
@@ -135,7 +140,7 @@ s32 dust_cloud_effect(Blit *blt)
         blt->state = 0;
         return 1;
     }
-    hide = !D_8015F72C || D_80152818[D_8014A250[win].slot].f239 == 1;
+    hide = !D_8015F72C || D_80152818[PC_MODEL_SLOT(win)].f239 == 1;
     if (Hidden_dust(blt, hide)) {
         return 1;
     }

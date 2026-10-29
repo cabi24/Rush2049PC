@@ -8,6 +8,7 @@
  */
 #include <string.h>
 
+#include "pc_game_types.h"
 #include "support.h"
 
 int32_t D_80152738 __attribute__((aligned(8)));   /* gStuntsDone */
@@ -17,7 +18,8 @@ int8_t D_80142760;              /* deaths mode */
 int16_t active_player_count = 1;
 int32_t D_80143F10;
 float D_801525F4, D_8002EB94 = 1.0f / 30;
-uint8_t D_8014A250[0x808 * 6];  /* the model records, N64 layout */
+struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h), N64 layout */
+#define D_8014A250 ((uint8_t *)pc_models)
 int16_t D_80152734;
 int32_t gameplay_mode;
 int8_t D_80152744;              /* the cars in the race */

@@ -30,12 +30,12 @@ int16_t D_8014A108, D_80142724, D_8015274C, D_80143A40[8], D_801527D8[8], D_8015
 int16_t D_8011F020[16], D_8011F040[16];
 int32_t D_8014A110, D_80143FF4;
 uint8_t D_801543D4, D_8014A118[6 * 80], D_80154450[6 * 0x4C], D_803BA230[16 * 12] __attribute__((aligned(4)));
-uint8_t D_8014A250[6 * 0x808] __attribute__((aligned(16)));    /* the model records, N64 layout */
+struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h), N64 layout */
 uint8_t D_80152818[6 * PC_CAR_SIZE] __attribute__((aligned(16)));   /* the car records, PC layout */
 ALIAS(player_array, D_80152818, 0);
 
-#define MODEL16(i, off) (*(int16_t *)(D_8014A250 + (i) * 0x808 + (off)))
-#define MODEL8(i, off) (*(int8_t *)(D_8014A250 + (i) * 0x808 + (off)))
+#define MODEL16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + (off)))
+#define MODEL8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + (off)))
 #define CAR8(i, n) (D_80152818[(i) * PC_CAR_SIZE + CAR_OFS(n)])
 
 float func_8008B2E4(float max) { (void)max; return 0.0f; }   /* the random number CalcPolePositions draws in mode 3 */
@@ -120,7 +120,7 @@ static void test_poles(void)
  * LINK_ACTIVE, are not counted. */
 static void test_count(void)
 {
-    memset(D_8014A250, 0x55, sizeof D_8014A250);
+    memset(pc_models, 0x55, sizeof pc_models);
     memset(D_80152818, 0x55, sizeof D_80152818);
     func_800EC914();
     CHECK(D_80152744 == 4);

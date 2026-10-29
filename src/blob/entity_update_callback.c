@@ -70,7 +70,13 @@ extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;                  /* gFrameSeconds */
 extern tBlastStruct D_80154660[];       /* gBlastObjs */
 extern tCarData player_array[];         /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData D_8014A250[];         /* model */
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
+#define PC_MODEL_MOVING_STATE(i) D_8014A250[i].moving_state
+#endif
 extern ObjInstance D_8012E700[];        /* ObjInstanceList */
 extern s8 D_80156994;
 extern s8 D_8014978C;                   /* gTrackNum */
@@ -122,14 +128,14 @@ void entity_update_callback(tVisual *v, s16 op)
     int u2, u3;
     if (D_801170FC) return;
     D_80154660[v->slot].lifeTime -= D_8002EB94;
-    if (D_80154660[v->slot].lifeTime <= 0.0f || D_8014A250[v->slot].moving_state >= 0) {
+    if (D_80154660[v->slot].lifeTime <= 0.0f || PC_MODEL_MOVING_STATE(v->slot) >= 0) {
         for (i = 0; i < 4; i++) {
             b = &D_80154660[v->slot].blastObjs[i];
             if (b->mbIdx != -1) ZOID_RemoveObject(b->mbIdx);
             b->mbIdx = -1;
         }
     }
-    if (!D_8014A250[v->slot].crashflag) {
+    if (!PC_MODEL_CRASHFLAG(v->slot)) {
         if (D_80156994 || D_8014978C >= 6) {
             if (D_80154660[v->slot].glowIdx != -1) {
                 ZOID_RemoveObject(D_80154660[v->slot].glowIdx);

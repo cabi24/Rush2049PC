@@ -86,7 +86,13 @@ extern s8 D_80114654;           /* gGamePointPlayed */
 extern s32 gameplay_mode;       /* gRace */
 extern s16 active_player_count; /* gNumPlayers */
 extern Player76 input_rec0[];   /* gPlayers */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model2056 D_8014A250[];  /* model */
+#define PC_MODEL_LAP(i) D_8014A250[i].laps
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#endif
 extern Car952 player_array[];   /* gGameCar */
 extern s8 D_80150F14;           /* gUseCatchup */
 extern s8 D_80150EFC;           /* gCatchup */
@@ -184,7 +190,7 @@ void countdown(void)
         CarSetup();
         race_init_helper();
         race_setup_1();
-        race_setup_2(D_8014A250[0].slot);
+        race_setup_2(PC_MODEL_SLOT(0));
         if (startCountdown) {
             viScheduleTick(3.5);
             func_800E762C(3.5f * D_8002AFB4);
@@ -283,7 +289,7 @@ void countdown(void)
         } else if (gameplay_mode == 0 || gameplay_mode == 1 || gameplay_mode == 3) {
             for (i = 0; i < active_player_count; i++) if (!player_array[input_rec0[i].slot].place_locked) goto done;
             D_80143F10 = 0;
-            for (i = 0; i < active_player_count; i++) if (D_80152734 == D_8014A250[i].laps) D_80143F10 = 1;
+            for (i = 0; i < active_player_count; i++) if (D_80152734 == PC_MODEL_LAP(i)) D_80143F10 = 1;
             if (!D_8013FECB) {
                 if (D_80142760) D_801525F4 = 0.0f;
                 D_8013FECB = 1;
@@ -298,7 +304,7 @@ void countdown(void)
                     speed_mode0_wrapper(0.0f, 3.0f);
                 }
                 for (i = 0; i < active_player_count; i++) {
-                    if (D_80152734 != D_8014A250[input_rec0[i].slot].laps) {
+                    if (D_80152734 != PC_MODEL_LAP(input_rec0[i].slot)) {
                         if (gameplay_mode != 2 || !D_80152698[input_rec0[i].slot] || (*D_80152698[input_rec0[i].slot])->header[0]->flag < 0)
                             func_800B61A8(22, 0, 1, 0);
                         D_80142690 = 1;
@@ -321,7 +327,7 @@ void func_800FBE20(void)
 {
     s16 i;
     for (i = 0; i < D_80152744; i++) {
-        func_800D5828(D_8014A250[i].slot);
+        func_800D5828(PC_MODEL_SLOT(i));
         player_array[i].appearance &= ~8;
         cpak_read(player_array[i].slot);
     }

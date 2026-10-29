@@ -110,7 +110,13 @@ typedef struct Car {
 } Car; /* 0x3B8 */
 
 extern s8 D_80152744;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#endif
 extern Car D_80152818[];
 extern PathGraph D_801407F0;
 extern Track D_80151CE8[];
@@ -149,9 +155,9 @@ void world_gravity_apply(void)
     f32 dz;
 
     for (i = 0; i < D_80152744; i++) {
-        slot = D_8014A250[i].slot;
-        m = &D_8014A250[slot];
-        m2 = &D_8014A250[slot];
+        slot = PC_MODEL_SLOT(i);
+        m = PC_MODEL(slot);
+        m2 = PC_MODEL(slot);
         if (func_800CF604(slot)) {
             gc = &D_80152818[slot];
             if (gc->unkEF == 1) {

@@ -687,7 +687,13 @@ typedef struct {
     f32 f7EC; /* 0x7EC */
     u8 pad7F0[0x18];
 } D_8014A250_Record;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern D_8014A250_Record D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODELS &D_8014A250
+#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -3898,7 +3904,7 @@ void func_800E56F8(s32 ipa_s4) {
 
     temp_s2 = &player_array[ipa_s4];
     temp_s3 = M2C_FIELD(temp_s2, void **, CAR_OFS(0x380));
-    if (((s8) PAD0EC(temp_s2->pad0EC, 0x26D) == 1) && ((temp_s0 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) &D_8014A250), (M2C_FIELD(temp_s0, f32 *, 0x3F0) < 5.0f)) || (M2C_FIELD(temp_s0, s16 *, 0x71C) == 0))) {
+    if (((s8) PAD0EC(temp_s2->pad0EC, 0x26D) == 1) && ((temp_s0 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) PC_MODELS), (M2C_FIELD(temp_s0, f32 *, 0x3F0) < 5.0f)) || (M2C_FIELD(temp_s0, s16 *, 0x71C) == 0))) {
         *(s8 *)&PAD0EC(temp_s2->pad0EC, 0x26D) = 2;
         PAD0EC(temp_s2->pad0EC, 0x26C) = 0;
         M2C_FIELD(temp_s0, s8 *, 0x640) = 0;
@@ -3923,7 +3929,7 @@ void func_800E56F8(s32 ipa_s4) {
         do {} while (0);
         return;
     }
-    temp_s0_2 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) &D_8014A250);
+    temp_s0_2 = (D_8014A250_Record *) ((ipa_s4 * 0x808) + (u8 *) PC_MODELS);
     car_select_handler(ipa_s4);
     func_800D1248(temp_s0_2);
     if (((s8) PAD0EC(temp_s2->pad0EC, 0x26C) == 2) && ((s8) PAD0EC(temp_s2->pad0EC, 0x26D) <= 0)) {
@@ -4031,7 +4037,7 @@ void update_drone_models(void) {
         return;
     }
     for (i = 0; i < num_drones_to_do; i++) {
-        update_model(&D_8014A250[D_80152808[D_80153F40]]);
+        update_model(PC_MODEL(D_80152808[D_80153F40]));
         D_80153F40++;
         if (D_80153F40 >= D_8015274C) {
             D_80153F40 = 0;
@@ -4058,7 +4064,7 @@ void model_iteration(void) {
         D_801543CC = (f32) D_80143FF4 * D_8002AFB8;
         for (v = 0; v != 6; v++) {
             if (((GC2 *) player_array)[v].w380 == 0) {
-                car = &D_8014A250[v];
+                car = PC_MODEL(v);
                 if (car->s7CA == 0) {
                     fz = car->vel[2];
                     fx = car->vel[0];
@@ -4071,7 +4077,7 @@ void model_iteration(void) {
         i = 0;
         if (D_80153FD2 > 0) {
             rec = input_rec0; do {
-                car = &D_8014A250[rec->car];
+                car = PC_MODEL(rec->car);
                 j = 0;
                 for (;;) {
                     if (gameplay_mode == 2) {
