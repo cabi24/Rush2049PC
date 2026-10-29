@@ -1,0 +1,42 @@
+# The pause screen in a race of 12 cars (docs/port/MORECARS.md 10.3): one player and 11 drones (game.cars at 12, the
+# Drones option raised through the track select), the screens the pause menu opens, then a retirement from it, which
+# ends the race: _EndGame, the results, the game over screen (as pause.press).
+# until: 0x800000:60
+# seconds: 120
+# visits: 0x2000000
+# expect: state=0x00800000: players 1, windows 1, cars 12, mode 0, track 0, pause 0
+# args: --set game.cars=12
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 DOWN 0.1    # the track select: down its options list to the Drones
+20.5 DOWN 0.1
+21 RIGHT 0.1   # the Drones: 5 to 11
+21.5 RIGHT 0.1
+22 RIGHT 0.1
+22.5 RIGHT 0.1
+23 RIGHT 0.1
+23.5 RIGHT 0.1
+25 A           # track 0
+28 A           # the car select; the race from about 28.6 s, its countdown to 32 s
+35 START       # pause
+36 DOWN 0.1    # its second item
+37 A           # the screen it opens
+40 B           # back to the pause menu
+41 DOWN 0.1    # the third item
+42 A
+45 B
+46 DOWN 0.1    # the fourth
+47 A
+50 B
+51 DOWN 0.1    # the fifth
+52 A
+55 B
+56 DOWN 0.1    # down to quit (item 7)
+56.5 DOWN 0.1
+57 DOWN 0.1
+58 A           # quit: are you sure?
+59 RIGHT 0.1   # yes
+60 A           # the race is retired: _EndGame, the results, the game over screen

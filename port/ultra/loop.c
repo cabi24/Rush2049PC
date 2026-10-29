@@ -56,6 +56,7 @@ static void on_signal(int sig)
 
 static uint32_t (*g_game_state)(void);
 static void (*g_game_info)(char *, size_t);
+static void (*g_end_info)(char *, size_t);
 
 /* The game's state word and its state-log values, read when a retrace is due before the loop does anything
  * else: with --fast every N64 thread waits then (pc_os_wait_main), so the log, the status lines and --until-state
@@ -82,6 +83,18 @@ static void status(const char *tag)
     }
     fprintf(stderr, "rush2049pc: %s t=%.1fs vi=%u gfx_tasks=%u audio_tasks=%u%s\n", tag, pc_host_ns() / 1e9,
             pc_frame, pc_rcp_gfx_tasks, __atomic_load_n(&pc_rcp_audio_tasks, __ATOMIC_RELAXED), state);
+}
+
+/* The run's last status line, and the end line the caller asked for (--log-cars): read with the N64 threads still
+ * waiting, as the status line's values are. */
+static void end_status(const char *tag)
+{
+    status(tag);
+    if (g_end_info) {
+        char line[1536];
+        g_end_info(line, sizeof line);
+        fprintf(stderr, "rush2049pc: %s\n", line);
+    }
 }
 
 /* Once per retrace: logs each change of the game's state word, and says when --until-state is met (the
@@ -515,6 +528,7 @@ int pc_ultra_run(const PcRunOptions *opt)
     int tick_rate = 0;
     g_game_state = opt->game_state;
     g_game_info = opt->game_info;
+    g_end_info = opt->end_info;
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
     signal(SIGQUIT, on_signal);
@@ -602,7 +616,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             if (g_game_state)
                 until_gfx = watch_state(opt, until_gfx);
             if (until_gfx && pc_rcp_gfx_tasks >= until_gfx) {
-                status("state reached:");
+                end_status("state reached:");
                 break;
             }
             if (shot_vi && !shot && pc_frame >= shot_vi + 2) {
@@ -615,7 +629,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             }
             int shot_due = opt->screenshot_at && opt->screenshot_at <= opt->frames && !shot;
             if (frames_vi && pc_frame >= frames_vi + 2 && !shot_due) {
-                status("frames reached:");
+                end_status("frames reached:");
                 break;
             }
             next_vi += vi_ns;
@@ -649,7 +663,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                 next_status += (uint64_t)opt->status_every * 1000000000u;
             }
             if (opt->seconds > 0 && now >= (uint64_t)(opt->seconds * 1e9)) {
-                status("time reached:");
+                end_status("time reached:");
                 if (opt->until_state) {
                     fprintf(stderr, "rush2049pc: --until-state 0x%X:%u not reached in %.0f s\n",
                             (unsigned)opt->until_state, (unsigned)opt->until_state_frames, opt->seconds);
