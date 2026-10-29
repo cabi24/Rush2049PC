@@ -360,4 +360,11 @@ extern float pc_mp_save_dir[PC_MAX_LINKS][3];
 extern signed char pc_carsetup_flags[PC_MAX_LINKS];
 #define PC_CARSETUP_FLAG(slot) (pc_carsetup_flags[slot])
 
+/* The drone schedule's rows (MAT3 drone_sched, N64 D_80120E74, ROM data, Row3[12]: rows 0-6 for 0-6 drones with one
+ * human or none, rows 7-11 for 0-4 with two or more). world_physics_tick picks row D_8015274C, plus 7 with two
+ * humans; a human's retirement takes 7 off, a drone's 1. On the PC the second kind starts at PC_DRONE_SCHED_TWO,
+ * past the most drones a race may hold, and update_drone_models reads the N64's rows where it has them and a PC
+ * rule past them (func_800E56F8/group.c). */
+#define PC_DRONE_SCHED_TWO (PC_MAX_LINKS + 1)
+
 #endif

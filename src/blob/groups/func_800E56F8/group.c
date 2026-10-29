@@ -3899,6 +3899,38 @@ void model_iteration(void);
 /* model_iteration's walk of every car: the race's on the PC (PC_RACE_CARS, pc_game_types.h). */
 #define PC_RACE_CARS 6
 #endif
+#ifdef TARGET_PC
+/* The drone schedule on the PC (docs/port/DECOUPLE.md 6). Row r is for n drones with one human or none (r = n) or
+ * with two or more (r = PC_DRONE_SCHED_TWO + n, pc_game_types.h), n up to PC_MAX_LINKS; entry k is how many drones
+ * the k-th model iteration of a round updates, -1 ending the round. Where the N64 has the row (0-6 drones with one
+ * human, 0-4 with two: its rows n and 7 + n) it is read from the game's data as the N64 reads it. Past them a round
+ * has as many iterations as the N64's last row of that kind (PC_N64_SCHED_ONE, PC_N64_SCHED_TWO drones), each
+ * updating n / that many drones, the first n % that many one more: as even as the N64's rows split them, the larger
+ * first. Each drone is then updated once a round, which is as long as the N64's longest. */
+#define PC_N64_SCHED_ONE 6
+#define PC_N64_SCHED_TWO 4
+static s16 pc_drone_sched(s32 row, s32 k)
+{
+    s32 two = row >= PC_DRONE_SCHED_TWO;
+    s32 n = two ? row - PC_DRONE_SCHED_TWO : row;
+    s32 last = two ? 7 + PC_N64_SCHED_TWO : PC_N64_SCHED_ONE;
+    s32 groups;
+
+    if (n <= (two ? PC_N64_SCHED_TWO : PC_N64_SCHED_ONE))
+        return D_80120E74[two ? 7 + n : n].v[k];
+    for (groups = 0; groups < 3 && D_80120E74[last].v[groups] != -1; groups++)
+        ;
+    if (groups == 0)
+        groups = 1;
+    if (k >= groups)
+        return -1;
+    return (s16) (n / groups + (k < n % groups));
+}
+#define PC_DRONE_SCHED(row, k) pc_drone_sched(row, k)
+#else
+#define PC_DRONE_SCHED(row, k) D_80120E74[row].v[k]
+#define PC_DRONE_SCHED_TWO 7
+#endif
 void func_800E56F8(s32 ipa_s4) {
     GameCar *temp_s2;
     f32 temp_f0;
@@ -3928,8 +3960,8 @@ void func_800E56F8(s32 ipa_s4) {
         M2C_FIELD(temp_s0, s16 *, 0x71C) = 0;
         M2C_FIELD(temp_s0, f32 *, 0x3F0) = 0.0f;
         if (temp_s3 != NULL) {
-            if (D_80153F08 >= 7) {
-                D_80153F08 -= 7;
+            if (D_80153F08 >= PC_DRONE_SCHED_TWO) {
+                D_80153F08 -= PC_DRONE_SCHED_TWO;
             }
             temp_v0_3 = M2C_FIELD(temp_s3, u8 *, 1);
             *(&D_801440AD + (temp_v0_3 * PAK_RECORD)) = 0;
@@ -4045,11 +4077,11 @@ void update_model(D_8014A250_Record *car);
 void update_drone_models(void) {
     s16 i, num_drones_to_do;
 
-    if (D_80120E74[D_80153E84].v[++D_80153F24] == -1) {
+    if (PC_DRONE_SCHED(D_80153E84, ++D_80153F24) == -1) {
         D_80153F24 = 0;
         D_80153E84 = D_80153F08;
     }
-    num_drones_to_do = D_80120E74[D_80153E84].v[D_80153F24];
+    num_drones_to_do = PC_DRONE_SCHED(D_80153E84, D_80153F24);
     if (num_drones_to_do == 0) {
         return;
     }
