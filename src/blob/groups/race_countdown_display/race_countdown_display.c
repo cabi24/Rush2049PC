@@ -81,8 +81,14 @@ extern u32 D_801174B4;
 extern s16 D_80152734;
 extern s8 D_80152014;
 extern s8 D_80152015;
+#ifdef TARGET_PC
+/* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+#else
 extern s8 D_80110680[];
 extern f32 D_80110668[];
+#define PC_FINISH_CAM(i) D_80110680[i]
+#define PC_FINISH_CAM_TIME(i) D_80110668[i]
+#endif
 extern volatile f32 D_8002EB90;
 void func_800D2458(s32 player, f32 time);
 void func_800D2054(s32 player, f32 time);
@@ -132,8 +138,8 @@ void race_countdown_display(Model *m, f32 time)
             D_80152014 = D_80152014 < D_80152734 - m->laps ?
                 D_80152014 : D_80152734 - m->laps;
             if (m->laps == D_80152734 && gc->place_locked != -1) {
-                D_80110680[player] = 1;
-                D_80110668[player] = D_8002EB90;
+                PC_FINISH_CAM(player) = 1;
+                PC_FINISH_CAM_TIME(player) = D_8002EB90;
                 switch (gc->place) {
                 case 0:
                     func_800B61A8(64, player, 1, 1);

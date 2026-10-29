@@ -51,10 +51,19 @@ typedef struct {
     s8 unk7CC;
 } MODELDAT;
 
+#ifdef TARGET_PC
+/* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+#else
 extern s8 D_8010FFC4[];
 extern s8 D_8010FFCC[];
 extern SndSet D_80140420[];
 extern SndRec D_80140640[];
+#define PC_CAR_SOUNDS_ON(i) D_8010FFC4[i]
+#define PC_ENGINE_PHASE(i) D_8010FFCC[i]
+#define PC_ENGINE_SOUND_HANDLE(i, k) D_80140420[i].rec[k].handle
+#define PC_ENGINE_SOUND_REC(i, k) &D_80140420[i].rec[k]
+#define PC_SCREECH(i) &D_80140640[i]
+#endif
 extern SndRec D_801406C0[][3];
 extern s32 D_80140AE0[];
 extern s16 D_80140A08[];
@@ -79,19 +88,19 @@ void func_800D5524(MODELDAT *m) {
     s32 slot = m->slot;
     s32 i;
 
-    if (D_8010FFC4[slot]) {
-        D_8010FFC4[slot] = 0;
-        D_8010FFCC[slot] = (slot & 1) == 0;
+    if (PC_CAR_SOUNDS_ON(slot)) {
+        PC_CAR_SOUNDS_ON(slot) = 0;
+        PC_ENGINE_PHASE(slot) = (slot & 1) == 0;
         for (i = 0; i < 2; i++) {
             if (i) {}
-            if (D_80140420[slot].rec[i].handle != -1) {
-                player_conditional_check(&D_80140420[slot].rec[i], m->unk7CC != 2);
+            if (PC_ENGINE_SOUND_HANDLE(slot, i) != -1) {
+                player_conditional_check(PC_ENGINE_SOUND_REC(slot, i), m->unk7CC != 2);
             }
         }
-        if (D_80140420[slot].rec[3].handle != -1) {
-            player_conditional_check(&D_80140420[slot].rec[3], m->unk7CC != 2);
+        if (PC_ENGINE_SOUND_HANDLE(slot, 3) != -1) {
+            player_conditional_check(PC_ENGINE_SOUND_REC(slot, 3), m->unk7CC != 2);
         }
-        player_conditional_check(&D_80140640[slot], m->unk7CC != 2);
+        player_conditional_check(PC_SCREECH(slot), m->unk7CC != 2);
         if (m->unk7CC == 2) {
             player_conditional_check(&D_801406C0[slot][0], 0);
             player_conditional_check(&D_801406C0[slot][1], 0);

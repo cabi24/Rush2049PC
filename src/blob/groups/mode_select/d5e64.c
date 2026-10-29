@@ -72,10 +72,20 @@ typedef struct Definitions64 {Definition32 item[2];} Definitions64;
 typedef struct Player84 {Definitions64 *definition;State20 pair[3];State20 extra;} Player84;
 typedef struct States60 {State20 values[3];} States60;
 typedef struct Vehicle2056 {u8 prefix[12];s8 category;u8 gap13[1587];s8 disabled;u8 gap1601[389];s16 player;u8 gap1992[4];s8 mode;u8 tail[59];} Vehicle2056;
+#ifdef TARGET_PC
+/* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+extern s8 D_8010FFC0;
+#else
 extern s8 D_8010FFC0,D_8010FFC4[];
+#define PC_CAR_SOUNDS_ON(i) D_8010FFC4[i]
+#endif
 extern Definitions64 D_8010FD80[];
+#ifndef TARGET_PC
 extern Player84 D_80140420[];
 extern State20 D_80140640[];
+#define PC_ENGINE_SOUND(i) &D_80140420[i]
+#define PC_SCREECH(i) &D_80140640[i]
+#endif
 extern States60 D_801406C0[];
 extern s32 D_801407E0[],D_801407C0[];
 extern char D_801141B0[];
@@ -88,10 +98,10 @@ void func_800D5E64(Vehicle2056 *vehicle)
  Player84 *state;
  int i;
  s32 object;
- object=(s32)&D_8010FFC4[player];
- state=&D_80140420[player];
+ object=(s32)&PC_CAR_SOUNDS_ON(player);
+ state=PC_ENGINE_SOUND(player);
  if(!D_8010FFC0 || vehicle->disabled)return;
- if(&D_8010FFC4[player]!=0);
+ if(&PC_CAR_SOUNDS_ON(player)!=0);
  state->definition=&D_8010FD80[vehicle->category];
  for(i=0;i<2;i++) {
   player_conditional_call(&state->pair[i]);
@@ -103,7 +113,7 @@ void func_800D5E64(Vehicle2056 *vehicle)
   }
  }
  player_conditional_call(&state->extra);
- player_conditional_call(&D_80140640[player]);
+ player_conditional_call(PC_SCREECH(player));
  if(player<4) {
   player_conditional_call(&D_801406C0[player].values[0]);
   player_conditional_call(&D_801406C0[player].values[1]);
@@ -113,6 +123,6 @@ void func_800D5E64(Vehicle2056 *vehicle)
   D_801407E0[player]=-1;
   D_801407C0[player]=-1;
  }
- D_8010FFC4[player]=1;
+ PC_CAR_SOUNDS_ON(player)=1;
 }
 

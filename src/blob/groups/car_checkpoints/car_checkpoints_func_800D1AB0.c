@@ -49,6 +49,12 @@ extern GameCar D_80152818[];
 #define PC_CAR_PLACE(i) D_80152818[i].place
 #define PC_CAR_STATE(i) D_80152818[i].unk359
 #endif
+#ifdef TARGET_PC
+/* The places and distances by car slot: as many as a race may hold (docs/port/MORECARS.md 2.5). */
+#define PLACE_SLOTS PC_MAX_LINKS
+#else
+#define PLACE_SLOTS 6
+#endif
 
 void func_800D1AB0(void) {
     s16 i;
@@ -56,8 +62,8 @@ void func_800D1AB0(void) {
     s16 num_left;
     s16 num_done;
     s32 high_index;
-    s16 place[6];
-    s32 dist_tab[6];
+    s16 place[PLACE_SLOTS];
+    s32 dist_tab[PLACE_SLOTS];
     s16 index;
 
     num_done = 0;

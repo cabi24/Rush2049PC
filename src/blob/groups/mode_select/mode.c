@@ -134,11 +134,23 @@ void func_800DFBA0(ModelView *model)
 #else
 #define INPUT_SIZE 76
 #endif
+#ifdef TARGET_PC
+/* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+extern s8 D_8010FFC0;
+#else
 extern s8 D_8010FFC0,D_8010FFCC[],D_8010FFC4[];
+#define PC_ENGINE_PHASE(i) D_8010FFCC[i]
+#define PC_CAR_SOUNDS_ON(i) D_8010FFC4[i]
+#endif
 extern s8 D_801115CD[][13];
 extern volatile f32 D_8002EB90;
 extern f32 D_8011F060[],D_80110020[],D_8012438C,D_80124390;
+#ifndef TARGET_PC
 extern LayerState D_80140640[];
+#define PC_SCREECH(i) &D_80140640[i]
+#define PC_SCREECH_LEVEL(i) D_80140640[i].level
+#define PC_SCREECH_STYLE(i) D_80140640[i].style
+#endif
 extern s32 D_801407E0[],D_801407C0[];
 extern f32 D_801141B0[3];
 extern u8 input_rec0[];
@@ -177,7 +189,10 @@ typedef struct {
     s16 rpm;         /* 0x7D0 */
 } MODELDAT;
 extern u32 state_word_a;
+#ifndef TARGET_PC
 extern SndSet D_80140420[];
+#define PC_ENGINE_SOUND(i) &D_80140420[i]
+#endif
 extern s32 gameplay_mode;
 extern s16 active_player_count;
 extern s16 gCountDown;
@@ -230,7 +245,7 @@ void func_800E0050(MODELDAT *m) {
     if (!(state_word_a & 0x400000) && m->unk7CC != 2 && !(rpm < 890.0f)) {
         rpm = 890.0f;
     }
-    set = &D_80140420[slot];
+    set = PC_ENGINE_SOUND(slot);
     ref = D_801141B0;
     for (i = 0; i < 2; i++) {
         if (set->rec[i].handle == -1) {
@@ -322,12 +337,12 @@ void func_800E05F0(ModelView *model)
     s32 d1,d2,d3;
     f32 level;
     if (!D_8010FFC0) return;
-    if (D_8010FFCC[original_slot]) {
-        D_8010FFCC[original_slot]=0;
+    if (PC_ENGINE_PHASE(original_slot)) {
+        PC_ENGINE_PHASE(original_slot)=0;
         return;
     }
-    D_8010FFCC[original_slot]=1;
-    if (!D_8010FFC4[original_slot]) return;
+    PC_ENGINE_PHASE(original_slot)=1;
+    if (!PC_CAR_SOUNDS_ON(original_slot)) return;
     func_800E0050((MODELDAT *)model);
     slot=model->index;
     if (MODE(model)==2) {
@@ -340,7 +355,7 @@ void func_800E05F0(ModelView *model)
             value=weighted*0.6f;
             if(level<value) level=value;
         }
-        entry=&D_80140640[slot];
+        entry=PC_SCREECH(slot);
         if(entry->handle==-1 && level>0.0f) {
             if(MODE(model)==2) {
                 entry->handle=frame_sync(36,model->index,2,2);
@@ -354,7 +369,7 @@ void func_800E05F0(ModelView *model)
                 else results_screen_update(entry->handle);
                 player_conditional_call(entry);
             } else if(MODE(model)==2) {
-                if (level!=D_80140640[slot].level) {
+                if (level!=PC_SCREECH_LEVEL(slot)) {
                     entry->level=level;
                     client_sync(entry->handle,level);
                 }
@@ -363,7 +378,7 @@ void func_800E05F0(ModelView *model)
                     entity_hierarchy_update(entry->handle,style);
                 }
             } else {
-                if(style!=D_80140640[slot].style) entry->style=style;
+                if(style!=PC_SCREECH_STYLE(slot)) entry->style=style;
                 else style=-2.0f;
                 func_800E0048(entry,(f32 *)((u8 *)model+556),level,style);
             }

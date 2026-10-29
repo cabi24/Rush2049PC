@@ -24,8 +24,14 @@ typedef struct { u8 other[859]; s8 car,slot; } Object;
 #endif
 extern f32 D_80152720[];
 extern f32 D_801543CC;
+#ifdef TARGET_PC
+/* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+#else
 extern s8 D_80110680[];
 extern f32 D_80110668[];
+#define PC_FINISH_CAM(i) D_80110680[i]
+#define PC_FINISH_CAM_TIME(i) D_80110668[i]
+#endif
 extern f32 sinf(f32);
 extern f32 cosf(f32);
 extern void func_800E8D50(Object *object, f32 *carpos, Mat3 *matrix, f32 *res);
@@ -36,12 +42,12 @@ void func_800E9E2C(Object *object, f32 *carpos, Mat3 *matrix) {
     f32 res[3], ang;
     s32 slot = object->slot;
 
-    if (D_80110680[object->car] == 1 && D_80110668[object->car] + 10.0f < D_801543CC) {
-        D_80110668[object->car] = D_801543CC;
-        D_80110680[object->car] = 2;
+    if (PC_FINISH_CAM(object->car) == 1 && PC_FINISH_CAM_TIME(object->car) + 10.0f < D_801543CC) {
+        PC_FINISH_CAM_TIME(object->car) = D_801543CC;
+        PC_FINISH_CAM(object->car) = 2;
     }
-    if (D_80110680[object->car] == 2)
-        ang = (f32)(IRQTIME(D_80110668[object->car]) % 6000) * (1.0f / 6000) * 6.2831855f;
+    if (PC_FINISH_CAM(object->car) == 2)
+        ang = (f32)(IRQTIME(PC_FINISH_CAM_TIME(object->car)) % 6000) * (1.0f / 6000) * 6.2831855f;
     else
         ang = (f32)(IRQTIME(D_801543CC) % 6000) * (1.0f / 6000) * 6.2831855f;
 
