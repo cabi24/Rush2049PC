@@ -172,7 +172,7 @@ static int reset_rec(const struct pc_sound_rec *r)   /* player_conditional_call'
 
 static int near(float a, float b) { return fabsf(a - b) <= 1e-5f * (1.0f + fabsf(b)); }
 
-static int type_of(int k) { return (k * 5 + 1) % 13; }   /* every car a type, two cars sharing one */
+static int type_of(int k) { return (k * 5 + 1) % 13; }   /* a car type each, 12 of the 13 */
 
 static void sentinels(void)
 {
