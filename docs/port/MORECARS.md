@@ -203,6 +203,14 @@ humans have (`music_control.c:149`).
 | `D_80111299` | s8, 55 B by the gap, zero in the ROM | the smoke colour choice, `[slot * 13 + car type]` | `entity_spawn_init.c:426-432` | 13 bytes a slot: slots 4-11 read past the gap |
 | the HUD's MultiBlit tables (`D_80114C58`, `D_801158DC`) | the HUD's blits | 8 minimap dots and 8 radar icons per viewer | `showhud/showhud.c:126-128`; `func_80109A60.c`, `func_80108F40.c` | section 7 |
 
+**Item 1d, the effects (done: [DECOUPLE.md](DECOUPLE.md) 6).** The seven effects arrays of 2.3 are PC data with
+`PC_MAX_LINKS` entries; none needed a window address, and their two loops of 3.1 (`physics_collision_test.c:81`,
+InitBlasts `camera_smooth_lerp.c:3832`) are resets that clear every slot on the PC. `D_80111299` needs nothing: it
+is rows 1-4 of `D_8011128C` (`s8[5][13]`), a setting per player and car type that image A's car screen reads as
+`[player + 1][car]`, and only human slots (0-3) reach its three readers (the wings' set-up returns for a drone, and
+the trails' colour comes from the wing's animator with one player), with any number of cars. InitBlasts takes its
+50 matrices whatever the cars (StartBlast's ring of 50, not per car).
+
 ### 2.7 What must keep a window address
 
 A per-car array can't simply move to PC storage when something stores its address as a 32-bit N64 address. The
