@@ -253,6 +253,81 @@ Already following the count: the loops over `D_801543CA` (`world_physics_tick.c:
 rows `results_table.c:308, 391`, the place tests `func_800F56E0.c:172-176`), and the 13-slot walks
 (`loadcars/root.c:67`, `func_8039156C.c:17`, `sfx_position_3d.c:84`). Their bodies are what 2.3 lists.
 
+**Done** (item 3, the first part, 2026-10-29: da9d3a4 and ee4bdac on 8ff5be1). The sites of the table above that are
+item 3's, the locals of 2.5 outside other items' files, car_setup_confirm's locals and the scene trigger follow the
+race's cars. `PC_RACE_CARS` is `pc_race_cars()` (pc_game_types.h); each game file defines its N64 side as 6
+(`#ifndef TARGET_PC`), so the N64 tokens are the original ones. With the count at 6 the game is the N64's, to the
+trace (the proof below).
+
+| Site | On the PC |
+|---|---|
+| CalcPolePositions, `update_game/init_state_continue.c:99-107` and its copy `input_aux/ctx_init_state_continue.c` | latches the setting first (`pc_race_cars_begin()`), except on the results screen (state 0x2000000: display_list_flush calls it again there for the cars that race on behind the results, which keep the race's count); the drone cap is `PC_RACE_CARS - humans`, the circuit's the N64's `6 - humans` (3.3: with 2 humans 4 drones); the fill walks `PC_MAX_LINKS` slots, so every slot after the race's cars is empty (owner 7, flags 0), whatever an earlier race of more cars left in it |
+| func_800EC190, `func_800EC190.c:63-78` | latches; `D_801543CA` and the demo's drones are `PC_RACE_CARS`, and the camera's car (the counter) wraps at it; the loop walks `PC_MAX_LINKS` slots, so the slots after the demo's cars take the loop's own arm for slots past the count (flags 0, owner slot + 6), which the N64's 6 never reaches |
+| init_cars, `world_physics_tick.c:284` | a human's first distance is minus the larger of 6 and `D_801543CA`, plus its slot: the N64's `-(6 - i)` in any race of 6 cars or fewer, whatever the setting; with 11 drones the human at -12, behind their -1 to -11. A choice: `PC_RACE_CARS - i` would put the one human of a 6-car race at -12 with the setting at 12, which the N64 doesn't |
+| the same, `:376` | resets the records after `D_801543CA` up to `PC_MODEL_SLOTS` (the N64's to 6) |
+| `func_800E762C.c:73`, `players_race_update.c:3729`, `update_game_data.c:362`, `func_800CFCA8.c:3840`, `func_800DE860.c:110, 117, 130`, `battle_mode_setup.c:71`, `music_control.c:149, 155`, `menu_controller_remap.c:175`, `loadcars/root.c:72, 101` | `PC_RACE_CARS`; LoadCars' slots from the race's cars to the 13 copy slot 0's |
+| `PC_MODELS_END` (`menu_audio_settings.c:36`, the car-to-car collision) | `&pc_models[PC_RACE_CARS]`, the race's end; the name kept (pc_game_types.h) |
+| `func_8010C2E4.c:154-159` | cars 0-7 keep bits 24-31 of the scene's flags, as on the N64; car 8 and up a PC field of its car record, `pc_car.scenes` (PC +0x464, in the record's alignment padding, so the record stays 0x468): bit n while it is in a scene whose trigger is collision index n (0-31, what the test can match). Both count when the trigger asks whether a car is in the scene already (the 0x200 it sets for the first); the records of the race are zeroed at its start (init_cars), as the scenes' bits are when their track loads |
+| CalcPlaces, `car_checkpoints_func_800D1AB0.c:66-67` (and the demo_pair copy) | `place[]`, `dist_tab[]`: `PC_MAX_LINKS` |
+| car_setup_confirm, `car_checkpoints_car_setup_confirm.c:99-100` (and the demo_pair copy) | `place[7]` and `scores[6]` are the finished cars in score order, by slot, and their scores, indexed by how many have finished: up to the race's cars, whatever the circuit holds. `PC_MAX_LINKS + 1` (the N64's 7 is its frame's) and `PC_MAX_LINKS` |
+
+Left as they are, and why:
+
+| Site | Why |
+|---|---|
+| track_texture_load's `i < 6` (`billboard_render/track_texture_load.c:187`, the high-score screen's ranks) | inside `gameplay_mode == 3`: the circuit's 6 (3.3) |
+| SetOptions' `D_80142724 = 6` for the demo (`large_init_state/group.c:100`) | read only by CalcPolePositions and the track select's Drones line (`settings_values.c:185`); the demo runs neither |
+| `func_800EC914.c:117`, model_iteration's `v != 6`, render_large_objects' locals, `display_list_flush.c`, `audio_effect_remove.c` | item 1b and 5 |
+| `func_800EB90C.c:262` | items 1a, 1c, 1e |
+| InitBlasts, `physics_collision_test.c:81` | item 1d |
+| `init_mdrive/group.c:109`, `resurrect.c:470` | items 2 and 4 |
+| `func_80105B74.c:91` and its local | items 6 and 7 |
+| `ub612_src.tsv`'s 71 rows outside the other items' files | 62 are the car record views' `[6]` and `[8]` (battle_mode_setup, car_select_handler, cpak_read, update_game_data, world_physics_tick, menu_controller_remap, music_seq_load, music_tempo_set, func_800D1004, func_800D1AB0, the visuals' starters...): those views are each file's N64 side now, and the PC reads `pc_cars[12]` (DECOUPLE.md 4); 2 (`func_8008BEA4.c:40`, `startcar.c:115`, `D_8013FEF4[11]`) are declsize's extent, and the 12 palette descriptors fit (2.2); 6 (`func_8009D99C.c:57-84`, NaN to int) are a symptom, for the 12-car runs; 1 (`func_8008B640/group.c:3824`, `D_80161368[194]`) is the matrix pool run past its end (item 2) |
+
+**Found on the way: `D_801439F8`** (MAT3 `carsetup_flag`, arena BSS, 4 bytes declared, 8 by the gap): one byte a car,
+that CarSetup sets once it has set up a car's models (`music_tempo_set`: its root, body and wheel objects) during the
+countdown (`CarSetup.c:3720`, `(u8 *)&D_801439F8 + slot`: m2c byte
+arithmetic, which neither the text searches of 2.1 nor `-fsanitize=bounds` see), cleared for 6 at PrePlay
+(`display_list_flush.c:374`). With 12 cars, slots 6 and 7 are the gap and are never cleared, and slots 8-11 write the
+first word of `D_80143A00` (the pads' buttons pressed this frame, which the controller poll rewrites each frame): car 8
+sets bit 0 of pad 0's on a little-endian host. It needs PC data of `PC_MAX_LINKS` bytes and the clear loop at the race's
+cars; `display_list_flush.c` is item 1b's, so it waits for the merge (the second part). The same search over every game
+file's byte arithmetic on a data symbol's address (27 sites) found no other per-car array.
+
+**Proof** (the count at 6; "base" is a build of 8ff5be1):
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, base against the branch, Debug, build host (x86-64, GCC 14), every synthetic path | the same trace, every run: 19 of 19 paths |
+| the same, Pi 5 (aarch64, GCC 12) | 19 of 19 paths |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run: 6 of 6 |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 242 of 242 each (`assets_rom` skipped: no ROM there) |
+| `data.c`, `data_symbols.txt`, the synthetic cartridge | the same files as the base's (build host and Pi; Debug and RelWithDebInfo the same) |
+| `n64_neutral.py --base 09da2f0` | passes (1,010 files: 92 code-exact, 918 shifted); 19 changed game files under `src/` |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, ee4bdac) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, base and branch; offset_check 59,461 accesses, layout_check 48,102 (13 more each); endian_check's 2 open value conflicts in 1 storage the same, 3,486 puns, 2 more live functions (func_8010C2E4's two); check-loader 96 places, 0 wrong |
+| `layout_check.py --storage pc_cars` | 1,599 accesses (4 more, the scene field), none off the reference (`struct pc_car[12]`, which the tool now gives an N64 size of 0x3BC: the field sits past the N64 record's 0x3B8, in the PC record's padding) |
+| `view_audit.py` on `pc_cars`, `pc_models` | 223 views (func_8010C2E4's one more), 0 disagree; 165, 0 |
+| `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`; two reviewed keys GCC 14 found on the base it doesn't now (`pc_links` *tmr* in update_game_data.c and music_control.c: their loops' bound is a call now, so the loop optimizer doesn't index the array), kept for the other compilers: 9 reviewed keys GCC 14 doesn't find, not 7. GCC 13 and mingw-w64 12 not run on it |
+| Windows cross build (Pi, mingw-w64, fresh configure) | builds; gen_data's check of the PE: OK, 3 decoupled |
+| `assets_roster`, `assets_models`, `assets_carrecs`, `assets_targets` (test_race_cars 12) | pass. With each change undone, checks fail: the drone cap at 6, 190; the circuit at the setting, 6; the roster filled to the race's cars only, 20; the demo at 6, 93; its camera wrapping at 6, 2; a human's distance at -(6 - i), 4, at -(PC_RACE_CARS - i), 2; init_cars' reset to 6, 46; LoadCars' drones to 6, 33; the model clock to 6, 12; the collision's end at 6, 3; the stuck times to 6, 12; set_catchup's first loop and its leader's to 6, 6 and 1; the scene's cars 0-7 only, 1; car 8 at the shift's low 5 bits, 5. The locals at 6 fail none: an overrun of a local isn't seen without ASan (next row) |
+| the same tests and `assets_cars` under ASan + UBSan (Pi 5, GCC 12) | no report. With car_setup_confirm's `scores[6]` or `place[7]`, or CalcPlaces' locals at 6, ASan stops at a stack-buffer-overflow in the function (`car_checkpoints_car_setup_confirm.c:110`, `:109`; `car_checkpoints_func_800D1AB0.c:76`, `place`) |
+
+**The tests.** `assets_roster` now also builds init_cars (world_physics_tick) and LoadCars: the demo's 6 and 12 cars and
+its camera's car round them; CalcPolePositions for 1 or 2 humans and 10 or 11 drones, the option above the cap, the
+default 5 drones at the setting 12 (6 cars), battle and stunt, the circuit's first race (6 cars, places drawn) and a
+later one (the standings'), and 6 cars after 12; munge counting 12; the first distances for 6, 8 and 12 cars and the
+records reset after them; LoadCars giving 11 drones cars of their own. `assets_models`: the clock of 12 records and the
+collision's walk to the 12th. `assets_carrecs`: the stuck times of 12, 12 cars finishing one by one (car_setup_confirm,
+then CalcPlaces for the rest), CalcPlaces alone over 12, set_catchup over 12. `assets_targets`: the scene trigger with
+cars 7, 8 and 11 of 12, and a race of 6 with a car 8 left from one of 12.
+
+**For the other items.** munge's reset (`func_800EC914.c:117`) must reach `PC_MODEL_SLOTS`: LoadCars reads the drone
+type of every record below the race's cars, and a 6-car race after a 12-car one with the setting at 12 would otherwise
+load cars for records 6-11 that an earlier race left as drones (only heap; the race doesn't walk them). The results
+screen's CalcPolePositions doesn't latch (above), which item 7's `pc_race_cars_begin()` can rely on. Item 4's grid: the
+humans' first distance is `-(max(6, cars) - slot)`. `D_801439F8` above.
+
 ### 3.2 Values that look like a car count but are not
 
 The owner codes 6 and 7 (1.4); the six race tracks (`D_8014978C < 6`, `func_800CD8EC`, `reverb_setup`, `SavePlayerOption`,

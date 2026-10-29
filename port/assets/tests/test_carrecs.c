@@ -12,9 +12,14 @@
  * D_801543CA on the N64; func_800D1004 resets a car's battle state through the model's slot; race_init_helper hands
  * cars 1 to 3 to the cameras through what were D_80152BD0, D_80152BD8 and D_80152C20, car 1's +0, +8 and +0x50;
  * gameover_validOption reads a car's finish through what was D_80152907, +0xEF with a stride of 0x3B8.
+ * A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what pc_race_cars() returns, support.c):
+ * menu_controller_remap clears 12 cars' progress; car_setup_confirm (CarReportsGameOver) locks 12 cars' places in
+ * the order they finish, and func_800D1AB0 (CalcPlaces) orders the rest by distance, with locals for 12;
+ * func_800DE860 (set_catchup) scales the 12 cars' catch-up from the one ahead.
  * game: src/blob/func_800FBE60.c src/blob/menu_controller_remap.c src/blob/func_800CF604.c
  * game: src/ovl_b/groups/runtime_b_nearest_steering/group.c src/blob/func_800D1004.c src/blob/race_init_helper.c
- * game: src/blob/gameover_validOption.c
+ * game: src/blob/gameover_validOption.c src/blob/groups/car_checkpoints/car_checkpoints_car_setup_confirm.c
+ * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c src/blob/func_800DE860.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -42,6 +47,11 @@ uint32_t D_801174B4;
 uint8_t D_8014A118[6 * 80] __attribute__((aligned(16)));          /* the input records: node at +0 */
 struct { uint8_t pad[4]; void *pts; uint8_t pad8[4]; void *branch; } D_801407F0;
 float D_8011418C[9], D_80124160 = 1.0f, D_80124164 = 2.0f, D_80124168 = 3.0f;
+int16_t D_80152734;                 /* the race's laps */
+float D_801543AC;
+int8_t D_80152030, D_80150F14;      /* the drones' level, the catch-up's kind */
+float viGetTimeToDeadline(void) { return 0.0f; }
+void viAddTicks(float t) { (void)t; }
 
 /* What the code under test calls: each records what it was given. */
 static float g_turn[2];
@@ -74,6 +84,9 @@ void func_8038DDDC(void *object);
 void func_800D1004(void *car);
 void race_init_helper(void);
 int32_t gameover_validOption(int32_t arg0);
+void car_setup_confirm(int32_t slot, float score);
+void func_800D1AB0(void);
+void func_800DE860(void);
 
 static void sentinels(void)
 {
@@ -190,6 +203,97 @@ static void test_remap(void)
     CHECK(CF(9, 0x340, float) == 7.5f && PC_CAR_FWD_PROGRESS(9) == 7.5f && g_nstuck == 0);
 }
 
+/* menu_controller_remap with 12 cars: before 5 seconds, the 12 cars' progress and heading, and the models' stuck
+ * time, cleared; records 12 to 15 not. */
+static void test_remap12(void)
+{
+    static const int progress[] = {0x340, 0x344, 0x364, 0x368};
+    sentinels();
+    test_race_cars = 12;
+    D_801543CC = 1.0f;
+    menu_controller_remap();
+    for (int i = 0; i < 12; i++) {
+        CHECK(PC_CAR_FWD_PROGRESS(i) == 0.0f && PC_CAR_HEADING(i) == 0.0f && only(i, progress, 2));
+        CHECK(PC_MODEL_STUCK_TIME(i) == 0.0f);
+    }
+    CHECK(untouched_from(12) && MF(12, 0x7D8, uint32_t) == 0xEEEEEEEEu);
+    test_race_cars = 6;
+}
+
+/* A race of 12 cars, model i the car of slot i, car 0 the human: none lapped (their lap, +0x7E8, is the race's).
+ * Cars finish from 11 down to 0, each later: car_setup_confirm locks each one's place (+0xEE) in the order of the
+ * scores (+0xF0), and func_800D1AB0 places the others after them by distance (+0x100), the farthest first. */
+static void race12(void)
+{
+    sentinels();
+    D_80152744 = 12, D_80152734 = 3, D_8014A110 = 0, D_8014A108 = 1, D_80152718 = 0;
+    D_801543CA = 12;
+    for (int i = 0; i < PC_CAR_SLOTS; i++) {
+        MF(i, 0x7C6, int16_t) = (int16_t)i, MF(i, 0x7CC, int8_t) = i == 0 ? 2 : 1, MF(i, 0x7E8, int8_t) = 3;
+        PC_CAR_FINISHED(i) = 0, PC_CAR_STATE(i) = 0;
+        PC_CAR_DISTANCE(i) = 100.0f * (float)((i * 7) % 12);   /* every distance different */
+    }
+}
+
+static int ahead(int car, int n)   /* the cars of the first n with a greater distance */
+{
+    int k = 0;
+    for (int j = 0; j < n; j++)
+        k += PC_CAR_DISTANCE(j) > PC_CAR_DISTANCE(car);
+    return k;
+}
+
+static void test_places12(void)
+{
+    race12();
+    func_800D1AB0();                   /* nobody finished: all 12 by distance */
+    for (int i = 0; i < 12; i++)
+        CHECK(PC_CAR_PLACE(i) == ahead(i, 12));
+    for (int i = 12; i < PC_CAR_SLOTS; i++)
+        CHECK(only(i, (const int[]){0x100, 0x104, 0x359, 0x35A, 0xEF, 0xF0}, 3));
+
+    race12();
+    for (int k = 0; k < 12; k++) {
+        int car = 11 - k;
+        car_setup_confirm(car, 10.0f + (float)k);
+        for (int j = 11; j >= car; j--)                         /* the finished, in their order */
+            CHECK(PC_CAR_FINISHED(j) == 1 && PC_CAR_PLACE(j) == 11 - j && PC_CAR_TIME(j) == 10.0f + (float)(11 - j));
+        for (int j = 0; j < car; j++)                           /* the others after them, by distance */
+            CHECK(PC_CAR_FINISHED(j) == 0 && PC_CAR_PLACE(j) == k + 1 + ahead(j, car));
+    }
+    CHECK(D_80152718 == 1);                                       /* the human's finish ends the race's clock */
+    for (int i = 12; i < PC_CAR_SLOTS; i++)
+        CHECK(PC_CAR_FINISHED(i) == 0 && CF(i, 0xEE, uint8_t) == SENTINEL);
+}
+
+/* set_catchup over 12 cars: with no catch-up, each car of the 12 a drone or human (owner 0 or 6) at scale 1; with
+ * it for every car (the drones' level 5), each one's scale moves toward 1 + its distance behind the farthest of the
+ * 12 / 15,000. Cars 12 to 15, farther than all, are not of the race. */
+static void test_catchup12(void)
+{
+    sentinels();
+    test_race_cars = 12;
+    for (int i = 0; i < PC_LINK_SLOTS; i++)
+        pc_links[i].owner = i == 0 ? 6 : 0;
+    D_80150F14 = 0;
+    func_800DE860();
+    for (int i = 0; i < PC_MODEL_SLOTS; i++)
+        CHECK(MF(i, 0x400, uint32_t) == (i < 12 ? 0x3F800000u : 0xEEEEEEEEu));
+
+    for (int i = 0; i < PC_CAR_SLOTS; i++) {
+        MF(i, 0x7C8, int16_t) = 1, MF(i, 0x7CC, int8_t) = i == 0 ? 2 : 1, MF(i, 0x400, float) = 1.0f;
+        PC_CAR_STATE(i) = 0, PC_CAR_DISTANCE(i) = i < 12 ? 100.0f * (float)i : 1e6f;
+    }
+    active_player_count = 1, D_80152030 = 5, D_80150F14 = 2;
+    func_800DE860();
+    for (int i = 0; i < 11; i++)
+        CHECK(MF(i, 0x400, float) > MF(i + 1, 0x400, float));
+    CHECK(MF(11, 0x400, float) > 0.9999f && MF(11, 0x400, float) < 1.0001f);   /* the farthest: its own scale */
+    for (int i = 12; i < PC_MODEL_SLOTS; i++)
+        CHECK(MF(i, 0x400, float) == 1.0f);
+    test_race_cars = 6;
+}
+
 /* func_8038DDDC, a homing shot of car 0's: it turns toward the nearest car in its forward cone among the
  * D_801543CA cars of the race, by a walk from the array to their end in its view (0x468 bytes a car). Cars 6 to 15,
  * after the race's, are nearer still. */
@@ -263,6 +367,9 @@ int main(void)
     test_layout();
     test_start();
     test_remap();
+    test_remap12();
+    test_places12();
+    test_catchup12();
     test_homing();
     test_battle_reset();
     test_cameras();
