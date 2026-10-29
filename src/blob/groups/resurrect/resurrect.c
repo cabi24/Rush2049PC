@@ -338,9 +338,73 @@ float *pc_pole_row(int place)
     }
     return pc_pole_offsets[place];
 }
-#define PC_POLE_ROW(p) pc_pole_row(p)
+
+/* The start of a place past the N64's grid stands on the road: its row's distance behind the start point is walked
+ * back along the resurrection path (gResPath, from the start checkpoint's point, the one SetResurrectionData put
+ * every car on), and the car starts from that point of the path, facing along it (camera_follow_path, as
+ * SetResurrectionData faces the start point), with its row's sideways offset and whatever distance the path ran out
+ * of. On a straight road that is the straight row; where the road behind the start bends or dips, the rows follow
+ * it. Places 0-5, respawns, the attract demo (each car on its own drone path) and the modes that give no offset keep
+ * the start point and their table row. pc_grid_start(m, 0) is the point, 1 the orientation, 2 the offset. */
+static float pc_grid_point[3], pc_grid_uvs[3][3], pc_grid_offset[3];
+
+static int pc_grid_pose(tModelData *m)
+{
+    int p = m->initin.polepos, s, j, q, loop, k;
+    const float *row;
+    float need, done, seg, t, d[3];
+    if (p < PC_GRID_PLACES || p >= PC_RESPAWN_BASE || (gGameState & GS_DEMO) || gRace == kBattle ||
+        gRace == kStunt || gRace == kObstacle)
+        return 0;
+    row = pc_pole_row(p);
+    s = gCheckpoints.points[m->last_cp_index].pathPts[0];
+    loop = gCheckpoints.points[gCheckpoints.loopPt].pathPts[0];
+    need = -row[2];
+    done = 0.0f;
+    j = q = s;
+    for (k = 0; k < 3; k++)
+        pc_grid_point[k] = gResPath.pts[s][k];
+    while (done < need) {
+        q = j == loop ? gResPath.numPts - 1 : j - 1;
+        if (q < 0 || q == s) {   /* no point before it, or once round the loop */
+            q = j;
+            break;
+        }
+        for (k = 0; k < 3; k++)
+            d[k] = gResPath.pts[q][k] - gResPath.pts[j][k];
+        seg = __builtin_sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        if (done + seg >= need && seg > 0.0f) {
+            t = (need - done) / seg;
+            for (k = 0; k < 3; k++)
+                pc_grid_point[k] = gResPath.pts[j][k] + t * d[k];
+            done = need;
+            break;
+        }
+        done += seg;
+        j = q;
+        for (k = 0; k < 3; k++)
+            pc_grid_point[k] = gResPath.pts[j][k];
+    }
+    camera_follow_path(1, -1, q, pc_grid_uvs);   /* the path's segment from q on, the one the point is on */
+    pc_grid_offset[0] = row[0];
+    pc_grid_offset[1] = row[1];
+    pc_grid_offset[2] = done - need;   /* 0 unless the path ran out: the rest straight back */
+    return 1;
+}
+
+float *pc_grid_start(tModelData *m, int what)
+{
+    if (!pc_grid_pose(m))
+        return what == 0 ? m->resurrect.save_pos : what == 1 ? m->resurrect.uvs[0] : pc_pole_row(m->initin.polepos);
+    return what == 0 ? pc_grid_point : what == 1 ? pc_grid_uvs[0] : pc_grid_offset;
+}
+#define PC_START_POS(m) pc_grid_start(m, 0)
+#define PC_START_UVS(m) ((float (*)[3]) pc_grid_start(m, 1))
+#define PC_POLE_ROW(p) pc_grid_start(m, 2)
 #else
 #define PC_RESPAWN_BASE 6
+#define PC_START_POS(m) m->resurrect.save_pos
+#define PC_START_UVS(m) m->resurrect.uvs
 #define PC_POLE_ROW(p) pole_pos_offset[p]
 #endif
 
@@ -499,10 +563,10 @@ void stunt_combo_display(tModelData *m)
     }
     m->resurrect.waterAbort = 0;
     if (m->resurrect.crash_time == 0.0f) {
-        m->initin.pos[0] = m->resurrect.save_pos[0];
-        m->initin.pos[1] = m->resurrect.save_pos[1];
-        m->initin.pos[2] = m->resurrect.save_pos[2];
-        math_utility(m->resurrect.uvs, m->initin.uvs);
+        m->initin.pos[0] = PC_START_POS(m)[0];
+        m->initin.pos[1] = PC_START_POS(m)[1];
+        m->initin.pos[2] = PC_START_POS(m)[2];
+        math_utility(PC_START_UVS(m), m->initin.uvs);
         if (gRace == kBattle || gRace == kStunt || gRace == kObstacle || (!human && m->initin.polepos >= PC_RESPAWN_BASE)) {
             m->initin.offset[0] = 0.0f;
             m->initin.offset[1] = 0.0f;
