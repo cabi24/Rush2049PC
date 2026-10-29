@@ -2,6 +2,16 @@
 
 What changed for players, newest first. The details and the tests behind each item are in the documents linked.
 
+## Next (after the beta candidate)
+
+### New
+
+- **More cars a race, up to 12** (in progress; `game.cars`, F1 > Game > Cars in a race): `original`, the default,
+  is the N64's 6. The track select's Drones option goes up to one less than the setting (its default, 5, still
+  races 6 cars), and the HUD has two-digit places, the 7th to 12th places on the results, and a minimap dot and a
+  radar blip for every car ([MORECARS.md](docs/port/MORECARS.md) 7, [FRONTEND.md](docs/port/FRONTEND.md)). The races
+  take the count once the rest of MORECARS.md 10.2 is in; until then they hold 6 whatever the setting.
+
 ## Beta candidate (2026-10-28)
 
 The first builds were played on a Windows laptop on 2026-10-27: they booted and raced, but the sound was bad, the

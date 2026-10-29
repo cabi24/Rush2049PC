@@ -12,6 +12,7 @@ The settings overlay (Phase 8, 2026-10-27) has [its own section](#the-settings-o
 | `port/input/menu.c` | the settings overlay: pages (Help and About too), live changes, Save, the mouse's hit test, its drawing |
 | `port/input/stick.c` | dead zone, the N64 range, the octagonal gate |
 | `port/config/config.c` | the INI reader, the settings table, the file's location, the first-run file, the layers, saving changes in place |
+| `port/config/race_cars.c` | `game.cars` at run time: the setting, and the count the game latches at each race's start |
 | `port/input/tests/` | `frontend_test` (no SDL), `frontend_menu_test` (the overlay, headless) and `frontend_sdl_test` (SDL2 builds) |
 
 ## Controls
@@ -194,6 +195,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `game.rom` | `baserom.us.z64` | `--rom`, a path alone | the ROM: a full path, or a name looked for next to the program, in the user data folder, then in the working directory ([RELEASE.md](RELEASE.md) "The ROM"). A ROM chosen in the first run's "Open ROM..." dialog is written here as a full path, in place (`pc_settings_save`), in the file that was read; not with `--no-config` |
 | `game.rom_check` | on | `--no-rom-check` | refuse a ROM whose SHA-1 isn't the USA ROM's |
 | `game.expansion_pak` | on | `--expansion-pak` | 8 MiB of RDRAM (off: 4 MiB) |
+| `game.cars` | original | `--set game.cars=N` | the most cars a race holds: `original` (the N64's 6) or 6-12 (`PC_MAX_LINKS`); from the next race ([below](#the-cars-a-race-holds-gamecars), [MORECARS.md](MORECARS.md)) |
 | `game.pak` | memory | `--no-pak`, `--rumble`, `--pak` | controller 1's accessory: memory (the controller pak: the saves), rumble, none, or auto (rumble when the player's pad can rumble, else none) |
 | `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image; a name alone is in the data folder (RELEASE.md "Files"), `--pak` from the working directory |
 | `game.pak2`, `pak3`, `pak4` | auto | `--no-pak` (none) | controllers 2-4's accessories, as `game.pak`: auto gives multiplayer rumble where the pads have it, without a file; memory gives the player saves of their own |
@@ -259,6 +261,32 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
     widescreen off) gets the new ones, native, auto and auto, in the file too, with a line in the log.
   - main sets the volume and the latency with `pc_audio_set_volume` and `pc_audio_set_latency` after
     `pc_audio_init`.
+  - main sets `game.cars` with `pc_race_cars_set` before the game starts; the game takes it at each race's start
+    ([below](#the-cars-a-race-holds-gamecars)).
+
+### The cars a race holds (game.cars)
+
+2026-10-29, [MORECARS.md](MORECARS.md) 10.1. `original`, the default, is the N64's 6 exactly; 6 is the same. 7-12
+let a single race hold that many: the players and the drones the track select's Drones option asks for.
+
+- **Latched.** The game reads the count through `pc_race_cars()` (`PC_RACE_CARS`, `port/include/pc_game_types.h`)
+  in loops all over a race, on its game and model threads, so that is a copy: `pc_race_cars_begin()` latches the
+  setting into it where a race's roster is filled (CalcPolePositions and the attract demo's `func_800EC190`,
+  [MORECARS.md](MORECARS.md) 10.2 item 3). A change in the overlay applies from the next race and never during one.
+  Until the first `pc_race_cars_begin()` the count is 6. `pc_cars_setting()` is the setting itself, unlatched (6
+  for `original`), for the front end. All three are in `port/config/race_cars.c`; `pc_race_cars_set` (main, the
+  overlay) takes the setting there, `original` as 0, anything outside 6-12 to the nearest end.
+- **The Drones option** (the track select's options list, item 17: `runtime_a_c93c_closure/group.c`) goes from 0 to
+  `pc_cars_setting() - 1` and wraps there: 5, as on the N64, with `original`. Its reset value (the reset button)
+  and its default (`func_800CCB40`) stay 5, so a player who never touches it races 6 cars at any setting. It shows
+  the value with the options' `%d`, so 10 and 11 are two digits (seen on the retail cartridge).
+- **Saves.** The option is a signed byte of the player's profile (`reverb_setup`'s `modeA`, the race tracks'), so
+  0-11 fit. A profile saved with more than 5 drones keeps its value when the setting goes back to `original`: the
+  option shows it, the race holds 6 cars (the roster's cap is the latched count, item 3), and LEFT or RIGHT wraps
+  it to 0, as the N64's rule does for a value past its 5; an N64 reading such a profile does the same.
+- **Status (2026-10-29).** The setting, its latch, the overlay's item, the Drones option's range and the HUD for
+  up to 12 cars ([MORECARS.md](MORECARS.md) 7) are in; the races take the count once item 3 calls
+  `pc_race_cars_begin()`. Until then every race holds the N64's 6, whatever the setting.
 
 ### Environment variables
 
@@ -337,11 +365,12 @@ restart.
 | | Race HUD (widescreen): screen edges, centered (4:3) | `video.hud` | from the game's next frame (`pc_gfx_set_hud`) |
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
+| Game | Cars in a race: original (6), 7-12 | `game.cars` | from the next race's start: the setting at once (`pc_race_cars_set`), the race's count when the game latches it ([above](#the-cars-a-race-holds-gamecars)) |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
 | Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; P1-P4 accessory: controller pak, rumble pak, auto (shown with what it gives now: "auto: rumble pak"), none; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble`, `game.pak`, `game.pak2`... | at once; an accessory as a hot swap (the game sees the old one pulled at its next poll, then the new one) |
 | Help | read-only: each N64 control, its keys (the keyboard's player) and its controller inputs in Xbox names (`a, righttrigger` is "A, RT", `-righty` "RS up", the N64 stick's own stick on the stick rows); the hotkeys (Alt+Enter with fullscreen); this menu's keys and the mouse | the bindings in effect, made again each time it opens | |
 | About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display); **Copy to the clipboard** (the page as text, for a bug report; with a window) | main's facts (`pc_menu_set_about`), made each time it opens | |
-| (main) | Video, Audio, Keyboard, Controllers, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
+| (main) | Video, Audio, Keyboard, Controllers, Game, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
   then go to either end of the list.
@@ -448,7 +477,8 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.layers` | `frontend_test layers` | the file over the defaults, the environment over the file (a bad variable is ignored), overrides over both in order, a bad override fails but the rest apply, no file, a missing `--config` file |
 | `frontend.locate` | `frontend_test locate` | XDG, a relative XDG (ignored), HOME, no place at all; the first run writes the defaults (making directories) and reads them back; edits are read next time; READ never creates; a file next to the executable wins |
 | `frontend.stick` | `frontend_test stick` | dead zone (radial), rescaling, full tilt in four directions, the octagon's corner and edge (22.5°: (76, 31)), a square pad's corner, the round gate, keys, monotonic travel |
-| `frontend.precedence` | `rush2049pc --print-config` | the real program: the file's ROM, `RUSH2049_AUDIO` over the file, `--scale` over `RUSH_GFX_SCALE` over the file, and a `--set` binding |
+| `frontend.precedence` | `rush2049pc --print-config` | the real program: the file's ROM, `RUSH2049_AUDIO` over the file, `--scale` over `RUSH_GFX_SCALE` over the file, a `--set` binding and `--set game.cars=12` |
+| `frontend.cars` | `frontend_test cars` | `game.cars`: `original` the default (written commented out), 6-12 each set and read back, 5, 13, 0, -1, 99, words and an empty value refused with the range in the message and the setting kept, any case, `--set` syntax, the file read back, a bad line skipped; the latch: 6 before anything, the setting at once and the race's count only at `pc_race_cars_begin()`, a change and `original` mid-race leaving the race's count alone, the next race taking it, out-of-range values taken to 6 and 12 |
 | `frontend.sdl.keyboard` | `frontend_sdl_test keyboard` | every default key, held keys, the stick from keys (cardinal, the corner, opposite keys); rebinding: two keys, an alias, an unknown name skipped, the keyboard on player 2, a round gate of 100 |
 | `frontend.sdl.hotkeys` | `... hotkeys` | title and minimum size; Alt+Enter toggles fullscreen and is not START; F11 back; key repeat ignored; F12 saves PNGs of the shown frame (two in one second get two names); Pause holds and the exposed window is redrawn; Escape quits and isn't a game key; rebound and cleared hotkeys; closing the window quits; fullscreen from the settings |
 | `frontend.sdl.focus` | `... focus` | focus loss releases held keys; no hold by default; with `pause_on_focus_loss` it holds and focus back releases it; the pause key and focus are separate reasons |
@@ -461,7 +491,7 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.menu.nav` | `frontend_menu_test nav` | the overlay, headless: opening holds the game and its pads read idle; the panel shows over the frame (the frame dimmed around it, the selected row's color); moving and wrapping, pages, a long page scrolled by a page, back, close; Help opens past its heading, its rows don't change, up wraps past the heading; About without main's facts; closed, the window is the frame again byte for byte, and so is the next frame; each page keeps its place; Quit stops the main loop |
 | `frontend.menu.mouse` | `... mouse` | hit-testing at ten window and drawable sizes (640 × 480, 1080p, a 200% DPI-aware 2880 × 1620, 2x points, 1.5x, 1.25x square, 853 × 480, 21:9 3440 × 1440, 320 × 240, 1366 × 768): every window unit lands in its own pixels; rows 0, 7 and 14 from the window's units; the panel's edges and corners to the pixel; a row's first and last pixel lines; the footer; the scroll arrow; a value's label, left and right parts. Then by mouse at 640 × 480: pointing selects and the highlight is drawn there; clicks right and left of a value, on a label, on the title (nothing); the right button; a double click on Video (opens it, the second press changes nothing; a click 0.6 s later does); the volume's bar at its middle, end and start and right of it; the wheel (3 rows, the item under the mouse selected, at most to the last page); the up arrow; a binding's wait (pointing doesn't move it, a click cancels); at 2x points into a 1280 × 960 window, the row and its highlight; outside: back, then closed; closed, clicks don't open it nor reach the pads |
 | `frontend.menu.pages` | `... pages` | About's content (`pc_menu_about_text`) from mocked main facts: version and build type, commit, build, the GL driver's own strings, audio and buffer, four players (none headless), ROM, settings file, saves, screenshots, log, data folder; made again each time it opens (main's fill called each time); no Open or Copy headless. Help from the bindings in effect: two keys, Xbox names, the right stick as the N64 stick, a combination as the settings button, Alt+Enter with fullscreen, a binding cleared on the Keyboard page shown on return |
-| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the race HUD reaches it (centered, then edges); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s; player 2's accessory from auto ("auto: none") to rumble pak and controller pak, each swapped at once (`pc_si_set_pak`), and back to auto, player 1's untouched |
+| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the race HUD reaches it (centered, then edges); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s; player 2's accessory from auto ("auto: none") to rumble pak and controller pak, each swapped at once (`pc_si_set_pak`), and back to auto, player 1's untouched; the Game page: Cars in a race from original (6) to 7 and 12, the setting at once and the race's count kept until `pc_race_cars_begin()`, past 12 to original and back, a change during a race leaving its count, Defaults |
 | `frontend.menu.save` | `... save` | `pc_ini_update`: a value replaced in place (key case, spacing, the inline comment kept), the last of two lines, a new key after its section's last, an empty section, a new section after a last line without its end, CRLF, a binding, quoting, a BOM and bad lines kept, no changes; the overlay's Save over a hand-written file: the expected text exactly, a setting changed and back not written, the command line's scale not written, "saved" and the message naming the file, nothing more to save, a change after it counted, changed back "saved" again, the file reads back; a missing file and its directories, written whole |
 | `frontend.menu.script` | `... script` | a `--press` script over time: MENU opens it, a press held across the opening doesn't act, the game's pads are idle meanwhile, DOWN, A, LEFT (the volume), B, the stick, START closes; scripted game input works after |
 | `frontend.sdl.menu` | `frontend_sdl_test menu` | the overlay through the real window: F1 opens it, the game's held key released and its input suppressed, the title; (not on Windows) the panel in the window; arrows, Enter, a key captured (Space; Comma by its alias); Escape goes back and doesn't quit; the game then has the new keys; Enter that closed it and its key repeat aren't START until released; a virtual pad: one stick click doesn't open it, both do; the D-pad, A, a button and a stick direction captured, B, Start closes it and stays ignored until released, Y now A; guide as the menu button opens and closes it and isn't a game button; fullscreen from the overlay at once; F11 works in it and the overlay follows |
@@ -592,6 +622,11 @@ python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-ch
   - `pc_input_paused` is also true while the overlay is open, and `pc_input_init` starts it; main sets the volume.
   - The pause key's redraw of an exposed or resized window now shows the presented frame again (`pc_gfx_redraw`)
     rather than presenting the last render target.
+- **`game.cars`** (2026-10-29, [MORECARS.md](MORECARS.md) 10.1): `config.h` gains `PcSettings.cars` and
+  `pc_race_cars_set`; `port/config/race_cars.c` is new (in pcfrontend, and in `frontend_test`); `pc_game_types.h`
+  gains `pc_race_cars_begin` and `pc_cars_setting` beside `pc_race_cars`, which moves there from `port/main.c`; menu.c
+  gains the Game page (`P_GAME`) after Controllers, so the menu tests step one more over the main page where they
+  pass it. The game C change is the Drones option's bound (`PC_DRONES_MAX`, `n64_neutral`: shifted).
 - **The mouse, Help and About** (2026-10-28) changed no game C and nothing in port/ultra.
   - `pc_port.h` gains `pc_gfx_driver` (the GL strings `gfx_gl.c` logs); `pc_audio.h`'s `PcAudioStats` gains
     `game_rate`; `app.h` gains `pc_app_rom_path`, `pc_app_version_commit`, `pc_app_version_build` and
