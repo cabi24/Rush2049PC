@@ -689,7 +689,7 @@ target_compile_definitions(test_assets_models_game PRIVATE PC_MAX_LINKS=16)
 # And the car records' test.
 target_compile_definitions(test_assets_carrecs PRIVATE PC_MAX_LINKS=16)
 target_compile_definitions(test_assets_carrecs_game PRIVATE PC_MAX_LINKS=16)
-# The pools' test shrinks them, so the checks are what it reaches, and runs them through port/ultra/pools.c itself
+# The pools' test shrinks them, so the checks are what it reaches, and runs the frame's through port/ultra/pools.c
 # (docs/port/MORECARS.md 8).
 set(PC_POOLS_TEST_SIZES PC_MATRIX_SPILL=4 PC_FRAME_MATRICES=8 PC_GLIST_LEN=32)
 target_compile_definitions(test_assets_pools PRIVATE ${PC_POOLS_TEST_SIZES})

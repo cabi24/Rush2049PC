@@ -1,12 +1,11 @@
 /* port/ultra/pools.c: the game's fixed pools that more cars a race fill (docs/port/MORECARS.md 8). The N64 game checks
- * none of them: GetMatrix (func_800A7D6C) has no limit, and the SDK's display-list check is an empty `if`
- * (world_collision_response.c). On the PC each has room for PC_MAX_LINKS cars (port/include/pc_game_types.h), and a
- * pool run past its end comes here: it says which, once a pool, and a Debug build stops with a backtrace. A Release
- * build goes on (GetMatrix hands out its last matrix again; the frame's list is already written), so a player sees
- * a wrong picture and the log says why. At the end of the run the high-water marks are logged (pc_pools_report). */
+ * none of them: GetMatrix (func_800A7D6C) and the scene nodes (func_8008E26C) have no limit, and the SDK's
+ * display-list check is an empty `if` (world_collision_response.c). On the PC each has room for PC_MAX_LINKS cars
+ * (port/include/pc_game_types.h), and the frame's three are checked here at the end of each frame's list; a pool run
+ * past its end goes to pc_pool_overflow (port/ultra/pool_overflow.c). At the end of the run the high-water marks are
+ * logged (pc_pools_report). */
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "pc_game_types.h"
 #include "ultra.h"
@@ -21,31 +20,6 @@ extern int16_t D_8012E678;
 extern int8_t D_80124F84;
 
 static long g_glist_max, g_matrices_max, g_lookats_max;
-
-/* A test's own handler (port/assets/tests/test_pools.c): when set, it is called instead of the log and the stop. */
-void (*pc_pool_overflow_hook)(const char *pool, int used, int capacity);
-
-void pc_pool_overflow(const char *pool, int used, int capacity)
-{
-    static const char *said[8];
-    int i;
-    if (pc_pool_overflow_hook != NULL) {
-        pc_pool_overflow_hook(pool, used, capacity);
-        return;
-    }
-    for (i = 0; i < 8 && said[i] != NULL; i++)
-        if (said[i] == pool)
-            return;
-    if (i < 8)
-        said[i] = pool;
-    fprintf(stderr, "rush2049pc: %s ran past its end: %d of %d (N64 thread %s; docs/port/MORECARS.md 8)\n", pool,
-            used, capacity, pc_os_thread_name());
-#ifndef NDEBUG
-    pc_print_backtrace(1);
-    fflush(NULL);
-    abort();
-#endif
-}
 
 int pc_frame_pools(const void *frame, const void *glist_end, const void *matrices_end)
 {

@@ -4,9 +4,10 @@
  * D_8015F740 (index 0 unused), then pc_matrix_spill's, then says it ran out (pc_pool_overflow) and hands out its last
  * one again; world_collision_response (EndGraphics) closes the frame's list in the frame's buffer as pc_game_types.h
  * lays it out and hands the list's and the matrices' ends to pc_frame_pools (port/ultra/pools.c), which says when
- * either ran past its end, or the frame's lookats did, and not when one is exactly full. The handler is this test's
- * (pc_pool_overflow_hook). The scene nodes' allocator (func_8008E26C) hands out free nodes, then grows the table to
- * its 600, then says it ran out and hands out the last one again, where the N64 writes past the table.
+ * either ran past its end, or the frame's lookats did, and not when one is exactly full. The scene nodes' allocator
+ * (func_8008E26C) hands out free nodes, then grows the table to its 600, then says it ran out and hands out the last
+ * one again, where the N64 writes past the table. "Says" is this test's handler (test_pool_overflow, which
+ * support.c's pc_pool_overflow calls).
  * game: src/blob/func_800A7D6C.c src/blob/world_collision_response.c src/blob/func_8008E26C.c
  */
 #include <stddef.h>
@@ -14,8 +15,6 @@
 
 #include "pc_prelude.h"
 #include "support.h"
-
-extern void (*pc_pool_overflow_hook)(const char *pool, int used, int capacity);
 
 /* ---------------------------------------------------------------- what the code under test uses */
 
@@ -66,8 +65,6 @@ int32_t func_8008E26C(int32_t a, void *b, int16_t parent, int32_t d);
 int32_t D_801569A8, D_8013C234;
 int16_t D_8012E678;
 int8_t D_80124F84;   /* the frame's lookats so far */
-const char *pc_os_thread_name(void) { return "test"; }
-void pc_print_backtrace(int skip) { (void)skip; }
 
 /* The pools' handler: what ran past its end, and by how much. */
 static int g_overflows, g_used, g_capacity;
@@ -192,7 +189,7 @@ static void test_nodes(void)
 
 int main(void)
 {
-    pc_pool_overflow_hook = overflow;
+    test_pool_overflow = overflow;
     test_matrices();
     test_frame();
     test_nodes();
