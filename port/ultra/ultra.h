@@ -232,6 +232,8 @@ void pc_fault_thread_init(void);   /* per host thread: an alternate signal stack
 
 /* ---------------------------------------------------------------- pools.c */
 void pc_pools_report(void);   /* the game's pools' high-water marks, at the end of a run (docs/port/MORECARS.md 8) */
+/* A test's handler for a pool past its end, called instead of pc_pool_overflow's log and stop. */
+extern void (*pc_pool_overflow_hook)(const char *pool, int used, int capacity);
 
 /* ---------------------------------------------------------------- port/input */
 int pc_input_add_spec(const char *spec);   /* --press T:BUTTON[@PORT][:DUR],...; 0 on success */

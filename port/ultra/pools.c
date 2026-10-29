@@ -16,13 +16,23 @@
  * gives NULL) and the sprites (func_800A79F4: D_80140BF0, 200, none left gives -1). */
 extern int32_t D_80156BD0, D_801569A8, D_8013C234;
 extern int16_t D_8012E678;
+/* The frame's lookats so far: the scene draw gives each environment-mapped node of each view one of the frame buffer's
+ * 32 (particle_knot's GfxBuf.la[D_80124F84++], reset at the frame's start), a car's body among them. */
+extern int8_t D_80124F84;
 
-static long g_glist_max, g_matrices_max;
+static long g_glist_max, g_matrices_max, g_lookats_max;
+
+/* A test's own handler (port/assets/tests/test_pools.c): when set, it is called instead of the log and the stop. */
+void (*pc_pool_overflow_hook)(const char *pool, int used, int capacity);
 
 void pc_pool_overflow(const char *pool, int used, int capacity)
 {
     static const char *said[8];
     int i;
+    if (pc_pool_overflow_hook != NULL) {
+        pc_pool_overflow_hook(pool, used, capacity);
+        return;
+    }
     for (i = 0; i < 8 && said[i] != NULL; i++)
         if (said[i] == pool)
             return;
@@ -47,6 +57,12 @@ int pc_frame_pools(const void *frame, const void *glist_end, const void *matrice
         g_glist_max = glist;
     if (matrices > g_matrices_max)
         g_matrices_max = matrices;
+    if (D_80124F84 > g_lookats_max)
+        g_lookats_max = D_80124F84;
+    if (D_80124F84 > PC_FRAME_LOOKATS) {
+        pc_pool_overflow("the frame's lookats", D_80124F84, PC_FRAME_LOOKATS);
+        over = 1;
+    }
     if (matrices > PC_FRAME_MATRICES) {
         pc_pool_overflow("the frame's matrices", (int)matrices, PC_FRAME_MATRICES);
         over = 1;
@@ -61,7 +77,8 @@ int pc_frame_pools(const void *frame, const void *glist_end, const void *matrice
 void pc_pools_report(void)
 {
     fprintf(stderr, "rush2049pc: pools: persistent matrices %d of %d, scene nodes %d of 600, environment visuals %d of "
-                    "100, sprites %d of 200, frame matrices %ld of %d, display list %ld of %d commands (high-water "
-                    "marks)\n", (int)D_80156BD0, PC_MATRICES - 1, (int)D_801569A8, (int)D_8012E678, (int)D_8013C234,
-            g_matrices_max, PC_FRAME_MATRICES, g_glist_max, PC_GLIST_LEN);
+                    "100, sprites %d of 200, frame lookats %ld of %d, frame matrices %ld of %d, display list %ld of %d "
+                    "commands (high-water marks)\n", (int)D_80156BD0, PC_MATRICES - 1, (int)D_801569A8, (int)D_8012E678,
+            (int)D_8013C234, g_lookats_max, PC_FRAME_LOOKATS, g_matrices_max, PC_FRAME_MATRICES, g_glist_max,
+            PC_GLIST_LEN);
 }

@@ -52,6 +52,7 @@ extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
 #define PC_GLIST_LEN 8000
 #endif
 #define PC_FRAME_MATRIX_OFFSET 1728
+#define PC_FRAME_LOOKATS 32   /* the GfxBuf's la[32]: one per environment-mapped node a view draws */
 #define PC_GLIST_OFFSET (PC_FRAME_MATRIX_OFFSET + PC_FRAME_MATRICES * 64)
 #define PC_FRAME_BYTES (PC_GLIST_OFFSET + PC_GLIST_LEN * 16)
 /* A pool run past its end (port/ultra/pools.c): it says so, once a pool, and a Debug build stops there.

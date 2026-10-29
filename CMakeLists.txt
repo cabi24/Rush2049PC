@@ -689,6 +689,13 @@ target_compile_definitions(test_assets_models_game PRIVATE PC_MAX_LINKS=16)
 # And the car records' test.
 target_compile_definitions(test_assets_carrecs PRIVATE PC_MAX_LINKS=16)
 target_compile_definitions(test_assets_carrecs_game PRIVATE PC_MAX_LINKS=16)
+# The pools' test shrinks them, so the checks are what it reaches, and runs them through port/ultra/pools.c itself
+# (docs/port/MORECARS.md 8).
+set(PC_POOLS_TEST_SIZES PC_MATRIX_SPILL=4 PC_FRAME_MATRICES=8 PC_GLIST_LEN=32)
+target_compile_definitions(test_assets_pools PRIVATE ${PC_POOLS_TEST_SIZES})
+target_compile_definitions(test_assets_pools_game PRIVATE ${PC_POOLS_TEST_SIZES})
+target_sources(test_assets_pools PRIVATE port/ultra/pools.c)
+target_include_directories(test_assets_pools PRIVATE port/ultra)
 # test_assets_musyx also runs the game's own MusyX readers on the converted files: the boot library's units that
 # read them, built with the game's flags (one wrapper per unit, like test_gsm_game).
 file(GLOB PC_ASSETS_MUSYX_GAME CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/tests/musyx_lib_*.c)
