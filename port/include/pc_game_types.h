@@ -59,6 +59,14 @@ extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
  * and the matrices' end) and keeps their high-water marks; it returns 1 if either ran past its end. */
 void pc_pool_overflow(const char *pool, int used, int capacity);
 int pc_frame_pools(const void *frame, const void *glist_end, const void *matrices_end);
+/* The start grid. Resurrect offsets a car from the start point by its place's row of pole_pos_offset (D_801210E8,
+ * f32[12][3], game data): rows 0-5 the N64's grid, rows 6-9 the humans' respawns. On the N64 a respawn is coded as a
+ * place of 6 or more (index + 6, 6 in a ghost race), so places 6-11 have no grid row. On the PC a respawn is a place
+ * of PC_RESPAWN_BASE or more and reads the ROM's respawn rows as before (place - PC_RESPAWN_BASE + 6), and
+ * pc_pole_row gives every start place a row: 0-5 the loaded table's, 6 on the two columns continued backwards at
+ * the loaded rows' spacing (groups/resurrect/resurrect.c). */
+#define PC_RESPAWN_BASE PC_MAX_LINKS
+float *pc_pole_row(int place);
 
 struct pc_link {
     unsigned char track;     /* +0 the track (CalcPolePositions, func_800EC190: D_8014978C) */

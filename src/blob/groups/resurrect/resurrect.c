@@ -313,6 +313,37 @@ f32 func_8008B2E4(f32 max);                                                   /*
 void func_800D348C(tModelData *m, int *outPath, int *outIdx);
 void func_800D3B20(float *q1, float *q2);
 
+#ifdef TARGET_PC
+/* PC: a start-grid row for each of PC_MAX_LINKS places (pc_game_types.h, docs/port/MORECARS.md 4). Places 0-5 are
+ * pole_pos_offset's rows, read from the loaded table when a car is placed, so the build holds none of its values.
+ * The table's grid is two cars a row, 3 rows; each later place continues the places of its column parity two rows
+ * before it, moved by their two-row step: row[p] = row[p - 4] + (row[4 + p % 2] - row[p % 2]). So the rows keep the
+ * table's spacing and its alternation, whatever they are. A respawn, PC_RESPAWN_BASE + slot (PC_RESPAWN_BASE in a
+ * ghost race), reads the table's respawn rows, 6 + slot, as the N64's index + 6 did. */
+#define PC_GRID_PLACES 6
+#define PC_GRID_COLUMNS 2
+#define PC_GRID_PERIOD (PC_GRID_PLACES - PC_GRID_COLUMNS)
+float pc_pole_offsets[PC_MAX_LINKS][3];
+
+float *pc_pole_row(int place)
+{
+    int p, k, c;
+    if (place >= PC_RESPAWN_BASE)
+        return pole_pos_offset[place - PC_RESPAWN_BASE + PC_GRID_PLACES];
+    for (p = 0; p < PC_MAX_LINKS; p++) {
+        c = p % PC_GRID_COLUMNS;
+        for (k = 0; k < 3; k++)
+            pc_pole_offsets[p][k] = p < PC_GRID_PLACES ? pole_pos_offset[p][k] :
+                pc_pole_offsets[p - PC_GRID_PERIOD][k] + (pole_pos_offset[PC_GRID_PERIOD + c][k] - pole_pos_offset[c][k]);
+    }
+    return pc_pole_offsets[place];
+}
+#define PC_POLE_ROW(p) pc_pole_row(p)
+#else
+#define PC_RESPAWN_BASE 6
+#define PC_POLE_ROW(p) pole_pos_offset[p]
+#endif
+
 /* Respawn point for a human car (MAT3 FindHumanResPt). */
 void func_800D348C(tModelData *m, int *outPath, int *outIdx)
 {
@@ -472,14 +503,14 @@ void stunt_combo_display(tModelData *m)
         m->initin.pos[1] = m->resurrect.save_pos[1];
         m->initin.pos[2] = m->resurrect.save_pos[2];
         math_utility(m->resurrect.uvs, m->initin.uvs);
-        if (gRace == kBattle || gRace == kStunt || gRace == kObstacle || (!human && m->initin.polepos >= 6)) {
+        if (gRace == kBattle || gRace == kStunt || gRace == kObstacle || (!human && m->initin.polepos >= PC_RESPAWN_BASE)) {
             m->initin.offset[0] = 0.0f;
             m->initin.offset[1] = 0.0f;
             m->initin.offset[2] = 0.0f;
         } else {
-            m->initin.offset[0] = pole_pos_offset[m->initin.polepos][0];
-            m->initin.offset[1] = pole_pos_offset[m->initin.polepos][1];
-            m->initin.offset[2] = pole_pos_offset[m->initin.polepos][2];
+            m->initin.offset[0] = PC_POLE_ROW(m->initin.polepos)[0];
+            m->initin.offset[1] = PC_POLE_ROW(m->initin.polepos)[1];
+            m->initin.offset[2] = PC_POLE_ROW(m->initin.polepos)[2];
         }
         m->resurrect.moving_state = RES_IDLE;
         func_800D11BC(m);

@@ -69,6 +69,11 @@ extern Config8 D_80153E88[];
 #define PC_LINK_PLACE(i) D_80153E88[i].camera
 #define PC_LINKP_OWNER(p) p->mode
 #endif
+#ifndef TARGET_PC
+/* A respawn is coded as a place of PC_RESPAWN_BASE or more; on the PC that is past every start place
+ * (pc_game_types.h, docs/port/MORECARS.md 4). */
+#define PC_RESPAWN_BASE 6
+#endif
 extern int gameplay_mode;
 extern volatile s16 D_801525F0;
 extern void car_setup_confirm(int,float);
@@ -111,8 +116,8 @@ static void multiinit_n64(s16 action,s16 index)
   else vehicle->camera=PC_LINK_PLACE(index);
   func_800C4F68(0,vehicle,0);
  } else {
-  if(gameplay_mode==2) vehicle->camera=6;
-  else vehicle->camera=index+6;
+  if(gameplay_mode==2) vehicle->camera=PC_RESPAWN_BASE;
+  else vehicle->camera=index+PC_RESPAWN_BASE;
  }
  stunt_combo_display(vehicle);
  PC_CAR_B358(index)=0;
