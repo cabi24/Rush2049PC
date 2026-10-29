@@ -195,7 +195,8 @@ gen_data needed nothing new.
 12 `.set` lines and 11 report names, and gains `pc_models` (16,448 bytes, `.bss`); `data_layout.txt` lists it under
 "Decoupled" with the 24 retired names. The loader's symbol table is the same (419 entries) and no ROM word pointed into
 the range, so its summary line is too. The synthetic cartridge is the same file. The arena's 0x8014A250-0x8014D280 has
-no symbol now: 12 KB nothing uses.
+no symbol now: 12 KB nothing uses. (Since [MORECARS.md](MORECARS.md) 8, its first 6,144 bytes are GetMatrix's spill,
+`pc_matrix_spill`, reserved in `port/data/reserved.txt`; 0x8014BA50-0x8014D280 is still free.)
 
 **Proof.**
 

@@ -96,14 +96,17 @@ extern s32 D_8002EBB0, D_80156CEC, D_80157240;
 extern Segs D_80156BE0;
 extern u8 D_800586D0[], D_8006A090[];
 #ifdef TARGET_PC
-/* PC: the two frame command buffers, 0x9CC0 bytes of matrices and vertices then 4000 Gfx, hold 16-byte
- * commands, so they are larger than the N64's D_800586D0 / D_8006A090 (docs/port/POINTERS.md). */
-u8 pc_frame_dl[2][0x9CC0 + 4000 * 16] __attribute__((aligned(16)));
+/* PC: the two frame command buffers hold 16-byte commands, so they are larger than the N64's D_800586D0 /
+ * D_8006A090 (docs/port/POINTERS.md), and have room for 12 cars in two views: PC_FRAME_MATRICES matrices from +1728
+ * and the display list's PC_GLIST_LEN commands from PC_GLIST_OFFSET, where the N64 has 600 and 4000 from +0x9CC0
+ * (pc_game_types.h, docs/port/MORECARS.md 8). */
+u8 pc_frame_dl[2][PC_FRAME_BYTES] __attribute__((aligned(16)));
 #define DL_BUFFER_0 pc_frame_dl[0]
 #define DL_BUFFER_1 pc_frame_dl[1]
 #else
 #define DL_BUFFER_0 D_800586D0
 #define DL_BUFFER_1 D_8006A090
+#define PC_GLIST_OFFSET 0x9CC0
 #endif
 extern u8 *D_8015B250, *D_8015B260;
 extern u8 *D_801497C8, *D_801497F4;
@@ -154,7 +157,7 @@ void HAL_InitText_Init(void)     /* MAT3 HAL_InitText@HAL_text.c */
 
 static void _InitGfx_Init(void)     /* N64 _InitGfx (GC ngcGraph.c has its own) */
 {
-    D_8015F738 = 0; D_80161380 = 0; D_80161398 = 0; D_801613A4 = 0; D_80154188 = 90.0f; while (D_80000300 == 0) {} viewport_setup(D_80000300, get_tv_offset(), D_8002AFC0, D_8002AFC4); D_8002EBB0 = (intptr_t)AllocateMemoryHeap(0, 0x22620); PurgeableMemory(D_8002EBB0, 0); D_80156CEC = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80156CEC, 0); D_80157240 = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80157240, 0); D_8002EBB0 = (D_8002EBB0 + 32) & ~63; D_80156CEC = (D_80156CEC + 32) & ~63; D_80157240 = (D_80157240 + 32) & ~63; D_80156BE0.f124 = PC_ZEXT(D_80156CEC); D_80156BE0.f252 = PC_ZEXT(D_80157240); D_80156BE0.buf88 = DL_BUFFER_0; D_80156BE0.buf216 = DL_BUFFER_1; D_80156BE0.n92 = 2; D_80156BE0.n220 = 2; D_8015B250 = D_80156BE0.buf88; D_8015B260 = (u8 *)D_80156BE0.buf88 + 1728; D_801497F4 = D_801497C8 = (u8 *)D_80156BE0.buf88 + 0x9CC0;
+    D_8015F738 = 0; D_80161380 = 0; D_80161398 = 0; D_801613A4 = 0; D_80154188 = 90.0f; while (D_80000300 == 0) {} viewport_setup(D_80000300, get_tv_offset(), D_8002AFC0, D_8002AFC4); D_8002EBB0 = (intptr_t)AllocateMemoryHeap(0, 0x22620); PurgeableMemory(D_8002EBB0, 0); D_80156CEC = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80156CEC, 0); D_80157240 = (s32)sound_play_menu(0, 0x22620); PurgeableMemory(D_80157240, 0); D_8002EBB0 = (D_8002EBB0 + 32) & ~63; D_80156CEC = (D_80156CEC + 32) & ~63; D_80157240 = (D_80157240 + 32) & ~63; D_80156BE0.f124 = PC_ZEXT(D_80156CEC); D_80156BE0.f252 = PC_ZEXT(D_80157240); D_80156BE0.buf88 = DL_BUFFER_0; D_80156BE0.buf216 = DL_BUFFER_1; D_80156BE0.n92 = 2; D_80156BE0.n220 = 2; D_8015B250 = D_80156BE0.buf88; D_8015B260 = (u8 *)D_80156BE0.buf88 + 1728; D_801497F4 = D_801497C8 = (u8 *)D_80156BE0.buf88 + PC_GLIST_OFFSET;
 }
 
 static void ZOID_Init_Init(void)

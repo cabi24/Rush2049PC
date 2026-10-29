@@ -13,6 +13,8 @@ size_t test_be_range_count(void);   /* ranges registered with pc_mem_register_be
 void test_be_reset(void);
 extern int test_race_cars;          /* the setting and the race's count: pc_cars_setting(), pc_race_cars() (6) */
 extern int test_race_begins;        /* how many times the game C called pc_race_cars_begin() */
+/* pc_pool_overflow (pc_game_types.h) calls this when a test sets it; otherwise a pool past its end fails the test. */
+extern void (*test_pool_overflow)(const char *pool, int used, int capacity);
 /* The RDRAM window at PC_RDRAM_BASE, mapped as port/ultra maps it (NULL if that address is taken), for tests whose
  * files must hold 32-bit window addresses as the game's heap blocks do. */
 uint8_t *test_rdram(void);

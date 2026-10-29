@@ -17,6 +17,7 @@ is the same fill run again for one image.
 | Size overrides for open-ended arrays | `port/data/extents.txt` |
 | Rules for tables only pointers reach | `port/data/reached.txt` (section 7) |
 | Game data the PC owns, with no N64 address | `port/data/decoupled.txt` ([DECOUPLE.md](DECOUPLE.md)) |
+| PC data that must sit in the window, in ranges decoupled items freed | `port/data/reserved.txt` ([MORECARS.md](MORECARS.md) 8) |
 | Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM), `port/data/test_overlay_data.c` (a runtime image's C data on reload), `port/data/test_reach.c` (the reach rules) |
 | Overlay loads | `src/blob/groups/{heap_release,score_insert}/overlay_loader.c`, `{carcolor,state}/ctx_overlay_loader.c` |
 | The runtime images' C data, one range each | `port/data/overlays.ld` (linked with `-T`), section 5 |
@@ -127,6 +128,12 @@ records, `pc_models` (was `D_8014A250`), the third the car records, `pc_cars` (w
 storage: it leaves the loader's table). One that was initialized data (`init=image`: the cars' sounds-started flags,
 engine phase and finish cameras, [DECOUPLE.md](DECOUPLE.md) 7) is filled from the image when the image loads
 (section 4, step 4).
+A **reserved** symbol (`port/data/reserved.txt`) is PC data with no N64 symbol that must still sit in the window,
+because something keeps its address as a 32-bit N64 address: data.c defines it absolute at the address the rule
+gives, at the size of its one declaration (laid out alike on the N64 and the host), in the game's BSS inside a range
+a decoupled item freed, and over no placed symbol; it is zeroed with the arena's BSS, the loader's tables and `data_symbols.txt` don't
+have it, `data_layout.txt` lists it under "Reserved", and `--check` verifies it in the executable. The first is
+GetMatrix's spill, `pc_matrix_spill` at 0x8014A250 ([MORECARS.md](MORECARS.md) 8).
 
 **Why the window can hold them.**
 - Those ranges are free on the PC. No code is linked there (the game's code is host code), the heap starts at

@@ -38,6 +38,50 @@ int pc_cars_setting(void);
  * is PC_N64_CARS until the first call. pc_cars_setting() is the setting itself, unlatched: PC_N64_CARS for original,
  * else 6 to PC_MAX_LINKS; the front end reads it (the track select's Drones option goes up to it less one). */
 
+/* ---- The pools a race fills, and the start grid (docs/port/MORECARS.md 8 and 4).
+ * GetMatrix (func_800A7D6C) hands out the persistent matrices, 48 bytes each (a scene node's, a blast's): the N64's
+ * PC_N64_MATRICES at D_8015F740 (0x8015F740-0x80161360, index 0 unused), then PC_MATRIX_SPILL more in
+ * pc_matrix_spill, a range of the RDRAM window the PC reserves (port/data/reserved.txt: bytes the decoupled model
+ * records freed). They stay in the window: a window's camera matrix is kept as a u32 (D_80124FD0, MORECARS.md 2.7).
+ * About 12 a car: a 6-car race on track 0 takes indexes 1-130, a 12-car one 1-202. */
+#define PC_N64_MATRICES 150
+#ifndef PC_MATRIX_SPILL
+#define PC_MATRIX_SPILL 128
+#endif
+#define PC_MATRICES (PC_N64_MATRICES + PC_MATRIX_SPILL)
+extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
+/* The scene nodes (func_8008E26C: D_8012E700, own storage), the N64's 600 and checked: 12-13 a car on the retail
+ * tracks, where a 12-car race takes up to 526 (two views; a 6-car one 454). */
+#define PC_SCENE_NODES 600
+/* The frame's command buffers, two that alternate (pc_frame_dl, initgraphics/initgfx.c; gfx_frame_begin.c): 1,728
+ * bytes of viewports, vertices, projections, lookats and the identity (particle_knot's GfxBuf), PC_FRAME_MATRICES
+ * matrices of 64 bytes (D_8015B260, from +1,728), then the display list (D_801497C8 from PC_GLIST_OFFSET),
+ * PC_GLIST_LEN commands of 16 bytes. The N64's (D_800586D0, D_8006A090) hold 600 and 4,000: the list at +0x9CC0. */
+#ifndef PC_FRAME_MATRICES
+#define PC_FRAME_MATRICES 1200
+#endif
+#ifndef PC_GLIST_LEN
+#define PC_GLIST_LEN 8000
+#endif
+#define PC_FRAME_MATRIX_OFFSET 1728
+#define PC_FRAME_LOOKATS 32   /* the GfxBuf's la[32]: one per environment-mapped node a view draws */
+#define PC_GLIST_OFFSET (PC_FRAME_MATRIX_OFFSET + PC_FRAME_MATRICES * 64)
+#define PC_FRAME_BYTES (PC_GLIST_OFFSET + PC_GLIST_LEN * 16)
+/* A pool run past its end (port/ultra/pools.c): it says so, once a pool, and a Debug build stops there.
+ * pc_frame_pools checks the frame's two at the end of its list (world_collision_response: the frame, the list's end
+ * and the matrices' end) and keeps their high-water marks; it returns 1 if either ran past its end. */
+void pc_pool_overflow(const char *pool, int used, int capacity);
+int pc_frame_pools(const void *frame, const void *glist_end, const void *matrices_end);
+/* The start grid. Resurrect offsets a car from the start point by its place's row of pole_pos_offset (D_801210E8,
+ * f32[12][3], game data): rows 0-5 the N64's grid, rows 6-9 the humans' respawns. On the N64 a respawn is coded as a
+ * place of 6 or more (index + 6, 6 in a ghost race), so places 6-11 have no grid row. On the PC a respawn is a place
+ * of PC_RESPAWN_BASE or more and reads the ROM's respawn rows as before (place - PC_RESPAWN_BASE + 6), and
+ * pc_pole_row gives every start place a row: 0-5 the loaded table's, 6 on the two columns continued backwards at
+ * the loaded rows' spacing; a place from 6 on starts from the resurrection path's point its row's distance behind the
+ * start point, so the rows follow the road (groups/resurrect/resurrect.c: pc_grid_start). */
+#define PC_RESPAWN_BASE PC_MAX_LINKS
+float *pc_pole_row(int place);
+
 struct pc_link {
     unsigned char track;     /* +0 the track (CalcPolePositions, func_800EC190: D_8014978C) */
     unsigned char car;       /* +1 the car model, 0-12 (LoadCars, the car select) */
