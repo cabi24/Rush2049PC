@@ -82,15 +82,24 @@ extern List D_801461B0;
 #define PC_OBJ_OR_UNLOCK_CAM(o,c) \
     if((o)==0){func_80091FBC(&D_801461B0,(Link*)(c),D_801461B0.head);osSendMesg(&D_80142728,0,0);return -1;}
 #define PC_OBJ_SEND(q,o) if(osSendMesg(q,o,0)!=0)(o)->p3=0
+/* So can the tags (D_80143FF8: 2 a voice, at most 64, and 16 without the Expansion Pak, hud_setup), which
+ * func_80092278 takes from the list's head unchecked: in a race of more cars than the N64's 6 their engines can take
+ * the last one (docs/port/MORECARS.md 6). A start that finds none gives its message back (the in-use byte, +3) and
+ * is not started either. */
+#define PC_TAG_OR_UNLOCK(o) if(D_80143FF8.head==0){(o)->p3=0;osSendMesg(&D_80142728,0,0);return (u32)-1;}
+#define PC_TAG_OR_UNLOCK_CAM(o,c) if(D_80143FF8.head==0){(o)->p3=0; \
+    func_80091FBC(&D_801461B0,(Link*)(c),D_801461B0.head);osSendMesg(&D_80142728,0,0);return -1;}
 #else
 #define PC_OBJ_OR_UNLOCK(o)
 #define PC_OBJ_OR_UNLOCK_CAM(o,c)
 #define PC_OBJ_SEND(q,o) osSendMesg(q,o,0)
+#define PC_TAG_OR_UNLOCK(o)
+#define PC_TAG_OR_UNLOCK_CAM(o,c)
 #endif
 u32 entity_flags_apply(u32 index,u32 other,u32 value,u8 mode) {
  Object24 *object;u32 result;
  osRecvMesg(&D_80142728,0,1);
- object=func_80091B00();PC_OBJ_OR_UNLOCK(object)object->kind=2;object->value=value;
+ object=func_80091B00();PC_OBJ_OR_UNLOCK(object)PC_TAG_OR_UNLOCK(object)object->kind=2;object->value=value;
  object->node=func_80092278();object->node->p20=0;
  object->node->index=index;object->node->value=other;object->node->mode=mode;
  object->node->state=1;object->node->flag=0;
@@ -107,7 +116,7 @@ u32 entity_flags_apply(u32 index,u32 other,u32 value,u8 mode) {
 u32 high_scores_display(u32 index,u32 other,u32 value,u8 mode,f32 x,f32 y,f32 z) {
  Object24 *object;u32 result;
  osRecvMesg(&D_80142728,0,1);
- object=func_80091B00();PC_OBJ_OR_UNLOCK(object)object->kind=2;object->value=value;
+ object=func_80091B00();PC_OBJ_OR_UNLOCK(object)PC_TAG_OR_UNLOCK(object)object->kind=2;object->value=value;
  object->node=func_80092278();object->node->p20=0;
  object->node->index=index;object->node->value=other;object->node->mode=mode;
  object->node->state=1;object->node->flag=0;
@@ -147,7 +156,7 @@ s32 camera_target_track(f32 *pos,CTT_A1 a1,f32 volume,f32 a3,f32 x,f32 y,u32 ind
  cam->x=(x<0.0f)?0.0f:((1.0f<x)?1.0f:x);
  cam->y=(y<0.0f)?0.0f:((1.0f<y)?1.0f:y);
  cam->f36=1.0f;
- object=func_80091B00();PC_OBJ_OR_UNLOCK_CAM(object,cam)object->kind=2;object->value=value;
+ object=func_80091B00();PC_OBJ_OR_UNLOCK_CAM(object,cam)PC_TAG_OR_UNLOCK_CAM(object,cam)object->kind=2;object->value=value;
  object->node=func_80092278();object->node->p20=1;
  object->node->index=index;object->node->value=other;object->node->mode=mode;
  object->node->state=1;object->node->flag=0;

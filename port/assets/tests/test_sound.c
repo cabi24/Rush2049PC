@@ -195,7 +195,17 @@ int main(void)
     CHECK(e && e->pos[0] == 1.0f && e->pos[2] == 3.0f && e->volume == 0.75f && e->x == 0.25f && e->y == 1.0f);
     CHECK(e && D_801461E8.head == &e->link && D_801461B0.count == 63);
 
-    /* The command table: 2 taken, the other 126 handed out 32 bytes apart, then none. */
+    /* No fx tag left, as more engines than tags can leave it in a race of 12 cars (docs/port/MORECARS.md 6): each
+     * start gives its command back and is not started (-1, no handle), camera_target_track its emitter too. */
+    List tags = D_80143FF8;
+    D_80143FF8.head = NULL, D_80143FF8.tail = NULL, D_80143FF8.count = 0;
+    CHECK(entity_flags_apply(3, 7, 1, 0) == (uint32_t)-1 && g_nsent == 2);
+    CHECK(camera_target_track(pos, NULL, 0.75f, 0.0f, 0.25f, 2.0f, 4, 8, 0, 1) == -1 && g_nsent == 2);
+    CHECK(D_801461B0.count == 63 && D_801461E8.head == &e->link);
+    D_80143FF8 = tags;
+
+    /* The command table: 2 taken (the two not started gave theirs back), the other 126 handed out 32 bytes apart,
+     * then none. */
     uint8_t *prev = NULL;
     int n = 0;
     for (void *c; (c = func_80091B00()) != NULL; n++) {

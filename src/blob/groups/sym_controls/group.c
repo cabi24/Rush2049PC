@@ -187,6 +187,14 @@ void func_800E3430(MODELDAT *m) {
     }
 }
 
+#ifdef TARGET_PC
+/* PC: the engine speed to s16, which a car's engine spinning past +-32767 rpm overruns (seen in a 12-car race,
+ * docs/port/MORECARS.md 4); undefined in C. Through s32, whose low half the conversion keeps, as the N64's trunc.w.s
+ * and sh do (docs/port/SANITIZE.md, particle_knot's V16). */
+#define TRUNC_W (S32)
+#else
+#define TRUNC_W
+#endif
 void func_800E3724(MODELDAT *m) {
     S32 absvel, i, j;
 
@@ -200,7 +208,7 @@ void func_800E3724(MODELDAT *m) {
     func_800E32CC(m);
     object_update_full(m);
     func_800E0B20(m);
-    m->rpm = (S16) (m->engangvel * 9.549305f * 0.9f);
+    m->rpm = (S16) TRUNC_W (m->engangvel * 9.549305f * 0.9f);
     if ((m->autotrans == 0) && (m->throttle > 0.5f) && (((m->rpm >= 0) ? m->rpm : -m->rpm) < 600)) {
         if (m->bog_state == 0) {
             m->bog_state = 1;
