@@ -395,6 +395,86 @@ apart by the collision; in the race UBSan reports a car's engine speed of about 
 - `world_physics_tick.c:268`'s `6 - i` (section 3.1), which orders the cars' first `distance`, and therefore the first
   frame's places, before the cars cross a checkpoint.
 
+### 4.1 Done: the grid for 12 places (item 4, 2026-10-29)
+
+| Piece | Where |
+|---|---|
+| The rows | `pc_pole_row(place)`, `pc_pole_offsets[PC_MAX_LINKS][3]`: `src/blob/groups/resurrect/resurrect.c` (PC only, above Resurrect) |
+| Where a place from 6 on starts | `pc_grid_start` (its point, orientation and offset; the same file), read by Resurrect's start branch through `PC_START_POS`, `PC_START_UVS`, `PC_POLE_ROW` |
+| The respawn coding | `PC_RESPAWN_BASE` (`port/include/pc_game_types.h`: `PC_MAX_LINKS`, 12); `init_mdrive/group.c` (multiinit), `resurrect.c` (Resurrect's start branch) |
+| The test | `assets_grid` (`port/assets/tests/test_grid.c`) |
+
+**The rows.** `pc_pole_row(place)`: places 0-5 are the loaded table's rows (`D_801210E8`, read each time a car is
+placed, so the build holds none of its values); each place from 6 on continues the places of its column parity two
+grid rows before it by the table's own two-row step:
+
+    row[p] = row[p - 4] + (row[4 + p % 2] - row[p % 2])        p = 6 .. PC_MAX_LINKS - 1
+
+The table's grid, as the retail cartridge has it: three rows of two cars side by side, the middle row shifted sideways
+by half the cars' spacing. The rule keeps that alternation and the row spacing: places 6-7 sit as places 2-3 do, two
+rows further back, places 8-9 as 4-5, places 10-11 as 6-7; the twelfth place is five row spacings behind the pole
+where the sixth is two. It is derived from the loaded rows only (a table of another shape gives its own continuation:
+`assets_grid` checks two). Places 0-5 are copied bit for bit.
+
+**Where they stand.** Resurrect's start branch puts a car at its start point (SetResurrectionData's: the point of the
+resurrection path of the start checkpoint, facing along the path), offset by its row. For places 0-5 that is the
+N64's, unchanged. A place from 6 on (`pc_grid_start`) takes, in this order, the first candidates with road under them
+(RoadPosition, `camera_trigger_check`, at the candidate's world position):
+
+1. the rows continued back, places 6 to 11 in turn: each from the point of the resurrection path its row's distance
+   behind the start point, walked back point by point (and across the loop point to the path's last), facing along the
+   path there (`camera_follow_path`, as the start point is faced), with its row's sideways offset; where the path has
+   no point behind the start, the rest of the distance straight back;
+2. a column outside the table's grid on each side, beside each of its three rows (left, then right; front row first),
+   at the row's own sideways spacing, from the start point;
+
+and its own row of the first kind if too few have road. On a straight road the first kind is the straight row; where
+the road behind the start bends or dips, the rows follow it. Resurrect asks seven times for one car's start (three
+coordinates of the point, the orientation, three of the offset): the answer is kept for the record, its place and its
+start point.
+
+**On the road** (the retail cartridge, Pi, local runs with the spike's caps, one and two players, 12 cars; logs and
+screenshots kept under `build/`): RoadPosition found road under every car the grid placed, on all six tracks, and the player's car at place 11 kept its height through the countdown and
+drove off (the human cars are the ones to watch: in the local test branch's 12-car races cars 6-11 sink through the
+road from the first frame whatever their place, a per-car state other items still own, so their positions were
+checked at placement, not by watching them). Track by track: on tracks 0-3 the path behind the start is straight and
+the continued rows stand where straight rows would; on track 4 the road behind the start slopes down, and the rows
+follow it (straight rows stood up to 7 ft above the road at place 11 and dropped onto it); on track 5 the
+resurrection path begins at the start (the lap comes back to a later point of it) and the road ends about 75 ft behind
+the pole, so places 6 and 7 take the continued row, 60 ft back, and places 8-11 the places beside the grid's first two
+rows, left and right of each, which have road: the screenshot shows the player inside the start tunnel with cars beside
+the front rows. With straight rows only, places 8 and 9 on track 5 had no road under them by RoadPosition (a car put
+there held, on something else), and places 10 and 11 none at all: both fell through the world at the start and came
+back as respawns about 5 s later; with the rows following the path alone, places 8-11 had no road under them.
+
+**The respawn coding.** multiinit_n64 (`init_mdrive/group.c`) codes a respawn as `index + PC_RESPAWN_BASE`
+(`PC_RESPAWN_BASE` in a ghost race), where the N64 has `index + 6` (6); Resurrect's start branch gives no offset to a
+drone with `polepos >= PC_RESPAWN_BASE`, and a human's respawn reads the table's row `polepos - PC_RESPAWN_BASE + 6`,
+the humans' rows 6-9 (row 6 in a ghost race), as the N64's `index + 6` did. The N64 side of each file defines
+`PC_RESPAWN_BASE` as 6, `PC_START_POS(m)` as `m->resurrect.save_pos`, `PC_START_UVS(m)` as `m->resurrect.uvs` and
+`PC_POLE_ROW(p)` as `pole_pos_offset[p]`: the original tokens. Resurrect's respawn branch (`pole_pos_offset[m->slot +
+6]`, `[6]` in a ghost race) reads the table directly and is unchanged. Nothing else reads or writes `polepos` (the
+model record's +0x6D0): `layout_check.py --storage pc_models` has multiinit_n64's four writes, Resurrect's reads and
+compare, and pc_grid_start's reads. With 6 cars every start place is 0-5 and every respawn a row of 6-9, as on the
+N64.
+
+**With item 3** (3.1, merged): CalcPolePositions fills the race's slots, the drones first, then the humans, so with
+one player and 11 drones the player starts at place 11, at the back; init_cars gives the humans the first distances
+behind the drones', `-(max(6, cars) - slot)`.
+
+**The test.** `assets_grid` builds Init_MDrive (`func_800E543C`) and Resurrect (`stunt_combo_display`) with tables and
+paths of its own: places 0-5 at the start point with the table's rows bit for bit; places 6-11's rows by the rule (two
+tables: columns staggered forward; rows shifted sideways every other row); on a straight path the continued rows where
+the straight rows are; on a bent one (a right angle 30 ft behind the start) each at its distance along the path,
+facing its segment there; on a path that runs out, the rest straight back; across the loop point; where the test's
+road ends 50 ft back, the side places in order and the last place its own row; 80 ft back, place 6's row and then the
+side places; too narrow for the side places, each its own row; twelve cars placed by Init_MDrive (one human at the
+back, eleven drones) no two closer than the table's closest pair (a car's length, 14 ft, beside the grid); the attract
+demo's straight rows; a human's respawn on the table's row index + 6, a drone's none, a ghost race's row 6; battle no
+offset. Undoing a part fails it: the rule changed (each place from the one two before it, half the two-row step), 12
+checks; the respawn coded `index + 6`, 6; the continued rows straight from the start point, not along the path, 21;
+the road check off, 10.
+
 ## 5. Car loading and memory
 
 **LoadCars** (`loadcars/root.c:57-116`) walks the 13 roster slots. Slots below 6 that are drones (or every slot in the
@@ -478,6 +558,174 @@ offset (+0x9CC0) and `GLIST_LEN` are in the `Dynamic` views (`world_collision_re
 and the frame's matrix region ends where the glist starts. The persistent matrix pool needs more room in the window:
 the 12 KB the decoupled model records left free at 0x8014A250-0x8014D280 ([DECOUPLE.md](DECOUPLE.md) 3) holds 257
 more matrices, which is what the spike used.
+
+### 8.1 Done: the pools sized and checked (item 2, 2026-10-29)
+
+| Piece | Where |
+|---|---|
+| Sizes | `port/include/pc_game_types.h` ("The pools a race fills"): `PC_N64_MATRICES`, `PC_MATRIX_SPILL`, `PC_SCENE_NODES`, `PC_FRAME_LOOKATS`, `PC_FRAME_MATRICES`, `PC_GLIST_LEN`, `PC_GLIST_OFFSET`, `PC_FRAME_BYTES` |
+| The checks and the high-water marks | `port/ultra/pools.c` (`pc_pool_overflow`, `pc_frame_pools`, `pc_pools_report`) |
+| GetMatrix's spill in the window | `pc_matrix_spill`, `port/data/reserved.txt` (gen_data: `load_reserved`, `reserved_place`, `reserved_lines`, `check_reserved`) |
+| The frame's buffer | `pc_frame_dl` in the three copies of _InitGfx (`initgraphics/initgfx.c`, `carcolor/ctx_initsystem.c`, `heap_release/initsystem.c`), `gfx_frame_begin.c`, the `Dynamic` view and the check in `world_collision_response.c` |
+| The test | `assets_pools` (`port/assets/tests/test_pools.c`) |
+
+**The pools now.**
+
+| Pool | N64 | PC | Past its end |
+|---|---|---|---|
+| persistent matrices (GetMatrix, `func_800A7D6C.c`) | 150 at `D_8015F740` (0x8015F740-0x80161360), index 0 unused; no limit | the same 150 at their N64 addresses, then 128 more in `pc_matrix_spill` (0x8014A250-0x8014BA50, 6,144 B, in the window: 2.7): indexes 1-277 | said; the last matrix handed out again |
+| scene nodes (`func_8008E26C`, `D_8012E700`) | 600; no limit (a 601st is written past the table) | 600 (`PC_SCENE_NODES`) | said; the last node handed out again, the count kept at 600 |
+| the frame's lookats (`GfxBuf.la[32]` at +0x280 of the frame's buffer, `D_80124F84`) | 32; no limit (past it: the identity, then the frame's matrices) | 32 (`PC_FRAME_LOOKATS`) | said, at the frame's end |
+| the frame's matrices (`D_8015B260`, from +1,728) | 600 (to +0x9CC0) | 1,200 (`PC_FRAME_MATRICES`, to `PC_GLIST_OFFSET` = +78,528) | said, at the frame's end |
+| the frame's display list (`D_801497C8`) | 4,000 commands of 8 B from +0x9CC0 | 8,000 of 16 B from `PC_GLIST_OFFSET` (`PC_GLIST_LEN`); a buffer is 206,528 B, two of them | said, at the frame's end |
+| environment visuals (`func_80090284`, `D_80138880`) | 100 | the same | the game's own: NULL, the caller goes without |
+| sprites (`func_800A79F4`, `D_80140BF0`) | 200 | the same | the game's own: -1 |
+| tire puffs (pool `D_8013F1E0`, `D_8013C378[100]`) | 100 | the same | the game's own: NULL, no puff |
+| skid segments (pool `D_80155220`, `D_80155B30[100]`) | 100 | the same | the game's own: the farthest is taken |
+
+`pc_pool_overflow` logs `rush2049pc: <pool> ran past its end: <used> of <capacity>` once a pool; a Debug build then
+prints a backtrace and stops, a Release build (`NDEBUG`) goes on, so a player sees a wrong picture and the log says
+why. `pc_frame_pools` runs every frame where the SDK's check was an empty `if` (`world_collision_response.c`:
+`PC_FRAME_OVER`) and keeps the frame's high-water marks; at a run's end (`port/main.c`) one line gives every pool's:
+
+    rush2049pc: pools: persistent matrices 202 of 277, scene nodes 441 of 600, environment visuals 47 of 100, sprites
+    102 of 200, frame lookats 11 of 32, frame matrices 232 of 1200, display list 1800 of 8000 commands (high-water marks)
+
+(the game's own high-water marks for GetMatrix `D_80156BD0`, the scene nodes `D_801569A8`, the environment visuals
+`D_8012E678` and the sprites `D_8013C234`, never reset; the port's for the frame's three). It is not part of a trace
+(`synth_compare.py` reads the state and status lines and the loader's summary).
+
+**The window range.** GetMatrix's matrices must stay in the window (a window's camera matrix is kept as a u32,
+`D_80124FD0`: 2.7), so the spill is a named reservation, not a bare address: `port/data/reserved.txt` (`PC_NAME
+ADDRESS`) names `pc_matrix_spill 0x8014A250`; gen_data takes its size from its one declaration
+(`float[PC_MATRIX_SPILL][12]`, pc_game_types.h), and refuses a range outside the game's BSS or outside a range a
+decoupled item freed (here the model records' 0x8014A250-0x8014D280), over a placed symbol or another reservation, or
+a type laid out otherwise on the N64; it defines the symbol absolute in data.c (zeroed with the game arena's BSS, as the bytes were), lists it in
+`data_layout.txt` ("Reserved"), and `--check` fails if the executable doesn't have it there (`gen_data check: ...
+1 reserved in the window`). `data_symbols.txt`, the loader's tables and the synthetic cartridge don't have it, so they
+are the same files. A `RUSH_CHECK_CASTS` build ran the race, the demo, two players, drive and pause with 12 cars on
+the synthetic cartridge with the spill in use (indexes to 207) and stopped nowhere. 0x8014BA50-0x8014D280 (6,192 B)
+is left for others.
+
+**The frame's buffer.** Only the list's start and the two lengths moved: the GfxBuf (viewports, vertices,
+projections, lookats, identity: particle_knot's and particle_context's view, 1,728 B) and the matrices' start
+(+1,728) are as on the N64. The list's start is `PC_GLIST_OFFSET` where the three _InitGfx copies and gfx_frame_begin
+set `D_801497C8`, and in the `Dynamic` view; nothing else names it (no other file reaches `glist`, the buffer's size
+or +0x9CC0). The renderer reads the list from the task's `data_ptr` to its end command and keeps no address of the
+buffer (`port/gfx`: no reference to `pc_frame_dl` or the layout); the high frame rate's pairing never pairs the
+frame's matrix or list addresses, which alternate with the two buffers anyway (GFX.md "High frame rate"). The two
+buffers still alternate through `D_80156BE0[0..1].dl_base`.
+
+**The test.** `assets_pools` builds GetMatrix, world_collision_response and the scene nodes' allocator with the pools
+shrunk (`PC_MATRIX_SPILL` 4, `PC_FRAME_MATRICES` 8, `PC_GLIST_LEN` 32) and links `port/ultra/pools.c`, with a handler
+of its own for a pool past its end (`test_pool_overflow`; the asset tests' `pc_pool_overflow` fails a test otherwise):
+GetMatrix's 149 matrices at their N64 places, each cleared and set to the identity, then the spill's 4, then the
+overflow said and the last handed out again, and the frame's reset starting over at index 1; a frame's list closed in
+the layout (the text list, the full sync and the end after the frame's commands, the task sent); nothing said with the
+list, the matrices or the lookats exactly full, and one command, matrix or lookat past each end said, with the count;
+the scene nodes handed out to 600, the 601st said and the last handed out again with the count kept, then a freed node
+handed out again.
+
+**Measured** (the high-water marks of the pools line; a local test branch: this branch with the spike's caps,
+`RUSH_SPIKE_CARS`, never merged):
+
+Synthetic cartridge (build host, Debug; the same with `RUSH_CHECK_CASTS`):
+
+| Path | Cars | Persistent matrices | Scene nodes | Env. visuals | Sprites | Lookats | Frame matrices | Display list |
+|---|---|---|---|---|---|---|---|---|
+| race, drive, pak, pause, raceend | 6 | 127 | 222 | 18 | 97-124 | 6 | 150 | 780-836 |
+| | 12 | 202 | 338 | 36 | 97-124 | 12 | 197 | 1,081-1,181 |
+| race2p, rumble2p | 6 | 132 | 229 | 18 | 98 | 12 | 300 | 1,659 |
+| | 12 | 207 | 345 | 36 | 98 | 24 | 395 | 2,336 |
+| demo | 6, 12 | 123, 198 | 216, 332 | 18, 36 | 3 | 6, 12 | 150, 197 | 836, 1,181 |
+| circuit | 6, 12 | 130, 202 | 225, 338 | 18, 36 | 97 | 6, 12 | 150, 197 | 846, 1,169 |
+| race3p (12: the spike gives drones to three players) | 3, 12 | 101, 212 | 163, 352 | 9, 36 | 98 | 9, **36** | 330, 593 | 1,616, 3,407 |
+| race4p, pak4p (the same with four) | 4, 12 | 118, 217 | 189, 335 | 8, 24 | 97 | 16, **48** | 472, 695 | 2,311, 4,292 |
+
+Retail cartridge (Pi, Debug, a single race on each track, its countdown and 14 s of racing; one and two players, 6
+and 12 cars):
+
+| Track | Cars | Persistent matrices | Scene nodes | Env. visuals | Sprites | Lookats | Frame matrices | Display list |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 6 | 130, 138 | 366, 376 | 38 | 102, 108 | 6, 12 | 202, 410 | 1,767, 3,485 |
+| | 12 | 202, 210 | 441, 450 | 47, 44 | 102, 108 | 11, **23** | 232, 470 | 1,800, 3,928 |
+| 1 | 6 | 130, 138 | 444, 454 | 49 | 102, 108 | 6, 12 | 241, 492 | 1,884, 3,719 |
+| | 12 | 202, 210 | 516, **526** | 49 | 102, 108 | 10, 21 | 269, **546** | 1,772, **4,131** |
+| 2 | 6 | 130, 138 | 357, 375 | 40, 44 | 102, 108 | 6, 12 | 184, 374 | 1,659, 3,269 |
+| | 12 | 202, 210 | 429, 447 | 40, 44 | 102, 108 | 11, **23** | 213, 434 | 1,619, 3,669 |
+| 3 | 6 | 130, 138 | 426, 449 | 48, 56 | 102, 108 | 6, 12 | 215, 438 | 1,812, 3,575 |
+| | 12 | 202, 210 | 498, 522 | 48, 54 | 102, 108 | 10, 21 | 247, 510 | 1,719, 4,063 |
+| 4 | 6 | 130, 138 | 349, 373 | 52, 55 | 102, 108 | 6, 12 | 195, 396 | 1,706, 3,363 |
+| | 12 | 202, 210 | 428, 438 | 52 | 102, 108 | 11, **23** | 225, 449 | 1,598, 3,811 |
+| 5 | 6 | 130, 138 | 411, 421 | 75 | 102, 108 | 6, 12 | 153, 316 | 1,298, 2,995 |
+| | 12 | 202, 210 | 483, 493 | 75 | 102, 108 | 6, 11 | 182, 374 | 1,575, 3,521 |
+
+(one player, two players; one number where they agree. The 12-car rows are the grid of 4.1; the 6-car rows' display
+lists on track 0 are the spike's numbers above, 1,767 and 3,485. On track 5 the cars start in a tunnel, where fewer
+lookats are drawn. An earlier grid, which left two cars of track 4's back row to drop onto the road, ran track 4 to a
+fault in the sound manager at 12 cars: 8.3.)
+
+**What runs out, and what doesn't.** With 12 cars in one or two views every pool keeps a margin: the persistent
+matrices reach 210 of 277, the scene nodes 526 of 600 (track 1, two views), the frame's matrices 546 of 1,200, its
+list 4,139 of 8,000 (past the N64's 4,000, as the spike found), its lookats 23 of 32. On the retail tracks a car takes
+12 persistent matrices, 12-13 scene nodes (19 on the synthetic cartridge), a few environment visuals, a lookat in each
+view that draws it, about 5 of each view's frame matrices and up to about 40 commands of each view's list (in one view
+less, and with the player at the back of a longer grid the view holds other things: track 1's one-view list is shorter
+with 12 cars). The sprites don't depend on the cars. The tire puffs and the skid segments are full with 6 cars
+already on the retail tracks (100 of 100 each at every frame's end once the race runs; the spike's sampling, local):
+their allocators give no puff or take the farthest segment, as on the N64, so with 12 cars each car's smoke and skids
+last less; a matter for the effects (item 1d), not a fault. The scene nodes are the tightest: 74 left in the worst
+case; growing them means decoupling `D_8012E700` (own storage, about 30 files), not needed for 12.
+
+Three or four views with 12 cars would pass the frame's 32 lookats (36, 48: one a car a view), which a Debug build
+stops on. The N64's mode screen offers three and four players stunt and battle only, and `SetOptions` gives no drones
+with three or more players (1.2), so a race of 12 cars has at most two views; if the setting (item 7) ever allows
+drones with three or four players, the GfxBuf's `la[32]` needs to grow first (a PC view of the GfxBuf in particle_knot
+and particle_context, and the matrices' start at +1,728 in the _InitGfx copies and gfx_frame_begin).
+
+**The default is the N64's.** With 6 cars nothing reaches the spill (indexes to 132 on the synthetic paths, 138 on
+retail), the scene nodes' 600, or the old 600 and 4,000 of the frame; the checks only read. The proof table is
+8.2.
+
+### 8.2 Proof (items 2 and 4)
+
+The count at 6 (`pc_race_cars()`); "base" is a build of c1ab1d7, the branch's merge base, "branch" of c21afbd (the
+commits after it are documents and `bounds_reviewed.txt`).
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, base against the branch, Debug, build host (x86-64, GCC 14), every synthetic path | the same trace, every run: 19 of 19 paths |
+| the same, Pi 5 (aarch64, GCC 12) | 19 of 19 paths |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run: 6 of 6 |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 246 of 246 each (`assets_rom` skipped: no ROM there); `assets_pools` and `assets_grid` among them |
+| `data_symbols.txt`, the synthetic cartridge | the same files as the base's (build host and Pi; Debug and RelWithDebInfo the same) |
+| `data.c` | the base's, and 6 lines more: the reservation's block, `pc_matrix_spill` absolute at 0x8014A250, 6,144 B (Debug and RelWithDebInfo the same file) |
+| `n64_neutral.py --base 09da2f0` | passes (1,014 files: 92 code-exact, 922 shifted); 9 changed game files under `src/` |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, base and branch; endian_check's 2 open value conflicts in 1 storage the same; the branch's 2,550 live functions (6 more: the grid's and the pools' PC functions), 48,180 accesses (78 more), 3,524 puns (6 more); offset_check 59,439 accesses placed (base 59,461), 430 untyped raw ones in 47 functions (332 in 46: the path's `s16 (*)[3]` points in pc_grid_candidate); check-loader 96 places, 0 wrong; `layout_check.py --storage pc_models`: `polepos` (+0x6D0) has multiinit_n64's 4 writes, Resurrect's reads and compare and pc_grid_pose's and pc_grid_start's reads, nothing else |
+| `bounds_check`, build host (GCC 14) | 2 new *tmr*, on `pc_grid_point` and `pc_grid_offset` (the PC's own `float[3]`, declared at their true size, written by coordinate loops `k < 3`), added to `bounds_reviewed.txt` as `[gcc14]`; then none new, 0 `two offsets`, 0 `clamped`; 9 reviewed keys GCC 14 doesn't find, as the base. GCC 13 and mingw-w64 12 not run on it |
+| a `RUSH_CHECK_CASTS` build (build host): race, demo, two players, drive | no stop with 6 cars; and with the test branch's 12 cars (race, demo, race2p, drive, pause), GetMatrix's spill in use to index 207, no stop |
+| Windows cross build (Pi, mingw-w64, fresh configure) | builds; gen_data's check of the PE (`--pe`): OK, 18 decoupled, 1 reserved in the window |
+| `assets_pools`, `assets_grid` | pass, Debug and RelWithDebInfo (the latter found a write past the test's own frame buffer, fixed in the test); undoing a part of the grid fails `assets_grid` (4.1) |
+
+### 8.3 Found on the way
+
+- **The sound manager's voice records** (`D_80110244`, as many as `hud_setup` makes: `D_80110264`, twice its first
+  count up to 64; free list `D_80143FF8`): `func_80092278` takes the free list's head with no empty check (an empty
+  `if`, `camera_target_track/group.c:62-64`), so a sound started with none free faults at NULL + 0x18. It happened once
+  in the local test branch, with 12 cars on track 4 (one and two players) and the earlier grid that dropped two cars
+  onto the road at the start: `entity_flags_apply` ← `func_800B61A8` ← `entity_update` ← `func_800CF06C` ← the drones'
+  model iteration. With the grid of 4.1 the same races ran to their end. Not fixed here (the sound manager is item
+  1a's); a PC check like `PC_OBJ_OR_UNLOCK`'s, before the message is taken, would make a start with no voice free
+  return -1 as the emitter request does.
+- **Cars 6-11 sink through the road** in the local test branch's 12-car retail races (this branch, the spike's caps
+  and per-car arrays, before items 1 and 3 were merged): from the first frame, on every track, whatever their place
+  (place 5's car sinks too when it is slot 6), while the slots below 6 sit on the road. A per-car state some other item
+  still owns; it is why the grid was checked at placement (4.1).
+- **The 1d note** (InitBlasts takes 50 of GetMatrix's matrices whatever the count; a blast 5 scene nodes and a ring 1 a
+  car): included in the counts above, which the test branch made with every car's blast set up. The skid segments in
+  use (the pool's list, `D_80155220`) were 100 of 100 at every frame's end once a retail race ran, with 6 cars and
+  with 12; the allocator takes the farthest, so it never runs out.
 
 ## 9. The spike
 
