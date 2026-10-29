@@ -1,0 +1,24 @@
+# One player and 11 drones, a single race on track 0 (docs/port/MORECARS.md 10.3): game.cars at 12 and the track
+# select's Drones option raised from its 5 to 11 through the menu, as a player would; the player drives for 15 s.
+# The check: 12 cars in the race, at places 0-11, each moved (--log-cars, tools/port/cars_check.py).
+# until: 0x400000:600
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 12, mode 0, track 0
+# args: --set game.cars=12 --log-cars
+# check: tools/port/cars_check.py race12.log 12 --count 12
+5 A            # the controller pak warning (0x40000000)
+8 START        # the start prompt (4)
+11 A           # the main menu (0x10): the race
+14 A           # the player screen (0x20)
+17 A           # the mode screen (0x40): the first mode, a single race
+20 DOWN 0.1    # the track select (0x80): its options list (on this cartridge options 12, 14 and 17), to the Drones
+20.5 DOWN 0.1
+21 RIGHT 0.1   # the Drones: 5 to 11
+21.5 RIGHT 0.1
+22 RIGHT 0.1
+22.5 RIGHT 0.1
+23 RIGHT 0.1
+23.5 RIGHT 0.1
+25 A           # track 0
+28 A           # the car select (0x100); then the race start (0x40000), PrePlay (0x80000), the countdown, the race
+32 A 15        # gas for 15 s

@@ -58,6 +58,8 @@ static void usage(FILE *f)
             "  --press T:BUTTON[@PORT][:DUR],...   scripted input (T, DUR in seconds)\n"
             "  --press-file PATH   a .press input script\n"
             "  --log-input         print every change of a player's buttons and stick\n"
+            "  --log-cars          at the end, print each car of the race: its place, lap, distance and how far\n"
+            "                      it is from where the race began (tests of races of more cars)\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
             "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
@@ -184,6 +186,53 @@ extern int32_t gameplay_mode;
 extern int8_t D_80152744, D_8014978C;
 extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 its screens */
 
+/* --log-cars (docs/port/MORECARS.md 10.3): each car of the race at the run's end, its slot, whether its model is in
+ * the race (active), its place (0 the first), lap and distance along the track and its position (its car record's),
+ * the race's latched count (pc_race_cars(), which the setting changes only from the next race),
+ * and how far its model is from where it stood as the race began (the first state log snapshot in the race, 0x400000,
+ * or in the attract demo, 8, with its cars in the race), so a test can tell that a race of N cars held N, each at a
+ * place of its own and each moving (tools/port/cars_check.py). Off by default, and only this line: the traces are the
+ * same with it. */
+extern int16_t D_801543CA;      /* the race's car slots (gNumCars) */
+static int g_log_cars;
+static float g_cars_start[PC_MODEL_SLOTS][3];
+static int g_cars_started;
+
+static void cars_note_start(void)
+{
+    uint32_t s = game_state();
+    int demo = (s & 8u) && *(volatile int8_t *)&D_80152744 > 0 && *(volatile int16_t *)&pc_models[0].active;
+    if (!g_log_cars || g_cars_started || s == 0xFFFFFFFFu || !((s & 0x400000u) || demo))
+        return;
+    for (int i = 0; i < PC_MODEL_SLOTS; i++)
+        for (int k = 0; k < 3; k++)
+            g_cars_start[i][k] = ((const volatile float *)pc_models[i].rwr)[k];
+    g_cars_started = 1;
+}
+
+static void cars_info(char *out, size_t size)
+{
+    int n = *(volatile int16_t *)&D_801543CA, len;
+    if (n < 0 || n > PC_MODEL_SLOTS)
+        n = PC_MODEL_SLOTS;
+    len = snprintf(out, size, "cars at the end: %d in the race, count %d%s", n, pc_race_cars(),
+                   g_cars_started ? "" : " (it never began)");
+    for (int i = 0; i < n && len > 0 && (size_t)len < size; i++) {
+        const volatile float *r = pc_models[i].rwr;
+        double d[3], moved;
+        for (int k = 0; k < 3; k++)
+            d[k] = (double)r[k] - g_cars_start[i][k];
+        moved = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        const volatile float *c = pc_cars[i].pos;
+        len += snprintf(out + len, size - (size_t)len,
+                        "; %d %s place %d lap %d distance %.0f moved %.0f at %.0f %.0f %.0f", i,
+                        *(volatile int16_t *)&pc_models[i].active ? "active" : "inactive",
+                        *(volatile signed char *)&pc_cars[i].place, *(volatile signed char *)&pc_models[i].lap,
+                        (double)*(volatile float *)&pc_cars[i].distance, moved, (double)c[0], (double)c[1],
+                        (double)c[2]);
+    }
+}
+
 static void game_info(char *out, size_t size)
 {
     /* RUSH_STATE_EXACT: the position and speed as exact hex floats, so two runs compare bit for bit
@@ -191,6 +240,7 @@ static void game_info(char *out, size_t size)
     static int exact = -1;
     if (exact < 0)
         exact = getenv("RUSH_STATE_EXACT") != NULL;
+    cars_note_start();
     const volatile float *v = pc_models[0].rwv, *r = pc_models[0].rwr;   /* the model record (pc_game_types.h) */
     const volatile float *steer = &pc_models[0].steer;                     /* its controls: steer -1..1 */
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
@@ -401,6 +451,8 @@ static int rush_main(int argc, char **argv)
                 return 2;
         } else if (!strcmp(a, "--log-input"))
             pc_input_log = 1;
+        else if (!strcmp(a, "--log-cars"))
+            run.end_info = cars_info, g_log_cars = 1;
         else if (!strcmp(a, "--press-via")) {
             if (pc_input_set_via(ARG()) != 0)
                 return 2;

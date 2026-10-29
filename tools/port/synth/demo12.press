@@ -1,0 +1,8 @@
+# The attract demo with game.cars at 12 (docs/port/MORECARS.md 10.3): nobody presses START at the start prompt, which
+# after 5 s starts a demo race of 12 drones on track 0. The check: 12 cars, at places 0-11, each moved.
+# until: 0x8:850
+# seconds: 90
+# expect: state=0x00000008: players 1, windows 1, cars 12, mode 0, track 0
+# args: --set game.cars=12 --log-cars
+# check: tools/port/cars_check.py demo12.log 12 --count 12
+5 A            # the controller pak warning; the start prompt (4) times out at 10 s

@@ -258,6 +258,7 @@ typedef struct {
      * NULL: none (the self-test). */
     uint32_t (*game_state)(void);
     void (*game_info)(char *out, size_t size);   /* more to log with each change (players, mode...), or NULL */
+    void (*end_info)(char *out, size_t size);    /* a line logged once, at the run's end (--log-cars), or NULL */
     uint32_t until_state;        /* stop once the state word has one of these bits... */
     uint32_t until_state_frames; /* ...and this many more graphics tasks have run; a time limit reached first
                                     is a failure (exit 1). 0: no such stop */

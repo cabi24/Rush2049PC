@@ -1,0 +1,34 @@
+# The end of a race of 12 cars and back to the menu (docs/port/MORECARS.md 10.3): one player and 11 drones (game.cars
+# at 12, the Drones option raised through the track select) drives for 20 s and retires through the pause screen's
+# quit; then _EndGame (0x1000000), the results (0x2000000), with the 12 cars racing on behind them, the game over
+# screen (0x800000), its Quit, and the main menu (0x10) by state 4. The synthetic cartridge's laps don't count (its
+# cars' distances don't grow), so no car finishes; the retail cartridge's races to their finish are MORECARS.md 10.4.
+# until: 0x800000:300
+# seconds: 140
+# visits: 0x2000000 0x800000 0x4
+# expect: state=0x00000010: players 1, windows 1
+# args: --set game.cars=12
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 DOWN 0.1    # the track select: down its options list to the Drones
+20.5 DOWN 0.1
+21 RIGHT 0.1   # the Drones: 5 to 11
+21.5 RIGHT 0.1
+22 RIGHT 0.1
+22.5 RIGHT 0.1
+23 RIGHT 0.1
+23.5 RIGHT 0.1
+25 A           # track 0
+28 A           # the car select; the race from about 32 s
+32 A 20        # gas for 20 s
+55 START       # pause
+56 UP 0.1      # its last item, quit
+57 A           # are you sure?
+58 RIGHT 0.1   # yes
+59 A           # retired: the results from 59 s
+64 A           # past the results: the game over screen
+67 UP 0.1      # its Quit
+69 A

@@ -6,12 +6,12 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
-- **More cars a race, up to 12** (in progress; `game.cars`, F1 > Game > Cars in a race): `original`, the default,
-  is the N64's 6. The track select's Drones option goes up to one less than the setting (its default, 5, still
-  races 6 cars), and the HUD has two-digit places, the 7th to 12th places on the results, and a minimap dot and a
-  radar blip for every car ([MORECARS.md](docs/port/MORECARS.md) 7, [FRONTEND.md](docs/port/FRONTEND.md)). Until
-  the rest of MORECARS.md 10.2 is in, a race of more than 6 cars (the setting above 6 and the Drones option above 5)
-  faults at its start; with the Drones option at 5 or below every race holds 6.
+- **More cars a race, up to 12** (`game.cars`, F1 > Game > Cars in a race): `original`, the default, is the N64's
+  6. Set it to 7-12, then raise the track select's Drones option, which goes up to one less than the setting (its
+  default, 5, still races 6 cars). A single race takes them, for one or two players; the circuit stays 6 cars, and the
+  attract demo races the setting's cars. The grid has a row for every car, and the HUD has two-digit places, the 7th
+  to 12th places on the results, and a minimap dot and a radar blip for every car. Tested on every race track, to
+  the finish ([MORECARS.md](docs/port/MORECARS.md) 10.4, [FRONTEND.md](docs/port/FRONTEND.md)).
 
 ## Beta candidate (2026-10-28)
 
