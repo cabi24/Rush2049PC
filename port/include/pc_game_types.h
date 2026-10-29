@@ -331,4 +331,59 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_F3B0(i) (pc_cars[i].f3B0)
 #define PC_CAR_F3B4(i) (pc_cars[i].f3B4)
 
+/* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
+ * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets
+ * clear every slot (physics_collision_test, InitBlasts, func_800B0580: PC_MAX_LINKS on the PC), and the rest reaches
+ * one car's entry by its slot. No pointer to them is kept as a 32-bit N64 address (the scene nodes that point at the
+ * blasts' matrices hold host pointers), so they need no window address. On the PC a reader's N64 name is the PC
+ * array where its view has the PC declaration's field names, and otherwise the array seen as PC_MAX_LINKS of its own
+ * element type (#define D_80154FD8 (*(Effect (*)[PC_MAX_LINKS]) PC_BLAST_RINGS)), so the uses keep their N64 tokens
+ * and -fsanitize=bounds checks each index against PC_MAX_LINKS. */
+/* N64 D_801392D8 (u32[6]): each car's tire-effect latches, a bit per tire and effect (entity_spawn_init,
+ * func_8008E408, hud_render, func_80092484, func_800CB718). */
+extern unsigned int pc_tire_fx[PC_MAX_LINKS];
+extern unsigned char pc_smoke_shade[PC_MAX_LINKS];  /* N64 D_8013A020 (u8[6], 8 by the gap): the grey of its smoke */
+extern float pc_trail_pts[PC_MAX_LINKS][6];         /* N64 D_8013C098: its two trails' last points */
+extern float pc_resurrect_mid[PC_MAX_LINKS][3];     /* N64 D_80161450: the resurrect's midpoint */
+
+/* MAT3 tUVMatrix, tBlastObj, tBlastStruct and tBlastRingStruct (GameSource visuals.c), with MAT3's field names, which
+ * blast.c's and entity_update_callback's views have too: no pointers, the same layout on both. */
+struct pc_uv_matrix { float uvs[3][3]; float pos[3]; };
+struct pc_blast_obj {                   /* 0x54 */
+    int mbIdx;                          /* +0x00 its scene object, -1 none */
+    struct pc_uv_matrix mat;            /* +0x04 */
+    float scale, scaleInc, yaw, yawInc, pitch, pitchInc;
+    unsigned char alpha, alphaInc;      /* +0x4C */
+    short unused;
+    float ht;                           /* +0x50 */
+};
+struct pc_blast {                       /* 0x190: N64 D_80154660 (gBlastObjs), 6 of them */
+    struct pc_blast_obj blastObjs[4];   /* +0x000 */
+    int glowIdx;                        /* +0x150 the glow's scene object, -1 none */
+    struct pc_uv_matrix mat;            /* +0x154 the glow's matrix: its scene node points here */
+    unsigned char alpha, alphaCnt, ralpha, ralphaCnt;
+    float lifeTime, incTime;            /* +0x188 */
+};
+struct pc_blast_ring {                  /* 0x3C: N64 D_80154FD8 (gBlastRingObjs), 6 of them to D_80155140 */
+    int ringIdx;                        /* +0x00 its scene object, -1 none (entity_collision_detect: its low half) */
+    struct pc_uv_matrix mat;            /* +0x04 its scene node points here */
+    unsigned char ralpha, ralphaCnt;    /* +0x34 */
+    short unused;
+    float incTime;                      /* +0x38 */
+};
+/* The arcade NewSkid (skid_marks' WheelSlot, with its field names): its segment pointer is a host pointer (the skid
+ * segment pool's, own storage), so it is 0x60 bytes here and 0x5C on the N64. */
+struct pc_skid {
+    void *obj;                          /* +0x00 the skid segment drawn, NULL none */
+    float start[3], pos[3], lenSq, dir[3], quad[6], left[3], right[3];
+};
+extern struct pc_blast pc_blasts[PC_MAX_LINKS];
+extern struct pc_blast_ring pc_blast_rings[PC_MAX_LINKS];
+extern struct pc_skid pc_skids[PC_MAX_LINKS][4];    /* N64 D_80155290: each car's four tires */
+
+/* The record arrays as void *, for the readers' own views. */
+#define PC_BLASTS ((void *)pc_blasts)
+#define PC_BLAST_RINGS ((void *)pc_blast_rings)
+#define PC_SKIDS ((void *)pc_skids)
+
 #endif
