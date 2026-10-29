@@ -380,3 +380,154 @@ path_D169C raises only record 0's obResPt (through `D_8014AA14`), and car_setup_
 record's address with record 0's. And the code that orders the cars keeps locals sized for the N64's 6, indexed by the
 cars in the race: car_setup_confirm's `place[7]` and `scores[6]`, render_large_objects' `humans`, `drones`,
 `total_drones` (`[MAX_LINKS]`) and `car_distance[MAX_LINKS][MAX_LINKS]`.
+
+## 6. The effects' per-car arrays
+
+**What they are.** Seven arrays of the effects, one entry per car slot, 6 on the N64 (game BSS), indexed by the car's
+slot ([MORECARS.md](MORECARS.md) 2.3, item 1d of 10.2). None has pointers but the skid state, which was own storage
+already for its segment pointer. 2026-10-29, on main 597098e.
+
+| N64 | PC | N64 extent | PC storage | What | Read and written by (objects) |
+|---|---|---|---|---|---|
+| `D_801392D8` | `pc_tire_fx` | u32[6], 24 B | `unsigned int[12]`, 48 B | each car's tire-effect latches, a bit per tire and effect (0x1-0x8 and 0x100-0x800 the tire puffs, 0x10-0x80 and 0x80000 the smoke, 0x1000-0x8000 the trails) | entity_spawn_init, func_8008E408, hud_render, func_80092484, func_800CB718 (three copies), physics_collision_test (the reset) |
+| `D_8013A020` | `pc_smoke_shade` | u8[6], 8 B by the gap | `unsigned char[12]`, 12 B | the grey of its smoke, 175 fading by 3 a puff to 53 | entity_spawn_init |
+| `D_8013C098` | `pc_trail_pts` | f32[6][6], 144 B | `float[12][6]`, 288 B | its two trails' last points | entity_spawn_init |
+| `D_80154660` | `pc_blasts` | `tBlastStruct[6]`, 2,400 B | `struct pc_blast[12]`, 4,800 B | MAT3 gBlastObjs: the blast after a crash, four blast objects and a glow, each a scene object on a matrix inside the record | blast.c (func_80090308, StartNewBlast), entity_update_callback (AnimateNewBlast), camera_smooth_lerp (InitBlasts) |
+| `D_80154FD8` | `pc_blast_rings` | `tBlastRingStruct[6]`, 360 B to `D_80155140` | `struct pc_blast_ring[12]`, 720 B | MAT3 gBlastRingObjs: the ring, a scene object on its matrix | blast.c (StartNewBlastRing, inlined in save_write_data, StartBlast), entity_collision_detect, camera_smooth_lerp |
+| `D_80155290` | `pc_skids` | `WheelSlot[6][4]`, 2,208 B (own storage, 2,304 host) | `struct pc_skid[12][4]`, 4,608 B | the arcade's NewSkid per tire: the skid segment drawn (a host pointer into the segment pool `D_80155B30`) and its edges | skid_marks/group.c (cpak_init, StartSkid, UpdateSkid, ContinueSkid), func_800B0580 (the reset; two copies) |
+| `D_80161450` | `pc_resurrect_mid` | f32[6][3], 72 B | `float[12][3]`, 144 B | the resurrect's midpoint (the arcade's update_resurrecting_car) | track_select_handler |
+
+**Inventory.** 16 objects reference the seven names (nm over `game_objects.txt`), all under `src/`, three of them weak
+context copies (func_800CB718's in the car_checkpoints and demo_pair groups, func_800B0580's in slot18_alloc). They
+declare the arrays through 13 types: `u32[]`, `int[6]` and m2c's scalar `s32` (read as `(&D_801392D8)[i]`) for the
+latches, whose readers differ in signedness only in bit operations and stores of 0; `tBlastStruct` (blast.c,
+entity_update_callback, the same layout) and `s32` (camera_smooth_lerp's byte offsets) for the blasts;
+`tBlastRingStruct` (blast.c), `Effect` (entity_collision_detect: the handle read through an `Id` union whose halves
+are swapped on the PC, [ENDIAN.md](ENDIAN.md)) and `s32` for the rings; `WheelSlot[][4]` and `char[]` (func_800B0580's
+memset) for the skids; one each for the rest. The image symbol tables name no address inside any of them but the
+rings', where the symbol file's `gCheckpointTimes` (+0x28), `gLapCounts` (+0x128), `gBestLapTimes` (+0x138) and
+`gCurrentLapTimes` (+0x148) are guesses no C and no asm references; they are retired with the rings.
+`layout_check.py --storage` before: 343 accesses on the seven (88, 8, 12, 136, 38, 55, 6), with the callees that
+get one record's address and stay inside it (PitchUV and func_80090E9C a blast object's matrix, func_800CFDEC the
+midpoint, and StopSkid, UpdateSkid, StartSkid, ContinueSkid and func_8008C074 a skid); after: the same 343 on the
+seven PC names, none off the reference.
+
+**What holds an address.** A scan of the four images inflated from the retail cartridge finds no data word in any of
+the seven ranges, and 40 code references (`lui` with a following low half in range): 20 to the latches
+(entity_spawn_init 7, func_8008E408 4, hud_render 4, func_80092484 2, physics_collision_test 1, func_800CB718 1 and
+render_viewport_init 1, where the N64 build inlined func_800CB718; on the PC it calls it), 2 to the smoke's grey, 2 to
+the trails, 6 to the blasts (func_80090308 3, entity_update_callback 2, camera_smooth_lerp 1), 6 to the rings
+(entity_collision_detect 4, save_write_data 1, camera_smooth_lerp 1), 2 to the skids (cpak_init, func_800B0580) and 2
+to the midpoint (track_select_handler): every function one whose C is among the objects above. What the game keeps
+of them: MBOX_NewObject (func_8008E26C) keeps a blast object's, the glow's and the ring's matrix address as the
+scene node's `owner`, which is pointer-sized in the node's PC layout ([POINTERS.md](POINTERS.md) 9) and read through
+as a pointer; StartSkid keeps the segment's address in the skid state, a host pointer already. No `PC_N64W` takes
+any of them, layout_check has no width finding (a pointer where the reference has a u32, or the reverse), and a
+`RUSH_CHECK_CASTS` build runs every synthetic path without a stop. So unlike the matrix pool
+([MORECARS.md](MORECARS.md) 2.7) none needs a window address.
+
+**What it reaches past its end.** The retail code's references to each end address (the next symbol's) are that
+symbol's own users (`D_801392F0`'s and `D_8013A028`'s menu_save_options, `D_8013C128`'s CreatePlayer and
+func_800C7EC8, `D_80154FC0`'s func_800D816C, `D_80155140`'s net_session_update and stat_race_start, the segment pool
+`D_80155B30` that func_800B0580 sets up, `D_80161498`'s Input_ProcessGameplayPad), but one: physics_collision_test's
+`i < 6`, which IDO strength-reduced to an end pointer at `D_801392F0`; its C walks by index. No C names an array's
+end. Nothing reaches the old ranges: the six that were arena BSS (3,008 bytes) filled with 0x5A after the loader ran
+(a throwaway build on the build host) left every synthetic path's trace the same, and none of their bytes changed
+by the end of any.
+
+**The size.** Every use reaches one car's entry by the car's slot (the puff's `car`, the visual's `slot`, the node's
+`index`, the model's net node) but three resets, which cleared the N64's 6: physics_collision_test the latches
+(`i < 6`), InitBlasts the blasts and rings (`i < 6`, strides 0x190 and 0x3C: each blast object's and the glow's
+handle, the ring's, to -1) and func_800B0580 the skids (2,208 bytes; 6 x 4 x 0x60 on the PC before). LoadTrack calls
+all three (`loadtrack.c:237-239`). On the PC they clear every slot, `PC_MAX_LINKS` and `sizeof (pc_skids)`, not the
+race's cars: a slot left out keeps a past race's latches, and a blast object InitBlasts left at 0 would have
+StartNewBlast remove scene object 0 (`if (b->mbIdx != -1) ZOID_RemoveObject(b->mbIdx)`). These are the two rows of
+[MORECARS.md](MORECARS.md) 3.1 in these files (item 3 left them to this one); no loop in them walks the race's cars.
+So the storage is `PC_MAX_LINKS` (12) entries each. InitBlasts takes 50 matrices from GetMatrix's pool whatever the
+cars: they are StartBlast's ring of 50 (`D_8013C238`, `D_8013C094` wraps at 50), not per car, and a car's own blast
+and ring matrices are inside its records; the pools' item needs nothing more from this one.
+
+**`D_80111299`** ([MORECARS.md](MORECARS.md) 2.6) stays as it is. It is rows 1-4 of `D_8011128C` (s8[5][13]: 65 bytes
+and 3 of padding to `D_801112D0`), which image A's car screen (func_803A44FC) reads as `D_8011128C[p + 1][...]` for
+player p: a setting per player and car type. Its three readers index it by slot x 13 + the car type, but only for
+humans: the wings' set-up (func_800B08FC, func_800B0A88 in the audio_frame groups) returns for a car this node drives
+(`we_control`, set for a drone, owner 0), and the trails' colour (entity_spawn_init's types 6 and 7) comes only from
+the wing's animator (buffer_swap) with one player. The humans have the first slots, 0-3, with any number of cars, so
+no slot past 3 reads it (a slot 4 or 5 would read `D_801112D0`'s float bytes, which the PC holds swapped).
+
+**The change.** `pc_game_types.h`: the four arrays, `struct pc_uv_matrix`, `struct pc_blast_obj`, `struct pc_blast`,
+`struct pc_blast_ring` and `struct pc_skid` (with MAT3's and the arcade's field names, which blast.c's,
+entity_update_callback's and skid_marks' views have), the record arrays, and `PC_BLASTS`, `PC_BLAST_RINGS` and
+`PC_SKIDS` as `void *`. Each of the 16 files changes its declaration only: under `TARGET_PC` its N64 name is the PC
+storage. In 8 files it is the PC array (`#define D_801392D8 pc_tire_fx`, `#define D_80154660 pc_blasts`: their views
+have the PC declaration's element type, or its field names and layout); entity_collision_detect, whose `Effect` names
+the ring's fields otherwise, sees the array as `PC_MAX_LINKS` of its own element type (`#define D_80154FD8 (*(Effect
+(*)[PC_MAX_LINKS])PC_BLAST_RINGS)`); m2c's scalars in func_80092484, func_800CB718 and camera_smooth_lerp are the
+array's first word (`#define D_801392D8 (*(s32 *)pc_tire_fx)`, read as `(&D_801392D8)[i]` or through a byte
+pointer), and func_800B0580 passes `PC_SKIDS` to memset. Not per-use accessors as in sections 2-4: these arrays are
+reached only by index, as whole records in each file's own view (one of them an endian-split union), so a field
+accessor would need a name per view; this way every use keeps its N64 tokens and its line, and since each is an
+array of `PC_MAX_LINKS` (the view too: an index past it traps, GCC 14 at -O0 with `-fsanitize=bounds`),
+`-fsanitize=bounds` checks each index against the PC's count ([MORECARS.md](MORECARS.md) 10.3). A first try saw
+blast.c and entity_update_callback through the view cast too; GCC folds `&view[slot].blastObjs[i]` there into a byte
+offset from `&pc_blasts`, which layout_check doesn't follow (49 accesses on `pc_blasts`, against 136 on
+`D_80154660`), so their structs got MAT3's names instead. Inside functions three lines change: the two resets' bounds
+(`PC_MAX_LINKS`, which physics_collision_test and camera_smooth_lerp define as 6 on the N64) and the weak copy of
+func_800B0580's byte count (`SKID_TABLE_BYTES`, as the function's own has; `sizeof (pc_skids)` on the PC).
+`decoupled.txt`: seven rules, with the N64 extents above. test_casts and test_pool define the PC names where they
+defined the N64 ones.
+
+**What the tables say.** `data_symbols.txt` loses the seven rows; `data.c` loses six `.set` lines, the skid state's own
+storage (2,304 bytes) with its loader entry and 12 field runs, and seven report names, and gains the seven (10,620
+bytes, `.bss`); the later own storage's C names and the loader entries' run indices are renumbered, which is most of
+data.c's 412 changed lines (234 with the own storage's C names normalized). gen_data's check: 1,770 symbols at their
+N64 addresses (6 fewer), 396 own (1 fewer), 10 decoupled. The synthetic cartridge is the same file.
+
+**What the paths run.** Counted with gdb (a breakpoint on each function that never stops, its hit count at the end)
+on the branch's Debug program, Pi: on the retail cartridge the scripted races start skids (StartSkid 622 times in
+`race`, 884 in `race2p`, 262 in `pause`) and smoke (entity_spawn_init 789, 992 and 462 times), and crash nowhere, so no
+blast; on the synthetic cartridge the races crash (StartNewBlast and StartBlast 24-60 times in `race`, `demo`, `drive`
+and `circuit`, the ring's animator 408-1,014 frames, the resurrect 36-108) and smoke (2,262-5,862), and start no
+skid. So the retail scripts are the skids' proof and the synthetic paths the blasts'. Neither runs func_8008E408 (a
+tire's puffs at speed on a surface of visual code 2); assets_fxcars does.
+
+**Proof.**
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, the build before (main, 597098e) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run: 6 of 6 |
+| `synth_compare.py --same --runs 2`, the same, build host (x86-64, GCC 14) | 19 of 19 paths |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 243 of 243 each (`assets_rom` skipped: no ROM there) |
+| Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files (build host); before against after, `data_symbols.txt` 7 lines, `data.c` 412 (234 normalized) |
+| the synthetic cartridge, before against after | the same file (Pi and build host) |
+| `n64_neutral.py --base 09da2f0` | passes (1,011 files: 92 code-exact, 919 shifted); 16 changed game files under `src/` |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after; offset_check and layout_check the same counts (59,461 and 48,102 accesses, 332 untyped raw accesses); endian_check's 2 open value conflicts in 1 storage the same, 3,506 puns, 20 more (each file's view and the PC struct on one storage); check-loader 96 places, 0 wrong |
+| `layout_check.py --storage` on the seven | 343 accesses (88, 8, 12, 136, 38, 55, 6), the same as on the N64 names before; none off the reference |
+| `view_audit.py`: `pc_blasts --size 400 --tags tBlastStruct,pc_blast`, `pc_blast_rings --size 60 --tags tBlastRingStruct,Effect,pc_blast_ring`, `pc_skids --size 92` (reference: the PC structs) | 3 views, 0 disagree (before, on `D_80154660`: 2, 0); 4, 0 (2, 0); 22, 16 disagree, every one of them another record of 92 bytes (the tires', the menu's, the checkpoints' header...), as before (19, 16); skid_marks' `WheelSlot` agrees |
+| `bounds_check`, build host (GCC 14), and the Pi's mingw-w64 12 (on the Windows build) | 4 new, the same on both, none `clamped` or `two offsets`, all `view` (camera_smooth_lerp's InitBlasts on `pc_blasts` and `pc_blast_rings`, func_80092484's and func_800CB718's word of `pc_tire_fx`), added to `bounds_reviewed.txt` as `[gcc14,mingw12]`; the 2 entries on the retired names (camera_smooth_lerp's `D_80154FD8`, func_800CB718's `D_801392D8`) removed; then none new, 9 kept for GCC 14 (as before). GCC 13 (CI's runner) not run on it |
+| a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
+| the six old arena ranges filled with 0x5A after the loader (a throwaway build, build host), against the branch | 19 of 19 paths the same trace; 0 of the 3,008 bytes changed in any |
+| Windows cross build (Pi, mingw-w64, fresh configure) | builds; `gen_data.py --check --pe`: OK, 10 decoupled |
+| `assets_fxcars` (16 slots declared, 12 cars) | passes; with each mutation it fails: the latches' reset at 6 (41 checks), InitBlasts at 6 (78), the skid reset at the N64's 6 cars (1, then a fault on a stale segment pointer), the skid table one tire off (2), the blasts read as the rings (a fault), the rings one car off (2), func_8008E408's latches one car off (3), the smoke's grey one car off (3), the trails one car off (2), the midpoint one car off (2), func_80092484's latch one car off (1) |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, cba8da7: the branch's game C) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+
+**The test.** `assets_fxcars` builds the 13 files above that link (all but the weak copies), with StopSkid, the pools'
+own get, free and set-up, and the game's Random, with `PC_MAX_LINKS` 16, and runs a race of 12 cars, every entry of
+the seven arrays a sentinel first:
+the race start's reset clears all 16 latches; InitBlasts takes 50 matrices and marks all 16 blasts' five objects and
+rings empty, their matrices left alone; each of the 12 cars' tire puffs sets its own latch bit and takes two puffs, a
+latched tire takes none, and hud_render ends all 24 and clears each car's bit; car 11's smoke sets its latches and its
+grey (175, 172, two latched frames, 169) and no other car's; its trails keep their points in its own six floats, and
+func_80092484 and func_800CB718 clear its trail and smoke bits; its blast's four objects and glow are scene objects
+on matrices inside its own record, which AnimateNewBlast moves with the car; its ring the same, followed by
+entity_collision_detect; func_800B0580 clears the whole skid table, and 12 cars x 4 tires start 48 distinct segments
+at their tires, continue and stop them, slots 12-15 untouched; car 11's resurrect midpoint lands in its own slot.
+test_casts checks InitBlasts' 50 matrices and its -1s in all `PC_MAX_LINKS` blasts and rings of the game build's 12.
+
+**Not done, and for the other items.** GCC 13's bounds_check (CI's runner) not run. The pools (item 2): a car's blast
+takes five scene objects and its ring one, from the scene node pool (`D_8012E700`, 600), its smoke and tire puffs
+come from the 100 puffs of `D_8013F1E0` (a full pool gives none, and the caller stops), and the skids from the 100
+segments of `D_80155B30` (48 at most with 12 cars x 4 tires; a full pool steals the farthest); none was measured with
+12 cars. The weak copy of func_800B0580 in slot18_alloc keeps the N64's pool views (36-byte elements), as before: it
+is never linked.
