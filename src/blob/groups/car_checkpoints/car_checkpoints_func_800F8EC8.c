@@ -81,7 +81,13 @@ typedef struct {
     u8 type;
 } Player;                   /* 8 */
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarData D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#define PC_CAR_PLACE(i) D_80152818[i].blocked
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -128,7 +134,7 @@ void func_800F8EC8(void)
     f32 zvec[3];
 
     for (index = 0; index < D_801543CA; index++) {
-        gc = &D_80152818[index];
+        gc = PC_CAR(index);
         prev = D_80152218[index];
         move[0] = gc->pos[0] - prev[0];
         move[1] = gc->pos[1] - prev[1];
@@ -169,7 +175,7 @@ void func_800F8EC8(void)
     if (D_80152018 != 0.0f && D_8002EB90 - D_80152018 > 3.0f) {
         D_80152018 = 0.0f;
     }
-    if (D_80153FD2 == 1 && D_80152818[D_8014A118].blocked == 0 && !(D_801174B4 & 8)) {
+    if (D_80153FD2 == 1 && PC_CAR_PLACE(D_8014A118) == 0 && !(D_801174B4 & 8)) {
         if (D_80152031 == 0 && D_80152018 == 0.0f) {
             D_80152018 = D_8002EB90;
             func_800B61A8(16, D_8014A118, 1, 1);

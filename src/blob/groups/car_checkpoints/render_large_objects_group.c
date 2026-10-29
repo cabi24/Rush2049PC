@@ -103,7 +103,16 @@ extern MODELDAT D_8014A250[];
 #define PC_MODEL_TIME_BOOST(i) model[i].time_boost
 #define PC_MODEL_WE_CONTROL(i) model[i].we_control
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CAR_DATA player_array[];
+#define PC_CAR(i) &game_car[i]
+#define PC_CAR_DISTANCE(i) game_car[i].distance
+#define PC_CAR_PLACE(i) game_car[i].place
+#define PC_CAR_POS(i) game_car[i].dr_pos
+#define PC_CAR_WEIGHT_INDEX(i) game_car[i].weight_index
+#endif
 #define model D_8014A250
 #define game_car player_array
 extern S8 D_80152744;
@@ -171,7 +180,7 @@ void render_large_objects(void)
 
     for (i = 0; i < num_active_cars; i++) {
         high_place = PC_MODEL_SLOT(i);
-        place[high_place] = game_car[high_place].place;
+        place[high_place] = PC_CAR_PLACE(high_place);
     }
 
     num_humans = num_drones = 0;
@@ -194,7 +203,7 @@ void render_large_objects(void)
     }
 
     for (i = 0, j = 0; i < num_drones; i++)
-        game_car[drones[i]].weight_index = i;
+        PC_CAR_WEIGHT_INDEX(drones[i]) = i;
 
     if (D_801174B4 & 8) {
         for (i = 0; i < num_active_cars; i++) {
@@ -218,7 +227,7 @@ void render_large_objects(void)
             for (i = 0; i < num_active_cars; i++) {
                 index = PC_MODEL_SLOT(i);
                 car_in_conflict[index] = 0;
-                gc = &game_car[index];
+                gc = PC_CAR(index);
 
                 for (j = i; j < num_active_cars; j++) {
                     index2 = PC_MODEL_SLOT(j);
@@ -226,7 +235,7 @@ void render_large_objects(void)
                         car_distance[index][index2] = 99999999;
                     else {
                         for (k = 0; k < 3; k++)
-                            delta[k] = gc->dr_pos[k] - game_car[index2].dr_pos[k];
+                            delta[k] = gc->dr_pos[k] - PC_CAR_POS(index2)[k];
 
                         delta_dist = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];
 
@@ -312,7 +321,7 @@ void render_large_objects(void)
                     min_brake = (.96f - 1.0f) * diff_scale + 1.0f - place_scale * ((.05f - .02f) * diff_scale + .02f);
 
                     if (index2 != index) {
-                        delta_dist = game_car[index].distance - game_car[index2].distance;
+                        delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
 
                         if (delta_dist < -20) {
                             time_scale = linear_interp(-300, -60, delta_dist, max_boost, min_boost);
@@ -329,7 +338,7 @@ void render_large_objects(void)
                     } else {
                         if (my_place == 0) {
                             index2 = cars_in_order[1];
-                            delta_dist = game_car[index].distance - game_car[index2].distance;
+                            delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
 
                             if (delta_dist < 200) {
                                 time_scale = linear_interp(200, 0, delta_dist, min_boost, max_boost);
@@ -341,7 +350,7 @@ void render_large_objects(void)
                         } else if (my_place == num_active_cars - 1) {
                             index2 = cars_in_order[num_active_cars - 2];
 
-                            delta_dist = game_car[index].distance - game_car[index2].distance;
+                            delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
 
                             if (delta_dist < -150) {
                                 time_scale = linear_interp(-150, -300, delta_dist, min_boost, max_boost);
@@ -352,10 +361,10 @@ void render_large_objects(void)
                             }
                         } else {
                             index2 = cars_in_order[my_place - 1];
-                            delta_dist = game_car[index].distance - game_car[index2].distance;
+                            delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
 
                             index2 = cars_in_order[my_place + 1];
-                            delta_dist2 = game_car[index].distance - game_car[index2].distance;
+                            delta_dist2 = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
 
                             if (delta_dist > -150 && delta_dist2 < 150) {
                                 target_dist = (delta_dist + delta_dist2) / 2;
@@ -402,7 +411,7 @@ void render_large_objects(void)
                     if (coast_flag || end_game_flag)
                         time_scale = min_boost;
 
-                    if (lap_flag && game_car[humans[num_humans - 1]].place > place[index]) {
+                    if (lap_flag && PC_CAR_PLACE(humans[num_humans - 1]) > place[index]) {
                         scale = min_brake;
                         time_scale = min_boost;
                     }

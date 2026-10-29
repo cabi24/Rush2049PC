@@ -117,7 +117,12 @@ extern Model D_8014A250[];
 #define PC_MODEL(i) &D_8014A250[i]
 #define PC_MODEL_SLOT(i) D_8014A250[i].slot
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern PathGraph D_801407F0;
 extern Track D_80151CE8[];
 extern f32 D_801543AC;
@@ -159,7 +164,7 @@ void world_gravity_apply(void)
         m = PC_MODEL(slot);
         m2 = PC_MODEL(slot);
         if (func_800CF604(slot)) {
-            gc = &D_80152818[slot];
+            gc = PC_CAR(slot);
             if (gc->unkEF == 1) {
                 continue;
             }

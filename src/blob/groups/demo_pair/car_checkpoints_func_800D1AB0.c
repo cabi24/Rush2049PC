@@ -40,7 +40,15 @@ extern Model D_8014A250[];
 #define PC_MODEL_LAP(i) D_8014A250[i].unk7E8
 #define PC_MODEL_SLOT(i) D_8014A250[i].slot
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar D_80152818[];
+#define PC_CAR_DISTANCE(i) D_80152818[i].distance
+#define PC_CAR_FINISHED(i) D_80152818[i].unkEF
+#define PC_CAR_PLACE(i) D_80152818[i].place
+#define PC_CAR_STATE(i) D_80152818[i].unk359
+#endif
 
 void func_800D1AB0(void) {
     s16 i;
@@ -55,15 +63,15 @@ void func_800D1AB0(void) {
     num_done = 0;
     num_left = 0;
     for (i = 0; i < D_80152744; i++) {
-        if (D_80152818[PC_MODEL_SLOT(i)].unk359 > 0 && PC_MODEL_LAP(i) < D_80152734) {
+        if (PC_CAR_STATE(PC_MODEL_SLOT(i)) > 0 && PC_MODEL_LAP(i) < D_80152734) {
             num_done++;
-        } else if (D_80152818[PC_MODEL_SLOT(i)].unkEF != 1) {
+        } else if (PC_CAR_FINISHED(PC_MODEL_SLOT(i)) != 1) {
             place[num_left++] = PC_MODEL_SLOT(i);
         }
     }
     if (num_left != 0) {
         for (i = 0; i < num_left; i++) {
-            dist_tab[place[i]] = D_80152818[place[i]].distance;
+            dist_tab[place[i]] = PC_CAR_DISTANCE(place[i]);
         }
         for (i = 0; i < num_left; i++) {
             high_index = i;
@@ -73,7 +81,7 @@ void func_800D1AB0(void) {
                     high_index = j;
                 }
             }
-            D_80152818[place[high_index]].place = i + D_80152744 - num_left - num_done;
+            PC_CAR_PLACE(place[high_index]) = i + D_80152744 - num_left - num_done;
             place[high_index] ^= place[i];
             place[i] ^= place[high_index];
             place[high_index] ^= place[i];

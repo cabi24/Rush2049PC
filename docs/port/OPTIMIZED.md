@@ -336,14 +336,14 @@ Considered and not used:
 
 ## 5. The same game
 
-`tools/port/synth_compare.py` runs every press script's path with two programs, several times each, and compares
-their traces: the loader's summary line, every state change and the retrace it happened at, and a status line each
-second of game time with the players, windows, cars, mode, track, pause state, and the first car's position and speed
-as exact floats (`RUSH_STATE_EXACT`). It runs on the virtual clock (`--fast`), where the main loop works only while
-every N64 thread waits, so a run takes the same course every time ([ULTRA.md](ULTRA.md) 1). Before that change (made
-for the high frame rate while this work went on) a run was the same only to within a graphics task, and on the Pi 5
-two runs of one Debug build drifted apart in most races; this work had an opt-in mode of its own for it at first, and
-the results below were all repeated on the merged clock.
+`tools/port/synth_compare.py` runs every press script's path with two programs, several times each, and compares their
+traces: the loader's summary line (without its table's size since DECOUPLE.md 4), every state change and the retrace it
+happened at, and a status line each second of game time with the players, windows, cars, mode, track, pause state, and
+the first car's position and speed as exact floats (`RUSH_STATE_EXACT`). It runs on the virtual clock (`--fast`), where
+the main loop works only while every N64 thread waits, so a run takes the same course every time ([ULTRA.md](ULTRA.md)
+1). Before that change (made for the high frame rate while this work went on) a run was the same only to within a
+graphics task, and on the Pi 5 two runs of one Debug build drifted apart in most races; this work had an opt-in mode of
+its own for it at first, and the results below were all repeated on the merged clock.
 
 | | Paths | Result (Debug against RelWithDebInfo, 2 or 3 runs each) |
 |---|---|---|

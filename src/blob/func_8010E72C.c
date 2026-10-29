@@ -107,7 +107,12 @@ typedef struct MATRIX {
 #define N64W(x) x
 #endif
 extern TargInfo D_80117530[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 extern Visual *D_801391F0;
 
 Visual *func_80090284(void);
@@ -135,7 +140,7 @@ void func_8010E72C(Target *t)
     v->timeStamp = 0.0333333f;
     t->state = 4;
     t->flags &= ~6;
-    car = &player_array[t->slot];
+    car = PC_CAR(t->slot);
     PointInDir(car->RWV, &tmat);
     math_utility(tmat.uvs, t->uv);
     v->next = D_801391F0;

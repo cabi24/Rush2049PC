@@ -36,7 +36,13 @@ typedef struct Object {
     s8 owner, unknown05, kind, flags;
     f32 lifetime, timer, elapsed, velocity[3], position[3], previous[3], uv[3][3];
 } Object;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CARS D_80152818
+#define PC_CARS_END(n) D_80152818 + n
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -59,7 +65,7 @@ void func_8038DDDC(Object *object)
     f32 best[3];
     f32 nearest, distance;
     nearest = 2000.0f;
-    for (player = D_80152818; player < D_80152818 + D_801543CA; player++) {
+    for (player = PC_CARS; player < PC_CARS_END(D_801543CA); player++) {
         if (object->owner != player->index &&
             D_8012E67C[object->owner] != D_8012E67C[player->index] &&
             !PC_MODEL_CRASHFLAG(player->index) && player->active && !player->blocked) {

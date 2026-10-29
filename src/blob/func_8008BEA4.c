@@ -22,7 +22,12 @@ typedef struct { u32 o; u8 pad[20]; } PO;
 #else
 typedef struct { Out *o; u8 pad[20]; } PO;
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern PF D_80152900[];
+#define PC_CAR_FLAGS(i) D_80152900[i].flags
+#endif
 extern PO D_8013FEF4[];
 extern s8 D_8014978C;
 extern u16 D_8011B57C[8];
@@ -36,7 +41,7 @@ void func_8008BEA4(In *in, s16 flag)
 {
 s32 i; Out *o; s32 ok;
  i = in->idx;
- ok = (D_80152900[i].flags & 0x1000) != 0 && (D_80152900[i].flags & 0x10) == 0;
+ ok = (PC_CAR_FLAGS(i) & 0x1000) != 0 && (PC_CAR_FLAGS(i) & 0x10) == 0;
  o = D_8013FEF4[i].o;
     if (flag == 0 || !ok) {
         if (D_8014978C == 3 || D_8014978C == 5) { CP(D_8011B58C); } else { CP(D_8011B57C); }

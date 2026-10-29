@@ -105,7 +105,12 @@ typedef struct {
 
 extern s8 D_8017A634;
 extern s32 D_8014A110;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_STATE(i) D_80152818[i].unk359
+#endif
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
@@ -209,7 +214,7 @@ void random_float(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
     m->CENTERFORCE[2] -= cent[2];
     flag = (m->unk7CC == 2);
     if (D_8017A634 == 1 || (D_8017A634 == 2 && flag) || func_8008B3C8(cent) > m->unk63C * 0.8f) {
-        if (D_8014A110 != 6 && m->unk640 == 0 && D_80152818[m->net_node].unk359 != 2) {
+        if (D_8014A110 != 6 && m->unk640 == 0 && PC_CAR_STATE(m->net_node) != 2) {
             m->unk640 = 1;
         }
     }

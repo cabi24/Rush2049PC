@@ -69,7 +69,12 @@ typedef struct { u8 pad[0x17]; s8 state; u8 pad18[0x3B8 - 0x18]; } Player;  /* 0
 extern s16 gNumWindows;                  /* player count */
 extern volatile s16 D_801543CA;
 extern s8 D_80156CE8;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_801528F0[];
+#define PC_CAR_FINISHED(i) D_801528F0[i].state
+#endif
 extern s32 state_word_a, D_8011617C, D_80116180;
 extern Pos D_80116028[][4];     /* row = player count - 1 */
 extern char D_80120E34[];
@@ -91,7 +96,7 @@ s32 func_80108DA8(MenuNode *node) {
     }
     hidden = D_80156CE8 == 0;
     if (hidden == 0) {
-        hidden = D_801528F0[index].state == 1;
+        hidden = PC_CAR_FINISHED(index) == 1;
     }
     if (hidden != node->hidden) {
         node->hidden = hidden;

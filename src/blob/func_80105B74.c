@@ -59,7 +59,14 @@ typedef struct {
 #endif
 } Pad;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].finished
+#define PC_CAR_PLACE(i) D_80152818[i].place
+#define PC_CAR_TIME(i) D_80152818[i].time
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -86,7 +93,7 @@ s32 func_80105B74(s32 arg0) {
     s16 num;
 
     for (k = 0; k < 4; k++) {
-        func_800D2128((D_80152818[k].finished == 1) ? D_80152818[k].time : D_801543CC, D_801439D8[k], 'f');
+        func_800D2128((PC_CAR_FINISHED(k) == 1) ? PC_CAR_TIME(k) : D_801543CC, D_801439D8[k], 'f');
     }
     for (i = 0; i < 6; i++) {
         D_80142DB4[i] = -1;
@@ -96,7 +103,7 @@ s32 func_80105B74(s32 arg0) {
         idx = 0;
         for (j = 0; j < num; j++) {
             idx = PC_MODEL_SLOT(j);
-            if (i == D_80152818[idx].place) {
+            if (i == PC_CAR_PLACE(idx)) {
                 break;
             }
         }

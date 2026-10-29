@@ -1,7 +1,7 @@
 /* port/assets/tests/test_models.c: the model records (MAT3 model[]: pc_models, struct pc_model,
  * port/include/pc_game_types.h) through the game's own readers and writers, with more records declared than the
  * game walks (docs/port/DECOUPLE.md). This test and its game objects are built with PC_MAX_LINKS 16
- * (CMakeLists.txt), so the storage has 16 records where the game build has 8 and the N64 6. Every record starts as
+ * (CMakeLists.txt), so the storage has 16 records where the game build has 12 and the N64 6. Every record starts as
  * a sentinel: the code must write and read the fields at their N64 offsets, step 0x808 between records, and stop at
  * the 6 it walks on the N64, whatever the storage's size.
  * func_800E762C sets the 6 records' model clock (an index walk); func_800D1248 ends a resurrect through a record
@@ -36,8 +36,7 @@ int32_t gameplay_mode, D_80143FF4, state_word_a;
 float D_8002AFB8 = 1.0f / 60, D_801543CC;
 int8_t D_80152744, D_8017A4D8, D_8011EAE4, D_801525F0;
 struct { uint16_t count; void *points; } D_801407F0;          /* the track's path graph (path.c's Route) */
-uint8_t D_80152818[6 * PC_CAR_SIZE] __attribute__((aligned(16)));   /* the car records, PC layout */
-ALIAS(player_array, D_80152818, 0);
+struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 
 /* What the code under test calls: each records what it was given. */
 static const void *g_seen[64];
@@ -185,7 +184,7 @@ static void test_collidable(void)
     short index = 3;
 
     sentinels();
-    memset(D_80152818, 0, sizeof D_80152818);
+    memset(pc_cars, 0, sizeof pc_cars);
     M8(3, 0x7EA) = 0;
     CHECK(steering_apply(&index, point, &radius, &err) == 0);
     M8(3, 0x7EA) = 1;

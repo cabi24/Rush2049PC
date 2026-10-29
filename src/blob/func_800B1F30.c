@@ -558,7 +558,12 @@ typedef struct
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[8];
+#define PC_CAR(i) &player_array[i]
+#endif
 typedef struct 
 {
   u8 pad00[0x39];
@@ -3812,5 +3817,5 @@ void func_800B1F30(s16 arg0)
   s16 var_s1;
   u8 *var_s0;
   int new_var;
- do { temp_s2 = &player_array[arg0]; if ((*((s32 *) (((s8 *) temp_s2) + 0xF4))) >= 0) { model_data_load((*((s32 *) (((u8 *) (&D_80139320)) + (arg0 << 6)))), 2, 0xF); var_s0 = &temp_s2->pad0EC[0x24]; var_s1 = 0; do { temp_v0 = *((M2C_UNK (**)(u8 *, M2C_UNK)) (((s8 *) var_s0) + VIS_OFS(0x14))); if (temp_v0 != ((void *) 0)) { temp_v0(var_s0, 0); } else { temp_a0 = *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))); if (temp_a0 >= 0) { model_data_load(temp_a0, 1, 0xF); *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))) = -(new_var = 1); } } var_s1 += 1; var_s0 += VIS_OFS(0x18); } while (var_s1 < 0x15); } } while (0);
+ do { temp_s2 = PC_CAR(arg0); if ((*((s32 *) (((s8 *) temp_s2) + 0xF4))) >= 0) { model_data_load((*((s32 *) (((u8 *) (&D_80139320)) + (arg0 << 6)))), 2, 0xF); var_s0 = &temp_s2->pad0EC[0x24]; var_s1 = 0; do { temp_v0 = *((M2C_UNK (**)(u8 *, M2C_UNK)) (((s8 *) var_s0) + VIS_OFS(0x14))); if (temp_v0 != ((void *) 0)) { temp_v0(var_s0, 0); } else { temp_a0 = *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))); if (temp_a0 >= 0) { model_data_load(temp_a0, 1, 0xF); *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))) = -(new_var = 1); } } var_s1 += 1; var_s0 += VIS_OFS(0x18); } while (var_s1 < 0x15); } } while (0);
 }

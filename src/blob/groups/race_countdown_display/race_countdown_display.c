@@ -70,7 +70,12 @@ extern Player D_80153E88[];
 #define PC_LINKS D_80153E88
 #define PC_LINKP_OWNER(p) p->type
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern s32 D_8014A110;
 extern u32 D_801174B4;
 extern s16 D_80152734;
@@ -109,7 +114,7 @@ void race_countdown_display(Model *m, f32 time)
         m->lap_enabled = 1;
     }
     link = &PC_LINKS[player];
-    gc = &D_80152818[player];
+    gc = PC_CAR(player);
     if (PC_LINKP_OWNER(link) == 6) {
         if (m->last_cp == D_80151CE8.finish_line && !(D_801174B4 & 8)) {
             func_800D2458(player, time);

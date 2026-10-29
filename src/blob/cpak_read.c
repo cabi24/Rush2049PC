@@ -34,7 +34,12 @@ typedef struct Car { u8 pad0[232]; u32 appearance; u8 pad236[36]; Visual visuals
 typedef struct Car { u8 pad0[232]; u32 appearance; u8 pad236[36]; Visual visuals[21]; u8 pad776[176]; } Car;
 #endif
 typedef struct Model { u8 pad0[1564]; u16 sviscode[4]; u8 pad1572[484]; } Model;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -50,7 +55,7 @@ void cpak_init(s32 slot);
 
 void cpak_read(s16 slot)
 {
-    Car *car = &D_80152818[slot];
+    Car *car = PC_CAR(slot);
     Visual *v = &car->visuals[0];
     s16 i;
     f32 usec;

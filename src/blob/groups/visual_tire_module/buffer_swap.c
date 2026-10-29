@@ -64,7 +64,13 @@ typedef struct Model68 { u32 flags; u8 opaque4[64]; } Model68;
 extern Model2056 D_8014A250[];
 #define PC_MODEL(i) &D_8014A250[i]
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player952 player_array[];
+#define PC_CAR(i) &player_array[i]
+#define PC_CAR_INPUT_AS(T, i) player_array[i].pose
+#endif
 extern Model68 D_8012E700[];
 extern f32 D_8011B4B4[][3];
 extern f32 D_8011418C[9];
@@ -191,11 +197,11 @@ grow:
     }
     if (v->flags & 0x10) {
         math_utility(D_8011418C, basis);
-        PitchUV(player_array[slot].pose->angle * 0.507f, basis);
+        PitchUV(PC_CAR_INPUT_AS(Pose, slot)->angle * 0.507f, basis);
         func_8008D6FC(v->object, 0, basis);
         if (active_player_count == 1) entity_spawn_init(slot, reverse ? 7 : 6, 0, position);
     }
-    car = &player_array[slot];
+    car = PC_CAR(slot);
     hulk = (car->flags & 0x10) != 0;
     lucent = (D_80140418 != 0) || ((car->flags & 8) != 0);
     if (model_bounds_calc(v, !hulk && !car->disabled)) {

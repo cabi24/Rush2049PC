@@ -1,13 +1,14 @@
-/* port/assets/tests/test_cars.c: the car record (player_array, 0x468 bytes a car on the PC) and the model record
- * (D_8014A250, 0x808 bytes, its N64 layout) through the game's own code (docs/port/CARS.md): init_cars
+/* port/assets/tests/test_cars.c: the car record (pc_cars, N64 player_array, 0x468 bytes a car on the PC) and the
+ * model record (pc_models, N64 D_8014A250, 0x808 bytes, its N64 layout) through the game's own code
+ * (docs/port/CARS.md): init_cars
  * (world_physics_tick), StartEnvironment and StartCar with every visual starter, the car visuals' stop loop, the
  * environment visual pool, the code that reaches cars at raw offsets or strides, and the model set-up from the
  * car physics descriptors, whose pointers are u32 window addresses, and the physics that read them (the torque
  * func_800E2D18, func_800E1500, func_800E2C70; docs/port/LAYOUT.md 5); race_init_helper reads a car's node handle's
- * low half; the brake lights (func_8008BEA4) read their car's slot from the visual. The car array is host storage,
- * as in the
- * game (own storage); the model array, the checkpoint block and the tune and torque tables sit at their N64
- * addresses in an RDRAM window the test maps (exit 77, skipped, if it can't), as the game's arena does.
+ * low half; the brake lights (func_8008BEA4) read their car's slot from the visual. The car and model arrays are
+ * host storage, as in the game (PC data, docs/port/DECOUPLE.md); the checkpoint block and the tune and torque
+ * tables sit at their N64 addresses in an RDRAM window the test maps (exit 77, skipped, if it can't), as the
+ * game's arena does.
  * game: src/blob/world_physics_tick.c src/blob/func_800B27E4.c src/blob/func_800EC270.c
  * game: src/blob/music_control.c src/blob/groups/audio_frame_update/startcar.c src/blob/save_load_data.c
  * game: src/blob/func_800AC8D4.c src/blob/groups/audio_frame/group.c src/blob/groups/audio_frame_update/group.c
@@ -49,14 +50,8 @@ struct car {
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
-struct car D_80152818[6] __attribute__((aligned(16)));
-ALIAS(player_array, D_80152818, 0);
-ALIAS(D_80152907, D_80152818, 0xEF);       /* names inside player_array, as gen_data places them */
-ALIAS(D_80152B70, D_80152818, 0x400);      /* N64 +0x358 */
-ALIAS(D_80152BD0, D_80152818, 0x468);      /* car 1, and its +8 and +0x50 */
-ALIAS(D_80152BD8, D_80152818, 0x470);
-ALIAS(D_80152C20, D_80152818, 0x4B8);
-ALIAS(D_80152900, D_80152818, 0xE8);       /* a car's flags, seen as an array of cars */
+struct pc_car pc_cars[PC_CAR_SLOTS];      /* gGameCar, the car records (pc_game_types.h), which data.c defines */
+#define CARS ((struct car *)pc_cars)       /* in this file's view */
 
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[], the model records (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
@@ -210,9 +205,9 @@ static void test_layout(void)
 static void test_init_cars(void)
 {
     int k;
-    struct car *c0 = &D_80152818[0], *c1 = &D_80152818[1], *c2 = &D_80152818[2];
+    struct car *c0 = &CARS[0], *c1 = &CARS[1], *c2 = &CARS[2];
 
-    memset(D_80152818, 0xAA, sizeof D_80152818);
+    memset(pc_cars, 0xAA, sizeof pc_cars);
     memset(MODEL(0), 0x55, 0x808 * 3);
     D_801543CA = 3;
     D_8014A108 = 1;
@@ -233,7 +228,7 @@ static void test_init_cars(void)
         CHECK(c1->visuals[k].func == NULL && c1->visuals[k].objnum == -1 && c1->visuals[k].data == 0);
     }
     CHECK(c0->tail[sizeof c0->tail - 1] == 0 && c1->tail[sizeof c1->tail - 1] == 0);   /* the PC tail is cleared */
-    CHECK(D_80152818[3].head[0] == 0xAA);
+    CHECK(CARS[3].head[0] == 0xAA);
     CHECK(CF(c0, 0x35B, int8_t) == 0 && CF(c1, 0x35B, int8_t) == 1);                   /* slot */
     CHECK(CF(c0, 0xEE, int8_t) == 1 && CF(c1, 0xEE, int8_t) == 2);                     /* place */
     CHECK(CF(c0, 0x35E, int8_t) == 2 && CF(c0, 0x35C, int8_t) == -1 && CF(c0, 0x35D, int8_t) == 2);
@@ -259,8 +254,8 @@ static void start_all(int mode)
 
     for (i = 0; i < 2; i++) {
         for (k = 0; k < 21; k++) {
-            D_80152818[i].visuals[k].func = NULL;
-            D_80152818[i].visuals[k].objnum = -1;
+            CARS[i].visuals[k].func = NULL;
+            CARS[i].visuals[k].objnum = -1;
         }
         MF(MODEL(i), 0x7C8, int16_t) = 1;                  /* in_game */
         MF(MODEL(i), 0x7CA, int16_t) = 0;
@@ -285,7 +280,7 @@ static void check_started(int mode)
     int i, k;
 
     for (i = 0; i < 2; i++) {
-        struct car *c = &D_80152818[i];
+        struct car *c = &CARS[i];
         struct pc_visual *v = c->visuals;
         CHECK(v[0].func == (void *)func_8008BEA4 && v[0].slot == i);                        /* brake lights */
         CHECK(v[1].func == (void *)func_8008BD9C && v[2].func == (void *)func_8008BC94);   /* sparks */
@@ -315,16 +310,16 @@ static void check_started(int mode)
         }
     }
     /* StartArrow: only the human (car 0), one arrow for the other window, the next visual cleared. */
-    CHECK(D_80152818[0].visuals[11].func == (void *)entity_render_setup && D_80152818[0].visuals[11].index == 1);
-    CHECK(D_80152818[0].visuals[12].func == NULL && D_80152818[0].visuals[12].objnum == -1);
-    CHECK(D_80152818[1].visuals[11].func == NULL);
-    CHECK(D_80152818[0].visuals[10].objnum == 0 && D_80152818[0].visuals[11].objnum == 1);   /* poly indices */
+    CHECK(CARS[0].visuals[11].func == (void *)entity_render_setup && CARS[0].visuals[11].index == 1);
+    CHECK(CARS[0].visuals[12].func == NULL && CARS[0].visuals[12].objnum == -1);
+    CHECK(CARS[1].visuals[11].func == NULL);
+    CHECK(CARS[0].visuals[10].objnum == 0 && CARS[0].visuals[11].objnum == 1);   /* poly indices */
 }
 
 /* func_800B1F30: each visual's func is called with the visual; one without a func just has its model hidden. */
 static void test_stop_visuals(void)
 {
-    struct car *c = &D_80152818[0];
+    struct car *c = &CARS[0];
     int k, n;
 
     CF(c, 0xF4, int32_t) = 0;
@@ -369,7 +364,7 @@ static void test_env_pool(void)
 /* Code that reaches cars by raw offsets, strides, or GameCar's padding (m2c). */
 static void test_raw(void)
 {
-    struct car *c = &D_80152818[1];
+    struct car *c = &CARS[1];
     int16_t *table = (int16_t *)(D_80151CE8 + 0x30);
 
     /* func_800C4078: car+0x33A = D_80151D18[car+0x33C + model+0x7E2 * 40] */
@@ -416,13 +411,13 @@ static void test_raw(void)
     /* func_800FBE60 (race start): each car's +0x108 cleared and its position (+8) copied out, at the car stride */
     D_80152744 = 3;
     for (int i = 0; i < 3; i++) {
-        CF(&D_80152818[i], 0x108, float) = 1.0f;
-        CF(&D_80152818[i], 0x8, float) = 10.0f * (float)i, CF(&D_80152818[i], 0xC, float) = 1.0f + (float)i;
-        CF(&D_80152818[i], 0x10, float) = -2.0f * (float)i;
+        CF(&CARS[i], 0x108, float) = 1.0f;
+        CF(&CARS[i], 0x8, float) = 10.0f * (float)i, CF(&CARS[i], 0xC, float) = 1.0f + (float)i;
+        CF(&CARS[i], 0x10, float) = -2.0f * (float)i;
     }
     func_800FBE60();
     for (int i = 0; i < 3; i++) {
-        CHECK(CF(&D_80152818[i], 0x108, float) == 0.0f);
+        CHECK(CF(&CARS[i], 0x108, float) == 0.0f);
         CHECK(D_80152218[i][0] == 10.0f * (float)i && D_80152218[i][1] == 1.0f + (float)i);
         CHECK(D_80152218[i][2] == -2.0f * (float)i);
     }
@@ -494,8 +489,8 @@ static void test_model(void)
 static void test_race_init(void)
 {
     gameplay_mode = 2, active_player_count = 3;
-    CF(&D_80152818[1], 0xF4, int32_t) = 0x42;
-    CF(&D_80152818[2], 0xF4, int32_t) = 0x43;
+    CF(&CARS[1], 0xF4, int32_t) = 0x42;
+    CF(&CARS[2], 0xF4, int32_t) = 0x43;
     g_nnode = 0;
     race_init_helper();
     CHECK(g_nnode == 2 && g_node_moved[0] == 0x42 && g_node_moved[1] == 0x43);
@@ -512,7 +507,7 @@ static void test_brake_lights(void)
     int i, k;
 
     for (i = 0; i < 6; i++) {
-        CF(&D_80152818[i], 0xE8, uint32_t) = i == 1 ? 0x1000 : 0;
+        CF(&CARS[i], 0xE8, uint32_t) = i == 1 ? 0x1000 : 0;
         MF(D_8013FEF4, 24 * i, uint32_t) = PALETTES_AT + 0x200 * (uint32_t)i;
         memset((uint8_t *)pal + 0x200 * i, 0, 16);
     }
@@ -527,7 +522,7 @@ static void test_brake_lights(void)
             CHECK(pal[0x100 * i + k] == (i == 1 ? 0x200 + k : 0));
     func_8008BEA4(&v, 0);
     CHECK(pal[0x100] == 0x100 && pal[0x107] == 0x107);
-    CF(&D_80152818[1], 0xE8, uint32_t) = 0;
+    CF(&CARS[1], 0xE8, uint32_t) = 0;
 }
 
 int main(void)

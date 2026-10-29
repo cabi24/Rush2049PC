@@ -85,7 +85,18 @@ extern Model2056 D_8014A250[];  /* model */
 #define PC_MODEL_SLOT(i) D_8014A250[i].slot
 #define PC_MODEL_WE_CONTROL(i) D_8014A250[i].we_control
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car952 player_array[];   /* gGameCar */
+#define PC_CAR_FINISHED(i) player_array[i].place_locked
+#define PC_CAR_FLAGS(i) player_array[i].appearance
+#define PC_CAR_HEALTH(i) player_array[i].health
+#define PC_CAR_INPUT(i) player_array[i].player
+#define PC_CAR_POINTS(i) player_array[i].points
+#define PC_CAR_RELOADING_TIME(i) player_array[i].reloadingTime
+#define PC_CAR_STATE(i) player_array[i].dead
+#endif
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -294,22 +305,22 @@ s32 display_list_flush(s32 useHud, s32 cancel)
             for (i = 0; i < active_player_count; i++) {
                 slot = input_rec0[i].slot;
                 PC_LINK_OWNER(slot) -= 6;
-                player_array[slot].dead = 0;
-                player_array[slot].place_locked = 0;
-                player_array[slot].player = 0;
+                PC_CAR_STATE(slot) = 0;
+                PC_CAR_FINISHED(slot) = 0;
+                PC_CAR_INPUT(slot) = 0;
                 PC_MODEL_DRONE_TYPE(slot) = 1;
                 PC_MODEL_WE_CONTROL(slot) = 1;
                 PC_MODEL_AUTOTRANS(slot) = 1;
                 PC_MODEL_FLAGS(slot) = 0;
-                player_array[slot].appearance = 0;
+                PC_CAR_FLAGS(slot) = 0;
                 music_tempo_set(slot, PC_MODEL_BODY(slot), 1);
                 D_801527D8[D_80152768++] = i;
                 D_80152808[D_8015274C++] = i;
             }
             for (; i < D_80152744; i++) {
-                player_array[i].dead = 0;
-                player_array[i].place_locked = 0;
-                player_array[i].appearance = 0;
+                PC_CAR_STATE(i) = 0;
+                PC_CAR_FINISHED(i) = 0;
+                PC_CAR_FLAGS(i) = 0;
                 PC_MODEL_FLAGS(i) = 0;
                 music_tempo_set(i, PC_MODEL_BODY(i), 1);
                 D_801527D8[D_80152768++] = i;
@@ -373,9 +384,9 @@ s32 display_list_flush(s32 useHud, s32 cancel)
     if (useHud) skid_mark_render();
     for (i = 0; i < active_player_count; i++) {
         input_rec0[i].numCrashes = 0;
-        player_array[i].health = 800;
-        player_array[i].points = 0;
-        player_array[i].reloadingTime = 0.0f;
+        PC_CAR_HEALTH(i) = 800;
+        PC_CAR_POINTS(i) = 0;
+        PC_CAR_RELOADING_TIME(i) = 0.0f;
         if (gameplay_mode == 6) func_8038CA24(i);
         D_80114654 = 0;
     }

@@ -83,7 +83,12 @@ typedef struct Car {
     /* 0x3B0 */ char pad3B0[8];
 } Car;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 extern s32 gameplay_mode;
 extern s8 gCarTeam[];
 extern s8 D_8017A634;
@@ -113,8 +118,8 @@ void menu_options_screen(Model *m, Model *m1, Model *m2, f32 *dir, f32 *pos) {
     Car *c1;
     Car *c2;
 
-    c1 = &player_array[m1->slot];
-    c2 = &player_array[m2->slot];
+    c1 = PC_CAR(m1->slot);
+    c2 = PC_CAR(m2->slot);
     if (m1->slot >= 0 && m2->slot >= 0 && gameplay_mode != 6) {
         if (c1->unk35F) {
             m2->unk640 = 1;

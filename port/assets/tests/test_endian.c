@@ -10,6 +10,7 @@
  */
 #include <string.h>
 
+#include "pc_game_types.h"
 #include "support.h"
 
 /* particle_knot's Node: the layout every PC view of the scene-node table has (docs/port/POINTERS.md 9.2). */
@@ -63,7 +64,7 @@ uint8_t gNumModels = 1;
 int16_t D_8014A108;                                           /* no players: the coin is released at once */
 char D_80121DB0[] = "COIN_GLOWG1", D_80121DBC[] = "GOLDCOIN", D_80121DCC[] = "SILVERCOIN";
 float D_8011418C[3][3];
-uint8_t D_80152818[6][952];
+struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 volatile float D_8002EB94;
 int32_t D_80143FC8;
 

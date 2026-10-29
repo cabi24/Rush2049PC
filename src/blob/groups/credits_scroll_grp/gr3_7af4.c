@@ -47,7 +47,13 @@ extern s16 gNumWindows;
 extern Pair D_80118E20;
 extern Pos D_80115CA8[4][4];
 extern Rgba D_80116168[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player952 player_array[];
+#define PC_CAR_FINISHED(i) player_array[i].finished
+#define PC_CAR_PLACE(i) player_array[i].place
+#endif
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 slot_state_setup(s32 selection);
@@ -108,12 +114,12 @@ s32 animPlace(s32 arg0)
     str[1] = '/';
     str[2] = D_801543CA + '0';
     for (i = 0; i < gNumWindows; i++) {
-        if (func_800CF604(i) == 0 || player_array[i].finished == 1) {
+        if (func_800CF604(i) == 0 || PC_CAR_FINISHED(i) == 1) {
             continue;
         }
         x = D_80115CA8[gNumWindows - 1][i].x;
         y = D_80115CA8[gNumWindows - 1][i].y;
-        str[0] = player_array[i].place + '1';
+        str[0] = PC_CAR_PLACE(i) + '1';
         x -= w;
         for (k = 0; k < 3; k++) {
             ch[0] = str[k];

@@ -90,7 +90,12 @@ typedef struct tCarData {
 } tCarData;
 
 extern s16 active_player_count, D_80151AD0;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData player_array[];
+#define PC_CAR_HEALTH(i) gGameCar[i].health
+#endif
 extern tBlitInstance pad_config[];
 extern s32 D_80394150[4][4][2];
 extern u8 D_80394280[4][2][4];
@@ -117,7 +122,7 @@ int func_80392FE4(_tBlit_2 *blt) /* animHealth */
         blt->animFunc = 0;
         return Hidden(blt, 1);
     }
-    healthPct = gGameCar[slot].health / 800.0f;
+    healthPct = PC_CAR_HEALTH(slot) / 800.0f;
     blt->x = healthPos[gNumWindows-1][slot][0] - blt->width / 2;
     blt->y = healthPos[gNumWindows-1][slot][1] - blt->height / 2;
     if (type == 0) {

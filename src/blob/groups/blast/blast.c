@@ -88,7 +88,12 @@ extern tBlastStruct D_80154660[];       /* gBlastObjs */
 extern tBlastRingStruct D_80154FD8[];   /* gBlastRingObjs */
 extern tBlastMat D_8013C238[];          /* gBlastMats */
 extern s16 D_8013C094;                  /* gBlastMatCnt */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData player_array[];         /* gGameCar */
+#define PC_CAR_POS(i) player_array[i].dr_pos
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -183,9 +188,9 @@ void func_80090308(s16 slot)
             b = &D_80154660[slot].blastObjs[i];
             if (b->mbIdx != -1) ZOID_RemoveObject(b->mbIdx);
             math_utility(D_8011418C, b->mat.uvs);
-            b->mat.pos[0] = player_array[slot].dr_pos[0];
-            b->mat.pos[1] = player_array[slot].dr_pos[1] - 3.0f;
-            b->mat.pos[2] = player_array[slot].dr_pos[2];
+            b->mat.pos[0] = PC_CAR_POS(slot)[0];
+            b->mat.pos[1] = PC_CAR_POS(slot)[1] - 3.0f;
+            b->mat.pos[2] = PC_CAR_POS(slot)[2];
             b->mbIdx = MBOX_NewObject(D_801427C0[158 + i], &b->mat, -1, 0x42000);
             b->scale = 0.4f;
             b->scaleInc = 0.05f + Random(0.005f);
@@ -202,9 +207,9 @@ void func_80090308(s16 slot)
         }
         if (active_player_count < 4 && (D_80156994 || D_8014978C >= 6)) {
             math_utility(D_8011418C, D_80154660[slot].mat.uvs);
-            D_80154660[slot].mat.pos[0] = player_array[slot].dr_pos[0];
-            D_80154660[slot].mat.pos[1] = player_array[slot].dr_pos[1];
-            D_80154660[slot].mat.pos[2] = player_array[slot].dr_pos[2];
+            D_80154660[slot].mat.pos[0] = PC_CAR_POS(slot)[0];
+            D_80154660[slot].mat.pos[1] = PC_CAR_POS(slot)[1];
+            D_80154660[slot].mat.pos[2] = PC_CAR_POS(slot)[2];
             if (D_80154660[slot].glowIdx != -1) ZOID_RemoveObject(D_80154660[slot].glowIdx);
             D_80154660[slot].glowIdx = MBOX_NewObject(D_801427C0[162], &D_80154660[slot].mat, -1, 0x52000);
             D_80154660[slot].alpha = 95;
@@ -238,9 +243,9 @@ static void StartNewBlastRing(s16 slot)
         v->timeStamp = D_801543CC;
         v->slot = slot;
         math_utility(D_8011418C, D_80154FD8[slot].mat.uvs);
-        D_80154FD8[slot].mat.pos[0] = player_array[slot].dr_pos[0];
-        D_80154FD8[slot].mat.pos[1] = player_array[slot].dr_pos[1];
-        D_80154FD8[slot].mat.pos[2] = player_array[slot].dr_pos[2];
+        D_80154FD8[slot].mat.pos[0] = PC_CAR_POS(slot)[0];
+        D_80154FD8[slot].mat.pos[1] = PC_CAR_POS(slot)[1];
+        D_80154FD8[slot].mat.pos[2] = PC_CAR_POS(slot)[2];
         if (D_80154FD8[slot].ringIdx != -1) ZOID_RemoveObject(D_80154FD8[slot].ringIdx);
         D_80154FD8[slot].ringIdx = MBOX_NewObject(D_801427C0[163], &D_80154FD8[slot].mat, -1, 0x42000);
         D_80154FD8[slot].ralpha = 240;
@@ -264,9 +269,9 @@ release:
     }
     if (v->slot >= 0) {
         if (!PC_MODEL_CRASHFLAG(v->slot)) goto release;
-        D_8012E700[v->objnum].mat->pos[0] = player_array[v->slot].dr_pos[0];
-        D_8012E700[v->objnum].mat->pos[1] = player_array[v->slot].dr_pos[1];
-        D_8012E700[v->objnum].mat->pos[2] = player_array[v->slot].dr_pos[2];
+        D_8012E700[v->objnum].mat->pos[0] = PC_CAR_POS(v->slot)[0];
+        D_8012E700[v->objnum].mat->pos[1] = PC_CAR_POS(v->slot)[1];
+        D_8012E700[v->objnum].mat->pos[2] = PC_CAR_POS(v->slot)[2];
     }
     v->timeStamp -= D_8002EB94;
     if (v->slot < 0 || (v->slot >= 0 && v->timeStamp <= 0.0f)) {
@@ -275,7 +280,7 @@ release:
         func_80090770(v->objnum, D_801427C0[164 + v->index]);
         v->index++;
         if (v->slot >= 0) {
-            if (active_player_count < 4 && (D_80156994 || D_8014978C >= 6) && v->index == 4) func_8038A408(player_array[v->slot].dr_pos, v->slot);
+            if (active_player_count < 4 && (D_80156994 || D_8014978C >= 6) && v->index == 4) func_8038A408(PC_CAR_POS(v->slot), v->slot);
             if (v->index == 3) func_80090308(v->slot);
         }
     }
@@ -302,9 +307,9 @@ void save_write_data(void *data, int linkToCar, float scale, int playSound)
         s16 slot;
         slot = *(s16 *)data;
         v->slot = slot;
-        mat->pos[0] = player_array[v->slot].dr_pos[0];
-        mat->pos[1] = player_array[v->slot].dr_pos[1];
-        mat->pos[2] = player_array[v->slot].dr_pos[2];
+        mat->pos[0] = PC_CAR_POS(v->slot)[0];
+        mat->pos[1] = PC_CAR_POS(v->slot)[1];
+        mat->pos[2] = PC_CAR_POS(v->slot)[2];
     } else {
         v->slot = -1;
         mat->pos[0] = ((float *)data)[0];

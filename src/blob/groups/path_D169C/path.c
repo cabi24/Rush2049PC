@@ -40,7 +40,13 @@ typedef struct Car {
 #endif
 } Car; /* 0x3B8 */
 extern Route D_801407F0;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 Car D_80152818[6];
+#define PC_CARS D_80152818
+#define PC_CAR_POS(i) D_80152818[i].pos
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -60,11 +66,11 @@ void func_800D169C(void) {
     f32 delta1[3];
     f32 delta2[3];
     s16 *p;
-    Car *car = D_80152818;
+    Car *car = PC_CARS;
 
-    x = D_80152818[0].pos[0];
-    y = D_80152818[0].pos[1];
-    z = D_80152818[0].pos[2];
+    x = PC_CAR_POS(0)[0];
+    y = PC_CAR_POS(0)[1];
+    z = PC_CAR_POS(0)[2];
     c_dist = 1e20;
     for (i = 0; i < D_801407F0.count; i++) {
         dx = D_801407F0.points[i].pos[0] - x;

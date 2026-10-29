@@ -100,7 +100,12 @@ typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 
 extern volatile f32 D_8002EB94;          /* gFrameSeconds */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];                 /* gGameCar, stride 0x3b8 */
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -206,7 +211,7 @@ void func_8038A95C(s16 slot)
 /* 0x8038AA8C AnimateWeapon */
 void func_8038AA8C(Visual *v, s16 op)
 {
-    Car *car = &D_80152818[v->slot];
+    Car *car = PC_CAR(v->slot);
     s32 def;
     s32 i;
     s32 r1;

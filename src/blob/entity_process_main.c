@@ -85,7 +85,12 @@ typedef struct {
     /* 0x7E0 */ u8 pad7E0[0x808 - 0x7E0];
 } ModelDat;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarData D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -130,7 +135,7 @@ static void ZOID_SetPolyFlags(Poly *poly, unsigned short flags)
 void entity_process_main(Visual *v, s16 op) {
     f32 pos[3], mat[3][3], xyz[4][3], dist[4], d1, d2;
     s16 i, whl;
-    CarData *car = &D_80152818[v->slot];
+    CarData *car = PC_CAR(v->slot);
     ModelDat *m = PC_MODEL(v->slot);
     f32 fscale, bscale, len, offset;
     s32 body;

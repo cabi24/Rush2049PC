@@ -2759,7 +2759,12 @@ extern s8 D_80152907;
 extern f32 D_80152908;
 extern s32 D_80152ABC;
 extern s32 D_80152AEC;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern s8 D_80152B70;
+#define PC_CAR_B358(i) *((&D_80152B70) + (i * CAR_OFS(0x3B8)))
+#endif
 extern s8 D_80152B71;
 extern s32 D_80152B98;
 extern s8 D_80152BBB;
@@ -3813,7 +3818,7 @@ s32 func_800CF604(s16 arg0)
 {
   u8 *p;
   p = PC_MODEL(arg0);
-  return (*((&D_80152B70) + (arg0 * CAR_OFS(0x3B8)))) == 0
+  return (PC_CAR_B358(arg0)) == 0
       && *(s8 *) (p + 0x640) == 0
       && *(s16 *) (p + 0x6C4) == -1
       && *(s8 *) (p + 0x7EB) != 0

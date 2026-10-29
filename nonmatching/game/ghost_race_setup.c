@@ -72,7 +72,13 @@ typedef struct GhostPlayer { u8 pad0[239]; s8 ready; f32 value; u8 tail[708]; } 
 #endif
 typedef struct GhostObject { u8 pad0[1820]; s16 reset; u8 tail[234]; } GhostObject;
 extern Ghost **D_80152698[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GhostPlayer D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].ready
+#define PC_CAR_TIME(i) D_80152818[i].value
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -108,8 +114,8 @@ void ghost_race_setup(void)
                 }
             } else {
                 g->flag = 0;
-                if (D_80152818[i].ready != 0) {
-                    g->finish = D_80152818[i].value;
+                if (PC_CAR_FINISHED(i) != 0) {
+                    g->finish = PC_CAR_TIME(i);
                     g->size = g->offset;
                     D_80140800 = g;
                 } else {

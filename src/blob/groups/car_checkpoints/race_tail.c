@@ -62,7 +62,12 @@ extern s32 D_8014A110;
 extern s16 D_8014A108;
 extern Player76 D_8014A118[];
 extern s8 D_80152744;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car952 player_array[];
+#define PC_CAR(i) &player_array[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -135,7 +140,7 @@ void render_viewport_init(void) {
     hud_render();
     camera_position_update();
     for (i = 0; i < D_80152744; i++) {
-        car = &player_array[i];
+        car = PC_CAR(i);
         slot = PC_MODEL_SLOT(i);
         if (*(volatile s8 *)&car->restart < 0) {
             cam = car->cam;

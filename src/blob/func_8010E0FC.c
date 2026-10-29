@@ -110,7 +110,12 @@ extern s16 D_8014A108;
 extern char D_80121DB0[], D_80121DBC[], D_80121DCC[];
 extern Mat3 D_8011418C;
 extern Resource D_8012E700[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern volatile f32 D_8002EB94;
 extern s32 D_80143FC8;
 extern void entity_transform_apply(Node *, s32);
@@ -190,7 +195,7 @@ void func_8010E0FC(Node *node, s16 update)
                 alone = 0;
                 coin->missing |= 1 << i;
             } else {
-                player = &D_80152818[i];
+                player = PC_CAR(i);
                 model_data_load(entity->id.handle, 1, SLOT_BIT(player->slot));
                 model_data_load(coin->model, 1, SLOT_BIT(player->slot));
             }

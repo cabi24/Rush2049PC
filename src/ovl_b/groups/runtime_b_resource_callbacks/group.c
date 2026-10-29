@@ -76,7 +76,12 @@ extern State D_80399AE0;
 extern f32 D_8002EB94;
 extern u16 D_80142A82, D_80142A84, D_80142A8E;
 extern s16 D_8014A108;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR(i) &gGameCar[i]
+#endif
 extern f32 func_8008B2E4(f32);
 extern void func_80090770(s16, u16);
 extern void model_transform_setup(s32, s32, u32);
@@ -93,7 +98,7 @@ void func_80390B00(void) /* UpdateInvs */
     Player *car;
     u8 invsColor[8] = {16, 32, 64, 96, 112, 144, 176, 176};
     for (i = 0; i < gNumPlayers; i++) {
-        car = &gGameCar[i];
+        car = PC_CAR(i);
         if (car->flags & 1) {
             if (car->phase == 3) {
                 car->alpha = invsColor[car->countdown];

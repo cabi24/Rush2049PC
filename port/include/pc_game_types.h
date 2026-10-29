@@ -13,9 +13,10 @@
 /* ---- The race roster: arcade gLink, N64 D_80153E88 (13 records of 8 bytes at 0x80153E88-0x80153EF0, BSS).
  * One record per car slot: who drives it and how it starts. The N64 game activates 6 slots (its MAX_LINKS: the
  * per-car arrays are 6 long), but LoadCars, sfx_position_3d and func_8039156C walk all 13, so the storage is never
- * shorter than that. PC_MAX_LINKS is the most cars a race may hold on the PC; nothing activates more than 6 yet. */
+ * shorter than that. PC_MAX_LINKS is the most cars a race may hold on the PC (12, twice the N64's 6); nothing
+ * activates more than 6 yet. */
 #ifndef PC_MAX_LINKS
-#define PC_MAX_LINKS 8
+#define PC_MAX_LINKS 12
 #endif
 #define PC_N64_LINK_SLOTS 13
 #define PC_LINK_SLOTS (PC_MAX_LINKS > PC_N64_LINK_SLOTS ? PC_MAX_LINKS : PC_N64_LINK_SLOTS)
@@ -188,5 +189,146 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_COLLIDABLE(i) (pc_models[i].collidable)
 #define PC_MODEL_DRONE_SCALE(i) (pc_models[i].drone_scale)
 #define PC_MODEL_TIME_BOOST(i) (pc_models[i].time_boost)
+
+/* ---- The car records: MAT3 gGameCar, tCarData, N64 player_array = D_80152818 (6 records of 0x3B8 bytes at
+ * 0x80152818-0x80153E68, BSS; D_80153E68, a message queue, follows). One record per car slot: its position and
+ * orientation for the cameras and effects, its visuals, its place and finish, and its battle state. On the PC a
+ * record is 0x468 bytes (docs/port/CARS.md 2): its 21 visuals hold host pointers (0x20 bytes each, not 0x18) and
+ * its input record pointer at N64 +0x380 is 8 bytes, so a field's PC offset is CAR_OFS of its N64 one
+ * (pc_prelude.h); the padding below is in N64 bytes, between pointer-sized members, as in every view. Every walk
+ * of it stops at 6 (the cars in the race, D_801543CA, D_80152744), so the storage is PC_CAR_SLOTS = the larger of
+ * 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the game reaches by index (and the names
+ * inside the array: D_80152907 is [0].finished) are named here; code that takes a record's address (PC_CAR) reads
+ * it through its own view, which view_audit.py checks against the same layout. */
+#define PC_N64_CAR_SLOTS 6
+#define PC_CAR_SLOTS (PC_MAX_LINKS > PC_N64_CAR_SLOTS ? PC_MAX_LINKS : PC_N64_CAR_SLOTS)
+
+/* A car visual (tVisual: N64 0x18 bytes, PC 0x20) on the PC, for the car record and the views that pad over its
+ * 21 visuals at +0x110 (and the environment visual pool D_80138880): next and func are host pointers there, data
+ * a u32 (docs/port/CARS.md 3). */
+struct pc_visual {
+    void *next;
+    short index, objnum, slot;
+    unsigned int data;
+    float timeStamp;
+    void (*func)(void *, short);
+};
+
+/* The drone's path state inside the car record (maxpath's Nav, func_800C4CF8's Region): no pointers, the same layout
+ * on both. Code takes its address (&PC_CAR_NAV(i)) and reads it in its own view. */
+struct pc_car_nav {
+    float a, b, c, d;                   /* +0x00 */
+    float spd;                          /* +0x10 the target speed */
+    float tgt[3];                       /* +0x14 the target point */
+    float tm;                           /* +0x20 the model time it was set */
+    short pt;                           /* +0x24 the point on the path */
+    short flag;                         /* +0x26 */
+    short sel;                          /* +0x28 the path (Region's path) */
+    short tk;                           /* +0x2A */
+};
+
+struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS(n) */
+    unsigned char pad000[0x008];
+    float pos[3];                       /* +0x008 the position (MAT3 dr_pos), what the cameras and effects follow */
+    unsigned char pad014[0x02C - 0x014];
+    float uvs[3][3];                    /* +0x02C an orientation (menu_control_settings: the model's initial one) */
+    float uvs50[3][3];                  /* +0x050 the orientation the cameras take (func_800EB90C) */
+    float wheel_pos[4][3];              /* +0x074 each wheel's position (the skid marks) */
+    unsigned char pad0A4[0x0E8 - 0x0A4];
+    unsigned int flags;                 /* +0x0E8 appearance flags (0x8, 0x10, 0x1000, 0x100000) */
+    unsigned char pad0EC[0x0EE - 0x0EC];
+    signed char place;                  /* +0x0EE the race place, 0 the first */
+    signed char finished;               /* +0x0EF 1 once it has finished: its place is locked */
+    float time;                         /* +0x0F0 the finish time (car_setup_confirm: a score) */
+    int node;                           /* +0x0F4 the scene node handle, -1 none (its low half: ENDIAN.md 3.1) */
+    short mph;                          /* +0x0F8 the speed shown, mph x 4 */
+    unsigned char pad0FA[0x100 - 0x0FA];
+    float distance;                     /* +0x100 the distance along the track */
+    unsigned char pad104[0x108 - 0x104];
+    float f108;                         /* +0x108 zeroed at the race start (func_800FBE60) */
+    unsigned char pad10C[0x110 - 0x10C];
+    struct pc_visual visuals[21];       /* +0x110 the car's visuals (tVisual; the weapon's is [20]) */
+    unsigned char pad308[0x314 - 0x308];
+    struct pc_car_nav nav;              /* +0x314 the drone's path state (maxpath's Nav, Region) */
+    float fwd_progress;                 /* +0x340 */
+    unsigned char pad344[0x34C - 0x344];
+    unsigned int ir_color;              /* +0x34C the IR colour (tRGBA's word) */
+    unsigned int prev_ir_color;         /* +0x350 the one before */
+    unsigned char pad354[0x356 - 0x354];
+    short weight_index;                 /* +0x356 a drone's weight row (maxpath) */
+    signed char b358;                   /* +0x358 cleared with the state (init_mdrive, the battle reset) */
+    signed char state;                  /* +0x359 0 racing; below 2 still in the race; 1 out of a deaths race */
+    signed char disabled;               /* +0x35A no speed from the wheels (func_800E23A4) */
+    signed char slot;                   /* +0x35B its own slot, the index (the roster's, the model's) */
+    signed char view;                   /* +0x35C the window showing it, -1 none (a bit of the windows' mask) */
+    unsigned char pad35D[0x360 - 0x35D];
+    int sheen_alpha;                    /* +0x360 */
+    float heading;                      /* +0x364 */
+    unsigned char pad368[0x380 - 0x368];
+    void *input;                        /* +0x380 the input record &D_8014A118[i] (a host pointer), NULL for drones */
+    signed char kind;                   /* +0x384 battle: the record's type (func_80393518 tests it for 8) */
+    signed char lives;                  /* +0x385 battle: lives left, shown when not negative */
+    short health;                       /* +0x386 battle: 800 full */
+    unsigned char pad388[0x38C - 0x388];
+    unsigned int battle_flags;          /* +0x38C battle: 1 and 2 pick the status shown */
+    unsigned char pad390[0x3A0 - 0x390];
+    unsigned char b3A0;                 /* +0x3A0 battle */
+    unsigned char pad3A1[0x3A2 - 0x3A1];
+    unsigned char b3A2;                 /* +0x3A2 battle */
+    signed char points;                 /* +0x3A3 battle: points, or what is left (FindWinner ranks by it) */
+    unsigned char pad3A4[0x3AC - 0x3A4];
+    float reloading_time;               /* +0x3AC battle */
+    float f3B0;                         /* +0x3B0 battle */
+    float f3B4;                         /* +0x3B4 battle */
+};
+extern struct pc_car pc_cars[PC_CAR_SLOTS];
+
+/* The accessors: the array (PC_CARS), record i's address (PC_CAR) and the end of the first n records
+ * (PC_CARS_END: the walks over the cars in the race, D_80152818 + D_801543CA on the N64), all void * so each
+ * file's own view pointer takes them, and record i's fields. PC_CAR_INPUT_AS(T, i) is the input pointer as a T *,
+ * for code that reads through it in its own view. */
+#define PC_CARS ((void *)pc_cars)
+#define PC_CAR(i) ((void *)&pc_cars[i])
+#define PC_CARS_END(n) ((void *)&pc_cars[n])
+#define PC_CAR_POS(i) (pc_cars[i].pos)
+#define PC_CAR_POS_X(i) (pc_cars[i].pos[0])
+#define PC_CAR_POS_Y(i) (pc_cars[i].pos[1])
+#define PC_CAR_POS_Z(i) (pc_cars[i].pos[2])
+#define PC_CAR_UVS(i) (pc_cars[i].uvs)
+#define PC_CAR_UVS50(i) (pc_cars[i].uvs50)
+#define PC_CAR_WHEEL_POS(i) (pc_cars[i].wheel_pos)
+#define PC_CAR_FLAGS(i) (pc_cars[i].flags)
+#define PC_CAR_PLACE(i) (pc_cars[i].place)
+#define PC_CAR_FINISHED(i) (pc_cars[i].finished)
+#define PC_CAR_TIME(i) (pc_cars[i].time)
+#define PC_CAR_NODE(i) (pc_cars[i].node)
+#define PC_CAR_MPH(i) (pc_cars[i].mph)
+#define PC_CAR_DISTANCE(i) (pc_cars[i].distance)
+#define PC_CAR_F108(i) (pc_cars[i].f108)
+#define PC_CAR_VISUALS(i) (pc_cars[i].visuals)
+#define PC_CAR_NAV(i) (pc_cars[i].nav)
+#define PC_CAR_FWD_PROGRESS(i) (pc_cars[i].fwd_progress)
+#define PC_CAR_IR_COLOR(i) (pc_cars[i].ir_color)
+#define PC_CAR_PREV_IR_COLOR(i) (pc_cars[i].prev_ir_color)
+#define PC_CAR_WEIGHT_INDEX(i) (pc_cars[i].weight_index)
+#define PC_CAR_B358(i) (pc_cars[i].b358)
+#define PC_CAR_STATE(i) (pc_cars[i].state)
+#define PC_CAR_DISABLED(i) (pc_cars[i].disabled)
+#define PC_CAR_SLOT(i) (pc_cars[i].slot)
+#define PC_CAR_VIEW(i) (pc_cars[i].view)
+#define PC_CAR_SHEEN_ALPHA(i) (pc_cars[i].sheen_alpha)
+#define PC_CAR_HEADING(i) (pc_cars[i].heading)
+#define PC_CAR_INPUT(i) (pc_cars[i].input)
+#define PC_CAR_INPUT_AS(T, i) ((T *)pc_cars[i].input)
+#define PC_CAR_KIND(i) (pc_cars[i].kind)
+#define PC_CAR_LIVES(i) (pc_cars[i].lives)
+#define PC_CAR_HEALTH(i) (pc_cars[i].health)
+#define PC_CAR_BATTLE_FLAGS(i) (pc_cars[i].battle_flags)
+#define PC_CAR_B3A0(i) (pc_cars[i].b3A0)
+#define PC_CAR_B3A2(i) (pc_cars[i].b3A2)
+#define PC_CAR_POINTS(i) (pc_cars[i].points)
+#define PC_CAR_RELOADING_TIME(i) (pc_cars[i].reloading_time)
+#define PC_CAR_F3B0(i) (pc_cars[i].f3B0)
+#define PC_CAR_F3B4(i) (pc_cars[i].f3B4)
 
 #endif

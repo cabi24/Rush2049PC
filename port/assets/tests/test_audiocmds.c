@@ -86,6 +86,7 @@ void *n64_memset(void *d, int c, size_t n) { return memset(d, c, n); }
 #define STUB_DATA(n) uint8_t n[0x1000] __attribute__((aligned(16)));
 struct pc_link pc_links[PC_LINK_SLOTS];   /* the race roster (pc_game_types.h), which data.c defines */
 struct pc_model pc_models[PC_MODEL_SLOTS];   /* the model records (pc_game_types.h) */
+struct pc_car pc_cars[PC_CAR_SLOTS];       /* the car records (pc_game_types.h) */
 STUB_FN(CalcPolePositions) STUB_FN(GhostStart) STUB_FN(InitBlits) STUB_FN(InitWaves) STUB_FN(LoadTrack)
 STUB_FN(SaveFlush) STUB_FN(SaveServer) STUB_FN(SetControllerStickEdges) STUB_FN(SetHighScoreState)
 STUB_FN(SetOptions) STUB_FN(ShowCountdown) STUB_FN(ZOID_ResetWindows) STUB_FN(ambient_sound_set)
@@ -134,7 +135,7 @@ STUB_DATA(D_80156958) STUB_DATA(D_8015698C) STUB_DATA(D_80156990) STUB_DATA(D_80
 STUB_DATA(D_80156BAC) STUB_DATA(D_80156CE0) STUB_DATA(D_8015B254) STUB_DATA(D_8016139C) STUB_DATA(D_801613AC)
 STUB_DATA(D_801613B4) STUB_DATA(D_801613B8) STUB_DATA(active_player_count) STUB_DATA(countdown_state) STUB_DATA(gCamera)
 STUB_DATA(gControllerData) STUB_DATA(gFogColors) STUB_DATA(gHighScoreState) STUB_DATA(gNumModels) STUB_DATA(gNumWindows)
-STUB_DATA(input_rec0) STUB_DATA(player_array) STUB_DATA(state_word_a)
+STUB_DATA(input_rec0) STUB_DATA(state_word_a)
 
 /* ---------------------------------------------------------------- the game's functions */
 

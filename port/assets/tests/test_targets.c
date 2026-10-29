@@ -95,10 +95,8 @@ void *D_80149770;                    /* the collision quadtree (a track record) 
 void *D_801497F8;                    /* the road polygons */
 void *D_801391F0;
 uint8_t D_8012E700[600 * 0x68];      /* the scene nodes (host layout: the model id at +0x18) */
-uint8_t D_80152818[6 * PC_CAR_SIZE] __attribute__((aligned(16)));
-ALIAS(player_array, D_80152818, 0);
-ALIAS(D_80152B74, D_80152818, 0x404);   /* N64 +0x35C */
-#define CAR(i) (D_80152818 + PC_CAR_SIZE * (i))
+struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), which data.c defines */
+#define CAR(i) ((uint8_t *)&pc_cars[i])
 
 /* ---------------------------------------------------------------- what the code under test calls */
 

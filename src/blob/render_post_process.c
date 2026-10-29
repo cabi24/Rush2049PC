@@ -12,7 +12,12 @@ typedef struct { u8 p[860]; u8 f860; u8 f861; u8 q[90]; } B952;
 extern s16 gNumWindows;
 extern A152 gCamera[];
 extern float D_801106B4[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern B952 D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifndef TARGET_PC
 /* PC: port/data defines D_80110680 at its N64 address in the RDRAM window, where Windows' code can't reach
  * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
@@ -25,7 +30,7 @@ void render_post_process(void) {
     s32 i;
     B952 *b;
     for (i = 0; i < gNumWindows; i++) {
-        b = &D_80152818[gCamera[i].idx];
+        b = PC_CAR(gCamera[i].idx);
         b->f860 = i;
         func_800E9234(b);
         b->f861 = 7;

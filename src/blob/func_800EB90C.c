@@ -107,7 +107,16 @@ extern s32 state_word_a;
 extern volatile s16 D_801543CA;
 extern s16 gNumWindows;
 extern f32 D_801543CC;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Object D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#define PC_CAR_NODE(i) D_80152818[i].node
+#define PC_CAR_POS(i) D_80152818[i].pos
+#define PC_CAR_UVS50(i) D_80152818[i].uvs
+#define PC_CAR_VIEW(i) D_80152818[i].slot
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -171,20 +180,20 @@ void func_800EB90C(void)
 
     if (gameplay_mode == 2 && (D_8015697C & 2) && (D_8015699C & 4)) {
         n = gCamera[0].target;
-        D_80152818[n].slot = -1;
+        PC_CAR_VIEW(n) = -1;
         do {
             n++;
             if (n >= D_801543CA) {
                 n = 0;
             }
-        } while (PC_MODEL_ACTIVE(n) == 0 && D_80152818[n].slot < 0);
-        D_80152818[n].slot = 0;
+        } while (PC_MODEL_ACTIVE(n) == 0 && PC_CAR_VIEW(n) < 0);
+        PC_CAR_VIEW(n) = 0;
         gCamera[0].target = n;
     }
     pl = input_rec0;
     for (i = 0; i < gNumWindows; i++, pl++) {
         cam = &gCamera[i];
-        obj = &D_80152818[cam->target];
+        obj = PC_CAR(cam->target);
         m = PC_MODEL(cam->target);
         view = obj->view;
         slot = obj->slot;
@@ -260,13 +269,13 @@ void func_800EB90C(void)
     }
     func_800CFCA8();
     for (j = 0; j < 6; j++) {
-        if (PC_MODEL_ACTIVE(j) != 0 && D_80152818[j].node >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
-            cam = node_camera(D_80152818[j].node);
-            cam->pos[0] = D_80152818[j].pos[0];
-            cam->pos[1] = D_80152818[j].pos[1];
-            cam->pos[2] = D_80152818[j].pos[2];
+        if (PC_MODEL_ACTIVE(j) != 0 && PC_CAR_NODE(j) >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
+            cam = node_camera(PC_CAR_NODE(j));
+            cam->pos[0] = PC_CAR_POS(j)[0];
+            cam->pos[1] = PC_CAR_POS(j)[1];
+            cam->pos[2] = PC_CAR_POS(j)[2];
             cam->pos[1] += 0.25f;
-            math_utility(D_80152818[j].uvs, cam);
+            math_utility(PC_CAR_UVS50(j), cam);
         }
     }
 }

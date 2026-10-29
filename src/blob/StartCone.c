@@ -164,7 +164,12 @@ typedef struct Node {
 extern s8 D_8013FECD;
 extern s8 D_8013FECC;
 extern ObjType D_80117530[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -202,7 +207,7 @@ void StartCone(Obj *obj)
     ObjType *tInfo;
 
     tInfo = &D_80117530[obj->type];
-    car = &D_80152818[obj->car];
+    car = PC_CAR(obj->car);
     if (D_8013FECD && tInfo->id == 236) {
         car->f863 = 1;
         model_data_load(obj->model, 0, 15);

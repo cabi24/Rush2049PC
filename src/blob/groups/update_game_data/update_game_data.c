@@ -205,7 +205,12 @@ typedef struct tLink { u8 pad[7]; u8 owner; } tLink;
 extern tModelData D_8014A250[];   /* model */
 #define PC_MODEL(i) &D_8014A250[i]
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData D_80152818[];     /* gGameCar */
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -352,7 +357,7 @@ void update_game_data(void)
     battle_mode_setup(D_801543CC);
     for (i = 0; i < 6; i++) {
         m = PC_MODEL(i);
-        gc = &D_80152818[i];
+        gc = PC_CAR(i);
         if (m->in_game && gc->dead < 2) {
             gc->modelIteration = m->modelIteration;
             gc->modelTime = m->modelTime;

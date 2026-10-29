@@ -31,12 +31,11 @@ int16_t D_8011F020[16], D_8011F040[16];
 int32_t D_8014A110, D_80143FF4;
 uint8_t D_801543D4, D_8014A118[6 * 80], D_80154450[6 * 0x4C], D_803BA230[16 * 12] __attribute__((aligned(4)));
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h), N64 layout */
-uint8_t D_80152818[6 * PC_CAR_SIZE] __attribute__((aligned(16)));   /* the car records, PC layout */
-ALIAS(player_array, D_80152818, 0);
+struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 
 #define MODEL16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + (off)))
 #define MODEL8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + (off)))
-#define CAR8(i, n) (D_80152818[(i) * PC_CAR_SIZE + CAR_OFS(n)])
+#define CAR8(i, n) (((uint8_t *)pc_cars)[(i) * PC_CAR_SIZE + CAR_OFS(n)])
 
 float func_8008B2E4(float max) { (void)max; return 0.0f; }   /* the random number CalcPolePositions draws in mode 3 */
 void func_800A61B0(void *delta, void *out, void *matrix) { (void)delta; (void)matrix; memset(out, 0, 12); }
@@ -121,7 +120,7 @@ static void test_poles(void)
 static void test_count(void)
 {
     memset(pc_models, 0x55, sizeof pc_models);
-    memset(D_80152818, 0x55, sizeof D_80152818);
+    memset(pc_cars, 0x55, sizeof pc_cars);
     func_800EC914();
     CHECK(D_80152744 == 4);
     for (int i = 0; i < 4; i++) {

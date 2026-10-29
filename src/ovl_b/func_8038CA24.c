@@ -49,7 +49,12 @@ typedef struct HudSlots {
     f32 timer;
 } HudSlots;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern PlayerHudState D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern s8 D_80399118[];
 extern HudGroup D_80399550[];
 extern HudSlots D_80399120[];
@@ -59,7 +64,7 @@ void func_8038CA24(s16 player)
     PlayerHudState *state;
     s32 i;
 
-    state = &D_80152818[player];
+    state = PC_CAR(player);
     state->counter = 0;
     state->flags = 0;
     state->state = 0;

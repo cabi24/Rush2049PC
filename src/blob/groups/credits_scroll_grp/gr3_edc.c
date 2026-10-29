@@ -73,7 +73,12 @@ extern s16 D_80152734;
 extern Lap D_8014A250[];
 #define PC_MODEL_LAP(i) D_8014A250[i].lap
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].f239
+#endif
 extern Pos D_80115DA8[][4];
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
@@ -124,7 +129,7 @@ s32 func_80107EDC(void *item)
         if (D_80152734 == PC_MODEL_LAP(i)) {
             continue;
         }
-        if (D_80152818[i].f239 == 1) {
+        if (PC_CAR_FINISHED(i) == 1) {
             continue;
         }
         x = D_80115DA8[gNumWindows - 1][i].x;

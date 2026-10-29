@@ -29,7 +29,12 @@ extern s8 D_80152570;
 extern Rec D_8014A118[];
 extern void *D_80146150[];
 extern u8 D_80150F88[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 void func_800CD8EC(void **arg0, u8 arg1);
 
 void place_cars_in_order(void)
@@ -68,7 +73,7 @@ void place_cars_in_order(void)
             {
                 p = D_80150F88 + s6 * 96;
             }
-            cp = &D_80152818[D_8014A118[i].b0];
+            cp = PC_CAR(D_8014A118[i].b0);
             *((u32 *) (p + 88)) = (u32) ((f32) *((u32 *) (p + 88)) + cp->dist / 528.0f);
         }
         func_800CD8EC((void **) D_8014A118[i].tgt, (u8) s7);

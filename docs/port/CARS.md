@@ -1,8 +1,8 @@
 # The car, visual and model records on the PC
 
-The game keeps two per-car arrays, and the C views them through many struct declarations: the car record
-`player_array` (`D_80152818`, MAT3 `gGameCar`, `tCarData`) and the model record `pc_models` (N64 `D_8014A250`, MAT3
-`model[]`, `tModelData`). A third record type lives inside the car, the visual (`tVisual`), which also makes up the
+The game keeps two per-car arrays, and the C views them through many struct declarations: the car record `pc_cars`
+(N64 `player_array` = `D_80152818`, MAT3 `gGameCar`, `tCarData`) and the model record `pc_models` (N64 `D_8014A250`,
+MAT3 `model[]`, `tModelData`). A third record type lives inside the car, the visual (`tVisual`), which also makes up the
 environment visual pool. Natively the views disagreed: gen_data laid out 1,120 bytes a car while about 40 views
 indexed cars by 952, the link warned that `D_80152818`'s size changed, and the model record's pointer fields moved
 everything after them. This page gives each record one PC layout, says why, and lists what was changed and what is
@@ -13,17 +13,23 @@ symbols live), [PROTOTYPES.md](PROTOTYPES.md).
 
 | Record | N64 | PC | Storage on the PC | Why |
 |---|---:|---:|---|---|
-| car, `player_array[6]` | 0x3B8 | **0x468** | own storage (host, above 4 GB) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
+| car, `pc_cars[12]` (N64 `player_array[6]`) | 0x3B8 | **0x468** | own storage, no N64 address (`struct pc_car`, [DECOUPLE.md](DECOUPLE.md) 4) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
 | visual, `tVisual` (21 per car at +0x110; the environment pool `D_80138880[100]`) | 0x18 | **0x20** | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds flags or a window address |
-| model, `pc_models[8]` (N64 `D_8014A250[6]`) | 0x808 | **0x808** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | every pointee of its five pointer fields is in the RDRAM window, so they are u32 window addresses and the N64 layout stays |
+| model, `pc_models[12]` (N64 `D_8014A250[6]`) | 0x808 | **0x808** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | every pointee of its five pointer fields is in the RDRAM window, so they are u32 window addresses and the N64 layout stays |
 | car physics descriptor (`model->car`, 0xB4) | 0xB4 | 0xB4 | the game arena (data, 0x801108D0..) | its four tire-curve pointers point at game data: u32 |
 
-Results: `view_audit.py` finds 0 disagreeing views of the car (134 views) and of the model (120), and one of the
-visual (30, `func_8010D85C`'s, left to the front-end work); the link no longer warns about `D_80152818`;
-gen_data's pointer conflicts for these symbols are down from 154 to 1 (a raw byte view); `test_cars` runs the
-game's own car and model code on synthetic records.
+Results: `view_audit.py` finds 0 disagreeing views of the car (134 views; 222 with `struct pc_car` since DECOUPLE.md 4)
+and of the model (120), and one of the visual (30, `func_8010D85C`'s, left to the front-end work); the link no longer
+warns about `D_80152818`; gen_data's pointer conflicts for these symbols are down from 154 to 1 (a raw byte view);
+`test_cars` runs the game's own car and model code on synthetic records.
 
 ## 2. The car record
+
+Since 2026-10-29 it is PC data with no N64 address: `pc_cars[PC_CAR_SLOTS]` (12 records) of `struct pc_car` in
+`port/include/pc_game_types.h`, which has the layout below and names the 36 fields the game reaches by index; the
+game reaches them through `PC_CAR_<FIELD>(i)`, a record through `PC_CAR(i)` in its own view, and the names that were
+inside the array (`D_80152907` and 10 others) are the accessors of the fields they named ([DECOUPLE.md](DECOUPLE.md)
+4). It was own storage before (host storage, so its own address was a host one already).
 
 ### 2.1 Pointer fields and their pointees
 
@@ -45,10 +51,11 @@ So the car can't keep its N64 size, and the PC layout is the N64 field order wit
 | 0x384–0x3B8 | 0x430–0x464 | +0xAC, then 4 bytes of padding to 8-byte alignment |
 | stride 0x3B8 | **0x468** | |
 
-`port/include/pc_prelude.h` has it as `struct pc_visual`, `PC_CAR_SIZE` and `CAR_OFS(n)` (the PC offset of N64
-offset n, which may run into later cars: `CAR_OFS(0x3B8)` is the stride) and `VIS_OFS(x)` (inside a visual,
-`VIS_OFS(0x18)` = 0x20). Game files that use them define the N64 side, `#define CAR_OFS(n) n`, so the N64 tokens are
-the original ones.
+`port/include/pc_prelude.h` has it as `PC_CAR_SIZE` and `CAR_OFS(n)` (the PC offset of N64 offset n, which may run
+into later cars: `CAR_OFS(0x3B8)` is the stride) and `VIS_OFS(x)` (inside a visual, `VIS_OFS(0x18)` = 0x20);
+`struct pc_visual` is in `port/include/pc_game_types.h` (which `pc_prelude.h` includes), with the record itself,
+`struct pc_car`, since the record is PC data ([DECOUPLE.md](DECOUPLE.md) 4). Game files that use them define the N64
+side, `#define CAR_OFS(n) n`, so the N64 tokens are the original ones.
 
 ### 2.2 The views
 
@@ -71,8 +78,10 @@ DWARF:
   `func_800EB028`.
 - **Names inside the array** (`D_801528F0` +0xD8, `D_80152900` +0xE8, `D_80152906`/7/8 +0xEE..0xF0, `D_80152BBB`
   +0x3A3) are declared as arrays of a car seen from that offset. Most start at an odd offset, where a struct with
-  pointers can't sit, so on the PC they keep only their stride (`u8 rest[PC_CAR_SIZE - 1]`); gen_data places those
-  names at the mapped offset (`D_80152B70 = D_80152818 + 0x400`) whatever they declare.
+  pointers can't sit, so on the PC they keep only their stride (`u8 rest[PC_CAR_SIZE - 1]`); gen_data placed those
+  names at the mapped offset (`D_80152B70 = D_80152818 + 0x400`) whatever they declared. Since DECOUPLE.md 4 they
+  are retired with the array, and each use is the accessor of the field it named (`D_80152907[i].flag` is
+  `PC_CAR_FINISHED(i)`).
 
 ### 2.3 Code at raw offsets
 
@@ -114,7 +123,7 @@ standing for `next`.
 
 The model record keeps its N64 layout (0x808 bytes): its pointer fields are u32 window addresses on the PC, so it has
 no pointers, the 122 views (most of them padding plus a few fields) agree with it, and the 0x808 strides of m2c code
-stay right. Since 2026-10-28 it is PC data with no N64 address: `pc_models[PC_MODEL_SLOTS]` (8 records) of
+stay right. Since 2026-10-28 it is PC data with no N64 address: `pc_models[PC_MODEL_SLOTS]` (12 records) of
 `struct pc_model` in `port/include/pc_game_types.h`, which names the 45 fields the game reaches by index; the game
 reaches them through `PC_MODEL_<FIELD>(i)`, a record through `PC_MODEL(i)` in its own view, and the names that were
 inside the array (`D_8014A964` and 10 others) are the accessors of the fields they named ([DECOUPLE.md](DECOUPLE.md)
@@ -143,9 +152,9 @@ The physics descriptor keeps its N64 layout too, since it is arena data: its tir
 
 ## 5. Tools and checks
 
-- `python3 tools/port/view_audit.py --build build/pc --symbols D_80152818,player_array --size 952 --ref
-  func_8038C910.c` (the car), `--symbols pc_models --size 2056 --ref world_physics_tick.c` (the model; the
-  reference is `struct pc_model` now: 165 views, 0 disagreeing),
+- `python3 tools/port/view_audit.py --build build/pc --symbols pc_cars --size 952 --ref func_8038C910.c` (the car;
+  the reference is `struct pc_car` now: 222 views, 0 disagreeing), `--symbols pc_models --size 2056 --ref
+  world_physics_tick.c` (the model; the reference is `struct pc_model` now: 165 views, 0 disagreeing),
   `--symbols D_80138880,D_801391F0,D_801392C8 --size 24 --tags tVisual,Visual,Node,... --ref func_8038C910.c` (the
   visuals): every view's named fields at the host offsets the reference's field program gives, and its pointers
   where the reference has them (intptr_t counts as a pointer).
@@ -165,8 +174,8 @@ The physics descriptor keeps its N64 layout too, since it is arena data: its tir
 
 | | Before | After |
 |---|---:|---:|
-| `player_array` storage | 6,720 B (1,120 a car), link warning | 6,768 B (0x468 a car), no warning |
-| `D_8014A250` storage | own, 12,384 B (0x810 a model) | arena at 0x8014A250, 12,336 B; since DECOUPLE.md 3, `pc_models`: own, 16,448 B (8 of 0x808) |
+| `player_array` storage | 6,720 B (1,120 a car), link warning | 6,768 B (0x468 a car), no warning; since DECOUPLE.md 4, `pc_cars`: 13,536 B (12 of 0x468) |
+| `D_8014A250` storage | own, 12,384 B (0x810 a model) | arena at 0x8014A250, 12,336 B; since DECOUPLE.md 3, `pc_models`: own, 24,672 B (12 of 0x808) |
 | gen_data pointer conflicts, all symbols / these | 394 / 154 | 241 / 1 |
 | view_audit, car views disagreeing | 137 of 140 | 0 of 134 |
 | model views with pointer fields | 15 | 0 (120 views agree) |

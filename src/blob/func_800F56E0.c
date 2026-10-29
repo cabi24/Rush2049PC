@@ -80,7 +80,12 @@ extern float D_80149A78[][8];
 extern RaceStats D_80150F88[];
 extern ResourceHandle gTotalNames[][15];
 extern s8 D_80151AC0[];
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarRecord D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern s8 D_80152744;
 extern s8 D_80142760;
 extern s16 D_80152734;
@@ -118,7 +123,7 @@ void func_800F56E0(void)
             } else {
                 stats = &D_80150F88[course];
             }
-            car = &D_80152818[input_rec0[player].car_index];
+            car = PC_CAR(input_rec0[player].car_index);
             for (lap = 0; lap < D_80144018[player]; lap++) {
                 for (rank = 0; rank < 5; rank++) {
                     if (stats->samples[rank] == 0.0f ||

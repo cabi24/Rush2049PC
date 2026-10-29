@@ -50,7 +50,12 @@ extern Car2056 D_8014A250[];
 #define PC_MODEL_S7D0(i) D_8014A250[i].value
 #define PC_MODEL_SLOT(i) D_8014A250[i].index
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Object952 D_80152818[];
+#define PC_CAR_FINISHED(i) D_80152818[i].mode
+#endif
 extern s16 gNumWindows,D_8014A108;
 extern s8 D_8015B25C;
 extern char D_80120D9C[],D_80120DAC[];
@@ -73,7 +78,7 @@ s32 func_800EF62C(Blit *blt)
         return 1;
     }
     hide = D_8015B25C == 0 || PC_MODEL_AUTOTRANS(slot) != 0 ||
-           D_80152818[PC_MODEL_SLOT(slot)].mode == 1;
+           PC_CAR_FINISHED(PC_MODEL_SLOT(slot)) == 1;
     if (hide != blt->Hide) {
         blt->Hide = hide;
         Input_ApplyPadConfig(blt);

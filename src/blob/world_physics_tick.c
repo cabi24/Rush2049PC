@@ -213,7 +213,12 @@ Car D_8014A250[6];
 #define PC_MODEL_INPUT_FLAGS(i) D_8014A250[i].byte9
 #define PC_MODEL_SLOT(i) D_8014A250[i].half1990
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -253,7 +258,7 @@ void world_physics_tick(void) {
     D_80152744=0;
     for(i=0;i<D_801543CA;i++) {
         car=PC_MODEL(i);
-        player=&D_80152818[i];
+        player=PC_CAR(i);
         preserved=car->preserved;
         for(j=0;j<sizeof(Car);j++)
             ((s8 *)car)[j]=0;

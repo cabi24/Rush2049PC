@@ -65,7 +65,12 @@ typedef struct Obj {
     s16 h86;             /* +0x56 */
 } Obj;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR(i) &D_80152818[i]
+#endif
 extern s32 D_80117498;
 extern u32 D_801392D8[];
 extern u8 D_8013F1E0[];
@@ -108,7 +113,7 @@ void func_8008E408(s16 idx, u32 type) {
     s32 pF3;
     s32 pF4;
 
-    car = &D_80152818[idx];
+    car = PC_CAR(idx);
     snap = D_80117498;
     speed = car->h248 >> 2;
     aspeed = fabsf((f32)speed);

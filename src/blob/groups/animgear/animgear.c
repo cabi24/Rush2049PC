@@ -51,7 +51,12 @@ extern tModelData model[];
 #define PC_MODEL_GEAR(i) model[i].gear
 #define PC_MODEL_SLOT(i) model[i].slot
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData gGameCar[];
+#define PC_CAR_FINISHED(i) gGameCar[i].place_locked
+#endif
 extern s32 gearPos[4][4][2];
 extern tText gText;
 extern OSMesgQueue gFontSem;
@@ -86,7 +91,7 @@ s32 func_800EF288(void *blt)
     for (slot = 0; slot < gNumWindows; slot++) {
         gear = PC_MODEL_GEAR(slot);
         if (slot >= gNumWindows || !gShowShifter || PC_MODEL_AUTOTRANS(slot) ||
-            gGameCar[PC_MODEL_SLOT(slot)].place_locked == 1)
+            PC_CAR_FINISHED(PC_MODEL_SLOT(slot)) == 1)
             continue;
         x = gearPos[gNumWindows - 1][slot][0] - 4;
         y = gearPos[gNumWindows - 1][slot][1];

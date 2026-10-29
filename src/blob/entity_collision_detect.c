@@ -69,7 +69,14 @@ extern s32 D_801170FC;
 extern Car D_8014A250[];
 #define PC_MODEL_CRASHFLAG(i) D_8014A250[i].enabled
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Player D_80152818[];
+#define PC_CAR_POS_X(i) D_80152818[i].position.x
+#define PC_CAR_POS_Y(i) D_80152818[i].position.y
+#define PC_CAR_POS_Z(i) D_80152818[i].position.z
+#endif
 extern Effect D_80154FD8[];
 extern Resource D_8012E700[];
 extern volatile f32 D_8002EB94;
@@ -92,9 +99,9 @@ release:
         entity_transform_apply(node,1);
         return;
     }
-    D_80154FD8[node->index].position.x=D_80152818[node->index].position.x;
-    D_80154FD8[node->index].position.y=D_80152818[node->index].position.y;
-    D_80154FD8[node->index].position.z=D_80152818[node->index].position.z;
+    D_80154FD8[node->index].position.x=PC_CAR_POS_X(node->index);
+    D_80154FD8[node->index].position.y=PC_CAR_POS_Y(node->index);
+    D_80154FD8[node->index].position.z=PC_CAR_POS_Z(node->index);
     D_80154FD8[node->index].delay-=D_8002EB94;
     if(D_80154FD8[node->index].delay<=0.0f) {
         D_80154FD8[node->index].matrix[0][0]+=1.5f;

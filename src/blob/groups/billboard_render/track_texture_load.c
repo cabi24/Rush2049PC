@@ -98,7 +98,14 @@ extern u8 D_801148A4;               /* inited */
 extern u8 D_80143CE8;               /* circuitCode */
 extern s32 gameplay_mode;           /* gRace */
 extern u8 D_801543D4;               /* gCircuitPlayer */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[];      /* gGameCar */
+#define PC_CAR_FINISHED(i) player_array[i].finished
+#define PC_CAR_PLACE(i) player_array[i].place
+#define PC_CAR_TIME(i) player_array[i].time
+#endif
 extern s8 D_80154628;               /* gCircuitTrack */
 extern PlayerTail D_8014A160[];
 extern s8 D_80154640;               /* gCircuitSize */
@@ -176,12 +183,12 @@ void highscore_InitScreen(void)
     gHighScoreState = 0;
     D_801148A4 = 1;
     D_80143CE8 = 0;
-    if (gameplay_mode == 3 && player_array[D_801543D4].finished) {
+    if (gameplay_mode == 3 && PC_CAR_FINISHED(D_801543D4)) {
         for (i = 0; i < 6; i++) {
-            ranks[i] = player_array[i].place;
+            ranks[i] = PC_CAR_PLACE(i);
         }
         oldCircuitTrack = D_80154628;
-        func_800F45F8(ranks, player_array[D_801543D4].time);
+        func_800F45F8(ranks, PC_CAR_TIME(D_801543D4));
         D_80154628 = oldCircuitTrack;
         if ((*D_8014A160[D_801543D4].rec)->f8 == 0 && D_80154628 < D_80154640 - 1) {
             D_80143CE8 = 1;

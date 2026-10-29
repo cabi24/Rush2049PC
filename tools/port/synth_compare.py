@@ -14,9 +14,10 @@ builds. Two settings:
   for a build without it).
 - --status: the log gives them every --status seconds of game time too.
 
-A run's trace is the loader's summary line, its state changes (the state, the retrace it happened at, the players,
-windows, cars, mode, track, pause state, the car) and its status lines (the same at a fixed retrace), without the
-graphics-task counts. Runs of one executable give the baseline. The verdict per path:
+A run's trace is the loader's summary line (without the size of its symbol table, which is the build's data.c: a
+decoupled own-storage symbol leaves it, docs/port/DECOUPLE.md 4), its state changes (the state, the retrace it
+happened at, the players, windows, cars, mode, track, pause state, the car) and its status lines (the same at a
+fixed retrace), without the graphics-task counts. Runs of one executable give the baseline. The verdict per path:
 
     same      every run of both executables has one trace
     varies    the executables' traces differ, but a run of one is a run of the other, or they differ no earlier
@@ -55,7 +56,7 @@ def trace(text):
     out = []
     for line in text.splitlines():
         if line.startswith("pc_data: "):   # the loader's summary: what it filled and how pointers resolved
-            out.append(("data", None, "", line[9:].strip()))
+            out.append(("data", None, "", re.sub(r"^\d+ symbols, ", "", line[9:].strip())))
             continue
         m = _STATE.match(line)
         if m:

@@ -87,7 +87,17 @@ extern Model2056 D_8014A250[];  /* model */
 #define PC_MODEL_LAP(i) D_8014A250[i].laps
 #define PC_MODEL_SLOT(i) D_8014A250[i].slot
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car952 player_array[];   /* gGameCar */
+#define PC_CAR_SLOT(i) player_array[i].slot
+#define PC_CAR_FINISHED(i) player_array[i].place_locked
+#define PC_CAR_FLAGS(i) player_array[i].appearance
+#define PC_CAR_INPUT_AS(T, i) player_array[i].player
+#define PC_CAR_POINTS(i) player_array[i].battlePoints
+#define PC_CAR_STATE(i) player_array[i].dead
+#endif
 extern s8 D_80150F14;           /* gUseCatchup */
 extern s8 D_80150EFC;           /* gCatchup */
 extern s32 D_801407BC;          /* gStuntMode */
@@ -249,7 +259,7 @@ void countdown(void)
             case 2:
                 numDeaths = 0;
                 for (i = 0; i < active_player_count; i++) {
-                    if (player_array[i].player->numCrashes >= D_80140AD8) { player_array[i].dead = 1; numDeaths++; }
+                    if (PC_CAR_INPUT_AS(Player76, i)->numCrashes >= D_80140AD8) { PC_CAR_STATE(i) = 1; numDeaths++; }
                 }
                 if (numDeaths == active_player_count) {
                     D_8013FECB = 1;
@@ -268,7 +278,7 @@ void countdown(void)
                 break;
             case 0:
                 memset(D_8015256C, 0, 4);
-                for (i = 0; i < active_player_count; i++) D_8015256C[gCarTeam[i]] += player_array[i].battlePoints;
+                for (i = 0; i < active_player_count; i++) D_8015256C[gCarTeam[i]] += PC_CAR_POINTS(i);
                 for (i = 0; i < 4; i++) {
                     if (!D_80114654 && D_8015256C[i] == D_80142510 - 1) {
                         D_80114654 = 1;
@@ -281,7 +291,7 @@ void countdown(void)
                 break;
             }
         } else if (gameplay_mode == 0 || gameplay_mode == 1 || gameplay_mode == 3) {
-            for (i = 0; i < active_player_count; i++) if (!player_array[input_rec0[i].slot].place_locked) goto done;
+            for (i = 0; i < active_player_count; i++) if (!PC_CAR_FINISHED(input_rec0[i].slot)) goto done;
             D_80143F10 = 0;
             for (i = 0; i < active_player_count; i++) if (D_80152734 == PC_MODEL_LAP(i)) D_80143F10 = 1;
             if (!D_8013FECB) {
@@ -322,8 +332,8 @@ void func_800FBE20(void)
     s16 i;
     for (i = 0; i < D_80152744; i++) {
         func_800D5828(PC_MODEL_SLOT(i));
-        player_array[i].appearance &= ~8;
-        cpak_read(player_array[i].slot);
+        PC_CAR_FLAGS(i) &= ~8;
+        cpak_read(PC_CAR_SLOT(i));
     }
     players_frame_update();
     func_800D5374();

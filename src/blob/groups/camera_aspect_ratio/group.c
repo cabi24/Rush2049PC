@@ -628,7 +628,12 @@ typedef struct {
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GameCar player_array[8];
+#define PC_CARS &player_array
+#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -3962,9 +3967,9 @@ plain:
     if (sc->flags & 0x20) {
         near = 1;
         if (gameplay_mode == 5) {
-            d[0] = cam->pos[0] - ((f32 *) &player_array)[2];
-            d[1] = cam->pos[1] - ((f32 *) &player_array)[3];
-            d[2] = cam->pos[2] - ((f32 *) &player_array)[4];
+            d[0] = cam->pos[0] - ((f32 *) PC_CARS)[2];
+            d[1] = cam->pos[1] - ((f32 *) PC_CARS)[3];
+            d[2] = cam->pos[2] - ((f32 *) PC_CARS)[4];
             dist = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
             if (22500.0f < dist) {
                 near = 0;
@@ -4140,9 +4145,9 @@ void camera_track_spline(Camera *cam) {
         if (sc->flags & 0x20) {
             near = 1;
             if (gameplay_mode == 5) {
-                w[0] = cam->pos[0] - ((f32 *) &player_array)[2];
-                w[1] = cam->pos[1] - ((f32 *) &player_array)[3];
-                w[2] = cam->pos[2] - ((f32 *) &player_array)[4];
+                w[0] = cam->pos[0] - ((f32 *) PC_CARS)[2];
+                w[1] = cam->pos[1] - ((f32 *) PC_CARS)[3];
+                w[2] = cam->pos[2] - ((f32 *) PC_CARS)[4];
                 d = w[0] * w[0] + w[1] * w[1] + w[2] * w[2];
                 if (202500.0f < d) {
                     near = 0;

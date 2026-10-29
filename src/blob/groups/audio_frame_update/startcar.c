@@ -73,7 +73,13 @@ extern s32 gameplay_mode;            /* gRace */
 extern s8 D_80156994;
 extern s8 D_8014978C;            /* gTrackNum */
 extern f32 D_801543CC;           /* gModelTime */
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tCarData player_array[];    /* gGameCar */
+#define PC_CAR(i) &player_array[i]
+#define PC_CAR_VISUALS(i) player_array[i].visuals
+#endif
 extern tCarParts D_80139320[];   /* gCarParts */
 extern tCarModel D_8013FEF4[];
 extern tUVPair D_8011B58C, D_8011B5AC;
@@ -137,7 +143,7 @@ static void StartHeadLights(s16 slot)
 static void StartTire(s16 slot, u32 tire)
 {
     tVisual *v;
-    v = &player_array[slot].visuals[tire + 6];
+    v = &PC_CAR_VISUALS(slot)[tire + 6];
     v->func = anim_state_update;
     v->slot = slot;
     v->data = 0;
@@ -149,7 +155,7 @@ static void StartTire(s16 slot, u32 tire)
 static void StartBrakeLights(s16 slot)
 {
     tVisual *v;
-    v = (tVisual *)((uintptr_t)&player_array[slot] + 0x110);
+    v = (tVisual *)((uintptr_t)PC_CAR(slot) + 0x110);
     v->func = func_8008BEA4;
     v->slot = slot;
 }

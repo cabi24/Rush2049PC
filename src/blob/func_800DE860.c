@@ -74,7 +74,13 @@ extern Car D_8014A250[];
 #define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].kind
 #define PC_MODEL_SCALE(i) D_8014A250[i].scale
 #endif
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Rec player_array[];
+#define PC_CAR_DISTANCE(i) player_array[i].dist
+#define PC_CAR_STATE(i) player_array[i].state
+#endif
 extern s16 active_player_count;
 extern s8 D_80152030;
 extern s8 D_80150F14;
@@ -105,22 +111,22 @@ void func_800DE860(void)
     } else {
         best = -1;
         for (i = 0; i < 6; i++) {
-            if (PC_MODEL_ACTIVE(i) != 0 && player_array[i].state < 2 &&
+            if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_STATE(i) < 2 &&
                 (PC_MODEL_DRONE_TYPE(i) == 2 || D_80152030 == 5)) {
                 if (best == -1) {
                     best = i;
-                } else if (player_array[best].dist < player_array[i].dist) {
+                } else if (PC_CAR_DISTANCE(best) < PC_CAR_DISTANCE(i)) {
                     best = i;
                 }
             }
         }
         k1 = 0.1f;
         k2 = 1500.0f;
-        bd = player_array[best].dist;
+        bd = PC_CAR_DISTANCE(best);
         for (i = 0; i < 6; i++) {
-            if (PC_MODEL_ACTIVE(i) != 0 && player_array[i].state < 2 &&
+            if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_STATE(i) < 2 &&
                 (PC_MODEL_DRONE_TYPE(i) == 2 || D_80152030 == 5)) {
-                d = bd - player_array[i].dist;
+                d = bd - PC_CAR_DISTANCE(i);
                 if (d > k2) {
                     s = k1 + 1.0f;
                 } else {

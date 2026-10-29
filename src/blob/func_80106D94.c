@@ -104,7 +104,13 @@ typedef struct {
     s32 y;
 } Pos;
 
+#ifdef TARGET_PC
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_80152818[];
+#define PC_CAR_F108(i) D_80152818[i].distance
+#define PC_CAR_FINISHED(i) D_80152818[i].unkEF
+#endif
 #ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
@@ -136,7 +142,7 @@ s32 func_80106D94(Blit *blt) {
     slot = (blt->AnimID & 0xF0) >> 4;
     digit = blt->AnimID & 0xF;
     frac = 0.0f;
-    dist = D_80152818[slot].distance;
+    dist = PC_CAR_F108(slot);
     if (D_80146111) {
         dist = dist / 0.6f;
     }
@@ -148,7 +154,7 @@ s32 func_80106D94(Blit *blt) {
         }
         return 1;
     }
-    hide = D_8015F734 == 0 || D_80152818[PC_MODEL_SLOT(slot)].unkEF == 1;
+    hide = D_8015F734 == 0 || PC_CAR_FINISHED(PC_MODEL_SLOT(slot)) == 1;
     if (hide != blt->Hide) {
         blt->Hide = hide;
         Input_ApplyPadConfig(blt);
