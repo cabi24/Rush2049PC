@@ -23,11 +23,19 @@
 
 /* The cars a race holds on the PC (docs/port/MORECARS.md 10.1): PC_N64_CARS, the N64's 6, unless the setting asks for
  * more, up to PC_MAX_LINKS. Game C reads it as PC_RACE_CARS where the N64 has a literal 6 for the race's cars; the
- * port defines pc_race_cars() (port/main.c; the asset tests' in port/assets/tests/support.c), so game files carry no
- * ini code. */
+ * port defines pc_race_cars() (port/config/race_cars.c; the asset tests' in port/assets/tests/support.c), so game
+ * files carry no ini code. */
 #define PC_N64_CARS 6
 int pc_race_cars(void);
 #define PC_RACE_CARS (pc_race_cars())
+
+/* [game] cars (port/config/race_cars.c, docs/port/FRONTEND.md). pc_race_cars() is the count latched by the last
+ * pc_race_cars_begin(), which the game calls where a race's roster is filled (CalcPolePositions, the attract demo's
+ * func_800EC190: MORECARS.md 10.2 item 3), so it never changes during a race, whatever the settings overlay does; it
+ * is PC_N64_CARS until the first call. pc_cars_setting() is the setting itself, unlatched: PC_N64_CARS for original,
+ * else 6 to PC_MAX_LINKS; the front end reads it (the track select's Drones option goes up to it less one). */
+void pc_race_cars_begin(void);
+int pc_cars_setting(void);
 
 struct pc_link {
     unsigned char track;     /* +0 the track (CalcPolePositions, func_800EC190: D_8014978C) */

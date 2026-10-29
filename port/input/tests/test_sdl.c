@@ -899,7 +899,7 @@ static void test_menu(void)
     /* the key that closes it doesn't reach the game while it is still held */
     tap(SDL_SCANCODE_F1);
     menu_at("Settings", "Keyboard", NULL, "reopened");
-    for (int i = 0; i < 5; i++)   /* past Controllers, Help, About and Save */
+    for (int i = 0; i < 6; i++)   /* past Controllers, Game, Help, About and Save */
         tap(SDL_SCANCODE_DOWN);
     menu_at("Settings", "Resume", NULL, "Resume");
     key(SDL_SCANCODE_RETURN, 1, 0);
@@ -933,9 +933,9 @@ static void test_menu(void)
     button(&pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK, 0);
     pump();
     menu_at("Settings", "Resume", NULL, "where it was");
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 5; i++)
         press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
-    menu_at("Settings", "Controllers", NULL, "D-pad up four times");
+    menu_at("Settings", "Controllers", NULL, "D-pad up five times");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
     menu_at("Controllers (all players)", "A", "a, righttrigger", "A opens the page");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
@@ -1133,8 +1133,8 @@ static void test_mouse(void)
 
     /* About: Copy puts the page on the clipboard (SDL keeps one on the offscreen driver); no Open without a desktop */
     tap(SDL_SCANCODE_F1);
-    mouse(SDL_MOUSEMOTION, ROW_X, ROW_Y(5), 0);
-    click(ROW_X, ROW_Y(5), SDL_BUTTON_LEFT);
+    mouse(SDL_MOUSEMOTION, ROW_X, ROW_Y(6), 0);
+    click(ROW_X, ROW_Y(6), SDL_BUTTON_LEFT);
     menu_at("About", "Version", "unknown", "About");
     tap(SDL_SCANCODE_UP);
     menu_at("About", "Copy to the clipboard", "", "its last item: Copy, no Open (offscreen)");

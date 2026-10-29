@@ -1,6 +1,6 @@
 /* port/input/tests/test_frontend.c: the settings and the stick math, without SDL (docs/port/FRONTEND.md).
  *
- *   frontend_test ini|settings|layers|locate|stick SCRATCH_DIR */
+ *   frontend_test ini|settings|layers|locate|stick|cars SCRATCH_DIR */
 #define _GNU_SOURCE
 #include <math.h>
 #include <stdio.h>
@@ -15,6 +15,7 @@
 #include "config.h"
 #include "input_internal.h"
 #include "pc_compat.h"
+#include "pc_game_types.h"   /* the race's cars: pc_race_cars, its latch, PC_MAX_LINKS */
 
 static int g_fail, g_checks;
 static const char *g_dir;
@@ -497,13 +498,81 @@ static void test_stick(void)
           "axis dead zone");
 }
 
+/* ---------------------------------------------------------------- cars */
+
+/* game.cars (docs/port/MORECARS.md 10.1): original or 6-12 in the file, and the count the game latches at a race's
+ * start (port/config/race_cars.c), which a change during the race doesn't reach. */
+static void test_cars(void)
+{
+    PcSettings s, t;
+    char why[200], v[32];
+    pc_settings_defaults(&s);
+    CHECK(s.cars == 0 && pc_settings_get(&s, "game", "cars", v, sizeof v) == 0 && !strcmp(v, "original"),
+          "the default: original (%d, '%s')", s.cars, v);
+    CHECK(PC_MAX_LINKS == 12, "the most cars a race may hold: %d", PC_MAX_LINKS);
+    for (int n = 6; n <= 12; n++) {
+        char in[8];
+        snprintf(in, sizeof in, "%d", n);
+        CHECK(pc_settings_set(&s, "game", "cars", in, why, sizeof why) == 0 && s.cars == n &&
+                  pc_settings_get(&s, "game", "cars", v, sizeof v) == 0 && !strcmp(v, in),
+              "cars %d: %d '%s'", n, s.cars, v);
+    }
+    /* out of range or not a number: refused, as every setting's bad value is, and the setting stays */
+    static const char *const bad[] = {"5", "13", "0", "-1", "99", "twelve", "12x", ""};
+    for (size_t i = 0; i < sizeof bad / sizeof *bad; i++)
+        CHECK(pc_settings_set(&s, "game", "cars", bad[i], why, sizeof why) == -2 && s.cars == 12,
+              "cars '%s' refused: %s", bad[i], why);
+    CHECK(strstr(why, "from 6 to 12") && strstr(why, "original"), "the message names the range and original: %s", why);
+    CHECK(pc_settings_set(&s, "GAME", "Cars", "Original", why, sizeof why) == 0 && s.cars == 0, "original, any case");
+    CHECK(pc_settings_assign(&s, "game.cars=12", why, sizeof why) == 0 && s.cars == 12, "--set game.cars=12");
+    CHECK(pc_settings_assign(&s, "game.cars=13", why, sizeof why) == -2 && s.cars == 12, "--set game.cars=13 refused");
+    /* the file: original written commented out, a number as a setting, both read back */
+    pc_settings_defaults(&t);
+    char *text = pc_settings_format(&t);
+    CHECK(strstr(text, "\n; cars = original\n") != NULL, "the default is written commented out");
+    free(text);
+    text = pc_settings_format(&s);
+    CHECK(strstr(text, "\ncars = 12\n") != NULL, "12 is written as a setting");
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, text, "cars") == 0 && t.cars == 12, "and read back: %d", t.cars);
+    free(text);
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, "[game]\ncars = 20\n", "bad cars") == 1 && t.cars == 0,
+          "a bad line in the file is skipped: %d", t.cars);
+
+    /* the count the game reads: the N64's 6 until a race latches the setting */
+    CHECK(pc_race_cars() == 6 && pc_cars_setting() == 6, "before anything: 6 and 6 (%d, %d)", pc_race_cars(),
+          pc_cars_setting());
+    pc_race_cars_set(12);
+    CHECK(pc_cars_setting() == 12 && pc_race_cars() == 6, "set to 12: the setting is 12, the race still 6 (%d)",
+          pc_race_cars());
+    pc_race_cars_begin();
+    CHECK(pc_race_cars() == 12, "a race starts: 12 (%d)", pc_race_cars());
+    pc_race_cars_set(8);   /* the overlay during the race */
+    CHECK(pc_cars_setting() == 8 && pc_race_cars() == 12, "changed mid-race: the setting 8, the race still 12 (%d)",
+          pc_race_cars());
+    pc_race_cars_set(0);
+    CHECK(pc_cars_setting() == 6 && pc_race_cars() == 12, "original mid-race: the setting 6, the race still 12");
+    pc_race_cars_begin();
+    CHECK(pc_race_cars() == 6, "the next race: 6 (%d)", pc_race_cars());
+    pc_race_cars_set(99);
+    CHECK(pc_cars_setting() == PC_MAX_LINKS, "past the most: %d", pc_cars_setting());
+    pc_race_cars_set(3);
+    CHECK(pc_cars_setting() == 6, "below 6: %d", pc_cars_setting());
+    pc_race_cars_set(9);
+    pc_race_cars_begin();
+    CHECK(pc_race_cars() == 9 && pc_race_cars() == pc_cars_setting(), "9: %d", pc_race_cars());
+    pc_race_cars_set(0);
+    pc_race_cars_begin();
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
-        {"stick", test_stick}};
+        {"stick", test_stick}, {"cars", test_cars}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|all SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|all SCRATCH_DIR\n");
         return 2;
     }
     static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */
