@@ -131,7 +131,13 @@ extern Car D_8014A250[];
 #define PC_MODEL_CRASHFLAG(i) D_8014A250[i].enabled
 #define PC_MODEL_VISCODE(i) D_8014A250[i].exhaust
 #endif
+#ifdef TARGET_PC
+/* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 6). */
+#define D_801392D8 pc_tire_fx
+#else
 extern u32 D_801392D8[];
+#endif
 extern s32 D_8011735C;
 extern Resource D_8012E700[];
 extern u16 D_80142948[2][9];

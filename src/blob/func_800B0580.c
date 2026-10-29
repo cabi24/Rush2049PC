@@ -27,8 +27,9 @@ typedef struct Node {
 typedef struct { void *next, *prev; float f8; void *dl; float pos[3]; u8 color[4]; int f20; } PcEffectObj;
 #define ELEMENT_SIZE(n64, type) sizeof(type)
 /* The skid table D_80155290 (skid_marks' WheelSlot[6][4]: 0x5C bytes on the N64, 0x60 here, its effect pointer being
- * pointer-sized): all of it, or the last wheel's slot keeps a stale effect pointer after a reset. */
-#define SKID_TABLE_BYTES (6 * 4 * 0x60)
+ * pointer-sized): all of it, or the last wheel's slot keeps a stale effect pointer after a reset. On the PC it is
+ * pc_skids, PC_MAX_LINKS cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+#define SKID_TABLE_BYTES sizeof (pc_skids)
 #else
 typedef struct Node {
     int pad0, pad4, pad8;
@@ -55,7 +56,11 @@ extern PcEffectObj D_80155B30[100];
 #else
 extern char D_80155B30[];
 #endif
+#ifdef TARGET_PC
+#define D_80155290 PC_SKIDS
+#else
 extern char D_80155290[];
+#endif
 void pool_linked_list_init(Pool *pool);
 void func_8008D0C0(void *data);
 void func_800AFA84(Pool *pool, Node *node);

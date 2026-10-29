@@ -77,7 +77,13 @@ extern Player D_80152818[];
 #define PC_CAR_POS_Y(i) D_80152818[i].position.y
 #define PC_CAR_POS_Z(i) D_80152818[i].position.z
 #endif
+#ifdef TARGET_PC
+/* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 6), seen here in this file's view. */
+#define D_80154FD8 (*(Effect (*)[PC_MAX_LINKS])PC_BLAST_RINGS)
+#else
 extern Effect D_80154FD8[];
+#endif
 extern Resource D_8012E700[];
 extern volatile f32 D_8002EB94;
 extern void entity_spawn_callback(s16,s32,s32);

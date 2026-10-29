@@ -70,7 +70,13 @@ typedef struct {
 } NodeInfo;
 
 extern f32 D_80154390;
+#ifdef TARGET_PC
+/* On the PC the resurrect's midpoints are pc_resurrect_mid, PC_MAX_LINKS long, with no N64 address
+ * (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+#define D_80161450 pc_resurrect_mid
+#else
 extern f32 D_80161450[][3];
+#endif
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else

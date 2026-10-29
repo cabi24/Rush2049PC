@@ -31,7 +31,16 @@ typedef struct Pool {
 
 extern Pool D_80155220;
 extern char D_80155B30[];
+#ifdef TARGET_PC
+/* On the PC the skid table is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 6): the reset clears all of it. (This copy is a weak context copy the PC never links;
+ * src/blob/func_800B0580.c is the function.) */
+#define D_80155290 PC_SKIDS
+#define SKID_TABLE_BYTES sizeof (pc_skids)
+#else
 extern char D_80155290[];
+#define SKID_TABLE_BYTES 2208
+#endif
 void pool_linked_list_init(Pool *pool);
 void func_8008D0C0(void *data);
 void func_800AFA84(Pool *pool, Node *node);
@@ -51,5 +60,5 @@ void func_800B0580(void)
     }
     POOL_SETUP(D_80155220, D_80155B30, 36, 100, 1);
     pool_linked_list_init(&D_80155220);
-    memset(D_80155290, 0, 2208);
+    memset(D_80155290, 0, SKID_TABLE_BYTES);
 }

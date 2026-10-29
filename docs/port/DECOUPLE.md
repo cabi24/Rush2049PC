@@ -35,8 +35,8 @@ to storage the PC owns outright, with one PC declaration and no N64 address. The
    declares, and retires the N64 symbol, its aliases and every symbol-table name inside its N64 extent. The build
    fails if any game object still references a retired name, if the readers' types disagree, or if the PC symbol is
    defined by game C. `--check` (after linking `rush2049pc_datacheck`) fails if the PC symbol is missing, has another
-   size or is in the window, or if a retired name is defined. Only BSS so far: initialized data would also need the
-   loader to convert it from the ROM into storage it has no address for.
+   size or is in the window, or if a retired name is defined. Initialized data of the game or the boot segment takes
+   `init=image`: the loader then fills the PC symbol from the image's bytes at the retired address (section 7).
 4. **Readers and aliases.** Each use goes through an accessor (`PC_LINK_OWNER(i)`) whose PC side
    `pc_game_types.h` defines. Each game file defines the N64 side under `#else`, with its own view and its own field
    names, so the N64 tokens are the original ones and `n64_neutral.py` passes. An alias inside the extent becomes
@@ -381,3 +381,307 @@ path_D169C raises only record 0's obResPt (through `D_8014AA14`), and car_setup_
 record's address with record 0's. And the code that orders the cars keeps locals sized for the N64's 6, indexed by the
 cars in the race: car_setup_confirm's `place[7]` and `scores[6]`, render_large_objects' `humans`, `drones`,
 `total_drones` (`[MAX_LINKS]`) and `car_distance[MAX_LINKS][MAX_LINKS]`.
+
+## 6. The effects' per-car arrays
+
+**What they are.** Seven arrays of the effects, one entry per car slot, 6 on the N64 (game BSS), indexed by the car's
+slot ([MORECARS.md](MORECARS.md) 2.3, item 1d of 10.2). None has pointers but the skid state, which was own storage
+already for its segment pointer. 2026-10-29, on main 597098e.
+
+| N64 | PC | N64 extent | PC storage | What | Read and written by (objects) |
+|---|---|---|---|---|---|
+| `D_801392D8` | `pc_tire_fx` | u32[6], 24 B | `unsigned int[12]`, 48 B | each car's tire-effect latches, a bit per tire and effect (0x1-0x8 and 0x100-0x800 the tire puffs, 0x10-0x80 and 0x80000 the smoke, 0x1000-0x8000 the trails) | entity_spawn_init, func_8008E408, hud_render, func_80092484, func_800CB718 (three copies), physics_collision_test (the reset) |
+| `D_8013A020` | `pc_smoke_shade` | u8[6], 8 B by the gap | `unsigned char[12]`, 12 B | the grey of its smoke, 175 fading by 3 a puff to 53 | entity_spawn_init |
+| `D_8013C098` | `pc_trail_pts` | f32[6][6], 144 B | `float[12][6]`, 288 B | its two trails' last points | entity_spawn_init |
+| `D_80154660` | `pc_blasts` | `tBlastStruct[6]`, 2,400 B | `struct pc_blast[12]`, 4,800 B | MAT3 gBlastObjs: the blast after a crash, four blast objects and a glow, each a scene object on a matrix inside the record | blast.c (func_80090308, StartNewBlast), entity_update_callback (AnimateNewBlast), camera_smooth_lerp (InitBlasts) |
+| `D_80154FD8` | `pc_blast_rings` | `tBlastRingStruct[6]`, 360 B to `D_80155140` | `struct pc_blast_ring[12]`, 720 B | MAT3 gBlastRingObjs: the ring, a scene object on its matrix | blast.c (StartNewBlastRing, inlined in save_write_data, StartBlast), entity_collision_detect, camera_smooth_lerp |
+| `D_80155290` | `pc_skids` | `WheelSlot[6][4]`, 2,208 B (own storage, 2,304 host) | `struct pc_skid[12][4]`, 4,608 B | the arcade's NewSkid per tire: the skid segment drawn (a host pointer into the segment pool `D_80155B30`) and its edges | skid_marks/group.c (cpak_init, StartSkid, UpdateSkid, ContinueSkid), func_800B0580 (the reset; two copies) |
+| `D_80161450` | `pc_resurrect_mid` | f32[6][3], 72 B | `float[12][3]`, 144 B | the resurrect's midpoint (the arcade's update_resurrecting_car) | track_select_handler |
+
+**Inventory.** 16 objects reference the seven names (nm over `game_objects.txt`), all under `src/`, three of them weak
+context copies (func_800CB718's in the car_checkpoints and demo_pair groups, func_800B0580's in slot18_alloc). They
+declare the arrays through 13 types: `u32[]`, `int[6]` and m2c's scalar `s32` (read as `(&D_801392D8)[i]`) for the
+latches, whose readers differ in signedness only in bit operations and stores of 0; `tBlastStruct` (blast.c,
+entity_update_callback, the same layout) and `s32` (camera_smooth_lerp's byte offsets) for the blasts;
+`tBlastRingStruct` (blast.c), `Effect` (entity_collision_detect: the handle read through an `Id` union whose halves
+are swapped on the PC, [ENDIAN.md](ENDIAN.md)) and `s32` for the rings; `WheelSlot[][4]` and `char[]` (func_800B0580's
+memset) for the skids; one each for the rest. The image symbol tables name no address inside any of them but the
+rings', where the symbol file's `gCheckpointTimes` (+0x28), `gLapCounts` (+0x128), `gBestLapTimes` (+0x138) and
+`gCurrentLapTimes` (+0x148) are guesses no C and no asm references; they are retired with the rings.
+`layout_check.py --storage` before: 343 accesses on the seven (88, 8, 12, 136, 38, 55, 6), with the callees that
+get one record's address and stay inside it (PitchUV and func_80090E9C a blast object's matrix, func_800CFDEC the
+midpoint, and StopSkid, UpdateSkid, StartSkid, ContinueSkid and func_8008C074 a skid); after: the same 343 on the
+seven PC names, none off the reference.
+
+**What holds an address.** A scan of the four images inflated from the retail cartridge finds no data word in any of
+the seven ranges, and 40 code references (`lui` with a following low half in range): 20 to the latches
+(entity_spawn_init 7, func_8008E408 4, hud_render 4, func_80092484 2, physics_collision_test 1, func_800CB718 1 and
+render_viewport_init 1, where the N64 build inlined func_800CB718; on the PC it calls it), 2 to the smoke's grey, 2 to
+the trails, 6 to the blasts (func_80090308 3, entity_update_callback 2, camera_smooth_lerp 1), 6 to the rings
+(entity_collision_detect 4, save_write_data 1, camera_smooth_lerp 1), 2 to the skids (cpak_init, func_800B0580) and 2
+to the midpoint (track_select_handler): every function one whose C is among the objects above. What the game keeps
+of them: MBOX_NewObject (func_8008E26C) keeps a blast object's, the glow's and the ring's matrix address as the
+scene node's `owner`, which is pointer-sized in the node's PC layout ([POINTERS.md](POINTERS.md) 9) and read through
+as a pointer; StartSkid keeps the segment's address in the skid state, a host pointer already. No `PC_N64W` takes
+any of them, layout_check has no width finding (a pointer where the reference has a u32, or the reverse), and a
+`RUSH_CHECK_CASTS` build runs every synthetic path without a stop. So unlike the matrix pool
+([MORECARS.md](MORECARS.md) 2.7) none needs a window address.
+
+**What it reaches past its end.** The retail code's references to each end address (the next symbol's) are that
+symbol's own users (`D_801392F0`'s and `D_8013A028`'s menu_save_options, `D_8013C128`'s CreatePlayer and
+func_800C7EC8, `D_80154FC0`'s func_800D816C, `D_80155140`'s net_session_update and stat_race_start, the segment pool
+`D_80155B30` that func_800B0580 sets up, `D_80161498`'s Input_ProcessGameplayPad), but one: physics_collision_test's
+`i < 6`, which IDO strength-reduced to an end pointer at `D_801392F0`; its C walks by index. No C names an array's
+end. Nothing reaches the old ranges: the six that were arena BSS (3,008 bytes) filled with 0x5A after the loader ran
+(a throwaway build on the build host) left every synthetic path's trace the same, and none of their bytes changed
+by the end of any.
+
+**The size.** Every use reaches one car's entry by the car's slot (the puff's `car`, the visual's `slot`, the node's
+`index`, the model's net node) but three resets, which cleared the N64's 6: physics_collision_test the latches
+(`i < 6`), InitBlasts the blasts and rings (`i < 6`, strides 0x190 and 0x3C: each blast object's and the glow's
+handle, the ring's, to -1) and func_800B0580 the skids (2,208 bytes; 6 x 4 x 0x60 on the PC before). LoadTrack calls
+all three (`loadtrack.c:237-239`). On the PC they clear every slot, `PC_MAX_LINKS` and `sizeof (pc_skids)`, not the
+race's cars: a slot left out keeps a past race's latches, and a blast object InitBlasts left at 0 would have
+StartNewBlast remove scene object 0 (`if (b->mbIdx != -1) ZOID_RemoveObject(b->mbIdx)`). These are the two rows of
+[MORECARS.md](MORECARS.md) 3.1 in these files (item 3 left them to this one); no loop in them walks the race's cars.
+So the storage is `PC_MAX_LINKS` (12) entries each. InitBlasts takes 50 matrices from GetMatrix's pool whatever the
+cars: they are StartBlast's ring of 50 (`D_8013C238`, `D_8013C094` wraps at 50), not per car, and a car's own blast
+and ring matrices are inside its records; the pools' item needs nothing more from this one.
+
+**`D_80111299`** ([MORECARS.md](MORECARS.md) 2.6) stays as it is. It is rows 1-4 of `D_8011128C` (s8[5][13]: 65 bytes
+and 3 of padding to `D_801112D0`), which image A's car screen (func_803A44FC) reads as `D_8011128C[p + 1][...]` for
+player p: a setting per player and car type. Its three readers index it by slot x 13 + the car type, but only for
+humans: the wings' set-up (func_800B08FC, func_800B0A88 in the audio_frame groups) returns for a car this node drives
+(`we_control`, set for a drone, owner 0), and the trails' colour (entity_spawn_init's types 6 and 7) comes only from
+the wing's animator (buffer_swap) with one player. The humans have the first slots, 0-3, with any number of cars, so
+no slot past 3 reads it (a slot 4 or 5 would read `D_801112D0`'s float bytes, which the PC holds swapped).
+
+**The change.** `pc_game_types.h`: the four arrays, `struct pc_uv_matrix`, `struct pc_blast_obj`, `struct pc_blast`,
+`struct pc_blast_ring` and `struct pc_skid` (with MAT3's and the arcade's field names, which blast.c's,
+entity_update_callback's and skid_marks' views have), the record arrays, and `PC_BLASTS`, `PC_BLAST_RINGS` and
+`PC_SKIDS` as `void *`. Each of the 16 files changes its declaration only: under `TARGET_PC` its N64 name is the PC
+storage. In 8 files it is the PC array (`#define D_801392D8 pc_tire_fx`, `#define D_80154660 pc_blasts`: their views
+have the PC declaration's element type, or its field names and layout); entity_collision_detect, whose `Effect` names
+the ring's fields otherwise, sees the array as `PC_MAX_LINKS` of its own element type (`#define D_80154FD8 (*(Effect
+(*)[PC_MAX_LINKS])PC_BLAST_RINGS)`); m2c's scalars in func_80092484, func_800CB718 and camera_smooth_lerp are the
+array's first word (`#define D_801392D8 (*(s32 *)pc_tire_fx)`, read as `(&D_801392D8)[i]` or through a byte
+pointer), and func_800B0580 passes `PC_SKIDS` to memset. Not per-use accessors as in sections 2-4: these arrays are
+reached only by index, as whole records in each file's own view (one of them an endian-split union), so a field
+accessor would need a name per view; this way every use keeps its N64 tokens and its line, and since each is an
+array of `PC_MAX_LINKS` (the view too: an index past it traps, GCC 14 at -O0 with `-fsanitize=bounds`),
+`-fsanitize=bounds` checks each index against the PC's count ([MORECARS.md](MORECARS.md) 10.3). A first try saw
+blast.c and entity_update_callback through the view cast too; GCC folds `&view[slot].blastObjs[i]` there into a byte
+offset from `&pc_blasts`, which layout_check doesn't follow (49 accesses on `pc_blasts`, against 136 on
+`D_80154660`), so their structs got MAT3's names instead. Inside functions three lines change: the two resets' bounds
+(`PC_MAX_LINKS`, which physics_collision_test and camera_smooth_lerp define as 6 on the N64) and the weak copy of
+func_800B0580's byte count (`SKID_TABLE_BYTES`, as the function's own has; `sizeof (pc_skids)` on the PC).
+`decoupled.txt`: seven rules, with the N64 extents above. test_casts and test_pool define the PC names where they
+defined the N64 ones.
+
+**What the tables say.** `data_symbols.txt` loses the seven rows; `data.c` loses six `.set` lines, the skid state's own
+storage (2,304 bytes) with its loader entry and 12 field runs, and seven report names, and gains the seven (10,620
+bytes, `.bss`); the later own storage's C names and the loader entries' run indices are renumbered, which is most of
+data.c's 412 changed lines (234 with the own storage's C names normalized). gen_data's check: 1,770 symbols at their
+N64 addresses (6 fewer), 396 own (1 fewer), 10 decoupled. The synthetic cartridge is the same file.
+
+**What the paths run.** Counted with gdb (a breakpoint on each function that never stops, its hit count at the end)
+on the branch's Debug program, Pi: on the retail cartridge the scripted races start skids (StartSkid 622 times in
+`race`, 884 in `race2p`, 262 in `pause`) and smoke (entity_spawn_init 789, 992 and 462 times), and crash nowhere, so no
+blast; on the synthetic cartridge the races crash (StartNewBlast and StartBlast 24-60 times in `race`, `demo`, `drive`
+and `circuit`, the ring's animator 408-1,014 frames, the resurrect 36-108) and smoke (2,262-5,862), and start no
+skid. So the retail scripts are the skids' proof and the synthetic paths the blasts'. Neither runs func_8008E408 (a
+tire's puffs at speed on a surface of visual code 2); assets_fxcars does.
+
+**Proof.**
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, the build before (main, 597098e) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run: 6 of 6 |
+| `synth_compare.py --same --runs 2`, the same, build host (x86-64, GCC 14) | 19 of 19 paths |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 243 of 243 each (`assets_rom` skipped: no ROM there) |
+| Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files (build host); before against after, `data_symbols.txt` 7 lines, `data.c` 412 (234 normalized) |
+| the synthetic cartridge, before against after | the same file (Pi and build host) |
+| `n64_neutral.py --base 09da2f0` | passes (1,011 files: 92 code-exact, 919 shifted); 16 changed game files under `src/` |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after; offset_check and layout_check the same counts (59,461 and 48,102 accesses, 332 untyped raw accesses); endian_check's 2 open value conflicts in 1 storage the same, 3,506 puns, 20 more (each file's view and the PC struct on one storage); check-loader 96 places, 0 wrong |
+| `layout_check.py --storage` on the seven | 343 accesses (88, 8, 12, 136, 38, 55, 6), the same as on the N64 names before; none off the reference |
+| `view_audit.py`: `pc_blasts --size 400 --tags tBlastStruct,pc_blast`, `pc_blast_rings --size 60 --tags tBlastRingStruct,Effect,pc_blast_ring`, `pc_skids --size 92` (reference: the PC structs) | 3 views, 0 disagree (before, on `D_80154660`: 2, 0); 4, 0 (2, 0); 22, 16 disagree, every one of them another record of 92 bytes (the tires', the menu's, the checkpoints' header...), as before (19, 16); skid_marks' `WheelSlot` agrees |
+| `bounds_check`, build host (GCC 14), and the Pi's mingw-w64 12 (on the Windows build) | 4 new, the same on both, none `clamped` or `two offsets`, all `view` (camera_smooth_lerp's InitBlasts on `pc_blasts` and `pc_blast_rings`, func_80092484's and func_800CB718's word of `pc_tire_fx`), added to `bounds_reviewed.txt` as `[gcc14,mingw12]`; the 2 entries on the retired names (camera_smooth_lerp's `D_80154FD8`, func_800CB718's `D_801392D8`) removed; then none new on either (GCC 14 doesn't find 9 reviewed keys, as on the base, and mingw-w64 12 10: kept for the other compilers). GCC 13 (CI's runner) not run on it |
+| a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
+| the six old arena ranges filled with 0x5A after the loader (a throwaway build, build host), against the branch | 19 of 19 paths the same trace; 0 of the 3,008 bytes changed in any |
+| Windows cross build (Pi, mingw-w64, fresh configure) | builds; `gen_data.py --check --pe`: OK, 10 decoupled |
+| `assets_fxcars` (16 slots declared, 12 cars) | passes; with each mutation it fails: the latches' reset at 6 (41 checks), InitBlasts at 6 (78), the skid reset at the N64's 6 cars (1, then a fault on a stale segment pointer), the skid table one tire off (2), the blasts read as the rings (a fault), the rings one car off (2), func_8008E408's latches one car off (3), the smoke's grey one car off (3), the trails one car off (2), the midpoint one car off (2), func_80092484's latch one car off (1) |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, cba8da7: the branch's game C) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+
+**The test.** `assets_fxcars` builds the 13 files above that link (all but the weak copies), with StopSkid, the pools'
+own get, free and set-up, and the game's Random, with `PC_MAX_LINKS` 16, and runs a race of 12 cars, every entry of
+the seven arrays a sentinel first:
+the race start's reset clears all 16 latches; InitBlasts takes 50 matrices and marks all 16 blasts' five objects and
+rings empty, their matrices left alone; each of the 12 cars' tire puffs sets its own latch bit and takes two puffs, a
+latched tire takes none, and hud_render ends all 24 and clears each car's bit; car 11's smoke sets its latches and its
+grey (175, 172, two latched frames, 169) and no other car's; its trails keep their points in its own six floats, and
+func_80092484 and func_800CB718 clear its trail and smoke bits; its blast's four objects and glow are scene objects
+on matrices inside its own record, which AnimateNewBlast moves with the car; its ring the same, followed by
+entity_collision_detect; func_800B0580 clears the whole skid table, and 12 cars x 4 tires start 48 distinct segments
+at their tires, continue and stop them, slots 12-15 untouched; car 11's resurrect midpoint lands in its own slot.
+test_casts checks InitBlasts' 50 matrices and its -1s in all `PC_MAX_LINKS` blasts and rings of the game build's 12.
+
+**Not done, and for the other items.** GCC 13's bounds_check (CI's runner) not run. The pools (item 2): a car's blast
+takes five scene objects and its ring one, from the scene node pool (`D_8012E700`, 600), its smoke and tire puffs
+come from the 100 puffs of `D_8013F1E0` (a full pool gives none, and the caller stops), and the skids from the 100
+segments of `D_80155B30` (48 at most with 12 cars x 4 tires; a full pool steals the farthest); none was measured with
+12 cars. The weak copy of func_800B0580 in slot18_alloc keeps the N64's pool views (36-byte elements), as before: it
+is never linked.
+
+## 7. The cars' sounds, checkpoints and finish cameras
+
+**What it is.** Eight of [MORECARS.md](MORECARS.md) 2.3's per-car arrays, items 1a (sound), 1c (checkpoints and
+places) and 1e (the finish cameras) of its 10.2, 6 slots each on the N64, indexed by a car's slot. Four are the game
+image's initialized data, which a decoupled rule couldn't take before (below).
+
+| N64 | What | N64 storage | PC |
+|---|---|---|---|
+| `D_80140420` | the engine sound sets (`Player84`, `SndSet`): the car type's engine table, `&D_8010FD80[type]`, and four sound records: the two engine layers, one nothing uses, and the random sound (MORECARS.md 6) | 6 x 84 B at 0x80140420, BSS; own storage before (its pointer: 88 B a car) | `pc_engine_sounds`, `struct pc_engine_sound[12]`, 1,056 B |
+| `D_80140640` | the tire screech's record (`State20`, `SndRec`, `LayerState`: a handle and the last level and style sent) | 6 x 20 B at 0x80140640, BSS | `pc_screech_sounds`, `struct pc_sound_rec[12]`, 240 B |
+| `D_8010FFC4` | the car's sounds started: StartCarSounds sets it, StopCarSounds clears it, the engine update needs it | 6 B at 0x8010FFC4 (8 by the gap), game image data | `pc_car_sounds_on`, `signed char[12]`, from the image |
+| `D_8010FFCC` | the engine update's phase: func_800E05F0 skips a car while it is 1 and toggles it, so each car's engine is updated every other frame and half the cars each frame; StopCarSounds sets it to `(slot & 1) == 0` | 6 B at 0x8010FFCC (8 by the gap), game image data | `pc_engine_phase`, `signed char[12]`, from the image, continued |
+| `D_80152218` | each car's position at the last CheckCPs, for the distance it drove; func_800FBE60 sets it at the race's start | 6 x 12 B at 0x80152218, BSS | `pc_cp_last_pos`, `float[12][3]`, 144 B |
+| `D_801527E8` | each car's distance to its next checkpoint's plane at the last CheckCPs, which times a crossing | 6 x 4 B at 0x801527E8, BSS | `pc_cp_plane`, `float[12]`, 48 B |
+| `D_80110680` | a human's finish camera: 1 circling since the finish (race_countdown_display), 2 frozen 10 s later (func_800E9E2C); func_800EB90C turns the window's view to it; render_post_process defined it and clears it, mode_flags_clear clears the first two | 6 B at 0x80110680 (8 by the gap), game image data | `pc_finish_cam`, `unsigned char[12]`, from the image |
+| `D_80110668` | the finish camera's start time, then the time it froze at | 6 x 4 B at 0x80110668, game image data | `pc_finish_cam_time`, `float[12]`, from the image |
+
+With them, func_800EB90C's drone cameras (`j < 6`, MORECARS.md 3.1). CalcPlaces' locals (MORECARS.md 2.5), which
+this item had too, are item 3's on main (`CARS_N`, MORECARS.md 3.1 "Done"); its test runs CalcPlaces with 12 cars.
+
+**Inventory.** 13 objects reference the eight names (nm over `game_objects.txt`, build host, 8ff5be1): for the sound
+`mode_select/d5e64.c` (StartCarSounds), `mode_select/mode.c` (the engine update) and `func_800D5524.c` (StopCarSounds)
+with its `slot18_alloc` copy; for the checkpoints `car_checkpoints_func_800F8EC8.c` (CheckCPs) with its `demo_pair`
+copy and `func_800FBE60.c`; for the cameras `race_countdown_display.c`, `func_800E9E2C.c`, `func_800EB90C.c`,
+`render_post_process.c` and `mode_flags_clear.c` with its `loadtrack` copy (the three copies are weak). Their views:
+of `D_80140420` four, all 84 bytes on the N64 and 88 here but one: the table is a `Definitions64 *` (d5e64.c), an
+`EngTbl *` (mode.c), an `intptr_t` (func_800D5524.c) and an `s32` in the `slot18_alloc` copy, which never runs
+(view_audit's one disagreement before); the sound records are 20 bytes everywhere, a handle and four floats (mode.c
+names +4 `level` and +8 `style` and pads the rest); the flags and the phase are `s8`; the cameras' state is `s8` in
+three files and `u8` in two (render_post_process's `u8[6]`, mode_flags_clear's `Flags {u8 first, second;}`), stores
+and tests of 0, 1 and 2, so one `unsigned char` reads the same; the floats are `f32`, func_800FBE60's `s32` with
+m2c's 12-byte stride and `f32` stores. The image symbol tables name one more address inside them, `D_80110681` (`D_80110680[1]`, mode_flags_clear's
+`.second`), which no C names. No file reaches a neighbour from them or them from a neighbour (bounds_check,
+offset_check and layout_check list none).
+
+**What they reach past their ends.** The next symbols are each their users' own: `D_80140618` (s16, the lights mode:
+InitWaves, func_800A54FC, func_800A5B3C, Input_ProcessGameplayPad's two copies, display_list_flush) after the engine
+sound sets, `D_801406B8` (`Lights2 *`, the same files) after the screeches, `D_8010FFD4` (each track's song, s32[19]:
+func_800D6160 in game_music and three copies, mode_init) after the phase, `D_80152260` (zlib's `dist_code`) after the
+positions, `D_80152800` (the route's length: route_cross, world_gravity_apply) after the plane distances, `D_80110688`
+(a camera height, func_800EB028) after the cameras; the phase and the cameras' state follow the flags and the times.
+No C names an array plus 6 or the next symbol as an end.
+
+**What holds an address.** Nothing in memory. A scan of the four images inflated from the retail cartridge (on the
+Pi) found no data word pointing into the eight ranges or at their ends, and, following each `lui` register along
+straight-line code (an index added to it or not), 31 code references into them, all in the game image, in 12
+functions, each one whose C is among the 13 objects (LoadTrack has mode_flags_clear inlined, which the PC calls), and
+24 at the end addresses, in the neighbours' users above. No `PC_N64W` store or u32 field takes an address of them:
+layout_check finds no pointer store whose value reaches them; the records' addresses go to player_conditional_call
+and player_conditional_check (which reset and release a record), func_800E0048 and mode_select_input (which pass its
+handle on), and they keep none; CheckCPs' `prev` is a local; the sound manager is given handles and positions (the
+model's +0x22C, `D_801141B0`), not records. d5e64.c's `object = (s32)&D_8010FFC4[player]` truncates the flag's
+address into an int that is overwritten before any use ([CASTS.md](CASTS.md) 5's dead store, the same on the PC).
+A `RUSH_CHECK_CASTS` build ran every synthetic path without a stop.
+
+**The size.** On the N64 every reader indexes them by a slot below 6: the sound by the model's slot (StartCarSounds for
+each car, the engine update for each every frame, StopCarSounds), the checkpoints by CheckCPs' `index < D_801543CA`
+and func_800FBE60's `i < D_80152744`, the finish cameras by a human's slot (race_countdown_display, owner 6), a
+camera's car (func_800E9E2C's `object->car`) or a window's player (func_800EB90C's `pl->index`); render_post_process
+clears 6. So each is `PC_MAX_LINKS` (12) long on the PC. render_post_process clears every slot it has (`FINISH_CAM_SLOTS`, `PC_MAX_LINKS`: a clear, MORECARS.md 3.2) and
+func_800EB90C places the drone cameras of `PC_RACE_CARS` cars (`RACE_CARS`); with 6 cars the slots after 6 are never
+set, so the default is the N64's.
+
+**The four the image initializes.** `D_8010FFC4`, `D_8010FFCC`, `D_80110668` and `D_80110680` lie in the game image's
+initialized data, which the loader copies into the arena from the image. On the retail cartridge (checked on the Pi)
+the image holds zeros in the flags, the times and the cameras' state, and in the phase the alternation by slot that
+starts with 0: the opposite of StopCarSounds' `(slot & 1) == 0`, so at the first race the odd slots skip their first
+update and after any StopCarSounds the even ones do. The synthetic cartridge writes none of them (zeros). Nothing loads
+the game image's data again: pc_data_load_all loads it once and frees the image, the game's own inflate of it is a
+no-op on the PC (port/ultra/pi.c), an overlay load refills only image A or B (DATA.md 5), and the soft reset
+(`gSoftReset`) is a change of state, not a load. Rather than take the zeros for BSS, a decoupled rule now takes the
+image's initialized data (`init=image`, gen_data and the loader, below): the loader fills the PC symbol's first
+elements from the image's bytes at the retired address, converted through the runs of the N64 part, so the four start
+as the N64's from whatever the image holds, and no value of it is in the build. The rest of the storage is zero, or
+continues the loaded elements with a period (`period=K`: element i is element i - K): the phase's slots 6 to 11
+continue the image's alternation with `period=2`, so with 12 cars 6 update each frame, as 3 of 6 do on the N64.
+
+**gen_data and the loader.** `decoupled.txt` takes `init=image [period=K]` after a rule's aliases; such a rule must
+name initialized data of the game or the boot segment (a BSS rule must not), and its N64_SIZE must be whole elements of
+the PC type's array (or the type's N64 size). gen_data emits `pc_inits` in data.c, a `PcDataInit` per rule (the PC
+storage, the N64 address and size, the host bytes the N64 part fills, the runs of that part, appended after the
+others, the period in host bytes, the image), and `PcDataTables` ends with `inits`, `n_inits`; without such a rule
+data.c is the same file as before. pc_data_load_image fills them after the image's own storage. They are not in the
+loader's symbol table: no N64 address resolves to them (the arena's bytes there stay the image's, which nothing reads),
+and they add nothing to its summary line. `datacheck --synthetic` decodes them from its random images like own storage and
+checks the continuation; `datacheck` with the retail cartridge checks them against the images it inflates itself.
+`pc_data_test` loads two such items, f32 and bytes, one continued with a period of 2.
+
+**The change.** `pc_game_types.h`: `struct pc_sound_rec`, `struct pc_engine_sound`, the eight arrays and their
+accessors: `void *` ones for the records, which each file reads through its own view (`PC_ENGINE_SOUND(i)`,
+`PC_ENGINE_SOUND_REC(i, k)`, `PC_SCREECH(i)`), and `PC_ENGINE_SOUND_HANDLE(i, k)`, `PC_SCREECH_LEVEL(i)`,
+`PC_SCREECH_STYLE(i)`, `PC_CAR_SOUNDS_ON(i)`, `PC_ENGINE_PHASE(i)`, `PC_CP_LAST_POS(i)` (and `_X`, `_Y`, `_Z`),
+`PC_CP_PLANE(i)`, `PC_FINISH_CAM(i)`, `PC_FINISH_CAM_TIME(i)`. The 13 files use them, each defining the N64 side
+with its own view (`#define PC_ENGINE_SOUND(i) &D_80140420[i]`, `#define PC_ENGINE_SOUND_HANDLE(i, k)
+D_80140420[i].rec[k].handle`, `#define PC_SCREECH_LEVEL(i) D_80140640[i].level`, `#define FINISH_CAM_FIRST
+D_80110680.first` in mode_flags_clear, and func_800FBE60's strides, `#define PC_CP_LAST_POS_X(i) *(f32 *) ((u8 *)
+&D_80152218 + i * 12)`); render_post_process defines `D_80110680` on the N64 only (on the PC it was a
+declaration, WINDOWS.md). func_800FBE60 had `D_80152218` open-ended for [OPTIMIZED.md](OPTIMIZED.md) 2.7 (three
+stores a car in a loop, the stick's shape); `pc_cp_last_pos` has its true size, which GCC reads correctly.
+`decoupled.txt`: the eight rules, four with `init=image`, the phase's with `period=2`; `extents.txt` loses
+`D_80110680`'s 6. `assets_cars` and `assets_carrecs` define `pc_cp_last_pos` where they defined `D_80152218`.
+
+**What the tables say.** `data_symbols.txt` loses the 8 rows (2,209 lines to 2,201); `data.c` loses `D_80140420`'s own
+storage (528 B), its loader entry (418 to 417) and 24 runs, the 7 `.set` lines of the others, `D_80110668`'s arena run
+and the 8 report names, and gains the 8 storages (1,572 B, `.bss`), `pc_inits` (4 rows) and its 4 runs; the later own
+storage's C names and the run indices are renumbered: 1,317 changed lines, 56 with those normalized. `data_layout.txt`:
+one own storage fewer, two pointer and two width conflicts fewer (the views of `D_80140420` and `D_80140640` above),
+the 8 under "Decoupled", and `pc_race_cars` under "Not placed" (func_800EB90C calls it, as `pc_os_idle` and the other
+port functions the game C calls are). The loader's summary line differs only by its table's size, which synth_compare
+leaves out. The synthetic cartridge is the same file.
+
+**Proof.**
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, the build before (main, 597098e) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run: 6 of 6; every run reached its state |
+| `synth_compare.py --same --runs 2`, the same, build host (x86-64, GCC 14) | 19 of 19 paths |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 243 of 243 each (`assets_rom` skipped: no ROM there) |
+| Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files (build host); before against after, `data_symbols.txt` 8 lines, `data.c` 1,317 (56 normalized) |
+| the synthetic cartridge, before against after | the same file (Pi and build host) |
+| `datacheck` with the retail cartridge (Pi); `datacheck --synthetic` | all checks passed; the 4 the image initializes hold its elements, the phase continued (0 differ); the same of the random images |
+| `n64_neutral.py --base 09da2f0` | passes (1,013 files: 92 code-exact, 921 shifted); 13 changed game files under `src/` (`git diff --name-only 597098e -- src`) |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after; offset_check's report the same file; layout_check's differs by one count (N64-layout storages 561 to 560); alias_check counts 8 placed names fewer (1,727 to 1,719); endian_check the same counts but its puns, 3,486 to 3,498 (the files' views of the sound records and the PC structs on one storage), and the same 2 open value conflicts in 1 storage (CARS.md 6); `--check-loader`: 96 places, 0 wrong |
+| `layout_check.py --storage` on each, before (N64 name) and after | the same accesses, none off a reference: 36 on the engine sound sets (`struct pc_engine_sound[12]` after, `SndSet[]` before), 22 on the screeches, 9 on the positions, 8 on the cameras' state, 4 each on the flags, the phase and the times, 2 on the plane distances |
+| `view_audit.py --symbols pc_engine_sounds --size 84 --tags Player84,SndSet,pc_engine_sound --ref d5e64.c`; the same for `pc_screech_sounds` (`--size 20`, `State20,SndRec,LayerState,pc_sound_rec`) | 5 views, 0 disagree; 6 views, 0 disagree (before, on the N64 names: 4 and 1, the `slot18_alloc` copy's; 4 and 0) |
+| `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`, 9 reviewed keys kept (as on main); `bounds_reviewed.txt` had no entry on the eight names. GCC 13 and mingw-w64 12 not run on it |
+| a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
+| Windows cross build (Pi, mingw-w64, fresh configure, headless: no SDL2 fetched) | builds; `gen_data.py --check --pe`: OK, 11 decoupled. (Before d616933 the PE link of `assets_percar` failed: a weak copy, func_800D5524.c's player_conditional_check, can't stand for the symbol on PE; the test links the owner now) |
+| `assets_percar` (16 slots declared, 12 cars) | passes; with the phase read as the sounds-started flag, 73 checks fail; with the engine sound sets at the N64's stride of 84, 131; the last positions 6 long, 12; the plane distances 6 long, 18; the screech records 6 long, 12; the finish times 6 long, 4; render_post_process clearing 6, 1; the drone cameras for 6 cars, 5; StartCarSounds' flag 6 long, 6. CalcPlaces' arrays 6 long overrun its stack, which depends on the build (12 checks failed in one, none in another); the UBSan build (build host, SANITIZE.md 1.4) stops it, with main's `CARS_N` at 6: index 6 out of bounds for type `s16 [6]` |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, 7cbf1d4: the branch's game C, merged with main) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+
+**The test.** `assets_percar` builds StartCarSounds, the engine update (func_800E05F0, func_800E0050), StopCarSounds,
+player_conditional_call, player_conditional_check, func_800FBE60, CheckCPs, CalcPlaces, race_countdown_display,
+func_800E9E2C, func_800EB90C, render_post_process and mode_flags_clear with `PC_MAX_LINKS` 16, every slot a sentinel,
+and runs them on 12 cars, a human in slot 0 and 11 drones: 12 engine sound sets started (the table, the two layers' handles from
+high_scores_display or camera_target_track, record 3 and the screech reset, record 2 untouched); two frames of the
+engine update, each car run in one of them by the image's alternation, a drone's run starting its random sound and
+sending each layer's pitch and volume, the human's starting its screech; 12 stopped (records 0, 1 and 3 and the screech
+released and reset, the flag cleared, the phase `(slot & 1) == 0`); 12 positions copied at the start; 12 checkpoint
+crossings reported with their interpolated times, the last lap ended, the humans (slots 0 and 9, a slot past the N64's
+6 among them) given the finish camera, the 12 ranked by distance; a finish camera circled and frozen, a window turned
+to it, the drone cameras placed for 12 cars and then for the N64's 6; every finish camera cleared, then the first two.
+Nothing past car 11 is touched.
+
+**Left to the other items.** Section 5's rank 3 (`D_80152218` among the race's per-car words) and rank 7 (`D_80110680`,
+initialized data) are done here; the other per-car words there (`D_801526E0`, `D_801526F8`, `D_801526A8`) are per
+window (MORECARS.md 2.4). The 6s left in these files are not car counts: the owner codes (`== 6`) in CheckCPs and
+race_countdown_display, and mode_flags_clear's two slots. The finish camera is only ever set for a human (owner 6),
+and the humans are slots 0-3, so it stays per player in practice; func_800E9E2C reads it for any car whose camera
+shows view 5. The engines of 12 cars ask MusyX for about twice the voices (MORECARS.md 6); the sound records only hold
+their handles.

@@ -68,7 +68,13 @@ typedef struct ObjInstance { unsigned int flags; char pad4[8]; float scale; char
 
 extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;                  /* gFrameSeconds */
+#ifdef TARGET_PC
+/* On the PC the blasts are pc_blasts, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 6), with this view's MAT3 field names. */
+#define D_80154660 pc_blasts
+#else
 extern tBlastStruct D_80154660[];       /* gBlastObjs */
+#endif
 #ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
