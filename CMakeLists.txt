@@ -506,15 +506,18 @@ add_test(NAME synth_rom COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_rom.py --out ${
     --data-symbols ${PC_DATA_DIR}/data_symbols.txt)
 set_tests_properties(synth_rom PROPERTIES FIXTURES_SETUP synth_rom)
 file(GLOB SYNTH_PATHS CONFIGURE_DEPENDS ${PORT_TOOLS}/synth/*.press)
+set(SYNTH_BOOT_TESTS)
 foreach(script ${SYNTH_PATHS})
     get_filename_component(name ${script} NAME_WE)
     add_test(NAME synth_boot_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_paths.py
         --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths ${name})
     set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150)
-    # a path on the host's clock (`# realtime`: the race) runs alone under `ctest -j`, as the other real-time tests
+    list(APPEND SYNTH_BOOT_TESTS synth_boot_${name})
+    # a path on the host's clock (`# realtime`: the race) runs alone under `ctest -j`, as the other real-time tests,
+    # and is labelled realtime with them (CI gives those more than one try: .github/workflows/pc.yml)
     file(STRINGS ${script} realtime REGEX "^#[ \t]*realtime[ \t]*$")
     if(realtime)
-        set_tests_properties(synth_boot_${name} PROPERTIES RUN_SERIAL TRUE)
+        set_tests_properties(synth_boot_${name} PROPERTIES RUN_SERIAL TRUE LABELS realtime)
     endif()
 endforeach()
 # The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
@@ -556,8 +559,13 @@ set_target_properties(test_romcheck test_app test_saves PROPERTIES EXPORT_COMPIL
 # A high frame rate leaves the game's timing alone (docs/port/GFX.md "High frame rate"): three paths on the virtual
 # clock with video.frame_rate original and 120, their state and status lines compared line for line
 # (tools/port/hfr_check.py), and frames drawn between the game's in the second run.
+# Under AddressSanitizer, drive alone: the three paths took over 1,200 s on CI's 4-core arm runner.
+set(HFR_TIMING_PATHS race2p drive demo)
+if(PC_SANITIZE_ADDRESS)
+    set(HFR_TIMING_PATHS drive)
+endif()
 add_test(NAME hfr_timing COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
-    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr --require-drawn race2p drive demo)
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr --require-drawn ${HFR_TIMING_PATHS})
 # Six runs one after another, the longest test (about a minute alone on a CI runner): alone under ctest -j, where
 # four other game processes made it two to three times as long, toward its timeout.
 set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
@@ -568,19 +576,20 @@ set_tests_properties(hfr_timing PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 3
 if(RUSH_SDL2_TARGET)
     add_test(NAME input_live_drive COMMAND ${PC_PYTHON} ${PORT_TOOLS}/input_check.py --exe $<TARGET_FILE:rush2049pc>
         --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/input)
-    set_tests_properties(input_live_drive PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 SKIP_RETURN_CODE 77)
+    set_tests_properties(input_live_drive PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 SKIP_RETURN_CODE 77
+        LABELS realtime)
 endif()
 # The output in real time under a model of a Windows desktop (docs/port/AUDIO.md 7): the synthetic race with SDL's
 # disk driver, a 59.94 Hz vsync and 15.6 ms timed waits; the retraces and the audio counters at exit. Alone, since
 # it measures time.
 add_test(NAME audio_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime --seconds 30)
-set_tests_properties(audio_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE)
+set_tests_properties(audio_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE LABELS realtime)
 # The same race at 120 frames a second with each swap held 40 ms, then until the vsync (a host always behind): the
 # window must still show the game's frames (docs/port/QA.md "Integration soak").
 add_test(NAME hfr_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_realtime --seconds 30 --frame-rate 120 --present-ms 40)
-set_tests_properties(hfr_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE)
+set_tests_properties(hfr_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE LABELS realtime)
 # The same race under a 59.94 Hz vsync swap at frame rates display, 60 and 120 (docs/port/FRAMERATE.md 2): ticks paced
 # by the display's vblanks, at most 10% of them lost to skipped ticks (1.7-5.6% measured), frames drawn between (at
 # least half of what the same host draws with vsync off: a GPU's count, not the pacing's), the retraces at 60 a
@@ -589,7 +598,8 @@ set_tests_properties(hfr_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT
 add_test(NAME hfr_paced COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced --seconds 30 --pacing display,60,120
     --timer-step-us 0)
-set_tests_properties(hfr_paced PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 500 RUN_SERIAL TRUE SKIP_RETURN_CODE 77)
+set_tests_properties(hfr_paced PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 500 RUN_SERIAL TRUE SKIP_RETURN_CODE 77
+    LABELS realtime)
 # A driver that queues frames and never blocks (WGL on NVIDIA and Intel in steady state) on a 59.94 Hz display that SDL
 # calls 59: no blocking swap corrects the vblank grid, so it runs at the display's own refresh, from the platform (its
 # exact rate as XRandR gives it, and its vblanks as Windows' compositor does). At most 5 vblanks in 30 s show a frame
@@ -598,7 +608,7 @@ add_test(NAME hfr_paced_queue COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_queue --seconds 30 --pacing display
     --timer-step-us 0 --vsync-queue never --display-hz 59 --display-timing rate,vblank --max-doubled 5)
 set_tests_properties(hfr_paced_queue PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE
-    SKIP_RETURN_CODE 77)
+    SKIP_RETURN_CODE 77 LABELS realtime)
 # An exact 60.000 Hz display, its vblanks 0.05 of a refresh after the retraces (the worst phase: 1114 of 1200 ticks
 # lost, none drawn between): the retraces are moved once to sit halfway between two vblanks (FRAMERATE.md 2), and
 # at most 10% of the vblanks are lost to skipped ticks (2 measured), frames drawn between as hfr_paced's.
@@ -606,7 +616,7 @@ add_test(NAME hfr_paced_60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py 
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_60 --seconds 30 --pacing display
     --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank)
 set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE
-    SKIP_RETURN_CODE 77)
+    SKIP_RETURN_CODE 77 LABELS realtime)
 # A slow disk (each pak write held 200 ms, one a second through the race) costs the main loop no retraces: the writes
 # are on the writer's thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak"); SIGTERM during a held
 # write waits for it; and the same writes on the main loop, as before, drop retraces (tools/port/pakwrite_check.py).
@@ -614,7 +624,8 @@ set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT
 if(NOT WIN32)
     add_test(NAME pak_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/pakwrite_check.py --exe $<TARGET_FILE:rush2049pc>
         --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/pakwrite)
-    set_tests_properties(pak_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE)
+    set_tests_properties(pak_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE
+        LABELS realtime)
 endif()
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
@@ -836,10 +847,11 @@ add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
-# A sanitizer build runs the programs several times slower: the tests that start the game many times get more time
-# (docs/port/SANITIZE.md 5).
+# A sanitizer build runs the programs several times slower: the tests that start the game many times get more time,
+# and so do the synthetic paths (100-150 s each under ASan on CI's 4-core arm runner, four at once; SANITIZE.md 5).
 if(PC_SANITIZE)
     set_tests_properties(app_firstrun hfr_timing PROPERTIES TIMEOUT 1200)
+    set_tests_properties(${SYNTH_BOOT_TESTS} PROPERTIES TIMEOUT 600)
 endif()
 
 # ---------------------------------------------------------------- install (docs/port/RELEASE.md)

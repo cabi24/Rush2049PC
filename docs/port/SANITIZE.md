@@ -339,14 +339,16 @@ frontend menu tests on the Pi's V3D driver).
 `ubuntu-24.04-arm`, Debug, every test but `audio_realtime`, `input_live_drive` and the `hfr_paced` ones, which measure
 real time, and on the arm runner `synth_boot_race` too: the one synthetic path on the host's clock, which under ASan on 4 cores didn't
 reach its state in its 75 s (every other path runs on the virtual clock, where the slowdown costs only time, and
-`drive`, `race2p` and the others race there). The synthetic paths are among the tests. Ubuntu's GCC 13 runtime
+`drive`, `race2p` and the others race there); and `pak_realtime`, whose control and run both drop thousands of
+retraces there. The synthetic paths are among the tests. Ubuntu's GCC 13 runtime
 checks stack use after return by default and the Pi's GCC 12 doesn't (`detect_stack_use_after_return`), which is how
 CI found finding 20 and the Pi didn't. Turned on for the Pi's ctest, it slowed the synthetic paths past their 150 s on
 the busy Pi, so ctest leaves it at the runtime's default; set it by hand for a hunt there. It sets `vm.mmap_rnd_bits=28` first: GCC 13's runtimes predate 32 bits of
 randomization, which can put a mapping inside their shadow. On the build host the UBSan build and its whole ctest
 take under 3 minutes at -j12/-j3; on CI's 4 cores, about the Debug job's time again, less with its ccache (keyed
 apart from the other jobs'). `app_firstrun` and `hfr_timing`, which start the game many times, get 1,200 s in a
-sanitizer build. A finding fails the job.
+sanitizer build, and the synthetic paths 600 s (100-150 s each there, four at once, against their 150 s); under ASan
+`hfr_timing` runs `drive` alone, its three paths having taken over 1,200 s. A finding fails the job.
 
 TSan isn't in CI: it only runs on x86-64, half its reports are the driver's, and the scheduler's design (one N64
 thread at a time) leaves it little to find. Run it after changing the threads, the audio device thread or the log.

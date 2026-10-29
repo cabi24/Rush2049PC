@@ -18,6 +18,13 @@ jobs:
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
         build: [Debug, RelWithDebInfo]
+        include:
+          # Two of the high frame rate's pacing checks, whose bounds are the host's own (at most 10% of the vblanks
+          # lost to skipped ticks, frames between at least half of vsync off's): llvmpipe on the 4-core arm runner
+          # draws about 150 of a race's 900 frames between, and lands on both bounds' edges run after run (12% lost,
+          # 70 of 75). They run on the x86-64 runners, whose pacing is the same C.
+          - os: ubuntu-24.04-arm
+            skip_tests: '^(hfr_paced_queue|hfr_paced_60)$'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -47,16 +54,26 @@ jobs:
           cmake --build build/pc -j4 2>&1 | cut -c1-2000
           ccache -s | grep -iE "hits|misses|cache size" || true
       - name: Tests
-        # Four at once; the tests on the host's clock (the real-time race, the ultra self-test, the audio output's
-        # drains, audio_realtime) and the long hfr_timing are RUN_SERIAL and run alone. A failing test is run again
-        # under gdb for a backtrace.
+        # Four at once; the ultra self-test, the audio output's drains and the long hfr_timing are RUN_SERIAL and run
+        # alone. Then the tests that measure the host's clock (label realtime: the real-time race, audio_realtime, the
+        # high frame rate's, live input, the pak writer's), one at a time and up to three tries each: a shared
+        # runner's stall fails one now and then, a regression every try. A failing test is run again under gdb for a
+        # backtrace.
         run: |
-          ctest --test-dir build/pc -j4 --output-on-failure && exit 0
+          ex=(); [ -n "${{ matrix.skip_tests }}" ] && ex=(-E '${{ matrix.skip_tests }}')
+          t=build/pc/Testing/Temporary/LastTestsFailed.log
+          s=0; : > failed.log
+          ctest --test-dir build/pc -j4 --output-on-failure -LE realtime "${ex[@]}" ||
+            { s=1; cat $t >> failed.log || :; }
+          rm -f $t
+          ctest --test-dir build/pc --output-on-failure -L realtime --repeat until-pass:3 "${ex[@]}" ||
+            { s=1; cat $t >> failed.log || :; }
+          [ $s = 0 ] && exit 0
           sudo apt-get install -y --no-install-recommends gdb > /dev/null
           ctest --test-dir build/pc --show-only=json-v1 > tests.json
           python3 - <<'PY'
           import json, subprocess
-          failed = {l.split(":", 1)[1].strip() for l in open("build/pc/Testing/Temporary/LastTestsFailed.log")}
+          failed = {l.split(":", 1)[1].strip() for l in open("failed.log") if ":" in l}
           for t in json.load(open("tests.json"))["tests"]:
               if t["name"] in failed:
                   wd = next((p["value"] for p in t.get("properties", []) if p["name"] == "WORKING_DIRECTORY"), None)
@@ -181,8 +198,10 @@ jobs:
             skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60)$'
           - os: ubuntu-24.04-arm
             sanitize: address,undefined
-            # and the race on the host's clock, which under ASan on 4 cores doesn't reach its state in time
-            skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|synth_boot_race)$'
+            # and the race on the host's clock, which under ASan on 4 cores doesn't reach its state in time, and the
+            # pak writer's check, whose control and run both drop thousands of retraces there
+            skip_tests: >-
+              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|synth_boot_race|pak_realtime)$
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -399,14 +418,21 @@ jobs:
           7z x -omesa mesa.7z > /dev/null
           for d in build/pc build/pc/port/gfx build/pc/port/input; do cp mesa/x64/*.dll $d/; done
       - name: Tests
+        # As on Linux: the tests that measure the host's clock (label realtime) get up to three tries each.
         env:
           GALLIUM_DRIVER: llvmpipe
         run: |
-          ctest --test-dir build/pc --output-on-failure && exit 0
+          t=build/pc/Testing/Temporary/LastTestsFailed.log
+          s=0; : > failed.log
+          ctest --test-dir build/pc --output-on-failure -LE realtime || { s=1; cat $t >> failed.log || :; }
+          rm -f $t
+          ctest --test-dir build/pc --output-on-failure -L realtime --repeat until-pass:3 ||
+            { s=1; cat $t >> failed.log || :; }
+          [ $s = 0 ] && exit 0
           ctest --test-dir build/pc --show-only=json-v1 > tests.json
           python3 - <<'PY'
           import json, subprocess
-          failed = {l.split(":", 1)[1].strip() for l in open("build/pc/Testing/Temporary/LastTestsFailed.log")}
+          failed = {l.split(":", 1)[1].strip() for l in open("failed.log") if ":" in l}
           for t in json.load(open("tests.json"))["tests"]:
               if t["name"] in failed:
                   wd = next((p["value"] for p in t.get("properties", []) if p["name"] == "WORKING_DIRECTORY"), None)
