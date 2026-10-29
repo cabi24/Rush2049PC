@@ -5,8 +5,9 @@ the end ("cars at the end: N in the race, count C; 0 active place P lap L distan
     python3 tools/port/cars_check.py LOG CARS [--count C] [--moved FEET] [--still SLOTS] [--shot PNG VIEWS]
 
 It passes if the race has CARS slots, each active, their places are 0 to CARS - 1 once each, and each car is at
-least FEET (default 20) from where it stood as the race began, but the slots --still names (comma-separated: a
-player's car the script doesn't drive); and with --shot, if tools/port/synth_shot.py passes on the screenshot (a
+least FEET (default 20) from where it stood as the race began, or has gone FEET along the track (every car starts
+at a distance of 0 or less, and one that drove most of a lap can be back beside its start), but the slots --still
+names (comma-separated: a player's car the script doesn't drive); and with --shot, if tools/port/synth_shot.py passes on the screenshot (a
 path has one check line); with --count, if the race's latched count (pc_race_cars()) is C. Stdlib only."""
 import argparse
 import re
@@ -55,7 +56,7 @@ def main():
             why.append(f"car {slot} is not in the race")
         if "nan" in moved or "nan" in dist:
             why.append(f"car {slot} is at NaN")
-        elif slot not in still and float(moved) < a.moved:
+        elif slot not in still and float(moved) < a.moved and int(lap) < 1 and float(dist) < a.moved:
             why.append(f"car {slot} moved {moved} ft, less than {a.moved:.0f}")
     if sorted(places) != list(range(a.cars)):
         why.append(f"the places are {places}, not 0 to {a.cars - 1} once each")
