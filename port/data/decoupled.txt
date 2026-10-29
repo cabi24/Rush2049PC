@@ -1,11 +1,14 @@
 # Game data the PC owns outright, with no N64 address (docs/port/DECOUPLE.md), for tools/port/gen_data.py.
-# Format: PC_NAME N64_NAME N64_SIZE [ALIAS ...]
+# Format: PC_NAME N64_NAME N64_SIZE [ALIAS ...] [init=image [period=K]]
 #
 # PC_NAME is the PC's symbol: declared once for the game C (port/include/pc_game_types.h), defined by data.c with
 # the host size its declarations give (every reader's must be the same type), zero at startup like BSS, outside the
 # RDRAM window and not in the loader's tables. N64_NAME at its N64 address and N64_SIZE bytes from it are retired:
 # the arena has no symbol there, and a game object that still references N64_NAME, an ALIAS or any symbol-table
-# name in that range fails the build. Only BSS so far: data the ROM fills needs a conversion rule first.
+# name in that range fails the build. The range is BSS of the game or the boot segment, or with init=image
+# initialized data of one of them: the loader then fills the PC symbol's first elements from those N64_SIZE bytes of
+# the image when it loads the image (once, at startup) and leaves the rest zero, or with period=K continues them
+# (element i is element i - K). The build holds no value of it.
 
 # The race roster (arcade gLink): struct pc_link[PC_LINK_SLOTS], 13 records of 8 bytes on the N64 (0x80153E88-
 # 0x80153EF0). D_80153E8F was its [0].owner (+7), read with a stride of 8; the image symbol tables also name
