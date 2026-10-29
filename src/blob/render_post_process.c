@@ -18,12 +18,15 @@ extern float D_801106B4[];
 extern B952 D_80152818[];
 #define PC_CAR(i) &D_80152818[i]
 #endif
-#ifndef TARGET_PC
-/* PC: port/data defines D_80110680 at its N64 address in the RDRAM window, where Windows' code can't reach
- * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
-#define PC_ONLY(x)
+#ifdef TARGET_PC
+/* This file defines D_80110680, the finish cameras' state, on the N64; on the PC it is pc_finish_cam, with no N64
+ * address (pc_game_types.h, docs/port/DECOUPLE.md 7), and the clear resets every slot it has. */
+#define FINISH_CAM_SLOTS PC_MAX_LINKS
+#else
+u8 D_80110680[6];
+#define PC_FINISH_CAM(i) D_80110680[i]
+#define FINISH_CAM_SLOTS 6
 #endif
-PC_ONLY(extern) u8 D_80110680[6];
 void func_800E9234(B952 *b);
 void func_800FAD50(B952 *b);
 void render_post_process(void) {
@@ -37,7 +40,7 @@ void render_post_process(void) {
         func_800FAD50(b);
         D_801106B4[i] = 0.0f;
     }
-    for (i = 0; i < 6; i++) {
-        D_80110680[i] = 0;
+    for (i = 0; i < FINISH_CAM_SLOTS; i++) {
+        PC_FINISH_CAM(i) = 0;
     }
 }

@@ -100,7 +100,7 @@ extern struct pc_visual D_80138880[100];   /* defined by func_800B2BDC.c */
 int8_t D_80152574[8];
 float D_801526E0[8], D_801526F8[8];
 uint8_t D_801543D4;
-float D_80152018, D_80152218[6][3];
+float D_80152018, pc_cp_last_pos[PC_MAX_LINKS][3];
 int8_t D_80152031;
 float D_80110DA4[13], D_80110E0C[13], D_80110E44[13], D_8011121C[13], D_80111274[13], D_801112D0[13];
 int8_t D_8011128C[13 * 7], D_801114E4[13];
@@ -418,8 +418,8 @@ static void test_raw(void)
     func_800FBE60();
     for (int i = 0; i < 3; i++) {
         CHECK(CF(&CARS[i], 0x108, float) == 0.0f);
-        CHECK(D_80152218[i][0] == 10.0f * (float)i && D_80152218[i][1] == 1.0f + (float)i);
-        CHECK(D_80152218[i][2] == -2.0f * (float)i);
+        CHECK(pc_cp_last_pos[i][0] == 10.0f * (float)i && pc_cp_last_pos[i][1] == 1.0f + (float)i);
+        CHECK(pc_cp_last_pos[i][2] == -2.0f * (float)i);
     }
 }
 

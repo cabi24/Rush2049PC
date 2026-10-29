@@ -122,6 +122,21 @@ typedef struct {
     uint32_t n_compatible;
 } PcDataReach;
 
+/* Game data the PC owns, with no N64 address (port/data/decoupled.txt, docs/port/DECOUPLE.md), whose N64 symbol
+ * was initialized data (init=image): on each load of its image the loader fills the storage's first host_init bytes
+ * from the image's n64_size bytes at n64_addr through the runs, and continues them to host_size with a period of
+ * `period` host bytes (byte i is byte i - period), or zero (period 0). It is not in syms: no N64 address resolves to
+ * it. */
+typedef struct {
+    const char *name;
+    uint32_t n64_addr, n64_size;
+    uint32_t host_size, host_init;
+    void *host;
+    uint32_t run_first, run_count;
+    uint32_t period;
+    uint8_t image;
+} PcDataInit;
+
 /* Mutable loader state (one per table set). */
 typedef struct {
     const uint8_t *rom;
@@ -153,6 +168,8 @@ typedef struct {
     uint32_t n_cranges;
     const PcDataReach *reach;   /* tables only pointers reach (may be none) */
     uint32_t n_reach;
+    const PcDataInit *inits;    /* decoupled data the images initialize (may be none) */
+    uint32_t n_inits;
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM

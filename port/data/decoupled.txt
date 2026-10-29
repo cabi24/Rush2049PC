@@ -1,11 +1,14 @@
 # Game data the PC owns outright, with no N64 address (docs/port/DECOUPLE.md), for tools/port/gen_data.py.
-# Format: PC_NAME N64_NAME N64_SIZE [ALIAS ...]
+# Format: PC_NAME N64_NAME N64_SIZE [ALIAS ...] [init=image [period=K]]
 #
 # PC_NAME is the PC's symbol: declared once for the game C (port/include/pc_game_types.h), defined by data.c with
 # the host size its declarations give (every reader's must be the same type), zero at startup like BSS, outside the
 # RDRAM window and not in the loader's tables. N64_NAME at its N64 address and N64_SIZE bytes from it are retired:
 # the arena has no symbol there, and a game object that still references N64_NAME, an ALIAS or any symbol-table
-# name in that range fails the build. Only BSS so far: data the ROM fills needs a conversion rule first.
+# name in that range fails the build. The range is BSS of the game or the boot segment, or with init=image
+# initialized data of one of them: the loader then fills the PC symbol's first elements from those N64_SIZE bytes of
+# the image when it loads the image (once, at startup) and leaves the rest zero, or with period=K continues them
+# (element i is element i - K). The build holds no value of it.
 
 # The race roster (arcade gLink): struct pc_link[PC_LINK_SLOTS], 13 records of 8 bytes on the N64 (0x80153E88-
 # 0x80153EF0). D_80153E8F was its [0].owner (+7), read with a stride of 8; the image symbol tables also name
@@ -40,3 +43,17 @@ pc_blasts         D_80154660  0x960
 pc_blast_rings    D_80154FD8  0x168
 pc_skids          D_80155290  0x8A0
 pc_resurrect_mid  D_80161450  0x48
+
+# The cars' sounds, checkpoints and finish cameras (docs/port/DECOUPLE.md 7), PC_MAX_LINKS each on the PC, 6 on the
+# N64: the engine sound sets (struct pc_engine_sound, 84 B on the N64, own storage before: 88 B here), the screech
+# handles (struct pc_sound_rec), each car's last position and checkpoint-plane distance (BSS); and four that the game
+# image initializes, filled from it: the sounds-started flags and the finish cameras' state (bytes, 8 by the gap) and
+# start times (f32), and the engine update's phase (bytes), whose alternation slots 6 on continue.
+pc_engine_sounds    D_80140420  0x1F8
+pc_screech_sounds   D_80140640  0x78
+pc_car_sounds_on    D_8010FFC4  6     init=image
+pc_engine_phase     D_8010FFCC  6     init=image period=2
+pc_cp_last_pos      D_80152218  0x48
+pc_cp_plane         D_801527E8  0x18
+pc_finish_cam_time  D_80110668  0x18  init=image
+pc_finish_cam       D_80110680  6     init=image

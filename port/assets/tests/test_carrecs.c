@@ -41,7 +41,7 @@ int32_t gameplay_mode, D_8014A110;
 int16_t active_player_count, D_8014A108;
 volatile int16_t D_801543CA;
 uint8_t D_80152744, D_801543D4;
-float D_801543CC, D_80152018, D_80152218[6][3];
+float D_801543CC, D_80152018, pc_cp_last_pos[PC_MAX_LINKS][3];
 int8_t D_80152031, D_801403D0, D_80152718, D_8013FECB, D_801427A1, D_8012E67C[PC_CAR_SLOTS];
 uint32_t D_801174B4;
 uint8_t D_8014A118[6 * 80] __attribute__((aligned(16)));          /* the input records: node at +0 */
@@ -138,18 +138,19 @@ static void test_layout(void)
 }
 
 /* func_800FBE60, the race start: for each of D_80152744 cars, +0x108 cleared and the position (+0x8) copied into
- * D_80152218[i], at m2c's strides of CAR_OFS(952) from the array; nothing else. */
+ * pc_cp_last_pos[i] (D_80152218 on the N64), at m2c's strides of CAR_OFS(952) from the array; nothing else. */
 static void test_start(void)
 {
     static const int f108[] = {0x108, 0x10C};
     sentinels();
     for (int i = 0; i < PC_CAR_SLOTS; i++)
         PC_CAR_POS(i)[0] = 10.0f * i, PC_CAR_POS(i)[1] = 1.0f + i, PC_CAR_POS(i)[2] = -2.0f * i;
-    memset(D_80152218, 0, sizeof D_80152218);
+    memset(pc_cp_last_pos, 0, sizeof pc_cp_last_pos);
     D_80152744 = 6;
     func_800FBE60();
     for (int i = 0; i < 6; i++) {
-        CHECK(D_80152218[i][0] == 10.0f * i && D_80152218[i][1] == 1.0f + i && D_80152218[i][2] == -2.0f * i);
+        CHECK(pc_cp_last_pos[i][0] == 10.0f * i && pc_cp_last_pos[i][1] == 1.0f + i);
+        CHECK(pc_cp_last_pos[i][2] == -2.0f * i);
         CHECK(CF(i, 0x108, float) == 0.0f && PC_CAR_F108(i) == 0.0f);
         memset(&PC_CAR_POS(i), SENTINEL, 12);                                      /* set above */
         CHECK(only(i, f108, 1));
