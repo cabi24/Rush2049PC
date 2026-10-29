@@ -24,7 +24,6 @@ D_80144C50 0x10     # a 16-byte list head (List, tDLList); ap.c's 20-byte Node r
 D_8014D280 0x38E0
 # Sizes the game C's tentative definitions gave, which are declarations on the PC (PC_ONLY(extern): Windows' code
 # can't reach a symbol in the RDRAM window PC-relatively, docs/port/WINDOWS.md).
-D_80110680 6        # u8[6], render_post_process.c
 D_80118E20 8        # the TB_SetJust pair (gJust), coins.c, controls.c, countdown.c, gr3_d.c, videoscr.c
 D_8012E688 8        # s64, object_render.c (both copies)
 D_80146180 4        # s8[4], func_800DE45C.c

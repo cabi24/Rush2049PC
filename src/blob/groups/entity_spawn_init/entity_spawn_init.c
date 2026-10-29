@@ -78,9 +78,17 @@ extern Model D_8014A250[];
 #define PC_MODEL_SUSPENSION(i) D_8014A250[i].suspension
 #endif
 extern Scene D_8012E700[];
+#ifdef TARGET_PC
+/* On the PC the effects' per-car arrays are PC data, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 6). */
+#define D_801392D8 pc_tire_fx
+#define D_8013A020 pc_smoke_shade
+#define D_8013C098 pc_trail_pts
+#else
 extern u32 D_801392D8[];
 extern u8 D_8013A020[];
 extern f32 D_8013C098[][6];
+#endif
 extern u8 D_8013F1E0[];
 extern u16 D_8013F380[];
 extern u16 D_80142948[];

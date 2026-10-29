@@ -1,11 +1,14 @@
 # Game data the PC owns outright, with no N64 address (docs/port/DECOUPLE.md), for tools/port/gen_data.py.
-# Format: PC_NAME N64_NAME N64_SIZE [ALIAS ...]
+# Format: PC_NAME N64_NAME N64_SIZE [ALIAS ...] [init=image [period=K]]
 #
 # PC_NAME is the PC's symbol: declared once for the game C (port/include/pc_game_types.h), defined by data.c with
 # the host size its declarations give (every reader's must be the same type), zero at startup like BSS, outside the
 # RDRAM window and not in the loader's tables. N64_NAME at its N64 address and N64_SIZE bytes from it are retired:
 # the arena has no symbol there, and a game object that still references N64_NAME, an ALIAS or any symbol-table
-# name in that range fails the build. Only BSS so far: data the ROM fills needs a conversion rule first.
+# name in that range fails the build. The range is BSS of the game or the boot segment, or with init=image
+# initialized data of one of them: the loader then fills the PC symbol's first elements from those N64_SIZE bytes of
+# the image when it loads the image (once, at startup) and leaves the rest zero, or with period=K continues them
+# (element i is element i - K). The build holds no value of it.
 
 # The race roster (arcade gLink): struct pc_link[PC_LINK_SLOTS], 13 records of 8 bytes on the N64 (0x80153E88-
 # 0x80153EF0). D_80153E8F was its [0].owner (+7), read with a stride of 8; the image symbol tables also name
@@ -26,3 +29,31 @@ pc_models  D_8014A250  0x3030  D_8014A250_alias D_8014A258 D_8014A640 D_8014A890
 # (+0xF0), D_80152B70 (+0x358), D_80152B74 (+0x35C) and D_80152BBB (+0x3A3), and [1]'s D_80152BD0 (+0), D_80152BD8
 # (+0x8) and D_80152C20 (+0x50), read with a stride of 0x3B8 (CAR_OFS on the PC).
 pc_cars    D_80152818  0x1650  player_array D_801528F0 D_80152900 D_80152906 D_80152907 D_80152908 D_80152B70 D_80152B74 D_80152BBB D_80152BD0 D_80152BD8 D_80152C20
+
+# The effects' per-car arrays (docs/port/DECOUPLE.md 6), 6 cars each on the N64, PC_MAX_LINKS on the PC: the tire-effect
+# latches (u32), the smoke's grey (u8; 8 bytes by the gap to D_8013A028), the trails' last points (f32[6]), the blasts
+# (struct pc_blast, 0x190), the blast rings (struct pc_blast_ring, 0x3C; 6 of them to D_80155140: the symbol file's
+# gCheckpointTimes, gLapCounts, gBestLapTimes and gCurrentLapTimes, inside them, are names nothing uses), the skid
+# state of each car's four tires (struct pc_skid: 0x5C on the N64, 0x60 on the PC, its effect pointer a host pointer;
+# own storage before) and the resurrect's midpoint (f32[3]).
+pc_tire_fx        D_801392D8  0x18
+pc_smoke_shade    D_8013A020  0x8
+pc_trail_pts      D_8013C098  0x90
+pc_blasts         D_80154660  0x960
+pc_blast_rings    D_80154FD8  0x168
+pc_skids          D_80155290  0x8A0
+pc_resurrect_mid  D_80161450  0x48
+
+# The cars' sounds, checkpoints and finish cameras (docs/port/DECOUPLE.md 7), PC_MAX_LINKS each on the PC, 6 on the
+# N64: the engine sound sets (struct pc_engine_sound, 84 B on the N64, own storage before: 88 B here), the screech
+# handles (struct pc_sound_rec), each car's last position and checkpoint-plane distance (BSS); and four that the game
+# image initializes, filled from it: the sounds-started flags and the finish cameras' state (bytes, 8 by the gap) and
+# start times (f32), and the engine update's phase (bytes), whose alternation slots 6 on continue.
+pc_engine_sounds    D_80140420  0x1F8
+pc_screech_sounds   D_80140640  0x78
+pc_car_sounds_on    D_8010FFC4  6     init=image
+pc_engine_phase     D_8010FFCC  6     init=image period=2
+pc_cp_last_pos      D_80152218  0x48
+pc_cp_plane         D_801527E8  0x18
+pc_finish_cam_time  D_80110668  0x18  init=image
+pc_finish_cam       D_80110680  6     init=image

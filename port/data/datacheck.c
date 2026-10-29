@@ -6,14 +6,15 @@
  * host address. Without a ROM it says so and exits 0 (the build and the unit test still check the rest).
  * Checks: the ROM's SHA-1; the boot tail's build-info record; the inflate tables (public zlib constants); how
  * many floats are plausible (wrong byte order makes most of them garbage); function pointers; the element widths
- * at places where the game's reads fix them (known_widths); an overlay reload restoring its data.
+ * at places where the game's reads fix them (known_widths); the decoupled data the image initializes (pc_inits);
+ * an overlay reload restoring its data.
  *
  *     rush2049pc_datacheck --synthetic
  *
  * needs no ROM: random data at the real image offsets (streams deflated into their retail slots), a known target
- * planted in every pointer field, then every arena byte and own-storage element is checked with an independent
- * decoder, known_widths against the images, and an overlay reload is checked. It tests the generated tables and
- * the loader together.
+ * planted in every pointer field, then every arena byte and own-storage element (and pc_inits' elements) is checked
+ * with an independent decoder, known_widths against the images, and an overlay reload is checked. It tests the
+ * generated tables and the loader together.
  *
  * The game's arenas are at their N64 addresses, so both map the RDRAM window at host 0x80000000 first, as
  * port/ultra does for the game. */
@@ -324,23 +325,23 @@ static int check_arena(const PcDataTables *t, const PcDataArena *ar, const uint8
     return bad;
 }
 
-/* Expected own storage: each element decoded from big-endian; pointers as planted. */
-static int check_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t *img, uint32_t img_size)
+/* The host bytes of n64_size N64 bytes at image offset base, each element of runs[first..first+count) decoded from
+ * big-endian into want; pointers as host holds them (compared against the planted targets). */
+static void decode(const PcDataTables *t, uint32_t first, uint32_t count, uint32_t n64_size, uint32_t base,
+                   const uint8_t *img, uint32_t img_size, uint8_t *want, const uint8_t *host, uint32_t host_size)
 {
-    uint8_t *want = calloc(1, s->host_size ? s->host_size : 1);
-    uint32_t base = s->n64_addr - t->images[s->image].n64_base;
-    for (uint32_t k = 0; k < s->run_count; k++) {
-        const PcDataRun *r = &t->runs[s->run_first + k];
+    for (uint32_t k = 0; k < count; k++) {
+        const PcDataRun *r = &t->runs[first + k];
         uint32_t en = esz(r->kind, 0), eh = esz(r->kind, 1);
         for (uint32_t i = 0; i < r->rep; i++)
             for (uint32_t j = 0; j < r->count; j++) {
                 uint32_t no = r->n64_off + i * r->n64_stride + j * en, ho = r->host_off + i * r->host_stride + j * eh;
-                if (no + en > s->n64_size || base + no + en > img_size || ho + eh > s->host_size)
+                if (no + en > n64_size || base + no + en > img_size || ho + eh > host_size)
                     continue;
                 const uint8_t *p = img + base + no;
                 uint8_t *q = want + ho;
                 if (r->kind == PC_K_PTR) {
-                    memcpy(q, (uint8_t *)s->host + ho, eh);   /* compared against the planted targets */
+                    memcpy(q, host + ho, eh);
                 } else if (r->kind == PC_K_S32_64) {
                     int64_t v = (int32_t)get32(p);
                     memcpy(q, &v, 8);
@@ -353,7 +354,29 @@ static int check_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t *i
                 }
             }
     }
+}
+
+/* Expected own storage: each element decoded from big-endian; pointers as planted. */
+static int check_sym(const PcDataTables *t, const PcDataSym *s, const uint8_t *img, uint32_t img_size)
+{
+    uint8_t *want = calloc(1, s->host_size ? s->host_size : 1);
+    decode(t, s->run_first, s->run_count, s->n64_size, s->n64_addr - t->images[s->image].n64_base, img, img_size,
+           want, s->host, s->host_size);
     int bad = memcmp(want, s->host, s->host_size) != 0;
+    free(want);
+    return bad;
+}
+
+/* Expected decoupled data the image initializes (pc_inits, docs/port/DECOUPLE.md 7): its N64 part decoded as own
+ * storage's is, the rest the period's continuation, or zero. */
+static int check_init(const PcDataTables *t, const PcDataInit *d, const uint8_t *img, uint32_t img_size)
+{
+    uint8_t *want = calloc(1, d->host_size ? d->host_size : 1);
+    decode(t, d->run_first, d->run_count, d->n64_size, d->n64_addr - t->images[d->image].n64_base, img, img_size,
+           want, d->host, d->host_size);
+    for (uint32_t o = d->host_init; d->period && o < d->host_size; o++)
+        want[o] = want[o - d->period];
+    int bad = memcmp(want, d->host, d->host_size) != 0;
     free(want);
     return bad;
 }
@@ -457,6 +480,11 @@ static int synthetic(void)
     for (size_t i = 0; i < n_exp; i++)
         if (*exp[i].field != exp[i].want && bad_ptr++ < 5)
             printf("  pointer at %p: %p, expected %p\n", (void *)exp[i].field, *exp[i].field, exp[i].want);
+    uint32_t bad_init = 0;
+    for (uint32_t i = 0; i < t->n_inits; i++)
+        bad_init += check_init(t, &t->inits[i], img[t->inits[i].image], t->images[t->inits[i].image].size);
+    CHECK(bad_init == 0, "%u decoupled symbols the image initializes decode element by element and continue (%u "
+          "differ)", t->n_inits, bad_init);
     uint32_t bad_width = check_widths(t, img), same = 0;
     uint8_t *from_rom[8] = {0};   /* the images as the ROM check reads them */
     for (uint32_t i = 0; i < t->n_images && i < 8; i++)
@@ -629,6 +657,12 @@ int main(int argc, char **argv)
     uint32_t bad_width = have ? check_widths(t, img) : 1;
     CHECK(bad_width == 0, "%zu places hold the element widths the game reads (colour unions, viewport table, "
           "flags; %u differ)", sizeof known_widths / sizeof known_widths[0], bad_width);
+    /* Decoupled data the image initializes: the image's elements, continued (docs/port/DECOUPLE.md 7). */
+    uint32_t bad_init = have ? 0 : 1;
+    for (uint32_t i = 0; have && i < t->n_inits; i++)
+        bad_init += check_init(t, &t->inits[i], img[t->inits[i].image], t->images[t->inits[i].image].size);
+    CHECK(bad_init == 0, "%u decoupled symbols the image initializes hold its elements, continued (%u differ)",
+          t->n_inits, bad_init);
     for (uint32_t i = 0; i < 8; i++)
         free(img[i]);
 

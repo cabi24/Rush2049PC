@@ -30,8 +30,8 @@ void camera_smooth_lerp(void);
 
 void *D_8013C238[50];                      /* gBlastMats: blast.c's tBlastMat, a matrix pointer an entry */
 int16_t D_8013C094;
-int32_t D_80154FD8[6 * 15];                /* the blast rings, 0x3C bytes each */
-int32_t D_80154660[6 * 100];               /* the blasts, 0x190 bytes each */
+struct pc_blast_ring pc_blast_rings[PC_MAX_LINKS];   /* the blast rings, 0x3C bytes each (data.c's in the game) */
+struct pc_blast pc_blasts[PC_MAX_LINKS];             /* the blasts, 0x190 bytes each */
 static float blast_mats[50][12];
 static int blast_next;
 
@@ -49,9 +49,10 @@ static void test_blast_mats(void)
     CHECK(blast_next == 50);
     for (i = 0; i < 50; i++)
         CHECK(D_8013C238[i] == blast_mats[i]);
-    for (i = 0; i < 6; i++) {
-        CHECK(D_80154FD8[i * 15] == -1);
-        CHECK(D_80154660[i * 100] == -1 && D_80154660[i * 100 + 0x150 / 4] == -1);
+    for (i = 0; i < PC_MAX_LINKS; i++) {   /* every slot, not the N64's 6 */
+        CHECK(pc_blast_rings[i].ringIdx == -1);
+        CHECK(pc_blasts[i].blastObjs[0].mbIdx == -1 && pc_blasts[i].blastObjs[3].mbIdx == -1
+              && pc_blasts[i].glowIdx == -1);
     }
     CHECK(D_8013C094 == 0);
 }

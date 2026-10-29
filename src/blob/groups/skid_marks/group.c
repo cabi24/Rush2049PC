@@ -98,7 +98,13 @@ extern Car player_array[8];
 extern CarState D_8014A250[];
 #define PC_MODEL(i) &D_8014A250[i]
 #endif
+#ifdef TARGET_PC
+/* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
+#define D_80155290 pc_skids
+#else
 extern WheelSlot D_80155290[][4];
+#endif
 extern s16 active_player_count;
 extern s32 state_word_a;
 extern u32 D_8011743C[4];               /* per-wheel flag masks */

@@ -688,6 +688,13 @@ target_compile_definitions(test_assets_models_game PRIVATE PC_MAX_LINKS=16)
 # And the car records' test.
 target_compile_definitions(test_assets_carrecs PRIVATE PC_MAX_LINKS=16)
 target_compile_definitions(test_assets_carrecs_game PRIVATE PC_MAX_LINKS=16)
+# And the effects' test: 16 slots where a race of 12 cars uses 12 (docs/port/DECOUPLE.md 6).
+target_compile_definitions(test_assets_fxcars PRIVATE PC_MAX_LINKS=16)
+target_compile_definitions(test_assets_fxcars_game PRIVATE PC_MAX_LINKS=16)
+
+# And the test of the cars' sounds, checkpoint state and finish cameras (12 cars in the race).
+target_compile_definitions(test_assets_percar PRIVATE PC_MAX_LINKS=16)
+target_compile_definitions(test_assets_percar_game PRIVATE PC_MAX_LINKS=16)
 # test_assets_musyx also runs the game's own MusyX readers on the converted files: the boot library's units that
 # read them, built with the game's flags (one wrapper per unit, like test_gsm_game).
 file(GLOB PC_ASSETS_MUSYX_GAME CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/tests/musyx_lib_*.c)

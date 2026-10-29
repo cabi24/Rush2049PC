@@ -592,17 +592,24 @@ class Decoupled:
     """A game data item the PC owns outright (port/data/decoupled.txt, docs/port/DECOUPLE.md): its N64 symbol is
     retired, with every name inside its N64 extent, and the PC symbol has storage in data.c and no N64 address."""
 
-    def __init__(self, pc, n64, size, aliases, lo, retired):
+    def __init__(self, pc, n64, size, aliases, lo, retired, init=False, period=0):
         self.pc, self.n64, self.size, self.aliases, self.lo, self.retired = pc, n64, size, aliases, lo, retired
         self.t = self.disp = None
         self.host_size = 0
+        # init=image: N64 data the image initializes, which the loader fills the storage's first elements from (the
+        # runs and host bytes of that part), the rest continuing it with a period of `period` elements (host bytes).
+        self.init, self.period = init, period
+        self.init_runs, self.init_host, self.period_host = [], 0, 0
 
 
 def load_decoupled(path, tables, symfile, refs, defs):
-    """The rules of port/data/decoupled.txt: `PC_NAME N64_NAME N64_SIZE [ALIAS ...]`. Each N64 name, alias and
-    symbol-table name in [address, address + size) is retired: a game object that still references or defines one
-    is an error (it would reach the N64 address the PC no longer gives the data). The PC name must not be defined
-    by the game C: data.c defines it."""
+    """The rules of port/data/decoupled.txt: `PC_NAME N64_NAME N64_SIZE [ALIAS ...] [init=image [period=K]]`. Each
+    N64 name, alias and symbol-table name in [address, address + size) is retired: a game object that still
+    references or defines one is an error (it would reach the N64 address the PC no longer gives the data). The PC
+    name must not be defined by the game C: data.c defines it. The range is BSS of the game or the boot segment or,
+    with init=image, initialized data of one of them: on each load of that image (once) the loader fills the PC
+    storage's first elements from the image's N64_SIZE bytes there, and the rest of the storage continues them with
+    a period of K elements (element i is element i - K), or stays zero."""
     out, bad = [], []
     if not path.exists():
         return out
@@ -612,18 +619,25 @@ def load_decoupled(path, tables, symfile, refs, defs):
             continue
         if len(f) < 3:
             sys.exit(f"{path}:{n}: expected PC_NAME N64_NAME N64_SIZE [ALIAS ...]")
-        pc, n64, size, aliases = f[0], f[1], int(f[2], 0), f[3:]
+        pc, n64, size = f[0], f[1], int(f[2], 0)
+        aliases = [x for x in f[3:] if "=" not in x]
+        opts = dict(x.split("=", 1) for x in f[3:] if "=" in x)
+        if set(opts) - {"init", "period"} or opts.get("init", "image") != "image" or ("period" in opts
+                                                                                        and "init" not in opts):
+            sys.exit(f"{path}:{n}: the options are init=image and, with it, period=K")
+        init, period = "init" in opts, int(opts.get("period", "0"), 0)
         cands = [t[n64] for t in tables.values() if n64 in t] + ([symfile[n64][0]] if n64 in symfile else [])
         if not cands and re.fullmatch(r"D_[0-9A-F]{8}", n64):
             cands = [int(n64[2:], 16)]
         if not cands or len(set(cands)) != 1:
             sys.exit(f"{path}:{n}: no single N64 address for {n64}")
         lo = cands[0]
-        # BSS of an image that stays loaded only: the loader would leave initialized data unconverted, and a runtime
-        # image's load would not clear it again.
+        # Data of an image that stays loaded only (a runtime image's load would not clear or fill it again): BSS, or
+        # with init=image initialized data, which the loader fills from the image (unconverted otherwise).
         w, w_end = arena_of(lo, {"game"}), arena_of(lo + size - 1, {"game"})
-        if not w or not w[1] or w_end != w or n64syms.ARENAS[w[0]][0] not in ("boot", "game"):
-            sys.exit(f"{path}:{n}: {n64} (0x{lo:08X}, {size} B) is not inside the game's or the boot segment's BSS")
+        if not w or w[1] == init or w_end != w or n64syms.ARENAS[w[0]][0] not in ("boot", "game"):
+            sys.exit(f"{path}:{n}: {n64} (0x{lo:08X}, {size} B) is not inside the game's or the boot segment's "
+                     + ("initialized data (init=image)" if init else "BSS (initialized data needs init=image)"))
         inside = {name for t in tables.values() for name, x in t.items() if lo <= x < lo + size}
         inside |= {name for name, (x, kind, _) in symfile.items() if kind == "data" and lo <= x < lo + size}
         retired = sorted({n64, *aliases} | inside)
@@ -635,7 +649,8 @@ def load_decoupled(path, tables, symfile, refs, defs):
                            + (" ..." if len(users) > 4 else ""))
         if defs.get(pc):
             bad.append(f"{pc}: defined by {', '.join(sorted(Path(o).name for o, _, _ in defs[pc]))}; data.c defines it")
-        out.append(Decoupled(pc, n64, size, aliases, lo, retired))
+        out.append(Decoupled(pc, n64, size, aliases, lo, retired, init, period))
+        out[-1].image = n64syms.ARENAS[w[0]][0]
     if bad:
         sys.exit("gen_data: game objects still reach retired N64 names (port/data/decoupled.txt):\n  "
                  + "\n  ".join(bad))
@@ -660,6 +675,21 @@ def decoupled_type(d, decls, tags):
     d.host_size = host_size(d.t) or 0
     if d.t[0] == "array" and d.t[2] is None or not d.host_size:
         sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): {d.disp} has no size")
+    if d.init:
+        # The part the image fills: the type, or an array's first N64_SIZE bytes of elements (the PC's is longer).
+        part, n = d.t, 1
+        if d.t[0] == "array":
+            es = n64_layout(d.t[1])[0] or 0
+            n = d.size // es if es and d.size % es == 0 else 0
+            if not 0 < n <= d.t[2]:
+                sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): {d.size} B is not elements of {d.disp}")
+            part = INTERN.setdefault(("array", d.t[1], n), ("array", d.t[1], n))
+        elif n64_layout(d.t)[0] != d.size or d.period:
+            sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): {d.disp} is not {d.size} B on the N64")
+        if not 0 <= d.period <= n:
+            sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): period {d.period} is more than its {n} N64 elements")
+        d.init_runs, d.init_host = program(part), host_size(part) or 0
+        d.period_host = d.period * host_size(d.t[1]) if d.period else 0
 
 
 def score(t, runs):
@@ -1068,8 +1098,11 @@ def generate(a):
             crossing)
     section("Overlaps", overlaps)
     section("Decoupled: game data the PC owns, with no N64 address (port/data/decoupled.txt, docs/port/DECOUPLE.md)",
-            [f"{d.pc}: {d.disp}, host {d.host_size} B in data.c; retired {d.n64} at 0x{d.lo:08X}, {d.size} B, and "
-             f"every name inside it: {', '.join(d.retired)}" for d in decoupled])
+            [f"{d.pc}: {d.disp}, host {d.host_size} B in data.c"
+             + (f", its first {d.init_host} B filled from the image (initialized data)"
+                + (f", the rest continued with a period of {d.period}" if d.period else "") if d.init else "")
+             + f"; retired {d.n64} at 0x{d.lo:08X}, {d.size} B, and every name inside it: {', '.join(d.retired)}"
+             for d in decoupled])
     section("Layouts that differ without pointers or long (check for packing)", sorted(LAYOUT_ODDITIES))
     section("No declaration with a type (filled as bytes)", [f"0x{s.addr:08X} {'/'.join(sorted(s.names))}"
                                                              for s in untyped])
@@ -1378,10 +1411,13 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     if decoupled:
         L += ["", "/* Game data the PC owns, with no N64 address (port/data/decoupled.txt, docs/port/DECOUPLE.md): zero at",
               " * startup like BSS, outside the RDRAM window, and not in the loader's tables. Aligned as own storage. */"]
+        if any(d.init for d in decoupled):
+            L += ["/* Those marked \"from the image\" were initialized data: the loader fills them from it (pc_inits). */"]
     for i, d in enumerate(decoupled):
         al = 32 if d.host_size >= 32 else 16
+        how = (f", from the image{f' with a period of {d.period}' if d.period else ''}" if d.init else "")
         L.append(f"__attribute__((aligned({al}))) uint8_t pc_decoupled_{i}[{d.host_size}] __asm__(N64_SYM({c_str(d.pc)}));"
-                 f"   /* {d.disp}; was {d.n64} at 0x{d.lo:08X}, {d.size} B */")
+                 f"   /* {d.disp}; was {d.n64} at 0x{d.lo:08X}, {d.size} B{how} */")
     for s in ordered:
         if s.cdef:
             continue
@@ -1488,6 +1524,13 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
             f"{r.host_size}, {first}, {len(r.runs)}, {kinds[r.count_kind]}, {r.count}, {r.field_n64}, "
             f"{r.field_width}, 0x{r.table_sym.addr if r.table_sym else 0:08X}, {int(r.copy)}, "
             f"{f'pc_reach_compat_{k}' if compat else 'NULL'}, {len(compat)}}},")
+    init_rows = []
+    for i, d in enumerate(decoupled):
+        if d.init:
+            init_rows.append(f"    {{{c_str(d.pc)}, 0x{d.lo:08X}, {d.size}, {d.host_size}, {d.init_host}, "
+                             f"pc_decoupled_{i}, {len(runs)}, {len(d.init_runs)}, {d.period_host}, "
+                             f"{IMAGE_INDEX[d.image]}}},")
+            runs += d.init_runs
     L.append(f"static const PcDataRun pc_runs[{max(len(runs), 1)}] = {{")
     for r in runs:
         L.append(f"    {{{r[2]}, {r[3]}, {r[1]}, {r[4]}, {r[5]}, {r[6]}, {r[0]}}},")
@@ -1526,6 +1569,12 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     L.append(f"static const PcDataReach pc_reach[{max(len(reach_rows), 1)}] = {{")
     L += reach_rows
     L += ["};", ""]
+    if init_rows:
+        L += ["/* Decoupled data the image initializes (port/data/decoupled.txt init=image, docs/port/DECOUPLE.md): filled",
+              " * from the image on its load, the rest continued with a period or zero. */",
+              f"static const PcDataInit pc_inits[{len(init_rows)}] = {{"]
+        L += init_rows
+        L += ["};", ""]
     L += ["static PcDataState pc_state;",
           "const PcDataTables pc_data_tables = {",
           "    pc_images, sizeof pc_images / sizeof pc_images[0], pc_arenas, sizeof pc_arenas / sizeof pc_arenas[0],",
@@ -1533,8 +1582,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
           f"    0x{HEAP_LO:08X},   /* the game heap starts at the end of the game's BSS (docs/port/ASSETS.md) */",
           "    &pc_state,",
           f"    pc_cranges, {len(OVL_RANGES)},",
-          f"    pc_reach, {len(reach_rows)},",
-          "};", "",
+          f"    pc_reach, {len(reach_rows)},"]
+    if init_rows:
+        L.append(f"    pc_inits, {len(init_rows)},")
+    L += ["};", "",
           "/* pc_port.h entry points. The loader is weak here so the link test (which leaves it out) still links. */",
           "int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path)",
           "    __attribute__((weak));",
