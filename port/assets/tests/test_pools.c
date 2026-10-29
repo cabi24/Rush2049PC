@@ -114,7 +114,9 @@ static void test_matrices(void)
 
 /* ---------------------------------------------------------------- the frame's buffer */
 
-static uint8_t g_frame[PC_FRAME_BYTES] __attribute__((aligned(16)));
+/* The frame's buffer, with room after it for the commands a frame past its end writes there (the test's own: the
+ * game's list ends where its buffer does). */
+static uint8_t g_frame[PC_FRAME_BYTES + 8 * 16] __attribute__((aligned(16)));
 
 /* Closes a frame whose list holds `commands` and whose matrices took `matrices`; returns the handler's calls. */
 static int end_frame(int commands, int matrices)
