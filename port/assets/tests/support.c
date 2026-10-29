@@ -68,6 +68,14 @@ void test_be_reset(void) { g_nbe = 0; }
 int test_race_cars = 6;
 int pc_race_cars(void) { return test_race_cars; }
 
+/* A pool past its end (pc_game_types.h, port/ultra/pools.c), for tests that build game C with a checked pool: no test
+ * means to reach it, so it fails the test. Weak: assets_pools links port/ultra/pools.c's own. */
+__attribute__((weak)) void pc_pool_overflow(const char *pool, int used, int capacity)
+{
+    fprintf(stderr, "test: %s ran past its end: %d of %d\n", pool, used, capacity);
+    abort();
+}
+
 #ifndef MAP_FIXED_NOREPLACE
 #define MAP_FIXED_NOREPLACE 0x100000
 #endif
