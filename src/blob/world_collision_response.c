@@ -90,8 +90,8 @@ extern s32 D_80156BCC;
 extern intptr_t D_80149438;
 #ifdef TARGET_PC
 /* PC: the frame's buffer as pc_game_types.h lays it out, PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of
- * its list pc_frame_pools checks the list and the frame's matrices (D_8015B260), which the SDK's empty `if` didn't:
- * a Debug build stops when either ran past its end (docs/port/MORECARS.md 8). */
+ * its list pc_frame_pools checks the list, the frame's matrices (D_8015B260) and its lookats, which the SDK's empty
+ * `if` didn't: a Debug build stops when one ran past its end (docs/port/MORECARS.md 8). */
 #define GLIST_LEN PC_GLIST_LEN
 #define PC_FRAME_OVER pc_frame_pools(D_8015B250, D_801497C8, D_8015B260)
 extern u8 *D_8015B260;
