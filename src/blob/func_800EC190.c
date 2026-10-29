@@ -41,16 +41,29 @@ extern s8 D_8014A118;
 extern s8 D_80150C04;
 extern s8 D_80150F14;
 
+#ifdef TARGET_PC
+/* PC: the attract demo races the setting's cars, all drones (pc_game_types.h, docs/port/MORECARS.md 3.1), latched
+ * here at its start; the camera's car (the counter) goes round them all. The loop walks every slot a PC race can
+ * use, so the slots after the demo's cars take the loop's own arm for slots past the count, which the N64's 6
+ * never reaches: flags 0, not in the race, whatever an earlier race of more cars left in them. */
+#define PC_LATCH_CARS() pc_race_cars_begin();
+#define DEMO_CARS PC_RACE_CARS
+#define LINK_SLOTS PC_MAX_LINKS
+#else
+#define PC_LATCH_CARS()
+#define DEMO_CARS 6
+#define LINK_SLOTS 6
+#endif
 void func_800EC190(s8 owner)
 {
     s16 i;
     s16 n;
     static s16 D_801163F4 = 0;
 
-    D_8014978C = owner;
-    D_801543CA = 6;
-    for (i = 0, n = 0; i < 6; i++) {
-        if (i >= 6) {
+    PC_LATCH_CARS() D_8014978C = owner;
+    D_801543CA = DEMO_CARS;
+    for (i = 0, n = 0; i < LINK_SLOTS; i++) {
+        if (i >= DEMO_CARS) {
             PC_LINK_FLAGS(i) = 0;
             PC_LINK_OWNER(i) = i + 6;
         } else {
@@ -62,7 +75,7 @@ void func_800EC190(s8 owner)
     }
     if (D_8014A118) {}
     D_801163F4++;
-    if (D_801163F4 >= 6) {
+    if (D_801163F4 >= DEMO_CARS) {
         D_801163F4 = 0;
     }
     D_8014A118 = D_801163F4 & 0xFF;

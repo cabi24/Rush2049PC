@@ -91,6 +91,10 @@ extern Slot D_80153E88[];
 #define PC_LINK_OWNER(i) D_80153E88[i].flag
 #endif
 
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void func_800DE860(void)
 {
     s16 i;
@@ -103,14 +107,14 @@ void func_800DE860(void)
     f32 k2;
 
     if ((active_player_count == 1 && D_80152030 < 5) || D_80150F14 == 0) {
-        for (j = 0; j < 6; j++) {
+        for (j = 0; j < PC_RACE_CARS; j++) {
             if (PC_LINK_OWNER(j) == 0 || PC_LINK_OWNER(j) == 6) {
                 PC_MODEL_SCALE(j) = 1.0f;
             }
         }
     } else {
         best = -1;
-        for (i = 0; i < 6; i++) {
+        for (i = 0; i < PC_RACE_CARS; i++) {
             if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_STATE(i) < 2 &&
                 (PC_MODEL_DRONE_TYPE(i) == 2 || D_80152030 == 5)) {
                 if (best == -1) {
@@ -123,7 +127,7 @@ void func_800DE860(void)
         k1 = 0.1f;
         k2 = 1500.0f;
         bd = PC_CAR_DISTANCE(best);
-        for (i = 0; i < 6; i++) {
+        for (i = 0; i < PC_RACE_CARS; i++) {
             if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_STATE(i) < 2 &&
                 (PC_MODEL_DRONE_TYPE(i) == 2 || D_80152030 == 5)) {
                 d = bd - PC_CAR_DISTANCE(i);

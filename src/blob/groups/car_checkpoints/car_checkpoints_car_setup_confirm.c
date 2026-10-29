@@ -86,9 +86,18 @@ f32 viGetTimeToDeadline(void);
 void viAddTicks(f32);
 void func_800D1AB0(void);
 
+#ifdef TARGET_PC
+/* PC: the locked cars in score order, by slot, and their scores, as many as the race's cars (up to PC_MAX_LINKS,
+ * pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's are 7 and 6, the 7 for its frame. */
+#define PLACE_N (PC_MAX_LINKS + 1)
+#define SCORES_N PC_MAX_LINKS
+#else
+#define PLACE_N 7
+#define SCORES_N 6
+#endif
 void car_setup_confirm(s32 slot, f32 score) {
-    s16 i, j, index, temp, num_locked, place[7], num_humans_locked;
-    f32 scores[6];
+    s16 i, j, index, temp, num_locked, place[PLACE_N], num_humans_locked;
+    f32 scores[SCORES_N];
     f32 ftemp;
 
     PC_CAR_FINISHED(slot) = 1;

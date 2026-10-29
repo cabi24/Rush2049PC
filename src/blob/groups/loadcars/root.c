@@ -54,6 +54,10 @@ extern void func_800BB02C(s32,s32,void *);
 extern void func_8039156C(void);
 extern f32 func_8008B2E4(f32 max);
 s32 func_8009768C(s32);
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void LoadCars(s32 select)
 {
  s32 i;
@@ -65,7 +69,7 @@ void LoadCars(s32 select)
  }
  numLoadedCars=0;
  for(i=0;i<13;i++) {
-  if(i<6 && ((D_801174B4&8)||PC_MODEL_DRONE_TYPE(i)==1)) {
+  if(i<PC_RACE_CARS && ((D_801174B4&8)||PC_MODEL_DRONE_TYPE(i)==1)) {
 again:
    PC_LINK_CAR(i)=func_8008B2E4(13.0f);
    for(j=0;j<i;j++) {
@@ -94,7 +98,7 @@ load:
     numLoadedCars++;
    }
    func_800BB02C(i,PC_LINK_CAR(i),0);
-  } else if(i<6 && PC_MODEL_DRONE_TYPE(i)==2) {
+  } else if(i<PC_RACE_CARS && PC_MODEL_DRONE_TYPE(i)==2) {
    if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) {
     for(PC_LINK_CAR(i)=0;PC_LINK_CAR(i)<13;PC_LINK_CAR(i)++) {
      if(audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load2;
