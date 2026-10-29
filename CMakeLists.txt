@@ -297,6 +297,7 @@ add_custom_command(
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/manifest/static.json
             ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
             ${CMAKE_SOURCE_DIR}/port/data/decoupled.txt
+            ${CMAKE_SOURCE_DIR}/port/data/reserved.txt
             ${CMAKE_SOURCE_DIR}/asm/us/blob/symbols.json ${CMAKE_SOURCE_DIR}/asm/us/ovl_a/symbols.json
             ${CMAKE_SOURCE_DIR}/asm/us/ovl_b/symbols.json ${CMAKE_SOURCE_DIR}/layout/game.json
             ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
@@ -695,6 +696,13 @@ target_compile_definitions(test_assets_fxcars_game PRIVATE PC_MAX_LINKS=16)
 # And the test of the cars' sounds, checkpoint state and finish cameras (12 cars in the race).
 target_compile_definitions(test_assets_percar PRIVATE PC_MAX_LINKS=16)
 target_compile_definitions(test_assets_percar_game PRIVATE PC_MAX_LINKS=16)
+# The pools' test shrinks them, so the checks are what it reaches, and runs the frame's through port/ultra/pools.c
+# (docs/port/MORECARS.md 8).
+set(PC_POOLS_TEST_SIZES PC_MATRIX_SPILL=4 PC_FRAME_MATRICES=8 PC_GLIST_LEN=32)
+target_compile_definitions(test_assets_pools PRIVATE ${PC_POOLS_TEST_SIZES})
+target_compile_definitions(test_assets_pools_game PRIVATE ${PC_POOLS_TEST_SIZES})
+target_sources(test_assets_pools PRIVATE port/ultra/pools.c)
+target_include_directories(test_assets_pools PRIVATE port/ultra)
 
 # And the drones' (the lists, maxpath's controls, the schedule; docs/port/DECOUPLE.md 8).
 target_compile_definitions(test_assets_drones PRIVATE PC_MAX_LINKS=16)

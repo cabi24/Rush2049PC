@@ -21,6 +21,8 @@ typedef unsigned int u32;
 #ifndef TARGET_PC
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
+/* The frame's display list starts at +0x9CC0; on the PC further on (pc_game_types.h, docs/port/MORECARS.md 8). */
+#define PC_GLIST_OFFSET 0x9CC0
 #endif
 typedef float f32;
 
@@ -168,7 +170,7 @@ void gfx_frame_begin(void) {
     frame=&D_80156BE0[D_8015F72D];
     D_8015B250=frame->commands;
     D_8015B260=D_8015B250+1728;
-    D_801497C8=(Gfx *)(D_8015B250+0x9CC0);
+    D_801497C8=(Gfx *)(D_8015B250+PC_GLIST_OFFSET);
     gSPSegment(D_801497C8++, 0, 0);
     gSPDisplayList(D_801497C8++, D_8002E528);
     gSPDisplayList(D_801497C8++, D_8002E4A0);

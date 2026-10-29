@@ -157,6 +157,8 @@ src/blob/groups/level_objects/group.c D_80150E98 tmr safe: indexed by the loop o
 src/blob/groups/menu_save_options/ctx_newghost.c pc_ghost_slot tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,mingw12]
 src/blob/groups/menu_save_options/ctx_slot.c D_80152698 tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
 src/blob/groups/optionscr_buttons/option_init.c D_80116D14 tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
+src/blob/groups/resurrect/resurrect.c pc_grid_offset tmr safe: indexed by the loop optimizer; the PC's own float[3], declared at its true size, written by the coordinate loops (k < 3) of pc_grid_candidate only [gcc14]
+src/blob/groups/resurrect/resurrect.c pc_grid_point tmr safe: indexed by the loop optimizer; the PC's own float[3], declared at its true size, written by the coordinate loops (k < 3) of pc_grid_candidate only [gcc14]
 src/blob/groups/skid_marks/group.c D_8011743C tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
 src/blob/groups/skid_marks/group.c gCamera tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
 src/blob/groups/task_complete_signal/group.c pc_D_80153F10 const safe: constant offsets past the declaration, which GCC keeps exact; a write at +0 and a read at +16, inside the 24-byte DmaList func_8008ABE4.c defines [gcc13,gcc14,mingw12]
