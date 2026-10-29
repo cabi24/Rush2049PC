@@ -282,6 +282,9 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     float reloading_time;               /* +0x3AC battle */
     float f3B0;                         /* +0x3B0 battle */
     float f3B4;                         /* +0x3B4 battle */
+    unsigned int scenes;                /* PC +0x464, in the record's alignment padding, no N64 field: car 8 and up,
+                                         * bit n set while it is in a scene trigger of collision index n (0-31),
+                                         * which the trigger's flags have no bit for (func_8010C2E4) */
 };
 extern struct pc_car pc_cars[PC_CAR_SLOTS];
 
@@ -330,6 +333,7 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_B3A2(i) (pc_cars[i].b3A2)
 #define PC_CAR_POINTS(i) (pc_cars[i].points)
 #define PC_CAR_RELOADING_TIME(i) (pc_cars[i].reloading_time)
+#define PC_CAR_SCENES(i) (pc_cars[i].scenes)
 #define PC_CAR_F3B0(i) (pc_cars[i].f3B0)
 #define PC_CAR_F3B4(i) (pc_cars[i].f3B4)
 

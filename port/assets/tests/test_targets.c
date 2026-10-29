@@ -83,6 +83,7 @@ uint32_t D_801174B4, state_word_a;
 int8_t D_80156994, D_80150DD0, D_80114650, D_80152570, D_8013FECC, D_8013FECD;
 int32_t D_8014A110, gameplay_mode, D_801170FC, D_8013F1DC;
 int16_t D_8014A108;
+volatile int16_t D_801543CA;         /* the cars in the race (func_8010C2E4's cars from 8 on) */
 volatile uint8_t gNumModels = 2;
 uint16_t D_801427C0[1024], D_80142A78, D_80142A7A;   /* textures: the camera record names 361 */
 float D_8011418C[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
@@ -463,6 +464,8 @@ static void test_collision(void)
     CHECK(g_hit_calls == 1 && g_started == t && (NF(t, 4, uint8_t) & 4) && NF(t, 0x5C, int8_t) == 1);
 }
 
+static void scene_cars(uint8_t *cam, uint8_t *sc);
+
 /* A scripted camera: its controller (a heap record) and its scene (a PTHD record) through 32-bit fields. */
 static void test_camera(void)
 {
@@ -495,6 +498,63 @@ static void test_camera(void)
     NF(MODEL(0), 0x5A0, uint16_t) = 1;
     func_8010C2E4(cam, &player, 0, 0);
     CHECK((NF(sc, 0x10, uint32_t) & (1u << 24)) && (NF(sc, 0x10, uint32_t) & 0x200));
+    scene_cars(cam, sc);
+}
+
+/* A race of 12 cars (docs/port/MORECARS.md 3.1): the scene's flags have bits 24-31 for cars 0-7, as on the N64; car 8
+ * and up keep theirs in their car record (PC_CAR_SCENES: bit 4 for this scene, whose trigger is collision index 4),
+ * none of the scene's other bits, and count when the trigger asks whether a car is in it already (0x200 is set when
+ * the first one comes in). In a race of 6, a car past them is not of it. */
+static void car_on(int16_t car, int on)
+{
+    memset(MODEL(car), 0, 0x808);
+    NF(MODEL(car), 0x6C4, int16_t) = -1;
+    NF(MODEL(car), 0x5A0, uint16_t) = on ? 1 : 0;     /* a wheel on polygon 1, the trigger, or none */
+}
+
+static void scene_cars(uint8_t *cam, uint8_t *sc)
+{
+    uint32_t *flags = (uint32_t *)(sc + 0x10);
+    int16_t p0 = 0, p7 = 7, p8 = 8, p11 = 11;
+
+    D_801543CA = 12;
+    PC_CAR_SCENES(8) = PC_CAR_SCENES(11) = 0;
+    car_on(8, 1);
+    func_8010C2E4(cam, &p8, 0, 0);
+    CHECK(PC_CAR_SCENES(8) == 1u << 4 && (*flags & 0xFF00000Fu) == 1u << 24 && (*flags & 0x220) == 0x220);
+    car_on(7, 1);
+    func_8010C2E4(cam, &p7, 0, 0);
+    CHECK((*flags & 0xFF000000u) == (1u << 24 | 1u << 31));
+    car_on(7, 0);
+    func_8010C2E4(cam, &p7, 0, 0);
+    car_on(0, 0);
+    func_8010C2E4(cam, &p0, 0, 0);
+    CHECK((*flags & 0xFF00000Fu) == 0 && PC_CAR_SCENES(8) == 1u << 4);
+    *flags &= ~0x200u;
+    car_on(0, 1);                                      /* car 8 is in: car 0 is not the first */
+    func_8010C2E4(cam, &p0, 0, 0);
+    CHECK((*flags & 1u << 24) && !(*flags & 0x200));
+    car_on(11, 1);
+    func_8010C2E4(cam, &p11, 0, 0);
+    CHECK(PC_CAR_SCENES(11) == 1u << 4);
+    car_on(8, 0), car_on(11, 0), car_on(0, 0);         /* all out */
+    func_8010C2E4(cam, &p8, 0, 0);
+    func_8010C2E4(cam, &p11, 0, 0);
+    func_8010C2E4(cam, &p0, 0, 0);
+    CHECK(PC_CAR_SCENES(8) == 0 && PC_CAR_SCENES(11) == 0 && (*flags & 0xFF00000Fu) == 0);
+    car_on(0, 1);                                      /* the first in */
+    func_8010C2E4(cam, &p0, 0, 0);
+    CHECK((*flags & 1u << 24) && (*flags & 0x200));
+
+    /* a race of 6: car 8's bit, left from a race of 12, is not of it */
+    PC_CAR_SCENES(8) = 1u << 4, D_801543CA = 6;
+    car_on(0, 0);
+    func_8010C2E4(cam, &p0, 0, 0);
+    *flags &= ~0x200u;
+    car_on(0, 1);
+    func_8010C2E4(cam, &p0, 0, 0);
+    CHECK((*flags & 1u << 24) && (*flags & 0x200));
+    PC_CAR_SCENES(8) = 0;
 }
 
 /* A dead-reckoned collision: the record's body is a 32-bit window address, read by the hit test (func_8010C02C)

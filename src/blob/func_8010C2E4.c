@@ -84,6 +84,47 @@ extern Car D_8014A250[];
 #endif
 extern Poly24 *D_801497F8;
 
+#ifdef TARGET_PC
+/* PC: a scene's cars (docs/port/MORECARS.md 3.1). Bits 24-31 of its flags are cars 0-7, as on the N64; a race of
+ * more cars has no bit there for car 8 on (1 << 32 is undefined in C, and a shift that takes its count's low 5 bits,
+ * as sllv and x86-64's do, would set the scene's flag 1). Car 8 and up keep theirs in their car record instead,
+ * PC_CAR_SCENES: bit n while the car is in a scene whose trigger is collision index n, the 0-31 the test below can
+ * match (pc_game_types.h). The car records of the race are cleared at its start (init_cars), as the scenes' bits
+ * are when their track's file loads. A scene has a car when either says so. */
+extern volatile s16 D_801543CA;
+static u32 scene_cars_past_8(CamScene *sc)
+{
+    s32 j;
+    u32 any = 0;
+
+    if ((u32)sc->id < 32) {
+        for (j = 8; j < D_801543CA; j++) {
+            any |= (PC_CAR_SCENES(j) >> sc->id) & 1;
+        }
+    }
+    return any;
+}
+static void scene_car(CamScene *sc, s32 idx, s32 in)
+{
+    u32 bit;
+
+    if (idx < 8) {
+        bit = 1u << (idx + 24);
+        sc->flags = in ? sc->flags | bit : sc->flags & ~bit;
+    } else if ((u32)sc->id < 32) {
+        bit = 1u << sc->id;
+        PC_CAR_SCENES(idx) = in ? PC_CAR_SCENES(idx) | bit : PC_CAR_SCENES(idx) & ~bit;
+    }
+}
+#define SCENE_CARS(sc) ((sc->flags >> 24) | scene_cars_past_8(sc))
+#define SCENE_CAR_IN(sc, idx) scene_car(sc, idx, 1)
+#define SCENE_CAR_OUT(sc, idx) scene_car(sc, idx, 0)
+#else
+#define SCENE_CARS(sc) (sc->flags >> 24)
+#define SCENE_CAR_IN(sc, idx) sc->flags |= 1 << (idx + 24)
+#define SCENE_CAR_OUT(sc, idx) sc->flags &= ~(1 << (idx + 24))
+#endif
+
 s32 func_8010C2E4(Camera *cam, s16 *player, s32 arg2, s32 arg3) {
     s32 idx;
     Car *car;
@@ -110,12 +151,12 @@ s32 func_8010C2E4(Camera *cam, s16 *player, s32 arg2, s32 arg3) {
     f3 = D_801497F8[car->wheelPoly[3]].flags;
     if (((f0 & 0x20) && (f0 & 0xF800) == id) || ((f1 & 0x20) && (f1 & 0xF800) == id) ||
         ((f2 & 0x20) && (f2 & 0xF800) == id) || ((f3 & 0x20) && (f3 & 0xF800) == id)) {
-        if ((sc->flags >> 24) == 0 || (sc->flags & 0x4000)) {
+        if (SCENE_CARS(sc) == 0 || (sc->flags & 0x4000)) {
             sc->flags |= 0x200;
         }
-        sc->flags |= 1 << (idx + 24);
+        SCENE_CAR_IN(sc, idx);
     } else {
-        sc->flags &= ~(1 << (idx + 24));
+        SCENE_CAR_OUT(sc, idx);
     }
     return 0;
 }
