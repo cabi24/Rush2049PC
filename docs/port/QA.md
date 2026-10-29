@@ -91,9 +91,43 @@ it is. The default is 1, not 0: the profile check (`draw_speedometer`, a misname
 without valid controls the default controls and 1, and the default player (no pak) has 1 too. With the setting
 at full, a race with crashes turns the motor on, and through `--press-via controller` (input_check's virtual SDL
 controller) the motor reaches the controller: the log has it rumbling at full and at a pulsed, weaker strength,
-then stopping. At the default, the scripted crashes (into the side walls, at full speed too) left the motor off;
-whether a head-on crash reaches it at the default is untried. func_800E56F8 is byte-matched C, so the default's
-weak effect is the game's own.
+then stopping. At the default, the scripted crashes (into the side walls, at full speed too) left the motor off.
+That was not the game's own: the impact's 36 thresholds (`D_801163F8`) were loaded in the ROM's byte order, so
+nearly every impact stayed at the lowest levels. Main's loader sweep (ab7f592) loads them whole; round 5 below.
+
+### Regression sweep, round 5
+
+Main 80a2c7f: the loader's fixes (the level objects' bodies, the rumble thresholds, the wings, the respawn flags),
+the UBSan declarations, the asset audit, the sanitizer fixes, the high frame rate paced by vsync and the display's
+exact refresh, the RSP's yield, the fractional-scale rasterization. The RelWithDebInfo build (SDL2 built in) on the
+Pi, one retail game at a time, `--fast`, each log compared with round 4's as there.
+
+| Path | Against round 4 |
+|---|---|
+| every mode (single race to the finish, practice, stunt, 3 and 4 players, the three 2-player battles, both option sets); unlockables and mode 5 to its end; the cheat screen, cheats in a race, all cars; battle quits (2 and 4 players); seven races back to back; the stunt round's end; the main menu's rows | the same states and setups; no fault, no new warning |
+| the pak across restarts; player 2's pak; again on 07f6a91 (the paks written on a thread of their own) | the same states; each image holds its player as before (player 2's on player 2's file alone); 07f6a91's images differ from 80a2c7f's only in the six bytes in which round 4's and 80a2c7f's differ too (each new player's ID among them) |
+| the circuit (car 0 marked finished by gdb) | the same tracks in the same order and the same states as far as both runs went; as in round 4, one race's end moved the script's fixed-time presses on a cycle, at another race this time |
+| the attract demo, 900 s | the same states, cycle for cycle; no fault |
+| again on b318b50 (the audio pool's other callers guarded): a race to the finish, seven races back to back, battle quits, the stunt round's end, a battle, four players, cheats, mode 5 to its end, rumble, the attract demo | the same states as on 80a2c7f; no fault, no new warning |
+| widescreen frame dumps (as round 4) | the same two spikes (the crash's camera swing, the tree); a third of the frames differ from round 4's by one or two pixels at the edge of the left gauge (rectangles' sides on internal pixel boundaries, the fractional-scale work), the rest byte for byte the same |
+| rumble (the three rumble runs again, motor changes logged) | with the thresholds loaded whole, the scripted crashes turn the motor on at the default setting as well as at full, at strengths that follow the impact (the pulsed quarter, half and three quarters, and full), at full more often; it reaches the virtual controller. Round 4's "the default left the motor off" was the thresholds' bug |
+
+**Real time at 120 frames a second.** The race (426x240, 16:9, the edges HUD) with `video.frame_rate=120` and vsync
+on, through `soak.py` (SDL's disk audio; the Windows model: `RUSH_SIM_VSYNC_HZ=60` and coarse timed waits):
+
+- With the game's frames and the frames shown dumped: no spikes in either; the world and the HUD drawn right in the
+  frames shown (the world loss of the soak's fix 8 stays fixed). Writing a PNG per frame put the host behind in
+  real time (the race ran slow, the audio short of buffers): the dumps' cost, not the game's.
+- Without dumps: the game at full speed, the audio without dropouts. But at 120 a large share of the
+  retraces (a quarter to most, from run to run) came a whole retrace late and were caught up, where the game's own
+  rate has few, and few frames were drawn between the game's: the loop counts the host as behind and then draws
+  none. The same with vsync off, and with the vsync model alone (no coarse waits). The synthetic
+  `realtime_check.py --pacing 60,120` on the Pi: 150 frames drawn between in 30 s at each rate, under the check's
+  250 (rocky passes it). Reported; there is no real-time run of round 4 to say whether it is new.
+- Again on 30b5ab7 (a tick planned by its cost's spread, not its mean), the Pi busy with other work as before: with
+  the vsync model alone the late retraces fell to a small share and many times more frames were drawn between; under
+  the coarse-wait model too more were drawn, but a large share of the retraces still came late, the case
+  FRAMERATE.md 6 describes (Windows refusing both its high-resolution timer and the 1 ms period).
 
 ## Found and fixed
 
