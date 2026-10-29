@@ -398,9 +398,8 @@ image's initialized data, which a decoupled rule couldn't take before (below).
 | `D_80110680` | a human's finish camera: 1 circling since the finish (race_countdown_display), 2 frozen 10 s later (func_800E9E2C); func_800EB90C turns the window's view to it; render_post_process defined it and clears it, mode_flags_clear clears the first two | 6 B at 0x80110680 (8 by the gap), game image data | `pc_finish_cam`, `unsigned char[12]`, from the image |
 | `D_80110668` | the finish camera's start time, then the time it froze at | 6 x 4 B at 0x80110668, game image data | `pc_finish_cam_time`, `float[12]`, from the image |
 
-With them, CalcPlaces' locals (`func_800D1AB0`: `s16 place[6]`, `s32 dist_tab[6]`, the second indexed by slot;
-MORECARS.md 2.5: at 12 cars the spike read back indexes -11, -10 and 65544 from its stack) and func_800EB90C's drone
-cameras (`j < 6`, MORECARS.md 3.1).
+With them, func_800EB90C's drone cameras (`j < 6`, MORECARS.md 3.1). CalcPlaces' locals (MORECARS.md 2.5), which
+this item had too, are item 3's on main (`CARS_N`, MORECARS.md 3.1 "Done"); its test runs CalcPlaces with 12 cars.
 
 **Inventory.** 13 objects reference the eight names (nm over `game_objects.txt`, build host, 8ff5be1): for the sound
 `mode_select/d5e64.c` (StartCarSounds), `mode_select/mode.c` (the engine update) and `func_800D5524.c` (StopCarSounds)
@@ -441,8 +440,7 @@ A `RUSH_CHECK_CASTS` build ran every synthetic path without a stop.
 each car, the engine update for each every frame, StopCarSounds), the checkpoints by CheckCPs' `index < D_801543CA`
 and func_800FBE60's `i < D_80152744`, the finish cameras by a human's slot (race_countdown_display, owner 6), a
 camera's car (func_800E9E2C's `object->car`) or a window's player (func_800EB90C's `pl->index`); render_post_process
-clears 6. So each is `PC_MAX_LINKS` (12) long on the PC, and so are CalcPlaces' two locals (`PLACE_SLOTS`).
-render_post_process clears every slot it has (`FINISH_CAM_SLOTS`, `PC_MAX_LINKS`: a clear, MORECARS.md 3.2) and
+clears 6. So each is `PC_MAX_LINKS` (12) long on the PC. render_post_process clears every slot it has (`FINISH_CAM_SLOTS`, `PC_MAX_LINKS`: a clear, MORECARS.md 3.2) and
 func_800EB90C places the drone cameras of `PC_RACE_CARS` cars (`RACE_CARS`); with 6 cars the slots after 6 are never
 set, so the default is the N64's.
 
@@ -475,11 +473,11 @@ checks the continuation; `datacheck` with the retail cartridge checks them again
 accessors: `void *` ones for the records, which each file reads through its own view (`PC_ENGINE_SOUND(i)`,
 `PC_ENGINE_SOUND_REC(i, k)`, `PC_SCREECH(i)`), and `PC_ENGINE_SOUND_HANDLE(i, k)`, `PC_SCREECH_LEVEL(i)`,
 `PC_SCREECH_STYLE(i)`, `PC_CAR_SOUNDS_ON(i)`, `PC_ENGINE_PHASE(i)`, `PC_CP_LAST_POS(i)` (and `_X`, `_Y`, `_Z`),
-`PC_CP_PLANE(i)`, `PC_FINISH_CAM(i)`, `PC_FINISH_CAM_TIME(i)`. The 13 files and CalcPlaces' two copies use them, each
-defining the N64 side with its own view (`#define PC_ENGINE_SOUND(i) &D_80140420[i]`, `#define
-PC_ENGINE_SOUND_HANDLE(i, k) D_80140420[i].rec[k].handle`, `#define PC_SCREECH_LEVEL(i) D_80140640[i].level`, `#define
-FINISH_CAM_FIRST D_80110680.first` in mode_flags_clear, and func_800FBE60's strides, `#define PC_CP_LAST_POS_X(i)
-*(f32 *) ((u8 *) &D_80152218 + i * 12)`); render_post_process defines `D_80110680` on the N64 only (on the PC it was a
+`PC_CP_PLANE(i)`, `PC_FINISH_CAM(i)`, `PC_FINISH_CAM_TIME(i)`. The 13 files use them, each defining the N64 side
+with its own view (`#define PC_ENGINE_SOUND(i) &D_80140420[i]`, `#define PC_ENGINE_SOUND_HANDLE(i, k)
+D_80140420[i].rec[k].handle`, `#define PC_SCREECH_LEVEL(i) D_80140640[i].level`, `#define FINISH_CAM_FIRST
+D_80110680.first` in mode_flags_clear, and func_800FBE60's strides, `#define PC_CP_LAST_POS_X(i) *(f32 *) ((u8 *)
+&D_80152218 + i * 12)`); render_post_process defines `D_80110680` on the N64 only (on the PC it was a
 declaration, WINDOWS.md). func_800FBE60 had `D_80152218` open-ended for [OPTIMIZED.md](OPTIMIZED.md) 2.7 (three
 stores a car in a loop, the stick's shape); `pc_cp_last_pos` has its true size, which GCC reads correctly.
 `decoupled.txt`: the eight rules, four with `init=image`, the phase's with `period=2`; `extents.txt` loses
@@ -498,22 +496,22 @@ leaves out. The synthetic cartridge is the same file.
 
 | Check | Result |
 |---|---|
-| `synth_compare.py --same --runs 2`, the build before (main, 8ff5be1) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
+| `synth_compare.py --same --runs 2`, the build before (main, 597098e) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
 | the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run: 6 of 6; every run reached its state |
 | `synth_compare.py --same --runs 2`, the same, build host (x86-64, GCC 14) | 19 of 19 paths |
 | ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 243 of 243 each (`assets_rom` skipped: no ROM there) |
 | Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files (build host); before against after, `data_symbols.txt` 8 lines, `data.c` 1,317 (56 normalized) |
 | the synthetic cartridge, before against after | the same file (Pi and build host) |
 | `datacheck` with the retail cartridge (Pi); `datacheck --synthetic` | all checks passed; the 4 the image initializes hold its elements, the phase continued (0 differ); the same of the random images |
-| `n64_neutral.py --base 09da2f0` | passes (1,013 files: 92 code-exact, 921 shifted); 15 changed game files under `src/` (`git diff --name-only 8ff5be1 -- src`) |
+| `n64_neutral.py --base 09da2f0` | passes (1,013 files: 92 code-exact, 921 shifted); 13 changed game files under `src/` (`git diff --name-only 597098e -- src`) |
 | `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after; offset_check's report the same file; layout_check's differs by one count (N64-layout storages 561 to 560); alias_check counts 8 placed names fewer (1,727 to 1,719); endian_check the same counts but its puns, 3,486 to 3,498 (the files' views of the sound records and the PC structs on one storage), and the same 2 open value conflicts in 1 storage (CARS.md 6); `--check-loader`: 96 places, 0 wrong |
 | `layout_check.py --storage` on each, before (N64 name) and after | the same accesses, none off a reference: 36 on the engine sound sets (`struct pc_engine_sound[12]` after, `SndSet[]` before), 22 on the screeches, 9 on the positions, 8 on the cameras' state, 4 each on the flags, the phase and the times, 2 on the plane distances |
 | `view_audit.py --symbols pc_engine_sounds --size 84 --tags Player84,SndSet,pc_engine_sound --ref d5e64.c`; the same for `pc_screech_sounds` (`--size 20`, `State20,SndRec,LayerState,pc_sound_rec`) | 5 views, 0 disagree; 6 views, 0 disagree (before, on the N64 names: 4 and 1, the `slot18_alloc` copy's; 4 and 0) |
-| `bounds_check`, build host (GCC 14) | none new, 7 kept (as before); `bounds_reviewed.txt` had no entry on the eight names |
+| `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`, 9 reviewed keys kept (as on main); `bounds_reviewed.txt` had no entry on the eight names. GCC 13 and mingw-w64 12 not run on it |
 | a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
-| Windows cross build (Pi, mingw-w64, fresh configure) | {{WINDOWS}} |
-| `assets_percar` (16 slots declared, 12 cars) | passes; with the phase read as the sounds-started flag, 73 checks fail; with the engine sound sets at the N64's stride of 84, 131; the last positions 6 long, 12; the plane distances 6 long, 18; the screech records 6 long, 12; the finish times 6 long, 4; render_post_process clearing 6, 1; the drone cameras for 6 cars, 5; StartCarSounds' flag 6 long, 6. CalcPlaces' arrays 6 long overrun its stack, which depends on the build (12 checks failed in one, none in another); the UBSan build (build host, SANITIZE.md 1.4) stops it: index 6 out of bounds for type `s16 [6]` |
-| the N64 IDO check (`tools/port/ido_check.sh`, build host, 061a59b: the branch's game C) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| Windows cross build (Pi, mingw-w64, fresh configure, headless: no SDL2 fetched) | builds; `gen_data.py --check --pe`: OK, 11 decoupled. (Before d616933 the PE link of `assets_percar` failed: a weak copy, func_800D5524.c's player_conditional_check, can't stand for the symbol on PE; the test links the owner now) |
+| `assets_percar` (16 slots declared, 12 cars) | passes; with the phase read as the sounds-started flag, 73 checks fail; with the engine sound sets at the N64's stride of 84, 131; the last positions 6 long, 12; the plane distances 6 long, 18; the screech records 6 long, 12; the finish times 6 long, 4; render_post_process clearing 6, 1; the drone cameras for 6 cars, 5; StartCarSounds' flag 6 long, 6. CalcPlaces' arrays 6 long overrun its stack, which depends on the build (12 checks failed in one, none in another); the UBSan build (build host, SANITIZE.md 1.4) stops it, with main's `CARS_N` at 6: index 6 out of bounds for type `s16 [6]` |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, 7cbf1d4: the branch's game C, merged with main) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 
 **The test.** `assets_percar` builds StartCarSounds, the engine update (func_800E05F0, func_800E0050), StopCarSounds,
 player_conditional_call, player_conditional_check, func_800FBE60, CheckCPs, CalcPlaces, race_countdown_display, func_800E9E2C, func_800EB90C,

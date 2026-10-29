@@ -278,7 +278,7 @@ Left as they are, and why:
 | track_texture_load's `i < 6` (`billboard_render/track_texture_load.c:187`, the high-score screen's ranks) | inside `gameplay_mode == 3`: the circuit's 6 (3.3) |
 | SetOptions' `D_80142724 = 6` for the demo (`large_init_state/group.c:100`) | read only by CalcPolePositions and the track select's Drones line (`settings_values.c:185`); the demo runs neither |
 | `func_800EC914.c:117`, model_iteration's `v != 6`, render_large_objects' locals, `display_list_flush.c`, `audio_effect_remove.c` | item 1b and 5 |
-| `func_800EB90C.c:262` | items 1a, 1c, 1e |
+| `func_800EB90C.c:262` | items 1a, 1c, 1e (done: `PC_RACE_CARS`, DECOUPLE.md 6) |
 | InitBlasts, `physics_collision_test.c:81` | item 1d |
 | `init_mdrive/group.c:109`, `resurrect.c:470` | items 2 and 4 |
 | `func_80105B74.c:91` and its local | items 6 and 7 |
@@ -541,7 +541,7 @@ proofs), plus the five checks and the IDO check of every changed game file.
 | 0 | `pc_cars[12]` and `PC_MAX_LINKS` 12 (in progress) | the car record's ~134 files | DECOUPLE.md's |
 | 1 | The per-car arrays of 2.3 to PC data, `PC_MAX_LINKS` long, by subsystem (each a DECOUPLE.md item, each with its inventory's window-address check): **1a** sound (`D_80140420`, `D_80140640`, `D_8010FFC4`, `D_8010FFCC`): done ([DECOUPLE.md](DECOUPLE.md) 6) | `mode_select/d5e64.c`, `mode_select/mode.c`, `func_800D5524.c` | the default; a test running StartCarSounds/StopCarSounds and the engine update on 12 records (`assets_percar`) |
 | | **1b** drones (`D_801527D8`, `D_80152808`, `D_80153F28`, `D_80153F48`, `D_80153F68`, `D_80153F88`, `D_80154138`) | `func_800EC914.c`, `maxpath_controls/group.c`, `func_800E56F8/group.c`, `display_list_flush.c`, `audio_effect_remove.c` | the default; `assets_roster` with 12 slots |
-| | **1c** checkpoints (`D_80152218`, `D_801527E8`; CalcPlaces' locals): done (DECOUPLE.md 6) | `car_checkpoints_func_800F8EC8.c` (and its `demo_pair` copy) | the default |
+| | **1c** checkpoints (`D_80152218`, `D_801527E8`): done (DECOUPLE.md 6; CalcPlaces' locals: item 3, 3.1) | `car_checkpoints_func_800F8EC8.c` (and its `demo_pair` copy) | the default |
 | | **1d** effects (`D_801392D8`, `D_8013A020`, `D_8013C098`, `D_80154660`, `D_80154FD8`, `D_80155290`, `D_80161450`) | `entity_spawn_init.c`, `func_8008E408.c`, `hud_render.c`, `physics_collision_test.c`, `func_80092484.c`, `func_800CB718.c`, `blast.c`, `entity_update_callback.c`, `entity_collision_detect.c`, `camera_smooth_lerp.c`, `skid_marks/group.c`, `func_800B0580.c` (two), `track_select_handler.c` | the default; the effects with 12 cars in `assets_cars`-style tests |
 | | **1e** cameras (`D_80110680`, `D_80110668`: ROM data, filled from the image, `init=image`; the drone cameras' `j < 6`): done (DECOUPLE.md 6) | `render_post_process.c`, `func_800E9E2C.c`, `race_countdown_display.c`, `func_800EB90C.c` | the default |
 | 2 | The pools: GetMatrix's pool to 150 + 12 a car in the window (the model records' freed range, a gen_data reservation); `pc_frame_dl`'s glist and the frame's matrix region sized for 12 cars and two views, with a PC check that stops (in Debug) or logs (in Release) when either runs past its end | `func_800A7D6C.c`, `initgraphics/initgfx.c`, `world_collision_response.c`, the `Dynamic` views | the default; high-water marks of 12-car runs under a test; the checks themselves fail a test that shrinks the pools |
