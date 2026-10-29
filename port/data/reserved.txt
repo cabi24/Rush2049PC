@@ -1,0 +1,13 @@
+# PC data that must sit in the RDRAM window and has no N64 symbol, for tools/port/gen_data.py (docs/port/MORECARS.md 8).
+# Format: PC_NAME ADDRESS
+#
+# PC_NAME is declared once for the game C (port/include/pc_game_types.h); data.c defines it as an absolute symbol at
+# ADDRESS, the size its declaration gives (every reader's must be the same type, laid out alike on the N64 and the
+# host), zeroed with the arena's BSS and not in the loader's tables. The range must lie inside a range a decoupled
+# item freed (port/data/decoupled.txt) and over no placed symbol or other reservation; the build fails otherwise, and
+# gen_data.py --check fails if the executable doesn't have it there.
+
+# GetMatrix's persistent matrices past the N64's 150 (func_800A7D6C): float[PC_MATRIX_SPILL][12], 48 bytes each,
+# 6,144 bytes with PC_MATRIX_SPILL 128, at the start of the model records' old range (0x8014A250-0x8014D280). A window's
+# camera matrix is kept as a u32 (D_80124FD0), so they stay in the window.
+pc_matrix_spill   0x8014A250

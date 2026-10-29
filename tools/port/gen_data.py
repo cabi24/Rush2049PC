@@ -662,6 +662,97 @@ def decoupled_type(d, decls, tags):
         sys.exit(f"gen_data: {d.pc} (port/data/decoupled.txt): {d.disp} has no size")
 
 
+# ---------------------------------------------------------------- reserved window ranges (port/data/reserved.txt)
+RESERVED = []   # the Reserved items generate() placed, for emit() and the report
+
+
+class Reserved:
+    """PC data that must sit in the RDRAM window (something keeps its address as a 32-bit N64 address) and has no N64
+    symbol: data.c defines it absolute at an address inside a range a decoupled item freed (docs/port/MORECARS.md 8),
+    at the size its one declaration gives; the loader's tables don't have it, and the arena's BSS zeroes it."""
+
+    def __init__(self, pc, lo, where):
+        self.pc, self.lo, self.where = pc, lo, where
+        self.t = self.disp = None
+        self.size = 0
+
+
+def load_reserved(path, defs):
+    """The rules of port/data/reserved.txt: `PC_NAME ADDRESS`. The PC name must not be defined by the game C."""
+    out = []
+    if not path.exists():
+        return out
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        f = line.split("#", 1)[0].split()
+        if not f:
+            continue
+        if len(f) != 2:
+            sys.exit(f"{path}:{n}: expected PC_NAME ADDRESS")
+        if defs.get(f[0]):
+            sys.exit(f"{path}:{n}: {f[0]} is defined by {', '.join(sorted(Path(o).name for o, _, _ in defs[f[0]]))}; "
+                     f"data.c defines it")
+        out.append(Reserved(f[0], int(f[1], 0), f"{path.name}:{n}"))
+    return out
+
+
+def reserved_place(r, decls, tags, decoupled, syms, others):
+    """A reservation's one type (every reader's declaration the same, laid out alike on the N64 and the host: the
+    window holds it as the N64 would) and its range: inside the N64 range of a decoupled item (window bytes the PC no
+    longer gives any N64 symbol), over no placed symbol's extent and no other reservation."""
+    types, disp = collections.Counter(), {}
+    for obj, t, dsp, _ in decls:
+        t = complete(t, tags)
+        types[t] += 1
+        disp.setdefault(t, dsp)
+    if len(types) != 1:
+        sys.exit(f"gen_data: {r.pc} ({r.where}): " + ("no game object declares it" if not types else
+                 "the readers disagree on its type: " + "; ".join(disp[t] for t in types)))
+    r.t = next(iter(types))
+    r.disp = disp[r.t]
+    r.size = host_size(r.t) or 0
+    runs = program(r.t)
+    if not r.size or n64_layout(r.t)[0] != r.size or \
+            any(x[0] in (K_PTR, K_S32_64, K_U32_64) or x[2] != x[3] or x[5] != x[6] for x in runs):
+        sys.exit(f"gen_data: {r.pc} ({r.where}): {r.disp} needs one layout on the N64 and the host, with a size")
+    hi = r.lo + r.size
+    if not any(d.lo <= r.lo and hi <= d.lo + d.size for d in decoupled):
+        sys.exit(f"gen_data: {r.pc} ({r.where}): 0x{r.lo:08X}-0x{hi:08X} is not inside a range a decoupled item "
+                 f"freed (port/data/decoupled.txt)")
+    for s in syms.values():
+        if not s.cdef and not s.end_marker and s.addr < hi and r.lo < s.addr + max(s.n64_size, 1):
+            sys.exit(f"gen_data: {r.pc} ({r.where}): 0x{r.lo:08X}-0x{hi:08X} overlaps {sorted(s.names)[0]} "
+                     f"(0x{s.addr:08X}, {s.n64_size} B)")
+    for o in others:
+        if o.lo < hi and r.lo < o.lo + o.size:
+            sys.exit(f"gen_data: {r.pc} ({r.where}): overlaps {o.pc} ({o.where})")
+
+
+def reserved_lines(layout):
+    """data.c's lines for the reservations (absolute symbols, as the arenas' are), and their layout entries."""
+    layout["reserved"] = [[r.pc, r.lo, r.size] for r in RESERVED]
+    if not RESERVED:
+        return []
+    L = ["", "/* PC data in the RDRAM window, in ranges decoupled items freed (port/data/reserved.txt,",
+         " * docs/port/MORECARS.md 8): absolute, zeroed with the arena's BSS, not in the loader's tables. */", "__asm__("]
+    for r in RESERVED:
+        L.append(f"    \".globl \" N64_SYM(\"{r.pc}\") \"\\n.set \" N64_SYM(\"{r.pc}\") \", 0x{r.lo:08X}\""
+                 f" PC_SIZE(\"{r.pc}\", {r.size}) \"\\n\"   /* {r.disp} */")
+    return L + [");"]
+
+
+def check_reserved(layout, addr, size, letter, pe):
+    """--check: each reservation absolute at its address (and its size, on ELF)."""
+    bad = []
+    for name, lo, n in layout.get("reserved", []):
+        if name not in addr:
+            bad.append(f"reserved {name}: not in the executable")
+        elif letter[name] not in "Aa" or addr[name] != lo:
+            bad.append(f"reserved {name}: {letter[name]} 0x{addr[name]:X}, expected absolute 0x{lo:08X}")
+        elif not pe and name in size and size[name] != n:
+            bad.append(f"reserved {name}: size {size[name]} != {n}")
+    return bad
+
+
 def score(t, runs):
     """Most informative declaration first: struct over pointer over words over bytes; between two structs, an
     opaque one (no union, bytes only: `struct { u8 pad[164]; }`, an m2c record) after one with wider elements. A
@@ -736,6 +827,8 @@ def generate(a):
     report = collections.defaultdict(list)
     decoupled = load_decoupled(root / "port" / "data" / "decoupled.txt", tables, symfile, refs, defs)
     dec_pc = {d.pc for d in decoupled}
+    reserved = load_reserved(root / "port" / "data" / "reserved.txt", defs)
+    dec_pc |= {r.pc for r in reserved}   # placed as decoupled data is: not by an N64 address
 
     # Addresses of what we place (undefined data, commons) and of the game's own data (for pointers).
     syms, skipped, addr_conflicts = {}, collections.defaultdict(list), []
@@ -1012,6 +1105,9 @@ def generate(a):
                       if n64syms.object_image(o) == img for n, k in image_data(o, a.nm)] for img in OVL_RANGES}
     syms_by_name = {n: s for s in ordered for n in s.names}
     reach = reach_rules(root / "port" / "data" / "reached.txt", tags, syms_by_name, ordered)
+    for r in reserved:
+        reserved_place(r, found.get(r.pc, ()), tags, decoupled, syms, RESERVED)
+        RESERVED.append(r)
     emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach, decoupled)
 
     # Report.
@@ -1070,6 +1166,9 @@ def generate(a):
     section("Decoupled: game data the PC owns, with no N64 address (port/data/decoupled.txt, docs/port/DECOUPLE.md)",
             [f"{d.pc}: {d.disp}, host {d.host_size} B in data.c; retired {d.n64} at 0x{d.lo:08X}, {d.size} B, and "
              f"every name inside it: {', '.join(d.retired)}" for d in decoupled])
+    section("Reserved: PC data in the RDRAM window, in ranges decoupled items freed (port/data/reserved.txt, "
+            "docs/port/MORECARS.md 8)",
+            [f"0x{r.lo:08X}-0x{r.lo + r.size:08X} {r.pc}: {r.disp}, {r.size} B ({r.where})" for r in RESERVED])
     section("Layouts that differ without pointers or long (check for packing)", sorted(LAYOUT_ODDITIES))
     section("No declaration with a type (filled as bytes)", [f"0x{s.addr:08X} {'/'.join(sorted(s.names))}"
                                                              for s in untyped])
@@ -1411,6 +1510,7 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
             L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", {value}\""
                      f" PC_SIZE(\"{n}\", {size}) \"\\n\"")
         L += [");", ""]
+    L += reserved_lines(layout)   # port/data/reserved.txt
     if thunks:
         L += ["/* Labels the game calls for a function defined under another name (symbols.json). */",
               "#if defined(_WIN32)   /* COFF has no section stack (.previous): naked functions */"]
@@ -1627,11 +1727,13 @@ def check(exe, layout_path, nm, pe=False):
         elif size.get(name) != n and not pe:
             bad.append(f"decoupled {name}: size {size.get(name)} != {n}")
         bad += [f"decoupled {name}: the retired {r} is defined (0x{addr[r]:X})" for r in retired if r in addr]
+    bad += check_reserved(layout, addr, size, letter, pe)   # port/data/reserved.txt
     for b in bad[:50]:
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "
           f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own in N64 order, "
           f"{n_ovl} runtime-image C data in their C ranges, {len(layout.get('decoupled', []))} decoupled, "
+          f"{len(layout.get('reserved', []))} reserved in the window, "
           f"nothing else in the window: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
 

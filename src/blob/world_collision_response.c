@@ -88,9 +88,20 @@ extern Frame D_80156BE0[];
 extern Gfx *D_80156BA8;
 extern s32 D_80156BCC;
 extern intptr_t D_80149438;
+#ifdef TARGET_PC
+/* PC: the frame's buffer as pc_game_types.h lays it out, PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of
+ * its list pc_frame_pools checks the list and the frame's matrices (D_8015B260), which the SDK's empty `if` didn't:
+ * a Debug build stops when either ran past its end (docs/port/MORECARS.md 8). */
+#define GLIST_LEN PC_GLIST_LEN
+#define PC_FRAME_OVER pc_frame_pools(D_8015B250, D_801497C8, D_8015B260)
+extern u8 *D_8015B260;
+#else
 #define GLIST_LEN 4000
+#define PC_GLIST_OFFSET 0x9CC0
+#define PC_FRAME_OVER D_801497C8 > &D_8015B250->glist[GLIST_LEN]
+#endif
 typedef struct {
-    u8 pad[0x9CC0];
+    u8 pad[PC_GLIST_OFFSET];
     Gfx glist[GLIST_LEN];
 } Dynamic;
 extern Dynamic *D_8015B250;
@@ -125,7 +136,7 @@ void world_collision_response(void)
     gSPDisplayList(D_801497C8++, dl);
     gDPFullSync(D_801497C8++);
     gSPEndDisplayList(D_801497C8++);
-    if (D_801497C8 > &D_8015B250->glist[GLIST_LEN]) {}
+    if (PC_FRAME_OVER) {}
     f->t.data_ptr = (u64 *)D_8015B250->glist;
     f->t.data_size = (u32)((D_801497C8 - D_8015B250->glist) * sizeof(Gfx));
     f->t.type = 1;

@@ -668,6 +668,7 @@ static int rush_main(int argc, char **argv)
 #endif
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
+    pc_pools_report();   /* port/ultra/pools.c: the pools' high-water marks (docs/port/MORECARS.md 8) */
     remember_window(&cfg, headless);
     pc_input_shutdown();
     pc_audio_shutdown();

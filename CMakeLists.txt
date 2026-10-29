@@ -297,6 +297,7 @@ add_custom_command(
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/manifest/static.json
             ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
             ${CMAKE_SOURCE_DIR}/port/data/decoupled.txt
+            ${CMAKE_SOURCE_DIR}/port/data/reserved.txt
             ${CMAKE_SOURCE_DIR}/asm/us/blob/symbols.json ${CMAKE_SOURCE_DIR}/asm/us/ovl_a/symbols.json
             ${CMAKE_SOURCE_DIR}/asm/us/ovl_b/symbols.json ${CMAKE_SOURCE_DIR}/layout/game.json
             ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
