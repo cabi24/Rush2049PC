@@ -514,9 +514,9 @@ leaves out. The synthetic cartridge is the same file.
 | the N64 IDO check (`tools/port/ido_check.sh`, build host, 7cbf1d4: the branch's game C, merged with main) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 
 **The test.** `assets_percar` builds StartCarSounds, the engine update (func_800E05F0, func_800E0050), StopCarSounds,
-player_conditional_call, player_conditional_check, func_800FBE60, CheckCPs, CalcPlaces, race_countdown_display, func_800E9E2C, func_800EB90C,
-render_post_process and mode_flags_clear with `PC_MAX_LINKS` 16, every slot a sentinel, and runs them on 12 cars, a
-human in slot 0 and 11 drones: 12 engine sound sets started (the table, the two layers' handles from
+player_conditional_call, player_conditional_check, func_800FBE60, CheckCPs, CalcPlaces, race_countdown_display,
+func_800E9E2C, func_800EB90C, render_post_process and mode_flags_clear with `PC_MAX_LINKS` 16, every slot a sentinel,
+and runs them on 12 cars, a human in slot 0 and 11 drones: 12 engine sound sets started (the table, the two layers' handles from
 high_scores_display or camera_target_track, record 3 and the screech reset, record 2 untouched); two frames of the
 engine update, each car run in one of them by the image's alternation, a drone's run starting its random sound and
 sending each layer's pitch and volume, the human's starting its screech; 12 stopped (records 0, 1 and 3 and the screech
