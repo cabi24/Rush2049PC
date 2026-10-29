@@ -9,7 +9,7 @@ typedef float f32;
 typedef struct {u8 first,second;} Flags;
 #ifdef TARGET_PC
 /* On the PC the finish cameras' state is pc_finish_cam, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md
- * 6): the first two cars' here. */
+ * 6); this clears the first two slots', as on the N64. */
 #define FINISH_CAM_FIRST PC_FINISH_CAM(0)
 #define FINISH_CAM_SECOND PC_FINISH_CAM(1)
 #else
