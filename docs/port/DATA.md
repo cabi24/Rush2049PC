@@ -123,7 +123,8 @@ arena. The window bytes under own storage hold that data's N64 form and are not 
 A **decoupled** symbol (`port/data/decoupled.txt`) has neither: the PC owns it with one declaration of its own, data.c
 defines it outside the window at its host size, and its N64 name and every name inside its N64 extent are retired
 ([DECOUPLE.md](DECOUPLE.md)). The first is the race roster, `pc_links` (was `D_80153E88`), the second the model
-records, `pc_models` (was `D_8014A250`).
+records, `pc_models` (was `D_8014A250`), the third the car records, `pc_cars` (was `D_80152818`, which was own
+storage: it leaves the loader's table).
 
 **Why the window can hold them.**
 - Those ranges are free on the PC. No code is linked there (the game's code is host code), the heap starts at

@@ -258,11 +258,11 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     float heading;                      /* +0x364 */
     unsigned char pad368[0x380 - 0x368];
     void *input;                        /* +0x380 the input record &D_8014A118[i] (a host pointer), NULL for drones */
-    signed char kind;                   /* +0x384 the battle record's type: the weapon held, 8 none */
-    signed char lives;                  /* +0x385 battle: lives left, -1 no count */
+    signed char kind;                   /* +0x384 battle: the record's type (func_80393518 tests it for 8) */
+    signed char lives;                  /* +0x385 battle: lives left, shown when not negative */
     short health;                       /* +0x386 battle: 800 full */
     unsigned char pad388[0x38C - 0x388];
-    unsigned int battle_flags;          /* +0x38C battle: 1, 2 the status shown */
+    unsigned int battle_flags;          /* +0x38C battle: 1 and 2 pick the status shown */
     unsigned char pad390[0x3A0 - 0x390];
     unsigned char b3A0;                 /* +0x3A0 battle */
     unsigned char pad3A1[0x3A2 - 0x3A1];
