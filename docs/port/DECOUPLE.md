@@ -702,7 +702,7 @@ order them, and the schedule that updates them. Eight arrays in the game's BSS, 
 | `D_801439F8` (6 B, 8 by the gap; the controllers' `D_80143A00` at +8) | `pc_carsetup_flags` | signed char[12] | carsetup_flag | car slot | CarSetup sets a car's when it starts the car's visuals; display_list_flush clears 6 |
 
 The last one isn't in MORECARS.md 2.3: display_list_flush's `for (i = 0; i < 6; i++) D_801439F8[i] = 0` (its line 374
-at 597098e) is a per-car bound, and CarSetup reaches the flag as `(u8 *) &D_801439F8 + slot` for every active car, so a
+at c1ab1d7) is a per-car bound, and CarSetup reaches the flag as `(u8 *) &D_801439F8 + slot` for every active car, so a
 9th car's flag would write the first controller's pressed buttons. The image symbol tables give the N64 extents: past
 the brake, the gas and the two directions sit HAL_DrawText's statics (menu_input_process, `hal_drawtext.c`:
 lastFontColor at 0x80153F60, lastTrans 0x80153F80, lastFontXpos 0x80153FD0, lastFontYpos 0x80154180), which are host
@@ -712,18 +712,18 @@ arrays; on the N64 a 7th car's brake would have changed the text's colour state.
 (`D_80152768`, `D_8015274C`, `D_80153FD2`: s16) hold 12; the schedule's state (`D_80153E84`, `D_80153F08`,
 `D_80153F24`, `D_80153F40`) is scalars.
 
-**Inventory.** nm over `game_objects.txt` (main, 8ff5be1, build host; 597098e changes no use of them): `D_801527D8` 3
-objects (func_800EC914, maxpath_controls/group.c, nonmatching/display_list_flush.c), `D_80152808` 3 (func_800EC914,
-func_800E56F8/group.c, display_list_flush), `D_80153F28`, `D_80153F48`, `D_80153F68` 2 each (audio_effect_remove,
-maxpath_controls), `D_80153F88`, `D_80154138` 1 each (maxpath_controls), `D_801439F8` 2 (CarSetup, display_list_flush):
-6 objects, no context copies. Every file declares them as what they are (s16 lists, f32 and f32[3] by slot, bytes), but
-two through a scalar and a cast: audio_effect_remove's `((f32 *) &D_80153F28)[i]` (its m2c block declares `D_80153F48`
-and `D_80153F68` as s32, stored as f32) and CarSetup's `(u8 *) &D_801439F8 + slot` (declared s32, stored as s8). The
-image symbol tables name one address inside the extents, `D_801439FE` (+6 of the flags: display_list_flush's loop end),
-which no C names. The other names nearby are neighbours used by their own names: `D_80153F40` (the cursor), the
-HAL_DrawText statics, `D_80153FD2`, `D_801527E4` (a message queue's buffer, 11 objects), `D_80154138` as
-display_settings' end of `D_80153FD8` (by index on the PC), `D_801439F8` as func_80105B74's end of `D_801439D8`
-(likewise).
+**Inventory.** nm over `game_objects.txt` (main, 8ff5be1, build host; 597098e and c1ab1d7 change no use of them):
+`D_801527D8` 3 objects (func_800EC914, maxpath_controls/group.c, nonmatching/display_list_flush.c), `D_80152808` 3
+(func_800EC914, func_800E56F8/group.c, display_list_flush), `D_80153F28`, `D_80153F48`, `D_80153F68` 2 each
+(audio_effect_remove, maxpath_controls), `D_80153F88`, `D_80154138` 1 each (maxpath_controls), `D_801439F8` 2 (CarSetup,
+display_list_flush): 6 objects, no context copies. Every file declares them as what they are (s16 lists, f32 and f32[3]
+by slot, bytes), but two through a scalar and a cast: audio_effect_remove's `((f32 *) &D_80153F28)[i]` (its m2c block
+declares `D_80153F48` and `D_80153F68` as s32, stored as f32) and CarSetup's `(u8 *) &D_801439F8 + slot` (declared s32,
+stored as s8). The image symbol tables name one address inside the extents, `D_801439FE` (+6 of the flags:
+display_list_flush's loop end), which no C names. The other names nearby are neighbours used by their own names:
+`D_80153F40` (the cursor), the HAL_DrawText statics, `D_80153FD2`, `D_801527E4` (a message queue's buffer, 11 objects),
+`D_80154138` as display_settings' end of `D_80153FD8` (by index on the PC), `D_801439F8` as func_80105B74's end of
+`D_801439D8` (likewise).
 
 **What holds an address.** Nothing in memory. A scan of the four images inflated from the retail cartridge (in memory,
 on the Pi) found no data word in any of the ranges, and code references (a `lui` of the high half and an offset in
@@ -785,34 +785,34 @@ rule past them (func_800E56F8/group.c, `pc_drone_sched`):
 
 So the rule keeps a drone's step, not the number of drones an iteration: up to 6 an iteration on the PC. It reads
 only the game's data, so nothing from the cartridge is in the build. world_physics_tick.c is item 3's file for its
-other loops; the row choice at its line 388 (597098e) changed here (the car records' item left it, and item 3 doesn't
+other loops; the row choice at its line 388 (c1ab1d7) changed here (the car records' item left it, and item 3 doesn't
 touch the line). With 6 cars every row is one the N64 has, read as before: the default is the N64's schedule.
 
 **What the tables say.** `data_symbols.txt` loses the 8 rows; `data.c` loses their 8 `.set` lines and 8 report names
-(2,185 to 2,177) and gains the 8 storages (`.bss`, 492 bytes); 45 diff lines. The loader's tables are the same (418
-entries, 7,737 runs), and no ROM word pointed into the ranges. Debug and RelWithDebInfo give the same files.
+(2,170 to 2,162 at c1ab1d7) and gains the 8 storages (`.bss`, 492 bytes); 45 diff lines. The loader's tables are the
+same (416 entries, 7,704 runs), and no ROM word pointed into the ranges. Debug and RelWithDebInfo give the same files.
 
 **Proof.**
 
 | Check | Result |
 |---|---|
-| `synth_compare.py --same --runs 2`, the build before (main, 597098e) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
+| `synth_compare.py --same --runs 2`, the build before (main, c1ab1d7) against after, Debug, Pi 5 (aarch64, GCC 12), every synthetic path | the same trace, every run: 19 of 19 paths |
 | the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run, each reaching its state: 6 of 6 |
 | `synth_compare.py --same --runs 2`, the same, build host (x86-64, GCC 14) | 19 of 19 paths |
-| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 243 of 243 each (`assets_rom` skipped: no ROM there); in Debug `pak_realtime`, which measures the host's clock, failed once while the checks ran beside it (9 retraces caught up) and passed alone, as CI retries it |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 245 of 245 each (`assets_rom` skipped: no ROM there); in Debug `pak_realtime`, which measures the host's clock, failed under the other tests of `ctest -j3` (8 retraces caught up, 0 dropped) and passed alone, as CI runs it (`-L realtime`, one at a time, up to three tries) |
 | Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files (build host); before against after, `data_symbols.txt` 8 lines, `data.c` 45 |
 | the synthetic cartridge, before against after | the same file (build host and Pi) |
-| `n64_neutral.py --base 09da2f0` | passes (1,010 files: 92 code-exact, 918 shifted); against 597098e, 9 changed game files under `src/`, all shifted |
-| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after, and the same counts: offset_check 59,461 accesses on 3,468 storages, layout_check 48,102, endian_check its 2 open value conflicts in 1 storage (the same) and 3,486 puns, with one live function more (`pc_drone_sched`: 2,545); `--check-loader` 96 places, 0 wrong |
+| `n64_neutral.py --base 09da2f0` | passes (1,014 files: 92 code-exact, 922 shifted); against c1ab1d7, 9 changed game files under `src/`, all shifted |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after, and the same counts: offset_check 59,461 accesses on 3,468 storages, layout_check 48,102, endian_check its 2 open value conflicts in 1 storage (the same) and 3,518 puns, with one live function more (`pc_drone_sched`: 2,545); `--check-loader` 96 places, 0 wrong |
 | `layout_check.py --storage` on the 8 | 58 accesses before (on the N64 names) and after (on the PC names), the same per storage at the same offsets (one, display_list_flush's clear of the flags, unplaced in both) |
-| `bounds_check`, build host (GCC 14) | 1 new, not `clamped` or `two offsets`: CarSetup's `view` on `pc_carsetup_flags`, added to `bounds_reviewed.txt` as `[gcc14]`; the 7 entries on the retired names (CarSetup's `D_801439F8`, audio_effect_remove's three, `view` and `warn`) removed; then none new, 9 kept (as before); pairs found 94 through a variable and 44 with warnings before, 91 and 41 after (the constant and indexed ones the same). GCC 13 (CI's runner) and mingw-w64 12 not run on it |
+| `bounds_check`, build host (GCC 14) | 1 new, not `clamped` or `two offsets`: CarSetup's `view` on `pc_carsetup_flags`, added to `bounds_reviewed.txt` as `[gcc14]`; the 7 entries on the retired names (CarSetup's `D_801439F8`, audio_effect_remove's three, `view` and `warn`) removed; then none new, 9 kept (as before); pairs found 96 through a variable and 44 with warnings before, 93 and 41 after (the constant and indexed ones the same). GCC 13 (CI's runner) and mingw-w64 12 not run on it |
 | `view_audit.py` | nothing to audit: the 8 are plain arrays, no record views |
 | the old window ranges filled with 0x5A at the race's start (gdb, build host, Debug): race, race2p, demo, circuit, pause | each the same trace as without; every byte of the 8 ranges still 0x5A at the end |
 | a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
-| Windows cross build (Pi, mingw-w64 12, RelWithDebInfo, fresh configure) | builds; `gen_data.py --check --pe`: OK, 11 decoupled |
+| Windows cross build (Pi, mingw-w64 12, RelWithDebInfo, fresh configure) | builds; `gen_data.py --check --pe`: OK, 26 decoupled |
 | the PC rule on the retail cartridge's table (gdb, Pi, `pc_drone_sched` called for every row) | every PC row, 7-12 drones with one human and 5-12 with two, is two iterations whose counts add up to its drones; each of the 12 N64 rows adds up to its drones too |
 | `assets_drones`, `assets_roster` (16 slots declared) | pass, in Debug, under UBSan (`-DRUSH_SANITIZE=undefined`, build host) and under ASan + UBSan (Pi 5, GCC 12); the mutations below |
-| the N64 IDO check (`tools/port/ido_check.sh`, build host, ed4d6e3: the branch's game C) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, a356a95: the branch's game C) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 
 **The tests.** `assets_drones` (`port/assets/tests/test_drones.c`) builds func_800E56F8's group, maxpath_controls,
 audio_effect_remove and render_large_objects with `PC_MAX_LINKS` 16, so the storages have 16 entries and the
