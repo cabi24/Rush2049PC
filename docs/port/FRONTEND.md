@@ -271,8 +271,9 @@ let a single race hold that many: the players and the drones the track select's 
 
 - **Latched.** The game reads the count through `pc_race_cars()` (`PC_RACE_CARS`, `port/include/pc_game_types.h`)
   in loops all over a race, on its game and model threads, so that is a copy: `pc_race_cars_begin()` latches the
-  setting into it where a race's roster is filled (CalcPolePositions and the attract demo's `func_800EC190`,
-  [MORECARS.md](MORECARS.md) 10.2 item 3). A change in the overlay applies from the next race and never during one.
+  setting into it where a race's roster is filled (CalcPolePositions, except on the results screen, where
+  display_list_flush calls it for the cars that race on, and the attract demo's `func_800EC190`:
+  [MORECARS.md](MORECARS.md) 3.1, item 3). A change in the overlay applies from the next race and never during one.
   Until the first `pc_race_cars_begin()` the count is 6. `pc_cars_setting()` is the setting itself, unlatched (6
   for `original`), for the front end. All three are in `port/config/race_cars.c`; `pc_race_cars_set` (main, the
   overlay) takes the setting there, `original` as 0, anything outside 6-12 to the nearest end.
@@ -283,10 +284,15 @@ let a single race hold that many: the players and the drones the track select's 
 - **Saves.** The option is a signed byte of the player's profile (`reverb_setup`'s `modeA`, the race tracks'), so
   0-11 fit. A profile saved with more than 5 drones keeps its value when the setting goes back to `original`: the
   option shows it, the race holds 6 cars (the roster's cap is the latched count, item 3), and LEFT or RIGHT wraps
-  it to 0, as the N64's rule does for a value past its 5; an N64 reading such a profile does the same.
+  it to 0, as the N64's rule does for a value past its 5 (seen on the retail cartridge: 11 with `game.cars=12`, the
+  setting put back to `original` in the overlay, then LEFT: 0); an N64 reading such a profile does the same.
 - **Status (2026-10-29).** The setting, its latch, the overlay's item, the Drones option's range and the HUD for
-  up to 12 cars ([MORECARS.md](MORECARS.md) 7) are in; the races take the count once item 3 calls
-  `pc_race_cars_begin()`. Until then every race holds the N64's 6, whatever the setting.
+  up to 12 cars ([MORECARS.md](MORECARS.md) 7) are in, and so is item 3's first part (main 597098e), which latches
+  the count at a race's start and lets a single race take drones up to it. With the Drones option at its default,
+  any setting races 6 cars. A race of more than 6 needs the per-car arrays and the pools too
+  ([MORECARS.md](MORECARS.md) 10.2 items 1, 2, 4 and 5): without them, `game.cars=12` with the Drones option raised
+  to 11 faulted at PrePlay in SetResurrectionData on the retail cartridge (Pi, track 0), MORECARS.md 9's first
+  crash.
 
 ### Environment variables
 
