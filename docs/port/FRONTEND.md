@@ -280,19 +280,20 @@ let a single race hold that many: the players and the drones the track select's 
 - **The Drones option** (the track select's options list, item 17: `runtime_a_c93c_closure/group.c`) goes from 0 to
   `pc_cars_setting() - 1` and wraps there: 5, as on the N64, with `original`. Its reset value (the reset button)
   and its default (`func_800CCB40`) stay 5, so a player who never touches it races 6 cars at any setting. It shows
-  the value with the options' `%d`, so 10 and 11 are two digits (seen on the retail cartridge).
+  the value as the other options do, a plain decimal number, so 10 and 11 are two digits in its box (seen on the
+  retail cartridge).
 - **Saves.** The option is a signed byte of the player's profile (`reverb_setup`'s `modeA`, the race tracks'), so
   0-11 fit. A profile saved with more than 5 drones keeps its value when the setting goes back to `original`: the
   option shows it, the race holds 6 cars (the roster's cap is the latched count, item 3), and LEFT or RIGHT wraps
   it to 0, as the N64's rule does for a value past its 5 (seen on the retail cartridge: 11 with `game.cars=12`, the
   setting put back to `original` in the overlay, then LEFT: 0); an N64 reading such a profile does the same.
 - **Status (2026-10-29).** The setting, its latch, the overlay's item, the Drones option's range and the HUD for
-  up to 12 cars ([MORECARS.md](MORECARS.md) 7) are in, and so is item 3's first part (main 597098e), which latches
-  the count at a race's start and lets a single race take drones up to it. With the Drones option at its default,
-  any setting races 6 cars. A race of more than 6 needs the per-car arrays and the pools too
-  ([MORECARS.md](MORECARS.md) 10.2 items 1, 2, 4 and 5): without them, `game.cars=12` with the Drones option raised
-  to 11 faulted at PrePlay in SetResurrectionData on the retail cartridge (Pi, track 0), MORECARS.md 9's first
-  crash.
+  up to 12 cars ([MORECARS.md](MORECARS.md) 7) are in, merged with main 5e108ff: item 3's first part, which latches
+  the count at a race's start and lets a single race take drones up to it, and items 1a, 1c-1e, 2 and 4. With the
+  Drones option at its default, any setting races 6 cars. A race of more than 6 needs the drones' arrays and their
+  schedule too ([MORECARS.md](MORECARS.md) 10.2 items 1b and 5): without them, `game.cars=12` with the Drones option
+  raised to 11 faults on the retail cartridge as the countdown begins, in the model thread (`update_drone_models`;
+  Pi, track 0).
 
 ### Environment variables
 

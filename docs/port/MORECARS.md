@@ -539,6 +539,92 @@ engines only for the N nearest cars to each listener.
 | the circuit's points | `D_8011176C[6]`, `net_session_update.c:154` (`b28[j] = points[place]`) | 6 values | the circuit stays 6 cars (3.3) |
 | "n of 6" | `animPlace` above; `func_800F45F8.c:62` and `net_session_update.c:143` (the circuit) | | the circuit only |
 
+### 7.1 Done: the HUD and the setting (items 6 and 7, 2026-10-29)
+
+On main 5e108ff (the car records `pc_cars[12]`, `PC_MAX_LINKS` 12; items 1a, 1c-1e, 2, 4 and item 3's first
+part). The race's count is `pc_race_cars()`, latched at a race's start by `pc_race_cars_begin()` (CalcPolePositions
+and the attract demo's func_800EC190 call it, item 3); the setting and its latch are in [FRONTEND.md](FRONTEND.md)
+"The cars a race holds". Each change below gives the N64's behaviour while the count is 6, which `original`, the
+default, keeps it at.
+
+| Element | Code | Up to the N64's count | Past it |
+|---|---|---|---|
+| the place, "P/N" | `animPlace`'s PC version, `credits_scroll_grp/gr3_7af4.c:93-180` (the N64's at `:182-244`) | up to 9 cars the N64's calls, in its order, at its places | each number its digits (`place_digits_7AF4`): a two-digit place starts one big digit further left, so the '/' and the count's first digit stay where the N64 draws them, both digits in the player's colour; the count's second digit follows by a digit of its own font, measured only then |
+| the results' finishing place | `drawRaceStandings`, `results_table/results_table.c:332`, through `PC_PLACE_TEXT` (`pc_place_text`, `:217-243`; the N64's expression on the N64) | places 1-6: the bank's own ordinals | the number, then what the bank's sixth ordinal has after its own number, read at run time in the language in effect |
+| the minimap's dots, the radar's blips | ShowHUD, `showhud/showhud.c:184` (`PC_HUD_RACE_SET`, `PC_HUD_RACE_N`; `pc_hud_race_build`, `:112-131`) | up to 8 cars: the ROM's race set itself, 89 entries | a copy of the set made at run time (`pc_hud_race[]`): after the 7 of each run of dots (`func_80109A60`) and of each viewer's blips (`func_80108F40`), copies of that entry for 8 to the race's cars less one, the viewer bits kept: 20 entries more at 12 cars |
+| the HUD's car order | `func_80105B74.c:92-110` | `order[]` has `PC_MAX_LINKS` places; the clear covers the N64's 6 entries | the clear covers `D_80142DB4`'s 12, so a dot past the race's cars hides. (In the N64's races entries 6 and 7 are never written and stay 0, so its dots 6 and 7 draw slot 0's again; kept at 6 cars) |
+| the Drones option | `runtime_a_c93c_closure/group.c:564-565` (`PC_DRONES_MAX`, `:70-77`) | 0-5, wrapping, as the N64 | 0 to `pc_cars_setting() - 1`, wrapping; reset value and default 5. The circuit's track select changes only option 20 (`:434`), so its drones stay the N64's |
+
+`func_80109A60` and `func_80108F40` themselves need nothing: the dot reads `D_80142DB4[AnimID & 0xF]` and the blip its
+slot from `AnimID & 0xF`, both up to 15, and the model and car records have 12.
+
+**What the retail race set holds** (read with gdb on the retail cartridge, Pi): the dots are its last 8 entries, AnimID
+0-7 in order; the radar has, for each of the 4 viewers, its frame (`func_80108DA8`) followed by 8 blips, AnimID
+`viewer << 8 | slot`, slots 0-7 in order; the place is one callback blit (`animPlace`). So a 12-car set has 4 dots
+and 16 blips more, 109 entries. The HUD set `D_801158DC` (8 entries) has no per-car entry; its first is the HUD
+order's callback (`func_80105B74`).
+
+**The text bank's place strings.** The bank has six language sections (waves 0-5: English, Spanish, Italian, German,
+Dutch, French, chosen on the options screen); in each the results' `cars` index (the same in all six) starts the six
+ordinals, first to sixth. What follows them differs: in English, Dutch and French each ordinal's suffix alone, six
+entries; in Italian the six ordinals again; in Spanish and German six empty strings (their ordinals are the number,
+alone or with a full stop). The sixth ordinal's text after its number is the suffix every language gives the seventh
+to twelfth too, so a place past the sixth is composed from it; the suffix entries would be wrong in Italian (a second
+number), German (no full stop) and Spanish. Read with gdb, each language switched in turn; nothing from the bank is
+in the build.
+
+**On the screen** (retail cartridge, Pi, track 0, local screenshots). The Drones option, with `game.cars=12`: six
+presses of RIGHT from the default show 11 in its box, two digits as the other options' numbers are (the options print
+their values as plain decimal numbers); with `original` one press shows 0. With 12 cars (the spike's tree with this
+work merged in, `RUSH_SPIKE_CARS=12`; the spike alone showed no place in one player, a bare '/' in two, and the drones'
+dots but not the player's):
+- one player: the place reads "3/12", then "4/12": the big digit where "6/6" has it, the count's two small digits
+  after the '/', on the screen; the player's dot on the minimap and the blips on the radar, as with 6 cars. While the
+  car is being put back on the road (not solid, `func_800CF604`) the place is not drawn, as the N64 does at 6;
+- two players: "11/12" and "12/12", each view's place in two big digits in the player's colour, the '/' and the
+  count where "6/6" puts them, each view's radar and the minimap with the players' dots;
+- one player without gas, the drones past: "12/12" in two big digits, with the player's dot on the minimap; the
+  same over the pause screen and its quit question;
+- the game over screen's standings: after retiring 3 s into the race the player's place is fifth, the bank's own
+  ordinal; after retiring 30 s in without gas, the drones past, twelfth: the number 12 and the sixth ordinal's
+  suffix, in the place column's font, in its cell.
+With 6 cars the same moments look as before: "4/6", and sixth in the standings.
+
+**Tests.** `assets_carshud` runs animPlace, func_80105B74, ShowHUD (`skid_mark_render`), func_80109A60, func_80108F40
+and drawRaceStandings on the game's code with made-up data: the N64's glyphs and calls for 6 and 9 cars; "9/10",
+"12/12" and, in split screen, "1/12" and "11/12", at their places, fonts and colours; the HUD order for 12, 8 and 6
+cars; the race set at 6, 8, 10 and 12 cars and in battle; the dots of entries 8-11 (the human's last) and slot 11's
+blip, and a blip of a slot not in the race hidden; places 7-12 with a suffix, a full stop and nothing after the
+number. Mutation check: 13 deliberate bugs, one at a time, all caught (one character a number; the count's second
+digit a big digit on; one place digit coloured; the place not moved left; the HUD order cleared over 6 always, and
+over 12 always; no copies; the copies at the set's end; the copies keeping slot 7; the copy at 8 cars too; places
+past 6 read from the bank; the suffix taken from the entry after the six; the sixth's number kept). The setting's
+tests: [FRONTEND.md](FRONTEND.md) "Tests" (`frontend.cars`, `frontend.precedence`, `frontend.menu.live`).
+
+**Proof** (`game.cars` at `original`; "base" is a build of main 5e108ff):
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, base against the branch, Debug, build host (x86-64, GCC 14), every synthetic path | the same trace, every run: 19 of 19 paths |
+| the same, Pi 5 (aarch64, GCC 12) | 19 of 19 paths |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run: 6 of 6 |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 248 of 248 each (`assets_rom` skipped: no ROM there). An earlier run of each (on 597098e, while other jobs loaded the host) had one real-time pacing test fail, `hfr_paced` and `hfr_paced_queue`; alone, and in every run since, they pass |
+| `data.c`, `data_symbols.txt`, the synthetic cartridge | the same files as the base's (build host and Pi; Debug and RelWithDebInfo the same) |
+| `n64_neutral.py --base 09da2f0` | passes (1,014 files: 92 code-exact, 922 shifted); the 5 game files changed here each "shifted" |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, base and branch; offset_check 59,451 accesses (12 more), layout_check 48,196 (16 more), endian_check's 2 open value conflicts in 1 storage the same, 3,525 puns (1 more), 5 more live functions (`place_digits_7AF4`, `pc_place_text`, the three of ShowHUD's copy); check-loader 96 places, 0 wrong |
+| `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`, base and branch alike. GCC 13 and mingw-w64 12 not run on it |
+| Windows cross build (Pi, mingw-w64, fresh configure) | builds, `test_assets_carshud.exe` with it; gen_data's check of the PE: OK, 18 decoupled, 1 reserved in the window |
+
+**Not done here.** A synthetic path's screenshot check of a 12-car race (10.3's `drive12`) waits for the drones'
+arrays (item 1b) and their schedule (item 5), without which a race of more than 6 cars faults: with this work on
+5e108ff, `game.cars=12` and the Drones option at 11 got the retail cartridge's race through PrePlay and faulted as the
+countdown began, in the model thread, `update_model` from `update_drone_models` (on 597098e, before items 1a and 2,
+at PrePlay in SetResurrectionData: section 9's first crash). The check needs data the synthetic cartridge doesn't
+have yet too: its race set is zero (SYNTH.md 1: only the HUD set has entries), so the place's entry, the eight dots
+with a texture, the map's size (`D_801161C4`) and its places (`D_801160A8`); and a test in `synth_shot.py` of the
+place's and the player's dot's pixels. The circuit's "n of 6" and points stay 6 (3.3).
+
 ## 8. Rendering and per-frame buffers
 
 The car draw loops walk the active cars (`D_80152744`) or the scene's node list; nothing in drawing has a car count of
