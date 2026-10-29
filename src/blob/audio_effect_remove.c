@@ -3801,14 +3801,23 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
+#ifdef TARGET_PC
+/* On the PC maxpath's controls per car slot are pc_mp_steer, pc_mp_brake and pc_mp_gas, PC_MAX_LINKS long, with no
+ * N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6): the reset clears them all. */
+#else
+#define PC_MP_STEER(i) ((f32 *) &D_80153F28)[i]
+#define PC_MP_BRAKE(i) ((f32 *) &D_80153F48)[i]
+#define PC_MP_GAS(i) ((f32 *) &D_80153F68)[i]
+#define PC_MAX_LINKS 6
+#endif
 void audio_effect_remove(void)
 {
   s16 i;
   audio_effect_apply();
-  for (i = 0; i < 6; i++) {
-    ((f32 *) &D_80153F28)[i] = 0.0f;
-    ((f32 *) &D_80153F48)[i] = 0.0f;
-    ((f32 *) &D_80153F68)[i] = 0.0f;
+  for (i = 0; i < PC_MAX_LINKS; i++) {
+    PC_MP_STEER(i) = 0.0f;
+    PC_MP_BRAKE(i) = 0.0f;
+    PC_MP_GAS(i) = 0.0f;
   }
   D_80154190 = D_801543CC;
   D_80154182 = -1;

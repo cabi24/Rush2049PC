@@ -2726,7 +2726,12 @@ extern s16 D_801527D0;
 extern s32 D_801527E4;
 extern s32 D_801527E8;
 extern f32 D_80152800;
+#ifdef TARGET_PC
+/* On the PC our_drones is pc_our_drones, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+#else
 extern s16 D_80152808[];
+#define PC_OUR_DRONE(j) D_80152808[j]
+#endif
 extern f32 D_80152820;
 extern f32 D_80152824;
 extern f32 D_80152828;
@@ -3890,6 +3895,10 @@ void model_iteration(void);
 #define PAK_RECORD 0x304
 #define PROFILE_OFS(n) n
 #endif
+#ifndef TARGET_PC
+/* model_iteration's walk of every car: the race's on the PC (PC_RACE_CARS, pc_game_types.h). */
+#define PC_RACE_CARS 6
+#endif
 void func_800E56F8(s32 ipa_s4) {
     GameCar *temp_s2;
     f32 temp_f0;
@@ -3929,7 +3938,7 @@ void func_800E56F8(s32 ipa_s4) {
         idx = D_80153F40;
         var_a0 = D_8015274C - 1;
         for (; idx < var_a0; idx++) {
-            D_80152808[idx] = D_80152808[idx + 1];
+            PC_OUR_DRONE(idx) = PC_OUR_DRONE(idx + 1);
         }
         D_8015274C = var_a0;
         D_80153F40 -= 1;
@@ -4045,7 +4054,7 @@ void update_drone_models(void) {
         return;
     }
     for (i = 0; i < num_drones_to_do; i++) {
-        update_model(PC_MODEL(D_80152808[D_80153F40]));
+        update_model(PC_MODEL(PC_OUR_DRONE(D_80153F40)));
         D_80153F40++;
         if (D_80153F40 >= D_8015274C) {
             D_80153F40 = 0;
@@ -4070,7 +4079,7 @@ void model_iteration(void) {
     if ((state_word_a & 0x600008) && (D_801525F0 != 0)) {
         D_80143FF4 = D_80143FF4 + 1;
         D_801543CC = (f32) D_80143FF4 * D_8002AFB8;
-        for (v = 0; v != 6; v++) {
+        for (v = 0; v != PC_RACE_CARS; v++) {
             if (PC_CAR_INPUT(v) == 0) {
                 car = PC_MODEL(v);
                 if (car->s7CA == 0) {

@@ -5,8 +5,9 @@
  * N64 offsets in slots it walks (13 at most, 6 for a race) and leave the others alone, whatever the storage's size.
  * func_8039156C names the 13 slots' cars; func_800EC190 resets the race's 6; CalcPolePositions (init_state_continue)
  * fills them for a race; func_800EC914 (munge_gLink_data) counts the active ones into the race's car count
- * D_80152744 and builds the human and drone lists; stat_lap_split reads a slot's owner through what was the alias
- * D_80153E8F, +7 with a stride of 8.
+ * D_80152744 and builds the human and drone lists (pc_drones, pc_our_drones: PC_MAX_LINKS long, docs/port/DECOUPLE.md
+ * 6), for 4 cars and for races of 12 (one human and 11 drones, and the attract demo's 12 drones); stat_lap_split
+ * reads a slot's owner through what was the alias D_80153E8F, +7 with a stride of 8.
  * game: src/ovl_a/func_8039156C.c src/blob/func_800EC190.c src/blob/groups/update_game/init_state_continue.c
  * game: src/blob/func_800EC914.c src/blob/stat_lap_split.c
  */
@@ -26,7 +27,9 @@ struct pc_link pc_links[PC_LINK_SLOTS];      /* data.c defines it in the game */
 
 int8_t D_8014978C, D_80154628, D_80152744, D_80150C04, D_80150F14, D_8010FFC0;
 volatile int16_t D_801543CA, D_80152768, D_80153FD2;
-int16_t D_8014A108, D_80142724, D_8015274C, D_80143A40[8], D_801527D8[8], D_80152808[8];
+int16_t D_8014A108, D_80142724, D_8015274C, D_80143A40[8];
+short pc_drones[PC_MAX_LINKS], pc_our_drones[PC_MAX_LINKS];   /* the drone lists (pc_game_types.h) */
+#define LIST_SENTINEL ((short)0x5A5A)
 int16_t D_8011F020[16], D_8011F040[16];
 int32_t D_8014A110, D_80143FF4;
 uint8_t D_801543D4, D_8014A118[6 * 80], D_80154450[6 * 0x4C], D_803BA230[16 * 12] __attribute__((aligned(4)));
@@ -131,9 +134,51 @@ static void test_count(void)
     for (int i = 4; i < 6; i++)
         CHECK(MODEL16(i, 0x7C8) == 0 && MODEL16(i, 0x7CA) == 0 && MODEL8(i, 0x7CC) == 0);
     CHECK(D_80153FD2 == 2 && D_80143A40[0] == 0 && D_80143A40[1] == 1);              /* the humans */
-    CHECK(D_80152768 == 2 && D_801527D8[0] == 2 && D_801527D8[1] == 3);              /* the drones */
-    CHECK(D_8015274C == 2 && D_80152808[0] == 2 && D_80152808[1] == 3);              /* ours */
+    CHECK(D_80152768 == 2 && pc_drones[0] == 2 && pc_drones[1] == 3);                /* the drones */
+    CHECK(D_8015274C == 2 && pc_our_drones[0] == 2 && pc_our_drones[1] == 3);        /* ours */
     CHECK(untouched_from(6));
+}
+
+/* func_800EC914 for 12 cars, more than the N64's 6: slot 0 a human and slots 1-11 drones (slot 7 driven by another
+ * node, owner 3: a drone, not ours), then the attract demo's 12 drones. Every active slot is counted and listed in
+ * order; the lists' entries after the last stay as they were, and the model records after the race's 12 (to the
+ * storage's 16) are cleared. */
+static void test_count12(void)
+{
+    for (int demo = 0; demo < 2; demo++) {
+        int humans = demo ? 0 : 1, n = 0, ours = 0;
+
+        memset(pc_links, SENTINEL, sizeof pc_links);
+        memset(pc_models, 0x55, sizeof pc_models);
+        memset(pc_cars, 0x55, sizeof pc_cars);
+        for (int i = 0; i < PC_MAX_LINKS; i++)
+            pc_drones[i] = pc_our_drones[i] = LIST_SENTINEL;
+        for (int i = 0; i < 12; i++) {
+            pc_links[i].flags = 0xB0;
+            pc_links[i].place = (unsigned char)(11 - i);
+            pc_links[i].owner = (unsigned char)(i < humans ? 6 : !demo && i == 7 ? 3 : 0);
+        }
+        D_801543CA = 12;
+        func_800EC914();
+        CHECK(D_80152744 == 12);
+        for (int i = 0; i < 12; i++) {
+            CHECK(MODEL16(i, 0x7C6) == i && MODEL16(i, 0x7C8) == 1);
+            CHECK(MODEL8(i, 0x7CC) == (i < humans ? 2 : 1) && CAR8(i, 0xEE) == 11 - i);
+        }
+        for (int i = 12; i < PC_MODEL_SLOTS; i++)
+            CHECK(MODEL16(i, 0x7C8) == 0 && MODEL8(i, 0x7CC) == 0 && MODEL16(i, 0x7CA) == 0);   /* owner 0xEE */
+        CHECK(D_80153FD2 == humans && (demo || D_80143A40[0] == 0));
+        for (int i = humans; i < 12; i++) {
+            CHECK(pc_drones[n++] == i);
+            if (demo || i != 7)
+                CHECK(pc_our_drones[ours++] == i);
+        }
+        CHECK(D_80152768 == n && n == 12 - humans && D_8015274C == ours && ours == (demo ? 12 : 10));
+        for (int i = n; i < PC_MAX_LINKS; i++)
+            CHECK(pc_drones[i] == LIST_SENTINEL);
+        for (int i = ours; i < PC_MAX_LINKS; i++)
+            CHECK(pc_our_drones[i] == LIST_SENTINEL);
+    }
 }
 
 /* stat_lap_split goes on only for a human's slot (owner 6), read where the alias D_80153E8F reached it. */
@@ -157,5 +202,6 @@ int main(void)
     test_poles();
     test_count();
     test_alias();
+    test_count12();
     return TEST_DONE();
 }
