@@ -93,6 +93,64 @@ extern u32 object_manager_update(void *, s16);
 
 extern f32 func_8008B2E4(f32);
 
+#ifdef TARGET_PC
+/* PC: the race set with a minimap dot and a radar blip for each car past the N64's 8 (docs/port/MORECARS.md 7). The
+ * set (D_80114C58, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, func_80109A60: AnimID
+ * the entry) and, for each of the 4 viewers, a blip for each of car slots 0-7 (AnimateTraffic, func_80108F40: AnimID
+ * bits 8-11 the viewer, 0-3 the slot), each run of them ending at 7. With more than 8 cars the humans, last in the
+ * HUD order, had no dot, and slots 8-11 no blip. So a race of more than 8 cars gets a copy of the set, made at run
+ * time, with each run continued after its 7 by copies of that entry for 8 to the race's cars less one; a race of 8 or
+ * fewer gets the set itself, as the N64 does. */
+#define PC_HUD_RACE_ROM 89
+#define PC_HUD_RACE_RUNS 8   /* room for 8 runs to grow: the set has 5 */
+#define PC_HUD_RACE_MAX (PC_HUD_RACE_ROM + PC_HUD_RACE_RUNS * (PC_MAX_LINKS - 8))
+static MultiBlit pc_hud_race[PC_HUD_RACE_MAX];
+static s16 pc_hud_race_count;
+s32 func_80109A60(Voice *);   /* AnimateDot */
+s32 func_80108F40(Voice *);   /* AnimateTraffic */
+
+static void pc_hud_race_build(void)
+{
+    s32 cars = PC_RACE_CARS, i, k, n = 0;
+
+    for (i = 0; i < PC_HUD_RACE_ROM; i++) {
+        const MultiBlit *e = &D_80114C58[i];
+        pc_hud_race[n++] = *e;
+        if ((e->animfunc == func_80109A60 || e->animfunc == func_80108F40) && (e->animid & 0xF) == 7) {
+            for (k = 8; k < cars && n < PC_HUD_RACE_MAX - (PC_HUD_RACE_ROM - 1 - i); k++) {
+                pc_hud_race[n] = *e;
+                pc_hud_race[n].animid = (e->animid & ~0xFu) | (u32)k;
+                n++;
+            }
+        }
+    }
+    pc_hud_race_count = n;
+}
+
+static const MultiBlit *pc_hud_race_set(void)
+{
+    if (PC_RACE_CARS <= 8) {
+        return D_80114C58;
+    }
+    pc_hud_race_build();
+    return pc_hud_race;
+}
+
+static s16 pc_hud_race_n(void)
+{
+    if (PC_RACE_CARS <= 8) {
+        return PC_HUD_RACE_ROM;
+    }
+    pc_hud_race_build();
+    return pc_hud_race_count;
+}
+#define PC_HUD_RACE_SET pc_hud_race_set()
+#define PC_HUD_RACE_N pc_hud_race_n()
+#else
+#define PC_HUD_RACE_SET D_80114C58
+#define PC_HUD_RACE_N 89
+#endif
+
 void skid_mark_render(void) {
     s32 created = 0;
     s32 x;
@@ -123,7 +181,7 @@ void skid_mark_render(void) {
             if (gameplay_mode == 6 || gameplay_mode == 4) {
                 func_803925D0();
             } else {
-                D_801541A0 = sound_control(0, 0, D_80114C58, 89);
+                D_801541A0 = sound_control(0, 0, PC_HUD_RACE_SET, PC_HUD_RACE_N);
             }
             D_80154198 = sound_control(0, 0, D_801158DC, 8);
         }
