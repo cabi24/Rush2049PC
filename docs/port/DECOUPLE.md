@@ -793,7 +793,8 @@ touch the line). With 6 cars every row is one the N64 has, read as before: the d
 (2,170 to 2,162 at c1ab1d7) and gains the 8 storages (`.bss`, 492 bytes); 45 diff lines. The loader's tables are the
 same (416 entries, 7,704 runs), and no ROM word pointed into the ranges. Debug and RelWithDebInfo give the same files.
 
-**Proof.**
+**Proof** (`game.cars` at `original`; "before" is a build of main c1ab1d7 and "after" the branch merged with it,
+unless a row says otherwise).
 
 | Check | Result |
 |---|---|
@@ -810,10 +811,14 @@ same (416 entries, 7,704 runs), and no ROM word pointed into the ranges. Debug a
 | `view_audit.py` | nothing to audit: the 8 are plain arrays, no record views |
 | the old window ranges filled with 0x5A at the race's start (gdb, build host, Debug): race, race2p, demo, circuit, pause | each the same trace as without; every byte of the 8 ranges still 0x5A at the end |
 | a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
-| Windows cross build (Pi, mingw-w64 12, RelWithDebInfo, fresh configure) | builds; `gen_data.py --check --pe`: OK, 26 decoupled |
+| Windows cross build (Pi, mingw-w64 12, RelWithDebInfo, fresh configure, a356a95) | builds; `gen_data.py --check --pe`: OK, 26 decoupled |
 | the PC rule on the retail cartridge's table (gdb, Pi, `pc_drone_sched` called for every row) | every PC row, 7-12 drones with one human and 5-12 with two, is two iterations whose counts add up to its drones; each of the 12 N64 rows adds up to its drones too |
 | `assets_drones`, `assets_roster` (16 slots declared) | pass, in Debug, under UBSan (`-DRUSH_SANITIZE=undefined`, build host) and under ASan + UBSan (Pi 5, GCC 12); the mutations below |
 | the N64 IDO check (`tools/port/ido_check.sh`, build host, a356a95: the branch's game C) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| after merging main 5e108ff (items 2, 4) and eb4511d (items 6, 7): ctest, build host, Debug and RelWithDebInfo, CI's way (the real-time tests alone, up to three tries) | 248 of 248 each at 5e108ff, 250 of 250 at eb4511d (`assets_rom` skipped) |
+| the same: `synth_compare.py --same --runs 2`, build host, against a build of 5e108ff, then of eb4511d | 19 of 19 paths each time |
+| the same: `data.c`, `data_symbols.txt` and the synthetic cartridge against eb4511d's | the same 8 rows and 45 lines; the same cartridge |
+| the same on the Pi against eb4511d: synth_compare on every synthetic path, the six retail scripts | 19 of 19 paths; the retail scripts 6 of 6, each reaching its state; the synthetic cartridge the same file |
 
 **The tests.** `assets_drones` (`port/assets/tests/test_drones.c`) builds func_800E56F8's group, maxpath_controls,
 audio_effect_remove and render_large_objects with `PC_MAX_LINKS` 16, so the storages have 16 entries and the
@@ -855,6 +860,18 @@ order, the lists' entries after the last stay as they were, and the model record
 | munge's clear up to `MAX_LINKS` (6) | 8 (assets_roster) |
 | munge listing the drones in `pc_our_drones` | 36 (assets_roster) |
 | DoDrones' locals at 6 | none in Debug; the UBSan build stops at the first overrun |
+
+**Races of 12 cars** (the branch merged with eb4511d, whose setting makes them possible: `--set game.cars=12`, and the
+drones asked raised to fill the race, which gdb did by setting `D_80142724` to 12 minus the players as CalcPolePositions
+starts, as six presses of RIGHT on the Drones option would; Debug, Pi, the retail cartridge). One player and 11 drones
+on `race` and on `drive` (gas and steering, to 107 s of game time, then to 147 s), two players and 10 drones on
+`race2p`, and the attract demo's 12 drones: each reached its state with no fault, the schedule's rows 11, 13 + 10 and
+12, every car at a place of its own, 0 to 11, and every car moving at the end, but on `drive` at 107 s a drone just
+crashed, moving again at 147 s; no pool ran out (item 2's marks). The same four under ASan + UBSan (the whole game, Pi,
+GCC 12): no fault, and one UBSan report in each, `route_cross/group.c:164`'s `s16 [17]` at 17, which 6 cars give too
+(MORECARS.md 9). On 5e108ff, without this item, the same race faulted in the model thread as the countdown began
+(MORECARS.md 7.1). The synthetic cartridge (build host) ran `race`, `race2p`, `drive` and `demo` the same way: each
+reached its state, no fault, the 12 cars on `drive` at 12 places, all moving.
 
 **Left to others.** Nothing in these files: item 3's first part (597098e) did the rest of MORECARS.md 3.1 around them
 (world_physics_tick's first distances and its reset of the slots after the race's, set_catchup, car_setup_confirm's
