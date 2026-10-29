@@ -68,6 +68,11 @@ void test_be_reset(void) { g_nbe = 0; }
 int test_race_cars = 6;
 int pc_race_cars(void) { return test_race_cars; }
 
+/* PLACEHOLDER until [game] cars is wired up (docs/port/MORECARS.md 10.2, item 7): the race's start latches nothing
+ * (test_race_cars is what the race holds), and the setting is the N64's 6. */
+void pc_race_cars_begin(void) {}
+int pc_cars_setting(void) { return 6; }
+
 #ifndef MAP_FIXED_NOREPLACE
 #define MAP_FIXED_NOREPLACE 0x100000
 #endif

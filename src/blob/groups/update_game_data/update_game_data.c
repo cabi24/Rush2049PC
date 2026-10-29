@@ -338,6 +338,10 @@ void func_800E7FA0(s16 droneIndex)
     }
 }
 
+#ifndef TARGET_PC
+/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
+#define PC_RACE_CARS 6
+#endif
 void update_game_data(void)
 {
     s16 i;
@@ -355,7 +359,7 @@ void update_game_data(void)
 
     osStopThread(D_80034840);
     battle_mode_setup(D_801543CC);
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < PC_RACE_CARS; i++) {
         m = PC_MODEL(i);
         gc = PC_CAR(i);
         if (m->in_game && gc->dead < 2) {
