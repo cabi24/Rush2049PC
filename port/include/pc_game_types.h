@@ -20,6 +20,14 @@
 #define PC_N64_LINK_SLOTS 13
 #define PC_LINK_SLOTS (PC_MAX_LINKS > PC_N64_LINK_SLOTS ? PC_MAX_LINKS : PC_N64_LINK_SLOTS)
 
+/* The cars a race holds on the PC (docs/port/MORECARS.md 10.1): PC_N64_CARS, the N64's 6, unless the setting asks for
+ * more, up to PC_MAX_LINKS. Game C reads it as PC_RACE_CARS where the N64 has a literal 6 for the race's cars; the
+ * port defines pc_race_cars() (port/main.c; the asset tests' in port/assets/tests/support.c), so game files carry no
+ * ini code. */
+#define PC_N64_CARS 6
+int pc_race_cars(void);
+#define PC_RACE_CARS (pc_race_cars())
+
 struct pc_link {
     unsigned char track;     /* +0 the track (CalcPolePositions, func_800EC190: D_8014978C) */
     unsigned char car;       /* +1 the car model, 0-12 (LoadCars, the car select) */

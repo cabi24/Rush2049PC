@@ -175,6 +175,12 @@ static uint32_t game_state(void)
     return *(volatile uint32_t *)&state_word_a;
 }
 
+/* The cars a race holds (pc_game_types.h): the N64's 6 until [game] cars is wired up (docs/port/MORECARS.md 10.1). */
+int pc_race_cars(void)
+{
+    return PC_N64_CARS;
+}
+
 /* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
  * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second;
  * and its steering input, -1..1),

@@ -63,6 +63,11 @@ size_t test_be_range_count(void) { return g_nbe; }
 
 void test_be_reset(void) { g_nbe = 0; }
 
+/* The cars a race holds (pc_game_types.h), for tests that build game C reading PC_RACE_CARS: the N64's 6 unless the
+ * test sets test_race_cars. */
+int test_race_cars = 6;
+int pc_race_cars(void) { return test_race_cars; }
+
 #ifndef MAP_FIXED_NOREPLACE
 #define MAP_FIXED_NOREPLACE 0x100000
 #endif
