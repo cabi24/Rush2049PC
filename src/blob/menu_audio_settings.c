@@ -10,7 +10,13 @@ typedef struct Vehicle2056 {
 } Vehicle2056;
 extern s8 D_8017A4D8;
 extern int gameplay_mode;
+#ifdef TARGET_PC
+/* The loop's end is the model records' end, the next symbol on the N64 (D_8014D280, the level-object nodes): on
+ * the PC the records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle2056 D_8014D280[];
+#define PC_MODELS_END D_8014D280
+#endif
 extern void func_8009E820(Vec3 *,Vec3 *,float *);
 extern void func_800A61B0(Vec3 *,Vec3 *,float *);
 extern int func_800CEC8C(Vehicle2056 *,Vec3 *,float);
@@ -26,7 +32,7 @@ void menu_audio_settings(Vehicle2056 *vehicle)
  if(D_8017A4D8 && gameplay_mode!=1)return;
  if(!vehicle->enabled)return;
  if(gameplay_mode==2)return;
- for(other=vehicle+1;other<D_8014D280;other++) {
+ for(other=vehicle+1;other<PC_MODELS_END;other++) {
   if(!other->active || !other->enabled)continue;
   delta.x=vehicle->position.x-other->position.x;
   delta.y=vehicle->position.y-other->position.y;

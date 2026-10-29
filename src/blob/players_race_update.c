@@ -577,7 +577,12 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern D_8014A250_Record D_8014A250;
+#define PC_MODELS &D_8014A250
+#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -3712,7 +3717,7 @@ typedef s64 M2C_UNK64;
 void players_race_update(void) {
     D_8014A250_Record *r;
     s32 i;
-    for (i = 0, r = &D_8014A250; i != 6; i++, r = (D_8014A250_Record *) ((s8 *) r + 0x808)) {
+    for (i = 0, r = PC_MODELS; i != 6; i++, r = (D_8014A250_Record *) ((s8 *) r + 0x808)) {
         if ((*(s16 *) ((s8 *) r + 0x7C8) != 0) && ((s8) PAD0EC(player_array[i].pad0EC, 0x26D) < 2)) {
             func_800D4DFC(r);
         }

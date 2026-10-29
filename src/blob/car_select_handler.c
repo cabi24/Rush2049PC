@@ -728,7 +728,10 @@ typedef struct
   u8 pad7C8[0x7E8 - 0x7C8];
   u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+#else
 extern D_8014A250_Record D_8014A250;
+#endif
 typedef struct 
 {
   u8 pad00[0x0C];
@@ -2608,7 +2611,13 @@ extern f32 D_8014A650;
 extern u16 D_8014A86C;
 extern s8 D_8014A890;
 extern s16 D_8014A914;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern f32 D_8014A964;
+#define PC_MODEL(i) (D_8014A250_Record *) ((i * 0x808) + ((u8 *) (&D_8014A250)))
+#define PC_MODEL_MODEL_TIME(i) *((f32 *) (((u8 *) (&D_8014A964)) + (i * 0x808)))
+#endif
 extern s16 D_8014A96C;
 extern s16 D_8014AA14;
 extern s16 D_8014AA16;
@@ -3819,7 +3828,7 @@ void car_select_handler(s16 arg0)
       if (((s8) PAD0EC(temp_v0->pad0EC, 0x26D)) <= 0)
     {
 
-      temp_a1 = (D_8014A250_Record *) ((arg0 * 0x808) + ((u8 *) (&D_8014A250)));
+      temp_a1 = PC_MODEL(arg0);
       if ((*((s8 *) (((s8 *) temp_a1) + 0x640))) != 0)
       {
         ((s8 *) temp_v0->pad0EC)[1] = -1;
@@ -3838,14 +3847,14 @@ void car_select_handler(s16 arg0)
     case 1:
       if (gameplay_mode == 6)
     {
-      if (((*((f32 *) (((u8 *) (&D_8014A964)) + (arg0 * 0x808)))) - (*((f32 *) (((s8 *) temp_v0) + 0x10C)))) > 2.25f)
+      if (((PC_MODEL_MODEL_TIME(arg0)) - (*((f32 *) (((s8 *) temp_v0) + 0x10C)))) > 2.25f)
       {
         PAD0EC(temp_v0->pad0EC, 0x26C) = 2;
         return;
       }
     }
     else
-      if (((*((f32 *) (((u8 *) (&D_8014A964)) + (arg0 * 0x808)))) - (*((f32 *) (((s8 *) temp_v0) + 0x10C)))) > 3.5f)
+      if (((PC_MODEL_MODEL_TIME(arg0)) - (*((f32 *) (((s8 *) temp_v0) + 0x10C)))) > 3.5f)
     {
       PAD0EC(temp_v0->pad0EC, 0x26C) = 2;
     }

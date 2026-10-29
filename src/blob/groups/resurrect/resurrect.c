@@ -234,7 +234,15 @@ typedef struct surftyp {
 #define MPH_TO_FTPS 1.4666667f
 
 extern tCarData D_80152818[];       /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData D_8014A250[];     /* model */
+#define PC_MODEL_MODELRUN(i) model[i].fastin.modelrun
+#define PC_MODEL_MOVING_STATE(i) model[i].resurrect.moving_state
+#define PC_MODEL_RESURRECT_POS(i) model[i].resurrect.pos
+#define PC_MODEL_RWR(i) model[i].rwr
+#endif
 extern float D_8011418C[3][3];      /* unitmatrix */
 extern s8 D_80142760;               /* gDeathMode */
 extern int D_8014A110;              /* gRace */
@@ -329,12 +337,12 @@ void func_800D348C(tModelData *m, int *outPath, int *outIdx)
             if (pReal >= gResPath.numPts) pReal -= gResPath.numPts;
             for (a = 0; a < gNumPlayers; a++) {
                 if (m->slot == a) continue;
-                if (model[a].resurrect.moving_state >= 0) {
-                    x = model[a].resurrect.pos[0];
-                    z = model[a].resurrect.pos[2];
+                if (PC_MODEL_MOVING_STATE(a) >= 0) {
+                    x = PC_MODEL_RESURRECT_POS(a)[0];
+                    z = PC_MODEL_RESURRECT_POS(a)[2];
                 } else {
-                    x = model[a].rwr[0];
-                    z = model[a].rwr[2];
+                    x = PC_MODEL_RWR(a)[0];
+                    z = PC_MODEL_RWR(a)[2];
                 }
                 dx = gResPath.pts[pReal][0] - x;
                 dz = gResPath.pts[pReal][2] - z;
@@ -478,7 +486,7 @@ void stunt_combo_display(tModelData *m)
                 m->tires[i].angvel = m->tireV[i][2] / m->tires[i].tradius;
             }
         }
-        model[node].fastin.modelrun = 1;
+        PC_MODEL_MODELRUN(node) = 1;
         return;
     }
     if (inPlace) {

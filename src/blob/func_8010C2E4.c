@@ -76,7 +76,12 @@ typedef struct Camera {
 #define N64P(x) x
 #endif
 
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern Poly24 *D_801497F8;
 
 s32 func_8010C2E4(Camera *cam, s16 *player, s32 arg2, s32 arg3) {
@@ -88,7 +93,7 @@ s32 func_8010C2E4(Camera *cam, s16 *player, s32 arg2, s32 arg3) {
     u16 f0, f1, f2, f3;
 
     idx = *player;
-    car = &D_8014A250[idx];
+    car = PC_MODEL(idx);
     if (car->b640 != 0 || car->s6C4 >= 0) {
         return 0;
     }

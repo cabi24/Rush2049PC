@@ -24,12 +24,17 @@ typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]
 typedef struct Player { u8 unknown000[0x35b]; s8 index; u8 unknown35c[0x2a]; s16 health; s16 damage; u8 unknown38a[2]; u32 flags; u8 unknown390[0x28]; } Player;
 #endif
 typedef struct Vehicle { u8 unknown000[0x640]; s8 disabled; u8 unknown641[0x1c7]; } Vehicle;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle D_8014A250[];
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].disabled
+#endif
 extern s8 D_8012E67C[];
 extern void effect_cleanup(s8 attacker, s8 victim, s8 amount);
 void func_8038D3A4(Player *attacker, Player *victim, s32 damage)
 {
-    if (D_8014A250[victim->index].disabled) return;
+    if (PC_MODEL_CRASHFLAG(victim->index)) return;
     if (victim->index == attacker->index) return;
     if (D_8012E67C[victim->index] == D_8012E67C[attacker->index]) return;
     if (victim->flags & 4) damage = damage * 0.2f;
@@ -38,6 +43,6 @@ void func_8038D3A4(Player *attacker, Player *victim, s32 damage)
     if (victim->health <= 0) {
         victim->health = 0;
         effect_cleanup(attacker->index, victim->index, 1);
-        D_8014A250[victim->index].disabled = 1;
+        PC_MODEL_CRASHFLAG(victim->index) = 1;
     }
 }

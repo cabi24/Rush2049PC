@@ -576,7 +576,13 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern D_8014A250_Record D_8014A250;
+#define PC_MODEL(i) (D_8014A250_Record *) ((u8 *) &D_8014A250 + (i * 0x808))
+#define PC_MODEL_SLOT(i) M2C_FIELD(((D_8014A250_Record *) ((u8 *) &D_8014A250 + (i * 0x808))), s16 *, 0x7C6)
+#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -3710,9 +3716,9 @@ void CarSetup(void) {
     var_s2 = 0;
     if ((s8) D_80152744 > 0) {
         do {
-            temp_s0 = M2C_FIELD(((D_8014A250_Record *) ((u8 *) &D_8014A250 + (var_s2 * 0x808))), s16 *, 0x7C6);
+            temp_s0 = PC_MODEL_SLOT(var_s2);
             temp_s1 = (s32 *) ((u8 *) &D_801439F8 + temp_s0);
-            temp_v0 = (D_8014A250_Record *) ((u8 *) &D_8014A250 + (temp_s0 * 0x808));
+            temp_v0 = PC_MODEL(temp_s0);
             if (M2C_FIELD(temp_v0, s8 *, 0x7DD) != 0) {
                 if (*temp_s1 == 0) {
                     music_tempo_set(temp_s0, M2C_FIELD(temp_v0, u8 *, 8), 1);

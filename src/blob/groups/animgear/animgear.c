@@ -43,7 +43,14 @@ typedef struct tText { u16 numSingle; u8 **single; } tText;
 
 extern s8 gShowShifter;
 extern s16 gNumWindows;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData model[];
+#define PC_MODEL_AUTOTRANS(i) model[i].autotrans
+#define PC_MODEL_GEAR(i) model[i].gear
+#define PC_MODEL_SLOT(i) model[i].slot
+#endif
 extern tCarData gGameCar[];
 extern s32 gearPos[4][4][2];
 extern tText gText;
@@ -77,9 +84,9 @@ s32 func_800EF288(void *blt)
     else
         HAL_SetFont_Gear(12);
     for (slot = 0; slot < gNumWindows; slot++) {
-        gear = model[slot].gear;
-        if (slot >= gNumWindows || !gShowShifter || model[slot].autotrans ||
-            gGameCar[model[slot].slot].place_locked == 1)
+        gear = PC_MODEL_GEAR(slot);
+        if (slot >= gNumWindows || !gShowShifter || PC_MODEL_AUTOTRANS(slot) ||
+            gGameCar[PC_MODEL_SLOT(slot)].place_locked == 1)
             continue;
         x = gearPos[gNumWindows - 1][slot][0] - 4;
         y = gearPos[gNumWindows - 1][slot][1];

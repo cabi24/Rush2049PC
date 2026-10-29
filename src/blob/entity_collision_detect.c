@@ -63,7 +63,12 @@ typedef struct Resource {u8 opaque0[60];u32 color;u8 opaque64[4];} Resource;
 #endif
 typedef union Color {struct {u8 red,green,blue,alpha;} component;u32 word;} Color;
 extern s32 D_801170FC;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Car D_8014A250[];
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].enabled
+#endif
 extern Player D_80152818[];
 extern Effect D_80154FD8[];
 extern Resource D_8012E700[];
@@ -75,7 +80,7 @@ void entity_collision_detect(Node *node,s16 update) {
     s32 phase;
     Color color;
     if(D_801170FC) return;
-    if(!D_8014A250[node->index].enabled) {
+    if(!PC_MODEL_CRASHFLAG(node->index)) {
         if(D_80154FD8[node->index].id.handle!=-1) {
             entity_spawn_callback(D_80154FD8[node->index].id.handle,0,0);
             D_80154FD8[node->index].id.handle=-1;

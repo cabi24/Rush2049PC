@@ -730,9 +730,17 @@ typedef struct
 } D_8014A250_Record;
 #ifdef TARGET_PC
 /* the cars, 0x808 bytes each: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+#ifdef TARGET_PC
+#else
 extern D_8014A250_Record D_8014A250[];
+#endif
+#else
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
 extern D_8014A250_Record D_8014A250;
+#define PC_MODEL(i) ((i * 0x808) + ((u8 *) (&D_8014A250)))
+#endif
 #endif
 typedef struct 
 {
@@ -3810,7 +3818,7 @@ void func_800D4D84(s32 arg0, M2C_UNK arg1)
 {
   f32 temp_f0;
   s8 *p;
-  p = (s8 *) ((arg0 * 0x808) + ((u8 *) (&D_8014A250)));
+  p = (s8 *) PC_MODEL(arg0);
   temp_f0 = *((f32 *) (p + 0x7F4));
   *((f32 *) (p + 0x734)) = *((f32 *) (p + 0x214));
   *((f32 *) (p + 0x738)) = *((f32 *) (p + 0x218));

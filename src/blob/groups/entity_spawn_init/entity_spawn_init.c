@@ -64,7 +64,14 @@ typedef struct Scene {u32 flags;u32 flags4;void *owner;f32 scaleA;f32 scaleB;u16
 #endif
 typedef struct Bank {u8 *data;u32 other;} Bank;
 extern Car D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_BODY(i) D_8014A250[i].type
+#define PC_MODEL_SUSPENSION(i) D_8014A250[i].suspension
+#endif
 extern Scene D_8012E700[];
 extern u32 D_801392D8[];
 extern u8 D_8013A020[];
@@ -119,7 +126,7 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
     f32 spacing;
     f32 distance;
     f32 scale;
-    Model *model = &D_8014A250[slot];
+    Model *model = PC_MODEL(slot);
     f32 previous[3];
     s16 surface = model->surface[type];
     s16 mph;
@@ -309,9 +316,9 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
             pos[0] = pos[0] + car->forward[0] * (func_8008B2E4(7.0f) - 3.5f);
             pos[1] = pos[1] + car->forward[1] * (func_8008B2E4(7.0f) - 3.5f);
             pos[2] = pos[2] + car->forward[2] * (func_8008B2E4(7.0f) - 3.5f);
-            pos[0] = pos[0] + car->up[0] * D_8011744C[D_8014A250[slot].type];
-            pos[1] = pos[1] + car->up[1] * D_8011744C[D_8014A250[slot].type];
-            pos[2] = pos[2] + car->up[2] * D_8011744C[D_8014A250[slot].type];
+            pos[0] = pos[0] + car->up[0] * D_8011744C[PC_MODEL_BODY(slot)];
+            pos[1] = pos[1] + car->up[1] * D_8011744C[PC_MODEL_BODY(slot)];
+            pos[2] = pos[2] + car->up[2] * D_8011744C[PC_MODEL_BODY(slot)];
             pos[1] = pos[1] + 0.75f;
             D_8012E700[v->handle.word].scaleA = func_8008B2E4(0.5f) + 0.75f;
             break;
@@ -329,9 +336,9 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
             pos[0] = pos[0] + car->forward[0] * v->velocity[2];
             pos[1] = pos[1] + car->forward[1] * v->velocity[2];
             pos[2] = pos[2] + car->forward[2] * v->velocity[2];
-            pos[0] = pos[0] + car->up[0] * D_8011744C[D_8014A250[slot].type];
-            pos[1] = pos[1] + car->up[1] * D_8011744C[D_8014A250[slot].type];
-            pos[2] = pos[2] + car->up[2] * D_8011744C[D_8014A250[slot].type];
+            pos[0] = pos[0] + car->up[0] * D_8011744C[PC_MODEL_BODY(slot)];
+            pos[1] = pos[1] + car->up[1] * D_8011744C[PC_MODEL_BODY(slot)];
+            pos[2] = pos[2] + car->up[2] * D_8011744C[PC_MODEL_BODY(slot)];
             break;
         case 6:
             if (D_801392D8[slot] & 0x1000) { D_801392D8[slot] &= ~0x1000; break; }
@@ -355,7 +362,7 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
             pos[1] = pos[1] + car->right[1] * (func_8008B2E4(2.0f) - 1.0f);
             
             pos[2] = pos[2] + car->right[2] * (func_8008B2E4(2.0f) - 1.0f);
-             pos[1] += D_8014A250[slot].suspension[type]; 
+             pos[1] += PC_MODEL_SUSPENSION(slot)[type]; 
             D_8012E700[v->handle.word].scaleA = func_8008B2E4(0.75f) + 0.25f;
         }
         if (type >= 6) {

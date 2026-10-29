@@ -101,7 +101,13 @@ typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 
 extern volatile f32 D_8002EB94;          /* gFrameSeconds */
 extern Car D_80152818[];                 /* gGameCar, stride 0x3b8 */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];               /* model */
+#define PC_MODEL_BODY(i) D_8014A250[i].body_type
+#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
+#endif
 extern CarParts D_80139320[];            /* gCarParts */
 extern u16 D_8014254C[];                 /* gObjList */
 extern s32 D_80399B40[7];                /* gWfxObjList */
@@ -212,7 +218,7 @@ void func_8038AA8C(Visual *v, s16 op)
     s32 pad1;   /* unused: retail frame */
     s32 pad2;   /* unused: retail frame */
 
-    if (!op || D_8014A250[v->slot].crashflag) {
+    if (!op || PC_MODEL_CRASHFLAG(v->slot)) {
         if (D_80399118[v->slot] == 1)
             func_8038AA14(v->slot);
         else if (D_80399118[v->slot] == 0)
@@ -239,9 +245,9 @@ void func_8038AA8C(Visual *v, s16 op)
         model_transform_setup(v->objnum, 0, 15);
     }
     if (D_80399118[v->slot] != car->battle.type) {
-        off[0] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][0];
-        off[1] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][1];
-        off[2] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][2];
+        off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
+        off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
+        off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
         if (D_80399118[v->slot] == 1)
             func_8038AA14(v->slot);
         else if (D_80399118[v->slot] == 0)
@@ -319,12 +325,12 @@ void func_8038AA8C(Visual *v, s16 op)
         case 7: def = 223; break;
         }
         func_80090770(D_80139320[v->slot].weap, D_8014254C[def + 314]);
-        func_8008D6FC(D_80139320[v->slot].weap, WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type], 0);
+        func_8008D6FC(D_80139320[v->slot].weap, WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)], 0);
     }
     {
-        off[0] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][0];
-        off[1] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][1];
-        off[2] = WEAPON_OFF(car->battle.type)[D_8014A250[v->slot].body_type][2];
+        off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
+        off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
+        off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
         if (D_80399118[v->slot] == 1) {
             off[0] += 0.01f;
             off[1] += 0.65f;

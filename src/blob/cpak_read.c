@@ -35,7 +35,12 @@ typedef struct Car { u8 pad0[232]; u32 appearance; u8 pad236[36]; Visual visuals
 #endif
 typedef struct Model { u8 pad0[1564]; u16 sviscode[4]; u8 pad1572[484]; } Model;
 extern Car D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL_VISCODE(i) D_8014A250[i].sviscode
+#endif
 extern volatile u32 D_80124F70;
 extern f32 D_8002AFB4;
 extern s16 active_player_count;
@@ -62,19 +67,19 @@ void cpak_read(s16 slot)
     if (car->appearance & 0x60)
         entity_spawn_init(slot, 4, 0, 0);
 
-    if (D_8014A250[slot].sviscode[0] == 2)
+    if (PC_MODEL_VISCODE(slot)[0] == 2)
         entity_spawn_init(slot, 0, 1, 0);
     else if (car->appearance & 0x40000)
         entity_spawn_init(slot, 0, 0, 0);
-    if (D_8014A250[slot].sviscode[1] == 2)
+    if (PC_MODEL_VISCODE(slot)[1] == 2)
         entity_spawn_init(slot, 1, 1, 0);
     else if (car->appearance & 0x80000)
         entity_spawn_init(slot, 1, 0, 0);
-    if (D_8014A250[slot].sviscode[2] == 2)
+    if (PC_MODEL_VISCODE(slot)[2] == 2)
         entity_spawn_init(slot, 2, 1, 0);
     else if (car->appearance & 0x10000)
         entity_spawn_init(slot, 2, 0, 0);
-    if (D_8014A250[slot].sviscode[3] == 2)
+    if (PC_MODEL_VISCODE(slot)[3] == 2)
         entity_spawn_init(slot, 3, 1, 0);
     else if (car->appearance & 0x20000)
         entity_spawn_init(slot, 3, 0, 0);

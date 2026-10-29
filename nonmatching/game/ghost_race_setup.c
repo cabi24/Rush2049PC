@@ -73,7 +73,12 @@ typedef struct GhostPlayer { u8 pad0[239]; s8 ready; f32 value; u8 tail[708]; } 
 typedef struct GhostObject { u8 pad0[1820]; s16 reset; u8 tail[234]; } GhostObject;
 extern Ghost **D_80152698[];
 extern GhostPlayer D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern GhostObject D_8014A250[];
+#define PC_MODEL_MODELRUN(i) D_8014A250[i].reset
+#endif
 extern GhostHeader *D_80140800;
 extern s16 D_8014A108;
 extern s32 D_8014A110;
@@ -95,7 +100,7 @@ void ghost_race_setup(void)
         if (D_80152698[i] != 0) {
             Ghost **ghost = D_80152698[i];
             D_80152698[i] = 0;
-            D_8014A250[i].reset = 0;
+            PC_MODEL_MODELRUN(i) = 0;
             g = *(*ghost)->header;
             if (g->flag >= 0) {
                 if (g->flag > 0) {

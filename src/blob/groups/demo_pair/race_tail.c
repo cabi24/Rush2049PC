@@ -57,7 +57,15 @@ extern s16 D_8014A108;
 extern Player76 D_8014A118[];
 extern s8 D_80152744;
 extern Car952 player_array[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Game2056 D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].type
+#define PC_MODEL_RWR(i) D_8014A250[i].snd
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#endif
 extern u32 D_801174B4;
 extern Cam152 gCamera[];
 extern s8 D_8010FFC0;
@@ -122,7 +130,7 @@ void render_viewport_init(void) {
     camera_position_update();
     for (i = 0; i < D_80152744; i++) {
         car = &player_array[i];
-        slot = D_8014A250[i].slot;
+        slot = PC_MODEL_SLOT(i);
         if (*(volatile s8 *)&car->restart < 0) {
             cam = car->cam;
             if (!(D_801174B4 & 8) && slot < D_8014A108) {
@@ -136,13 +144,13 @@ void render_viewport_init(void) {
                 gCamera[cam].savepos[2] = gCamera[cam].pos[2];
             }
             save_write_data(&slot, 1, 1.f, 0);
-            func_800D5524(&D_8014A250[i]);
-            if (D_8014A250[i].type == 2) {
-                if (D_8014A110 != 2 || D_80152698[D_8014A250[i].slot] == 0 || (*D_80152698[D_8014A250[i].slot])->inner[0]->f5 < 0) {
-                    func_800B61A8(45, D_8014A250[i].slot, 1, 1);
+            func_800D5524(PC_MODEL(i));
+            if (PC_MODEL_DRONE_TYPE(i) == 2) {
+                if (D_8014A110 != 2 || D_80152698[PC_MODEL_SLOT(i)] == 0 || (*D_80152698[PC_MODEL_SLOT(i)])->inner[0]->f5 < 0) {
+                    func_800B61A8(45, PC_MODEL_SLOT(i), 1, 1);
                 }
             } else {
-                camera_collision_check(D_8014A250[i].snd, (const f32 *)D_801141B0, 400.0f, 0.0f, 1.0f, 0.0f, 45, D_8014A250[i].slot, 0, 128);
+                camera_collision_check(PC_MODEL_RWR(i), (const f32 *)D_801141B0, 400.0f, 0.0f, 1.0f, 0.0f, 45, PC_MODEL_SLOT(i), 0, 128);
             }
             if (D_8014A110 == 4) {
                 func_800C3578(slot);

@@ -1,6 +1,13 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef float f32;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). The
+ * debug guard's placeholder operands read the alias as a scalar: record 0's modelrun. */
+#define D_8014A96C PC_MODEL_MODELRUN(0)
+#else
 extern s16 D_8014A96C;
+#define PC_MODEL_MODELRUN(i) *(s16 *)((u8 *)&D_8014A96C + i * 0x808)
+#endif
 void math_utility(void *arg0, void *arg1);
 void func_800D11BC(void *arg0);
 /* N64 port of the arcade check_if_finished_resurrecting (game/resurrect.c),
@@ -48,5 +55,5 @@ void func_800D1248(void *arg0)
         i++;
     } while (i < 4);
     idx = *(s16 *)((s8 *)arg0 + 0x7C6);
-    *(s16 *)((u8 *)&D_8014A96C + idx * 0x808) = 1;
+    PC_MODEL_MODELRUN(idx) = 1;
 }

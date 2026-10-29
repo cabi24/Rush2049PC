@@ -145,7 +145,13 @@ extern Link D_80153E88[];                                   /* GC gLink */
 #define PC_LINK_FLAGS(i) D_80153E88[i].b6
 #define PC_LINK_OWNER(i) D_80153E88[i].b7
 #endif
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];                                  /* GC model */
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].state
+#define PC_MODEL_DT(i) D_8014A250[i].frameTime
+#endif
 extern s8 D_8014978C;                                       /* GC gTrackNum */
 extern s8 D_80152570;                                       /* GC gBackwards */
 extern f32 D_8002AFB8;                                      /* GC gRetraceTime */
@@ -249,8 +255,8 @@ void GhostStart(void) {
         PC_LINK_PLACE(np) = np;
         PC_LINK_FLAGS(np) = 176;
         PC_LINK_OWNER(np) = 6;
-        D_8014A250[np].state = 2;
-        D_8014A250[np].frameTime = g->frameTime;
+        PC_MODEL_DRONE_TYPE(np) = 2;
+        PC_MODEL_DT(np) = g->frameTime;
         np++;
         D_801543CA = np;
     }

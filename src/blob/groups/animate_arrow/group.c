@@ -71,7 +71,12 @@ typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct Mesh {s16 count;u16 flags,parameter,unknown;Vertex20 vertices[4];} Mesh;
 
 extern CAR_DATA D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern MODELDAT D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern Camera D_80150B70[];
 extern View D_8017A510[];
 extern Mesh D_8015B268[];
@@ -101,7 +106,7 @@ void entity_render_setup(Effect *effect, s16 op) {
     u32 side;
 
     record = &D_80152818[effect->player];
-    vehicle = &D_8014A250[effect->player];
+    vehicle = PC_MODEL(effect->player);
     type = effect->view;
     color = D_8011B578;
     if (!D_801613A8 || !(state_word_a & 0x400000) || (!(!record->hidden && vehicle->state < 0) && D_8014A110 == 6)) {

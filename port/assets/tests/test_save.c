@@ -195,7 +195,8 @@ int16_t active_player_count;
 float D_8002AFB8 = 1.0f / 60;                   /* gRetraceTime */
 volatile int8_t D_80114738;
 int32_t D_80143FF4;
-uint8_t D_8014A250[6][0x808];                   /* the model records */
+struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
+#define D_8014A250 ((uint8_t (*)[0x808])pc_models)
 uint8_t D_80152818[6][PC_CAR_SIZE];             /* the cars */
 int16_t D_803B9BBA;
 int8_t D_8011103C[13], D_80111080[13], D_8011119C[13], D_80111230[13], D_8011128C[13], D_80111604[13],

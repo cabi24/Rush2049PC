@@ -205,11 +205,13 @@ typedef struct Config {u8 field0,body,field2,field3,field4,place,flags,owner;} C
 typedef struct Bounds {float front,rear,side,height;} Bounds;
 typedef struct Route {s16 field0,first,field4,field6,count;} Route;
 #ifdef TARGET_PC
-/* PC: the model records are arena data at their N64 address (docs/port/CARS.md), not a common symbol, which
- * x86-64 gcc would align to 32. */
-extern Car D_8014A250[6];
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #else
 Car D_8014A250[6];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_AUTOTRANS(i) D_8014A250[i].byte10
+#define PC_MODEL_INPUT_FLAGS(i) D_8014A250[i].byte9
+#define PC_MODEL_SLOT(i) D_8014A250[i].half1990
 #endif
 extern Player D_80152818[];
 #ifdef TARGET_PC
@@ -250,7 +252,7 @@ void world_physics_tick(void) {
     float preserved,value,maxlen;
     D_80152744=0;
     for(i=0;i<D_801543CA;i++) {
-        car=&D_8014A250[i];
+        car=PC_MODEL(i);
         player=&D_80152818[i];
         preserved=car->preserved;
         for(j=0;j<sizeof(Car);j++)
@@ -281,7 +283,7 @@ void world_physics_tick(void) {
         func_800B27E4(player);
         car->half1992=(PC_LINK_FLAGS(i)&0x80)!=0;
         if(car->half1992) {
-            D_8014A250[D_80152744++].half1990=i;
+            PC_MODEL_SLOT(D_80152744++)=i;
             player->byte859=i;
             player->byte238=PC_LINK_PLACE(i);
             car->byte1996=PC_LINK_OWNER(i)<6?1:2;
@@ -356,14 +358,14 @@ void world_physics_tick(void) {
         }
     }
     for(i=D_801543CA;i<6;i++) {
-        car=&D_8014A250[i];
+        car=PC_MODEL(i);
         car->half1994=PC_LINK_OWNER(i)==0;
         car->byte1996=0;
         car->half1992=0;
     }
     if(state_word_a&8) {
-        D_8014A250[0].byte9=0;
-        D_8014A250[0].byte10=1;
+        PC_MODEL_INPUT_FLAGS(0)=0;
+        PC_MODEL_AUTOTRANS(0)=1;
     }
     D_80152015=0;
     D_80153E84=D_8015274C;

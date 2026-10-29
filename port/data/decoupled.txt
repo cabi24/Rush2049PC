@@ -11,3 +11,10 @@
 # 0x80153EF0). D_80153E8F was its [0].owner (+7), read with a stride of 8; the image symbol tables also name
 # D_80153E89 ([0].car), D_80153E97 ([1].owner) and D_80153EB8 (&[6], likely the end pointer of a 6-slot loop).
 pc_links   D_80153E88   0x68   D_80153E8F
+
+# The model records (MAT3 model[], tModelData): struct pc_model[PC_MODEL_SLOTS], 6 records of 0x808 bytes on the N64
+# (0x8014A250-0x8014D280), the same layout on the PC. The aliases are the names inside it the game C reached: the
+# second symbol D_8014A250_alias, and [0]'s fields D_8014A258 (+0x8), D_8014A640 (+0x3F0), D_8014A890 (+0x640),
+# D_8014A914 (+0x6C4), D_8014A964 (+0x714), D_8014A96C (+0x71C), D_8014AA14 (+0x7C4), D_8014AA16 (+0x7C6),
+# D_8014AA32 (+0x7E2) and D_8014AA3A (+0x7EA), read with a stride of 0x808; the image symbol tables name 12 more.
+pc_models  D_8014A250  0x3030  D_8014A250_alias D_8014A258 D_8014A640 D_8014A890 D_8014A914 D_8014A964 D_8014A96C D_8014AA14 D_8014AA16 D_8014AA32 D_8014AA3A

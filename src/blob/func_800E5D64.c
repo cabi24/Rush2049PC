@@ -51,7 +51,17 @@ extern f32 D_8002AFB8;
 extern volatile s8 D_80114738;
 extern ReplaySlot *D_80152698[];
 extern s32 D_80143FF4;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL_BRAKE(i) D_8014A250[i].brake
+#define PC_MODEL_FLAG_A(i) D_8014A250[i].flagA
+#define PC_MODEL_FLAG_B(i) D_8014A250[i].flagB
+#define PC_MODEL_GAS(i) D_8014A250[i].gas
+#define PC_MODEL_GEAR(i) D_8014A250[i].gear
+#define PC_MODEL_STEER(i) D_8014A250[i].steer
+#endif
 extern Car D_80152818[];
 
 #define ABS(x) ((x) >= 0 ? (x) : -(x))
@@ -80,18 +90,18 @@ s32 func_800E5D64(s32 idx, f32 *out)
             }
         }
         if (s->pos == s->count) {
-            D_8014A250[idx].flagA = 0;
-            D_8014A250[idx].flagB = 0;
-            D_8014A250[idx].steer = 0.0f;
-            D_8014A250[idx].gas = 0.0f;
-            D_8014A250[idx].brake = 0.0f;
+            PC_MODEL_FLAG_A(idx) = 0;
+            PC_MODEL_FLAG_B(idx) = 0;
+            PC_MODEL_STEER(idx) = 0.0f;
+            PC_MODEL_GAS(idx) = 0.0f;
+            PC_MODEL_BRAKE(idx) = 0.0f;
         } else {
-            D_8014A250[idx].gear = (s8) (DATA(s)[s->pos] & 7) - 1;
-            D_8014A250[idx].flagA = (DATA(s)[s->pos] & 8) >> 3;
-            D_8014A250[idx].flagB = (DATA(s)[s->pos] & 0x10) >> 4;
-            D_8014A250[idx].steer = (f32) ((s8 *) DATA(s))[s->pos + s->count] / 127;
-            D_8014A250[idx].gas = (f32) (DATA(s)[s->pos + s->count + s->count] >> 4) / 15.0f;
-            D_8014A250[idx].brake = (f32) (DATA(s)[s->pos + s->count + s->count] & 0xF) / 15.0f;
+            PC_MODEL_GEAR(idx) = (s8) (DATA(s)[s->pos] & 7) - 1;
+            PC_MODEL_FLAG_A(idx) = (DATA(s)[s->pos] & 8) >> 3;
+            PC_MODEL_FLAG_B(idx) = (DATA(s)[s->pos] & 0x10) >> 4;
+            PC_MODEL_STEER(idx) = (f32) ((s8 *) DATA(s))[s->pos + s->count] / 127;
+            PC_MODEL_GAS(idx) = (f32) (DATA(s)[s->pos + s->count + s->count] >> 4) / 15.0f;
+            PC_MODEL_BRAKE(idx) = (f32) (DATA(s)[s->pos + s->count + s->count] & 0xF) / 15.0f;
             s->pos++;
         }
         if (D_8002AFB8 != s->dt && 0.016666668f == s->dt) {
@@ -107,14 +117,14 @@ s32 func_800E5D64(s32 idx, f32 *out)
         if (!(s->pos < s->count)) {
             return 0;
         }
-        DATA(s)[s->pos] = (D_8014A250[idx].gear + 1) | (D_8014A250[idx].flagA * 8) | (D_8014A250[idx].flagB * 16);
-        if (D_8014A250[idx].steer * 127.0f < 0.0f) {
-            f = D_8014A250[idx].steer * 127.0f - 0.5f;
+        DATA(s)[s->pos] = (PC_MODEL_GEAR(idx) + 1) | (PC_MODEL_FLAG_A(idx) * 8) | (PC_MODEL_FLAG_B(idx) * 16);
+        if (PC_MODEL_STEER(idx) * 127.0f < 0.0f) {
+            f = PC_MODEL_STEER(idx) * 127.0f - 0.5f;
         } else {
-            f = D_8014A250[idx].steer * 127.0f + 0.5f;
+            f = PC_MODEL_STEER(idx) * 127.0f + 0.5f;
         }
         DATA(s)[s->pos + s->count] = (s32) f;
-        DATA(s)[s->pos + s->count + s->count] = ((u8) (D_8014A250[idx].gas * 15.0f + 0.5f) * 16) | (u8) (D_8014A250[idx].brake * 15.0f + 0.5f);
+        DATA(s)[s->pos + s->count + s->count] = ((u8) (PC_MODEL_GAS(idx) * 15.0f + 0.5f) * 16) | (u8) (PC_MODEL_BRAKE(idx) * 15.0f + 0.5f);
         s->pos++;
         return 0;
     }

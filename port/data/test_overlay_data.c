@@ -12,6 +12,7 @@
  * The game writes them; a load of the other image leaves them alone; a load of their image puts them back, as the
  * N64's load does. The program stands in for everything else weapons.c references. */
 #include "pc_data.h"
+#include "../include/pc_game_types.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +25,7 @@ static int failures;
 volatile float D_8002EB94 = 1.0f / 30;
 __attribute__((aligned(16))) uint8_t D_80139320[6 * 0x40];      /* CarParts[] */
 uint16_t D_8014254C[64];
-__attribute__((aligned(16))) uint8_t D_8014A250[6 * 0x808];     /* model[] */
+struct pc_model pc_models[PC_MODEL_SLOTS];     /* model[] (pc_game_types.h) */
 __attribute__((aligned(16))) uint8_t D_80151AE8[64 * 16];       /* TexDefSet[] */
 __attribute__((aligned(16))) uint8_t D_80152818[6 * 0x468];     /* the cars, PC layout */
 uint16_t D_80399B08[5];

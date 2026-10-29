@@ -199,7 +199,12 @@ typedef struct _tSusp {
 
 typedef struct tLink { u8 pad[7]; u8 owner; } tLink;
 
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData D_8014A250[];   /* model */
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern tCarData D_80152818[];     /* gGameCar */
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -246,7 +251,7 @@ void func_800E7FA0(s16 droneIndex)
     s32 side;
     s32 forceLow;
     s32 force;
-    tModelData *m = &D_8014A250[droneIndex];
+    tModelData *m = PC_MODEL(droneIndex);
     tSkidData *skidData;
     s32 airborne = m->sviscode[1] == 8 || m->sviscode[2] == 8;
     s32 wet = m->sviscode[1] == 2 || m->sviscode[2] == 2;
@@ -346,7 +351,7 @@ void update_game_data(void)
     osStopThread(D_80034840);
     battle_mode_setup(D_801543CC);
     for (i = 0; i < 6; i++) {
-        m = &D_8014A250[i];
+        m = PC_MODEL(i);
         gc = &D_80152818[i];
         if (m->in_game && gc->dead < 2) {
             gc->modelIteration = m->modelIteration;

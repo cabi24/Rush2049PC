@@ -89,7 +89,12 @@ typedef struct Target {
 } Target;
 
 extern Car D_80152818[];        /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];      /* model */
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern TargetInfo D_80117530[]; /* targetInfo */
 #ifdef TARGET_PC
 /* PC: the eight weapons' counts. Without a size the loader would take its extent from the gap to the next known
@@ -121,7 +126,7 @@ void StartWeaponIcon(Target *t)
     CollSize *sizep;
     if (t->Flags & 4) {
         car = &D_80152818[t->slot];
-        m = &D_8014A250[t->slot];
+        m = PC_MODEL(t->slot);
         t->Flags &= ~6;
         if (car->appearance & 0x10) {
             t->Flags |= 2;

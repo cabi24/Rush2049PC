@@ -29,7 +29,12 @@ typedef struct ProximityPlayer {
     unsigned char unknown14[0x3B8 - 0x14];
 #endif
 } ProximityPlayer;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern ProximityEnabled D_8014AA3A[];
+#define PC_MODEL_COLLIDABLE(i) D_8014AA3A[i].enabled
+#endif
 extern ProximityPlayer player_array[];
 
 int steering_apply(short *player_index, float *point, float *radius_in,
@@ -44,7 +49,7 @@ int steering_apply(short *player_index, float *point, float *radius_in,
     index = *player_index;
     player = &player_array[index];
     radius = *radius_in;
-    if (!D_8014AA3A[index].enabled) return 0;
+    if (!PC_MODEL_COLLIDABLE(index)) return 0;
     mveccopy(point,position);
     mvecsub(player->position,position,delta);
     distance_squared = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];

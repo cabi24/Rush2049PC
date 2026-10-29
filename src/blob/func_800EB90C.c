@@ -108,7 +108,15 @@ extern volatile s16 D_801543CA;
 extern s16 gNumWindows;
 extern f32 D_801543CC;
 extern Object D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_ACTIVE(i) D_8014A250[i].active
+#define PC_MODEL_HIDE_CAR(i) D_8014A250[i].f2015
+#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].f1996
+#endif
 extern Camera gCamera[];
 extern Player76 input_rec0[];
 extern Vec3 D_801526A8[];
@@ -169,7 +177,7 @@ void func_800EB90C(void)
             if (n >= D_801543CA) {
                 n = 0;
             }
-        } while (D_8014A250[n].active == 0 && D_80152818[n].slot < 0);
+        } while (PC_MODEL_ACTIVE(n) == 0 && D_80152818[n].slot < 0);
         D_80152818[n].slot = 0;
         gCamera[0].target = n;
     }
@@ -177,7 +185,7 @@ void func_800EB90C(void)
     for (i = 0; i < gNumWindows; i++, pl++) {
         cam = &gCamera[i];
         obj = &D_80152818[cam->target];
-        m = &D_8014A250[cam->target];
+        m = PC_MODEL(cam->target);
         view = obj->view;
         slot = obj->slot;
         if (state_word_a & 8) {
@@ -252,7 +260,7 @@ void func_800EB90C(void)
     }
     func_800CFCA8();
     for (j = 0; j < 6; j++) {
-        if (D_8014A250[j].active != 0 && D_80152818[j].node >= 0 && D_8014A250[j].f1996 != 2 && D_8014A250[j].f2015 == 0) {
+        if (PC_MODEL_ACTIVE(j) != 0 && D_80152818[j].node >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
             cam = node_camera(D_80152818[j].node);
             cam->pos[0] = D_80152818[j].pos[0];
             cam->pos[1] = D_80152818[j].pos[1];

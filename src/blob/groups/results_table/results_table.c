@@ -150,7 +150,12 @@ typedef struct TextIdx2 {u8 other[108];u16 cars;} TextIdx2;
 extern CarB6 D_80152906[];
 extern CarB7 D_80152907[];
 extern CarF8 D_80152908[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Rec808 D_8014AA16[];
+#define PC_MODEL_SLOT(i) D_8014AA16[i].car
+#endif
 extern volatile s16 D_801543CA;
 extern s16 D_80152734;
 extern u8 D_801543D4,D_80144018[];
@@ -279,7 +284,7 @@ void drawRaceStandings(void)
                 } else if (col == 3) {
                     rt_font_set(11);
                     dispatch_handler(1);
-                    str = countdown_state.strings[((TextIdx2 *)countdown_state.indices)->cars + D_80152906[D_8014AA16[D_80143F54[row - 1]].car].lap];
+                    str = countdown_state.strings[((TextIdx2 *)countdown_state.indices)->cars + D_80152906[PC_MODEL_SLOT(D_80143F54[row - 1])].lap];
                 }
             }
             if (col != 0) state_utility(col * 60 - cols * 60 / 2 + 190, y + 7, str);

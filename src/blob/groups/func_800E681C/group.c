@@ -87,7 +87,12 @@ typedef struct {
 } PadState;                             /* 0x10 */
 
 extern InputRecord input_rec0[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarState D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern Car player_array[8];
 extern s16 active_player_count;
 extern s32 state_word_a;
@@ -220,7 +225,7 @@ void func_800E681C(void)
 
     in = input_rec0;
     for (i = 0; i < active_player_count; i++, in++) {
-        st = &D_8014A250[in->player];
+        st = PC_MODEL(in->player);
         if (D_801170FC != 0 || (state_word_a & 8)) {
             continue;
         }

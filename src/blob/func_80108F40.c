@@ -78,7 +78,12 @@ extern s8 D_80156CE8;
 extern s8 D_80140A04;
 extern s32 state_word_a, D_8011617C, D_80116180;
 extern Pos D_80116028[][4];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern MODELDAT D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern CAR_DATA D_80152818[];
 extern void Input_ApplyPadConfig(void *);
 extern s32 func_800CF604(s16);
@@ -119,7 +124,7 @@ s32 func_80108F40(Blit *blt) {
     if (Hidden(blt, !D_80156CE8 || D_80152818[me].state == 1)) {
         return 1;
     }
-    m = &D_8014A250[slot];
+    m = PC_MODEL(slot);
     gc = &D_80152818[slot];
     if (!m->in_game) {
         blt->AnimFunc = 0;

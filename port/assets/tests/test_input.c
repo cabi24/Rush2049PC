@@ -48,7 +48,7 @@ float D_801141B0[3], D_801141A4[3], D_80114198[3];
 int8_t D_8013C228[10], D_8013C068[8][10], D_80139300[8];
 uint32_t D_801118E4[32];
 void *D_80146150[8];
-struct { uint8_t pad0[0x22C]; float pos[3]; uint8_t pad238[0x808 - 0x238]; } D_8014A250[4];
+struct pc_model pc_models[PC_MODEL_SLOTS];
 struct { uint8_t pad0[12]; float a[3], b[3]; uint8_t pad24[152 - 36]; } gCamera[4];
 uint8_t D_80142728[24];
 struct { uint8_t indirect, doubly, pad[2]; uint32_t count; void *head, *tail; } D_80146170, D_80146188;

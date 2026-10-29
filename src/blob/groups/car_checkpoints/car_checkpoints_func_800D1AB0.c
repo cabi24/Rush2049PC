@@ -33,7 +33,13 @@ typedef struct {
 
 extern s8 D_80152744;
 extern s16 D_80152734;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL_LAP(i) D_8014A250[i].unk7E8
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#endif
 extern GameCar D_80152818[];
 
 void func_800D1AB0(void) {
@@ -49,10 +55,10 @@ void func_800D1AB0(void) {
     num_done = 0;
     num_left = 0;
     for (i = 0; i < D_80152744; i++) {
-        if (D_80152818[D_8014A250[i].slot].unk359 > 0 && D_8014A250[i].unk7E8 < D_80152734) {
+        if (D_80152818[PC_MODEL_SLOT(i)].unk359 > 0 && PC_MODEL_LAP(i) < D_80152734) {
             num_done++;
-        } else if (D_80152818[D_8014A250[i].slot].unkEF != 1) {
-            place[num_left++] = D_8014A250[i].slot;
+        } else if (D_80152818[PC_MODEL_SLOT(i)].unkEF != 1) {
+            place[num_left++] = PC_MODEL_SLOT(i);
         }
     }
     if (num_left != 0) {

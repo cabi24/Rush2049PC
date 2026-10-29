@@ -32,7 +32,14 @@ extern s32 D_80143FF4;
 extern f32 D_801543CC;
 extern f32 D_8002AFB8;
 extern s32 gameplay_mode;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[6];
+#define PC_MODEL_MODEL_TIME(i) D_8014A250[i].unk714
+#define PC_MODEL_DT(i) D_8014A250[i].unk718
+#define PC_MODEL_ITERATION(i) D_8014A250[i].unk710
+#endif
 
 void func_800E762C(s32 arg0)
 {
@@ -45,18 +52,18 @@ void func_800E762C(s32 arg0)
     D_801543CC = D_80143FF4 * scale;
     i = 0;
 loop:
-    if (gameplay_mode != 2 || i == 0 || D_8014A250[i].unk718 == 0.0f) {
-        D_8014A250[i].unk710 = D_80143FF4;
-        D_8014A250[i].unk714 = D_801543CC;
-        D_8014A250[i].unk718 = scale;
+    if (gameplay_mode != 2 || i == 0 || PC_MODEL_DT(i) == 0.0f) {
+        PC_MODEL_ITERATION(i) = D_80143FF4;
+        PC_MODEL_MODEL_TIME(i) = D_801543CC;
+        PC_MODEL_DT(i) = scale;
     } else {
-        q = D_801543CC / D_8014A250[i].unk718;
+        q = D_801543CC / PC_MODEL_DT(i);
         if (q < 0.0f) {
-            D_8014A250[i].unk710 = q - 0.5f;
+            PC_MODEL_ITERATION(i) = q - 0.5f;
         } else {
-            D_8014A250[i].unk710 = q + 0.5f;
+            PC_MODEL_ITERATION(i) = q + 0.5f;
         }
-        D_8014A250[i].unk714 = D_801543CC;
+        PC_MODEL_MODEL_TIME(i) = D_801543CC;
     }
     i++;
     if (i < 6) goto loop;

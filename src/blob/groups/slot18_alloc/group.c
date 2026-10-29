@@ -17,7 +17,12 @@ typedef signed char s8;typedef short s16;typedef unsigned char u8;typedef signed
 typedef struct Vehicle2056 {u8 prefix[1990];s16 resource;u8 tail[64];} Vehicle2056;
 typedef struct MessageNode {s16 id;s8 operation,used;float payload[4];void *entity;} MessageNode;
 extern MessageNode D_80142DD8[128];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Vehicle2056 D_8014A250[];
+#define PC_MODEL_SLOT(i) D_8014A250[i].resource
+#endif
 extern s8 D_80152744,D_80114650,D_8014978C;
 extern void *D_801541A4,*D_801391F0;
 extern u8 D_80142728[],D_801427A8[];
@@ -64,7 +69,7 @@ void func_800D5A04(void)
         sound_stop(D_801541A4);
         D_801541A4=0;
     }
-    for(i=0;i<D_80152744;i++) func_800D5828(D_8014A250[i].resource);
+    for(i=0;i<D_80152744;i++) func_800D5828(PC_MODEL_SLOT(i));
     players_frame_update();
     func_800D5374();
     while((node=D_801391F0)!=0) entity_transform_apply(node,1);

@@ -67,7 +67,12 @@ extern Pair D_80118E20;
 extern StrTable D_8017A4E0;
 extern s16 gNumWindows;
 extern s16 D_80152734;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Lap D_8014A250[];
+#define PC_MODEL_LAP(i) D_8014A250[i].lap
+#endif
 extern Car D_80152818[];
 extern Pos D_80115DA8[][4];
 
@@ -116,7 +121,7 @@ s32 func_80107EDC(void *item)
         font_set_EDC(12);
     }
     for (i = 0; i < gNumWindows; i++) {
-        if (D_80152734 == D_8014A250[i].lap) {
+        if (D_80152734 == PC_MODEL_LAP(i)) {
             continue;
         }
         if (D_80152818[i].f239 == 1) {
@@ -125,9 +130,9 @@ s32 func_80107EDC(void *item)
         x = D_80115DA8[gNumWindows - 1][i].x;
         y = D_80115DA8[gNumWindows - 1][i].y;
         dispatch_handler(0);
-        music_tempo_adjust(x + 1, y + 1, D_8017A4E0.hdr->text, D_8014A250[i].lap + 1, D_80152734);
+        music_tempo_adjust(x + 1, y + 1, D_8017A4E0.hdr->text, PC_MODEL_LAP(i) + 1, D_80152734);
         dispatch_handler(1);
-        music_tempo_adjust(x, y, D_8017A4E0.hdr->text, D_8014A250[i].lap + 1, D_80152734);
+        music_tempo_adjust(x, y, D_8017A4E0.hdr->text, PC_MODEL_LAP(i) + 1, D_80152734);
     }
     D_80118E20.b = 3;
     D_80118E20.a = 0;

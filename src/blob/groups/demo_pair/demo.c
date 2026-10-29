@@ -37,7 +37,12 @@ extern s32 gSkipToGameState;
 extern s32 D_8014A110;
 static s16 D_80114158 = -1;
 extern s8 D_80152744;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern MODELDAT D_8014A250[];
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#endif
 typedef struct DemoVisual DemoVisual;
 extern DemoVisual *D_801391F0;
 extern Player D_8014A118[4];
@@ -161,7 +166,7 @@ void debug_stats(s32 on, s32 x) {
 void func_800FCDF0(void) {
     s16 i;
         for (i = 0; i < D_80152744; i++) {
-            func_800D5828(D_8014A250[i].slot);
+            func_800D5828(PC_MODEL_SLOT(i));
         }
         players_frame_update();
         func_800D5374();

@@ -29,7 +29,12 @@ extern s16 D_80151AD0;
 extern s8 D_80143F54[];
 extern s32 D_8014A110;
 extern s16 D_8014A108;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Rec D_8014A250[];
+#define PC_MODEL_SLOT(i) D_8014A250[i].idx
+#endif
 extern Ent D_80152038[];
 extern Car D_80152818[];
 extern s8 gCarTeam[];
@@ -52,8 +57,8 @@ void FindWinner(void)
       for (j = 0; j < D_8014A108 - 1; j++) {
         a = D_80143F54[j];
         b = D_80143F54[j + 1];
-        ia = D_8014A250[a].idx;
-        ib = D_8014A250[b].idx;
+        ia = PC_MODEL_SLOT(a);
+        ib = PC_MODEL_SLOT(b);
         if (ia + ib) {}
         if (D_80152038[ia].key < D_80152038[ib].key) {
           D_80143F54[j + 1] = a & 0xFF;
@@ -63,8 +68,8 @@ void FindWinner(void)
       }
     }
     for (i = 1; i < D_8014A108; i++) {
-      f = D_8014A250[D_80143F54[0]].idx;
-      c = D_8014A250[D_80143F54[i]].idx;
+      f = PC_MODEL_SLOT(D_80143F54[0]);
+      c = PC_MODEL_SLOT(D_80143F54[i]);
       if (D_80152038[f].key == D_80152038[c].key) {
         D_80150B60++;
         D_80150B68[i] = 1;
@@ -76,8 +81,8 @@ void FindWinner(void)
       for (j = 0; j < D_8014A108 - 1; j++) {
         a = D_80143F54[j];
         b = D_80143F54[j + 1];
-        ia = D_8014A250[a].idx;
-        ib = D_8014A250[b].idx;
+        ia = PC_MODEL_SLOT(a);
+        ib = PC_MODEL_SLOT(b);
         if (D_80152818[ia].b931 < D_80152818[ib].b931) {
           D_80143F54[j + 1] = a & 0xFF;
           D_80143F54[j] = b;
@@ -88,8 +93,8 @@ void FindWinner(void)
       for (j = 0; j < D_8014A108 - 1; j++) {
         a = D_80143F54[j];
         b = D_80143F54[j + 1];
-        ia = D_8014A250[a].idx;
-        ib = D_8014A250[b].idx;
+        ia = PC_MODEL_SLOT(a);
+        ib = PC_MODEL_SLOT(b);
         if (D_8015256C[gCarTeam[ia]] < D_8015256C[gCarTeam[ib]]) {
           D_80143F54[j + 1] = a & 0xFF;
           D_80143F54[j] = b;
@@ -97,8 +102,8 @@ void FindWinner(void)
       }
     }
     for (i = 1; i < D_8014A108; i++) {
-      f = D_8014A250[D_80143F54[0]].idx;
-      c = D_8014A250[D_80143F54[i]].idx;
+      f = PC_MODEL_SLOT(D_80143F54[0]);
+      c = PC_MODEL_SLOT(D_80143F54[i]);
       if (D_80152818[f].b931 == D_80152818[c].b931) {
         D_80150B60++;
         D_80150B68[i] = 1;
@@ -110,8 +115,8 @@ void FindWinner(void)
       for (j = 0; j < D_8014A108 - 1; j++) {
         a = D_80143F54[j];
         b = D_80143F54[j + 1];
-        ia = D_8014A250[a].idx;
-        ib = D_8014A250[b].idx;
+        ia = PC_MODEL_SLOT(a);
+        ib = PC_MODEL_SLOT(b);
         if (D_80152818[ib].b238 < D_80152818[ia].b238) {
           D_80143F54[j + 1] = a & 0xFF;
           D_80143F54[j] = b;
@@ -119,8 +124,8 @@ void FindWinner(void)
       }
     }
     for (i = 1; i < D_8014A108; i++) {
-      f = D_8014A250[D_80143F54[0]].idx;
-      c = D_8014A250[D_80143F54[i]].idx;
+      f = PC_MODEL_SLOT(D_80143F54[0]);
+      c = PC_MODEL_SLOT(D_80143F54[i]);
       if (D_80152818[f].b238 == D_80152818[c].b238) {
         D_80150B60++;
         D_80150B68[i] = 1;

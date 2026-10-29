@@ -125,7 +125,13 @@ typedef struct Object68 {
     u8 tail[64];
 } Object68;
 #endif
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model2056 D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_VISCODE(i) D_8014A250[i].visual_code
+#endif
 extern Car952 player_array[];
 extern CarConfig *D_80110D08[];
 extern Control152 gCamera[];
@@ -169,7 +175,7 @@ void anim_state_update(Visual *v, s16 op)
     slot = v->slot;
     car = &player_array[slot];
     tire = v->tire;
-    m = &D_8014A250[slot];
+    m = PC_MODEL(slot);
     spring = m->suspension[tire];
     show = D_80140418 != 0;
     if (!show) show = (car->appearance & 8) != 0;
@@ -183,7 +189,7 @@ void anim_state_update(Visual *v, s16 op)
     if (show) show = car->hidden == 0;
     if (!model_bounds_calc(v, show)) return;
     matrix_scale_apply(v, car->render_state >= 2, controller);
-    if (D_8014A250[slot].visual_code[tire] == 1) {
+    if (PC_MODEL_VISCODE(slot)[tire] == 1) {
         t = (mph >> 2) * 0.05f;
         if (t > 0.6f) t = 0.6f;
         spring += Random(t);
@@ -195,8 +201,8 @@ void anim_state_update(Visual *v, s16 op)
     pos[2] = config->tire_position[tire][2];
     if (controller >= 0 && car->render_state == 1 && tire == 0) {
         t = (mph >> 2) * 0.002f;
-        if (D_8014A250[slot].visual_code[tire] == 1) spring2 = (Random(2.0f) - 1.0f) * t;
-        else if (D_8014A250[slot].visual_code[tire] == 8) spring2 = 0;
+        if (PC_MODEL_VISCODE(slot)[tire] == 1) spring2 = (Random(2.0f) - 1.0f) * t;
+        else if (PC_MODEL_VISCODE(slot)[tire] == 8) spring2 = 0;
         else spring2 = (Random(2.0f) - 1.0f) * t * 0.25f;
         gCamera[controller].spring_save = gCamera[controller].spring_save * 0.75f + spring2;
     }

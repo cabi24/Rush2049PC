@@ -170,7 +170,12 @@ typedef struct Entity {
 extern ModelSlot D_8012E700[];
 extern CarModels D_80139320[];
 extern Car D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarState D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern s32 D_8014A110;          /* gameplay_mode */
 extern s32 D_8011735C;          /* rng state */
 extern Color D_8011B464;
@@ -299,7 +304,7 @@ void AnimateFrame(Entity *ent, s16 alive)
     Color nextclr;
 
     slot = ent->car;
-    m = &D_8014A250[slot];
+    m = PC_MODEL(slot);
     car = &D_80152818[slot];
     def = D_8012E700[ent->slot].tex;
     if (alive == 0) {
@@ -440,7 +445,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
     int mph;
     int b;
     int u1, u2, u3, u4, u5, u6;
-    m=&D_8014A250[slot];
+    m=PC_MODEL(slot);
     car=&D_80152818[slot];
     if(hulk) {
         model_data_load(D_80139320[slot].id[1],1,15);

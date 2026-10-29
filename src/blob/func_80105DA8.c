@@ -794,7 +794,12 @@ extern BonesPos D_801160C8[4][4];
 #else
 extern M2C_UNK D_801160C8;
 #endif
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern M2C_UNK D_8014AA16;
+#define PC_MODEL_SLOT(i) *(s16 *)((u8 *)&D_8014AA16 + i * 0x808)
+#endif
 extern M2C_UNK D_80152907;
 
 /* group functions */
@@ -827,7 +832,7 @@ s32 func_80105DA8(void *arg0) {
     BonesBlit *blt = arg0;
     u32 player;
 
-    if (((s8) D_80142760 == 0) || ((player = blt->AnimID) >= (u32) (s16) gNumWindows) || (*((s8 *) &D_80152907 + (*(s16 *)((u8 *)&D_8014AA16 + player * 0x808) * CAR_OFS(0x3B8))) == 1)) {
+    if (((s8) D_80142760 == 0) || ((player = blt->AnimID) >= (u32) (s16) gNumWindows) || (*((s8 *) &D_80152907 + (PC_MODEL_SLOT(player) * CAR_OFS(0x3B8))) == 1)) {
         if (blt->Hide != 1) {
             blt->Hide = 1;
             Input_ApplyPadConfig(blt);
@@ -844,7 +849,7 @@ s32 func_80105DA8(void *arg0) {
     s32 temp_v0;
     u32 temp_v1;
 
-    if (((s8) D_80142760 == 0) || (temp_v1 = M2C_FIELD(arg0, u32 *, 0x2C), (temp_v1 >= (u32) (s16) gNumWindows)) || (*((s8 *) &D_80152907 + (*(s16 *)((u8 *)&D_8014AA16 + temp_v1 * 0x808) * CAR_OFS(0x3B8))) == 1)) {
+    if (((s8) D_80142760 == 0) || (temp_v1 = M2C_FIELD(arg0, u32 *, 0x2C), (temp_v1 >= (u32) (s16) gNumWindows)) || (*((s8 *) &D_80152907 + (PC_MODEL_SLOT(temp_v1) * CAR_OFS(0x3B8))) == 1)) {
         if (M2C_FIELD(arg0, s8 *, 0x1A) != 1) {
             M2C_FIELD(arg0, s8 *, 0x1A) = 1;
             Input_ApplyPadConfig(arg0);

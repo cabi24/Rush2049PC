@@ -20,10 +20,10 @@
 int8_t D_8015F72C, D_801613AA;                 /* gShowSpeed, gShowMetric */
 struct { int32_t h, v; } D_80118E20;           /* gJust */
 int16_t gNumWindows;
-__attribute__((aligned(16))) uint8_t D_8014A250[6 * 0x808];
+struct pc_model pc_models[PC_MODEL_SLOTS];
 __attribute__((aligned(16))) uint8_t D_80152818[6 * PC_CAR_SIZE];
 #define CAR(i) (D_80152818 + PC_CAR_SIZE * (i))
-#define MODEL(i) (D_8014A250 + 0x808 * (i))
+#define MODEL(i) ((uint8_t *)&pc_models[i])
 int32_t D_80115A68[4][4][2];                   /* speedPos */
 /* The text bank (ModelTables, showhud.c): its first string table at +8. */
 static char *g_strings[300];

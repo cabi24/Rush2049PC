@@ -41,12 +41,12 @@ _Static_assert(offsetof(Blit, Hide) == 0x26 && offsetof(Blit, AnimID) == 0x40, "
 
 int8_t D_80142760;                                     /* gDeathMode */
 int16_t gNumWindows;
-uint8_t D_8014AA16[4 * 0x808];                         /* model[i].slot (s16 at +0x7C6), the N64 stride */
+struct pc_model pc_models[PC_MODEL_SLOTS];             /* the model records (pc_game_types.h): model[i].slot */
 uint8_t D_80152907[6 * PC_CAR_SIZE];                   /* car[slot] +0xEF, locked in place, the PC stride */
 struct { int32_t x, y; } D_801160C8[4][4];             /* bonesPos [windows - 1][player] */
 uint8_t D_801146FC[4], D_80116DE0[4];                  /* the idle overlay's and the dialog's colours */
 int32_t state_word_a;                                  /* gGameState */
-#define MODEL_SLOT(i) (*(int16_t *)(D_8014AA16 + 0x808 * (i)))
+#define MODEL_SLOT(i) (pc_models[i].slot)
 #define CAR_LOCKED(s) (*(int8_t *)(D_80152907 + PC_CAR_SIZE * (s)))
 
 /* ---------------------------------------------------------------- what the code under test calls */

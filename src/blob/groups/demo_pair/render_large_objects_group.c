@@ -92,7 +92,17 @@ typedef struct {
 #endif
 } CAR_DATA;
 
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern MODELDAT D_8014A250[];
+#define PC_MODEL_DRONE_SCALE(i) model[i].drone_scale
+#define PC_MODEL_DRONE_TARGET(i) model[i].drone_target
+#define PC_MODEL_DRONE_TYPE(i) model[i].drone_type
+#define PC_MODEL_SLOT(i) model[i].slot
+#define PC_MODEL_TIME_BOOST(i) model[i].time_boost
+#define PC_MODEL_WE_CONTROL(i) model[i].we_control
+#endif
 extern CAR_DATA player_array[];
 #define model D_8014A250
 #define game_car player_array
@@ -160,7 +170,7 @@ void render_large_objects(void)
     func_800DE860();
 
     for (i = 0; i < num_active_cars; i++) {
-        high_place = model[i].slot;
+        high_place = PC_MODEL_SLOT(i);
         place[high_place] = game_car[high_place].place;
     }
 
@@ -169,7 +179,7 @@ void render_large_objects(void)
     for (i = 0; i < num_active_cars; i++) {
         index = 0;
         for (j = 0; j < num_active_cars; j++) {
-            index = model[j].slot;
+            index = PC_MODEL_SLOT(j);
 
             if (place[index] == i)
                 break;
@@ -177,7 +187,7 @@ void render_large_objects(void)
 
         cars_in_order[i] = index;
 
-        if (model[index].drone_type == HUMAN)
+        if (PC_MODEL_DRONE_TYPE(index) == HUMAN)
             humans[num_humans++] = index;
         else
             drones[num_drones++] = index;
@@ -188,10 +198,10 @@ void render_large_objects(void)
 
     if (D_801174B4 & 8) {
         for (i = 0; i < num_active_cars; i++) {
-            index = model[i].slot;
+            index = PC_MODEL_SLOT(i);
 
-            if (model[index].drone_type == DRONE)
-                model[index].drone_scale = 1;
+            if (PC_MODEL_DRONE_TYPE(index) == DRONE)
+                PC_MODEL_DRONE_SCALE(index) = 1;
         }
 
         return;
@@ -201,17 +211,17 @@ void render_large_objects(void)
         if (D_801543CC < 5) {
             for (i = 0; i < num_drones; i++) {
                 j = num_drones - i - 1;
-                model[drones[i]].time_boost = ((F32)(j) * .02f) + .98f;
-                model[drones[i]].drone_scale = 1;
+                PC_MODEL_TIME_BOOST(drones[i]) = ((F32)(j) * .02f) + .98f;
+                PC_MODEL_DRONE_SCALE(drones[i]) = 1;
             }
         } else {
             for (i = 0; i < num_active_cars; i++) {
-                index = model[i].slot;
+                index = PC_MODEL_SLOT(i);
                 car_in_conflict[index] = 0;
                 gc = &game_car[index];
 
                 for (j = i; j < num_active_cars; j++) {
-                    index2 = model[j].slot;
+                    index2 = PC_MODEL_SLOT(j);
                     if (index == index2)
                         car_distance[index][index2] = 99999999;
                     else {
@@ -227,7 +237,7 @@ void render_large_objects(void)
             }
 
             for (i = 0; i < num_drones; i++)
-                model[drones[i]].drone_target = drones[i];
+                PC_MODEL_DRONE_TARGET(drones[i]) = drones[i];
 
             for (i = 0; i < num_humans; i++) {
                 for (j = i + 1; j < num_humans; j++) {
@@ -247,13 +257,13 @@ void render_large_objects(void)
 
                     if (my_place > 0) {
                         j = cars_in_order[my_place - 1];
-                        if (model[j].drone_type == DRONE && car_in_conflict[j] == 0)
+                        if (PC_MODEL_DRONE_TYPE(j) == DRONE && car_in_conflict[j] == 0)
                             index2 = j;
                     }
 
                     if (my_place < num_active_cars - 1) {
                         j = cars_in_order[my_place + 1];
-                        if (model[j].drone_type == DRONE && car_in_conflict[j] == 0)
+                        if (PC_MODEL_DRONE_TYPE(j) == DRONE && car_in_conflict[j] == 0)
                             index3 = j;
                     }
 
@@ -266,16 +276,16 @@ void render_large_objects(void)
                     if (index2 != -1) {
                         car_in_conflict[index]++;
                         car_in_conflict[index2]++;
-                        model[index2].drone_target = index;
+                        PC_MODEL_DRONE_TARGET(index2) = index;
                     }
                 }
             }
 
             for (indx = 0; indx < num_active_cars; indx++) {
-                index = model[indx].slot;
+                index = PC_MODEL_SLOT(indx);
 
-                if (model[index].we_control) {
-                    index2 = model[index].drone_target;
+                if (PC_MODEL_WE_CONTROL(index)) {
+                    index2 = PC_MODEL_DRONE_TARGET(index);
                     my_place = place[index];
 
 
@@ -293,7 +303,7 @@ void render_large_objects(void)
                             high_index = 6;
                         else
                             high_index = 0;
-                        diff_scale *= (F32)D_80154484[model[index].slot][temp + high_index] * .125f + .75f;
+                        diff_scale *= (F32)D_80154484[PC_MODEL_SLOT(index)][temp + high_index] * .125f + .75f;
                     }
 
                     max_boost = (1.0f - 1.1f) * diff_scale + 1.1f - place_scale * ((.15f - .05f) * diff_scale + .05f);
@@ -359,12 +369,12 @@ void render_large_objects(void)
                                 }
                             } else {
                                 for (i = 0, j = 0; i < my_place; i++) {
-                                    if (model[cars_in_order[i]].drone_type == HUMAN)
+                                    if (PC_MODEL_DRONE_TYPE(cars_in_order[i]) == HUMAN)
                                         j++;
                                 }
 
                                 for (i = my_place, k = 0; i < num_active_cars; i++) {
-                                    if (model[cars_in_order[i]].drone_type == HUMAN)
+                                    if (PC_MODEL_DRONE_TYPE(cars_in_order[i]) == HUMAN)
                                         k++;
                                 }
 
@@ -397,7 +407,7 @@ void render_large_objects(void)
                         time_scale = min_boost;
                     }
 
-                    temp1 = model[index].drone_scale;
+                    temp1 = PC_MODEL_DRONE_SCALE(index);
 
                     if (temp1 > scale) {
                         temp1 -= .01f;
@@ -409,9 +419,9 @@ void render_large_objects(void)
                             temp1 = scale;
                     }
 
-                    model[index].drone_scale = temp1;
+                    PC_MODEL_DRONE_SCALE(index) = temp1;
 
-                    temp1 = model[index].time_boost;
+                    temp1 = PC_MODEL_TIME_BOOST(index);
 
                     if (temp1 > time_scale) {
                         temp1 -= .01f;
@@ -423,7 +433,7 @@ void render_large_objects(void)
                             temp1 = time_scale;
                     }
 
-                    model[index].time_boost = temp1;
+                    PC_MODEL_TIME_BOOST(index) = temp1;
                 }
             }
         }

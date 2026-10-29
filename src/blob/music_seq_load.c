@@ -71,7 +71,14 @@ extern tLink D_80153E88[];              /* gLink */
 extern s8 D_8011157C[][13];             /* gTireRims */
 extern void *D_80143F74[];              /* gWheelTextures */
 extern tCarData player_array[];         /* gGameCar */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern tModelData D_8014A250[];         /* model */
+#define PC_MODEL_COLOR0(i) D_8014A250[i].a
+#define PC_MODEL_COLOR1(i) D_8014A250[i].b
+#define PC_MODEL_COLOR2(i) D_8014A250[i].c
+#endif
 
 int save_slot_valid(int objnum, s16 camlink, int parent, u32 flags, s16 slot, s16 carObjNum, int forGame); /* InitCarObj */
 void func_8008D870(s16 objnum, void *texdef, int bank);                 /* ZOID_SetTexture */
@@ -143,7 +150,7 @@ void music_seq_load(s16 slot, s16 camlink, int for_game)
         player_array[slot].sheenAlpha = 255;
         player_array[slot].IRclr.rgba = D_8011AF90[D_8014978C][0].rgba;
         player_array[slot].prevIRclr.rgba = D_8011AF90[D_8014978C][0].rgba;
-        sound_bank_unload(slot, PC_LINK_CAR(slot), D_8014A250[slot].a, D_8014A250[slot].b, D_8014A250[slot].c);
+        sound_bank_unload(slot, PC_LINK_CAR(slot), PC_MODEL_COLOR0(slot), PC_MODEL_COLOR1(slot), PC_MODEL_COLOR2(slot));
     }
     func_80092FE0(slot, &D_8011AE58[0]);
 }

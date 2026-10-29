@@ -44,7 +44,12 @@ typedef struct CAR_DATA {
     u8 pad35A[952 - 858];
 #endif
 } CAR_DATA;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern MODELDAT D_8014A250[6];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern CAR_DATA D_80152818[6];
 void math_utility(void *src, void *dst);
 void sound_position_set(F32 *rv, void *uvs);
@@ -55,7 +60,7 @@ void battle_mode_setup(F32 time) {
     F32 deltime, temp[3];
 
     for (i = 0; i < 6; i++) {
-        m = &D_8014A250[i];
+        m = PC_MODEL(i);
         if (m->in_game && D_80152818[i].state < 2) {
             deltime = (time - m->lasttime) * m->time_fudge;
             temp[0] = m->RWV[0] * deltime;

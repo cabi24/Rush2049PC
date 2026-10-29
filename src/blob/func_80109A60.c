@@ -100,7 +100,12 @@ extern s32 D_801161C4;
 extern MapOrigin D_801160A8[];
 extern s8 D_80140A04;
 extern Car D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern RenderRec D_80140BF0[];
 extern volatile s16 D_801543CA;
 extern volatile Clock D_8002E8E8;
@@ -130,7 +135,7 @@ s32 func_80109A60(Blit *blt)
     slot = D_80142DB4[id & 0xf];
     if (Hidden(blt, gNumWindows >= 5 || slot == -1 || !D_80156BDC))
         return 1;
-    m = &D_8014A250[slot];
+    m = PC_MODEL(slot);
     car = &D_80152818[slot];
 
     world_width = D_801407B4.x - D_801407D4.x;

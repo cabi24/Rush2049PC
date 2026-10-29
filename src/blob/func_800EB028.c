@@ -55,7 +55,12 @@ typedef struct {
     f32 spring;         /* 144 */
     u8 other148[4];
 } Camera;               /* 152 */
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern Camera gCamera[];
 extern Vec3 D_801526A8[];
 extern OSThread D_80034840;
@@ -85,7 +90,7 @@ void func_800EB028(Object *object)
     Model *m;
     s32 slot;
 
-    m = &D_8014A250[object->car];
+    m = PC_MODEL(object->car);
     slot = object->slot;
     CAM.pos[0] = object->pos[0];
     CAM.pos[1] = object->pos[1];

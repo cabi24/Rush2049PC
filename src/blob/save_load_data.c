@@ -2689,7 +2689,12 @@ extern s8 D_8014A1FD;
 extern s8 D_8014A23E;
 extern s32 D_8014A240;
 extern s32 D_8014A248;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern u8 D_8014A258;
+#define PC_MODEL_BODY(i) *((&D_8014A258) + (i * 0x808))
+#endif
 extern s8 D_8014A259;
 extern s8 D_8014A25A;
 extern s8 D_8014A25F;
@@ -4225,7 +4230,7 @@ void save_load_data(s16 arg0)
   *((s16 *) (((s8 *) temp_s1) + CAR_OFS(0x266))) = (s16) (*((s32 *) (((s8 *) temp_s2) + 0)));
   *((s16 *) (((s8 *) temp_s1) + CAR_OFS(0x268))) = arg0;
   model_transform_setup(*((s16 *) (((s8 *) temp_s1) + CAR_OFS(0x266))), 0, 0xF);
-  if ((*((&D_8014A258) + (arg0 * 0x808))) == 2)
+  if ((PC_MODEL_BODY(arg0)) == 2)
   {
     *((s32 *) (((s8 *) temp_s2) + 8)) = save_slot_valid(D_8014296C, 0xF, -1, 0x42000, (s32) arg0, -1, 1);
     *((f32 *) (((s8 *) temp_s1) + CAR_OFS(0x378))) = 0.25f;

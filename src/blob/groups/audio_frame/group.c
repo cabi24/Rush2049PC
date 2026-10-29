@@ -620,7 +620,12 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern D_8014A250_Record D_8014A250;
+#define PC_MODEL(i) &((HudRec *) &D_8014A250)[i]
+#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -3762,7 +3767,7 @@ void func_800B08FC(s16 slot, s16 idx) {
     HudRec *h;
     s32 k;
     s16 hd;
-    if (gameplay_mode == 2 || gameplay_mode == 6 || (h = &((HudRec *) &D_8014A250)[slot], h->s7CA != 0)) {
+    if (gameplay_mode == 2 || gameplay_mode == 6 || (h = PC_MODEL(slot), h->s7CA != 0)) {
         ((SndSlot *) ((uintptr_t) ((u8 *) &player_array[slot] + CAR_OFS(0x2C0))))[idx].cb = 0;
         return;
     }
@@ -3783,7 +3788,7 @@ void func_800B0A88(s16 slot, s16 idx) {
     s32 k;
     s32 b8;
 
-    if (gameplay_mode == 2 || gameplay_mode == 6 || (h = &((HudRec *) &D_8014A250)[slot], h->s7CA != 0)) {
+    if (gameplay_mode == 2 || gameplay_mode == 6 || (h = PC_MODEL(slot), h->s7CA != 0)) {
         ((SndSlot *) ((uintptr_t) ((u8 *) &player_array[slot] + CAR_OFS(0x290))))[idx].cb = 0;
         return;
     }

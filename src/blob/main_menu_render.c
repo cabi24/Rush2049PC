@@ -32,7 +32,12 @@ typedef struct { u8 pad0[12]; f32 a[3]; f32 b[3]; u8 pad24[152 - 36]; } View;  /
 
 extern s16 D_8014A108;
 extern CarRec D_8014A118[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern ModelDat D_8014A250[];
+#define PC_MODEL_RWR(i) D_8014A250[i].pos
+#endif
 extern f32 D_801141B0[];
 extern View gCamera[];
 
@@ -46,7 +51,7 @@ void main_menu_render(void)
     for (i = 0; i < D_8014A108; i++) {
         if (D_8014A118[i].node != NO_NODE) {
             node = NODE(D_8014A118[i].node);
-            main_menu_input(node, D_8014A250[D_8014A118[i].model].pos, D_801141B0,
+            main_menu_input(node, PC_MODEL_RWR(D_8014A118[i].model), D_801141B0,
                             gCamera[i].b, gCamera[i].a);
         }
     }

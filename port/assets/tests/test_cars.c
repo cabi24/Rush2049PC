@@ -58,11 +58,8 @@ ALIAS(D_80152BD8, D_80152818, 0x470);
 ALIAS(D_80152C20, D_80152818, 0x4B8);
 ALIAS(D_80152900, D_80152818, 0xE8);       /* a car's flags, seen as an array of cars */
 
-ABS(D_8014A250, 0x8014A250);               /* model[6], in the game arena */
-ABS(D_8014A258, 0x8014A258);
-ABS(D_8014A964, 0x8014A964);
-ABS(D_8014AA32, 0x8014AA32);
-#define MODEL(i) ((uint8_t *)(uintptr_t)0x8014A250 + (i) * 0x808)
+struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[], the model records (pc_game_types.h), which data.c defines */
+#define MODEL(i) ((uint8_t *)&pc_models[i])
 ABS(D_80151CE8, 0x80151CE8);               /* the checkpoint block (Route at +0) and two names inside it */
 ABS(D_80151CEE, 0x80151CEE);
 ABS(D_80151D18, 0x80151D18);

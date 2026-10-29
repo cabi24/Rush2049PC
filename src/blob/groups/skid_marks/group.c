@@ -86,7 +86,12 @@ typedef struct {
 } Surface;                              /* 0x18 */
 
 extern Car player_array[8];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern CarState D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#endif
 extern WheelSlot D_80155290[][4];
 extern s16 active_player_count;
 extern s32 state_word_a;
@@ -132,7 +137,7 @@ void save_validate(WheelSlot *slot, s16 player, u32 wheel, u8 *color);
  */
 void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
 {
-    CarState *m = &D_8014A250[player];
+    CarState *m = PC_MODEL(player);
     EffectObj *obj = slot->obj;
     s16 i;
     f32 up;
@@ -293,7 +298,7 @@ void cpak_init(s32 slot)
     if (active_player_count >= 3) {
         return;
     }
-    m = &D_8014A250[slot];
+    m = PC_MODEL(slot);
     ns = D_80155290[slot];
     for (i = 0; i < 4; i++, ns++) {
         on = ((player_array[slot].wheelFlags & D_8011743C[i]) != 0) && (m->airborne[0] == -1) &&

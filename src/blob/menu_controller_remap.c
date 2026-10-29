@@ -111,7 +111,14 @@ typedef struct {
 
 extern f32 D_801543CC;
 extern s8 D_80152744;
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern MODELDAT D_8014A250[];
+#define PC_MODEL(i) &D_8014A250[i]
+#define PC_MODEL_SLOT(i) D_8014A250[i].slot
+#define PC_MODEL_STUCK_TIME(i) D_8014A250[i].stuck_time
+#endif
 extern CAR_DATA D_80152818[];
 #ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -155,7 +162,7 @@ void menu_controller_remap(void) {
 
     if (D_801543CC < 5.0f) {
         for (i = 0; i < 6; i++) {
-            D_8014A250[i].stuck_time = 0.0f;
+            PC_MODEL_STUCK_TIME(i) = 0.0f;
             D_80152818[i].fwd_progress_t = 0.0f;
             D_80152818[i].stray_angle = 0.0f;
         }
@@ -163,8 +170,8 @@ void menu_controller_remap(void) {
     }
 
     for (i = 0; i < D_80152744; i++) {
-        node = D_8014A250[i].slot;
-        m = &D_8014A250[node];
+        node = PC_MODEL_SLOT(i);
+        m = PC_MODEL(node);
         gc = &D_80152818[node];
         if (m->we_control || PC_LINK_OWNER(node) == 6) {
             abort_me = m->please_abort_me;
@@ -210,7 +217,7 @@ void menu_controller_remap(void) {
     }
 
     for (node = 0; node < D_8014A108; node++) {
-        m = &D_8014A250[D_8014A118[node].node];
+        m = PC_MODEL(D_8014A118[node].node);
         gc = &D_80152818[D_8014A118[node].node];
         if (gc->last_distance < gc->distance) {
             gc->fwd_progress_t = 0.0f;

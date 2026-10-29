@@ -82,7 +82,12 @@ typedef struct {
 } Player;                   /* 8 */
 
 extern CarData D_80152818[];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern Model D_8014A250[];
+#define PC_MODEL(i) (Model *)((uintptr_t)D_8014A250 + i * sizeof(Model))
+#endif
 extern f32 D_80152218[][3];
 extern CheckPoint D_80151CF4[];
 #ifdef TARGET_PC
@@ -133,7 +138,7 @@ void func_800F8EC8(void)
         prev[1] = gc->pos[1];
         prev[2] = gc->pos[2];
         if ((PC_LINK_OWNER(index) == 0 || PC_LINK_OWNER(index) == 6) && gc->crashed == 0) {
-            m = (Model *)((uintptr_t)D_8014A250 + index * sizeof(Model));
+            m = PC_MODEL(index);
             if (m->moving == -1) {
                 diff[0] = gc->pos[0] - D_80151CF4[m->next_cp].pos[0];
                 diff[1] = gc->pos[1] - D_80151CF4[m->next_cp].pos[1];

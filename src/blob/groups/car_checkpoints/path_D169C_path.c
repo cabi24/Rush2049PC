@@ -41,7 +41,12 @@ typedef struct Car {
 } Car; /* 0x3B8 */
 extern Route D_801407F0;
 Car D_80152818[6];
+#ifdef TARGET_PC
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+#else
 extern s16 D_8014AA14;
+#define PC_MODEL_OB_RES_PT(i) D_8014AA14
+#endif
 
 void func_800D18C8(s32 index);
 
@@ -91,7 +96,7 @@ void func_800D169C(void) {
 }
 
 void func_800D18C8(s32 index) {
-    if (D_8014AA14 < index) {
-        D_8014AA14 = index;
+    if (PC_MODEL_OB_RES_PT(0) < index) {
+        PC_MODEL_OB_RES_PT(0) = index;
     }
 }
