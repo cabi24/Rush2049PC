@@ -8,9 +8,11 @@
  * loop point. Checked: places 0-5 start at the start point with the table's rows, bit for bit, as on the N64; places
  * 6-11's rows continue each column parity two rows back by its two-row step; on a straight path they stand where the
  * straight rows are, on a bent one at their distance along it, facing the path's segment there; where the path runs
- * out the rest is straight back; twelve cars placed by Init_MDrive stand no two closer than the table's own closest
- * pair or a car's length; the attract demo keeps straight rows; a human's respawn reads the table's respawn rows (slot
- * + 6, row 6 in a ghost race) and a drone's none, as on the N64; battle gives no offset.
+ * out the rest is straight back; where the road (the test's RoadPosition) ends behind the start, the places that
+ * don't fit stand beside the grid's rows, in order, and with no room there either keep their own rows; twelve cars
+ * placed by Init_MDrive stand no two closer than the table's own closest pair (beside the grid: a car's length); the
+ * attract demo keeps straight rows; a human's respawn reads the table's respawn rows (slot + 6, row 6 in a ghost race)
+ * and a drone's none, as on the N64; battle gives no offset.
  * game: src/blob/groups/resurrect/resurrect.c src/blob/groups/init_mdrive/group.c
  */
 #include <math.h>
@@ -59,8 +61,15 @@ void camera_follow_path(int res, int path, int idx, float (*uvs)[3])
         for (int k = 0; k < 3; k++)
             uvs[i][k] = i == k;
 }
+/* RoadPosition: the test's road is z >= g_road_end and within g_road_half of x = 100 (everywhere at first). */
 static uint8_t g_surface[16];
-void *camera_trigger_check(void *a, void *b, void *c) { (void)a; (void)b; (void)c; return g_surface; }
+static float g_road_end = -1e9f, g_road_half = 1e9f;
+void *camera_trigger_check(float *at, float *snap, void *uvs)
+{
+    (void)uvs;
+    snap[0] = at[0], snap[1] = at[1], snap[2] = at[2];
+    return at[2] >= g_road_end && fabsf(at[0] - 100.0f) <= g_road_half ? g_surface : NULL;
+}
 int difficulty_select(int a, int b, int c, int d) { (void)a; (void)b; (void)c; (void)d; return 0; }
 float func_8008B2E4(float max) { (void)max; return 0.0f; }
 void func_8009E820(float *s, float *d, void *u) { (void)u; d[0] = s[0], d[1] = s[1], d[2] = s[2]; }
@@ -255,6 +264,44 @@ static void test_bent(void)
     CHECK(g_faced == 22);   /* 75 ft back from point 0: between 22 and 23 (the loop's last, 29, is 10 ft back) */
 }
 
+/* Where the road behind the start ends, the places that don't fit stand beside the grid: candidates in order, the
+ * rows continued back, then a column outside each of the table's three rows (left, right), at the row's own spacing
+ * (TABLE_A's: 14). */
+static void test_road_ends(void)
+{
+    float pos[12][3];
+    static const float side[5][3] = {{-21, 0, 0}, {21, 0, -10}, {-21, 0, -25}, {21, 0, -35}, {-21, 0, -50}};
+    memcpy(D_801210E8, TABLE_A, sizeof D_801210E8);
+    D_8014A110 = 0;
+    D_801174B4 = 0;
+    path(40, START, 0, 0);
+    /* The road ends 50 ft behind the start and is 40 ft either side: no continued row fits, five side places do
+     * (the sixth, beside row 2 on the right, is 60 ft back), and place 11 keeps its own row. */
+    g_road_end = -350.0f, g_road_half = 40.0f;
+    place(12, 0, pos);
+    for (int p = 6; p < 11; p++) {
+        int i = p + 1;
+        CHECK(memcmp(MF(i, POS), g_start, 12) == 0 && memcmp(MF(i, OFFSET), side[p - 6], 12) == 0);
+    }
+    CHECK(near(MF(0, POS), 100.0f, 5.0f, -435.0f) && near(MF(0, OFFSET), 7.0f, 0.0f, 0.0f));
+    for (int i = 1; i < 12; i++)
+        for (int j = i + 1; j < 12; j++)
+            CHECK(dist(pos[i], pos[j]) >= CAR_LENGTH);
+    /* The road ends 80 ft back: place 6's row (75 ft) fits, then the side places. */
+    g_road_end = -380.0f;
+    place(12, 0, pos);
+    CHECK(near(MF(7, POS), 100.0f, 5.0f, -375.0f) && MF(7, OFFSET)[0] == -7.0f);
+    for (int p = 7; p < 12; p++) {
+        int i = p == 11 ? 0 : p + 1;
+        CHECK(memcmp(MF(i, POS), g_start, 12) == 0 && memcmp(MF(i, OFFSET), side[p - 7], 12) == 0);
+    }
+    /* Too narrow for the side places too: each keeps its own row. */
+    g_road_half = 10.0f;
+    place(12, 0, pos);
+    CHECK(near(MF(8, POS), 100.0f, 5.0f, -385.0f) && MF(8, OFFSET)[0] == 7.0f);
+    g_road_end = -1e9f, g_road_half = 1e9f;
+}
+
 static void test_demo_and_respawns(void)
 {
     float pos[12][3];
@@ -300,6 +347,7 @@ int main(void)
     test_rows(TABLE_B, WANT_B);
     test_straight();
     test_bent();
+    test_road_ends();
     test_demo_and_respawns();
     return TEST_DONE();
 }

@@ -339,24 +339,47 @@ float *pc_pole_row(int place)
     return pc_pole_offsets[place];
 }
 
-/* The start of a place past the N64's grid stands on the road: its row's distance behind the start point is walked
- * back along the resurrection path (gResPath, from the start checkpoint's point, the one SetResurrectionData put
- * every car on), and the car starts from that point of the path, facing along it (camera_follow_path, as
- * SetResurrectionData faces the start point), with its row's sideways offset and whatever distance the path ran out
- * of. On a straight road that is the straight row; where the road behind the start bends or dips, the rows follow
- * it. Places 0-5, respawns, the attract demo (each car on its own drone path) and the modes that give no offset keep
- * the start point and their table row. pc_grid_start(m, 0) is the point, 1 the orientation, 2 the offset. */
+/* The start of a place past the N64's grid stands on the road. Its candidates, in this order: the rows continued
+ * back (places 6 to PC_MAX_LINKS - 1 of pc_pole_row), each from the point of the resurrection path its row's distance
+ * behind the start point (walked back from the start checkpoint's point, the one SetResurrectionData put every car on,
+ * and across the loop point; where the path has no point behind, the rest straight back), facing along the path
+ * there (camera_follow_path, as SetResurrectionData faces the start point), with its row's sideways offset; then a
+ * column outside the table's grid on each side, beside each of its three rows, at the row's own sideways spacing,
+ * from the start point. A candidate counts if the road is under it (RoadPosition, camera_trigger_check), and place
+ * 6 + n takes the nth that counts (its own row if too few do). So where the road behind the start bends or dips the
+ * rows follow it, and where it ends (the retail track 5 starts at the beginning of its path, with about 75 ft of
+ * road behind the pole) the cars that don't fit stand beside the grid. Places 0-5, respawns, the attract demo (each
+ * car on its own drone path) and the modes that give no offset keep the start point and their table row.
+ * pc_grid_start(m, 0) is the point, 1 the orientation, 2 the offset. */
+#define PC_GRID_ROWS (PC_GRID_PLACES / PC_GRID_COLUMNS)
+#define PC_GRID_BACK (PC_MAX_LINKS - PC_GRID_PLACES)
+#define PC_GRID_CANDIDATES (PC_GRID_BACK + PC_GRID_ROWS * PC_GRID_COLUMNS)
 static float pc_grid_point[3], pc_grid_uvs[3][3], pc_grid_offset[3];
 
-static int pc_grid_pose(tModelData *m)
+/* Candidate c's point, orientation and offset, into pc_grid_*. */
+static void pc_grid_candidate(tModelData *m, int c)
 {
-    int p = m->initin.polepos, s, j, q, loop, k;
-    const float *row;
-    float need, done, seg, t, d[3];
-    if (p < PC_GRID_PLACES || p >= PC_RESPAWN_BASE || (gGameState & GS_DEMO) || gRace == kBattle ||
-        gRace == kStunt || gRace == kObstacle)
-        return 0;
-    row = pc_pole_row(p);
+    int s, j, q, loop, k, side;
+    const float *row, *a, *b, *in;
+    float need, done, seg, t, d[3], gap;
+    if (c >= PC_GRID_BACK) {   /* beside the grid: the row's outer car moved out by the row's spacing */
+        k = (c - PC_GRID_BACK) / PC_GRID_COLUMNS;
+        side = (c - PC_GRID_BACK) % PC_GRID_COLUMNS;
+        a = pole_pos_offset[k * PC_GRID_COLUMNS];
+        b = pole_pos_offset[k * PC_GRID_COLUMNS + 1];
+        gap = a[0] < b[0] ? b[0] - a[0] : a[0] - b[0];
+        in = (a[0] < b[0]) == (side == 0) ? a : b;
+        for (k = 0; k < 3; k++) {
+            pc_grid_point[k] = m->resurrect.save_pos[k];
+            pc_grid_uvs[0][k] = m->resurrect.uvs[0][k];
+            pc_grid_uvs[1][k] = m->resurrect.uvs[1][k];
+            pc_grid_uvs[2][k] = m->resurrect.uvs[2][k];
+            pc_grid_offset[k] = in[k];
+        }
+        pc_grid_offset[0] += side == 0 ? -gap : gap;
+        return;
+    }
+    row = pc_pole_row(PC_GRID_PLACES + c);
     s = gCheckpoints.points[m->last_cp_index].pathPts[0];
     loop = gCheckpoints.points[gCheckpoints.loopPt].pathPts[0];
     need = -row[2];
@@ -389,6 +412,55 @@ static int pc_grid_pose(tModelData *m)
     pc_grid_offset[0] = row[0];
     pc_grid_offset[1] = row[1];
     pc_grid_offset[2] = done - need;   /* 0 unless the path ran out: the rest straight back */
+}
+
+/* Is the road under the candidate in pc_grid_*? */
+static int pc_grid_on_road(void)
+{
+    float v[3], at[3], snap[3], uvs[3][3];
+    int k;
+    func_8009E820(pc_grid_offset, v, pc_grid_uvs);
+    for (k = 0; k < 3; k++)
+        at[k] = pc_grid_point[k] + v[k];
+    return camera_trigger_check(at, snap, uvs) != 0;
+}
+
+static int pc_grid_pose(tModelData *m)
+{
+    static tModelData *last;
+    static float last_key[5];
+    static float kept[15];   /* the point, the orientation, the offset */
+    float key[5];
+    int p = m->initin.polepos, n, c, k, same;
+    if (p < PC_GRID_PLACES || p >= PC_RESPAWN_BASE || (gGameState & GS_DEMO) || gRace == kBattle ||
+        gRace == kStunt || gRace == kObstacle)
+        return 0;
+    /* Resurrect asks seven times for one car: the answer is kept for its record, place and start point. */
+    key[0] = p, key[1] = m->last_cp_index;
+    key[2] = m->resurrect.save_pos[0], key[3] = m->resurrect.save_pos[1], key[4] = m->resurrect.save_pos[2];
+    for (same = m == last, k = 0; k < 5; k++)
+        same &= key[k] == last_key[k];
+    if (!same) {
+        n = p - PC_GRID_PLACES;
+        for (c = 0; c < PC_GRID_CANDIDATES; c++) {
+            pc_grid_candidate(m, c);
+            if (pc_grid_on_road() && n-- == 0)
+                break;
+        }
+        if (c == PC_GRID_CANDIDATES)   /* too few with road under them: its own row */
+            pc_grid_candidate(m, p - PC_GRID_PLACES);
+        for (k = 0; k < 3; k++)
+            kept[k] = pc_grid_point[k], kept[12 + k] = pc_grid_offset[k];
+        for (k = 0; k < 9; k++)
+            kept[3 + k] = pc_grid_uvs[k / 3][k % 3];
+        for (k = 0; k < 5; k++)
+            last_key[k] = key[k];
+        last = m;
+    }
+    for (k = 0; k < 3; k++)
+        pc_grid_point[k] = kept[k], pc_grid_offset[k] = kept[12 + k];
+    for (k = 0; k < 9; k++)
+        pc_grid_uvs[k / 3][k % 3] = kept[3 + k];
     return 1;
 }
 
