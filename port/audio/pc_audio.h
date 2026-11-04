@@ -43,6 +43,25 @@ const char *pc_audio_backend_name(void);
  * rendered for: one already pushed waits in the queue for it (PcAudioStats.waited). */
 void pc_audio_note_rendered(const int16_t *buf);
 
+/* More voices (docs/port/AUDIO.md 10): the voice records each SFD holds, 32 (the N64's) to MX_VOICES_MAX, which the
+ * game sets as it allocates its SFDs (lib_11640.c, func_80011104). pc_audio_sfd_size: an SFD of n records in a form,
+ * with its release mask's words for slots 32 and up. */
+void pc_audio_set_sfd_voices(unsigned n);
+unsigned pc_audio_sfd_voices(void);
+size_t pc_audio_sfd_size(unsigned n, int form);
+
+/* The mixer's counters, from every task run (the report's "audio: mixer:" line): subframes (SFDs) and the voices
+ * mixed in them, how many subframes had each count (the last entry: that many or more), and the thread CPU time
+ * the interpreter took (CLOCK_THREAD_CPUTIME_ID where there is one). */
+typedef struct {
+    uint64_t tasks, subframes, voices, ns;
+    uint64_t ns_most;            /* the most a subframe took, as its task's time over its subframes */
+    unsigned voices_most;        /* the most voices one subframe mixed */
+    unsigned slots;              /* the voice records an SFD held, last task */
+    uint64_t voices_hist[129];
+} PcMixerStats;
+void pc_audio_mixer_stats(PcMixerStats *out);
+
 typedef struct {
     uint64_t pushed_frames;     /* game-rate frames given to pc_audio_push */
     uint64_t dropped_frames;    /* device-rate frames dropped because the queue was full */
