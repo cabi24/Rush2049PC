@@ -597,6 +597,16 @@ target_compile_options(test_pakwrite PRIVATE -std=gnu11 -Wall -Wextra -Wno-unuse
 target_link_libraries(test_pakwrite PRIVATE Threads::Threads)
 add_test(NAME ultra_pakwrite COMMAND test_pakwrite ${CMAKE_BINARY_DIR}/test-scratch-pakwrite)
 set_target_properties(test_pakwrite PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+# game.saves = files (docs/port/SAVES.md): a pak's notes as files (port/ultra/pakfs.c, pakstore.c): images and notes,
+# the save files, the ghost check, the saves folder (the .mpk imported once, the game's writes split into files, the
+# choice of what is on the pak, imports, exports, a damaged file, an unwritable folder) and a fuzz of the readers.
+add_executable(test_pakstore port/ultra/tests/test_pakstore.c port/ultra/pakfs.c port/ultra/pakstore.c
+    port/ultra/pakfile.c)
+target_include_directories(test_pakstore PRIVATE port/ultra port/include ${ZLIB_INCLUDE_DIRS})
+target_compile_options(test_pakstore PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(test_pakstore PRIVATE ZLIB::ZLIB Threads::Threads m)
+add_test(NAME ultra_pakstore COMMAND test_pakstore ${CMAKE_BINARY_DIR}/test-scratch-pakstore)
+set_target_properties(test_pakstore PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 add_test(NAME app_firstrun COMMAND ${PC_PYTHON} ${PORT_TOOLS}/firstrun_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM})
 set_tests_properties(app_firstrun PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)

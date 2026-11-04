@@ -147,8 +147,15 @@ void pc_si_set_pak_file(int ch, const char *path);
  * read when it is first chosen, and written when it comes out. Returns kind, or PC_PAK_NONE when the file isn't a
  * controller pak (logged). */
 int pc_si_set_pak(int ch, int kind);
+/* game.saves = files (docs/port/SAVES.md): channel ch's pak is built from this saves folder (pakstore.c's
+ * pc_store_open first) and what the game writes goes back into its files; NULL: the file of pc_si_set_pak_file. As
+ * pc_si_set_pak_file, before it is chosen. */
+void pc_si_set_pak_store(int ch, const char *folder);
+/* Whether the game can take its pak swapped now (main: at the title or the main menu, no player on a saved profile,
+ * no ghost chosen): a folder whose choice of saves changed is swapped at the next flush when it says so. */
+void pc_si_set_swap_check(int (*ok)(int ch));
 int pc_si_pak(int ch);                     /* what the game finds in the port now: PC_PAK_NONE, MEMORY or RUMBLE */
-const char *pc_si_pak_path(int ch);        /* the memory pak's file when that is the port's choice, else NULL */
+const char *pc_si_pak_path(int ch);        /* the memory pak's file (or saves folder) when that is the port's choice */
 void pc_si_set_pads(const PcPad pads[4]);            /* main thread, each retrace */
 void pc_si_test_pads(const PcPad pads[4]);  /* --selftest: these pads until NULL, whatever the main loop sets */
 /* The rumble pak's motor on a channel: 1 while it is on, or if it was turned on since the last call (a pulse
@@ -176,6 +183,7 @@ int pc_pak_image_check(const uint8_t *image, size_t size, char *why, size_t why_
 void pc_pak_format(uint8_t *image);                  /* a blank formatted pak, PC_PAK_SIZE bytes */
 void pc_pak_id_sums(const uint8_t *id, int be, uint16_t *sum, uint16_t *isum);   /* __osIdCheckSum */
 int pc_pak_id_valid(const uint8_t *id, int be);
+void pc_pak_own_id(uint8_t *image, int ch);          /* a new pak's ID of controller ch's own (0: as formatted) */
 /* Any pak file (each player's), as the game is to see it, into image (PC_PAK_SIZE bytes). PC_PAK_LOAD_FILE: the
  * file's image. PC_PAK_LOAD_NEW: no file yet; image formatted, to be written. PC_PAK_LOAD_N64: the file is in N64
  * byte order; image formatted, and the file is not to be written. PC_PAK_LOAD_NONE: the file can't be used
@@ -200,6 +208,9 @@ typedef struct {
     uint64_t longest_ns;   /* the longest write, in real time */
 } PcPakWriteStats;
 int pc_pakw_submit(const char *path, const char *label, const void *data, size_t size);
+/* The same with a write of its own for this path (a saves folder: pakstore.c's pc_store_write splits the image into
+ * the folder's files; path is the folder). */
+int pc_pakw_submit_fn(const char *path, const char *label, const void *data, size_t size, PcPakWriteFn fn);
 void pc_pakw_retry(void);
 int pc_pakw_wait(int retry, uint64_t timeout_ns);
 int pc_pakw_unwritten(char *what, size_t size);   /* files not written yet, named in what ("label (path), ...") */
@@ -209,6 +220,7 @@ int pc_pakw_is_writer(void);                      /* the calling thread is the w
 /* After a fault: a submit that never blocks for long (-1: the lock not had in 50 ms), and a wait without the lock
  * (the files still not written; at once when the writer is the thread that faulted). */
 int pc_pakw_fault_submit(const char *path, const char *label, const void *data, size_t size);
+int pc_pakw_fault_submit_fn(const char *path, const char *label, const void *data, size_t size, PcPakWriteFn fn);
 int pc_pakw_fault_wait(uint64_t timeout_ns);
 
 /* ---------------------------------------------------------------- memory.c */

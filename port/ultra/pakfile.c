@@ -91,6 +91,25 @@ void pc_pak_format(uint8_t *img)
     memcpy(img + 0x200, inode, 256);
 }
 
+/* A new pak's ID of controller ch's own: the random word of pc_pak_format's ID block (controller 1's as it always
+ * was) changed by the port, in the block and its three copies, with its checksums. si.c's new paks and a saves
+ * folder's first pak (pakstore.c) take it. */
+void pc_pak_own_id(uint8_t *img, int ch)
+{
+    static const int copies[] = {0x20, 0x60, 0x80, 0xC0};   /* PFS_ID_0AREA..3AREA */
+    uint8_t *id = img + copies[0];
+    uint32_t random;
+    uint16_t sum, isum;
+    memcpy(&random, id + 4, 4);
+    random ^= (uint32_t)ch * 0x2545F491u;
+    memcpy(id + 4, &random, 4);
+    pc_pak_id_sums(id, 0, &sum, &isum);
+    memcpy(id + 0x1C, &sum, 2);
+    memcpy(id + 0x1E, &isum, 2);
+    for (int i = 1; i < 4; i++)
+        memcpy(img + copies[i], id, 32);
+}
+
 int pc_pak_image_check(const uint8_t *img, size_t size, char *why, size_t why_size)
 {
     static const int copies[] = {0x20, 0x60, 0x80, 0xC0};

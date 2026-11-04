@@ -34,6 +34,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "pakfs.h"
 #include "pc_compat.h"
 #include "ultra.h"
 
@@ -54,6 +55,8 @@ typedef struct {
     int found;                 /* the game has read the accessory in now (logged once) */
     int memory_ok;             /* img is a usable pak: its file read, or formatted */
     char *path;                /* the memory pak's file; NULL: in memory only */
+    char *store;               /* game.saves = files: the saves folder the pak is built from (pakstore.c); NULL: the
+                                * file at path */
     int dirty;                 /* changed since it was last handed to the writer */
     int rumble, rumble_seen;   /* the motor; turned on since the last pc_si_motor */
     uint8_t img[PAK_SIZE];
@@ -64,21 +67,10 @@ static const char *const kind_names[] = {"nothing", "the controller pak", "the r
 /* ---------------------------------------------------------------- the .mpk image (pakfile.c) */
 
 /* A new pak's ID of the port's own: the random word of pc_pak_format's ID block (controller 1's as it always was)
- * changed by the port, in the block and its three copies, with its checksums. */
+ * changed by the port, in the block and its three copies, with its checksums (pakfile.c). */
 static void own_id(uint8_t *img, int ch)
 {
-    static const int copies[] = {0x20, 0x60, 0x80, 0xC0};   /* PFS_ID_0AREA..3AREA */
-    uint8_t *id = img + copies[0];
-    uint32_t random;
-    uint16_t sum, isum;
-    memcpy(&random, id + 4, 4);
-    random ^= (uint32_t)ch * 0x2545F491u;
-    memcpy(id + 4, &random, 4);
-    pc_pak_id_sums(id, 0, &sum, &isum);
-    memcpy(id + 0x1C, &sum, 2);
-    memcpy(id + 0x1E, &isum, 2);
-    for (int i = 1; i < 4; i++)
-        memcpy(img + copies[i], id, 32);
+    pc_pak_own_id(img, ch);
 }
 
 static void pak_format(uint8_t *img, int ch)
@@ -115,6 +107,20 @@ static int pak_load(int ch, const char *path)
     }
 }
 
+/* game.saves = files: controller ch's pak built from its saves folder (pakstore.c), as the game is to see it: 0, or
+ * -1 for no pak (logged). */
+static int store_load(int ch)
+{
+    char why[200];
+    if (pc_store_build(ch, g_port[ch].img, why, sizeof why) != 0) {
+        pc_log("controller %d's saves %s: %s; no pak is plugged in", ch + 1, g_port[ch].store, why);
+        return -1;
+    }
+    if (pc_verbose)
+        pc_log("controller %d's pak built from %s", ch + 1, g_port[ch].store);
+    return 0;
+}
+
 /* The port's image handed to the writer (pakwrite.c) when it changed (lock held): the copy and the queueing under the
  * lock, so two threads' flushes (the main loop's, a console's close) queue their copies in the order they took them.
  * The writer keeps a failed write's image and tries it again (pc_pakw_retry); one it can't queue stays dirty.
@@ -130,10 +136,11 @@ static void hand_over(int ch)
         const char *e = getenv("RUSH_SIM_PAK_REWRITE");
         g_rewrite = e && !strcmp(e, "1");
     }
-    if (!(p->dirty || (g_rewrite && p->memory_ok && p->kind == PC_PAK_MEMORY)) || !p->path)
+    if (!(p->dirty || (g_rewrite && p->memory_ok && p->kind == PC_PAK_MEMORY)) || !(p->path || p->store))
         return;
-    snprintf(label, sizeof label, "controller %d's pak", ch + 1);
-    if (pc_pakw_submit(p->path, label, p->img, PAK_SIZE) == 0) {
+    snprintf(label, sizeof label, p->store ? "controller %d's saves" : "controller %d's pak", ch + 1);
+    if ((p->store ? pc_pakw_submit_fn(p->store, label, p->img, PAK_SIZE, pc_store_write)
+                  : pc_pakw_submit(p->path, label, p->img, PAK_SIZE)) == 0) {
         if (pc_verbose)
             pc_log("controller %d's pak handed to the writer at retrace %u", ch + 1, pc_frame);
         p->dirty = 0;
@@ -147,6 +154,14 @@ static void flush_port(int ch)
     pthread_mutex_unlock(&g_slock);
 }
 
+static void swap_pak(int ch);
+static int (*g_swap_ok)(int ch);
+
+void pc_si_set_swap_check(int (*ok)(int ch))
+{
+    g_swap_ok = ok;
+}
+
 /* With --fast the loop waits for the writes: the virtual clock moves only in the main loop's waits, so the game's
  * run is the same, a test finds the file written when the loop goes on, and a failure is said, and tried again at
  * the next flush, at the same point of every run. */
@@ -154,6 +169,10 @@ void pc_si_flush(void)
 {
     for (int ch = 0; ch < 4; ch++)
         flush_port(ch);
+    for (int ch = 0; ch < 4; ch++)   /* game.saves = files: another choice of saves for the pak, when it is safe */
+        if (g_port[ch].store && g_port[ch].kind == PC_PAK_MEMORY && g_port[ch].memory_ok &&
+            pc_store_swap_wanted(ch) && g_swap_ok && g_swap_ok(ch))
+            swap_pak(ch);
     if (pc_time_virtual())
         pc_pakw_wait(1, 15000000000u);
     else
@@ -209,10 +228,11 @@ void pc_si_fault_flush(void)
         if (!locked)
             break;   /* held by the thread that faulted, inside a pak transfer: no image is safe to take */
         Port *p = &g_port[ch];
-        if (p->dirty && p->path && pc_pak_image_check(p->img, PAK_SIZE, NULL, 0) == PC_PAK_IMAGE_OK) {
+        if (p->dirty && (p->path || p->store) && pc_pak_image_check(p->img, PAK_SIZE, NULL, 0) == PC_PAK_IMAGE_OK) {
             char label[32];
-            snprintf(label, sizeof label, "controller %d's pak", ch + 1);
-            if (pc_pakw_fault_submit(p->path, label, p->img, PAK_SIZE) == 0)
+            snprintf(label, sizeof label, p->store ? "controller %d's saves" : "controller %d's pak", ch + 1);
+            if ((p->store ? pc_pakw_fault_submit_fn(p->store, label, p->img, PAK_SIZE, pc_store_write)
+                          : pc_pakw_fault_submit(p->path, label, p->img, PAK_SIZE)) == 0)
                 p->dirty = 0;
         }
         pthread_mutex_unlock(&g_slock);
@@ -279,6 +299,37 @@ void pc_si_set_pak_file(int ch, const char *path)
     pthread_mutex_unlock(&g_slock);
 }
 
+void pc_si_set_pak_store(int ch, const char *folder)
+{
+    if (ch < 0 || ch > 3)
+        return;
+    Port *p = &g_port[ch];
+    if (p->kind == PC_PAK_MEMORY)
+        flush_port(ch);
+    pthread_mutex_lock(&g_slock);
+    free(p->store);
+    p->store = folder ? strdup(folder) : NULL;
+    p->memory_ok = 0;   /* built when it is chosen next */
+    update(ch);         /* a memory pak in now comes out */
+    pthread_mutex_unlock(&g_slock);
+}
+
+/* game.saves = files: the saves chosen for the pak changed (a pin, an import, a delete: pakstore.c), and main's check
+ * says the game can take a swap: the pak comes out as a player would pull it, its last writes go to the folder, and
+ * the pak built again goes in after the game's next poll has found the port empty (update). */
+static void swap_pak(int ch)
+{
+    Port *p = &g_port[ch];
+    pthread_mutex_lock(&g_slock);
+    hand_over(ch);
+    p->memory_ok = 0;
+    update(ch);
+    pthread_mutex_unlock(&g_slock);
+    pc_pakw_wait(1, 5000000000u);   /* the folder has the game's last writes before it is read again */
+    pc_log("controller %d's pak taken out and put back: the saves chosen for it changed", ch + 1);
+    pc_si_set_pak(ch, PC_PAK_MEMORY);
+}
+
 int pc_si_set_pak(int ch, int kind)
 {
     if (ch < 0 || ch > 3 || kind < PC_PAK_NONE || kind > PC_PAK_AUTO)
@@ -290,11 +341,13 @@ int pc_si_set_pak(int ch, int kind)
     pthread_mutex_unlock(&g_slock);
     if (kind == PC_PAK_MEMORY && !p->memory_ok && in != PC_PAK_MEMORY) {   /* the game can't reach img */
         int r = 0;
-        if (p->path)
+        if (p->store)
+            r = store_load(ch);
+        else if (p->path)
             r = pak_load(ch, p->path);
         else
             pak_format(p->img, ch);   /* in memory only */
-        if (r != 0) {
+        if (r != 0 && !p->store) {
             pthread_mutex_lock(&g_slock);
             free(p->path);
             p->path = NULL;   /* in memory only, or not used */
@@ -332,7 +385,7 @@ const char *pc_si_pak_path(int ch)
     if (ch < 0 || ch > 3)
         return NULL;
     const Port *p = &g_port[ch];
-    return p->kind == PC_PAK_MEMORY && p->memory_ok ? p->path : NULL;
+    return p->kind == PC_PAK_MEMORY && p->memory_ok ? (p->store ? p->store : p->path) : NULL;
 }
 
 int pc_si_init(const char *pak_path, int pak_kind)

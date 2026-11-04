@@ -12,6 +12,11 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <dirent.h>
+#include <sys/stat.h>
+
+#include "pakfs.h"
+#include "pc_compat.h"
 #include "ultra.h"
 
 /* port/ultra and the game's libultra C, as the game declares them. */
@@ -43,6 +48,12 @@ int32_t osPfsAllocateFile(void *pfs, uint16_t company, uint32_t game, uint8_t *n
                           int32_t *file);
 int32_t osPfsReadWriteFile(void *pfs, int32_t file, uint8_t flag, int32_t offset, int32_t size, uint8_t *buf);
 int32_t osPfsDeleteFile(void *pfs, uint16_t company, uint32_t game, uint8_t *name, uint8_t *ext);
+typedef struct {
+    uint32_t file_size, game_code;
+    uint16_t company_code;
+    uint8_t ext_name[4], game_name[16];
+} SelfPfsState;
+int32_t osPfsFileState(void *pfs, int32_t file, SelfPfsState *state);
 void osSpTaskLoad(void *task);
 void osSpTaskStartGo(void *task);
 void osSpTaskYield(void);
@@ -597,6 +608,139 @@ static void t_ports(void)
     pc_si_test_pads(NULL);
 }
 
+/* ---------------------------------------------------------------- game.saves = files (docs/port/SAVES.md) */
+
+static void remove_tree(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return;
+    if (S_ISDIR(st.st_mode)) {
+        DIR *d = opendir(path);
+        for (struct dirent *de; d && (de = readdir(d));) {
+            char sub[1100];
+            if (strcmp(de->d_name, ".") && strcmp(de->d_name, "..")) {
+                snprintf(sub, sizeof sub, "%s/%s", path, de->d_name);
+                remove_tree(sub);
+            }
+        }
+        if (d)
+            closedir(d);
+        rmdir(path);
+    } else {
+        remove(path);
+    }
+}
+
+static int files_with(const char *dir, const char *ext)
+{
+    DIR *d = opendir(dir);
+    int n = 0;
+    for (struct dirent *de; d && (de = readdir(d));)
+        n += strlen(de->d_name) > strlen(ext) && !strcmp(de->d_name + strlen(de->d_name) - strlen(ext), ext);
+    if (d)
+        closedir(d);
+    return n;
+}
+
+/* A pak built from a saves folder (pakstore.c), read by the game's own Pfs C as any pak: its notes, their sizes and
+ * bytes; a note the Pfs C allocates and writes becomes a file of its own when the pak is flushed (the writer's
+ * split), and one it deletes goes to the folder's trash. In a folder of the system's temporary one. */
+static void t_store(void)
+{
+    enum { CH = 1 };
+    void *si = queue(13, 1);
+    static SelfPfs pfs;
+    char dir[1024], d[300], msg[300], trash[1100];
+    const char *tmp = getenv("TMPDIR");
+#ifdef _WIN32
+    if (!tmp)
+        tmp = getenv("TEMP");
+#endif
+    snprintf(dir, sizeof dir, "%s/rush2049pc-selftest-%d", tmp && *tmp ? tmp : "/tmp", (int)getpid());
+    remove_tree(dir);
+    osSetEventMesg(OS_EVENT_SI, si, NULL);
+    PcPad pads[4] = {{.connected = 1}, {.connected = 1}};
+    pc_si_test_pads(pads);
+    /* two notes as files: three pages and one, the second asking for directory slot 6 */
+    PcNote notes[2];
+    for (int k = 0; k < 2; k++) {
+        PcNote *n = &notes[k];
+        memset(n, 0, sizeof *n);
+        uint32_t game = 0x4E525545u;
+        uint16_t company = 0x3459;
+        memcpy(n->dir, &game, 4);
+        memcpy(n->dir + 4, &company, 2);
+        n->dir[8] = 0x02;   /* DIR_STATUS_OCCUPIED: osPfsReadWriteFile sets it at a note's first write, and reads only
+                             * a note that has it */
+        n->dir[16] = 0x1D, n->dir[17] = (uint8_t)(0x1E + k);
+        n->slot = k ? 6 : -1;
+        n->pages = k ? 1 : 3;
+        n->data = malloc((size_t)n->pages * 256);
+        for (int i = 0; i < n->pages * 256; i++)
+            n->data[i] = (uint8_t)(i * 13 + k * 101);
+    }
+    int ok = pc_store_open(CH, dir, NULL, "selftest", msg, sizeof msg) == 0;
+    for (int k = 0; k < 2 && ok; k++) {   /* written as the folder's files, then read again */
+        uint8_t *b;
+        size_t size;
+        char path[1100];
+        snprintf(path, sizeof path, "%s/note%d.r49note", dir, k);
+        ok = pc_save_file_make(&notes[k], PC_ORIGIN_GAME, "selftest", &b, &size) == 0 &&
+             pc_file_write_atomic(path, b, size) == 0;
+        free(b);
+    }
+    ok = ok && pc_store_open(CH, dir, NULL, "selftest", msg, sizeof msg) == 0;
+    pc_si_set_pak_store(CH, dir);
+    int kind = pc_si_set_pak(CH, PC_PAK_MEMORY);
+    uint8_t st[4][4];
+    query(si, st);
+    int32_t ri = osPfsInitPak(si, &pfs, CH), found = 0, same = 0, slot6 = 0;
+    for (int32_t f = 0; f < 16 && ri == 0; f++) {
+        SelfPfsState s;
+        if (osPfsFileState(&pfs, f, &s) != 0)
+            continue;
+        for (int k = 0; k < 2; k++)
+            if (s.game_name[1] == notes[k].dir[17] && s.file_size == (uint32_t)notes[k].pages * 256) {
+                static uint8_t in[768];
+                found++;
+                slot6 += k == 1 && f == 6;
+                same += osPfsReadWriteFile(&pfs, f, 0, 0, (int32_t)s.file_size, in) == 0 &&
+                        !memcmp(in, notes[k].data, s.file_size);
+            }
+    }
+    snprintf(d, sizeof d, "open %d, kind %d, init %d, notes found %d, the same bytes %d, slot 6 %d (%.120s)", ok, kind,
+             (int)ri, (int)found, same, slot6, msg);
+    check("saves files: the game's Pfs C reads a pak built from them", ok && kind == PC_PAK_MEMORY && ri == 0 &&
+                                                                           found == 2 && same == 2 && slot6 == 1, d);
+    /* the Pfs C makes a note and deletes one: a file, and one in the trash, once the pak is flushed */
+    uint8_t name[16] = {0x1D, 0x30}, ext[4] = {0}, out[512];
+    for (int i = 0; i < 512; i++)
+        out[i] = (uint8_t)(i ^ 0xA7);
+    int32_t file = -1, ra = osPfsAllocateFile(&pfs, 0x3459, 0x4E525545, name, ext, 512, &file);
+    int32_t rw = osPfsReadWriteFile(&pfs, file, 1, 0, 512, out);
+    pc_si_flush();
+    int left = pc_pakw_wait(1, 5000000000u);
+    int notes_now = files_with(dir, ".r49note");
+    uint8_t del[16] = {0x1D, 0x1E};
+    int32_t rd = osPfsDeleteFile(&pfs, 0x3459, 0x4E525545, del, ext);
+    pc_si_flush();
+    left += pc_pakw_wait(1, 5000000000u);
+    snprintf(trash, sizeof trash, "%s/trash", dir);
+    int after = files_with(dir, ".r49note"), trashed = files_with(trash, ".r49note");
+    snprintf(d, sizeof d, "alloc %d, write %d, files %d; delete %d, files %d, in the trash %d, not written %d", (int)ra,
+             (int)rw, notes_now, (int)rd, after, trashed, left);
+    check("saves files: the game's writes into the folder", ra == 0 && rw == 0 && notes_now == 3 && rd == 0 &&
+                                                                after == 2 && trashed == 1 && !left, d);
+    pc_si_set_pak(CH, PC_PAK_NONE);
+    pc_si_set_pak_store(CH, NULL);
+    pc_store_close(CH);
+    pc_si_test_pads(NULL);
+    remove_tree(dir);
+    for (int k = 0; k < 2; k++)
+        pc_note_free(&notes[k]);
+}
+
 /* RSP tasks are answered with SP (and DP) events; audio tasks run in osSpTaskStartGo in real time, in the main loop
  * with --fast. The AI event comes when the output queue is low. No graphics task: that needs a GL context (port/gfx
  * has its own tests). */
@@ -732,6 +876,7 @@ static void controller(void *arg)
     t_ai_device();
     t_pif();
     t_ports();
+    t_store();
     if (pc_time_virtual()) {
         char d[64];
         snprintf(d, sizeof d, "%.0f ms of N64 time in %.0f ms", pc_host_ns() / 1e6, pc_real_ns() / 1e6);
