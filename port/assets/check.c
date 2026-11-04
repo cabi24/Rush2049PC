@@ -47,7 +47,12 @@ typedef struct {
     size_t why_size;
 } Ck;
 
-static int bad(Ck *c, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+#ifdef __MINGW_PRINTF_FORMAT   /* mingw-w64: the printf vsnprintf is (gnu_printf with its ANSI stdio: %zu) */
+#define CK_PRINTF __MINGW_PRINTF_FORMAT
+#else
+#define CK_PRINTF printf
+#endif
+static int bad(Ck *c, const char *fmt, ...) __attribute__((format(CK_PRINTF, 2, 3)));
 static int bad(Ck *c, const char *fmt, ...)
 {
     va_list ap;
