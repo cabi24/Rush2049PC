@@ -6,6 +6,14 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Draw distance, detail and fog** (`video.draw_distance`, `video.detail`, `video.fog`, F1 > Video): at `original`,
+  the defaults, the N64's picture exactly. `draw_distance = far` draws everything the game limits by distance twice
+  as far: more of the track (the world's visibility tables reach 2,000 ft further), the cars and their wheels twice
+  as far out, the scenery past 2,048 ft, the far plane at 4,000 ft; `max` draws the whole track and every
+  model at any distance. `detail = high` keeps each model at its most detailed level wherever it is drawn, and gives
+  split screen one player's models. `fog = far` puts the fog options' fog twice as far, `off` removes it. The log's
+  `scene:` line says what was drawn ([DETAIL.md](docs/port/DETAIL.md), [FRONTEND.md](docs/port/FRONTEND.md)).
+
 - **More cars a race, up to 12** (`game.cars`, F1 > Game > Cars in a race): `original`, the default, is the N64's
   6. Set it to 7-12, then raise the track select's Drones option, which goes up to one less than the setting (its
   default, 5, still races 6 cars). A single race takes them, for one or two players; the circuit stays 6 cars, and the

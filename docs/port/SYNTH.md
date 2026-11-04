@@ -135,7 +135,7 @@ which fits `D_803B9260`'s 4 bytes) and `SYN_BAR`.
 | 55-60 | front-end screen WADs | empty WADs (a TOC, no chunks) |
 | 61-68, 76-100 | race, HUD, car WADs | like 54, without the map objects |
 | 101-119 | track WADs | like those, plus the world node's model TRACK |
-| 120-138 | world WADs | WHDR naming one world, one WOBJ node (TRACK), one empty GDAT leaf, no GTLD keys; the battle arenas' (tracks 6-13) four more nodes, WEAPON00-03, siblings of TRACK at the corners of a 1000-unit square, which become weapon icons |
+| 120-138 | world WADs | WHDR naming one world, one WOBJ node (TRACK), one empty GDAT leaf, no GTLD keys; the battle arenas' (tracks 6-13) four more nodes, WEAPON00-03, siblings of TRACK at the corners of a 1000-unit square, which become weapon icons; track 0's the detail world: TRACK with a box round the loop and five parts with boxes, models of their own (one of two levels) and visibility rows ([DETAIL.md](DETAIL.md) 6.1) |
 | 139-157 | road | flat pavement at y = 0, x and z from -1000 to 3000 feet: one tree node whose four quarters list one surface (type 0, an identity orientation, four vertices; `road_file` says what each reader takes) |
 | 158-182 | paths | a 2000-unit square: four checkpoints, an eight-point resurrection path, four drone paths |
 
@@ -211,6 +211,7 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `cheats` | the main menu's cheat code, five down to its new option, the cheat screen (0x8000000); cheat 0's code and RIGHT switch it; B back (`# visits:` 0x8000000) | back on the main menu | 1.7 s (Pi) |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 | `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
+| `detail`, `detail_far`, `detail_max`, `detail_high`, `detail_fog`, `detail_fogfar` | two seconds of a race on track 0's detail world at each setting of `video.draw_distance`, `detail` and `fog`, and with the track select's fog option; `# check:` runs `tools/port/detail_check.py` on the exit's scene line: the parts let through (4, 5, 6 of 6), what each limit left out ([DETAIL.md](DETAIL.md) 6.1) | 0x400000, 60 frames | 0.8 s |
 
 **Screenshots.** `--screenshot-at N` of a race now shows the game's own display lists drawn: its matrices and
 viewports put the models where the cars are, in one view or split in two (top and bottom) or four (quarters).
