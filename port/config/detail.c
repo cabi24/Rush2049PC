@@ -52,11 +52,11 @@ int pc_detail_players(int players)
 }
 
 /* The matrices' range (func_8009D45C, func_8009D99C, func_8009D708): a node's place against the eye, x y z in feet,
- * goes into its matrix's s15.16 translation in sixteenths of a foot, which holds |x| < 2048 ft. The power of two to divide the whole matrix by (the rotation, the
- * place and the w the node gives the vertex): 1 inside the N64's range, more past it while draw_distance reaches
- * (far: PC_DRAW_FAR_FACTOR times the range; max: any); 0 for a node the setting leaves out, as the N64 does. A
- * matrix divided by s gives every vertex s times smaller x, y, z and w: the same point on the screen, the same z/w,
- * the same fog and depth. */
+ * goes into its matrix's s15.16 translation in sixteenths of a foot, which holds |x| < 2048 ft. The power of two to
+ * divide the whole matrix by (the rotation, the place and the w the node gives the vertex): 1 inside the N64's range,
+ * more past it while draw_distance reaches (far: PC_DRAW_FAR_FACTOR times the range; max: any); 0 for a node the
+ * setting leaves out, as the N64 does. A matrix divided by s gives every vertex s times smaller x, y, z and w: the
+ * same point on the screen, the same z/w, the same fog and depth. */
 int pc_draw_range_scale(float x, float y, float z)
 {
     float m = x < 0.0f ? -x : x, a;
@@ -81,7 +81,8 @@ int pc_draw_range_scale(float x, float y, float z)
 /* ---------------------------------------------------------------- the scene's counts */
 
 static const char *const s_names[PC_SCENE_COUNTS] = {
-    "nodes drawn", "at a level of detail past their first", "world parts", "let through by the visibility tables", "hidden", "hidden in that view",
+    "nodes drawn", "at a level of detail past their first", "world parts", "let through by the visibility tables",
+    "hidden", "hidden in that view",
     "out of the matrices' range", "past the fog's radius", "past their last level of detail"};
 static unsigned long s_views, s_walks;   /* the views of a world (its parts > 0: a race), and every scene walk */
 static double s_sum[PC_SCENE_COUNTS];

@@ -848,10 +848,10 @@ f32 func_8009C3F8(f32 x, s32 flag)
 #endif
 #ifdef TARGET_PC
 /* PC: video.draw_distance and video.detail (docs/port/DETAIL.md 2). PC_DRAW_REACH (a model's last level of detail,
- * PC_LOD_REACH, and the fog's radius), PC_LOD_DIST (the level chosen) and PC_SCENE (the scene's counts) are pc_game_types.h's; a node
- * past its last level is counted, a level forced by its flags (CreateCar's tires with 2-4 players) is the first with
- * detail high (the distance its children and the cull read stays the N64's), and a view's walk begins at its
- * visibility. */
+ * PC_LOD_REACH, and the fog's radius), PC_LOD_DIST (the level chosen) and PC_SCENE (the scene's counts) are
+ * pc_game_types.h's; a node past its last level is counted, a level forced by its flags (CreateCar's tires with 2-4
+ * players) is the first with detail high (the distance its children and the cull read stays the N64's), and a view's
+ * walk begins at its visibility. */
 #define PC_LOD_CUT else { PC_SCENE(LOD) }
 /* a model's last level's distance, as far as the draw distance reaches; not for a node that fades out by then (flag
  * 0x200000, the car's sheen: alpha 0 past 80 ft), which would spend a lookat and its list on nothing */
