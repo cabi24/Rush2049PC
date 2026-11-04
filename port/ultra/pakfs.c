@@ -122,6 +122,19 @@ void pc_note_info(const PcNote *note, PcNoteInfo *info)
     }
 }
 
+/* %g as glibc prints it, on every C library: NaN as "nan" or "-nan" by its sign, infinities as "inf" and "-inf"
+ * (Windows' C library prints NaN without its sign), so a refusal reads the same as tools/port/ghost.py's. */
+static const char *fmt_g(char out[32], float x)
+{
+    if (isnan(x))
+        snprintf(out, 32, "%s", signbit(x) ? "-nan" : "nan");
+    else if (isinf(x))
+        snprintf(out, 32, "%s", x < 0 ? "-inf" : "inf");
+    else
+        snprintf(out, 32, "%g", (double)x);
+    return out;
+}
+
 int pc_ghost_check(const uint8_t *d, size_t size, int inflate_it, char *why, size_t why_size)
 {
     char scratch[8];
@@ -154,14 +167,15 @@ int pc_ghost_check(const uint8_t *d, size_t size, int inflate_it, char *why, siz
         return -1;
     }
     float frame, finish;
+    char num[32];
     memcpy(&frame, d + 0x34, 4);
     memcpy(&finish, d + 0x38, 4);
     if (!(frame > 0.0f && frame <= 0.1f)) {   /* the game's retrace time: 1/60 (1/50 on PAL) */
-        snprintf(why, why_size, "its frame time is %g s, not a retrace's", (double)frame);
+        snprintf(why, why_size, "its frame time is %s s, not a retrace's", fmt_g(num, frame));
         return -1;
     }
     if (!(finish >= 0.0f && finish < 36000.0f)) {
-        snprintf(why, why_size, "its race time is %g s", (double)finish);
+        snprintf(why, why_size, "its race time is %s s", fmt_g(num, finish));
         return -1;
     }
     uint32_t zsize = host32(d + 0x3C), usize = host32(d + 0x40);

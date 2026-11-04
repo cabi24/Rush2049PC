@@ -99,6 +99,8 @@ def ghost_tool(*args):
 def run_game(args, work, script, until, seconds, extra=(), realtime=False, env_extra=None, tag="run"):
     """One run in work/ (its XDG_DATA_HOME work/xdg): its exit code and log."""
     env = dict(os.environ, XDG_DATA_HOME=str(work / "xdg"), RUSH_STATE_EXACT="1")
+    if os.name == "nt":   # Windows' data folder is APPDATA's (as synth_paths.py's data_env)
+        env["APPDATA"] = str(work / "xdg")
     env.pop("XDG_CONFIG_HOME", None)
     if env_extra:
         env.update(env_extra)
