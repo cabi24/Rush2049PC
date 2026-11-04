@@ -197,7 +197,7 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 | `synth_boot_memhigh`, `memhigh2p` | drive and race2p at 64 with everything the game allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR=17): its files, their lists, textures and vertices, the frame and depth buffers, the sound's buffers |
 | `synth_boot_membig`, `membig8` | the car files 3 MB larger at 64 (no car refused; the peak 18.9 MiB, files past 16 MiB), 1 MB larger at `original` (LoadCars falls back once, logged; the race runs) |
 | `synth_shot_same_mem64`, `_memhigh`, `_membig`, `_memhigh2p` | their screenshots byte for byte drive's and race2p's |
-| `synth_memory_same` | 11 paths (drive, race2p, race4p, demo, battle2p, stunt, circuit, pause, raceend, race12, race2p12) at `original` against `memory = 64` with the floor at 17 MiB: the same trace (`synth_compare.py --set-b ... --env-b ...`) |
+| `synth_memory_same_<path>` | 11 paths (drive, race2p, race4p, demo, battle2p, stunt, circuit, pause, raceend, race12, race2p12), a test each, at `original` against `memory = 64` with the floor at 17 MiB: the same trace (`synth_compare.py --set-b ... --env-b ...`); an ASan or TSan build runs drive, race2p and race12 (all 22 runs under ASan on CI's arm runner took more than the job's 90 minutes) |
 
 **Each fails without its fix** (build host, each fix taken out alone in a copy of the branch):
 

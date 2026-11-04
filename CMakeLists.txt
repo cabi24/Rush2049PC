@@ -535,15 +535,25 @@ endforeach()
 # game.memory (docs/port/MEMORY.md 6): the program at original against itself at 64 MiB with everything the game
 # allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR), along paths of each kind: the same trace in every run, so the game
 # runs as it does in 8 MiB with all of its data where a physical address would read as a segmented one.
-add_test(NAME synth_memory_same COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_compare.py --exe $<TARGET_FILE:rush2049pc>
-    --exe $<TARGET_FILE:rush2049pc> --set-b game.memory=64 --env-b RUSH2049_TEST_HEAP_FLOOR=17 --rom ${SYNTH_ROM}
-    --runs 1 --same --logs ${CMAKE_BINARY_DIR}/synth/memory-same
-    drive race2p race4p demo battle2p stunt circuit pause raceend race12 race2p12)
-set(SYNTH_MEMORY_SAME_TIMEOUT 900)   # 22 runs; a sanitizer build runs each many times slower (above)
+# One test per path, so ctest -j runs them side by side. An ASan or TSan build runs three of them (one player, the
+# split screen, 12 cars): under ASan on a 4-core arm runner a run takes several minutes, and all 22 runs in one test
+# went past the CI job's 90 minutes (run 41788707907); the other builds run all 11.
+set(SYNTH_MEMORY_SAME_PATHS drive race2p race4p demo battle2p stunt circuit pause raceend race12 race2p12)
+set(SYNTH_MEMORY_SAME_TIMEOUT 600)   # 2 runs; a sanitizer build runs each many times slower (above)
 if(PC_SANITIZE)
-    set(SYNTH_MEMORY_SAME_TIMEOUT 9000)
+    set(SYNTH_MEMORY_SAME_TIMEOUT 3000)
 endif()
-set_tests_properties(synth_memory_same PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${SYNTH_MEMORY_SAME_TIMEOUT})
+if(PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD)
+    set(SYNTH_MEMORY_SAME_PATHS drive race2p race12)
+endif()
+foreach(name ${SYNTH_MEMORY_SAME_PATHS})
+    add_test(NAME synth_memory_same_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_compare.py
+        --exe $<TARGET_FILE:rush2049pc> --exe $<TARGET_FILE:rush2049pc> --set-b game.memory=64
+        --env-b RUSH2049_TEST_HEAP_FLOOR=17 --rom ${SYNTH_ROM} --runs 1 --same
+        --logs ${CMAKE_BINARY_DIR}/synth/memory-same/${name} ${name})
+    set_tests_properties(synth_memory_same_${name} PROPERTIES FIXTURES_REQUIRED synth_rom
+        TIMEOUT ${SYNTH_MEMORY_SAME_TIMEOUT})
+endforeach()
 # and the picture: drive's screenshot at game.memory 64, with the game's data above 17 MiB, and with the car types'
 # files 3 MB larger, byte for byte the original's; race2p's split screen with the data above 17 MiB the same.
 foreach(pair "drive;mem64" "drive;memhigh" "drive;membig" "race2p;memhigh2p")
