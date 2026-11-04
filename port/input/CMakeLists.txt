@@ -21,7 +21,7 @@ target_include_directories(frontend_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config
                            ${CMAKE_SOURCE_DIR}/port/include)
 target_compile_options(frontend_test PRIVATE ${PC_FRONTEND_TEST_FLAGS})
 target_link_libraries(frontend_test PRIVATE m)
-foreach(c ini settings layers locate stick cars)
+foreach(c ini settings layers locate stick cars memory)
     add_test(NAME frontend.${c} COMMAND frontend_test ${c} ${PC_FRONTEND_TEST_DIR})
 endforeach()
 

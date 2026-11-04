@@ -428,9 +428,25 @@ static void test_live(void)
           pc_cars_setting(), pc_race_cars());
     act(PC_MENU_LEFT);
     at("Game", "Cars in a race", "12", "before original: 12");
+    /* the game's memory (game.memory, docs/port/MEMORY.md): the setting only, for the next start (marked *) */
+    act(PC_MENU_DOWN);
+    at("Game", "Memory", "original (N64)", "the memory: original");
+    CHECK(pc_menu_settings()->memory == 0, "original: %d", pc_menu_settings()->memory);
+    act_n(PC_MENU_RIGHT, 3);
+    at("Game", "Memory", "64 MB", "64 MB");
+    CHECK(pc_menu_settings()->memory == 64, "64: %d", pc_menu_settings()->memory);
+    act_n(PC_MENU_RIGHT, 2);
+    at("Game", "Memory", "256 MB", "256 MB, the most");
+    act(PC_MENU_RIGHT);
+    at("Game", "Memory", "original (N64)", "past 256: original");
+    act(PC_MENU_LEFT);
+    at("Game", "Memory", "256 MB", "before original: 256");
     act(PC_MENU_DOWN);
     at("Game", "Defaults", NULL, "the page's Defaults");
     act(PC_MENU_ACCEPT);
+    act(PC_MENU_UP);
+    at("Game", "Memory", "original (N64)", "Defaults: the memory original");
+    CHECK(pc_menu_settings()->memory == 0, "%d", pc_menu_settings()->memory);
     act(PC_MENU_UP);
     at("Game", "Cars in a race", "original (6)", "Defaults: original");
     CHECK(pc_menu_settings()->cars == 0 && pc_cars_setting() == 6 && pc_race_cars() == 12, "%d, %d, %d",
@@ -906,6 +922,7 @@ static void mock_about(PcAbout *a)
     snprintf(a->saves, sizeof a->saves, "/home/player/.local/share/rush2049pc/rush2049pc.mpk");
     snprintf(a->log, sizeof a->log, "/home/player/.local/share/rush2049pc/rush2049pc.log");
     snprintf(a->data, sizeof a->data, "/home/player/Games/San Francisco Rush 2049/rush2049pc-v1.0-linux-x86_64");
+    snprintf(a->memory, sizeof a->memory, "64 MiB; heap 3.5 of 63.5 MiB at most in use");
 }
 
 static void has_line(const char *text, const char *line, const char *what)
@@ -948,6 +965,7 @@ static void test_pages(void)
     has_line(text, want, "GL version");
     has_line(text, "\nAudio: null at 48000 Hz\n", "audio");
     has_line(text, "\nAudio buffer: pulls of 512 (11 ms), queue 1601 (50 ms)\n", "audio buffer");
+    has_line(text, "\nMemory: 64 MiB; heap 3.5 of 63.5 MiB at most in use\n", "memory");
     has_line(text, "\nPlayer 1: -\nPlayer 2: -\nPlayer 3: -\nPlayer 4: -\n", "no live input headless: no players");
     has_line(text, "\nROM: /roms/baserom.us.z64 (next to the program)\n", "ROM");
     has_line(text, "\nSettings file: /home/player/.config/rush2049pc/rush2049pc.ini\n", "the settings file");

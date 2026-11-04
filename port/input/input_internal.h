@@ -123,6 +123,7 @@ typedef struct {
     char version[64], build_type[32], commit[64], build[128];   /* git describe, CMake's type, the hash, the build */
     char audio[96], audio_buffer[128];                         /* "sdl at 48000 Hz", its pulls and queue */
     char rom[PC_CFG_PATH], saves[PC_CFG_PATH], log[PC_CFG_PATH], data[PC_CFG_PATH];
+    char memory[128];   /* game.memory and the heap's high-water mark (docs/port/MEMORY.md 4) */
 } PcAbout;
 void pc_menu_set_about(void (*fill)(PcAbout *about));
 /* The About page as text, "Label: value" lines under a title (the clipboard's, and the tests'). Its length. */

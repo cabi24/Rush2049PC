@@ -16,6 +16,7 @@
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* the race's cars: pc_race_cars, its latch, PC_MAX_LINKS */
+#include "pc_port.h"         /* game.memory's range: PC_RDRAM_MAX, PC_RCP_SEGMENT_SPAN */
 
 static int g_fail, g_checks;
 static const char *g_dir;
@@ -566,13 +567,67 @@ static void test_cars(void)
     pc_race_cars_begin();
 }
 
+/* ---------------------------------------------------------------- memory */
+
+/* game.memory (docs/port/MEMORY.md 1): original or 16-256 MiB in the file and on the command line, and the warning for
+ * expansion_pak = off with a size, where the pak setting does nothing. */
+static void test_memory(void)
+{
+    PcSettings s, t;
+    char why[400], v[32];
+    pc_settings_defaults(&s);
+    CHECK(s.memory == 0 && pc_settings_get(&s, "game", "memory", v, sizeof v) == 0 && !strcmp(v, "original"),
+          "the default: original (%d, '%s')", s.memory, v);
+    CHECK(PC_RDRAM_MAX == 256u << 20 && PC_RCP_SEGMENT_SPAN == 16u << 20, "the range's ends: %u, %u MiB",
+          PC_RDRAM_MAX >> 20, PC_RCP_SEGMENT_SPAN >> 20);
+    static const char *const good[] = {"16", "17", "32", "64", "100", "128", "255", "256"};
+    for (size_t i = 0; i < sizeof good / sizeof *good; i++)
+        CHECK(pc_settings_set(&s, "game", "memory", good[i], why, sizeof why) == 0 && s.memory == atoi(good[i]) &&
+                  pc_settings_get(&s, "game", "memory", v, sizeof v) == 0 && !strcmp(v, good[i]),
+              "memory %s: %d '%s'", good[i], s.memory, v);
+    static const char *const bad[] = {"15", "8", "4", "0", "-1", "257", "512", "1024", "64M", "64 MB", "lots", ""};
+    for (size_t i = 0; i < sizeof bad / sizeof *bad; i++)
+        CHECK(pc_settings_set(&s, "game", "memory", bad[i], why, sizeof why) == -2 && s.memory == 256,
+              "memory '%s' refused: %s", bad[i], why);
+    CHECK(strstr(why, "from 16 to 256") && strstr(why, "original"), "the message names the range and original: %s",
+          why);
+    CHECK(pc_settings_set(&s, "Game", "MEMORY", "Original", why, sizeof why) == 0 && s.memory == 0, "original, any case");
+    CHECK(pc_settings_assign(&s, "game.memory=64", why, sizeof why) == 0 && s.memory == 64, "--set game.memory=64");
+    CHECK(pc_settings_assign(&s, "game.memory=300", why, sizeof why) == -2 && s.memory == 64, "--set 300 refused");
+    /* the file: original commented out, a size as a setting with its comment, both read back */
+    pc_settings_defaults(&t);
+    char *text = pc_settings_format(&t);
+    CHECK(strstr(text, "\n; memory = original\n") != NULL, "the default is written commented out");
+    CHECK(strstr(text, "; The game's memory in MiB: original") != NULL, "with its comment");
+    free(text);
+    text = pc_settings_format(&s);
+    CHECK(strstr(text, "\nmemory = 64\n") != NULL, "64 is written as a setting");
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, text, "memory") == 0 && t.memory == 64, "and read back: %d", t.memory);
+    free(text);
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, "[game]\nmemory = 1024\n", "bad memory") == 1 && t.memory == 0,
+          "a bad line in the file is skipped: %d", t.memory);
+    /* expansion_pak = off with a size: the pak setting does nothing then, which is said */
+    pc_settings_defaults(&t);
+    CHECK(!pc_settings_memory_conflict(&t, why, sizeof why), "the defaults: no conflict");
+    t.expansion_pak = 0;
+    CHECK(!pc_settings_memory_conflict(&t, why, sizeof why), "original without the pak (4 MiB): fine");
+    t.expansion_pak = 1, t.memory = 64;
+    CHECK(!pc_settings_memory_conflict(&t, why, sizeof why), "64 with the pak: fine");
+    t.expansion_pak = 0;
+    CHECK(pc_settings_memory_conflict(&t, why, sizeof why) == 1 && strstr(why, "game.expansion_pak = off does nothing") &&
+              strstr(why, "game.memory = 64") && strstr(why, "original"),
+          "64 without the pak: %s", why);
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
-        {"stick", test_stick}, {"cars", test_cars}};
+        {"stick", test_stick}, {"cars", test_cars}, {"memory", test_memory}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|all SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|all SCRATCH_DIR\n");
         return 2;
     }
     static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */

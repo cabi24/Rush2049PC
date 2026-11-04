@@ -472,6 +472,10 @@ enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 set_tests_properties(ultra_selftest PROPERTIES RUN_SERIAL TRUE)   # its timers on the host's clock: alone (ctest -j)
 add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
+# the RDRAM window at game.memory 64 and 256 (the most): its size through every view, the RCP's addresses past 16 MiB
+# (docs/port/MEMORY.md)
+add_test(NAME ultra_selftest_memory64 COMMAND rush2049pc --selftest --fast --set game.memory=64)
+add_test(NAME ultra_selftest_memory256 COMMAND rush2049pc --selftest --fast --set game.memory=256)
 # A sanitizer build's fault handler names the N64 thread, then hands the fault to AddressSanitizer's, which reports
 # it with its own stack (docs/port/SANITIZE.md 1): the blank cartridge's boot faults in audio_helper. (CMake's "."
 # takes a newline; an alternation such as (.|\n)* backtracks for minutes over the report.)

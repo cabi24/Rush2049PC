@@ -11,7 +11,8 @@
  *   player's accessory (a hot swap: port/ultra/si.c), and everything port/input reads (bindings, hotkeys, sticks,
  *   rumble). The graphics API and the audio backend apply
  *   after a restart; they are marked so. The cars a race holds (game.cars) apply from the next race: the game latches
- *   them where a race's roster is filled (port/config/race_cars.c).
+ *   them where a race's roster is filled (port/config/race_cars.c). The game's memory (game.memory) applies after a
+ *   restart too: the RDRAM window is mapped at start (docs/port/MEMORY.md).
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
  *   environment that weren't changed here are not written.
@@ -105,6 +106,9 @@ static const char *const pak_keys[4] = {"pak", "pak2", "pak3", "pak4"};   /* gam
 /* game.cars: 6 is the same as original, so the list has original and 7-12 (a 6 from the file is shown as it is) */
 static const char *const cars_choices[] = {"original", "7", "8", "9", "10", "11", "12", NULL};
 static const char *const cars_labels[] = {"original (6)", "7", "8", "9", "10", "11", "12", NULL};
+/* game.memory (docs/port/MEMORY.md): the window is mapped at start, so it applies after a restart */
+static const char *const memory_choices[] = {"original", "16", "32", "64", "128", "256", NULL};
+static const char *const memory_labels[] = {"original (N64)", "16 MB", "32 MB", "64 MB", "128 MB", "256 MB", NULL};
 static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
                                              "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
                                              "3840x2160", "auto",      NULL};
@@ -139,7 +143,7 @@ static void build(void)
     it = add(P_MAIN, I_PAGE, "Controllers", NULL, NULL);
     it->page = P_CONTROLLER, it->desc = "Players, buttons, the stick, dead zone, rumble";
     it = add(P_MAIN, I_PAGE, "Game", NULL, NULL);
-    it->page = P_GAME, it->desc = "The cars in a race";
+    it->page = P_GAME, it->desc = "The cars in a race, the game's memory";
     it = add(P_MAIN, I_PAGE, "Help", NULL, NULL);
     it->page = P_HELP, it->desc = "What each key and button does";
     it = add(P_MAIN, I_PAGE, "About", NULL, NULL);
@@ -216,6 +220,10 @@ static void build(void)
     it = add(P_GAME, I_CHOICE, "Cars in a race", "game", "cars");   /* MORECARS.md 10.1 */
     it->choices = cars_choices;
     it->labels = cars_labels;
+    it = add(P_GAME, I_CHOICE, "Memory", "game", "memory");   /* MEMORY.md */
+    it->choices = memory_choices;
+    it->labels = memory_labels;
+    it->restart = 1;
     add(P_GAME, I_DEFAULTS, "Defaults", NULL, NULL);
 
     /* each setting's line in the footer (a setting without one shows its name in the file) */
@@ -240,6 +248,7 @@ static void build(void)
         {"input", "sensitivity", "Stick speed: at 2, full tilt at half the travel"},
         {"input", "rumble", "Rumble strength, with the rumble pak in"},
         {"game", "cars", "The most cars a race holds; from the next race"},
+        {"game", "memory", "The game's memory; applies after a restart"},
     };
     for (int pg = 0; pg < NUM_PAGES; pg++)
         for (int i = 0; i < pages[pg].n; i++) {
@@ -980,6 +989,7 @@ static void fill_about(void)
     row(P_ABOUT, I_INFO, "GL version", version[0] ? line : "", NULL);
     row(P_ABOUT, I_INFO, "Audio", a.audio, NULL);
     row(P_ABOUT, I_INFO, "Audio buffer", a.audio_buffer, NULL);
+    row(P_ABOUT, I_INFO, "Memory", a.memory, NULL);   /* game.memory, the heap's peak (docs/port/MEMORY.md 4) */
     for (int p = 0; p < 4; p++) {
         snprintf(line, sizeof line, "Player %d", p + 1);
         row(P_ABOUT, I_INFO, line, "", NULL);

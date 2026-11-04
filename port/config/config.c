@@ -18,6 +18,7 @@
 #include "config.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* PC_N64_CARS, PC_MAX_LINKS: game.cars' range */
+#include "pc_port.h"         /* PC_RCP_SEGMENT_SPAN, PC_RDRAM_MAX: game.memory's range */
 
 #define FILE_NAME "rush2049pc.ini"
 
@@ -175,6 +176,7 @@ static const char *const frame_rate_choices[] = {"original", "display", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GFX_HUD_* */
 static const char *const cars_choices[] = {"original", NULL};          /* 0: the N64's 6 */
+static const char *const memory_choices[] = {"original", NULL};        /* 0: the N64's 8 MiB (MEMORY.md) */
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -190,6 +192,11 @@ static const Item items[] = {
      "track select's Drones option asks for, up to this many; the option then goes up to one less than this (its "
      "default, 5, still races 6 cars). The circuit stays 6 cars; the attract demo races this many. Applies from the "
      "next race."},
+    /* game.memory (docs/port/MEMORY.md): the RDRAM window, mapped at start */
+    {"game", "memory", T_INT, F(memory), PC_RCP_SEGMENT_SPAN >> 20, PC_RDRAM_MAX >> 20, memory_choices, "original",
+     "The game's memory in MiB: original (the N64's 8 MiB, the Expansion Pak; 4 with expansion_pak off) or 16-256. "
+     "More gives its heap room past the N64's (the files it loads, a race's cars), and the game uses its Expansion "
+     "Pak features at any size, so expansion_pak = off does nothing then. Applies at the next start."},
     {"game", "pak", T_ENUM, F(pak[0]), 0, 0, pak_choices, "memory",
      "Controller 1's accessory: memory (the controller pak, for saves), rumble, none, or auto (a rumble pak when "
      "the player's controller can rumble, else none)."},
@@ -282,6 +289,17 @@ static const Item items[] = {
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)
+
+int pc_settings_memory_conflict(const PcSettings *s, char *why, size_t why_size)
+{
+    if (!s->memory || s->expansion_pak)
+        return 0;
+    if (why)
+        snprintf(why, why_size, "game.expansion_pak = off does nothing with game.memory = %d: the game sees %d MiB and "
+                 "uses its Expansion Pak features, as a console with that much memory would; game.memory = original "
+                 "is the N64 without the pak (4 MiB)", s->memory, s->memory);
+    return 1;
+}
 
 static const Item *find_item(const char *section, const char *key)
 {
@@ -1226,5 +1244,7 @@ int pc_settings_resolve(PcSettings *s, int use_file, const char *path, const cha
             rc = -1;
         }
     }
+    if (pc_settings_memory_conflict(s, why, sizeof why))
+        fprintf(stderr, "rush2049pc: warning: %s\n", why);
     return rc;
 }

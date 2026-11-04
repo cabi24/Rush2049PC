@@ -68,7 +68,7 @@ static void usage(FILE *f)
             "  --no-pak            no accessory on any controller; --rumble: a rumble pak on controller 1\n"
             "                      (controllers 2-4: game.pak2... = auto, memory, rumble or none; --set)\n"
             "  --expansion-pak     report 8 MiB of RDRAM, the Expansion Pak (the default; game.expansion_pak=off:\n"
-            "                      4 MiB)\n"
+            "                      4 MiB); --set game.memory=N gives the game N MiB, 16-256\n"
             "  --audio BACKEND     auto (default), sdl, alsa, null or wav (port/audio)\n"
             "  --dump-audio PATH   also write everything the game plays to a WAV file\n"
             "  --config PATH       read this settings file instead (it is not created); --no-config: none\n"
@@ -348,6 +348,13 @@ static void about_fill(PcAbout *a)
         snprintf(a->saves, sizeof a->saves, "none (no controller pak)");
     snprintf(a->log, sizeof a->log, "%s", pc_app_log_path() ? pc_app_log_path() : "none");
     snprintf(a->data, sizeof a->data, "%s", g_about.data);
+    /* game.memory (docs/port/MEMORY.md 4): the window, and the heap's high-water mark so far */
+    PcHeapStats hs;
+    if (pc_heap_stats(&hs) == 0)
+        snprintf(a->memory, sizeof a->memory, "%u MiB; heap %.1f of %.1f MiB at most in use", hs.mem_size >> 20,
+                 hs.peak / 1048576.0, hs.size / 1048576.0);
+    else
+        snprintf(a->memory, sizeof a->memory, "%u MiB", hs.mem_size >> 20);
 }
 
 /* Whether the command line set this setting (its path is then from the working directory). */
@@ -583,6 +590,16 @@ static int rush_main(int argc, char **argv)
     }
 
     pc_os_set_expansion_pak(cfg.expansion_pak);
+    /* game.memory (docs/port/MEMORY.md): the RDRAM window pc_mem_init maps below, and osMemSize */
+    if (cfg.memory) {
+        uint32_t bytes = (uint32_t)cfg.memory << 20;
+        if (pc_mem_set_size(bytes) != 0) {
+            fprintf(stderr, "rush2049pc: game.memory = %d can't be mapped\n", cfg.memory);
+            return 2;
+        }
+        pc_os_set_mem_size(bytes);
+        fprintf(stderr, "rush2049pc: %d MiB of memory (game.memory)\n", cfg.memory);
+    }
     pc_race_cars_set(cfg.cars);   /* [game] cars: the game latches it at each race's start (race_cars.c) */
     if (cfg.cars)
         fprintf(stderr, "rush2049pc: up to %d cars a race (game.cars)\n", pc_cars_setting());
