@@ -204,7 +204,9 @@ jobs:
             skip_tests: >-
               ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|audio_realtime_game60|synth_boot_race|pak_realtime|saves_files_swap)$
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    # the arm ASan job's tests alone took 88 minutes on 1ec5f69 (run 41821298325: fps_physics 25, saves_files 17,
+    # synth_memory_same's three 11-16 each), and the job stopped at 90 in hfr_timing, its last
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies

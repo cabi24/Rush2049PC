@@ -710,12 +710,12 @@ set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT
 # the game thread steers (solo: one player, the gas and the steering held; stunt; battle2p) the same physics, every
 # car's position and velocity, model tick by model tick, to the bit. The others' physics first difference is
 # reported (drones, resurrections: the game thread decides them once a frame).
-# Under AddressSanitizer or ThreadSanitizer solo and race only (the 16 runs took over 600 s on CI's 4-core arm runner,
-# run 41810017777): the game at 60 under the sanitizer, the physics of the one that must match.
+# Under AddressSanitizer or ThreadSanitizer solo only (the 16 runs took over 600 s on CI's 4-core arm runner, run
+# 41810017777, and solo and race 1,507 s, run 41821298325): the game at 60 under the sanitizer, with its physics checked.
 set(FPS_PHYSICS_ARGS --physics solo,stunt,battle2p -j 2 solo stunt battle2p race demo menu screens raceend)
 set(FPS_PHYSICS_TIMEOUT 600)
 if(PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD)
-    set(FPS_PHYSICS_ARGS --physics solo -j 2 solo race)
+    set(FPS_PHYSICS_ARGS --physics solo -j 2 solo)
     set(FPS_PHYSICS_TIMEOUT 2400)
 endif()
 add_test(NAME fps_physics COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_compare.py --exe $<TARGET_FILE:rush2049pc>
