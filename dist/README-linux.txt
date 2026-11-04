@@ -187,7 +187,8 @@ On a 144 Hz (or faster) display: the same, and Frame rate display
 (video.frame_rate = display): a frame for each refresh, the game's own 60
 and frames drawn between them.
 
-On a slow PC (an integrated GPU, an old laptop):
+On a slow PC (an integrated GPU, an old laptop, a Raspberry Pi 5: it keeps
+60 in the menus, but not in a race of 12):
 - Game frame rate original if the log or F1 > About says the PC can't keep
   60 in a race: the game then shows its frames unevenly. Frame rate 60
   with it is smoother than 30, for about half the work of the game at 60.
