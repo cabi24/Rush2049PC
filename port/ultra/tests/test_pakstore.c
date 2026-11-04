@@ -566,7 +566,7 @@ static void test_migration(void)
     pc_store_close(0);
 }
 
-static PcNote g_alice, g_bob;
+static PcNote g_alice;
 
 static void test_writes(void)
 {
@@ -654,8 +654,9 @@ static void test_writes(void)
     /* an unwritable folder: the write fails, is said, and works once it can (as the writer tries it again) */
 #ifndef _WIN32
     if (geteuid() != 0) {
-        make_profile(&g_bob, "BOB", 2);
-        PcNote *on3[] = {&g_alice, &g_bob};
+        PcNote bob;
+        make_profile(&bob, "BOB", 2);
+        PcNote *on3[] = {&g_alice, &bob};
         game_image(g_img, on3, 2);
         chmod(dir, 0555);
         errno = 0;
@@ -664,6 +665,7 @@ static void test_writes(void)
         CHECK(!file_exists(dir, "BOB.r49save") && count_files(dir, ".tmp") == 0, "no file, no temp file left");
         chmod(dir, 0755);
         CHECK(pc_store_write(dir, g_img, PC_PAK_SIZE) == 0 && file_exists(dir, "BOB.r49save"), "tried again: written");
+        pc_note_free(&bob);
     } else {
         printf("skip: an unwritable folder (running as root)\n");
     }
