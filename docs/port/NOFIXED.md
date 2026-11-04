@@ -7,15 +7,22 @@ below 4 GiB (`__PAGEZERO`), the program needs `MAP_FIXED_NOREPLACE` and `MapView
 fix-up (`pc_mem_fix_absolute`), and arrays at their N64 addresses can't grow ([DECOUPLE.md](DECOUPLE.md)). The goal:
 no fixed address at all, which gives macOS support and ASan on x86-64.
 
-This is phase A (2026-11-04, on main 25cfd39): the design, decided; the inventory, as a tool; and a guard mode that
-moves the window and reports every use of an N64 address as a host pointer. Nothing in the default build changes
+Phase A (2026-11-04, on main 25cfd39): the design, decided; the inventory, as a tool; and a guard mode that moves
+the window and reports every use of an N64 address as a host pointer. Nothing in the default build changes
 (section 8). Phases B to D do the work (section 6).
+
+Phase B (2026-11-04, on main 5b057b5): a build option, `-DRUSH_NOFIXED=ON` (off by default), in which the window is a
+section of the executable, every name is relative to it, nothing is mapped at a fixed address and no GOT slot is fixed
+up; the one translation in the prelude; and the game C's boundaries along every synthetic path translating through
+it. The moved build runs all 56 synthetic paths the same as the fixed build, and the fixed build is unchanged
+(section 9).
 
 | Piece | Where |
 |---|---|
 | The design | this file, sections 1-2 |
 | The inventory | `tools/port/nofixed_audit.py` (section 3); its counts in section 4 |
 | The guard mode | `RUSH2049_NOFIXED=guard`: `port/ultra/memory.c` (`guard_init`, `pc_mem_fault_note`, `guard_cut`), the fault handler `port/ultra/misc.c`, the loader `port/data/pc_data.c` (`pc_data_set_window`), `port/main.c`, `port/ultra/selftest.c` (section 5) |
+| The moved build (phase B) | `RUSH_NOFIXED` in `CMakeLists.txt`; `tools/port/gen_data.py --nofixed` (the window section, the names, the tables, `--check`), `gen_stubs.py` (`window_names`); `port/ultra/memory.c` (`moved_init`), `port/ultra/n64mem.c` (`pc_window_base`), `port/data/pc_data.c` (`PcDataTables.window`); `port/include/pc_prelude.h` (`PC_N64P`, `PC_N64A`, `PC_N64W`, `PC_SLOT_N64`, `PC_SLOT_SET`); the game C's sites (section 9.3); CI's `nofixed` job and the audit's baseline `tools/port/nofixed_baseline.json` (section 9.6) |
 
 ## 1. What relies on the fixed window today
 
@@ -77,7 +84,9 @@ Two ways to put the window at some host address W were weighed:
 gen_data emits each arena name as `.set D_x, pc_window + (a - 0x80000000)` in the same assembler block it uses
 today, beside the `.globl` and `.size` it already has; gen_stubs emits each RDRAM alias as
 `PROVIDE(x = pc_window + off)`; `reserved.txt`'s items get the same `.set`. Game C names them as before: no game C
-change. Weighed against:
+change. (Phase B measured the `PROVIDE` form an absolute symbol, nm `A` at the window's link-time address plus the
+offset, which a PIE's GOT slot gets right only through the same toolchain behaviour the fix-up undid; so `gen_data
+--nofixed` defines those names in `data.c` too, by gen_stubs' own rule, section 9.1.) Weighed against:
 
 - **A linker script** (`D_x = ADDR(.n64window) + off;`): GNU ld does it for ELF and PE, but Mach-O's ld64 has no
   linker scripts, so it can't be the one form.
@@ -89,7 +98,7 @@ What each format allows:
 
 | Format | The relative `.set` | References | What changes |
 |---|---|---|---|
-| ELF (Linux PIE, both arches) | a section-relative symbol (`B`/`b` in nm) | GOT slots with RELATIVE relocations, or PC-relative: GOT relaxation can come back | `absfix.c` and the x86-64 flags `-fPIC -Wa,-mrelax-relocations=no -Wl,--no-relax` (CMakeLists.txt:161-164) are no longer needed |
+| ELF (Linux PIE, both arches) | a section-relative symbol (`B`/`b` in nm) | GOT slots with RELATIVE relocations, or PC-relative: GOT relaxation can come back | `absfix.c` and the x86-64 flags `-fPIC -Wa,-mrelax-relocations=no -Wl,--no-relax` (CMakeLists.txt:178-181) are no longer needed |
 | PE (mingw-w64) | the same, in a `.bss`-class section | `.refptr` slots with base relocations; a file's own definitions PC-relative | WINDOWS.md 3's six `PC_ONLY(extern)` tentative definitions could go back; `weak.ld` unchanged |
 | Mach-O (macOS arm64) | `D_x = _pc_window + off` is an `N_SECT` symbol; `N64_SYM` already adds the underscore | non-lazy pointers rebased by dyld, or ADRP+ADD | clang marks C files `.subsections_via_symbols`, which lets ld64 split the section into atoms at every name: each interior name needs `.alt_entry` (or the window in a `.s` of its own) so the offsets stay; the zero-fill section is `.zerofill __DATA,__n64window` |
 
@@ -289,8 +298,8 @@ So the inventory's live casts are the work order, and the heap's (`audio_heap`, 
 
 | Phase | What changes | How it is proven | Size |
 |---|---|---|---|
-| **B**: relative names, the translation, the compile-time sites; the synthetic cartridge boots moved | a build option `RUSH_NOFIXED` (off): gen_data, gen_stubs and `reserved.txt` as section 2.2, `data.c`'s `.n64window`, the tables' `pc_window + off`, `gen_data --check`, memory.c's window = the section (with the guard's reservation), no fix-up; the prelude's inline translations, the 48 N64P and 42 N64W PC definitions, `PC_N64W` checked; the live compile-time sites of section 4 (126 explicit casts, 49 implicit, 77 silent to read, 2 literal pointers), `pc_statll_link`, `world.c`; the self-test's checks | the fixed build: `synth_compare --same --runs 2` before against after, every synthetic path (the translation is the identity there), ctest Debug and RelWithDebInfo, n64_neutral, the IDO check, the Windows cross build; the moved build: the self-test, the loader's summary line the same, `drive` and `race2p` the same as the fixed build (`synth_compare --exe fixed --exe moved`), the guard on; `nofixed_audit --baseline` in CI | about 250 sites to read, 150-200 to change, in some 60 game files and 10 PC files; 2-3 sessions |
-| **C**: every synthetic path and the retail scripts the same moved as fixed; an x86-64 ASan CI job | the run-time sites the guard finds along every path (data through memory, ROM-driven paths); the test programs' own windows (section 2.4's last row); `cmake/sanitize.cmake` allowing `address` on x86-64 with `RUSH_NOFIXED` | `synth_compare --exe fixed --exe moved --same --runs 2` on all paths (56 today), the six retail scripts on the Pi the same; ctest moved; the new CI job (ubuntu-24.04: ASan + UBSan, `RUSH_NOFIXED`, every test the arm job runs) | unknown until the guard has run: CASTS.md found 8 such bugs in 331 sites; 2-4 sessions |
+| **B** (done 2026-11-04, section 9): relative names, the translation, the compile-time sites; the synthetic cartridge boots moved | a build option `RUSH_NOFIXED` (off): gen_data, gen_stubs and `reserved.txt` as section 2.2, `data.c`'s `.n64window`, the tables' `pc_window + off`, `gen_data --check`, memory.c's window = the section (with the guard's reservation), no fix-up; the prelude's inline translations, the 48 N64P and 42 N64W PC definitions, `PC_N64W` checked; the live compile-time sites of section 4 (126 explicit casts, 49 implicit, 77 silent to read, 2 literal pointers), `pc_statll_link`, `world.c`; the self-test's checks | the fixed build: `synth_compare --same --runs 2` before against after, every synthetic path (the translation is the identity there), ctest Debug and RelWithDebInfo, n64_neutral, the IDO check, the Windows cross build; the moved build: the self-test, the loader's summary line the same, `drive` and `race2p` the same as the fixed build (`synth_compare --exe fixed --exe moved`), the guard on; `nofixed_audit --baseline` in CI | about 250 sites to read, 150-200 to change, in some 60 game files and 10 PC files; 2-3 sessions |
+| **C**: every synthetic path and the retail scripts the same moved as fixed; an x86-64 ASan CI job | section 9.8's list first (every synthetic path runs moved already); the run-time sites the guard finds along every path (data through memory, ROM-driven paths); the test programs' own windows (section 2.4's last row); `cmake/sanitize.cmake` allowing `address` on x86-64 with `RUSH_NOFIXED` | `synth_compare --exe fixed --exe moved --same --runs 2` on all paths (56 today), the six retail scripts on the Pi the same; ctest moved; the new CI job (ubuntu-24.04: ASan + UBSan, `RUSH_NOFIXED`, every test the arm job runs) | unknown until the guard has run: CASTS.md found 8 such bugs in 331 sites; 2-4 sessions |
 | **D**: macOS CI; Windows moved; the default switched | macOS arm64: Mach-O's `.alt_entry`/`.zerofill` (2.2), thunks and weak references, the fault handler's Darwin `ucontext`, no memfd; a GitHub `macos-14` job (build, unit tests, synthetic paths); Windows: the section in the PE, its commit charge measured (2.1); the default flipped to moved when every check of B and C says the same on every platform; then the fixed mode retired (`absfix.c`, `MAP_FIXED`, the `ABSOLUTE` aliases, the x86-64 flags) | the CI jobs; synth_compare fixed against moved on Linux, Windows and macOS; the retail scripts on the Pi | 2-3 sessions, more if the macOS build finds more (it has never been built) |
 
 ## 7. What stays as it is, and why
@@ -315,3 +324,157 @@ So the inventory's live casts are the work order, and the heap's (`audio_heap`, 
 | `n64_neutral.py --base 09da2f0` | passes: 1,027 files, 90 code-exact, 937 shifted (no file under `src/`, `include/` or `nonmatching/` changed) |
 | Windows cross build (Pi, mingw-w64, the lock) | 3,497 of 3,497 targets; gen_data's PE check OK |
 | The IDO check | not needed: no file under `src/` or `include/` changed |
+
+## 9. Phase B: the moved build (2026-11-04, on main 5b057b5)
+
+### 9.1 The build option and the names
+
+`cmake -DRUSH_NOFIXED=ON` (CMakeLists.txt, the block after `RUSH_CHECK_CASTS`) defines `RUSH_NOFIXED` for every
+target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and macOS (phase D).
+
+- **The window**: `data.c` defines `pc_window`, a `.n64window` section (`%nobits`, 64 KiB aligned, 0x10000000 bytes,
+  `PC_RDRAM_MAX`), and every name at an N64 address as `.set x, pc_window + (a - 0x80000000)`: the 1,748 arena names,
+  `pc_matrix_spill`, and the six names gen_stubs made absolute (`D_80000300`/`osTvType`, `D_80000318`, `D_8017A640`,
+  `D_8038A400`, and the cartridge address `D_00039B40` at `pc_window + 0x30039B40`, past the section's end: the game
+  only takes its 32-bit value, through the translation, `car_shadow_render.c:110`). Those six are `data.c`'s because a
+  linker script can't make them relative: `PROVIDE(x = pc_window + off)` linked as an absolute symbol (nm `A`, the
+  window's link-time address plus the offset), right at run time only through the RELATIVE relocation binutils gives
+  a script's absolute symbol in a PIE, the behaviour the fix-up undid (section 1). gen_stubs' `window_names` is the
+  rule both use (the PC layer's definitions and the aliases count), and gen_stubs refuses an absolute name in that
+  build. Measured: no absolute symbol in the moved `rush2049pc` (6 in the fixed one), and none of the GOT fix-up's to
+  do.
+- **The tables**: each arena's host is `pc_window + off` and `PcDataTables.window` names the window; the loader
+  (`pc_data.c`) fills the arenas there and gives a kept heap value its place in it (`kept`). `pc_data_set_window`
+  stays the fixed build's guard mode's.
+- **`gen_data.py --check`**, the moved layout: `pc_window` a section symbol, 64 KiB aligned, its size; every name at
+  `pc_window` + its offset; nothing else linked inside the section; no absolute symbol at an N64 address. On
+  `rush2049pc_datacheck`: "1748 at pc_window + their N64 offsets in 4 arenas, 6 outside them, 49 inside own storage,
+  390 own in N64 order, 20 runtime-image C data in their C ranges, 38 decoupled, 1 reserved in the window, nothing
+  else in the window: OK".
+- **memory.c** (`moved_init`): the window is `pc_window` (a weak reference: a program without `data.c` maps one
+  anonymously); `pc_window_base` (`port/ultra/n64mem.c`) is set to it; 0x80000000-0xBFFFFFFF is reserved with no
+  access and the truncation trap made where the window's low 32 bits leave room, as in the guard mode (section 5), so
+  `pc_mem_fault_note` names any N64 address still taken as a host pointer. Where the range can't be reserved (x86-64
+  ASan's shadow covers it) it says so and goes on. No memfd, no KSEG1 view; `main` calls neither
+  `pc_mem_fix_absolute` nor `pc_data_set_window`.
+- **Kept for now**: the x86-64 flags (`-fPIC`, no GOT relaxation, CMakeLists.txt:178-181), which the test programs
+  that place names at absolute addresses still need (phase C), and `absfix.c`, which those tests call.
+
+### 9.2 The translation (`port/include/pc_prelude.h`)
+
+| | The fixed build (default) | `RUSH_NOFIXED` |
+|---|---|---|
+| `PC_N64P(a)`: the host pointer for N64 address `a` | `(uintptr_t)(unsigned int)a` | `a ? pc_window_base + (a & 0x1FFFFFFF) : NULL` |
+| `PC_N64A(p)`: a window pointer's N64 address | `(unsigned int)(uintptr_t)p` | `p ? 0x80000000 + (p - pc_window_base) : 0` |
+| `PC_N64W(p)`: a pointer stored in an N64 field | the truncation (checked with `RUSH_CHECK_CASTS`) | `PC_N64A`, and `pc_cast_fail` for a pointer outside `[pc_window_base, +PC_RDRAM_MAX)` |
+| `PC_SLOT_N64(s)`, `PC_SLOT_SET(s, a)`: a heap handle's 8-byte slot as the N64 address it holds | the 4-byte read and write of the slot's first half, as the N64 does | the whole pointer, translated |
+
+`pc_window_base` is 0x80000000 until `pc_mem_init` sets it, so a test program that maps its own window there and links
+game C translates into it. The 47 casting `N64P` definitions (42 `_Generic`, 5 plain) and `func_800E313C.c`'s
+`M2C_N64P` are `(T *)PC_N64P(x)`; the 41 `N64W` definitions were `PC_N64W(x)` already; `pc_statll_link` and
+`pc_statll_set_link` translate. A site in game C uses a macro of its own file whose N64 side is the original tokens
+(`#define N64A(x) (u32)x`, `#define N64PTR(T, a) (T)a`, and `N64A0`/`N64PTR0` where the N64 has no cast), so
+n64_neutral sees the same token stream and IDO the same code.
+
+### 9.3 The sites, by class
+
+In the order the moved build stopped at them along the synthetic paths (5.3's: the heap's start first), then
+whatever each path reached next. Counts by the audit on the fixed build, 5b057b5 against this branch (build host,
+Debug):
+
+| Class | Before | After | What changed |
+|---|---:|---:|---|
+| `cc.ptr_to_int` (live) | 103 | 39 | the heap API's callers (`PurgeableMemory`, the frees, `audio_buffer_sync`, `NextMaxPath`, `DeallocateMemory`, `release_handle`), the heap's own arithmetic (its start, first block and end, the free's links, NextMaxPath, the compaction), the WAD relocation (MBSetupWad, SetupWaveModel), LoadTrack's world offsets, the MusyX registries' payloads (`lib_16320.c`), the frame heaps and colour buffers, the pending swap, a profile's handle (`CreatePlayer`) |
+| `cc.int_to_ptr` (live) | 23 | 8 | the heap's (`audio_heap/group.c:215`, the free's back link, `NextMaxPath`), MBSetupWad, the palette reads, the camera matrix slots |
+| `cc.implicit.int_to_ptr` / `.ptr_to_int` (live) | 32 / 17 | 23 / 12 | the paint descriptor, the texture animation records, the world's node, the MusyX registries, the display-list record of `race_setup_1` |
+| `src.zext` | 72 | 42 | 17 macros reading an N64 field as a pointer (model, node, target, visual and WAD record links), the handle readers, the world chunk |
+| `src.trunc` | 5 | 3 | `FONT_SLOT`, `PACKET`, zlib's `audio_reverb_update` macro (and one new identity: `wheel_find_node`'s node) |
+| literal pointers in live code | 2 | 0 | `heap_release/overlay_loader.c`'s 0x8038A400 and 0x803BB380 |
+| N64P / N64W definitions | 48 / 42 | translate | section 9.2 |
+| not in the audit: a pointer through a `u32` parameter of another file's definition (proto_check's `width` views, and its `REVIEWED` `_HEAP` ones) | | 14 views | `PurgeableMemory` in three files, `audio_buffer_sync` in both LoadWaves, DeallocateMemory in image A, `menu_item_select`, the heap's three in `func_800CB9D0`, `inflate_entry_alt` and `format_string_parse` in DecodeGhost, the torque curve |
+| not in the audit: an `intptr_t`/`uintptr_t` stored in 32 bits with no cast | | 5 | the quad nodes' seed (`func_800D0810.c`), the camera matrix (`camera_reset.c`), the wave slot free, the heap chain (`func_80095F8C.c`), a frame heap |
+| not in the audit: a handle's 8-byte slot read or written as a u32 | | 6 | the free's clear, the compaction's update, the lookup (`func_80095EF4`), `HANDLE_BLOCK`, `WAVE_HANDLE_BLOCK`, DecodeGhost |
+| the PC layer | | 2 | `port/assets/world.c:223`, `:226` (the chunk through `pc_n64_ptr`, 0 kept 0) |
+
+About 210 game C lines changed in 70 files (`git diff --stat 5b057b5 -- src nonmatching`: 105 files with the
+definitions), every one in the shape above.
+
+### 9.4 What the moved build runs
+
+Build host (x86-64, GCC 14.3, Debug), `-DRUSH_NOFIXED=ON`:
+
+| Run | Result |
+|---|---|
+| `--selftest` | 42 of 42, the controller and pak checks among them (the guard mode's skip is the fixed build's only), and "RUSH_NOFIXED: the window is pc_window" |
+| the loader's summary line | the same as the fixed build's (its pointer counts: 0 own, 306 arena, 16 functions, 3198 null... on the synthetic cartridge) |
+| `synth_compare --exe fixed --exe moved --same`, every synthetic path, one run each | 56 of 56 the same: drive, race2p and every other path (each on the virtual clock) |
+| ctest | 343 of 353 before the tests' fixes of 3296db8 (the 10 that failed: `assets_world`, `pc_data_synthetic`, `endian_check`, `weak_copies_check`, fixed there; `assets_casts`; five real-time checks run beside other jobs); after them every one that was rerun passes but `assets_casts` (a test program with its own window at 0x80000000 whose expected `pc_cast_fail` the moved check doesn't give: phase C); the real-time ones alone were still running at hand-back |
+| the Pi 5 (aarch64, GCC 12.2), Debug | builds; gen_data's check of the moved layout OK ("1748 at pc_window + their N64 offsets in 4 arenas, 6 outside them..."); its self-test and drive and race2p against the Pi's fixed build are queued on the Pi's lock (`build/pi-runs.sh`) |
+
+None of the synthetic paths stops. Where the guard would stop next is phase C's to find (section 9.8).
+
+### 9.5 Proof that the fixed build is unchanged
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, a build of 5b057b5 against the branch, Debug, build host, every synthetic path | 56 of 56 the same, both runs of each (on e6ec1a6; the later game C changes, `car_shadow_render.c` and `zlib_deflate/group.c`, compile to the same objects in the fixed build) |
+| the game objects' code and data (`objdump -d -r` and `-s` of every non-debug section, 1,308 objects, against 5b057b5's) | the same but for 11, each a view that now passes the same low 32 bits it passed (a `u32` where it passed the pointer, a zero-extended pointer where it passed an `s32`), `wheel_find_node`'s identity, and `func_80095EF4` (the bug of 9.7); `data.c`, `data_symbols.txt` and `aliases.ld` byte-identical |
+| ctest, build host: Debug and RelWithDebInfo | Debug: 342 of 342 (`assets_rom` skipped: no ROM there), then the 12 real-time tests alone, 12 of 12; RelWithDebInfo: the same, 342 and 12 |
+| `n64_neutral.py --base 09da2f0` | passes: 1,031 files, 90 code-exact, 941 shifted |
+| the IDO check (build host, `tools/port/ido_check.sh`) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| Windows cross build (Pi, mingw-w64, the lock) | not run in this session: queued on the Pi's lock behind other agents' jobs at hand-back (`build/pi-chain.sh`, log `build/pi-chain.log`) |
+| the six retail scripts (race, race2p, battle2p, stunt, battlequit, pause; MORECARS.md 10.4), base against branch, Pi 5 | not run in this session: queued after it (`build/pi-runs.sh`, log `build/pi-runs.log`, base and branch Debug built on the Pi) |
+
+### 9.6 CI
+
+- **`nofixed`** (ubuntu-24.04, after `linux`): configures `-DRUSH_NOFIXED=ON` Debug, builds, runs the self-tests, the
+  loader's checks and every synthetic path but the real-time race (`ctest -LE realtime -R
+  '^(ultra_selftest.*|pc_data_rom|pc_data_synthetic|synth_.*)$'`), then `synth_compare --same` of the moved program
+  against the `linux` job's fixed Debug one along every synthetic path.
+- **No new fixed-address site** (the `linux` job, ubuntu-24.04 Debug): `nofixed_audit.py --build build/pc --baseline
+  tools/port/nofixed_baseline.json` fails when a class's count grows past the file's (a class it doesn't have counts
+  from 0). The file is this branch's counts (build host, GCC 14.3); lower them as phase C removes sites
+  (`--write-baseline`). The audit counts the translating N64P definitions (`src.def.n64p.translate`) and the files'
+  own translating macros (`src.def.translate`, 94 lines).
+
+### 9.7 What B found that is a bug today, or that the inventory misses
+
+- **The heap's handle lookup covered half a handle table** (`func_80095EF4.c`, a bug of the fixed build): the slots are
+  8 bytes on the PC, the range test stepped 4: a handle at slot `count/2` or past (25 of the main table's 50, 5 of an
+  extension's 10) was taken for a block address, no block held it, and the free or `PurgeableMemory` read through NULL.
+  Fixed in becae12. No synthetic path holds that many handles (all 56 the same before and after).
+- **Weak copies that run** (an inventory miss): an `__inline` function in a file that also has a strong caller of it
+  runs there through the compiler's local alias, though `#pragma weak` makes the symbol weak:
+  `heap_release/deflate_mem.c`'s `zcfree` is weak, and `car_angular_velocity_clamp` in the same file calls its own
+  copy (`zcfree.localalias`). The audit's `.weak` classes count such sites as never linked.
+- **Three classes the audit doesn't see** (section 9.3's last rows): a pointer passed through a view whose parameter
+  is a `u32` in the definition (`tools/port/proto_check.py` lists them as `width`; its `REVIEWED` list called the
+  heap's harmless, true only with the window below 4 GiB); an `intptr_t`/`uintptr_t` stored in 32 bits without a cast
+  (`-Wconversion` finds 91 narrowings of a pointer-sized integer in the live game C, most of them pointer differences);
+  and a u32 read or write of a handle's 8-byte slot.
+
+### 9.8 What is left: phase C's start
+
+Every synthetic path runs moved; these are the sites they don't reach, by class (the fixed build's audit, 9.3):
+
+- **The audio and the songs** (the retail cartridge's sounds): `lib_11640.c`'s 16 casts (the sample addresses the audio
+  list builder hands the RSP, `(unsigned int)V->data + 0x100`, `func_80012730`, `func_80012234`: values the audio
+  interpreter takes below 4 GiB as N64 addresses, which a moved build's host pointer is not), `lib_17dc0.c`'s 8 (the
+  song data's relocation, `func_800178B0`, `func_80018634`), `lib_25bb0.c:486`'s region test, `lib_16320.c:675` (a
+  sample's address). The synthetic cartridge has a sound bank but no songs.
+- **The rest of the live compiler sites**: 39 `cc.ptr_to_int`, 8 `cc.int_to_ptr`, 23 and 12 implicit; most of what
+  is left is an N64 value that stays one (a display-list word, `func_800BD080`'s value, the texture lists of
+  `particle_knot`, an id or index: `blast.c:340`, `mode.c:290`, `d5e64.c:101`, `camera_aspect_ratio/group.c:3895`,
+  `__scMain`'s message), each to read and mark; `carcolor/ctx_initsystem.c`'s 4 are a context copy's statics that
+  only a weak `game_late_init` calls.
+- **`src.zext` (42) and `src.trunc` (3)**: 30 of the zext are `(T *)(uintptr_t)&D_x` or `PC_CAR`/`PC_MODEL` (host
+  pointers through `uintptr_t`, no truncation) and `level_objects/group.c:188`'s GTLD keys (comparison values,
+  sign-extended on purpose); of the trunc, `DMA_SOURCE` (`lib_11050.c:20`) is a cartridge address and stays,
+  `lib_11640.c:2029` tests for a host pointer first, and `wheel_find_node`'s is an identity (zlib's
+  `audio_reverb_update` macro, `zlib_deflate/group.c:1587`, the deflate's own frees, translates now; no synthetic
+  path reached it).
+- **The classes of 9.7**: the narrowings, the views (`initgfx.c`'s `AllocateMemoryHeap` and `sound_play_menu` read as
+  u32, `func_800EE8AC`), the `__inline` weak copies with a strong caller in their file.
+- **The test programs' own windows** (section 2.4's last row): `assets_casts` fails in the moved build; the others pass
+  with `pc_window_base` at their window.
+- **The retail scripts moved** and the moved build optimized (RelWithDebInfo: not run yet).
