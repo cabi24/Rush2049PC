@@ -1745,6 +1745,15 @@ void func_80014650(void) {
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
+#ifdef TARGET_PC
+/* PC: the synth's tick found driver voice `index` playing with its macro ended (lib_1a660.c): counted when its sample
+ * loops, which then plays until the voice is taken again (--log-voices, docs/port/AUDIO.md 10.5). */
+void pc_mx_note_macroless(int index)
+{
+    if (D_80038294[index].loop_length != 0)
+        pc_snd_count(PC_SND_MX_LOOP_ORPHAN);
+}
+#endif
 unsigned char func_8001467C(int index)
 {
     return D_80038294[index].active != 0;

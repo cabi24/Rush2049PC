@@ -89,7 +89,8 @@ static struct seqtag g_seqs[SEQS];
 struct seqtag *D_80110270 = g_seqs;                 /* the sequence tags */
 int32_t D_80146104 = 3;                             /* the handle mask */
 uint32_t D_801460F8 = 2, D_80110258 = 5;            /* its width, the next serial */
-union audiomsg D_80142DD8[128];                     /* the message pool */
+struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];    /* the message pool (pc_game_types.h): 128 walked here */
+#define D_80142DD8 (*(union audiomsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 uint8_t D_80142728[64], D_801427A8[64];             /* the lock and the manager's queue */
 struct dllist D_80144C50, D_80149808, D_80149860, D_801461B0, D_80146160;
 float D_80152748 = 100.0f;                          /* the audio clock */

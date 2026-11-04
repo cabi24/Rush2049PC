@@ -383,6 +383,11 @@ extern void func_80014D14(void);
 extern void func_80018C2C(unsigned int);
 extern void func_80018D40(unsigned int);
 extern void func_800190AC(u32, u32, u32);
+#ifdef TARGET_PC
+/* PC: a voice the driver still plays whose macro has ended, counted when its sample loops (--log-voices: such a
+ * voice plays until it is taken again; lib_11640.c's pc_mx_note_macroless). */
+extern void pc_mx_note_macroless(int index);
+#endif
 #define FADER_8001A658 ((SynthFader_8001A658 *)D_8004F300)
 void func_8001A658(void)
 {
@@ -406,7 +411,7 @@ void func_8001A658(void)
         } else if (!func_8001467C(i)) {
             continue;
         }
-        if (sv->blockedBD != 0) {
+        PC_ONLY(if (sv->addr00 == 0) pc_mx_note_macroless(i);) if (sv->blockedBD != 0) {
             continue;
         }
         for (j = 0; j < 2; j++) {

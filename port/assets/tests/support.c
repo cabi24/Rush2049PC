@@ -95,6 +95,7 @@ unsigned long long test_snd_count[PC_SND_COUNTERS];
 int test_snd_msg_most;
 #ifndef PC_TEST_VOICES
 int pc_mx_voices(void) { return test_mx_voices; }
+int pc_snd_messages(void) { return test_mx_voices == 32 ? PC_SND_N64_MSGS : PC_SND_MSG_SLOTS; }
 void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters) { (void)voices, (void)sfx, (void)emitters; }
 void pc_snd_count(int what) { if (what >= 0 && what < PC_SND_COUNTERS) test_snd_count[what]++; }
 void pc_snd_msg_taken(int index) { if (index + 1 > test_snd_msg_most) test_snd_msg_most = index + 1; }

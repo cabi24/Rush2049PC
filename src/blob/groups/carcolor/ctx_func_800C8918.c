@@ -42,7 +42,15 @@ typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[20]; } ShutdownMs
 typedef struct OSMesgQueue OSMesgQueue;
 typedef void *OSMesg;
 
+#ifdef TARGET_PC
+/* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
+#define D_80142DD8 (*(volatile ShutdownMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
+#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
+#else
 extern volatile ShutdownMsg D_80142DD8[128];
+#define PC_SND_MSG_LOOP(n) n
+#endif
 extern s8 D_8011023C;
 #ifdef TARGET_PC
 extern uintptr_t D_80110244;
@@ -73,12 +81,12 @@ void func_800C8918(void) {
         post_type1();
         post_type7();
         do {
-            for (i = 0; i < 128; i++) {
+            for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
                 if (D_80142DD8[i].used) {
                     break;
                 }
             }
-        } while (i < 128);
+        } while (i < PC_SND_MSG_LOOP(128));
         D_8011023C = 0;
         init_wait_completion();
         func_800960CC(D_80110244);

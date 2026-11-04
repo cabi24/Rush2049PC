@@ -113,8 +113,18 @@ extern int D_80110250;                     /* gNumStopCmds */
 extern int D_80110278;                     /* gNumFxPlaying */
 extern int D_8011027C;                     /* gNumFxPending */
 extern int D_80110280;                     /* gNumFxInterrupted */
+#ifdef TARGET_PC
+/* PC: the priority pass's command lists and the messages they hold are PC data, PC_SND_MSG_SLOTS long
+ * (pc_game_types.h, docs/port/DECOUPLE.md 9, AUDIO.md 10.4): a pass sends at most a message each, and the manager's
+ * queue holds the run's messages, PC_SND_MSG_LOOP(128): 128 at original. */
+#define D_80143AE8 (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
+#define D_80143CF0 (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
+#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
+#else
 extern tAudioMsg *D_80143AE8[];            /* gStartCmds */
 extern tAudioMsg *D_80143CF0[];            /* gStopCmds */
+#define PC_SND_MSG_LOOP(n) n
+#endif
 extern tOrderedList D_80143F58;            /* gSortedFxTagTree */
 extern tDLList D_80144020;                 /* gPlayingFxTags */
 extern tDLList D_80144C50;                 /* gInterruptedFxTags */
@@ -290,7 +300,7 @@ void entity_ai_pathfind(void *arg)
     tFxSequence *tag;
     tFxSequence *next;
 
-    osCreateMesgQueue(&D_801427A8, D_80142B70, 128);
+    osCreateMesgQueue(&D_801427A8, D_80142B70, PC_SND_MSG_LOOP(128));
     osScAddClient(&D_8002E8E8, &client, &D_801427A8);
     for (;;) {
         osRecvMesg(&D_801427A8, &msg, 1);

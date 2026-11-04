@@ -610,6 +610,19 @@ struct pc_mx_stream {   /* boot_tail_sample_contract.h's SampleBuffer */
 };
 extern struct pc_mx_stream pc_mx_streams[PC_MX_VOICE_SLOTS];  /* N64 D_8004FA50 */
 
+/* The sound manager's messages (N64 D_80142DD8: 128 commands, 32 bytes each on the PC, own storage) and the two lists
+ * of the commands a priority pass sends (gStartCmds D_80143AE8, gStopCmds D_80143CF0: 128 pointers each, own
+ * storage), PC data of PC_SND_MSG_SLOTS; the game walks pc_snd_messages() of them, the N64's 128 at original and 256
+ * with more voices, and the manager's queue (D_801427A8) holds as many (docs/port/AUDIO.md 10.4). Each reader sees
+ * the messages in its own view (Msg, Slot18, Slot24, ShutdownMsg, tAudioMsg), the layout below. */
+#define PC_SND_N64_MSGS 128
+#define PC_SND_MSG_SLOTS 256
+int pc_snd_messages(void);
+struct pc_snd_msg { short id; signed char type, used; unsigned char payload[20]; void *ent; };
+extern struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];   /* N64 D_80142DD8 */
+extern void *pc_snd_start_cmds[PC_SND_MSG_SLOTS];        /* N64 D_80143AE8 */
+extern void *pc_snd_stop_cmds[PC_SND_MSG_SLOTS];         /* N64 D_80143CF0 */
+
 /* Counters the game's sound code fills (--log-voices, port/main.c): starts refused or cut and the pools' use. */
 enum {
     PC_SND_MX_REFUSED,      /* MusyX found no voice for a sound (func_8001F13C: -1) */
@@ -622,6 +635,7 @@ enum {
     PC_SND_NO_MESSAGE,      /* a start or change that found the message pool empty (func_80091B00) */
     PC_SND_NO_ENTRY,        /* an effect start that found no free entry (AudioSfxInit's, audio_state_save) */
     PC_SND_PASSES,          /* the priority passes (_ProcessPriorities): OVER_BUDGET counts tags a pass */
+    PC_SND_MX_LOOP_ORPHAN,  /* a synth tick's voice whose macro has ended while its looping sample plays on */
     PC_SND_COUNTERS
 };
 void pc_snd_count(int what);

@@ -35,6 +35,11 @@ int pc_mx_voices(void)
     return s_voices;
 }
 
+int pc_snd_messages(void)
+{
+    return s_voices == PC_MX_N64_VOICES ? PC_SND_N64_MSGS : PC_SND_MSG_SLOTS;
+}
+
 void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters)
 {
     if (*voices != PC_MX_N64_VOICES || s_voices == PC_MX_N64_VOICES)

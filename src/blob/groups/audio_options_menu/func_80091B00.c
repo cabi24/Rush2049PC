@@ -16,11 +16,19 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef struct Slot18 { s16 f0; s8 f2; s8 f3; u8 pad[0x14]; } Slot18;
+#ifdef TARGET_PC
+/* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
+#define D_80142DD8 (*(volatile Slot18 (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
+#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
+#else
 extern volatile Slot18 D_80142DD8[128];
+#define PC_SND_MSG_LOOP(n) n
+#endif
 Slot18 *func_80091B00(void)
 {
     s32 i;
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
         if (D_80142DD8[i].f3 == 0) {
             D_80142DD8[i].f3 = 1;
             D_80142DD8[i].f0 = -1;

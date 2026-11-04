@@ -19,6 +19,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "pc_game_types.h"
+
 #include "pc_prelude.h"
 #include "support.h"
 
@@ -26,7 +28,9 @@
 
 struct msg { int16_t id; int8_t cmd, used; uint8_t payload[28]; };   /* tAudioMsg on the PC: 32 bytes */
 _Static_assert(sizeof(struct msg) == 0x20, "a message's PC size");
-struct msg D_80142DD8[128];
+/* The pool is the PC's (pc_game_types.h, docs/port/DECOUPLE.md 9): PC_SND_MSG_SLOTS, of which the game walks 128 here. */
+struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];
+#define D_80142DD8 (*(struct msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 uint8_t D_80142728[64], D_801427A8[64];
 extern int pc_audio_pool_fail_every;   /* func_80091B00.c's test hook */
 

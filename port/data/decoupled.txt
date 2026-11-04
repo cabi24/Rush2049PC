@@ -91,3 +91,10 @@ pc_mx_fx_chan_a    D_80050CE0  0x20
 pc_mx_fx_chan_b    D_80056140  0x20
 pc_mx_fx_legato    D_800561E0  0x20
 pc_mx_streams      D_8004FA50  0x300
+
+# The sound manager's messages and the priority pass's two command lists (docs/port/DECOUPLE.md 9, AUDIO.md 10.4): 128
+# each on the N64, own storage before (32 B a message, 8 B a pointer here), PC_SND_MSG_SLOTS (256) on the PC, of which
+# the game walks 128 at original.
+pc_snd_msgs        D_80142DD8  0xC00
+pc_snd_start_cmds  D_80143AE8  0x200
+pc_snd_stop_cmds   D_80143CF0  0x200
