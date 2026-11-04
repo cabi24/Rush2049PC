@@ -208,7 +208,8 @@ lists every file and whether it is on the pak.
 prefix and ghost extension (from the game's data at run time, `saves_game_names` in main: the cartridge's, never
 kept), and its name's last two characters the digits 00-99. The game's own ghost names end in the way's letter, so
 a renamed ghost can never take the name of one the game is about to save (SaveGhost would fail with "exists"), and a
-friend called ALICE racing beside the player's own ALICE gets on the same pak. The game reads a ghost's player, track
+friend called ALICE racing beside the player's own ALICE gets on the same pak. When the game changes such a note in place (its
+status byte), its file is written again with its own name and extension, not those (`pc_store_write`). The game reads a ghost's player, track
 and time from its header, not its name.
 
 **A foreign ghost races as the player's own.** The track select's ghost choice (`func_803A0498`, overlay A) takes

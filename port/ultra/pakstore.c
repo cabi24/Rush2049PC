@@ -1205,6 +1205,8 @@ int pc_store_write(const char *dir, const void *image, size_t size)
                     continue;
                 }
                 next.slot = s;
+                if (e->origin == PC_ORIGIN_IMPORT)   /* its own name and extension: place()'s are the game's */
+                    memcpy(next.dir + 12, e->note.dir + 12, 20);
                 if (write_note(st, e->file, &next, e->origin) != 0) {
                     err = errno;
                     pc_note_free(&next);

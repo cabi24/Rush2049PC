@@ -844,6 +844,37 @@ static void test_imports_and_damage(void)
     for (int i = 0; i < n; i++)
         pinned += list[i].pinned, imported += list[i].imported;
     CHECK(pinned == 1 && imported == 1, "the import pinned");
+    /* the game changes the import's status byte in place: its file written again with its own name, not the game's
+     * prefix and extension (the cartridge's, never kept in a file) */
+    {
+        PcNote *all[PC_PAK_NOTES];
+        for (int i = 0; i < k; i++) {
+            all[i] = &in[i];
+            if (!memcmp(in[i].dir + 16, prefix, 8))
+                in[i].dir[8] ^= 0x01;
+        }
+        game_image(g_img, all, k);
+        CHECK(pc_store_write(dir, g_img, PC_PAK_SIZE) == 0, "the status byte changed: written");
+        int kept_name = 0;
+        for (int i = 0; i < n; i++) {
+            if (!list[i].imported)
+                continue;
+            uint8_t *b;
+            size_t size;
+            PcNote back;
+            PcSaveFileInfo fi;
+            path_in(p, sizeof p, dir, list[i].file);
+            if (!(b = read_bytes(p, &size)))
+                continue;
+            if (pc_save_file_read(b, size, &back, &fi, why, sizeof why) == 0) {
+                kept_name = memcmp(back.dir + 16, prefix, 8) && back.dir[12] != 9 &&
+                            !memcmp(back.dir + 12, friend_.dir + 12, 20);
+                pc_note_free(&back);
+            }
+            free(b);
+        }
+        CHECK(kept_name, "the import's file has its own name and extension, not the game's");
+    }
     /* the game deletes the imported ghost: to the trash */
     PcNote keep[PC_PAK_NOTES];
     int kk = 0;
