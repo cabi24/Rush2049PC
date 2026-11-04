@@ -31,6 +31,7 @@ typedef s32 intptr_t;
 #endif
 #ifndef TARGET_PC
 #define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
+#define PC_EACH30(stmt) stmt   /* PC: game.frame_rate 60, once a 30 Hz frame (pc_game_fps.h) */
 #endif
 typedef struct Blit Blit;
 typedef struct MultiBlit {
@@ -816,9 +817,9 @@ void func_8038A634(s32 initialize)
         D_803BA1E0[1] = color[1];
         D_803BA1E0[2] = color[2];
     } else {
-        D_803BA1E0[0] += (color[0] - D_803BA1E0[0]) / 10;
-        D_803BA1E0[1] += (color[1] - D_803BA1E0[1]) / 10;
-        D_803BA1E0[2] += (color[2] - D_803BA1E0[2]) / 10;
+        PC_EACH30(D_803BA1E0[0] += (color[0] - D_803BA1E0[0]) / 10;)
+        PC_EACH30(D_803BA1E0[1] += (color[1] - D_803BA1E0[1]) / 10;)
+        PC_EACH30(D_803BA1E0[2] += (color[2] - D_803BA1E0[2]) / 10;)
     }
     D_803BA1E0[3] = D_8013F1D8 * 192 / 3;
     if (D_803B828C) {
