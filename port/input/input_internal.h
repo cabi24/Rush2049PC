@@ -150,6 +150,8 @@ typedef struct {
     /* PC_SAVES_*: 0 done, -1 not; msg the footer's line either way. file is the row's (unused for IMPORT and
      * EXPORT_MPK). */
     int (*act)(int player, int action, const char *file, char *msg, size_t size);
+    /* what the import folder gave at start (a refused file's reason), shown on the page; 0 for nothing; NULL: none */
+    int (*notice)(int player, char *out, size_t size);
 } PcSavesUi;
 void pc_menu_set_saves(const PcSavesUi *ui);
 

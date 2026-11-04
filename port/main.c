@@ -465,7 +465,7 @@ static int saves_act(int player, int action, const char *file, char *msg, size_t
     return -1;
 }
 
-static const PcSavesUi g_saves_ui = {saves_backend, saves_list, saves_act};
+static const PcSavesUi g_saves_ui = {saves_backend, saves_list, saves_act, pc_store_notice};
 
 #define MAX_OVERRIDES 64
 

@@ -1104,6 +1104,9 @@ static void fill_saves(void)
             "This player has no controller pak now (Controllers page)";
     if (backend == PC_SAVES_FILES) {
         row(P_SAVES, I_INFO, "Folder", where, NULL)->path = 1;
+        char notice[240];
+        if (s_saves->notice && s_saves->notice(M.sv_player, notice, sizeof notice))
+            row(P_SAVES, I_INFO, "Import", notice, NULL);
         int n = s_saves->list(M.sv_player, sv_list, MAX_ITEMS - 12);
         if (!n)
             row(P_SAVES, I_INFO, "Saves", "none yet", NULL)->desc = "The game's saves become files here";

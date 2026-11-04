@@ -66,6 +66,7 @@ typedef struct {
     int built;             /* the game has a pak from here */
     int swap;              /* it should have another */
     int failing;           /* a split's write failed: said once until one succeeds */
+    char notice[240];      /* the import folder's last result at start, for the Saves page */
 } Store;
 
 static Store g_st[4];
@@ -1040,7 +1041,9 @@ static int open_locked(Store *st, int ch, const char *dir, const char *mpk, cons
         load_file(st, names[i]);
     free_list(names, k);
     read_lists(st);
-    int refused = 0, got = take_imports(st, &refused, NULL, 0);
+    int refused = 0, got = take_imports(st, &refused, st->notice, sizeof st->notice);
+    if (got + refused > 1)
+        snprintf(st->notice, sizeof st->notice, "At start: %d imported, %d refused (the log says why)", got, refused);
     st->open = 1;
     int profiles = 0, ghosts = 0, imports = 0;
     for (int i = 0; i < st->n; i++) {
@@ -1358,12 +1361,24 @@ int pc_store_export_ghost(int ch, const char *file, char *msg, size_t msg_size)
     return r;
 }
 
+int pc_store_notice(int ch, char *out, size_t size)
+{
+    pthread_mutex_lock(&g_lock);
+    Store *st = store_of(ch);
+    int r = st && st->notice[0];
+    snprintf(out, size, "%s", r ? st->notice : "");
+    pthread_mutex_unlock(&g_lock);
+    return r;
+}
+
 int pc_store_import(int ch, char *msg, size_t msg_size)
 {
     char last[300] = "";
     pthread_mutex_lock(&g_lock);
     Store *st = store_of(ch);
     int refused = 0, got = st ? take_imports(st, &refused, last, sizeof last) : -1;
+    if (st)
+        st->notice[0] = 0;
     if (got < 0)
         snprintf(msg, msg_size, "No saves folder");
     else if (!got && !refused)

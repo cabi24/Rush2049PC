@@ -166,6 +166,8 @@ int pc_store_pin(int ch, const char *file, int on, char *msg, size_t msg_size);
 int pc_store_delete(int ch, const char *file, char *msg, size_t msg_size);
 int pc_store_export_ghost(int ch, const char *file, char *msg, size_t msg_size);
 int pc_store_import(int ch, char *msg, size_t msg_size);                       /* the import folder */
+/* What the import folder gave at start ("Imported ...", "Refused X: why", counts), for the Saves page; 0: nothing. */
+int pc_store_notice(int ch, char *out, size_t size);
 int pc_store_import_file(int ch, const char *path, char *msg, size_t msg_size);
 int pc_store_export_mpk(int ch, const char *mpk, char *msg, size_t msg_size);  /* the old one kept as .bak */
 /* What is on the pak the game has differs from what it should have: si.c swaps the pak when that is safe. */

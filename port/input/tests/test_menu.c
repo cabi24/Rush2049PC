@@ -1080,7 +1080,13 @@ static int mock_act(int player, int action, const char *file, char *msg, size_t 
     return 0;
 }
 
-static const PcSavesUi g_mock_saves = {mock_backend, mock_list, mock_act};
+static int mock_notice(int player, char *out, size_t size)
+{
+    snprintf(out, size, "%s", player == 0 ? "Refused x.r49ghost: its CRC is wrong (the file is damaged)" : "");
+    return player == 0;
+}
+
+static const PcSavesUi g_mock_saves = {mock_backend, mock_list, mock_act, mock_notice};
 
 static void test_saves_page(void)
 {
@@ -1114,6 +1120,8 @@ static void test_saves_page(void)
     at("Saves", "Kept as", "files (a folder)", "kept as files (game.saves)");
     act(PC_MENU_DOWN);
     at("Saves", "Folder", "/home/player/.local/share/rush2049pc/saves/p1", "the folder");
+    act(PC_MENU_DOWN);
+    at("Saves", "Import", "Refused x.r49ghost: its CRC is wrong (the file is damaged)", "a file refused at start");
     act(PC_MENU_DOWN);
     at("Saves", "Import ghosts", NULL, "the actions");
     act(PC_MENU_DOWN);
@@ -1160,14 +1168,14 @@ static void test_saves_page(void)
     at("Settings", "Saves", NULL, "B: the main page");
     act(PC_MENU_ACCEPT);
     act(PC_MENU_PAGE_UP);
-    act_n(PC_MENU_DOWN, 3);
+    act_n(PC_MENU_DOWN, 4);
     at("Saves", "Import ghosts", NULL, "Import");
     act(PC_MENU_ACCEPT);
     act(PC_MENU_DOWN);
     act(PC_MENU_ACCEPT);
     CHECK(strstr(g_sv_acts, "1:import:;1:export_mpk:;") != NULL, "import and export to the .mpk: %s", g_sv_acts);
     /* player 2 keeps the .mpk: what files would give, and the setting from the next start */
-    act_n(PC_MENU_UP, 4);
+    act_n(PC_MENU_UP, 5);
     at("Saves", "Player", "P1", "the player row");
     act(PC_MENU_RIGHT);
     at("Saves", "Player", "P2", "player 2");
