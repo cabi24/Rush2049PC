@@ -1262,7 +1262,7 @@ static void pictures(void)
 {
     static const struct { const char *name; int down; } shots[] = {
         {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"game", 4}, {"mods", 5},
-        {"saves", 6}, {"help", 7}, {"about", 8}};
+        {"saves", 6}, {"help", 7}, {"about", 8}, {"presets", 9}};
     static const PcMenuMod mods[3] = {
         {"red-cars", "Red Cars", "1.2", "Someone", 5, 13, 12, 1, 0, 1, ""},
         {"long-track", "Long Track", "0.3", "Someone Else", 0, 4, 4, 0, 12, 0, ""},
@@ -1296,6 +1296,8 @@ static void pictures(void)
         if (about)   /* About's last row: a path over both footer lines */
             act(PC_MENU_UP);
         if (!strcmp(shots[i].name, "mods"))   /* a mod picked up to move */
+            act(PC_MENU_DOWN), act(PC_MENU_ACCEPT);
+        if (!strcmp(shots[i].name, "presets"))   /* PC enhanced chosen: in effect, and the message */
             act(PC_MENU_DOWN), act(PC_MENU_ACCEPT);
         pc_gfx_read_window(px, &w, &h);
         snprintf(path, sizeof path, "%s/menu-%s.png", g_dir, shots[i].name);
