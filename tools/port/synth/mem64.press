@@ -1,0 +1,19 @@
+# drive.press with game.memory at 64 (docs/port/MEMORY.md 6): the window and osMemSize are 64 MiB, the heap runs to
+# 0x84000000 (the exit line, tools/port/heap_check.py), and the race is drive's: the same trace (synth_memory_same).
+# until: 0x400000:900
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# args: --set game.memory=64 --screenshot-at 1600 --screenshot mem64.png
+# check: tools/port/heap_check.py mem64.log --memory 64 --short 0
+# check: tools/port/synth_shot.py mem64.png 1
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 20        # gas for 20 s
+32 STICKRIGHT 1.5
+36 STICKLEFT 1.5
+47 B 3         # the brake

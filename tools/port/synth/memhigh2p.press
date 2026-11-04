@@ -1,0 +1,19 @@
+# race2p.press at game.memory 64 with everything the game allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR; docs/
+# port/MEMORY.md 6): split screen, both views drawn from there.
+# until: 0x400000:600
+# seconds: 90
+# expect: state=0x00400000: players 2, windows 2, cars 6, mode 0, track 0
+# env: RUSH2049_TEST_HEAP_FLOOR=17
+# args: --set game.memory=64 --screenshot-at 1300 --screenshot memhigh2p.png
+# check: tools/port/heap_check.py memhigh2p.log --memory 64 --floor --short 0
+# check: tools/port/synth_shot.py memhigh2p.png 2
+5 A            # the controller pak warning
+8 START        # the start prompt
+9 RIGHT 0.1    # the main menu's first option: one player more (as many as controllers)
+11 A           # the main menu: the race
+14 A           # the player screen: each player is ready
+14 A@2
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select: each player's car
+23 A@2

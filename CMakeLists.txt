@@ -532,6 +532,25 @@ foreach(script ${SYNTH_PATHS})
         set_tests_properties(synth_boot_${name} PROPERTIES RUN_SERIAL TRUE LABELS realtime)
     endif()
 endforeach()
+# game.memory (docs/port/MEMORY.md 6): the program at original against itself at 64 MiB with everything the game
+# allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR), along paths of each kind: the same trace in every run, so the game
+# runs as it does in 8 MiB with all of its data where a physical address would read as a segmented one.
+add_test(NAME synth_memory_same COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_compare.py --exe $<TARGET_FILE:rush2049pc>
+    --exe $<TARGET_FILE:rush2049pc> --set-b game.memory=64 --env-b RUSH2049_TEST_HEAP_FLOOR=17 --rom ${SYNTH_ROM}
+    --runs 1 --same --logs ${CMAKE_BINARY_DIR}/synth/memory-same
+    drive race2p race4p demo battle2p stunt circuit pause raceend race12 race2p12)
+set_tests_properties(synth_memory_same PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 900)
+# and the picture: drive's screenshot at game.memory 64, with the game's data above 17 MiB, and with the car types'
+# files 3 MB larger, byte for byte the original's; race2p's split screen with the data above 17 MiB the same.
+foreach(pair "drive;mem64" "drive;memhigh" "drive;membig" "race2p;memhigh2p")
+    list(GET pair 0 a)
+    list(GET pair 1 b)
+    set_property(TEST synth_boot_${a} APPEND PROPERTY FIXTURES_SETUP synth_shot_${a})
+    set_property(TEST synth_boot_${b} APPEND PROPERTY FIXTURES_SETUP synth_shot_${b})
+    add_test(NAME synth_shot_same_${b} COMMAND ${CMAKE_COMMAND} -E compare_files
+        ${CMAKE_BINARY_DIR}/synth/paths/${a}.png ${CMAKE_BINARY_DIR}/synth/paths/${b}.png)
+    set_tests_properties(synth_shot_same_${b} PROPERTIES FIXTURES_REQUIRED "synth_shot_${a};synth_shot_${b}")
+endforeach()
 # The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
 # ROM lookup order in temporary folders; and the program's own messages for each kind of missing or wrong ROM, and
 # the lookup order, through tools/port/firstrun_check.py with copies of the synthetic cartridge.

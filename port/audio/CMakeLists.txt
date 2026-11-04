@@ -89,6 +89,17 @@ if(PCAUDIO_HAVE_SDL2 OR ALSA_FOUND)
     list(APPEND PCAUDIO_TESTS backends)   # SDL2's disk driver, ALSA's null device
 endif()
 add_custom_target(pcaudio_tests)
+# game.memory (docs/port/MEMORY.md 6): a scene's records and samples in port/ultra's own RDRAM window (memory.c) at 64
+# MiB, at 1, 18 and 63 MiB, through K0 and physical addresses; skipped (77) where the window can't be mapped.
+add_executable(test_audio_window tests/test_window.c tests/ref.c ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/memory.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/rcpaddr.c)
+set_target_properties(test_audio_window PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
+    POSITION_INDEPENDENT_CODE ON EXPORT_COMPILE_COMMANDS OFF)
+target_link_libraries(test_audio_window PRIVATE pcaudio Threads::Threads)
+target_include_directories(test_audio_window PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests ${CMAKE_CURRENT_SOURCE_DIR}/../ultra)
+add_test(NAME audio_window COMMAND test_audio_window)
+set_tests_properties(audio_window PROPERTIES SKIP_RETURN_CODE 77)
+add_dependencies(pcaudio_tests test_audio_window)
 foreach(t ${PCAUDIO_TESTS})
     add_executable(test_audio_${t} tests/test_${t}.c tests/stubs.c tests/ref.c)
     set_target_properties(test_audio_${t} PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF

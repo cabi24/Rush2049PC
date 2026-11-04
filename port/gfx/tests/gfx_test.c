@@ -8,7 +8,10 @@
  * undefined (SDL's offscreen driver keeps it; WGL gives an earlier frame).
  * Each case builds its lists with test_gbi.h, runs them through pc_gfx_run_dl, presents, and compares sample
  * points against values worked out from the N64 semantics. Exit status 0 = pass.
- * RUSH_GFX_TEST_WINDOW=WxH: the headless window's size (640x480), which the native and auto scales follow. */
+ * RUSH_GFX_TEST_WINDOW=WxH: the headless window's size (640x480), which the native and auto scales follow.
+ *
+ * Built as gfx_window_test (GFX_TEST_WINDOW), the harness's RDRAM is port/ultra's own window (memory.c) at
+ * game.memory 64 instead of an 8 MiB buffer of its own, for the highmem case (docs/port/MEMORY.md 6). */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +36,25 @@ void pcgfx_gl_test_nudge(float dx, float dy);
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
 static uint8_t *s_rdram;
+
+#ifdef GFX_TEST_WINDOW
+/* port/ultra/memory.c's window, big-endian ranges and osVirtualToPhysical; what it calls of the rest of port/ultra. */
+#include <stdarg.h>
+int pc_mem_set_size(uint32_t bytes);
+int pc_mem_init(void);
+uint8_t *pc_rdram(void);
+uint32_t osVirtualToPhysical(void *vaddr);
+int pc_verbose;
+void pc_log(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fputc('\n', stderr);
+    va_end(ap);
+}
+int pc_fix_absolute_got(void) { return 0; }
+#else
+uint32_t pc_rdram_size(void) { return PC_RDRAM_SIZE; }
 
 void *pc_n64_ptr(uint32_t a) {
     uint32_t p = a & 0x1FFFFFFFu;
@@ -73,6 +95,7 @@ int pc_mem_is_be(const void *p) {
             return 1;
     return 0;
 }
+#endif
 
 /* ---------------------------------------------------------------- frame and helpers */
 
@@ -1059,6 +1082,163 @@ static void case_belist(void) {
     check("native list, K0 texture", 204, 54, 0, 255, 255, 2);
     check("native after BE", 205, 15, 0, 0, 255, 2);
 }
+
+/* game.memory (docs/port/MEMORY.md 3, 6): belist's RDRAM scene at three places in a 64 MiB window, 1 MiB in, 18 MiB in
+ * and in its last MiB, with its colour image there too (set through osVirtualToPhysical, as the game sets it). Past
+ * 16 MiB a physical address would read as a segmented one: the PC gives the RCP K0 addresses there, and the renderer
+ * takes a physical one whose segment has no base as the RAM it is. Each place is drawn reached at K0 addresses and at
+ * physical ones, and each picture must be the first's, pixel for pixel. Only in gfx_window_test, on port/ultra's own
+ * window; gfx_test, whose RDRAM is 8 MiB, skips it. */
+#ifdef GFX_TEST_WINDOW
+enum { HM_DL = 0, HM_MTX = 0x800, HM_VTX = 0xC00, HM_TVTX = 0xD00, HM_TEX = 0x1000, HM_SEG7 = 0x2000, HM_FB = 0x4000,
+       HM_SIZE = 0x4000 + FB_W * FB_H * 2 };
+
+static uint32_t hm_addr(uint32_t base, uint32_t off, int physical) {
+    return physical ? (base & 0x1FFFFFFFu) + off : base + off;
+}
+
+/* The scene at K0 address base, its addresses physical or K0: its picture (malloc'd RGBA, w x h internal pixels, of
+ * an N64 frame n64_w x n64_h), or NULL. */
+static uint8_t *highmem_draw(uint32_t base, int physical, int *w, int *h, int *n64_w, int *n64_h) {
+    uint8_t *ram = (uint8_t *)pc_n64_ptr(base), *rgba;
+    uint16_t *fb;
+    uint32_t cimg;
+    int i, pw, ph;
+    if (ram == NULL || pc_n64_ptr(base + HM_SIZE - 1) == NULL)
+        return NULL;   /* no RAM there */
+    fb = (uint16_t *)(ram + HM_FB);
+    cimg = osVirtualToPhysical(fb);
+    memset(ram, 0, HM_SIZE);
+    be_mtx(ram + HM_MTX, 0, 100);
+    be_vtx(ram + HM_VTX + 0, 10, 10, 0, 0, 0, 0, 0);
+    be_vtx(ram + HM_VTX + 16, 10, 42, 0, 0, 0, 0, 0);
+    be_vtx(ram + HM_VTX + 32, 42, 10, 0, 0, 0, 0, 0);
+    be_vtx(ram + HM_SEG7 + 0, 60, 10, 0, 0, 0, 0, 0);
+    be_vtx(ram + HM_SEG7 + 16, 60, 42, 0, 0, 0, 0, 0);
+    be_vtx(ram + HM_SEG7 + 32, 92, 10, 0, 0, 0, 0, 0);
+    be_vtx(ram + HM_TVTX + 0, 110, 10, 0, 0, 255, 255, 255);
+    be_vtx(ram + HM_TVTX + 16, 110, 42, 0, 32 << 5, 255, 255, 255);
+    be_vtx(ram + HM_TVTX + 32, 142, 10, 32 << 5, 0, 255, 255, 255);
+    be_vtx(ram + HM_TVTX + 48, 142, 42, 32 << 5, 32 << 5, 255, 255, 255);
+    for (i = 0; i < 32 * 32; i++)   /* left half red, right half yellow, BE texels */
+        be16(ram + HM_TEX + 2 * i, (i & 31) < 16 ? rgba16(255, 0, 0, 1) : rgba16(255, 255, 0, 1));
+    pc_mem_register_be(ram, HM_FB);
+
+    g_be_mode = 1;   /* the scene's list, in N64 form, as ROM lists the game relocated are */
+    bp = ram + HM_DL;
+    gsSPMatrix(hm_addr(base, HM_MTX, physical), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
+    gsDPSetPrimColor(0, 0, 0, 255, 0, 255);
+    cc_prim();
+    gsSPVertex(hm_addr(base, HM_VTX, physical), 3, 0);
+    gsSP1Triangle(0, 1, 2);
+    gsSPSegment(7, hm_addr(base, HM_SEG7, physical));   /* a segment's base there */
+    gsDPSetPrimColor(0, 0, 255, 0, 255, 255);
+    gsSPVertex(0x07000000u, 3, 0);
+    gsSP1Triangle(0, 1, 2);
+    gsSPTexture(0xFFFF, 0xFFFF, 0, 0, 1);
+    gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, hm_addr(base, HM_TEX, physical));
+    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, 0, G_TX_LOADTILE, 0, 0, 0, 0, 0, 0, 0);
+    gsDPLoadSync();
+    gsDPLoadBlock(G_TX_LOADTILE, 0, 0, 32 * 32 - 1, calc_dxt(32, 2));
+    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 0, 0, 0, G_TX_CLAMP, 5, 0, G_TX_CLAMP, 5, 0);
+    gsDPSetTileSize(0, 0, 0, 31 << 2, 31 << 2);
+    cc_decalrgba();
+    gsSPVertex(hm_addr(base, HM_TVTX, physical), 4, 0);
+    gsSPQuadrangle(0, 1, 3, 2);
+    gsSPPopMatrixN(1);
+    gsSPEndDisplayList();
+    g_be_mode = 0;
+
+    gp = s_list;   /* frame_begin's, into the window's colour image */
+    gsDPPipeSync();
+    gsDPSetScissor(0, 0, FB_W, FB_H);
+    gsDPSetCycleType(G_CYC_FILL);
+    gsDPSetRenderMode(0, 0);
+    gsDPSetColorImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, FB_W, cimg);
+    gsDPSetFillColor(0x00010001u);
+    gsDPFillRectangle(0, 0, FB_W - 1, FB_H - 1);
+    gsDPPipeSync();
+    gsSPViewport((uintptr_t)&s_vp);
+    gsSPMatrix((uintptr_t)&s_ortho, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    gsSPMatrix((uintptr_t)&s_ident, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+    gsSPGeometryMode(0xFFFFFFFF, G_SHADE | G_SHADING_SMOOTH);
+    gsDPSetCycleType(G_CYC_1CYCLE);
+    gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
+    gsDPSetTextureLUT(G_TT_NONE);
+    gsDPSetTextureFilter(G_TF_POINT);
+    gsDPSetAlphaCompare(G_AC_NONE);
+    gsDPSetDepthSource(G_ZS_PIXEL);
+    gsSPDisplayList(hm_addr(base, HM_DL, physical));
+    gsDPFullSync();
+    gsSPEndDisplayList();
+    pc_gfx_run_dl(s_list);
+    pc_gfx_present(fb);
+    pc_mem_unregister_be(ram);
+    if (pc_gfx_framebuffer_dims(fb, n64_w, n64_h, &pw, &ph) != 0 || pc_gfx_read_framebuffer(fb, NULL, w, h) != 0)
+        return NULL;
+    rgba = (uint8_t *)malloc((size_t)*w * *h * 4);
+    if (rgba != NULL && pc_gfx_read_framebuffer(fb, rgba, w, h) != 0) {
+        free(rgba);
+        rgba = NULL;
+    }
+    return rgba;
+}
+
+static void case_highmem(void) {
+    static const uint32_t bases[3] = {0x80100000u, 0x81200000u, 0x83F00000u};
+    uint8_t *first = NULL, *pic;
+    char what[96];
+    int b, phys, w0 = 0, h0 = 0;
+    /* the RCP's addresses: physical below 16 MiB, K0 past it (port/ultra/memory.c) */
+    if (pc_rdram_size() < (64u << 20) || !pc_n64_ptr(0x81200000u) ||
+        osVirtualToPhysical(pc_n64_ptr(0x81200000u)) != 0x81200000u ||
+        osVirtualToPhysical(pc_n64_ptr(0x80100000u)) != 0x00100000u) {
+        printf("  FAIL %s: the window is %u MiB, 0x81200000 is at %p; osVirtualToPhysical 0x%08X, 0x%08X\n", s_case,
+               pc_rdram_size() >> 20, pc_n64_ptr(0x81200000u),
+               pc_n64_ptr(0x81200000u) ? osVirtualToPhysical(pc_n64_ptr(0x81200000u)) : 0u,
+               osVirtualToPhysical(pc_n64_ptr(0x80100000u)));
+        s_fail++;
+    }
+    for (b = 0; b < 3; b++)
+        for (phys = 0; phys < 2; phys++) {
+            int w, h, nw, nh;
+            size_t bad = 0, i;
+            snprintf(what, sizeof what, "at 0x%08X, %s addresses", bases[b], phys ? "physical" : "K0");
+            pic = highmem_draw(bases[b], phys, &w, &h, &nw, &nh);
+            if (pic == NULL) {
+                printf("  FAIL %s: %s: no picture\n", s_case, what);
+                s_fail++;
+                continue;
+            }
+            if (first == NULL) {   /* the first: the scene's colours, where belist has them */
+                first = pic, w0 = w, h0 = h;
+                free(s_px);
+                s_px = (uint8_t *)malloc((size_t)w * h * 4);
+                memcpy(s_px, pic, (size_t)w * h * 4);
+                s_px_w = w, s_px_h = h, s_n64_w = nw, s_n64_h = nh;
+                check("K0 vertices (green)", 15, 115, 0, 255, 0, 2);
+                check("segment set in the list (magenta)", 65, 115, 255, 0, 255, 2);
+                check("textured quad left (red)", 115, 115, 255, 0, 0, 2);
+                check("textured quad right (yellow)", 135, 115, 255, 255, 0, 2);
+                check("nothing at the origin", 25, 25, 0, 0, 0, 8);
+                continue;
+            }
+            for (i = 0; w == w0 && h == h0 && i < (size_t)w * h * 4; i++)
+                bad += pic[i] != first[i];
+            if (w != w0 || h != h0 || bad) {
+                printf("  FAIL %s: %s: %zu bytes differ from the first picture's (%dx%d, %dx%d)\n", s_case, what, bad,
+                       w, h, w0, h0);
+                s_fail++;
+            }
+            free(pic);
+        }
+    free(first);
+}
+#else
+static void case_highmem(void) {
+    printf("  %s: skipped (gfx_window_test runs it, on port/ultra's window)\n", s_case);
+}
+#endif
 
 static void case_matrix(void) {
     Mtx t1, t2, t3;
@@ -2106,7 +2286,7 @@ static const Case s_cases[] = {
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
     {"seams", case_seams},       {"ties", case_ties},         {"screenshot", case_screenshot},
-    {"hud", case_hud},
+    {"hud", case_hud},           {"highmem", case_highmem},
 };
 
 int main(int argc, char **argv) {
@@ -2120,7 +2300,15 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--no-window-readback") == 0)
             s_window_readback = 0;
     }
+#ifdef GFX_TEST_WINDOW
+    if (pc_mem_set_size(64u << 20) != 0 || pc_mem_init() != 0) {   /* game.memory 64 */
+        printf("skipped: port/ultra's RDRAM window can't be mapped here\n");
+        return 77;
+    }
+    s_rdram = pc_rdram();
+#else
     s_rdram = (uint8_t *)calloc(1, PC_RDRAM_SIZE);
+#endif
     mtx_ortho(&s_ortho, 0, FB_W, FB_H, 0, -1000, 1000);
     {
         float f[4][4];
@@ -2150,7 +2338,9 @@ int main(int argc, char **argv) {
     }
     pc_gfx_shutdown();
     free(s_px);
+#ifndef GFX_TEST_WINDOW
     free(s_rdram);
+#endif
     if (ran == 0) {
         printf("no case named %s\n", which);
         return 2;

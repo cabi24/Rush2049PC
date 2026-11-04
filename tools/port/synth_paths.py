@@ -16,8 +16,11 @@ Each tools/port/synth/NAME.press is a --press-file script whose leading comments
     #                          more options (a path is relative to the logs directory, where the run happens;
     #                          a .png or .mpk named there, alone or as --set's value, is deleted first, so each
     #                          run starts afresh)
+    # env: RUSH2049_TEST_HEAP_FLOOR=17
+    #                          environment variables for the run (NAME=VALUE ...)
     # check: tools/port/synth_shot.py race.png 1
-    #                          then this command, in the logs directory (tools/ is the repository's)
+    #                          then this command, in the logs directory (tools/ is the repository's); a script
+    #                          may have several check lines, each run in turn
 
 A run passes if the program exits 0 (it reached the state in time and nothing faulted), its last state line matches
 and gives the first car a position that is not NaN, it passed through the states visits names, and the check, if
@@ -38,12 +41,19 @@ PRESS_DIR = ROOT / "tools/port/synth"
 
 
 def read_script(path):
-    spec = {"until": None, "seconds": "60", "expect": "", "realtime": False, "args": [], "check": None, "visits": []}
+    spec = {"until": None, "seconds": "60", "expect": "", "realtime": False, "args": [], "check": None, "checks": [],
+            "visits": [], "env": {}}
     for line in path.read_text().splitlines():
-        m = re.match(r"#\s*(until|seconds|expect|args|check|visits)\s*:\s*(.*)$", line)
+        m = re.match(r"#\s*(until|seconds|expect|args|check|visits|env)\s*:\s*(.*)$", line)
         if m:
             key, value = m.group(1), m.group(2).strip()
-            spec[key] = shlex.split(value) if key in ("args", "check", "visits") else value
+            if key == "check":
+                spec["checks"].append(shlex.split(value))
+                spec["check"] = spec["checks"][0]
+            elif key == "env":
+                spec["env"] = dict(v.split("=", 1) for v in shlex.split(value))
+            else:
+                spec[key] = shlex.split(value) if key in ("args", "check", "visits") else value
         elif re.match(r"#\s*realtime\s*$", line):
             spec["realtime"] = True
     if not spec["until"]:
@@ -63,7 +73,7 @@ def run(name, exe, rom, logs, timeout=300):
         a = a.split("=", 1)[-1]         # --set game.pak2_file=NAME too
         if a.endswith((".png", ".mpk")) and (Path(logs) / a).exists():
             (Path(logs) / a).unlink()
-    env = dict(os.environ, RUSH_TRACE_WAVES="1")
+    env = dict(os.environ, RUSH_TRACE_WAVES="1", **spec["env"])
     t0 = time.time()
     try:
         p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
@@ -89,8 +99,8 @@ def run(name, exe, rom, logs, timeout=300):
     for state in spec["visits"]:
         if f"game state 0x{int(state, 0):08X} " not in out:
             why.append(f"never in state {state}")
-    if not why and spec["check"]:
-        c = spec["check"]
+    for check in spec["checks"] if not why else []:
+        c = check
         if c and c[0].startswith("tools/"):
             c = [sys.executable, str(ROOT / c[0])] + c[1:]
         r = subprocess.run(c, cwd=logs, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -98,7 +108,7 @@ def run(name, exe, rom, logs, timeout=300):
         if out_c:
             print("\n".join(f"  {l}" for l in out_c.splitlines()))
         if r.returncode != 0:
-            why.append(f"check {' '.join(spec['check'])} failed")
+            why.append(f"check {' '.join(check)} failed")
     mode = "real time" if spec["realtime"] else "fast"
     print(f"synth_paths: {name:10} {'ok  ' if not why else 'FAIL'} {took:5.1f} s ({mode}) "
           f"{last.split('state reached: ', 1)[-1] if last else ''}{'; ' + ', '.join(why) if why else ''}", flush=True)

@@ -1,0 +1,21 @@
+# drive.press at game.memory 64 with every car type's file 3 MB larger than the cartridge's (RUSH2049_TEST_WAVE_GROW,
+# docs/port/MEMORY.md 5), as replacement files of that size would be: each loads through LoadWave and _ReadWave into
+# the heap, which holds six of them, the later ones past 16 MiB; LoadCars never finds it short.
+# until: 0x400000:900
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# env: RUSH2049_TEST_WAVE_GROW=88-100:3000000
+# args: --set game.memory=64 --screenshot-at 1600 --screenshot membig.png
+# check: tools/port/heap_check.py membig.log --memory 64 --peak-above 17M --short 0
+# check: tools/port/synth_shot.py membig.png 1
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 20        # gas for 20 s
+32 STICKRIGHT 1.5
+36 STICKLEFT 1.5
+47 B 3         # the brake

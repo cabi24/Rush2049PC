@@ -25,8 +25,14 @@ fixed retrace), without the graphics-task counts. Runs of one executable give th
     DIFFERS   otherwise
 
 --script, --until and --seconds run one press script of any path instead (the retail cartridge: --rom, no
---no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. Exit status: the number of paths that DIFFER,
-or with --same (CI) that aren't the same. Stdlib only, Python 3.9+.
+--no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. --set-b and --env-b give the second executable
+settings and environment variables of its own, so one program can be compared with itself under other settings
+(docs/port/MEMORY.md 6):
+
+    --exe build/pc/rush2049pc --exe build/pc/rush2049pc --set-b game.memory=64 --env-b RUSH2049_TEST_HEAP_FLOOR=17
+
+A path's own `# env:` line (synth_paths.py) applies to both. Exit status: the number of paths that DIFFER, or with
+--same (CI) that aren't the same. Stdlib only, Python 3.9+.
 """
 import argparse
 import concurrent.futures
@@ -88,12 +94,19 @@ def show(e):
     return f"{kind} vi {vi} {state}: {info}" if vi is not None else f"{kind} {state}: {info}"
 
 
-def run_one(exe, rom, cmd_tail, logs, tag, retail):
+B_SETS, B_ENV = [], {}   # --set-b, --env-b: the second executable's own
+
+
+def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
     env = dict(os.environ)
+    env.update(path_env or {})
+    if second:
+        env.update(B_ENV)   # the executable's own over the path's
     if EXACT:
         env["RUSH_STATE_EXACT"] = "1"
+    extra = [w for s in B_SETS for w in ("--set", s)] if second else []
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve())] + ([] if retail else ["--no-rom-check"]) + \
-        ["--headless", "--no-config", "--audio", "null", "--no-pak", "--fast"] + cmd_tail
+        ["--headless", "--no-config", "--audio", "null", "--no-pak", "--fast"] + cmd_tail + extra
     with tempfile.TemporaryDirectory(dir=logs) as cwd:   # screenshots and paks start afresh, and don't collide
         t0 = time.time()
         p = subprocess.run(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
@@ -103,11 +116,12 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail):
     return trace(text), p.returncode, took
 
 
-def compare(name, exes, rom, cmd_tail, runs, logs, retail, pool=None):
+def compare(name, exes, rom, cmd_tail, runs, logs, retail, pool=None, path_env=None):
     """The path's verdict (0 or 1), printed. With a pool, its runs are submitted to it and this returns a function
     that waits for them and judges: each run is a process of its own on the virtual clock, whose course doesn't
     depend on what else runs."""
-    jobs = [(k, (pool.submit if pool else _now)(run_one, exe, rom, cmd_tail, logs, f"{name}.{k}.{r}", retail))
+    jobs = [(k, (pool.submit if pool else _now)(run_one, exe, rom, cmd_tail, logs, f"{name}.{k}.{r}", retail,
+                                                path_env, k == 1))
             for k, exe in enumerate(exes) for r in range(runs)]
     return (lambda: judge(name, jobs)) if pool else judge(name, jobs)
 
@@ -172,12 +186,21 @@ def main():
                     help="positions in whole feet, as builds without RUSH_STATE_EXACT print them")
     ap.add_argument("--same", action="store_true", help="a path whose runs aren't all the same fails")
     ap.add_argument("-j", "--jobs", type=int, default=1, help="runs at once (each a process on the virtual clock)")
+    ap.add_argument("--set-b", action="append", default=[], metavar="SECTION.KEY=VALUE",
+                    help="a setting for the second executable's runs (--set)")
+    ap.add_argument("--env-b", action="append", default=[], metavar="NAME=VALUE",
+                    help="an environment variable for the second executable's runs")
     ap.add_argument("names", nargs="*", help="the paths (default: every tools/port/synth/*.press)")
     a = ap.parse_args()
     if len(a.exe) != 2:
         ap.error("give --exe twice")
     global EXACT, SAME
     EXACT, SAME = not a.coarse, a.same
+    B_SETS.extend(a.set_b)
+    for e in a.env_b:
+        if "=" not in e:
+            ap.error(f"--env-b takes NAME=VALUE, not '{e}'")
+        B_ENV[e.split("=", 1)[0]] = e.split("=", 1)[1]
     Path(a.logs).mkdir(parents=True, exist_ok=True)
     differ = 0
     if a.script:
@@ -196,7 +219,7 @@ def main():
                 tail = ["--press-file", str(press), "--until-state", spec["until"], "--seconds", spec["seconds"],
                         "--status", a.status] + spec["args"]
                 verdicts.append(compare(name, a.exe, a.rom, tail, a.runs, a.logs, retail=False,
-                                        pool=pool if a.jobs > 1 else None))
+                                        pool=pool if a.jobs > 1 else None, path_env=spec["env"]))
             differ += sum(v() if callable(v) else v for v in verdicts)   # printed in the paths' order
         if len(names) > 1:
             print(f"synth_compare: {len(names) - differ} of {len(names)} paths agree")
