@@ -59,9 +59,11 @@ s32 func_80095198(f32 startTime, f32 interval);   /* AudioTimeout */
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */
 #define PC_CMD_OR_RETURN(c) if ((c) == 0) return;
-/* PC: [audio] engines = all keeps the drones' engines out of the budget, and the counters see what it holds back
- * (port/config/voices.c, docs/port/AUDIO.md 10); at original it is the same comparison. */
-#define PC_OVER_BUDGET(tag, rank, budget) pc_snd_over_budget((tag)->id, rank, budget)
+/* PC: [audio] engines = all keeps the cars' engines out of the budget, and the counters see the sounds it holds back
+ * that would play (one playing, or loud enough to start: port/config/voices.c, docs/port/AUDIO.md 10); at original it
+ * is the same comparison. */
+#define PC_OVER_BUDGET(tag, rank, budget) \
+    pc_snd_over_budget((tag)->id, rank, budget, (tag)->state == 2 || (tag)->vol > 0.1f)
 #else
 #define PC_CMD_OR_RETURN(c)
 #define PC_OVER_BUDGET(tag, rank, budget) rank >= budget

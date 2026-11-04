@@ -932,16 +932,23 @@ static void test_engines(void)
     CHECK(pc_engines_on() == 0xFFE && pc_engine_gain(122, 0.3f) == 0.3f, "all: every drone (0x%03X)",
           pc_engines_on());
     pc_snd_walk_begin();
-    CHECK(!pc_snd_over_budget(122, 50, 12.0f) && !pc_snd_over_budget(103, 51, 12.0f), "all: engines never over");
-    CHECK(!pc_snd_over_budget(7, 13, 12.0f) && pc_snd_over_budget(8, 14, 12.0f),
+    CHECK(!pc_snd_over_budget(122, 50, 12.0f, 1) && !pc_snd_over_budget(103, 51, 12.0f, 1), "all: engines never over");
+    CHECK(!pc_snd_over_budget(7, 13, 12.0f, 1) && pc_snd_over_budget(8, 14, 12.0f, 1),
           "an effect's rank counts without the two engines before it: 13 - 2 is in, 14 - 2 out");
     pc_engines_set(4);
     pc_snd_walk_begin();
-    CHECK(pc_snd_over_budget(122, 12, 12.0f) && !pc_snd_over_budget(7, 11, 12.0f), "nearest: the budget as the game's");
+    CHECK(pc_snd_over_budget(122, 12, 12.0f, 1) && !pc_snd_over_budget(7, 11, 12.0f, 1),
+          "nearest: the budget as the game's");
     pc_engines_set(PC_ENGINES_ORIGINAL);
     pc_snd_walk_begin();
-    CHECK(pc_snd_over_budget(102, 12, 12.0f) && !pc_snd_over_budget(102, 11, 12.0f) && pc_engines_on() == 0,
-          "original: rank >= budget");
+    unsigned long long c[PC_SND_COUNTERS], c2[PC_SND_COUNTERS];
+    int most;
+    pc_snd_counters(c, &most);
+    CHECK(pc_snd_over_budget(102, 12, 12.0f, 1) && !pc_snd_over_budget(102, 11, 12.0f, 1) &&
+              pc_snd_over_budget(102, 13, 12.0f, 0) && pc_engines_on() == 0, "original: rank >= budget");
+    pc_snd_counters(c2, &most);
+    CHECK(c2[PC_SND_OVER_BUDGET] == c[PC_SND_OVER_BUDGET] + 1, "only the one that would play counted: %llu",
+          c2[PC_SND_OVER_BUDGET] - c[PC_SND_OVER_BUDGET]);
 #undef PASS
 }
 

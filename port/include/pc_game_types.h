@@ -616,7 +616,8 @@ enum {
     PC_SND_MX_STOLEN,       /* MusyX took a voice from an effect still playing */
     PC_SND_MX_STOLEN_SONG,  /* ... from a song's note still playing (the songs keep 16 voices at any size) */
     PC_SND_FX_REFUSED,      /* an effect the sound manager started that MusyX didn't (MP_TargetSteerPos) */
-    PC_SND_OVER_BUDGET,     /* a tag the priority pass held back or stopped for its budget (_UpdateFx) */
+    PC_SND_OVER_BUDGET,     /* a tag the priority pass held back or stopped for its budget that would play: playing,
+                             * or loud enough to start (_UpdateFx) */
     PC_SND_NO_EMITTER,      /* a positional start that found no emitter (camera_target_track) */
     PC_SND_NO_MESSAGE,      /* a start or change that found the message pool empty (func_80091B00) */
     PC_SND_NO_ENTRY,        /* an effect start that found no free entry (AudioSfxInit's, audio_state_save) */
@@ -639,6 +640,6 @@ void pc_engines_choose(int listeners);
 float pc_engine_gain(int handle, float gain);
 void pc_engine_state(int handle, int state);   /* the emitter pass: an emitter's fx tag's state (2: playing) */
 void pc_snd_walk_begin(void);
-int pc_snd_over_budget(unsigned int tag, int rank, float budget);
+int pc_snd_over_budget(unsigned int tag, int rank, float budget, int audible);
 
 #endif

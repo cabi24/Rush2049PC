@@ -248,14 +248,15 @@ void pc_snd_walk_begin(void)
     pc_snd_count(PC_SND_PASSES);
 }
 
-int pc_snd_over_budget(unsigned int tag, int rank, float budget)
+int pc_snd_over_budget(unsigned int tag, int rank, float budget, int audible)
 {
     if (s_engines == PC_ENGINES_ALL && engine_slot((int)tag) >= 0) {
         s_exempt++;
         return 0;
     }
     if ((float)(rank - s_exempt) >= budget) {
-        pc_snd_count(PC_SND_OVER_BUDGET);
+        if (audible)
+            pc_snd_count(PC_SND_OVER_BUDGET);
         return 1;
     }
     return 0;

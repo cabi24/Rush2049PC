@@ -106,7 +106,11 @@ void pc_engines_choose(int listeners) { (void)listeners; }
 float pc_engine_gain(int handle, float gain) { (void)handle; return gain; }
 void pc_engine_state(int handle, int state) { (void)handle, (void)state; }
 void pc_snd_walk_begin(void) {}
-int pc_snd_over_budget(unsigned int tag, int rank, float budget) { (void)tag; return (float)rank >= budget; }
+int pc_snd_over_budget(unsigned int tag, int rank, float budget, int audible)
+{
+    (void)tag, (void)audible;
+    return (float)rank >= budget;
+}
 #endif
 
 /* A pool past its end (pc_game_types.h; the game's is port/ultra/pool_overflow.c), for tests that build game C with a
