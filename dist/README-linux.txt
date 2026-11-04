@@ -285,8 +285,8 @@ three backups in backup/.
 
 Sharing ghosts
 --------------
-1. F1 > Saves > Kept as: files (a folder). Save to rush2049pc.ini, quit
-   and start again. Your friend does the same.
+1. F1 > Saves > Kept as: files (a folder). Then, on the main page, Save
+   to rush2049pc.ini; quit and start again. Your friend does the same.
 2. Race a ghost race. A ghost the game saves on the pak becomes a file in
    saves/p1 (see Known limits).
 3. F1 > Saves, choose the ghost (such as T1 fwd ALICE 1:02.35: the track,

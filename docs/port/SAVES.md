@@ -254,7 +254,7 @@ back byte for byte (`ultra_pakstore` checks one).
 
 ## 8. The F1 Saves page
 
-Main page > Saves (after Game). Rows:
+Main page > Saves (after Mods). Rows:
 
 - **Player** P1-P4 (Left, Right): whose saves.
 - **Kept as**: `pak (.mpk)` or `files (a folder)`, the setting, from the next start (`*`).
