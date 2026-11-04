@@ -663,8 +663,8 @@ static TexEntry *tex_lookup(int tile_idx, int variant) {
     if (S > TEX_MAX_DIM) S = TEX_MAX_DIM;
     if (T > TEX_MAX_DIM) T = TEX_MAX_DIM;
     ci = k.siz <= G_IM_SIZ_8b && (k.tlut & 2);
-    mode = variant ? pcgfx_tex_mode() : PCGFX_TEX_ORIGINAL;
-    need_id = mode == PCGFX_TEX_PACK || pcgfx_tex_dumping();
+    mode = variant == 1 ? pcgfx_tex_mode() : PCGFX_TEX_ORIGINAL;
+    need_id = mode == PCGFX_TEX_PACK || pcgfx_tex_dumping() || (variant && pcgfx_tex_mods());   /* MODS.md */
     memset(&id, 0, sizeof(id));
     id.fmt = (uint8_t)(ci ? G_IM_FMT_CI : k.fmt);
     id.siz = k.siz;
@@ -692,6 +692,8 @@ static TexEntry *tex_lookup(int tile_idx, int variant) {
     }
     if (pcgfx_tex_dumping())
         pcgfx_tex_dump(&id, s_src);
+    if (variant && mode != PCGFX_TEX_PACK && pcgfx_tex_mods() && pcgfx_tex_mod_has(&id))   /* a mod's, any mode */
+        mode = PCGFX_TEX_PACK;
     expand(&k, s_src, S, W, H, 1, s_decode);
 
     e = (TexEntry *)calloc(1, sizeof(*e));
