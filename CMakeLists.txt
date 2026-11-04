@@ -825,9 +825,13 @@ set_tests_properties(realtime_auto_even PROPERTIES FIXTURES_REQUIRED synth_rom T
     SKIP_RETURN_CODE 77 LABELS realtime)
 # Every frame at 60 sees one model tick, at original two, and the camera's eye and view move as evenly at 60 as at
 # original along the synthetic drive, on the virtual clock (tools/port/fps_even.py, --log-frames).
-add_test(NAME fps_even COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_even.py --exe $<TARGET_FILE:rush2049pc>
-    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps-even drive)
-set_tests_properties(fps_even PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+# Not under AddressSanitizer or ThreadSanitizer: its two runs of drive took past 300 s on CI's arm ASan runner (run
+# 41865036645); fps_physics's solo runs the game at 60 there.
+if(NOT (PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD))
+    add_test(NAME fps_even COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_even.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps-even drive)
+    set_tests_properties(fps_even PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+endif()
 # A slow disk (each pak write held 200 ms, one a second through the race) costs the main loop no retraces: the writes
 # are on the writer's thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak"); SIGTERM during a held
 # write waits for it; and the same writes on the main loop, as before, drop retraces (tools/port/pakwrite_check.py).

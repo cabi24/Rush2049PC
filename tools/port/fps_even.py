@@ -51,9 +51,16 @@ def run(exe, rom, script, seconds, logs, name, fps):
     for line in log.read_text(errors="replace").splitlines():
         m = _FRAME.match(line)
         if m:
-            v = [float.fromhex(x) for x in m.groups()[3:]]
+            v = [hexfloat(x) for x in m.groups()[3:]]
             frames.append((int(m.group(2)), int(m.group(3)), v[:3], v[3:6], v[6:9]))
     return r.returncode, frames
+
+
+def hexfloat(x):
+    """printf's %a: a hex float, or a NaN or an infinity as any C library prints one (Windows' UCRT: "-nan(ind)"; the
+    camera is NaN on a race's first frames)."""
+    x = x.split("(", 1)[0]
+    return float.fromhex(x) if "0x" in x.lower() else float(x)
 
 
 def check(frames, fps):
