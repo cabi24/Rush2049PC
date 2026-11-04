@@ -183,7 +183,7 @@ cars, mode (gRace) and track, and the first car's position, speed and steering i
 
 **The paths.** Each `tools/port/synth/NAME.press` is a `--press-file` script whose leading comments say what the run
 must reach (`# until:`, `# seconds:`, `# expect:` the state line's text, `# visits:` states on the way, `# realtime`,
-`# args:`, `# check:`);
+`# args:`, `# env:` environment variables for the run, and one or more `# check:` lines, each run in turn);
 `tools/port/synth_paths.py` runs them (on the virtual clock, `--fast`, unless `# realtime`), checks the exit code and
 the last state line (and that the first car's position isn't NaN), and keeps each log in `build/synth/paths` (ctest's in
 `build/pc/synth/paths`). ctest has one `synth_boot_NAME` per script, a `# realtime` one `RUN_SERIAL` (alone under
@@ -211,6 +211,7 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `cheats` | the main menu's cheat code, five down to its new option, the cheat screen (0x8000000); cheat 0's code and RIGHT switch it; B back (`# visits:` 0x8000000) | back on the main menu | 1.7 s (Pi) |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 | `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
+| `mem64`, `memhigh`, `memhigh2p`, `membig`, `membig8` | `game.memory` ([MEMORY.md](MEMORY.md) 6): drive at 64 MiB; drive and race2p at 64 with everything the game allocates above 17 MiB (`# env: RUSH2049_TEST_HEAP_FLOOR=17`); drive with the car files 3 MB larger at 64, and 1 MB larger at `original`, where LoadCars falls back. `# check:` runs `tools/port/heap_check.py` on the exit line's `heap:`, and ctest compares their screenshots with drive's and race2p's byte for byte | as drive, race2p | 0.5 s |
 
 **Screenshots.** `--screenshot-at N` of a race now shows the game's own display lists drawn: its matrices and
 viewports put the models where the cars are, in one view or split in two (top and bottom) or four (quarters).

@@ -539,7 +539,11 @@ add_test(NAME synth_memory_same COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_compare
     --exe $<TARGET_FILE:rush2049pc> --set-b game.memory=64 --env-b RUSH2049_TEST_HEAP_FLOOR=17 --rom ${SYNTH_ROM}
     --runs 1 --same --logs ${CMAKE_BINARY_DIR}/synth/memory-same
     drive race2p race4p demo battle2p stunt circuit pause raceend race12 race2p12)
-set_tests_properties(synth_memory_same PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 900)
+set(SYNTH_MEMORY_SAME_TIMEOUT 900)   # 22 runs; a sanitizer build runs each many times slower (above)
+if(PC_SANITIZE)
+    set(SYNTH_MEMORY_SAME_TIMEOUT 9000)
+endif()
+set_tests_properties(synth_memory_same PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${SYNTH_MEMORY_SAME_TIMEOUT})
 # and the picture: drive's screenshot at game.memory 64, with the game's data above 17 MiB, and with the car types'
 # files 3 MB larger, byte for byte the original's; race2p's split screen with the data above 17 MiB the same.
 foreach(pair "drive;mem64" "drive;memhigh" "drive;membig" "race2p;memhigh2p")

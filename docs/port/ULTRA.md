@@ -16,8 +16,10 @@ owns `main()`. About 3,300 lines of C11.
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
-| `memory.c` | the RDRAM window, `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
-| `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, address conversion, faults, stubs |
+| `memory.c` | the RDRAM window (its size: `game.memory`), `pc_n64_ptr`/`pc_n64_addr`, `osVirtualToPhysical`, big-endian ranges, the absolute-symbol fix-up |
+| `rcpaddr.c` | addresses past 16 MiB of a larger window: the display lists' relocation ([MEMORY.md](MEMORY.md) 3) |
+| `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
+| `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, faults, stubs |
 | `loop.c` | the host main loop |
 | `defaults.c` | weak no-op versions of the other parts' interfaces |
 | `gsm.c` | the boot segment's GSM 06.10 speech kernels (RPE decoding, long-term and short-term synthesis), from `kernels.s` |
@@ -94,8 +96,9 @@ this in the heap (`align32(0x8017A640)` to `osMemSize | K0BASE`, where every loa
 [ASSETS.md](ASSETS.md)), the low-memory globals at 0x80000300 and the runtime images' region at 0x8038A400. The
 game's pointer-free data and BSS are in the window too, at their N64 addresses (port/data's arenas, [DATA.md](DATA.md)
 §3: boot 0x800277D0–0x80086A50, game 0x8010FD7C–0x8017A640, the runtime images' inside their heap block), so a
-32-bit N64 address of game data is a host address. An 8 MiB memfd is mapped at host 0x80000000 (KSEG0) and again
-at 0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`, before the data is filled. On Linux the mapping is required and
+32-bit N64 address of game data is a host address. An 8 MiB memfd (with `game.memory`, 16-256 MiB: [MEMORY.md](MEMORY.md))
+is mapped at host 0x80000000 (KSEG0) and again at 0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`, before the data is
+filled. On Linux the mapping is required and
 the program stops if it fails, and on Windows too, where a file mapping is viewed at both addresses
 ([WINDOWS.md](WINDOWS.md)). Elsewhere it falls back to a translated window (`pc_n64_ptr`), the game's literal
 addresses fault, and `pc_data_init` refuses to fill data that isn't mapped.
@@ -103,7 +106,9 @@ addresses fault, and `pc_data_init` refuses to fill data that isn't mapped.
 **Host addresses are above 4 GiB**, except the window's. The executable is PIE, and its heap and the N64 threads'
 stacks are mapped high. So the renderer tells host pointers (≥ 4 GiB) from N64 addresses (K0/K1, physical,
 segmented), and game data in the window is simply RDRAM to it. `osVirtualToPhysical` maps window addresses to
-physical; it truncates a host address, with one warning, since the game keeps the result in a u32.
+physical; it truncates a host address, with one warning, since the game keeps the result in a u32. In a window of
+more than 16 MiB it gives the K0 address past 16 MiB instead, where a physical one would read to the RSP as a
+segmented one ([MEMORY.md](MEMORY.md) 3).
 
 **Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
 (`osTvType`, `D_80000300`, `D_80000318` for osMemSize), the heap start `D_8017A640`, the images' base
@@ -119,7 +124,9 @@ and whose slot holds exactly base + addend. Initialized pointers to them are res
 **osMemSize is 8 MiB** (the Expansion Pak) by default, as N64ModernRuntime and v5 report: the game sets its
 Expansion Pak flag (`D_80156994`) and loads overlay B and the extra waves in races, which give it its sixth race
 track, the tracks' animated objects and the front end's song (docs/port/QA.md). `game.expansion_pak = off` reports
-4 MiB, a console without one, where the game skips them. The window is 8 MiB either way.
+4 MiB, a console without one, where the game skips them; the window is 8 MiB either way. `game.memory` (16-256 MiB)
+sizes the window and osMemSize together, and so the game's heap ([MEMORY.md](MEMORY.md)); the heap's peak and least
+free are the exit line's `heap:`.
 
 **Big-endian ranges** (`pc_mem_register_be`): sorted, disjoint. A range that overlaps existing ones merges with
 them, so a DMA into a registered buffer keeps it one range. Adjacent ranges stay apart. `pc_mem_unregister_be(p)`

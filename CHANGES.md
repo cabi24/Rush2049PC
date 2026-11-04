@@ -13,6 +13,13 @@ What changed for players, newest first. The details and the tests behind each it
   to 12th places on the results, and a minimap dot and a radar blip for every car. Tested on every race track, to
   the finish ([MORECARS.md](docs/port/MORECARS.md) 10.4, [FRONTEND.md](docs/port/FRONTEND.md)).
 
+- **More memory for the game** (`game.memory`, F1 > Game > Memory, from the next start): `original`, the default,
+  is the N64's 8 MB (4 without the Expansion Pak). 16 to 256 MB give the game's heap that much more room: the files
+  it loads, a race's cars, and later, larger replacement files. The game runs the same with its data anywhere in it,
+  pictures and sound included. The log's last lines say how much of the heap a run used at most, and a line says
+  when the game found its heap short and fell back (sharing a car type, as the N64 game does); About shows it too
+  ([MEMORY.md](docs/port/MEMORY.md), [FRONTEND.md](docs/port/FRONTEND.md)).
+
 ## Beta candidate (2026-10-28)
 
 The first builds were played on a Windows laptop on 2026-10-27: they booted and raced, but the sound was bad, the
