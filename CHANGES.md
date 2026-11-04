@@ -6,12 +6,15 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
-- **More cars a race, up to 12** (`game.cars`, F1 > Game > Cars in a race): `original`, the default, is the N64's
-  6. Set it to 7-12, then raise the track select's Drones option, which goes up to one less than the setting (its
-  default, 5, still races 6 cars). A single race takes them, for one or two players; the circuit stays 6 cars, and the
-  attract demo races the setting's cars. The grid has a row for every car, and the HUD has two-digit places, the 7th
-  to 12th places on the results, and a minimap dot and a radar blip for every car. Tested on every race track, to
-  the finish ([MORECARS.md](docs/port/MORECARS.md) 10.4, [FRONTEND.md](docs/port/FRONTEND.md)).
+- **Draw distance, detail and fog** (`video.draw_distance`, `video.detail`, `video.fog`, F1 > Video): at `original`,
+  the defaults, the N64's picture exactly. `draw_distance = far` draws everything the game limits by distance twice
+  as far: more of the track (the world's visibility tables reach 2,000 ft further), the cars and their wheels twice
+  as far out, the scenery past 2,048 ft, the far plane at 4,000 ft; `max` draws the whole track and every
+  model at any distance. `detail = high` keeps each model at its most detailed level wherever it is drawn, and gives
+  split screen one player's models and tires. `fog = far` puts the fog options' fog twice as far, `off` removes it
+  (with the sky in place of the fog's colour). The log's `scene:` line says what was drawn. On the retail tracks far
+  draws about twice the triangles and max two to five times ([DETAIL.md](docs/port/DETAIL.md) 4,
+  [FRONTEND.md](docs/port/FRONTEND.md)).
 
 - **More memory for the game** (`game.memory`, F1 > Game > Memory, from the next start): `original`, the default,
   is the N64's 8 MB (4 without the Expansion Pak). 16 to 256 MB give the game's heap that much more room: the files
@@ -19,6 +22,13 @@ What changed for players, newest first. The details and the tests behind each it
   pictures and sound included. The log's last lines say how much of the heap a run used at most, and a line says
   when the game found its heap short and fell back (sharing a car type, as the N64 game does); About shows it too
   ([MEMORY.md](docs/port/MEMORY.md), [FRONTEND.md](docs/port/FRONTEND.md)).
+
+- **More cars a race, up to 12** (`game.cars`, F1 > Game > Cars in a race): `original`, the default, is the N64's
+  6. Set it to 7-12, then raise the track select's Drones option, which goes up to one less than the setting (its
+  default, 5, still races 6 cars). A single race takes them, for one or two players; the circuit stays 6 cars, and the
+  attract demo races the setting's cars. The grid has a row for every car, and the HUD has two-digit places, the 7th
+  to 12th places on the results, and a minimap dot and a radar blip for every car. Tested on every race track, to
+  the finish ([MORECARS.md](docs/port/MORECARS.md) 10.4, [FRONTEND.md](docs/port/FRONTEND.md)).
 
 ## Beta candidate (2026-10-28)
 

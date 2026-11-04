@@ -614,6 +614,19 @@ static int rush_main(int argc, char **argv)
     setenv("RUSH_GFX_FRAME_RATE", rate, 1);
     setenv("RUSH_GFX_TEXTURES", cfg.textures == 1 ? "upscaled" : cfg.textures == 2 ? "pack" : "original", 1);
     setenv("RUSH_GFX_HUD", cfg.hud == PC_GFX_HUD_CENTERED ? "centered" : "edges", 1);
+    /* draw distance, detail and fog (docs/port/DETAIL.md): the game's part, and the renderer's */
+    {
+        char draw[16], detail[16], fog[16];
+        pc_detail_set(cfg.draw_distance, cfg.detail, cfg.fog);
+        pc_settings_get(&cfg, "video", "draw_distance", draw, sizeof draw);
+        pc_settings_get(&cfg, "video", "detail", detail, sizeof detail);
+        pc_settings_get(&cfg, "video", "fog", fog, sizeof fog);
+        setenv("RUSH_GFX_DRAW_DISTANCE", draw, 1);
+        setenv("RUSH_GFX_FOG", fog, 1);
+        if (cfg.draw_distance || cfg.detail || cfg.fog)
+            fprintf(stderr, "rush2049pc: draw_distance %s, detail %s, fog %s (docs/port/DETAIL.md)\n", draw, detail,
+                    fog);
+    }
     if (cfg.widescreen > 0 && cfg.width == 640 && cfg.height == 480)   /* the default window, at the picture's aspect */
         cfg.width = (int)(cfg.height * cfg.widescreen + 0.5);
     if (!run.frames && pc_input_script_frames)
@@ -762,6 +775,12 @@ static int rush_main(int argc, char **argv)
     int code = pc_ultra_run(&run);
     pc_pools_report();   /* port/ultra/pools.c: the pools' high-water marks (docs/port/MORECARS.md 8) */
     pc_heap_report();    /* port/ultra/heap.c: the heap's (docs/port/MEMORY.md 4) */
+    {
+        uint32_t tasks, most;
+        uint64_t tris;
+        pc_gfx_scene_stats(&tasks, &tris, &most);
+        pc_scene_report(tasks, tris, most);   /* port/config/detail.c: what the scene drew (docs/port/DETAIL.md) */
+    }
     remember_window(&cfg, headless);
     pc_input_shutdown();
     pc_audio_shutdown();

@@ -46,6 +46,7 @@ add_library(pcgfx STATIC
     gfx_gl.c
     gfx_interp.c
     gfx_hud.c
+    gfx_detail.c
     gfx_ui.c
     gfx_font.c
     gfx_size.c
@@ -132,7 +133,7 @@ set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
-          eyeplane clip xlu widescreen autosize seams ties screenshot hud)
+          eyeplane clip xlu widescreen autosize seams ties screenshot hud detail)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The harness on port/ultra's own RDRAM window (memory.c) at game.memory 64, in place of an 8 MiB buffer of its own:
@@ -179,6 +180,9 @@ pcgfx_all_variant(wide-scale6.75 "RUSH_GFX_SCALE=6.75;RUSH_GFX_WIDESCREEN=16:9")
 pcgfx_all_variant(native-2880x1620 "RUSH_GFX_SCALE=native;RUSH_GFX_WIDESCREEN=auto;RUSH_GFX_TEST_WINDOW=2880x1620")
 pcgfx_all_variant(native-1366x768 "RUSH_GFX_SCALE=native;RUSH_GFX_TEST_WINDOW=1366x768")
 pcgfx_all_variant(scale1.25 "RUSH_GFX_SCALE=1.25")
+# video.draw_distance max and video.fog far (gfx_detail.c, docs/port/DETAIL.md 3): the depth range's far plane 32
+# times the game's and the fog stretched; every case holds (the depth's order is kept; the fog case's view is 2D).
+pcgfx_all_variant(draw-max "RUSH_GFX_DRAW_DISTANCE=max;RUSH_GFX_FOG=far")
 # Texture LOD at the fractional scales, on GLES and desktop GL: every internal pixel's mip levels, fraction and
 # texels (GFX.md "Texture LOD").
 foreach(v "scale1.25;RUSH_GFX_SCALE=1.25" "scale1.5;RUSH_GFX_SCALE=1.5" "scale2.25;RUSH_GFX_SCALE=2.25"
@@ -227,6 +231,7 @@ foreach(c exact move camera cut teleport split hud appear instances children spi
     add_test(NAME gfx.interp.${c} COMMAND gfx_interp_test ${c})
 endforeach()
 foreach(v "scale2;RUSH_GFX_SCALE=2" "scale2.5;RUSH_GFX_SCALE=2.5" "wide-scale3.4;RUSH_GFX_WIDESCREEN=16:9,RUSH_GFX_SCALE=3.4"
+          "draw-max;RUSH_GFX_DRAW_DISTANCE=max,RUSH_GFX_FOG=far"
           "wide;RUSH_GFX_WIDESCREEN=16:9" "gles;RUSH_GFX_API=gles"
           "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_GFX_API=gles,LIBGL_ALWAYS_SOFTWARE=1"
           "desktop-gl-software;RUSH_GFX_API=gl,LIBGL_ALWAYS_SOFTWARE=1")

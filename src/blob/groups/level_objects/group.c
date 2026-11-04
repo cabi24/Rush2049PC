@@ -358,6 +358,11 @@ void func_800AB7D0(Node *node,Metadata48 *metadata,s32 category)
 }
 s32 func_8008AE64(s16 id);
 
+#ifndef TARGET_PC
+#define PC_DETAIL_PLAYERS(n) n
+#endif
+/* PC: video.detail high gives a level object whose metadata says one player only (0x100) its scene node in split
+ * screen too, as one player has it (docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
 s32 transmission_ratio_get(Place *rec, s16 parent, f32 *pos, void *src, s8 index, s32 place, s32 other)
 {
     s32 i;
@@ -482,7 +487,7 @@ s32 transmission_ratio_get(Place *rec, s16 parent, f32 *pos, void *src, s8 index
                 math_utility(D_8011418C, node->matrix);
                 flags |= 0x52000;
             }
-            if (D_8014A108 < 2 || !(mflags & 0x100)) {
+            if (PC_DETAIL_PLAYERS(D_8014A108) < 2 || !(mflags & 0x100)) {
                 node->handle = func_8008E26C(node->key, node->matrix, res, flags);
             }
             if ((mflags & 0x300) && res >= 0) {

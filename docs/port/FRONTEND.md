@@ -179,7 +179,8 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   1. the defaults;
   2. the file;
   3. the environment variables other parts already read: `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
-     `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`;
+     `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`,
+     `RUSH_GFX_FOG`;
   4. a press file's `pak on|off`;
   5. command-line options, in order.
 - **Bad values.** A bad line in the file, or a bad environment value, is reported with its line and skipped.
@@ -218,6 +219,9 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.texture_pack` | `textures` (in the data folder) | | the texture pack's folder: PNG files named as the dump names them |
 | `video.texture_dump` | (empty: off) | | a folder to write every texture drawn into, as PNG, for making a pack ([TEXTURES.md](TEXTURES.md) "Texture packs") |
 | `video.hud` | edges | | the race HUD in widescreen: `edges` (at the screen's edges) or `centered` (in the 4:3 frame) (`RUSH_GFX_HUD`; "Widescreen" above) |
+| `video.draw_distance` | original | | how far the game draws: `original` (the N64's: its 2,000-ft far plane, the world's visibility tables, each model's distance), `far` (each limit twice as far, more of the track: the cars, their wheels and the scenery further out), `max` (the whole track, every model at any distance) (`RUSH_GFX_DRAW_DISTANCE`; [below](#draw-distance-detail-and-fog-videodraw_distance-detail-fog), [DETAIL.md](DETAIL.md)) |
+| `video.detail` | original | | `high`: each model's most detailed level wherever it is drawn, and in split screen the one-player models and objects (those from the next track) ([DETAIL.md](DETAIL.md) 2.5) |
+| `video.fog` | original | | `original` (the game's: the track select's fog option), `far` (its start and end twice as far) or `off` (and with the fog option the sky dome the game leaves out in a fog, from the next track) (`RUSH_GFX_FOG`; [DETAIL.md](DETAIL.md) 3) |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
@@ -250,7 +254,8 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   are `--dump-audio` and the run-limit options.
 - **How settings reach the parts.**
   - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
-    `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES` and `RUSH_GFX_HUD` to the resolved values
+    `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE` and
+    `RUSH_GFX_FOG` to the resolved values
     before `pc_gfx_init`, and `RUSH_GFX_TEXTURE_PACK`, `RUSH_GFX_TEXTURE_DUMP` and `RUSH_GFX_TEXTURE_CACHE` to the
     data folder's paths unless they are set already. The main loop asks port/gfx for the frame rate in effect
     (`pc_gfx_frame_rate`) at each pass, so the overlay's change applies at once.
@@ -264,6 +269,9 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
     `pc_audio_init`.
   - main sets `game.cars` with `pc_race_cars_set` before the game starts; the game takes it at each race's start
     ([below](#the-cars-a-race-holds-gamecars)).
+  - main sets `video.draw_distance` and `video.detail` for the game with `pc_detail_set` (port/config/detail.c); the
+    renderer takes `draw_distance` and `fog` from its two variables
+    ([below](#draw-distance-detail-and-fog-videodraw_distance-detail-fog)).
 
 ### The cars a race holds (game.cars)
 
@@ -294,14 +302,35 @@ let a single race hold that many: the players and the drones the track select's 
   `--set game.cars=12`) and raise the track select's Drones option, whose default, 5, races 6 at any setting. The
   synthetic paths `race12`, `race2p12`, `demo12`, `pause12`, `raceend12` and `circuit12` raise it through the menu.
 
+### Draw distance, detail and fog (video.draw_distance, detail, fog)
+
+2026-11-03, [DETAIL.md](DETAIL.md). Three settings for what a PC's GPU can draw that an N64 couldn't; at `original`,
+the default, each is the N64's game exactly.
+
+- **`draw_distance`**: `far` moves every distance limit of the game twice as far (the world's visibility tables
+  reach the cells within 2,000 ft of the eye; each model's last level of detail; the fog option's radius; the
+  matrices' 2,048 ft; the far scenery's 1,600 ft) and the depth range's far plane to twice the game's; `max` lifts
+  them all and moves the far plane to 32 times the game's. The game's fog and everything else it sees of the depth
+  stay as they were.
+- **`detail`**: `high` draws each model's first, most detailed level wherever it is drawn (no simpler car or wheels
+  further out), the tires at their first level in split screen, and, from the next track, split screen's models and
+  level objects as one player has them.
+- **`fog`**: `far` gives a point the fog the game gives one half as far (the fog options and their regions); `off`
+  none, and with a fog option the sky dome the game leaves out in a fog (from the next track).
+- **Live.** The overlay's Video page has the three ("Draw distance", "Detail", "Fog"); a change applies from the game's
+  next frame (`pc_detail_set`, `pc_gfx_set_draw_distance`, `pc_gfx_set_fog`), detail's split-screen models from the
+  next track.
+- **What it costs, what it looks like**: [DETAIL.md](DETAIL.md) 4 and 5. At a run's end the log's `scene:` line gives
+  what each view drew and what each limit left out.
+
 ### Environment variables
 
-Every variable the program (`port/`) reads. The settings' seven are a layer of their own (above); the rest are
+Every variable the program (`port/`) reads. The settings' nine are a layer of their own (above); the rest are
 environment-only.
 
 | Variable | What |
 |---|---|
-| `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`, `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD` | `audio.backend`, `video.scale`, `video.api`, `video.widescreen`, `video.frame_rate`, `video.textures`, `video.hud` |
+| `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`, `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`, `RUSH_GFX_FOG` | `audio.backend`, `video.scale`, `video.api`, `video.widescreen`, `video.frame_rate`, `video.textures`, `video.hud`, `video.draw_distance`, `video.fog` |
 | `RUSH_GFX_TEXTURE_PACK`, `RUSH_GFX_TEXTURE_DUMP`, `RUSH_GFX_TEXTURE_CACHE` | the pack's, the dump's and the upscaled textures' cache's folders, over `video.texture_pack`, `video.texture_dump` and the data folder's `texture_cache` ([TEXTURES.md](TEXTURES.md)) |
 | `RUSH_GFX_UPSCALE=1\|2\|4`, `RUSH_GFX_UPSCALE_2D=1`, `RUSH_GFX_TEXTURE_SYNC=1` | the upscale factor instead of the internal scale's; 2D upscaled too; upscaling on the render thread (tests) ([TEXTURES.md](TEXTURES.md)) |
 | `RUSH_GFX_HEIGHT`, `RUSH_GFX_VERBOSE`, `RUSH_GFX_TIMES`, `RUSH_GFX_TRACE`, `RUSH_GFX_DUMP`, `RUSH_GFX_HFR_DUMP` | the renderer's diagnostics ([GFX.md](GFX.md) "Backend, frame and settings", "High frame rate") |
@@ -369,6 +398,9 @@ restart.
 | | Graphics API * | `video.api` | after a restart: the GL context and its shaders are made at start |
 | | Textures: original, upscaled, pack | `video.textures` | from the game's next frame (`pc_gfx_set_textures`): the texture cache is made again; what was upscaled or loaded before is kept in memory ([TEXTURES.md](TEXTURES.md)) |
 | | Race HUD (widescreen): screen edges, centered (4:3) | `video.hud` | from the game's next frame (`pc_gfx_set_hud`) |
+| | Draw distance: original (N64), far (2x), max (all) | `video.draw_distance` | from the game's next frame (`pc_detail_set`, `pc_gfx_set_draw_distance`; [DETAIL.md](DETAIL.md)) |
+| | Detail: original, high | `video.detail` | from the game's next frame; split screen's models and level objects from the next track |
+| | Fog: original, far (2x), off | `video.fog` | from the game's next frame (`pc_gfx_set_fog`) |
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Game | Cars in a race: original (6), 7-12 | `game.cars` | from the next race's start: the setting at once (`pc_race_cars_set`), the race's count when the game latches it ([above](#the-cars-a-race-holds-gamecars)) |
@@ -487,6 +519,7 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.precedence` | `rush2049pc --print-config` | the real program: the file's ROM, `RUSH2049_AUDIO` over the file, `--scale` over `RUSH_GFX_SCALE` over the file, a `--set` binding and `--set game.cars=12` |
 | `frontend.memory` | `frontend_test memory` | `game.memory`: `original` the default (written commented out, with its comment), 16-256 each set and read back, 15, 8, 4, 0, -1, 257, 512, 1024, `64M`, words and an empty value refused with the range in the message, any case, `--set` syntax, the file read back, a bad line skipped; the warning only for `expansion_pak = off` with a size |
 | `frontend.cars` | `frontend_test cars` | `game.cars`: `original` the default (written commented out), 6-12 each set and read back, 5, 13, 0, -1, 99, words and an empty value refused with the range in the message and the setting kept, any case, `--set` syntax, the file read back, a bad line skipped; the latch: 6 before anything, the setting at once and the race's count only at `pc_race_cars_begin()`, a change and `original` mid-race leaving the race's count alone, the next race taking it, out-of-range values taken to 6 and 12 |
+| `frontend.detail` | `frontend_test detail` | `video.draw_distance`, `detail`, `fog`: `original` the defaults (written commented out), every value set and read back, a bad value refused with the choices named and the last value kept, `--set` in any case, the file read back, `RUSH_GFX_DRAW_DISTANCE` and `RUSH_GFX_FOG` as a layer (a bad one refused); what the game reads (port/config/detail.c): the N64's distances and the matrices' (-2048, 2048) at original, x 2 and a halved matrix to 4,096 ft at far, no limit, the first level, one player's models and any range through a power of two at max with high, unknown levels taken as original |
 | `frontend.sdl.keyboard` | `frontend_sdl_test keyboard` | every default key, held keys, the stick from keys (cardinal, the corner, opposite keys); rebinding: two keys, an alias, an unknown name skipped, the keyboard on player 2, a round gate of 100 |
 | `frontend.sdl.hotkeys` | `... hotkeys` | title and minimum size; Alt+Enter toggles fullscreen and is not START; F11 back; key repeat ignored; F12 saves PNGs of the shown frame (two in one second get two names); Pause holds and the exposed window is redrawn; Escape quits and isn't a game key; rebound and cleared hotkeys; closing the window quits; fullscreen from the settings |
 | `frontend.sdl.focus` | `... focus` | focus loss releases held keys; no hold by default; with `pause_on_focus_loss` it holds and focus back releases it; the pause key and focus are separate reasons |

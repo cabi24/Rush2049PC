@@ -1034,7 +1034,7 @@ void pcgfx_rdp_forget_targets(void) {
 
 /* A corner at clip x, y (pcgfx_rect_x, pcgfx_rect_y) with texture coordinates s, t there. */
 static void rect_vertex(GfxOutVtx *o, float x, float y, float s, float t, int textured) {
-    float d = (pcgfx.om_l & G_ZS_PRIM) ? pcgfx.prim_z / 32767.0f : 0.0f;
+    float d = (pcgfx.om_l & G_ZS_PRIM) ? pcgfx_detail_rect_depth(pcgfx.prim_z / 32767.0f) : 0.0f;
     int k;
     o->pos[0] = x;
     o->pos[1] = y;

@@ -38,6 +38,34 @@ int pc_cars_setting(void);
  * is PC_N64_CARS until the first call. pc_cars_setting() is the setting itself, unlatched: PC_N64_CARS for original,
  * else 6 to PC_MAX_LINKS; the front end reads it (the track select's Drones option goes up to it less one). */
 
+/* ---- Draw distance and detail (video.draw_distance, video.detail; docs/port/DETAIL.md; port/config/detail.c).
+ * The game's scene walk reads the settings through these, every view of every frame. Each game file defines the
+ * N64 side of the macros it uses under #ifndef TARGET_PC, expanding to the original tokens.
+ *   PC_DRAW_REACH(d)     a distance limit d (a model's last level of detail, the fog's radius D_80151AA0, the far
+ *                        scenery's 1,600 ft): d at original, PC_DRAW_FAR_FACTOR times it at far, none (1e30) at max
+ *   PC_LOD_DIST(d)       the distance the level of detail is chosen by: -1 (the nearest level) with detail high
+ *   PC_DETAIL_PLAYERS(n) the player count a model's display lists keep their level-of-detail sections for (its LOD
+ *                        markers, SetupWaveModel): 1 with detail high, the most a model has
+ *   pc_draw_range_scale  the power of two a node's matrix is divided by to hold a place past 2,048 ft (0: left out)
+ *   PC_SCENE(k)          a count of the scene's (pc_scene_count; the exit's scene line) */
+#include "pc_detail.h"
+int pc_draw_distance(void);   /* PC_DRAW_* (pc_detail.h) */
+int pc_detail(void);          /* PC_DETAIL_* */
+int pc_fog(void);             /* PC_FOG_*: off keeps the sky dome in a fog option (SkyInit, camera_reset.c) */
+float pc_draw_reach(float d);
+float pc_lod_distance(float d);
+int pc_detail_players(int players);
+int pc_draw_range_scale(float x, float y, float z);
+enum { PC_SCENE_DRAWN, PC_SCENE_COARSE, PC_SCENE_PARTS, PC_SCENE_WORLD, PC_SCENE_HIDDEN, PC_SCENE_VIEW_HIDDEN,
+       PC_SCENE_RANGE, PC_SCENE_RADIUS, PC_SCENE_LOD, PC_SCENE_COUNTS };
+void pc_scene_view(void);                 /* a view's scene walk begins (func_8009F058) */
+void pc_scene_count(int what, int n);
+#define PC_DRAW_REACH(d) pc_draw_reach(d)
+#define PC_LOD_DIST(d) pc_lod_distance(d)
+#define PC_DETAIL_PLAYERS(n) pc_detail_players(n)
+#define PC_SCENE(k) pc_scene_count(PC_SCENE_##k, 1);
+#define PC_SCENE_LEVEL(lod) pc_scene_count(PC_SCENE_COARSE, (lod) != 0);   /* drawn at a level past its first */
+
 /* ---- The pools a race fills, and the start grid (docs/port/MORECARS.md 8 and 4).
  * GetMatrix (func_800A7D6C) hands out the persistent matrices, 48 bytes each (a scene node's, a blast's): the N64's
  * PC_N64_MATRICES at D_8015F740 (0x8015F740-0x80161360, index 0 unused), then PC_MATRIX_SPILL more in
@@ -56,12 +84,14 @@ extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
 /* The frame's command buffers, two that alternate (pc_frame_dl, initgraphics/initgfx.c; gfx_frame_begin.c): 1,728
  * bytes of viewports, vertices, projections, lookats and the identity (particle_knot's GfxBuf), PC_FRAME_MATRICES
  * matrices of 64 bytes (D_8015B260, from +1,728), then the display list (D_801497C8 from PC_GLIST_OFFSET),
- * PC_GLIST_LEN commands of 16 bytes. The N64's (D_800586D0, D_8006A090) hold 600 and 4,000: the list at +0x9CC0. */
+ * PC_GLIST_LEN commands of 16 bytes. The N64's (D_800586D0, D_8006A090) hold 600 and 4,000: the list at +0x9CC0.
+ * video.draw_distance max with two views and 12 cars takes up to 870 matrices and 6,347 commands on the retail tracks
+ * (docs/port/DETAIL.md 4), so 1,600 and 12,000 (1,200 and 8,000 were MORECARS.md 8.1's, for 546 and 4,131). */
 #ifndef PC_FRAME_MATRICES
-#define PC_FRAME_MATRICES 1200
+#define PC_FRAME_MATRICES 1600
 #endif
 #ifndef PC_GLIST_LEN
-#define PC_GLIST_LEN 8000
+#define PC_GLIST_LEN 12000
 #endif
 #define PC_FRAME_MATRIX_OFFSET 1728
 #define PC_FRAME_LOOKATS 32   /* the GfxBuf's la[32]: one per environment-mapped node a view draws */

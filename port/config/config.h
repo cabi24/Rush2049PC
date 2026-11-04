@@ -80,6 +80,10 @@ typedef struct PcSettings {
     char texture_pack[PC_CFG_PATH];     /* the pack's folder; a name alone is in the data folder */
     char texture_dump[PC_CFG_PATH];     /* where every texture drawn is written as PNG; empty: off */
     int hud;                        /* the race HUD in widescreen: 1 edges, 0 centered (PC_GFX_HUD_*; RUSH_GFX_HUD) */
+    /* draw distance, detail and fog (docs/port/DETAIL.md): PC_DRAW_*, PC_DETAIL_*, PC_FOG_* (pc_port.h) */
+    int draw_distance;              /* RUSH_GFX_DRAW_DISTANCE: how far the game's distance limits reach */
+    int detail;                     /* the most detailed model of each thing drawn */
+    int fog;                        /* RUSH_GFX_FOG */
     /* [audio] */
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */
@@ -116,6 +120,13 @@ void pc_race_cars_set(int cars);
  * Expansion Pak features from any size past 4 MiB, as a console with that memory would, so expansion_pak = off has no
  * effect then. 1 and a message in why for that combination (pc_settings_resolve prints it), else 0. */
 int pc_settings_memory_conflict(const PcSettings *s, char *why, size_t why_size);
+/* video.draw_distance, video.detail and video.fog as the game reads them (detail.c): PC_DRAW_*, PC_DETAIL_*, PC_FOG_*
+ * (pc_detail.h; the game reads fog only for the sky dome, the renderer has its own). main
+ * sets them at start and the settings overlay when they change; the game takes them from its next frame. The
+ * renderer's part (the depth range, the fog) is pc_gfx_set_draw_distance and pc_gfx_set_fog. pc_scene_report: the
+ * exit's scene line, with the renderer's tasks and triangles (pc_gfx_scene_stats). */
+void pc_detail_set(int draw_distance, int detail, int fog);
+void pc_scene_report(uint32_t tasks, uint64_t triangles, uint32_t most);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);
@@ -138,7 +149,8 @@ int pc_settings_load_text(PcSettings *s, const char *text, const char *name);
 /* The same for a file: -1 when it can't be read. Records source and source_dir. */
 int pc_settings_load_file(PcSettings *s, const char *path);
 /* The environment variables that other parts already read: RUSH2049_AUDIO, RUSH_GFX_SCALE, RUSH_GFX_API,
- * RUSH_GFX_WIDESCREEN, RUSH_GFX_FRAME_RATE, RUSH_GFX_TEXTURES, RUSH_GFX_HUD. Bad values are reported and ignored.
+ * RUSH_GFX_WIDESCREEN, RUSH_GFX_FRAME_RATE, RUSH_GFX_TEXTURES, RUSH_GFX_HUD, RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG.
+ * Bad values are reported and ignored.
  * Returns how many were bad. */
 int pc_settings_apply_env(PcSettings *s);
 /* The whole file, with comments, as malloc'd text. */

@@ -72,6 +72,10 @@ typedef struct {
     float vp_scale[3], vp_trans[3];       /* pixels (x, y), z units (0..0x3FF) */
     int persp;                            /* the projection is perspective (its w column is not 0 0 0 1) */
     int16_t fog_mul, fog_off;
+    /* draw_distance and fog (gfx_detail.c, docs/port/DETAIL.md 3): the projection's z/w = proj_za + proj_zb / w
+     * (proj_depth: a perspective view's), and the depth map for it and the viewport, d' = d dz_mul + dz_add (dz_on) */
+    float proj_za, proj_zb, dz_mul, dz_add;
+    uint8_t proj_depth, dz_on, dz_dirty;
     uint16_t tex_scale_s, tex_scale_t;
     uint8_t tex_level, tex_tile, tex_on;
     uintptr_t seg[16];
@@ -190,6 +194,8 @@ typedef struct {
     uint8_t zs_prim;        /* G_ZS_PRIM: the primitive depth */
     uint8_t tex;            /* G_TEXTURE on */
     uint8_t wide;           /* widescreen 3D: the draw state's scissor widens */
+    uint8_t dz_on;          /* draw_distance far or max: the depth is d * dz_mul + dz_add (gfx_detail.c) */
+    float dz_mul, dz_add;
 } GfxTriCtx;
 
 /* A triangle's visible polygon: trivially rejected, clipped to the guard band and the eye plane, culled by its winding.
@@ -202,7 +208,16 @@ int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]);
 int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTriCtx *c, const GfxDrawState *st,
                      const GfxUnitInfo units[2], GfxOutVtx *tri);
 uint8_t pcgfx_outcode(const GfxVtx *v, float xs);
-float pcgfx_fog_alpha(float z, float w, int16_t fog_mul, int16_t fog_off);
+/* G_FOG's shade alpha for a vertex at clip z, w; za: the projection's z/w at infinity (proj_za; 0 for none). With
+ * video.fog far or off, or draw_distance far or max, as gfx_detail.c says; otherwise the N64's. */
+float pcgfx_fog_alpha(float z, float w, int16_t fog_mul, int16_t fog_off, float za);
+
+/* gfx_detail.c: video.draw_distance and video.fog in the renderer (docs/port/DETAIL.md 3) */
+void pcgfx_detail_init(void);                         /* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG */
+void pcgfx_detail_projection(const float p[4][4]);    /* a projection loaded or multiplied: proj_za, proj_zb */
+void pcgfx_detail_ctx(GfxTriCtx *c);                  /* a triangle's depth map */
+float pcgfx_detail_rect_depth(float d);               /* a rectangle's primitive depth, mapped as the view's */
+void pcgfx_detail_task(uint32_t triangles);           /* a graphics task's triangles drawn (pc_gfx_scene_stats) */
 
 /* gfx_rdp.c */
 void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1);
@@ -388,6 +403,8 @@ typedef struct {
     int frame_height;       /* rows shown; 0 = the largest scissor bottom drawn with */
     int trace_task;         /* RUSH_GFX_TRACE: print every command of this graphics task (1 = the first); 0 none */
     int frame_rate;         /* RUSH_GFX_FRAME_RATE: 0 the game's own; > 0 frames shown a second; -1 the display's */
+    int draw_distance;      /* RUSH_GFX_DRAW_DISTANCE: PC_DRAW_* (the depth range's far plane: gfx_detail.c) */
+    int fog;                /* RUSH_GFX_FOG: PC_FOG_* */
 } GfxConfig;
 extern GfxConfig pcgfx_cfg;
 

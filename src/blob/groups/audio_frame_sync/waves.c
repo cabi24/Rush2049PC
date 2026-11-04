@@ -150,6 +150,11 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 void lzss_decompress(s32 src, void *dst);
 void inflate_decompress(s32 src, void *dst, s32 flag);
 
+#ifndef TARGET_PC
+#define PC_DETAIL_PLAYERS(n) n
+#endif
+/* PC: video.detail high keeps the one-player sections of the models' display lists in split screen too (the LOD
+ * markers entity_lod_select rewrites: docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
 void SetupWaveModel(s32 idx, s32 first) {
     anon_base_TOCentries_c wad;
     u8 *WADptr;
@@ -170,7 +175,7 @@ void SetupWaveModel(s32 idx, s32 first) {
     if (first == 0 && gWaveInstance[idx].handle == 0) {
         return;
     }
-    if (active_player_count == 1) {
+    if (PC_DETAIL_PLAYERS(active_player_count) == 1) {
         flags = 2;
     } else if (active_player_count == 2) {
         flags = 4;

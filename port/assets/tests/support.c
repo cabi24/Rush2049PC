@@ -152,3 +152,5 @@ void pc_log(const char *fmt, ...)
     va_end(ap);
 }
 uint32_t pc_os_mem_size(void) { return test_rdram_bytes; }
+/* video.detail (port/config/detail.c): SetupWaveModel's player count for its LOD markers, as the N64 has it. */
+int pc_detail_players(int players) { return players; }

@@ -621,13 +621,92 @@ static void test_memory(void)
           "64 without the pak: %s", why);
 }
 
+/* video.draw_distance, video.detail and video.fog (docs/port/DETAIL.md): the keys, the file, the environment, and the
+ * values the game reads (port/config/detail.c). */
+static void test_detail(void)
+{
+    PcSettings s, t;
+    char why[200], v[32];
+    static const char *const draws[] = {"original", "far", "max"}, *const details[] = {"original", "high"},
+                             *const fogs[] = {"original", "far", "off"};
+    static const struct { const char *key; const char *const *values; int n; } keys[] = {
+        {"draw_distance", draws, 3}, {"detail", details, 2}, {"fog", fogs, 3}};
+    pc_settings_defaults(&s);
+    CHECK(s.draw_distance == PC_DRAW_ORIGINAL && s.detail == PC_DETAIL_ORIGINAL && s.fog == PC_FOG_ORIGINAL,
+          "the defaults: original (%d %d %d)", s.draw_distance, s.detail, s.fog);
+    for (size_t k = 0; k < sizeof keys / sizeof *keys; k++) {
+        for (int i = 0; i < keys[k].n; i++) {
+            CHECK(pc_settings_set(&s, "video", keys[k].key, keys[k].values[i], why, sizeof why) == 0 &&
+                      pc_settings_get(&s, "video", keys[k].key, v, sizeof v) == 0 && !strcmp(v, keys[k].values[i]),
+                  "%s = %s: '%s'", keys[k].key, keys[k].values[i], v);
+        }
+        CHECK(pc_settings_set(&s, "video", keys[k].key, "huge", why, sizeof why) == -2 &&
+                  pc_settings_get(&s, "video", keys[k].key, v, sizeof v) == 0 &&
+                  !strcmp(v, keys[k].values[keys[k].n - 1]),
+              "%s = huge refused, the last value kept: %s ('%s')", keys[k].key, why, v);
+        CHECK(strstr(why, "original") != NULL, "the message names the choices: %s", why);
+    }
+    CHECK(s.draw_distance == PC_DRAW_MAX && s.detail == PC_DETAIL_HIGH && s.fog == PC_FOG_OFF,
+          "max, high, off: %d %d %d", s.draw_distance, s.detail, s.fog);
+    CHECK(pc_settings_assign(&s, "video.draw_distance=Far", why, sizeof why) == 0 && s.draw_distance == PC_DRAW_FAR,
+          "--set video.draw_distance=Far: %d", s.draw_distance);
+    /* the file: the defaults commented out, the others as settings, read back */
+    pc_settings_defaults(&t);
+    char *text = pc_settings_format(&t);
+    CHECK(strstr(text, "\n; draw_distance = original\n") && strstr(text, "\n; detail = original\n") &&
+              strstr(text, "\n; fog = original\n"),
+          "the defaults are written commented out");
+    free(text);
+    text = pc_settings_format(&s);
+    CHECK(strstr(text, "\ndraw_distance = far\n") && strstr(text, "\ndetail = high\n") && strstr(text, "\nfog = off\n"),
+          "far, high, off are written as settings");
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, text, "detail") == 0 && t.draw_distance == PC_DRAW_FAR &&
+              t.detail == PC_DETAIL_HIGH && t.fog == PC_FOG_OFF,
+          "and read back: %d %d %d", t.draw_distance, t.detail, t.fog);
+    free(text);
+    /* the environment the renderer reads: a layer over the file */
+    pc_settings_defaults(&t);
+    setenv("RUSH_GFX_DRAW_DISTANCE", "max", 1);
+    setenv("RUSH_GFX_FOG", "far", 1);
+    CHECK(pc_settings_apply_env(&t) == 0 && t.draw_distance == PC_DRAW_MAX && t.fog == PC_FOG_FAR,
+          "RUSH_GFX_DRAW_DISTANCE=max, RUSH_GFX_FOG=far: %d %d", t.draw_distance, t.fog);
+    setenv("RUSH_GFX_FOG", "thick", 1);
+    CHECK(pc_settings_apply_env(&t) == 1 && t.fog == PC_FOG_FAR, "RUSH_GFX_FOG=thick refused: %d", t.fog);
+    unsetenv("RUSH_GFX_DRAW_DISTANCE");
+    unsetenv("RUSH_GFX_FOG");
+
+    /* what the game reads (detail.c): the N64's distances untouched at original, x 2 at far, none at max; the level
+     * of detail's distance; the split-screen models' player count; the matrices' range */
+    pc_detail_set(PC_DRAW_ORIGINAL, PC_DETAIL_ORIGINAL, PC_FOG_ORIGINAL);
+    CHECK(pc_draw_reach(600.0f) == 600.0f && pc_draw_reach(1600.0f) == 1600.0f && pc_lod_distance(250.0f) == 250.0f &&
+              pc_detail_players(3) == 3,
+          "original: 600, 1600, 250, 3 players");
+    CHECK(pc_draw_range_scale(2047.9f, -2047.9f, 0.0f) == 1 && pc_draw_range_scale(2048.0f, 0.0f, 0.0f) == 0 &&
+              pc_draw_range_scale(0.0f, -2048.0f, 0.0f) == 0 && pc_draw_range_scale(0.0f, 0.0f, 1e20f) == 0,
+          "original: the N64's range, (-2048, 2048) on each axis");
+    pc_detail_set(PC_DRAW_FAR, PC_DETAIL_ORIGINAL, PC_FOG_FAR);
+    CHECK(pc_draw_reach(600.0f) == 1200.0f && pc_draw_range_scale(2048.0f, 0.0f, 0.0f) == 2 &&
+              pc_draw_range_scale(0.0f, 4095.0f, 0.0f) == 2 && pc_draw_range_scale(0.0f, 0.0f, -4096.0f) == 0,
+          "far: 1200; the range to 4,096 ft through a matrix halved");
+    pc_detail_set(PC_DRAW_MAX, PC_DETAIL_HIGH, PC_FOG_OFF);
+    CHECK(pc_draw_reach(600.0f) > 1e29f && pc_lod_distance(250.0f) < 0.0f && pc_detail_players(3) == 1 &&
+              pc_draw_range_scale(6000.0f, 0.0f, 0.0f) == 4 && pc_draw_range_scale(0.0f, 0.0f, 40000.0f) == 32 &&
+              pc_draw_range_scale(1e10f, 0.0f, 0.0f) == 0,
+          "max, high: no limit, the first level, one player's models, any range a power of two");
+    CHECK(pc_draw_distance() == PC_DRAW_MAX && pc_detail() == PC_DETAIL_HIGH && pc_fog() == PC_FOG_OFF, "read back");
+    pc_detail_set(7, 9, 5);
+    CHECK(pc_draw_distance() == PC_DRAW_ORIGINAL && pc_detail() == PC_DETAIL_ORIGINAL && pc_fog() == PC_FOG_ORIGINAL,
+          "unknown levels: original");
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
-        {"stick", test_stick}, {"cars", test_cars}, {"memory", test_memory}};
+        {"stick", test_stick}, {"cars", test_cars}, {"memory", test_memory}, {"detail", test_detail}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|all SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|all SCRATCH_DIR\n");
         return 2;
     }
     static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */

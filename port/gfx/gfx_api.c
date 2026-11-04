@@ -8,6 +8,7 @@
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
  * RUSH_GFX_TEXTURES=original|upscaled|pack and the other RUSH_GFX_TEXTURE_* (gfx_tex.c, docs/port/TEXTURES.md),
+ * RUSH_GFX_DRAW_DISTANCE=original|far|max and RUSH_GFX_FOG=original|far|off (depth range, fog: gfx_detail.c),
  * RUSH_GFX_VERBOSE=1|2|3, RUSH_GFX_TIMES=1|2|3 (the CPU time of tasks and frames at exit; 2: with the GPU's, glFinish;
  * 3: the CPU's alone, from an idle GPU, and the GPU's from timer queries, with the draws). */
 #define _POSIX_C_SOURCE 200809L   /* clock_gettime */
@@ -38,7 +39,7 @@ static double now_ms(void) {
 #endif
 }
 
-GfxConfig pcgfx_cfg = {1, 1, 0.0f, 0.0f, 0, 0, 0, 0};
+GfxConfig pcgfx_cfg = {1, 1, 0.0f, 0.0f, 0, 0, 0, 0, PC_DRAW_ORIGINAL, PC_FOG_ORIGINAL};
 
 void pcgfx_rdp_new_frame(void);
 void pcgfx_rdp_forget_targets(void);
@@ -374,6 +375,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
                     getenv("RUSH_GFX_WIDESCREEN"));
     }
     pcgfx_hud_init();   /* RUSH_GFX_HUD */
+    pcgfx_detail_init();   /* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG (gfx_detail.c) */
     /* 0 x 0: the window's from the desktop (gfx_sdl.c); headless, the N64's frame, which native and auto draw at 1x */
     S.win_w = window_width > 0 && window_height > 0 ? window_width : 320;
     S.win_h = window_width > 0 && window_height > 0 ? window_height : 240;
@@ -477,6 +479,7 @@ void pc_gfx_run_dl(const void *dl) {
     if (S.times == 2)
         pcgfx_gl_finish();
     S.tasks++;
+    pcgfx_detail_task(pcgfx.stat_tris);   /* the exit's scene line (gfx_detail.c) */
     t0 = now_ms() - t0;
     if (S.times > 2) {
         pcgfx_gl_timer_end();

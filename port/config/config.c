@@ -177,6 +177,9 @@ static const char *const textures_choices[] = {"original", "upscaled", "pack", N
 static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GFX_HUD_* */
 static const char *const cars_choices[] = {"original", NULL};          /* 0: the N64's 6 */
 static const char *const memory_choices[] = {"original", NULL};        /* 0: the N64's 8 MiB (MEMORY.md) */
+static const char *const draw_choices[] = {"original", "far", "max", NULL};    /* PC_DRAW_* */
+static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
+static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -261,6 +264,18 @@ static const Item items[] = {
      "The race HUD in widescreen: edges (the speedometer, the radar, the position, the map and the timer keep their "
      "distance to the screen's edges, as on a 4:3 screen) or centered (in the 4:3 frame, as the N64 draws it). Menus, "
      "banners and split screen stay in the 4:3 frame either way (RUSH_GFX_HUD)."},
+    {"video", "draw_distance", T_ENUM, F(draw_distance), 0, 0, draw_choices, "original",
+     "How far the game draws: original (the N64's: its far plane at 2,000 ft, the world's visibility tables, the "
+     "distance each model is drawn to), far (each of those twice as far: the cars, their wheels and the scenery "
+     "further out, more of the track) or max (all of the track and every model at any distance) "
+     "(RUSH_GFX_DRAW_DISTANCE; the project's docs/port/DETAIL.md)."},
+    {"video", "detail", T_ENUM, F(detail), 0, 0, detail_choices, "original",
+     "original, or high: always each model's most detailed level within its distance (no switch to a simpler car "
+     "or wheel further away), and the one-player models in split screen (from the next track)."},
+    {"video", "fog", T_ENUM, F(fog), 0, 0, fog_choices, "original",
+     "original (the game's, with the track select's fog option), far (the fog starts and ends twice as far, as "
+     "draw_distance = far's limits) or off (and with the fog option, the sky the game leaves out in a fog, from the "
+     "next track) (RUSH_GFX_FOG)."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA on Linux, then none), sdl, alsa (Linux), null (no sound) or wav (no sound, only "
@@ -722,7 +737,8 @@ int pc_settings_apply_env(PcSettings *s)
     static const struct { const char *var, *section, *key; } env[] = {
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
         {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
-        {"RUSH_GFX_TEXTURES", "video", "textures"}, {"RUSH_GFX_HUD", "video", "hud"}};
+        {"RUSH_GFX_TEXTURES", "video", "textures"}, {"RUSH_GFX_HUD", "video", "hud"},
+        {"RUSH_GFX_DRAW_DISTANCE", "video", "draw_distance"}, {"RUSH_GFX_FOG", "video", "fog"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);

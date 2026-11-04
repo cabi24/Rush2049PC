@@ -25,6 +25,7 @@ documentation and n64brew.
 | `gfx_ui.c`, `gfx_font.c` | drawing over the frame in window pixels, and its font: the settings overlay ("The overlay" below) |
 | `gfx_interp.c`, `gfx_hfr.h` | a high frame rate: graphics tasks recorded, frames drawn between the game's ("High frame rate" below) |
 | `gfx_hud.c` | the race HUD at the screen's edges in widescreen: 2D queued, grouped and moved ("The HUD at the screen's edges" below) |
+| `gfx_detail.c` | `video.draw_distance`'s depth range (the far plane moved out, the near plane kept) and `video.fog` far and off ([DETAIL.md](DETAIL.md) 3) |
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
 | `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between); `gfx_size_test` (gfx_size.c with made-up sizes) |
 
@@ -78,7 +79,8 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   - Lights come from MOVEMEM G_MV_LIGHT (offset/24 − 2; offsets 0 and 24 are lookat X and Y) and MOVEWORD
     G_MW_LIGHTCOL.
 - **Texgen.** s = (n·lookatX + 1)/4 × scale_s; t the same with lookatY. The linear variant uses acos.
-- **Fog** (G_FOG). The shade alpha becomes clamp(z/w × fm + fo, 0, 255) from G_MW_FOG.
+- **Fog** (G_FOG). The shade alpha becomes clamp(z/w × fm + fo, 0, 255) from G_MW_FOG. With `video.fog` far or off,
+  or `video.draw_distance` far or max, as [DETAIL.md](DETAIL.md) 3 says (`gfx_detail.c`).
 - **Clipping.** The NoN microcode has no near plane. As on the RSP, a triangle with a vertex outside the guard band
   (|x| ≤ 2w, |y| ≤ 2w; x as the view sees it in widescreen) is clipped to the guard band, on the CPU, before the
   divide (`clip_guard`, gfx_rsp.c). Those planes leave nothing behind the eye, since |x| ≤ 2w needs w ≥ 0. Only a
@@ -260,6 +262,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | `RUSH_GFX_SCALE=s` | internal resolution: `native` (`video.scale`'s default: the window's own pixels, any fraction, 1-16), `auto` (the largest whole multiple of the frame the window holds), a multiple 1–8, or in the renderer's tests a fixed fraction up to 16 (`2.25`; rush2049pc takes `video.scale`'s values only); native and auto are taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HUD=edges\|centered` | the race HUD in widescreen: at the screen's edges (`video.hud`'s default) or in the 4:3 frame ("The HUD at the screen's edges" below) |
+| `RUSH_GFX_DRAW_DISTANCE=original\|far\|max`, `RUSH_GFX_FOG=original\|far\|off` | the depth range's far plane at the game's, twice it or 32 times it, and the fog as the game has it, twice as far or none (`video.draw_distance`, `video.fog`; [DETAIL.md](DETAIL.md) 3) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2/3` | renderer and per-task counts / generated shaders; with a high frame rate, the pairing's lines ("High frame rate" below) |
 | `RUSH_GFX_TIMES=1\|2\|3` | at exit, the time of graphics tasks, frames drawn between two and frames shown: 1 the CPU's, 2 with the GPU's (glFinish around each part), 3 the CPU's alone from an idle GPU (glFinish before each part) and the GPU's from timer queries (`GL_TIME_ELAPSED`: desktop GL 3.3, `ARB_timer_query`, `EXT_disjoint_timer_query`; not on the Pi's V3D), with the draws and vertices per task and per frame between ("What it costs" below) |
@@ -799,6 +802,8 @@ walkers. **T** = covered by `gfx_test`.
   - 24-bit depth stands in for the 18-bit floating z. LEQUAL in every z mode; decal is a polygon offset.
   - Packed z in clears is approximated.
   - Rectangles without G_ZS_PRIM get z = 0.
+  - With `video.draw_distance` far or max, the depth of a perspective view's triangles and primitive-depth rectangles
+    is mapped to a far plane 2 or 32 times the game's, the near plane kept ([DETAIL.md](DETAIL.md) 3).
 - **Fill.** Only the high half of the 16-bit fill pattern is used.
 - **Microcode.** Point lights and G_LOAD_UCODE are not supported. G_MW_CLIP (the clip ratio) has no effect, because
   GL clips at the screen edges.
@@ -822,7 +827,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 25, one CTest each:
+- **Cases.** 26, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -851,6 +856,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `ties` | rectangles at every quarter-pixel phase of both sides, side by side and row on row, drawn as they are and with every GL vertex moved 3/8 of an internal pixel left, right, down and up (`pcgfx_gl_test_nudge`: more than a GPU rounds a vertex, 1/32 pixel at most, less than the half pixel between a side on its boundary and every centre): each time every internal pixel has the rectangle its centre is in, counted in whole numbers (rows in GL's y-up coordinates). With the sides where the scale put them (before 2026-10-28) the moved frames fail at every scale, 1 too |
 | `screenshot` | PNG |
 | `hud` | the race HUD at the screen's edges, on a made-up race frame (GFX.md "The HUD at the screen's edges"), at 16:9 and 21:9: a bezel fill with a copy-mode digit on it and an orthographic triangle at the left side end up ox further left, texel for texel; a run of digits a pixel apart at the right ox further right, together; a fill cut by its scissor at the right moves with its scissor; a banner with a digit at each end and a run of digits across the middle band's side stay; a full-width fill spans the target; a panel drawn over a radar fill's side stays, the radar moves; a digit drawn on that panel after a second panel stays with it; the 3D strip spans the target; `pc_gfx_hud_dx` for points; `centered`, `edges` outside a race and `edges` at 4:3 give the same frames, byte for byte, as `centered` |
+| `detail` | `video.draw_distance` and `video.fog` ([DETAIL.md](DETAIL.md) 3), a perspective view with its far plane at 1,000: a green quad at 1,500 drawn before a red one at 3,000 behind it, both past the far plane: red over green at original (both at the far plane's depth, the N64's), green in front at far and max; inside the far plane the depth order at every level; a primitive-depth rectangle behind a quad hidden, one in front shown; the fog at 700 against fog far at 1,400 (the same, 57%), fog off none, and with draw_distance far the original fog past the far plane full |
 
 - **Variants.** `gfx.all.gles`, `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun
   every case on GLES, on desktop GL, at 2× and on llvmpipe's GLES; `gfx.all.desktop-gl-software` on llvmpipe's
@@ -866,7 +872,9 @@ build/gfx/gfx_test texrect --png /tmp/out
   `lod` failed there: "Texture LOD".)
   `gfx.lod.<scale>.gles` and `.desktop-gl` run `lod` on each API at 1.25, 1.5, 2.25, 2.5, 3.2, 6.75 (`scale6.75`,
   and `wide-scale6.75` in 16:9) and native in 2880 × 1620 (16:9 auto) and 1366 × 768 windows.
-  `gfx.interp.all.scale2.5` and `.wide-scale3.4` run the frame interpolation's cases at fractions. Each variant has
+  `gfx.interp.all.scale2.5` and `.wide-scale3.4` run the frame interpolation's cases at fractions.
+`gfx.all.draw-max` and `gfx.interp.all.draw-max` run every case with `RUSH_GFX_DRAW_DISTANCE=max` and
+`RUSH_GFX_FOG=far`: the depth's order and every frame between hold with the far plane 32 times out. Each variant has
   its own directory for the screenshot case's PNG, since they run in parallel.
 - **Sizes alone** (`gfx_size_test`, no GL): `gfx.size.scale` (native and auto scales for 2880 × 1620, 1440 × 810,
   1920 × 1080, 3840 × 2160 and the limits; internal sizes), `.edge` (at 1.5-9 and the 3K sizes: every N64 pixel at

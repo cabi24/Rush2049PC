@@ -846,6 +846,28 @@ f32 func_8009C3F8(f32 x, s32 flag)
 #else
 #define V16
 #endif
+#ifdef TARGET_PC
+/* PC: video.draw_distance and video.detail (docs/port/DETAIL.md 2). PC_DRAW_REACH (a model's last level of detail,
+ * PC_LOD_REACH, and the fog's radius), PC_LOD_DIST (the level chosen) and PC_SCENE (the scene's counts) are
+ * pc_game_types.h's; a node past its last level is counted, a level forced by its flags (CreateCar's tires with 2-4
+ * players) is the first with detail high (the distance its children and the cull read stays the N64's), and a view's
+ * walk begins at its visibility. */
+#define PC_LOD_CUT else { PC_SCENE(LOD) }
+/* a model's last level's distance, as far as the draw distance reaches; not for a node that fades out by then (flag
+ * 0x200000, the car's sheen: alpha 0 past 80 ft), which would spend a lookat and its list on nothing */
+#define PC_LOD_REACH(d, flags) (((flags) & 0x200000) ? (d) : PC_DRAW_REACH(d))
+#define PC_LOD_FORCED(l) (pc_detail() == PC_DETAIL_HIGH ? 0 : (l))   /* CreateCar's tires at level 1 in split screen */
+#define PC_VIEW_BEGIN pc_scene_view();
+#else
+#define PC_DRAW_REACH(d) d
+#define PC_LOD_REACH(d, flags) d
+#define PC_LOD_DIST(d) d
+#define PC_LOD_FORCED(l) l
+#define PC_SCENE(k)
+#define PC_SCENE_LEVEL(lod)
+#define PC_LOD_CUT
+#define PC_VIEW_BEGIN
+#endif
 s32 particle_system(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32 view, Palette *pal)
 {
     Gfx *gfx = *gp;
@@ -894,14 +916,14 @@ s32 particle_system(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32
         D_80124EE8 = sqrtf(x * x + y * y + z * z);
     }
     if (!(node->flags & (0x100 << view))) {
-        if (set->lv[lod].dist == 0.0f || !(set->lv[lod].dist * node->scale < D_80124EE8)) {
+        if (set->lv[lod].dist == 0.0f || !(PC_LOD_REACH(set->lv[lod].dist, node->flags) * node->scale < D_80124EE8)) {
             if (node->flags & 4) {
-                lod = node->flags & 3;
+                lod = PC_LOD_FORCED(node->flags & 3);
                 if (lod >= set->lv[0].count) {
                     lod = set->lv[0].count - 1;
                 }
             } else if (lod > 0) {
-                while (lod != 0 && D_80124EE8 < set->lv[lod - 1].dist * node->scale) {
+                while (lod != 0 && PC_LOD_DIST(D_80124EE8) < set->lv[lod - 1].dist * node->scale) {
                     lod--;
                 }
             }
@@ -978,7 +1000,7 @@ s32 particle_system(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32
                         func_80099B30(&gfx, pal);
                     }
                 }
-                drawn = 1;
+                drawn = 1; PC_SCENE(DRAWN) PC_SCENE_LEVEL(lod)
                 if (node->flags & 0x80000) {
                     gDPPipeSync(gfx++);
                     gDPSetCycleType(gfx++, G_CYC_2CYCLE);
@@ -991,7 +1013,7 @@ s32 particle_system(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32
                     gSPClearGeometryMode(gfx++, G_LIGHTING);
                 }
             }
-        }
+        } PC_LOD_CUT
     }
     *gp = gfx;
     return drawn;
@@ -1012,7 +1034,7 @@ s32 track_collision_wall(Gfx **gp, Node *parent, Node *node, s32 view, s32 count
 
     for (;;) {
         if (node->flags & 0x80000000) {
-            goto next;
+            PC_SCENE(HIDDEN) goto next;
         }
         if (node->next >= 0 || more_in) {
             more = 1;
@@ -1032,7 +1054,7 @@ s32 track_collision_wall(Gfx **gp, Node *parent, Node *node, s32 view, s32 count
             goto next;
         }
         if (!track_collision_edge(node, view)) {
-            goto next;
+            PC_SCENE(VIEW_HIDDEN) goto next;
         }
         if (node->child >= 0 || !(node->flags & (0x100 << view))) {
             if (node->flags & 0x1000) {
@@ -1056,19 +1078,19 @@ s32 track_collision_wall(Gfx **gp, Node *parent, Node *node, s32 view, s32 count
                             D_801403D8[j][3] = D_80124EF0[j][3];
                         }
                         if (!func_8009D99C(view, D_801403D8, node->obj->pos, D_8015B260, node->w, count)) {
-                            goto next;
+                            PC_SCENE(RANGE) goto next;
                         }
                     } else if (!func_8009D99C(view, D_80124EF0, node->obj->pos, D_8015B260, node->w, count)) {
-                        goto next;
+                        PC_SCENE(RANGE) goto next;
                     }
                 } else if (node->flags & 0x8000) {
                     if (!func_8009D99C(view, D_80124F30, node->obj->pos, D_8015B260, node->w, count)) {
-                        goto next;
+                        PC_SCENE(RANGE) goto next;
                     }
                 } else if (node->flags & 0x400000) {
                     func_8009D708(view, node->obj, D_8015B260, node->w, count);
                 } else if (!func_8009D45C(view, node->obj, D_8015B260, node->w, count)) {
-                    goto next;
+                    PC_SCENE(RANGE) goto next;
                 }
                 gSPMatrix(gfx++, D_8015B260, more);
                 D_8015B260++;
@@ -1109,8 +1131,8 @@ s32 track_collision_wall(Gfx **gp, Node *parent, Node *node, s32 view, s32 count
                     r = sqrtf(x * x + z * z) * 0.0625f;
                     x = node->obj->pos[0] - v->pos[0];
                     z = node->obj->pos[2] - v->pos[2];
-                    if (D_80151AA0 < sqrtf(x * x + z * z) - r) {
-                        goto children;
+                    if (PC_DRAW_REACH(D_80151AA0) < sqrtf(x * x + z * z) - r) {
+                        PC_SCENE(RADIUS) goto children;
                     }
                 }
                 D_80161430 = gfx + 2;
@@ -1246,7 +1268,7 @@ void func_8009F058(s32 view, View *eye)
     s32 depth;
     s32 i;
 
-    physics_float_calc(view, eye->pos, 0);
+    PC_VIEW_BEGIN physics_float_calc(view, eye->pos, 0);
     memcpy(vp, cam->vp, sizeof(Vp));
     vp->vp.vscale[0] = (s16)cam->w * 2;
     vp->vp.vscale[1] = (s16)cam->h * 2;

@@ -669,6 +669,9 @@ more matrices, which is what the spike used.
 | tire puffs (pool `D_8013F1E0`, `D_8013C378[100]`) | 100 | the same | the game's own: NULL, no puff |
 | skid segments (pool `D_80155220`, `D_80155B30[100]`) | 100 | the same | the game's own: the farthest is taken |
 
+(The frame's matrices and display list are 1,600 and 12,000 since 2026-11-03, for `video.draw_distance` max:
+[DETAIL.md](DETAIL.md) 4.)
+
 `pc_pool_overflow` logs `rush2049pc: <pool> ran past its end: <used> of <capacity>` once a pool; a Debug build then
 prints a backtrace and stops, a Release build (`NDEBUG`) goes on, so a player sees a wrong picture and the log says
 why. `pc_frame_pools` runs every frame where the SDK's check was an empty `if` (`world_collision_response.c`:

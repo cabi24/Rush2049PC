@@ -1,0 +1,16 @@
+# The fog path with video.draw_distance = far and video.fog = far (docs/port/DETAIL.md 6): the fog's radius twice as
+# far, 2,400 ft, leaves nothing out, and SYN_LOD is drawn at its second level.
+# until: 0x400000:60
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# args: --set video.draw_distance=far --set video.fog=far --screenshot-at 1000 --screenshot detail_fogfar.png
+# check: tools/port/detail_check.py detail_fogfar.log --level far --world 5 --radius 0 --lod-cut 0
+5 A            # the controller pak warning (0x40000000)
+8 START        # the start prompt (4)
+11 A           # the main menu (0x10): the race
+14 A           # the player screen (0x20)
+17 A           # the mode screen (0x40): a single race
+20 DOWN 0.1    # the track select (0x80): its options list from option 12, down to 14, the fog
+21 RIGHT 0.1   # the fog: 0 to 1
+22 A           # track 0
+23 A           # the car select (0x100); then the race start, PrePlay, the countdown, the race

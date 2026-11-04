@@ -733,6 +733,108 @@ static void case_fog(void) {
     check("far: fog color", 140, 20, 0, 0, 255, 2);
 }
 
+/* video.draw_distance and video.fog (gfx_detail.c, docs/port/DETAIL.md 3) under a perspective view with its far plane
+ * at 1,000 (near 10). A quad of four vertices at depth d, x and y from the view's centre in hundredths of d (the same
+ * place on the screen at any d), colour c. */
+static void quad_at(Vtx *v, float d, int x0, int x1, int y0, int y1, uint8_t r, uint8_t g, uint8_t b) {
+    vtx(&v[0], (int)(x0 * d / 100), (int)(y0 * d / 100), (int)-d, 0, 0, r, g, b, 255);
+    vtx(&v[1], (int)(x0 * d / 100), (int)(y1 * d / 100), (int)-d, 0, 0, r, g, b, 255);
+    vtx(&v[2], (int)(x1 * d / 100), (int)(y1 * d / 100), (int)-d, 0, 0, r, g, b, 255);
+    vtx(&v[3], (int)(x1 * d / 100), (int)(y0 * d / 100), (int)-d, 0, 0, r, g, b, 255);
+}
+
+/* The primitive depth the RDP compares with a pixel of this view at eye depth w (n 10, f 1,000, s_vp's z). */
+static int prim_z_at(float w) {
+    double n = 10.0, f = 1000.0, ndc = (f + n) / (f - n) - 2.0 * f * n / (f - n) / w;
+    return (int)lrint((511.0 + 511.0 * ndc) / 1023.0 * 32767.0);
+}
+
+static void case_detail(void) {
+    static Mtx persp;
+    int level, fog, was_draw = pc_gfx_draw_distance(), was_fog = pc_gfx_fog();
+    mtx_persp(&persp, 60.0f, 4.0f / 3.0f, 10.0f, 1000.0f);
+    for (level = PC_DRAW_ORIGINAL; level <= PC_DRAW_MAX; level++) {
+        pc_gfx_set_draw_distance(level);
+        frame_begin(0, 0, 0);
+        gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsDPSetRenderMode(RM_ZB_OPA_SURF(1), RM_ZB_OPA_SURF(2));
+        gsSPGeometryMode(0, G_ZBUFFER);
+        cc_shade();
+        /* left: green at 1,500 drawn first, red at 3,000 after it, both past the far plane. At original both are at
+         * the far plane's depth and red, drawn last, covers green (the N64's). Far's plane at 2,000 puts green in
+         * front of red, still held at the plane; max's at 32,000 both in their places. */
+        quad_at(&s_v[0], 1500.0f, -30, -5, -20, 20, 0, 255, 0);
+        quad_at(&s_v[4], 3000.0f, -30, -5, -20, 20, 255, 0, 0);
+        gsSPVertex((uintptr_t)s_v, 8, 0);
+        gsSP2Triangles(0, 1, 2, 0, 2, 3);
+        gsSP2Triangles(4, 5, 6, 4, 6, 7);
+        /* right: inside the far plane the order is the depth's at every level: yellow at 800 first, blue at 500 over
+         * it; then cyan at 600 drawn last behind blue's 500, and in front of yellow where blue isn't */
+        quad_at(&s_v[8], 800.0f, 5, 30, -20, 20, 255, 255, 0);
+        quad_at(&s_v[12], 500.0f, 5, 15, -20, 20, 0, 0, 255);
+        quad_at(&s_v[16], 600.0f, 10, 25, -10, 10, 0, 255, 255);
+        gsSPVertex((uintptr_t)&s_v[8], 12, 0);
+        gsSP2Triangles(0, 1, 2, 0, 2, 3);
+        gsSP2Triangles(4, 5, 6, 4, 6, 7);
+        gsSP2Triangles(8, 9, 10, 8, 10, 11);
+        /* primitive depth, mapped as the view's triangles: a rectangle at the depth of 900 behind yellow's 800 is
+         * hidden, one at 300's in front of everything shows */
+        gsDPSetDepthSource(G_ZS_PRIM);
+        cc_prim();
+        gsDPSetPrimDepth(prim_z_at(900.0f), 0);
+        gsDPSetPrimColor(0, 0, 255, 0, 255, 255);
+        gsDPFillRectangle(214, 145, 220, 152);
+        gsDPPipeSync();
+        gsDPSetPrimDepth(prim_z_at(300.0f), 0);
+        gsDPSetPrimColor(0, 0, 255, 255, 255, 255);
+        gsDPFillRectangle(214, 82, 220, 90);
+        gsDPSetDepthSource(G_ZS_PIXEL);
+        frame_end();
+        if (level == PC_DRAW_ORIGINAL)
+            check("original: past the far plane, the last drawn", 125, 120, 255, 0, 0, 2);
+        else
+            check("far, max: past the far plane, in order", 125, 120, 0, 255, 0, 2);
+        check("blue over yellow", 180, 105, 0, 0, 255, 2);
+        check("cyan behind blue", 190, 120, 0, 0, 255, 2);
+        check("cyan over yellow", 205, 120, 0, 255, 255, 2);
+        check("yellow", 218, 156, 255, 255, 0, 2);
+        check("primitive depth behind yellow", 216, 148, 255, 255, 0, 2);
+        check("primitive depth in front", 216, 85, 255, 255, 255, 2);
+    }
+    pc_gfx_set_draw_distance(PC_DRAW_ORIGINAL);
+    /* the fog: white quads fogged to blue, gSPFogPosition(990, 1000): from 502 to the far plane. fog far gives a
+     * quad at 1,400 the fog original gives one at 700 (57%); off none; with draw_distance far, original fog at
+     * 1,400 (past the far plane) is the far plane's, full */
+    for (fog = 0; fog < 4; fog++) {
+        pc_gfx_set_fog(fog == 3 ? PC_FOG_ORIGINAL : fog);
+        pc_gfx_set_draw_distance(fog == 3 ? PC_DRAW_FAR : PC_DRAW_ORIGINAL);
+        frame_begin(0, 0, 0);
+        gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsDPSetCycleType(G_CYC_2CYCLE);
+        gsDPSetRenderMode(G_RM_FOG_SHADE_A, RM_OPA_SURF(2));
+        gsDPSetCombineLERP(CC_0, CC_0, CC_0, CC_SHADE, AC_0, AC_0, AC_0, AC_SHADE, CC_0, CC_0, CC_0, CC_COMBINED,
+                           AC_0, AC_0, AC_0, AC_COMBINED);
+        gsDPSetFogColor(0, 0, 255, 255);
+        gsSPFogPosition(990, 1000);
+        gsSPGeometryMode(0, G_FOG);
+        quad_at(&s_v[0], fog == 1 || fog == 3 ? 1400.0f : 700.0f, -30, -5, -20, 20, 255, 255, 255);
+        quad_at(&s_v[4], 300.0f, 5, 30, -20, 20, 255, 255, 255);
+        gsSPVertex((uintptr_t)s_v, 8, 0);
+        gsSP2Triangles(0, 1, 2, 0, 2, 3);
+        gsSP2Triangles(4, 5, 6, 4, 6, 7);
+        frame_end();
+        if (fog == PC_FOG_OFF)
+            check("fog off", 125, 120, 255, 255, 255, 2);
+        else if (fog == 3)
+            check("draw far: original fog past the far plane", 125, 120, 0, 0, 255, 2);
+        else
+            check(fog ? "fog far at 1,400: the original's at 700" : "fog at 700", 125, 120, 110, 110, 255, 4);
+        check("before the fog's start", 220, 120, 255, 255, 255, 2);
+    }
+    pc_gfx_set_fog(was_fog);   /* as the run's environment has them (gfx.all.draw-max) */
+    pc_gfx_set_draw_distance(was_draw);
+}
+
 /* 2-cycle combiner: cycle 1 lerps two tiles by env alpha, cycle 2 lerps toward env by prim LOD fraction */
 static void case_twocycle(void) {
     static uint16_t ta[4 * 4], tb[4 * 4];
@@ -2286,7 +2388,7 @@ static const Case s_cases[] = {
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
     {"seams", case_seams},       {"ties", case_ties},         {"screenshot", case_screenshot},
-    {"hud", case_hud},           {"highmem", case_highmem},
+    {"hud", case_hud},           {"highmem", case_highmem},   {"detail", case_detail},
 };
 
 int main(int argc, char **argv) {

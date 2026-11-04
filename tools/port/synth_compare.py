@@ -13,6 +13,8 @@ builds. Two settings:
 - RUSH_STATE_EXACT: the state log gives the first car's position and speed as exact floats (--coarse: whole feet,
   for a build without it).
 - --status: the log gives them every --status seconds of game time too.
+- --shots: the screenshots the path takes (its --screenshot) join the trace, each by its bytes (docs/port/DETAIL.md
+  7: the settings at original draw the N64's picture, pixel for pixel).
 
 A run's trace is the loader's summary line (without the size of its symbol table, which is the build's data.c: a
 decoupled own-storage symbol leaves it, docs/port/DECOUPLE.md 4), its state changes (the state, the retrace it
@@ -36,6 +38,7 @@ A path's own `# env:` line (synth_paths.py) applies to both. Exit status: the nu
 """
 import argparse
 import concurrent.futures
+import hashlib
 import os
 import re
 import subprocess
@@ -52,6 +55,7 @@ _STATE = re.compile(r"^rush2049pc: game state (0x[0-9A-F]{8}) \(was 0x[0-9A-F]{8
                     r"after \d+ graphics tasks(?:: (.*))?$")
 EXACT = True   # RUSH_STATE_EXACT: positions and speeds as exact floats (--coarse: whole feet)
 SAME = False   # --same: only "same" passes
+SHOTS = False  # --shots: the run's screenshots (a path's --screenshot) are part of its trace, by their bytes
 _STATUS = re.compile(r"^rush2049pc: (status|state reached:|time reached:) t=\S+ vi=(\d+) gfx_tasks=\d+ "
                      r"audio_tasks=\d+(?: state=(0x[0-9A-F]{8}))?(?:: (.*))?$")
 
@@ -111,9 +115,11 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
         t0 = time.time()
         p = subprocess.run(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
         took = time.time() - t0
+        shots = tuple(("shot", None, png.name, hashlib.sha256(png.read_bytes()).hexdigest())
+                      for png in sorted(Path(cwd).glob("*.png"))) if SHOTS else ()
     text = p.stdout.decode(errors="replace")
     (Path(logs) / f"{tag}.log").write_text(text, encoding="utf-8")
-    return trace(text), p.returncode, took
+    return trace(text) + shots, p.returncode, took
 
 
 def compare(name, exes, rom, cmd_tail, runs, logs, retail, pool=None, path_env=None):
@@ -185,6 +191,8 @@ def main():
     ap.add_argument("--coarse", action="store_true",
                     help="positions in whole feet, as builds without RUSH_STATE_EXACT print them")
     ap.add_argument("--same", action="store_true", help="a path whose runs aren't all the same fails")
+    ap.add_argument("--shots", action="store_true",
+                    help="compare the screenshots a path takes (its --screenshot) too, byte for byte")
     ap.add_argument("-j", "--jobs", type=int, default=1, help="runs at once (each a process on the virtual clock)")
     ap.add_argument("--set-b", action="append", default=[], metavar="SECTION.KEY=VALUE",
                     help="a setting for the second executable's runs (--set)")
@@ -194,8 +202,8 @@ def main():
     a = ap.parse_args()
     if len(a.exe) != 2:
         ap.error("give --exe twice")
-    global EXACT, SAME
-    EXACT, SAME = not a.coarse, a.same
+    global EXACT, SAME, SHOTS
+    EXACT, SAME, SHOTS = not a.coarse, a.same, a.shots
     B_SETS.extend(a.set_b)
     for e in a.env_b:
         if "=" not in e:
