@@ -1032,8 +1032,24 @@ static void case_parse(void) {
         const char *text;
         int ok, value;
     } t[] = {{"original", 1, 0}, {"off", 1, 0}, {"0", 1, 0}, {"display", 1, -1}, {"60", 1, 60}, {"120", 1, 120},
-             {"144", 1, 144}, {"fast", 0, 0}, {"-5", 0, 0}, {"60hz", 0, 0}, {"1001", 0, 0}};
+             {"144", 1, 144}, {"auto", 1, PC_GFX_RATE_AUTO}, {"fast", 0, 0}, {"-5", 0, 0}, {"60hz", 0, 0},
+             {"1001", 0, 0}};
+    /* auto's choice (FRAMERATE.md 7.9): the game's rate, vsync, the display's whole hertz; 0 original, -1 display */
+    static const int a[][4] = {{60, 1, 60, 0},   {0, 1, 60, 0},    {60, 1, 59, 0},  {60, 1, 120, 0}, {0, 1, 119, 0},
+                               {60, 1, 240, 0},  {60, 1, 75, -1},  {60, 1, 144, -1}, {0, 1, 144, -1}, {60, 1, 165, -1},
+                               {60, 1, 90, -1},  {60, 0, 144, 0},  {60, 1, 0, 0},    {60, 0, 60, 0}};
     unsigned i;
+    for (i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+        if (pc_gfx_auto_rate(a[i][0], a[i][1], a[i][2], NULL) != a[i][3])
+            printf("  FAIL %s: auto at %d Hz, vsync %d, the game at %d gave %d\n", s_case, a[i][2], a[i][1], a[i][0],
+                   pc_gfx_auto_rate(a[i][0], a[i][1], a[i][2], NULL)), s_fail++;
+    pc_gfx_set_frame_rate(PC_GFX_RATE_AUTO);
+    pc_gfx_auto_frame_rate(60, 1, 144);
+    if (!pc_gfx_frame_rate_auto() || pc_gfx_frame_rate() != 60)   /* display, headless: 60 */
+        printf("  FAIL %s: auto at 144 Hz is %d\n", s_case, pc_gfx_frame_rate()), s_fail++;
+    pc_gfx_auto_frame_rate(60, 1, 60);
+    if (pc_gfx_frame_rate() != 0)
+        printf("  FAIL %s: auto at 60 Hz is %d, not original\n", s_case, pc_gfx_frame_rate()), s_fail++;
     for (i = 0; i < sizeof(t) / sizeof(t[0]); i++) {
         int ok, v = pc_gfx_parse_frame_rate(t[i].text, &ok);
         if (ok != t[i].ok || (ok && v != t[i].value))
