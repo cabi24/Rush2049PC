@@ -89,6 +89,127 @@ static void WorldDistance(tModelPart *Wnode, f32 *pos, s32 *best, f32 *dist, s32
     }
 }
 
+#ifdef TARGET_PC
+/* PC: video.draw_distance (docs/port/DETAIL.md 2.1). The table row of the part the eye is in (WorldDistance's best)
+ * says which of the world's parts are drawn. Far draws the parts any row lets through whose part lies within
+ * PC_VIS_FAR feet of the eye (the distance to its box, as WorldDistance places the eye in one): what the parts the
+ * eye can reach in that much further draw, PC_DRAW_FAR_FACTOR times the 2,000-ft far plane the rows were made for.
+ * Max draws every part, as show does. Original is the N64's. The parts let through are counted (PC_SCENE). */
+#define PC_VIS_FAR (2000.0f * (PC_DRAW_FAR_FACTOR - 1.0f))
+
+static u32 *VisRow(s32 track, s32 cell)
+{
+    switch (track) {
+    case 0: return D_8011B898[cell];
+    case 1: return D_8011BFE8[cell];
+    case 2: return D_8011C738[cell];
+    case 3: return D_8011CE88[cell];
+    case 4: return D_8011D618[cell];
+    case 5: return D_8011DC88[cell];
+    case 6: return D_8011E428[cell];
+    case 7: return D_8011E438[cell];
+    case 8: return D_8011E448[cell];
+    case 9: return D_8011E458[cell];
+    case 10: return D_8011E468[cell];
+    case 11: return D_8011E548[cell];
+    case 12: return D_8011E558[cell];
+    case 13: return D_8011E568[cell];
+    case 14: return D_8011E578[cell];
+    case 15: return D_8011E588[cell];
+    case 16: return D_8011E598[cell];
+    case 17: return D_8011E5A8[cell];
+    case 18: return D_8011E5B8[cell];
+    default: return 0;
+    }
+}
+
+/* The rows of every part within reach feet of pos, or'ed into far[4]: the parts in WorldDistance's order. */
+static void VisReach(f32 *pos, f32 reach, u32 *far)
+{
+    tModelPart *Wnode = D_80149B80;
+    s32 index = 0, k;
+    f32 dv[3], d, e;
+    u32 *row;
+
+    for (;;) {
+        d = 0.0f;
+        for (k = 0; k < 3; k++) {
+            dv[k] = pos[k] - Wnode->uvs[3][k];
+            e = 0.0f;
+            if (dv[k] < Wnode->min[k]) {
+                e = Wnode->min[k] - dv[k];
+            } else if (k != 1 && dv[k] > Wnode->max[k]) {   /* no top, as in WorldDistance */
+                e = dv[k] - Wnode->max[k];
+            }
+            d += e * e;
+        }
+        if (d <= reach * reach && (row = VisRow(D_8014978C, index)) != 0) {
+            for (k = 0; k < 4; k++) {
+                far[k] |= row[k];
+            }
+        }
+        if (Wnode->next < 0) {
+            break;
+        }
+        index++;
+        Wnode = D_80149B80 + Wnode->next;
+    }
+}
+
+void physics_float_calc(s32 unused, f32 *pos, s32 show)
+{
+    s32 dlindex;
+    s32 windex;
+    f32 dist;
+    s32 best;
+    s32 parts;
+    s32 i;
+    u32 mask;
+    s32 w;
+    u32 *ptr;
+    u32 far[4];
+    s32 draw = pc_draw_distance();
+
+    dlindex = 0;
+    windex = 0;
+    best = -1;
+    if (!D_80149B80) {
+        return;
+    }
+    WorldDistance(D_80149B80, pos, &best, &dist, &windex, &dlindex);
+    if (best < 0) {
+        ptr = D_8011E75C;
+    } else {
+        ptr = VisRow(D_8014978C, best);
+    }
+    if (draw == PC_DRAW_MAX) {
+        show = 1;
+    } else if (draw == PC_DRAW_FAR && best >= 0 && ptr) {
+        for (i = 0; i < 4; i++) {
+            far[i] = ptr[i];
+        }
+        VisReach(pos, PC_VIS_FAR, far);
+        ptr = far;
+    }
+    parts = D_8011E748[D_8014978C];
+    pc_scene_count(PC_SCENE_PARTS, parts);
+    mask = 1;
+    w = 0;
+    for (i = 0; i < parts; i++) {
+        if (i && !(i & 31)) {
+            w++;
+            mask = 1;
+        }
+        if (((ptr && (mask & ptr[w])) || show) && !D_8014061A) {
+            D_8012E700[D_80149D90 + i].flags &= ~0x80000000;
+            PC_SCENE(WORLD)
+        } else {
+            D_8012E700[D_80149D90 + i].flags |= 0x80000000;
+        }
+        mask <<= 1;
+    }
+}
+#else
 void physics_float_calc(s32 unused, f32 *pos, s32 show)
 {
     s32 dlindex;
@@ -160,3 +281,4 @@ void physics_float_calc(s32 unused, f32 *pos, s32 show)
     }
      if (parts) {} 
 }
+#endif

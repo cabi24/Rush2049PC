@@ -7,9 +7,10 @@
  * and drawn again after each change (pc_gfx_redraw).
  *
  * - Changes apply at once where the part allows it: the renderer's widescreen, scale and textures (from the game's
- *   next frame) and frame rate, the window's size, fullscreen, its mode and resolution, and vsync, the volume, each
- *   player's accessory (a hot swap: port/ultra/si.c), and everything port/input reads (bindings, hotkeys, sticks,
- *   rumble). The graphics API and the audio backend apply
+ *   next frame) and frame rate, the draw distance, detail and fog (from the game's next frame; detail's split-screen
+ *   models from the next track: docs/port/DETAIL.md), the window's size, fullscreen, its mode and resolution, and
+ *   vsync, the volume, each player's accessory (a hot swap: port/ultra/si.c), and everything port/input reads
+ *   (bindings, hotkeys, sticks, rumble). The graphics API and the audio backend apply
  *   after a restart; they are marked so. The cars a race holds (game.cars) apply from the next race: the game latches
  *   them where a race's roster is filled (port/config/race_cars.c).
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
@@ -93,6 +94,12 @@ static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"edges", "centered", NULL};
 static const char *const hud_labels[] = {"screen edges", "centered (4:3)", NULL};
+/* video.draw_distance, detail and fog (docs/port/DETAIL.md) */
+static const char *const draw_choices[] = {"original", "far", "max", NULL};
+static const char *const draw_labels[] = {"original (N64)", "far (2x)", "max (all)", NULL};
+static const char *const detail_choices[] = {"original", "high", NULL};
+static const char *const fog_choices[] = {"original", "far", "off", NULL};
+static const char *const fog_labels[] = {"original", "far (2x)", "off", NULL};
 #ifdef _WIN32
 static const char *const backend_choices[] = {"auto", "sdl", "null", "wav", NULL};   /* no ALSA on Windows */
 #else
@@ -131,7 +138,7 @@ static void build(void)
     memset(pages, 0, sizeof pages);
     pages[P_MAIN].title = "Settings";
     it = add(P_MAIN, I_PAGE, "Video", NULL, NULL);
-    it->page = P_VIDEO, it->desc = "Scale, widescreen, fullscreen, frame rate";
+    it->page = P_VIDEO, it->desc = "Scale, widescreen, fullscreen, draw distance";
     it = add(P_MAIN, I_PAGE, "Audio", NULL, NULL);
     it->page = P_AUDIO, it->desc = "The volume and the sound output";
     it = add(P_MAIN, I_PAGE, "Keyboard", NULL, NULL);
@@ -176,6 +183,13 @@ static void build(void)
     it = add(P_VIDEO, I_CHOICE, "Race HUD (widescreen)", "video", "hud");   /* GFX.md: at the screen's edges */
     it->choices = hud_choices;
     it->labels = hud_labels;
+    it = add(P_VIDEO, I_CHOICE, "Draw distance", "video", "draw_distance");   /* DETAIL.md */
+    it->choices = draw_choices;
+    it->labels = draw_labels;
+    add(P_VIDEO, I_CHOICE, "Detail", "video", "detail")->choices = detail_choices;
+    it = add(P_VIDEO, I_CHOICE, "Fog", "video", "fog");
+    it->choices = fog_choices;
+    it->labels = fog_labels;
 
     pages[P_AUDIO].title = "Audio";
     it = add(P_AUDIO, I_NUMBER, "Volume", "audio", "volume");
@@ -232,6 +246,9 @@ static void build(void)
         {"video", "api", "OpenGL or OpenGL ES; applies after a restart"},
         {"video", "textures", "Original, upscaled 2x or 4x, or a texture pack"},
         {"video", "hud", "Widescreen races: the HUD at the screen's edges"},
+        {"video", "draw_distance", "How far the world, cars and scenery are drawn"},
+        {"video", "detail", "High: the most detailed models at any distance"},
+        {"video", "fog", "The game's fog, twice as far, or none"},
         {"audio", "volume", "The master volume"},
         {"audio", "backend", "The sound output; applies after a restart"},
         {"controller", "menu", "Opens this menu; + joins buttons held together"},
@@ -383,6 +400,11 @@ static void apply(const char *section, const char *key)
             pc_gfx_set_textures(s->textures);
         else if (!strcasecmp(key, "hud"))
             pc_gfx_set_hud(s->hud);
+        else if (!strcasecmp(key, "draw_distance") || !strcasecmp(key, "detail")) {   /* from the next frame */
+            pc_detail_set(s->draw_distance, s->detail);
+            pc_gfx_set_draw_distance(s->draw_distance);
+        } else if (!strcasecmp(key, "fog"))
+            pc_gfx_set_fog(s->fog);
         else if (!strcasecmp(key, "width") || !strcasecmp(key, "height"))
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))

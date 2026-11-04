@@ -106,3 +106,6 @@ uint8_t *test_rdram(void)
         munmap(p, PC_RDRAM_SIZE);
     return w;
 }
+
+/* video.detail (port/config/detail.c): SetupWaveModel's player count for its LOD markers, as the N64 has it. */
+int pc_detail_players(int players) { return players; }
