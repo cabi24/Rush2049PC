@@ -769,6 +769,25 @@ static void test_choice(void)
     CHECK(count_files(edir, ".r49ghost") == 1, "one file in export/");
     CHECK(pc_store_export_ghost(0, "ALICE.r49save", msg, sizeof msg) == -1, "a profile isn't exported: %s", msg);
     pc_store_close(0);
+    /* pins.txt and pak.txt with Windows' line ends (an editor's): read the same */
+    char pp[1200];
+    path_in(pp, sizeof pp, dir, "pins.txt");
+    static const char pins_crlf[] = "g05.r49ghost\r\ng06.r49ghost\r\n", pak_crlf[] = "0\tALICE.r49save\r\n1\tBOB.r49save\r\n";
+    write_bytes(pp, pins_crlf, strlen(pins_crlf));
+    path_in(pp, sizeof pp, dir, "pak.txt");
+    write_bytes(pp, pak_crlf, strlen(pak_crlf));
+    CHECK(pc_store_open(0, dir, NULL, "v", msg, sizeof msg) == 0, "reopened");
+    n = pc_store_list(0, list, 64);
+    int pins = 0;
+    for (int i = 0; i < n; i++)
+        pins += list[i].pinned && (!strcmp(list[i].file, "g05.r49ghost") || !strcmp(list[i].file, "g06.r49ghost"));
+    CHECK(pins == 2, "CRLF lists: both pins read (%d)", pins);
+    CHECK(pc_store_build(0, g_img, why, sizeof why) == 0, "built");
+    in[0].data = NULL;
+    k = image_notes(g_img, in);
+    CHECK(k > 2 && in[0].slot == 0 && in[1].slot == 1, "CRLF pak.txt: the profiles at their slots");
+    free_notes(in, k);
+    pc_store_close(0);
     for (int i = 0; i < 30; i++)
         pc_note_free(&gh[i]);
     pc_note_free(&pr[0]), pc_note_free(&pr[1]);
