@@ -736,6 +736,7 @@ target_include_directories(test_assets_pools PRIVATE port/ultra)
 # game.frame_rate's follow camera (docs/port/FRAMERATE.md 7): the game's frame steps, as the game has them.
 target_sources(test_assets_fps PRIVATE port/config/game_fps.c)
 target_include_directories(test_assets_fps PRIVATE port/config)
+target_compile_definitions(test_assets_fps PRIVATE PC_TEST_GAME_FPS)   # tests/support.c leaves them to it
 # Its N64 expression must round as the game's does (-ffp-contract=off, game_flags): a compiler that targets FMA by
 # default (x86-64-v3, Rocky 10's) fused the test's own and missed it by a bit in an optimized build.
 target_compile_options(test_assets_fps PRIVATE -ffp-contract=off)
