@@ -15,6 +15,8 @@ builds. Two settings:
 - --status: the log gives them every --status seconds of game time too.
 - --shots: the screenshots the path takes (its --screenshot) join the trace, each by its bytes (docs/port/DETAIL.md
   7: the settings at original draw the N64's picture, pixel for pixel).
+- --audio: each run writes everything it plays to a WAV (--dump-audio), which joins the trace by its bytes (on the
+  virtual clock the sound is the same every run: docs/port/AUDIO.md 10 compares the voices settings so).
 
 A run's trace is the loader's summary line (without the size of its symbol table, which is the build's data.c: a
 decoupled own-storage symbol leaves it, docs/port/DECOUPLE.md 4), its state changes (the state, the retrace it
@@ -56,6 +58,7 @@ _STATE = re.compile(r"^rush2049pc: game state (0x[0-9A-F]{8}) \(was 0x[0-9A-F]{8
 EXACT = True   # RUSH_STATE_EXACT: positions and speeds as exact floats (--coarse: whole feet)
 SAME = False   # --same: only "same" passes
 SHOTS = False  # --shots: the run's screenshots (a path's --screenshot) are part of its trace, by their bytes
+AUDIO = False  # --audio: the run's sound (--dump-audio) is part of its trace, by its bytes
 _STATUS = re.compile(r"^rush2049pc: (status|state reached:|time reached:) t=\S+ vi=(\d+) gfx_tasks=\d+ "
                      r"audio_tasks=\d+(?: state=(0x[0-9A-F]{8}))?(?:: (.*))?$")
 
@@ -110,13 +113,18 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
         env["RUSH_STATE_EXACT"] = "1"
     extra = [w for s in B_SETS for w in ("--set", s)] if second else []
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve())] + ([] if retail else ["--no-rom-check"]) + \
-        ["--headless", "--no-config", "--audio", "null", "--no-pak", "--fast"] + cmd_tail + extra
+        ["--headless", "--no-config", "--audio", "null", "--no-pak", "--fast"] + cmd_tail + extra + \
+        (["--dump-audio", "run.wav"] if AUDIO else [])
     with tempfile.TemporaryDirectory(dir=logs) as cwd:   # screenshots and paks start afresh, and don't collide
         t0 = time.time()
         p = subprocess.run(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
         took = time.time() - t0
         shots = tuple(("shot", None, png.name, hashlib.sha256(png.read_bytes()).hexdigest())
                       for png in sorted(Path(cwd).glob("*.png"))) if SHOTS else ()
+        if AUDIO:
+            wav = Path(cwd) / "run.wav"
+            shots += (("audio", None, f"{wav.stat().st_size if wav.exists() else 0} bytes",
+                       hashlib.sha256(wav.read_bytes()).hexdigest() if wav.exists() else "none"),)
     text = p.stdout.decode(errors="replace")
     (Path(logs) / f"{tag}.log").write_text(text, encoding="utf-8")
     return trace(text) + shots, p.returncode, took
@@ -193,6 +201,8 @@ def main():
     ap.add_argument("--same", action="store_true", help="a path whose runs aren't all the same fails")
     ap.add_argument("--shots", action="store_true",
                     help="compare the screenshots a path takes (its --screenshot) too, byte for byte")
+    ap.add_argument("--audio", action="store_true",
+                    help="compare what each run plays (--dump-audio) too, byte for byte")
     ap.add_argument("-j", "--jobs", type=int, default=1, help="runs at once (each a process on the virtual clock)")
     ap.add_argument("--set-b", action="append", default=[], metavar="SECTION.KEY=VALUE",
                     help="a setting for the second executable's runs (--set)")
@@ -202,8 +212,8 @@ def main():
     a = ap.parse_args()
     if len(a.exe) != 2:
         ap.error("give --exe twice")
-    global EXACT, SAME, SHOTS
-    EXACT, SAME, SHOTS = not a.coarse, a.same, a.shots
+    global EXACT, SAME, SHOTS, AUDIO
+    EXACT, SAME, SHOTS, AUDIO = not a.coarse, a.same, a.shots, a.audio
     B_SETS.extend(a.set_b)
     for e in a.env_b:
         if "=" not in e:

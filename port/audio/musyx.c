@@ -809,16 +809,13 @@ static void capture_inputs(const void *sfds, size_t count, int form)
     }
     if (!cap.f || !sfds || !count || count > 64)
         return;
-    if (sfd_voices != MX_VOICES) {   /* the microcode renders 32 slots: an SFD of more has no N64 image */
-        static int said;
-        if (!said++)
-            fprintf(stderr, "audio: capture: SFDs of %u voices (audio.voices) have no N64 form; not captured\n",
-                    sfd_voices);
-        return;
-    }
+    /* SFDs of more than 32 voices (audio.voices) go in the N64 form of that many records (MX_SFD_SIZE_N): the
+     * microcode can't replay them, but a summary of the voices can read them (tools/port/capture_summary.py); the
+     * SFD array's size over the count gives the records an SFD holds. */
+    unsigned nv = sfd_voices;
     const uint8_t *p = sfds;
-    size_t stride = pc_audio_sfd_size(MX_VOICES, form);
-    uint8_t *img = calloc(count, MX_SFD_SIZE);
+    size_t stride = pc_audio_sfd_size(nv, form), isz = MX_SFD_SIZE_N(nv);
+    uint8_t *img = calloc(count, isz);
     if (!img)
         return;
     cap.len = 0;
@@ -827,8 +824,8 @@ static void capture_inputs(const void *sfds, size_t count, int form)
     cap.next = CAP_ARENA;
     for (size_t n = 0; n < count; n++) {
         Sfd s;
-        uint8_t *o = img + n * MX_SFD_SIZE;
-        read_sfd(&s, p + n * stride, form, MX_VOICES);
+        uint8_t *o = img + n * isz;
+        read_sfd(&s, p + n * stride, form, nv);
         be16(o + MX_SFD_COUNT, sfd_count_field(p + n * stride, form));
         be16(o + MX_SFD_DELAY_INDEX, s.delay_index);
         be32(o + MX_SFD_RELEASE_MASK, s.mask);
@@ -836,8 +833,10 @@ static void capture_inputs(const void *sfds, size_t count, int form)
         be32(o + MX_SFD_DELAY, 0);   /* the game never sets the delay effect (docs/port/AUDIO.md) */
         if (s.delay)
             fprintf(stderr, "audio: capture: an SFD has a delay effect; not captured\n");
+        for (unsigned w = 0; w < MX_MASK_WORDS(nv); w++)
+            be32(o + MX_SFD_MASK_AT(nv) + 4 * w, ld32(s.mask_ext + 4 * w, s.be));
         int empty = first_size(&s, form) == 0;
-        for (int i = 0; i < MX_VOICES; i++) {
+        for (int i = 0; i < (int)nv; i++) {
             Voice v;
             uint8_t *r = o + MX_SFD_VOICES + i * MX_V_SIZE;
             if (empty) {
@@ -890,7 +889,7 @@ static void capture_inputs(const void *sfds, size_t count, int form)
     /* Flag 1: the game set the state block up again (a new block, or the bytes changed since the last task); the
      * replay then starts both states from zero. Flag 2: and it isn't zero. */
     Sfd s0;
-    read_sfd(&s0, p, form, MX_VOICES);
+    read_sfd(&s0, p, form, nv);
     uint32_t flags = 0;
     if (s0.state && (s0.state != cap.state || memcmp(s0.state, cap.state_after, MX_STATE_SIZE))) {
         flags = 1;
@@ -902,12 +901,12 @@ static void capture_inputs(const void *sfds, size_t count, int form)
     /* the header and the SFD array go first; the regions built above follow */
     uint8_t h[28];
     uint32_t vals[7] = {0x4B534154u, (uint32_t)count, cap.nregions + 1, cap.nouts, flags, CAP_SFD,
-                        (uint32_t)(count * MX_SFD_SIZE)};
+                        (uint32_t)(count * isz)};
     for (int i = 0; i < 7; i++)
         for (int b = 0; b < 4; b++)
             h[4 * i + b] = (uint8_t)(vals[i] >> (8 * b));
     fwrite(h, 1, sizeof h, cap.f);
-    fwrite(img, 1, count * MX_SFD_SIZE, cap.f);
+    fwrite(img, 1, count * isz, cap.f);
     fwrite(cap.buf, 1, cap.len, cap.f);
     free(img);
 }

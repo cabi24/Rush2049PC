@@ -16,7 +16,8 @@ voices: one run per size. Passes if every size reached the path's state with the
 the setting changes only the sound); no subframe at original mixed more than 32 voices; and each size above the one
 before it mixed more voices (the most in a subframe, and the mean) with fewer of its starts refused (the tags the
 sound manager held back for its budget a pass, the starts MusyX refused, the voices it stole, the effects it didn't
-start).
+start, the starts that found no entry), unless the one before refused nothing: then it had all the voices it asked
+for, and the next mixes at least as many.
 
 engines: one run at --voices. Passes if no line has more drones' engines on than the mode allows (nearest N: N for
 each player; all: every drone), and some line has as many as the mode asks for (or, for nearest N, at least one);
@@ -38,7 +39,8 @@ import synth_paths  # noqa: E402
 
 _END = re.compile(r"voices at the end: mixed ([\d.]+) voices a subframe of (\d+) \((\d+) subframes\); musyx refused "
                   r"(\d+), stole (\d+); effects refused (\d+); over budget ([\d.]+) a pass \((\d+) passes\); no "
-                  r"emitter (\d+), no message (\d+); .*messages most (\d+); most voices a subframe (\d+)")
+                  r"emitter (\d+), no message (\d+), no entry (\d+); .*messages most (\d+); most voices a subframe (\d+)"
+                  r"(?:; most drones' engine layers playing (\d+))?")
 _LINE = re.compile(r"^rush2049pc: voices vi=(\d+): .*; engines on(.*)$")
 _STATE = re.compile(r"^rush2049pc: (game state .* at vi \d+|state reached:).*$")
 
@@ -52,7 +54,8 @@ def counts(text):
     g = m.groups()
     return {"mean": float(g[0]), "slots": int(g[1]), "subframes": int(g[2]), "refused": int(g[3]),
             "stolen": int(g[4]), "fx_refused": int(g[5]), "over_budget": float(g[6]), "passes": int(g[7]),
-            "no_emitter": int(g[8]), "no_message": int(g[9]), "msg_most": int(g[10]), "most": int(g[11])}
+            "no_emitter": int(g[8]), "no_message": int(g[9]), "no_entry": int(g[10]), "msg_most": int(g[11]),
+            "most": int(g[12]), "engines_most": int(g[13] or 0)}
 
 
 def trace(text):
@@ -90,8 +93,9 @@ def run(exe, rom, path, logs, tag, sets, every):
 def show(name, c):
     return (f"{name}: {c['mean']:.2f} voices a subframe (most {c['most']} of {c['slots']}); over budget "
             f"{c['over_budget']:.2f} a pass, musyx refused {c['refused']}, stole {c['stolen']}, effects refused "
-            f"{c['fx_refused']}; no emitter {c['no_emitter']}, no message {c['no_message']}, messages most "
-            f"{c['msg_most']}")
+            f"{c['fx_refused']}, no entry {c['no_entry']}; no emitter {c['no_emitter']}, no message "
+            f"{c['no_message']}, messages most "
+            f"{c['msg_most']}; the most drones' engine layers playing at once {c['engines_most']}")
 
 
 def check_voices(args):
@@ -117,8 +121,13 @@ def check_voices(args):
             print(f"voices_check: {args.path}: FAIL: {c['most']} voices in a subframe at original")
             ok = False
     for (a, ca), (b, cb) in zip(results, results[1:]):
-        refused = lambda c: c["over_budget"] * c["passes"] + c["refused"] + c["stolen"] + c["fx_refused"]
-        more = cb["most"] > ca["most"] and cb["mean"] > ca["mean"]
+        refused = lambda c: (c["over_budget"] * c["passes"] + c["refused"] + c["stolen"] + c["fx_refused"] +
+                             c["no_entry"])
+        # A size that refused nothing had every voice it asked for: the next one can only mix as many
+        if refused(ca) == 0:
+            more = cb["most"] >= ca["most"]
+        else:
+            more = cb["most"] > ca["most"] and cb["mean"] > ca["mean"]
         fewer = refused(cb) < refused(ca) or refused(ca) == 0 == refused(cb)
         if not more:
             print(f"voices_check: {args.path}: FAIL: {b} mixed no more voices than {a}")

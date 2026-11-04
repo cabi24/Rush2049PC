@@ -107,7 +107,7 @@ void engine_sound_sync(void)
     while (source) {
         next=source->next;
         effect=func_80091BA8(source->handle);
-        kind=effect->kind;
+        kind=effect->kind; PC_ONLY(pc_engine_state(source->handle, kind);)
         if (kind==2 && !effect->persistent && !effect->delay &&
             !entity_state_check(effect->voice)) {
             audio_effect_setup(effect);

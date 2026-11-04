@@ -510,17 +510,21 @@ def musyx_sound_project(sfx_groups):
 
 def musyx_sound_pool():
     """The pool with the two macros (8-byte steps, two u32 words; MUSYX_DATA.md 3.2, lib_22300.c): the loop starts
-    its sample and waits until it is keyed off (WAIT 0xFFFF, the key-off bit), the one-shot starts its sample and
-    waits until the sample has played (the sample-end bit); each then ends, which frees the voice."""
+    its sample, waits until it is keyed off (WAITMS 0xFFFF, the key-off bit) and stops its sample (STOPSAMPLE: the
+    driver's voice fades out; END alone would leave a looping sample playing on a voice the library has freed); the
+    one-shot starts its sample and waits until the sample has played (the sample-end bit); each then ends, which
+    frees the voice."""
     b = Buf()
     offs = [b.u32(0) for _ in range(4)]
     b.at32(offs[0], len(b))
-    for mid, sample, wait in ((LOOP_MACRO, LOOP_SAMPLE, 1 << 8), (SHOT_MACRO, SHOT_SAMPLE, 1 << 24)):
-        b.u32(8 + 3 * 8)
+    for mid, sample, wait, stop in ((LOOP_MACRO, LOOP_SAMPLE, 1 << 8, True), (SHOT_MACRO, SHOT_SAMPLE, 1 << 24, False)):
+        b.u32(8 + (4 if stop else 3) * 8)
         b.u16(mid)
         b.u16(0)
         b.u32(sample << 8 | 0x10), b.u32(0)          # STARTSAMPLE sample, at 0, mode 0
-        b.u32(wait | 0x07), b.u32(0xFFFF << 16)      # WAIT forever: until key-off, or until the sample ends
+        b.u32(wait | 0x07), b.u32(0xFFFF << 16)      # WAITMS forever: until key-off, or until the sample ends
+        if stop:
+            b.u32(0x11), b.u32(0)                    # STOPSAMPLE
         b.u32(0), b.u32(0)                           # END
     b.u32(0xFFFFFFFF)
     for k in range(1, 4):

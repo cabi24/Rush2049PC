@@ -103,6 +103,7 @@ int pc_engines_choosing(void) { return 0; }
 void pc_engines_note(int handle, int listener, float distance) { (void)handle, (void)listener, (void)distance; }
 void pc_engines_choose(int listeners) { (void)listeners; }
 float pc_engine_gain(int handle, float gain) { (void)handle; return gain; }
+void pc_engine_state(int handle, int state) { (void)handle, (void)state; }
 void pc_snd_walk_begin(void) {}
 int pc_snd_over_budget(unsigned int tag, int rank, float budget) { (void)tag; return (float)rank >= budget; }
 #endif

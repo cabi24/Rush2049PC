@@ -618,6 +618,7 @@ enum {
     PC_SND_OVER_BUDGET,     /* a tag the priority pass held back or stopped for its budget (_UpdateFx) */
     PC_SND_NO_EMITTER,      /* a positional start that found no emitter (camera_target_track) */
     PC_SND_NO_MESSAGE,      /* a start or change that found the message pool empty (func_80091B00) */
+    PC_SND_NO_ENTRY,        /* an effect start that found no free entry (AudioSfxInit's, audio_state_save) */
     PC_SND_PASSES,          /* the priority passes (_ProcessPriorities): OVER_BUDGET counts tags a pass */
     PC_SND_COUNTERS
 };
@@ -633,6 +634,7 @@ int pc_engines_choosing(void);
 void pc_engines_note(int handle, int listener, float distance);
 void pc_engines_choose(int listeners);
 float pc_engine_gain(int handle, float gain);
+void pc_engine_state(int handle, int state);   /* the emitter pass: an emitter's fx tag's state (2: playing) */
 void pc_snd_walk_begin(void);
 int pc_snd_over_budget(unsigned int tag, int rank, float budget);
 

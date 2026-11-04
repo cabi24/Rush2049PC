@@ -87,6 +87,10 @@ static unsigned char s_chosen[LISTENERS][PC_MAX_LINKS];   /* the last pass's cho
 static int s_fade[PC_MAX_LINKS];                /* 0 silent .. FADE_STEPS full */
 static unsigned char s_seen[PC_MAX_LINKS];      /* the last pass: the car had an engine emitter */
 static int s_noted;
+/* Every pass, whatever the mode: the drones' engine layers that have an emitter, and those whose tag plays (state 2):
+ * how many engines are heard (--log-voices). */
+static int s_layers, s_playing, s_layers_last, s_playing_last, s_playing_most;
+static unsigned s_playing_cars, s_playing_cars_last;
 
 /* The car whose engine layer (0 or 1) this emitter's handle is: a positional engine is a drone's (a human's two are
  * not emitters, high_scores_display). -1 if none. */
@@ -99,6 +103,32 @@ static int engine_slot(int handle)
                                     pc_engine_sounds[i].rec[1].handle == handle))
             return i;
     return -1;
+}
+
+void pc_engine_state(int handle, int state)
+{
+    int i = engine_slot(handle);
+    if (i < 0)
+        return;
+    s_layers++;
+    if (state == 2) {
+        s_playing++;
+        s_playing_cars |= 1u << i;
+    }
+}
+
+void pc_engines_pass_end(void)   /* the priority pass starts after the emitter pass: its counts are complete */
+{
+    s_layers_last = s_layers, s_playing_last = s_playing, s_playing_cars_last = s_playing_cars;
+    if (s_playing > s_playing_most)
+        s_playing_most = s_playing;
+    s_layers = s_playing = 0;
+    s_playing_cars = 0;
+}
+
+void pc_engines_heard(int *layers, int *playing, unsigned *cars, int *most)
+{
+    *layers = s_layers_last, *playing = s_playing_last, *cars = s_playing_cars_last, *most = s_playing_most;
 }
 
 int pc_engines_choosing(void)
@@ -196,6 +226,7 @@ static int s_exempt;   /* this pass: drone engines walked so far that `all` keep
 
 void pc_snd_walk_begin(void)
 {
+    pc_engines_pass_end();
     s_exempt = 0;
     pc_snd_count(PC_SND_PASSES);
 }

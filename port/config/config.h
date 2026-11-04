@@ -150,6 +150,9 @@ int pc_settings_engines(const PcSettings *s);   /* PC_ENGINES_*: 0 original, -1 
 void pc_engines_set(int mode);
 void pc_snd_counters(unsigned long long out[], int *msg_most);
 unsigned pc_engines_on(void);
+/* The drones' engine layers that had an emitter at the last emitter pass, those whose tags played, the drones of
+ * those (a bit a car), and the most layers that played at one pass: any mode, original too. */
+void pc_engines_heard(int *layers, int *playing, unsigned *cars, int *most);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);

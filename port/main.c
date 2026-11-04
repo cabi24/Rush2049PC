@@ -290,8 +290,8 @@ static void physics_info(char *out, size_t size)
 /* --log-voices N (docs/port/AUDIO.md 10): every N retraces, read as the state log is, a line of the sound's voices
  * since the line before: the mixer's subframes and the voices each mixed (port/audio), the starts MusyX refused and
  * the voices it took from a playing sound, the effects the sound manager started that MusyX didn't, the tags its
- * priority passes held back for their budget (a pass), the positional starts that found no emitter and the commands
- * that found no message (PC_SND_*, the game's sound code); the emitters and fx tags in use now, the message pool's
+ * priority passes held back for their budget (a pass), the positional starts that found no emitter, the commands
+ * that found no message and the effect starts that found no entry (PC_SND_*, the game's sound code); the emitters and fx tags in use now, the message pool's
  * high-water mark, and which drones' engines played (audio.engines). At the end, the same over the whole run, with the
  * mixer's spread. Off by default, and only these lines: the traces are the same with it. */
 typedef struct { unsigned char f[4]; uint32_t count; void *head, *tail; } SndList;
@@ -309,11 +309,12 @@ static int voices_line(char *out, size_t size, const PcMixerStats *m, const PcMi
     for (int i = 0; i < PC_SND_COUNTERS; i++)
         d[i] = c[i] - c0[i];
     return snprintf(out, size, "mixed %.2f voices a subframe of %u (%llu subframes); musyx refused %llu, stole %llu; "
-                    "effects refused %llu; over budget %.2f a pass (%llu passes); no emitter %llu, no message %llu; "
+                    "effects refused %llu; over budget %.2f a pass (%llu passes); no emitter %llu, no message %llu, no entry "
+                    "%llu; "
                     "emitters %u of %d, fx tags %d of %d", sub ? (double)(m->voices - m0->voices) / (double)sub : 0.0,
                     m->slots, sub, d[PC_SND_MX_REFUSED], d[PC_SND_MX_STOLEN], d[PC_SND_FX_REFUSED],
                     d[PC_SND_PASSES] ? (double)d[PC_SND_OVER_BUDGET] / (double)d[PC_SND_PASSES] : 0.0,
-                    d[PC_SND_PASSES], d[PC_SND_NO_EMITTER], d[PC_SND_NO_MESSAGE],
+                    d[PC_SND_PASSES], d[PC_SND_NO_EMITTER], d[PC_SND_NO_MESSAGE], d[PC_SND_NO_ENTRY],
                     (unsigned)*(volatile uint32_t *)&D_801461E8.count, (int)*(volatile int32_t *)&D_8011026C,
                     (int)*(volatile int32_t *)&D_80110264 - (int)*(volatile uint32_t *)&D_80143FF8.count,
                     (int)*(volatile int32_t *)&D_80110264);
@@ -327,9 +328,17 @@ static void voices_info(char *out, size_t size)
     pc_audio_mixer_stats(&m);
     pc_snd_counters(c, &msg_most);
     int len = voices_line(out, size, &m, &g_voices_mix, c, g_voices_count);
-    unsigned on = pc_engines_on();
+    unsigned on = pc_engines_on(), heard;
+    int layers, playing, most;
+    pc_engines_heard(&layers, &playing, &heard, &most);
     if (len > 0 && (size_t)len < size)
-        len += snprintf(out + len, size - (size_t)len, "; messages most %d; engines on", msg_most);
+        len += snprintf(out + len, size - (size_t)len, "; messages most %d; drones' engine layers playing %d of %d, "
+                        "drones", msg_most, playing, layers);
+    for (int i = 0; i < PC_MAX_LINKS && len > 0 && (size_t)len < size; i++)
+        if (heard >> i & 1)
+            len += snprintf(out + len, size - (size_t)len, " %d", i);
+    if (len > 0 && (size_t)len < size)
+        len += snprintf(out + len, size - (size_t)len, "; engines on");
     for (int i = 0; i < PC_MAX_LINKS && len > 0 && (size_t)len < size; i++)
         if (on >> i & 1)
             len += snprintf(out + len, size - (size_t)len, " %d", i);
@@ -350,8 +359,13 @@ static void voices_end(char *out, size_t size)
     pc_snd_counters(c, &msg_most);
     len = snprintf(out, size, "voices at the end: ");
     len += voices_line(out + len, size - (size_t)len, &m, &zero, c, c0);
-    len += snprintf(out + len, size - (size_t)len, "; messages most %d; most voices a subframe %u; subframes by "
-                    "voices", msg_most, m.voices_most);
+    {
+        int layers, playing, most;
+        unsigned heard;
+        pc_engines_heard(&layers, &playing, &heard, &most);
+        len += snprintf(out + len, size - (size_t)len, "; messages most %d; most voices a subframe %u; most drones' "
+                        "engine layers playing %d; subframes by voices", msg_most, m.voices_most, most);
+    }
     for (unsigned v = 0; v < sizeof m.voices_hist / sizeof *m.voices_hist && len > 0 && (size_t)len < size; v++)
         if (m.voices_hist[v])
             len += snprintf(out + len, size - (size_t)len, " %u:%llu", v, (unsigned long long)m.voices_hist[v]);
