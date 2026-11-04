@@ -18,7 +18,9 @@ model thread, apart from the frames (FRAMERATE.md 1), so at the same model tick 
 
 The model tick counts the race's retraces from its start (negative in the countdown), so a race that starts at
 another retrace still compares tick for tick; inputs the script changes at a fixed time then reach the cars at
-another tick, which is reported as where the physics first differs, with the input's change at that tick. A path
+another tick. Where the physics first differs at a tick whose retraces in the two runs have one of the script's
+input changes between them (a press or a release, at its time in seconds × 60), that change is named, and the
+physics is reported the same up to it: the difference is the script's, not the game's (FRAMERATE.md 7.5). A path
 compares the physics only from the first tick both runs reach to the last; a run with no race compares its states.
 
 The game thread steers some cars once a frame (docs/port/FRAMERATE.md 7): DoDrones the drones' catch-up, the
@@ -46,6 +48,20 @@ _STATE = re.compile(r"^rush2049pc: game state (0x[0-9A-F]{8}) \(was 0x[0-9A-F]{8
                     r"tasks")
 _PHYS = re.compile(r"^rush2049pc: physics vi=(\d+): tick (-?\d+) time (\S+) cars (\d+)(.*)$")
 _END = re.compile(r"^rush2049pc: (?:time reached:|state reached:) t=\S+ vi=(\d+) gfx_tasks=(\d+)")
+_PRESS = re.compile(r"^\s*(\d+(?:\.\d*)?)\s+([A-Z]+)(@\d)?(?:\s+(\d+(?:\.\d*)?))?\s*$")
+
+
+def press_changes(script):
+    """The script's input changes (port/input/input.c's format, DUR 0.2 by default): (retrace, what), a press at its
+    time and a release at the time plus its duration, at 60 retraces a second."""
+    out = []
+    for line in Path(script).read_text(errors="replace").splitlines():
+        m = _PRESS.match(line.split("#", 1)[0])
+        if not m or m.group(2) == "MENU":
+            continue
+        t, dur, b = float(m.group(1)), float(m.group(4)) if m.group(4) else 0.2, m.group(2) + (m.group(3) or "")
+        out += [(t * 60, f"{b} pressed at {t:g} s"), ((t + dur) * 60, f"{b} released at {t + dur:g} s")]
+    return out
 
 
 def parse(text):
@@ -82,9 +98,10 @@ def run(exe, rom, script, seconds, extra, logs, tag):
     return r.returncode, log.read_text(errors="replace")
 
 
-def compare(name, a, b, max_shift, physics=True):
+def compare(name, a, b, max_shift, physics=True, changes=()):
     """a: original's (rc, text), b: 60's. Returns (ok, lines). With physics False a difference in the physics is
-    reported, not a failure (a race the game thread steers: drones, resurrections, shots)."""
+    reported, not a failure (a race the game thread steers: drones, resurrections, shots). changes: the script's
+    input changes (press_changes)."""
     out, ok = [], True
     (rca, ta), (rcb, tb) = a, b
     sa, pa, ea = parse(ta)
@@ -123,11 +140,22 @@ def compare(name, a, b, max_shift, physics=True):
         out.append(f"physics: the same at every one of {len(racing)} model ticks ({racing[0]} to {racing[-1]}), "
                    f"{pa[racing[0]][2]} cars; tick {racing[0]} at retrace {vi_a} at original, {vi_b} at 60")
     else:
-        ok = ok and not physics
         da, db = pa[first_diff], pb[first_diff]
-        out.append(f"physics {'DIFFER' if physics else 'differ (not required to agree)'} from model tick "
-                   f"{first_diff} (retrace {da[0]} at original, {db[0]} at 60), "
-                   f"{len([t for t in racing if t < first_diff])} ticks the same before it")
+        # an input of the script changes between this tick's retraces in the two runs: one run's car has it at this
+        # tick, the other's not yet (the retrace a tick is logged at is the one after its step: hence the margin)
+        lo, hi = min(da[0], db[0]) - 1, max(da[0], db[0])
+        why = [w for r, w in changes if lo <= r <= hi]
+        same = len([t for t in racing if t < first_diff])
+        if why:
+            out.append(f"physics: the same at every one of {same} model ticks ({racing[0]} to {first_diff - 1}), "
+                       f"{pa[racing[0]][2]} cars, up to the script's input change {', '.join(why)}: tick "
+                       f"{first_diff} is at retrace {da[0]} at original and {db[0]} at 60, one run's car has it "
+                       f"and the other's not yet (the script's difference, not the game's)")
+        else:
+            ok = ok and not physics
+            out.append(f"physics {'DIFFER' if physics else 'differ (not required to agree)'} from model tick "
+                       f"{first_diff} (retrace {da[0]} at original, {db[0]} at 60), {same} ticks the same before "
+                       f"it")
         out.append("  original: " + da[3][:300])
         out.append("  60:       " + db[3][:300])
     return ok, out
@@ -174,7 +202,9 @@ def main():
                        ex.submit(run, args.exe, args.rom, script, secs, extra + args.arg, args.logs, "60"))
         for n, _, _, _ in jobs:
             must = not args.physics or n in args.physics.split(",")
-            ok, lines = compare(n, futs[n][0].result(), futs[n][1].result(), args.max_shift, must)
+            script = next(sc for m, sc, _, _ in jobs if m == n)
+            ok, lines = compare(n, futs[n][0].result(), futs[n][1].result(), args.max_shift, must,
+                                press_changes(script))
             bad += not ok
             print(f"{'ok' if ok else 'FAIL'}  {n}")
             for l in lines:
