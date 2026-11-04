@@ -558,7 +558,9 @@ held and full lock left and right, from 0.2 s taps to 6 s locks, as a key steers
 Tried on the build host (x86-64, RHEL 10's GCC), as far as it goes without a Windows program: ctest's paths with
 `--exact` in a RelWithDebInfo and a Debug build, then `--from-logs` between the two folders: 59 of 59 logs the same
 (the 56 paths on the virtual clock, `steer` among them with 85 events, and ghost2, profile2 and delete2).
-`synth_compare.py --same --runs 2` of the same two builds: 57 of 57 paths the same. On CI's logs of ea4b82f
+`synth_compare.py --same --runs 2` of the same two builds: 57 of 57 paths the same; and of d0b8b5d's RelWithDebInfo
+build against this change's (the program's sources unchanged; 30 paths in a run that a timeout cut short, the other
+27 again): 57 of 57. On CI's logs of ea4b82f
 `--from-logs` passes the 10 live-input runs, Linux x86-64's against Windows's; with the last hex digit of one float
 in one Windows status line changed (the keyboard run's, at 30 s), 9 of 10 pass and it names that line; and it fails
 each path log of that run as coarse, since those were written before `--exact`.
