@@ -1,0 +1,22 @@
+# A second run on profile.press's pak (tools/port/synth_again.py, docs/port/SYNTH.md 2): SaveServer reads SYN's note
+# back at the boot and the player screen lists it on the pak, so the second item down is SYN (with no profile it
+# would be "create a player", whose name entry never reaches the mode screen). Picked, LoadPlayerData reads its data
+# from the pak. Then a single race with the track select's fog option set: the track's options are the profile's,
+# SavePlayerOption writes them into its data, and the race start flushes the note in place.
+# until: 0x400000:60
+# seconds: 60
+# args: --pak profile.mpk
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# visits: 0x40
+# check: tools/port/pak_notes.py profile.mpk --notes 1 --compare profile.first.pak --changed SYNTH049SYN.D --copy-to profile.second.pak
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race; the player screen, its first item (the default player)
+14 DOWN 0.1    # the pak row
+14.5 DOWN 0.1  # the pak's first profile: SYN
+15 A           # pick it: ready, LoadPlayerData, the mode screen
+18 A           # a single race
+20 DOWN 0.1    # the track select's options, from option 12 down to 14, the fog
+21 RIGHT 0.1   # the fog: 0 to 1, SavePlayerOption
+22 A           # track 0
+25 A           # the car select; the race start

@@ -712,35 +712,44 @@ def square_points(n):
     return pts
 
 
-def path_file():
+def path_file(lap=False):
     """A path file (ASSETS.md 3.6, port/assets/path.c): four checkpoints on the corners of the square, a
-    resurrection path of eight points round it, no alternative paths, and four drone paths of eight points."""
+    resurrection path of eight points round it, no alternative paths, and four drone paths of eight points.
+    With lap, the lap path's checkpoints and resurrection path instead (LAP_CHECKPOINTS, lap_res_points())."""
     b = Buf()
     corners = square_points(4)
     #     startTime loopPt finishPt startPt numPoints pad
-    for v in (90, 0, 0, 0, len(corners), 0):
+    for v in (90, 0, 0, 0, len(LAP_CHECKPOINTS) if lap else len(corners), 0):
         b.u16(v)
     for i in range(10):
         x, y, z = corners[i % len(corners)]
-        for v in (x, y, z, 0.0, 1.0, 0.0, 200.0):   # pos, normal, radius
-            b.f32(v)
-        b.u16(7 if i == 0 else 0)                  # flags: finish, start and loop at checkpoint 0
+        if lap:
+            (x, y, z), flags = LAP_CHECKPOINTS[i] if i < len(LAP_CHECKPOINTS) else ((0, 0, 0), 0)
+            for v in (x, y, z, 0.0, 1.0, 0.0):   # pos, normal
+                b.f32(v)
+            b.u32(100 * 100)                      # radius: squared, an integer (ASSETS.md 3.6)
+            b.u16(flags)
+        else:
+            for v in (x, y, z, 0.0, 1.0, 0.0, 200.0):   # pos, normal, radius
+                b.f32(v)
+            b.u16(7 if i == 0 else 0)                  # flags: finish, start and loop at checkpoint 0
         b.u16(30)
         b.u16(30)                                  # time[2]
         for k in range(20):
-            b.u16(0)                               # pathPts
+            b.u16(0)                               # pathPts (the game sets them)
         b.u16(0)
         b.f32(float(SQUARE))                       # distToNext
     assert len(b) == 0x32C
     res = square_points(8)
-    b.u16(len(res))
+    respath = lap_res_points() if lap else res
+    b.u16(len(respath))
     b.u16(0)
     b.u32(0)                                       # pts slot (the game fills it)
     b.u8(0)                                        # no alternative paths
     b.raw(bytes(3))
     b.u32(0)                                       # alt slot
-    b.u16(len(res))                                # resurrection point count
-    for p in res:
+    b.u16(len(respath))                            # resurrection point count
+    for p in respath:
         for v in p:
             b.u16(v)
     for _ in range(4):                             # drone paths
@@ -1242,7 +1251,135 @@ def front_end(c):
         c.file(w, empty_wad(), "front-end WAD: empty", model=True)
     # Paths (forward 158-176, backward 177-182): the track select's maps read 158-163, a race its track's.
     for w in range(158, 183):
+        if w == LAP_PATH_WAVE:
+            continue
         c.file(w, path_file(), f"path {w - 158}: a square loop")
+
+
+# The lap path (saves(), below): track 0's backward path, wave 177. Its checkpoints, (position, flags): 0 the loop's
+# start (flag 4) and 1 the finish line (flag 1) by the resurrection path's point 1, 2 the one before the finish (flag
+# 2) by its point 20; 150 ft to the side, so the car's own position never crosses one. Its resurrection path: 40
+# points 50 ft apart up the z axis.
+LAP_PATH_WAVE = 177
+LAP_CHECKPOINTS = [((150, 0, 50), 4), ((150, 0, 50), 1), ((150, 0, 1000), 2)]
+LAP_POINTS = 40
+
+
+def lap_res_points():
+    return [(0, 0, 50 * i) for i in range(LAP_POINTS)]
+
+
+# The cartridge's own names for its controller pak notes (saves(), below): none is the retail game's.
+SAVE_PREFIX = "SYNTH049"   # every note's first 8 characters: what SaveServer reads as the game's
+PROFILE_EXT = "D"          # a profile's (driver's) extension
+GHOST_EXT = "T"            # a ghost's (a recorded trail's)
+GHOST_FORMAT = "%s%X%s"    # a ghost's note name: the owner's note name, track + 1 (hex), its direction
+GHOST_BACKWARD, GHOST_FORWARD = "R", "N"   # the direction letters: reversed, normal
+DIGITS_FORMAT = "%0*u"     # CreatePlayer's collision digits: width 5, the attempt
+DEV_NAME = "SYN"           # the profile name that unlocks the cheat screen and the ghost save prompt
+# The name entry's 54 characters, six rows of nine (D_80117420): letters, digits, then the punctuation
+# CreatePlayer keeps in a note name (. : ! @ * - = '), then more the pak font has, then four it hasn't.
+NAME_GRID = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.:!@*-='\"#+,/?()&%"
+# The N64 controller pak's character set (libultra's note names, osPfsFindFile and the pak manager): code 0 the
+# end, 15 a space, 16-25 the digits, 26-51 A-Z, 52-65 the punctuation; 66 on are kana, which no name here uses.
+PAK_FONT = {0: 0, 15: ord(" ")}
+PAK_FONT.update({16 + i: ord("0") + i for i in range(10)})
+PAK_FONT.update({26 + i: ord("A") + i for i in range(26)})
+PAK_FONT.update({52 + i: ord(ch) for i, ch in enumerate("!\"#'*+,-./:=?@")})
+
+
+def saves(c):
+    """The controller pak's saves (docs/port/SYNTH.md 2): the names the save code gives and reads its notes by, the
+    pak font it converts them with, and what the player screen's name entry needs."""
+    def chars(sym, text, why, image="game"):
+        size = c.syms.data[sym][2]
+        if len(text) + 1 > size:
+            raise SystemExit(f"synth_rom: {why}: {text!r} doesn't fit {sym}'s {size} bytes")
+        for i, ch in enumerate(text.encode() + b"\0"):
+            c.set(image, sym, "u8", ch, f"{why}: {text!r}" if i == 0 else "(same)", index=i)
+
+    # The pak font (D_8011EAEC, u16[256]: code -> character): func_800A150C makes a note's name and extension from
+    # ASCII by looking each character up here (the first code whose entry is that character), func_800A1644 makes
+    # the ASCII back when the pak server reads the notes (PS_PakServer). Zero has no character at all, so every name
+    # became empty and every profile and ghost note would have had the same name.
+    for code, ch in sorted(PAK_FONT.items()):
+        if ch:
+            c.set("game", "D_8011EAEC", "u16", ch, "the pak font: the N64 controller pak's character set" if code == 15
+                  else "(same)", index=code)
+    # The note names (menu_save_options): CreatePlayer names a profile's note D_801211F8 (9 bytes copied: 8
+    # characters and the end) and up to six characters of the player's name, with D_801211E0 its extension, and
+    # looks for a note of that name and extension D_801211DC before it (D_80121204 then makes digits for an
+    # attempt's number). SaveServer reads the notes whose name starts with D_801211BC's 8 characters, profiles those
+    # whose extension's first character is D_801211C8's, ghosts the others. SaveGhost names a ghost's note
+    # D_801211E4 (the owner's note name, track + 1, D_801211EC backward or D_801211F0 forward), extension
+    # D_801211F4. Zero (empty names) gave every note the same name.
+    chars("D_801211F8", SAVE_PREFIX, "a profile note's name prefix (CreatePlayer)")
+    chars("D_801211BC", SAVE_PREFIX, "the notes SaveServer reads: the same prefix")
+    chars("D_801211E0", PROFILE_EXT, "a profile note's extension (CreatePlayer)")
+    chars("D_801211DC", PROFILE_EXT, "the extension CreatePlayer's name check compares")
+    chars("D_801211C8", PROFILE_EXT, "the extension SaveServer takes for a profile")
+    chars("D_801211F4", GHOST_EXT, "a ghost note's extension (SaveGhost)")
+    chars("D_801211E4", GHOST_FORMAT, "a ghost note's name (SaveGhost's sprintf: char *, int, char *)")
+    chars("D_801211EC", GHOST_BACKWARD, "a backward ghost's direction letter")
+    chars("D_801211F0", GHOST_FORWARD, "a forward ghost's direction letter")
+    chars("D_80121204", DIGITS_FORMAT, "CreatePlayer's attempt digits (sprintf: width, number)")
+    # The developer's profile name (D_801211CC): func_800CCEFC, loading a profile of this name, makes the main
+    # menu's cheat screen valid, sets cheat states 14-16, and sets D_801148E4, without which billboard_render keeps
+    # a finished ghost race's ghost in memory only (SaveGhost's limbo) and never offers the save prompt that writes
+    # it to a pak. Zero is the empty name, which no profile can have.
+    chars("D_801211CC", DEV_NAME, "the profile name of the cheat screen and the ghost save prompt")
+
+    # The player screen's name entry (controlCreatePlayer, func_803968C0; drawn by func_803A8B74): its 54 cells,
+    # nine to a row, are the characters D_80117420 points to (u8 *: NULL faults). Made up, the characters a note
+    # name keeps first.
+    if len(NAME_GRID) != 54 or len(set(NAME_GRID)) != 54:
+        raise SystemExit("synth_rom: the name entry has 54 different characters")
+    c.set("game", "D_80117420", "ptr", c.string(NAME_GRID), "the name entry's 54 characters")
+    # The name censor's words (D_801149B4, u8 *[22]; func_800F084C, called on an entered name): the walk ends at
+    # the first empty word, so a NULL first entry faults. None: the first entry is the empty word.
+    c.set("game", "D_801149B4", "ptr", c.string(""), "the name censor's words: none (the empty word ends them)")
+
+    # A ghost is deflated when it is kept (CompressGhost: deflate_mem, zlib 1.0.4 in zlib_deflate, level 9). zlib's
+    # static tables are initialized data, zero here: tr_static_init's loops shift by extra_dbits[code] - 7 and ran
+    # off dist_code. zlib's own constants (RFC 1951's extra bits and code length order; trees.c's descriptors;
+    # deflate.c's level 9), as extra_blbits in boot_and_sound.
+    c.set_all("game", "D_8011E888", "u32", [0] * 8 + [k // 4 for k in range(4, 24)] + [0],
+              "zlib's extra_lbits (the length codes' extra bits)")
+    c.set_all("game", "D_8011E8FC", "u32", [max(0, k // 2 - 1) for k in range(30)],
+              "zlib's extra_dbits (the distance codes' extra bits)")
+    c.set_all("game", "D_8011E9C0", "u8", [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15],
+              "zlib's bl_order (the code length codes' order)")
+    for sym, tree, extra, base, elems, bits in (("D_8011E9D4", "D_801249F0", "D_8011E888", 257, 286, 15),
+                                                ("D_8011E9E8", "D_80124E70", "D_8011E8FC", 0, 30, 15),
+                                                ("D_8011E9FC", None, "D_8011E974", 0, 19, 7)):
+        why = f"zlib's {dict(D_8011E9D4='static_l_desc', D_8011E9E8='static_d_desc', D_8011E9FC='static_bl_desc')[sym]}"
+        if tree:
+            c.set("game", sym, "ptr", c.syms.addr(tree), f"{why}: its static tree")
+        c.set("game", sym, "ptr", c.syms.addr(extra), f"{why}: its extra bits", offset=4)
+        for k, v in enumerate((base, elems, bits)):
+            c.set("game", sym, "u32", v, f"{why}: extra base, elements, max length" if k == 0 else "(same)",
+                  offset=8 + 4 * k)
+    for k, v in enumerate((32, 258, 258, 4096)):
+        c.set("game", "D_8011E838", "u16", v, "zlib's configuration_table[9] (good length, max lazy, nice length, "
+              "max chain): the level CompressGhost asks for" if k == 0 else "(same)", offset=8 * 9 + 2 * k)
+
+    # The lap path: a ghost race (gRace 2) is three laps, and its ghost is kept only if the car finishes (GhostEnd,
+    # ghost_race_setup). The cartridge's car never crosses a checkpoint: its physics crash it at once (the model's
+    # crash flag; the checkpoint test skips a crashed car), and it is respawned every 3.55 s (car_select_handler:
+    # 3.5 s after a crash). A respawn moves the car 12 points on along the resurrection path and passes the
+    # checkpoint it jumps over (stunt_combo_display, MAT3's Resurrect), but on the last lap it never reaches the
+    # finish: the jump is cut to half the points left to the finish's point, from the nearest point inside the
+    # window between the last and the next checkpoints' points. On track 0's backward path (a race goes backward with
+    # the track select's option 12, which no other path sets) the respawns go round by themselves: each checkpoint's
+    # point is the resurrection point nearest to it (SyncCheckpointsToPaths), so the loop's start and the finish share
+    # point 1, the window before the finish is empty, its respawn starts from the car's nearest point, at or past
+    # point 1, and the finish is passed with nothing to cut. The start passes the finish, and then nearly every
+    # respawn a checkpoint (at the path's end, where it wraps to point 1, every other one): the third lap ends 35.6 s
+    # after the start (car_setup_confirm), with the respawns' jump of 12 points (3.55 s at 58 ft/s). The
+    # race then waits for the car to stop, which it never does: the ghost path's script pauses and quits, and GhostEnd
+    # keeps the finished ghost. A race on track 0 forward (every other path) reads its own path file, 158.
+    c.file(LAP_PATH_WAVE, path_file(lap=True), "path 19, track 0 backward: the lap path, three checkpoints that "
+           "respawns pass")
 
 
 def race(c):
@@ -1330,8 +1467,9 @@ def race(c):
 
     # The time limit of a gRace 2 race on tracks 0-5 (D_80111754, f32[6]; func_800FBED8, 600 s for the others): the
     # race ends when it runs out (countdown's last branch), then the results (0x2000000, 4 s) and the game over
-    # screen (0x800000). Zero ended the race in its first frame. 15 s.
-    c.set_all("game", "D_80111754", "f32", [15.0] * 6, "a gRace 2 race's time limit, s")
+    # screen (0x800000). Zero ended the race in its first frame. 15 s on tracks 1-5; on track 0, 90 s: its lap path's
+    # respawns pass checkpoints only before the time runs out, and the third lap ends 35.6 s in (saves()).
+    c.set_all("game", "D_80111754", "f32", [90.0] + [15.0] * 5, "a gRace 2 race's time limit, s")
 
     # The demo path start points per track (D_801173D8, s16 *[12], with their counts D_80117408[12]): one start
     # point, the path's first (0, so its byte order doesn't matter).
@@ -1589,6 +1727,7 @@ def make(syms):
     math_constants(c)
     display(c)
     front_end(c)
+    saves(c)
     race(c)
     return c
 

@@ -1,0 +1,23 @@
+# A third run on profile.press's pak (tools/port/synth_again.py, docs/port/SYNTH.md 2): the player screen's delete
+# item (the profile is there to delete), SYN chosen, its confirmation answered yes: func_800CD058 deletes the note
+# (pak_delete_file_retry, PS_DeleteFile). With no profile left on the pak the delete list closes at once, its
+# cursor back on "create a player"; up to the default player, who goes on to the mode screen.
+# until: 0x40:60
+# seconds: 40
+# args: --pak profile.mpk
+# expect: state=0x00000040: players 1, windows 1
+# check: tools/port/pak_notes.py profile.mpk --notes 0 --compare profile.second.pak --gone SYNTH049SYN.D
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race; the player screen, its first item (the default player)
+14 DOWN 0.1    # the pak row
+14.5 DOWN 0.1  # SYN
+15 DOWN 0.1    # create a player
+15.5 DOWN 0.1  # delete a player
+16 A           # the delete list, on SYN
+17 A           # SYN: are you sure? (no)
+18 RIGHT 0.1   # yes
+19 A           # deleted: the items again, on "create a player" (delete has nothing left to delete)
+21 UP 0.1      # the pak row
+21.5 UP 0.1    # the default player
+22 A           # ready: the mode screen

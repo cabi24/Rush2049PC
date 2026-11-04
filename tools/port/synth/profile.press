@@ -1,0 +1,34 @@
+# A profile created on player 1's controller pak (a fresh one): the player screen's create item, the name entry
+# (S, Y, N, then END: CreatePlayer writes the note SYNTH049SYN.D), then the new profile picked and the mode screen
+# (docs/port/SYNTH.md 2). The checks: the pak holds that one note (tools/port/pak_notes.py), then the next runs on
+# the same pak (tools/port/synth_again.py): again/profile2 reads the profile back and changes it in place,
+# again/delete2 deletes it.
+# until: 0x40:60
+# seconds: 60
+# args: --pak profile.mpk
+# expect: state=0x00000040: players 1, windows 1
+# check: tools/port/pak_notes.py profile.mpk --notes 1 --note SYNTH049SYN.D --copy-to profile.first.pak
+# check: tools/port/synth_again.py profile.game.log again/profile2
+# check: tools/port/synth_again.py profile.game.log again/delete2
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race; the player screen, its first item (the default player)
+14 DOWN 0.1    # the pak row
+14.5 DOWN 0.1  # create a player (the rows between list the pak's profiles: none)
+15 A           # the name entry, its cursor on A
+15.5 DOWN 0.1  # J
+16 DOWN 0.1    # S
+16.5 A
+17 RIGHT 0.1   # T U V W X Y
+17.3 RIGHT 0.1
+17.6 RIGHT 0.1
+17.9 RIGHT 0.1
+18.2 RIGHT 0.1
+18.5 RIGHT 0.1
+19 A
+19.5 UP 0.1    # P
+20 LEFT 0.1    # O N
+20.3 LEFT 0.1
+21 A
+22 START       # END: CreatePlayer; the screen's cursor on the new profile
+24 A           # pick it: ready, and the mode screen
