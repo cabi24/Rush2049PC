@@ -197,6 +197,10 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `game.expansion_pak` | on | `--expansion-pak` | 8 MiB of RDRAM (off: 4 MiB) |
 | `game.cars` | original | `--set game.cars=N` | the most cars a race holds: `original` (the N64's 6) or 6-12 (`PC_MAX_LINKS`); from the next race ([below](#the-cars-a-race-holds-gamecars), [MORECARS.md](MORECARS.md)) |
 | `game.memory` | original | `--set game.memory=N` | the game's memory: `original` (the N64's 8 MiB, 4 with `expansion_pak` off) or 16-256 MiB, the RDRAM window, osMemSize and so its heap; from the next start. With a size the game uses its Expansion Pak features, so `expansion_pak = off` does nothing then, and the settings warn ([MEMORY.md](MEMORY.md) 1) |
+| `game.mods` | on | `--no-mods` (off) | use the mods folder's mods that are on: their files in place of the cartridge's; off: the cartridge's only; from the next start ([MODS.md](MODS.md)) |
+| `game.mods_dir` | `mods` (in the data folder) | `--mods-dir PATH` | the mods folder: a folder or .zip per mod; a name alone is in the data folder, `--mods-dir` from the working directory |
+| `game.mods_order` | (empty) | | mod folders, comma-separated, first first: of two mods' files for one wave the first's is used; the rest follow by their mod.ini priority (the overlay's Mods page writes it) |
+| `[mods]` folder | on | | each mod's folder = on or off; a mod not listed is on (the Mods page writes these) |
 | `game.pak` | memory | `--no-pak`, `--rumble`, `--pak` | controller 1's accessory: memory (the controller pak: the saves), rumble, none, or auto (rumble when the player's pad can rumble, else none) |
 | `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image; a name alone is in the data folder (RELEASE.md "Files"), `--pak` from the working directory |
 | `game.pak2`, `pak3`, `pak4` | auto | `--no-pak` (none) | controllers 2-4's accessories, as `game.pak`: auto gives multiplayer rumble where the pads have it, without a file; memory gives the player saves of their own |
@@ -308,6 +312,7 @@ environment-only.
 | `RUSH2049_DUMP_AUDIO`, `RUSH2049_AUDIO_RATE`, `RUSH2049_AUDIO_STATS`, `RUSH2049_ALSA_DEVICE`, `RUSH2049_AUDIO_CAPTURE` | a WAV of the output (`--dump-audio`), the device's rate, the output's counters every N s, the ALSA device, every audio task to a file ([AUDIO.md](AUDIO.md)) |
 | `RUSH2049_CONSOLE=none`, `RUSH2049_MESSAGE_BOX=print\|off`, `RUSH2049_WAIT_KEY=0\|1`, `RUSH2049_TEST_ROM_PICK` | the console, the message boxes, the wait for a key and the ROM's file dialog, for tests ([RELEASE.md](RELEASE.md)) |
 | `RUSH_SIM_TIMER_STEP_US`, `RUSH_SIM_VSYNC_HZ`, `RUSH_SIM_PRESENT_MS` | Windows' timing modelled on Linux ([WINDOWS.md](WINDOWS.md) 5) |
+| `RUSH_GFX_TEXTURE_MODS` | the mods' texture pack folders, one a line, first first: main sets it from the mods in use ([MODS.md](MODS.md) 2) |
 | `RUSH_STATE_EXACT`, `RUSH_TRAP_FP`, `RUSH_TRACE_WAVES`, `PC_DATA_REPORT` | the state log's exact floats ([ULTRA.md](ULTRA.md) 4), a trap at the first invalid float operation, each wave's conversion logged ([LOADERS.md](LOADERS.md)), the data loader's report ([RELEASE.md](RELEASE.md) "Files") |
 | `APPDATA` (Windows); `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `HOME` | the settings and data folders |
 | `DISPLAY`, `WAYLAND_DISPLAY` | on Linux, without either the program renders headless unless `--window` is given |
@@ -352,7 +357,7 @@ frame, to look at.
 | a page up, down | Page Up, Page Down | LB, RB | the wheel, the list's `^` `v` (3 rows) | L, R |
 | close | F1 | the menu button, Start | a click outside on the first page | MENU, START |
 
-**What it covers.** Changes apply at once where the part allows it. `*` in the overlay marks the two that need a
+**What it covers.** Changes apply at once where the part allows it. `*` in the overlay marks those that need a
 restart.
 
 | Page | Item | Setting | Applies |
@@ -373,11 +378,12 @@ restart.
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Game | Cars in a race: original (6), 7-12 | `game.cars` | from the next race's start: the setting at once (`pc_race_cars_set`), the race's count when the game latches it ([above](#the-cars-a-race-holds-gamecars)) |
 | | Memory *: original (N64), 16, 32, 64, 128, 256 MB | `game.memory` | after a restart: the RDRAM window is mapped at start ([MEMORY.md](MEMORY.md)) |
+| Mods | Mods *: on, off; then each mod found, in the order in effect (`1. Red Cars 1.2`): on, off (`on (unusable)` for one that can't be used); Left and Right turn it on and off, Enter or A picks it up and Up and Down move it, Enter puts it down; its footer: its author and files, or why it can't be used; the folder; Defaults (every mod on, mod.ini's order) | `game.mods`, `[mods]`, `game.mods_order` | after a restart: the files are read before the game's memory is mapped ([MODS.md](MODS.md) 1) |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
 | Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; P1-P4 accessory: controller pak, rumble pak, auto (shown with what it gives now: "auto: rumble pak"), none; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble`, `game.pak`, `game.pak2`... | at once; an accessory as a hot swap (the game sees the old one pulled at its next poll, then the new one) |
 | Help | read-only: each N64 control, its keys (the keyboard's player) and its controller inputs in Xbox names (`a, righttrigger` is "A, RT", `-righty` "RS up", the N64 stick's own stick on the stick rows); the hotkeys (Alt+Enter with fullscreen); this menu's keys and the mouse | the bindings in effect, made again each time it opens | |
-| About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); the memory (osMemSize) and the heap's peak so far ([MEMORY.md](MEMORY.md) 4); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display); **Copy to the clipboard** (the page as text, for a bug report; with a window) | main's facts (`pc_menu_set_about`), made each time it opens | |
-| (main) | Video, Audio, Keyboard, Controllers, Game, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
+| About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); the memory (osMemSize) and the heap's peak so far ([MEMORY.md](MEMORY.md) 4); the mods in use ([MODS.md](MODS.md)); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display); **Copy to the clipboard** (the page as text, for a bug report; with a window) | main's facts (`pc_menu_set_about`), made each time it opens | |
+| (main) | Video, Audio, Keyboard, Controllers, Game, Mods, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
   then go to either end of the list.
@@ -486,6 +492,8 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.stick` | `frontend_test stick` | dead zone (radial), rescaling, full tilt in four directions, the octagon's corner and edge (22.5°: (76, 31)), a square pad's corner, the round gate, keys, monotonic travel |
 | `frontend.precedence` | `rush2049pc --print-config` | the real program: the file's ROM, `RUSH2049_AUDIO` over the file, `--scale` over `RUSH_GFX_SCALE` over the file, a `--set` binding and `--set game.cars=12` |
 | `frontend.memory` | `frontend_test memory` | `game.memory`: `original` the default (written commented out, with its comment), 16-256 each set and read back, 15, 8, 4, 0, -1, 257, 512, 1024, `64M`, words and an empty value refused with the range in the message, any case, `--set` syntax, the file read back, a bad line skipped; the warning only for `expansion_pak = off` with a size |
+| `frontend.mods` | `frontend_test mods` | `game.mods`, `mods_dir`, `mods_order` and `[mods]`: the defaults (written commented out, an empty `[mods]` with its comment), each set and read back, the flags any case and set again, bad values refused, the file read back, a bad line skipped ([MODS.md](MODS.md) 8) |
+| `frontend.menu.mods` | `frontend_menu_test mods` | the Mods page from mocked mods: after Game, the order from `game.mods_order` then mod.ini's priority, a mod that can't be used, the folder; Left and Right, a mod picked up and moved to the top, Save writing `game.mods_order` and `[mods]`, Defaults |
 | `frontend.cars` | `frontend_test cars` | `game.cars`: `original` the default (written commented out), 6-12 each set and read back, 5, 13, 0, -1, 99, words and an empty value refused with the range in the message and the setting kept, any case, `--set` syntax, the file read back, a bad line skipped; the latch: 6 before anything, the setting at once and the race's count only at `pc_race_cars_begin()`, a change and `original` mid-race leaving the race's count alone, the next race taking it, out-of-range values taken to 6 and 12 |
 | `frontend.sdl.keyboard` | `frontend_sdl_test keyboard` | every default key, held keys, the stick from keys (cardinal, the corner, opposite keys); rebinding: two keys, an alias, an unknown name skipped, the keyboard on player 2, a round gate of 100 |
 | `frontend.sdl.hotkeys` | `... hotkeys` | title and minimum size; Alt+Enter toggles fullscreen and is not START; F11 back; key repeat ignored; F12 saves PNGs of the shown frame (two in one second get two names); Pause holds and the exposed window is redrawn; Escape quits and isn't a game key; rebound and cleared hotkeys; closing the window quits; fullscreen from the settings |
@@ -641,6 +649,14 @@ python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-ch
   port/ultra's `pc_heap_stats`; menu.c's Game page gains Memory after Cars in a race (restart), so the menu test steps
   over it to Defaults, and About gains its row after Audio buffer. main maps the window at the setting's size
   (`pc_mem_set_size`, `pc_os_set_mem_size`) before `pc_mem_init`.
+- **The mods folder** (2026-11-04, [MODS.md](MODS.md)): `config.h` gains `PcSettings.mods`, `mods_dir`, `mods_order`
+  and the `[mods]` flags (`mod_flag`, `nmod_flags`, `PC_CFG_MODS`) and `pc_settings_mod_on`; config.c's table has the
+  three `[game]` settings after `memory`, and `pc_settings_set`, `pc_settings_get` and `pc_settings_format` a `[mods]`
+  section of any keys (written last). `input_internal.h` gains `PcMenuMod`, `pc_menu_set_mods` and `PcAbout.mods`;
+  menu.c gains the Mods page (`P_MODS`, item kind `I_MOD`) after Game, so the menu tests step one more over the main
+  page where they pass it, and About's Mods row after Memory; `MAX_ITEMS` is the mods' 64 and 8. main reads the ROM
+  before mapping the window (the mods' memory needs the cartridge's file table), then `mods_prepare`; after the game's
+  data, `mods_install`; it sets `RUSH_GFX_TEXTURE_MODS`. No game C.
 - **The mouse, Help and About** (2026-10-28) changed no game C and nothing in port/ultra.
   - `pc_port.h` gains `pc_gfx_driver` (the GL strings `gfx_gl.c` logs); `pc_audio.h`'s `PcAudioStats` gains
     `game_rate`; `app.h` gains `pc_app_rom_path`, `pc_app_version_commit`, `pc_app_version_build` and

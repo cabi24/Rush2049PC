@@ -234,6 +234,7 @@ That folder is "the data folder" (`PcAppDirs.data`). It is made when it is missi
 | F12 screenshots | `video.screenshot_dir` | `screenshots/` in the data folder (made when a window opens) |
 | the log | `--log`, `--no-log` | `rush2049pc.log` and `rush2049pc.old.log` in the data folder |
 | `gamecontrollerdb.txt` | | read next to `rush2049pc.ini` (unchanged) |
+| mods | `game.mods_dir`, `--mods-dir` | `mods/` in the data folder, read at start; not made by the program (the archives ship it). A .zip mod's texture pack is unpacked into `mods_cache/` there ([MODS.md](MODS.md)) |
 | `--screenshot-at`, `--dump-audio` | | as given: these are for scripted runs |
 | the data report | `PC_DATA_REPORT` | `build/.../data_report.txt` of a source build, none in a release build |
 
@@ -399,7 +400,8 @@ also makes a **draft** GitHub release with them, which a person checks and publi
 | `release` | ubuntu-24.04 | tags only: `gh release create --draft` with the three archives |
 
 - **The Windows zip:** `rush2049pc.exe`, an empty `rush2049pc.ini`, `README.txt` (`dist/README-windows.txt`, CRLF line
-  ends) and `LICENSES/`:
+  ends), an empty `mods/` folder with its `README.txt` (`dist/mods-README.txt`: what goes in it, [MODS.md](MODS.md))
+  and `LICENSES/`:
   - `SDL2.txt`, from the SDL2 source built;
   - `zlib.txt`, the licence comment of the `zlib.h` compiled against;
   - `mingw-w64.txt` and `gcc-runtime.txt`, Debian's copyright files for the mingw-w64 runtime (CRT, winpthreads)
@@ -414,8 +416,8 @@ also makes a **draft** GitHub release with them, which a person checks and publi
   here (`RUSH_FETCH_SDL2`), as in the release. The executable is built RelWithDebInfo (-O2 -g,
   [OPTIMIZED.md](OPTIMIZED.md)) and is not stripped, so its backtraces can be symbolized (`addr2line -f -i`, for the
   inlined frames).
-- **The Linux tarballs:** `rush2049pc`, an empty `rush2049pc.ini`, `README.txt` (`dist/README-linux.txt`) and
-  `LICENSES/` (`SDL2.txt`, `zlib.txt`).
+- **The Linux tarballs:** `rush2049pc`, an empty `rush2049pc.ini`, `README.txt` (`dist/README-linux.txt`), `mods/`
+  with its `README.txt`, and `LICENSES/` (`SDL2.txt`, `zlib.txt`).
   - Built in Ubuntu 22.04, so they need glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora 36 and newer).
   - SDL2 is built with the X11, Wayland, libdecor, PulseAudio, PipeWire, ALSA, udev and D-Bus headers there and
     linked statically. It loads those libraries at run time (SDL's default), so the program runs without them,
@@ -429,7 +431,7 @@ also makes a **draft** GitHub release with them, which a person checks and publi
     GL, which comes from the player's driver. A folder with one program, which needs only what every desktop
     has, is as portable and simpler.
 - **`cmake --install`.** `RUSH_INSTALL_PORTABLE` (the default on Windows, and the release builds) installs one
-  folder: the program, an empty `rush2049pc.ini`, `README.txt`, `LICENSES/`. Otherwise the usual layout under the
+  folder: the program, an empty `rush2049pc.ini`, `README.txt`, `mods/README.txt`, `LICENSES/`. Otherwise the usual layout under the
   prefix:
   - `bin/rush2049pc`;
   - `share/applications/rush2049pc.desktop` (Games; it opens `application/x-n64-rom` files, so a ROM can be

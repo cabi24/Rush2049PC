@@ -20,6 +20,16 @@ What changed for players, newest first. The details and the tests behind each it
   when the game found its heap short and fell back (sharing a car type, as the N64 game does); About shows it too
   ([MEMORY.md](docs/port/MEMORY.md), [FRONTEND.md](docs/port/FRONTEND.md)).
 
+- **Mods** (a `mods/` folder in the data folder, F1 > Mods): a mod is a folder or a .zip with a mod.ini and files
+  that stand in for the cartridge's (cars, tracks, fonts, the HUD's and the menus' models and textures, text, sounds),
+  named by the game's file names (`cars/car01.bin`) or numbers (`wave_088.bin`), and optionally a texture pack and
+  text overrides. Your ROM is never changed. Every file is checked at start; one the game can't use is refused with a
+  line in the log and the cartridge's is used, and of two mods for one file the first in the order wins. Larger files
+  get the memory they need (game.memory is raised, and the log says so). F1 > Mods turns mods on and off and orders
+  them, from the next start; `--no-mods` or `game.mods = off` plays the cartridge's files only. Making mods:
+  `tools/mods/rushmods.py` lists your ROM's files, unpacks them as mods use them, makes a mod's skeleton and checks a
+  mod by the game's rules ([MODS.md](docs/port/MODS.md), [FRONTEND.md](docs/port/FRONTEND.md)).
+
 ## Beta candidate (2026-10-28)
 
 The first builds were played on a Windows laptop on 2026-10-27: they booted and raced, but the sound was bad, the
