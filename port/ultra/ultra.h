@@ -262,6 +262,10 @@ typedef struct {
     uint32_t until_state;        /* stop once the state word has one of these bits... */
     uint32_t until_state_frames; /* ...and this many more graphics tasks have run; a time limit reached first
                                     is a failure (exit 1). 0: no such stop */
+    /* --log-physics N (docs/port/FRAMERATE.md 7): every N retraces, read as the state log is (every N64 thread
+     * waits), a line of the cars' physics. 0: none */
+    uint32_t physics_every;
+    void (*physics_info)(char *out, size_t size);
 } PcRunOptions;
 int pc_ultra_run(const PcRunOptions *opt);   /* the host main loop; returns the exit code */
 extern uint32_t pc_frame;                    /* retraces since boot */
