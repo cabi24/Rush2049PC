@@ -481,16 +481,19 @@ to move.
 
 ## 7. Proof: original is the N64's game
 
-"Base" is a build of main 0d7d016, "branch" of this branch (the commits of DETAIL.md 2-6). With every setting at
-`original`:
+"Base" is a build of main 0d7d016, "branch" of this branch at its last code commit (d199c5b; the build host's rows
+again at the documents' last). With every setting at `original`:
 
 | Check | Result |
 |---|---|
 | `synth_compare.py --same --runs 2 --shots`, base against the branch, Debug, build host (x86-64, GCC 14), on the branch's cartridge (track 0's detail world): every path whose settings are original (27: all but `detail_far`, `detail_max`, `detail_high`, `detail_fogfar`, which the base doesn't take) | the same trace and the same screenshots (drive, race2p, race4p, race2p12, detail, detail_fog), every run: 27 of 27 |
 | the same on the base's own cartridge (no detail world), its 25 paths | 25 of 25 |
+| the same 27, Pi 5 (aarch64, GCC 12), under the lock | the same trace and screenshots, every run: 27 of 27 |
+| the six retail scripts (`race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause`: `synth_compare.py --script`, MORECARS.md 10.4), base against the branch, Pi 5, retail cartridge, `--runs 2 --same` | the same trace, every run, each reaching its state: 6 of 6 |
+| Windows cross build (Pi, mingw-w64, fresh configure) | builds; gen_data's check of the executable: OK, 26 decoupled, 1 reserved in the window |
 | ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 265 of 265 each (`assets_rom` skipped: no ROM there) |
 | `n64_neutral.py --base 09da2f0` | passes (1,018 files: 92 code-exact, 926 shifted); against 0d7d016 the 7 changed game files under `src/`, shifted |
-| the N64 IDO check (`tools/port/ido_check.sh`, build host) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| the N64 IDO check (`tools/port/ido_check.sh`, build host, at d199c5b) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 | `offset_check --strict`, build host | no open findings; 59,472 accesses placed |
 | `alias_check` (RelWithDebInfo) | none open |
 | `layout_check` | no open findings; 48,217 accesses |
@@ -506,3 +509,11 @@ to move.
 - **G_BRANCH_Z** (the microcode's level of detail): not in the race lists traced; detail high doesn't touch it.
 - **A frame between two at a node whose divisor h changes** (2.3): a slip of a fraction of a frame in its place for one
   frame between; not seen.
+- **Not run on the retail cartridge**: the Windows program (the cross build only), a real display and a desktop GPU's
+  timings (the Pi's V3D on retail, the build host's iris on the synthetic paths), whole laps and finishes at far and
+  max (each run covered the first 45 s of a race, and the demo five tracks' starts), the stunt and battle arenas other
+  than tracks 6 and 14, the obstacle course, three players, a ghost race (the game's replays: ReplayStream), the pause
+  screen at far and max (the synthetic `pause` and `pause12` reach their states at max), a fog region's blend at fog
+  far (the same arithmetic, per vertex), and whether a retail track has level objects for one player only (2.5).
+- **Far's 2,000 ft** (2.1) is a choice: the rows were made for a 2,000-ft far plane, so the cells within as much more
+  are the ones a far plane twice as far could see from. On track 0 it lets 81% of the parts through on average.

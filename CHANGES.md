@@ -11,8 +11,10 @@ What changed for players, newest first. The details and the tests behind each it
   as far: more of the track (the world's visibility tables reach 2,000 ft further), the cars and their wheels twice
   as far out, the scenery past 2,048 ft, the far plane at 4,000 ft; `max` draws the whole track and every
   model at any distance. `detail = high` keeps each model at its most detailed level wherever it is drawn, and gives
-  split screen one player's models. `fog = far` puts the fog options' fog twice as far, `off` removes it. The log's
-  `scene:` line says what was drawn ([DETAIL.md](docs/port/DETAIL.md), [FRONTEND.md](docs/port/FRONTEND.md)).
+  split screen one player's models and tires. `fog = far` puts the fog options' fog twice as far, `off` removes it
+  (with the sky in place of the fog's colour). The log's `scene:` line says what was drawn. On the retail tracks far
+  draws about twice the triangles and max two to five times ([DETAIL.md](docs/port/DETAIL.md) 4,
+  [FRONTEND.md](docs/port/FRONTEND.md)).
 
 - **More cars a race, up to 12** (`game.cars`, F1 > Game > Cars in a race): `original`, the default, is the N64's
   6. Set it to 7-12, then raise the track select's Drones option, which goes up to one less than the setting (its
