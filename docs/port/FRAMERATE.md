@@ -811,7 +811,7 @@ nothing changes. After (the same runs):
 | Display (model) | the game's frames a retrace | vblanks showing no new frame |
 |---|---|---|
 | 60.000 Hz at the run's phase (the drive, 40 s) | 841 of 841 in the race | 29 of 2,400 in the whole run (40 s, the front end too) |
-| 60.000 Hz, 0.02 after the retraces, the compositor's timing (ctest `realtime_game60_v60`, 30 s) | 0.97 (0.736 on 86bc6d0) | 1% (26.4%) |
+| 60.000 Hz, 0.02 after the retraces, the compositor's timing (ctest `realtime_game60_v60`, 30 s) | 0.97 (0.736 on 86bc6d0) | 1% (26.4%); 4.5-5.3% on CI's x86-64 runner, RelWithDebInfo (run 41908916509), so the test allows 10% |
 | the same, the timing given as a rate (XRandR) or the vblanks' times, 0.02 / 0.05 / 0.1 | 0.977 | 27-38 of 1,200, the retraces moved once |
 | the same with no timing (Wayland, headless), 0.05 | 0.96 | 506 of 1,200: without the display's period the retraces don't move |
 | 59.94 Hz | 839 of 841 | 85 of 2,397 |
