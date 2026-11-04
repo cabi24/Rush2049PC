@@ -1015,7 +1015,7 @@ As of 10.4 (2026-10-29); the races, tracks and modes checked are there.
 - A race of 12 to its finish on tracks 1-4, and with two players (both were checked racing, 60 s each, not to the
   finish); laps above one; the circuit past its first race; ghosts; the obstacle mode.
 - Without the Expansion Pak, more than 60 s of a race, and whether LoadCars fell back to sharing a loaded car type
-  (not logged); a race that uses up the fx tags (none of the runs did, 10.4 (a)).
+  (not logged; since 2026-11-03 it is, and it does: four or five times in a race of 12, [MEMORY.md](MEMORY.md) 6); a race that uses up the fx tags (none of the runs did, 10.4 (a)).
 - Sound through a device: which engines are heard, and whether a start the tags refuse is missed.
 - The window-address question for each array of 2.3 beyond what the races exercised.
 - The Windows program and the RelWithDebInfo build with 12 cars on the retail cartridge: the synthetic 12-car paths

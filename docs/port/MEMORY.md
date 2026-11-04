@@ -88,7 +88,7 @@ can be met when the window is 8 MiB):
 | `entity_lod_select.c:107, 111, 129, 134` (SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches) | `((w1 + base) & 0xFFFFFF) \| segment` | `pc_rcp_reloc` (`rcpaddr.c:29-39`): the K0 address of `w1 + base` when the segment is 0 |
 | `entity_cull_check.c:42, 47` (the TXLD lists' SETTIMG and BRANCH_Z, rebased by the IMAG chunk) | `(w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)` | the same, `pc_rcp_reloc` |
 | `display_list_traverse.c:33, 52` (the mirror pass and the game's other walks of ROM lists: a G_DL or BRANCH_Z target) | bits 24-27 set: segmented, taken as segment 0 (`&= 0xF0FFFFFF`); else physical, made K0 | a K0 address past 16 MiB is not segmented (`SEGMENTED`, `pc_rdram_k0_high`) |
-| `func_80014CAC` (`lib_11640.c:1956`: is a sample bank's address RAM, or a cartridge offset to convert?) | RAM if its top byte is 0x80 (or 0xB0, the cartridge) | a K0 address in the window past 16 MiB is RAM too |
+| `func_80014CAC` (`lib_11640.c:1956`: is a sample bank's address RAM, or a cartridge offset to convert?) | RAM if its top byte is 0x80 (or 0xB0, the cartridge) | a K0 address in the window past 16 MiB is RAM too (a guard: this game's banks are cartridge addresses, section 6) |
 | `pcgfx_resolve` (`gfx_rsp.c:79-90`) | physical with no segment base: `rdram(a & 0xFFFFFF)` | a physical address past 16 MiB whose segment has no base, or past 256 MiB, in the window: that RAM (outside the window `pc_n64_ptr` is NULL and the old rule stands) |
 
 A `w1` that is already such a K0 address (relocated once and moved by a delta, as SetupWaveModel's handle-wave path
@@ -146,7 +146,8 @@ manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and
   race or a battle holds about half of the heap at its peak, a stunt about a third, and the least free is one block
   of about 3 MB (the retail runs of section 6, read from the exit line). The synthetic race's peak is 0.9 MiB.
 - **LoadCars' fallbacks** happen only when the car files don't fit: without the Expansion Pak, or with files larger
-  than the cartridge's. With 6 car files each 1 MB larger (`membig8`, at `original`) the heap is short for a drone's
+  than the cartridge's. On the retail cartridge without the pak, a race of 12 cars shares car types four or five
+  times and leaves the 4 MiB heap a few KB free (section 6). With 6 car files each 1 MB larger (`membig8`, at `original`) the heap is short for a drone's
   car once and LoadCars shares a type; with `memory = 64` and files 3 MB larger (`membig`) no car is refused and the
   heap's peak is 18.9 MiB.
 - **A finding: the free total, not the largest block.** LoadCars compares the heap's free total with the file's
@@ -206,6 +207,7 @@ manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and
 | the renderer's physical rule | `gfx.window.highmem` (the renderer runs off into the wrong RAM and faults) |
 | `pc_rcp_reloc` with the N64's 24 bits | `assets_wad_game`: the relocated VTX, G_DL and SETTIMG words 16 MiB low |
 | `display_list_traverse`'s N64 segment test | `assets_wad_game`: the called list's and the branch's windings not flipped |
+| `func_80014CAC`'s test of a K0 address past 16 MiB | nothing: on the retail cartridge, `drive` at 64 MiB with the floor gives the original's sound byte for byte without it too. The game hands that function its sample banks' cartridge addresses (the samples stay in the cartridge and stream through the MusyX DMA caches, which are in the heap and reached through the interpreter), so the test is a guard for a bank loaded into RAM, which this game doesn't do |
 
 **The proof.** "Base" is a build of 0d7d016 (main before this work).
 
@@ -220,6 +222,8 @@ manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and
 | the N64 IDO check (`tools/port/ido_check.sh`, build host, aa28919) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 | `offset_check --strict`, `alias_check`, `layout_check`, `endian_check`, build host | no open findings, base and branch; offset_check 59,463 accesses (5 more, the new statements), layout_check 48,208; endian_check's 2 open value conflicts in 1 storage and 3,525 puns, as the base's |
 | `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`; the base's counts |
+| Windows cross build (Pi, mingw-w64 12, fresh configure, SDL2 fetched) | builds, `gfx_window_test.exe` and `test_audio_window.exe` with it; gen_data's check of the PE: OK, 26 decoupled, 1 reserved in the window. (It first failed to link two asset tests: weak definitions, which mingw's linker doesn't bind, and `setenv`; fixed in 87d781e and 00b5001) |
+| ASan + UBSan, aarch64 (Pi 5, `-DRUSH_SANITIZE=address,undefined`, CI's arm sanitize job's build): the self-test at 64 and 256 MiB, `gfx.window.*`, `audio_window`, `assets_heap`, `assets_wad_game`, `frontend.memory`, the synthetic `mem*` paths and their screenshot comparisons (21 tests) | all pass, no ASan or UBSan report: the window of 64 and 256 MiB at 0x80000000 is under ASan's shadow, which covers everything below 64 GiB there |
 
 **On the retail cartridge** (Pi 5, `--fast`, one game at a time, the branch's Debug build; the press scripts, logs,
 screenshots and sound in the ignored `build/scratch/`; tracks 4 and 5 are locked on a fresh profile, so for them gdb
@@ -233,7 +237,8 @@ set the two players' unlock bytes (`D_80150DD8`) as the track select first asked
 | the same two programs, `drive` and `race2p`, with a screenshot and `--dump-audio` | the screenshots and the whole sound (5 MB and 4 MB of WAV), byte for byte the same: every model, texture, frame buffer, sound bank and voice drawn and played from past 17 MiB |
 | `memory = 64`, 12 cars, two players, track 0, with the floor at 17 MiB | the same state, the first car at the same place as without the floor; the heap's peak past the floor |
 | `memory = 64`: the attract demo of 12 (`demo12`), the front end (`screens`), a race retired to the results, the game over screen and back to the main menu (`raceend`) | each reaches its state, the first car where `original` has it |
-| ASan + UBSan, aarch64: `audio_window` (port/audio built alone with both) | passes: the 64 MiB window mapped at 0x80000000 under ASan, its shadow covering it, no report |
+| without the Expansion Pak (`original`, `expansion_pak = off`: 4 MiB), 12 cars: tracks 0 and 2 for one player, track 0 for two | each reaches its state with 12 cars; LoadCars finds the heap short for a drone's car four or five times a race and shares a loaded type (the log line, the exit line's `short`), and the heap's least free comes down to a few KB. This answers [MORECARS.md](MORECARS.md) 11's "whether LoadCars fell back" |
+| `expansion_pak = off` with `memory = 64`, 12 cars | the warning; the game uses its Expansion Pak features, and nothing is short |
 
 ## 7. The address inventory
 
@@ -287,4 +292,9 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
   game.
 - Windows: the cross build compiles (section 6), but nothing ran on Windows: the section's commit at 256 MiB, the views
   at 0xA0000000 of more than 8 MiB, and the new tests there (CI's windows jobs run them).
+- UBSan on x86-64 (CI's other sanitize job): the build host has no UBSan runtime, so it ran only on aarch64, with ASan.
+- The translated-window fallback (a host other than Linux and Windows): not built; its code follows the size as the
+  mapped window's does.
+- Finishing a race at `memory = 64` on the retail cartridge: the 12-car races ran 60 s each, and `raceend` retires a
+  race to the results; MORECARS.md 10.4's races to the finish line were at `original`.
 - `expansion_pak = off` with a large heap and the pak's features off: not offered (section 1).
