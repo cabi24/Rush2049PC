@@ -828,14 +828,57 @@ static void test_mods(void)
           "a bad [mods] line is skipped");
 }
 
+/* game.saves, saves2-4 and their folders (docs/port/SAVES.md): pak the default (written commented out), files, any
+ * case, a bad value refused with the choices named and the last value kept, --set, the file read back. */
+static void test_saves(void)
+{
+    PcSettings s, t;
+    char why[200], v[64];
+    static const char *const keys[4] = {"saves", "saves2", "saves3", "saves4"};
+    static const char *const dirs[4] = {"saves_dir", "saves2_dir", "saves3_dir", "saves4_dir"};
+    pc_settings_defaults(&s);
+    for (int p = 0; p < 4; p++) {
+        char want[16];
+        snprintf(want, sizeof want, "saves/p%d", p + 1);
+        CHECK(s.saves[p] == PC_CFG_SAVES_PAK && pc_settings_get(&s, "game", keys[p], v, sizeof v) == 0 &&
+                  !strcmp(v, "pak"), "%s: pak by default ('%s')", keys[p], v);
+        CHECK(!strcmp(s.saves_dir[p], want), "%s: %s by default ('%s')", dirs[p], want, s.saves_dir[p]);
+        CHECK(pc_settings_set(&s, "game", keys[p], "files", why, sizeof why) == 0 && s.saves[p] == PC_CFG_SAVES_FILES &&
+                  pc_settings_get(&s, "game", keys[p], v, sizeof v) == 0 && !strcmp(v, "files"), "%s = files", keys[p]);
+        CHECK(pc_settings_set(&s, "game", keys[p], "folder", why, sizeof why) == -2 && s.saves[p] == PC_CFG_SAVES_FILES &&
+                  strstr(why, "pak") && strstr(why, "files"), "%s = folder refused, kept: %s", keys[p], why);
+        CHECK(pc_settings_set(&s, "game", keys[p], "", why, sizeof why) == -2, "%s empty refused", keys[p]);
+    }
+    CHECK(pc_settings_set(&s, "GAME", "Saves", "PAK", why, sizeof why) == 0 && s.saves[0] == PC_CFG_SAVES_PAK, "any case");
+    CHECK(pc_settings_assign(&s, "game.saves=files", why, sizeof why) == 0 && s.saves[0] == PC_CFG_SAVES_FILES,
+          "--set game.saves=files");
+    CHECK(pc_settings_assign(&s, "game.saves2_dir=/data/p2 saves", why, sizeof why) == 0 &&
+              !strcmp(s.saves_dir[1], "/data/p2 saves"), "--set a folder with a space");
+    pc_settings_defaults(&t);
+    char *text = pc_settings_format(&t);
+    CHECK(strstr(text, "\n; saves = pak\n") && strstr(text, "\n; saves_dir = saves/p1\n") &&
+              strstr(text, "\n; saves4 = pak\n"), "the defaults are written commented out");
+    CHECK(strstr(text, "files (the folder saves_dir: a file per profile and per ghost") != NULL, "with the comment");
+    free(text);
+    text = pc_settings_format(&s);
+    CHECK(strstr(text, "\nsaves = files\n") && strstr(text, "\nsaves2 = files\n"), "files is written as a setting");
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, text, "saves") == 0 && t.saves[0] == PC_CFG_SAVES_FILES &&
+              t.saves[3] == PC_CFG_SAVES_FILES && !strcmp(t.saves_dir[1], "/data/p2 saves"), "and read back");
+    free(text);
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, "[game]\nsaves = cloud\nsaves3 = files\n", "bad saves") == 1 &&
+              t.saves[0] == PC_CFG_SAVES_PAK && t.saves[2] == PC_CFG_SAVES_FILES, "a bad line skipped, the next taken");
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
         {"stick", test_stick}, {"cars", test_cars}, {"memory", test_memory}, {"detail", test_detail},
-        {"fps", test_fps}, {"mods", test_mods}};
+        {"fps", test_fps}, {"mods", test_mods}, {"saves", test_saves}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|fps|mods|all "
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|fps|mods|saves|all "
                         "SCRATCH_DIR\n");
         return 2;
     }

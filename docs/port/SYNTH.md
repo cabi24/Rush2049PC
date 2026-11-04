@@ -117,6 +117,22 @@ which fits `D_803B9260`'s 4 bytes) and `SYN_BAR`.
 | the HUD set's four crossbones blits (animBones, BUTTON) and `D_801160C8`, their places in deaths mode for every view | the crossbones' place table, declared whole (15) |
 | the idle overlay's blit `D_801146C4` (no name, callback_init) and its colour `D_801146FC` as bytes; the `idle` path | the colour callback at the Blit's host offsets, and the colour declared as bytes (15) |
 
+**For the save code** ([SAVES.md](SAVES.md) 10, 2026-11-04), made up the same way: what the game's save screens
+need to make, read, change and delete a profile and to save and race a ghost.
+
+| Values | Why |
+|---|---|
+| `D_8011EAEC[256]` | the pak's character set, the N64's public one (15 space, 16-25 digits, 26-51 A-Z, 52-65 punctuation): with zeros every note name was empty, and every note collided |
+| `D_801211F8`, `D_801211BC` | the notes' name prefix, `SYNTH049` (CreatePlayer's, SaveServer's) |
+| `D_801211E0`, `D_801211DC`, `D_801211C8`; `D_801211F4` | the profile extension `D`; the ghost extension `T` (SaveServer tells them apart by the first character) |
+| `D_801211E4`, `D_801211EC`, `D_801211F0`, `D_80121204` | a ghost note's name format (`%s%X%s`: the profile's note name, the track, the way), the ways' letters `R` and `N`, CreatePlayer's digits (`%0*u`) |
+| `D_801211CC` | a developer name, `SYN`: a profile of that name opens the ghost save prompt (`D_801148E4`); it also makes the cheat screen's states 14-16 valid |
+| `D_80117420` | the name entry's grid of 54 characters, a table of the cartridge's own (NULL faulted) |
+| `D_801149B4[0]` | the censor list: "" (none; NULL faulted) |
+| zlib 1.0.4's `extra_lbits`, `extra_dbits`, `bl_order`, the three static tree descriptors, the level-9 row of `configuration_table` | CompressGhost's deflate: `tr_static_init` ran off its tables with zeros (as `extra_blbits` before) |
+| `D_80111754[0]` | track 0's ghost-race time limit, 90 s (was 15 s): the respawns credit checkpoints only before it runs out |
+| wave 177 | track 0's backward path, a lap of 3 checkpoints and a 40-point resurrection line: the cartridge's car is crashed from its first frame and respawned every 3.55 s, and on this path its respawns get round three laps and finish 35.6 s in |
+
 **From the QA sweep** ([QA.md](QA.md)), made up the same way:
 
 | Values | Why (QA.md section) |
@@ -213,6 +229,8 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `solo` | one player alone on track 0 (the track select's Drones option down to 0), the gas and full right steering held from before the race begins: a race nothing on the game thread steers, for `game.frame_rate`'s physics comparison ([FRAMERATE.md](FRAMERATE.md) 7, `fps_physics`) | 0x400000, 900 frames: 1 car | 1.6 s |
 | `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
 | `mem64`, `memhigh`, `memhigh2p`, `membig`, `membig8` | `game.memory` ([MEMORY.md](MEMORY.md) 6): drive at 64 MiB; drive and race2p at 64 with everything the game allocates above 17 MiB (`# env: RUSH2049_TEST_HEAP_FLOOR=17`); drive with the car files 3 MB larger at 64, and 1 MB larger at `original`, where LoadCars falls back. `# check:` runs `tools/port/heap_check.py` on the exit line's `heap:`, and ctest compares their screenshots with drive's and race2p's byte for byte | as drive, race2p | 0.5 s |
+| `profile` | the player screen's create item and name entry (S, Y, N, END): CreatePlayer writes the profile note `SYNTH049SYN.D` on a fresh pak; `# check:` runs `tools/port/pak_notes.py` (one note, that one), then `tools/port/synth_again.py` with `again/profile2` (the next start: SaveServer lists SYN, the player picks it, LoadPlayerData reads it, a race with the fog option changed: the note changed in place) and `again/delete2` (the player screen's delete: the pak empty) | 0x40, 60 frames | 0.5 s |
+| `ghost` | a profile made as above, picked again, the ghost race (gRace 2) on track 0 backward to its finish (35.6 s), quit from the pause screen to the results and the save prompt: SaveGhost writes `SYNTH049SYN1R.T`; then `again/ghost2` (the next start reads the ghost, the race has it as a second player, players 2, and SaveGhost replaces it with the new one) | 0x800000, 60 frames | 2.5 s |
 | `detail`, `detail_far`, `detail_max`, `detail_high`, `detail_fog`, `detail_fogfar` | two seconds of a race on track 0's detail world at each setting of `video.draw_distance`, `detail` and `fog`, and with the track select's fog option; `# check:` runs `tools/port/detail_check.py` on the exit's scene line: the parts let through (4, 5, 6 of 6), what each limit left out ([DETAIL.md](DETAIL.md) 6.1) | 0x400000, 60 frames | 0.8 s |
 
 **Screenshots.** `--screenshot-at N` of a race now shows the game's own display lists drawn: its matrices and

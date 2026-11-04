@@ -40,6 +40,7 @@ typedef struct {
     int state;               /* CLEAN, QUEUED (in g_queue), FAILED (its image kept, until pc_pakw_retry) */
     int busy;                /* being written (the image is in writing) */
     int failing;             /* its last write failed: said once, until one succeeds */
+    PcPakWriteFn fn;         /* its own write (a saves folder's split: pakstore.c); NULL: g_write */
 } Slot;
 
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -114,7 +115,8 @@ static void write_one(Message *m)
     uint64_t t0 = now_ns();
     if (delay)
         nap_ns(delay);
-    int ok = g_write(path, s->writing, s->wsize) == 0, err = errno;
+    PcPakWriteFn fn = s->fn ? s->fn : g_write;
+    int ok = fn(path, s->writing, s->wsize) == 0, err = errno;
     uint64_t took = now_ns() - t0;
 
     pthread_mutex_lock(&g_lock);
@@ -216,7 +218,7 @@ static int slot_of(const char *path)
 }
 
 /* lock held */
-static int put(const char *path, const char *label, const void *data, size_t size)
+static int put(const char *path, const char *label, const void *data, size_t size, PcPakWriteFn fn)
 {
     start();
     int i = slot_of(path);
@@ -232,6 +234,7 @@ static int put(const char *path, const char *label, const void *data, size_t siz
     memcpy(s->data, data, size);
     s->size = size;
     snprintf(s->label, sizeof s->label, "%s", label ? label : "the pak");
+    s->fn = fn;
     g_stats.submits++;
     if (s->state == QUEUED)
         g_stats.superseded++;   /* the newer image takes the older one's place in the line */
@@ -264,10 +267,15 @@ static void write_here(void)
 
 int pc_pakw_submit(const char *path, const char *label, const void *data, size_t size)
 {
+    return pc_pakw_submit_fn(path, label, data, size, NULL);
+}
+
+int pc_pakw_submit_fn(const char *path, const char *label, const void *data, size_t size, PcPakWriteFn fn)
+{
     if (!path || !data)
         return -1;
     pthread_mutex_lock(&g_lock);
-    int r = put(path, label, data, size);
+    int r = put(path, label, data, size, fn);
     write_here();
     pthread_mutex_unlock(&g_lock);
     return r;
@@ -369,9 +377,14 @@ int pc_pakw_is_writer(void)
  * thread is started from a fault handler: before the first submit there is nothing to hand over but a new pak. */
 int pc_pakw_fault_submit(const char *path, const char *label, const void *data, size_t size)
 {
+    return pc_pakw_fault_submit_fn(path, label, data, size, NULL);
+}
+
+int pc_pakw_fault_submit_fn(const char *path, const char *label, const void *data, size_t size, PcPakWriteFn fn)
+{
     for (int i = 0; i < 50; i++) {
         if (pthread_mutex_trylock(&g_lock) == 0) {
-            int r = g_started || g_threadless ? put(path, label, data, size) : -1;
+            int r = g_started || g_threadless ? put(path, label, data, size, fn) : -1;
             write_here();
             pthread_mutex_unlock(&g_lock);
             return r;

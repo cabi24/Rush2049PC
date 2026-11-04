@@ -181,6 +181,7 @@ static const char *const draw_choices[] = {"original", "far", "max", NULL};    /
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
 static const char *const game_fps_choices[] = {"original", NULL};      /* 0: a frame every two retraces at most */
+static const char *const saves_choices[] = {"pak", "files", NULL};            /* PC_CFG_SAVES_* (SAVES.md) */
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -230,6 +231,21 @@ static const Item items[] = {
     {"game", "pak3_file", T_STR, F(pak_file[2]), 0, 0, NULL, "rush2049pc-p3.mpk", "Controller 3's pak image."},
     {"game", "pak4", T_ENUM, F(pak[3]), 0, 0, pak_choices, "auto", "Controller 4's accessory, as pak2."},
     {"game", "pak4_file", T_STR, F(pak_file[3]), 0, 0, NULL, "rush2049pc-p4.mpk", "Controller 4's pak image."},
+    /* game.saves (docs/port/SAVES.md): each player's controller pak kept as its .mpk image or as a folder of files */
+    {"game", "saves", T_ENUM, F(saves[0]), 0, 0, saves_choices, "pak",
+     "How controller 1's controller pak is kept: pak (the image, pak_file, as an N64 pak: 16 notes, 123 pages) or "
+     "files (the folder saves_dir: a file per profile and per ghost, any number of ghosts kept and the ones that fit "
+     "put on the pak the game sees, ghosts shared as .r49ghost files). The first start with files imports the "
+     "pak's saves and leaves the .mpk as it is; the F1 menu's Saves page exports them back. Applies at the next "
+     "start."},
+    {"game", "saves_dir", T_STR, F(saves_dir[0]), 0, 0, NULL, "saves/p1",
+     "Controller 1's saves folder (saves = files); a relative path is in the data folder, as pak_file."},
+    {"game", "saves2", T_ENUM, F(saves[1]), 0, 0, saves_choices, "pak", "How controller 2's pak is kept, as saves."},
+    {"game", "saves2_dir", T_STR, F(saves_dir[1]), 0, 0, NULL, "saves/p2", "Controller 2's saves folder."},
+    {"game", "saves3", T_ENUM, F(saves[2]), 0, 0, saves_choices, "pak", "How controller 3's pak is kept, as saves."},
+    {"game", "saves3_dir", T_STR, F(saves_dir[2]), 0, 0, NULL, "saves/p3", "Controller 3's saves folder."},
+    {"game", "saves4", T_ENUM, F(saves[3]), 0, 0, saves_choices, "pak", "How controller 4's pak is kept, as saves."},
+    {"game", "saves4_dir", T_STR, F(saves_dir[3]), 0, 0, NULL, "saves/p4", "Controller 4's saves folder."},
 
     {"video", "width", T_INT, F(width), 160, 16384, size_choices, "auto",
      "Window size in pixels, or auto: two thirds of the desktop. The game draws 320 x 220; the frame is drawn at the "

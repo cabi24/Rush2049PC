@@ -6,6 +6,16 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Saves as files, and ghosts to share** (`game.saves = files`, `--saves files`, F1 > Saves): instead of one
+  32 KB controller pak image per player, each profile and each ghost is a file of its own in the player's folder
+  (`saves/p1` in the data folder), and the folder keeps any number of ghosts; the game still sees a controller pak,
+  with the profiles, the ghosts it saved and the fastest of the rest that fit. The first start with files imports
+  the player's `.mpk` (left as it is); F1 > Saves > Export to the .mpk goes back. A ghost exports to a
+  `.r49ghost` file, and one dropped into the folder's `import/` (a friend's) is checked, put on the pak and raced
+  like the player's own. Deleted saves go to the folder's `trash/`, never removed; each file is written atomically
+  and keeps three backups. `pak`, the default, is the `.mpk` exactly as before ([SAVES.md](docs/port/SAVES.md),
+  [FRONTEND.md](docs/port/FRONTEND.md); `tools/port/ghost.py` reads and converts all of it).
+
 - **Mods** (a `mods/` folder in the data folder, F1 > Mods): a mod is a folder or a .zip with a mod.ini and files
   that stand in for the cartridge's (cars, tracks, fonts, the HUD's and the menus' models and textures, text, sounds),
   named by the game's file names (`cars/car01.bin`) or numbers (`wave_088.bin`), and optionally a texture pack and

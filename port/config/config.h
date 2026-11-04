@@ -46,6 +46,7 @@ extern const char *const pc_hotkey_names[PC_NUM_HOTKEYS];     /* "fullscreen", .
 /* = port/ultra's PC_PAK_*; auto: a rumble pak while the player's controller can rumble, else none */
 enum { PC_CFG_PAK_NONE = 0, PC_CFG_PAK_MEMORY = 1, PC_CFG_PAK_RUMBLE = 2, PC_CFG_PAK_AUTO = 3 };
 enum { PC_CFG_API_AUTO = 0, PC_CFG_API_GL = 1, PC_CFG_API_GLES = 2 };   /* the order of the file's choices */
+enum { PC_CFG_SAVES_PAK = 0, PC_CFG_SAVES_FILES = 1 };   /* game.saves (docs/port/SAVES.md) */
 enum { PC_CFG_STICK_LEFT = 0, PC_CFG_STICK_RIGHT = 1, PC_CFG_STICK_NONE = 2 };
 
 #define PC_CFG_PATH 1024
@@ -72,6 +73,9 @@ typedef struct PcSettings {
     } mod_flag[PC_CFG_MODS];
     int pak[4];                     /* PC_CFG_PAK_*: each controller's accessory (game.pak, game.pak2...) */
     char pak_file[4][PC_CFG_PATH];  /* each controller's pak image (game.pak_file, game.pak2_file...) */
+    /* game.saves (docs/port/SAVES.md): PC_CFG_SAVES_*, each controller's pak kept as the image or as a folder */
+    int saves[4];                   /* game.saves, game.saves2... */
+    char saves_dir[4][PC_CFG_PATH]; /* game.saves_dir, game.saves2_dir...: the folders */
     /* [video] */
     int width, height;              /* window size, pixels; 0: auto (two thirds of the desktop) */
     char position[32];              /* where the window opens: "center" or "X,Y" */

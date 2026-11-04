@@ -283,6 +283,11 @@ the game saves only to the controller pak.
   longest.
 - `--no-pak` plugs in nothing on any port, and `--rumble` a rumble pak on controller 1 (0x8000 probe, 0xC000
   motor).
+- **Saves as files** (`game.saves = files`, 2026-11-04, [SAVES.md](SAVES.md)): the port's image is built from the
+  player's folder (`pc_si_set_pak_store`, `store_load`: pakstore.c's `pc_store_build`) and handed to the writer with
+  a write of its own (`pc_pakw_submit_fn`: `pc_store_write` splits it into the folder's files). The game sees a pak
+  as above; a change of which saves are on it is made as a hot swap (`swap_pak`) only when main's check says the game
+  can take one (`pc_si_set_swap_check`), else at the next start. With `pak` nothing here changed.
 - The image keeps the `.mpk` page layout, but its multi-byte fields are in the native Pfs C's order: the ID
   checksums are sums of host-order u16, and `PFS_EOF`/`PFS_PAGE_NOT_USED` are host-order u16. Page links keep
   their `{bank, page}` bytes, which is how the rest of the Pfs C reads them.

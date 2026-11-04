@@ -22,7 +22,7 @@ target_include_directories(frontend_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config
                            ${CMAKE_SOURCE_DIR}/port/include)
 target_compile_options(frontend_test PRIVATE ${PC_FRONTEND_TEST_FLAGS})
 target_link_libraries(frontend_test PRIVATE m)
-foreach(c ini settings layers locate stick cars memory detail fps mods)
+foreach(c ini settings layers locate stick cars memory detail fps mods saves)
     add_test(NAME frontend.${c} COMMAND frontend_test ${c} ${PC_FRONTEND_TEST_DIR})
 endforeach()
 
@@ -43,7 +43,7 @@ target_include_directories(frontend_menu_test PRIVATE ${CMAKE_SOURCE_DIR}/port/c
                            ${CMAKE_SOURCE_DIR}/port/include ${CMAKE_SOURCE_DIR}/port/gfx/tests)
 target_compile_options(frontend_menu_test PRIVATE ${PC_FRONTEND_TEST_FLAGS} -Wno-unused-function)
 target_link_libraries(frontend_menu_test PRIVATE pcgfx ${RUSH_SDL2_TARGET} m)
-foreach(c nav live save script mouse pages mods)
+foreach(c nav live save script mouse pages mods saves)
     add_test(NAME frontend.menu.${c} COMMAND frontend_menu_test ${c} ${PC_FRONTEND_TEST_DIR}/menu-${c})
 endforeach()
 set_target_properties(frontend_menu_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)

@@ -1,0 +1,32 @@
+# A second run on ghost.press's pak (tools/port/synth_again.py, docs/port/SYNTH.md 2): SaveServer reads the profile
+# SYN and the ghost SYNTH049SYN1R.T back at the boot (_ReadPlayer, _ReadGhostHeader). SYN picked (LoadPlayerData:
+# the developer name again), the mode screen is on the ghost race, SYN's last, and the track select keeps SYN's
+# track options (backward): the race's ghost is the saved one (GhostStart; _ReadGhostData reads its samples from the
+# pak), so the race has two players and two cars, SYN's and the ghost, and both finish 35.6 s in. Paused and quit,
+# the save prompt: SaveGhost finds SYN's ghost of this track and direction on the pak, deletes its note (DeleteGhost,
+# PS_DeleteFile) and writes the new one (PS_CreateFile), in the same directory entry and page. Then the game over
+# screen, its cars still the race's two.
+# until: 0x800000:60
+# seconds: 100
+# args: --pak ghost.mpk
+# expect: state=0x00800000: players 1, windows 1, cars 2, mode 2, track 0
+# visits: 0x400000 0x2000000
+# check: tools/port/pak_notes.py ghost.mpk --notes 2 --ghost SYNTH049SYN1R.T:0:1 --compare ghost.first.pak --changed SYNTH049SYN1R.T
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race; the player screen
+14 DOWN 0.1    # the pak row
+14.5 DOWN 0.1  # SYN
+15 A           # ready: LoadPlayerData; the mode screen, on the ghost race
+19 A
+22 A           # track 0, backward
+25 A           # the car select; the race from 28 s against the ghost, both finished at 63.6 s
+68 START       # pause
+69 UP 0.1      # quit
+70 A           # are you sure?
+71 RIGHT 0.1   # yes
+72 A           # the results; the save prompt, on its pak row
+76 DOWN 0.1    # save
+78 A           # SaveGhost: the old ghost's note deleted, the new one written; the message
+81 A           # the records
+84 A           # the game over screen

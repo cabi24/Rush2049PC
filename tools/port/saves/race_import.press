@@ -1,0 +1,18 @@
+# game.saves = files: a ghost made by tools/port/ghost.py (synthetic, never the ROM's), imported from the folder's
+# import/, raced in the ghost race on track 0 backward with the default player: the track select's ghost choice
+# (func_803A0498) takes it and GhostStart makes it a ghost player (docs/port/SAVES.md 5). Run by
+# tools/port/saves_check.py's race scenario, which makes the ghost first.
+# until: 0x400000:300
+# seconds: 90
+# args: --saves files (tools/port/saves_check.py runs it, in a data folder of its own)
+# expect: players 2
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen: the default player
+16 DOWN 0.1    # the mode screen: the ghost race, two modes down
+16.5 DOWN 0.1
+17 A
+19.5 RIGHT 0.1 # the track select's option: backward on
+20 A           # track 0
+23 A           # the car select; the race
