@@ -289,10 +289,33 @@ of one. Mods for another region's cartridge don't apply (the port runs the USA c
 | `synth_boot_mods_dump`, `_texture`, `_texture_up` | drive's two textures dumped and a mod's pack made from them, each clear: at `original` and at `upscaled` (scale 2) the HUD's text is gone (0 black pixels) |
 | `synth_boot_mods_fuzz_*` | a file of every kind (21 files) cut to a quarter, a half, three quarters, one byte short, 64 KiB of zeros or of garbage longer, garbage of its size: the cut and garbage ones refused (21 of 21; one byte short: 19, two used), the longer ones used (memory 16 MiB): the race runs |
 
+**The proof.** "Base" is a build of 1900a9d (main before this work); no game C changed (`git diff 1900a9d -- src
+include asm` is empty), so the N64 IDO check has nothing new to compare.
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, base against the branch, no mods, the defaults, Debug, build host (x86-64, GCC 14): every path the base has (30) | the same trace, every run: 30 of 30 (55.1 s and 56.0 s of runs) |
+| `data.c`, `data_symbols.txt`, the synthetic cartridge | the same files as the base's (build host) |
+| ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 294 of 294 each (22 new: `assets_mods`, `mods_tool`, `mods_synth`, `frontend.mods`, `frontend.menu.mods` and the 17 `mods_*` paths; `assets_rom` skipped: no ROM there) |
+| `n64_neutral.py --base 09da2f0` | passes (1,015 files: 92 code-exact, 923 shifted), as before |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check`, `bounds_check` (build host) | no open findings: offset_check 59,463 accesses, layout_check 48,208, endian_check's 2 open value conflicts in 1 storage and 3,525 puns, alias_check none open, bounds_check none new (0 two offsets, 0 clamped): the base's numbers (MEMORY.md 6) |
+| the same, Pi 5 (aarch64, GCC 12) | 30 of 30 (115.0 s and 114.0 s); `data.c`, `data_symbols.txt` and the synthetic cartridge the base's |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run, each reaching its state: 6 of 6 |
+| ASan + UBSan, aarch64 (Pi 5, `-DRUSH_SANITIZE=address,undefined`, CI's arm sanitize job's build): `assets_mods` (every truncation, garbage and mutation, the converters on what passes), `mods_tool`, `frontend.mods`, `frontend.menu.mods`, `mods_synth` and the 18 `mods_*` paths (the game loading every kind of file cut, grown and garbage, the bad, big, conflicting, text and texture mods) | 24 of 24 pass, no ASan or UBSan report (UBSan halts on one under ctest); a path takes 10-12 s there |
+| the retail cartridge, Pi 5: `tools/port/mods_retail.py`'s identity mod (every file the game loads, 175, and the sample data, unchanged, so the game reads all of them from the mods' region and the sample directory is remade with the samples' new offsets) against no mods: `race2p` and `battle2p` | `rushmods.py check` takes all 176; the game too (no refusal; "176 of the cartridge's files replaced"); the same trace (2 of 2), and `race2p`'s screenshot and whole sound (4 MB of WAV) byte for byte the run without mods' |
+| the retail cartridge: every car file's palettes and RGBA16 texels magenta (made from the ROM's car files, as `rushmods.py extract` writes them), `race2p` | the screenshot at the start line: both players' cars' painted bodies are bright magenta where they are dark red and black without the mod; the wheels, the trim, the exhaust flames, the road, the bridge and the HUD are as without it, the cars in the same places, the timer the same |
+| the retail cartridge: every car file 3 MB larger, at `game.memory = original`, `race2p` | "game.memory raised to 32 MiB: the files need up to 18.9 MB more heap"; the race reaches its state; the heap's peak 22.5 MB of 32 MB (without the mod 3.6 of 6.8), nothing short, nothing refused; the screenshot and the sound byte for byte the run without it |
+| the retail cartridge: the sample data with every sample's bytes past its codebook zero (wave 9, the sample directory remade), `race2p` | the sound dump differs: silent (RMS 0, peak 0) where the run without it has RMS 13,387; the picture the same |
+
 ## 9. Not done, or not tested
 
 - Mods apply at the next start, not at the next load: the files are read before the memory is mapped, and changing
   a wave's file under a loaded game (with a background load in flight) isn't safe.
-- Sounds on the synthetic cartridge: it has no samples, so no test hears a mod's sound there.
+- Sounds on the synthetic cartridge: it has no samples, so no ctest hears a mod's sound; the retail runs did (section
+  8: silent samples, and the identity mod's sound byte for byte). A mod's new project, pool or songs (rather than the
+  cartridge's) were not played: the rules check their structure, not that the sfx the game asks for are in them.
+- On the retail cartridge, the mods ran on race2p and battle2p (two players, track 0, a battle arena); the other
+  tracks, the front end's files and the fonts were checked (`rushmods.py check`, all 176) and loaded by the identity
+  mod only on those paths. Retail runs under ASan were not made; the synthetic ones were (section 8).
 - macOS (no build) and Windows: the mods code is plain C with dirent; it built in the cross build but ran only on Linux.
 - A zip's texture pack is unpacked into the data folder at each start; a zip64 or encrypted zip is refused.
