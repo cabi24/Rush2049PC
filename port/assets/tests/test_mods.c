@@ -371,7 +371,9 @@ static int verdicts(int argc, char **argv)
             cart = argv[++i];
             continue;
         }
-        const char *base = strrchr(argv[i], '/');
+        const char *base = strrchr(argv[i], '/'), *bs = strrchr(argv[i], '\\');   /* Windows: either */
+        if (bs && (!base || bs > base))
+            base = bs;
         base = base ? base + 1 : argv[i];
         int wave = atoi(base);
         FILE *f = fopen(argv[i], "rb");

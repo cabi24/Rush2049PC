@@ -1328,7 +1328,7 @@ def cmd_selftest(a):
     shutil.rmtree(work, ignore_errors=True)
     (work / "good").mkdir(parents=True)
     fails = 0
-    c_names = subprocess.run([a.program, "names"], stdout=subprocess.PIPE, check=True).stdout.decode().split("\n")
+    c_names = subprocess.run([a.program, "names"], stdout=subprocess.PIPE, check=True).stdout.decode().splitlines()
     py_names = [f"{w} {wave_folder(w)}/{wave_name(w)}" for w in range(WAVES) if wave_name(w)]
     if [l for l in c_names if l] != py_names:
         print("rushmods selftest: the names differ from port/mods/mods.c's")
