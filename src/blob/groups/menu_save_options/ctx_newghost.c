@@ -943,10 +943,13 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
 void *memcpy(void *, const void *, u32);
 void ghost_free_start(GhostHeader *header);
 #ifdef TARGET_PC
-/* PC: the header keeps its N64 layout, file data (docs/port/POINTERS.md 9.10); a ghost is 64 bytes */
-#define START(x) ((u8 *)(uintptr_t)(x))
+/* PC: the header keeps its N64 layout, file data (docs/port/POINTERS.md 9.10); a ghost is 64 bytes. The heap's API
+ * takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define START(x) ((u8 *)PC_N64P(x))
+#define N64A(x) PC_N64A(x)
 #else
 #define START(x) x
+#define N64A(x) (u32)x
 #define GHOST_OFS(n) n
 #endif
 
@@ -993,7 +996,7 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     (*ghost->header)->unzippedChecksum = unzippedChecksum;
     memcpy((u8 *)*ghost->header + 88, gdata, dataSize);
     osRecvMesg((OSMesgQueue *)&D_80152770, NULL, 1);
-    audio_reverb_update((u32)gdata, 0);
+    audio_reverb_update(N64A(gdata), 0);
     osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0);
     gh = ghost->header;
     ghost->track = (*gh)->track;
@@ -1003,7 +1006,7 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     ghost->playerId[0] = (*gh)->playerId[0];
     ghost->playerId[1] = (*gh)->playerId[1];
     ghost->finish = (*gh)->finish;
-    *blocks = ghost_blocks_from_size((s32)audio_buffer_sync((u32)gh));
+    *blocks = ghost_blocks_from_size((s32)audio_buffer_sync(N64A(gh)));
     return ghosth;
 }
 
@@ -1012,4 +1015,4 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
  * source line; retail schedules `lw s2,76(s3)` between the lock's `la a0` and `move a1` with `li a2,1` in the delay
  * slot, which needs the pointer load on the lock's line and that line after the caller's `dataSize = ...` line.
  * Identity hypothesis (disclosed): the GC code calls DeallocateMemory(header->start) directly. Non-static, internal. */
-void ghost_free_start(GhostHeader *header) { u8 *p = START(header->start); osRecvMesg((OSMesgQueue *)&D_80152770, NULL, 1); audio_reverb_update((u32)p, 0); osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0); }
+void ghost_free_start(GhostHeader *header) { u8 *p = START(header->start); osRecvMesg((OSMesgQueue *)&D_80152770, NULL, 1); audio_reverb_update(N64A(p), 0); osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0); }

@@ -1580,6 +1580,13 @@ void object_render(void *img, u16 type, u16 siz, u16 width, u16 height, u16 uls,
                    u16 pal, s32 tile);
 void func_80087110(s32 x, s32 y, s32 right, s32 bottom, s32 s, s32 t);
 
+#ifdef TARGET_PC
+/* A palette's table is a 32-bit N64 address its loader reads through: N64PTR(T, a) the pointer at one (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
+#define N64PTR(T, a) ((T)PC_N64P(a))
+#else
+#define N64PTR(T, a) (T)a
+#endif
 void Input_ProcessGameplayPad(s32 arg0)
 {
     s32 i;
@@ -1714,17 +1721,17 @@ void Input_ProcessGameplayPad(s32 arg0)
         }
         if (e->pal != NULL) {
             pal = e->pal;
-            func_8008A148((u8 *)pal->table, tex->fmt, tex->siz, 0);
+            func_8008A148(N64PTR(u8 *, pal->table), tex->fmt, tex->siz, 0);
         } else if (tex->palette >= 0) {
             pal = &gPalDefPtrs[e->model >> 10].pal[tex->palette];
-            func_8008A148((u8 *)pal->table, tex->fmt, tex->siz, 0);
+            func_8008A148(N64PTR(u8 *, pal->table), tex->fmt, tex->siz, 0);
         } else if (tex->fmt == 3) {
             D_8011ED08[3] = e->color;
             func_8008A148(D_8011ED08, tex->fmt, tex->siz, 0);
         } else if (tex->fmt != 0) {
             if (gPalDefPtrs[e->model >> 10].count != 0) {
                 pal = gPalDefPtrs[e->model >> 10].pal;
-                func_8008A148((u8 *)pal->table, tex->fmt, tex->siz, 0);
+                func_8008A148(N64PTR(u8 *, pal->table), tex->fmt, tex->siz, 0);
             }
         }
         if (e->t1 >= tex->height) {

@@ -322,7 +322,15 @@ extern MapLod D_803BAAE8[7];   /* mapObj */
 extern void *D_803BABC8[7],*D_803BABE8[7];
 extern ModelBank D_801161F4[];   /* gRomObjDefPtrs */
 extern char *D_803B7738[];       /* trackMapObjNames */
+#ifdef TARGET_PC
+/* DeallocateMemory's definition (audio_effect_process) takes the block's 32-bit N64 address: N64A0(p) is a window
+ * pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+extern void func_800960D4(u32);
+#define N64A0(x) PC_N64A(x)
+#else
 extern void func_800960D4(void *);  /* DeallocateMemory */
+#define N64A0(x) x
+#endif
 #ifdef TARGET_PC
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ImageMeta {void *pal,*tex;u16 model;s16 x,y;u16 mode;s16 w,h;u8 color;u8 flags;s8 hidden;u8 pad17;s16 t0,s0,t1,s1;} ImageMeta;
@@ -1253,9 +1261,9 @@ void func_8038B930(void)
             model = string_copy_format(D_803B7738[i < 6 ? i : 19],0,D_80140BDC - 1,1);
             def = &D_801161F4[model >> 10].romObjDefs[model & 0x3FF];
             def->lod[0] = D_803BAB58[i];
-            if (D_803BABC8[i]) func_800960D4(D_803BABC8[i]);
+            if (D_803BABC8[i]) func_800960D4(N64A0(D_803BABC8[i]));
             D_803BABC8[i] = 0;
-            if (D_803BABE8[i]) func_800960D4(D_803BABE8[i]);
+            if (D_803BABE8[i]) func_800960D4(N64A0(D_803BABE8[i]));
             D_803BABE8[i] = 0;
             D_803BAAE8[i].displayList = 0;
             D_803BAAE8[i].verts = 0;

@@ -61,11 +61,23 @@ typedef struct Heap {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Pool: (struct Pool *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x
+#endif
+#ifdef TARGET_PC
+/* The heap's addresses are 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md
+ * 2.3). The pool is the heap's handle table, whose slots are 8 bytes on the PC (HANDLE_SLOT, audio_heap/group.c): an
+ * address inside it is a handle, the slot read as one (PC_SLOT_N64). */
+#define N64A(x) PC_N64A(x)
+#define POOL_END(p) N64A((uintptr_t *)N64P((p)->base) + (p)->count)
+#define SLOT_N64(a) PC_SLOT_N64(PC_N64P(a))
+#else
+#define N64A(x) (u32)x
+#define POOL_END(p) (u32)(N64P(p->base) + p->count)
+#define SLOT_N64(a) *(u32 *)a
 #endif
 Block *func_80095EF4(Heap *heap, u32 addr, s32 tag) {
     Pool *p;
@@ -73,15 +85,15 @@ Block *func_80095EF4(Heap *heap, u32 addr, s32 tag) {
     p = &heap->pool;
     while (1) {
         if (p == 0 || p->base == 0) break;
-        if (addr >= (u32)p->base && addr < (u32)(N64P(p->base) + p->count)) {
-            addr = *(u32 *)addr;
+        if (addr >= (u32)p->base && addr < POOL_END(p)) {
+            addr = SLOT_N64(addr);
             break;
         }
         p = N64P(p->next);
     }
     b = N64P(heap->blocks);
     while (b != 0) {
-        if (tag != b->tag || addr < (u32)b || (b->next != 0 && addr >= (u32)b->next)) {
+        if (tag != b->tag || addr < N64A(b) || (b->next != 0 && addr >= (u32)b->next)) {
             b = N64P(b->next);
         } else break;
     }

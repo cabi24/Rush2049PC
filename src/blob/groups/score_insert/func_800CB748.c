@@ -86,6 +86,12 @@ void *AllocateHandleHeap(s32, s32);
 
 static void release_handle(u32 address);
 
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void func_800CB748(Header88 *entry, void *payload) {
     s32 i;
     Header88 **h;
@@ -107,7 +113,7 @@ void func_800CB748(Header88 *entry, void *payload) {
     i--;
     if (i >= 0) {
         if (row[0]->handle != 0) {
-            release_handle((u32) row[0]->handle);
+            release_handle(N64A(row[0]->handle));
         }
         if (i > 0) {
             func_800A47C0(row[0], row[1], i * sizeof(Record44));

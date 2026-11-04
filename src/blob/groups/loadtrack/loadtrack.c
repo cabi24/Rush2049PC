@@ -102,6 +102,13 @@ uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
 #define MBGetFromWad(wad, tag, count) pc_world_chunk(MBGetFromWad(wad, tag, count), tag, count)
 #endif
 
+#ifdef TARGET_PC
+/* The world headers' offsets become 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     Wad wad;
     WorldHdr *whdr;
@@ -133,7 +140,7 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
         D_80149818 = (WorldHdr *)(D_801497FC + 1);
         if (!D_80143A10.world.inited) {
             for (i = 0, whdr = D_80149818; i < *D_801497FC; i++, whdr++) {
-                whdr->woff += (u32)worldptr;
+                whdr->woff += N64A(worldptr);
             }
             D_80143A10.world.inited = 1;
         }

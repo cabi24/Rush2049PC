@@ -3800,8 +3800,12 @@ s32 world_velocity_integrate();
 /* PC: video.fog off keeps the sky dome with the track select's fog option on (docs/port/DETAIL.md 2.4): the N64 makes
  * none in a fog, whose colour is then the whole sky; without the fog that is a flat colour behind the world. */
 #define PC_SKY_FOG(f) (pc_fog() == PC_FOG_OFF ? 0 : (f))
+/* A window's camera matrix is kept as its 32-bit N64 address (D_80124FD0): N64A(p) is a window pointer's
+ * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
 #else
 #define PC_SKY_FOG(f) f
+#define N64A(x) x
 #endif
 void camera_reset(void)
 {
@@ -3820,7 +3824,7 @@ void camera_reset(void)
   for (i = 0; i < (s16) gNumWindows; i++) {
     handle = string_copy_format(D_8012120C, 0, gNumModels - 1, 1);
     val = func_800A7D6C();
-    *dst = val;
+    *dst = N64A(val);
     func_8008E26C(handle, val, -1, (((s16) (1 << i)) << 8) ^ 0xF00);
     dst++;
   }

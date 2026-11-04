@@ -37,7 +37,7 @@ typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Hea
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Pool: (struct Pool *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
@@ -205,8 +205,20 @@ void *AllocateHandleHeap(void *, s32);
 #else
 s32 AllocateHandleHeap(void *, s32);
 #endif
+#ifdef TARGET_PC
+/* The ghost's buffer is kept as its 32-bit N64 address (MenuData.buffer), read from its handle's slot (PC_SLOT_N64);
+ * inflate_entry_alt and format_string_parse take the pointer at it, N64PTR0(T, a) (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
+s32 inflate_entry_alt(void *, s32, void *);
+s32 format_string_parse(void *, s32);
+#define N64PTR0(T, a) ((T)PC_N64P(a))
+#define SLOT_S32(h) (s32)PC_SLOT_N64(h)
+#else
 s32 inflate_entry_alt(void *, s32, s32);
 s32 format_string_parse(s32, s32);
+#define N64PTR0(T, a) a
+#define SLOT_S32(h) *(s32 *)h
+#endif
 s32 draw_ui_element(Handle, s32, s32);
 void menu_item_select(void *, s32);
 void func_800CB9D0(void *);
@@ -248,13 +260,19 @@ typedef struct {
 extern PlayerSeats D_80144030[];
 
 /* AdjustSteer (historical label): release a slot's data block and clear its seat flag. */
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void AdjustSteer(Handle h) {
     Slot *s = *(Slot **)h;
 
     if (s->data != NULL) {
         void **data = s->data;
         osRecvMesg(&D_80152770, NULL, 1);
-        audio_reverb_update((u32)data, 0);
+        audio_reverb_update(N64A(data), 0);
         osSendMesg(&D_80152770, NULL, 0);
         s->data = NULL;
         D_80144030[s->id].seat[s->seat].busy = 0;
@@ -267,7 +285,7 @@ void menu_transition(Handle h) {
     if (o->h36 != NULL) {
         void **old = o->h36;
         osRecvMesg(&D_80152770, NULL, 1);
-        audio_reverb_update((u32)old, 0);
+        audio_reverb_update(N64A(old), 0);
         osSendMesg(&D_80152770, NULL, 0);
         o->h36 = NULL;
         ((START_VIEW *)*o->h40)->f76 = 0;
@@ -284,11 +302,11 @@ void DecodeGhost(Handle h) {
 
     if (m->buffer == 0) {
         (*h)->h36 = (void **)AllocateHandleHeap(NULL, m->tag);
-        m->buffer = *(s32 *)(*h)->h36;
-        n = inflate_entry_alt(m->data, m->size, m->buffer);
+        m->buffer = SLOT_S32((*h)->h36);
+        n = inflate_entry_alt(m->data, m->size, N64PTR0(void *, m->buffer));
         m->count = n / 3;
         do {} while (0); /* f1: compiled-out block end (disclosed shaping): retail colours n into a1 */
-        format_string_parse(m->buffer, n);
+        format_string_parse(N64PTR0(void *, m->buffer), n);
         m->loaded = 1;
     }
 }
@@ -306,7 +324,7 @@ void ghost_heap_unlock(void) {
 }
 void cart_free(void **address) {
     ghost_heap_lock();
-    audio_reverb_update((u32)address, 0);
+    audio_reverb_update(N64A(address), 0);
     ghost_heap_unlock();
 }
 
@@ -325,7 +343,7 @@ void func_800C7300(Handle ghosth);   /* GC _FreeGhost (group.c member, stub 0x80
  * evidence). Identity hypothesis: disclosed. */
 void cart_free_direct(void **address) {
     osRecvMesg(&D_80152770, NULL, 1);
-    audio_reverb_update((u32)address, 0);
+    audio_reverb_update(N64A(address), 0);
     osSendMesg(&D_80152770, NULL, 0);
 }
 void DeleteGhost(Handle ghosth) {   /* GC save.c DeleteGhost */
@@ -378,7 +396,7 @@ s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
         }
     }
     obj = *self;
-    size = (u32)audio_buffer_sync((u32)obj->h40);
+    size = (u32)audio_buffer_sync(N64A(obj->h40));
     sprintf(buf, D_801211E4, (char *)*M2C_FIELD(*owner, void ***, PROFILE_OFS(8)) + PSF_OFS(18), m->index + 1,
             GhostDirName(m));
     created = PS_CreateFile(id, buf, D_801211F4, size, 0x3544, 0x4E525545);

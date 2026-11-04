@@ -3809,13 +3809,13 @@ typedef struct { s32 *base; s32 count; s32 *toc; } WadHandle;
 void func_80096BBC(void *arg0, s32 arg1, s32 arg2)
 {
   WadHandle *wad = (WadHandle *) arg0;
-  s32 *base = (s32 *) (uintptr_t) (u32) (arg1 + arg2);
+  s32 *base = (s32 *) PC_N64P((u32) (arg1 + arg2));
   s32 i;
   if (wad != ((void *) 0))
   {
     wad->base = base;
     base[0] += arg2;
-    wad->toc = (s32 *) (uintptr_t) (u32) base[0];
+    wad->toc = (s32 *) PC_N64P((u32) base[0]);
     wad->count = base[1];
     for (i = 0; i < wad->count; i++)
     {

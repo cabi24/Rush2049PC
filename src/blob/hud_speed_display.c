@@ -61,7 +61,15 @@ extern f32 D_8013C090;
 extern u8 D_801497E8;
 
 void *AllocateMemoryHeap(s32 arg0, s32 arg1);
+#ifdef TARGET_PC
+/* PurgeableMemory's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
+void PurgeableMemory(u32 arg0, s32 arg1);
+#define N64A(x) PC_N64A(x)
+#else
 void PurgeableMemory(void *arg0, s32 arg1);
+#define N64A(x) x
+#endif
 void func_80091FBC(List *list, Link *object, Link *before);
 
 void func_800A370C(List *list) {
@@ -86,7 +94,7 @@ void hud_speed_display(s32 numA, s32 numB, f32 arg2, f32 arg3, s32 arg4) {
     if (numA > 0 && numB > 0) {
         D_80110268 = numA;
         D_8011025C = AllocateMemoryHeap(0, D_80110268 * sizeof(RecA));
-        PurgeableMemory(D_8011025C, 0);
+        PurgeableMemory(N64A(D_8011025C), 0);
         for (i = 0; i < D_80110268; i++) {
             D_8011025C[i].unk8 = 1;
             D_8011025C[i].unk9 = 0;
@@ -94,7 +102,7 @@ void hud_speed_display(s32 numA, s32 numB, f32 arg2, f32 arg3, s32 arg4) {
         }
         D_8011026C = numB;
         D_80110260 = AllocateMemoryHeap(0, D_8011026C * sizeof(RecB));
-        PurgeableMemory(D_80110260, 0);
+        PurgeableMemory(N64A(D_80110260), 0);
         for (i = 0; i < D_8011026C; i++) {
             D_80110260[i].unk8 = 1;
             D_80110260[i].unk9 = 0;

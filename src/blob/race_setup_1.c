@@ -45,9 +45,13 @@ typedef struct PaletteAnimation20 { void *owner; s16 first,last; s8 step; u8 act
  * (port/assets/wad.c). */
 #define TXHD_PTR(type) u32
 #define PAL_SET(entry, value) pc_be16_set(&(entry), value)
+/* ... which func_800BD080 writes the frame's address into: N64PTR0(T, a) is the pointer at N64 address a
+ * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64PTR0(T, a) ((T)PC_N64P(a))
 #else
 #define TXHD_PTR(type) type *
 #define PAL_SET(entry, value) entry = value
+#define N64PTR0(T, a) a
 #endif
 typedef struct ObjectView { u8 before24[24]; TXHD_PTR(Gfx) commands; u32 flags; } ObjectView;
 #ifdef TARGET_PC
@@ -183,7 +187,7 @@ void race_setup_1(void)
                     }
                     object=object_animation->frames[object_animation->object_index].object;
                     if(object->flags&0x08000000) object->commands=object_animation->frames[object_animation->index].commands;
-                    else func_800BD080(object->commands,object_animation->frames[object_animation->index].commands);
+                    else func_800BD080(N64PTR0(Gfx *, object->commands),object_animation->frames[object_animation->index].commands);
                 }
             }
             object_animation++;

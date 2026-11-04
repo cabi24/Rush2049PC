@@ -3805,7 +3805,7 @@ typedef s64 M2C_UNK64;
  * window address (docs/port/CARS.md 2.2), not the 8-byte pointer `*arg0` reads. */
 void func_800E1500(void **arg0, f32 *arg1, f32 *arg2)
 {
-  f32 *car = (f32 *)(uintptr_t)*(u32 *)arg0;
+  f32 *car = (f32 *)PC_N64P(*(u32 *)arg0);
   arg2[0] = arg1[0] * car[3];
   arg2[1] = arg1[1] * car[4];
   arg2[2] = arg1[2] * car[5];

@@ -389,6 +389,12 @@ Handle func_800C7EC0(s32 pak, s32 slot) {   /* deleted static at 0x800C7EC0: GC 
 }
 
 /* GC save.c CreatePlayer(int pak, unsigned char *name) */
+#ifdef TARGET_PC
+/* A profile keeps its handle's N64 address: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void **CreatePlayer(s32 pak, u8 *name) {
     Handle player;
     Handle before;
@@ -448,7 +454,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
     F(*fileh, void *, PSF_OFS(8)) = audio_volume_pan;
     F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = func_800949D4;
     F(data, s32, 4) = D_8002E8E8[159];
-    F(data, s32, 8) = ((u32)player << 3) | pak;
+    F(data, s32, 8) = (N64A(player) << 3) | pak;
     func_800A473C(data + 13, name);
     F(data, s32, 0) = format_string_parse(data + 4, (data + 28) - (data + 4));
     memcpy(p + PROFILE_OFS(20), data + 13, 13);
@@ -605,7 +611,15 @@ s32 draw_ui_element(Ghost **ghosth, s32 data, s32 repair) {
  * IPA: decode s0, ghosth s1, select s3 ===== */
 void menu_transition(Ghost **ghosth);            /* frees the ghost data (GC _FreeGhostData-like) */
 void DecodeGhost(Ghost **ghosth);                  /* GC _DecodeGhost */
+#ifdef TARGET_PC
+/* The heap's resize takes the handle's 32-bit N64 address (its definition's u32): N64A0(p) is a window pointer's
+ * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+void menu_item_select(u32 headerh, s32 offset);
+#define N64A0(x) PC_N64A(x)
+#else
 void menu_item_select(GhostHeader **headerh, s32 offset);
+#define N64A0(x) x
+#endif
 void func_800CB9D0(void *h);
 
 s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select) {
@@ -635,7 +649,7 @@ s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select) {
         DecodeGhost(ghosth);
     }
     if (select) {
-        menu_item_select(ghost->header, 88);
+        menu_item_select(N64A0(ghost->header), 88);
         func_800CB9D0(ghost->header);
         func_800CB9D0(ghost->datah);
         (*ghost->header)->start = N64W(*ghost->datah);

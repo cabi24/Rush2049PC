@@ -37,12 +37,19 @@ extern u16 D_8011B59C[8];
     o->v[0] = (src)[0]; o->v[1] = (src)[1]; o->v[2] = (src)[2]; o->v[3] = (src)[3]; \
     o->v[4] = (src)[4]; o->v[5] = (src)[5]; o->v[6] = (src)[6]; o->v[7] = (src)[7]; } while (0)
 
+#ifdef TARGET_PC
+/* The descriptor's data is a 32-bit N64 address: N64PTR0(T, a) is the pointer at one (pc_prelude.h, docs/port/NOFIXED.md
+ * 2.3). */
+#define N64PTR0(T, a) ((T)PC_N64P(a))
+#else
+#define N64PTR0(T, a) a
+#endif
 void func_8008BEA4(In *in, s16 flag)
 {
 s32 i; Out *o; s32 ok;
  i = in->idx;
  ok = (PC_CAR_FLAGS(i) & 0x1000) != 0 && (PC_CAR_FLAGS(i) & 0x10) == 0;
- o = D_8013FEF4[i].o;
+ o = N64PTR0(Out *, D_8013FEF4[i].o);
     if (flag == 0 || !ok) {
         if (D_8014978C == 3 || D_8014978C == 5) { CP(D_8011B58C); } else { CP(D_8011B57C); }
     } else {

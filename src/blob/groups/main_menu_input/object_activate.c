@@ -55,7 +55,7 @@ typedef struct Entry {
 /* PC: an input record is 80 bytes (its pointer at +0x48 is 8 bytes); +0x44 stays 32 bits and holds a packet's
  * window address (the packets are a heap block, func_800D63EC) or -1, which the node pointer zero-extends from
  * and -1 keeps (docs/port/POINTERS.md 10). */
-#define OBJECT(x) ((x) == -1 ? (s32 *)-1 : (s32 *)(uintptr_t)(u32)(x))
+#define OBJECT(x) ((x) == -1 ? (s32 *)-1 : (s32 *)PC_N64P((u32)(x)))
 #else
 #define OBJECT(x) (s32 *)x
 #endif

@@ -46,7 +46,7 @@ typedef struct Obj {
     unsigned int model;
     f32 timer;
 } Obj;
-#define N64P(x) ((Model *)(uintptr_t)(x))
+#define N64P(x) ((Model *)PC_N64P(x))
 #else
 typedef struct Obj {
     u8 pad0[4];

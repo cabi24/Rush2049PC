@@ -45,7 +45,7 @@ typedef struct Obj {
     f32 f10;
     void (*fn)();
 } Obj;
-#define N64P(x) _Generic((x), enum n64p_Model: (Model *)(uintptr_t)(x), enum n64p_char: (char *)(uintptr_t)(x), \
+#define N64P(x) _Generic((x), enum n64p_Model: (Model *)PC_N64P(x), enum n64p_char: (char *)PC_N64P(x), \
     default: (x))
 #else
 typedef struct Model {

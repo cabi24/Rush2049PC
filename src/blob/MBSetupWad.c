@@ -24,20 +24,32 @@ typedef struct Table {
     Entry *entries;
 } Table;
 
+#ifdef TARGET_PC
+/* A WAD's table rebased in place: its entries' 32-bit N64 addresses are the file's offsets plus the block's N64
+ * address, N64A(p) a window pointer's and N64PTR(T, a) the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3).
+ * Before the rebase the table's first entry address is an offset, which stays as it is. */
+#define N64A(x) PC_N64A(x)
+#define N64PTR(T, a) ((T)PC_N64P(a))
+#define WAD_ENTRIES(a) ((a) & 0x80000000 ? N64PTR(Entry *, a) : (Entry *)(uintptr_t)(a))
+#else
+#define N64A(x) (u32)x
+#define N64PTR(T, a) (T)a
+#define WAD_ENTRIES(a) (Entry *) a
+#endif
 void MBSetupWad(Table *table, Header *header) {
     s32 i;
     Entry *e;
 
     if (table != 0) {
         table->header = header;
-        table->entries = (Entry *) header->entries;
+        table->entries = WAD_ENTRIES(header->entries);
         table->count = header->count;
         if (!(header->entries & 0x80000000)) {
-            table->entries = (Entry *) ((u32) table->entries + (u32) header);
-            table->header->entries = (u32) table->entries;
+            table->entries = N64PTR(Entry *, ((u32) table->entries + N64A(header)));
+            table->header->entries = N64A(table->entries);
             for (i = 0; i < table->count; i++) {
                 e = &table->entries[i];
-                e->offset += (u32) header;
+                e->offset += N64A(header);
             }
         }
     }

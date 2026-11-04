@@ -3311,8 +3311,12 @@ void func_800E2AC4(void *arg0);
 void func_800E2C70(void *arg0);
 #ifdef TARGET_PC
 s16 func_800E2D18(void *arg0, s16 arg1, s16 arg2, uintptr_t arg3);   /* arg3: s16 *curve, zero-extended */
+/* ... the curve's 32-bit N64 address (the model's +0x40C) as the pointer at it (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3) */
+#define CURVE(a) ((uintptr_t)PC_N64P(a))
 #else
 s16 func_800E2D18(void *arg0, s16 arg1, s16 arg2, s32 arg3);
+#define CURVE(a) a
 #endif
 
 void func_800E30AC(void *arg0);
@@ -3723,11 +3727,11 @@ typedef struct CarE {
 void func_800E2F00(CarE *arg0)
 {
   if (arg0->f640 != 0) {
-    arg0->f404 = func_800E2D18(arg0, (s16) (s32) (arg0->f408 * D_801243E0), 0, arg0->f40C);
+    arg0->f404 = func_800E2D18(arg0, (s16) (s32) (arg0->f408 * D_801243E0), 0, CURVE(arg0->f40C));
   } else if (arg0->f3F4 < 0) {
-    arg0->f404 = func_800E2D18(arg0, (s16) (s32) (arg0->f408 * D_801243E4), (s16) (s32) (arg0->f3D0 * 128.0f), arg0->f40C);
+    arg0->f404 = func_800E2D18(arg0, (s16) (s32) (arg0->f408 * D_801243E4), (s16) (s32) (arg0->f3D0 * 128.0f), CURVE(arg0->f40C));
   } else {
-    arg0->f404 = func_800E2D18(arg0, (s16) (s32) (arg0->f408 * D_801243E8), (s16) (s32) (arg0->f3D0 * 128.0f), arg0->f40C);
+    arg0->f404 = func_800E2D18(arg0, (s16) (s32) (arg0->f408 * D_801243E8), (s16) (s32) (arg0->f3D0 * 128.0f), CURVE(arg0->f40C));
   }
   if ((arg0->f614 == 1 || arg0->f614 == 2) && (arg0->f618 == 1 || arg0->f618 == 2)) {
     arg0->f404 = arg0->f404 * 1.5f;

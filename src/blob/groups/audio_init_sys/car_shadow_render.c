@@ -47,6 +47,13 @@ extern void *D_80152464,*D_801526D8,*D_80152690;
 extern intptr_t D_801525FC;
 extern u8 D_00039B40[];
 #ifdef TARGET_PC
+/* D_00039B40 is a cartridge address, 0xB0039B40: in a RUSH_NOFIXED build a name at pc_window + 0x30039B40, whose
+ * 32-bit value the translation gives back (N64AS; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
+#define N64AS(x) (s32)PC_N64A(x)
+#else
+#define N64AS(x) (s32)x
+#endif
+#ifdef TARGET_PC
 /* the MusyX service table: 8 function addresses, which the data loader makes host functions
  * (docs/port/MUSYX_DATA.md 8.1) */
 extern void (*D_8011EAAC[8])(void);
@@ -100,7 +107,7 @@ void car_shadow_render(s32 channels,s32 control,s32 enabled)
         handle=audio_frame_sync(8,0,0,0,0);
         LockWaveInstance(handle);
         D_80152690=GetWaveInstanceAddr(handle);
-        D_801525FC=(s32)D_00039B40;
+        D_801525FC=N64AS(D_00039B40);
         func_80020598(&D_8011EAAC);
     }
     if(D_8011EAA4) {

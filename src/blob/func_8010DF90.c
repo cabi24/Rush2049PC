@@ -807,7 +807,7 @@ void func_8010DF90(void *arg0);
 #ifdef TARGET_PC
 /* PC: the target arg0 (a level-object node) keeps its N64 layout: its state (+0x6C) is a 32-bit window address
  * (docs/port/POINTERS.md 10). */
-#define NODE_STATE(t) (void *) (uintptr_t) M2C_FIELD(t, u32 *, 0x6C)
+#define NODE_STATE(t) (void *) PC_N64P(M2C_FIELD(t, u32 *, 0x6C))
 #else
 #define CAR_OFS(n) n
 #define TINFO_OFS(n) n

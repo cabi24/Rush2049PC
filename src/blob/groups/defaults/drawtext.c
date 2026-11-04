@@ -23,7 +23,7 @@ typedef struct anon_kerns_value_c {
     unsigned char value, texIdx, uls, ult, lrs, lrt;
     signed short pad12;
 } anon_kerns_value_c;
-#define FONT_KERNS(k) ((unsigned char *)(uintptr_t)(k))
+#define FONT_KERNS(k) ((unsigned char *)PC_N64P(k))
 #else
 typedef struct anon_kerns_value_c {
     unsigned char *kerns;

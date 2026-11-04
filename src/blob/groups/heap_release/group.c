@@ -29,11 +29,23 @@ typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Hea
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Pool: (struct Pool *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), enum n64p_MBlock: (struct MBlock *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), enum n64p_MBlock: (struct MBlock *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
 #define N64W(x) x
+#endif
+#ifdef TARGET_PC
+/* The heap's links and addresses are 32-bit N64 addresses: N64A(p) is a window pointer's, N64PTR(T, a) the pointer
+ * at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). A block's owner is the handle slot that holds it
+ * (AllocateHandleHeap), cleared as a slot (PC_SLOT_SET). */
+#define N64A(x) PC_N64A(x)
+#define N64PTR(T, a) ((T)PC_N64P(a))
+#define SLOT_CLEAR(o) PC_SLOT_SET(PC_N64P(o), 0)
+#else
+#define N64A(x) (u32)x
+#define N64PTR(T, a) (T)a
+#define SLOT_CLEAR(o) *(u32 *)o=0
 #endif
 typedef struct OSMesgQueue OSMesgQueue;
 #ifdef TARGET_PC
@@ -95,21 +107,21 @@ void audio_reverb_update(u32 address,s32 tag) {
  heap=func_80095F8C(address);
  block=func_80095EF4(heap,address,tag);
  func_80095EC0((u8 *)block+32,block->pad8[1]);
- if(block->pad8[2]) *(u32 *)block->pad8[2]=0;
+ if(block->pad8[2]) SLOT_CLEAR(block->pad8[2]);
  next=N64P(block->next);
  if(next && next->pad14==0) {
   block->next=next->next;
-  if(block->next) N64P(block->next)->pad8[0]=(u32)block;
-  else heap->padc[0]=(u32)block;
+  if(block->next) N64P(block->next)->pad8[0]=N64A(block);
+  else heap->padc[0]=N64A(block);
   block->pad8[1]+=next->pad8[1]+32;
   func_80095EC0(next,32);
  }
- prev=(Block *)block->pad8[0];
+ prev=N64PTR(Block *, block->pad8[0]);
  block->pad8[2]=0;block->pad14=0;block->tag=0;block->counter=0;
  if(prev && prev->pad14==0) {
   prev->next=block->next;
-  if(prev->next) N64P(prev->next)->pad8[0]=(u32)prev;
-  else heap->padc[0]=(u32)prev;
+  if(prev->next) N64P(prev->next)->pad8[0]=N64A(prev);
+  else heap->padc[0]=N64A(prev);
   prev->pad8[1]+=block->pad8[1]+32;
   func_80095EC0(block,32);
  }
@@ -133,7 +145,7 @@ void synced_model_render(u32 address) {
 void MP_TargetSpeed(void) {
  if(D_8011ED04) {
  osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- audio_reverb_update((u32)D_8038A400,0);
+ audio_reverb_update(N64A(D_8038A400),0);
  osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
  D_8011ED04=0;
  }
@@ -141,7 +153,7 @@ void MP_TargetSpeed(void) {
 void assign_default_paths(void) {
  if(D_8011ED00) {
  osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- audio_reverb_update((u32)D_8038A400,0);
+ audio_reverb_update(N64A(D_8038A400),0);
  osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
  D_8011ED00=0;
  }

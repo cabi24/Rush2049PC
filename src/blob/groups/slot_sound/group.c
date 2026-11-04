@@ -43,7 +43,15 @@ typedef struct ResSlot {
 } ResSlot; /* 0x14 */
 
 extern ResSlot gWaveInstance[];
+#ifdef TARGET_PC
+/* PurgeableMemory's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
+void PurgeableMemory(u32 ptr, s32 dec);
+#define N64A(x) PC_N64A(x)
+#else
 void PurgeableMemory(void *ptr, s32 dec);
+#define N64A(x) x
+#endif
 
 extern s32 D_80149B08;
 void func_80096288(s32 arg0, s32 arg1, s32 arg2)
@@ -73,7 +81,7 @@ void LockWaveInstance(s32 index)
 
     func_80096288(index, 0, 0);
     slot = &gWaveInstance[index];
-    PurgeableMemory(slot->data, 0);
+    PurgeableMemory(N64A(slot->data), 0);
     do { slot->active = 1; } while (0);
 }
 
@@ -89,7 +97,7 @@ void UnlockWaveInstance(s32 index)
 
     func_80096288(index, 0, 0);
     slot = &gWaveInstance[index];
-    PurgeableMemory(slot->data, 1);
+    PurgeableMemory(N64A(slot->data), 1);
     do { slot->active = 0; } while (0);
 }
 
@@ -111,10 +119,11 @@ typedef struct Bank {
 
 #ifdef TARGET_PC
 /* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c).
- * A wave handle points to a u32 heap slot that holds the block's address. */
+ * A wave handle points to a heap slot that holds the block's address (PC_SLOT_N64; pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
 typedef struct { u32 ptr; u8 id; u8 pad[7]; } Entry;
-#define FONT_SLOT(p) ((u32)(uintptr_t)(p))
-#define WAVE_HANDLE_BLOCK(h) ((u8 *)(uintptr_t)*(u32 *)(h))
+#define FONT_SLOT(p) PC_N64A(p)
+#define WAVE_HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
 #else
 typedef struct { u8 *ptr; u8 id; u8 pad[7]; } Entry;
 #define FONT_SLOT(p) p

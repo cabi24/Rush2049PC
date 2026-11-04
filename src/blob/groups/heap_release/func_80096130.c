@@ -36,6 +36,13 @@ void func_800960CC(u32 address);
 #define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
 #endif
 
+#ifdef TARGET_PC
+/* The free takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) x
+#endif
 static void dma_wait(void)
 {
     while (D_8002EB70 != 0) { PC_SPIN("func_80096130")
@@ -50,7 +57,7 @@ void func_80096130(s32 index)
         return;
     }
     dma_wait();
-    func_800960CC(slot->allocation);
+    func_800960CC(N64A(slot->allocation));
     if (slot) {}
     slot->allocation = 0;
     memset(gRomObjDefPtrs + index * WAVE_PAIR, 0, WAVE_PAIR);

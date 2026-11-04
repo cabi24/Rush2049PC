@@ -108,6 +108,12 @@ void audio_reverb_update(u32 address, s32 tag); /* _DeallocateMemory (internal, 
 void func_800C9150(void);               /* empty N64 helper, deleted after inlining (stub 0x800C9150) */
 void func_800CA2F8(void);               /* initGameState */
 
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void display_enable(s32 load)           /* LoadFrontEndOverlay */
 {
     static s32 loaded = 0;
@@ -115,7 +121,7 @@ void display_enable(s32 load)           /* LoadFrontEndOverlay */
         if (!loaded) {
             if (D_8011ED04) {
                 osRecvMesg(&D_80152770, (void **)0, 1);
-                audio_reverb_update((u32)D_8038A400, 0);
+                audio_reverb_update(N64A(D_8038A400), 0);
                 osSendMesg(&D_80152770, (void *)0, 0);
                 D_8011ED04 = 0;
             }
@@ -125,7 +131,7 @@ void display_enable(s32 load)           /* LoadFrontEndOverlay */
     } else if (loaded) {
         if (D_8011ED00) {
             osRecvMesg(&D_80152770, (void **)0, 1);
-            audio_reverb_update((u32)D_8038A400, 0);
+            audio_reverb_update(N64A(D_8038A400), 0);
             osSendMesg(&D_80152770, (void *)0, 0);
             D_8011ED00 = 0;
         }

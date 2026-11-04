@@ -240,6 +240,15 @@ void __scSchedule(OSSched *scheduler)
 extern s32 __osScPendingSwap;
 extern u32 __osScSwapCount;
 extern void osViSwapBuffer(void *mode);
+#ifdef TARGET_PC
+/* The pending swap keeps the frame buffer as a 32-bit N64 address: N64AS(p) is a window pointer's, N64PTR(T, a) the
+ * pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64AS(x) (s32)PC_N64A(x)
+#define N64PTR(T, a) ((T)PC_N64P(a))
+#else
+#define N64AS(x) (s32)x
+#define N64PTR(T, a) (T)a
+#endif
 extern void display_mode_tick(void);
 extern s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 void __scHandleRetrace(OSSched *scheduler) {
@@ -252,7 +261,7 @@ void __scHandleRetrace(OSSched *scheduler) {
 
     scheduler->retraceCount++;
     if (__osScPendingSwap && scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
-        osViSwapBuffer((void *)(u32)__osScPendingSwap);
+        osViSwapBuffer(N64PTR(void *, (u32)__osScPendingSwap));
         display_mode_tick();
         __osScSwapCount = scheduler->retraceCount;
         __osScPendingSwap = 0;
@@ -355,7 +364,7 @@ s32 __scExecTask(OSSched *scheduler, OSScTask *task)
                     osViSwapBuffer(task->framebuffer);
                     display_mode_tick();
                 } else {
-                    __osScPendingSwap = (s32)task->framebuffer;
+                    __osScPendingSwap = N64AS(task->framebuffer);
                 }
             }
         }

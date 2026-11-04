@@ -17,7 +17,10 @@
  *
  * RUSH2049_NOFIXED=guard (docs/port/NOFIXED.md 5, off by default; not on Windows): the window anywhere above 4 GiB,
  * 0x80000000-0xBFFFFFFF reserved with no access, pc_n64_ptr translating, so that every use of an N64 address as a
- * host pointer faults at once; the fault handler then says which N64 address it was (pc_mem_fault_note). */
+ * host pointer faults at once; the fault handler then says which N64 address it was (pc_mem_fault_note).
+ *
+ * A RUSH_NOFIXED build (cmake -DRUSH_NOFIXED=ON, docs/port/NOFIXED.md 2): the window is data.c's section pc_window,
+ * wherever the executable loads, the game's names are inside it, and the old range is reserved as in the guard mode. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <pthread.h>
@@ -172,6 +175,17 @@ static void *map_none(uintptr_t addr, size_t size)
     return p == MAP_FAILED ? NULL : p;
 }
 
+/* The truncation trap for the window at g_rdram (above). */
+static void guard_trap(void)
+{
+    uintptr_t low = (uintptr_t)g_rdram & 0xFFFFFFFFu;
+    if (low && low + g_size <= PC_RDRAM_BASE && map_none(low, g_size))
+        g_trap = low;
+    g_cut = (uint32_t)low;
+    g_cut_size = low >= g_size && low + g_size <= PC_RDRAM_BASE ? g_size : 0;
+    g_guard = 1;
+}
+
 static int guard_init(void)
 {
     if (!map_none(PC_RDRAM_BASE, GUARD_SPAN)) {
@@ -191,12 +205,7 @@ static int guard_init(void)
         fprintf(stderr, "rush2049pc: guard: cannot map the RDRAM window of %u MiB above 4 GiB\n", g_size >> 20);
         return -1;
     }
-    uintptr_t low = (uintptr_t)g_rdram & 0xFFFFFFFFu;
-    if (low && low + g_size <= PC_RDRAM_BASE && map_none(low, g_size))
-        g_trap = low;
-    g_cut = (uint32_t)low;
-    g_cut_size = low >= g_size && low + g_size <= PC_RDRAM_BASE ? g_size : 0;
-    g_guard = 1;
+    guard_trap();
     fprintf(stderr, "rush2049pc: guard (RUSH2049_NOFIXED=guard): the RDRAM window of %u MiB at %p, 0x%08X-0x%08X "
             "reserved, ", g_size >> 20, (void *)g_rdram, PC_RDRAM_BASE, PC_RDRAM_BASE + GUARD_SPAN - 1);
     if (g_trap)
@@ -208,6 +217,47 @@ static int guard_init(void)
 }
 
 int pc_mem_guard(void) { return g_guard; }
+
+#ifdef RUSH_NOFIXED
+/* ---------------------------------------------------------------- no fixed address (docs/port/NOFIXED.md 2.1) */
+
+/* The window is pc_window, the zero-fill section data.c defines in the executable (PC_RDRAM_MAX bytes, of which
+ * game.memory's are the window); the game's names are inside it, and the tables give the arenas there. The old
+ * window's range is reserved as in the guard mode, so that an N64 address still taken as a host pointer faults with a
+ * note, and so is the truncation trap where the window's low 32 bits leave room for it. A program without data.c (a
+ * test linking port/ultra alone) gets an anonymous mapping. pc_window_base (port/ultra/n64mem.c) is what the game C's
+ * translations read (pc_prelude.h). */
+extern uint8_t pc_window[] __attribute__((weak));
+extern uint8_t *pc_window_base __attribute__((weak));
+
+static int moved_init(void)
+{
+    if (pc_window) {
+        g_rdram = pc_window;
+    } else {
+        void *p = mmap(NULL, g_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+        g_rdram = p == MAP_FAILED ? NULL : p;
+    }
+    if (!g_rdram || !((uintptr_t)g_rdram >> 32)) {
+        fprintf(stderr, "rush2049pc: cannot place the RDRAM window of %u MiB above 4 GiB (%p)\n", g_size >> 20,
+                (void *)g_rdram);
+        return -1;
+    }
+    if (&pc_window_base)
+        pc_window_base = g_rdram;
+    /* AddressSanitizer's shadow on x86-64 covers the range (docs/port/SANITIZE.md 1.1): then nothing is reserved. */
+    int reserved = map_none(PC_RDRAM_BASE, GUARD_SPAN) != NULL;
+    if (!reserved)
+        pc_log("RUSH_NOFIXED: cannot reserve 0x%08X-0x%08X (%s): an N64 address taken as a host pointer won't fault "
+               "there", PC_RDRAM_BASE, PC_RDRAM_BASE + GUARD_SPAN - 1, strerror(errno));
+    guard_trap();
+    g_guard = reserved;
+    if (pc_verbose)
+        pc_log("RDRAM window of %u MiB at %p (RUSH_NOFIXED: pc_window)%s%s", g_size >> 20, (void *)g_rdram,
+               reserved ? ", 0x80000000-0xBFFFFFFF reserved" : "", g_trap ? ", the truncation trap" : "");
+    return 0;
+}
+#endif
 
 /* The weak reference to the data loader's names (port/data/pc_data.c): NULL in a program without it. */
 void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n) __attribute__((weak));
@@ -249,6 +299,10 @@ int pc_mem_fault_note(uintptr_t a, char *buf, size_t n)
 int pc_mem_init(void)
 {
     const char *nofixed = getenv("RUSH2049_NOFIXED");
+#ifdef RUSH_NOFIXED
+    (void)nofixed;   /* the build is the moved one: RUSH2049_NOFIXED=guard is what it does anyway */
+    return moved_init() == 0 ? (lsan_root(), 0) : -1;
+#endif
     if (nofixed && *nofixed) {
         if (!strcmp(nofixed, "guard"))
             return guard_init() == 0 ? (lsan_root(), 0) : -1;

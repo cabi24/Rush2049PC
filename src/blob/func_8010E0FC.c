@@ -62,7 +62,7 @@ typedef struct Entity {
 } Entity;
 typedef struct EntityHdr { s16 handle; u8 pad2[2]; } EntityHdr;
 typedef struct Node { void *next; u8 pad8[8]; enum n64p_Entity entity; } Node;
-#define N64P(x) _Generic((x), enum n64p_Coin: (Coin *)(uintptr_t)(x), enum n64p_Entity: (Entity *)(uintptr_t)(x), \
+#define N64P(x) _Generic((x), enum n64p_Coin: (Coin *)PC_N64P(x), enum n64p_Entity: (Entity *)PC_N64P(x), \
     default: (x))
 #else
 typedef struct Entity {

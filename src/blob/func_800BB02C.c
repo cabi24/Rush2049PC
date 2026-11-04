@@ -25,8 +25,12 @@ typedef struct Owner Owner;
 /* PC: the car palette descriptors D_8013FEE0 have a WAD palette record's (PLHD) N64 layout, which the model draw
  * reads them through: data is a u32 window address (a heap block). docs/port/LOADERS.md */
 #define DESC_PTR(name) u32 name
+/* ... so a block's address goes in as its 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
+ * docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
 #else
 #define DESC_PTR(name) void *name
+#define N64A(x) x
 #endif
 typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; DESC_PTR(data); } Slot24;
 typedef struct Link { u8 state; u8 kind; u8 payload[3]; u8 other5[3]; } Link;
@@ -58,7 +62,7 @@ void func_800BB02C(int index, int kind, void *data)
     D_8013FEE0[index].marker = 255;
     D_8013FEE0[index].value = 0x8000;
     if (data != 0) {
-        D_8013FEE0[index].data = data;
+        D_8013FEE0[index].data = N64A(data);
     } else if (audio_output_setup(0) < 512) { PC_ONLY(pc_heap_short("a car's paint", 512);)
         for (i = 0; i < index; i++) {
             if (kind == PC_LINK_CAR(i)) {
@@ -72,6 +76,6 @@ void func_800BB02C(int index, int kind, void *data)
         if (i == index) {
         }
     } else {
-        D_8013FEE0[index].data = AllocateMemoryHeap(0, 512);
+        D_8013FEE0[index].data = N64A(AllocateMemoryHeap(0, 512));
     }
 }

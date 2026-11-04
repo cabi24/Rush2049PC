@@ -85,7 +85,7 @@ typedef struct Heap {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
@@ -103,6 +103,15 @@ s32 osRecvMesg(void *mq, void **msg, s32 flags);
 s32 osSendMesg(void *mq, void *msg, s32 flags);
 Heap *func_80095F8C(u32 addr);
 
+#ifdef TARGET_PC
+/* The block's place is a 32-bit N64 address: N64A(p) is a window pointer's, N64PTR(T, a) the pointer at one
+ * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#define N64PTR(T, a) ((T)PC_N64P(a))
+#else
+#define N64A(x) (u32)x
+#define N64PTR(T, a) (T)a
+#endif
 void *NextMaxPath(u32 addr, u32 size) {
     Heap *heap;
     Block *b;
@@ -120,15 +129,15 @@ void *NextMaxPath(u32 addr, u32 size) {
     heap = func_80095F8C(addr);
     size = (size + 31) & ~31;
     for (b = N64P(heap->first); b != 0; b = N64P(b->next)) {
-        if (addr >= (u32) b && (addr < (u32) b->next || b->next == 0)) {
-            if ((u32) b + b->size + 32 < addr + size) {
+        if (addr >= N64A(b) && (addr < (u32) b->next || b->next == 0)) {
+            if (N64A(b) + b->size + 32 < addr + size) {
             }
             break;
         }
     }
     result = (u8 *) b + 32;
-    if (addr != (u32) result) {
-        n = (Block *) (addr - 32);
+    if (addr != N64A(result)) {
+        n = N64PTR(Block *, (addr - 32));
         n->next = b->next;
         if (n->next != 0) {
             N64P(n->next)->prev = N64W(n);
@@ -140,7 +149,7 @@ void *NextMaxPath(u32 addr, u32 size) {
         n->tag = 0;
         n->pad16[0] = 0;
         n->magic = 0xFEDCBA98;
-        before = addr - (u32) b - 32;
+        before = addr - N64A(b) - 32;
         n->size = b->size - before;
         if (before >= 64) {
             n->prev = N64W(b);
@@ -151,7 +160,7 @@ void *NextMaxPath(u32 addr, u32 size) {
             n->prev = N64W(prev);
             N64P(b->prev)->next = N64W(n);
             prev = N64P(b->prev);
-            prev->size = prev->size + addr - (u32) b - 32;
+            prev->size = prev->size + addr - N64A(b) - 32;
         }
         b = n;
         result = (u8 *) b + 32;

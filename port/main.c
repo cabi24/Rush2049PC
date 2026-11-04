@@ -1044,14 +1044,18 @@ static int rush_main(int argc, char **argv)
 #ifndef _WIN32   /* stderr is unbuffered there, and the CRT has no line buffering */
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
+#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: the names are relative to the window, with nothing to fix up (NOFIXED.md 2) */
     pc_mem_fix_absolute();
+#endif
     pc_fault_install();
     if (pc_mem_init() != 0) {
         fprintf(stderr, "rush2049pc: cannot map the RDRAM window\n");
         return 1;
     }
+#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: the tables give the arenas in the window already */
     if (!pc_mem_fixed())
         pc_data_set_window(pc_n64_ptr);   /* the guard mode, or a host that can't map 0x80000000 (NOFIXED.md 5) */
+#endif
     if (selftest) {
         pc_time_set_virtual(fast);
         return pc_selftest();
@@ -1182,8 +1186,10 @@ static int rush_main(int argc, char **argv)
     pc_audio_set_latency((unsigned)cfg.audio_latency);
     if (pc_verbose)
         pc_audio_set_report_every(10);   /* the output's counters every 10 s, besides the exit line */
+#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: N64 addresses are translated, and the game has no fixed address left */
     if (!pc_mem_fixed())
         fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
+#endif
 
     run.game_state = game_state;
     run.game_info = game_info;

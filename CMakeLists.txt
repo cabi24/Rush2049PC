@@ -138,6 +138,23 @@ option(RUSH_CHECK_CASTS "Check the game's 32-bit N64 address stores for host add
 if(RUSH_CHECK_CASTS)
     target_compile_definitions(game_flags INTERFACE RUSH_CHECK_CASTS)
 endif()
+# No fixed address (docs/port/NOFIXED.md, phase B): the RDRAM window is pc_window, a zero-fill section of the
+# executable that data.c defines, and the game's names are relative to it (gen_data, gen_stubs, reserved.txt), so
+# nothing is mapped at a fixed host address and no GOT slot is fixed up; the game C's boundaries between a 32-bit N64
+# address and a host pointer translate (pc_prelude.h), with PC_N64W checked. Off by default: the fixed window stays
+# the default until phase D. ELF only for now (Linux).
+option(RUSH_NOFIXED "The RDRAM window anywhere: a section of the executable, the names relative to it" OFF)
+set(PC_NOFIXED_ARGS "")
+set(PC_DATA_NOFIXED_ARGS "")
+if(RUSH_NOFIXED)
+    if(WIN32 OR APPLE)
+        message(FATAL_ERROR "RUSH_NOFIXED is ELF only so far (docs/port/NOFIXED.md 6, phase D)")
+    endif()
+    add_compile_definitions(RUSH_NOFIXED)   # the game C, the PC layer and the tests
+    set(PC_NOFIXED_ARGS --nofixed)          # gen_stubs.py
+    # gen_data.py also defines the names gen_stubs would make absolute, for which the PC layer's definitions count
+    set(PC_DATA_NOFIXED_ARGS --nofixed --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt)
+endif()
 # IDO semantics: gnu89, so `__inline` functions also get an out-of-line definition (C99 rules would drop it,
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).
@@ -290,9 +307,9 @@ add_custom_command(
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/types_objects.txt
             --link-objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
-            ${PC_DATA_PE_ARGS}
+            ${PC_DATA_PE_ARGS} ${PC_DATA_NOFIXED_ARGS}
     DEPENDS $<TARGET_OBJECTS:${PC_TYPES_TARGET}> $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py
-            ${PORT_TOOLS}/n64syms.py
+            ${PORT_TOOLS}/n64syms.py ${PORT_TOOLS}/gen_stubs.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/manifest/static.json
             ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
@@ -413,11 +430,14 @@ foreach(lib ${PC_PORT_ARCHIVES})
 endforeach()
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_link_objects.txt CONTENT "$<JOIN:${PC_GAME_OBJECTS},\n>\n")
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/port_objects.txt CONTENT "$<JOIN:${PC_PORT_OBJECTS},\n>\n")
+if(RUSH_NOFIXED)   # gen_data.py --nofixed reads the PC layer's definitions (PC_DATA_NOFIXED_ARGS above)
+    add_custom_command(OUTPUT ${PC_DATA_DIR}/data.c APPEND DEPENDS ${PC_PORT_OBJECTS})
+endif()
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/stubs.c ${PC_DATA_DIR}/aliases.ld
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
             --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR}
-            --out ${PC_DATA_DIR}/stubs.c --aliases ${PC_DATA_DIR}/aliases.ld
+            --out ${PC_DATA_DIR}/stubs.c --aliases ${PC_DATA_DIR}/aliases.ld ${PC_NOFIXED_ARGS}
     DEPENDS ${PC_GAME_OBJECTS} ${PC_PORT_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/layout/game.json
             ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json

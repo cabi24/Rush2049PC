@@ -4222,8 +4222,8 @@ void func_8010E828(void *arg0, s16 arg1)
   }
   if (D_801170FC == 0)
   {
-    target = (u8 *) (uintptr_t) ((struct pc_visual *) arg0)->data;
-    rate = (void *) (uintptr_t) *((u32 *) (target + 0x6C));
+    target = (u8 *) PC_N64P(((struct pc_visual *) arg0)->data);
+    rate = (void *) PC_N64P(*((u32 *) (target + 0x6C)));
     var_v1 = *((s16 *) (target + 0x5A));
     if (var_v1 != 0)
     {

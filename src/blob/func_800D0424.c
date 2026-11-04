@@ -112,7 +112,7 @@ typedef struct MODELDAT {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_CARTYPE: (CARTYPE *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_CARTYPE: (CARTYPE *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x

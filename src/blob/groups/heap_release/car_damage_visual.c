@@ -81,7 +81,7 @@ typedef struct Heap {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x
@@ -106,6 +106,15 @@ Heap *func_800A51D8(Heap *heap) {
     return D_801527C8;
 }
 
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's; a block's owner is a handle slot, which the
+ * compaction points at the block's new place as a slot (PC_SLOT_SET) (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#define SLOT_SET(s, v) PC_SLOT_SET(N64P(s), v)
+#else
+#define N64A(x) (u32)x
+#define SLOT_SET(s, v) *N64P(s) = v
+#endif
 void car_damage_visual(Heap *hint) {
     Heap *heap;
     Block *block, *cursor, *after, *tail, *previous;
@@ -118,7 +127,7 @@ void car_damage_visual(Heap *hint) {
     block = N64P(heap->first);
     while (block != NULL) {
         if (block->used && !block->lock && !block->ref && !block->tag) {
-            audio_reverb_update((u32)((u8 *)block + 32), 0);
+            audio_reverb_update(N64A(((u8 *)block + 32)), 0);
             block = N64P(heap->first);
         }
         block = N64P(block->next);
@@ -148,7 +157,7 @@ void car_damage_visual(Heap *hint) {
             }
             if (cursor != NULL) {
                 cursor->ref = block->ref;
-                *N64P(cursor->ref) = (u32)((u8 *)cursor + 32);
+                SLOT_SET(cursor->ref, N64A(((u8 *)cursor + 32)));
                 cursor->used = 1;
                 cursor->tag = block->tag;
                 cursor->lock = block->lock;
@@ -174,7 +183,7 @@ void car_damage_visual(Heap *hint) {
                     if (adjacent) block = tail;
                 }
                 previous = N64P(block->prev);
-                audio_reverb_update((u32)((u8 *)block + 32), 0);
+                audio_reverb_update(N64A(((u8 *)block + 32)), 0);
                 if (after->magic != BLOCK_MAGIC) {
                     if (block->magic != BLOCK_MAGIC) after = N64P(previous->next);
                     else after = N64P(block->next);
