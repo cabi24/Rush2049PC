@@ -97,6 +97,8 @@ static int is_dir(const char *p)
 static int mkdirs(const char *dir)
 {
     char p[PATHN];
+    if (!dir[0])   /* the walk starts at its second byte */
+        return (errno = ENOENT), -1;
     snprintf(p, sizeof p, "%s", dir);
     for (char *c = p + 1;; c++)
         if (*c == '/' || *c == '\\' || !*c) {
@@ -463,6 +465,20 @@ static void backup(Store *st, const char *file, const uint8_t *b, size_t size)
     pc_file_write_atomic(bak, b, size);
 }
 
+/* A file's note as the folder's files and their backups are taken: pc_save_file_read's checks, and for a ghost the
+ * import's (pc_ghost_check, SAVES.md 4.3): a ghost someone puts in the folder itself goes on the pak too. */
+static int read_note(const uint8_t *b, size_t n, PcNote *note, PcSaveFileInfo *fi, char *why, size_t why_size)
+{
+    if (pc_save_file_read(b, n, note, fi, why, why_size) != 0)
+        return -1;
+    if (fi->kind == PC_NOTE_GHOST &&
+        pc_ghost_check(note->data, (size_t)note->pages * PC_PAK_PAGE, 1, why, why_size) != 0) {
+        pc_note_free(note);
+        return -1;
+    }
+    return 0;
+}
+
 /* A file that can't be read as a save: renamed FILE.corrupt-DATE, unchanged; the newest good backup put back. */
 static int damaged(Store *st, const char *file, const char *why, PcNote *note, PcSaveFileInfo *fi)
 {
@@ -492,7 +508,7 @@ static int damaged(Store *st, const char *file, const char *why, PcNote *note, P
         backup_name(bak, sizeof bak, st->dir, file, i);
         if (read_file(bak, &b, &n, MAX_FILE) != 0)
             continue;
-        int ok = n <= MAX_FILE && pc_save_file_read(b, n, note, fi, w, sizeof w) == 0;
+        int ok = n <= MAX_FILE && read_note(b, n, note, fi, w, sizeof w) == 0;
         if (ok && pc_file_write_atomic(path, b, n) == 0) {
             free(b);
             fprintf(stderr, "rush2049pc: %s: %s restored from %s\n", st->label, file, bak);
@@ -520,7 +536,7 @@ static int load_file(Store *st, const char *file)
     else if (n > MAX_FILE)
         r = (snprintf(why, sizeof why, "it is bigger than any note"), -1);
     else
-        r = pc_save_file_read(b, n, &note, &fi, why, sizeof why);
+        r = read_note(b, n, &note, &fi, why, sizeof why);
     if (r == 0)
         backup(st, file, b, n);
     free(b);

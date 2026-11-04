@@ -892,6 +892,50 @@ static void test_imports_and_damage(void)
     pc_note_free(&mine), pc_note_free(&friend_), pc_note_free(&pr);
 }
 
+/* A ghost put in the folder itself, not in import/: the import's check (pc_ghost_check) still runs, so a hostile one
+ * (car 200, which GhostStart indexes [5][13] by; samples that unzip past their header's size) is set aside as damaged
+ * and never reaches the pak; a good one beside it does. And no folder at all (""): refused, not walked past. */
+static void test_ghost_in_folder(void)
+{
+    char dir[1100], why[200], msg[300];
+    fresh_dir(dir, sizeof dir, "byhand");
+    make_dirs(dir);
+    PcNote good, car, zip;
+    make_ghost(&good, "CAROL", 1, 0, 70.0f, 700, -1);
+    make_ghost(&car, "DAVE", 2, 0, 80.0f, 800, -1);
+    car.data[8] = 200;
+    u32h(car.data, pc_save_hash(car.data + 4, 0x40));
+    make_ghost(&zip, "EVE", 3, 1, 90.0f, 900, -1);
+    u32h(zip.data + 0x40, 900 * 3 - 3);   /* the samples make 3 bytes more than the header says */
+    u32h(zip.data, pc_save_hash(zip.data + 4, 0x40));
+    put_file(dir, "good.r49ghost", &good, PC_ORIGIN_GAME);
+    put_file(dir, "car.r49ghost", &car, PC_ORIGIN_GAME);
+    put_file(dir, "zip.r49ghost", &zip, PC_ORIGIN_IMPORT);
+    CHECK(pc_store_open(2, dir, NULL, "v", msg, sizeof msg) == 0, "opened: %s", msg);
+    CHECK(pc_store_build(2, g_img, why, sizeof why) == 0, "build: %s", why);
+    PcNote in[PC_PAK_NOTES];
+    int k = image_notes(g_img, in), ghosts = 0, has_good = 0;
+    for (int i = 0; i < k; i++) {
+        PcNoteInfo info;
+        pc_note_info(&in[i], &info);
+        ghosts += info.kind == PC_NOTE_GHOST;
+        has_good |= pc_note_equal(&in[i], &good);
+    }
+    CHECK(ghosts == 1 && has_good, "only the good ghost on the pak (%d ghosts)", ghosts);
+    DIR *d = opendir(dir);
+    int corrupt = 0;
+    for (struct dirent *de; d && (de = readdir(d));)
+        corrupt += strstr(de->d_name, ".r49ghost.corrupt-") != NULL;
+    if (d)
+        closedir(d);
+    CHECK(corrupt == 2, "the two set aside as .corrupt-DATE (%d)", corrupt);
+    free_notes(in, k);
+    pc_store_close(2);
+    CHECK(pc_store_open(2, "", NULL, "v", msg, sizeof msg) == -1, "no folder: %s", msg);
+    pc_store_close(2);
+    pc_note_free(&good), pc_note_free(&car), pc_note_free(&zip);
+}
+
 /* Every reader under hostile input: a ghost file mutated (bytes, truncations, extensions; the CRC made right half the
  * time, so the note's own checks are reached), and random images. Never a crash (the ASan build), and a refusal
  * always says why. */
@@ -977,6 +1021,7 @@ int main(int argc, char **argv)
     test_writes();
     test_choice();
     test_imports_and_damage();
+    test_ghost_in_folder();
     test_fuzz();
     printf("%d of %d checks passed\n", g_checks - g_failed, g_checks);
     return g_failed;
