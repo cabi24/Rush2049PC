@@ -398,7 +398,7 @@ static int swap_safe(int ch)
 
 /* The game's own note name prefix and ghost extension in the pak's character set (the game's data, read at run
  * time: never kept), for the ghosts imported into a folder (pakstore.c places them on the pak with them). */
-extern char D_801211BC[], D_801211F4[];
+extern char D_801211BC[], D_801211F4[], D_801211C8[];   /* the prefix SaveServer reads, the ghost's and profile's ext */
 void func_800A150C(uint8_t *out, uint8_t *in, uint8_t limit);   /* ASCII to the pak's characters (the game's) */
 
 static void saves_game_names(void)
@@ -410,6 +410,12 @@ static void saves_game_names(void)
     memset(in, 0, sizeof in);
     memcpy(in, D_801211F4, 4);
     func_800A150C(ext, in, 4);
+    /* SaveServer tells a ghost from a profile by the extension's first character: with no prefix, or a ghost
+     * extension that starts as the profile's (a cartridge without the strings), an import keeps its own names */
+    if (!prefix[0] || !ext[0] || !D_801211F4[0] || D_801211F4[0] == D_801211C8[0]) {
+        pc_store_set_game_names(NULL, NULL);
+        return;
+    }
     pc_store_set_game_names(prefix, ext);
 }
 
