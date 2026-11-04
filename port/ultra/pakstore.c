@@ -13,6 +13,7 @@
 #define _GNU_SOURCE
 #include <dirent.h>
 #include <errno.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -159,7 +160,8 @@ static int note_file(const char *name)
 
 static int by_name(const void *a, const void *b) { return strcmp(*(char *const *)a, *(char *const *)b); }
 
-/* The files of a folder with one of the note extensions (only .r49ghost when ghosts), sorted; malloc'd names. */
+/* The files of a folder with one of the note extensions, sorted; malloc'd names. ghosts: the import folder's (a
+ * profile or another note there is read too, and refused with its reason). */
 static int list_dir(const char *dir, int ghosts, char ***out)
 {
     DIR *d = opendir(dir);
@@ -567,7 +569,8 @@ static void migrate(Store *st, const char *mpk, char *msg, size_t msg_size)
                     mpk, strerror(errno));
         return;
     }
-    if (pc_pak_image_check(img, n, why, sizeof why) != PC_PAK_IMAGE_OK) {
+    if (n > PC_PAK_SIZE ? (snprintf(why, sizeof why, "it is bigger than 32 KiB"), 1)
+                        : pc_pak_image_check(img, n, why, sizeof why) != PC_PAK_IMAGE_OK) {
         fprintf(stderr, "rush2049pc: %s: the controller pak %s is not imported: %s\n", st->label, mpk, why);
         free(img);
         return;
@@ -804,15 +807,22 @@ static int by_slot_then_file(const void *a, const void *b)
     return sx != sy ? sx - sy : strcmp(x->file, y->file);
 }
 
+/* A race time to sort by: one that isn't a number (a hand-made file's) last. */
+static float race_time(float t)
+{
+    return t == t && t < 1e30f ? t : 1e30f;
+}
+
 static int by_race(const void *a, const void *b)
 {
     const Entry *x = &g_sort_st->e[*(const int *)a], *y = &g_sort_st->e[*(const int *)b];
+    float tx = race_time(x->info.finish), ty = race_time(y->info.finish);
     if (x->info.track != y->info.track)
         return x->info.track - y->info.track;
     if (x->info.backward != y->info.backward)
         return x->info.backward - y->info.backward;
-    if (x->info.finish != y->info.finish)
-        return x->info.finish < y->info.finish ? -1 : 1;
+    if (tx != ty)
+        return tx < ty ? -1 : 1;
     return strcmp(x->file, y->file);
 }
 
@@ -853,7 +863,8 @@ static void choose(Store *st, Choice *c)
                 o->info.id[1] != e->info.id[1] || strcmp(o->info.name, e->info.name) ||
                 (o->origin == PC_ORIGIN_IMPORT) != (e->origin == PC_ORIGIN_IMPORT))
                 continue;
-            best = o->info.finish > e->info.finish || (o->info.finish == e->info.finish && j > i);
+            float to = race_time(o->info.finish), te = race_time(e->info.finish);
+            best = to > te || (to == te && j > i);
         }
         if (best)
             order[k++] = i;
@@ -1259,7 +1270,7 @@ int pc_store_list(int ch, PcStoreEntry *out, int max)
             o->imported = e->origin == PC_ORIGIN_IMPORT;
             o->deleting = e->deleting;
             if (e->info.kind == PC_NOTE_GHOST) {
-                long cs = e->info.finish > 0 && e->info.finish < 36000.0f ? (long)(e->info.finish * 100.0f + 0.5f) : 0;
+                long cs = e->info.finish > 0 && e->info.finish < 36000.0f ? lrintf(e->info.finish * 100.0f) : 0;
                 snprintf(o->label, sizeof o->label, "T%d %s %.13s %ld:%02ld.%02ld", e->info.track + 1,
                          e->info.backward ? "bwd" : "fwd", e->info.name, cs / 6000, cs / 100 % 60, cs % 100);
             } else if (e->info.kind == PC_NOTE_PROFILE) {
@@ -1341,7 +1352,8 @@ int pc_store_export_ghost(int ch, const char *file, char *msg, size_t msg_size)
     mkdirs(dir);
     pc_save_file_name(&note, name, sizeof name);
     const char *dot = strrchr(name, '.');
-    for (int k = 1; k < 1000; k++) {
+    int k;
+    for (k = 1; k < 1000; k++) {
         char want[PC_STORE_NAME + 16];
         if (k == 1)
             snprintf(want, sizeof want, "%s", name);
@@ -1350,6 +1362,11 @@ int pc_store_export_ghost(int ch, const char *file, char *msg, size_t msg_size)
         join(path, sizeof path, dir, want);
         if (!exists(path))
             break;
+    }
+    if (k == 1000) {   /* never over a file */
+        snprintf(msg, msg_size, "Not exported: export/ has 999 copies of it");
+        pthread_mutex_unlock(&g_lock);
+        return -1;
     }
     uint8_t *b;
     size_t size;

@@ -456,8 +456,12 @@ int pc_save_file_read(const uint8_t *b, size_t size, PcNote *note, PcSaveFileInf
         return -1;
     }
     fi->version = le16(b + 4);
-    if (fi->version != 1 || le16(b + 6) != PC_NOTE_HEADER) {
+    if (fi->version != 1) {
         snprintf(why, why_size, "it is version %d of the format (this program reads version 1)", fi->version);
+        return -1;
+    }
+    if (le16(b + 6) != PC_NOTE_HEADER) {
+        snprintf(why, why_size, "its header says it is %u bytes, not %d", le16(b + 6), PC_NOTE_HEADER);
         return -1;
     }
     uint32_t data = le32(b + 12);
@@ -502,7 +506,12 @@ int pc_save_file_read(const uint8_t *b, size_t size, PcNote *note, PcSaveFileInf
     pc_note_info(note, &info);
     if (info.kind != fi->kind) {
         static const char *const kinds[] = {"another game's note", "a profile", "a ghost"};
-        snprintf(why, why_size, "its header says %s and the note is %s", kinds[fi->kind], kinds[info.kind]);
+        char ghost_why[160] = "";
+        if (fi->kind == PC_NOTE_GHOST)   /* why the note isn't a ghost: the game's own check says it */
+            pc_ghost_check(note->data, data, 0, ghost_why, sizeof ghost_why);
+        snprintf(why, why_size, "its header says %s and the note is %s%s%s%s", kinds[fi->kind],
+                 info.kind == PC_NOTE_OTHER && rush_note(note) ? "not one of the game's" : kinds[info.kind],
+                 ghost_why[0] ? " (" : "", ghost_why, ghost_why[0] ? ")" : "");
         pc_note_free(note);
         return -1;
     }

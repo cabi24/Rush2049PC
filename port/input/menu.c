@@ -1149,7 +1149,7 @@ static void fill_save_item(void)
     row(P_SAVE_ITEM, I_INFO, "Kind", r->kind == 2 ? "ghost" : r->kind == 1 ? "profile" : "another game's note", NULL);
     row(P_SAVE_ITEM, I_INFO, "Player", r->name[0] ? r->name : "-", NULL);
     if (r->kind == 2) {
-        long cs = r->finish > 0 && r->finish < 36000.0f ? (long)(r->finish * 100.0f + 0.5f) : 0;
+        long cs = r->finish > 0 && r->finish < 36000.0f ? lrintf(r->finish * 100.0f) : 0;   /* as the file's name */
         snprintf(v, sizeof v, "%d, %s", r->track + 1, r->backward ? "backward" : "forward");
         row(P_SAVE_ITEM, I_INFO, "Track", v, NULL);
         snprintf(v, sizeof v, "%ld:%02ld.%02ld", cs / 6000, cs / 100 % 60, cs % 100);

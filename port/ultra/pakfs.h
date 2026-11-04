@@ -92,7 +92,8 @@ int pc_ghost_check(const uint8_t *data, size_t size, int inflate, char *why, siz
  *   0x36 car (0xFF unknown)  0x37 0  0x38 u32 a ghost's time in ms (0xFFFFFFFF unknown)  0x3C the name (16, NUL-padded)
  *   0x4C the port's version that wrote it (32, NUL-padded)  0x6C 0 (20)  0x80 the pages
  * The kind and the fields after the directory entry are from the note's bytes, for tools: a reader takes the note's
- * own (pc_note_info), and a header that disagrees with them is a damaged file. */
+ * own (pc_note_info), and a header whose kind disagrees with the note's is a damaged file (the other fields are
+ * covered by the CRC alone). */
 enum { PC_ORIGIN_GAME = 0, PC_ORIGIN_IMPORT = 1, PC_ORIGIN_EXPORT = 2 };
 typedef struct {
     int version, kind, origin, slot;
