@@ -37,6 +37,13 @@ extern volatile s32 D_8002EB98;
 extern Slot152 gCamera[];
 extern void func_800E8CB8(void *,void *,void *);
 extern void vector_normalize_length(f32 *,f32 [3][3]);
+#ifdef TARGET_PC
+/* game.frame_rate 60: the elasticity is per frame of two retraces, e; a frame of one gets e^(1/2), so two of them
+ * follow the car as one of two retraces does (docs/port/FRAMERATE.md 7). The N64's own scaling stays for 3-5. */
+#define PC_CAM_ELASTIC(e) (pc_fps60 && D_8002EB98 == 1 ? __builtin_sqrtf(e) : (e))
+#else
+#define PC_CAM_ELASTIC(e) e
+#endif
 void func_800E8D50(Object *object,f32 *carpos,Mat3 *matrix,f32 *res)
 {
     s32 i;
@@ -46,7 +53,7 @@ void func_800E8D50(Object *object,f32 *carpos,Mat3 *matrix,f32 *res)
     if(PC_MODEL_MOVING_STATE(object->car)>=0) {
         D_80152708[slot]=0.0f;
     } else {
-        D_80152708[slot]=D_80152720[slot]*0.6f;
+        D_80152708[slot]=PC_CAM_ELASTIC(D_80152720[slot]*0.6f);
         if(D_8002EB98==3) D_80152708[slot]*=0.75f;
         else if(D_8002EB98==4) D_80152708[slot]*=0.6f;
         else if(D_8002EB98==5) D_80152708[slot]*=0.5f;
