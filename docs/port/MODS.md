@@ -126,7 +126,7 @@ priority = 0
 ```
 python3 tools/mods/rushmods.py names                         every wave's name, folder and format
 python3 tools/mods/rushmods.py list baserom.us.z64           the ROM's files: wave, name, format, kind, size, stored size
-python3 tools/mods/rushmods.py extract baserom.us.z64 out/ cars/car01 101-119 --text
+python3 tools/mods/rushmods.py extract baserom.us.z64 out/ car01 101-119 --text
 python3 tools/mods/rushmods.py new red-cars --dir mods --author Someone
 python3 tools/mods/rushmods.py check mods/red-cars --rom baserom.us.z64
 ```
