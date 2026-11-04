@@ -981,6 +981,6 @@ What the numbers say:
 
 Tests: `gfx.interp`'s parse case (`port/gfx/tests/interp_test.c`: `auto` read, and auto's choice at 59-61, 75, 90,
 119-121, 144, 165 and 240 Hz, vsync off, no display; set and resolved at 144 and 60 Hz); `realtime_auto_even`
-(`vsync_even.py --hz 60,120 --game 60 --rate auto`: the step off the vblank at most 7 and 11 ms rms; real time,
+(`vsync_even.py --hz 60,120 --game 60 --rate auto`: the step off the vblank at most 7 and 14 ms rms: at 120 Hz 8.33 alone, 11.28 in a Debug build beside synth_compare's runs, held 20.13 ms with a spread of 12.70, so the even hold of two vblanks is not kept on a loaded host; real time,
 `LABELS realtime`, RUN_SERIAL, skipped with the other real-time tests under the sanitizers and on arm). The defaults:
 `synth_compare.py --same --runs 2 --shots` of d0b8b5d against this branch on rocky.
