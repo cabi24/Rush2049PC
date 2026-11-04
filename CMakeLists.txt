@@ -607,6 +607,14 @@ target_compile_options(test_pakstore PRIVATE -std=gnu11 -Wall -Wextra -Wno-unuse
 target_link_libraries(test_pakstore PRIVATE ZLIB::ZLIB Threads::Threads m)
 add_test(NAME ultra_pakstore COMMAND test_pakstore ${CMAKE_BINARY_DIR}/test-scratch-pakstore)
 set_target_properties(test_pakstore PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+set_tests_properties(ultra_pakstore PROPERTIES FIXTURES_SETUP pakstore_files)
+# tools/port/ghost.py, the saves' tool, against the C: the files ultra_pakstore leaves, and the C's own verdicts,
+# images and imports (tools/port/test_ghost_c.c) on everything the tool makes.
+add_executable(test_ghost_c tools/port/test_ghost_c.c port/ultra/pakfs.c port/ultra/pakstore.c port/ultra/pakfile.c)
+target_include_directories(test_ghost_c PRIVATE port/ultra port/include ${ZLIB_INCLUDE_DIRS})
+target_compile_options(test_ghost_c PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(test_ghost_c PRIVATE ZLIB::ZLIB Threads::Threads m)
+set_target_properties(test_ghost_c PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 add_test(NAME app_firstrun COMMAND ${PC_PYTHON} ${PORT_TOOLS}/firstrun_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM})
 set_tests_properties(app_firstrun PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
@@ -682,6 +690,21 @@ if(NOT WIN32)
     set_tests_properties(pak_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE
         LABELS realtime)
 endif()
+# game.saves = files on the synthetic cartridge (tools/port/saves_check.py, docs/port/SAVES.md 10): synthetic ghosts
+# and hostile files imported (the good ones raced on, each bad one refused with its reason), an .mpk imported and
+# made again byte for byte, the game's own save code making, reading back, changing and deleting a profile and saving
+# and racing a ghost, each run's files checked on disk; an imported ghost raced. The swap is a real-time run (the
+# F1 overlay's script): alone.
+add_test(NAME ghost_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/test_ghost.py ${CMAKE_BINARY_DIR}/test-scratch-pakstore
+    --c-check $<TARGET_FILE:test_ghost_c> --work ${CMAKE_BINARY_DIR}/test-scratch-ghost)
+set_tests_properties(ghost_tool PROPERTIES FIXTURES_REQUIRED pakstore_files TIMEOUT 300)
+add_test(NAME saves_files COMMAND ${PC_PYTHON} ${PORT_TOOLS}/saves_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/saves import migrate game race)
+set_tests_properties(saves_files PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 1500)
+add_test(NAME saves_files_swap COMMAND ${PC_PYTHON} ${PORT_TOOLS}/saves_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/saves-swap swap)
+set_tests_properties(saves_files_swap PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 RUN_SERIAL TRUE
+    LABELS realtime)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
 # reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)

@@ -1,0 +1,34 @@
+# game.saves = files: a pin from the F1 Saves page at the main menu reaches the game as a hot swap once the overlay
+# closes (docs/port/SAVES.md 5.1). Run by tools/port/saves_check.py's swap scenario, which fills the folder first with
+# two ghosts of one player, track and way (one note name: the faster on the pak) and checks that the slower one,
+# pinned here, is on the pak after the swap and the game read it again.
+# until: 0x10:200
+# seconds: 60
+# realtime
+# args: --saves files (tools/port/saves_check.py runs it, in a data folder of its own)
+5 A            # the controller pak warning
+8 START        # the start prompt; the main menu (0x10) from about 8 s
+10 MENU        # F1 over the main menu
+10.6 DOWN 0.1  # Video, Audio, Keyboard, Controllers, Game, Saves
+10.9 DOWN 0.1
+11.2 DOWN 0.1
+11.5 DOWN 0.1
+11.8 DOWN 0.1
+12.2 A 0.1     # the Saves page: Player, Kept as, Folder, Import ghosts, Export to the .mpk, then the saves
+12.6 DOWN 0.1
+12.9 DOWN 0.1
+13.2 DOWN 0.1
+13.5 DOWN 0.1
+13.8 DOWN 0.1
+14.1 DOWN 0.1  # the second ghost, the slower
+14.5 A 0.1     # its page: Kind, Player, Track, Time, Car, Pages, On the pak, File, Pin to the pak
+14.9 DOWN 0.1
+15.2 DOWN 0.1
+15.5 DOWN 0.1
+15.8 DOWN 0.1
+16.1 DOWN 0.1
+16.4 DOWN 0.1
+16.7 DOWN 0.1
+17.0 DOWN 0.1
+17.4 A 0.1     # pinned
+18 START       # the overlay closes; the pak goes out at the next flush and back in after the game's poll

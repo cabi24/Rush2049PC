@@ -1,0 +1,38 @@
+# game.saves = files: the same pin from the F1 Saves page as swap.press, made during a race: the pak is not
+# swapped there (a race holds the pak's records: docs/port/SAVES.md 5.1), and the next start builds it with the pin.
+# Run by tools/port/saves_check.py's swap scenario.
+# until: 0x400000:400
+# seconds: 90
+# realtime
+# args: --saves files (tools/port/saves_check.py runs it, in a data folder of its own)
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select
+23 A           # the car select; the race from about 26 s
+30 MENU        # F1 over the main menu
+30.6 DOWN 0.1  # Video, Audio, Keyboard, Controllers, Game, Saves
+30.9 DOWN 0.1
+31.2 DOWN 0.1
+31.5 DOWN 0.1
+31.8 DOWN 0.1
+32.2 A 0.1     # the Saves page: Player, Kept as, Folder, Import ghosts, Export to the .mpk, then the saves
+32.6 DOWN 0.1
+32.9 DOWN 0.1
+33.2 DOWN 0.1
+33.5 DOWN 0.1
+33.8 DOWN 0.1
+34.1 DOWN 0.1  # the second ghost, the slower
+34.5 A 0.1     # its page: Kind, Player, Track, Time, Car, Pages, On the pak, File, Pin to the pak
+34.9 DOWN 0.1
+35.2 DOWN 0.1
+35.5 DOWN 0.1
+35.8 DOWN 0.1
+36.1 DOWN 0.1
+36.4 DOWN 0.1
+36.7 DOWN 0.1
+37 DOWN 0.1
+37.4 A 0.1     # pinned
+38 START       # the overlay closes; the pak goes out at the next flush and back in after the game's poll
