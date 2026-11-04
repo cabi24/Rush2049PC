@@ -561,6 +561,9 @@ static int rush_main(int argc, char **argv)
     pc_race_cars_set(cfg.cars);   /* [game] cars: the game latches it at each race's start (race_cars.c) */
     if (cfg.cars)
         fprintf(stderr, "rush2049pc: up to %d cars a race (game.cars)\n", pc_cars_setting());
+    pc_game_fps_set(cfg.game_fps);   /* [game] frame_rate: the game latches it at each change of state (game_fps.c) */
+    if (cfg.game_fps)
+        fprintf(stderr, "rush2049pc: the game runs at %d frames a second (game.frame_rate)\n", pc_game_fps_setting());
     /* port/gfx reads its settings from the environment; the resolved values already include it */
     char scale[16], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);

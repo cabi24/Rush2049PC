@@ -175,6 +175,7 @@ static const char *const frame_rate_choices[] = {"original", "display", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GFX_HUD_* */
 static const char *const cars_choices[] = {"original", NULL};          /* 0: the N64's 6 */
+static const char *const game_fps_choices[] = {"original", NULL};      /* 0: a frame every two retraces at most */
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -190,6 +191,11 @@ static const Item items[] = {
      "track select's Drones option asks for, up to this many; the option then goes up to one less than this (its "
      "default, 5, still races 6 cars). The circuit stays 6 cars; the attract demo races this many. Applies from the "
      "next race."},
+    /* game.frame_rate (port/config/game_fps.c, docs/port/FRAMERATE.md 7) */
+    {"game", "frame_rate", T_INT, F(game_fps), 60, 60, game_fps_choices, "original",
+     "The game's own frame rate: original (30 a second at most, the N64's) or 60 (a frame every retrace: the menus, "
+     "the HUD, the cameras and the effects step 60 times a second, at the N64's speed; the car physics is the same). "
+     "video.frame_rate draws frames between these on top. Applies from the next screen (a menu, a race)."},
     {"game", "pak", T_ENUM, F(pak[0]), 0, 0, pak_choices, "memory",
      "Controller 1's accessory: memory (the controller pak, for saves), rumble, none, or auto (a rumble pak when "
      "the player's controller can rumble, else none)."},

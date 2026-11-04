@@ -13,6 +13,7 @@
 #endif
 
 #include "config.h"
+#include "pc_game_fps.h"
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* the race's cars: pc_race_cars, its latch, PC_MAX_LINKS */
@@ -566,13 +567,93 @@ static void test_cars(void)
     pc_race_cars_begin();
 }
 
+/* ---------------------------------------------------------------- fps */
+
+/* game.frame_rate (docs/port/FRAMERATE.md 7): original or 60 in the file, the copy the game latches at a change of its
+ * state (port/config/game_fps.c), and the frame's steps viUpdateTime notes: 1 a frame at original, and at 60 the
+ * frame's length in 30 Hz frames, whole ones counted as they complete. */
+static void test_fps(void)
+{
+    PcSettings s, t;
+    char why[200], v[32];
+    pc_settings_defaults(&s);
+    CHECK(s.game_fps == 0 && pc_settings_get(&s, "game", "frame_rate", v, sizeof v) == 0 && !strcmp(v, "original"),
+          "the default: original (%d, '%s')", s.game_fps, v);
+    CHECK(pc_settings_set(&s, "game", "frame_rate", "60", why, sizeof why) == 0 && s.game_fps == 60 &&
+              pc_settings_get(&s, "game", "frame_rate", v, sizeof v) == 0 && !strcmp(v, "60"),
+          "60: %d '%s'", s.game_fps, v);
+    static const char *const bad[] = {"30", "59", "61", "120", "0", "-1", "sixty", "60x", "display", ""};
+    for (size_t i = 0; i < sizeof bad / sizeof *bad; i++)
+        CHECK(pc_settings_set(&s, "game", "frame_rate", bad[i], why, sizeof why) == -2 && s.game_fps == 60,
+              "frame_rate '%s' refused: %s", bad[i], why);
+    CHECK(strstr(why, "original") != NULL, "the message names original: %s", why);
+    CHECK(pc_settings_set(&s, "Game", "FRAME_RATE", "Original", why, sizeof why) == 0 && s.game_fps == 0,
+          "original, any case");
+    CHECK(pc_settings_assign(&s, "game.frame_rate=60", why, sizeof why) == 0 && s.game_fps == 60,
+          "--set game.frame_rate=60");
+    /* video.frame_rate is a setting of its own */
+    CHECK(s.frame_rate == 0, "video.frame_rate untouched: %d", s.frame_rate);
+    pc_settings_defaults(&t);
+    char *text = pc_settings_format(&t);
+    CHECK(strstr(text, "\n; frame_rate = original\n") != NULL, "the default is written commented out");
+    free(text);
+    text = pc_settings_format(&s);
+    CHECK(strstr(text, "\nframe_rate = 60\n") != NULL, "60 is written as a setting");
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, text, "fps") == 0 && t.game_fps == 60 && t.frame_rate == 0,
+          "and read back: %d, video %d", t.game_fps, t.frame_rate);
+    free(text);
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, "[game]\nframe_rate = 30\n", "bad fps") == 1 && t.game_fps == 0,
+          "a bad line in the file is skipped: %d", t.game_fps);
+
+    /* the latch: original until the game's state changes */
+    CHECK(pc_fps60 == 0 && pc_game_fps_setting() == 0, "before anything: original");
+    pc_game_frame_note(2);
+    CHECK(pc_frame_steps == 1 && pc_frame_scale == 1.0f, "a frame at original: one step");
+    pc_game_fps_set(60);
+    CHECK(pc_game_fps_setting() == 60 && pc_fps60 == 0, "set to 60: the setting at once, the game still original");
+    pc_game_frame_note(1);
+    CHECK(pc_frame_steps == 1 && pc_frame_scale == 1.0f, "not latched: still one step a frame");
+    pc_game_fps_begin();
+    CHECK(pc_fps60 == 1, "the state changes: 60");
+    unsigned int f0 = pc_frames30;
+    int steps[6];
+    for (int i = 0; i < 6; i++) {
+        pc_game_frame_note(1);
+        steps[i] = pc_frame_steps;
+        CHECK(pc_frame_scale == 0.5f, "a frame of one retrace is half a 30 Hz frame: %g", (double)pc_frame_scale);
+    }
+    CHECK(steps[0] + steps[1] == 1 && steps[2] + steps[3] == 1 && steps[4] + steps[5] == 1 && pc_frames30 - f0 == 3,
+          "frames of one retrace: a whole step every other one (%d %d %d %d %d %d)", steps[0], steps[1], steps[2],
+          steps[3], steps[4], steps[5]);
+    pc_game_frame_note(2);
+    CHECK(pc_frame_steps == 1 && pc_frame_scale == 1.0f, "a frame of two retraces at 60: one step");
+    pc_game_frame_note(3);
+    int s3 = pc_frame_steps;
+    pc_game_frame_note(3);
+    CHECK(s3 + pc_frame_steps == 3 && pc_frame_scale == 1.5f, "two frames of three: three steps (%d + %d)", s3,
+          pc_frame_steps);
+    CHECK(pc_fps_filter(0.36f) == powf(0.36f, 1.5f), "the filter over 1.5 frames: e^1.5");
+    pc_game_frame_note(1);
+    CHECK(fabsf(pc_fps_filter(0.36f) - 0.6f) < 1e-6f, "over half a frame: e^0.5 (%g)", (double)pc_fps_filter(0.36f));
+    pc_game_fps_set(0);
+    CHECK(pc_fps60 == 1, "original set mid-screen: the screen keeps 60");
+    pc_game_fps_begin();
+    pc_game_frame_note(1);
+    CHECK(pc_fps60 == 0 && pc_frame_steps == 1 && pc_frame_scale == 1.0f && pc_fps_filter(0.36f) == 0.36f,
+          "the next screen: original, a step a frame whatever its length");
+    pc_game_fps_set(144);
+    CHECK(pc_game_fps_setting() == 0, "anything else is original: %d", pc_game_fps_setting());
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
-        {"stick", test_stick}, {"cars", test_cars}};
+        {"stick", test_stick}, {"cars", test_cars}, {"fps", test_fps}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|all SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|fps|all SCRATCH_DIR\n");
         return 2;
     }
     static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */
