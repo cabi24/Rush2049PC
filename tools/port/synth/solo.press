@@ -1,0 +1,23 @@
+# One player alone on track 0 (the track select's Drones option from its 5 down to 0), gas and full right steering
+# held from before the race begins to the end of the run: a race whose cars nothing on the game thread steers
+# (no drones, no input changing in the race), for game.frame_rate's comparison of the physics at 60 against
+# original, model tick by model tick (tools/port/fps_compare.py, docs/port/FRAMERATE.md 7).
+# until: 0x400000:900
+# seconds: 75
+# expect: state=0x00400000: players 1, windows 1, cars 1, mode 0, track 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 DOWN 0.1    # the track select: down its options list to the Drones
+20.5 DOWN 0.1
+21 LEFT 0.1    # the Drones: 5 to 0
+21.5 LEFT 0.1
+22 LEFT 0.1
+22.5 LEFT 0.1
+23 LEFT 0.1
+24.5 A         # track 0
+26.5 A         # the car select; the race starts about 2.6 s later
+27.5 A 50      # the gas, held from the countdown to the end
+27.5 STICKRIGHT 50

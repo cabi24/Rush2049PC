@@ -26,10 +26,10 @@ from synth_paths import PRESS_DIR, ROOT, read_script  # noqa: E402
 KEEP = re.compile(r"rush2049pc: (game state |status |state reached:|time reached:)")
 
 
-def run(exe, rom, press, spec, rate, rom_check, log):
+def run(exe, rom, press, spec, rate, rom_check, log, game_fps="original"):
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve()), "--headless", "--no-config", "--audio",
            "null", "--no-pak", "--fast", "--press-file", str(press), "--until-state", spec["until"], "--seconds",
-           spec["seconds"], "--status", "1", "--frame-rate", rate]
+           spec["seconds"], "--status", "1", "--frame-rate", rate, "--set", f"game.frame_rate={game_fps}"]
     if not rom_check:
         cmd.append("--no-rom-check")
     cmd += spec["args"]
@@ -65,6 +65,7 @@ def main():
     ap.add_argument("--require-drawn", action="store_true", help="fail a path that drew no frame between two")
     ap.add_argument("--press", nargs="*", default=[], help="press files with '# until:' lines, besides the names")
     ap.add_argument("--logs", default=str(ROOT / "build/synth/hfr"))
+    ap.add_argument("--game-fps", default="original", help="game.frame_rate for both runs (docs/port/FRAMERATE.md 7)")
     ap.add_argument("names", nargs="*", help="tools/port/synth paths (default: race2p drive demo)")
     args = ap.parse_args()
     paths = [PRESS_DIR / f"{n}.press" for n in args.names]
@@ -78,9 +79,10 @@ def main():
         spec = read_script(press)
         spec["args"] = strip_screenshot_args(spec["args"])
         name = press.stem
-        code0, off, _ = run(args.exe, args.rom, press, spec, "original", args.rom_check, logs / f"{name}-original.log")
+        code0, off, _ = run(args.exe, args.rom, press, spec, "original", args.rom_check, logs / f"{name}-original.log",
+                            args.game_fps)
         code1, on, drawn = run(args.exe, args.rom, press, spec, args.rate, args.rom_check,
-                               logs / f"{name}-{args.rate}.log")
+                               logs / f"{name}-{args.rate}.log", args.game_fps)
         why = []
         if code0 != 0 or code1 != 0:
             why.append(f"exit {code0} and {code1}")
