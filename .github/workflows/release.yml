@@ -1,7 +1,8 @@
 # Release archives (docs/port/RELEASE.md): a Windows x86-64 zip, cross-compiled as in pc.yml's windows-cross and
 # then unzipped and run on windows-latest; Linux x86-64 and aarch64 tarballs, built on Ubuntu 22.04 (glibc 2.35) and
 # then unpacked and run on Fedora. Each archive is `cmake --install` of a portable build: the program, an empty
-# rush2049pc.ini (portable), README.txt and the licences of what is linked in. No ROM and nothing from one goes in.
+# rush2049pc.ini (portable), README.txt, an empty mods/ folder with its README.txt (docs/port/MODS.md) and the licences
+# of what is linked in. No ROM and nothing from one goes in.
 #
 # workflow_dispatch builds the archives as artifacts only. A pushed tag v* also makes a draft GitHub release with
 # them, for a person to publish.
@@ -58,7 +59,7 @@ jobs:
           (cd stage && zip -r9 "../$name.zip" "$name")
           unzip -l "$name.zip"
           # what must be there, and nothing of a ROM
-          for f in rush2049pc.exe rush2049pc.ini README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt; do
+          for f in rush2049pc.exe rush2049pc.ini README.txt mods/README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt; do
             test -f "stage/$name/$f" || { echo "missing $f"; exit 1; }
           done
           ! unzip -Z1 "$name.zip" | grep -iE '\.(z64|v64|n64|rom|bin)$'
@@ -222,7 +223,7 @@ jobs:
           cmake --install build/pc --prefix "stage/$name"
           tar -C stage -czf "$name.tar.gz" "$name"
           tar -tvzf "$name.tar.gz"
-          for f in rush2049pc rush2049pc.ini README.txt LICENSES/SDL2.txt LICENSES/zlib.txt; do
+          for f in rush2049pc rush2049pc.ini README.txt mods/README.txt LICENSES/SDL2.txt LICENSES/zlib.txt; do
             test -f "stage/$name/$f" || { echo "missing $f"; exit 1; }
           done
           ! tar -tzf "$name.tar.gz" | grep -iE '\.(z64|v64|n64|rom|bin)$'
