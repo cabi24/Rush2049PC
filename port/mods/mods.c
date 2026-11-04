@@ -1054,8 +1054,8 @@ int pc_mods_prepare(PcMods *m, const PcModsConfig *cfg, const PcModsCart *cart, 
                 PcModFile *f = &mod->files[j];
                 if (f->wave != w || f->state == PC_MOD_FILE_REFUSED) {
                     if (f->wave == w && f->state == PC_MOD_FILE_REFUSED && f->why[0]) {
-                        LOG("%s: %s (%s) refused: %s; the cartridge's file is used\n", mod_title(mod), f->path, label,
-                            f->why);
+                        LOG("%s: %s (%s) refused: %s; the next mod's or the cartridge's file is used\n",
+                            mod_title(mod), f->path, label, f->why);
                         mod->refused++;
                         f->why[0] = 0;   /* said once */
                     }
