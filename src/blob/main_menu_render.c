@@ -21,7 +21,7 @@ typedef float f32;
  * packet's window address (a heap block, func_800D63EC) or -1 (docs/port/POINTERS.md 10). */
 typedef struct { u8 model; u8 pad1[67]; u32 node; void *ref; } CarRec;
 #define NO_NODE 0xFFFFFFFFu
-#define NODE(n) (void *)(uintptr_t)n
+#define NODE(n) (void *)PC_N64P(n)
 #else
 typedef struct { u8 model; u8 pad1[67]; void *node; u8 pad48[4]; } CarRec;   /* 76 */
 #define NO_NODE (void *) -1

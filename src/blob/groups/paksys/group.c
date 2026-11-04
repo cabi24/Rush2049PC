@@ -327,6 +327,12 @@ void pdf_release(PakHandle *fileh)
 }
 
 /* 0x800A2680: PS_DeleteFile */
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void pak_delete_file_retry(PakHandle *fileh)
 {
     s32 pak;
@@ -365,7 +371,7 @@ delete_retry:
     if (psfile->RemoveFile) psfile->RemoveFile(fileh);
     state->file_size = 0;
     if (psfile->data) {
-        pdf_dealloc((u32)psfile->data);
+        pdf_dealloc(N64A(psfile->data));
         psfile->data = 0;
     }
     pdf_release(fileh);
@@ -405,7 +411,7 @@ void func_800A3640(s32 pak)
         if (psfile->data != 0) {
             u8 **data = psfile->data;
             osRecvMesg(&D_80152770, 0, 1);
-            audio_reverb_update((u32)data, 0);
+            audio_reverb_update(N64A(data), 0);
             osSendMesg(&D_80152770, 0, 0);
             psfile->data = 0;
         }

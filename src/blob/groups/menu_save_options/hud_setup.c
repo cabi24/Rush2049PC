@@ -132,6 +132,12 @@ void sound_list_init(List *list, s8 indirect, s8 doubly) {
 #define PC_ONLY(stmt)
 #endif
 #ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
+#ifdef TARGET_PC
 /* PC: [audio] voices (docs/port/AUDIO.md 10) gives the Expansion Pak's set-up (32 voices: 16 for the effects, 64
  * positional emitters) more voices, the effects all but the songs' 16, and 128 emitters: pc_snd_setup, before
  * anything reads the arguments. The effects' share (arg1) is also the sound manager's gMaxSfx (D_80146200: its
@@ -172,12 +178,12 @@ void hud_setup(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6
     }
     D_80110264 = (D_80146200 + numB < D_80110264) ? D_80110264 : D_80146200 + numB;
     D_80110244 = AllocateMemoryHeap(0, D_80110264 * sizeof(Voice));
-    PurgeableMemory((u32)D_80110244, 0);
+    PurgeableMemory(N64A(D_80110244), 0);
     sound_list_init(&D_80143FF8, 0, 1);
     sound_list_init(&D_80144020, 0, 1);
     sound_list_init(&D_80144C50, 0, 1);
     D_80110248 = AllocateMemoryHeap(0, D_80110264 * SORTED_TAG_SIZE);
-    PurgeableMemory((u32)D_80110248, 0);
+    PurgeableMemory(N64A(D_80110248), 0);
     D_80143F58.func = func_8009539C;
     D_80143F58.unk8 = 0;
     D_80143F58.unk4 = 0;
@@ -193,7 +199,7 @@ void hud_setup(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6
     }
     D_80146104 = (1 << D_801460F8) - 1;
     D_80110270 = AllocateMemoryHeap(0, 6 * sizeof(Chan));
-    PurgeableMemory((u32)D_80110270, 0);
+    PurgeableMemory(N64A(D_80110270), 0);
     sound_list_init(&D_80149808, 0, 1);
     sound_list_init(&D_80149860, 0, 1);
     for (i = 0; i < 6; i++) {

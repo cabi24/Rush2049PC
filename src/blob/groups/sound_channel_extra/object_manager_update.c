@@ -59,7 +59,7 @@ typedef struct Glyph {
     /* 0x8 */ u8 right;
     /* 0x9 */ u8 pad9[3];
 } Glyph;
-#define FONT_KERNS(k) ((u8 *)(uintptr_t)(k))
+#define FONT_KERNS(k) ((u8 *)PC_N64P(k))
 #else
 typedef struct Glyph {
     /* 0x0 */ u8 *kern;

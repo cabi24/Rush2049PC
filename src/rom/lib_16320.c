@@ -3,6 +3,20 @@
  * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
  * passthrough lines. */
 #include "rom_tu.h"
+#ifdef TARGET_PC
+/* PC: the registries below keep their payloads as 32-bit window addresses (into the pool, wave 7, in the heap):
+ * N64A(p) is a window pointer's, N64A0(p) the same where the N64 stores the pointer itself, N64PTR(T, a) and
+ * N64PTR0(T, a) the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#define N64A0(x) PC_N64A(x)
+#define N64PTR(T, a) ((T)PC_N64P(a))
+#define N64PTR0(T, a) ((T)PC_N64P(a))
+#else
+#define N64A(x) (unsigned int)x
+#define N64A0(x) x
+#define N64PTR(T, a) (T)a
+#define N64PTR0(T, a) a
+#endif
 
 /* PROMOTED 2026-10-11 — func_80015720
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
@@ -58,7 +72,7 @@ int func_80015720(u16 id, void *payload)
             return 0;
         }
     }
-    ((RecordFields_8003C618 *)&D_8003C618[i])->payload = payload;
+    ((RecordFields_8003C618 *)&D_8003C618[i])->payload = N64A0(payload);
     ((RecordFields_8003C618 *)&D_8003C618[i])->id = id;
     ((RecordFields_8003C618 *)&D_8003C618[i])->references = 1;
     func_800145DC();
@@ -139,7 +153,7 @@ int func_80015A0C(u16 id, void *payload, u16 type)
         return 0;
     }
     ((RecordFields_8003CE20 *)&D_8003CE20[i])->id = id;
-    ((RecordFields_8003CE20 *)&D_8003CE20[i])->payload = (unsigned int)payload;
+    ((RecordFields_8003CE20 *)&D_8003CE20[i])->payload = N64A(payload);
     ((RecordFields_8003CE20 *)&D_8003CE20[i])->type = type;
     ((RecordFields_8003CE20 *)&D_8003CE20[i])->references = 1;
     func_800145DC();
@@ -218,7 +232,7 @@ int func_80015D68(u16 id, void *payload)
         return 0;
     }
     ((RecordFields_80038610 *)&D_80038610[i])->id = id;
-    ((RecordFields_80038610 *)&D_80038610[i])->payload = (unsigned int)payload;
+    ((RecordFields_80038610 *)&D_80038610[i])->payload = N64A(payload);
     ((RecordFields_80038610 *)&D_80038610[i])->references = 1;
     func_800145DC();
     return 1;
@@ -342,7 +356,7 @@ int func_800162AC(u16 id, SampleRecord *records)
     while (records->identifier != 0xFFFF) {
         if (records->identifier == id) {
             if (records->references == 0) {
-                records->data = D_800385A8[index].base + records->offset;
+                records->data = N64A0(D_800385A8[index].base + records->offset);
                 descriptor = records->descriptor;
                 func_80014CFC(&descriptor, &records->data);
             }
@@ -517,7 +531,7 @@ int func_8001671C(u16 id, void *payload)
             D_8003E228[i + 1] = D_8003E228[i];
         }
         ((RecordFields_8003E228 *)&D_8003E228[pos])->id = id;
-        ((RecordFields_8003E228 *)&D_8003E228[pos])->payload = payload;
+        ((RecordFields_8003E228 *)&D_8003E228[pos])->payload = N64A0(payload);
         ((RecordFields_8003E228 *)&D_8003E228[pos])->references = 1;
         D_8003DA28[main].count++;
         D_8003DA20++;
@@ -609,7 +623,7 @@ void *func_80016C20(u16 id)
         key_80016C20.id = id;
         if ((result_80016C20 = func_8001E864(&key_80016C20, &D_8003E228[base_80016C20], D_8003DA28[main_80016C20].count, 8,
                                     (int (*)(const void *, const void *))func_80016BF8)) != 0) {
-            return result_80016C20->payload;
+            return N64PTR0(void *, result_80016C20->payload);
         }
     }
     return 0;
@@ -703,7 +717,7 @@ void *func_80016E68(u16 id)
     key_80038610.id = id;
     if ((result_80038610 = func_8001E864(&key_80038610, D_80038610, D_80038608, sizeof(RecordFields_80038610),
                                 (int (*)(const void *, const void *))func_80016E40)) != 0) {
-        return (void *)result_80038610->payload;
+        return N64PTR(void *, result_80038610->payload);
     }
     return 0;
 }
@@ -726,7 +740,7 @@ void *func_80016EE0(u16 id)
     key_8003C618.id = id;
     if ((result_8003C618 = func_8001E864(&key_8003C618, D_8003C618, D_8003C610, sizeof(RecordFields_8003C618),
                                 (int (*)(const void *, const void *))func_80016E40)) != 0) {
-        return result_8003C618->payload;
+        return N64PTR0(void *, result_8003C618->payload);
     }
     return 0;
 }
@@ -764,7 +778,7 @@ void *func_80016F80(u16 id, u16 *type)
     if ((result_8003CE20 = func_8001E864(&key_8003CE20, D_8003CE20, D_8003CE18, sizeof(RecordFields_8003CE20),
                                 (int (*)(const void *, const void *))func_80016F58)) != 0) {
         *type = result_8003CE20->type;
-        return (void *)result_8003CE20->payload;
+        return N64PTR(void *, result_8003CE20->payload);
     }
     return 0;
 }

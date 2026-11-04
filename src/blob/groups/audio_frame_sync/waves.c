@@ -61,10 +61,21 @@ typedef struct anon_base_TOCentries_c { u32 *base; s32 TOCentries; void *TOC; } 
  * fields are 32-bit RDRAM-window addresses, which widen to host pointers (docs/port/ASSETS.md section 5). */
 #define WADP(type) u32
 /* A handle wave's ptr is a heap master slot, a u32 window address (the heap's handle tables keep N64 layout). */
-#define HANDLE_BLOCK(h) ((u8 *)(uintptr_t)*(u32 *)(h))
+#define HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
+/* The relocation's base and offset, and the records' addresses, are 32-bit N64 addresses: N64A(p) is a window
+ * pointer's, N64PTR(T, a) the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). An offset between two blocks
+ * (a pointer less an N64 address) translates to the difference. */
+#define N64A(x) PC_N64A(x)
+#define N64AS(x) (s32)PC_N64A(x)
+#define N64PTR(T, a) ((T)PC_N64P(a))
+#define N64PTR0(T, a) ((T)PC_N64P(a))
 #else
 #define WADP(type) type *
 #define HANDLE_BLOCK(h) *(u8 **)h
+#define N64A(x) (u32)x
+#define N64AS(x) (s32)x
+#define N64PTR(T, a) (T)a
+#define N64PTR0(T, a) a
 #endif
 
 typedef struct tLod {               /* N64 0x10 (GC anon_texidx_flags_c 0xc) */
@@ -136,7 +147,7 @@ u32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count);
 /* entity_cull_check walks TXLD from start to end as Gfx pointers. */
 void entity_cull_check(void *start, void *end, s32 IMAGptr);
 #define entity_cull_check(start, end, IMAGptr) \
-    entity_cull_check((void *)(uintptr_t)(u32)(start), (void *)(uintptr_t)(u32)(end), IMAGptr)
+    entity_cull_check((void *)PC_N64P((u32)(start)), (void *)PC_N64P((u32)(end)), IMAGptr)
 #else
 s32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count); /* MBGetFromWad */
 void entity_cull_check(u32 start, u32 end, s32 IMAGptr);
@@ -194,15 +205,15 @@ void SetupWaveModel(s32 idx, s32 first) {
     if (first != 0) {
         MBSetupWad(&wad, WADptr);
     } else {
-        offset = HANDLE_BLOCK(gWaveInstance[idx].ptr) - (u32)gWaveInstance[idx].lastPtr;
-        func_80096BBC(&wad, (s32)WADptr, (s32)offset);
+        offset = HANDLE_BLOCK(gWaveInstance[idx].ptr) - N64A(gWaveInstance[idx].lastPtr);
+        func_80096BBC(&wad, N64AS(WADptr), N64AS(offset));
     }
     gWaveInstance[idx].lastPtr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
-    gRomObjDefPtrs[modelIdx].romObjDefs = (tModelDef *)MBGetFromWad(&wad, 0x4F424844, &gRomObjDefPtrs[modelIdx].count);
-    gTexDefPtrs[modelIdx].texDefs = (tTexture *)MBGetFromWad(&wad, 0x54584844, &gTexDefPtrs[modelIdx].count);
-    gPalDefPtrs[modelIdx].palDefs = (anon_name_start_18 *)MBGetFromWad(&wad, 0x504C4844, &gPalDefPtrs[modelIdx].count);
+    gRomObjDefPtrs[modelIdx].romObjDefs = N64PTR(tModelDef *, MBGetFromWad(&wad, 0x4F424844, &gRomObjDefPtrs[modelIdx].count));
+    gTexDefPtrs[modelIdx].texDefs = N64PTR(tTexture *, MBGetFromWad(&wad, 0x54584844, &gTexDefPtrs[modelIdx].count));
+    gPalDefPtrs[modelIdx].palDefs = N64PTR(anon_name_start_18 *, MBGetFromWad(&wad, 0x504C4844, &gPalDefPtrs[modelIdx].count));
     if (gWaveInstance[idx].wave >= 101 && gWaveInstance[idx].wave < 120) {
-        gTargetPaths.paths = (tBasicTargetPath *)MBGetFromWad(&wad, 0x50544844, &gTargetPaths.count);
+        gTargetPaths.paths = N64PTR(tBasicTargetPath *, MBGetFromWad(&wad, 0x50544844, &gTargetPaths.count));
     }
     TXLDptr = MBGetFromWad(&wad, 0x54584C44, &TXLDcnt);
     IMAGptr = MBGetFromWad(&wad, 0x494D4147, NULL);
@@ -218,16 +229,16 @@ void SetupWaveModel(s32 idx, s32 first) {
     if (first != 0) {
         for (i = 0; i < gRomObjDefPtrs[modelIdx].count; i++) {
             for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + (u32)(first ? WADptr : offset));
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + (u32)(first ? WADptr : offset));
-                entity_lod_select(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList, (s32)(first ? WADptr : offset), -1, D_80140A04 ? 1 : 0, flags);
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + N64A((first ? WADptr : offset)));
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + N64A((first ? WADptr : offset)));
+                entity_lod_select(N64PTR0(u32 *, gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList), N64AS((first ? WADptr : offset)), -1, D_80140A04 ? 1 : 0, flags);
             }
         }
     }
     if (gWaveInstance[idx].wave >= 101 && gWaveInstance[idx].wave < 120) {
         for (i = 0; i < gTargetPaths.count; i++) {
-            gTargetPaths.paths[i].pts = gTargetPaths.paths[i].pts + (u32)(first ? WADptr : offset);
-            gTargetPaths.paths[i].trigPtr = gTargetPaths.paths[i].trigPtr + (u32)(first ? WADptr : offset);
+            gTargetPaths.paths[i].pts = gTargetPaths.paths[i].pts + N64A((first ? WADptr : offset));
+            gTargetPaths.paths[i].trigPtr = gTargetPaths.paths[i].trigPtr + N64A((first ? WADptr : offset));
         }
     }
     gWaveInstance[idx].ready = 1;

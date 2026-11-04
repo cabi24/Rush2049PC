@@ -95,9 +95,19 @@ extern OSMesgQueue D_80152770;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
+#ifdef TARGET_PC
+/* The heap's functions take a block's 32-bit N64 address (their definitions' u32): N64A(p) is a window pointer's
+ * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+Heap *func_80095F8C(u32 addr);
+Block *func_80095EF4(Heap *heap, u32 addr, s32 tag);
+void audio_reverb_update(u32 addr, s32 tag);
+#define N64A(x) PC_N64A(x)
+#else
 Heap *func_80095F8C(void *addr);
 Block *func_80095EF4(Heap *heap, void *addr, s32 tag);
 void audio_reverb_update(void *addr, s32 tag);
+#define N64A(x) x
+#endif
 void *func_800A47C0(void *dst, void *src, u32 n);
 
 void func_800CB9D0(void *addr)
@@ -114,8 +124,8 @@ void func_800CB9D0(void *addr)
     s32 pad[7];
 
     osRecvMesg(&D_80152770, 0, 1);
-    heap = func_80095F8C(addr);
-    old = func_80095EF4(heap, addr, 0);
+    heap = func_80095F8C(N64A(addr));
+    old = func_80095EF4(heap, N64A(addr), 0);
     after = N64P(old->next);
     adjacent = 0;
     for (b = N64P(heap->first); b != 0; b = next) {
@@ -178,6 +188,6 @@ void func_800CB9D0(void *addr)
             old = n;
         }
     }
-    audio_reverb_update((u8 *)old + 32, 0);
+    audio_reverb_update(N64A((u8 *)old + 32), 0);
     osSendMesg(&D_80152770, 0, 0);
 }

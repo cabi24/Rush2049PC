@@ -213,18 +213,18 @@ void pc_assets_world(int wave, uint8_t *buf, size_t size)
         pc_swap32_n(buf + off, chunk_records(wave, "GTLD", off, count, 4, size));
 }
 
-/* LoadTrack's MBGetFromWad on PC: the chunk's window address for every tag but GTLD, for which it is a native
- * array of the keys, each sign-extended as engine_sound_update compares it ((void *)node->key with an s32 key).
- * One array, reused by the next track. */
+/* LoadTrack's MBGetFromWad on PC: the chunk's host address, from its 32-bit window address, for every tag but GTLD,
+ * for which it is a native array of the keys, each sign-extended as engine_sound_update compares it
+ * ((void *)node->key with an s32 key). One array, reused by the next track. */
 uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count)
 {
     static void **keys;
     static size_t cap;
-    const uint32_t *src = (const uint32_t *)(uintptr_t)addr;
+    const uint32_t *src = (const uint32_t *)pc_n64_ptr(addr);
     int32_t n = count ? *count : 0, i;
 
     if ((uint32_t)tag != TAG_GTLD || !addr)
-        return addr;
+        return (uintptr_t)src;
     if (n < 0)
         n = 0;
     if (cap < (size_t)n || !keys) {

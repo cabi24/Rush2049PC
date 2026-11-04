@@ -3803,7 +3803,7 @@ typedef s64 M2C_UNK64;
 #ifdef TARGET_PC
 /* PC: the record is the car's model (D_8014A250), which keeps its N64 layout: its car and tune pointers at +0 and +4
  * are u32 window addresses (docs/port/CARS.md 2.2), which m2c's `*(s8 **)` read as 8-byte host pointers. */
-#define MODEL_AT(p, o) ((s8 *)(uintptr_t)*((u32 *) ((p) + (o))))
+#define MODEL_AT(p, o) ((s8 *)PC_N64P(*((u32 *) ((p) + (o)))))
 void func_800E2C70(s8 *arg0)
 {
   *((f32 *) (arg0 + 0x428)) = (*((f32 *) (MODEL_AT(arg0, 4) + 0xC))) * (*((f32 *) (((s8 *) (&D_80110EC0)) + (((*((s16 *) (arg0 + 0x3F4))) * 4) + ((*((s8 *) (arg0 + 9))) * 0x18)))));

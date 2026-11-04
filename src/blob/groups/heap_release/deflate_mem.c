@@ -227,9 +227,15 @@ __inline void mem_free(unsigned int address)
 {
     heap_free_locked(address);
 }
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (unsigned int)x
+#endif
 __inline void zcfree(voidpf ptr)
 {
-    mem_free((unsigned int) ptr);
+    mem_free(N64A(ptr));
 }
 #define FREECALL(p) zcfree((voidpf)(p))
 

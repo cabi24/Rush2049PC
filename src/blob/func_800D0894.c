@@ -3803,7 +3803,7 @@ typedef s64 M2C_UNK64;
 #ifdef TARGET_PC
 /* PC: the model record keeps its N64 layout, and its car descriptor pointer (+0) is a u32 window address
  * (docs/port/CARS.md). */
-#define MODEL_P(b, o) ((void *) (uintptr_t) *((u32 *) (((s8 *) b) + o)))
+#define MODEL_P(b, o) ((void *) PC_N64P(*((u32 *) (((s8 *) b) + o))))
 #else
 #define MODEL_P(b, o) *((void **) (((s8 *) b) + o))
 #endif

@@ -374,6 +374,12 @@ void prpf_nop(void)
 }
 
 /* 0x800A2990: PS_ReadPartialFile(fileh, offset, numBytes) */
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void drone_set_catchup(PakHandle *fileh, s32 offset, u32 numBytes)
 {
     tPS_File *psfile;
@@ -417,7 +423,7 @@ read_retry:
         for (cur = D_80144D60[pak].head; cur != 0; cur = cur->file->next) {
             if (fileh == cur) {
                 if (psfile->data) {
-                    pdf_dealloc((u32)psfile->data);
+                    pdf_dealloc(N64A(psfile->data));
                     psfile->data = 0;
                 }
                 break;

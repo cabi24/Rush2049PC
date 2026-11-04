@@ -30,8 +30,8 @@ typedef struct {
 } PlayerRec; /* 0x4C */
 #ifdef TARGET_PC
 /* PC: an input record is 80 bytes; +0x44 stays 32 bits: a packet is a heap block, so its window address
- * (docs/port/POINTERS.md 10). */
-#define PACKET(p) (s32)(uintptr_t)(p)
+ * (docs/port/POINTERS.md 10; pc_prelude.h's PC_N64A, docs/port/NOFIXED.md 2.3). */
+#define PACKET(p) (s32)PC_N64A(p)
 #else
 #define PACKET(p) (s32)p
 #endif

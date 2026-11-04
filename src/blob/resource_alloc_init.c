@@ -3701,11 +3701,17 @@ typedef s64 M2C_UNK64;
 
 #endif
 
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void *resource_alloc_init(s32 arg0, M2C_UNK arg1) {
     void *temp_v0;
 
     temp_v0 = AllocateMemoryHeap(0, arg0);
-    PurgeableMemory((u32) temp_v0, 0);
+    PurgeableMemory(N64A(temp_v0), 0);
     return temp_v0;
 }
 

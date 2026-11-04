@@ -76,7 +76,7 @@ typedef struct Resource68 { u8 prefix[64]; u32 flags; } Resource68;
 /* PC: Scene36 is a track WAD's PTHD record, which keeps its N64 layout (port/assets/wad.c): resources (pts) is a
  * 32-bit window address of the path points. */
 #define PTHD_PTS_FIELD u32 resources
-#define PTHD_PTS(scene) ((Resource68 *)(uintptr_t)(scene)->resources)
+#define PTHD_PTS(scene) ((Resource68 *)PC_N64P((scene)->resources))
 #else
 #define PTHD_PTS_FIELD Resource68 *resources
 #define PTHD_PTS(scene) scene->resources
@@ -183,7 +183,7 @@ typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f
 #define N64W(x) PC_N64W(x)
 /* A camera node's state (CamCtl, groups/camera_aspect_ratio) starts with its scene (a PTHD record) as a u32. */
 #define STATE_SCENE(s) (*(u32 *)N64P(s))
-#define SCENE_OF(s) ((Scene36 *)(uintptr_t)*(u32 *)N64P(s))
+#define SCENE_OF(s) ((Scene36 *)PC_N64P(*(u32 *)N64P(s)))
 /* GTLD keys: the side array holds them sign-extended (docs/port/LOADERS.md), and so does this. */
 #define KEY(k) (void *)(intptr_t)k
 /* An info record with flag 0x400 keeps the place record as the node's state, a 32-bit window address. A place record

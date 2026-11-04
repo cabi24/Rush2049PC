@@ -41,14 +41,20 @@ typedef unsigned int u32;
 #define TLUT_COPY_IN(dst, src, size) tlut_copy_in(dst, src, size)
 static void tlut_copy_in(u16 *dst, u32 src, u32 size)
 {
-    const u8 *s = (const u8 *)(uintptr_t)src;
+    const u8 *s = (const u8 *)PC_N64P(src);
     u32 i;
     for (i = 0; i < size / 2; i++)
         dst[i] = pc_be16_get(s + 2 * i);
 }
+/* The car's copy and the heap's API take 32-bit N64 addresses: N64A(p) is a window pointer's, N64PTR0(T, a) the
+ * pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#define N64PTR0(T, a) ((T)PC_N64P(a))
 #else
 #define PAL_DATA u16 *data
 #define TLUT_COPY_IN memcpy
+#define N64A(x) (u32)x
+#define N64PTR0(T, a) a
 #endif
 typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 #ifdef TARGET_PC
@@ -166,9 +172,9 @@ void sound_bank_unload(s16 index,s16 palette,u8 first,u8 second,u8 third)
     second_color=D_8013F300[second]; third_color=D_8013F300[third];
     func_800B0F60(colors, first_color, second_color, third_color);
     descriptor=&D_8013FEE0[index];
-    memcpy(descriptor->data,colors,512);
+    memcpy(N64PTR0(void *, descriptor->data),colors,512);
     func_80095CF4();
-    audio_reverb_update((u32)colors, 0);
+    audio_reverb_update(N64A(colors), 0);
     func_80095CFC();
     SetModelPalette(D_80139320[index].root.halves.id,descriptor);
     SetModelPalette(D_80139320[index].secondary.halves.id,descriptor);

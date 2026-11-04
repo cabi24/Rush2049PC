@@ -14,7 +14,7 @@ typedef float f32;
  * N64 layout in the arena block D_8014D280: the link is a 32-bit window address and the flags byte is at +4
  * (docs/port/POINTERS.md 10). A slot holds a host pointer, so it is 16 bytes, and the heap block holds count of them. */
 typedef struct Object { u32 next; u8 flags; } Object;
-#define NEXT(object) ((Object *)(uintptr_t)(object)->next)
+#define NEXT(object) ((Object *)PC_N64P((object)->next))
 #define SLOT_SIZE (s32)sizeof(Slot)
 #else
 typedef struct Object { struct Object *next; u8 flags; } Object;

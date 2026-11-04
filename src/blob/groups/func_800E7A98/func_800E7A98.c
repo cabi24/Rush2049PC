@@ -62,6 +62,12 @@ static Heap *heap_or_default(Heap *heap)
     return D_801527C8;
 }
 
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 void func_800E7A98(Heap *heap)
 {
     Heap *p;
@@ -77,6 +83,6 @@ void func_800E7A98(Heap *heap)
             break;
         }
     }
-    audio_reverb_update((u32)h, 1);
+    audio_reverb_update(N64A(h), 1);
     osSendMesg(&D_80152770, NULL, 0);
 }

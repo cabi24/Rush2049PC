@@ -23,6 +23,12 @@ typedef unsigned int u32;
 typedef u32 uintptr_t;
 typedef s32 intptr_t;
 #endif
+#ifdef TARGET_PC
+/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+#define N64A(x) PC_N64A(x)
+#else
+#define N64A(x) (u32)x
+#endif
 
 typedef struct SaveData {
     char pad0[13];
@@ -115,10 +121,10 @@ void menu_save_options(void) {
     }
     n = (D_80156994 ? 12 : 1) * 3;
     D_8013FEC4 = AllocateMemoryHeap(0, n * sizeof(Record));
-    PurgeableMemory((u32) D_8013FEC4, 0);
+    PurgeableMemory(N64A(D_8013FEC4), 0);
     memset(D_8013FEC4, 0, n * sizeof(Record));
     D_8012E6F8 = AllocateMemoryHeap(0, n * sizeof(Record *));
-    PurgeableMemory((u32) D_8012E6F8, 0);
+    PurgeableMemory(N64A(D_8012E6F8), 0);
     for (i = 0; i < n; i++) {
         D_8012E6F8[i] = &D_8013FEC4[i];
     }

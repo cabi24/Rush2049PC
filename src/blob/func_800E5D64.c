@@ -24,7 +24,7 @@ typedef struct ReplayStream {
 #ifdef TARGET_PC
 /* PC: a ghost's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10): its header handle at +56 */
 typedef struct ReplayOwner { void *ll; void **fileh; u8 pad10[0x24 - 0x08]; void **datah; ReplayStream **stream; } ReplayOwner;
-#define DATA(s) ((u8 *)(uintptr_t)(s)->data)
+#define DATA(s) ((u8 *)PC_N64P((s)->data))
 #else
 typedef struct ReplayOwner { u8 pad0[0x28]; ReplayStream **stream; } ReplayOwner;
 #define DATA(s) s->data

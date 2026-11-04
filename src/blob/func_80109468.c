@@ -31,7 +31,7 @@ typedef float f32;
 /* PC: TexDef is a WAD's TXHD record, which keeps its N64 layout (port/assets/wad.c): data is a 32-bit window
  * address of the texels. */
 #define TXHD_DATA u32 data
-#define TEXELS(tex) ((u8 *)(uintptr_t)(tex)->data)
+#define TEXELS(tex) ((u8 *)PC_N64P((tex)->data))
 #else
 #define TXHD_DATA u8 *data
 #define TEXELS(tex) tex->data

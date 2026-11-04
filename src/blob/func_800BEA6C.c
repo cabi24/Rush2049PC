@@ -3705,7 +3705,7 @@ typedef s64 M2C_UNK64;
 /* PC: D_80143FD8 is the active list of the level-object node pool D_80143FC8, whose nodes keep their N64 layout in the
  * arena block D_8014D280 and link each other by 32-bit window addresses (the pool's n64 flag; docs/port/POINTERS.md
  * 10). Read as a pointer, the link would take the node's flags at +4 as its upper half. */
-#define NODE_NEXT(v) ((D_80143FD8_Record *) (uintptr_t) M2C_FIELD(v, u32 *, 0))
+#define NODE_NEXT(v) ((D_80143FD8_Record *) PC_N64P(M2C_FIELD(v, u32 *, 0)))
 #else
 #define NODE_NEXT(v) M2C_FIELD(v, D_80143FD8_Record **, 0)
 #endif

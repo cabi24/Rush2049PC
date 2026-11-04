@@ -60,7 +60,7 @@ typedef struct {
     f32 position[3];
     f32 velocity[3];
 } CollisionReckon;
-#define BODY(r) ((CollisionBounds *)(uintptr_t)(r)->body)
+#define BODY(r) ((CollisionBounds *)PC_N64P((r)->body))
 #else
 typedef struct {
     CollisionBounds *body;

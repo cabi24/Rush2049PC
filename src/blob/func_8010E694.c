@@ -799,8 +799,8 @@ void func_8010E694(void *arg0, s16 arg1);
 #ifdef TARGET_PC
 /* PC: arg0 is a visual (struct pc_visual) whose data is the target, a level-object node in its N64 layout; both the
  * data and the target's state (+0x6C) are 32-bit window addresses (docs/port/CARS.md, POINTERS.md 10). */
-#define VIS_DATA(v) (void *) (uintptr_t) M2C_FIELD(v, u32 *, VIS_OFS(0xC))
-#define NODE_STATE(t) (void *) (uintptr_t) M2C_FIELD(t, u32 *, 0x6C)
+#define VIS_DATA(v) (void *) PC_N64P(M2C_FIELD(v, u32 *, VIS_OFS(0xC)))
+#define NODE_STATE(t) (void *) PC_N64P(M2C_FIELD(t, u32 *, 0x6C))
 #else
 #define VIS_DATA(v) M2C_FIELD(v, void **, 0xC)
 #define NODE_STATE(t) M2C_FIELD(t, void **, 0x6C)

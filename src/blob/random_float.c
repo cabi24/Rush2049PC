@@ -92,7 +92,7 @@ typedef struct {
     f32 RWR[3];                 /* 0x28 */
     f32 RWV[3];                 /* 0x34 */
 } Reckon;
-#define BODY(r) ((Body *)(uintptr_t)(r)->body)
+#define BODY(r) ((Body *)PC_N64P((r)->body))
 #else
 typedef struct {
     Body *body;                 /* 0x00 */
