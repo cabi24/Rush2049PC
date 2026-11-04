@@ -602,8 +602,8 @@ decisions come every retrace, at retraces a run at original doesn't decide at:
 - **Battle:** a sonic shot pushes the car it hits from the game thread (`func_8038D498`), at the frame it finds the
   hit.
 - **The car records** (`pc_cars`): the game thread makes them again once a frame from the model records
-  (update_game_data), and the model thread reads parts of them: the region a resurrection takes its place from, and in
-  a retail race of one car alone some field at a step 62 s in (7.5), not traced further.
+  (update_game_data), and the model thread reads parts of them: the region a resurrection takes its place from. In a
+  retail race of one car alone a step 62 s in first differs, by a word the game thread writes, not found (7.5).
 
 None of these is a fault at 60: each is the N64's logic deciding once a frame, and at 60 a frame is a retrace. The
 player's controls are read by the model thread each retrace (`ControllerUpdate`), the race's clock is the model
@@ -613,6 +613,12 @@ thread too (`func_800E5D64`: per model step, with the recording's retrace time i
 data at either rate (7.5).
 
 ### 7.5 Proof
+
+The runs below were made on the branch's final game (ab77470's tree; the commit after it changes the docs alone):
+the base-against-branch runs on rocky and the Pi, the 30-against-60 runs, synthetic and retail, and the twelve
+retail races at 60 were made on it again after the first round, with the same results but for `battle2p`'s first
+tick, which 2405546's fix of set_catchup moved (its row). The screenshots, the ghost run and the Pi 5's real-time
+runs of 7.7 are of 4a08f2e's game, before 2edc8fe and 2405546; those two change nothing at original.
 
 **The default is the N64's game.** With the setting at `original` every macro gives the N64's value and the
 scheduler its 2U, so the game must run as before, to the bit:
@@ -653,12 +659,12 @@ scripts' presses fall on retraces both see), PrePlay 1 earlier and the countdown
 |---|---|---|
 | `stunt` (track 14) | 13, the same order | the same to the bit at every one of 3,991 model ticks, 1 car |
 | `r_menus`: the main menu's four screens, the player, mode, track and car selects and back | 22, the same order, every one at the same retrace | no race |
-| `battle2p` | 13, the same order | the same to tick 1; at tick 2 car 0's velocity differs in its last bits: its catch-up scale, which set_catchup filters once a frame in a race of two players (7.4) |
+| `battle2p` | 13, the same order | the same to tick 0; from tick 1 car 0's velocity differs, by 3 parts in 10,000 at first: its catch-up scale, which set_catchup filters once a frame in a race of two players, 0.015 of the way to its target each retrace at 60 against 0.03 every other retrace at original (7.4) |
 | `r_solo`: one player alone, the gas and full steering pressed in the countdown (32 s) and held | 13, the same order | the same to tick -155: the press is at a fixed retrace, and the countdown began 5 retraces sooner at 60 (PrePlay's load), so the gas reaches the car (which revs in the countdown on this cartridge) 5 ticks later. Not a difference of the physics: of the script |
-| `r_solo2`: the same, the gas alone, held from the car select's A on, before the cars exist | 13, the same order | the same to the bit at every one of 3,931 model ticks (-210 to 3721: 65 s of driving); then the step to tick 3722 differs, its model record the same at 3721 in both runs: what it read that differed is in the car record (`pc_cars`), which the game thread makes again once a frame (at 30 every other retrace, so the two runs' car records differ every other tick throughout, 20 to 118 bytes); which of the record's fields the step read was not traced |
+| `r_solo2`: the same, the gas alone, held from the car select's A on, before the cars exist | 13, the same order | the same to the bit at every one of 3,931 model ticks (-210 to 3721: 65 s of driving); then the step to tick 3722 differs, its model record the same at 3721 in both runs: not the car record (`pc_cars`, which the game thread makes again once a frame): the 52 words in which the two runs' car records differ at 3721, put into the original run there by gdb, leave its step to 3722 as it was; what the step read that differs (another word the game thread writes) was not found |
 | `rt0_1p`: one player and 11 drones (12 cars), the gas held | 13, the same order | the same to tick -203: the drones' time boost |
 | `r_demo`: the attract demo, three times | 12, the same order, at the same retraces | the same to tick 3: the drones |
-| `r_finish`: one player holding the gas (no steering: it rides the walls and resurrects), 5 drones, 3 laps, to the results and the game over screen | 15, the same order; the results 984 retraces later at 60 (16.4 s): the player's own car | differs from tick -195 (the drones). The drones' laps keep their pace: the first lap's five in 63.03, 64.97, 66.53, 73.97, 84.33 s at original and 63.25, 65.05, 66.55, 73.90, 84.62 s at 60; the leader's third at 186.10 and 186.75 s. The player's car, bouncing off the walls and put back on the road, finishes its laps at 98.6, 180.2, 274.3 s and 96.2, 188.0, 291.0 s: last of 6 in both |
+| `r_finish`: one player holding the gas (no steering: it rides the walls and resurrects), 5 drones, 3 laps, to the results and the game over screen | 15, the same order; the results 984 retraces later at 60 (16.4 s): the player's own car | the same to tick -195, then differs (the drones). The drones' laps keep their pace: the first lap's five in 63.03, 64.97, 66.53, 73.97, 84.33 s at original and 63.25, 65.05, 66.55, 73.90, 84.62 s at 60; the leader's third at 186.10 and 186.75 s. The player's car, bouncing off the walls and put back on the road, finishes its laps at 98.6, 180.2, 274.3 s and 96.2, 188.0, 291.0 s: last of 6 in both |
 
 So nothing but the per-frame logic's own decisions differs. Before the fixes of 7.3 the car select left after 10
 frames, and the race began 11 retraces earlier at 60 (15 for the countdown, 16 for the race); now every state up to
@@ -690,7 +696,7 @@ unlocked by gdb as the track select opens, as MORECARS.md 10.4 did):
 
 | Run | Result |
 |---|---|
-| each race track, 0-5, one player and 11 drones, then two players and 10 drones (`game.cars = 12`): 60 s with the gas held (12 runs) | each reaches its race with 12 cars on its track; 5,969 of the game's frames in 6,001 retraces; `cars_check`: 12 cars at places 0-11 once each, every car moved; no fault. The pools' high-water marks over the 12: scene nodes 533 of 600, frame matrices 552 of 1,200, display list 4,403 of 8,000 commands, persistent matrices 210 of 277, environment visuals 78 of 100, sprites 128 of 200, frame lookats 24 of 32 |
+| each race track, 0-5, one player and 11 drones, then two players and 10 drones (`game.cars = 12`): 60 s with the gas held (12 runs) | each reaches its race with 12 cars on its track; 5,970 of the game's frames in 6,001 retraces; `cars_check`: 12 cars at places 0-11 once each, every car moved; no fault. The pools' high-water marks over the 12: scene nodes 533 of 600, frame matrices 550 of 1,200, display list 4,327 of 8,000 commands, persistent matrices 210 of 277, environment visuals 79 of 100, sprites 128 of 200, frame lookats 24 of 32 |
 | the front end, the attract demo and a race to the results at 60 (`r_menus`, `r_demo`, `r_finish` above), and screenshots (`--scale 2`) of each, looked at | the front end through the main menu's four screens and the selects, every screen change at original's retrace; the audio screen with its four rows and values and the cursor on the first, as the N64 draws it; the attract demo three times over 120 s, each 30 s, a drone's camera in a tunnel with PRESS START over it; the race to its third lap and the results (the last lap at 4:40.46 on the race clock as the race ends), then the game over screen; a race of 12 at 10.5 s: the car on the grass with its boost flame and dust, the HUD's 99 mph, 12/12, LAP 1/3, the map and the clock, as the same moment at original shows them |
 
 
@@ -727,16 +733,17 @@ the track select's Drones raised), the gas held; the game's frames per retrace i
 |---|---|---|---|---|---|---|
 | one player, 11 drones, at 60 | 0.98-1.00 | 0.66 | 0.79 (47 frames a second) | 5,400; 36 caught up, none dropped | 123 underruns, 486 ms of silence | scene nodes 445 of 600, display list 1,979 of 8,000 |
 | the same at original | 0.50 | 0.50 | 0.50 | 5,391; 8 caught up, 9 dropped | 97 underruns, 417 ms | the same within 20 |
-| four players, 8 drones, at 60 | 0.99-1.00 | 0.57 | 0.58 (35 frames a second) | 5,400; 152 caught up, none dropped | 580 underruns, 2,974 ms | scene nodes 212, frame matrices 444 of 1,200, display list 2,774 |
-| the same at original | 0.50 | 0.49 | 0.50 | 5,400; 54 caught up, none dropped | 420 underruns, 2,576 ms | the same |
+| four players, 8 drones, at 60 (two runs) | 0.99-1.00 | 0.57, 0.57 | 0.58, 0.62 (35, 37 frames a second) | 5,400; 152, 193 caught up, none dropped | 580, 525 underruns; 2,974, 2,829 ms | scene nodes 212, frame matrices 448 of 1,200, display list 2,857 |
+| the same at original (two runs) | 0.50 | 0.49, 0.46 | 0.50, 0.50 | 5,400; 54, 122 caught up, none dropped | 420, 584 underruns; 2,576, 3,281 ms | the same within 30 |
 
 So the Pi 5 keeps 60 in the front end, but not in a race of 12 cars: one player gets 47 frames a second and four
-players 35, the rest of the frames two retraces long. The game keeps its speed either way (a frame of two retraces at
-60 is the N64's frame: its scale 1, its step 1), and the retraces keep their 60 a second; the audio's underruns grow
-by a quarter to two fifths over original's, which already has them on this shared host. A slower host is better left at
-`original` there, or at `video.frame_rate = 60`, whose frames between cost about half a graphics task (section 5).
+players 35 to 37, the rest of the frames two retraces long. The game keeps its speed either way (a frame of two
+retraces at 60 is the N64's frame: its scale 1, its step 1), and the retraces keep their 60 a second. The audio's
+underruns, which original already has on this shared host, vary from run to run as much as between the rates (four
+players: 580 and 525 at 60, 420 and 584 at original). A slower host is better left at `original` there, or at
+`video.frame_rate = 60`, whose frames between cost about half a graphics task (section 5).
 The pools hold at either rate: they are made again each frame, and a frame of one retrace fills them no more than
-one of two (the 12 races of 7.5: at most 533 scene nodes of 600, 552 frame matrices of 1,200, 4,403 commands of
+one of two (the 12 races of 7.5: at most 533 scene nodes of 600, 550 frame matrices of 1,200, 4,327 commands of
 8,000, 24 frame lookats of 32; no pool ran past its end).
 
 ### 7.8 What's left
