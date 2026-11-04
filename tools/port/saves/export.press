@@ -1,0 +1,32 @@
+# game.saves = files: a ghost exported from the F1 Saves page (Export (.r49ghost), into the folder's export/), the
+# first one listed, from the main menu (docs/port/SAVES.md 7). For a folder whose only save is one ghost.
+# until: 0x10:200
+# seconds: 60
+# realtime
+# args: --saves files (in a data folder of its own)
+5 A            # the controller pak warning
+8 START        # the start prompt; the main menu (0x10) from about 8 s
+10 MENU        # F1 over the main menu
+10.6 DOWN 0.1  # Video, Audio, Keyboard, Controllers, Game, Saves
+10.9 DOWN 0.1
+11.2 DOWN 0.1
+11.5 DOWN 0.1
+11.8 DOWN 0.1
+12.2 A 0.1     # the Saves page: Player, Kept as, Folder, Import ghosts, Export to the .mpk, then the saves
+12.6 DOWN 0.1
+12.9 DOWN 0.1
+13.2 DOWN 0.1
+13.5 DOWN 0.1
+13.8 DOWN 0.1  # the first save: the ghost
+14.5 A 0.1     # its page: Kind, Player, Track, Time, Car, Pages, On the pak, File, Pin/Unpin, Export
+14.9 DOWN 0.1
+15.2 DOWN 0.1
+15.5 DOWN 0.1
+15.8 DOWN 0.1
+16.1 DOWN 0.1
+16.4 DOWN 0.1
+16.7 DOWN 0.1
+17.0 DOWN 0.1
+17.3 DOWN 0.1
+17.7 A 0.1     # exported
+18.4 START       # closed
