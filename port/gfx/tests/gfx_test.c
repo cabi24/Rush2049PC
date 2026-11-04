@@ -801,6 +801,43 @@ static void case_detail(void) {
         check("primitive depth behind yellow", 216, 148, 255, 255, 0, 2);
         check("primitive depth in front", 216, 85, 255, 255, 255, 2);
     }
+    /* A forced MP (G_MV_MATRIX, G_MW_MATRIX) is not modelview x projection: the depth map is off under it, and on
+     * again once a G_MTX or a G_POPMTX makes MP the product again (gfx_detail.c's dz_update). At far, green at 1,500
+     * drawn before red at 3,000: in order (green) with the map, red over it without. 0: a triangle under a forced MP,
+     * then G_POPMTX: the map again. 1: G_MW_MATRIX (an insert that changes no value) after a triangle with the map:
+     * none. 2: a triangle under a forced MP, then G_MTX: the map again. */
+    for (level = 0; level < 3; level++) {
+        pc_gfx_set_draw_distance(PC_DRAW_FAR);
+        frame_begin(0, 0, 0);
+        gsSPMatrix((uintptr_t)&persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gsDPSetRenderMode(RM_ZB_OPA_SURF(1), RM_ZB_OPA_SURF(2));
+        gsSPGeometryMode(0, G_ZBUFFER);
+        cc_shade();
+        quad_at(&s_v[8], 800.0f, 5, 30, -20, 20, 255, 255, 0);
+        if (level != 1)
+            gDma2p(0xDC, (uintptr_t)&persp, 64, 14, 0);   /* gSPForceMatrix: MP = the projection (modelview 1) */
+        gsSPVertex((uintptr_t)&s_v[8], 4, 0);
+        gsSP2Triangles(0, 1, 2, 0, 2, 3);
+        if (level == 0)
+            gsSPPopMatrixN(1);
+        else if (level == 1)
+            gMoveWd(0x00, 0x18, 0);   /* G_MW_MATRIX: MP's row 3 x and y integer halves, 0 as they are */
+        else
+            gsSPMatrix((uintptr_t)&s_ident, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+        quad_at(&s_v[0], 1500.0f, -30, -5, -20, 20, 0, 255, 0);
+        quad_at(&s_v[4], 3000.0f, -30, -5, -20, 20, 255, 0, 0);
+        gsSPVertex((uintptr_t)s_v, 8, 0);
+        gsSP2Triangles(0, 1, 2, 0, 2, 3);
+        gsSP2Triangles(4, 5, 6, 4, 6, 7);
+        frame_end();
+        if (level == 0)
+            check("far: G_POPMTX after a forced MP, the depth map again", 125, 120, 0, 255, 0, 2);
+        else if (level == 1)
+            check("far: G_MW_MATRIX forces MP, no depth map", 125, 120, 255, 0, 0, 2);
+        else
+            check("far: G_MTX after a forced MP, the depth map again", 125, 120, 0, 255, 0, 2);
+        check("yellow", 218, 120, 255, 255, 0, 2);
+    }
     pc_gfx_set_draw_distance(PC_DRAW_ORIGINAL);
     /* the fog: white quads fogged to blue, gSPFogPosition(990, 1000): from 502 to the far plane. fog far gives a
      * quad at 1,400 the fog original gives one at 700 (57%); off none; with draw_distance far, original fog at

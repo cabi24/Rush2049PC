@@ -704,6 +704,7 @@ static void moveword(uint32_t w0, uintptr_t w1) {
         mp_insert(off, v);
         pcgfx.xf_gen++;
         pcgfx.mp_forced = 1;
+        pcgfx.dz_dirty = 1;   /* no depth map under a forced MP (gfx_detail.c), as G_MV_MATRIX */
         break;
     default:   /* G_MW_CLIP, G_MW_PERSPNORM, G_MW_FORCEMTX: nothing to emulate */
         break;
@@ -874,6 +875,8 @@ void pcgfx_run_list(const void *dl) {
             pcgfx.mv_top = pcgfx.mv_top > n ? pcgfx.mv_top - n : 0;
             pcgfx.mp_dirty = pcgfx.lights_dirty = 1;
             pcgfx.xf_gen++;
+            if (pcgfx.mp_forced)   /* the depth map was off for a forced MP (gfx_detail.c), as in matrix() */
+                pcgfx.dz_dirty = 1;
             pcgfx.mp_forced = 0;
             break;
         }
