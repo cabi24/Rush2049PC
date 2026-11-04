@@ -659,8 +659,9 @@ when it changes, `pc_engines_set`).
   (the hysteresis: its distance counts at 0.8 of itself), so a car level with the N-th nearest doesn't flicker; one
   that gains or loses its place fades in or out over 15 retraces (0.25 s). A silenced engine's tag then has a volume
   of 0: the priority pass doesn't start it and stops it after 0.2 s, as it does any silent loop, so it gives its
-  voice back. A drone is on if any listener chose it. Set from `original` in a race (the overlay), the engines there
-  start whole, as they played at `original`: the chosen stay so and the others fade out (before 2026-11-04 each kept
+  voice back. A drone is on if any listener chose it. Set from `original` in a race (the overlay), the engines the
+  last pass at `original` had start whole, as they played there: the chosen stay so and the others fade out, and a
+  race begun after `original` has its engines just made (before 2026-11-04 each kept
   the fade an earlier `nearestN` had left it, so a chosen engine silent then dropped out and faded in again, and an
   unchosen one was cut; `frontend.engines`).
 - `all`: every drone's engine in earshot plays, and the budget leaves them out: a car's engine tag (the players' too,
