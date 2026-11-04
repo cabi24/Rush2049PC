@@ -195,13 +195,14 @@ jobs:
         include:
           - os: ubuntu-24.04
             sanitize: undefined
-            skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60)$'
+            skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|audio_realtime_game60)$'
           - os: ubuntu-24.04-arm
             sanitize: address,undefined
-            # and the race on the host's clock, which under ASan on 4 cores doesn't reach its state in time, and the
-            # pak writer's check, whose control and run both drop thousands of retraces there
+            # and the race on the host's clock, which under ASan on 4 cores doesn't reach its state in time, the
+            # pak writer's check, whose control and run both drop thousands of retraces there, and the saves' hot
+            # swap, whose F1 presses are on the host's clock too (tools/port/saves/swap.press)
             skip_tests: >-
-              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|synth_boot_race|pak_realtime)$
+              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|audio_realtime_game60|synth_boot_race|pak_realtime|saves_files_swap)$
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:

@@ -710,19 +710,30 @@ set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT
 # the game thread steers (solo: one player, the gas and the steering held; stunt; battle2p) the same physics, every
 # car's position and velocity, model tick by model tick, to the bit. The others' physics first difference is
 # reported (drones, resurrections: the game thread decides them once a frame).
+# Under AddressSanitizer or ThreadSanitizer solo and race only (the 16 runs took over 600 s on CI's 4-core arm runner,
+# run 41810017777): the game at 60 under the sanitizer, the physics of the one that must match.
+set(FPS_PHYSICS_ARGS --physics solo,stunt,battle2p -j 2 solo stunt battle2p race demo menu screens raceend)
+set(FPS_PHYSICS_TIMEOUT 600)
+if(PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD)
+    set(FPS_PHYSICS_ARGS --physics solo -j 2 solo race)
+    set(FPS_PHYSICS_TIMEOUT 2400)
+endif()
 add_test(NAME fps_physics COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_compare.py --exe $<TARGET_FILE:rush2049pc>
-    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps --max-shift 10 --physics solo,stunt,battle2p -j 2
-    solo stunt battle2p race demo menu screens raceend)
-set_tests_properties(fps_physics PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600)
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps --max-shift 10 ${FPS_PHYSICS_ARGS})
+set_tests_properties(fps_physics PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${FPS_PHYSICS_TIMEOUT})
 # The high frame rate on top of the game at 60: hfr_timing's paths with the game at 60, video.frame_rate original
 # against 120 (the same state and status lines, frames drawn between); hfr_paced's pacing under the 59.94 Hz vsync
 # model with the game at 60 (a frame between the game's one retrace apart, at 120 and display), and the game's own
 # frames at about one a retrace; audio_realtime's bounds with the game at 60, video.frame_rate original under the
 # vsync swap, the waits precise as Windows' high-resolution timer has them: with the 15.6 ms waits of a Windows
 # without one the game at 60 keeps about 0.8 of its frames (docs/port/FRAMERATE.md 7.7).
-add_test(NAME hfr_timing_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
-    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr60 --require-drawn --game-fps 60 ${HFR_TIMING_PATHS})
-set_tests_properties(hfr_timing_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
+# Not under AddressSanitizer: hfr_timing's one path there takes about 760 s on CI's arm runner, and this one at 60
+# went past 300 s (run 41810017777); fps_physics runs the game at 60 under it.
+if(NOT PC_SANITIZE_ADDRESS)
+    add_test(NAME hfr_timing_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr60 --require-drawn --game-fps 60 ${HFR_TIMING_PATHS})
+    set_tests_properties(hfr_timing_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
+endif()
 add_test(NAME hfr_paced_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_game60 --seconds 30 --pacing display,60,120
     --timer-step-us 0 --game-fps 60)
@@ -1026,6 +1037,9 @@ add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
 # and so do the synthetic paths (SYNTH_PATH_TIMEOUT; docs/port/SANITIZE.md 5).
 if(PC_SANITIZE)
     set_tests_properties(app_firstrun hfr_timing PROPERTIES TIMEOUT 1200)
+    if(TEST hfr_timing_game60)
+        set_tests_properties(hfr_timing_game60 PROPERTIES TIMEOUT 1200)
+    endif()
     set_tests_properties(${SYNTH_BOOT_TESTS} PROPERTIES TIMEOUT 1800)
 endif()
 
