@@ -11,6 +11,7 @@
 #define ZIP_MAX ((size_t)512 << 20)
 #define ENTRY_MAX ((size_t)256 << 20)
 #define ENTRIES_MAX 65535
+#define UNPACKED_MAX ((uint64_t)1 << 30)   /* all its entries unpacked: entries may share their bytes */
 
 static uint32_t le16(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8; }
 static uint32_t le32(const uint8_t *p) { return le16(p) | le16(p + 2) << 16; }
@@ -65,6 +66,16 @@ int pc_mods_zip_read(const char *path, PcZipEntry **entries, int *count, char *w
         snprintf(why, why_size, "its central directory is outside the file");
         free(z);
         return -1;
+    }
+    uint64_t unpacked = 0;   /* before any is unpacked: a few KB of entries that all name one stream of 256 MiB */
+    for (size_t q = cd, i = 0; i < total && q + 46 <= (size_t)cd + cd_size && le32(z + q) == 0x02014B50u; i++) {
+        unpacked += le32(z + q + 24);
+        q += 46 + le16(z + q + 28) + le16(z + q + 30) + le16(z + q + 32);
+    }
+    if (unpacked > UNPACKED_MAX) {
+        snprintf(why, why_size, "its files unpack to %llu MiB, more than %llu", (unsigned long long)(unpacked >> 20),
+                 (unsigned long long)(UNPACKED_MAX >> 20));
+        goto fail;
     }
     size_t p = cd;
     for (uint32_t i = 0; i < total; i++) {

@@ -230,6 +230,14 @@ def T4(s):
 
 TAGS = {t: T4(t) for t in ("OBHD", "TXHD", "PLHD", "PTHD", "TXLD", "IMAG", "WHDR", "WOBJ", "GDAT", "GTLD")}
 MAX_TOC, MAX_DL_DEPTH, ROAD_LIST_MAX = 4096, 16, 35
+DL_STEPS = 1 << 26   # commands the display-list passes visit in one file, all its lists' together (check.c's)
+dl_steps = [0]       # check_file's count so far
+
+
+def dl_step(what, tail=""):
+    dl_steps[0] += 1
+    if dl_steps[0] > DL_STEPS:
+        raise Refused(f"{what}: the display lists take more than {DL_STEPS} steps to walk{tail}")
 
 
 def cstr(b, o, n=16):
@@ -312,6 +320,7 @@ def dl_relocation(b, start, what):
         if pos // 8 in seen:
             raise Refused(f"{what} comes back to 0x{pos:X}: the relocation would never end")
         seen.add(pos // 8)
+        dl_step(what)
         w0, w1 = be32(b, pos), be32(b, pos + 4)
         op = w0 >> 24
         if op & 0xC0 in (0x40, 0x80) or 9 <= op < 0x40 or 0xC0 <= op < 0xD6:
@@ -354,6 +363,7 @@ def dl_traverse(b, start, depth, stack, what):
         if pos // 8 in seen:
             raise Refused(f"{what} (a list at 0x{start:X}) comes back to 0x{pos:X} and never ends")
         seen.add(pos // 8)
+        dl_step(what, " (a list called many times, nested)")
         w0, w1 = be32(b, pos), be32(b, pos + 4)
         if w0 == 0xDF000000:
             return
@@ -992,6 +1002,7 @@ def check_musyx(w, b):
 
 def check_file(w, b, cart=None):
     """None if the game takes b (plain) for wave w, else why not (port/assets/check.c)."""
+    dl_steps[0] = 0
     try:
         if not 0 <= w < WAVES:
             raise Refused(f"there is no wave {w} (0-{WAVES - 1})")

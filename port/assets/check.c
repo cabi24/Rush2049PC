@@ -39,12 +39,16 @@
 #define ROAD_LIST_MAX 35      /* a road leaf's surfaces: list[36] in entity_update and camera_trigger_check, and
                                * camera_victory's polys[142] takes four leaves' */
 #define WAVE_SAMPLES 9
+#define DL_STEPS ((uint64_t)1 << 26)   /* commands the display-list passes visit in one file, all its lists' together:
+                                        * a list that calls another many times, nested, would take years */
 
 typedef struct {
     const uint8_t *b;
     size_t size;
     char *why;
     size_t why_size;
+    uint32_t *mark, gen;   /* the display-list passes': each 8 bytes, the pass that came there last (dl_begin) */
+    uint64_t steps;
 } Ck;
 
 #ifdef __MINGW_PRINTF_FORMAT   /* mingw-w64: the printf vsnprintf is (gnu_printf with its ANSI stdio: %zu) */
@@ -173,26 +177,39 @@ static int names_sorted(const Wad *w, const char *what, uint32_t first, uint32_t
     return 0;
 }
 
+/* A display-list pass begins: its number, which it marks the commands it comes to with (one array for the file, not
+ * one per pass: a pass is as long as the commands it visits). -1 out of memory. */
+static int dl_begin(Ck *c, uint32_t *gen)
+{
+    if (!c->mark && !(c->mark = calloc(c->size / 8 + 1, sizeof *c->mark)))
+        return -1;
+    *gen = ++c->gen;
+    return 0;
+}
+
 /* entity_lod_select (SetupWaveModel's relocation, src/blob/entity_lod_select.c): one pass from the list's start,
  * which doesn't enter G_DL, follows E1 + 04 and ends at the first 0xDF; and func_800966D8, the vertex pass, from its
  * first G_VTX: 16-byte vertices while bit 15 of the halfword at +6 says another follows. */
 static int dl_relocation(Ck *c, uint32_t start, const char *what)
 {
-    uint8_t *seen = calloc(c->size / 8 + 1, 1);
-    uint32_t pos = start, latched = 0;
+    uint32_t pos = start, latched = 0, gen;
     int first = 1, r = 0;
-    if (!seen)
+    if (dl_begin(c, &gen))
         return bad(c, "out of memory");
     for (;;) {
         if (!in(c, pos, 8)) {
             r = bad(c, "%s runs past the file's end (at 0x%X) before its G_ENDDL", what, pos);
             break;
         }
-        if (seen[pos / 8]) {
+        if (c->mark[pos / 8] == gen) {
             r = bad(c, "%s comes back to 0x%X: the relocation would never end", what, pos);
             break;
         }
-        seen[pos / 8] = 1;
+        c->mark[pos / 8] = gen;
+        if (++c->steps > DL_STEPS) {
+            r = bad(c, "%s: the display lists take more than %llu steps to walk", what, (unsigned long long)DL_STEPS);
+            break;
+        }
         uint32_t w0 = be32(c, pos), w1 = be32(c, pos + 4);
         uint8_t op = (uint8_t)(w0 >> 24);
         if ((op & 0xC0) == 0x40 || (op & 0xC0) == 0x80 || (op >= 9 && op < 0x40) || (op >= 0xC0 && op < 0xD6)) {
@@ -229,7 +246,6 @@ static int dl_relocation(Ck *c, uint32_t start, const char *what)
         }
         pos += 8;
     }
-    free(seen);
     return r;
 }
 
@@ -237,8 +253,7 @@ static int dl_relocation(Ck *c, uint32_t start, const char *what)
  * 0xDF000000; a G_DL call recurses, a G_DL branch and E1 + 04 jump. Every target in the file, no loop. */
 static int dl_traverse(Ck *c, uint32_t start, int depth, uint32_t *stack, const char *what)
 {
-    uint8_t *seen;
-    uint32_t pos = start;
+    uint32_t pos = start, gen;
     int r = 0;
     if (depth >= MAX_DL_DEPTH)
         return bad(c, "%s calls display lists more than %d deep", what, MAX_DL_DEPTH);
@@ -246,18 +261,23 @@ static int dl_traverse(Ck *c, uint32_t start, int depth, uint32_t *stack, const 
         if (stack[i] == start)
             return bad(c, "%s calls the list at 0x%X from inside itself", what, start);
     stack[depth] = start;
-    if (!(seen = calloc(c->size / 8 + 1, 1)))
+    if (dl_begin(c, &gen))
         return bad(c, "out of memory");
     for (;;) {
         if (!in(c, pos, 8)) {
             r = bad(c, "%s (a list at 0x%X) runs past the file's end before its G_ENDDL", what, start);
             break;
         }
-        if (seen[pos / 8]) {
+        if (c->mark[pos / 8] == gen) {   /* a list it called may have marked some as its own: then the budget ends it */
             r = bad(c, "%s (a list at 0x%X) comes back to 0x%X and never ends", what, start, pos);
             break;
         }
-        seen[pos / 8] = 1;
+        c->mark[pos / 8] = gen;
+        if (++c->steps > DL_STEPS) {
+            r = bad(c, "%s: the display lists take more than %llu steps to walk (a list called many times, nested)",
+                    what, (unsigned long long)DL_STEPS);
+            break;
+        }
         uint32_t w0 = be32(c, pos), w1 = be32(c, pos + 4);
         if (w0 == 0xDF000000u)
             break;
@@ -284,7 +304,6 @@ static int dl_traverse(Ck *c, uint32_t start, int depth, uint32_t *stack, const 
         }
         pos += 8;
     }
-    free(seen);
     return r;
 }
 
@@ -727,7 +746,7 @@ static int check_path(Ck *c, Ck *cart)
 int pc_assets_check(int wave, const uint8_t *file, size_t size, const uint8_t *cart, size_t cart_size, char *why,
                     size_t why_size)
 {
-    Ck c = {file, size, why, why_size}, k = {cart, cart_size, NULL, 0}, *kp = cart ? &k : NULL;
+    Ck c = {file, size, why, why_size, NULL, 0, 0}, k = {cart, cart_size, NULL, 0, NULL, 0, 0}, *kp = cart ? &k : NULL;
     Wad w;
     if (why && why_size)
         why[0] = 0;
@@ -743,17 +762,13 @@ int pc_assets_check(int wave, const uint8_t *file, size_t size, const uint8_t *c
             return bad(&c, "it is all zero, or too short for a sound file");
         return errors ? bad(&c, "%d of its sound records don't parse (port/assets/musyx.c's walk)", errors) : 0;
     }
-    if (wave <= PC_WAVE_TEXT_LAST)
-        return check_text(&c, kp);
-    if (wave <= PC_WAVE_FONTWAD_LAST)
-        return check_wad(&c, kp, 0, &w);
-    if (wave <= PC_WAVE_FONT_LAST)
-        return check_font(&c, kp);
-    if (wave <= PC_WAVE_WAD_LAST)
-        return check_wad(&c, kp, wave >= 101, &w);
-    if (wave <= PC_WAVE_WORLD_LAST)
-        return check_world(&c, kp);
-    if (wave <= PC_WAVE_ROAD_LAST)
-        return check_road(&c);
-    return check_path(&c, kp);
+    int r = wave <= PC_WAVE_TEXT_LAST      ? check_text(&c, kp)
+            : wave <= PC_WAVE_FONTWAD_LAST ? check_wad(&c, kp, 0, &w)
+            : wave <= PC_WAVE_FONT_LAST    ? check_font(&c, kp)
+            : wave <= PC_WAVE_WAD_LAST     ? check_wad(&c, kp, wave >= 101, &w)
+            : wave <= PC_WAVE_WORLD_LAST   ? check_world(&c, kp)
+            : wave <= PC_WAVE_ROAD_LAST    ? check_road(&c)
+                                           : check_path(&c, kp);
+    free(c.mark);
+    return r;
 }
