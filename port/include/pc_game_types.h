@@ -83,12 +83,14 @@ extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
 /* The frame's command buffers, two that alternate (pc_frame_dl, initgraphics/initgfx.c; gfx_frame_begin.c): 1,728
  * bytes of viewports, vertices, projections, lookats and the identity (particle_knot's GfxBuf), PC_FRAME_MATRICES
  * matrices of 64 bytes (D_8015B260, from +1,728), then the display list (D_801497C8 from PC_GLIST_OFFSET),
- * PC_GLIST_LEN commands of 16 bytes. The N64's (D_800586D0, D_8006A090) hold 600 and 4,000: the list at +0x9CC0. */
+ * PC_GLIST_LEN commands of 16 bytes. The N64's (D_800586D0, D_8006A090) hold 600 and 4,000: the list at +0x9CC0.
+ * video.draw_distance max with two views and 12 cars takes up to 870 matrices and 6,347 commands on the retail tracks
+ * (docs/port/DETAIL.md 4), so 1,600 and 12,000 (1,200 and 8,000 were MORECARS.md 8.1's, for 546 and 4,131). */
 #ifndef PC_FRAME_MATRICES
-#define PC_FRAME_MATRICES 1200
+#define PC_FRAME_MATRICES 1600
 #endif
 #ifndef PC_GLIST_LEN
-#define PC_GLIST_LEN 8000
+#define PC_GLIST_LEN 12000
 #endif
 #define PC_FRAME_MATRIX_OFFSET 1728
 #define PC_FRAME_LOOKATS 32   /* the GfxBuf's la[32]: one per environment-mapped node a view draws */
