@@ -38,12 +38,15 @@
 
 /* ---------------------------------------------------------------- the pages */
 
-enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_HELP, P_ABOUT, NUM_PAGES };
+enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_SAVES, P_SAVE_ITEM, P_HELP, P_ABOUT, NUM_PAGES };
 
 /* I_INFO: a read-only row of Help or About, which can be selected (its whole text is in the footer); I_HEADING: one
- * that can't; I_OPEN, I_COPY: About's actions, the data folder in the file manager and the page to the clipboard. */
+ * that can't; I_OPEN, I_COPY: About's actions, the data folder in the file manager and the page to the clipboard.
+ * The Saves page (docs/port/SAVES.md): I_SV_PLAYER the player shown, I_SV_ENTRY a profile or ghost (its page),
+ * I_SV_ACTION an action (page: SVA_*). */
 typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT, I_PLAYER,
-               I_INFO, I_HEADING, I_OPEN, I_COPY } Kind;
+               I_INFO, I_HEADING, I_OPEN, I_COPY, I_SV_PLAYER, I_SV_ENTRY, I_SV_ACTION } Kind;
+enum { SVA_IMPORT, SVA_EXPORT_MPK, SVA_OPEN, SVA_PIN, SVA_EXPORT, SVA_DELETE };
 
 typedef struct {
     Kind kind;
@@ -68,7 +71,7 @@ typedef struct {
     int path;                     /* a, cut, keeps its end */
 } Row;
 
-#define MAX_ITEMS 40
+#define MAX_ITEMS 120   /* the Saves page lists every profile and ghost of a player's folder */
 #define MAX_ROWS 36
 typedef struct {
     const char *title;
@@ -79,7 +82,7 @@ typedef struct {
 } Page;
 
 static Page pages[NUM_PAGES];
-static Row help_rows[MAX_ROWS], about_rows[MAX_ROWS];
+static Row help_rows[MAX_ROWS], about_rows[MAX_ROWS], saves_rows[MAX_ROWS], item_rows[MAX_ROWS];
 
 static const char *const onoff[] = {"off", "on", NULL};
 static const char *const wide_choices[] = {"auto", "off", "16:10", "16:9", "21:9", NULL};
@@ -110,6 +113,10 @@ static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const pak_choices[] = {"memory", "rumble", "auto", "none", NULL};
 static const char *const pak_labels[] = {"controller pak", "rumble pak", "auto", "none", NULL};
 static const char *const pak_keys[4] = {"pak", "pak2", "pak3", "pak4"};   /* game.pak, game.pak2... */
+/* game.saves (docs/port/SAVES.md): how each player's pak is kept, from the next start */
+static const char *const saves_keys[4] = {"saves", "saves2", "saves3", "saves4"};
+static const char *const saves_choices[] = {"pak", "files", NULL};
+static const char *const saves_labels[] = {"pak (.mpk)", "files (a folder)", NULL};
 /* game.cars: 6 is the same as original, so the list has original and 7-12 (a 6 from the file is shown as it is) */
 static const char *const cars_choices[] = {"original", "7", "8", "9", "10", "11", "12", NULL};
 static const char *const cars_labels[] = {"original (6)", "7", "8", "9", "10", "11", "12", NULL};
@@ -151,6 +158,8 @@ static void build(void)
     it->page = P_CONTROLLER, it->desc = "Players, buttons, the stick, dead zone, rumble";
     it = add(P_MAIN, I_PAGE, "Game", NULL, NULL);
     it->page = P_GAME, it->desc = "The cars in a race, the game's memory";
+    it = add(P_MAIN, I_PAGE, "Saves", NULL, NULL);
+    it->page = P_SAVES, it->desc = "Profiles and ghosts: export, import, pin, delete";
     it = add(P_MAIN, I_PAGE, "Help", NULL, NULL);
     it->page = P_HELP, it->desc = "What each key and button does";
     it = add(P_MAIN, I_PAGE, "About", NULL, NULL);
@@ -165,6 +174,12 @@ static void build(void)
     pages[P_ABOUT].title = "About";
     pages[P_ABOUT].rows = about_rows;
     pages[P_ABOUT].col_a = 92;
+    pages[P_SAVES].title = "Saves";   /* made each time it opens (fill_saves) */
+    pages[P_SAVES].rows = saves_rows;
+    pages[P_SAVES].col_a = 60;
+    pages[P_SAVE_ITEM].title = "Save";
+    pages[P_SAVE_ITEM].rows = item_rows;
+    pages[P_SAVE_ITEM].col_a = 60;
 
     pages[P_VIDEO].title = "Video";
     it = add(P_VIDEO, I_CHOICE, "Render scale", "video", "scale");
@@ -305,10 +320,16 @@ static struct {
     int mouse, mx, my, mw, mh;       /* the mouse's last place over the window (drawable pixels), and its size */
     uint64_t page_click_ns;          /* when a click last changed the page (0: not yet) */
     char data_dir[PC_CFG_PATH];      /* About's data folder, for Open */
+    int sv_player;                   /* the Saves page's player, 0-3 */
+    PcSaveRow sv_row;                /* the profile or ghost its own page shows */
+    int sv_confirm;                  /* Delete chosen once: the next choice deletes */
+    char sv_where[PC_CFG_PATH];      /* the player's folder or .mpk */
 } M;
 
 /* main's facts for the About page; kept across pc_menu_init */
 static void (*s_about_fill)(PcAbout *about);
+static const PcSavesUi *s_saves;   /* the Saves page's (main's); NULL: none */
+static PcSaveRow sv_list[MAX_ITEMS];
 
 #define C_DIM 0x00000060u
 #define C_PANEL 0x0C1018C8u
@@ -341,6 +362,11 @@ static int selectable(const Item *it)
 {
     return it->kind != I_PLAYER && it->kind != I_HEADING;
 }
+
+static void fill_saves(void);
+static void fill_save_item(void);
+static void saves_action(int action);
+static void fit(char *s, size_t chars, int from_left);
 
 static Item *current(void)
 {
@@ -422,6 +448,9 @@ static void apply(const char *section, const char *key)
         if (!strcasecmp(key, "volume"))
             pc_audio_set_volume(s->volume / 100.0);
     } else if (!strcasecmp(section, "game")) {
+        for (int p = 0; p < 4; p++)   /* game.saves: from the next start; the page says what it gives */
+            if (!strcasecmp(key, saves_keys[p]) && M.open && M.page == P_SAVES)
+                fill_saves();
         for (int p = 0; p < 4; p++)   /* the player takes the old accessory out and puts the new one in */
             if (!strcasecmp(key, pak_keys[p]))
                 pc_si_set_pak(p, s->pak[p]);
@@ -695,6 +724,10 @@ static void open_page(int page)
         fill_help();
     else if (page == P_ABOUT)
         fill_about();
+    else if (page == P_SAVES)
+        fill_saves();
+    else if (page == P_SAVE_ITEM)
+        fill_save_item();
     if (M.sel[page] >= pages[page].n)
         M.sel[page] = 0;
     skip_rows(1, 0);
@@ -731,6 +764,19 @@ static void accept(Item *it)
     }
     case I_INFO:
     case I_HEADING:
+        break;
+    case I_SV_PLAYER:
+        M.sv_player = (M.sv_player + 1) % 4;
+        fill_saves();
+        break;
+    case I_SV_ENTRY:
+        M.sv_row = sv_list[it->row];
+        M.sv_confirm = 0;
+        M.sel[P_SAVE_ITEM] = 0;
+        open_page(P_SAVE_ITEM);
+        break;
+    case I_SV_ACTION:
+        saves_action(it->page);
         break;
     case I_CHOICE:
     case I_WINDOW:
@@ -794,12 +840,18 @@ void pc_menu_action(int action)
             cycle(it, action == PC_MENU_RIGHT ? 1 : -1);
         else if (it->kind == I_NUMBER)
             step(it, action == PC_MENU_RIGHT ? 1 : -1);
+        else if (it->kind == I_SV_PLAYER) {
+            M.sv_player = (M.sv_player + (action == PC_MENU_RIGHT ? 1 : 3)) % 4;
+            fill_saves();
+        }
         break;
     case PC_MENU_ACCEPT:
         accept(it);
         break;
     case PC_MENU_BACK:
-        if (M.page != P_MAIN)
+        if (M.page == P_SAVE_ITEM)   /* a save's own page: back to the list */
+            open_page(P_SAVES);
+        else if (M.page != P_MAIN)
             M.page = P_MAIN;
         else
             set_open(0);
@@ -1031,6 +1083,163 @@ static void fill_about(void)
         add(P_ABOUT, I_COPY, "Copy to the clipboard", NULL, NULL)->desc = "This page as text, for a bug report";
 }
 
+/* ---------------------------------------------------------------- Saves (docs/port/SAVES.md) */
+
+/* The player's saves: how they are kept (the setting, from the next start), and with files every profile and ghost
+ * of the folder (on the pak the game sees, pinned, imported), the import folder, the export to the .mpk and the
+ * folder itself; with the .mpk what files would give. Made each time it opens and after each action. */
+static void fill_saves(void)
+{
+    char where[PC_CFG_PATH] = "";
+    Page *pg = &pages[P_SAVES];
+    pg->n = 0;
+    int backend = s_saves ? s_saves->backend(M.sv_player, where, sizeof where) : PC_SAVES_NONE;
+    snprintf(M.sv_where, sizeof M.sv_where, "%s", where);
+    add(P_SAVES, I_SV_PLAYER, "Player", NULL, NULL)->desc = "Whose saves; Left and Right for another player";
+    Item *it = add(P_SAVES, I_CHOICE, "Kept as", "game", saves_keys[M.sv_player]);
+    it->choices = saves_choices, it->labels = saves_labels, it->restart = 1;
+    it->desc = "The .mpk image, or a file per save (restart)";
+    if (M.eff.pak[M.sv_player] != PC_CFG_PAK_MEMORY)
+        row(P_SAVES, I_INFO, "Pak", "none: Controllers, accessory", NULL)->desc =
+            "This player has no controller pak now (Controllers page)";
+    if (backend == PC_SAVES_FILES) {
+        row(P_SAVES, I_INFO, "Folder", where, NULL)->path = 1;
+        int n = s_saves->list(M.sv_player, sv_list, MAX_ITEMS - 12);
+        if (!n)
+            row(P_SAVES, I_INFO, "Saves", "none yet", NULL)->desc = "The game's saves become files here";
+        it = add(P_SAVES, I_SV_ACTION, "Import ghosts", NULL, NULL);
+        it->page = SVA_IMPORT, it->desc = "The .r49ghost files in the folder's import/";
+        it = add(P_SAVES, I_SV_ACTION, "Export to the .mpk", NULL, NULL);
+        it->page = SVA_EXPORT_MPK, it->desc = "The pak the game sees, as the player's .mpk";
+        if (pc_input_live_desktop() == 2) {
+            it = add(P_SAVES, I_SV_ACTION, "Open the saves folder", NULL, NULL);
+            it->page = SVA_OPEN, it->desc = "In the file manager";
+        }
+        for (int i = 0; i < n && pg->n < MAX_ITEMS; i++) {
+            char *label = sv_list[i].label;
+            fit(label, 26, 0);
+            add(P_SAVES, I_SV_ENTRY, label, NULL, NULL)->row = i;
+        }
+    } else {
+        static const char *const lines[] = {
+            "Kept as files, each profile and ghost", "is a file of its own: any number of",
+            "ghosts are kept, the fastest put on the", "pak the game sees, and ghosts shared as",
+            ".r49ghost files. The first start with", "files imports this pak's saves; the",
+            ".mpk itself is left as it is."};
+        row(P_SAVES, I_INFO, "Kept in", where[0] ? where : "-", NULL)->path = 1;
+        for (size_t i = 0; i < sizeof lines / sizeof *lines; i++)
+            row(P_SAVES, I_INFO, i ? "" : "Files", lines[i], NULL)->desc = "Kept as: files, then a restart";
+    }
+    if (M.sel[P_SAVES] >= pg->n)
+        M.sel[P_SAVES] = 0;
+}
+
+static void fill_save_item(void)
+{
+    static char title[64];
+    char v[96];
+    const PcSaveRow *r = &M.sv_row;
+    Page *pg = &pages[P_SAVE_ITEM];
+    pg->n = 0;
+    snprintf(title, sizeof title, "%s", r->label);
+    pg->title = title;
+    row(P_SAVE_ITEM, I_INFO, "Kind", r->kind == 2 ? "ghost" : r->kind == 1 ? "profile" : "another game's note", NULL);
+    row(P_SAVE_ITEM, I_INFO, "Player", r->name[0] ? r->name : "-", NULL);
+    if (r->kind == 2) {
+        long cs = r->finish > 0 && r->finish < 36000.0f ? (long)(r->finish * 100.0f + 0.5f) : 0;
+        snprintf(v, sizeof v, "%d, %s", r->track + 1, r->backward ? "backward" : "forward");
+        row(P_SAVE_ITEM, I_INFO, "Track", v, NULL);
+        snprintf(v, sizeof v, "%ld:%02ld.%02ld", cs / 6000, cs / 100 % 60, cs % 100);
+        row(P_SAVE_ITEM, I_INFO, "Time", v, NULL);
+        snprintf(v, sizeof v, "%d", r->car);
+        row(P_SAVE_ITEM, I_INFO, "Car", v, NULL);
+    }
+    snprintf(v, sizeof v, "%d of the pak's 123", r->pages);
+    row(P_SAVE_ITEM, I_INFO, "Pages", v, NULL);
+    snprintf(v, sizeof v, "%s%s%s", r->deleting ? "yes, to the trash at the next swap" : r->on_pak ? "yes" : "no",
+             r->pinned ? ", pinned" : "", r->imported ? ", imported" : "");
+    row(P_SAVE_ITEM, I_INFO, "On the pak", v, NULL);
+    row(P_SAVE_ITEM, I_INFO, "File", r->file, NULL)->path = 1;
+    Item *it;
+    if (r->kind == 2 && !r->deleting) {
+        it = add(P_SAVE_ITEM, I_SV_ACTION, r->pinned ? "Unpin" : "Pin to the pak", NULL, NULL);
+        it->page = SVA_PIN;
+        it->desc = r->pinned ? "Let the game's own choice decide" : "Always on the pak the game sees";
+        it = add(P_SAVE_ITEM, I_SV_ACTION, "Export (.r49ghost)", NULL, NULL);
+        it->page = SVA_EXPORT, it->desc = "A copy in export/, to share";
+    }
+    if (!r->deleting) {
+        it = add(P_SAVE_ITEM, I_SV_ACTION, "Delete", NULL, NULL);
+        it->page = SVA_DELETE, it->desc = "To the folder's trash/ (asks again)";
+    }
+    if (M.sel[P_SAVE_ITEM] >= pg->n)
+        M.sel[P_SAVE_ITEM] = 0;
+}
+
+/* The row of the save shown on its page, as the list has it now; 0 when it is gone. */
+static int refresh_row(void)
+{
+    if (!s_saves)
+        return 0;
+    int n = s_saves->list(M.sv_player, sv_list, MAX_ITEMS - 12);
+    for (int i = 0; i < n; i++)
+        if (!strcmp(sv_list[i].file, M.sv_row.file)) {
+            M.sv_row = sv_list[i];
+            return 1;
+        }
+    return 0;
+}
+
+static void saves_action(int action)
+{
+    char msg[200] = "";
+    int r = -1;
+    if (!s_saves)
+        return;
+    switch (action) {
+    case SVA_OPEN:
+        r = pc_input_live_open_folder(M.sv_where);
+        snprintf(msg, sizeof msg, r == 0 ? "Opening the saves folder" : "No file manager to open it with");
+        break;
+    case SVA_IMPORT:
+        r = s_saves->act(M.sv_player, PC_SAVES_IMPORT, "", msg, sizeof msg);
+        break;
+    case SVA_EXPORT_MPK:
+        r = s_saves->act(M.sv_player, PC_SAVES_EXPORT_MPK, "", msg, sizeof msg);
+        break;
+    case SVA_PIN:
+        r = s_saves->act(M.sv_player, M.sv_row.pinned ? PC_SAVES_UNPIN : PC_SAVES_PIN, M.sv_row.file, msg, sizeof msg);
+        break;
+    case SVA_EXPORT:
+        r = s_saves->act(M.sv_player, PC_SAVES_EXPORT, M.sv_row.file, msg, sizeof msg);
+        break;
+    case SVA_DELETE:
+        if (!M.sv_confirm) {
+            M.sv_confirm = 1;
+            status(C_WARN, "Choose Delete again: it goes to trash/");
+            return;
+        }
+        M.sv_confirm = 0;
+        r = s_saves->act(M.sv_player, PC_SAVES_DELETE, M.sv_row.file, msg, sizeof msg);
+        break;
+    }
+    if (action != SVA_DELETE)
+        M.sv_confirm = 0;
+    fprintf(stderr, "rush2049pc: saves (controller %d): %s\n", M.sv_player + 1, msg);
+    if (M.page == P_SAVE_ITEM && refresh_row())
+        fill_save_item();
+    else if (M.page == P_SAVE_ITEM)
+        open_page(P_SAVES);
+    else
+        fill_saves();
+    status(r == 0 ? C_OK : C_WARN, "%s", msg);
+}
+
+void pc_menu_set_saves(const PcSavesUi *ui)
+{
+    s_saves = ui;
+}
+
 void pc_menu_set_about(void (*fill)(PcAbout *about))
 {
     s_about_fill = fill;
@@ -1108,7 +1317,7 @@ static void layout(int w, int h, int *k, int *ox, int *oy)
 
 static int has_value(const Item *it)
 {
-    return it->kind == I_CHOICE || it->kind == I_WINDOW || it->kind == I_NUMBER;
+    return it->kind == I_CHOICE || it->kind == I_WINDOW || it->kind == I_NUMBER || it->kind == I_SV_PLAYER;
 }
 
 static void rect(int x, int y, int w, int h, uint32_t color)
@@ -1172,6 +1381,18 @@ static void shown(const Item *it, char *out, size_t n)
     case I_COPY:
         out[0] = 0;
         break;
+    case I_SV_PLAYER:
+        snprintf(out, n, "P%d", M.sv_player + 1);
+        break;
+    case I_SV_ENTRY: {
+        const PcSaveRow *r = &sv_list[it->row];
+        snprintf(out, n, "%s%s%s", r->deleting ? "to the trash" : r->on_pak ? "on the pak" : "kept",
+                 r->pinned ? ", pinned" : "", r->imported ? ", import" : "");
+        break;
+    }
+    case I_SV_ACTION:
+        snprintf(out, n, "%s", it->page == SVA_DELETE && M.sv_confirm ? "again: delete" : "");
+        break;
     default:
         snprintf(out, n, "%s", v);
         for (int i = 0; it->labels && it->choices[i]; i++)
@@ -1226,6 +1447,11 @@ static void description(const Item *it, char *out, size_t n, int *wrap)
     if (it->kind == I_SAVE) {
         snprintf(out, n, "To %s", M.path[0] ? M.path : "nowhere: no settings file");
         fit(out, FOOT_CHARS, 1);
+        return;
+    }
+    if (it->kind == I_SV_ENTRY) {   /* its file */
+        snprintf(out, n, "%s", sv_list[it->row].file);
+        *wrap = strlen(out) > FOOT_CHARS;
         return;
     }
     if (it->kind == I_BIND && !strcasecmp(it->section, "hotkeys") && it->desc) {

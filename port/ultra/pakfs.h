@@ -142,9 +142,11 @@ typedef struct {
  * the import folder taken in. writer is the port's version, written into each file. 0, or -1 (msg says why) when the
  * folder can't be made: then no pak for that controller. msg gets a summary for the log either way. */
 int pc_store_open(int ch, const char *dir, const char *mpk, const char *writer, char *msg, size_t msg_size);
+/* The same, done when the pak is first built (pc_store_build): a controller whose pak is chosen later. */
+void pc_store_configure(int ch, const char *dir, const char *mpk, const char *writer);
 void pc_store_close(int ch);                 /* tests */
 int pc_store_is_open(int ch);
-const char *pc_store_dir(int ch);
+const char *pc_store_dir(int ch);            /* the folder, once opened or configured; else NULL */
 /* The pak the game is to see (PC_PAK_SIZE bytes): the profiles and other games' notes; the pinned ghosts; the ghosts
  * on the pak last time; then the fastest ghost of each player (an import apart from the player's own) for each track
  * and direction while 1 note and 24 pages stay free. An imported ghost gets a name of the PC's on the pak (its name's last two characters digits, which

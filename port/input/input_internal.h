@@ -129,6 +129,30 @@ void pc_menu_set_about(void (*fill)(PcAbout *about));
 /* The About page as text, "Label: value" lines under a title (the clipboard's, and the tests'). Its length. */
 size_t pc_menu_about_text(char *out, size_t size);
 
+/* The Saves page (docs/port/SAVES.md): each player's saves, from main (port/main.c, over port/ultra's pakstore.c).
+ * A row is a profile, a ghost or another game's note in the player's saves folder (game.saves = files). */
+typedef struct {
+    char file[192];      /* in the folder */
+    char label[64];      /* "T1 fwd ALICE 1:02.35", "ALICE" */
+    int kind;            /* 1 a profile, 2 a ghost, 0 another game's note */
+    int track, backward, car, pages;
+    char name[14];
+    float finish;
+    int on_pak, pinned, imported, deleting;
+} PcSaveRow;
+enum { PC_SAVES_NONE = -1, PC_SAVES_PAK = 0, PC_SAVES_FILES = 1 };
+enum { PC_SAVES_PIN, PC_SAVES_UNPIN, PC_SAVES_EXPORT, PC_SAVES_DELETE, PC_SAVES_IMPORT, PC_SAVES_EXPORT_MPK };
+typedef struct {
+    /* PC_SAVES_FILES (a folder), PC_SAVES_PAK (an .mpk) or PC_SAVES_NONE (no controller pak), as the player has it
+     * now; where says the folder or the file ("" for none) */
+    int (*backend)(int player, char *where, size_t size);
+    int (*list)(int player, PcSaveRow *out, int max);
+    /* PC_SAVES_*: 0 done, -1 not; msg the footer's line either way. file is the row's (unused for IMPORT and
+     * EXPORT_MPK). */
+    int (*act)(int player, int action, const char *file, char *msg, size_t size);
+} PcSavesUi;
+void pc_menu_set_saves(const PcSavesUi *ui);
+
 /* ---------------------------------------------------------------- port/ultra */
 uint64_t pc_host_ns(void);
 int pc_si_motor(int channel);

@@ -52,6 +52,8 @@ typedef struct {
 
 typedef struct {
     int open;
+    int configured;        /* pc_store_configure: opened when its pak is first built */
+    char mpk[PATHN];       /* the .mpk to import the first time */
     char dir[PATHN];
     char label[40];        /* "controller 1's saves" */
     char writer[33];
@@ -971,15 +973,46 @@ void pc_store_close(int ch)
     pthread_mutex_unlock(&g_lock);
 }
 
+static int open_locked(Store *st, int ch, const char *dir, const char *mpk, const char *writer, char *msg,
+                       size_t msg_size);
+
 int pc_store_open(int ch, const char *dir, const char *mpk, const char *writer, char *msg, size_t msg_size)
 {
-    char path[PATHN], migrated[200] = "";
     if (ch < 0 || ch > 3 || !dir)
         return -1;
+    pthread_mutex_lock(&g_lock);
+    int r = open_locked(&g_st[ch], ch, dir, mpk, writer, msg, msg_size);
+    pthread_mutex_unlock(&g_lock);
+    return r;
+}
+
+void pc_store_configure(int ch, const char *dir, const char *mpk, const char *writer)
+{
+    if (ch < 0 || ch > 3 || !dir)
+        return;
     pthread_mutex_lock(&g_lock);
     Store *st = &g_st[ch];
     close_store(st);
     st->ch = ch;
+    st->configured = 1;
+    snprintf(st->dir, sizeof st->dir, "%s", dir);
+    snprintf(st->mpk, sizeof st->mpk, "%s", mpk ? mpk : "");
+    snprintf(st->writer, sizeof st->writer, "%s", writer ? writer : "");
+    pthread_mutex_unlock(&g_lock);
+}
+
+static int open_locked(Store *st, int ch, const char *dir, const char *mpk, const char *writer, char *msg,
+                       size_t msg_size)
+{
+    char path[PATHN], migrated[200] = "", dir_copy[PATHN], mpk_copy[PATHN], writer_copy[33];
+    snprintf(dir_copy, sizeof dir_copy, "%s", dir);   /* they may be the store's own */
+    snprintf(mpk_copy, sizeof mpk_copy, "%s", mpk ? mpk : "");
+    snprintf(writer_copy, sizeof writer_copy, "%s", writer ? writer : "");
+    dir = dir_copy, mpk = mpk_copy, writer = writer_copy;
+    close_store(st);
+    st->ch = ch;
+    st->configured = 1;
+    snprintf(st->mpk, sizeof st->mpk, "%s", mpk);
     snprintf(st->dir, sizeof st->dir, "%s", dir);
     snprintf(st->label, sizeof st->label, "controller %d's saves", ch + 1);
     snprintf(st->writer, sizeof st->writer, "%s", writer ? writer : "");
@@ -989,8 +1022,7 @@ int pc_store_open(int ch, const char *dir, const char *mpk, const char *writer, 
         int err = errno;
         if (msg)
             snprintf(msg, msg_size, "the saves folder %s can't be made: %s", dir, strerror(err));
-        memset(st, 0, sizeof *st);
-        pthread_mutex_unlock(&g_lock);
+        st->open = 0;
         return -1;
     }
     static const char *const subs[] = {"import", "export", "trash", "backup"};
@@ -1021,7 +1053,6 @@ int pc_store_open(int ch, const char *dir, const char *mpk, const char *writer, 
                  ghosts, ghosts == 1 ? "" : "s", imports, migrated[0] ? "; " : "", migrated,
                  got || refused ? (refused ? "; ghosts refused from import/ (see the log)" : "; ghosts taken from import/")
                                 : "");
-    pthread_mutex_unlock(&g_lock);
     return 0;
 }
 
@@ -1035,15 +1066,25 @@ int pc_store_is_open(int ch)
 
 const char *pc_store_dir(int ch)
 {
-    return ch >= 0 && ch < 4 && g_st[ch].open ? g_st[ch].dir : NULL;
+    return ch >= 0 && ch < 4 && (g_st[ch].open || g_st[ch].configured) ? g_st[ch].dir : NULL;
 }
 
 int pc_store_build(int ch, uint8_t *img, char *why, size_t why_size)
 {
+    if (why && why_size)
+        why[0] = 0;
     pthread_mutex_lock(&g_lock);
+    if (ch >= 0 && ch < 4 && !g_st[ch].open && g_st[ch].configured) {   /* chosen later in the F1 menu: opened now */
+        char msg[400];
+        Store *c = &g_st[ch];
+        if (open_locked(c, ch, c->dir, c->mpk, c->writer, msg, sizeof msg) == 0)
+            fprintf(stderr, "rush2049pc: saves (controller %d's, files): %s: %s\n", ch + 1, c->dir, msg);
+        else if (why)
+            snprintf(why, why_size, "%s", msg);
+    }
     Store *st = store_of(ch);
     int r = st ? build(st, img, 1, why, why_size) : -1;
-    if (!st && why)
+    if (!st && why && !why[0])
         snprintf(why, why_size, "no saves folder");
     pthread_mutex_unlock(&g_lock);
     return r;

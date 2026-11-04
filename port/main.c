@@ -19,6 +19,7 @@
 #include "input_internal.h"
 #include "pc_audio.h"
 #include "pc_compat.h"
+#include "pakfs.h"
 #include "pc_game_types.h"
 #include "ultra.h"
 
@@ -65,6 +66,9 @@ static void usage(FILE *f)
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
             "                      folder: next to the program when rush2049pc.ini is there, else the user data\n"
             "                      folder; it also holds screenshots/ and rush2049pc.log)\n"
+            "  --saves pak|files   how every player's controller pak is kept: pak (the .mpk image, the default)\n"
+            "                      or files (a folder of saves/p1... in the data folder: a file per profile and\n"
+            "                      ghost; game.saves, saves2...; docs/port/SAVES.md)\n"
             "  --no-pak            no accessory on any controller; --rumble: a rumble pak on controller 1\n"
             "                      (controllers 2-4: game.pak2... = auto, memory, rumble or none; --set)\n"
             "  --expansion-pak     report 8 MiB of RDRAM, the Expansion Pak (the default; game.expansion_pak=off:\n"
@@ -366,6 +370,103 @@ static int from_command_line(const PcSettingValue *over, int n, const char *sect
     return set;
 }
 
+/* ---------------------------------------------------------------- game.saves = files (docs/port/SAVES.md) */
+
+/* Whether the game can take a controller pak taken out and put back now, for another choice of saves on it (si.c's
+ * swap): at the start prompt, "press start" or the main menu (gGameState 2, 4, 0x10), with no player on a saved
+ * profile (each input record's profile handle a default one, &D_80146150[k], or none) and no ghost chosen for a
+ * race (gGhosts). Elsewhere the change waits, at most until the next start. */
+extern void *D_80146150[4];                                 /* the default profiles' handles */
+extern struct { void **handle; uint8_t rest[72]; } D_8014A160[4];   /* gPlayers, seen from their profile handle */
+extern void **D_80152698[4];                                /* gGhosts: the ghosts of the next race */
+
+static int swap_safe(int ch)
+{
+    (void)ch;
+    uint32_t s = game_state();
+    if (s != 0x2 && s != 0x4 && s != 0x10)
+        return 0;
+    for (int i = 0; i < 4; i++) {
+        void **h = *(void **volatile *)&D_8014A160[i].handle;
+        if (h && (h < &D_80146150[0] || h >= &D_80146150[4]))
+            return 0;
+        if (*(void **volatile *)&D_80152698[i])
+            return 0;
+    }
+    return 1;
+}
+
+/* The game's own note name prefix and ghost extension in the pak's character set (the game's data, read at run
+ * time: never kept), for the ghosts imported into a folder (pakstore.c places them on the pak with them). */
+extern char D_801211BC[], D_801211F4[];
+void func_800A150C(uint8_t *out, uint8_t *in, uint8_t limit);   /* ASCII to the pak's characters (the game's) */
+
+static void saves_game_names(void)
+{
+    uint8_t prefix[8], ext[4], in[16];
+    memset(in, 0, sizeof in);
+    memcpy(in, D_801211BC, 8);
+    func_800A150C(prefix, in, 8);
+    memset(in, 0, sizeof in);
+    memcpy(in, D_801211F4, 4);
+    func_800A150C(ext, in, 4);
+    pc_store_set_game_names(prefix, ext);
+}
+
+/* The F1 Saves page's facts and actions (port/input/menu.c) over pakstore.c. */
+static char g_saves_mpk[4][PC_APP_PATH], g_saves_dir[4][PC_APP_PATH];
+
+static int saves_backend(int player, char *where, size_t size)
+{
+    if (player < 0 || player > 3)
+        return PC_SAVES_NONE;
+    const char *dir = pc_store_dir(player);
+    if (dir) {
+        snprintf(where, size, "%s", dir);
+        return PC_SAVES_FILES;
+    }
+    snprintf(where, size, "%s", g_saves_mpk[player]);
+    return PC_SAVES_PAK;
+}
+
+static int saves_list(int player, PcSaveRow *out, int max)
+{
+    static PcStoreEntry e[512];
+    int n = pc_store_list(player, e, max < 512 ? max : 512);
+    for (int i = 0; i < n; i++) {
+        PcSaveRow *r = &out[i];
+        memset(r, 0, sizeof *r);
+        snprintf(r->file, sizeof r->file, "%s", e[i].file);
+        snprintf(r->label, sizeof r->label, "%s", e[i].label);
+        snprintf(r->name, sizeof r->name, "%s", e[i].name);
+        r->kind = e[i].kind, r->track = e[i].track, r->backward = e[i].backward, r->car = e[i].car;
+        r->pages = e[i].pages, r->finish = e[i].finish;
+        r->on_pak = e[i].on_pak, r->pinned = e[i].pinned, r->imported = e[i].imported, r->deleting = e[i].deleting;
+    }
+    return n;
+}
+
+static int saves_act(int player, int action, const char *file, char *msg, size_t size)
+{
+    switch (action) {
+    case PC_SAVES_PIN:
+    case PC_SAVES_UNPIN:
+        return pc_store_pin(player, file, action == PC_SAVES_PIN, msg, size);
+    case PC_SAVES_EXPORT:
+        return pc_store_export_ghost(player, file, msg, size);
+    case PC_SAVES_DELETE:
+        return pc_store_delete(player, file, msg, size);
+    case PC_SAVES_IMPORT:
+        return pc_store_import(player, msg, size);
+    case PC_SAVES_EXPORT_MPK:
+        return pc_store_export_mpk(player, g_saves_mpk[player], msg, size);
+    }
+    snprintf(msg, size, "?");
+    return -1;
+}
+
+static const PcSavesUi g_saves_ui = {saves_backend, saves_list, saves_act};
+
 #define MAX_OVERRIDES 64
 
 #ifdef SIGHUP
@@ -500,6 +601,13 @@ static int rush_main(int argc, char **argv)
         }
         else if (!strcmp(a, "--rumble"))
             SET("game", "pak", "rumble");
+        else if (!strcmp(a, "--saves")) {   /* game.saves (docs/port/SAVES.md): every player's */
+            const char *k = ARG();
+            SET("game", "saves", k);
+            SET("game", "saves2", k);
+            SET("game", "saves3", k);
+            SET("game", "saves4", k);
+        }
         else if (!strcmp(a, "--audio"))
             SET("audio", "backend", ARG());
         else if (!strcmp(a, "--dump-audio"))
@@ -665,6 +773,7 @@ static int rush_main(int argc, char **argv)
     }
     if (no_rom)
         blank_files();
+    saves_game_names();   /* game.saves = files: what an imported ghost gets on the pak (docs/port/SAVES.md) */
     test_grow_waves();
     musyx_services(no_rom);
     /* RUSH2049_TEST_AUDIO_POOL_FAIL=N (tests): every Nth audio command finds the audio manager's message pool
@@ -710,6 +819,25 @@ static int rush_main(int argc, char **argv)
         static const char *const keys[4] = {"pak_file", "pak2_file", "pak3_file", "pak4_file"};
         int old = pc_app_pak_file(&dirs, cfg.pak_file[ch], from_command_line(over, nover, "game", keys[ch]),
                                   pak_path[ch], sizeof pak_path[ch]);
+        snprintf(g_saves_mpk[ch], sizeof g_saves_mpk[ch], "%s", pak_path[ch]);
+        if (cfg.saves[ch] == PC_CFG_SAVES_FILES) {
+            /* game.saves = files (docs/port/SAVES.md): the folder, read now when the pak is in at start (else when
+             * it is first chosen); the .mpk is only read, the first time, to import its saves */
+            static const char *const dir_keys[4] = {"saves_dir", "saves2_dir", "saves3_dir", "saves4_dir"};
+            char folder[PC_APP_PATH], msg[512];
+            pc_app_data_file(&dirs, cfg.saves_dir[ch], from_command_line(over, nover, "game", dir_keys[ch]), folder,
+                             sizeof folder);
+            pc_store_configure(ch, folder, pak_path[ch], pc_app_version());
+            snprintf(g_saves_dir[ch], sizeof g_saves_dir[ch], "%s", folder);
+            if (cfg.pak[ch] != PC_CFG_PAK_MEMORY)
+                continue;
+            if (pc_store_open(ch, folder, pak_path[ch], pc_app_version(), msg, sizeof msg) == 0)
+                fprintf(stderr, "rush2049pc: saves (controller %d's, files): %s: %s\n", ch + 1, folder, msg);
+            else
+                fprintf(stderr, "rush2049pc: saves (controller %d's, files): %s; no controller pak this time\n", ch + 1,
+                        msg);
+            continue;
+        }
         if (cfg.pak[ch] != PC_CFG_PAK_MEMORY)
             continue;
         pc_app_dirname(pak_path[ch], dir, sizeof dir);
@@ -737,6 +865,7 @@ static int rush_main(int argc, char **argv)
     snprintf(g_about.data, sizeof g_about.data, "%s", dirs.data);
     g_about.no_rom = no_rom;
     pc_menu_set_about(about_fill);
+    pc_menu_set_saves(&g_saves_ui);
     pc_app_data_file(&dirs, cfg.screenshot_dir[0] ? cfg.screenshot_dir : "screenshots",
                      cfg.screenshot_dir[0] && from_command_line(over, nover, "video", "screenshot_dir"), dir,
                      sizeof dir);
@@ -745,6 +874,10 @@ static int rush_main(int argc, char **argv)
         pc_app_mkdirs(cfg.screenshot_dir);   /* F12's folder */
     if (pc_input_init(&cfg) != 0 && !headless)
         fprintf(stderr, "rush2049pc: no window: scripted input only\n");
+    for (int ch = 0; ch < 4; ch++)   /* game.saves = files: the pak built from the folder (docs/port/SAVES.md) */
+        if (g_saves_dir[ch][0])
+            pc_si_set_pak_store(ch, g_saves_dir[ch]);
+    pc_si_set_swap_check(swap_safe);
     pc_si_init(pak_path[0], cfg.pak[0]);   /* PC_CFG_PAK_* = PC_PAK_* */
     for (int ch = 1; ch < 4; ch++) {
         pc_si_set_pak_file(ch, pak_path[ch]);

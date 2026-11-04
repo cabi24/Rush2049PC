@@ -192,6 +192,8 @@ static void test_nav(void)
     at("Settings", "Controllers", NULL, "down to Controllers");
     act(PC_MENU_DOWN);
     at("Settings", "Game", NULL, "the Game page, the last settings' page");
+    act(PC_MENU_DOWN);
+    at("Settings", "Saves", NULL, "the Saves page after it (docs/port/SAVES.md)");
     /* Help and About, after the settings' pages: read-only, a heading stepped over */
     act(PC_MENU_DOWN);
     at("Settings", "Help", NULL, "Help after the settings' pages");
@@ -242,7 +244,7 @@ static void test_nav(void)
     act(PC_MENU_CLOSE);
     CHECK(!pc_menu_is_open(), "close");
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 7);
+    act_n(PC_MENU_DOWN, 8);
     at("Settings", "Quit", NULL, "Quit");
     pc_menu_action(PC_MENU_ACCEPT);
     CHECK(pump() != 0, "Quit stops the main loop");
@@ -530,7 +532,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     pc_menu_capture("Space");  /* keyboard A, which the file lacks */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     at("Settings", "Save to rush2049pc.ini", "4 changes", "four to save");
     act(PC_MENU_ACCEPT);
     at("Settings", "Save to rush2049pc.ini", "saved", "saved");
@@ -555,17 +557,17 @@ static void test_save(void)
     CHECK(text && !strcmp(read_text(path), want), "nothing more to save: unchanged");
     CHECK(!strcmp(pc_menu_message(), "Nothing to save"), "the message: '%s'", pc_menu_message());
     at("Settings", "Save to rush2049pc.ini", "saved", "still saved");
-    act_n(PC_MENU_UP, 6);
+    act_n(PC_MENU_UP, 7);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);         /* the volume 95: something to save again */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     at("Settings", "Save to rush2049pc.ini", "1 change", "a change after the save");
-    act_n(PC_MENU_UP, 6);
+    act_n(PC_MENU_UP, 7);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_RIGHT);        /* and back to what the file has */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     at("Settings", "Save to rush2049pc.ini", "saved", "the file has it all again");
     PcSettings back;
     pc_settings_defaults(&back);
@@ -590,7 +592,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     act(PC_MENU_ACCEPT);
     pc_settings_defaults(&back);
     back.volume = 95;
@@ -977,7 +979,7 @@ static void test_pages(void)
 
     /* the page: made again each time it opens, so it follows main's numbers */
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     act(PC_MENU_ACCEPT);
     at("About", "Version", "v9.9.9-1-gabcdef1 (RelWithDebInfo)", "About opens on the version");
     act_n(PC_MENU_DOWN, 7);
@@ -1013,12 +1015,12 @@ static void test_pages(void)
     at("Help", "Move", "arrows, PgUp/PgDn | D-pad, LS, LB/RB", "this menu's keys, after another heading");
     act(PC_MENU_BACK);
     /* a binding changed: Help has it */
-    act_n(PC_MENU_UP, 3);
+    act_n(PC_MENU_UP, 4);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_DOWN);
     act(PC_MENU_CLEAR);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 3);
+    act_n(PC_MENU_DOWN, 4);
     act(PC_MENU_ACCEPT);
     at("Help", "Move", NULL, "Help keeps its place");
     act_n(PC_MENU_PAGE_UP, 2);
@@ -1034,11 +1036,168 @@ static void test_pages(void)
 
 int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);   /* port/gfx/gfx_png.c */
 
+/* ---------------------------------------------------------------- the Saves page (docs/port/SAVES.md) */
+
+/* main's side, mocked: player 1 keeps files (a profile and two ghosts), player 2 the .mpk, players 3 and 4 nothing. */
+static PcSaveRow g_sv[3];
+static int g_sv_n;
+static char g_sv_acts[1024];
+
+static int mock_backend(int player, char *where, size_t n)
+{
+    if (player == 0) {
+        snprintf(where, n, "/home/player/.local/share/rush2049pc/saves/p1");
+        return PC_SAVES_FILES;
+    }
+    snprintf(where, n, player == 1 ? "/home/player/.local/share/rush2049pc/rush2049pc-p2.mpk" : "");
+    return player == 1 ? PC_SAVES_PAK : PC_SAVES_NONE;
+}
+
+static int mock_list(int player, PcSaveRow *out, int max)
+{
+    int n = 0;
+    for (int i = 0; player == 0 && i < g_sv_n && n < max; i++)
+        out[n++] = g_sv[i];
+    return n;
+}
+
+static int mock_act(int player, int action, const char *file, char *msg, size_t size)
+{
+    static const char *const names[] = {"pin", "unpin", "export", "delete", "import", "export_mpk"};
+    snprintf(g_sv_acts + strlen(g_sv_acts), sizeof g_sv_acts - strlen(g_sv_acts), "%d:%s:%s;", player + 1,
+             names[action], file);
+    for (int i = 0; i < g_sv_n; i++)
+        if (!strcmp(g_sv[i].file, file)) {
+            if (action == PC_SAVES_PIN || action == PC_SAVES_UNPIN)
+                g_sv[i].pinned = action == PC_SAVES_PIN;
+            if (action == PC_SAVES_DELETE) {
+                memmove(&g_sv[i], &g_sv[i + 1], (size_t)(g_sv_n - i - 1) * sizeof g_sv[0]);
+                g_sv_n--;
+            }
+            break;
+        }
+    snprintf(msg, size, "did %s", names[action]);
+    return 0;
+}
+
+static const PcSavesUi g_mock_saves = {mock_backend, mock_list, mock_act};
+
+static void test_saves_page(void)
+{
+    PcSettings s;
+    pc_settings_defaults(&s);
+    s.saves[0] = PC_CFG_SAVES_FILES;
+    memset(g_sv, 0, sizeof g_sv);
+    snprintf(g_sv[0].file, sizeof g_sv[0].file, "ALICE.r49save");
+    snprintf(g_sv[0].label, sizeof g_sv[0].label, "ALICE");
+    g_sv[0].kind = 1, g_sv[0].on_pak = 1, g_sv[0].pages = 9;
+    snprintf(g_sv[1].file, sizeof g_sv[1].file, "track 1 forward - ALICE - 1m02.35s.r49ghost");
+    snprintf(g_sv[1].label, sizeof g_sv[1].label, "T1 fwd ALICE 1:02.35");
+    snprintf(g_sv[1].name, sizeof g_sv[1].name, "ALICE");
+    g_sv[1].kind = 2, g_sv[1].track = 0, g_sv[1].finish = 62.35f, g_sv[1].car = 3, g_sv[1].pages = 12;
+    snprintf(g_sv[2].file, sizeof g_sv[2].file, "track 2 backward - BOB - 1m10.00s.r49ghost");
+    snprintf(g_sv[2].label, sizeof g_sv[2].label, "T2 bwd BOB 1:10.00");
+    g_sv[2].kind = 2, g_sv[2].track = 1, g_sv[2].backward = 1, g_sv[2].on_pak = 1, g_sv[2].imported = 1;
+    g_sv_n = 3;
+    g_sv_acts[0] = 0;
+    pc_menu_set_saves(&g_mock_saves);
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    act(PC_MENU_TOGGLE);
+    act_n(PC_MENU_DOWN, 5);
+    at("Settings", "Saves", NULL, "Saves after Game");
+    act(PC_MENU_ACCEPT);
+    at("Saves", "Player", "P1", "the Saves page, player 1");
+    act(PC_MENU_DOWN);
+    at("Saves", "Kept as", "files (a folder)", "kept as files (game.saves)");
+    act(PC_MENU_DOWN);
+    at("Saves", "Folder", "/home/player/.local/share/rush2049pc/saves/p1", "the folder");
+    act(PC_MENU_DOWN);
+    at("Saves", "Import ghosts", NULL, "the actions");
+    act(PC_MENU_DOWN);
+    at("Saves", "Export to the .mpk", NULL, "export to the .mpk (no Open headless)");
+    act(PC_MENU_DOWN);
+    at("Saves", "ALICE", "on the pak", "the profile, on the pak");
+    act(PC_MENU_DOWN);
+    at("Saves", "T1 fwd ALICE 1:02.35", "kept", "a ghost kept off the pak");
+    act(PC_MENU_DOWN);
+    at("Saves", "T2 bwd BOB 1:10.00", "on the pak, import", "an imported ghost on the pak");
+    /* a ghost's own page: pin, export, delete (asked twice) */
+    act(PC_MENU_UP);
+    act(PC_MENU_ACCEPT);
+    at("T1 fwd ALICE 1:02.35", "Kind", "ghost", "the ghost's page");
+    act(PC_MENU_DOWN);
+    at("T1 fwd ALICE 1:02.35", "Player", "ALICE", "its player");
+    act(PC_MENU_DOWN);
+    at("T1 fwd ALICE 1:02.35", "Track", "1, forward", "its track and way");
+    act(PC_MENU_DOWN);
+    at("T1 fwd ALICE 1:02.35", "Time", "1:02.35", "its time");
+    act_n(PC_MENU_DOWN, 5);
+    at("T1 fwd ALICE 1:02.35", "Pin to the pak", NULL, "Pin");
+    act(PC_MENU_ACCEPT);
+    CHECK(strstr(g_sv_acts, "1:pin:track 1 forward - ALICE - 1m02.35s.r49ghost;") != NULL, "pinned: %s", g_sv_acts);
+    at("T1 fwd ALICE 1:02.35", "Unpin", NULL, "now Unpin");
+    CHECK(!strcmp(pc_menu_message(), "did pin"), "main's message in the footer: %s", pc_menu_message());
+    act(PC_MENU_DOWN);
+    at("T1 fwd ALICE 1:02.35", "Export (.r49ghost)", NULL, "Export");
+    act(PC_MENU_ACCEPT);
+    CHECK(strstr(g_sv_acts, "1:export:track 1") != NULL, "exported");
+    act(PC_MENU_DOWN);
+    at("T1 fwd ALICE 1:02.35", "Delete", "", "Delete");
+    act(PC_MENU_ACCEPT);
+    CHECK(!strstr(g_sv_acts, "delete") && strstr(pc_menu_message(), "again"), "asked once: %s", pc_menu_message());
+    at("T1 fwd ALICE 1:02.35", "Delete", "again: delete", "it says so");
+    act(PC_MENU_ACCEPT);
+    CHECK(strstr(g_sv_acts, "1:delete:track 1 forward") != NULL && g_sv_n == 2, "deleted the second time");
+    CHECK(!strcmp(pc_menu_message(), "did delete"), "the message: %s", pc_menu_message());
+    const char *pg, *item;
+    pc_menu_state(&pg, &item, NULL, 0);
+    CHECK(!strcmp(pg, "Saves"), "back on the list once it is gone: %s", pg);
+    /* the list's actions */
+    act(PC_MENU_BACK);
+    at("Settings", "Saves", NULL, "B: the main page");
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_PAGE_UP);
+    act_n(PC_MENU_DOWN, 3);
+    at("Saves", "Import ghosts", NULL, "Import");
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_DOWN);
+    act(PC_MENU_ACCEPT);
+    CHECK(strstr(g_sv_acts, "1:import:;1:export_mpk:;") != NULL, "import and export to the .mpk: %s", g_sv_acts);
+    /* player 2 keeps the .mpk: what files would give, and the setting from the next start */
+    act_n(PC_MENU_UP, 4);
+    at("Saves", "Player", "P1", "the player row");
+    act(PC_MENU_RIGHT);
+    at("Saves", "Player", "P2", "player 2");
+    act(PC_MENU_DOWN);
+    at("Saves", "Kept as", "pak (.mpk)", "kept as the .mpk");
+    act(PC_MENU_DOWN);
+    at("Saves", "Pak", NULL, "player 2 has no controller pak now (auto)");
+    act(PC_MENU_DOWN);
+    at("Saves", "Kept in", "/home/player/.local/share/rush2049pc/rush2049pc-p2.mpk", "its .mpk");
+    act(PC_MENU_DOWN);
+    at("Saves", "Files", "Kept as files, each profile and ghost", "what files gives");
+    act_n(PC_MENU_UP, 3);
+    act(PC_MENU_RIGHT);
+    CHECK(pc_menu_settings()->saves[1] == PC_CFG_SAVES_FILES, "game.saves2 = files, as a setting");
+    at("Saves", "Kept as", "files (a folder)", "changed");
+    act(PC_MENU_LEFT);
+    act_n(PC_MENU_UP, 1);
+    act(PC_MENU_LEFT);
+    at("Saves", "Player", "P1", "Left: back to player 1");
+    act(PC_MENU_CLOSE);
+    pc_menu_set_saves(NULL);
+    stop();
+}
+
 /* Each page as it looks over a frame, as PNGs in the scratch directory: for looking at, not checked. */
 static void pictures(void)
 {
     static const struct { const char *name; int down; } shots[] = {
-        {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"help", 4}, {"about", 5}};
+        {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"help", 6}, {"about", 7},
+        {"saves", 5}};
     static uint8_t px[1280 * 960 * 4];
     PcSettings s;
     char path[PC_CFG_PATH];
@@ -1046,6 +1205,8 @@ static void pictures(void)
     pc_settings_defaults(&s);
     snprintf(s.save_path, sizeof s.save_path, "/home/player/.config/rush2049pc/rush2049pc.ini");
     pc_menu_set_about(mock_about);
+    pc_menu_set_saves(&g_mock_saves);
+    s.saves[0] = PC_CFG_SAVES_FILES;
     if (start(&s) != 0)
         return;
     pc_gfx_set_window_size(1280, 960);
@@ -1079,10 +1240,10 @@ int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"nav", test_nav}, {"live", test_live}, {"save", test_save}, {"script", test_script},
-        {"mouse", test_mouse}, {"pages", test_pages},
+        {"mouse", test_mouse}, {"pages", test_pages}, {"saves", test_saves_page},
         {"pictures", pictures}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|pictures SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|saves|pictures SCRATCH_DIR\n");
         return 2;
     }
     g_dir = argv[2];
