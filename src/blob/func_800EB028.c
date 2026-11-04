@@ -78,6 +78,15 @@ extern void func_800E9E2C(Object *object, f32 *pos, Mat3 *uvs);
 extern void func_800E9C70(s16 mode, Object *object, f32 *pos, Mat3 *uvs);
 extern void func_800E95DC(s16 mode, Object *object, f32 *pos, Mat3 *uvs);
 extern void func_800E8F10(s16 mode, Object *object, f32 *pos, Mat3 *uvs);
+#ifdef TARGET_PC
+/* game.frame_rate 60 (docs/port/FRAMERATE.md 7): the driver's eye smooths the car's peak forces once a frame, a filter
+ * tuned to a frame of two retraces (PC_FILTER, pc_game_fps.h); the vertical one also takes the spring each frame, which
+ * a shorter frame takes in proportion, so that y = y * e - spring settles where the N64's does. */
+#define PC_DECAY_IN(u, e) (pc_fps60 && pc_frame_scale != 1.0f && (e) < 1.0f ? (u) * (1.0f - pc_fps_filter(e)) / (1.0f - (e)) : (u))
+#else
+#define PC_FILTER(e) e
+#define PC_DECAY_IN(u, e) u
+#endif
 extern s32 entity_iterate(void *arg0, void *arg1);
 
 #define CAM (gCamera[slot])
@@ -126,9 +135,9 @@ void func_800EB028(Object *object)
         }
         osStartThread(&D_80034840);
         for (i = 0; i != 4; i += 2) {
-            D_801526A8[slot][i] = D_801526A8[slot][i] * D_8011069C + pos_in[i] * (1.0f - D_8011069C);
+            D_801526A8[slot][i] = D_801526A8[slot][i] * PC_FILTER(D_8011069C) + pos_in[i] * (1.0f - PC_FILTER(D_8011069C));
         }
-        D_801526A8[slot][1] = D_801526A8[slot][1] * D_801106A0 - CAM.spring;
+        D_801526A8[slot][1] = D_801526A8[slot][1] * PC_FILTER(D_801106A0) - PC_DECAY_IN(CAM.spring, D_801106A0);
         pos_in[0] = D_80110690 - D_801526A8[slot][0];
         pos_in[1] = D_80110694 - D_801526A8[slot][1];
         pos_in[2] = D_80110698 - D_801526A8[slot][2];

@@ -3767,6 +3767,13 @@ typedef struct Cr {
 void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff);
 void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs);
 #define MAX_VEL 100.0f
+#ifdef TARGET_PC
+/* game.frame_rate 60: func_800EA108 moves the camera a gain g of the way to its target each frame of two retraces; a
+ * frame of one keeps (1 - g)^(1/2) of the way (pc_game_fps.h, docs/port/FRAMERATE.md 7). */
+#define PC_GAIN(g) (pc_fps60 ? 1.0f - pc_fps_filter(1.0f - (g)) : (g))
+#else
+#define PC_GAIN(g) g
+#endif
 void func_800EA108(Cr *car, f32 *pos, f32 *uvs);
 void func_800EA2DC(Cr *arg0, void *arg1, void *arg2, intptr_t arg3);
 
@@ -3953,7 +3960,7 @@ void func_800EA108(Cr *car, f32 *pos, f32 *uvs) {
 
     slot = car->player;
     func_8008D6FC(car->s_f6, pos, uvs);
-    D_80152708[slot] = .13f;
+    D_80152708[slot] = PC_GAIN(.13f);
     func_800E92C8(car, 30, 16, res);
     for (i = 0; i < 3; i++)
         gCamera[slot].v84[i] = (gCamera[slot].v84[i]*(1.0f-D_80152708[slot]) + (pos[i]+res[i])*D_80152708[slot]);

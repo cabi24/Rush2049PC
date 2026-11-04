@@ -159,6 +159,8 @@ void func_800E8CB8(void *car, void *vel, void *mat) {
 /* arg0 is a car (func_800EB028): its fields past the visuals are at CAR_OFS(n) on the PC (docs/port/CARS.md 2.3). */
 #ifndef TARGET_PC
 #define CAR_OFS(n) n
+/* PC: game.frame_rate 60: f12 is the share of the last frame's camera directions kept each frame (pc_game_fps.h) */
+#define PC_FILTER(e) e
 #endif
 #define OF(off) (*(f32 *)(gCamera[idx] + (off)))
 #define A1(off) (*(f32 *)((u8 *)arg1 + (off)))
@@ -197,9 +199,9 @@ void func_800EA3F4(void *arg0, void *arg1) {
     if (D_80152574[idx] != 0 || D_8014A110 == 6) {
         f12 = 0.0;
     } else if (len < 140.0f) {
-        f12 = D_801244F4 - (len / 140.0f) * D_801244F0;
+        f12 = PC_FILTER(D_801244F4 - (len / 140.0f) * D_801244F0);
     } else {
-        f12 = D_801244F8;
+        f12 = PC_FILTER(D_801244F8);
     }
     D_80152574[idx] = 0;
     if (D_801525F8[idx] >= 3 && D_80152680[idx] > 0.5f) {
