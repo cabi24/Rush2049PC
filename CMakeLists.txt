@@ -733,6 +733,7 @@ target_include_directories(test_assets_pools PRIVATE port/ultra)
 # The heap's test runs port/ultra/heap.c on the game's own heap (docs/port/MEMORY.md 4), in a 32 MiB window.
 target_sources(test_assets_heap PRIVATE port/ultra/heap.c)
 target_include_directories(test_assets_heap PRIVATE port/ultra)
+target_compile_definitions(test_assets_heap PRIVATE TEST_HEAP_C)   # support.c leaves the heap's reports to heap.c
 
 # And the drones' (the lists, maxpath's controls, the schedule; docs/port/DECOUPLE.md 8).
 target_compile_definitions(test_assets_drones PRIVATE PC_MAX_LINKS=16)
@@ -759,6 +760,7 @@ target_compile_options(test_wad_game PRIVATE -w)
 add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c port/ultra/n64mem.c
     port/ultra/rcpaddr.c $<TARGET_OBJECTS:pcassets> $<TARGET_OBJECTS:test_wad_game>)
 target_include_directories(test_assets_wad_game PRIVATE port/include port/assets port/assets/tests)
+target_compile_definitions(test_assets_wad_game PRIVATE TEST_OWN_WINDOW)   # its own 64 MiB window's functions
 target_compile_options(test_assets_wad_game PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 set_target_properties(test_assets_wad_game test_wad_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # rush2049pc_assetcheck: every wave of your ROM through the converters, checked as the game reads it

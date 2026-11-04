@@ -111,31 +111,38 @@ uint8_t *test_rdram(void)
 }
 
 /* port/ultra's window functions over test_rdram's window (docs/port/MEMORY.md), for game C and port code a test
- * links; weak, so a test with a window of its own (wad_game) defines them instead. rcpaddr.c's rule reads
- * pc_rdram_size. */
-__attribute__((weak)) uint32_t pc_rdram_size(void) { return test_rdram_bytes; }
-__attribute__((weak)) void *pc_n64_ptr(uint32_t addr)
+ * links; rcpaddr.c's rule reads pc_rdram_size. A test with a window of its own (wad_game) defines them instead and
+ * is built with TEST_OWN_WINDOW. (Not weak definitions: mingw's linker doesn't take those for another object's
+ * reference.) */
+#ifndef TEST_OWN_WINDOW
+uint32_t pc_rdram_size(void) { return test_rdram_bytes; }
+void *pc_n64_ptr(uint32_t addr)
 {
     uint32_t phys = addr >= 0x80000000u && addr < 0xC0000000u ? addr & 0x1FFFFFFFu : addr;
     return g_window && phys < test_rdram_bytes ? g_window + phys : NULL;
 }
-__attribute__((weak)) uint32_t pc_n64_addr(const void *host)
+uint32_t pc_n64_addr(const void *host)
 {
     const uint8_t *p = host;
     return g_window && p >= g_window && p < g_window + test_rdram_bytes ? PC_RDRAM_BASE + (uint32_t)(p - g_window) : 0;
 }
+#endif
 
-/* The game heap's reports (port/ultra/heap.c, which a test may link instead) and its log. */
-__attribute__((weak)) void pc_heap_created(void *heap) { (void)heap; }
-__attribute__((weak)) void pc_heap_allocated(void *heap) { (void)heap; }
-__attribute__((weak)) void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t largest)
+/* The game heap's reports; a test that links port/ultra/heap.c instead (assets_heap) is built with TEST_HEAP_C. */
+#ifndef TEST_HEAP_C
+void pc_heap_created(void *heap) { (void)heap; }
+void pc_heap_allocated(void *heap) { (void)heap; }
+void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t largest)
 {
     fprintf(stderr, "test: the game heap has no free block of %u bytes (%u free, %u the largest)\n", size, free_bytes,
             largest);
 }
-__attribute__((weak)) void pc_heap_short(const char *what, uint32_t need) { (void)what, (void)need; }
-__attribute__((weak)) int pc_verbose;
-__attribute__((weak)) void pc_log(const char *fmt, ...)
+void pc_heap_short(const char *what, uint32_t need) { (void)what, (void)need; }
+#endif
+
+/* port/ultra's log, for what heap.c and rcpaddr.c's callers print. */
+int pc_verbose;
+void pc_log(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -144,4 +151,4 @@ __attribute__((weak)) void pc_log(const char *fmt, ...)
     fprintf(stderr, "\n");
     va_end(ap);
 }
-__attribute__((weak)) uint32_t pc_os_mem_size(void) { return test_rdram_bytes; }
+uint32_t pc_os_mem_size(void) { return test_rdram_bytes; }
