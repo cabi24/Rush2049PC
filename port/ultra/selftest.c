@@ -878,9 +878,15 @@ static void controller(void *arg)
     t_ports();
     t_store();
     if (pc_time_virtual()) {
-        char d[64];
-        snprintf(d, sizeof d, "%.0f ms of N64 time in %.0f ms", pc_host_ns() / 1e6, pc_real_ns() / 1e6);
-        check("--fast: the virtual clock", pc_real_ns() < pc_host_ns(), d);
+        /* One wait of 2 s of N64 time jumps the virtual clock: it takes far less than that in real time. (The run's
+         * whole N64 time against its real time, as this was, fails on a loaded host: ctest beside other builds
+         * took the run past its N64 time, 1.2-2.2 s, with the clock working.) */
+        char d[96];
+        double r0 = pc_real_ns() / 1e6, v0 = host_ms();
+        sleep_ms(2000);
+        double real = pc_real_ns() / 1e6 - r0, virt = host_ms() - v0;
+        snprintf(d, sizeof d, "a wait of 2000 ms: %.0f ms of N64 time in %.0f ms", virt, real);
+        check("--fast: the virtual clock", virt >= 1999.0 && real < 1000.0, d);
     }
     fprintf(stderr, "selftest: %d of %d passed\n", g_run - g_failed, g_run);
     pc_quit = g_failed ? 2 : 1;
