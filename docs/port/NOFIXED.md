@@ -200,7 +200,7 @@ job can hold the line while phase B shrinks them (no job is added in phase A).
 |---|---:|---:|---|
 | `symbols.arena.{boot,game,ovl_a,ovl_b}` | 195, 1,071, 432, 50 | | arena names at their N64 addresses (1,748) |
 | `symbols.reserved`, `symbols.aliases.rdram`, `.cartridge` | 1, 5, 1 | | |
-| `symbols.by_name.game_objects`, `.port_objects` | 780, 3 | | objects reaching them by name (1,755 and 28 names) |
+| `symbols.by_name.game_objects`, `.port_objects` | 780, 3 | | objects reaching them by name (1,755 and 28 names; 29 since the merge with 4539a72, whose `--log-frames` line reads `gCamera` by name, port/main.c:417, which the moved build's relative names serve as they do the rest) |
 | `symbols.inside_own`, `.own`, `.decoupled` | 49, 390, 38 | | context: not window addresses |
 | `cc.int_to_ptr` (`.weak`) | 23 (88) | 10 (17) | casts to a pointer from an integer of another size |
 | `cc.ptr_to_int` (`.weak`) | 103 (103) | 35 (22) | casts to an integer of another size from a pointer |
