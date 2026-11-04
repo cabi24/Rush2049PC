@@ -26,8 +26,9 @@ checked. Three sources:
 
 The report (--out, default stdout) has the counts by class, then every site of the classes --sites names
 (default: every class but the symbol lists; `all` for those too). --json writes the counts and sites.
---baseline FILE (counts as --write-baseline writes them) fails, exit 1, if a class's count grew: a CI job can hold
-the line while phase B shrinks them. Without --build only the source classes are counted.
+--baseline FILE (counts as --write-baseline writes them) fails, exit 1, if a class's count grew (a class the file
+doesn't have counts from 0): CI holds the line with tools/port/nofixed_baseline.json, made from a Debug build with
+--build, while phase C shrinks them. Without --build only the source classes are counted.
 Stdlib only, Python 3.9+.
 """
 import argparse
@@ -125,6 +126,8 @@ ZEXT = re.compile(r"\(\s*(?:const\s+)?[A-Za-z_][\w\s]*?\*+\s*\)\s*\(\s*(?:uintpt
 N64P_USE = re.compile(r"\bN64P\s*\(")
 N64W_USE = re.compile(r"\bN64W\s*\(")
 PC_N64W_USE = re.compile(r"\bPC_N64W\s*\(")
+# A file's own macro that translates through the prelude (phase B's N64A, N64PTR...; NOFIXED.md 2.3).
+TRANSLATE_DEF = re.compile(r"^\s*#\s*define\s+\w+\s*\([^)]*\).*\bPC_(N64A|N64P|SLOT_N64|SLOT_SET)\s*\(")
 DEF_N64P = re.compile(r"^\s*#\s*define\s+N64P\s*\(\s*(\w+)\s*\)\s*(.*)$")
 DEF_N64W = re.compile(r"^\s*#\s*define\s+N64W\s*\(\s*(\w+)\s*\)\s*(.*)$")
 N64P_FIELD = re.compile(r"\benum\s+n64p_\w+\s*\**\s*\w+\s*(\[[^\]]*\])?\s*[;,]")
@@ -151,6 +154,8 @@ def def_kind(body):
         return "pc_n64w"     # the prelude's u32 conversion (RUSH_CHECK_CASTS checks it)
     if re.search(r"\(\s*\w[\w\s]*\*\s*\)\s*\(\s*(uintptr_t|__UINTPTR_TYPE__)\s*\)", b):
         return "cast"        # a plain zero-extending cast
+    if re.search(r"\(\s*\w[\w\s]*\*\s*\)\s*PC_N64P\s*\(", b):
+        return "translate"   # the prelude's translation (PC_N64P, phase B: NOFIXED.md 2.3)
     return "function"        # a translation of the file's own (pc_voice_node...)
 
 
@@ -252,6 +257,8 @@ def scan_game_file(inv, path, rel, built):
             inv.add("src.trunc", rel, ln, line)
         if ZEXT.search(c) and not dp:
             inv.add("src.zext", rel, ln, line)
+        if TRANSLATE_DEF.search(c) and not (dp or dw):
+            inv.add("src.def.translate", rel, ln, line)
 
 
 def scan_port_file(inv, path, rel):
@@ -421,6 +428,11 @@ def tables_pass(inv, build, jobs):
     for name, addr, size in lay.get("reserved", []):
         absolute[name] = addr
         inv.add("symbols.reserved", "data_layout.json", 0, f"{name} 0x{addr:08X} {size} B")
+    if lay.get("nofixed"):   # a RUSH_NOFIXED build: relative to the window section, nothing absolute (NOFIXED.md 2.2)
+        for name, addr in lay.get("window_names", []):
+            absolute[name] = addr
+            inv.add("symbols.window_names", "data_layout.json", 0, f"{name} 0x{addr:08X}")
+        inv.count("context.nofixed_build", 1)
     al = build / "pc-data" / "aliases.ld"
     if al.exists():
         for k, line in enumerate(al.read_text().splitlines()):
@@ -488,7 +500,8 @@ ORDER = [
     ("src.n64p", "N64P: a 4-byte N64 address field read as a pointer"),
     ("src.n64w", "N64W: a pointer stored as a 4-byte N64 address"),
     ("src.pc_n64w", "PC_N64W outside N64W's definitions"),
-    ("src.def.", "the files' N64P/N64W definitions, by kind (n64: the N64 side)"),
+    ("src.def.", "the files' N64P/N64W definitions, by kind (n64: the N64 side; translate: through PC_N64P), and "
+                 "their own translating macros"),
     ("src.n64p_field", "4-byte N64 address fields (enum n64p_X) in N64-layout records"),
     ("src.trunc", "silent: an integer through uintptr_t/intptr_t cast to a narrower type"),
     ("src.zext", "silent: a pointer made from an integer through uintptr_t/intptr_t"),
@@ -575,7 +588,8 @@ def main():
         a.write_baseline.write_text(json.dumps(counts, indent=1, sort_keys=True) + "\n")
     if a.baseline:
         base = json.loads(a.baseline.read_text())
-        grew = [(c, base[c], counts.get(c, 0)) for c in sorted(base) if counts.get(c, 0) > base[c]]
+        grew = [(c, base.get(c, 0), counts.get(c, 0)) for c in sorted(set(base) | set(counts))
+                if counts.get(c, 0) > base.get(c, 0)]   # a class the file doesn't have counts from 0
         for c, was, now in grew:
             print(f"nofixed_audit: {c} grew from {was} to {now}", file=sys.stderr)
         if grew:
