@@ -1,10 +1,12 @@
-# A high frame rate (video.frame_rate)
+# A high frame rate (video.frame_rate, game.frame_rate)
 
 Phase 8 of [PORT_PLAN.md](../PORT_PLAN.md), written 2026-10-27. The game draws at most 30 frames a second; with
 `video.frame_rate` the port shows 60, 120, the display's refresh or any rate from 30 to 1000, while the game's timing
 stays the N64's. The frames between the game's are drawn by the renderer from the game's last two
 ([GFX.md](GFX.md) "High frame rate"); no game C changed. This file says how the game paces itself, why that leads to
-interpolation in the renderer, what the setting does, how it is tested and what it costs.
+interpolation in the renderer, what the setting does, how it is tested and what it costs. Since 2026-11-03 the game
+itself can also draw a frame every retrace, 60 a second, with its per-frame steps taken to the shorter frame
+(`game.frame_rate`, section 7); `video.frame_rate` works on top of it.
 
 ## 1. How the game paces and times itself
 
@@ -52,7 +54,8 @@ shown every two retraces.
   a game C change; with it the game would step by one retrace a frame, which no N64 frame does. The car physics would
   be the same (per retrace), but the camera's per-frame filter would follow twice as tightly (no constant is tuned
   for a delta of 1), per-frame counts would run twice as fast, and the frame-time code would take a different path of
-  float operations. And whole retraces cap it at 60: no step is smaller than a retrace.
+  float operations. And whole retraces cap it at 60: no step is smaller than a retrace. (2026-11-03: `game.frame_rate
+  = 60` does this as a setting of its own, the per-frame steps taken to a frame of one retrace: section 7.)
 - (b) Interpolating in the renderer leaves the game alone: it runs at its own 30 fps, its world exactly as on the
   N64, and the renderer draws extra frames between two of the game's. That is what the port does.
 - A hybrid has nothing to add: the part that could run faster (the physics) already runs every retrace, and what
@@ -229,6 +232,7 @@ reads the game's values then too, not after the retrace's event, which raced the
 | `hfr_paced_60` (`--vsync-hz 60 --vsync-phase 0.05 --display-timing vblank`) | an exact 60.000 Hz display, its vblanks 0.05 of a refresh after the retraces (the worst phase): as `hfr_paced` (2 ticks lost, 666 drawn between on rocky; 1114 of 1200 lost before the retraces moved) |
 | `gfx.display.*` (`port/gfx/tests/display_test.c`) | the refresh arithmetic on made-up values: XRandR modes (1080p60, 59.94, 1440p "144", interlaced, doublescan), Windows' ratios, a refresh SDL's whole hertz could be the rounding of, the compositor's counter as an age, and which period and vblanks are taken from a monitor's, a compositor's (the same monitor, another one, stale, none) and SDL's |
 | `hfr_realtime` (`realtime_check.py --frame-rate 120 --present-ms 40`) | the same race with each swap held 40 ms, then until the vsync (a host always behind): at least 5 frames shown a second, the game's own |
+| `hfr_timing_game60`, `hfr_paced_game60` | `hfr_timing` and `hfr_paced` with the game at 60 (`--game-fps 60`, section 7.6) |
 | all other tests | unchanged: the setting is off by default |
 
 A mutation check of `gfx_interp.c` (14 deliberate bugs: no blend, always one frame's list, no camera move for new
@@ -364,3 +368,398 @@ its numbers vary from run to run.
   (a smoke trail behind a fast car).
 - A host with little headroom (the Pi 5 in busy scenes) draws few frames between; the renderer itself would have
   to get faster there.
+
+## 7. The game at 60 (game.frame_rate)
+
+Written 2026-11-03. `game.frame_rate = 60` makes the game itself draw a frame every retrace: its menus, HUD, cameras,
+effects and timers step 60 times a second at the N64's speed, and every frame shown is one the game drew. The car
+physics was per retrace already (section 1) and stays as it is. `original`, the default, is the N64's game exactly.
+
+### 7.1 The setting
+
+| Where | |
+|---|---|
+| `rush2049pc.ini` | `[game] frame_rate = original` (default) or `60` |
+| command line | `--set game.frame_rate=60` |
+| F1 overlay | Game, Game frame rate: original (30), 60; from the next screen |
+
+- **The name.** `video.frame_rate` is how many frames are shown, `game.frame_rate` how many the game computes and
+  draws: one word for one quantity, the section saying whose. They combine: `game.frame_rate = 60` with
+  `video.frame_rate = 120` draws one frame between each two of the game's (7.6).
+- **Only 60.** The game's clocks count whole retraces (section 1): a frame of one retrace is the shortest there is,
+  so a rate between 30 and 60 would be frames of one and two retraces mixed, and above 60 there is nothing to step.
+- **From the next screen.** The game reads a copy, `pc_fps60` (port/config/game_fps.c), which it takes where its state
+  changes: game_loop's branch for a state change (`src/blob/groups/input_aux/game_loop.c:87`, pc_game_fps_begin).
+  That is a new screen of the front end, the race's start (PrePlay, the countdown, the race), the results, the attract
+  demo. A change in the overlay applies there, never in the middle of a screen, so a screen's per-frame steps and the
+  scheduler's swaps agree for all of it, and nothing that one frame rate counted is read by the other. Until the
+  first state change the copy is original. The setting is not an environment variable.
+
+### 7.2 How the game runs at 60
+
+- **The swap.** The scheduler swaps a finished frame after `PC_SWAP_RETRACES` retraces since the last swap: 2 at
+  original, 1 at 60 (`src/rom/lib_1050_sdk.c:254, 331, 353`, the three tests of section 1). The main loop's start
+  test (`src/blob/groups/mainloop/mainloop.c:97`) needs no change: EndGraphics stores the retrace count in
+  `D_8002EB98` (`src/blob/world_collision_response.c:179`), and the next retrace differs from it, so at 60 a frame
+  starts at the retrace after the one it was swapped in. The game's two frame records and its two framebuffers
+  alternate as before.
+- **The frame's task.** EndGraphics puts the frame's task in the scheduler's task queue, which the scheduler drains
+  only at a message on its command queue (`__scMain`). In real time on the PC the RSP finishes the retrace's audio task
+  at once, before the frame is done, so that message was the next retrace, and every frame was shown two retraces
+  after it began (rocky, the synthetic race in real time: 1,210 to 1,487 of the game's frames in 1,800 retraces,
+  however it was presented). At 60 EndGraphics also sends the scheduler 670, as the audio task's sender does
+  (`world_collision_response.c:178`): 1,738 to 1,772 of 1,800 in the runs of 7.6, the rest the front end's loads. Original keeps the N64's
+  messages; on the virtual clock the main loop runs the audio task after the frame anyway, so `--fast` runs drew a
+  frame every retrace before.
+- **The frame's length.** viUpdateTime (`src/rom/lib_1050.c:74`) gives each frame's retraces, at most 5, to
+  `pc_game_frame_note`: `pc_frame_scale` is the frame's length in frames of two retraces (0.5 at 60),
+  `pc_frame_steps` the whole ones it completed (0 and 1 in turn at 60). The frame time
+  `D_8002EB94` and the frame delta `D_8002EB98` are the game's own, 1/60 s and 1 at 60. On a host that can't keep up,
+  a frame of two retraces at 60 has a scale of 1 and a step of 1: the N64's frame.
+- **The steps.** What steps by the frame time or the retraces keeps its speed by itself. What steps by a constant
+  tuned to a frame of two retraces goes through `port/include/pc_game_fps.h`'s macros, each file defining the N64 side
+  at file scope (the original tokens: [DECOUPLE.md](DECOUPLE.md) 1's conventions, `n64_neutral.py`):
+
+| Macro | For | At 60 | At original |
+|---|---|---|---|
+| `PC_FSCALE(x)` | a float step a frame (a slide, a fade, a spin, a rate limit) | x × the frame's length | x |
+| `PC_STEPS(n)` | an integer step a frame where a step of 0 is harmless | n × the whole 30 Hz frames | n |
+| `PC_EACH30(stmt)` | a count, or a test a step of 0 would repeat (`if (--t == 0)`), an integer filter, a random draw a frame | the statement on the frames that complete a 30 Hz frame | the statement |
+| `PC_FILTER(e)` | a filter or decay a frame, `x = x·e + y·(1 − e)`, `v *= e` | e to the power of the frame's length | e |
+
+  Fourteen files have a macro of their own for a form these don't cover (the follow camera's √e, a filter's other weight,
+  an ease over the frames left, a gap in model time, a timer counted in 30 Hz steps); each is defined beside its use
+  and listed in 7.3. Every macro gives exactly the N64's value at original, with no float operation added, and
+  `-ffp-contract=off` (CMakeLists.txt) keeps the compiler from fusing differently.
+- **The follow camera.** `func_800E8D50` (UpdateCarObj) moves `pos = pos·e + target·(1 − e)` once a frame, e being
+  0.6 × the slot's elasticity for a frame of two retraces; the N64 multiplies e by 0.75, 0.6 and 0.5 for frames of 3,
+  4 and 5, which for e = 0.6 is 0.45, 0.36 and 0.30 against e^1.5, e^2, e^2.5 = 0.465, 0.36, 0.279: close to
+  e^(frames), the same time constant. A frame of one retrace now takes √e (`func_800E8D50.c:40-46, 56`): toward a car that
+  stands still, two frames at 60 leave what one at 30 does, to rounding. Toward a moving car the lag at 60 is longer, by
+  the finer sampling: at 60 feet a second and e = 0.6, 3.000 feet at 30 and 3.436 at 60 (`assets_fps`), 0.05 s
+  against 0.057 s; a continuous filter of that time constant would lag 3.92 feet. Frames of 2-5 retraces at 60 are
+  the N64's.
+
+### 7.3 The per-frame audit
+
+**How the sites were found.** A build instrumented with `-finstrument-functions` (the game C only; a scratch hook,
+not in the repository) recorded for each game function the N64 thread that ran it and in how many game frames, over
+106 runs: the 25 synthetic paths at original and at 60 on rocky, and on the Pi on the retail cartridge the same 25
+scripts plus a race to the results, the attract demo and the front end's screens, at both settings. 1,985 functions
+ran: 1,595 on the game thread or the main thread (per frame), 231 on the model thread (per retrace), 109 of them on
+both (the math, the sound starts, the random numbers). In those 1,595 functions' bodies, lines that step state were
+picked out: the frame time (`D_8002EB94`, `gFrameSeconds`), the frame delta (`D_8002EB98`), the frame counter
+(`frame_counter`), the retrace counter, `++`/`--`, `+=`/`-=`/`*=` a literal, `x = x op literal`: 1,594 lines in 224
+files over the first 78 runs, which were read in six parts, each with the rest of its files' per-frame functions and
+those the coverage didn't run; then 31 lines in 8 more files the last 28 runs reached (the name entry, the records),
+39 that step by a named constant (`p->a0C += D_80123F30`), and a last sweep for self-updates of any form, which found
+two through accessor macros (`PC_MODEL_SCALE(i) = PC_MODEL_SCALE(i) * 0.97f + ...`). Every use of the frame time in the
+C was read, run or not. The 775 per-frame functions with none of those lines step nothing a frame (they draw, look up or decide from
+state set elsewhere).
+
+**Verdicts.** The table below has a row for each site that steps per frame (a function's several uses of the frame
+time are one row; a row of two verdicts counts in both), by area: of its 96 rows, 44 are changed (a constant tuned to
+two retraces, taken to the frame), 24 step by the frame time already, 6 by the retraces (the retrace counter, the
+deadlines, the frame delta), and 26 are unchanged for the reason given (an edge, an event, a count within a frame, a
+value made again each frame, init). In lines: 82 lines inside functions changed, in 30 files, 6 of them the mechanism
+of 7.2 and 76 per-frame steps in 26 files; of the 307 lines that use the frame time (`D_8002EB94`, `gFrameSeconds`),
+one changed (the reload, `shots.c:1069`); of the frame delta's 11 uses, two changed (the texture scrolls, `race_setup_1.c:154,
+160`), and the follow camera reads it once more (√e for a frame of one retrace).
+
+The table has every site that steps per frame, file:line in the tree as committed. Loop indices, pool counts,
+display-list building, text layout and init code are counted in the last row of each area, not listed one by one.
+
+| file:line | function | what it steps | verdict | change |
+|---|---|---|---|---|
+| **The frame and the scheduler** | | | | |
+| src/rom/lib_1050_sdk.c:254, 331, 353 | __scHandleRetrace, __scTaskReady, __scExecTask | the swap after two retraces | changed | `PC_SWAP_RETRACES`: 1 at 60 |
+| src/rom/lib_1050.c:74 | viUpdateTime | the frame's retraces and time | delta | notes the frame's length (`pc_game_frame_note`) |
+| src/blob/groups/input_aux/game_loop.c:87 | game_loop | a state change | changed | latches the setting |
+| src/blob/groups/input_aux/game_loop.c:92 | game_loop | the idle overlay after 300 s, retraces × seconds a retrace | delta | |
+| src/blob/groups/input_aux/game_loop.c:125 | game_loop | `frame_counter++` (gFrames) | unchanged | nothing reads it but game_loop's reset, by any of its names |
+| src/blob/groups/mainloop/mainloop.c:97, 101-104, 111 | world_trigger_activate, MainEndFrame | the frame's start test, the tasks pending, `D_80151AE0` (retraces since the frame began) | unchanged | scheduling, not time; right at one retrace (7.2) |
+| src/blob/world_collision_response.c:178, 179 | world_collision_response (EndGraphics) | the frame's task; `D_8002EB98 = frameCount` | changed / unchanged | wakes the scheduler at 60 (7.2) |
+| **Cameras** | | | | |
+| src/blob/func_800E8D50.c:56-59 | func_800E8D50 (UpdateCarObj) | the follow camera's elasticity a frame | changed | `PC_CAM_ELASTIC`: √e for a frame of one retrace (7.2) |
+| src/blob/func_800EB028.c:138 | func_800EB028 (setcamview, the driver's eye) | `cur = cur·e + in·(1 − e)` on the car's peak forces | changed | `PC_FILTER` |
+| src/blob/func_800EB028.c:140 | func_800EB028 | the eye's bob, `y = y·e − spring` | changed | `PC_FILTER`, and `PC_DECAY_IN`: the spring × (1 − e^f)/(1 − e), so it settles where the N64's does |
+| src/blob/groups/func_800E92C8/group.c:3963 | func_800EA108 | the chase camera's gain of .13 a frame toward its target | changed | `PC_GAIN`: 1 − (1 − g)^f |
+| src/blob/groups/func_800EA3F4/group.c:202, 204 | func_800EA3F4 | the share of the last frame's camera directions kept a frame | changed | `PC_FILTER` |
+| src/blob/groups/func_800EA3F4/group.c:208-227 | func_800EA3F4 | the camera blends' ramps | time | |
+| src/blob/func_8008B3C8.c:201-220 | (a weak copy of func_800EA3F4's blends) | the same ramps | time | |
+| src/blob/groups/visual_tire_module/anim_tire_donor.c:216 | anim_state_update | the camera spring, `·0.75 + random` a frame | changed | `PC_EACH30`: the N64's noise, at its rate |
+| src/blob/groups/camera_aspect_ratio/group.c:4434, 4525 | camera_update | the scripted cameras' key time; a texture cycle's timer | time | |
+| src/blob/groups/camera_aspect_ratio/group.c:4533 | camera_update | the texture index, once the timer runs out | unchanged | an event of a timed timer |
+| src/blob/groups/camera_aspect_ratio/group.c:3927-3990 | camera_free_look, PlayMoveSound | a key's rotation from t/dur; a volume from speeds | unchanged | absolute time, rates |
+| src/blob/groups/steady_camera/group.c:3946 | func_800E95DC | the camera's transition, elapsed += dt | time | |
+| src/blob/groups/steady_camera/group.c:3945; func_800E92C8/group.c:3943 | func_800E95DC | `v84[1] += 4` | unchanged | after func_800E8D50 sets the place, elasticity 0: an offset |
+| src/blob/func_800EB90C.c:209, 241, 268, 285 | func_800EB90C (the attract demo's cameras) | the switch by model time and a deadline; the view button; averages | delta / unchanged | |
+| src/blob/groups/particle_knot/group.c:1238-1500 | func_8009F058 and the view set-up | the projection, lookat, fog | unchanged | made again each frame |
+| src/blob/groups/particle_knot/group.c:1761-1810 | func_800BFD8C (InterpQuats) | a quaternion blend | unchanged | its caller's frac is absolute time |
+| src/blob/entity_iterate.c:36-38 | entity_iterate (CameraCollision) | the eye moved a quarter unit on a hit | unchanged | a correction of a place made again each frame |
+| **The cars, the drones and the race** | | | | |
+| src/blob/groups/render_large_objects/group.c:431, 435, 445, 449 | render_large_objects (DoDrones) | the drones' brake scale and time boost, ±.01 a frame toward their targets (the drones' physics reads both) | changed | `PC_FSCALE` |
+| src/blob/groups/render_large_objects/group.c:171-458 | render_large_objects | the targets, from places and distances | unchanged | decided once a frame, as on the N64: at 60 every retrace (7.4) |
+| src/blob/func_800DE860.c:151 | func_800DE860 (set_catchup, from DoDrones) | each human car's catch-up scale (the model's +0x400, which its physics reads), 0.03 of the way to its target a frame | changed | `PC_FILTER(0.97f)` and `PC_FILTER_REST(0.97f, 0.03f)`, its other weight 1 − e^f |
+| src/blob/func_800CFCA8.c:3855 | func_800CFCA8 | a car's blink (its appearance bit 8), counted in frames | changed | `PC_EACH30` |
+| src/blob/groups/update_game_data/update_game_data.c:340 | func_800E7FA0 | the skids' intensity, −0.125 a frame | changed | `PC_FSCALE` |
+| src/blob/groups/update_game_data/update_game_data.c:408, 419 | update_game_data | the body's pitch (0.6/0.4) and roll (0.7/0.3) filters | changed | `PC_FILTER`, `PC_FILTER_REST` (1 − e^f) |
+| src/blob/groups/update_game_data/update_game_data.c:371-376 | update_game_data | the model's stunt rotation handed over and zeroed a frame | unchanged | its reader sums it: the same total at any rate |
+| src/blob/groups/visual_tire_module/anim_tire_donor.c:220, 221 | anim_state_update | the fast tire's spin, +3.7 a frame; the slow one by model time | changed / time | `PC_FSCALE` |
+| src/blob/groups/visual_tire_module/buffer_swap.c:122, 183, 198 | tire_extend, buffer_swap | the wings out and in by sixths, one at a frame whose model time passed a 0.015 s gap | changed | `PC_GAP30`: 0.03 s at 60, 30 sixths a second |
+| src/blob/groups/visual_tire_module/rocket.c:345, 351 | AnimateFrame | the car's fade, alpha ±0x19 a frame | changed | `PC_EACH30` |
+| src/blob/groups/visual_tire_module/rocket.c:510, 516, 522 | AnimateRocketFlame | the flame's shrink, −(Random(.025) + .01) a frame | changed | `PC_FSCALE` |
+| visual_tire_module (rocket.c, anim_tire_donor.c:243, buffer_swap.c) | AnimateFrame, anim_state_update, buffer_swap | translucency by a flag toggled each frame | unchanged | the alternation is the effect: 30 Hz at 60, 15 at 30 |
+| src/blob/groups/car_checkpoints/car_checkpoints_func_800F8EC8.c:150, 170 | func_800F8EC8 (the checkpoints) | the distance, a sum of moves; a crossing's time within the frame | unchanged / time | finer at 60 (7.4) |
+| src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c:74-96 | func_800D1AB0 | the places | unchanged | made again each frame |
+| src/blob/groups/camera_scene_manager/group.c:4276, 4287, 4083-4241 | camera_scene_manager, the trick scores | the stunt idle and combo timers; points by model time | time | |
+| src/blob/groups/camera_scene_manager/group.c:3943-4048 | func_800C2430, 26C4, 2944 | the trick detectors' sums of the car's rotation; a full turn off on a trick | unchanged | rate-independent sums; events |
+| src/blob/func_800E7DD0.c:56, 63 | func_800E7DD0 | the race end's settle timer | time | |
+| src/blob/groups/update_game/countdown.c:171-325 | countdown | the race's state machine | time | deadlines in retraces, model time |
+| src/blob/groups/countdown/countdown.c:112, 115 | animCountdownTimer | the beeps; the blink by the retrace count | delta | |
+| src/blob/groups/credits_scroll_grp/gr3_84d4.c:120; gr3_9f54.c:185-188 | animLapTimeText, animFlag | the lap time's display, the flag's frames by dt × 1000 | time | |
+| src/blob/race_countdown_display.c:116 | race_countdown_display | `laps++` | unchanged | a checkpoint event |
+| src/blob/groups/car_checkpoints/race_tail.c:148 | render_viewport_init | `numCrashes++` | unchanged | once a crash |
+| **Effects** | | | | |
+| src/blob/hud_render.c:278, 284, 286 | hud_render | the car glow's pulse, ±0.04 and ±0.03 a frame | changed | `PC_FSCALE` |
+| src/blob/hud_render.c:288, 291 | hud_render | the glow's 15-frame cycle | changed | `PC_ON30`, `PC_EACH30` |
+| src/blob/hud_render.c:322 | hud_render | a puff's fade, alpha −9 a frame (u8) | changed | `PC_EACH30` |
+| src/blob/hud_render.c:326-328 | hud_render | a type-4 puff's jitter, three random draws a frame | changed | `PC_EACH30` |
+| src/blob/hud_render.c:329, 350, 352 | hud_render | the puffs' growth, +0.05 and +0.03 a frame | changed | `PC_FSCALE` |
+| src/blob/hud_render.c:262, 312, 331, 354-356 | hud_render | the puffs' timers, life and motion | time | |
+| src/blob/groups/entity_spawn_init/entity_spawn_init.c:210 | entity_spawn_init (StartSmoke) | the continuous spawns each frame: tire smoke, dust (its every second or third call, its fading colour), the exhaust trail; their random draws | changed | at 60 on the frames that complete a 30 Hz frame (`PC_ONLY`); a blast's burst (an event) and the latched wheel effect at any frame |
+| src/blob/groups/func_8008B640/group.c:3824, 3825, 3831 | physics_velocity_integrate_a | the backfire flame's frame, +1 a frame, a random one at 3, −1 to die out | changed | `PC_STEPS`, `PC_IF30` |
+| src/blob/groups/blast/blast.c:291 | entity_physics_update (AnimateBlast) | a blast on no car steps every frame, its 1/30 s timer bypassed | changed | `PC_EACH30_IF` |
+| src/blob/groups/blast/blast.c:290-296 | entity_physics_update | a blast on a car, a step every 0.0333 s | time | |
+| src/blob/entity_collision_detect.c:111-135 | func_80090B68 (the blast ring) | its phases every 0.0333 s | time | |
+| src/blob/entity_update_callback.c:141, 171-208 | entity_update_callback (AnimateNewBlast) | life and steps behind a 0.0333 s gate | time | |
+| src/blob/audio_channel_setup.c:109-114; func_800947F0.c:19; func_800B7FF8.c:19; func_8010E0FC.c:213-215; func_8010E694.c:821-823; func_8010C974.c:206-254; func_8010E4E4.c:135-139 | the animated objects, coins, icons | timers, phases, spins by rate × dt | time | |
+| src/blob/race_setup_1.c:89, 174 | race_setup_1 | the palette and object animations' delays | time | |
+| src/blob/race_setup_1.c:154, 160 | race_setup_1 | a texture scroll that runs every few 30 Hz frames adds step × the frame's retraces | changed | `PC_SCROLL_RETRACES`: the N64's 2 at 60; every frame (ticks 0) it was by the retraces already |
+| src/blob/groups/particle_knot/group.c:849-1000 | particle_system | LOD and distance fade | unchanged | made again each frame |
+| **Front end and HUD** | | | | |
+| src/ovl_a/groups/cleanup_colortrace/group.c:644, 917 | func_803A1EAC (the car select) | the frames since every player was ready, the screen leaving at 10 | changed | `PC_EACH30` (at 60 the race began 11 retraces early) |
+| src/ovl_a/groups/cleanup_colortrace/group.c:1608 | func_8039EF08 | the cars turned to the front, angle −= angle/(frames left − 1) a frame | changed | `PC_EASE_DIV`: a·(1 − (1 − 1/n)^f) |
+| src/ovl_a/groups/runtime_a_c93c_closure/group.c:820-822 | func_8038A634 (SetFogIntensity) | the fog colour, an integer tenth of the way a frame | changed | `PC_EACH30` |
+| src/ovl_a/groups/runtime_a_c93c_closure/group.c:739-767, 966-976, 1340, 1461-1508 | the track select | the map's angle, the carousel, the fog height, the buttons | time | the carousel `pos += frames·(target − pos)/10`, frames = dt·30: at 60 0.9025 of the way a 30 Hz frame against 0.9 |
+| src/blob/groups/input_aux/countdown_handler.c:98 | countdown_handler | the "controller removed" scroller, a pixel a frame | changed | `PC_SCROLL_DEC`: `PC_STEPS(1)` |
+| src/blob/groups/controller_poll/group.c:3796 | controller_poll | the frames of input skipped | changed | `PC_EACH30` |
+| src/blob/groups/controller_poll/group.c:3834 | controller_poll | a held button's repeat, every 0.2 s of retraces | delta | |
+| controller_poll, func_800E7134 (gPrevPressed) | controller_poll | a press: the model thread ORs each retrace's in, the frame takes them once | unchanged | a press registers once at any rate |
+| the menus' screens: optionscr_buttons/buttons.c:169-232, physics_sym/group.c:135-197, controlscr/target.c:107-157, audio_options_menu/func_800D7634.c:103-162, runtime_a_callers_deep/group.c:730-964, seven_option_group/eligibility.c:103-142, seven_option_init/group.c:85-125, text_helpers/group.c:450, 602-713, start_screen/group.c:378-452, availability_refresh/group.c:503-597, cleanup_colortrace/group.c:1211-1256, 1595-1622 | each screen's updateButtons | the buttons' flips (4π·dt), slides (180·dt), the cursor's spin (2π·dt) and slide (its speed from the distance left, × dt) | time | |
+| the same screens' control functions | (each screen's control) | selection, values, the cheat code's steps | unchanged | edges and the input's repeat edges |
+| src/blob/func_80109A60.c:172 | func_80109A60 | a blink from the retrace count | delta | |
+| src/blob/func_800FC9F8.c:81-82 | func_800FC9F8 | the HUD's point list scroll by dx·dt | time | |
+| src/blob/groups/menu_save_options/group.c:764 | SaveServer | a two-frame wait before the first pak scan | unchanged | unseen: 2 retraces at 60 |
+| src/blob/groups/demo_pair/demo.c:119, 190; showhud.c:196-200 | the attract demo, its credits | its 30 s deadline; the credits' page switch | time | |
+| **Battle and stunt (runtime image B)** | | | | |
+| src/ovl_b/groups/shots/shots.c:325-331 | ElevateGun | the guns' yaw and pitch, ±0.01 a frame | changed | `PC_FSCALE` |
+| src/ovl_b/groups/shots/shots.c:530 | _UpdateShotObject | a bounced mine's spin, 0.18 a frame | changed | `PC_FSCALE` |
+| src/ovl_b/groups/shots/shots.c:556 | UpdateDefense | the shield's spin, −0.005 a frame | changed | `PC_FSCALE` |
+| src/ovl_b/groups/shots/shots.c:738-739 | UpdateShots | a mine's drag, vel ·= 0.9 a frame | changed | `PC_FILTER` |
+| src/ovl_b/groups/shots/shots.c:972-978 | UpdateShots | a new shot's first frames, flags 0x10 → 0x20 → 0x40, one a frame | changed | `PC_EACH30` |
+| src/ovl_b/groups/shots/shots.c:1069 | ShotUpdate | the reload, set at each shot, −= dt | changed | `PC_DT30`: counted in 30 Hz frames, so it ends where the N64's frames do (0.0666667 s: 6 retraces, not 5; a machine gun's 10 shots a second, not 12) |
+| src/ovl_b/groups/shots/shots.c:540, 557, 720-903, 1014-1023 | UpdateDefense, UpdateShots, AnimateCase | lifetimes, motion by vel·dt, gravity, homing, the sonic shot's scale per 0.0333 s, casings | time | |
+| src/ovl_b/groups/runtime_b_nearest_steering/group.c:93-96 | func_8038DDDC (the homing missile) | its turns, ±0.04 and ±0.03 a frame | changed | `PC_FSCALE` (not run in the coverage) |
+| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:113, 125, 128 | UpdateInvs | the invisibility fade, alpha ∓8 a frame | changed | `PC_STEPS(8)` |
+| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:138 | UpdateInvs | `countdown--`, the shot's flash | changed | `PC_EACH30` |
+| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:118, 130, 158, 190, 222 | UpdateInvs, the power-ups | fade timers, phase timers | time | |
+| src/ovl_b/groups/runtime_b_trail/group.c:84 | func_8038CB20 | a fade whose interval is 0 steps every frame | changed | `PC_FRAME_INTERVAL`: 1/30 s at 60 |
+| src/ovl_b/groups/runtime_b_trail/group.c:74, 82, 102 | func_8038CB20 | fades and trail lifetimes | time | |
+| src/ovl_b/func_80392894.c:157 | animStuntPoints | the bonus text, 11 frames a count | changed | `PC_EACH30` |
+| src/ovl_b/func_803936A8.c:130 | the deaths mode's point events | `age++`, a slide over 40 frames | changed | `PC_EACH30` (not run in the coverage) |
+| src/ovl_b/groups/weapons/weapons.c:356-429; runtime_b_status_scene/group.c:287 | AnimateWeapon, func_80391B00 | the muzzle flash, rip interval; the stunt coin slide | time | |
+| src/ovl_b/func_80392FE4.c:131, worlddam/worlddam.c:76-142, the rest of src/ovl_b | animHealth, the decals, set-up, drawing | their positions and counts | unchanged | set each frame, events, init |
+| **Everything else** | | | | |
+| src/blob/groups/billboard_render/func_800F207C.c:54-127; func_800D2054.c:41; highscore.c:278-290; func_800D18D8.c:18; car_setup_confirm.c:109-113 | the name entry, the lap times, the records' names, a serial, the places locked at the finish | the cursor and the name on repeat edges and presses; a lap's time; layout; once an event | unchanged | events and drawing |
+| src/rom (libultra, MusyX, the controller pak, gu) | (the drivers) | loop indices, locks, audio-time fades, retries | unchanged | nothing steps per game frame |
+| the remaining per-frame functions (775 with none of the lines searched) | (all) | pool allocators, display lists, text, lookups, the HUD's values made from the cars each frame | unchanged | nothing steps a frame |
+
+Shared with the model thread and left alone (no per-frame step in them, or the step is the physics'):
+`menu_options_screen` (the car-car push), `race_countdown_display`, `stunt_combo_display`, `camera_follow_path` and
+`func_800C4F68` (the resurrection's place), `func_800ADCE0`, the math helpers.
+
+### 7.4 What the game thread feeds the physics
+
+The car physics runs per retrace on the model thread, and the per-frame logic changes it in a few places. At 60 those
+decisions come every retrace, at retraces a run at original doesn't decide at:
+
+- **DoDrones** (`render_large_objects`, once a frame): each drone's time boost and brake scale, which the drones'
+  physics reads, and through set_catchup (`func_800DE860`) each human car's catch-up scale in a race of more than one
+  player (in a retail two-player battle the scale of car 0 differs from tick 1). Its rate limits are scaled (7.3); its targets come from the places, which are made each frame
+  (`func_800D1AB0`), and in the countdown from the places' order alone. In every synthetic race with drones the
+  physics first differs at model tick -59 or -58, in the countdown, by a drone's time boost (0x7F0 in the model
+  record: found by dumping the model records each retrace at both rates).
+- **The checkpoints** (`func_800F8EC8`, once a frame): a crossing is a change of side of the next checkpoint's plane
+  between two frames, within its radius at the second; the last checkpoint passed is where a resurrection puts the
+  car (`func_800C4F68`, SetResurrectionData). In the synthetic attract demo, car 0's last checkpoint is 1 at 60 from
+  tick 2 and 0 at original, and at tick 214 the drone that resurrects is put at another corner of the square loop.
+- **The random numbers.** `rand` (seed `D_8011735C`, the static copies in `entity_update_callback.c`,
+  `func_8008B2E4.c` and others) is drawn by both threads: 5,059 times by the model thread (a resurrection's offset,
+  `resurrect.c:505`; sounds) against 24.5 million by the game thread (effects) in the 106 coverage runs. At 60 the game
+  thread draws at other moments (the spawns and jitters above draw at the N64's rate, the flames and flickers each
+  frame), so the model thread's numbers differ.
+- **Battle:** a sonic shot pushes the car it hits from the game thread (`func_8038D498`), at the frame it finds the
+  hit.
+- **The car records** (`pc_cars`): the game thread makes them again once a frame from the model records
+  (update_game_data), and the model thread reads parts of them: the region a resurrection takes its place from, and in
+  a retail race of one car alone some field at a step 62 s in (7.5), not traced further.
+
+None of these is a fault at 60: each is the N64's logic deciding once a frame, and at 60 a frame is a retrace. The
+player's controls are read by the model thread each retrace (`ControllerUpdate`), the race's clock is the model
+thread's (`D_801543CC`, ticks × 1/60), modelrun and the countdown's deadlines are in retraces: a race without drones,
+resurrections or shots has the same physics to the bit (7.5). The ghosts record and replay the controls in the model
+thread too (`func_800E5D64`: per model step, with the recording's retrace time in the header), so a ghost is the same
+data at either rate (7.5).
+
+### 7.5 Proof
+
+**The default is the N64's game.** With the setting at `original` every macro gives the N64's value and the
+scheduler its 2U, so the game must run as before, to the bit:
+
+| Check | Result |
+|---|---|
+| `synth_compare.py --same --runs 2`, a build of 0d7d016 against the branch, Debug, rocky (x86-64, GCC 14), every synthetic path (the 25 and `solo`) | the same trace, every run: 26 of 26 |
+| the same, Pi 5 (aarch64, GCC 12), under the lock | the same trace, every run: 26 of 26 |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (MORECARS.md 10.4's six), `--runs 2` | the same trace, every run, each reaching its state: 6 of 6 |
+| the N64 IDO check (`tools/port/ido_check.sh`, rocky, 2405546) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| `n64_neutral.py --base 09da2f0` | passes: 1,017 files, 92 code-exact, 925 shifted, none failing |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), `bounds_check`, over the game, rocky | no open findings, base and branch alike: offset_check 59,618 accesses on 3,489 storages (base 59,458 on 3,486: the macros' reads of `pc_fps60`, `pc_frame_scale`, `pc_frame_steps`), layout_check 48,363 (48,203); endian_check's 2 open value conflicts in 1 storage and 3,525 puns the same, check-loader 96 places, 0 wrong; alias_check none open; bounds_check none new, the same counts as the base's (93, 7, 54, 41; 0 two offsets, 0 clamped); `index_check` 0 not reviewed, `weak_copies_check` 0 whose copies differ |
+| ctest, rocky: Debug `build/pc`, RelWithDebInfo `build/opt`, at 2405546 | 262 of 262 each (`assets_rom` skipped: no ROM there), 255 before and 7 new: `frontend.fps`, `assets_fps`, `fps_physics`, `hfr_timing_game60`, `hfr_paced_game60`, `audio_realtime_game60`, `synth_boot_solo` |
+| Windows cross build (Pi, mingw-w64, a fresh configure, the fetched SDL2) | builds, every test program too (3,678 steps); gen_data's check of the PE: OK, 26 decoupled, 1 reserved in the window. Its first run found the test stand-ins' weak data unresolved on PE (`tests/support.c`, fixed) |
+
+**The game at 60 against 30: the physics.** `fps_compare.py` runs a press script at original and at 60 on the
+virtual clock with `--log-physics 1`, and compares each car's position and velocity, lap and place model tick by
+model tick (the model's own clock, which counts the race's retraces from its start), the states in order and the
+retraces they come at. ctest's `fps_physics` runs eight paths (`solo`, `stunt`, `battle2p`, `race`, `demo`, `menu`,
+`screens`, `raceend`), the physics required to agree on the first three.
+
+Along the 26 synthetic paths (rocky, the final build): 303 state changes, in the same order on every path; 78 at the
+same retrace, 185 a retrace earlier at 60 (a frame comes every retrace, so a press or a timer is seen at the first),
+and 40 five or six earlier: the countdown and the race, after PrePlay's load, which counts 4 frames (8 retraces at
+original, 4 at 60).
+
+| Paths | Physics |
+|---|---|
+| `solo` (one player, the gas and full steering held), `stunt`, `battle2p`, `battlequit` | the same to the bit at every model tick both reach: 2,880, 3,990, 3,990 and 392 ticks, with 1, 1, 2 and 2 cars |
+| the 16 with drones: `race`, `race12`, `drive`, `race2p`, `race2p12`, `race3p`, `race4p`, `circuit`, `circuit12`, `pak`, `pak4p`, `pause`, `pause12`, `raceend`, `raceend12`, `rumble2p` | the same up to model tick -59 or -58, in the countdown (151 or 152 ticks): a drone's time boost from DoDrones' place order (7.4) |
+| `demo`, `demo12` (the attract demo, drones only) | the same up to tick 213; at 214 a drone resurrects at the checkpoint the game thread last saw it pass, another corner of the loop at 60 (7.4) |
+| `menu`, `screens`, `idle`, `cheats` | no race |
+
+On the retail cartridge (Pi 5, `--fast`): the front end's states come at the same retrace at 60 as at original (the
+scripts' presses fall on retraces both see), PrePlay 1 earlier and the countdown and the race 5:
+
+| Script | States | Physics |
+|---|---|---|
+| `stunt` (track 14) | 13, the same order | the same to the bit at every one of 3,991 model ticks, 1 car |
+| `r_menus`: the main menu's four screens, the player, mode, track and car selects and back | 22, the same order, every one at the same retrace | no race |
+| `battle2p` | 13, the same order | the same to tick 1; at tick 2 car 0's velocity differs in its last bits: its catch-up scale, which set_catchup filters once a frame in a race of two players (7.4) |
+| `r_solo`: one player alone, the gas and full steering pressed in the countdown (32 s) and held | 13, the same order | the same to tick -155: the press is at a fixed retrace, and the countdown began 5 retraces sooner at 60 (PrePlay's load), so the gas reaches the car (which revs in the countdown on this cartridge) 5 ticks later. Not a difference of the physics: of the script |
+| `r_solo2`: the same, the gas alone, held from the car select's A on, before the cars exist | 13, the same order | the same to the bit at every one of 3,931 model ticks (-210 to 3721: 65 s of driving); then the step to tick 3722 differs, its model record the same at 3721 in both runs: what it read that differed is in the car record (`pc_cars`), which the game thread makes again once a frame (at 30 every other retrace, so the two runs' car records differ every other tick throughout, 20 to 118 bytes); which of the record's fields the step read was not traced |
+| `rt0_1p`: one player and 11 drones (12 cars), the gas held | 13, the same order | the same to tick -203: the drones' time boost |
+| `r_demo`: the attract demo, three times | 12, the same order, at the same retraces | the same to tick 3: the drones |
+| `r_finish`: one player holding the gas (no steering: it rides the walls and resurrects), 5 drones, 3 laps, to the results and the game over screen | 15, the same order; the results 984 retraces later at 60 (16.4 s): the player's own car | differs from tick -195 (the drones). The drones' laps keep their pace: the first lap's five in 63.03, 64.97, 66.53, 73.97, 84.33 s at original and 63.25, 65.05, 66.55, 73.90, 84.62 s at 60; the leader's third at 186.10 and 186.75 s. The player's car, bouncing off the walls and put back on the road, finishes its laps at 98.6, 180.2, 274.3 s and 96.2, 188.0, 291.0 s: last of 6 in both |
+
+So nothing but the per-frame logic's own decisions differs. Before the fixes of 7.3 the car select left after 10
+frames, and the race began 11 retraces earlier at 60 (15 for the countdown, 16 for the race); now every state up to
+PrePlay comes within a retrace of original's, and the two after it 4 retraces more, PrePlay's load counting frames.
+Without the fixes, DoDrones' rate limits moved the drones' boost twice as fast in real time.
+
+**The game at 60 against 30: real time.**
+
+- The race clock is the model's time, ticks × 1/60, and the model ticks once a retrace: it keeps the wall clock as
+  the retraces do, 60.00 a second in every real-time run here, with the game at 60 as at original
+  (`audio_realtime_game60`, `hfr_paced_game60`).
+- The front end's timings: every screen change comes within a retrace of original's (the table above): the start
+  prompt's 3 s, the attract demo's 30 s and its 5 s wait, the idle overlay's 300 s, the menus' slides and blinks
+  (by the frame time, the retrace clock or 7.3's fixes).
+- The camera: two frames of one retrace follow a car standing still as one of two does, to rounding; behind a car at
+  60 feet a second the lag is 3.436 feet at 60 against 3.000 at 30 (e = 0.6; `assets_fps`).
+
+**Ghosts.** A ghost is the model thread's: `func_800E5D64` (called from model_iteration each model step) records the
+car's gear, steering, gas and brake once a model step, a byte each, with the retrace time in the ghost's header
+(`frameTime`), and plays them back once a model step into the car's controls; nothing of it is per frame. The model's
+steps are the same to the bit at both rates (the races above that the game thread doesn't steer), so a ghost recorded
+at 60 is the same data as one recorded at original, and either plays back the same at either rate. Not run on the
+retail cartridge: a ghost race (gRace 2) on a fresh controller pak, with no player profile, ends at the game over
+screen without saving a ghost, at 60 as at original (`build/scratch/press/r_ghost2.press`: the pak unchanged after
+380 s), and making a profile through the menus was not scripted.
+
+**Retail, the game at 60** (Pi 5, `--fast`, the press scripts and logs in the ignored `build/scratch/`; tracks 4 and 5
+unlocked by gdb as the track select opens, as MORECARS.md 10.4 did):
+
+| Run | Result |
+|---|---|
+| each race track, 0-5, one player and 11 drones, then two players and 10 drones (`game.cars = 12`): 60 s with the gas held (12 runs) | each reaches its race with 12 cars on its track; 5,969 of the game's frames in 6,001 retraces; `cars_check`: 12 cars at places 0-11 once each, every car moved; no fault. The pools' high-water marks over the 12: scene nodes 533 of 600, frame matrices 552 of 1,200, display list 4,403 of 8,000 commands, persistent matrices 210 of 277, environment visuals 78 of 100, sprites 128 of 200, frame lookats 24 of 32 |
+| the front end, the attract demo and a race to the results at 60 (`r_menus`, `r_demo`, `r_finish` above), and screenshots (`--scale 2`) of each, looked at | the front end through the main menu's four screens and the selects, every screen change at original's retrace; the audio screen with its four rows and values and the cursor on the first, as the N64 draws it; the attract demo three times over 120 s, each 30 s, a drone's camera in a tunnel with PRESS START over it; the race to its third lap and the results (the last lap at 4:40.46 on the race clock as the race ends), then the game over screen; a race of 12 at 10.5 s: the car on the grass with its boost flame and dust, the HUD's 99 mph, 12/12, LAP 1/3, the map and the clock, as the same moment at original shows them |
+
+
+### 7.6 With a high frame rate
+
+`video.frame_rate` draws its frames between the game's two last (section 2); with the game at 60 the two are a
+retrace apart. `gfx_interp.c` takes the period from the frames' retraces (1 to 4, else 2:
+`pcgfx_hfr_frame`, `pcgfx_hfr_wants_next`), so at 60 a frame shown between two at 120 is halfway in one retrace; its
+cut and jump thresholds are per retrace times the period (`CUT_MOVE_PER_RETRACE`, `JUMP_MOVE_PER_RETRACE`), and the
+turn and zoom ones per frame, which a shorter frame meets more easily. With `video.frame_rate = 60` and the game at 60
+every tick shows the game's own frame.
+
+| Test (rocky) | Result |
+|---|---|
+| `hfr_timing_game60`: race2p, drive and demo with the game at 60, `video.frame_rate` original against 120, on the virtual clock | every state, status and result line the same; 1,117, 1,361 and 836 frames drawn between two at 120 |
+| `hfr_paced_game60`: the synthetic race in real time under the 59.94 Hz vsync model, the waits precise, at display, 60 and 120 | paced by the vblanks; 36, 77 and 41 of 1,798 vblanks lost to skipped ticks; 674, 603 and 672 frames drawn between (a 59.94 Hz display's vblanks drift through the 60 Hz retraces, so at any rate most fall between two of the game's frames); the game's own frames 1,772, 1,770 and 1,769 in 1,800 retraces; the retraces 60.00 a second, none caught up; the audio's bounds |
+| the same race, `video.frame_rate` original, the same vsync swap after each of the game's frames, precise waits (`audio_realtime_game60`) | 1,738 of the game's frames in 1,800 retraces, the retraces 60.00 a second, the audio's bounds |
+| the same, the model's 15.6 ms waits (a Windows without the high-resolution timer) | 1,451 of 1,800 at original, 1,084 at display: the waits overshoot by up to a retrace, and the frame's work no longer fits in one; the retraces and the audio held |
+
+So `original` and 60 shown with the game at 60 are both right: at original each of the game's frames is shown at its
+retrace, at 60 (or display) each vblank shows the game's frame for its moment or one between. The period logic, the
+thresholds and the pacing needed no change.
+
+### 7.7 What it costs
+
+At 60 the game thread runs its frame's logic and builds its display lists 60 times a second, and the renderer draws
+each: twice the work of original a second, the model thread's the same. On rocky (the synthetic race in real time)
+the game keeps a frame a retrace (7.6). On the Pi 5 with the retail cartridge, in real time, headless, 90 s from the
+boot, one run at a time under the lock (the host is shared, so its numbers vary run to run), 12 cars (`game.cars = 12`,
+the track select's Drones raised), the gas held; the game's frames per retrace in each state, the retraces, the audio
+(the null output, drained in real time: this build has no SDL2) and the pools' high-water marks:
+
+| Run | Front end | Countdown | Race | Retraces in 90 s | Audio | Pools (most used) |
+|---|---|---|---|---|---|---|
+| one player, 11 drones, at 60 | 0.98-1.00 | 0.66 | 0.79 (47 frames a second) | 5,400; 36 caught up, none dropped | 123 underruns, 486 ms of silence | scene nodes 445 of 600, display list 1,979 of 8,000 |
+| the same at original | 0.50 | 0.50 | 0.50 | 5,391; 8 caught up, 9 dropped | 97 underruns, 417 ms | the same within 20 |
+| four players, 8 drones, at 60 | 0.99-1.00 | 0.57 | 0.58 (35 frames a second) | 5,400; 152 caught up, none dropped | 580 underruns, 2,974 ms | scene nodes 212, frame matrices 444 of 1,200, display list 2,774 |
+| the same at original | 0.50 | 0.49 | 0.50 | 5,400; 54 caught up, none dropped | 420 underruns, 2,576 ms | the same |
+
+So the Pi 5 keeps 60 in the front end, but not in a race of 12 cars: one player gets 47 frames a second and four
+players 35, the rest of the frames two retraces long. The game keeps its speed either way (a frame of two retraces at
+60 is the N64's frame: its scale 1, its step 1), and the retraces keep their 60 a second; the audio's underruns grow
+by a quarter to two fifths over original's, which already has them on this shared host. A slower host is better left at
+`original` there, or at `video.frame_rate = 60`, whose frames between cost about half a graphics task (section 5).
+The pools hold at either rate: they are made again each frame, and a frame of one retrace fills them no more than
+one of two (the 12 races of 7.5: at most 533 scene nodes of 600, 552 frame matrices of 1,200, 4,403 commands of
+8,000, 24 frame lookats of 32; no pool ran past its end).
+
+### 7.8 What's left
+
+- **Physics with drones, resurrections or shots** is not the same to the bit at 60 as at original, and can't be: the
+  game thread decides them once a frame, from places, checkpoints and random numbers it shares with the model thread
+  (7.4). The drones' catch-up keeps its rate (7.3); in the one retail race run to its finish at both rates the
+  drones' laps came within 0.3 s (7.5), not measured over many races.
+- **PrePlay's load counts 4 frames**: 4 retraces at 60, so the countdown and the race begin 5 or 6 retraces sooner
+  than at original (a loading screen; not changed).
+- **First-order steps.** A step by the frame time toward a target, `pos += dt·k·(target − pos)` (the track select's
+  carousel, some cursors), closes a little more of the way per 30 Hz frame in two steps: 0.9025 against 0.9 for the
+  carousel. Not changed.
+- **The coverage.** The audit read the lines that step state in every function the 106 runs ran per frame, with the
+  rest of their files' per-frame functions, and every use of the frame time. Per-frame code that no run reached, in
+  a file with no such line (parts of the obstacle mode, the records' screens past what the scripts visit, the
+  credits), was not read line by line.
+- **A real display** at 60 with vsync: checked only headless, under the vsync model (59.94 Hz: section 2's). Under
+  the model the game at 60 kept 0.97 to 0.98 of its frames with precise waits, and 0.81 (original) or 0.60 (display)
+  with the 15.6 ms waits of a Windows without the high-resolution timer: there a fifth to two fifths of its frames
+  take two retraces.
+- **Windows** with the retail cartridge at 60: the cross build builds; not run.
+- **The Pi 5** doesn't keep 60 in a race of 12 cars (47 frames a second with one player, 35 with four: 7.7); a host
+  that can't is not told so, and the setting doesn't fall back on its own.
+- **Ghosts** on the retail cartridge: not recorded and played back across the rates (7.5): a profile on the pak first.
+

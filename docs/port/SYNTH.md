@@ -210,6 +210,7 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `battlequit` | two players in battle, quit from the pause screen: the race end gives each player's packet back (QA.md 5), the game over screen | 0x800000 | 7.5 s (Pi) |
 | `cheats` | the main menu's cheat code, five down to its new option, the cheat screen (0x8000000); cheat 0's code and RIGHT switch it; B back (`# visits:` 0x8000000) | back on the main menu | 1.7 s (Pi) |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
+| `solo` | one player alone on track 0 (the track select's Drones option down to 0), the gas and full right steering held from before the race begins: a race nothing on the game thread steers, for `game.frame_rate`'s physics comparison ([FRAMERATE.md](FRAMERATE.md) 7, `fps_physics`) | 0x400000, 900 frames: 1 car | 1.6 s |
 | `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
 
 **Screenshots.** `--screenshot-at N` of a race now shows the game's own display lists drawn: its matrices and
