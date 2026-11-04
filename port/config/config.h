@@ -99,6 +99,7 @@ typedef struct PcSettings {
     int draw_distance;              /* RUSH_GFX_DRAW_DISTANCE: how far the game's distance limits reach */
     int detail;                     /* the most detailed model of each thing drawn */
     int fog;                        /* RUSH_GFX_FOG */
+    int texture_lod;                /* RUSH_GFX_TEXTURE_LOD: PC_TEXLOD_*, the mip level a pixel shows */
     /* [audio] */
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */

@@ -317,6 +317,10 @@ char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
         for (n = 2; n <= last; n++)
             put(&s, "uniform sampler2D uTex%d;\n", n);
         put(&s, "uniform vec4 uLodA[%d];\nuniform vec2 uLodB[%d];\n", GFX_LOD_MAX, GFX_LOD_MAX);
+        /* video.texture_lod (gfx_detail.c): the LOD's step per internal pixel times uLodScale (uScale at original:
+         * N64 pixels; 1 at sharp and anisotropic: the window's own), and uLodTaps samples along the footprint's
+         * longer axis (1, or PC_TEXLOD_TAPS at anisotropic) */
+        put(&s, "uniform vec2 uLodScale;\nuniform int uLodTaps;\n");
         put(&s, "vec4 lodtex(int n, vec2 st) {\n");
         for (n = 0; n < last; n++)
             put(&s, "    if (n == %d)\n"
@@ -348,10 +352,20 @@ char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
         /* The RDP's LOD: the largest step of s or t (texels of the first level) to the next pixel across or down.
          * Below 1 (magnified) the first level, fraction 0; past the last level that level, fraction 1; else the
          * level of the step's power of two, the next one, and the fraction between them. In N64 pixels (a step
-         * across an internal pixel times the scale, per axis): every internal scale, a fraction too, shows the
-         * levels the N64 shows. */
+         * across an internal pixel times the scale, per axis, uLodScale = uScale at original): every internal
+         * scale, a fraction too, shows the levels the N64 shows. video.texture_lod sharp counts the window's own
+         * pixels (uLodScale 1), which at an internal scale k takes the level log2(k) finer; anisotropic also
+         * divides the step by the footprint's ratio of its longer axis to its shorter (at most uLodTaps) and takes
+         * uLodTaps samples along the longer one, so a surface seen edge on, the far road, keeps its detail. */
         put(&s, "    vec2 dx = dFdx(uv.xy), dy = dFdy(uv.xy);\n"
-                "    float lod = max(max(abs(dx.x), abs(dx.y)) * uScale.x, max(abs(dy.x), abs(dy.y)) * uScale.y);\n"
+                "    float lod = max(max(abs(dx.x), abs(dx.y)) * uLodScale.x, max(abs(dy.x), abs(dy.y)) * uLodScale.y);\n"
+                "    vec2 lodax = vec2(0.0);\n"
+                "    if (uLodTaps > 1) {\n"
+                "        float la = length(dx * uLodScale.x), lb = length(dy * uLodScale.y);\n"
+                "        float r = clamp(max(la, lb) / max(min(la, lb), 1e-6), 1.0, float(uLodTaps));\n"
+                "        lod = lod / r;\n"
+                "        lodax = la >= lb ? dx : dy;\n"
+                "    }\n"
                 "    int l0 = 0, l1 = 0;\n"
                 "    lodf = 0.0;\n"
                 "    if (lod >= 1.0) {\n"
@@ -366,8 +380,21 @@ char *pcgfx_combine_glsl(const GfxShaderKey *k, int gles, int glsl_version) {
                 "            lodf = clamp(lod / exp2(lg) - 1.0, 0.0, 1.0);\n"
                 "        }\n"
                 "    }\n"
-                "    vec4 t0 = lodtex(l0, uv.xy);\n"
-                "    vec4 t1 = lodtex(l1, uv.xy);\n",
+                "    vec4 t0, t1;\n"
+                "    if (uLodTaps > 1) {\n"
+                "        t0 = vec4(0.0);\n"
+                "        t1 = vec4(0.0);\n"
+                "        for (int i = 0; i < uLodTaps; i++) {\n"
+                "            vec2 p = uv.xy + lodax * ((float(i) + 0.5) / float(uLodTaps) - 0.5);\n"
+                "            t0 += lodtex(l0, p);\n"
+                "            t1 += lodtex(l1, p);\n"
+                "        }\n"
+                "        t0 /= float(uLodTaps);\n"
+                "        t1 /= float(uLodTaps);\n"
+                "    } else {\n"
+                "        t0 = lodtex(l0, uv.xy);\n"
+                "        t1 = lodtex(l1, uv.xy);\n"
+                "    }\n",
             k->lod_levels - 1, k->lod_levels - 1);
     } else {
         put(&s, "    vec4 t0 = %s;\n", (k->flags & GFX_KF_TEX0) ? "texture(uTex0, uv.xy)" : "vec4(0.0)");

@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "gfx_internal.h"
+#include "pc_detail.h"   /* PC_TEXLOD_* (video.texture_lod) */
 
 #ifndef GL_DRAW_FRAMEBUFFER
 #define GL_DRAW_FRAMEBUFFER 0x8CA9
@@ -138,8 +139,8 @@ static struct {
 typedef struct {
     int set;
     float prim[4], env[4], fog[4], blendc[4], fill[4];
-    float prim_lod, lod_frac, noise, scale[2];
-    int target[4];
+    float prim_lod, lod_frac, noise, scale[2], lod_scale[2];
+    int target[4], lod_taps;
     float lod_a[GFX_LOD_MAX][4], lod_b[GFX_LOD_MAX][2];
 } GfxUniforms;
 
@@ -147,6 +148,7 @@ struct GfxShader {
     GfxShaderKey key;
     GLuint prog;
     GLint u_prim, u_env, u_fog, u_blend, u_fill, u_primlod, u_lodfrac, u_noise, u_scale, u_target, u_loda, u_lodb;
+    GLint u_lodscale, u_lodtaps;   /* video.texture_lod (gfx_combine.c's LOD) */
     GfxUniforms last;
     GfxShader *next;
 };
@@ -824,6 +826,8 @@ GfxShader *pcgfx_gl_shader(const GfxShaderKey *key) {
     s->u_noise = glGetUniformLocation(prog, "uNoise");
     s->u_scale = glGetUniformLocation(prog, "uScale");
     s->u_target = glGetUniformLocation(prog, "uTarget");
+    s->u_lodscale = glGetUniformLocation(prog, "uLodScale");
+    s->u_lodtaps = glGetUniformLocation(prog, "uLodTaps");
     dc_forget();
     glUseProgram(prog);
     glUniform1i(glGetUniformLocation(prog, "uTex0"), 0);
@@ -895,6 +899,20 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     if (sh->u_scale >= 0 && (force || memcmp(U->scale, sc, sizeof(sc)) != 0)) {
         glUniform2f(sh->u_scale, sc[0], sc[1]);
         memcpy(U->scale, sc, sizeof(sc));
+    }
+    if (sh->u_lodscale >= 0) {   /* video.texture_lod: N64 pixels at original, the window's own otherwise */
+        float ls[2] = {sc[0], sc[1]};
+        int taps = pcgfx_cfg.texture_lod == PC_TEXLOD_ANISO ? PC_TEXLOD_TAPS : 1;
+        if (pcgfx_cfg.texture_lod != PC_TEXLOD_ORIGINAL)
+            ls[0] = ls[1] = 1.0f;
+        if (force || memcmp(U->lod_scale, ls, sizeof(ls)) != 0) {
+            glUniform2f(sh->u_lodscale, ls[0], ls[1]);
+            memcpy(U->lod_scale, ls, sizeof(ls));
+        }
+        if (sh->u_lodtaps >= 0 && (force || U->lod_taps != taps)) {
+            glUniform1i(sh->u_lodtaps, taps);
+            U->lod_taps = taps;
+        }
     }
     if (sh->u_target >= 0 && (force || U->target[0] != t->w || U->target[1] != t->h || U->target[2] != t->pw ||
                               U->target[3] != t->ph)) {

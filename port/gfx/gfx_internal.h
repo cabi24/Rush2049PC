@@ -213,7 +213,7 @@ uint8_t pcgfx_outcode(const GfxVtx *v, float xs);
 float pcgfx_fog_alpha(float z, float w, int16_t fog_mul, int16_t fog_off, float za);
 
 /* gfx_detail.c: video.draw_distance and video.fog in the renderer (docs/port/DETAIL.md 3) */
-void pcgfx_detail_init(void);                         /* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG */
+void pcgfx_detail_init(void);   /* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG, RUSH_GFX_TEXTURE_LOD */
 void pcgfx_detail_projection(const float p[4][4]);    /* a projection loaded or multiplied: proj_za, proj_zb */
 void pcgfx_detail_ctx(GfxTriCtx *c);                  /* a triangle's depth map */
 float pcgfx_detail_rect_depth(float d);               /* a rectangle's primitive depth, mapped as the view's */
@@ -405,6 +405,7 @@ typedef struct {
     int frame_rate;         /* RUSH_GFX_FRAME_RATE: 0 the game's own; > 0 frames shown a second; -1 the display's */
     int draw_distance;      /* RUSH_GFX_DRAW_DISTANCE: PC_DRAW_* (the depth range's far plane: gfx_detail.c) */
     int fog;                /* RUSH_GFX_FOG: PC_FOG_* */
+    int texture_lod;        /* RUSH_GFX_TEXTURE_LOD: PC_TEXLOD_* (the mip level's pixels: gfx_combine.c, gfx_gl.c) */
 } GfxConfig;
 extern GfxConfig pcgfx_cfg;
 

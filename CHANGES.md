@@ -6,6 +6,12 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Far textures** (`video.texture_lod`, F1 > Video > Far textures): `original`, the default, picks each texture's
+  smaller copies where the N64 does, for its 320 x 240 screen, so at a PC's resolution the road and the walls a few
+  car lengths ahead were drawn from a copy a quarter or a sixteenth of the size. `sharp` picks them for the window's
+  own pixels; `anisotropic` also keeps the far road, seen edge on, sharp along its length. From the next frame
+  ([DETAIL.md](docs/port/DETAIL.md) 2.7).
+
 - **Saves as files, and ghosts to share** (`game.saves = files`, `--saves files`, F1 > Saves): instead of one
   32 KB controller pak image per player, each profile and each ghost is a file of its own in the player's folder
   (`saves/p1` in the data folder), and the folder keeps any number of ghosts; the game still sees a controller pak,

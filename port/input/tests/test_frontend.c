@@ -629,9 +629,10 @@ static void test_detail(void)
     PcSettings s, t;
     char why[200], v[32];
     static const char *const draws[] = {"original", "far", "max"}, *const details[] = {"original", "high"},
-                             *const fogs[] = {"original", "far", "off"};
+                             *const fogs[] = {"original", "far", "off"},
+                             *const texlods[] = {"original", "sharp", "anisotropic"};
     static const struct { const char *key; const char *const *values; int n; } keys[] = {
-        {"draw_distance", draws, 3}, {"detail", details, 2}, {"fog", fogs, 3}};
+        {"draw_distance", draws, 3}, {"detail", details, 2}, {"fog", fogs, 3}, {"texture_lod", texlods, 3}};
     pc_settings_defaults(&s);
     CHECK(s.draw_distance == PC_DRAW_ORIGINAL && s.detail == PC_DETAIL_ORIGINAL && s.fog == PC_FOG_ORIGINAL,
           "the defaults: original (%d %d %d)", s.draw_distance, s.detail, s.fog);
@@ -647,8 +648,20 @@ static void test_detail(void)
               "%s = huge refused, the last value kept: %s ('%s')", keys[k].key, why, v);
         CHECK(strstr(why, "original") != NULL, "the message names the choices: %s", why);
     }
-    CHECK(s.draw_distance == PC_DRAW_MAX && s.detail == PC_DETAIL_HIGH && s.fog == PC_FOG_OFF,
-          "max, high, off: %d %d %d", s.draw_distance, s.detail, s.fog);
+    CHECK(s.draw_distance == PC_DRAW_MAX && s.detail == PC_DETAIL_HIGH && s.fog == PC_FOG_OFF &&
+              s.texture_lod == PC_TEXLOD_ANISO,
+          "max, high, off, anisotropic: %d %d %d %d", s.draw_distance, s.detail, s.fog, s.texture_lod);
+    pc_settings_defaults(&t);
+    CHECK(t.texture_lod == PC_TEXLOD_ORIGINAL, "texture_lod: original by default (%d)", t.texture_lod);
+    {
+        char *dt = pc_settings_format(&t);
+        CHECK(dt && strstr(dt, "\n; texture_lod = original\n"), "texture_lod's default is written commented out");
+        free(dt);
+    }
+    setenv("RUSH_GFX_TEXTURE_LOD", "sharp", 1);
+    CHECK(pc_settings_apply_env(&t) == 0 && t.texture_lod == PC_TEXLOD_SHARP, "RUSH_GFX_TEXTURE_LOD=sharp: %d",
+          t.texture_lod);
+    unsetenv("RUSH_GFX_TEXTURE_LOD");
     CHECK(pc_settings_assign(&s, "video.draw_distance=Far", why, sizeof why) == 0 && s.draw_distance == PC_DRAW_FAR,
           "--set video.draw_distance=Far: %d", s.draw_distance);
     /* the file: the defaults commented out, the others as settings, read back */

@@ -49,6 +49,27 @@ int pc_gfx_parse_fog(const char *text, int *ok) {
     return PC_FOG_ORIGINAL;
 }
 
+int pc_gfx_parse_texture_lod(const char *text, int *ok) {
+    *ok = 1;
+    if (text != NULL && !strcmp(text, "original"))
+        return PC_TEXLOD_ORIGINAL;
+    if (text != NULL && !strcmp(text, "sharp"))
+        return PC_TEXLOD_SHARP;
+    if (text != NULL && !strcmp(text, "anisotropic"))
+        return PC_TEXLOD_ANISO;
+    *ok = 0;
+    return PC_TEXLOD_ORIGINAL;
+}
+
+/* video.texture_lod: the shader's uLodScale and uLodTaps follow it from the next draw (gfx_gl.c) */
+void pc_gfx_set_texture_lod(int mode) {
+    pcgfx_cfg.texture_lod = mode == PC_TEXLOD_SHARP || mode == PC_TEXLOD_ANISO ? mode : PC_TEXLOD_ORIGINAL;
+}
+
+int pc_gfx_texture_lod(void) {
+    return pcgfx_cfg.texture_lod;
+}
+
 void pc_gfx_set_draw_distance(int level) {
     pcgfx_cfg.draw_distance = level == PC_DRAW_FAR || level == PC_DRAW_MAX ? level : PC_DRAW_ORIGINAL;
     pcgfx.dz_dirty = 1;
@@ -66,7 +87,8 @@ int pc_gfx_fog(void) {
     return pcgfx_cfg.fog;
 }
 
-/* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG (main sets them from video.draw_distance and video.fog) */
+/* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG, RUSH_GFX_TEXTURE_LOD (main sets them from video.draw_distance, fog and
+ * texture_lod) */
 void pcgfx_detail_init(void) {
     const char *e = getenv("RUSH_GFX_DRAW_DISTANCE");
     int ok, v;
@@ -84,6 +106,14 @@ void pcgfx_detail_init(void) {
             pc_gfx_set_fog(v);
         else
             fprintf(stderr, "gfx: RUSH_GFX_FOG=%s is not original, far or off; ignored\n", e);
+    }
+    e = getenv("RUSH_GFX_TEXTURE_LOD");
+    if (e != NULL && *e) {
+        v = pc_gfx_parse_texture_lod(e, &ok);
+        if (ok)
+            pc_gfx_set_texture_lod(v);
+        else
+            fprintf(stderr, "gfx: RUSH_GFX_TEXTURE_LOD=%s is not original, sharp or anisotropic; ignored\n", e);
     }
 }
 

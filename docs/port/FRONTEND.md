@@ -229,6 +229,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.draw_distance` | original | | how far the game draws: `original` (the N64's: its 2,000-ft far plane, the world's visibility tables, each model's distance), `far` (each limit twice as far, more of the track: the cars, their wheels and the scenery further out), `max` (the whole track, every model at any distance) (`RUSH_GFX_DRAW_DISTANCE`; [below](#draw-distance-detail-and-fog-videodraw_distance-detail-fog), [DETAIL.md](DETAIL.md)) |
 | `video.detail` | original | | `high`: each model's most detailed level wherever it is drawn, and in split screen the one-player models and objects (those from the next track) ([DETAIL.md](DETAIL.md) 2.5) |
 | `video.fog` | original | | `original` (the game's: the track select's fog option), `far` (its start and end twice as far) or `off` (and with the fog option the sky dome the game leaves out in a fog, from the next track) (`RUSH_GFX_FOG`; [DETAIL.md](DETAIL.md) 3) |
+| `video.texture_lod` | original | | which copy of a texture's mip chain a pixel of the world shows: `original` (where the N64 shows it, for its 320 x 240), `sharp` (where the window's own pixels need it: the road sharp further out) or `anisotropic` (sharp, and four samples along a surface seen edge on, the far road); from the next triangle (`RUSH_GFX_TEXTURE_LOD`; [DETAIL.md](DETAIL.md) 2.7) |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
@@ -326,7 +327,7 @@ the default, each is the N64's game exactly.
   level objects as one player has them.
 - **`fog`**: `far` gives a point the fog the game gives one half as far (the fog options and their regions); `off`
   none, and with a fog option the sky dome the game leaves out in a fog (from the next track).
-- **Live.** The overlay's Video page has the three ("Draw distance", "Detail", "Fog"); a change applies from the game's
+- **Live.** The overlay's Video page has the three ("Draw distance", "Detail", "Fog"), and "Far textures" (`video.texture_lod`, DETAIL.md 2.7); a change applies from the game's
   next frame (`pc_detail_set`, `pc_gfx_set_draw_distance`, `pc_gfx_set_fog`), detail's split-screen models from the
   next track.
 - **What it costs, what it looks like**: [DETAIL.md](DETAIL.md) 4 and 5. At a run's end the log's `scene:` line gives
@@ -373,7 +374,7 @@ environment-only.
 
 | Variable | What |
 |---|---|
-| `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`, `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`, `RUSH_GFX_FOG` | `audio.backend`, `video.scale`, `video.api`, `video.widescreen`, `video.frame_rate`, `video.textures`, `video.hud`, `video.draw_distance`, `video.fog` |
+| `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`, `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`, `RUSH_GFX_FOG`, `RUSH_GFX_TEXTURE_LOD` | `audio.backend`, `video.scale`, `video.api`, `video.widescreen`, `video.frame_rate`, `video.textures`, `video.hud`, `video.draw_distance`, `video.fog`, `video.texture_lod` |
 | `RUSH_GFX_TEXTURE_PACK`, `RUSH_GFX_TEXTURE_DUMP`, `RUSH_GFX_TEXTURE_CACHE` | the pack's, the dump's and the upscaled textures' cache's folders, over `video.texture_pack`, `video.texture_dump` and the data folder's `texture_cache` ([TEXTURES.md](TEXTURES.md)) |
 | `RUSH_GFX_UPSCALE=1\|2\|4`, `RUSH_GFX_UPSCALE_2D=1`, `RUSH_GFX_TEXTURE_SYNC=1` | the upscale factor instead of the internal scale's; 2D upscaled too; upscaling on the render thread (tests) ([TEXTURES.md](TEXTURES.md)) |
 | `RUSH_GFX_HEIGHT`, `RUSH_GFX_VERBOSE`, `RUSH_GFX_TIMES`, `RUSH_GFX_TRACE`, `RUSH_GFX_DUMP`, `RUSH_GFX_HFR_DUMP` | the renderer's diagnostics ([GFX.md](GFX.md) "Backend, frame and settings", "High frame rate") |
@@ -445,6 +446,7 @@ restart.
 | | Draw distance: original (N64), far (2x), max (all) | `video.draw_distance` | from the game's next frame (`pc_detail_set`, `pc_gfx_set_draw_distance`; [DETAIL.md](DETAIL.md)) |
 | | Detail: original, high | `video.detail` | from the game's next frame; split screen's models and level objects from the next track |
 | | Fog: original, far (2x), off | `video.fog` | from the game's next frame (`pc_gfx_set_fog`) |
+| | Far textures: original (N64), sharp, anisotropic | `video.texture_lod` | from the next triangle (`pc_gfx_set_texture_lod`) |
 | Audio | Volume, 0-100 in 5s | `audio.volume` | at once (`pc_audio_set_volume`) |
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Game | Cars in a race: original (6), 7-12 | `game.cars` | from the next race's start: the setting at once (`pc_race_cars_set`), the race's count when the game latches it ([above](#the-cars-a-race-holds-gamecars)) |

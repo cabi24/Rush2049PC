@@ -180,6 +180,7 @@ static const char *const memory_choices[] = {"original", NULL};        /* 0: the
 static const char *const draw_choices[] = {"original", "far", "max", NULL};    /* PC_DRAW_* */
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
+static const char *const texlod_choices[] = {"original", "sharp", "anisotropic", NULL};   /* PC_TEXLOD_* */
 static const char *const game_fps_choices[] = {"original", NULL};      /* 0: a frame every two retraces at most */
 static const char *const saves_choices[] = {"pak", "files", NULL};            /* PC_CFG_SAVES_* (SAVES.md) */
 
@@ -308,6 +309,11 @@ static const Item items[] = {
      "original (the game's, with the track select's fog option), far (the fog starts and ends twice as far, as "
      "draw_distance = far's limits) or off (and with the fog option, the sky the game leaves out in a fog, from the "
      "next track) (RUSH_GFX_FOG)."},
+    {"video", "texture_lod", T_ENUM, F(texture_lod), 0, 0, texlod_choices, "original",
+     "The road's and the world's textures further away: original (each texture's smaller copies where the N64 shows "
+     "them, for its 320 x 240 pixels), sharp (where the window's own pixels need them: the road and the walls stay "
+     "sharp further out) or anisotropic (sharp, and four samples along a surface seen edge on, so the far road keeps "
+     "its detail too) (RUSH_GFX_TEXTURE_LOD; the project's docs/port/DETAIL.md)."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA on Linux, then none), sdl, alsa (Linux), null (no sound) or wav (no sound, only "
@@ -807,7 +813,8 @@ int pc_settings_apply_env(PcSettings *s)
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
         {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
         {"RUSH_GFX_TEXTURES", "video", "textures"}, {"RUSH_GFX_HUD", "video", "hud"},
-        {"RUSH_GFX_DRAW_DISTANCE", "video", "draw_distance"}, {"RUSH_GFX_FOG", "video", "fog"}};
+        {"RUSH_GFX_DRAW_DISTANCE", "video", "draw_distance"}, {"RUSH_GFX_FOG", "video", "fog"},
+        {"RUSH_GFX_TEXTURE_LOD", "video", "texture_lod"}};
     int bad = 0;
     for (size_t i = 0; i < sizeof env / sizeof *env; i++) {
         const char *v = getenv(env[i].var);

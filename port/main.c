@@ -855,13 +855,17 @@ static int rush_main(int argc, char **argv)
     setenv("RUSH_GFX_HUD", cfg.hud == PC_GFX_HUD_CENTERED ? "centered" : "edges", 1);
     /* draw distance, detail and fog (docs/port/DETAIL.md): the game's part, and the renderer's */
     {
-        char draw[16], detail[16], fog[16];
+        char draw[16], detail[16], fog[16], texlod[16];
         pc_detail_set(cfg.draw_distance, cfg.detail, cfg.fog);
         pc_settings_get(&cfg, "video", "draw_distance", draw, sizeof draw);
         pc_settings_get(&cfg, "video", "detail", detail, sizeof detail);
         pc_settings_get(&cfg, "video", "fog", fog, sizeof fog);
         setenv("RUSH_GFX_DRAW_DISTANCE", draw, 1);
         setenv("RUSH_GFX_FOG", fog, 1);
+        pc_settings_get(&cfg, "video", "texture_lod", texlod, sizeof texlod);
+        setenv("RUSH_GFX_TEXTURE_LOD", texlod, 1);
+        if (cfg.texture_lod)
+            fprintf(stderr, "rush2049pc: texture_lod %s (docs/port/DETAIL.md)\n", texlod);
         if (cfg.draw_distance || cfg.detail || cfg.fog)
             fprintf(stderr, "rush2049pc: draw_distance %s, detail %s, fog %s (docs/port/DETAIL.md)\n", draw, detail,
                     fog);

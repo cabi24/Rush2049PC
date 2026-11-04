@@ -918,6 +918,18 @@ static void lod_scan(const LodQuad *q) {
     const double k = 65535.0 / 65536.0;   /* G_TEXTURE's 0xFFFF */
     double lod = (q->rs > q->rt ? q->rs : q->rt) * k, f = 0.0;
     int l0 = 0, l1 = 0, ix, iy, checked = 0, inside = 0, bad = 0, seen[2] = {0, 0}, ox = frame_x0();
+    /* video.texture_lod (RUSH_GFX_TEXTURE_LOD, gfx_detail.c): sharp counts the steps per internal pixel, not per N64
+     * pixel; anisotropic divides that by the footprint's ratio (at most PC_TEXLOD_TAPS) and averages its taps along
+     * the longer axis, which blurs level 1's stripes: there only the solid levels are checked */
+    int mode = pc_gfx_texture_lod();
+    if (mode != PC_TEXLOD_ORIGINAL) {
+        double ax = q->rs * s_n64_w / s_px_w, ay = q->rt * s_n64_h / s_px_h;
+        lod = (ax > ay ? ax : ay) * k;
+        if (mode == PC_TEXLOD_ANISO) {
+            double r = (ax > ay ? ax / ay : ay / ax);
+            lod /= r < 1.0 ? 1.0 : r > PC_TEXLOD_TAPS ? PC_TEXLOD_TAPS : r;
+        }
+    }
     if (!q->lod)
         lod = 0.0;   /* tile 0, fraction 0 */
     if (lod >= 1.0) {
@@ -944,6 +956,8 @@ static void lod_scan(const LodQuad *q) {
             lod_texel(l1, X * q->rs * k, t1, &edge, &odd1);
             if (l1 == 1 && f < 1.0 / 64)
                 edge = 0, odd1 = -1;
+            if (mode == PC_TEXLOD_ANISO && (odd0 >= 0 || odd1 >= 0))
+                edge = 1;   /* level 1 with weight: its stripes averaged over the taps */
             if (edge)
                 continue;
             checked++;
@@ -963,11 +977,11 @@ static void lod_scan(const LodQuad *q) {
         printf("  FAIL %s %s: %d of %d internal pixels\n", s_case, q->what, bad, checked);
         s_fail++;
     }
-    if (checked * 2 < inside) {
+    if (checked * 2 < inside && !(mode == PC_TEXLOD_ANISO && (l0 == 1 || l1 == 1))) {
         printf("  FAIL %s %s: only %d of %d internal pixels checked\n", s_case, q->what, checked, inside);
         s_fail++;
     }
-    if ((l0 == 1 && f < 1.0 - 1.0 / 64) || (l1 == 1 && f >= 1.0 / 64)) {
+    if (mode != PC_TEXLOD_ANISO && ((l0 == 1 && f < 1.0 - 1.0 / 64) || (l1 == 1 && f >= 1.0 / 64))) {
         if (!seen[0] || !seen[1]) {
             printf("  FAIL %s %s: level 1's even and odd columns not both checked\n", s_case, q->what);
             s_fail++;

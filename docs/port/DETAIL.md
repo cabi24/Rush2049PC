@@ -1,4 +1,4 @@
-# Draw distance and detail (video.draw_distance, video.detail, video.fog)
+# Draw distance and detail (video.draw_distance, video.detail, video.fog, video.texture_lod)
 
 The N64 game draws a few thousand feet of the world, and less of what is on it: a far plane at 2,000 ft, a table of
 the world's parts each place on the track lets through, a distance past which each model is left out, simpler
@@ -163,7 +163,7 @@ was found.
 
 ## 2. The settings
 
-`[video]` in rush2049pc.ini, `--set video.KEY=VALUE`, and F1's Video page ("Draw distance", "Detail", "Fog"), with
+`[video]` in rush2049pc.ini, `--set video.KEY=VALUE`, and F1's Video page ("Draw distance", "Detail", "Fog", "Far textures"), with
 a line of help each ([FRONTEND.md](FRONTEND.md)). Each applies from the game's next frame; detail's load-time parts
 (2.5) from the next track. `draw_distance` and `fog` are also `RUSH_GFX_DRAW_DISTANCE` and `RUSH_GFX_FOG`, the
 renderer's own (a layer of the settings, as `RUSH_GFX_HUD` is). The defaults are `original`, the N64's game exactly
@@ -174,6 +174,7 @@ renderer's own (a layer of the settings, as `RUSH_GFX_HUD` is). The defaults are
 | `video.draw_distance` | `original`, `far`, `max` | far: every distance limit of 1.1-1.6 twice as far, and the depth range's far plane twice the game's; max: none of them, every part of the world and every model at any distance, the far plane 32 times the game's |
 | `video.detail` | `original`, `high` | high: each model's first (most detailed) level wherever it is drawn, the tires at their first level in split screen, and split screen's models and level objects as one player has them |
 | `video.fog` | `original`, `far`, `off` | far: the fog's start and end twice as far (the fog options and the fog regions, as draw_distance far's limits); off: no fog, and with a fog option the sky dome the game leaves out in one (from the next track) |
+| `video.texture_lod` | `original`, `sharp`, `anisotropic` | which copy of a texture's mip chain a pixel shows (2.7): sharp, the one the window's own pixels need, not the N64's 320 x 240; anisotropic, that and four samples along a surface seen edge on (the renderer's alone: the game's C is untouched) |
 
 ### 2.1 The visibility tables
 
@@ -250,6 +251,31 @@ triangles a graphics task (`pc_gfx_scene_stats`, `port/gfx/gfx_detail.c`):
 
 It is printed at every setting, after the pools line; it is not part of a trace (`synth_compare.py` reads the state
 and status lines). `tools/port/detail_check.py` reads it.
+
+### 2.7 Far textures (video.texture_lod)
+
+2026-11-04, from the user's play: at draw distance far and max the road "is still loading in lower resolution in the
+mid and longer distance". The world's textures are mip chains (G_TL_LOD: the first level and copies of half the size,
+[GFX.md](GFX.md) "Texture LOD"), and the renderer picks a pixel's level as the RDP does, from the step of s and t to
+the next pixel, counted in N64 pixels (`uScale`, the internal pixels per N64 pixel, times the step across an internal
+pixel). At 1920 x 1080 an N64 pixel is about 4.5 of the window's, so the road a few car lengths ahead already showed
+the level two smaller (a quarter of the texels across), as on a 320 x 240 screen.
+
+- **`sharp`**: the step is counted in the window's own pixels (`uLodScale` 1, `port/gfx/gfx_combine.c`), so a pixel
+  shows the level its own size needs, log2(k) levels finer at an internal scale k (2.2 at 1080p). A texture is no
+  sharper than its first level (the upscaled textures or a pack give it more texels: [TEXTURES.md](TEXTURES.md)).
+- **`anisotropic`**: sharp, and for a surface seen edge on (the road ahead: a pixel's footprint long down the road and
+  narrow across it), the step is divided by the footprint's ratio of its longer axis to its shorter, at most
+  `PC_TEXLOD_TAPS` (4), and the pixel averages that many samples along the longer axis, each from the two levels and
+  their fraction as before. The far road keeps its stripes and grain instead of their average. Four taps are eight
+  texture reads a pixel of the world's mip-chained triangles, against two.
+- **`original`**, the default: `uLodScale` is `uScale`, the expression the same, the N64's levels pixel for pixel (the
+  synthetic paths' screenshots with `--shots`: the same, 33 of 33, 2026-11-04).
+- From the next triangle (F1 > Video > "Far textures", `RUSH_GFX_TEXTURE_LOD`); it is the renderer's alone and
+  changes nothing the game computes.
+- Tests: `gfx.lod.sharp.*` and `gfx.lod.anisotropic.*` (GLES and desktop GL at 2, 3.2 and 6.75): every internal pixel
+  of the LOD case's quads against the levels and fraction its own pixels give (anisotropic: those levels, and every
+  pixel but level 1's, whose one-texel stripes its taps average); `frontend.detail` the setting.
 
 ## 3. The renderer: the depth range and the fog
 

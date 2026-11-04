@@ -158,6 +158,11 @@ void pc_gfx_set_fog(int mode);              /* PC_FOG_* */
 int pc_gfx_fog(void);
 int pc_gfx_parse_draw_distance(const char *text, int *ok);   /* "original", "far", "max"; *ok = 0 otherwise */
 int pc_gfx_parse_fog(const char *text, int *ok);             /* "original", "far", "off" */
+/* video.texture_lod (gfx_detail.c, docs/port/DETAIL.md 2.7): which level of a mip chain (G_TL_LOD) a pixel shows,
+ * from the next triangle. PC_TEXLOD_*; at original the N64's. */
+void pc_gfx_set_texture_lod(int mode);
+int pc_gfx_texture_lod(void);
+int pc_gfx_parse_texture_lod(const char *text, int *ok);     /* "original", "sharp", "anisotropic" */
 /* What the graphics tasks drew so far (the exit's scene line): tasks, their triangles in all and the most in one. */
 void pc_gfx_scene_stats(uint32_t *tasks, uint64_t *triangles, uint32_t *most);
 /* Where the HUD moves a point at frame x (N64 pixels of the 4:3 frame), in N64 pixels: what the game's 3D models

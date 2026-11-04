@@ -147,6 +147,9 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
     shows the levels the N64 shows. Below 1 (magnified): the first level, LOD_FRACTION 0. From 2^l: TEXEL0 level l,
     TEXEL1 level l + 1, LOD_FRACTION step / 2^l − 1. From the last level's power on: the last level in both,
     LOD_FRACTION 1.
+  - **`video.texture_lod`** sharp and anisotropic count the step in the window's own pixels instead (`uLodScale`
+    1), and anisotropic averages up to four samples along a footprint's longer axis ([DETAIL.md](DETAIL.md) 2.7).
+    At original, the default, `uLodScale` is `uScale` and the levels are these.
   - **At any scale, a fraction too.** The scale per axis is the target's internal pixels over its N64 pixels
     (`uScale` = px / n across and down, the sizes `pcgfx_scaled` rounded, as the edges use), so a step across an
     internal pixel times it is the step across an N64 pixel exactly, in N64 texels, whatever the GL texture's size.

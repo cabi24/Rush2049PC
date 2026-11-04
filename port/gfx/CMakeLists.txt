@@ -183,6 +183,22 @@ pcgfx_all_variant(scale1.25 "RUSH_GFX_SCALE=1.25")
 # video.draw_distance max and video.fog far (gfx_detail.c, docs/port/DETAIL.md 3): the depth range's far plane 32
 # times the game's and the fog stretched; every case holds (the depth's order is kept; the fog case's view is 2D).
 pcgfx_all_variant(draw-max "RUSH_GFX_DRAW_DISTANCE=max;RUSH_GFX_FOG=far")
+# video.texture_lod sharp and anisotropic (docs/port/DETAIL.md 2.7): the levels for the internal pixels, not the N64's,
+# every internal pixel's at 2, 3.2 and 6.75 on GLES and desktop GL (anisotropic: the levels with weight but level 1,
+# whose stripes its taps average).
+foreach(v "scale2;RUSH_GFX_SCALE=2" "scale3.2;RUSH_GFX_SCALE=3.2" "scale6.75;RUSH_GFX_SCALE=6.75")
+    list(GET v 0 name)
+    list(GET v 1 env)
+    foreach(mode sharp anisotropic)
+        foreach(api "gles;gles" "desktop-gl;gl")
+            list(GET api 0 aname)
+            list(GET api 1 aval)
+            add_test(NAME gfx.lod.${mode}.${name}.${aname} COMMAND gfx_test lod)
+            set_tests_properties(gfx.lod.${mode}.${name}.${aname} PROPERTIES
+                ENVIRONMENT "${env};RUSH_GFX_API=${aval};RUSH_GFX_TEXTURE_LOD=${mode}")
+        endforeach()
+    endforeach()
+endforeach()
 # Texture LOD at the fractional scales, on GLES and desktop GL: every internal pixel's mip levels, fraction and
 # texels (GFX.md "Texture LOD").
 foreach(v "scale1.25;RUSH_GFX_SCALE=1.25" "scale1.5;RUSH_GFX_SCALE=1.5" "scale2.25;RUSH_GFX_SCALE=2.25"

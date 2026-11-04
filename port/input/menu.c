@@ -121,6 +121,9 @@ static const char *const draw_labels[] = {"original (N64)", "far (2x)", "max (al
 static const char *const detail_choices[] = {"original", "high", NULL};
 static const char *const fog_choices[] = {"original", "far", "off", NULL};
 static const char *const fog_labels[] = {"original", "far (2x)", "off", NULL};
+/* video.texture_lod (docs/port/DETAIL.md 2.7) */
+static const char *const texlod_choices[] = {"original", "sharp", "anisotropic", NULL};
+static const char *const texlod_labels[] = {"original (N64)", "sharp", "anisotropic", NULL};
 #ifdef _WIN32
 static const char *const backend_choices[] = {"auto", "sdl", "null", "wav", NULL};   /* no ALSA on Windows */
 #else
@@ -231,6 +234,9 @@ static void build(void)
     it = add(P_VIDEO, I_CHOICE, "Fog", "video", "fog");
     it->choices = fog_choices;
     it->labels = fog_labels;
+    it = add(P_VIDEO, I_CHOICE, "Far textures", "video", "texture_lod");   /* DETAIL.md 2.7 */
+    it->choices = texlod_choices;
+    it->labels = texlod_labels;
 
     pages[P_AUDIO].title = "Audio";
     it = add(P_AUDIO, I_NUMBER, "Volume", "audio", "volume");
@@ -302,6 +308,7 @@ static void build(void)
         {"video", "draw_distance", "How far the world, cars and scenery are drawn"},
         {"video", "detail", "High: the most detailed models at any distance"},
         {"video", "fog", "The game's fog, twice as far, or none"},
+        {"video", "texture_lod", "The road's textures sharp further out"},
         {"audio", "volume", "The master volume"},
         {"audio", "backend", "The sound output; applies after a restart"},
         {"controller", "menu", "Opens this menu; + joins buttons held together"},
@@ -481,6 +488,8 @@ static void apply(const char *section, const char *key)
             pc_gfx_set_draw_distance(s->draw_distance);
             pc_gfx_set_fog(s->fog);
         }
+        else if (!strcasecmp(key, "texture_lod"))
+            pc_gfx_set_texture_lod(s->texture_lod);   /* from the next triangle (DETAIL.md 2.7) */
         else if (!strcasecmp(key, "width") || !strcasecmp(key, "height"))
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))
