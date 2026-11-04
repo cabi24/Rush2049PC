@@ -1,9 +1,18 @@
-/* port/ultra/n64mem.c: libultra's bzero, bcopy and bcmp, with their 32-bit lengths. CMakeLists.txt renames the
- * game's calls to these (the host's take a size_t, which the game's own prototypes don't declare). On its own
- * so that test programs linking game C can link it too. */
+/* port/ultra/n64mem.c: libultra's bzero, bcopy and bcmp, with their 32-bit lengths, and (RUSH_NOFIXED) the window's
+ * host address the game C translates with. CMakeLists.txt renames the game's calls to these (the host's take a
+ * size_t, which the game's own prototypes don't declare). On its own so that test programs linking game C can link
+ * it too. */
 #include <stdint.h>
 #include <string.h>
 
 void n64_bzero(void *p, uint32_t n) { memset(p, 0, n); }
 void n64_bcopy(const void *src, void *dst, uint32_t n) { memmove(dst, src, n); }
 int n64_bcmp(const void *a, const void *b, uint32_t n) { return memcmp(a, b, n) != 0; }
+
+#ifdef RUSH_NOFIXED
+/* The RDRAM window's host address, which the game C's translations between 32-bit N64 addresses and host pointers
+ * read (port/include/pc_prelude.h, docs/port/NOFIXED.md 2.3): port/ultra's pc_mem_init sets it to the window, data.c's
+ * section pc_window. Until then, and in a test program that maps a window of its own at host 0x80000000 and links
+ * game C, it is that address. Here for the reason the functions above are. */
+uint8_t *pc_window_base = (uint8_t *)(uintptr_t)0x80000000u;
+#endif

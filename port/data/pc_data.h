@@ -50,8 +50,9 @@ typedef struct {
 
 /* One image's data and BSS in N64 layout: [n64_lo, n64_init) is initialized from the image, [n64_init,
  * n64_hi) is zeroed. The runs byte-swap the known elements in place. The game's arenas are at their N64
- * addresses (host == n64_lo, in the RDRAM window); a runtime image's arena there is cleared again after the first
- * load, since it is game-heap memory until the game loads the image. */
+ * addresses (host == n64_lo, in the RDRAM window; with the tables' window, host == window + n64_lo - 0x80000000); a
+ * runtime image's arena there is cleared again after the first load, since it is game-heap memory until the game
+ * loads the image. */
 typedef struct {
     uint8_t image;
     uint32_t n64_lo, n64_init, n64_hi;
@@ -170,6 +171,9 @@ typedef struct {
     uint32_t n_reach;
     const PcDataInit *inits;    /* decoupled data the images initialize (may be none) */
     uint32_t n_inits;
+    /* The RDRAM window the arenas are in, at window + (N64 address - 0x80000000): data.c's section in a RUSH_NOFIXED
+     * build (docs/port/NOFIXED.md 2). NULL: the window at host 0x80000000, arenas at their N64 addresses. */
+    uint8_t *window;
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM

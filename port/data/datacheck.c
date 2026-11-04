@@ -87,9 +87,13 @@ static void *at(uint32_t n64, int image)
     return pc_data_host_of(&pc_data_tables, n64, image);
 }
 
-/* The RDRAM window (port/ultra/memory.c maps it for the game): 8 MiB at host 0x80000000. */
+/* The RDRAM window (port/ultra/memory.c maps it for the game): 8 MiB at host 0x80000000. A RUSH_NOFIXED build's is
+ * data.c's section, in the executable already (docs/port/NOFIXED.md 2.1). */
 static int map_window(void)
 {
+#ifdef RUSH_NOFIXED
+    return 0;
+#endif
     void *want = (void *)(uintptr_t)0x80000000u;
     void *p = mmap(want, 0x800000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
     if (p != want) {

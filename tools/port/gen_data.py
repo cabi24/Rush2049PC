@@ -38,6 +38,12 @@ Outputs: data.c, data_layout.txt (what was decided, the conflicts, what is left)
 --check, which verifies placements and sizes in the linked executable, and that nothing else is linked at a
 window address). Stdlib and binutils, Python 3.9+.
 
+--nofixed (cmake -DRUSH_NOFIXED=ON, docs/port/NOFIXED.md 2): the window is no fixed host address but pc_window, a
+zero-fill section data.c defines (.n64window, PC_RDRAM_MAX bytes, 64 KiB aligned), and every name at an N64 address
+is relative to it, `.set D_x, pc_window + (address - 0x80000000)`: the executable's own relocations move the names
+with it, and nothing is fixed up. The arenas' hosts in the tables are pc_window + offset, the tables name the window
+(PcDataTables.window), and --check reads the mode from data_layout.json.
+
 Windows (PE, docs/port/WINDOWS.md): pass objdump as --readelf (DWARF of COFF objects), and --weak-script. An
 undefined weak reference doesn't come out as 0 there, so data.c's weak references name `pc_weak.<symbol>`, which
 the script defines as the symbol when something defines it and as 0 otherwise; thunks are naked functions (COFF
@@ -85,6 +91,18 @@ for _img, _lo, _init, _hi in n64syms.ARENAS:   # boot and game below the heap; t
     assert WINDOW_LO <= _lo <= _init <= _hi <= (WINDOW_HI if _img.startswith("ovl") else HEAP_LO), _img
 # What data.c itself defines for the game C.
 PC_EXPORTS = {"pc_data_init", "pc_data_overlay_load"}
+# --nofixed (RUSH_NOFIXED, docs/port/NOFIXED.md 2): the window is data.c's section pc_window, PC_RDRAM_MAX bytes
+# (port/include/pc_port.h), and a name at N64 address a is pc_window + (a - 0x80000000).
+NOFIXED = False
+WINDOW_SYM = "pc_window"
+WINDOW_SECTION = 0x10000000
+
+
+def window_value(addr):
+    """data.c's value for a name at N64 address addr: the address itself (absolute), or pc_window + its offset."""
+    if NOFIXED:
+        return f"\" N64_SYM(\"{WINDOW_SYM}\") \" + 0x{addr - WINDOW_LO:X}"
+    return f"0x{addr:08X}"
 
 
 def esz_host(kind):
@@ -761,25 +779,30 @@ def reserved_place(r, decls, tags, decoupled, syms, others):
 
 
 def reserved_lines(layout):
-    """data.c's lines for the reservations (absolute symbols, as the arenas' are), and their layout entries."""
+    """data.c's lines for the reservations (at their window addresses, as the arenas' names are), and their layout
+    entries."""
     layout["reserved"] = [[r.pc, r.lo, r.size] for r in RESERVED]
     if not RESERVED:
         return []
+    how = "relative to pc_window" if NOFIXED else "absolute"
     L = ["", "/* PC data in the RDRAM window, in ranges decoupled items freed (port/data/reserved.txt,",
-         " * docs/port/MORECARS.md 8): absolute, zeroed with the arena's BSS, not in the loader's tables. */", "__asm__("]
+         f" * docs/port/MORECARS.md 8): {how}, zeroed with the arena's BSS, not in the loader's tables. */", "__asm__("]
     for r in RESERVED:
-        L.append(f"    \".globl \" N64_SYM(\"{r.pc}\") \"\\n.set \" N64_SYM(\"{r.pc}\") \", 0x{r.lo:08X}\""
+        L.append(f"    \".globl \" N64_SYM(\"{r.pc}\") \"\\n.set \" N64_SYM(\"{r.pc}\") \", {window_value(r.lo)}\""
                  f" PC_SIZE(\"{r.pc}\", {r.size}) \"\\n\"   /* {r.disp} */")
     return L + [");"]
 
 
-def check_reserved(layout, addr, size, letter, pe):
-    """--check: each reservation absolute at its address (and its size, on ELF)."""
+def check_reserved(layout, addr, size, letter, pe, window=None):
+    """--check: each reservation at its window address (absolute, or pc_window + offset: window), and its size on
+    ELF."""
     bad = []
     for name, lo, n in layout.get("reserved", []):
         if name not in addr:
             bad.append(f"reserved {name}: not in the executable")
-        elif letter[name] not in "Aa" or addr[name] != lo:
+        elif window is not None and (letter[name] in "Aa" or addr[name] - window != lo - WINDOW_LO):
+            bad.append(f"reserved {name}: {letter[name]} 0x{addr[name]:X}, expected {WINDOW_SYM}+0x{lo - WINDOW_LO:X}")
+        elif window is None and (letter[name] not in "Aa" or addr[name] != lo):
             bad.append(f"reserved {name}: {letter[name]} 0x{addr[name]:X}, expected absolute 0x{lo:08X}")
         elif not pe and name in size and size[name] != n:
             bad.append(f"reserved {name}: size {size[name]} != {n}")
@@ -822,7 +845,13 @@ def main():
     ap.add_argument("--layout", type=Path)
     ap.add_argument("--test-tables", type=Path, help="an object of test declarations: write pc_data_test's header")
     ap.add_argument("--pe", action="store_true", help="--check: the executable is PE (Windows)")
+    ap.add_argument("--nofixed", action="store_true",
+                    help="the names relative to pc_window, a section data.c defines (RUSH_NOFIXED, NOFIXED.md 2)")
+    ap.add_argument("--defined-list", type=Path,
+                    help="--nofixed: the PC layer's objects, whose definitions count (as for gen_stubs.py)")
     a = ap.parse_args()
+    global NOFIXED
+    NOFIXED = a.nofixed
     if a.check:
         sys.exit(check(a.check, a.layout, a.nm, a.pe))
     if a.test_tables:
@@ -1141,7 +1170,18 @@ def generate(a):
     for r in reserved:
         reserved_place(r, found.get(r.pc, ()), tags, decoupled, syms, RESERVED)
         RESERVED.append(r)
-    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach, decoupled)
+    # --nofixed: the data names gen_stubs would make absolute (the low-memory globals, the heap start, the runtime
+    # images' base; cartridge offsets) are defined here, relative to the window as the arenas' names are: a
+    # linker-script symbol is absolute (aliases.ld), which only the GOT fix-up made work (docs/port/NOFIXED.md 2.2).
+    window_names = {}
+    if NOFIXED:
+        import gen_stubs
+        placed = {n for x in syms.values() for n in x.names} | dec_pc | {r.pc for r in RESERVED}
+        port = a.defined_list.read_text().split() if a.defined_list else []
+        port_defs = set(n64syms.nm_table(port, a.nm)[0]) if port else set()
+        window_names = gen_stubs.window_names(set(defs) | placed, set(refs), port_defs, symfile)
+    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach, decoupled,
+         window_names)
 
     # Report.
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
@@ -1476,7 +1516,7 @@ def reach_rules(path, tags, syms_by_name, ordered):
 
 
 def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach=(),
-         decoupled=()):
+         decoupled=(), window_names=None):
     arenas = n64syms.ARENAS
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
     cdefs = [s for s in ordered if s.cdef]
@@ -1493,11 +1533,28 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          "#if defined(_WIN32)   /* weak.ld defines pc_weak.<name> as the symbol, or 0 (docs/port/WINDOWS.md) */",
          f"#define PC_WEAK(id, name) extern char id[] __asm__(\"{n64syms.PE_WEAK_PREFIX}\" name);", "#else",
          "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", "#endif", ""]
-    L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 addresses in the RDRAM window")
-    L.append(" * port/ultra maps at host 0x80000000 (docs/port/ULTRA.md), so nothing here allocates them:")
+    if NOFIXED:
+        L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 offsets in the RDRAM window,")
+        L.append(" * pc_window below (RUSH_NOFIXED, docs/port/NOFIXED.md 2): N64 address a at pc_window + (a - 0x80000000):")
+    else:
+        L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 addresses in the RDRAM window")
+        L.append(" * port/ultra maps at host 0x80000000 (docs/port/ULTRA.md), so nothing here allocates them:")
     for img, lo, init, hi in arenas:
         L.append(f" *   {img}: 0x{lo:08X}-0x{hi:08X} (data to 0x{init:08X})")
     L.append(" */")
+    if NOFIXED:
+        L += ["",
+              "/* The RDRAM window (docs/port/NOFIXED.md 2.1): a zero-fill section of the executable, PC_RDRAM_MAX bytes",
+              " * (the largest game.memory), 64 KiB aligned, which port/ultra's pc_mem_init takes as the window. Its pages",
+              " * cost nothing until the game touches them. The names below are symbols inside it, which the executable's",
+              " * own relocations move with it. */",
+              "#if !defined(__ELF__)",
+              '#error "RUSH_NOFIXED: the window section is ELF only so far (docs/port/NOFIXED.md 6, phase D)"',
+              "#endif",
+              r'__asm__(".section .n64window,\"aw\",%nobits\n.p2align 16\n.globl " N64_SYM("pc_window")',
+              rf'        "\n.type " N64_SYM("pc_window") ", %object\n" N64_SYM("pc_window") ":\n.skip 0x{WINDOW_SECTION:X}"',
+              rf'        PC_SIZE("pc_window", 0x{WINDOW_SECTION:X}) "\n.previous\n");',
+              'extern uint8_t pc_window[] __asm__(N64_SYM("pc_window"));']
     L += ["", "/* Own storage: host layout. Aligned as a common symbol of that size can be (x86-64 GCC aligns",
           " * aggregates of 32 bytes or more to 32), so the game C's tentative definitions agree with it. */"]
     for s in own:
@@ -1506,6 +1563,8 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
                  f"__asm__(N64_SYM({c_str(sorted(s.names)[0])}));   /* N64 0x{s.addr:08X}, {s.n64_size} B: {s.disp} */")
     sets = []   # (name, base symbol or None for an absolute address, offset or address, size)
     layout = {"window": [WINDOW_LO, WINDOW_HI], "arenas": [[lo, hi] for _, lo, _, hi in arenas], "absolute": [],
+              "nofixed": NOFIXED, "window_symbol": WINDOW_SYM if NOFIXED else None,
+              "window_section": WINDOW_SECTION if NOFIXED else 0,
               "sets": [], "own": [],
               "ovl_data": {img: sorted(n for _, n, k in v if k in "dbDB") for img, v in ovl_data.items()},
               "ovl_ranges": OVL_RANGES,
@@ -1541,11 +1600,18 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
                 sets.append((n, None, s.addr, 0))
     for n, base, off, _ in sets:
         layout["absolute" if base is None else "sets"].append([n, off] if base is None else [n, base, off])
+    # --nofixed: names the game reaches by their N64 address outside the arenas (gen_stubs's absolute ones), in the
+    # window; a cartridge address 0xB0000000 | offset by the same rule, past the section's end, where nothing reads
+    # through it: the game takes its 32-bit value through the translation (docs/port/NOFIXED.md 2.2).
+    layout["window_names"] = sorted([n, v] for n, v in (window_names or {}).items())
+    for n, v in layout["window_names"]:
+        sets.append((n, None, v, 0))
     if sets:
-        L += ["", "/* Symbols at their N64 addresses (absolute), or at the matching offset in own storage. */",
+        where = "in the window (pc_window + offset)" if NOFIXED else "(absolute)"
+        L += ["", f"/* Symbols at their N64 addresses {where}, or at the matching offset in own storage. */",
               "__asm__("]
         for n, base, off, size in sets:
-            value = f"0x{off:08X}" if base is None else f"\" N64_SYM(\"{base}\") \" + 0x{off:X}"
+            value = window_value(off) if base is None else f"\" N64_SYM(\"{base}\") \" + 0x{off:X}"
             L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", {value}\""
                      f" PC_SIZE(\"{n}\", {size}) \"\\n\"")
         L += [");", ""]
@@ -1646,11 +1712,15 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         L.append(f"    {{{c_str(name)}, {'PC_IMG_RAW' if storage == 'raw' else 'PC_IMG_DEFLATE'}, 0x{rom_off:X}, "
                  f"{rom_len}, {size}, 0x{base:08X}}},")
     L += ["};", ""]
-    L.append("/* host: the arena's N64 address, in the RDRAM window. */")
+    if NOFIXED:
+        L.append("/* host: the arena's place in the RDRAM window, pc_window + (its N64 address - 0x80000000). */")
+    else:
+        L.append("/* host: the arena's N64 address, in the RDRAM window. */")
     L.append("static const PcDataArena pc_arenas[] = {")
     for i, (img, lo, init, hi) in enumerate(arenas):
         f, n = arena_first[i]
-        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, (uint8_t *)(uintptr_t)0x{lo:08X}u, "
+        host = f"pc_window + 0x{lo - WINDOW_LO:X}" if NOFIXED else f"(uint8_t *)(uintptr_t)0x{lo:08X}u"
+        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, {host}, "
                  f"{f}, {n}}},")
     L += ["};", ""]
     L.append(f"static const PcDataFunc pc_funcs[{max(len(funcs), 1)}] = {{")
@@ -1688,6 +1758,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
           f"    pc_reach, {len(reach_rows)},"]
     if init_rows:
         L.append(f"    pc_inits, {len(init_rows)},")
+    elif NOFIXED:
+        L.append("    NULL, 0,")
+    if NOFIXED:
+        L.append("    pc_window,   /* the RDRAM window: the arenas are in it (docs/port/NOFIXED.md 2.1) */")
     L += ["};", "",
           "/* pc_port.h entry points. The loader is weak here so the link test (which leaves it out) still links. */",
           "int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path)",
@@ -1708,8 +1782,12 @@ def check(exe, layout_path, nm, pe=False):
     """Verify the linked executable: every arena symbol absolute at its N64 address, every symbol inside own
     storage at its base + offset, own storage at its host size, and nothing else linked in the RDRAM window.
     PE (pe): COFF symbols have no sizes, so own storage isn't size-checked; the image links at 0x140000000 and
-    moves, so only the window and its KSEG1 alias must be free of it (no GOT fix-up relies on the rest)."""
+    moves, so only the window and its KSEG1 alias must be free of it (no GOT fix-up relies on the rest).
+    A --nofixed layout (docs/port/NOFIXED.md 2): every arena symbol at pc_window + its offset instead, the window
+    section its size and 64 KiB aligned, nothing else linked inside it, and no absolute symbol at a window, KSEG1 or
+    cartridge address (nothing the GOT fix-up would have to put back)."""
     layout = json.loads(Path(layout_path).read_text())
+    nofixed = layout.get("nofixed", False)
     out = subprocess.run([nm, "-S", "--defined-only", str(exe)], capture_output=True, text=True, check=True).stdout
     addr, size, letter = {}, {}, {}
     every = collections.defaultdict(list)   # name -> addresses, file-locals of one name included
@@ -1744,15 +1822,43 @@ def check(exe, layout_path, nm, pe=False):
             bad.append(f"{name}: not in the executable")
         elif addr[name] - addr[base] != off:
             bad.append(f"{name}: at {base}+0x{addr[name] - addr[base]:X}, expected +0x{off:X}")
-    for name, want in layout["absolute"]:
+    lo, hi = layout["window"]
+    window = None
+    if nofixed:
+        wsym, wsize = layout["window_symbol"], layout["window_section"]
+        if wsym not in addr:
+            bad.append(f"{wsym}: not in the executable")
+        else:
+            window = addr[wsym]
+            if letter[wsym] in "Aa" or window % 0x10000:
+                bad.append(f"{wsym}: {letter[wsym]} 0x{window:X}, expected a section symbol aligned to 64 KiB")
+            if not pe and size.get(wsym) != wsize:
+                bad.append(f"{wsym}: size {size.get(wsym)} != 0x{wsize:X}")
+    for name, want in layout["absolute"] + layout.get("window_names", []):
         if name not in addr:
             bad.append(f"{name}: not in the executable")
+        elif nofixed:
+            if window is not None and (letter[name] in "Aa" or addr[name] - window != want - lo):
+                bad.append(f"{name}: {letter[name]} 0x{addr[name]:X}, expected {layout['window_symbol']}"
+                           f"+0x{want - lo:X}")
         elif letter[name] not in "Aa" or addr[name] != want:
             bad.append(f"{name}: {letter[name]} 0x{addr[name]:X}, expected absolute 0x{want:08X}")
     # The executable's own link-time addresses must stay below the window: port/ultra/memory.c tells the GOT
     # slots of absolute symbols by an addend at 0x80000000 or above.
-    lo, hi = layout["window"]
-    if pe:
+    if nofixed:
+        # Inside the section only the names the layout puts there (and D_ names at their own offset, gen_stubs's
+        # aliases); outside it, no absolute symbol at an N64 address of RDRAM, KSEG1 or the cartridge.
+        placed = {n for n, _ in layout["absolute"] + layout.get("window_names", [])} | {
+            n for n, _, _ in layout.get("reserved", [])} | {layout.get("window_symbol")}
+        for n, x in sorted(addr.items()):
+            if letter[n] in "Aa":
+                if 0x80000000 <= x < 0xC0000000:
+                    bad.append(f"{n}: absolute at 0x{x:X}, an N64 address (nothing may be fixed up)")
+            elif window is not None and window <= x < window + layout["window_section"] and n not in placed:
+                m = re.match(r"^D_([0-9A-F]{8})$", n)
+                if not m or int(m.group(1), 16) - lo != x - window:
+                    bad.append(f"{n}: linked at {layout['window_symbol']}+0x{x - window:X}, inside the RDRAM window")
+    elif pe:
         k1 = 0x20000000   # the KSEG1 alias of the window (port/ultra/memory.c)
         high = sorted(n for n, x in addr.items() if letter[n] not in "Aa" and (lo <= x < hi or lo + k1 <= x < hi + k1))
         bad += [f"{n}: linked at 0x{addr[n]:X}, inside the RDRAM window" for n in high]
@@ -1776,15 +1882,18 @@ def check(exe, layout_path, nm, pe=False):
     for name, n, retired in layout.get("decoupled", []):
         if name not in addr:
             bad.append(f"decoupled {name}: not in the executable")
-        elif letter[name] in "Aa" or lo <= addr[name] < hi:
+        elif letter[name] in "Aa" or (lo <= addr[name] < hi if not nofixed else
+                                      window is not None and 0 <= addr[name] - window < layout["window_section"]):
             bad.append(f"decoupled {name}: at 0x{addr[name]:X}, in the RDRAM window")
         elif size.get(name) != n and not pe:
             bad.append(f"decoupled {name}: size {size.get(name)} != {n}")
         bad += [f"decoupled {name}: the retired {r} is defined (0x{addr[r]:X})" for r in retired if r in addr]
-    bad += check_reserved(layout, addr, size, letter, pe)   # port/data/reserved.txt
+    bad += check_reserved(layout, addr, size, letter, pe, window if nofixed else None)   # port/data/reserved.txt
     for b in bad[:50]:
         print("gen_data check:", b)
-    print(f"gen_data check: {len(layout['absolute'])} at their N64 addresses in {len(layout['arenas'])} arenas, "
+    where = f"at {layout['window_symbol']} + their N64 offsets" if nofixed else "at their N64 addresses"
+    others = f"{len(layout['window_names'])} outside them, " if layout.get("window_names") else ""
+    print(f"gen_data check: {len(layout['absolute'])} {where} in {len(layout['arenas'])} arenas, {others}"
           f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own in N64 order, "
           f"{n_ovl} runtime-image C data in their C ranges, {len(layout.get('decoupled', []))} decoupled, "
           f"{len(layout.get('reserved', []))} reserved in the window, "

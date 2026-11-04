@@ -68,6 +68,16 @@ uint32_t osVirtualToPhysical(void *vaddr);
 extern uint8_t D_8017A640[], D_8038A400[];
 extern uint32_t osTvType, D_80000318;
 extern uint8_t D_8002E580[], D_8011B5BC[], D_803B9A50[];
+#ifdef RUSH_NOFIXED
+/* RUSH_NOFIXED (docs/port/NOFIXED.md 2): those names are relative to the window, data.c's section pc_window: N64
+ * address a at pc_window + (a - 0x80000000). The game C translates with pc_window_base (port/ultra/n64mem.c). */
+extern uint8_t pc_window[], *pc_window_base;
+#define AT_N64(p, a) ((const uint8_t *)(p) == pc_rdram() + ((a) - 0x80000000u))
+#define AT_N64_WHAT "N64 symbols at pc_window + their offsets"
+#else
+#define AT_N64(p, a) ((uintptr_t)(p) == (a))
+#define AT_N64_WHAT "absolute N64 symbols"
+#endif
 
 #define MS(n) ((uint64_t)(n) * PC_COUNT_HZ / 1000)
 /* How late a loaded host (parallel ctest, CI runners) may wake a thread. Lower bounds stay exact: nothing may
@@ -369,7 +379,11 @@ static void t_spin(void)
 static uint32_t abs_word(const uint32_t *name)
 {
     uint32_t v = 0;
+#ifdef RUSH_NOFIXED
+    const void *p = name;   /* the name is in the window */
+#else
     const void *p = pc_mem_guard() ? pc_n64_ptr((uint32_t)(uintptr_t)name) : (const void *)name;
+#endif
     if (p)
         memcpy(&v, p, 4);
     return v;
@@ -415,9 +429,14 @@ static void t_memory(void)
           d);
     snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)D_8017A640,
              (void *)D_8038A400, (void *)&osTvType, tv_type, mem_size);
-    check("absolute N64 symbols", (uintptr_t)D_8017A640 == 0x8017A640u && (uintptr_t)D_8038A400 == 0x8038A400u &&
-                                      (uintptr_t)&osTvType == 0x80000300u && tv_type == 1 &&
-                                      mem_size == pc_os_mem_size(), d);
+    check(AT_N64_WHAT, AT_N64(D_8017A640, 0x8017A640u) && AT_N64(D_8038A400, 0x8038A400u) &&
+                           AT_N64(&osTvType, 0x80000300u) && tv_type == 1 && mem_size == pc_os_mem_size(), d);
+#ifdef RUSH_NOFIXED
+    snprintf(d, sizeof d, "window %p, pc_window %p, pc_window_base %p", (void *)pc_rdram(), (void *)pc_window,
+             (void *)pc_window_base);
+    check("RUSH_NOFIXED: the window is pc_window", pc_rdram() == pc_window && pc_window_base == pc_window && !fixed,
+          d);
+#endif
     if (pc_mem_guard()) {   /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
         char note[320] = "";
         uintptr_t w = (uintptr_t)pc_rdram();
@@ -428,9 +447,8 @@ static void t_memory(void)
               d);
     }
     snprintf(d, sizeof d, "%p, %p, %p", (void *)D_8002E580, (void *)D_8011B5BC, (void *)D_803B9A50);
-    check("game data at its N64 addresses", (uintptr_t)D_8002E580 == 0x8002E580u &&
-                                                (uintptr_t)D_8011B5BC == 0x8011B5BCu &&
-                                                (uintptr_t)D_803B9A50 == 0x803B9A50u, d);
+    check("game data at its N64 addresses", AT_N64(D_8002E580, 0x8002E580u) && AT_N64(D_8011B5BC, 0x8011B5BCu) &&
+                                                AT_N64(D_803B9A50, 0x803B9A50u), d);
     int local;
     snprintf(d, sizeof d, "code %p, data %p, stack %p", (void *)check, (void *)g_log, (void *)&local);
     check("host addresses above 4 GiB", (uintptr_t)check >> 32 && (uintptr_t)g_log >> 32 && (uintptr_t)&local >> 32,
@@ -895,10 +913,13 @@ static void controller(void *arg)
     t_memory();
     t_rcp();
     t_ai_device();
+#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: the boot arena's names are in the window, so the checks run (NOFIXED.md 6) */
     if (pc_mem_guard()) {   /* RUSH2049_NOFIXED=guard: the game's libultra C keeps its state in the boot arena (NOFIXED.md 5) */
         fprintf(stderr, "selftest: guard: the controller and pak checks skipped: their game C reaches the boot arena "
                 "by name\n");
-    } else {
+    } else
+#endif
+    {
         t_pif();
         t_ports();
         t_store();

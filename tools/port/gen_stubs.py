@@ -24,6 +24,10 @@ weak ones included, but their own references (the C library, zlib, pthreads) are
 - Data becomes zeroed placeholders (twice the N64 size, at least 16 bytes; 4 KiB when the size is unknown).
   Not game data: each one left is a to-do.
 
+--nofixed (cmake -DRUSH_NOFIXED=ON, docs/port/NOFIXED.md 2.2): the RDRAM window is data.c's section pc_window, and
+gen_data.py --nofixed defines those names in data.c relative to it (a linker-script symbol would be absolute, which
+only the GOT fix-up made work), absolute_for's rule being the one both use; none may be left here.
+
 --standalone writes stubs for a program that links the game without the PC layer (no aliases, no absolute
 symbols, a local pc_stub_hit). Names the host C library provides are left to it. Stdlib only, Python 3.9+.
 """
@@ -105,6 +109,24 @@ def absolute_for(undefined, syms):
     return out
 
 
+def undefined_of(game_defs, game_refs, port_defs):
+    """(undefined, defined): what the game objects reference and nothing defines (the PC layer's definitions count),
+    less what the host C library, the linker and the sanitizers give; and every definition."""
+    defined = set(game_defs) | set(port_defs)
+    undefined = (set(game_refs) - defined) - n64syms.HOST_LIBC - n64syms.LINKER_DEFINED
+    undefined = {n for n in undefined if not n.startswith(n64syms.PE_WEAK_PREFIX)}   # weak.ld's
+    undefined = {n for n in undefined if not n.startswith(n64syms.SANITIZER_PREFIXES)}
+    return undefined, defined
+
+
+def window_names(game_defs, game_refs, port_defs, syms):
+    """name -> N64 address of the data the game reaches by its N64 address that would be absolute here (after the
+    aliases): gen_data.py --nofixed defines these in data.c, relative to the window (docs/port/NOFIXED.md 2.2)."""
+    undefined, defined = undefined_of(game_defs, game_refs, port_defs)
+    alias = aliases_for(undefined, defined, syms)
+    return absolute_for(undefined - alias.keys(), syms)
+
+
 STUB_PRELUDE = r"""
 /* No system headers: stub names such as fcvt would clash with the C library's declarations. pc_stub_hit
  * (port/ultra/misc.c) prints the name, the N64 thread and a symbolized backtrace, then aborts. */
@@ -136,6 +158,8 @@ def main():
     ap.add_argument("--nm", default="nm")
     ap.add_argument("--root", type=Path, default=n64syms.ROOT)
     ap.add_argument("--standalone", action="store_true", help="for a program without the PC layer")
+    ap.add_argument("--nofixed", action="store_true",
+                    help="the absolute names relative to pc_window, data.c's window section (RUSH_NOFIXED)")
     a = ap.parse_args()
 
     syms = n64syms.load_symbols(a.root / "symbol_addrs.us.txt")
@@ -143,13 +167,13 @@ def main():
     port = a.defined_list.read_text().split() if a.defined_list else []
     game_defs, game_refs = n64syms.nm_table(game, a.nm)
     port_defs, _ = n64syms.nm_table(port, a.nm) if port else ({}, set())
-    defined = set(game_defs) | set(port_defs)
-    undefined = (game_refs - defined) - n64syms.HOST_LIBC - n64syms.LINKER_DEFINED
-    undefined = {n for n in undefined if not n.startswith(n64syms.PE_WEAK_PREFIX)}   # weak.ld's
-    undefined = {n for n in undefined if not n.startswith(n64syms.SANITIZER_PREFIXES)}
+    undefined, defined = undefined_of(game_defs, game_refs, port_defs)
     alias = {} if a.standalone else aliases_for(undefined, defined, syms)
     undefined -= alias.keys()
     absolute = {} if a.standalone else absolute_for(undefined, syms)
+    if a.nofixed and absolute:   # gen_data --nofixed defines them in data.c, relative to the window
+        sys.exit(f"gen_stubs: --nofixed: {', '.join(sorted(absolute))} would be absolute; gen_data.py --nofixed "
+                 f"defines such names (docs/port/NOFIXED.md 2.2)")
     undefined -= absolute.keys()
     unknown = {n for n in undefined if n64syms.address_of(n, syms) is None}
     unknown_funcs = declared_as_function(a.root / "src", unknown)
