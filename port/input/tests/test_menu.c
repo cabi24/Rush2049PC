@@ -353,6 +353,31 @@ static void test_live(void)
     act(PC_MENU_DOWN);
     act(PC_MENU_RIGHT);
     at("Audio", "Output", "sdl", "the backend: a restart");
+    /* the voices (audio.voices) apply after a restart: the setting changes, MusyX's count doesn't; the drones'
+     * engines (audio.engines) at once (docs/port/AUDIO.md 10) */
+    act(PC_MENU_DOWN);
+    at("Audio", "Voices", "original (32)", "the voices: original");
+    act(PC_MENU_RIGHT);
+    act(PC_MENU_RIGHT);
+    at("Audio", "Voices", "64", "64 voices");
+    CHECK(pc_settings_voices(pc_menu_settings()) == 64 && pc_mx_voices() == 32,
+          "the setting 64, the library's voices kept until a restart: %d", pc_mx_voices());
+    act(PC_MENU_DOWN);
+    at("Audio", "Drones' engines", "original", "the engines: original");
+    act_n(PC_MENU_RIGHT, 3);
+    at("Audio", "Drones' engines", "nearest 4", "nearest 4");
+    CHECK(pc_engines() == 4, "at once: %d", pc_engines());
+    act(PC_MENU_LEFT);
+    act(PC_MENU_LEFT);
+    act(PC_MENU_LEFT);
+    act(PC_MENU_LEFT);
+    at("Audio", "Drones' engines", "all", "before original: all");
+    CHECK(pc_engines() == PC_ENGINES_ALL, "all: %d", pc_engines());
+    act(PC_MENU_RIGHT);
+    CHECK(pc_engines() == PC_ENGINES_ORIGINAL, "original again: %d", pc_engines());
+    act(PC_MENU_UP);
+    act_n(PC_MENU_LEFT, 2);
+    at("Audio", "Voices", "original (32)", "the voices back to original");
     act(PC_MENU_BACK);
 
     /* a binding: Enter waits for a key, which replaces it; Insert adds one; Delete clears */

@@ -189,9 +189,13 @@ void pc_engines_choose(int listeners)
         int seen = 0;
         for (int l = 0; l < listeners; l++)
             seen |= s_dist[l][i] >= 0.0f;
-        s_seen[i] = (unsigned char)seen;
         if (!seen) {
-            s_fade[i] = mode == PC_ENGINES_ALL ? FADE_STEPS : 0;   /* no engine now: it starts as it will play */
+            s_seen[i] = 0;
+            continue;
+        }
+        if (!s_seen[i]) {   /* an engine just made (a race's start, a resurrection): it starts as it plays, no fade */
+            s_seen[i] = 1;
+            s_fade[i] = want[i] ? FADE_STEPS : 0;
             continue;
         }
         if (want[i] && s_fade[i] < FADE_STEPS)
