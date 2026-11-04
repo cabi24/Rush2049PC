@@ -203,10 +203,11 @@ Mods
 The mods folder next to the program holds mods: each a folder (or a .zip)
 with a mod.ini and files that stand in for the cartridge's (cars, tracks,
 fonts, the HUD and menus, text, sounds). Your ROM is never changed.
-mods/README.txt says what goes in it. F1 > Mods lists the mods found:
-Left/Right turn one on and off, Enter picks it up to move it in the order
-(the first wins a file two mods have). Changes apply at the next start
-(game.mods, game.mods_order). The log says which mods are in use and
+mods/README.txt says what goes in it. (In an installed copy the folder is
+~/.local/share/rush2049pc/mods; make it there.) F1 > Mods lists the mods
+found: Left/Right turn one on and off, Enter picks it up to move it in the
+order (the first wins a file two mods have). Changes apply at the next
+start (game.mods, game.mods_order). The log says which mods are in use and
 which files it refused; F1 > About says which mods are in use. --no-mods
 plays the cartridge's files only.
 
