@@ -709,6 +709,73 @@ port/input's: the drawable's pixels against the window's units, the same sizes a
 - **No live display tested.** No KMSDRM test was possible: the Pi has no gbm headers, and SDL's KMSDRM backend
   needs them. A real display (X11, Wayland or KMSDRM) is untested.
 
+## Performance
+
+2026-11-04 (`pc-perf`). Where the time goes, at the heaviest settings, and what changed.
+
+**How it was measured.** rocky (x86-64, Intel UHD 770, Mesa 25.2 iris, GLES, headless), RelWithDebInfo, the
+synthetic cartridge on the virtual clock (`--fast`), the paths race12 and race2p12 with `--set game.frame_rate=60
+--set game.cars=12 --set video.draw_distance=max` (heavy) and without (defaults). rocky has no `perf` (under
+callgrind the game stops at its data, which landed below 4 GB there; a `-pg` build crashed at its start), so the
+profile is a sampler of our own (an `LD_PRELOAD` library, not in the repository: `setitimer(ITIMER_PROF)` every
+200 µs of the process's CPU time, all threads, the interrupted PC kept in a mapped file, the PCs folded by `nm` and `addr2line` into
+functions and source directories). The renderer's own timers (`RUSH_GFX_TIMES=3`) give a task's CPU time from an
+idle GPU and its GPU time from timer queries. rocky was shared: load 5-7 during the first runs, 6-12 during the
+later ones, so CPU times vary by a third run to run there; the draw counts don't vary.
+
+**Where the time goes** (the heavy race2p12, d0b8b5d, the whole run's CPU: 0.26-0.48 s in two runs):
+
+| Part | Share |
+|---|---|
+| the N64 threads' baton (`port/ultra/sched.c`: `pthread_cond_signal`, the futex waits, the mutex), in libc and the kernel | 23-34 % |
+| the interpreter (`port/gfx`: the display-list walk with the vertex loads, `pcgfx_tri_visible`, `pcgfx_rdp_command`, `pcgfx_tri_output`, the outcodes, the clipping, the draw state) | 17-27 % |
+| the GL driver (Mesa's libgallium, its `ioctl`s, libGLdispatch) | 14-18 % |
+| the game's C (`src/`: the cars, the collisions, the particles, the scene) | 10-11 % |
+| the ROM's SHA-1 at boot (`port/ultra/romcheck.c`, once a run) | 4-6 % |
+| audio (`port/audio`) | 1-2 % |
+
+The texture cache (`unit_texture`, `tex_lookup`) is under 0.5 %. The scenes are the synthetic cartridge's few
+boxes, so the interpreter's share is small next to a retail scene's (below).
+
+**Draws: one where two states differ only in uniforms the shader doesn't read** (`pcgfx_gl_same_draw`,
+`port/gfx/gfx_gl.c:989`, called from `pcgfx_draw_state`, `port/gfx/gfx_rdp.c:980`). The batch of triangles was
+drawn at every change of the draw state, a colour the shader never reads included: the game sets the primitive and
+environment colours between models, and a shaded or textured model's combiner often uses neither. GL gives a
+uniform a shader doesn't use no location (-1), and `pcgfx_gl_draw` sets only those it has, so the two states draw
+alike; the batch goes on and is drawn with the later state's values. Triangles in one draw are drawn in their
+order, as two draws' are, so the picture is the same. RUSH_GFX_TIMES=3 on rocky, a task's mean:
+
+| Path | Settings | Draws a task | Vertices a task | CPU a task, ms (from an idle GPU) | GPU a task, ms |
+|---|---|---|---|---|---|
+| race12 | defaults | 43.2 → 2.8 | 1,005 | 0.213 → 0.204 | 0.164 → 0.164 |
+| race12 | heavy | 25.7 → 2.2 | 737 | 0.160 → 0.157 | 0.103 → 0.104 |
+| race2p12 | defaults | 83.9 → 4.1 | 1,487 | 0.360 → 0.309 | 0.136 → 0.150 |
+| race2p12 | heavy | 49.5 → 3.1 | 1,006 | 0.238 → 0.234 | 0.090 → 0.090 |
+
+(d0b8b5d and this branch run side by side, load 6-7. The draws are the same every run. The CPU's change is within
+the runs' spread but for race2p12 at the defaults, 14 % less: iris's draws are cheap.)
+
+**On the Pi 5 with the retail cartridge** (RelWithDebInfo, headless, the attract demo with 12 cars:
+tools/port/synth/demo12.press, `--fast`, `RUSH_GFX_TIMES=1`, one locked run each, d0b8b5d's gfx files built beside
+this branch's): a graphics task's CPU time 4.90 → 4.70 ms at the defaults (1,136 tasks; the whole run 7.76 → 7.24 s),
+9.49 → 9.51 ms with `game.frame_rate = 60` and `video.draw_distance = max` (1,421 tasks; 16.25 → 16.10 s). Both
+runs of each took the same course (the same state lines, the first car at the same place). `RUSH_GFX_TIMES=1`
+doesn't count the draws; that the task's time hardly moved says that the retail scenes' state changes are mostly
+real ones (a texture, a combiner, a depth mode), or that their draws were not where the Pi's time went. A task at max takes 9.5 ms of the Pi's CPU against 4.9 at the defaults (max's 2-5
+times the triangles, DETAIL.md 4), more than half of a retrace at 60, on the main thread while the game's threads
+run beside it. The Pi has no `perf`, and the task's parts were not sampled there.
+
+**Proof.** `tools/port/synth_compare.py --same --runs 2 --shots`, d0b8b5d against this branch, every synthetic path:
+56 of 56 the same (rocky, load 6-7, `-j 6`), the 31 paths' screenshots among them (detail_max's at draw_distance max,
+race2p12's with 12 cars and two views). The heavy runs of the table above and the Pi's runs: the same state lines
+before and after. `ctest -R '^gfx'` (rocky): 130 of 130 pass.
+
+**Left, measured:** the baton (a quarter to a third of the CPU on the virtual clock: two futex calls and a context switch at
+each hand-over between the N64 threads and the main loop) is the largest part and is in `port/ultra`, where the
+order of the hand-overs is the trace; making it cheaper (a short spin before the futex wait, or no signal where no
+thread waits) wants its own proof. In the interpreter, `pcgfx_tri_visible`'s culling divides each vertex's x and y
+by w in double for every triangle that uses it; computing that once a vertex at its load would save most of it.
+
 ## What the game code must do
 
 - **Wide `Gfx`.** `Gfx` is `{ u32 w0; uintptr_t w1; }` (16 bytes) on `TARGET_PC`.
