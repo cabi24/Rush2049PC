@@ -848,15 +848,19 @@ f32 func_8009C3F8(f32 x, s32 flag)
 #endif
 #ifdef TARGET_PC
 /* PC: video.draw_distance and video.detail (docs/port/DETAIL.md 2). PC_DRAW_REACH (a model's last level of detail,
- * the fog's radius), PC_LOD_DIST (the level chosen) and PC_SCENE (the scene's counts) are pc_game_types.h's; a node
+ * PC_LOD_REACH, and the fog's radius), PC_LOD_DIST (the level chosen) and PC_SCENE (the scene's counts) are pc_game_types.h's; a node
  * past its last level is counted, a level forced by its flags (CreateCar's tires with 2-4 players) is the first with
  * detail high (the distance its children and the cull read stays the N64's), and a view's walk begins at its
  * visibility. */
 #define PC_LOD_CUT else { PC_SCENE(LOD) }
+/* a model's last level's distance, as far as the draw distance reaches; not for a node that fades out by then (flag
+ * 0x200000, the car's sheen: alpha 0 past 80 ft), which would spend a lookat and its list on nothing */
+#define PC_LOD_REACH(d, flags) (((flags) & 0x200000) ? (d) : PC_DRAW_REACH(d))
 #define PC_LOD_FORCED(l) (pc_detail() == PC_DETAIL_HIGH ? 0 : (l))   /* CreateCar's tires at level 1 in split screen */
 #define PC_VIEW_BEGIN pc_scene_view();
 #else
 #define PC_DRAW_REACH(d) d
+#define PC_LOD_REACH(d, flags) d
 #define PC_LOD_DIST(d) d
 #define PC_LOD_FORCED(l) l
 #define PC_SCENE(k)
@@ -912,7 +916,7 @@ s32 particle_system(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32
         D_80124EE8 = sqrtf(x * x + y * y + z * z);
     }
     if (!(node->flags & (0x100 << view))) {
-        if (set->lv[lod].dist == 0.0f || !(PC_DRAW_REACH(set->lv[lod].dist) * node->scale < D_80124EE8)) {
+        if (set->lv[lod].dist == 0.0f || !(PC_LOD_REACH(set->lv[lod].dist, node->flags) * node->scale < D_80124EE8)) {
             if (node->flags & 4) {
                 lod = PC_LOD_FORCED(node->flags & 3);
                 if (lod >= set->lv[0].count) {
