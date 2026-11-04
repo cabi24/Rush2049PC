@@ -135,6 +135,13 @@ extern s8 D_801439F8[6];        /* carsetup_flag */
 #define PC_CARSETUP_FLAG(i) D_801439F8[i]
 #define PC_MAX_LINKS 6
 #endif
+#ifdef TARGET_PC
+/* game.frame_rate = 60 (docs/port/FRAMERATE.md 7.3): the track's load goes a wave a call, a call a frame, so at 60 it
+ * is called on the frames that complete a 30 Hz frame, and the countdown begins at the N64's retrace. */
+#define PC_LOAD_ON30(call) ((!pc_fps60 || pc_frame_steps) ? (call) : 0)
+#else
+#define PC_LOAD_ON30(call) call
+#endif
 extern s8 D_801543C8;           /* gGravityScale */
 extern f32 D_801202F8[];        /* gravityArray */
 extern u8 D_80142728[];         /* audio lock queue */
@@ -369,7 +376,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
     if (D_80114650) player_flag_clear_process();
     else {
         leStartLoadingEffect();
-        rrr = LoadTrack(D_8014978C, 1, 0);
+        rrr = PC_LOAD_ON30(LoadTrack(D_8014978C, 1, 0));
         leEndLoadingEffect();
         if (!rrr) return 0;
     }
