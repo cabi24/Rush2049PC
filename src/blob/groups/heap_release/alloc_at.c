@@ -92,6 +92,11 @@ typedef struct Heap {
 #define N64W(x) x
 #endif
 
+#ifndef TARGET_PC
+#define PC_ONLY(stmt)
+#endif
+/* PC: the block taken is reported (port/ultra/heap.c, docs/port/MEMORY.md 4). */
+
 extern s32 D_80152770;
 
 s32 osRecvMesg(void *mq, void **msg, s32 flags);
@@ -171,7 +176,7 @@ void *NextMaxPath(u32 addr, u32 size) {
     }
     b->owner = 0;
     b->used = 1;
-    b->tag = 0;
+    b->tag = 0; PC_ONLY(pc_heap_allocated(heap);)
     osSendMesg(&D_80152770, 0, 0);
     return result;
 }

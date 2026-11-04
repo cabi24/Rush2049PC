@@ -101,6 +101,31 @@ static void blank_files(void)
         D_8002E580[i] = BLANK_FILE_SIZE, D_8011B5BC[i] = BLANK_FILE_ROM, D_80123564[i] = 0;
 }
 
+/* RUSH2049_TEST_WAVE_GROW=FIRST[-LAST]:BYTES (tests, docs/port/MEMORY.md 5): those waves' files are BYTES larger than
+ * the cartridge's, as a replacement file of that size would be. The game allocates and reads each by its size in the
+ * file table (gWaveSizes); the bytes past the file are the cartridge's next ones (zero past its end), and the
+ * converters read a file by its own tables, so only the heap block is larger. */
+static void test_grow_waves(void)
+{
+    const char *e = getenv("RUSH2049_TEST_WAVE_GROW");
+    unsigned first, last, bytes;
+    if (!e || !*e)
+        return;
+    if (sscanf(e, "%u-%u:%u", &first, &last, &bytes) != 3) {
+        if (sscanf(e, "%u:%u", &first, &bytes) != 2) {
+            fprintf(stderr, "rush2049pc: RUSH2049_TEST_WAVE_GROW takes FIRST[-LAST]:BYTES, not '%s'\n", e);
+            return;
+        }
+        last = first;
+    }
+    if (last >= BLANK_WAVES)
+        last = BLANK_WAVES - 1;
+    for (unsigned w = first; w <= last; w++)
+        D_8002E580[w] += bytes;
+    fprintf(stderr, "rush2049pc: test: waves %u-%u are %u bytes larger (RUSH2049_TEST_WAVE_GROW)\n", first, last,
+            bytes);
+}
+
 /* The MusyX service table (docs/port/MUSYX_DATA.md 8.1) is game data too, so a blank cartridge has none and
  * sndInit's first allocation calls 0. Its eight slots are the eight functions at the end of the game's code
  * (0x8010FBB4-0x8010FD7C), which nothing calls directly; their order here follows how the library calls each
@@ -610,6 +635,7 @@ static int rush_main(int argc, char **argv)
     }
     if (no_rom)
         blank_files();
+    test_grow_waves();
     musyx_services(no_rom);
     /* RUSH2049_TEST_AUDIO_POOL_FAIL=N (tests): every Nth audio command finds the audio manager's message pool
      * empty, as on a starved host, so its callers' guards run in menus, race starts and object creation
@@ -718,6 +744,7 @@ static int rush_main(int argc, char **argv)
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
     pc_pools_report();   /* port/ultra/pools.c: the pools' high-water marks (docs/port/MORECARS.md 8) */
+    pc_heap_report();    /* port/ultra/heap.c: the heap's (docs/port/MEMORY.md 4) */
     remember_window(&cfg, headless);
     pc_input_shutdown();
     pc_audio_shutdown();

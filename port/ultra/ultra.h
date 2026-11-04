@@ -232,6 +232,23 @@ extern void (*pc_on_fault)(const char *what);
 extern void (*pc_on_exit)(int code);
 void pc_fault_thread_init(void);   /* per host thread: an alternate signal stack */
 
+/* ---------------------------------------------------------------- heap.c: the game heap (docs/port/MEMORY.md 4) */
+typedef struct {
+    uint32_t memory, mem_size;      /* the window's size, osMemSize */
+    uint32_t base, end, size;       /* the default heap's header, its end and the bytes between */
+    uint32_t peak, free_low;        /* the most in use (size - free_low), the least free */
+    uint32_t largest_low;           /* the largest free block when the least was free */
+    uint32_t allocations, shorts, nones;   /* blocks taken; the game's fallbacks; allocations nothing could hold */
+    uint32_t floor;                 /* RUSH2049_TEST_HEAP_FLOOR's address, 0 without */
+} PcHeapStats;
+int pc_heap_stats(PcHeapStats *s);  /* 0 once the game has made its heap (s->memory and s->mem_size always) */
+void pc_heap_report(void);          /* the exit line */
+/* The game's allocator's calls (pc_prelude.h): */
+void pc_heap_created(void *heap);
+void pc_heap_allocated(void *heap);
+void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t largest);
+void pc_heap_short(const char *what, uint32_t need);
+
 /* ---------------------------------------------------------------- pools.c */
 void pc_pools_report(void);   /* the game's pools' high-water marks, at the end of a run (docs/port/MORECARS.md 8) */
 

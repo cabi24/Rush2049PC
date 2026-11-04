@@ -44,6 +44,11 @@ extern Link D_80153E88[];
 extern u32 audio_output_setup(Owner *);
 extern void *AllocateMemoryHeap(int, int);
 
+#ifndef TARGET_PC
+#define PC_ONLY(stmt)
+#endif
+/* PC: the heap too short for the paint, where a car shares another's, is logged (port/ultra/heap.c). */
+
 void func_800BB02C(int index, int kind, void *data)
 {
     int i;
@@ -54,7 +59,7 @@ void func_800BB02C(int index, int kind, void *data)
     D_8013FEE0[index].value = 0x8000;
     if (data != 0) {
         D_8013FEE0[index].data = data;
-    } else if (audio_output_setup(0) < 512) {
+    } else if (audio_output_setup(0) < 512) { PC_ONLY(pc_heap_short("a car's paint", 512);)
         for (i = 0; i < index; i++) {
             if (kind == PC_LINK_CAR(i)) {
                 D_8013FEE0[index].data = D_8013FEE0[i].data;

@@ -239,6 +239,11 @@ typedef struct MHeap {
 } MHeap;
 #endif
 
+#ifndef TARGET_PC
+#define PC_ONLY(stmt)
+#endif
+/* PC: a block that grows takes from the heap: reported as an allocation (port/ultra/heap.c). */
+
 void menu_item_select(u32 address, u32 desired) {
     MHeap *heap;
     MBlock *block;
@@ -323,7 +328,7 @@ void menu_item_select(u32 address, u32 desired) {
         }
         block->size = desired;
     }
-    osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0);
+    PC_ONLY(pc_heap_allocated(heap);) osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0);
 }
 
 /* : func_800C885C -- frees the two cached audio heap handles D_8011025C / D_80110260 (the first half

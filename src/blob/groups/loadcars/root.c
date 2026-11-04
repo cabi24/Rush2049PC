@@ -58,6 +58,12 @@ s32 func_8009768C(s32);
 /* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
 #define PC_RACE_CARS 6
 #endif
+#ifndef TARGET_PC
+#define PC_ONLY(stmt)
+#endif
+/* PC: the heap too short for a car type's file, where LoadCars picks another type or shares one, is logged the first
+ * time and counted (port/ultra/heap.c, docs/port/MEMORY.md 5); the choice is the N64's. */
+
 void LoadCars(s32 select)
 {
  s32 i;
@@ -78,7 +84,7 @@ again:
    PC_LINK_COLOR0(i)=D_80111604[PC_LINK_CAR(i)];
    PC_LINK_COLOR1(i)=D_80111648[PC_LINK_CAR(i)];
    PC_LINK_COLOR2(i)=D_8011168C[PC_LINK_CAR(i)];
-   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) {
+   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) { PC_ONLY(pc_heap_short("LoadCars, a drone's car", D_8002E580[PC_LINK_CAR(i)+88]+512);)
     for(j=0;j<13;j++) {
      if(func_8009768C(PC_LINK_CAR(i)+88)<0 &&
         audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load;
@@ -99,7 +105,7 @@ load:
    }
    func_800BB02C(i,PC_LINK_CAR(i),0);
   } else if(i<PC_RACE_CARS && PC_MODEL_DRONE_TYPE(i)==2) {
-   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) {
+   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) { PC_ONLY(pc_heap_short("LoadCars, a player's car", D_8002E580[PC_LINK_CAR(i)+88]+512);)
     for(PC_LINK_CAR(i)=0;PC_LINK_CAR(i)<13;PC_LINK_CAR(i)++) {
      if(audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load2;
     }

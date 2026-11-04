@@ -5,14 +5,19 @@
  * moves that block's header down; one grown into a free successor takes part of it, or all of it with what is left
  * under a header's size. The heap is the game's (func_800E7D0C, AllocateMemoryHeap) in a window the test maps
  * (exit 77, skipped, if it can't).
+ * Then port/ultra/heap.c on it (docs/port/MEMORY.md 4): the heap's size and its high-water marks as the game takes
+ * blocks, a fallback's count, and at game.memory 32 RUSH2049_TEST_HEAP_FLOOR, whose blocks the game's own
+ * allocate-at-address takes, so that the game's next blocks start at the floor and the runtime images' block is
+ * where the image loads find it.
  * game: src/blob/groups/audio_heap/group.c src/blob/groups/heap_release/group.c src/blob/func_80095EF4.c
- * game: src/blob/func_80095F8C.c
+ * game: src/blob/func_80095F8C.c src/blob/groups/heap_release/alloc_at.c
  */
 #include <stddef.h>
 #include <string.h>
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "ultra.h"   /* port/ultra/heap.c: pc_heap_stats */
 
 #define ABS(name, addr) __asm__(".globl " #name "\n.set " #name ", " #addr)
 #define W32(p) ((uint32_t)(uintptr_t)(p))
@@ -51,11 +56,25 @@ void *n64_memset(void *p, int c, size_t n) { return memset(p, c, n); }
 void func_800E7D0C(uint16_t count, uint16_t a);
 void *AllocateMemoryHeap(void *heap, uint32_t size);
 void menu_item_select(uint32_t address, uint32_t desired);
+void *NextMaxPath(uint32_t addr, uint32_t size);
+
+/* the free total, as the game sums it (audio_output_setup), here from the heap's blocks */
+static uint32_t free_total(void)
+{
+    uint32_t sum = 0;
+    for (uint8_t *b = WP(U32(D_801527C8, 8)); b; b = NEXT(b))
+        if (!USED(b))
+            sum += SIZE(b);
+    return sum;
+}
 
 int main(void)
 {
-    uint8_t *w = test_rdram(), *a, *b, *c, *ha, *hb, *hc, *hm, *after;
+    uint8_t *w, *a, *b, *c, *ha, *hb, *hc, *hm, *after;
     uint32_t rest;
+
+    test_rdram_bytes = 32u << 20;   /* room for game.memory 32 below */
+    w = test_rdram();
 
     if (!w) {
         fprintf(stderr, "test_heap: the RDRAM window can't be mapped here: skipped\n");
@@ -89,5 +108,38 @@ int main(void)
     hm = hc + 32 + 384;
     CHECK(SIZE(hc) == 384 && NEXT(hc) == hm && PREV(hm) == hc && SIZE(hm) == 512 - 384 + rest);
     CHECK(U32(hm, 0) == MAGIC && USED(hm) == 0 && USED(hc) == 1);
+
+    /* port/ultra/heap.c's numbers: the heap from its header to osMemSize | K0, the least free as the game sums it */
+    PcHeapStats st;
+    CHECK(pc_heap_stats(&st) == 0 && st.base == W32(D_801527C8) && st.end == 0x80400000u);
+    CHECK(st.size == st.end - st.base && st.peak + st.free_low == st.size && st.allocations == 6);
+    CHECK(st.free_low < free_total() && st.shorts == 0 && st.nones == 0 && st.floor == 0);   /* before the shrinks */
+    AllocateMemoryHeap(NULL, 1000);
+    pc_heap_stats(&st);
+    CHECK(st.free_low == free_total() && st.allocations == 7);
+    pc_heap_short("a test", 12345);
+    pc_heap_short("a test", 12345);
+    pc_heap_stats(&st);
+    CHECK(st.shorts == 2);
+
+    /* game.memory 32 with the floor at 17 MiB: the heap made again (the game makes it once, at boot) */
+    U32(w, 0x318) = 32u << 20;
+    setenv("RUSH2049_TEST_HEAP_FLOOR", "17", 1);
+    func_800E7D0C(16, 16);
+    unsetenv("RUSH2049_TEST_HEAP_FLOOR");
+    pc_heap_stats(&st);
+    CHECK(st.end == 0x82000000u && st.floor == 0x81100000u && st.allocations == 0);
+    a = AllocateMemoryHeap(NULL, 256);
+    b = AllocateMemoryHeap(NULL, 0x200000);
+    CHECK(W32(a) == 0x81100000u && W32(b) == 0x81100000u + 256 + 32);   /* the game's blocks from the floor */
+    /* the runtime images' block: taken and locked, where the image loads find it (PrevMaxPath's NextMaxPath) */
+    uint8_t *img = WP(0x8038A400u - 32);
+    CHECK(U32(img, 0) == MAGIC && USED(img) == 1 && img[0x16] == 1 && SIZE(img) == 0x803BB380u - 0x8038A400u);
+    CHECK(NextMaxPath(0x8038A400u, 0x803BB380u - 0x8038A400u) == WP(0x8038A400u) && SIZE(img) == 0x30F80u);
+    /* below the images' block and above it, to the floor: two more locked blocks, nothing free */
+    CHECK(USED(PREV(img)) == 1 && PREV(img)[0x16] == 1 && USED(NEXT(img)) == 1 && NEXT(img)[0x16] == 1);
+    CHECK(NEXT(NEXT(img)) == WP(0x81100000u - 32));
+    pc_heap_stats(&st);
+    CHECK(st.peak > 17u << 20 && st.free_low == free_total() && st.allocations == 3);
     return TEST_DONE();
 }

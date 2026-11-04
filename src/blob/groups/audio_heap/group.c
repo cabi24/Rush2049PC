@@ -122,6 +122,12 @@ typedef struct Heap {
 #define HANDLE_SLOT 4
 #endif
 
+#ifndef TARGET_PC
+#define PC_ONLY(stmt)
+#endif
+/* PC (port/ultra/heap.c, docs/port/MEMORY.md 4): the heap's making, each block taken, and an allocation no free block
+ * holds, which the N64 game takes as a null block, are reported; nothing in the game's own code changes. */
+
 extern u8 D_8017A640[];
 extern Heap *D_801527C8;
 extern s32 D_80152770[];
@@ -174,7 +180,7 @@ void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag)
             }
         }
     }
-    bs = b->size;
+    PC_ONLY(if (b == 0) pc_heap_none(heap, size, total, largest);) bs = b->size;
     if (bs - size >= 64) {
         n = (Block *)((u8 *)b + size + 32);
         n->next = b->next;
@@ -195,7 +201,7 @@ void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag)
     }
     b->used = 1;
     b->owner = N64W(owner);
-    b->tag = tag;
+    b->tag = tag; PC_ONLY(pc_heap_allocated(heap);)
     return (u8 *)b + 32;
 }
 
@@ -319,5 +325,5 @@ void func_800E7D0C(u16 count, u16 a)
         osSendMesg(D_80152770, 0, 0);
     }
     func_800E7D04();
-    func_800E7B44(D_801527C8, count, a);
+    func_800E7B44(D_801527C8, count, a); PC_ONLY(pc_heap_created(D_801527C8);)
 }

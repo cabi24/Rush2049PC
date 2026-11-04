@@ -703,6 +703,9 @@ target_compile_definitions(test_assets_pools PRIVATE ${PC_POOLS_TEST_SIZES})
 target_compile_definitions(test_assets_pools_game PRIVATE ${PC_POOLS_TEST_SIZES})
 target_sources(test_assets_pools PRIVATE port/ultra/pools.c)
 target_include_directories(test_assets_pools PRIVATE port/ultra)
+# The heap's test runs port/ultra/heap.c on the game's own heap (docs/port/MEMORY.md 4), in a 32 MiB window.
+target_sources(test_assets_heap PRIVATE port/ultra/heap.c)
+target_include_directories(test_assets_heap PRIVATE port/ultra)
 
 # And the drones' (the lists, maxpath's controls, the schedule; docs/port/DECOUPLE.md 8).
 target_compile_definitions(test_assets_drones PRIVATE PC_MAX_LINKS=16)
