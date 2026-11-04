@@ -271,7 +271,8 @@ static const Item items[] = {
     {"video", "vsync", T_BOOL, F(vsync), 0, 0, NULL, "on",
      "Wait for the display's refresh: no tearing, and no more frames shown than it refreshes (frame_rate)."},
     {"video", "frame_rate", T_INT, F(frame_rate), 30, 1000, frame_rate_choices, "original",
-     "Frames shown a second: original (the game's own: 30, or fewer), display (the display's refresh; with vsync) or "
+     "Frames shown a second: original (the game's own: 30, or 60 with game.frame_rate = 60), display (the display's "
+     "refresh; with vsync) or "
      "a number (60, 120, 144). Frames between the game's are drawn from its last two; its timing is unchanged "
      "(RUSH_GFX_FRAME_RATE)."},
     {"video", "scale", T_INT, F(scale), 1, 8, scale_choices, "native",
