@@ -593,3 +593,170 @@ The other race sounds that start or update effects (the tires in `func_800E05F0`
 `mode_select_handler`, the tire visuals' `buffer_swap`) read the model record, which keeps its N64 layout
 ([CARS.md](CARS.md) 4), and tables the loader swaps at the widths they are read (`D_8011F060` f32, `D_8011F020` and
 `D_8011F040` s16); `offset_check --strict` reports no open view on either host.
+
+## 10. More voices, and which engines play: `[audio] voices`, `[audio] engines`
+
+Written 2026-11-04 (item 6 of the PC features: every engine heard with 12 cars, [MORECARS.md](MORECARS.md) 6). The
+N64 game sets its sound up for 6 cars, and a race of 12 asks it for twice the engines. This section says what limits
+the sounds a race plays, what the two settings change, how they are built, and what they cost.
+
+| Piece | Where |
+|---|---|
+| The settings at run time, the engines' choice, the counters | `port/config/voices.c` |
+| The settings, the overlay | `port/config/config.c` (`audio.voices`, `audio.engines`), `port/input/menu.c` (F1 > Audio) |
+| MusyX past 32 voices | `src/rom/lib_113e0.c`, `lib_11640.c`, `lib_1a660.c`, `lib_1f5b0.c`, `lib_22300.c`; the per-voice storage: [DECOUPLE.md](DECOUPLE.md) 9 |
+| The sound manager | `menu_save_options/hud_setup.c` (its set-up), `engine_sound_sync/engine_sound_sync.c` (the emitter pass), `updatefx/updatefx.c` (the budget) |
+| The interpreter | `port/audio/musyx.c`, `musyx_abi.h` (`MX_*_N`) |
+| The log | `--log-voices N` (`port/main.c`), the `audio: mixer:` line (`audio_out.c`), `tools/port/capture_summary.py` |
+| The tests | `audio_voices`, `assets_mxvoices`, `frontend.voices`, `frontend.engines`, `synth_voices_*`, `synth_engines_*` (`tools/port/voices_check.py` on `synth_rom.py --sounds`) |
+
+### 10.1 What limits the sounds a race plays
+
+A race's sounds go through these layers, each with its own count, all but the last set by one call: `hud_setup(32, 16, 16, 5, 64,
+...)` with the Expansion Pak (`heap_release/initsystem.c:191`; `state/state.c:149` and its two neighbours run it again
+only without the pak), `hud_setup(8, 8, 0, 0, 0, ...)` without it for a race (`state/state.c:210, 273`).
+
+| Layer | What it holds | Set from | N64, with the pak | Without the pak |
+|---|---|---|---|---|
+| the sound manager's emitters (`camera_target_track`) | a positional sound's place: a drone's two engine layers, the screeches, the bumps, the track's sounds | `numB` | 64 | 0: no positional sound at all |
+| its fx tags (`D_80110244`) | every sound the game asked for, playing or waiting | `max(min(2 arg1, 64), arg1 + numB)` | 80 | 16 |
+| its priority pass (`_ProcessPriorities`, `_UpdateFx`) | each retrace the tags sorted by weighted priority (`func_80098710`: the sound's priority, plus 80 times its silence, 1 - volume, plus 8 for a loop); only the first `gMaxSfx * 0.75` play, the others wait or are stopped | `arg1` (`gMaxSfx`, `D_80146200`) | 12 | 6 |
+| its entries (AudioSfxInit, `func_800A4CB8`) | a sound the library plays (`audio_state_save`); a start that finds none is not played | `arg1` | 16 | 8 |
+| MusyX's voices (`func_8001F13C`) | the voices; the effects (`key & 128`) may hold at most their quota (`D_8004FA1A`), the songs theirs (`D_8004FA19`), then a new one takes one of its own kind (by age) | `arg0`; `arg1`, `arg2` | 32; 16 effects, 16 songs | 8; 8 effects, 0 songs |
+| the manager's messages (`D_80142DD8`) | a command from the game to the manager's thread (a start, a change of volume, pan or pitch, a stop) and from its priority pass; the emitter pass sends one for each emitter whose sound changed | fixed storage | 128 | 128 |
+
+A drone's engine is two looping layers on two emitters, at 400 ft gone (its gain falls linearly to 0 there:
+`engine_sound_sync.c`), priority 128 (`d5e64.c`), so a weighted priority of 136 to 216; a human's two layers are not
+positional (`high_scores_display`, priority 0). With 6 cars the 12 of the budget hold the player's engines and those of
+the four or five drones in earshot; with 12 cars they hold the player's and the nearest four or five, and the effects
+compete with them for the same 12, and the 16 entries and the 16 effect voices.
+
+### 10.2 The settings
+
+**`[audio] voices`** = `original` (the default) | `48` | `64` | `96`: MusyX's voices. Read once, at start
+(`pc_voices_set`, `port/main.c`): the library is set up once a run (AudioInitSys) and sizes its SFDs, voice pool and
+caches then, so a change applies at the next start (the overlay marks it `*`). Above `original`, `pc_snd_setup`
+(`hud_setup.c`) gives the Expansion Pak's set-up, and the manager's messages grow (`pc_snd_messages`, 10.4):
+
+| `voices` | MusyX's voices | effects (`arg1`: their quota, `gMaxSfx`, entries) | the budget (tags at once) | songs | emitters | fx tags | messages |
+|---|---|---|---|---|---|---|---|
+| `original` | 32 | 16 | 12 | 16 | 64 | 80 | 128 |
+| `48` | 48 | 32 | 24 | 16 | 128 | 160 | 256 |
+| `64` | 64 | 48 | 36 | 16 | 128 | 176 | 256 |
+| `96` | 96 | 80 | 60 | 16 | 128 | 208 | 256 |
+
+The songs keep their 16 (a song uses up to 16 channels); everything else goes to the effects. The set-up without the
+pak is never changed: it is the N64 without the pak, which has no positional sound to give more voices to. 96 is the
+most: the per-voice storage is 96 long (`PC_MX_VOICE_SLOTS`), and a voice's number must stay below 255 (the
+library's "none", section 10.3).
+
+**`[audio] engines`** = `original` (the default) | `nearest2` | `nearest3` | `nearest4` | `nearest6` | `nearest8` |
+`all`: which drones' engines play. It applies at once (from the sound manager's next retrace; the overlay sets it
+when it changes, `pc_engines_set`).
+- `original`: the game's own choice, the priority pass above: the loudest within the budget. Nothing is changed.
+- `nearestN`: for each listener (each player's view, split screen included: `D_80146188`), the N nearest drones'
+  engines play, and the others' are silent. A drone that has its place keeps it until another is nearer by a fifth
+  (the hysteresis: its distance counts at 0.8 of itself), so a car level with the N-th nearest doesn't flicker; one
+  that gains or loses its place fades in or out over 15 retraces (0.25 s). A silenced engine's tag then has a volume
+  of 0: the priority pass doesn't start it and stops it after 0.2 s, as it does any silent loop, so it gives its
+  voice back. A drone is on if any listener chose it.
+- `all`: every drone's engine in earshot plays, and the budget leaves them out: a car's engine tag (the players' too,
+  which rank first anyway) is never held back for the budget and doesn't count against it, so the effects keep the
+  whole budget. The limit is then MusyX's
+  effect voices: 12 cars ask for 24 engine voices (the player's two and 22), so with 12 cars `all` wants 64 voices
+  or more; at `original` the voices refuse what doesn't fit (section 10.7).
+
+**Why the sound manager, and not MusyX's priorities.** MusyX gives a voice by the priority and the per-sound limit a
+sound had when it started (`func_8001F13C`), and when it has none it takes the oldest of the lowest priority, cut at
+once; it knows nothing of distances, and its priorities aren't changed after a start. The sound manager weighs every
+sound again each retrace by its volume, so distance already decides there, starts and stops sounds by its own rules
+(a stopped loop goes to its waiting list and comes back when it ranks again), and a silent tag frees its voice. So
+`nearestN` acts on the gain the emitter pass computes, which the manager then turns into starts and stops, and `all`
+on the manager's budget; MusyX's allocation is left as it is. Starting and stopping the drones' emitters themselves
+would lose the game's own bookkeeping of them (StartCarSounds makes them once a race and the engine update moves
+them each frame), and a gain of 0 does the same with none of that.
+
+### 10.3 MusyX past 32 voices
+
+What the library sizes or caps by 32 (found by reading every unit of the library for the voice count `D_8004FA18`,
+literal 32s and `[32]`s, `& 31`, `0x1F`, `1 <<` and the voice ids' low byte, `& 255`), and what the PC does:
+
+| Place | N64 | PC |
+|---|---|---|
+| AudioInitSys' caps, `func_80010840`, `func_800108E0` (`lib_113e0.c:56-59, 83-86`); `func_80014198` (`lib_11640.c:1546`) | `voices > 32` becomes 32 | `PC_MX_CAP(32)`: the storage's 96 |
+| the voices' set-up (`func_8001C1D8`, `lib_1a660.c:1076`), the sequence nodes' (`func_8001E9B0`, `lib_1f5b0.c:43`), the legato owners' (`func_800218CC`, `lib_22300.c:128`) | 32 | `PC_MX_LOOP(32)`: the run's voices, 32 at original |
+| the per-voice storage: the voices (`D_8004BEB8`, 0x1A0 bytes each), the sequence nodes, the priority and free lists' links, an effect voice's 134 controllers and two channel bytes (it is its own channel in set 255), its legato owner, a stream's record | 32 each, boot segment BSS | PC data of 96, [DECOUPLE.md](DECOUPLE.md) 9 |
+| the driver's voices (`D_80038294`), the codebook cache (`func_800114C0`: voices times the subframes a task holds), the sample cache (`D_8002C5D0[mode]` times the voices), the DMA list | from the voices (heap) | the same: they grow with the voices |
+| an SFD's voice records (`Block_80012D18.commands[32]`) and the release mask (`1U << slot`, a u32) | 32, 2576 bytes | `pc_sfd_slots` records (the voices, at least 32), the mask's words for slots 32 and up after them (`PC_RELEASE`, `pc_sfd_mask_out`), the array stepped by `pc_sfd_size()` (`PC_SFD`, `lib_11640.c:1043, 1303-1330`) |
+| the state block (`func_80011104`) | 664 bytes | 664 + 8 a slot past 32 (`PC_MX_STATE`, `lib_11640.c:293-295`) |
+| a voice's id | the voice's number in its low byte; 255 "none" in the lists' links | the same: 96 fits |
+
+Not per voice: the 32 faders (`D_8004F300`, by volume group), the MIDI channels (16 a set, 8 sets), and MusyX's own 3D
+emitters (`lib_1cf90.c`'s 32 groups), which the game never uses.
+
+A voice that never had a slot has 255 there (`func_80011104`), and the N64's shift takes the slot's low five bits:
+its release sets bit 31 of the header's word. The PC does the same for 255 at any size (`pc_release`), and puts a
+slot past 31 in its word. The shift was `1U << 255` on the PC before: undefined in C, bit 31 on x86-64 and AArch64.
+
+**The interpreter.** `pc_audio_set_sfd_voices(n)` (the game calls it as it allocates its SFDs, with the slots, and
+checks that its SFD is the interpreter's size: `pc_sfd_layout`) gives each SFD n voice records, then
+`MX_MASK_WORDS(n)` u32 words of the release mask (slot 32 + 32k + b is bit b of word k), rounded to 8 bytes; the
+state block holds the last output of slot 32 and up after its 0x298 bytes. At 32 every record, the state block and
+the arithmetic are the N64's. The capture (section 8) writes SFDs of more voices in the N64 form of that many records,
+which the microcode can't replay; `capture_summary.py` reads them.
+
+### 10.4 The sound manager's pools
+
+- **Emitters: 128** above original (`PC_SND_EMITTERS`). A race of 12 needs, for each drone, its two engine layers,
+  its screech while it skids and its random sound (`func_800E0050`'s `rec[3]`), 44 for 11 drones, and the bumps and
+  crashes and the track's own sounds on top: more than the N64's 64 at the worst moment. They are heap records of 56
+  bytes on the PC (44 on the N64: `hud_speed_display`'s `RecB`, `camera_target_track`'s `Cam`), so 128 cost 7 KB; the fx tags (`max(min(2 arg1, 64), arg1 + emitters)`) follow,
+  160 to 208. The most a retail race of 12 held at once: section 10.6.
+- **Messages: 256** above original (`PC_SND_MSG_SLOTS`; 128 at original, as on the N64). The manager's commands
+  (`D_80142DD8`), the priority pass's two lists of the commands it sends (`gStartCmds`, `gStopCmds`) and the manager's
+  queue grow together: a pass sends at most one message a command, so each list must hold the pool. A retrace's emitter
+  pass sends a change for each emitter whose sound changed and the priority pass a start or stop for each tag that
+  moves across the budget; the manager's thread takes them before its next retrace, unless the host holds it back,
+  when the retraces queue up behind each other and each sends its changes again. On the virtual clock a race of 12
+  never held more than 50 at once; in real time on the Pi, under load, it ran the 128 out at original (46 commands
+  missed in 92 s) and held 124 of 128 at 64 voices (section 10.6). A message missed is a change sent again at the
+  next retrace (`PC_MSG_OR_RETURN`, transform/group.c), or a start that waits for the next pass, counted as `no
+  message`. The three are fixed N64 storage (own storage on the PC), so they are PC data now, [DECOUPLE.md](DECOUPLE.md)
+  9.
+- **Entries and request nodes** (AudioSfxInit, heap): `arg1` and three times it, so they follow the effects' share.
+- **Without the Expansion Pak** nothing changes: no emitters, 8 voices, as the N64.
+
+### 10.5 Seeing it: `--log-voices`, the mixer's line, the capture
+
+- **`--log-voices N`** (`port/main.c`; off by default, so the traces are as before): every N retraces, read as the
+  state log is (every N64 thread waits), a line `rush2049pc: voices vi=V: ...` of what happened since the line
+  before: the voices the mixer mixed a subframe (an SFD, 192 frames, 8.7 ms) and the SFD's voice records; the starts
+  MusyX refused (`func_8001F13C` found no voice) and the voices it stole (took from a sound still playing); the
+  effects the manager started that MusyX didn't (`MP_TargetSteerPos`); the tags the priority pass held back or
+  stopped for its budget, a pass; the positional starts that found no emitter, the commands that found no message,
+  the effect starts that found no entry; the emitters and fx tags in use now; the message pool's high-water mark
+  (`func_80091B00` takes the first free one, so its index is a lower bound of those in use); the drones' engine
+  layers that have an emitter and those whose tags play, and the drones of those; and the drones whose engines
+  `audio.engines` keeps on. The game's sound code fills the counters (`pc_snd_count`, `PC_SND_*`, `pc_game_types.h`)
+  on its own threads. At the run's end, `rush2049pc: voices at the end: ...` has the same over the whole run, the
+  most voices in a subframe, the most drones' engine layers playing at one pass, and how many subframes mixed each
+  number of voices.
+- **The mixer's line** (`audio: mixer: ...`, with the output's line at exit and with `-v` every 10 s): the subframes
+  rendered, the voices a subframe (mean and most) and the interpreter's CPU time a subframe (the task thread's,
+  `CLOCK_THREAD_CPUTIME_ID`; the wall clock on Windows), against the subframe's own 8.7 ms.
+- **The capture** (`RUSH2049_AUDIO_CAPTURE`, section 8) takes SFDs of any size; `tools/port/capture_summary.py CAPTURE`
+  prints, about every second, the voices a subframe and the samples playing (told apart by their codebooks), with
+  the voices of each at once, its pitch range and mean level. Like the capture, it stays on the machine that ran it.
+
+### 10.9 Tests
+
+| Test | What it checks |
+|---|---|
+| `audio_voices` (port/audio) | SFDs of 48, 64 and 96 voices, native and N64 form (native order and big-endian): the sizes (32's the N64's 0xA10 and 3864 bytes; the mask's words; 8-byte rounding; capped at 255); a full SFD, every voice mixed up to the one at the last slot, which names the output; the list's end at slot 40 with louder voices after it unmixed; stopped voices at slots 31, 32 and n - 1 folded into the base by their own bits (bit 31 of the header's word, bit 0 of the first word after the records, bit 31 of the last), decaying; the slots' last outputs where they belong; at 32 the N64's SFD. A mutation that ignores the words after the records fails 6 checks, one that keeps every slot's last output at the N64's place 6 |
+| `assets_mxvoices` | the per-voice storage through the library's own allocator, nodes and controllers at 96 ([DECOUPLE.md](DECOUPLE.md) 9); with the node loop at 32, 2 checks fail |
+| `assets_musyx`, `assets_audiocmds`, `assets_sound`, `assets_audiomgr` | as before, on the PC arrays (32 voices, 128 messages walked) |
+| `frontend.voices`, `frontend.engines` | the settings, `pc_snd_setup`, the engines' choice and its hysteresis, fades and listeners, the budget ([FRONTEND.md](FRONTEND.md)) |
+| `frontend.menu.live` | F1 > Audio: Voices after a restart, Drones' engines at once |
+| `synth_voices_race12` | the synthetic race of 12 (`synth_rom.py --sounds`) at original, 48, 64 and 96: the same game trace at each; at original no subframe past 32 voices; each size mixes more voices with fewer starts refused, until one refuses none |
+| `synth_voices_race2p12` | the same in split screen, at original and 64 |
+| `synth_engines_race12_original`, `_nearest4`, `_all`, `synth_engines_race2p12_nearest4` | at 64 voices, which drones' engines are on, every 30 retraces: none named at original; never more than 4 a player with nearest4 (8 in split screen), some on; all 11 (10) with all |

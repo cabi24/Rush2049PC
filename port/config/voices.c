@@ -3,13 +3,13 @@
  * voices: MusyX's voice count, set by main at start (pc_voices_set) before the game threads run and never after: the
  * library is set up once a run (AudioInitSys), and its SFDs, voice pool and caches are sized from it then. 32
  * (original) gives the N64's set-up exactly; 48, 64 and 96 give the effects all but the songs' 16 voices, the sound
- * manager a budget of 3/4 of those, and 128 positional emitters (pc_snd_setup).
+ * manager a budget of 3/4 of those, 128 positional emitters (pc_snd_setup) and 256 messages (pc_snd_messages).
  *
  * engines: which drones' engines play. original is the game's own choice (the sound manager's priority pass keeps the
  * loudest within its budget); nearest N keeps, per listener (each player's view in split screen), the N nearest
  * drones' engines, with hysteresis (a drone that has its place keeps it until another is nearer by a fifth) and a
- * quarter-second fade in and out, and silences the others' (gain 0: the pass then holds them back and stops them as
- * it stops any silent loop); all plays every drone's engine and keeps them out of the budget, which the effects then
+ * quarter-second fade in and out (an engine just made starts at its level), and silences the others' (gain 0: the
+ * pass then holds them back and stops them as it stops any silent loop); all plays every drone's engine and keeps them out of the budget, which the effects then
  * have to themselves. It can change at any time (the overlay): the emitter pass reads it each retrace.
  *
  * The counters (--log-voices) are filled by the game's sound code on its threads; relaxed atomics, read when every

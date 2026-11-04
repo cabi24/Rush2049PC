@@ -523,6 +523,13 @@ are heard: likely the nearest and loudest, by MusyX's priority, not tested by ea
 null`; the MusyX code ran, no fault, no sanitizer report). A PC-side choice is possible later: start the drones'
 engines only for the N nearest cars to each listener.
 
+**Done (2026-11-04): `[audio] voices` and `[audio] engines`** ([AUDIO.md](AUDIO.md) 10). The binding limit is the
+sound manager's: it plays the 12 tags of highest weighted priority (3/4 of its 16), with 16 entries and MusyX's 16
+effect voices behind it, so with 12 cars the player's engines and the nearest four or five drones' are heard.
+`voices` = 48, 64 or 96 gives MusyX that many voices, the effects all but the songs' 16 and the manager three
+quarters of those at once, and 128 emitters; `engines` = `nearestN` keeps each player's N nearest drones' engines
+(with hysteresis), `all` every drone's, outside the budget.
+
 ## 7. Front end and HUD
 
 | Element | Code | 6 cars | N > 6 |
@@ -1019,7 +1026,8 @@ As of 10.4 (2026-10-29); the races, tracks and modes checked are there.
   finish); laps above one; the circuit past its first race; ghosts; the obstacle mode.
 - Without the Expansion Pak, more than 60 s of a race, and whether LoadCars fell back to sharing a loaded car type
   (not logged; since 2026-11-03 it is, and it does: four or five times in a race of 12, [MEMORY.md](MEMORY.md) 6); a race that uses up the fx tags (none of the runs did, 10.4 (a)).
-- Sound through a device: which engines are heard, and whether a start the tags refuse is missed.
+- Sound through a device: which engines are heard, and whether a start the tags refuse is missed (counted since
+  2026-11-04: `--log-voices`, [AUDIO.md](AUDIO.md) 10).
 - The window-address question for each array of 2.3 beyond what the races exercised.
 - The Windows program and the RelWithDebInfo build with 12 cars on the retail cartridge: the synthetic 12-car paths
   run in CI's Windows jobs and its Debug-against-RelWithDebInfo comparison (6 of 6 the same on the build host).

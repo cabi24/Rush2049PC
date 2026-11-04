@@ -880,3 +880,74 @@ drone type below the race's cars, doesn't load cars for records an earlier race 
 reads the circuit's per-slot ratings `D_80154484[slot][38]` in mode 3 only: the circuit stays 6 cars (MORECARS.md
 3.3). MORECARS.md 2.3 lists `D_80153F48` and `D_80153F68` as 32 bytes, 8 by the gap: they are 24, with HAL_DrawText's
 statics after them.
+
+## 9. MusyX's per-voice storage
+
+**What it is.** The sound library's storage for each of its voices ([AUDIO.md](AUDIO.md) 10.3): nine arrays of 32 in
+the boot segment's BSS, each indexed by a voice's number (the low byte of its id). For `[audio] voices` above 32 they
+are PC data of `PC_MX_VOICE_SLOTS` (96), and the library walks `pc_mx_voices()` of them (32 at original). With them,
+the sound manager's message pool and its two command lists (AUDIO.md 10.4), 128 each in the game's BSS: PC data of
+`PC_SND_MSG_SLOTS` (256), of which the game walks `pc_snd_messages()` (128 at original).
+
+| N64 | What | N64 storage | PC |
+|---|---|---|---|
+| `D_8004BEB8` | the voices: macro pointers (32-bit window addresses, [MUSYX_DATA.md](MUSYX_DATA.md) 8.3), the voice's links in its chain, its kind, priority, volume, pitch, envelope, LFOs | 32 x 0x1A0 B | `pc_mx_voice`, `unsigned char[96][0x1A0]`, the N64 layout |
+| `D_80050A50` | the sequence nodes: a key for a voice chain, kept sorted; free and used lists (`D_80050C54`, `D_80050C50`) | 32 x 16 B; own storage before (24 B: two host pointers) | `pc_mx_nodes`, `struct pc_mx_node[96]` |
+| `D_800504C8` | each voice's links in its priority's list (`func_8001EF8C`, `func_8001EE9C`) | 32 x 4 B | `pc_mx_prio_links`, `struct pc_mx_link[96]` |
+| `D_80050440` | each voice's links in the free list (`func_8001F7EC`, `func_8001F6EC`, `func_8001F13C`) | 32 x 4 B | `pc_mx_free_links` |
+| `D_80055000` | an effect voice's 134 MIDI controllers: an effect is its own channel in set 255 (`func_80024988` gives it its number) | 32 x 134 B | `pc_mx_fx_ctrl`, `unsigned char[96][134]` |
+| `D_80050CE0`, `D_80056140` | its two per-channel bytes in set 255 (`func_80020F4C`, `func_80020FDC`) | 32 B each | `pc_mx_fx_chan_a`, `pc_mx_fx_chan_b` |
+| `D_800561E0` | its legato owner (`func_800217E4`, `func_80021764`, `func_80021844`) | 32 B (80 by the gap: lib_22300.c's statics follow, host statics on the PC) | `pc_mx_fx_legato` |
+| `D_8004FA50` | a stream's buffer record: a stream plays on the voice `func_8001F898` gives it (`func_8001C580`) | 32 x 24 B; own storage before (40 B: the callback and buffer pointers) | `pc_mx_streams`, `struct pc_mx_stream[96]` |
+| `D_80142DD8` | the sound manager's messages: a command to its thread (a start, a change, a stop) | 128 x 24 B, game BSS; own storage before (32 B: the tag pointer) | `pc_snd_msgs`, `struct pc_snd_msg[256]` |
+| `D_80143AE8`, `D_80143CF0` | the priority pass's starts and stops to send (`gStartCmds`, `gStopCmds`), a message each | 128 x 4 B each; own storage before (8 B pointers) | `pc_snd_start_cmds`, `pc_snd_stop_cmds`, `void *[256]` |
+
+**Inventory.** The objects that referenced the nine names (nm over `game_objects.txt`, build host, 86bc6d0): the
+voices `lib_1a660`, `lib_1f5b0`, `lib_207b0` and `lib_22300`; the nodes and both links `lib_1f5b0`; the controllers
+and channel bytes `lib_21210`; the legato owners `lib_22300`; the streams `lib_1cf90`. No game file under `src/blob`
+reaches them: the game talks to the library through its functions. The message pool: 13 objects, the allocator
+(`func_80091B00`: `slot18_alloc`'s, and the weak copies in `audio_options_menu`, `game_music`, `updatefx/getcmd.c`,
+`entity_lookup`, `entity_helpers`, `transform` and the three `transform_b109.c`), the shutdown's wait for the pool to
+empty (`func_800C8918`, `heap_release`'s and `carcolor`'s copy) and hud_setup's clear, in five views of one 32-byte
+layout (`Msg`, `Slot18`, `Slot24`, `ShutdownMsg`; `tAudioMsg` through the queue); the two lists: `audiomgr_thread.c`
+and `updatefx.c`. Every reader walks the pool by index, 128, or indexes the lists by the pass's counts. Their views: the voices' about 90 (MUSYX_DATA.md
+8.3), every one 0x1A0 bytes with its fields at N64 offsets (each unit's `VoiceState`, `SynthVoice_8001A658`,
+`VoiceState_80019C8C`, `VoiceAlloc_8001F13C`...); the nodes one (`SequenceNode`, packed, 24 bytes); the links two of
+one layout (`ChannelLink`, `ChannelLink_8001EE9C`: `{u8 previous, next; u16}`); the controllers `u8[][134]`; the
+bytes `u8[]`; the streams `SampleBuffer` (`boot_tail_sample_contract.h`). Every access is by a voice's number or
+through a pointer to one entry; no file reaches a neighbour from them or them from a neighbour. The test
+`assets_musyx` defined five of them; it defines the PC arrays now.
+
+**What holds an address.** A voice's +0x18 holds its chain's node as the node's N64 address, 0x80050A50 + 16 times its
+index ([MUSYX_DATA.md](MUSYX_DATA.md) 8.3), which `lib_1f5b0.c`'s `pc_voice_node` translates to `pc_mx_nodes`; that
+encoding is kept, past the N64's 32 too (a number that nothing but `pc_voice_node` reads). The nodes' links and the two
+list heads are host pointers into `pc_mx_nodes`; the library passes voice pointers (`&D_8004BEB8[i]`) only within a
+call. A scan of the four images inflated from the retail cartridge (on the Pi) found no data word in the nine ranges,
+and 74 code references into them (`lui` with an offset within eight instructions), all in the boot segment's code,
+where the six units' C is; the references at the ends are the next symbols' own users (`D_8004F2B8`, `D_80050548`,
+`D_800504C0`, `D_80050C50`, `D_800560C0`, `D_80056160`, lib_22300.c's `debugMacroSteps_80056200`), none of them a
+loop's end.
+
+**The size.** On the N64 the library walks `D_8004FA18` voices (at most 32: AudioInitSys caps them) and its set-up
+loops walk 32. On the PC each array is `PC_MX_VOICE_SLOTS` (96) long, the caps are 96 (`PC_MX_CAP`), the set-up loops
+walk the run's voices (`PC_MX_LOOP`, `pc_mx_voices()`, never below 32), and the rest walks `D_8004FA18`, as on the
+N64. At original every loop walks what the N64's does.
+
+**The change.** `pc_game_types.h`: the nine arrays, `struct pc_mx_node`, `struct pc_mx_link`, `struct pc_mx_stream`,
+`PC_MX_VOICE_SLOTS` and `pc_mx_voices()`; the three of the manager, `struct pc_snd_msg`, `PC_SND_MSG_SLOTS` and
+`pc_snd_messages()`, which the pool's loops and the queue's count walk (`PC_SND_MSG_LOOP(128)`). Each of the six units defines its N64 name on the PC as the array in its own
+view, `#define D_8004BEB8 (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)`, and keeps its declarations for the N64
+under `#ifndef TARGET_PC`, so the uses keep their N64 tokens. `decoupled.txt`: the nine rules (the legato owners'
+with the C's 32 bytes, not the gap's 80, whose last 48 are statics).
+
+**What the tables say.** `data_symbols.txt` loses the nine rows (two own storages among them); the synthetic cartridge
+is the same file (build host); the loader's summary line differs only by its table's size; the message pool's and the
+lists' own storages go too. gen_data's check: 38 decoupled (26 before).
+
+**The test.** `assets_mxvoices` builds `lib_1f5b0.c` and `lib_21210.c` with 96 declared and every entry a sentinel:
+96 voices, 80 of them effects (the effects' quota at 96): 80 effect voices each its own, 48 of them past the N64's 32;
+the 81st takes one of its own kind (a steal, counted); a song's voice from the free ones; all freed and given again;
+96 sequence keys and none for a 97th, and at 32 none for a 33rd with the nodes past 32 untouched; voice 90's
+controllers (a 14-bit modulation written and read back, copied to voice 33) and channel bytes, nothing past 90 or
+between 34 and 89, and a song's channel in the N64's table. `assets_musyx` runs the voices' macros on the PC arrays at
+32.

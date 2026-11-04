@@ -6,6 +6,15 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Every engine heard in a race of 12** (`audio.voices`, `audio.engines`, F1 > Audio): `original`, the defaults,
+  are the N64's sound exactly: 32 voices, of which the effects get 16, and a sound manager that plays the 12 loudest
+  sounds at once, so in a race of 12 only the player's engine and the nearest four or five drones' are heard.
+  `voices = 48, 64 or 96` (from the next start) gives the effects all but the music's 16, plays three quarters of
+  those at once and has room for 128 positional sounds: at 64 every drone's engine in earshot is heard with the
+  effects. `engines = nearest2 ... nearest8` (at once) keeps the N nearest drones' engines to each player's view,
+  fading in and out, with the others silent; `all` plays every drone's engine whatever the effects
+  ([AUDIO.md](docs/port/AUDIO.md) 10, [FRONTEND.md](docs/port/FRONTEND.md)).
+
 - **Draw distance, detail and fog** (`video.draw_distance`, `video.detail`, `video.fog`, F1 > Video): at `original`,
   the defaults, the N64's picture exactly. `draw_distance = far` draws everything the game limits by distance twice
   as far: more of the track (the world's visibility tables reach 2,000 ft further), the cars and their wheels twice
