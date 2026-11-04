@@ -113,8 +113,18 @@ extern int D_80110250;                     /* gNumStopCmds */
 extern int D_80110278;                     /* gNumFxPlaying */
 extern int D_8011027C;                     /* gNumFxPending */
 extern int D_80110280;                     /* gNumFxInterrupted */
+#ifdef TARGET_PC
+/* PC: the priority pass's command lists and the messages they hold are PC data, PC_SND_MSG_SLOTS long
+ * (pc_game_types.h, docs/port/DECOUPLE.md 9, AUDIO.md 10.4): a pass sends at most a message each, and the manager's
+ * queue holds the run's messages, PC_SND_MSG_LOOP(128): 128 at original. */
+#define D_80143AE8 (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
+#define D_80143CF0 (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
+#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
+#else
 extern tAudioMsg *D_80143AE8[];            /* gStartCmds */
 extern tAudioMsg *D_80143CF0[];            /* gStopCmds */
+#define PC_SND_MSG_LOOP(n) n
+#endif
 extern tOrderedList D_80143F58;            /* gSortedFxTagTree */
 extern tDLList D_80144020;                 /* gPlayingFxTags */
 extern tDLList D_80144C50;                 /* gInterruptedFxTags */
@@ -207,8 +217,16 @@ static void _SendCmd(tAudioMsg *cmd)
         cmd->hdr.used = 0;
     }
 }
+/* PC: a start for a tag already playing starts nothing. The priority pass runs on this thread, at a retrace's message,
+ * and sends its starts behind any retrace messages already queued: when the host holds the thread back by a retrace
+ * or more, the next pass finds the tag still waiting and sends its start again. On the N64 the thread empties the
+ * queue each retrace and that never happens; a second start would give the tag a second voice and lose the first,
+ * a loop then playing on with nothing to stop it (with more voices nothing takes it back: docs/port/AUDIO.md 10.6). */
+#define PC_START_PLAYING(tag) if ((tag)->state == 2) { pc_snd_count(PC_SND_START_PLAYING); break; }
 #else
 static void _SendCmd(tAudioMsg *cmd) { osSendMesg(&D_801427A8, cmd, 0); }
+#define PC_ONLY(stmt)
+#define PC_START_PLAYING(tag)
 #endif
 
 static void _ProcessPriorities(void)
@@ -216,7 +234,7 @@ static void _ProcessPriorities(void)
     tFxSequence *tag, *next;
     int i;
     osRecvMesg(&D_80142728, 0, 1);
-    ClearBST(&gSortedFxTagTree);
+    ClearBST(&gSortedFxTagTree); PC_ONLY(pc_snd_walk_begin();)
     gNumStopCmds = 0;
     gNumStartCmds = 0;
     for (tag = gPlayingFxTags.head; tag; tag = next) {
@@ -289,7 +307,7 @@ void entity_ai_pathfind(void *arg)
     tFxSequence *tag;
     tFxSequence *next;
 
-    osCreateMesgQueue(&D_801427A8, D_80142B70, 128);
+    osCreateMesgQueue(&D_801427A8, D_80142B70, PC_SND_MSG_LOOP(128));
     osScAddClient(&D_8002E8E8, &client, &D_801427A8);
     for (;;) {
         osRecvMesg(&D_801427A8, &msg, 1);
@@ -362,7 +380,7 @@ void entity_ai_pathfind(void *arg)
                 if (cmd->startEffect.tag->state == 0) {
                     audio_effect_setup(cmd->startEffect.tag);
                     break;
-                }
+                } PC_START_PLAYING(cmd->startEffect.tag)
                 cmd->startEffect.tag->sysId = audio_state_save(cmd->startEffect.tag->fxid,
                     cmd->startEffect.tag->vol, cmd->startEffect.tag->lrpan);
                 if (cmd->startEffect.tag->sysId == -1) {

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#include "pc_game_types.h"
 #include "support.h"
 
 static struct { uintptr_t start, end; } g_be[256];
@@ -84,6 +85,33 @@ float pc_frame_scale = 1.0f;
 void pc_game_fps_begin(void) {}
 void pc_game_frame_note(int retraces) { (void)retraces; }
 float pc_fps_filter(float e) { return e; }   /* not libm: not every test links it */
+#endif
+
+/* [audio] voices and engines (pc_game_types.h; the game's is port/config/voices.c), for tests that build the game's
+ * sound code: test_mx_voices voices (the N64's 32 unless a test sets more), the engines at original, the counters
+ * kept. A test that links port/config/voices.c (assets_voices) has the game's own instead: PC_TEST_VOICES. */
+int test_mx_voices = 32;
+unsigned long long test_snd_count[PC_SND_COUNTERS];
+int test_snd_msg_most;
+#ifndef PC_TEST_VOICES
+int pc_mx_voices(void) { return test_mx_voices; }
+int pc_snd_messages(void) { return test_mx_voices == 32 ? PC_SND_N64_MSGS : PC_SND_MSG_SLOTS; }
+void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters) { (void)voices, (void)sfx, (void)emitters; }
+void pc_snd_count(int what) { if (what >= 0 && what < PC_SND_COUNTERS) test_snd_count[what]++; }
+void pc_snd_msg_taken(int index) { if (index + 1 > test_snd_msg_most) test_snd_msg_most = index + 1; }
+void pc_snd_most(int what, int value) { (void)what, (void)value; }
+int pc_engines(void) { return PC_ENGINES_ORIGINAL; }
+int pc_engines_choosing(void) { return 0; }
+void pc_engines_note(int handle, int listener, float distance) { (void)handle, (void)listener, (void)distance; }
+void pc_engines_choose(int listeners) { (void)listeners; }
+float pc_engine_gain(int handle, float gain) { (void)handle; return gain; }
+void pc_engine_state(int handle, int state) { (void)handle, (void)state; }
+void pc_snd_walk_begin(void) {}
+int pc_snd_over_budget(unsigned int tag, int rank, float budget, int audible)
+{
+    (void)tag, (void)audible;
+    return (float)rank >= budget;
+}
 #endif
 
 /* A pool past its end (pc_game_types.h; the game's is port/ultra/pool_overflow.c), for tests that build game C with a

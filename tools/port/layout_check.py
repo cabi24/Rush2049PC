@@ -1355,8 +1355,9 @@ REFERENCE = [
 # Symbols whose reference is not gen_data's choice, because the chosen declaration is one of the views in question:
 # symbol -> (unit regex, view name, why).
 SYMBOL_REFERENCE = {
-    "D_80142DD8": (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "tAudioMsg",
-                   "the audio manager's messages, MAT3 audiomgr.c's tAudioMsg (gen_data takes transform's Msg)"),
+    "pc_snd_msgs": (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "tAudioMsg",
+                    "the audio manager's messages (N64 D_80142DD8), MAT3 audiomgr.c's tAudioMsg (the PC declaration's "
+                    "pc_snd_msg is no view the game writes through)"),
 }
 # Findings read and judged: (unit regex, regex on the function, view, field, access text or storage, why). A finding
 # whose accesses all match one rule (or one side's, for an 8-byte and 4-byte pair) is listed as reviewed.

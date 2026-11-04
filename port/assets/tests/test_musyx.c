@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 #include "support.h"
 
 #ifndef MAP_FIXED_NOREPLACE
@@ -521,13 +522,18 @@ STORAGE(D_8004BE80, 8);
 STORAGE(D_8004BE84, 4);
 STORAGE(D_8004BE90, 4);
 STORAGE(D_8004BE98, 512);
-STORAGE(D_8004BEB8, 32 * 0x200);
+/* The library's per-voice storage is the PC's (pc_game_types.h, docs/port/DECOUPLE.md 9), PC_MX_VOICE_SLOTS each. */
+unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0] __attribute__((aligned(16)));
+struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];
+struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS], pc_mx_free_links[PC_MX_VOICE_SLOTS];
+unsigned char pc_mx_fx_legato[PC_MX_VOICE_SLOTS];
+#define D_8004BEB8 ((uint8_t *)pc_mx_voice)
+#define D_80050A50 ((uint8_t *)pc_mx_nodes)
 STORAGE(D_8004F2B8, 64);
 STORAGE(D_8004F800, 4);
 STORAGE(D_8004F808, 4);
 STORAGE(D_8004FA18, 4);
 STORAGE(D_80056160, 128);
-STORAGE(D_800561E0, 32);
 STORAGE(D_8002CC50, 4);
 STORAGE(D_8002CC54, 2048);
 STORAGE(D_8002D452, 2048);
@@ -536,17 +542,14 @@ void *D_80038018, *D_8003801C;
 STORAGE(D_8004BE94, 1);
 STORAGE(D_8004FA19, 1);
 STORAGE(D_8004FA1A, 1);
-STORAGE(D_80050440, 32 * 4);
 STORAGE(D_800504C0, 1);
 STORAGE(D_800504C1, 1);
 STORAGE(D_800504C2, 1);
 STORAGE(D_800504C3, 1);
-STORAGE(D_800504C8, 32 * 4);
 STORAGE(D_80050548, 256);
 STORAGE(D_80050648, 256 * 4);
 STORAGE(D_80050A48, 2);
 STORAGE(D_80050A4C, 4);
-STORAGE(D_80050A50, 32 * 24);
 void *D_80050C50, *D_80050C54;
 
 /* What the units call outside themselves: recorded, or nothing. */

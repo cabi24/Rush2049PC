@@ -884,15 +884,188 @@ static void test_saves(void)
               t.saves[0] == PC_CFG_SAVES_PAK && t.saves[2] == PC_CFG_SAVES_FILES, "a bad line skipped, the next taken");
 }
 
+/* ---------------------------------------------------------------- voices, engines */
+
+/* The cars' sound records (game data in the program), which voices.c reads to tell the drones' engine emitters. */
+struct pc_engine_sound pc_engine_sounds[PC_MAX_LINKS];
+signed char pc_car_sounds_on[PC_MAX_LINKS];
+
+/* audio.voices (docs/port/AUDIO.md 10): original (32), 48, 64 or 96 in the file and on the command line, and what
+ * the game is given: pc_mx_voices, and hud_setup's arguments for the Expansion Pak's set-up only (pc_snd_setup). */
+static void test_voices(void)
+{
+    PcSettings s, t;
+    char why[200], v[32];
+    unsigned char voices, sfx;
+    int emitters;
+    pc_settings_defaults(&s);
+    CHECK(s.voices == 0 && pc_settings_voices(&s) == 32 && pc_settings_get(&s, "audio", "voices", v, sizeof v) == 0 &&
+              !strcmp(v, "original"), "the default: original, 32 (%d, '%s')", s.voices, v);
+    static const struct { const char *text; int value; } good[] = {{"48", 48}, {"64", 64}, {"96", 96},
+                                                                   {"ORIGINAL", 32}};
+    for (size_t i = 0; i < sizeof good / sizeof *good; i++)
+        CHECK(pc_settings_set(&s, "audio", "voices", good[i].text, why, sizeof why) == 0 &&
+                  pc_settings_voices(&s) == good[i].value, "voices %s: %d", good[i].text, pc_settings_voices(&s));
+    static const char *const bad[] = {"32", "33", "128", "0", "-1", "all", ""};
+    for (size_t i = 0; i < sizeof bad / sizeof *bad; i++)
+        CHECK(pc_settings_set(&s, "audio", "voices", bad[i], why, sizeof why) == -2 && pc_settings_voices(&s) == 32,
+              "voices '%s' refused: %s", bad[i], why);
+    CHECK(pc_settings_assign(&s, "audio.voices=64", why, sizeof why) == 0 && pc_settings_voices(&s) == 64,
+          "--set audio.voices=64");
+    pc_settings_defaults(&t);
+    char *text = pc_settings_format(&t);
+    CHECK(strstr(text, "\n; voices = original\n") != NULL && strstr(text, "\n; engines = original\n") != NULL,
+          "the defaults are written commented out");
+    free(text);
+    text = pc_settings_format(&s);
+    CHECK(strstr(text, "\nvoices = 64\n") != NULL, "64 is written as a setting");
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, text, "voices") == 0 && pc_settings_voices(&t) == 64, "and read back: %d",
+          pc_settings_voices(&t));
+    free(text);
+
+    /* at run time: original changes nothing in either set-up */
+    pc_voices_set(32);
+    voices = 32, sfx = 16, emitters = 64;
+    pc_snd_setup(&voices, &sfx, &emitters);
+    CHECK(pc_mx_voices() == 32 && voices == 32 && sfx == 16 && emitters == 64, "original: the N64's set-up");
+    for (size_t i = 0; i < 3; i++) {
+        pc_voices_set(good[i].value);
+        voices = 32, sfx = 16, emitters = 64;
+        pc_snd_setup(&voices, &sfx, &emitters);
+        CHECK(pc_mx_voices() == good[i].value && voices == good[i].value && sfx == good[i].value - 16 &&
+                  emitters == PC_SND_EMITTERS, "%d: %u voices, %u for effects, %d emitters", good[i].value, voices,
+              sfx, emitters);
+        voices = 8, sfx = 8, emitters = 0;   /* without the Expansion Pak: never changed */
+        pc_snd_setup(&voices, &sfx, &emitters);
+        CHECK(voices == 8 && sfx == 8 && emitters == 0, "%d without the pak: %u %u %d", good[i].value, voices, sfx,
+              emitters);
+    }
+    pc_voices_set(500);
+    CHECK(pc_mx_voices() == PC_MX_VOICE_SLOTS, "capped at the storage: %d", pc_mx_voices());
+    pc_voices_set(0);
+    CHECK(pc_mx_voices() == 32, "0: original");
+}
+
+/* audio.engines: the setting, and the drones' engines voices.c picks from an emitter pass's distances: the N nearest
+ * a listener, kept until another is nearer by a fifth, faded in and out over 15 passes; per listener in split screen;
+ * all of them, outside the budget; original: every gain the game's. */
+static void test_engines(void)
+{
+    PcSettings s;
+    char why[200], v[32];
+    pc_settings_defaults(&s);
+    CHECK(s.engines == 0 && pc_settings_engines(&s) == PC_ENGINES_ORIGINAL, "the default: original");
+    static const struct { const char *text; int value; } good[] = {
+        {"nearest2", 2}, {"nearest3", 3}, {"nearest4", 4}, {"nearest6", 6}, {"nearest8", 8}, {"all", -1},
+        {"original", 0}};
+    for (size_t i = 0; i < sizeof good / sizeof *good; i++)
+        CHECK(pc_settings_set(&s, "audio", "engines", good[i].text, why, sizeof why) == 0 &&
+                  pc_settings_engines(&s) == good[i].value && pc_settings_get(&s, "audio", "engines", v, sizeof v) == 0
+                  && !strcmp(v, good[i].text), "engines %s: %d '%s'", good[i].text, pc_settings_engines(&s), v);
+    static const char *const bad[] = {"nearest", "nearest5", "nearest 4", "4", "none", ""};
+    for (size_t i = 0; i < sizeof bad / sizeof *bad; i++)
+        CHECK(pc_settings_set(&s, "audio", "engines", bad[i], why, sizeof why) == -2, "engines '%s' refused", bad[i]);
+
+    /* 11 drones in slots 1-11, each with two engine layers (handles 100 + 2 i, 101 + 2 i); slot 0 is a human */
+    memset(pc_engine_sounds, 0, sizeof pc_engine_sounds);
+    for (int i = 0; i < PC_MAX_LINKS; i++) {
+        pc_car_sounds_on[i] = 1;
+        pc_engine_sounds[i].rec[0].handle = 100 + 2 * i;
+        pc_engine_sounds[i].rec[1].handle = 101 + 2 * i;
+        pc_engine_sounds[i].rec[3].handle = -1;
+    }
+    float d[PC_MAX_LINKS];
+    for (int i = 0; i < PC_MAX_LINKS; i++)
+        d[i] = 100.0f * (float)i;   /* drone i at 100 i feet from listener 0 */
+#define PASS(listeners)                                                                                           \
+    do {                                                                                                      \
+        if (pc_engines_choosing()) {                                                                          \
+            for (int i_ = 1; i_ < PC_MAX_LINKS; i_++)                                                         \
+                for (int l_ = 0; l_ < (listeners); l_++) {                                                    \
+                    pc_engines_note(100 + 2 * i_, l_, l_ == 0 ? d[i_] : 1100.0f - d[i_]);                       \
+                    pc_engines_note(101 + 2 * i_, l_, (l_ == 0 ? d[i_] : 1100.0f - d[i_]) + 1.0f);            \
+                }                                                                                             \
+            pc_engines_choose(listeners);                                                                     \
+        }                                                                                                     \
+    } while (0)
+
+    pc_engines_set(PC_ENGINES_ORIGINAL);
+    PASS(1);
+    CHECK(!pc_engines_choosing() && pc_engine_gain(102, 0.7f) == 0.7f && pc_engines_on() == 0,
+          "original: nothing chosen, every gain the game's");
+    pc_engines_set(4);
+    for (int k = 0; k < 15; k++)
+        PASS(1);
+    CHECK(pc_engines_on() == 0x1E, "nearest4, one listener: drones 1-4 (0x%03X)", pc_engines_on());
+    CHECK(pc_engine_gain(102, 0.5f) == 0.5f && pc_engine_gain(109, 0.5f) == 0.5f && pc_engine_gain(110, 0.5f) == 0.0f,
+          "their gains whole, drone 5's silent: %g %g %g", (double)pc_engine_gain(102, 0.5f),
+          (double)pc_engine_gain(109, 0.5f), (double)pc_engine_gain(110, 0.5f));
+    CHECK(pc_engine_gain(100, 0.5f) == 0.5f && pc_engine_gain(999, 0.25f) == 0.25f,
+          "the human's handles and other emitters untouched");
+    /* drone 5 closes in: at 330 feet it is nearer than drone 4 (400) but not by a fifth (320), so 4 keeps its place;
+     * at 310 it takes it, and fades in over 15 passes as 4 fades out */
+    d[5] = 330.0f;
+    PASS(1);
+    CHECK(pc_engines_on() == 0x1E, "330 ft: no change (0x%03X)", pc_engines_on());
+    d[5] = 310.0f;
+    PASS(1);
+    CHECK((pc_engines_on() & 0x30) == 0x30 && pc_engine_gain(110, 1.0f) == 1.0f / 15.0f &&
+              pc_engine_gain(108, 1.0f) == 14.0f / 15.0f, "310 ft: 5 fades in, 4 out (%g, %g)",
+          (double)pc_engine_gain(110, 1.0f), (double)pc_engine_gain(108, 1.0f));
+    for (int k = 0; k < 14; k++)
+        PASS(1);
+    CHECK(pc_engines_on() == 0x2E && pc_engine_gain(108, 1.0f) == 0.0f, "then 1, 2, 3 and 5 (0x%03X)",
+          pc_engines_on());
+    /* drone 4 at 300 ft again: within a fifth of 5's 310, so 5 keeps its place */
+    d[4] = 300.0f;
+    PASS(1);
+    CHECK(pc_engines_on() == 0x2E, "300 ft against 310: still 5 (0x%03X)", pc_engines_on());
+    /* two listeners: listener 1 has the far drones near (1100 - d): 9, 10, 11 and 8 */
+    d[4] = 400.0f, d[5] = 500.0f;
+    for (int k = 0; k < 15; k++)
+        PASS(2);
+    CHECK(pc_engines_on() == 0xF1E, "two players: each one's nearest four (0x%03X)", pc_engines_on());
+    /* one player again: the other's fade out */
+    for (int k = 0; k < 15; k++)
+        PASS(1);
+    CHECK(pc_engines_on() == 0x1E, "back to one: 1-4 (0x%03X)", pc_engines_on());
+    pc_engines_set(PC_ENGINES_ALL);
+    for (int k = 0; k < 15; k++)
+        PASS(1);
+    CHECK(pc_engines_on() == 0xFFE && pc_engine_gain(122, 0.3f) == 0.3f, "all: every drone (0x%03X)",
+          pc_engines_on());
+    pc_snd_walk_begin();
+    CHECK(!pc_snd_over_budget(122, 50, 12.0f, 1) && !pc_snd_over_budget(103, 51, 12.0f, 1), "all: engines never over");
+    CHECK(!pc_snd_over_budget(7, 13, 12.0f, 1) && pc_snd_over_budget(8, 14, 12.0f, 1),
+          "an effect's rank counts without the two engines before it: 13 - 2 is in, 14 - 2 out");
+    pc_engines_set(4);
+    pc_snd_walk_begin();
+    CHECK(pc_snd_over_budget(122, 12, 12.0f, 1) && !pc_snd_over_budget(7, 11, 12.0f, 1),
+          "nearest: the budget as the game's");
+    pc_engines_set(PC_ENGINES_ORIGINAL);
+    pc_snd_walk_begin();
+    unsigned long long c[PC_SND_COUNTERS], c2[PC_SND_COUNTERS];
+    int most;
+    pc_snd_counters(c, &most);
+    CHECK(pc_snd_over_budget(102, 12, 12.0f, 1) && !pc_snd_over_budget(102, 11, 12.0f, 1) &&
+              pc_snd_over_budget(102, 13, 12.0f, 0) && pc_engines_on() == 0, "original: rank >= budget");
+    pc_snd_counters(c2, &most);
+    CHECK(c2[PC_SND_OVER_BUDGET] == c[PC_SND_OVER_BUDGET] + 1, "only the one that would play counted: %llu",
+          c2[PC_SND_OVER_BUDGET] - c[PC_SND_OVER_BUDGET]);
+#undef PASS
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
         {"stick", test_stick}, {"cars", test_cars}, {"memory", test_memory}, {"detail", test_detail},
-        {"fps", test_fps}, {"mods", test_mods}, {"saves", test_saves}};
+        {"fps", test_fps}, {"mods", test_mods}, {"saves", test_saves}, {"voices", test_voices},
+        {"engines", test_engines}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|fps|mods|saves|all "
-                        "SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|fps|mods|saves|"
+                        "voices|engines|all SCRATCH_DIR\n");
         return 2;
     }
     static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */

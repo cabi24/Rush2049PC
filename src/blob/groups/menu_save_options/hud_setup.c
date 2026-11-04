@@ -80,7 +80,15 @@ extern s8 D_8011023C;
 
 extern s32 D_80146200;
 extern s32 D_80149410;
+#ifdef TARGET_PC
+/* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
+#define D_80142DD8 (*(Slot24 (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
+#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
+#else
 extern Slot24 D_80142DD8[128];
+#define PC_SND_MSG_LOOP(n) n
+#endif
 extern OSMesgQueue D_80142728;
 extern OSMesg D_80142768[1];
 extern OSThread D_80034F00;
@@ -120,12 +128,21 @@ void sound_list_init(List *list, s8 indirect, s8 doubly) {
     func_800A370C(list);
 }
 
+#ifndef TARGET_PC
+#define PC_ONLY(stmt)
+#endif
+#ifdef TARGET_PC
+/* PC: [audio] voices (docs/port/AUDIO.md 10) gives the Expansion Pak's set-up (32 voices: 16 for the effects, 64
+ * positional emitters) more voices, the effects all but the songs' 16, and 128 emitters: pc_snd_setup, before
+ * anything reads the arguments. The effects' share (arg1) is also the sound manager's gMaxSfx (D_80146200: its
+ * budget is 3/4 of it), the fx tags' count and AudioSfxInit's entries; at original nothing changes. */
+#endif
 void hud_setup(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6, s32 arg7) {
     static s8 D_80110274 = 0;
     s32 i;
     s32 reinit;
 
-    reinit = 0;
+    reinit = 0; PC_ONLY(pc_snd_setup(&arg0, &arg1, &numB);)
     if (D_8011023C) {
         reinit = 1;
         if (D_80146200 == arg1 && D_80149410 == arg2) {
@@ -135,7 +152,7 @@ void hud_setup(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6
     }
     D_80146200 = arg1;
     D_80149410 = arg2;
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
         D_80142DD8[i].active = 0;
     }
     if (!D_80110274) {

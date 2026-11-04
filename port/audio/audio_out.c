@@ -45,6 +45,7 @@ typedef pthread_mutex_t PcLock;
 #define unlock() pthread_mutex_unlock(&g.mutex)
 #endif
 
+#include "musyx_abi.h"
 #include "out_backend.h"
 #include "out_wav.h"
 #include "pc_audio.h"
@@ -445,6 +446,28 @@ static void configure(uint32_t src)
     retarget();
 }
 
+/* The mixer's line (pc_audio_mixer_stats, docs/port/AUDIO.md 10): the subframes rendered since the last periodic
+ * report (since: 1) or in all, the voices they mixed, and the interpreter's CPU time a subframe, against the
+ * subframe's own length (192 frames at the game's rate). Nothing before the first task. */
+static void mixer_report(const char *span, int since)
+{
+    static PcMixerStats last;
+    PcMixerStats m, d;
+    pc_audio_mixer_stats(&m);
+    d = m;
+    if (since) {
+        d.subframes -= last.subframes, d.voices -= last.voices, d.ns -= last.ns;
+        last = m;
+    }
+    if (!d.subframes)
+        return;
+    double src = g.src_rate ? g.src_rate : DEFAULT_RATE, us = d.ns / 1000.0 / (double)d.subframes;
+    fprintf(stderr, "audio: mixer%s: %llu subframes of %u voice records; %.2f voices a subframe (most %u); %.1f us "
+            "a subframe of CPU (%.2f%% of its %.2f ms), most %.0f us\n", span, (unsigned long long)d.subframes,
+            m.slots, (double)d.voices / (double)d.subframes, m.voices_most, us, us / (1e4 * MX_SUBFRAME / src),
+            1000.0 * MX_SUBFRAME / src, m.ns_most / 1000.0);
+}
+
 /* The counters since *from (NULL: since the output opened), in one line; span names that time for a periodic line,
  * lmin and lmax are the queue's least and most over it. */
 static void report(const char *span, const PcAudioStats *from, uint32_t lmin, uint32_t lmax)
@@ -477,6 +500,7 @@ static void report(const char *span, const PcAudioStats *from, uint32_t lmin, ui
             (unsigned long long)d.skipped, (unsigned long long)d.rematched, (unsigned long long)d.renderer_skips,
             (unsigned long long)d.clipped,
             (unsigned long long)d.dropped_frames, d.idle_frames * 1000.0 / rate);
+    mixer_report(span, from != NULL);
 }
 
 /* ---------------------------------------------------------------- setup */

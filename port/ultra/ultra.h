@@ -303,6 +303,10 @@ typedef struct {
      * waits), a line of the cars' physics. 0: none */
     uint32_t physics_every;
     void (*physics_info)(char *out, size_t size);
+    /* --log-voices N (docs/port/AUDIO.md 10): every N retraces, read the same way, a line of the sound's voices. 0:
+     * none */
+    uint32_t voices_every;
+    void (*voices_info)(char *out, size_t size);
 } PcRunOptions;
 int pc_ultra_run(const PcRunOptions *opt);   /* the host main loop; returns the exit code */
 extern uint32_t pc_frame;                    /* retraces since boot */

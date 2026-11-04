@@ -9,7 +9,8 @@
  *   func_800139D4  one SFD (Block_80012D18): release mask, state, delay effect, output pointer
  *   func_80013DEC  one task: an SFD per free AI buffer, then func_80011910 builds the OSTask
  *   func_80010E80  the delay effect's parameter block (AudioDelayState_80010E80)
- *   func_80011104  allocations: SFDs at 2576 (0xA10) bytes each, the 664-byte (0x298) state block
+ *   func_80011104  allocations: SFDs at 2576 (0xA10) bytes each, the 664-byte (0x298) state block (both larger on
+ *                  the PC with more than 32 voices: MX_VOICES_MAX below)
  *
  * Two forms of the same records:
  *   N64 form     byte offsets below, 32-bit N64 addresses (K0, K1 or physical) resolved with pc_n64_ptr().
@@ -27,8 +28,18 @@
 #include <stdint.h>
 
 #define MX_SUBFRAME 192       /* stereo frames per SFD */
-#define MX_VOICES 32          /* voice records per SFD */
+#define MX_VOICES 32          /* voice records per SFD on the N64 */
 #define MX_STATE_SIZE 0x298   /* the work block carried between tasks; the game allocates 664 bytes */
+
+/* More voices (the PC's [audio] voices, docs/port/AUDIO.md 10). The game's SFDs on the PC hold one voice record per
+ * voice slot, n of them (pc_audio_set_sfd_voices; 32 unless the setting is above original), and after the n records
+ * the release mask's words for slots 32 and up: u32 word k, bit b is slot 32 + 32k + b. The state block holds the
+ * last output of slots 32 and up after its 0x298 bytes, 8 bytes a slot. With n = 32 every record is the N64's.
+ * A voice's slot is a byte in the game's builder (func_80012D18), and 255 is its "none". */
+#define MX_VOICES_MAX 255
+#define MX_MASK_WORDS(n) ((n) > MX_VOICES ? ((n) - MX_VOICES + 31) / 32 : 0)
+#define MX_STATE_SIZE_N(n) (MX_STATE_SIZE + ((n) > MX_VOICES ? ((n) - MX_VOICES) * 8 : 0))
+#define MX_ALIGN8(x) (((x) + 7) & ~(size_t)7)
 
 /* ---------------------------------------------------------------- N64 form: byte offsets */
 
@@ -126,7 +137,7 @@ typedef struct PcMusyxDelay {
     int16_t filter[4];
 } PcMusyxDelay;
 
-/* Block_80012D18 */
+/* Block_80012D18 (with n voice records, MX_NATIVE_SFD_SIZE(n) bytes: MX_VOICES of them is this struct) */
 typedef struct PcMusyxSfd {
     uint16_t count;
     uint16_t delay_index;
@@ -135,5 +146,13 @@ typedef struct PcMusyxSfd {
     const PcMusyxDelay *delay;
     PcMusyxVoice voices[MX_VOICES];
 } PcMusyxSfd;
+
+/* An SFD of n voice records in each form, rounded to 8 bytes so the next one's pointers stay aligned (for n = 32,
+ * 0xA10 and sizeof(PcMusyxSfd)); and where its mask words start. */
+#define MX_SFD_SIZE_N(n) MX_ALIGN8(MX_SFD_VOICES + (size_t)(n) * MX_V_SIZE + 4 * (size_t)MX_MASK_WORDS(n))
+#define MX_SFD_MASK_AT(n) (MX_SFD_VOICES + (size_t)(n) * MX_V_SIZE)
+#define MX_NATIVE_SFD_SIZE(n) \
+    MX_ALIGN8(offsetof(PcMusyxSfd, voices) + (size_t)(n) * sizeof(PcMusyxVoice) + 4 * (size_t)MX_MASK_WORDS(n))
+#define MX_NATIVE_MASK_AT(n) (offsetof(PcMusyxSfd, voices) + (size_t)(n) * sizeof(PcMusyxVoice))
 
 #endif

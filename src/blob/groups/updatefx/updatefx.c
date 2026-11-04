@@ -50,8 +50,14 @@ typedef struct AudioMsg {
 extern s32 D_80146200;              /* gMaxSfx */
 extern s32 D_80110250;              /* gNumStopCmds */
 extern s32 D_8011024C;              /* gNumStartCmds */
+#ifdef TARGET_PC
+/* PC: PC data, PC_SND_MSG_SLOTS long (pc_game_types.h, docs/port/DECOUPLE.md 9) */
+#define D_80143CF0 (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
+#define D_80143AE8 (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
+#else
 extern AudioMsg *D_80143CF0[];      /* gStopCmds */
 extern AudioMsg *D_80143AE8[];      /* gStartCmds */
+#endif
 AudioMsg *func_80091B00(void);      /* _GetCmd */
 s32 func_80095198(f32 startTime, f32 interval);   /* AudioTimeout */
 
@@ -59,8 +65,14 @@ s32 func_80095198(f32 startTime, f32 interval);   /* AudioTimeout */
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */
 #define PC_CMD_OR_RETURN(c) if ((c) == 0) return;
+/* PC: [audio] engines = all keeps the cars' engines out of the budget, and the counters see the sounds it holds back
+ * that would play (one playing, or loud enough to start: port/config/voices.c, docs/port/AUDIO.md 10); at original it
+ * is the same comparison. */
+#define PC_OVER_BUDGET(tag, rank, budget) \
+    pc_snd_over_budget((tag)->id, rank, budget, (tag)->state == 2 || (tag)->vol > 0.1f)
 #else
 #define PC_CMD_OR_RETURN(c)
+#define PC_OVER_BUDGET(tag, rank, budget) rank >= budget
 #endif
 void sound_position_update(void *element, int elNum)
 {
@@ -68,7 +80,7 @@ void sound_position_update(void *element, int elNum)
     AudioMsg *cmd;
     { s32 t = elNum == 2; if (stag->tag->state != 2) { if (t) {} if (t) {} } }
     if (stag->tag->state != 1) {
-        if (elNum >= D_80146200 * 0.75f ||
+        if (PC_OVER_BUDGET(stag->tag, elNum, D_80146200 * 0.75f) ||
             (stag->tag->loop && stag->tag->state == 2 && stag->tag->vol <= 0.0f &&
              func_80095198(stag->tag->startTime, 0.2f))) {
             if (stag->tag->state == 2) {

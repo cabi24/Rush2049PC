@@ -17,12 +17,12 @@ file(MAKE_DIRECTORY ${PC_FRONTEND_TEST_DIR})
 
 add_executable(frontend_test tests/test_frontend.c ${CMAKE_SOURCE_DIR}/port/config/config.c
                ${CMAKE_SOURCE_DIR}/port/config/race_cars.c ${CMAKE_SOURCE_DIR}/port/config/detail.c
-               ${CMAKE_SOURCE_DIR}/port/config/game_fps.c stick.c)
+               ${CMAKE_SOURCE_DIR}/port/config/game_fps.c ${CMAKE_SOURCE_DIR}/port/config/voices.c stick.c)
 target_include_directories(frontend_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config ${CMAKE_SOURCE_DIR}/port/input
                            ${CMAKE_SOURCE_DIR}/port/include)
 target_compile_options(frontend_test PRIVATE ${PC_FRONTEND_TEST_FLAGS})
 target_link_libraries(frontend_test PRIVATE m)
-foreach(c ini settings layers locate stick cars memory detail fps mods saves)
+foreach(c ini settings layers locate stick cars memory detail fps mods saves voices engines)
     add_test(NAME frontend.${c} COMMAND frontend_test ${c} ${PC_FRONTEND_TEST_DIR})
 endforeach()
 

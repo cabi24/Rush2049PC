@@ -78,7 +78,15 @@ typedef struct Msg {
 
 extern Entity *D_80110244;
 extern s32 D_80146104;
+#ifdef TARGET_PC
+/* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
+#define D_80142DD8 (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
+#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
+#else
 extern Msg D_80142DD8[128];
+#define PC_SND_MSG_LOOP(n) n
+#endif
 extern s32 D_80142728;
 extern s32 D_801427A8;
 
@@ -132,7 +140,7 @@ Msg *func_80091B00(void)
 {
     s32 i;
 
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
         if (D_80142DD8[i].used == 0) {
             D_80142DD8[i].used = 1;
             D_80142DD8[i].id = -1;

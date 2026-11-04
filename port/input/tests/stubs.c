@@ -5,7 +5,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "pc_game_types.h"
 #include "pc_port.h"
+
+/* The cars' sound records, game data in the program (port/data), which port/config/voices.c reads. */
+struct pc_engine_sound pc_engine_sounds[PC_MAX_LINKS];
+signed char pc_car_sounds_on[PC_MAX_LINKS];
 
 uint64_t test_now_ns;
 int test_motor[4];

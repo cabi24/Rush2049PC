@@ -12,6 +12,18 @@ What changed for players, newest first. The details and the tests behind each it
   own pixels; `anisotropic` also keeps the far road, seen edge on, sharp along its length. From the next frame
   ([DETAIL.md](docs/port/DETAIL.md) 2.7).
 
+- **Every engine heard in a race of 12** (`audio.voices`, `audio.engines`, F1 > Audio): `original`, the defaults, are
+  the N64's sound exactly: 32 voices, of which the effects get 16, and a sound manager that plays the 12 loudest sounds
+  at once, so in a race of 12 only the player's engine and the nearest four or five drones' are heard. `voices = 48, 64
+  or 96` (from the next start) gives the effects all but the music's 16, plays three quarters of those at once and has
+  room for 128 positional sounds: at 64 every drone's engine in earshot is heard with the effects. `engines = nearest2
+  ... nearest8` (at once) keeps the N nearest drones' engines to each player's view, fading in and out, with the others
+  silent; `all` plays every drone's engine whatever the effects (it wants 64 voices: at `original` it leaves effects
+  unplayed). In a race of 12 at 64 the mixer takes 1% of one of a Raspberry Pi 5's cores (0.9% at `original`) and the
+  heap 470 KB more. Fixed with it, at every setting: on a machine busy enough to hold the sound manager back a retrace,
+  a sound could be started twice and its first voice play on to the end of the race (with more voices nothing took it
+  back) ([AUDIO.md](docs/port/AUDIO.md) 10, [FRONTEND.md](docs/port/FRONTEND.md)).
+
 - **Saves as files, and ghosts to share** (`game.saves = files`, `--saves files`, F1 > Saves): instead of one
   32 KB controller pak image per player, each profile and each ghost is a file of its own in the player's folder
   (`saves/p1` in the data folder), and the folder keeps any number of ghosts; the game still sees a controller pak,

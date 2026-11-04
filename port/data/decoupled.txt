@@ -75,3 +75,26 @@ pc_mp_save_dir  D_80154138  0x48
 # 8, the controllers' D_80143A00 after it). The image symbol tables name D_801439FE inside it, +6: the end of
 # display_list_flush's clear of 6, which no C names.
 pc_carsetup_flags  D_801439F8  0x8
+
+# MusyX's per-voice storage (docs/port/DECOUPLE.md 9, AUDIO.md 10): 32 entries on the N64, in the boot segment's BSS,
+# PC_MX_VOICE_SLOTS (96) on the PC for [audio] voices, each indexed by a voice's number. The voices (0x1A0 bytes, the
+# N64 layout), the sequence nodes (24 B here, 16 there; own storage before), the priority and free lists' links, an
+# effect voice's controllers and its two per-channel bytes (set 255: a voice is its own channel), its legato owner
+# (the gap is 80 bytes, the C clears 32: lib_22300.c's statics follow) and a stream's buffer record (40 B here, 24
+# there; own storage before).
+pc_mx_voice        D_8004BEB8  0x3400
+pc_mx_nodes        D_80050A50  0x200
+pc_mx_prio_links   D_800504C8  0x80
+pc_mx_free_links   D_80050440  0x80
+pc_mx_fx_ctrl      D_80055000  0x10C0
+pc_mx_fx_chan_a    D_80050CE0  0x20
+pc_mx_fx_chan_b    D_80056140  0x20
+pc_mx_fx_legato    D_800561E0  0x20
+pc_mx_streams      D_8004FA50  0x300
+
+# The sound manager's messages and the priority pass's two command lists (docs/port/DECOUPLE.md 9, AUDIO.md 10.4): 128
+# each on the N64, own storage before (32 B a message, 8 B a pointer here), PC_SND_MSG_SLOTS (256) on the PC, of which
+# the game walks 128 at original.
+pc_snd_msgs        D_80142DD8  0xC00
+pc_snd_start_cmds  D_80143AE8  0x200
+pc_snd_stop_cmds   D_80143CF0  0x200

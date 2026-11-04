@@ -12,7 +12,13 @@
  */
 #include "boot_tail_sample_contract.h"
 extern unsigned char D_8004FA18;
+#ifdef TARGET_PC
+/* On the PC a voice's stream record is PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9): a stream plays on the voice func_8001F898 gives it, so its record is that voice's. */
+#define D_8004FA50 (*(SampleBuffer (*)[PC_MX_VOICE_SLOTS])pc_mx_streams)
+#else
 extern SampleBuffer D_8004FA50[];
+#endif
 void func_8001C390(void)
 {
     int i;
@@ -29,7 +35,9 @@ void func_8001C390(void)
  */
 #include "boot_tail_sample_contract.h"
 extern u8 D_8004FA18;
+#ifndef TARGET_PC
 extern SampleBuffer D_8004FA50[];
+#endif
 extern u32 func_80014C18(int);
 extern void func_80014C40(short *, u32);
 void func_8001C3CC(void)

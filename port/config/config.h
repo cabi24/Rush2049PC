@@ -104,6 +104,10 @@ typedef struct PcSettings {
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */
     int audio_latency;              /* ms of sound the output keeps queued at least; 0: from the device */
+    /* [audio] voices and engines (docs/port/AUDIO.md 10): indices into their choices; pc_settings_voices and
+     * pc_settings_engines give the values */
+    int voices;                     /* original (32), 48, 64, 96: MusyX's voices */
+    int engines;                    /* original, nearest2 ... nearest8, all: which drones' engines play */
     /* [input] */
     int keyboard_player;            /* 1-4, 0: no keyboard */
     int first_controller_player;    /* controllers fill players from here, in the order they are plugged in */
@@ -151,6 +155,22 @@ int pc_game_fps_setting(void);
 
 /* [mods]: whether a mod's folder is listed on (1), off (0), or not listed (-1, which is on: docs/port/MODS.md). */
 int pc_settings_mod_on(const PcSettings *s, const char *folder);
+/* [audio] voices and [audio] engines at run time (voices.c, docs/port/AUDIO.md 10). main sets the voices at start,
+ * before the game threads run (32 for original; 48, 64, 96), and never again: MusyX is set up once a run. The engines
+ * (PC_ENGINES_*, pc_game_types.h: 0 original, -1 all, N the nearest N) apply from the sound manager's next retrace;
+ * the overlay sets them when they change. pc_snd_counters: the counters the game's sound code fills (PC_SND_*) and
+ * the message pool's high-water mark; pc_engines_on: the drones whose engines played at the last pass, a bit a car
+ * (0 at original). */
+void pc_voices_set(int voices);
+int pc_settings_voices(const PcSettings *s);    /* 32, 48, 64 or 96 */
+int pc_settings_engines(const PcSettings *s);   /* PC_ENGINES_*: 0 original, -1 all, else N */
+void pc_engines_set(int mode);
+void pc_snd_counters(unsigned long long out[], int *msg_most);
+int pc_snd_most_of(int what);   /* PC_SND_MOST_*: the fx tags and emitters in use at most */
+unsigned pc_engines_on(void);
+/* The drones' engine layers that had an emitter at the last emitter pass, those whose tags played, the drones of
+ * those (a bit a car), and the most layers that played at one pass: any mode, original too. */
+void pc_engines_heard(int *layers, int *playing, unsigned *cars, int *most);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);

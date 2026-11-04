@@ -16,6 +16,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "pc_game_types.h"
+
 #include "support.h"
 
 /* ---------------------------------------------------------------- the host layouts the views share */
@@ -81,7 +83,9 @@ int32_t D_80110264, D_8011024C, D_80110250, D_801460F8, D_80146104, D_80146200, 
 uint32_t D_80110254 = 1, D_80110258 = 1;
 int8_t D_8011023C;
 struct { void (*func)(void); int32_t unk4; intptr_t unk8; } D_80143F58;
-__attribute__((aligned(16))) uint8_t D_80142DD8[128 * 32];   /* the commands: 32 bytes each on the PC */
+/* The commands, 32 bytes each on the PC: the PC's pool (pc_game_types.h, docs/port/DECOUPLE.md 9), 128 walked here. */
+struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];
+#define D_80142DD8 ((uint8_t *)pc_snd_msgs)
 uint8_t D_80142728[24], D_801427A8[24], D_80034F00[0x1B0], D_800339F0[16];
 void *D_80142768[1];
 uint8_t D_8011F5CC[64];

@@ -9,9 +9,10 @@
  * - Changes apply at once where the part allows it: the renderer's widescreen, scale and textures (from the game's
  *   next frame) and frame rate, the draw distance, detail and fog (from the game's next frame; detail's split-screen
  *   models from the next track: docs/port/DETAIL.md), the window's size, fullscreen, its mode and resolution, and
- *   vsync, the volume, each player's accessory (a hot swap: port/ultra/si.c), and everything port/input reads
- *   (bindings, hotkeys, sticks, rumble). The graphics API and the audio backend apply
- *   after a restart; they are marked so. The cars a race holds (game.cars) apply from the next race: the game latches
+ *   vsync, the volume, which drones' engines play (from the sound manager's next retrace: port/config/voices.c),
+ *   each player's accessory (a hot swap: port/ultra/si.c), and everything port/input reads (bindings, hotkeys,
+ *   sticks, rumble). The graphics API, the audio backend and the sound's voices (MusyX is set up once a run:
+ *   docs/port/AUDIO.md 10) apply after a restart; they are marked so. The cars a race holds (game.cars) apply from the next race: the game latches
  *   them where a race's roster is filled (port/config/race_cars.c). The game's memory (game.memory) applies after a
  *   restart too: the RDRAM window is mapped at start (docs/port/MEMORY.md). The game's own frame rate
  *   (game.frame_rate) applies from the next screen: the game latches it where its state changes
@@ -146,6 +147,13 @@ static const char *const memory_labels[] = {"original (N64)", "16 MB", "32 MB", 
 /* game.frame_rate (docs/port/FRAMERATE.md 7) */
 static const char *const game_fps_choices[] = {"original", "60", NULL};
 static const char *const game_fps_labels[] = {"original (30)", "60", NULL};
+/* audio.voices and audio.engines (docs/port/AUDIO.md 10): the voices apply after a restart, the engines at once */
+static const char *const voices_choices[] = {"original", "48", "64", "96", NULL};
+static const char *const voices_labels[] = {"original (32)", "48", "64", "96", NULL};
+static const char *const engines_choices[] = {"original", "nearest2", "nearest3", "nearest4", "nearest6", "nearest8",
+                                              "all", NULL};
+static const char *const engines_labels[] = {"original", "nearest 2", "nearest 3", "nearest 4", "nearest 6",
+                                             "nearest 8", "all", NULL};
 static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
                                              "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
                                              "3840x2160", "auto",      NULL};
@@ -174,7 +182,7 @@ static void build(void)
     it = add(P_MAIN, I_PAGE, "Video", NULL, NULL);
     it->page = P_VIDEO, it->desc = "Scale, widescreen, fullscreen, draw distance";
     it = add(P_MAIN, I_PAGE, "Audio", NULL, NULL);
-    it->page = P_AUDIO, it->desc = "The volume and the sound output";
+    it->page = P_AUDIO, it->desc = "The volume, the output, voices and engines";
     it = add(P_MAIN, I_PAGE, "Keyboard", NULL, NULL);
     it->page = P_KEYBOARD, it->desc = "Keys for the N64 controls, and the hotkeys";
     it = add(P_MAIN, I_PAGE, "Controllers", NULL, NULL);
@@ -244,6 +252,13 @@ static void build(void)
     it = add(P_AUDIO, I_CHOICE, "Output", "audio", "backend");
     it->choices = backend_choices;
     it->restart = 1;
+    it = add(P_AUDIO, I_CHOICE, "Voices", "audio", "voices");   /* AUDIO.md 10 */
+    it->choices = voices_choices;
+    it->labels = voices_labels;
+    it->restart = 1;
+    it = add(P_AUDIO, I_CHOICE, "Drones' engines", "audio", "engines");
+    it->choices = engines_choices;
+    it->labels = engines_labels;
 
     pages[P_KEYBOARD].title = "Keyboard";
     for (int c = 0; c < PC_NUM_CONTROLS; c++)
@@ -311,6 +326,8 @@ static void build(void)
         {"video", "texture_lod", "The road's textures sharp further out"},
         {"audio", "volume", "The master volume"},
         {"audio", "backend", "The sound output; applies after a restart"},
+        {"audio", "voices", "Voices for engines and effects; after a restart"},
+        {"audio", "engines", "Which drones are heard; nearest: to your view"},
         {"controller", "menu", "Opens this menu; + joins buttons held together"},
         {"controller", "analog", "The controller stick that is the N64 stick"},
         {"input", "deadzone", "How far the stick moves before it counts"},
@@ -497,6 +514,8 @@ static void apply(const char *section, const char *key)
     } else if (!strcasecmp(section, "audio")) {
         if (!strcasecmp(key, "volume"))
             pc_audio_set_volume(s->volume / 100.0);
+        else if (!strcasecmp(key, "engines"))   /* from the sound manager's next retrace (voices.c) */
+            pc_engines_set(pc_settings_engines(s));
     } else if (!strcasecmp(section, "game")) {
         for (int p = 0; p < 4; p++)   /* game.saves: from the next start; the page says what it gives */
             if (!strcasecmp(key, saves_keys[p]) && M.open && M.page == P_SAVES)

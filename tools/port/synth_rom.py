@@ -137,6 +137,7 @@ class Cart:
         self.files = {}         # wave -> (bytes, what)
         self.model_waves = set()
         self.strings = {}       # string -> N64 address
+        self.rom_bytes = []     # (ROM offset, bytes, what): raw ROM the game reads by address (the samples)
 
     def image(self, name):
         return next(im for im in self.images if im.name == name)
@@ -235,6 +236,16 @@ class Cart:
         a = self.syms.func(func, func_image)
         self.set(image, sym, "ptr", a, f"{func}: {why}", index=index)
 
+    def rom_at(self, offset, data, what):
+        """Bytes at a ROM offset the game reads by its own address (MusyX's samples, from ROM 0x39B40): outside every
+        image's slot and the files."""
+        for im in self.images:
+            if offset < im.rom_off + im.rom_len and im.rom_off < offset + len(data):
+                raise SystemExit(f"synth_rom: {what} at ROM 0x{offset:X} overlaps image {im.name}")
+        if offset + len(data) > FILES_ROM:
+            raise SystemExit(f"synth_rom: {what} at ROM 0x{offset:X} runs into the files")
+        self.rom_bytes.append((offset, bytes(data), what))
+
     def file(self, wave, data, what, model=False):
         self.files[wave] = (bytes(data), what)
         if model:
@@ -263,6 +274,8 @@ class Cart:
                       "u8", "file table model flag")
         self.place = place
 
+        for off, data, what in self.rom_bytes:
+            self.rom[off:off + len(data)] = data
         self.rom[0:4] = be32(0x80371240)        # the .z64 byte order mark the loader checks
         self.rom[0x20:0x34] = b"RUSH2049 SYNTHETIC  "
         for im in self.images:
@@ -283,6 +296,8 @@ class Cart:
         for wave, (off, size, what) in sorted(self.place.items()):
             if wave in self.files:
                 out.append(f"wave {wave:3} 0x{off:06X} {size:6} {'M' if wave in self.model_waves else '-'} {what}")
+        for off, data, what in self.rom_bytes:
+            out.append(f"rom 0x{off:06X} {len(data):6} {what}")
         return "\n".join(out) + "\n"
 
 
@@ -416,6 +431,147 @@ def musyx_song():
     b.at32(hdr[4], 120 << 10)
     b.at32(hdr[5], 0)
     return b.b
+
+
+# ---------------------------------------------------------------- the sound bank (--sounds)
+#
+# For tests of the sound's voices (docs/port/AUDIO.md 10): the default cartridge's project is empty, so every sound the
+# game starts is refused (MusyX knows no such sfx) and no voice ever plays. With --sounds, sfx group 12 has an sfx for
+# each of the game's sound indices (0-227: D_8011F5CC's extent; the sound manager starts sfx `index`), each a macro on
+# one of two ADPCM samples: a loop for the sounds the game loops (D_8011F5CC, set here: the engines' two layers and the
+# screech) and a short one-shot for the rest; and the engine table gives every car its two layers, with levels.
+SOUND_IDS = 228
+SOUND_LOOPS = (1, 2, 36)        # the engines' layers (the engine table below) and the screech (func_800E05F0)
+SAMPLE_BASE_ROM = 0x39B40       # MusyX's sample base: car_shadow_render's D_00039B40
+LOOP_SAMPLE, SHOT_SAMPLE = 5, 6
+LOOP_MACRO, SHOT_MACRO = 1, 2
+
+
+def adpcm_square(samples, half, level):
+    """ADPCM (MUSYX_DATA.md 3.3, AUDIO.md 2) of a square wave: a 0x100-byte codebook of zeros (no prediction), then
+    40-byte blocks of two 32-sample frames: each frame's first two samples as big-endian s16, then its header (book 0,
+    shift 2: a nibble n is n * 1024) and 15 bytes of nibbles for the other 30. samples: a multiple of 64."""
+    out = bytearray(0x100)
+    n = level // 1024
+    def value(i):
+        return n if (i // half) % 2 == 0 else -n
+    for blk in range(samples // 64):
+        frames = []
+        for f in range(2):
+            first = blk * 64 + f * 32
+            nib = bytearray()
+            for k in range(2, 32, 2):
+                a, b = value(first + k) & 0xF, value(first + k + 1) & 0xF
+                nib.append(a << 4 | b)
+            frames.append((struct.pack(">hh", value(first) * 1024, value(first + 1) * 1024), bytes([0x02]) + nib))
+        out += frames[0][0] + frames[1][0] + frames[0][1] + frames[1][1]
+    return bytes(out)
+
+
+def musyx_sound_project(sfx_groups):
+    """The project with sounds: group sfx_groups[0] lists the two macros and samples and has an sfx table entry for
+    every sound index {u16 id; u16 macro; u8 max voices (255: no limit of its own); u8 priority; u8 volume; u8 pan;
+    u8 key; u8 group; 2 bytes}; the other groups are empty, as musyx_project's."""
+    b = Buf()
+    for n, gid in enumerate(sfx_groups):
+        g = b.u32(0)
+        b.u16(gid)
+        b.u16(1)
+        offs = [b.u32(0) for _ in range(6)]
+        empty = b.u16(0xFFFF)
+        if n == 0:
+            macros = len(b)
+            b.u16(LOOP_MACRO), b.u16(SHOT_MACRO), b.u16(0xFFFF)
+            samples = len(b)
+            b.u16(LOOP_SAMPLE), b.u16(SHOT_SAMPLE), b.u16(0xFFFF)
+            b.at32(offs[0], macros - g - 8)
+            b.at32(offs[1], samples - g - 8)
+            for k in range(2, 5):
+                b.at32(offs[k], empty - g - 8)
+        else:
+            for k in range(5):
+                b.at32(offs[k], empty - g - 8)
+        b.align(4)
+        b.at32(offs[5], len(b) - g - 8)
+        if n == 0:
+            b.u16(SOUND_IDS)
+            b.u16(0)
+            for i in range(SOUND_IDS):
+                b.u16(i)
+                b.u16(LOOP_MACRO if i in SOUND_LOOPS else SHOT_MACRO)
+                b.raw(bytes([255, 0x40, 0x7F, 0x40, 60, 0, 0, 0]))
+        else:
+            b.u16(0)
+            b.u16(0)
+        b.at32(g, b.align(4) - g)
+    b.u32(0xFFFFFFFF)
+    return b.b
+
+
+def musyx_sound_pool():
+    """The pool with the two macros (8-byte steps, two u32 words; MUSYX_DATA.md 3.2, lib_22300.c): the loop starts
+    its sample, waits until it is keyed off (WAITMS 0xFFFF, the key-off bit) and stops its sample (STOPSAMPLE: the
+    driver's voice fades out; END alone would leave a looping sample playing on a voice the library has freed); the
+    one-shot starts its sample and waits until the sample has played (the sample-end bit); each then ends, which
+    frees the voice."""
+    b = Buf()
+    offs = [b.u32(0) for _ in range(4)]
+    b.at32(offs[0], len(b))
+    for mid, sample, wait, stop in ((LOOP_MACRO, LOOP_SAMPLE, 1 << 8, True), (SHOT_MACRO, SHOT_SAMPLE, 1 << 24, False)):
+        b.u32(8 + (4 if stop else 3) * 8)
+        b.u16(mid)
+        b.u16(0)
+        b.u32(sample << 8 | 0x10), b.u32(0)          # STARTSAMPLE sample, at 0, mode 0
+        b.u32(wait | 0x07), b.u32(0xFFFF << 16)      # WAITMS forever: until key-off, or until the sample ends
+        if stop:
+            b.u32(0x11), b.u32(0)                    # STOPSAMPLE
+        b.u32(0), b.u32(0)                           # END
+    b.u32(0xFFFFFFFF)
+    for k in range(1, 4):
+        b.at32(offs[k], b.u32(0xFFFFFFFF))
+    return b.b
+
+
+def musyx_sound_sdir(loop_len, shot_len, shot_off):
+    """The sample directory: the two samples' records {u16 id; u16 refs; u32 offset; u32 address (written); u32 key
+    << 24 | rate; u32 format << 24 | samples; u32 loop start; u32 loop length}, ADPCM (format 3), key 60 at 22050 Hz,
+    the first looping whole."""
+    b = Buf()
+    for sid, off, n, loop in ((LOOP_SAMPLE, 0, loop_len, loop_len), (SHOT_SAMPLE, shot_off, shot_len, 0)):
+        b.u16(sid), b.u16(0), b.u32(off), b.u32(0), b.u32(60 << 24 | 22050), b.u32(3 << 24 | n)
+        b.u32(0), b.u32(loop)
+    b.u16(0xFFFF)
+    b.raw(bytes(0x1A))
+    return b.b
+
+
+def sound_bank(c):
+    """--sounds: the sound bank, the loop flags and the engine table (see SOUND_IDS)."""
+    loop_pcm, shot_pcm = 4096, 1024
+    loop = adpcm_square(loop_pcm, 24, 6144)
+    shot = adpcm_square(shot_pcm, 12, 4096)
+    shot_off = (len(loop) + 15) & ~15
+    c.rom_at(SAMPLE_BASE_ROM, loop, "the looping sample (ADPCM square wave)")
+    c.rom_at(SAMPLE_BASE_ROM + shot_off, shot, "the one-shot sample (ADPCM square wave)")
+    c.file(6, musyx_sound_project(SFX_GROUPS), "MusyX project: an sfx for every sound index (--sounds)")
+    c.file(7, musyx_sound_pool(), "MusyX pool: a looping and a one-shot macro (--sounds)")
+    c.file(8, musyx_sound_sdir(loop_pcm, shot_pcm, shot_off), "MusyX sample directory: two samples (--sounds)")
+    for i in SOUND_LOOPS:
+        c.set("game", "D_8011F5CC", "u8", 1, "a sound the sound manager loops (--sounds)", index=i)
+    # The engine table (D_8010FD80, Definitions64[9]: a car category's two layers, each {s32 sound; u16 rev points
+    # r0, r1, b0, b1, b2; 2 bytes; f32 levels p0, p1, p2; 4 bytes}; func_800E0050 reads it): layers 1 and 2, the
+    # level rising with the revs.
+    for cat in range(9):
+        for layer in range(2):
+            base = 64 * cat + 32 * layer
+            c.set("game", "D_8010FD80", "u32", 1 + layer, "a car's engine layer: its sound (--sounds)" if base == 0
+                  else "(same)", offset=base)
+            for k, v in enumerate((1000, 4000, 1000, 3000, 6000)):
+                c.set("game", "D_8010FD80", "u16", v, "its rev points" if base == 0 and k == 0 else "(same)",
+                      offset=base + 4 + 2 * k)
+            for k, v in enumerate((0.6, 0.8, 1.0)):
+                c.set("game", "D_8010FD80", "f32", v, "its levels" if base == 0 and k == 0 else "(same)",
+                      offset=base + 16 + 4 * k)
 
 
 def tag(s):
@@ -1721,9 +1877,11 @@ ARENA_ICONS = [(f"WEAPON{i:02}", (x, 0.0, z)) for i, (x, z) in
 MAP_MODELS = [f"MAPOBJ{i:02}" for i in range(20)]
 
 
-def make(syms):
+def make(syms, sounds=False):
     c = Cart(syms)
     boot_and_sound(c)
+    if sounds:
+        sound_bank(c)
     math_constants(c)
     display(c)
     front_end(c)
@@ -1738,12 +1896,15 @@ def main():
     ap.add_argument("--data-symbols", default=str(ROOT / "build/pc/pc-data/data_symbols.txt"),
                     help="the build's data report: every symbol's address and element kinds")
     ap.add_argument("--report", help="where to list every value and file (default: OUT with .txt)")
+    ap.add_argument("--sounds", action="store_true",
+                    help="a sound bank (an sfx for every sound index) and the engine table, for the voice tests "
+                         "(docs/port/AUDIO.md 10); without it the project is empty and nothing plays")
     args = ap.parse_args()
     syms = Symbols(args.data_symbols)
     if not syms.checked:
         raise SystemExit(f"synth_rom: {args.data_symbols} not found: build the PC port first (its data report gives "
                          "every symbol's address and element kinds)")
-    c = make(syms)
+    c = make(syms, sounds=args.sounds)
     rom = c.build()
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -564,4 +564,97 @@ extern signed char pc_carsetup_flags[PC_MAX_LINKS];
  * rule past them (func_800E56F8/group.c). */
 #define PC_DRONE_SCHED_TWO (PC_MAX_LINKS + 1)
 
+
+/* ---- MusyX's voices and the sound manager's pools: [audio] voices and [audio] engines (docs/port/AUDIO.md 10;
+ * port/config/voices.c; the asset tests' in port/assets/tests/support.c). The N64 game gives MusyX 32 voices
+ * (hud_setup's first argument, AudioInitSys' func_80010840 caps it at 32): 16 for effects, 16 for the songs. On the
+ * PC the run's voices are pc_mx_voices(), 32 at original, else 48, 64 or 96, latched at start, since the library
+ * is set up once a run; the effects get all but the songs' 16. PC_MX_SLOTS is where the N64 has a literal 32 for the
+ * voices (its fixed loops and caps): the run's count, never below 32, so at original every loop is the N64's.
+ * pc_snd_setup gives hud_setup its arguments for the Expansion Pak's set-up (32 voices): the voices, the effects'
+ * share, which is also the sound manager's budget base (gMaxSfx: it plays 3/4 of it at once) and AudioSfxInit's
+ * entries, and the positional emitters; at original it changes nothing, and the set-up without the pak (8 voices)
+ * is never changed. */
+#define PC_MX_N64_VOICES 32
+#define PC_MX_VOICE_SLOTS 96   /* the most pc_mx_voices() gives: the per-voice storage below is this long */
+int pc_mx_voices(void);
+#define PC_MX_SLOTS (pc_mx_voices())
+#define PC_SND_EMITTERS 128    /* the positional emitters above original (the N64's 64; AUDIO.md 10 says why) */
+void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters);
+
+/* The library's per-voice storage, 32 entries in the boot segment's BSS on the N64 (docs/port/DECOUPLE.md 9), each
+ * indexed by a voice's number (the low byte of its id): its state (0x1A0 bytes, the N64 layout: lib_22300.c's and
+ * the other units' views, MUSYX_DATA.md 8.3), its sequence node (lib_1f5b0.c's SequenceNode: two host pointers, the
+ * key and the voice id, packed), its links in the priority lists and in the free list ({u8 previous, next; u16},
+ * 255 for none), an effect voice's 134 MIDI controllers (an effect voice is its own channel in set 255,
+ * lib_21210.c), its two per-channel bytes there (func_80020F4C, func_80020FDC) and its legato owner (lib_22300.c's
+ * func_800217E4), and a stream's buffer record (lib_1cf90.c's SampleBuffer). Each reader's N64 name is the PC array
+ * seen in its own view, PC_MX_VOICE_SLOTS long, so the uses keep their N64 tokens. */
+extern unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0];   /* N64 D_8004BEB8 */
+#pragma pack(1)
+struct pc_mx_node { struct pc_mx_node *next, *previous; unsigned int key; int value; };
+#pragma pack()
+extern struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];      /* N64 D_80050A50 */
+struct pc_mx_link { unsigned char previous, next; unsigned short flags; };
+extern struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS]; /* N64 D_800504C8 */
+extern struct pc_mx_link pc_mx_free_links[PC_MX_VOICE_SLOTS]; /* N64 D_80050440 */
+extern unsigned char pc_mx_fx_ctrl[PC_MX_VOICE_SLOTS][134];   /* N64 D_80055000 */
+extern unsigned char pc_mx_fx_chan_a[PC_MX_VOICE_SLOTS];      /* N64 D_80050CE0 */
+extern unsigned char pc_mx_fx_chan_b[PC_MX_VOICE_SLOTS];      /* N64 D_80056140 */
+extern unsigned char pc_mx_fx_legato[PC_MX_VOICE_SLOTS];      /* N64 D_800561E0 */
+struct pc_mx_stream {   /* boot_tail_sample_contract.h's SampleBuffer */
+    unsigned char mode, unknown01[3];
+    int (*callback)(short *, unsigned int, short *, unsigned int, unsigned int);
+    short *buffer;
+    unsigned int samples, position, context;
+};
+extern struct pc_mx_stream pc_mx_streams[PC_MX_VOICE_SLOTS];  /* N64 D_8004FA50 */
+
+/* The sound manager's messages (N64 D_80142DD8: 128 commands, 32 bytes each on the PC, own storage) and the two lists
+ * of the commands a priority pass sends (gStartCmds D_80143AE8, gStopCmds D_80143CF0: 128 pointers each, own
+ * storage), PC data of PC_SND_MSG_SLOTS; the game walks pc_snd_messages() of them, the N64's 128 at original and 256
+ * with more voices, and the manager's queue (D_801427A8) holds as many (docs/port/AUDIO.md 10.4). Each reader sees
+ * the messages in its own view (Msg, Slot18, Slot24, ShutdownMsg, tAudioMsg), the layout below. */
+#define PC_SND_N64_MSGS 128
+#define PC_SND_MSG_SLOTS 256
+int pc_snd_messages(void);
+struct pc_snd_msg { short id; signed char type, used; unsigned char payload[16]; void *ent; };
+extern struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];   /* N64 D_80142DD8 */
+extern void *pc_snd_start_cmds[PC_SND_MSG_SLOTS];        /* N64 D_80143AE8 */
+extern void *pc_snd_stop_cmds[PC_SND_MSG_SLOTS];         /* N64 D_80143CF0 */
+
+/* Counters the game's sound code fills (--log-voices, port/main.c): starts refused or cut and the pools' use. */
+enum {
+    PC_SND_MX_REFUSED,      /* MusyX found no voice for a sound (func_8001F13C: -1) */
+    PC_SND_MX_STOLEN,       /* MusyX took a voice from an effect still playing */
+    PC_SND_MX_STOLEN_SONG,  /* ... from a song's note still playing (the songs keep 16 voices at any size) */
+    PC_SND_FX_REFUSED,      /* an effect the sound manager started that MusyX didn't (MP_TargetSteerPos) */
+    PC_SND_OVER_BUDGET,     /* a tag the priority pass held back or stopped for its budget that would play: playing,
+                             * or loud enough to start (_UpdateFx) */
+    PC_SND_NO_EMITTER,      /* a positional start that found no emitter (camera_target_track) */
+    PC_SND_NO_MESSAGE,      /* a start or change that found the message pool empty (func_80091B00) */
+    PC_SND_NO_ENTRY,        /* an effect start that found no free entry (AudioSfxInit's, audio_state_save) */
+    PC_SND_PASSES,          /* the priority passes (_ProcessPriorities): OVER_BUDGET counts tags a pass */
+    PC_SND_MX_LOOP_ORPHAN,  /* a synth tick's voice whose macro has ended while its looping sample plays on */
+    PC_SND_START_PLAYING,   /* a start the manager's thread dropped: its tag was playing already (audiomgr_thread.c) */
+    PC_SND_COUNTERS
+};
+void pc_snd_count(int what);
+void pc_snd_msg_taken(int index);        /* the pool's first-free index: its high-water mark */
+enum { PC_SND_MOST_TAGS, PC_SND_MOST_EMITTERS, PC_SND_MOSTS };
+void pc_snd_most(int what, int value);   /* a pool's use now: its high-water mark */
+
+/* [audio] engines: which drones' engines play, per listener (PC_ENGINES_*, port/config/voices.c). The emitter pass
+ * (_ProcessEmitters, engine_sound_sync.c) notes each drone engine layer's distance to each listener and asks for its
+ * gain; the priority pass (_UpdateFx) asks whether a tag is over its budget. */
+enum { PC_ENGINES_ORIGINAL = 0, PC_ENGINES_ALL = -1 };   /* else N: the N nearest drones per listener */
+int pc_engines(void);
+int pc_engines_choosing(void);
+void pc_engines_note(int handle, int listener, float distance);
+void pc_engines_choose(int listeners);
+float pc_engine_gain(int handle, float gain);
+void pc_engine_state(int handle, int state);   /* the emitter pass: an emitter's fx tag's state (2: playing) */
+void pc_snd_walk_begin(void);
+int pc_snd_over_budget(unsigned int tag, int rank, float budget, int audible);
+
 #endif
