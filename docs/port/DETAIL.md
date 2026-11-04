@@ -292,7 +292,9 @@ of the eye in that order, has none (orthographic views, the identity a task star
   per vertex: GL interpolates z/w linearly across the screen, as the RDP does. The primitive depth of triangles and of
   rectangles drawn in the view is mapped the same (`gfx_rdp.c:1037`). Clears are still the far end. The geometry past
   the game's far plane, which the N64 draws at the far plane's depth in the order drawn, is then in depth order up to
-  the new far plane.
+  the new far plane. Under an MP the list sets itself (G_MV_MATRIX, G_MW_MATRIX: not the modelview times the
+  projection) there is no map; a G_MTX or a G_POPMTX, which make MP the product again, bring it back (G_MW_MATRIX and
+  G_POPMTX didn't mark the map for recomputing until 2026-11-04, so after them it stayed as it was).
 - **Its precision.** The near plane sets it, and it doesn't move: with GL's 24-bit depth buffer (`gfx_gl.c:648`) a
   depth step at distance D is about D^2 / (n 2^24), with n = 2.5 ft 0.1 ft at 2,000 ft, 0.6 ft at 5,000 ft and 2.4 ft
   at 10,000 ft, the same at 2 f as at 32 f (b' tends to -2n). The N64's own z buffer is 18 bits; d' is computed in
@@ -498,7 +500,8 @@ to move.
 
 - `gfx.detail` (port/gfx/tests/gfx_test.c, GFX.md "Tests"): geometry past the far plane in the order drawn at original
   and in depth order at far and max; depth order inside the far plane and primitive depth at every level; fog far
-  against original at half the depth, off, and the far plane's fog for what draw_distance brings in. On GLES, desktop
+  against original at half the depth, off, and the far plane's fog for what draw_distance brings in; at far, no depth
+  map under a forced MP (G_MW_MATRIX) and the map again after a G_POPMTX or a G_MTX that follows one. On GLES, desktop
   GL, llvmpipe, at 3x in 16:9 (rocky).
 - `gfx.all.draw-max`, `gfx.interp.all.draw-max`: every renderer case and every frame-interpolation case with
   `RUSH_GFX_DRAW_DISTANCE=max` and `RUSH_GFX_FOG=far`.

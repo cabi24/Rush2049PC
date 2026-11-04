@@ -10,10 +10,14 @@
  * drones' engines, with hysteresis (a drone that has its place keeps it until another is nearer by a fifth) and a
  * quarter-second fade in and out (an engine just made starts at its level), and silences the others' (gain 0: the
  * pass then holds them back and stops them as it stops any silent loop); all plays every drone's engine and keeps them out of the budget, which the effects then
- * have to themselves. It can change at any time (the overlay): the emitter pass reads it each retrace.
+ * have to themselves. It can change at any time (the overlay): the emitter pass reads it each retrace. Back from
+ * original, where every engine played at the game's gain, the engines still there start whole: the chosen stay so and
+ * the others fade out, whatever an earlier nearest pass had left.
  *
  * The counters (--log-voices) are filled by the game's sound code on its threads; relaxed atomics, read when every
  * N64 thread waits. */
+#include <string.h>
+
 #include "config.h"
 #include "pc_game_types.h"
 
@@ -109,10 +113,12 @@ static unsigned char s_chosen[LISTENERS][PC_MAX_LINKS];   /* the last pass's cho
 static int s_fade[PC_MAX_LINKS];                /* 0 silent .. FADE_STEPS full */
 static unsigned char s_seen[PC_MAX_LINKS];      /* the last pass: the car had an engine emitter */
 static int s_noted;
+static int s_resumed;   /* a pass at original since the last choice: every engine played at the game's gain there */
 /* Every pass, whatever the mode: the drones' engine layers that have an emitter, and those whose tag plays (state 2):
  * how many engines are heard (--log-voices). */
 static int s_layers, s_playing, s_layers_last, s_playing_last, s_playing_most;
 static unsigned s_playing_cars, s_playing_cars_last;
+static unsigned s_layer_cars;   /* this pass: the cars with an engine layer's emitter */
 
 /* The car whose engine layer (0 or 1) this emitter's handle is: a positional engine is a drone's (a human's two are
  * not emitters, high_scores_display). -1 if none. */
@@ -133,6 +139,7 @@ void pc_engine_state(int handle, int state)
     if (i < 0)
         return;
     s_layers++;
+    s_layer_cars |= 1u << i;
     if (state == 2) {
         s_playing++;
         s_playing_cars |= 1u << i;
@@ -146,6 +153,10 @@ void pc_engines_pass_end(void)   /* the priority pass starts after the emitter p
         s_playing_most = s_playing;
     s_layers = s_playing = 0;
     s_playing_cars = 0;
+    if (s_engines == PC_ENGINES_ORIGINAL)   /* the cars whose engines play at the game's gain, for a switch back */
+        for (int i = 0; i < PC_MAX_LINKS; i++)
+            s_seen[i] = (s_layer_cars >> i) & 1;
+    s_layer_cars = 0;
 }
 
 void pc_engines_heard(int *layers, int *playing, unsigned *cars, int *most)
@@ -155,8 +166,10 @@ void pc_engines_heard(int *layers, int *playing, unsigned *cars, int *most)
 
 int pc_engines_choosing(void)
 {
-    if (s_engines == PC_ENGINES_ORIGINAL)
+    if (s_engines == PC_ENGINES_ORIGINAL) {
+        s_resumed = 1;
         return 0;
+    }
     if (!s_noted) {
         for (int l = 0; l < LISTENERS; l++)
             for (int i = 0; i < PC_MAX_LINKS; i++)
@@ -181,6 +194,15 @@ void pc_engines_choose(int listeners)
     unsigned char want[PC_MAX_LINKS] = {0};
     if (listeners > LISTENERS)
         listeners = LISTENERS;
+    if (s_resumed) {   /* back from original (the overlay): the engines its last pass had (s_seen, pc_engines_pass_end)
+                        * play whole, the chosen ones stay so and the others fade out; one made since starts at its
+                        * level; the last choice is forgotten, its fades and its hysteresis */
+        for (int i = 0; i < PC_MAX_LINKS; i++)
+            if (s_seen[i])
+                s_fade[i] = FADE_STEPS;
+        memset(s_chosen, 0, sizeof s_chosen);
+        s_resumed = 0;
+    }
     for (int l = 0; l < listeners; l++) {
         unsigned char next[PC_MAX_LINKS] = {0};
         for (int k = 0; k < (mode == PC_ENGINES_ALL ? PC_MAX_LINKS : mode); k++) {

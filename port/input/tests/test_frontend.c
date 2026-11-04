@@ -1206,6 +1206,40 @@ static void test_engines(void)
     pc_snd_counters(c2, &most);
     CHECK(c2[PC_SND_OVER_BUDGET] == c[PC_SND_OVER_BUDGET] + 1, "only the one that would play counted: %llu",
           c2[PC_SND_OVER_BUDGET] - c[PC_SND_OVER_BUDGET]);
+    /* Back to nearest from original mid-race (the overlay): every engine played at the game's gain at original, so
+     * the chosen ones go on whole and the others fade out, whatever the last nearest pass had left. Drone 5 was
+     * silent at nearest4, comes nearest at original, and is chosen when nearest4 is back. */
+    pc_engines_set(4);
+    for (int k = 0; k < 15; k++)
+        PASS(1);
+    CHECK(pc_engines_on() == 0x1E && pc_engine_gain(110, 1.0f) == 0.0f, "nearest4 again: 1-4 (0x%03X)",
+          pc_engines_on());
+    pc_engines_set(PC_ENGINES_ORIGINAL);
+    d[5] = 50.0f;
+    PASS(1);
+    for (int i = 1; i < PC_MAX_LINKS; i++)   /* the emitter pass at original: every drone's two layers */
+        pc_engine_state(100 + 2 * i, 2), pc_engine_state(101 + 2 * i, 2);
+    pc_snd_walk_begin();
+    pc_engines_set(4);
+    PASS(1);
+    CHECK(pc_engine_gain(110, 1.0f) == 1.0f && pc_engine_gain(102, 1.0f) == 1.0f &&
+              pc_engine_gain(108, 1.0f) == 14.0f / 15.0f && pc_engine_gain(112, 1.0f) == 14.0f / 15.0f,
+          "from original: drone 5 whole, 1 whole, 4 and 6 fading out (%g %g %g %g)",
+          (double)pc_engine_gain(110, 1.0f), (double)pc_engine_gain(102, 1.0f), (double)pc_engine_gain(108, 1.0f),
+          (double)pc_engine_gain(112, 1.0f));
+    /* At original past a race's end (no engine emitters: the menus), then nearest4 for the next race: its engines are
+     * just made, the chosen whole and the others silent at once, whatever the race before had */
+    pc_engines_set(PC_ENGINES_ORIGINAL);
+    PASS(1);
+    pc_snd_walk_begin();
+    pc_engines_set(4);
+    PASS(1);
+    CHECK(pc_engine_gain(110, 1.0f) == 1.0f && pc_engine_gain(102, 1.0f) == 1.0f && pc_engine_gain(108, 1.0f) == 0.0f &&
+              pc_engine_gain(112, 1.0f) == 0.0f, "a race after original: 5 and 1 whole, 4 and 6 silent (%g %g %g %g)",
+          (double)pc_engine_gain(110, 1.0f), (double)pc_engine_gain(102, 1.0f), (double)pc_engine_gain(108, 1.0f),
+          (double)pc_engine_gain(112, 1.0f));
+    pc_engines_set(PC_ENGINES_ORIGINAL);
+    d[5] = 500.0f;
 #undef PASS
 }
 
