@@ -312,6 +312,7 @@ on aarch64).
 | `windows-cross` | ubuntu-24.04, in `debian:12` | the toolchain file, Debian 12's mingw-w64 (GCC 12.2) and zlib, SDL2 built from source; uploads `rush2049pc.exe` |
 | `windows-run` | windows-latest | that executable: `--selftest`, the boot without a ROM (`grep "wave 0 loaded"`), and the synthetic cartridge's paths ([SYNTH.md](SYNTH.md): generated from the cross build's data report, which `windows-cross` uploads with the executable) |
 | `windows` | windows-latest | MSYS2 UCRT64 with its SDL2: the build, `ctest` (with `ultra_selftest_fast` and the synthetic cartridge's `synth_boot_*`), `--selftest` and the boot without a ROM |
+| `windows-same`, `windows-native-same` | ubuntu-24.04 | the traces of `windows-run`'s and `windows`'s synthetic paths against the `linux` jobs', to the bit (section 12) |
 
 - **OpenGL.** The runners have no GPU. Mesa 26.2.4's llvmpipe (mesa-dist-win, SHA-256 pinned, `GALLIUM_DRIVER=llvmpipe`)
   is copied next to the programs.
@@ -492,3 +493,84 @@ file, say) is tried again a second later. Backups and a damaged pak set aside: R
   converters malloc could read as an N64 address there; `memory.c` warns.
 - Third-party DLLs that need low addresses, which the reservation below 4 GiB would refuse (none showed up with
   Mesa, SDL2 or the CRT).
+
+## 12. The same game as Linux's
+
+Whether the Windows program runs the same game as the Linux builds, bit for bit, asked after the player report of
+[QA.md](QA.md) "Player reports" 1 (the car exploded when steered, on the Windows zip of 63640c8). The retail
+cartridge stays on the Pi, and nothing runs Windows programs there or on the build host (no Wine), so the comparison
+is on the synthetic cartridge ([SYNTH.md](SYNTH.md)), whose races run the game's own physics, in CI's runs.
+
+**What the logs of two CI runs show** (2026-11-04; the cross-built program, as the Release workflow builds the zip:
+the same `debian:12` mingw-w64 GCC 12.2, RelWithDebInfo):
+
+| Run | Commit | Compared | Result |
+|---|---|---|---|
+| 41824398187 | 63640c8 (the user's zip) | `windows-run` RelWithDebInfo's 59 synthetic path logs against those of `linux` x86-64 RelWithDebInfo, aarch64 RelWithDebInfo, x86-64 Debug and `windows-run` Debug (synth_compare.py's trace: the loader's summary, each state change at its retrace, the first car's position and speed in whole feet and its steering to 0.01) | the same, path for path; against Windows Debug, all but the real-time race (whose runs differ among themselves on any host) |
+| | | the 26 screenshots the paths take, by their bytes | the same on Windows, x86-64 and aarch64 |
+| | | `input_check.py`'s 10 runs (the drive path with STICKLEFT and STICKRIGHT through the pads, a virtual controller, a joystick and the keyboard; race2p with two controllers; rumble), which print exact floats (`RUSH_STATE_EXACT`) and a status line every second | the same, line for line, as x86-64's (RelWithDebInfo and Debug), aarch64's (RelWithDebInfo) and Windows Debug's: 42 to 60 events each, the steering input at +1 and -1 among them |
+| | | the synthetic cartridges (their reports, `rush2049_synth.txt`, each generated from its build's data report) | the same but for Windows's CRLF line ends |
+| 41853308343 | ea4b82f | the same four | the same |
+
+The synthetic paths' own logs had no exact floats before this section (synth_paths.py printed whole feet), so only
+the live-input runs compare to the bit; CI now does the rest (below).
+
+**Why they agree.** What could compile differently on mingw-w64 (OPTIMIZED.md 2.3), as checked on the
+`windows-cross` RelWithDebInfo program of ea4b82f (objdump) and a RelWithDebInfo build on the build host (nm):
+
+- *x87 or SSE.* x86-64 does float and double arithmetic in SSE on both; the program has x87 instructions only
+  inside mingw-w64's own math functions (`exp`, `pow`, `acosf`, `modff`, ...) and its printf, none in the game.
+- *Fused multiply-adds.* None in the program: Debian's mingw-w64 targets plain x86-64, and the game C has
+  `-ffp-contract=off` anyway (CMakeLists.txt:148).
+- *The C library's math.* The game objects call two of the host's math functions. `sqrtf`: optimized, GCC computes
+  it with `sqrtss` and calls the library only for a negative argument, to set errno (6 objects call it at all);
+  at -O0 it calls the library each time, whose square root is correctly rounded on both (glibc's `sqrtss`;
+  mingw-w64's x87 `fsqrt` stored to a float, a square root rounded to 53 or 64 bits first and then to 24 being
+  still the correctly rounded one). `modff`, in the game's own tangent (`func_800A557C`,
+  src/blob/func_800A557C.c), since the IDO libc it was linked with (src/rom/lib_34a0.c) is the host's on the PC
+  (CMakeLists.txt:93): mingw-w64's (x87 `frndint`) gives the same whole and fractional parts as glibc's, but for a
+  negative whole number's fraction, +0 where glibc gives -0; and the tangent's only callers are the window's field
+  of view (`set_window`, and its copy in `exhaust_smoke_effect.c`), half an angle in radians, never a whole number.
+  The game's `sinf` and `cosf` are its own (renamed `n64_sinf`, `n64_cosf`: CMakeLists.txt:117). The imports from
+  msvcrt.dll (`acos`, `asin`, `atan`, `tan`, `log10`, `_hypot`) are the PC layer's, SDL's and mingw-w64's own.
+- *The PC layer's input.* `pc_stick_shape` (port/input/stick.c:32) takes the stick's length with `hypot`
+  (msvcrt's `_hypot` on Windows). A key or a bound button is full tilt along one axis, `hypot(±1, 0) = 1` exactly
+  everywhere, and the value is `input.stick_range` (80) on every host. An analog stick's value could differ by one
+  unit only where the last bit of the length decides a rounding tie.
+- *`long`.* 32 bits on Windows, 64 on Linux (section 4); the traces show no game code whose result depends on it on
+  these paths.
+- *Windows-only code.* The `_WIN32` blocks in port/ are the window, threads' timed waits, the memory reservation,
+  paths and the console; none is in the game's arithmetic. `RUSH_TRAP_FP` (port/ultra/misc.c:257) is glibc's only,
+  and off by default.
+
+**What CI checks now.** ctest's `synth_boot_*` and `windows-run` run the paths with `synth_paths.py --exact`
+(`RUSH_STATE_EXACT` and `--status 1`, and so the second runs on a path's saves that its checks make, ghost2,
+profile2 and delete2, through `synth_again.py`), and `windows-same` (Debug and RelWithDebInfo) compares `windows-run`'s logs
+with the `linux` jobs' of the same build type, x86-64's and aarch64's, with `synth_compare.py --from-logs`: the
+cartridge's report, then every path on the virtual clock (the real-time race left out) and every live-input run, the
+states at the same retraces and each second the first car's position, speed and steering to the bit. It fails if a
+path differs, has no exact status lines, or is missing from one side, and prints the first event that differs.
+`windows-native-same` does the same for the `windows` job's program (MSYS2's GCC with the UCRT's math library,
+Debug): its ctest's path logs, which that job now uploads, against the Linux Debug builds'. Both run nothing but the
+comparison: the downloads and under a second of Python. `tools/port/synth/steer.press` is a path for it with the gas
+held and full lock left and right, from 0.2 s taps to 6 s locks, as a key steers.
+
+Tried on the build host (x86-64, RHEL 10's GCC), as far as it goes without a Windows program: ctest's paths with
+`--exact` in a RelWithDebInfo and a Debug build, then `--from-logs` between the two folders: 59 of 59 logs the same
+(the 56 paths on the virtual clock, `steer` among them with 85 events, and ghost2, profile2 and delete2).
+`synth_compare.py --same --runs 2` of the same two builds: 57 of 57 paths the same; and of d0b8b5d's RelWithDebInfo
+build against this change's (the program's sources unchanged; 30 paths in a run that a timeout cut short, the other
+27 again): 57 of 57. On CI's logs of ea4b82f
+`--from-logs` passes the 10 live-input runs, Linux x86-64's against Windows's; with the last hex digit of one float
+in one Windows status line changed (the keyboard run's, at 30 s), 9 of 10 pass and it names that line; and it fails
+each path log of that run as coarse, since those were written before `--exact`.
+
+**What this can't show.** The synthetic cartridge's car doesn't follow the controls: the steering input reaches
+the car's model record (the traces have it at +1 and -1), and the physics move the car, speed it up and put it back
+every few seconds, but along the same course with the controls or without (`input_check.py`'s nosteer run; on the
+build host all 56 status lines of `drive` are `steer`'s to the bit, position and speed, though from 47 s `drive`
+brakes where `steer` holds the gas and steers), and there is no wall to hit. So the turn into the barrier at speed that blows the car up on the retail
+cartridge (QA.md) runs only there, on the Pi. That the Windows build takes the same course there rests on the
+reasons above and on everything that does run on the synthetic cartridge being the same. Not compared either: a
+real GPU driver's effect on the threads' floating-point state (CI has Mesa's llvmpipe), which would show as a
+difference in denormals or rounding.

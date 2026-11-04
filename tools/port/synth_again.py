@@ -8,7 +8,9 @@ Runs tools/port/synth/again/NAME.press as synth_paths.py runs a path (its `# unt
 program and the cartridge of the run whose log FIRST.game.log is (its "command line:"), and without deleting what its
 `# args` name: its controller pak is the one the first run left, so the game reads back what it saved. Its output
 goes to NAME.log and NAME.game.log. The scripts in again/ are not paths of their own (synth_paths.py runs
-tools/port/synth/*.press): each needs the pak a first run leaves. Exit status 0 if the run passes.
+tools/port/synth/*.press): each needs the pak a first run leaves. A first run with --status (synth_paths.py --exact,
+which gives its checks RUSH_STATE_EXACT too) gives this one the same status lines, so NAME.log is a trace
+synth_compare.py --from-logs compares as the paths' own. Exit status 0 if the run passes.
 """
 import os
 import re
@@ -39,6 +41,8 @@ def main():
            spec["seconds"]]
     if not spec["realtime"]:
         cmd.append("--fast")
+    if "--status" in words[:-1]:   # the first run's status lines (synth_paths.py --exact)
+        cmd += ["--status", words[words.index("--status") + 1]]
     cmd += spec["args"]
     env = dict(os.environ, RUSH_TRACE_WAVES="1", **spec["env"])
     t0 = time.time()

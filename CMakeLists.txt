@@ -512,7 +512,9 @@ endif()
 # screen, the end of a race...), through tools/port/synth_paths.py: the script's leading comments say which state to
 # reach, for how many frames, what the state log must say there (players, windows, cars, mode, track), and which
 # screenshot checks to make. Most run on the virtual clock (--fast, about a second each); synth_boot_race runs in real
-# time (28 s). On Windows too (CI's native job).
+# time (28 s). On Windows too (CI's native job). --exact: the logs have the first car's position and speed as exact
+# floats and a status line each second, the trace CI's windows-same job compares with the Windows program's
+# (docs/port/WINDOWS.md 12).
 set(SYNTH_ROM ${CMAKE_BINARY_DIR}/synth/rush2049_synth.z64)
 add_test(NAME synth_rom COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_rom.py --out ${SYNTH_ROM}
     --data-symbols ${PC_DATA_DIR}/data_symbols.txt)
@@ -529,7 +531,7 @@ foreach(script ${SYNTH_PATHS})
     get_filename_component(name ${script} NAME_WE)
     add_test(NAME synth_boot_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_paths.py
         --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paths
-        --timeout ${SYNTH_PATH_TIMEOUT} ${name})
+        --timeout ${SYNTH_PATH_TIMEOUT} --exact ${name})
     set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 150)
     list(APPEND SYNTH_BOOT_TESTS synth_boot_${name})
     # a path on the host's clock (`# realtime`: the race) runs alone under `ctest -j`, as the other real-time tests,

@@ -332,7 +332,9 @@ Considered and not used:
     be the same, to the bit. Its runs go four at once (`-j 4`): each is a process of its own on the virtual clock,
     whose course doesn't depend on what else the host runs;
   - `optimized-windows`: the cross builds' `data.c` and `data_symbols.txt` must be the same files;
-  - `windows-run` runs the self-test, the boot without a ROM and the 14 paths with both cross-built programs.
+  - `windows-run` runs the self-test, the boot without a ROM and the 14 paths with both cross-built programs;
+  - `windows-same` (per build type): those runs' traces must be the Linux builds' of the same type, to the bit, on
+    every path on the virtual clock ([WINDOWS.md](WINDOWS.md) 12), and `windows-native-same` the MSYS2 build's.
 
 ## 5. The same game
 
@@ -390,7 +392,9 @@ entries first.
 
 The mingw-w64 cross build (`cmake/mingw-w64.cmake`) builds as RelWithDebInfo with the anchor fix of 2.6, and CI runs
 it on Windows: the self-test, the boot without a ROM and all 14 synthetic paths. Its tables are the same files as the
-Debug cross build's.
+Debug cross build's. Its traces are Linux's (the synthetic paths' in whole feet, the live-input runs' to the bit), and
+CI's `windows-same` checks every path's to the bit against the Linux builds' of the same type ([WINDOWS.md](WINDOWS.md)
+12).
 
 ## 8. Found on the way: the sequencer's byte
 
