@@ -199,6 +199,9 @@ def from_logs(a, b):
     """--from-logs: each NAME.log in folder a against b's, by its trace; the number that aren't the same."""
     a, b = Path(a), Path(b)
     names = sorted({p.stem for d in (a, b) for p in d.glob("*.log") if not p.name.endswith(".game.log")})
+    if not names or not a.is_dir() or not b.is_dir():   # a folder a download put elsewhere compares nothing
+        print(f"synth_compare: nothing to compare in {a} and {b}")
+        return 1
     bad = same = 0
     for name in names:
         press = synth_paths.PRESS_DIR / f"{name}.press"
