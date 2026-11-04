@@ -135,7 +135,7 @@ gSPFogPosition's past the far plane.
   (`particle_knot/group.c:1284-1285`).
 - With a fog option the fog runs from `D_8011E810`'s start to the far plane (1.4), in the same colour; the screen is
   cleared to it.
-- The sky: SkyInit (`camera_reset.c:3800-3822`) makes a sky dome a window (model `D_8012120C`, ROM), shown in its
+- The sky: SkyInit (`camera_reset.c:3806-3827`) makes a sky dome a window (model `D_8012120C`, ROM), shown in its
   view only and kept at the camera's x and z (`particles_spawn_emitter.c:3812-3822`), except with a fog option or on
   tracks 7-13, 17 and 18.
 
@@ -173,7 +173,7 @@ renderer's own (a layer of the settings, as `RUSH_GFX_HUD` is). The defaults are
 |---|---|---|
 | `video.draw_distance` | `original`, `far`, `max` | far: every distance limit of 1.1-1.6 twice as far, and the depth range's far plane twice the game's; max: none of them, every part of the world and every model at any distance, the far plane 32 times the game's |
 | `video.detail` | `original`, `high` | high: each model's first (most detailed) level wherever it is drawn, the tires at their first level in split screen, and split screen's models and level objects as one player has them |
-| `video.fog` | `original`, `far`, `off` | far: the fog's start and end twice as far (the fog options and the fog regions, as draw_distance far's limits); off: no fog |
+| `video.fog` | `original`, `far`, `off` | far: the fog's start and end twice as far (the fog options and the fog regions, as draw_distance far's limits); off: no fog, and with a fog option the sky dome the game leaves out in one (from the next track) |
 
 ### 2.1 The visibility tables
 
@@ -219,7 +219,9 @@ and such polys are smaller than a pixel there.
 ### 2.4 The far plane and the fog
 
 The renderer's part (section 3): the depth's far plane x 2 at far, x 32 at max; the game's projection, and with it
-the fog and everything the game sees of z/w, unchanged.
+the fog and everything the game sees of z/w, unchanged. And fog off keeps the sky dome with a fog option: SkyInit
+(`camera_reset.c:3809`, `PC_SKY_FOG`) makes none in a fog, whose colour is then the sky; with the fog off that is
+a flat colour behind the world (5.3). The game reads `video.fog` for that alone (`pc_fog`), from the next track.
 
 ### 2.5 Detail high's load-time parts
 
@@ -487,7 +489,7 @@ to move.
 | `synth_compare.py --same --runs 2 --shots`, base against the branch, Debug, build host (x86-64, GCC 14), on the branch's cartridge (track 0's detail world): every path whose settings are original (27: all but `detail_far`, `detail_max`, `detail_high`, `detail_fogfar`, which the base doesn't take) | the same trace and the same screenshots (drive, race2p, race4p, race2p12, detail, detail_fog), every run: 27 of 27 |
 | the same on the base's own cartridge (no detail world), its 25 paths | 25 of 25 |
 | ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 265 of 265 each (`assets_rom` skipped: no ROM there) |
-| `n64_neutral.py --base 09da2f0` | passes (1,018 files: 92 code-exact, 926 shifted); against 0d7d016 the 6 changed game files under `src/`, shifted |
+| `n64_neutral.py --base 09da2f0` | passes (1,018 files: 92 code-exact, 926 shifted); against 0d7d016 the 7 changed game files under `src/`, shifted |
 | the N64 IDO check (`tools/port/ido_check.sh`, build host) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 | `offset_check --strict`, build host | no open findings; 59,472 accesses placed |
 | `alias_check` (RelWithDebInfo) | none open |

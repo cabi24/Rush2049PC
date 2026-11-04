@@ -220,7 +220,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.hud` | edges | | the race HUD in widescreen: `edges` (at the screen's edges) or `centered` (in the 4:3 frame) (`RUSH_GFX_HUD`; "Widescreen" above) |
 | `video.draw_distance` | original | | how far the game draws: `original` (the N64's: its 2,000-ft far plane, the world's visibility tables, each model's distance), `far` (each limit twice as far, more of the track: the cars, their wheels and the scenery further out), `max` (the whole track, every model at any distance) (`RUSH_GFX_DRAW_DISTANCE`; [below](#draw-distance-detail-and-fog-videodraw_distance-detail-fog), [DETAIL.md](DETAIL.md)) |
 | `video.detail` | original | | `high`: each model's most detailed level wherever it is drawn, and in split screen the one-player models and objects (those from the next track) ([DETAIL.md](DETAIL.md) 2.5) |
-| `video.fog` | original | | `original` (the game's: the track select's fog option), `far` (its start and end twice as far) or `off` (`RUSH_GFX_FOG`; [DETAIL.md](DETAIL.md) 3) |
+| `video.fog` | original | | `original` (the game's: the track select's fog option), `far` (its start and end twice as far) or `off` (and with the fog option the sky dome the game leaves out in a fog, from the next track) (`RUSH_GFX_FOG`; [DETAIL.md](DETAIL.md) 3) |
 | `audio.backend` | auto | `--audio` | auto, sdl, alsa, null, wav (`RUSH2049_AUDIO`) |
 | `audio.volume` | 100 | | master volume, 0-100 ([AUDIO.md](AUDIO.md): its square is the gain) |
 | `audio.latency` | 0 | | the least sound kept queued for the device, 0-200 ms; 0 sizes it from the device's pulls, and it grows after each underrun ([AUDIO.md](AUDIO.md) §7) |
@@ -315,7 +315,7 @@ the default, each is the N64's game exactly.
   further out), the tires at their first level in split screen, and, from the next track, split screen's models and
   level objects as one player has them.
 - **`fog`**: `far` gives a point the fog the game gives one half as far (the fog options and their regions); `off`
-  none.
+  none, and with a fog option the sky dome the game leaves out in a fog (from the next track).
 - **Live.** The overlay's Video page has the three ("Draw distance", "Detail", "Fog"); a change applies from the game's
   next frame (`pc_detail_set`, `pc_gfx_set_draw_distance`, `pc_gfx_set_fog`), detail's split-screen models from the
   next track.

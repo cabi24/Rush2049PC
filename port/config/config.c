@@ -267,7 +267,8 @@ static const Item items[] = {
      "or wheel further away), and the one-player models in split screen (from the next track)."},
     {"video", "fog", T_ENUM, F(fog), 0, 0, fog_choices, "original",
      "original (the game's, with the track select's fog option), far (the fog starts and ends twice as far, as "
-     "draw_distance = far's limits) or off (RUSH_GFX_FOG)."},
+     "draw_distance = far's limits) or off (and with the fog option, the sky the game leaves out in a fog, from the "
+     "next track) (RUSH_GFX_FOG)."},
 
     {"audio", "backend", T_STR, F(audio), 0, 0, NULL, "auto",
      "auto (SDL2, then ALSA on Linux, then none), sdl, alsa (Linux), null (no sound) or wav (no sound, only "
