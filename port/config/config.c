@@ -172,7 +172,7 @@ static const char *const analog_choices[] = {"left", "right", "none", NULL};
 static const char *const scale_choices[] = {"auto", "native", NULL};   /* 0, -1; "n64" reads as 1 */
 static const char *const size_choices[] = {"auto", NULL};
 static const char *const fullscreen_mode_choices[] = {"desktop", "exclusive", NULL};
-static const char *const frame_rate_choices[] = {"original", "display", NULL};
+static const char *const frame_rate_choices[] = {"original", "display", "auto", NULL};   /* 0, -1, -2 */
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GFX_HUD_* */
 static const char *const cars_choices[] = {"original", NULL};          /* 0: the N64's 6 */
@@ -272,8 +272,8 @@ static const Item items[] = {
      "Wait for the display's refresh: no tearing, and no more frames shown than it refreshes (frame_rate)."},
     {"video", "frame_rate", T_INT, F(frame_rate), 30, 1000, frame_rate_choices, "original",
      "Frames shown a second: original (the game's own: 30, or 60 with game.frame_rate = 60), display (the display's "
-     "refresh; with vsync) or "
-     "a number (60, 120, 144). Frames between the game's are drawn from its last two; its timing is unchanged "
+     "refresh; with vsync), auto (with vsync: the game's own on a 60, 120, 180 or 240 Hz display, else the display's "
+     "refresh) or a number (60, 120, 144). Frames between the game's are drawn from its last two; its timing is unchanged "
      "(RUSH_GFX_FRAME_RATE)."},
     {"video", "scale", T_INT, F(scale), 1, 8, scale_choices, "native",
      "Internal resolution: native (the window's own pixels, sharp at any size), auto (the largest whole multiple of "

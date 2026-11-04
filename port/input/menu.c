@@ -111,7 +111,7 @@ static const char *const fs_mode_choices[] = {"desktop", "exclusive", NULL};
 static const char *const res_choices[] = {"desktop", "720p", "1080p", "1440p", "1620p", "2160p", NULL};
 static const char *const res_labels[] = {"desktop", "720p (1280x720)", "1080p (1920x1080)", "1440p (2560x1440)",
                                          "1620p (2880x1620)", "2160p (3840x2160)", NULL};
-static const char *const rate_choices[] = {"original", "60", "120", "144", "display", NULL};
+static const char *const rate_choices[] = {"original", "60", "120", "144", "display", "auto", NULL};
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"edges", "centered", NULL};
@@ -1641,6 +1641,8 @@ static void shown(const Item *it, char *out, size_t n)
         for (int i = 0; it->labels && it->choices[i]; i++)
             if (!strcasecmp(v, it->choices[i]))
                 snprintf(out, n, "%s", it->labels[i]);
+        if (it->choices == rate_choices && !strcasecmp(v, "auto"))   /* what auto chose (FRAMERATE.md 7.9) */
+            pc_gfx_frame_rate_describe(out, n);
         if (it->labels == pak_labels && !strcasecmp(v, "auto"))   /* what auto is now */
             snprintf(out, n, "auto: %s", pc_si_pak(it->page) == PC_CFG_PAK_RUMBLE ? "rumble pak" : "none");
     }

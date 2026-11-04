@@ -1155,6 +1155,13 @@ int pcgfx_hfr_wants_next(double vt) {
     return a > 0.0 && a < 1.0;
 }
 
+/* The moment, in retraces, of the next frame pcgfx_hfr_frame last showed as drawn (kind 1): its retrace by the period. */
+static double H_moment;
+
+double pcgfx_hfr_moment(void) {
+    return H_moment;
+}
+
 int pcgfx_hfr_frame(double vt, GfxTarget **show, int *rows, int mode) {
     RFrame *b = H.cur, *c, *r, *o;
     double period = 2.0, a;
@@ -1180,6 +1187,7 @@ int pcgfx_hfr_frame(double vt, GfxTarget **show, int *rows, int mode) {
             return 0;
         }
         *show = c->target;   /* the next frame is due (the game is late): show it as drawn */
+        H_moment = (double)b->shown + period;
         pcgfx_gl_target_shown(c->target, &w, rows);
         H.stats.early++;
         return 1;
