@@ -78,7 +78,6 @@ int pc_race_cars(void) { return test_race_cars; }
 __attribute__((weak)) volatile int pc_fps60;
 __attribute__((weak)) int pc_frame_steps = 1;
 __attribute__((weak)) float pc_frame_scale = 1.0f;
-__attribute__((weak)) unsigned int pc_frames30;
 __attribute__((weak)) void pc_game_fps_begin(void) {}
 __attribute__((weak)) void pc_game_frame_note(int retraces) { (void)retraces; }
 __attribute__((weak)) float pc_fps_filter(float e) { return e; }   /* not libm: not every test links it */

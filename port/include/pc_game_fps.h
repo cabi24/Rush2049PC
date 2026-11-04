@@ -11,7 +11,6 @@
  *     #define PC_STEPS(n) n
  *     #define PC_EACH30(stmt) stmt
  *     #define PC_FILTER(e) e
- *     #define PC_FRAMES30(n64) n64
  *     #endif
  * At `original` each macro gives exactly the N64's value (no float operation is added), so the game is the N64's. */
 #ifndef PC_GAME_FPS_H
@@ -20,7 +19,6 @@
 extern volatile int pc_fps60;       /* the latched setting: 1 while the game draws a frame every retrace */
 extern int pc_frame_steps;          /* whole 30 Hz frames (two retraces) this frame: at 60, 0 or 1 a retrace */
 extern float pc_frame_scale;        /* this frame's length in 30 Hz frames: retraces / 2 (0.5 at 60) */
-extern unsigned int pc_frames30;    /* the 30 Hz frames counted so far (pc_frame_steps' sum) */
 
 void pc_game_fps_begin(void);       /* latch the setting (the game's state changes) */
 void pc_game_frame_note(int retraces);   /* viUpdateTime: this frame's retraces, at most 5 */
@@ -30,12 +28,11 @@ float pc_fps_filter(float e);       /* e to the power of the frame's length in 3
 #define PC_FSCALE(x) (pc_fps60 ? (x) * pc_frame_scale : (x))
 /* An integer step per frame, as whole 30 Hz frames (0 or 1 at 60). */
 #define PC_STEPS(n) (pc_fps60 ? (n) * pc_frame_steps : (n))
-/* A statement run once a 30 Hz frame: a count or a test against one (`if (--t == 0)`) that a step of 0 would repeat. */
+/* A statement run once a 30 Hz frame: a count or a test against one (`if (--t == 0)`) that a step of 0 would repeat.
+ * It is an `if`: never directly before an `else` of the code around it (every use is checked so). */
 #define PC_EACH30(stmt) if (!pc_fps60 || pc_frame_steps) { stmt }
 /* A filter or decay applied once a frame, x = x * e + y * (1 - e), tuned to a frame of two retraces: e^(frames). */
 #define PC_FILTER(e) (pc_fps60 ? pc_fps_filter(e) : (e))
-/* A frame count read as time (a blink, a cycle): frames at 30. */
-#define PC_FRAMES30(n64) (pc_fps60 ? pc_frames30 : (n64))
 /* The scheduler's retraces between two swaps (src/rom/lib_1050_sdk.c). */
 #define PC_SWAP_RETRACES ((unsigned int)(pc_fps60 ? 1 : 2))
 

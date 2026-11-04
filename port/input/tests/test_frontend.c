@@ -617,14 +617,13 @@ static void test_fps(void)
     CHECK(pc_frame_steps == 1 && pc_frame_scale == 1.0f, "not latched: still one step a frame");
     pc_game_fps_begin();
     CHECK(pc_fps60 == 1, "the state changes: 60");
-    unsigned int f0 = pc_frames30;
     int steps[6];
     for (int i = 0; i < 6; i++) {
         pc_game_frame_note(1);
         steps[i] = pc_frame_steps;
         CHECK(pc_frame_scale == 0.5f, "a frame of one retrace is half a 30 Hz frame: %g", (double)pc_frame_scale);
     }
-    CHECK(steps[0] + steps[1] == 1 && steps[2] + steps[3] == 1 && steps[4] + steps[5] == 1 && pc_frames30 - f0 == 3,
+    CHECK(steps[0] + steps[1] == 1 && steps[2] + steps[3] == 1 && steps[4] + steps[5] == 1,
           "frames of one retrace: a whole step every other one (%d %d %d %d %d %d)", steps[0], steps[1], steps[2],
           steps[3], steps[4], steps[5]);
     pc_game_frame_note(2);

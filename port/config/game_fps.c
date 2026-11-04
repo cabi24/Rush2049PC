@@ -18,7 +18,6 @@
 volatile int pc_fps60;
 int pc_frame_steps = 1;
 float pc_frame_scale = 1.0f;
-unsigned int pc_frames30;
 
 static volatile int s_setting;   /* 0 original, 60 */
 static int s_half;               /* a retrace left over toward the next 30 Hz frame */
@@ -51,7 +50,6 @@ void pc_game_frame_note(int retraces)
         s_half = (s_half + retraces) & 1;
         pc_frame_scale = (float)retraces * 0.5f;
     }
-    pc_frames30 += (unsigned int)pc_frame_steps;
 }
 
 float pc_fps_filter(float e)
