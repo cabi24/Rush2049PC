@@ -290,7 +290,7 @@ class Wad:
             if b"\0" not in raw:
                 raise Refused(f"{what} {i}'s name doesn't end within its 16 bytes")
             name = raw.split(b"\0", 1)[0]
-            if prev is not None and prev >= name:
+            if prev is not None and prev > name:   # the cartridge has a name twice: bsearch finds one
                 raise Refused(f"{what} {i}, '{name.decode('latin-1')}', is out of order after "
                               f"'{prev.decode('latin-1')}' (the game looks them up by name, in order)")
             prev = name

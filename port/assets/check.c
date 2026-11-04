@@ -152,7 +152,7 @@ static int records_fit(const Wad *w, uint32_t tag, uint32_t rec)
 }
 
 /* The game bsearches OBHD, TXHD and PLHD by name (entity_name_copy with func_8008AD04, strcmp), and NewWorld WHDR:
- * names end within their 16 bytes and go up. */
+ * names end within their 16 bytes and don't go down. */
 static int names_sorted(const Wad *w, const char *what, uint32_t first, uint32_t count, uint32_t stride)
 {
     const char *prev = NULL;
@@ -160,7 +160,7 @@ static int names_sorted(const Wad *w, const char *what, uint32_t first, uint32_t
         const char *name = (const char *)w->c->b + first + (size_t)i * stride;
         if (!memchr(name, 0, 16))
             return bad(w->c, "%s %u's name doesn't end within its 16 bytes", what, i);
-        if (prev && strcmp(prev, name) >= 0)
+        if (prev && strcmp(prev, name) > 0)   /* the cartridge has a name twice: bsearch finds one of them */
             return bad(w->c, "%s %u, '%.16s', is out of order after '%.16s' (the game looks them up by name, in "
                        "order)", what, i, name, prev);
         prev = name;
