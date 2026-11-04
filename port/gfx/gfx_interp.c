@@ -47,6 +47,7 @@ typedef struct {
     uint16_t depth;             /* the modelview stack's depth */
     uint16_t view, vp;
     int16_t fog_mul, fog_off;
+    float fog_za;               /* the projection's z/w at infinity, for video.fog far (gfx_detail.c); 0 none */
     uint8_t persp, decomposed, has_dyn;
     /* as the frame drawn again */
     int32_t match;              /* its partner's transform in the other frame, -1 */
@@ -302,6 +303,7 @@ static uint32_t current_xf(RFrame *f) {
     x->vp = pcgfx.vp_ord;
     x->fog_mul = pcgfx.fog_mul;
     x->fog_off = pcgfx.fog_off;
+    x->fog_za = pcgfx.proj_depth ? pcgfx.proj_za : 0.0f;
     x->bmin[0] = x->bmin[1] = x->bmin[2] = 1e30f;
     x->bmax[0] = x->bmax[1] = x->bmax[2] = -1e30f;
     x->sig = mix(0x5EED, x->view);
@@ -1037,7 +1039,7 @@ static void draw_between(RFrame *b, RFrame *c, float a) {
             g->z = ox * mp[0][2] + oy * mp[1][2] + oz * mp[2][2] + mp[3][2];
             g->w = ox * mp[0][3] + oy * mp[1][3] + oz * mp[2][3] + mp[3][3];
             if (r->flags & V_FOG)
-                g->a = pcgfx_fog_alpha(g->z, g->w, x->fog_mul, x->fog_off);
+                g->a = pcgfx_fog_alpha(g->z, g->w, x->fog_mul, x->fog_off, x->fog_za);
         }
         g->clip = pcgfx_outcode(g, x->xs);
     }

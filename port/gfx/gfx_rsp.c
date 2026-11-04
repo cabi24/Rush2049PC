@@ -216,15 +216,7 @@ uint8_t pcgfx_outcode(const GfxVtx *v, float xs) {
     return c;
 }
 
-float pcgfx_fog_alpha(float z, float w, int16_t fog_mul, int16_t fog_off) {
-    float f;
-    if (w < GFX_W_EPS)
-        w = GFX_W_EPS;
-    f = z / w * (float)fog_mul + (float)fog_off;
-    if (f < 0.0f) f = 0.0f;
-    if (f > 255.0f) f = 255.0f;
-    return f / 255.0f;
-}
+/* pcgfx_fog_alpha: gfx_detail.c (the fog as the N64 makes it, and video.fog's) */
 
 static void load_vertices(const uint8_t *p, int be, int v0, int n) {
     const float(*mp)[4];
@@ -294,7 +286,9 @@ static void load_vertices(const uint8_t *p, int be, int v0, int n) {
             v->s = s * (pcgfx.tex_scale_s / 65536.0f);
             v->t = t * (pcgfx.tex_scale_t / 65536.0f);
         }
-        v->a = (pcgfx.geom & G_FOG) ? pcgfx_fog_alpha(v->z, v->w, pcgfx.fog_mul, pcgfx.fog_off) : p[15] / 255.0f;
+        v->a = (pcgfx.geom & G_FOG) ? pcgfx_fog_alpha(v->z, v->w, pcgfx.fog_mul, pcgfx.fog_off,
+                                                      pcgfx.proj_depth ? pcgfx.proj_za : 0.0f)
+                                    : p[15] / 255.0f;
         v->clip = pcgfx_outcode(v, xs);
     }
     if (pcgfx_rec != NULL)
@@ -523,6 +517,8 @@ int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTr
             d = c->prim_z / 32767.0f;
         else
             d = screen_z_at(v, c) / 1023.0f;
+        if (c->dz_on)   /* draw_distance far or max: the far plane moved out (gfx_detail.c) */
+            d = d * c->dz_mul + c->dz_add;
         if (d < 0.0f) d = 0.0f;
         if (d > 1.0f) d = 1.0f;
         o->pos[0] = v->w * (2.0f * c->vx / c->tw - 1.0f) + v->x * 2.0f * c->vp_scale[0] / c->tw;
@@ -572,6 +568,7 @@ static void tri_ctx(GfxTriCtx *c) {
     c->zs_prim = (pcgfx.om_l & G_ZS_PRIM) != 0;
     c->tex = pcgfx.tex_on;
     c->wide = pcgfx.wide_ox != 0 && pcgfx.persp;
+    pcgfx_detail_ctx(c);
 }
 
 static void triangle(unsigned i0, unsigned i1, unsigned i2) {
@@ -659,6 +656,7 @@ void pcgfx_rsp_reset(void) {
     pcgfx.xf_gen++;
     pcgfx.view_ord = pcgfx.vp_ord = 0;
     pcgfx.mp_forced = 0;
+    pcgfx_detail_projection(pcgfx.proj);
 }
 
 static void moveword(uint32_t w0, uintptr_t w1) {
@@ -720,6 +718,7 @@ static void movemem(uint32_t w0, uintptr_t w1) {
         pcgfx.vp_trans[1] = (int16_t)pcgfx_rd16(p + 10, be) / 4.0f;
         pcgfx.vp_trans[2] = (int16_t)pcgfx_rd16(p + 12, be);
         pcgfx.vp_ord++;
+        pcgfx.dz_dirty = 1;
         if (pcgfx_rec != NULL)
             pcgfx_rec_viewport();
         break;
@@ -736,6 +735,7 @@ static void movemem(uint32_t w0, uintptr_t w1) {
         mtx_read(p, be, pcgfx.mp);
         pcgfx.persp = is_persp(pcgfx.mp);
         pcgfx.mp_dirty = 0;
+        pcgfx.dz_dirty = 1;
         pcgfx.xf_gen++;
         pcgfx.mp_forced = 1;
         break;
@@ -759,6 +759,7 @@ static void matrix(uint32_t w0, uintptr_t w1) {
             pcgfx.view_ord++;
         } else
             mtx_mul(pcgfx.proj, m, pcgfx.proj);
+        pcgfx_detail_projection(pcgfx.proj);
     } else {
         if ((params & G_MTX_PUSH) && pcgfx.mv_top + 1 < GFX_MTX_STACK) {
             memcpy(pcgfx.mv[pcgfx.mv_top + 1], pcgfx.mv[pcgfx.mv_top], sizeof(m));

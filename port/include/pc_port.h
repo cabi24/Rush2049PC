@@ -138,6 +138,18 @@ void pc_gfx_set_hud(int mode);
 int pc_gfx_hud(void);
 int pc_gfx_parse_hud(const char *text, int *ok);
 void pc_gfx_set_hud_race(int (*race)(void));
+/* Draw distance, detail and fog (video.draw_distance, video.detail, video.fog; docs/port/DETAIL.md). The game's
+ * distance limits follow draw_distance (port/config/detail.c, pc_game_types.h); the renderer moves the depth range's
+ * far plane out with it and the fog with video.fog (gfx_detail.c), from the next triangle. At original the N64's. */
+#include "pc_detail.h"   /* PC_DRAW_*, PC_DETAIL_*, PC_FOG_*, PC_DRAW_FAR_FACTOR, PC_DRAW_MAX_DEPTH */
+void pc_gfx_set_draw_distance(int level);   /* PC_DRAW_* */
+int pc_gfx_draw_distance(void);
+void pc_gfx_set_fog(int mode);              /* PC_FOG_* */
+int pc_gfx_fog(void);
+int pc_gfx_parse_draw_distance(const char *text, int *ok);   /* "original", "far", "max"; *ok = 0 otherwise */
+int pc_gfx_parse_fog(const char *text, int *ok);             /* "original", "far", "off" */
+/* What the graphics tasks drew so far (the exit's scene line): tasks, their triangles in all and the most in one. */
+void pc_gfx_scene_stats(uint32_t *tasks, uint64_t *triangles, uint32_t *most);
 /* Where the HUD moves a point at frame x (N64 pixels of the 4:3 frame), in N64 pixels: what the game's 3D models
  * placed at HUD points (ZOID_WindowTo3D) add to their x. 0 unless edges is in effect. */
 int pc_gfx_hud_dx(int x);
