@@ -1418,6 +1418,7 @@ static const char *hint(const Item *it)
     case I_CHOICE:
     case I_NUMBER:
     case I_WINDOW:
+    case I_SV_PLAYER:
         return "Left/Right: change   Esc/B: back";
     case I_BIND:
         return "Enter/A set  Ins/Y add  Del/X clear  Esc/B back";
