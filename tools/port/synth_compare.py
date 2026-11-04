@@ -36,8 +36,15 @@ settings and environment variables of its own, so one program can be compared wi
 
     --exe build/pc/rush2049pc --exe build/pc/rush2049pc --set-b game.memory=64 --env-b RUSH2049_TEST_HEAP_FLOOR=17
 
-A path's own `# env:` line (synth_paths.py) applies to both. Exit status: the number of paths that DIFFER, or with
---same (CI) that aren't the same. Stdlib only, Python 3.9+.
+A path's own `# env:` line (synth_paths.py) applies to both. --from-logs runs nothing: it compares two folders of
+logs that have been written already, each NAME.log of one against the other's (synth_paths.py --exact's, or
+input_check.py's), as CI compares the Windows program's with Linux's (docs/port/WINDOWS.md 12):
+
+    --from-logs linux/build/pc/synth/paths windows/synth/paths
+
+A log must have exact floats (RUSH_STATE_EXACT) and status lines; a path on the host's clock (`# realtime`) is left
+out, since its runs differ among themselves. Exit status: the number of paths that DIFFER, or with --same (CI) that
+aren't the same (with --from-logs: that aren't the same, or are missing from one folder). Stdlib only, Python 3.9+.
 """
 import argparse
 import concurrent.futures
@@ -188,9 +195,46 @@ def judge(name, jobs):
     return 0 if verdict != "DIFFERS" and not SAME else 1
 
 
+def from_logs(a, b):
+    """--from-logs: each NAME.log in folder a against b's, by its trace; the number that aren't the same."""
+    a, b = Path(a), Path(b)
+    names = sorted({p.stem for d in (a, b) for p in d.glob("*.log") if not p.name.endswith(".game.log")})
+    bad = same = 0
+    for name in names:
+        press = synth_paths.PRESS_DIR / f"{name}.press"
+        if press.exists() and synth_paths.read_script(press)["realtime"]:
+            print(f"synth_compare: {name:10} left out (on the host's clock)")
+            continue
+        logs = [d / f"{name}.log" for d in (a, b)]
+        if not all(p.exists() for p in logs):
+            print(f"synth_compare: {name:10} MISSING  in {', '.join(str(p.parent) for p in logs if not p.exists())}")
+            bad += 1
+            continue
+        ta, tb = (trace(p.read_text(encoding="utf-8", errors="replace")) for p in logs)
+        coarse = [str(p.parent) for p, t in zip(logs, (ta, tb))
+                  if not any(e[0] == "status" and "0x" in e[3] for e in t)]
+        d = first_difference(ta, tb)
+        if coarse:
+            print(f"synth_compare: {name:10} COARSE   no exact status lines (synth_paths.py --exact) in "
+                  f"{', '.join(coarse)}")
+        elif d is None:
+            print(f"synth_compare: {name:10} same     {len(ta)} events")
+            same += 1
+            continue
+        else:
+            i, x, y = d
+            print(f"synth_compare: {name:10} DIFFERS  at event {i} of {len(ta)} and {len(tb)}\n    {show(x)}\n"
+                  f"    {show(y)}")
+        bad += 1
+    print(f"synth_compare: {same} of {same + bad} logs the same")
+    return bad
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--exe", action="append", required=True, help="an executable (give two)")
+    ap.add_argument("--from-logs", nargs=2, metavar=("DIR_A", "DIR_B"),
+                    help="compare two folders of logs already written, running nothing")
+    ap.add_argument("--exe", action="append", help="an executable (give two)")
     ap.add_argument("--rom", default=str(ROOT / "build/synth/rush2049_synth.z64"))
     ap.add_argument("--runs", type=int, default=2, help="runs of each path per executable")
     ap.add_argument("--status", default="1", help="whole seconds of game time between status lines")
@@ -212,7 +256,9 @@ def main():
                     help="an environment variable for the second executable's runs")
     ap.add_argument("names", nargs="*", help="the paths (default: every tools/port/synth/*.press)")
     a = ap.parse_args()
-    if len(a.exe) != 2:
+    if a.from_logs:
+        sys.exit(from_logs(*a.from_logs))
+    if not a.exe or len(a.exe) != 2:
         ap.error("give --exe twice")
     global EXACT, SAME, SHOTS, AUDIO
     EXACT, SAME, SHOTS, AUDIO = not a.coarse, a.same, a.shots, a.audio

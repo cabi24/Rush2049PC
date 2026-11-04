@@ -1,0 +1,34 @@
+# One player drives a single race on track 0 with the gas held and the steering at full lock, left and right, as a
+# key steers (a key is full tilt: input.stick_range): taps, whole seconds, and locks of three and four seconds that
+# turn the car round and into the track's side at speed. The player report of docs/port/QA.md "Player reports" 1 (the
+# car exploded when steered) on the synthetic cartridge, whose trace CI compares between the Windows program and
+# Linux's (docs/port/WINDOWS.md 12).
+# until: 0x400000:1350
+# seconds: 100
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 45        # gas for 45 s
+30 STICKRIGHT 1
+31 STICKLEFT 1
+32 STICKRIGHT 1
+33 STICKLEFT 1
+34 STICKRIGHT 0.5
+34.5 STICKLEFT 0.5
+35 STICKRIGHT 2
+37 STICKLEFT 2
+40 STICKRIGHT 3
+44 STICKLEFT 4
+49 STICKRIGHT 0.2
+49.4 STICKLEFT 0.2
+49.8 STICKRIGHT 0.2
+50.2 STICKLEFT 0.2
+52 STICKRIGHT 6
+59 STICKLEFT 6
+66 STICKRIGHT 1.5
+68 STICKLEFT 1.5

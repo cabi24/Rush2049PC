@@ -24,8 +24,11 @@ Each tools/port/synth/NAME.press is a --press-file script whose leading comments
 
 A run passes if the program exits 0 (it reached the state in time and nothing faulted), its last state line matches
 and gives the first car a position that is not NaN, it passed through the states visits names, and the check, if
-any, exits 0. Every run's log goes to DIR/NAME.log (default build/synth/paths). Exit status: the
-number of paths that failed.
+any, exits 0. Every run's log goes to DIR/NAME.log (default build/synth/paths). With --exact the log has the
+first car's position and speed as exact floats (RUSH_STATE_EXACT) and a status line each second of game time
+(--status 1): the trace tools/port/synth_compare.py --from-logs compares with another build's, as CI compares the
+Windows program's with Linux's (docs/port/WINDOWS.md 12); the checks are the same. Exit status: the number of paths
+that failed.
 """
 import argparse
 import os
@@ -68,19 +71,23 @@ def data_env(logs):
     return {"XDG_DATA_HOME": d, "APPDATA": d} if os.name == "nt" else {"XDG_DATA_HOME": d}
 
 
-def run(name, exe, rom, logs, timeout=300):
+def run(name, exe, rom, logs, timeout=300, exact=False):
     spec = read_script(PRESS_DIR / f"{name}.press")
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve()), "--no-rom-check", "--headless", "--no-config",
            "--audio", "null", "--no-pak", "--log", f"{name}.game.log", "--press-file", str(PRESS_DIR / f"{name}.press"),
            "--until-state", spec["until"], "--seconds", spec["seconds"]]
     if not spec["realtime"]:
         cmd.append("--fast")
+    if exact:
+        cmd += ["--status", "1"]
     cmd += spec["args"]
     for a in spec["args"]:              # what the run writes starts afresh: a screenshot, a controller pak
         a = a.split("=", 1)[-1]         # --set game.pak2_file=NAME too
         if a.endswith((".png", ".mpk")) and (Path(logs) / a).exists():
             (Path(logs) / a).unlink()
     env = dict(os.environ, RUSH_TRACE_WAVES="1", **data_env(logs))
+    if exact:
+        env["RUSH_STATE_EXACT"] = "1"
     env.update(spec["env"])
     t0 = time.time()
     try:
@@ -133,11 +140,13 @@ def main():
     ap.add_argument("--logs", default=str(ROOT / "build/synth/paths"))
     ap.add_argument("--timeout", type=float, default=300, help="seconds a path's run may take (a sanitizer build "
                     "needs several times the default)")
+    ap.add_argument("--exact", action="store_true", help="exact floats (RUSH_STATE_EXACT) and a status line each "
+                    "second of game time, for synth_compare.py --from-logs")
     ap.add_argument("names", nargs="*", help="the paths to run (default: every tools/port/synth/*.press)")
     args = ap.parse_args()
     names = args.names or sorted(p.stem for p in PRESS_DIR.glob("*.press"))
     Path(args.logs).mkdir(parents=True, exist_ok=True)
-    failed = sum(not run(n, args.exe, args.rom, args.logs, args.timeout) for n in names)
+    failed = sum(not run(n, args.exe, args.rom, args.logs, args.timeout, args.exact) for n in names)
     if len(names) > 1:
         print(f"synth_paths: {len(names) - failed} of {len(names)} paths reached")
     sys.exit(failed)
