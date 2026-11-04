@@ -57,6 +57,8 @@ static struct {
     int shown_w, shown_h;     /* the window size it was shown at */
     int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
     uint32_t own_ticks, own_shown;   /* pc_gfx_set_own_paced's ticks, and those that showed the game's next frame */
+    uint32_t present_vi;      /* the retrace the newest presented frame was swapped in at */
+    double moment;            /* the moment, in retraces, of what was last shown (pc_gfx_shown_moment) */
     int vsync;                /* the window's swap waits for a vblank (swap interval 1) */
     int tick_unswapped;       /* a tick drew into the window and left its swap to the main loop (pc_gfx_swap_tick) */
     /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
@@ -183,7 +185,8 @@ void pc_gfx_set_textures(int mode) {
     pcgfx_tex_set_mode(mode);
 }
 
-/* "original" (or 0, "off") 0; "display" -1; else frames a second, 1-1000. *ok = 0 for anything else. */
+/* "original" (or 0, "off") 0; "display" -1; "auto" -2 (PC_GFX_RATE_AUTO); else frames a second, 1-1000. *ok = 0
+ * for anything else. */
 int pc_gfx_parse_frame_rate(const char *text, int *ok) {
     char *end;
     long v;
@@ -192,6 +195,8 @@ int pc_gfx_parse_frame_rate(const char *text, int *ok) {
         return 0;
     if (!strcmp(text, "display"))
         return -1;
+    if (!strcmp(text, "auto"))
+        return PC_GFX_RATE_AUTO;
     v = strtol(text, &end, 10);
     if (*end == '\0' && v >= 1 && v <= 1000)
         return (int)v;
@@ -205,17 +210,81 @@ int pc_gfx_parse_frame_rate(const char *text, int *ok) {
  * stays original. */
 static int s_own_paced;
 
+/* video.frame_rate = auto (docs/port/FRAMERATE.md 7.9): the rate it resolves to (0, -1 or the game's), the display's
+ * whole hertz and the game's rate it was chosen for, and why; s_auto_hz 0 before the first choice. */
+static int s_auto, s_auto_rate, s_auto_hz, s_auto_game, s_auto_vsync;
+static const char *s_auto_why = "";
+
 static int rate_in_effect(void) {
     return pcgfx_cfg.frame_rate != 0 ? pcgfx_cfg.frame_rate : s_own_paced ? 60 : 0;
 }
 
-void pc_gfx_set_frame_rate(int rate) {
+static void set_rate(int rate) {
     int was = rate_in_effect() != 0;
     pcgfx_cfg.frame_rate = rate < -1 ? 0 : rate;
     if (was != (rate_in_effect() != 0)) {
         pcgfx_hfr_reset();   /* on: from the next frames drawn; off: the presents show frames again */
         S.shown = NULL;
     }
+}
+
+void pc_gfx_set_frame_rate(int rate) {
+    s_auto = rate == PC_GFX_RATE_AUTO;
+    s_auto_hz = 0;   /* auto: chosen at the main loop's next pass (pc_gfx_auto_frame_rate) */
+    set_rate(s_auto ? 0 : rate);
+}
+
+int pc_gfx_frame_rate_auto(void) {
+    return s_auto;
+}
+
+/* What auto shows on a display of hz whole hertz with vsync on or off, the game at game_rate (60, else 30): 0 the
+ * game's own frames at their retraces (and at 60 under vsync paced by the vblanks, 7.6), -1 one frame a vblank with
+ * frames drawn between, or the game's rate, its frames each held for the same count of vblanks (paced by them).
+ * Measured under the vsync model at 60, 75, 120, 144, 165 and 240 Hz (docs/port/FRAMERATE.md 7.9). */
+int pc_gfx_auto_rate(int game_rate, int vsync, int hz, const char **why) {
+    int n = (hz + 30) / 60;
+    const char *w;
+    int r;
+    if (!vsync || hz <= 0) {
+        w = "vsync off: the game's frames at their retraces";
+        r = 0;
+    } else if (n == 1 && hz >= 59 && hz <= 61) {
+        w = "the game's frames, a whole number of vblanks each";
+        r = 0;
+    } else {
+        w = "frames between";
+        r = -1;
+    }
+    (void)game_rate;
+    if (why != NULL)
+        *why = w;
+    return r;
+}
+
+void pc_gfx_auto_frame_rate(int game_rate, int vsync, int hz) {
+    const char *why;
+    int r;
+    if (!s_auto || (hz == s_auto_hz && game_rate == s_auto_game && vsync == s_auto_vsync))
+        return;
+    r = pc_gfx_auto_rate(game_rate, vsync, hz, &why);
+    if (s_auto_hz == 0 || r != s_auto_rate || hz != s_auto_hz)
+        fprintf(stderr, "gfx: video.frame_rate auto: %d Hz%s, the game at %d: %s\n", hz, vsync ? "" : " (vsync off)",
+                game_rate == 60 ? 60 : 30, why);
+    s_auto_hz = hz;
+    s_auto_game = game_rate;
+    s_auto_vsync = vsync;
+    s_auto_rate = r;
+    s_auto_why = why;
+    set_rate(r);
+}
+
+void pc_gfx_frame_rate_describe(char *out, size_t n) {
+    if (!s_auto || s_auto_hz == 0)
+        snprintf(out, n, "auto");
+    else
+        snprintf(out, n, "auto: %d Hz, %s", s_auto_hz,
+                 s_auto_rate == -1 ? "frames between" : !s_auto_vsync ? "vsync off" : "the game's frames");
 }
 
 void pc_gfx_set_own_paced(int on) {
@@ -383,10 +452,12 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     S.times = env_int("RUSH_GFX_TIMES", 0);
     if (getenv("RUSH_GFX_FRAME_RATE") != NULL) {
         int ok, r = pc_gfx_parse_frame_rate(getenv("RUSH_GFX_FRAME_RATE"), &ok);
-        if (ok)
+        if (ok && r == PC_GFX_RATE_AUTO)
+            s_auto = 1;   /* chosen at the main loop's first pass, original until then */
+        else if (ok)
             pcgfx_cfg.frame_rate = r;
         else
-            fprintf(stderr, "gfx: RUSH_GFX_FRAME_RATE=%s is not original, display or 1-1000; ignored\n",
+            fprintf(stderr, "gfx: RUSH_GFX_FRAME_RATE=%s is not original, display, auto or 1-1000; ignored\n",
                     getenv("RUSH_GFX_FRAME_RATE"));
     }
     if (getenv("RUSH_GFX_WIDESCREEN") != NULL) {
@@ -546,6 +617,10 @@ int pc_gfx_tick_waits(double vt) {
     return S.inited && pcgfx_cfg.frame_rate != 0 && pcgfx_hfr_wants_next(vt);
 }
 
+double pc_gfx_shown_moment(void) {
+    return S.moment;
+}
+
 int pc_gfx_vsync(void) {
     return S.inited && S.use_sdl && S.vsync;
 }
@@ -602,6 +677,9 @@ void pc_gfx_present(const void *framebuffer) {
     t = pcgfx_gl_find_target(pcgfx_resolve((uintptr_t)framebuffer));
     if (t == NULL)
         t = pcgfx_gl_last_target();
+    S.present_vi = S.vi;
+    if (rate_in_effect() == 0)
+        S.moment = S.vi;
     if (rate_in_effect() != 0) {
         /* a high frame rate: the frame becomes the presented image (screenshots), and the main loop's ticks show
          * it, or the frames drawn between it and the next (pc_gfx_present_tick) */
@@ -676,6 +754,7 @@ int pc_gfx_present_tick(double vt, int mode) {
         S.drawn_draws += d1 - d0;
         S.drawn_verts += v1 - v0;
     }
+    S.moment = kind == 2 ? vt : kind == 1 ? pcgfx_hfr_moment() : (double)S.present_vi;
     ts = show_begin();
     if (kind != 0 && t != NULL) {
         pcgfx_gl_show_target(t, rows, S.win_w, S.win_h, S.use_sdl);
@@ -728,7 +807,7 @@ int pc_gfx_poll_events(void) {
     if (S.use_sdl)
         quit = pcgfx_sdl_poll();
 #endif
-    if (rate_in_effect() != 0)   /* display, and the main loop's pacing by the vblanks */
+    if (rate_in_effect() != 0 || s_auto)   /* display, auto, and the main loop's pacing by the vblanks */
         display_refresh();
     if (s_tick != NULL && s_tick() != 0)
         quit = 1;

@@ -166,6 +166,11 @@ static struct {
     int queued, started;          /* frames waiting for a vblank; a frame has been shown */
     int decided;                  /* decisions waiting for a vblank: frames swapped and frames kept (sim_hold) */
     uint32_t vblanks, repeats, max_queued, doubled;
+    /* the evenness (FRAMERATE.md 7.9): the moment of each queued frame (pc_gfx_shown_moment) and of the one shown;
+     * per vblank the moment's step against the vblank's period, and the time each new picture was held */
+    double moments[64], moment, err2, held, held2;
+    int moment_set;
+    uint32_t steps, pictures, run;
 } sim;
 
 static void sim_read(void)
@@ -214,11 +219,30 @@ static void sim_advance(uint64_t now)
     if (!sim.next_k)
         sim.next_k = (int64_t)floor(((double)now - sim.origin) / sim.period) + 1;
     while (sim_vblank(sim.next_k) <= now) {
+        double m = sim.moment;
         if (sim.queued > 0) {
+            m = sim.moments[0];
+            memmove(sim.moments, sim.moments + 1, sizeof sim.moments - sizeof sim.moments[0]);
             sim.queued--;
             sim.started = 1;
         } else if (sim.started) {
             sim.repeats++;
+        }
+        if (sim.started && sim.moment_set) {
+            double ms = sim.period * 1e-6, step = (m - sim.moment) * (1000.0 / 60.0) - ms;
+            sim.err2 += step * step;
+            sim.steps++;
+            sim.run++;
+            if (m != sim.moment) {
+                sim.held += sim.run * ms;
+                sim.held2 += sim.run * ms * sim.run * ms;
+                sim.pictures++;
+                sim.run = 0;
+            }
+        }
+        if (sim.started) {
+            sim.moment = m;
+            sim.moment_set = 1;
         }
         if (sim.decided > 0)
             sim.decided--;
@@ -238,6 +262,8 @@ static void sim_swap(void)
     if (sim.hz <= 0)
         return;
     sim_advance(pc_real_ns());
+    if (sim.queued < (int)(sizeof sim.moments / sizeof sim.moments[0]))
+        sim.moments[sim.queued] = pc_gfx_shown_moment();
     sim.queued++;
     sim.decided++;
     if ((uint32_t)sim.queued > sim.max_queued)
@@ -298,6 +324,13 @@ static void sim_report(void)
     fprintf(stderr, "rush2049pc: simulated vsync at %.3f Hz, %s: %u vblanks, %u showed no new frame, %u of them with "
             "none decided (a frame held twice); at most %u frames queued\n", sim.hz, how, sim.vblanks, sim.repeats,
             sim.doubled, sim.max_queued);
+    if (sim.steps && sim.pictures) {   /* the evenness (FRAMERATE.md 7.9) */
+        double mean = sim.held / sim.pictures, var = sim.held2 / sim.pictures - mean * mean;
+        fprintf(stderr, "rush2049pc: simulated vsync evenness: the shown moment's step off the vblank's %.2f ms by "
+                "%.2f ms rms over %u vblanks; %u new pictures, held %.2f ms each, spread %.2f ms\n",
+                sim.period * 1e-6, sqrt(sim.err2 / sim.steps), sim.steps, sim.pictures, mean,
+                var > 0 ? sqrt(var) : 0.0);
+    }
 }
 
 /* A high frame rate paced by the display (docs/port/FRAMERATE.md 2). With a swap that waits for vsync (the window's,
@@ -556,6 +589,9 @@ int pc_ultra_run(const PcRunOptions *opt)
          * with the retraces the game's next frame then missed its retrace, and the game kept 30 frames a second
          * (docs/port/FRAMERATE.md 7.6). At 100 Hz and up a swap waits at most 10 ms, and the frames keep their
          * retraces. */
+        if (pc_gfx_frame_rate_auto())   /* video.frame_rate = auto: by the display's refresh (FRAMERATE.md 7.9) */
+            pc_gfx_auto_frame_rate(g_game_rate ? g_game_rate() : 0,
+                                   !pc_time_virtual() && (pc_gfx_vsync() || (sim_read(), sim.hz > 0)), display_hz());
         if (g_game_rate)
             pc_gfx_set_own_paced(!pc_time_virtual() && g_game_rate() == 60 &&
                                  (pc_gfx_vsync() || (sim_read(), sim.hz > 0)) && display_hz() < 100);

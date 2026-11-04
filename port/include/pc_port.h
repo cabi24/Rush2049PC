@@ -115,6 +115,15 @@ int pc_gfx_window_geometry(int *x, int *y, int *w, int *h);
  * read the game's frames. */
 void pc_gfx_set_frame_rate(int rate);
 int pc_gfx_frame_rate(void);                 /* frames shown a second (-1 resolved), 0 for the game's own */
+/* video.frame_rate = auto (docs/port/FRAMERATE.md 7.9): the main loop gives the game's rate, vsync and the display's
+ * whole hertz at each pass (pc_gfx_auto_frame_rate), and the rate follows pc_gfx_auto_rate's choice for them, said
+ * in the log at the first and at each change (a window moved to another display). */
+#define PC_GFX_RATE_AUTO (-2)
+int pc_gfx_frame_rate_auto(void);
+int pc_gfx_auto_rate(int game_rate, int vsync, int hz, const char **why);
+void pc_gfx_auto_frame_rate(int game_rate, int vsync, int hz);
+void pc_gfx_frame_rate_describe(char *out, size_t n);   /* auto's choice: "auto: 144 Hz, frames between" */
+double pc_gfx_shown_moment(void);   /* the moment, in retraces, of the last frame shown: the vsync model's evenness */
 /* game.frame_rate = 60 with video.frame_rate original and a swap that waits for vsync (docs/port/FRAMERATE.md 7.6):
  * on, the main loop shows the game's own frames paced by the display's vblanks, as at 60 but with none drawn between
  * (pc_gfx_frame_rate is then 60, pc_gfx_own_paced 1); a presented frame's swap at its retrace held the loop up to a
