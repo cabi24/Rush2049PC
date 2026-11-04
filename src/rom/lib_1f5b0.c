@@ -456,7 +456,7 @@ int func_8001F13C(u8 priority, u8 maxVoices, u16 allocId, u8 fxFlag)
         } else if (D_8004BEB8[voice].external4C) {
             D_800504C2--; PC_ONLY(pc_snd_count(PC_SND_MX_STOLEN);)
         } else {
-            D_800504C3--; PC_ONLY(pc_snd_count(PC_SND_MX_STOLEN);)
+            D_800504C3--; PC_ONLY(pc_snd_count(PC_SND_MX_STOLEN_SONG);)
         }
         if (fxFlag) {
             ++D_800504C2;

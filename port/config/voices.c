@@ -71,6 +71,19 @@ void pc_snd_msg_taken(int index)
         __atomic_store_n(&s_msg_most, index + 1, __ATOMIC_RELAXED);
 }
 
+static int s_most[PC_SND_MOSTS];
+
+void pc_snd_most(int what, int value)
+{
+    if (what >= 0 && what < PC_SND_MOSTS && value > __atomic_load_n(&s_most[what], __ATOMIC_RELAXED))
+        __atomic_store_n(&s_most[what], value, __ATOMIC_RELAXED);
+}
+
+int pc_snd_most_of(int what)
+{
+    return what >= 0 && what < PC_SND_MOSTS ? __atomic_load_n(&s_most[what], __ATOMIC_RELAXED) : 0;
+}
+
 void pc_snd_counters(unsigned long long out[PC_SND_COUNTERS], int *msg_most)
 {
     for (int i = 0; i < PC_SND_COUNTERS; i++)

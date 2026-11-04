@@ -308,11 +308,13 @@ static int voices_line(char *out, size_t size, const PcMixerStats *m, const PcMi
     unsigned long long sub = m->subframes - m0->subframes;
     for (int i = 0; i < PC_SND_COUNTERS; i++)
         d[i] = c[i] - c0[i];
-    return snprintf(out, size, "mixed %.2f voices a subframe of %u (%llu subframes); musyx refused %llu, stole %llu; "
+    return snprintf(out, size, "mixed %.2f voices a subframe of %u (%llu subframes); musyx refused %llu, stole %llu "
+                    "(and %llu of the songs'); "
                     "effects refused %llu; over budget %.2f a pass (%llu passes); no emitter %llu, no message %llu, no entry "
                     "%llu; "
                     "emitters %u of %d, fx tags %d of %d", sub ? (double)(m->voices - m0->voices) / (double)sub : 0.0,
-                    m->slots, sub, d[PC_SND_MX_REFUSED], d[PC_SND_MX_STOLEN], d[PC_SND_FX_REFUSED],
+                    m->slots, sub, d[PC_SND_MX_REFUSED], d[PC_SND_MX_STOLEN], d[PC_SND_MX_STOLEN_SONG],
+                    d[PC_SND_FX_REFUSED],
                     d[PC_SND_PASSES] ? (double)d[PC_SND_OVER_BUDGET] / (double)d[PC_SND_PASSES] : 0.0,
                     d[PC_SND_PASSES], d[PC_SND_NO_EMITTER], d[PC_SND_NO_MESSAGE], d[PC_SND_NO_ENTRY],
                     (unsigned)*(volatile uint32_t *)&D_801461E8.count, (int)*(volatile int32_t *)&D_8011026C,
@@ -364,7 +366,8 @@ static void voices_end(char *out, size_t size)
         unsigned heard;
         pc_engines_heard(&layers, &playing, &heard, &most);
         len += snprintf(out + len, size - (size_t)len, "; messages most %d; most voices a subframe %u; most drones' "
-                        "engine layers playing %d; subframes by voices", msg_most, m.voices_most, most);
+                        "engine layers playing %d; fx tags most %d, emitters most %d; subframes by voices", msg_most,
+                        m.voices_most, most, pc_snd_most_of(PC_SND_MOST_TAGS), pc_snd_most_of(PC_SND_MOST_EMITTERS));
     }
     for (unsigned v = 0; v < sizeof m.voices_hist / sizeof *m.voices_hist && len > 0 && (size_t)len < size; v++)
         if (m.voices_hist[v])

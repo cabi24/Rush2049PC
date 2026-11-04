@@ -159,7 +159,8 @@ int main(void)
               test_snd_count[PC_SND_MX_STOLEN] == stolen + 1, "the 81st effect takes an effect voice (%d), counted",
           v81);
     int song = start(0, 0x300, 0x40);
-    CHECKF(song >= 0 && song < 96 && !seen[song] && D_800504C3 == 1, "a song's voice from the free ones (%d)", song);
+    CHECKF(song >= 0 && song < 96 && !seen[song] && D_800504C3 == 1 && test_snd_count[PC_SND_MX_STOLEN_SONG] == 0,
+           "a song's voice from the free ones (%d)", song);
     for (i = 0; i < 96; i++)
         if (VF(i, V_COMMAND, unsigned int)) {
             VF(i, V_ID, unsigned int) = (unsigned)i;

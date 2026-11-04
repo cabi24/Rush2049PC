@@ -613,7 +613,8 @@ extern struct pc_mx_stream pc_mx_streams[PC_MX_VOICE_SLOTS];  /* N64 D_8004FA50 
 /* Counters the game's sound code fills (--log-voices, port/main.c): starts refused or cut and the pools' use. */
 enum {
     PC_SND_MX_REFUSED,      /* MusyX found no voice for a sound (func_8001F13C: -1) */
-    PC_SND_MX_STOLEN,       /* MusyX took a voice from a sound still playing */
+    PC_SND_MX_STOLEN,       /* MusyX took a voice from an effect still playing */
+    PC_SND_MX_STOLEN_SONG,  /* ... from a song's note still playing (the songs keep 16 voices at any size) */
     PC_SND_FX_REFUSED,      /* an effect the sound manager started that MusyX didn't (MP_TargetSteerPos) */
     PC_SND_OVER_BUDGET,     /* a tag the priority pass held back or stopped for its budget (_UpdateFx) */
     PC_SND_NO_EMITTER,      /* a positional start that found no emitter (camera_target_track) */
@@ -624,6 +625,8 @@ enum {
 };
 void pc_snd_count(int what);
 void pc_snd_msg_taken(int index);        /* the pool's first-free index: its high-water mark */
+enum { PC_SND_MOST_TAGS, PC_SND_MOST_EMITTERS, PC_SND_MOSTS };
+void pc_snd_most(int what, int value);   /* a pool's use now: its high-water mark */
 
 /* [audio] engines: which drones' engines play, per listener (PC_ENGINES_*, port/config/voices.c). The emitter pass
  * (_ProcessEmitters, engine_sound_sync.c) notes each drone engine layer's distance to each listener and asks for its

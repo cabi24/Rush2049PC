@@ -38,7 +38,7 @@ sys.path.insert(0, str(ROOT / "tools/port"))
 import synth_paths  # noqa: E402
 
 _END = re.compile(r"voices at the end: mixed ([\d.]+) voices a subframe of (\d+) \((\d+) subframes\); musyx refused "
-                  r"(\d+), stole (\d+); effects refused (\d+); over budget ([\d.]+) a pass \((\d+) passes\); no "
+                  r"(\d+), stole (\d+)(?: \(and \d+ of the songs'\))?; effects refused (\d+); over budget ([\d.]+) a pass \((\d+) passes\); no "
                   r"emitter (\d+), no message (\d+), no entry (\d+); .*messages most (\d+); most voices a subframe (\d+)"
                   r"(?:; most drones' engine layers playing (\d+))?")
 _LINE = re.compile(r"^rush2049pc: voices vi=(\d+): .*; engines on(.*)$")

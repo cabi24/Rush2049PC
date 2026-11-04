@@ -149,6 +149,7 @@ int pc_settings_voices(const PcSettings *s);    /* 32, 48, 64 or 96 */
 int pc_settings_engines(const PcSettings *s);   /* PC_ENGINES_*: 0 original, -1 all, else N */
 void pc_engines_set(int mode);
 void pc_snd_counters(unsigned long long out[], int *msg_most);
+int pc_snd_most_of(int what);   /* PC_SND_MOST_*: the fx tags and emitters in use at most */
 unsigned pc_engines_on(void);
 /* The drones' engine layers that had an emitter at the last emitter pass, those whose tags played, the drones of
  * those (a bit a car), and the most layers that played at one pass: any mode, original too. */
