@@ -752,6 +752,8 @@ static void matrix(uint32_t w0, uintptr_t w1) {
         return;
     mtx_read(p, pcgfx_is_be(p), m);
     pcgfx.xf_gen++;
+    if (pcgfx.mp_forced)   /* the depth map was off for a forced MP (gfx_detail.c) */
+        pcgfx.dz_dirty = 1;
     pcgfx.mp_forced = 0;
     if (params & G_MTX_PROJECTION) {
         if (params & G_MTX_LOAD) {
