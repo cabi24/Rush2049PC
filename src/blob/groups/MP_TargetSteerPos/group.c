@@ -3715,10 +3715,16 @@ s32 func_80020174(u16, M2C_UNK, M2C_UNK);           /* extern */
  * as its low half, the u16 at +0xE on the N64 and at +0xC here; +0xE is its high half, 0, so every effect started
  * sfx 0 (docs/port/AUDIO.md 9). The volume and pan conversions are IDO's (pc_prelude.h). */
 #define SFX_ENTRY_ITEM 0xC
+/* PC: camera_transform's four conversions of a volume, a pan, a front/back pan and a pitch to an unsigned int are
+ * IDO's inlined (u32)f (the FCSR's flags read, which the PC's m2c reads as 0); its signed step, (s32)f, is undefined in
+ * C for NaN or out of range, which the synthetic cartridge's sounds reach (a NaN front/back pan at a race's set-up:
+ * the sanitizers' float-cast-overflow). There IDO's code gives -1, the low byte 0xFF; AArch64 gave 0. */
+#define PC_CVT_S32(f) ((f) > -2147483648.0f && (f) < 2147483648.0f ? (s32)(f) : -1)
 #else
 #define SFX_ENTRY_ITEM 0xE
 #define N64_F2U(x) (u32)(x)
 #define PC_ONLY(stmt)
+#define PC_CVT_S32(f) (s32) f
 #endif
 
 
@@ -3950,7 +3956,7 @@ block_109:
                                     goto block_58;
                                 }
                             } else {
-                                var_a1 = (s32) temp_f6;
+                                var_a1 = PC_CVT_S32(temp_f6);
                                 if (var_a1 < 0) {
 block_58:
                                     var_a1 = -1;
@@ -3982,7 +3988,7 @@ block_65:
                                     goto block_71;
                                 }
                             } else {
-                                var_a1_2 = (s32) temp_f4;
+                                var_a1_2 = PC_CVT_S32(temp_f4);
                                 if (var_a1_2 < 0) {
 block_71:
                                     var_a1_2 = -1;
@@ -4014,7 +4020,7 @@ block_78:
                                     goto block_84;
                                 }
                             } else {
-                                var_a1_3 = (s32) temp_f10;
+                                var_a1_3 = PC_CVT_S32(temp_f10);
                                 if (var_a1_3 < 0) {
 block_84:
                                     var_a1_3 = -1;
@@ -4051,7 +4057,7 @@ block_91:
                                     goto block_100;
                                 }
                             } else {
-                                var_a1_4 = (s32) var_f2;
+                                var_a1_4 = PC_CVT_S32(var_f2);
                                 if (var_a1_4 < 0) {
 block_100:
                                     var_a1_4 = -1;
