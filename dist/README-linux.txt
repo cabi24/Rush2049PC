@@ -75,6 +75,7 @@ Changes apply at once (those marked * at the next start). Save keeps them
 in rush2049pc.ini; changes not saved are lost when the program ends.
 Help lists what each key and button does with your bindings.
 
+F1 > Presets > PC enhanced (--preset enhanced): the recommended settings.
 The settings most worth knowing (F1 > Video unless said):
   Render scale   native (the default): drawn at the window's own pixels,
                  sharp at any size and on a high-DPI display. N64 (1x) is
