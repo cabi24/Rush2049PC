@@ -140,7 +140,7 @@ F1 > Audio
                  in earshot is heard with the effects. At the next start.
                  audio.voices
   Drones' engines
-                 original, nearest 2 ... nearest 8, or all: which other
+                 original, nearest 2, 3, 4, 6 or 8, or all: which other
                  cars' engines you hear. nearest N: the N nearest to your
                  view; all: every one in earshot (with Voices 64 or more).
                  At once. audio.engines
