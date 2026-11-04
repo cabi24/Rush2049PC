@@ -207,10 +207,28 @@ Left/Right turn one on and off, Enter picks it up to move it in the order
 which files it refused; F1 > About says which mods are in use. --no-mods
 plays the cartridge's files only.
 
-Making a mod, in five steps, is in mods\README.txt: unpack a file from
-your ROM with tools\mods\rushmods.py (in the source), change it, put it in
-a mod's folder, check it, start the game. docs/port/MODS.md in the source
-has the rest.
+
+Making a mod
+------------
+The tool is tools\mods\rushmods.py in the source
+(https://github.com/cabi24/Rush2049PC): plain Python 3.8 or later (py is
+Python's launcher on Windows), run on your own ROM. mods\README.txt has
+the same steps.
+1. Make the mod's folder in the mods folder next to rush2049pc.exe:
+     py rushmods.py new red-cars --dir PATH-TO\mods --author You
+   It writes mod.ini, an empty textures\ and text\, and a README.txt.
+2. Unpack the file you want to change:
+     py rushmods.py extract baserom.us.z64 out car01
+   writes out\cars\car01.bin. "rushmods.py names" lists every file's
+   name; --text also writes every string, in the text overrides' form.
+3. Change it, and put it in the mod: mods\red-cars\cars\car01.bin.
+4. Check the mod as the game will:
+     py rushmods.py check PATH-TO\mods\red-cars --rom baserom.us.z64
+   says ok, or REFUSED and why, for each file.
+5. Start the game. F1 > Mods lists the mod, on; the log's "mods:" lines
+   say which files it uses and which it refused.
+docs/port/MODS.md in the source has the names, the formats and the limits.
+Files unpacked from your ROM are the ROM's: share only your own work.
 
 
 Saves and other files
