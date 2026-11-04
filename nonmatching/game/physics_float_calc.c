@@ -123,7 +123,12 @@ static u32 *VisRow(s32 track, s32 cell)
     }
 }
 
-/* The rows of every part within reach feet of pos, or'ed into far[4]: the parts in WorldDistance's order. */
+/* Each track's table's rows, as far as it runs before the next one (D_8011B898... in address order: the battle
+ * arenas' have one, the stunt arena 10's 14): a cell past them has no row of its own. */
+static const u8 VisRows[19] = {117, 117, 117, 121, 103, 122, 1, 1, 1, 1, 14, 1, 1, 1, 1, 1, 1, 1, 25};
+
+/* The rows of every cell within reach feet of pos, or'ed into far[4]: the cells in WorldDistance's order, those with
+ * a box (as func_800A7E10 makes a culling box of) and a row of their table. */
 static void VisReach(f32 *pos, f32 reach, u32 *far)
 {
     tModelPart *Wnode = D_80149B80;
@@ -132,6 +137,10 @@ static void VisReach(f32 *pos, f32 reach, u32 *far)
     u32 *row;
 
     for (;;) {
+        if ((Wnode->min[0] == Wnode->max[0] && Wnode->min[1] == Wnode->max[1]) || D_8014978C < 0 ||
+            D_8014978C >= 19 || index >= VisRows[D_8014978C]) {
+            goto next;
+        }
         d = 0.0f;
         for (k = 0; k < 3; k++) {
             dv[k] = pos[k] - Wnode->uvs[3][k];
@@ -148,6 +157,7 @@ static void VisReach(f32 *pos, f32 reach, u32 *far)
                 far[k] |= row[k];
             }
         }
+    next:
         if (Wnode->next < 0) {
             break;
         }
