@@ -159,10 +159,10 @@ F1 > Game
                  room: a race's cars, larger files from mods. About shows
                  how much a run used. At the next start. game.memory
   Game frame rate
-                 original (30) or 60. At 60 the game itself runs 60
+                 original (30) or 60. At 60 the game itself draws 60
                  frames a second: the menus, the HUD, the cameras and the
-                 effects step every refresh, at the N64's speed; the car
-                 handling is the same. From the next screen (a menu, a
+                 effects step 60 times a second, at the N64's speed; the
+                 car handling is the same. From the next screen (a menu, a
                  race). game.frame_rate. If the PC can't keep 60 in a
                  race, the log and About say so; the game keeps its speed.
 
