@@ -6,6 +6,14 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Smooth keyboard steering** (`input.keyboard_steering`, `input.keyboard_steer_time`, F1 > Keyboard > Steering):
+  `instant`, the default, is the keys' full lock the moment one goes down, as before; at speed half a second of it
+  puts the car into the barrier. `smooth` moves the stick from the centre to full tilt over the steering time (250 ms
+  by default, 0-1000) and back to the centre in a third of it when the key is released or the other way is pressed,
+  so a tap steers a little and a held key a lot. For keys and controller buttons bound to the stick, both axes, the
+  same at every frame rate; a controller's stick is not changed. At once
+  ([FRONTEND.md](docs/port/FRONTEND.md) "The stick").
+
 - **Far textures** (`video.texture_lod`, F1 > Video > Far textures): `original`, the default, picks each texture's
   smaller copies where the N64 does, for its 320 x 240 screen, so at a PC's resolution the road and the walls a few
   car lengths ahead were drawn from a copy a quarter or a sixteenth of the size. `sharp` picks them for the window's
