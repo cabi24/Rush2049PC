@@ -359,7 +359,8 @@ jobs:
           path: src
       - name: Boot the synthetic cartridge
         # As on Linux (docs/port/SYNTH.md): the generator reads the build's data report, then each press script's
-        # path runs.
+        # path runs, with exact floats and a status line each second as ctest's synth_boot_* run them (--exact): the
+        # logs windows-same compares with Linux's.
         env:
           GALLIUM_DRIVER: llvmpipe
         run: |
@@ -368,7 +369,7 @@ jobs:
           # the mods paths' mods, as ctest's mods_synth fixture makes them (docs/port/MODS.md 8)
           python -X utf8 src/tools/port/mods_synth.py --rom synth/rush2049_synth.z64 --out synth/paths/mods
           python -X utf8 src/tools/port/synth_paths.py --exe bin/rush2049pc.exe --rom synth/rush2049_synth.z64 \
-            --logs synth/paths
+            --logs synth/paths --exact
       - name: Live input steers
         # The release's toolchain (docs/port/FRONTEND.md "Testing live input"): virtual controllers, a joystick and
         # keys drive the synthetic race as the scripts do, and the car's steering input follows the stick.
@@ -387,6 +388,51 @@ jobs:
             synth/input/
             synth/rush2049_synth.txt
           if-no-files-found: ignore
+
+  windows-same:
+    # The Windows program's game is Linux's (docs/port/WINDOWS.md 12): windows-run's logs against the linux jobs' of
+    # the same build type, x86-64's and aarch64's. The same synthetic cartridge (its report), and along every
+    # synthetic path on the virtual clock and every live-input run the same trace: the states at the same retraces,
+    # and each second the first car's position, speed and steering to the bit (synth_paths.py --exact,
+    # synth_compare.py --from-logs). Nothing runs here but the comparison of the logs the jobs uploaded; a path that
+    # failed in either job differs or is missing.
+    needs: [linux, windows-run]
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [Debug, RelWithDebInfo]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-windows-run-${{ matrix.build }}
+          path: windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-ubuntu-24.04-${{ matrix.build }}
+          path: x86-64
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-ubuntu-24.04-arm-${{ matrix.build }}
+          path: aarch64
+      - name: The same cartridge
+        run: |
+          for l in x86-64 aarch64; do
+            diff <(tr -d '\r' < windows/synth/rush2049_synth.txt) $l/build/pc/synth/rush2049_synth.txt > /dev/null
+            echo "the synthetic cartridge: Windows's report is $l's"
+          done
+      - name: The same game
+        run: |
+          s=0
+          for l in x86-64 aarch64; do
+            for d in paths input; do
+              echo "== Windows against $l: synth/$d"
+              python3 tools/port/synth_compare.py --from-logs $l/build/pc/synth/$d windows/synth/$d || s=1
+            done
+          done
+          exit $s
 
   windows:
     # Windows x86-64 built natively with MSYS2's mingw-w64 (UCRT64), with its SDL2: the build, all tests, the
