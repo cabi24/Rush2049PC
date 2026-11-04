@@ -292,7 +292,7 @@ void pc_rcp_hold_gfx(int on)
     pthread_mutex_unlock(&g_rlock);
 }
 
-/* RUSH_SIM_GFX_MS=N (tests: docs/port/FRAMERATE.md 7.8): with --fast, each graphics task keeps the RDP N ms of the
+/* RUSH_SIM_GFX_MS=N (tests: docs/port/FRAMERATE.md 7.7): with --fast, each graphics task keeps the RDP N ms of the
  * N64 clock, as on a host too slow to draw every frame in a retrace: its DP event comes that long after the main loop
  * runs it (its SP event at once, so the audio tasks don't wait), and the game's frame is done then. Real time ignores
  * it. Main thread only. */

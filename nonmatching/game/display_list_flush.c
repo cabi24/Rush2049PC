@@ -137,7 +137,7 @@ extern s8 D_801439F8[6];        /* carsetup_flag */
 #endif
 #ifdef TARGET_PC
 /* game.frame_rate = 60 (docs/port/FRAMERATE.md 7.3): the track's load goes a wave a call, a call a frame, so at 60 it
- * is called on the frames that complete a 30 Hz frame, and the countdown begins at the N64's retrace. */
+ * is called on the frames that complete a 30 Hz frame: the countdown begins within a retrace of original's. */
 #define PC_LOAD_ON30(call) ((!pc_fps60 || pc_frame_steps) ? (call) : 0)
 #else
 #define PC_LOAD_ON30(call) call

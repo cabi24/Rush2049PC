@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The game at 60 on a host that can't keep 60 (docs/port/FRAMERATE.md 7.8), on the virtual clock.
+"""The game at 60 on a host that can't keep 60 (docs/port/FRAMERATE.md 7.7), on the virtual clock.
 
     python3 tools/port/fps_slow.py --exe build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 [--logs DIR]
 
@@ -83,7 +83,8 @@ def main():
               + (f"{r['share']:.2f} of its frames in the race" if r["share"] is not None else "no frames counted"))
     if bad:
         return bad
-    check(fast["share"] > 0.95 and not fast["slow"], f"60: a frame a retrace ({fast['share']:.2f}), no line of a slow host")
+    check(fast["share"] > 0.95 and not fast["slow"],
+          f"60: a frame a retrace ({fast['share']:.2f}), no line of a slow host")
     check(len(slow["slow"]) == 1 and float(slow["slow"][0].group(1)) < 0.9 and slow["share"] < 0.6,
           f"60 slowed: one line of a slow host ({', '.join(m.group(0)[12:] for m in slow['slow']) or 'none'}), "
           f"{slow['share']:.2f} of the frames")
