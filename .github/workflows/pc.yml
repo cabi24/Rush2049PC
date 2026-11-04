@@ -510,7 +510,40 @@ jobs:
           path: |
             boot.log
             build/pc/pc-data/data_layout.txt
+            build/pc/synth/paths/*.log
+            build/pc/synth/rush2049_synth.txt
           if-no-files-found: ignore
+
+  windows-native-same:
+    # As windows-same, for the windows job's program (MSYS2's GCC and the UCRT's C library, a Debug build): its
+    # ctest's synthetic paths against the Linux Debug builds' (docs/port/WINDOWS.md 12).
+    needs: [linux, windows]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-windows
+          path: windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-ubuntu-24.04-Debug
+          path: x86-64
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-ubuntu-24.04-arm-Debug
+          path: aarch64
+      - name: The same cartridge and the same game
+        run: |
+          s=0
+          for l in x86-64 aarch64; do
+            diff <(tr -d '\r' < windows/build/pc/synth/rush2049_synth.txt) $l/build/pc/synth/rush2049_synth.txt \
+              > /dev/null && echo "the synthetic cartridge: Windows's report is $l's" || s=1
+            echo "== Windows (MSYS2) against $l: synth/paths"
+            python3 tools/port/synth_compare.py --from-logs $l/build/pc/synth/paths windows/build/pc/synth/paths || s=1
+          done
+          exit $s
 
   n64-neutral:
     # PC edits to shared game C must leave what IDO compiles unchanged (tools/port/n64_neutral.py). The real
