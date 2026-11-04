@@ -1584,7 +1584,7 @@ extern void *AllocateMemoryHeap(voidpf opaque, uInt size);
  * dummy first; on the PC the address goes first. Heap blocks are RDRAM-window addresses
  * (docs/port/PROTOTYPES.md). */
 extern void audio_reverb_update(unsigned int address, int tag);
-#define audio_reverb_update(opaque, ptr, flag) audio_reverb_update((unsigned int)(uintptr_t)(ptr), (flag))
+#define audio_reverb_update(opaque, ptr, flag) audio_reverb_update(PC_N64A(ptr), (flag))   /* NOFIXED.md 2.3 */
 #else
 extern void audio_reverb_update(voidpf opaque, voidpf ptr, int flag);
 #endif

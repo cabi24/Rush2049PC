@@ -1534,8 +1534,9 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          f"#define PC_WEAK(id, name) extern char id[] __asm__(\"{n64syms.PE_WEAK_PREFIX}\" name);", "#else",
          "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", "#endif", ""]
     if NOFIXED:
-        L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 offsets in the RDRAM window,")
-        L.append(" * pc_window below (RUSH_NOFIXED, docs/port/NOFIXED.md 2): N64 address a at pc_window + (a - 0x80000000):")
+        L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 offsets in the RDRAM")
+        L.append(" * window, pc_window below (RUSH_NOFIXED, docs/port/NOFIXED.md 2): N64 address a at pc_window +")
+        L.append(" * (a - 0x80000000):")
     else:
         L.append("/* The arenas, each image's data and BSS in N64 layout, are at their N64 addresses in the RDRAM window")
         L.append(" * port/ultra maps at host 0x80000000 (docs/port/ULTRA.md), so nothing here allocates them:")
@@ -1544,15 +1545,16 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     L.append(" */")
     if NOFIXED:
         L += ["",
-              "/* The RDRAM window (docs/port/NOFIXED.md 2.1): a zero-fill section of the executable, PC_RDRAM_MAX bytes",
-              " * (the largest game.memory), 64 KiB aligned, which port/ultra's pc_mem_init takes as the window. Its pages",
-              " * cost nothing until the game touches them. The names below are symbols inside it, which the executable's",
-              " * own relocations move with it. */",
+              "/* The RDRAM window (docs/port/NOFIXED.md 2.1): a zero-fill section of the executable,",
+              " * PC_RDRAM_MAX bytes (the largest game.memory), 64 KiB aligned, which port/ultra's pc_mem_init",
+              " * takes as the window. Its pages cost nothing until the game touches them. The names below are",
+              " * symbols inside it, which the executable's own relocations move with it. */",
               "#if !defined(__ELF__)",
               '#error "RUSH_NOFIXED: the window section is ELF only so far (docs/port/NOFIXED.md 6, phase D)"',
               "#endif",
               r'__asm__(".section .n64window,\"aw\",%nobits\n.p2align 16\n.globl " N64_SYM("pc_window")',
-              rf'        "\n.type " N64_SYM("pc_window") ", %object\n" N64_SYM("pc_window") ":\n.skip 0x{WINDOW_SECTION:X}"',
+              r'        "\n.type " N64_SYM("pc_window") ", %object\n" N64_SYM("pc_window") ":\n"',
+              rf'        ".skip 0x{WINDOW_SECTION:X}"',
               rf'        PC_SIZE("pc_window", 0x{WINDOW_SECTION:X}) "\n.previous\n");',
               'extern uint8_t pc_window[] __asm__(N64_SYM("pc_window"));']
     L += ["", "/* Own storage: host layout. Aligned as a common symbol of that size can be (x86-64 GCC aligns",
