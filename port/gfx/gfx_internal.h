@@ -260,6 +260,9 @@ uint32_t pcgfx_gl_texture(const uint8_t *rgba, int w, int h);
 void pcgfx_gl_delete_texture(uint32_t tex);
 GfxShader *pcgfx_gl_shader(const GfxShaderKey *key);
 void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n);
+/* Whether vertices batched under state a draw the same under b: one shader, and the same state but for the uniforms
+ * the shader doesn't read (pcgfx_draw_state then keeps the batch: one draw where there were two). */
+int pcgfx_gl_same_draw(const GfxDrawState *a, const GfxDrawState *b);
 void pcgfx_gl_present(GfxTarget *t, int win_w, int win_h, int to_window);
 /* The presented frame in the window: fitted (gfx_size.c's pcgfx_fit) natively when the scale is native. */
 /* The frame in t becomes the presented image (screenshots read it), without showing it. */

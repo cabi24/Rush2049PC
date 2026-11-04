@@ -990,7 +990,8 @@ const GfxDrawState *pcgfx_draw_state(int rect_tile, int wide) {
     s_state_rect_tile = rect_tile;
     s_state_wide = wide;
     if (!s_state_valid || memcmp(&st, &s_state, sizeof(st)) != 0) {
-        pcgfx_flush();
+        if (!s_state_valid || !pcgfx_gl_same_draw(&s_state, &st))   /* else the batch goes on: gfx_gl.c */
+            pcgfx_flush();
         s_state = st;
         s_state_valid = 1;
     }
