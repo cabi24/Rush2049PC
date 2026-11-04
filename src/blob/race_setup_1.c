@@ -57,6 +57,14 @@ typedef struct AnimationFrame12 { char *tag; ObjectView *object; Gfx *commands; 
 typedef struct AnimationFrame12 { u32 tag; ObjectView *object; Gfx *commands; } AnimationFrame12;
 #endif
 typedef struct ObjectAnimation20 { s16 count,object_index,direction,index; f32 delay,interval; AnimationFrame12 *frames; } ObjectAnimation20;
+/* PC: game.frame_rate 60 (pc_game_fps.h). The texture scrolls (actions 9 and 10) add step x the frame's retraces each
+ * time they run: every frame when ticks is 0 (so step a retrace at any rate), else once every ticks 30 Hz frames, when
+ * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
+#ifdef TARGET_PC
+#define PC_SCROLL_RETRACES(d, ticks) (pc_fps60 && (ticks) > 0 ? 2 : (d))
+#else
+#define PC_SCROLL_RETRACES(d, ticks) d
+#endif
 extern u32 D_801174B4;
 extern s8 D_80156994,D_8014978C;
 extern PaletteAnimation20 *D_8011A840[];
@@ -143,13 +151,13 @@ void race_setup_1(void)
                     palette_animation->step++;
                     break;
                 case 9:
-                    palette_animation->first+=palette_animation->step*D_8002EB98;
+                    palette_animation->first+=palette_animation->step*PC_SCROLL_RETRACES(D_8002EB98, palette_animation->ticks);
                     if(palette_animation->first<0) palette_animation->first+=palette_animation->last;
                     else if(palette_animation->first>=palette_animation->last) palette_animation->first-=palette_animation->last;
                     camera_smooth_follow((Gfx *)palette,palette_animation->first>>2,-1,-1,-1);
                     break;
                 case 10:
-                    palette_animation->first+=palette_animation->step*D_8002EB98;
+                    palette_animation->first+=palette_animation->step*PC_SCROLL_RETRACES(D_8002EB98, palette_animation->ticks);
                     if(palette_animation->first<0) palette_animation->first+=palette_animation->last;
                     else if(palette_animation->first>=palette_animation->last) palette_animation->first-=palette_animation->last;
                     camera_smooth_follow((Gfx *)palette,-1,palette_animation->first>>2,-1,-1);

@@ -153,6 +153,16 @@ extern void entity_spawn_callback(s16, s32, s32);
 extern void func_800AFA84(void *, void *);
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
+/* PC: game.frame_rate 60 (pc_game_fps.h). The glow's pulse and the puffs' fade, jitter and growth are per frame of
+ * two retraces on the N64: scaled to the frame, or run once a 30 Hz frame; PC_ON30(c) is c on a frame that
+ * completes a 30 Hz frame, false on the others. */
+#ifdef TARGET_PC
+#define PC_ON30(c) ((c) && (!pc_fps60 || pc_frame_steps))
+#else
+#define PC_ON30(c) c
+#define PC_FSCALE(x) x
+#define PC_EACH30(stmt) stmt
+#endif
 
 int func_8008B2B4(void) {
     D_8011735C = D_8011735C * 1103515245 + 12345;
@@ -265,20 +275,20 @@ void hud_render(void)
                 }
                 if (puff->frame == -1) {
                     if (D_8012E700[puff->id.handle].scale < puff->life) {
-                        D_8012E700[puff->id.handle].scale += 0.04f;
+                        D_8012E700[puff->id.handle].scale += PC_FSCALE(0.04f);
                     } else {
                         puff->frame = 0;
                     }
                 } else {
                     if (puff->frame < 8) {
-                        D_8012E700[puff->id.handle].scale -= 0.03f;
+                        D_8012E700[puff->id.handle].scale -= PC_FSCALE(0.03f);
                     } else {
-                        D_8012E700[puff->id.handle].scale += 0.03f;
+                        D_8012E700[puff->id.handle].scale += PC_FSCALE(0.03f);
                     }
-                    if (puff->frame >= 14) {
+                    if (PC_ON30(puff->frame >= 14)) {
                         puff->frame = 0;
                     } else {
-                        puff->frame++;
+                        PC_EACH30(puff->frame++;)
                     }
                 }
                 player = (Player *)(uintptr_t)PC_CAR(car);
@@ -309,14 +319,14 @@ kill:
             D_8002EB94;
             if (puff->life < 1.0f) {
                 if (D_8012E700[puff->id.handle].alpha >= 9) {
-                    D_8012E700[puff->id.handle].alpha -= 9;
+                    PC_EACH30(D_8012E700[puff->id.handle].alpha -= 9;)
                 }
             }
             if (type == 4) {
-                puff->position[0] += func_8008B2E4(0.3f) - 0.15f;
-                puff->position[1] += func_8008B2E4(0.25f);
-                puff->position[2] += func_8008B2E4(0.15f) - 0.075f;
-                D_8012E700[puff->id.handle].scale += 0.05f;
+                PC_EACH30(puff->position[0] += func_8008B2E4(0.3f) - 0.15f;)
+                PC_EACH30(puff->position[1] += func_8008B2E4(0.25f);)
+                PC_EACH30(puff->position[2] += func_8008B2E4(0.15f) - 0.075f;)
+                D_8012E700[puff->id.handle].scale += PC_FSCALE(0.05f);
             }
             puff->timer -= D_8002EB94;
             if (puff->timer <= 0.0f) {
@@ -337,9 +347,9 @@ kill:
                 puff->timer = 0.0333333f;
             }
             if (type >= 6) {
-                D_8012E700[puff->id.handle].scale += 0.03f;
+                D_8012E700[puff->id.handle].scale += PC_FSCALE(0.03f);
             } else {
-                D_8012E700[puff->id.handle].scale += 0.05f;
+                D_8012E700[puff->id.handle].scale += PC_FSCALE(0.05f);
             }
             puff->position[0] += puff->velocity[0] * D_8002EB94;
             puff->position[1] += puff->velocity[1] * D_8002EB94;

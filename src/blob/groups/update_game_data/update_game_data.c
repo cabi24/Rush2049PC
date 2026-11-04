@@ -249,6 +249,16 @@ extern s32 D_8014A110;             /* gRace */
 
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
+/* PC: game.frame_rate 60 (pc_game_fps.h). The skids' fade and the body's pitch and roll filters step once a frame of
+ * two retraces on the N64: scaled to the frame. PC_FILTER_REST(e, rest) is the filter's other weight, 1 - e^frames
+ * (rest, 1 - e, at original). */
+#ifdef TARGET_PC
+#define PC_FILTER_REST(e, rest) (pc_fps60 ? 1.0f - pc_fps_filter(e) : (rest))
+#else
+#define PC_FSCALE(x) x
+#define PC_FILTER(e) e
+#define PC_FILTER_REST(e, rest) rest
+#endif
 
 void func_800E7FA0(s16 droneIndex)
 {
@@ -327,7 +337,7 @@ void func_800E7FA0(s16 droneIndex)
                     if (m->skidIntensity[side] > skidData->smokeThreshold) {
                         m->appearance |= D_80120EBC[side];
                     }
-                    m->skidIntensity[side] -= 0.125f;
+                    m->skidIntensity[side] -= PC_FSCALE(0.125f);
                     if (m->skidIntensity[side] <= 0) {
                         m->skidIntensity[side] = 0;
                         m->appearance &= ~(D_80120EDC[side] | D_80120EBC[side]);
@@ -395,7 +405,7 @@ void update_game_data(void)
                     if (angle < susp->bckangle) angle = susp->bckangle;
                 } else angle = 0;
             }
-            gc->pitch = 0.6f * gc->pitch + 0.4f * angle;
+            gc->pitch = PC_FILTER(0.6f) * gc->pitch + PC_FILTER_REST(0.6f, 0.4f) * angle;
             PitchUV(gc->pitch, gc->dr_car_uvs);
             if ((angle = force[0] - susp->sideforcemin) > 0) {
                 angle *= -susp->sideangle / susp->sideforcerange;
@@ -406,7 +416,7 @@ void update_game_data(void)
                     if (angle < -susp->sideangle) angle = -susp->sideangle;
                 } else angle = 0;
             }
-            gc->roll = 0.7f * gc->roll + 0.3f * angle;
+            gc->roll = PC_FILTER(0.7f) * gc->roll + PC_FILTER_REST(0.7f, 0.3f) * angle;
             RollUV(gc->roll, gc->dr_car_uvs);
             for (j = 0; j < 4; j++) {
                 gc->tireR[j][0] = N64P(m->car)->tireR[j][0];

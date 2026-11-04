@@ -286,6 +286,10 @@ Color GetCarsIRColor(Car *car, CarState *m)
     return clr;
 }
 
+#ifndef TARGET_PC
+#define PC_FSCALE(x) x   /* PC: game.frame_rate 60 (pc_game_fps.h): a step per frame of two retraces, scaled */
+#define PC_EACH30(stmt) stmt   /* PC: run once a 30 Hz frame */
+#endif
 /* AnimateFrame */
 void AnimateFrame(Entity *ent, s16 alive)
 {
@@ -338,13 +342,13 @@ void AnimateFrame(Entity *ent, s16 alive)
         if (car->alpha < 0x20) {
             car->alpha = 0;
         } else {
-            car->alpha -= 0x19;
+            PC_EACH30(car->alpha -= 0x19;)
         }
     } else {
         if (car->alpha >= 0xE1) {
             car->alpha = 0xFF;
         } else {
-            car->alpha += 0x19;
+            PC_EACH30(car->alpha += 0x19;)
         }
     }
     sclr1.b[3] = car->alpha;
@@ -503,19 +507,19 @@ void AnimateRocketFlame(s16 slot, int hulk)
         if(car->scale[0]<0.28f)
             car->scale[0]=0.25f-func_8008B2E4(0.15f);
         else {
-            car->scale[0]-=func_8008B2E4(0.025f)+0.01f;
+            car->scale[0]-=PC_FSCALE(func_8008B2E4(0.025f)+0.01f);
             if(car->scale[0]<0.2f) car->scale[0]=0.2f;
         }
         if(car->scale[1]<0.28f)
             car->scale[1]=0.25f-func_8008B2E4(0.15f);
         else {
-            car->scale[1]-=func_8008B2E4(0.025f)+0.01f;
+            car->scale[1]-=PC_FSCALE(func_8008B2E4(0.025f)+0.01f);
             if(car->scale[1]<0.2f) car->scale[1]=0.2f;
         }
         if(car->scale[2]<0.58f)
             car->scale[2]=0.55f-func_8008B2E4(0.1);
         else {
-            car->scale[2]-=func_8008B2E4(0.025f)+0.01f;
+            car->scale[2]-=PC_FSCALE(func_8008B2E4(0.025f)+0.01f);
             if(car->scale[2]<0.5f) car->scale[2]=0.5f;
         }
     } else {

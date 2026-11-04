@@ -263,6 +263,13 @@ static void StartNewBlastRing(s16 slot)
     }
 }
 
+#ifdef TARGET_PC
+/* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a blast on no car steps its animation once a frame, the N64's 30 a
+ * second: at 60 it steps on the frames that complete a 30 Hz frame (pc_game_fps.h). */
+#define PC_EACH30_IF(c) ((c) && (!pc_fps60 || pc_frame_steps))
+#else
+#define PC_EACH30_IF(c) c
+#endif
 /* AnimateBlast */
 void entity_physics_update(tVisual *v, s16 op)
 {
@@ -281,7 +288,7 @@ release:
         D_8012E700[v->objnum].mat->pos[2] = PC_CAR_POS(v->slot)[2];
     }
     v->timeStamp -= D_8002EB94;
-    if (v->slot < 0 || (v->slot >= 0 && v->timeStamp <= 0.0f)) {
+    if (PC_EACH30_IF(v->slot < 0) || (v->slot >= 0 && v->timeStamp <= 0.0f)) {
         v->timeStamp = 0.0333333f;
         if (v->index == 30) goto release;
         func_80090770(v->objnum, D_801427C0[164 + v->index]);
