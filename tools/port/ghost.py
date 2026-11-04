@@ -737,7 +737,16 @@ def read_save(path):
         raise Refused(f"it can't be read: {e.strerror}")
     if len(b) > MAX_FILE:
         raise Refused("it is bigger than any note")
-    return save_file_read(b)
+    return checked_save(b)
+
+
+def checked_save(b):
+    """pakstore.c's read_note: save_file_read, and for a ghost the import's check (a ghost put in the folder by hand)."""
+    note, fi = save_file_read(b)
+    why = ghost_check(bytes(note.data)) if fi.kind == GHOST else None
+    if why:
+        raise Refused(why)
+    return note, fi
 
 
 def load_folder(folder, warn=None):
@@ -753,7 +762,7 @@ def load_folder(folder, warn=None):
                     b = read_file(backup_path(folder, name, i), MAX_FILE)
                     if len(b) > MAX_FILE:
                         continue
-                    note, fi = save_file_read(b)
+                    note, fi = checked_save(b)
                 except (OSError, Refused):
                     continue
                 if warn:

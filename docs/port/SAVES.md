@@ -93,12 +93,17 @@ saves/p1/
   the game sees the note's own name on the pak.
 - **Backups**, as `saves.c` keeps them for the `.mpk`: at start, a good file that differs from its `backup/NAME.bak`
   is copied there, `.bak` to `.bak2`, `.bak2` to `.bak3`; an unchanged one makes none.
-- **A damaged file** (its CRC wrong, too short, a header that disagrees with the note) is renamed
-  `NAME.corrupt-DATE`, unchanged, and the newest good backup is put in its place; the log says so.
+- **A damaged file** (its CRC wrong, too short, a header that disagrees with the note, a ghost that fails 4.3's check)
+  is renamed `NAME.corrupt-DATE`, unchanged, and the newest good backup is put in its place; the log says so.
 - **Every write** is `pc_file_write_atomic`'s: a temp file flushed to the disk, renamed over the file, the folder
   flushed. A crash leaves the old file or the new one.
 - **A folder that can't be made** gives that controller no pak this run (the log says why). A folder that can be read
   but not written works in memory, and its writes are tried again each second, as a failing `.mpk` write is.
+- **One folder, one controller.** A folder another controller has (`game.saves2_dir` the same as `saves_dir`, in any
+  spelling `same_dir` takes as one: `/` or `\`, a trailing one, any case on Windows) gives the higher-numbered
+  controller no pak this run, with the log's `the saves folder ... is controller 1's: give each its own`. The writes
+  find their store by its folder (`pc_store_write`) and the writer queues by path, so two would diff each other's
+  images.
 
 ## 4. The formats
 
@@ -174,6 +179,10 @@ A ghost file is someone else's: before it goes on a pak, everything the game wil
 | unzipped size a whole number of 3-byte frames, 1 to 72,000 frames (20 minutes) | the decode buffer is allocated from it |
 | the samples inflated (raw deflate, as `inflate_entry_alt`) to exactly the unzipped size, and that checksum | `inflate_entry_alt` has no output bound on the PC but the RDRAM window's end: a stream longer than the header says would run on through the game's heap |
 
+The same check runs on every ghost file in the folder itself and on the backup put back for one (`pakstore.c`'s
+`read_note`; `ghost.py` the same): a ghost dropped beside the others, not into `import/`, is someone else's too. One
+that fails is a damaged file (section 3): set aside as `.corrupt-DATE`, its newest good backup put back.
+
 A refused file is moved to `import/refused/`, with one line in the log (`controller 1's saves: x.r49ghost refused:
 its samples don't unzip to the 4500 bytes its header says`) and the reason on the Saves page. Not checked: the car
 settings' twelve bytes (handling, engine, colours, tire scales) beyond the header's checksum; their ranges are the
@@ -199,7 +208,8 @@ lists every file and whether it is on the pak.
 prefix and ghost extension (from the game's data at run time, `saves_game_names` in main: the cartridge's, never
 kept), and its name's last two characters the digits 00-99. The game's own ghost names end in the way's letter, so
 a renamed ghost can never take the name of one the game is about to save (SaveGhost would fail with "exists"), and a
-friend called ALICE racing beside the player's own ALICE gets on the same pak. The game reads a ghost's player, track
+friend called ALICE racing beside the player's own ALICE gets on the same pak. When the game changes such a note in place (its
+status byte), its file is written again with its own name and extension, not those (`pc_store_write`). The game reads a ghost's player, track
 and time from its header, not its name.
 
 **A foreign ghost races as the player's own.** The track select's ghost choice (`func_803A0498`, overlay A) takes

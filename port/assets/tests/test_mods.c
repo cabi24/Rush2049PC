@@ -553,6 +553,121 @@ static void zip_write(const char *path, const char *const *names, const uint8_t 
     free(z);
 }
 
+/* A car WAD whose one model's list calls a list 64 times, which calls another 64 times, seven deep: 64^7 walks of the
+ * last for the mirror pass (days). Refused in a moment (check.c's DL_STEPS). */
+static void test_dl_budget(void)
+{
+    enum { K = 64, DEPTH = 8, LIST = (K + 1) * 8, DL0 = 0x80 };
+    size_t n = DL0 + DEPTH * LIST;
+    uint8_t *b = calloc(1, n);
+    char why[PC_MODS_WHY] = "";
+    test_put32(b, 8), test_put32(b + 4, 1);   /* the TOC: one OBHD chunk of one model */
+    memcpy(b + 8, "OBHD", 4), test_put32(b + 12, 0x20), test_put32(b + 16, 1);
+    memcpy(b + 0x20, "m", 1);
+    b[0x20 + 0x17] = 1;                         /* one level of detail */
+    test_put32(b + 0x20 + 0x18 + 8, DL0);
+    for (int d = 0; d < DEPTH; d++) {
+        uint8_t *l = b + DL0 + d * LIST;
+        for (int k = 0; d + 1 < DEPTH && k < K; k++)
+            test_put32(l + 8 * k, 0xDE000000u), test_put32(l + 8 * k + 4, DL0 + (d + 1) * LIST);
+        test_put32(l + (d + 1 < DEPTH ? 8 * K : 0), 0xDF000000u);
+    }
+    CHECK(pc_assets_check(88, b, n, NULL, 0, why, sizeof why) != 0 && strstr(why, "steps"));
+    test_put32(b + DL0 + 4, DL0 + (DEPTH - 1) * LIST);   /* one call of the last list, no fan: it passes */
+    test_put32(b + DL0 + 8, 0xDF000000u);
+    CHECK(pc_assets_check(88, b, n, NULL, 0, why, sizeof why) == 0);
+    free(b);
+}
+
+static void put_le(uint8_t *p, uint32_t v, int bytes)
+{
+    for (int i = 0; i < bytes; i++)
+        p[i] = (uint8_t)(v >> 8 * i);
+}
+
+/* A zip bomb: a few hundred KB whose 8 entries all name one deflated stream of 200 MiB of zeros, 1.6 GB unpacked:
+ * refused before any of it is unpacked (zip.c's UNPACKED_MAX, 1 GiB). */
+static void test_zip_bomb(void)
+{
+    enum { ENTRIES = 8, NAME = 6 };
+    const uint32_t usize = 200u << 20;
+    const size_t cap = 4u << 20;
+    const char *tmp = getenv("TMPDIR") ? getenv("TMPDIR") : getenv("TEMP") ? getenv("TEMP") : "/tmp";
+    uint8_t *zero = calloc(1, 1 << 20), *z = calloc(1, cap);
+    char path[512], why[PC_MODS_WHY] = "";
+    PcZipEntry *e = NULL;
+    int n = -1;
+    z_stream s;
+    memset(&s, 0, sizeof s);
+    CHECK(zero && z && deflateInit2(&s, 1, Z_DEFLATED, -15, 8, Z_RLE) == Z_OK);
+    if (!zero || !z)
+        return;
+    size_t at = 30 + NAME;
+    s.next_out = z + at, s.avail_out = (uInt)(cap - at - 4096);
+    int r = Z_OK;
+    for (uint32_t done = 0; done < usize; done += 1 << 20) {
+        s.next_in = zero, s.avail_in = 1 << 20;
+        r = deflate(&s, done + (1u << 20) >= usize ? Z_FINISH : Z_NO_FLUSH);
+    }
+    CHECK(r == Z_STREAM_END);
+    uint32_t csize = (uint32_t)s.total_out;
+    deflateEnd(&s);
+    memcpy(z, "PK\3\4", 4), put_le(z + 4, 20, 2), put_le(z + 8, 8, 2);
+    put_le(z + 18, csize, 4), put_le(z + 22, usize, 4), put_le(z + 26, NAME, 2);
+    memcpy(z + 30, "b0.bin", NAME);
+    at += csize;
+    size_t cd = at;
+    for (int i = 0; i < ENTRIES; i++, at += 46 + NAME) {
+        uint8_t *h = z + at;
+        memcpy(h, "PK\1\2", 4), put_le(h + 4, 20, 2), put_le(h + 6, 20, 2), put_le(h + 10, 8, 2);
+        put_le(h + 20, csize, 4), put_le(h + 24, usize, 4), put_le(h + 28, NAME, 2), put_le(h + 42, 0, 4);
+        snprintf((char *)h + 46, NAME + 1, "b%d.bin", i);
+    }
+    memcpy(z + at, "PK\5\6", 4), put_le(z + at + 8, ENTRIES, 2), put_le(z + at + 10, ENTRIES, 2);
+    put_le(z + at + 12, (uint32_t)(at - cd), 4), put_le(z + at + 16, (uint32_t)cd, 4);
+    snprintf(path, sizeof path, "%s/rush2049pc-zipbomb-%d.zip", tmp, (int)getpid());
+    put_file(path, z, at + 22);
+    CHECK(pc_mods_zip_read(path, &e, &n, why, sizeof why) == -1 && strstr(why, "unpack") && e == NULL);
+    if (e)
+        pc_mods_zip_free(e, n);
+    remove(path);
+    free(zero), free(z);
+}
+
+/* A zip's texture pack unpacked into the cache: a name Windows would take for a device (con.png: the write goes to the
+ * console) or a stream (a:b.png), or change (a folder "x."), is not unpacked, on any system; a good one is. */
+static void test_zip_names(void)
+{
+    char dir[512], cache[600], p[1200];
+    const char *tmp = getenv("TMPDIR") ? getenv("TMPDIR") : getenv("TEMP") ? getenv("TEMP") : "/tmp";
+    snprintf(dir, sizeof dir, "%s/rush2049pc-zipnames-%d", tmp, (int)getpid());
+    snprintf(cache, sizeof cache, "%s/cache", dir);
+    rm_tree(dir);
+    CHECK(mkdir(dir, 0700) == 0);
+    static const char *const names[6] = {"z/mod.ini", "z/textures/good.png", "z/textures/con.png",
+                                         "z/textures/a:b.png", "z/textures/x./c.png", "z/textures/COM1.tex.png"};
+    const char *ini = "[mod]\nname = Names\ngame = us\n";
+    const uint8_t png[4] = {0x89, 'P', 'N', 'G'};
+    const uint8_t *data[6] = {(const uint8_t *)ini, png, png, png, png, png};
+    size_t sizes[6] = {strlen(ini), 4, 4, 4, 4, 4};
+    snprintf(p, sizeof p, "%s/names.zip", dir);
+    zip_write(p, names, data, sizes, 6);
+    Flags fl = {{NULL}};
+    PcModsConfig cfg = {1, dir, "", flag_of, &fl, 0, 1, 0, cache};
+    PcMods m;
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && find_mod(&m, "names") && find_mod(&m, "names")->textures[0]);
+    struct stat st;
+    snprintf(p, sizeof p, "%s/names/textures/good.png", cache);
+    CHECK(stat(p, &st) == 0 && st.st_size == 4);
+    static const char *const bad[4] = {"con.png", "a:b.png", "x.", "COM1.tex.png"};
+    for (int i = 0; i < 4; i++) {
+        snprintf(p, sizeof p, "%s/names/textures/%s", cache, bad[i]);
+        CHECK(stat(p, &st) != 0);
+    }
+    pc_mods_free(&m);
+    rm_tree(dir);
+}
+
 static void test_folder(void)
 {
     char dir[512], p[1024], line[512];
@@ -814,5 +929,8 @@ int main(int argc, char **argv)
     test_decompress();
     test_checks(window);
     test_folder();
+    test_zip_bomb();
+    test_dl_budget();
+    test_zip_names();
     return TEST_DONE();
 }

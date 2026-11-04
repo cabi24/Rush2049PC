@@ -844,6 +844,37 @@ static void test_imports_and_damage(void)
     for (int i = 0; i < n; i++)
         pinned += list[i].pinned, imported += list[i].imported;
     CHECK(pinned == 1 && imported == 1, "the import pinned");
+    /* the game changes the import's status byte in place: its file written again with its own name, not the game's
+     * prefix and extension (the cartridge's, never kept in a file) */
+    {
+        PcNote *all[PC_PAK_NOTES];
+        for (int i = 0; i < k; i++) {
+            all[i] = &in[i];
+            if (!memcmp(in[i].dir + 16, prefix, 8))
+                in[i].dir[8] ^= 0x01;
+        }
+        game_image(g_img, all, k);
+        CHECK(pc_store_write(dir, g_img, PC_PAK_SIZE) == 0, "the status byte changed: written");
+        int kept_name = 0;
+        for (int i = 0; i < n; i++) {
+            if (!list[i].imported)
+                continue;
+            uint8_t *b;
+            size_t size;
+            PcNote back;
+            PcSaveFileInfo fi;
+            path_in(p, sizeof p, dir, list[i].file);
+            if (!(b = read_bytes(p, &size)))
+                continue;
+            if (pc_save_file_read(b, size, &back, &fi, why, sizeof why) == 0) {
+                kept_name = memcmp(back.dir + 16, prefix, 8) && back.dir[12] != 9 &&
+                            !memcmp(back.dir + 12, friend_.dir + 12, 20);
+                pc_note_free(&back);
+            }
+            free(b);
+        }
+        CHECK(kept_name, "the import's file has its own name and extension, not the game's");
+    }
     /* the game deletes the imported ghost: to the trash */
     PcNote keep[PC_PAK_NOTES];
     int kk = 0;
@@ -890,6 +921,69 @@ static void test_imports_and_damage(void)
     CHECK(corrupt == 1, "the damaged one kept as .corrupt-DATE");
     pc_store_close(3);
     pc_note_free(&mine), pc_note_free(&friend_), pc_note_free(&pr);
+}
+
+/* A ghost put in the folder itself, not in import/: the import's check (pc_ghost_check) still runs, so a hostile one
+ * (car 200, which GhostStart indexes [5][13] by; samples that unzip past their header's size) is set aside as damaged
+ * and never reaches the pak; a good one beside it does. And no folder at all (""): refused, not walked past. */
+static void test_ghost_in_folder(void)
+{
+    char dir[1100], why[200], msg[300];
+    fresh_dir(dir, sizeof dir, "byhand");
+    make_dirs(dir);
+    PcNote good, car, zip;
+    make_ghost(&good, "CAROL", 1, 0, 70.0f, 700, -1);
+    make_ghost(&car, "DAVE", 2, 0, 80.0f, 800, -1);
+    car.data[8] = 200;
+    u32h(car.data, pc_save_hash(car.data + 4, 0x40));
+    make_ghost(&zip, "EVE", 3, 1, 90.0f, 900, -1);
+    u32h(zip.data + 0x40, 900 * 3 - 3);   /* the samples make 3 bytes more than the header says */
+    u32h(zip.data, pc_save_hash(zip.data + 4, 0x40));
+    put_file(dir, "good.r49ghost", &good, PC_ORIGIN_GAME);
+    put_file(dir, "car.r49ghost", &car, PC_ORIGIN_GAME);
+    put_file(dir, "zip.r49ghost", &zip, PC_ORIGIN_IMPORT);
+    CHECK(pc_store_open(2, dir, NULL, "v", msg, sizeof msg) == 0, "opened: %s", msg);
+    CHECK(pc_store_build(2, g_img, why, sizeof why) == 0, "build: %s", why);
+    PcNote in[PC_PAK_NOTES];
+    int k = image_notes(g_img, in), ghosts = 0, has_good = 0;
+    for (int i = 0; i < k; i++) {
+        PcNoteInfo info;
+        pc_note_info(&in[i], &info);
+        ghosts += info.kind == PC_NOTE_GHOST;
+        has_good |= pc_note_equal(&in[i], &good);
+    }
+    CHECK(ghosts == 1 && has_good, "only the good ghost on the pak (%d ghosts)", ghosts);
+    DIR *d = opendir(dir);
+    int corrupt = 0;
+    for (struct dirent *de; d && (de = readdir(d));)
+        corrupt += strstr(de->d_name, ".r49ghost.corrupt-") != NULL;
+    if (d)
+        closedir(d);
+    CHECK(corrupt == 2, "the two set aside as .corrupt-DATE (%d)", corrupt);
+    free_notes(in, k);
+    pc_store_close(2);
+    CHECK(pc_store_open(2, "", NULL, "v", msg, sizeof msg) == -1, "no folder: %s", msg);
+    pc_store_close(2);
+    pc_note_free(&good), pc_note_free(&car), pc_note_free(&zip);
+}
+
+/* One saves folder given to two controllers (game.saves2_dir = the first's): pc_store_write finds a store by its folder
+ * and pakwrite queues by path, so they would diff each other's images; the second is refused, the lowest keeps it, in
+ * either order, and any spelling of it. */
+static void test_one_folder_each(void)
+{
+    char dir[1100], other[1200], msg[300];
+    fresh_dir(dir, sizeof dir, "shared");
+    make_dirs(dir);
+    snprintf(other, sizeof other, "%s/", dir);
+    CHECK(pc_store_open(0, dir, NULL, "v", msg, sizeof msg) == 0, "controller 1: %s", msg);
+    CHECK(pc_store_open(1, other, NULL, "v", msg, sizeof msg) == -1 && strstr(msg, "controller 1's"),
+          "controller 2, the same folder: %s", msg);
+    pc_store_close(0), pc_store_close(1);
+    pc_store_configure(0, dir, NULL, "v");   /* controller 1's chosen later, controller 2's open first */
+    CHECK(pc_store_open(1, dir, NULL, "v", msg, sizeof msg) == -1, "controller 2 before 1: %s", msg);
+    CHECK(pc_store_open(0, dir, NULL, "v", msg, sizeof msg) == 0, "controller 1 then: %s", msg);
+    pc_store_close(0), pc_store_close(1);
 }
 
 /* Every reader under hostile input: a ghost file mutated (bytes, truncations, extensions; the CRC made right half the
@@ -977,6 +1071,8 @@ int main(int argc, char **argv)
     test_writes();
     test_choice();
     test_imports_and_damage();
+    test_ghost_in_folder();
+    test_one_folder_each();
     test_fuzz();
     printf("%d of %d checks passed\n", g_checks - g_failed, g_checks);
     return g_failed;
