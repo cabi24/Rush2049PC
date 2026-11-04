@@ -36,8 +36,9 @@ aarch64) builds come from the release workflow ([docs/port/RELEASE.md](docs/port
   ([SAVES.md](docs/port/SAVES.md)).
 
 At its default each is the N64's game exactly. [CHANGES.md](CHANGES.md) ("Next") has the details, the settings
-table is in [FRONTEND.md](docs/port/FRONTEND.md), and the README.txt in each archive says where each setting is, when
-it applies, and which to pick.
+table is in [FRONTEND.md](docs/port/FRONTEND.md), and the README.txt in each archive
+([Windows](dist/README-windows.txt), [Linux](dist/README-linux.txt)) says where each setting is, when it applies, and
+which to pick; the mods folder's ([dist/mods-README.txt](dist/mods-README.txt)) how to make a mod.
 
 ## Playing
 
