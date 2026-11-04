@@ -139,17 +139,18 @@ use").
 the heap's end is the one place osMemSize is read, and the free total is asked for in the two places above (every
 call of `audio_output_setup` in the game C). The sound banks, the MusyX DMA caches and voices, the frame buffers,
 the per-frame lists and the matrix pools have fixed sizes, or sizes the Expansion Pak flag picks (the sound
-manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and the flag is set at every size; nothing caches files by the room left; heap compaction
-(`car_damage_visual` = ClearMemory) runs where InitWaves calls it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
+manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and the flag is set at every size;
+nothing caches files by the room left; heap compaction (`car_damage_visual` = ClearMemory) runs where InitWaves calls
+it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 
 - **Races** fit with room to spare. On the retail cartridge at `original` (the heap's 6.5 MiB), a one- or two-player
   race or a battle holds about half of the heap at its peak, a stunt about a third, and the least free is one block
   of about 3 MB (the retail runs of section 6, read from the exit line). The synthetic race's peak is 0.9 MiB.
 - **LoadCars' fallbacks** happen only when the car files don't fit: without the Expansion Pak, or with files larger
   than the cartridge's. On the retail cartridge without the pak, a race of 12 cars shares car types four or five
-  times and leaves the 4 MiB heap a few KB free (section 6). With 6 car files each 1 MB larger (`membig8`, at `original`) the heap is short for a drone's
-  car once and LoadCars shares a type; with `memory = 64` and files 3 MB larger (`membig`) no car is refused and the
-  heap's peak is 18.9 MiB.
+  times and leaves the 4 MiB heap a few KB free (section 6). With the car files each 1 MB larger (`membig8`, at
+  `original`) the heap is short for a drone's car once and LoadCars shares a type; with `memory = 64` and files 3 MB
+  larger (`membig`) no car is refused and the heap's peak is 18.9 MiB.
 - **A finding: the free total, not the largest block.** LoadCars compares the heap's free total with the file's
   size, but a file needs one block. At 8 MiB the heap's free space is split by the runtime images' block at
   0x8038A400 (2 MiB in), so with car files 3 MB larger the check passes (2.98 MB free in all) while the largest free
@@ -202,7 +203,7 @@ manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and
 
 | Fix taken out | Fails |
 |---|---|
-| `pc_n64_ptr` at 8 MiB | `gfx.window.highmem` (no RAM at 0x81200000), `audio_window`, the self-test |
+| `pc_n64_ptr` at 8 MiB | `gfx.window.highmem` (no RAM at 0x81200000), `audio_window` |
 | `osVirtualToPhysical` physical past 16 MiB | `gfx.window.highmem` (its check of the RCP's addresses; the picture itself is saved by the renderer's rule) |
 | the renderer's physical rule | `gfx.window.highmem` (the renderer runs off into the wrong RAM and faults) |
 | `pc_rcp_reloc` with the N64's 24 bits | `assets_wad_game`: the relocated VTX, G_DL and SETTIMG words 16 MiB low |
@@ -215,13 +216,14 @@ manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and
 |---|---|
 | `synth_compare.py --same --runs 2`, base against the branch at `original`, Debug, build host (x86-64, GCC 14): every path the base has (25) | the same trace, every run: 25 of 25 (48.5 s and 48.4 s of runs) |
 | the same, Pi 5 (aarch64, GCC 12) | 25 of 25 (98.6 s and 92.6 s) |
-| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run, each reaching its state: 6 of 6, the branch's runs as long as the base's within 3% |
+| the same on the retail cartridge, Pi 5: `race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause` (`--script`, one game at a time) | the same trace, every run, each reaching its state: 6 of 6; the six took as long with the branch as with the base (their totals 2% apart) |
 | `data.c`, `data_symbols.txt`, the synthetic cartridge | the same files as the base's (build host and Pi) |
 | ctest, build host: Debug `build/pc`, RelWithDebInfo `build/opt` | 272 of 272 each (17 new; `assets_rom` skipped: no ROM there) |
 | `n64_neutral.py --base 09da2f0` | passes (1,015 files: 92 code-exact, 923 shifted) |
 | the N64 IDO check (`tools/port/ido_check.sh`, build host, aa28919) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 | `offset_check --strict`, `alias_check`, `layout_check`, `endian_check`, build host | no open findings, base and branch; offset_check 59,463 accesses (5 more, the new statements), layout_check 48,208; endian_check's 2 open value conflicts in 1 storage and 3,525 puns, as the base's |
 | `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`; the base's counts |
+| `memory = 256`, the most, with everything the game allocates in the window's last 6 MiB (RUSH2049_TEST_HEAP_FLOOR=250: from 0x8FA00000) against `original`: the 11 paths of `synth_memory_same`, RelWithDebInfo, build host | the same trace, 11 of 11; race2p's screenshot byte for byte the same; the exit line's heap to 0x90000000 |
 | Windows cross build (Pi, mingw-w64 12, fresh configure, SDL2 fetched) | builds, `gfx_window_test.exe` and `test_audio_window.exe` with it; gen_data's check of the PE: OK, 26 decoupled, 1 reserved in the window. (It first failed to link two asset tests: weak definitions, which mingw's linker doesn't bind, and `setenv`; fixed in 87d781e and 00b5001) |
 | ASan + UBSan, aarch64 (Pi 5, `-DRUSH_SANITIZE=address,undefined`, CI's arm sanitize job's build): the self-test at 64 and 256 MiB, `gfx.window.*`, `audio_window`, `assets_heap`, `assets_wad_game`, `frontend.memory`, the synthetic `mem*` paths and their screenshot comparisons (21 tests) | all pass, no ASan or UBSan report: the window of 64 and 256 MiB at 0x80000000 is under ASan's shadow, which covers everything below 64 GiB there |
 
