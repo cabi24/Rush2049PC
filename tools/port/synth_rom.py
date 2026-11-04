@@ -509,20 +509,24 @@ CODE_MODELS = ["AAANULLOBJ", "MINEG1"]
 WAD_OBJS = 8                   # the OBJS chunk comes first in these WADs, right after the header
 
 
-def obhd(name, dl, vtx, radius=100.0):
+def obhd(name, dl, vtx, radius=100.0, lods=None):
     """An OBHD model record, 0x58 bytes: one LOD whose display list and vertices are file-relative (SetupWaveModel
-    adds the file's address); the other three LODs zero."""
+    adds the file's address); the other three LODs zero. lods: [(display list, vertices, lodRad)] instead, up to four
+    (particle_system: level k is drawn out to its lodRad, the last one's is the model's distance limit, 0 none)."""
+    lods = lods or [(dl, vtx, 1e6)]
     b = Buf()
     b.raw(name16(name))
     b.f32(radius)               # radius
     b.u16(0)                    # kind
-    b.u16(1)                    # lodCount
-    b.u16(0)                    # lod 0: texidx
-    b.u16(0)                    #        flags: no texture of its own (0x8000), no lighting (0x10)
-    b.f32(1e6)                  #        lodRad
-    b.u32(dl)                   #        displayList
-    b.u32(vtx)                  #        vtxList
-    b.raw(bytes(0x30))          # lods 1-3
+    b.u16(len(lods))            # lodCount
+    for ldl, lvtx, rad in lods:
+        b.u16(0)                # lod k: texidx
+        b.u16(0)                #        flags: no texture of its own (0x8000), no lighting (0x10)
+        b.f32(rad)              #        lodRad
+        b.u32(ldl)              #        displayList
+        b.u32(lvtx)             #        vtxList
+    b.raw(bytes(0x10 * (4 - len(lods))))
+    assert len(b) == 0x58
     return b.b
 
 
@@ -635,6 +639,17 @@ def model_objs(models):
     out, where = b"", {}
     for m in models:
         ground = m == WORLD_NODE
+        if m in DETAIL_MODELS:                    # the detail world's (detail_world): a level a box each
+            lods = []
+            for size, rgba, rad in DETAIL_MODELS[m]:
+                verts, dlist = mesh([(q, rgba) for q, _ in box_quads(*size)])
+                vtx_off = WAD_OBJS + len(out)
+                out += verts
+                dl_off = WAD_OBJS + len(out)
+                out += dlist(vtx_off)
+                lods.append((dl_off, vtx_off, rad))
+            where[m] = (lods[0][0], lods[0][1], 100.0, lods)
+            continue
         verts, dlist = mesh(ground_quads() if ground else box_quads(*BOX))
         vtx_off = WAD_OBJS + len(out)
         out += verts
@@ -670,7 +685,8 @@ def texture_wad(names, models=(), palettes=("",)):
     objs, where = model_objs(models)
     chunks = [("OBJS", objs, None)]
     if models:
-        chunks.append(("OBHD", b"".join(obhd(m, *where[m]) for m in models), len(models)))
+        chunks.append(("OBHD", b"".join(obhd(m, *where[m][:3], lods=where[m][3] if len(where[m]) > 3 else None)
+                                        for m in models), len(models)))
     chunks.append(("TXHD", recs, len(names)))
     if palettes:
         chunks.append(("PLHD", b"".join(plhd(n, len(image)) for n in palettes), len(palettes)))
@@ -745,33 +761,71 @@ WORLD_NAME = "WORLD"           # every track's world (gWorldNames) and its one n
 WORLD_NODE = "TRACK"
 
 
-def world_node(name, pos=(0.0, 0.0, 0.0), next_index=0xFFFF):
-    """A WOBJ node, 0x68 bytes: its name (a model name, or a target's), an identity rotation and a position, no
-    flags, its next sibling (0xFFFF none), no child, no sounds or texture index, a zero bound."""
+def world_node(name, pos=(0.0, 0.0, 0.0), next_index=0xFFFF, flags=0, box=(0, 0, 0, 0, 0, 0)):
+    """A WOBJ node, 0x68 bytes: its name (a model name, or a target's), an identity rotation and a position, its
+    flags (the scene node's, differential_output), its next sibling (0xFFFF none), no child, no sounds or texture
+    index, its bound (min[3], max[3] from its place: zero for none; a top-level node's is the world's visibility
+    cell, WorldCullObjects, and its scene node's culling box, func_800A7E10)."""
     node = Buf()
     node.raw(name16(name))
     for v in (1, 0, 0, 0, 1, 0, 0, 0, 1) + tuple(pos):   # mat[12]: rotation, then translation
         node.f32(float(v))
-    node.u32(0)                 # dlflags
+    node.u32(flags)             # dlflags
     node.u16(next_index)        # next
     node.u16(0xFFFF)            # child: none
     node.u16(0)
     node.u16(0)                 # sfx1, sfx2
     node.u32(0)                 # tidx
-    for v in (0, 0, 0, 0, 0, 0):
+    for v in box:
         node.f32(float(v))      # min[3], max[3]
     assert len(node) == 0x68
     return node.b
 
 
-def world_wad(targets=()):
+# The detail world (track 0, docs/port/DETAIL.md 6): what the game's distance limits read, so the draw distance and
+# detail settings have something to change. Its root is the ground (TRACK, as every track's) with a bound round the
+# loop, the visibility cell the eye is in; then five parts, each a model of its own in the track's WAD:
+#   SYN_NEAR     a tower 300 ft outside the loop's first side, about 1,500 ft ahead of the start: the ground's row
+#                lets it through
+#   SYN_HIDDEN   one inside the loop, about 1,800 ft from the start: not in the ground's row (the N64 hides it), in
+#                its own cell's row, which far adds (within 2,000 ft of the eye)
+#   SYN_FAR      one 4,000 ft past the loop, 6,000 ft from the start: in no row the eye reaches, past the matrices'
+#                2,048 ft and far's 4,096 ft: max alone draws it
+#   SYN_LOD      two levels, red out to 200 ft and blue out to 1,200 ft, about 2,000 ft from the start: past its last
+#                level (the N64 leaves it out), blue at far, red with detail high
+#   SYN_SCENERY  far scenery (flag 0x400000) 21,000 ft out: pulled in to 1,600 ft (func_8009D708), max at its place
+# The paths that read it (tools/port/synth/detail*.press) race two seconds from the start, the eye within 100 ft of it.
+# The rows (D_8011B898, track 0's table): the ground's lets through the ground, NEAR, LOD and SCENERY; each part's
+# lets through the ground and itself (HIDDEN's NEAR too).
+DETAIL_TRACK = 0   # the track select of this cartridge offers no other (its option 0, the track, isn't valid)
+DETAIL_MODELS = {   # name: [(box half-sizes in sixteenths of a foot, colour, lodRad)] a level each
+    "SYN_NEAR": [((20 * UNITS, 300 * UNITS, 20 * UNITS), (220, 220, 220, 255), 0.0)],
+    "SYN_HIDDEN": [((20 * UNITS, 300 * UNITS, 20 * UNITS), (240, 140, 40, 255), 0.0)],
+    "SYN_FAR": [((40 * UNITS, 600 * UNITS, 40 * UNITS), (200, 40, 200, 255), 0.0)],
+    "SYN_LOD": [((30 * UNITS, 200 * UNITS, 30 * UNITS), (230, 40, 40, 255), 200.0),
+                ((30 * UNITS, 200 * UNITS, 30 * UNITS), (40, 60, 230, 255), 1200.0)],
+    "SYN_SCENERY": [((2000 * UNITS, 1500 * UNITS, 2000 * UNITS), (90, 90, 160, 255), 0.0)],
+}
+DETAIL_PARTS = [   # (name, place, flags, bound), the world's top-level nodes after the ground, and the rows
+    ("SYN_NEAR", (1500.0, 0.0, -300.0), 0, (-40, 0, -40, 40, 300, 40)),
+    ("SYN_HIDDEN", (1200.0, 0.0, 1300.0), 0, (-40, 0, -40, 40, 300, 40)),
+    ("SYN_FAR", (6000.0, 0.0, 1000.0), 0, (-80, 0, -80, 80, 600, 80)),
+    ("SYN_LOD", (1800.0, 0.0, -1000.0), 0, (-60, 0, -60, 60, 200, 60)),
+    ("SYN_SCENERY", (21000.0, 0.0, 1000.0), 0x400000, (-2000, 0, -2000, 2000, 1500, 2000)),
+]
+DETAIL_ROWS = [0x33, 0x03, 0x07, 0x09, 0x11, 0x21]   # parts 0-5: the ground, then DETAIL_PARTS
+DETAIL_GROUND_BOUND = (-1100, -50, -1100, 1100, 500, 1100)   # round the loop, from the ground's place
+
+
+def world_wad(targets=(), nodes=None):
     """A world WAD (ASSETS.md 3.4, port/assets/world.c): WHDR names one world, whose root is the WOBJ node TRACK
     (its model is in the track WAD) and its siblings, one per target (name, position): the world walk
     (differential_output) offers each node to the target table (transmission_ratio_get), which makes a level object
     of a node whose name starts with a target's. GDAT one quadtree node, a leaf with nothing in it; GTLD no target
     keys."""
-    nodes = [(WORLD_NODE, GROUND_CENTRE)] + list(targets)
-    wobj = b"".join(world_node(n, pos, i + 1 if i + 1 < len(nodes) else 0xFFFF) for i, (n, pos) in enumerate(nodes))
+    nodes = nodes or [(WORLD_NODE, GROUND_CENTRE)] + list(targets)
+    wobj = b"".join(world_node(n[0], n[1], i + 1 if i + 1 < len(nodes) else 0xFFFF, *n[2:])
+                    for i, n in enumerate(nodes))
     whdr_at = WAD_OBJS          # chunks are laid out in order from just after the header
     whdr = Buf()
     whdr.u32(1)
@@ -1198,6 +1252,9 @@ def race(c):
     # names. gWorldNames (D_8011A924, char *[19]) names every track's world.
     for t in range(19):
         c.set("game", "D_8011A924", "ptr", c.string(WORLD_NAME), f"gWorldNames: track {t}'s world", index=t)
+        if t == DETAIL_TRACK:
+            detail_world(c, t)
+            continue
         c.file(101 + t, texture_wad(CODE_TEXTURES + OWN_TEXTURES, CODE_MODELS + [WORLD_NODE]), f"track {t} WAD",
                model=True)
         icons = ARENA_ICONS if t in BATTLE_ARENAS else ()
@@ -1333,6 +1390,34 @@ def race(c):
     for t in range(19):
         c.set("game", "D_8011AF90", "ptr", colours, "gTrackColors: a track's colours" if t == 0 else "(same)",
               index=t)
+
+
+def detail_world(c, t):
+    """Track t's files and tables for the detail world (DETAIL_PARTS above; docs/port/DETAIL.md 6): its WAD with the
+    parts' models, its world, its road; the parts the world's visibility (WorldCullObjects) walks, D_8011E748[t], and
+    its table's rows, D_8011B898 (track 0's). And the fog the track select's fog option gives one player
+    (func_800AB18C, [players][option]): for options 1-3 the fog's start (gSPFogPosition's min, of 1,000), the far
+    plane (ft) and the radius past which a part with a bound is left out (ft, D_80151AA0). No fog regions
+    (D_8011E76C stays NULL)."""
+    models = CODE_MODELS + [WORLD_NODE] + list(DETAIL_MODELS)
+    c.file(101 + t, texture_wad(CODE_TEXTURES + OWN_TEXTURES, models), f"track {t} WAD: the detail world's models",
+           model=True)
+    nodes = [(WORLD_NODE, GROUND_CENTRE, 0, DETAIL_GROUND_BOUND)] + DETAIL_PARTS
+    c.file(120 + t, world_wad(nodes=nodes), f"track {t} world: the detail world, the ground and {len(DETAIL_PARTS)} "
+           "parts")
+    c.file(139 + t, road_file(), f"track {t} road: flat pavement, one surface")
+    assert t == 0   # D_8011B898 is track 0's table
+    c.set("game", "D_8011E748", "u8", len(nodes), "the detail world's parts (WorldCullObjects)", index=t)
+    for r, bits in enumerate(DETAIL_ROWS):
+        c.set("game", "D_8011B898", "u32", bits, "the detail world's visibility: a cell's row, the parts it lets "
+              "through" if r == 0 else "(same)", offset=16 * r)
+    for opt, (fogmin, far, radius) in enumerate(((990, 1500, 1200.0), (985, 1000, 800.0), (980, 600, 500.0)), 1):
+        c.set("game", "D_8011E810", "u16", fogmin, "one player's fog, option 1-3: its start (of 1,000)" if opt == 1
+              else "(same)", offset=8 * 1 + 2 * opt)
+        c.set("game", "D_8011E7F0", "u16", far, "one player's fog: the far plane, ft" if opt == 1 else "(same)",
+              offset=8 * 1 + 2 * opt)
+        c.set("game", "D_8011E7A8", "f32", radius, "one player's fog: the radius a part is drawn to, ft" if opt == 1
+              else "(same)", offset=16 * 1 + 4 * opt)
 
 
 def car_tables(c):
