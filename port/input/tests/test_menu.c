@@ -22,6 +22,8 @@
  *           nothing when closed
  *   pages   About's content from main's facts, the GL driver, the players and the files, made each time it opens;
  *           Help from the bindings in effect
+ *   presets the Presets page: each preset's settings afterwards, the live ones applied, the restart ones only in the
+ *           settings, Save's count and file
  * pictures (not a CTest) writes each page as a PNG into SCRATCH_DIR, at 1280 x 960, to look at. */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -213,6 +215,8 @@ static void test_nav(void)
     act(PC_MENU_ACCEPT);
     at("About", "Version", "unknown", "About, with nothing from main");
     act(PC_MENU_BACK);
+    act(PC_MENU_DOWN);
+    at("Settings", "Presets", ">", "Presets, the first of the actions (FRONTEND.md \"Presets\")");
     act_n(PC_MENU_DOWN, 4);
     at("Settings", "Video", NULL, "wrapped past Quit");
     act(PC_MENU_UP);
@@ -582,7 +586,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     pc_menu_capture("Space");  /* keyboard A, which the file lacks */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 7);
+    act_n(PC_MENU_DOWN, 8);   /* past Presets */
     at("Settings", "Save to rush2049pc.ini", "4 changes", "four to save");
     act(PC_MENU_ACCEPT);
     at("Settings", "Save to rush2049pc.ini", "saved", "saved");
@@ -607,17 +611,17 @@ static void test_save(void)
     CHECK(text && !strcmp(read_text(path), want), "nothing more to save: unchanged");
     CHECK(!strcmp(pc_menu_message(), "Nothing to save"), "the message: '%s'", pc_menu_message());
     at("Settings", "Save to rush2049pc.ini", "saved", "still saved");
-    act_n(PC_MENU_UP, 8);
+    act_n(PC_MENU_UP, 9);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);         /* the volume 95: something to save again */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 8);
+    act_n(PC_MENU_DOWN, 9);
     at("Settings", "Save to rush2049pc.ini", "1 change", "a change after the save");
-    act_n(PC_MENU_UP, 8);
+    act_n(PC_MENU_UP, 9);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_RIGHT);        /* and back to what the file has */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 8);
+    act_n(PC_MENU_DOWN, 9);
     at("Settings", "Save to rush2049pc.ini", "saved", "the file has it all again");
     PcSettings back;
     pc_settings_defaults(&back);
@@ -642,7 +646,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 8);
+    act_n(PC_MENU_DOWN, 9);
     act(PC_MENU_ACCEPT);
     pc_settings_defaults(&back);
     back.volume = 95;
@@ -1358,13 +1362,13 @@ static void test_mods(void)
     act(PC_MENU_DOWN);
     at("Mods", "2. Blue", "on", "then blue: the selection moves again");
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 4);
+    act_n(PC_MENU_DOWN, 5);   /* past Saves, Help, About and Presets */
     at("Settings", "Save to rush2049pc.ini", "2 changes", "two changes: red's flag and the order");
     act(PC_MENU_ACCEPT);
     text = read_text(path);
     CHECK(text && strstr(text, "mods_order = red, blue, noini\n") && strstr(text, "\n[mods]\nred = off\n"),
           "saved: the order and red's flag:\n%s", text ? text : "(none)");
-    act_n(PC_MENU_UP, 4);
+    act_n(PC_MENU_UP, 5);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_PAGE_DOWN);
     at("Mods", "Defaults", NULL, "a page down: Defaults");
@@ -1378,14 +1382,145 @@ static void test_mods(void)
     pc_menu_set_mods(NULL, 0, "");
 }
 
+/* ---------------------------------------------------------------- presets (FRONTEND.md "Presets") */
+
+/* The Presets page over a hand-written file with fog far: each preset sets its settings as their pages do (the live
+ * ones at once, the restart ones only in the settings, game.frame_rate's latch kept), Save counts and writes them. */
+static void test_presets(void)
+{
+    char path[PC_CFG_PATH - 64], *text;
+    PcSettings s, back;
+    snprintf(path, sizeof path, "%s/presets.ini", g_dir);
+    write_text(path, "; mine\n[video]\nfog = far   ; my fog\n");
+    pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, NULL, 0);
+    CHECK(s.fog == PC_FOG_FAR, "the file's fog far: %d", s.fog);
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    pc_game_fps_set(0);
+    pc_game_fps_begin();
+    act(PC_MENU_TOGGLE);
+    act_n(PC_MENU_DOWN, 9);
+    at("Settings", "Presets", ">", "Presets: after About, before Save");
+    act(PC_MENU_ACCEPT);
+    at("Presets", "N64 original", "", "N64 original: not in effect (the file's fog far)");
+    act(PC_MENU_DOWN);
+    at("Presets", "PC enhanced", "", "PC enhanced");
+    act(PC_MENU_DOWN);
+    at("Presets", "PC maximum", "", "PC maximum, the last");
+
+    /* PC enhanced: seven changed (widescreen is auto already), two after a restart */
+    act(PC_MENU_UP);
+    act(PC_MENU_ACCEPT);
+    at("Presets", "PC enhanced", "in effect", "chosen: in effect");
+    CHECK(!strcmp(pc_menu_message(), "PC enhanced: 7 changed, 2 after a restart (*)"), "the message: '%s'",
+          pc_menu_message());
+    const PcSettings *e = pc_menu_settings();
+    CHECK(e->game_fps == 60 && e->draw_distance == PC_DRAW_FAR && e->detail == PC_DETAIL_HIGH &&
+              e->texture_lod == PC_TEXLOD_ANISO && e->widescreen == -1 && pc_settings_voices(e) == 64 &&
+              pc_settings_engines(e) == PC_ENGINES_ALL && e->memory == 64,
+          "the settings: 60, far, high, anisotropic, auto, 64 voices, all, 64 MiB");
+    CHECK(e->fog == PC_FOG_FAR && e->textures == 0 && e->cars == 0 && e->scale == s.scale && e->hud == s.hud,
+          "the fog as the file has it; the textures, the cars, the scale and the HUD untouched");
+    CHECK(pc_gfx_draw_distance() == PC_DRAW_FAR && pc_draw_distance() == PC_DRAW_FAR && pc_detail() == PC_DETAIL_HIGH &&
+              pc_gfx_texture_lod() == PC_TEXLOD_ANISO && pc_gfx_fog() == PC_FOG_FAR && pc_engines() == PC_ENGINES_ALL,
+          "applied at once: the renderer's and the game's distance %d %d, detail %d, texture lod %d, fog %d, engines %d",
+          pc_gfx_draw_distance(), pc_draw_distance(), pc_detail(), pc_gfx_texture_lod(), pc_gfx_fog(), pc_engines());
+    CHECK(pc_game_fps_setting() == 60 && pc_fps60 == 0, "the game's frame rate: the setting 60, the screen's 30 kept");
+    pc_game_fps_begin();
+    CHECK(pc_fps60 == 1, "the next screen at 60");
+    CHECK(pc_mx_voices() == 32, "the voices after a restart: the library's 32 kept (%d)", pc_mx_voices());
+    act(PC_MENU_BACK);
+    act(PC_MENU_DOWN);
+    at("Settings", "Save to rush2049pc.ini", "7 changes", "Save counts the preset's seven");
+    /* on their pages: Voices (marked *) and Draw distance show the preset's values */
+    act_n(PC_MENU_UP, 9);
+    act(PC_MENU_ACCEPT);
+    act_n(PC_MENU_DOWN, 2);
+    at("Audio", "Voices", "64", "the Audio page: 64 voices");
+    act(PC_MENU_BACK);
+    act(PC_MENU_UP);
+    act(PC_MENU_ACCEPT);
+    act_n(PC_MENU_UP, 4);   /* round from the top, past Far textures, Fog and Detail */
+    at("Video", "Draw distance", "far (2x)", "the Video page: far");
+
+    /* PC maximum over it: three more (draw distance max, fog off, textures upscaled), none after a restart */
+    act(PC_MENU_BACK);
+    act_n(PC_MENU_UP, 4);
+    at("Settings", "Presets", ">", "Presets again");
+    act(PC_MENU_ACCEPT);
+    at("Presets", "PC enhanced", "in effect", "the page kept its place");
+    act(PC_MENU_DOWN);
+    act(PC_MENU_ACCEPT);
+    at("Presets", "PC maximum", "in effect", "PC maximum in effect");
+    CHECK(!strcmp(pc_menu_message(), "PC maximum: 3 changed (not saved yet)"), "the message: '%s'", pc_menu_message());
+    CHECK(pc_gfx_draw_distance() == PC_DRAW_MAX && pc_draw_distance() == PC_DRAW_MAX && pc_gfx_fog() == PC_FOG_OFF &&
+              pc_menu_settings()->textures == 1,
+          "max, fog off at once, textures upscaled: %d %d %d", pc_gfx_draw_distance(), pc_gfx_fog(),
+          pc_menu_settings()->textures);
+    act(PC_MENU_UP);
+    at("Presets", "PC enhanced", "", "enhanced no longer (the draw distance)");
+    act(PC_MENU_DOWN);
+    act(PC_MENU_ACCEPT);
+    CHECK(!strcmp(pc_menu_message(), "PC maximum: in effect already"), "again: '%s'", pc_menu_message());
+
+    /* Save: the nine that differ from the file (not widescreen, the default), the file's own lines kept */
+    act(PC_MENU_BACK);
+    act(PC_MENU_DOWN);
+    at("Settings", "Save to rush2049pc.ini", "9 changes", "nine to save");
+    act(PC_MENU_ACCEPT);
+    CHECK(!strcmp(pc_menu_message(), "Saved 9 settings to presets.ini"), "the message: '%s'", pc_menu_message());
+    text = read_text(path);
+    CHECK(text && !strncmp(text, "; mine\n[video]\nfog = off   ; my fog\n", 36) && strstr(text, "\ndraw_distance = max\n") &&
+              strstr(text, "\ndetail = high\n") && strstr(text, "\ntexture_lod = anisotropic\n") &&
+              strstr(text, "\ntextures = upscaled\n") && strstr(text, "\nframe_rate = 60\n") &&
+              strstr(text, "\nmemory = 64\n") && strstr(text, "\nvoices = 64\n") && strstr(text, "\nengines = all\n") &&
+              !strstr(text, "widescreen") && !strstr(text, "preset"),
+          "saved:\n%s", text ? text : "(none)");
+    pc_settings_defaults(&back);
+    CHECK(pc_settings_load_file(&back, path) == 0, "reads back");
+    const PcPreset *table;
+    pc_presets(&table);
+    CHECK(pc_preset_in_effect(&back, &table[2]), "the file has PC maximum");
+
+    /* N64 original: every one of them back to its default, two after a restart */
+    act(PC_MENU_UP);
+    act(PC_MENU_ACCEPT);
+    act_n(PC_MENU_UP, 2);
+    at("Presets", "N64 original", "", "N64 original");
+    act(PC_MENU_ACCEPT);
+    at("Presets", "N64 original", "in effect", "N64 original in effect");
+    CHECK(!strcmp(pc_menu_message(), "N64 original: 9 changed, 2 after a restart (*)"), "the message: '%s'",
+          pc_menu_message());
+    CHECK(pc_gfx_draw_distance() == PC_DRAW_ORIGINAL && pc_draw_distance() == PC_DRAW_ORIGINAL &&
+              pc_detail() == PC_DETAIL_ORIGINAL && pc_gfx_fog() == PC_FOG_ORIGINAL &&
+              pc_gfx_texture_lod() == PC_TEXLOD_ORIGINAL && pc_engines() == PC_ENGINES_ORIGINAL &&
+              pc_game_fps_setting() == 0 && pc_fps60 == 1,
+          "the N64's at once; the game's 60 kept until the next screen");
+    pc_game_fps_begin();
+    CHECK(pc_fps60 == 0, "the next screen at 30");
+    PcSettings d;
+    pc_settings_defaults(&d);
+    char *x = pc_settings_format(pc_menu_settings()), *y = pc_settings_format(&d);
+    CHECK(!strcmp(x, y), "every setting the default again");
+    free(x);
+    free(y);
+    act(PC_MENU_BACK);
+    act(PC_MENU_DOWN);
+    at("Settings", "Save to rush2049pc.ini", "9 changes", "nine to save back");
+    act(PC_MENU_CLOSE);
+    stop();
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"nav", test_nav}, {"live", test_live}, {"save", test_save}, {"script", test_script},
         {"mouse", test_mouse}, {"pages", test_pages}, {"mods", test_mods}, {"saves", test_saves_page},
-        {"pictures", pictures}};
+        {"presets", test_presets}, {"pictures", pictures}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|saves|pictures SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|saves|presets|pictures SCRATCH_DIR\n");
         return 2;
     }
     g_dir = argv[2];

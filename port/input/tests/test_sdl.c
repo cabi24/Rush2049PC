@@ -899,7 +899,7 @@ static void test_menu(void)
     /* the key that closes it doesn't reach the game while it is still held */
     tap(SDL_SCANCODE_F1);
     menu_at("Settings", "Keyboard", NULL, "reopened");
-    for (int i = 0; i < 8; i++)   /* past Controllers, Game, Mods, Saves, Help, About and Save */
+    for (int i = 0; i < 9; i++)   /* past Controllers, Game, Mods, Saves, Help, About, Presets and Save */
         tap(SDL_SCANCODE_DOWN);
     menu_at("Settings", "Resume", NULL, "Resume");
     key(SDL_SCANCODE_RETURN, 1, 0);
@@ -933,9 +933,9 @@ static void test_menu(void)
     button(&pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK, 0);
     pump();
     menu_at("Settings", "Resume", NULL, "where it was");
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 8; i++)
         press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
-    menu_at("Settings", "Controllers", NULL, "D-pad up seven times");
+    menu_at("Settings", "Controllers", NULL, "D-pad up eight times");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
     menu_at("Controllers (all players)", "A", "a, righttrigger", "A opens the page");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
