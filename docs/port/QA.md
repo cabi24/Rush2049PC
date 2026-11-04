@@ -446,3 +446,133 @@ waiting frame at the retrace's present instead is left to the high frame rate's 
   had the original textures.
 - The per-player paks (`game.pak2`-`pak4`) came in after this soak's runs were planned and weren't part of the
   configuration.
+
+## Integration QA of the PC features
+
+2026-11-04, on main 1ec5f69. The features of the night before had each been proven alone: `game.memory`
+([MEMORY.md](MEMORY.md)), `video.draw_distance`, `video.detail` and `video.fog` ([DETAIL.md](DETAIL.md)),
+`game.frame_rate = 60` ([FRAMERATE.md](FRAMERATE.md) 7), the mods folder ([MODS.md](MODS.md)) and `game.saves =
+files` ([SAVES.md](SAVES.md)), with `game.cars` 12, `video.frame_rate` 120, widescreen and texture packs from before.
+This ran them together. "The heaviest settings" below are `game.cars = 12`, `game.memory = 64`, `video.draw_distance
+= max`, `video.detail = high`, `video.fog = off`, `game.frame_rate = 60` and `video.frame_rate = 120`; "with a mod and
+files" adds a mod of every car file recoloured (`rushmods.py extract`, then each palette and RGBA16 texel green, kept
+under `build/`) and `--saves files`. The retail cartridge ran on the Pi 5 (Debug, `--fast` but for the long run, one
+locked job at a time, its logs, screenshots, saves and mod in the ignored `build/qa/`); its results are described in
+words, not numbers.
+
+### What ran
+
+| Run | Where | Result |
+|---|---|---|
+| every synthetic path (56) at the heaviest settings, Debug and RelWithDebInfo | rocky | the same trace in both builds, 56 of 56 (`synth_compare.trace`, `RUSH_STATE_EXACT`, status every second); no fault, no pool past its end, no heap short. The paths' own checks fail only where the settings change what they check (below, "Not bugs") |
+| the same with `video.fog = far`, `video.widescreen = 16:9`, `video.textures = upscaled`, `video.hud = edges` and `--saves files`; at `game.memory = 16` and `256` | rocky | the same: every path to its state, the heap's line `short 0, none 0`; the mods' memory raised to 64 MiB for 12 cars of `mods_big`'s cars at 16 |
+| `saves_check.py`'s five scenarios (import, migrate, game, race, swap) at the heaviest settings, with and without the game at 60 | rocky | 0 failed checks |
+| `synth_paths`' real-time races of 12 cars at the heaviest settings (`soak.py --path race12`, `race2p12`, `demo12`, 1280 x 720) | rocky | each to its state; 0 retraces dropped, 0 underruns; resident memory flat |
+| a single race of 12 cars on each race track (0-5), one player and two, to the results and the game over screen (the track select's Laps 1, the Drones 11 or 10, the gas held) | retail | every one of tracks 0-4 reached the results and the game over screen with 12 cars at places 0-11, each moved; track 5 (gdb unlocking it as MORECARS.md 10.4 did) in a job of its own, see below. No fault, no pool past its end (scene nodes, the tightest, kept a margin of over a tenth: track 1 with two views, which detail high gives the one-player level objects), no heap short, no retrace dropped |
+| the same with a mod and files: tracks 0 and 3 with one player, 2 with two | retail | the same states at the same retraces as without them; the mod's 13 files replaced; the drones' and the player's cars green where their paint is |
+| the attract demo, 12 drones, at the heaviest settings (and with a mod and files) | retail | four demos over 130 s, tracks 0-3, 12 cars each, every car moving |
+| stunt (one player) at the heaviest settings | retail | the arena, the round's clock run out by itself and the game over screen |
+| a two-player battle at the heaviest settings (and with a mod and files) | retail | the arena, two cars, 9 minutes of battle with no fault; it has no time limit and nobody scored, so it didn't end by itself (`r_battlequit` ends one from the pause screen) |
+| the six retail scripts | retail | see "Found and fixed" 11 |
+| track 5, the heaviest settings, one player (1 lap) and two players | retail, a job each | one player: 9 minutes of racing, the gas-only car going round by resurrections without finishing its lap (the job's 28 minutes ran out); two players: 3 minutes of racing (the run's limit). No fault, every car moving, the pools and the heap within bounds |
+| the long run: 25 minutes in real time, the heaviest settings with a mod, files, 16:9 and the HUD at the edges, RelWithDebInfo (the release's type), the null audio drained in real time | retail | menus, a single race of 12 cars paused and resumed, two two-player races, their results and game over screens; no fault. Resident memory steps up when a new kind of screen first appears (the second view) and is flat otherwise (the second half's slope +0.02 MB a minute); the log holds only the state and status lines. The host is behind real time in races of 12 cars at max: retraces caught up and some dropped, about a tenth of the audio buffers played as silence (a Debug build loses more). The script's later steps (the other races, the battle) went astray: one press short at the pause screen's confirmation, found afterwards with `--fast` (below) |
+| the ghost (SAVES.md 11) | retail, files | not written; see "Not bugs" and "Left" |
+
+**The sanitizers** (ASan + UBSan, Debug, the Pi 5: SANITIZE.md's build, `halt_on_error=0` so that every report
+prints, ctest's suppressions):
+
+| Run | Result |
+|---|---|
+| ctest, the new features' 64 tests (`detail`, `mem`, `mods`, `profile`, `ghost`, `saves`, `fps`, `pak`, `game60` in their names, but the real-time ones) | 64 of 64; no report |
+| ctest, the other 237 (but the real-time ones) | 237 of 237; reports only in `sanitize_fault_chain`, the blank cartridge's expected fault and its NaN casts |
+| every synthetic path (56, the mods made first) at the heaviest settings | each to its state (the same checks as the Debug run fail, for the same reasons); no ASan, UBSan or LSan report |
+| retail: a single race of 12 cars on track 0 to its finish at the heaviest settings with a mod and files; track 3 with two players, 30 s of racing; a two-player battle, 30 s; the attract demo, 70 s | each to its state, no ASan or LSan report; one UBSan report, `func_800F207C.c:98` at the results' name entry (12, suppressed with its reason) |
+
+### Found and fixed
+
+#### 10. `rushmods.py extract` refused MODS.md's own example
+
+`python3 tools/mods/rushmods.py extract baserom.us.z64 out/ cars/car01 101-119 --text` (MODS.md 2) stopped at its
+first file: `'cars/car01' is no wave number or name`. `names` lists each wave as `folder/name` and the document wrote
+it so, but `parse_files` took a number, a range or a bare name only. It takes `folder/name` now when the folder is
+the wave's (`tracks/car01` is still refused). Test: `rushmods.py selftest` (ctest `mods_tool`) finds every loaded
+wave by its number, its name and its `folder/name`, and refuses another wave's folder. Found making this section's
+recoloured-car mod.
+
+#### 11. The retail battle scripts ran practice
+
+The six retail scripts of every proof since MORECARS.md 10.4 (`race`, `race2p`, `battle2p`, `stunt`, `battlequit`,
+`pause`, through `synth_compare.py --script`) were the synthetic cartridge's press scripts. On the retail cartridge
+the mode screen of two players lists four modes (single race, practice, stunt, battle; screenshots of it, local),
+not the synthetic cartridge's seven, and draws them in over about 2 s, so `battle2p.press`'s five DOWNs wrap round
+to practice: `battle2p` and `battlequit` compared a two-player practice race on track 0 and its quit (mode 1, track
+0 in their state lines), the same in every run, and no proof ran a battle on the retail cartridge. Found when a
+battle at the heaviest settings came out as practice; the same with every setting at its default.
+
+Fix: `tools/port/retail/battle2p.press` and `battlequit.press`, the retail mode screen (three DOWNs once its list is
+in), each with an `# expect:` line of mode 6, track 6; checked on the retail cartridge at the defaults and at the
+heaviest settings (the battle arena, two cars; the quit reaches the game over screen). And `synth_compare.py` now
+checks a path's or a script's `# expect:` line as `synth_paths.py` does: a run that doesn't end so MISSES and fails,
+however alike the runs are. Test: ctest `synth_compare_expect` (`tools/port/test_synth_compare.py`): its verdicts on
+made-up traces, a practice race the same in every run MISSES a battle's expect, and the retail scripts expect a
+battle. The six retail scripts are now MORECARS.md 10.4's last paragraph's. The synthetic `stunt.press` reaches the
+stunt arena on the retail cartridge as it is (one player's list has stunt four down).
+
+#### 12. UBSan: the name entry's read before an empty name (suppressed)
+
+At the results of a race run to its finish (retail, ASan + UBSan): `billboard_render/func_800F207C.c:98: index -1 out
+of bounds for type 'u8 [13]'`. A high score's name finished with nothing typed has its trailing spaces trimmed with
+`name[len - 1]` at `len` 0, the byte before the name, which is 0 on the N64 and on the PC (the last of `humans`,
+`D_80143A40`, for the first player; the previous name's terminator for the others), so the loop ends before it
+writes. The retail function's own read: suppressed with its reason (`ubsan.supp`, SANITIZE.md 4). No synthetic path
+finishes a race, so CI's sanitizer jobs never reach it.
+
+### Not bugs (checked)
+
+- **The synthetic paths' own checks at the heaviest settings.** `--until-state M:N` and `--screenshot-at N` count
+  graphics tasks, which come every retrace with the game at 60: such a run stops at half its game time
+  (`cheats`, `screens`, `raceend` before their last presses), and `race2p12`'s and `race4p`'s screenshots catch the
+  views still black before the race (at twice the count every view is drawn, 97-98% of each); the `detail_*` paths'
+  checks expect their own settings; `demo`, `race2p`, `rumble2p` and `memhigh2p` expect 6 cars (with `game.cars =
+  12` the attract demo races 12, and two players with the Drones at 5 make 7); a 16:9 picture is 426 wide where
+  `synth_shot.py` wants 320; with `--saves files` there is no `.mpk` for `pak_notes.py`. Every path reaches its
+  state, and each check passes with its own settings.
+- **"Past their last level of detail" at max** (the scene line, about one a car a view): the cars' sheens, which
+  `PC_LOD_REACH` keeps at their reach by design (DETAIL.md 2.2).
+- **A view without its place** in a split-screen screenshot: the place is drawn only while the car is solid
+  (`func_800CF604`: on its wheels, not being put back), as the N64 draws it.
+- **The battle doesn't end** with the gas held: its rules end it on points by default or at a time limit (`countdown.c:276-297`), and nobody shot.
+- **The Pi 5 doesn't run the heaviest settings in real time** (the long run, below): a graphics task takes the
+  Debug build about 35 ms of CPU there; FRAMERATE.md 7.7 and DETAIL.md 4.1 measured the parts. That the program
+  doesn't say so is FRAMERATE.md 7.8's (another agent's).
+- **The retail game saves a ghost to the pak only for one name.** SAVES.md 11's open question: after a ghost race
+  `billboard_render` (`billboard_render.c:117-128`) opens the save prompt only when `D_801148E4` is set, which only
+  LoadPlayerData sets, for a profile named as the cartridge's developer name (`menu_save_options/group.c:335-342`);
+  for any other profile it calls `SaveGhost(..., 1)`, whose limbo is `func_800CB748`: the ghost is copied into the
+  in-memory records table `D_8012E6F8` (three a track and way, `score_insert/func_800CB748.c`), which the track
+  select's ghost choice reads (`cleanup_colortrace/group.c:614-615`) and nothing writes to a pak. So with `game.saves
+  = files` a player's own ghost races are kept for the session only, as on the N64, and the folder's ghosts are the
+  imported ones. A ghost race also has three laps always (`SetOptions`, `large_init_state/group.c:146`) and ends only
+  at its time limit (`countdown.c:309-316`); its track select has no Laps option, and GhostEnd
+  (`nonmatching/game/ghost_race_setup.c:117`) keeps the ghost only of a car that finished its laps.
+
+### Left
+
+- **A ghost the retail game writes into a folder.** The game writes one only through the save prompt, which a
+  profile of another name never gets ("Not bugs"), and only of a car that finished its laps, which a ghost race's
+  three laps and its time limit rule out for a car driven by the gas alone. A gdb poke of the prompt's flag and of
+  gNumLaps at the race start (`CalcPolePositions`) didn't hold: GhostEnd saw 3 laps again (SetOptions runs after it);
+  the next try, gNumLaps set at every checkpoint (`race_countdown_display`), was not run. The synthetic cartridge's
+  `saves_files` (the developer's name there) covers SaveGhost's write into a folder.
+- **Making the game's own ghosts files** for every profile (the session's ghosts in `D_8012E6F8`) would be a design
+  change of `game.saves = files`, not done here.
+- **The long run's battle.** A long run's press script works on the host's clock, so every step after a race must
+  wait at a screen that waits for a press; on this cartridge the pause screen's quit asks to confirm (START, UP, A,
+  RIGHT, A), and the results need an A before the game over screen's UP and A. Both found with `--fast` after the
+  runs; a corrected run was not made.
+- **Track 5 to its finish** at the heaviest settings (the gas-only car doesn't finish its lap), and a battle to its
+  end (nobody scores).
+- **The six retail scripts** with the retail battle scripts, base against the branch: not run (nothing this section
+  changed reaches the program: the fixes are tools, a suppression and documents).
+- Windows (the cross build builds, fresh configure, RelWithDebInfo, every test program); a real display; an audio
+  device (the Pi's build has no SDL2).
