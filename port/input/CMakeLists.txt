@@ -2,7 +2,7 @@
 # pcfrontend there); run them with ctest --test-dir build/pc -R frontend.
 #
 #   frontend_test       no SDL: the INI reader, the settings and their layers, the file's location and first run,
-#                       the stick math, the race's cars (game.cars) and their latch
+#                       the stick math and smooth keyboard steering's ramp, the race's cars (game.cars) and their latch
 #   frontend_sdl_test   SDL2 builds: keyboard and hotkey events (SDL_PushEvent), controllers through SDL's virtual
 #                       joysticks (hot-plug, every binding, sticks, triggers, rumble), focus and pause, and
 #                       scripted presses merged over live input; through port/gfx's real window and event loop on
@@ -22,7 +22,7 @@ target_include_directories(frontend_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config
                            ${CMAKE_SOURCE_DIR}/port/include)
 target_compile_options(frontend_test PRIVATE ${PC_FRONTEND_TEST_FLAGS})
 target_link_libraries(frontend_test PRIVATE m)
-foreach(c ini settings layers locate stick cars memory detail fps mods saves voices engines)
+foreach(c ini settings layers locate stick steer cars memory detail fps mods saves voices engines)
     add_test(NAME frontend.${c} COMMAND frontend_test ${c} ${PC_FRONTEND_TEST_DIR})
 endforeach()
 

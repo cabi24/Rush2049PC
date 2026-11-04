@@ -29,6 +29,14 @@ typedef struct {
 void pc_stick_shape(double x, double y, const PcStickShape *shape, int8_t *out_x, int8_t *out_y);
 /* One axis or trigger, -1..1, with the dead zone rescaled away. */
 double pc_axis_deadzone(double v, double deadzone);
+/* input.keyboard_steering = smooth: one axis of the stick from keys (v, -1..1) a retrace later, with the keys
+ * pointing to target (-1, 0 or 1). out: the share of full tilt a retrace adds on the way out; back: the share it
+ * takes off on the way to the centre (the key released, or the other way pressed). Through the centre on a
+ * reversal, what is left of the retrace goes out the other way. */
+double pc_steer_step(double v, int target, double out, double back);
+/* The steps for a ramp of ms from the centre to full tilt at hz retraces a second, back in a third of it; 0 ms gives
+ * full tilt and the centre in one retrace. */
+void pc_steer_rates(int ms, int hz, double *out, double *back);
 
 /* ---------------------------------------------------------------- input_sdl.c (no-ops without SDL2) */
 

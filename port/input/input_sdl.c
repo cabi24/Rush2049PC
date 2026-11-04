@@ -9,7 +9,8 @@
  *   up, in the order they are plugged in, and keep their player until unplugged (hot-plug). A player's keyboard
  *   and controller are merged: buttons OR'ed, the stronger stick per axis.
  * - The N64 stick: the bound controller stick with a radial dead zone, rescaled, shaped to the octagonal gate
- *   (stick.c); keys and buttons bound to STICK_* give full tilt.
+ *   (stick.c); keys and buttons bound to STICK_* give full tilt, at once or (input.keyboard_steering = smooth)
+ *   over keyboard_steer_time.
  * - Window: Alt+Enter and the fullscreen hotkey toggle fullscreen (port/gfx: desktop or exclusive, as
  *   video.fullscreen_mode says); the screenshot hotkey saves a PNG of
  *   the shown frame; the pause hotkey, and losing focus with pause_on_focus_loss, hold the game (the main loop
@@ -27,6 +28,7 @@
 #include <strings.h>
 
 #include "input_internal.h"
+#include "ultra.h"   /* PC_VI_HZ */
 
 /* What the window's title ends with: the program and its version, set by main (port/ultra/ultra.h); NULL in the
  * tests. */
@@ -71,6 +73,9 @@ static struct {
     int kb_port, first_port, analog, pause_on_focus;
     double threshold;
     PcStickShape shape;
+    int steer_smooth;                  /* input.keyboard_steering = smooth */
+    double steer_out, steer_back;      /* its steps a retrace (pc_steer_rates) */
+    double steer[4][2];                /* each player's keys' stick, x and y, -1..1, with smooth */
     char shot_dir[PC_CFG_PATH];
     SDL_Scancode keys[PC_NUM_CONTROLS][MAX_SOURCES];
     int nkeys[PC_NUM_CONTROLS];
@@ -239,6 +244,10 @@ static void configure(const PcSettings *s)
     L.pause_on_focus = s->pause_on_focus_loss;
     L.threshold = s->axis_threshold;
     L.shape = (PcStickShape){s->deadzone, s->stick_range, s->stick_diagonal, s->sensitivity};
+    L.steer_smooth = s->keyboard_steering == PC_STEER_SMOOTH;
+    pc_steer_rates(s->keyboard_steer_time, PC_VI_HZ, &L.steer_out, &L.steer_back);
+    if (!L.steer_smooth)
+        memset(L.steer, 0, sizeof L.steer);
     snprintf(L.shot_dir, sizeof L.shot_dir, "%s", s->screenshot_dir);
     for (int c = 0; c < PC_NUM_CONTROLS; c++) {
         parse_list(s->key[c], "keyboard", pc_control_names[c], add_key, c, &L.nkeys[c]);
@@ -1307,8 +1316,10 @@ void pc_input_live_poll(PcPad pads[4])
         Slot *slot = &L.slot[p];
         SDL_GameController *gc = slot->gc;
         int kb = p == L.kb_port, held[PC_NUM_CONTROLS] = {0};
-        if (!kb && !gc)
+        if (!kb && !gc) {
+            L.steer[p][0] = L.steer[p][1] = 0;
             continue;
+        }
         if (gc)
             unmute(slot);
         for (int c = 0; c < PC_NUM_CONTROLS; c++) {
@@ -1319,13 +1330,22 @@ void pc_input_live_poll(PcPad pads[4])
             if (held[c])
                 pads[p].buttons |= pc_control_masks[c];
         }
-        /* keys and buttons on the stick give full tilt, without a dead zone */
+        /* keys and buttons on the stick give full tilt, without a dead zone; with keyboard_steering = smooth, each
+         * axis moves there a step a retrace (pc_steer_step: these polls are the retraces, 60 a second at any frame
+         * rate) */
         PcStickShape digital = L.shape;
         digital.deadzone = 0;
         digital.gain = 1;
         int8_t x = 0, y = 0, ax = 0, ay = 0;
-        pc_stick_shape(held[PC_CTL_STICK_RIGHT] - held[PC_CTL_STICK_LEFT],
-                       held[PC_CTL_STICK_UP] - held[PC_CTL_STICK_DOWN], &digital, &x, &y);
+        int tx = held[PC_CTL_STICK_RIGHT] - held[PC_CTL_STICK_LEFT];
+        int ty = held[PC_CTL_STICK_UP] - held[PC_CTL_STICK_DOWN];
+        if (L.steer_smooth) {
+            L.steer[p][0] = pc_steer_step(L.steer[p][0], tx, L.steer_out, L.steer_back);
+            L.steer[p][1] = pc_steer_step(L.steer[p][1], ty, L.steer_out, L.steer_back);
+            pc_stick_shape(L.steer[p][0], L.steer[p][1], &digital, &x, &y);
+        } else {
+            pc_stick_shape(tx, ty, &digital, &x, &y);
+        }
         if (gc && L.analog != PC_CFG_STICK_NONE) {
             int ox = L.analog == PC_CFG_STICK_LEFT ? SDL_CONTROLLER_AXIS_LEFTX : SDL_CONTROLLER_AXIS_RIGHTX;
             if (!(slot->mute_axes & (3u << ox)))

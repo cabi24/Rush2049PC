@@ -283,6 +283,52 @@ static void test_keyboard(void)
     poll_pads();
     pad_is(0, 0, 0, 0, 1, "stick released");
 
+    /* input.keyboard_steering = smooth, live (the overlay's pc_input_apply): a poll is a retrace; 250 ms is 15 of them
+     * out to full tilt and 5 back. Then instant again. */
+    s.keyboard_steering = PC_STEER_SMOOTH;
+    pc_input_apply(&s);
+    key(SDL_SCANCODE_RIGHT, 1, 0);
+    poll_pads();
+    pad_is(0, 0, 5, 0, 1, "smooth: Right, the first retrace");
+    for (int i = 0; i < 13; i++)
+        poll_pads();
+    pad_is(0, 0, 75, 0, 1, "smooth: Right, the 14th retrace");
+    poll_pads();
+    pad_is(0, 0, 80, 0, 1, "smooth: Right, full tilt at the 15th");
+    key(SDL_SCANCODE_UP, 1, 0);   /* y the same way, through the gate: (1, 1/15) meets the octagon's edge */
+    poll_pads();
+    pad_is(0, 0, 79, 5, 1, "smooth: Right+Up, the first retrace of Up");
+    key(SDL_SCANCODE_UP, 0, 0);
+    poll_pads();
+    pad_is(0, 0, 80, 0, 1, "smooth: Up released");
+    key(SDL_SCANCODE_LEFT, 1, 0);   /* Right and Left held: the centre */
+    poll_pads();
+    pad_is(0, 0, 64, 0, 1, "smooth: Right+Left, back to the centre");
+    key(SDL_SCANCODE_RIGHT, 0, 0);   /* Left alone: through the centre and out */
+    for (int i = 0; i < 4; i++)
+        poll_pads();
+    pad_is(0, 0, 0, 0, 1, "smooth: Left, at the centre after 5 retraces back");
+    poll_pads();
+    pad_is(0, 0, -5, 0, 1, "smooth: Left, then out");
+    s.stick_range = 100;   /* another live change on the way does not restart the ramp */
+    pc_input_apply(&s);
+    poll_pads();
+    pad_is(0, 0, -13, 0, 1, "smooth: Left, the second retrace out at a range of 100");
+    s.stick_range = 80;
+    pc_input_apply(&s);
+    key(SDL_SCANCODE_LEFT, 0, 0);
+    poll_pads();
+    poll_pads();
+    pad_is(0, 0, 0, 0, 1, "smooth: released");
+    s.keyboard_steering = PC_STEER_INSTANT;
+    pc_input_apply(&s);
+    key(SDL_SCANCODE_RIGHT, 1, 0);
+    poll_pads();
+    pad_is(0, 0, 80, 0, 1, "instant again: full tilt at once");
+    key(SDL_SCANCODE_RIGHT, 0, 0);
+    poll_pads();
+    pad_is(0, 0, 0, 0, 1, "instant: released");
+
     /* rebinding: two keys for A (one by its alias), an unknown name skipped, the keyboard on player 2 */
     snprintf(s.key[PC_CTL_A], PC_CFG_BIND, "Space, Comma");
     snprintf(s.key[PC_CTL_B], PC_CFG_BIND, "NoSuchKey, Left Shift");
