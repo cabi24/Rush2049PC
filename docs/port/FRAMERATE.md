@@ -203,7 +203,7 @@ reads the game's values then too, not after the retrace's event, which raced the
 
 | Where | |
 |---|---|
-| `rush2049pc.ini` | `[video] frame_rate = original` (default), `display`, or a number from 30 to 1000 (60, 120, 144) |
+| `rush2049pc.ini` | `[video] frame_rate = original` (default), `display`, `auto` (section 7.9), or a number from 30 to 1000 (60, 120, 144) |
 | command line | `--frame-rate R`, or `--set video.frame_rate=R` |
 | environment | `RUSH_GFX_FRAME_RATE` |
 | F1 overlay | Video, Frame rate: original, 60, 120, 144, display; applies at once |
@@ -916,4 +916,65 @@ original (0.50) nothing was said.
   its three laps within the ghost race's limit, which the open-loop scripts didn't (7.5). A script that drives a
   clean lap (or a track whose limit gas alone meets) is the next step; then record at one rate, replay at the other
   and compare the ghost car's positions (`build/scratch/ghost/ghostcmp.py`).
+
+### 7.9 auto (video.frame_rate = auto)
+
+Written 2026-11-04. `video.frame_rate = auto` picks the presentation from the display (`pc_gfx_auto_rate`,
+port/gfx/gfx_api.c), asked at each pass of the main loop with the game's latched rate, vsync and the display's whole
+hertz (port/ultra/loop.c, next to `pc_gfx_set_own_paced`); the display's refresh is taken again at each event pump
+while auto is set, so a window moved to another monitor follows it. The log says the choice at the first pass and
+at each change (`gfx: video.frame_rate auto: 144 Hz, the game at 60: frames between`), and F1 > Video's Frame rate
+row shows it (`auto: 144 Hz, frames between`). The default stays `original`.
+
+| Display (vsync on) | auto shows |
+|---|---|
+| vsync off, or the virtual clock | `original` |
+| 59-61 Hz, 119-121, 179-181, 239-241 (a whole multiple of 60) | `original`: each of the game's frames held a whole number of vblanks (at 60 Hz and the game at 60, paced by the vblanks: 7.6) |
+| any other (75, 90, 144, 165 Hz) | `display`: a frame each vblank, drawn between the game's |
+
+**Measured** (`tools/port/vsync_even.py`, rocky, the synthetic race in real time under the vsync model, precise
+waits, the platform giving the rate; counted over the race's last 10 s of a 20 s run). The model now says, besides
+the vblanks with no new picture, how long each new picture was held and the spread of that, and how far the shown
+moment (`pc_gfx_shown_moment`: a frame's retrace, or the moment a frame between was drawn for) steps off the vblank's
+period, rms: the step a camera moving at a steady speed takes on screen, 0 when every vblank shows its own moment.
+Four runs at a time, rocky's load average 7-12 (other agents' builds):
+
+| Display | Game | video | No new picture | Held ms (spread) | Step off, rms ms | Frames between drawn |
+|---|---|---|---|---|---|---|
+| 60 | 30 | original | 0.500 | 33.33 (0.00) | 16.67 | 0 |
+| 60 | 30 | display | 0.413 | 28.38 (8.22) | 15.61 | 77 |
+| 60 | 60 | original | 0.037 | 17.30 (3.19) | 4.71 | 0 |
+| 60 | 60 | display | 0.210 | 21.09 (7.44) | 10.84 | 74 |
+| 75 | 30 | original / display | 0.606 / 0.602 | 33.85 (17.71) / 33.27 (16.33) | 16.97 / 17.69 | 0 / 46 |
+| 75 | 60 | original / display | 0.491 / 0.459 | 26.11 (16.03) / 24.63 (14.60) | 15.46 / 14.30 | 0 / 28 |
+| 120 | 30 | original / display | 0.763 / 0.829 | 35.23 (33.22) / 48.51 (39.35) | 15.54 / 20.03 | 0 / 0 |
+| 120 | 60 | original / display | 0.716 / 0.804 | 29.39 (28.89) / 42.16 (36.45) | 15.11 / 18.24 | 0 / 0 |
+| 144 | 30 | original / display | 0.792 / 0.778 | 33.31 (4.13) / 31.23 (8.45) | 13.54 / 13.43 | 0 / 77 |
+| 144 | 60 | original / display | 0.583 / 0.611 | 16.66 (4.18) / 17.84 (6.11) | 8.22 / 9.20 | 0 / 36 |
+| 165 | 30 | original / display | 0.818 / 0.773 | 33.32 (3.03) / 26.68 (10.02) | 12.86 / 12.05 | 0 / 103 |
+| 165 | 60 | original / display | 0.636 / 0.620 | 16.67 (2.87) / 15.93 (4.90) | 8.02 / 8.02 | 0 / 107 |
+| 240 | 30 | original / display | 0.875 / 0.839 | 33.33 (0.34) / 25.92 (8.43) | 11.02 / 10.11 | 0 / 174 |
+| 240 | 60 | original / display | 0.750 / 0.751 | 16.67 (0.24) / 16.70 (2.25) | 7.22 / 7.27 | 0 / 169 |
+
+Repeated one at a time (rocky, load 8.6-8.8, synth_compare's runs beside it), the game at 60:
+
+| Display | video | No new picture | Held ms (spread) | Step off, rms ms | Frames between drawn |
+|---|---|---|---|---|---|
+| 144 | original / display / auto (then display) | 0.602 / 0.679 / 0.629 | 17.43 (7.52) / 21.66 (10.51) / 18.74 (7.91) | 8.80 / 11.02 / 9.73 | 0 / 1 / 15 |
+| 120 | original / display | 0.500 / 0.686 | 16.67 (0.00) / 26.55 (14.02) | 8.33 / 13.99 | 0 / 16 |
+
+What the numbers say:
+
+- At 120 Hz the game at 60 under `original` holds each frame exactly two vblanks (16.67 ms, spread 0.00 in the serial
+  run; 8.33 ms rms is the least an even hold of two can step); hence auto keeps `original` at whole multiples of 60.
+  The first 120 Hz rows (four at a time) were far less even for every setting (held 29-48 ms, spread 29-39): a
+  loaded host there, not repeated in the serial run.
+- On this host `display` drew almost no frames between at any refresh (0-174 in 10 s of race against 600-1440
+  vblanks; rocky draws 570-670 in 30 s at 59.94 Hz alone: section 5): the GPU was shared with the other runs and
+  agents, and a frame between is drawn only on the GPU's spare time (section 2). So at 144 and 165 Hz `display`
+  measured no smoother than `original` here (8.02-9.20 against 8.02-8.80 ms rms), and a little worse at 144. It is
+  the right choice only where the frames between are drawn: auto picks it at 75, 144 and 165 Hz on the reasoning of
+  7.6 (each of the game's 60 frames otherwise held 2 or 3 vblanks, spread 2.9-4.2 ms above), not on these numbers.
+  That is the open question of this section: measured on an idle host, or the user's Windows GPU, `display` should
+  show its frames between at every vblank.
 

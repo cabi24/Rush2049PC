@@ -249,7 +249,7 @@ int pc_gfx_auto_rate(int game_rate, int vsync, int hz, const char **why) {
     if (!vsync || hz <= 0) {
         w = "vsync off: the game's frames at their retraces";
         r = 0;
-    } else if (n == 1 && hz >= 59 && hz <= 61) {
+    } else if (n >= 1 && hz >= 60 * n - 1 && hz <= 60 * n + 1) {   /* 60, 120, 180, 240: an even hold */
         w = "the game's frames, a whole number of vblanks each";
         r = 0;
     } else {
@@ -268,7 +268,7 @@ void pc_gfx_auto_frame_rate(int game_rate, int vsync, int hz) {
     if (!s_auto || (hz == s_auto_hz && game_rate == s_auto_game && vsync == s_auto_vsync))
         return;
     r = pc_gfx_auto_rate(game_rate, vsync, hz, &why);
-    if (s_auto_hz == 0 || r != s_auto_rate || hz != s_auto_hz)
+    if (s_auto_hz == 0 || r != s_auto_rate || hz != s_auto_hz || game_rate != s_auto_game)
         fprintf(stderr, "gfx: video.frame_rate auto: %d Hz%s, the game at %d: %s\n", hz, vsync ? "" : " (vsync off)",
                 game_rate == 60 ? 60 : 30, why);
     s_auto_hz = hz;
