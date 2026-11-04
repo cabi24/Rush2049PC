@@ -364,6 +364,17 @@ static void t_spin(void)
     check("busy-wait, lower writer", ms > 150 && ms < 2000, d);
 }
 
+/* An absolute N64 name's word: through the name, or in the guard mode, where the name's address is in the old window's
+ * reserved range, through the window (docs/port/NOFIXED.md 5). */
+static uint32_t abs_word(const uint32_t *name)
+{
+    uint32_t v = 0;
+    const void *p = pc_mem_guard() ? pc_n64_ptr((uint32_t)(uintptr_t)name) : (const void *)name;
+    if (p)
+        memcpy(&v, p, 4);
+    return v;
+}
+
 static void t_memory(void)
 {
     char d[96];
@@ -380,11 +391,12 @@ static void t_memory(void)
     uint8_t *last = pc_n64_ptr(top);
     if (last)
         *last = 0xA5;
-    snprintf(d, sizeof d, "%u MiB, last byte %p, osMemSize 0x%X", size >> 20, (void *)last, D_80000318);
+    uint32_t mem_size = abs_word(&D_80000318), tv_type = abs_word(&osTvType);
+    snprintf(d, sizeof d, "%u MiB, last byte %p, osMemSize 0x%X", size >> 20, (void *)last, mem_size);
     check("RDRAM window's size", last && pc_n64_ptr(top | 0x20000000u) == last && pc_n64_ptr(size - 1) == last &&
                                      *(volatile uint8_t *)pc_n64_ptr(size - 1) == 0xA5 && pc_n64_addr(last) == top &&
                                      pc_n64_ptr(top + 1) == NULL && pc_n64_ptr(size) == NULL &&
-                                     (size == PC_RDRAM_SIZE || D_80000318 == size), d);
+                                     (size == PC_RDRAM_SIZE || mem_size == size), d);
     uint32_t hi = 0x81000000u + 0x40, lo = 0x80300040u;
     int big = size > PC_RCP_SEGMENT_SPAN;
     snprintf(d, sizeof d, "osVirtualToPhysical 0x%X, 0x%X; relocation 0x%X, 0x%X", osVirtualToPhysical(k0),
@@ -402,10 +414,19 @@ static void t_memory(void)
                                     : pc_rcp_reloc(0x40, 0x81000000u, -1) == 0x40 && !pc_rdram_k0_high(hi)),
           d);
     snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)D_8017A640,
-             (void *)D_8038A400, (void *)&osTvType, osTvType, D_80000318);
+             (void *)D_8038A400, (void *)&osTvType, tv_type, mem_size);
     check("absolute N64 symbols", (uintptr_t)D_8017A640 == 0x8017A640u && (uintptr_t)D_8038A400 == 0x8038A400u &&
-                                      (uintptr_t)&osTvType == 0x80000300u && osTvType == 1 &&
-                                      D_80000318 == pc_os_mem_size(), d);
+                                      (uintptr_t)&osTvType == 0x80000300u && tv_type == 1 &&
+                                      mem_size == pc_os_mem_size(), d);
+    if (pc_mem_guard()) {   /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
+        char note[320] = "";
+        uintptr_t w = (uintptr_t)pc_rdram();
+        int n = pc_mem_fault_note(0x80001000u, note, sizeof note), cut = pc_mem_fault_note(w & 0xFFFFFFFFu, d, sizeof d);
+        snprintf(d, sizeof d, "window %p, K0 0x80001000 at %p, note %d, cut %d", (void *)w, (void *)k0, n, cut);
+        check("guard: window elsewhere", (w >> 32) && k0 == (uint8_t *)w + 0x1000 && !pc_mem_fixed() &&
+                                             n > 0 && strstr(note, "0x80001000") && pc_n64_addr((void *)w) == 0x80000000u,
+              d);
+    }
     snprintf(d, sizeof d, "%p, %p, %p", (void *)D_8002E580, (void *)D_8011B5BC, (void *)D_803B9A50);
     check("game data at its N64 addresses", (uintptr_t)D_8002E580 == 0x8002E580u &&
                                                 (uintptr_t)D_8011B5BC == 0x8011B5BCu &&
@@ -874,9 +895,14 @@ static void controller(void *arg)
     t_memory();
     t_rcp();
     t_ai_device();
-    t_pif();
-    t_ports();
-    t_store();
+    if (pc_mem_guard()) {   /* RUSH2049_NOFIXED=guard: the game's libultra C keeps its state in the boot arena (NOFIXED.md 5) */
+        fprintf(stderr, "selftest: guard: the controller and pak checks skipped: their game C reaches the boot arena "
+                "by name\n");
+    } else {
+        t_pif();
+        t_ports();
+        t_store();
+    }
     if (pc_time_virtual()) {
         char d[64];
         snprintf(d, sizeof d, "%.0f ms of N64 time in %.0f ms", pc_host_ns() / 1e6, pc_real_ns() / 1e6);

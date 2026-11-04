@@ -233,6 +233,10 @@ int pc_pakw_fault_wait(uint64_t timeout_ns);
 int pc_mem_set_size(uint32_t bytes);   /* game.memory, before pc_mem_init: 0, or -1 for a size it can't map */
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */
 int pc_mem_fixed(void);         /* the window is at host 0x80000000 */
+int pc_mem_guard(void);         /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
+/* In the guard mode, a line saying what a faulting address was (an N64 address taken as a host pointer, a window
+ * address cut to 32 bits, a sign-extended one); its length, or 0 when it is none of those or the mode is off. */
+int pc_mem_fault_note(uintptr_t addr, char *buf, size_t n);
 int pc_mem_fix_absolute(void);  /* first thing in main: GOT slots of absolute N64-address symbols */
 int pc_fix_absolute_got(void);  /* the same, without the log (absfix.c, also linked by tests) */
 uint8_t *pc_rdram(void);
