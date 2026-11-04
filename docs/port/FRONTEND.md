@@ -392,14 +392,14 @@ Audio and Game pages. A preset sets several in one step: F1 > Presets, or `--pre
 | Setting | `n64`: N64 original | `enhanced`: PC enhanced | `maximum`: PC maximum | Applies |
 |---|---|---|---|---|
 | `game.frame_rate` | original | 60 | 60 | from the next screen |
-| `video.draw_distance` | original | far | max | at once |
-| `video.detail` | original | high | high | at once (split screen's models from the next track) |
-| `video.fog` | original | | off | at once (the sky dome from the next track) |
-| `video.texture_lod` | original | anisotropic | anisotropic | at once |
-| `video.textures` | original | | upscaled | at once (the first time in the background) |
-| `video.widescreen` | auto | auto | auto | at once |
+| `video.draw_distance` | original | far | max | from the game's next frame |
+| `video.detail` | original | high | high | from the game's next frame (split screen's models from the next track) |
+| `video.fog` | original | | off | from the game's next frame (the sky dome from the next track) |
+| `video.texture_lod` | original | anisotropic | anisotropic | from the next triangle |
+| `video.textures` | original | | upscaled | from the game's next frame (upscaled in the background as they appear) |
+| `video.widescreen` | auto | auto | auto | from the game's next frame |
 | `audio.voices` | original | 64 | 64 | after a restart |
-| `audio.engines` | original | all | all | at once |
+| `audio.engines` | original | all | all | at once (the sound manager's next retrace) |
 | `game.memory` | original | 64 | 64 | after a restart |
 
 An empty cell is a setting the preset leaves as it is.
