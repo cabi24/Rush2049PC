@@ -60,11 +60,47 @@ void pc_heap_allocated(void *heap);
 void pc_heap_none(void *heap, unsigned int size, unsigned int free_bytes, unsigned int largest);
 void pc_heap_short(const char *what, unsigned int need);
 
+/* The one translation between a 32-bit N64 address and a host pointer (docs/port/NOFIXED.md 2.3), for game C that
+ * crosses that boundary: PC_N64P(a) is the host pointer for N64 address a, for a cast to the pointer's type
+ * ((T *)PC_N64P(a): the N64P definitions, an N64 address the game computes), and PC_N64A(p) the 32-bit N64 address of
+ * a host pointer into the RDRAM window (the heap's arithmetic, a block's address relocated into a file). In the
+ * fixed build (the default) the window is at host 0x80000000 and they are the zero-extension and the truncation they
+ * stand for, so that build compiles as it did. A RUSH_NOFIXED build's window is anywhere, at pc_window_base
+ * (port/ultra/n64mem.c, which pc_mem_init sets): K0, K1 and physical addresses are pc_window_base + (a & 0x1FFFFFFF),
+ * a pointer p is 0x80000000 + (p - pc_window_base), and 0 and NULL are each other. */
+#ifdef RUSH_NOFIXED
+extern unsigned char *pc_window_base;
+static __inline__ void *pc_n64p(unsigned int a)
+{
+    return a ? (void *)(pc_window_base + (a & 0x1FFFFFFFu)) : (void *)0;
+}
+static __inline__ unsigned int pc_n64a(__UINTPTR_TYPE__ p)
+{
+    return p ? 0x80000000u + (unsigned int)(p - (__UINTPTR_TYPE__)pc_window_base) : 0u;
+}
+#define PC_N64P(x) pc_n64p((unsigned int)(x))
+#define PC_N64A(x) pc_n64a((__UINTPTR_TYPE__)(x))
+#else
+#define PC_N64P(x) ((__UINTPTR_TYPE__)(x))
+#define PC_N64A(x) ((unsigned int)(__UINTPTR_TYPE__)(x))
+#endif
+
 /* A pointer stored as a 32-bit N64 address: the u32 fields of records that keep their N64 layout (each file's
  * N64W(x) is PC_N64W(x)). That is right for RDRAM-window addresses only. A RUSH_CHECK_CASTS build
  * (cmake -DRUSH_CHECK_CASTS=ON) checks every such store and stops at the first one that would drop the upper half
- * of a host address, naming the source line (pc_cast_fail, port/ultra/castcheck.c; docs/port/CASTS.md). */
-#ifdef RUSH_CHECK_CASTS
+ * of a host address, naming the source line (pc_cast_fail, port/ultra/castcheck.c; docs/port/CASTS.md). A RUSH_NOFIXED
+ * build translates (PC_N64A) and always checks: a pointer outside the window (PC_RDRAM_MAX bytes from its start)
+ * stops there too. */
+#if defined(RUSH_NOFIXED)
+void pc_cast_fail(const char *file, int line, __UINTPTR_TYPE__ value) __attribute__((weak));
+static __inline__ unsigned int pc_n64w_moved(__UINTPTR_TYPE__ v, const char *file, int line)
+{
+    if (v && v - (__UINTPTR_TYPE__)pc_window_base >= 0x10000000u)
+        pc_cast_fail(file, line, v);   /* weak: a program without port/ultra faults here */
+    return pc_n64a(v);
+}
+#define PC_N64W(x) pc_n64w_moved((__UINTPTR_TYPE__)(x), __FILE__, __LINE__)
+#elif defined(RUSH_CHECK_CASTS)
 void pc_cast_fail(const char *file, int line, __UINTPTR_TYPE__ value) __attribute__((weak));
 static __inline__ unsigned int pc_n64w_checked(__UINTPTR_TYPE__ v, const char *file, int line)
 {
@@ -147,11 +183,11 @@ struct pc_multiblit {
  * Link k of element e: a host pointer, or a 32-bit window address when the list's header is flagged n64 (its
  * elements keep their N64 layout: the level-object nodes, docs/port/POINTERS.md 10). */
 static __inline__ void *pc_statll_link(int n64, void *e, int k) {
-    return n64 ? (void *)(__UINTPTR_TYPE__)((unsigned int *)e)[k] : ((void **)e)[k];
+    return n64 ? (void *)PC_N64P(((unsigned int *)e)[k]) : ((void **)e)[k];
 }
 static __inline__ void pc_statll_set_link(int n64, void *e, int k, void *v) {
     if (n64)
-        ((unsigned int *)e)[k] = (unsigned int)(__UINTPTR_TYPE__)v;
+        ((unsigned int *)e)[k] = PC_N64W(v);
     else
         ((void **)e)[k] = v;
 }

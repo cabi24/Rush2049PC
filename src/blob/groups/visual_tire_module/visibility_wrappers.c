@@ -83,7 +83,7 @@ typedef struct CarConfig {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_f32: (f32 *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_f32: (f32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x

@@ -87,7 +87,7 @@ typedef struct State {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x

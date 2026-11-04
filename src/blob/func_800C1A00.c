@@ -51,7 +51,7 @@ typedef struct Camera {
     u8 pad00[0x6C];
     enum n64p_CamCtl ctl;        /* 0x6C */
 } Camera;
-#define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)(uintptr_t)(x), enum n64p_CamScene: (CamScene *)(uintptr_t)(x), enum n64p_CamKey: (CamKey *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)PC_N64P(x), enum n64p_CamScene: (CamScene *)PC_N64P(x), enum n64p_CamKey: (CamKey *)PC_N64P(x), default: (x))
 #else
 typedef struct CamScene {
     u8 pad00[0x10];

@@ -43,7 +43,7 @@ typedef struct {
     s8 unkB;
     s8 unkC;
 } EngineState;
-#define N64P(x) _Generic((x), enum n64p_TorqueSrc: (TorqueSrc *)(__UINTPTR_TYPE__)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_TorqueSrc: (TorqueSrc *)PC_N64P(x), default: (x))
 #else
 typedef struct {
     u8 pad0[4];

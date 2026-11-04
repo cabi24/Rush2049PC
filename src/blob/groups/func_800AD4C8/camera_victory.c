@@ -66,7 +66,7 @@ typedef struct VCar {
     u8 p724[204];
     enum n64p_QNode node[4];     /* 928 */
 } VCar;
-#define N64P(x) _Generic((x), enum n64p_QNode: (QNode *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_QNode: (QNode *)PC_N64P(x), default: (x))
 #else
 typedef struct VCar {
     u8 p0[628];

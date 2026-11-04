@@ -63,7 +63,7 @@ typedef struct ObjInstance {
     u32 flags, lights; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip;
     intptr_t pal; u32 prim, env;
 } ObjInstance;
-#define N64P(x) ((void *)(uintptr_t)(x))
+#define N64P(x) ((void *)PC_N64P(x))
 #else
 typedef struct ObjInstance { u32 flags; u8 pad04[0x44 - 4]; } ObjInstance;
 #define N64P(x) x

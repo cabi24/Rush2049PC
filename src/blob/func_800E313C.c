@@ -5,7 +5,7 @@ extern f32 D_80110EBC[][6];
 #ifdef TARGET_PC
 /* PC: the model record keeps its N64 layout; its descriptor (+0) and tune (+4) pointers are u32 window
  * addresses (docs/port/CARS.md). */
-#define M2C_N64P(e, o) ((void *) (uintptr_t) M2C_FIELD(e, unsigned int *, o))
+#define M2C_N64P(e, o) ((void *) PC_N64P(M2C_FIELD(e, unsigned int *, o)))
 #else
 #define M2C_N64P(e, o) M2C_FIELD(e, void **, o)
 #endif

@@ -29,7 +29,7 @@ typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Hea
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_Pool: (struct Pool *)(uintptr_t)(x), enum n64p_u32: (u32 *)(uintptr_t)(x), enum n64p_MBlock: (struct MBlock *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), enum n64p_MBlock: (struct MBlock *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #else
 #define N64P(x) x

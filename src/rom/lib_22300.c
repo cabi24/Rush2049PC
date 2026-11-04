@@ -138,7 +138,7 @@ typedef struct MacroCommand { u32 word[2]; } MacroCommand;
  * 32-bit window addresses: N64P(x) is such a field as a pointer, N64W(x) a pointer stored into one, and
  * N64_NEXT(x) moves one to the next step (docs/port/MUSYX_DATA.md 8.3). */
 enum n64p_MacroCommand { n64p_MacroCommand_ };
-#define N64P(x) _Generic((x), enum n64p_MacroCommand: (MacroCommand *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_MacroCommand: (MacroCommand *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 #define N64_NEXT(x) ((x) = N64W(N64P(x) + 1))
 #else

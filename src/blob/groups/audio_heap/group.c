@@ -109,7 +109,7 @@ typedef struct Heap {
 #endif
 #ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)(uintptr_t)(x), enum n64p_HandleTable: (struct HandleTable *)(uintptr_t)(x), enum n64p_Heap: (struct Heap *)(uintptr_t)(x), enum n64p_u32: (uintptr_t *)(uintptr_t)(x), enum n64p_void: (void *)(uintptr_t)(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_HandleTable: (struct HandleTable *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_u32: (uintptr_t *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 /* A handle is the address of its slot, and the game reads a slot through the handle as a pointer (`*(u8 **)h`,
  * the pak files' data, the save data, the ghosts): on the PC the slots are pointer-sized, holding a heap block's
