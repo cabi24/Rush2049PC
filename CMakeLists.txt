@@ -625,6 +625,33 @@ add_test(NAME hfr_paced_60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py 
     --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank)
 set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE
     SKIP_RETURN_CODE 77 LABELS realtime)
+# game.frame_rate 60 (docs/port/FRAMERATE.md 7). The game at 60 against original along the synthetic paths, on the
+# virtual clock (tools/port/fps_compare.py): the same states in the same order, none more than 10 retraces apart (the
+# game decides at a frame, 60 a second against 30, and PrePlay's load counts 4 frames), and in the races nothing on
+# the game thread steers (solo: one player, the gas and the steering held; stunt; battle2p) the same physics, every
+# car's position and velocity, model tick by model tick, to the bit. The others' physics first difference is
+# reported (drones, resurrections: the game thread decides them once a frame).
+add_test(NAME fps_physics COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_compare.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps --max-shift 10 --physics solo,stunt,battle2p -j 2
+    solo stunt battle2p race demo menu screens raceend)
+set_tests_properties(fps_physics PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600)
+# The high frame rate on top of the game at 60: hfr_timing's paths with the game at 60, video.frame_rate original
+# against 120 (the same state and status lines, frames drawn between); hfr_paced's pacing under the 59.94 Hz vsync
+# model with the game at 60 (a frame between the game's one retrace apart, at 120 and display), and the game's own
+# frames at about one a retrace; audio_realtime's bounds with the game at 60.
+add_test(NAME hfr_timing_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr60 --require-drawn --game-fps 60 ${HFR_TIMING_PATHS})
+set_tests_properties(hfr_timing_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
+add_test(NAME hfr_paced_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_game60 --seconds 30 --pacing display,60,120
+    --timer-step-us 0 --game-fps 60)
+set_tests_properties(hfr_paced_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 500 RUN_SERIAL TRUE
+    SKIP_RETURN_CODE 77 LABELS realtime)
+add_test(NAME audio_realtime_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py
+    --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime60 --seconds 30
+    --game-fps 60)
+set_tests_properties(audio_realtime_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE
+    LABELS realtime)
 # A slow disk (each pak write held 200 ms, one a second through the race) costs the main loop no retraces: the writes
 # are on the writer's thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak"); SIGTERM during a held
 # write waits for it; and the same writes on the main loop, as before, drop retraces (tools/port/pakwrite_check.py).
@@ -704,6 +731,9 @@ target_compile_definitions(test_assets_pools_game PRIVATE ${PC_POOLS_TEST_SIZES}
 target_sources(test_assets_pools PRIVATE port/ultra/pools.c)
 target_include_directories(test_assets_pools PRIVATE port/ultra)
 
+# game.frame_rate's follow camera (docs/port/FRAMERATE.md 7): the game's frame steps, as the game has them.
+target_sources(test_assets_fps PRIVATE port/config/game_fps.c)
+target_include_directories(test_assets_fps PRIVATE port/config)
 # And the drones' (the lists, maxpath's controls, the schedule; docs/port/DECOUPLE.md 8).
 target_compile_definitions(test_assets_drones PRIVATE PC_MAX_LINKS=16)
 target_compile_definitions(test_assets_drones_game PRIVATE PC_MAX_LINKS=16)

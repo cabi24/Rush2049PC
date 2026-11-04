@@ -74,14 +74,14 @@ int pc_cars_setting(void) { return test_race_cars; }
 int pc_race_cars(void) { return test_race_cars; }
 
 /* game.frame_rate (pc_game_fps.h; the game's is port/config/game_fps.c), for tests that build game C stepping per
- * frame: original unless a test sets pc_fps60 and the frame's steps itself. */
-volatile int pc_fps60;
-int pc_frame_steps = 1;
-float pc_frame_scale = 1.0f;
-unsigned int pc_frames30;
-void pc_game_fps_begin(void) {}
-void pc_game_frame_note(int retraces) { (void)retraces; }
-float pc_fps_filter(float e) { return e; }   /* not libm: not every test links it */
+ * frame: original. Weak: a test that links port/config/game_fps.c (assets_fps) has the game's own. */
+__attribute__((weak)) volatile int pc_fps60;
+__attribute__((weak)) int pc_frame_steps = 1;
+__attribute__((weak)) float pc_frame_scale = 1.0f;
+__attribute__((weak)) unsigned int pc_frames30;
+__attribute__((weak)) void pc_game_fps_begin(void) {}
+__attribute__((weak)) void pc_game_frame_note(int retraces) { (void)retraces; }
+__attribute__((weak)) float pc_fps_filter(float e) { return e; }   /* not libm: not every test links it */
 
 /* A pool past its end (pc_game_types.h; the game's is port/ultra/pool_overflow.c), for tests that build game C with a
  * checked pool: the test's handler if it set one (assets_pools), else the test fails. */

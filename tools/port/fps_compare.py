@@ -21,8 +21,13 @@ another retrace still compares tick for tick; inputs the script changes at a fix
 another tick, which is reported as where the physics first differs, with the input's change at that tick. A path
 compares the physics only from the first tick both runs reach to the last; a run with no race compares its states.
 
-Exit status: the number of paths whose physics differ, whose states differ in kind or order, or that shift a state
-by more than --max-shift retraces. Stdlib only, Python 3.9+.
+The game thread steers some cars once a frame (docs/port/FRAMERATE.md 7): DoDrones the drones' catch-up, the
+checkpoints a resurrection's place, the shots their pushes, and the random numbers both threads draw from one seed.
+At 60 those decisions come at retraces a run at original doesn't decide at, so races with drones, resurrections or
+shots differ from their first such decision; --physics names the paths whose physics must agree (the others' first
+difference is reported). Exit status: the number of paths whose physics differ (of those --physics names, default
+every path), whose states differ in kind or order, or that shift a state by more than --max-shift retraces. Stdlib
+only, Python 3.9+.
 """
 import argparse
 import concurrent.futures
@@ -77,8 +82,9 @@ def run(exe, rom, script, seconds, extra, logs, tag):
     return r.returncode, log.read_text(errors="replace")
 
 
-def compare(name, a, b, max_shift):
-    """a: original's (rc, text), b: 60's. Returns (ok, lines)."""
+def compare(name, a, b, max_shift, physics=True):
+    """a: original's (rc, text), b: 60's. Returns (ok, lines). With physics False a difference in the physics is
+    reported, not a failure (a race the game thread steers: drones, resurrections, shots)."""
     out, ok = [], True
     (rca, ta), (rcb, tb) = a, b
     sa, pa, ea = parse(ta)
@@ -117,9 +123,10 @@ def compare(name, a, b, max_shift):
         out.append(f"physics: the same at every one of {len(racing)} model ticks ({racing[0]} to {racing[-1]}), "
                    f"{pa[racing[0]][2]} cars; tick {racing[0]} at retrace {vi_a} at original, {vi_b} at 60")
     else:
-        ok = False
+        ok = ok and not physics
         da, db = pa[first_diff], pb[first_diff]
-        out.append(f"physics DIFFER from model tick {first_diff} (retrace {da[0]} at original, {db[0]} at 60), "
+        out.append(f"physics {'DIFFER' if physics else 'differ (not required to agree)'} from model tick "
+                   f"{first_diff} (retrace {da[0]} at original, {db[0]} at 60), "
                    f"{len([t for t in racing if t < first_diff])} ticks the same before it")
         out.append("  original: " + da[3][:300])
         out.append("  60:       " + db[3][:300])
@@ -135,6 +142,9 @@ def main():
     ap.add_argument("--seconds", type=float, help="with --script: how long to run")
     ap.add_argument("--max-shift", type=int, default=30, help="the most retraces a state may move (default 30)")
     ap.add_argument("--arg", action="append", default=[], help="another option for both runs (repeatable)")
+    ap.add_argument("--physics", default="", help="the paths whose physics must agree, comma-separated (default: "
+                    "every path); the others' are reported (their drones, resurrections or shots are steered by the "
+                    "game thread once a frame)")
     ap.add_argument("-j", type=int, default=2)
     ap.add_argument("names", nargs="*")
     args = ap.parse_args()
@@ -163,7 +173,8 @@ def main():
             futs[n] = (ex.submit(run, args.exe, args.rom, script, secs, extra + args.arg, args.logs, "original"),
                        ex.submit(run, args.exe, args.rom, script, secs, extra + args.arg, args.logs, "60"))
         for n, _, _, _ in jobs:
-            ok, lines = compare(n, futs[n][0].result(), futs[n][1].result(), args.max_shift)
+            must = not args.physics or n in args.physics.split(",")
+            ok, lines = compare(n, futs[n][0].result(), futs[n][1].result(), args.max_shift, must)
             bad += not ok
             print(f"{'ok' if ok else 'FAIL'}  {n}")
             for l in lines:
