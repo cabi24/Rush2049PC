@@ -288,7 +288,45 @@ native scale), 16:9, a high frame rate of 60.
 
 ### 4.1 The retail cartridge (Pi 5, V3D 7.1, Debug)
 
-RETAIL_TABLE
+A run is a press script (`build/scratch/retail/press/`, local) from the menu into a single race with the gas held
+for 45 s, or the attract demo; RUSH_GFX_TIMES=2 serializes the CPU and the GPU (glFinish around each part), so a
+task's time is the two added, not what a pipelined frame costs. "Parts" is the share of the world's parts the
+visibility tables let through, a view's mean (most); nodes and triangles are a view's and a graphics task's mean
+(most).
+
+| Run | Level | Nodes a view | At a coarser level | Parts | Triangles a task | Task, ms | Frame between, ms | Frame matrices | Display list | Lookats |
+|---|---|---|---|---|---|---|---|---|---|---|
+| the attract demo, tracks 0-4, 6 cars | original | 105.0 (228) | 5.1 | 20% (36%) | 1,226 (3,646) | | | 224 | 1,822 | 6 |
+| | max | 265.5 (374) | 21.8 | all | 3,481 (10,226) | | | 370 | 2,778 | 6 |
+| track 0, one player, 12 cars | original | 137.6 (213) | 3.9 | 27% (37%) | 1,545 (3,455) | 16.8 (160) | 9.2 | 237 | 1,881 | 12 |
+| | far | 250.2 (337) | 8.3 | 81% (all) | 2,958 (9,157) | 27.4 (303) | 12.6 | 351 | 2,748 | 12 |
+| | max | 324.5 (356) | 55.5 | all | 3,621 (11,183) | 31.8 (303) | 14.2 | 354 | 2,880 | 12 |
+| track 0, two players, 12 cars | original | 175.8 (249) | 36.0 | 27% (37%) | 2,909 (6,938) | 27.0 (176) | 12.3 | 511 | 4,093 | 24 |
+| | max | 333.0 (359) | 59.5 | all | 6,741 (22,276) | 56.0 (409) | 21.1 | 714 | 5,815 | 24 |
+| track 1, two players, 6 cars | original | 156.3 (244) | 15.4 | 18% (24%) | 2,181 (6,856) | 21.1 (175) | 11.0 | 490 | 3,725 | 12 |
+| | max | 376.5 (407) | 26.3 | all | 6,336 (19,189) | 49.2 (207) | 19.6 | 810 | 5,763 | 12 |
+| | detail high | 156.3 (244) | 0 | 18% (24%) | 2,460 (7,416) | 20.8 (193) | 10.8 | 490 | 3,725 | 12 |
+| tracks 1, 2, 3, 4, 5: two players, 12 cars | max | 410, 322, 389, 317, 375 | | all | 6,541, 4,365, 5,184, 5,547, 11,839 | 48.9, 38.6, 47.4, 40.9, 65.8 | 19.8, 16.7, 17.4, 17.8, 25.2 | 870, 694, 832, 680, 802 | 6,347, 5,715, 6,255, 5,643, 6,243 | 24, 24, 24, 24, 18 |
+| battle arena (track 6), four players | original, far, max | | | | 1,631, 1,633, 1,633 | 16.1 at each | 8.6 | 204 | 1,732 | 4 |
+| stunt arena (track 14), four players | max | | | | 3,359 (9,690) | 24.4 | 11.6 | 444 | 2,912 | 4 |
+
+(The arenas' runs predate the scene line counting their views, 2.6: their node counts aren't given.)
+
+- **Far** draws about twice the triangles of original on a race track (track 0: 1.9x), **max** two to five times (2.3x
+  to 5x; track 5, whose far parts are big, the most); a view's nodes 2-2.5x. The battle and stunt arenas are within
+  every limit already: the same at each level.
+- **Detail high** costs 13% more triangles in split screen (track 1), the same nodes.
+- **The Pi 5** at 1,396 x 720 (Debug, CPU and GPU serialized): original 17-27 ms a game frame, max 32 ms with one
+  view and 39-66 ms with two, so max on the Pi holds the game's 30 frames a second with one view only, and the frames
+  between two at 60 are drawn only when the GPU keeps up (FRAMERATE.md 2: none is drawn when the host is behind, the
+  game's own frames are never late). A desktop GPU has the margin; the build host's Intel UHD 770 ran the synthetic
+  paths at every level within its spread (4.2).
+- **The pools** hold at max with room: two views and 12 cars, the heaviest case, reach 870 frame matrices and 6,347
+  display-list commands (track 1) of the N64-sized 1,200 and 8,000 MORECARS.md 8.1 gave them, which are now 1,600
+  and 12,000 for headroom (`pc_game_types.h`); the lookats are one a car's sheen in each view that draws it, 24 of 32
+  with 12 cars in two views at every level (on the grid, where every car is near); persistent matrices and scene
+  nodes don't depend on the setting (the same nodes are made, more are drawn). No pool ran past its end in any run.
+
 
 ### 4.2 The synthetic cartridge (build host, Intel UHD 770, Debug)
 
@@ -338,6 +376,61 @@ change no game logic):
   2,000-6,000 ft, where a depth step is under a foot (section 3).
 - **What shouldn't be drawn isn't**: the per-view masks hide the same kinds of node at every level (about 30 a view,
   section 4); the title screen between races is the same.
+
+### 5.2 The camera's views, track 0
+
+A race with the gas held and the camera changed every 6 s (C-up), frames every second, original against max:
+
+- **The own car's hide mask holds.** In the bumper view the player's car is hidden in its view at max as at original
+  (the per-view mask is not a distance and no setting touches it); the chase views draw it as before.
+- **More skyline.** From the bumper view on the bay side, max adds the city's distant towers above the hills, in front
+  of the sky and behind the hills, where original shows sky.
+
+### 5.3 The fog, track 1 with the fog option at 3
+
+The heaviest fog option, one player, frames every 2 s: original; far with fog far; max with fog off.
+
+- **Original**: the game's lavender fog; the world fades into it within a few hundred feet, and the fog's colour is
+  the sky (the game makes no sky dome with a fog option, 1.7).
+- **Far with fog far**: the fog starts and ends twice as far: hills, trees and buildings that original fogs out stand
+  in a thinner haze, fading at twice the distance; the parts and models the radius still leaves out are past the fog's
+  end, so nothing pops in front of the fog.
+- **Max with fog off**: no fog; the whole track is drawn to its end, trees and buildings sharp at any distance. The
+  background was the fog's flat colour (no sky dome), which looked wrong behind a world without fog: fog off now makes
+  the sky dome as without a fog option (`camera_reset.c`, `PC_SKY_FOG`, from the next track). Rerun with it: the
+  track's blue sky and clouds behind the whole track, as without a fog option, every frame otherwise the same.
+
+### 5.4 Split screen
+
+- **Four players** (battle arena, track 6): the four views look the same at every level, as the arena is within every
+  limit (4.1); the HUD, the arrows and the dividers are where they were.
+- **Two players, detail high** (track 1, frames every 2 s against original): the cars' tires show their tread, their
+  first level, where split screen draws the plainer second; the trackside is otherwise the same at this size (the
+  one-player sections add 13% of triangles, 4.1). No part is drawn twice: no z-fighting, no doubled edge.
+
+### 5.5 Track 5 (the Expansion Pak's, at night)
+
+Unlocked as a winner's profile has it (gdb sets the player's two unlock bytes as the track select opens), one player,
+frames every 2 s: at max the city's lit towers stand beyond the bridge's end and the hills behind the harbour, against
+the night sky, where original shows the sky; the tunnel, the bridge and its cables look the same. No hole, no
+flicker. It is the heaviest track at max (4.1).
+
+### 5.6 Frames between two (a high frame rate) at max
+
+Track 0 at max with detail high and 60 frames a second, every frame shown for two seconds (`RUSH_GFX_HFR_DUMP`): the
+frames drawn between the game's step evenly between them, the far trees, the hills and the bridge included, with no
+part missing from a frame between that both frames have and no jump; 1,551 frames were drawn between two in the run
+and none was held back. Divided matrices (2.3) pair and blend as the others do.
+
+### 5.7 What was looked for and not seen
+
+Holes or open backs in parts the tables hid; seams between far parts; the fog's colour against far geometry (with a fog
+option, far geometry fades into the fog's colour at fog far and original alike); popping at the new limits (frames
+seconds apart can't show a pop: by construction a model at far switches levels where original does and leaves at
+twice its distance, and detail high and max have no level change or limit left to pop, save the sheen's fade);
+z-fighting from the longer depth range; the own car, the hood or the
+cockpit where the view hides them; objects ahead of their time (no show or hide by lap or checkpoint was found in the
+code, 1.8, and none was seen).
 
 ## 6. Tests
 
