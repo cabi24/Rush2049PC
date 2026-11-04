@@ -532,6 +532,31 @@ foreach(script ${SYNTH_PATHS})
         set_tests_properties(synth_boot_${name} PROPERTIES RUN_SERIAL TRUE LABELS realtime)
     endif()
 endforeach()
+# [audio] voices and [audio] engines (docs/port/AUDIO.md 10): the synthetic cartridge with a sound bank (synth_rom.py
+# --sounds: an sfx for every sound index; on the default cartridge nothing plays), and races of 12 cars along the
+# synthetic paths at each voices size (more voices mixed and fewer starts refused at each, the game's trace the same)
+# and with each engines mode (no more drones' engines on than the mode allows), through tools/port/voices_check.py.
+set(SYNTH_ROM_SOUNDS ${CMAKE_BINARY_DIR}/synth/rush2049_synth_snd.z64)
+add_test(NAME synth_rom_sounds COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_rom.py --sounds --out ${SYNTH_ROM_SOUNDS}
+    --data-symbols ${PC_DATA_DIR}/data_symbols.txt)
+set_tests_properties(synth_rom_sounds PROPERTIES FIXTURES_SETUP synth_rom_sounds)
+set(SYNTH_VOICES_TIMEOUT 600)   # 1-4 runs; a sanitizer build runs each many times slower (above)
+if(PC_SANITIZE)
+    set(SYNTH_VOICES_TIMEOUT 3000)
+endif()
+set(SYNTH_VOICES_CHECK ${PC_PYTHON} ${PORT_TOOLS}/voices_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM_SOUNDS} --logs ${CMAKE_BINARY_DIR}/synth/voices)
+add_test(NAME synth_voices_race12 COMMAND ${SYNTH_VOICES_CHECK} voices race12 --sizes original,48,64,96)
+add_test(NAME synth_voices_race2p12 COMMAND ${SYNTH_VOICES_CHECK} voices race2p12 --sizes original,64)
+add_test(NAME synth_engines_race12_original COMMAND ${SYNTH_VOICES_CHECK} engines race12 --mode original)
+add_test(NAME synth_engines_race12_nearest4 COMMAND ${SYNTH_VOICES_CHECK} engines race12 --mode nearest4)
+add_test(NAME synth_engines_race12_all COMMAND ${SYNTH_VOICES_CHECK} engines race12 --mode all)
+add_test(NAME synth_engines_race2p12_nearest4 COMMAND ${SYNTH_VOICES_CHECK} engines race2p12 --mode nearest4
+    --players 2 --drones 10)
+foreach(t synth_voices_race12 synth_voices_race2p12 synth_engines_race12_original synth_engines_race12_nearest4
+        synth_engines_race12_all synth_engines_race2p12_nearest4)
+    set_tests_properties(${t} PROPERTIES FIXTURES_REQUIRED synth_rom_sounds TIMEOUT ${SYNTH_VOICES_TIMEOUT})
+endforeach()
 # game.memory (docs/port/MEMORY.md 6): the program at original against itself at 64 MiB with everything the game
 # allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR), along paths of each kind: the same trace in every run, so the game
 # runs as it does in 8 MiB with all of its data where a physical address would read as a segmented one.
