@@ -978,3 +978,9 @@ What the numbers say:
   That is the open question of this section: measured on an idle host, or the user's Windows GPU, `display` should
   show its frames between at every vblank.
 
+
+Tests: `gfx.interp`'s parse case (`port/gfx/tests/interp_test.c`: `auto` read, and auto's choice at 59-61, 75, 90,
+119-121, 144, 165 and 240 Hz, vsync off, no display; set and resolved at 144 and 60 Hz); `realtime_auto_even`
+(`vsync_even.py --hz 60,120 --game 60 --rate auto`: the step off the vblank at most 7 and 11 ms rms; real time,
+`LABELS realtime`, RUN_SERIAL, skipped with the other real-time tests under the sanitizers and on arm). The defaults:
+`synth_compare.py --same --runs 2 --shots` of d0b8b5d against this branch on rocky.
