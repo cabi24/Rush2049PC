@@ -522,6 +522,24 @@ static int text_sections(Ck *c, uint32_t n[6], size_t at[6], size_t *end)
     return 0;
 }
 
+/* A string's printf conversions in order (%d, %s, ...; %% is none): the game formats some strings with arguments, so a
+ * string must keep the cartridge's, or the formatting reads its arguments as what they aren't. */
+static void conversions(const char *s, char *out, size_t n)
+{
+    size_t k = 0;
+    for (; *s && k + 1 < n; s++) {
+        if (*s != '%')
+            continue;
+        const char *p = s + 1;
+        while (*p && strchr("-+ #0123456789.*hlLqjzt", *p))
+            p++;
+        if (*p && strchr("diouxXcsfeEgGpn", *p))
+            out[k++] = *p;
+        s = *p == '%' ? p : s;
+    }
+    out[k] = 0;
+}
+
 static int check_text(Ck *c, Ck *cart)
 {
     uint32_t n[6], cn[6];
@@ -534,11 +552,24 @@ static int check_text(Ck *c, Ck *cart)
             if (o < end || o >= c->size || !memchr(c->b + o, 0, c->size - o))
                 return bad(c, "text section %d's string %u (at 0x%X) is not a string inside the file", s, i, o);
         }
-    if (cart && text_sections(cart, cn, cat, &cend) == 0)
-        for (int s = 0; s < 6; s++)
-            if (n[s] < cn[s])
-                return bad(c, "text section %d has %u items, the cartridge's %u: the game reads them by number", s,
-                           n[s], cn[s]);
+    if (!cart || text_sections(cart, cn, cat, &cend) != 0)
+        return 0;
+    for (int s = 0; s < 6; s++) {
+        if (n[s] < cn[s])
+            return bad(c, "text section %d has %u items, the cartridge's %u: the game reads them by number", s, n[s],
+                       cn[s]);
+        for (uint32_t i = 0; k_text_offsets[s] && i < cn[s]; i++) {
+            uint32_t o = be32(c, at[s] + 4 * i), co = be32(cart, cat[s] + 4 * i);
+            char a[32], b[32];
+            if (co >= cart->size || !memchr(cart->b + co, 0, cart->size - co))
+                continue;
+            conversions((const char *)c->b + o, a, sizeof a);
+            conversions((const char *)cart->b + co, b, sizeof b);
+            if (strcmp(a, b))
+                return bad(c, "text section %d's string %u has the conversions '%s' where the cartridge's has '%s' "
+                           "(the game formats it with those arguments)", s, i, a, b);
+        }
+    }
     return 0;
 }
 

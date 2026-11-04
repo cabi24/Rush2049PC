@@ -25,6 +25,7 @@
 #include "assets.h"
 #include "config.h"
 #include "mods.h"
+#include "pc_compat.h"
 #include "support.h"
 #include "ultra.h"
 #include "wad_build.h"
@@ -339,6 +340,17 @@ static void test_checks(uint8_t *window)
     File a = text_bank(3), b = text_bank(2);
     CHECK(pc_assets_check(0, b.b, b.n, a.b, a.n, why, sizeof why) != 0 && strstr(why, "by number"));
     CHECK(pc_assets_check(0, a.b, a.n, b.b, b.n, why, sizeof why) == 0);
+    {   /* a string keeps the cartridge's printf conversions: "%d" where it has none is refused, "%%" passes */
+        File f = text_bank(3);
+        char *s1 = (char *)f.b + pc_be32(f.b + 4 + 4 * 1);
+        CHECK(!strcmp(s1, "S0.1"));
+        memcpy(s1, "%d.1", 4);
+        CHECK(pc_assets_check(0, f.b, f.n, a.b, a.n, why, sizeof why) != 0 && strstr(why, "conversions 'd'"));
+        CHECK(pc_assets_check(0, f.b, f.n, NULL, 0, why, sizeof why) == 0);   /* without the cartridge's: no rule */
+        memcpy(s1, "%%.1", 4);
+        CHECK(pc_assets_check(0, f.b, f.n, a.b, a.n, why, sizeof why) == 0);
+        free(f.b);
+    }
     File w = wad_file(), w2 = wad_file();
     w2.b[0x100] ^= 1;   /* no such place: the model chunk's first name, compared below by its effect */
     CHECK(pc_assets_check(90, w.b, w.n, w.b, w.n, why, sizeof why) == 0);
@@ -541,11 +553,14 @@ static void zip_write(const char *path, const char *const *names, const uint8_t 
 
 static void test_folder(void)
 {
-    char dir[] = "/tmp/rush2049pc-mods-XXXXXX", p[1024], line[512];
+    char dir[512], p[1024], line[512];
+    const char *tmp = getenv("TMPDIR") ? getenv("TMPDIR") : getenv("TEMP") ? getenv("TEMP") : "/tmp";
     TestCart t;
     PcModsCart cart;
     PcMods m;
-    if (!mkdtemp(dir)) {
+    snprintf(dir, sizeof dir, "%s/rush2049pc-mods-%d", tmp, (int)getpid());
+    rm_tree(dir);
+    if (mkdir(dir, 0700) != 0) {
         CHECK(0);
         return;
     }

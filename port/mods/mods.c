@@ -17,6 +17,7 @@
 #include "assets.h"
 #include "config.h"
 #include "mods.h"
+#include "pc_compat.h"   /* mkdir on Windows */
 #include "ultra.h"
 
 #define LOG(...) fprintf(stderr, "rush2049pc: mods: " __VA_ARGS__)

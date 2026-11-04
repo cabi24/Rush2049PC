@@ -908,7 +908,8 @@ static void accept(Item *it)
     case I_MOD:   /* pick it up: up and down move it in the order; again to put it down */
         M.moving = !M.moving;
         if (M.moving)
-            status(C_CAPTURE, "Moving %s: up, down; Enter/A puts it", it->label);
+            status(C_CAPTURE, "Moving %s: up, down; Enter/A puts it",
+                   s_mods[it->page].name[0] ? s_mods[it->page].name : s_mods[it->page].folder);
         else
             status(C_OK, "The order applies at the next start");
         break;

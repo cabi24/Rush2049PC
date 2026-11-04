@@ -1042,16 +1042,24 @@ int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);   /* p
 static void pictures(void)
 {
     static const struct { const char *name; int down; } shots[] = {
-        {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"help", 4}, {"about", 5}};
+        {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"game", 4}, {"mods", 5},
+        {"help", 6}, {"about", 7}};
+    static const PcMenuMod mods[3] = {
+        {"red-cars", "Red Cars", "1.2", "Someone", 5, 13, 12, 1, 0, 1, ""},
+        {"long-track", "Long Track", "0.3", "Someone Else", 0, 4, 4, 0, 12, 0, ""},
+        {"old", "old", "", "", 0, 2, 0, 0, 0, 0, "it has no mod.ini (tools/mods/rushmods.py new makes one)"},
+    };
     static uint8_t px[1280 * 960 * 4];
     PcSettings s;
     char path[PC_CFG_PATH];
     int w, h;
     pc_settings_defaults(&s);
     snprintf(s.save_path, sizeof s.save_path, "/home/player/.config/rush2049pc/rush2049pc.ini");
+    pc_settings_set(&s, "mods", "long-track", "off", NULL, 0);
     pc_menu_set_about(mock_about);
     if (start(&s) != 0)
         return;
+    pc_menu_set_mods(mods, 3, "/home/player/.local/share/rush2049pc/mods");
     pc_gfx_set_window_size(1280, 960);
     show_frame();
     for (size_t i = 0; i < sizeof shots / sizeof *shots; i++) {
@@ -1059,18 +1067,23 @@ static void pictures(void)
         act_n(PC_MENU_DOWN, shots[i].down);
         if (i)
             act(PC_MENU_ACCEPT);
-        if (i == 3) {   /* a capture in progress, and the list scrolled */
+        int keys = !strcmp(shots[i].name, "keyboard"), about = !strcmp(shots[i].name, "about");
+        if (keys) {   /* a capture in progress, and the list scrolled */
             act_n(PC_MENU_DOWN, 17);
             act(PC_MENU_ACCEPT);
         }
-        if (i == 6)   /* About's last row: a path over both footer lines */
+        if (about)   /* About's last row: a path over both footer lines */
             act(PC_MENU_UP);
+        if (!strcmp(shots[i].name, "mods"))   /* a mod picked up to move */
+            act(PC_MENU_DOWN), act(PC_MENU_ACCEPT);
         pc_gfx_read_window(px, &w, &h);
         snprintf(path, sizeof path, "%s/menu-%s.png", g_dir, shots[i].name);
         pcgfx_png_write(path, px, w, h);
         printf("%s\n", path);
-        if (i == 3)
+        if (keys)
             pc_menu_capture(NULL);
+        if (!strcmp(shots[i].name, "mods"))
+            act(PC_MENU_ACCEPT);
         if (i)
             act(PC_MENU_BACK);
         act_n(PC_MENU_UP, shots[i].down);

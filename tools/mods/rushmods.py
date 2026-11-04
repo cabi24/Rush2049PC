@@ -566,6 +566,26 @@ def text_sections(b):
     return n, at, pos
 
 
+def conversions(raw):
+    """A string's printf conversions in order (%d, %s, ...; %% is none), as check.c reads them."""
+    out, i = [], 0
+    while i < len(raw):
+        if raw[i] != 0x25:
+            i += 1
+            continue
+        p = i + 1
+        while p < len(raw) and chr(raw[p]) in "-+ #0123456789.*hlLqjzt":
+            p += 1
+        if p < len(raw) and chr(raw[p]) in "diouxXcsfeEgGpn":
+            out.append(chr(raw[p]))
+        i = p + 1 if p < len(raw) and raw[p] == 0x25 else i + 1
+    return "".join(out)[:31]
+
+
+def cstring(b, o):
+    return b[o:b.index(b"\0", o)]
+
+
 def check_text(b, cart):
     n, at, end = text_sections(b)
     for s in range(6):
@@ -577,13 +597,22 @@ def check_text(b, cart):
                 raise Refused(f"text section {s}'s string {i} (at 0x{o:X}) is not a string inside the file")
     if cart is not None:
         try:
-            cn = text_sections(cart)[0]
+            cn, cat, _ = text_sections(cart)
         except Refused:
             return
         for s in range(6):
             if n[s] < cn[s]:
                 raise Refused(f"text section {s} has {n[s]} items, the cartridge's {cn[s]}: the game reads them by "
                               "number")
+            for i in range(cn[s] if TEXT_OFFSETS[s] else 0):
+                co = be32(cart, cat[s] + 4 * i)
+                if co >= len(cart) or cart.find(b"\0", co) < 0:
+                    continue
+                a = conversions(cstring(b, be32(b, at[s] + 4 * i)))
+                c = conversions(cstring(cart, co))
+                if a != c:
+                    raise Refused(f"text section {s}'s string {i} has the conversions '{a}' where the cartridge's has "
+                                  f"'{c}' (the game formats it with those arguments)")
 
 
 def check_font(b, cart):
