@@ -22,10 +22,14 @@ extern float pc_frame_scale;        /* this frame's length in 30 Hz frames: retr
 
 void pc_game_fps_begin(void);       /* latch the setting (the game's state changes) */
 /* The state the game changes to there (state_word_b, the next gGameState): at 60 a race is watched for frames lost to a
- * host that can't keep 60 (FRAMERATE.md 7.8) */
+ * host that can't keep 60 (FRAMERATE.md 7.7) */
 void pc_game_fps_state(unsigned int state);
 void pc_game_frame_note(int retraces);   /* viUpdateTime: this frame's retraces, at most 5 */
+extern void (*pc_game_frame_hook)(int retraces);   /* --log-frames (main.c): called at each frame's note; NULL none */
 float pc_fps_filter(float e);       /* e to the power of the frame's length in 30 Hz frames */
+/* For x = x * e + noise once a 30 Hz frame, taken every frame (x * pc_fps_filter(e) + noise * this): the noise's scale
+ * that keeps x's spread, sqrt((1 - e^2f) / (1 - e^2)) for a frame of f 30 Hz frames; 1 at f = 1 */
+float pc_fps_noise(float e);
 
 /* A float step tuned to a frame of two retraces (a menu slide, a fade): scaled to this frame's length. */
 #define PC_FSCALE(x) (pc_fps60 ? (x) * pc_frame_scale : (x))

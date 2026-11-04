@@ -113,6 +113,12 @@ int pc_gfx_window_geometry(int *x, int *y, int *w, int *h);
  * read the game's frames. */
 void pc_gfx_set_frame_rate(int rate);
 int pc_gfx_frame_rate(void);                 /* frames shown a second (-1 resolved), 0 for the game's own */
+/* game.frame_rate = 60 with video.frame_rate original and a swap that waits for vsync (docs/port/FRAMERATE.md 7.6):
+ * on, the main loop shows the game's own frames paced by the display's vblanks, as at 60 but with none drawn between
+ * (pc_gfx_frame_rate is then 60, pc_gfx_own_paced 1); a presented frame's swap at its retrace held the loop up to a
+ * refresh, and on a display in step with the retraces the game kept 30 frames a second. */
+void pc_gfx_set_own_paced(int on);
+int pc_gfx_own_paced(void);
 void pc_gfx_retrace(uint32_t vi);            /* each retrace, before the VI's present: its number */
 /* Show the frame for this moment, in retraces (pc_gfx_retrace's). mode 0: as the moment says (--fast); 1: on the
  * host's clock, a frame between two isn't drawn while the GPU hasn't finished what it was given; 2: no frame is drawn

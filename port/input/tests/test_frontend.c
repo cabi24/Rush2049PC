@@ -770,16 +770,23 @@ static void test_fps(void)
     CHECK(pc_fps_filter(0.36f) == powf(0.36f, 1.5f), "the filter over 1.5 frames: e^1.5");
     pc_game_frame_note(1);
     CHECK(fabsf(pc_fps_filter(0.36f) - 0.6f) < 1e-6f, "over half a frame: e^0.5 (%g)", (double)pc_fps_filter(0.36f));
+    /* the noise of x = x * e + noise taken every frame: its scale keeps x's spread (the in-car view's bob, 7.6) */
+    CHECK(fabsf(pc_fps_noise(0.75f) - sqrtf(0.25f / 0.4375f)) < 1e-6f, "the noise over half a frame: %g",
+          (double)pc_fps_noise(0.75f));
+    pc_game_frame_note(2);
+    CHECK(pc_fps_noise(0.75f) == 1.0f, "over a whole 30 Hz frame: the N64's noise (%g)", (double)pc_fps_noise(0.75f));
+    pc_game_frame_note(1);
     pc_game_fps_set(0);
     CHECK(pc_fps60 == 1, "original set mid-screen: the screen keeps 60");
     pc_game_fps_begin();
     pc_game_frame_note(1);
-    CHECK(pc_fps60 == 0 && pc_frame_steps == 1 && pc_frame_scale == 1.0f && pc_fps_filter(0.36f) == 0.36f,
+    CHECK(pc_fps60 == 0 && pc_frame_steps == 1 && pc_frame_scale == 1.0f && pc_fps_filter(0.36f) == 0.36f &&
+              pc_fps_noise(0.75f) == 1.0f,
           "the next screen: original, a step a frame whatever its length");
     pc_game_fps_set(144);
     CHECK(pc_game_fps_setting() == 0, "anything else is original: %d", pc_game_fps_setting());
 
-    /* a host that can't keep 60 (FRAMERATE.md 7.8): a race at 60 is watched, 4 s at a time, for frames lost */
+    /* a host that can't keep 60 (FRAMERATE.md 7.7): a race at 60 is watched, 4 s at a time, for frames lost */
     char d[200];
     pc_game_fps_describe(d, sizeof d);
     CHECK(!strcmp(d, "original (30 a second)"), "About before any race at 60: '%s'", d);

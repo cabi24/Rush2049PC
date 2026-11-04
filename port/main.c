@@ -19,6 +19,7 @@
 #include "input_internal.h"
 #include "pc_audio.h"
 #include "pc_compat.h"
+#include "pc_game_fps.h"
 #include "pc_game_types.h"
 #include "ultra.h"
 
@@ -62,6 +63,8 @@ static void usage(FILE *f)
             "                      it is from where the race began (tests of races of more cars)\n"
             "  --log-physics N     every N retraces, the model thread's clock and each car's position and velocity\n"
             "                      (exact with RUSH_STATE_EXACT): game.frame_rate's comparison, fps_compare.py\n"
+            "  --log-frames        at each of the game's frames, its retraces, the model tick and the camera's eye\n"
+            "                      and car 0 as the last frame drew them: game.frame_rate's evenness, fps_even.py\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
             "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
@@ -204,6 +207,12 @@ static uint32_t game_state(void)
     return *(volatile uint32_t *)&state_word_a;
 }
 
+/* game.frame_rate as the game has it latched (pc_game_fps.h): 60, or 0 for original */
+static int game_rate(void)
+{
+    return pc_fps60 ? 60 : 0;
+}
+
 /* What the state log adds to each change: who plays what (gNumPlayers, gNumWindows, the cars in the race, gRace,
  * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second;
  * and its steering input, -1..1),
@@ -283,6 +292,26 @@ static void physics_info(char *out, size_t size)
                         (double)r[2], (double)v[0], (double)v[1], (double)v[2],
                         *(volatile signed char *)&pc_models[i].lap, *(volatile signed char *)&pc_cars[i].place);
     }
+}
+
+/* --log-frames (docs/port/FRAMERATE.md 7.6): each of the game's frames, at its start (viUpdateTime, on the game
+ * thread): the retrace, the frame's retraces, the model tick, and what the last frame drew from: the camera's eye
+ * (gCamera[0].pos, +36), car 0's drawn position (its car record, which the game makes from the model record once a
+ * frame) and the camera's view direction (the third row of its matrix, +24). tools/port/fps_even.py checks one model tick a frame at 60 and two at original, and the eye's steps even.
+ * RUSH_STATE_EXACT: exact floats. */
+extern uint8_t gCamera[];
+static void frame_log(int retraces)
+{
+    static int exact = -1;
+    if (exact < 0)
+        exact = getenv("RUSH_STATE_EXACT") != NULL;
+    const volatile float *e = (const volatile float *)(gCamera + 36), *f = (const volatile float *)(gCamera + 24),
+                         *c = pc_cars[0].pos;
+    fprintf(stderr, exact ? "rush2049pc: frame vi=%u: retraces %d tick %d eye %a %a %a car %a %a %a view %a %a %a\n"
+            : "rush2049pc: frame vi=%u: retraces %d tick %d eye %.3f %.3f %.3f car %.3f %.3f %.3f view %.4f %.4f %.4f\n",
+            __atomic_load_n(&pc_frame, __ATOMIC_RELAXED), retraces, (int)*(volatile int32_t *)&D_80143FF4,
+            (double)e[0], (double)e[1], (double)e[2], (double)c[0], (double)c[1], (double)c[2], (double)f[0],
+            (double)f[1], (double)f[2]);
 }
 
 static void game_info(char *out, size_t size)
@@ -514,6 +543,8 @@ static int rush_main(int argc, char **argv)
             run.end_info = cars_info, g_log_cars = 1;
         else if (!strcmp(a, "--log-physics"))
             run.physics_every = (uint32_t)atoi(ARG()), run.physics_info = physics_info;
+        else if (!strcmp(a, "--log-frames"))
+            pc_game_frame_hook = frame_log;
         else if (!strcmp(a, "--press-via")) {
             if (pc_input_set_via(ARG()) != 0)
                 return 2;
@@ -793,6 +824,7 @@ static int rush_main(int argc, char **argv)
 
     run.game_state = game_state;
     run.game_info = game_info;
+    run.game_rate = game_rate;   /* game.frame_rate = 60 under vsync: the frames paced by the vblanks (FRAMERATE.md 7.6) */
     pc_gfx_set_hud_race(hud_race);
     if (fast) {
         pc_time_set_virtual(1);

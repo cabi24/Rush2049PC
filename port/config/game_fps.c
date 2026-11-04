@@ -11,7 +11,7 @@
  * frame's length in frames of two retraces and pc_frame_steps the whole ones completed in it, so a step tuned to the
  * N64's 30 Hz frame keeps its speed in real time (pc_game_fps.h). At original both are 1 every frame.
  *
- * A host that can't keep 60 (FRAMERATE.md 7.8): in a race at 60 the frames the game drew and the retraces they took
+ * A host that can't keep 60 (FRAMERATE.md 7.7): in a race at 60 the frames the game drew and the retraces they took
  * are counted (pc_game_frame_note, the race told by pc_game_fps_state); when over 4 s it kept fewer than 0.9 frames a
  * retrace, one line says so in the log, once a race, and the overlay's About page shows the last race's share
  * (pc_game_fps_describe). The game keeps its speed either way: a frame of two retraces at 60 is the N64's frame. */
@@ -24,6 +24,7 @@
 volatile int pc_fps60;
 int pc_frame_steps = 1;
 float pc_frame_scale = 1.0f;
+void (*pc_game_frame_hook)(int retraces);
 
 static volatile int s_setting;   /* 0 original, 60 */
 static int s_half;               /* a retrace left over toward the next 30 Hz frame */
@@ -103,6 +104,8 @@ void pc_game_frame_note(int retraces)
         if (s_watch.racing && retraces > 0)
             watch_frame(retraces);
     }
+    if (pc_game_frame_hook)
+        pc_game_frame_hook(retraces);
 }
 
 void pc_game_fps_describe(char *out, size_t size)
@@ -118,6 +121,14 @@ void pc_game_fps_describe(char *out, size_t size)
         snprintf(out, size, "%s; the last race at 60 kept %.2f of its frames (%.0f a second)%s",
                  s_setting == 60 ? "60" : "original (30 a second)", kept / 1000.0, kept * 60 / 1000.0,
                  slow ? ": this host can't keep 60 there" : "");
+}
+
+float pc_fps_noise(float e)
+{
+    float k = pc_fps_filter(e);
+    if (pc_frame_scale == 1.0f || e <= 0.0f || e >= 1.0f)
+        return 1.0f;
+    return sqrtf((1.0f - k * k) / (1.0f - e * e));
 }
 
 float pc_fps_filter(float e)

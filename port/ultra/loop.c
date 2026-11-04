@@ -55,6 +55,7 @@ static void on_signal(int sig)
 }
 
 static uint32_t (*g_game_state)(void);
+static int (*g_game_rate)(void);   /* game.frame_rate latched: 60 or 0 (opt->game_rate) */
 static void (*g_game_info)(char *, size_t);
 static void (*g_end_info)(char *, size_t);
 
@@ -527,6 +528,7 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint64_t late_at[2] = {0, 0};          /* real time of the last two retraces late (the loop fell behind) */
     int tick_rate = 0;
     g_game_state = opt->game_state;
+    g_game_rate = opt->game_rate;
     g_game_info = opt->game_info;
     g_end_info = opt->end_info;
     signal(SIGINT, on_signal);
@@ -548,6 +550,15 @@ int pc_ultra_run(const PcRunOptions *opt)
             vb_reset();
             continue;
         }
+        /* game.frame_rate = 60 with video.frame_rate original and a swap that waits for vsync on a display under
+         * 100 Hz: the game's own frames paced by the display's vblanks, as at 60 with none drawn between. Presented
+         * at their retraces, each frame's swap held the loop until a vblank, up to a refresh: on a display in step
+         * with the retraces the game's next frame then missed its retrace, and the game kept 30 frames a second
+         * (docs/port/FRAMERATE.md 7.6). At 100 Hz and up a swap waits at most 10 ms, and the frames keep their
+         * retraces. */
+        if (g_game_rate)
+            pc_gfx_set_own_paced(!pc_time_virtual() && g_game_rate() == 60 &&
+                                 (pc_gfx_vsync() || (sim_read(), sim.hz > 0)) && display_hz() < 100);
         uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
         int vi_due = now >= next_vi;
         if (vi_due && vi_late_cap) {   /* late: the game's threads take each retrace before the next comes */
@@ -755,6 +766,8 @@ int pc_ultra_run(const PcRunOptions *opt)
                          * retraces dropped within a second) */
                         uint64_t r0 = pc_real_ns(), cost;
                         int mode = late_at[0] && r0 - late_at[0] < 1000000000u ? 2 : 1;
+                        if (pc_gfx_own_paced())
+                            mode = 2;   /* the game's own frames only */
                         int drew = pc_gfx_present_tick(vt, mode | PC_GFX_TICK_NO_SWAP);
                         cost = pc_real_ns() - r0;
                         if (drew && next_vi + VB_VI_WORK_NS < v && wake_late < VB_PRECISE_NS) {
