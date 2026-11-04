@@ -168,7 +168,7 @@ static struct {
     uint32_t vblanks, repeats, max_queued, doubled;
     /* the evenness (FRAMERATE.md 7.9): the moment of each queued frame (pc_gfx_shown_moment) and of the one shown;
      * per vblank the moment's step against the vblank's period, and the time each new picture was held */
-    double moments[64], moment, err2, held, held2;
+    double moments[64], moment, err2, held, held2, even_after;   /* RUSH_SIM_EVEN_AFTER_S: counted from then */
     int moment_set;
     uint32_t steps, pictures, run;
 } sim;
@@ -185,6 +185,7 @@ static void sim_read(void)
         sim.queue_max = !q ? 0 : strcmp(q, "never") == 0 ? -1 : atoi(q);
         sim.phase = f ? atof(f) : -1;
         sim.display_hz = h ? atoi(h) : 0;
+        sim.even_after = getenv("RUSH_SIM_EVEN_AFTER_S") ? atof(getenv("RUSH_SIM_EVEN_AFTER_S")) * 1e9 : 0;
         sim.timing = !d ? 0 : strcmp(d, "vblank") == 0 ? 3 : strcmp(d, "rate") == 0 ? 1 : 0;
         sim.read = 1;
     }
@@ -228,7 +229,7 @@ static void sim_advance(uint64_t now)
         } else if (sim.started) {
             sim.repeats++;
         }
-        if (sim.started && sim.moment_set) {
+        if (sim.started && sim.moment_set && (double)now >= sim.even_after) {
             double ms = sim.period * 1e-6, step = (m - sim.moment) * (1000.0 / 60.0) - ms;
             sim.err2 += step * step;
             sim.steps++;
