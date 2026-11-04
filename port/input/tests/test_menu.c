@@ -251,7 +251,7 @@ static void test_nav(void)
     act(PC_MENU_CLOSE);
     CHECK(!pc_menu_is_open(), "close");
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 9);
+    act_n(PC_MENU_DOWN, 10);   /* from Keyboard, past Presets */
     at("Settings", "Quit", NULL, "Quit");
     pc_menu_action(PC_MENU_ACCEPT);
     CHECK(pump() != 0, "Quit stops the main loop");
