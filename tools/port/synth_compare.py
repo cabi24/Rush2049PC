@@ -16,7 +16,8 @@ builds. Two settings:
 - --shots: the screenshots the path takes (its --screenshot) join the trace, each by its bytes (docs/port/DETAIL.md
   7: the settings at original draw the N64's picture, pixel for pixel).
 - --audio: each run writes everything it plays to a WAV (--dump-audio), which joins the trace by its bytes (on the
-  virtual clock the sound is the same every run: docs/port/AUDIO.md 10 compares the voices settings so).
+  virtual clock the sound is the same every run but for its end: the last subframe, 192 frames, may reach the WAV
+  before the exit or not, which on a loaded machine makes some paths vary; docs/port/AUDIO.md 10.6).
 
 A run's trace is the loader's summary line (without the size of its symbol table, which is the build's data.c: a
 decoupled own-storage symbol leaves it, docs/port/DECOUPLE.md 4), its state changes (the state, the retrace it

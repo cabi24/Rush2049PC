@@ -217,9 +217,16 @@ static void _SendCmd(tAudioMsg *cmd)
         cmd->hdr.used = 0;
     }
 }
+/* PC: a start for a tag already playing starts nothing. The priority pass runs on this thread, at a retrace's message,
+ * and sends its starts behind any retrace messages already queued: when the host holds the thread back by a retrace
+ * or more, the next pass finds the tag still waiting and sends its start again. On the N64 the thread empties the
+ * queue each retrace and that never happens; a second start would give the tag a second voice and lose the first,
+ * a loop then playing on with nothing to stop it (with more voices nothing takes it back: docs/port/AUDIO.md 10.6). */
+#define PC_START_PLAYING(tag) if ((tag)->state == 2) { pc_snd_count(PC_SND_START_PLAYING); break; }
 #else
 static void _SendCmd(tAudioMsg *cmd) { osSendMesg(&D_801427A8, cmd, 0); }
 #define PC_ONLY(stmt)
+#define PC_START_PLAYING(tag)
 #endif
 
 static void _ProcessPriorities(void)
@@ -373,7 +380,7 @@ void entity_ai_pathfind(void *arg)
                 if (cmd->startEffect.tag->state == 0) {
                     audio_effect_setup(cmd->startEffect.tag);
                     break;
-                }
+                } PC_START_PLAYING(cmd->startEffect.tag)
                 cmd->startEffect.tag->sysId = audio_state_save(cmd->startEffect.tag->fxid,
                     cmd->startEffect.tag->vol, cmd->startEffect.tag->lrpan);
                 if (cmd->startEffect.tag->sysId == -1) {

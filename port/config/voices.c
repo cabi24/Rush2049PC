@@ -35,6 +35,10 @@ int pc_mx_voices(void)
     return s_voices;
 }
 
+/* Each reader steps the messages by its own view (views_sound_commands checks that they agree): 32 bytes, tAudioMsg's
+ * on the PC, its tag pointer host-sized. */
+_Static_assert(sizeof(struct pc_snd_msg) == 32, "a sound manager command is 32 bytes on the PC");
+
 int pc_snd_messages(void)
 {
     return s_voices == PC_MX_N64_VOICES ? PC_SND_N64_MSGS : PC_SND_MSG_SLOTS;
@@ -89,7 +93,7 @@ int pc_snd_most_of(int what)
     return what >= 0 && what < PC_SND_MOSTS ? __atomic_load_n(&s_most[what], __ATOMIC_RELAXED) : 0;
 }
 
-void pc_snd_counters(unsigned long long out[PC_SND_COUNTERS], int *msg_most)
+void pc_snd_counters(unsigned long long out[], int *msg_most)
 {
     for (int i = 0; i < PC_SND_COUNTERS; i++)
         out[i] = __atomic_load_n(&s_count[i], __ATOMIC_RELAXED);

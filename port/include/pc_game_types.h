@@ -618,7 +618,7 @@ extern struct pc_mx_stream pc_mx_streams[PC_MX_VOICE_SLOTS];  /* N64 D_8004FA50 
 #define PC_SND_N64_MSGS 128
 #define PC_SND_MSG_SLOTS 256
 int pc_snd_messages(void);
-struct pc_snd_msg { short id; signed char type, used; unsigned char payload[20]; void *ent; };
+struct pc_snd_msg { short id; signed char type, used; unsigned char payload[16]; void *ent; };
 extern struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];   /* N64 D_80142DD8 */
 extern void *pc_snd_start_cmds[PC_SND_MSG_SLOTS];        /* N64 D_80143AE8 */
 extern void *pc_snd_stop_cmds[PC_SND_MSG_SLOTS];         /* N64 D_80143CF0 */
@@ -636,6 +636,7 @@ enum {
     PC_SND_NO_ENTRY,        /* an effect start that found no free entry (AudioSfxInit's, audio_state_save) */
     PC_SND_PASSES,          /* the priority passes (_ProcessPriorities): OVER_BUDGET counts tags a pass */
     PC_SND_MX_LOOP_ORPHAN,  /* a synth tick's voice whose macro has ended while its looping sample plays on */
+    PC_SND_START_PLAYING,   /* a start the manager's thread dropped: its tag was playing already (audiomgr_thread.c) */
     PC_SND_COUNTERS
 };
 void pc_snd_count(int what);

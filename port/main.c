@@ -311,13 +311,13 @@ static int voices_line(char *out, size_t size, const PcMixerStats *m, const PcMi
     return snprintf(out, size, "mixed %.2f voices a subframe of %u (%llu subframes); musyx refused %llu, stole %llu "
                     "(and %llu of the songs'); "
                     "effects refused %llu; over budget %.2f a pass (%llu passes); no emitter %llu, no message %llu, no entry "
-                    "%llu; loops without a macro %llu (voice-ticks); "
+                    "%llu; loops without a macro %llu (voice-ticks); second starts dropped %llu; "
                     "emitters %u of %d, fx tags %d of %d", sub ? (double)(m->voices - m0->voices) / (double)sub : 0.0,
                     m->slots, sub, d[PC_SND_MX_REFUSED], d[PC_SND_MX_STOLEN], d[PC_SND_MX_STOLEN_SONG],
                     d[PC_SND_FX_REFUSED],
                     d[PC_SND_PASSES] ? (double)d[PC_SND_OVER_BUDGET] / (double)d[PC_SND_PASSES] : 0.0,
                     d[PC_SND_PASSES], d[PC_SND_NO_EMITTER], d[PC_SND_NO_MESSAGE], d[PC_SND_NO_ENTRY],
-                    d[PC_SND_MX_LOOP_ORPHAN],
+                    d[PC_SND_MX_LOOP_ORPHAN], d[PC_SND_START_PLAYING],
                     (unsigned)*(volatile uint32_t *)&D_801461E8.count, (int)*(volatile int32_t *)&D_8011026C,
                     (int)*(volatile int32_t *)&D_80110264 - (int)*(volatile uint32_t *)&D_80143FF8.count,
                     (int)*(volatile int32_t *)&D_80110264);

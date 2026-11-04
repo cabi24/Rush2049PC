@@ -949,7 +949,10 @@ if(NOT WIN32)
         --tag anon_ll_id_3c,Sequence,Chan,RecA,Event,Node16)
     add_test(NAME views_sound_emitter COMMAND ${VIEW_CHECK} --n64-size 0x2C --in ${SOUND_EMITTER_VIEWS}
         --tag Cam,CamSlot,Owner,RecB,Source)
-    add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --sym D_80142DD8)
+    # The commands (N64 D_80142DD8) are PC data now (pc_snd_msgs, docs/port/DECOUPLE.md 9), which each reader casts
+    # to its own view, so the views are the live readers' record types (the three the symbol's declarations were).
+    add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --n64-size 0x20 --tag ShutdownMsg,Slot24,Slot18
+        --in src/blob/groups/heap_release/func_800C8918.c,src/blob/groups/menu_save_options/hud_setup.c,src/blob/groups/slot18_alloc/func_80091B00.c)
     # The road collision's views of the car's model record (D_8014A250, N64 layout): the tires' road nodes at
     # +0x3A0 are u32 window addresses (docs/port/CARS.md 2.2).
     add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
