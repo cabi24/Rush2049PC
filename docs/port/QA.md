@@ -446,3 +446,28 @@ waiting frame at the retrace's present instead is left to the high frame rate's 
   had the original textures.
 - The per-player paks (`game.pak2`-`pak4`) came in after this soak's runs were planned and weren't part of the
   configuration.
+
+## Player reports
+
+Reports from play on the user's own machine, open until reproduced or explained.
+
+### 1. The car exploded when steered left or right (Windows, 63640c8, open: not reproduced)
+
+- **Report** (2026-11-04): the Windows zip of 63640c8 (the Release workflow's artifact build), on the user's PC: "I
+  explode when I steer right or left". The settings file was the defaults but for the window (`[video]` width 1920,
+  height 1080, position 480,270): no `game.cars`, `game.frame_rate`, `draw_distance` or `game.memory` setting, so
+  none of the PC features was on. Whether the keyboard or a controller steered was not said. After the user changed
+  their settings they couldn't make it happen again, and no log was taken of the run that did.
+- **Checked** (the Pi 5, the retail cartridge, `--fast`, `--no-config`): the Release workflow's linux-aarch64 build of
+  the same commit and of the beta before it (95bfaf0), one race on track 0 with the gas held and full-lock steering
+  left and right in turns (`build/scratch/steer/steer.press`: 1 s, 1 s, 1 s, 1 s, 0.5 s, 0.5 s, 2 s, 2 s). The two
+  builds' traces are the same, second by second (the first car's position, speed and steering). In both the car
+  crashed twice, each after a second of full lock at about 150 mph took it into the track's side, and the game blew it
+  up and put it back on the road three seconds later, as the N64 game does after a hard crash. The keyboard and a
+  bound button always steer at full lock (`input.stick_range`), which at that speed turns the car into the barrier
+  within a second.
+- **Not checked**: the x86-64 Windows build on the retail cartridge (the cartridge stays on the Pi, which has no
+  x86-64 emulator), and so whether that build's physics differs from aarch64's. The Windows jobs in CI run the
+  synthetic cartridge only, whose races don't steer into walls.
+- **If it is seen again**: the log (`rush2049pc.log` next to the program), the settings file, keyboard or controller,
+  the track, and whether a short tap of the steering on a straight, with nothing near, is enough.
