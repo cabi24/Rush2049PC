@@ -28,6 +28,9 @@ fixed retrace), without the graphics-task counts. Runs of one executable give th
     varies    the executables' traces differ, but a run of one is a run of the other, or they differ no earlier
               than one executable's runs among themselves (the first place each differs is shown)
     DIFFERS   otherwise
+    MISSES    a run's last state line doesn't say what the path's or the --script's `# expect:` line does (as
+              synth_paths.py checks it): the same course in every run is no proof if it isn't the one the script
+              is for (tools/port/synth/battle2p.press on the retail cartridge picks practice, docs/port/QA.md)
 
 --script, --until and --seconds run one press script of any path instead (the retail cartridge: --rom, no
 --no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. --set-b and --env-b give the second executable
@@ -43,8 +46,8 @@ input_check.py's), as CI compares the Windows program's with Linux's (docs/port/
     --from-logs linux/build/pc/synth/paths windows/synth/paths
 
 A log must have exact floats (RUSH_STATE_EXACT) and status lines; a path on the host's clock (`# realtime`) is left
-out, since its runs differ among themselves. Exit status: the number of paths that DIFFER, or with --same (CI) that
-aren't the same (with --from-logs: that aren't the same, or are missing from one folder). Stdlib only, Python 3.9+.
+out, since its runs differ among themselves. Exit status: the number of paths that DIFFER or MISS (a run that doesn't end as its
+`# expect:` line says), or with --same (CI) that aren't the same (with --from-logs: that aren't the same, or are missing from one folder). Stdlib only, Python 3.9+.
 """
 import argparse
 import concurrent.futures
@@ -139,14 +142,14 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
     return trace(text) + shots, p.returncode, took
 
 
-def compare(name, exes, rom, cmd_tail, runs, logs, retail, pool=None, path_env=None):
+def compare(name, exes, rom, cmd_tail, runs, logs, retail, pool=None, path_env=None, expect=""):
     """The path's verdict (0 or 1), printed. With a pool, its runs are submitted to it and this returns a function
     that waits for them and judges: each run is a process of its own on the virtual clock, whose course doesn't
     depend on what else runs."""
     jobs = [(k, (pool.submit if pool else _now)(run_one, exe, rom, cmd_tail, logs, f"{name}.{k}.{r}", retail,
                                                 path_env, k == 1))
             for k, exe in enumerate(exes) for r in range(runs)]
-    return (lambda: judge(name, jobs)) if pool else judge(name, jobs)
+    return (lambda: judge(name, jobs, expect)) if pool else judge(name, jobs, expect)
 
 
 class _now:
@@ -159,13 +162,34 @@ class _now:
         return self.value
 
 
-def judge(name, jobs):
+def script_expect(path):
+    """A press script's `# expect:` line (synth_paths.py's format), or ""."""
+    for line in Path(path).read_text().splitlines():
+        m = re.match(r"#\s*expect\s*:\s*(.*)$", line)
+        if m:
+            return m.group(1).strip()
+    return ""
+
+
+def reaches(t, expect):
+    """Whether a run's trace ends as the script's `# expect:` line says (synth_paths.py's check of its last state)."""
+    ends = [e for e in t if e[0] == "end"]
+    return not expect or bool(ends) and expect in f"state={ends[-1][2]}: {ends[-1][3]}"
+
+
+def judge(name, jobs, expect=""):
     traces, times = [[], []], [[], []]   # per executable: [trace, ...], [seconds, ...]
     for k, fut in jobs:
         t, code, took = fut.result()
         traces[k].append(t + ((("exit", None, "", str(code)),) if code else ()))
         times[k].append(took)
     times = [min(tt) for tt in times]
+    missed = [t for ts in traces for t in ts if not reaches(t, expect)]
+    if missed:   # the same course in every run proves nothing if it isn't the one the script is for
+        ends = [e for e in missed[0] if e[0] == "end"]
+        print(f"synth_compare: {name:10} MISSES   {len(missed)} of {len(jobs)} runs don't end as the script expects "
+              f"('{expect}'): {show(ends[-1]) if ends else '(no end line)'}", flush=True)
+        return 1
     sets = [set(ts) for ts in traces]
     events = len(traces[0][0])
     timing = ", ".join(f"{t:.2f} s" for t in times)
@@ -278,7 +302,8 @@ def main():
             ap.error("--script needs --until")
         tail = ["--press-file", str(Path(a.script).resolve()), "--until-state", a.until, "--seconds", a.seconds,
                 "--status", a.status]
-        differ += compare(Path(a.script).stem, a.exe, a.rom, tail, a.runs, a.logs, retail=True)
+        differ += compare(Path(a.script).stem, a.exe, a.rom, tail, a.runs, a.logs, retail=True,
+                          expect=script_expect(a.script))
     else:
         names = a.names or sorted(p.stem for p in synth_paths.PRESS_DIR.glob("*.press"))
         with concurrent.futures.ThreadPoolExecutor(max(1, a.jobs)) as pool:
@@ -289,7 +314,8 @@ def main():
                 tail = ["--press-file", str(press), "--until-state", spec["until"], "--seconds", spec["seconds"],
                         "--status", a.status] + spec["args"]
                 verdicts.append(compare(name, a.exe, a.rom, tail, a.runs, a.logs, retail=False,
-                                        pool=pool if a.jobs > 1 else None, path_env=spec["env"]))
+                                        pool=pool if a.jobs > 1 else None, path_env=spec["env"],
+                                        expect=spec["expect"]))
             differ += sum(v() if callable(v) else v for v in verdicts)   # printed in the paths' order
         if len(names) > 1:
             print(f"synth_compare: {len(names) - differ} of {len(names)} paths agree")

@@ -318,6 +318,14 @@ In `tools/port/sanitize/`, each with its reason; patterns are anchored to one fu
 - `bounds:^animControls$`: the pause menu's rows test `(conflict && !gConflict[p][action]) || action >= 10`, so
   with action 10 they read the next row's first flag, in the window at the N64's layout as the N64 reads it, and the
   `||` decides the result whatever was read.
+- `bounds:^func_800F207C$` (since 2026-11-04, [QA.md](QA.md) "Integration QA"): the high scores' name entry, on
+  the retail cartridge after a race to its finish. A name finished with nothing typed (END pressed first, or the
+  entry's time running out) has its trailing spaces trimmed with `name[len - 1]` at `len` 0
+  (`billboard_render/func_800F207C.c:98`), the byte before the name: for the first player the last of `humans`
+  (`D_80143A40`, `s16 [8]` at its N64 layout, which nothing writes past the fourth human), for the others the last
+  name's terminator. It is 0 on the N64 and on the PC, not a space, so the loop ends before its first write. The
+  retail function's own read; seen under ASan + UBSan on the retail cartridge, which the synthetic paths (no race of
+  theirs finishes) don't reach.
 - `null:^audio_helper$`: the blank cartridge only (`--no-rom`, `app_firstrun`): with every file empty no heap block
   fits, and the N64 code reads the null block's size, then faults, as on the N64. The tests expect that fault.
 - `float-cast-overflow` in `func_8009F058`, `func_8009E8B4`, `func_8009D45C`, `func_8009D99C`, `func_800A557C`,

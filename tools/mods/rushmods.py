@@ -1237,6 +1237,9 @@ def parse_files(specs):
             out.append(int(s))
         elif wave_by_name(s) >= 0:
             out.append(wave_by_name(s))
+        elif "/" in s and wave_by_name(s.rsplit("/", 1)[1]) >= 0 and \
+                wave_folder(wave_by_name(s.rsplit("/", 1)[1])) == s.rsplit("/", 1)[0].lower():
+            out.append(wave_by_name(s.rsplit("/", 1)[1]))   # as names lists it: cars/car01
         else:
             raise SystemExit(f"rushmods: '{s}' is no wave number or name (rushmods.py names)")
     return out
@@ -1344,6 +1347,16 @@ def cmd_selftest(a):
     if [l for l in c_names if l] != py_names:
         print("rushmods selftest: the names differ from port/mods/mods.c's")
         fails += 1
+    for w in range(WAVES):   # extract's arguments: a wave by its number, its name and as names lists it
+        if wave_name(w) and loaded(w) and parse_files([str(w), wave_name(w), f"{wave_folder(w)}/{wave_name(w)}"]) != [w] * 3:
+            print(f"rushmods selftest: wave {w} isn't found by its number, name and {wave_folder(w)}/{wave_name(w)}")
+            fails += 1
+    try:
+        parse_files(["tracks/car01"])
+        print("rushmods selftest: tracks/car01 (another wave's folder) was taken")
+        fails += 1
+    except SystemExit:
+        pass
     subprocess.run([a.program, "samples", str(work / "good")], check=True)
     rnd = random.Random(2049)
     files = []

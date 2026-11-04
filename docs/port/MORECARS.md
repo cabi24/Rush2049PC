@@ -1021,6 +1021,14 @@ cartridge's race HUD set is zero (7.1 lists what it would need), and the retail 
 | `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`; the same counts as the base's |
 | Windows cross build (Pi, mingw-w64, fresh configure) | builds; gen_data's check of the PE: OK, 26 decoupled, 1 reserved in the window |
 
+**The six retail scripts since 2026-11-04.** `race`, `race2p`, `stunt` and `pause` are `tools/port/synth/`'s; `battle2p`
+and `battlequit` are `tools/port/retail/`'s. On the retail cartridge the synthetic cartridge's `battle2p.press` and
+`battlequit.press` never reach a battle: the retail mode screen of two players lists four modes, not seven, so their
+five DOWNs wrap round to practice, and every proof above and in the other documents that names them on the retail
+cartridge compared a two-player practice race on track 0 (and its quit), the same in every run. `synth_compare.py`
+now checks a script's `# expect:` line, which says `mode 6, track 6` in the retail ones ([QA.md](QA.md), "Integration
+QA of the PC features").
+
 ## 11. What was not checked
 
 As of 10.4 (2026-10-29); the races, tracks and modes checked are there.
