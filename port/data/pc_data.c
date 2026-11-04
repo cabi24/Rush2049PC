@@ -15,7 +15,9 @@
  *
  * The game's arenas are at their N64 addresses in that window too, so an N64 address inside one is its own host
  * address (arena + offset is the identity), and 32-bit fields can hold it. The window must be mapped first. The
- * test tables may keep their arenas in host memory instead.
+ * test tables may keep their arenas in host memory instead. With the window elsewhere (pc_data_set_window: the guard
+ * mode, docs/port/NOFIXED.md 5) the arenas the tables put at their N64 addresses are filled through the translation
+ * instead, and so are the RDRAM addresses a pointer keeps (the heap's).
  *
  * The first load writes a report: pointer counts, unresolved pointers, and non-pointer words that look like N64
  * addresses (likely mistyped declarations, unless they point at window data). */
@@ -40,6 +42,13 @@
 static PcDataStats g_stats;
 static FILE *g_report;
 static int g_scan;              /* first load: count and report */
+static void *(*g_window)(uint32_t n64);   /* the RDRAM window when it isn't at 0x80000000, or NULL */
+static const PcDataTables *g_loaded;      /* the tables the last pc_data_load_all filled */
+
+void pc_data_set_window(void *(*n64_to_host)(uint32_t n64))
+{
+    g_window = n64_to_host;
+}
 
 /* Values already logged as unresolved (once each). */
 #define LOGGED_SLOTS 4096
@@ -181,9 +190,42 @@ static void describe(const PcDataTables *t, uint32_t a, char *buf, size_t n)
         snprintf(buf, n, "?");
 }
 
+/* The same for the tables the last pc_data_load_all filled, or before that the game's if they are linked in ("?"
+ * without either): the guard mode's fault note (port/ultra/memory.c, docs/port/NOFIXED.md 5). */
+#ifndef _WIN32   /* PE's ld refuses an undefined weak reference (docs/port/WINDOWS.md 3); the guard is POSIX only */
+extern const PcDataTables pc_data_tables __attribute__((weak));
+#endif
+void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n)
+{
+    const PcDataTables *t = g_loaded;
+#ifndef _WIN32
+    if (!t && &pc_data_tables)
+        t = &pc_data_tables;
+#endif
+    if (t)
+        describe(t, n64, buf, n);
+    else
+        snprintf(buf, n, "?");
+}
+
 static int at_n64_address(const PcDataArena *ar)
 {
     return (uintptr_t)ar->host == ar->n64_lo;
+}
+
+/* Where an arena is: the tables' host address, or, for one they put at its N64 address while the window is
+ * elsewhere, the window's place for it (NULL if outside the window). */
+static uint8_t *arena_host(const PcDataArena *ar)
+{
+    return g_window && at_n64_address(ar) ? g_window(ar->n64_lo) : ar->host;
+}
+
+/* A pointer that keeps an RDRAM address (the heap's, or one no table resolves): the value as it is, or the window's
+ * place for it when the window is elsewhere. */
+static void *kept(uint32_t v)
+{
+    void *p = g_window && v >= 0x80000000u && v < 0xC0000000u ? g_window(v) : NULL;
+    return p ? p : (void *)(uintptr_t)v;
 }
 
 /* What an address-like word points at, for the report. Data in the window (an arena at its N64 address, outside
@@ -300,7 +342,7 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
         in_ovl = is_overlay(t, t->arenas[i].image) && a >= t->arenas[i].n64_lo && a <= t->arenas[i].n64_hi;
     if (a >= t->heap_lo && !in_ovl) {
         if (!quiet) g_stats.rdram++;   /* the game heap, frame buffers: kept */
-        return (void *)(uintptr_t)v;
+        return kept(v);
     }
     /* 1. A function: this image's (the runtime images share code addresses), or any image's from game data. */
     const PcDataFunc *f = find_func(t, a, ovl_ctx ? image : -1);
@@ -348,7 +390,7 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
                     report_text(t, where, off, v, a, text);
                 }
             }
-            return ar->host + (a - ar->n64_lo);
+            return arena_host(ar) + (a - ar->n64_lo);
         }
     }
     /* 3. A function with no C yet, or another runtime image's function. */
@@ -372,7 +414,7 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
     }
     if (a >= t->heap_lo) {
         if (!quiet) g_stats.rdram++;   /* inside the heap block reserved for the runtime images */
-        return (void *)(uintptr_t)v;
+        return kept(v);
     }
     if (!quiet) {
         g_stats.unresolved++;
@@ -382,7 +424,7 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
                 fprintf(g_report, "unresolved %s+0x%X 0x%08X\n", where, off, v);
         }
     }
-    return (void *)(uintptr_t)v;
+    return kept(v);
 }
 
 void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image)
@@ -439,13 +481,14 @@ static uint8_t *image_bytes(const PcDataTables *t, int i)
 
 static void swap_arena(const PcDataTables *t, const PcDataArena *ar)
 {
+    uint8_t *host = arena_host(ar);
     for (uint32_t k = 0; k < ar->run_count; k++) {
         const PcDataRun *r = &t->runs[ar->run_first + k];
         uint32_t en = n64_esz(r->kind);
         for (uint32_t i = 0; i < r->rep; i++) {
-            uint8_t *p = ar->host + r->n64_off + i * r->n64_stride;
+            uint8_t *p = host + r->n64_off + i * r->n64_stride;
             for (uint32_t j = 0; j < r->count; j++, p += en) {
-                if (p + en > ar->host + (ar->n64_init - ar->n64_lo))
+                if (p + en > host + (ar->n64_init - ar->n64_lo))
                     break;
                 if (en == 2) {
                     uint16_t v = rd16(p);
@@ -455,7 +498,7 @@ static void swap_arena(const PcDataTables *t, const PcDataArena *ar)
                     memcpy(p, &v, 4);
                     if (g_scan && r->kind == PC_K_U32 && v >= 0x80000000u && v < 0x80800000u) {
                         char what[96];
-                        describe(t, ar->n64_lo + (uint32_t)(p - ar->host), what, sizeof what);
+                        describe(t, ar->n64_lo + (uint32_t)(p - host), what, sizeof what);
                         report_addr_word(t, what, v);
                     }
                 } else if (en == 8) {
@@ -585,7 +628,7 @@ static int swap_in_place(const PcDataTables *t, const PcDataReach *r, uint32_t a
                 for (uint32_t x = 0; x < run->rep; x++)
                     for (uint32_t j = 0; j < run->count; j++) {
                         uint32_t no = run->n64_off + x * run->n64_stride + j * en;
-                        uint8_t *p = ar->host + (a - ar->n64_lo) + e * r->n64_size + no;
+                        uint8_t *p = arena_host(ar) + (a - ar->n64_lo) + e * r->n64_size + no;
                         if (no + en > r->n64_size)
                             continue;
                         if (en == 2) {
@@ -707,8 +750,8 @@ int pc_data_load_image(const PcDataTables *t, int image)
         uint32_t init = ar->n64_init - ar->n64_lo;
         if (ar->n64_lo < img_base || ar->n64_init - img_base > img_size)
             return -1;
-        memcpy(ar->host, img + (ar->n64_lo - img_base), init);
-        memset(ar->host + init, 0, ar->n64_hi - ar->n64_init);
+        memcpy(arena_host(ar), img + (ar->n64_lo - img_base), init);
+        memset(arena_host(ar) + init, 0, ar->n64_hi - ar->n64_init);
         swap_arena(t, ar);
     }
     PcDataState *st = t->state;
@@ -780,10 +823,11 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
     PcDataState *st = t->state;
     const char *path = report_path;
     int rc = 0;
+    g_loaded = t;
     /* An arena at its N64 address is in the RDRAM window, which must be mapped (port/ultra's pc_mem_init). */
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];
-        if (at_n64_address(ar) && !mapped(ar->host, ar->n64_hi - ar->n64_lo)) {
+        if (at_n64_address(ar) && (!arena_host(ar) || !mapped(arena_host(ar), ar->n64_hi - ar->n64_lo))) {
             fprintf(stderr, "pc_data: the game's data belongs at 0x%08X-0x%08X, in the RDRAM window at host "
                     "0x80000000, which is not mapped (docs/port/ULTRA.md)\n", ar->n64_lo, ar->n64_hi);
             return -1;
@@ -863,7 +907,7 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];
         if (is_overlay(t, ar->image) && at_n64_address(ar) && ar->n64_lo >= t->heap_lo)
-            memset(ar->host, 0, ar->n64_hi - ar->n64_lo);
+            memset(arena_host(ar), 0, ar->n64_hi - ar->n64_lo);
     }
     const PcDataStats *g = &g_stats;
     fprintf(stderr, "pc_data: %u symbols, pointers: %u own, %u C data, %u arena (%u to undescribed data, %u to text in "

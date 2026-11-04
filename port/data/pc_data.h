@@ -195,6 +195,13 @@ int pc_data_load_image(const PcDataTables *t, int image);
 const PcDataStats *pc_data_stats(void);
 /* Host address for an N64 address with the tables' symbols (NULL if none); for checks and tools. */
 void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
+/* The RDRAM window when it isn't at host 0x80000000 (the guard mode, docs/port/NOFIXED.md 5): an arena the tables put
+ * at its N64 address is filled at n64_to_host(its address), and an RDRAM address a pointer keeps becomes
+ * n64_to_host(it). NULL (the default) for the window at 0x80000000. Before pc_data_load_all. */
+void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
+/* An N64 address by name (a function, own storage, an arena symbol + offset), from the tables the last
+ * pc_data_load_all filled; "?" if none. */
+void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n);
 
 /* The game's tables (build/pc/pc-data/data.c). */
 extern const PcDataTables pc_data_tables;

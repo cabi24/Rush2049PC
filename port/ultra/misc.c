@@ -212,6 +212,10 @@ static void fault(int sig, siginfo_t *si, void *ctx)
                      si->si_addr, pc_os_thread_name());
     if (write(2, line, (size_t)n) < 0)
         _exit(128 + sig);
+    char note[320];   /* the guard mode: which N64 address it was (docs/port/NOFIXED.md 5) */
+    int k = sig == SIGSEGV || sig == SIGBUS ? pc_mem_fault_note((uintptr_t)si->si_addr, note, sizeof note) : 0;
+    if (k > 0 && write(2, note, (size_t)k < sizeof note ? (size_t)k : sizeof note - 1) < 0)
+        _exit(128 + sig);
 #ifdef PC_SANITIZE
     const struct sigaction *prev = &g_prev_fault[sig];
     int chain = (prev->sa_flags & SA_SIGINFO) ? prev->sa_sigaction != NULL

@@ -1006,6 +1006,8 @@ static int rush_main(int argc, char **argv)
         fprintf(stderr, "rush2049pc: cannot map the RDRAM window\n");
         return 1;
     }
+    if (!pc_mem_fixed())
+        pc_data_set_window(pc_n64_ptr);   /* the guard mode, or a host that can't map 0x80000000 (NOFIXED.md 5) */
     if (selftest) {
         pc_time_set_virtual(fast);
         return pc_selftest();

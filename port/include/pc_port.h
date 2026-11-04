@@ -53,6 +53,8 @@ int pc_mem_is_be(const void *p);
 
 /* Fill the boot and game images' initialized data from the ROM. 0 on success. */
 int pc_data_init(const uint8_t *rom, size_t rom_size);
+/* The window when it isn't at host 0x80000000 (port/data/pc_data.h, docs/port/NOFIXED.md 5), before pc_data_init. */
+void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
 
 /* An overlay "load": both runtime images share 0x8038A400 on the N64; natively both are linked in, and a load
  * resets that image's data to its initial values and zeroes its BSS. */
