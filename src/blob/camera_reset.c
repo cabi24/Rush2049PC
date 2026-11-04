@@ -3796,10 +3796,17 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
+#ifdef TARGET_PC
+/* PC: video.fog off keeps the sky dome with the track select's fog option on (docs/port/DETAIL.md 2.4): the N64 makes
+ * none in a fog, whose colour is then the whole sky; without the fog that is a flat colour behind the world. */
+#define PC_SKY_FOG(f) (pc_fog() == PC_FOG_OFF ? 0 : (f))
+#else
+#define PC_SKY_FOG(f) f
+#endif
 void camera_reset(void)
 {
   s32 i; s32 *dst; s32 handle; intptr_t val;
-  if (D_8013F1D8 > 0) {
+  if (PC_SKY_FOG(D_8013F1D8) > 0) {
     func_800B90F8();
     return;
   }

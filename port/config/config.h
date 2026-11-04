@@ -114,11 +114,12 @@ typedef struct PcSettings {
  * anything outside 6 to PC_MAX_LINKS is taken to the nearest end. */
 void pc_race_cars_set(int cars);
 
-/* video.draw_distance and video.detail as the game reads them (detail.c): PC_DRAW_*, PC_DETAIL_* (pc_port.h). main
+/* video.draw_distance, video.detail and video.fog as the game reads them (detail.c): PC_DRAW_*, PC_DETAIL_*, PC_FOG_*
+ * (pc_detail.h; the game reads fog only for the sky dome, the renderer has its own). main
  * sets them at start and the settings overlay when they change; the game takes them from its next frame. The
  * renderer's part (the depth range, the fog) is pc_gfx_set_draw_distance and pc_gfx_set_fog. pc_scene_report: the
  * exit's scene line, with the renderer's tasks and triangles (pc_gfx_scene_stats). */
-void pc_detail_set(int draw_distance, int detail);
+void pc_detail_set(int draw_distance, int detail, int fog);
 void pc_scene_report(uint32_t tasks, uint64_t triangles, uint32_t most);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */

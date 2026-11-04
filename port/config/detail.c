@@ -18,11 +18,18 @@
 
 static volatile int s_draw = PC_DRAW_ORIGINAL;   /* PC_DRAW_* */
 static volatile int s_detail = PC_DETAIL_ORIGINAL;
+static volatile int s_fog = PC_FOG_ORIGINAL;      /* PC_FOG_*: the renderer's, and SkyInit's sky dome (camera_reset) */
 
-void pc_detail_set(int draw_distance, int detail)
+void pc_detail_set(int draw_distance, int detail, int fog)
 {
     s_draw = draw_distance == PC_DRAW_FAR || draw_distance == PC_DRAW_MAX ? draw_distance : PC_DRAW_ORIGINAL;
     s_detail = detail == PC_DETAIL_HIGH ? PC_DETAIL_HIGH : PC_DETAIL_ORIGINAL;
+    s_fog = fog == PC_FOG_FAR || fog == PC_FOG_OFF ? fog : PC_FOG_ORIGINAL;
+}
+
+int pc_fog(void)
+{
+    return s_fog;
 }
 
 int pc_draw_distance(void)

@@ -623,25 +623,26 @@ static void test_detail(void)
 
     /* what the game reads (detail.c): the N64's distances untouched at original, x 2 at far, none at max; the level
      * of detail's distance; the split-screen models' player count; the matrices' range */
-    pc_detail_set(PC_DRAW_ORIGINAL, PC_DETAIL_ORIGINAL);
+    pc_detail_set(PC_DRAW_ORIGINAL, PC_DETAIL_ORIGINAL, PC_FOG_ORIGINAL);
     CHECK(pc_draw_reach(600.0f) == 600.0f && pc_draw_reach(1600.0f) == 1600.0f && pc_lod_distance(250.0f) == 250.0f &&
               pc_detail_players(3) == 3,
           "original: 600, 1600, 250, 3 players");
     CHECK(pc_draw_range_scale(2047.9f, -2047.9f, 0.0f) == 1 && pc_draw_range_scale(2048.0f, 0.0f, 0.0f) == 0 &&
               pc_draw_range_scale(0.0f, -2048.0f, 0.0f) == 0 && pc_draw_range_scale(0.0f, 0.0f, 1e20f) == 0,
           "original: the N64's range, (-2048, 2048) on each axis");
-    pc_detail_set(PC_DRAW_FAR, PC_DETAIL_ORIGINAL);
+    pc_detail_set(PC_DRAW_FAR, PC_DETAIL_ORIGINAL, PC_FOG_FAR);
     CHECK(pc_draw_reach(600.0f) == 1200.0f && pc_draw_range_scale(2048.0f, 0.0f, 0.0f) == 2 &&
               pc_draw_range_scale(0.0f, 4095.0f, 0.0f) == 2 && pc_draw_range_scale(0.0f, 0.0f, -4096.0f) == 0,
           "far: 1200; the range to 4,096 ft through a matrix halved");
-    pc_detail_set(PC_DRAW_MAX, PC_DETAIL_HIGH);
+    pc_detail_set(PC_DRAW_MAX, PC_DETAIL_HIGH, PC_FOG_OFF);
     CHECK(pc_draw_reach(600.0f) > 1e29f && pc_lod_distance(250.0f) < 0.0f && pc_detail_players(3) == 1 &&
               pc_draw_range_scale(6000.0f, 0.0f, 0.0f) == 4 && pc_draw_range_scale(0.0f, 0.0f, 40000.0f) == 32 &&
               pc_draw_range_scale(1e10f, 0.0f, 0.0f) == 0,
           "max, high: no limit, the first level, one player's models, any range a power of two");
-    CHECK(pc_draw_distance() == PC_DRAW_MAX && pc_detail() == PC_DETAIL_HIGH, "read back");
-    pc_detail_set(7, 9);
-    CHECK(pc_draw_distance() == PC_DRAW_ORIGINAL && pc_detail() == PC_DETAIL_ORIGINAL, "unknown levels: original");
+    CHECK(pc_draw_distance() == PC_DRAW_MAX && pc_detail() == PC_DETAIL_HIGH && pc_fog() == PC_FOG_OFF, "read back");
+    pc_detail_set(7, 9, 5);
+    CHECK(pc_draw_distance() == PC_DRAW_ORIGINAL && pc_detail() == PC_DETAIL_ORIGINAL && pc_fog() == PC_FOG_ORIGINAL,
+          "unknown levels: original");
 }
 
 int main(int argc, char **argv)

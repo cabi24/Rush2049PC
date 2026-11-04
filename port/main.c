@@ -575,7 +575,7 @@ static int rush_main(int argc, char **argv)
     /* draw distance, detail and fog (docs/port/DETAIL.md): the game's part, and the renderer's */
     {
         char draw[16], detail[16], fog[16];
-        pc_detail_set(cfg.draw_distance, cfg.detail);
+        pc_detail_set(cfg.draw_distance, cfg.detail, cfg.fog);
         pc_settings_get(&cfg, "video", "draw_distance", draw, sizeof draw);
         pc_settings_get(&cfg, "video", "detail", detail, sizeof detail);
         pc_settings_get(&cfg, "video", "fog", fog, sizeof fog);

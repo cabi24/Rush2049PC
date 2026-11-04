@@ -400,11 +400,11 @@ static void apply(const char *section, const char *key)
             pc_gfx_set_textures(s->textures);
         else if (!strcasecmp(key, "hud"))
             pc_gfx_set_hud(s->hud);
-        else if (!strcasecmp(key, "draw_distance") || !strcasecmp(key, "detail")) {   /* from the next frame */
-            pc_detail_set(s->draw_distance, s->detail);
+        else if (!strcasecmp(key, "draw_distance") || !strcasecmp(key, "detail") || !strcasecmp(key, "fog")) {
+            pc_detail_set(s->draw_distance, s->detail, s->fog);   /* from the next frame (DETAIL.md) */
             pc_gfx_set_draw_distance(s->draw_distance);
-        } else if (!strcasecmp(key, "fog"))
             pc_gfx_set_fog(s->fog);
+        }
         else if (!strcasecmp(key, "width") || !strcasecmp(key, "height"))
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))

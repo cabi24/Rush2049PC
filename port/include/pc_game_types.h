@@ -51,6 +51,7 @@ int pc_cars_setting(void);
 #include "pc_detail.h"
 int pc_draw_distance(void);   /* PC_DRAW_* (pc_detail.h) */
 int pc_detail(void);          /* PC_DETAIL_* */
+int pc_fog(void);             /* PC_FOG_*: off keeps the sky dome in a fog option (SkyInit, camera_reset.c) */
 float pc_draw_reach(float d);
 float pc_lod_distance(float d);
 int pc_detail_players(int players);
