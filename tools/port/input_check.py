@@ -18,13 +18,20 @@ with STICKLEFT and STICKRIGHT (default: the synthetic cartridge's drive) runs:
   shows both);
 
 and in the reference the steering input is nonzero while the stick is pushed, one way for right and the other for
-left. With --rumble the game's motor must rumble the virtual controller. Then race2p with two virtual controllers
+left. Then smooth keyboard steering (input.keyboard_steering): the path with each stick push moved to start 0.1 s
+before a whole second and end 0.05 s before one (so the status lines sample the ramp), through the keyboard
+(--log-input) with instant and with smooth (keyboard_steer_time 250: 15 retraces out, 5 back): instant's stick
+jumps from the centre to full tilt and back; smooth's goes the ramp's values retrace by retrace, out and back, each
+way; and the car's steering input 0.1 s into a push is smaller with smooth than with instant, the same way, and
+0.05 s after the release still that way with smooth and 0 with instant; and a push from 6 retraces before the race's
+start (state 0x400000) ramps on across it, retrace by retrace (--no-smooth skips this). With --rumble the game's motor must rumble the virtual controller. Then race2p with two virtual controllers
 must give its reference, the second on player 2; and with a rumble pak on player 1 and auto on player 2 (a virtual
 controller can rumble), each player's motor must rumble its own controller. The lines are
 compared without their audio task counts, which can differ by one between runs in a window. Exit status: the
 number of failed checks; 77 (skipped) when the program has no virtual joysticks (SDL before 2.24) or no SDL2.
 """
 import argparse
+import math
 import os
 import re
 import subprocess
@@ -74,6 +81,42 @@ def steering(lines):
     return [(float(m.group(1)), float.fromhex(m.group(2))) for m in map(STATUS.match, lines) if m]
 
 
+STICK_X = re.compile(r"rush2049pc: input player 1: \S+ stick x=([+-]\d+)")
+
+
+def stick_xs(out):
+    """Player 1's stick x at each change (--log-input), repeats dropped: with smooth a change each retrace."""
+    xs = []
+    for m in map(STICK_X.match, out.splitlines()):
+        if m and (not xs or xs[-1] != int(m.group(1))):
+            xs.append(int(m.group(1)))
+    return xs
+
+
+def smooth_ramp(sign, steps_out=15, steps_back=5, full=80):
+    """pc_steer_step's values for one push held to full tilt and released (port/input/stick.c), from the centre."""
+    return ([sign * round(full * k / steps_out) for k in range(1, steps_out + 1)] +
+            [sign * round(full * (1 - k / steps_back)) for k in range(1, steps_back + 1)])
+
+
+RACE = re.compile(r"rush2049pc: game state 0x00400000 \(was 0x[0-9A-F]{8}\) at vi (\d+)")
+
+
+def smooth_press(press, windows, cross=None):
+    """The path with each stick push from 0.1 s before the whole second at or before its start to 0.05 s before the
+    whole second after its end: (the press file, [(sample 0.1 s in, sample 0.05 s after, sign)]). cross: a time to
+    push right for 0.5 s from, across the race's start."""
+    lines = [l for l in press.read_text().splitlines() if "STICK" not in l.split("#", 1)[0]]
+    if cross is not None:
+        lines.append(f"{cross:.3f} STICKRIGHT 0.5")
+    samples = []
+    for t0, t1, sign in windows:
+        a, b = math.floor(t0) - 0.1, math.ceil(t1) + 1 - 0.05
+        lines.append(f"{a:.2f} {'STICKRIGHT' if sign > 0 else 'STICKLEFT'} {b - a:.2f}")
+        samples.append((a + 0.1, b + 0.05, sign))
+    return "\n".join(lines) + "\n", samples
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
@@ -83,6 +126,7 @@ def main():
     ap.add_argument("--no-two", action="store_true", help="skip the two-player run (race2p)")
     ap.add_argument("--expect-turn", action="store_true", help="the car must go elsewhere without the stick")
     ap.add_argument("--window", action="store_true", help="run in a window, as a player does")
+    ap.add_argument("--no-smooth", action="store_true", help="skip smooth keyboard steering's runs")
     ap.add_argument("--logs", default=str(ROOT / "build/synth/input"))
     args = ap.parse_args()
     if args.window:
@@ -137,6 +181,47 @@ def main():
     if args.expect_turn:
         check(any(moved), "without the stick the car goes elsewhere")
     check(all(s == 0 for _, s in steering(lines)), "without the stick its steering input stays 0")
+
+    if not args.no_smooth and windows:   # input.keyboard_steering: instant against smooth, through the keyboard
+        # a push held across the race's start (the countdown to the race: 0x400000), 6 retraces before it
+        race = next((int(m.group(1)) for m in map(RACE.match, ref) if m), None)
+        cross = (race - 6) / 60 if race and (race - 6) / 60 + 0.6 < min(t0 for t0, _, _ in windows) - 0.1 else None
+        text, samples = smooth_press(press, windows, cross)
+        ramp = logs / f"{press.stem}-ramp.press"
+        ramp.write_text(text)
+        status = {}
+        for mode in ("instant", "smooth"):
+            code, out, lines = run(args.exe, args.rom, ramp, spec, "keyboard", args.rom_check, logs / f"keys-{mode}.log",
+                                   ["--log-input", "--set", f"input.keyboard_steering={mode}"])
+            check(code == 0, f"keyboard_steering = {mode}: the run (exit {code})")
+            xs = stick_xs(out)
+            want = [] if cross is None else [80, 0] if mode == "instant" else smooth_ramp(1)
+            for _, _, sign in samples:
+                want += [sign * 80, 0] if mode == "instant" else smooth_ramp(sign)
+            got = xs[1:] if xs[:1] == [0] else xs   # the first line: the pad connected, at the centre
+            check(got == want, f"keyboard_steering = {mode}: the stick each retrace {got}")
+            if cross is not None and mode == "smooth":   # the ramp goes on across the race's start
+                seq, at = [], None
+                for line in out.splitlines():
+                    m = STICK_X.match(line)
+                    if m and (not seq or seq[-1] != int(m.group(1))):
+                        seq.append(int(m.group(1)))
+                    elif RACE.match(line):
+                        at = len(seq)
+                ramp_at = seq.index(5) if 5 in seq else None
+                check(at is not None and ramp_at is not None and ramp_at < at < ramp_at + 15 and
+                      seq[ramp_at:ramp_at + 20] == smooth_ramp(1),
+                      f"smooth: a key held across the race's start (vi {race}) ramps on: "
+                      f"{seq[ramp_at:at] if ramp_at is not None else '?'} | the state changes | "
+                      f"{seq[at:ramp_at + 20] if ramp_at is not None and at is not None else '?'}")
+            status[mode] = dict(steering(lines))
+        for t_in, t_out, sign in samples:
+            i, s = status["instant"].get(t_in), status["smooth"].get(t_in)
+            check(i is not None and s is not None and 0 < s * sign < i * sign,
+                  f"steering input 0.1 s into the push at {t_in:g} s: smooth {s} under instant {i}, the same way")
+            i, s = status["instant"].get(t_out), status["smooth"].get(t_out)
+            check(i == 0 and s is not None and s * sign > 0,
+                  f"steering input 0.05 s after the release, at {t_out:g} s: smooth {s} still that way, instant {i}")
 
     if not args.press:   # the rumble pak's motor reaches the controller (the synthetic race turns it on)
         code, out, lines = run(args.exe, args.rom, press, spec, "controller", args.rom_check, logs / "rumble.log",

@@ -169,6 +169,7 @@ typedef struct {
 static const char *const pak_choices[] = {"none", "memory", "rumble", "auto", NULL};   /* PC_CFG_PAK_* */
 static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const analog_choices[] = {"left", "right", "none", NULL};
+static const char *const steering_choices[] = {"instant", "smooth", NULL};   /* PC_STEER_* */
 static const char *const scale_choices[] = {"auto", "native", NULL};   /* 0, -1; "n64" reads as 1 */
 static const char *const size_choices[] = {"auto", NULL};
 static const char *const fullscreen_mode_choices[] = {"desktop", "exclusive", NULL};
@@ -354,6 +355,14 @@ static const Item items[] = {
      "The N64 stick value at full tilt (an N64 pad reads about 80)."},
     {"input", "stick_diagonal", T_INT, F(stick_diagonal), 0, 127, NULL, "70",
      "Each axis at full diagonal tilt: the N64's octagonal gate. 0 for a round gate."},
+    {"input", "keyboard_steering", T_ENUM, F(keyboard_steering), 0, 0, steering_choices, "instant",
+     "Keys and buttons bound to STICK_* ([keyboard], [controller]): instant (full tilt the moment one is pressed, as "
+     "always) or smooth (the stick moves to full tilt over keyboard_steer_time and back to the centre in a third of "
+     "it, when the key is released or the other way is pressed), so a key can steer progressively. Both axes; a "
+     "controller's stick and --press's own STICK presses are not changed. Applies at once."},
+    {"input", "keyboard_steer_time", T_INT, F(keyboard_steer_time), 0, 1000, NULL, "250",
+     "With keyboard_steering = smooth: ms from the centre to full tilt, 0-1000 (0 is instant), at 60 steps a second "
+     "whatever the frame rate."},
     {"input", "rumble", T_REAL, F(rumble), 0, 1, NULL, "1.0",
      "Rumble strength, 0-1, for each player with a rumble pak (game.pak, pak2... = rumble, or auto)."},
 };

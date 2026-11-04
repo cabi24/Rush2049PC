@@ -505,6 +505,32 @@ static void test_live(void)
           pc_menu_settings()->cars, pc_cars_setting(), pc_race_cars());
     pc_race_cars_begin();
     CHECK(pc_race_cars() == 6, "the next race: 6 (%d)", pc_race_cars());
+    /* smooth keyboard steering (input.keyboard_steering, keyboard_steer_time) on the Keyboard page, after the
+     * controls; port/input has it at once (pc_input_apply: frontend.sdl.keyboard shows the ramp) */
+    act(PC_MENU_BACK);
+    act_n(PC_MENU_UP, 2);
+    act(PC_MENU_ACCEPT);
+    at("Keyboard", "A", NULL, "the Keyboard page");
+    act_n(PC_MENU_DOWN, 18);
+    at("Keyboard", "Steering", "instant", "Steering after the stick's keys: instant");
+    act(PC_MENU_RIGHT);
+    at("Keyboard", "Steering", "smooth", "smooth");
+    CHECK(pc_menu_settings()->keyboard_steering == PC_STEER_SMOOTH, "smooth: %d", pc_menu_settings()->keyboard_steering);
+    act(PC_MENU_DOWN);
+    at("Keyboard", "Steering time (ms)", "250", "the time: 250 ms");
+    act(PC_MENU_RIGHT);
+    at("Keyboard", "Steering time (ms)", "300", "50 ms a step");
+    act_n(PC_MENU_LEFT, 7);
+    at("Keyboard", "Steering time (ms)", "0", "down to 0");
+    act_n(PC_MENU_RIGHT, 30);
+    at("Keyboard", "Steering time (ms)", "1000", "up to 1000");
+    CHECK(pc_menu_settings()->keyboard_steer_time == 1000, "1000: %d", pc_menu_settings()->keyboard_steer_time);
+    act_n(PC_MENU_DOWN, 6);
+    at("Keyboard", "Defaults", NULL, "the page's Defaults");
+    act(PC_MENU_ACCEPT);
+    CHECK(pc_menu_settings()->keyboard_steering == PC_STEER_INSTANT && pc_menu_settings()->keyboard_steer_time == 250,
+          "Defaults: instant, 250 (%d, %d)", pc_menu_settings()->keyboard_steering,
+          pc_menu_settings()->keyboard_steer_time);
     act(PC_MENU_CLOSE);
     stop();
 }
@@ -786,7 +812,7 @@ static void test_mouse(void)
     act(PC_MENU_TOGGLE);
     act_n(PC_MENU_DOWN, 2);
     act(PC_MENU_ACCEPT);
-    at("Keyboard", "A", NULL, "the Keyboard page: 24 items, a scrolled list");
+    at("Keyboard", "A", NULL, "the Keyboard page: 26 items, a scrolled list");
     for (size_t n = 0; n < sizeof sizes / sizeof *sizes; n++) {
         int ww = sizes[n].ww, wh = sizes[n].wh, dw = sizes[n].dw, dh = sizes[n].dh, x, y, px, py;
         Panel p = panel_of(dw, dh);
@@ -911,25 +937,25 @@ static void test_mouse(void)
     at("Keyboard", "D-pad right", NULL, "a notch down: 3 rows; row 4 is item 7 now");
     hit_is(640, 480, x, y, PC_HIT_ITEM, 7, -1, "the list moved");
     mouse_at(PC_MOUSE_WHEEL, 0, 0, 640, 480, 640, 480, -10);
-    hit_is(640, 480, x, y, PC_HIT_ITEM, 13, -1, "at most to the last page: item 9 at the top");
-    at("Keyboard", "C-right", NULL, "and under the mouse");
+    hit_is(640, 480, x, y, PC_HIT_ITEM, 15, -1, "at most to the last page: item 11 at the top");
+    at("Keyboard", "Stick down", NULL, "and under the mouse");
     row_px(&p, 0, 297, 6, &x, &y);
     hit_is(640, 480, x, y, PC_HIT_SCROLL_UP, -1, -1, "now there is something above");
     mouse_at(PC_MOUSE_LEFT, x, y, 640, 480, 640, 480, 0);
     row_px(&p, 4, 20, 6, &x, &y);
-    hit_is(640, 480, x, y, PC_HIT_ITEM, 10, -1, "the up arrow: 3 rows up");
+    hit_is(640, 480, x, y, PC_HIT_ITEM, 12, -1, "the up arrow: 3 rows up");
     CHECK(highlighted(640, 480, 7), "the selection stays on its item, which moved down to row 7");
 
     /* a binding: a click waits for a key; the mouse doesn't move the selection meanwhile; a click cancels */
     mouse_at(PC_MOUSE_LEFT, x, y, 640, 480, 640, 480, 0);
-    at("Keyboard", "C-up", "I", "the item clicked");
+    at("Keyboard", "C-left", "J", "the item clicked");
     CHECK(pc_menu_capturing() == PC_MENU_CAPTURE_KEY, "waiting for a key");
     row_px(&p, 1, 20, 6, &x, &y);
     mouse_at(PC_MOUSE_MOVE, x, y, 640, 480, 640, 480, 0);
-    at("Keyboard", "C-up", NULL, "pointing elsewhere while it waits");
+    at("Keyboard", "C-left", NULL, "pointing elsewhere while it waits");
     mouse_at(PC_MOUSE_LEFT, x, y, 640, 480, 640, 480, 0);
     CHECK(!pc_menu_capturing(), "a click cancels");
-    at("Keyboard", "C-up", "I", "unchanged");
+    at("Keyboard", "C-left", "J", "unchanged");
     mouse_at(PC_MOUSE_WHEEL, 0, 0, 640, 480, 640, 480, 10);
     at("Keyboard", "B", NULL, "back at the top: the mouse is on row 1");
 

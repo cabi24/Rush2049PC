@@ -48,6 +48,7 @@ enum { PC_CFG_PAK_NONE = 0, PC_CFG_PAK_MEMORY = 1, PC_CFG_PAK_RUMBLE = 2, PC_CFG
 enum { PC_CFG_API_AUTO = 0, PC_CFG_API_GL = 1, PC_CFG_API_GLES = 2 };   /* the order of the file's choices */
 enum { PC_CFG_SAVES_PAK = 0, PC_CFG_SAVES_FILES = 1 };   /* game.saves (docs/port/SAVES.md) */
 enum { PC_CFG_STICK_LEFT = 0, PC_CFG_STICK_RIGHT = 1, PC_CFG_STICK_NONE = 2 };
+enum { PC_STEER_INSTANT = 0, PC_STEER_SMOOTH = 1 };   /* input.keyboard_steering */
 
 #define PC_CFG_PATH 1024
 #define PC_CFG_BIND 128
@@ -116,6 +117,8 @@ typedef struct PcSettings {
     double axis_threshold;          /* a trigger or a stick axis bound to a button presses it past this */
     int stick_range;                /* N64 stick value at full tilt, left/right/up/down */
     int stick_diagonal;             /* each axis at full diagonal tilt (the octagonal gate); 0: a round gate */
+    int keyboard_steering;          /* PC_STEER_*: keys and buttons on the stick at full tilt at once, or a ramp */
+    int keyboard_steer_time;        /* PC_STEER_SMOOTH: ms from the centre to full tilt (0-1000); back in a third */
     double rumble;                  /* rumble strength 0-1 */
     /* [keyboard], [controller], [hotkeys]: comma-separated names, empty for none */
     char key[PC_NUM_CONTROLS][PC_CFG_BIND];

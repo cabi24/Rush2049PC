@@ -154,6 +154,8 @@ static const char *const engines_choices[] = {"original", "nearest2", "nearest3"
                                               "all", NULL};
 static const char *const engines_labels[] = {"original", "nearest 2", "nearest 3", "nearest 4", "nearest 6",
                                              "nearest 8", "all", NULL};
+/* input.keyboard_steering */
+static const char *const steering_choices[] = {"instant", "smooth", NULL};
 static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
                                              "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
                                              "3840x2160", "auto",      NULL};
@@ -184,7 +186,7 @@ static void build(void)
     it = add(P_MAIN, I_PAGE, "Audio", NULL, NULL);
     it->page = P_AUDIO, it->desc = "The volume, the output, voices and engines";
     it = add(P_MAIN, I_PAGE, "Keyboard", NULL, NULL);
-    it->page = P_KEYBOARD, it->desc = "Keys for the N64 controls, and the hotkeys";
+    it->page = P_KEYBOARD, it->desc = "Keys for the N64 controls, steering, hotkeys";
     it = add(P_MAIN, I_PAGE, "Controllers", NULL, NULL);
     it->page = P_CONTROLLER, it->desc = "Players, buttons, the stick, dead zone, rumble";
     it = add(P_MAIN, I_PAGE, "Game", NULL, NULL);
@@ -263,6 +265,9 @@ static void build(void)
     pages[P_KEYBOARD].title = "Keyboard";
     for (int c = 0; c < PC_NUM_CONTROLS; c++)
         add(P_KEYBOARD, I_BIND, control_labels[c], "keyboard", pc_control_names[c]);
+    add(P_KEYBOARD, I_CHOICE, "Steering", "input", "keyboard_steering")->choices = steering_choices;
+    it = add(P_KEYBOARD, I_NUMBER, "Steering time (ms)", "input", "keyboard_steer_time");
+    it->min = 0, it->max = 1000, it->step = 50;
     for (int h = PC_NUM_HOTKEYS - 1; h >= 0; h--)   /* the settings key first */
         add(P_KEYBOARD, I_BIND, hotkey_labels[h], "hotkeys", pc_hotkey_names[h]);
     add(P_KEYBOARD, I_DEFAULTS, "Defaults", NULL, NULL);
@@ -333,6 +338,8 @@ static void build(void)
         {"input", "deadzone", "How far the stick moves before it counts"},
         {"input", "sensitivity", "Stick speed: at 2, full tilt at half the travel"},
         {"input", "rumble", "Rumble strength, with the rumble pak in"},
+        {"input", "keyboard_steering", "Smooth: the stick keys tilt it over the time"},
+        {"input", "keyboard_steer_time", "Smooth: centre to full tilt; back in a third"},
         {"game", "cars", "The most cars a race holds; from the next race"},
         {"game", "memory", "The game's memory; applies after a restart"},
         {"game", "frame_rate", "Frames the game itself runs; from the next screen"},

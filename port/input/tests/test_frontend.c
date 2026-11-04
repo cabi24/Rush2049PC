@@ -147,6 +147,23 @@ static void test_settings(void)
     CHECK(fabs(s.deadzone - 0.15) < 1e-9 && fabs(s.axis_threshold - 0.5) < 1e-9 && s.stick_range == 80 &&
               s.stick_diagonal == 70 && s.rumble == 1.0,
           "input defaults");
+    CHECK(s.keyboard_steering == PC_STEER_INSTANT && s.keyboard_steer_time == 250, "keyboard steering: instant, 250");
+    {
+        char v[16];
+        CHECK(pc_settings_set(&s, "input", "keyboard_steering", "Smooth", why, sizeof why) == 0 &&
+                  s.keyboard_steering == PC_STEER_SMOOTH &&
+                  pc_settings_get(&s, "input", "keyboard_steering", v, sizeof v) == 0 && !strcmp(v, "smooth"),
+              "keyboard_steering smooth");
+        CHECK(pc_settings_set(&s, "input", "keyboard_steering", "ramp", why, sizeof why) == -2 &&
+                  s.keyboard_steering == PC_STEER_SMOOTH, "keyboard_steering: a bad value kept the old one");
+        CHECK(pc_settings_set(&s, "input", "keyboard_steer_time", "1000", why, sizeof why) == 0 &&
+                  s.keyboard_steer_time == 1000 &&
+                  pc_settings_set(&s, "input", "keyboard_steer_time", "1001", why, sizeof why) == -2 &&
+                  pc_settings_set(&s, "input", "keyboard_steer_time", "0", why, sizeof why) == 0 &&
+                  s.keyboard_steer_time == 0,
+              "keyboard_steer_time 0-1000");
+        pc_settings_defaults(&s);
+    }
     CHECK(!strcmp(s.key[PC_CTL_A], "X") && !strcmp(s.key[PC_CTL_START], "Return") &&
               !strcmp(s.key[PC_CTL_STICK_LEFT], "Left"),
           "keyboard defaults");
@@ -498,6 +515,89 @@ static void test_stick(void)
     CHECK(pc_axis_deadzone(0.1, 0.15) == 0 && fabs(pc_axis_deadzone(-0.575, 0.15) + 0.5) < 1e-9 &&
               pc_axis_deadzone(1.5, 0.15) == 1,
           "axis dead zone");
+}
+
+/* ---------------------------------------------------------------- steer */
+
+/* input.keyboard_steering = smooth (stick.c): one axis of the keys' stick, a retrace at a time, as the N64 stick
+ * pc_stick_shape makes of it (no dead zone, range 80, the octagon). */
+static int steer_x(double v)
+{
+    PcStickShape digital = {0, 80, 70, 1};
+    int8_t x, y;
+    pc_stick_shape(v, 0, &digital, &x, &y);
+    return x;
+}
+
+static void test_steer(void)
+{
+    double out, back, v = 0;
+    PcStickShape digital = {0, 80, 70, 1};
+    int8_t ox, oy;
+    /* 250 ms at 60 retraces a second: 15 retraces out, 5 back */
+    pc_steer_rates(250, 60, &out, &back);
+    CHECK(fabs(out - 1 / 15.0) < 1e-12 && fabs(back - 0.2) < 1e-12, "250 ms: %g out, %g back a retrace", out, back);
+    static const int ramp[15] = {5, 11, 16, 21, 27, 32, 37, 43, 48, 53, 59, 64, 69, 75, 80};
+    int ok = 1;
+    for (int i = 0; i < 15; i++) {
+        v = pc_steer_step(v, 1, out, back);
+        ok &= steer_x(v) == ramp[i];
+        if (steer_x(v) != ramp[i])
+            fprintf(stderr, "  retrace %d after the press: %d, expected %d\n", i + 1, steer_x(v), ramp[i]);
+    }
+    CHECK(ok && v == 1, "right held: 5 11 16 ... 75 80, full tilt at the 15th retrace (250 ms)");
+    v = pc_steer_step(v, 1, out, back);
+    CHECK(v == 1, "held on: stays at full tilt");
+    static const int release[5] = {64, 48, 32, 16, 0};
+    ok = 1;
+    for (int i = 0; i < 5; i++) {
+        v = pc_steer_step(v, 0, out, back);
+        ok &= steer_x(v) == release[i];
+    }
+    CHECK(ok && v == 0, "released: 64 48 32 16 0, the centre in 5 retraces (a third of the time)");
+    v = pc_steer_step(v, 0, out, back);
+    CHECK(v == 0, "idle stays centred");
+    /* left: the mirror */
+    for (int i = 0; i < 15; i++)
+        v = pc_steer_step(v, -1, out, back);
+    CHECK(v == -1 && steer_x(v) == -80, "left held 15 retraces: -80");
+    /* a reversal from full left: back to the centre at the return's pace, then out to the right at the ramp's */
+    int n = 0;
+    while (v < 1 && n < 100)
+        v = pc_steer_step(v, 1, out, back), n++;
+    CHECK(n == 20, "full left to full right: %d retraces (5 back, 15 out)", n);
+    /* a reversal halfway out: what is left of the retrace past the centre goes the other way */
+    v = 0;
+    for (int i = 0; i < 5; i++)
+        v = pc_steer_step(v, 1, out, back);
+    CHECK(steer_x(v) == 27, "5 retraces right: 27");
+    v = pc_steer_step(v, -1, out, back);
+    CHECK(steer_x(v) == 11, "left pressed: 11 (back 0.2)");
+    v = pc_steer_step(v, -1, out, back);
+    CHECK(fabs(v + 1 / 45.0) < 1e-12 && steer_x(v) == -2, "through the centre: -1/45 (%g), -2", v);
+    v = pc_steer_step(v, -1, out, back);
+    CHECK(steer_x(v) == -7, "then out at the ramp's pace: -7 (%d)", steer_x(v));
+    /* both keys: the same ramp on each axis, through the gate */
+    double vx = 0, vy = 0;
+    for (int i = 0; i < 15; i++) {
+        vx = pc_steer_step(vx, 1, out, back);
+        vy = pc_steer_step(vy, 1, out, back);
+    }
+    pc_stick_shape(vx, vy, &digital, &ox, &oy);
+    CHECK(ox == 70 && oy == 70, "Right+Up held: the octagon's corner (%d, %d)", ox, oy);
+    /* the retraces are the clock: a game state change, a frame rate, a pause leave nothing to it but the calls */
+    /* 0 ms: instant, in and out; 1000 ms: 60 retraces out, 20 back */
+    pc_steer_rates(0, 60, &out, &back);
+    CHECK(pc_steer_step(0, -1, out, back) == -1 && pc_steer_step(-1, 1, out, back) == 1 &&
+              pc_steer_step(1, 0, out, back) == 0,
+          "0 ms: full tilt, a reversal and the centre each in one retrace");
+    pc_steer_rates(1000, 60, &out, &back);
+    for (n = 0, v = 0; v < 1 && n < 100; n++)
+        v = pc_steer_step(v, 1, out, back);
+    int m;
+    for (m = 0; v > 0 && m < 100; m++)
+        v = pc_steer_step(v, 0, out, back);
+    CHECK(n == 60 && m == 20, "1000 ms: %d retraces out, %d back", n, m);
 }
 
 /* ---------------------------------------------------------------- cars */
@@ -1113,11 +1213,11 @@ int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
-        {"stick", test_stick}, {"cars", test_cars}, {"memory", test_memory}, {"detail", test_detail},
+        {"stick", test_stick}, {"steer", test_steer}, {"cars", test_cars}, {"memory", test_memory}, {"detail", test_detail},
         {"fps", test_fps}, {"mods", test_mods}, {"saves", test_saves}, {"voices", test_voices},
         {"engines", test_engines}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|fps|mods|saves|"
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|steer|cars|memory|detail|fps|mods|saves|"
                         "voices|engines|all SCRATCH_DIR\n");
         return 2;
     }
