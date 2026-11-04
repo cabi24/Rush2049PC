@@ -731,7 +731,9 @@ scripted presses steered, so each link between a real device and the pad the gam
   before the state changes and 37, 43 ... 80 and back after it. The car's steering input 0.1 s into each push is
   0.063 (right) and -0.063 (left) with smooth against 1.0 and -1.0 with instant, and 0.05 s after each release
   0.063 and -0.063 with smooth against 0 with instant. (The game's own reading of the stick is not linear: 0.4 of
-  full tilt gives under a tenth of the steering.) `--no-smooth` skips these runs.
+  full tilt gives under a tenth of the steering.) `--no-smooth` skips these runs. The same run at
+  `game.frame_rate = 60` (to 42 s): its 76 `--log-input` lines are the original rate's, line for line, and so is the
+  car's steering input at each status line from 32 to 39 s.
 - **CI** runs `input_check.py` as `input_live_drive` in every ctest, and on the cross-built program (the release's
   toolchain) in the windows-run job, Debug and RelWithDebInfo.
 
