@@ -37,6 +37,26 @@ extern f32 sqrtf(f32);
  * in to PC_DRAW_FAR_FACTOR times that, max not at all (its true place), with the depth range's far plane moved out
  * as far (port/gfx/gfx_detail.c); past 2,048 ft the whole matrix is divided by a power of two h, as in
  * func_8009D45C. At original the N64's words. */
+/* PC: far scenery whose place from the eye is not a finite number is left out (track_collision_wall's
+ * PC_SCENERY_CHECK): the camera of a race's first frames, before PrePlay places it, is NaN (seen at draw_distance =
+ * max, which draws the scenery then), and converting NaN to the matrix's integers is undefined in C. On the N64 the
+ * FPU gives a word of its own; the game's other nodes are left out by their cull (track_collision_edge) first. */
+s32 pc_scenery_unplaced(s32 idx, void *node_obj, s32 absolute) {
+    View *obj = node_obj;
+    f32 x, y, z;
+
+    if (absolute) {
+        x = obj->pos[0];
+        y = obj->pos[1];
+        z = obj->pos[2];
+    } else {
+        x = obj->pos[0] - gCamera[idx].pos[0];
+        y = obj->pos[1] - gCamera[idx].pos[1];
+        z = obj->pos[2] - gCamera[idx].pos[2];
+    }
+    return !(x - x == 0.0f && y - y == 0.0f && z - z == 0.0f);   /* NaN or infinite */
+}
+
 void func_8009D708(s32 idx, View *obj, u32 *m, f32 scale, s32 absolute) {
     f32 x, y, z;
     f32 s, reach;

@@ -858,7 +858,12 @@ f32 func_8009C3F8(f32 x, s32 flag)
 #define PC_LOD_REACH(d, flags) (((flags) & 0x200000) ? (d) : PC_DRAW_REACH(d))
 #define PC_LOD_FORCED(l) (pc_detail() == PC_DETAIL_HIGH ? 0 : (l))   /* CreateCar's tires at level 1 in split screen */
 #define PC_VIEW_BEGIN pc_scene_view();
+/* far scenery with no finite place from the eye (func_8009D708.c's pc_scenery_unplaced: a camera not placed yet), left
+ * out and counted as the cull's */
+s32 pc_scenery_unplaced(s32 idx, void *obj, s32 absolute);
+#define PC_SCENERY_CHECK(view, obj, count) if (pc_scenery_unplaced(view, obj, count)) { PC_SCENE(VIEW_HIDDEN) goto next; }
 #else
+#define PC_SCENERY_CHECK(view, obj, count)
 #define PC_DRAW_REACH(d) d
 #define PC_LOD_REACH(d, flags) d
 #define PC_LOD_DIST(d) d
@@ -1088,7 +1093,7 @@ s32 track_collision_wall(Gfx **gp, Node *parent, Node *node, s32 view, s32 count
                         PC_SCENE(RANGE) goto next;
                     }
                 } else if (node->flags & 0x400000) {
-                    func_8009D708(view, node->obj, D_8015B260, node->w, count);
+                    PC_SCENERY_CHECK(view, node->obj, count) func_8009D708(view, node->obj, D_8015B260, node->w, count);
                 } else if (!func_8009D45C(view, node->obj, D_8015B260, node->w, count)) {
                     PC_SCENE(RANGE) goto next;
                 }
