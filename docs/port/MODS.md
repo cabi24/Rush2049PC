@@ -99,7 +99,9 @@ priority = 0
 - **A .zip** is read whole (stored or deflated entries; no zip64, no encryption), its files as a folder's; a zip of one
   folder (as zipping a mod's folder makes) is that folder. A zip whose entries unpack to more than 1 GiB in all is
   refused before any is unpacked (`port/mods/zip.c`'s `UNPACKED_MAX`: entries can share one stream, so a few hundred
-  KB can name terabytes). Its key is its name without `.zip`. Its texture pack is
+  KB can name terabytes). A texture whose path Windows can't keep as a file (a part named as a device, `CON`, `NUL`,
+  `COM1`... with any extension, where the write would go to the device; a `:`, which makes a stream; a trailing dot
+  or space; `* ? " < > |`) is not unpacked, on any system, and the log says so (`portable_path`). Its key is its name without `.zip`. Its texture pack is
   unpacked into `mods_cache/<mod>/textures` in the data folder at each start, for the texture code.
 - **Text overrides** (`text/en.txt`, and es, it, de, nl, fr for the other banks, waves 0-5): the three sections of
   string offsets and a string's number:

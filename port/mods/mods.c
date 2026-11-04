@@ -657,6 +657,30 @@ static int mkdirs(const char *dir)
     return !is_dir(p) && mkdir(p, 0755) != 0 && errno != EEXIST ? -1 : 0;
 }
 
+/* A path a zip's file may be unpacked to on every system: no part Windows takes for a device (CON, NUL, COM1, ...
+ * with any extension: the write would go to it) or a stream (a ':'), or changes (a trailing dot or space), and none
+ * of * ? " < > | or control characters. The same everywhere, so a mod unpacks the same on each. */
+static int portable_path(const char *rel)
+{
+    static const char *const dev[] = {"con", "prn", "aux", "nul"};
+    for (const char *c = rel; *c;) {
+        const char *end = strchr(c, '/');
+        size_t n = end ? (size_t)(end - c) : strlen(c), stem = strcspn(c, "./");
+        if (!n || c[n - 1] == '.' || c[n - 1] == ' ')
+            return 0;
+        for (size_t i = 0; i < n; i++)
+            if ((unsigned char)c[i] < 0x20 || strchr(":*?\"<>|", c[i]))
+                return 0;
+        for (int d = 0; d < 4; d++)
+            if (stem == 3 && !strncasecmp(c, dev[d], 3))
+                return 0;
+        if (stem == 4 && (!strncasecmp(c, "com", 3) || !strncasecmp(c, "lpt", 3)) && c[3] >= '0' && c[3] <= '9')
+            return 0;
+        c += n + (end != NULL);
+    }
+    return 1;
+}
+
 static void read_zip_mod(PcMod *m, const PcModsConfig *cfg, int read)
 {
     PcZipEntry *e = NULL;
@@ -694,7 +718,10 @@ static void read_zip_mod(PcMod *m, const PcModsConfig *cfg, int read)
             continue;
         if (!strncasecmp(rel, "textures/", 9) && ends_with(rel, ".png")) {
             pngs++;
-            if (read && cfg->cache && *cfg->cache && !m->problem[0]) {   /* unpacked for the texture code */
+            if (read && cfg->cache && *cfg->cache && !m->problem[0] && !portable_path(rel)) {
+                LOG("%s: %s: a name Windows can't keep as a file (a device's, a ':', a trailing dot); not unpacked\n",
+                    m->folder, rel);
+            } else if (read && cfg->cache && *cfg->cache && !m->problem[0]) {   /* unpacked for the texture code */
                 char path[PC_MODS_PATH], dir[PC_MODS_PATH];
                 snprintf(dir, sizeof dir, "%s/%s/textures", cfg->cache, m->folder);
                 snprintf(path, sizeof path, "%s/%s/%s", cfg->cache, m->folder, rel);

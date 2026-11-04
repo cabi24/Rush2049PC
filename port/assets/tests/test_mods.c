@@ -634,6 +634,40 @@ static void test_zip_bomb(void)
     free(zero), free(z);
 }
 
+/* A zip's texture pack unpacked into the cache: a name Windows would take for a device (con.png: the write goes to the
+ * console) or a stream (a:b.png), or change (a folder "x."), is not unpacked, on any system; a good one is. */
+static void test_zip_names(void)
+{
+    char dir[512], cache[600], p[1200];
+    const char *tmp = getenv("TMPDIR") ? getenv("TMPDIR") : getenv("TEMP") ? getenv("TEMP") : "/tmp";
+    snprintf(dir, sizeof dir, "%s/rush2049pc-zipnames-%d", tmp, (int)getpid());
+    snprintf(cache, sizeof cache, "%s/cache", dir);
+    rm_tree(dir);
+    CHECK(mkdir(dir, 0700) == 0);
+    static const char *const names[6] = {"z/mod.ini", "z/textures/good.png", "z/textures/con.png",
+                                         "z/textures/a:b.png", "z/textures/x./c.png", "z/textures/COM1.tex.png"};
+    const char *ini = "[mod]\nname = Names\ngame = us\n";
+    const uint8_t png[4] = {0x89, 'P', 'N', 'G'};
+    const uint8_t *data[6] = {(const uint8_t *)ini, png, png, png, png, png};
+    size_t sizes[6] = {strlen(ini), 4, 4, 4, 4, 4};
+    snprintf(p, sizeof p, "%s/names.zip", dir);
+    zip_write(p, names, data, sizes, 6);
+    Flags fl = {{NULL}};
+    PcModsConfig cfg = {1, dir, "", flag_of, &fl, 0, 1, 0, cache};
+    PcMods m;
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && find_mod(&m, "names") && find_mod(&m, "names")->textures[0]);
+    struct stat st;
+    snprintf(p, sizeof p, "%s/names/textures/good.png", cache);
+    CHECK(stat(p, &st) == 0 && st.st_size == 4);
+    static const char *const bad[4] = {"con.png", "a:b.png", "x.", "COM1.tex.png"};
+    for (int i = 0; i < 4; i++) {
+        snprintf(p, sizeof p, "%s/names/textures/%s", cache, bad[i]);
+        CHECK(stat(p, &st) != 0);
+    }
+    pc_mods_free(&m);
+    rm_tree(dir);
+}
+
 static void test_folder(void)
 {
     char dir[512], p[1024], line[512];
@@ -897,5 +931,6 @@ int main(int argc, char **argv)
     test_folder();
     test_zip_bomb();
     test_dl_budget();
+    test_zip_names();
     return TEST_DONE();
 }
