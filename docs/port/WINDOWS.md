@@ -526,12 +526,12 @@ the live-input runs compare to the bit; CI now does the rest (below).
   it with `sqrtss` and calls the library only for a negative argument, to set errno (6 objects call it at all);
   at -O0 it calls the library each time, whose square root is correctly rounded on both (glibc's `sqrtss`;
   mingw-w64's x87 `fsqrt` stored to a float, a square root rounded to 53 or 64 bits first and then to 24 being
-  still the correctly rounded one). `modff`, in the game's own tangent (`func_800A557C`, src/blob/func_800A557C.c), since the IDO libc it was
-  linked with (src/rom/lib_34a0.c) is the host's on the PC (CMakeLists.txt:93): mingw-w64's (x87 `frndint`) gives
-  the same whole and fractional parts as glibc's, but for a negative whole number's fraction, +0 where glibc gives
-  -0, and the tangent's only callers are the window's field of view (`set_window`, and its copy in
-  `exhaust_smoke_effect.c`), half an angle in radians, never a whole number. The
-  game's `sinf` and `cosf` are its own (renamed `n64_sinf`, `n64_cosf`: CMakeLists.txt:117). The imports from
+  still the correctly rounded one). `modff`, in the game's own tangent (`func_800A557C`,
+  src/blob/func_800A557C.c), since the IDO libc it was linked with (src/rom/lib_34a0.c) is the host's on the PC
+  (CMakeLists.txt:93): mingw-w64's (x87 `frndint`) gives the same whole and fractional parts as glibc's, but for a
+  negative whole number's fraction, +0 where glibc gives -0; and the tangent's only callers are the window's field
+  of view (`set_window`, and its copy in `exhaust_smoke_effect.c`), half an angle in radians, never a whole number.
+  The game's `sinf` and `cosf` are its own (renamed `n64_sinf`, `n64_cosf`: CMakeLists.txt:117). The imports from
   msvcrt.dll (`acos`, `asin`, `atan`, `tan`, `log10`, `_hypot`) are the PC layer's, SDL's and mingw-w64's own.
 - *The PC layer's input.* `pc_stick_shape` (port/input/stick.c:32) takes the stick's length with `hypot`
   (msvcrt's `_hypot` on Windows). A key or a bound button is full tilt along one axis, `hypot(±1, 0) = 1` exactly
@@ -547,16 +547,18 @@ the live-input runs compare to the bit; CI now does the rest (below).
 (`RUSH_STATE_EXACT` and `--status 1`), and `windows-same` (Debug and RelWithDebInfo) compares `windows-run`'s logs
 with the `linux` jobs' of the same build type, x86-64's and aarch64's, with `synth_compare.py --from-logs`: the
 cartridge's report, then every path on the virtual clock (the real-time race left out) and every live-input run, the
-states at the same retraces and each second the first car's position, speed and steering to the bit. It fails on
-the first path that differs, is coarse, or is missing from one side. `windows-native-same` does the same for the
-`windows` job's program (MSYS2's GCC with the UCRT's math library, Debug): its ctest's path logs, which that job
-now uploads, against the Linux Debug builds'. Both run nothing but the comparison: the downloads and under a
-second of Python. `tools/port/synth/steer.press` is a path for it with the gas held and full
-lock left and right, from 0.2 s taps to 6 s locks, as a key steers.
+states at the same retraces and each second the first car's position, speed and steering to the bit. It fails if a
+path differs, has no exact status lines, or is missing from one side, and prints the first event that differs.
+`windows-native-same` does the same for the `windows` job's program (MSYS2's GCC with the UCRT's math library,
+Debug): its ctest's path logs, which that job now uploads, against the Linux Debug builds'. Both run nothing but the
+comparison: the downloads and under a second of Python. `tools/port/synth/steer.press` is a path for it with the gas
+held and full lock left and right, from 0.2 s taps to 6 s locks, as a key steers.
 
-**What this can't show.** The synthetic cartridge's car doesn't turn: its steering input reaches the car's model
-(the traces have it at +1 and -1), but the car goes the same way with it or without (`input_check.py`'s nosteer
-run), and there is no wall to hit. So the turn into the barrier at speed that blows the car up on the retail
+**What this can't show.** The synthetic cartridge's car doesn't follow the controls: the steering input reaches
+the car's model record (the traces have it at +1 and -1), and the physics move the car, speed it up and put it back
+every few seconds, but along the same course with the controls or without (`input_check.py`'s nosteer run; on the
+build host all 56 status lines of `drive` are `steer`'s to the bit, position and speed, though from 47 s `drive`
+brakes where `steer` holds the gas and steers), and there is no wall to hit. So the turn into the barrier at speed that blows the car up on the retail
 cartridge (QA.md) runs only there, on the Pi. That the Windows build takes the same course there rests on the
 reasons above and on everything that does run on the synthetic cartridge being the same. Not compared either: a
 real GPU driver's effect on the threads' floating-point state (CI has Mesa's llvmpipe), which would show as a

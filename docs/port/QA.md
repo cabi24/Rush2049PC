@@ -451,7 +451,7 @@ waiting frame at the retrace's present instead is left to the high frame rate's 
 
 Reports from play on the user's own machine, open until reproduced or explained.
 
-### 1. The car exploded when steered left or right (Windows, 63640c8, open: not reproduced)
+### 1. The car exploded when steered left or right (Windows, 63640c8, open: not reproduced; Windows's game is Linux's)
 
 - **Report** (2026-11-04): the Windows zip of 63640c8 (the Release workflow's artifact build), on the user's PC: "I
   explode when I steer right or left". The settings file was the defaults but for the window (`[video]` width 1920,
@@ -473,12 +473,13 @@ Reports from play on the user's own machine, open until reproduced or explained.
   live-input runs, which print exact floats each second with the steering at full lock both ways, the same floats to
   the bit. Nothing in the game's arithmetic compiles differently there: no x87 and no fused multiply-add in the game
   code, and of the host's math library only `sqrtf` (correctly rounded on both) and `modff` (the window's field of
-  view). CI's `windows-same` job now compares every synthetic path to the bit on each run. So a Windows-only
-  difference in the physics doesn't explain the explosion; the hard crash that the Pi runs show at full lock is
-  the likelier reading.
+  view). CI's `windows-same` job now compares every synthetic path to the bit on each run. No Windows-only
+  difference in the game's arithmetic was found, in the traces or in the program's code, so nothing points to one
+  behind the explosion; the hard crash at full lock that the Pi runs show stays the likelier reading.
 - **Not checked**: the x86-64 Windows build on the retail cartridge (the cartridge stays on the Pi, which has no
-  x86-64 emulator). The synthetic cartridge's car doesn't turn and has no wall, so the turn into the barrier runs
-  only on the retail one; and CI's Windows runs have Mesa's llvmpipe, not a GPU driver (whose effect on the
-  threads' floating-point state was not looked at).
+  x86-64 emulator). The synthetic cartridge's car doesn't follow the controls (its course is the same with the
+  steering, gas and brake or without) and has no wall, so the turn into the barrier runs only on the retail one;
+  and CI's Windows runs have Mesa's llvmpipe, not a GPU driver (whose effect on the threads' floating-point state
+  was not looked at).
 - **If it is seen again**: the log (`rush2049pc.log` next to the program), the settings file, keyboard or controller,
   the track, and whether a short tap of the steering on a straight, with nothing near, is enough.
