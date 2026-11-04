@@ -544,7 +544,8 @@ the live-input runs compare to the bit; CI now does the rest (below).
   and off by default.
 
 **What CI checks now.** ctest's `synth_boot_*` and `windows-run` run the paths with `synth_paths.py --exact`
-(`RUSH_STATE_EXACT` and `--status 1`), and `windows-same` (Debug and RelWithDebInfo) compares `windows-run`'s logs
+(`RUSH_STATE_EXACT` and `--status 1`, and so the second runs on a path's saves that its checks make, ghost2,
+profile2 and delete2, through `synth_again.py`), and `windows-same` (Debug and RelWithDebInfo) compares `windows-run`'s logs
 with the `linux` jobs' of the same build type, x86-64's and aarch64's, with `synth_compare.py --from-logs`: the
 cartridge's report, then every path on the virtual clock (the real-time race left out) and every live-input run, the
 states at the same retraces and each second the first car's position, speed and steering to the bit. It fails if a
