@@ -621,6 +621,25 @@ static void test_writes(void)
     snprintf(trash, sizeof trash, "%s/trash", dir);
     CHECK(file_exists(trash, "track 2 forward - ALICE - 1m05.00s.r49ghost") &&
           !file_exists(dir, "track 2 forward - ALICE - 1m05.00s.r49ghost"), "the old best in the trash (the game deleted it)");
+    /* the same ghost with its status byte changed (the Pfs C sets DIR_STATUS_OCCUPIED after its first write): the
+     * file written again, nothing in the trash */
+    g2.dir[8] ^= 0x40;
+    game_image(g_img, on2, 2);
+    CHECK(pc_store_write(dir, g_img, PC_PAK_SIZE) == 0 && count_files(trash, ".r49ghost") == 1 &&
+          file_exists(dir, "track 2 forward - ALICE - 1m00.00s.r49ghost"), "a status byte changed: in place");
+    /* a Rush note never written (no DIR_STATUS_OCCUPIED): waits */
+    {
+        PcNote fresh;
+        make_ghost(&fresh, "BOB", 4, 1, 50.0f, 300, 5);
+        fresh.dir[8] &= (uint8_t)~0x02;
+        PcNote *on4[] = {&g_alice, &g2, &fresh};
+        game_image(g_img, on4, 3);
+        CHECK(pc_store_write(dir, g_img, PC_PAK_SIZE) == 0 && count_files(dir, ".r49ghost") == 1,
+              "a note allocated, never written: waits");
+        pc_note_free(&fresh);
+        game_image(g_img, on2, 2);
+        pc_store_write(dir, g_img, PC_PAK_SIZE);
+    }
     /* renamed: the same bytes under another name: a file of the new name, the old to the trash */
     pc_note_copy(&g3, &g2);
     pak_name(g3.dir + 16, "TESTPREFALICE2X", 16);

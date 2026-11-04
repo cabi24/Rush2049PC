@@ -1141,8 +1141,11 @@ int pc_store_write(const char *dir, const void *image, size_t size)
             Entry *e = &st->e[ei];
             if (note && as_placed(e, note))
                 continue;
-            if (note && pc_note_same_key(note->dir, e->placed) && e->info.kind != PC_NOTE_GHOST) {
-                /* changed in place (a profile's settings, records): its file written again */
+            int same_pages = note && note->pages == e->note.pages &&
+                             !memcmp(note->data, e->note.data, (size_t)note->pages * PC_PAK_PAGE);
+            if (note && pc_note_same_key(note->dir, e->placed) && (e->info.kind != PC_NOTE_GHOST || same_pages)) {
+                /* changed in place (a profile's settings, records; a note's status byte, which the Pfs C sets after
+                 * its first write): its file written again */
                 PcNote next;
                 if (pc_note_copy(&next, note) != 0) {
                     err = ENOMEM;
@@ -1174,7 +1177,7 @@ int pc_store_write(const char *dir, const void *image, size_t size)
         PcNoteInfo info;
         pc_note_info(note, &info);
         int rush = pc_note_game_code(note) == PC_RUSH_GAME_CODE && pc_note_company(note) == PC_RUSH_COMPANY;
-        if (rush && (info.kind == PC_NOTE_OTHER ||
+        if (rush && (info.kind == PC_NOTE_OTHER || !(note->dir[8] & 0x02) ||   /* never written: DIR_STATUS_OCCUPIED */
                      (info.kind == PC_NOTE_GHOST &&
                       pc_ghost_check(note->data, (size_t)note->pages * PC_PAK_PAGE, 0, NULL, 0) != 0)))
             continue;   /* the game's note, not whole yet (being written): the next image has it */
