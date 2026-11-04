@@ -117,6 +117,16 @@ extern s16 D_8002EB70;
 extern volatile s32 D_8002EB98;
 typedef struct { u8 pad[636]; s32 frameCount; } Sched;
 extern volatile Sched D_8002E8E8;
+#ifdef TARGET_PC
+/* PC, game.frame_rate 60 (docs/port/FRAMERATE.md 7): the frame's task waits in the scheduler's task queue until a
+ * message on its command queue wakes it (__scMain, 670: schedule). In real time on the PC the RSP finishes the
+ * retrace's audio task at once, before the frame is done, so the next message was the next retrace: the frame's
+ * task ran a retrace late and was shown two after the frame began, every frame. At 60 the frame's task wakes the
+ * scheduler itself, as the audio task's sender does (func_8010FBE0). Original keeps the N64's messages. */
+extern OSMesgQueue D_8002E928;
+#else
+#define PC_ONLY(stmt)
+#endif
 void world_velocity_integrate(s32);
 Gfx *audio_start(void);
 void osStopThread(void *);
@@ -165,6 +175,6 @@ void world_collision_response(void)
     osStopThread(D_8002E998);
     D_8002EB70++;
     osStartThread(D_8002E998);
-    osSendMesg(&D_8002E960, f, 1);
+    osSendMesg(&D_8002E960, f, 1); PC_ONLY(if (pc_fps60) osSendMesg(&D_8002E928, (OSMesg)670, 0);)
     D_8002EB98 = D_8002E8E8.frameCount;
 }

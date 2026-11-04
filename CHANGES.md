@@ -29,6 +29,14 @@ What changed for players, newest first. The details and the tests behind each it
   attract demo races the setting's cars. The grid has a row for every car, and the HUD has two-digit places, the 7th
   to 12th places on the results, and a minimap dot and a radar blip for every car. Tested on every race track, to
   the finish ([MORECARS.md](docs/port/MORECARS.md) 10.4, [FRONTEND.md](docs/port/FRONTEND.md)).
+- **The game at 60 frames a second** (`game.frame_rate`, F1 > Game > Game frame rate): `original`, the default, is
+  the N64's 30. At 60 the game draws a frame every retrace, its own, not one drawn between two: the menus, the HUD,
+  the cameras, the smoke and sparks, the battle weapons and every timer step 60 times a second at the N64's speed, and
+  the car physics is the same as before, every retrace. A race the game doesn't steer once a frame (no drones,
+  resurrections or shots) has the same physics to the bit at either setting; the drones' catch-up, a resurrection's
+  place and the shots are decided once a frame, so at 60 they are decided twice as often.
+  Applies from the next screen. `video.frame_rate` still draws frames between the game's on top
+  ([FRAMERATE.md](docs/port/FRAMERATE.md) 7, [FRONTEND.md](docs/port/FRONTEND.md)).
 
 ## Beta candidate (2026-10-28)
 

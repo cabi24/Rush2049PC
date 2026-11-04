@@ -196,4 +196,7 @@ static __inline__ unsigned int pc_mips_d2u(double d)
  * (docs/port/DECOUPLE.md). */
 #include "pc_game_types.h"
 
+/* game.frame_rate: the game's own frame rate and the per-frame steps that follow it (docs/port/FRAMERATE.md 7). */
+#include "pc_game_fps.h"
+
 #endif

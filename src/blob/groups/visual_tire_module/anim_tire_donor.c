@@ -160,6 +160,10 @@ extern void func_8008D6FC(s16,Vec3,Matrix3);
 
 extern f32 func_8008B2E4(f32);
 #define Random(range) func_8008B2E4(range)
+#ifndef TARGET_PC
+#define PC_FSCALE(x) x   /* PC: game.frame_rate 60 (pc_game_fps.h): a step per frame of two retraces, scaled */
+#define PC_EACH30(stmt) stmt   /* PC: run once a 30 Hz frame */
+#endif
 void anim_state_update(Visual *v, s16 op)
 {
     f32 pos[3], mat[3][3], rpy[3], spring, spring2, t, vel, lastpos;
@@ -209,11 +213,11 @@ void anim_state_update(Visual *v, s16 op)
         if (PC_MODEL_VISCODE(slot)[tire] == 1) spring2 = (Random(2.0f) - 1.0f) * t;
         else if (PC_MODEL_VISCODE(slot)[tire] == 8) spring2 = 0;
         else spring2 = (Random(2.0f) - 1.0f) * t * 0.25f;
-        gCamera[controller].spring_save = gCamera[controller].spring_save * 0.75f + spring2;
+        PC_EACH30(gCamera[controller].spring_save = gCamera[controller].spring_save * 0.75f + spring2;)
     }
     vel = m->tires[tire].angular_velocity;
     lastpos = v->angle;
-    if (vel > 64.0f) lastpos += 3.7f;
+    if (vel > 64.0f) lastpos += PC_FSCALE(3.7f);
     else lastpos += vel * (D_801543CC - v->time);
     v->angle = lastpos;
     v->time = D_801543CC;

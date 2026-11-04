@@ -593,6 +593,15 @@ void func_8039D300(s32);
  * Matches in this group (the scorer, strict). Own.rodata verified against decompressed image A: 5/5 float literal sites
  * (rocheck.py) and 19/19 jump-table entries (case offsets relative to the function start).
  */
+/* PC: game.frame_rate 60 (pc_game_fps.h). The car select counts the frames since every player was ready (D_803BA030)
+ * and leaves at 10, turning the cars to the front over them: once a 30 Hz frame, and the turn's share of what is
+ * left, 1 / (frames left - 1) a frame, taken to the frame's length (PC_EASE_DIV(a, n): a / n at original). */
+#ifdef TARGET_PC
+#define PC_EASE_DIV(a, n) (pc_fps60 ? (a) * (1.0f - pc_fps_filter(1.0f - 1.0f / (n))) : (a) / (n))
+#else
+#define PC_EACH30(stmt) stmt
+#define PC_EASE_DIV(a, n) a / n
+#endif
 void func_803A1EAC(void)
 {
     s16 i;
@@ -632,7 +641,7 @@ void func_803A1EAC(void)
         }
     }
     if (D_80157244) { func_8039D05C(); func_800B5570(4); D_803BA030 = 0; return; }
-    D_803BA030++;
+    PC_EACH30(D_803BA030++;)
     for (p = 0; p < D_8014A108; p++) {
         s32 notReadyCount;
         s32 notReadyIdx;
@@ -1596,7 +1605,7 @@ void func_8039EF08(void)
                     D_803B9BC8[p][i].angle -= 3.6651914f;
                     while (D_803B9BC8[p][i].angle > 3.1415927f) D_803B9BC8[p][i].angle -= 6.2831855f;
                     while (D_803B9BC8[p][i].angle <= -3.1415927f) D_803B9BC8[p][i].angle += 6.2831855f;
-                    D_803B9BC8[p][i].angle -= D_803B9BC8[p][i].angle / (framesLeft - 1);
+                    D_803B9BC8[p][i].angle -= PC_EASE_DIV(D_803B9BC8[p][i].angle, (framesLeft - 1));
                     D_803B9BC8[p][i].angle += 3.6651914f;
                 }
             } else if (D_803BA060[p][D_803B28B8[p]] == 11) {

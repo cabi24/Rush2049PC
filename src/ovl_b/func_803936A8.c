@@ -66,6 +66,10 @@ extern void state_utility(s16, s16, void *);
 extern void camera_auto_follow(s16, s16, s16, s16, s16, s16, u8 *);
 extern void func_800F7E30(s8, s8, s8);
 
+#ifndef TARGET_PC
+#define PC_EACH30(stmt) stmt   /* PC: game.frame_rate 60, once a 30 Hz frame (pc_game_fps.h) */
+#endif
+
 s32 func_803936A8(void *callback_context)
 {
     char text[32];
@@ -123,7 +127,7 @@ s32 func_803936A8(void *callback_context)
                     }
                 }
                 if (!D_80142690 && !D_801170FC) {
-                    event->age++;
+                    PC_EACH30(event->age++;)
                 }
             }
         }

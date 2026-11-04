@@ -60,6 +60,8 @@ static void usage(FILE *f)
             "  --log-input         print every change of a player's buttons and stick\n"
             "  --log-cars          at the end, print each car of the race: its place, lap, distance and how far\n"
             "                      it is from where the race began (tests of races of more cars)\n"
+            "  --log-physics N     every N retraces, the model thread's clock and each car's position and velocity\n"
+            "                      (exact with RUSH_STATE_EXACT): game.frame_rate's comparison, fps_compare.py\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
             "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
@@ -255,6 +257,31 @@ static void cars_info(char *out, size_t size)
                         *(volatile signed char *)&pc_cars[i].place, *(volatile signed char *)&pc_models[i].lap,
                         (double)*(volatile float *)&pc_cars[i].distance, moved, (double)c[0], (double)c[1],
                         (double)c[2]);
+    }
+}
+
+/* --log-physics N (docs/port/FRAMERATE.md 7): every N retraces, the model thread's tick (D_80143FF4) and time
+ * (D_801543CC) and each car of the race (gNumCars, D_801543CA): its model record's position (RWR) and velocity (RWV),
+ * its lap and its place. Read as the state log is, while every N64 thread waits, so a run at game.frame_rate 60 and
+ * one at original compare retrace by retrace (tools/port/fps_compare.py). RUSH_STATE_EXACT gives exact hex floats. */
+extern int32_t D_80143FF4;
+extern float D_801543CC;
+static void physics_info(char *out, size_t size)
+{
+    static int exact = -1;
+    if (exact < 0)
+        exact = getenv("RUSH_STATE_EXACT") != NULL;
+    int n = *(volatile int16_t *)&D_801543CA, len;
+    if (n < 0 || n > PC_MODEL_SLOTS)
+        n = 0;
+    len = snprintf(out, size, exact ? "tick %d time %a cars %d" : "tick %d time %.3f cars %d",
+                   (int)*(volatile int32_t *)&D_80143FF4, (double)*(volatile float *)&D_801543CC, n);
+    for (int i = 0; i < n && len > 0 && (size_t)len < size; i++) {
+        const volatile float *r = pc_models[i].rwr, *v = pc_models[i].rwv;
+        len += snprintf(out + len, size - (size_t)len, exact ? "; %d %a %a %a v %a %a %a lap %d place %d"
+                        : "; %d %.2f %.2f %.2f v %.2f %.2f %.2f lap %d place %d", i, (double)r[0], (double)r[1],
+                        (double)r[2], (double)v[0], (double)v[1], (double)v[2],
+                        *(volatile signed char *)&pc_models[i].lap, *(volatile signed char *)&pc_cars[i].place);
     }
 }
 
@@ -485,6 +512,8 @@ static int rush_main(int argc, char **argv)
             pc_input_log = 1;
         else if (!strcmp(a, "--log-cars"))
             run.end_info = cars_info, g_log_cars = 1;
+        else if (!strcmp(a, "--log-physics"))
+            run.physics_every = (uint32_t)atoi(ARG()), run.physics_info = physics_info;
         else if (!strcmp(a, "--press-via")) {
             if (pc_input_set_via(ARG()) != 0)
                 return 2;
@@ -603,6 +632,9 @@ static int rush_main(int argc, char **argv)
     pc_race_cars_set(cfg.cars);   /* [game] cars: the game latches it at each race's start (race_cars.c) */
     if (cfg.cars)
         fprintf(stderr, "rush2049pc: up to %d cars a race (game.cars)\n", pc_cars_setting());
+    pc_game_fps_set(cfg.game_fps);   /* [game] frame_rate: the game latches it at each change of state (game_fps.c) */
+    if (cfg.game_fps)
+        fprintf(stderr, "rush2049pc: the game runs at %d frames a second (game.frame_rate)\n", pc_game_fps_setting());
     /* port/gfx reads its settings from the environment; the resolved values already include it */
     char scale[16], aspect[16], rate[16];
     pc_settings_get(&cfg, "video", "scale", scale, sizeof scale);

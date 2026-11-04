@@ -562,6 +562,11 @@ int pc_ultra_run(const PcRunOptions *opt)
         }
         if (vi_due)
             snapshot();
+        if (vi_due && opt->physics_every && opt->physics_info && pc_frame % opt->physics_every == 0) {
+            char line[2048];   /* --log-physics: the cars at this retrace, before its event (docs/port/FRAMERATE.md 7) */
+            opt->physics_info(line, sizeof line);
+            fprintf(stderr, "rush2049pc: physics vi=%u: %s\n", pc_frame, line);
+        }
         uint64_t timer = pc_timer_service(ticks);
         if (timer && timer > ticks && now + pc_ticks_to_ns(timer - ticks) < deadline)
             deadline = now + pc_ticks_to_ns(timer - ticks);

@@ -92,6 +92,11 @@ extern void model_transform_setup(s32, s32, u32);
 #define Random func_8008B2E4
 #define ZOID_SetObjectDef func_80090770
 #define MBOX_ShowObject model_transform_setup
+#ifndef TARGET_PC
+/* PC: game.frame_rate 60, steps and counts of a 30 Hz frame (pc_game_fps.h) */
+#define PC_STEPS(n) n
+#define PC_EACH30(stmt) stmt
+#endif
 void func_80390B00(void) /* UpdateInvs */
 {
     s32 i;
@@ -105,7 +110,7 @@ void func_80390B00(void) /* UpdateInvs */
             } else if (car->phase == 1) {
                 car->countdown = 0;
                 if (car->timer > 0.0f) {
-                    car->alpha -= 8;
+                    car->alpha -= PC_STEPS(8);
                     if (car->alpha <= 16) {
                         car->alpha = 16;
                         car->phase = 3;
@@ -117,10 +122,10 @@ void func_80390B00(void) /* UpdateInvs */
             } else {
                 car->countdown = 0;
                 if (car->timer > 0.0f) {
-                    if (car->alpha + 8 > 255) {
+                    if (car->alpha + PC_STEPS(8) > 255) {
                         car->alpha = 255;
                     } else {
-                        car->alpha = car->alpha + 8;
+                        car->alpha = car->alpha + PC_STEPS(8);
                     }
                     car->timer -= gFrameSeconds;
                 } else {
@@ -130,7 +135,7 @@ void func_80390B00(void) /* UpdateInvs */
             }
         }
         if (car->countdown > 0) {
-            car->countdown--;
+            PC_EACH30(car->countdown--;)
         }
     }
 }

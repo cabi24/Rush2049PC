@@ -273,6 +273,18 @@ static f32 gShieldSizes[13] = {
     0.85f, 0.8f, 0.75f, 0.77f, 0.83f, 0.85f, 0.75f, 0.75f, 0.65f, 0.85f, 1.1f, 0.8f, 0.73f
 };
 static s32 sWeaponFx[10] = { 92, 87, 90, 88, 91, 93, 94, 95, 89, -1 };
+#ifdef TARGET_PC
+/* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a weapon's reload counts down by the time of the 30 Hz frames
+ * completed, so it ends on the frame the N64's would: a reload is set afresh at each shot, and counted by the frame
+ * time at 60 it ended up to a retrace sooner than the N64's frames of two (0.0666667 s: 5 retraces against 6, a
+ * machine gun's 12 shots a second against 10). */
+#define PC_DT30(dt) (pc_fps60 ? (pc_frame_steps ? (f32)pc_frame_steps * ((dt) / pc_frame_scale) : 0.0f) : (dt))
+#else
+#define PC_FSCALE(x) x
+#define PC_FILTER(e) e
+#define PC_EACH30(stmt) stmt
+#define PC_DT30(dt) dt
+#endif
 
 /* 0x8038F568 ElevateGun */
 void func_8038F568(Car *car)
@@ -310,13 +322,13 @@ void func_8038F568(Car *car)
 next:;
     }
     if (yaw < car->battle.yaw)
-        car->battle.yaw -= 0.01f;
+        car->battle.yaw -= PC_FSCALE(0.01f);
     else if (yaw > car->battle.yaw)
-        car->battle.yaw += 0.01f;
+        car->battle.yaw += PC_FSCALE(0.01f);
     if (pitch < car->battle.pitch)
-        car->battle.pitch -= 0.01f;
+        car->battle.pitch -= PC_FSCALE(0.01f);
     else if (pitch > car->battle.pitch)
-        car->battle.pitch += 0.01f;
+        car->battle.pitch += PC_FSCALE(0.01f);
 }
 
 /* 0x8038DA78 ShotToCarCollision */
@@ -515,7 +527,7 @@ reduceScale:
         }
     }
     if (shot->flags & 2)
-        func_80090F44(0.18f, &o->mat.uvs[0][0]);
+        func_80090F44(PC_FSCALE(0.18f), &o->mat.uvs[0][0]);
 }
 
 /* 0x8038F938 UpdateDefense */
@@ -541,7 +553,7 @@ void func_8038F938(Car *car, Model *m, Defense *defense, s32 i)
         D_80394F90[i].mat.pos[2] = car->pos[2];
         math_utility(&car->uvs[0][0], &D_80394F90[i].mat.uvs[0][0]);
         func_80090F44(defense->unknown10, &D_80394F90[i].mat.uvs[0][0]);
-        defense->unknown10 -= 0.005f;
+        defense->unknown10 -= PC_FSCALE(0.005f);
         defense->shldTime -= D_8002EB94;
         if (defense->shldTime <= 0.0f) {
             if (defense->active & 8) {
@@ -723,8 +735,8 @@ void func_8038E114(void)
             vel = shot->vel[2]*D_8002EB94;
             scale = 10.0f;
             shot->vel[1] -= D_80142764*D_8002EB94;
-            shot->vel[0] *= 0.9f;
-            shot->vel[2] *= 0.9f;
+            shot->vel[0] *= PC_FILTER(0.9f);
+            shot->vel[2] *= PC_FILTER(0.9f);
             shot->pos[0] = old[0] + shot->vel[0]*D_8002EB94;
             shot->pos[1] = old[1] + shot->vel[1]*D_8002EB94;
             shot->pos[2] = old[2] + shot->vel[2]*D_8002EB94;
@@ -957,13 +969,13 @@ carHit:
             break;
         }
         if (shot->flags & 0x10) {
-            shot->flags &= ~0x10;
-            shot->flags |= 0x20;
+            PC_EACH30(shot->flags &= ~0x10;)
+            PC_EACH30(shot->flags |= 0x20;)
         } else if (shot->flags & 0x20) {
-            shot->flags &= ~0x20;
-            shot->flags |= 0x40;
+            PC_EACH30(shot->flags &= ~0x20;)
+            PC_EACH30(shot->flags |= 0x40;)
         } else if (shot->flags & 0x40) {
-            shot->flags &= ~0x40;
+            PC_EACH30(shot->flags &= ~0x40;)
         }
     }
 }
@@ -1054,7 +1066,7 @@ resetWeapon:
             car->battle.yaw = 0.0f;
         }
         if (car->battle.reloadingTime > 0.0f)
-            car->battle.reloadingTime -= D_8002EB94;
+            car->battle.reloadingTime -= PC_DT30(D_8002EB94);
         if (car->battle.reloadingTime <= 0.0f && car->battle.ammoCnt) {
             if (car->battle.type == 3) {
                 if (car->battle.loaded)

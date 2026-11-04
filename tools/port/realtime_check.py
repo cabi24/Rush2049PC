@@ -75,6 +75,8 @@ def main():
                     "(RUSH_SIM_DISPLAY_TIMING), a run each")
     ap.add_argument("--max-doubled", type=int, default=-1, help="--pacing: vblanks showing a frame twice with nothing "
                     "decided for them, at most")
+    ap.add_argument("--game-fps", default="original", help="game.frame_rate for every run, the reference too "
+                    "(docs/port/FRAMERATE.md 7); at 60 the game's own frames a second are checked too")
     args = ap.parse_args()
     if args.pacing:
         if os.name == "nt":
@@ -115,7 +117,8 @@ def reference(args, logs):
         env.pop(key, None)
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
-           "--seconds", str(args.seconds), "--audio", "sdl", "--frame-rate", "60"]
+           "--seconds", str(args.seconds), "--audio", "sdl", "--frame-rate", "60", "--set",
+           f"game.frame_rate={args.game_fps}"]
     p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
     out = p.stdout.decode(errors="replace")
     (logs / "run.log").write_text(out)
@@ -142,7 +145,7 @@ def check(args, frame_rate, logs, timing=""):
                 env[key] = value
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
-           "--seconds", str(args.seconds), "--audio", "sdl"]
+           "--seconds", str(args.seconds), "--audio", "sdl", "--set", f"game.frame_rate={args.game_fps}"]
     if frame_rate:
         cmd += ["--frame-rate", frame_rate]
         if args.present_ms > 0:
@@ -199,6 +202,17 @@ def check(args, frame_rate, logs, timing=""):
     ok &= good
     print(f"realtime_check: retraces {rate:.2f} a second, {caught} caught up, {dropped} dropped: "
           f"{'ok' if good else 'FAIL'}")
+    if args.game_fps == "60":
+        # The game's own frames (graphics tasks) against the retraces: one a retrace, but for the front end's loads.
+        g = re.search(r"^rush2049pc: (?:time reached:|state reached:) t=\S+ vi=(\d+) gfx_tasks=(\d+)", out, re.M)
+        if not g:
+            print("realtime_check: no end line")
+            return 1
+        frames = int(g[2]) / int(g[1]) if int(g[1]) else 0
+        good = frames >= 0.9
+        ok &= good
+        print(f"realtime_check: game.frame_rate 60: {g[2]} of the game's frames in {g[1]} retraces ({frames:.3f} a "
+              f"retrace, at least 0.9): {'ok' if good else 'FAIL'}")
 
     m = re.search(r"^audio: (\w+) at (\d+) Hz \(([^)]*)\): ([\d.]+) s played; (\d+) underruns .*?; (\d+) buffers "
                   r"pushed before their render: (\d+) rendered in time, (\d+) played late, (\d+) as silence", out, re.M)

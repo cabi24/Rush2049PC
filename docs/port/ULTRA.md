@@ -357,6 +357,7 @@ loop on the host main thread.
 | `--version`, `-h`, `--help` | the version and the build; the options |
 | `--fullscreen`, `--exclusive`, `--resolution R`, `--size WxH`, `--scale N`, `--widescreen A`, `--log-input` | the window and live input ([FRONTEND.md](FRONTEND.md)) |
 | `--frame-rate R` | frames shown a second: `original`, `display` or 30-1000 ([FRAMERATE.md](FRAMERATE.md)) |
+| `--log-physics N` | every N retraces, read as the state log is, the model thread's tick and time and each car's position, velocity, lap and place (exact with `RUSH_STATE_EXACT`): `game.frame_rate`'s comparison ([FRAMERATE.md](FRAMERATE.md) 7, `tools/port/fps_compare.py`) |
 | `--config PATH`, `--no-config`, `--set S.KEY=VALUE`, `--print-config` | the settings file ([FRONTEND.md](FRONTEND.md)) |
 
 `--frames` and `--screenshot-at` act two retraces after their graphics task, once the scheduler has swapped the
@@ -392,7 +393,8 @@ gcc's preprocessor against main; the IDO build itself was not run):
 | File | Edit |
 |---|---|
 | `lib_2cf0.c` | the idle loop calls `pc_os_idle`; `game_init`'s game-BSS `bzero` is skipped (zero at startup; the BSS with pointers lives outside that range) |
-| `lib_1050_sdk.c` | the scheduler's layout and its N64 names (below) |
+| `lib_1050_sdk.c` | the scheduler's layout and its N64 names (below); the retraces between two swaps, `PC_SWAP_RETRACES`: 2, or 1 with `game.frame_rate` 60 ([FRAMERATE.md](FRAMERATE.md) 7) |
+| `lib_1050.c` | viUpdateTime gives each frame's retraces to `pc_game_frame_note` (`game.frame_rate`'s steps) |
 | `lib_11640.c` | `__unaligned`; the native task records (`unknown44` a pointer, the real types in `func_800139D4`, `sizeof` for the SFD and delay sizes); the DMA caches registered big-endian; host pointers count as RAM (`func_800146B4`, `func_80014CAC`); two busy-waits; the renderer's wrapping range goes on where the cap stopped it (`func_80013DEC`, [AUDIO.md](AUDIO.md) §7) |
 | `lib_15a10.c`, `lib_17dc0.c` | `func_8001558C`/`func_800156E8` take pointer-sized integers (a stack address passed through a u32) |
 | `lib_f700.c` | `__osIdCheckSum` adds to a pointer, not a truncated one |

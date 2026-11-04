@@ -3775,6 +3775,14 @@ typedef struct { f32 *m; u8 pad4[0x40]; } ModelSlot;
 /* deleted static: the 0x44-byte model slot's matrix pointer; inlined at all
  * three uses (this is what puts the index in a0 and the pointer in a1) */
 static f32 *model_mat(s16 idx) { return TBL[idx].m; }
+#ifdef TARGET_PC
+/* game.frame_rate 60: the flame's frame index steps once a frame of two retraces, so it flickers and dies out at the
+ * N64's rate (pc_game_fps.h, docs/port/FRAMERATE.md 7) */
+#define PC_IF30(c) ((!pc_fps60 || pc_frame_steps) && (c))
+#else
+#define PC_STEPS(n) n
+#define PC_IF30(c) c
+#endif
 void func_8008B640(s32 idx, f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz) {
     f32 *v;
 
@@ -3813,14 +3821,14 @@ void physics_velocity_integrate_a(ModelObj *ipa_s1, s32 arg1, s32 ipa_s2, f32 ip
                 m = model_mat(ipa_s1->model);
                 func_8008B32C(m, m, (f32) t / 100.0f);
             }
-            ipa_s1->state = ipa_s1->state + 1;
-            if (ipa_s1->state >= 3) {
+            ipa_s1->state = ipa_s1->state + PC_STEPS(1);
+            if (PC_IF30(ipa_s1->state >= 3)) {
                 ipa_s1->state = Random(4.0f) + 2.0f;
             }
         } else if (ipa_s1->state >= 4) {
             ipa_s1->state = 3;
         } else {
-            ipa_s1->state = ipa_s1->state - 1;
+            ipa_s1->state = ipa_s1->state - PC_STEPS(1);
         }
         if (ipa_s1->state >= 6) {
             ipa_s1->state = 5;

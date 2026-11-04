@@ -74,6 +74,18 @@ void pc_race_cars_begin(void) { test_race_begins++; }
 int pc_cars_setting(void) { return test_race_cars; }
 int pc_race_cars(void) { return test_race_cars; }
 
+/* game.frame_rate (pc_game_fps.h; the game's is port/config/game_fps.c), for tests that build game C stepping per
+ * frame: original. A test that links port/config/game_fps.c (assets_fps) has the game's own instead: PC_TEST_GAME_FPS.
+ * Not weak symbols: a PE executable (mingw-w64) resolves no reference to a weak definition of data. */
+#ifndef PC_TEST_GAME_FPS
+volatile int pc_fps60;
+int pc_frame_steps = 1;
+float pc_frame_scale = 1.0f;
+void pc_game_fps_begin(void) {}
+void pc_game_frame_note(int retraces) { (void)retraces; }
+float pc_fps_filter(float e) { return e; }   /* not libm: not every test links it */
+#endif
+
 /* A pool past its end (pc_game_types.h; the game's is port/ultra/pool_overflow.c), for tests that build game C with a
  * checked pool: the test's handler if it set one (assets_pools), else the test fails. */
 void (*test_pool_overflow)(const char *pool, int used, int capacity);

@@ -13,7 +13,9 @@
  *   (bindings, hotkeys, sticks, rumble). The graphics API and the audio backend apply
  *   after a restart; they are marked so. The cars a race holds (game.cars) apply from the next race: the game latches
  *   them where a race's roster is filled (port/config/race_cars.c). The game's memory (game.memory) applies after a
- *   restart too: the RDRAM window is mapped at start (docs/port/MEMORY.md).
+ *   restart too: the RDRAM window is mapped at start (docs/port/MEMORY.md). The game's own frame rate
+ *   (game.frame_rate) applies from the next screen: the game latches it where its state changes
+ *   (port/config/game_fps.c).
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place
  *   (pc_settings_save): the file's comments, order and other lines stay. Settings from the command line or the
  *   environment that weren't changed here are not written.
@@ -116,6 +118,9 @@ static const char *const cars_labels[] = {"original (6)", "7", "8", "9", "10", "
 /* game.memory (docs/port/MEMORY.md): the window is mapped at start, so it applies after a restart */
 static const char *const memory_choices[] = {"original", "16", "32", "64", "128", "256", NULL};
 static const char *const memory_labels[] = {"original (N64)", "16 MB", "32 MB", "64 MB", "128 MB", "256 MB", NULL};
+/* game.frame_rate (docs/port/FRAMERATE.md 7) */
+static const char *const game_fps_choices[] = {"original", "60", NULL};
+static const char *const game_fps_labels[] = {"original (30)", "60", NULL};
 static const char *const window_choices[] = {"640x480",   "960x720",   "1280x960",  "1440x1080", "854x480",
                                              "1280x720",  "1600x900",  "1920x1080", "2560x1440", "2880x1620",
                                              "3840x2160", "auto",      NULL};
@@ -150,7 +155,7 @@ static void build(void)
     it = add(P_MAIN, I_PAGE, "Controllers", NULL, NULL);
     it->page = P_CONTROLLER, it->desc = "Players, buttons, the stick, dead zone, rumble";
     it = add(P_MAIN, I_PAGE, "Game", NULL, NULL);
-    it->page = P_GAME, it->desc = "The cars in a race, the game's memory";
+    it->page = P_GAME, it->desc = "The cars in a race, the game's memory and frame rate";
     it = add(P_MAIN, I_PAGE, "Help", NULL, NULL);
     it->page = P_HELP, it->desc = "What each key and button does";
     it = add(P_MAIN, I_PAGE, "About", NULL, NULL);
@@ -238,6 +243,9 @@ static void build(void)
     it->choices = memory_choices;
     it->labels = memory_labels;
     it->restart = 1;
+    it = add(P_GAME, I_CHOICE, "Game frame rate", "game", "frame_rate");   /* FRAMERATE.md 7 */
+    it->choices = game_fps_choices;
+    it->labels = game_fps_labels;
     add(P_GAME, I_DEFAULTS, "Defaults", NULL, NULL);
 
     /* each setting's line in the footer (a setting without one shows its name in the file) */
@@ -266,6 +274,7 @@ static void build(void)
         {"input", "rumble", "Rumble strength, with the rumble pak in"},
         {"game", "cars", "The most cars a race holds; from the next race"},
         {"game", "memory", "The game's memory; applies after a restart"},
+        {"game", "frame_rate", "Frames the game itself runs; from the next screen"},
     };
     for (int pg = 0; pg < NUM_PAGES; pg++)
         for (int i = 0; i < pages[pg].n; i++) {
@@ -427,6 +436,8 @@ static void apply(const char *section, const char *key)
                 pc_si_set_pak(p, s->pak[p]);
         if (!strcasecmp(key, "cars"))   /* the game latches it at the next race's start (race_cars.c) */
             pc_race_cars_set(s->cars);
+        if (!strcasecmp(key, "frame_rate"))   /* the game latches it at its next change of state (game_fps.c) */
+            pc_game_fps_set(s->game_fps);
     } else
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }

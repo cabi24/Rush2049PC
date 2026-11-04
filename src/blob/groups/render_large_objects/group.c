@@ -136,6 +136,9 @@ extern S8 D_80152030;
 #define coast_flag D_8013FECB
 #define end_game_flag D_80152718
 #define lap_flag D_80152015
+#ifndef TARGET_PC
+#define PC_FSCALE(x) x   /* PC: game.frame_rate 60 scales a per-frame step to the frame (pc_game_fps.h) */
+#endif
 
 void func_800DE860(void);
 F32 func_800F92C8(F32 in_bound1, F32 in_bound2, F32 input, F32 out_bound1, F32 out_bound2);
@@ -425,11 +428,11 @@ void render_large_objects(void)
                     temp1 = PC_MODEL_DRONE_SCALE(index);
 
                     if (temp1 > scale) {
-                        temp1 -= .01f;
+                        temp1 -= PC_FSCALE(.01f);
                         if (temp1 < scale)
                             temp1 = scale;
                     } else {
-                        temp1 += .01f;
+                        temp1 += PC_FSCALE(.01f);
                         if (temp1 > scale)
                             temp1 = scale;
                     }
@@ -439,11 +442,11 @@ void render_large_objects(void)
                     temp1 = PC_MODEL_TIME_BOOST(index);
 
                     if (temp1 > time_scale) {
-                        temp1 -= .01f;
+                        temp1 -= PC_FSCALE(.01f);
                         if (temp1 < time_scale)
                             temp1 = time_scale;
                     } else {
-                        temp1 += .01f;
+                        temp1 += PC_FSCALE(.01f);
                         if (temp1 > time_scale)
                             temp1 = time_scale;
                     }

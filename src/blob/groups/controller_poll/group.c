@@ -3769,6 +3769,10 @@ void process_inputs(void);
 typedef struct { u8 pad[636]; volatile s32 tick; } SysBlk;
 #define gPadHeld ((volatile u32 *) D_80156978)
 #define gTick (((SysBlk *) &D_8002E8E8)->tick)
+#ifndef TARGET_PC
+/* PC: game.frame_rate 60 counts the frames of input skipped as frames of two retraces (pc_game_fps.h) */
+#define PC_EACH30(stmt) stmt
+#endif
 
 /* read the pads: sticks, held/pressed masks and auto-repeat per button */
 void controller_poll(void)
@@ -3789,7 +3793,7 @@ void controller_poll(void)
     }
     D_8015694C = D_80149784 = D_80156944 = 0;
     if (gSkipFrames != 0) {
-        gSkipFrames--;
+        PC_EACH30(gSkipFrames--;)
         for (i = 0; i < 4; i++) {
             gPrevPressed[i] = 0;
             gStick[i].unk4 = 0.0f;

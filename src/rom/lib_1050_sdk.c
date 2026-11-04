@@ -89,6 +89,9 @@ s32 gViAccumTotal;
 volatile s32 gViLastTick;
 #endif
 #include "scheduler_declarations.h"
+#ifndef TARGET_PC
+#define PC_SWAP_RETRACES 2U
+#endif
 
 
 /* PROMOTED 2026-10-02 — osCreateScheduler
@@ -248,7 +251,7 @@ void __scHandleRetrace(OSSched *scheduler) {
     s32 state;
 
     scheduler->retraceCount++;
-    if (__osScPendingSwap && scheduler->retraceCount - __osScSwapCount >= 2U) {
+    if (__osScPendingSwap && scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
         osViSwapBuffer((void *)(u32)__osScPendingSwap);
         display_mode_tick();
         __osScSwapCount = scheduler->retraceCount;
@@ -325,7 +328,7 @@ OSScTask *__scTaskReady(OSSched *scheduler, OSScTask *task) {
     if (task != 0) {
         if ((current = osViGetCurrentFramebuffer()) !=
             (next = osViGetNextFramebuffer())) return 0;
-        if (__osScPendingSwap != 0 && scheduler->retraceCount - __osScSwapCount < 2U)
+        if (__osScPendingSwap != 0 && scheduler->retraceCount - __osScSwapCount < PC_SWAP_RETRACES)
             return 0;
         return task;
     }
@@ -347,7 +350,7 @@ s32 __scExecTask(OSSched *scheduler, OSScTask *task)
         if (task->type == 1) {
             __osScTaskCount--;
             if ((task->flags & 0x40) && (task->flags & 0x20)) {
-                if (scheduler->retraceCount - __osScSwapCount >= 2U) {
+                if (scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
                     __osScSwapCount = scheduler->retraceCount;
                     osViSwapBuffer(task->framebuffer);
                     display_mode_tick();

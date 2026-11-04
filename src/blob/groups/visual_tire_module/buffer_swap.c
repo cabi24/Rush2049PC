@@ -101,6 +101,14 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset);
 s32 model_bounds_calc(Visual *v, s32 on);
 s32 matrix_scale_apply(Visual *v, s32 show, s32 part);
 
+/* PC: game.frame_rate 60 (pc_game_fps.h). The wings step out and in one sixth at a frame whose model time is past
+ * v->time, set 0.015 s on: less than a frame, so a step a frame, 30 a second on the N64. At 60 the gap is 0.03 s,
+ * between one frame and two, so the steps keep the N64's 30 a second. */
+#ifdef TARGET_PC
+#define PC_GAP30(x) (pc_fps60 ? (x) * 2.0f : (x))
+#else
+#define PC_GAP30(x) x
+#endif
 __inline void tire_sound_on(Model2056 *model)
 {
     model->sound = entity_flags_apply(61, model->player, 2, 2);
@@ -111,7 +119,7 @@ __inline void tire_extend(Visual *v, Model2056 *model)
 {
     model_transform_setup(v->object, 0, 15);
     v->flags |= 0x1110;
-    v->time = D_801543CC + 0.015f; v->index = 0;
+    v->time = D_801543CC + PC_GAP30(0.015f); v->index = 0;
 }
 __inline void tire_sound_off(Model2056 *model)
 {
@@ -172,7 +180,7 @@ grow:
             if (v->time < D_801543CC) {
                 position[0] *= (f32)v->index / 6.0f;
                 func_8008D6FC(v->object, position, 0);
-                v->time = D_801543CC + 0.015f; v->index++;
+                v->time = D_801543CC + PC_GAP30(0.015f); v->index++;
                 if (v->index == 6) {
                     v->flags &= ~0x1100;
                     tire_sound_off(model);
@@ -187,7 +195,7 @@ grow:
             if (v->time < D_801543CC) {
                 position[0] *= (f32)v->index / 6.0f;
                 func_8008D6FC(v->object, position, 0);
-                v->time = D_801543CC + 0.015f; v->index--;
+                v->time = D_801543CC + PC_GAP30(0.015f); v->index--;
                 if (v->index == -1) {
                     v->flags &= ~0x1210;
                     tire_sound_off(model);

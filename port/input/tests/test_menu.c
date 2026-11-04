@@ -31,6 +31,7 @@
 #include <unistd.h>
 
 #include "config.h"
+#include "pc_game_fps.h"
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* pc_race_cars, its latch (port/config/race_cars.c) */
@@ -441,9 +442,31 @@ static void test_live(void)
     at("Game", "Memory", "original (N64)", "past 256: original");
     act(PC_MENU_LEFT);
     at("Game", "Memory", "256 MB", "before original: 256");
+    /* the game's frame rate (game.frame_rate, FRAMERATE.md 7): the setting at once, the game's copy only at its next
+     * change of state (pc_game_fps_begin) */
+    act(PC_MENU_DOWN);
+    at("Game", "Game frame rate", "original (30)", "the game's frame rate: original");
+    CHECK(pc_game_fps_setting() == 0 && pc_fps60 == 0, "original: %d, %d", pc_game_fps_setting(), pc_fps60);
+    act(PC_MENU_RIGHT);
+    at("Game", "Game frame rate", "60", "60");
+    CHECK(pc_game_fps_setting() == 60 && pc_menu_settings()->game_fps == 60 && pc_fps60 == 0,
+          "the setting 60 at once, the game's original kept: %d, %d", pc_game_fps_setting(), pc_fps60);
+    pc_game_fps_begin();   /* the game's state changes */
+    CHECK(pc_fps60 == 1, "the next screen latched 60: %d", pc_fps60);
+    act(PC_MENU_RIGHT);
+    at("Game", "Game frame rate", "original (30)", "past 60: original");
+    CHECK(pc_game_fps_setting() == 0 && pc_fps60 == 1, "on this screen: the setting original, the game's 60 kept");
+    act(PC_MENU_LEFT);
+    at("Game", "Game frame rate", "60", "before original: 60");
     act(PC_MENU_DOWN);
     at("Game", "Defaults", NULL, "the page's Defaults");
     act(PC_MENU_ACCEPT);
+    act(PC_MENU_UP);
+    at("Game", "Game frame rate", "original (30)", "Defaults: original");
+    CHECK(pc_menu_settings()->game_fps == 0 && pc_game_fps_setting() == 0 && pc_fps60 == 1, "%d, %d, %d",
+          pc_menu_settings()->game_fps, pc_game_fps_setting(), pc_fps60);
+    pc_game_fps_begin();
+    CHECK(pc_fps60 == 0, "the next screen: original (%d)", pc_fps60);
     act(PC_MENU_UP);
     at("Game", "Memory", "original (N64)", "Defaults: the memory original");
     CHECK(pc_menu_settings()->memory == 0, "%d", pc_menu_settings()->memory);

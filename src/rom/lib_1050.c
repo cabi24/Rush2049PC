@@ -71,7 +71,7 @@ void viUpdateTime(void) {
     if (gViFrameDelta > 5) {
         gViFrameDelta = 5;
     }
-    __osScDeltaTime = gViFrameDelta * gScaleSecondsPerTick;
+    __osScDeltaTime = gViFrameDelta * gScaleSecondsPerTick; PC_ONLY(pc_game_frame_note(gViFrameDelta);)
 }
 
 /* PROMOTED 2026-10-12 — viScheduleTick

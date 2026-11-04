@@ -100,6 +100,11 @@ extern s32 D_8011749C,D_801174A0,D_801174A4,D_801174A8,D_801174AC,D_801174B0;
  * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
 #ifndef TARGET_PC
 #define PC_RGBA(x) x
+/* PC: game.frame_rate 60 spawns the continuous effects (tire smoke, dust, the exhaust trail) once a frame of two
+ * retraces, as the N64 does, so their density, their cadence (the alternation bits, the dust's every second or third
+ * call, its fading colour) and the random numbers they take keep the N64's rate; a blast's (type 5) is an event,
+ * and the latched wheel effect (fast) once a wheel (docs/port/FRAMERATE.md 7). */
+#define PC_ONLY(stmt)
 #endif
 void func_8008D870(s16 handle,void *resource,s32 mode);
 f32 func_8008E0B8(f32 *v);
@@ -202,7 +207,7 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
     s32 pD43;
 
     
-    if (!D_80143F14 && type < 4 && !fast) return;
+    if (!D_80143F14 && type < 4 && !fast) return; PC_ONLY(if (pc_fps60 && !pc_frame_steps && !fast && type != 5) return;)
     
     
     i = 0;

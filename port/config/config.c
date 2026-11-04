@@ -180,6 +180,7 @@ static const char *const memory_choices[] = {"original", NULL};        /* 0: the
 static const char *const draw_choices[] = {"original", "far", "max", NULL};    /* PC_DRAW_* */
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
+static const char *const game_fps_choices[] = {"original", NULL};      /* 0: a frame every two retraces at most */
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -200,6 +201,11 @@ static const Item items[] = {
      "The game's memory in MiB: original (the N64's 8 MiB, the Expansion Pak; 4 with expansion_pak off) or 16-256. "
      "More gives its heap room past the N64's (the files it loads, a race's cars), and the game uses its Expansion "
      "Pak features at any size, so expansion_pak = off does nothing then. Applies at the next start."},
+    /* game.frame_rate (port/config/game_fps.c, docs/port/FRAMERATE.md 7) */
+    {"game", "frame_rate", T_INT, F(game_fps), 60, 60, game_fps_choices, "original",
+     "The game's own frame rate: original (30 a second at most, the N64's) or 60 (a frame every retrace: the menus, "
+     "the HUD, the cameras and the effects step 60 times a second, at the N64's speed; the car physics is the same). "
+     "video.frame_rate draws frames between these on top. Applies from the next screen (a menu, a race)."},
     {"game", "pak", T_ENUM, F(pak[0]), 0, 0, pak_choices, "memory",
      "Controller 1's accessory: memory (the controller pak, for saves), rumble, none, or auto (a rumble pak when "
      "the player's controller can rumble, else none)."},

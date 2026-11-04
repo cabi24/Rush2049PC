@@ -59,6 +59,7 @@ typedef struct PcSettings {
     int cars;                       /* the most cars a race holds: 0 original (the N64's 6), else 6-12 */
     int memory;                     /* game.memory: 0 original (the N64's: 8 MiB, 4 with expansion_pak off), else
                                      * the RDRAM window and osMemSize in MiB, 16 to PC_RDRAM_MAX (docs/port/MEMORY.md) */
+    int game_fps;                   /* game.frame_rate: 0 original (a frame every two retraces at most), 60 */
     int pak[4];                     /* PC_CFG_PAK_*: each controller's accessory (game.pak, game.pak2...) */
     char pak_file[4][PC_CFG_PATH];  /* each controller's pak image (game.pak_file, game.pak2_file...) */
     /* [video] */
@@ -127,6 +128,11 @@ int pc_settings_memory_conflict(const PcSettings *s, char *why, size_t why_size)
  * exit's scene line, with the renderer's tasks and triangles (pc_gfx_scene_stats). */
 void pc_detail_set(int draw_distance, int detail, int fog);
 void pc_scene_report(uint32_t tasks, uint64_t triangles, uint32_t most);
+/* [game] frame_rate at run time (game_fps.c, docs/port/FRAMERATE.md 7): 0 original or 60. main sets it at start and
+ * the settings overlay when it changes; the game latches it at each change of its state (pc_game_fps_begin,
+ * pc_game_fps.h). pc_game_fps_setting is the setting itself, unlatched. */
+void pc_game_fps_set(int fps);
+int pc_game_fps_setting(void);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);

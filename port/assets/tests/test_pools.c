@@ -41,7 +41,7 @@ int32_t D_80156BCC, D_80114730;
 intptr_t D_80149438;
 uint64_t D_80027DD0[2], D_80027EA0[2], D_80028CC0[2], D_8002DDF0[2], D_8007BA50[2], D_8007BE50[2], D_8007CA50[2],
     D_80084A50[2];
-uint32_t D_8002ECF8[6], D_8002E960[6];
+uint32_t D_8002ECF8[6], D_8002E960[6], D_8002E928[6];   /* the scheduler's queues: done, tasks, commands */
 uint8_t D_8002E998[16];
 int16_t D_8002EB70;
 volatile int32_t D_8002EB98;
