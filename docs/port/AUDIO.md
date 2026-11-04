@@ -863,7 +863,7 @@ audio task count; 768 bytes, one 192-frame subframe, more or less; both lengths 
 of one executable vary as much as the two do). Run again three times each, keeping the WAVs, every WAV of those 18
 paths, the base's and the branch's, is the same as its path's longest up to its own end (`audio_prefix`, a check in
 the scratch directory). The six retail scripts (`race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause`), base
-against branch with `--audio`, on the Pi: all six the same, sound and all.
+against branch with `--audio`, on the Pi: all six the same, sound and all, on d4c05c3 and on cc3a517.
 
 ### 10.7 What it costs, and which size
 
