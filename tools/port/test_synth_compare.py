@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""ctest synth_compare_expect: synth_compare.py's verdicts on made-up runs (no program, no cartridge): two builds that
+agree pass, a run that doesn't end as the script's `# expect:` line says MISSES, whatever the traces' agreement
+(docs/port/QA.md, "Integration QA": battle2p.press on the retail cartridge, a practice race run the same in every
+run). Stdlib only."""
+import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import synth_compare as sc  # noqa: E402
+
+LOG = """rush2049pc: game state 0x00000080 (was 0x00000040) at vi 1022, after 991 graphics tasks: players 2, windows 1, cars 0, mode {mode}, track 0, pause 0; car 0 at 0 0 0, speed 0, steer 0.00
+rush2049pc: game state 0x00400000 (was 0x00200000) at vi 1615, after 1584 graphics tasks: players 2, windows 2, cars 2, mode {mode}, track {track}, pause 0; car 0 at 1 2 3, speed 0, steer 0.00
+rush2049pc: state reached: t=36.0s vi=2157 gfx_tasks=2129 audio_tasks=2154 state=0x00400000: players 2, windows 2, cars 2, mode {mode}, track {track}, pause 0; car 0 at 1 2 3, speed 0, steer 0.00
+"""
+EXPECT = "state=0x00400000: players 2, windows 2, cars 2, mode 6, track 6"
+
+
+class Done:
+    def __init__(self, value):
+        self.value = value
+
+    def result(self):
+        return self.value
+
+
+def runs(mode, track, n=2):
+    t = sc.trace(LOG.format(mode=mode, track=track))
+    return [(k, Done((t, 0, 0.1))) for k in (0, 1) for _ in range(n)]
+
+
+fails = 0
+
+
+def check(ok, what):
+    global fails
+    print(f"synth_compare_expect: {'ok  ' if ok else 'FAIL'} {what}")
+    fails += not ok
+
+
+check(sc.judge("battle", runs(6, 6), EXPECT) == 0, "a battle in every run, the expect met: passes")
+check(sc.judge("battle", runs(1, 0), EXPECT) == 1, "a practice race in every run (the same trace): MISSES")
+check(sc.judge("battle", runs(1, 0), "") == 0, "no expect line: the agreement alone")
+check(sc.reaches(sc.trace(LOG.format(mode=6, track=6)), "players 2"), "an expect of part of the line")
+check(not sc.reaches(sc.trace(LOG.format(mode=6, track=6).splitlines()[0]), EXPECT), "no end line: missed")
+with tempfile.TemporaryDirectory() as d:
+    p = Path(d) / "x.press"
+    p.write_text("# A script\n# until: 0x400000:600\n# expect: " + EXPECT + "\n5 A\n")
+    check(sc.script_expect(p) == EXPECT, "a script's expect line read")
+    p.write_text("# until: 0x400000:600\n5 A\n")
+    check(sc.script_expect(p) == "", "a script without one")
+for name in ("battle2p", "battlequit"):   # the retail cartridge's battle scripts say what they reach
+    check("mode 6" in sc.script_expect(Path(__file__).resolve().parent / "retail" / f"{name}.press"),
+          f"tools/port/retail/{name}.press expects a battle (mode 6)")
+print(f"synth_compare_expect: {'ok' if not fails else f'{fails} failed'}")
+sys.exit(1 if fails else 0)
