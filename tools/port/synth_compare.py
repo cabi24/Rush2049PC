@@ -74,11 +74,26 @@ _STATUS = re.compile(r"^rush2049pc: (status|state reached:|time reached:) t=\S+ 
                      r"audio_tasks=\d+(?: state=(0x[0-9A-F]{8}))?(?:: (.*))?$")
 
 
+_HEXFLOAT = re.compile(r"(?<![\w.])[-+]?0x[0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?p[-+]?\d+")
+_NAN = re.compile(r"(?<![\w.])(-?)nan\([^)]*\)")
+
+
+def exact_floats(info):
+    """A line's exact floats (%a) in one spelling: the C libraries print one value differently (glibc and mingw-w64's
+    own printf 0x0p+0 and 0x1.8p+0, the UCRT's 0x0.0000000000000p+0 and 0x1.8000000000000p+0, a NaN as -nan or
+    -nan(ind)), so a Windows program built against the UCRT (MSYS2's UCRT64, the windows job) and Linux's are compared
+    by the values (docs/port/WINDOWS.md 12). Each spelling is exact, so this keeps every difference of value."""
+    info = _NAN.sub(r"\1nan", info)
+    return _HEXFLOAT.sub(lambda m: float.fromhex(m.group(0)).hex(), info)
+
+
 def trace(text):
     """The comparable events of one run's log: ('state', vi, state, info) and ('status', vi, state, info). The
-    end line ("state reached:", after a number of graphics tasks) keeps only its state and info."""
+    end line ("state reached:", after a number of graphics tasks) keeps only its state and info. Exact floats are
+    compared by their values (exact_floats)."""
     out = []
     for line in text.splitlines():
+        line = exact_floats(line)
         if line.startswith("pc_data: "):   # the loader's summary: what it filled and how pointers resolved
             out.append(("data", None, "", re.sub(r"^\d+ symbols, ", "", line[9:].strip())))
             continue

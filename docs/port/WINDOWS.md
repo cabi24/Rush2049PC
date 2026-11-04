@@ -551,8 +551,12 @@ cartridge's report, then every path on the virtual clock (the real-time race lef
 states at the same retraces and each second the first car's position, speed and steering to the bit. It fails if a
 path differs, has no exact status lines, or is missing from one side, and prints the first event that differs.
 `windows-native-same` does the same for the `windows` job's program (MSYS2's GCC with the UCRT's math library,
-Debug): its ctest's path logs, which that job now uploads, against the Linux Debug builds'. Both run nothing but the
-comparison: the downloads and under a second of Python. `tools/port/synth/steer.press` is a path for it with the gas
+Debug): its ctest's path logs, which that job now uploads, against the Linux Debug builds'. The UCRT's printf spells
+an exact float otherwise (`0x0.0000000000000p+0` and `0x1.8000000000000p+3` for glibc's and mingw-w64's own
+`0x0p+0` and `0x1.8p+3`, a NaN as `-nan(ind)`), so its first run (41888837208, 8666e94) had 0 of 59 the same at the
+first state line; the comparison now reads each exact float by its value (`exact_floats`,
+tools/port/synth_compare.py), and on that run's logs the program's 59 path logs are the same as x86-64's and
+aarch64's, 59 of 59 each. Both run nothing but the comparison: the downloads and under a second of Python. `tools/port/synth/steer.press` is a path for it with the gas
 held and full lock left and right, from 0.2 s taps to 6 s locks, as a key steers.
 
 Tried on the build host (x86-64, RHEL 10's GCC), as far as it goes without a Windows program: ctest's paths with

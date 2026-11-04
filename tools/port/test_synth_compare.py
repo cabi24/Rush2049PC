@@ -53,5 +53,15 @@ with tempfile.TemporaryDirectory() as d:
 for name in ("battle2p", "battlequit"):   # the retail cartridge's battle scripts say what they reach
     check("mode 6" in sc.script_expect(Path(__file__).resolve().parent / "retail" / f"{name}.press"),
           f"tools/port/retail/{name}.press expects a battle (mode 6)")
+GLIBC = ("rush2049pc: state reached: t=36.0s vi=2157 gfx_tasks=2129 audio_tasks=2154 state=0x00400000: players 1, "
+         "windows 1, cars 6, mode 1, track 0, pause 0; car 0 at 0x0p+0 -0x1.8p+3 0x1.0000000000001p+0, speed -nan, "
+         "steer 0x0.0000000000001p-1022")
+UCRT = GLIBC.replace("0x0p+0", "0x0.0000000000000p+0").replace("0x1.8p+3", "0x1.8000000000000p+3") \
+    .replace("-nan", "-nan(ind)")
+check(sc.trace(GLIBC) == sc.trace(UCRT), "glibc's and the UCRT's spellings of one exact float: the same trace")
+check(sc.trace(GLIBC) != sc.trace(GLIBC.replace("-0x1.8p+3", "-0x1.8000000000001p+3")),
+      "exact floats a bit apart: different traces")
+check(sc.trace(GLIBC) != sc.trace(GLIBC.replace("-0x1.8p+3", "0x1.8p+3")), "the sign kept")
+check(sc.trace(GLIBC)[0][2] == "0x00400000", "the state word (hex without p) left as it is")
 print(f"synth_compare_expect: {'ok' if not fails else f'{fails} failed'}")
 sys.exit(1 if fails else 0)
