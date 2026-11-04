@@ -1032,6 +1032,22 @@ void pc_store_configure(int ch, const char *dir, const char *mpk, const char *wr
     pthread_mutex_unlock(&g_lock);
 }
 
+/* Two spellings of one folder, as main gives them (pc_app_data_file's): '/' and '\\' alike, a trailing one ignored,
+ * and on Windows any case. */
+static int same_dir(const char *a, const char *b)
+{
+    for (;; a++, b++) {
+        int x = *a == '\\' ? '/' : (unsigned char)*a, y = *b == '\\' ? '/' : (unsigned char)*b;
+#ifdef _WIN32
+        x = x >= 'A' && x <= 'Z' ? x + 32 : x, y = y >= 'A' && y <= 'Z' ? y + 32 : y;
+#endif
+        if (x != y)
+            return (x == '/' && !a[1] && !y) || (y == '/' && !b[1] && !x);
+        if (!x)
+            return 1;
+    }
+}
+
 static int open_locked(Store *st, int ch, const char *dir, const char *mpk, const char *writer, char *msg,
                        size_t msg_size)
 {
@@ -1049,6 +1065,13 @@ static int open_locked(Store *st, int ch, const char *dir, const char *mpk, cons
     snprintf(st->writer, sizeof st->writer, "%s", writer ? writer : "");
     for (int s = 0; s < PC_PAK_NOTES; s++)
         st->on[s] = -1;
+    for (int o = 0; o < 4; o++)   /* one folder, one controller: the lowest that has it (pc_store_write finds it by dir) */
+        if (&g_st[o] != st && (g_st[o].open || (o < ch && g_st[o].configured)) && same_dir(g_st[o].dir, dir)) {
+            if (msg)
+                snprintf(msg, msg_size, "the saves folder %s is controller %d's: give each its own", dir, o + 1);
+            st->open = 0;
+            return -1;
+        }
     if (mkdirs(dir) != 0) {
         int err = errno;
         if (msg)

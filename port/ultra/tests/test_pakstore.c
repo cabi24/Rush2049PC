@@ -936,6 +936,25 @@ static void test_ghost_in_folder(void)
     pc_note_free(&good), pc_note_free(&car), pc_note_free(&zip);
 }
 
+/* One saves folder given to two controllers (game.saves2_dir = the first's): pc_store_write finds a store by its folder
+ * and pakwrite queues by path, so they would diff each other's images; the second is refused, the lowest keeps it, in
+ * either order, and any spelling of it. */
+static void test_one_folder_each(void)
+{
+    char dir[1100], other[1200], msg[300];
+    fresh_dir(dir, sizeof dir, "shared");
+    make_dirs(dir);
+    snprintf(other, sizeof other, "%s/", dir);
+    CHECK(pc_store_open(0, dir, NULL, "v", msg, sizeof msg) == 0, "controller 1: %s", msg);
+    CHECK(pc_store_open(1, other, NULL, "v", msg, sizeof msg) == -1 && strstr(msg, "controller 1's"),
+          "controller 2, the same folder: %s", msg);
+    pc_store_close(0), pc_store_close(1);
+    pc_store_configure(0, dir, NULL, "v");   /* controller 1's chosen later, controller 2's open first */
+    CHECK(pc_store_open(1, dir, NULL, "v", msg, sizeof msg) == -1, "controller 2 before 1: %s", msg);
+    CHECK(pc_store_open(0, dir, NULL, "v", msg, sizeof msg) == 0, "controller 1 then: %s", msg);
+    pc_store_close(0), pc_store_close(1);
+}
+
 /* Every reader under hostile input: a ghost file mutated (bytes, truncations, extensions; the CRC made right half the
  * time, so the note's own checks are reached), and random images. Never a crash (the ASan build), and a refusal
  * always says why. */
@@ -1022,6 +1041,7 @@ int main(int argc, char **argv)
     test_choice();
     test_imports_and_damage();
     test_ghost_in_folder();
+    test_one_folder_each();
     test_fuzz();
     printf("%d of %d checks passed\n", g_checks - g_failed, g_checks);
     return g_failed;

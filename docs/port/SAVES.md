@@ -99,6 +99,11 @@ saves/p1/
   flushed. A crash leaves the old file or the new one.
 - **A folder that can't be made** gives that controller no pak this run (the log says why). A folder that can be read
   but not written works in memory, and its writes are tried again each second, as a failing `.mpk` write is.
+- **One folder, one controller.** A folder another controller has (`game.saves2_dir` the same as `saves_dir`, in any
+  spelling `same_dir` takes as one: `/` or `\`, a trailing one, any case on Windows) gives the higher-numbered
+  controller no pak this run, with the log's `the saves folder ... is controller 1's: give each its own`. The writes
+  find their store by its folder (`pc_store_write`) and the writer queues by path, so two would diff each other's
+  images.
 
 ## 4. The formats
 
