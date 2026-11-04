@@ -15,6 +15,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "pc_compat.h"   /* setenv on Windows */
 #include "pc_prelude.h"
 #include "support.h"
 #include "ultra.h"   /* port/ultra/heap.c: pc_heap_stats */

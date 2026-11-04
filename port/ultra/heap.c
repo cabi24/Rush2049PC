@@ -9,9 +9,10 @@
  * time each happens, and counted.
  *
  * RUSH2049_TEST_HEAP_FLOOR=MiB (tests): the heap's room below that address is taken at its creation, by the game's own
- * allocate-at-address (NextMaxPath) and lock (object_counter_increment), in three locked blocks around the runtime
- * images' block at 0x8038A400 (taken too, as the image loads take it), so everything the game allocates afterwards
- * lands above it: data past 16 MiB, through every path, at game.memory 32 or more. */
+ * allocate-at-address (NextMaxPath), in three blocks around the runtime images' block at 0x8038A400 (taken too, as
+ * the image loads take it), each with a lock count of 1 as PurgeableMemory gives the images' block, so ClearMemory
+ * keeps them; everything the game allocates afterwards lands above them: data past 16 MiB, through every path, at
+ * game.memory 32 or more. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,9 +33,8 @@ typedef struct {
     uint8_t lock;
 } BlockHeader;
 
-/* the game's allocate-at-address and lock count (heap_release/alloc_at.c, heap_release/group.c) */
+/* the game's allocate-at-address (heap_release/alloc_at.c) */
 void *NextMaxPath(uint32_t addr, uint32_t size);
-void object_counter_increment(uint32_t address);
 
 static struct {
     uint32_t heap;                /* the default heap's header (D_801527C8), 0 before it is made */
@@ -82,11 +82,15 @@ static void sample(void)
     }
 }
 
-/* One block of [addr, addr + size), taken and locked as the game takes the images' block. */
+/* One block of [addr, addr + size), taken as the game takes the images' block, its lock count 1 (what
+ * object_counter_increment and PurgeableMemory(p, 0) do to a block with no owner). */
 static void take(uint32_t addr, uint32_t size)
 {
+    BlockHeader *b;
     NextMaxPath(addr, size);
-    object_counter_increment(addr);
+    b = pc_n64_ptr(addr - 32);
+    if (b && b->magic == HEAP_MAGIC && b->lock < 255)
+        b->lock++;
 }
 
 static void apply_floor(const HeapHeader *h)
