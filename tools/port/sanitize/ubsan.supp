@@ -11,6 +11,13 @@ bounds:^audio_mixer_main$
 # layout, as the N64 reads it), and the || makes the result true whatever it read.
 bounds:^animControls$
 
+# The high scores' name entry (the retail cartridge's records, a race finished: docs/port/QA.md "Integration QA"):
+# finishing a name with nothing typed (END pressed first, or its time running out) trims trailing spaces with
+# name[len - 1] at len 0, the byte before the name. For player 1 that is humans[7]'s (D_80143A40, s16[8], at its N64
+# layout), which nothing writes (four humans at most), for the others the previous name's terminator: 0 on the N64
+# and here, not a space, so the loop stops before it writes. The retail function's own read, kept.
+bounds:^func_800F207C$
+
 # A blank cartridge only (--no-rom, app_firstrun): with every file empty no heap block fits, and the N64 code reads
 # the null block's size too.
 null:^audio_helper$
