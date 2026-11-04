@@ -638,7 +638,9 @@ set_tests_properties(fps_physics PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 
 # The high frame rate on top of the game at 60: hfr_timing's paths with the game at 60, video.frame_rate original
 # against 120 (the same state and status lines, frames drawn between); hfr_paced's pacing under the 59.94 Hz vsync
 # model with the game at 60 (a frame between the game's one retrace apart, at 120 and display), and the game's own
-# frames at about one a retrace; audio_realtime's bounds with the game at 60.
+# frames at about one a retrace; audio_realtime's bounds with the game at 60, video.frame_rate original under the
+# vsync swap, the waits precise as Windows' high-resolution timer has them: with the 15.6 ms waits of a Windows
+# without one the game at 60 keeps about 0.8 of its frames (docs/port/FRAMERATE.md 7.7).
 add_test(NAME hfr_timing_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hfr_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr60 --require-drawn --game-fps 60 ${HFR_TIMING_PATHS})
 set_tests_properties(hfr_timing_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE)
@@ -649,7 +651,7 @@ set_tests_properties(hfr_paced_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIM
     SKIP_RETURN_CODE 77 LABELS realtime)
 add_test(NAME audio_realtime_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py
     --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime60 --seconds 30
-    --game-fps 60)
+    --game-fps 60 --timer-step-us 0)
 set_tests_properties(audio_realtime_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE
     LABELS realtime)
 # A slow disk (each pak write held 200 ms, one a second through the race) costs the main loop no retraces: the writes
