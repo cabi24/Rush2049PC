@@ -1412,8 +1412,8 @@ def loader_map(build):
     runs = [tuple(int(x) for x in m.groups()) for m in re.finditer(
         r"^\s*\{(\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\},$", dc[dc.index("pc_runs["):], re.M)]
     arenas = [(int(m.group(2), 16), int(m.group(3), 16), int(m.group(4), 16), int(m.group(5)), int(m.group(6)))
-              for m in re.finditer(r"\{(\d+), 0x([0-9A-F]+), 0x([0-9A-F]+), 0x([0-9A-F]+), \(uint8_t \*\)\(uintptr_t\)"
-                                   r"0x[0-9A-F]+u, (\d+), (\d+)\}", dc)]
+              for m in re.finditer(r"\{(\d+), 0x([0-9A-F]+), 0x([0-9A-F]+), 0x([0-9A-F]+), (?:\(uint8_t \*\)\(uintptr_t\)"
+                                   r"0x[0-9A-F]+u|pc_window \+ 0x[0-9A-F]+), (\d+), (\d+)\}", dc)]   # RUSH_NOFIXED: pc_window + off
     syms = {}
     for m in re.finditer(r'\{"(\w+)", 0x([0-9A-F]+), (\d+), (\d+), \w+, (\d+), (\d+), \d+, ([A-Z_|]+)\}', dc):
         syms[m.group(1)] = (int(m.group(2), 16), int(m.group(3)), int(m.group(4)), int(m.group(5)),

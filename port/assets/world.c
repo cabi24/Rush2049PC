@@ -220,7 +220,7 @@ uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count)
 {
     static void **keys;
     static size_t cap;
-    const uint32_t *src = (const uint32_t *)pc_n64_ptr(addr);
+    const uint32_t *src = addr ? (const uint32_t *)pc_n64_ptr(addr) : NULL;   /* 0: no such chunk */
     int32_t n = count ? *count : 0, i;
 
     if ((uint32_t)tag != TAG_GTLD || !addr)

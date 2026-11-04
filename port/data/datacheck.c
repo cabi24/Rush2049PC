@@ -258,9 +258,9 @@ static uint32_t pick_target(const PcDataTables *t, int img, void **want)
         case 0:
             *want = NULL;
             return 0;
-        case 5: {   /* the game heap (the RDRAM window): kept as the N64 address */
+        case 5: {   /* the game heap (the RDRAM window): kept as the N64 address, or its place in the tables' window */
             uint32_t a = t->heap_lo + rnd() % (0x8038A400u - t->heap_lo);
-            *want = (void *)(uintptr_t)a;
+            *want = t->window ? (void *)(t->window + (a & 0x1FFFFFFFu)) : (void *)(uintptr_t)a;
             return a;
         }
         case 1:
@@ -533,8 +533,9 @@ int main(int argc, char **argv)
      * an N64 address too, so the rest of the game's data must sit above it (PIE). */
     const PcDataTables *tab = &pc_data_tables;
     int placed = 1, high = 1;
-    for (uint32_t i = 0; i < tab->n_arenas; i++)
-        placed &= (uintptr_t)tab->arenas[i].host == tab->arenas[i].n64_lo;
+    for (uint32_t i = 0; i < tab->n_arenas; i++)   /* or at their place in the tables' window (RUSH_NOFIXED) */
+        placed &= tab->window ? tab->arenas[i].host == tab->window + (tab->arenas[i].n64_lo - 0x80000000u)
+                              : (uintptr_t)tab->arenas[i].host == tab->arenas[i].n64_lo;
     for (uint32_t i = 0; i < tab->n_syms; i++)
         high &= sizeof(void *) < 8 || !tab->syms[i].host || (uintptr_t)tab->syms[i].host >> 16 >> 16 != 0;
     CHECK(placed, "%u arenas at their N64 addresses (game: %p)", tab->n_arenas, (void *)tab->arenas[1].host);
