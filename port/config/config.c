@@ -1284,7 +1284,7 @@ static void upgrade_video_defaults(PcSettings *s, const char *path)
 int pc_settings_resolve(PcSettings *s, int use_file, const char *path, const char *exe_dir,
                         const PcSettingValue *overrides, int n_overrides)
 {
-    char located[PC_CFG_PATH] = "", why[200];
+    char located[PC_CFG_PATH] = "", why[400];   /* pc_settings_memory_conflict's is about 260 */
     int rc = 0, exists = 0;
     pc_settings_defaults(s);
     /* where the settings overlay saves: the file named, else the located one (with --no-config too) */
