@@ -124,6 +124,7 @@ void func_8039133C(int32_t reuse);
 void func_80390D38(void);            /* UpdateBattleHealth */
 void func_80390B10(void);            /* UpdateBattleShield */
 void func_80390B08(void);            /* UpdateBattleInvs */
+void func_80390B00(void);            /* UpdateInvs: the invisible cars' fade */
 void func_800BEA6C(void);
 void RaceStateMachine_Update(void);
 
@@ -218,5 +219,29 @@ int main(void)
     for (i = 0; i < 5; i++)
         CHECK(NF(n[i], 0x64, int8_t) == 2 && NF(n[i], 0x60, int32_t) == -1);
     CHECK(NF(n[4], 0x68, uint32_t) == 0 && NF(NODE(5), 0x64, int8_t) == 0);
+
+    /* UpdateInvs: an invisible car's fade out (phase 1) takes its u8 alpha (N64 +0x3A1) down 8 a 30 Hz frame until
+     * it is 16 or less, then holds it at 16 (phase 3, +0x3A2). At original, from 24: 16. At game.frame_rate 60 a frame of
+     * three 30 Hz frames (pc_frame_steps 3: five retraces with one left over) takes 24, and from 23 (a fade from 255
+     * by 8s passes it) that went round to 255: a car seen whole again for most of a second. */
+    {
+        uint8_t *car = (uint8_t *)&pc_cars[0];
+        static const struct { int fps60, steps, alpha, want_alpha, want_phase; } c[] = {
+            {0, 1, 24, 16, 3}, {0, 1, 31, 23, 1}, {1, 1, 31, 23, 1}, {1, 3, 23, 16, 3}, {1, 3, 47, 23, 1},
+            {1, 2, 16, 16, 3}, {1, 0, 23, 23, 1}};
+        D_8014A108 = 1;
+        for (i = 0; i < (int)(sizeof c / sizeof c[0]); i++) {
+            NF(car, CAR_OFS(0x38C), uint32_t) |= 1;
+            NF(car, CAR_OFS(0x3A2), int8_t) = 1;
+            NF(car, CAR_OFS(0x3A1), uint8_t) = (uint8_t)c[i].alpha;
+            NF(car, CAR_OFS(0x3A8), float) = 1.0f;
+            pc_fps60 = c[i].fps60, pc_frame_steps = c[i].steps;
+            func_80390B00();
+            CHECK(NF(car, CAR_OFS(0x3A1), uint8_t) == c[i].want_alpha &&
+                  NF(car, CAR_OFS(0x3A2), int8_t) == c[i].want_phase);
+        }
+        pc_fps60 = 0, pc_frame_steps = 1;
+        D_8014A108 = 0;
+    }
     return TEST_DONE();
 }

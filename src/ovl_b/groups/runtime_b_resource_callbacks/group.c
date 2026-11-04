@@ -97,6 +97,13 @@ extern void model_transform_setup(s32, s32, u32);
 #define PC_STEPS(n) n
 #define PC_EACH30(stmt) stmt
 #endif
+#ifdef TARGET_PC
+/* PC: the invisible car's fade out takes its u8 alpha down by at most what it has: at 60 a frame of three 30 Hz frames
+ * (a slow host's five retraces) takes 24, which from 23 went round to 255. At original exactly the N64's 8. */
+#define PC_FADE_STEP(n, a) (pc_fps60 && PC_STEPS(n) > (a) ? (a) : PC_STEPS(n))
+#else
+#define PC_FADE_STEP(n, a) n
+#endif
 void func_80390B00(void) /* UpdateInvs */
 {
     s32 i;
@@ -110,7 +117,7 @@ void func_80390B00(void) /* UpdateInvs */
             } else if (car->phase == 1) {
                 car->countdown = 0;
                 if (car->timer > 0.0f) {
-                    car->alpha -= PC_STEPS(8);
+                    car->alpha -= PC_FADE_STEP(8, car->alpha);
                     if (car->alpha <= 16) {
                         car->alpha = 16;
                         car->phase = 3;

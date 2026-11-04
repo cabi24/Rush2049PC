@@ -564,9 +564,9 @@ display-list building, text layout and init code are counted in the last row of 
 | src/ovl_b/groups/shots/shots.c:1069 | ShotUpdate | the reload, set at each shot, −= dt | changed | `PC_DT30`: counted in 30 Hz frames, so it ends where the N64's frames do (0.0666667 s: 6 retraces, not 5; a machine gun's 10 shots a second, not 12) |
 | src/ovl_b/groups/shots/shots.c:540, 557, 720-903, 1014-1023 | UpdateDefense, UpdateShots, AnimateCase | lifetimes, motion by vel·dt, gravity, homing, the sonic shot's scale per 0.0333 s, casings | time | |
 | src/ovl_b/groups/runtime_b_nearest_steering/group.c:93-96 | func_8038DDDC (the homing missile) | its turns, ±0.04 and ±0.03 a frame | changed | `PC_FSCALE` (not run in the coverage) |
-| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:113, 125, 128 | UpdateInvs | the invisibility fade, alpha ∓8 a frame | changed | `PC_STEPS(8)` |
-| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:138 | UpdateInvs | `countdown--`, the shot's flash | changed | `PC_EACH30` |
-| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:118, 130, 158, 190, 222 | UpdateInvs, the power-ups | fade timers, phase timers | time | |
+| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:120, 132, 135 | UpdateInvs | the invisibility fade, alpha ∓8 a frame | changed | `PC_STEPS(8)`; the fade out `PC_FADE_STEP`, at most the alpha left: its alpha is a u8 the N64 takes from at least 16 by 8 to 16 or less, and a frame of three 30 Hz frames at 60 (24) from 23, which a fade from 255 passes, went round to 255 before 2026-11-04 (`assets_battle`) |
+| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:145 | UpdateInvs | `countdown--`, the shot's flash | changed | `PC_EACH30` |
+| src/ovl_b/groups/runtime_b_resource_callbacks/group.c:125, 137, 165, 197, 229 | UpdateInvs, the power-ups | fade timers, phase timers | time | |
 | src/ovl_b/groups/runtime_b_trail/group.c:84 | func_8038CB20 | a fade whose interval is 0 steps every frame | changed | `PC_FRAME_INTERVAL`: 1/30 s at 60 |
 | src/ovl_b/groups/runtime_b_trail/group.c:74, 82, 102 | func_8038CB20 | fades and trail lifetimes | time | |
 | src/ovl_b/func_80392894.c:157 | animStuntPoints | the bonus text, 11 frames a count | changed | `PC_EACH30` |
