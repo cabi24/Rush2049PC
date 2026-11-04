@@ -160,9 +160,17 @@ extern void func_8008D6FC(s16,Vec3,Matrix3);
 
 extern f32 func_8008B2E4(f32);
 #define Random(range) func_8008B2E4(range)
-#ifndef TARGET_PC
+#ifdef TARGET_PC
+/* game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7.6): the in-car view's bob, spring_save = spring_save *
+ * 0.75 + noise once a frame of two retraces, taken every frame: the decay to the frame's length and the noise scaled
+ * so the bob keeps the N64's spread (an AR(1) whose stationary variance is the same), instead of stepping once a 30 Hz
+ * frame, a camera moving at 30 a second. At original both are the N64's. */
+#define PC_SPRING_KEEP(e) PC_FILTER(e)
+#define PC_SPRING_NOISE(x, e) (pc_fps60 ? (x) * pc_fps_noise(e) : (x))
+#else
 #define PC_FSCALE(x) x   /* PC: game.frame_rate 60 (pc_game_fps.h): a step per frame of two retraces, scaled */
-#define PC_EACH30(stmt) stmt   /* PC: run once a 30 Hz frame */
+#define PC_SPRING_KEEP(e) e
+#define PC_SPRING_NOISE(x, e) x
 #endif
 void anim_state_update(Visual *v, s16 op)
 {
@@ -213,7 +221,7 @@ void anim_state_update(Visual *v, s16 op)
         if (PC_MODEL_VISCODE(slot)[tire] == 1) spring2 = (Random(2.0f) - 1.0f) * t;
         else if (PC_MODEL_VISCODE(slot)[tire] == 8) spring2 = 0;
         else spring2 = (Random(2.0f) - 1.0f) * t * 0.25f;
-        PC_EACH30(gCamera[controller].spring_save = gCamera[controller].spring_save * 0.75f + spring2;)
+        gCamera[controller].spring_save = gCamera[controller].spring_save * PC_SPRING_KEEP(0.75f) + PC_SPRING_NOISE(spring2, 0.75f);
     }
     vel = m->tires[tire].angular_velocity;
     lastpos = v->angle;

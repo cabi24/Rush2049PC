@@ -1298,6 +1298,8 @@ static void fill_about(void)
     row(P_ABOUT, I_INFO, "Audio buffer", a.audio_buffer, NULL);
     row(P_ABOUT, I_INFO, "Memory", a.memory, NULL);   /* game.memory, the heap's peak (docs/port/MEMORY.md 4) */
     row(P_ABOUT, I_INFO, "Mods", a.mods, NULL);       /* the mods in use (docs/port/MODS.md) */
+    pc_game_fps_describe(line, sizeof line);   /* game.frame_rate, the last race's frames (FRAMERATE.md 7.7) */
+    row(P_ABOUT, I_INFO, "Game frame rate", line, NULL);
     for (int p = 0; p < 4; p++) {
         snprintf(line, sizeof line, "Player %d", p + 1);
         row(P_ABOUT, I_INFO, line, "", NULL);

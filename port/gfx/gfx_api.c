@@ -56,6 +56,7 @@ static struct {
     uint32_t ticked_gen;               /* present_gen at the last tick that showed anything */
     int shown_w, shown_h;     /* the window size it was shown at */
     int display_hz;           /* the display's refresh rate, for frame_rate = display; 0 not taken yet */
+    uint32_t own_ticks, own_shown;   /* pc_gfx_set_own_paced's ticks, and those that showed the game's next frame */
     int vsync;                /* the window's swap waits for a vblank (swap interval 1) */
     int tick_unswapped;       /* a tick drew into the window and left its swap to the main loop (pc_gfx_swap_tick) */
     /* what the renderer's CPU time goes to (the exit's summary with a high frame rate, or RUSH_GFX_VERBOSE) */
@@ -198,13 +199,36 @@ int pc_gfx_parse_frame_rate(const char *text, int *ok) {
     return 0;
 }
 
+/* game.frame_rate = 60 with video.frame_rate original and a swap that waits for vsync (docs/port/FRAMERATE.md 7.6): the
+ * main loop asks for the game's own frames paced by the display's vblanks (pc_gfx_set_own_paced), so the frames are
+ * kept for its ticks as at 60, and its ticks show only the game's (mode 2: none drawn between). The setting itself
+ * stays original. */
+static int s_own_paced;
+
+static int rate_in_effect(void) {
+    return pcgfx_cfg.frame_rate != 0 ? pcgfx_cfg.frame_rate : s_own_paced ? 60 : 0;
+}
+
 void pc_gfx_set_frame_rate(int rate) {
-    int was = pcgfx_cfg.frame_rate != 0;
+    int was = rate_in_effect() != 0;
     pcgfx_cfg.frame_rate = rate < -1 ? 0 : rate;
-    if (was != (pcgfx_cfg.frame_rate != 0)) {
+    if (was != (rate_in_effect() != 0)) {
         pcgfx_hfr_reset();   /* on: from the next frames drawn; off: the presents show frames again */
         S.shown = NULL;
     }
+}
+
+void pc_gfx_set_own_paced(int on) {
+    int was = rate_in_effect() != 0;
+    s_own_paced = on != 0;
+    if (was != (rate_in_effect() != 0)) {
+        pcgfx_hfr_reset();
+        S.shown = NULL;
+    }
+}
+
+int pc_gfx_own_paced(void) {
+    return s_own_paced && pcgfx_cfg.frame_rate == 0;
 }
 
 /* The display's refresh: the window's display (taken again at each event pump, so moving the window to another
@@ -219,7 +243,7 @@ static void display_refresh(void) {
 }
 
 int pc_gfx_frame_rate(void) {
-    int r = pcgfx_cfg.frame_rate;
+    int r = rate_in_effect();
     if (r < 0) {
         if (S.display_hz <= 0)
             display_refresh();
@@ -578,7 +602,7 @@ void pc_gfx_present(const void *framebuffer) {
     t = pcgfx_gl_find_target(pcgfx_resolve((uintptr_t)framebuffer));
     if (t == NULL)
         t = pcgfx_gl_last_target();
-    if (pcgfx_cfg.frame_rate != 0) {
+    if (rate_in_effect() != 0) {
         /* a high frame rate: the frame becomes the presented image (screenshots), and the main loop's ticks show
          * it, or the frames drawn between it and the next (pc_gfx_present_tick) */
         if (t != NULL) {
@@ -610,7 +634,7 @@ void pc_gfx_present(const void *framebuffer) {
 }
 
 int pc_gfx_frame_waiting(void) {
-    return S.inited && pcgfx_cfg.frame_rate != 0 && S.ticked_gen != S.present_gen;
+    return S.inited && rate_in_effect() != 0 && S.ticked_gen != S.present_gen;
 }
 
 /* A high frame rate's tick (the main loop, video.frame_rate times a second): the frame for time vt, in retraces.
@@ -622,7 +646,7 @@ int pc_gfx_present_tick(double vt, int mode) {
     uint32_t d0 = 0, d1;
     uint64_t v0 = 0, v1;
     mode &= ~PC_GFX_TICK_NO_SWAP;
-    if (!S.inited || pcgfx_cfg.frame_rate == 0)
+    if (!S.inited || rate_in_effect() == 0)
         return 0;
     if (S.times > 1)
         pcgfx_gl_finish();
@@ -630,7 +654,13 @@ int pc_gfx_present_tick(double vt, int mode) {
     t0 = now_ms();
     pcgfx_flush();
     window_size();
-    kind = pcgfx_hfr_frame(vt, &t, &rows, mode);   /* RUSH_GFX_TIMES=3: its GPU timer is around the drawing */
+    if (pc_gfx_own_paced()) {   /* the game's own frames at the vblanks: its newest, when it is new (7.6) */
+        kind = 0;
+        S.own_ticks++;
+        S.own_shown += S.ticked_gen != S.present_gen;
+    } else {
+        kind = pcgfx_hfr_frame(vt, &t, &rows, mode);   /* RUSH_GFX_TIMES=3: its GPU timer is around the drawing */
+    }
     if (kind == 3 || (kind == 0 && S.shown == NULL && S.shown_gen == S.present_gen && S.shown_w == S.win_w &&
                       S.shown_h == S.win_h && !pcgfx_ui_active()))
         return 0;   /* nothing new: the screen keeps what it shows */
@@ -677,7 +707,7 @@ void pc_gfx_redraw(void) {
         return;
     pcgfx_flush();
     window_size();
-    if (S.shown != NULL && pcgfx_cfg.frame_rate != 0)
+    if (S.shown != NULL && rate_in_effect() != 0)
         pcgfx_gl_show_target(S.shown, S.shown_rows, S.win_w, S.win_h, S.use_sdl);
     else
         pcgfx_gl_show(S.win_w, S.win_h, S.use_sdl);
@@ -698,7 +728,7 @@ int pc_gfx_poll_events(void) {
     if (S.use_sdl)
         quit = pcgfx_sdl_poll();
 #endif
-    if (pcgfx_cfg.frame_rate != 0)   /* display, and the main loop's pacing by the vblanks */
+    if (rate_in_effect() != 0)   /* display, and the main loop's pacing by the vblanks */
         display_refresh();
     if (s_tick != NULL && s_tick() != 0)
         quit = 1;
@@ -750,6 +780,9 @@ void pc_gfx_shutdown(void) {
             fprintf(stderr, "gfx: frame rate %d: %u frames shown, %u drawn between two, %u next ones early, %u held, "
                     "%u not drawn (the host or its GPU was behind)\n", pc_gfx_frame_rate(), st.ticks, st.drawn, st.early, st.held,
                     st.busy);
+        if (S.own_ticks)   /* game.frame_rate = 60 under vsync, video.frame_rate original (7.6) */
+            fprintf(stderr, "gfx: the game's frames paced by the vblanks (game.frame_rate = 60, vsync): %u ticks, %u "
+                    "showed the game's next frame\n", S.own_ticks, S.own_shown);
         if (pcgfx_cfg.frame_rate != 0 || pcgfx_cfg.verbose || S.times)   /* GL may finish the work later */
             fprintf(stderr, "gfx: %s time: %u graphics tasks, %.3f ms each (at most %.3f); %u frames drawn "
                     "between two, %.3f ms each (at most %.3f); %u frames shown, %.3f ms each\n",

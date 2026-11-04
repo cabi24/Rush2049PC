@@ -311,6 +311,9 @@ typedef struct {
      * none */
     uint32_t voices_every;
     void (*voices_info)(char *out, size_t size);
+    /* game.frame_rate as the game has it latched (60 or 0), read each pass: at 60 with video.frame_rate original and
+     * vsync the game's frames are paced by the vblanks (pc_gfx_set_own_paced, docs/port/FRAMERATE.md 7.6). NULL: 0 */
+    int (*game_rate)(void);
 } PcRunOptions;
 int pc_ultra_run(const PcRunOptions *opt);   /* the host main loop; returns the exit code */
 extern uint32_t pc_frame;                    /* retraces since boot */

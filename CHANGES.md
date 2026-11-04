@@ -47,11 +47,17 @@ What changed for players, newest first. The details and the tests behind each it
 - **The game at 60 frames a second** (`game.frame_rate`, F1 > Game > Game frame rate): `original`, the default, is
   the N64's 30. At 60 the game draws a frame every retrace, its own, not one drawn between two: the menus, the HUD,
   the cameras, the smoke and sparks, the battle weapons and every timer step 60 times a second at the N64's speed, and
-  the car physics is the same as before, every retrace. A race the game doesn't steer once a frame (no drones,
-  resurrections or shots) has the same physics to the bit at either setting; the drones' catch-up, a resurrection's
-  place and the shots are decided once a frame, so at 60 they are decided twice as often.
-  Applies from the next screen. `video.frame_rate` still draws frames between the game's on top
-  ([FRAMERATE.md](docs/port/FRAMERATE.md) 7, [FRONTEND.md](docs/port/FRONTEND.md)).
+  the car physics is the same as before, every retrace. A race the game doesn't steer once a frame (no drones or
+  shots, its resurrections at the same moment) has the same physics to the bit at either setting; the drones'
+  catch-up, a resurrection's place and moment (a car stuck 6 s) and the shots are decided once a frame, so at 60 they
+  are decided twice as often. The race's loading screen counts the N64's frames, so the countdown starts within a
+  retrace of original's (it was 5 sooner). A host that can't keep 60 in a race is told so in the log and on F1 >
+  About (the game keeps its speed; its frames are then partly the N64's 30 Hz ones). With vsync on, a 60 Hz display
+  no longer halves it: each frame's swap at its retrace could wait a whole refresh, and at some phases the game drew
+  30 frames a second, a camera that looked jerky in a pan; its frames are now paced by the display's vblanks. On a
+  144 Hz display `video.frame_rate = display` is the smooth choice. Applies from the next screen.
+  `video.frame_rate` still draws frames between the game's on top ([FRAMERATE.md](docs/port/FRAMERATE.md) 7,
+  [FRONTEND.md](docs/port/FRONTEND.md)).
 
 - **Draw distance, detail and fog** (`video.draw_distance`, `video.detail`, `video.fog`, F1 > Video): at `original`,
   the defaults, the N64's picture exactly. `draw_distance = far` draws everything the game limits by distance twice

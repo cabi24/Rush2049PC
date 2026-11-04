@@ -65,7 +65,7 @@ void Input_ProcessGameplayPad(s32);
 
 #ifndef TARGET_PC
 #define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#define PC_ONLY(stmt)   /* PC: the state changes, game.frame_rate is latched (pc_game_fps.h) */
+#define PC_ONLY(stmt)   /* PC: the state changes, game.frame_rate is latched and a race watched (pc_game_fps.h) */
 #endif
 
 s32 game_loop(void)
@@ -84,7 +84,7 @@ s32 game_loop(void)
     } else {
         while (D_8002EB70) { PC_SPIN("game_loop")
         }
-        D_80149438 = 0; PC_ONLY(pc_game_fps_begin();)
+        D_80149438 = 0; PC_ONLY(pc_game_fps_begin(); pc_game_fps_state(state_word_b);)
         gfx_frame_begin();
         D_801497F4 = msgq_ptr;
         process_inputs();

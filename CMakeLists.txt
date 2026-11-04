@@ -731,7 +731,7 @@ set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT
     SKIP_RETURN_CODE 77 LABELS realtime)
 # game.frame_rate 60 (docs/port/FRAMERATE.md 7). The game at 60 against original along the synthetic paths, on the
 # virtual clock (tools/port/fps_compare.py): the same states in the same order, none more than 10 retraces apart (the
-# game decides at a frame, 60 a second against 30, and PrePlay's load counts 4 frames), and in the races nothing on
+# game decides at a frame, 60 a second against 30), and in the races nothing on
 # the game thread steers (solo: one player, the gas and the steering held; stunt; battle2p) the same physics, every
 # car's position and velocity, model tick by model tick, to the bit. The others' physics first difference is
 # reported (drones, resurrections: the game thread decides them once a frame).
@@ -746,6 +746,17 @@ endif()
 add_test(NAME fps_physics COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_compare.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps --max-shift 10 ${FPS_PHYSICS_ARGS})
 set_tests_properties(fps_physics PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${FPS_PHYSICS_TIMEOUT})
+# A host that can't keep 60 (docs/port/FRAMERATE.md 7.7), on the virtual clock: with the RDP held 20 ms a graphics
+# task (RUSH_SIM_GFX_MS) every frame at 60 takes two retraces; the log says once that the host can't keep 60, the
+# game keeps its speed (the solo race's physics the same as at 60 unslowed), and at original nothing is said
+# (tools/port/fps_slow.py).
+# Not under AddressSanitizer or ThreadSanitizer (fps_physics's solo runs the game at 60 there; the sanitizer jobs'
+# time is spent: .github/workflows/pc.yml).
+if(NOT (PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD))
+    add_test(NAME fps_slow_host COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_slow.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps-slow)
+    set_tests_properties(fps_slow_host PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600)
+endif()
 # The high frame rate on top of the game at 60: hfr_timing's paths with the game at 60, video.frame_rate original
 # against 120 (the same state and status lines, frames drawn between); hfr_paced's pacing under the 59.94 Hz vsync
 # model with the game at 60 (a frame between the game's one retrace apart, at 120 and display), and the game's own
@@ -769,6 +780,21 @@ add_test(NAME audio_realtime_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_
     --game-fps 60 --timer-step-us 0)
 set_tests_properties(audio_realtime_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE
     LABELS realtime)
+# The game at 60 with video.frame_rate original on an exact 60.000 Hz display whose vblanks come just after the
+# retraces (0.02 of a refresh), its timing given as Windows' compositor gives it: each frame presented at its retrace
+# with a vsync swap waited a whole refresh there, and the game kept 0.73 of its frames, 0.5 at worse phases (30 a
+# second); paced by the vblanks (pc_gfx_set_own_paced) it keeps 0.97 and each vblank shows its next frame
+# (docs/port/FRAMERATE.md 7.6).
+add_test(NAME realtime_game60_v60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py
+    --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime60_v60 --seconds 30
+    --game-fps 60 --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.02 --display-timing vblank --max-stale 0.05)
+set_tests_properties(realtime_game60_v60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE
+    SKIP_RETURN_CODE 77 LABELS realtime)
+# Every frame at 60 sees one model tick, at original two, and the camera's eye and view move as evenly at 60 as at
+# original along the synthetic drive, on the virtual clock (tools/port/fps_even.py, --log-frames).
+add_test(NAME fps_even COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_even.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps-even drive)
+set_tests_properties(fps_even PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
 # A slow disk (each pak write held 200 ms, one a second through the race) costs the main loop no retraces: the writes
 # are on the writer's thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak"); SIGTERM during a held
 # write waits for it; and the same writes on the main loop, as before, drop retraces (tools/port/pakwrite_check.py).

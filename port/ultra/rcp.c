@@ -292,6 +292,39 @@ void pc_rcp_hold_gfx(int on)
     pthread_mutex_unlock(&g_rlock);
 }
 
+/* RUSH_SIM_GFX_MS=N (tests: docs/port/FRAMERATE.md 7.7): with --fast, each graphics task keeps the RDP N ms of the
+ * N64 clock, as on a host too slow to draw every frame in a retrace: its DP event comes that long after the main loop
+ * runs it (its SP event at once, so the audio tasks don't wait), and the game's frame is done then. Real time ignores
+ * it. Main thread only. */
+static struct {
+    int read;
+    uint64_t ns;                 /* 0: off */
+    uint64_t due[MAX_TASKS];     /* the DP events held, by when they come */
+    int n;
+} g_sim_gfx;
+
+static int sim_gfx_service(uint64_t now, uint64_t *next)
+{
+    int sent = 0;
+    if (!g_sim_gfx.read) {
+        const char *e = getenv("RUSH_SIM_GFX_MS");
+        g_sim_gfx.ns = e && pc_time_virtual() ? (uint64_t)(atof(e) * 1e6) : 0;
+        g_sim_gfx.read = 1;
+    }
+    for (int i = 0; i < g_sim_gfx.n;) {
+        if (g_sim_gfx.due[i] <= now) {
+            pc_os_event(OS_EVENT_DP);
+            g_sim_gfx.due[i] = g_sim_gfx.due[--g_sim_gfx.n];
+            sent = 1;
+        } else {
+            if (!*next || g_sim_gfx.due[i] < *next)
+                *next = g_sim_gfx.due[i];
+            i++;
+        }
+    }
+    return sent;
+}
+
 int pc_rcp_service(uint64_t now, uint64_t *next)
 {
     PcOSTask tasks[MAX_TASKS];
@@ -310,6 +343,7 @@ int pc_rcp_service(uint64_t now, uint64_t *next)
     pthread_mutex_unlock(&g_rlock);
 
     int ai = ai_service(now, next);
+    ai |= sim_gfx_service(now, next);
     for (int i = 0; i < n; i++) {
         const PcOSTask *t = &tasks[i];
         if (t->type == M_GFXTASK) {
@@ -317,7 +351,13 @@ int pc_rcp_service(uint64_t now, uint64_t *next)
                 report_first_gfx(t);
             pc_gfx_run_dl(t->data_ptr);
             pc_os_event(OS_EVENT_SP);
-            pc_os_event(OS_EVENT_DP);
+            if (g_sim_gfx.ns && g_sim_gfx.n < MAX_TASKS) {   /* RUSH_SIM_GFX_MS */
+                g_sim_gfx.due[g_sim_gfx.n++] = now + g_sim_gfx.ns;
+                if (!*next || now + g_sim_gfx.ns < *next)
+                    *next = now + g_sim_gfx.ns;
+            } else {
+                pc_os_event(OS_EVENT_DP);
+            }
         } else {
             if (t->type == M_AUDTASK) {   /* --fast (osSpTaskStartGo) */
                 __atomic_fetch_add(&pc_rcp_audio_tasks, 1, __ATOMIC_RELAXED);

@@ -36,9 +36,13 @@ The modelled display (the headless model in port/ultra/loop.c, docs/port/FRAMERA
 driver that queues frames (a swap blocks only with N queued; never: no swap blocks, WGL on NVIDIA and Intel in steady
 state), --display-hz H the whole hertz SDL says (59 for 59.94 on Windows), --display-timing none,rate,vblank what the
 platform's query gives (nothing; the exact refresh, as XRandR; and the vblanks' times, as Windows' compositor), each
-run once per rate, and --vsync-phase F places the vblanks F of a refresh after the first retrace. --max-doubled N then
+run once per rate (without --pacing the first), and --vsync-phase F places the vblanks F of a refresh after the first retrace. --max-doubled N then
 checks that at most N vblanks showed a frame twice with nothing decided for them (a vblank grid at 59 on a 59.94 Hz
 display: about one a second).
+
+--max-stale F checks that at most a share F of the modelled display's vblanks showed no new frame: with --game-fps
+60 and the game's own frames (video.frame_rate original) under a vsync swap, each vblank shows the game's next frame
+(docs/port/FRAMERATE.md 7.6).
 
 Exit status 0 when all hold. Stdlib only, Python 3.9+.
 """
@@ -77,7 +81,12 @@ def main():
                     "decided for them, at most")
     ap.add_argument("--game-fps", default="original", help="game.frame_rate for every run, the reference too "
                     "(docs/port/FRAMERATE.md 7); at 60 the game's own frames a second are checked too")
+    ap.add_argument("--max-stale", type=float, default=-1, help="with the vsync model, at most this share of its "
+                    "vblanks showing no new frame (a frame held twice; docs/port/FRAMERATE.md 7.6)")
     args = ap.parse_args()
+    if args.max_stale >= 0 and (os.name == "nt" or args.no_sim):
+        print("realtime_check: --max-stale reads the vsync model's vblanks, which Linux runs have: skipped")
+        return 77
     if args.pacing:
         if os.name == "nt":
             print("realtime_check: --pacing models a vsync swap on Linux; a headless run on Windows has none: skipped")
@@ -101,7 +110,7 @@ def main():
                 name = f"pacing-{rate}" + (f"-{timing}" if timing else "")
                 ok &= check(args, rate, Path(args.logs).resolve() / name, timing) == 0
         return 0 if ok else 1
-    return check(args, args.frame_rate, Path(args.logs).resolve())
+    return check(args, args.frame_rate, Path(args.logs).resolve(), args.display_timing.split(",")[0])
 
 
 def reference(args, logs):
@@ -213,6 +222,17 @@ def check(args, frame_rate, logs, timing=""):
         ok &= good
         print(f"realtime_check: game.frame_rate 60: {g[2]} of the game's frames in {g[1]} retraces ({frames:.3f} a "
               f"retrace, at least 0.9): {'ok' if good else 'FAIL'}")
+    if args.max_stale >= 0:
+        # The modelled display's vblanks that showed no new frame: a frame held twice, the screen a frame behind.
+        v = re.search(r"simulated vsync at \S+ Hz, [^:]*: (\d+) vblanks, (\d+) showed no new frame", out)
+        if not v:
+            print("realtime_check: no simulated vsync line")
+            return 1
+        stale = int(v[2]) / int(v[1]) if int(v[1]) else 1.0
+        good = stale <= args.max_stale
+        ok &= good
+        print(f"realtime_check: the display: {v[2]} of {v[1]} vblanks showed no new frame ({stale:.3f}, at most "
+              f"{args.max_stale}): {'ok' if good else 'FAIL'}")
 
     m = re.search(r"^audio: (\w+) at (\d+) Hz \(([^)]*)\): ([\d.]+) s played; (\d+) underruns .*?; (\d+) buffers "
                   r"pushed before their render: (\d+) rendered in time, (\d+) played late, (\d+) as silence", out, re.M)
