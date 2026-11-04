@@ -95,6 +95,15 @@ extern Slot D_80153E88[];
 /* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
 #define PC_RACE_CARS 6
 #endif
+#ifdef TARGET_PC
+/* PC: game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7). The catch-up scale moves 0.03 of the way to its
+ * target a frame of two retraces, a filter the cars' physics reads: e^frames and its other weight, 1 - e^frames
+ * (0.03, as written, at original). */
+#define PC_FILTER_REST(e, rest) (pc_fps60 ? 1.0f - pc_fps_filter(e) : (rest))
+#else
+#define PC_FILTER(e) e
+#define PC_FILTER_REST(e, rest) rest
+#endif
 void func_800DE860(void)
 {
     s16 i;
@@ -139,7 +148,7 @@ void func_800DE860(void)
                 if (D_80150F14 == 1) {
                     s = (1 - s) * 0.5f + 1;
                 }
-                PC_MODEL_SCALE(i) = PC_MODEL_SCALE(i) * 0.97f + 0.03f * s;
+                PC_MODEL_SCALE(i) = PC_MODEL_SCALE(i) * PC_FILTER(0.97f) + PC_FILTER_REST(0.97f, 0.03f) * s;
             }
         }
     }

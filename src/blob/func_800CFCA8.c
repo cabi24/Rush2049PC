@@ -3830,6 +3830,11 @@ typedef s64 M2C_UNK64;
 /* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
 #define PC_RACE_CARS 6
 #endif
+#ifndef TARGET_PC
+/* PC: game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7): the car's blink (its appearance bit 8) counts
+ * frames of two retraces */
+#define PC_EACH30(stmt) stmt
+#endif
 void func_800CFCA8(void)
 {
   GameCar *temp_a0;
@@ -3847,7 +3852,7 @@ void func_800CFCA8(void)
       {
         if (((s8) PAD0EC(temp_a0->pad0EC, 0x21D)) == 0)
         {
-          PAD0EC(temp_a0->pad0EC, 0x224) = ((s8) PAD0EC(temp_a0->pad0EC, 0x224)) - 1;
+          PC_EACH30(PAD0EC(temp_a0->pad0EC, 0x224) = ((s8) PAD0EC(temp_a0->pad0EC, 0x224)) - 1;)
           new_var = (*((f32 *) (((s8 *) temp_v1) + 0x714))) - (*((f32 *) (((s8 *) temp_a0) + CAR_OFS(0x30C))));
           if (((s8) PAD0EC(temp_a0->pad0EC, 0x224)) < 0)
           {
