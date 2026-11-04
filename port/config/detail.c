@@ -84,11 +84,11 @@ static const char *const s_names[PC_SCENE_COUNTS] = {
     "nodes drawn", "at a level of detail past their first", "world parts", "let through by the visibility tables",
     "hidden", "hidden in that view",
     "out of the matrices' range", "past the fog's radius", "past their last level of detail"};
-static unsigned long s_views, s_walks;   /* the views of a world (its parts > 0: a race), and every scene walk */
+static unsigned long s_views, s_walks;   /* the views of a world (a track loaded: a race), and every scene walk */
 static double s_sum[PC_SCENE_COUNTS];
 static unsigned s_most[PC_SCENE_COUNTS];
 static unsigned s_now[PC_SCENE_COUNTS];
-static int s_open;
+static int s_open, s_world;   /* a view is open; it has a world (physics_float_calc counted its parts, 0 or more) */
 
 static void close_view(void)
 {
@@ -96,7 +96,7 @@ static void close_view(void)
     if (!s_open)
         return;
     s_walks++;
-    if (s_now[PC_SCENE_PARTS] > 0) {   /* a view of the track's world, not a menu's model */
+    if (s_world) {   /* a view of the track's world (the arenas' tables have no parts), not a menu's model */
         s_views++;
         for (k = 0; k < PC_SCENE_COUNTS; k++) {
             s_sum[k] += s_now[k];
@@ -106,7 +106,7 @@ static void close_view(void)
     }
     for (k = 0; k < PC_SCENE_COUNTS; k++)
         s_now[k] = 0;
-    s_open = 0;
+    s_open = s_world = 0;
 }
 
 void pc_scene_view(void)
@@ -117,6 +117,8 @@ void pc_scene_view(void)
 
 void pc_scene_count(int what, int n)
 {
+    if (what == PC_SCENE_PARTS)
+        s_world = 1;
     if (what >= 0 && what < PC_SCENE_COUNTS)
         s_now[what] += (unsigned)n;
 }
