@@ -57,6 +57,10 @@ extern void func_80090F44(f32,f32[3][3]);
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 
+#ifndef TARGET_PC
+#define PC_FSCALE(x) x   /* PC: game.frame_rate 60, a turn a 30 Hz frame scaled to the frame (pc_game_fps.h) */
+#endif
+
 void func_8038DDDC(Object *object)
 {
     Player *player;
@@ -86,9 +90,9 @@ void func_8038DDDC(Object *object)
         }
     }
     if (nearest < 2000.0f) {
-        if (best[0] > 0.0f) func_80090E9C(-0.04f, object->uv);
-        else func_80090E9C(0.04f, object->uv);
-        if (best[1] > 0.0f) func_80090F44(0.03f, object->uv);
-        else func_80090F44(-0.03f, object->uv);
+        if (best[0] > 0.0f) func_80090E9C(PC_FSCALE(-0.04f), object->uv);
+        else func_80090E9C(PC_FSCALE(0.04f), object->uv);
+        if (best[1] > 0.0f) func_80090F44(PC_FSCALE(0.03f), object->uv);
+        else func_80090F44(PC_FSCALE(-0.03f), object->uv);
     }
 }

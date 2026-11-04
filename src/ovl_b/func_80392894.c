@@ -94,6 +94,10 @@ extern s16 object_bytes_sum_global(void);             /* TB_GetFontLineHeight */
 #define TB_DrawText state_utility
 #define TB_GetFontLineHeight object_bytes_sum_global
 
+#ifndef TARGET_PC
+#define PC_EACH30(stmt) stmt   /* PC: game.frame_rate 60, once a 30 Hz frame (pc_game_fps.h) */
+#endif
+
 int func_80392894(void *blt) /* animStuntPoints */
 {
     u8 str[32];
@@ -150,7 +154,7 @@ int func_80392894(void *blt) /* animStuntPoints */
                 TB_Sprintf(str, gText.single[181]);
                 TB_Sprintf(str, D_80394A94, str, p->bonusHud);
                 TB_DrawText(TB_CenterText(str, x), y, str);
-                bonuscnt[i]--;
+                PC_EACH30(bonuscnt[i]--;)
             }
         } else bonuscnt[i] = -2;
         if (!p->done) p->pointsHud = p->points;
