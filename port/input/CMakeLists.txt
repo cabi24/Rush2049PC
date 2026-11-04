@@ -17,7 +17,8 @@ file(MAKE_DIRECTORY ${PC_FRONTEND_TEST_DIR})
 
 add_executable(frontend_test tests/test_frontend.c ${CMAKE_SOURCE_DIR}/port/config/config.c
                ${CMAKE_SOURCE_DIR}/port/config/race_cars.c ${CMAKE_SOURCE_DIR}/port/config/detail.c
-               ${CMAKE_SOURCE_DIR}/port/config/game_fps.c ${CMAKE_SOURCE_DIR}/port/config/voices.c stick.c)
+               ${CMAKE_SOURCE_DIR}/port/config/game_fps.c ${CMAKE_SOURCE_DIR}/port/config/voices.c stick.c
+               ${CMAKE_SOURCE_DIR}/port/config/presets.c)
 target_include_directories(frontend_test PRIVATE ${CMAKE_SOURCE_DIR}/port/config ${CMAKE_SOURCE_DIR}/port/input
                            ${CMAKE_SOURCE_DIR}/port/include)
 target_compile_options(frontend_test PRIVATE ${PC_FRONTEND_TEST_FLAGS})
@@ -25,6 +26,13 @@ target_link_libraries(frontend_test PRIVATE m)
 foreach(c ini settings layers locate stick cars memory detail fps mods saves voices engines)
     add_test(NAME frontend.${c} COMMAND frontend_test ${c} ${PC_FRONTEND_TEST_DIR})
 endforeach()
+# the presets (port/config/presets.c): the table, and --preset on the real program, over a file and before a --set
+add_test(NAME frontend.presets COMMAND frontend_test presets ${PC_FRONTEND_TEST_DIR})
+add_test(NAME frontend.preset_option
+         COMMAND rush2049pc --config ${PC_FRONTEND_TEST_DIR}/precedence.ini --preset enhanced --set video.detail=original
+                 --print-config)
+set_tests_properties(frontend.preset_option PROPERTIES ENVIRONMENT "RUSH2049_AUDIO=null"
+    PASS_REGULAR_EXPRESSION "\n; cars = original\n.*\nmemory = 64\n.*\nframe_rate = 60\n.*\nscale = 2\n.*\n; widescreen = auto\n.*\n; textures = original\n.*\ndraw_distance = far\n.*\n; detail = original\n.*\n; fog = original\n.*\ntexture_lod = anisotropic\n.*\nbackend = null\n.*\nvoices = 64\n.*\nengines = all\n")
 
 # The real program's layers: the file says scale 2, audio wav and a ROM path; the environment says audio null;
 # the command line says scale 3. Expected: the ROM from the file, audio from the environment, scale from the
@@ -43,7 +51,7 @@ target_include_directories(frontend_menu_test PRIVATE ${CMAKE_SOURCE_DIR}/port/c
                            ${CMAKE_SOURCE_DIR}/port/include ${CMAKE_SOURCE_DIR}/port/gfx/tests)
 target_compile_options(frontend_menu_test PRIVATE ${PC_FRONTEND_TEST_FLAGS} -Wno-unused-function)
 target_link_libraries(frontend_menu_test PRIVATE pcgfx ${RUSH_SDL2_TARGET} m)
-foreach(c nav live save script mouse pages mods saves)
+foreach(c nav live save script mouse pages mods saves presets)
     add_test(NAME frontend.menu.${c} COMMAND frontend_menu_test ${c} ${PC_FRONTEND_TEST_DIR}/menu-${c})
 endforeach()
 set_target_properties(frontend_menu_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)

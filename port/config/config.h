@@ -236,6 +236,20 @@ enum { PC_CFG_FILE_NONE = 0, PC_CFG_FILE_READ = 1, PC_CFG_FILE_CREATE = 2 };
 int pc_settings_resolve(PcSettings *s, int use_file, const char *path, const char *exe_dir,
                         const PcSettingValue *overrides, int n_overrides);
 
+/* Presets (port/config/presets.c, docs/port/FRONTEND.md "Presets"): several settings in one step, not a setting of
+ * their own. n64 is the defaults of every setting the others set; enhanced the recommended PC ones; maximum enhanced
+ * with the whole track, no fog and upscaled textures. The settings overlay's Presets page and --preset NAME set them.
+ * pc_presets: the table and its size; pc_preset_find: by name in any case, NULL for none; pc_preset_in_effect: 1
+ * when every setting the preset sets has its value in s. */
+typedef struct {
+    const char *name, *label, *desc;   /* --preset's name; the overlay's item and its footer line */
+    const PcSettingValue *values;
+    int n;
+} PcPreset;
+int pc_presets(const PcPreset **out);
+const PcPreset *pc_preset_find(const char *name);
+int pc_preset_in_effect(const PcSettings *s, const PcPreset *p);
+
 #ifdef __cplusplus
 }
 #endif

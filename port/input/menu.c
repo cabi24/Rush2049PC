@@ -28,7 +28,9 @@
  *   selects it, a click chooses it (on a value: left of its middle the previous one, right of it the next), the
  *   wheel scrolls a long page, and the right button or a click outside the panel goes back.
  * - Help and About are read-only pages, made each time they are opened: Help from the bindings in effect, About from
- *   main's facts (pc_menu_set_about), the GL driver and the players. */
+ *   main's facts (pc_menu_set_about), the GL driver and the players.
+ * - The Presets page sets several settings in one step (port/config/presets.c), each as if it were changed on its
+ *   own page: applied where it can be, counted by Save. A preset is not a setting of its own. */
 #define _GNU_SOURCE
 #include <math.h>
 #include <stdarg.h>
@@ -42,14 +44,15 @@
 /* ---------------------------------------------------------------- the pages */
 
 enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_MODS, P_SAVES, P_SAVE_ITEM, P_HELP, P_ABOUT,
-       NUM_PAGES };
+       P_PRESETS, NUM_PAGES };
 
 /* I_INFO: a read-only row of Help or About, which can be selected (its whole text is in the footer); I_HEADING: one
  * that can't; I_OPEN, I_COPY: About's actions, the data folder in the file manager and the page to the clipboard.
  * The Saves page (docs/port/SAVES.md): I_SV_PLAYER the player shown, I_SV_ENTRY a profile or ghost (its page),
  * I_SV_ACTION an action (page: SVA_*). */
 typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT, I_PLAYER,
-               I_INFO, I_HEADING, I_OPEN, I_COPY, I_MOD, I_SV_PLAYER, I_SV_ENTRY, I_SV_ACTION } Kind;
+               I_INFO, I_HEADING, I_OPEN, I_COPY, I_MOD, I_SV_PLAYER, I_SV_ENTRY, I_SV_ACTION, I_PRESET } Kind;
+/* I_PRESET: a preset on the Presets page (page: which, in pc_presets' table) */
 /* I_MOD: a mod on the Mods page (page: which); I_SV_*: the Saves page */
 enum { SVA_IMPORT, SVA_EXPORT_MPK, SVA_OPEN, SVA_PIN, SVA_EXPORT, SVA_DELETE };
 
@@ -174,6 +177,22 @@ static Item *add(int page, Kind kind, const char *label, const char *section, co
     return it;
 }
 
+/* ---------------------------------------------------------------- the Presets page (FRONTEND.md "Presets") */
+
+/* The main page's item and the page: a preset each (port/config/presets.c). */
+static void presets_page(void)
+{
+    const PcPreset *table;
+    int n = pc_presets(&table);
+    Item *it = add(P_MAIN, I_PAGE, "Presets", NULL, NULL);
+    it->page = P_PRESETS, it->desc = "N64 original or the PC's settings, in one step";
+    pages[P_PRESETS].title = "Presets";
+    for (int i = 0; i < n && i < MAX_ITEMS; i++) {
+        it = add(P_PRESETS, I_PRESET, table[i].label, NULL, NULL);
+        it->page = i, it->desc = table[i].desc;
+    }
+}
+
 static void build(void)
 {
     Item *it;
@@ -197,6 +216,7 @@ static void build(void)
     it->page = P_HELP, it->desc = "What each key and button does";
     it = add(P_MAIN, I_PAGE, "About", NULL, NULL);
     it->page = P_ABOUT, it->desc = "Version, graphics, sound, players, files";
+    presets_page();   /* the first of the actions: a preset, then Save */
     add(P_MAIN, I_SAVE, "Save to rush2049pc.ini", NULL, NULL);
     add(P_MAIN, I_RESUME, "Resume", NULL, NULL)->desc = "Back to the game";
     add(P_MAIN, I_QUIT, "Quit", NULL, NULL)->desc = "Quit Rush 2049 (changes not saved are lost)";
@@ -429,6 +449,18 @@ static Item *current(void)
 {
     Page *p = &pages[M.page];
     return p->n ? &p->item[M.sel[M.page]] : NULL;
+}
+
+/* The settings pages' item for a setting (NULL: none) */
+static const Item *find_item(const char *section, const char *key)
+{
+    for (int pg = 0; pg < NUM_PAGES; pg++)
+        for (int i = 0; i < pages[pg].n; i++) {
+            const Item *it = &pages[pg].item[i];
+            if (it->section && it->kind != I_WINDOW && !strcasecmp(it->section, section) && !strcasecmp(it->key, key))
+                return it;
+        }
+    return NULL;
 }
 
 /* ---------------------------------------------------------------- values */
@@ -955,6 +987,50 @@ static void start_capture(int add_to)
     M.capture_until = pc_host_ns() + CAPTURE_NS;
 }
 
+/* Each of the preset's settings set as if the player had changed it: touched (Save writes it, the count shows it)
+ * and applied at once where it can be, as its page's item does; the restart ones (marked * on their pages) named in
+ * the message and the log. */
+static void preset(int which)
+{
+    const PcPreset *table, *p;
+    char was[64], now[64], why[160], names[400] = "", later[160] = "";
+    int n = 0, restart = 0;
+    pc_presets(&table);
+    p = &table[which];
+    for (int i = 0; i < p->n; i++) {
+        const PcSettingValue *v = &p->values[i];
+        const Item *it = find_item(v->section, v->key);
+        pc_settings_get(&M.eff, v->section, v->key, was, sizeof was);
+        if (it && set_value(it, v->value) != 0)
+            continue;
+        if (!it) {   /* a setting without an item of its own */
+            if (pc_settings_set(&M.eff, v->section, v->key, v->value, why, sizeof why) != 0)
+                continue;
+            touch(v->section, v->key);
+            apply(v->section, v->key);
+        }
+        pc_settings_get(&M.eff, v->section, v->key, now, sizeof now);
+        if (!strcmp(was, now))
+            continue;
+        n++;
+        snprintf(names + strlen(names), sizeof names - strlen(names), "%s%s.%s", n > 1 ? ", " : "", v->section, v->key);
+        if (it && it->restart) {
+            restart++;
+            snprintf(later + strlen(later), sizeof later - strlen(later), "%s%s.%s", restart > 1 ? ", " : "",
+                     v->section, v->key);
+        }
+    }
+    if (n)
+        fprintf(stderr, "rush2049pc: preset %s: %d setting%s changed, not saved yet (%s)%s%s\n", p->name, n,
+                n == 1 ? "" : "s", names, restart ? "; after a restart: " : "", later);
+    if (!n)
+        status(C_HINT, "%s: in effect already", p->label);
+    else if (restart)
+        status(C_OK, "%s: %d changed, %d after a restart (*)", p->label, n, restart);
+    else
+        status(C_OK, "%s: %d changed (not saved yet)", p->label, n);
+}
+
 static void accept(Item *it)
 {
     switch (it->kind) {
@@ -991,6 +1067,9 @@ static void accept(Item *it)
         break;
     case I_SV_ACTION:
         saves_action(it->page);
+        break;
+    case I_PRESET:
+        preset(it->page);
         break;
     case I_CHOICE:
     case I_WINDOW:
@@ -1636,6 +1715,12 @@ static void shown(const Item *it, char *out, size_t n)
     case I_SV_ACTION:
         snprintf(out, n, "%s", it->page == SVA_DELETE && M.sv_confirm ? "again: delete" : "");
         break;
+    case I_PRESET: {   /* every setting it sets has its value */
+        const PcPreset *table;
+        pc_presets(&table);
+        snprintf(out, n, "%s", pc_preset_in_effect(&M.eff, &table[it->page]) ? "in effect" : "");
+        break;
+    }
     default:
         snprintf(out, n, "%s", v);
         for (int i = 0; it->labels && it->choices[i]; i++)
@@ -1666,6 +1751,8 @@ static const char *hint(const Item *it)
         return "Up/Down: move   Esc/B: back";
     case I_MOD:
         return M.moving ? "Up/Down: move it   Enter/A: put it down" : "Left/Right: on, off   Enter/A: move it";
+    case I_PRESET:
+        return "Enter/A: set these   Esc/B: back";
     default:
         return M.page == P_MAIN ? "Enter/A: choose   Esc/B: close" : "Enter/A: choose   Esc/B: back";
     }
