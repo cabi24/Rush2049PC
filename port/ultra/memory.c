@@ -308,12 +308,17 @@ uint8_t *pc_rdram(void) { return g_rdram; }
 
 /* The guard mode: a value pc_n64_ptr gets that is the window's host address cut to 32 bits was a host pointer
  * stored in 32 bits, which no fault would show when the renderer or the audio takes it (docs/port/NOFIXED.md 5). */
+#ifndef _WIN32
+void pc_print_backtrace(int skip) __attribute__((weak));   /* misc.c: tests that link memory.c alone have none */
+#endif
 static void guard_cut(uint32_t addr)
 {
-    fprintf(stderr, "rush2049pc: guard: pc_n64_ptr(0x%08X): a window address cut to 32 bits (N64 0x%08X) taken for "
-            "an N64 address, in N64 thread %s (docs/port/NOFIXED.md 5)\n", addr, PC_RDRAM_BASE + (addr - g_cut),
-            pc_os_thread_name());
-    pc_print_backtrace(1);
+    pc_log("guard: pc_n64_ptr(0x%08X): a window address cut to 32 bits (N64 0x%08X) taken for an N64 address "
+           "(docs/port/NOFIXED.md 5)", addr, PC_RDRAM_BASE + (addr - g_cut));
+#ifndef _WIN32
+    if (pc_print_backtrace)
+        pc_print_backtrace(1);
+#endif
     fflush(NULL);
     abort();
 }
