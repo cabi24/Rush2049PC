@@ -555,6 +555,14 @@ Debug): its ctest's path logs, which that job now uploads, against the Linux Deb
 comparison: the downloads and under a second of Python. `tools/port/synth/steer.press` is a path for it with the gas
 held and full lock left and right, from 0.2 s taps to 6 s locks, as a key steers.
 
+Tried on the build host (x86-64, RHEL 10's GCC), as far as it goes without a Windows program: ctest's paths with
+`--exact` in a RelWithDebInfo and a Debug build, then `--from-logs` between the two folders: 59 of 59 logs the same
+(the 56 paths on the virtual clock, `steer` among them with 85 events, and ghost2, profile2 and delete2).
+`synth_compare.py --same --runs 2` of the same two builds: 57 of 57 paths the same. On CI's logs of ea4b82f
+`--from-logs` passes the 10 live-input runs, Linux x86-64's against Windows's; with the last hex digit of one float
+in one Windows status line changed (the keyboard run's, at 30 s), 9 of 10 pass and it names that line; and it fails
+each path log of that run as coarse, since those were written before `--exact`.
+
 **What this can't show.** The synthetic cartridge's car doesn't follow the controls: the steering input reaches
 the car's model record (the traces have it at +1 and -1), and the physics move the car, speed it up and put it back
 every few seconds, but along the same course with the controls or without (`input_check.py`'s nosteer run; on the
