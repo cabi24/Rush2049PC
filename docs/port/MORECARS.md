@@ -528,7 +528,9 @@ sound manager's: it plays the 12 tags of highest weighted priority (3/4 of its 1
 effect voices behind it, so with 12 cars the player's engines and the nearest four or five drones' are heard.
 `voices` = 48, 64 or 96 gives MusyX that many voices, the effects all but the songs' 16 and the manager three
 quarters of those at once, and 128 emitters; `engines` = `nearestN` keeps each player's N nearest drones' engines
-(with hysteresis), `all` every drone's, outside the budget.
+(with hysteresis), `all` every drone's, outside the budget. At 64 the retail races of 12 (two tracks, one and two
+players) refuse nothing: every drone's two engine layers play (22, 20 in split screen) with every effect (AUDIO.md
+10.6).
 
 ## 7. Front end and HUD
 

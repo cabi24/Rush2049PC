@@ -951,3 +951,22 @@ the 81st takes one of its own kind (a steal, counted); a song's voice from the f
 controllers (a 14-bit modulation written and read back, copied to voice 33) and channel bytes, nothing past 90 or
 between 34 and 89, and a song's channel in the N64's table. `assets_musyx` runs the voices' macros on the PC arrays at
 32.
+
+**The views of the messages.** The 13 readers each cast `pc_snd_msgs` to their own record (`Msg`, `Slot18`, `Slot24`,
+`ShutdownMsg`), so the symbol's declarations are `struct pc_snd_msg`'s alone and `views_sound_commands`, which compared
+them, checks the three live readers' types now (`view_check.py --tag`, the three it compared before). Over all 13
+(`--tag Msg,Slot18,Slot24,ShutdownMsg`): every view with live code is 32 bytes on the host with `id`, `type` and
+`used` at 0, 2 and 3; four copies with no live code (the weak `func_80091B00`s of `audio_options_menu`, `game_music`
+and `updatefx/getcmd.c`, and carcolor's weak `func_800C8918`) are 24, as before; entity_helpers' and entity_lookup's
+`Msg`, whose payload union holds a pointer, have it at +8, the stop's tag, where `tAudioMsg` has it (the three
+`transform_b109.c` copies, with no live code, put the change's floats there too).
+
+| Check | Result |
+|---|---|
+| gen_data's check (build host, Pi, mingw-w64) | 38 decoupled (26 before), nothing else in the window: OK |
+| the synthetic cartridge | the same file as the base's (build host, Pi) |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), build host | no open findings (endian_check's 2 open value conflicts in 1 storage, as before); layout_check takes `audiomgr_thread.c`'s `tAudioMsg` as `pc_snd_msgs`' reference (`SYMBOL_REFERENCE`: `struct pc_snd_msg` is no view the game writes through) |
+| `bounds_check`, build host (GCC 14) | 4 new, none `clamped` or `two offsets`, each a `view` of a declaration at the storage's true size (`pc_mx_free_links`, `pc_mx_prio_links`, `pc_mx_voice` in lib_1f5b0.c and lib_22300.c), added to `bounds_reviewed.txt` as `[gcc14]`; then none new |
+| `assets_mxvoices`, `assets_musyx`, `assets_audiocmds`, `assets_sound`, `assets_audiomgr`, `assets_mgrstart`, `views_sound_commands` | pass (build host Debug and RelWithDebInfo, Pi ASan + UBSan: [AUDIO.md](AUDIO.md) 10.9) |
+| the IDO check (`ido_check.sh`, IDO 5.3 and 7.1, every N64 object, cc3a517 against 09da2f0) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
+| `n64_neutral.py --base 09da2f0` | passes |

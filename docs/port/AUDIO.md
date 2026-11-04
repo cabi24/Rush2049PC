@@ -664,7 +664,7 @@ when it changes, `pc_engines_set`).
   which rank first anyway) is never held back for the budget and doesn't count against it, so the effects keep the
   whole budget. The limit is then MusyX's
   effect voices: 12 cars ask for 24 engine voices (the player's two and 22), so with 12 cars `all` wants 64 voices
-  or more; at `original` the voices refuse what doesn't fit (section 10.7).
+  or more; at `original` the entries and the effect voices refuse what doesn't fit (10.6).
 
 **Why the sound manager, and not MusyX's priorities.** MusyX gives a voice by the priority and the per-sound limit a
 sound had when it started (`func_8001F13C`), and when it has none it takes the oldest of the lowest priority, cut at
@@ -723,6 +723,14 @@ which the microcode can't replay; `capture_summary.py` reads them.
   next retrace (`PC_MSG_OR_RETURN`, transform/group.c), or a start that waits for the next pass, counted as `no
   message`. The three are fixed N64 storage (own storage on the PC), so they are PC data now, [DECOUPLE.md](DECOUPLE.md)
   9.
+- **Second starts.** The priority pass runs on the manager's thread, at a retrace's message, and queues its starts
+  behind whatever is in the queue already. When the host holds the thread back a retrace or more, two retrace
+  messages wait there, and the second pass, finding a tag it started still waiting, sends its start again; the
+  thread then gave the tag a second voice (`audio_state_save`) and lost the first, a loop playing on with nothing to
+  stop it. At 32 voices MusyX takes such a voice back once the effects' 16 are full; with more voices nothing does
+  (10.6 has the race where it happened). On the PC the thread now starts nothing for a tag already playing
+  (`PC_START_PLAYING`, audiomgr_thread.c), at any size: the N64's thread never sees such a start, so this changes
+  nothing the N64 does, and on the virtual clock it never happens (`second starts dropped` is 0 in every run there).
 - **Entries and request nodes** (AudioSfxInit, heap): `arg1` and three times it, so they follow the effects' share.
 - **Without the Expansion Pak** nothing changes: no emitters, 8 voices, as the N64.
 
@@ -734,7 +742,10 @@ which the microcode can't replay; `capture_summary.py` reads them.
   MusyX refused (`func_8001F13C` found no voice) and the voices it stole (took from a sound still playing); the
   effects the manager started that MusyX didn't (`MP_TargetSteerPos`); the tags the priority pass held back or
   stopped for its budget, a pass; the positional starts that found no emitter, the commands that found no message,
-  the effect starts that found no entry; the emitters and fx tags in use now; the message pool's high-water mark
+  the effect starts that found no entry; the voice-ticks of a looping voice whose macro has ended (`loops without a
+  macro`: a few hundred a race at every size, the N64's too: a voice's last ticks before it stops); the starts the
+  manager's thread dropped for a tag already playing (`second starts dropped`, 10.4); the emitters and fx tags in use
+  now; the message pool's high-water mark
   (`func_80091B00` takes the first free one, so its index is a lower bound of those in use); the drones' engine
   layers that have an emitter and those whose tags play, and the drones of those; and the drones whose engines
   `audio.engines` keeps on. The game's sound code fills the counters (`pc_snd_count`, `PC_SND_*`, `pc_game_types.h`)
@@ -748,6 +759,157 @@ which the microcode can't replay; `capture_summary.py` reads them.
   prints, about every second, the voices a subframe and the samples playing (told apart by their codebooks), with
   the voices of each at once, its pitch range and mean level. Like the capture, it stays on the machine that ran it.
 
+### 10.6 What a race of 12 plays
+
+**The synthetic cartridge** (`synth_rom.py --sounds`, build host, Debug, the virtual clock: `synth_voices_race12`,
+`synth_voices_race2p12`). `race12` is one player and 11 drones to 600 frames (20 s) after the start. The bank's sounds
+are squares at volume 0, so they take voices and play nothing; what the sound is like is the retail cartridge's below.
+
+| `voices` | voices a subframe (mean, most) | held back by the budget, a pass | starts with no entry | drones' engine layers playing at once, most | messages most |
+|---|---|---|---|---|---|
+| `original` | 1.57, 24 of 32 | 0.93 | 118 | 10 | 40 |
+| `48` | 2.39, 36 of 48 | 0.29 | 39 | 22 | 49 |
+| `64` | 3.59, 50 of 64 | 0.00 | 0 | 22 | 52 |
+| `96` | 3.92, 50 of 96 | 0.00 | 0 | 22 | 52 |
+
+MusyX refused no start and stole no effect at any size; no emitter or message ran out. The means hold silent
+leftovers of the synthetic bank: from 43 s on, 14 voices of its loop macro, which has ended, go on looping (`loops
+without a macro`, about 400 voice-ticks a line), until the library gives their voices to other sounds: at 48 after
+3.5 s, at 64 after 7 s, at 96 not before the run ends, which is 96's 0.3 voices more than 64. The retail runs have no
+such voices (79 to 213 voice-ticks a race at every size, a stopping voice's last ticks). In split screen (`race2p12`, 10 drones) original mixes 1.44 (most
+24) with 112 starts without an entry and 8 drones' layers, 64 3.31 (most 48), all 20 layers, nothing refused. The
+engines at 64 voices, a line every 30 retraces (`synth_engines_*`): `original` names none; `nearest4` keeps at most 4
+drones on, and at most 12 layers play at once (the four's and those fading out or waiting for their stop); `all` has
+all 11 on at once; in split screen `nearest4` had at most 5 on at once (the two views' nearest four overlap; the mode
+allows 8), 16 layers.
+
+**The retail cartridge** (the Pi, Debug, the virtual clock, `--log-voices`). One player and 11 drones on track 0 and on
+track 3, and two players and 10 drones on track 0 (split screen), from the title through the track select to 1,500
+frames (50 s) after the start, the gas held from the start:
+
+| race | `voices`, `engines` | voices a subframe (mean, most) | held back a pass | no entry | drones' layers playing at once, most | messages most | heap's peak |
+|---|---|---|---|---|---|---|---|
+| track 0 | `original` | 9.37, 20 of 32 | 1.34 | 77 | 10 | 41 | 3.77 MB |
+| | `48` | 10.39, 36 of 48 | 0.50 | 27 | 22 | 48 | 4.02 MB |
+| | `64` | 10.86, 41 of 64 | 0.01 | 0 | 22 | 50 | 4.25 MB |
+| | `96` | 10.82, 41 of 96 | 0.00 | 0 | 22 | 50 | 4.72 MB |
+| | `original`, `nearest4` | 9.28, 20 of 32 | 0.38 | 12 | 8 | 39 | 3.77 MB |
+| | `64`, `nearest4` | 9.64, 30 of 64 | 0.00 | 0 | 17 | 38 | 4.25 MB |
+| | `original`, `all` | 9.66, 20 of 32 | 0.00 | 4,278 | 13 | 52 | 3.77 MB |
+| | `64`, `all` | 10.88, 40 of 64 | 0.00 | 0 | 22 | 50 | 4.25 MB |
+| track 3 | `original` | 10.72, 20 of 32 | 1.56 | 433 | 10 | 43 | 3.87 MB |
+| | `48` | 12.05, 33 of 48 | 0.53 | 45 | 22 | 48 | 4.12 MB |
+| | `64` | 12.59, 40 of 64 | 0.03 | 0 | 22 | 50 | 4.35 MB |
+| | `96` | 12.66, 39 of 96 | 0.00 | 0 | 22 | 50 | 4.82 MB |
+| | `original`, `nearest4` | 10.65, 20 of 32 | 0.41 | 95 | 8 | 40 | 3.87 MB |
+| | `64`, `nearest4` | 11.07, 32 of 64 | 0.00 | 0 | 17 | 41 | 4.35 MB |
+| | `original`, `all` | 11.12, 20 of 32 | 0.00 | 5,238 | 13 | 54 | 3.87 MB |
+| | `64`, `all` | 12.65, 39 of 64 | 0.00 | 0 | 22 | 50 | 4.35 MB |
+| track 0, 2 players | `original` | 11.14, 21 of 32 | 1.41 | 37 | 8 | 35 | 3.81 MB |
+| | `64` | 12.69, 39 of 64 | 0.00 | 0 | 20 | 44 | 4.30 MB |
+| | `64`, `nearest4` | 11.66, 31 of 64 | 0.00 | 0 | 17 | 36 | 4.30 MB |
+| | `64`, `all` | 12.69, 39 of 64 | 0.00 | 0 | 20 | 44 | 4.30 MB |
+
+`96`, `all` is `96` on both tracks to the second decimal. In every run MusyX refused no start and stole no effect; the
+music stole its own voices the same number of times at every size (911 on track 0, 1,246 on track 3, 905 in split
+screen: a song keeps its 16); no emitter and no message ran out (the emitters' most 38 to 43, the fx tags' 42 to 45);
+the game's trace (its states, the cars' places and positions) was the same at every size and mode. So:
+- At `original` the game plays at most 10 of the drones' 22 engine layers (five drones), holds back 1.3 to 1.6 sounds
+  that would be heard each retrace, and 37 to 433 effects find no entry: the N64's sound, with 12 cars.
+- At `48` all 22 play at once (every drone in earshot), and some effects still wait (0.5 a retrace) or find no
+  entry (27 to 45).
+- At `64` nothing is held back or refused (0.01 to 0.03 a retrace) and every drone's engine is heard with the
+  effects; `96` mixes the same to within 0.07 voices. In split screen 64 plays all 20 layers too.
+- `nearest4` at `original` frees the budget and the entries for the effects (0.4 held back, 12 to 95 without an
+  entry, against 1.3 to 1.6 and 77 to 433), with four drones' engines (8 layers); at `64` it is the four and those
+  fading (17 layers at the most, at the start, when the nearest four change often).
+- `all` at `original` is what 10.2 says: the budget lets the engines through but the 16 entries and effect voices
+  can't hold them, and 4,278 and 5,238 starts, effects mostly, are not played. It wants 64 voices.
+
+**In real time** (the Pi, RelWithDebInfo, track 0 to 1,800 frames after the start, 93 s played; `original`, and `all`
+above it; two runs of each; 10.7 has the CPU): the counts are the virtual clock's within a voice, with two things the
+virtual clock never shows. The message pool ran out at `original` in one of the two runs (46 commands missed, its most
+128: the manager's thread held back behind the game's, 10.4) and held 41 in the other; above, 50 to 124 of 256 (`48`,
+with every engine on, also left 435 and 690 effects without an entry). And in one of the two runs at `96` about 24
+voices played on from the grid to the end with no tag playing them: 27.45 voices a subframe (most 64), against 11.07
+(most 41) in the other run and 11.09 to 11.20 at `64`, the drones' engine layers playing 22 at the grid and 0 after it
+while the mixer went on mixing 30 to 49. Most likely tags' voices lost to second starts (10.4): the run's messages
+reached 102 at once, so the thread was held back, and with 80 effect voices nothing took the lost ones back; that
+build counted neither second starts nor loops without a macro, so it isn't proven. d2f873e drops the second start
+and counts both. Three more real-time runs on cc3a517 (`96` twice, `64`; the same race): no voice played on (11.03,
+10.78 and 11.11 voices a subframe, most 39 to 41; 106 to 110 voice-ticks of loops without a macro, as on the virtual
+clock), and in one of the two at `96`, its messages at 119 at once, the thread dropped 12 second starts, all in the
+10 s around the start: as many voices as the first run would have lost there.
+
+**What it sounds like** (the Pi has no audio device: what follows is read from the WAV dumps and the captures, by
+level and voice, never listened to). Track 0, 900 frames after the start, a WAV at each size (`--dump-audio`): `64`,
+`96` and `64` with `nearest4` are original's sample for sample until 17.16 s, the first menu press. From there to the
+race's loading (29 s) 762 of 551,174 samples differ (0.14%), in bursts of a few subframes: the same sounds play
+(`--log-voices` gives the same voices, steals and starts each line); likely the larger pool gives the music's voices
+other numbers, so that the library's steals among the music's own voices of the same age take others. From the race's loading the mixes are different sounds: the difference is as loud as the
+sound. A capture at 64 voices of the same race (`capture_summary.py`), the race's first 10 s, with every car on the
+grid within earshot and then strung out ahead: with `all`, 24.3 voices a subframe (most 40), the three engine
+samples the cars use at up to 6, 6 and 5 voices at once, pitched 0.75 to 1.33 by the revs, and two more samples at up to 3
+voices each, very quietly (a level of 55 to 80 of 32,767: far cars); with `nearest4`, 15.4 voices (most 27), the
+engine samples at up to 8, 6 and 4 voices (the nearest four's and those fading out) and not those two. The next 10 s, the field strung out, the two are
+alike: 10.1 and 9.9 voices.
+
+**The defaults** (`original` and `original`: the N64's): `synth_compare.py --same --runs 2 --audio`, the base (86bc6d0)
+against the branch, two runs of each, every synthetic path, both cartridges. On the build host all 37 paths agree on
+both, sound and all, on d4c05c3; on cc3a517 36 (the default cartridge) and 37, `mem64`'s WAV having its last subframe in one run and not in the other (the same two WAVs as the Pi's, below). On the Pi (under its lock, Debug) every path's game trace agreed on both,
+on d4c05c3 and on cc3a517, and the sound on 30 and 29 paths, then 27 and 29: in the others the only difference is the
+trace's last event, the WAV, whose last subframe reaches the dump before the exit or not on the busy Pi (the same
+audio task count; 768 bytes, one 192-frame subframe, more or less; both lengths from both executables, so the runs
+of one executable vary as much as the two do). Run again three times each, keeping the WAVs, every WAV of those 18
+paths, the base's and the branch's, is the same as its path's longest up to its own end (`audio_prefix`, a check in
+the scratch directory). The six retail scripts (`race`, `race2p`, `battle2p`, `stunt`, `battlequit`, `pause`), base
+against branch with `--audio`, on the Pi: all six the same, sound and all.
+
+### 10.7 What it costs, and which size
+
+| | `original` | `48` | `64` | `96` |
+|---|---|---|---|---|
+| the mixer with every record playing, a subframe (a benchmark: looping ADPCM voices at their own pitches, built by the game's builder, four SFDs a task, 6,000 subframes; RelWithDebInfo; two runs), Pi 5 (under its lock, load 3.1 to 4.0 from the other jobs) | 237-238 us (2.7% of the subframe's 8.71 ms) | 356-357 us (4.1%) | 473-476 us (5.4%) | 711-714 us (8.2%) |
+| the same, build host (Core i5-14500T) | 77-81 us (0.9% of the subframe's 8.71 ms) | 117 us (1.3%) | 156-162 us (1.8%) | 232-239 us (2.7%) |
+| a retail race of 12 in real time on the Pi (RelWithDebInfo, track 0, 93 s; `all` above original): voices a subframe; the mixer's CPU a subframe (the most); underruns, two runs | 9.78; 77 us (198 us); 32, 14 | 11.06; 85 us (306 us); 18, 17 | 11.09; 87 us (352 us); 21, 26 | 11.07; 87 us (368 us); 10, 37 |
+| the game's heap, its peak in the retail race of 12 (of 6.84 MB) | 3.77 MB | 4.02 MB (+240 KB) | 4.25 MB (+470 KB) | 4.72 MB (+929 KB) |
+| the per-voice storage and the pools (PC data, the same at every size) | 70.5 KB | | | |
+
+The mixer's cost is the voices that play, not the records: 7.4 us a voice a subframe on the Pi and 2.4 to 2.5 us
+on the build host, about nothing for a record that doesn't play, so a race that mixes 11 voices costs the same 87 us
+at 64 and 96 (the Pi's Debug build: 493-497 us, 5.7%). The Pi was shared with other jobs throughout, its load 0.5 to
+3.4 before and after each run (the runs' own threads included); the real-time races' underruns (10 to 37 in 93 s;
+96 and 105 in the Debug build) come from the game's frames on the busy Pi at every size, `original` too, and don't
+grow with the voices. The heap grows by 15 KB a voice: the driver's voices, its SFDs and the caches it sizes by
+them (10.3), out of the 6.84 MB the Expansion Pak's heap has, which keeps more than 2 MB free at 96 in a race of 12.
+
+**Which size.** 64: in every race above it refuses nothing, so every drone's engine is heard with every effect, and on
+the Pi it costs a race 1% of the mixer's subframe, 473-476 us (5.4%) at the most it could ever mix. 48 holds every engine but
+still holds back some effects, and with `all` leaves hundreds without an entry. 96 is offered for scenes busier than a
+race of 12, which mixes the same 11 voices on it as on 64: a full 96 is 711-714 us (8.2%) of a subframe on the Pi and 2.7% on
+the build host. The Pi carries every size, 96 included; a typical PC carries 96 with room to spare. The overlay's
+default stays `original` (the N64's sound).
+
+### 10.8 What's left, and what wasn't measured
+
+- No size was listened to, and no device played it: the Pi's builds here have neither output backend (no SDL2 or
+  ALSA development files; its one card is the HDMI output), so the real-time runs use the
+  null output, which takes the sound on the host's clock and counts underruns as a device's pulls would (10.7). The
+  underruns there (10 to 37 in 93 s; 96 and 105 in Debug) come from the game's frames on the busy Pi, at every size,
+  `original` too: they don't grow with the voices.
+- Windows: the cross build only (mingw-w64 on the Pi, cc3a517: the game, `test_audio_voices.exe` and
+  `test_assets_mgrstart.exe` built, gen_data's check of the PE OK); nothing run there.
+- The voices lost in 10.6's first real-time run at 96 happened once in eleven real-time runs above original (48,
+  64, 96 and 96 in Debug, twice, on builds before d2f873e; cc3a517's three), and that build counted neither cause; that second starts
+  happen in real time is shown (12 in one run on cc3a517, which drops them), that they cause the loss is shown only
+  by `assets_mgrstart` and the manager's code. No run since has lost a voice.
+- The emitter pass's choice (`nearestN`) is checked by the drones it names and the layers that play; the fades were
+  read from the counts and captures, not heard.
+- The synthetic bank is silent, so the synthetic WAVs above original are the same as original's silence; the
+  comparison of the sound above original is the retail one above.
+- The dump's last subframe races the exit (10.6), as it did before this item; `synth_compare --audio` reports such a
+  path as varying.
+
 ### 10.9 Tests
 
 | Test | What it checks |
@@ -755,8 +917,23 @@ which the microcode can't replay; `capture_summary.py` reads them.
 | `audio_voices` (port/audio) | SFDs of 48, 64 and 96 voices, native and N64 form (native order and big-endian): the sizes (32's the N64's 0xA10 and 3864 bytes; the mask's words; 8-byte rounding; capped at 255); a full SFD, every voice mixed up to the one at the last slot, which names the output; the list's end at slot 40 with louder voices after it unmixed; stopped voices at slots 31, 32 and n - 1 folded into the base by their own bits (bit 31 of the header's word, bit 0 of the first word after the records, bit 31 of the last), decaying; the slots' last outputs where they belong; at 32 the N64's SFD. A mutation that ignores the words after the records fails 6 checks, one that keeps every slot's last output at the N64's place 6 |
 | `assets_mxvoices` | the per-voice storage through the library's own allocator, nodes and controllers at 96 ([DECOUPLE.md](DECOUPLE.md) 9); with the node loop at 32, 2 checks fail |
 | `assets_musyx`, `assets_audiocmds`, `assets_sound`, `assets_audiomgr` | as before, on the PC arrays (32 voices, 128 messages walked) |
+| `assets_mgrstart` | the manager's thread (`entity_ai_pathfind`) on scripted queues: two or three starts for one waiting tag give one voice, the first kept, the others counted; a start, the pass's interrupt and a start give two; a start for a freed tag frees it; a start and a stop. Without the guard (10.4), 3 checks fail |
+| `views_sound_commands` | the live readers' views of the messages (`ShutdownMsg`, `Slot24`, `Slot18`) agree on the host layout; the PC declaration is 32 bytes (asserted in `voices.c`) |
 | `frontend.voices`, `frontend.engines` | the settings, `pc_snd_setup`, the engines' choice and its hysteresis, fades and listeners, the budget ([FRONTEND.md](FRONTEND.md)) |
 | `frontend.menu.live` | F1 > Audio: Voices after a restart, Drones' engines at once |
 | `synth_voices_race12` | the synthetic race of 12 (`synth_rom.py --sounds`) at original, 48, 64 and 96: the same game trace at each; at original no subframe past 32 voices; each size mixes more voices with fewer starts refused, until one refuses none |
 | `synth_voices_race2p12` | the same in split screen, at original and 64 |
 | `synth_engines_race12_original`, `_nearest4`, `_all`, `synth_engines_race2p12_nearest4` | at 64 voices, which drones' engines are on, every 30 retraces: none named at original; never more than 4 a player with nearest4 (8 in split screen), some on; all 11 (10) with all |
+
+Where they ran, on cc3a517:
+
+| Where | Result |
+|---|---|
+| ctest, build host, Debug | 311 tests; all pass but `hfr_paced_game60` (video pacing at the defaults: 190 of 1,798 vblanks lost to skipped ticks, the limit 10%), which ran while the build host's other jobs did and passed alone |
+| ctest, build host, RelWithDebInfo | 311 tests, all pass |
+| ASan + UBSan, Pi (GCC 12), the sound's 21 tests (the tests above, `audio_mix`, `audio_forms`, `synth_boot_race12`, the four `views_sound_*`) | all pass (before cc3a517 the game C's float-cast-overflow stopped `synth_voices_race12` and the two engines tests: SANITIZE.md 3, 21) |
+| ASan + UBSan, Pi, retail races of 12: track 0 at `96`, `all`, and in split screen at `64`, `nearest4` (`--fast`) | no ASan report; UBSan's one report each, `route_cross/group.c:164`'s `s16 [17]` at 17, which 6 cars give too ([MORECARS.md](MORECARS.md) 9) |
+| mingw-w64 cross build, Pi | builds; gen_data's check of the PE OK |
+| the IDO check, build host | 0 differ, 0 missing ([DECOUPLE.md](DECOUPLE.md) 9) |
+| `n64_neutral.py --base 09da2f0` | passes |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (`--check-loader`), `bounds_check`, build host | no open findings; bounds_check none new |
