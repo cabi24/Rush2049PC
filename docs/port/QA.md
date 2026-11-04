@@ -466,8 +466,19 @@ Reports from play on the user's own machine, open until reproduced or explained.
   up and put it back on the road three seconds later, as the N64 game does after a hard crash. The keyboard and a
   bound button always steer at full lock (`input.stick_range`), which at that speed turns the car into the barrier
   within a second.
+- **Compared** (2026-11-04, [WINDOWS.md](WINDOWS.md) 12): the Windows program against the Linux builds, on the
+  synthetic cartridge in CI's runs of 63640c8 (41824398187) and ea4b82f (41853308343). The cross-built program, as
+  the zip is built, gave the same trace as x86-64 and aarch64 Linux on all 59 synthetic paths (each state at the
+  same retrace, the first car in whole feet, its steering), the same 26 screenshots byte for byte, and in the 10
+  live-input runs, which print exact floats each second with the steering at full lock both ways, the same floats to
+  the bit. Nothing in the game's arithmetic compiles differently there: no x87 and no fused multiply-add in the game
+  code, and of the host's math library only `sqrtf` (correctly rounded on both) and `modff` (the window's field of
+  view). CI's `windows-same` job now compares every synthetic path to the bit on each run. So a Windows-only
+  difference in the physics doesn't explain the explosion; the hard crash that the Pi runs show at full lock is
+  the likelier reading.
 - **Not checked**: the x86-64 Windows build on the retail cartridge (the cartridge stays on the Pi, which has no
-  x86-64 emulator), and so whether that build's physics differs from aarch64's. The Windows jobs in CI run the
-  synthetic cartridge only, whose races don't steer into walls.
+  x86-64 emulator). The synthetic cartridge's car doesn't turn and has no wall, so the turn into the barrier runs
+  only on the retail one; and CI's Windows runs have Mesa's llvmpipe, not a GPU driver (whose effect on the
+  threads' floating-point state was not looked at).
 - **If it is seen again**: the log (`rush2049pc.log` next to the program), the settings file, keyboard or controller,
   the track, and whether a short tap of the steering on a straight, with nothing near, is enough.

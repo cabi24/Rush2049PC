@@ -206,7 +206,8 @@ the last state line (and that the first car's position isn't NaN), and keeps eac
 `ctest -j`, as CI runs it); the Linux jobs upload ctest's logs (until 2026-10-28 a CI step ran every path a second
 time to keep them). On Windows the native job's ctest runs them, and
 `windows-run` generates the cartridge from the cross build's data report and runs every path with the cross-built
-program ([WINDOWS.md](WINDOWS.md) 9).
+program ([WINDOWS.md](WINDOWS.md) 9). ctest and `windows-run` run them with `--exact` (exact floats and a status
+line each second), and `windows-same` compares the two programs' logs to the bit ([WINDOWS.md](WINDOWS.md) 12).
 
 | Path | What it does | Reaches | Time (Rocky) |
 |---|---|---|---|
@@ -227,6 +228,7 @@ program ([WINDOWS.md](WINDOWS.md) 9).
 | `cheats` | the main menu's cheat code, five down to its new option, the cheat screen (0x8000000); cheat 0's code and RIGHT switch it; B back (`# visits:` 0x8000000) | back on the main menu | 1.7 s (Pi) |
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 | `solo` | one player alone on track 0 (the track select's Drones option down to 0), the gas and full right steering held from before the race begins: a race nothing on the game thread steers, for `game.frame_rate`'s physics comparison ([FRAMERATE.md](FRAMERATE.md) 7, `fps_physics`) | 0x400000, 900 frames: 1 car | 1.6 s |
+| `steer` | the one-player race on track 0 with the gas held for 45 s and full lock left and right, from 0.2 s taps to 6 s locks, as a key steers: the player report of [QA.md](QA.md) "Player reports" 1 on this cartridge, for `windows-same`'s comparison ([WINDOWS.md](WINDOWS.md) 12). The car doesn't turn here (its steering input is in the trace) | 0x400000, 1350 frames: 1 player, 6 cars | 2.4 s |
 | `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
 | `mem64`, `memhigh`, `memhigh2p`, `membig`, `membig8` | `game.memory` ([MEMORY.md](MEMORY.md) 6): drive at 64 MiB; drive and race2p at 64 with everything the game allocates above 17 MiB (`# env: RUSH2049_TEST_HEAP_FLOOR=17`); drive with the car files 3 MB larger at 64, and 1 MB larger at `original`, where LoadCars falls back. `# check:` runs `tools/port/heap_check.py` on the exit line's `heap:`, and ctest compares their screenshots with drive's and race2p's byte for byte | as drive, race2p | 0.5 s |
 | `profile` | the player screen's create item and name entry (S, Y, N, END): CreatePlayer writes the profile note `SYNTH049SYN.D` on a fresh pak; `# check:` runs `tools/port/pak_notes.py` (one note, that one), then `tools/port/synth_again.py` with `again/profile2` (the next start: SaveServer lists SYN, the player picks it, LoadPlayerData reads it, a race with the fog option changed: the note changed in place) and `again/delete2` (the player screen's delete: the pak empty) | 0x40, 60 frames | 0.5 s |
