@@ -209,6 +209,7 @@ static void _SendCmd(tAudioMsg *cmd)
 }
 #else
 static void _SendCmd(tAudioMsg *cmd) { osSendMesg(&D_801427A8, cmd, 0); }
+#define PC_ONLY(stmt)
 #endif
 
 static void _ProcessPriorities(void)
@@ -216,7 +217,7 @@ static void _ProcessPriorities(void)
     tFxSequence *tag, *next;
     int i;
     osRecvMesg(&D_80142728, 0, 1);
-    ClearBST(&gSortedFxTagTree);
+    ClearBST(&gSortedFxTagTree); PC_ONLY(pc_snd_walk_begin();)
     gNumStopCmds = 0;
     gNumStartCmds = 0;
     for (tag = gPlayingFxTags.head; tag; tag = next) {

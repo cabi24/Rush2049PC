@@ -62,6 +62,8 @@ static void usage(FILE *f)
             "                      it is from where the race began (tests of races of more cars)\n"
             "  --log-physics N     every N retraces, the model thread's clock and each car's position and velocity\n"
             "                      (exact with RUSH_STATE_EXACT): game.frame_rate's comparison, fps_compare.py\n"
+            "  --log-voices N      every N retraces and at the end, the sound's voices, starts refused and pools\n"
+            "                      (audio.voices, audio.engines: docs/port/AUDIO.md 10)\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
             "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
@@ -283,6 +285,89 @@ static void physics_info(char *out, size_t size)
                         (double)r[2], (double)v[0], (double)v[1], (double)v[2],
                         *(volatile signed char *)&pc_models[i].lap, *(volatile signed char *)&pc_cars[i].place);
     }
+}
+
+/* --log-voices N (docs/port/AUDIO.md 10): every N retraces, read as the state log is, a line of the sound's voices
+ * since the line before: the mixer's subframes and the voices each mixed (port/audio), the starts MusyX refused and
+ * the voices it took from a playing sound, the effects the sound manager started that MusyX didn't, the tags its
+ * priority passes held back for their budget (a pass), the positional starts that found no emitter and the commands
+ * that found no message (PC_SND_*, the game's sound code); the emitters and fx tags in use now, the message pool's
+ * high-water mark, and which drones' engines played (audio.engines). At the end, the same over the whole run, with the
+ * mixer's spread. Off by default, and only these lines: the traces are the same with it. */
+typedef struct { unsigned char f[4]; uint32_t count; void *head, *tail; } SndList;
+extern SndList D_801461E8, D_80143FF8;   /* the active emitters; the free fx tags */
+extern int32_t D_80110264, D_8011026C;   /* the fx tags made, the emitters made (hud_setup) */
+static uint32_t g_voices_every;
+static PcMixerStats g_voices_mix;
+static unsigned long long g_voices_count[PC_SND_COUNTERS];
+
+static int voices_line(char *out, size_t size, const PcMixerStats *m, const PcMixerStats *m0,
+                       const unsigned long long *c, const unsigned long long *c0)
+{
+    unsigned long long d[PC_SND_COUNTERS];
+    unsigned long long sub = m->subframes - m0->subframes;
+    for (int i = 0; i < PC_SND_COUNTERS; i++)
+        d[i] = c[i] - c0[i];
+    return snprintf(out, size, "mixed %.2f voices a subframe of %u (%llu subframes); musyx refused %llu, stole %llu; "
+                    "effects refused %llu; over budget %.2f a pass (%llu passes); no emitter %llu, no message %llu; "
+                    "emitters %u of %d, fx tags %d of %d", sub ? (double)(m->voices - m0->voices) / (double)sub : 0.0,
+                    m->slots, sub, d[PC_SND_MX_REFUSED], d[PC_SND_MX_STOLEN], d[PC_SND_FX_REFUSED],
+                    d[PC_SND_PASSES] ? (double)d[PC_SND_OVER_BUDGET] / (double)d[PC_SND_PASSES] : 0.0,
+                    d[PC_SND_PASSES], d[PC_SND_NO_EMITTER], d[PC_SND_NO_MESSAGE],
+                    (unsigned)*(volatile uint32_t *)&D_801461E8.count, (int)*(volatile int32_t *)&D_8011026C,
+                    (int)*(volatile int32_t *)&D_80110264 - (int)*(volatile uint32_t *)&D_80143FF8.count,
+                    (int)*(volatile int32_t *)&D_80110264);
+}
+
+static void voices_info(char *out, size_t size)
+{
+    PcMixerStats m;
+    unsigned long long c[PC_SND_COUNTERS];
+    int msg_most;
+    pc_audio_mixer_stats(&m);
+    pc_snd_counters(c, &msg_most);
+    int len = voices_line(out, size, &m, &g_voices_mix, c, g_voices_count);
+    unsigned on = pc_engines_on();
+    if (len > 0 && (size_t)len < size)
+        len += snprintf(out + len, size - (size_t)len, "; messages most %d; engines on", msg_most);
+    for (int i = 0; i < PC_MAX_LINKS && len > 0 && (size_t)len < size; i++)
+        if (on >> i & 1)
+            len += snprintf(out + len, size - (size_t)len, " %d", i);
+    if (len > 0 && (size_t)len < size && !on)
+        snprintf(out + len, size - (size_t)len, " %s", pc_engines() == PC_ENGINES_ORIGINAL ? "(original: all the game's)"
+                 : "none");
+    g_voices_mix = m;
+    memcpy(g_voices_count, c, sizeof c);
+}
+
+static void voices_end(char *out, size_t size)
+{
+    PcMixerStats m, zero;
+    unsigned long long c[PC_SND_COUNTERS], c0[PC_SND_COUNTERS] = {0};
+    int msg_most, len;
+    memset(&zero, 0, sizeof zero);
+    pc_audio_mixer_stats(&m);
+    pc_snd_counters(c, &msg_most);
+    len = snprintf(out, size, "voices at the end: ");
+    len += voices_line(out + len, size - (size_t)len, &m, &zero, c, c0);
+    len += snprintf(out + len, size - (size_t)len, "; messages most %d; most voices a subframe %u; subframes by "
+                    "voices", msg_most, m.voices_most);
+    for (unsigned v = 0; v < sizeof m.voices_hist / sizeof *m.voices_hist && len > 0 && (size_t)len < size; v++)
+        if (m.voices_hist[v])
+            len += snprintf(out + len, size - (size_t)len, " %u:%llu", v, (unsigned long long)m.voices_hist[v]);
+}
+
+static void (*g_end_cars)(char *, size_t);
+static void ends_info(char *out, size_t size)   /* --log-cars and --log-voices together: two lines */
+{
+    int len = 0;
+    if (g_end_cars) {
+        g_end_cars(out, size);
+        len = (int)strlen(out);
+        len += snprintf(out + len, size - (size_t)len, "\nrush2049pc: ");
+    }
+    if (g_voices_every && len >= 0 && (size_t)len < size)
+        voices_end(out + len, size - (size_t)len);
 }
 
 static void game_info(char *out, size_t size)
@@ -514,6 +599,12 @@ static int rush_main(int argc, char **argv)
             run.end_info = cars_info, g_log_cars = 1;
         else if (!strcmp(a, "--log-physics"))
             run.physics_every = (uint32_t)atoi(ARG()), run.physics_info = physics_info;
+        else if (!strcmp(a, "--log-voices")) {
+            g_voices_every = (uint32_t)atoi(ARG());
+            if (!g_voices_every)
+                g_voices_every = 60;
+            run.voices_every = g_voices_every, run.voices_info = voices_info;
+        }
         else if (!strcmp(a, "--press-via")) {
             if (pc_input_set_via(ARG()) != 0)
                 return 2;
@@ -630,6 +721,14 @@ static int rush_main(int argc, char **argv)
         fprintf(stderr, "rush2049pc: %d MiB of memory (game.memory)\n", cfg.memory);
     }
     pc_race_cars_set(cfg.cars);   /* [game] cars: the game latches it at each race's start (race_cars.c) */
+    /* [audio] voices, before the game threads set MusyX up; [audio] engines (voices.c, docs/port/AUDIO.md 10) */
+    pc_voices_set(pc_settings_voices(&cfg));
+    pc_engines_set(pc_settings_engines(&cfg));
+    if (cfg.voices || cfg.engines) {
+        char engines[16];
+        pc_settings_get(&cfg, "audio", "engines", engines, sizeof engines);
+        fprintf(stderr, "rush2049pc: %d voices (audio.voices), engines %s (audio.engines)\n", pc_mx_voices(), engines);
+    }
     if (cfg.cars)
         fprintf(stderr, "rush2049pc: up to %d cars a race (game.cars)\n", pc_cars_setting());
     pc_game_fps_set(cfg.game_fps);   /* [game] frame_rate: the game latches it at each change of state (game_fps.c) */
@@ -803,6 +902,10 @@ static int rush_main(int argc, char **argv)
     if (sigaction(SIGHUP, NULL, &hup) == 0 && hup.sa_handler != SIG_IGN)
         signal(SIGHUP, on_hangup);
 #endif
+    if (g_voices_every) {   /* --log-voices' end line, after --log-cars' if both */
+        g_end_cars = run.end_info;
+        run.end_info = ends_info;
+    }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
     pc_pools_report();   /* port/ultra/pools.c: the pools' high-water marks (docs/port/MORECARS.md 8) */

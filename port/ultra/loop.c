@@ -91,7 +91,7 @@ static void end_status(const char *tag)
 {
     status(tag);
     if (g_end_info) {
-        char line[1536];
+        char line[4096];   /* --log-cars and --log-voices: two lines */
         g_end_info(line, sizeof line);
         fprintf(stderr, "rush2049pc: %s\n", line);
     }
@@ -566,6 +566,11 @@ int pc_ultra_run(const PcRunOptions *opt)
             char line[2048];   /* --log-physics: the cars at this retrace, before its event (docs/port/FRAMERATE.md 7) */
             opt->physics_info(line, sizeof line);
             fprintf(stderr, "rush2049pc: physics vi=%u: %s\n", pc_frame, line);
+        }
+        if (vi_due && opt->voices_every && opt->voices_info && pc_frame % opt->voices_every == 0) {
+            char line[1024];   /* --log-voices: the sound's voices since the last line (docs/port/AUDIO.md 10) */
+            opt->voices_info(line, sizeof line);
+            fprintf(stderr, "rush2049pc: voices vi=%u: %s\n", pc_frame, line);
         }
         uint64_t timer = pc_timer_service(ticks);
         if (timer && timer > ticks && now + pc_ticks_to_ns(timer - ticks) < deadline)

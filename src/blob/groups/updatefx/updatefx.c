@@ -59,8 +59,12 @@ s32 func_80095198(f32 startTime, f32 interval);   /* AudioTimeout */
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */
 #define PC_CMD_OR_RETURN(c) if ((c) == 0) return;
+/* PC: [audio] engines = all keeps the drones' engines out of the budget, and the counters see what it holds back
+ * (port/config/voices.c, docs/port/AUDIO.md 10); at original it is the same comparison. */
+#define PC_OVER_BUDGET(tag, rank, budget) pc_snd_over_budget((tag)->id, rank, budget)
 #else
 #define PC_CMD_OR_RETURN(c)
+#define PC_OVER_BUDGET(tag, rank, budget) rank >= budget
 #endif
 void sound_position_update(void *element, int elNum)
 {
@@ -68,7 +72,7 @@ void sound_position_update(void *element, int elNum)
     AudioMsg *cmd;
     { s32 t = elNum == 2; if (stag->tag->state != 2) { if (t) {} if (t) {} } }
     if (stag->tag->state != 1) {
-        if (elNum >= D_80146200 * 0.75f ||
+        if (PC_OVER_BUDGET(stag->tag, elNum, D_80146200 * 0.75f) ||
             (stag->tag->loop && stag->tag->state == 2 && stag->tag->vol <= 0.0f &&
              func_80095198(stag->tag->startTime, 0.2f))) {
             if (stag->tag->state == 2) {

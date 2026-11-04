@@ -10,7 +10,13 @@ typedef struct VoiceState { u32 command00; u8 unknown04[12]; u32 next10; u8 unkn
 extern u8 D_8002C630;
 extern void func_80014594(void);
 extern void func_800145DC(void);
+#ifdef TARGET_PC
+/* On the PC the voices are PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9), seen here in this file's view. */
+#define D_8004BEB8 (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
+#else
 extern VoiceState D_8004BEB8[];
+#endif
 extern int func_8001EDF4(u32);
 extern void func_80020610(u8, u8, u8, u8);
 /* PROMOTED 2026-10-11 — func_8001FBB0

@@ -56,6 +56,35 @@ s32 osSendMesg(void *,void *,s32);
 void func_80091AF0(void);
 void func_80091AF8(void);
 
+#ifdef TARGET_PC
+/* PC: [audio] engines (port/config/voices.c, docs/port/AUDIO.md 10). Before the pass, each drone engine layer's
+ * distance to each listener goes to pc_engines_note (the voices module knows which emitters are the drones' engines),
+ * which then picks, per listener, the drones whose engines play; the pass sends each emitter's gain through
+ * pc_engine_gain, the chosen ones' as the game computed it, the others' faded to 0. At original nothing is gathered
+ * and every gain is the game's. */
+static void pc_engines_gather(void)
+{
+    Source *source;
+    Listener *listener;
+    f32 direction[3];
+    s32 i;
+    if (!pc_engines_choosing())
+        return;
+    for (source = D_801461F0; source; source = source->next) {
+        for (i = 0, listener = D_80146188.head; listener; listener = listener->next, i++) {
+            direction[0] = source->position[0] - listener->position[0];
+            direction[1] = source->position[1] - listener->position[1];
+            direction[2] = source->position[2] - listener->position[2];
+            pc_engines_note(source->handle, i, func_80098A54(direction));
+        }
+    }
+    pc_engines_choose(D_80146188.count);
+}
+#define PC_ENGINE_GAIN(source, gain) pc_engine_gain((source)->handle, gain)
+#else
+#define PC_ENGINE_GAIN(source, gain) gain
+#define PC_ONLY(stmt)
+#endif
 void func_80098ADC(f32 *d, f32 v)
 {
     *d = v<0.0f?0.0f:v>1.0f?1.0f:v;
@@ -73,7 +102,7 @@ void engine_sound_sync(void)
     s32 pad3;
     f32 panValues[5], depthValues[5], gains[5];
 
-    func_80091AF0();
+    func_80091AF0(); PC_ONLY(pc_engines_gather();)
     source=D_801461F0;
     while (source) {
         next=source->next;
@@ -126,7 +155,7 @@ void engine_sound_sync(void)
             }
             out[2]=totalPan < -1.0f ? -1.0f : totalPan>1.0f ? 1.0f : totalPan;
             out[1]=totalDepth < -1.0f ? -1.0f : totalDepth>1.0f ? 1.0f : totalDepth;
-            entity_transform_calc(source->handle,out[3],out[2],out[1],out[0]);
+            entity_transform_calc(source->handle,PC_ENGINE_GAIN(source, out[3]),out[2],out[1],out[0]);
         }
         source=next;
     }

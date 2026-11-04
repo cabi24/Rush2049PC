@@ -32,6 +32,7 @@ static unsigned int pc_audio_pool_calls;
     if(pc_audio_pool_fail_every>0&&++pc_audio_pool_calls%(unsigned int)pc_audio_pool_fail_every==0)return 0;
 #else
 #define PC_POOL_TEST_FAIL()
+#define PC_ONLY(stmt)
 #endif
 Slot18 *func_80091B00(void)
 {
@@ -40,8 +41,8 @@ Slot18 *func_80091B00(void)
         if (D_80142DD8[i].f3 == 0) {
             D_80142DD8[i].f3 = 1;
             D_80142DD8[i].f0 = -1;
-            return (Slot18 *) &D_80142DD8[i];
+            PC_ONLY(pc_snd_msg_taken(i);) return (Slot18 *) &D_80142DD8[i];
         }
     }
-    return 0;
+    PC_ONLY(pc_snd_count(PC_SND_NO_MESSAGE);) return 0;
 }

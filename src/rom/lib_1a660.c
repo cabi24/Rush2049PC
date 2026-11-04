@@ -103,7 +103,16 @@ void func_80019BE4(VoiceState *state)
  * unknown ranges; every offset and the 0x1A0 size are unchanged. */
 typedef struct VoiceState_80019C8C { u32 command00;u8 unknown04[12];u32 child,parent;u8 unknown18[12]; u32 flags;u32 age28;u8 unknown2C[2];u8 channel2E,unknown2F;u32 volume30;u8 unknown34[4];u32 panning38;u8 unknown3C[4];u32 words40[2];u8 status48,status49;u8 channel,set;u8 unknown4C[2]; u16 base_key,key;u8 unknown52[3];u8 channel55;u8 unknown56[10];u32 identifier; u8 unknown64[4];u16 loop68;u8 unknown6A[34];u32 glide;u8 unknown90[4];u32 pitch; u8 state98,depth99,flag9A;u8 unknown9B[34];u8 activeBD,groupBE,unknownBF;s8 cents;u8 original_key;u16 valueC2;u8 unknownC4[168];u32 word16C;u16 half170;u8 unknown172[6];u32 word178;u16 half17C;u8 unknown17E[34]; } VoiceState_80019C8C;
 #pragma pack(0)
+#ifdef TARGET_PC
+/* On the PC the voices are PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9), seen here in this file's view; PC_MX_LOOP(32) is the run's voices where the N64 sets up
+ * its 32 (docs/port/AUDIO.md 10). */
+#define D_8004BEB8 (*(VoiceState_80019C8C (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
+#define PC_MX_LOOP(n) PC_MX_SLOTS
+#else
 extern VoiceState_80019C8C D_8004BEB8[];
+#define PC_MX_LOOP(n) n
+#endif
 extern u8 D_8004FA18;
 extern u8 func_8001467C(u32);
 extern void func_8001EB10(VoiceState_80019C8C *);
@@ -347,7 +356,9 @@ typedef struct SynthVoice_8001A658 { void *addr00; u8 unknown04[0x20]; u32 cFlag
 #endif
 #pragma pack(0)
 typedef struct SynthFader_8001A658 { s32 volume; s32 target; s32 delta; s32 time; u32 seqId; u8 type; u8 seqMode; u8 unknown16[2]; s32 pauseVolume; s32 pauseTarget; s32 pauseDelta; s32 pauseTime; } SynthFader_8001A658;
+#ifndef TARGET_PC
 extern struct VoiceState_80019C8C D_8004BEB8[];
+#endif
 extern u8 D_8004F2B8[];
 extern u8 D_8004F2F8;
 extern u32 func_80019AD4(struct RampState *, u32);
@@ -1057,7 +1068,7 @@ void func_8001C1D8(u32 configuration)
     D_8004F804 = 10240;
     func_80019A60(120,255);
     D_8004F2F8 = 0;
-    for (i=0;i<32;i++) {
+    for (i=0;i<PC_MX_LOOP(32);i++) {
         D_8004BEB8[i].identifier = 0xFFFFFFFFU;
         D_8004BEB8[i].command00 = 0;
         D_8004BEB8[i].flags = 0;

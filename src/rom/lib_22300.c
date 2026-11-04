@@ -13,7 +13,17 @@
 #pragma pack(1)
 typedef struct VoiceState { u8 unknown00[36]; u32 flags24; u8 unknown28[34]; u8 channel4A; u8 set4B; u8 unknown4C[20]; u32 id60; u8 unknown64[268]; s16 lfo170; u8 unknown172[10]; s16 lfo17C; u8 unknown17E[34]; } VoiceState;
 #pragma pack(0)
+#ifdef TARGET_PC
+/* On the PC the library's per-voice storage is PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9), seen here in this file's views: the voices and an effect voice's legato owner.
+ * PC_MX_LOOP(32) is the run's voices where the N64 clears its 32 (docs/port/AUDIO.md 10). */
+#define D_8004BEB8 (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
+#define D_800561E0 (*(u8 (*)[PC_MX_VOICE_SLOTS])pc_mx_fx_legato)
+#define PC_MX_LOOP(n) PC_MX_SLOTS
+#else
 extern VoiceState D_8004BEB8[];
+#define PC_MX_LOOP(n) n
+#endif
 int func_80021700(u32 id)
 {
     VoiceState *voice;
@@ -36,7 +46,9 @@ int func_80021700(u32 id)
 #pragma pack(1)
 #pragma pack(0)
 extern u8 D_80056160[][16];
+#ifndef TARGET_PC
 extern u8 D_800561E0[];
+#endif
 struct MacroState;
 int func_80021764(struct MacroState *state)
 {
@@ -101,7 +113,9 @@ void func_80021844(VoiceState *voice)
  * Gate:     full-ROM SHA-1
  */
 extern u8 D_80056160[8][16];
+#ifndef TARGET_PC
 extern u8 D_800561E0[32];
+#endif
 void func_800218CC(void)
 {
     u32 row;
@@ -111,7 +125,7 @@ void func_800218CC(void)
             D_80056160[row][index] = 255;
         }
     }
-    for (index = 0; index < 32; index++) {
+    for (index = 0; index < PC_MX_LOOP(32); index++) {
         D_800561E0[index] = 255;
     }
 }

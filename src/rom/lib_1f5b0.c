@@ -20,7 +20,16 @@ typedef struct ChannelLink_8001EE9C { u8 previous, next; u16 active; } ChannelLi
 #pragma pack(1)
 #pragma pack(0)
 extern unsigned int D_80050A4C;
+#ifdef TARGET_PC
+/* On the PC the library's per-voice storage is PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
+ * docs/port/DECOUPLE.md 9): the sequence nodes, one a voice, seen here in this file's view; PC_MX_LOOP(32) is the
+ * run's voices where the N64 links its 32 (docs/port/AUDIO.md 10). */
+#define D_80050A50 (*(SequenceNode (*)[PC_MX_VOICE_SLOTS])pc_mx_nodes)
+#define PC_MX_LOOP(n) PC_MX_SLOTS
+#else
 extern SequenceNode D_80050A50[32];
+#define PC_MX_LOOP(n) n
+#endif
 extern SequenceNode *D_80050C50;
 extern SequenceNode *D_80050C54;
 void func_8001E9B0(void)
@@ -31,7 +40,7 @@ void func_8001E9B0(void)
     D_80050C50 = 0;
     D_80050C54 = D_80050A50;
     previous = 0;
-    for (i = 0; i < 32; i++) {
+    for (i = 0; i < PC_MX_LOOP(32); i++) {
         D_80050A50[i].previous = previous;
         if (previous != 0) previous->next = &D_80050A50[i];
         previous = &D_80050A50[i];
@@ -74,7 +83,11 @@ typedef struct VoiceState { u32 command00; u8 unknown04[12]; u32 next_identifier
 #define N64W(x) x
 #endif
 extern SequenceNode *D_80050C50;
+#ifdef TARGET_PC
+#define D_8004BEB8 (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)   /* the voices (pc_game_types.h) */
+#else
 extern VoiceState D_8004BEB8[];
+#endif
 SequenceNode *func_8001EAA0(u32 key)
 {
     SequenceNode *node;
@@ -202,7 +215,11 @@ int func_8001EDF4(u32 key)
  * Gate:     full-ROM SHA-1
  */
 extern u8 D_8004FA18;
+#ifdef TARGET_PC
+#define D_800504C8 (*(ChannelLink_8001EE9C (*)[PC_MX_VOICE_SLOTS])pc_mx_prio_links)   /* pc_game_types.h */
+#else
 extern ChannelLink_8001EE9C D_800504C8[32];
+#endif
 extern u8 D_80050548[256];
 extern u16 D_80050A48;
 void func_8001EE34(void)
@@ -227,7 +244,9 @@ void func_8001EE34(void)
 typedef struct VoicePrefix_8001EE9C { u8 unknown00[46]; u8 channel2E; u8 unknown2F[49]; u32 identifier60; } VoicePrefix_8001EE9C;
 #pragma pack(0)
 typedef struct GroupLink_8001EE9C { u16 next, previous; } GroupLink_8001EE9C;
+#ifndef TARGET_PC
 extern ChannelLink_8001EE9C D_800504C8[32];
+#endif
 extern u8 D_80050548[256];
 extern GroupLink_8001EE9C D_80050648[256];
 extern u16 D_80050A48;
@@ -307,7 +326,11 @@ void func_8001EF8C(VoiceState *state, u8 channel)
 }
 
 typedef struct ChannelLink { u8 previous; u8 next; u16 flags; } ChannelLink;
+#ifdef TARGET_PC
+#define D_80050440 (*(ChannelLink (*)[PC_MX_VOICE_SLOTS])pc_mx_free_links)   /* pc_game_types.h */
+#else
 extern ChannelLink D_80050440[32];
+#endif
 /* PROMOTED 2026-10-12 — func_8001F13C
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
  * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
@@ -387,7 +410,7 @@ int func_8001F13C(u8 priority, u8 maxVoices, u16 allocId, u8 fxFlag)
                     voice = D_800504C0;
                 } else {
                 if (priority < D_80050A48) {
-                    return -1;
+                    PC_ONLY(pc_snd_count(PC_SND_MX_REFUSED);) return -1;
                 }
                 p = D_80050A48;
                 while (p != 0xFFFF && priority >= p && voice == -1) {
@@ -403,7 +426,7 @@ int func_8001F13C(u8 priority, u8 maxVoices, u16 allocId, u8 fxFlag)
                     p = D_80050648[p].next;
                 }
                 if (voice == -1) {
-                    return -1;
+                    PC_ONLY(pc_snd_count(PC_SND_MX_REFUSED);) return -1;
                 }
                 }
                 if (D_8004BEB8[voice].channel2E > priority) {
@@ -431,9 +454,9 @@ int func_8001F13C(u8 priority, u8 maxVoices, u16 allocId, u8 fxFlag)
             }
             sfv->flags = 0;
         } else if (D_8004BEB8[voice].external4C) {
-            D_800504C2--;
+            D_800504C2--; PC_ONLY(pc_snd_count(PC_SND_MX_STOLEN);)
         } else {
-            D_800504C3--;
+            D_800504C3--; PC_ONLY(pc_snd_count(PC_SND_MX_STOLEN);)
         }
         if (fxFlag) {
             ++D_800504C2;
@@ -443,7 +466,7 @@ int func_8001F13C(u8 priority, u8 maxVoices, u16 allocId, u8 fxFlag)
         return voice;
     }
 _fail:
-    return -1;
+    PC_ONLY(pc_snd_count(PC_SND_MX_REFUSED);) return -1;
 }
 
 /* PROMOTED 2026-10-11 — func_8001F6EC

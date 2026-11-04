@@ -257,15 +257,22 @@ extern unsigned short *D_800382D8[2];
 extern unsigned short D_800382E0[2];
 extern void *D_800382E4;
 #ifdef TARGET_PC
-static unsigned int pc_sfd_size(void);   /* sizeof(Block_80012D18): 2576 bytes on the N64 */
+static unsigned int pc_sfd_size(void);   /* sizeof(Block_80012D18) with 32 voices: 2576 bytes on the N64 */
 #define SFD_SIZE pc_sfd_size()
+/* PC: with more voices than 32 ([audio] voices, docs/port/AUDIO.md 10) an SFD holds a voice record a voice slot and the
+ * state block their last outputs (MX_STATE_SIZE_N): pc_sfd_layout gives the interpreter the slots as the voices are
+ * set up; 32 records and 664 bytes otherwise, the N64's. */
+static void pc_sfd_layout(unsigned short count);
+static unsigned int pc_sfd_state_size(void);
+#define PC_MX_STATE(n) pc_sfd_state_size()
 #else
 #define SFD_SIZE 2576U
+#define PC_MX_STATE(n) n
 #endif
 void func_80011104(unsigned short count, unsigned int frequency)
 {
     unsigned short i;
-    D_8003829C = count;
+    D_8003829C = count; PC_ONLY(pc_sfd_layout(count);)
     D_80038298 = D_80038018(D_8003829C * sizeof(AudioState), 0);
     D_80038294 = D_80038298;
     D_8003829E = 0;
@@ -283,9 +290,9 @@ void func_80011104(unsigned short count, unsigned int frequency)
     D_800382D8[1] = D_80038018(D_800382CE * SFD_SIZE, 0);
     D_800382E0[1] = 0;
     D_800382E0[0] = 0;
-    D_800382E4 = D_80038018(664, 0);
-    bzero(D_800382E4, 664);
-    osWritebackDCache(D_800382E4, 664);
+    D_800382E4 = D_80038018(PC_MX_STATE(664), 0);
+    bzero(D_800382E4, PC_MX_STATE(664));
+    osWritebackDCache(D_800382E4, PC_MX_STATE(664));
 }
 
 /* PROMOTED 2026-10-04 — func_8001144C
@@ -978,9 +985,37 @@ typedef struct Command_80012D18 { int volume[4]; int delta[4]; unsigned short fr
 #else
 typedef struct Command_80012D18 { int volume[4]; int delta[4]; unsigned short fraction; unsigned short rate; Fetch_80012730 main; Fetch_80012730 loop; unsigned char main_blocks, loop_blocks, main_offset, loop_offset; union { void *book; struct { short main_count, loop_count; } pcm; } u; unsigned int unknown44; short end48, end4A, position4C, start4E; } Command_80012D18;
 #endif
-typedef struct Block_80012D18 { unsigned short count; unsigned short sample; unsigned int changed; void *work; void *loop; Command_80012D18 commands[32]; } Block_80012D18;
 #ifdef TARGET_PC
-static unsigned int pc_sfd_size(void) { return sizeof(Block_80012D18); }
+/* PC: the view's commands[] holds the most voices the PC gives (PC_MX_VOICE_SLOTS); an SFD holds pc_sfd_slots of them,
+ * then its release mask's words for slots 32 and up, so the SFDs of a task step by pc_sfd_size() (PC_SFD), not by the
+ * view's size (docs/port/AUDIO.md 10). At 32 slots it is the N64's SFD, sizeof(Block_80012D18) with 32 commands. */
+#define PC_SFD_COMMANDS PC_MX_VOICE_SLOTS
+#define PC_SFD(T, base, i) (*(T *)((unsigned char *)(base) + (__SIZE_TYPE__)(i) * pc_sfd_size()))
+#else
+#define PC_SFD_COMMANDS 32
+#define PC_SFD(T, base, i) ((T *)base)[i]
+#endif
+typedef struct Block_80012D18 { unsigned short count; unsigned short sample; unsigned int changed; void *work; void *loop; Command_80012D18 commands[PC_SFD_COMMANDS]; } Block_80012D18;
+#ifdef TARGET_PC
+extern void pc_audio_set_sfd_voices(unsigned n);
+extern __SIZE_TYPE__ pc_audio_sfd_size(unsigned n, int form);
+extern void pc_log(const char *fmt, ...);
+static unsigned pc_sfd_slots = 32;
+static unsigned int pc_sfd_words(void) { return pc_sfd_slots > 32 ? (pc_sfd_slots - 32 + 31) / 32 : 0; }
+static unsigned int pc_sfd_size(void)
+{
+    return (unsigned int)((__builtin_offsetof(Block_80012D18, commands) + pc_sfd_slots * sizeof(Command_80012D18) +
+                           4 * pc_sfd_words() + 7) & ~7u);
+}
+static unsigned int pc_sfd_state_size(void) { return 664 + (pc_sfd_slots - 32) * 8; }
+static void pc_sfd_layout(unsigned short count)
+{
+    pc_sfd_slots = count < 32 ? 32 : count;
+    pc_audio_set_sfd_voices(pc_sfd_slots);
+    if (pc_audio_sfd_size(pc_sfd_slots, 0) != pc_sfd_size())
+        pc_log("audio: the game's SFD of %u voices is %u bytes, the interpreter's %u", pc_sfd_slots, pc_sfd_size(),
+               (unsigned)pc_audio_sfd_size(pc_sfd_slots, 0));
+}
 #endif
 extern double func_8001E688(double value);
 extern void func_80011A64(AudioState *audio, unsigned short samples, unsigned char *active);
@@ -1005,7 +1040,7 @@ void func_80012D18(AudioState *audio, unsigned short samples, unsigned char inde
     unsigned short loopRem;
     unsigned short probe;
 
-    cmd = &((Block_80012D18 *)D_800382D0)[*D_800382D4].commands[((Block_80012D18 *)D_800382D0)[*D_800382D4].count];
+    cmd = &PC_SFD(Block_80012D18, D_800382D0, *D_800382D4).commands[PC_SFD(Block_80012D18, D_800382D0, *D_800382D4).count];
     D_80038030 += 0x50;
     D_80038034 = func_8002C5E0(D_80038034, D_80038030);
     frames = (unsigned int)(V->rate * 192 + 0xFFF) >> 12;
@@ -1178,7 +1213,7 @@ void func_80012D18(AudioState *audio, unsigned short samples, unsigned char inde
     cmd->fraction = (V->position - func_8001E688(V->position)) * 65536.0;
     cmd->position4C = (unsigned short)(padded[0] * (V->rate * 16)) + cmd->fraction;
     cmd->unknown44 = 0;
-    ((Block_80012D18 *)D_800382D0)[*D_800382D4].count++;
+    PC_SFD(Block_80012D18, D_800382D0, *D_800382D4).count++;
     func_80011D74(audio, 192);
     V->active = state;
 }
@@ -1223,9 +1258,33 @@ typedef union AudioCommand {
 typedef struct AudioLoop { unsigned int unknown00; unsigned int length; } AudioLoop;
 typedef struct AudioCommand { unsigned char unknown00[44]; unsigned short status; unsigned char unknown2E[22]; void *output; unsigned char unknown48[8]; } AudioCommand;
 #endif
-typedef struct AudioBlock { unsigned short count; unsigned short sample; unsigned int changed; void *work; AudioLoop *loop; AudioCommand commands[32]; } AudioBlock;
+typedef struct AudioBlock { unsigned short count; unsigned short sample; unsigned int changed; void *work; AudioLoop *loop; AudioCommand commands[PC_SFD_COMMANDS]; } AudioBlock;
 #ifdef TARGET_PC
 typedef char pc_audio_block_check[sizeof(AudioBlock) == sizeof(Block_80012D18) ? 1 : -1];
+/* PC: a stopped voice's slot is its bit in the release mask: slots 0-31 in the header's word, as on the N64 (whose
+ * shift takes the slot's low five bits, so a voice that never had a slot, 255, is bit 31), the others in the words
+ * after the SFD's last voice record, which pc_sfd_mask_out writes with the header's (docs/port/AUDIO.md 10). */
+static unsigned int pc_mask_ext[8];
+static void pc_release(unsigned int *mask, unsigned char slot)
+{
+    if (slot < 32 || slot >= pc_sfd_slots)
+        *mask |= 1U << (slot & 31);
+    else
+        pc_mask_ext[(slot - 32) / 32] |= 1U << (slot & 31);
+}
+static void pc_sfd_mask_out(AudioBlock *block)
+{
+    unsigned int *words = (unsigned int *)((unsigned char *)block + __builtin_offsetof(AudioBlock, commands) +
+                                           pc_sfd_slots * sizeof(AudioCommand));
+    unsigned int k;
+    for (k = 0; k < pc_sfd_words(); k++) {
+        words[k] = pc_mask_ext[k];
+        pc_mask_ext[k] = 0;
+    }
+}
+#define PC_RELEASE(mask, slot) pc_release(&(mask), (slot))
+#else
+#define PC_RELEASE(mask, slot) mask |= 1U << slot
 #endif
 extern unsigned short D_8003829C;
 extern unsigned short D_800382CE;
@@ -1241,24 +1300,24 @@ void func_800139D4(void *output, unsigned short samples)
     for (i = 0; i < D_8003829C; i++) {
         if (D_80038294[i].release_pending != 0) {
             D_80038294[i].release_pending = 0;
-            changed |= 1U << D_80038294[i].unknown60;
+            PC_RELEASE(changed, D_80038294[i].unknown60);
         }
         if (D_80038294[i].active != 0) {
             func_80012D18(&D_80038294[i], samples, active);
             active++;
         }
     }
-    if (((AudioBlock *)D_800382D0)[*D_800382D4].count == 0) {
-        ((AudioBlock *)D_800382D0)[*D_800382D4].commands[0].status = 0;
-        ((AudioBlock *)D_800382D0)[*D_800382D4].commands[0].output = output;
+    if (PC_SFD(AudioBlock, D_800382D0, *D_800382D4).count == 0) {
+        PC_SFD(AudioBlock, D_800382D0, *D_800382D4).commands[0].status = 0;
+        PC_SFD(AudioBlock, D_800382D0, *D_800382D4).commands[0].output = output;
     } else {
-        ((AudioBlock *)D_800382D0)[*D_800382D4].commands[((AudioBlock *)D_800382D0)[*D_800382D4].count - 1].output = output;
+        PC_SFD(AudioBlock, D_800382D0, *D_800382D4).commands[PC_SFD(AudioBlock, D_800382D0, *D_800382D4).count - 1].output = output;
     }
-    ((AudioBlock *)D_800382D0)[*D_800382D4].work = D_800382E4;
-    ((AudioBlock *)D_800382D0)[*D_800382D4].changed = changed;
-    ((AudioBlock *)D_800382D0)[*D_800382D4].loop = D_800382E8;
-    if (((AudioBlock *)D_800382D0)[*D_800382D4].loop != 0) {
-        ((AudioBlock *)D_800382D0)[*D_800382D4].sample = D_800382EC / 192;
+    PC_SFD(AudioBlock, D_800382D0, *D_800382D4).work = D_800382E4;
+    PC_SFD(AudioBlock, D_800382D0, *D_800382D4).changed = changed; PC_ONLY(pc_sfd_mask_out(&PC_SFD(AudioBlock, D_800382D0, *D_800382D4));)
+    PC_SFD(AudioBlock, D_800382D0, *D_800382D4).loop = D_800382E8;
+    if (PC_SFD(AudioBlock, D_800382D0, *D_800382D4).loop != 0) {
+        PC_SFD(AudioBlock, D_800382D0, *D_800382D4).sample = D_800382EC / 192;
         D_800382EC += 192;
         if (D_800382EC == ((AudioLoop *)D_800382E8)->length) {
             D_800382EC = 0;
@@ -1266,9 +1325,9 @@ void func_800139D4(void *output, unsigned short samples)
     }
     (*D_800382D4)++;
     if (*D_800382D4 < D_800382CE) {
-        D_80038034 = (unsigned int)((AudioBlock *)D_800382D0)[*D_800382D4].commands & ~15U;
-        D_80038030 = (unsigned int)((AudioBlock *)D_800382D0)[*D_800382D4].commands;
-        ((AudioBlock *)D_800382D0)[*D_800382D4].count = 0;
+        D_80038034 = (unsigned int)PC_SFD(AudioBlock, D_800382D0, *D_800382D4).commands & ~15U;
+        D_80038030 = (unsigned int)PC_SFD(AudioBlock, D_800382D0, *D_800382D4).commands;
+        PC_SFD(AudioBlock, D_800382D0, *D_800382D4).count = 0;
     }
 }
 
@@ -1474,13 +1533,18 @@ extern void func_80011104(unsigned short, unsigned int);
 extern void func_800114C0(unsigned short, unsigned int, unsigned char);
 extern void func_80010DD8(unsigned int, unsigned short);
 extern void func_800140F8(void);
+#ifdef TARGET_PC
+#define PC_MX_CAP(n) PC_MX_VOICE_SLOTS   /* the most voices the PC gives (pc_game_types.h, docs/port/AUDIO.md 10) */
+#else
+#define PC_MX_CAP(n) n
+#endif
 void func_80014198(unsigned int *frequency, unsigned short count,
                    unsigned short size, unsigned char mode)
 {
     unsigned char i;
     float frame_samples;
-    if (count > 32) {
-        count = 32;
+    if (count > PC_MX_CAP(32)) {
+        count = PC_MX_CAP(32);
     }
     D_800382CD = 0;
     func_80011104(count, *frequency);

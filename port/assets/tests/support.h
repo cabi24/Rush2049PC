@@ -11,6 +11,9 @@
 
 size_t test_be_range_count(void);   /* ranges registered with pc_mem_register_be */
 void test_be_reset(void);
+extern int test_mx_voices;          /* [audio] voices: pc_mx_voices() (32) */
+extern unsigned long long test_snd_count[];   /* pc_snd_count's, by PC_SND_* */
+extern int test_snd_msg_most;       /* pc_snd_msg_taken's high-water mark */
 extern int test_race_cars;          /* the setting and the race's count: pc_cars_setting(), pc_race_cars() (6) */
 extern int test_race_begins;        /* how many times the game C called pc_race_cars_begin() */
 /* pc_pool_overflow (pc_game_types.h) calls this when a test sets it; otherwise a pool past its end fails the test. */

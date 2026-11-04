@@ -3718,6 +3718,7 @@ s32 func_80020174(u16, M2C_UNK, M2C_UNK);           /* extern */
 #else
 #define SFX_ENTRY_ITEM 0xE
 #define N64_F2U(x) (u32)(x)
+#define PC_ONLY(stmt)
 #endif
 
 
@@ -3727,7 +3728,7 @@ void camera_transform(void);
 
 s32 MP_TargetSteerPos(void *ipa_s0, f32 ipa_f20, f32 ipa_f22) {
     if ((M2C_FIELD(ipa_s0, s32 *, 0x10) = func_80020174(M2C_FIELD(ipa_s0, u16 *, SFX_ENTRY_ITEM), 0xFF, 0xFF)) == -1) {
-        return 0;
+        PC_ONLY(pc_snd_count(PC_SND_FX_REFUSED);) return 0;
     }
     func_8001fea4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U(ipa_f20 * 127.0f));
     func_8001fff4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U((ipa_f22 + 1.0f) * 0.5f * 127.0f));

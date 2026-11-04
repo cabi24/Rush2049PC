@@ -181,6 +181,12 @@ static const char *const draw_choices[] = {"original", "far", "max", NULL};    /
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
 static const char *const game_fps_choices[] = {"original", NULL};      /* 0: a frame every two retraces at most */
+/* [audio] voices and engines (docs/port/AUDIO.md 10): the values their choices stand for */
+static const char *const voices_choices[] = {"original", "48", "64", "96", NULL};
+static const int voices_values[] = {32, 48, 64, 96};
+static const char *const engines_choices[] = {"original", "nearest2", "nearest3", "nearest4", "nearest6", "nearest8",
+                                              "all", NULL};
+static const int engines_values[] = {0, 2, 3, 4, 6, 8, -1};
 
 #define F(field) offsetof(PcSettings, field), sizeof(((PcSettings *)0)->field)
 static const Item items[] = {
@@ -290,6 +296,16 @@ static const Item items[] = {
     {"audio", "latency", T_INT, F(audio_latency), 0, 200, NULL, "0",
      "The least sound kept ready for the device, in ms (0-200). 0 sizes it from the device, and it grows after each "
      "underrun (the log's audio lines); a larger value trades delay for fewer dropouts."},
+    /* audio.voices, audio.engines (port/config/voices.c, docs/port/AUDIO.md 10) */
+    {"audio", "voices", T_ENUM, F(voices), 0, 0, voices_choices, "original",
+     "The sound library's voices: original (the N64's 32: 16 for the effects, 16 for the music) or 48, 64 or 96 (the "
+     "music keeps 16, the effects get the rest, and the sound manager plays three quarters of those at once, with "
+     "128 positional sources instead of 64), so more cars' engines and effects are heard in a race of up to 12. The "
+     "mixer does more work for each voice that plays. Applies at the next start."},
+    {"audio", "engines", T_ENUM, F(engines), 0, 0, engines_choices, "original",
+     "Which drones' engines play: original (the game's: the loudest its budget holds), nearest2 to nearest8 (the N "
+     "nearest drones to each player's view, fading in and out; the others' are silent) or all (every drone in "
+     "earshot, outside the budget the effects keep; with 12 cars it needs voices = 64 or more). Applies at once."},
 
     {"input", "keyboard_player", T_INT, F(keyboard_player), 0, 4, NULL, "1", "The keyboard's player, 1-4; 0 for none."},
     {"input", "first_controller_player", T_INT, F(first_controller_player), 1, 4, NULL, "1",
@@ -540,6 +556,18 @@ static int set_binding(char (*table)[PC_CFG_BIND], int index, const char *v, cha
     }
     snprintf(table[index], PC_CFG_BIND, "%s", v);
     return 0;
+}
+
+int pc_settings_voices(const PcSettings *s)
+{
+    int i = s->voices;
+    return i >= 0 && i < (int)(sizeof voices_values / sizeof *voices_values) ? voices_values[i] : 32;
+}
+
+int pc_settings_engines(const PcSettings *s)
+{
+    int i = s->engines;
+    return i >= 0 && i < (int)(sizeof engines_values / sizeof *engines_values) ? engines_values[i] : 0;
 }
 
 void pc_settings_defaults(PcSettings *s)

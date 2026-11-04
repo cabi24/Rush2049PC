@@ -120,12 +120,21 @@ void sound_list_init(List *list, s8 indirect, s8 doubly) {
     func_800A370C(list);
 }
 
+#ifndef TARGET_PC
+#define PC_ONLY(stmt)
+#endif
+#ifdef TARGET_PC
+/* PC: [audio] voices (docs/port/AUDIO.md 10) gives the Expansion Pak's set-up (32 voices: 16 for the effects, 64
+ * positional emitters) more voices, the effects all but the songs' 16, and 128 emitters: pc_snd_setup, before
+ * anything reads the arguments. The effects' share (arg1) is also the sound manager's gMaxSfx (D_80146200: its
+ * budget is 3/4 of it), the fx tags' count and AudioSfxInit's entries; at original nothing changes. */
+#endif
 void hud_setup(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6, s32 arg7) {
     static s8 D_80110274 = 0;
     s32 i;
     s32 reinit;
 
-    reinit = 0;
+    reinit = 0; PC_ONLY(pc_snd_setup(&arg0, &arg1, &numB);)
     if (D_8011023C) {
         reinit = 1;
         if (D_80146200 == arg1 && D_80149410 == arg2) {

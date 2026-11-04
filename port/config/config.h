@@ -89,6 +89,10 @@ typedef struct PcSettings {
     char audio[16];                 /* auto, sdl, alsa, null, wav (RUSH2049_AUDIO) */
     int volume;                     /* master volume, 0-100 */
     int audio_latency;              /* ms of sound the output keeps queued at least; 0: from the device */
+    /* [audio] voices and engines (docs/port/AUDIO.md 10): indices into their choices; pc_settings_voices and
+     * pc_settings_engines give the values */
+    int voices;                     /* original (32), 48, 64, 96: MusyX's voices */
+    int engines;                    /* original, nearest2 ... nearest8, all: which drones' engines play */
     /* [input] */
     int keyboard_player;            /* 1-4, 0: no keyboard */
     int first_controller_player;    /* controllers fill players from here, in the order they are plugged in */
@@ -133,6 +137,19 @@ void pc_scene_report(uint32_t tasks, uint64_t triangles, uint32_t most);
  * pc_game_fps.h). pc_game_fps_setting is the setting itself, unlatched. */
 void pc_game_fps_set(int fps);
 int pc_game_fps_setting(void);
+
+/* [audio] voices and [audio] engines at run time (voices.c, docs/port/AUDIO.md 10). main sets the voices at start,
+ * before the game threads run (32 for original; 48, 64, 96), and never again: MusyX is set up once a run. The engines
+ * (PC_ENGINES_*, pc_game_types.h: 0 original, -1 all, N the nearest N) apply from the sound manager's next retrace;
+ * the overlay sets them when they change. pc_snd_counters: the counters the game's sound code fills (PC_SND_*) and
+ * the message pool's high-water mark; pc_engines_on: the drones whose engines played at the last pass, a bit a car
+ * (0 at original). */
+void pc_voices_set(int voices);
+int pc_settings_voices(const PcSettings *s);    /* 32, 48, 64 or 96 */
+int pc_settings_engines(const PcSettings *s);   /* PC_ENGINES_*: 0 original, -1 all, else N */
+void pc_engines_set(int mode);
+void pc_snd_counters(unsigned long long out[], int *msg_most);
+unsigned pc_engines_on(void);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);

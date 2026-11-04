@@ -90,6 +90,7 @@ extern List D_801461B0;
 #define PC_TAG_OR_UNLOCK_CAM(o,c) if(D_80143FF8.head==0){(o)->p3=0; \
     func_80091FBC(&D_801461B0,(Link*)(c),D_801461B0.head);osSendMesg(&D_80142728,0,0);return -1;}
 #else
+#define PC_ONLY(stmt)
 #define PC_OBJ_OR_UNLOCK(o)
 #define PC_OBJ_OR_UNLOCK_CAM(o,c)
 #define PC_OBJ_SEND(q,o) osSendMesg(q,o,0)
@@ -148,7 +149,7 @@ s32 camera_target_track(f32 *pos,CTT_A1 a1,f32 volume,f32 a3,f32 x,f32 y,u32 ind
  if(D_80110260==0)return -1;
  osRecvMesg(&D_80142728,0,1);
  cam=func_800AED20();
- if(cam==0){osSendMesg(&D_80142728,0,0);return -1;}
+ if(cam==0){PC_ONLY(pc_snd_count(PC_SND_NO_EMITTER);)osSendMesg(&D_80142728,0,0);return -1;}
  cam->pos[0]=pos[0];
  cam->pos[1]=pos[1];
  cam->pos[2]=pos[2];
