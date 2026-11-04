@@ -982,6 +982,35 @@ void pcgfx_gl_draw(const GfxDrawState *st, const GfxOutVtx *v, int n) {
     G.verts += (uint64_t)n;
 }
 
+/* A draw state's uniform values reach GL only through the shader's locations, and GL gives a uniform the shader
+ * doesn't use none (-1): so two states that differ only there draw alike, and the vertices of both go out in one
+ * draw with the later one's values (triangles in one draw are drawn in their order, as two draws' are). The game
+ * sets a colour the shader doesn't read between models often (2026-11-04: GFX.md "Performance"). */
+int pcgfx_gl_same_draw(const GfxDrawState *a, const GfxDrawState *b) {
+    const GfxShader *sh = a->shader;
+    GfxDrawState t;
+    if (sh == NULL || b->shader != sh)
+        return 0;
+    memcpy(&t, b, sizeof(t));
+    if (sh->u_prim < 0)
+        memcpy(t.prim, a->prim, sizeof(t.prim));
+    if (sh->u_env < 0)
+        memcpy(t.env, a->env, sizeof(t.env));
+    if (sh->u_fog < 0)
+        memcpy(t.fog, a->fog, sizeof(t.fog));
+    if (sh->u_blend < 0)
+        memcpy(t.blendc, a->blendc, sizeof(t.blendc));
+    if (sh->u_fill < 0)
+        memcpy(t.fill, a->fill, sizeof(t.fill));
+    if (sh->u_primlod < 0)
+        t.prim_lod = a->prim_lod;
+    if (sh->u_lodfrac < 0)
+        t.lod_frac = a->lod_frac;
+    if (sh->u_noise < 0)
+        t.noise_seed = a->noise_seed;
+    return memcmp(&t, a, sizeof(t)) == 0;
+}
+
 /* Tests (gfx_test's ties): the game's draws from here on with every vertex moved dx internal pixels right and dy up,
  * as a GPU with another tie rule or rounding would move the edges; the scissor and clears stay. */
 void pcgfx_gl_test_nudge(float dx, float dy) {
