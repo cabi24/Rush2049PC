@@ -365,9 +365,12 @@ static void save_lists(Store *st)
     if (t.n || exists(path))
         pc_file_write_atomic(path, t.s ? t.s : "", t.n);
     t.n = 0;
-    for (int s = 0; s < PC_PAK_NOTES; s++)
-        if (st->on[s] >= 0)
-            tprintf(&t, "%d\t%s\n", s, st->e[st->on[s]].file);
+    for (int s = 0; s < PC_PAK_NOTES; s++)   /* the slots last given (or read from pak.txt, before a pak is built) */
+        for (int i = 0; i < st->n; i++)
+            if (!st->e[i].gone && st->e[i].last == s + 1) {
+                tprintf(&t, "%d\t%s\n", s, st->e[i].file);
+                break;
+            }
     join(path, sizeof path, st->dir, "pak.txt");
     pc_file_write_atomic(path, t.s ? t.s : "", t.n);
     free(t.s);
