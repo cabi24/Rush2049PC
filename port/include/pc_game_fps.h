@@ -21,6 +21,9 @@ extern int pc_frame_steps;          /* whole 30 Hz frames (two retraces) this fr
 extern float pc_frame_scale;        /* this frame's length in 30 Hz frames: retraces / 2 (0.5 at 60) */
 
 void pc_game_fps_begin(void);       /* latch the setting (the game's state changes) */
+/* The state the game changes to there (state_word_b, the next gGameState): at 60 a race is watched for frames lost to a
+ * host that can't keep 60 (FRAMERATE.md 7.8) */
+void pc_game_fps_state(unsigned int state);
 void pc_game_frame_note(int retraces);   /* viUpdateTime: this frame's retraces, at most 5 */
 float pc_fps_filter(float e);       /* e to the power of the frame's length in 30 Hz frames */
 

@@ -133,6 +133,9 @@ void pc_scene_report(uint32_t tasks, uint64_t triangles, uint32_t most);
  * pc_game_fps.h). pc_game_fps_setting is the setting itself, unlatched. */
 void pc_game_fps_set(int fps);
 int pc_game_fps_setting(void);
+/* What the overlay's About page says of it: the setting, and at 60 how many of its frames the game kept in the last
+ * race (docs/port/FRAMERATE.md 7.8: under 0.9 a retrace over 4 s, the host can't keep 60 there). */
+void pc_game_fps_describe(char *out, size_t size);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);

@@ -778,6 +778,52 @@ static void test_fps(void)
           "the next screen: original, a step a frame whatever its length");
     pc_game_fps_set(144);
     CHECK(pc_game_fps_setting() == 0, "anything else is original: %d", pc_game_fps_setting());
+
+    /* a host that can't keep 60 (FRAMERATE.md 7.8): a race at 60 is watched, 4 s at a time, for frames lost */
+    char d[200];
+    pc_game_fps_describe(d, sizeof d);
+    CHECK(!strcmp(d, "original (30 a second)"), "About before any race at 60: '%s'", d);
+    pc_game_fps_set(60);
+    pc_game_fps_begin();
+    pc_game_fps_state(0x200000);   /* the countdown: not watched */
+    for (int i = 0; i < 300; i++)
+        pc_game_frame_note(2);
+    pc_game_fps_describe(d, sizeof d);
+    CHECK(!strcmp(d, "60"), "60, no race yet: '%s'", d);
+    pc_game_fps_begin();
+    pc_game_fps_state(0x400000);   /* the race */
+    for (int i = 0; i < 240; i++)
+        pc_game_frame_note(1);
+    pc_game_fps_describe(d, sizeof d);
+    CHECK(!strcmp(d, "60; the last race at 60 kept 1.00 of its frames (60 a second)"), "a host that keeps 60: '%s'", d);
+    for (int i = 0; i < 160; i++)   /* frames of one and two retraces in turn: 2/3 of 60 */
+        pc_game_frame_note(1 + (i & 1));
+    pc_game_fps_describe(d, sizeof d);
+    CHECK(!strcmp(d, "60; the last race at 60 kept 0.83 of its frames (50 a second): this host can't keep 60 there"),
+          "4 s at 0.67: the host can't keep 60, the race's share 400 of 480: '%s'", d);
+    pc_game_fps_begin();
+    pc_game_fps_state(0x1000000);   /* the results: the last race's kept */
+    pc_game_frame_note(5);
+    pc_game_fps_set(0);
+    pc_game_fps_describe(d, sizeof d);
+    CHECK(!strcmp(d, "original (30 a second); the last race at 60 kept 0.83 of its frames (50 a second): this host "
+                     "can't keep 60 there"), "set to original after the race: '%s'", d);
+    pc_game_fps_set(60);
+    pc_game_fps_begin();
+    pc_game_fps_state(0x400000);   /* the next race: its own count */
+    for (int i = 0; i < 120; i++)
+        pc_game_frame_note(1 + (i & 1));
+    pc_game_fps_describe(d, sizeof d);
+    CHECK(!strcmp(d, "60; the last race at 60 kept 0.67 of its frames (40 a second)"),
+          "a new race counts afresh, under 4 s not judged: '%s'", d);
+    pc_game_fps_set(0);
+    pc_game_fps_begin();
+    pc_game_fps_state(0x400000);   /* a race at original: not watched */
+    for (int i = 0; i < 300; i++)
+        pc_game_frame_note(2);
+    pc_game_fps_describe(d, sizeof d);
+    CHECK(!strcmp(d, "original (30 a second); the last race at 60 kept 0.67 of its frames (40 a second)"),
+          "a race at original isn't counted: '%s'", d);
 }
 
 int main(int argc, char **argv)

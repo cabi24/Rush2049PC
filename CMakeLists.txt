@@ -664,7 +664,7 @@ set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT
     SKIP_RETURN_CODE 77 LABELS realtime)
 # game.frame_rate 60 (docs/port/FRAMERATE.md 7). The game at 60 against original along the synthetic paths, on the
 # virtual clock (tools/port/fps_compare.py): the same states in the same order, none more than 10 retraces apart (the
-# game decides at a frame, 60 a second against 30, and PrePlay's load counts 4 frames), and in the races nothing on
+# game decides at a frame, 60 a second against 30), and in the races nothing on
 # the game thread steers (solo: one player, the gas and the steering held; stunt; battle2p) the same physics, every
 # car's position and velocity, model tick by model tick, to the bit. The others' physics first difference is
 # reported (drones, resurrections: the game thread decides them once a frame).
@@ -672,6 +672,13 @@ add_test(NAME fps_physics COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_compare.py --ex
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps --max-shift 10 --physics solo,stunt,battle2p -j 2
     solo stunt battle2p race demo menu screens raceend)
 set_tests_properties(fps_physics PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600)
+# A host that can't keep 60 (docs/port/FRAMERATE.md 7.8), on the virtual clock: with the RDP held 20 ms a graphics
+# task (RUSH_SIM_GFX_MS) every frame at 60 takes two retraces; the log says once that the host can't keep 60, the
+# game keeps its speed (the solo race's physics the same as at 60 unslowed), and at original nothing is said
+# (tools/port/fps_slow.py).
+add_test(NAME fps_slow_host COMMAND ${PC_PYTHON} ${PORT_TOOLS}/fps_slow.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/fps-slow)
+set_tests_properties(fps_slow_host PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600)
 # The high frame rate on top of the game at 60: hfr_timing's paths with the game at 60, video.frame_rate original
 # against 120 (the same state and status lines, frames drawn between); hfr_paced's pacing under the 59.94 Hz vsync
 # model with the game at 60 (a frame between the game's one retrace apart, at 120 and display), and the game's own

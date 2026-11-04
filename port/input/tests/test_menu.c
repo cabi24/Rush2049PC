@@ -989,6 +989,7 @@ static void test_pages(void)
     has_line(text, "\nAudio: null at 48000 Hz\n", "audio");
     has_line(text, "\nAudio buffer: pulls of 512 (11 ms), queue 1601 (50 ms)\n", "audio buffer");
     has_line(text, "\nMemory: 64 MiB; heap 3.5 of 63.5 MiB at most in use\n", "memory");
+    has_line(text, "\nGame frame rate: original (30 a second)\n", "game.frame_rate");   /* FRAMERATE.md 7.8 */
     has_line(text, "\nPlayer 1: -\nPlayer 2: -\nPlayer 3: -\nPlayer 4: -\n", "no live input headless: no players");
     has_line(text, "\nROM: /roms/baserom.us.z64 (next to the program)\n", "ROM");
     has_line(text, "\nSettings file: /home/player/.config/rush2049pc/rush2049pc.ini\n", "the settings file");
