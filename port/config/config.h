@@ -50,6 +50,7 @@ enum { PC_CFG_STICK_LEFT = 0, PC_CFG_STICK_RIGHT = 1, PC_CFG_STICK_NONE = 2 };
 
 #define PC_CFG_PATH 1024
 #define PC_CFG_BIND 128
+#define PC_CFG_MODS 64                  /* [mods] lines kept (docs/port/MODS.md) */
 
 typedef struct PcSettings {
     /* [game] */
@@ -59,6 +60,15 @@ typedef struct PcSettings {
     int cars;                       /* the most cars a race holds: 0 original (the N64's 6), else 6-12 */
     int memory;                     /* game.memory: 0 original (the N64's: 8 MiB, 4 with expansion_pak off), else
                                      * the RDRAM window and osMemSize in MiB, 16 to PC_RDRAM_MAX (docs/port/MEMORY.md) */
+    /* game.mods, mods_dir, mods_order and [mods] (docs/port/MODS.md) */
+    int mods;                       /* use the mods folder's mods */
+    char mods_dir[PC_CFG_PATH];     /* the mods folder; a name alone is in the data folder */
+    char mods_order[PC_CFG_PATH];   /* folder names, comma-separated, first first; the rest by mod.ini's priority */
+    int nmod_flags;                 /* [mods] folder = on|off: a mod not listed is on */
+    struct {
+        char name[64];
+        int on;
+    } mod_flag[PC_CFG_MODS];
     int pak[4];                     /* PC_CFG_PAK_*: each controller's accessory (game.pak, game.pak2...) */
     char pak_file[4][PC_CFG_PATH];  /* each controller's pak image (game.pak_file, game.pak2_file...) */
     /* [video] */
@@ -116,6 +126,9 @@ void pc_race_cars_set(int cars);
  * Expansion Pak features from any size past 4 MiB, as a console with that memory would, so expansion_pak = off has no
  * effect then. 1 and a message in why for that combination (pc_settings_resolve prints it), else 0. */
 int pc_settings_memory_conflict(const PcSettings *s, char *why, size_t why_size);
+
+/* [mods]: whether a mod's folder is listed on (1), off (0), or not listed (-1, which is on: docs/port/MODS.md). */
+int pc_settings_mod_on(const PcSettings *s, const char *folder);
 
 /* video.resolution's text: "desktop" (0 x 0), 720p, 1080p, 1440p, 1620p (2880 x 1620), 2160p, or WxH. -1 if none. */
 int pc_settings_resolution(const char *text, int *w, int *h);

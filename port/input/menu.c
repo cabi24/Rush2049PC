@@ -37,12 +37,12 @@
 
 /* ---------------------------------------------------------------- the pages */
 
-enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_HELP, P_ABOUT, NUM_PAGES };
+enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_MODS, P_HELP, P_ABOUT, NUM_PAGES };
 
 /* I_INFO: a read-only row of Help or About, which can be selected (its whole text is in the footer); I_HEADING: one
  * that can't; I_OPEN, I_COPY: About's actions, the data folder in the file manager and the page to the clipboard. */
 typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT, I_PLAYER,
-               I_INFO, I_HEADING, I_OPEN, I_COPY } Kind;
+               I_INFO, I_HEADING, I_OPEN, I_COPY, I_MOD } Kind;   /* I_MOD: a mod on the Mods page (page: which) */
 
 typedef struct {
     Kind kind;
@@ -67,7 +67,7 @@ typedef struct {
     int path;                     /* a, cut, keeps its end */
 } Row;
 
-#define MAX_ITEMS 40
+#define MAX_ITEMS (PC_MENU_MODS + 8)   /* the Mods page: a row per mod */
 #define MAX_ROWS 36
 typedef struct {
     const char *title;
@@ -78,7 +78,18 @@ typedef struct {
 } Page;
 
 static Page pages[NUM_PAGES];
-static Row help_rows[MAX_ROWS], about_rows[MAX_ROWS];
+static Row help_rows[MAX_ROWS], about_rows[MAX_ROWS], mods_rows[4];
+
+/* ---------------------------------------------------------------- the Mods page's mods (docs/port/MODS.md) */
+
+static PcMenuMod s_mods[PC_MENU_MODS];
+static int s_nmods;
+static char s_mods_dir[PC_CFG_PATH];
+static char s_mod_label[PC_MENU_MODS][48], s_mod_desc[PC_MENU_MODS][80];
+
+static int mods_cmp_order(const PcSettings *s, int a, int b);
+static void mods_page(void);
+static void scroll(void);
 
 static const char *const onoff[] = {"off", "on", NULL};
 static const char *const wide_choices[] = {"auto", "off", "16:10", "16:9", "21:9", NULL};
@@ -144,6 +155,8 @@ static void build(void)
     it->page = P_CONTROLLER, it->desc = "Players, buttons, the stick, dead zone, rumble";
     it = add(P_MAIN, I_PAGE, "Game", NULL, NULL);
     it->page = P_GAME, it->desc = "The cars in a race, the game's memory";
+    it = add(P_MAIN, I_PAGE, "Mods", NULL, NULL);
+    it->page = P_MODS, it->desc = "Mods' files in place of the cartridge's";
     it = add(P_MAIN, I_PAGE, "Help", NULL, NULL);
     it->page = P_HELP, it->desc = "What each key and button does";
     it = add(P_MAIN, I_PAGE, "About", NULL, NULL);
@@ -226,6 +239,11 @@ static void build(void)
     it->restart = 1;
     add(P_GAME, I_DEFAULTS, "Defaults", NULL, NULL);
 
+    pages[P_MODS].title = "Mods";
+    pages[P_MODS].rows = mods_rows;
+    pages[P_MODS].col_a = 92;
+    mods_page();
+
     /* each setting's line in the footer (a setting without one shows its name in the file) */
     static const struct { const char *section, *key, *desc; } descs[] = {
         {"video", "scale", "Internal resolution; native: the window's pixels"},
@@ -249,6 +267,7 @@ static void build(void)
         {"input", "rumble", "Rumble strength, with the rumble pak in"},
         {"game", "cars", "The most cars a race holds; from the next race"},
         {"game", "memory", "The game's memory; applies after a restart"},
+        {"game", "mods", "Mods' files for the cartridge's; at a restart"},
     };
     for (int pg = 0; pg < NUM_PAGES; pg++)
         for (int i = 0; i < pages[pg].n; i++) {
@@ -278,7 +297,7 @@ static struct {
     PcSettings eff;                  /* the settings in effect, with the changes made here */
     PcSettings file;                 /* the defaults with the file over them: what Save compares with */
     char path[PC_CFG_PATH];          /* where Save writes */
-    char touched[MAX_TOUCHED][48];   /* "section.key" of each setting changed here */
+    char touched[MAX_TOUCHED][80];   /* "section.key" of each setting changed here (mods.<folder> too) */
     int ntouched;
     char status[160];
     uint32_t status_color;
@@ -288,6 +307,7 @@ static struct {
     int mouse, mx, my, mw, mh;       /* the mouse's last place over the window (drawable pixels), and its size */
     uint64_t page_click_ns;          /* when a click last changed the page (0: not yet) */
     char data_dir[PC_CFG_PATH];      /* About's data folder, for Open */
+    int moving;                      /* the Mods page: the selected mod moves with up and down */
 } M;
 
 /* main's facts for the About page; kept across pc_menu_init */
@@ -336,6 +356,10 @@ static Item *current(void)
 static void value_of(const PcSettings *s, const Item *it, char *out, size_t n)
 {
     out[0] = 0;
+    if (it->kind == I_MOD) {   /* [mods] folder: on unless listed off */
+        snprintf(out, n, "%s", pc_settings_mod_on(s, it->key) == 0 ? "off" : "on");
+        return;
+    }
     if (it->kind == I_WINDOW && (s->width <= 0 || s->height <= 0))
         snprintf(out, n, "auto");
     else if (it->kind == I_WINDOW)
@@ -345,11 +369,15 @@ static void value_of(const PcSettings *s, const Item *it, char *out, size_t n)
 }
 
 /* Changed here and not saved: different from the file. */
+static int mod_place(const PcSettings *s, int mod);
+
 static int changed(const Item *it)
 {
     char a[PC_CFG_BIND + 8], b[PC_CFG_BIND + 8];
     if (!it->section)
         return 0;
+    if (it->kind == I_MOD && mod_place(&M.eff, it->page) != mod_place(&M.file, it->page))
+        return 1;
     value_of(&M.eff, it, a, sizeof a);
     value_of(&M.file, it, b, sizeof b);
     return strcmp(a, b) != 0;
@@ -512,12 +540,18 @@ static void defaults(void)
         value_of(&d, it, v, sizeof v);
         set_value(it, v);
     }
+    if (M.page == P_MODS) {   /* every mod on, in mod.ini's order */
+        M.moving = 0;
+        if (pc_settings_set(&M.eff, "game", "mods_order", "", NULL, 0) == 0)
+            touch("game", "mods_order");
+        mods_page();
+    }
     status(C_OK, "Defaults set on this page (not saved yet)");
 }
 
 static int unsaved(void)
 {
-    char a[PC_CFG_BIND + 8], b[PC_CFG_BIND + 8], section[16];
+    char a[PC_CFG_PATH + 8], b[PC_CFG_PATH + 8], section[16];   /* game.mods_order: a list of folders */
     int n = 0;
     for (int i = 0; i < M.ntouched; i++) {
         const char *dot = strchr(M.touched[i], '.');
@@ -531,9 +565,9 @@ static int unsaved(void)
 
 static void save(void)
 {
-    static char section[MAX_TOUCHED][16], value[MAX_TOUCHED][PC_CFG_BIND + 8];
+    static char section[MAX_TOUCHED][16], value[MAX_TOUCHED][PC_CFG_PATH + 8];
     PcSettingValue ch[MAX_TOUCHED];
-    char was[PC_CFG_BIND + 8], why[PC_CFG_PATH + 64];
+    char was[PC_CFG_PATH + 8], why[PC_CFG_PATH + 64];
     int n = 0;
     if (!M.path[0]) {
         status(C_WARN, "No place for rush2049pc.ini");
@@ -567,6 +601,143 @@ static void save(void)
     while (base > M.path && base[-1] != '/' && base[-1] != '\\')
         base--;
     status(C_OK, "Saved %d setting%s to %s", n, n == 1 ? "" : "s", base);
+}
+
+/* ---------------------------------------------------------------- the Mods page */
+
+/* Is folder in the comma-separated list (game.mods_order), and where: -1 when not. */
+static int order_place(const char *list, const char *folder)
+{
+    size_t n = strlen(folder), at = 0;
+    int place = 0;
+    while (list[at]) {
+        while (list[at] == ' ' || list[at] == ',')
+            at++;
+        size_t end = at, e2;
+        while (list[end] && list[end] != ',')
+            end++;
+        for (e2 = end; e2 > at && list[e2 - 1] == ' '; e2--)
+            ;
+        if (e2 > at && e2 - at == n && !strncasecmp(list + at, folder, n))
+            return place;
+        place += e2 > at;
+        at = end;
+    }
+    return -1;
+}
+
+/* port/mods' order: game.mods_order's mods first, as listed, then the rest by mod.ini's priority, then by folder. */
+static int mods_cmp_order(const PcSettings *s, int a, int b)
+{
+    int pa = order_place(s->mods_order, s_mods[a].folder), pb = order_place(s->mods_order, s_mods[b].folder);
+    if ((pa >= 0) != (pb >= 0))
+        return pa >= 0 ? -1 : 1;
+    if (pa >= 0 && pa != pb)
+        return pa - pb;
+    if (s_mods[a].priority != s_mods[b].priority)
+        return s_mods[b].priority - s_mods[a].priority;
+    return strcasecmp(s_mods[a].folder, s_mods[b].folder);
+}
+
+static void mods_sorted(const PcSettings *s, int *idx)
+{
+    for (int i = 0; i < s_nmods; i++)
+        idx[i] = i;
+    for (int i = 1; i < s_nmods; i++)   /* insertion sort: a few mods */
+        for (int j = i; j > 0 && mods_cmp_order(s, idx[j - 1], idx[j]) > 0; j--) {
+            int t = idx[j];
+            idx[j] = idx[j - 1];
+            idx[j - 1] = t;
+        }
+}
+
+static int mod_place(const PcSettings *s, int mod)
+{
+    int idx[PC_MENU_MODS];
+    mods_sorted(s, idx);
+    for (int i = 0; i < s_nmods; i++)
+        if (idx[i] == mod)
+            return i;
+    return -1;
+}
+
+/* The page: game.mods, each mod in the order in effect, the folder, Defaults. Made again when the order changes. */
+static void mods_page(void)
+{
+    int idx[PC_MENU_MODS];
+    Item *it;
+    pages[P_MODS].n = 0;
+    it = add(P_MODS, I_CHOICE, "Mods", "game", "mods");
+    it->choices = onoff;
+    it->restart = 1;
+    mods_sorted(&M.eff, idx);
+    for (int i = 0; i < s_nmods; i++) {
+        const PcMenuMod *m = &s_mods[idx[i]];
+        char what[48];
+        snprintf(s_mod_label[idx[i]], sizeof s_mod_label[0], "%d. %s%s%s", i + 1, m->name[0] ? m->name : m->folder,
+                 m->version[0] ? " " : "", m->version);
+        if (m->problem[0])
+            snprintf(s_mod_desc[idx[i]], sizeof s_mod_desc[0], "Not usable: %s", m->problem);
+        else {
+            char refused[24] = "";
+            if (m->refused)
+                snprintf(refused, sizeof refused, " (%d refused)", m->refused);
+            snprintf(what, sizeof what, "%d file%s%s%s%s", m->files, m->files == 1 ? "" : "s", refused,
+                     m->texts ? ", text" : "", m->textures ? ", textures" : "");
+            snprintf(s_mod_desc[idx[i]], sizeof s_mod_desc[0], "%s%s%s%s; at the next start", m->author[0] ? "by " : "",
+                     m->author, m->author[0] ? ": " : "", what);
+        }
+        it = add(P_MODS, I_MOD, s_mod_label[idx[i]], "mods", m->folder);
+        it->page = idx[i];
+        it->restart = 1;
+        it->desc = s_mod_desc[idx[i]];
+    }
+    memset(&mods_rows[0], 0, sizeof mods_rows[0]);
+    snprintf(mods_rows[0].label, sizeof mods_rows[0].label, "%s", s_nmods ? "Folder" : "No mods in");
+    snprintf(mods_rows[0].a, sizeof mods_rows[0].a, "%s", s_mods_dir[0] ? s_mods_dir : "-");
+    mods_rows[0].path = 1;
+    it = add(P_MODS, I_INFO, mods_rows[0].label, NULL, NULL);
+    it->row = 0;
+    add(P_MODS, I_DEFAULTS, "Defaults", NULL, NULL)->desc = "Every mod on, in their mod.ini order";
+}
+
+/* The selected mod one place up or down: game.mods_order becomes the whole order, so it reads back the same. */
+static void mod_move(const Item *it, int dir)
+{
+    int idx[PC_MENU_MODS], at = -1, mod = it->page;
+    char list[PC_CFG_PATH];
+    size_t n = 0;
+    mods_sorted(&M.eff, idx);
+    for (int i = 0; i < s_nmods; i++)
+        if (idx[i] == mod)
+            at = i;
+    if (at < 0 || at + dir < 0 || at + dir >= s_nmods)
+        return;
+    idx[at] = idx[at + dir], idx[at + dir] = mod;
+    list[0] = 0;
+    for (int i = 0; i < s_nmods && n < sizeof list; i++)
+        n += (size_t)snprintf(list + n, sizeof list - n, "%s%s", i ? ", " : "", s_mods[idx[i]].folder);
+    if (n >= sizeof list || pc_settings_set(&M.eff, "game", "mods_order", list, NULL, 0) != 0) {
+        status(C_WARN, "Too many mods to order here: edit game.mods_order");
+        return;
+    }
+    touch("game", "mods_order");
+    mods_page();
+    for (int i = 0; i < pages[P_MODS].n; i++)
+        if (pages[P_MODS].item[i].kind == I_MOD && pages[P_MODS].item[i].page == mod)
+            M.sel[P_MODS] = i;
+    scroll();
+    status(C_CAPTURE, "Moving: up, down; Enter/A puts it");
+}
+
+void pc_menu_set_mods(const PcMenuMod *mods, int n, const char *dir)
+{
+    s_nmods = n < 0 ? 0 : n > PC_MENU_MODS ? PC_MENU_MODS : n;
+    if (s_nmods)
+        memcpy(s_mods, mods, (size_t)s_nmods * sizeof *s_mods);
+    snprintf(s_mods_dir, sizeof s_mods_dir, "%s", dir ? dir : "");
+    if (pages[P_MODS].title)
+        mods_page();
 }
 
 /* ---------------------------------------------------------------- opening, moving, choosing */
@@ -734,6 +905,13 @@ static void accept(Item *it)
         break;
     case I_PLAYER:
         break;
+    case I_MOD:   /* pick it up: up and down move it in the order; again to put it down */
+        M.moving = !M.moving;
+        if (M.moving)
+            status(C_CAPTURE, "Moving %s: up, down; Enter/A puts it", it->label);
+        else
+            status(C_OK, "The order applies at the next start");
+        break;
     }
 }
 
@@ -757,10 +935,15 @@ void pc_menu_action(int action)
     }
     M.status[0] = 0;
     Item *it = current();
+    if (M.moving && (it->kind != I_MOD || M.page != P_MODS))
+        M.moving = 0;
     switch (action) {
     case PC_MENU_UP:
     case PC_MENU_DOWN:
-        move(action == PC_MENU_UP ? -1 : 1, 1);
+        if (M.moving)
+            mod_move(it, action == PC_MENU_UP ? -1 : 1);
+        else
+            move(action == PC_MENU_UP ? -1 : 1, 1);
         break;
     case PC_MENU_PAGE_UP:
     case PC_MENU_PAGE_DOWN:
@@ -772,12 +955,19 @@ void pc_menu_action(int action)
             cycle(it, action == PC_MENU_RIGHT ? 1 : -1);
         else if (it->kind == I_NUMBER)
             step(it, action == PC_MENU_RIGHT ? 1 : -1);
+        else if (it->kind == I_MOD) {
+            char v[8];
+            value_of(&M.eff, it, v, sizeof v);
+            set_value(it, strcmp(v, "on") ? "on" : "off");
+        }
         break;
     case PC_MENU_ACCEPT:
         accept(it);
         break;
     case PC_MENU_BACK:
-        if (M.page != P_MAIN)
+        if (M.moving)
+            M.moving = 0, status(C_OK, "The order applies at the next start");
+        else if (M.page != P_MAIN)
             M.page = P_MAIN;
         else
             set_open(0);
@@ -990,6 +1180,7 @@ static void fill_about(void)
     row(P_ABOUT, I_INFO, "Audio", a.audio, NULL);
     row(P_ABOUT, I_INFO, "Audio buffer", a.audio_buffer, NULL);
     row(P_ABOUT, I_INFO, "Memory", a.memory, NULL);   /* game.memory, the heap's peak (docs/port/MEMORY.md 4) */
+    row(P_ABOUT, I_INFO, "Mods", a.mods, NULL);       /* the mods in use (docs/port/MODS.md) */
     for (int p = 0; p < 4; p++) {
         snprintf(line, sizeof line, "Player %d", p + 1);
         row(P_ABOUT, I_INFO, line, "", NULL);
@@ -1086,7 +1277,7 @@ static void layout(int w, int h, int *k, int *ox, int *oy)
 
 static int has_value(const Item *it)
 {
-    return it->kind == I_CHOICE || it->kind == I_WINDOW || it->kind == I_NUMBER;
+    return it->kind == I_CHOICE || it->kind == I_WINDOW || it->kind == I_NUMBER || it->kind == I_MOD;
 }
 
 static void rect(int x, int y, int w, int h, uint32_t color)
@@ -1150,6 +1341,9 @@ static void shown(const Item *it, char *out, size_t n)
     case I_COPY:
         out[0] = 0;
         break;
+    case I_MOD:
+        snprintf(out, n, "%s%s", v, s_mods[it->page].problem[0] && !strcmp(v, "on") ? " (unusable)" : "");
+        break;
     default:
         snprintf(out, n, "%s", v);
         for (int i = 0; it->labels && it->choices[i]; i++)
@@ -1177,6 +1371,8 @@ static const char *hint(const Item *it)
         return "Enter/A set  Ins/Y add  Del/X clear  Esc/B back";
     case I_INFO:
         return "Up/Down: move   Esc/B: back";
+    case I_MOD:
+        return M.moving ? "Up/Down: move it   Enter/A: put it down" : "Left/Right: on, off   Enter/A: move it";
     default:
         return M.page == P_MAIN ? "Enter/A: choose   Esc/B: close" : "Enter/A: choose   Esc/B: back";
     }
@@ -1245,7 +1441,8 @@ static void draw(int w, int h)
     for (int i = 0; i < ROWS && M.top[M.page] + i < p->n; i++) {
         const Item *it = &p->item[M.top[M.page] + i];
         int y = LIST_Y + i * ROW_H, here = it == sel;
-        uint32_t color = here && M.capture ? C_CAPTURE : changed(it) ? C_CHANGED : here ? C_WHITE : C_VALUE;
+        uint32_t color = here && (M.capture || (M.moving && it->kind == I_MOD)) ? C_CAPTURE
+                         : changed(it) ? C_CHANGED : here ? C_WHITE : C_VALUE;
         if (here)
             rect(2, y, PANEL_W - 4, ROW_H, C_SELECT);
         if (it->kind == I_PLAYER) {
@@ -1307,7 +1504,7 @@ static void draw(int w, int h)
         text(6, PANEL_H - 22, M.status_color, line);
     } else if (sel) {
         description(sel, line, sizeof line, &wrap);
-        if (sel->restart && !strstr(line, "restart"))
+        if (sel->restart && sel->kind != I_MOD && !strstr(line, "restart"))
             snprintf(line, sizeof line, "* applies after a restart");
         if (wrap) {   /* a long value over both lines, its end kept */
             snprintf(v, sizeof v, "%s", line + FOOT_CHARS);
@@ -1462,6 +1659,7 @@ void pc_menu_init(const PcSettings *s)
     pc_settings_defaults(&M.file);
     if (M.path[0])
         pc_settings_read_quiet(&M.file, M.path);
+    mods_page();   /* in the order the settings give */
     M.inited = 1;
 }
 
