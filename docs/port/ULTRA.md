@@ -119,7 +119,10 @@ game reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT
 PIE a RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`, called in
 `main` before anything else runs, puts the values back (1,802 slots). It only touches RELATIVE relocations whose
 addend is at 0x80000000 or above, where nothing the linker places can be (`gen_data.py --check` verifies that),
-and whose slot holds exactly base + addend. Initialized pointers to them are resolved at link time.
+and whose slot holds exactly base + addend. Initialized pointers to them are resolved at link time. On x86-64 with
+binutils 2.41 only the 6 `aliases.ld` names' slots carry such a relocation (6 slots fixed); data.c's names get slots
+that hold the bare value with no relocation, which needs nothing. The plan for a window at any address, and the guard
+mode that moves it now (`RUSH2049_NOFIXED=guard`), are in [NOFIXED.md](NOFIXED.md).
 
 **osMemSize is 8 MiB** (the Expansion Pak) by default, as N64ModernRuntime and v5 report: the game sets its
 Expansion Pak flag (`D_80156994`) and loads overlay B and the extra waves in races, which give it its sixth race
