@@ -180,7 +180,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   2. the file;
   3. the environment variables other parts already read: `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
      `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`,
-     `RUSH_GFX_FOG`;
+     `RUSH_GFX_FOG`, `RUSH_GFX_TEXTURE_LOD`;
   4. a press file's `pak on|off`;
   5. command-line options, in order.
 - **Bad values.** A bad line in the file, or a bad environment value, is reported with its line and skipped.
@@ -216,7 +216,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.fullscreen_mode` | desktop | `--exclusive` | `desktop` (borderless) or `exclusive` (the display's mode changes) |
 | `video.resolution` | desktop | `--resolution` | `desktop`, `720p`, `1080p`, `1440p`, `1620p` (2880 × 1620), `2160p` or `WxH`: exclusive fullscreen's display mode; the size desktop fullscreen draws at |
 | `video.vsync` | on | | swap interval 1 or 0; on, no more frames are shown than the display refreshes, whatever `frame_rate` asks (logged) |
-| `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
+| `video.frame_rate` | original | `--frame-rate` | frames shown a second: `original` (the game's own: each frame as the VI swaps it in, 30 or fewer; 60 or fewer with `game.frame_rate = 60`), `display` (the display's refresh; with vsync), or 30-1000 (60, 120, 144). The frames between the game's are drawn from its last two; the game's timing is unchanged, and screenshots are the game's frames ([FRAMERATE.md](FRAMERATE.md); `RUSH_GFX_FRAME_RATE`) |
 | `video.scale` | native | `--scale N` | internal resolution: `native` (the window's own pixels, any fraction), `auto` (the largest whole multiple the window holds), or 1-8 (`1` or `n64`: the N64's) (`RUSH_GFX_SCALE`) |
 | `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend, frame and settings") |
 | `video.widescreen` | auto | `--widescreen` | auto (the window's), off, 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
@@ -264,8 +264,8 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   are `--dump-audio` and the run-limit options.
 - **How settings reach the parts.**
   - port/gfx's settings go through the variables it already reads: main sets `RUSH_GFX_SCALE`, `RUSH_GFX_API`,
-    `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE` and
-    `RUSH_GFX_FOG` to the resolved values
+    `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`,
+    `RUSH_GFX_FOG` and `RUSH_GFX_TEXTURE_LOD` to the resolved values
     before `pc_gfx_init`, and `RUSH_GFX_TEXTURE_PACK`, `RUSH_GFX_TEXTURE_DUMP` and `RUSH_GFX_TEXTURE_CACHE` to the
     data folder's paths unless they are set already. The main loop asks port/gfx for the frame rate in effect
     (`pc_gfx_frame_rate`) at each pass, so the overlay's change applies at once.
@@ -280,7 +280,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   - main sets `game.cars` with `pc_race_cars_set` before the game starts; the game takes it at each race's start
     ([below](#the-cars-a-race-holds-gamecars)).
   - main sets `video.draw_distance` and `video.detail` for the game with `pc_detail_set` (port/config/detail.c); the
-    renderer takes `draw_distance` and `fog` from its two variables
+    renderer takes `draw_distance`, `fog` and `texture_lod` from their three variables
     ([below](#draw-distance-detail-and-fog-videodraw_distance-detail-fog)).
   - main sets `game.frame_rate` with `pc_game_fps_set`; the game takes it at each change of its state
     ([below](#the-games-frame-rate-gameframe_rate)).
@@ -384,7 +384,7 @@ files (a profile, a ghost each), what it deletes goes to the folder's `trash/`.
 
 ### Environment variables
 
-Every variable the program (`port/`) reads. The settings' nine are a layer of their own (above); the rest are
+Every variable the program (`port/`) reads. The settings' ten are a layer of their own (above); the rest are
 environment-only.
 
 | Variable | What |
