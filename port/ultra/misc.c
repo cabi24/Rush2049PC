@@ -51,10 +51,11 @@ enum {
     LOW_TV_TYPE = 0x80000300, LOW_ROM_TYPE = 0x80000304, LOW_ROM_BASE = 0x80000308, LOW_RESET_TYPE = 0x8000030C,
     LOW_CIC_ID = 0x80000310, LOW_VERSION = 0x80000314, LOW_MEM_SIZE = 0x80000318, LOW_NMI_BUFFER = 0x8000031C,
 };
-/* 4 MiB by default: no Expansion Pak, so the game leaves its Expansion Pak flag (D_80156994) clear and skips
- * overlay B and the extra waves in races, the smaller first target docs/port/ASSETS.md suggests.
- * --expansion-pak reports 8 MiB, as N64ModernRuntime and v5 do (needed for parity runs against v5). The RDRAM
- * window is 8 MiB either way. */
+/* osMemSize. 4 MiB until main sets it: no Expansion Pak, so the game leaves its Expansion Pak flag (D_80156994)
+ * clear and skips overlay B and the extra waves in races. game.expansion_pak (on by default) reports 8 MiB, as
+ * N64ModernRuntime and v5 do, in the 8 MiB window. game.memory reports the window's size, whatever the pak setting:
+ * the game's heap runs to osMemSize (func_800E7D04), and sets the Expansion Pak flag past 4 MiB, as a console with
+ * that much memory would (docs/port/MEMORY.md 1). */
 static uint32_t g_mem_size = 0x00400000;
 
 static void put_word(uint32_t addr, uint32_t v)
@@ -80,6 +81,7 @@ void pc_os_initialize(void)
 
 uint32_t pc_os_mem_size(void) { return g_mem_size; }
 void pc_os_set_expansion_pak(int on) { g_mem_size = on ? PC_RDRAM_SIZE : 0x00400000; }
+void pc_os_set_mem_size(uint32_t bytes) { g_mem_size = bytes; }
 
 /* main's first call (libultra's osInitialize; historical label). */
 void __osInitialize_common(void) { pc_os_initialize(); }
@@ -122,28 +124,7 @@ void __osResetGlobalIntMask(uint32_t mask) { g_intmask &= ~mask; }
 
 /* ---------------------------------------------------------------- addresses */
 
-/* RDRAM addresses become physical, as on the N64. A host address (the game's own code, data or stacks, all
- * above 4 GiB) doesn't fit the u32 the game stores it in: it is truncated, with one warning. The game's
- * framebuffers and loaded files live in the heap, inside the window. */
-uint32_t osVirtualToPhysical(void *vaddr)
-{
-    uint32_t n64 = pc_n64_addr(vaddr);
-    if (n64)
-        return n64 & 0x1FFFFFFFu;
-    uintptr_t a = (uintptr_t)vaddr;
-    if (a >> 32) {
-        static int warned;
-        if (!warned++)
-            pc_log("osVirtualToPhysical(%p): host address above 4 GiB truncated", vaddr);
-    }
-    return (uint32_t)a;
-}
-
-void *osPhysicalToVirtual(uint32_t paddr)
-{
-    void *p = paddr < PC_RDRAM_SIZE ? pc_n64_ptr(paddr) : NULL;
-    return p ? p : (void *)(uintptr_t)paddr;
-}
+/* osVirtualToPhysical and osPhysicalToVirtual are in memory.c, with the window's other address rules. */
 
 /* A generated stub was called (build/pc/pc-data/stubs.c, tools/port/gen_stubs.py). */
 void pc_stub_hit(const char *name)

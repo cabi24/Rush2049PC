@@ -69,6 +69,7 @@ uintptr_t pcgfx_segment_value(uintptr_t v) {
 
 const uint8_t *pcgfx_resolve(uintptr_t a) {
     uint32_t a32, seg;
+    const uint8_t *p;
     if (a == 0)
         return NULL;
     if (is_host(a))
@@ -77,6 +78,13 @@ const uint8_t *pcgfx_resolve(uintptr_t a) {
     if (a32 >= 0x80000000u)
         return (const uint8_t *)pc_n64_ptr(a32);
     seg = (a32 >> 24) & 0x0F;
+    /* A physical address past 16 MiB of a larger window (game.memory, docs/port/MEMORY.md 3) whose segment has no
+     * base, or past 256 MiB (bits 28-30, which no segment has): the RAM there. The PC gives the RCP the K0 address
+     * there (osVirtualToPhysical, the game's relocations), so this is for code that strips it itself. Outside the
+     * window pc_n64_ptr is NULL, so at game.memory = original (8 MiB) this never applies. */
+    if (a32 >= PC_RCP_SEGMENT_SPAN && (pcgfx.seg[seg] == 0 || a32 >= 0x10000000u) &&
+        (p = (const uint8_t *)pc_n64_ptr(a32)) != NULL)
+        return p;
     if (pcgfx.seg[seg] != 0)
         return (const uint8_t *)(pcgfx.seg[seg] + (a32 & 0x00FFFFFF));
     return rdram(a32 & 0x00FFFFFF);

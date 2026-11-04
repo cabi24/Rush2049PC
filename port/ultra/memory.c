@@ -49,6 +49,19 @@
 
 static uint8_t *g_rdram, *g_rdram_k1;
 static int g_fixed;
+static uint32_t g_size = PC_RDRAM_SIZE;   /* the window's bytes (game.memory) */
+
+/* game.memory: the window's size, before pc_mem_init maps it. The N64's 8 MiB, or whole MiB from 16 MiB to
+ * PC_RDRAM_MAX (docs/port/MEMORY.md). -1 for anything else, or once the window is mapped. */
+int pc_mem_set_size(uint32_t bytes)
+{
+    if (g_rdram || (bytes != PC_RDRAM_SIZE && (bytes < PC_RCP_SEGMENT_SPAN || bytes > PC_RDRAM_MAX || (bytes & 0xFFFFF))))
+        return -1;
+    g_size = bytes;
+    return 0;
+}
+
+uint32_t pc_rdram_size(void) { return g_size; }
 
 #ifdef _WIN32
 /* Reserves (without committing) every free range below 4 GiB but the window, so that whatever the process maps
@@ -70,17 +83,19 @@ static void reserve_low(void)
 
 int pc_mem_init(void)
 {
-    HANDLE section = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, PC_RDRAM_SIZE, NULL);
+    /* A pagefile-backed section commits its size up front (the commit charge, not RAM: pages are made as they are
+     * first touched), so a game.memory the system can't commit fails here with ERROR_COMMITMENT_LIMIT. */
+    HANDLE section = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, g_size, NULL);
     if (section) {
-        g_rdram = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, PC_RDRAM_SIZE,
-                                  (void *)(uintptr_t)PC_RDRAM_BASE);
+        g_rdram = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, g_size, (void *)(uintptr_t)PC_RDRAM_BASE);
         if (g_rdram)
-            g_rdram_k1 = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, PC_RDRAM_SIZE, (void *)(uintptr_t)K1_BASE);
+            g_rdram_k1 = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, g_size, (void *)(uintptr_t)K1_BASE);
         CloseHandle(section);   /* the views keep it */
     }
     if (!g_rdram) {
-        fprintf(stderr, "rush2049pc: cannot map the RDRAM window at host 0x%08X (error %lu); the game's heap must "
-                "live there (docs/port/ULTRA.md)\n", PC_RDRAM_BASE, (unsigned long)GetLastError());
+        fprintf(stderr, "rush2049pc: cannot map the RDRAM window of %u MiB at host 0x%08X (error %lu); the game's "
+                "heap must live there (docs/port/ULTRA.md)\n", g_size >> 20, PC_RDRAM_BASE,
+                (unsigned long)GetLastError());
         return -1;
     }
     g_fixed = 1;
@@ -94,7 +109,8 @@ int pc_mem_init(void)
                 "audio take addresses there for N64 ones\n", heap, (void *)&local);
     free(heap);
     if (pc_verbose)
-        pc_log("RDRAM window at %p%s", (void *)g_rdram, g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
+        pc_log("RDRAM window of %u MiB at %p%s", g_size >> 20, (void *)g_rdram,
+               g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
     return 0;
 }
 #else
@@ -113,37 +129,43 @@ static void *map_at(uintptr_t addr, size_t size, int fd)
 
 int pc_mem_init(void)
 {
+    /* A memfd is sparse: a page takes memory once the game first touches it, so a large game.memory costs only what
+     * the heap uses. */
     int fd = memfd_create("rush2049pc-rdram", 0);
-    if (fd >= 0 && ftruncate(fd, PC_RDRAM_SIZE) != 0) {
+    if (fd >= 0 && ftruncate(fd, g_size) != 0) {
         close(fd);
         fd = -1;
     }
-    g_rdram = map_at(PC_RDRAM_BASE, PC_RDRAM_SIZE, fd);
+    g_rdram = map_at(PC_RDRAM_BASE, g_size, fd);
     if (g_rdram && fd >= 0)
-        g_rdram_k1 = map_at(K1_BASE, PC_RDRAM_SIZE, fd);
+        g_rdram_k1 = map_at(K1_BASE, g_size, fd);
     if (g_rdram) {
         g_fixed = 1;
     } else {
 #ifdef __linux__
-        fprintf(stderr, "rush2049pc: cannot map the RDRAM window at host 0x%08X (%s); the game's heap must live "
-                "there (docs/port/ULTRA.md)\n", PC_RDRAM_BASE, strerror(errno));
+        fprintf(stderr, "rush2049pc: cannot map the RDRAM window of %u MiB at host 0x%08X (%s); the game's heap "
+                "must live there (docs/port/ULTRA.md)\n", g_size >> 20, PC_RDRAM_BASE, strerror(errno));
         return -1;
 #else
         pc_log("cannot map the RDRAM window at 0x%08X (%s): translating N64 addresses instead",
                PC_RDRAM_BASE, strerror(errno));
-        g_rdram = mmap(NULL, PC_RDRAM_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (g_rdram == MAP_FAILED)
+        g_rdram = mmap(NULL, g_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (g_rdram == MAP_FAILED) {
+            g_rdram = NULL;
             return -1;
+        }
 #endif
     }
     if (fd >= 0)
         close(fd);
 #ifdef PC_LSAN
-    /* Host allocations the game holds only in RDRAM are not leaks (docs/port/SANITIZE.md). */
-    __lsan_register_root_region(g_rdram, PC_RDRAM_SIZE);
+    /* Host allocations the game holds only in RDRAM are not leaks (docs/port/SANITIZE.md). LSan reads the whole
+     * region at exit, which makes every page of a large game.memory resident then. */
+    __lsan_register_root_region(g_rdram, g_size);
 #endif
     if (pc_verbose)
-        pc_log("RDRAM window at %p%s", (void *)g_rdram, g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
+        pc_log("RDRAM window of %u MiB at %p%s", g_size >> 20, (void *)g_rdram,
+               g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
     return 0;
 }
 #endif
@@ -167,21 +189,48 @@ void *pc_n64_ptr(uint32_t addr)
     uint32_t phys;
     if (addr >= 0x80000000u && addr < 0xC0000000u)
         phys = addr & 0x1FFFFFFFu;
-    else if (addr < PC_RDRAM_SIZE)
+    else if (addr < g_size)
         phys = addr;
     else
         return NULL;
-    return phys < PC_RDRAM_SIZE && g_rdram ? g_rdram + phys : NULL;
+    return phys < g_size && g_rdram ? g_rdram + phys : NULL;
 }
 
 uint32_t pc_n64_addr(const void *host)
 {
     const uint8_t *p = host;
-    if (g_rdram && p >= g_rdram && p < g_rdram + PC_RDRAM_SIZE)
+    if (g_rdram && p >= g_rdram && p < g_rdram + g_size)
         return 0x80000000u + (uint32_t)(p - g_rdram);
-    if (g_rdram_k1 && p >= g_rdram_k1 && p < g_rdram_k1 + PC_RDRAM_SIZE)
+    if (g_rdram_k1 && p >= g_rdram_k1 && p < g_rdram_k1 + g_size)
         return 0x80000000u + (uint32_t)(p - g_rdram_k1);
     return 0;
+}
+
+/* ---------------------------------------------------------------- the RCP's addresses (docs/port/MEMORY.md 3) */
+
+/* The rule past 16 MiB, and the display lists' relocation, are in rcpaddr.c (which tests link alone). */
+
+/* RDRAM addresses become physical, as on the N64, below 16 MiB; past it, K0 (above). A host address (the game's own
+ * code, data or stacks, all above 4 GiB) doesn't fit the u32 the game stores it in: it is truncated, with one
+ * warning. The game's framebuffers and loaded files live in the heap, inside the window. */
+uint32_t osVirtualToPhysical(void *vaddr)
+{
+    uint32_t n64 = pc_n64_addr(vaddr);
+    if (n64)
+        return (n64 & 0x1FFFFFFFu) < PC_RCP_SEGMENT_SPAN ? n64 & 0x1FFFFFFFu : n64;
+    uintptr_t a = (uintptr_t)vaddr;
+    if (a >> 32) {
+        static int warned;
+        if (!warned++)
+            pc_log("osVirtualToPhysical(%p): host address above 4 GiB truncated", vaddr);
+    }
+    return (uint32_t)a;
+}
+
+void *osPhysicalToVirtual(uint32_t paddr)
+{
+    void *p = paddr < g_size ? pc_n64_ptr(paddr) : NULL;
+    return p ? p : (void *)(uintptr_t)paddr;
 }
 
 /* ---------------------------------------------------------------- big-endian ranges */

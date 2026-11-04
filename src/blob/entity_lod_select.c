@@ -34,10 +34,20 @@ typedef unsigned int u32;
 #define DLW(w) pc_be32_get(&(w))
 #define DLW_SET(w, v) pc_be32_set(&(w), v)
 #define DL_AT(addr) ((u32 *)pc_n64_ptr(addr))
+/* The relocated address past 16 MiB of a larger window (game.memory) is the K0 one, not the 24-bit offset; at
+ * original, the N64's (pc_rcp_reloc, docs/port/MEMORY.md 3). KEEP: w's own segment; SEG: segment bits >> 24. */
+#define RELOC_KEEP(w, b) pc_rcp_reloc(w, b, -1)
+#define RELOC_SEG(w, b, bits) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
+#define LOD_KEEP(sum, bits, w, b) pc_rcp_reloc(w, b, -1)
+#define LOD_SEG(sum, bits, w, b) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
 #else
 #define DLW(w) w
 #define DLW_SET(w, v) w = v
 #define DL_AT(addr) (u32 *) addr
+#define RELOC_KEEP(w, b) ((w + b) & 0x00FFFFFF) | (w & 0x0F000000)
+#define RELOC_SEG(w, b, bits) ((w + b) & 0x00FFFFFF) | bits
+#define LOD_KEEP(sum, bits, w, b) (sum & 0x00FFFFFF) | bits
+#define LOD_SEG(sum, bits, w, b) (sum & 0x00FFFFFF) | bits
 #endif
 void func_800966D8(s32 arg0, s32 arg1);
 
@@ -94,11 +104,11 @@ void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
         op2 = (DLW(nextcmd[0]) & 0xFF000000) >> 24;
         if (op == 1 || op == 0xDD || op == 0xDE || op == 0xDA || op == 0xDC || (op == 0xE1 && (op2 == 4 || op2 == 0xDD)) || op >= 0xFD) {
             if (seg < 0) {
-                val = ((DLW(cmd[1]) + base) & 0x00FFFFFF) | (DLW(cmd[1]) & 0x0F000000);
+                val = RELOC_KEEP(DLW(cmd[1]), base);
             } else {
                 segnib = seg & 0xF;
                 segbits = segnib << 24;
-                val = ((DLW(cmd[1]) + base) & 0x00FFFFFF) | segbits;
+                val = RELOC_SEG(DLW(cmd[1]), base, segbits);
             }
             newaddr = val;
             DLW_SET(cmd[1], newaddr);
@@ -116,12 +126,12 @@ void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
                     if (seg < 0) {
                         sum = w1 + (u32) base;
                         hiaddr = w1 & 0x0F000000;
-                        val = (sum & 0x00FFFFFF) | hiaddr;
+                        val = LOD_KEEP(sum, hiaddr, w1, base);
                     } else {
                         sum2 = w1 + (u32) base;
                         segnib2 = seg & 0xF;
                         segbits2 = segnib2 << 24;
-                        val = (sum2 & 0x00FFFFFF) | segbits2;
+                        val = LOD_SEG(sum2, segbits2, w1, base);
                     }
                     branch = 0xDE010000;
                     DLW_SET(cmd[0], branch);

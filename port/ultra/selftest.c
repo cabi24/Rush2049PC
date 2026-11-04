@@ -50,6 +50,7 @@ uint32_t osSpTaskYielded(void *task);
 int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
+uint32_t osVirtualToPhysical(void *vaddr);
 
 /* The game's names at absolute N64 addresses (gen_stubs, aliases.ld), and data in the arenas at their N64
  * addresses (port/data: boot data gWaveSizes, game data, runtime image A's BSS). */
@@ -359,8 +360,35 @@ static void t_memory(void)
     uint8_t *k0 = pc_n64_ptr(0x80001000), *k1 = pc_n64_ptr(0xA0001000), *ph = pc_n64_ptr(0x00001000);
     k0[0] = 0x5A;
     snprintf(d, sizeof d, "fixed %d, K0 %p, KSEG1 %p, physical %p", fixed, (void *)k0, (void *)k1, (void *)ph);
-    check("RDRAM window", k0 == k1 && k0 == ph && pc_n64_addr(k0) == 0x80001000 && pc_n64_ptr(0x00800000) == NULL &&
+    check("RDRAM window", k0 == k1 && k0 == ph && pc_n64_addr(k0) == 0x80001000 && pc_n64_ptr(pc_rdram_size()) == NULL &&
                               (!fixed || (k0 == (uint8_t *)0x80001000 && *(volatile uint8_t *)0xA0001000 == 0x5A)),
+          d);
+    /* game.memory (docs/port/MEMORY.md): the window's last byte through every view, the first past it through none;
+     * past 16 MiB the RCP and the display lists get K0 addresses, below it physical ones, as on the N64. */
+    uint32_t size = pc_rdram_size(), top = 0x80000000u + size - 1;
+    uint8_t *last = pc_n64_ptr(top);
+    if (last)
+        *last = 0xA5;
+    snprintf(d, sizeof d, "%u MiB, last byte %p, osMemSize 0x%X", size >> 20, (void *)last, D_80000318);
+    check("RDRAM window's size", last && pc_n64_ptr(top | 0x20000000u) == last && pc_n64_ptr(size - 1) == last &&
+                                     *(volatile uint8_t *)pc_n64_ptr(size - 1) == 0xA5 && pc_n64_addr(last) == top &&
+                                     pc_n64_ptr(top + 1) == NULL && pc_n64_ptr(size) == NULL &&
+                                     (size == PC_RDRAM_SIZE || D_80000318 == size), d);
+    uint32_t hi = 0x81000000u + 0x40, lo = 0x80300040u;
+    int big = size > PC_RCP_SEGMENT_SPAN;
+    snprintf(d, sizeof d, "osVirtualToPhysical 0x%X, 0x%X; relocation 0x%X, 0x%X", osVirtualToPhysical(k0),
+             big ? osVirtualToPhysical(pc_n64_ptr(hi)) : 0u, pc_rcp_reloc(0x40, 0x80300000u, -1),
+             pc_rcp_reloc(0x40, 0x81000000u, -1));
+    check("RCP addresses", osVirtualToPhysical(k0) == 0x1000 && osVirtualToPhysical(pc_n64_ptr(lo)) == 0x300040 &&
+                               pc_rcp_reloc(0x40, 0x80300000u, -1) == 0x300040 &&
+                               pc_rcp_reloc(0x06000040, 0x80300000u, -1) == 0x06300040 &&
+                               pc_rcp_reloc(0x40, 0x80300000u, 6) == 0x06300040 &&
+                               (big ? osVirtualToPhysical(pc_n64_ptr(hi)) == hi &&
+                                          pc_rcp_reloc(0x40, 0x81000000u, -1) == hi &&
+                                          pc_rcp_reloc(hi - 0x01000000u, 0x01000000u, -1) == hi &&
+                                          pc_rcp_reloc(0x40, 0x81000000u, 6) == 0x06000040 &&
+                                          pc_rdram_k0_high(hi) && !pc_rdram_k0_high(lo)
+                                    : pc_rcp_reloc(0x40, 0x81000000u, -1) == 0x40 && !pc_rdram_k0_high(hi)),
           d);
     snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)D_8017A640,
              (void *)D_8038A400, (void *)&osTvType, osTvType, D_80000318);

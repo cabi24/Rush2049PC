@@ -32,6 +32,16 @@ size_t pc_rom_size(void);
 #define PC_RDRAM_SIZE 0x00800000u
 void *pc_n64_ptr(uint32_t n64_addr);      /* K0/K1/physical address -> host pointer (NULL if outside RDRAM) */
 uint32_t pc_n64_addr(const void *host);   /* host pointer into RDRAM -> K0 address (0 if outside) */
+/* game.memory (docs/port/MEMORY.md). PC_RDRAM_SIZE is the N64's 8 MiB, the window at `original`; a size gives the
+ * game a window (and osMemSize) of up to PC_RDRAM_MAX. From PC_RCP_SEGMENT_SPAN on, a physical address would read
+ * as a segmented one to the RSP (its segment id is bits 24-27), so the PC gives the RCP the K0 address there. */
+#define PC_RDRAM_MAX 0x10000000u
+#define PC_RCP_SEGMENT_SPAN 0x01000000u
+uint32_t pc_rdram_size(void);             /* the window's size: PC_RDRAM_SIZE until pc_mem_set_size */
+/* port/ultra/rcpaddr.c (game C reaches them through pc_prelude.h): a K0 address in the window past 16 MiB, and the
+ * display-list relocation's rule, the N64's `((w1 + base) & 0xFFFFFF) | segment` but for the K0 address there. */
+int pc_rdram_k0_high(uint32_t addr);
+uint32_t pc_rcp_reloc(uint32_t w1, uint32_t base, int32_t seg);
 
 /* Ranges that hold raw big-endian bytes from the ROM (asset buffers filled by DMA). The renderer and the
  * audio interpreter read vertices, matrices, 16-bit texels and command lists in N64 byte order there. */

@@ -13,10 +13,14 @@ typedef unsigned int u32;
 #define DLW(w) pc_be32_get(&(w))
 #define DLW_SET(w, v) pc_be32_set(&(w), v)
 #define DL_AT(addr) ((u32 *)pc_n64_ptr(addr))
+/* A K0 address past 16 MiB of a larger window (game.memory: what entity_lod_select's relocation gives there) is no
+ * segmented one, whatever its bits 24-27 (docs/port/MEMORY.md 3); at original none reaches 16 MiB. */
+#define SEGMENTED(a) ((a & 0x0F000000) && !pc_rdram_k0_high(a))
 #else
 #define DLW(w) w
 #define DLW_SET(w, v) w = v
 #define DL_AT(addr) (u32 *) addr
+#define SEGMENTED(a) (a & 0x0F000000)
 #endif
 void display_list_traverse(u32 *dl, u32 match, u32 replace, s32 flags, s32 (*cb)(u32 *)) {
     u32 w0;
@@ -26,7 +30,7 @@ void display_list_traverse(u32 *dl, u32 match, u32 replace, s32 flags, s32 (*cb)
         if ((DLW(*dl) & 0xFF000000) == 0xDE000000) {
             w0 = DLW(*dl++);
             addr = DLW(*dl);
-            if (addr & 0x0F000000) {
+            if SEGMENTED(addr) {
                 addr &= 0xF0FFFFFF;
             } else if (!(addr & 0xFF000000)) {
                 addr += 0x80000000;
@@ -45,7 +49,7 @@ void display_list_traverse(u32 *dl, u32 match, u32 replace, s32 flags, s32 (*cb)
         } else if ((DLW(*dl) & 0xFF000000) == 0xE1000000) {
             addr = DLW(dl[1]);
             dl += 2;
-            if (addr & 0x0F000000) {
+            if SEGMENTED(addr) {
                 addr &= 0xF0FFFFFF;
             } else if (!(addr & 0xFF000000)) {
                 addr += 0x80000000;

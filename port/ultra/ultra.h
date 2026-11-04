@@ -212,6 +212,7 @@ int pc_pakw_fault_submit(const char *path, const char *label, const void *data, 
 int pc_pakw_fault_wait(uint64_t timeout_ns);
 
 /* ---------------------------------------------------------------- memory.c */
+int pc_mem_set_size(uint32_t bytes);   /* game.memory, before pc_mem_init: 0, or -1 for a size it can't map */
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */
 int pc_mem_fixed(void);         /* the window is at host 0x80000000 */
 int pc_mem_fix_absolute(void);  /* first thing in main: GOT slots of absolute N64-address symbols */
@@ -222,6 +223,7 @@ uint8_t *pc_rdram(void);
 void pc_os_initialize(void);    /* osInitialize: the low-memory globals */
 uint32_t pc_os_mem_size(void);
 void pc_os_set_expansion_pak(int on);   /* osMemSize 8 MiB instead of 4 */
+void pc_os_set_mem_size(uint32_t bytes);   /* game.memory: osMemSize, the window's size */
 void pc_print_backtrace(int skip);
 void pc_fault_install(void);       /* SIGSEGV and friends: report the N64 thread and a backtrace */
 /* main's part of the end of the process (port/app's log, docs/port/RELEASE.md): pc_on_fault after a fault's report

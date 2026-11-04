@@ -16,7 +16,10 @@ extern int test_race_begins;        /* how many times the game C called pc_race_
 /* pc_pool_overflow (pc_game_types.h) calls this when a test sets it; otherwise a pool past its end fails the test. */
 extern void (*test_pool_overflow)(const char *pool, int used, int capacity);
 /* The RDRAM window at PC_RDRAM_BASE, mapped as port/ultra maps it (NULL if that address is taken), for tests whose
- * files must hold 32-bit window addresses as the game's heap blocks do. */
+ * files must hold 32-bit window addresses as the game's heap blocks do. test_rdram_bytes is its size (PC_RDRAM_SIZE,
+ * the N64's; a test of game.memory sets more before the first call), which pc_rdram_size() and support.c's
+ * pc_n64_ptr and pc_n64_addr follow. */
+extern uint32_t test_rdram_bytes;
 uint8_t *test_rdram(void);
 /* Puts back the GOT slots of symbols a test defines at absolute N64 addresses (`.set name, 0x8014A250`), as
  * rush2049pc does first thing (port/ultra/absfix.c): game data that sits at its N64 address in the window. */

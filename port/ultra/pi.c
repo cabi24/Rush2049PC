@@ -27,6 +27,8 @@
 #define OVERLAY_A_SIZE 194128u
 #define OVERLAY_B_ROM 0xB6FEC4u
 #define OVERLAY_B_SIZE 43888u
+/* What an inflate may write: up to the window's end when its destination is in the window (any game.memory), else
+ * 8 MiB, the N64's whole RDRAM. */
 #define INFLATE_MAX (8u << 20)
 
 static uint8_t *g_rom;
@@ -225,13 +227,14 @@ uint8_t gRomCompressedData[16];
 static int32_t inflate_buffer(const uint8_t *src, size_t avail, void *dst, const char *what)
 {
     z_stream z;
+    uint32_t at = pc_n64_addr(dst);
     memset(&z, 0, sizeof z);
     if (inflateInit2(&z, -15) != Z_OK)
         return 0;
     z.next_in = (Bytef *)src;
     z.avail_in = (uInt)avail;
     z.next_out = dst;
-    z.avail_out = INFLATE_MAX;
+    z.avail_out = at ? pc_rdram_size() - (at - PC_RDRAM_BASE) : INFLATE_MAX;
     int r = inflate(&z, Z_FINISH);
     int32_t n = (int32_t)z.total_out;
     inflateEnd(&z);

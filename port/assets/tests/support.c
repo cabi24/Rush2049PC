@@ -1,6 +1,7 @@
 /* port/assets/tests/support.c: what the converters call from port/ultra, for test programs that link them alone.
  * A small big-endian range registry with the same rules as port/ultra/memory.c (overlapping ranges merge;
  * unregister drops the range that contains the address). */
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,19 +91,57 @@ void pc_pool_overflow(const char *pool, int used, int capacity)
 #define MAP_FIXED_NOREPLACE 0x100000
 #endif
 
+uint32_t test_rdram_bytes = PC_RDRAM_SIZE;
+static uint8_t *g_window;
+
 uint8_t *test_rdram(void)
 {
-    static uint8_t *w;
     static int tried;
     void *want = (void *)(uintptr_t)PC_RDRAM_BASE, *p;
 
     if (tried)
-        return w;
+        return g_window;
     tried = 1;
-    p = mmap(want, PC_RDRAM_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    p = mmap(want, test_rdram_bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
     if (p == want)
-        w = (uint8_t *)p;
+        g_window = (uint8_t *)p;
     else if (p != MAP_FAILED)
-        munmap(p, PC_RDRAM_SIZE);
-    return w;
+        munmap(p, test_rdram_bytes);
+    return g_window;
 }
+
+/* port/ultra's window functions over test_rdram's window (docs/port/MEMORY.md), for game C and port code a test
+ * links; weak, so a test with a window of its own (wad_game) defines them instead. rcpaddr.c's rule reads
+ * pc_rdram_size. */
+__attribute__((weak)) uint32_t pc_rdram_size(void) { return test_rdram_bytes; }
+__attribute__((weak)) void *pc_n64_ptr(uint32_t addr)
+{
+    uint32_t phys = addr >= 0x80000000u && addr < 0xC0000000u ? addr & 0x1FFFFFFFu : addr;
+    return g_window && phys < test_rdram_bytes ? g_window + phys : NULL;
+}
+__attribute__((weak)) uint32_t pc_n64_addr(const void *host)
+{
+    const uint8_t *p = host;
+    return g_window && p >= g_window && p < g_window + test_rdram_bytes ? PC_RDRAM_BASE + (uint32_t)(p - g_window) : 0;
+}
+
+/* The game heap's reports (port/ultra/heap.c, which a test may link instead) and its log. */
+__attribute__((weak)) void pc_heap_created(void *heap) { (void)heap; }
+__attribute__((weak)) void pc_heap_allocated(void *heap) { (void)heap; }
+__attribute__((weak)) void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t largest)
+{
+    fprintf(stderr, "test: the game heap has no free block of %u bytes (%u free, %u the largest)\n", size, free_bytes,
+            largest);
+}
+__attribute__((weak)) void pc_heap_short(const char *what, uint32_t need) { (void)what, (void)need; }
+__attribute__((weak)) int pc_verbose;
+__attribute__((weak)) void pc_log(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    fprintf(stderr, "test: ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+}
+__attribute__((weak)) uint32_t pc_os_mem_size(void) { return test_rdram_bytes; }

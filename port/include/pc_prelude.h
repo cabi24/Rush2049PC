@@ -45,6 +45,21 @@ static __inline__ void pc_be16_set(void *p, unsigned short v) {
 void *pc_n64_ptr(unsigned int n64_addr);
 unsigned int pc_n64_addr(const void *host);
 
+/* game.memory's window past 16 MiB (docs/port/MEMORY.md 3), where a physical address would read as a segmented one:
+ * the display-list relocations (entity_lod_select, entity_cull_check) give the K0 address there (pc_rcp_reloc: the
+ * N64's `((w1 + base) & 0xFFFFFF) | segment` below), and display_list_traverse and the MusyX library's RAM test take
+ * such a K0 address as the RAM address it is (pc_rdram_k0_high). At game.memory = original each is the N64's rule. */
+unsigned int pc_rcp_reloc(unsigned int w1, unsigned int base, int seg);
+int pc_rdram_k0_high(unsigned int addr);
+
+/* The game heap (port/ultra/heap.c, docs/port/MEMORY.md 4): the allocator says when the heap is made and after each
+ * block it takes, under the heap's lock; an allocation no free block can hold, and the game's own fallbacks when it
+ * finds the heap short (LoadCars, a car's paint), are logged the first time and counted. */
+void pc_heap_created(void *heap);
+void pc_heap_allocated(void *heap);
+void pc_heap_none(void *heap, unsigned int size, unsigned int free_bytes, unsigned int largest);
+void pc_heap_short(const char *what, unsigned int need);
+
 /* A pointer stored as a 32-bit N64 address: the u32 fields of records that keep their N64 layout (each file's
  * N64W(x) is PC_N64W(x)). That is right for RDRAM-window addresses only. A RUSH_CHECK_CASTS build
  * (cmake -DRUSH_CHECK_CASTS=ON) checks every such store and stops at the first one that would drop the upper half

@@ -18,9 +18,8 @@ void pc_assets_font(int wave, uint8_t *buf, size_t size)
     uintptr_t a = (uintptr_t)buf;
     size_t chars, need;
 
-    if (a < PC_RDRAM_BASE || a >= PC_RDRAM_BASE + PC_RDRAM_SIZE || size < 16
-        || size > PC_RDRAM_BASE + PC_RDRAM_SIZE - a)
-        return;
+    if (a < PC_RDRAM_BASE || a >= PC_RDRAM_BASE + PC_RDRAM_MAX || size < 16 || size > PC_RDRAM_BASE + PC_RDRAM_MAX - a)
+        return;   /* the largest window game.memory gives (docs/port/MEMORY.md) */
     chars = buf[12];
     need = 16 + chars * 12 + (buf[10] ? chars * chars : 0);
     if (need > size)

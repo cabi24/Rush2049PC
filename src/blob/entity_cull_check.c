@@ -18,9 +18,13 @@ typedef struct Gfx {
  * (docs/port/POINTERS.md). */
 #define DLW(w) pc_be32_get(&(w))
 #define DLW_SET(w, v) pc_be32_set(&(w), v)
+/* The rebased address past 16 MiB of a larger window (game.memory) is the K0 one, not the 24-bit offset; at
+ * original, the N64's (pc_rcp_reloc, docs/port/MEMORY.md 3). */
+#define REBASE(w, b) pc_rcp_reloc(w, b, -1)
 #else
 #define DLW(w) w
 #define DLW_SET(w, v) w = v
+#define REBASE(w, b) (w & 0x0F000000) | ((w + b) & 0x00FFFFFF)
 #endif
 void entity_cull_check(Gfx *start, Gfx *end, s32 base) {
     Gfx *gfx;
@@ -35,12 +39,12 @@ void entity_cull_check(Gfx *start, Gfx *end, s32 base) {
             next = (DLW(gfx[1].w0) & 0xFF000000) >> 24;
             if (cmd == 0xFD) {
                 off = base;
-                val = (DLW(gfx->w1) & 0x0F000000) | ((DLW(gfx->w1) + off) & 0x00FFFFFF);
+                val = REBASE(DLW(gfx->w1), off);
                 DLW_SET(gfx->w1, val);
             }
             if (cmd == 0xE1 && next == 4) {
                 off = base;
-                val = (DLW(gfx->w1) & 0x0F000000) | ((DLW(gfx->w1) + off) & 0x00FFFFFF);
+                val = REBASE(DLW(gfx->w1), off);
                 DLW_SET(gfx->w1, val);
             }
         }

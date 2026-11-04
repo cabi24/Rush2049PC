@@ -1948,11 +1948,12 @@ void func_80014C60(short *buffer, unsigned int samples)
  * Gate:     full-ROM SHA-1
  */
 extern void *(*D_80038014)(void *);
-/* PC: a host pointer (at or above 4 GiB) is RAM, not a cartridge offset: returned as it is. */
+/* PC: a host pointer (at or above 4 GiB) is RAM, not a cartridge offset: returned as it is; so is a K0 address past
+ * 16 MiB of a larger window (game.memory, docs/port/MEMORY.md 3), where the N64's region test sees no RAM. */
 void *func_80014CAC(void *address)
 {
     unsigned int region;
-    PC_ONLY(if ((uintptr_t)address >> 32) return address;) region = (unsigned int)address & 0xFF000000;
+    PC_ONLY(if ((uintptr_t)address >> 32 || pc_rdram_k0_high((unsigned int)(uintptr_t)address)) return address;) region = (unsigned int)address & 0xFF000000;
     if (region != 0x80000000 && region != 0xB0000000) {
         address = D_80038014(address);
     }
