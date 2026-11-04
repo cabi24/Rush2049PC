@@ -26,7 +26,7 @@ sixteenths of a foot. `D_8014A108` is the number of human players (`active_playe
 
 ### 1.1 The world's visibility tables
 
-`physics_float_calc` (MAT3's WorldCullObjects, `nonmatching/game/physics_float_calc.c:213-283`), called at the start
+`physics_float_calc` (MAT3's WorldCullObjects, `nonmatching/game/physics_float_calc.c:223-293`), called at the start
 of each view (`particle_knot/group.c:1271`):
 
 - WorldDistance (`:61-90`) walks the world's top-level list (`D_80149B80`, the world WAD's nodes, from
@@ -34,7 +34,7 @@ of each view (`particle_knot/group.c:1271`):
   several do (the box has no top: an eye above it is still in it).
 - That part's row of the track's table (`D_8011B898` for track 0 ... `D_8011E5B8` for track 18, `u32[4]` a row: one
   bit a part, up to 128) says which parts are drawn; `D_8011E748[track]` is the track's parts, `D_8011E75C` the row
-  for an eye in no box. Each part's node gets the hidden flag (0x80000000) or loses it (`:273-277`), so its whole
+  for an eye in no box. Each part's node gets the hidden flag (0x80000000) or loses it (`:283-287`), so its whole
   subtree is left out (`track_collision_wall`, `particle_knot/group.c:1036-1039`). Level objects parented to a cell
   (`func_800AB53C.c`) go with it.
 - `D_8014061A` (the invisible track cheat, `cheatscr.c:126`) hides every part; the call's `show` argument and the
@@ -177,7 +177,7 @@ renderer's own (a layer of the settings, as `RUSH_GFX_HUD` is). The defaults are
 
 ### 2.1 The visibility tables
 
-`nonmatching/game/physics_float_calc.c:92-211`, the PC's WorldCullObjects: original the N64's (the row of the eye's
+`nonmatching/game/physics_float_calc.c:92-221`, the PC's WorldCullObjects: original the N64's (the row of the eye's
 cell). Far ORs into it the rows of every cell within `PC_VIS_FAR` = 2,000 ft of the eye (the distance to the cell's
 box, without its top, as WorldDistance tests it; `VisReach`), for cells with a box and a row of their own table (each
 table runs to the next one's address: the battle arenas' have one row, `VisRows`): what the cells the eye reaches in
@@ -203,7 +203,7 @@ table runs to the next one's address: the battle arenas' have one row, `VisRows`
 `func_8009D45C.c:24-87`, `func_8009D99C.c:34-97`, `func_8009D708.c:34-103`: PC versions. A node 2,048 ft or more from
 the eye is left out at original, kept to 4,096 ft at far, kept at any distance at max: its whole matrix (the rotation,
 the place and the w the node gives the vertex) is divided by a power of two h (`pc_draw_range_scale`,
-`port/config/detail.c:60-82`), so each vertex comes out h times smaller in x, y, z and w, the same point on the screen
+`port/config/detail.c:60-79`), so each vertex comes out h times smaller in x, y, z and w, the same point on the screen
 with the same z/w, so the same depth and fog in the renderer, and children multiplied onto it the same. Inside the
 N64's range h is 1 and every word is the N64's. A NaN place is never left out, as on the N64. Far scenery
 (func_8009D708) is pulled in to 3,200 ft at far and not at all at max (its true place, divided by h past 2,048 ft).
@@ -227,13 +227,12 @@ the fog and everything the game sees of z/w, unchanged.
   one-player sections of every model in split screen, without the two-player ones (one player's mask has no
   two-player bit). From the next track load, as the models are relocated once.
 - `level_objects/group.c:490`: a level object with metadata 0x100 gets its scene node with two to four players.
-- Not changed: the smoke, skid, explosion and trail cuts of 1.8 (particles: they would spend the poly list's 200 and
-  the effect pools, and the game's frame-time gate already drops smoke); the fog tables by player count (fog far
-  moves those).
+- Not changed: the smoke, skid, explosion and trail cuts of 1.8 (spawn decisions on shared pools: the poly list's
+  200, the effect pools); the fog tables by player count (fog far moves those).
 
 ### 2.6 The scene's counts
 
-The scene walk counts, per view (`PC_SCENE`, `pc_scene_count`, `port/config/detail.c:86-140`): nodes drawn, drawn at a
+The scene walk counts, per view (`PC_SCENE`, `pc_scene_count`, `port/config/detail.c:82-136`): nodes drawn, drawn at a
 level past their first, the world's parts, those the visibility tables let through, nodes hidden, hidden in that
 view, out of the matrices' range, past the fog's radius, past their last level of detail. At a run's end one line
 gives each one's mean and most over the views of a world (the race's, not the menus' models), and the renderer's
@@ -253,15 +252,15 @@ and status lines). `tools/port/detail_check.py` reads it.
 ## 3. The renderer: the depth range and the fog
 
 `port/gfx/gfx_detail.c`. The game's projection (guPerspective, the lookat multiplied in) makes z/w a function of the
-eye's depth w alone, z/w = a + b/w (-1 at the near plane, 1 at the far one). `pcgfx_detail_projection` (`:94-110`)
-takes a and b from each projection loaded or multiplied (`gfx_rsp.c:659, 762`): b is the fourth row of z's column,
+eye's depth w alone, z/w = a + b/w (-1 at the near plane, 1 at the far one). `pcgfx_detail_projection` (`:94-109`)
+takes a and b from each projection loaded or multiplied (`gfx_rsp.c:659, 764`): b is the fourth row of z's column,
 a the ratio of z's column to w's in the first three rows. A projection with no w column, or near and far not in front
 of the eye in that order, has none (orthographic views, the identity a task starts with).
 
 - **The depth** (draw_distance far or max). With the near plane n = b / (-1 - a) and the far f = b / (1 - a), the depth
   GL stores is that of a projection with the far plane at 2 f or 32 f and the same n: for the same w, z/w' = al z/w +
   be, so the N64 depth d (the screen z over 1,023, or the primitive depth over 32,767) becomes d' = d mul + add for
-  the projection and the viewport in effect (`dz_update`, `:112-133`; `gfx_rsp.c:520`). It is linear in d, so exact
+  the projection and the viewport in effect (`dz_update`, `:112-132`; `gfx_rsp.c:520`). It is linear in d, so exact
   per vertex: GL interpolates z/w linearly across the screen, as the RDP does. The primitive depth of triangles and of
   rectangles drawn in the view is mapped the same (`gfx_rdp.c:1037`). Clears are still the far end. The geometry past
   the game's far plane, which the N64 draws at the far plane's depth in the order drawn, is then in depth order up to
@@ -270,7 +269,7 @@ of the eye in that order, has none (orthographic views, the identity a task star
   depth step at distance D is about D^2 / (n 2^24), with n = 2.5 ft 0.1 ft at 2,000 ft, 0.6 ft at 5,000 ft and 2.4 ft
   at 10,000 ft, the same at 2 f as at 32 f (b' tends to -2n). The N64's own z buffer is 18 bits; d' is computed in
   floats (24 bits), and GL's clip z is (2 d' - 1) w, divided back by w.
-- **The fog** (`pcgfx_fog_alpha`, `:160-182`; G_FOG's shade alpha, clamp(z/w fm + fo)): fog far gives a vertex at
+- **The fog** (`pcgfx_fog_alpha`, `:160-179`; G_FOG's shade alpha, clamp(z/w fm + fo)): fog far gives a vertex at
   depth w the fog the game gives one at w / 2 (z/w' = a + 2 (z/w - a), with a from the projection the vertex was
   loaded under); off gives none. With anything but original, z/w is held at 1 for the fog, so what draw_distance
   brings in past the game's far plane gets the far plane's fog: in a fog option the fog's end colour, and with no
@@ -280,6 +279,65 @@ of the eye in that order, has none (orthographic views, the identity a task star
   game's frames.
 - **At original** none of it runs: no depth map (`dz_on` 0), and the fog the N64's expression, bit for bit
   (`gfx.all.*` and every synthetic path's screenshots, section 7).
+
+## 4. What it costs
+
+The scene line (2.6) gives what a view drew; `RUSH_GFX_TIMES=2` the time of a graphics task and of a frame drawn
+between two, the CPU's with the GPU's (glFinish around each). Runs on the virtual clock (`--fast`), 1280 x 720 (the
+native scale), 16:9, a high frame rate of 60.
+
+### 4.1 The retail cartridge (Pi 5, V3D 7.1, Debug)
+
+RETAIL_TABLE
+
+### 4.2 The synthetic cartridge (build host, Intel UHD 770, Debug)
+
+Its tracks are a few boxes and a ground, so this measures the overhead of the settings themselves more than their
+drawing: within the run-to-run spread of a shared host at every level.
+
+| Path | Level | Task, ms (most) | Frame between, ms | Frame matrices | Display list | Lookats |
+|---|---|---|---|---|---|---|
+| race12 (one view, 12 cars) | original | 2.62 (15.6) | 3.84 | 201 | 1,207 | 12 |
+| | far | 2.69 (13.3) | 4.05 | 202 | 1,221 | 12 |
+| | max | 2.56 (13.0) | 3.84 | 203 | 1,229 | 12 |
+| race2p12 (two views, 12 cars) | original | 2.76 (11.5) | 4.07 | 402 | 2,393 | 24 |
+| | far | 2.69 (17.0) | 3.98 | 404 | 2,421 | 24 |
+| | max | 2.75 (10.6) | 4.08 | 406 | 2,437 | 24 |
+| race4p (four views) | original | 2.65 (11.7) | 3.25 | 484 | 2,403 | 16 |
+| | far | 2.65 (12.1) | 3.25 | 488 | 2,459 | 16 |
+| | max | 2.48 (13.1) | 3.00 | 492 | 2,491 | 16 |
+| demo12 (12 drones) | original | 3.89 (20.6) | 4.70 | 201 | 1,207 | 12 |
+| | far | 3.36 (15.5) | 3.80 | 202 | 1,221 | 12 |
+| | max | 4.07 (19.7) | 4.86 | 203 | 1,229 | 12 |
+
+Every synthetic path also ran at max with detail high, fog far, 60 fps and 16:9 (31 of 31 reach their states, no pool
+past its end; `build/scripts/modes_max.sh`, local).
+
+## 5. What it looks like on the retail cartridge
+
+Pi 5, the branch's Debug build, `--fast`, 16:9, a high frame rate of 60, the frames as the game draws them
+(`RUSH_GFX_DUMP`, internal scale 2: 852 x 480), compared frame by frame across the levels; the runs, logs and frames
+are in `build/scratch/retail/` and stay there. Described in words.
+
+### 5.1 The attract demo: tracks 0-4, one view
+
+The demo races six drones on tracks 0 to 4 in turn (the Expansion Pak's fifth), with no fog option. Frames every
+five seconds, the same moments at original, far and max (the demo's course is the same at every level: the settings
+change no game logic):
+
+- **More of the world.** At far, buildings and the edge of the city appear on the horizon where original shows sky;
+  at max, a distant skyline (towers on the far side of the bay, antennas, the track's farther sections) stands at the
+  horizon in the open views of tracks 0, 2 and 4, and drones further down the road are drawn where original drops
+  them. In the enclosed stretches (walls, buildings both sides, tunnels) the three levels look the same: the z buffer
+  hides what the visibility tables let through behind the walls.
+- **No holes.** No part drawn at far or max shows a missing face, a gap at its seam with the next, or an open back:
+  the parts the tables hid from a place are whole models, seen from the side the track faces them.
+- **Against the sky.** The added skyline is drawn in front of the backdrop with its own colours; with no fog option
+  there is no fog to match. The sky dome follows the camera and is drawn behind everything at every level.
+- **Depth.** No flicker between far parts (the skyline's towers against each other and the ground under them), at
+  2,000-6,000 ft, where a depth step is under a foot (section 3).
+- **What shouldn't be drawn isn't**: the per-view masks hide the same kinds of node at every level (about 30 a view,
+  section 4); the title screen between races is the same.
 
 ## 6. Tests
 
