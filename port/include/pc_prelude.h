@@ -81,8 +81,22 @@ static __inline__ unsigned int pc_n64a(__UINTPTR_TYPE__ p)
 #define PC_N64P(x) pc_n64p((unsigned int)(x))
 #define PC_N64A(x) pc_n64a((__UINTPTR_TYPE__)(x))
 #else
-#define PC_N64P(x) ((__UINTPTR_TYPE__)(x))
+#define PC_N64P(x) ((__UINTPTR_TYPE__)(unsigned int)(x))
 #define PC_N64A(x) ((unsigned int)(__UINTPTR_TYPE__)(x))
+#endif
+
+/* A heap handle's slot (AllocateHandleHeap, audio_heap/group.c) is 8 bytes on the PC and holds its block's host
+ * pointer, which the game reads through the handle (`*(u8 **)h`, docs/port/POINTERS.md 9.10); the heap and a few
+ * readers take the slot as the N64's u32 instead. PC_SLOT_N64(s) is the N64 address the slot at host address s holds,
+ * PC_SLOT_SET(s, a) stores N64 address a's pointer in it. With the window at 0x80000000 the pointer is that address
+ * zero-extended, so the N64's 4-byte read and write of the slot's first half are what they do; a RUSH_NOFIXED build's
+ * pointer is taken whole. */
+#ifdef RUSH_NOFIXED
+#define PC_SLOT_N64(s) PC_N64A(*(void **)(s))
+#define PC_SLOT_SET(s, a) (*(void **)(s) = PC_N64P(a))
+#else
+#define PC_SLOT_N64(s) (*(unsigned int *)(s))
+#define PC_SLOT_SET(s, a) (*(unsigned int *)(s) = (a))
 #endif
 
 /* A pointer stored as a 32-bit N64 address: the u32 fields of records that keep their N64 layout (each file's
