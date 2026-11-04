@@ -1243,16 +1243,106 @@ static void test_engines(void)
 #undef PASS
 }
 
+/* ---------------------------------------------------------------- presets (port/config/presets.c) */
+
+static void preset_on(PcSettings *s, const PcPreset *p)
+{
+    char why[160];
+    for (int k = 0; k < p->n; k++)
+        CHECK(pc_settings_set(s, p->values[k].section, p->values[k].key, p->values[k].value, why, sizeof why) == 0,
+              "%s: %s.%s = %s: %s", p->name, p->values[k].section, p->values[k].key, p->values[k].value, why);
+}
+
+static void test_presets(void)
+{
+    const PcPreset *t;
+    int n = pc_presets(&t);
+    static PcSettings d, s;
+    char a[64], b[64];
+    CHECK(n == 3 && !strcmp(t[0].name, "n64") && !strcmp(t[1].name, "enhanced") && !strcmp(t[2].name, "maximum"),
+          "three: n64, enhanced, maximum (%d)", n);
+    CHECK(pc_preset_find("ENHANCED") == &t[1] && pc_preset_find("n64") == &t[0] && pc_preset_find("Maximum") == &t[2],
+          "found by name, any case");
+    CHECK(!pc_preset_find("max") && !pc_preset_find("") && !pc_preset_find(NULL) && !pc_preset_find("custom"),
+          "no other name");
+    pc_settings_defaults(&d);
+    for (int i = 0; i < n; i++) {
+        CHECK(strlen(t[i].desc) <= 49 && strlen(t[i].label) <= 20, "%s: the footer's line and the label fit",
+              t[i].name);
+        for (int k = 0; k < t[i].n; k++)   /* no setting twice */
+            for (int j = 0; j < k; j++)
+                CHECK(strcmp(t[i].values[j].section, t[i].values[k].section) ||
+                          strcmp(t[i].values[j].key, t[i].values[k].key),
+                      "%s: %s.%s twice", t[i].name, t[i].values[k].section, t[i].values[k].key);
+        s = d;
+        preset_on(&s, &t[i]);   /* every value one the settings take */
+        CHECK(pc_preset_in_effect(&s, &t[i]), "%s in effect once set", t[i].name);
+    }
+    /* n64: every setting another preset sets, each at its default */
+    for (int i = 1; i < n; i++)
+        for (int k = 0; k < t[i].n; k++) {
+            int found = 0;
+            for (int j = 0; j < t[0].n; j++)
+                found |= !strcmp(t[0].values[j].section, t[i].values[k].section) &&
+                         !strcmp(t[0].values[j].key, t[i].values[k].key);
+            CHECK(found, "n64 puts %s's %s.%s back", t[i].name, t[i].values[k].section, t[i].values[k].key);
+        }
+    s = d;
+    preset_on(&s, &t[0]);
+    for (int j = 0; j < t[0].n; j++) {
+        pc_settings_get(&s, t[0].values[j].section, t[0].values[j].key, a, sizeof a);
+        pc_settings_get(&d, t[0].values[j].section, t[0].values[j].key, b, sizeof b);
+        CHECK(!strcmp(a, b), "n64's %s.%s is the default: %s, %s", t[0].values[j].section, t[0].values[j].key, a, b);
+    }
+    CHECK(pc_preset_in_effect(&d, &t[0]) && !pc_preset_in_effect(&d, &t[1]) && !pc_preset_in_effect(&d, &t[2]),
+          "the defaults: n64 in effect, the others not");
+    /* enhanced: the recommended PC settings; not the races, the HUD's place, the display's or the machine's */
+    s = d;
+    preset_on(&s, &t[1]);
+    CHECK(s.game_fps == 60 && s.draw_distance == PC_DRAW_FAR && s.detail == PC_DETAIL_HIGH &&
+              s.texture_lod == PC_TEXLOD_ANISO && s.widescreen == -1 && pc_settings_voices(&s) == 64 &&
+              pc_settings_engines(&s) == -1 && s.memory == 64,
+          "enhanced: 60, far, high, anisotropic, auto, 64 voices, all, 64 MiB");
+    CHECK(s.fog == PC_FOG_ORIGINAL && s.textures == 0 && s.cars == 0 && s.hud == d.hud && s.scale == d.scale &&
+              s.frame_rate == d.frame_rate && s.vsync == d.vsync && s.fullscreen == d.fullscreen &&
+              s.width == d.width && s.api == d.api && s.volume == d.volume && s.expansion_pak == d.expansion_pak,
+          "enhanced leaves the fog, the textures, the cars, the HUD and the display's settings");
+    CHECK(!pc_preset_in_effect(&s, &t[0]) && pc_preset_in_effect(&s, &t[1]) && !pc_preset_in_effect(&s, &t[2]),
+          "enhanced in effect, n64 and maximum not");
+    /* maximum: enhanced, the whole track, no fog, the world's textures upscaled */
+    s = d;
+    preset_on(&s, &t[2]);
+    CHECK(s.game_fps == 60 && s.draw_distance == PC_DRAW_MAX && s.detail == PC_DETAIL_HIGH && s.fog == PC_FOG_OFF &&
+              s.texture_lod == PC_TEXLOD_ANISO && s.textures == 1 && s.widescreen == -1 &&
+              pc_settings_voices(&s) == 64 && pc_settings_engines(&s) == -1 && s.memory == 64 && s.cars == 0,
+          "maximum: 60, max, high, fog off, anisotropic, upscaled, auto, 64 voices, all, 64 MiB");
+    CHECK(!pc_preset_in_effect(&s, &t[1]), "maximum's settings aren't enhanced's (draw distance)");
+    pc_settings_set(&s, "video", "fog", "far", NULL, 0);
+    CHECK(!pc_preset_in_effect(&s, &t[2]), "one setting changed: not in effect");
+    /* n64 over maximum: the whole file is the defaults' again */
+    preset_on(&s, &t[0]);
+    char *x = pc_settings_format(&s), *y = pc_settings_format(&d);
+    CHECK(!strcmp(x, y), "n64 after maximum: every setting the default");
+    free(x);
+    free(y);
+    /* widescreen off, n64: back to auto, the default (a 4:3 window is 4:3 at auto) */
+    s = d;
+    pc_settings_set(&s, "video", "widescreen", "off", NULL, 0);
+    CHECK(!pc_preset_in_effect(&s, &t[0]), "widescreen off: not the defaults");
+    preset_on(&s, &t[0]);
+    CHECK(s.widescreen == -1, "n64: widescreen auto again (%g)", s.widescreen);
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
         {"stick", test_stick}, {"steer", test_steer}, {"cars", test_cars}, {"memory", test_memory}, {"detail", test_detail},
         {"fps", test_fps}, {"mods", test_mods}, {"saves", test_saves}, {"voices", test_voices},
-        {"engines", test_engines}};
+        {"engines", test_engines}, {"presets", test_presets}};
     if (argc < 3) {
         fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|steer|cars|memory|detail|fps|mods|saves|"
-                        "voices|engines|all SCRATCH_DIR\n");
+                        "voices|engines|presets|all SCRATCH_DIR\n");
         return 2;
     }
     static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */

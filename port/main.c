@@ -89,6 +89,9 @@ static void usage(FILE *f)
             "                      the cartridge's files only (game.mods=off)\n"
             "  --config PATH       read this settings file instead (it is not created); --no-config: none\n"
             "  --set S.KEY=VALUE   any setting, as the file names it (video.vsync=off, keyboard.A=Space)\n"
+            "  --preset NAME       several settings at once, as F1's Presets page sets them: enhanced (the game at\n"
+            "                      60, far, high detail, every engine heard), maximum, or n64 (their defaults);\n"
+            "                      a --set after it wins\n"
             "  --print-config      print the settings in effect, as a settings file, and exit\n"
             "  --status N          a status line every N seconds\n"
             "  -v, --verbose       more log lines (repeat for more); --trace-os: every thread switch\n"
@@ -882,7 +885,17 @@ static int rush_main(int argc, char **argv)
             }
             *dot = *eq = 0;
             SET(s, dot + 1, eq + 1);
-        } else if (!strcmp(a, "--print-config"))
+        } else if (!strcmp(a, "--preset")) {   /* its settings here, in order (port/config/presets.c) */
+            const char *name = ARG();
+            const PcPreset *p = pc_preset_find(name);
+            if (!p) {
+                fprintf(stderr, "rush2049pc: --preset takes n64, enhanced or maximum, not '%s'\n", name);
+                return 2;
+            }
+            for (int k = 0; k < p->n; k++)
+                SET(p->values[k].section, p->values[k].key, p->values[k].value);
+        }
+        else if (!strcmp(a, "--print-config"))
             print_config = 1;
         else if (!strcmp(a, "--status"))
             run.status_every = atoi(ARG());

@@ -85,6 +85,8 @@ a single run.
 The settings new since the beta are at original by default: the N64's
 game exactly.
 
+F1 > Presets > PC enhanced (--preset enhanced): the recommended settings.
+
 F1 > Video
   Render scale   native (the default): drawn at the window's own pixels,
                  sharp at any size and on a high-DPI display. N64 (1x) is

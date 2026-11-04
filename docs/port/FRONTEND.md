@@ -13,6 +13,7 @@ The settings overlay (Phase 8, 2026-10-27) has [its own section](#the-settings-o
 | `port/input/stick.c` | dead zone, the N64 range, the octagonal gate |
 | `port/config/config.c` | the INI reader, the settings table, the file's location, the first-run file, the layers, saving changes in place |
 | `port/config/race_cars.c` | `game.cars` at run time: the setting, and the count the game latches at each race's start |
+| `port/config/presets.c` | the [presets](#presets-n64-original-pc-enhanced-pc-maximum): N64 original, PC enhanced, PC maximum |
 | `port/input/tests/` | `frontend_test` (no SDL), `frontend_menu_test` (the overlay, headless) and `frontend_sdl_test` (SDL2 builds) |
 
 ## Controls
@@ -198,7 +199,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
      `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`,
      `RUSH_GFX_FOG`, `RUSH_GFX_TEXTURE_LOD`;
   4. a press file's `pak on|off`;
-  5. command-line options, in order.
+  5. command-line options, in order (`--preset NAME` is its settings at its place: [below](#presets-n64-original-pc-enhanced-pc-maximum)).
 - **Bad values.** A bad line in the file, or a bad environment value, is reported with its line and skipped.
   The setting keeps its value from the layer before. A bad option is an error (exit 2).
 - **`--print-config`** prints the settings in effect, as a settings file.
@@ -400,6 +401,61 @@ files (a profile, a ghost each), what it deletes goes to the folder's `trash/`.
 - **Sharing**: F1 > Saves > a ghost > Export writes a `.r49ghost` into `export/`; a `.r49ghost` dropped into
   `import/` is taken at start or by Import ghosts, checked first (SAVES.md 4.3).
 
+### Presets (N64 original, PC enhanced, PC maximum)
+
+2026-11-04 (`port/config/presets.c`). The defaults are the N64's game, so the PC's settings are spread over the Video,
+Audio and Game pages. A preset sets several in one step: F1 > Presets, or `--preset NAME` (`n64`, `enhanced`,
+`maximum`) for a run or a desktop shortcut.
+
+| Setting | `n64`: N64 original | `enhanced`: PC enhanced | `maximum`: PC maximum | Applies |
+|---|---|---|---|---|
+| `game.frame_rate` | original | 60 | 60 | from the next screen |
+| `video.draw_distance` | original | far | max | from the game's next frame |
+| `video.detail` | original | high | high | from the game's next frame (split screen's models from the next track) |
+| `video.fog` | original | | off | from the game's next frame (the sky dome from the next track) |
+| `video.texture_lod` | original | anisotropic | anisotropic | from the next triangle |
+| `video.textures` | original | | upscaled | from the game's next frame (upscaled in the background as they appear) |
+| `video.widescreen` | auto | auto | auto | from the game's next frame |
+| `audio.voices` | original | 64 | 64 | after a restart |
+| `audio.engines` | original | all | all | at once (the sound manager's next retrace) |
+| `game.memory` | original | 64 | 64 | after a restart |
+
+An empty cell is a setting the preset leaves as it is.
+
+- **`n64`** puts every setting the other two set back to its default: the N64's game. Widescreen's default is `auto`,
+  the window's shape, so a 4:3 window is the N64's 4:3 picture; `video.widescreen = off` keeps 4:3 in any window.
+- **`enhanced`**, the recommended one: the game at 60 (its menus, HUD, cameras and effects; the car physics is the
+  same), everything drawn twice as far and at its most detailed level, the far road sharp, and every drone's engine
+  heard in a race of 12 (`engines = all` needs 64 voices, so both are in). 64 MiB gives the game's heap room past the
+  N64's, for mods' bigger files and a race's cars, at no cost to the picture or the sound. The fog stays the player's:
+  it is the track select's fog option (`video.fog = far` thins it, [DETAIL.md](DETAIL.md) 5.3); the textures stay the
+  N64's art.
+- **`maximum`**: `enhanced` with the whole track drawn and no fog, which would hide it ([DETAIL.md](DETAIL.md) 5.3:
+  "max with fog off"), and the world's textures upscaled. Voices stay 64: at 96 a race of 12 plays no more
+  ([AUDIO.md](AUDIO.md) 10.6's tables: nothing held back at 64); memory stays 64 MiB, which holds the largest files
+  tried ([MEMORY.md](MEMORY.md) 5: a peak of 18.9 MiB).
+- **Left out**, by every preset:
+  - `game.cars`: it changes the races, not how they look or sound (and a race holds more cars only when the track
+    select's Drones option asks for them).
+  - the display's and the machine's own: `video.scale` (native, the default, is already the window's pixels),
+    `width`/`height`, `fullscreen`, `fullscreen_mode`, `resolution`, `vsync`, `video.frame_rate` (the right value is
+    the display's refresh: `display`), `api`, `audio.backend`, `volume`, `latency`.
+  - the player's own choices and content: `video.hud` (the default, `edges`, is already the PC's), `texture_pack`,
+    the mods, the saves, the accessories, the bindings and the stick.
+- **In the overlay** (F1 > Presets, the first of the main page's actions, before Save): choosing one sets each of its
+  settings as if the player had changed it on its page: it applies at once where that setting does, the pages show it
+  changed (yellow), Save counts it and writes it, and the restart ones keep their `*` on their pages. The message says
+  how many changed and how many need a restart ("PC enhanced: 7 changed, 2 after a restart (*)"; the log names them);
+  a preset whose settings all have its values already shows "in effect", and choosing it again says so.
+- **Not a setting of its own.** `rush2049pc.ini` holds the settings themselves, never a preset: a `[game] preset` would
+  be a second place for the same values (which wins, the preset or the file's `draw_distance` line?), and Save would
+  have to choose. The default is the same as before, every setting at its own value; with no preset chosen nothing
+  changes.
+- **`--preset NAME`** puts the preset's settings on the command line at its place, in order with the other options: a
+  later `--set video.fog=far` wins, an earlier one loses. Like every option, it isn't saved (Save writes only what was
+  changed in the overlay), so a desktop shortcut with `--preset enhanced` runs enhanced and leaves the file alone. An
+  unknown name is an error (exit 2).
+
 ### Environment variables
 
 Every variable the program (`port/`) reads. The settings' ten are a layer of their own (above); the rest are
@@ -494,7 +550,8 @@ restart.
 | Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; P1-P4 accessory: controller pak, rumble pak, auto (shown with what it gives now: "auto: rumble pak"), none; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble`, `game.pak`, `game.pak2`... | at once; an accessory as a hot swap (the game sees the old one pulled at its next poll, then the new one) |
 | Help | read-only: each N64 control, its keys (the keyboard's player) and its controller inputs in Xbox names (`a, righttrigger` is "A, RT", `-righty` "RS up", the N64 stick's own stick on the stick rows); the hotkeys (Alt+Enter with fullscreen); this menu's keys and the mouse | the bindings in effect, made again each time it opens | |
 | About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); the memory (osMemSize) and the heap's peak so far ([MEMORY.md](MEMORY.md) 4); the mods in use ([MODS.md](MODS.md)); the game's frame rate and, after a race at 60, the share of its frames the game kept there and whether the host could keep 60 ([FRAMERATE.md](FRAMERATE.md) 7.7); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display); **Copy to the clipboard** (the page as text, for a bug report; with a window) | main's facts (`pc_menu_set_about`), made each time it opens | |
-| (main) | Video, Audio, Keyboard, Controllers, Game, Mods, Saves, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
+| Presets | N64 original, PC enhanced, PC maximum, each "in effect" when its settings all have its values; Enter, A or a click sets its settings | the [presets'](#presets-n64-original-pc-enhanced-pc-maximum) settings | each as its own item applies it: the live ones at once, `game.frame_rate` from the next screen, `audio.voices` and `game.memory` after a restart |
+| (main) | Video, Audio, Keyboard, Controllers, Game, Mods, Saves, Help, About; Presets; Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
   then go to either end of the list.
@@ -506,8 +563,9 @@ restart.
   its whole value (a long path over both footer lines, its end kept), a Help row both bindings. A setting without a
   line of its own (one added later) shows its name, `video.key in rush2049pc.ini`. A message (a capture's result,
   Saved) takes the line until the next key, button or click, or until the mouse points at another item 1.5 s on.
-- The pages' order: the settings' pages, then Help and About, then the actions; on each settings page the
-  settings, then the hotkeys or the settings button, then Defaults last; Help in the binding pages' order.
+- The pages' order: the settings' pages, then Help and About, then the actions (Presets first, then Save); on each
+  settings page the settings, then the hotkeys or the settings button, then Defaults last; Help in the binding pages'
+  order.
 - **Bindings.** Enter or A waits for the next key (Keyboard page), or controller button, stick direction or
   trigger pushed past 0.6 (Controllers page), which replaces the binding. Insert or Y adds it to the binding
   instead; Delete or X clears it. Escape cancels, as do B for a key and the menu button for a controller input, and
@@ -613,6 +671,9 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.saves` | `frontend_test saves` | `game.saves`, `saves2-4` and their folders: `pak` the default (written commented out, with its comment), `files` set and read back for each player, a bad value and an empty one refused with the choices named and the value kept, any case, `--set` (a folder with a space), the file read back, a bad line skipped and the next taken |
 | `frontend.menu.saves` | `frontend_menu_test saves` | the Saves page over a mock of main's side: player 1 with files (the folder, a file refused at start, Import ghosts, Export to the .mpk, no Open headless, a profile on the pak, a ghost kept, an imported ghost on the pak), a ghost's page (kind, player, track and way, time; Pin then Unpin, main's message in the footer; Export; Delete asked once, then done, back on the list), Import and Export to the .mpk from the list, player 2 with the `.mpk` (no controller pak now, its `.mpk`, what files gives), Kept as changed from the page as a setting, Left back to player 1 |
 | `frontend.detail` | `frontend_test detail` | `video.draw_distance`, `detail`, `fog`: `original` the defaults (written commented out), every value set and read back, a bad value refused with the choices named and the last value kept, `--set` in any case, the file read back, `RUSH_GFX_DRAW_DISTANCE` and `RUSH_GFX_FOG` as a layer (a bad one refused); what the game reads (port/config/detail.c): the N64's distances and the matrices' (-2048, 2048) at original, x 2 and a halved matrix to 4,096 ft at far, no limit, the first level, one player's models and any range through a power of two at max with high, unknown levels taken as original |
+| `frontend.presets` | `frontend_test presets` | the presets' table (`port/config/presets.c`): three, found by name in any case and no other name; every value one the settings take, no setting twice, the footer's line in 49 characters; `n64` sets every setting the others set, each to its default, and is the one in effect over the defaults; what `enhanced` and `maximum` set (60, far or max, high, fog off for maximum, anisotropic, upscaled for maximum, auto, 64 voices, all, 64 MiB) and leave (the cars, the HUD, the scale, the display's frame rate, vsync, fullscreen, the window, the API, the volume); in effect once set and not after one setting changes; `n64` after `maximum` the defaults' whole file; widescreen off back to auto |
+| `frontend.preset_option` | `rush2049pc --preset enhanced --set video.detail=original --print-config` | the real program over a file with scale 2: the preset's settings in effect, the file's scale kept, the `--set` after it winning (detail original, written commented out), widescreen auto, fog and the textures and the cars untouched |
+| `frontend.menu.presets` | `frontend_menu_test presets` | the Presets page over a file with `fog = far`: after About on the main page; none in effect; PC enhanced: "in effect", "7 changed, 2 after a restart (*)", each setting's value, the fog and the rest untouched, the renderer's and the game's draw distance, detail, far textures, fog and engines at once, the game's frame rate 60 as a setting and 30 until `pc_game_fps_begin()`, the library's 32 voices kept; Save "7 changes"; the Audio and Video pages show 64 and far; PC maximum over it: 3 changed, max, fog off and upscaled at once, enhanced no longer in effect, again "in effect already"; Save writes 9 (the file's fog line in place, its comments kept, no widescreen, no preset); the file read back is PC maximum; N64 original: 9 changed, 2 after a restart, the N64's at once, every setting the default, 9 to save |
 | `frontend.sdl.keyboard` | `frontend_sdl_test keyboard` | every default key, held keys, the stick from keys (cardinal, the corner, opposite keys); `keyboard_steering = smooth` set live (`pc_input_apply`), from key events a poll at a time: Right 5 at the first retrace, 75 at the 14th, 80 at the 15th; Up on top 5 (79, 5 at the gate's edge) and back; Right and Left held back to the centre (64), Left alone through it (0 after 5 retraces back, then -5), a live change of `stick_range` mid-ramp keeping the ramp (-13 at 100), released; `instant` again full tilt at once; rebinding: two keys, an alias, an unknown name skipped, the keyboard on player 2, a round gate of 100 |
 | `frontend.sdl.hotkeys` | `... hotkeys` | title and minimum size; Alt+Enter toggles fullscreen and is not START; F11 back; key repeat ignored; F12 saves PNGs of the shown frame (two in one second get two names); Pause holds and the exposed window is redrawn; Escape quits and isn't a game key; rebound and cleared hotkeys; closing the window quits; fullscreen from the settings |
 | `frontend.sdl.focus` | `... focus` | focus loss releases held keys; no hold by default; with `pause_on_focus_loss` it holds and focus back releases it; the pause key and focus are separate reasons |
@@ -793,6 +854,11 @@ python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-ch
   `pc_menu_set_saves`), which main fills over port/ultra's `pakstore.c`; menu.c gains the Saves page and a save's own
   page (`P_SAVES`, `P_SAVE_ITEM`) after Game, after Mods, so the menu tests step one more over the main page where they pass it,
   and `MAX_ITEMS` is 120 for a folder's list. No game C changed.
+- **Presets** (2026-11-04, [above](#presets-n64-original-pc-enhanced-pc-maximum)): `port/config/presets.c` is new (in
+  pcfrontend by its glob, and in `frontend_test`); `config.h` gains `PcPreset`, `pc_presets`, `pc_preset_find` and
+  `pc_preset_in_effect`; menu.c gains the Presets page (`P_PRESETS`, item kind `I_PRESET`) and the main page's Presets
+  after About, so the menu tests step one more over the main page where they pass it; main.c gains `--preset`. No game
+  C, nothing in port/ultra.
 - **The mouse, Help and About** (2026-10-28) changed no game C and nothing in port/ultra.
   - `pc_port.h` gains `pc_gfx_driver` (the GL strings `gfx_gl.c` logs); `pc_audio.h`'s `PcAudioStats` gains
     `game_rate`; `app.h` gains `pc_app_rom_path`, `pc_app_version_commit`, `pc_app_version_build` and
