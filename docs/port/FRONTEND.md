@@ -202,6 +202,8 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `game.pak_file` | `rush2049pc.mpk` | `--pak PATH` | the controller pak image; a name alone is in the data folder (RELEASE.md "Files"), `--pak` from the working directory |
 | `game.pak2`, `pak3`, `pak4` | auto | `--no-pak` (none) | controllers 2-4's accessories, as `game.pak`: auto gives multiplayer rumble where the pads have it, without a file; memory gives the player saves of their own |
 | `game.pak2_file`, `pak3_file`, `pak4_file` | `rush2049pc-p2.mpk`... | | controllers 2-4's controller pak images, in the data folder as `pak_file`, each loaded, backed up and written as controller 1's (RELEASE.md "Saves") |
+| `game.saves`, `saves2`, `saves3`, `saves4` | pak | `--saves pak\|files` (all four) | how each controller's pak is kept: `pak` (its `.mpk`, as above) or `files` (a folder: a file per profile and ghost, any number of ghosts, the ones that fit on the pak the game sees, ghosts shared as `.r49ghost`); the first start with files imports the `.mpk`, which is left as it is; from the next start ([below](#saves-as-files-gamesaves), [SAVES.md](SAVES.md)) |
+| `game.saves_dir`, `saves2_dir`... | `saves/p1`, `saves/p2`... | | each controller's saves folder, in the data folder as `pak_file` |
 | `video.width`, `video.height` | auto | `--size WxH` | window size in pixels; auto: two thirds of the desktop at the picture's aspect (headless: 320 × 240) |
 | `video.position` | center | | where the window opens: `center` or `X,Y` |
 | `video.remember_window` | on | | write the window's size and place at exit (above) |
@@ -323,6 +325,22 @@ the default, each is the N64's game exactly.
 - **What it costs, what it looks like**: [DETAIL.md](DETAIL.md) 4 and 5. At a run's end the log's `scene:` line gives
   what each view drew and what each limit left out.
 
+### Saves as files (game.saves)
+
+2026-11-04, [SAVES.md](SAVES.md). `pak`, the default, is the `.mpk` exactly as before. With `files` the game still
+sees a controller pak, built from the player's folder when it goes in; what the game writes there comes back as
+files (a profile, a ghost each), what it deletes goes to the folder's `trash/`.
+
+- **Per player**, as `game.pak2_file` is: `saves2 = files` with `pak2 = memory` gives player 2 a folder of their own.
+- **What is on the pak**: the profiles, the pinned ghosts, the ghosts the game had last time, then each player's
+  fastest ghost per track and way while room is left (SAVES.md 5). A change (a pin, an import, a delete from F1)
+  reaches the game as a hot swap at the start prompt or the main menu with no saved profile in use, else at the next
+  start (SAVES.md 5.1).
+- **Moving**: the first start with files imports the `.mpk`'s notes; F1 > Saves > Export to the .mpk writes them
+  back (the old one kept as `.bak`), then `saves = pak`.
+- **Sharing**: F1 > Saves > a ghost > Export writes a `.r49ghost` into `export/`; a `.r49ghost` dropped into
+  `import/` is taken at start or by Import ghosts, checked first (SAVES.md 4.3).
+
 ### Environment variables
 
 Every variable the program (`port/`) reads. The settings' nine are a layer of their own (above); the rest are
@@ -405,11 +423,12 @@ restart.
 | | Output * | `audio.backend` | after a restart: `pc_audio_init` may not run while the game's threads call into port/audio |
 | Game | Cars in a race: original (6), 7-12 | `game.cars` | from the next race's start: the setting at once (`pc_race_cars_set`), the race's count when the game latches it ([above](#the-cars-a-race-holds-gamecars)) |
 | | Memory *: original (N64), 16, 32, 64, 128, 256 MB | `game.memory` | after a restart: the RDRAM window is mapped at start ([MEMORY.md](MEMORY.md)) |
+| Saves | Player (P1-P4); Kept as *: pak (.mpk), files (a folder); with files the folder, the import folder's result at start, Import ghosts, Export to the .mpk, Open the saves folder (on a desktop), and each profile and ghost (on the pak, kept, pinned, import), each with its page: Pin to the pak / Unpin, Export (.r49ghost), Delete (asked twice); with pak what files gives | `game.saves`, `saves2`... | Kept as after a restart; the actions at once on the folder, and what is on the pak at the next swap ([SAVES.md](SAVES.md) 8) |
 | Keyboard | the 18 N64 controls; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `[hotkeys]` | at once |
 | Controllers | who plays each player and the N64 stick its controller gives, live (not choosable); the 18 N64 controls; the settings button; the N64 stick; dead zone; sensitivity; rumble; P1-P4 accessory: controller pak, rumble pak, auto (shown with what it gives now: "auto: rumble pak"), none; Defaults | `[controller]`, `input.deadzone`, `input.sensitivity`, `input.rumble`, `game.pak`, `game.pak2`... | at once; an accessory as a hot swap (the game sees the old one pulled at its next poll, then the new one) |
 | Help | read-only: each N64 control, its keys (the keyboard's player) and its controller inputs in Xbox names (`a, righttrigger` is "A, RT", `-righty` "RS up", the N64 stick's own stick on the stick rows); the hotkeys (Alt+Enter with fullscreen); this menu's keys and the mouse | the bindings in effect, made again each time it opens | |
 | About | read-only: the version (`git describe`) and build type, the commit, the build; GL vendor, renderer, version and GLSL (the log's `gfx:` line); the audio output and rate, its pulls and queue (the exit line's numbers); the memory (osMemSize) and the heap's peak so far ([MEMORY.md](MEMORY.md) 4); players 1-4 (live); the ROM and where it was found; the settings file, saves, screenshots, log and data folder; **Open the data folder** (`SDL_OpenURL`: ShellExecute on Windows, xdg-open on Linux; only on a real display); **Copy to the clipboard** (the page as text, for a bug report; with a window) | main's facts (`pc_menu_set_about`), made each time it opens | |
-| (main) | Video, Audio, Keyboard, Controllers, Game, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
+| (main) | Video, Audio, Keyboard, Controllers, Game, Saves, Help, About; Save to rush2049pc.ini; Resume; Quit | | |
 
 - A value that isn't one of an item's choices (a 2.39 aspect, an 800x600 window) is shown as it is; Left and Right
   then go to either end of the list.
@@ -519,6 +538,8 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.precedence` | `rush2049pc --print-config` | the real program: the file's ROM, `RUSH2049_AUDIO` over the file, `--scale` over `RUSH_GFX_SCALE` over the file, a `--set` binding and `--set game.cars=12` |
 | `frontend.memory` | `frontend_test memory` | `game.memory`: `original` the default (written commented out, with its comment), 16-256 each set and read back, 15, 8, 4, 0, -1, 257, 512, 1024, `64M`, words and an empty value refused with the range in the message, any case, `--set` syntax, the file read back, a bad line skipped; the warning only for `expansion_pak = off` with a size |
 | `frontend.cars` | `frontend_test cars` | `game.cars`: `original` the default (written commented out), 6-12 each set and read back, 5, 13, 0, -1, 99, words and an empty value refused with the range in the message and the setting kept, any case, `--set` syntax, the file read back, a bad line skipped; the latch: 6 before anything, the setting at once and the race's count only at `pc_race_cars_begin()`, a change and `original` mid-race leaving the race's count alone, the next race taking it, out-of-range values taken to 6 and 12 |
+| `frontend.saves` | `frontend_test saves` | `game.saves`, `saves2-4` and their folders: `pak` the default (written commented out, with its comment), `files` set and read back for each player, a bad value and an empty one refused with the choices named and the value kept, any case, `--set` (a folder with a space), the file read back, a bad line skipped and the next taken |
+| `frontend.menu.saves` | `frontend_menu_test saves` | the Saves page over a mock of main's side: player 1 with files (the folder, a file refused at start, Import ghosts, Export to the .mpk, no Open headless, a profile on the pak, a ghost kept, an imported ghost on the pak), a ghost's page (kind, player, track and way, time; Pin then Unpin, main's message in the footer; Export; Delete asked once, then done, back on the list), Import and Export to the .mpk from the list, player 2 with the `.mpk` (no controller pak now, its `.mpk`, what files gives), Kept as changed from the page as a setting, Left back to player 1 |
 | `frontend.detail` | `frontend_test detail` | `video.draw_distance`, `detail`, `fog`: `original` the defaults (written commented out), every value set and read back, a bad value refused with the choices named and the last value kept, `--set` in any case, the file read back, `RUSH_GFX_DRAW_DISTANCE` and `RUSH_GFX_FOG` as a layer (a bad one refused); what the game reads (port/config/detail.c): the N64's distances and the matrices' (-2048, 2048) at original, x 2 and a halved matrix to 4,096 ft at far, no limit, the first level, one player's models and any range through a power of two at max with high, unknown levels taken as original |
 | `frontend.sdl.keyboard` | `frontend_sdl_test keyboard` | every default key, held keys, the stick from keys (cardinal, the corner, opposite keys); rebinding: two keys, an alias, an unknown name skipped, the keyboard on player 2, a round gate of 100 |
 | `frontend.sdl.hotkeys` | `... hotkeys` | title and minimum size; Alt+Enter toggles fullscreen and is not START; F11 back; key repeat ignored; F12 saves PNGs of the shown frame (two in one second get two names); Pause holds and the exposed window is redrawn; Escape quits and isn't a game key; rebound and cleared hotkeys; closing the window quits; fullscreen from the settings |
@@ -674,6 +695,11 @@ python3 tools/port/input_check.py --exe build/pc/rush2049pc --rom <rom> --rom-ch
   port/ultra's `pc_heap_stats`; menu.c's Game page gains Memory after Cars in a race (restart), so the menu test steps
   over it to Defaults, and About gains its row after Audio buffer. main maps the window at the setting's size
   (`pc_mem_set_size`, `pc_os_set_mem_size`) before `pc_mem_init`.
+- **`game.saves`** (2026-11-04, [SAVES.md](SAVES.md)): `config.h` gains `PcSettings.saves`, `saves_dir` and
+  `PC_CFG_SAVES_*`; `input_internal.h` gains the Saves page's interface (`PcSaveRow`, `PcSavesUi`,
+  `pc_menu_set_saves`), which main fills over port/ultra's `pakstore.c`; menu.c gains the Saves page and a save's own
+  page (`P_SAVES`, `P_SAVE_ITEM`) after Game, so the menu tests step one more over the main page where they pass it,
+  and `MAX_ITEMS` is 120 for a folder's list. No game C changed.
 - **The mouse, Help and About** (2026-10-28) changed no game C and nothing in port/ultra.
   - `pc_port.h` gains `pc_gfx_driver` (the GL strings `gfx_gl.c` logs); `pc_audio.h`'s `PcAudioStats` gains
     `game_rate`; `app.h` gains `pc_app_rom_path`, `pc_app_version_commit`, `pc_app_version_build` and

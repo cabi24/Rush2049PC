@@ -231,6 +231,7 @@ That folder is "the data folder" (`PcAppDirs.data`). It is made when it is missi
 |---|---|---|
 | settings | `--config` | `rush2049pc.ini` next to the program, else the user settings folder (unchanged; FRONTEND.md) |
 | saves: the controller pak | `game.pak_file`, `--pak` | `rush2049pc.mpk` in the data folder |
+| saves as files (`game.saves = files`) | `game.saves_dir`, `--saves files` | `saves/p1/` (`p2`...) in the data folder: a file per profile and ghost, `import/`, `export/`, `trash/`, `backup/` ([SAVES.md](SAVES.md) 3) |
 | F12 screenshots | `video.screenshot_dir` | `screenshots/` in the data folder (made when a window opens) |
 | the log | `--log`, `--no-log` | `rush2049pc.log` and `rush2049pc.old.log` in the data folder |
 | `gamecontrollerdb.txt` | | read next to `rush2049pc.ini` (unchanged) |
@@ -245,7 +246,8 @@ That folder is "the data folder" (`PcAppDirs.data`). It is made when it is missi
   save is lost. The console and the log say so: `rush2049pc: saves (the controller pak): /home/me/rush2049pc.mpk,
   in the working directory, where earlier builds kept it`. Moving it into the data folder ends that.
 - **The settings file** keeps its earlier locations, so nothing there moves.
-- **Each run says where its saves are**: `rush2049pc: saves (the controller pak): PATH`, after the ROM line.
+- **Each run says where its saves are**: `rush2049pc: saves (the controller pak): PATH`, after the ROM line; with
+  `game.saves = files`, `rush2049pc: saves (controller 1's, files): FOLDER: 2 profiles, 5 ghosts (1 imported)`.
 
 Tested in `app_paths` (a name alone, a full path, the command line; a new pak; an earlier build's pak in the
 working directory used where it is, and not when the data folder has one or with `--pak`; the portable folder;
@@ -299,6 +301,11 @@ pak can have it.
   (an emulator's) is left alone as before (ULTRA.md), and not backed up.
 - **What the game writes is a good image.** `--selftest` checks the pak after the game's own Pfs C has allocated
   and written a note, and after it has deleted it, against `pc_pak_image_check`.
+- **With `game.saves = files`** (2026-11-04, [SAVES.md](SAVES.md)) the `.mpk` is only read, once, to import its
+  saves: it is never backed up, set aside or written (Export to the .mpk on the F1 Saves page writes it, keeping the
+  old one as `.bak`). The folder's files have backups of their own (`backup/NAME.bak`, `.bak2`, `.bak3`, made at start
+  as here), a damaged file is set aside as `NAME.corrupt-DATE` with its newest good backup put back, and every write
+  is `pc_file_write_atomic`'s, on the writer thread, waited for at the end of a run as the `.mpk`'s are.
 
 Tested by `app_saves` (`port/app/tests/test_saves.c`, in a folder with a space): the image check (formatted, a
 data byte changed, short, empty, 64 KiB, one ID copy bad and all four, one inode table bad and both, zeros, N64
