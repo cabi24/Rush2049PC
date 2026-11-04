@@ -62,7 +62,8 @@ and sensitivity.
 The settings overlay (F1)
 -------------------------
 F1 holds the game and opens the settings: Video, Audio, Keyboard,
-Controllers, Help, About, then Save to rush2049pc.ini, Resume and Quit.
+Controllers, Game, Mods, Help, About, then Save to rush2049pc.ini, Resume
+and Quit.
 Arrows or the D-pad move, Left/Right change a value, Enter or A chooses,
 Escape or B goes back. The mouse works too: point, click (left or right of
 a value changes it), the wheel scrolls, the right button goes back.
@@ -105,6 +106,16 @@ The settings most worth knowing (F1 > Video unless said):
 
 rush2049pc.ini has every setting with a comment; one left at its default
 is commented out (remove the ; to keep a value).
+
+
+Mods
+----
+The mods folder next to the program holds mods: each a folder (or a .zip)
+with a mod.ini and files that stand in for the cartridge's (cars, tracks,
+textures, text, sounds). Your ROM is never changed. mods/README.txt says
+what goes in it; F1 > Mods turns them on and off and orders them, from the
+next start, and the log says which are in use and which files it refused.
+--no-mods plays the cartridge's files only.
 
 
 Saves and other files

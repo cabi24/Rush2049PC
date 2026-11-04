@@ -167,25 +167,29 @@ mods.c's.
 
 ## 4. What a file must be (check.c)
 
-At start, every file of a mod that is on goes through `pc_assets_check` (`port/assets/check.c:691`) as the game will
+At start, every file of a mod that is on goes through `pc_assets_check` (`port/assets/check.c:722`) as the game will
 read it, with the cartridge's own file for the wave. It changes nothing, so a file is refused before the game ever sees
 it. The rules are what the converters ([LOADERS.md](LOADERS.md)) and the game's set-up need to stay inside the file,
 and, against the cartridge's file, what the game looks up in it:
 
 | Format | The file's own rules | Against the cartridge's file |
 |---|---|---|
-| WAD (22-37, 54-119) | the TOC inside the file, not relocated, at most 4,096 entries, every entry's offset in the file; the first OBHD, TXHD, PLHD and PTHD chunks 4-aligned with their records before the next chunk; OBHD, TXHD and PLHD names ending within 16 bytes and in strcmp order (the game bsearches them, `entity_name_copy` with `func_8008AD04`); every LOD's display list 8-aligned in the file, the relocation's walk (`entity_lod_select`: one pass, E1 04 followed, to the first 0xDF) and the first G_VTX's vertex chain (`func_800966D8`) inside it and ending, and the mirror pass's walk (`display_list_traverse`, flags 2: calls at most 16 deep, branches and E1 04 jumps) inside it, ending at the word 0xDF000000, with no loop; TXLD 8-aligned in the file and its G_SETTIMG targets inside it; a texture 1-1024 a side, size 0-3, its texels (or its load list) starting in the file (IMAG plus texBase, the game's 32-bit sum); a palette's entries inside it; a path's points inside it; for a track (101-119) each path's trigPtr 0 or a path record (the camera follows it, `CamScene.link`) | every model, texture and palette name of the cartridge's file is there; a track has as many paths as the cartridge's or more |
+| WAD (22-37, 54-119) | the TOC inside the file, not relocated, at most 4,096 entries, every entry's offset in the file; the first OBHD, TXHD, PLHD and PTHD chunks 4-aligned with their records before the next chunk; OBHD, TXHD and PLHD names ending within 16 bytes and not going down in strcmp order (the game bsearches them, `entity_name_copy` with `func_8008AD04`; one retail font WAD has a name twice, which bsearch takes); every LOD's display list 8-aligned in the file, the relocation's walk (`entity_lod_select`: one pass, E1 04 followed, to the first 0xDF) and the first G_VTX's vertex chain (`func_800966D8`) inside it and ending, and the mirror pass's walk (`display_list_traverse`, flags 2: calls at most 16 deep, branches and E1 04 jumps) inside it, ending at the word 0xDF000000, with no loop; TXLD 8-aligned in the file and its G_SETTIMG targets inside it; a texture 1-1024 a side, size 0-3, its texels (or its load list) starting in the file (IMAG plus texBase, the game's 32-bit sum); a palette's entries inside it; a path's points inside it; for a track (101-119) each path's trigPtr 0 or a path record (the camera follows it, `CamScene.link`) | every model, texture and palette name of the cartridge's file is there; a track has as many paths as the cartridge's or more |
 | world (120-138) | the WAD's rules, then WHDR (its entries before the next chunk, names in order), WOBJ, GDAT and GTLD before the next chunk; every node a world reaches through next and child a WOBJ record in the file; the quadtree's children inside GDAT and its leaves' targets inside GTLD | every world name of the cartridge's file is there |
 | road (139-157) | the five sections, the vertex list and the surface list fit (`road.c`); a quadtree; each node's parent a node; each quarter's child a node (its mask bit set) or 0 or a surface list inside the list, whose run-length words (`func_800ADCE0`) give exactly its count, at most 35 surfaces (`list[36]` in `entity_update` and `camera_trigger_check`; four leaves into `camera_victory`'s `polys[142]`), each a surface; each surface's vertex list offset inside the vertex list | |
 | path (158-182) | the walk `path.c` makes (ReadPathData's) fits: the checkpoints (0-10), the resurrection path, the alternative paths, the four drone paths | a resurrection path, a drone path or checkpoints the cartridge's has are not empty |
-| text (0-5) | the six sections fit; every string offset after the tables and a NUL-ended string in the file | each section has as many items as the cartridge's or more (the game reads them by number) |
+| text (0-5) | the six sections fit; every string offset after the tables and a NUL-ended string in the file | each section has as many items as the cartridge's or more (the game reads them by number); each of the cartridge's strings keeps its printf conversions in order (`%d`, `%s`, ...; `%%` is none): the game formats some strings with arguments, and a string with others would have them read as what they aren't |
 | font data (38-53) | the letters and the kerning table fit; each letter's texture page under the font's count | as many letters as the cartridge's or more, no more texture pages (the font WAD's) |
 | MusyX (6-8, 10-21) | not all zero; `musyx.c`'s walk (every field the sound library reads, inside the file and at one width) finds no record that doesn't parse | |
 | samples (9) | not empty | |
 
 A refused file's line names the mod, the file, its wave and the first rule it broke. `rushmods.py check` applies the
-same rules (ctest `mods_tool`: the same verdict as check.c's on 4,801 files, the good files of `assets_mods` and 685
+same rules (ctest `mods_tool`: the same verdict as check.c's on 4,801 files, the good files of `assets_mods` and 600
 changed copies of each), plus the folder's own: mod.ini, names, text overrides, the texture pack's names.
+
+**On the retail cartridge** every one of the 176 files the game loads and the sample data passes, each against itself
+(`rushmods.py check` of `tools/port/mods_retail.py`'s identity mod, the Pi, the files under the ignored build/), and
+the game takes them all from the mods' region (section 8).
 
 **What isn't checked, and so is the modder's.** The rules keep the program inside the file while it loads and sets it
 up, and keep what the game looks up there. They can't say a file is right: any bytes in display lists, texels, vertex
@@ -197,9 +201,9 @@ offset, a path's indices into its points and a song's notes are read only as far
 
 A file larger than the cartridge's needs more heap: the game allocates each wave's block by its size in the file
 table (`gWaveSizes`, [MEMORY.md](MEMORY.md) 5), which the mods set. At start, before the RDRAM window is mapped
-(`plan_memory`, `mods.c:977`):
+(`plan_memory`, `mods.c:978`):
 
-- **The growth** (`growth`, `mods.c:914`): each file's 32-byte block less the cartridge's; a car file's counted for
+- **The growth** (`growth`, `mods.c:915`): each file's 32-byte block less the cartridge's; a car file's counted for
   each car of a race (LoadCars loads every car's own copy: 6, or `game.cars`); of the files the game holds one at a
   time (a song, a track's geometry, world, road and path), the largest; a text bank's against the first bank's block,
   which every language is read into (below); the rest added up. The sample data isn't heap.
@@ -219,13 +223,13 @@ table (`gWaveSizes`, [MEMORY.md](MEMORY.md) 5), which the mods set. At start, be
 ## 6. How a mod's file reaches the game
 
 1. **Before the window** (`mods_prepare`, `port/main.c:390`): main reads the ROM first now (it used to after mapping
-   the window: nothing in the ROM's read needs the window), then `pc_mods_scan` (`mods.c:780`) reads the folder and
-   each mod that is on, `pc_mods_cart_read` (`mods.c:249`) the cartridge's file table from the ROM's boot and game
+   the window: nothing in the ROM's read needs the window), then `pc_mods_scan` (`mods.c:781`) reads the folder and
+   each mod that is on, `pc_mods_cart_read` (`mods.c:250`) the cartridge's file table from the ROM's boot and game
    images (port/data's image table: `gWaveSizes` and `D_8002E860` in the raw boot image, `D_8011B5BC` and
-   `D_80123564` in the inflated game image), and `pc_mods_prepare` (`mods.c:1029`) checks the files, settles each
+   `D_80123564` in the inflated game image), and `pc_mods_prepare` (`mods.c:1030`) checks the files, settles each
    wave's, makes the text banks, and the memory.
 2. **The window** is mapped at the setting's size or the mods' (`port/main.c:683`).
-3. **After the game's data** (`mods_install`, `port/main.c:742`; `pc_mods_install`, `mods.c:1163`): the files are
+3. **After the game's data** (`mods_install`, `port/main.c:742`; `pc_mods_install`, `mods.c:1164`): the files are
    copied one after another (16-aligned) into a buffer that `pc_rom_set_mods` makes the cartridge's region at
    `PC_ROM_MODS_BASE` = 0x04000000, past the largest ROM the port takes (64 MiB), and below 0x0FC00000, so `0xB0000000
    | offset` reaches it too. The file table's entries of each replaced wave become that offset, the plain file's size
