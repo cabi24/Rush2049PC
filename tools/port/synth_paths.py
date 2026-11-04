@@ -118,7 +118,8 @@ def run(name, exe, rom, logs, timeout=300, exact=False):
         c = check
         if c and c[0].startswith("tools/"):
             c = [sys.executable, str(ROOT / c[0])] + c[1:]
-        r = subprocess.run(c, cwd=logs, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        r = subprocess.run(c, cwd=logs, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           env=dict(os.environ, RUSH_STATE_EXACT="1") if exact else None)   # synth_again.py's run
         out_c = r.stdout.decode(errors="replace").strip()
         if out_c:
             print("\n".join(f"  {l}" for l in out_c.splitlines()))
