@@ -137,14 +137,15 @@ def write_sets(cart, out):
         put(d, w, bytes(rnd.randrange(256) for _ in range(len(cart.file(w)))))
 
 
-def write_pack(dump, out):
-    """Every texture of a dump replaced by a red one of its size (PNG, RGBA)."""
-    d = mod(Path(out) / "texture", "pack", "Red textures")
+def write_pack(dump, out, rgba=(255, 0, 0, 0)):
+    """Every texture of a dump replaced by one of its size of one colour (PNG, RGBA): red and clear, so the text
+    the synthetic HUD draws with the font's texture (black, its texels' alpha the coverage) vanishes."""
+    d = mod(Path(out) / "texture", "pack", "Clear textures")
     (d / "textures").mkdir(exist_ok=True)
     n = 0
     for f in sorted(Path(dump).glob("*.png")):
         w, h = struct.unpack(">II", f.read_bytes()[16:24])
-        raw = b"".join(b"\0" + bytes((255, 0, 0, 255)) * w for _ in range(h))
+        raw = b"".join(b"\0" + bytes(rgba) * w for _ in range(h))
         png = b"\x89PNG\r\n\x1a\n"
         for tag, body in ((b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)), (b"IDAT", zlib.compress(raw)),
                           (b"IEND", b"")):
@@ -156,13 +157,15 @@ def write_pack(dump, out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--rom", required=True)
+    ap.add_argument("--rom")
     ap.add_argument("--out", required=True)
     ap.add_argument("--pack-from", help="a texture dump: make texture/pack from it (and nothing else)")
     a = ap.parse_args()
     if a.pack_from:
         write_pack(a.pack_from, a.out)
         return 0
+    if not a.rom:
+        ap.error("--rom is needed (or --pack-from)")
     write_sets(rushmods.Cart(rushmods.read_rom(a.rom)), a.out)
     print(f"mods_synth: the synthetic mods in {a.out}")
     return 0

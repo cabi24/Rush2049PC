@@ -1,0 +1,19 @@
+# drive.press with a mod's texture pack (mods_dump.press made it): every texture clear, at video.textures = original,
+# the default: the mods' textures replace theirs in every mode, so the HUD's black text is gone (docs/port/MODS.md 6).
+# until: 0x400000:900
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# args: --mods-dir mods/texture --screenshot-at 1600 --screenshot mods_texture.png
+# check: tools/port/mods_check.py log mods_texture.game.log --has "gfx: the mods' texture packs: 2 PNG files in 1 folder" --has "2 replaced from the pack"
+# check: tools/port/mods_check.py shot mods_texture.png --rgb 0,0,0 --min 0 --max 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 20        # gas for 20 s
+32 STICKRIGHT 1.5
+36 STICKLEFT 1.5
+47 B 3         # the brake

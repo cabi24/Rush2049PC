@@ -1,0 +1,18 @@
+# drive.press with video.texture_dump: the textures it draws, from which the check makes texture/pack, a mod whose
+# texture pack has each of them clear (tools/port/mods_synth.py --pack-from; mods_texture.press uses it).
+# until: 0x400000:900
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# args: --set video.texture_dump=mods-dump --screenshot-at 1600 --screenshot mods_dump.png
+# check: tools/port/mods_synth.py --pack-from mods-dump --out mods
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 20        # gas for 20 s
+32 STICKRIGHT 1.5
+36 STICKLEFT 1.5
+47 B 3         # the brake

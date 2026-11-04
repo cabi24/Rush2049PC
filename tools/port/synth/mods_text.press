@@ -1,0 +1,20 @@
+# drive.press with text overrides (tools/port/mods_synth.py's text set: every English [single] string 24 letters long):
+# the game reads the bank the mod's text/en.txt made, and the race's HUD text, drawn in black, grows (drive's 491 black
+# pixels; docs/port/MODS.md 8).
+# until: 0x400000:900
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# args: --mods-dir mods/text --screenshot-at 1600 --screenshot mods_text.png
+# check: tools/port/mods_check.py log mods_text.game.log --has "mods: 1 on: Long text 1.0 (0 files, text)" --has "1 of the cartridge's files replaced"
+# check: tools/port/mods_check.py shot mods_text.png --rgb 0,0,0 --min 900
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 20        # gas for 20 s
+32 STICKRIGHT 1.5
+36 STICKLEFT 1.5
+47 B 3         # the brake

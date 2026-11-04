@@ -574,6 +574,11 @@ foreach(script ${SYNTH_PATHS})
         set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth;synth_shot_drive")
     endif()
 endforeach()
+# the texture pack mod is made from mods_dump's texture dump
+set_tests_properties(synth_boot_mods_dump PROPERTIES FIXTURES_SETUP mods_pack)
+foreach(name mods_texture mods_texture_up)
+    set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth;mods_pack")
+endforeach()
 # The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
 # ROM lookup order in temporary folders; and the program's own messages for each kind of missing or wrong ROM, and
 # the lookup order, through tools/port/firstrun_check.py with copies of the synthetic cartridge.
