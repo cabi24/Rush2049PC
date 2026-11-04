@@ -39,6 +39,10 @@ void pcgfx_tex_set_mode(int mode);
  * (a perspective projection) get 1 in both modes; 2D (texture rectangles, orthographic triangles: the HUD, menus,
  * text) only with a pack, or RUSH_GFX_UPSCALE_2D=1. */
 int pcgfx_tex_variant(int is3d);
+/* The mods' texture packs (RUSH_GFX_TEXTURE_MODS, docs/port/MODS.md) replace their textures in every mode: a draw
+ * that would get 0 gets 2 when the mods have textures, and pcgfx_tex_mod_has says whether they have this one. */
+int pcgfx_tex_mod_has(const PcgfxTexId *id);
+int pcgfx_tex_mods(void);   /* the mods have textures */
 /* Upscaled mode: how many times bigger (1, 2, 4): the largest power of two up to the internal scale, at most 4,
  * or RUSH_GFX_UPSCALE. Packs: the most a replacement keeps (larger ones are box filtered down to it, else they
  * shimmer): the internal scale. */

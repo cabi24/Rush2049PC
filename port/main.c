@@ -17,12 +17,15 @@
 #include "app.h"
 #include "config.h"
 #include "input_internal.h"
+#include "mods.h"
 #include "pc_audio.h"
 #include "pc_compat.h"
+#include "pc_data.h"
 #include "pc_game_types.h"
 #include "ultra.h"
 
 extern void n64_main(void *argument);   /* src/rom/lib_2cf0.c */
+static PcMods g_mods;                   /* the mods folder (docs/port/MODS.md) */
 int pc_selftest(void);                  /* port/ultra/selftest.c */
 
 static void usage(FILE *f)
@@ -73,6 +76,8 @@ static void usage(FILE *f)
             "                      4 MiB); --set game.memory=N gives the game N MiB, 16-256\n"
             "  --audio BACKEND     auto (default), sdl, alsa, null or wav (port/audio)\n"
             "  --dump-audio PATH   also write everything the game plays to a WAV file\n"
+            "  --mods-dir PATH     the mods folder (game.mods_dir; default mods in the data folder); --no-mods:\n"
+            "                      the cartridge's files only (game.mods=off)\n"
             "  --config PATH       read this settings file instead (it is not created); --no-config: none\n"
             "  --set S.KEY=VALUE   any setting, as the file names it (video.vsync=off, keyboard.A=Space)\n"
             "  --print-config      print the settings in effect, as a settings file, and exit\n"
@@ -375,6 +380,7 @@ static void about_fill(PcAbout *a)
         snprintf(a->saves, sizeof a->saves, "none (no controller pak)");
     snprintf(a->log, sizeof a->log, "%s", pc_app_log_path() ? pc_app_log_path() : "none");
     snprintf(a->data, sizeof a->data, "%s", g_about.data);
+    pc_mods_summary(&g_mods, a->mods, sizeof a->mods);   /* docs/port/MODS.md */
     /* game.memory (docs/port/MEMORY.md 4): the window, and the heap's high-water mark so far */
     PcHeapStats hs;
     if (pc_heap_stats(&hs) == 0)
@@ -391,6 +397,77 @@ static int from_command_line(const PcSettingValue *over, int n, const char *sect
     for (int i = 1; i < n; i++)
         set |= !strcasecmp(over[i].section, section) && !strcasecmp(over[i].key, key);
     return set;
+}
+
+/* ---------------------------------------------------------------- the mods folder (docs/port/MODS.md) */
+
+/* The ROM offset the sample directory's offsets count from: the sample base AudioInitSys hands sndPushGroup,
+ * (s32)D_00039B40 (groups/audio_init_sys/car_shadow_render.c, docs/port/MUSYX_DATA.md). */
+#define MODS_SAMPLE_BASE 0x39B40u
+
+static PcMenuMod g_menu_mods[PC_MENU_MODS];
+
+static int mods_flag(void *user, const char *folder)
+{
+    return pc_settings_mod_on(user, folder);
+}
+
+/* Before the RDRAM window is mapped (it needs the ROM): the mods, their files checked and settled, and the memory
+ * they need, which may raise cfg->memory (pc_mods_prepare logs why). Then the overlay's Mods page. */
+static int mods_prepare(const PcSettings *cfg, const PcAppDirs *dirs, int dir_from_command_line, int no_rom)
+{
+    char dir[PC_APP_PATH], cache[PC_APP_PATH], line[512];
+    PcModsCart cart;
+    PcModsImage img[8];
+    int n = 0;
+    pc_app_data_file(dirs, cfg->mods_dir, dir_from_command_line, dir, sizeof dir);
+    pc_app_data_file(dirs, "mods_cache", 0, cache, sizeof cache);
+    PcModsConfig mc = {cfg->mods && !no_rom, dir, cfg->mods_order, mods_flag, (void *)cfg, cfg->memory,
+                       cfg->expansion_pak, cfg->cars, cache};
+    pc_mods_scan(&g_mods, &mc);
+    for (uint32_t i = 0; i < pc_data_tables.n_images && n < 8; i++, n++)
+        img[n] = (PcModsImage){pc_data_tables.images[i].name, pc_data_tables.images[i].storage == PC_IMG_DEFLATE,
+                               pc_data_tables.images[i].rom_off, pc_data_tables.images[i].rom_len,
+                               pc_data_tables.images[i].size, pc_data_tables.images[i].n64_base};
+    if (mc.enabled && pc_mods_cart_read(&cart, pc_rom_bytes(), pc_rom_size(), img, n) != 0) {
+        fprintf(stderr, "rush2049pc: mods: the ROM's file table can't be read; no mod is used\n");
+        g_mods.enabled = 0;
+    }
+    if (g_mods.enabled)
+        pc_mods_prepare(&g_mods, &mc, &cart, MODS_SAMPLE_BASE);
+    pc_mods_summary(&g_mods, line, sizeof line);
+    if (no_rom && cfg->mods)
+        fprintf(stderr, "rush2049pc: mods: not with --no-rom\n");
+    else
+        fprintf(stderr, "rush2049pc: mods: %s%s%s\n", line, g_mods.n || g_mods.enabled ? " in " : "",
+                g_mods.n || g_mods.enabled ? dir : "");
+    for (int i = 0; i < g_mods.n && i < PC_MENU_MODS; i++) {
+        const PcMod *m = &g_mods.mod[i];
+        PcMenuMod *o = &g_menu_mods[i];
+        snprintf(o->folder, sizeof o->folder, "%s", m->folder);
+        snprintf(o->name, sizeof o->name, "%s", m->name);
+        snprintf(o->version, sizeof o->version, "%s", m->version);
+        snprintf(o->author, sizeof o->author, "%s", m->author);
+        snprintf(o->problem, sizeof o->problem, "%s", m->problem);
+        o->priority = m->priority, o->files = m->nfiles, o->used = m->used, o->refused = m->refused;
+        o->texts = m->nstrings, o->textures = m->textures[0] != 0;
+    }
+    pc_menu_set_mods(g_menu_mods, g_mods.n < PC_MENU_MODS ? g_mods.n : PC_MENU_MODS, dir);
+    return g_mods.enabled ? g_mods.memory : cfg->memory;
+}
+
+/* Once the game's data is loaded: the file table's entries of the replaced waves point at the mods' files (pi.c's
+ * mods region), and the renderer gets their texture packs. */
+static void mods_install(void)
+{
+    char dirs[4 * PC_APP_PATH];
+    int n = pc_mods_install(&g_mods, D_8011B5BC, D_8002E580, D_80123564);
+    if (n)
+        fprintf(stderr, "rush2049pc: mods: %d of the cartridge's files replaced (%zu KiB)\n", n,
+                g_mods.region_size >> 10);
+    pc_mods_texture_dirs(&g_mods, '\n', dirs, sizeof dirs);
+    if (dirs[0])
+        setenv("RUSH_GFX_TEXTURE_MODS", dirs, 1);
 }
 
 #define MAX_OVERRIDES 64
@@ -535,6 +612,10 @@ static int rush_main(int argc, char **argv)
             dump_audio = ARG();
         else if (!strcmp(a, "--expansion-pak"))
             SET("game", "expansion_pak", "on");
+        else if (!strcmp(a, "--mods-dir"))   /* docs/port/MODS.md */
+            SET("game", "mods_dir", ARG());
+        else if (!strcmp(a, "--no-mods"))
+            SET("game", "mods", "off");
         else if (!strcmp(a, "--config"))
             config = ARG(), use_config = 1;
         else if (!strcmp(a, "--no-config"))
@@ -619,15 +700,27 @@ static int rush_main(int argc, char **argv)
     }
 
     pc_os_set_expansion_pak(cfg.expansion_pak);
+    /* The ROM: from the command line as given, else game.rom by the lookup order (port/app/paths.c). Read before the
+     * RDRAM window is mapped: the mods (docs/port/MODS.md) need the cartridge's files to say how much memory they
+     * need. */
+    int rom_from_command_line = from_command_line(over, nover, "game", "rom"), memory = cfg.memory;
+    if (!selftest) {
+        if (no_rom ? pc_rom_blank() != 0
+                   : pc_app_load_rom(&dirs, cfg.rom, rom_from_command_line, cfg.rom_check,
+                                     cfg.source[0] ? cfg.source : cfg.save_path, cfg.source, !headless) != 0)
+            return 1;
+        memory = mods_prepare(&cfg, &dirs, from_command_line(over, nover, "game", "mods_dir"), no_rom);
+    }
     /* game.memory (docs/port/MEMORY.md): the RDRAM window pc_mem_init maps below, and osMemSize */
-    if (cfg.memory) {
-        uint32_t bytes = (uint32_t)cfg.memory << 20;
+    if (memory) {   /* the setting, or what the mods raised it to */
+        uint32_t bytes = (uint32_t)memory << 20;
         if (pc_mem_set_size(bytes) != 0) {
-            fprintf(stderr, "rush2049pc: game.memory = %d can't be mapped\n", cfg.memory);
+            fprintf(stderr, "rush2049pc: game.memory = %d can't be mapped\n", memory);
             return 2;
         }
         pc_os_set_mem_size(bytes);
-        fprintf(stderr, "rush2049pc: %d MiB of memory (game.memory)\n", cfg.memory);
+        fprintf(stderr, "rush2049pc: %d MiB of memory (game.memory%s)\n", memory,
+                memory != cfg.memory ? ", for the mods" : "");
     }
     pc_race_cars_set(cfg.cars);   /* [game] cars: the game latches it at each race's start (race_cars.c) */
     if (cfg.cars)
@@ -683,12 +776,6 @@ static int rush_main(int argc, char **argv)
         return pc_selftest();
     }
 
-    /* The ROM: from the command line as given, else game.rom by the lookup order (port/app/paths.c). */
-    int rom_from_command_line = from_command_line(over, nover, "game", "rom");
-    if (no_rom ? pc_rom_blank() != 0
-               : pc_app_load_rom(&dirs, cfg.rom, rom_from_command_line, cfg.rom_check,
-                                 cfg.source[0] ? cfg.source : cfg.save_path, cfg.source, !headless) != 0)
-        return 1;
     pc_os_initialize();
     if (pc_data_init(pc_rom_bytes(), pc_rom_size()) != 0) {
         fprintf(stderr, "rush2049pc: the game's data could not be read from the ROM\n");
@@ -697,6 +784,7 @@ static int rush_main(int argc, char **argv)
     }
     if (no_rom)
         blank_files();
+    mods_install();   /* docs/port/MODS.md */
     test_grow_waves();
     musyx_services(no_rom);
     /* RUSH2049_TEST_AUDIO_POOL_FAIL=N (tests): every Nth audio command finds the audio manager's message pool

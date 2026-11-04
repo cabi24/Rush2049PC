@@ -61,6 +61,13 @@ def read_script(path):
     return spec
 
 
+def data_env(logs):
+    """A data folder of the runs' own, in the logs folder: a player's mods (docs/port/MODS.md) or saves in the real one
+    never reach a test."""
+    d = str(Path(logs).resolve() / "data")
+    return {"XDG_DATA_HOME": d, "APPDATA": d} if os.name == "nt" else {"XDG_DATA_HOME": d}
+
+
 def run(name, exe, rom, logs, timeout=300):
     spec = read_script(PRESS_DIR / f"{name}.press")
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve()), "--no-rom-check", "--headless", "--no-config",
@@ -73,7 +80,8 @@ def run(name, exe, rom, logs, timeout=300):
         a = a.split("=", 1)[-1]         # --set game.pak2_file=NAME too
         if a.endswith((".png", ".mpk")) and (Path(logs) / a).exists():
             (Path(logs) / a).unlink()
-    env = dict(os.environ, RUSH_TRACE_WAVES="1", **spec["env"])
+    env = dict(os.environ, RUSH_TRACE_WAVES="1", **data_env(logs))
+    env.update(spec["env"])
     t0 = time.time()
     try:
         p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)

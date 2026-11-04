@@ -6,6 +6,25 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Mods** (a `mods/` folder in the data folder, F1 > Mods): a mod is a folder or a .zip with a mod.ini and files
+  that stand in for the cartridge's (cars, tracks, fonts, the HUD's and the menus' models and textures, text, sounds),
+  named by the game's file names (`cars/car01.bin`) or numbers (`wave_088.bin`), and optionally a texture pack and
+  text overrides. Your ROM is never changed. Every file is checked at start; one the game can't use is refused with a
+  line in the log and the cartridge's is used, and of two mods for one file the first in the order wins. Larger files
+  get the memory they need (game.memory is raised, and the log says so). F1 > Mods turns mods on and off and orders
+  them, from the next start; `--no-mods` or `game.mods = off` plays the cartridge's files only. Making mods:
+  `tools/mods/rushmods.py` lists your ROM's files, unpacks them as mods use them, makes a mod's skeleton and checks a
+  mod by the game's rules ([MODS.md](docs/port/MODS.md), [FRONTEND.md](docs/port/FRONTEND.md)).
+
+- **The game at 60 frames a second** (`game.frame_rate`, F1 > Game > Game frame rate): `original`, the default, is
+  the N64's 30. At 60 the game draws a frame every retrace, its own, not one drawn between two: the menus, the HUD,
+  the cameras, the smoke and sparks, the battle weapons and every timer step 60 times a second at the N64's speed, and
+  the car physics is the same as before, every retrace. A race the game doesn't steer once a frame (no drones,
+  resurrections or shots) has the same physics to the bit at either setting; the drones' catch-up, a resurrection's
+  place and the shots are decided once a frame, so at 60 they are decided twice as often.
+  Applies from the next screen. `video.frame_rate` still draws frames between the game's on top
+  ([FRAMERATE.md](docs/port/FRAMERATE.md) 7, [FRONTEND.md](docs/port/FRONTEND.md)).
+
 - **Draw distance, detail and fog** (`video.draw_distance`, `video.detail`, `video.fog`, F1 > Video): at `original`,
   the defaults, the N64's picture exactly. `draw_distance = far` draws everything the game limits by distance twice
   as far: more of the track (the world's visibility tables reach 2,000 ft further), the cars and their wheels twice
@@ -29,14 +48,6 @@ What changed for players, newest first. The details and the tests behind each it
   attract demo races the setting's cars. The grid has a row for every car, and the HUD has two-digit places, the 7th
   to 12th places on the results, and a minimap dot and a radar blip for every car. Tested on every race track, to
   the finish ([MORECARS.md](docs/port/MORECARS.md) 10.4, [FRONTEND.md](docs/port/FRONTEND.md)).
-- **The game at 60 frames a second** (`game.frame_rate`, F1 > Game > Game frame rate): `original`, the default, is
-  the N64's 30. At 60 the game draws a frame every retrace, its own, not one drawn between two: the menus, the HUD,
-  the cameras, the smoke and sparks, the battle weapons and every timer step 60 times a second at the N64's speed, and
-  the car physics is the same as before, every retrace. A race the game doesn't steer once a frame (no drones,
-  resurrections or shots) has the same physics to the bit at either setting; the drones' catch-up, a resurrection's
-  place and the shots are decided once a frame, so at 60 they are decided twice as often.
-  Applies from the next screen. `video.frame_rate` still draws frames between the game's on top
-  ([FRAMERATE.md](docs/port/FRAMERATE.md) 7, [FRONTEND.md](docs/port/FRONTEND.md)).
 
 ## Beta candidate (2026-10-28)
 

@@ -192,7 +192,9 @@ static void test_nav(void)
     act_n(PC_MENU_DOWN, 2);
     at("Settings", "Controllers", NULL, "down to Controllers");
     act(PC_MENU_DOWN);
-    at("Settings", "Game", NULL, "the Game page, the last settings' page");
+    at("Settings", "Game", NULL, "the Game page");
+    act(PC_MENU_DOWN);
+    at("Settings", "Mods", NULL, "the Mods page, the last settings' page");
     /* Help and About, after the settings' pages: read-only, a heading stepped over */
     act(PC_MENU_DOWN);
     at("Settings", "Help", NULL, "Help after the settings' pages");
@@ -243,7 +245,7 @@ static void test_nav(void)
     act(PC_MENU_CLOSE);
     CHECK(!pc_menu_is_open(), "close");
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 7);
+    act_n(PC_MENU_DOWN, 8);
     at("Settings", "Quit", NULL, "Quit");
     pc_menu_action(PC_MENU_ACCEPT);
     CHECK(pump() != 0, "Quit stops the main loop");
@@ -553,7 +555,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     pc_menu_capture("Space");  /* keyboard A, which the file lacks */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     at("Settings", "Save to rush2049pc.ini", "4 changes", "four to save");
     act(PC_MENU_ACCEPT);
     at("Settings", "Save to rush2049pc.ini", "saved", "saved");
@@ -578,17 +580,17 @@ static void test_save(void)
     CHECK(text && !strcmp(read_text(path), want), "nothing more to save: unchanged");
     CHECK(!strcmp(pc_menu_message(), "Nothing to save"), "the message: '%s'", pc_menu_message());
     at("Settings", "Save to rush2049pc.ini", "saved", "still saved");
-    act_n(PC_MENU_UP, 6);
+    act_n(PC_MENU_UP, 7);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);         /* the volume 95: something to save again */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     at("Settings", "Save to rush2049pc.ini", "1 change", "a change after the save");
-    act_n(PC_MENU_UP, 6);
+    act_n(PC_MENU_UP, 7);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_RIGHT);        /* and back to what the file has */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     at("Settings", "Save to rush2049pc.ini", "saved", "the file has it all again");
     PcSettings back;
     pc_settings_defaults(&back);
@@ -613,7 +615,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     act(PC_MENU_ACCEPT);
     pc_settings_defaults(&back);
     back.volume = 95;
@@ -946,6 +948,7 @@ static void mock_about(PcAbout *a)
     snprintf(a->log, sizeof a->log, "/home/player/.local/share/rush2049pc/rush2049pc.log");
     snprintf(a->data, sizeof a->data, "/home/player/Games/San Francisco Rush 2049/rush2049pc-v1.0-linux-x86_64");
     snprintf(a->memory, sizeof a->memory, "64 MiB; heap 3.5 of 63.5 MiB at most in use");
+    snprintf(a->mods, sizeof a->mods, "1 on: Red Cars 1.2 (3 files, text)");
 }
 
 static void has_line(const char *text, const char *line, const char *what)
@@ -989,6 +992,7 @@ static void test_pages(void)
     has_line(text, "\nAudio: null at 48000 Hz\n", "audio");
     has_line(text, "\nAudio buffer: pulls of 512 (11 ms), queue 1601 (50 ms)\n", "audio buffer");
     has_line(text, "\nMemory: 64 MiB; heap 3.5 of 63.5 MiB at most in use\n", "memory");
+    has_line(text, "\nMods: 1 on: Red Cars 1.2 (3 files, text)\n", "the mods in use");
     has_line(text, "\nPlayer 1: -\nPlayer 2: -\nPlayer 3: -\nPlayer 4: -\n", "no live input headless: no players");
     has_line(text, "\nROM: /roms/baserom.us.z64 (next to the program)\n", "ROM");
     has_line(text, "\nSettings file: /home/player/.config/rush2049pc/rush2049pc.ini\n", "the settings file");
@@ -1000,7 +1004,7 @@ static void test_pages(void)
 
     /* the page: made again each time it opens, so it follows main's numbers */
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 6);
+    act_n(PC_MENU_DOWN, 7);
     act(PC_MENU_ACCEPT);
     at("About", "Version", "v9.9.9-1-gabcdef1 (RelWithDebInfo)", "About opens on the version");
     act_n(PC_MENU_DOWN, 7);
@@ -1036,12 +1040,12 @@ static void test_pages(void)
     at("Help", "Move", "arrows, PgUp/PgDn | D-pad, LS, LB/RB", "this menu's keys, after another heading");
     act(PC_MENU_BACK);
     /* a binding changed: Help has it */
-    act_n(PC_MENU_UP, 3);
+    act_n(PC_MENU_UP, 4);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_DOWN);
     act(PC_MENU_CLEAR);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 3);
+    act_n(PC_MENU_DOWN, 4);
     act(PC_MENU_ACCEPT);
     at("Help", "Move", NULL, "Help keeps its place");
     act_n(PC_MENU_PAGE_UP, 2);
@@ -1061,16 +1065,24 @@ int pcgfx_png_write(const char *path, const uint8_t *rgba, int w, int h);   /* p
 static void pictures(void)
 {
     static const struct { const char *name; int down; } shots[] = {
-        {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"help", 4}, {"about", 5}};
+        {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"game", 4}, {"mods", 5},
+        {"help", 6}, {"about", 7}};
+    static const PcMenuMod mods[3] = {
+        {"red-cars", "Red Cars", "1.2", "Someone", 5, 13, 12, 1, 0, 1, ""},
+        {"long-track", "Long Track", "0.3", "Someone Else", 0, 4, 4, 0, 12, 0, ""},
+        {"old", "old", "", "", 0, 2, 0, 0, 0, 0, "it has no mod.ini (tools/mods/rushmods.py new makes one)"},
+    };
     static uint8_t px[1280 * 960 * 4];
     PcSettings s;
     char path[PC_CFG_PATH];
     int w, h;
     pc_settings_defaults(&s);
     snprintf(s.save_path, sizeof s.save_path, "/home/player/.config/rush2049pc/rush2049pc.ini");
+    pc_settings_set(&s, "mods", "long-track", "off", NULL, 0);
     pc_menu_set_about(mock_about);
     if (start(&s) != 0)
         return;
+    pc_menu_set_mods(mods, 3, "/home/player/.local/share/rush2049pc/mods");
     pc_gfx_set_window_size(1280, 960);
     show_frame();
     for (size_t i = 0; i < sizeof shots / sizeof *shots; i++) {
@@ -1078,18 +1090,23 @@ static void pictures(void)
         act_n(PC_MENU_DOWN, shots[i].down);
         if (i)
             act(PC_MENU_ACCEPT);
-        if (i == 3) {   /* a capture in progress, and the list scrolled */
+        int keys = !strcmp(shots[i].name, "keyboard"), about = !strcmp(shots[i].name, "about");
+        if (keys) {   /* a capture in progress, and the list scrolled */
             act_n(PC_MENU_DOWN, 17);
             act(PC_MENU_ACCEPT);
         }
-        if (i == 6)   /* About's last row: a path over both footer lines */
+        if (about)   /* About's last row: a path over both footer lines */
             act(PC_MENU_UP);
+        if (!strcmp(shots[i].name, "mods"))   /* a mod picked up to move */
+            act(PC_MENU_DOWN), act(PC_MENU_ACCEPT);
         pc_gfx_read_window(px, &w, &h);
         snprintf(path, sizeof path, "%s/menu-%s.png", g_dir, shots[i].name);
         pcgfx_png_write(path, px, w, h);
         printf("%s\n", path);
-        if (i == 3)
+        if (keys)
             pc_menu_capture(NULL);
+        if (!strcmp(shots[i].name, "mods"))
+            act(PC_MENU_ACCEPT);
         if (i)
             act(PC_MENU_BACK);
         act_n(PC_MENU_UP, shots[i].down);
@@ -1098,11 +1115,80 @@ static void pictures(void)
     stop();
 }
 
+/* ---------------------------------------------------------------- the Mods page (docs/port/MODS.md) */
+
+static void test_mods(void)
+{
+    PcSettings s;
+    char path[PC_CFG_PATH - 64], *text;
+    static const PcMenuMod mods[3] = {
+        {"red", "Red Cars", "1.2", "Someone", 5, 3, 3, 0, 2, 1, ""},
+        {"blue", "Blue", "", "", 0, 1, 0, 1, 0, 0, ""},
+        {"noini", "noini", "", "", 0, 2, 0, 0, 0, 0, "it has no mod.ini"},
+    };
+    snprintf(path, sizeof path, "%s/mods.ini", g_dir);
+    write_text(path, "[game]\nmods_order = blue\n");
+    pc_settings_resolve(&s, PC_CFG_FILE_READ, path, NULL, NULL, 0);
+    pc_menu_set_mods(mods, 3, "/data/mods");
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    act(PC_MENU_TOGGLE);
+    act_n(PC_MENU_DOWN, 5);
+    at("Settings", "Mods", ">", "the Mods page, after Game");
+    act(PC_MENU_ACCEPT);
+    at("Mods", "Mods", "on", "game.mods first");
+    act(PC_MENU_DOWN);
+    at("Mods", "1. Blue", "on", "blue first: game.mods_order says so");
+    act(PC_MENU_DOWN);
+    at("Mods", "2. Red Cars 1.2", "on", "then red, by its priority");
+    act(PC_MENU_DOWN);
+    at("Mods", "3. noini", "on (unusable)", "a mod that can't be used says so");
+    act(PC_MENU_DOWN);
+    at("Mods", "Folder", "/data/mods", "the folder");
+    act(PC_MENU_DOWN);
+    at("Mods", "Defaults", NULL, "Defaults last");
+    act_n(PC_MENU_UP, 3);
+    act(PC_MENU_LEFT);
+    at("Mods", "2. Red Cars 1.2", "off", "Left: off");
+    act(PC_MENU_RIGHT);
+    act(PC_MENU_RIGHT);
+    at("Mods", "2. Red Cars 1.2", "off", "on, then off again");
+    act(PC_MENU_ACCEPT);   /* picked up */
+    act(PC_MENU_UP);
+    at("Mods", "1. Red Cars 1.2", "off", "moved up: first, the selection with it");
+    act(PC_MENU_UP);
+    at("Mods", "1. Red Cars 1.2", "off", "the first stays first");
+    act(PC_MENU_ACCEPT);   /* put down */
+    act(PC_MENU_DOWN);
+    at("Mods", "2. Blue", "on", "then blue: the selection moves again");
+    act(PC_MENU_BACK);
+    act_n(PC_MENU_DOWN, 3);
+    at("Settings", "Save to rush2049pc.ini", "2 changes", "two changes: red's flag and the order");
+    act(PC_MENU_ACCEPT);
+    text = read_text(path);
+    CHECK(text && strstr(text, "mods_order = red, blue, noini\n") && strstr(text, "\n[mods]\nred = off\n"),
+          "saved: the order and red's flag:\n%s", text ? text : "(none)");
+    act_n(PC_MENU_UP, 3);
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_PAGE_DOWN);
+    at("Mods", "Defaults", NULL, "a page down: Defaults");
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_PAGE_UP);
+    act(PC_MENU_DOWN);
+    at("Mods", "1. Red Cars 1.2", "on", "Defaults: every mod on, in mod.ini's order (red's priority first)");
+    act(PC_MENU_DOWN);
+    at("Mods", "2. Blue", "on", "then blue");
+    stop();
+    pc_menu_set_mods(NULL, 0, "");
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"nav", test_nav}, {"live", test_live}, {"save", test_save}, {"script", test_script},
-        {"mouse", test_mouse}, {"pages", test_pages},
+        {"mouse", test_mouse}, {"pages", test_pages}, {"mods", test_mods},
         {"pictures", pictures}};
     if (argc < 3) {
         fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|pictures SCRATCH_DIR\n");

@@ -390,6 +390,13 @@ add_library(pcassets OBJECT ${PC_ASSETS_SOURCES})
 target_include_directories(pcassets PRIVATE port/include port/assets)
 target_compile_options(pcassets PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 list(PREPEND PC_PORT_OBJECT_LIBS pcultra pcfrontend pcapp pcdata_rt pcassets)   # port/data's loader (docs/port/DATA.md)
+# port/mods: the mods folder (docs/port/MODS.md): mods' files in place of the cartridge's, checked by port/assets/check.c.
+file(GLOB PC_MODS_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/mods/*.c)
+add_library(pcmods OBJECT ${PC_MODS_SOURCES})
+target_include_directories(pcmods PRIVATE port/include port/ultra port/config port/assets port/mods ${ZLIB_INCLUDE_DIRS})
+target_compile_options(pcmods PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+list(APPEND PC_PORT_OBJECT_LIBS pcmods)
+target_include_directories(pcultra PRIVATE port/mods port/data)   # main.c: the mods, port/data's image table
 list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (docs/port/AUDIO.md, GFX.md)
 
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
@@ -564,6 +571,23 @@ foreach(pair "drive;mem64" "drive;memhigh" "drive;membig" "race2p;memhigh2p")
     add_test(NAME synth_shot_same_${b} COMMAND ${CMAKE_COMMAND} -E compare_files
         ${CMAKE_BINARY_DIR}/synth/paths/${a}.png ${CMAKE_BINARY_DIR}/synth/paths/${b}.png)
     set_tests_properties(synth_shot_same_${b} PROPERTIES FIXTURES_REQUIRED "synth_shot_${a};synth_shot_${b}")
+endforeach()
+# The mods folder's paths (docs/port/MODS.md 8): their mods, made from the synthetic cartridge's own files by
+# tools/port/mods_synth.py in the logs folder (where the paths run, so --mods-dir mods/... reaches them), and drive's
+# picture, which the runs whose mods change nothing on screen are compared with.
+add_test(NAME mods_synth COMMAND ${PC_PYTHON} ${PORT_TOOLS}/mods_synth.py --rom ${SYNTH_ROM}
+    --out ${CMAKE_BINARY_DIR}/synth/paths/mods)
+set_tests_properties(mods_synth PROPERTIES FIXTURES_REQUIRED synth_rom FIXTURES_SETUP mods_synth)
+foreach(script ${SYNTH_PATHS})
+    get_filename_component(name ${script} NAME_WE)
+    if(name MATCHES "^mods_")
+        set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth;synth_shot_drive")
+    endif()
+endforeach()
+# the texture pack mod is made from mods_dump's texture dump
+set_tests_properties(synth_boot_mods_dump PROPERTIES FIXTURES_SETUP mods_pack)
+foreach(name mods_texture mods_texture_up)
+    set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth;mods_pack")
 endforeach()
 # The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
 # ROM lookup order in temporary folders; and the program's own messages for each kind of missing or wrong ROM, and
@@ -745,6 +769,14 @@ foreach(t ${PC_ASSETS_TESTS})
         target_sources(test_assets_${n} PRIVATE $<TARGET_OBJECTS:test_assets_${n}_game>)
     endif()
 endforeach()
+# The mods folder's test (docs/port/MODS.md): port/mods and the INI reader with the converters; its `names` and
+# `verdicts` modes are compared with tools/mods/rushmods.py's (the same names, the same rules).
+target_sources(test_assets_mods PRIVATE ${PC_MODS_SOURCES} port/config/config.c)
+target_include_directories(test_assets_mods PRIVATE port/mods port/config port/ultra)
+target_link_libraries(test_assets_mods PRIVATE ZLIB::ZLIB)
+set_tests_properties(assets_mods PROPERTIES SKIP_RETURN_CODE 77)
+add_test(NAME mods_tool COMMAND ${PC_PYTHON} ${CMAKE_SOURCE_DIR}/tools/mods/rushmods.py selftest
+    --program $<TARGET_FILE:test_assets_mods> --work ${CMAKE_BINARY_DIR}/mods-selftest)
 # The race roster's test declares more slots than the game walks: 16 where the game build has 13
 # (port/include/pc_game_types.h, docs/port/DECOUPLE.md).
 target_compile_definitions(test_assets_roster PRIVATE PC_MAX_LINKS=16)
@@ -1001,6 +1033,9 @@ if(RUSH_INSTALL_PORTABLE)
     # log stay in it. The first run fills the file with the defaults (port/main.c).
     file(WRITE ${CMAKE_BINARY_DIR}/dist/rush2049pc.ini "")
     install(FILES ${CMAKE_BINARY_DIR}/dist/rush2049pc.ini DESTINATION ${RUSH_INSTALL_BIN})
+    # The mods folder (docs/port/MODS.md), in the data folder, which is the program's own when portable: empty but
+    # for a README saying what goes in it.
+    install(FILES dist/mods-README.txt DESTINATION ${RUSH_INSTALL_BIN}/mods RENAME README.txt)
 else()
     install(FILES README.md docs/port/FRONTEND.md docs/port/RELEASE.md DESTINATION ${RUSH_INSTALL_DOC})
     if(NOT WIN32)   # the desktop entry and its icon (a plain road: nothing of the game's)

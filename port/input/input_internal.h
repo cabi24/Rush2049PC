@@ -124,8 +124,22 @@ typedef struct {
     char audio[96], audio_buffer[128];                         /* "sdl at 48000 Hz", its pulls and queue */
     char rom[PC_CFG_PATH], saves[PC_CFG_PATH], log[PC_CFG_PATH], data[PC_CFG_PATH];
     char memory[128];   /* game.memory and the heap's high-water mark (docs/port/MEMORY.md 4) */
+    char mods[256];     /* the mods in use (docs/port/MODS.md) */
 } PcAbout;
 void pc_menu_set_about(void (*fill)(PcAbout *about));
+
+/* The Mods page (docs/port/MODS.md): the mods main read at start from dir. The page orders them as game.mods_order and
+ * their mod.ini priorities say, and turns them on and off ([mods]); both apply at the next start. */
+#define PC_MENU_MODS 64
+typedef struct {
+    char folder[64], name[64], version[32], author[64];
+    int priority;
+    int files;          /* the files it gives for waves */
+    int used, refused;  /* of them, in use and refused at start (with the mod on then) */
+    int texts, textures;   /* text strings it overrides; a texture pack */
+    char problem[160];  /* why it can't be used ("" if it can) */
+} PcMenuMod;
+void pc_menu_set_mods(const PcMenuMod *mods, int n, const char *dir);
 /* The About page as text, "Label: value" lines under a title (the clipboard's, and the tests'). Its length. */
 size_t pc_menu_about_text(char *out, size_t size);
 

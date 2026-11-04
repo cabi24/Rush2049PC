@@ -780,14 +780,63 @@ static void test_fps(void)
     CHECK(pc_game_fps_setting() == 0, "anything else is original: %d", pc_game_fps_setting());
 }
 
+/* game.mods, mods_dir, mods_order and [mods] (docs/port/MODS.md): the defaults, each set and read back, the flags
+ * any case, a bad value refused, the file written and read back, --set and --no-mods' setting. */
+static void test_mods(void)
+{
+    PcSettings s, t;
+    char why[400], v[PC_CFG_PATH];
+    pc_settings_defaults(&s);
+    CHECK(s.mods == 1 && !strcmp(s.mods_dir, "mods") && !s.mods_order[0] && !s.nmod_flags,
+          "the defaults: on, mods, no order, no flags (%d '%s' '%s' %d)", s.mods, s.mods_dir, s.mods_order,
+          s.nmod_flags);
+    CHECK(pc_settings_get(&s, "game", "mods", v, sizeof v) == 0 && !strcmp(v, "on"), "game.mods reads on: %s", v);
+    CHECK(pc_settings_mod_on(&s, "anything") == -1 && pc_settings_get(&s, "mods", "anything", v, sizeof v) == -1,
+          "a mod not listed: -1 (on), no value");
+    CHECK(pc_settings_set(&s, "game", "mods", "off", why, sizeof why) == 0 && !s.mods, "game.mods = off");
+    CHECK(pc_settings_set(&s, "game", "mods", "maybe", why, sizeof why) == -2 && !s.mods, "a bad value: %s", why);
+    CHECK(pc_settings_assign(&s, "game.mods_dir=/home/me/my mods", why, sizeof why) == 0 &&
+              !strcmp(s.mods_dir, "/home/me/my mods"), "--set game.mods_dir: %s", s.mods_dir);
+    CHECK(pc_settings_set(&s, "game", "mods_order", "red-cars, Long Track", why, sizeof why) == 0 &&
+              !strcmp(s.mods_order, "red-cars, Long Track"), "the order");
+    CHECK(pc_settings_set(&s, "mods", "Red-Cars", "off", why, sizeof why) == 0 && pc_settings_mod_on(&s, "red-cars") == 0,
+          "[mods] Red-Cars = off, found any case");
+    CHECK(pc_settings_set(&s, "mods", "long track", "yes", why, sizeof why) == 0 &&
+              pc_settings_mod_on(&s, "Long Track") == 1 && s.nmod_flags == 2, "[mods] long track = yes: on");
+    CHECK(pc_settings_set(&s, "mods", "red-cars", "on", why, sizeof why) == 0 && s.nmod_flags == 2 &&
+              pc_settings_mod_on(&s, "red-cars") == 1, "set again: the same line, now on");
+    CHECK(pc_settings_set(&s, "mods", "red-cars", "sometimes", why, sizeof why) == -2 &&
+              pc_settings_mod_on(&s, "red-cars") == 1, "a bad flag refused: %s", why);
+    CHECK(pc_settings_get(&s, "mods", "RED-CARS", v, sizeof v) == 0 && !strcmp(v, "on"), "read back: %s", v);
+    pc_settings_set(&s, "mods", "red-cars", "off", why, sizeof why);
+    char *text = pc_settings_format(&s);
+    CHECK(strstr(text, "\n[mods]\n") && strstr(text, "\nRed-Cars = off\n") && strstr(text, "\nlong track = on\n") &&
+              strstr(text, "\nmods = off\n") && strstr(text, "\nmods_order = red-cars, Long Track\n"),
+          "written: [mods] and the [game] settings");
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, text, "mods") == 0 && !t.mods && pc_settings_mod_on(&t, "red-cars") == 0 &&
+              pc_settings_mod_on(&t, "long track") == 1 && !strcmp(t.mods_dir, "/home/me/my mods"),
+          "and read back");
+    free(text);
+    pc_settings_defaults(&t);
+    text = pc_settings_format(&t);
+    CHECK(strstr(text, "\n; mods = on\n") && strstr(text, "\n; mods_dir = mods\n") && strstr(text, "\n[mods]\n"),
+          "the defaults commented out, an empty [mods] with its comment");
+    free(text);
+    pc_settings_defaults(&t);
+    CHECK(pc_settings_load_text(&t, "[mods]\nx = 3\n", "bad flag") == 1 && t.nmod_flags == 0,
+          "a bad [mods] line is skipped");
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"ini", test_ini}, {"settings", test_settings}, {"layers", test_layers}, {"locate", test_locate},
         {"stick", test_stick}, {"cars", test_cars}, {"memory", test_memory}, {"detail", test_detail},
-        {"fps", test_fps}};
+        {"fps", test_fps}, {"mods", test_mods}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|fps|all SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_test ini|settings|layers|locate|stick|cars|memory|detail|fps|mods|all "
+                        "SCRATCH_DIR\n");
         return 2;
     }
     static char dir[4096];   /* realpath writes up to PATH_MAX (4096) bytes: _FORTIFY_SOURCE checks the buffer */

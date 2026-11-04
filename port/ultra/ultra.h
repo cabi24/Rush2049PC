@@ -133,6 +133,12 @@ int pc_rom_open(const char *path, int check_sha1, PcRomInfo *info);
 int pc_rom_load(const char *path, int check_sha1);   /* pc_rom_open, printing why not; 0 when loaded */
 int pc_rom_blank(void);                              /* --no-rom: a zeroed 12 MiB cartridge */
 int pc_rom_copy(uint32_t rom_offset, void *dst, uint32_t size);   /* 0 if inside the ROM */
+/* The mods' files (docs/port/MODS.md): a second region of the cartridge at PC_ROM_MODS_BASE, past the largest ROM the
+ * port takes and below 0x0FC00000, so a ROM offset or a cartridge address (0xB0000000 | offset) reaches it as the
+ * ROM's. The file table's entries of a replaced wave point there. pc_rom_set_mods(NULL, 0): none. */
+#define PC_ROM_MODS_BASE 0x04000000u
+#define PC_ROM_MODS_MAX (0x0FC00000u - PC_ROM_MODS_BASE)
+void pc_rom_set_mods(const uint8_t *data, size_t size);
 uint32_t pc_rom_word(uint32_t rom_offset);           /* big-endian word, 0 past the end */
 void pc_sha1(const void *data, size_t size, uint8_t out[20]);
 

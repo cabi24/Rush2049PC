@@ -35,11 +35,12 @@ typedef struct {
     int wave;
     unsigned errors;
     unsigned n[8];      /* record counts for the trace line */
+    int quiet;          /* pc_assets_musyx_check: count, don't print */
 } Mx;
 
 static void mx_bad(Mx *m, size_t off, const char *what)
 {
-    if (!m->errors++)
+    if (!m->errors++ && !m->quiet)
         fprintf(stderr, "rush2049pc: musyx: wave %d: %s at 0x%zx doesn't parse; that walk stops there\n",
                 m->wave, what, off);
 }
@@ -423,9 +424,40 @@ static int trace(void)
     return e && *e && *e != '0';
 }
 
+/* The walk alone, on a copy (a mod's file, before the game reads it: docs/port/MODS.md): the records that don't
+ * parse, 0 for none; -1 for a file too short or all zero, which no MusyX file is. */
+int pc_assets_musyx_check(int wave, const uint8_t *file, size_t size)
+{
+    Mx m = {NULL, size, NULL, NULL, wave, 0, {0}, 1};
+    size_t i;
+    if (size < 4)
+        return -1;
+    for (i = 0; i < size && !file[i]; i++)
+        ;
+    if (i == size)
+        return -1;
+    if (!(m.buf = malloc(size)) || !(m.map = calloc(size, 1))) {
+        free(m.buf);
+        return 1;
+    }
+    memcpy(m.buf, file, size);
+    if (wave == WAVE_PROJECT)
+        mx_project(&m);
+    else if (wave == WAVE_POOL)
+        mx_pool(&m);
+    else if (wave == WAVE_SDIR)
+        mx_sdir(&m);
+    else if (wave >= WAVE_SONG_FIRST && wave <= WAVE_SONG_LAST)
+        mx_song(&m);
+    free(m.adsr);
+    free(m.map);
+    free(m.buf);
+    return (int)m.errors;
+}
+
 void pc_assets_musyx(int wave, uint8_t *buf, size_t size)
 {
-    Mx m = {buf, size, NULL, NULL, wave, 0, {0}};
+    Mx m = {buf, size, NULL, NULL, wave, 0, {0}, 0};
     const char *kind = NULL;
 
     if (wave != WAVE_PROJECT && wave != WAVE_POOL && wave != WAVE_SDIR &&

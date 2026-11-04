@@ -10,7 +10,10 @@
  * inflate_entry, inflate_entry_alt and lzss_decode were hand-written assembly over the PI. Natively: the game
  * image's inflate (game_init, ROM 0xB0CB10) does nothing, since that code and data are linked in; the two
  * runtime images' streams (ROM 0xB5C534, 0xB6FEC4) become pc_data_overlay_load; any other stream (sound
- * banks, ghosts) is inflated with zlib from the ROM image or from memory. */
+ * banks, ghosts) is inflated with zlib from the ROM image or from memory.
+ *
+ * The mods (docs/port/MODS.md) are a second region of the cartridge at PC_ROM_MODS_BASE (pc_rom_set_mods): their files
+ * are read from there by the PI DMA and the decompressors, as the ROM's are from the ROM; without mods it is empty. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <stdio.h>
@@ -130,8 +133,36 @@ static uint32_t rom_offset(uint32_t dev)
     return phys >= 0x10000000u && phys < 0x1FC00000u ? phys - 0x10000000u : dev;
 }
 
+/* ---------------------------------------------------------------- the mods' region (docs/port/MODS.md) */
+
+static const uint8_t *g_mods;
+static size_t g_mods_size;
+
+void pc_rom_set_mods(const uint8_t *data, size_t size)
+{
+    g_mods = data;
+    g_mods_size = data ? size : 0;
+}
+
+/* The mods' bytes at a ROM offset in their region, and how many follow; NULL outside it (or with no mods). */
+static const uint8_t *mods_at(uint32_t off, size_t *avail)
+{
+    if (!g_mods || off < PC_ROM_MODS_BASE || off - PC_ROM_MODS_BASE >= g_mods_size)
+        return NULL;
+    *avail = g_mods_size - (off - PC_ROM_MODS_BASE);
+    return g_mods + (off - PC_ROM_MODS_BASE);
+}
+
 int pc_rom_copy(uint32_t off, void *dst, uint32_t size)
 {
+    size_t avail;
+    const uint8_t *m = mods_at(off, &avail);
+    if (m) {   /* a mod's file: past its region's end is zero, as past the ROM's */
+        size_t have = avail < size ? avail : size;
+        memcpy(dst, m, have);
+        memset((uint8_t *)dst + have, 0, size - have);
+        return have == size ? 0 : -1;
+    }
     if (!g_rom || off > g_rom_size || size > g_rom_size - off) {
         size_t have = g_rom && off < g_rom_size ? g_rom_size - off : 0;
         if (have > size)
@@ -256,13 +287,15 @@ int32_t inflate_entry(uintptr_t src, void *dst, int32_t heap_window)
         return ov == PC_OVERLAY_A ? OVERLAY_A_SIZE : OVERLAY_B_SIZE;
     }
     uint32_t off = rom_offset((uint32_t)src);
-    if (!g_rom || off >= g_rom_size) {
+    size_t avail;
+    const uint8_t *m = mods_at(off, &avail);
+    if (!m && (!g_rom || off >= g_rom_size)) {
         pc_log("inflate from ROM 0x%X: outside the ROM", off);
         return 0;
     }
     char what[32];
     snprintf(what, sizeof what, "ROM 0x%06X", off);
-    int32_t n = inflate_buffer(g_rom + off, g_rom_size - off, dst, what);
+    int32_t n = m ? inflate_buffer(m, avail, dst, what) : inflate_buffer(g_rom + off, g_rom_size - off, dst, what);
     pc_mem_register_be(dst, (size_t)n);
     return n;
 }
@@ -277,11 +310,13 @@ int32_t inflate_entry_alt(const void *src, int32_t size, void *dst)
 int32_t lzss_decode(uintptr_t src, void *dst)
 {
     uint32_t off = rom_offset((uint32_t)src);
-    if (!g_rom || off >= g_rom_size) {
+    size_t avail;
+    const uint8_t *m = mods_at(off, &avail);
+    if (!m && (!g_rom || off >= g_rom_size)) {
         pc_log("lzss from ROM 0x%X: outside the ROM", off);
         return 0;
     }
-    const uint8_t *in = g_rom + off, *end = g_rom + g_rom_size;
+    const uint8_t *in = m ? m : g_rom + off, *end = m ? m + avail : g_rom + g_rom_size;
     uint8_t *out = dst, *start = dst;
     unsigned flags = 0, bits = 0;
     for (;;) {

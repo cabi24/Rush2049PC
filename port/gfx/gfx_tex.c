@@ -73,6 +73,7 @@ void pcgfx_tex_name(const PcgfxTexId *id, int with_palette, char *out, size_t si
 static struct {
     int mode, factor_env, up2d, sync, verbose;
     char pack[TEX_PATH], cache[TEX_PATH], dump[TEX_PATH];
+    char mods[4 * TEX_PATH];   /* RUSH_GFX_TEXTURE_MODS: the mods' texture packs, first first, one a line (MODS.md) */
     uint32_t gen;
     int last_factor, last_limit;
 } C;
@@ -115,6 +116,8 @@ void pcgfx_tex_configure(void) {
     env_path("RUSH_GFX_TEXTURE_PACK", C.pack);
     env_path("RUSH_GFX_TEXTURE_CACHE", C.cache);
     env_path("RUSH_GFX_TEXTURE_DUMP", C.dump);
+    v = getenv("RUSH_GFX_TEXTURE_MODS");
+    snprintf(C.mods, sizeof(C.mods), "%s", v != NULL ? v : "");
     if (!C.pack[0])
         snprintf(C.pack, sizeof(C.pack), "textures");
     C.gen++;
@@ -138,12 +141,14 @@ void pcgfx_tex_set_mode(int mode) {
     }
 }
 
+static int mods_have_textures(void);
+
 int pcgfx_tex_variant(int is3d) {
     if (C.mode == PCGFX_TEX_PACK)
         return 1;
-    if (C.mode == PCGFX_TEX_UPSCALED)
-        return (is3d || C.up2d) && pcgfx_tex_factor() > 1;
-    return 0;
+    if (C.mode == PCGFX_TEX_UPSCALED && (is3d || C.up2d) && pcgfx_tex_factor() > 1)
+        return 1;
+    return mods_have_textures() ? 2 : 0;   /* the mods' textures, in every mode (docs/port/MODS.md) */
 }
 
 /* The upscale factor: the largest power of two up to the internal scale in effect, at most 4, fractions too
@@ -724,6 +729,9 @@ typedef struct PackFile {
 } PackFile;
 static PackFile *s_files[TBL_BUCKETS];
 static int s_files_read, s_files_count;
+/* The mods' texture packs (docs/port/MODS.md): read once, and before the pack's in every mode. */
+static PackFile *s_mod_files[TBL_BUCKETS];
+static int s_mod_read, s_mod_count;
 
 static uint64_t str_hash(const char *s) {
     uint64_t h = 1469598103934665603ull;
@@ -734,7 +742,13 @@ static uint64_t str_hash(const char *s) {
     return h;
 }
 
+static void scan_into(PackFile **files, int *count, const char *dir, int depth);
+
 static void scan_dir(const char *dir, int depth) {
+    scan_into(s_files, &s_files_count, dir, depth);
+}
+
+static void scan_into(PackFile **files, int *count, const char *dir, int depth) {
     DIR *d;
     struct dirent *e;
     if (depth > 4 || (d = opendir(dir)) == NULL)
@@ -749,7 +763,7 @@ static void scan_dir(const char *dir, int depth) {
         if (stat(path, &st) != 0)
             continue;
         if (S_ISDIR(st.st_mode)) {
-            scan_dir(path, depth + 1);
+            scan_into(files, count, path, depth + 1);
         } else if (n > 4 && n < sizeof(name) && (!strcmp(e->d_name + n - 4, ".png") ||
                                                  !strcmp(e->d_name + n - 4, ".PNG"))) {
             PackFile *f = (PackFile *)calloc(1, sizeof(*f));
@@ -760,17 +774,88 @@ static void scan_dir(const char *dir, int depth) {
                 continue;
             }
             f->name_hash = str_hash(name);
-            f->next = s_files[f->name_hash % TBL_BUCKETS];
-            s_files[f->name_hash % TBL_BUCKETS] = f;
-            s_files_count++;
+            f->next = files[f->name_hash % TBL_BUCKETS];
+            files[f->name_hash % TBL_BUCKETS] = f;
+            (*count)++;
         }
     }
     closedir(d);
 }
 
+/* The mods' folders, read once: the last first, so that a folder's files come before those of the folders after it
+ * (a bucket's newest file is found first). */
+static void mods_read(void) {
+    char list[sizeof(C.mods)];
+    char *lines[64];
+    int n = 0;
+    if (s_mod_read)
+        return;
+    s_mod_read = 1;
+    snprintf(list, sizeof(list), "%s", C.mods);
+    for (char *p = list; *p && n < 64;) {
+        char *e = strchr(p, '\n');
+        lines[n++] = p;
+        if (!e)
+            break;
+        *e = '\0';
+        p = e + 1;
+    }
+    for (int i = n - 1; i >= 0; i--)
+        if (lines[i][0])
+            scan_into(s_mod_files, &s_mod_count, lines[i], 0);
+    if (n && lines[0][0])
+        fprintf(stderr, "gfx: the mods' texture packs: %d PNG files in %d folder%s\n", s_mod_count, n,
+                n == 1 ? "" : "s");
+}
+
+static const char *mod_file(const char *name) {
+    uint64_t h = str_hash(name);
+    mods_read();
+    for (PackFile *f = s_mod_files[h % TBL_BUCKETS]; f != NULL; f = f->next)
+        if (f->name_hash == h)
+            return f->path;
+    return NULL;
+}
+
+static int mods_have_textures(void) {
+    if (!C.mods[0])
+        return 0;
+    if (!s_mod_read) {   /* the render thread's: read once, then fixed */
+        pthread_mutex_lock(&s_lock);
+        mods_read();
+        pthread_mutex_unlock(&s_lock);
+    }
+    return s_mod_count > 0;
+}
+
+int pcgfx_tex_mods(void) {
+    return mods_have_textures();
+}
+
+int pcgfx_tex_mod_has(const PcgfxTexId *id) {
+    char name[96];
+    int has;
+    if (!C.mods[0])
+        return 0;
+    pthread_mutex_lock(&s_lock);
+    pcgfx_tex_name(id, 1, name, sizeof(name));
+    has = mod_file(name) != NULL;
+    if (!has && id->fmt == 2) {   /* CI: a replacement for every palette */
+        pcgfx_tex_name(id, 0, name, sizeof(name));
+        has = mod_file(name) != NULL;
+    }
+    pthread_mutex_unlock(&s_lock);
+    return has;
+}
+
 static const char *pack_file(const char *name) {
     uint64_t h = str_hash(name);
     PackFile *f;
+    const char *mod = C.mods[0] ? mod_file(name) : NULL;
+    if (mod)
+        return mod;
+    if (C.mode != PCGFX_TEX_PACK)   /* the player's pack only in pack mode; the mods' in any */
+        return NULL;
     if (!s_files_read) {
         s_files_read = 1;
         scan_dir(C.pack, 0);

@@ -56,6 +56,14 @@ void pc_assets_text(int wave, uint8_t *buf, size_t size);
 void pc_assets_font(int wave, uint8_t *buf, size_t size);
 void pc_assets_musyx(int wave, uint8_t *buf, size_t size);
 
+/* Whether file (size bytes, as the cartridge holds it once read: plain, big-endian) can stand in for wave's file
+ * (check.c, docs/port/MODS.md): 0, or -1 with the reason in why. cart, when not NULL, is the cartridge's own file for
+ * the wave, whose names and counts the game looks up must still be there. Changes nothing. */
+int pc_assets_check(int wave, const uint8_t *file, size_t size, const uint8_t *cart, size_t cart_size, char *why,
+                    size_t why_size);
+/* musyx.c's walk alone, on a copy: the records that don't parse (0: none), or -1 for a file too short or all zero. */
+int pc_assets_musyx_check(int wave, const uint8_t *file, size_t size);
+
 /* A wave's heap block goes away (UnloadWaveInstance) or moves (heap compaction): drop what a converter
  * registered for it. The default unregisters the big-endian range that contains buf. */
 void pc_assets_wave_released(int wave, uint8_t *buf);

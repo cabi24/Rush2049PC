@@ -206,6 +206,16 @@ static const Item items[] = {
      "The game's own frame rate: original (30 a second at most, the N64's) or 60 (a frame every retrace: the menus, "
      "the HUD, the cameras and the effects step 60 times a second, at the N64's speed; the car physics is the same). "
      "video.frame_rate draws frames between these on top. Applies from the next screen (a menu, a race)."},
+    /* mods (docs/port/MODS.md): read at start, before the game's memory is mapped */
+    {"game", "mods", T_BOOL, F(mods), 0, 0, NULL, "on",
+     "Use the mods in mods_dir: their files stand in for the cartridge's (the project's docs/port/MODS.md). off: the "
+     "cartridge's files only (--no-mods). Changes apply at the next start."},
+    {"game", "mods_dir", T_STR, F(mods_dir), 0, 0, NULL, "mods",
+     "The mods folder: a folder (or .zip) for each mod, each with a mod.ini. A name alone is in the data folder "
+     "(--mods-dir PATH: from the working directory)."},
+    {"game", "mods_order", T_STR, F(mods_order), 0, 0, NULL, "",
+     "The mods' order by folder name, comma-separated, first first: of two mods with a file for the same wave, the "
+     "first's is used. Mods not listed follow, by their mod.ini priority (the settings overlay's Mods page writes it)."},
     {"game", "pak", T_ENUM, F(pak[0]), 0, 0, pak_choices, "memory",
      "Controller 1's accessory: memory (the controller pak, for saves), rumble, none, or auto (a rumble pak when "
      "the player's controller can rumble, else none)."},
@@ -559,6 +569,39 @@ void pc_settings_defaults(PcSettings *s)
         snprintf(s->hotkey[i], PC_CFG_BIND, "%s", default_hotkeys[i]);
 }
 
+/* [mods]: one mod's folder name = on|off (docs/port/MODS.md). The names are the folders', any case. */
+static int set_mod_flag(PcSettings *s, const char *name, const char *value, char *why, size_t why_size)
+{
+    int on, i;
+    if (!*name || strlen(name) >= sizeof s->mod_flag[0].name) {
+        snprintf(why, why_size, "a mod's folder name of 1 to %zu characters", sizeof s->mod_flag[0].name - 1);
+        return -1;
+    }
+    if (parse_bool(value, &on) != 0) {
+        snprintf(why, why_size, "'%s' is not on or off", value);
+        return -2;
+    }
+    for (i = 0; i < s->nmod_flags && strcasecmp(s->mod_flag[i].name, name); i++)
+        ;
+    if (i == s->nmod_flags) {
+        if (i == PC_CFG_MODS) {
+            snprintf(why, why_size, "more than %d mods listed", PC_CFG_MODS);
+            return -2;
+        }
+        snprintf(s->mod_flag[s->nmod_flags++].name, sizeof s->mod_flag[0].name, "%s", name);
+    }
+    s->mod_flag[i].on = on;
+    return 0;
+}
+
+int pc_settings_mod_on(const PcSettings *s, const char *folder)
+{
+    for (int i = 0; i < s->nmod_flags; i++)
+        if (!strcasecmp(s->mod_flag[i].name, folder))
+            return s->mod_flag[i].on;
+    return -1;
+}
+
 int pc_settings_set(PcSettings *s, const char *section, const char *key, const char *value, char *why,
                     size_t why_size)
 {
@@ -592,6 +635,8 @@ int pc_settings_set(PcSettings *s, const char *section, const char *key, const c
         snprintf(why, why_size, "no hotkey '%s'", key);
         return -1;
     }
+    if (!strcasecmp(section, "mods"))
+        return set_mod_flag(s, key, value, why, why_size);
     const Item *it = find_item(section, key);
     if (!it) {
         snprintf(why, why_size, "no setting %s.%s", section, key);
@@ -621,6 +666,8 @@ int pc_settings_get(const PcSettings *s, const char *section, const char *key, c
         for (int i = 0; i < PC_NUM_HOTKEYS; i++)
             if (!strcasecmp(key, pc_hotkey_names[i]))
                 v = s->hotkey[i];
+    if (!strcasecmp(section, "mods") && pc_settings_mod_on(s, key) >= 0)
+        v = pc_settings_mod_on(s, key) ? "on" : "off";
     if (!v)
         return -1;
     snprintf(out, out_size, "%s", v);
@@ -861,6 +908,11 @@ char *pc_settings_format(const PcSettings *s)
             "; menu opens and closes the settings overlay.\n");
     for (int i = 0; i < PC_NUM_HOTKEYS; i++)
         put_key(&b, pc_hotkey_names[i], s->hotkey[i], def->hotkey[i]);
+    put(&b, "\n[mods]\n"
+            "; Each mod's folder (or .zip) in game.mods_dir = on or off; a mod not listed is on. The settings\n"
+            "; overlay's Mods page writes these (docs/port/MODS.md).\n");
+    for (int i = 0; i < s->nmod_flags; i++)
+        put(&b, "%s = %s\n", s->mod_flag[i].name, s->mod_flag[i].on ? "on" : "off");
     free(def);
     return b.p;
 }
