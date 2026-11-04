@@ -6,6 +6,15 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Presets** (F1 > Presets, `--preset enhanced`): the recommended PC settings in one step. **PC enhanced** sets the
+  game at 60, draw distance far, detail high, far textures anisotropic, widescreen auto, 64 voices with every drone's
+  engine heard, and 64 MiB of memory; **PC maximum** also draws the whole track without fog and upscales the world's
+  textures; **N64 original** puts all of those back to the defaults. Choosing one is the same as changing each
+  setting on its page: what applies at once does, the voices and the memory are marked for a restart, and Save writes
+  them. The cars a race holds, the display's settings and the player's own (the HUD's place, the mods, the saves, the
+  controls) are left as they are. `--preset NAME` does the same for one run, without writing the file
+  ([FRONTEND.md](docs/port/FRONTEND.md) "Presets").
+
 - **Far textures** (`video.texture_lod`, F1 > Video > Far textures): `original`, the default, picks each texture's
   smaller copies where the N64 does, for its 320 x 240 screen, so at a PC's resolution the road and the walls a few
   car lengths ahead were drawn from a copy a quarter or a sixteenth of the size. `sharp` picks them for the window's
