@@ -723,13 +723,15 @@ scripted presses steered, so each link between a real device and the pad the gam
   overlay's Controllers page now say which controller is on which player and what its stick gives.
 - **Smooth keyboard steering** (`input.keyboard_steering`, 2026-11-04, after the player report in
   [QA.md](QA.md) "Player reports" 1): `input_check.py` then runs the path with each stick push moved to start 0.1 s
-  before a whole second and end 0.05 s before one, through `--press-via keyboard` with `--log-input`, at `instant`
-  and at `smooth` (250 ms). On the synthetic cartridge (rocky, Debug, the drive path: right at 31.9-34.95 s, left at
-  35.9-38.95 s): instant's stick goes 80, 0, -80, 0; smooth's goes 5, 11, 16 ... 75, 80, 64, 48, 32, 16, 0 and the
-  same to the left, a value each retrace. The car's steering input 0.1 s into each push is 0.094 (right) and -0.063
-  (left) with smooth against 1.0 and -1.0 with instant, and 0.05 s after each release 0.063 and -0.063 with smooth
-  against 0 with instant. (The game's own reading of the stick is not linear: 0.4 of full tilt gives under a tenth
-  of the steering.) `--no-smooth` skips these runs.
+  before a whole second and end 0.05 s before one, and a push right from 6 retraces before the race's start (the
+  countdown's end, state 0x400000) for 0.5 s, through `--press-via keyboard` with `--log-input`, at `instant` and
+  at `smooth` (250 ms). On the synthetic cartridge (rocky, Debug, the drive path: right at 31.9-34.95 s, left at
+  35.9-38.95 s): instant's stick goes 80, 0 (the push across the start), 80, 0, -80, 0; smooth's goes 5, 11, 16 ...
+  75, 80, 64, 48, 32, 16, 0 for each push, a value each retrace, the one across the start 5, 11, 16, 21, 27, 32
+  before the state changes and 37, 43 ... 80 and back after it. The car's steering input 0.1 s into each push is
+  0.063 (right) and -0.063 (left) with smooth against 1.0 and -1.0 with instant, and 0.05 s after each release
+  0.063 and -0.063 with smooth against 0 with instant. (The game's own reading of the stick is not linear: 0.4 of
+  full tilt gives under a tenth of the steering.) `--no-smooth` skips these runs.
 - **CI** runs `input_check.py` as `input_live_drive` in every ctest, and on the cross-built program (the release's
   toolchain) in the windows-run job, Debug and RelWithDebInfo.
 

@@ -23,7 +23,8 @@ before a whole second and end 0.05 s before one (so the status lines sample the 
 (--log-input) with instant and with smooth (keyboard_steer_time 250: 15 retraces out, 5 back): instant's stick
 jumps from the centre to full tilt and back; smooth's goes the ramp's values retrace by retrace, out and back, each
 way; and the car's steering input 0.1 s into a push is smaller with smooth than with instant, the same way, and
-0.05 s after the release still that way with smooth and 0 with instant (--no-smooth skips this). With --rumble the game's motor must rumble the virtual controller. Then race2p with two virtual controllers
+0.05 s after the release still that way with smooth and 0 with instant; and a push from 6 retraces before the race's
+start (state 0x400000) ramps on across it, retrace by retrace (--no-smooth skips this). With --rumble the game's motor must rumble the virtual controller. Then race2p with two virtual controllers
 must give its reference, the second on player 2; and with a rumble pak on player 1 and auto on player 2 (a virtual
 controller can rumble), each player's motor must rumble its own controller. The lines are
 compared without their audio task counts, which can differ by one between runs in a window. Exit status: the
@@ -98,10 +99,16 @@ def smooth_ramp(sign, steps_out=15, steps_back=5, full=80):
             [sign * round(full * (1 - k / steps_back)) for k in range(1, steps_back + 1)])
 
 
-def smooth_press(press, windows):
+RACE = re.compile(r"rush2049pc: game state 0x00400000 \(was 0x[0-9A-F]{8}\) at vi (\d+)")
+
+
+def smooth_press(press, windows, cross=None):
     """The path with each stick push from 0.1 s before the whole second at or before its start to 0.05 s before the
-    whole second after its end: (the press file, [(sample 0.1 s in, sample 0.05 s after, sign)])."""
+    whole second after its end: (the press file, [(sample 0.1 s in, sample 0.05 s after, sign)]). cross: a time to
+    push right for 0.5 s from, across the race's start."""
     lines = [l for l in press.read_text().splitlines() if "STICK" not in l.split("#", 1)[0]]
+    if cross is not None:
+        lines.append(f"{cross:.3f} STICKRIGHT 0.5")
     samples = []
     for t0, t1, sign in windows:
         a, b = math.floor(t0) - 0.1, math.ceil(t1) + 1 - 0.05
@@ -176,7 +183,10 @@ def main():
     check(all(s == 0 for _, s in steering(lines)), "without the stick its steering input stays 0")
 
     if not args.no_smooth and windows:   # input.keyboard_steering: instant against smooth, through the keyboard
-        text, samples = smooth_press(press, windows)
+        # a push held across the race's start (the countdown to the race: 0x400000), 6 retraces before it
+        race = next((int(m.group(1)) for m in map(RACE.match, ref) if m), None)
+        cross = (race - 6) / 60 if race and (race - 6) / 60 + 0.6 < min(t0 for t0, _, _ in windows) - 0.1 else None
+        text, samples = smooth_press(press, windows, cross)
         ramp = logs / f"{press.stem}-ramp.press"
         ramp.write_text(text)
         status = {}
@@ -184,12 +194,26 @@ def main():
             code, out, lines = run(args.exe, args.rom, ramp, spec, "keyboard", args.rom_check, logs / f"keys-{mode}.log",
                                    ["--log-input", "--set", f"input.keyboard_steering={mode}"])
             check(code == 0, f"keyboard_steering = {mode}: the run (exit {code})")
-            xs = [x for x in stick_xs(out) if x or True]
-            want = []
+            xs = stick_xs(out)
+            want = [] if cross is None else [80, 0] if mode == "instant" else smooth_ramp(1)
             for _, _, sign in samples:
                 want += [sign * 80, 0] if mode == "instant" else smooth_ramp(sign)
             got = xs[1:] if xs[:1] == [0] else xs   # the first line: the pad connected, at the centre
             check(got == want, f"keyboard_steering = {mode}: the stick each retrace {got}")
+            if cross is not None and mode == "smooth":   # the ramp goes on across the race's start
+                seq, at = [], None
+                for line in out.splitlines():
+                    m = STICK_X.match(line)
+                    if m and (not seq or seq[-1] != int(m.group(1))):
+                        seq.append(int(m.group(1)))
+                    elif RACE.match(line):
+                        at = len(seq)
+                ramp_at = seq.index(5) if 5 in seq else None
+                check(at is not None and ramp_at is not None and ramp_at < at < ramp_at + 15 and
+                      seq[ramp_at:ramp_at + 20] == smooth_ramp(1),
+                      f"smooth: a key held across the race's start (vi {race}) ramps on: "
+                      f"{seq[ramp_at:at] if ramp_at is not None else '?'} | the state changes | "
+                      f"{seq[at:ramp_at + 20] if ramp_at is not None and at is not None else '?'}")
             status[mode] = dict(steering(lines))
         for t_in, t_out, sign in samples:
             i, s = status["instant"].get(t_in), status["smooth"].get(t_in)
