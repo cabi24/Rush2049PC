@@ -99,6 +99,7 @@ B_SETS, B_ENV = [], {}   # --set-b, --env-b: the second executable's own
 
 def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
     env = dict(os.environ)
+    env.update(synth_paths.data_env(logs))   # the runs' own data folder: no player's mods
     env.update(path_env or {})
     if second:
         env.update(B_ENV)   # the executable's own over the path's

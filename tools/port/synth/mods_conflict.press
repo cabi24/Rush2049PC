@@ -1,0 +1,20 @@
+# drive.press with two mods for one file, track 1's ground (tools/port/mods_synth.py's conflict set): the magenta one
+# has the higher priority, so its file is used, and the log says which won (docs/port/MODS.md 3).
+# until: 0x400000:900
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# args: --mods-dir mods/conflict --screenshot-at 1600 --screenshot mods_conflict.png
+# check: tools/port/mods_check.py log mods_conflict.game.log --has "wave 101, track1: Magenta ground's tracks/track1.bin and Green ground's tracks/track1.bin; Magenta ground is first in the order: its file is used"
+# check: tools/port/mods_check.py shot mods_conflict.png --rgb 255,0,255 --min 5000
+# check: tools/port/mods_check.py shot mods_conflict.png --rgb 0,255,0 --min 0 --max 0
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 20        # gas for 20 s
+32 STICKRIGHT 1.5
+36 STICKLEFT 1.5
+47 B 3         # the brake

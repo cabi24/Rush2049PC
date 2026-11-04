@@ -1,0 +1,20 @@
+# drive.press with a mod of broken files (tools/port/mods_synth.py's bad set): every kind cut short or garbage, a road
+# for a car, a stored file that doesn't decompress. Each is refused with one line, the cartridge's file is used, and
+# the race is drive's to the pixel (docs/port/MODS.md 4).
+# until: 0x400000:900
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# args: --mods-dir mods/bad --screenshot-at 1600 --screenshot mods_bad.png
+# check: tools/port/mods_check.py log mods_bad.game.log --count "refused: =21" --has "cars/car02.bin (wave 89, car02) refused" --has "its LZSS stream doesn't decompress" --lacks "of the cartridge's files replaced"
+# check: tools/port/mods_check.py same mods_bad.png drive.png
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race
+14 A           # the player screen
+17 A           # the mode screen: a single race
+20 A           # the track select: track 0
+23 A           # the car select; the race starts at about 23.6 s and its countdown runs 3.5 s
+27 A 20        # gas for 20 s
+32 STICKRIGHT 1.5
+36 STICKLEFT 1.5
+47 B 3         # the brake
