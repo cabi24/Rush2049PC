@@ -8,7 +8,7 @@
 # visits: 0x1000
 # args: --set game.pc_setup=on
 # check: tools/port/log_check.py pcsetup.log "PC SETUP chosen in the main menu" "settings open; the game is held" "settings closed" --not "game state 0x00000020"
-# realtime
+# realtime: only
 5 A            # the controller pak warning (0x40000000)
 8 START        # the start prompt (4); the main menu from 8 s
 11 DOWN 0.1    # five down: the second to fifth options, then PC SETUP

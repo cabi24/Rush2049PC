@@ -898,6 +898,7 @@ static void set_open(int on)
         fprintf(stderr, "rush2049pc: settings open; the game is held\n");
     } else {
         int u = unsaved();
+        pc_input_menu_closed();   /* the buttons held now stay idle for the game until let go (input.c) */
         if (u)
             fprintf(stderr, "rush2049pc: settings closed; %d change%s not saved\n", u, u == 1 ? "" : "s");
         else

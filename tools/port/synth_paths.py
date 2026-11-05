@@ -12,6 +12,8 @@ Each tools/port/synth/NAME.press is a --press-file script whose leading comments
     #                          what the state log's last line ("state reached: ... state=S: <info>") must say
     # visits: 0x2000 0x200     states the run must pass through on the way (the state log has each)
     # realtime                 run on the host's clock (the default is --fast, the virtual clock)
+    # realtime: only           and never on the virtual clock (synth_compare.py leaves it out): while the settings
+    #                          overlay holds the game the virtual clock stands still, and the script with it
     # args: --screenshot-at 900 --screenshot race.png
     #                          more options (a path is relative to the logs directory, where the run happens;
     #                          a .png or .mpk named there, alone or as --set's value, is deleted first, so each
@@ -44,9 +46,12 @@ PRESS_DIR = ROOT / "tools/port/synth"
 
 
 def read_script(path):
-    spec = {"until": None, "seconds": "60", "expect": "", "realtime": False, "args": [], "check": None, "checks": [],
-            "visits": [], "env": {}}
+    spec = {"until": None, "seconds": "60", "expect": "", "realtime": False, "virtual": True, "args": [], "check": None,
+            "checks": [], "visits": [], "env": {}}
     for line in path.read_text().splitlines():
+        if re.match(r"#\s*realtime\s*:\s*only\s*$", line):
+            spec["realtime"], spec["virtual"] = True, False
+            continue
         m = re.match(r"#\s*(until|seconds|expect|args|check|visits|env)\s*:\s*(.*)$", line)
         if m:
             key, value = m.group(1), m.group(2).strip()

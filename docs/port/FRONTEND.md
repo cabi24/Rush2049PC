@@ -426,13 +426,16 @@ it on and off at once.
   overlay on its main page; the game is then held on the menu (the section below).
 - **The press that closes it.** START or B closing the overlay is still held when the game runs again: on the main
   menu START starts a race. The buttons held when the overlay closes now stay idle for the game until they are let
-  go (`pc_input_poll`, port/input/input.c; the overlay being open is noted at each tick too, since a held game reads
-  no pads). This was so for F1 from any screen before.
+  go: taken at the close (`pc_input_menu_closed`, from the keyboard's and controllers' state, `pc_input_live_held`,
+  and the scripts'), dropped from the game's reads until released (`pc_input_poll`, port/input/input.c). Buttons
+  pressed after it closed count at once (`frontend.sdl.menu`: Escape closes it, then the newly bound keys reach the
+  game). This was so for F1 from any screen before.
 - **Tested**: `frontend.menu.live` (the item at once: slot 8 valid as PC SETUP, the other slots and exits as they
   were, A on it asking for the overlay and the tick taking the request once, Defaults off again);
   `frontend.menu.script` (START held across the closing doesn't reach the game); `synth_boot_pcsetup`
-  (`tools/port/synth/pcsetup.press`, on the host's clock, since the virtual clock stands still while the overlay holds
-  the game): five down to PC SETUP, A opens the overlay, START closes it without the player screen, up and A into
+  (`tools/port/synth/pcsetup.press`, `# realtime: only`: the virtual clock stands still while the overlay holds the
+  game, and the script with it, so it runs on the host's clock and `synth_compare.py` leaves it out): five down to
+  PC SETUP, A opens the overlay, START closes it without the player screen, up and A into
   the fifth option's screen; its log has the three lines in order (`tools/port/log_check.py`). On the retail
   cartridge on the Pi the same steps went the same way.
 
