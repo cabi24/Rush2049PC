@@ -592,6 +592,16 @@ finishes a race, so CI's sanitizer jobs never reach it.
   imported ones. A ghost race also has three laps always (`SetOptions`, `large_init_state/group.c:146`) and ends only
   at its time limit (`countdown.c:309-316`); its track select has no Laps option, and GhostEnd
   (`nonmatching/game/ghost_race_setup.c:117`) keeps the ghost only of a car that finished its laps.
+  Checked again 2026-11-05, as a possible porting bug: it is the cartridge's own behaviour. The compare is
+  `strcmp` (`func_8008AD04`) of the profile's name with `D_801211CC`, a 12-character code of digits, letters and a
+  symbol (read in the running game on the Pi, not recorded), not a default name; the same branch unlocks the cheat
+  screen (`D_801164A1`) and three more flags (`D_801164A4[14-16]`). The flag has no other writer: in the game's C
+  only that write and billboard_render's read use it (the other files declare it only); the retail ROM has two
+  instructions with its address's low half (0x48E4) as an offset, the two of the C, and no data word holding it
+  (no table of flags points at it). The pak write, `SaveGhost(..., 0)`, is only in the prompt's handler
+  (`func_800F1930`, high score state 4), reached only from that test (`__standin_d`, which also sets state 4, is a
+  matching stand-in nothing calls); the session's ghosts (`func_800CB748`) are heap copies in the records table
+  `D_8013FEC4`, which no code writes to a pak.
 
 ### Left
 
