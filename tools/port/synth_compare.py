@@ -321,17 +321,23 @@ def main():
                           expect=script_expect(a.script))
     else:
         names = a.names or sorted(p.stem for p in synth_paths.PRESS_DIR.glob("*.press"))
+        names_out = []
         with concurrent.futures.ThreadPoolExecutor(max(1, a.jobs)) as pool:
             verdicts = []
             for name in names:
                 press = synth_paths.PRESS_DIR / f"{name}.press"
                 spec = synth_paths.read_script(press)
+                if not spec["virtual"]:   # `# realtime: only`: it can't run on the virtual clock
+                    print(f"synth_compare: {name:10s} left out (on the host's clock only)")
+                    names_out.append(name)
+                    continue
                 tail = ["--press-file", str(press), "--until-state", spec["until"], "--seconds", spec["seconds"],
                         "--status", a.status] + spec["args"]
                 verdicts.append(compare(name, a.exe, a.rom, tail, a.runs, a.logs, retail=False,
                                         pool=pool if a.jobs > 1 else None, path_env=spec["env"],
                                         expect=spec["expect"]))
             differ += sum(v() if callable(v) else v for v in verdicts)   # printed in the paths' order
+        names = [n for n in names if n not in names_out]
         if len(names) > 1:
             print(f"synth_compare: {len(names) - differ} of {len(names)} paths agree")
     sys.exit(differ)

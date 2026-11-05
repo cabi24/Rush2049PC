@@ -556,7 +556,7 @@ foreach(script ${SYNTH_PATHS})
     list(APPEND SYNTH_BOOT_TESTS synth_boot_${name})
     # a path on the host's clock (`# realtime`: the race) runs alone under `ctest -j`, as the other real-time tests,
     # and is labelled realtime with them (CI gives those more than one try: .github/workflows/pc.yml)
-    file(STRINGS ${script} realtime REGEX "^#[ \t]*realtime[ \t]*$")
+    file(STRINGS ${script} realtime REGEX "^#[ \t]*realtime([ \t]*:[ \t]*only)?[ \t]*$")
     if(realtime)
         set_tests_properties(synth_boot_${name} PROPERTIES RUN_SERIAL TRUE LABELS realtime)
     endif()

@@ -209,6 +209,19 @@ static int script_pads(double now, PcPad script[4])
  * counts when it starts, so one held across the opening doesn't act. */
 static uint16_t g_script_held;
 static int g_script_menu;
+/* The buttons held when the overlay closed, per port (the main thread's, at the close): idle for the game until
+ * released (pc_input_poll, the game's thread) */
+static uint16_t g_held_at_close[4];
+
+void pc_input_menu_closed(void)
+{
+    uint16_t held[4] = {0, 0, 0, 0};
+    PcPad script[4];
+    pc_input_live_held(held);
+    script_pads(pc_host_ns() / 1e9, script);
+    for (int i = 0; i < 4; i++)
+        __atomic_store_n(&g_held_at_close[i], (uint16_t)(held[i] | script[i].buttons), __ATOMIC_RELAXED);
+}
 
 static void script_menu(void)
 {
@@ -327,9 +340,19 @@ void pc_input_poll(PcPad pads[4])
         if (script[i].stick_y)
             pads[i].stick_y = script[i].stick_y;
     }
-    if (pc_menu_is_open())   /* the overlay has the input: the game sees idle pads */
+    if (pc_menu_is_open()) {   /* the overlay has the input: the game sees idle pads */
         for (int i = 0; i < 4; i++)
             pads[i].buttons = 0, pads[i].stick_x = pads[i].stick_y = 0;
+    } else {
+        /* The buttons held when it closed (pc_input_menu_closed: START or B closing it) stay idle for the game until
+         * they are let go, so the press that closed it doesn't also act in the game: START on the main menu would
+         * start a race. Buttons pressed after it closed count at once. */
+        for (int i = 0; i < 4; i++) {
+            uint16_t h = __atomic_load_n(&g_held_at_close[i], __ATOMIC_RELAXED) & pads[i].buttons;
+            __atomic_store_n(&g_held_at_close[i], h, __ATOMIC_RELAXED);
+            pads[i].buttons &= (uint16_t)~h;
+        }
+    }
     rumble();
     if (pc_input_log)
         log_changes(pads);

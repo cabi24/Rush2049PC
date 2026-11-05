@@ -1307,6 +1307,26 @@ static int8_t stronger(int8_t a, int8_t b)
     return (a < 0 ? -a : a) >= (b < 0 ? -b : b) ? a : b;
 }
 
+void pc_input_live_held(uint16_t held[4])
+{
+    if (!L.on)
+        return;
+    for (int p = 0; p < 4; p++) {
+        Slot *slot = &L.slot[p];
+        SDL_GameController *gc = slot->gc;
+        int kb = p == L.kb_port;
+        for (int c = 0; c < PC_NUM_CONTROLS && (kb || gc); c++) {
+            int on = 0;
+            for (int i = 0; kb && i < L.nkeys[c] && !on; i++)
+                on = L.down[L.keys[c][i]];
+            for (int i = 0; gc && i < L.npads[c] && !on; i++)
+                on = source_active(slot, &L.pads[c][i]);
+            if (on)
+                held[p] |= pc_control_masks[c];
+        }
+    }
+}
+
 void pc_input_live_poll(PcPad pads[4])
 {
     if (!L.on)
@@ -1409,6 +1429,7 @@ int pc_input_live_init(const PcSettings *s)
 
 void pc_input_live_shutdown(void) {}
 void pc_input_live_poll(PcPad pads[4]) { (void)pads; }
+void pc_input_live_held(uint16_t held[4]) { (void)held; }
 void pc_input_live_rumble(int port, double level) { (void)port, (void)level; }
 int pc_input_live_paused(void) { return 0; }
 int pc_input_live_describe(int port, char *who, size_t n, int8_t *x, int8_t *y)

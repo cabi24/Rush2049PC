@@ -63,6 +63,7 @@ typedef struct PcSettings {
     int memory;                     /* game.memory: 0 original (the N64's: 8 MiB, 4 with expansion_pak off), else
                                      * the RDRAM window and osMemSize in MiB, 16 to PC_RDRAM_MAX (docs/port/MEMORY.md) */
     int game_fps;                   /* game.frame_rate: 0 original (a frame every two retraces at most), 60 */
+    int pc_setup;                   /* game.pc_setup: PC SETUP in the main menu opens the overlay (start_menu.c) */
     /* game.mods, mods_dir, mods_order and [mods] (docs/port/MODS.md) */
     int mods;                       /* use the mods folder's mods */
     char mods_dir[PC_CFG_PATH];     /* the mods folder; a name alone is in the data folder */

@@ -401,6 +401,44 @@ files (a profile, a ghost each), what it deletes goes to the folder's `trash/`.
 - **Sharing**: F1 > Saves > a ghost > Export writes a `.r49ghost` into `export/`; a `.r49ghost` dropped into
   `import/` is taken at start or by Import ghosts, checked first (SAVES.md 4.3).
 
+### PC SETUP in the main menu (game.pc_setup)
+
+2026-11-05 (`port/config/start_menu.c`, `pc_start_menu.h`). `off`, the default, is the N64's main menu. With `on`
+the main menu gets a sixth option below VIDEO, **PC SETUP**, and choosing it opens the settings overlay over the
+menu, as F1 does; closing it leaves the menu as it was, PC SETUP still selected. F1 > Game > PC SETUP in menu turns
+it on and off at once.
+
+- **Where it comes from.** The main menu (`updateStartScreen`, `src/ovl_a/groups/start_screen/group.c`) has ten
+  option slots, each valid or not (`optionValid`, `func_8038F744`, in that file and in
+  `src/ovl_a/groups/runtime_a_option_eligibility/group.c`): 0 the race, 1-4 its four screens, 6 the cheat screen
+  once its code is entered, 7 and 9 a debug build's, 5 and 8 never. Each slot has its own button (the same pill
+  model, made for all ten by `initButtons`), and the valid ones are stacked one gap apart, so a sixth valid slot gets
+  a button, a place and the turn to its selected side as the cheat screen's does. PC SETUP is slot 8: with the cheat
+  screen unlocked it comes after it.
+- **The game's code**, three PC macros on existing lines, each giving the original tokens on the N64:
+  `PC_START_VALID` on optionValid's return (both copies: slot 8 valid while the setting is on), `PC_START_LABEL` on
+  the label's draw (`state_utility(..., countdown_state.indexed[indices[20] + i])`, both of the function's layouts:
+  the port's "PC SETUP" for slot 8 instead of the text bank's string; the label starts 35 pixels left of the button's
+  middle, so it is short: "PC SETTINGS" would run past the button), and `PC_START_EXIT` on the menu's exit test
+  (`else if (exitStartScreen)`): A on slot 8 sets a request and gives 0, so the menu isn't torn down and stays in its
+  state; any other choice, and B, go on as before.
+- **Opening the overlay.** The request is taken by the main thread at its next tick (`pc_menu_tick`), which opens the
+  overlay on its main page; the game is then held on the menu (the section below).
+- **The press that closes it.** START or B closing the overlay is still held when the game runs again: on the main
+  menu START starts a race. The buttons held when the overlay closes now stay idle for the game until they are let
+  go: taken at the close (`pc_input_menu_closed`, from the keyboard's and controllers' state, `pc_input_live_held`,
+  and the scripts'), dropped from the game's reads until released (`pc_input_poll`, port/input/input.c). Buttons
+  pressed after it closed count at once (`frontend.sdl.menu`: Escape closes it, then the newly bound keys reach the
+  game). This was so for F1 from any screen before.
+- **Tested**: `frontend.menu.live` (the item at once: slot 8 valid as PC SETUP, the other slots and exits as they
+  were, A on it asking for the overlay and the tick taking the request once, Defaults off again);
+  `frontend.menu.script` (START held across the closing doesn't reach the game); `synth_boot_pcsetup`
+  (`tools/port/synth/pcsetup.press`, `# realtime: only`: the virtual clock stands still while the overlay holds the
+  game, and the script with it, so it runs on the host's clock and `synth_compare.py` leaves it out): five down to
+  PC SETUP, A opens the overlay, START closes it without the player screen, up and A into
+  the fifth option's screen; its log has the three lines in order (`tools/port/log_check.py`). On the retail
+  cartridge on the Pi the same steps went the same way.
+
 ### Presets (N64 original, PC enhanced, PC maximum)
 
 2026-11-04 (`port/config/presets.c`). The defaults are the N64's game, so the PC's settings are spread over the Video,

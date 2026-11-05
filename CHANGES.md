@@ -6,6 +6,11 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **PC SETUP in the main menu** (`game.pc_setup`, F1 > Game > PC SETUP in menu): `off`, the default, is the N64's
+  main menu. `on` adds a sixth option below VIDEO, drawn as the game draws its own, that opens the settings overlay
+  over the menu, as F1 does. And a fix for the overlay: the START or B that closed it no longer also reaches the game
+  (on the main menu START started a race) ([FRONTEND.md](docs/port/FRONTEND.md) "PC SETUP in the main menu").
+
 - **Side art: menus that fill a wide screen** (texture packs): a pack's replacement for a background tile can carry
   columns past the 4:3 frame (`<name>+l<N>.png`, `+r<M>`, `+l<N>r<M>`); in widescreen the tiles at the frame's sides
   then reach into the side bands instead of leaving them black, and the menu's own scrolling glow beside them goes

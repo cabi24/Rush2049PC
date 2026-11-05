@@ -23,6 +23,7 @@
 #include "pc_data.h"
 #include "pakfs.h"
 #include "pc_game_fps.h"
+#include "pc_start_menu.h"
 #include "pc_game_types.h"
 #include "ultra.h"
 
@@ -1001,6 +1002,7 @@ static int rush_main(int argc, char **argv)
     if (cfg.cars)
         fprintf(stderr, "rush2049pc: up to %d cars a race (game.cars)\n", pc_cars_setting());
     pc_game_fps_set(cfg.game_fps);   /* [game] frame_rate: the game latches it at each change of state (game_fps.c) */
+    pc_start_menu_set(cfg.pc_setup);   /* [game] pc_setup: PC SETUP in the main menu (start_menu.c) */
     if (cfg.game_fps)
         fprintf(stderr, "rush2049pc: the game runs at %d frames a second (game.frame_rate)\n", pc_game_fps_setting());
     /* port/gfx reads its settings from the environment; the resolved values already include it */

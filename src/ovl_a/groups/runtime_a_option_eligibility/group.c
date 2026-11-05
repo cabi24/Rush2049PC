@@ -42,6 +42,17 @@ extern s8 func_8038F744(s32);
 extern void func_800ED66C(f32);
 extern void func_800BEA3C(Color4,Color4);
 extern void func_800B7360(u8,u8,u8,u8);
+#ifdef TARGET_PC
+/* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8 is PC SETUP while it
+   is on, its label the port's. */
+int pc_start_valid(int index, int value);
+const char *pc_start_label(int index, const char *label);
+#define PC_START_VALID(i, v) pc_start_valid((i), (v))
+#define PC_START_LABEL(i, s) ((void *)pc_start_label((i), (s)))
+#else
+#define PC_START_VALID(i, v) v
+#define PC_START_LABEL(i, s) s
+#endif
 
 void func_803ADDA8(void)
 {
@@ -74,7 +85,7 @@ void func_803ADDA8(void)
         }
         brake_light_update(0,position,&D_80150B70[0],0,point);
         x=point[0]-35; y=point[1];
-        state_utility(x,(s16)y,countdown_state.indexed[countdown_state.indices[20]+i]);
+        state_utility(x,(s16)y,PC_START_LABEL(i,countdown_state.indexed[countdown_state.indices[20]+i]));
         if(i==0) {
             brake_light_update(0,D_803B6898,&D_80150B70[0],0,point);
             x=point[0]-18; y=point[1];
@@ -122,7 +133,7 @@ s32 func_803AE1C0(void *callback_context)
         if(!func_8038F744(i))continue;
         if(i==D_803B6A68)dispatch_handler(22);
         else func_800B7360(224,224,224,255);
-        state_utility(160,(s16)y,countdown_state.indexed[countdown_state.indices[20]+i]);
+        state_utility(160,(s16)y,PC_START_LABEL(i,countdown_state.indexed[countdown_state.indices[20]+i]));
         if(i==0) {
             x=230;
             for(j=0;j<4;j++) {
@@ -165,5 +176,5 @@ s8 func_8038F744(s32 index)
     if (index == 6) {
         value = D_801164A1;
     }
-    return value;
+    return PC_START_VALID(index, value);
 }

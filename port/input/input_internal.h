@@ -46,6 +46,8 @@ void pc_input_live_shutdown(void);
 /* Merge the keyboard and controllers into pads (buttons OR'ed, the stronger stick per axis) and mark ports
  * with a controller connected. */
 void pc_input_live_poll(PcPad pads[4]);
+void pc_input_live_held(uint16_t held[4]);   /* the buttons the keyboard and controllers hold now, nothing else done */
+void pc_input_menu_closed(void);             /* the overlay just closed: its buttons held stay idle (input.c) */
 /* For the overlay: who plays a player ("keyboard", the controller's name, or both) and the N64 stick its controller
  * gives now. 2 with a controller, 1 with the keyboard alone, 0 for nobody. */
 int pc_input_live_describe(int port, char *who, size_t n, int8_t *x, int8_t *y);
