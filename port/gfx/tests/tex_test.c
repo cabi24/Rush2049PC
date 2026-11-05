@@ -9,6 +9,10 @@
  *   alpha     a cut-out upscaled stays binary, doesn't grow and gets no dark fringe; drawn with an alpha test too
  *   async     without RUSH_GFX_TEXTURE_SYNC the original is drawn until the worker is done, then the upscaled
  *   live      pc_gfx_set_textures switches at the next frame, and back
+ *   sideart   side art (<name>+l<N>r<M>): off widescreen the plain replacement; at 16:9 a rectangle at the frame's
+ *             left or right side reaches into that band and one in the middle doesn't; a perspective quad ending at
+ *             the frame's sides goes on into the bands with its texture continued in a frame with side art, and
+ *             doesn't without it
  * Usage: gfx_tex_test CASE|all SCRATCH_DIR */
 #include <dirent.h>
 #include <math.h>
@@ -29,6 +33,8 @@
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
 void pc_gfx_set_scale(int scale);
 void pc_gfx_set_scale_value(float scale);
+
+void pc_gfx_set_widescreen(float aspect);
 
 int pcgfx_png_write_rgba(const char *path, const uint8_t *rgba, int w, int h);
 int pcgfx_png_read(const char *path, uint8_t **rgba, int *w, int *h, char *why, size_t why_size);
@@ -942,6 +948,158 @@ static void case_async(void) {
     textures("original", NULL, NULL, NULL, 1, 0);
 }
 
+/* ---------------------------------------------------------------- side art */
+
+static uint16_t s_ts[8 * 8], s_tw[16 * 16];
+static Mtx s_persp;
+
+/* A frame: the 16 x 16 wrapping stripes across the whole frame under a perspective projection (quad: w = 100,
+ * s 0-64 texels left to right), then the 8 x 8 texture as rectangles at the frame's left side, its right side and in
+ * the middle (art). */
+static void side_frame(int art, int quad) {
+    static Vtx v[4];
+    frame_begin(0, 0, 0);
+    if (quad) {
+        int i;
+        vtx(&v[0], -100, 100, 0, 0);
+        vtx(&v[1], 100, 100, 64 * 32, 0);
+        vtx(&v[2], 100, -100, 64 * 32, 64 * 32);
+        vtx(&v[3], -100, -100, 0, 64 * 32);
+        for (i = 0; i < 4; i++)
+            v[i].ob[2] = -100;
+        gsSPMatrix((uintptr_t)&s_persp, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        load_texture_block((uintptr_t)s_tw, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 16, 0, 0, G_TX_WRAP, G_TX_WRAP, 4, 4);
+        gsSPTexture(0xFFFF, 0xFFFF, 0, 0, 1);
+        gsSPVertex((uintptr_t)v, 4, 0);
+        gsSP2Triangles(0, 1, 2, 0, 2, 3);
+        gsSPMatrix((uintptr_t)&s_ortho, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    }
+    if (art) {
+        load_texture_block((uintptr_t)s_ts, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+        draw_rect(0, 0, 8, 8);
+        draw_rect(312, 0, 8, 8);
+        draw_rect(100, 0, 8, 8);
+    }
+    frame_end();
+}
+
+static int is_rgb(const uint8_t *p, int r, int g, int b) {
+    return abs(p[0] - r) <= 2 && abs(p[1] - g) <= 2 && abs(p[2] - b) <= 2;
+}
+
+/* The pixels of row y from x0 to x1 (internal) that are not r, g, b. */
+static int row_not(int y, int x0, int x1, int r, int g, int b) {
+    int x, n = 0;
+    for (x = x0; x < x1; x++)
+        n += !is_rgb(ipx(x, y), r, g, b);
+    return n;
+}
+
+static void case_sideart(void) {
+    char dump[700], pack[700], names[8][128], path[1000], base[128];
+    float f[4][4] = {{0}};
+    uint8_t *img = NULL, *art;
+    int w, h, x, y, i, n, k = 2, L = 60, R = 60, W, bad;
+    for (i = 0; i < 64; i++)
+        s_ts[i] = rgba16(40 + (i & 7) * 20, 40 + (i >> 3) * 20, 200, 1);
+    for (i = 0; i < 256; i++)   /* stripes: the colour follows s only */
+        s_tw[i] = rgba16((i & 15) * 16, 255 - (i & 15) * 16, 128, 1);
+    f[0][0] = f[1][1] = 1.0f;   /* clip = (x, y, 0, -z): w = 100 at z = -100 */
+    f[2][3] = -1.0f;
+    mtx_f2l(f, &s_persp);
+    case_dir(dump, sizeof(dump), "dump");
+    case_dir(pack, sizeof(pack), "pack");
+    pc_gfx_set_widescreen(0.0f);
+    textures("original", NULL, dump, NULL, 1, 0);
+    frame_begin(0, 0, 0);
+    load_texture_block((uintptr_t)s_ts, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    draw_rect(20, 20, 8, 8);
+    frame_end();
+    pcgfx_tex_wait_idle();
+    n = list_dir(dump, names, 8);
+    CHECK(n == 1, "%d dumped", n);
+    if (n != 1)
+        return;
+    snprintf(path, sizeof(path), "%s/%s", dump, names[0]);
+    CHECK(pcgfx_png_read(path, &img, &w, &h, NULL, 0) == 0 && w == 8 && h == 8, "dump %s", names[0]);
+    if (img == NULL)
+        return;
+    /* the art at 2x: 60 red columns, the texture, 60 green ones */
+    W = (L + 8 + R) * k;
+    art = (uint8_t *)malloc((size_t)W * 8 * k * 4);
+    for (y = 0; y < 8 * k; y++)
+        for (x = 0; x < W; x++) {
+            uint8_t *o = art + ((size_t)y * W + x) * 4;
+            int c = x / k - L;
+            if (c < 0)
+                o[0] = 255, o[1] = 0, o[2] = 0, o[3] = 255;
+            else if (c >= 8)
+                o[0] = 0, o[1] = 255, o[2] = 0, o[3] = 255;
+            else
+                memcpy(o, img + ((y / k) * 8 + c) * 4, 4);
+        }
+    snprintf(base, sizeof(base), "%.*s", (int)strlen(names[0]) - 4, names[0]);
+    snprintf(path, sizeof(path), "%s/%s+l%dr%d.png", pack, base, L, R);
+    CHECK(pcgfx_png_write_rgba(path, art, W, 8 * k) == 0, "write the side art");
+    textures("pack", pack, NULL, NULL, 1, 0);
+    pc_gfx_set_scale(k);
+
+    /* 4:3: the texture's own columns, at the frame's sides as in the middle */
+    side_frame(1, 0);
+    bad = 0;
+    for (y = 0; y < 8 * k; y++)
+        for (x = 0; x < 8 * k; x++) {
+            const uint8_t *o = img + ((y / k) * 8 + x / k) * 4;
+            bad += !is_rgb(ipx(x, y), o[0], o[1], o[2]) + !is_rgb(ipx(312 * k + x, y), o[0], o[1], o[2]) +
+                   !is_rgb(ipx(100 * k + x, y), o[0], o[1], o[2]);
+        }
+    CHECK(bad == 0, "4:3: %d pixels of the three rectangles aren't the texture's", bad);
+    CHECK(s_px_w == 320 * k, "4:3: the target is %d wide", s_px_w);
+
+    /* 16:9 (53 columns a side): the left rectangle's art fills the left band, the right one's the right band */
+    pc_gfx_set_widescreen(16.0f / 9.0f);
+    side_frame(1, 0);
+    CHECK(s_px_w == 426 * k, "16:9: the target is %d wide", s_px_w);
+    bad = 0;
+    for (y = 0; y < 8 * k; y++) {
+        bad += row_not(y, 0, 53 * k, 255, 0, 0) + row_not(y, 373 * k, 426 * k, 0, 255, 0);
+        for (x = 0; x < 8 * k; x++) {
+            const uint8_t *o = img + ((y / k) * 8 + x / k) * 4;
+            bad += !is_rgb(ipx(53 * k + x, y), o[0], o[1], o[2]) + !is_rgb(ipx(365 * k + x, y), o[0], o[1], o[2]) +
+                   !is_rgb(ipx(153 * k + x, y), o[0], o[1], o[2]);
+        }
+        bad += row_not(y, 151 * k, 153 * k, 0, 0, 0) + row_not(y, 161 * k, 163 * k, 0, 0, 0);
+    }
+    CHECK(bad == 0, "16:9: %d pixels wrong (bands red and green, the textures in place, nothing beside the middle)",
+          bad);
+
+    /* the quad: in the second frame with side art it reaches both screen sides, its stripes continued (a band
+     * pixel is the one a stripe period, 16 texels = 80 pixels, further in) */
+    side_frame(1, 1);
+    side_frame(1, 1);
+    bad = 0;
+    for (y = 100 * k; y < 140 * k; y += 7)
+        for (x = 0; x < 53 * k; x++) {
+            const uint8_t *a = ipx(x, y), *b = ipx(x + 80 * k, y), *c = ipx(426 * k - 1 - x, y),
+                          *d = ipx(426 * k - 1 - x - 80 * k, y);
+            bad += abs(a[0] - b[0]) > 2 || abs(a[1] - b[1]) > 2 || abs(c[0] - d[0]) > 2 || abs(c[1] - d[1]) > 2 ||
+                   is_rgb(a, 0, 0, 0) || is_rgb(c, 0, 0, 0);
+        }
+    CHECK(bad <= 4 * 6, "with side art, the quad's stripes in the bands: %d pixels not continued", bad);
+    /* without side art (two frames, so that the last one's is gone) the bands stay black */
+    side_frame(0, 1);
+    side_frame(0, 1);
+    bad = 0;
+    for (y = 100 * k; y < 140 * k; y += 7)
+        bad += row_not(y, 0, 53 * k - 1, 0, 0, 0) + row_not(y, 373 * k + 1, 426 * k, 0, 0, 0);
+    CHECK(bad == 0, "without side art, %d band pixels drawn", bad);
+    free(art);
+    free(img);
+    pc_gfx_set_widescreen(0.0f);
+    textures("original", NULL, NULL, NULL, 1, 0);
+    pc_gfx_set_scale(2);
+}
+
 typedef struct {
     const char *name;
     void (*fn)(void);
@@ -949,7 +1107,7 @@ typedef struct {
 
 static const Case s_cases[] = {
     {"png", case_png},     {"identity", case_identity}, {"roundtrip", case_roundtrip}, {"seams", case_seams},
-    {"lod", case_lod},     {"alpha", case_alpha},       {"async", case_async},
+    {"lod", case_lod},     {"alpha", case_alpha},       {"async", case_async},       {"sideart", case_sideart},
 };
 
 int main(int argc, char **argv) {

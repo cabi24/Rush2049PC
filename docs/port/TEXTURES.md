@@ -125,6 +125,45 @@ their own ROM on their own machine; the project never ships or hosts one.
   overlay reads it again), and each replacement is read on the worker the first time its texture is drawn.
 - **2D**: a pack replaces 2D textures too (fonts, the HUD, menus): that is its author's choice.
 
+### Side art: menus that fill a wide screen
+
+In widescreen the menus stay 4:3 in the middle ([GFX.md](GFX.md) "Widescreen"): a full-screen background drawn as
+tiles ends at the frame's sides, with black beside it. A pack can give such a background **side art**, columns that
+go on past the frame, and the menu then fills the screen. Added 2026-11-05.
+
+- **The file**: `<name>+l<N>.png`, `<name>+r<M>.png` or `<name>+l<N>r<M>.png` (N, M 1-512): the texture's own
+  columns with N more to their left and M to their right, all at one whole multiple k of the texture (its width
+  k × (N + w + M), its height k × h). It stands for the texture as a plain replacement would, and comes first when
+  both are there. Only for a texture that clamps along s with no mask (its GL image is its texels: a background
+  tile); for any other the log says so and the original is drawn.
+- **Where it shows**: a 4:3 texture rectangle (not one stretched across the whole frame) whose left side is at the
+  frame's left side (within 4 pixels, `GFX_WIDE_EDGE`) reaches N columns (÷ its x step) into the left band, as far
+  as the band goes; one at the right side M into the right band. The rectangle's scissor widens at that side
+  (`draw_rect`, port/gfx/gfx_rdp.c). Off widescreen, and in the middle of the frame, only its own columns are drawn,
+  so the art changes nothing there. Flipped rectangles and those with a negative x step are left as they are.
+- **The menu's own 3D beside it**: the main menu draws a scrolling glow under its background (4 textured quads
+  under a perspective projection, each mapping its 64 × 64 cloud texture once across 160 × 160 pixels and mirrored
+  about the screen's middle), which shows through the background's circuit traces; such geometry ends at the
+  frame's sides too. In a frame that draws side art (that frame or the last, `pcgfx_side_art_frame`), a perspective
+  triangle with a vertex on the frame's left or right side (within 0.01 pixel) has that vertex moved out as far as
+  the art reached on that side, its texture coordinates going on along the triangle's own change across the screen
+  (`pcgfx_side_continue`, port/gfx/gfx_rsp.c), so the texture continues instead of stretching. The frame
+  interpolator does the same when it draws between two frames (gfx_interp.c). Past the art's reach (a screen wider
+  than the art) the bands stay black as before.
+- **Tested**: `gfx.tex.sideart` (synthetic textures): off widescreen the three rectangles (at the left side, the
+  right side, the middle) draw the texture's own columns; at 16:9 the left band is the art's left columns and the
+  right band its right ones, the middle rectangle has nothing beside it; a perspective quad across the frame, in the
+  second frame with side art, reaches both screen sides with its stripes continued (a band pixel equals the one a
+  stripe period further in), and in frames without side art the bands stay black.
+- **Made on the Pi** for the main menu (2026-11-05, from the retail cartridge; nothing of it is in the
+  project): its background is 320 × 220 from 35 CI8 tiles (25 strips of 256 × 8 and one of 256 × 4 at the left,
+  seven tiles 64 wide at the right, each drawn flipped), its traces holes (alpha 0) that show the glow. The bands,
+  136 columns a side (enough for 2.45:1; 16:9 shows 53, 21:9 120), were filled with the background's own trace
+  shapes (each connected trace outside the disc, flipped at random, placed at the original's spacing and density,
+  the one trace that leaves the frame continued), the widened picture upscaled 4x as one image, and cut back into
+  the tiles as side art. In the game at 1920 × 1080 the band's traces and the frame's beside them have the same
+  share and brightness (0.079 and 0.087 of the pixels, blue 95 and 96), and the glow runs on under both.
+
 ### Making a pack with an upscaler
 
 1. Dump: set `video.texture_dump = dump` in rush2049pc.ini and play; the files land in `dump/` in the data folder

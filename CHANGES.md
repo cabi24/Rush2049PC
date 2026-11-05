@@ -6,6 +6,12 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Side art: menus that fill a wide screen** (texture packs): a pack's replacement for a background tile can carry
+  columns past the 4:3 frame (`<name>+l<N>.png`, `+r<M>`, `+l<N>r<M>`); in widescreen the tiles at the frame's sides
+  then reach into the side bands instead of leaving them black, and the menu's own scrolling glow beside them goes
+  on under them. Off widescreen, and without such files, nothing changes
+  ([TEXTURES.md](docs/port/TEXTURES.md) "Side art").
+
 - **Smooth keyboard steering** (`input.keyboard_steering`, `input.keyboard_steer_time`, F1 > Keyboard > Steering):
   `instant`, the default, is the keys' full lock the moment one goes down, as before; at speed half a second of it
   puts the car into the barrier. `smooth` moves the stick from the centre to full tilt over the steering time (250 ms

@@ -275,7 +275,8 @@ foreach(v "gles;RUSH_GFX_API=gles" "desktop-gl;RUSH_GFX_API=gl" "software;RUSH_G
     set_tests_properties(gfx.ui.all.${name} PROPERTIES ENVIRONMENT "${env}")
 endforeach()
 # Texture replacement (gfx_tex.c, docs/port/TEXTURES.md), headless, on synthetic textures: the PNG reader, texture
-# identities, a pack's round trip, wrap and mirror seams at 2x, mip levels, cut-outs, the worker and the disk cache.
+# identities, a pack's round trip, wrap and mirror seams at 2x, mip levels, cut-outs, the worker and the disk cache,
+# side art in widescreen.
 # Each case has its own folders under test-png/tex/<case>.
 add_executable(gfx_tex_test tests/tex_test.c)
 set_target_properties(gfx_tex_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
@@ -283,7 +284,7 @@ set_target_properties(gfx_tex_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED 
 target_compile_definitions(gfx_tex_test PRIVATE _POSIX_C_SOURCE=200809L)
 target_include_directories(gfx_tex_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gfx_tex_test PRIVATE pcgfx)
-foreach(c png identity roundtrip seams lod alpha async)
+foreach(c png identity roundtrip seams lod alpha async sideart)
     add_test(NAME gfx.tex.${c} COMMAND gfx_tex_test ${c} ${PCGFX_TEST_OUT}/tex)
 endforeach()
 # The pack helper (tools/texpack), on a synthetic dump with its built-in nearest upscaler.

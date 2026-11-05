@@ -63,8 +63,10 @@ enum { PCGFX_TEX_NONE = 0, PCGFX_TEX_WAIT = 1, PCGFX_TEX_READY = 2 };
  * call, so later calls may pass img NULL). With RUSH_GFX_TEXTURE_SYNC it is made at once. */
 int pcgfx_tex_upscaled(uint64_t ukey, int factor, uint32_t frame, const uint8_t *img, int w, int h, int rs, int rt,
                        int alpha_indep, const uint8_t **out);
-/* A pack's replacement for id: READY with the image (*w, *h: a whole multiple of id's), WAIT while it loads, NONE. */
-int pcgfx_tex_pack(const PcgfxTexId *id, const uint8_t **out, int *w, int *h);
+/* A pack's replacement for id: READY with the image (*w, *h: a whole multiple of id's), WAIT while it loads, NONE.
+ * *ml, *mr: the side art's columns left and right of the texture's own, in N64 texels (0 for a plain replacement:
+ * a file named <name>+l<N>, +r<N> or +l<N>r<M> is that much wider at the same multiple; TEXTURES.md "Side art"). */
+int pcgfx_tex_pack(const PcgfxTexId *id, const uint8_t **out, int *w, int *h, int *ml, int *mr);
 /* The dump (RUSH_GFX_TEXTURE_DUMP): id's texels (id->w x id->h RGBA8) as DIR/<name>.png, once each. */
 void pcgfx_tex_dump(const PcgfxTexId *id, const uint8_t *rgba);
 /* Each frame: 1 when results arrived since the last call (the cache looks its textures up again). */

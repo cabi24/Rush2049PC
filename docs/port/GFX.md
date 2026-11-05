@@ -467,7 +467,8 @@ the next frame. A new value applies from the next SETCIMG.
 - **A texture rectangle across the whole frame** (both sides within 4 pixels) is a full-screen background or
   overlay: it is stretched across the target (its x step divided by the widening), by 4/3 at 16:9. Others stay
   4:3 (a background drawn as tiles stays 4:3, in the middle, with whatever full-width fills are under it at the
-  sides).
+  sides), unless a texture pack gives its tiles side art: then those at the frame's sides reach into the bands, and
+  the menu's 3D at the frame's sides goes on beside them ([TEXTURES.md](TEXTURES.md) "Side art").
 - **Off** draws exactly as before: ox is 0, and each widescreen branch tests it first. The 17 cases before it pass
   unchanged, and `gfx.widescreen` draws its scene off, then at 16:9, then off again, and compares the two off
   frames byte for byte.

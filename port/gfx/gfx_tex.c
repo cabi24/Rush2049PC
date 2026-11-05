@@ -193,6 +193,7 @@ typedef struct Node {
     uint32_t frame;        /* N_SEEN: the frame first seen; N_DONE: the frame last used */
     uint8_t *img;          /* N_SEEN: the image to upscale; N_DONE: the result */
     int w, h, rs, rt, indep, factor;
+    int ml, mr;            /* J_PACK: the side art's columns left and right, N64 texels (TEXTURES.md "Side art") */
     char path[TEX_FILE];   /* J_PACK: the file */
     struct Node *next;
 } Node;
@@ -582,7 +583,14 @@ static void run_pack(Node *n) {
     int w = 0, h = 0, ok;
     char why[160];
     ok = pcgfx_png_read(n->path, &img, &w, &h, why, sizeof(why)) == 0;
-    if (ok && (w % n->w != 0 || h % n->h != 0 || w / n->w != h / n->h || w / n->w > 16)) {
+    if (ok && (n->ml || n->mr)) {   /* side art: the texture and its columns beside it, at one whole multiple */
+        int ww = n->w + n->ml + n->mr;
+        if (h % n->h != 0 || h / n->h > 16 || w != ww * (h / n->h)) {
+            snprintf(why, sizeof(why), "it is %dx%d: side art must be %dx%d (the texture's %d and %d + %d columns) "
+                     "times a whole number up to 16", w, h, ww, n->h, n->w, n->ml, n->mr);
+            ok = 0;
+        }
+    } else if (ok && (w % n->w != 0 || h % n->h != 0 || w / n->w != h / n->h || w / n->w > 16)) {
         snprintf(why, sizeof(why), "it is %dx%d: it must be the texture's %dx%d times a whole number up to 16", w, h,
                  n->w, n->h);
         ok = 0;
@@ -725,6 +733,7 @@ int pcgfx_tex_upscaled(uint64_t ukey, int factor, uint32_t frame, const uint8_t 
 typedef struct PackFile {
     uint64_t name_hash;
     char *path;
+    int ml, mr;   /* side art (<name>+l<N>, +r<N>, +l<N>r<M>): its columns, N64 texels; 0 for a plain replacement */
     struct PackFile *next;
 } PackFile;
 static PackFile *s_files[TBL_BUCKETS];
@@ -743,6 +752,32 @@ static uint64_t str_hash(const char *s) {
 }
 
 static void scan_into(PackFile **files, int *count, const char *dir, int depth);
+
+/* A side-art name, <name>+l<N>, +r<N> or +l<N>r<M> (N, M 1-512): the base name cut at the '+', the columns in
+ * *ml and *mr. 0 when it is a plain name. */
+static int side_art_name(char *name, int *ml, int *mr) {
+    char *p = strrchr(name, '+'), *q;
+    long l = 0, r = 0;
+    if (p == NULL)
+        return 0;
+    q = p + 1;
+    if (*q == 'l' || *q == 'L') {
+        l = strtol(q + 1, &q, 10);
+        if (l < 1 || l > 512)
+            return 0;
+    }
+    if (*q == 'r' || *q == 'R') {
+        r = strtol(q + 1, &q, 10);
+        if (r < 1 || r > 512)
+            return 0;
+    }
+    if (*q != '\0' || (l == 0 && r == 0))
+        return 0;
+    *p = '\0';
+    *ml = (int)l;
+    *mr = (int)r;
+    return 1;
+}
 
 static void scan_dir(const char *dir, int depth) {
     scan_into(s_files, &s_files_count, dir, depth);
@@ -773,6 +808,7 @@ static void scan_into(PackFile **files, int *count, const char *dir, int depth) 
                 free(f);
                 continue;
             }
+            side_art_name(name, &f->ml, &f->mr);   /* side art: found under its texture's name */
             f->name_hash = str_hash(name);
             f->next = files[f->name_hash % TBL_BUCKETS];
             files[f->name_hash % TBL_BUCKETS] = f;
@@ -808,13 +844,19 @@ static void mods_read(void) {
                 n == 1 ? "" : "s");
 }
 
-static const char *mod_file(const char *name) {
+/* The file for name in files: side art before a plain replacement (*ml, *mr its columns), else the newest. */
+static const PackFile *find_file(PackFile *const *files, const char *name) {
     uint64_t h = str_hash(name);
+    const PackFile *found = NULL;
+    for (const PackFile *f = files[h % TBL_BUCKETS]; f != NULL; f = f->next)
+        if (f->name_hash == h && (found == NULL || (!found->ml && !found->mr && (f->ml || f->mr))))
+            found = f;
+    return found;
+}
+
+static const PackFile *mod_file(const char *name) {
     mods_read();
-    for (PackFile *f = s_mod_files[h % TBL_BUCKETS]; f != NULL; f = f->next)
-        if (f->name_hash == h)
-            return f->path;
-    return NULL;
+    return find_file(s_mod_files, name);
 }
 
 static int mods_have_textures(void) {
@@ -848,10 +890,8 @@ int pcgfx_tex_mod_has(const PcgfxTexId *id) {
     return has;
 }
 
-static const char *pack_file(const char *name) {
-    uint64_t h = str_hash(name);
-    PackFile *f;
-    const char *mod = C.mods[0] ? mod_file(name) : NULL;
+static const PackFile *pack_file(const char *name) {
+    const PackFile *mod = C.mods[0] ? mod_file(name) : NULL;
     if (mod)
         return mod;
     if (C.mode != PCGFX_TEX_PACK)   /* the player's pack only in pack mode; the mods' in any */
@@ -861,10 +901,7 @@ static const char *pack_file(const char *name) {
         scan_dir(C.pack, 0);
         fprintf(stderr, "gfx: texture pack %s: %d PNG files\n", C.pack, s_files_count);
     }
-    for (f = s_files[h % TBL_BUCKETS]; f != NULL; f = f->next)
-        if (f->name_hash == h)
-            return f->path;
-    return NULL;
+    return find_file(s_files, name);
 }
 
 static void pack_forget(void) {
@@ -883,7 +920,7 @@ static void pack_forget(void) {
     pthread_mutex_unlock(&s_lock);
 }
 
-int pcgfx_tex_pack(const PcgfxTexId *id, const uint8_t **out, int *w, int *h) {
+int pcgfx_tex_pack(const PcgfxTexId *id, const uint8_t **out, int *w, int *h, int *ml, int *mr) {
     char name[96];
     uint64_t key = pcgfx_tex_mix(pcgfx_tex_mix(id->texels, id->palette), (uint64_t)id->w << 16 | id->h);
     Node *n;
@@ -891,20 +928,22 @@ int pcgfx_tex_pack(const PcgfxTexId *id, const uint8_t **out, int *w, int *h) {
     pthread_mutex_lock(&s_lock);
     n = tbl_find(&s_pack, key);
     if (n == NULL && (n = tbl_add(&s_pack, key)) != NULL) {
-        const char *path;
+        const PackFile *file;
         pcgfx_tex_name(id, 1, name, sizeof(name));
-        path = pack_file(name);
-        if (path == NULL && id->fmt == 2) {   /* CI: a replacement for every palette */
+        file = pack_file(name);
+        if (file == NULL && id->fmt == 2) {   /* CI: a replacement for every palette */
             pcgfx_tex_name(id, 0, name, sizeof(name));
-            path = pack_file(name);
+            file = pack_file(name);
         }
         n->w = id->w;
         n->h = id->h;
-        if (path == NULL) {
+        if (file == NULL) {
             n->state = N_ABSENT;
         } else {
             Job *j = (Job *)calloc(1, sizeof(*j));
-            snprintf(n->path, sizeof(n->path), "%s", path);
+            snprintf(n->path, sizeof(n->path), "%s", file->path);
+            n->ml = file->ml;
+            n->mr = file->mr;
             n->state = N_FAILED;
             if (j != NULL) {
                 j->type = J_PACK;
@@ -920,6 +959,8 @@ int pcgfx_tex_pack(const PcgfxTexId *id, const uint8_t **out, int *w, int *h) {
         *out = n->img;
         *w = n->w;
         *h = n->h;
+        *ml = n->ml;
+        *mr = n->mr;
         r = PCGFX_TEX_READY;
     }
     pthread_mutex_unlock(&s_lock);
