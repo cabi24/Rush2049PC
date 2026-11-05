@@ -215,6 +215,11 @@ static const Item items[] = {
      "The game's own frame rate: original (30 a second at most, the N64's) or 60 (a frame every retrace: the menus, "
      "the HUD, the cameras and the effects step 60 times a second, at the N64's speed; the car physics is the same). "
      "video.frame_rate draws frames between these on top. Applies from the next screen (a menu, a race)."},
+    /* game.ghost_prompt (port/config/ghost_prompt.c, docs/port/SAVES.md "The ghost save prompt") */
+    {"game", "ghost_prompt", T_BOOL, F(ghost_prompt), 0, 0, NULL, "off",
+     "Offer to save the ghost after a ghost race, for every profile: the game's own save prompt, which the cartridge "
+     "shows only to its developer's profile name. With saves = files the saved ghost is a file in saves_dir. off: as "
+     "the N64, a profile's ghosts are kept until the game is closed. From the next race's end."},
     /* game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP") */
     {"game", "pc_setup", T_BOOL, F(pc_setup), 0, 0, NULL, "off",
      "Add PC SETUP to the game's main menu, below its other options: choosing it opens these settings over the menu "

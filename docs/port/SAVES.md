@@ -26,6 +26,7 @@ No game C changed: the game's pak code (paksys, the save code, the Pfs C) runs a
 |---|---|---|
 | `game.saves`, `saves2`, `saves3`, `saves4` | `pak` | how each controller's pak is kept: `pak` (its `.mpk`, `game.pak_file`...) or `files` (a folder) |
 | `game.saves_dir`, `saves2_dir`... | `saves/p1`, `saves/p2`... | each controller's folder; a relative path is in the data folder ([RELEASE.md](RELEASE.md) "Files") |
+| `game.ghost_prompt` | `off` | the save prompt after a ghost race for every profile (7.1); `off` as the N64: only the developer's profile name gets it |
 
 `--saves pak|files` sets all four; `--set game.saves2=files` one. F1 > Saves > Kept as changes it from the next
 start. A controller whose accessory isn't a controller pak (`game.pak2 = auto`...) uses neither until one is chosen;
@@ -262,6 +263,29 @@ back byte for byte (`ultra_pakstore` checks one).
   on the pak first), and the file moves to `import/done/`; one already in the library (the same note) too; a bad one
   to `import/refused/`, with its reason.
 
+### 7.1 The ghost save prompt (`game.ghost_prompt`)
+
+2026-11-05 (`port/config/ghost_prompt.c`, `pc_ghost_prompt.h`). The cartridge writes a ghost to a controller pak only
+through its save prompt after a ghost race (high score state 4, `func_800F1930`: pick a pak, save or not), and opens
+the prompt only when `D_801148E4` is set, which LoadPlayerData (`func_800CCEFC`) does only for a profile named as the
+cartridge's developer code (`D_801211CC`, `menu_save_options/group.c:335-342`, with the cheat screen). Any other
+profile's ghost stays in memory for the session (SaveGhost's limbo), so with `game.saves = files` a player's own
+ghost races made no files ([QA.md](QA.md) "Not bugs": the cartridge's behaviour, checked in its code and ROM).
+
+- **With it on**, `billboard_render`'s test of the flag (`billboard_render.c:121`, `PC_GHOST_PROMPT`: the original
+  tokens on the N64) takes it as set, so every profile gets the prompt; the name's other unlocks (the cheat screen,
+  `D_801164A4[14-16]`) don't change. The prompt is the cartridge's own: its pak choice, save, overwrite and don't
+  save. With `saves = files` the ghost it saves is a `.r49ghost` in the player's folder (2); with `pak`, a note on the
+  `.mpk`. F1 > Game > Ghost save prompt sets it from the next race's end.
+- **Only a finished race**: the prompt comes when GhostEnd kept the ghost, which it does only for a car that finished
+  its laps (QA.md).
+- **Tested**: `synth_boot_ghost_prompt` (`tools/port/synth/ghost_prompt.press`: ghost.press with the profile SYO, not
+  the synthetic cartridge's developer name SYN, and the setting on): the prompt's save puts the profile and its ghost
+  on the pak (`pak_notes.py`: SYNTH049SYO.D, SYNTH049SYO1R.T, track 0 backward); `synth_boot_ghost_off` (the same
+  without it): the profile only, as on the N64; `saves_files`' game scenario: with the setting the ghost is a file,
+  `track 1 backward - SYO - 0m35.58s.r49ghost`, which `ghost.py validate` takes with the profile, and without it no
+  ghost file; `frontend.menu.live`: the item at once, Defaults off.
+
 ## 8. The F1 Saves page
 
 Main page > Saves (after Mods). Rows:
@@ -350,8 +374,8 @@ A ghost made by the retail game itself and a race of the retail game's own ghost
   scripted car doesn't drive three laps there), so SaveGhost's write into a folder ran on the synthetic cartridge only
   (`saves_files`' game scenario). There the game's save prompt after a ghost race (`func_800F1930`) opens only for a
   profile whose name is the game's `D_801211CC` (LoadPlayerData sets `D_801148E4`); for any other profile
-  `billboard_render` keeps the new ghost in memory (SaveGhost's "limbo", `func_800CB748`), and where the retail game
-  then puts it on the pak was not looked into.
+  `billboard_render` keeps the new ghost in memory (SaveGhost's "limbo", `func_800CB748`), which no code writes to a
+  pak (QA.md "Not bugs"); `game.ghost_prompt` (7.1) gives every profile the prompt.
 - **The car settings** of an imported ghost (handling, engine, colours, tire scales) are checked by its header's
   checksum only; their ranges are the car setup screen's tables, which are the cartridge's (4.3).
 - **An import after a round trip.** An imported ghost written into an `.mpk` (Export to the .mpk, `files2mpk`) and

@@ -1,0 +1,54 @@
+# The ghost save prompt for every profile (game.ghost_prompt on, docs/port/SAVES.md "The ghost save prompt"): as
+# ghost.press, but the profile's third letter is one to the right of N (one LEFT, not two), so its name is not the
+# cartridge's developer name (D_801211CC) and LoadPlayerData leaves the prompt's flag (D_801148E4) clear, as for any
+# player. The ghost race (gRace 2, track 0 backward) ends 35.6 s in; paused and quit, the results: billboard_render
+# opens the save prompt because of the setting, whose save item writes the ghost (SaveGhost) to the pak; then the
+# game over screen. The checks: the pak's two notes, the profile and its ghost (ghost_off.press: none without it).
+# until: 0x800000:60
+# seconds: 120
+# args: --pak ghost_prompt.mpk --set game.ghost_prompt=on
+# expect: state=0x00800000: players 1, windows 1, cars 1, mode 2, track 0
+# visits: 0x2000000
+# check: tools/port/pak_notes.py ghost_prompt.mpk --notes 2 --note SYNTH049SYO.D --ghost SYNTH049SYO1R.T:0:1
+5 A            # the controller pak warning
+8 START        # the start prompt
+11 A           # the main menu: the race; the player screen
+14 DOWN 0.1    # the pak row
+14.5 DOWN 0.1  # create a player
+15 A           # the name entry: S Y N, END (as profile.press)
+15.5 DOWN 0.1
+16 DOWN 0.1
+16.5 A
+17 RIGHT 0.1
+17.3 RIGHT 0.1
+17.6 RIGHT 0.1
+17.9 RIGHT 0.1
+18.2 RIGHT 0.1
+18.5 RIGHT 0.1
+19 A
+19.5 UP 0.1
+20 LEFT 0.1
+21 A
+22 START       # CreatePlayer; the cursor on SYN
+23 UP 0.1      # the pak row
+23.5 UP 0.1    # the default player
+24 A           # ready: SYN, not picked, is purged; the mode screen
+27 B           # back to the player screen
+30 DOWN 0.1    # the pak row
+30.5 DOWN 0.1  # SYN
+31 A           # ready: LoadPlayerData reads SYN from the pak; the mode screen
+34 DOWN 0.1    # the ghost race, two modes down
+34.3 DOWN 0.1
+35 A
+37 RIGHT 0.1   # the track select's one option, backward: on
+38 A           # track 0
+41 A           # the car select; the race from 44 s, the finish at 79.6 s
+84 START       # pause
+85 UP 0.1      # quit
+86 A           # are you sure?
+87 RIGHT 0.1   # yes
+88 A           # the results; the save prompt from 88 s, on its pak row (pak 1: room for a ghost)
+92 DOWN 0.1    # save
+94 A           # SaveGhost; the message
+97 A           # the records
+100 A          # the game over screen

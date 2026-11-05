@@ -41,6 +41,7 @@
 
 #include "input_internal.h"
 #include "pc_start_menu.h"
+#include "pc_ghost_prompt.h"
 
 /* ---------------------------------------------------------------- the pages */
 
@@ -328,6 +329,9 @@ static void build(void)
     it = add(P_GAME, I_CHOICE, "PC SETUP in menu", "game", "pc_setup");   /* FRONTEND.md "PC SETUP" */
     it->choices = onoff;
     it->desc = "The main menu's PC SETUP opens these settings";
+    it = add(P_GAME, I_CHOICE, "Ghost save prompt", "game", "ghost_prompt");   /* SAVES.md "The ghost save prompt" */
+    it->choices = onoff;
+    it->desc = "Offer to save each ghost race's ghost";
     add(P_GAME, I_DEFAULTS, "Defaults", NULL, NULL);
 
     pages[P_MODS].title = "Mods";
@@ -572,6 +576,8 @@ static void apply(const char *section, const char *key)
             pc_game_fps_set(s->game_fps);
         if (!strcasecmp(key, "pc_setup"))   /* the main menu's next frame (start_menu.c) */
             pc_start_menu_set(s->pc_setup);
+        if (!strcasecmp(key, "ghost_prompt"))   /* the next race's end (ghost_prompt.c) */
+            pc_ghost_prompt_set(s->ghost_prompt);
     } else
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }

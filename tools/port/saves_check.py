@@ -296,6 +296,24 @@ def scenario_game(args, logs):
           "game: the ghost race has the ghost player (players 2)")
     check(len(files(d, ".r49ghost")) == 1 and len(files(d / "trash", ".r49ghost")) == 1,
           "game: the new ghost a file, the one SaveGhost replaced in the trash")
+    # game.ghost_prompt (docs/port/SAVES.md "The ghost save prompt"): a profile not named as the developer (SYO)
+    # gets the save prompt with the setting, and its ghost is a file; without it, none, as on the N64
+    for name, on in (("ghost_prompt", True), ("ghost_off", False)):
+        work = fresh(logs, f"game-{name}")
+        d = folder(work)
+        code, out = run_script(args, work, SYNTH / f"{name}.press", name,
+                               extra=["--set", f"game.ghost_prompt={'on' if on else 'off'}"])
+        ghosts = files(d, ".r49ghost")
+        check(code == 0, f"game: {name}.press reaches its state ({code})")
+        check(files(d, ".r49save") == ["SYO.r49save"], f"game: {name}: the profile SYO is a file ({files(d, '.r49save')})")
+        if on:
+            check(len(ghosts) == 1 and ghosts[0].startswith("track 1 backward - SYO - "),
+                  f"game: ghost_prompt: the prompt's ghost is a file ({ghosts})")
+            if ghosts:
+                r, o = ghost_tool("validate", d / ghosts[0], d / "SYO.r49save")
+                check(r == 0, f"game: ghost.py validates SYO's profile and ghost ({o.strip()[-90:]})")
+        else:
+            check(not ghosts, f"game: ghost_off: no prompt, no ghost file ({ghosts})")
 
 
 def scenario_race(args, logs):
