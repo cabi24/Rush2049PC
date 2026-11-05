@@ -171,6 +171,12 @@ F1 > Game
                  off or on. On adds PC SETUP to the game's main menu,
                  below VIDEO: choosing it opens these settings, as F1
                  does. At once. game.pc_setup
+  Ghost save prompt
+                 off or on. On: after a finished ghost race the game
+                 offers to save the ghost (its own prompt, which the N64
+                 shows only to a developer's profile name). With saves =
+                 files it is a .r49ghost in the saves folder.
+                 game.ghost_prompt
 
 F1 > Mods, F1 > Saves: see Mods and Saves below.
 

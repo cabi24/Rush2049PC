@@ -46,6 +46,14 @@ extern intptr_t D_80140800;
 extern s8 D_8014978C;
 extern void *D_801461A8;
 extern s8 D_801148E4;
+#ifdef TARGET_PC
+/* PC: game.ghost_prompt (port/config/ghost_prompt.c, docs/port/SAVES.md "The ghost save prompt"): the save prompt
+   after a ghost race for every profile, not only the developer's (D_801148E4, LoadPlayerData); off, the N64's. */
+int pc_ghost_prompt(int developer);
+#define PC_GHOST_PROMPT(v) pc_ghost_prompt(v)
+#else
+#define PC_GHOST_PROMPT(v) v
+#endif
 extern s8 D_801460C0;
 extern void *D_8014A160;
 extern u32 D_8015694C;
@@ -118,7 +126,7 @@ void billboard_render(void)
                 wheel_setup_initial(D_8014978C + 139);
                 D_801461A8 = CompressGhost(D_80140800, D_803BA7EB);
                 D_80140800 = 0;
-                if (D_801148E4 != 0) {
+                if (PC_GHOST_PROMPT(D_801148E4) != 0) {
                     SetHighScoreState(4);
                 } else {
                     SaveGhost(D_801460C0, D_8014A160, D_801461A8, 1);

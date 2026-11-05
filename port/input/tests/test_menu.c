@@ -35,6 +35,7 @@
 #include "config.h"
 #include "pc_game_fps.h"
 #include "pc_start_menu.h"
+#include "pc_ghost_prompt.h"
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* pc_race_cars, its latch (port/config/race_cars.c) */
@@ -509,9 +510,23 @@ static void test_live(void)
     CHECK(pc_start_exit(1, 8) == 0, "A on PC SETUP doesn't leave the menu");
     pc_menu_tick();
     CHECK(pc_menu_is_open() && !pc_start_menu_take_open(), "the tick after it opened the overlay (once)");
+    /* the ghost save prompt for every profile (game.ghost_prompt, SAVES.md "The ghost save prompt"): at once, the
+     * race end's test of the developer's flag */
+    act(PC_MENU_DOWN);
+    at("Game", "Ghost save prompt", "off", "the ghost save prompt: off");
+    CHECK(!pc_ghost_prompt_setting() && pc_ghost_prompt(0) == 0 && pc_ghost_prompt(1) == 1,
+          "off: the flag as it is (the developer's profile only)");
+    act(PC_MENU_RIGHT);
+    at("Game", "Ghost save prompt", "on", "the ghost save prompt: on");
+    CHECK(pc_ghost_prompt_setting() && pc_menu_settings()->ghost_prompt == 1 && pc_ghost_prompt(0) == 1 &&
+              pc_ghost_prompt(1) == 1,
+          "on at once: every profile");
     act(PC_MENU_DOWN);
     at("Game", "Defaults", NULL, "the page's Defaults");
     act(PC_MENU_ACCEPT);
+    act(PC_MENU_UP);
+    at("Game", "Ghost save prompt", "off", "Defaults: the ghost save prompt off");
+    CHECK(!pc_ghost_prompt_setting() && pc_ghost_prompt(0) == 0, "Defaults: the developer's profile only again");
     act(PC_MENU_UP);
     at("Game", "PC SETUP in menu", "off", "Defaults: PC SETUP off");
     CHECK(!pc_start_menu_setting() && pc_start_valid(8, 0) == 0, "Defaults: slot 8 invalid again");

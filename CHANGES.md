@@ -6,6 +6,12 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Ghost save prompt for every profile** (`game.ghost_prompt`, F1 > Game > Ghost save prompt): after a finished
+  ghost race the game offers to save the ghost with its own save prompt, which the cartridge shows only to its
+  developer's profile name (any other profile's ghosts were kept only until the game closed, so `saves = files` made no
+  ghost files from play). With `saves = files` the saved ghost is a `.r49ghost` in the saves folder. `off`, the
+  default, is the N64's ([SAVES.md](docs/port/SAVES.md) 7.1).
+
 - **PC SETUP in the main menu** (`game.pc_setup`, F1 > Game > PC SETUP in menu): `off`, the default, is the N64's
   main menu. `on` adds a sixth option below VIDEO, drawn as the game draws its own, that opens the settings overlay
   over the menu, as F1 does. And a fix for the overlay: the START or B that closed it no longer also reaches the game

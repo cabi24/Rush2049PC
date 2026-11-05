@@ -611,8 +611,9 @@ finishes a race, so CI's sanitizer jobs never reach it.
   gNumLaps at the race start (`CalcPolePositions`) didn't hold: GhostEnd saw 3 laps again (SetOptions runs after it);
   the next try, gNumLaps set at every checkpoint (`race_countdown_display`), was not run. The synthetic cartridge's
   `saves_files` (the developer's name there) covers SaveGhost's write into a folder.
-- **Making the game's own ghosts files** for every profile (the session's ghosts in `D_8012E6F8`) would be a design
-  change of `game.saves = files`, not done here.
+- **Making the game's own ghosts files** for every profile: `game.ghost_prompt` (SAVES.md 7.1, 2026-11-05) opens the
+  cartridge's save prompt for every profile, whose save is then a file with `game.saves = files`. Writing the
+  session's ghosts (`D_8012E6F8`) without a prompt is not done.
 - **The long run's battle.** A long run's press script works on the host's clock, so every step after a race must
   wait at a screen that waits for a press; on this cartridge the pause screen's quit asks to confirm (START, UP, A,
   RIGHT, A), and the results need an A before the game over screen's UP and A. Both found with `--fast` after the
