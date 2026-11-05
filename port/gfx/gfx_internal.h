@@ -180,6 +180,8 @@ typedef struct {
     int shifts, shiftt;
     float w, h;
     int linear;
+    float ml, wt;   /* side art (TEXTURES.md): the GL texture's columns left of the texture's own, and all of them
+                     * (0: a plain texture, u = s / w) */
 } GfxUnitInfo;
 
 /* What turning a triangle's vertices into GL vertices needs besides them (gfx_rsp.c): the viewport and where it
@@ -194,6 +196,8 @@ typedef struct {
     uint8_t zs_prim;        /* G_ZS_PRIM: the primitive depth */
     uint8_t tex;            /* G_TEXTURE on */
     uint8_t wide;           /* widescreen 3D: the draw state's scissor widens */
+    uint8_t side;           /* and side art is drawn: 3D ending at the frame's sides goes on (pcgfx_side_continue) */
+    float side_l, side_r;   /* as far as the art reaches into the left and right bands, N64 pixels */
     uint8_t dz_on;          /* draw_distance far or max: the depth is d * dz_mul + dz_add (gfx_detail.c) */
     float dz_mul, dz_add;
 } GfxTriCtx;
@@ -208,6 +212,10 @@ int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]);
 int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTriCtx *c, const GfxDrawState *st,
                      const GfxUnitInfo units[2], GfxOutVtx *tri);
 uint8_t pcgfx_outcode(const GfxVtx *v, float xs);
+/* Side art (TEXTURES.md): a triangle's vertices on the frame's sides moved out as far as the art reaches (c->side_l,
+ * side_r), its texture coordinates going on along the triangle's change across the screen (c's viewport; the
+ * frame's width). */
+void pcgfx_side_continue(GfxVtx in[3], const GfxTriCtx *c, int frame_w);
 /* G_FOG's shade alpha for a vertex at clip z, w; za: the projection's z/w at infinity (proj_za; 0 for none). With
  * video.fog far or off, or draw_distance far or max, as gfx_detail.c says; otherwise the N64's. */
 float pcgfx_fog_alpha(float z, float w, int16_t fog_mul, int16_t fog_off, float za);
@@ -233,6 +241,9 @@ void pcgfx_target_dims(int *w, int *h);   /* the color image's target, N64 pixel
 int pcgfx_frame_width(void);              /* the color image's 4:3 frame width, N64 pixels */
 float pcgfx_wide_x(float x);              /* widescreen: a frame x edge's place in the target (GFX.md) */
 float pcgfx_wide_x_at(float x, int frame_width, int ox);   /* the same for a given frame width and widening */
+/* Side art drawn this frame or the last (gfx_rdp.c, TEXTURES.md): 1 if so, and how far into the left and right
+ * bands it reached, N64 pixels (NULL for not wanted). */
+int pcgfx_side_art_frame(float *left, float *right);
 int pcgfx_wide_width(int frame_width);    /* a frame's target width at the aspect in effect */
 /* Texture coordinate transform for tile (tile-relative, normalized for the bound texture). */
 void pcgfx_tile_uv(int unit, float s_texel, float t_texel, float *u, float *v);

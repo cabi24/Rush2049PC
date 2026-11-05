@@ -1088,6 +1088,8 @@ static void draw_between(RFrame *b, RFrame *c, float a) {
                 in[0] = H.gv[t->v[0]];
                 in[1] = H.gv[t->v[1]];
                 in[2] = H.gv[t->v[2]];
+                if (tc.side)   /* side art's frame: the menu's 3D at the frame's sides goes on (gfx_rsp.c) */
+                    pcgfx_side_continue(in, &tc, c->ctx[t->ctx].frame_w);
                 n = pcgfx_tri_visible(in, &tc, poly);
                 if (n == 0)
                     continue;

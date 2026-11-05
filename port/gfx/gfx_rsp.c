@@ -576,7 +576,43 @@ static void tri_ctx(GfxTriCtx *c) {
     c->zs_prim = (pcgfx.om_l & G_ZS_PRIM) != 0;
     c->tex = pcgfx.tex_on;
     c->wide = pcgfx.wide_ox != 0 && pcgfx.persp;
+    c->side_l = c->side_r = 0.0f;
+    c->side = c->wide && pcgfx_side_art_frame(&c->side_l, &c->side_r);
     pcgfx_detail_ctx(c);
+}
+
+/* Side art (TEXTURES.md "Side art"): in a frame that draws it, a menu's 3D that ends at the frame's sides (the main
+ * menu's cloud layer under its circuit traces) goes on into the side bands. A vertex on a side (within 0.01 pixel)
+ * moves to the target's side, its texture coordinates going on along the triangle's own change across the screen,
+ * so the texture continues rather than stretches. */
+void pcgfx_side_continue(GfxVtx in[3], const GfxTriCtx *c, int frame_w) {
+    float sx[3], sy[3], fw = (float)frame_w, det, dsdx, dtdx;
+    int q, hit = 0;
+    for (q = 0; q < 3; q++) {
+        if (in[q].w < 1e-4f || c->vp_scale[0] == 0.0f)
+            return;
+        sx[q] = c->vp_trans[0] + in[q].x / in[q].w * c->vp_scale[0];
+        sy[q] = c->vp_trans[1] - in[q].y / in[q].w * c->vp_scale[1];
+        hit |= fabsf(sx[q]) < 0.01f || fabsf(sx[q] - fw) < 0.01f;
+    }
+    det = (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
+    if (!hit || fabsf(det) < 1e-3f)
+        return;
+    dsdx = ((in[1].s - in[0].s) * (sy[2] - sy[0]) - (in[2].s - in[0].s) * (sy[1] - sy[0])) / det;
+    dtdx = ((in[1].t - in[0].t) * (sy[2] - sy[0]) - (in[2].t - in[0].t) * (sy[1] - sy[0])) / det;
+    for (q = 0; q < 3; q++) {
+        float nx;
+        if (fabsf(sx[q]) < 0.01f)
+            nx = sx[q] - c->side_l;
+        else if (fabsf(sx[q] - fw) < 0.01f)
+            nx = sx[q] + c->side_r;
+        else
+            continue;
+        in[q].s += dsdx * (nx - sx[q]);
+        in[q].t += dtdx * (nx - sx[q]);
+        in[q].x = (nx - c->vp_trans[0]) / c->vp_scale[0] * in[q].w;
+        in[q].clip = pcgfx_outcode(&in[q], c->xs);
+    }
 }
 
 static void triangle(unsigned i0, unsigned i1, unsigned i2) {
@@ -591,6 +627,8 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
     in[1] = pcgfx.vtx[i1];
     in[2] = pcgfx.vtx[i2];
     tri_ctx(&c);
+    if (c.side)
+        pcgfx_side_continue(in, &c, pcgfx_frame_width());
     n = pcgfx_tri_visible(in, &c, poly);
     if (n > 0) {
         GfxOutVtx tri[GFX_TRI_OUT_MAX];

@@ -341,6 +341,7 @@ typedef struct TexEntry {
     uint32_t gl;
     int w, h, repeat_s, repeat_t;   /* N64 texels: the tile maths and the LOD never see the GL texture's size */
     int scale;                      /* the GL texture is this many times w x h (upscaled or replaced) */
+    int ml, mr;                     /* side art: the GL texture's columns left and right of w, N64 texels */
     int pending;                    /* PEND_*: a better texture may come; until then this is the original */
     int factor;                     /* PEND_UPSCALE: the factor and the upscaler's key */
     uint64_t ukey;
@@ -518,13 +519,48 @@ static void tex_swap(TexEntry *e, uint32_t gl, int scale) {
     e->scale = scale;
 }
 
+/* Side art (TEXTURES.md "Side art"): the replacement with ml and mr more columns beside the texture's own, at its
+ * multiple f, as e's GL texture as it is: only for a texture that clamps along s with no mask (its GL image is its
+ * texels), which a background tile at the frame's side is. Else the plain draw: the texture's own columns. */
+static int side_art_upload(TexEntry *e, const uint8_t *img, int iw, int ih, int ml, int mr) {
+    int f = ih / e->id.h, d, limit = pcgfx_tex_pack_limit(), ww = e->w + ml + mr;
+    uint8_t *small = NULL;
+    const uint8_t *src = img;
+    if (e->repeat_s || e->w != e->id.w || e->h != e->id.h)
+        return 0;
+    for (d = 1; d < f; d++)
+        if (f % d == 0 && f / d <= limit && ww * (f / d) <= TEX_GL_MAX && e->h * (f / d) <= TEX_GL_MAX)
+            break;
+    if (ww * (f / d) > TEX_GL_MAX)
+        return 0;
+    if (d > 1) {
+        if ((small = box_down(img, iw, ih, d)) == NULL)
+            return 0;
+        src = small;
+        f /= d;
+    }
+    tex_swap(e, pcgfx_gl_texture(src, ww * f, e->h * f), f);
+    e->ml = ml;
+    e->mr = mr;
+    s_upload_left -= (long)ww * f * e->h * f * 4;
+    free(small);
+    return 1;
+}
+
 /* A pack's replacement (iw x ih, a whole multiple f of the tile's distinct texels) as e's GL texture. Above the
  * internal scale, or past the GL size, it is box filtered down by a divisor of f: a texture sampled coarser than
  * its texels shimmers. */
-static void pack_upload(TexEntry *e, const uint8_t *img, int iw, int ih) {
-    int f = iw / e->id.w, d, limit = pcgfx_tex_pack_limit();
+static void pack_upload(TexEntry *e, const uint8_t *img, int iw, int ih, int ml, int mr) {
+    int f, d, limit = pcgfx_tex_pack_limit();
     const uint8_t *src = img;
     uint8_t *small = NULL, *out;
+    if (ml || mr) {
+        if (!side_art_upload(e, img, iw, ih, ml, mr))
+            fprintf(stderr, "gfx: texture pack: side art for a %dx%d texture that repeats or has a mask along s: "
+                    "the original is drawn\n", e->id.w, e->id.h);
+        return;
+    }
+    f = iw / e->id.w;
     for (d = 1; d < f; d++)
         if (f % d == 0 && f / d <= limit && e->w * (f / d) <= TEX_GL_MAX && e->h * (f / d) <= TEX_GL_MAX)
             break;
@@ -552,7 +588,7 @@ static void pack_upload(TexEntry *e, const uint8_t *img, int iw, int ih) {
  * always goes), so a burst of results spreads over frames. */
 static void tex_upgrade(TexEntry *e) {
     const uint8_t *img = NULL;
-    int iw = 0, ih = 0, r;
+    int iw = 0, ih = 0, ml = 0, mr = 0, r;
     if (e->checked == s_frame)
         return;
     if (s_upload_left <= 0) {
@@ -567,9 +603,9 @@ static void tex_upgrade(TexEntry *e) {
             s_upload_left -= (long)e->w * e->factor * e->h * e->factor * 4;
         }
     } else {
-        r = pcgfx_tex_pack(&e->id, &img, &iw, &ih);
+        r = pcgfx_tex_pack(&e->id, &img, &iw, &ih, &ml, &mr);
         if (r == PCGFX_TEX_READY)
-            pack_upload(e, img, iw, ih);
+            pack_upload(e, img, iw, ih, ml, mr);
     }
     if (r != PCGFX_TEX_WAIT)
         e->pending = PEND_NONE;
@@ -728,11 +764,11 @@ static TexEntry *tex_lookup(int tile_idx, int variant) {
         }
     } else if (mode == PCGFX_TEX_PACK) {
         const uint8_t *img = NULL;
-        int iw = 0, ih = 0, r;
+        int iw = 0, ih = 0, ml = 0, mr = 0, r;
         e->id = id;
-        r = pcgfx_tex_pack(&id, &img, &iw, &ih);
+        r = pcgfx_tex_pack(&id, &img, &iw, &ih, &ml, &mr);
         if (r == PCGFX_TEX_READY)
-            pack_upload(e, img, iw, ih);
+            pack_upload(e, img, iw, ih, ml, mr);
         else if (r == PCGFX_TEX_WAIT)
             e->pending = PEND_PACK;
     }
@@ -807,7 +843,7 @@ void pcgfx_unit_uv(const GfxUnitInfo *ui, float s, float t, float *u, float *v) 
         s += 0.5f;
         t += 0.5f;
     }
-    *u = s / ui->w;
+    *u = ui->wt > 0.0f ? (s + ui->ml) / ui->wt : s / ui->w;   /* side art: the texture's columns among its own */
     *v = t / ui->h;
 }
 
@@ -924,6 +960,8 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
             s_unit[u].shiftt = tl->shiftt;
             s_unit[u].w = (float)e->w;
             s_unit[u].h = (float)e->h;
+            s_unit[u].ml = (float)e->ml;
+            s_unit[u].wt = e->ml || e->mr ? (float)(e->w + e->ml + e->mr) : 0.0f;
             s_unit[u].linear = st->linear[u];
             key.flags |= u == 0 ? GFX_KF_TEX0 : GFX_KF_TEX1;
         }
@@ -1022,9 +1060,27 @@ void pcgfx_flush(void) {
     s_batch_n = 0;
 }
 
+/* Side art drawn in this frame and the last (TEXTURES.md "Side art"): how far it reached into each side band, N64
+ * pixels. The menu's own 3D at the frame's sides is continued into the bands only then, and only as far (gfx_rsp.c):
+ * past the art the bands stay as they were. */
+static float s_side_cur[2], s_side_last[2];
+
+int pcgfx_side_art_frame(float *left, float *right) {
+    float l = s_side_cur[0] > s_side_last[0] ? s_side_cur[0] : s_side_last[0];
+    float r = s_side_cur[1] > s_side_last[1] ? s_side_cur[1] : s_side_last[1];
+    if (left != NULL)
+        *left = l;
+    if (right != NULL)
+        *right = r;
+    return l > 0.0f || r > 0.0f;
+}
+
 void pcgfx_rdp_new_frame(void) {
     s_frame++;
     pcgfx.state_dirty = 1;
+    s_side_last[0] = s_side_cur[0];
+    s_side_last[1] = s_side_cur[1];
+    s_side_cur[0] = s_side_cur[1] = 0.0f;
     tex_new_frame();
 }
 
@@ -1077,7 +1133,7 @@ static float rect_lin(float c0, float step, float d) {
 static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s, float t, float dsdx, float dtdy,
                       int flip) {
     GfxOutVtx q[4], tri[6];
-    int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap, stretched = 0, u;
+    int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap, stretched = 0, u, side = 0;
     float sx = 1.0f, sy = 1.0f, cx0, cx1, cy0, cy1, xe0, xe1, ye0, ye1, du[4] = {0, 0, 0, 0};
     /* the corners' x at the 4:3 place, for the HUD at the screen's edges (gfx_hud.c) */
     float a0 = x0 + (float)pcgfx.wide_ox, a1 = x1 + (float)pcgfx.wide_ox;
@@ -1095,11 +1151,35 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
             x0 = nx0;
             x1 = nx1;
         } else {
+            /* Side art (TEXTURES.md): a 4:3 rectangle at the frame's left or right side whose replacement has
+             * columns beyond its own reaches into the side band, as far as the art and the band go, under a
+             * scissor widened at that side. */
+            if (textured && !flip && dsdx > 0.0f) {
+                float ml, mr, fw = (float)pcgfx_frame_width(), ox = (float)pcgfx.wide_ox, d;
+                pcgfx_draw_state(tile, 0);   /* the bound texture's side art (s_unit) */
+                ml = s_unit[0].wt > 0.0f ? s_unit[0].ml : 0.0f;
+                mr = s_unit[0].wt > 0.0f ? s_unit[0].wt - s_unit[0].w - s_unit[0].ml : 0.0f;
+                if (ml > 0.0f && x0 <= GFX_WIDE_EDGE) {
+                    d = ml / dsdx < ox ? ml / dsdx : ox;
+                    s -= d * dsdx;
+                    x0 -= d;
+                    side = 1;
+                    if (d > s_side_cur[0])
+                        s_side_cur[0] = d;
+                }
+                if (mr > 0.0f && x1 >= fw - GFX_WIDE_EDGE) {
+                    d = mr / dsdx < ox ? mr / dsdx : ox;
+                    x1 += d;
+                    side = 1;
+                    if (d > s_side_cur[1])
+                        s_side_cur[1] = d;
+                }
+            }
             x0 += (float)pcgfx.wide_ox;
             x1 += (float)pcgfx.wide_ox;
         }
     }
-    pcgfx_draw_state(textured ? tile : 8, wide);
+    pcgfx_draw_state(textured ? tile : 8, wide || side);
     pcgfx_target_dims(&tw, &th);
     pw = tw;
     ph = th;
