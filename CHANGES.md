@@ -6,6 +6,11 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **PC SETUP in the main menu** (`game.pc_setup`, F1 > Game > PC SETUP in menu): `off`, the default, is the N64's
+  main menu. `on` adds a sixth option below VIDEO, drawn as the game draws its own, that opens the settings overlay
+  over the menu, as F1 does. And a fix for the overlay: the START or B that closed it no longer also reaches the game
+  (on the main menu START started a race) ([FRONTEND.md](docs/port/FRONTEND.md) "PC SETUP in the main menu").
+
 - **Smooth keyboard steering** (`input.keyboard_steering`, `input.keyboard_steer_time`, F1 > Keyboard > Steering):
   `instant`, the default, is the keys' full lock the moment one goes down, as before; at speed half a second of it
   puts the car into the barrier. `smooth` moves the stick from the centre to full tilt over the steering time (250 ms

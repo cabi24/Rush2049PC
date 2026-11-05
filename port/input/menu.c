@@ -40,6 +40,7 @@
 #include <strings.h>
 
 #include "input_internal.h"
+#include "pc_start_menu.h"
 
 /* ---------------------------------------------------------------- the pages */
 
@@ -324,6 +325,9 @@ static void build(void)
     it = add(P_GAME, I_CHOICE, "Game frame rate", "game", "frame_rate");   /* FRAMERATE.md 7 */
     it->choices = game_fps_choices;
     it->labels = game_fps_labels;
+    it = add(P_GAME, I_CHOICE, "PC SETUP in menu", "game", "pc_setup");   /* FRONTEND.md "PC SETUP" */
+    it->choices = onoff;
+    it->desc = "The main menu's PC SETUP opens these settings";
     add(P_GAME, I_DEFAULTS, "Defaults", NULL, NULL);
 
     pages[P_MODS].title = "Mods";
@@ -566,6 +570,8 @@ static void apply(const char *section, const char *key)
             pc_race_cars_set(s->cars);
         if (!strcasecmp(key, "frame_rate"))   /* the game latches it at its next change of state (game_fps.c) */
             pc_game_fps_set(s->game_fps);
+        if (!strcasecmp(key, "pc_setup"))   /* the main menu's next frame (start_menu.c) */
+            pc_start_menu_set(s->pc_setup);
     } else
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }
@@ -1588,6 +1594,8 @@ size_t pc_menu_about_text(char *out, size_t size)
 
 int pc_menu_tick(void)
 {
+    if (pc_start_menu_take_open() && !M.open)   /* PC SETUP chosen in the main menu (start_menu.c) */
+        set_open(1);
     if (M.capture && pc_host_ns() >= M.capture_until)
         pc_menu_capture(NULL);
     if (M.open && M.page == P_ABOUT && about_players())   /* About's players follow the controllers live */

@@ -215,6 +215,10 @@ static const Item items[] = {
      "The game's own frame rate: original (30 a second at most, the N64's) or 60 (a frame every retrace: the menus, "
      "the HUD, the cameras and the effects step 60 times a second, at the N64's speed; the car physics is the same). "
      "video.frame_rate draws frames between these on top. Applies from the next screen (a menu, a race)."},
+    /* game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP") */
+    {"game", "pc_setup", T_BOOL, F(pc_setup), 0, 0, NULL, "off",
+     "Add PC SETUP to the game's main menu, below its other options: choosing it opens these settings over the menu "
+     "(the settings overlay, as hotkeys.menu does). off: the N64's options only. At once."},
     /* mods (docs/port/MODS.md): read at start, before the game's memory is mapped */
     {"game", "mods", T_BOOL, F(mods), 0, 0, NULL, "on",
      "Use the mods in mods_dir: their files stand in for the cartridge's (the project's docs/port/MODS.md). off: the "

@@ -127,6 +127,17 @@ void func_8038F79C(void);
    the cheat screen could never be opened (docs/port/QA.md). */
 #define InitEgg startscr_InitEgg
 #endif
+#ifdef TARGET_PC
+/* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8, never valid on the
+   N64, is PC SETUP while it is on, and choosing it opens the settings overlay over the menu instead of leaving it. */
+int pc_start_valid(int index, int value);
+int pc_start_exit(int exit, int select);
+#define PC_START_VALID(i, v) pc_start_valid((i), (v))
+#define PC_START_EXIT(e) ((e) = pc_start_exit((e), D_803B6A68))
+#else
+#define PC_START_VALID(i, v) v
+#define PC_START_EXIT(e) e
+#endif
 void InitEgg(s32);
 void func_80390418(void);
 
@@ -217,7 +228,7 @@ void func_80390418(void)
     if (D_80157244) {
         func_8038F73C();
         func_800B5570(4);
-    } else if (D_803B6A70) {
+    } else if (PC_START_EXIT(D_803B6A70)) {
         func_8038F73C();
         switch (D_803B6A70) {
             case 1:
@@ -285,7 +296,7 @@ s8 func_8038F744(s32 index)
     if (index == 6) {
         value = D_801164A1;
     }
-    return value;
+    return PC_START_VALID(index, value);
 }
 
 void func_8038FFD0(void) /* initButtons */

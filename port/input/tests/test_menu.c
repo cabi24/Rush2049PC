@@ -34,6 +34,7 @@
 
 #include "config.h"
 #include "pc_game_fps.h"
+#include "pc_start_menu.h"
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* pc_race_cars, its latch (port/config/race_cars.c) */
@@ -491,9 +492,29 @@ static void test_live(void)
     CHECK(pc_game_fps_setting() == 0 && pc_fps60 == 1, "on this screen: the setting original, the game's 60 kept");
     act(PC_MENU_LEFT);
     at("Game", "Game frame rate", "60", "before original: 60");
+    /* PC SETUP in the main menu (game.pc_setup, FRONTEND.md "PC SETUP"): at once, the menu's slot 8 and its label;
+     * choosing it there asks for the overlay, which the next tick opens */
+    act(PC_MENU_DOWN);
+    at("Game", "PC SETUP in menu", "off", "PC SETUP: off");
+    CHECK(!pc_start_menu_setting() && pc_start_valid(8, 0) == 0 && !strcmp(pc_start_label(8, "x"), "x") &&
+              pc_start_exit(1, 8) == 1,
+          "off: the N64's slot 8 (invalid, its own label) and exit");
+    act(PC_MENU_RIGHT);
+    at("Game", "PC SETUP in menu", "on", "PC SETUP: on");
+    CHECK(pc_start_menu_setting() && pc_menu_settings()->pc_setup == 1 && pc_start_valid(8, 0) == 1 &&
+              !strcmp(pc_start_label(8, "x"), "PC SETUP") && pc_start_valid(7, 0) == 0 &&
+              !strcmp(pc_start_label(4, "VIDEO"), "VIDEO"),
+          "on at once: slot 8 valid as PC SETUP, the other slots as they were");
+    CHECK(pc_start_exit(1, 4) == 1 && pc_start_exit(2, 8) == 2, "another slot's A, and B, leave the menu as before");
+    CHECK(pc_start_exit(1, 8) == 0, "A on PC SETUP doesn't leave the menu");
+    pc_menu_tick();
+    CHECK(pc_menu_is_open() && !pc_start_menu_take_open(), "the tick after it opened the overlay (once)");
     act(PC_MENU_DOWN);
     at("Game", "Defaults", NULL, "the page's Defaults");
     act(PC_MENU_ACCEPT);
+    act(PC_MENU_UP);
+    at("Game", "PC SETUP in menu", "off", "Defaults: PC SETUP off");
+    CHECK(!pc_start_menu_setting() && pc_start_valid(8, 0) == 0, "Defaults: slot 8 invalid again");
     act(PC_MENU_UP);
     at("Game", "Game frame rate", "original (30)", "Defaults: original");
     CHECK(pc_menu_settings()->game_fps == 0 && pc_game_fps_setting() == 0 && pc_fps60 == 1, "%d, %d, %d",
@@ -724,6 +745,8 @@ static void test_script(void)
     at("Settings", "Video", NULL, "the stick moves too");
     at_time(4.05);
     CHECK(!pc_menu_is_open() && !pc_input_paused(), "START closes");
+    pc_input_poll(pads);
+    CHECK(pads[0].buttons == 0, "START held across the closing doesn't reach the game: %04x", pads[0].buttons);
     at_time(5.05);
     pc_input_poll(pads);
     CHECK(pads[0].buttons == 0x8000 && !pc_menu_is_open(), "scripted game input after it closed");

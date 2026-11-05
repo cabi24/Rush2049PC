@@ -170,6 +170,10 @@ F1 > Game
                  car handling is the same. From the next screen (a menu, a
                  race). game.frame_rate. If the PC can't keep 60 in a
                  race, the log and About say so; the game keeps its speed.
+  PC SETUP in menu
+                 off or on. On adds PC SETUP to the game's main menu,
+                 below VIDEO: choosing it opens these settings, as F1
+                 does. At once. game.pc_setup
 
 F1 > Mods, F1 > Saves: see Mods and Saves below.
 

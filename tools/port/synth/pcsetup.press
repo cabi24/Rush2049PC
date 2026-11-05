@@ -1,0 +1,22 @@
+# The main menu's PC SETUP (game.pc_setup on, docs/port/FRONTEND.md "PC SETUP"): five down to it, A opens the
+# settings overlay over the menu (the game held), START closes it without starting a race (a button held across the
+# closing doesn't reach the game), then up to the fifth option and A into its screen (0x1000). On the host's clock:
+# while the overlay holds the game the virtual clock stands still, and the script with it.
+# until: 0x1000:60
+# seconds: 60
+# expect: state=0x00001000: players 1, windows 1
+# visits: 0x1000
+# args: --set game.pc_setup=on
+# check: tools/port/log_check.py pcsetup.log "PC SETUP chosen in the main menu" "settings open; the game is held" "settings closed" --not "game state 0x00000020"
+# realtime
+5 A            # the controller pak warning (0x40000000)
+8 START        # the start prompt (4); the main menu from 8 s
+11 DOWN 0.1    # five down: the second to fifth options, then PC SETUP
+11.5 DOWN 0.1
+12 DOWN 0.1
+12.5 DOWN 0.1
+13 DOWN 0.1
+14 A           # PC SETUP: the settings open over the menu
+16 START       # START closes them; still held as they close, it doesn't start a race (the player screen, 0x20)
+18 UP 0.1      # the fifth option
+19 A           # its screen (0x1000)
