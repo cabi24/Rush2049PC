@@ -509,7 +509,11 @@ The PC's:
   of the world's parts let through (`detail_check.py --world 0`; `detail.press` has four), the cheat hiding the
   track; `synth_boot_cheats_menu` (the same presses with the menu setting alone): the cheat screen opens, RIGHT
   leaves cheat 8 locked, and the race draws the four parts; `synth_boot_cheats_hidden` (neither): the same five down
-  come round to the race and A goes to the player screen, never the cheat screen.
+  come round to the race and A goes to the player screen, never the cheat screen. On the retail cartridge on the Pi
+  (headless, `--fast`, the same presses): with the menu setting the main menu has CHEATS below VIDEO and A opens the
+  cheat screen, without it the five down come round to the first option; with the unlock every cheat's value is
+  drawn bright, RIGHT on the invisible track switches it on and the race shows no track (the scene line lets none
+  of its parts through); without it the values are dim, RIGHT leaves it off and the race draws the track.
 
 ### Presets (N64 original, PC enhanced, PC maximum)
 
