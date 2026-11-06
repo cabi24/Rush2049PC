@@ -199,7 +199,7 @@ int net_start_time(NetSession *s, uint64_t *local_ns);
 int net_submit(NetSession *s, uint32_t n, const NetPad *pads);
 /* All ports' pads of retrace n (ports nobody owns are zero): 1 when known, 0 not yet within timeout_ms, -1 the
  * session ended. After the peer's BYE (NET_END_PEER_LEFT) the retraces it ran itself still give 1 when their pads
- * are known here, so both end at the same retrace. */
+ * are known here, so this side reaches the retrace the peer left at. */
 int net_pads(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], int timeout_ms);
 /* How long the current net_pads retrace has been waiting for the peer, ms (0: not waiting). */
 int net_waiting_ms(NetSession *s);
@@ -225,7 +225,7 @@ void net_end(NetSession *s, NetEnd reason);
 void net_end_text(NetSession *s, NetEnd reason, const char *text);
 /* Before this side leaves at a retrace of its own: wait until the peer has every input this side assigned (its
  * acknowledgements), up to timeout_ms, so that after the BYE it can still run the retraces this side ran (net_pads
- * gives the pads it knows after a BYE). 1 when the peer has them all. */
+ * gives them after a BYE). 1 when the peer has them all. */
 int net_linger(NetSession *s, int timeout_ms);
 /* Why it ended (NET_END_NONE: it hasn't), its detail (the desync's retrace), and a sentence for the log. */
 NetEnd net_end_reason(NetSession *s, uint32_t *detail, char *msg, size_t n);

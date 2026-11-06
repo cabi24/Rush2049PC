@@ -1001,7 +1001,7 @@ online"; this is how it works and what was proved.
 | `port/config/config.c` | `pc_must_match`: the one list of the settings the game reads (a replay's header, the guest's adoption, the overlay's locks: `pc_settings_session_rule`); `[net]` port, delay, code |
 | `port/input` | `pc_input_set_session`: nothing holds the game; the overlay's locks; `pc_menu_notice`, a notice over the frame |
 | `port/ultra/si.c` | `pc_si_set_pak_image`: a pak in memory with no file or folder behind it |
-| `port/net/net.c` | `net_end_text` (the reason to the peer), `net_linger` and the drain after a BYE (both games end at one retrace) |
+| `port/net/net.c` | `net_end_text` (the reason to the peer), `net_linger` and the drain after a BYE (the peer reaches the retrace the other left at) |
 | `tools/port/net_session_check.py` | the two-process tests (12.7) |
 
 ### 12.1 Options and the flow
@@ -1071,7 +1071,8 @@ must-match text to compare.
   (Escape) or closing the window leaves.
 - **Ending**: this side leaving at a retrace of its own (a limit, the quit key, the window, the overlay's Quit) waits up
   to 0.5 s until the peer has its last inputs (`net_linger`), then BYE; the peer runs on to the retrace the other
-  ended at (its inputs are there) and ends there too, "the host left" (or guest). A timeout (15 s, `--net-timeout`), a desync, a mismatch or a
+  ended at (its inputs are there), or at most the delay past it if it was ahead when the BYE came, and ends, "the
+  host left" (or guest). A test whose two runs have one limit ends both at it. A timeout (15 s, `--net-timeout`), a desync, a mismatch or a
   protocol error ends both; the reason is logged and shown (a message box with a window), with `net_stats_line`. Exit
   0 when a player left, 3 otherwise.
 
@@ -1115,7 +1116,7 @@ then has (a `--fast` replay with the default takes the same course).
 | `net_session_desync` (the guest's random seed changed at retrace 1000) | both end "desync" at retrace 1000, exit 3; each report written; `hash_compare.py --reports` names `rng+0x0` |
 | `net_session_mismatch` | another ROM, build or mods refused before the game, saying what differs; a test model on the guest only ends both at retrace 0, "the two PCs' setups differ" |
 | `net_session_adopt` (race2p12) | the guest takes game.cars 7 -> 12, audio.voices 64 -> original, video.draw_distance far -> original, logged; both new paks in (port 2's re-IDed), neither file written; a race of 12 cars, the same trace |
-| `net_session_ends` | the guest killed: the host ends "timeout" 3.0 s later (`--net-timeout 3`); the guest leaving at its limit: the host ends "peer-left" at the same retrace, exit 0; joining nobody: "no-answer" after 2.2 s |
+| `net_session_ends` | the guest killed: the host ends "timeout" 3.0 s later (`--net-timeout 3`); the guest leaving at its limit: the host ends "peer-left" at the guest's last retrace or within its delay past it, exit 0; joining nobody: "no-answer" after 2.2 s |
 | `frontend.menu.session` | the overlay holds nothing and its pads are idle; a locked setting, a free one, Defaults; the notice drawn and gone |
 
 ### 12.8 Found on the way

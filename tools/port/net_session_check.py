@@ -738,9 +738,13 @@ def mode_ends(a):
     th, tg, procs = r
     e, msg = ended(th)
     eg, _ = ended(tg)
+    # the host runs on to the guest's last retrace, and at most the guest's delay past it (the inputs it had before
+    # the BYE came: the guest assigned them that far ahead)
     last = [max([int(x) for x in re.findall(r"^rush2049pc: physics vi=(\d+):", t, re.M)] or [-1]) for t in (th, tg)]
-    if last[0] != last[1]:
-        say(f"ends bye: the host's last retrace is {last[0]}, the guest's {last[1]}")
+    d = re.search(r"delay \d+ \(peer \d+, \d+-(\d+),", tg)
+    ahead = int(d.group(1)) if d else 1
+    if not last[1] <= last[0] <= last[1] + ahead:
+        say(f"ends bye: the host's last retrace is {last[0]}, the guest's {last[1]} (its delay up to {ahead})")
         bad = 1
     if e != "peer-left" or eg != "local" or exit_code(th) or exit_code(tg) or "frames reached:" not in tg:
         say(f"ends bye: host {e} ({msg}, exit {exit_code(th)}), guest {eg} (exit {exit_code(tg)}); expected "
@@ -749,7 +753,8 @@ def mode_ends(a):
     else:
         gap = procs[0].exit_time - procs[1].exit_time
         say(f"ends bye: the guest left at its 900th graphics task; the host ended too (peer-left, exit 0), "
-            f"{abs(gap):.2f} s {'after' if gap >= 0 else 'before'} the guest's process exited, at the same retrace")
+            f"{abs(gap):.2f} s {'after' if gap >= 0 else 'before'} the guest's process exited, "
+            f"{last[0] - last[1]} retrace(s) past the guest's last (its delay {ahead})")
     # nobody there: the guest gives up
     port = free_udp_port()
     run_dir = Path(a.logs) / "ends.noanswer.run"

@@ -221,7 +221,9 @@ compute it from the HELLOs; the blobs themselves are checked against their hashe
 8. **Leaving at a retrace of its own** (a player quits, a test's run reaches its limit): `net_linger` first waits, up
    to a timeout, until the peer has acknowledged every input this side assigned; after the BYE, `net_pads` still gives
    the peer the retraces the side that left ran itself (up to the last it reported submitting) when their pads arrived
-   (`drained`), so both games end at the same retrace. The first retrace past them ends the peer with `peer-left`.
+   (`drained`), so the peer reaches the retrace the other left at; before the BYE came it may have run up to the
+   other's delay past it, on the inputs the other had assigned that far ahead (their hashes are compared by nobody).
+   The first retrace past them ends the peer with `peer-left`.
 
 **Waiting for the peer.** A `net_pads` that has waited `wait_report_ms` (250) is logged ("waiting for the peer's input
 for retrace N") and `net_waiting_ms` says how long, for the "Waiting for <name>..." overlay; when the input comes, the
