@@ -76,9 +76,10 @@ typedef struct {
 void pc_xxh64_init(PcXxh64 *s, uint64_t seed);
 void pc_xxh64_update(PcXxh64 *s, const void *data, size_t size);
 uint64_t pc_xxh64_digest(const PcXxh64 *s);
-/* A host pointer in the game's data, as hashed: a u64 at a 4-byte offset whose value lies in the executable's image is
- * replaced by what it points to, the same in every process and on every OS where it can be (an own-storage symbol's
- * N64 address and offset, a game function's N64 address, a decoupled array and offset); 0: not a host pointer. */
+/* A host pointer into the executable's image, as the hash takes it: what it points to, the same in every process and
+ * on every OS where it can be (an own-storage symbol's N64 address and N64 offset, a game function's N64 address, a
+ * decoupled item and offset; elsewhere in the image only a tag); 0 for a value outside the image. Which values in the
+ * game's data are taken for pointers depends on the bytes (port/ultra/statehash.c, docs/port/LOCKSTEP.md 5.2). */
 uint64_t pc_hash_pointer(uint64_t v);
 void pc_hash_image(uintptr_t *start, uintptr_t *end);   /* the executable's image as the hash sees it */
 

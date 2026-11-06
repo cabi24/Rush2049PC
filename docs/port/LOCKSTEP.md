@@ -165,10 +165,10 @@ voices and sound messages; `hash_decoupled_list` checks the list is complete).
 The hash is xxHash64, written from its specification (no code taken). `--log-hash N[,W]` prints:
 
 ```
-rush2049pc: hash vi=1500: 129bf00205e27408 models 6a02e558245cffe6 cars dcfa954be2c14655 ptrs=84 links e57e83b1a33ce2b5
+rush2049pc: hash vi=1500: 254faf59b7ec9d19 models 6a02e558245cffe6 cars bb7fa9ec95d2339d ptrs=84 links e57e83b1a33ce2b5
   rng 8ec8f516bb054801 words 2e6a0b58767cf03d tick 5c381e329638eaa7 time 09a29cfa071ec12d pads 4f9a8b2d55f8976a camera
-  16d80f43676e95d0 window a21421ab5b4ec60b ptrs=81 unnamed=1 own c64657a16bc98a1a ptrs=1424 unnamed=214 decoupled
-  de6b56da42ec7fb9 ptrs=156
+  16d80f43676e95d0 window e15cc0a957b8a9c7 ptrs=80 own 76b1b4bf885bf083 ptrs=1361 unnamed=214 decoupled
+  a7e880d13e8d50ed ptrs=156
 ```
 
 (one line). Cost on the build host, Debug (the hash itself compiled -O2): the curated regions every retrace add 6% to a
@@ -227,8 +227,11 @@ reports (`--hash-report`, compared by `hash_compare.py --reports`, which names e
 **Across architectures** (x86-64's recordings replayed on the Pi's aarch64, the same cartridge): the curated, own
 and decoupled hashes agreed from the start, and the window differed from retrace 30 in 28 words of matrices the game
 fills with 0/0: **the default NaN's sign**. x86's SSE makes 0xFFC00000, ARM's FPU 0x7FC00000; nothing reads them. The
-hash takes 0xFFC00000 and a double's 0xFFF80000 as the positive ones (no other value changes). With that, section 8's
-cross-architecture replay. Two more things found on the way:
+hash takes 0xFFC00000 and a double's 0xFFF80000 as the positive ones (no other value changes). With that, all 62
+recordings of the build host's x86-64 Debug program replay on the Pi's aarch64 RelWithDebInfo program to the same
+trace and the same hash at every retrace, the full one every 30 (`replay_check.py replay-dir --replay-force`, the
+header differing only in the build's commit, which a copy of the tree without `.git` can't tell). Two more things
+found on the way:
 
 - The synthetic cartridge itself differs between Pythons: `synth_rom.py` fits the game's sine polynomial
   (`gSinCoeffs`, `gCosCoeffs`) by least squares, and the Pi's Python 3.11 and the build host's 3.12 round its last

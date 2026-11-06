@@ -415,7 +415,7 @@ def main():
     global MODS_ROOT, SCRIPTS
     if a.scripts:
         SCRIPTS = Path(a.scripts)
-    MODS_ROOT = a.mods or str(Path(a.logs).resolve().parent / "paths" / "mods")
+    MODS_ROOT = str(Path(a.mods).resolve()) if a.mods else str(Path(a.logs).resolve().parent / "paths" / "mods")
     Path(a.logs).mkdir(parents=True, exist_ok=True)
     if a.mode == "replay-dir":
         if not a.source:
