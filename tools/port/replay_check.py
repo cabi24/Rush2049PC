@@ -361,8 +361,7 @@ def mode_file(a, name):
 
 def mode_replay_dir(a, names):
     src = Path(a.source)
-    names = names or sorted(p.name[:-len(".pads")] for p in src.glob("*.pads") if not p.name.endswith(
-        (".nodelay.pads", ".schedule.pads")))
+    names = names or sorted(p.stem for p in src.glob("*.pads") if "." not in p.stem)   # paths, not delay mode's
     bad = 0
     for name in names:
         pads, other = src / f"{name}.pads", src / f"{name}.replay.log"
@@ -370,7 +369,8 @@ def mode_replay_dir(a, names):
             print(f"replay_check: {name:10} MISSING  {pads.name} or {other.name} in {src}")
             bad += 1
             continue
-        text, took = run(a.exe, a.rom, a.logs, name, "replay", ["--replay-inputs", str(pads.resolve())], full=a.full)
+        text, took = run(a.exe, a.rom, a.logs, name, "replay", ["--replay-inputs", str(pads.resolve())] +
+                         (["--replay-force"] if a.replay_force else []), full=a.full)
         ta, tb = trace(other.read_text(encoding="utf-8", errors="replace")), trace(text)
         d = first_diff(ta, tb)
         if d:
@@ -405,6 +405,8 @@ def main():
     ap.add_argument("--xor", default="1")
     ap.add_argument("--window-address", default="807FFFF0", help="a window word nothing uses")
     ap.add_argument("--from", dest="source", help="replay-dir: the folder of PATH.pads and PATH.replay.log")
+    ap.add_argument("--replay-force", action="store_true", help="replay-dir: replay a recording whose header differs "
+                    "(a build of the same tree whose commit it couldn't tell, without .git)")
     ap.add_argument("--mods", help="the folder the mods paths' mods/... are in (default: build/pc/synth/paths/mods "
                     "beside --logs)")
     ap.add_argument("--scripts", help="the folder of PATH.press (default tools/port/synth; tools/port/retail with the "

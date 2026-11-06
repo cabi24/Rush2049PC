@@ -139,6 +139,7 @@ jobs:
             build/pc/pc-data/data_layout.txt
             build/pc/synth/replay/*.pads
             build/pc/synth/replay/*.replay.log
+            build/pc/synth/rush2049_synth.z64
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
@@ -512,8 +513,9 @@ jobs:
     # the replay's log), replayed by the cross-built Windows program. Its trace (every retrace's physics and pads,
     # exact floats) and its state hash at every retrace (the window's, own storage's and the decoupled data's every
     # 30) must be Linux's, x86-64's and aarch64's (tools/port/replay_check.py replay-dir). A recording's header says
-    # what it must match (the commit, the cartridge, the settings): the synthetic cartridge generated here must be
-    # Linux's, as windows-same checks.
+    # what it must match (the commit, the cartridge, the settings), so each is replayed on the synthetic cartridge
+    # its job made (synth_rom.py's least-squares sine fit can differ in the last bits from one Python to another), with
+    # the mods paths' mods made from it.
     needs: [linux, windows-cross]
     if: ${{ !cancelled() }}
     strategy:
@@ -550,21 +552,20 @@ jobs:
         with:
           path: src
       - name: Replay Linux's recordings
-        # The cartridge and the mods paths' mods as windows-run makes them (the texture pack from mods_dump's run).
+        # Each job's cartridge, and the mods paths' mods as windows-run makes them (the texture pack from mods_dump's
+        # run) from it.
         env:
           GALLIUM_DRIVER: llvmpipe
         run: |
-          python -X utf8 src/tools/port/synth_rom.py --data-symbols bin/pc-data/data_symbols.txt \
-            --out synth/rush2049_synth.z64
-          python -X utf8 src/tools/port/mods_synth.py --rom synth/rush2049_synth.z64 --out synth/paths/mods
-          python -X utf8 src/tools/port/synth_paths.py --exe bin/rush2049pc.exe --rom synth/rush2049_synth.z64 \
-            --logs synth/paths mods_dump
           s=0
           for l in x86-64 aarch64; do
             echo "== Linux $l's recordings on Windows"
-            python -X utf8 src/tools/port/replay_check.py replay-dir --exe bin/rush2049pc.exe \
-              --rom synth/rush2049_synth.z64 --logs synth/replay-$l --mods synth/paths/mods \
-              --from $l/build/pc/synth/replay || s=1
+            rom=$l/build/pc/synth/rush2049_synth.z64
+            python -X utf8 src/tools/port/mods_synth.py --rom $rom --out synth/$l/paths/mods
+            python -X utf8 src/tools/port/synth_paths.py --exe bin/rush2049pc.exe --rom $rom \
+              --logs synth/$l/paths mods_dump || s=1
+            python -X utf8 src/tools/port/replay_check.py replay-dir --exe bin/rush2049pc.exe --rom $rom \
+              --logs synth/$l/replay --mods synth/$l/paths/mods --from $l/build/pc/synth/replay || s=1
           done
           exit $s
       - uses: actions/upload-artifact@v4
@@ -572,7 +573,7 @@ jobs:
         with:
           name: logs-windows-replay-${{ matrix.build }}
           path: |
-            synth/replay-*/*.log
+            synth/*/replay/*.log
           if-no-files-found: ignore
 
   windows:

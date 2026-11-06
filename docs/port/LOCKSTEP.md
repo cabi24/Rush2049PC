@@ -190,7 +190,7 @@ what the bytes are:
 | N64-layout data: the window, the curated regions in it, own storage's bytes not typed as pointers | a u64 at a 4-byte offset equal to a named target's first byte or a function's address | the target's id |
 | own storage's elements the tables type as pointers, or as the N64's longs (8 bytes on the PC, an `intptr_t` that may hold one: `D_801148CC`, a blit) | any value but a 32-bit one (0, a window address, a number, sign-extended) | the target's id; into the image elsewhere, "a pointer into the program"; else "a heap pointer" (a table the loader copied, a converted file: `D_8011A31C`, `D_801497C0`, `D_8017A4E0`) |
 | the PC's own C structs: `pc_models`, `pc_cars`, `pc_links` and the decoupled items | a u64 at an 8-byte offset pointing into a named target | the target's id |
-| the game C's sites that keep a pointer's low half (`TRUNCATED`: `D_80156BCC`) | the word, completed with the image's high half | the target's id, or "a pointer into the program" |
+| the game C's sites that keep a pointer's low half (`TRUNCATED`: `D_80156BCC`) | the word | left out (zero): it holds an N64 address at the boot and a low half later, and a low half completed with the image's high half can't be told from an N64 address the image's low range covers in one process (seen: two runs of race2p hashed it otherwise at retrace 0) |
 
 N64-layout data holds numbers and texels, and two words of them can make a value in the image's range in one process
 and not in another (where the image's high half is a small number, 16-bit texel data can be it), so a looser rule
@@ -224,9 +224,19 @@ reports (`--hash-report`, compared by `hash_compare.py --reports`, which names e
    give f9a7177's traces, run for run (`synth_compare.py --same`). It is off by default; worth turning on for online
    play's builds once its cost is measured on retail.
 
-Windows against Linux: the hash's ids are the same on both by construction except `unnamed` image pointers (offset
-dropped) and own storage whose host layout differs (a `long`, 4 bytes on Windows). CI's `windows-replay` (section 8)
-compares them; it hasn't run yet.
+**Across architectures** (x86-64's recordings replayed on the Pi's aarch64, the same cartridge): the curated, own
+and decoupled hashes agreed from the start, and the window differed from retrace 30 in 28 words of matrices the game
+fills with 0/0: **the default NaN's sign**. x86's SSE makes 0xFFC00000, ARM's FPU 0x7FC00000; nothing reads them. The
+hash takes 0xFFC00000 and a double's 0xFFF80000 as the positive ones (no other value changes). With that, section 8's
+cross-architecture replay. Two more things found on the way:
+
+- The synthetic cartridge itself differs between Pythons: `synth_rom.py` fits the game's sine polynomial
+  (`gSinCoeffs`, `gCosCoeffs`) by least squares, and the Pi's Python 3.11 and the build host's 3.12 round its last
+  bits otherwise, so two machines' cartridges have other SHA-1s (a replay's header refuses the other's). CI's
+  `windows-replay` replays each Linux job's recordings on that job's own cartridge.
+- Windows against Linux: the hash's ids are the same on both by construction except "a pointer into the program"
+  (offset dropped) and own storage whose host layout differs (a `long`, 4 bytes on Windows). CI's `windows-replay`
+  (section 8) compares them; it hasn't run yet.
 
 ### 5.4 The desync report and the mutation check
 

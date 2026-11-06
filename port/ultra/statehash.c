@@ -18,9 +18,9 @@
  *     but a 32-bit one (0, a window address, a number), one outside the image taken as "a heap pointer" (a table the
  *     loader copied, a converted file) without its address;
  *   - the PC's own C structs (the curated and decoupled records): an 8-byte-aligned u64 into a named target;
- *   - the game C's sites that keep a pointer cut to 32 bits (TRUNCATED): the low half completed with the image's high
- *     half.
- * libultra's SI scratch buffers, which hold the host stack's bytes, are taken as zeros (SCRATCH). The ctests
+ *   - the game C's sites that keep a pointer cut to 32 bits (TRUNCATED) are left out (zeros).
+ * libultra's SI scratch buffers, which hold the host stack's bytes, are taken as zeros (SCRATCH), and the default NaN
+ * as the positive one (x86 and ARM make it with other signs). The ctests
  * replay_same_* and hash_aslr compare two processes' hashes, ASLR on, on every synthetic path.
  *
  * xxHash64 is written here from its specification (the XXH64 algorithm's description); no code is taken from the
@@ -396,8 +396,10 @@ unsigned int pc_n64_identity(const void *p)
     return (unsigned int)(uintptr_t)p;
 }
 
-/* The game C's sites that keep a host pointer's low half in 32 bits (window addresses): found by comparing two
- * processes' windows (docs/port/LOCKSTEP.md 5). */
+/* The game C's sites that keep a host pointer's low half in 32 bits (window addresses), found by comparing two
+ * processes' windows (docs/port/LOCKSTEP.md 5). Such a word holds an N64 address at times (D_80156BCC at the boot) and a
+ * host pointer's low half at others, and a low half completed with the image's high half can't be told from an N64
+ * address the image's low range happens to cover in one process: the hash leaves these words out, as zeros. */
 static const uint32_t TRUNCATED[] = {
     0x80156BCCu,   /* D_80156BCC = D_80149438, the display list's position (world_collision_response.c:143) */
 };
@@ -419,7 +421,7 @@ static const struct {
 typedef struct {
     uint32_t off;
     uint8_t size;     /* 8: a host pointer; 4: a cut one, or a scratch word */
-    uint8_t image;    /* 1: an image pointer no table names; 2: scratch (SCRATCH) */
+    uint8_t image;    /* 1: an image pointer no table names; 2: scratch (SCRATCH); 3: a NaN's sign */
     uint64_t value;
 } Patch;
 
@@ -484,29 +486,27 @@ static void scan(const uint8_t *p, size_t n, uint32_t n64, int mode)
             while (t < sizeof TRUNCATED / sizeof *TRUNCATED && TRUNCATED[t] < n64 + o)
                 t++;
         if (n64 && t < sizeof TRUNCATED / sizeof *TRUNCATED && TRUNCATED[t] == n64 + o) {
-            uint32_t w;
-            memcpy(&w, p + o, 4);
-            for (int k = 0; k < 2; k++) {   /* the image's high half at its start, or at its end */
-                uint64_t full = ((uint64_t)((k ? P.img_hi - 1 : lo) >> 32) << 32) | w;
-                if (full - lo < span) {
-                    uint64_t c = canonical((uintptr_t)full);
-                    patch_add((uint32_t)o, 4, (uint32_t)c ^ (uint32_t)(c >> 32), (uint32_t)(c >> 32) == TAG(K_IMAGE, 0));
-                    break;
-                }
-            }
+            patch_add((uint32_t)o, 4, 0, 2);   /* left out: see TRUNCATED */
             continue;
         }
         memcpy(&v, p + o, 8);
         if (v - lo < span && (mode == SCAN_EXACT ? is_start((uintptr_t)v) : ((uintptr_t)(p + o) & 7) == 0)) {
             uint64_t c = canonical((uintptr_t)v);
-            if (mode == SCAN_STRUCT && (uint32_t)(c >> 32) == TAG(K_IMAGE, 0))
-                continue;   /* no named target: a number's bytes */
-            patch_add((uint32_t)o, 8, c, (uint32_t)(c >> 32) == TAG(K_IMAGE, 0));
-            if (g_unnamed_log > 0 && g_scan_what && (uint32_t)(c >> 32) == TAG(K_IMAGE, 0))
-                fprintf(stderr, "rush2049pc: hash: unnamed image pointer in %s+0x%zx (%#x): image+0x%llx\n", g_scan_what,
-                        o, n64 ? n64 + (uint32_t)o : 0u, (unsigned long long)(v - lo));
-            o += 4;   /* its high half is no pointer's start */
+            if (mode == SCAN_EXACT || (uint32_t)(c >> 32) != TAG(K_IMAGE, 0)) {   /* else a number's bytes */
+                patch_add((uint32_t)o, 8, c, (uint32_t)(c >> 32) == TAG(K_IMAGE, 0));
+                if (g_unnamed_log > 0 && g_scan_what && (uint32_t)(c >> 32) == TAG(K_IMAGE, 0))
+                    fprintf(stderr, "rush2049pc: hash: unnamed image pointer in %s+0x%zx (%#x): image+0x%llx\n",
+                            g_scan_what, o, n64 ? n64 + (uint32_t)o : 0u, (unsigned long long)(v - lo));
+                o += 4;   /* its high half is no pointer's start */
+                continue;
+            }
         }
+        /* The default NaN that 0/0 and inf - inf make: x86's SSE sets its sign bit, ARM's FPU doesn't (the game makes
+         * some in matrices it never reads). Hashed as the positive one, a float's and a double's high half, so an
+         * aarch64 PC and an x86-64 one agree; no other value is touched. */
+        uint32_t w = (uint32_t)v;
+        if (w == 0xFFC00000u || w == 0xFFF80000u)
+            patch_add((uint32_t)o, 4, w & 0x7FFFFFFFu, 3);
     }
 }
 
@@ -585,7 +585,7 @@ static uint64_t hash_region_typed(const void *p, size_t n, int own, uint32_t n64
         typed_pointers(p, n, (uint32_t)own);
     h = hash_patched(p, n, out);
     for (size_t i = 0; i < g_npatch; i++) {
-        *pointers += g_patch[i].image != 2;
+        *pointers += g_patch[i].image < 2;
         *image += g_patch[i].image == 1;
     }
     return h;
