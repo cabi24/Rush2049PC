@@ -324,6 +324,68 @@ docs/port/SAVES.md in the source has the rest, and tools/port/ghost.py
 reads and converts the files.
 
 
+Playing online (a preview)
+--------------------------
+Two players, each at their own PC, race in the game's two-player split
+screen. One hosts, the other joins. Both need this same version of the
+program, the same ROM and the same mods.
+
+In this build a session runs as fast as the two PCs and the connection
+allow, not at the game's own speed, and without sound: it is for trying
+the connection out. The game's speed and the sound come in a later build.
+
+The easiest way to connect is Tailscale (tailscale.com, free for personal
+use): both PCs join one tailnet (or the host shares their PC with the
+friend's account), and each PC gets a name and a 100.x address that work
+from anywhere, with nothing to set up on the router.
+
+1. The host starts the program with --net-host, from a command prompt in
+   this folder (or from a shortcut with --net-host after rush2049pc.exe):
+       start /wait rush2049pc.exe --net-host
+   It waits for the friend (up to 10 minutes; the window opens once they
+   have joined, and Ctrl-C in the prompt stops it). The first time,
+   Windows asks whether to let the program on the network: allow it, for
+   private networks (where Tailscale's network is).
+2. The guest joins with the host's Tailscale name or 100.x address:
+       start /wait rush2049pc.exe --net-join my-pc
+       start /wait rush2049pc.exe --net-join 100.101.102.103
+3. Both games start together, at the title screen. The host plays player
+   1 and the guest player 2, each with their own keyboard or first
+   controller. Choose two players in the main menu, as on a couch: both
+   players' presses count in the menus.
+
+The host's settings rule: for the session, the guest's game takes the
+host's settings that change the game (the cars in a race, the game's frame
+rate, memory, draw distance, detail, fog, voices and engines, the cheats
+and PC SETUP), without changing the guest's rush2049pc.ini; the log says
+which, and F1 shows them locked. Each player brings their own controller
+pak (profiles, ghosts) as a copy: nothing is saved during a session.
+
+Without Tailscale: the host forwards UDP port 24049 on their router to
+their PC, and the guest joins the router's public address
+(--net-join 203.0.113.5). Then both should give the same join code
+(--net-code SOMETHING-LONG), so only who knows it can join. Another port:
+--net-host 25000 on the host, --net-join 203.0.113.5:25000 on the guest
+(or net.port in rush2049pc.ini, and net.code for the code).
+
+The input delay (how long a press takes to reach the game, the same for
+both players) follows the connection by itself: a retrace or two (17-33
+ms) on a LAN or a close Tailscale link, 4-6 across a continent.
+--net-delay N fixes it at N retraces.
+
+F1, the pause key and switching to another window don't pause an online
+game: the other player would wait. While F1 is open your player gets no
+input. When the friend's PC stops sending, the game waits and says so;
+Escape (or closing the window) leaves, and after 15 s the session ends by
+itself. The log has the session's numbers: the round trip, the delay, how
+often the game waited.
+
+Each session's inputs are kept in the netplay folder (in the data folder:
+F1 > About > Open the data folder). If the two games ever differ ("out of
+sync"), both stop and write a report there: attach both PCs' logs and
+netplay files to a bug report.
+
+
 Reporting a bug
 ---------------
 https://github.com/cabi24/Rush2049PC/issues

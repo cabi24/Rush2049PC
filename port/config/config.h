@@ -131,6 +131,10 @@ typedef struct PcSettings {
     char pad[PC_NUM_CONTROLS][PC_CFG_BIND];
     char pad_menu[PC_CFG_BIND];     /* [controller] menu: the buttons that open the settings overlay */
     char hotkey[PC_NUM_HOTKEYS][PC_CFG_BIND];
+    /* [net]: online play (docs/port/NETPLAY.md); hosting and joining are never settings (--net-host, --net-join) */
+    int net_port;                   /* the session's UDP port */
+    int net_delay;                  /* the input delay in retraces, 1-30; 0: auto */
+    char net_code[64];              /* the join code; "" for none */
 
     /* Not in the file: where it was read from ("" for none) and its directory; where the settings overlay saves
      * (pc_settings_resolve: the file read, the --config path, or the located one; "" for nowhere). */
@@ -138,6 +142,18 @@ typedef struct PcSettings {
     char source_dir[PC_CFG_PATH];
     char save_path[PC_CFG_PATH];
 } PcSettings;
+
+/* The settings the game reads (docs/port/LOCKSTEP.md 3, 7; NETPLAY.md 1.5): what a replay file must match, what a
+ * session's guest adopts from the host (adopt: 1; the accessories, 0, come from the session itself), and what the
+ * settings overlay locks in an online session. One list for all three. pc_settings_must_match: 0 for a setting not
+ * listed, 1 listed, 2 listed and adopted. */
+typedef struct {
+    const char *section, *key;
+    int adopt;
+} PcMustMatch;
+extern const PcMustMatch pc_must_match[];
+extern const int pc_must_match_count;
+int pc_settings_must_match(const char *section, const char *key);
 
 /* [game] cars at run time (race_cars.c): the setting the game latches at each race's start (pc_race_cars_begin,
  * pc_game_types.h). main sets it at start and the settings overlay when it changes; 0 (original) is the N64's 6, and

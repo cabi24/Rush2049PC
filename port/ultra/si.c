@@ -370,6 +370,27 @@ int pc_si_set_pak(int ch, int kind)
     return kind == PC_PAK_MEMORY && !p->memory_ok ? PC_PAK_NONE : kind;
 }
 
+/* An online session's pak (port/app/netplay.c): this image, in memory only, before the game starts. No file and no
+ * saves folder is behind it, so nothing the game writes to it goes to the disk (hand_over has nowhere to write it),
+ * and no saves folder can swap it (pc_si_flush). NULL: no accessory. */
+void pc_si_set_pak_image(int ch, const uint8_t *image)
+{
+    if (ch < 0 || ch > 3)
+        return;
+    Port *p = &g_port[ch];
+    pthread_mutex_lock(&g_slock);
+    free(p->path);
+    free(p->store);
+    p->path = p->store = NULL;
+    p->dirty = 0;
+    p->memory_ok = image != NULL;
+    if (image)
+        memcpy(p->img, image, PAK_SIZE);
+    p->kind = image ? PC_PAK_MEMORY : PC_PAK_NONE;
+    update(ch);
+    pthread_mutex_unlock(&g_slock);
+}
+
 int pc_si_pak(int ch)
 {
     if (ch < 0 || ch > 3)

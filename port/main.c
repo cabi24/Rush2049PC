@@ -28,6 +28,7 @@
 #include "pc_cheats.h"
 #include "pc_game_types.h"
 #include "pc_lockstep.h"
+#include "netplay.h"
 #include "ultra.h"
 
 extern void n64_main(void *argument);   /* src/rom/lib_2cf0.c */
@@ -85,6 +86,16 @@ static void usage(FILE *f)
             "                      (default 60; 0 never); --hash-report N:PATH writes retrace N's regions to PATH\n"
             "  --session-rules     an online session's rules without the network: the game's HUD models keep their\n"
             "                      N64 places in widescreen\n"
+            "  --net-host [PORT]   host an online session (README: Playing online): wait for a friend to join on\n"
+            "                      UDP PORT (net.port, 24049). The host plays controller 1, and its settings are the\n"
+            "                      session's\n"
+            "  --net-join HOST[:PORT]  join a friend's session: a name or an address (a Tailscale 100.x address or\n"
+            "                      MagicDNS name; [IPv6]:PORT). This PC plays controller 2, with the host's settings\n"
+            "                      for the session (its own file isn't changed)\n"
+            "  --net-delay auto|N  the session's input delay in retraces (net.delay): auto follows the connection\n"
+            "  --net-code CODE     a join code both players give (net.code): only who knows it can join\n"
+            "  --net-timeout S     end a session after S seconds without the other PC (15); --net-bind ADDR: the\n"
+            "                      local address its socket uses (default any)\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
             "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
@@ -731,19 +742,25 @@ static const PcSavesUi g_saves_ui = {saves_backend, saves_list, saves_act, pc_st
 static PcLockstepOptions g_ls;   /* --record-inputs, --replay-inputs, --input-delay, --log-pads */
 static int g_session_rules;      /* --session-rules */
 
+/* The build two PCs must both run, as a replay's header and an online session say it: the commit, and whether the
+ * tree it was built from had changes (git describe's -dirty). RUSH2049_TEST_NET_BUILD stands in for it in an online
+ * session (the tests of two builds that differ). */
+static void build_id(char *out, size_t size, int session)
+{
+    const char *ver = pc_app_version(), *test = getenv("RUSH2049_TEST_NET_BUILD");
+    size_t lv = strlen(ver);
+    if (session && test && *test)
+        snprintf(out, size, "%s", test);
+    else
+        snprintf(out, size, "%s%s", pc_app_version_commit(), lv > 6 && !strcmp(ver + lv - 6, "-dirty") ? "-dirty" : "");
+}
+
 /* What a replay must match (docs/port/LOCKSTEP.md 3, NETPLAY.md 1.5): the build, the cartridge as the game reads it
  * (the ROM, and the mods' files and the file table they change), the settings the game reads, each controller's
  * accessory and pak image, the session's rules, and the test models that change the game. "key=value" lines; '#'
  * lines are only said. Called just before the boot, when all of them are set. */
 static char *must_match_text(const PcSettings *cfg)
 {
-    static const char *const keys[][2] = {
-        {"game", "frame_rate"}, {"game", "cars"}, {"game", "memory"}, {"game", "expansion_pak"},
-        {"game", "pc_setup"}, {"game", "ghost_prompt"}, {"game", "cheats_menu"}, {"game", "cheats_unlock"},
-        {"audio", "voices"}, {"audio", "engines"}, {"video", "draw_distance"}, {"video", "detail"}, {"video", "fog"},
-        {"audio", "latency"},   /* the AI's queue: on the virtual clock it moves the audio state (LOCKSTEP.md 7) */
-        {"game", "pak"}, {"game", "pak2"}, {"game", "pak3"}, {"game", "pak4"},
-    };
     static const char *const env[] = {"RUSH2049_TEST_HEAP_FLOOR", "RUSH2049_TEST_WAVE_GROW",
                                       "RUSH2049_TEST_AUDIO_POOL_FAIL", "RUSH_SIM_GFX_MS"};
     size_t cap = 8192, n = 0;
@@ -754,11 +771,8 @@ static char *must_match_text(const PcSettings *cfg)
         return NULL;
     }
 #define ADD(...) (n += (size_t)snprintf(t + n, n < cap ? cap - n : 0, __VA_ARGS__), n = n < cap ? n : cap - 1)
-    {   /* the commit, and whether the tree it was built from had changes (git describe's -dirty) */
-        const char *ver = pc_app_version();
-        size_t lv = strlen(ver);
-        ADD("build=%s%s\n", pc_app_version_commit(), lv > 6 && !strcmp(ver + lv - 6, "-dirty") ? "-dirty" : "");
-    }
+    build_id(v, sizeof v, pc_net_role() != PC_NET_NONE);
+    ADD("build=%s\n", v);
     pc_sha1(pc_rom_bytes(), pc_rom_size(), sha);
     ADD("rom=");
     for (int i = 0; i < 20; i++)
@@ -771,9 +785,9 @@ static char *must_match_text(const PcSettings *cfg)
     } else {
         ADD("mods=none\n");
     }
-    for (size_t i = 0; i < sizeof keys / sizeof keys[0]; i++)
-        if (pc_settings_get(cfg, keys[i][0], keys[i][1], v, sizeof v) == 0)
-            ADD("%s.%s=%s\n", keys[i][0], keys[i][1], v);
+    for (int i = 0; i < pc_must_match_count; i++)   /* the settings the game reads (port/config's one list) */
+        if (pc_settings_get(cfg, pc_must_match[i].section, pc_must_match[i].key, v, sizeof v) == 0)
+            ADD("%s.%s=%s\n", pc_must_match[i].section, pc_must_match[i].key, v);
     ADD("memory.window=%u\nmemory.os=%u\n", (unsigned)pc_rdram_size(), (unsigned)pc_os_mem_size());
     for (int ch = 0; ch < 4; ch++) {
         if (pc_si_pak_image(ch, img))
@@ -789,6 +803,174 @@ static char *must_match_text(const PcSettings *cfg)
 #undef ADD
     free(img);
     return t;
+}
+
+/* ---------------------------------------------------------------- an online session (docs/port/NETPLAY.md) */
+
+static PcNetOptions g_net = {PC_NET_NONE, -1, NULL, NULL, 0};   /* --net-host, --net-join, --net-bind, --net-timeout */
+
+/* The mods as the cartridge will hold them, for the session's handshake: each wave's file the mods give (the region
+ * pc_mods_install makes of them once the game's data is loaded), or "none". The must-match text's mods line (the
+ * region itself and the file table pointing into it) checks the result again at the start (retrace 0's hash). */
+static void mods_identity(char *out, size_t size)
+{
+    PcXxh64 x;
+    int any = 0;
+    pc_xxh64_init(&x, 0);
+    for (int w = 0; g_mods.enabled && w < PC_MODS_WAVES; w++)
+        if (g_mods.wave_data[w]) {
+            uint64_t head[2] = {(uint64_t)w, (uint64_t)g_mods.wave_size[w]};
+            pc_xxh64_update(&x, head, sizeof head);
+            pc_xxh64_update(&x, g_mods.wave_data[w], g_mods.wave_size[w]);
+            any = 1;
+        }
+    if (any)
+        snprintf(out, size, "%016llx", (unsigned long long)pc_xxh64_digest(&x));
+    else
+        snprintf(out, size, "none");
+}
+
+static void rom_identity(char *out, size_t size)
+{
+    uint8_t sha[20];
+    pc_sha1(pc_rom_bytes(), pc_rom_size(), sha);
+    for (int i = 0; i < 20 && (size_t)(2 * i + 2) < size; i++)
+        snprintf(out + 2 * i, size - (size_t)(2 * i), "%02x", sha[i]);
+}
+
+/* What this PC sends: the build, the ROM's SHA-1 and the mods (the guest refuses a host whose differ), then the
+ * settings the game reads (pc_must_match's adopted ones: the guest takes the host's); '#' lines are only said. */
+static char *session_blob(const PcSettings *cfg)
+{
+    size_t cap = 4096, n = 0;
+    char *t = malloc(cap), v[PC_CFG_PATH];
+    if (!t)
+        return NULL;
+#define ADD(...) (n += (size_t)snprintf(t + n, n < cap ? cap - n : 0, __VA_ARGS__), n = n < cap ? n : cap - 1)
+    build_id(v, sizeof v, 1);
+    ADD("build=%s\n", v);
+    rom_identity(v, sizeof v);
+    ADD("rom=%s\n", v);
+    mods_identity(v, sizeof v);
+    ADD("mods=%s\n", v);
+    for (int i = 0; i < pc_must_match_count; i++)
+        if (pc_must_match[i].adopt && pc_settings_get(cfg, pc_must_match[i].section, pc_must_match[i].key, v,
+                                                     sizeof v) == 0)
+            ADD("%s.%s=%s\n", pc_must_match[i].section, pc_must_match[i].key, v);
+    pc_mods_summary(&g_mods, v, sizeof v);
+    ADD("# mods=%s\n# rush2049pc %s (%s)\n", v, pc_app_version(), pc_app_build_type());
+#undef ADD
+    return t;
+}
+
+/* This PC's controller 1's pak for the session (docs/port/NETPLAY.md 1.5), as its saves setting gives it: game.saves
+ * = files builds it from the folder (pakstore.c), pak reads the .mpk (a new or N64-order one: a blank pak); NULL when
+ * controller 1 has no memory pak. Only read: the session never writes it back. */
+static uint8_t *session_local_pak(const PcSettings *cfg, const PcAppDirs *dirs, const PcSettingValue *over, int nover)
+{
+    char path[PC_APP_PATH], why[256] = "";
+    uint8_t *img;
+    if (cfg->pak[0] != PC_CFG_PAK_MEMORY) {
+        fprintf(stderr, "rush2049pc: online: controller 1 has no controller pak (game.pak): this player has none in the "
+                "session\n");
+        return NULL;
+    }
+    if (!(img = malloc(PC_PAK_SIZE)))
+        return NULL;
+    pc_app_pak_file(dirs, cfg->pak_file[0], from_command_line(over, nover, "game", "pak_file"), path, sizeof path);
+    if (cfg->saves[0] == PC_CFG_SAVES_FILES) {
+        char folder[PC_APP_PATH], msg[512];
+        pc_app_data_file(dirs, cfg->saves_dir[0], from_command_line(over, nover, "game", "saves_dir"), folder,
+                         sizeof folder);
+        if (pc_store_open(0, folder, path, pc_app_version(), msg, sizeof msg) != 0 ||
+            pc_store_build(0, img, why, sizeof why) != 0) {
+            fprintf(stderr, "rush2049pc: online: the saves in %s can't make a pak (%s): this player has none in the "
+                    "session\n", folder, why[0] ? why : msg);
+            free(img);
+            return NULL;
+        }
+        fprintf(stderr, "rush2049pc: online: this player's pak, built from %s (files; read only)\n", folder);
+    } else {
+        switch (pc_pak_file_load(path, img, why, sizeof why)) {
+        case PC_PAK_LOAD_FILE:
+            fprintf(stderr, "rush2049pc: online: this player's pak: %s (read only)\n", path);
+            break;
+        case PC_PAK_LOAD_NEW:
+            fprintf(stderr, "rush2049pc: online: this player's pak: a new one (no %s yet, and none is written)\n", path);
+            break;
+        case PC_PAK_LOAD_N64:
+            fprintf(stderr, "rush2049pc: online: this player's pak: a blank one (%s: %s)\n", path, why);
+            break;
+        default:
+            fprintf(stderr, "rush2049pc: online: %s: %s: this player has no pak in the session\n", path, why);
+            free(img);
+            return NULL;
+        }
+    }
+    if (pc_pak_image_check(img, PC_PAK_SIZE, why, sizeof why) != PC_PAK_IMAGE_OK) {
+        fprintf(stderr, "rush2049pc: online: this player's pak can't be used (%s): none in the session\n", why);
+        free(img);
+        return NULL;
+    }
+    return img;
+}
+
+/* The session's handshake (port/app/netplay.h, steps 1-3): after the ROM and the mods, before the memory. The guest
+ * checks the host's build, ROM and mods, then takes its settings for the session (the mods' memory plan made again
+ * when it depends on them); the paks are checked. *memory: the game.memory the session runs with. 0, or the exit
+ * code. */
+static int session_handshake(PcSettings *cfg, const PcAppDirs *dirs, const PcSettingValue *over, int nover,
+                             int window, int no_rom, int *memory)
+{
+    char build[160], mine[PC_CFG_PATH], theirs[PC_CFG_PATH], why[2 * PC_CFG_PATH + 200];
+    uint8_t *pak = session_local_pak(cfg, dirs, over, nover);
+    char *blob = session_blob(cfg);
+    int r, mods_inputs = 0;
+    if (!blob) {
+        free(pak);
+        return 1;
+    }
+    build_id(build, sizeof build, 1);
+    r = pc_net_connect(&g_net, cfg, build, blob, pak, window);
+    free(blob);
+    free(pak);
+    if (r)
+        return r;
+    if (pc_net_role() == PC_NET_GUEST) {
+        const char *host = pc_net_host_settings();
+        pc_net_blob_value(host, "build", theirs, sizeof theirs);
+        if (strcmp(theirs, build)) {
+            snprintf(why, sizeof why, "the host runs build %s, this PC %s: both players need the same build", theirs,
+                     build);
+            return pc_net_reject(why, "the guest runs another build", window);
+        }
+        rom_identity(mine, sizeof mine);
+        pc_net_blob_value(host, "rom", theirs, sizeof theirs);
+        if (strcmp(theirs, mine)) {
+            snprintf(why, sizeof why, "the host's ROM is %s, this PC's %s (their SHA-1s): both players need the same "
+                     "ROM", theirs, mine);
+            return pc_net_reject(why, "the guest's ROM isn't the host's (its SHA-1 differs)", window);
+        }
+        if (pc_net_adopt(cfg, host, &mods_inputs, why, sizeof why) != 0)
+            return pc_net_reject(why, "the guest can't use the host's settings", window);
+        pc_os_set_expansion_pak(cfg->expansion_pak);
+        if (mods_inputs && g_mods.enabled) {   /* the mods' memory plan follows game.memory, expansion_pak and cars */
+            pc_mods_free(&g_mods);
+            mods_prepare(cfg, dirs, from_command_line(over, nover, "game", "mods_dir"), no_rom);
+        }
+        mods_identity(mine, sizeof mine);
+        pc_net_blob_value(host, "mods", theirs, sizeof theirs);
+        if (strcmp(theirs, mine)) {
+            char hs[300], ms[300];
+            pc_net_blob_value(host, "# mods", hs, sizeof hs);
+            pc_mods_summary(&g_mods, ms, sizeof ms);
+            snprintf(why, sizeof why, "the host's mods are %s, this PC's %s: both players need the same mods, on, "
+                     "in the same order", hs[0] ? hs : theirs, ms);
+            return pc_net_reject(why, "the guest's mods aren't the host's", window);
+        }
+    }
+    *memory = g_mods.enabled ? g_mods.memory : cfg->memory;
+    return pc_net_paks(window);
 }
 
 #define MAX_OVERRIDES 64
@@ -952,6 +1134,44 @@ static int rush_main(int argc, char **argv)
             pc_hash_report_at((uint32_t)at, end + 1);
         } else if (!strcmp(a, "--session-rules"))
             g_session_rules = 1;
+        else if (!strcmp(a, "--net-host")) {   /* an online session (docs/port/NETPLAY.md, README "Playing online") */
+            if (g_net.role == PC_NET_GUEST) {
+                fprintf(stderr, "rush2049pc: --net-host or --net-join, not both\n");
+                return 2;
+            }
+            g_net.role = PC_NET_HOST;
+            if (v && v[0] >= '0' && v[0] <= '9') {   /* [PORT]: 0 takes any free one (said in the log) */
+                char *end;
+                long port = strtol(v, &end, 10);
+                if (*end || port < 0 || port > 65535) {
+                    fprintf(stderr, "rush2049pc: --net-host takes a UDP port, 0-65535, not '%s'\n", v);
+                    return 2;
+                }
+                g_net.port = (int)port;
+                i++;
+            }
+        } else if (!strcmp(a, "--net-join")) {
+            if (g_net.role == PC_NET_HOST) {
+                fprintf(stderr, "rush2049pc: --net-host or --net-join, not both\n");
+                return 2;
+            }
+            g_net.role = PC_NET_GUEST;
+            g_net.join = ARG();
+        } else if (!strcmp(a, "--net-delay"))
+            SET("net", "delay", ARG());
+        else if (!strcmp(a, "--net-code"))
+            SET("net", "code", ARG());
+        else if (!strcmp(a, "--net-bind"))
+            g_net.bind = ARG();
+        else if (!strcmp(a, "--net-timeout")) {
+            const char *t = ARG();
+            double sec = atof(t);
+            if (sec <= 0 || sec > 3600) {
+                fprintf(stderr, "rush2049pc: --net-timeout takes seconds, more than 0, not '%s'\n", t);
+                return 2;
+            }
+            g_net.timeout_ms = (int)(sec * 1000 + 0.5);
+        }
         else if (!strcmp(a, "--press-via")) {
             if (pc_input_set_via(ARG()) != 0)
                 return 2;
@@ -1088,6 +1308,16 @@ static int rush_main(int argc, char **argv)
                                      cfg.source[0] ? cfg.source : cfg.save_path, cfg.source, !headless) != 0)
             return 1;
         memory = mods_prepare(&cfg, &dirs, from_command_line(over, nover, "game", "mods_dir"), no_rom);
+        if (g_net.role) {   /* an online session's handshake: the other PC's settings and paks (port/app/netplay.h) */
+            int r;
+            if (g_ls.replay || g_ls.delay) {
+                fprintf(stderr, "rush2049pc: %s: not in an online session (its pads come from both PCs, and "
+                        "--net-delay is its delay)\n", g_ls.replay ? "--replay-inputs" : "--input-delay");
+                return 2;
+            }
+            if ((r = session_handshake(&cfg, &dirs, over, nover, !headless, no_rom, &memory)) != 0)
+                return pc_net_finish(r, !headless);
+        }
     }
     /* game.memory (docs/port/MEMORY.md): the RDRAM window pc_mem_init maps below, and osMemSize */
     if (memory) {   /* the setting, or what the mods raised it to */
@@ -1237,6 +1467,8 @@ static int rush_main(int argc, char **argv)
         int old = pc_app_pak_file(&dirs, cfg.pak_file[ch], from_command_line(over, nover, "game", keys[ch]),
                                   pak_path[ch], sizeof pak_path[ch]);
         snprintf(g_saves_mpk[ch], sizeof g_saves_mpk[ch], "%s", pak_path[ch]);
+        if (pc_net_role())
+            continue;   /* an online session's paks are copies in memory (pc_net_install_paks) */
         if (cfg.saves[ch] == PC_CFG_SAVES_FILES) {
             /* game.saves = files (docs/port/SAVES.md): the folder, read now when the pak is in at start (else when
              * it is first chosen); the .mpk is only read, the first time, to import its saves */
@@ -1295,12 +1527,23 @@ static int rush_main(int argc, char **argv)
         if (g_saves_dir[ch][0])
             pc_si_set_pak_store(ch, g_saves_dir[ch]);
     pc_si_set_swap_check(swap_safe);
-    pc_si_init(pak_path[0], cfg.pak[0]);   /* PC_CFG_PAK_* = PC_PAK_* */
-    for (int ch = 1; ch < 4; ch++) {
-        pc_si_set_pak_file(ch, pak_path[ch]);
-        pc_si_set_pak(ch, cfg.pak[ch]);
+    if (pc_net_role()) {   /* port 1 the host's pak, port 2 the guest's, in memory only (port/app/netplay.c) */
+        pc_si_init(NULL, PC_PAK_NONE);
+        pc_net_install_paks(&cfg);
+    } else {
+        pc_si_init(pak_path[0], cfg.pak[0]);   /* PC_CFG_PAK_* = PC_PAK_* */
+        for (int ch = 1; ch < 4; ch++) {
+            pc_si_set_pak_file(ch, pak_path[ch]);
+            pc_si_set_pak(ch, cfg.pak[ch]);
+        }
     }
-    if (pc_audio_init(cfg.audio, dump_audio) != 0)
+    /* An online session: the null output's accounting on the N64 clock, as --fast has it. The audio tap (NETPLAY.md
+     * 1.8, phase 0.2) will feed a real device from the buffers the game pushes, here, without the device's pulls
+     * deciding when the game's audio thread runs. */
+    if (pc_net_role() && strcasecmp(cfg.audio, "null") && strcasecmp(cfg.audio, "wav"))
+        fprintf(stderr, "rush2049pc: online: no sound in an online session yet: the null output (the audio tap isn't in "
+                "this build)\n");
+    if (pc_audio_init(pc_net_role() && strcasecmp(cfg.audio, "wav") ? "null" : cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     pc_audio_set_volume(cfg.volume / 100.0);
     pc_audio_set_latency((unsigned)cfg.audio_latency);
@@ -1315,7 +1558,7 @@ static int rush_main(int argc, char **argv)
     run.game_info = game_info;
     run.game_rate = game_rate;   /* game.frame_rate = 60 under vsync: the frames paced by the vblanks (FRAMERATE.md 7.6) */
     pc_gfx_set_hud_race(hud_race);
-    if (fast) {
+    if (fast || pc_net_role()) {   /* an online session: the virtual clock; unpaced until the paced clock is in */
         pc_time_set_virtual(1);
         pc_audio_set_clock(fast_clock);
     }
@@ -1328,20 +1571,35 @@ static int rush_main(int argc, char **argv)
         g_end_cars = run.end_info;
         run.end_info = ends_info;
     }
+    if (pc_net_role())
+        g_session_rules = 1;    /* an online session's rules (port/app/netplay.c's pc_net_begin) */
     if (g_session_rules)
         pc_gfx_hud_dx_off(1);   /* docs/port/LOCKSTEP.md 6 */
-    if (g_ls.record || g_ls.replay) {
-        g_ls.must_match = must_match_text(&cfg);
+    if (g_ls.record || g_ls.replay || pc_net_role()) {
+        g_ls.must_match = must_match_text(&cfg);   /* a session's: with its paks in */
         if (!g_ls.must_match)
-            return 1;
+            return pc_net_finish(1, !headless);
+    }
+    if (pc_net_role()) {   /* the pads source over the session, the hash, its input log (port/app/netplay.h, 5) */
+        char quit[PC_CFG_BIND];
+        int r;
+        pc_settings_get(&cfg, "hotkeys", "quit", quit, sizeof quit);
+        if ((r = pc_net_begin(&g_ls, g_ls.must_match, dirs.data, quit, !headless)) != 0)
+            return pc_net_finish(r, !headless);
     }
     {
         int ls = pc_lockstep_setup(&g_ls);   /* input record, replay and delay (docs/port/LOCKSTEP.md) */
         if (ls)
-            return ls;
+            return pc_net_finish(ls, !headless);
+    }
+    if (pc_net_role()) {   /* both PCs ready: the start (port/app/netplay.h, 6) */
+        int r = pc_net_start(!headless);
+        if (r)
+            return pc_net_finish(r, !headless);
     }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
+    code = pc_net_finish(code, !headless);   /* an online session: BYE, why it ended, its numbers */
     pc_lockstep_finish();
     pc_pools_report();   /* port/ultra/pools.c: the pools' high-water marks (docs/port/MORECARS.md 8) */
     pc_heap_report();    /* port/ultra/heap.c: the heap's (docs/port/MEMORY.md 4) */

@@ -385,7 +385,9 @@ frame's camera and car (`--log-physics 1 --log-frames`, exact floats) the same.
   between the two (a `long`) would show as `own` differing there; the curated and window hashes should agree.
 - **Retail.** Hashes and replays of retail runs are for the Pi and the user's machines; nothing of them is committed.
 - **The session's side**: fixed connected ports and accessories, the overlay and pause keys not holding the game,
-  pacing after a wait (the paced clock's branch), sending hashes: the API is there for them.
+  sending hashes: done on branch `net-session` (`port/app/netplay.c`, [NETPLAY.md](NETPLAY.md) section 12, which also
+  moved the must-match list to port/config's `pc_must_match`, shared with the session). Pacing after a wait is the
+  paced clock's branch.
 - The window's normalisation finds host pointers only in the image. A heap or stack pointer stored in the window, or
   a pointer cut to 32 bits at a site not listed, would make two processes differ; none does on the 62 paths, and
   `hash_compare.py --reports` names such a word if one appears (retail, other paths).

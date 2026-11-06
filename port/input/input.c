@@ -14,7 +14,8 @@
  *
  * The settings overlay (menu.c): while it is open the game is held (pc_input_paused) and its pads read empty, and
  * scripted presses drive the overlay instead (script_menu), so tests and headless runs can use it. port/gfx's event
- * pump gives port/input a turn (input_tick) at each retrace and while the game is held. */
+ * pump gives port/input a turn (input_tick) at each retrace and while the game is held. In an online session nothing
+ * holds the game: the overlay opens over it, and its pads read empty all the same (pc_input_set_session). */
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -318,10 +319,24 @@ void pc_input_apply(const PcSettings *s)
     pc_input_live_apply(s);
 }
 
-/* The pause key, focus lost with pause_on_focus_loss, or the overlay: the main loop holds the game. */
+/* An online session (port/app/netplay.c): nothing holds the game (input_internal.h). */
+static int g_session;
+
+void pc_input_set_session(int on)
+{
+    g_session = on;
+}
+
+int pc_input_session(void)
+{
+    return g_session;
+}
+
+/* The pause key, focus lost with pause_on_focus_loss, or the overlay: the main loop holds the game. Never in an online
+ * session: the other PC's game would wait for this one's pads, and the overlay's idle pads are what is sent. */
 int pc_input_paused(void)
 {
-    return pc_input_live_paused() || pc_menu_is_open();
+    return !g_session && (pc_input_live_paused() || pc_menu_is_open());
 }
 
 void pc_input_poll(PcPad pads[4])

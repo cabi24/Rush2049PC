@@ -178,6 +178,7 @@ static const char *const textures_choices[] = {"original", "upscaled", "pack", N
 static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GFX_HUD_* */
 static const char *const cars_choices[] = {"original", NULL};          /* 0: the N64's 6 */
 static const char *const memory_choices[] = {"original", NULL};        /* 0: the N64's 8 MiB (MEMORY.md) */
+static const char *const net_delay_choices[] = {"auto", NULL};         /* 0: from the round trip (NETPLAY.md 11.2) */
 static const char *const draw_choices[] = {"original", "far", "max", NULL};    /* PC_DRAW_* */
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
@@ -388,6 +389,18 @@ static const Item items[] = {
      "whatever the frame rate."},
     {"input", "rumble", T_REAL, F(rumble), 0, 1, NULL, "1.0",
      "Rumble strength, 0-1, for each player with a rumble pak (game.pak, pak2... = rumble, or auto)."},
+
+    /* [net]: online play (docs/port/NETPLAY.md, port/app/netplay.c). Hosting or joining is never a setting: only
+     * --net-host and --net-join start a session. */
+    {"net", "port", T_INT, F(net_port), 1, 65535, NULL, "24049",
+     "The UDP port of an online session: the one the host listens on (--net-host), and the one a guest joins when "
+     "--net-join names none. The host's firewall must let it in (Windows asks the first time)."},
+    {"net", "delay", T_INT, F(net_delay), 1, 30, net_delay_choices, "auto",
+     "The input delay of an online session in retraces (60 a second): auto (from the round trip, and it follows the "
+     "connection) or 1-30 (--net-delay)."},
+    {"net", "code", T_STR, F(net_code), 0, 0, NULL, "",
+     "A join code both players give (--net-code): every packet is signed with it, so only who knows it can join. "
+     "Empty for none (Tailscale already authenticates and encrypts)."},
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)
@@ -401,6 +414,26 @@ int pc_settings_memory_conflict(const PcSettings *s, char *why, size_t why_size)
                  "uses its Expansion Pak features, as a console with that much memory would; game.memory = original "
                  "is the N64 without the pak (4 MiB)", s->memory, s->memory);
     return 1;
+}
+
+/* The settings the game reads (docs/port/LOCKSTEP.md 3, 7; NETPLAY.md 1.5), in the order a replay file's header and
+ * a session's settings list them. */
+const PcMustMatch pc_must_match[] = {
+    {"game", "frame_rate", 1}, {"game", "cars", 1}, {"game", "memory", 1}, {"game", "expansion_pak", 1},
+    {"game", "pc_setup", 1}, {"game", "ghost_prompt", 1}, {"game", "cheats_menu", 1}, {"game", "cheats_unlock", 1},
+    {"audio", "voices", 1}, {"audio", "engines", 1}, {"video", "draw_distance", 1}, {"video", "detail", 1},
+    {"video", "fog", 1},
+    {"audio", "latency", 1},   /* the AI's queue: on the virtual clock it moves the audio state (LOCKSTEP.md 7) */
+    {"game", "pak", 0}, {"game", "pak2", 0}, {"game", "pak3", 0}, {"game", "pak4", 0},
+};
+const int pc_must_match_count = (int)(sizeof pc_must_match / sizeof pc_must_match[0]);
+
+int pc_settings_must_match(const char *section, const char *key)
+{
+    for (int i = 0; i < pc_must_match_count; i++)
+        if (!strcasecmp(pc_must_match[i].section, section) && !strcasecmp(pc_must_match[i].key, key))
+            return 1 + pc_must_match[i].adopt;
+    return 0;
 }
 
 static const Item *find_item(const char *section, const char *key)

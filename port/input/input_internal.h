@@ -80,6 +80,12 @@ int pc_input_live_via(const PcPad script[4], int menu, double now);
 
 /* ---------------------------------------------------------------- input.c */
 void pc_input_apply(const PcSettings *s);     /* the overlay's input changes, rumble strength included */
+/* An online session's rules (docs/port/NETPLAY.md 1.5, port/app/netplay.c): nothing holds the game, neither the pause
+ * key, nor focus lost with pause_on_focus_loss, nor the settings overlay, which opens over the running game with this
+ * player's pads idle while it is open (that idle input is what is sent, so both PCs still run one game); and the
+ * overlay locks the settings the game reads (pc_settings_must_match) and the Saves page's changes to the pak. */
+void pc_input_set_session(int on);
+int pc_input_session(void);
 
 /* ---------------------------------------------------------------- menu.c: the settings overlay */
 
@@ -104,6 +110,9 @@ int pc_menu_tick(void);
 void pc_menu_state(const char **page, const char **item, char *value, size_t value_size);
 const PcSettings *pc_menu_settings(void);     /* the settings as the overlay has them */
 const char *pc_menu_message(void);            /* the footer's message ("" for none): "Saved 2 settings to ..." */
+/* A notice over the game and the overlay (an online session's "Waiting for the host..."): a title and a line in a box
+ * near the top, drawn at each present and by pc_gfx_redraw; NULL removes it. */
+void pc_menu_notice(const char *title, const char *line);
 
 /* The mouse, from input_sdl.c while the overlay is open: x, y in the drawable's pixels, w x h the drawable's size
  * (pc_menu_mouse_pixels turns the window system's units into them). MOVE selects the item under it; LEFT chooses

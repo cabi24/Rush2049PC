@@ -6,7 +6,15 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
-- **Online play, the network part** (not in the program yet: nothing changes when you play): `port/net`, the library
+- **Online play, a preview** (`--net-host`, `--net-join HOST`; README "Playing online"): two PCs race in the game's
+  two-player split screen over the internet (Tailscale, or a forwarded UDP port 24049), the host as player 1 and the
+  guest as player 2, the guest taking the host's game settings for the session and each bringing a copy of their own
+  controller pak. Both games check, at every retrace, that they are the same; a ROM, build or mods that differ are
+  refused at the start, saying what differs. For now a session runs as fast as the two PCs allow, not at the game's
+  speed, and without sound: the pacing and the sound come next ([NETPLAY.md](docs/port/NETPLAY.md) "Status: the
+  session"). Nothing changes without the options.
+
+- **Online play, the network part**: `port/net`, the library
   two PCs will race through, in lockstep over UDP, with an input delay that follows the connection, time sync, a check
   every retrace that both games are the same, and a join code. Tested on its own against a stand-in game, on
   simulated networks from a LAN to 150 ms with 10% loss, a latency that changes mid-race and a peer that stops for

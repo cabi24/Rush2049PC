@@ -1893,13 +1893,22 @@ static int pads_ready(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], uint
     return 1;
 }
 
+/* After the peer left (BYE), the retraces whose inputs it had sent still run: it ran them itself, so both games end
+ * at the same retrace when it left at a retrace of its own (the end of a test's run, a player quitting): net_linger
+ * made sure it had sent them. Nothing more can come, so the first retrace not known ends it here. */
+static int drained(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], uint64_t now)
+{
+    return s->end == NET_END_PEER_LEFT && n < s->local_next && n >= s->consume_next && pads_ready(s, n, out, now);
+}
+
 int net_pads(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], int timeout_ms)
 {
     net_mutex_lock(&s->lock);
     uint64_t now = now_ns(s), deadline = now + (uint64_t)(timeout_ms > 0 ? timeout_ms : 0) * MS;
     if (s->state == NET_ENDED) {
+        int r = drained(s, n, out, now) ? 1 : -1;
         net_mutex_unlock(&s->lock);
-        return -1;
+        return r;
     }
     if (s->state < NET_STARTING || n >= s->local_next || n < s->consume_next) {
         misuse(s, "net_pads", n);
@@ -1914,8 +1923,9 @@ int net_pads(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], int timeout_m
     }
     for (;;) {
         if (s->state == NET_ENDED) {
+            int r = drained(s, n, out, now) ? 1 : -1;
             net_mutex_unlock(&s->lock);
-            return -1;
+            return r;
         }
         if (pads_ready(s, n, out, now)) {
             net_mutex_unlock(&s->lock);
@@ -2048,13 +2058,53 @@ int net_frozen(NetSession *s)
 
 void net_end(NetSession *s, NetEnd reason)
 {
+    net_end_text(s, reason, NULL);
+}
+
+void net_end_text(NetSession *s, NetEnd reason, const char *text)
+{
     net_mutex_lock(&s->lock);
     if (reason == NET_END_NONE)
         reason = NET_END_LOCAL;
-    end_session(s, reason, 0, 1, "%s", reason == NET_END_LOCAL ? "this side left the session"
+    end_session(s, reason, 0, 1, "%s", text && *text                ? text
+                                     : reason == NET_END_LOCAL    ? "this side left the session"
                                      : reason == NET_END_REJECTED ? "the settings or files were rejected"
                                                                   : net_end_name(reason));
     net_mutex_unlock(&s->lock);
+}
+
+int net_linger(NetSession *s, int timeout_ms)
+{
+    net_mutex_lock(&s->lock);
+    uint64_t now = now_ns(s), deadline = now + (uint64_t)(timeout_ms > 0 ? timeout_ms : 0) * MS;
+    int r = 0;
+    for (;;) {
+        if (s->state != NET_RUNNING && s->state != NET_STARTING)
+            break;
+        if ((int32_t)(s->peer_ack - s->local_next) >= 0) {
+            r = 1;
+            break;
+        }
+        now = now_ns(s);
+        int64_t w = sdiff(deadline, now);
+        if (w <= 0)
+            break;
+        if (w > 5 * (int64_t)MS)
+            w = 5 * (int64_t)MS;
+        if (s->thread_on) {
+            net_cond_wait_ns(&s->cond, &s->lock, (uint64_t)w);
+        } else {
+            pump(s);
+            net_mutex_unlock(&s->lock);
+            if (s->tr.wait)
+                s->tr.wait(s->tr.ctx, (int)(w / 1000));
+            else
+                net_os_sleep_ns((uint64_t)w);
+            net_mutex_lock(&s->lock);
+        }
+    }
+    net_mutex_unlock(&s->lock);
+    return r;
 }
 
 NetEnd net_end_reason(NetSession *s, uint32_t *detail, char *msg, size_t n)

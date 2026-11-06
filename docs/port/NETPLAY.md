@@ -15,6 +15,16 @@ render-values check, `powf` at 60 replaced, and the settings matrix, which found
 state (1.5's table has it as free). Two processes agree on every hash on all 62 synthetic paths; Windows against Linux
 is wired in CI (`windows-replay`) and has not run yet.
 
+**Phase 1 and the network half of phase 2 (2026-11-06, branch `net-session`, section 12):** the game is attached to
+`port/net`. `--net-host` and `--net-join` run a session between two processes or two PCs: the handshake before the
+game's memory (the build, the ROM, the mods, the host's settings adopted by the guest, each player's pak), the pads
+source over the library at every retrace, both state hashes exchanged and compared, the session's rules (nothing holds
+the game, the overlay's locks, the paks in memory only), the waiting notice, the ends and their reports, and each
+session's input log. Two processes over loopback give one game, the same at every retrace, and with a fixed delay the
+same as one process playing both players' presses: on every two-player synthetic path, under every network model, in
+a fuzzer's random play, and on the retail cartridge on the Pi. Still on the unpaced virtual clock and the null audio
+output: the paced clock and the audio tap are the remaining pieces (12.6).
+
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
 full screen.
@@ -964,3 +974,146 @@ retrace a press is assigned to is that PC's own business; the other PC only need
 - The network library is written and tested on its own first, against a toy deterministic simulation that hashes its
   state every tick, so the protocol (redundancy, acks, time sync, the delay controller, stalls, timeouts) is proved
   before the game is attached.
+
+## 12. Status: the session (phase 1, and phase 2's network half)
+
+Written 2026-11-06 on branch `net-session` (from 543e5b0). The game attached to `port/net` ([NETWORK.md](NETWORK.md))
+over the pads gate and the state hash of [LOCKSTEP.md](LOCKSTEP.md). The players' side is the README's "Playing
+online"; this is how it works and what was proved.
+
+| Where | What |
+|---|---|
+| `port/app/netplay.c`, `netplay.h` | the session: connecting, the host's settings and the paks, the pads source, the hashes, the waiting notice, the ends, the input log |
+| `port/main.c` | the options, the handshake's place in the boot, the settings text and this PC's pak, the session's paks in the SI, the null output and the virtual clock in a session |
+| `port/config/config.c` | `pc_must_match`: the one list of the settings the game reads (a replay's header, the guest's adoption, the overlay's locks); `[net]` port, delay, code |
+| `port/input` | `pc_input_set_session`: nothing holds the game; the overlay's locks; `pc_menu_notice`, a notice over the frame |
+| `port/ultra/si.c` | `pc_si_set_pak_image`: a pak in memory with no file or folder behind it |
+| `port/net/net.c` | `net_end_text` (the reason to the peer), `net_linger` and the drain after a BYE (both games end at one retrace) |
+| `tools/port/net_session_check.py` | the two-process tests (12.7) |
+
+### 12.1 Options and the flow
+
+`--net-host [PORT]` (0: any free port, in the log), `--net-join HOST[:PORT]` (names, MagicDNS, 100.x, `[v6]:port`),
+`--net-delay auto|N`, `--net-code CODE`, `--net-timeout S`, `--net-bind ADDR`; `[net] port, delay, code` in the
+settings file. Hosting or joining is never a setting. Without a `--net-*` option nothing of this runs: the main loop's
+path, the paks, the audio and the clock are as before (12.7, `synth_compare.py --same`).
+
+The flow, in the boot's order (`netplay.h`):
+
+1. **Connect**, right after the ROM and `mods_prepare`, before `game.memory` maps the window. Each side sends a
+   settings text and its controller 1's pak. The text: `build=` (the commit, `-dirty` when it had changes),
+   `rom=` (SHA-1), `mods=` (a hash of each wave's file the mods give, or `none`), then the adopted settings of
+   `pc_must_match` as `section.key=value`, and `#` lines (the mods' summary, the version) that are only said. The
+   library compares the build first (a guest of another build is told so; the host turns it away and waits on).
+2. **The guest checks and adopts.** The ROM and the mods must be the host's ("the host's ROM is X, this PC's Y"; "the
+   host's mods are A, this PC's B"), else `NET_END_REJECTED` with a short reason for the host. The settings are
+   taken into this run's settings only (never the file), each change logged (`game.cars 7 -> 12 (the host's, for
+   this session)`); when `game.memory`, `expansion_pak` or `cars` changed, the mods' memory plan is made again.
+3. **The paks.** This PC's pak is its controller 1's as its saves setting gives it (`game.saves = files`: built from
+   the folder; `pak`: the `.mpk`, a new or N64-order one a blank pak), or none (an empty file) without a memory pak.
+   The other's is checked with `pc_pak_image_check`; a damaged one ends the session.
+4. **The setup goes on** with the adopted settings: the memory (with the mods' raise), the Expansion Pak flag and
+   every `pc_*_set`. The paks go into the SI: port 1 the host's, port 2 the guest's, in memory only
+   (`pc_si_set_pak_image`); ports 3 and 4 none; no rumble pak. Two paks with one ID (both made by a controller 1) are
+   one pak moved to the game, so port 2's copy takes controller 2's ID, on both PCs alike. Nothing is written back.
+5. **Begin**, just before the boot: `must_match_text` with the session's paks in (its `game.pak*` lines say what the
+   session has, `session.rules=on`); its compared lines go to the log and their xxHash64 is kept (12.3). The input
+   log starts (12.5); hashing goes on; the pads source is set.
+6. **Start.** `net_accept` only now, so the host's START, and its start time, come when both have set up. Each waits
+   for the start time, then boots.
+7. **The end** (12.4).
+
+### 12.2 The lockstep
+
+The pads source (`pc_lockstep.h`, `net_start_thread`'s service thread doing the network):
+
+- `local(n)`: this PC's controller 1 (`local[0]`, after all shaping, idle while the overlay is open) goes to
+  `net_submit` for the port this PC owns. The library assigns it to retrace n + D; `--input-delay` isn't used.
+- `pads(n)`: `net_pads(n, ..., 4 ms)`, woken at once by the service thread's condition when input arrives; then
+  `pc_pads_signal`, so the gate asks again at once and the window's events are pumped every 4 ms of waiting. Ports 1
+  and 2 are connected and 3 and 4 not, whatever this PC's pads are (one unplugged changes nothing); `rumble` is 0 (no
+  accessory follows it). `RUSH_SIM_NET`'s pause (`net_frozen`) holds it too.
+- `hash(n)`: the curated state hash folded to 32 bits, every retrace (`net_hash`), and the full hash (window, own
+  storage, decoupled data) when it was taken (`net_window_hash`): every 60 retraces (`--log-hash N,W`'s W when
+  given). 240 retraces of curated bytes are kept for a report.
+
+### 12.3 The final check at retrace 0
+
+Retrace 0's window hash is the full hash XORed with the must-match text's hash. Anything the handshake doesn't see
+that makes the two setups differ (the paks as installed, the window's size, a test model in the environment, a
+guest that skipped its checks) ends both at retrace 0 with "the two PCs' setups differ"; each PC's log has its
+must-match text to compare.
+
+### 12.4 Rules, waiting and ending
+
+- **Nothing holds the game**: the pause key and focus loss (`pause_on_focus_loss`) say "an online session isn't held";
+  F1 opens over the running game, "online" in its title, this player's pads idle while it is open (that idle input is
+  what is sent). Its items of the settings the game reads say "locked in an online session" (a preset's and
+  Defaults' share of them too); the Saves page's import, pin and delete are locked (the session's paks are copies,
+  and no saves folder is behind them). `pc_gfx_hud_dx` gives the game 0 (`--session-rules`).
+- **Waiting**: after 250 ms without the peer's input, "Waiting for the host..." (or guest) with the seconds and the
+  quit key, over the last frame (`pc_menu_notice`, drawn by the overlay's UI hook, `pc_gfx_redraw`). The quit key
+  (Escape) or closing the window leaves.
+- **Ending**: this side leaving at a retrace of its own (a limit, the quit key, the window, the overlay's Quit) waits up
+  to 0.5 s until the peer has its last inputs (`net_linger`), then BYE; the peer runs the retraces it has inputs for
+  and ends at the same retrace, or ends "the host left". A timeout (15 s, `--net-timeout`), a desync, a mismatch or a
+  protocol error ends both; the reason is logged and shown (a message box with a window), with `net_stats_line`. Exit
+  0 when a player left, 3 otherwise.
+
+### 12.5 The input log and a desync's report
+
+Every session writes `netplay/DATE-ROLE.pads` in the data folder (pc_padfile, the must-match text as its header) and
+the session's paks beside it (`.p1.mpk`, `.p2.mpk`). On a desync each side writes `DATE-ROLE.desync.txt`
+(`pc_hash_report` of the retrace, from the kept bytes). The log ends with the command that replays the session in one
+process (`--replay-inputs` with the session's settings and paks); replayed to the retrace on each OS with
+`--hash-report`, `hash_compare.py --reports` names the words that differ.
+
+### 12.6 What remains: the paced clock and the audio tap
+
+A session runs on the virtual clock, **unpaced**: as fast as both PCs and the network let it, which proves sync but
+isn't playable. The `net-clock` branch's paced clock attaches at three places marked in `netplay.c`: its epoch is
+`net_start_time` on `pc_real_ns`'s clock (`pc_net_start`, which waits for that time now); each retrace adds
+`net_pace_adjust_ns` to the interval (`src_pads`, where it is only summed today, the log's "time sync would have
+stretched"); after a stall it re-bases (net.h's contract). Then 60.00 retraces a second and the stalls at each D
+(phase 2's remaining proofs) can be measured.
+
+The audio: a session uses the null output's accounting on the N64 clock (`--audio null`'s; `wav` stays allowed), and
+says so. The tap (1.8, phase 0.2) plugs in where `main.c` chooses the backend: a device fed from the pushed buffers,
+the game's AI never following the device.
+
+### 12.7 Proofs
+
+`tools/port/net_session_check.py`, ctest `net_session_*` (rocky, x86-64, Debug):
+
+| Test | Result |
+|---|---|
+| `net_session_<path>`: race2p, battle2p, battlequit, memhigh2p, race2p12; pause, raceend, menu with the guest idle | host = guest = one process with `--input-delay 2`, line for line: 2,689-6,975 trace lines, 1,325-3,425 retraces hashed each (every retrace, the full hash every 30) |
+| `net_session_sim_<model>` (lan20, wan80, bad150, shift, pause, burst; to the race and 2 s into it, D 3-14) | the clean single process's trace under each: 1,685-1,697 retraces; up to 973 stalls, 11.5 s of waiting, all of it changing when retraces happen, nothing of what they do |
+| `net_session_auto` (wan80, the adaptive delay 6-7) | host = guest, and the host's input log replays in one process to the same trace |
+| `net_session_fuzz` (3 seeds, 120 s of game time each) | the same hash on both at all 7,201 retraces of each; 12-13 game states, the overlay opened 14-15 times over the running game |
+| `net_session_desync` (the guest's random seed changed at retrace 1000) | both end "desync" at retrace 1000, exit 3; each report written; `hash_compare.py --reports` names `rng+0x0` |
+| `net_session_mismatch` | another ROM, build or mods refused before the game, saying what differs; a test model on the guest only ends both at retrace 0, "the two PCs' setups differ" |
+| `net_session_adopt` (race2p12) | the guest takes game.cars 7 -> 12, audio.voices 64 -> original, video.draw_distance far -> original, logged; both new paks in (port 2's re-IDed), neither file written; a race of 12 cars, the same trace |
+| `net_session_ends` | the guest killed: the host ends "timeout" 3.0 s later (`--net-timeout 3`); the guest leaving at its limit: the host ends "peer-left" at the same moment, exit 0; joining nobody: "no-answer" after 2.2 s |
+| `frontend.menu.session` | the overlay holds nothing and its pads are idle; a locked setting, a free one, Defaults; the notice drawn and gone |
+
+### 12.8 Found on the way
+
+- **A hang in the game, reached by the fuzzer** (seed 3, 120 s): both PCs hung at retrace 4038 alike (the virtual
+  clock's "no retrace for 30 s"), in the pause menu's controls screen (pause state 4) with player 2 pressing buttons
+  there. The session's input log replayed in one process by 543e5b0's program (no session code) hangs at the same
+  retrace: a hang of the game's, or the port's, on the synthetic cartridge at least, not of the session. The fuzzer
+  reports such a hang (the same on both) and goes on; `net_session_check.py fuzz --first 3 --seeds 1` reproduces it.
+- **The Windows cross build's `test_assets_save.exe` doesn't link**: `pc_n64_identity` (LOCKSTEP.md 5.3) is undefined
+  there; `port/ultra/n64mem.c`'s weak fallback doesn't satisfy the game C's reference under mingw-w64's PE linker.
+  `rush2049pc.exe` links (it has `statehash.c`'s) and passes `pe_check.py --dlls` with `WS2_32.dll`.
+
+### 12.9 Not done
+
+- The paced clock and the audio tap (12.6); with them, phase 2's real-time proofs.
+- Phase 3: two real PCs (Windows against Linux) over Tailscale.
+- The host has no window while it waits for its guest (the handshake comes before the window), only the console's
+  and the log's lines; an F1 "Online" page (phase 6) would host from inside the game.
+- A pak imported from another player's ghost keeps its own name on the session's pak (the game's note names are read
+  once the game's data is loaded, after the handshake).
+- Rumble: no rumble accessory in a session; the local player's motor to its own controller can come later.
