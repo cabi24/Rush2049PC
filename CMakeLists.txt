@@ -1125,6 +1125,7 @@ add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
+add_subdirectory(port/net)     # online play's network library and its tests (docs/port/NETWORK.md); not linked yet
 # A sanitizer build runs the programs several times slower: the tests that start the game many times get more time,
 # and so do the synthetic paths (SYNTH_PATH_TIMEOUT; docs/port/SANITIZE.md 5).
 if(PC_SANITIZE)
