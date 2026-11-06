@@ -919,8 +919,10 @@ int pc_os_wait_main_paced(uint64_t deadline_ns, uint64_t render_wall_ns, int64_t
         uint64_t after = pc_real_ns();
         if (!g_busy_since)   /* every N64 thread waited meanwhile: nothing for the host to do but the presentation */
             __atomic_store_n(&g_slack, g_slack + (after - now), __ATOMIC_RELAXED);
-        if (timed && after >= wake)
+        if (timed && after >= wake) {
             *late_ns = (int64_t)(after - wake);
+            pc_pace_wake_late(after - wake);
+        }
     }
     pthread_mutex_unlock(&g_lock);
     return r;

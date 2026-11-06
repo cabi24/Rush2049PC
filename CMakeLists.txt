@@ -899,7 +899,23 @@ add_test(NAME paced_load COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe
 # re-bases the lag, the rest at 60 a second, no burst of retraces after it, and the course --fast's without either.
 add_test(NAME paced_hold COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --path race --env RUSH_SIM_HOLD=600:3000 --held 3 --logs ${CMAKE_BINARY_DIR}/synth/paced-hold)
-set(PACED_REALTIME_TESTS paced_realtime paced_audio paced_slow_host paced_load paced_hold)
+set(PACED_REALTIME_TESTS paced_realtime paced_audio paced_slow_host paced_load paced_hold paced_coarse)
+# Windows' coarse waits (RUSH_SIM_TIMER_STEP_US=15625, a Windows without the high-resolution timer): the pace still 60
+# a second, each retrace caught up from its step (paced_coarse); and the presentation's models in real time
+# (tools/port/realtime_check.py --paced): the Windows desktop's (a 59.94 Hz vsync swap and those waits, the game's own
+# frames; paced_desktop), and frames drawn between paced by a 59.94 Hz display's vblanks at display and 120 with
+# precise waits, as hfr_paced checks real time's (paced_vsync: at most 10% of the vblanks lost, the retraces 60 a
+# second). Paced mode never takes real time's coarse way of pacing the ticks (the swap as the clock), which would
+# starve the N64 side: with coarse waits and a vsync swap its frames between mostly miss their vblank, the game's
+# own frames are shown, and the game keeps its pace.
+add_test(NAME paced_coarse COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path race --model RUSH_SIM_TIMER_STEP_US=15625 --logs ${CMAKE_BINARY_DIR}/synth/paced-coarse)
+add_test(NAME paced_desktop COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paced-desktop --seconds 30 --paced)
+add_test(NAME paced_vsync COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paced-vsync --seconds 30 --pacing display,120 --timer-step-us 0
+    --paced)
+list(APPEND PACED_REALTIME_TESTS paced_desktop paced_vsync)
 if(NOT WIN32)
     add_test(NAME paced_stop COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
         --rom ${SYNTH_ROM} --path race --stop 2@12 --held 2 --logs ${CMAKE_BINARY_DIR}/synth/paced-stop)

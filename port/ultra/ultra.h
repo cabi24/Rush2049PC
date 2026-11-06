@@ -111,6 +111,7 @@ uint64_t pc_pace_wall_of(uint64_t n64_ns);       /* the wall time an N64 time is
 uint64_t pc_pace_span(uint64_t n64_ns);          /* wall ns for N64 ns (RUSH_PACE_SPEED's tests: shorter) */
 uint64_t pc_pace_due(uint64_t n64_ns, uint64_t now_wall);   /* sched.c: when the clock may move there */
 void pc_pace_moved(uint64_t n64_ns, uint64_t now_wall);     /* sched.c: it moved there */
+void pc_pace_wake_late(uint64_t late_ns);                   /* sched.c: how late a timed wake came */
 int64_t pc_pace_retrace(uint32_t frame, uint64_t n64_ns);   /* loop.c: a retrace went out; how late (ns) */
 void pc_pace_hold(uint64_t wall_ns);             /* loop.c's hold(): the game was held that long */
 int64_t pc_pace_lag_ns(void);                    /* how late the clock's last move came */

@@ -12,9 +12,9 @@
  *   - a hold that says so (loop.c's hold(): the pause key, focus lost, the F1 overlay): later by the time held;
  *   - a lag, from anything that holds the clock without saying so (a slow host, a debugger, a gate waiting for a
  *     remote player's input, a thread computing long, a present that blocks): a move whose wall time has gone by is
- *     made at once. A lag of up to two retraces is caught up smoothly, each move at most a quarter shorter in wall
- *     time than in N64 time (retraces 12.5 ms apart, not a burst); a longer one re-bases, the epoch moved so that the
- *     move is due now. Both are counted, and the exit line says them;
+ *     made at once. A lag of up to two retraces is caught up smoothly, each retrace at most a quarter shorter in wall
+ *     time than a retrace (12.5 ms apart, not a burst; with coarse waits at once); a longer one re-bases, the epoch
+ *     moved so that the move is due now. Both are counted, and the exit line says them;
  *   - time sync (the network layer, from any thread): pc_pace_adjust_ns makes every retrace up to 1 ms longer or
  *     shorter, pc_pace_shift_ns moves the epoch once;
  *   - the vblank lock (loop.c's vb_lock): where real time moves the retraces against the display's vblanks, paced
@@ -33,7 +33,6 @@
 #define VI_NS (1000000000ull / PC_VI_HZ)
 #define PACE_REBASE_NS ((int64_t)(2 * VI_NS))   /* a lag past two retraces re-bases */
 #define PACE_SMOOTH_NS 2000000                   /* a lag past this is caught up a quarter fast at most */
-#define PACE_CATCH_MIN_NS 1000000                /* ... or by this much a move, whichever is more (a nap's 1 ms) */
 #define PACE_ADJUST_MAX 1000000                  /* pc_pace_adjust_ns's cap, a retrace */
 #define WORK_BIN_NS 250000                       /* the work histogram's bins: 0.25 ms, to 50 ms */
 #define WORK_BINS 200
@@ -64,6 +63,7 @@ static struct {
     uint64_t held_ns, rebased_ns;
     int64_t rebase_max;
     int64_t rebased_since;   /* the longest lag re-based since the last retrace */
+    uint64_t wake_late;      /* how late the paced wait's timed wakes return (a decaying maximum) */
     /* the host's work a retrace: the wall time between two retraces less what the main thread slept with every N64
      * thread waiting (sched.c's slack), in WORK_BIN_NS bins; not across a hold, a re-base or a time-sync shift */
     uint64_t slack_at;       /* the slack at the last retrace */
@@ -158,7 +158,7 @@ uint64_t pc_pace_span(uint64_t n64_ns)
 
 /* sched.c, with every N64 thread waiting: when the clock may move to N64 time d, the wall clock being at now. Past
  * now: wait until then. A lag past two retraces re-bases here (the move is then due now); a smaller one past
- * PACE_SMOOTH_NS is caught up by moves at most a quarter shorter than their N64 time. */
+ * PACE_SMOOTH_NS is caught up by retraces at most a quarter of a retrace short. */
 uint64_t pc_pace_due(uint64_t d, uint64_t now)
 {
     if (d <= pc_host_ns())   /* not a move (a deadline due already): nothing to pace, no lag to see */
@@ -177,14 +177,28 @@ uint64_t pc_pace_due(uint64_t d, uint64_t now)
         P.span.rebases++;
         P.span.rebased_ns += (uint64_t)lag;
         due = (int64_t)now;
-    } else if (lag > PACE_SMOOTH_NS && P.moved && d > P.last_v) {
-        int64_t step = span(d - P.last_v), catch_up = step / 4 > PACE_CATCH_MIN_NS ? step / 4 : PACE_CATCH_MIN_NS;
-        int64_t floor = (int64_t)P.last_w + step - catch_up;
+    } else if (lag > PACE_SMOOTH_NS && P.first_w && d == P.retrace_v + VI_NS && P.wake_late < PACE_SMOOTH_NS) {
+        /* The next retrace, late: no sooner than three quarters of a retrace after the last one came, so a lag is
+         * caught up by a quarter of a retrace a retrace (12.5 ms apart, not a burst). Only the retraces: the moves
+         * between them (the AI, timers, a busy-wait's naps) come as soon as they can, and the floor counts from the
+         * last retrace's own time, so a delay of the loop's (a blocking swap) never adds to the next. Not with coarse
+         * waits (RUSH_SIM_TIMER_STEP_US's, a Windows without the high-resolution timer): a sleep to the floor would
+         * end a whole step late; there the lag is caught up at once. */
+        int64_t floor = (int64_t)P.retrace_w + span(VI_NS) - span(VI_NS) / 4;
         if (floor > due)
             due = floor;
     }
     pthread_mutex_unlock(&g_plock);
     return due > 0 ? (uint64_t)due : 0;
+}
+
+/* sched.c: a timed wake of the paced wait came late_ns late. */
+void pc_pace_wake_late(uint64_t late_ns)
+{
+    pthread_mutex_lock(&g_plock);
+    uint64_t keep = P.wake_late - P.wake_late / 32;
+    P.wake_late = late_ns > keep ? late_ns : keep;
+    pthread_mutex_unlock(&g_plock);
 }
 
 /* sched.c: the clock moved to N64 time d at wall time now. */

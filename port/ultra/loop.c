@@ -799,6 +799,12 @@ int pc_ultra_run(const PcRunOptions *opt)
         if (rate > 0 && !pc_time_free() && (pc_gfx_vsync() || (sim_read(), sim.hz > 0))) {
             /* A high frame rate with a swap that waits for vsync: paced by the display's vblanks (vb above). */
             uint64_t period = 1000000000u / (uint64_t)rate, t = paced ? pc_real_ns() : pc_host_ns();
+            /* How late the loop's waits return. Paced mode never takes the coarse waits' way (the swap as the clock:
+             * each tick drawn as soon as the last swap returns, its swap waiting a whole refresh): that keeps the
+             * loop in swaps, and the N64 side moves only in the loop's waits, so it would get a move a refresh (on
+             * the Pi 5, whose waits now and then return 2 ms late, the race ran at 17 retraces a second). Its ticks
+             * are planned as late as they make their vblank, whatever the waits; with coarse ones some miss it. */
+            uint64_t wl = paced && wake_late >= VB_PRECISE_NS ? VB_PRECISE_NS - 1 : wake_late;
             int hz = display_hz(), every;
             if (!next_tick || rate != tick_rate)
                 next_tick = vat;
@@ -842,7 +848,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             }
             if (!vb.swap && tick_ns + VB_MARGIN_NS + VB_VI_WORK_NS < vi_w) {
                 /* else no tick fits between two retraces: the game's frames are shown at the retraces (above) */
-                uint64_t late = wake_late < vi_w / 2 ? wake_late : vi_w / 2;
+                uint64_t late = wl < vi_w / 2 ? wl : vi_w / 2;
                 uint64_t cost_hi = vb_cost(tick_ns, tick_dev);   /* what a tick's drawing is planned to take */
                 if (!vb.target) {   /* the next vblank: one a tick can still make, one after the last, and with a
                                      * rate below the refresh the one at or after the rate's next tick */
@@ -888,7 +894,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                             mode = 2;   /* the game's own frames only */
                         int drew = pc_gfx_present_tick(vt, mode | PC_GFX_TICK_NO_SWAP);
                         cost = pc_real_ns() - r0;
-                        if (drew && nvi + VB_VI_WORK_NS < v && wake_late < VB_PRECISE_NS) {
+                        if (drew && nvi + VB_VI_WORK_NS < v && wl < VB_PRECISE_NS) {
                             vb.swap = v;   /* a retrace comes first: the swap waits for it, not it for the swap */
                             vb.swap_vi = pc_frame;
                             if (nvi < *wake)
