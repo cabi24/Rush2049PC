@@ -92,6 +92,7 @@ typedef struct PcSettings {
                                      * multiple; -1: native, the window's own pixels */
     int api;                        /* PC_CFG_API_* (RUSH_GFX_API) */
     double widescreen;              /* display aspect the 4:3 frame widens to: 0 off, -1 the window's (auto) */
+    int fill;                       /* the picture's rows fill the window's height: no bands (RUSH_GFX_FILL) */
     int pause_on_focus_loss;
     char screenshot_dir[PC_CFG_PATH];   /* empty: the working directory */
     int textures;                   /* 0 original, 1 upscaled, 2 pack (RUSH_GFX_TEXTURES; docs/port/TEXTURES.md) */

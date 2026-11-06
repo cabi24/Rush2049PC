@@ -168,6 +168,10 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
     screen's edges"). Its one game C change places the coin icons beside their moved counts.
   - `auto`, the default, takes the window's aspect at each frame, so resizing the window or going fullscreen
     changes it. A 4:3 window is off.
+  - `video.fill` (`RUSH_GFX_FILL`): `off`, the default, shows the game's 220 rows in a TV's 240-line frame, with a
+    band above and below. `on` makes them reach the window's top and bottom: with widescreen the picture is the
+    window's shape (at most an N64 pixel cut at each side), the 3D a little less wide than without it; in a 4:3
+    window the bands stay ([GFX.md](GFX.md) "Fill the window").
   - With a fixed aspect and an auto window, the window opens at the picture's aspect; with 640 × 480 it opens at
     853 × 480 at 16:9. Another size set in the file or with `--size` is kept.
   - At 16:9 the frame is 426 × 220 (the game's 220 rows of the 240-row screen, with its bands above and below, as
@@ -237,6 +241,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `video.scale` | native | `--scale N` | internal resolution: `native` (the window's own pixels, any fraction), `auto` (the largest whole multiple the window holds), or 1-8 (`1` or `n64`: the N64's) (`RUSH_GFX_SCALE`) |
 | `video.api` | auto | | `auto` (desktop GL first on Windows, whose drivers are made for it; OpenGL ES first elsewhere), `gl` or `gles`; each falls back to the other (`RUSH_GFX_API`, [GFX.md](GFX.md) "Backend, frame and settings") |
 | `video.widescreen` | auto | `--widescreen` | auto (the window's), off, 16:9, 16:10, 21:9, W:H or a ratio up to 4 (`RUSH_GFX_WIDESCREEN`; above) |
+| `video.fill` | off | | on: the picture's rows reach the window's top and bottom, no bands (`RUSH_GFX_FILL`; "Widescreen" above) |
 | `video.pause_on_focus_loss` | off | | hold the game in the background |
 | `video.screenshot_dir` | (`screenshots` in the data folder) | | where F12 saves |
 | `video.textures` | original | | `original`, `upscaled` (the 3D world's textures 2x at internal scale 2-3, 4x from 4; the HUD and menus as they are) or `pack` (replacements from `video.texture_pack`) ([TEXTURES.md](TEXTURES.md); `RUSH_GFX_TEXTURES`) |
@@ -501,7 +506,7 @@ environment-only.
 
 | Variable | What |
 |---|---|
-| `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`, `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`, `RUSH_GFX_FOG`, `RUSH_GFX_TEXTURE_LOD` | `audio.backend`, `video.scale`, `video.api`, `video.widescreen`, `video.frame_rate`, `video.textures`, `video.hud`, `video.draw_distance`, `video.fog`, `video.texture_lod` |
+| `RUSH2049_AUDIO`, `RUSH_GFX_SCALE`, `RUSH_GFX_API`, `RUSH_GFX_WIDESCREEN`, `RUSH_GFX_FILL`, `RUSH_GFX_FRAME_RATE`, `RUSH_GFX_TEXTURES`, `RUSH_GFX_HUD`, `RUSH_GFX_DRAW_DISTANCE`, `RUSH_GFX_FOG`, `RUSH_GFX_TEXTURE_LOD` | `audio.backend`, `video.scale`, `video.api`, `video.widescreen`, `video.fill`, `video.frame_rate`, `video.textures`, `video.hud`, `video.draw_distance`, `video.fog`, `video.texture_lod` |
 | `RUSH_GFX_TEXTURE_PACK`, `RUSH_GFX_TEXTURE_DUMP`, `RUSH_GFX_TEXTURE_CACHE` | the pack's, the dump's and the upscaled textures' cache's folders, over `video.texture_pack`, `video.texture_dump` and the data folder's `texture_cache` ([TEXTURES.md](TEXTURES.md)) |
 | `RUSH_GFX_UPSCALE=1\|2\|4`, `RUSH_GFX_UPSCALE_2D=1`, `RUSH_GFX_TEXTURE_SYNC=1` | the upscale factor instead of the internal scale's; 2D upscaled too; upscaling on the render thread (tests) ([TEXTURES.md](TEXTURES.md)) |
 | `RUSH_GFX_HEIGHT`, `RUSH_GFX_VERBOSE`, `RUSH_GFX_TIMES`, `RUSH_GFX_TRACE`, `RUSH_GFX_DUMP`, `RUSH_GFX_HFR_DUMP` | the renderer's diagnostics ([GFX.md](GFX.md) "Backend, frame and settings", "High frame rate") |
@@ -561,6 +566,7 @@ restart.
 |---|---|---|---|
 | Video | Render scale: native, N64 (1x), 2x-8x, auto (whole) | `video.scale` | from the next frame (`pc_gfx_set_scale`) |
 | | Widescreen: auto, off, 16:10, 16:9, 21:9 | `video.widescreen` | from the game's next frame (`pc_gfx_set_widescreen`) |
+| | Fill the window | `video.fill` | from the game's next frame (`pc_gfx_set_fill`) |
 | | Fullscreen | `video.fullscreen` | at once; opening the overlay takes F11's state |
 | | Fullscreen mode: desktop, exclusive | `video.fullscreen_mode` | at once when in fullscreen; F11 uses it |
 | | Resolution: desktop, 720p-2160p | `video.resolution` | at once: exclusive fullscreen's display mode, desktop fullscreen's drawing size |

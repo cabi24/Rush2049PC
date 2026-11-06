@@ -187,6 +187,7 @@ int pc_si_pak(int channel);                 /* what the game finds in it now: no
 
 /* ---------------------------------------------------------------- port/gfx (gfx_internal.h): the live settings */
 void pc_gfx_set_widescreen(float aspect);
+void pc_gfx_set_fill(int on);
 void pc_gfx_set_scale(int scale);
 void pc_gfx_set_window_size(int w, int h);
 

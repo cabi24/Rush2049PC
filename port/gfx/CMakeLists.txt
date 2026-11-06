@@ -133,7 +133,7 @@ set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
-          eyeplane clip xlu widescreen autosize seams ties screenshot hud detail)
+          eyeplane clip xlu widescreen autosize fillwindow seams ties screenshot hud detail)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The harness on port/ultra's own RDRAM window (memory.c) at game.memory 64, in place of an 8 MiB buffer of its own:
@@ -222,7 +222,7 @@ set_target_properties(gfx_size_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED
     EXPORT_COMPILE_COMMANDS OFF)
 target_include_directories(gfx_size_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gfx_size_test PRIVATE pcgfx)
-foreach(c scale edge rectedge fit units window texfactor)
+foreach(c scale edge rectedge fit fill units window texfactor)
     add_test(NAME gfx.size.${c} COMMAND gfx_size_test ${c})
 endforeach()
 # The display's exact refresh (gfx_display.c) from made-up modes, ratios and counter values (no window, no GL).

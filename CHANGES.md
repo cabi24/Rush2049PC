@@ -6,6 +6,12 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Fill the window** (`video.fill`, F1 > Video > Fill the window): `on` makes the picture reach the window's top and
+  bottom. The game shows 220 rows, and the port showed them in a TV's 240-line frame, with a band above and below
+  (66 pixels each at 2880 × 1620). With widescreen the picture is then the window's shape, the 3D a little less wide
+  than before (392 N64 pixels across at 16:9, where it was 426); with side art (the HD menu mod) the main menu fills
+  the screen too. `off`, the default, is as before ([GFX.md](docs/port/GFX.md) "Fill the window").
+
 - **Ghost save prompt for every profile** (`game.ghost_prompt`, F1 > Game > Ghost save prompt): after a finished
   ghost race the game offers to save the ghost with its own save prompt, which the cartridge shows only to its
   developer's profile name (any other profile's ghosts were kept only until the game closed, so `saves = files` made no

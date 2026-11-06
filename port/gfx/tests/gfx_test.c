@@ -23,6 +23,7 @@
 int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h);
 int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
 void pc_gfx_set_widescreen(float aspect);
+void pc_gfx_set_fill(int on);
 float pc_gfx_parse_aspect(const char *text, int *ok);
 void pc_gfx_set_scale(int scale);
 void pc_gfx_set_window_size(int w, int h);
@@ -2221,6 +2222,98 @@ static void case_autosize(void) {
     pc_gfx_set_scale_value(env_scale);
 }
 
+/* video.fill (GFX.md "Fill the window"): a frame of the game's 220 rows at the native scale, widescreen auto, in a
+ * 16:9, a 21:9 and a 4:3 window. With fill the target is the rows' shape, its widening rounded up (at most a pixel a
+ * side cut), and the window has the picture at every edge; off, the VI frame's shape with the bands above and below;
+ * in a 4:3 window fill can't widen, so the bands stay. Two frames a step: the rows shown are the last frame's. The
+ * frames go to a color image of their own: a target shows down to the largest scissor bottom it was ever drawn with,
+ * and the other cases draw all 240 rows into s_fb. */
+static uint16_t s_fill_fb[FB_W * FB_H];
+
+static void fill_frame(void) {   /* the frame cleared to one color, its scissor the game's 220 rows */
+    uint16_t c = rgba16(40, 200, 120, 1);
+    gp = s_list;
+    g_be_mode = 0;
+    gsDPPipeSync();
+    gsDPSetScissor(0, 0, FB_W, 220);
+    gsDPSetCycleType(G_CYC_FILL);
+    gsDPSetRenderMode(0, 0);
+    gsDPSetColorImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, FB_W, (uintptr_t)s_fill_fb);
+    gsDPSetFillColor((uint32_t)c << 16 | c);
+    gsDPFillRectangle(0, 0, FB_W - 1, 219);
+    gsDPFullSync();
+    gsSPEndDisplayList();
+    pc_gfx_run_dl(s_list);
+    pc_gfx_present(s_fill_fb);
+}
+
+static void case_fillwindow(void) {
+    static const struct { int win_w, win_h, fill, n64_w, px_w, px_h, band; } steps[] = {
+        {2880, 1620, 1, 392, 2887, 1767, 0},   /* 36 a side; 7.36: 3 internal pixels cut a side */
+        {1920, 1080, 1, 392, 1924, 1178, 0},
+        {3440, 1440, 1, 526, 3443, 1571, 0},   /* 103 a side */
+        {2880, 1620, 0, 426, 2880, 1623, 66},  /* off: 2880 x 1488 shown */
+        {1440, 1080, 1, 320, 1440, 1080, 45},  /* 4:3: 1440 x 990 */
+    };
+    int i, k, ok;
+    float env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
+    float env_scale = getenv("RUSH_GFX_SCALE") ? pc_gfx_parse_scale(getenv("RUSH_GFX_SCALE"), &ok) : 1.0f;
+    if (s_window) {   /* the window has its own size */
+        printf("  (fillwindow: headless only)\n");
+        return;
+    }
+    pc_gfx_set_widescreen(-1.0f);
+    pc_gfx_set_scale(-1);
+    for (i = 0; i < (int)(sizeof(steps) / sizeof(steps[0])); i++) {
+        int ww, wh, bad = 0, w = steps[i].win_w, h = steps[i].win_h, band = steps[i].band, nw, nh, pw, ph;
+        uint8_t *win, mid[4];
+        pc_gfx_set_window_size(w, h);
+        pc_gfx_set_fill(steps[i].fill);
+        for (k = 0; k < 2; k++)
+            fill_frame();
+        if (pc_gfx_framebuffer_dims(s_fill_fb, &nw, &nh, &pw, &ph) != 0 || nw != steps[i].n64_w ||
+            pw != steps[i].px_w || ph != steps[i].px_h) {
+            printf("  FAIL fillwindow %dx%d fill %d: the target is %dx%d (%d across), not %dx%d (%d)\n", w, h,
+                   steps[i].fill, pw, ph, nw, steps[i].px_w, steps[i].px_h, steps[i].n64_w);
+            s_fail++;
+            continue;
+        }
+        pc_gfx_read_window(NULL, &ww, &wh);
+        win = (uint8_t *)malloc((size_t)ww * wh * 4);
+        if (win == NULL || pc_gfx_read_window(win, &ww, &wh) != 0 || ww != w || wh != h) {
+            printf("  FAIL fillwindow %dx%d: window readback (%dx%d)\n", w, h, ww, wh);
+            s_fail++;
+            free(win);
+            continue;
+        }
+        memcpy(mid, win + ((size_t)(h / 2) * w + w / 2) * 4, 4);
+        if (mid[0] + mid[1] + mid[2] < 100) {
+            printf("  FAIL fillwindow %dx%d: the middle is black\n", w, h);
+            s_fail++;
+        }
+        /* the picture's first and last rows (band 0: the window's), each side's column; the bands black */
+        for (k = 0; k < w; k += 37) {
+            bad += memcmp(win + ((size_t)band * w + k) * 4, mid, 3) != 0;
+            bad += memcmp(win + ((size_t)(h - 1 - band) * w + k) * 4, mid, 3) != 0;
+            if (band)
+                bad += win[(size_t)(band - 1) * w * 4 + k * 4 + 1] != 0 ||
+                       win[((size_t)(h - band) * w + k) * 4 + 1] != 0;
+        }
+        for (k = band; k < h - band; k += 23)
+            bad += memcmp(win + (size_t)k * w * 4, mid, 3) != 0 || memcmp(win + ((size_t)k * w + w - 1) * 4, mid, 3);
+        if (bad) {
+            printf("  FAIL fillwindow %dx%d fill %d: %d edge samples not as expected (band %d)\n", w, h,
+                   steps[i].fill, bad, band);
+            s_fail++;
+        }
+        free(win);
+    }
+    pc_gfx_set_fill(0);
+    pc_gfx_set_window_size(s_win_w, s_win_h);
+    pc_gfx_set_widescreen(env_aspect);
+    pc_gfx_set_scale_value(env_scale);
+}
+
 /* 2D at the internal scale, fractional ones above all: tiles of copy-mode and point-sampled texture rectangles side
  * by side (a background, menu art), glyph-sized rectangles a pixel apart (the game's fonts), magnified rectangles,
  * fill and 1-cycle bars a pixel wide or tall, a wide fill to the frame's bottom. Every internal pixel of the 4:3
@@ -2437,7 +2530,7 @@ static const Case s_cases[] = {
     {"lod", case_lod},           {"dualtile", case_dualtile}, {"belist", case_belist},
     {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
-    {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize},
+    {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize}, {"fillwindow", case_fillwindow},
     {"seams", case_seams},       {"ties", case_ties},         {"screenshot", case_screenshot},
     {"hud", case_hud},           {"highmem", case_highmem},   {"detail", case_detail},
 };

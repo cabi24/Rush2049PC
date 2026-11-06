@@ -101,6 +101,10 @@ F1 > Video
                  remembers its size and place.
   Widescreen     auto (the window's shape, the default), off (4:3),
                  16:10, 16:9, 21:9. The 3D view shows more at the sides.
+  Fill the window
+                 off (the default) or on. On: no bands above and below,
+                 the picture reaches the window's edges (with widescreen;
+                 a 4:3 window keeps them). video.fill
   Vsync          on (the default): no tearing, and no more frames than
                  the display shows.
   Frame rate     original (the game's own frames, the default), 60, 120,

@@ -499,6 +499,34 @@ the next frame. A new value applies from the next SETCIMG.
   - Whatever the game draws at the frame's edges to hide something (a border fill, a fade) that touches only
     one side: it now reaches the target's side.
 
+### Fill the window
+
+`video.fill` (`RUSH_GFX_FILL`, `pc_gfx_set_fill`; F1's Video page, [FRONTEND.md](FRONTEND.md)): `off`, the default,
+or `on`. Added 2026-11-05. The game shows 220 of the VI frame's 240 rows, and widescreen takes its aspect for the
+240-row frame, as a TV shows it: at 2880 × 1620 the picture is 2880 × 1488, with a 66-pixel band above and below
+(and in a 4:3 window, bands at the sides and above and below). With `fill` the aspect is the shown rows':
+
+- **The aspect** (`resolve_auto`): the window's (or the setting's) times rows shown / 240, the rows being the last
+  frame's, as the native scale takes them. At 16:9 that is 1.63 for the 240-row frame: the target is 392 × 240 (36
+  pixels a side, where 426 has 53), and its 220 rows have the window's shape. A fixed aspect (`16:9`) is then the
+  picture's own shape. In a 4:3 window the aspect comes out under 4:3, so nothing widens and the bands stay: fill
+  never cuts the 4:3 frame.
+- **The widening is rounded up** with fill (`wide_offset`): the picture is at most one N64 pixel a side wider than
+  the window's shape, never narrower.
+- **The scale and the present** (`pcgfx_window_scale`, `pcgfx_fit`, `fill_covers`): where the height's fit overflows
+  the width by at most one N64 pixel a side, the native scale is the height's fit and the present places the frame
+  with those columns past the window's sides (`r[0] < 0`; GL cuts them): at 2880 × 1620, 7.36, a 2887 × 1767 target,
+  1620 rows shown, 3 internal pixels cut at each side, pixel for pixel. A whole-multiple scale (`auto`, 2x...) keeps
+  its whole multiple and its bands. 21:9 (3440 × 1440): 526 × 220, 103 a side.
+- **What it changes**: the 3D shows slightly less at the sides than without fill (392 against 426 at 16:9) and
+  reaches the window's top and bottom; 2D, the HUD at the edges and side art work from the smaller ox as from any
+  other. Menus drawn 4:3 (tiles) keep black at their sides unless a pack gives them side art (TEXTURES.md "Side
+  art"). `off` runs none of it: the aspect, the rounding and the fit are as before.
+- **Tests**: `gfx.size.fill` (the scale and the fit at 16:9, 21:9, 16:10 and 4:3 windows, off, a whole multiple, a
+  frame drawn for another size) and `gfx.fillwindow` (frames of 220 rows in 2880 × 1620, 1920 × 1080, 3440 × 1440 and
+  1440 × 1080 windows: the targets' sizes, and the window's image to every edge, or its bands with fill off and in the
+  4:3 window).
+
 ### The HUD at the screen's edges
 
 `video.hud` (`RUSH_GFX_HUD`, `pc_gfx_set_hud`; F1's Video page, [FRONTEND.md](FRONTEND.md)): `edges`, the default,
