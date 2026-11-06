@@ -198,7 +198,8 @@ int net_start_time(NetSession *s, uint64_t *local_ns);
  * order). */
 int net_submit(NetSession *s, uint32_t n, const NetPad *pads);
 /* All ports' pads of retrace n (ports nobody owns are zero): 1 when known, 0 not yet within timeout_ms, -1 the
- * session ended. After the peer's BYE (NET_END_PEER_LEFT) the retraces whose pads are known still give 1. */
+ * session ended. After the peer's BYE (NET_END_PEER_LEFT) the retraces it ran itself still give 1 when their pads
+ * are known here, so both end at the same retrace. */
 int net_pads(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], int timeout_ms);
 /* How long the current net_pads retrace has been waiting for the peer, ms (0: not waiting). */
 int net_waiting_ms(NetSession *s);

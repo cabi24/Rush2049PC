@@ -21,9 +21,9 @@ game's memory (the build, the ROM, the mods, the host's settings adopted by the 
 source over the library at every retrace, both state hashes exchanged and compared, the session's rules (nothing holds
 the game, the overlay's locks, the paks in memory only), the waiting notice, the ends and their reports, and each
 session's input log. Two processes over loopback give one game, the same at every retrace, and with a fixed delay the
-same as one process playing both players' presses: on every two-player synthetic path, under every network model, in
-a fuzzer's random play, and on the retail cartridge on the Pi. Still on the unpaced virtual clock and the null audio
-output: the paced clock and the audio tap are the remaining pieces (12.6).
+same as one process playing both players' presses: on every two-player synthetic path, under every network model and
+in a fuzzer's random play. Still on the unpaced virtual clock and the null audio output: the paced clock and the
+audio tap are the remaining pieces (12.6).
 
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
@@ -1055,8 +1055,8 @@ must-match text to compare.
   quit key, over the last frame (`pc_menu_notice`, drawn by the overlay's UI hook, `pc_gfx_redraw`). The quit key
   (Escape) or closing the window leaves.
 - **Ending**: this side leaving at a retrace of its own (a limit, the quit key, the window, the overlay's Quit) waits up
-  to 0.5 s until the peer has its last inputs (`net_linger`), then BYE; the peer runs the retraces it has inputs for
-  and ends at the same retrace, or ends "the host left". A timeout (15 s, `--net-timeout`), a desync, a mismatch or a
+  to 0.5 s until the peer has its last inputs (`net_linger`), then BYE; the peer runs on to the retrace the other
+  ended at (its inputs are there) and ends there too, "the host left" (or guest). A timeout (15 s, `--net-timeout`), a desync, a mismatch or a
   protocol error ends both; the reason is logged and shown (a message box with a window), with `net_stats_line`. Exit
   0 when a player left, 3 otherwise.
 

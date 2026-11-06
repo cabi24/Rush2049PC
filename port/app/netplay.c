@@ -613,7 +613,9 @@ static void replay_hint(void)
     }
     if (len > 0 && (size_t)len < sizeof cmd)
         snprintf(cmd + len, sizeof cmd - (size_t)len, " --replay-inputs %s --log-hash 1,%d", S.pads_path, FULL_EVERY);
-    fprintf(stderr, "rush2049pc: online: to replay the session (with the same ROM and mods): %s\n", cmd);
+    fprintf(stderr, "rush2049pc: online: to replay the session (with the same ROM and mods%s): %s\n",
+            S.pak[0] || S.pak[1] ? "; the replay writes to the paks it is given, so give it copies of the .mpk files "
+                                   "to replay it again" : "", cmd);
 }
 
 int pc_net_finish(int code, int window)

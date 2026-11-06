@@ -1893,12 +1893,13 @@ static int pads_ready(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], uint
     return 1;
 }
 
-/* After the peer left (BYE), the retraces whose inputs it had sent still run: it ran them itself, so both games end
- * at the same retrace when it left at a retrace of its own (the end of a test's run, a player quitting): net_linger
- * made sure it had sent them. Nothing more can come, so the first retrace not known ends it here. */
+/* After the peer left (BYE), the retraces it ran itself still run here (up to the last it said it submitted), as far
+ * as their inputs came: net_linger made sure they had. So both games end at the same retrace when one left at a
+ * retrace of its own (a player quitting, a test's run at its limit). The first retrace past them ends it here. */
 static int drained(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], uint64_t now)
 {
-    return s->end == NET_END_PEER_LEFT && n < s->local_next && n >= s->consume_next && pads_ready(s, n, out, now);
+    return s->end == NET_END_PEER_LEFT && s->peer_latest_have && s->peer_cur != NET_RETRACE_NONE &&
+           (int32_t)(s->peer_cur - n) >= 0 && n < s->local_next && n >= s->consume_next && pads_ready(s, n, out, now);
 }
 
 int net_pads(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS], int timeout_ms)

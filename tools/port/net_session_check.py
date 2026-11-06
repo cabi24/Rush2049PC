@@ -546,7 +546,9 @@ def mode_mismatch(a):
             b = 1
         if not b:
             line = [l for l in tg.splitlines() if says in l][0]
-            say(f"mismatch {what}: refused before the game, both exit 3: {line[:200]}")
+            say(f"mismatch {what}: refused before the game, " +
+                ("the guest exits 3 and the host turns it away and waits on: " if what == "build" else
+                 "both exit 3: ") + line[:200])
         bad |= b
     # a setup the handshake can't see: the final check at retrace 0
     r = session(a, "mismatch.setup", hp, gp, short, timeout=120, guest_env={"RUSH2049_TEST_HEAP_FLOOR": "17"},
@@ -665,13 +667,18 @@ def mode_ends(a):
     th, tg, procs = r
     e, msg = ended(th)
     eg, _ = ended(tg)
+    last = [max([int(x) for x in re.findall(r"^rush2049pc: physics vi=(\d+):", t, re.M)] or [-1]) for t in (th, tg)]
+    if last[0] != last[1]:
+        say(f"ends bye: the host's last retrace is {last[0]}, the guest's {last[1]}")
+        bad = 1
     if e != "peer-left" or eg != "local" or exit_code(th) or exit_code(tg) or "frames reached:" not in tg:
         say(f"ends bye: host {e} ({msg}, exit {exit_code(th)}), guest {eg} (exit {exit_code(tg)}); expected "
             f"peer-left and local, both exit 0")
         bad = 1
     else:
         gap = procs[0].exit_time - procs[1].exit_time
-        say(f"ends bye: the guest left at its 900th graphics task; the host ended (peer-left, exit 0) {gap:.2f} s later")
+        say(f"ends bye: the guest left at its 900th graphics task; the host ended too (peer-left, exit 0), "
+            f"{abs(gap):.2f} s {'after' if gap >= 0 else 'before'} the guest's process exited, at the same retrace")
     # nobody there: the guest gives up
     port = free_udp_port()
     run_dir = Path(a.logs) / "ends.noanswer.run"
