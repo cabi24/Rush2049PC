@@ -193,6 +193,9 @@ void pc_si_set_pak_store(int ch, const char *folder);
 void pc_si_set_swap_check(int (*ok)(int ch));
 int pc_si_pak(int ch);                     /* what the game finds in the port now: PC_PAK_NONE, MEMORY or RUMBLE */
 const char *pc_si_pak_path(int ch);        /* the memory pak's file (or saves folder) when that is the port's choice */
+/* The image of channel ch's memory pak as it is now (PC_PAK_SIZE bytes into out): 1, or 0 when the port's choice isn't a
+ * memory pak or its image can't be used. A replay's header hashes each at the start (docs/port/LOCKSTEP.md 3). */
+int pc_si_pak_image(int ch, uint8_t *out);
 void pc_si_set_pads(const PcPad pads[4]);            /* main thread, each retrace */
 void pc_si_test_pads(const PcPad pads[4]);  /* --selftest: these pads until NULL, whatever the main loop sets */
 /* The rumble pak's motor on a channel: 1 while it is on, or if it was turned on since the last call (a pulse

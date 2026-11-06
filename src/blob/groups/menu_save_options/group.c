@@ -390,8 +390,8 @@ Handle func_800C7EC0(s32 pak, s32 slot) {   /* deleted static at 0x800C7EC0: GC 
 
 /* GC save.c CreatePlayer(int pak, unsigned char *name) */
 #ifdef TARGET_PC
-/* A profile keeps its handle's N64 address: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
+/* A profile keeps its handle's N64 address: the handle's own (pc_n64_identity, pc_prelude.h; LOCKSTEP.md 5). */
+#define N64A(x) pc_n64_identity(x)
 #else
 #define N64A(x) (u32)x
 #endif

@@ -27,6 +27,7 @@
 #include "pc_ghost_prompt.h"
 #include "pc_cheats.h"
 #include "pc_game_types.h"
+#include "pc_lockstep.h"
 #include "ultra.h"
 
 extern void n64_main(void *argument);   /* src/rom/lib_2cf0.c */
@@ -76,6 +77,16 @@ static void usage(FILE *f)
             "                      (audio.voices, audio.engines: docs/port/AUDIO.md 10)\n"
             "  --log-frames        at each of the game's frames, its retraces, the model tick and the camera's eye\n"
             "                      and car 0 as the last frame drew them: game.frame_rate's evenness, fps_even.py\n"
+            "  --record-inputs F   write each retrace's pads, as the game gets them, to F (docs/port/LOCKSTEP.md)\n"
+            "  --replay-inputs F   play F's pads instead of this PC's; --replay-force: even if the file's build,\n"
+            "                      cartridge or settings differ from this run's\n"
+            "  --input-delay D     this PC's pads D retraces later (the first D idle), or a schedule D:FROM,...\n"
+            "                      (2:0,4:600,1:1200: 2 from retrace 0, 4 from 600, 1 from 1200)\n"
+            "  --log-pads          each change of the game's pads, with its retrace\n"
+            "  --log-hash N[,W]    every N retraces, the state hash's line; the window and own storage every W\n"
+            "                      (default 60; 0 never); --hash-report N:PATH writes retrace N's regions to PATH\n"
+            "  --session-rules     an online session's rules without the network: the game's HUD models keep their\n"
+            "                      N64 places in widescreen\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
             "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
@@ -718,6 +729,71 @@ static int saves_act(int player, int action, const char *file, char *msg, size_t
 
 static const PcSavesUi g_saves_ui = {saves_backend, saves_list, saves_act, pc_store_notice};
 
+/* ---------------------------------------------------------------- input record and replay (docs/port/LOCKSTEP.md) */
+
+static PcLockstepOptions g_ls;   /* --record-inputs, --replay-inputs, --input-delay, --log-pads */
+static int g_session_rules;      /* --session-rules */
+
+/* What a replay must match (docs/port/LOCKSTEP.md 3, NETPLAY.md 1.5): the build, the cartridge as the game reads it
+ * (the ROM, and the mods' files and the file table they change), the settings the game reads, each controller's
+ * accessory and pak image, the session's rules, and the test models that change the game. "key=value" lines; '#'
+ * lines are only said. Called just before the boot, when all of them are set. */
+static char *must_match_text(const PcSettings *cfg)
+{
+    static const char *const keys[][2] = {
+        {"game", "frame_rate"}, {"game", "cars"}, {"game", "memory"}, {"game", "expansion_pak"},
+        {"game", "pc_setup"}, {"game", "ghost_prompt"}, {"game", "cheats_menu"}, {"game", "cheats_unlock"},
+        {"audio", "voices"}, {"audio", "engines"}, {"video", "draw_distance"}, {"video", "detail"}, {"video", "fog"},
+        {"audio", "latency"},   /* the AI's queue: on the virtual clock it moves the audio state (LOCKSTEP.md 7) */
+        {"game", "pak"}, {"game", "pak2"}, {"game", "pak3"}, {"game", "pak4"},
+    };
+    static const char *const env[] = {"RUSH2049_TEST_HEAP_FLOOR", "RUSH2049_TEST_WAVE_GROW",
+                                      "RUSH2049_TEST_AUDIO_POOL_FAIL", "RUSH_SIM_GFX_MS"};
+    size_t cap = 8192, n = 0;
+    char *t = malloc(cap), v[PC_CFG_PATH];
+    uint8_t sha[20], *img = malloc(PC_PAK_SIZE);
+    if (!t || !img) {
+        free(t), free(img);
+        return NULL;
+    }
+#define ADD(...) (n += (size_t)snprintf(t + n, n < cap ? cap - n : 0, __VA_ARGS__), n = n < cap ? n : cap - 1)
+    {   /* the commit, and whether the tree it was built from had changes (git describe's -dirty) */
+        const char *ver = pc_app_version();
+        size_t lv = strlen(ver);
+        ADD("build=%s%s\n", pc_app_version_commit(), lv > 6 && !strcmp(ver + lv - 6, "-dirty") ? "-dirty" : "");
+    }
+    pc_sha1(pc_rom_bytes(), pc_rom_size(), sha);
+    ADD("rom=");
+    for (int i = 0; i < 20; i++)
+        ADD("%02x", sha[i]);
+    ADD("\n");
+    if (g_mods.enabled && g_mods.region_size) {   /* the mods' region and the file table that points there */
+        uint64_t h[4] = {pc_xxh64(g_mods.region, g_mods.region_size, 0), pc_xxh64(D_8011B5BC, sizeof D_8011B5BC, 0),
+                         pc_xxh64(D_8002E580, sizeof D_8002E580, 0), pc_xxh64(D_80123564, sizeof D_80123564, 0)};
+        ADD("mods=%016llx\n", (unsigned long long)pc_xxh64(h, sizeof h, 0));
+    } else {
+        ADD("mods=none\n");
+    }
+    for (size_t i = 0; i < sizeof keys / sizeof keys[0]; i++)
+        if (pc_settings_get(cfg, keys[i][0], keys[i][1], v, sizeof v) == 0)
+            ADD("%s.%s=%s\n", keys[i][0], keys[i][1], v);
+    ADD("memory.window=%u\nmemory.os=%u\n", (unsigned)pc_rdram_size(), (unsigned)pc_os_mem_size());
+    for (int ch = 0; ch < 4; ch++) {
+        if (pc_si_pak_image(ch, img))
+            ADD("pak%d.image=%016llx\n", ch + 1, (unsigned long long)pc_xxh64(img, PC_PAK_SIZE, 0));
+        else
+            ADD("pak%d.image=none\n", ch + 1);
+    }
+    ADD("session.rules=%s\n", g_session_rules ? "on" : "off");
+    for (size_t i = 0; i < sizeof env / sizeof env[0]; i++)
+        if (getenv(env[i]) && *getenv(env[i]))
+            ADD("env.%s=%s\n", env[i], getenv(env[i]));
+    ADD("# rush2049pc %s (%s), %s\n", pc_app_version(), pc_app_build_type(), pc_app_version_build());
+#undef ADD
+    free(img);
+    return t;
+}
+
 #define MAX_OVERRIDES 64
 
 #ifdef SIGHUP
@@ -851,6 +927,38 @@ static int rush_main(int argc, char **argv)
         }
         else if (!strcmp(a, "--log-frames"))
             pc_game_frame_hook = frame_log;
+        else if (!strcmp(a, "--record-inputs"))   /* docs/port/LOCKSTEP.md */
+            g_ls.record = ARG();
+        else if (!strcmp(a, "--replay-inputs"))
+            g_ls.replay = ARG();
+        else if (!strcmp(a, "--replay-force"))
+            g_ls.replay_force = 1;
+        else if (!strcmp(a, "--input-delay"))
+            g_ls.delay = ARG();
+        else if (!strcmp(a, "--log-pads"))
+            g_ls.log_pads = 1;
+        else if (!strcmp(a, "--log-hash")) {
+            const char *s = ARG();
+            char *end;
+            unsigned long every = strtoul(s, &end, 10), full = 60;
+            if (*end == ',')
+                full = strtoul(end + 1, &end, 10);
+            if (*end || !every) {
+                fprintf(stderr, "rush2049pc: --log-hash takes N[,W] (retraces), not '%s'\n", s);
+                return 2;
+            }
+            pc_hash_log((uint32_t)every, (uint32_t)full);
+        } else if (!strcmp(a, "--hash-report")) {
+            const char *s = ARG();
+            char *end;
+            unsigned long at = strtoul(s, &end, 10);
+            if (*end != ':' || !end[1]) {
+                fprintf(stderr, "rush2049pc: --hash-report takes RETRACE:PATH, not '%s'\n", s);
+                return 2;
+            }
+            pc_hash_report_at((uint32_t)at, end + 1);
+        } else if (!strcmp(a, "--session-rules"))
+            g_session_rules = 1;
         else if (!strcmp(a, "--press-via")) {
             if (pc_input_set_via(ARG()) != 0)
                 return 2;
@@ -1233,8 +1341,21 @@ static int rush_main(int argc, char **argv)
         g_end_cars = run.end_info;
         run.end_info = ends_info;
     }
+    if (g_session_rules)
+        pc_gfx_hud_dx_off(1);   /* docs/port/LOCKSTEP.md 6 */
+    if (g_ls.record || g_ls.replay) {
+        g_ls.must_match = must_match_text(&cfg);
+        if (!g_ls.must_match)
+            return 1;
+    }
+    {
+        int ls = pc_lockstep_setup(&g_ls);   /* input record, replay and delay (docs/port/LOCKSTEP.md) */
+        if (ls)
+            return ls;
+    }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
+    pc_lockstep_finish();
     pc_pools_report();   /* port/ultra/pools.c: the pools' high-water marks (docs/port/MORECARS.md 8) */
     pc_heap_report();    /* port/ultra/heap.c: the heap's (docs/port/MEMORY.md 4) */
     {

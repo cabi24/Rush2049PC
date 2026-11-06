@@ -880,9 +880,14 @@ static void test_fps(void)
     pc_game_frame_note(3);
     CHECK(s3 + pc_frame_steps == 3 && pc_frame_scale == 1.5f, "two frames of three: three steps (%d + %d)", s3,
           pc_frame_steps);
-    CHECK(pc_fps_filter(0.36f) == powf(0.36f, 1.5f), "the filter over 1.5 frames: e^1.5");
+    /* the filter's powers are made of sqrtf and products, which round alike on every host (game_fps.c, LOCKSTEP.md 9),
+     * within a rounding of powf's */
+    CHECK(pc_fps_filter(0.36f) == 0.36f * sqrtf(0.36f) && fabsf(pc_fps_filter(0.36f) - powf(0.36f, 1.5f)) < 1e-7f,
+          "the filter over 1.5 frames: e^1.5 (%a against powf's %a)", (double)pc_fps_filter(0.36f),
+          (double)powf(0.36f, 1.5f));
     pc_game_frame_note(1);
     CHECK(fabsf(pc_fps_filter(0.36f) - 0.6f) < 1e-6f, "over half a frame: e^0.5 (%g)", (double)pc_fps_filter(0.36f));
+    CHECK(pc_fps_filter(0.7f) == sqrtf(0.7f), "over half a frame: sqrtf, correctly rounded everywhere");
     /* the noise of x = x * e + noise taken every frame: its scale keeps x's spread (the in-car view's bob, 7.6) */
     CHECK(fabsf(pc_fps_noise(0.75f) - sqrtf(0.25f / 0.4375f)) < 1e-6f, "the noise over half a frame: %g",
           (double)pc_fps_noise(0.75f));

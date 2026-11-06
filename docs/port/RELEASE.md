@@ -419,7 +419,9 @@ also makes a **draft** GitHub release with them, which a person checks and publi
   SDL2, zlib and the runtime are linked statically, so the program needs only Windows' own DLLs (`objdump -p`:
   ADVAPI32, GDI32, IMM32, KERNEL32, msvcrt, ole32, OLEAUT32, OPENGL32, SETUPAPI, SHELL32, USER32, VERSION,
   WINMM). The "Open ROM..." dialog added none: `IFileOpenDialog` is ole32's (`CoCreateInstance`), not
-  comdlg32's `GetOpenFileNameW`. `pe_check.py --dlls` fails on any other DLL; `win_pe` passes it when SDL2 is built
+  comdlg32's `GetOpenFileNameW`. WS2_32 (Winsock 2) is allowed as well, for online play's network library
+  (`port/net`, [NETWORK.md](NETWORK.md)); the program imports it once the game links that library, which it doesn't
+  yet. `pe_check.py --dlls` fails on any other DLL; `win_pe` passes it when SDL2 is built
   here (`RUSH_FETCH_SDL2`), as in the release. The executable is built RelWithDebInfo (-O2 -g,
   [OPTIMIZED.md](OPTIMIZED.md)) and is not stripped, so its backtraces can be symbolized (`addr2line -f -i`, for the
   inlined frames).

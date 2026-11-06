@@ -217,6 +217,10 @@ void pc_gfx_scene_stats(uint32_t *tasks, uint64_t *triangles, uint32_t *most);
 /* Where the HUD moves a point at frame x (N64 pixels of the 4:3 frame), in N64 pixels: what the game's 3D models
  * placed at HUD points (ZOID_WindowTo3D) add to their x. 0 unless edges is in effect. */
 int pc_gfx_hud_dx(int x);
+/* 1: pc_gfx_hud_dx gives the game 0, whatever the widening (a lockstep session, docs/port/LOCKSTEP.md 6: the models'
+ * places are game state, and the two PCs' windows differ). The 2D HUD still moves; the models then sit at the 4:3
+ * frame's places. 0: as above (the default). */
+void pc_gfx_hud_dx_off(int off);
 
 /* Drawing over the frame, in window pixels (port/gfx/gfx_ui.c), for port/input's settings overlay. While a UI hook
  * is set, each present (and pc_gfx_redraw) calls it with the window's size after the frame is shown and before

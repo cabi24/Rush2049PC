@@ -19,9 +19,10 @@ import struct
 import sys
 
 RT_ICON, RT_GROUP_ICON, RT_VERSION = 3, 14, 16
-# Windows' own DLLs, which every Windows 10 and 11 has: what the release's rush2049pc.exe may import
+# Windows' own DLLs, which every Windows 10 and 11 has: what the release's rush2049pc.exe may import. ws2_32.dll is
+# Winsock 2, for online play's port/net (docs/port/NETWORK.md), once the game links it.
 SYSTEM_DLLS = {"advapi32.dll", "gdi32.dll", "imm32.dll", "kernel32.dll", "msvcrt.dll", "ole32.dll", "oleaut32.dll",
-               "opengl32.dll", "setupapi.dll", "shell32.dll", "user32.dll", "version.dll", "winmm.dll"}
+               "opengl32.dll", "setupapi.dll", "shell32.dll", "user32.dll", "version.dll", "winmm.dll", "ws2_32.dll"}
 SIZES = {16, 20, 24, 32, 40, 48, 64, 128, 256}
 
 

@@ -3,8 +3,17 @@
 Written 2026-11-05 against c8692ce. Line numbers are from that commit.
 
 **Status (2026-11-06):** the user took the recommendations of section 7 and asked for the work to start, with one
-emphasis: "robust, put up with lower and higher latencies, and stay in sync" (section 11). Phase 0 and the network
-library are in progress. Sections 1-10 are the plan as written; section 11 is what robustness adds to it.
+emphasis: "robust, put up with lower and higher latencies, and stay in sync" (section 11). Phase 0 is in progress.
+**The network library is written and tested on its own** ([NETWORK.md](NETWORK.md): `port/net`, its wire format, the
+delay controller, time sync, `RUSH_SIM_NET` and the proofs against a toy simulation); the game doesn't link it yet.
+Sections 1-10 are the plan as written; section 11 is what robustness adds to it.
+
+**Phase 0.3 and 0.4 (2026-11-06, [LOCKSTEP.md](LOCKSTEP.md)):** the pads gate and its source API for `port/net`,
+`--record-inputs`, `--replay-inputs` and `--input-delay` (with schedules), the state hash with host pointers
+normalised and `--log-hash`, the desync report, the mutation check, `--session-rules` (`pc_gfx_hud_dx` 0), the
+render-values check, `powf` at 60 replaced, and the settings matrix, which found `audio.latency` changing the game's
+state (1.5's table has it as free). Two processes agree on every hash on all 62 synthetic paths; Windows against Linux
+is wired in CI (`windows-replay`) and has not run yet.
 
 - **Phase 0.1 and 0.2 done** (branch `net-clock`): paced mode (`--paced`, [ULTRA.md](ULTRA.md) 10), the virtual clock
   with each move at its wall time, `pc_time_virtual()` split into "deterministic" and `pc_time_free()` ("nothing is
