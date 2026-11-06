@@ -56,7 +56,7 @@ def found():
             if p.suffix not in (".c", ".h") or not p.is_file():
                 continue
             code = strip(p.read_text(errors="replace"))
-            rel = str(p.relative_to(ROOT))
+            rel = p.relative_to(ROOT).as_posix()   # forward slashes on Windows too, as the allowlist spells them
             for m in FUNCS.finditer(code):
                 hits.setdefault((rel, m.group(1)), code.count("\n", 0, m.start()) + 1)
             if names:
