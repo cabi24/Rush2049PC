@@ -941,3 +941,50 @@ Where they ran, on cc3a517:
 | the IDO check, build host | 0 differ, 0 missing ([DECOUPLE.md](DECOUPLE.md) 9) |
 | `n64_neutral.py --base 09da2f0` | passes |
 | `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (`--check-loader`), `bounds_check`, build host | no open findings; bounds_check none new |
+
+## 11. Paced mode: the AI on the N64 clock, the device from a tap
+
+Written 2026-11-06 for online play ([NETPLAY.md](NETPLAY.md) 1.8, 5 phase 0.2; [ULTRA.md](ULTRA.md) 10).
+
+**Why.** With a device the AI follows the device's queue (section 7): `pc_audio_queued_frames` and the target come
+from its pulls, and in real time the device's thread sends AI events itself. So the moments the game's audio thread
+runs are the sound card's, not the N64 clock's, and two PCs (or two runs) differ. Even with `--fast` only the null
+output keeps the AI on the N64 clock. Paced mode must take `--fast`'s course with a device playing.
+
+**The queue the AI keeps** (`pc_audio_set_paced`, before `pc_audio_init`): the null output's whatever the backend. It
+drains by the clock `pc_audio_set_clock` gives, the N64's; its target is `--fast`'s (384 frames, and `audio.latency`
+doesn't raise it: that is the tap's in paced mode, since the latency is each PC's own); `RUSH2049_AUDIO_RATE` is the
+device's, not the queue's. So the AI's events, the holds for renders (section 7) and what the converter gets are
+`--fast`'s with the null output, to the bit, and so is `--dump-audio`'s WAV (the game's pushed sound).
+
+**The tap** (`audio_out.c`, `tap_*`). A device that opens in paced mode is the tap's. Every frame the queue's
+converter gets (after the holds' matching: pushes in order, a held push's render or its silence, never a ring turn
+again), and so every frame the WAV gets, also goes through a converter of the tap's own into a FIFO, which the
+device's pulls drain:
+
+- **Its level.** About 50 ms (`audio.latency` raises it). The device plays silence until the FIFO first has it, and
+  again after it runs dry (`filling`): one gap, not a stutter at a level of zero. Until the device plays, the FIFO
+  keeps the newest frames at the level (`trimmed before the device played`: SDL's disk driver, for one, starts
+  pulling a few hundred milliseconds after it opens). Past 250 ms (a device that stopped pulling) the oldest frames
+  go, down to the level (`frames dropped`, the first ten logged). The smoothed level settles for half a second each
+  time the FIFO starts to play before the drift's integral follows it, so a start doesn't wind it up.
+- **The drift.** The paced N64 clock is the host's monotonic clock; the sound card plays by its own crystal, and a time
+  sync stretches the pace a little. So the tap's converter (`rs_init_nudged`, `rs_nudge`: the same windowed sinc,
+  its step moved) is nudged to hold the level: the level smoothed over half a second, a proportional part (0.2% at 5
+  ms off, at most 0.5%) and an integral one for the steady drift (at most 5%). A sound card's crystal is within
+  thousandths of a percent of the wall clock, so the nudge stays a fraction of a percent; SDL's disk driver (the
+  tests' device) consumes 0.7-3% slow, more on a loaded host, as `SDL_Delay` oversleeps each of its 10 ms periods,
+  and the integral takes that up. The device's pulls never reach the queue the AI keeps: not its level, not its
+  target (in real time the target grows with a device's pulls; in paced mode it stays the null output's).
+- **A dry FIFO** is a click on this PC only: the device plays the last frame faded to silence, then silence, and the
+  sound fades in when the level is back. The game never sees it: the tap's pulls never touch the queue the AI keeps
+  (no `need`, no give-up of a held push), and the pull hook does nothing on the virtual clock.
+- **Held** (`pc_audio_set_paused`: the pause key, the F1 overlay): the FIFO plays out into silence that is not an
+  underrun, and fills again after.
+
+**The log.** At start `audio: paced: the queue the null output's on the N64 clock; a tap to sdl (wasapi) at 48000 Hz,
+pulls of 480 frames, the FIFO 50 ms`; the queue's line at exit names it `paced`; and the tap's own line, at exit and
+with `-v` (or `RUSH2049_AUDIO_STATS=seconds`) every 10 s: `audio: tap to sdl (disk) at 48000 Hz, pulls of 480
+frames: 22047 Hz converted x2.17717; the FIFO least/mean/most against 50 ms; the ratio nudged on average (least to
+most), now; N underruns (ms of silence), ms filling, ms idle, frames dropped; ms trimmed before the device played`.
+The first ten dry FIFOs are each logged (`audio: tap: the FIFO ran dry (underrun N, T s in)`).

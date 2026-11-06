@@ -55,9 +55,11 @@ static void usage(FILE *f)
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
             "  --frame-rate R      frames shown a second: original (the game's own), display, or 60, 120...;\n"
             "                      the frames between the game's are drawn from its last two\n"
-            "  --seconds N         stop after N seconds (of game time with --fast)\n"
+            "  --seconds N         stop after N seconds (of game time with --fast or --paced)\n"
             "  --fast              run as fast as the host can: the N64 clock moves on only while every N64\n"
             "                      thread waits, so a run is the same on any host (tests, scripted runs)\n"
+            "  --paced             --fast's run in real time: the same course to the bit, each move of the N64\n"
+            "                      clock at its wall time (online play's clock; RUSH_PACED=1 too)\n"
             "  --frames N          stop after N graphics tasks (at the retrace that shows the last)\n"
             "  --screenshot-at N   save a PNG once N graphics tasks have run (--screenshot PATH, default\n"
             "                      rush2049pc-N.png)\n"
@@ -469,7 +471,8 @@ static int hud_race(void)
     return s != 0xFFFFFFFFu && (s & 0x00600000u) != 0 && *(volatile int16_t *)&gNumWindows == 1;
 }
 
-/* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
+/* --fast and paced mode: the audio output's null backend drains the queue by the N64 clock, as a device would in real
+ * time (paced mode's tap included: its accounting is the null output's, docs/port/AUDIO.md 11). */
 static double fast_clock(void)
 {
     return pc_host_ns() / 1e9;
@@ -814,6 +817,8 @@ static int rush_main(int argc, char **argv)
 #endif
     int no_rom = 0, selftest = 0, use_config = 1;
     int print_config = 0, fast = 0;
+    /* paced mode (docs/port/ULTRA.md 10): a mode a session turns on, not a setting; RUSH_PACED=1 for the tests */
+    int paced = getenv("RUSH_PACED") && strcmp(getenv("RUSH_PACED"), "") && strcmp(getenv("RUSH_PACED"), "0");
     const char *bare_rom = NULL, *log_path = NULL;
     int use_log = 1;
     PcRunOptions run = {0};
@@ -886,6 +891,8 @@ static int rush_main(int argc, char **argv)
             run.seconds = atof(ARG());
         else if (!strcmp(a, "--fast"))
             fast = 1;
+        else if (!strcmp(a, "--paced"))
+            paced = 1;
         else if (!strcmp(a, "--frames"))
             run.frames = (uint32_t)atoi(ARG());
         else if (!strcmp(a, "--stop-at-gfx"))
@@ -1178,6 +1185,8 @@ static int rush_main(int argc, char **argv)
 #endif
     if (selftest) {
         pc_time_set_virtual(fast);
+        if (paced)
+            pc_time_set_paced(1);
         return pc_selftest();
     }
 
@@ -1300,6 +1309,8 @@ static int rush_main(int argc, char **argv)
         pc_si_set_pak_file(ch, pak_path[ch]);
         pc_si_set_pak(ch, cfg.pak[ch]);
     }
+    if (paced)   /* the AI's queue the null output's on the N64 clock, a device fed from a tap (AUDIO.md 11) */
+        pc_audio_set_paced(1);
     if (pc_audio_init(cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     pc_audio_set_volume(cfg.volume / 100.0);
@@ -1315,8 +1326,10 @@ static int rush_main(int argc, char **argv)
     run.game_info = game_info;
     run.game_rate = game_rate;   /* game.frame_rate = 60 under vsync: the frames paced by the vblanks (FRAMERATE.md 7.6) */
     pc_gfx_set_hud_race(hud_race);
-    if (fast) {
+    if (fast || paced) {   /* paced mode is --fast's virtual clock, paced to the wall clock (port/ultra/pace.c) */
         pc_time_set_virtual(1);
+        if (paced)
+            pc_time_set_paced(1);
         pc_audio_set_clock(fast_clock);
     }
 #ifdef SIGHUP

@@ -44,6 +44,11 @@ display: about one a second).
 60 and the game's own frames (video.frame_rate original) under a vsync swap, each vblank shows the game's next frame
 (docs/port/FRAMERATE.md 7.6).
 
+--paced runs every run in paced mode (docs/port/ULTRA.md 10): the virtual clock paced to the wall clock, whose
+presentation (the vsync model, frames between, the vblank pacing) is real time's; the retraces are then judged by the
+exit line `paced: N retraces in W s of wall time, R a second` (the virtual clock's own line is always 60), and the
+audio by tools/port/paced_check.py (its tap; here the backend is `paced`, not checked).
+
 Exit status 0 when all hold. Stdlib only, Python 3.9+.
 """
 import argparse
@@ -83,6 +88,7 @@ def main():
                     "(docs/port/FRAMERATE.md 7); at 60 the game's own frames a second are checked too")
     ap.add_argument("--max-stale", type=float, default=-1, help="with the vsync model, at most this share of its "
                     "vblanks showing no new frame (a frame held twice; docs/port/FRAMERATE.md 7.6)")
+    ap.add_argument("--paced", action="store_true", help="every run in paced mode (docs/port/ULTRA.md 10)")
     args = ap.parse_args()
     if args.max_stale >= 0 and (os.name == "nt" or args.no_sim):
         print("realtime_check: --max-stale reads the vsync model's vblanks, which Linux runs have: skipped")
@@ -127,7 +133,7 @@ def reference(args, logs):
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
            "--seconds", str(args.seconds), "--audio", "sdl", "--frame-rate", "60", "--set",
-           f"game.frame_rate={args.game_fps}"]
+           f"game.frame_rate={args.game_fps}"] + (["--paced"] if args.paced else [])
     p = subprocess.run(cmd, cwd=logs, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
     out = p.stdout.decode(errors="replace")
     (logs / "run.log").write_text(out)
@@ -155,6 +161,8 @@ def check(args, frame_rate, logs, timing=""):
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(ROOT / "tools/port/synth/race.press"),
            "--seconds", str(args.seconds), "--audio", "sdl", "--set", f"game.frame_rate={args.game_fps}"]
+    if args.paced:
+        cmd.append("--paced")
     if frame_rate:
         cmd += ["--frame-rate", frame_rate]
         if args.present_ms > 0:
@@ -207,6 +215,12 @@ def check(args, frame_rate, logs, timing=""):
         return 1
     vi, secs, caught, dropped = int(m[1]), float(m[2]), int(m[3]), int(m[4])
     rate = vi / secs if secs else 0
+    if args.paced:   # the virtual clock's line is 60 a second by construction: the wall clock's
+        pm = re.search(r"^rush2049pc: paced: (\d+) retraces in ([\d.]+) s of wall time, ([\d.]+) a second", out, re.M)
+        if not pm:
+            print("realtime_check: no paced line")
+            return 1
+        rate = float(pm[3])
     good = rate >= 59.0 and dropped <= 12
     ok &= good
     print(f"realtime_check: retraces {rate:.2f} a second, {caught} caught up, {dropped} dropped: "

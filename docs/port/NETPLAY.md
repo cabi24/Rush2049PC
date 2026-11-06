@@ -15,6 +15,18 @@ render-values check, `powf` at 60 replaced, and the settings matrix, which found
 state (1.5's table has it as free). Two processes agree on every hash on all 62 synthetic paths; Windows against Linux
 is wired in CI (`windows-replay`) and has not run yet.
 
+- **Phase 0.1 and 0.2 done** (branch `net-clock`): paced mode (`--paced`, [ULTRA.md](ULTRA.md) 10), the virtual clock
+  with each move at its wall time, `pc_time_virtual()` split into "deterministic" and `pc_time_free()` ("nothing is
+  real time"), holds and lags re-based, the time-sync API (`pc_pace_set_start`, `pc_pace_adjust_ns`,
+  `pc_pace_shift_ns`, `pc_pace_info`, `pc_port.h`); and the audio's AI on the N64 clock with the device fed from a
+  tap ([AUDIO.md](AUDIO.md) 11). Every synthetic path takes `--fast`'s course to the bit in paced mode, under the
+  timing models, a loaded host, a hold and a stopped process too; 60.000 retraces a second of wall time (CTest
+  `paced_same_*`, `paced_model_*`, `paced_realtime`, `paced_audio`, `paced_slow_host`, `paced_load`, `paced_hold`,
+  `paced_stop`, `paced_gate`, `paced_latency`, `ultra_selftest_paced`; the results in ULTRA.md 10). The pads gate's
+  waits follow port/net's rule (over half a retrace late: re-based to the pads' arrival, never catching up), and
+  port/net's clock contract maps onto `pc_pace_set_start` and `pc_pace_adjust_ns` (`pc_port.h`). In paced mode
+  `audio.latency` and the audio device don't reach the game: the state hash is `--fast`'s with the null output.
+
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
 full screen.

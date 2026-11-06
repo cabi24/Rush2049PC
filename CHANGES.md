@@ -6,6 +6,13 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play's clock** (groundwork, not a setting): `--paced` runs the game on `--fast`'s virtual clock, which
+  takes the same course on every PC from the same inputs, at the pace of real time: each move of the clock waits for
+  its wall time. A paced run is `--fast`'s to the bit on every synthetic path, at 60.000 retraces a second; a host too
+  slow for it slows the game in wall time and never changes its course. Vsync, frames between and the window behave
+  as in real time; the sound card is fed from a copy of the game's sound, so its timing never reaches the game
+  ([ULTRA.md](docs/port/ULTRA.md) 10, [AUDIO.md](docs/port/AUDIO.md) 11, [NETPLAY.md](docs/port/NETPLAY.md)).
+
 - **Online play, the network part** (not in the program yet: nothing changes when you play): `port/net`, the library
   two PCs will race through, in lockstep over UDP, with an input delay that follows the connection, time sync, a check
   every retrace that both games are the same, and a join code. Tested on its own against a stand-in game, on
