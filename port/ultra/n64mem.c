@@ -17,10 +17,16 @@ int n64_bcmp(const void *a, const void *b, uint32_t n) { return memcmp(a, b, n) 
 uint8_t *pc_window_base = (uint8_t *)(uintptr_t)0x80000000u;
 #endif
 
-/* pc_prelude.h's pc_n64_identity where port/ultra/statehash.c's isn't linked (the test programs that link game C):
- * PC_N64A's value, a window pointer's N64 address. */
-__attribute__((weak)) unsigned int pc_n64_identity(const void *p)
+/* pc_prelude.h's pc_n64_identity. port/ultra/statehash.c, where it is linked, sets the hook from a constructor (the
+ * hash's tables name own storage too); without it (the test programs that link game C) it is PC_N64A's value, a
+ * window pointer's N64 address. A hook rather than a weak definition: mingw's linker doesn't take a weak definition
+ * from an archive (test_assets_save.exe, CI's windows-cross). */
+unsigned int (*pc_n64_identity_hook)(const void *p);
+
+unsigned int pc_n64_identity(const void *p)
 {
+    if (pc_n64_identity_hook)
+        return pc_n64_identity_hook(p);
 #ifdef RUSH_NOFIXED
     return p ? 0x80000000u + (unsigned int)((uintptr_t)p - (uintptr_t)pc_window_base) : 0u;
 #else

@@ -382,9 +382,10 @@ uint64_t pc_hash_pointer(uint64_t v)
     return v - P.img_lo < P.img_hi - P.img_lo ? canonical((uintptr_t)v) : 0;
 }
 
-/* pc_prelude.h's: the 32-bit N64 address a pointer stands for where the game keeps one as a number (an id): a window
- * pointer's own; own storage's, its symbol's N64 address and offset, as on the N64; else the low half, as PC_N64A. */
-unsigned int pc_n64_identity(const void *p)
+/* pc_prelude.h's pc_n64_identity, through port/ultra/n64mem.c's hook: the 32-bit N64 address a pointer stands for
+ * where the game keeps one as a number (an id): a window pointer's own; own storage's, its symbol's N64 address and
+ * offset, as on the N64; else the low half, as PC_N64A. */
+static unsigned int n64_identity(const void *p)
 {
     uint32_t a = p ? pc_n64_addr(p) : 0;
     uint64_t c;
@@ -394,6 +395,12 @@ unsigned int pc_n64_identity(const void *p)
     if (c && (uint32_t)(c >> 32) == TAG(K_OWN, (uint32_t)(c >> 32) & 0xFF))
         return (uint32_t)c;
     return (unsigned int)(uintptr_t)p;
+}
+
+extern unsigned int (*pc_n64_identity_hook)(const void *p);
+__attribute__((constructor)) static void n64_identity_hook(void)   /* before main, so before any profile is made */
+{
+    pc_n64_identity_hook = n64_identity;
 }
 
 /* The game C's sites that keep a host pointer's low half in 32 bits (window addresses), found by comparing two
