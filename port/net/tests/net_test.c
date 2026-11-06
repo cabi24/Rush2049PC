@@ -24,6 +24,10 @@
 #include "toy.h"
 #include "vnet.h"
 
+#ifdef _WIN32
+#include <mmsystem.h>
+#endif
+
 #define MS 1000000ull
 #define PERIOD (1000000000 / 60)
 
@@ -480,6 +484,7 @@ typedef struct VOpts {
     int host_files, guest_files;   /* random files of 32 KiB */
     const char *host_settings, *guest_settings;
     int timeout_ms;
+    int manual_accept;
     uint64_t seed;
 } VOpts;
 
@@ -498,7 +503,7 @@ static void vconfig(NetConfig *c, VUser *u, VNode *node, NetRole role, const VOp
     c->build = role == NET_HOST ? (o->host_build ? o->host_build : "test") : (o->guest_build ? o->guest_build : "test");
     c->sim = role == NET_HOST ? (o->host_sim ? o->host_sim : "") : (o->guest_sim ? o->guest_sim : "");
     c->seed = o->seed + (uint64_t)role + 1;
-    c->auto_accept = 1;
+    c->auto_accept = !o->manual_accept;
     c->delay_fixed = o->delay_fixed;
     c->join_code = role == NET_HOST ? o->host_code : o->guest_code;
     if (o->timeout_ms)
@@ -709,6 +714,56 @@ static void test_session_basics(void)
                i == 0 ? "connected, 120 ticks" : msg);
         vpair_close(&p);
     }
+
+    /* a stranger replays the guest's (tagged) HELLO ahead of it: the host answers both, and only the guest, which
+     * can use its session, becomes the peer */
+    for (int coded = 0; coded < 2; coded++) {
+        memset(&o, 0, sizeof o);
+        o.ticks = 120;
+        if (coded)
+            o.host_code = o.guest_code = "replay-me";
+        vpair_open(&p, &o);
+        p.v.now += 250000;
+        net_poll(p.g);   /* the guest's first HELLO, now in the host's queue */
+        VNode *hq = &p.v.node[0];
+        CHECK(hq->n == 1, "one HELLO waiting (%d)", hq->n);
+        VPkt hello = hq->q[hq->head];
+        hq->n = 0;
+        NetAddr stranger = vnet_addr(3), guest = vnet_addr(1);
+        vnet_inject(&p.v, 0, &stranger, hello.data, hello.len);
+        vnet_inject(&p.v, 0, &guest, hello.data, hello.len);
+        vrun_ticks(&p, 20000 * MS);
+        CHECK(p.dh.n == 120 && p.dg.n == 120 && first_difference(&p.dh, &p.dg) == NET_NONE,
+              "%s: the guest after a replayed HELLO: %u ticks", coded ? "join code" : "no code", p.dg.n);
+        CHECK(p.v.node[3].n >= 1, "the stranger got its own HELLO_ACK (%d)", p.v.node[3].n);
+        printf("session: a HELLO replayed from elsewhere ahead of the guest's (%s): the guest is the peer\n",
+               coded ? "join code" : "no code");
+        vpair_close(&p);
+    }
+
+    /* the caller's acceptance: both wait in NET_ACCEPT with everything there, then accept (the guest early) */
+    memset(&o, 0, sizeof o);
+    o.ticks = 120;
+    o.manual_accept = 1;
+    o.host_settings = "[game]\ncars = 12\n";
+    o.guest_files = 1;
+    o.host_sim = o.guest_sim = "delay=15,loss=10";
+    vpair_open(&p, &o);
+    net_accept(p.g);   /* before anything arrived: accepted as it does */
+    uint64_t t1 = p.v.now;
+    while (net_state(p.h) != NET_ACCEPT && p.v.now - t1 < 5000 * MS)
+        vrun(&p, MS, 1);
+    CHECK(net_state(p.h) == NET_ACCEPT, "the host waits for its caller (%s)", net_state_name(net_state(p.h)));
+    CHECK(net_peer_file(p.h, 0, &data, &size) && size == 32768, "the guest's file, to check, in NET_ACCEPT");
+    vrun(&p, 500 * MS, 1);
+    CHECK(net_state(p.h) == NET_ACCEPT && p.dh.n == 0, "nothing starts before the host accepts");
+    net_accept(p.h);
+    vrun_ticks(&p, 20000 * MS);
+    CHECK(p.dh.n == 120 && p.dg.n == 120 && first_difference(&p.dh, &p.dg) == NET_NONE, "after accepting: %u %u",
+          p.dh.n, p.dg.n);
+    CHECK(net_peer_settings(p.g, &data, &size) && size == strlen(o.host_settings), "the guest has the settings");
+    printf("session: manual acceptance: the host waits in accept with the guest's file, then the run\n");
+    vpair_close(&p);
 
     /* fixed delay */
     memset(&o, 0, sizeof o);
@@ -1022,11 +1077,15 @@ static int cmd_fuzz(long iters)
                 break;
             }
             case NET_MSG_INPUT:
-            case NET_MSG_HASH:
-                n = input_payload(pl, (uint32_t)(rnd() % 5000), (uint32_t)(rnd() % 5000),
-                                  type == NET_MSG_HASH ? 0 : (int)(rnd() % 121), (uint8_t)(1 + rnd() % 15),
-                                  (uint32_t)(rnd() % 5000), (int)(rnd() % 40), (int)(rnd() % 2));
+            case NET_MSG_HASH: {   /* one draw a statement: the same packets on every compiler */
+                uint32_t cur = (uint32_t)(rnd() % 5000), first = (uint32_t)(rnd() % 5000);
+                int count = type == NET_MSG_HASH ? 0 : (int)(rnd() % 121);
+                uint8_t ports = (uint8_t)(1 + rnd() % 15);
+                uint32_t hfirst = (uint32_t)(rnd() % 5000);
+                int hcount = (int)(rnd() % 40), wh = (int)(rnd() % 2);
+                n = input_payload(pl, cur, first, count, ports, hfirst, hcount, wh);
                 break;
+            }
             default:
                 n = (int)(rnd() % 1100);
                 for (int k = 0; k < n; k++)
@@ -1036,8 +1095,10 @@ static int cmd_fuzz(long iters)
             if (len < 0)
                 continue;
             int muts = (int)(rnd() % 6);
-            for (int k = 0; k < muts; k++)
-                buf[rnd() % (uint64_t)len] ^= (uint8_t)(1u << (rnd() % 8));
+            for (int k = 0; k < muts; k++) {
+                uint64_t at = rnd() % (uint64_t)len;
+                buf[at] ^= (uint8_t)(1u << (rnd() % 8));
+            }
             if (kind == 2)
                 len = (int)(rnd() % (uint64_t)(len + 1));   /* truncated */
             if (kind == 3 && rnd() % 2)
@@ -1078,9 +1139,10 @@ static int cmd_fuzz(long iters)
                 int k = (int)(rnd() % (uint64_t)nkeep), len = keeplen[k];
                 memcpy(buf, keep[k], (size_t)len);
                 int muts = 1 + (int)(rnd() % 4);
-                for (int j = 0; j < muts; j++)
-                    buf[NET_HEADER_SIZE + rnd() % (uint64_t)(len > NET_HEADER_SIZE ? len - NET_HEADER_SIZE : 1)] ^=
-                        (uint8_t)(1u << (rnd() % 8));
+                for (int j = 0; j < muts; j++) {
+                    uint64_t at = NET_HEADER_SIZE + rnd() % (uint64_t)(len > NET_HEADER_SIZE ? len - NET_HEADER_SIZE : 1);
+                    buf[at] ^= (uint8_t)(1u << (rnd() % 8));
+                }
                 if (rnd() % 4 == 0)
                     len = (int)(rnd() % (uint64_t)len);
                 int to = (int)(rnd() % 2);
@@ -1231,7 +1293,12 @@ static int cmd_threads(const char *name, uint32_t ticks)
 
 int main(int argc, char **argv)
 {
+#ifdef _WIN32
+    setvbuf(stdout, NULL, _IONBF, 0);   /* msvcrt's _IOLBF is full buffering: net_check.py reads lines as they come */
+    timeBeginPeriod(1);   /* the service threads' select() timeouts, as the game asks for (docs/port/WINDOWS.md 5) */
+#else
     setvbuf(stdout, NULL, _IOLBF, 0);
+#endif
     if (getenv("NET_TEST_VERBOSE"))
         g_verbose = 1;
     if (argc >= 2 && !strcmp(argv[1], "unit"))

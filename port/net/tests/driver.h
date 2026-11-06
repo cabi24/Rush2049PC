@@ -1,6 +1,6 @@
 /* port/net/tests/driver.h: a peer's game loop around the toy simulation, as the game's main loop will use port/net:
  * at retrace n submit the pads sampled now, wait for all pads of n, step, hash, and pace the next retrace by the
- * retrace period plus net_pace_adjust_ns (re-based after a stall: never catching up). On a virtual clock it steps
+ * retrace period plus net_pace_adjust_ns (re-based after a stall of over half a retrace, net.h). On a virtual clock it steps
  * without blocking (drv_step); in real time it sleeps and waits (drv_tick). */
 #ifndef NET_DRIVER_H
 #define NET_DRIVER_H

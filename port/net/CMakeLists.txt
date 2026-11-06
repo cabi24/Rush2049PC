@@ -58,6 +58,8 @@ if(WIN32)
     target_link_libraries(net_peer PRIVATE winmm)   # timeBeginPeriod
     target_link_libraries(net_test PRIVATE winmm)
 endif()
+# Test programs define main: out of compile_commands.json, which census.py reads as the game and the PC layer.
+set_target_properties(pcnet_testlib net_test net_peer PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_test(NAME net_unit COMMAND net_test unit)
 set_tests_properties(net_unit PROPERTIES TIMEOUT 120)

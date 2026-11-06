@@ -187,7 +187,7 @@ int net_peer_settings(NetSession *s, const void **data, size_t *size);
 int net_settings_differ(NetSession *s);   /* guest: its own blob was not the host's (the host's rules) */
 int net_peer_files(NetSession *s);
 int net_peer_file(NetSession *s, int index, const void **data, size_t *size);
-/* The caller has checked and adopted what arrived: READY goes out. */
+/* The caller has checked and adopted what arrived: READY goes out (called before NET_ACCEPT: as soon as it has). */
 void net_accept(NetSession *s);
 /* Retrace 0's wall time on this side's clock, once known (STARTING): 1, else 0. */
 int net_start_time(NetSession *s, uint64_t *local_ns);
@@ -206,8 +206,12 @@ int net_waiting_ms(NetSession *s);
 void net_hash(NetSession *s, uint32_t n, uint32_t hash);
 /* An extra hash of retrace n (a whole window hash, every 60 retraces or so). */
 void net_window_hash(NetSession *s, uint32_t n, uint64_t hash);
-/* Time sync: ns to add to the interval before the next retrace (0 .. 1 ms): this side runs ahead by the measured
- * amount. Call once per retrace, after net_pads gave this retrace's pads. */
+/* Time sync: ns to add to the interval before the next retrace, 0 .. 1 ms (positive: this side is ahead and waits;
+ * the side behind never races). Call once per retrace, after net_pads gave this retrace's pads. The caller's clock:
+ *   deadline(n + 1) = deadline(n) + retrace_ns + adjust, or, when net_pads(n) gave the pads more than half a retrace
+ *   after deadline(n), the moment it gave them + retrace_ns + adjust (re-based after a stall: never catching up;
+ *   a smaller lateness stays on the grid, and time sync evens out what is left);
+ *   deadline(0) = net_start_time, on the session's clock (cfg.now_ns; give the game's own). */
 int64_t net_pace_adjust_ns(NetSession *s);
 /* This side's input delay now, retraces. */
 int net_delay(NetSession *s);

@@ -38,7 +38,11 @@ int main(int argc, char **argv)
     int linger_ms = 1000, nfiles = 0;
     uint64_t seed = 0;
     static uint8_t files[NET_FILES_MAX][32768];
+#ifdef _WIN32
+    setvbuf(stdout, NULL, _IONBF, 0);   /* msvcrt's _IOLBF is full buffering: net_check.py reads lines as they come */
+#else
     setvbuf(stdout, NULL, _IOLBF, 0);
+#endif
 #ifdef _WIN32
     timeBeginPeriod(1);   /* the service thread's select() timeouts, as the game asks for (docs/port/WINDOWS.md 5) */
 #endif

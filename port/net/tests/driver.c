@@ -7,7 +7,6 @@
 
 #include "net_os.h"
 
-#define STALL_NS 1000000
 
 int drv_init(Driver *d, NetSession *s, int port, uint32_t ticks, uint64_t seed, int64_t period, uint64_t trace_every)
 {
@@ -51,8 +50,8 @@ static void after(Driver *d, const NetPad pads[NET_MAX_PORTS], uint64_t ready)
         net_window_hash(d->s, n, toy_window_hash(&d->toy));
     int64_t adj = net_pace_adjust_ns(d->s);
     d->adjust_total += adj;
-    if ((int64_t)(ready - d->deadline) > STALL_NS)
-        d->deadline = ready + (uint64_t)d->period + (uint64_t)adj;   /* re-base after a stall */
+    if ((int64_t)(ready - d->deadline) > d->period / 2)
+        d->deadline = ready + (uint64_t)d->period + (uint64_t)adj;   /* re-based after a stall (net.h) */
     else
         d->deadline += (uint64_t)d->period + (uint64_t)adj;
     if (d->trace_every && ready >= d->next_trace && d->ntrace < DRV_TRACE) {

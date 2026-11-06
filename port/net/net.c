@@ -19,6 +19,7 @@
 #define DRIFT_PPM 50     /* an older sample's offset may be off by this much a second (clock drift) */
 #define MAXWIN 512
 #define WHASH_RING 16
+#define PENDING 4      /* host: HELLOs answered, waiting for their sender to use the session (it proves itself) */
 
 #define RESEND_NS (100 * MS)        /* reliable messages: every 100 ms until acknowledged */
 #define PING_NS (50 * MS)           /* the handshake's pings */
@@ -58,6 +59,13 @@ typedef struct WHash {
     uint8_t have;
     uint64_t h;
 } WHash;
+
+typedef struct Pending {
+    int used;
+    NetAddr addr;
+    uint64_t nonce, session, at;
+    NetHello hello;
+} Pending;
 
 typedef struct NtpSample {
     uint64_t t, sec;
@@ -147,12 +155,14 @@ struct NetSession {
     uint32_t peer_latest_seq, peer_cur;
     uint64_t peer_cur_start;
     int peer_delay;
-    int64_t peer_feedback;
+    int64_t peer_feedback, adv;   /* adv: the smoothed advantage (time sync) */
+    int adv_have;
     int peer_feedback_have;
     /* pumping */
     uint64_t last_pump;
     int frozen_was, misuse_logged;
     double hello_tokens, bye_tokens;
+    Pending pending[PENDING];
     uint64_t tokens_at;
     NetSim *sim;
     NetStats st;
@@ -258,13 +268,18 @@ static void finish_to(NetSession *s, NetWriter *w, const NetAddr *to, uint64_t n
 
 static void finish(NetSession *s, NetWriter *w, uint64_t now) { finish_to(s, w, &s->peer, now); }
 
-static void send_hello(NetSession *s, int type, const NetAddr *to, uint64_t now)
+/* HELLO (guest), or HELLO_ACK (host) with the session it offers that guest and the guest's nonce. */
+static void send_hello(NetSession *s, int type, const NetAddr *to, uint64_t session, uint64_t nonce_echo,
+                       uint64_t now)
 {
     uint8_t buf[NET_MAX_PACKET];
     NetWriter w;
-    begin(s, &w, buf, type, now, type == NET_MSG_HELLO_ACK);
+    begin(s, &w, buf, type, now, 0);
+    if (type == NET_MSG_HELLO_ACK)   /* the session field: the one offered */
+        for (int i = 0; i < 8; i++)
+            buf[8 + i] = (uint8_t)(session >> (8 * i));
     NetHello h = s->my_hello;
-    h.nonce_echo = type == NET_MSG_HELLO_ACK ? s->peer_nonce : 0;
+    h.nonce_echo = nonce_echo;
     net_w_hello(&w, &h);
     finish_to(s, &w, to, now);
 }
@@ -626,7 +641,7 @@ static void on_hello(NetSession *s, const NetMsg *m, const NetAddr *from, uint64
     s->hello_tokens -= 1;
     if (s->peer_set) {   /* the peer again: its HELLO_ACK was lost */
         if (h->nonce == s->peer_nonce && s->state != NET_ENDED)
-            send_hello(s, NET_MSG_HELLO_ACK, &s->peer, now);
+            send_hello(s, NET_MSG_HELLO_ACK, &s->peer, s->session_id, s->peer_nonce, now);
         return;
     }
     if (strcmp(h->build, s->build) != 0) {
@@ -643,22 +658,66 @@ static void on_hello(NetSession *s, const NetMsg *m, const NetAddr *from, uint64
         send_bye_to(s, from, NET_END_PROTOCOL, 0, "a file is too large", 0, now);
         return;
     }
+    /* Not the peer yet: a HELLO can be replayed from anywhere. Each sender gets its own session in a HELLO_ACK,
+     * and the first to send a packet in its session (tagged, with a join code) becomes the peer (confirm_peer). */
+    Pending *p = NULL;
+    for (int i = 0; i < PENDING; i++)
+        if (s->pending[i].used && net_addr_equal(&s->pending[i].addr, from))
+            p = &s->pending[i];
+    if (p && p->nonce == h->nonce) {   /* its HELLO_ACK was lost */
+        send_hello(s, NET_MSG_HELLO_ACK, from, p->session, p->nonce, now);
+        return;
+    }
+    if (!p) {
+        p = &s->pending[0];
+        for (int i = 0; i < PENDING; i++) {   /* a free entry, else the oldest */
+            if (!s->pending[i].used) {
+                p = &s->pending[i];
+                break;
+            }
+            if (s->pending[i].at < p->at)
+                p = &s->pending[i];
+        }
+    }
+    p->used = 1;
+    p->addr = *from;
+    p->nonce = h->nonce;
+    p->hello = *h;
+    p->at = now;
+    do
+        net_os_random(&p->session, sizeof p->session);
+    while (!p->session);
+    send_hello(s, NET_MSG_HELLO_ACK, from, p->session, p->nonce, now);
+}
+
+/* host: a packet in a pending session from its address: that guest is the peer. */
+static int confirm_peer(NetSession *s, const NetMsg *m, const NetAddr *from, uint64_t now)
+{
+    Pending *p = NULL;
+    for (int i = 0; i < PENDING; i++)
+        if (s->pending[i].used && net_addr_equal(&s->pending[i].addr, from) && s->pending[i].session == m->h.session)
+            p = &s->pending[i];
+    if (!p || m->h.type == NET_MSG_HELLO)
+        return 0;
+    const NetHello *h = &p->hello;
+    char a[80];
+    net_addr_str(from, a, sizeof a);
     s->peer = *from;
     s->peer_set = 1;
-    s->peer_nonce = h->nonce;
+    s->session_id = p->session;
+    s->peer_nonce = p->nonce;
     s->peer_hello = *h;
     s->peer_ports = h->ports;
     s->npeer = net_popcount4(h->ports);
-    do
-        net_os_random(&s->session_id, sizeof s->session_id);
-    while (!s->session_id);
+    memset(s->pending, 0, sizeof s->pending);
+    h = &s->peer_hello;
     if (setup_peer_blobs(s) != 0) {
         end_session(s, NET_END_PROTOCOL, 0, 1, "out of memory for the guest's files");
-        return;
+        return 1;
     }
     say(s, 0, "a guest joined from %s (ports 0x%x, %d file(s))", a, h->ports, h->nfiles);
-    send_hello(s, NET_MSG_HELLO_ACK, from, now);
     enter_handshake(s, now);
+    return 1;
 }
 
 static void on_hello_ack(NetSession *s, const NetMsg *m, uint64_t now)
@@ -1135,6 +1194,8 @@ static void rx_seq(NetSession *s, uint32_t seq)
             s->rx_bits |= 1ull << d;
             s->rx_unique++;
             s->st.reordered++;
+            if ((int32_t)(seq - s->rx_seq_first) < 0)
+                s->rx_seq_first = seq;   /* it was sent before the first one to arrive */
         }
     }
 }
@@ -1169,9 +1230,9 @@ static void refill_tokens(NetSession *s, uint64_t now)
 {
     double dt = (double)(now - s->tokens_at) * 1e-9;
     s->tokens_at = now;
-    s->hello_tokens += dt * 10;
-    if (s->hello_tokens > 20)
-        s->hello_tokens = 20;
+    s->hello_tokens += dt * 50;   /* HELLOs handled a second, from everyone: a HELLO_ACK is no bigger than it */
+    if (s->hello_tokens > 50)
+        s->hello_tokens = 50;
     s->bye_tokens += dt * 5;
     if (s->bye_tokens > 5)
         s->bye_tokens = 5;
@@ -1204,7 +1265,8 @@ static void handle(NetSession *s, const uint8_t *buf, int len, const NetAddr *fr
                                : "a packet tagged with a join code, and this side has none");
         return;
     }
-    if (s->peer_set ? !net_addr_equal(from, &s->peer) : m.h.type != NET_MSG_HELLO) {
+    if (s->peer_set ? !net_addr_equal(from, &s->peer)
+                    : m.h.type != NET_MSG_HELLO && !(s->role == NET_HOST && confirm_peer(s, &m, from, now))) {
         s->st.rejected++;
         s->st.rejected_source++;
         return;
@@ -1228,14 +1290,7 @@ static void handle(NetSession *s, const uint8_t *buf, int len, const NetAddr *fr
         return;
     }
     if (m.h.type == NET_MSG_HELLO && !s->peer_set) {
-        on_hello(s, &m, from, now);   /* the peer's packets are counted from here on */
-        if (s->peer_set) {
-            rx_seq(s, m.h.seq);
-            s->last_rx = now;
-            s->echo_t = m.h.t_send;
-            s->echo_rx_at = now;
-            s->echo_have = 1;
-        }
+        on_hello(s, &m, from, now);   /* the peer's packets are counted once it is the peer */
         return;
     }
     rx_seq(s, m.h.seq);
@@ -1311,7 +1366,7 @@ static void timers(NetSession *s, uint64_t now)
                 return;
             }
             if (!s->last_hello_tx || now - s->last_hello_tx >= HELLO_NS) {
-                send_hello(s, NET_MSG_HELLO, &s->peer, now);
+                send_hello(s, NET_MSG_HELLO, &s->peer, 0, 0, now);
                 s->last_hello_tx = now;
             }
         }
@@ -1498,7 +1553,7 @@ NetSession *net_create(const NetConfig *c, char *err, size_t errlen)
     net_mutex_init(&s->lock);
     net_cond_init(&s->cond);
     s->created = s->tokens_at = now_ns(s);
-    s->hello_tokens = 20;
+    s->hello_tokens = 50;
     s->bye_tokens = 5;
     s->lslot = calloc(RING, sizeof *s->lslot);
     s->rslot = calloc(RING, sizeof *s->rslot);
@@ -1737,6 +1792,8 @@ int net_peer_file(NetSession *s, int index, const void **data, size_t *size)
 void net_accept(NetSession *s)
 {
     net_mutex_lock(&s->lock);
+    if (s->state < NET_ACCEPT)
+        s->cfg.auto_accept = 1;   /* before it has all arrived: accept it as it does */
     accept_locked(s, now_ns(s));
     net_mutex_unlock(&s->lock);
 }
@@ -1945,19 +2002,29 @@ int64_t net_pace_adjust_ns(NetSession *s)
     if (s->submit_next && sc->n == n && sc->t_ready && s->peer_latest_have && s->peer_cur != NET_RETRACE_NONE &&
         s->theta_valid && s->state == NET_RUNNING) {
         int64_t p = s->cfg.retrace_ns;
-        uint64_t next = sdiff(sc->t_ready, sc->t_start) > (int64_t)STALL_NS ? sc->t_ready + (uint64_t)p
-                                                                              : sc->t_start + (uint64_t)p;
+        uint64_t next = sdiff(sc->t_ready, sc->t_start) > p / 2 ? sc->t_ready + (uint64_t)p   /* re-based */
+                                                                : sc->t_start + (uint64_t)p;
         uint64_t peer_next =
             s->peer_cur_start - (uint64_t)s->theta + (uint64_t)((int64_t)(int32_t)(n + 1 - s->peer_cur) * p);
-        int64_t adv = sdiff(peer_next, next);
-        s->st.advantage_ms = adv / 1e6;
-        if (adv > (int64_t)SYNC_DEADBAND_NS) {
-            adj = adv / 2;
+        /* Each sample carries both sides' wake-up jitter (a retrace's start is when its submit came): smoothed over
+         * about 8 retraces, and this side's own adjustment taken off the estimate as it is made, since it shortens
+         * the lead at once (so the smoothing doesn't overshoot). */
+        int64_t sample = sdiff(peer_next, next);
+        if (!s->adv_have) {
+            s->adv = sample;
+            s->adv_have = 1;
+        } else {
+            s->adv += (sample - s->adv) / 8;
+        }
+        if (s->adv > (int64_t)SYNC_DEADBAND_NS) {
+            adj = s->adv / 2;
             if (adj > (int64_t)SYNC_MAX_NS)
                 adj = SYNC_MAX_NS;
+            s->adv -= adj;
             s->st.sync_corrections++;
             s->st.sync_ms_total += adj / 1e6;
         }
+        s->st.advantage_ms = s->adv / 1e6;
     }
     net_mutex_unlock(&s->lock);
     return adj;
@@ -2022,7 +2089,8 @@ void net_stats(NetSession *s, NetStats *st)
     int64_t t = window_max(&s->transit, now, TRANSIT_WINDOW_NS);
     st->transit_ms = t >= 0 ? t / 1e6 : -1;
     st->feedback_ms = s->peer_feedback_have ? s->peer_feedback / 1e6 : -1;
-    st->lost = s->rx_any ? (uint64_t)(s->rx_seq_max - s->rx_seq_first + 1) - s->rx_unique : 0;
+    uint64_t span = s->rx_any ? (uint64_t)(s->rx_seq_max - s->rx_seq_first) + 1 : 0;
+    st->lost = span > s->rx_unique ? span - s->rx_unique : 0;
     if (s->sim) {
         NetSimStats ss;
         net_sim_stats(s->sim, &ss);
