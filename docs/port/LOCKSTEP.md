@@ -349,9 +349,13 @@ An ASan or TSan build runs `replay_same_` of drive, race2p and race12, `replay_f
 `hash_aslr` on race2p (a path runs 17-37 times slower there). All pass on the build host in Debug and RelWithDebInfo,
 with the rest of the suite. Also run there:
 
-- `hash_aslr`'s check on all 62 paths, two processes each with the full hash at every retrace: the same.
+- `hash_aslr`'s check on all 62 paths, two processes each with the full hash at every retrace, Debug: 62 of 62 the
+  same, the images apart in every pair.
+- `gate_same`'s check on all 62 paths: 62 of 62 the same.
+- `replay_same` on the Pi (aarch64, RelWithDebInfo): 62 of 62; and the build host's x86-64 recordings replayed there:
+  62 of 62 the same trace and hashes (section 5.3).
 - `synth_compare.py --same` of f9a7177's program against this one's, Debug and RelWithDebInfo: 62 of 62 paths the
-  same (the default is unchanged).
+  same (the default is unchanged), and at `game.frame_rate=60` (section 9).
 - The settings matrix (section 7).
 
 **CI.** The linux jobs upload each path's recording and replay log (`build/pc/synth/replay/*.pads`, `*.replay.log`).
