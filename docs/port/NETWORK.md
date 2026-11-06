@@ -351,34 +351,44 @@ The models (each direction; `tools/port/net_check.py` has the real-time ones, wi
 | pause | the guest `delay=20,pause=60:3` (real time: at 4 s), the host `delay=20` |
 | burst | `delay=30,jitter=5,burst=5:1:30` (real time: 0.5 s every 3 s) |
 
-**Results** (rocky, x86-64, Debug and RelWithDebInfo, 2026-11-06; the Pi 5 the same). Virtual clock, 10,000 ticks:
+**Results** (rocky, x86-64, Debug and RelWithDebInfo, 2026-11-06: 21 of 21 in each; the virtual runs are the same
+on the Pi 5). Virtual clock, 10,000 ticks:
 
-| Model | Same hash every tick | Delay (retraces) over time | Stalls (host + guest) | Ticks/s, last 3/4 |
+| Model | Same hash every tick | Delay (retraces) over time | Stalls, host + guest | Ticks/s, last 3/4 |
 |---|---|---|---|---|
 | clean | yes, 10,000 + 10,000 checks | 1 | 0 | 60.000 |
 | lan20 | yes | 2 | 0 | 60.000 |
 | wan80 | yes | 6, then 7 | 0 | 60.000 |
-| bad150 | yes | 10-14, mostly 12-13 | 2 + 2, 25 ms in all | 59.991 |
-| shift | yes | 1; 13 at 200 ms; down to 2 at 30 ms in 25 s | 2 + 2: the jump to 200 ms, 184 ms each | 59.824 (the jump's stalls) |
+| bad150 | yes | 10-13, mostly 12-13 | 1 + 2, 19 ms in all | 59.995 |
+| shift | yes | 1; 13 at 200 ms; down to 2 within 25 s of the drop to 30 ms | 2 + 2: the jump to 200 ms, 184 ms each | 59.824 (the jump's stalls) |
 | pause | yes | 2 throughout | 1 (the host, 2.98 s) | 58.6 (the pause) |
-| burst | yes | 3-6 | 1 + 1, 26 ms | 60.000 |
+| burst | yes | 3-6 | 3 + 2, 70 ms in all | 59.985 |
 
 Real time over UDP on rocky (two processes, RelWithDebInfo; ticks a second from the first third on, host / guest):
 
-| Model | Ticks | Same hash every tick | Delay | Stalls (ms) | Ticks/s |
+| Model | Ticks | Same hash every tick | Delay | Stalls (ms in all) | Ticks/s |
 |---|---|---|---|---|---|
-| clean | 420 | yes | 1 | 0 / 0 | 59.999 / 60.000 |
+| clean | 420 | yes | 1 | 0 / 0 | 60.000 / 60.000 |
 | lan20 | 420 | yes | 2 | 0 / 0 | 60.000 / 60.000 |
-| wan80 | 480 | yes | 5-7, then 7 | 2 (16) / 0 | 60.000 / 60.000 |
-| bad150 | 600 | yes | 11-13 | 1 (5) / 0 | 60.000 / 59.988 |
+| wan80 | 480 | yes | 5-7, then 7 | 2 (15) / 1 (4) | 59.999 / 60.000 |
+| bad150 | 600 | yes | 11-13 | 1 (22) / 0 | 60.000 / 59.990 |
 | shift | 720 | yes | 1; 13 from the jump; 12 | 2 (367) / 2 (367), at the jump | 60.000 / 60.000 |
 | pause | 600 | yes | 2 | 1 (2,976: the pause) / 0 | 41.4 (the pause) |
-| burst | 480 | yes | 2-7 | 0 / 2 (15) | 59.881 / 60.000 |
+| burst | 480 | yes | 2-5 | 2 (20) / 3 (28) | 59.737 / 59.996 |
 
-`net_threads` (80 ms ± 20, 480 ticks): the same hashes, 60.000 a second, delay 7, no stall, BYE across in 63 ms.
-Desync: both end `desync` at retrace 300, each naming both hashes. Disconnect: the host ends `timeout` 3.03 s after
+`net_threads` (80 ms ± 20, 480 ticks): the same hashes, 60.000 a second, delay 7, no stall, BYE across in 70 ms.
+Desync: both end `desync` at retrace 300, each naming both hashes. Disconnect: the host ends `timeout` 3.02 s after
 the kill (a 3 s timeout in the test; 15 s by default). BYE: the host ends `peer-left` 0.04 s after the guest exits.
 SIGSTOP: the host stalls 2.98 s, the run completes with the same hashes at all 720 ticks, and the delay stays 2.
+
+**A soak** (`net_check.py soak --model bad150 --ticks 36000`, the Pi, 10 minutes): the same hash at all 36,000 ticks;
+stalls 14 + 10 (177 ms in all, the longest 21 ms); the delay 11-15; 59.983 ticks a second.
+
+**Sanitizers** (the Pi, ASan and UBSan): `net_test unit`, `fuzz`, the bad150, shift, pause and burst models, `threads`, and the two-process
+bad150, clean, desync and SIGSTOP cases: no report, and 60.000 a second under ASan.
+
+**The whole suite** (rocky, Debug, `ctest -j3`): 393 of 393 (`assets_rom` skipped: it needs the ROM), on the branch
+before the last port/net-only changes, whose net tests were run again after them.
 
 **Windows.** The library and both test programs cross-build with mingw-w64 (the Pi, Debian 12's GCC 12.2), no
 warnings, importing only Windows' own DLLs; the tests are in ctest, so CI's `windows` job (MSYS2) runs them. They
