@@ -333,24 +333,34 @@ two copies of the program on one PC, not yet between two PCs over the
 internet: the log says how a session went (see the end of this section).
 
 The easiest way to connect is Tailscale (tailscale.com, free for personal
-use): both PCs join one tailnet (or the host shares their PC with the
-friend's account), and each PC gets a name and a 100.x address that work
-from anywhere, with nothing to set up on the router.
+use): both PCs run it, signed in to one tailnet (or the host shares their
+PC with the friend's account), and each PC gets a 100.x address and a
+name that work from anywhere, with nothing to set up on the router.
 
-1. The host starts the program with --net-host, from a command prompt in
-   this folder (or from a shortcut with --net-host after rush2049pc.exe):
-       start /wait rush2049pc.exe --net-host
-   It waits for the friend (up to 10 minutes; the window opens once they
-   have joined, and Ctrl-C in the prompt stops it). The first time,
-   Windows asks whether to let the program on the network: allow it, for
-   private networks (where Tailscale's network is).
-2. The guest joins with the host's Tailscale name or 100.x address:
-       start /wait rush2049pc.exe --net-join my-pc
-       start /wait rush2049pc.exe --net-join 100.101.102.103
+1. The host double-clicks "Host online race.bat". The game's window
+   opens and waits for the friend, up to 10 minutes, listing this PC's
+   addresses: the Tailscale one (100.x) and its name first. Esc cancels.
+   The first time, Windows asks whether to let the program on the
+   network: allow it on Private networks (Tailscale's network is one).
+   The host uses UDP port 24049.
+2. The guest double-clicks "Join online race.bat" and types one of the
+   addresses the host's window shows: its Tailscale name (my-pc, or the
+   whole my-pc.tail1234.ts.net) or its 100.x address. If Windows asks
+   about the network there too, allow it on Private networks as well.
 3. Both games start together, at the title screen. The host plays player
    1 and the guest player 2, each with their own keyboard or first
    controller. Choose two players in the main menu, as on a couch: both
    players' presses count in the menus.
+
+The launchers start rush2049pc.exe with --net-host, and with --net-join
+and the address typed; options given to them are passed on. From a
+command prompt in this folder the same is
+    start /wait rush2049pc.exe --net-host
+    start /wait rush2049pc.exe --net-join my-pc
+A console window stays open behind the game with its messages; after an
+error it waits for a key. Whatever stops a session before the race (the
+address can't be found, nobody answers, the other PC runs another
+version, ROM or mods) is said in a box.
 
 The host's settings rule: for the session, the guest's game takes the
 host's settings that change the game (the cars in a race, the game's frame
@@ -360,11 +370,12 @@ which, and F1 shows them locked. Each player brings their own controller
 pak (profiles, ghosts) as a copy: nothing is saved during a session.
 
 Without Tailscale: the host forwards UDP port 24049 on their router to
-their PC, and the guest joins the router's public address
-(--net-join 203.0.113.5). Then both should give the same join code
-(--net-code SOMETHING-LONG), so only who knows it can join. Another port:
---net-host 25000 on the host, --net-join 203.0.113.5:25000 on the guest
-(or net.port in rush2049pc.ini, and net.code for the code).
+their PC, and the guest types the router's public address (203.0.113.5).
+Then both should use the same join code, so only who knows it can join:
+net.code = SOMETHING-LONG in both rush2049pc.ini files (or --net-code
+SOMETHING-LONG after the launcher, from a command prompt). Another port:
+--net-host 25000 for the host, and the guest types 203.0.113.5:25000
+(or net.port in rush2049pc.ini).
 
 The input delay (how long a press takes to reach the game, the same for
 both players) follows the connection by itself: a retrace or two (17-33
@@ -373,8 +384,11 @@ ms) on a LAN or a close Tailscale link, 4-6 across a continent.
 
 F1, the pause key and switching to another window don't pause an online
 game: the other player would wait. While F1 is open your player gets no
-input. When the friend's PC stops sending, the game waits and says so;
-Escape (or closing the window) leaves, and after 15 s the session ends by
+input; its first page ends with two Online rows: the other PC, the round
+trip (RTT), your input delay, how often the game waited for the other PC
+(stalls) and the last retrace both games checked alike ("hash ok at").
+When the friend's PC stops sending, the game waits and says so; Escape
+(or closing the window) leaves, and after 15 s the session ends by
 itself. The log has the session's numbers: the round trip, the delay, how
 often the game waited.
 

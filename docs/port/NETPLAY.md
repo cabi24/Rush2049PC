@@ -38,6 +38,14 @@ same as one process playing both players' presses: on every two-player synthetic
 in a fuzzer's random play. A session runs on the paced clock (phase 0.1) with the audio tap (0.2), `--fast` for the
 unpaced tests (12.6).
 
+**Online play from the desktop (2026-11-06, branch `net-ui`, section 12.10):** before a test between two real PCs
+(Windows, over Tailscale): the host opens its window at once and shows a waiting screen (the port, this PC's
+addresses, Tailscale's 100.x one and its MagicDNS name first; Esc cancels) instead of waiting with no window; the
+guest shows who it joined as soon as its window opens; every way a session can end before the race says why in a
+message box; launchers in the release folders (`Host online race.bat`, `Join online race.bat`, `host-online.sh`,
+`join-online.sh`); F1's main page ends with two Online rows in a session (the other PC, the round trip, the input
+delay, stalls, the last hash check).
+
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
 full screen.
@@ -997,6 +1005,7 @@ online"; this is how it works and what was proved.
 | Where | What |
 |---|---|
 | `port/app/netplay.c`, `netplay.h` | the session: connecting, the host's settings and the paks, the pads source, the hashes, the waiting notice, the ends, the input log |
+| `port/app/netwait.c` | the host's waiting screen (12.10), and the window's events before the game |
 | `port/main.c` | the options, the handshake's place in the boot, the settings text and this PC's pak, the session's paks in the SI, the paced clock and the paced audio in a session |
 | `port/config/config.c` | `pc_must_match`: the one list of the settings the game reads (a replay's header, the guest's adoption, the overlay's locks: `pc_settings_session_rule`); `[net]` port, delay, code |
 | `port/input` | `pc_input_set_session`: nothing holds the game; the overlay's locks; `pc_menu_notice`, a notice over the frame |
@@ -1014,7 +1023,9 @@ path, the paks, the audio and the clock are as before (12.7, `synth_compare.py -
 The flow, in the boot's order (`netplay.h`):
 
 1. **Connect**, right after the ROM and `mods_prepare`, before `game.memory` maps the window. Each side sends a
-   settings text and its controller 1's pak. The text: `build=` (the commit, `-dirty` when it had changes),
+   settings text and its controller 1's pak. The guest waits here for the host's (it adopts them before its memory is
+   mapped); the host only opens its port, sets up as usual, opens its window and waits with the waiting screen up
+   (`pc_net_wait_guest`, 12.10), then checks the guest's pak. The text: `build=` (the commit, `-dirty` when it had changes),
    `rom=` (SHA-1), `mods=` (a hash of each wave's file the mods give, or `none`), then the adopted settings of
    `pc_must_match` as `section.key=value`, and `#` lines (the mods' summary, the version) that are only said. The
    library compares the build first (a guest of another build is told so; the host turns it away and waits on).
@@ -1140,8 +1151,118 @@ then has (a `--fast` replay with the default takes the same course).
 ### 12.9 Not done
 
 - Phase 3: two real PCs (Windows against Linux) over Tailscale.
-- The host has no window while it waits for its guest (the handshake comes before the window), only the console's
-  and the log's lines; an F1 "Online" page (phase 6) would host from inside the game.
+- Hosting and joining from inside the game (an F1 "Online" page, phase 6): the launchers and the waiting screen
+  (12.10) are the way in for now.
 - A pak imported from another player's ghost keeps its own name on the session's pak (the game's note names are read
   once the game's data is loaded, after the handshake).
 - Rumble: no rumble accessory in a session; the local player's motor to its own controller can come later.
+
+### 12.10 Online play from the desktop: the host's window, the ends, the launchers, F1's rows
+
+Written 2026-11-06 on branch `net-ui` (from 4b63166), before the first session between two real PCs: the user on
+Windows and a friend, over Tailscale. On Windows `rush2049pc.exe` is a GUI program with no console, so a host that
+waited for its guest before its window (up to 10 minutes) showed nothing at all and looked hung or crashed.
+
+**The host's window first.** The host adopts nothing of its guest's, so its setup needs nothing from the guest.
+`pc_net_connect` only opens its port (a port that can't be opened is said at once: "Couldn't host an online race on
+UDP port 24049: bind: error 10048 (the port is in use). Is another copy of the program hosting already?"); main maps
+the memory, loads the game's data and opens the window as without a session; then `pc_net_wait_guest` waits, before
+`pc_input_init`. A guest that comes meanwhile is answered by the network thread as before. Then the guest's pak is
+checked (`pc_net_paks`) and the setup goes on (12.1, 4-6). The guest is unchanged: it adopts the host's settings
+before its memory is mapped, so its window can't open before the host has answered (within a second when the host is
+there; when not, "no answer" after the timeout, 15 s, in a box).
+
+**The waiting screen** (`port/app/netwait.c`) is drawn with the overlay's font over a cleared frame (`pc_gfx_redraw`
+before the game has presented one), four times a second and at once after a window event. Its events come through
+the renderer's event hook: port/input isn't set up yet, so no hotkey and no F1 overlay, which could change a setting
+the guest has been sent. It says:
+
+- "Hosting an online race on port N." and "Waiting for a player to join... m:ss"; once one is joining, "A player
+  joined from ADDRESS: getting their settings...";
+- "Your friend joins with one of this PC's addresses:", best first: Tailscale's 100.x and under it its MagicDNS name,
+  Tailscale's IPv6 address, the local network's (192.168, 10, then 172.16-31, which containers and WSL often take),
+  public ones; at most six, the rest in the log (every one, with its interface on Linux), containers' and virtual
+  machines' bridges (docker0, br-..., virbr...) only there; "(no Tailscale address here: is Tailscale running?)"
+  when none is Tailscale's;
+- "They start "Join online race" and type one of them in."; the port to add when it isn't 24049; that a join code is
+  set; on Windows "If Windows asks, allow the program on private networks.";
+- "Esc cancels." Esc or closing the window cancels (exit 0, no box); Ctrl-C in a terminal stops it as before; after
+  10 minutes the host gives up, with a box saying so.
+
+The addresses are `net_local_addrs` ([NETWORK.md](NETWORK.md) 2): getifaddrs on Linux; on Windows getaddrinfo on the
+computer's own name, which gives its permanent addresses, Tailscale's among them, with nothing beyond ws2_32. The
+MagicDNS name is asked of Tailscale's own resolver (100.100.100.100, answered by tailscaled on the PC itself) as the
+PTR of this PC's 100.x address, then of the system's resolver (getnameinfo), then taken from the computer's canonical
+name; a name under ts.net counts. On a thread, so the screen shows at once and the name joins it. Tailscale's own
+program isn't used. On the Pi 5 and on rocky Tailscale's resolver gave `nvmepi3.tailfe03a6.ts.net` and
+`rocky.tailfe03a6.ts.net` at once; getnameinfo gave them too there, but on Windows a PC's own address may come back
+from the system's resolver as the bare computer name, which is why Tailscale's resolver is asked first. The window's
+title says "hosting an online race" until port/input sets its own, and the window is raised so that Esc reaches it,
+not the console a launcher started it from.
+
+**The start notice.** Once its window is open (the guest), or once a guest has joined (the host), `pc_net_starting`
+puts up the overlay's notice, "Joined the online race at my-pc (100.101.102.103:24049)." or "A player joined from
+100.101.102.104:41641.", over "Starting when both PCs are ready... Esc leaves.", drawn at once and four times a second
+while `pc_net_start` waits for the other PC, until the first retrace's pads. There the window's events are only looked
+at (`SDL_PeepEvents`): Esc or closing the window leaves (exit 0), and the rest stay queued for the game's loop.
+
+**Every end before the race says why**, in a message box when the program has a window (on Windows always; before
+its window is open the box needs none), and in the log:
+
+| What ended it | What the player reads |
+|---|---|
+| the address isn't one | "The address to join, 'x', isn't one: it is a name or an address (my-pc, 100.101.102.103), with :PORT after it when the host's port isn't 24049" (spaces around it are trimmed first: the launcher's prompt) |
+| the host's name isn't found | "Couldn't join the online race at my-pc: my-pc: Name or service not known." |
+| the host's port can't be opened | "Couldn't host an online race on UDP port 24049: bind: error N (the port is in use). Is another copy of the program hosting already?" |
+| nobody answers the guest | "Couldn't join the online race at 100.x: no answer from 100.x:24049 in 15 s: check the address, the port, the join code and the host's firewall." |
+| another build | the guest: "Couldn't join the online race at X: the host runs build A; this is B: both players need the same build."; the host turns it away, logs it and waits on |
+| another ROM, other mods, settings the guest can't use | the guest: "Can't join the online race at X: the host's ROM is ... both players need the same ROM."; the host: "The online race ended before it started (rejected): the peer ended the session: the guest's ROM isn't the host's (its SHA-1 differs)." |
+| a damaged pak | "The online race can't start: the guest's controller pak can't be used: ..." |
+| nobody joins in 10 minutes | "Nobody joined the online race in 10 minutes, so this PC stopped hosting. Host again when your friend is ready to join." (exit 3) |
+| the other player leaves before the start | "The online race ended before it started (peer-left): the other player left the session (local)." (exit 0) |
+| the network, before the start (a timeout, a mismatch) | "The online race ended before it started (timeout): nothing from the other player for 15 s: the connection was lost." |
+| Esc, closing the window, Ctrl-C | nothing more: the player's own choice (exit 0; Ctrl-C 130) |
+| during the race | as before (12.4) |
+
+Anything else that stops the program with an error (game.memory that can't be mapped, no OpenGL) has its own box, or
+port/app's last-lines box for a program nobody sees the console of (log.c's `error_box`); started from a launcher, its
+console shows the lines and waits for a key.
+
+**The launchers** are in `dist/`, installed by `cmake --install` with `RUSH_INSTALL_PORTABLE` (so in the release zip
+and tarballs, next to the program; release.yml checks they are there, and gives the .bat files CRLF line ends, as
+`.gitattributes` keeps them):
+
+- `Host online race.bat`: `"%~dp0rush2049pc.exe" --net-host %*`, then `if errorlevel 1 pause`. cmd waits for a GUI
+  program a batch file runs (`start`'s documentation), and the program attaches to the batch's console and prints
+  there (port/app/startup.c): the console behind the game shows the log, and after an error stays until a key.
+- `Join online race.bat`: `setlocal`, then `set /p` asks "The host's address (their Tailscale name or 100.x
+  address): "; nothing typed ends it; then `"%~dp0rush2049pc.exe" --net-join "%HOST%" %*` and the same `pause`.
+- `host-online.sh`, `join-online.sh`: the same in POSIX sh (`exec`, `read -r`).
+
+Options given to a launcher are passed on: `--net-code`, a port after the host's.
+
+**F1's Online rows.** In a session the main page ends with two rows, which can't be selected and read the session's
+numbers each time the overlay is drawn (`pc_menu_set_online`, `pc_net_status` over `net_stats`): "Online: the guest,
+100.101.102.104:41641" and "RTT 23 ms, delay 2, stalls 1, hash ok at 1234": the round trip, this side's input delay,
+the stalls counted so far, and the last retrace whose state hashes both PCs compared alike (`hash_checks` counts them
+from retrace 0, in order). The main page had 13 items; with the two rows it fills its 15, so nothing scrolls.
+
+Proofs (rocky, x86-64, unless said):
+
+| Test | Result |
+|---|---|
+| `net_session_wait` (new) | headless at 1280 x 720 the screen is drawn and saved (`RUSH2049_TEST_NET_WAIT_SHOT`: the panel, 16,506 pixels of white text, rocky's 100.x and IPv6 Tailscale addresses, its MagicDNS name `rocky.tailfe03a6.ts.net`, two local network addresses, "(and 6 more: the log lists them)": its Docker bridges), then cancelled as Esc would: exit 0, no box, nothing of the game run, 0.5 s; nobody joining (`RUSH2049_TEST_NET_HOST_WAIT=2`, `--window` with no display, the boxes printed): "Nobody joined the online race in 2 seconds, so this PC stopped hosting...", exit 3 after 2.3 s |
+| `net_session_ends` | as before, and the no-answer guest's box: "Couldn't join the online race at 127.0.0.1: no answer from 127.0.0.1:56410 in 2 s: check the address, the port, the join code and the host's firewall." |
+| `frontend.menu.session` | as before, and the Online rows: read from the status when drawn, gone with it, stepped over by a page down, down and up |
+| `net_unit` | as before, and the address kinds, this PC's addresses, the PTR question and its answers |
+| every other `net_session_*` | pass unchanged: the host now sets up and opens its renderer before its guest joins, and the traces are the same |
+| a guest joining 3 s into the host's wait (by hand, `--fast`, 5 s) | both reach the game and agree (the same hashes), host exit 0, guest "peer-left" exit 0 |
+| a paced host at 24049 with a join code (by hand) | the screen as above, without the port line, with "A join code is set: your friend gives the same code." |
+| the whole suite | Debug 563 of 563 (`assets_rom` skipped: the retail ROM), 40 min at -j3; RelWithDebInfo 563 of 563 |
+| the default off: `synth_compare.py --same --runs 2`, main's program (4b63166) against this branch's, every path | Debug 62 of 62 the same, RelWithDebInfo 62 of 62 (`pcsetup` left out by the tool: the host's clock only) |
+| the Windows cross build (mingw-w64 on the Pi, `RUSH_FETCH_SDL2`, RelWithDebInfo) | `rush2049pc.exe` and `net_test.exe` link; the exe imports only Windows' own DLLs and WS2_32 (`pe_check.py --dlls` passes); netwait.c's SDL part and net_sock.c's getaddrinfo, getnameinfo, gethostname and inet_pton are in it |
+| `cmake --install` with `RUSH_INSTALL_PORTABLE` | Windows: both .bat files, CRLF; Linux: both scripts, executable; `host-online.sh --version` passes its option on |
+
+Not tried: a real window (rocky and the Pi's tests are headless; the Esc key, the window's close, the title and the
+raise are read, not run), Windows itself (CI builds and runs the tests; the .bat files were checked by reading), and
+two PCs over Tailscale (the user's test is the first).

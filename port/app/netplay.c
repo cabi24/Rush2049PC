@@ -41,7 +41,7 @@
 #define WAITING_MS 250           /* the "Waiting for ..." notice after this long without the other PC's input */
 #define NOTICE_EVERY_NS 250000000u   /* the notice's seconds, redrawn this often */
 #define LINGER_MS 500            /* this side leaving: how long the other PC may take to have its last inputs */
-#define HOST_WAIT_S 600          /* a host nobody joins gives up after 10 minutes */
+#define HOST_WAIT_S 600          /* a host nobody joins gives up after 10 minutes (RUSH2049_TEST_NET_HOST_WAIT: S s) */
 #define KEEP_RETRACES 240        /* the curated state kept for a desync's report (4 s) */
 #define FULL_EVERY 60            /* the window's hash every second */
 #define EXIT_SESSION 3           /* the exit code of a session that ended otherwise than a player leaving */
@@ -65,11 +65,29 @@ static struct {
     int paced;                   /* the paced clock (pc_time_paced): time sync's adjustments reach it */
     int64_t pace_ns;             /* time sync's adjustments, summed */
     uint32_t pace_n;
+    int code;                    /* a join code is set */
+    int joined;                  /* the guest: the host's settings arrived */
+    int gave_up;                 /* the host: nobody joined in this many seconds (HOST_WAIT_S) */
+    char join[256];              /* the guest: the host as --net-join named it, without its port */
 } S;
 
 static const char *peer_name(void)
 {
     return S.role == PC_NET_HOST ? "guest" : "host";
+}
+
+/* The other PC as the player knows it: its address and port; the guest's host also by the name it was given. */
+static void peer_text(char *out, size_t n)
+{
+    NetAddr a;
+    char addr[80] = "";
+    int numeric = strspn(S.join, "0123456789.") == strlen(S.join) || strchr(S.join, ':') != NULL;
+    if (S.s && net_peer_addr(S.s, &a))
+        net_addr_str(&a, addr, sizeof addr);
+    if (S.role == PC_NET_GUEST && S.join[0] && addr[0] && !numeric)
+        snprintf(out, n, "%s (%s)", S.join, addr);
+    else
+        snprintf(out, n, "%s", addr[0] ? addr : S.join[0] ? S.join : "?");
 }
 
 int pc_net_role(void)
@@ -112,42 +130,59 @@ static void catch_interrupts(void)
     signal(SIGTERM, on_interrupt);
 }
 
-/* The session ended before the game: why, logged and shown; the exit code. */
+/* The session ended before the game: why, logged and shown (on Windows nobody sees a console: the box is all there
+ * is), but for the player's own Ctrl-C. The exit code; PC_NET_CANCELLED (exit 0, but no game) when the other player
+ * left. */
 static int failed(int window)
 {
-    char msg[256];
+    char msg[256], text[600];
     NetEnd e = net_end_reason(S.s, NULL, msg, sizeof msg);
-    char text[400];
     if (e == NET_END_NONE)
         snprintf(msg, sizeof msg, "this side left the session");
-    snprintf(text, sizeof text, "The online session ended (%s): %s.", net_end_name(e), msg);
+    if (S.gave_up)
+        snprintf(text, sizeof text, "Nobody joined the online race in %d %s, so this PC stopped hosting. Host again "
+                 "when your friend is ready to join.", S.gave_up % 60 ? S.gave_up : S.gave_up / 60,
+                 S.gave_up % 60 ? "seconds" : "minutes");
+    else if (S.role == PC_NET_GUEST && !S.joined)
+        snprintf(text, sizeof text, "Couldn't join the online race at %s: %s.", S.join, msg);
+    else
+        snprintf(text, sizeof text, "The online race ended before it started (%s): %s.", net_end_name(e), msg);
     fprintf(stderr, "rush2049pc: online: %s\n", text);
-    show(text, window && e != NET_END_LOCAL);
-    return pc_quit > 1 ? pc_quit - 1 : EXIT_SESSION;
+    show(text, window && (e != NET_END_LOCAL || S.gave_up));
+    if (pc_quit > 1)
+        return pc_quit - 1;
+    return e == NET_END_PEER_LEFT ? PC_NET_CANCELLED : EXIT_SESSION;
 }
 
-/* Waits for the session to reach a state (or pass it). 0 when it did; -1 when it ended or this side was told to
- * stop (Ctrl-C), then ended locally. A host waits for its guest up to HOST_WAIT_S. */
-static int wait_state(NetState want, const char *what)
+/* Waits for the session to reach a state (or pass it). 0 when it did; 1 when it ended or this side was told to stop
+ * (Ctrl-C), then ended locally. With ui (the window is open, before the game): PC_NET_CANCELLED when the player left
+ * (Esc, the window closed), and the notice drawn again meanwhile. */
+static int wait_state(NetState want, const char *what, int ui)
 {
-    uint64_t t0 = pc_real_ns(), said = t0;
+    uint64_t t0 = pc_real_ns(), said = t0, drawn = 0;
     for (;;) {
         NetState st = net_state(S.s);
         if (st == NET_ENDED)
-            return -1;
+            return 1;
         if (st >= want)
             return 0;
         if (pc_quit) {
             net_end(S.s, NET_END_LOCAL);
-            return -1;
+            return 1;
+        }
+        if (ui && pc_net_events_leave()) {
+            net_end_text(S.s, NET_END_LOCAL, "the player left before the start");
+            fprintf(stderr, "rush2049pc: online: left before the start (Esc, or the window closed)\n");
+            return PC_NET_CANCELLED;
         }
         uint64_t now = pc_real_ns();
-        if (S.role == PC_NET_HOST && st == NET_CONNECTING && now - t0 > (uint64_t)HOST_WAIT_S * 1000000000u) {
-            net_end_text(S.s, NET_END_LOCAL, "nobody joined in 10 minutes");
-            return -1;
+        if (ui && now - drawn >= NOTICE_EVERY_NS) {
+            pc_gfx_redraw();
+            drawn = now;
         }
         if (now - said >= 10000000000u) {
-            fprintf(stderr, "rush2049pc: online: %s (%.0f s so far; Ctrl-C stops)\n", what, (now - t0) / 1e9);
+            fprintf(stderr, "rush2049pc: online: %s (%.0f s so far; %s)\n", what, (now - t0) / 1e9,
+                    ui ? "Esc in the window leaves" : "Ctrl-C stops");
             said = now;
         }
         net_os_sleep_ns(10000000u);
@@ -159,7 +194,7 @@ static int wait_state(NetState want, const char *what)
 int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *build, const char *blob,
                    const uint8_t *pak, int window)
 {
-    char err[256], host[256], peer[300];
+    char err[400], host[256], peer[300];
     NetConfig c;
     S.role = o->role;
     S.window = window;
@@ -167,14 +202,21 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
     c.role = o->role == PC_NET_HOST ? NET_HOST : NET_GUEST;
     c.ports = o->role == PC_NET_HOST ? 0x1 : 0x2;   /* the host plays controller 1, the guest controller 2 */
     if (o->role == PC_NET_GUEST) {
+        char join[256];
         int port;
-        if (net_split_hostport(o->join, host, sizeof host, &port, cfg->net_port) != 0) {
-            snprintf(err, sizeof err, "--net-join takes HOST, HOST:PORT or [IPv6]:PORT, not '%s'", o->join);
+        size_t n;
+        snprintf(join, sizeof join, "%s", o->join + strspn(o->join, " \t"));   /* as typed at a prompt */
+        for (n = strlen(join); n && strchr(" \t\r\n", join[n - 1]); n--)
+            join[n - 1] = 0;
+        if (net_split_hostport(join, host, sizeof host, &port, cfg->net_port) != 0) {
+            snprintf(err, sizeof err, "The address to join, '%s', isn't one: it is a name or an address (my-pc, "
+                     "100.101.102.103), with :PORT after it when the host's port isn't 24049", join);
             fprintf(stderr, "rush2049pc: %s\n", err);
             show(err, window);
             return 2;
         }
         snprintf(peer, sizeof peer, strchr(host, ':') ? "[%s]:%d" : "%s:%d", host, port);
+        snprintf(S.join, sizeof S.join, "%s", host);
         c.peer = peer;
     }
     c.bind = o->bind && *o->bind ? o->bind : NULL;
@@ -194,11 +236,18 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
     if (o->paced && getenv("RUSH_PACE_SPEED") && atof(getenv("RUSH_PACE_SPEED")) > 0)   /* tests: N64 time S x wall */
         c.retrace_ns = (int64_t)(1e9 / PC_VI_HZ / atof(getenv("RUSH_PACE_SPEED")));
     S.paced = o->paced;
+    S.code = c.join_code != NULL;
     catch_interrupts();
     S.s = net_create(&c, err, sizeof err);
     if (!S.s || net_start_thread(S.s) != 0) {
-        char text[400];
-        snprintf(text, sizeof text, "The online session can't start: %s.", S.s ? "no thread for the network" : err);
+        char text[720];
+        if (S.s)
+            snprintf(err, sizeof err, "no thread for the network");
+        if (o->role == PC_NET_GUEST)
+            snprintf(text, sizeof text, "Couldn't join the online race at %s: %s.", S.join, err);
+        else
+            snprintf(text, sizeof text, "Couldn't host an online race on UDP port %d: %s.%s", c.port, err,
+                     strstr(err, "in use") ? " Is another copy of the program hosting already?" : "");
         fprintf(stderr, "rush2049pc: online: %s\n", text);
         show(text, window);
         return EXIT_SESSION;
@@ -212,7 +261,8 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
             snprintf(suffix, sizeof suffix, ":%d", port);
         fprintf(stderr, "rush2049pc: online: hosting on UDP port %d%s: the guest joins with --net-join ADDRESS%s, "
                 "ADDRESS being this PC's Tailscale name or 100.x address (or the router's public address, the port "
-                "forwarded to this PC)\n", port, c.join_code ? " (with a join code)" : "", suffix);
+                "forwarded to this PC); the waiting screen lists them\n", port, c.join_code ? " (with a join code)" : "",
+                suffix);
 #ifdef _WIN32
         fprintf(stderr, "rush2049pc: online: Windows may ask once whether to let the program on the network: allow "
                 "it (for private networks)\n");
@@ -221,11 +271,86 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
         fprintf(stderr, "rush2049pc: online: joining %s as the guest (controller 2)%s\n", peer,
                 c.join_code ? " with a join code" : "");
     }
-    if (wait_state(NET_ACCEPT, o->role == PC_NET_HOST ? "waiting for a guest" : "waiting for the host") != 0)
-        return failed(window);
     if (o->role == PC_NET_HOST)
-        fprintf(stderr, "rush2049pc: online: a guest joined\n");
+        return 0;   /* its guest is waited for with the window open (pc_net_wait_guest) */
+    if (wait_state(NET_ACCEPT, "waiting for the host", 0) != 0)
+        return failed(window);
+    S.joined = 1;
     return 0;
+}
+
+int pc_net_wait_guest(int window)
+{
+    uint64_t t0 = pc_real_ns(), said = t0, drawn = 0;
+    int r = 0, told = 0, limit = HOST_WAIT_S;
+    char peer[128];
+    if (getenv("RUSH2049_TEST_NET_HOST_WAIT") && atoi(getenv("RUSH2049_TEST_NET_HOST_WAIT")) > 0)
+        limit = atoi(getenv("RUSH2049_TEST_NET_HOST_WAIT"));
+    pc_net_screen_open(net_local_port(S.s), S.code);
+    for (;;) {
+        NetState st = net_state(S.s);
+        uint64_t now = pc_real_ns();
+        if (st == NET_ENDED) {
+            r = failed(window);
+            break;
+        }
+        if (st >= NET_ACCEPT)
+            break;
+        if (pc_quit) {   /* Ctrl-C */
+            net_end_text(S.s, NET_END_LOCAL, "stopped while waiting for a guest");
+            r = failed(window);
+            break;
+        }
+        if (pc_net_screen_pump()) {
+            net_end_text(S.s, NET_END_LOCAL, "hosting cancelled");
+            fprintf(stderr, "rush2049pc: online: hosting cancelled (Esc, or the window closed)\n");
+            r = PC_NET_CANCELLED;
+            break;
+        }
+        if (now - t0 > (uint64_t)limit * 1000000000u) {
+            S.gave_up = limit;
+            net_end_text(S.s, NET_END_LOCAL, "nobody joined in time");
+            r = failed(window);
+            break;
+        }
+        if (st >= NET_HANDSHAKE && !told) {   /* its settings and pak on their way */
+            char line[192];
+            peer_text(peer, sizeof peer);
+            snprintf(line, sizeof line, "A player joined from %s: getting their settings...", peer);
+            pc_net_screen_status(line);
+            told = 1;
+        }
+        if (pc_net_screen_dirty() || now - drawn >= NOTICE_EVERY_NS) {
+            pc_net_screen_draw(now - t0);
+            drawn = now;
+        }
+        if (now - said >= 10000000000u) {
+            fprintf(stderr, "rush2049pc: online: waiting for a guest (%.0f s so far; Esc in the window cancels)\n",
+                    (now - t0) / 1e9);
+            said = now;
+        }
+        net_os_sleep_ns(10000000u);
+    }
+    pc_net_screen_close();
+    if (!r) {
+        peer_text(peer, sizeof peer);
+        fprintf(stderr, "rush2049pc: online: a guest joined from %s\n", peer);
+    }
+    return r;
+}
+
+void pc_net_starting(void)
+{
+    char title[96], peer[128];   /* the notice's title holds 95 characters */
+    peer_text(peer, sizeof peer);
+    if (S.role == PC_NET_HOST)
+        snprintf(title, sizeof title, "A player joined from %.70s.", peer);
+    else
+        snprintf(title, sizeof title, "Joined the online race at %.65s.", peer);
+    pc_menu_notice(title, "Starting when both PCs are ready...  Esc leaves.");
+    S.notice = 1;
+    S.notice_at = pc_real_ns();
+    pc_gfx_redraw();
 }
 
 const char *pc_net_host_settings(void)
@@ -328,7 +453,10 @@ int pc_net_reject(const char *why, const char *for_peer, int window)
     char text[600];
     fprintf(stderr, "rush2049pc: online: refused: %s\n", why);
     net_end_text(S.s, NET_END_REJECTED, for_peer && *for_peer ? for_peer : why);
-    snprintf(text, sizeof text, "The online session can't go on: %s.", why);
+    if (S.role == PC_NET_GUEST)
+        snprintf(text, sizeof text, "Can't join the online race at %s: %s.", S.join, why);
+    else
+        snprintf(text, sizeof text, "The online race can't start: %s.", why);
     show(text, window);
     return EXIT_SESSION;
 }
@@ -581,6 +709,7 @@ int pc_net_begin(PcLockstepOptions *ls, const char *must_match, const char *data
         pc_hash_enable(FULL_EVERY);
     pc_hash_keep(KEEP_RETRACES);
     pc_input_set_session(1);   /* nothing holds the game; the overlay's locks */
+    pc_menu_set_online(pc_net_status);   /* F1's Online rows */
     pc_gfx_hud_dx_off(1);      /* the session's rules (docs/port/LOCKSTEP.md 6) */
     S.src = (PcPadsSource){"online session", NULL, src_local, src_pads, src_hash};
     if (pc_pads_set_source(&S.src) != 0) {
@@ -594,9 +723,13 @@ int pc_net_begin(PcLockstepOptions *ls, const char *must_match, const char *data
 int pc_net_start(int window)
 {
     uint64_t start;
+    int r;
     net_accept(S.s);
-    if (wait_state(NET_STARTING, S.role == PC_NET_HOST ? "waiting for the guest to be ready"
-                                                       : "waiting for the host to be ready") != 0)
+    r = wait_state(NET_STARTING, S.role == PC_NET_HOST ? "waiting for the guest to be ready"
+                                                       : "waiting for the host to be ready", 1);
+    if (r == PC_NET_CANCELLED)
+        return r;
+    if (r != 0)
         return failed(window);
     if (!net_start_time(S.s, &start))
         return failed(window);
@@ -684,8 +817,29 @@ int pc_net_finish(int code, int window)
         snprintf(text, sizeof text, "The %s left the online session.", peer_name());
         show(text, window);
     }
+    pc_menu_set_online(NULL);
     net_destroy(S.s);
     S.s = NULL;
     pc_input_set_session(0);
     return code;
+}
+
+void pc_net_status(char *peer, size_t peer_size, char *link, size_t link_size)
+{
+    NetStats st;
+    char who[128], hash[48];
+    if (!S.s) {
+        snprintf(peer, peer_size, "Online: no session");
+        snprintf(link, link_size, "%s", "");
+        return;
+    }
+    net_stats(S.s, &st);
+    peer_text(who, sizeof who);
+    snprintf(peer, peer_size, "Online: the %s, %s", peer_name(), who);
+    if (st.hash_checks)   /* the retraces compared and alike, from 0 on: the last of them */
+        snprintf(hash, sizeof hash, "hash ok at %llu", (unsigned long long)st.hash_checks - 1);
+    else
+        snprintf(hash, sizeof hash, "no hash yet");
+    snprintf(link, link_size, "RTT %.0f ms, delay %d, stalls %llu, %s", st.rtt_ms, st.delay,
+             (unsigned long long)st.stalls, hash);
 }

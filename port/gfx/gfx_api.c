@@ -860,6 +860,18 @@ int pc_gfx_read_window(uint8_t *rgba, int *w, int *h) {
     return rgba != NULL ? pcgfx_gl_read_window(rgba, *w, *h) : 0;
 }
 
+int pc_gfx_save_window(const char *path) {
+    uint8_t *px;
+    int w = 0, h = 0, rc = -1;
+    if (pc_gfx_read_window(NULL, &w, &h) != 0 || w <= 0 || h <= 0)
+        return -1;
+    px = (uint8_t *)malloc((size_t)w * h * 4);
+    if (px != NULL && pc_gfx_read_window(px, &w, &h) == 0)
+        rc = pcgfx_png_write(path, px, w, h);
+    free(px);
+    return rc;
+}
+
 void pc_gfx_shutdown(void) {
     if (S.inited) {
         PcGfxHfrStats st;

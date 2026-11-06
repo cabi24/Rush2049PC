@@ -343,6 +343,87 @@ static void test_addresses(void)
     CHECK(net_split_hostport("host:12ab", host, sizeof host, &port, 1) != 0, "port 12ab");
     CHECK(net_split_hostport("[::1", host, sizeof host, &port, 1) != 0, "[::1");
     CHECK(net_split_hostport("", host, sizeof host, &port, 1) != 0, "empty");
+
+    /* what an address is (the host's waiting screen), and as a player types it */
+    static const struct { int family; uint8_t b[16]; int kind; const char *ip; } kinds[] = {
+        {NET_AF_INET, {100, 101, 102, 103}, NET_KIND_TAILSCALE, "100.101.102.103"},
+        {NET_AF_INET, {100, 64, 0, 1}, NET_KIND_TAILSCALE, "100.64.0.1"},
+        {NET_AF_INET, {100, 128, 0, 1}, NET_KIND_PUBLIC, "100.128.0.1"},
+        {NET_AF_INET, {192, 168, 1, 20}, NET_KIND_LAN, "192.168.1.20"},
+        {NET_AF_INET, {172, 31, 0, 1}, NET_KIND_LAN, "172.31.0.1"},
+        {NET_AF_INET, {172, 32, 0, 1}, NET_KIND_PUBLIC, "172.32.0.1"},
+        {NET_AF_INET, {10, 0, 0, 2}, NET_KIND_LAN, "10.0.0.2"},
+        {NET_AF_INET, {127, 0, 0, 1}, NET_KIND_LOOPBACK, "127.0.0.1"},
+        {NET_AF_INET, {169, 254, 3, 4}, NET_KIND_LINK_LOCAL, "169.254.3.4"},
+        {NET_AF_INET, {203, 0, 113, 5}, NET_KIND_PUBLIC, "203.0.113.5"},
+        {NET_AF_INET6, {0xfd, 0x7a, 0x11, 0x5c, 0xa1, 0xe0, 0xab, 0x12, [14] = 0x12, [15] = 0x34}, NET_KIND_TAILSCALE,
+         "fd7a:115c:a1e0:ab12::1234"},
+        {NET_AF_INET6, {0xfe, 0x80, [15] = 1}, NET_KIND_LINK_LOCAL, "fe80::1"},
+        {NET_AF_INET6, {[15] = 1}, NET_KIND_LOOPBACK, "::1"},
+        {NET_AF_INET6, {0xfd, 0x00, [15] = 9}, NET_KIND_LAN, "fd00::9"},
+        {NET_AF_INET6, {0x20, 0x01, 0x0d, 0xb8, [15] = 0x20}, NET_KIND_PUBLIC, "2001:db8::20"},
+        {NET_AF_INET6, {0xff, 0x02, [15] = 1}, NET_KIND_OTHER, "ff02::1"},
+    };
+    for (size_t i = 0; i < sizeof kinds / sizeof kinds[0]; i++) {
+        NetAddr a;
+        char ip[64];
+        memset(&a, 0, sizeof a);
+        a.family = (uint16_t)kinds[i].family;
+        memcpy(a.addr, kinds[i].b, 16);
+        net_addr_ip(&a, ip, sizeof ip);
+        CHECK(net_addr_kind(&a) == kinds[i].kind && !strcmp(ip, kinds[i].ip), "%s: kind %d, '%s'", kinds[i].ip,
+              net_addr_kind(&a), ip);
+    }
+
+    /* this PC's addresses: none of loopback or link-local, each once */
+    NetLocalAddr la[32];
+    net_sock_startup();
+    int nla = net_local_addrs(la, 32);
+    CHECK(nla >= 0 && nla <= 32, "%d local addresses", nla);
+    for (int i = 0; i < nla; i++) {
+        char ip[64];
+        int k = net_addr_kind(&la[i].addr);
+        net_addr_ip(&la[i].addr, ip, sizeof ip);
+        if (g_verbose)
+            printf("local address %s (%s), kind %d\n", ip, la[i].ifname, k);
+        CHECK((la[i].addr.family == NET_AF_INET || la[i].addr.family == NET_AF_INET6) && la[i].addr.port == 0 &&
+                  k != NET_KIND_LOOPBACK && k != NET_KIND_LINK_LOCAL,
+              "local address %s (%s)", ip, la[i].ifname);
+        for (int j = 0; j < i; j++)
+            CHECK(!net_addr_equal(&la[i].addr, &la[j].addr), "%s listed twice", ip);
+    }
+    net_sock_shutdown();
+
+    /* the DNS PTR question for this PC's MagicDNS name, and an answer with a compression pointer */
+    NetAddr ts;
+    uint8_t q[128], ans[256];
+    char name[128];
+    memset(&ts, 0, sizeof ts);
+    ts.family = NET_AF_INET;
+    ts.addr[0] = 100, ts.addr[1] = 101, ts.addr[2] = 102, ts.addr[3] = 103;
+    int qn = net_dns_ptr_query(&ts, 0xBEEF, q, sizeof q);
+    static const uint8_t qname[] = "\003103\003102\003101\003100\007in-addr\004arpa";
+    CHECK(qn == 12 + (int)sizeof qname + 4 && q[0] == 0xBE && q[1] == 0xEF && q[5] == 1 &&
+              !memcmp(q + 12, qname, sizeof qname) && q[qn - 3] == 12 && q[qn - 1] == 1,
+          "the question: %d bytes", qn);
+    memcpy(ans, q, (size_t)qn);
+    ans[2] |= 0x80;   /* an answer */
+    ans[7] = 1;       /* one record */
+    int an = qn;
+    static const uint8_t rr[] = {0xC0, 12, 0, 12, 0, 1, 0, 0, 0, 60, 0, 29,          /* the question's name, PTR, IN */
+                                 11, 'd', 'e', 's', 'k', 't', 'o', 'p', '-', 'a', 'b', 'c',
+                                 8, 't', 'a', 'i', 'l', '1', '2', '3', '4', 2, 't', 's', 3, 'n', 'e', 't', 0};
+    memcpy(ans + an, rr, sizeof rr);
+    an += (int)sizeof rr;
+    CHECK(net_dns_ptr_answer(ans, an, 0xBEEF, name, sizeof name) == 0 && !strcmp(name, "desktop-abc.tail1234.ts.net"),
+          "the answer's name: '%s'", name);
+    CHECK(net_dns_ptr_answer(ans, an, 0xBEEE, name, sizeof name) != 0, "another question's answer read");
+    CHECK(net_dns_ptr_answer(ans, an - 5, 0xBEEF, name, sizeof name) != 0, "a cut answer read");
+    ans[3] |= 3;   /* NXDOMAIN */
+    CHECK(net_dns_ptr_answer(ans, an, 0xBEEF, name, sizeof name) != 0, "no such name read");
+    ans[3] &= 0xF0;
+    ans[qn] = 0xC0, ans[qn + 1] = (uint8_t)qn;   /* a pointer to itself */
+    CHECK(net_dns_ptr_answer(ans, an, 0xBEEF, name, sizeof name) != 0, "a pointer loop read");
 }
 
 static void test_sim(void)

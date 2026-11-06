@@ -6,6 +6,15 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play from the desktop** (README "Playing online"): `Host online race.bat` and `Join online race.bat`
+  (`host-online.sh` and `join-online.sh` on Linux) start a session with no options to type: the join one asks for the
+  host's address. The host's window opens at once with a waiting screen (the port, this PC's addresses, Tailscale's
+  100.x one and its MagicDNS name first; Esc cancels) instead of waiting with no window, and the guest says whom it
+  joined as soon as its window opens. Whatever stops a session before the race says why in a box (the address isn't
+  found, nobody answers, another version, ROM or mods; nobody joined in 10 minutes). In a session F1's first page ends
+  with the other PC, the round trip, the input delay, the stalls and the last hash check
+  ([NETPLAY.md](docs/port/NETPLAY.md) 12.10).
+
 - **Online play, a preview** (`--net-host`, `--net-join HOST`; README "Playing online"): two PCs race in the game's
   two-player split screen over the internet (Tailscale, or a forwarded UDP port 24049), the host as player 1 and the
   guest as player 2, the guest taking the host's game settings for the session and each bringing a copy of their own

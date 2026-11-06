@@ -146,6 +146,10 @@ typedef struct {
     char mods[256];     /* the mods in use (docs/port/MODS.md) */
 } PcAbout;
 void pc_menu_set_about(void (*fill)(PcAbout *about));
+/* An online session's status for the main page's two Online rows (port/app/netplay.c's pc_net_status: the other PC;
+ * the round trip, the input delay, stalls and the last hash check), called each time the overlay is drawn; NULL
+ * removes the rows. */
+void pc_menu_set_online(void (*status)(char *peer, size_t peer_size, char *link, size_t link_size));
 
 /* The Mods page (docs/port/MODS.md): the mods main read at start from dir. The page orders them as game.mods_order and
  * their mod.ini priorities say, and turns them on and off ([mods]); both apply at the next start. */
