@@ -1118,6 +1118,9 @@ then has (a `--fast` replay with the default takes the same course).
 | `net_session_adopt` (race2p12) | the guest takes game.cars 7 -> 12, audio.voices 64 -> original, video.draw_distance far -> original, logged; both new paks in (port 2's re-IDed), neither file written; a race of 12 cars, the same trace |
 | `net_session_ends` | the guest killed: the host ends "timeout" 3.0 s later (`--net-timeout 3`); the guest leaving at its limit: the host ends "peer-left" at the guest's last retrace or within its delay past it, exit 0; joining nobody: "no-answer" after 2.2 s |
 | `frontend.menu.session` | the overlay holds nothing and its pads are idle; a locked setting, a free one, Defaults; the notice drawn and gone |
+| the whole suite, rocky, with main's paced clock merged in | Debug: 561 of 562, `net_session_ends` failing on a check too strict (the peer one retrace past the guest's last, within its delay: e7c4e28 corrected the check), then passing; RelWithDebInfo: 562 of 562 |
+| the default off: `synth_compare.py --same`, 543e5b0's program against this branch's (main merged in), every path | Debug 62 of 62 the same, RelWithDebInfo 62 of 62 |
+| the Windows cross build (mingw-w64 on the Pi) | everything links; `rush2049pc.exe` imports `WS2_32.dll`, `pe_check.py --dlls` passes |
 
 ### 12.8 Found on the way
 
