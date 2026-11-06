@@ -18,10 +18,15 @@ status line a second of game time, and --dump-audio. Then it checks:
     pace        the exit line `paced: N retraces in W s of wall time, R a second (P without the time held or
                 re-based)`: P within --min-rate and --max-rate (60 a second, times RUSH_PACE_SPEED's --speed), and at
                 most --max-rebases re-based lags (a slow host, a stall); R too, unless the run is meant to be slowed
-                (--slowed: a model of a slow host, where the game slows in wall time and only the trace must hold)
+                (--slowed: a model of a slow host, where the game slows in wall time and only the trace must hold),
+                its lower bound with the allowed lags' time taken out (each up to --rebase-ms: a lag re-bases past two
+                retraces, so one alone would put a 36 s run under 59.95 and allow none in effect)
     tap         with --audio sdl (SDL's disk driver, which consumes in real time, unless SDL_AUDIODRIVER is set): the
                 tap's line at exit, the FIFO's level and the nudge of its converter, and no dry FIFO after the first
-                second (`audio: tap: the FIFO ran dry ... T s in`)
+                second (`audio: tap: the FIFO ran dry ... T s in`). The level only when the device keeps time: a
+                converter nudged over --device-off-pct on average follows a device that doesn't (the disk driver on
+                Windows sleeps 10 ms a pull and Sleep rounds up, about 5% slow; a sound card's crystal is within
+                0.01%), whose FIFO settles where the nudge's controller holds that rate
 
 --hash N[,W] gives both runs --log-hash and compares their state hashes too: the game's memory every Nth retrace
 (docs/port/LOCKSTEP.md 5).
@@ -135,6 +140,10 @@ def main():
     ap.add_argument("--min-rate", type=float, default=59.95)
     ap.add_argument("--max-rate", type=float, default=60.05)
     ap.add_argument("--max-rebases", type=int, default=2)
+    ap.add_argument("--rebase-ms", type=float, default=50, help="the time each allowed re-based lag may take from "
+                    "the whole run's rate (three retraces)")
+    ap.add_argument("--device-off-pct", type=float, default=3, help="the tap's FIFO level judged only when its "
+                    "converter's mean nudge is within this (a device that keeps time)")
     ap.add_argument("--fifo-slack-ms", type=float, default=15, help="the tap's mean level within this of its target")
     ap.add_argument("--max-tail", type=int, default=32, help="subframes one WAV may have past the other's end")
     ap.add_argument("--hash", metavar="N[,W]", help="--log-hash for both runs: the state hash compared at every Nth "
@@ -245,9 +254,13 @@ def main():
               f"the longest {m[10]} ms), no burst after it (the most caught up {m[12]} ms, at most two retraces): "
               f"{'ok' if good else 'FAIL'}")
         ok &= good
-    good = args.slowed or bool(args.held) or (lo <= paced <= hi and lo <= rate <= hi and rebases <= args.max_rebases)
+    n = int(m[1])   # the whole run's rate: the allowed lags' time out of its bound
+    rate_lo = n / (n / lo + args.max_rebases * args.rebase_ms / 1000) if lo > 0 and n else lo
+    good = args.slowed or bool(args.held) or (lo <= paced <= hi and rate_lo <= rate <= hi and
+                                              rebases <= args.max_rebases)
     ok &= good
-    print(f"paced_check: the pace: {m[1]} retraces in {m[2]} s of wall time, {rate:.3f} a second, {paced:.3f} without "
+    print(f"paced_check: the pace: {m[1]} retraces in {m[2]} s of wall time, {rate:.3f} a second "
+          f"({'' if args.slowed or args.held else f'{rate_lo:.3f}-{hi:g}, '}the allowed lags out), {paced:.3f} without "
           f"the {m[5]} s held or re-based ({'not judged: the run is slowed by its model' if args.slowed else f'{lo:g}-{hi:g}'}"
           f"); {rebases} re-based (the longest {m[10]} ms{'' if args.slowed else f', at most {args.max_rebases}'}), "
           f"{m[11]} retraces caught up (the most {m[12]} ms): "
@@ -276,10 +289,13 @@ def main():
                                              re.M)]
         late = sum(1 for x in dry if x > 1.0) if int(t[13]) <= len(dry) else int(t[13])
         mean, target = float(t[6]), float(t[8])
-        good = late == 0 and abs(mean - target) <= args.fifo_slack_ms and int(t[17]) == 0
+        keeps_time = abs(float(t[9])) <= args.device_off_pct
+        good = late == 0 and int(t[17]) == 0 and (not keeps_time or abs(mean - target) <= args.fifo_slack_ms)
         ok &= good
+        level = (f"the mean within {args.fifo_slack_ms:g}" if keeps_time else
+                 f"the level not judged: the device runs over {args.device_off_pct:g}% off real time")
         print(f"paced_check: the tap to {t[1]} ({t[2]}) at {t[3]} Hz, pulls of {t[4]}: the FIFO {t[5]}/{t[6]}/{t[7]} "
-              f"ms (least/mean/most) against {t[8]} ms (the mean within {args.fifo_slack_ms:g}); its converter nudged "
+              f"ms (least/mean/most) against {t[8]} ms ({level}); its converter nudged "
               f"{t[9]}% on average ({t[10]}% to {t[11]}%); {t[13]} underruns ({late} after the first second, "
               f"{t[14]} ms of silence), {t[17]} frames dropped: {'ok' if good else 'FAIL'}")
 

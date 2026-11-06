@@ -24,7 +24,9 @@ jobs:
           # about 150 of a race's 900 frames between, and lands on the bounds' edges run after run (10-13% lost, 70
           # of 75), three tries alike. They run on the x86-64 runners, whose pacing is the same C.
           - os: ubuntu-24.04-arm
-            skip_tests: '^(hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|realtime_game60_v60|realtime_auto_even)$'
+            # paced_vsync, the same check in paced mode, lands there too (13-15% of the vblanks lost, three tries
+            # alike).
+            skip_tests: '^(hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|paced_vsync|realtime_game60_v60|realtime_auto_even)$'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -268,14 +270,14 @@ jobs:
         include:
           - os: ubuntu-24.04
             sanitize: undefined
-            skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|audio_realtime_game60|realtime_game60_v60|realtime_auto_even)$'
+            skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even)$'
           - os: ubuntu-24.04-arm
             sanitize: address,undefined
             # and the race and PC SETUP's path on the host's clock, which under ASan on 4 cores don't reach their
             # states in time, the pak writer's check, whose control and run both drop thousands of retraces there,
             # and the saves' hot swap, whose F1 presses are on the host's clock too (tools/port/saves/swap.press)
             skip_tests: >-
-              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|audio_realtime_game60|realtime_game60_v60|realtime_auto_even|synth_boot_race|synth_boot_pcsetup|pak_realtime|saves_files_swap)$
+              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even|synth_boot_race|synth_boot_pcsetup|pak_realtime|saves_files_swap)$
     runs-on: ${{ matrix.os }}
     # the arm ASan job's tests alone took 88 minutes on 1ec5f69 (run 41821298325: fps_physics 25, saves_files 17,
     # synth_memory_same's three 11-16 each), and the job stopped at 90 in hfr_timing, its last
@@ -344,6 +346,11 @@ jobs:
             libz-mingw-w64-dev
           echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
+      - name: Git in the container
+        # The checkout belongs to another user than the container's root, and git refuses it ("dubious ownership"):
+        # cmake/version.cmake then gets no commit, and the program says "unknown", which windows-replay's recordings
+        # (made by the Linux jobs, which know theirs) must match. As release.yml does.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Compiler cache
         # the game, the port and SDL2's own sources (fetched by RUSH_FETCH_SDL2), as on Linux
         uses: actions/cache@v4
