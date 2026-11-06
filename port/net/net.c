@@ -1747,6 +1747,17 @@ NetState net_state(NetSession *s)
 
 int net_local_port(NetSession *s) { return s->own_sock ? net_sock_port(&s->sock) : -1; }
 
+int net_peer_addr(NetSession *s, NetAddr *out)
+{
+    int r;
+    net_mutex_lock(&s->lock);
+    r = s->peer_set;
+    if (r)
+        *out = s->peer;
+    net_mutex_unlock(&s->lock);
+    return r;
+}
+
 int net_peer_settings(NetSession *s, const void **data, size_t *size)
 {
     int r = 0;

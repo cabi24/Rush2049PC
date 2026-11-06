@@ -95,6 +95,15 @@ tag, HELLO rate); hash and window-hash checks passed; the simulator's drops.
   linked; `pe_check.py` and [RELEASE.md](RELEASE.md) allow `ws2_32.dll`. The test programs import only KERNEL32,
   msvcrt, WINMM (`timeBeginPeriod`) and WS2_32.
 - **Windows Defender Firewall** asks the first time the host listens: allow it on the network profile in use.
+- **This PC's addresses** (the host's waiting screen, [NETPLAY.md](NETPLAY.md) 12.10): `net_local_addrs` lists the
+  addresses a peer could reach, without loopback and link-local ones: `getifaddrs` with each interface's name on
+  Linux, `getaddrinfo` on the computer's own name on Windows (its permanent addresses; nothing beyond `ws2_32`).
+  `net_addr_kind` names an address by its range (Tailscale's 100.64.0.0/10 and fd7a:115c:a1e0::/48, a private
+  network's, public, loopback, link-local). The MagicDNS name: `net_dns_ptr` asks one DNS server for an IPv4
+  address's PTR over UDP (the question and the answer, with compression pointers, built and read here:
+  `net_dns_ptr_query`, `net_dns_ptr_answer`); the screen asks Tailscale's resolver, 100.100.100.100, since the
+  system's resolver may answer for its own addresses with the bare computer name. `net_addr_name` (getnameinfo) and
+  `net_host_names` (the canonical name) are its fallbacks. `net_peer_addr` gives the peer's address once known.
 
 ## 3. The wire format
 
@@ -340,7 +349,7 @@ the same model, both directions have it.
 
 | Test | Kind | What |
 |---|---|---|
-| `net_unit` | 0.3 s | BLAKE2s (RFC 7693's vector and the reference KATs, the same as Python's `hashlib.blake2s`); every message round trip and every truncation; sizes; addresses; the simulator's parsing, seeding and pause; sockets on 127.0.0.1 and ::1 (dual-stack, an IPv4 sender kept as IPv4, oversized datagrams, ICMP unreachable); on a virtual clock: the handshake with settings and 5 files at 20% loss, BYE, the timeout, a desync, builds that differ, join codes (same, different, none), a replayed HELLO, a fixed delay, spoofed and hostile packets, the assignment rules across delay changes |
+| `net_unit` | 0.3 s | BLAKE2s (RFC 7693's vector and the reference KATs, the same as Python's `hashlib.blake2s`); every message round trip and every truncation; sizes; addresses, their kinds, this PC's own (none loopback or link-local, each once), the DNS PTR question and answers (a compression pointer, a loop, NXDOMAIN, a cut one); the simulator's parsing, seeding and pause; sockets on 127.0.0.1 and ::1 (dual-stack, an IPv4 sender kept as IPv4, oversized datagrams, ICMP unreachable); on a virtual clock: the handshake with settings and 5 files at 20% loss, BYE, the timeout, a desync, builds that differ, join codes (same, different, none), a replayed HELLO, a fixed delay, spoofed and hostile packets, the assignment rules across delay changes |
 | `net_sim_<model>` | virtual clock, 10,000 ticks each | the same hash at every tick on both; stalls bounded; 60.000 a second where the delay covers the latency |
 | `net_fuzz` | 2 s | 300,000 random and mutated packets through the parser; six sessions fed 33,000 random and mutated packets each, with and without a join code |
 | `net_threads` | real time, 9 s | two threads over UDP on 127.0.0.1, 80 ms ± 20, the service threads |
@@ -435,7 +444,7 @@ only:
 
 ## 11. Not done, and open
 
-- Attached to the game, on the unpaced virtual clock (section 10, NETPLAY.md 12); the paced clock is another branch.
+- Attached to the game (section 10, NETPLAY.md 12), on the paced clock.
 - Two peers. The ports are a set per peer and the wire carries the sender's ports, but sessions of three or four
   PCs need the host to relay or a mesh.
 - No address migration: a NAT rebinding mid-session ends it by timeout.

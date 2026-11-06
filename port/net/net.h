@@ -179,6 +179,9 @@ void net_wait(NetSession *s, int timeout_us);
 
 NetState net_state(NetSession *s);
 int net_local_port(NetSession *s);
+/* The peer's address: the host's (the guest, from the start), the guest's (the host, once one has joined). 1, or 0
+ * while there is none. */
+int net_peer_addr(NetSession *s, NetAddr *out);
 const char *net_state_name(NetState st);
 const char *net_end_name(NetEnd e);
 
