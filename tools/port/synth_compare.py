@@ -33,11 +33,14 @@ fixed retrace), without the graphics-task counts. Runs of one executable give th
               is for (tools/port/synth/battle2p.press on the retail cartridge picks practice, docs/port/QA.md)
 
 --script, --until and --seconds run one press script of any path instead (the retail cartridge: --rom, no
---no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. --set-b and --env-b give the second executable
-settings and environment variables of its own, so one program can be compared with itself under other settings
-(docs/port/MEMORY.md 6):
+--no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. --set-b, --env-b and --args-b give the second
+executable settings, environment variables and options of its own, so one program can be compared with itself under
+other settings (docs/port/MEMORY.md 6), or in another mode: paced mode against --fast (docs/port/ULTRA.md 10), with a
+device fed from the tap (--args-b takes the options as one string, after --fast and --audio null, which it overrides):
 
     --exe build/pc/rush2049pc --exe build/pc/rush2049pc --set-b game.memory=64 --env-b RUSH2049_TEST_HEAP_FLOOR=17
+    --exe build/pc/rush2049pc --exe build/pc/rush2049pc --env-b RUSH_PACED=1 --env-b SDL_AUDIODRIVER=disk \
+        --args-b="--audio sdl"
 
 A path's own `# env:` line (synth_paths.py) applies to both. --from-logs runs nothing: it compares two folders of
 logs that have been written already, each NAME.log of one against the other's (synth_paths.py --exact's, or
@@ -54,6 +57,7 @@ import concurrent.futures
 import hashlib
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -127,7 +131,8 @@ def show(e):
     return f"{kind} vi {vi} {state}: {info}" if vi is not None else f"{kind} {state}: {info}"
 
 
-B_SETS, B_ENV = [], {}   # --set-b, --env-b: the second executable's own
+B_SETS, B_ENV, B_ARGS = [], {}, []   # --set-b, --env-b, --args-b: the second executable's own
+LINKS = []                           # --link: (name, target) in each run's folder
 
 
 def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
@@ -138,11 +143,13 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
         env.update(B_ENV)   # the executable's own over the path's
     if EXACT:
         env["RUSH_STATE_EXACT"] = "1"
-    extra = [w for s in B_SETS for w in ("--set", s)] if second else []
+    extra = [w for s in B_SETS for w in ("--set", s)] + B_ARGS if second else []
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve())] + ([] if retail else ["--no-rom-check"]) + \
         ["--headless", "--no-config", "--audio", "null", "--no-pak", "--fast"] + cmd_tail + extra + \
         (["--dump-audio", "run.wav"] if AUDIO else [])
     with tempfile.TemporaryDirectory(dir=logs) as cwd:   # screenshots and paks start afresh, and don't collide
+        for name, target in LINKS:   # --link: the mods paths' mods (their --mods-dir is relative)
+            os.symlink(Path(target).resolve(), Path(cwd) / name, target_is_directory=True)
         t0 = time.time()
         p = subprocess.run(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
         took = time.time() - t0
@@ -297,6 +304,10 @@ def main():
                     help="a setting for the second executable's runs (--set)")
     ap.add_argument("--env-b", action="append", default=[], metavar="NAME=VALUE",
                     help="an environment variable for the second executable's runs")
+    ap.add_argument("--link", action="append", default=[], metavar="NAME=PATH",
+                    help="a symbolic link in each run's folder (mods=build/synth/paths/mods: the mods paths' own)")
+    ap.add_argument("--args-b", action="append", default=[], metavar="'OPTIONS'",
+                    help="options for the second executable's runs, as one string (--args-b='--audio sdl')")
     ap.add_argument("names", nargs="*", help="the paths (default: every tools/port/synth/*.press)")
     a = ap.parse_args()
     if a.from_logs:
@@ -306,6 +317,11 @@ def main():
     global EXACT, SAME, SHOTS, AUDIO
     EXACT, SAME, SHOTS, AUDIO = not a.coarse, a.same, a.shots, a.audio
     B_SETS.extend(a.set_b)
+    B_ARGS.extend(w for s in a.args_b for w in shlex.split(s))
+    for e in a.link:
+        if "=" not in e:
+            ap.error(f"--link takes NAME=PATH, not '{e}'")
+        LINKS.append(tuple(e.split("=", 1)))
     for e in a.env_b:
         if "=" not in e:
             ap.error(f"--env-b takes NAME=VALUE, not '{e}'")

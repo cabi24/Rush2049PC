@@ -55,7 +55,13 @@ typedef struct {
 uint64_t pc_host_ns(void);              /* monotonic, since startup: the N64 clock (virtual with --fast) */
 uint64_t pc_real_ns(void);              /* the host's monotonic clock, since startup, whatever the mode */
 void pc_time_set_virtual(int on);       /* --fast, before the boot: the clock moves only by pc_time_advance */
+/* The two meanings of the virtual clock (docs/port/ULTRA.md 10). pc_time_virtual: the N64 side is deterministic
+ * (--fast and paced mode): the main loop's work only while every N64 thread waits, audio tasks on the main loop,
+ * no yields, AI events from the main loop. pc_time_free: nothing is real time either (--fast alone): no vsync
+ * pacing, no simulated presents, the frames between drawn whenever the loop passes. Paced mode (pc_time_paced,
+ * pc_port.h) is virtual and not free: its presentation is real time, and costs wall time only. */
 int pc_time_virtual(void);
+int pc_time_free(void);
 void pc_time_advance(uint64_t ns);      /* main thread, --fast: the clock jumps to ns (never back) */
 uint64_t pc_ticks_now(void);            /* osGetTime */
 uint64_t pc_ticks_to_ns(uint64_t ticks);
@@ -76,6 +82,18 @@ void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 /* Main thread: wait for wake-ups (task submitted, timer set) until the deadline (pc_host_ns), unlocked. */
 int pc_os_wait_main(uint64_t deadline_ns);   /* 0: --fast, a thread still computes (see sched.c) */
+/* Paced mode: as pc_os_wait_main's --fast wait, and the clock moves to the deadline only at its wall time
+ * (pace.c's pc_pace_due). render_wall_ns (pc_pace_wall_ns's clock; UINT64_MAX: none): a wake for the presentation
+ * alone. Returns 1: the N64 side's work is due (every N64 thread waits; a thread woke the main thread, or the clock
+ * moved to the deadline); 2: only the presentation's (the clock not moved, the N64 threads perhaps computing); 0:
+ * after 100 ms of real time with a thread still computing. *late_ns: how late a timed wake came, else -1. */
+int pc_os_wait_main_paced(uint64_t deadline_ns, uint64_t render_wall_ns, int64_t *late_ns);
+/* Wake the main thread's wait to look at the pacing again (pace.c's time sync), with no work for the N64 side. */
+void pc_os_nudge_main(void);
+/* Paced mode: how long the main thread's waits have seen an N64 thread computing without a wait (0: idle at the last
+ * look), for the loop's hang check: a hold or a gate between two waits doesn't count. */
+uint64_t pc_os_busy_ns(void);
+uint64_t pc_os_paced_slack_ns(void);   /* paced: wall ns the main thread slept with every N64 thread waiting, in all */
 void pc_os_quiet_mark(void);   /* real time: the main thread sends a retrace now */
 int pc_os_quiet(void);         /* real time: the threads are done with it; if not, the main wait ends when they are */
 void pc_os_wake_main(void);
@@ -86,6 +104,18 @@ extern int pc_os_trace;          /* --trace-os: log switches and blocking calls 
 
 /* ---------------------------------------------------------------- timer.c */
 uint64_t pc_timer_service(uint64_t now_ticks);   /* main thread: fires due timers; next deadline (ticks) or 0 */
+
+/* ---------------------------------------------------------------- pace.c: paced mode (the rest in pc_port.h) */
+void pc_pace_begin(void);                        /* loop.c, before its first pass */
+uint64_t pc_pace_wall_of(uint64_t n64_ns);       /* the wall time an N64 time is due at, as the map stands */
+uint64_t pc_pace_span(uint64_t n64_ns);          /* wall ns for N64 ns (RUSH_PACE_SPEED's tests: shorter) */
+uint64_t pc_pace_due(uint64_t n64_ns, uint64_t now_wall);   /* sched.c: when the clock may move there */
+void pc_pace_moved(uint64_t n64_ns, uint64_t now_wall);     /* sched.c: it moved there */
+int64_t pc_pace_retrace(uint32_t frame, uint64_t n64_ns);   /* loop.c: a retrace went out; how late (ns) */
+void pc_pace_hold(uint64_t wall_ns);             /* loop.c's hold(): the game was held that long */
+int64_t pc_pace_lag_ns(void);                    /* how late the clock's last move came */
+void pc_pace_report(void);                       /* the exit line */
+void pc_pace_periodic(void);                     /* loop.c, once a second: with -v a line every 10 s */
 
 /* ---------------------------------------------------------------- vi.c */
 void pc_vi_retrace(const void **present_fb);     /* main thread: one retrace; *present_fb set on a swap */

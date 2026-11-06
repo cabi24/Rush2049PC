@@ -499,6 +499,10 @@ enable_testing()
 add_test(NAME ultra_selftest COMMAND rush2049pc --selftest)   # threads, queues, events, timers, SI (no ROM)
 set_tests_properties(ultra_selftest PROPERTIES RUN_SERIAL TRUE)   # its timers on the host's clock: alone (ctest -j)
 add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the same on the virtual clock
+# and in paced mode, the virtual clock paced to the wall clock (port/ultra/pace.c): a 2 s wait takes 2 s. Alone: it
+# measures time
+add_test(NAME ultra_selftest_paced COMMAND rush2049pc --selftest --paced)
+set_tests_properties(ultra_selftest_paced PROPERTIES RUN_SERIAL TRUE LABELS realtime)
 # the RDRAM window at game.memory 64 and 256 (the most): its size through every view, the RCP's addresses past 16 MiB
 # (docs/port/MEMORY.md)
 add_test(NAME ultra_selftest_memory64 COMMAND rush2049pc --selftest --fast --set game.memory=64)
@@ -824,6 +828,87 @@ add_test(NAME realtime_auto_even COMMAND ${PC_PYTHON} ${PORT_TOOLS}/vsync_even.p
     --game 60 --rate auto -j 1 --check 60:60:auto:7 --check 120:60:auto:14)
 set_tests_properties(realtime_auto_even PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE
     SKIP_RETURN_CODE 77 LABELS realtime)
+# Paced mode (docs/port/ULTRA.md 10, NETPLAY.md 5 phase 0.1-0.2): online play's clock, --fast's virtual clock with
+# each of its moves made at its wall time (port/ultra/pace.c), the presentation in real time, the audio device fed from
+# a tap. paced_same_<path>: every path on the virtual clock takes --fast's course to the bit in paced mode
+# (tools/port/synth_compare.py, the program against itself with RUSH_PACED=1). At RUSH_PACE_SPEED=4, N64 time four
+# times the wall's: the pacing's code, a quarter of each path's game time; the whole set at the real pace is a run by
+# hand (ULTRA.md 10). Not alone: what else ctest runs loads the host, which mustn't matter either. A sanitizer build
+# runs three of them (one player, the split screen, 12 cars), as synth_memory_same.
+set(PACED_SPEED 4)
+set(PACED_SAME_TIMEOUT 600)
+if(PC_SANITIZE)
+    set(PACED_SAME_TIMEOUT 3000)
+endif()
+foreach(script ${SYNTH_PATHS})
+    get_filename_component(name ${script} NAME_WE)
+    file(STRINGS ${script} realtime_only REGEX "^#[ \t]*realtime[ \t]*:[ \t]*only[ \t]*$")
+    if(realtime_only)   # pcsetup: the host's clock only
+        continue()
+    endif()
+    if((PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD) AND NOT name MATCHES "^(drive|race2p|race12)$")
+        continue()
+    endif()
+    set(link)
+    if(name MATCHES "^mods_" AND NOT WIN32)   # their mods, as synth_boot_mods_* have them (a symbolic link to them)
+        set(link --link mods=${CMAKE_BINARY_DIR}/synth/paths/mods)
+    endif()
+    add_test(NAME paced_same_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_compare.py
+        --exe $<TARGET_FILE:rush2049pc> --exe $<TARGET_FILE:rush2049pc> --env-b RUSH_PACED=1
+        --env-b RUSH_PACE_SPEED=${PACED_SPEED} --rom ${SYNTH_ROM} --runs 1 --same ${link}
+        --logs ${CMAKE_BINARY_DIR}/synth/paced-same/${name} ${name})
+    set_tests_properties(paced_same_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${PACED_SAME_TIMEOUT})
+    if(link)
+        set_tests_properties(paced_same_${name} PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth;mods_pack")
+    endif()
+endforeach()
+# The same under the timing models, which change real time's course (docs/port/AUDIO.md 7, FRAMERATE.md 4), for both
+# runs: each present held 40 ms of wall time (a host too slow for the pace: the game slows in wall time, re-based
+# again and again), the timed waits in Windows' coarse 15.6 ms steps, a 59.94 Hz vsync swap with frames drawn between
+# at 120 (paced by the display's vblanks, on the wall clock), and the RDP held 40 ms of N64 time a graphics task, which
+# changes --fast's course too (docs/port/NETPLAY.md E4): paced mode takes that one.
+foreach(model "present;RUSH_SIM_PRESENT_MS=40" "timerstep;RUSH_SIM_TIMER_STEP_US=15625"
+              "vsync;RUSH_SIM_VSYNC_HZ=59.94" "gfx;RUSH_SIM_GFX_MS=40")
+    list(GET model 0 tag)
+    list(GET model 1 env)
+    add_test(NAME paced_model_${tag} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/synth_compare.py
+        --exe $<TARGET_FILE:rush2049pc> --exe $<TARGET_FILE:rush2049pc> --env-b RUSH_PACED=1
+        --env-b RUSH_PACE_SPEED=${PACED_SPEED} --set-b video.frame_rate=120 --rom ${SYNTH_ROM} --runs 1 --same
+        --logs ${CMAKE_BINARY_DIR}/synth/paced-model/${tag} drive race2p)
+    set_tests_properties(paced_model_${tag} PROPERTIES FIXTURES_REQUIRED synth_rom ENVIRONMENT ${env}
+        TIMEOUT ${PACED_SAME_TIMEOUT})
+endforeach()
+# In real time (tools/port/paced_check.py): the race paced at 60 retraces a second of wall time (59.95-60.05, at most
+# two lags re-based), its trace and the sound it pushed --fast's (paced_realtime); the same with SDL's disk driver fed
+# from the tap, the AI's queue the null output's on the N64 clock (paced_audio: no dry FIFO after the first second, its
+# mean level within 15 ms of 50); and with each present held 40 ms of wall time, a host too slow for the pace: the game
+# slows in wall time and takes the same course (paced_slow_host); and beside four busy processes (paced_load, at
+# RUSH_PACE_SPEED 4: a loaded host only delays the moves). Alone: they measure time, or load the host.
+add_test(NAME paced_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path race --logs ${CMAKE_BINARY_DIR}/synth/paced-realtime)
+add_test(NAME paced_audio COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path race --audio sdl --logs ${CMAKE_BINARY_DIR}/synth/paced-audio)
+add_test(NAME paced_slow_host COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path race --model RUSH_SIM_PRESENT_MS=40 --slowed
+    --logs ${CMAKE_BINARY_DIR}/synth/paced-slow)
+add_test(NAME paced_load COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path drive --speed ${PACED_SPEED} --load 4 --slowed
+    --logs ${CMAKE_BINARY_DIR}/synth/paced-load)
+# Holds: the game held 3 s at retrace 600 as the pause key holds it (RUSH_SIM_HOLD), and the process stopped whole for
+# 2 s at 12 s of wall time (SIGSTOP, a debugger's stop; POSIX): the pacing moves on by the time held (hold()) or
+# re-bases the lag, the rest at 60 a second, no burst of retraces after it, and the course --fast's without either.
+add_test(NAME paced_hold COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path race --env RUSH_SIM_HOLD=600:3000 --held 3 --logs ${CMAKE_BINARY_DIR}/synth/paced-hold)
+set(PACED_REALTIME_TESTS paced_realtime paced_audio paced_slow_host paced_load paced_hold)
+if(NOT WIN32)
+    add_test(NAME paced_stop COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --path race --stop 2@12 --held 2 --logs ${CMAKE_BINARY_DIR}/synth/paced-stop)
+    list(APPEND PACED_REALTIME_TESTS paced_stop)
+endif()
+foreach(t ${PACED_REALTIME_TESTS})
+    set_tests_properties(${t} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 RUN_SERIAL TRUE SKIP_RETURN_CODE 77
+        LABELS realtime)
+endforeach()
 # Every frame at 60 sees one model tick, at original two, and the camera's eye and view move as evenly at 60 as at
 # original along the synthetic drive, on the virtual clock (tools/port/fps_even.py, --log-frames).
 # Not under AddressSanitizer or ThreadSanitizer: its two runs of drive took past 300 s on CI's arm ASan runner (run

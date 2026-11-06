@@ -19,7 +19,7 @@ static double bessel_i0(double x)
     return sum;
 }
 
-void rs_init(PcResampler *rs, uint32_t in_rate, uint32_t out_rate)
+static void init(PcResampler *rs, uint32_t in_rate, uint32_t out_rate, int filter)
 {
     const double beta = 6.0;
     double fc;   /* cycles per input frame */
@@ -27,9 +27,11 @@ void rs_init(PcResampler *rs, uint32_t in_rate, uint32_t out_rate)
     memset(rs, 0, sizeof *rs);
     rs->in_rate = in_rate;
     rs->out_rate = out_rate;
-    if (!in_rate || !out_rate || in_rate == out_rate)
+    if (!in_rate || !out_rate || (in_rate == out_rate && !filter))
         return;
     rs->step = ((uint64_t)in_rate << 32) / out_rate;
+    if (filter)
+        rs->step0 = rs->step;   /* rs_nudge's */
     fc = 0.45 * (out_rate < in_rate ? (double)out_rate / in_rate : 1.0);
     for (int p = 0; p <= RS_PHASES; p++) {
         double phase = (double)p / RS_PHASES, sum = 0;
@@ -50,11 +52,35 @@ void rs_init(PcResampler *rs, uint32_t in_rate, uint32_t out_rate)
     rs->pos = (uint64_t)(RS_TAPS / 2 - 1) << 32;
 }
 
+void rs_init(PcResampler *rs, uint32_t in_rate, uint32_t out_rate)
+{
+    init(rs, in_rate, out_rate, 0);
+}
+
+void rs_init_nudged(PcResampler *rs, uint32_t in_rate, uint32_t out_rate)
+{
+    init(rs, in_rate, out_rate, 1);
+}
+
+/* Paced mode's tap (audio_out.c): the output rate times (1 + nudge), nudge within +-RS_NUDGE_MAX. The filter stays
+ * the one built for the nominal ratio: a fraction of a percent moves its cutoff by as little. */
+void rs_nudge(PcResampler *rs, double nudge)
+{
+    if (!rs->step0)
+        return;
+    if (nudge > RS_NUDGE_MAX)
+        nudge = RS_NUDGE_MAX;
+    if (nudge < -RS_NUDGE_MAX)
+        nudge = -RS_NUDGE_MAX;
+    rs->step = (uint64_t)((double)rs->step0 / (1.0 + nudge) + 0.5);
+}
+
 size_t rs_max_out(const PcResampler *rs, size_t n)
 {
     if (!rs->step)
         return n;
-    return (size_t)((((uint64_t)n + RS_TAPS) << 32) / rs->step) + 2;
+    uint64_t step = rs->step0 ? (uint64_t)((double)rs->step0 / (1.0 + RS_NUDGE_MAX)) : rs->step;   /* nudged at most */
+    return (size_t)((((uint64_t)n + RS_TAPS) << 32) / step) + 2;
 }
 
 /* Either output: s16 (clamped, counted in rs->clipped) or int32 (as computed: the filter's overshoot of loud input

@@ -17,6 +17,11 @@
  * to the game, so its timing is the same. With --fast they are not deadlines either: they run when the loop wakes
  * for something else, so the virtual clock stops at the same moments with the setting on or off.
  *
+ * Paced mode (pace.c, docs/port/ULTRA.md 10): the N64 side exactly as with --fast, each move of the virtual clock at
+ * its wall time, and the presentation (vsync, frames between, the vblank pacing, the simulated swaps) as in real time,
+ * on the wall clock: pc_time_virtual() is "the N64 side is deterministic", pc_time_free() "nothing is real time"
+ * (--fast alone), and each site below asks the one it means.
+ *
  * Windows has no SIGQUIT: Ctrl-Break (SIGBREAK) prints the threads' states there. Its timeouts follow the system
  * timer (15.6 ms by default), and winpthreads' are 15.6 ms steps whatever the period: the scheduler's own waits use
  * high-resolution timers (sched.c), and the loop asks for a 1 ms period for the rest (SDL's waits). */
@@ -257,7 +262,9 @@ static void sim_advance(uint64_t now)
 static void sim_swap(void)
 {
     sim_read();
-    if (pc_time_virtual() || (sim.extra_ms <= 0 && sim.hz <= 0))
+    /* --fast: nothing is real time. Paced mode: a present's time is wall time only, as a real swap's is (the loop does
+     * no N64 work meanwhile, and the N64 clock doesn't move) */
+    if (pc_time_free() || (sim.extra_ms <= 0 && sim.hz <= 0))
         return;
     sleep_until(pc_real_ns() + (uint64_t)(sim.extra_ms * 1e6));
     if (sim.hz <= 0)
@@ -279,7 +286,7 @@ static void sim_swap(void)
 /* A tick paced by the vblanks keeps the frame shown for its vblank (nothing new, or skipped): no swap, but decided. */
 static void sim_hold(void)
 {
-    if (sim.hz <= 0 || pc_time_virtual())
+    if (sim.hz <= 0 || pc_time_free())
         return;
     sim_advance(pc_real_ns());
     if (sim.started)
@@ -290,7 +297,7 @@ static void sim_hold(void)
 static int display_timing(double *period_ns, int64_t *vblank_age_ns)
 {
     sim_read();
-    if (sim.hz <= 0 || pc_time_virtual())
+    if (sim.hz <= 0 || pc_time_free())
         return pc_gfx_display_timing(period_ns, vblank_age_ns);
     if (sim.timing & 1)
         *period_ns = sim.period;
@@ -524,12 +531,16 @@ static uint64_t vb_start(uint64_t v, uint64_t cost, uint64_t late, uint64_t r, u
 
 /* The pause key, or focus lost with pause_on_focus_loss (port/input): no retraces, timers, RSP tasks or AI
  * events while held, so the game's threads stop where they wait for them; window events are still handled.
- * The N64 clock is set back by the time held, so osGetTime and the OS timers don't jump. */
+ * The N64 clock is set back by the time held, so osGetTime and the OS timers don't jump. In paced mode the map from
+ * N64 time to wall time moves on by the time held (pace.c), so the game goes on at its pace, without a burst of
+ * retraces to catch up. */
+static uint64_t g_sim_hold_until;   /* RUSH_SIM_HOLD's hold, real ns */
+
 static void hold(void)
 {
-    uint64_t ticks = pc_ticks_now();
+    uint64_t ticks = pc_ticks_now(), w0 = pc_real_ns();
     pc_audio_set_paused(1);
-    while (pc_input_paused() && !pc_quit) {
+    while ((pc_input_paused() || pc_real_ns() < g_sim_hold_until) && !pc_quit) {
         if (pc_gfx_poll_events())
             pc_quit = 1;
         struct timespec ts = {0, 1000000000 / PC_VI_HZ};
@@ -537,6 +548,33 @@ static void hold(void)
     }
     pc_audio_set_paused(0);
     osSetTime(ticks);
+    g_sim_hold_until = 0;
+    if (pc_time_paced())
+        pc_pace_hold(pc_real_ns() - w0);
+}
+
+/* RUSH_SIM_HOLD=VI:MS (tests, docs/port/ULTRA.md 10): at retrace VI the loop holds the game MS of wall time, as the
+ * pause key does. Once. */
+static int sim_hold_due(void)
+{
+    static int read;
+    static uint32_t vi;
+    static uint64_t ns;
+    if (!read) {
+        const char *e = getenv("RUSH_SIM_HOLD");
+        unsigned v = 0, ms = 0;
+        if (e && sscanf(e, "%u:%u", &v, &ms) == 2 && ms) {
+            vi = v;
+            ns = (uint64_t)ms * 1000000u;
+        }
+        read = 1;
+    }
+    if (!ns || pc_frame < vi)
+        return 0;
+    g_sim_hold_until = pc_real_ns() + ns;
+    fprintf(stderr, "rush2049pc: RUSH_SIM_HOLD: held at retrace %u for %.3f s\n", pc_frame, ns / 1e9);
+    ns = 0;
+    return 1;
 }
 
 int pc_ultra_run(const PcRunOptions *opt)
@@ -561,6 +599,17 @@ int pc_ultra_run(const PcRunOptions *opt)
                                             * done with the last (pc_os_quiet), and at the latest at this time */
     uint64_t late_at[2] = {0, 0};          /* real time of the last two retraces late (the loop fell behind) */
     int tick_rate = 0;
+    /* Paced mode (pace.c, docs/port/ULTRA.md 10): the N64 side as with --fast, the presentation in real time. The
+     * presentation's times are then wall times, the retraces' N64 times mapped to the wall (pc_pace_wall_of), and its
+     * wakes are wakes of their own (render_wake), never deadlines of the N64 clock: the clock stops at --fast's
+     * moments, and a pass the presentation alone woke for (render_only) does no N64 work. */
+    const int paced = pc_time_paced();
+    int render_only = 0;                   /* paced: the last wait ended for the presentation alone */
+    uint64_t n64_deadline = 0;             /* paced: the N64 side's deadline the last N64 pass set */
+    uint64_t render_wake = UINT64_MAX;     /* paced: when the presentation wants the loop next, wall ns */
+    if (paced)
+        pc_pace_begin();
+    const uint64_t vi_w = paced ? pc_pace_span(vi_ns) : vi_ns;   /* a retrace on the presentation's clock */
     g_game_state = opt->game_state;
     g_game_rate = opt->game_rate;
     g_game_info = opt->game_info;
@@ -573,12 +622,13 @@ int pc_ultra_run(const PcRunOptions *opt)
 #endif
     if (opt->status_every)
         next_status = (uint64_t)opt->status_every * 1000000000u;
-    sim_start(vi_at + vi_ns);
+    sim_start(paced ? pc_pace_wall_of(vi_at + vi_ns) : vi_at + vi_ns);
 
     while (!pc_quit) {
-        if (pc_input_paused()) {
+        if (pc_input_paused() || sim_hold_due()) {
             hold();
-            next_vi = pc_host_ns() + vi_ns;
+            if (!paced)   /* paced: the retraces keep their N64 times (the map moved on in hold()) */
+                next_vi = pc_host_ns() + vi_ns;
             vi_late_cap = 0;
             next_tick = 0;
             vb_reset();
@@ -592,12 +642,12 @@ int pc_ultra_run(const PcRunOptions *opt)
          * retraces. */
         if (pc_gfx_frame_rate_auto())   /* video.frame_rate = auto: by the display's refresh (FRAMERATE.md 7.9) */
             pc_gfx_auto_frame_rate(g_game_rate ? g_game_rate() : 0,
-                                   !pc_time_virtual() && (pc_gfx_vsync() || (sim_read(), sim.hz > 0)), display_hz());
-        if (g_game_rate)
-            pc_gfx_set_own_paced(!pc_time_virtual() && g_game_rate() == 60 &&
+                                   !pc_time_free() && (pc_gfx_vsync() || (sim_read(), sim.hz > 0)), display_hz());
+        if (g_game_rate)   /* render-only: the game's own frames shown at vblanks (real time and paced mode) */
+            pc_gfx_set_own_paced(!pc_time_free() && g_game_rate() == 60 &&
                                  (pc_gfx_vsync() || (sim_read(), sim.hz > 0)) && display_hz() < 100);
-        uint64_t now = pc_host_ns(), deadline = next_vi, ticks = pc_ticks_now();
-        int vi_due = now >= next_vi;
+        uint64_t now = pc_host_ns(), deadline = render_only ? n64_deadline : next_vi, ticks = pc_ticks_now();
+        int vi_due = !render_only && now >= next_vi;
         if (vi_due && vi_late_cap) {   /* late: the game's threads take each retrace before the next comes */
             int quiet = pc_os_quiet();
             if (!quiet && now < vi_late_cap) {
@@ -620,13 +670,14 @@ int pc_ultra_run(const PcRunOptions *opt)
             opt->voices_info(line, sizeof line);
             fprintf(stderr, "rush2049pc: voices vi=%u: %s\n", pc_frame, line);
         }
-        uint64_t timer = pc_timer_service(ticks);
+        uint64_t timer = render_only ? 0 : pc_timer_service(ticks);   /* paced, for the presentation alone: no N64 work */
         if (timer && timer > ticks && now + pc_ticks_to_ns(timer - ticks) < deadline)
             deadline = now + pc_ticks_to_ns(timer - ticks);
         else if (timer && timer <= ticks)
             deadline = now;
         uint64_t ai = 0;
-        pc_rcp_service(now, &ai);
+        if (!render_only)
+            pc_rcp_service(now, &ai);
         if (ai && ai < deadline)
             deadline = ai;
 
@@ -640,17 +691,17 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_input_poll(pads);
             pc_si_set_pads(pads);
             pc_gfx_retrace(pc_frame);
-            if (!pc_time_virtual())
+            if (!pc_time_virtual())   /* real time's late retraces only: paced mode's N64 side is --fast's */
                 pc_os_quiet_mark();
             /* a high frame rate: the game's last frame, swapped in a retrace or more ago, not shown by any tick */
-            int stale = !pc_time_virtual() && pc_gfx_frame_rate() != 0 && pc_gfx_frame_waiting();
+            int stale = !pc_time_free() && pc_gfx_frame_rate() != 0 && pc_gfx_frame_waiting();
             pc_vi_retrace(&fb);
             if (fb) {
                 pc_gfx_present(fb);
                 if (pc_gfx_frame_rate() == 0) {
                     sim_swap();
-                } else if (!pc_time_virtual() && !vb.swap &&
-                           (stale || tick_ns + VB_MARGIN_NS + VB_VI_WORK_NS >= vi_ns)) {
+                } else if (!pc_time_free() && !vb.swap &&
+                           (stale || tick_ns + VB_MARGIN_NS + VB_VI_WORK_NS >= vi_w)) {
                     /* With the setting on, ticks show the game's frames. When none showed the last one (they were
                      * skipped to keep the retraces on time), or none fits between two retraces (a host behind), the
                      * game's new frame is shown here, at its swap, as with the setting off: the game's frames are
@@ -690,8 +741,12 @@ int pc_ultra_run(const PcRunOptions *opt)
                 end_status("frames reached:");
                 break;
             }
+            if (paced && pc_pace_retrace(pc_frame, next_vi) >= (int64_t)vi_w) {   /* the host behind the pacing */
+                late_at[0] = late_at[1];
+                late_at[1] = pc_real_ns();
+            }
             next_vi += vi_ns;
-            if (next_vi <= now) {   /* behind (a slow frame, a swap waiting for vsync) */
+            if (next_vi <= now) {   /* behind (a slow frame, a swap waiting for vsync); never on the virtual clock */
                 late_at[0] = late_at[1];   /* when the last two were */
                 late_at[1] = pc_real_ns();
                 /* A late retrace comes soon after, so the game keeps its 60 a second: it counts its time in
@@ -705,7 +760,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                     next_vi = now + vi_ns;
                 } else {
                     vi_caught_up++;
-                    if (!pc_time_virtual())
+                    if (!pc_time_virtual())   /* (the virtual clock, paced or not, never passes a retrace) */
                         vi_late_cap = pc_host_ns() + VI_CATCH_UP_GAP_NS;
                 }
             }
@@ -714,6 +769,8 @@ int pc_ultra_run(const PcRunOptions *opt)
             if (now >= next_flush) {
                 pc_si_flush();
                 pc_audio_periodic();
+                if (paced)
+                    pc_pace_periodic();
                 next_flush = now + 1000000000u;
             }
             if (next_status && now >= next_status) {
@@ -731,12 +788,20 @@ int pc_ultra_run(const PcRunOptions *opt)
             }
         }
         int rate = pc_gfx_frame_rate();
-        if (rate > 0 && !pc_time_virtual() && (pc_gfx_vsync() || (sim_read(), sim.hz > 0))) {
+        /* The presentation's clock (render-only: real time and paced mode). In real time the host's: nvi and vat are
+         * next_vi and vi_at, and its wakes are the loop's deadline. In paced mode the wall clock: nvi and vat are the
+         * retraces' wall times (pace.c's map), its wakes go to render_wake, and a retrace moved against the vblanks
+         * moves the map instead (the retraces are N64 time). With --fast neither: the frames between are drawn when
+         * the loop passes, never woken for. */
+        uint64_t nvi = paced ? pc_pace_wall_of(next_vi) : next_vi, vat = paced ? pc_pace_wall_of(vi_at) : vi_at;
+        uint64_t *wake = paced ? &render_wake : &deadline;
+        render_wake = UINT64_MAX;
+        if (rate > 0 && !pc_time_free() && (pc_gfx_vsync() || (sim_read(), sim.hz > 0))) {
             /* A high frame rate with a swap that waits for vsync: paced by the display's vblanks (vb above). */
-            uint64_t period = 1000000000u / (uint64_t)rate, t = pc_host_ns();
+            uint64_t period = 1000000000u / (uint64_t)rate, t = paced ? pc_real_ns() : pc_host_ns();
             int hz = display_hz(), every;
             if (!next_tick || rate != tick_rate)
-                next_tick = vi_at;
+                next_tick = vat;
             tick_rate = rate;
             if (hz != vb.hz) {   /* the first tick, or another display */
                 vb.hz = hz;
@@ -745,10 +810,17 @@ int pc_ultra_run(const PcRunOptions *opt)
                 vb_reset();
             }
             vb_timing(t);
-            int64_t move = vb_lock(next_vi, vi_ns, t);
-            if (move) {   /* the retraces halfway between two vblanks (vb_lock) */
+            int64_t move = vb_lock(nvi, vi_w, t);
+            if (move && paced) {   /* the retraces halfway between two vblanks: the map moves (pace.c) */
+                pc_pace_shift_ns(move);
+                nvi = pc_pace_wall_of(next_vi);
+                vat = pc_pace_wall_of(vi_at);
+                vb.target = 0;
+            } else if (move) {   /* the retraces halfway between two vblanks (vb_lock) */
                 next_vi = (uint64_t)((int64_t)next_vi + move);
                 vi_at = (uint64_t)((int64_t)vi_at + move);
+                nvi = next_vi;
+                vat = vi_at;
                 if (next_vi < deadline)
                     deadline = next_vi;
                 vb.target = 0;
@@ -764,13 +836,13 @@ int pc_ultra_run(const PcRunOptions *opt)
                         ticks_skipped++;
                     }
                     vb.swap = 0;
-                } else if (vb.swap - VB_VI_WORK_NS < deadline) {
-                    deadline = vb.swap - VB_VI_WORK_NS;
+                } else if (vb.swap - VB_VI_WORK_NS < *wake) {
+                    *wake = vb.swap - VB_VI_WORK_NS;
                 }
             }
-            if (!vb.swap && tick_ns + VB_MARGIN_NS + VB_VI_WORK_NS < vi_ns) {
+            if (!vb.swap && tick_ns + VB_MARGIN_NS + VB_VI_WORK_NS < vi_w) {
                 /* else no tick fits between two retraces: the game's frames are shown at the retraces (above) */
-                uint64_t late = wake_late < vi_ns / 2 ? wake_late : vi_ns / 2;
+                uint64_t late = wake_late < vi_w / 2 ? wake_late : vi_w / 2;
                 uint64_t cost_hi = vb_cost(tick_ns, tick_dev);   /* what a tick's drawing is planned to take */
                 if (!vb.target) {   /* the next vblank: one a tick can still make, one after the last, and with a
                                      * rate below the refresh the one at or after the rate's next tick */
@@ -781,28 +853,32 @@ int pc_ultra_run(const PcRunOptions *opt)
                         from = next_tick;
                     vb.target = vb_next(from);
                 }
-                uint64_t v = vb.target, start = vb_start(v, cost_hi, late, next_vi, t), last;
-                double vt = pc_frame + ((double)v - (double)vi_at) / (double)vi_ns;   /* its moment, in retraces */
+                uint64_t v = vb.target, start = vb_start(v, cost_hi, late, nvi, t), last;
+                double vt = pc_frame + ((double)v - (double)vat) / (double)vi_w;   /* its moment, in retraces */
                 if (!start) {   /* it can't make that vblank without running into a retrace: the screen keeps what
                                  * it shows */
                     ticks_skipped++;
                     sim_hold();
                     vb.shown = v;
                     vb.target = 0;
-                    deadline = t;
+                    *wake = t;
                 } else if (t >= start) {
                     if (pc_rcp_pending()) {
-                        deadline = t;   /* the game first: its task runs in the next pass, then this frame */
-                    } else if (next_vi <= t + cost_hi + VB_GUARD_NS && late < VB_PRECISE_NS) {
-                        if (next_vi > t && next_vi < deadline)   /* the retrace first (a late one: its own wait) */
-                            deadline = next_vi;
+                        /* the game first: its task runs in the next pass, then this frame. Paced, that pass is when
+                         * every N64 thread waits (the wake-up that submitted the task ends the wait then): no wake
+                         * of its own, or the loop would spin while the game computes */
+                        if (!paced)
+                            deadline = t;
+                    } else if (nvi <= t + cost_hi + VB_GUARD_NS && late < VB_PRECISE_NS) {
+                        if (nvi > t && nvi < *wake)   /* the retrace first (a late one: its own wait) */
+                            *wake = nvi;
                     } else if (pc_gfx_tick_waits(vt) &&
                                (last = v - cost_hi - VB_GUARD_NS - (late < VB_PRECISE_NS ? late : 0)) > t &&
                                last < v) {
                         /* the frame is between the shown one and the game's next, which isn't drawn yet: its
                          * graphics task wakes the loop, and runs first, as long as the tick still makes its vblank */
-                        if (last < deadline)
-                            deadline = last;
+                        if (last < *wake)
+                            *wake = last;
                     } else {
                         /* the mode: the GPU's spare time only; only the game's frames while the host is behind (two
                          * retraces dropped within a second) */
@@ -812,11 +888,11 @@ int pc_ultra_run(const PcRunOptions *opt)
                             mode = 2;   /* the game's own frames only */
                         int drew = pc_gfx_present_tick(vt, mode | PC_GFX_TICK_NO_SWAP);
                         cost = pc_real_ns() - r0;
-                        if (drew && next_vi + VB_VI_WORK_NS < v && wake_late < VB_PRECISE_NS) {
+                        if (drew && nvi + VB_VI_WORK_NS < v && wake_late < VB_PRECISE_NS) {
                             vb.swap = v;   /* a retrace comes first: the swap waits for it, not it for the swap */
                             vb.swap_vi = pc_frame;
-                            if (next_vi < deadline)
-                                deadline = next_vi;
+                            if (nvi < *wake)
+                                *wake = nvi;
                         } else if (drew) {
                             cost += vb_swap_now(v);
                         } else {
@@ -829,31 +905,35 @@ int pc_ultra_run(const PcRunOptions *opt)
                         if (next_tick <= v)
                             next_tick += ((v - next_tick) / period + 1) * period;
                         if (!vb.swap)
-                            deadline = t;   /* the next one chosen in the next pass */
+                            *wake = t;   /* the next one chosen in the next pass */
                     }
-                } else if (start < deadline) {
-                    deadline = start;
+                } else if (start < *wake) {
+                    *wake = start;
                 }
             }
         } else if (rate > 0) {   /* a high frame rate: a frame shown, in step with the retraces */
-            uint64_t period = 1000000000u / (uint64_t)rate, t = pc_host_ns();
+            uint64_t period = 1000000000u / (uint64_t)rate, t = paced ? pc_real_ns() : pc_host_ns();
             vb.swap = vb.target = 0;   /* vsync just turned off: a swap left is the next tick's */
             if (!next_tick || rate != tick_rate)
-                next_tick = vi_at;
+                next_tick = vat;
             tick_rate = rate;
-            if (t >= next_tick && !pc_time_virtual() && pc_rcp_pending()) {
-                deadline = t;   /* the game first: its task runs in the next pass, then this frame */
+            /* the game first: its task runs in the next pass, then this frame (paced: when every N64 thread waits, the
+             * task's wake-up ends the wait then, so no wake of its own, which would spin while the game computes) */
+            int pending = !pc_time_free() && t >= next_tick && pc_rcp_pending();
+            if (pending) {
+                if (!paced)
+                    deadline = t;
             } else if (t >= next_tick) {
                 /* On the host's clock a frame is skipped (the screen keeps the last one) when drawing it would run
                  * into the next retrace, by how long the last ones took: the frames between never delay the
-                 * game's retraces or frames, which would slow the game in real time. The game's frames are then
-                 * shown at the retraces (above). */
-                if (pc_time_virtual() || t + tick_ns <= next_vi) {
+                 * game's retraces or frames, which would slow the game in real time (and paced, in wall time). The
+                 * game's frames are then shown at the retraces (above). */
+                if (pc_time_free() || t + tick_ns <= nvi) {
                     /* the mode: exact with --fast; else the GPU's spare time only; and only the game's frames
                      * while the host is behind (two retraces dropped within a second) */
                     uint64_t r0 = pc_real_ns();
-                    int mode = pc_time_virtual() ? 0 : late_at[0] && r0 - late_at[0] < 1000000000u ? 2 : 1;
-                    if (pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vi_at) / (double)vi_ns, mode))
+                    int mode = pc_time_free() ? 0 : late_at[0] && r0 - late_at[0] < 1000000000u ? 2 : 1;
+                    if (pc_gfx_present_tick(pc_frame + ((double)next_tick - (double)vat) / (double)vi_w, mode))
                         sim_swap();
                     tick_ns = (tick_ns * 3 + (pc_real_ns() - r0)) / 4;
                 } else {
@@ -863,8 +943,8 @@ int pc_ultra_run(const PcRunOptions *opt)
                 if (next_tick <= t)   /* behind (a slow frame, a blocking swap): skip to the next one due */
                     next_tick += ((t - next_tick) / period + 1) * period;
             }
-            if (!pc_time_virtual() && next_tick < deadline)
-                deadline = next_tick;
+            if (!pc_time_free() && !(pending && paced) && next_tick < *wake)
+                *wake = next_tick;
         } else {
             next_tick = 0;
             vb.swap = vb.target = 0;
@@ -876,16 +956,32 @@ int pc_ultra_run(const PcRunOptions *opt)
             pc_os_dump_threads();
         }
     wait:
-        if (pc_time_virtual() && pc_real_ns() - last_vi_real > 30000000000u) {
+        /* A hung run: with --fast no retrace for 30 s of real time; paced, where holds, gates and the pacing itself
+         * take wall time, the waits have seen an N64 thread computing without a wait for 30 s (sched.c). */
+        if (pc_time_virtual() && (paced ? pc_os_busy_ns() : pc_real_ns() - last_vi_real) > 30000000000u) {
             snapshot();
             status("hung:");
-            fprintf(stderr, "rush2049pc: --fast: no retrace for 30 s of real time: a thread computes without "
-                    "waiting\n");
+            fprintf(stderr, "rush2049pc: %s: a thread computes without waiting\n",
+                    paced ? "paced: the N64 clock hasn't moved for 30 s of real time" : "--fast: no retrace for 30 s of "
+                    "real time");
             pc_os_dump_threads();
             pc_quit = 1 + 1;
             break;
         }
         uint64_t w0 = pc_host_ns();
+        if (paced) {   /* the wait for the N64 side's deadline at its wall time, or the presentation's wake */
+            int64_t late;
+            n64_deadline = deadline;
+            int r = pc_os_wait_main_paced(deadline, render_wake, &late);
+            if (!r && !pc_quit)
+                goto wait;   /* a thread still computes; the loop's N64 work waits until it waits (sched.c) */
+            render_only = r == 2;
+            if (late >= 0) {   /* how late the wait's timed wakes return: the vblank pacing plans with it */
+                uint64_t keep = wake_late - wake_late / 32;
+                wake_late = (uint64_t)late > keep ? (uint64_t)late : keep;
+            }
+            continue;
+        }
         if (!pc_os_wait_main(deadline) && !pc_quit)
             goto wait;   /* --fast: a thread still computes; the loop's work waits until it waits (sched.c) */
         if (!pc_time_virtual() && deadline > w0) {   /* a timed wait: how late it returned, if it timed out */
@@ -908,6 +1004,8 @@ int pc_ultra_run(const PcRunOptions *opt)
                 vb.shown_n, vb.deferred, vb.missed, vb.overran, vb.retrace_shows, wake_late / 1e6,
                 vb_cost(tick_ns, tick_dev) / 1e6, vb.locks, vb.lock_max / 1e6);
     sim_report();
+    if (paced)
+        pc_pace_report();
     fprintf(stderr, "rush2049pc: %u retraces in %.1f s; %u came a whole retrace late and were caught up, %u dropped "
             "(the host stalled %u retraces or more); %u late ones went out before the game was done with the last\n",
             pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped, VI_CATCH_UP, vi_not_taken);

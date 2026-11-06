@@ -6,6 +6,13 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play's clock** (groundwork, not a setting): `--paced` runs the game on `--fast`'s virtual clock, which
+  takes the same course on every PC from the same inputs, at the pace of real time: each move of the clock waits for
+  its wall time. A paced run is `--fast`'s to the bit on every synthetic path, at 60.000 retraces a second; a host too
+  slow for it slows the game in wall time and never changes its course. Vsync, frames between and the window behave
+  as in real time; the sound card is fed from a copy of the game's sound, so its timing never reaches the game
+  ([ULTRA.md](docs/port/ULTRA.md) 10, [AUDIO.md](docs/port/AUDIO.md) 11, [NETPLAY.md](docs/port/NETPLAY.md)).
+
 - **Fill the window** (`video.fill`, F1 > Video > Fill the window): `on` makes the picture reach the window's top and
   bottom. The game shows 220 rows, and the port showed them in a TV's 240-line frame, with a band above and below
   (66 pixels each at 2880 × 1620). With widescreen the picture is then the window's shape, the 3D a little less wide
