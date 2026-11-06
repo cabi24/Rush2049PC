@@ -1,0 +1,36 @@
+# Every cheat available (game.cheats_unlock) on the cheat screen the main menu shows without its code
+# (game.cheats_menu), and the cheat in a race (docs/port/FRONTEND.md "The cheat screen in the main menu"): five down
+# to CHEATS (option slot 6), A opens the cheat screen (0x8000000); eight down to cheat 8, the invisible track, whose
+# code isn't entered, and RIGHT switches it on; B back to the main menu, START a single race on track 0's detail
+# world. The check: the exit's scene line has none of the world's parts let through (detail.press: four), the cheat
+# hiding them all. cheats_menu.press: the same without game.cheats_unlock, the cheat locked and the track drawn.
+# until: 0x400000:60
+# seconds: 90
+# args: --set game.cheats_menu=on --set game.cheats_unlock=on
+# visits: 0x8000000
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# check: tools/port/detail_check.py cheats_unlock.log --level original --world 0
+# check: tools/port/log_check.py cheats_unlock.log "CHEATS option on (game.cheats_menu), every cheat available on" "game state 0x08000000" "game state 0x00000010" "game state 0x00400000"
+5 A            # the controller pak warning (0x40000000)
+8 START        # the start prompt (4); the main menu from 8 s
+10 DOWN 0.1    # five down: the second to fifth options, then CHEATS
+10.5 DOWN 0.1
+11 DOWN 0.1
+11.5 DOWN 0.1
+12 DOWN 0.1
+13 A           # the cheat screen (0x8000000), cheat 0 selected
+15 DOWN 0.1    # eight down: cheat 8, the invisible track
+15.5 DOWN 0.1
+16 DOWN 0.1
+16.5 DOWN 0.1
+17 DOWN 0.1
+17.5 DOWN 0.1
+18 DOWN 0.1
+18.5 DOWN 0.1
+20 RIGHT 0.1   # switch it on: available without its code
+22 B           # back to the main menu (0x10)
+25 START       # START is the race from any option: the player screen (0x20)
+28 A           # the mode screen (0x40): a single race
+31 A           # the track select (0x80): track 0
+34 A           # the car select (0x100)
+37 A           # the race start, PrePlay, the countdown, the race (0x400000)

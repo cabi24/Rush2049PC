@@ -25,6 +25,7 @@
 #include "pc_game_fps.h"
 #include "pc_start_menu.h"
 #include "pc_ghost_prompt.h"
+#include "pc_cheats.h"
 #include "pc_game_types.h"
 #include "ultra.h"
 
@@ -1005,6 +1006,12 @@ static int rush_main(int argc, char **argv)
     pc_game_fps_set(cfg.game_fps);   /* [game] frame_rate: the game latches it at each change of state (game_fps.c) */
     pc_start_menu_set(cfg.pc_setup);   /* [game] pc_setup: PC SETUP in the main menu (start_menu.c) */
     pc_ghost_prompt_set(cfg.ghost_prompt);   /* [game] ghost_prompt: the ghost save prompt for all (ghost_prompt.c) */
+    pc_cheats_menu_set(cfg.cheats_menu);   /* [game] cheats_menu, cheats_unlock: the cheat screen (cheats.c) */
+    pc_cheats_unlock_set(cfg.cheats_unlock);
+    if (cfg.cheats_menu || cfg.cheats_unlock)
+        fprintf(stderr, "rush2049pc: cheats: the main menu's CHEATS option %s (game.cheats_menu), every cheat "
+                "available %s (game.cheats_unlock)\n", cfg.cheats_menu ? "on" : "off",
+                cfg.cheats_unlock ? "on" : "off");
     if (cfg.game_fps)
         fprintf(stderr, "rush2049pc: the game runs at %d frames a second (game.frame_rate)\n", pc_game_fps_setting());
     /* port/gfx reads its settings from the environment; the resolved values already include it */

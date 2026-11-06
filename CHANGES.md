@@ -12,6 +12,12 @@ What changed for players, newest first. The details and the tests behind each it
   than before (392 N64 pixels across at 16:9, where it was 426); with side art (the HD menu mod) the main menu fills
   the screen too. `off`, the default, is as before ([GFX.md](docs/port/GFX.md) "Fill the window").
 
+- **The cheat screen in the main menu, and every cheat on it** (`game.cheats_menu`, `game.cheats_unlock`, F1 > Game >
+  Cheats menu, Unlock all cheats): the game's own CHEATS option shows in the main menu without its button code, and
+  on the cheat screen every cheat can be switched without its own code (the cartridge makes a cheat available only
+  once its code is entered there, for the session). Both `off`, the default, are the N64's
+  ([FRONTEND.md](docs/port/FRONTEND.md) "The cheat screen in the main menu").
+
 - **Ghost save prompt for every profile** (`game.ghost_prompt`, F1 > Game > Ghost save prompt): after a finished
   ghost race the game offers to save the ghost with its own save prompt, which the cartridge shows only to its
   developer's profile name (any other profile's ghosts were kept only until the game closed, so `saves = files` made no

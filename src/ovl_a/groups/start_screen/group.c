@@ -129,7 +129,7 @@ void func_8038F79C(void);
 #endif
 #ifdef TARGET_PC
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8, never valid on the
-   N64, is PC SETUP while it is on, and choosing it opens the settings overlay over the menu instead of leaving it. */
+   N64, is PC SETUP while it is on, A on it opens the settings overlay over the menu; game.cheats_menu: slot 6 valid. */
 int pc_start_valid(int index, int value);
 int pc_start_exit(int exit, int select);
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))

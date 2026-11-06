@@ -42,6 +42,7 @@
 #include "input_internal.h"
 #include "pc_start_menu.h"
 #include "pc_ghost_prompt.h"
+#include "pc_cheats.h"
 
 /* ---------------------------------------------------------------- the pages */
 
@@ -333,6 +334,12 @@ static void build(void)
     it = add(P_GAME, I_CHOICE, "Ghost save prompt", "game", "ghost_prompt");   /* SAVES.md "The ghost save prompt" */
     it->choices = onoff;
     it->desc = "Offer to save each ghost race's ghost";
+    it = add(P_GAME, I_CHOICE, "Cheats menu", "game", "cheats_menu");   /* FRONTEND.md "The cheat screen" */
+    it->choices = onoff;
+    it->desc = "The main menu's CHEATS option, without its code";
+    it = add(P_GAME, I_CHOICE, "Unlock all cheats", "game", "cheats_unlock");
+    it->choices = onoff;
+    it->desc = "Every cheat on the cheat screen, without its code";
     add(P_GAME, I_DEFAULTS, "Defaults", NULL, NULL);
 
     pages[P_MODS].title = "Mods";
@@ -582,6 +589,10 @@ static void apply(const char *section, const char *key)
             pc_start_menu_set(s->pc_setup);
         if (!strcasecmp(key, "ghost_prompt"))   /* the next race's end (ghost_prompt.c) */
             pc_ghost_prompt_set(s->ghost_prompt);
+        if (!strcasecmp(key, "cheats_menu"))   /* the main menu's next frame (cheats.c) */
+            pc_cheats_menu_set(s->cheats_menu);
+        if (!strcasecmp(key, "cheats_unlock"))   /* the cheat screen's next frame (cheats.c) */
+            pc_cheats_unlock_set(s->cheats_unlock);
     } else
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }

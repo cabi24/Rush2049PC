@@ -224,6 +224,15 @@ static const Item items[] = {
     {"game", "pc_setup", T_BOOL, F(pc_setup), 0, 0, NULL, "off",
      "Add PC SETUP to the game's main menu, below its other options: choosing it opens these settings over the menu "
      "(the settings overlay, as hotkeys.menu does). off: the N64's options only. At once."},
+    /* game.cheats_menu, game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen") */
+    {"game", "cheats_menu", T_BOOL, F(cheats_menu), 0, 0, NULL, "off",
+     "Show the game's CHEATS option in its main menu, below VIDEO, as when its button code was entered there: it "
+     "opens the cheat screen. off: the N64's, the option only after its code (or for the developer's profile name). "
+     "At once."},
+    {"game", "cheats_unlock", T_BOOL, F(cheats_unlock), 0, 0, NULL, "off",
+     "Every cheat on the cheat screen available: LEFT and RIGHT switch it without its button code. off: the N64's, "
+     "each cheat only after its code is entered there. Cheats switched on stay on until switched off (or the game "
+     "closes). At once."},
     /* mods (docs/port/MODS.md): read at start, before the game's memory is mapped */
     {"game", "mods", T_BOOL, F(mods), 0, 0, NULL, "on",
      "Use the mods in mods_dir: their files stand in for the cartridge's (the project's docs/port/MODS.md). off: the "

@@ -274,6 +274,7 @@ ghost races made no files ([QA.md](QA.md) "Not bugs": the cartridge's behaviour,
 
 - **With it on**, `billboard_render`'s test of the flag (`billboard_render.c:121`, `PC_GHOST_PROMPT`: the original
   tokens on the N64) takes it as set, so every profile gets the prompt; the name's other unlocks (the cheat screen,
+  which `game.cheats_menu` gives on its own, [FRONTEND.md](FRONTEND.md) "The cheat screen in the main menu";
   `D_801164A4[14-16]`) don't change. The prompt is the cartridge's own: its pak choice, save, overwrite and don't
   save. With `saves = files` the ghost it saves is a `.r49ghost` in the player's folder (2); with `pak`, a note on the
   `.mpk`. F1 > Game > Ghost save prompt sets it from the next race's end.

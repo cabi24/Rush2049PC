@@ -13,6 +13,7 @@ The settings overlay (Phase 8, 2026-10-27) has [its own section](#the-settings-o
 | `port/input/stick.c` | dead zone, the N64 range, the octagonal gate |
 | `port/config/config.c` | the INI reader, the settings table, the file's location, the first-run file, the layers, saving changes in place |
 | `port/config/race_cars.c` | `game.cars` at run time: the setting, and the count the game latches at each race's start |
+| `port/config/cheats.c` | `game.cheats_menu` and `game.cheats_unlock`: [the cheat screen](#the-cheat-screen-in-the-main-menu-gamecheats_menu-gamecheats_unlock) in the main menu, every cheat on it available |
 | `port/config/presets.c` | the [presets](#presets-n64-original-pc-enhanced-pc-maximum): N64 original, PC enhanced, PC maximum |
 | `port/input/tests/` | `frontend_test` (no SDL), `frontend_menu_test` (the overlay, headless) and `frontend_sdl_test` (SDL2 builds) |
 
@@ -220,6 +221,10 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
 | `game.cars` | original | `--set game.cars=N` | the most cars a race holds: `original` (the N64's 6) or 6-12 (`PC_MAX_LINKS`); from the next race ([below](#the-cars-a-race-holds-gamecars), [MORECARS.md](MORECARS.md)) |
 | `game.memory` | original | `--set game.memory=N` | the game's memory: `original` (the N64's 8 MiB, 4 with `expansion_pak` off) or 16-256 MiB, the RDRAM window, osMemSize and so its heap; from the next start. With a size the game uses its Expansion Pak features, so `expansion_pak = off` does nothing then, and the settings warn ([MEMORY.md](MEMORY.md) 1) |
 | `game.frame_rate` | original | `--set game.frame_rate=60` | the game's own frame rate: `original` (a frame every two retraces at most, 30 a second: the N64's) or `60` (a frame every retrace: the menus, the HUD, the cameras and the effects step 60 times a second at the N64's speed; the car physics is the same). From the next screen ([below](#the-games-frame-rate-gameframe_rate), [FRAMERATE.md](FRAMERATE.md) 7) |
+| `game.pc_setup` | off | `--set game.pc_setup=on` | PC SETUP in the main menu, below its options: it opens the settings overlay over the menu; at once ([below](#pc-setup-in-the-main-menu-gamepc_setup)) |
+| `game.ghost_prompt` | off | `--set game.ghost_prompt=on` | the ghost save prompt after a finished ghost race for every profile, not only the developer's name; from the next race's end ([SAVES.md](SAVES.md) 7.1) |
+| `game.cheats_menu` | off | `--set game.cheats_menu=on` | the main menu's own CHEATS option (the cheat screen) without its button code; at once ([below](#the-cheat-screen-in-the-main-menu-gamecheats_menu-gamecheats_unlock)) |
+| `game.cheats_unlock` | off | `--set game.cheats_unlock=on` | every cheat on the cheat screen available, without its button code; at once ([below](#the-cheat-screen-in-the-main-menu-gamecheats_menu-gamecheats_unlock)) |
 | `game.mods` | on | `--no-mods` (off) | use the mods folder's mods that are on: their files in place of the cartridge's; off: the cartridge's only; from the next start ([MODS.md](MODS.md)) |
 | `game.mods_dir` | `mods` (in the data folder) | `--mods-dir PATH` | the mods folder: a folder or .zip per mod; a name alone is in the data folder, `--mods-dir` from the working directory |
 | `game.mods_order` | (empty) | | mod folders, comma-separated, first first: of two mods' files for one wave the first's is used; the rest follow by their mod.ini priority (the overlay's Mods page writes it) |
@@ -419,7 +424,8 @@ it on and off at once.
   once its code is entered, 7 and 9 a debug build's, 5 and 8 never. Each slot has its own button (the same pill
   model, made for all ten by `initButtons`), and the valid ones are stacked one gap apart, so a sixth valid slot gets
   a button, a place and the turn to its selected side as the cheat screen's does. PC SETUP is slot 8: with the cheat
-  screen unlocked it comes after it.
+  screen unlocked (its code, or `game.cheats_menu`: [below](#the-cheat-screen-in-the-main-menu-gamecheats_menu-gamecheats_unlock))
+  it comes after it.
 - **The game's code**, three PC macros on existing lines, each giving the original tokens on the N64:
   `PC_START_VALID` on optionValid's return (both copies: slot 8 valid while the setting is on), `PC_START_LABEL` on
   the label's draw (`state_utility(..., countdown_state.indexed[indices[20] + i])`, both of the function's layouts:
@@ -443,6 +449,71 @@ it on and off at once.
   PC SETUP, A opens the overlay, START closes it without the player screen, up and A into
   the fifth option's screen; its log has the three lines in order (`tools/port/log_check.py`). On the retail
   cartridge on the Pi the same steps went the same way.
+
+### The cheat screen in the main menu (game.cheats_menu, game.cheats_unlock)
+
+2026-11-05 (`port/config/cheats.c`, `pc_cheats.h`). Two settings, both `off` by default: the N64's game. F1 > Game >
+Cheats menu and Unlock all cheats turn them on and off at once.
+
+- **`game.cheats_menu`**: the main menu shows the game's own CHEATS option below VIDEO, as when its button code has
+  been entered there, and A on it opens the cheat screen.
+- **`game.cheats_unlock`**: on the cheat screen every one of the 21 cheats is available, as when its own button code
+  has been entered: LEFT and RIGHT switch it, and it is drawn as an available one. The two are independent: with
+  the unlock alone, every cheat is available whenever the cheat screen is reached the cartridge's way.
+
+How the cartridge decides:
+
+- **The CHEATS option.** The main menu's option slot 6 (the slots: "PC SETUP" above) is the cheat screen (state
+  0x8000000, `updateStartScreen`'s `case 6`, `src/ovl_a/groups/start_screen/group.c:241`). optionValid
+  (`func_8038F744`, both copies) makes it valid only while `D_801164A1` is set (`start_screen/group.c:296-297`,
+  `runtime_a_option_eligibility/group.c:176-177`): the byte after the 21 cheats' flags (MAT3's `gCheatActive[23]`).
+  Two things set it. The main menu checks its own button code each frame while it is clear (`CheckForEgg`,
+  `func_8038F648`, against the code `InitEgg(23)` points at, `D_803B41D4`; `start_screen/group.c:256-257`, 271-272).
+  And LoadPlayerData (`func_800CCEFC`, `src/blob/groups/menu_save_options/group.c:335-342`) sets it when the
+  profile's name matches the cartridge's developer code (`D_801211CC`), with cheat states 14-16 and the ghost save
+  prompt's flag (`D_801148E4`, [SAVES.md](SAVES.md) 7.1). Nothing saves it: it lasts the session.
+- **A cheat's availability.** The cheat screen (`updateCheatScreen`, `func_8039C910`,
+  `src/ovl_a/groups/cheat_screen/cheatscr.c`) has 21 cheats, each with a flag in `gCheatActive` (`D_8011648C`, s8).
+  A cheat's flag is set only by its own button code, entered while it is selected: `if (!gCheatActive[sel])
+  gCheatActive[sel] = CheckForEgg()` (`cheatscr.c:212-213`), against `gEggs[sel]` (`D_803B3460`, which InitEgg
+  points at on each move). The flag is read in two places: LEFT and RIGHT switch the selected cheat only when it is
+  set (`cheatscr.c:98`), and printOption (`func_803A5350`, `cheatscr.c:339-341`) draws the cheat's value bright when
+  it is set, dim (colour 4) when not. No other code reads or writes these flags; LoadPlayerData writes only the
+  CHEATS option's byte after them (its loop over cheats 1-20 has no body, in the retail code as here). So a cheat's
+  availability is neither the profile's progress nor anything saved: it is the codes entered in this session.
+- **What a switched cheat does.** Each case of the switch writes the game's flag (`D_801427A1` super speed,
+  `D_8014061A` the invisible track, ...) and the state the screen shows (`gCheatState`, `D_801164A4`); cheats 3 and
+  13-16 are states that other code reads (14-16 in `net_state_validate`'s unlock tables: every car, every track and
+  circuit, the other unlockables the profile's records otherwise open). They stay as set across races, until switched
+  again or the game restarts (InitSystem clears them, `func_800DE45C`).
+
+The PC's:
+
+- **`game.cheats_menu`** adds no line to the game's code: optionValid's PC hook (`PC_START_VALID`, PC SETUP's, on
+  both copies' return) gives slot 6 valid while the setting is on (`pc_start_valid`, `port/config/start_menu.c`),
+  whatever `D_801164A1` says. The flag isn't written: the main menu still checks its code, and with the setting off
+  again the menu is the N64's at its next frame (the cursor moves off the option, as for PC SETUP). The developer
+  name's other unlocks don't come with it.
+- **`game.cheats_unlock`**: `PC_CHEAT_ACTIVE` (`cheatscr.c`, a macro at file scope) on the four reads of a cheat's
+  flag, the switch's test and printOption's three: `pc_cheat_active(flag)` is 1 while the setting is on, else the
+  flag; on the N64 the original tokens. The code check is left as it is, so a code entered still sets its cheat's
+  flag, as on the N64; the setting never writes the flags.
+- **Turning the unlock off** leaves the cheats switched on, on: their game flags are the cartridge's, kept for the
+  session. A cheat whose code wasn't entered then shows its state but is locked again, until the setting is on
+  again, its code is entered or the game restarts. Switch cheats off before turning the setting off.
+- **Tested**: `frontend.menu.live` (both items at once: slot 6 valid with the menu setting, the other slots as they
+  were; a cheat's test 1 with the unlock whatever its flag, the flag itself without; Defaults off);
+  `synth_boot_cheats_unlock` (`tools/port/synth/cheats_unlock.press`, both on): five down to CHEATS, A opens the
+  cheat screen (0x8000000) without the main menu's code, eight down to cheat 8, the invisible track, and RIGHT
+  switches it without its code; B, START and a single race on track 0's detail world: the exit's scene line has none
+  of the world's parts let through (`detail_check.py --world 0`; `detail.press` has four), the cheat hiding the
+  track; `synth_boot_cheats_menu` (the same presses with the menu setting alone): the cheat screen opens, RIGHT
+  leaves cheat 8 locked, and the race draws the four parts; `synth_boot_cheats_hidden` (neither): the same five down
+  come round to the race and A goes to the player screen, never the cheat screen. On the retail cartridge on the Pi
+  (headless, `--fast`, the same presses): with the menu setting the main menu has CHEATS below VIDEO and A opens the
+  cheat screen, without it the five down come round to the first option; with the unlock every cheat's value is
+  drawn bright, RIGHT on the invisible track switches it on and the race shows no track (the scene line lets none
+  of its parts through); without it the values are dim, RIGHT leaves it off and the race draws the track.
 
 ### Presets (N64 original, PC enhanced, PC maximum)
 
@@ -588,6 +659,10 @@ restart.
 | Game | Cars in a race: original (6), 7-12 | `game.cars` | from the next race's start: the setting at once (`pc_race_cars_set`), the race's count when the game latches it ([above](#the-cars-a-race-holds-gamecars)) |
 | | Memory *: original (N64), 16, 32, 64, 128, 256 MB | `game.memory` | after a restart: the RDRAM window is mapped at start ([MEMORY.md](MEMORY.md)) |
 | | Game frame rate: original (30), 60 | `game.frame_rate` | from the next screen: the setting at once (`pc_game_fps_set`), the game's copy at its next change of state ([above](#the-games-frame-rate-gameframe_rate)) |
+| | PC SETUP in menu: off, on | `game.pc_setup` | at once: the main menu's next frame (`pc_start_menu_set`) |
+| | Ghost save prompt: off, on | `game.ghost_prompt` | at once: the next race's end (`pc_ghost_prompt_set`) |
+| | Cheats menu: off, on | `game.cheats_menu` | at once: the main menu's next frame (`pc_cheats_menu_set`) |
+| | Unlock all cheats: off, on | `game.cheats_unlock` | at once: the cheat screen's next frame (`pc_cheats_unlock_set`) |
 | Mods | Mods *: on, off; then each mod found, in the order in effect (`1. Red Cars 1.2`): on, off (`on (unusable)` for one that can't be used); Left and Right turn it on and off, Enter or A picks it up and Up and Down move it, Enter puts it down; its footer: its author and files, or why it can't be used; the folder; Defaults (every mod on, mod.ini's order) | `game.mods`, `[mods]`, `game.mods_order` | after a restart: the files are read before the game's memory is mapped ([MODS.md](MODS.md) 1) |
 | Saves | Player (P1-P4); Kept as *: pak (.mpk), files (a folder); with files the folder, the import folder's result at start, Import ghosts, Export to the .mpk, Open the saves folder (on a desktop), and each profile and ghost (on the pak, kept, pinned, import), each with its page: Pin to the pak / Unpin, Export (.r49ghost), Delete (asked twice); with pak what files gives | `game.saves`, `saves2`... | Kept as after a restart; the actions at once on the folder, and what is on the pak at the next swap ([SAVES.md](SAVES.md) 8) |
 | Keyboard | the 18 N64 controls; Steering: instant, smooth; Steering time (ms), 0-1000 in 50s; the settings, quit, pause, screenshot and fullscreen keys; Defaults | `[keyboard]`, `input.keyboard_steering`, `input.keyboard_steer_time`, `[hotkeys]` | at once (`pc_input_apply`: a ramp under way goes on at the new pace) |
@@ -730,7 +805,7 @@ cmake --build build/pc-sdl -j3 && ctest --test-dir build/pc-sdl
 | `frontend.menu.nav` | `frontend_menu_test nav` | the overlay, headless: opening holds the game and its pads read idle; the panel shows over the frame (the frame dimmed around it, the selected row's color); moving and wrapping, pages, a long page scrolled by a page, back, close; Help opens past its heading, its rows don't change, up wraps past the heading; About without main's facts; closed, the window is the frame again byte for byte, and so is the next frame; each page keeps its place; Quit stops the main loop |
 | `frontend.menu.mouse` | `... mouse` | hit-testing at ten window and drawable sizes (640 × 480, 1080p, a 200% DPI-aware 2880 × 1620, 2x points, 1.5x, 1.25x square, 853 × 480, 21:9 3440 × 1440, 320 × 240, 1366 × 768): every window unit lands in its own pixels; rows 0, 7 and 14 from the window's units; the panel's edges and corners to the pixel; a row's first and last pixel lines; the footer; the scroll arrow; a value's label, left and right parts. Then by mouse at 640 × 480: pointing selects and the highlight is drawn there; clicks right and left of a value, on a label, on the title (nothing); the right button; a double click on Video (opens it, the second press changes nothing; a click 0.6 s later does); the volume's bar at its middle, end and start and right of it; the wheel (3 rows, the item under the mouse selected, at most to the last page); the up arrow; a binding's wait (pointing doesn't move it, a click cancels); at 2x points into a 1280 × 960 window, the row and its highlight; outside: back, then closed; closed, clicks don't open it nor reach the pads |
 | `frontend.menu.pages` | `... pages` | About's content (`pc_menu_about_text`) from mocked main facts: version and build type, commit, build, the GL driver's own strings, audio and buffer, the memory, the game frame rate (original), four players (none headless), ROM, settings file, saves, screenshots, log, data folder; made again each time it opens (main's fill called each time); no Open or Copy headless. Help from the bindings in effect: two keys, Xbox names, the right stick as the N64 stick, a combination as the settings button, Alt+Enter with fullscreen, a binding cleared on the Keyboard page shown on return |
-| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the race HUD reaches it (centered, then edges); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; Voices from original (32) to 48 and 64, the setting only (the library's voices at the next start), and back; Drones' engines from original to nearest 4, at once (`pc_engines`), round past original to all and back to original; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s; player 2's accessory from auto ("auto: none") to rumble pak and controller pak, each swapped at once (`pc_si_set_pak`), and back to auto, player 1's untouched; the Game page: Cars in a race from original (6) to 7 and 12, the setting at once and the race's count kept until `pc_race_cars_begin()`, past 12 to original and back, a change during a race leaving its count; Memory from original to 64 and 256 MB and round again (the setting only: it applies at the next start); the Game frame rate from original (30) to 60 and back, the setting at once and the game's copy kept until `pc_game_fps_begin()`; Defaults putting the three back; the Keyboard page's Steering after the stick's keys, instant to smooth, Steering time (ms) 250, 300, down to 0 and up to 1000 in 50s, the page's Defaults putting instant and 250 back |
+| `frontend.menu.live` | `... live` | widescreen 16:9 and scale 2 give the next frame a 426 x 240 and then 852 x 480 render target; the frame rate reaches port/gfx (60, then the game's own); the race HUD reaches it (centered, then edges); the window size follows (960 x 720); the volume reaches port/audio (50: 0.5); the API and the backend change only the settings; Voices from original (32) to 48 and 64, the setting only (the library's voices at the next start), and back; Drones' engines from original to nearest 4, at once (`pc_engines`), round past original to all and back to original; a key binding captured, added to, cancelled and cleared; a controller binding captured as a stick direction; a capture times out after 6 s; player 2's accessory from auto ("auto: none") to rumble pak and controller pak, each swapped at once (`pc_si_set_pak`), and back to auto, player 1's untouched; the Game page: Cars in a race from original (6) to 7 and 12, the setting at once and the race's count kept until `pc_race_cars_begin()`, past 12 to original and back, a change during a race leaving its count; Memory from original to 64 and 256 MB and round again (the setting only: it applies at the next start); the Game frame rate from original (30) to 60 and back, the setting at once and the game's copy kept until `pc_game_fps_begin()`; PC SETUP in menu, Ghost save prompt, Cheats menu and Unlock all cheats off to on, each at once (the main menu's slots 8 and 6, the ghost prompt's flag, a cheat's flag); Defaults putting the seven back; the Keyboard page's Steering after the stick's keys, instant to smooth, Steering time (ms) 250, 300, down to 0 and up to 1000 in 50s, the page's Defaults putting instant and 250 back |
 | `frontend.menu.save` | `... save` | `pc_ini_update`: a value replaced in place (key case, spacing, the inline comment kept), the last of two lines, a new key after its section's last, an empty section, a new section after a last line without its end, CRLF, a binding, quoting, a BOM and bad lines kept, no changes; the overlay's Save over a hand-written file: the expected text exactly, a setting changed and back not written, the command line's scale not written, "saved" and the message naming the file, nothing more to save, a change after it counted, changed back "saved" again, the file reads back; a missing file and its directories, written whole |
 | `frontend.menu.script` | `... script` | a `--press` script over time: MENU opens it, a press held across the opening doesn't act, the game's pads are idle meanwhile, DOWN, A, LEFT (the volume), B, the stick, START closes; scripted game input works after |
 | `frontend.sdl.menu` | `frontend_sdl_test menu` | the overlay through the real window: F1 opens it, the game's held key released and its input suppressed, the title; (not on Windows) the panel in the window; arrows, Enter, a key captured (Space; Comma by its alias); Escape goes back and doesn't quit; the game then has the new keys; Enter that closed it and its key repeat aren't START until released; a virtual pad: one stick click doesn't open it, both do; the D-pad, A, a button and a stick direction captured, B, Start closes it and stays ignored until released, Y now A; guide as the menu button opens and closes it and isn't a game button; fullscreen from the overlay at once; F11 works in it and the overlay follows |

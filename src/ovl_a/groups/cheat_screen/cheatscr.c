@@ -58,6 +58,15 @@ extern void sound_stop(Blit *);
 extern void ambient_sounds_clear(void);
 extern void func_800B5570(s32);
 extern s32 func_8038F648(void);
+#ifdef TARGET_PC
+/* PC: game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu"): every
+   cheat is available while it is on, its code not needed: the tests of gCheatActive[cheat] that let LEFT and RIGHT
+   switch it and draw it bright take it as set. The flags aren't written; off, the N64's. */
+int pc_cheat_active(int active);
+#define PC_CHEAT_ACTIVE(a) pc_cheat_active(a)
+#else
+#define PC_CHEAT_ACTIVE(a) a
+#endif
 
 extern void InitEgg(s32 egg);
 void func_8039C908(void);
@@ -86,7 +95,7 @@ void func_8039C910(void)
         }
         InitEgg(D_803B3094);
     }
-    if ((D_8015694C & 0x3000) && D_8011648C[D_803B3094]) {
+    if ((D_8015694C & 0x3000) && PC_CHEAT_ACTIVE(D_8011648C[D_803B3094])) {
         s32 dir = (D_8015694C & 0x1000) ? -1 : 1;
 
         audio_doppler(D_8015694C);
@@ -327,7 +336,7 @@ void func_803A5350(s32 x, s32 y, s32 item, u8 *name, u8 *value)
     object_create(D_803B3094 == item ? 11 : 12);
     dispatch_handler(D_803B3094 == item ? 22 : 1);
     state_utility(sound_pitch_diff_calc(name, x - 4), y - (D_803B3094 == item ? 1 : 0), name);
-    object_create((D_8011648C[item] && D_803B3094 == item) ? 11 : 12);
-    dispatch_handler(D_8011648C[item] ? (D_803B3094 == item ? 11 : 1) : 4);
-    state_utility(x + 12, y - ((D_8011648C[item] && D_803B3094 == item) ? 1 : 0), value);
+    object_create((PC_CHEAT_ACTIVE(D_8011648C[item]) && D_803B3094 == item) ? 11 : 12);
+    dispatch_handler(PC_CHEAT_ACTIVE(D_8011648C[item]) ? (D_803B3094 == item ? 11 : 1) : 4);
+    state_utility(x + 12, y - ((PC_CHEAT_ACTIVE(D_8011648C[item]) && D_803B3094 == item) ? 1 : 0), value);
 }
