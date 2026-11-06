@@ -1032,8 +1032,8 @@ The flow, in the boot's order (`netplay.h`):
 5. **Begin**, just before the boot: `must_match_text` with the session's paks in (its `game.pak*` lines say what the
    session has, `session.rules=on`); its compared lines go to the log and their xxHash64 is kept (12.3). The input
    log starts (12.5); hashing goes on; the pads source is set.
-6. **Start.** `net_accept` only now, so the host's START, and its start time, come when both have set up. Each waits
-   for the start time, then boots.
+6. **Start.** `net_accept` only now, so the host's START, and its start time, come when both have set up. The start
+   time is the paced clock's N64 time 0 on each PC (12.6), which holds the boot until it (with `--fast`, a sleep).
 7. **The end** (12.4).
 
 ### 12.2 The lockstep
@@ -1045,7 +1045,9 @@ The pads source (`pc_lockstep.h`, `net_start_thread`'s service thread doing the 
 - `pads(n)`: `net_pads(n, ..., 4 ms)`, woken at once by the service thread's condition when input arrives; then
   `pc_pads_signal`, so the gate asks again at once and the window's events are pumped every 4 ms of waiting. Ports 1
   and 2 are connected and 3 and 4 not, whatever this PC's pads are (one unplugged changes nothing); `rumble` is 0 (no
-  accessory follows it). `RUSH_SIM_NET`'s pause (`net_frozen`) holds it too.
+  accessory follows it). `RUSH_SIM_NET`'s pause (`net_frozen`) holds it too, and the sample of a retrace that came
+  during the pause is submitted when it ends, as a stopped process's would be (else the peer takes the pause for its
+  transit, and its delay goes to the cap).
 - `hash(n)`: the curated state hash folded to 32 bits, every retrace (`net_hash`), and the full hash (window, own
   storage, decoupled data) when it was taken (`net_window_hash`): every 60 retraces (`--log-hash N,W`'s W when
   given). 240 retraces of curated bytes are kept for a report.
@@ -1099,27 +1101,37 @@ then has (a `--fast` replay with the default takes the same course).
 
 ### 12.7 Proofs
 
-`tools/port/net_session_check.py`, ctest `net_session_*` (rocky, x86-64, Debug):
+`tools/port/net_session_check.py`, ctest `net_session_*` (rocky, x86-64, Debug, unless said):
 
 | Test | Result |
 |---|---|
 | `net_session_<path>`: race2p, battle2p, battlequit, memhigh2p, race2p12; pause, raceend, menu with the guest idle | host = guest = one process with `--input-delay 2`, line for line: 2,689-6,975 trace lines, 1,325-3,425 retraces hashed each (every retrace, the full hash every 30) |
 | `net_session_sim_<model>` (lan20, wan80, bad150, shift, pause, burst; to the race and 2 s into it, D 3-14) | the clean single process's trace under each: 1,685-1,697 retraces; up to 973 stalls, 11.5 s of waiting, all of it changing when retraces happen, nothing of what they do |
 | `net_session_auto` (wan80, the adaptive delay 6-7) | host = guest, and the host's input log replays in one process to the same trace |
-| `net_session_fuzz` (3 seeds, 120 s of game time each) | the same hash on both at all 7,201 retraces of each; 12-13 game states, the overlay opened 14-15 times over the running game |
+| `net_session_paced` (race2p to the race and 2 s into it, the session's own clock: no `--fast`) | at 4 times the pace (`RUSH_PACE_SPEED`) with delay 2: one `--fast` process's trace, 3,428 lines (paced takes `--fast`'s course); at the real pace under wan80 with the adaptive delay (6-7): host = guest, 60.000 and 59.998 retraces a second of wall time, the gate never late (the Pi 5, RelWithDebInfo) |
+| the same at the real pace under each model (the Pi 5) | host = guest under each; retraces a second, without the time re-based at a stall: clean 60.000 (delay 1), lan20 60.000 (2), bad150 59.95 (12-14; 1 stall), shift 59.92 (1-13; 2 stalls, 0.55 s, at its jump to 200 ms), pause 59.97 (2; the 2.98 s pause re-based), burst 60.00 (3-7; 2 stalls) |
+| `net_session_fuzz` (3 seeds, 120 s of game time each) | the same hash on both at every retrace: seeds 1 and 2 all 7,201 retraces, 12-13 game states, the overlay opened 14-15 times over the running game; seed 3 to retrace 4038, where the game hangs alike on both (12.8) |
+| the soak: `fuzz --seeds 20 --seconds 300` (the Pi 5, RelWithDebInfo) | 278,315 retraces, every hash the same on both; 11 seeds ran their 5 minutes, 9 reached the game's hang (12.8), on both alike |
 | `net_session_desync` (the guest's random seed changed at retrace 1000) | both end "desync" at retrace 1000, exit 3; each report written; `hash_compare.py --reports` names `rng+0x0` |
 | `net_session_mismatch` | another ROM, build or mods refused before the game, saying what differs; a test model on the guest only ends both at retrace 0, "the two PCs' setups differ" |
 | `net_session_adopt` (race2p12) | the guest takes game.cars 7 -> 12, audio.voices 64 -> original, video.draw_distance far -> original, logged; both new paks in (port 2's re-IDed), neither file written; a race of 12 cars, the same trace |
-| `net_session_ends` | the guest killed: the host ends "timeout" 3.0 s later (`--net-timeout 3`); the guest leaving at its limit: the host ends "peer-left" at the same moment, exit 0; joining nobody: "no-answer" after 2.2 s |
+| `net_session_ends` | the guest killed: the host ends "timeout" 3.0 s later (`--net-timeout 3`); the guest leaving at its limit: the host ends "peer-left" at the same retrace, exit 0; joining nobody: "no-answer" after 2.2 s |
 | `frontend.menu.session` | the overlay holds nothing and its pads are idle; a locked setting, a free one, Defaults; the notice drawn and gone |
 
 ### 12.8 Found on the way
 
-- **A hang in the game, reached by the fuzzer** (seed 3, 120 s): both PCs hung at retrace 4038 alike (the virtual
-  clock's "no retrace for 30 s"), in the pause menu's controls screen (pause state 4) with player 2 pressing buttons
-  there. The session's input log replayed in one process by 543e5b0's program (no session code) hangs at the same
-  retrace: a hang of the game's, or the port's, on the synthetic cartridge at least, not of the session. The fuzzer
-  reports such a hang (the same on both) and goes on; `net_session_check.py fuzz --first 3 --seeds 1` reproduces it.
+- **A hang in the game, reached by the fuzzer.** Random two-player input in a race's pause menu hangs the game: the
+  same on both PCs at the same retrace each time (the virtual clock's "no retrace for 30 s"), so the session stays
+  one game. On the Pi's soak (20 seeds of 5 minutes) 9 seeds reached it, always in the pause menu's controls or audio
+  screen (pause state 4 or 3); on rocky, seed 3 of the ctest's at retrace 4038. The session's input log replayed in
+  one process hangs at the same retrace, with 543e5b0's program too (no session code): it is the game's, or the
+  port's, on the synthetic cartridge at least. Where (gdb, seed 11's replay): the controls screen's step through a
+  control's values, `do { controls[slot]--; } while (!func_800D8078(p))` (`src/blob/groups/controlscr/caller.c`
+  251-268, the same for ++), which never ends when no value passes the predicate; the predicate reads row
+  `D_8013C068[D_8014A118[car].row]` while the loop changes `D_8013C068[input_rec0[p].controller]`, and its table
+  `D_80114060` (`gControlValid`) is cartridge data. Not looked into further here (game C). The fuzzer says such a
+  hang (the same on both) and goes on; `net_session_check.py fuzz --first 3 --seeds 1` reaches it on rocky's
+  cartridge.
 
 ### 12.9 Not done
 
