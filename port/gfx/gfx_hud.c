@@ -52,6 +52,8 @@ typedef struct {
  * widening as the renderer last set them up (pcgfx_hud_publish, at each SETCIMG): (frame width << 16) | widening. */
 static _Atomic int s_mode = PC_GFX_HUD_EDGES;
 static _Atomic int s_wide;
+/* pc_gfx_hud_dx_off: the game's models at HUD points stay at their N64 places (a lockstep session) */
+static _Atomic int s_dx_off;
 
 static struct {
     int (*race)(void);      /* set before the game's threads start */
@@ -115,10 +117,16 @@ void pcgfx_hud_task_begin(void) {
     S.npanel = 0;
 }
 
+void pc_gfx_hud_dx_off(int off) {
+    atomic_store_explicit(&s_dx_off, off != 0, memory_order_relaxed);
+}
+
 /* On the game's thread: only the atomics above and the game's own state (the race hook). The widening is the last
  * color image's, so on a resize the models at HUD points follow a frame later than the 2D. */
 int pc_gfx_hud_dx(int x) {
     int wide = atomic_load_explicit(&s_wide, memory_order_relaxed), fw = wide >> 16, ox = wide & 0xFFFF;
+    if (atomic_load_explicit(&s_dx_off, memory_order_relaxed))
+        return 0;   /* the session's rule (docs/port/LOCKSTEP.md 6): what the game places can't follow this PC's window */
     if (pc_gfx_hud() != PC_GFX_HUD_EDGES || S.race == NULL || ox == 0 || !S.race())
         return 0;
     if (6 * x < 2 * fw)        /* left of the middle band (fw / 2 - fw / 6) */

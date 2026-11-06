@@ -17,6 +17,7 @@
 
 #include "pakfs.h"
 #include "pc_compat.h"
+#include "pc_lockstep.h"
 #include "ultra.h"
 
 /* port/ultra and the game's libultra C, as the game declares them. */
@@ -959,9 +960,58 @@ static void boot(void *arg)
     osStartThread(g_thread[30]);   /* the boot context ends here, as the game's main does */
 }
 
+/* The state hash's xxHash64 against the specification's known values, and the input delay line's rule (docs/port/
+ * LOCKSTEP.md 4, 5): before the threads, on the main thread. The number of failures. */
+static int lockstep_checks(void)
+{
+    static const struct { const char *in; unsigned long long want; } vec[] = {
+        {"", 0xEF46DB3751D8E999ull},
+        {"abc", 0x44BC2CF5AD770999ull},
+        {"Nobody inspects the spammish repetition", 0xFBCEA83C8A378BF1ull},
+    };
+    int bad = 0;
+    for (size_t i = 0; i < sizeof vec / sizeof vec[0]; i++) {
+        uint64_t h = pc_xxh64(vec[i].in, strlen(vec[i].in), 0), s;
+        PcXxh64 st;
+        pc_xxh64_init(&st, 0);
+        for (const char *c = vec[i].in; *c; c++)   /* the stream, a byte at a time */
+            pc_xxh64_update(&st, c, 1);
+        s = pc_xxh64_digest(&st);
+        if (h != vec[i].want || s != vec[i].want) {
+            fprintf(stderr, "selftest: xxh64(\"%s\") = %016llx, streamed %016llx, not %016llx\n", vec[i].in,
+                    (unsigned long long)h, (unsigned long long)s, vec[i].want);
+            bad++;
+        }
+    }
+    /* the delay line: 2 from retrace 0, 4 from 5 (slots 7, 8 get retrace 4's sample again), 1 from 9 (the samples of
+     * 9, 10 and 11 dropped); sample n is button n */
+    static const PcDelayStep steps[] = {{0, 2}, {5, 4}, {9, 1}};
+    static const int want[] = {0, 0, 0, 1, 2, 3, 4, 4, 4, 5, 6, 7, 8, 12};
+    PcDelayLine line;
+    pc_delay_reset(&line);
+    for (uint32_t n = 0; n < sizeof want / sizeof want[0]; n++) {
+        PcPad in[4] = {{(uint16_t)n, 0, 0, 1, 0}}, out[4];
+        pc_delay_put(&line, n, pc_delay_at(steps, 3, n), in);
+        if (pc_delay_get(&line, n, out) != 0 || out[0].buttons != want[n] || !out[0].connected) {
+            fprintf(stderr, "selftest: the delay line gives retrace %u button %u, not %d\n", n, out[0].buttons,
+                    want[n]);
+            bad++;
+        }
+    }
+    if (line.dropped != 3 || line.repeated != 2) {
+        fprintf(stderr, "selftest: the delay line dropped %u and repeated %u, not 3 and 2\n", line.dropped,
+                line.repeated);
+        bad++;
+    }
+    fprintf(stderr, "selftest: xxh64 and the input delay line: %s\n", bad ? "FAILED" : "ok");
+    return bad;
+}
+
 int pc_selftest(void)
 {
     PcRunOptions run = {.seconds = 30};
+    if (lockstep_checks())
+        return 1;
     pc_os_initialize();                /* the low-memory globals */
     pc_si_init(NULL, PC_PAK_MEMORY);   /* a formatted pak in memory */
     pc_os_boot(boot, NULL, "boot");

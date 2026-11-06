@@ -34,6 +34,7 @@
 #define SIGQUIT SIGBREAK
 #endif
 
+#include "pc_lockstep.h"
 #include "ultra.h"
 
 #define VI_CATCH_UP 6   /* retraces up to this many periods late are caught up; a longer stall drops them */
@@ -608,8 +609,14 @@ int pc_ultra_run(const PcRunOptions *opt)
                 vi_late_cap = 0;
             }
         }
-        if (vi_due)
+        /* A pads source (pc_lockstep.h): retrace pc_frame's pads first, before anything of the retrace; until they
+         * are known the loop comes back here, the N64 clock where it is and nothing sent (docs/port/LOCKSTEP.md 2) */
+        if (vi_due && pc_pads_gated() && pc_pads_gate(pc_frame))
+            continue;
+        if (vi_due) {
             snapshot();
+            pc_hash_retrace(pc_frame);   /* the state hash, when on (docs/port/LOCKSTEP.md 5) */
+        }
         if (vi_due && opt->physics_every && opt->physics_info && pc_frame % opt->physics_every == 0) {
             char line[2048];   /* --log-physics: the cars at this retrace, before its event (docs/port/FRAMERATE.md 7) */
             opt->physics_info(line, sizeof line);
@@ -633,11 +640,14 @@ int pc_ultra_run(const PcRunOptions *opt)
         if (vi_due) {
             PcPad pads[4];
             const void *fb;
+            int gated = pc_pads_take(pc_frame, pads);   /* the gate's pads for this retrace, events pumped */
             pc_frame++;
             last_vi_real = pc_real_ns();
-            if (pc_gfx_poll_events())   /* first, so the pads below are this retrace's */
-                pc_quit = 1;
-            pc_input_poll(pads);
+            if (!gated) {
+                if (pc_gfx_poll_events())   /* first, so the pads below are this retrace's */
+                    pc_quit = 1;
+                pc_input_poll(pads);
+            }
             pc_si_set_pads(pads);
             pc_gfx_retrace(pc_frame);
             if (!pc_time_virtual())

@@ -137,6 +137,8 @@ jobs:
             build/pc/synth/realtime/*.log
             build/pc/synth/rush2049_synth.txt
             build/pc/pc-data/data_layout.txt
+            build/pc/synth/replay/*.pads
+            build/pc/synth/replay/*.replay.log
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
@@ -503,6 +505,75 @@ jobs:
             done
           done
           exit $s
+
+  windows-replay:
+    # Lockstep's core across OSes without a network (docs/port/LOCKSTEP.md 8, NETPLAY.md phase 0.3): the input
+    # recordings the linux jobs' ctest made (replay_same_<path>: each synthetic path's pads, retrace by retrace, and
+    # the replay's log), replayed by the cross-built Windows program. Its trace (every retrace's physics and pads,
+    # exact floats) and its state hash at every retrace (the window's, own storage's and the decoupled data's every
+    # 30) must be Linux's, x86-64's and aarch64's (tools/port/replay_check.py replay-dir). A recording's header says
+    # what it must match (the commit, the cartridge, the settings): the synthetic cartridge generated here must be
+    # Linux's, as windows-same checks.
+    needs: [linux, windows-cross]
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [Debug, RelWithDebInfo]
+    runs-on: windows-latest
+    env:
+      MESA_7Z: https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z
+      MESA_SHA256: 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-cross-${{ matrix.build }}
+          path: bin
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-ubuntu-24.04-${{ matrix.build }}
+          path: x86-64
+      - uses: actions/download-artifact@v4
+        with:
+          name: logs-ubuntu-24.04-arm-${{ matrix.build }}
+          path: aarch64
+      - name: Software OpenGL
+        run: |
+          curl -sSL -o mesa.7z "$MESA_7Z"
+          echo "$MESA_SHA256  mesa.7z" | sha256sum -c
+          7z x -omesa mesa.7z > /dev/null
+          cp mesa/x64/*.dll bin/
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Replay Linux's recordings
+        # The cartridge and the mods paths' mods as windows-run makes them (the texture pack from mods_dump's run).
+        env:
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          python -X utf8 src/tools/port/synth_rom.py --data-symbols bin/pc-data/data_symbols.txt \
+            --out synth/rush2049_synth.z64
+          python -X utf8 src/tools/port/mods_synth.py --rom synth/rush2049_synth.z64 --out synth/paths/mods
+          python -X utf8 src/tools/port/synth_paths.py --exe bin/rush2049pc.exe --rom synth/rush2049_synth.z64 \
+            --logs synth/paths mods_dump
+          s=0
+          for l in x86-64 aarch64; do
+            echo "== Linux $l's recordings on Windows"
+            python -X utf8 src/tools/port/replay_check.py replay-dir --exe bin/rush2049pc.exe \
+              --rom synth/rush2049_synth.z64 --logs synth/replay-$l --mods synth/paths/mods \
+              --from $l/build/pc/synth/replay || s=1
+          done
+          exit $s
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-windows-replay-${{ matrix.build }}
+          path: |
+            synth/replay-*/*.log
+          if-no-files-found: ignore
 
   windows:
     # Windows x86-64 built natively with MSYS2's mingw-w64 (UCRT64), with its SDL2: the build, all tests, the
