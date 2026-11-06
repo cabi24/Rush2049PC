@@ -56,9 +56,11 @@ static void usage(FILE *f)
             "  --widescreen A      widen the picture to an aspect: off, auto (the window's), 16:9, 21:9, W:H...\n"
             "  --frame-rate R      frames shown a second: original (the game's own), display, or 60, 120...;\n"
             "                      the frames between the game's are drawn from its last two\n"
-            "  --seconds N         stop after N seconds (of game time with --fast)\n"
+            "  --seconds N         stop after N seconds (of game time with --fast or --paced)\n"
             "  --fast              run as fast as the host can: the N64 clock moves on only while every N64\n"
             "                      thread waits, so a run is the same on any host (tests, scripted runs)\n"
+            "  --paced             --fast's run in real time: the same course to the bit, each move of the N64\n"
+            "                      clock at its wall time (online play's clock; RUSH_PACED=1 too)\n"
             "  --frames N          stop after N graphics tasks (at the retrace that shows the last)\n"
             "  --screenshot-at N   save a PNG once N graphics tasks have run (--screenshot PATH, default\n"
             "                      rush2049pc-N.png)\n"
@@ -480,7 +482,8 @@ static int hud_race(void)
     return s != 0xFFFFFFFFu && (s & 0x00600000u) != 0 && *(volatile int16_t *)&gNumWindows == 1;
 }
 
-/* --fast: the audio output's null backend drains the queue by the N64 clock, as a device would in real time. */
+/* --fast and paced mode: the audio output's null backend drains the queue by the N64 clock, as a device would in real
+ * time (paced mode's tap included: its accounting is the null output's, docs/port/AUDIO.md 11). */
 static double fast_clock(void)
 {
     return pc_host_ns() / 1e9;
@@ -741,6 +744,7 @@ static const PcSavesUi g_saves_ui = {saves_backend, saves_list, saves_act, pc_st
 
 static PcLockstepOptions g_ls;   /* --record-inputs, --replay-inputs, --input-delay, --log-pads */
 static int g_session_rules;      /* --session-rules */
+static int g_audio_paced;        /* paced mode's audio, or a session's (AUDIO.md 11): audio.latency stays out of the game */
 
 /* The build two PCs must both run, as a replay's header and an online session say it: the commit, and whether the
  * tree it was built from had changes (git describe's -dirty). RUSH2049_TEST_NET_BUILD stands in for it in an online
@@ -785,9 +789,16 @@ static char *must_match_text(const PcSettings *cfg)
     } else {
         ADD("mods=none\n");
     }
-    for (int i = 0; i < pc_must_match_count; i++)   /* the settings the game reads (port/config's one list) */
-        if (pc_settings_get(cfg, pc_must_match[i].section, pc_must_match[i].key, v, sizeof v) == 0)
+    for (int i = 0; i < pc_must_match_count; i++) {   /* the settings the game reads (port/config's one list) */
+        static PcSettings def;
+        const PcSettings *from = cfg;
+        if (pc_must_match[i].adopt < 0 && g_audio_paced) {   /* paced audio keeps --fast's queue at the default */
+            pc_settings_defaults(&def);
+            from = &def;
+        }
+        if (pc_settings_get(from, pc_must_match[i].section, pc_must_match[i].key, v, sizeof v) == 0)
             ADD("%s.%s=%s\n", pc_must_match[i].section, pc_must_match[i].key, v);
+    }
     ADD("memory.window=%u\nmemory.os=%u\n", (unsigned)pc_rdram_size(), (unsigned)pc_os_mem_size());
     for (int ch = 0; ch < 4; ch++) {
         if (pc_si_pak_image(ch, img))
@@ -807,7 +818,7 @@ static char *must_match_text(const PcSettings *cfg)
 
 /* ---------------------------------------------------------------- an online session (docs/port/NETPLAY.md) */
 
-static PcNetOptions g_net = {PC_NET_NONE, -1, NULL, NULL, 0};   /* --net-host, --net-join, --net-bind, --net-timeout */
+static PcNetOptions g_net = {PC_NET_NONE, -1, NULL, NULL, 0, 0};   /* --net-host, --net-join, --net-bind, --net-timeout */
 
 /* The mods as the cartridge will hold them, for the session's handshake: each wave's file the mods give (the region
  * pc_mods_install makes of them once the game's data is loaded), or "none". The must-match text's mods line (the
@@ -854,8 +865,8 @@ static char *session_blob(const PcSettings *cfg)
     mods_identity(v, sizeof v);
     ADD("mods=%s\n", v);
     for (int i = 0; i < pc_must_match_count; i++)
-        if (pc_must_match[i].adopt && pc_settings_get(cfg, pc_must_match[i].section, pc_must_match[i].key, v,
-                                                     sizeof v) == 0)
+        if (pc_must_match[i].adopt > 0 && pc_settings_get(cfg, pc_must_match[i].section, pc_must_match[i].key, v,
+                                                         sizeof v) == 0)
             ADD("%s.%s=%s\n", pc_must_match[i].section, pc_must_match[i].key, v);
     pc_mods_summary(&g_mods, v, sizeof v);
     ADD("# mods=%s\n# rush2049pc %s (%s)\n", v, pc_app_version(), pc_app_build_type());
@@ -996,6 +1007,8 @@ static int rush_main(int argc, char **argv)
 #endif
     int no_rom = 0, selftest = 0, use_config = 1;
     int print_config = 0, fast = 0;
+    /* paced mode (docs/port/ULTRA.md 10): a mode a session turns on, not a setting; RUSH_PACED=1 for the tests */
+    int paced = getenv("RUSH_PACED") && strcmp(getenv("RUSH_PACED"), "") && strcmp(getenv("RUSH_PACED"), "0");
     const char *bare_rom = NULL, *log_path = NULL;
     int use_log = 1;
     PcRunOptions run = {0};
@@ -1068,6 +1081,8 @@ static int rush_main(int argc, char **argv)
             run.seconds = atof(ARG());
         else if (!strcmp(a, "--fast"))
             fast = 1;
+        else if (!strcmp(a, "--paced"))
+            paced = 1;
         else if (!strcmp(a, "--frames"))
             run.frames = (uint32_t)atoi(ARG());
         else if (!strcmp(a, "--stop-at-gfx"))
@@ -1315,8 +1330,13 @@ static int rush_main(int argc, char **argv)
                         "--net-delay is its delay)\n", g_ls.replay ? "--replay-inputs" : "--input-delay");
                 return 2;
             }
+            if (!fast)
+                paced = 1;   /* the session's clock: --fast's course at the pace of real time (ULTRA.md 10) */
+            g_net.paced = paced;
             if ((r = session_handshake(&cfg, &dirs, over, nover, !headless, no_rom, &memory)) != 0)
                 return pc_net_finish(r, !headless);
+            fprintf(stderr, "rush2049pc: online: the virtual clock %s\n", paced ? "paced to real time"
+                    : "unpaced (--fast): as fast as both PCs and the network allow");
         }
     }
     /* game.memory (docs/port/MEMORY.md): the RDRAM window pc_mem_init maps below, and osMemSize */
@@ -1408,6 +1428,8 @@ static int rush_main(int argc, char **argv)
 #endif
     if (selftest) {
         pc_time_set_virtual(fast);
+        if (paced)
+            pc_time_set_paced(1);
         return pc_selftest();
     }
 
@@ -1537,13 +1559,11 @@ static int rush_main(int argc, char **argv)
             pc_si_set_pak(ch, cfg.pak[ch]);
         }
     }
-    /* An online session: the null output's accounting on the N64 clock, as --fast has it. The audio tap (NETPLAY.md
-     * 1.8, phase 0.2) will feed a real device from the buffers the game pushes, here, without the device's pulls
-     * deciding when the game's audio thread runs. */
-    if (pc_net_role() && strcasecmp(cfg.audio, "null") && strcasecmp(cfg.audio, "wav"))
-        fprintf(stderr, "rush2049pc: online: no sound in an online session yet: the null output (the audio tap isn't in "
-                "this build)\n");
-    if (pc_audio_init(pc_net_role() && strcasecmp(cfg.audio, "wav") ? "null" : cfg.audio, dump_audio) != 0)
+    /* Paced mode, and any online session: the AI's queue the null output's on the N64 clock, a device fed from a tap
+     * (AUDIO.md 11): the device's pulls never decide when the game's audio thread runs, so two PCs' games stay one. */
+    if (paced || pc_net_role())
+        pc_audio_set_paced(g_audio_paced = 1);
+    if (pc_audio_init(cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
     pc_audio_set_volume(cfg.volume / 100.0);
     pc_audio_set_latency((unsigned)cfg.audio_latency);
@@ -1558,8 +1578,11 @@ static int rush_main(int argc, char **argv)
     run.game_info = game_info;
     run.game_rate = game_rate;   /* game.frame_rate = 60 under vsync: the frames paced by the vblanks (FRAMERATE.md 7.6) */
     pc_gfx_set_hud_race(hud_race);
-    if (fast || pc_net_role()) {   /* an online session: the virtual clock; unpaced until the paced clock is in */
+    if (fast || paced) {   /* paced mode is --fast's virtual clock, paced to the wall clock (port/ultra/pace.c); an
+                            * online session runs paced, or with --fast (tests) unpaced */
         pc_time_set_virtual(1);
+        if (paced)
+            pc_time_set_paced(1);
         pc_audio_set_clock(fast_clock);
     }
 #ifdef SIGHUP

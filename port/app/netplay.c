@@ -62,7 +62,8 @@ static struct {
     int started;                 /* the game started (pc_net_start) */
     int ended;                   /* why the session ended has been said (session_ended) */
     int shown;                   /* the end's message box was shown */
-    int64_t pace_ns;             /* time sync's adjustments, summed (the paced clock will take them) */
+    int paced;                   /* the paced clock (pc_time_paced): time sync's adjustments reach it */
+    int64_t pace_ns;             /* time sync's adjustments, summed */
     uint32_t pace_n;
 } S;
 
@@ -190,6 +191,9 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
     c.join_code = cfg->net_code[0] ? cfg->net_code : NULL;
     c.now_ns = clock_ns;
     c.log = net_log;
+    if (o->paced && getenv("RUSH_PACE_SPEED") && atof(getenv("RUSH_PACE_SPEED")) > 0)   /* tests: N64 time S x wall */
+        c.retrace_ns = (int64_t)(1e9 / PC_VI_HZ / atof(getenv("RUSH_PACE_SPEED")));
+    S.paced = o->paced;
     catch_interrupts();
     S.s = net_create(&c, err, sizeof err);
     if (!S.s || net_start_thread(S.s) != 0) {
@@ -288,7 +292,7 @@ int pc_net_adopt(PcSettings *cfg, const char *host, int *mods_inputs, char *why,
         const char *section = line, *key = dot + 1, *value = eq + 1;
         int i;
         for (i = 0; i < pc_must_match_count; i++)
-            if (pc_must_match[i].adopt && !strcasecmp(pc_must_match[i].section, section) &&
+            if (pc_must_match[i].adopt > 0 && !strcasecmp(pc_must_match[i].section, section) &&
                 !strcasecmp(pc_must_match[i].key, key))
                 break;
         if (i == pc_must_match_count) {
@@ -311,7 +315,7 @@ int pc_net_adopt(PcSettings *cfg, const char *host, int *mods_inputs, char *why,
             *mods_inputs = 1;
     }
     for (int i = 0; i < pc_must_match_count; i++)
-        if (pc_must_match[i].adopt && !seen[i]) {
+        if (pc_must_match[i].adopt > 0 && !seen[i]) {
             snprintf(why, why_size, "the host's settings don't say %s.%s", pc_must_match[i].section,
                      pc_must_match[i].key);
             return -1;
@@ -437,11 +441,13 @@ static int src_pads(void *user, uint32_t n, PcPad out[4])
             pc_menu_notice(NULL, NULL);
             S.notice = 0;
         }
-        /* The paced clock attaches here: retrace n + 1's deadline is n's + a retrace + this adjustment, or, when
-         * these pads came more than half a retrace after n's deadline, the moment they came + a retrace + it
-         * (re-based after a stall, never racing to catch up: NETWORK.md 1). On the unpaced virtual clock it is
-         * only counted. */
-        S.pace_ns += net_pace_adjust_ns(S.s);
+        /* Time sync (NETWORK.md 6): retrace n + 1 comes this much later in wall time than a retrace after n
+         * (pc_pace_adjust_ns: until changed, so every retrace says it). The loop itself re-bases a retrace whose
+         * pads came more than half a retrace late (ULTRA.md 10, port/net's rule). Unpaced (--fast), only counted. */
+        int64_t adj = net_pace_adjust_ns(S.s);
+        if (S.paced)
+            pc_pace_adjust_ns(adj);
+        S.pace_ns += adj;
         S.pace_n++;
         return PC_PADS_READY;
     }
@@ -576,16 +582,16 @@ int pc_net_start(int window)
         return failed(window);
     if (!net_start_time(S.s, &start))
         return failed(window);
-    /* The paced clock attaches here: its epoch, retrace 0's deadline, is this time on pc_real_ns's clock. The
-     * unpaced virtual clock only starts here with the other PC. */
+    /* The paced clock's epoch: N64 time 0 at the agreed start, on pc_real_ns's clock (the session's), so both PCs'
+     * retrace N comes at start + N retraces; its paced wait holds the boot until then. Unpaced (--fast), both only
+     * start here together. */
     uint64_t now = pc_real_ns();
-    if (start > now) {
-        fprintf(stderr, "rush2049pc: online: starting in %.0f ms, the input delay %d to start\n", (start - now) / 1e6,
-                net_delay(S.s));
+    fprintf(stderr, "rush2049pc: online: starting in %.0f ms, the input delay %d to start\n",
+            start > now ? (start - now) / 1e6 : 0.0, net_delay(S.s));
+    if (S.paced)
+        pc_pace_set_start(start);
+    else if (start > now)
         net_os_sleep_ns(start - now);
-    }
-    fprintf(stderr, "rush2049pc: online: the session runs on the virtual clock, unpaced (the paced clock isn't in "
-            "this build), with no sound (the audio tap isn't either)\n");
     S.started = 1;
     return 0;
 }
@@ -600,7 +606,7 @@ static void replay_hint(void)
     for (int i = 0; i < pc_must_match_count && len > 0 && (size_t)len < sizeof cmd; i++) {
         char key[64];
         snprintf(key, sizeof key, "%s.%s", pc_must_match[i].section, pc_must_match[i].key);
-        if (pc_must_match[i].adopt && pc_net_blob_value(S.header, key, v, sizeof v) == 0)
+        if (pc_must_match[i].adopt > 0 && pc_net_blob_value(S.header, key, v, sizeof v) == 0)
             len += snprintf(cmd + len, sizeof cmd - (size_t)len, " --set %s=%s", key, v);
     }
     static const char *const pak[4] = {"pak", "pak2", "pak3", "pak4"};
@@ -643,8 +649,9 @@ int pc_net_finish(int code, int window)
     fprintf(stderr, "rush2049pc: online: %s\n", line);
     pc_pads_stats(&ps);
     fprintf(stderr, "rush2049pc: online: %u retraces; %u waited for the %s's input (%.1f ms in all, the longest %.1f "
-            "ms); time sync would have stretched %u of them by %.1f ms in all\n", ps.retraces, ps.waited, peer_name(),
-            ps.wait_ns / 1e6, ps.longest_ns / 1e6, (unsigned)st.sync_corrections, S.pace_ns / 1e6);
+            "ms); time sync %s %u of them by %.1f ms in all\n", ps.retraces, ps.waited, peer_name(), ps.wait_ns / 1e6,
+            ps.longest_ns / 1e6, S.paced ? "stretched" : "would have stretched (unpaced)",
+            (unsigned)st.sync_corrections, S.pace_ns / 1e6);
     if (S.header) {
         fprintf(stderr, "rush2049pc: online: the session's input log: %s\n", S.pads_path);
         replay_hint();

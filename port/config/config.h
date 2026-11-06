@@ -144,16 +144,18 @@ typedef struct PcSettings {
 } PcSettings;
 
 /* The settings the game reads (docs/port/LOCKSTEP.md 3, 7; NETPLAY.md 1.5): what a replay file must match, what a
- * session's guest adopts from the host (adopt: 1; the accessories, 0, come from the session itself), and what the
- * settings overlay locks in an online session. One list for all three. pc_settings_must_match: 0 for a setting not
- * listed, 1 listed, 2 listed and adopted. */
+ * session's guest adopts from the host (adopt 1), what the session sets itself (0: the accessories), and what stays
+ * each PC's own in a session (-1: audio.latency, which a session's audio keeps out of the game, AUDIO.md 11). One
+ * list for the replay header, the guest's adoption and the overlay's locks. pc_settings_session_rule: PC_SESSION_OWN
+ * for a setting each PC keeps (one not listed too), SETS or HOSTS for one the overlay locks in a session. */
 typedef struct {
     const char *section, *key;
     int adopt;
 } PcMustMatch;
 extern const PcMustMatch pc_must_match[];
 extern const int pc_must_match_count;
-int pc_settings_must_match(const char *section, const char *key);
+enum { PC_SESSION_OWN = 0, PC_SESSION_SETS = 1, PC_SESSION_HOSTS = 2 };
+int pc_settings_session_rule(const char *section, const char *key);
 
 /* [game] cars at run time (race_cars.c): the setting the game latches at each race's start (pc_race_cars_begin,
  * pc_game_types.h). main sets it at start and the settings overlay when it changes; 0 (original) is the N64's 6, and

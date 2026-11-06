@@ -598,11 +598,11 @@ static void apply(const char *section, const char *key)
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }
 
-/* An online session locks the settings the game reads (pc_settings_must_match): both PCs must run one game, and the
+/* An online session locks the settings the game reads (pc_settings_session_rule): both PCs must run one game, and the
  * guest runs with the host's (docs/port/NETPLAY.md 1.5). */
 static int locked(const char *section, const char *key)
 {
-    if (!pc_input_session() || !section || !pc_settings_must_match(section, key))
+    if (!pc_input_session() || !section || pc_settings_session_rule(section, key) == PC_SESSION_OWN)
         return 0;
     status(C_WARN, "%s.%s: locked in an online session", section, key);
     return 1;

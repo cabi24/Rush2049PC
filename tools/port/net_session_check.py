@@ -5,6 +5,7 @@ session"), on the synthetic cartridge.
     net_session_check.py path     --exe EXE --rom ROM --logs DIR NAME [--delay N]
     net_session_check.py sim      --exe EXE --rom ROM --logs DIR --model MODEL [NAME]
     net_session_check.py auto     --exe EXE --rom ROM --logs DIR [--model MODEL] [NAME]
+    net_session_check.py paced    --exe EXE --rom ROM --logs DIR [--model MODEL] [NAME]
     net_session_check.py fuzz     --exe EXE --rom ROM --logs DIR [--seeds N] [--first S] [--seconds T]
     net_session_check.py desync   --exe EXE --rom ROM --logs DIR [NAME] [--at N]
     net_session_check.py mismatch --exe EXE --rom ROM --logs DIR [--mods DIR]
@@ -26,6 +27,9 @@ sim: the same with RUSH_SIM_NET's model on both PCs' receive paths (docs/port/NE
   they do.
 auto: the adaptive delay under a model: both traces the same, and the host's input log replays in one process
   (--replay-inputs) to the same trace.
+paced: the session's own clock, paced (no --fast): at 4 times the pace (RUSH_PACE_SPEED) with a fixed delay, the
+  trace of one --fast process; at the real pace under a model with the adaptive delay, both the same, at 60 retraces
+  a second of wall time (the time re-based after a stall aside), the stalls counted.
 fuzz: seeded random presses on both players (buttons, sticks, START and the D-pad through the game's menus, the
   settings overlay opened and closed, which holds nothing in a session) for --seconds of game time per seed, the
   delay adaptive: both processes' hashes agree at every retrace, and nothing ends the session early.
@@ -154,10 +158,11 @@ class Proc:
         self.proc.kill()
 
 
-def base_cmd(a, press, spec, extra, hashes=True, until=True):
+def base_cmd(a, press, spec, extra, hashes=True, until=True, fast=True):
     cmd = [str(Path(a.exe).resolve()), "--rom", str(Path(a.rom).resolve()), "--no-rom-check", "--headless",
-           "--no-config", "--audio", "null", "--no-pak", "--fast", "--no-log", "--press-file", str(Path(press).resolve()),
-           "--seconds", spec["seconds"], "--status", "1", "--log-physics", "1", "--log-pads"]
+           "--no-config", "--audio", "null", "--no-pak"] + (["--fast"] if fast else []) + \
+          ["--no-log", "--press-file", str(Path(press).resolve()), "--seconds", spec["seconds"], "--status", "1",
+           "--log-physics", "1", "--log-pads"]
     if until and spec.get("until"):
         cmd += ["--until-state", spec["until"]]
     if hashes:
@@ -168,7 +173,7 @@ def base_cmd(a, press, spec, extra, hashes=True, until=True):
 
 
 def session(a, tag, host_press, guest_press, spec, host_extra=(), guest_extra=(), host_env=None, guest_env=None,
-            timeout=900, guest_args=None, after_start=None):
+            timeout=900, guest_args=None, after_start=None, fast=True):
     """A host and a guest; their log texts (and the Proc objects)."""
     logs = Path(a.logs)
     run_dir = logs / f"{tag}.run"
@@ -199,7 +204,7 @@ def session(a, tag, host_press, guest_press, spec, host_extra=(), guest_extra=()
                 procs[0].wait(10)
                 return None
             net += ["--net-join", f"127.0.0.1:{procs[0].port}"]
-        procs.append(Proc(role, base_cmd(a, press, s, net + list(extra)), e, cwd, logs / f"{tag}.{role}.log"))
+        procs.append(Proc(role, base_cmd(a, press, s, net + list(extra), fast=fast), e, cwd, logs / f"{tag}.{role}.log"))
     if after_start:
         after_start(procs)
     texts = [p.wait(timeout) for p in procs]
@@ -364,6 +369,67 @@ def mode_auto(a, names):
         if not b:
             say(f"{name:10} auto {a.model:7}: host = guest, and the host's input log replays to the same trace in one "
                 f"process ({len(replay_check.trace(th))} lines); host {session_stats(th)}; guest {session_stats(tg)}")
+        bad |= b
+    return bad
+
+
+# ---------------------------------------------------------------- paced
+
+_PACED = re.compile(r"paced: (\d+) retraces in ([\d.]+) s of wall time, ([\d.]+) a second \(([\d.]+) without the "
+                    r"([\d.]+) s held or re-based\)")
+_GATE = re.compile(r"paced: the pads gate: (\d+) retraces' pads came over half a retrace late, re-based \(([\d.]+) s\); "
+                   r"(\d+) less late")
+
+
+def paced_line(text):
+    m, g = _PACED.search(text), _GATE.search(text)
+    if not m:
+        return None, "no paced line"
+    return float(m.group(4)), (f"{m.group(1)} retraces in {float(m.group(2)):.1f} s, {float(m.group(3)):.3f} a second "
+                               f"({float(m.group(4)):.3f} without {float(m.group(5)):.2f} s re-based)" +
+                               (f"; the gate: {g.group(1)} re-based ({float(g.group(2)):.2f} s), {g.group(3)} on the grid"
+                                if g else "; the gate never late"))
+
+
+def mode_paced(a, names):
+    """A session on the paced clock (no --fast: ULTRA.md 10). At 4 times the pace (RUSH_PACE_SPEED, both PCs) and a
+    fixed delay: host = guest = one --fast process with --input-delay, paced mode taking --fast's course. At the real
+    pace under --model with the adaptive delay: host = guest, and the wall time's rate, the stalls re-based."""
+    bad = 0
+    for name in names or ["race2p"]:
+        spec = dict(synth_paths.read_script(SCRIPTS / f"{name}.press"), until="0x400000:60")
+        hp, gp, mp, two = path_files(a, name, f"{name}.paced")
+        speed = {"RUSH_PACE_SPEED": "4"}
+        r = session(a, f"{name}.paced4", hp, gp, spec, ["--net-delay", "2"], ["--net-delay", "2"], speed, speed,
+                    fast=False)
+        if not r:
+            return 1
+        th, tg, _ = r
+        tone = one(a, f"{name}.paced4.one", mp, spec, ["--input-delay", "2", "--session-rules"])
+        b = compare_session(f"{name} paced x4", th, tg, tone)
+        rate, said = paced_line(th)
+        if rate is None or "online: the virtual clock paced to real time" not in th:
+            say(f"{name} paced x4: not paced: {said}")
+            b = 1
+        if not b:
+            say(f"{name:10} paced x4, delay 2: host = guest = one --fast process, {len(replay_check.trace(th))} lines; "
+                f"host {said}")
+        bad |= b
+        hsim, gsim, _ = MODELS[a.model]
+        r = session(a, f"{name}.paced.{a.model}", hp, gp, spec, (), (), {"RUSH_SIM_NET": hsim} if hsim else None,
+                    {"RUSH_SIM_NET": gsim} if gsim else None, fast=False)
+        if not r:
+            return 1
+        th, tg, _ = r
+        b = compare_session(f"{name} paced {a.model}", th, tg)
+        rates = [paced_line(t) for t in (th, tg)]
+        for role, (rate, said) in zip(("host", "guest"), rates):
+            if rate is None or not 59.5 <= rate <= 60.5:
+                say(f"{name} paced {a.model}: the {role}'s pace: {said}")
+                b = 1
+        if not b:
+            say(f"{name:10} paced {a.model}, the adaptive delay: host = guest, {len(replay_check.trace(th))} lines; "
+                f"host {rates[0][1]}; guest {rates[1][1]}; {session_stats(th)}")
         bad |= b
     return bad
 
@@ -702,7 +768,7 @@ def mode_ends(a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("mode", choices=["path", "sim", "auto", "fuzz", "desync", "mismatch", "adopt", "ends"])
+    ap.add_argument("mode", choices=["path", "sim", "auto", "paced", "fuzz", "desync", "mismatch", "adopt", "ends"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
     ap.add_argument("--rom", default=str(ROOT / "build/pc/synth/rush2049_synth.z64"))
@@ -724,6 +790,7 @@ def main():
     if a.mode == "path":
         sys.exit(1 if sum(mode_path(a, n) for n in a.names or ["race2p"]) else 0)
     fn = {"sim": lambda: mode_sim(a, a.names), "auto": lambda: mode_auto(a, a.names), "fuzz": lambda: mode_fuzz(a),
+          "paced": lambda: mode_paced(a, a.names),
           "desync": lambda: mode_desync(a, (a.names or ["race2p"])[0]), "mismatch": lambda: mode_mismatch(a),
           "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a)}
     sys.exit(1 if fn[a.mode]() else 0)

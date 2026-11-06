@@ -333,12 +333,9 @@ Playing online (a preview)
 --------------------------
 Two players, each at their own PC, race in the game's two-player split
 screen. One hosts, the other joins. Both need this same version of the
-program, the same ROM and the same mods (a Windows PC and a Linux PC can
-play together).
-
-In this build a session runs as fast as the two PCs and the connection
-allow, not at the game's own speed, and without sound: it is for trying
-the connection out. The game's speed and the sound come in a later build.
+program, the same ROM and the same mods. So far it has been tried with
+two copies of the program on one PC, not yet between two PCs over the
+internet: the log says how a session went (see the end of this section).
 
 The easiest way to connect is Tailscale (tailscale.com, free for personal
 use): both PCs join one tailnet (or the host shares their PC with the

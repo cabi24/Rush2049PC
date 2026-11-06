@@ -5,7 +5,8 @@ Written 2026-11-05 against c8692ce. Line numbers are from that commit.
 **Status (2026-11-06):** the user took the recommendations of section 7 and asked for the work to start, with one
 emphasis: "robust, put up with lower and higher latencies, and stay in sync" (section 11). Phase 0 is in progress.
 **The network library is written and tested on its own** ([NETWORK.md](NETWORK.md): `port/net`, its wire format, the
-delay controller, time sync, `RUSH_SIM_NET` and the proofs against a toy simulation); the game doesn't link it yet.
+delay controller, time sync, `RUSH_SIM_NET` and the proofs against a toy simulation); the game links it since phase 1
+(section 12).
 Sections 1-10 are the plan as written; section 11 is what robustness adds to it.
 
 **Phase 0.3 and 0.4 (2026-11-06, [LOCKSTEP.md](LOCKSTEP.md)):** the pads gate and its source API for `port/net`,
@@ -15,6 +16,18 @@ render-values check, `powf` at 60 replaced, and the settings matrix, which found
 state (1.5's table has it as free). Two processes agree on every hash on all 62 synthetic paths; Windows against Linux
 is wired in CI (`windows-replay`) and has not run yet.
 
+- **Phase 0.1 and 0.2 done** (branch `net-clock`): paced mode (`--paced`, [ULTRA.md](ULTRA.md) 10), the virtual clock
+  with each move at its wall time, `pc_time_virtual()` split into "deterministic" and `pc_time_free()` ("nothing is
+  real time"), holds and lags re-based, the time-sync API (`pc_pace_set_start`, `pc_pace_adjust_ns`,
+  `pc_pace_shift_ns`, `pc_pace_info`, `pc_port.h`); and the audio's AI on the N64 clock with the device fed from a
+  tap ([AUDIO.md](AUDIO.md) 11). Every synthetic path takes `--fast`'s course to the bit in paced mode, under the
+  timing models, a loaded host, a hold and a stopped process too; 60.000 retraces a second of wall time (CTest
+  `paced_same_*`, `paced_model_*`, `paced_realtime`, `paced_audio`, `paced_slow_host`, `paced_load`, `paced_hold`,
+  `paced_stop`, `paced_gate`, `paced_latency`, `ultra_selftest_paced`; the results in ULTRA.md 10). The pads gate's
+  waits follow port/net's rule (over half a retrace late: re-based to the pads' arrival, never catching up), and
+  port/net's clock contract maps onto `pc_pace_set_start` and `pc_pace_adjust_ns` (`pc_port.h`). In paced mode
+  `audio.latency` and the audio device don't reach the game: the state hash is `--fast`'s with the null output.
+
 **Phase 1 and the network half of phase 2 (2026-11-06, branch `net-session`, section 12):** the game is attached to
 `port/net`. `--net-host` and `--net-join` run a session between two processes or two PCs: the handshake before the
 game's memory (the build, the ROM, the mods, the host's settings adopted by the guest, each player's pak), the pads
@@ -22,8 +35,8 @@ source over the library at every retrace, both state hashes exchanged and compar
 the game, the overlay's locks, the paks in memory only), the waiting notice, the ends and their reports, and each
 session's input log. Two processes over loopback give one game, the same at every retrace, and with a fixed delay the
 same as one process playing both players' presses: on every two-player synthetic path, under every network model and
-in a fuzzer's random play. Still on the unpaced virtual clock and the null audio output: the paced clock and the
-audio tap are the remaining pieces (12.6).
+in a fuzzer's random play. A session runs on the paced clock (phase 0.1) with the audio tap (0.2), `--fast` for the
+unpaced tests (12.6).
 
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
@@ -984,8 +997,8 @@ online"; this is how it works and what was proved.
 | Where | What |
 |---|---|
 | `port/app/netplay.c`, `netplay.h` | the session: connecting, the host's settings and the paks, the pads source, the hashes, the waiting notice, the ends, the input log |
-| `port/main.c` | the options, the handshake's place in the boot, the settings text and this PC's pak, the session's paks in the SI, the null output and the virtual clock in a session |
-| `port/config/config.c` | `pc_must_match`: the one list of the settings the game reads (a replay's header, the guest's adoption, the overlay's locks); `[net]` port, delay, code |
+| `port/main.c` | the options, the handshake's place in the boot, the settings text and this PC's pak, the session's paks in the SI, the paced clock and the paced audio in a session |
+| `port/config/config.c` | `pc_must_match`: the one list of the settings the game reads (a replay's header, the guest's adoption, the overlay's locks: `pc_settings_session_rule`); `[net]` port, delay, code |
 | `port/input` | `pc_input_set_session`: nothing holds the game; the overlay's locks; `pc_menu_notice`, a notice over the frame |
 | `port/ultra/si.c` | `pc_si_set_pak_image`: a pak in memory with no file or folder behind it |
 | `port/net/net.c` | `net_end_text` (the reason to the peer), `net_linger` and the drain after a BYE (both games end at one retrace) |
@@ -1068,18 +1081,21 @@ the session's paks beside it (`.p1.mpk`, `.p2.mpk`). On a desync each side write
 process (`--replay-inputs` with the session's settings and paks); replayed to the retrace on each OS with
 `--hash-report`, `hash_compare.py --reports` names the words that differ.
 
-### 12.6 What remains: the paced clock and the audio tap
+### 12.6 The clock and the audio
 
-A session runs on the virtual clock, **unpaced**: as fast as both PCs and the network let it, which proves sync but
-isn't playable. The `net-clock` branch's paced clock attaches at three places marked in `netplay.c`: its epoch is
-`net_start_time` on `pc_real_ns`'s clock (`pc_net_start`, which waits for that time now); each retrace adds
-`net_pace_adjust_ns` to the interval (`src_pads`, where it is only summed today, the log's "time sync would have
-stretched"); after a stall it re-bases (net.h's contract). Then 60.00 retraces a second and the stalls at each D
-(phase 2's remaining proofs) can be measured.
+A session runs on the paced clock ([ULTRA.md](ULTRA.md) 10): `--fast`'s virtual clock, each move at its wall time.
+`--fast` with a session keeps it unpaced (as fast as both PCs and the network allow: the tests). Attached as port/net's
+clock contract says (`net.h`): `pc_pace_set_start(net_start_time)` (`pc_net_start`: N64 time 0 at the agreed start, on
+`pc_real_ns`'s clock, the session's own), so both PCs' retrace N comes at start + N retraces; each retrace, once its
+pads are known, `pc_pace_adjust_ns(net_pace_adjust_ns(s))` (`src_pads`); and the loop's own re-base when a retrace's
+pads came more than half a retrace late (the pads gate's rule, ULTRA.md 10). `RUSH_PACE_SPEED` (tests) shortens the
+session's retrace for the library's time sync and delay too.
 
-The audio: a session uses the null output's accounting on the N64 clock (`--audio null`'s; `wav` stays allowed), and
-says so. The tap (1.8, phase 0.2) plugs in where `main.c` chooses the backend: a device fed from the pushed buffers,
-the game's AI never following the device.
+The audio: a session's AI keeps the null output's queue on the N64 clock whatever the device (`pc_audio_set_paced`,
+[AUDIO.md](AUDIO.md) 11), and the player's own device plays from the tap. So `audio.latency` is each PC's own in a
+session (the tap's FIFO): `pc_must_match` marks it so (`adopt` -1). It isn't adopted or locked, and the must-match
+text says the default for it whenever the audio is paced (a session, or `--paced`), since that is the queue the game
+then has (a `--fast` replay with the default takes the same course).
 
 ### 12.7 Proofs
 
@@ -1110,7 +1126,6 @@ the game's AI never following the device.
 
 ### 12.9 Not done
 
-- The paced clock and the audio tap (12.6); with them, phase 2's real-time proofs.
 - Phase 3: two real PCs (Windows against Linux) over Tailscale.
 - The host has no window while it waits for its guest (the handshake comes before the window), only the console's
   and the log's lines; an F1 "Online" page (phase 6) would host from inside the game.

@@ -819,6 +819,115 @@ static int wait_main_virtual(uint64_t deadline_ns)
     return idle;
 }
 
+/* The main thread's timed wait in paced mode, with g_lock held: up to ns, or until main_signal. The lock is released
+ * meanwhile (a condition variable's wait; on Windows the wake-up event and the high-resolution timer, as the real-time
+ * wait has them, since winpthreads' timed waits come in 15.6 ms steps). */
+static void main_sleep(uint64_t ns)
+{
+#ifdef _WIN32
+    pthread_mutex_unlock(&g_lock);
+    HANDLE h[2] = {g_main_event, hires_timer(ns)};
+    WaitForMultipleObjects(2, h, FALSE, INFINITE);
+    pthread_mutex_lock(&g_lock);
+#else
+    nap(&g_main_cv, ns);
+#endif
+}
+
+#define PACED_SLEEP_MAX_NS 50000000u   /* a long wait (a start ahead) still sees pc_quit this often */
+
+static uint64_t g_busy_since, g_busy_seen;   /* paced: the waits have seen the N64 side computing from, to */
+static uint64_t g_slack;                      /* paced: wall ns slept with every N64 thread waiting (the host's slack) */
+
+uint64_t pc_os_paced_slack_ns(void)
+{
+    return __atomic_load_n(&g_slack, __ATOMIC_RELAXED);
+}
+
+uint64_t pc_os_busy_ns(void)
+{
+    pthread_mutex_lock(&g_lock);
+    uint64_t ns = g_busy_since ? g_busy_seen - g_busy_since : 0;
+    pthread_mutex_unlock(&g_lock);
+    return ns;
+}
+
+/* Paced mode (pace.c, docs/port/ULTRA.md 10): wait_main_virtual's rules, and the clock moves to the deadline only once
+ * the wall clock has reached the deadline's wall time (pc_pace_due), sleeping with the lock released until then;
+ * a thread's wake-up (pc_os_wake_main) still ends the wait at once, with the clock where it is, as with --fast, and
+ * a nudge (pc_os_nudge_main: the pacing changed) makes it look again. So the N64 side moves at --fast's moments of
+ * N64 time, each at its wall time: nothing it does happens early, or in another order. render_wall_ns ends the wait
+ * for the presentation alone (2), whether or not the N64 threads wait: the loop then draws, and does no N64 work. */
+int pc_os_wait_main_paced(uint64_t deadline_ns, uint64_t render_wall_ns, int64_t *late_ns)
+{
+    uint64_t until = pc_real_ns() + 100000000u;
+    int r;
+    *late_ns = -1;
+    pthread_mutex_lock(&g_lock);
+    for (;;) {
+        uint64_t now = pc_real_ns(), wake;
+        int timed = 1;   /* the wake is a deadline's or the presentation's, not a poll: its lateness is measured */
+        if (pc_quit) {   /* the loop's end: it checks pc_quit before anything else */
+            r = 1;
+            break;
+        }
+        if (system_idle()) {
+            g_busy_since = 0;
+            if (g_main_wake) {   /* a thread has work for the main loop at this moment of N64 time */
+                g_main_wake = 0;
+                r = 1;
+                break;
+            }
+            PcThread *t = g_running;
+            uint64_t d = deadline_ns;
+            if (t && t->nap_until && t->nap_until < d)
+                d = t->nap_until;   /* a busy-wait's nap ends first */
+            uint64_t due = pc_pace_due(d, now);
+            if (due <= now) {
+                pc_pace_moved(d, now);
+                pc_time_advance(d);
+                if (t && t->nap_until)
+                    pthread_cond_signal(&t->cv);
+                r = 1;
+                break;
+            }
+            wake = due;
+        } else {
+            if (!g_busy_since)
+                g_busy_since = now;
+            g_busy_seen = now;
+            if (now >= until) {   /* a thread still computes: the loop's hang check */
+                r = 0;
+                break;
+            }
+            wake = now + 1000000u < until ? now + 1000000u : until;   /* as --fast's: idle_changed wakes it sooner */
+            timed = 0;
+        }
+        if (render_wall_ns <= now) {
+            r = 2;
+            break;
+        }
+        if (render_wall_ns < wake) {
+            wake = render_wall_ns;
+            timed = 1;
+        }
+        if (wake > now + PACED_SLEEP_MAX_NS) {
+            wake = now + PACED_SLEEP_MAX_NS;
+            timed = 0;
+        }
+        main_sleep(wake - now);
+        uint64_t after = pc_real_ns();
+        if (!g_busy_since)   /* every N64 thread waited meanwhile: nothing for the host to do but the presentation */
+            __atomic_store_n(&g_slack, g_slack + (after - now), __ATOMIC_RELAXED);
+        if (timed && after >= wake) {
+            *late_ns = (int64_t)(after - wake);
+            pc_pace_wake_late(after - wake);
+        }
+    }
+    pthread_mutex_unlock(&g_lock);
+    return r;
+}
+
 #ifdef _WIN32
 static void main_signal(void)
 {
@@ -829,6 +938,9 @@ static void main_signal(void)
 /* The main thread's wake-up is an auto-reset event, so a wake between the check and the wait isn't lost. */
 int pc_os_wait_main(uint64_t deadline_ns)
 {
+    int64_t late;
+    if (pc_time_paced())   /* the loop calls pc_os_wait_main_paced itself; anything else waits as it would */
+        return pc_os_wait_main_paced(deadline_ns, UINT64_MAX, &late);
     if (pc_time_virtual())
         return wait_main_virtual(deadline_ns);
     pthread_mutex_lock(&g_lock);
@@ -853,11 +965,22 @@ void pc_os_wake_main(void)
         SetEvent(g_main_event);
     pthread_mutex_unlock(&g_lock);
 }
+
+void pc_os_nudge_main(void)
+{
+    pthread_mutex_lock(&g_lock);
+    if (g_main_event)
+        SetEvent(g_main_event);
+    pthread_mutex_unlock(&g_lock);
+}
 #else
 static void main_signal(void) { pthread_cond_signal(&g_main_cv); }
 
 int pc_os_wait_main(uint64_t deadline_ns)
 {
+    int64_t late;
+    if (pc_time_paced())   /* the loop calls pc_os_wait_main_paced itself; anything else waits as it would */
+        return pc_os_wait_main_paced(deadline_ns, UINT64_MAX, &late);
     if (pc_time_virtual())
         return wait_main_virtual(deadline_ns);
     pthread_mutex_lock(&g_lock);
@@ -873,6 +996,13 @@ void pc_os_wake_main(void)
 {
     pthread_mutex_lock(&g_lock);
     g_main_wake = 1;
+    pthread_cond_signal(&g_main_cv);
+    pthread_mutex_unlock(&g_lock);
+}
+
+void pc_os_nudge_main(void)
+{
+    pthread_mutex_lock(&g_lock);
     pthread_cond_signal(&g_main_cv);
     pthread_mutex_unlock(&g_lock);
 }

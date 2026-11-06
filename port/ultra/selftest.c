@@ -925,7 +925,19 @@ static void controller(void *arg)
         t_ports();
         t_store();
     }
-    if (pc_time_virtual()) {
+    if (pc_time_paced()) {
+        /* Paced mode: the virtual clock, moved at the wall clock's pace. One wait of 2 s of N64 time takes 2 s of wall
+         * time (RUSH_PACE_SPEED's tests: that much less): not less but for a lag the checks before left, caught up
+         * meanwhile (at most two retraces: more is re-based), which --fast's 2 s in no time isn't; and not much more. */
+        char d[128];
+        double r0 = pc_real_ns() / 1e6, v0 = host_ms(), want = pc_pace_span(2000000000u) / 1e6;
+        sleep_ms(2000);
+        double real = pc_real_ns() / 1e6 - r0, virt = host_ms() - v0;
+        snprintf(d, sizeof d, "a wait of 2000 ms: %.0f ms of N64 time in %.0f ms of wall time (%.0f paced)", virt,
+                 real, want);
+        check("paced: the virtual clock at the wall clock's pace", virt >= 1999.0 && real >= want - 40.0 &&
+                                                                        real < want + 250.0, d);
+    } else if (pc_time_virtual()) {
         /* One wait of 2 s of N64 time jumps the virtual clock: it takes far less than that in real time. (The run's
          * whole N64 time against its real time, as this was, fails on a loaded host: ctest beside other builds
          * took the run past its N64 time, 1.2-2.2 s, with the clock working.) */

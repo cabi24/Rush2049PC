@@ -83,7 +83,7 @@ void pc_input_apply(const PcSettings *s);     /* the overlay's input changes, ru
 /* An online session's rules (docs/port/NETPLAY.md 1.5, port/app/netplay.c): nothing holds the game, neither the pause
  * key, nor focus lost with pause_on_focus_loss, nor the settings overlay, which opens over the running game with this
  * player's pads idle while it is open (that idle input is what is sent, so both PCs still run one game); and the
- * overlay locks the settings the game reads (pc_settings_must_match) and the Saves page's changes to the pak. */
+ * overlay locks the settings the game reads (pc_settings_session_rule) and the Saves page's changes to the pak. */
 void pc_input_set_session(int on);
 int pc_input_session(void);
 

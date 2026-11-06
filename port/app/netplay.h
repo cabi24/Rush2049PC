@@ -34,6 +34,7 @@ typedef struct {
     const char *join;        /* --net-join HOST[:PORT] */
     const char *bind;        /* --net-bind ADDR: the local address ("" or NULL: any, both IPv4 and IPv6) */
     int timeout_ms;          /* --net-timeout: silence that ends a session (0: 15 s) */
+    int paced;               /* the paced clock (a session without --fast): RUSH_PACE_SPEED sets the retrace's length */
 } PcNetOptions;
 
 int pc_net_role(void);   /* PC_NET_* once pc_net_connect has run; PC_NET_NONE without a session */

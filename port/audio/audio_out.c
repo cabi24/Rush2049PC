@@ -217,12 +217,304 @@ static uint32_t device_frames(uint64_t game)
     return g.dev_rate && g.src_rate ? (uint32_t)(game * g.dev_rate / g.src_rate) : (uint32_t)game;
 }
 
-/* n game frames into the converter, the ring and the dump. */
+/* ---------------------------------------------------------------- paced mode's tap (docs/port/AUDIO.md 11)
+ *
+ * In paced mode (pc_audio_set_paced) the queue above is the null output's whatever the backend: it drains by the clock
+ * pc_audio_set_clock gives (the N64's), so the AI's events, the holds for renders and what the converter gets are
+ * --fast's with the null output, to the bit. A device gets a copy: each frame the converter gets (after the holds'
+ * matching, so the dump and the device hear the same) also goes, through a converter of the tap's own, into a FIFO the
+ * device drains. The FIFO keeps about 50 ms (audio.latency raises it); the paced N64 clock and the sound card's crystal
+ * drift apart, so its converter's ratio is nudged to hold that level: a fraction of a percent for the level's error,
+ * and the clocks' steady drift integrated (a sound card's: thousandths of a percent; at most 5%). When the
+ * FIFO runs dry the device plays silence (faded, as an underrun) until it has its level again: a click on this PC,
+ * never anything the game sees. With the lock held, as the rest. */
+#define TAP_TARGET_MS 50u      /* the FIFO's level */
+#define TAP_MAX_MS 250u        /* past this (the device stalled) the oldest frames go, down to the level */
+#define TAP_GAIN_P 0.02        /* the nudge for the level's relative error (smoothed): 10% off (5 ms), 0.2% */
+#define TAP_P_MAX 0.005        /* ... at most 0.5% */
+#define TAP_GAIN_I 0.012       /* and for its integral (a second at 10% off: 0.12%): the clocks' steady drift */
+#define TAP_I_MAX 0.05         /* ... at most 5%: a sound card's crystal is thousandths of a percent off the wall clock,
+                                * so the nudge stays a fraction of a percent; SDL's disk driver (the tests' device)
+                                * consumes 1-3% slow, as SDL_Delay oversleeps each of its 10 ms periods */
+#define TAP_SMOOTH_S 0.5       /* the level's smoothing */
+
+typedef struct {
+    uint64_t pulls, underruns, underrun_frames, priming_frames, idle_frames, dropped, overflows, trimmed;
+    uint64_t level_sum, level_count;
+    uint32_t level_min, level_max;
+    double nudge_sum, nudge_min, nudge_max;
+} TapStats;
+
+static struct {
+    int want;                  /* pc_audio_set_paced */
+    int on;                    /* a device opened as the tap */
+    const PcAudioBackendOps *dev;
+    PcAudioDevice device;
+    uint32_t rate;             /* the device's */
+    uint32_t period;           /* its largest pull */
+    PcResampler rs;            /* the game's rate to the device's, nudged */
+    int32_t *ring;             /* the FIFO, device frames */
+    size_t cap, rd, count;
+    int32_t *tmp;
+    size_t tmp_cap;
+    uint32_t target;           /* the FIFO's level, device frames */
+    int playing;               /* the FIFO reached its level since the start, or since it last ran dry */
+    int dry;                   /* it ran dry while the game played, and hasn't its level back yet */
+    uint32_t span_min, span_max;          /* the level's least and most since the last periodic line */
+    double span_nmin, span_nmax;          /* the nudge's */
+    double level;              /* the FIFO at the pulls, smoothed */
+    double integral, nudge;
+    double warm;               /* seconds of the level measured since the FIFO began to play (again) */
+    int32_t last[2];           /* the last frame played: a dry FIFO's fade starts there */
+    uint32_t fade_in;
+    double last_feed;          /* when the game's sound last came (now_seconds) */
+    double opened;             /* when the device opened (now_seconds) */
+    TapStats stats, reported;  /* in all; at the last periodic line */
+} T;
+
+static void tap_free(void)
+{
+    free(T.ring);
+    free(T.tmp);
+    T.ring = T.tmp = NULL;
+    T.cap = T.tmp_cap = T.rd = T.count = 0;
+}
+
+/* The game's rate is known: the tap's converter, at its nominal ratio until the level nudges it. */
+static void tap_configure(uint32_t src)
+{
+    if (!T.on)
+        return;
+    rs_init_nudged(&T.rs, src, T.rate);
+    rs_nudge(&T.rs, T.nudge);
+    size_t need_out = rs_max_out(&T.rs, RS_CHUNK);
+    if (need_out > T.tmp_cap) {
+        free(T.tmp);
+        T.tmp = malloc(need_out * 8);
+        T.tmp_cap = T.tmp ? need_out : 0;
+    }
+    if (!T.ring) {
+        T.cap = T.rate;   /* a second */
+        T.ring = malloc(T.cap * 8);
+        if (!T.ring)
+            T.cap = 0;
+        T.rd = T.count = 0;
+    }
+}
+
+static void tap_retarget(void)
+{
+    uint32_t ms = g.min_ms > TAP_TARGET_MS ? g.min_ms : TAP_TARGET_MS;
+    T.target = T.rate * ms / 1000;
+}
+
+/* What the converter got, n game frames: into the FIFO. */
+static void tap_feed(const int16_t *s, size_t n)
+{
+    if (!T.on || !T.tmp || !T.cap || !n)
+        return;
+    T.last_feed = now_seconds();
+    while (n) {
+        size_t k = n > RS_CHUNK ? RS_CHUNK : n;
+        size_t made = rs_process32(&T.rs, s, k, T.tmp);
+        if (made > T.cap)
+            made = T.cap;
+        if (T.count + made > T.cap) {   /* a second queued: the device has stopped */
+            size_t drop = T.count + made - T.cap;
+            T.rd = (T.rd + drop) % T.cap;
+            T.count -= drop;
+            T.stats.dropped += drop;
+        }
+        size_t wr = (T.rd + T.count) % T.cap, first = T.cap - wr < made ? T.cap - wr : made;
+        memcpy(T.ring + 2 * wr, T.tmp, first * 8);
+        memcpy(T.ring, T.tmp + 2 * first, (made - first) * 8);
+        T.count += made;
+        s += 2 * k;
+        n -= k;
+    }
+    if (!T.playing && T.count > T.target) {   /* the device hasn't begun (or begun again): the newest at the level */
+        size_t trim = T.count - T.target;
+        T.rd = (T.rd + trim) % T.cap;
+        T.count -= trim;
+        T.stats.trimmed += trim;
+        return;
+    }
+    uint32_t max = T.rate * (TAP_MAX_MS > g.min_ms * 2 ? TAP_MAX_MS : g.min_ms * 2) / 1000;
+    if (T.count > max) {   /* the device stalled: the oldest go, down to the level */
+        size_t drop = T.count - T.target;
+        T.rd = (T.rd + drop) % T.cap;
+        T.count -= drop;
+        T.stats.dropped += drop;
+        if (T.stats.overflows++ < REPORT_MAX)
+            fprintf(stderr, "audio: tap: the FIFO past %u ms, %.1f s in (the device %s): %.0f ms dropped\n",
+                    (unsigned)(max * 1000u / T.rate), T.last_feed - T.opened,
+                    T.playing ? "pulled too little" : "hasn't pulled since it filled", drop * 1000.0 / T.rate);
+    }
+}
+
+/* The level at a pull of n frames, while the FIFO plays the game's sound: counted, and the nudge follows it. */
+static void tap_level(size_t n)
+{
+    uint32_t level = (uint32_t)T.count;
+    TapStats *s = &T.stats;
+    if (!s->level_count || level < s->level_min)
+        s->level_min = level;
+    if (level > s->level_max)
+        s->level_max = level;
+    s->level_sum += level;
+    s->level_count++;
+    if (!T.target || !T.rate)
+        return;
+    double dt = (double)n / T.rate, a = dt / TAP_SMOOTH_S;
+    T.level = T.level <= 0 ? level : T.level + ((double)level - T.level) * (a < 1 ? a : 1);
+    double e = (T.level - T.target) / T.target;   /* > 0: too full, the device hears too much: make less */
+    double p = TAP_GAIN_P * e;
+    if (T.warm < TAP_SMOOTH_S)   /* the smoothed level settles first: the drift's integral doesn't wind up on it */
+        T.warm += dt;
+    else
+        T.integral += TAP_GAIN_I * e * dt;
+    if (T.integral > TAP_I_MAX)
+        T.integral = TAP_I_MAX;
+    if (T.integral < -TAP_I_MAX)
+        T.integral = -TAP_I_MAX;
+    if (p > TAP_P_MAX)
+        p = TAP_P_MAX;
+    if (p < -TAP_P_MAX)
+        p = -TAP_P_MAX;
+    T.nudge = -(p + T.integral);   /* within RS_NUDGE_MAX */
+    rs_nudge(&T.rs, T.nudge);
+    s->nudge_sum += T.nudge;
+    if (s->level_count == 1 || T.nudge < s->nudge_min)
+        s->nudge_min = T.nudge;
+    if (s->level_count == 1 || T.nudge > s->nudge_max)
+        s->nudge_max = T.nudge;
+    int first = s->level_count - T.reported.level_count == 1;   /* the span's first */
+    if (first || level < T.span_min)
+        T.span_min = level;
+    if (first || level > T.span_max)
+        T.span_max = level;
+    if (first || T.nudge < T.span_nmin)
+        T.span_nmin = T.nudge;
+    if (first || T.nudge > T.span_nmax)
+        T.span_nmax = T.nudge;
+}
+
+/* A device's pull in paced mode, into g.scratch (int32, at the volume). Returns the frames the FIFO had; *log_it says
+ * a dry FIFO the log should name. Never touches the queue the AI keeps. */
+static size_t tap_pull_locked(size_t frames, int *log_it)
+{
+    int32_t *out = g.scratch;
+    double now = now_seconds();
+    int game = g.pushed && !g.paused && now - T.last_feed < PLAYING_S;   /* the game plays (not held, not quiet) */
+    size_t got = 0;
+    if (!T.playing && T.count >= T.target && T.count) {   /* the level reached: it plays (again) */
+        T.playing = 1;
+        T.dry = 0;
+        T.fade_in = FADE;
+        T.level = 0;
+        T.warm = 0;
+    }
+    if (T.playing && T.cap) {
+        if (game)
+            tap_level(frames);
+        got = frames < T.count ? frames : T.count;
+        size_t first = T.cap - T.rd < got ? T.cap - T.rd : got;
+        if (got) {
+            memcpy(out, T.ring + 2 * T.rd, first * 8);
+            memcpy(out + 2 * first, T.ring, (got - first) * 8);
+            T.rd = (T.rd + got) % T.cap;
+            T.count -= got;
+        }
+    }
+    if (got && T.fade_in) {   /* from silence */
+        uint32_t n = got < T.fade_in ? (uint32_t)got : T.fade_in;
+        for (uint32_t i = 0; i < n; i++) {
+            int32_t k = (int32_t)(FADE - T.fade_in + i + 1);
+            out[2 * i] = out[2 * i] * k / (int32_t)FADE;
+            out[2 * i + 1] = out[2 * i + 1] * k / (int32_t)FADE;
+        }
+        T.fade_in -= n;
+    }
+    if (got) {
+        T.last[0] = out[2 * got - 2];
+        T.last[1] = out[2 * got - 1];
+    }
+    if (got < frames) {
+        size_t n = frames - got, f = n < FADE ? n : FADE;
+        int32_t *z = out + 2 * got;
+        if (T.playing && game) {   /* ran dry while the game plays: an underrun, until the level is back */
+            T.stats.underruns++;
+            T.dry = 1;
+            if (g.reported < REPORT_MAX) {
+                *log_it = 2;
+                g.reported++;
+                g.underrun_at = now - T.opened;
+            }
+        }
+        if (!game)
+            T.stats.idle_frames += n;
+        else if (T.dry)
+            T.stats.underrun_frames += n;
+        else
+            T.stats.priming_frames += n;   /* filling to its level: at the start, after the game was held */
+        T.playing = 0;
+        for (size_t i = 0; i < f; i++) {   /* the last frame fades to silence: a step to zero would click */
+            int32_t k = (int32_t)(FADE - 1 - i);
+            z[2 * i] = T.last[0] * k / (int32_t)FADE;
+            z[2 * i + 1] = T.last[1] * k / (int32_t)FADE;
+        }
+        memset(z + 2 * f, 0, (n - f) * 8);
+        T.last[0] = T.last[1] = 0;
+    }
+    T.stats.pulls++;
+    if (frames > T.period && frames < T.rate)   /* the tap's own: g.stats.period_frames would move the AI's target */
+        T.period = (uint32_t)frames;
+    if (g.gain != 65536)
+        for (size_t i = 0; i < 2 * frames; i++)
+            out[i] = (int32_t)((int64_t)out[i] * g.gain >> 16);
+    return got;
+}
+
+/* The tap's line: since *from (NULL: since it opened); span names that time for a periodic line. */
+static void tap_report(const char *span, const TapStats *from)
+{
+    TapStats z, d = T.stats;
+    const TapStats *f = from ? from : (memset(&z, 0, sizeof z), &z);
+    double rate = T.rate ? T.rate : 1, src = g.src_rate ? g.src_rate : DEFAULT_RATE;
+    d.pulls -= f->pulls, d.underruns -= f->underruns, d.underrun_frames -= f->underrun_frames;
+    d.priming_frames -= f->priming_frames, d.idle_frames -= f->idle_frames, d.dropped -= f->dropped;
+    d.trimmed -= f->trimmed;
+    d.level_sum -= f->level_sum, d.level_count -= f->level_count, d.nudge_sum -= f->nudge_sum;
+    char level[200] = "the FIFO not measured";
+    if (d.level_count)
+        snprintf(level, sizeof level, "the FIFO %.1f/%.1f/%.1f ms (least/mean/most) against %.0f ms; the ratio nudged "
+                 "%+.4f%% on average (%+.4f%% to %+.4f%%), %+.4f%% now", (from ? T.span_min : d.level_min) * 1000.0 / rate,
+                 (double)d.level_sum / (double)d.level_count * 1000.0 / rate,
+                 (from ? T.span_max : d.level_max) * 1000.0 / rate, T.target * 1000.0 / rate,
+                 100.0 * d.nudge_sum / (double)d.level_count, 100.0 * (from ? T.span_nmin : d.nudge_min),
+                 100.0 * (from ? T.span_nmax : d.nudge_max), 100.0 * T.nudge);
+    fprintf(stderr, "audio: tap to %s (%s) at %u Hz%s, pulls of %u frames: %u Hz converted x%.5f; %s; %llu underruns "
+            "(%.0f ms of silence), %.0f ms filling, %.0f ms idle, %llu frames dropped; %.0f ms trimmed before the device "
+            "played\n", T.dev ? T.dev->name : "?",
+            T.device.driver, (unsigned)T.rate, span, (unsigned)T.period, (unsigned)src, T.rate / src,
+            level, (unsigned long long)d.underruns, d.underrun_frames * 1000.0 / rate, d.priming_frames * 1000.0 / rate,
+            d.idle_frames * 1000.0 / rate, (unsigned long long)d.dropped, d.trimmed * 1000.0 / rate);
+}
+
+void pc_audio_set_paced(int on)
+{
+    lock();
+    T.want = on != 0;
+    unlock();
+}
+
+/* n game frames into the converter, the ring and the dump (and paced mode's tap). */
 static void convert(const int16_t *s, size_t n)
 {
     if (!n)
         return;
     pc_wav_write(&g.dump, s, n);
+    tap_feed(s, n);
     g.last_in[0] = s[2 * n - 2];
     g.last_in[1] = s[2 * n - 1];
     while (n && g.tmp) {
@@ -365,18 +657,19 @@ static void retarget(void)
     uint32_t rate = g.src_rate ? g.src_rate : DEFAULT_RATE;
     uint32_t max = rate * TARGET_MAX_MS / 1000 > TARGET_MIN ? rate * TARGET_MAX_MS / 1000 : TARGET_MIN;
     uint32_t t = TARGET_MIN;
-    if (g.stats.period_frames) {
+    if (g.stats.period_frames && !T.want) {   /* paced mode: the null output's target, whatever pulls (the tap's) */
         t = game_frames(2 * (uint64_t)g.stats.period_frames) + rate / 60 + TARGET_STEP;
         if (game_frames(3 * (uint64_t)g.stats.period_frames) > max)   /* a device with long periods */
             max = game_frames(3 * (uint64_t)g.stats.period_frames);
     }
-    if (rate * g.min_ms / 1000 > t)
+    if (rate * g.min_ms / 1000 > t && !T.want)   /* paced mode: audio.latency is the tap's FIFO (per PC) */
         t = rate * g.min_ms / 1000;
     if (t > g.target)
         g.target = t;
     if (g.target > max)
         g.target = max;
     g.stats.target_frames = g.target;
+    tap_retarget();
 }
 
 /* n device frames found the queue empty. Returns 1 when that starts an underrun: the game was playing. */
@@ -429,8 +722,12 @@ static void null_drain(void)
 static void configure(uint32_t src)
 {
     g.src_rate = src;
-    if (g.kind != KIND_DEVICE)
+    if (T.want && g.kind == KIND_NULL)   /* paced mode's queue: the null output's at the game's rate, with a device
+                                          * or not; RUSH2049_AUDIO_RATE is the tap's device's */
+        g.dev_rate = src;
+    else if (g.kind != KIND_DEVICE)
         g.dev_rate = g.forced_rate ? g.forced_rate : src;
+    tap_configure(src);
     rs_init(&g.rs, g.src_rate, g.dev_rate);
     size_t need_out = rs_max_out(&g.rs, RS_CHUNK);
     if (need_out > g.tmp_cap) {
@@ -563,6 +860,12 @@ int pc_audio_init(const char *backend, const char *dump_wav_path)
     if (env_stats)
         g.report_every = (unsigned)strtoul(env_stats, NULL, 10);
     reset_tracking();
+    {   /* paced mode's tap: closed (pc_audio_shutdown), and nothing kept from before */
+        int want = T.want;
+        tap_free();
+        memset(&T, 0, sizeof T);
+        T.want = want;
+    }
     if (dump_wav_path && *dump_wav_path) {
         if (pc_wav_open(&g.dump, dump_wav_path, g.src_rate ? g.src_rate : DEFAULT_RATE) != 0) {
             fprintf(stderr, "audio: can't write %s\n", dump_wav_path);
@@ -593,10 +896,18 @@ int pc_audio_init(const char *backend, const char *dump_wav_path)
         memset(&dev, 0, sizeof dev);
         if (ops && ops->open(want_rate, &dev) == 0 && dev.rate) {
             lock();
-            g.kind = KIND_DEVICE;
-            g.dev = ops;
-            g.device = dev;
-            g.dev_rate = dev.rate;
+            if (T.want) {   /* paced mode: the device is the tap's; the queue stays the null output's */
+                T.on = 1;
+                T.dev = ops;
+                T.device = dev;
+                T.rate = dev.rate;
+                T.opened = now_seconds();
+            } else {
+                g.kind = KIND_DEVICE;
+                g.dev = ops;
+                g.device = dev;
+                g.dev_rate = dev.rate;
+            }
             unlock();
             break;
         }
@@ -610,9 +921,15 @@ int pc_audio_init(const char *backend, const char *dump_wav_path)
     if (g.kind != KIND_DEVICE && !strcmp(want, "manual"))
         g.kind = KIND_MANUAL;
     snprintf(g.name, sizeof g.name, "%s",
-             g.kind == KIND_DEVICE ? g.dev->name : g.kind == KIND_MANUAL ? "manual" : g.dump.f ? "wav" : "null");
+             g.kind == KIND_DEVICE ? g.dev->name : g.kind == KIND_MANUAL ? "manual" : T.on ? "paced" :
+             g.dump.f ? "wav" : "null");
     configure(g.src_rate ? g.src_rate : DEFAULT_RATE);
-    if (g.kind == KIND_DEVICE)
+    if (T.on)
+        fprintf(stderr, "audio: paced: the queue the null output's on the N64 clock; a tap to %s (%s) at %u Hz, pulls "
+                "of %u frames, the FIFO %u ms%s%s\n", T.dev->name, T.device.driver, (unsigned)T.rate,
+                (unsigned)T.device.period, (unsigned)(T.target * 1000u / (T.rate ? T.rate : 1)),
+                g.dump.f ? ", dumping to " : "", g.dump.f ? dump_wav_path : "");
+    else if (g.kind == KIND_DEVICE)
         fprintf(stderr, "audio: output %s (%s) at %u Hz, pulls of %u frames%s%s\n", g.name, g.device.driver,
                 (unsigned)g.dev_rate, (unsigned)g.device.period, g.dump.f ? ", dumping to " : "",
                 g.dump.f ? dump_wav_path : "");
@@ -648,14 +965,18 @@ void pc_audio_shutdown(void)
     }
     if (g.stats.pushed_frames) {
         report("", NULL, g.stats.level_min, g.stats.level_max);
+        if (T.on)
+            tap_report("", NULL);
     }
-    dev = g.kind == KIND_DEVICE ? g.dev : NULL;
+    dev = g.kind == KIND_DEVICE ? g.dev : T.on ? T.dev : NULL;
     g.kind = KIND_NULL;
     g.dev = NULL;
     unlock();
     if (dev)
-        dev->close();
+        dev->close();   /* the tap's device pulls its FIFO until this returns */
     lock();
+    T.on = 0;
+    tap_free();
     pc_wav_close(&g.dump);
     free(g.ring);
     free(g.tmp);
@@ -869,6 +1190,9 @@ static size_t pull_locked(size_t frames, int *log_it)
     }
     if (!g.scratch)
         return 0;
+    if (T.want && g.kind == KIND_NULL)   /* paced mode: the device plays the tap's FIFO (silence while it opens or
+                                          * closes); the queue is the N64 clock's, the null output's, never pulled */
+        return tap_pull_locked(frames, log_it);
     int32_t *out = g.scratch;
     double now = clock_now();
     if (g.pushed && !g.paused && now - g.last_push < PLAYING_S && now - g.first_push > LEVEL_AFTER_S) {
@@ -937,7 +1261,14 @@ static size_t pull_locked(size_t frames, int *log_it)
 /* After a pull, without the lock: the underrun's log line, then the hook. */
 static void after_pull(int log_it, void (*hook)(void))
 {
-    if (log_it) {
+    if (log_it == 2) {   /* paced mode's tap */
+        lock();
+        unsigned long long n = (unsigned long long)T.stats.underruns;
+        double at = g.underrun_at;
+        unlock();
+        fprintf(stderr, "audio: tap: the FIFO ran dry (underrun %llu, %.1f s in): silence until it has its level "
+                "again%s\n", n, at, n == REPORT_MAX ? " (the exit line counts the rest)" : "");
+    } else if (log_it) {
         PcAudioStats st;
         pc_audio_get_stats(&st);
         fprintf(stderr, "audio: underrun %llu, %.1f s in: the queue target is now %u frames%s\n",
@@ -996,7 +1327,7 @@ void pc_audio_set_latency(unsigned ms)
     lock();
     g.min_ms = ms > TARGET_MAX_MS ? TARGET_MAX_MS : ms;
     g.target = TARGET_MIN;
-    retarget();
+    retarget();   /* paced mode: the tap's FIFO (tap_retarget) */
     unlock();
 }
 
@@ -1018,6 +1349,7 @@ void pc_audio_set_report_every(unsigned seconds)
     g.report_every = seconds;
     g.report_at = clock_now();
     g.reported_stats = g.stats;
+    T.reported = T.stats;
     unlock();
 }
 
@@ -1032,6 +1364,10 @@ void pc_audio_periodic(void)
         char span[48];
         snprintf(span, sizeof span, ", the last %.0f s to %.0f s in", now - g.report_at, now - g.t0);
         report(span, &g.reported_stats, g.span_min, g.span_max);
+        if (T.on) {
+            tap_report(span, &T.reported);
+            T.reported = T.stats;
+        }
         g.reported_stats = g.stats;
         g.report_at = now;
     }

@@ -49,6 +49,46 @@ void pc_mem_register_be(const void *start, size_t size);
 void pc_mem_unregister_be(const void *start);
 int pc_mem_is_be(const void *p);
 
+/* ---------------------------------------------------------------- paced mode (port/ultra/pace.c) */
+
+/* Paced mode (docs/port/ULTRA.md 10, NETPLAY.md 1.2): the N64 clock is virtual, as with --fast, so the game takes
+ * --fast's course to the bit, and it moves to each deadline only once the wall clock has reached that deadline's
+ * wall time, so the game plays in real time. What the wall clock does (a slow host, a hold, a vsync swap, these
+ * calls) changes when the N64 side moves, never what it does. A mode a session turns on (--paced, RUSH_PACED=1),
+ * not a setting.
+ *
+ * The wall clock here is pc_pace_wall_ns's: monotonic ns since the program started (CLOCK_MONOTONIC;
+ * QueryPerformanceCounter on Windows). These calls are thread-safe (the network layer's own thread). */
+void pc_time_set_paced(int on);       /* before the boot: paced mode, and with it the virtual clock */
+int pc_time_paced(void);
+uint64_t pc_pace_wall_ns(void);
+/* The session's start, agreed with the peer: N64 time 0 due at this wall time, so retrace N at wall_ns + N/60 s. In
+ * the future, the game waits for it at its first deadline; set before pc_ultra_run, or at any time (a jump). */
+void pc_pace_set_start(uint64_t wall_ns);
+/* Time sync. Once: every deadline from now on ns later (+) or sooner (-). Lasting: every retrace that much longer
+ * (+) or shorter (-) in wall time, until changed, capped at +-1 ms a retrace; returns what it set.
+ *
+ * port/net's clock contract (net.h net_pace_adjust_ns) maps onto these directly: deadline(0) = net_start_time ->
+ * pc_pace_set_start (both on pc_real_ns's clock; the session's now_ns is pc_real_ns); each retrace, after net_pads gave
+ * its pads, pc_pace_adjust_ns(net_pace_adjust_ns(s)) (0 .. 1 ms: the interval before the next retrace); and the
+ * re-base after a stall the loop does itself: when the pads gate held retrace n and its pads came more than half a
+ * retrace after n's wall time, n is taken as due at their arrival and n + 1 a retrace (and the adjustment) after it,
+ * never catching up; a smaller lateness stays on the grid. */
+void pc_pace_shift_ns(int64_t ns);
+int64_t pc_pace_adjust_ns(int64_t per_retrace);
+typedef struct {
+    int paced;                 /* paced mode is on */
+    uint32_t retrace;          /* the last retrace that went out (pc_frame) */
+    uint64_t retrace_due_ns;   /* the wall time it was due */
+    uint64_t retrace_sent_ns;  /* the wall time the clock moved to it (later than due by a lag being caught up) */
+    uint64_t next_due_ns;      /* the wall time the next retrace is due, as the map stands now */
+    int64_t lag_ns;            /* how late the clock's last move came after its wall time (0: on time) */
+    int64_t adjust_ns;         /* pc_pace_adjust_ns's */
+    uint32_t holds, rebases;   /* holds the map moved on for; lags of over two retraces re-based */
+    uint32_t stalls;           /* the pads gate's waits re-based (pads over half a retrace late) */
+} PcPaceInfo;
+void pc_pace_info(PcPaceInfo *out);
+
 /* ---------------------------------------------------------------- game data (port/data) */
 
 /* Fill the boot and game images' initialized data from the ROM. 0 on success. */
@@ -243,6 +283,10 @@ void pc_audio_set_pull_hook(void (*hook)(void));
 void pc_audio_set_latency(unsigned ms);
 /* The main loop holds the game: the AI asks for no buffers, and the silence isn't counted as underruns. */
 void pc_audio_set_paused(int paused);
+/* Paced mode (docs/port/AUDIO.md 11), before pc_audio_init: the queue the AI keeps is the null output's on the
+ * clock pc_audio_set_clock gives (the N64's), as with --fast and the null backend, whatever the backend; a device is
+ * fed from a tap of it, a FIFO whose own converter is nudged to keep its level. audio.latency is then the FIFO's. */
+void pc_audio_set_paced(int on);
 /* The output's counters (underruns, the queue's level, buffers late for their render...) go to the log at exit;
  * with this, also every `seconds` while the game plays (-v: 10). pc_audio_periodic is the main loop's, about once a
  * second. */

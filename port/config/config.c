@@ -417,23 +417,25 @@ int pc_settings_memory_conflict(const PcSettings *s, char *why, size_t why_size)
 }
 
 /* The settings the game reads (docs/port/LOCKSTEP.md 3, 7; NETPLAY.md 1.5), in the order a replay file's header and
- * a session's settings list them. */
+ * a session's settings list them. adopt: 1 a guest takes the host's; 0 the session sets it (the accessories); -1 each
+ * PC's own in a session, whose audio keeps the null output's queue on the N64 clock whatever it is (AUDIO.md 11). */
 const PcMustMatch pc_must_match[] = {
     {"game", "frame_rate", 1}, {"game", "cars", 1}, {"game", "memory", 1}, {"game", "expansion_pak", 1},
     {"game", "pc_setup", 1}, {"game", "ghost_prompt", 1}, {"game", "cheats_menu", 1}, {"game", "cheats_unlock", 1},
     {"audio", "voices", 1}, {"audio", "engines", 1}, {"video", "draw_distance", 1}, {"video", "detail", 1},
     {"video", "fog", 1},
-    {"audio", "latency", 1},   /* the AI's queue: on the virtual clock it moves the audio state (LOCKSTEP.md 7) */
+    {"audio", "latency", -1},  /* the AI's queue on --fast's clock (LOCKSTEP.md 7); paced audio's is the tap's FIFO */
     {"game", "pak", 0}, {"game", "pak2", 0}, {"game", "pak3", 0}, {"game", "pak4", 0},
 };
 const int pc_must_match_count = (int)(sizeof pc_must_match / sizeof pc_must_match[0]);
 
-int pc_settings_must_match(const char *section, const char *key)
+int pc_settings_session_rule(const char *section, const char *key)
 {
     for (int i = 0; i < pc_must_match_count; i++)
         if (!strcasecmp(pc_must_match[i].section, section) && !strcasecmp(pc_must_match[i].key, key))
-            return 1 + pc_must_match[i].adopt;
-    return 0;
+            return pc_must_match[i].adopt > 0 ? PC_SESSION_HOSTS : pc_must_match[i].adopt == 0 ? PC_SESSION_SETS
+                                                                                            : PC_SESSION_OWN;
+    return PC_SESSION_OWN;
 }
 
 static const Item *find_item(const char *section, const char *key)
