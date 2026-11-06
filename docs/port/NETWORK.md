@@ -4,9 +4,9 @@ Written 2026-11-06 on branch `net-proto`. The plan is [NETPLAY.md](NETPLAY.md); 
 1.5-1.7, 3, phases 1, 2 and 5 of section 5, 8, and 11): sockets, the protocol, lockstep input exchange, the input
 delay, time sync, the session's failures, the `RUSH_SIM_NET` network model, and their tests.
 
-**Status.** Complete and tested on its own, against a toy deterministic simulation (section 9). **The game doesn't
-link it yet**, so nothing changes for players; attaching it is phase 1's wiring (section 10). Two peers; the ports are
-a set per peer, ready for 3-4 players over 2-4 PCs later.
+**Status.** Complete and tested on its own, against a toy deterministic simulation (section 9). **The game links it**
+since branch `net-session` (`port/app/netplay.c`, [NETPLAY.md](NETPLAY.md) section 12: phase 1's wiring of section 10).
+Two peers; the ports are a set per peer, ready for 3-4 players over 2-4 PCs later.
 
 | File | What |
 |---|---|
@@ -41,7 +41,8 @@ while ((r = net_pads(s, n, pads, 10)) == 0)      // all four ports' pads of n, w
 net_hash(s, n, state_hash);                      // (net_window_hash every 60 or so)
 next_deadline += retrace_ns + net_pace_adjust_ns(s);   // see "The caller's clock" below
 
-net_end(s, NET_END_LOCAL); net_destroy(s);       // BYE
+net_linger(s, 500); net_end(s, NET_END_LOCAL);   // BYE, once the peer has this side's last inputs
+net_destroy(s);
 ```
 
 `NetPad` is the N64 pad as `PcPad` has it: `uint16_t buttons; int8_t stick_x, stick_y;`, 4 bytes on the wire.
@@ -215,7 +216,14 @@ compute it from the HELLOs; the blobs themselves are checked against their hashe
    most). Reasons: `local`, `peer-left` (BYE), `timeout` (nothing from the peer for `timeout_ms`, 15 s), `no-answer`
    (the guest, after `timeout_ms`), `protocol` (two values for one input or hash, a bad file, no acks), `desync`
    (the detail is the first retrace whose hashes differ), `version`, `mismatch`, `rejected`, `busy`, `socket`.
-   `net_end_reason` gives a sentence for the log.
+   `net_end_reason` gives a sentence for the log; `net_end_text` ends with a sentence of the caller's, which the BYE
+   carries to the peer (its first 63 characters: "the guest's ROM isn't the host's").
+8. **Leaving at a retrace of its own** (a player quits, a test's run reaches its limit): `net_linger` first waits, up
+   to a timeout, until the peer has acknowledged every input this side assigned; after the BYE, `net_pads` still gives
+   the peer the retraces the side that left ran itself (up to the last it reported submitting) when their pads arrived
+   (`drained`), so the peer reaches the retrace the other left at; before the BYE came it may have run up to the
+   other's delay past it, on the inputs the other had assigned that far ahead (their hashes are compared by nobody).
+   The first retrace past them ends the peer with `peer-left`.
 
 **Waiting for the peer.** A `net_pads` that has waited `wait_report_ms` (250) is logged ("waiting for the peer's input
 for retrace N") and `net_waiting_ms` says how long, for the "Waiting for <name>..." overlay; when the input comes, the
@@ -410,7 +418,8 @@ haven't been run on Windows here.
 
 ## 10. Attaching the game (phase 1)
 
-Wiring only:
+Done on branch `net-session`: [NETPLAY.md](NETPLAY.md) section 12 has what was built and run. The plan was, wiring
+only:
 
 - `port/ultra/loop.c`, at the retrace (NETPLAY.md 1.3): after `pc_input_poll`, `net_submit(s, vi, &pads[local])`;
   then `net_pads(s, vi, merged, 10)` in a loop that pumps window events and shows the waiting overlay from
@@ -426,7 +435,7 @@ Wiring only:
 
 ## 11. Not done, and open
 
-- Not attached to the game (section 10).
+- Attached to the game, on the unpaced virtual clock (section 10, NETPLAY.md 12); the paced clock is another branch.
 - Two peers. The ports are a set per peer and the wire carries the sender's ports, but sessions of three or four
   PCs need the host to relay or a mesh.
 - No address migration: a NAT rebinding mid-session ends it by timeout.

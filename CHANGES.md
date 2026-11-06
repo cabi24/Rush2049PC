@@ -6,6 +6,14 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play, a preview** (`--net-host`, `--net-join HOST`; README "Playing online"): two PCs race in the game's
+  two-player split screen over the internet (Tailscale, or a forwarded UDP port 24049), the host as player 1 and the
+  guest as player 2, the guest taking the host's game settings for the session and each bringing a copy of their own
+  controller pak. Both games check, at every retrace, that they are the same; a ROM, build or mods that differ are
+  refused at the start, saying what differs. The game runs at its own speed on the paced clock, with sound from your
+  own sound card; F1 and the pause key don't pause it ([NETPLAY.md](docs/port/NETPLAY.md) "Status: the session").
+  Nothing changes without the options.
+
 - **Online play's clock** (groundwork, not a setting): `--paced` runs the game on `--fast`'s virtual clock, which
   takes the same course on every PC from the same inputs, at the pace of real time: each move of the clock waits for
   its wall time. A paced run is `--fast`'s to the bit on every synthetic path, at 60.000 retraces a second; a host too
@@ -13,7 +21,7 @@ What changed for players, newest first. The details and the tests behind each it
   as in real time; the sound card is fed from a copy of the game's sound, so its timing never reaches the game
   ([ULTRA.md](docs/port/ULTRA.md) 10, [AUDIO.md](docs/port/AUDIO.md) 11, [NETPLAY.md](docs/port/NETPLAY.md)).
 
-- **Online play, the network part** (not in the program yet: nothing changes when you play): `port/net`, the library
+- **Online play, the network part**: `port/net`, the library
   two PCs will race through, in lockstep over UDP, with an input delay that follows the connection, time sync, a check
   every retrace that both games are the same, and a join code. Tested on its own against a stand-in game, on
   simulated networks from a LAN to 150 ms with 10% loss, a latency that changes mid-race and a peer that stops for

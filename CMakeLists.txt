@@ -400,6 +400,8 @@ add_custom_target(pc_version
 add_library(pcapp OBJECT ${PC_APP_SOURCES} ${PC_VERSION_C})
 add_dependencies(pcapp pc_version)
 target_include_directories(pcapp PRIVATE port/include port/ultra port/config port/app ${ZLIB_INCLUDE_DIRS})
+# netplay.c: an online session, the game over port/net (docs/port/NETPLAY.md), with port/input's session rules
+target_include_directories(pcapp PRIVATE port/net port/input)
 if(WIN32)
     # timeBeginPeriod (startup.c); the Open ROM dialog, IFileOpenDialog (pick.c): ole32, which SDL2 imports already
     target_link_libraries(pcapp PUBLIC winmm ole32)
@@ -462,7 +464,8 @@ set_source_files_properties(${PC_DATA_DIR}/stubs.c PROPERTIES COMPILE_OPTIONS "-
 # where port/ultra maps the RDRAM window). Symbols at absolute N64 addresses (aliases.ld) work through a startup
 # fix-up of their GOT slots (port/ultra/memory.c): binutils 2.40 on aarch64 relocates them by the load address.
 add_executable(rush2049pc ${PC_DATA_DIR}/stubs.c ${PC_GAME_OBJECTS})
-target_link_libraries(rush2049pc PRIVATE ${PC_PORT_OBJECT_LIBS} ZLIB::ZLIB Threads::Threads m)
+# pcnet: online play's network library (port/net, docs/port/NETWORK.md), for port/app/netplay.c; Winsock 2 on Windows
+target_link_libraries(rush2049pc PRIVATE ${PC_PORT_OBJECT_LIBS} pcnet ZLIB::ZLIB Threads::Threads m)
 foreach(lib ${PC_PORT_ARCHIVES})
     target_link_libraries(rush2049pc PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
 endforeach()
@@ -706,6 +709,49 @@ endif()
 foreach(t ${REPLAY_TESTS})
     set_tests_properties(${t} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
 endforeach()
+# Online sessions (docs/port/NETPLAY.md "Status: the session", tools/port/net_session_check.py): two rush2049pc
+# processes over UDP on 127.0.0.1, a host and a guest, each playing its own player's presses of a path.
+# net_session_<path>: both traces the same, line for line (every retrace's physics, pads and hash), and the trace of
+# one process playing the whole script with --input-delay as the session's fixed --net-delay; the one-player paths
+# with the guest idle. net_session_sim_<model>: the same under RUSH_SIM_NET's models (docs/port/NETWORK.md 8): the
+# network changes when retraces happen, never what they do. net_session_auto: the adaptive delay under wan80, and
+# the host's input log replays to the same trace. net_session_paced: the session's own clock, paced (ULTRA.md 10):
+# at 4 times the pace one --fast process's trace, at the real pace under wan80 60 retraces a second of wall time.
+# net_session_fuzz: seeded random presses on both players (menus,
+# sticks, the overlay opened over the game), the hashes the same at every retrace. net_session_desync: a word
+# changed on one PC ends both at its retrace, each with its report. net_session_mismatch: another ROM, build or mods
+# refused, a setup the handshake can't see caught at retrace 0. net_session_adopt: the guest takes the host's
+# settings, the paks in memory only. net_session_ends: a killed peer (timeout), BYE, nobody there (no-answer).
+set(NET_SESSION_CHECK ${PC_PYTHON} ${PORT_TOOLS}/net_session_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/net --mods ${CMAKE_BINARY_DIR}/synth/paths/mods)
+set(NET_SESSION_PATHS race2p battle2p battlequit memhigh2p race2p12 pause raceend menu)
+if(PC_SANITIZE)
+    set(NET_SESSION_PATHS race2p)   # 17-37 times slower there
+endif()
+foreach(name ${NET_SESSION_PATHS})
+    add_test(NAME net_session_${name} COMMAND ${NET_SESSION_CHECK} path ${name})
+    set_tests_properties(net_session_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
+endforeach()
+if(NOT PC_SANITIZE)
+    foreach(m lan20 wan80 bad150 shift pause burst)
+        add_test(NAME net_session_sim_${m} COMMAND ${NET_SESSION_CHECK} sim --model ${m})
+        set_tests_properties(net_session_sim_${m} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 RUN_SERIAL TRUE
+                             LABELS realtime)
+    endforeach()
+    add_test(NAME net_session_auto COMMAND ${NET_SESSION_CHECK} auto --model wan80)
+    add_test(NAME net_session_paced COMMAND ${NET_SESSION_CHECK} paced --model wan80)
+    add_test(NAME net_session_fuzz COMMAND ${NET_SESSION_CHECK} fuzz --seeds 3 --seconds 120)
+    add_test(NAME net_session_ends COMMAND ${NET_SESSION_CHECK} ends)
+    set_tests_properties(net_session_auto net_session_paced net_session_fuzz net_session_ends PROPERTIES
+                         FIXTURES_REQUIRED synth_rom TIMEOUT 900 RUN_SERIAL TRUE LABELS realtime)
+endif()
+add_test(NAME net_session_desync COMMAND ${NET_SESSION_CHECK} desync)
+add_test(NAME net_session_adopt COMMAND ${NET_SESSION_CHECK} adopt)
+set_tests_properties(net_session_desync net_session_adopt PROPERTIES FIXTURES_REQUIRED synth_rom
+                     TIMEOUT ${REPLAY_TIMEOUT})
+add_test(NAME net_session_mismatch COMMAND ${NET_SESSION_CHECK} mismatch)
+set_tests_properties(net_session_mismatch PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth"
+                     TIMEOUT ${REPLAY_TIMEOUT})
 add_test(NAME hash_decoupled_list COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hash_compare.py --check-decoupled)
 add_test(NAME render_values COMMAND ${PC_PYTHON} ${PORT_TOOLS}/render_values_check.py)
 # synth_compare.py's verdicts on made-up runs: a run that doesn't end as its script's `# expect:` line says fails,
@@ -1310,7 +1356,7 @@ add_subdirectory(port/upscale)   # 2x texture upscaling and its tests (docs/port
 add_subdirectory(port/audio)
 add_subdirectory(port/gfx)
 add_subdirectory(port/input)   # the frontend's tests (docs/port/FRONTEND.md)
-add_subdirectory(port/net)     # online play's network library and its tests (docs/port/NETWORK.md); not linked yet
+add_subdirectory(port/net)     # online play's network library and its tests (docs/port/NETWORK.md); netplay.c uses it
 # A sanitizer build runs the programs several times slower: the tests that start the game many times get more time,
 # and so do the synthetic paths (SYNTH_PATH_TIMEOUT; docs/port/SANITIZE.md 5).
 if(PC_SANITIZE)

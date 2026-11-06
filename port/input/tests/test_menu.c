@@ -24,6 +24,10 @@
  *           Help from the bindings in effect
  *   presets the Presets page: each preset's settings afterwards, the live ones applied, the restart ones only in the
  *           settings, Save's count and file
+ *   session an online session (pc_input_set_session, docs/port/NETPLAY.md 1.5): the overlay holds nothing and the
+ *           game's pads are idle while it is open; the settings the game reads are locked (the Video page's draw
+ *           distance, the Game page's cars, a preset's and Defaults' share of them), the others change; the notice
+ *           draws over the frame and goes; out of the session the overlay holds the game again
  * pictures (not a CTest) writes each page as a PNG into SCRATCH_DIR, at 1280 x 960, to look at. */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -1614,12 +1618,77 @@ static void test_presets(void)
     stop();
 }
 
+static void test_session(void)
+{
+    PcSettings s;
+    PcPad pads[4];
+    int w, h;
+    pc_settings_defaults(&s);
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    show_frame();
+    pc_input_set_session(1);
+    act(PC_MENU_TOGGLE);
+    CHECK(pc_menu_is_open() && !pc_input_paused(), "open in a session: nothing is held");
+    pc_input_poll(pads);
+    CHECK(pads[0].buttons == 0 && pads[0].stick_x == 0 && pads[0].stick_y == 0, "the game's pads are idle");
+    act(PC_MENU_ACCEPT);
+    at("Video", "Render scale", "native", "the Video page");
+    act(PC_MENU_RIGHT);
+    CHECK(pc_menu_settings()->scale != s.scale, "a setting the game doesn't read changes: scale %d",
+          pc_menu_settings()->scale);
+    act_n(PC_MENU_UP, 4);
+    at("Video", "Draw distance", "original (N64)", "the draw distance");
+    act(PC_MENU_RIGHT);
+    at("Video", "Draw distance", "original (N64)", "locked: unchanged");
+    CHECK(strstr(pc_menu_message(), "locked in an online session") != NULL, "the message: '%s'", pc_menu_message());
+    CHECK(pc_menu_settings()->draw_distance == s.draw_distance, "the setting unchanged");
+    act(PC_MENU_BACK);
+    act_n(PC_MENU_DOWN, 4);
+    at("Settings", "Game", NULL, "the Game page");
+    act(PC_MENU_ACCEPT);
+    at("Game", "Cars in a race", "original (6)", "the cars");
+    act(PC_MENU_RIGHT);
+    at("Game", "Cars in a race", "original (6)", "the cars locked");
+    act_n(PC_MENU_UP, 1);
+    at("Game", "Defaults", NULL, "Defaults");
+    act(PC_MENU_ACCEPT);   /* the page's settings are all locked: nothing changes */
+    CHECK(pc_menu_settings()->cars == s.cars && pc_menu_settings()->memory == s.memory, "Defaults changes no lock");
+    act(PC_MENU_CLOSE);
+    CHECK(!pc_menu_is_open() && !pc_input_paused(), "closed");
+
+    /* the notice: a box near the top, over the frame (green), then gone */
+    uint8_t *frame = malloc(640 * 480 * 4), *noted = malloc(640 * 480 * 4);
+    pc_gfx_redraw();
+    pc_gfx_read_window(frame, &w, &h);
+    pc_menu_notice("Waiting for the host...", "1.0 s. Escape leaves the session.");
+    pc_gfx_redraw();
+    pc_gfx_read_window(noted, &w, &h);
+    const uint8_t *in = noted + ((size_t)28 * 640 + 320) * 4, *was = frame + ((size_t)28 * 640 + 320) * 4;   /* above its text */
+    CHECK(was[1] > 150 && in[1] < 100, "the notice over the frame at its top: green %d, then %d", was[1], in[1]);
+    CHECK(!memcmp(noted + (size_t)300 * 640 * 4, frame + (size_t)300 * 640 * 4, 640 * 4), "the rest of the frame");
+    pc_menu_notice(NULL, NULL);
+    pc_gfx_redraw();
+    pc_gfx_read_window(noted, &w, &h);
+    CHECK(!memcmp(noted, frame, 640 * 480 * 4), "the notice gone");
+    free(frame);
+    free(noted);
+
+    pc_input_set_session(0);
+    act(PC_MENU_TOGGLE);
+    CHECK(pc_menu_is_open() && pc_input_paused(), "out of a session the overlay holds the game again");
+    act(PC_MENU_CLOSE);
+    stop();
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"nav", test_nav}, {"live", test_live}, {"save", test_save}, {"script", test_script},
         {"mouse", test_mouse}, {"pages", test_pages}, {"mods", test_mods}, {"saves", test_saves_page},
-        {"presets", test_presets}, {"pictures", pictures}};
+        {"presets", test_presets}, {"session", test_session}, {"pictures", pictures}};
     if (argc < 3) {
         fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|saves|presets|pictures SCRATCH_DIR\n");
         return 2;

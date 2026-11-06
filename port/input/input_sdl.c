@@ -522,7 +522,7 @@ static void set_title(void)
     if (!L.win)
         return;
     snprintf(title, sizeof title, "San Francisco Rush 2049%s%s%s",
-             L.paused_focus || L.paused_key || pc_menu_is_open() ? " (paused)" : "",
+             L.paused_focus || L.paused_key || (pc_menu_is_open() && !pc_input_session()) ? " (paused)" : "",
              pc_input_title_tag ? " - " : "", pc_input_title_tag ? pc_input_title_tag : "");
     SDL_SetWindowTitle(L.win, title);
 }
@@ -561,6 +561,10 @@ static void screenshot(void)
 
 static void set_pause(int *flag, int on, const char *why)
 {
+    if (on && pc_input_session()) {   /* the other PC's game would wait for this one's pads (NETPLAY.md 1.5) */
+        fprintf(stderr, "rush2049pc: %s: an online session isn't held\n", why);
+        return;
+    }
     int was = L.paused_focus || L.paused_key;
     *flag = on;
     int now = L.paused_focus || L.paused_key;

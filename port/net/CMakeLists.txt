@@ -15,7 +15,7 @@
 #   net_desync, net_disconnect, net_bye, net_sigstop   the same two processes: a desync, a killed peer, BYE, a
 #                            stopped process (Linux)
 #
-# The game doesn't link it yet: nothing in rush2049pc changes.
+# rush2049pc links pcnet: port/app/netplay.c attaches the game to it (docs/port/NETPLAY.md "Status").
 cmake_minimum_required(VERSION 3.20)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     project(Rush2049PC_net C)

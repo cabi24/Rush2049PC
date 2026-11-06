@@ -8,7 +8,7 @@
 #                       scripted presses merged over live input; through port/gfx's real window and event loop on
 #                       SDL's offscreen video driver, so no display is needed
 #   frontend_menu_test  the settings overlay, headless: moving through it, live changes, Save into a settings
-#                       file in place, scripted MENU input
+#                       file in place, scripted MENU input, an online session's rules
 #   frontend.precedence the executable itself: rush2049pc --print-config over a settings file, the environment
 #                       and options
 set(PC_FRONTEND_TEST_FLAGS -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
@@ -51,7 +51,7 @@ target_include_directories(frontend_menu_test PRIVATE ${CMAKE_SOURCE_DIR}/port/c
                            ${CMAKE_SOURCE_DIR}/port/include ${CMAKE_SOURCE_DIR}/port/gfx/tests)
 target_compile_options(frontend_menu_test PRIVATE ${PC_FRONTEND_TEST_FLAGS} -Wno-unused-function)
 target_link_libraries(frontend_menu_test PRIVATE pcgfx ${RUSH_SDL2_TARGET} m)
-foreach(c nav live save script mouse pages mods saves presets)
+foreach(c nav live save script mouse pages mods saves presets session)
     add_test(NAME frontend.menu.${c} COMMAND frontend_menu_test ${c} ${PC_FRONTEND_TEST_DIR}/menu-${c})
 endforeach()
 set_target_properties(frontend_menu_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)

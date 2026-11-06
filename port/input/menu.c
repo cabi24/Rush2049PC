@@ -448,6 +448,7 @@ static PcSaveRow sv_list[MAX_ITEMS];
 #define C_BAR 0x3A4250FFu
 
 static void draw(int w, int h);
+static void layout(int w, int h, int *k, int *ox, int *oy);
 static void status(uint32_t color, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 static void status(uint32_t color, const char *fmt, ...)
 {
@@ -597,9 +598,21 @@ static void apply(const char *section, const char *key)
         pc_input_apply(s);   /* [input], [keyboard], [controller], [hotkeys] */
 }
 
+/* An online session locks the settings the game reads (pc_settings_session_rule): both PCs must run one game, and the
+ * guest runs with the host's (docs/port/NETPLAY.md 1.5). */
+static int locked(const char *section, const char *key)
+{
+    if (!pc_input_session() || !section || pc_settings_session_rule(section, key) == PC_SESSION_OWN)
+        return 0;
+    status(C_WARN, "%s.%s: locked in an online session", section, key);
+    return 1;
+}
+
 static int set_value(const Item *it, const char *v)
 {
     char why[160];
+    if (it->kind != I_WINDOW && locked(it->section, it->key))
+        return -1;
     if (it->kind == I_WINDOW) {
         char w[16], h[16], tail;
         unsigned uw, uh;
@@ -900,6 +913,45 @@ void pc_menu_set_mods(const PcMenuMod *mods, int n, const char *dir)
         mods_page();
 }
 
+/* ---------------------------------------------------------------- the notice (pc_menu_notice) */
+
+static struct {
+    int on;
+    char title[96], line[160];
+} N;
+
+#define C_NOTICE 0x101828E8u
+
+/* A box near the top of the window, as wide as its text, at the overlay's unit. */
+static void notice_draw(int w, int h)
+{
+    int k, ox, oy, chars = (int)strlen(N.title) > (int)strlen(N.line) ? (int)strlen(N.title) : (int)strlen(N.line);
+    layout(w, h, &k, &ox, &oy);
+    int bw = (chars * PC_GFX_FONT_ADVANCE + 12) * k, bh = (N.line[0] ? 30 : 18) * k, x = (w - bw) / 2, y = 12 * k;
+    pc_gfx_ui_rect(x, y, bw, bh, C_NOTICE);
+    pc_gfx_ui_rect(x, y, bw, k, C_EDGE);
+    pc_gfx_ui_rect(x, y + bh - k, bw, k, C_EDGE);
+    pc_gfx_ui_text(x + 6 * k, y + 5 * k, k, C_WHITE, N.title);
+    if (N.line[0])
+        pc_gfx_ui_text(x + 6 * k, y + 17 * k, k, C_HINT, N.line);
+}
+
+static void ui_draw(int w, int h)
+{
+    if (M.open)
+        draw(w, h);
+    if (N.on)
+        notice_draw(w, h);
+}
+
+void pc_menu_notice(const char *title, const char *line)
+{
+    N.on = title != NULL;
+    snprintf(N.title, sizeof N.title, "%s", title ? title : "");
+    snprintf(N.line, sizeof N.line, "%s", line ? line : "");
+    pc_gfx_set_ui_hook(M.open || N.on ? ui_draw : NULL);
+}
+
 /* ---------------------------------------------------------------- opening, moving, choosing */
 
 static void set_open(int on)
@@ -916,7 +968,10 @@ static void set_open(int on)
             M.eff.fullscreen = fs;
         M.page = P_MAIN;
         M.mouse = 0;   /* until it moves: a mouse resting where an item now is doesn't select it */
-        fprintf(stderr, "rush2049pc: settings open; the game is held\n");
+        if (pc_input_session())   /* nothing holds an online session: this player's pads are idle meanwhile */
+            fprintf(stderr, "rush2049pc: settings open over the online session (this player's pads idle)\n");
+        else
+            fprintf(stderr, "rush2049pc: settings open; the game is held\n");
     } else {
         int u = unsaved();
         pc_input_menu_closed();   /* the buttons held now stay idle for the game until let go (input.c) */
@@ -925,7 +980,7 @@ static void set_open(int on)
         else
             fprintf(stderr, "rush2049pc: settings closed\n");
     }
-    pc_gfx_set_ui_hook(on ? draw : NULL);
+    pc_gfx_set_ui_hook(on || N.on ? ui_draw : NULL);
     pc_input_live_menu(on);
 }
 
@@ -1039,7 +1094,8 @@ static void preset(int which)
         if (it && set_value(it, v->value) != 0)
             continue;
         if (!it) {   /* a setting without an item of its own */
-            if (pc_settings_set(&M.eff, v->section, v->key, v->value, why, sizeof why) != 0)
+            if (locked(v->section, v->key) ||
+                pc_settings_set(&M.eff, v->section, v->key, v->value, why, sizeof why) != 0)
                 continue;
             touch(v->section, v->key);
             apply(v->section, v->key);
@@ -1549,6 +1605,10 @@ static void saves_action(int action)
     int r = -1;
     if (!s_saves)
         return;
+    if (pc_input_session() && (action == SVA_IMPORT || action == SVA_PIN || action == SVA_DELETE)) {
+        status(C_WARN, "Locked in an online session (its paks are copies)");
+        return;
+    }
     switch (action) {
     case SVA_OPEN:
         r = pc_input_live_open_folder(M.sv_where);
@@ -1860,7 +1920,7 @@ static void draw(int w, int h)
     else
         snprintf(line, sizeof line, "SETTINGS > %s", p->title);
     text(6, 3, C_WHITE, line);
-    text(PANEL_W - 6 - 6 * 6, 3, C_HINT, "paused");
+    text(PANEL_W - 6 - 6 * 6, 3, C_HINT, pc_input_session() ? "online" : "paused");
 
     for (int i = 0; i < ROWS && M.top[M.page] + i < p->n; i++) {
         const Item *it = &p->item[M.top[M.page] + i];
@@ -2089,9 +2149,9 @@ void pc_menu_init(const PcSettings *s)
 
 void pc_menu_shutdown(void)
 {
-    if (M.open)
+    if (M.open || N.on)
         pc_gfx_set_ui_hook(NULL);
-    M.open = M.inited = 0;
+    M.open = M.inited = N.on = 0;
 }
 
 void pc_menu_state(const char **page, const char **item, char *value, size_t value_size)

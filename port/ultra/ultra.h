@@ -189,6 +189,10 @@ int pc_si_set_pak(int ch, int kind);
  * pc_store_open first) and what the game writes goes back into its files; NULL: the file of pc_si_set_pak_file. As
  * pc_si_set_pak_file, before it is chosen. */
 void pc_si_set_pak_store(int ch, const char *folder);
+/* An online session's pak (docs/port/NETPLAY.md 1.5): channel ch holds this image (PC_PAK_SIZE bytes, checked by the
+ * caller) in memory only, before the game starts: no file or saves folder behind it, so nothing reaches the disk.
+ * NULL: no accessory. */
+void pc_si_set_pak_image(int ch, const uint8_t *image);
 /* Whether the game can take its pak swapped now (main: at the title or the main menu, no player on a saved profile,
  * no ghost chosen): a folder whose choice of saves changed is swapped at the next flush when it says so. */
 void pc_si_set_swap_check(int (*ok)(int ch));
