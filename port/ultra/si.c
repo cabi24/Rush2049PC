@@ -380,6 +380,19 @@ int pc_si_pak(int ch)
     return in;
 }
 
+int pc_si_pak_image(int ch, uint8_t *out)
+{
+    int have;
+    if (ch < 0 || ch > 3)
+        return 0;
+    pthread_mutex_lock(&g_slock);
+    have = g_port[ch].kind == PC_PAK_MEMORY && g_port[ch].memory_ok;
+    if (have)
+        memcpy(out, g_port[ch].img, PAK_SIZE);
+    pthread_mutex_unlock(&g_slock);
+    return have;
+}
+
 const char *pc_si_pak_path(int ch)
 {
     if (ch < 0 || ch > 3)

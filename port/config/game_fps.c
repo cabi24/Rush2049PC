@@ -131,9 +131,24 @@ float pc_fps_noise(float e)
     return sqrtf((1.0f - k * k) / (1.0f - e * e));
 }
 
+/* e to the power of the frame's length in 30 Hz frames. A frame is 1 to 5 retraces (pc_game_frame_note), so the power
+ * is 0.5, 1, 1.5, 2 or 2.5: each is made of sqrtf and products, which round alike on every host (IEEE single
+ * arithmetic; sqrtf is correctly rounded in glibc, msvcrt and the UCRT), where the host's powf need not be (glibc's,
+ * msvcrt's and the UCRT's powf are other code, none promised correctly rounded): two PCs in lockstep at 60 compute the
+ * same filter (docs/port/NETPLAY.md 1.1, LOCKSTEP.md 7). At 60 on the virtual clock every frame is one retrace, 0.5. */
 float pc_fps_filter(float e)
 {
     if (pc_frame_scale == 1.0f || e <= 0.0f)
         return e;
-    return powf(e, pc_frame_scale);
+    if (pc_frame_scale == 0.5f)
+        return sqrtf(e);
+    if (pc_frame_scale == 2.0f)
+        return e * e;
+    if (pc_frame_scale == 1.5f)
+        return e * sqrtf(e);
+    if (pc_frame_scale == 2.5f)
+        return e * e * sqrtf(e);
+    if (pc_frame_scale == 0.0f)
+        return 1.0f;
+    return powf(e, pc_frame_scale);   /* none: a frame is at most 5 retraces */
 }

@@ -8,6 +8,13 @@ emphasis: "robust, put up with lower and higher latencies, and stay in sync" (se
 delay controller, time sync, `RUSH_SIM_NET` and the proofs against a toy simulation); the game doesn't link it yet.
 Sections 1-10 are the plan as written; section 11 is what robustness adds to it.
 
+**Phase 0.3 and 0.4 (2026-11-06, [LOCKSTEP.md](LOCKSTEP.md)):** the pads gate and its source API for `port/net`,
+`--record-inputs`, `--replay-inputs` and `--input-delay` (with schedules), the state hash with host pointers
+normalised and `--log-hash`, the desync report, the mutation check, `--session-rules` (`pc_gfx_hud_dx` 0), the
+render-values check, `powf` at 60 replaced, and the settings matrix, which found `audio.latency` changing the game's
+state (1.5's table has it as free). Two processes agree on every hash on all 62 synthetic paths; Windows against Linux
+is wired in CI (`windows-replay`) and has not run yet.
+
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
 full screen.

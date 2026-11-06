@@ -12,6 +12,13 @@ What changed for players, newest first. The details and the tests behind each it
   simulated networks from a LAN to 150 ms with 10% loss, a latency that changes mid-race and a peer that stops for
   3 s: both sides the same at every tick ([NETWORK.md](docs/port/NETWORK.md), the plan [NETPLAY.md](docs/port/NETPLAY.md)).
 
+- **Input recording and replay, and the state hash** (online play's groundwork, [LOCKSTEP.md](docs/port/LOCKSTEP.md)):
+  `--record-inputs FILE` keeps each retrace's pads, `--replay-inputs FILE` plays them back (a replay of another
+  build, cartridge or settings is refused, saying what differs), `--input-delay D` plays your input D retraces late,
+  and `--log-hash N` prints a hash of the game's state. With `--fast` a replay is the recorded game, retrace for
+  retrace. A new profile's id in its save no longer depends on where the program was loaded in memory. None of this
+  changes a game run without the options.
+
 - **Fill the window** (`video.fill`, F1 > Video > Fill the window): `on` makes the picture reach the window's top and
   bottom. The game shows 220 rows, and the port showed them in a TV's 240-line frame, with a band above and below
   (66 pixels each at 2880 × 1620). With widescreen the picture is then the window's shape, the 3D a little less wide

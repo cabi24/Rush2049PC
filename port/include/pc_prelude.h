@@ -85,6 +85,12 @@ static __inline__ unsigned int pc_n64a(__UINTPTR_TYPE__ p)
 #define PC_N64A(x) ((unsigned int)(__UINTPTR_TYPE__)(x))
 #endif
 
+/* The 32-bit N64 address a pointer stands for where the game keeps one as a number, an id (port/ultra/statehash.c):
+ * a window pointer's own, own storage's its symbol's N64 address and offset as on the N64, else the low half (as
+ * PC_N64A). A profile's id is its handle's (menu_save_options/group.c), and the handles are own storage: cut to 32
+ * bits it was the process's own (ASLR), in the pak's saves and the game's memory (docs/port/LOCKSTEP.md 5). */
+unsigned int pc_n64_identity(const void *p);
+
 /* A heap handle's slot (AllocateHandleHeap, audio_heap/group.c) is 8 bytes on the PC and holds its block's host
  * pointer, which the game reads through the handle (`*(u8 **)h`, docs/port/POINTERS.md 9.10); the heap and a few
  * readers take the slot as the N64's u32 instead. PC_SLOT_N64(s) is the N64 address the slot at host address s holds,

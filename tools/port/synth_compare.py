@@ -35,7 +35,7 @@ fixed retrace), without the graphics-task counts. Runs of one executable give th
 --script, --until and --seconds run one press script of any path instead (the retail cartridge: --rom, no
 --no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. --set-b and --env-b give the second executable
 settings and environment variables of its own, so one program can be compared with itself under other settings
-(docs/port/MEMORY.md 6):
+(docs/port/MEMORY.md 6); --set gives both runs a setting (two builds compared at game.frame_rate = 60):
 
     --exe build/pc/rush2049pc --exe build/pc/rush2049pc --set-b game.memory=64 --env-b RUSH2049_TEST_HEAP_FLOOR=17
 
@@ -128,6 +128,7 @@ def show(e):
 
 
 B_SETS, B_ENV = [], {}   # --set-b, --env-b: the second executable's own
+SETS = []                # --set: both executables' (game.frame_rate=60: the game at 60 compared, docs/port/LOCKSTEP.md 9)
 
 
 def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
@@ -138,7 +139,7 @@ def run_one(exe, rom, cmd_tail, logs, tag, retail, path_env=None, second=False):
         env.update(B_ENV)   # the executable's own over the path's
     if EXACT:
         env["RUSH_STATE_EXACT"] = "1"
-    extra = [w for s in B_SETS for w in ("--set", s)] if second else []
+    extra = [w for s in SETS for w in ("--set", s)] + ([w for s in B_SETS for w in ("--set", s)] if second else [])
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve())] + ([] if retail else ["--no-rom-check"]) + \
         ["--headless", "--no-config", "--audio", "null", "--no-pak", "--fast"] + cmd_tail + extra + \
         (["--dump-audio", "run.wav"] if AUDIO else [])
@@ -293,6 +294,8 @@ def main():
     ap.add_argument("--audio", action="store_true",
                     help="compare what each run plays (--dump-audio) too, byte for byte")
     ap.add_argument("-j", "--jobs", type=int, default=1, help="runs at once (each a process on the virtual clock)")
+    ap.add_argument("--set", dest="sets", action="append", default=[], metavar="SECTION.KEY=VALUE",
+                    help="a setting for both executables' runs (--set)")
     ap.add_argument("--set-b", action="append", default=[], metavar="SECTION.KEY=VALUE",
                     help="a setting for the second executable's runs (--set)")
     ap.add_argument("--env-b", action="append", default=[], metavar="NAME=VALUE",
@@ -306,6 +309,7 @@ def main():
     global EXACT, SAME, SHOTS, AUDIO
     EXACT, SAME, SHOTS, AUDIO = not a.coarse, a.same, a.shots, a.audio
     B_SETS.extend(a.set_b)
+    SETS.extend(a.sets)
     for e in a.env_b:
         if "=" not in e:
             ap.error(f"--env-b takes NAME=VALUE, not '{e}'")

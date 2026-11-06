@@ -163,6 +163,15 @@ target_compile_options(game_flags INTERFACE -std=gnu89 -funsigned-char -fwrapv -
 # default for GNU C fuses a * b + c wherever the target has FMA (aarch64, x86-64-v3 such as RHEL 10's default) once it
 # optimizes, which moved the cars by a bit a step from the Debug build's (docs/port/OPTIMIZED.md). -O0 never fuses.
 target_compile_options(game_flags INTERFACE -ffp-contract=off)
+# Online play's lockstep (docs/port/LOCKSTEP.md 5): the game C reads a few locals it never set; libultra's SI code copies
+# such a struct whole into RDRAM (__osMakeMotorData's), so those bytes are whatever the host's stack held, other in
+# every process and on every OS. With this on, every local the C leaves unset starts as zero (GCC 12, Clang 16), the
+# same on every PC. Off by default, so the default game is compiled as before; the state hash leaves out the scratch
+# buffers where such bytes were found.
+option(RUSH_ZERO_LOCALS "Zero the game C's uninitialised locals, the same on every PC (online play)" OFF)
+if(RUSH_ZERO_LOCALS)
+    target_compile_options(game_flags INTERFACE -ftrivial-auto-var-init=zero)
+endif()
 # No loop bounds from declared array sizes: the game C's declarations are views, often shorter than the data they
 # index (an open-ended table declared with one element, a struct member used as an array past its end; -O2's
 # -Warray-bounds sees 260 such accesses), so the rule the optimizer would derive bounds from doesn't hold here, as
@@ -354,6 +363,9 @@ if(NOT WIN32)
     list(FILTER PC_ULTRA_SOURCES EXCLUDE REGEX "/win32\\.c$")   # Windows' fault handler (docs/port/WINDOWS.md)
 endif()
 add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
+# The state hash (docs/port/LOCKSTEP.md 5) normalises and hashes the 8-256 MiB RDRAM window: optimized in every build,
+# or a Debug build's tests that hash it every 30 retraces take minutes.
+set_source_files_properties(port/ultra/statehash.c PROPERTIES COMPILE_OPTIONS "-O2")
 target_include_directories(pcultra PRIVATE port/include port/ultra port/config ${ZLIB_INCLUDE_DIRS})
 target_compile_options(pcultra PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 if(PC_SANITIZE)
@@ -636,6 +648,62 @@ set_tests_properties(synth_boot_mods_dump PROPERTIES FIXTURES_SETUP mods_pack)
 foreach(name mods_texture mods_texture_up)
     set_tests_properties(synth_boot_${name} PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth;mods_pack")
 endforeach()
+# Input record, replay and delay, the pads gate and the state hash (docs/port/LOCKSTEP.md 8, tools/port/replay_check.py).
+# replay_same_<path>: each path on the virtual clock recorded (--record-inputs), then replayed (--replay-inputs) by
+# another process: the same trace (states, status lines, every retrace's physics and pads, exact floats) and the same
+# state hash at every retrace, the window's, own storage's and the decoupled data's every 30, with the processes'
+# images apart (ASLR). Its recording and replay log stay in synth/replay for CI's windows-replay. replay_delay: with
+# --input-delay 2 the game's pads are the script's 2 retraces later and the run is the script's moved 2 retraces, and a
+# delay schedule gives the delay line's pads and replays to its trace. replay_file: a file cut short, damaged or of
+# other settings. gate_same: pads held back at random retraces for random real times (RUSH_SIM_GATE) leave no trace.
+# hash_mutation: a word changed at retrace 1000 (RUSH_SIM_DESYNC) is caught from that retrace on. hash_aslr: two
+# processes with the full hash every retrace agree. hash_decoupled_list: the full hash takes every decoupled item.
+# render_values: no new render or per-PC value reaches the game C (tools/port/render_values_allowed.txt). The
+# selftest checks xxHash64's known values and the delay line's rule.
+set(REPLAY_CHECK ${PC_PYTHON} ${PORT_TOOLS}/replay_check.py --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM}
+    --logs ${CMAKE_BINARY_DIR}/synth/replay --mods ${CMAKE_BINARY_DIR}/synth/paths/mods)
+set(REPLAY_TIMEOUT 600)
+if(PC_SANITIZE)
+    set(REPLAY_TIMEOUT 3000)
+endif()
+# Under ASan or TSan a path runs 17-37 times slower (above): three paths of each kind, the file's checks (its reader on
+# cut and damaged files), the gate and the two processes' hashes on race2p.
+set(REPLAY_SANITIZER_PATHS drive race2p race12)
+foreach(script ${SYNTH_PATHS})
+    get_filename_component(name ${script} NAME_WE)
+    file(STRINGS ${script} only REGEX "^#[ \t]*realtime[ \t]*:[ \t]*only[ \t]*$")
+    if(only)
+        continue()   # it can't run on the virtual clock
+    endif()
+    if((PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD) AND NOT name IN_LIST REPLAY_SANITIZER_PATHS)
+        continue()
+    endif()
+    add_test(NAME replay_same_${name} COMMAND ${REPLAY_CHECK} same ${name})
+    set(fixtures synth_rom)
+    if(name MATCHES "^mods_texture")
+        set(fixtures "synth_rom;mods_synth;mods_pack")
+    elseif(name MATCHES "^mods_")
+        set(fixtures "synth_rom;mods_synth")
+    endif()
+    set_tests_properties(replay_same_${name} PROPERTIES FIXTURES_REQUIRED "${fixtures}" TIMEOUT ${REPLAY_TIMEOUT})
+endforeach()
+set(REPLAY_TESTS replay_file gate_same hash_aslr)
+add_test(NAME replay_file COMMAND ${REPLAY_CHECK} file race2p)
+if(PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD)
+    add_test(NAME gate_same COMMAND ${REPLAY_CHECK} gate race2p)
+    add_test(NAME hash_aslr COMMAND ${REPLAY_CHECK} aslr race2p)
+else()
+    add_test(NAME gate_same COMMAND ${REPLAY_CHECK} gate race2p stunt)
+    add_test(NAME hash_aslr COMMAND ${REPLAY_CHECK} aslr race2p battle2p drive --full 1)
+    add_test(NAME replay_delay COMMAND ${REPLAY_CHECK} delay race2p)
+    add_test(NAME hash_mutation COMMAND ${REPLAY_CHECK} mutation race2p)
+    list(APPEND REPLAY_TESTS replay_delay hash_mutation)
+endif()
+foreach(t ${REPLAY_TESTS})
+    set_tests_properties(${t} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
+endforeach()
+add_test(NAME hash_decoupled_list COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hash_compare.py --check-decoupled)
+add_test(NAME render_values COMMAND ${PC_PYTHON} ${PORT_TOOLS}/render_values_check.py)
 # synth_compare.py's verdicts on made-up runs: a run that doesn't end as its script's `# expect:` line says fails,
 # whatever the builds' agreement (docs/port/QA.md, "Integration QA"; the retail battle scripts in tools/port/retail).
 add_test(NAME synth_compare_expect COMMAND ${PC_PYTHON} ${PORT_TOOLS}/test_synth_compare.py)
