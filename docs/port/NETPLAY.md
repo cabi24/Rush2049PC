@@ -3,8 +3,10 @@
 Written 2026-11-05 against c8692ce. Line numbers are from that commit.
 
 **Status (2026-11-06):** the user took the recommendations of section 7 and asked for the work to start, with one
-emphasis: "robust, put up with lower and higher latencies, and stay in sync" (section 11). Phase 0 and the network
-library are in progress. Sections 1-10 are the plan as written; section 11 is what robustness adds to it.
+emphasis: "robust, put up with lower and higher latencies, and stay in sync" (section 11). Phase 0 is in progress.
+**The network library is written and tested on its own** ([NETWORK.md](NETWORK.md): `port/net`, its wire format, the
+delay controller, time sync, `RUSH_SIM_NET` and the proofs against a toy simulation); the game doesn't link it yet.
+Sections 1-10 are the plan as written; section 11 is what robustness adds to it.
 
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car

@@ -6,6 +6,12 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play, the network part** (not in the program yet: nothing changes when you play): `port/net`, the library
+  two PCs will race through, in lockstep over UDP, with an input delay that follows the connection, time sync, a check
+  every retrace that both games are the same, and a join code. Tested on its own against a stand-in game, on
+  simulated networks from a LAN to 150 ms with 10% loss, a latency that changes mid-race and a peer that stops for
+  3 s: both sides the same at every tick ([NETWORK.md](docs/port/NETWORK.md), the plan [NETPLAY.md](docs/port/NETPLAY.md)).
+
 - **Fill the window** (`video.fill`, F1 > Video > Fill the window): `on` makes the picture reach the window's top and
   bottom. The game shows 220 rows, and the port showed them in a TV's 240-line frame, with a band above and below
   (66 pixels each at 2880 × 1620). With widescreen the picture is then the window's shape, the 3D a little less wide
