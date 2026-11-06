@@ -55,11 +55,12 @@ jobs:
         run: |
           name=rush2049pc-${{ steps.version.outputs.version }}-windows-x86_64
           cmake --install build/win --prefix "stage/$name"
-          find "stage/$name" -name '*.txt' -exec sed -i 's/\r*$/\r/' {} +   # CRLF line ends, for Notepad
+          find "stage/$name" \( -name '*.txt' -o -name '*.bat' \) -exec sed -i 's/\r*$/\r/' {} +   # CRLF, for Notepad and cmd
           (cd stage && zip -r9 "../$name.zip" "$name")
           unzip -l "$name.zip"
           # what must be there, and nothing of a ROM
-          for f in rush2049pc.exe rush2049pc.ini README.txt mods/README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt; do
+          for f in rush2049pc.exe rush2049pc.ini README.txt mods/README.txt LICENSES/SDL2.txt LICENSES/zlib.txt LICENSES/mingw-w64.txt \
+                   "Host online race.bat" "Join online race.bat"; do
             test -f "stage/$name/$f" || { echo "missing $f"; exit 1; }
           done
           ! unzip -Z1 "$name.zip" | grep -iE '\.(z64|v64|n64|rom|bin)$'
@@ -226,6 +227,7 @@ jobs:
           for f in rush2049pc rush2049pc.ini README.txt mods/README.txt LICENSES/SDL2.txt LICENSES/zlib.txt; do
             test -f "stage/$name/$f" || { echo "missing $f"; exit 1; }
           done
+          test -x "stage/$name/host-online.sh" && test -x "stage/$name/join-online.sh" || { echo "missing a launcher"; exit 1; }
           ! tar -tzf "$name.tar.gz" | grep -iE '\.(z64|v64|n64|rom|bin)$'
           file "stage/$name/rush2049pc"
           readelf -d "stage/$name/rush2049pc" | grep NEEDED

@@ -1,2 +1,4 @@
 # git archive fills in the version for a source archive without .git (cmake/version.cmake)
 cmake/version-archive.txt export-subst
+# The Windows launchers (dist/*.bat) keep cmd.exe's CRLF line ends on every system's checkout
+dist/*.bat text eol=crlf

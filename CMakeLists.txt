@@ -1386,7 +1386,8 @@ if(WIN32)
 else()
     set(RUSH_INSTALL_PORTABLE_DEFAULT OFF)
 endif()
-option(RUSH_INSTALL_PORTABLE "Install as one folder: the program, README.txt and LICENSES/" ${RUSH_INSTALL_PORTABLE_DEFAULT})
+option(RUSH_INSTALL_PORTABLE "Install as one folder: the program, README.txt, the online launchers and LICENSES/"
+       ${RUSH_INSTALL_PORTABLE_DEFAULT})
 set(RUSH_EXTRA_LICENSES "" CACHE STRING "More licence texts to install, as NAME=FILE pairs")
 if(RUSH_INSTALL_PORTABLE)
     set(RUSH_INSTALL_BIN .)
@@ -1410,6 +1411,13 @@ if(RUSH_INSTALL_PORTABLE)
     # The mods folder (docs/port/MODS.md), in the data folder, which is the program's own when portable: empty but
     # for a README saying what goes in it.
     install(FILES dist/mods-README.txt DESTINATION ${RUSH_INSTALL_BIN}/mods RENAME README.txt)
+    # The online race's launchers (README.txt, "Playing online"): host, and join (it asks for the address); the
+    # options given to them are passed on.
+    if(WIN32)
+        install(FILES "dist/Host online race.bat" "dist/Join online race.bat" DESTINATION ${RUSH_INSTALL_BIN})
+    else()
+        install(PROGRAMS dist/host-online.sh dist/join-online.sh DESTINATION ${RUSH_INSTALL_BIN})
+    endif()
 else()
     install(FILES README.md docs/port/FRONTEND.md docs/port/RELEASE.md DESTINATION ${RUSH_INSTALL_DOC})
     if(NOT WIN32)   # the desktop entry and its icon (a plain road: nothing of the game's)
