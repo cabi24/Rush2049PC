@@ -179,24 +179,25 @@ race2p run, the full hash 1.8 ms each (an 8 MiB window).
 The window is mapped at 0x80000000 in every process, so the window's N64 addresses are the same everywhere. A host
 pointer isn't: ASLR moves the executable, its heap and stacks in each process, and Windows lays the image out
 otherwise. Experiment E6 found the window's host pointers: the audio manager's effect tags' `list` (a pointer to the
-own-storage list `D_80143FF8`) and `D_80156BCC`, a display-list pointer's low half. The rule, from what the tables
-know:
+own-storage list head `D_80143FF8`) and `D_80156BCC`, a display-list pointer's low half. A host pointer is hashed as
+what it points to, from what port/data's tables know: an own-storage symbol's N64 address and the N64 offset in it
+(through the loader's runs, so a layout with 8-byte pointers or longs gives the same id on every OS); a game function's
+N64 address; a decoupled item's index and offset; a runtime image's C data. Which values are host pointers depends on
+what the bytes are:
 
-- a u64 at any 4-byte offset whose value lies in the executable's image (`__executable_start` to `_end`; on Windows
-  `__ImageBase` and the image's size) is a host pointer, and is hashed as what it points to: an own-storage symbol's
-  N64 address and the N64 offset in it (through the loader's runs, so a layout with 8-byte pointers or longs gives the
-  same id on every OS); a game function's N64 address; a decoupled item's index and offset; a runtime image's C data;
-- an image pointer no table names (the PC's own buffers in game C: the frame's command lists, the blits) is hashed as
-  "a pointer into the program" without its offset, which no OS shares (`unnamed=` counts them;
-  `RUSH_HASH_UNNAMED=1` lists them);
-- in own storage, where the tables give each element's type, a pointer that is neither 0, nor in the window, nor in
-  the image points into the host's heap (a table the loader copied, a converted file: `D_8011A31C`, `D_801497C0`,
-  `D_8017A4E0`): it is hashed as "a heap pointer", without its address;
-- elsewhere, values outside the image are hashed as they are. A pointer into the heap or a stack there would show as
-  two processes' windows differing; none has, on any path;
-- the game C's sites that keep a host pointer cut to 32 bits are listed (`TRUNCATED`: `D_80156BCC`); the low half is
-  completed with the image's high half and looked up as above. A low half can't be told from a number elsewhere
-  (a float's bits would match an image's low range in some processes), so this is a list, made by comparing windows.
+| Bytes | A host pointer is | Taken as |
+|---|---|---|
+| N64-layout data: the window, the curated regions in it, own storage's bytes not typed as pointers | a u64 at a 4-byte offset equal to a named target's first byte or a function's address | the target's id |
+| own storage's elements the tables type as pointers, or as the N64's longs (8 bytes on the PC, an `intptr_t` that may hold one: `D_801148CC`, a blit) | any value but a 32-bit one (0, a window address, a number, sign-extended) | the target's id; into the image elsewhere, "a pointer into the program"; else "a heap pointer" (a table the loader copied, a converted file: `D_8011A31C`, `D_801497C0`, `D_8017A4E0`) |
+| the PC's own C structs: `pc_models`, `pc_cars`, `pc_links` and the decoupled items | a u64 at an 8-byte offset pointing into a named target | the target's id |
+| the game C's sites that keep a pointer's low half (`TRUNCATED`: `D_80156BCC`) | the word, completed with the image's high half | the target's id, or "a pointer into the program" |
+
+N64-layout data holds numbers and texels, and two words of them can make a value in the image's range in one process
+and not in another (where the image's high half is a small number, 16-bit texel data can be it), so a looser rule
+than "a named target's first byte" there can find a pointer in one process only. Every pointer the window held on the
+synthetic paths was a list head's first byte. "A pointer into the program" (the PC's buffers in game
+C: the frame's command lists, the blits) keeps no offset, which no two OSes share (`unnamed=` counts them,
+`RUSH_HASH_UNNAMED=1` lists them).
 
 ### 5.3 Completeness: two processes, every path
 
@@ -331,8 +332,9 @@ What it says:
 | `hash_decoupled_list` | | the full hash takes every decoupled item |
 | `render_values` | | no unlisted render or per-PC value in the game C |
 
-All pass on the build host in Debug and RelWithDebInfo, with the rest of the suite (section 10's commits list the
-counts). Also run there:
+An ASan or TSan build runs `replay_same_` of drive, race2p and race12, `replay_file`, and `gate_same` and
+`hash_aslr` on race2p (a path runs 17-37 times slower there). All pass on the build host in Debug and RelWithDebInfo,
+with the rest of the suite. Also run there:
 
 - `hash_aslr`'s check on all 62 paths, two processes each with the full hash at every retrace: the same.
 - `synth_compare.py --same` of f9a7177's program against this one's, Debug and RelWithDebInfo: 62 of 62 paths the
@@ -351,8 +353,11 @@ hasn't been pushed.
 `pc_fps_filter(e)` (`port/config/game_fps.c`) raised e to the frame's length in 30 Hz frames with the host's `powf`,
 which glibc, msvcrt and the UCRT needn't round alike. A frame is 1 to 5 retraces, so the power is 0.5, 1, 1.5, 2 or
 2.5: now `sqrtf(e)`, `e`, `e * sqrtf(e)`, `e * e`, `e * e * sqrtf(e)`, made of IEEE single operations and `sqrtf`,
-correctly rounded on every host. On the virtual clock at 60 the synthetic paths' frames are 1 retrace (18,217 of
-18,225 on eight paths) or 5 (8, at loads). Against f9a7177's program at `game.frame_rate=60`: 62 of 62 paths the same
+correctly rounded on every host. `e * sqrtf(e)` and the like can differ from glibc's `powf` in the last bit (for
+e = 0.36 they do: frontend.fps checks both); `sqrtf(e)`, the power on the virtual clock at 60, is the correctly rounded
+e^0.5. On the virtual clock at 60 the synthetic paths' frames are 1 retrace (18,217 of 18,225 on eight paths) or 5
+(8, at loads); in real time a slow frame of 3 retraces can now step its filters a bit otherwise than before, where the
+game's course isn't the same from run to run anyway. Against f9a7177's program at `game.frame_rate=60`: 62 of 62 paths the same
 (`synth_compare.py --same --set game.frame_rate=60`, three of them missing their expect line alike, as the scripts are
 timed for 30), and on race2p, drive, circuit, battle2p, stunt, race12 and demo every retrace's physics and every
 frame's camera and car (`--log-physics 1 --log-frames`, exact floats) the same.

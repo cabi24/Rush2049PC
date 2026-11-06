@@ -658,18 +658,25 @@ endforeach()
 # other settings. gate_same: pads held back at random retraces for random real times (RUSH_SIM_GATE) leave no trace.
 # hash_mutation: a word changed at retrace 1000 (RUSH_SIM_DESYNC) is caught from that retrace on. hash_aslr: two
 # processes with the full hash every retrace agree. hash_decoupled_list: the full hash takes every decoupled item.
-# render_values: no new render or per-PC value reaches the game C (tools/port/render_values_allowed.txt).
+# render_values: no new render or per-PC value reaches the game C (tools/port/render_values_allowed.txt). The
+# selftest checks xxHash64's known values and the delay line's rule.
 set(REPLAY_CHECK ${PC_PYTHON} ${PORT_TOOLS}/replay_check.py --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM}
     --logs ${CMAKE_BINARY_DIR}/synth/replay --mods ${CMAKE_BINARY_DIR}/synth/paths/mods)
 set(REPLAY_TIMEOUT 600)
 if(PC_SANITIZE)
     set(REPLAY_TIMEOUT 3000)
 endif()
+# Under ASan or TSan a path runs 17-37 times slower (above): three paths of each kind, the file's checks (its reader on
+# cut and damaged files), the gate and the two processes' hashes on race2p.
+set(REPLAY_SANITIZER_PATHS drive race2p race12)
 foreach(script ${SYNTH_PATHS})
     get_filename_component(name ${script} NAME_WE)
     file(STRINGS ${script} only REGEX "^#[ \t]*realtime[ \t]*:[ \t]*only[ \t]*$")
     if(only)
         continue()   # it can't run on the virtual clock
+    endif()
+    if((PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD) AND NOT name IN_LIST REPLAY_SANITIZER_PATHS)
+        continue()
     endif()
     add_test(NAME replay_same_${name} COMMAND ${REPLAY_CHECK} same ${name})
     set(fixtures synth_rom)
@@ -680,12 +687,19 @@ foreach(script ${SYNTH_PATHS})
     endif()
     set_tests_properties(replay_same_${name} PROPERTIES FIXTURES_REQUIRED "${fixtures}" TIMEOUT ${REPLAY_TIMEOUT})
 endforeach()
-add_test(NAME replay_delay COMMAND ${REPLAY_CHECK} delay race2p)
+set(REPLAY_TESTS replay_file gate_same hash_aslr)
 add_test(NAME replay_file COMMAND ${REPLAY_CHECK} file race2p)
-add_test(NAME gate_same COMMAND ${REPLAY_CHECK} gate race2p stunt)
-add_test(NAME hash_mutation COMMAND ${REPLAY_CHECK} mutation race2p)
-add_test(NAME hash_aslr COMMAND ${REPLAY_CHECK} aslr race2p battle2p drive --full 1)
-foreach(t replay_delay replay_file gate_same hash_mutation hash_aslr)
+if(PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD)
+    add_test(NAME gate_same COMMAND ${REPLAY_CHECK} gate race2p)
+    add_test(NAME hash_aslr COMMAND ${REPLAY_CHECK} aslr race2p)
+else()
+    add_test(NAME gate_same COMMAND ${REPLAY_CHECK} gate race2p stunt)
+    add_test(NAME hash_aslr COMMAND ${REPLAY_CHECK} aslr race2p battle2p drive --full 1)
+    add_test(NAME replay_delay COMMAND ${REPLAY_CHECK} delay race2p)
+    add_test(NAME hash_mutation COMMAND ${REPLAY_CHECK} mutation race2p)
+    list(APPEND REPLAY_TESTS replay_delay hash_mutation)
+endif()
+foreach(t ${REPLAY_TESTS})
     set_tests_properties(${t} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
 endforeach()
 add_test(NAME hash_decoupled_list COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hash_compare.py --check-decoupled)

@@ -52,6 +52,7 @@ import synth_paths  # noqa: E402
 
 VI_NS = 1000000000 // 60   # a retrace of the virtual clock (port/ultra/loop.c)
 MODS_ROOT = None           # --mods: the mods paths' mods (ctest's mods_synth fixture)
+SCRIPTS = synth_paths.PRESS_DIR   # --scripts: where PATH.press is (tools/port/retail for the retail cartridge's)
 _KEEP = re.compile(r"^rush2049pc: (game state |status |state reached:|time reached:|frames reached:|physics vi=|hash vi=|"
                    r"pads vi=)")
 _IMAGE = re.compile(r"^rush2049pc: hash: the program's image at (0x[0-9a-f]+)")
@@ -78,8 +79,8 @@ def first_diff(a, b):
 
 def run(exe, rom, logs, name, tag, extra=(), env=None, full=30, press=None, hashes=True, log_pads=True):
     """One run of path `name` (or its press file `press`); its log text, written to logs/name.tag.log."""
-    spec = synth_paths.read_script(synth_paths.PRESS_DIR / f"{name}.press")
-    press = press or synth_paths.PRESS_DIR / f"{name}.press"
+    spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
+    press = press or SCRIPTS / f"{name}.press"
     # the mods paths' --mods-dir mods/...: the folder ctest's mods_synth makes beside the paths' logs (MODS.md 8)
     args = [str(Path(MODS_ROOT) / x[len("mods/"):]) if x.startswith("mods/") and MODS_ROOT else x
             for x in spec["args"]]
@@ -135,7 +136,7 @@ def mode_same(a, name):
     ta, tb = trace(ra), trace(rb)
     bad = judge(f"{name} record against replay", ta, tb, f"{name}.record.log", f"{name}.replay.log")
     ha, hb = hash_compare.hashes(ra), hash_compare.hashes(rb)
-    reached = synth_paths.read_script(synth_paths.PRESS_DIR / f"{name}.press")["expect"]
+    reached = synth_paths.read_script(SCRIPTS / f"{name}.press")["expect"]
     ends = [l for l in ta if "reached:" in l]
     if reached and not (ends and reached in ends[-1]):
         print(f"replay_check: {name}: the run doesn't end as the path expects ('{reached}'): {ends[-1] if ends else 'no end'}")
@@ -198,7 +199,7 @@ def delay_model(src, steps):
 def shifted_press(name, retraces, out):
     """The path's press script with every press `retraces` retraces later (its time + retraces / 60 s)."""
     lines = []
-    for l in (synth_paths.PRESS_DIR / f"{name}.press").read_text().splitlines():
+    for l in (SCRIPTS / f"{name}.press").read_text().splitlines():
         body = l.split("#", 1)[0].split()
         if body and body[0] not in ("pak", "frames") and re.match(r"^\d+(\.\d+)?$", body[0]):
             t = float(body[0]) + retraces * VI_NS / 1e9
@@ -406,8 +407,12 @@ def main():
     ap.add_argument("--from", dest="source", help="replay-dir: the folder of PATH.pads and PATH.replay.log")
     ap.add_argument("--mods", help="the folder the mods paths' mods/... are in (default: build/pc/synth/paths/mods "
                     "beside --logs)")
+    ap.add_argument("--scripts", help="the folder of PATH.press (default tools/port/synth; tools/port/retail with the "
+                    "retail cartridge, whose runs stay out of the repository)")
     a = ap.parse_args()
-    global MODS_ROOT
+    global MODS_ROOT, SCRIPTS
+    if a.scripts:
+        SCRIPTS = Path(a.scripts)
     MODS_ROOT = a.mods or str(Path(a.logs).resolve().parent / "paths" / "mods")
     Path(a.logs).mkdir(parents=True, exist_ok=True)
     if a.mode == "replay-dir":

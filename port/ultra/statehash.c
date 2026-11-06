@@ -8,19 +8,20 @@
  *
  * Host pointers. Game data holds host pointers where the N64 held 32-bit addresses (the window's N64 addresses are the
  * same in every process: it is mapped at 0x80000000). A host pointer's value differs from one process to the next
- * (ASLR) and between Windows and Linux (other image layouts), though both point at the same thing. So before hashing,
- * every u64 at a 4-byte offset whose value lies in the executable's image is replaced by what it points to:
- *   - an own-storage symbol of port/data's tables: its N64 address plus the N64 offset (the same on every OS);
- *   - a game function of the tables: its N64 address and image;
- *   - a decoupled item, or a runtime image's C data: which, and the offset;
- *   - anything else in the image (the PC's buffers in game C, the PC layer's data): only that it is such a pointer.
- * In own storage, whose elements the tables type, a pointer outside the image and the window points into the host's
- * heap (a table the loader copied, a converted file) and is taken as such, without its address. Elsewhere values
- * outside the image are hashed as they are; no run on any path has shown a heap or stack pointer there (the ctests
- * hash_aslr and replay_same_* compare two processes with ASLR on). A host pointer cut to 32 bits can't be told from a
- * number in general: the game C's sites that store one are listed (TRUNCATED), and their low half is completed with
- * the image's high half before the same lookup. libultra's SI scratch buffers, which hold the host stack's bytes, are
- * taken as zeros (SCRATCH).
+ * (ASLR) and between Windows and Linux (other image layouts), though both point at the same thing. So it is hashed as
+ * what port/data's tables say it points to: an own-storage symbol's N64 address and N64 offset (the same on every
+ * OS), a game function's N64 address, a decoupled item and offset, a runtime image's C data; a pointer elsewhere in
+ * the image (the PC's buffers in game C) only as such. Which values are pointers depends on the bytes (scan()):
+ *   - N64-layout data (the window, own storage's untyped bytes): a u64 equal to a named target's first byte or to a
+ *     function, which no pair of numbers or texels hits by chance;
+ *   - own storage's elements the tables type as pointers or as the N64's longs (8 bytes on the PC: intptr_t): any value
+ *     but a 32-bit one (0, a window address, a number), one outside the image taken as "a heap pointer" (a table the
+ *     loader copied, a converted file) without its address;
+ *   - the PC's own C structs (the curated and decoupled records): an 8-byte-aligned u64 into a named target;
+ *   - the game C's sites that keep a pointer cut to 32 bits (TRUNCATED): the low half completed with the image's high
+ *     half.
+ * libultra's SI scratch buffers, which hold the host stack's bytes, are taken as zeros (SCRATCH). The ctests
+ * replay_same_* and hash_aslr compare two processes' hashes, ASLR on, on every synthetic path.
  *
  * xxHash64 is written here from its specification (the XXH64 algorithm's description); no code is taken from the
  * reference implementation. */
@@ -195,6 +196,8 @@ static struct {
     int nf;
     /* own storage's pointers by type (port/data's runs): each own symbol's first slot in slots[], and the count */
     uint32_t *own_first, *own_count, *slots;
+    uintptr_t *starts;   /* every named target's first byte, and every function, sorted: the window's pointers */
+    int nstarts;
 } P;
 
 static int by_lo(const void *a, const void *b)
@@ -256,6 +259,14 @@ static void pointers_build(void)
         add_target((uintptr_t)t->cranges[i].start, (size_t)(t->cranges[i].end - t->cranges[i].start), 0, K_CRANGE,
                    t->cranges[i].image, -1);
     qsort(P.t, (size_t)P.nt, sizeof *P.t, by_lo);
+    P.starts = calloc((size_t)P.nt + t->n_funcs + 1, sizeof *P.starts);
+    for (int i = 0; P.starts && i < P.nt; i++)
+        P.starts[P.nstarts++] = P.t[i].lo;
+    for (uint32_t i = 0; P.starts && i < t->n_funcs; i++)
+        if (t->funcs[i].host)
+            P.starts[P.nstarts++] = (uintptr_t)t->funcs[i].host;
+    if (P.starts)
+        qsort(P.starts, (size_t)P.nstarts, sizeof *P.starts, by_host);
     P.f = calloc(t->n_funcs ? t->n_funcs : 1, sizeof *P.f);
     for (uint32_t i = 0; i < t->n_funcs; i++)
         if (t->funcs[i].host) {
@@ -277,7 +288,9 @@ static void pointers_build(void)
             continue;
         for (uint32_t q = 0; q < y->run_count; q++) {
             const PcDataRun *r = &t->runs[y->run_first + q];
-            if (r->kind != PC_K_PTR)
+            /* pointers, and the N64's longs, which are 8 bytes on the PC because they may hold one (intptr_t: a
+             * blit's handle, D_801148CC) */
+            if (r->kind != PC_K_PTR && r->kind != PC_K_S32_64 && r->kind != PC_K_U32_64)
                 continue;
             for (uint32_t i = 0; i < r->rep; i++)
                 for (uint32_t j = 0; j < r->count; j++) {
@@ -427,8 +440,31 @@ static void patch_add(uint32_t off, int size, uint64_t value, int image)
 static int g_unnamed_log = -1;
 static const char *g_scan_what;
 
+static int is_start(uintptr_t v)
+{
+    int lo = 0, hi = P.nstarts - 1;
+    while (lo <= hi) {
+        int m = (lo + hi) / 2;
+        if (P.starts[m] == v)
+            return 1;
+        if (P.starts[m] < v)
+            lo = m + 1;
+        else
+            hi = m - 1;
+    }
+    return 0;
+}
+
+/* How a region's bytes are read for pointers. Data the game keeps in N64 layout (the window, own storage's bytes the
+ * tables don't type as pointers) holds numbers and texels too, and two words of them can make a value in the image's
+ * range in one process and not in another (where the image's high half is a small number, 16-bit texel data can be
+ * it): there only a pointer to a named target's first byte, or to a function, is one, which no pair of numbers hits by
+ * chance. The PC's own C structs (the curated and decoupled data) keep their pointers at 8-byte offsets: there any
+ * 8-byte-aligned value pointing into a named target is one. */
+enum { SCAN_EXACT, SCAN_STRUCT };
+
 /* The patches of the bytes [p, p + n), in order; n64 is p's N64 address in the window (0 elsewhere). */
-static void scan(const uint8_t *p, size_t n, uint32_t n64)
+static void scan(const uint8_t *p, size_t n, uint32_t n64, int mode)
 {
     const uintptr_t lo = P.img_lo, span = P.img_hi - P.img_lo;
     size_t t = 0;
@@ -461,8 +497,10 @@ static void scan(const uint8_t *p, size_t n, uint32_t n64)
             continue;
         }
         memcpy(&v, p + o, 8);
-        if (v - lo < span) {
+        if (v - lo < span && (mode == SCAN_EXACT ? is_start((uintptr_t)v) : ((uintptr_t)(p + o) & 7) == 0)) {
             uint64_t c = canonical((uintptr_t)v);
+            if (mode == SCAN_STRUCT && (uint32_t)(c >> 32) == TAG(K_IMAGE, 0))
+                continue;   /* no named target: a number's bytes */
             patch_add((uint32_t)o, 8, c, (uint32_t)(c >> 32) == TAG(K_IMAGE, 0));
             if (g_unnamed_log > 0 && g_scan_what && (uint32_t)(c >> 32) == TAG(K_IMAGE, 0))
                 fprintf(stderr, "rush2049pc: hash: unnamed image pointer in %s+0x%zx (%#x): image+0x%llx\n", g_scan_what,
@@ -511,32 +549,40 @@ static int by_patch(const void *a, const void *b)
 
 /* Own symbol k's typed pointers that point into the host's heap (not 0, not the window, not the image): patched as
  * one constant, sorted in among scan()'s. */
-static void heap_pointers(const uint8_t *p, size_t n, uint32_t k)
+static void typed_pointers(const uint8_t *p, size_t n, uint32_t k)
 {
     const uintptr_t lo = P.img_lo, span = P.img_hi - P.img_lo;
-    size_t before = g_npatch;
+    size_t before = g_npatch, at = 0;
     uint32_t *slot = P.slots + P.own_first[k];
     if (!P.own_count || !P.own_count[k])
         return;
     for (uint32_t i = 0; i < P.own_count[k]; i++) {
-        uint64_t v;
+        uint64_t v, c;
         if (slot[i] + 8 > n)
             continue;
+        while (at < before && g_patch[at].off + g_patch[at].size <= slot[i])
+            at++;
+        if (at < before && g_patch[at].off < slot[i] + 8)
+            continue;   /* scan() has it (a named target's first byte) */
         memcpy(&v, p + slot[i], 8);
-        if (v >> 32 && v - lo >= span)
-            patch_add(slot[i], 8, (uint64_t)TAG(K_HEAP, 0) << 32, 0);
+        if (!(v >> 32) || v >> 32 == 0xFFFFFFFFu)
+            continue;   /* NULL, a window address, or a long's number (a negative one sign-extended) */
+        c = v - lo < span ? canonical((uintptr_t)v) : (uint64_t)TAG(K_HEAP, 0) << 32;
+        patch_add(slot[i], 8, c, (uint32_t)(c >> 32) == TAG(K_IMAGE, 0));
     }
     if (g_npatch != before)
         qsort(g_patch, g_npatch, sizeof *g_patch, by_patch);
 }
 
+/* own: own storage's symbol index (typed pointers, the rest read as N64 data), -1 for the PC's C structs (curated,
+ * decoupled), -2 for the window. */
 static uint64_t hash_region_typed(const void *p, size_t n, int own, uint32_t n64, uint32_t *pointers,
                                   uint32_t *image, uint8_t *out)
 {
     uint64_t h;
-    scan(p, n, n64);
+    scan(p, n, n64, own == -1 ? SCAN_STRUCT : SCAN_EXACT);
     if (own >= 0)
-        heap_pointers(p, n, (uint32_t)own);
+        typed_pointers(p, n, (uint32_t)own);
     h = hash_patched(p, n, out);
     for (size_t i = 0; i < g_npatch; i++) {
         *pointers += g_patch[i].image != 2;
@@ -545,9 +591,10 @@ static uint64_t hash_region_typed(const void *p, size_t n, int own, uint32_t n64
     return h;
 }
 
+/* A region in the window is N64 data (the window's rules); outside, the PC's own C structs. */
 static uint64_t hash_region(const void *p, size_t n, uint32_t n64, uint32_t *pointers, uint32_t *image, uint8_t *out)
 {
-    return hash_region_typed(p, n, -1, n64, pointers, image, out);
+    return hash_region_typed(p, n, n64 ? -2 : -1, n64, pointers, image, out);
 }
 
 /* ---------------------------------------------------------------- the regions */
@@ -714,7 +761,7 @@ static void compute(uint32_t n, int full, uint8_t *keep_out)
         g_scan_what = g_unnamed_log > 0 ? "window" : NULL;
         w->name = "window";
         w->bytes = pc_rdram_size();
-        w->hash = hash_region(pc_rdram(), pc_rdram_size(), 0x80000000u, &ptrs, &img, NULL);
+        w->hash = hash_region_typed(pc_rdram(), pc_rdram_size(), -2, 0x80000000u, &ptrs, &img, NULL);
         w->pointers = ptrs;
         w->unnamed = img;
         ptrs = img = 0;
@@ -872,7 +919,7 @@ int pc_hash_report(const char *path, uint32_t n)
         uint32_t ptrs = 0, img = 0, total = 0;
         uint8_t *w = malloc(pc_rdram_size());
         if (w) {
-            hash_region(pc_rdram(), pc_rdram_size(), 0x80000000u, &ptrs, &img, w);
+            hash_region_typed(pc_rdram(), pc_rdram_size(), -2, 0x80000000u, &ptrs, &img, w);
             write_file(path, ".window", w, pc_rdram_size());
             free(w);
         }
