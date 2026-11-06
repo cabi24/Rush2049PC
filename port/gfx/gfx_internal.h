@@ -330,8 +330,8 @@ int pcgfx_row_edge_q(long long q, int n, int px, int *exact);
  * boundary in N64 pixels, where its texture coordinates are taken */
 float pcgfx_rect_x(float x, int n, int px, float *xe);
 float pcgfx_rect_y(float y, int n, int px, float *ye);
-float pcgfx_window_scale(int mode, int win_w, int win_h, int fw, int rows);   /* 0 auto (whole), < 0 native */
-int pcgfx_fit(int src_w, int src_h, int fw, int rows, int win_w, int win_h, int native, int r[4]);
+float pcgfx_window_scale(int mode, int win_w, int win_h, int fw, int rows, int fill);   /* 0 auto, < 0 native */
+int pcgfx_fit(int src_w, int src_h, int fw, int rows, int win_w, int win_h, int native, int fill, int r[4]);
 void pcgfx_units_of_pixels(int px_w, int px_h, int win_w, int win_h, int draw_w, int draw_h, int *w, int *h);
 void pcgfx_default_window(int desk_w, int desk_h, int usable_w, int usable_h, float aspect, int *w, int *h);
 
@@ -421,6 +421,8 @@ typedef struct {
     int draw_distance;      /* RUSH_GFX_DRAW_DISTANCE: PC_DRAW_* (the depth range's far plane: gfx_detail.c) */
     int fog;                /* RUSH_GFX_FOG: PC_FOG_* */
     int texture_lod;        /* RUSH_GFX_TEXTURE_LOD: PC_TEXLOD_* (the mip level's pixels: gfx_combine.c, gfx_gl.c) */
+    int fill;               /* RUSH_GFX_FILL: the aspect is the rows shown's, so the picture fills the window's height
+                             * (GFX.md "Fill the window"); 0: the VI's 240-row frame's, the game's bands above and below */
 } GfxConfig;
 extern GfxConfig pcgfx_cfg;
 
@@ -433,6 +435,9 @@ int pc_gfx_read_window(uint8_t *rgba, int *w, int *h);
  * next color image (SETCIMG). */
 void pc_gfx_set_widescreen(float aspect);
 float pc_gfx_parse_aspect(const char *text, int *ok);   /* "off", "auto", "16:9", "2.39" -> as above */
+/* Fill the window at run time (video.fill): 1 the widescreen aspect is the shown picture's, 0 the VI frame's. It
+ * applies from the next color image. */
+void pc_gfx_set_fill(int on);
 /* The internal scale at run time: 1-8, 0 for auto, -1 for native. It applies from the next color image. */
 void pc_gfx_set_scale(int scale);
 void pc_gfx_set_scale_value(float scale);   /* the same, or a fixed fraction from 1 to 16 (tests, tools) */

@@ -1014,6 +1014,7 @@ static int rush_main(int argc, char **argv)
     setenv("RUSH_GFX_API", cfg.api == PC_CFG_API_GL ? "gl" : cfg.api == PC_CFG_API_GLES ? "gles" : "auto", 1);
     pc_settings_get(&cfg, "video", "widescreen", aspect, sizeof aspect);
     setenv("RUSH_GFX_WIDESCREEN", aspect, 1);
+    setenv("RUSH_GFX_FILL", cfg.fill ? "1" : "0", 1);
     pc_settings_get(&cfg, "video", "frame_rate", rate, sizeof rate);
     setenv("RUSH_GFX_FRAME_RATE", rate, 1);
     setenv("RUSH_GFX_TEXTURES", cfg.textures == 1 ? "upscaled" : cfg.textures == 2 ? "pack" : "original", 1);

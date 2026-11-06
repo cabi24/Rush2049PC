@@ -1120,7 +1120,8 @@ static void show_from(GLuint src, int sx0, int sy0, int pw, int ph, int fw, int 
         glClearBufferfv(GL_COLOR, 0, black);
     }
     if (src != 0 && fw > 0 && rows > 0 && win_w > 0 && win_h > 0) {
-        int r[4], exact = pcgfx_fit(pw, ph, fw, rows, win_w, win_h, pcgfx_cfg.internal_scale < 0.0f, r);
+        int r[4], exact = pcgfx_fit(pw, ph, fw, rows, win_w, win_h, pcgfx_cfg.internal_scale < 0.0f,
+                                    pcgfx_cfg.fill, r);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, src);
         glBlitFramebuffer(sx0, sy0, sx0 + pw, sy0 + ph, r[0], r[1], r[0] + r[2], r[1] + r[3], GL_COLOR_BUFFER_BIT,
                           exact ? GL_NEAREST : GL_LINEAR);
@@ -1135,7 +1136,7 @@ void pcgfx_gl_show(int win_w, int win_h, int to_window) {
          * from a copy; a filtered fit samples the copy, as it always did */
         int r[4];
         if (!pcgfx_fit(G.present_w, G.present_h, G.present_fw, G.present_rows, win_w, win_h,
-                       pcgfx_cfg.internal_scale < 0.0f, r))
+                       pcgfx_cfg.internal_scale < 0.0f, pcgfx_cfg.fill, r))
             present_copy(NULL);
     }
     if (G.present_src != NULL)

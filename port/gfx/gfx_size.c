@@ -95,14 +95,24 @@ float pcgfx_rect_y(float y, int n, int px, float *ye) {
     return 1.0f - (float)e * 2.0f / (float)px;
 }
 
+/* Fill (video.fill, GFX.md "Fill the window"): a frame fw x rows N64 pixels at its height's fit in a win_w x win_h
+ * window overflows the width by at most one N64 pixel on each side (the whole-pixel widening's rounding), so it is
+ * shown at that fit, those columns cut, where the width's fit would leave bands above and below. */
+static int fill_covers(int win_w, int win_h, int fw, int rows) {
+    double b = (double)win_h / rows, over = fw * b - win_w;
+    return over > 0.0 && over <= 2.0 * b + 1e-6;
+}
+
 /* The scale for a window of win_w x win_h pixels showing a frame fw x rows N64 pixels:
  * mode 0 (auto) the largest whole multiple it holds (1-8); mode < 0 (native) the frame's fit, any fraction (1-16):
- * the frame drawn at the window's own pixels. */
-float pcgfx_window_scale(int mode, int win_w, int win_h, int fw, int rows) {
+ * the frame drawn at the window's own pixels; with fill, the height's fit where fill_covers. */
+float pcgfx_window_scale(int mode, int win_w, int win_h, int fw, int rows, int fill) {
     if (fw <= 0 || rows <= 0 || win_w <= 0 || win_h <= 0)
         return 1.0f;
     if (mode < 0) {
         double a = (double)win_w / fw, b = (double)win_h / rows, s = a < b ? a : b;
+        if (fill && fill_covers(win_w, win_h, fw, rows))
+            s = b;
         return s < 1.0 ? 1.0f : s > PCGFX_SCALE_MAX ? (float)PCGFX_SCALE_MAX : (float)s;
     } else {
         int a = win_w / fw, b = win_h / rows, s = a < b ? a : b;
@@ -113,9 +123,10 @@ float pcgfx_window_scale(int mode, int win_w, int win_h, int fw, int rows) {
 /* Where the shown frame (src_w x src_h internal pixels, fw x rows N64 pixels) goes in a win_w x win_h window, with
  * square N64 pixels. native: aspect fit, and when the frame was drawn for this window (within 2 pixels of the fit
  * on both sides) pixel for pixel, centred. Otherwise the largest whole multiple of the N64 frame that fits, else
- * aspect fit (the frame smaller than the window's N64 multiple, or larger). Returns 1 when that is a whole multiple
- * of the source (nearest filtering), 0 when it needs filtering. */
-int pcgfx_fit(int src_w, int src_h, int fw, int rows, int win_w, int win_h, int native, int r[4]) {
+ * aspect fit (the frame smaller than the window's N64 multiple, or larger); with fill (not at a whole multiple), the
+ * height's fit where fill_covers, the columns past the window's sides cut (r[0] < 0). Returns 1 when that is a whole
+ * multiple of the source (nearest filtering), 0 when it needs filtering. */
+int pcgfx_fit(int src_w, int src_h, int fw, int rows, int win_w, int win_h, int native, int fill, int r[4]) {
     int k = fw > 0 && rows > 0 ? (win_w / fw < win_h / rows ? win_w / fw : win_h / rows) : 0, dw, dh;
     if (fw <= 0 || rows <= 0 || win_w <= 0 || win_h <= 0 || src_w <= 0 || src_h <= 0) {
         r[0] = r[1] = r[2] = r[3] = 0;
@@ -124,6 +135,9 @@ int pcgfx_fit(int src_w, int src_h, int fw, int rows, int win_w, int win_h, int 
     if (k >= 1 && !native) {
         dw = fw * k;
         dh = rows * k;
+    } else if (fill && fill_covers(win_w, win_h, fw, rows)) {
+        dh = win_h;
+        dw = (int)(((long long)win_h * fw + rows / 2) / rows);
     } else if ((long long)win_w * rows > (long long)win_h * fw) {
         dh = win_h;
         dw = (int)((long long)win_h * fw / rows);

@@ -4,6 +4,8 @@
  * RUSH_GFX_SCALE=native|auto|<n> (internal resolution: native, the window's own pixels; auto, the largest whole
  * multiple the window shows whole; or a multiple, 1-8, any fraction up to 16 for tests and tools),
  * RUSH_GFX_WIDESCREEN=off|auto|16:9|<w:h>|<ratio> (display aspect; auto: the window's),
+ * RUSH_GFX_FILL=1 (the aspect is the rows shown's: the picture fills the window's height; 0, the default: the VI
+ * frame's, with the game's bands above and below),
  * RUSH_GFX_HUD=edges|centered (the race HUD in widescreen: at the screen's edges, or in the 4:3 frame: gfx_hud.c),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
@@ -107,19 +109,20 @@ static void resolve_auto(void) {
     GfxTarget *t = S.inited ? pcgfx_gl_last_target() : NULL;
     float a = pcgfx_cfg.widescreen, s = pcgfx_cfg.internal_scale;
     int rw = S.render_w > 0 ? S.render_w : S.win_w, rh = S.render_h > 0 ? S.render_h : S.win_h;
+    int fw = 320, th = 240, rows = pcgfx_cfg.frame_height > 0 ? pcgfx_cfg.frame_height : 240;
+    if (t != NULL) {   /* the last frame's 4:3 frame and its rows shown */
+        int tw;
+        pcgfx_gl_target_shown(t, &tw, &rows);
+        pcgfx_gl_target_dims(t, &tw, &th);
+        fw = th * 4 / 3;
+    }
     if (a < 0.0f)
         a = S.win_h > 0 ? (float)S.win_w / (float)S.win_h : 0.0f;
+    if (pcgfx_cfg.fill && a > 0.0f && th > 0)   /* the aspect is the rows shown's, not the VI frame's (GFX.md) */
+        a = a * (float)rows / (float)th;
     pcgfx_cfg.aspect = a > 4.0f / 3.0f + 1e-4f ? a : 0.0f;
-    if (s <= 0.0f) {
-        int fw = 320, rows = pcgfx_cfg.frame_height > 0 ? pcgfx_cfg.frame_height : 240;
-        if (t != NULL) {
-            int tw, th;
-            pcgfx_gl_target_shown(t, &tw, &rows);
-            pcgfx_gl_target_dims(t, &tw, &th);
-            fw = th * 4 / 3;
-        }
-        s = pcgfx_window_scale(s < 0.0f ? -1 : 0, rw, rh, pcgfx_wide_width(fw), rows);
-    }
+    if (s <= 0.0f)
+        s = pcgfx_window_scale(s < 0.0f ? -1 : 0, rw, rh, pcgfx_wide_width(fw), rows, pcgfx_cfg.fill);
     pcgfx_cfg.scale = s < 1.0f ? 1.0f : s > PCGFX_SCALE_MAX ? (float)PCGFX_SCALE_MAX : s;
 }
 
@@ -166,6 +169,11 @@ int pc_gfx_framebuffer_dims(const void *cimg, int *n64_w, int *n64_h, int *px_w,
 
 void pc_gfx_set_widescreen(float aspect) {
     pcgfx_cfg.widescreen = aspect;
+    resolve_auto();
+}
+
+void pc_gfx_set_fill(int on) {
+    pcgfx_cfg.fill = on != 0;
     resolve_auto();
 }
 
@@ -469,6 +477,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
             fprintf(stderr, "gfx: RUSH_GFX_WIDESCREEN=%s is not off, auto or an aspect from 4:3 to 4; ignored\n",
                     getenv("RUSH_GFX_WIDESCREEN"));
     }
+    pcgfx_cfg.fill = env_int("RUSH_GFX_FILL", pcgfx_cfg.fill) != 0;   /* video.fill (GFX.md "Fill the window") */
     pcgfx_hud_init();   /* RUSH_GFX_HUD */
     pcgfx_detail_init();   /* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG (gfx_detail.c) */
     /* 0 x 0: the window's from the desktop (gfx_sdl.c); headless, the N64's frame, which native and auto draw at 1x */

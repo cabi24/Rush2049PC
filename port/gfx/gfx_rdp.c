@@ -40,13 +40,17 @@ int pcgfx_frame_width(void) {
 }
 
 /* Widescreen (GFX.md "Widescreen"): the 4:3 frame of a width-wide color image grows by this many N64 pixels on
- * each side, so the target has the display aspect. A whole number, so that 2D stays on the N64 pixel grid. */
+ * each side, so the target has the display aspect. A whole number, so that 2D stays on the N64 pixel grid; with
+ * fill rounded up, so the picture is at least as wide as the window's shape and fills its height (GFX.md "Fill the
+ * window"). */
 static int wide_offset(int width) {
     float k = pcgfx_cfg.aspect * 0.75f;   /* the target's width over the frame's */
     if (k <= 1.0f)
         return 0;
     if (k > 3.0f)
         k = 3.0f;
+    if (pcgfx_cfg.fill)
+        return (int)ceilf(width * (k - 1.0f) * 0.5f - 1e-3f);
     return (int)lrintf(width * (k - 1.0f) * 0.5f);
 }
 

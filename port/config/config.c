@@ -295,6 +295,11 @@ static const Item items[] = {
     {"video", "widescreen", T_ASPECT, F(widescreen), 4.0 / 3.0, 4, NULL, "auto",
      "Widen the picture: auto (the window's aspect: off in a 4:3 window), off (4:3), 16:9, 16:10, 21:9, W:H or a "
      "ratio up to 4. The 3D view shows more at the sides; menus stay 4:3, the race HUD as hud says (RUSH_GFX_WIDESCREEN)."},
+    {"video", "fill", T_BOOL, F(fill), 0, 0, NULL, "off",
+     "Fill the window: the game's 220 rows reach its top and bottom, where off shows them in a TV's 240-line frame "
+     "with a band above and below. With widescreen the picture is the window's shape (at most an N64 pixel cut at "
+     "each side); in a 4:3 window the bands stay. Menus drawn 4:3 keep the sides black unless a texture pack gives "
+     "them side art (RUSH_GFX_FILL)."},
     {"video", "pause_on_focus_loss", T_BOOL, F(pause_on_focus_loss), 0, 0, NULL, "off",
      "Hold the game while the window is in the background."},
     {"video", "screenshot_dir", T_STR, F(screenshot_dir), 0, 0, NULL, "",
@@ -858,7 +863,8 @@ int pc_settings_apply_env(PcSettings *s)
 {
     static const struct { const char *var, *section, *key; } env[] = {
         {"RUSH2049_AUDIO", "audio", "backend"}, {"RUSH_GFX_SCALE", "video", "scale"}, {"RUSH_GFX_API", "video", "api"},
-        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
+        {"RUSH_GFX_WIDESCREEN", "video", "widescreen"}, {"RUSH_GFX_FILL", "video", "fill"},
+        {"RUSH_GFX_FRAME_RATE", "video", "frame_rate"},
         {"RUSH_GFX_TEXTURES", "video", "textures"}, {"RUSH_GFX_HUD", "video", "hud"},
         {"RUSH_GFX_DRAW_DISTANCE", "video", "draw_distance"}, {"RUSH_GFX_FOG", "video", "fog"},
         {"RUSH_GFX_TEXTURE_LOD", "video", "texture_lod"}};

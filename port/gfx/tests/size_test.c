@@ -1,6 +1,6 @@
 /* port/gfx/tests/size_test.c: gfx_size.c with made-up window, drawable and desktop sizes (no GL, no window).
  *
- *   gfx_size_test [scale|edge|rectedge|fit|units|window|texfactor|all]
+ *   gfx_size_test [scale|edge|rectedge|fit|fill|units|window|texfactor|all]
  *
  * The internal scale a window gets (native: any fraction; auto: whole), the internal size of a target, where N64
  * pixel edges land at fractional scales (no gap, no overlap, the shader's pixel rule the same), where rectangles'
@@ -40,22 +40,22 @@ static void expect_f(const char *what, float got, float want) {
 
 static void case_scale(void) {
     /* a 3K 16:9 panel: the 16:9 frame (426 x 220 shown) and the 4:3 one (320 x 220) */
-    expect_f("native 2880x1620 16:9", pcgfx_window_scale(-1, 2880, 1620, 426, 220), 2880.0f / 426);
-    expect_f("native 2880x1620 4:3", pcgfx_window_scale(-1, 2880, 1620, 320, 220), 1620.0f / 220);
-    expect_f("auto 2880x1620 16:9", pcgfx_window_scale(0, 2880, 1620, 426, 220), 6.0f);
-    expect_i("2880 across 16:9", pcgfx_scaled(426, pcgfx_window_scale(-1, 2880, 1620, 426, 220)), 2880);
-    expect_i("1620 rows 4:3", pcgfx_edge(220, 240, pcgfx_scaled(240, pcgfx_window_scale(-1, 2880, 1620, 320, 220))),
+    expect_f("native 2880x1620 16:9", pcgfx_window_scale(-1, 2880, 1620, 426, 220, 0), 2880.0f / 426);
+    expect_f("native 2880x1620 4:3", pcgfx_window_scale(-1, 2880, 1620, 320, 220, 0), 1620.0f / 220);
+    expect_f("auto 2880x1620 16:9", pcgfx_window_scale(0, 2880, 1620, 426, 220, 0), 6.0f);
+    expect_i("2880 across 16:9", pcgfx_scaled(426, pcgfx_window_scale(-1, 2880, 1620, 426, 220, 0)), 2880);
+    expect_i("1620 rows 4:3", pcgfx_edge(220, 240, pcgfx_scaled(240, pcgfx_window_scale(-1, 2880, 1620, 320, 220, 0))),
              1620);
     /* Windows without DPI awareness at 200%: a 1440 x 810 window, half the pixels */
-    expect_f("native 1440x810 virtualized", pcgfx_window_scale(-1, 1440, 810, 426, 220), 1440.0f / 426);
-    expect_f("native 1920x1080 16:9", pcgfx_window_scale(-1, 1920, 1080, 426, 220), 1920.0f / 426);
-    expect_f("native 3840x2160 16:9", pcgfx_window_scale(-1, 3840, 2160, 426, 220), 3840.0f / 426);
-    expect_f("native 640x480 4:3", pcgfx_window_scale(-1, 640, 480, 320, 220), 2.0f);
-    expect_f("native: at least 1", pcgfx_window_scale(-1, 200, 150, 320, 220), 1.0f);
-    expect_f("native: at most 16", pcgfx_window_scale(-1, 15360, 8640, 320, 220), 16.0f);
-    expect_f("auto: at most 8", pcgfx_window_scale(0, 7680, 4320, 320, 220), 8.0f);
-    expect_f("auto 640x480", pcgfx_window_scale(0, 640, 480, 320, 220), 2.0f);
-    expect_f("no window", pcgfx_window_scale(-1, 0, 0, 320, 220), 1.0f);
+    expect_f("native 1440x810 virtualized", pcgfx_window_scale(-1, 1440, 810, 426, 220, 0), 1440.0f / 426);
+    expect_f("native 1920x1080 16:9", pcgfx_window_scale(-1, 1920, 1080, 426, 220, 0), 1920.0f / 426);
+    expect_f("native 3840x2160 16:9", pcgfx_window_scale(-1, 3840, 2160, 426, 220, 0), 3840.0f / 426);
+    expect_f("native 640x480 4:3", pcgfx_window_scale(-1, 640, 480, 320, 220, 0), 2.0f);
+    expect_f("native: at least 1", pcgfx_window_scale(-1, 200, 150, 320, 220, 0), 1.0f);
+    expect_f("native: at most 16", pcgfx_window_scale(-1, 15360, 8640, 320, 220, 0), 16.0f);
+    expect_f("auto: at most 8", pcgfx_window_scale(0, 7680, 4320, 320, 220, 0), 8.0f);
+    expect_f("auto 640x480", pcgfx_window_scale(0, 640, 480, 320, 220, 0), 2.0f);
+    expect_f("no window", pcgfx_window_scale(-1, 0, 0, 320, 220, 0), 1.0f);
     expect_i("scaled whole", pcgfx_scaled(320, 3.0f), 960);
     expect_i("scaled 6.75", pcgfx_scaled(240, 6.75f), 1620);
     expect_i("scaled 6.75 across", pcgfx_scaled(426, 6.75f), 2876);   /* 2875.5 rounds up */
@@ -124,36 +124,76 @@ static void case_edge(void) {
 static void case_fit(void) {
     int r[4], exact;
     /* native, drawn for the window: pixel for pixel, centred (2880 x 1488: 220 of 240 rows at 1623) */
-    exact = pcgfx_fit(2880, 1488, 426, 220, 2880, 1620, 1, r);
+    exact = pcgfx_fit(2880, 1488, 426, 220, 2880, 1620, 1, 0, r);
     expect_i("native 16:9 x", r[0], 0);
     expect_i("native 16:9 y", r[1], 66);
     expect_i("native 16:9 w", r[2], 2880);
     expect_i("native 16:9 h", r[3], 1488);
     expect_i("native 16:9 nearest", exact, 1);
-    exact = pcgfx_fit(2356, 1620, 320, 220, 2880, 1620, 1, r);   /* 4:3: bars at the sides */
+    exact = pcgfx_fit(2356, 1620, 320, 220, 2880, 1620, 1, 0, r);   /* 4:3: bars at the sides */
     expect_i("native 4:3 x", r[0], 262);
     expect_i("native 4:3 h", r[3], 1620);
     expect_i("native 4:3 nearest", exact, 1);
-    exact = pcgfx_fit(2881, 1488, 426, 220, 2880, 1620, 1, r);   /* a pixel over (rounding): still 1:1 */
+    exact = pcgfx_fit(2881, 1488, 426, 220, 2880, 1620, 1, 0, r);   /* a pixel over (rounding): still 1:1 */
     expect_i("native over w", r[2], 2881);
     expect_i("native over nearest", exact, 1);
     /* native drawn for another size (a render size, a resize not yet drawn): fitted, filtered */
-    exact = pcgfx_fit(1920, 992, 426, 220, 2880, 1620, 1, r);
+    exact = pcgfx_fit(1920, 992, 426, 220, 2880, 1620, 1, 0, r);
     expect_i("native 1080p on 1620p w", r[2], 2880);
     expect_i("native 1080p on 1620p filtered", exact, 0);
     /* whole multiples, as before */
-    exact = pcgfx_fit(640, 440, 320, 220, 640, 480, 0, r);
+    exact = pcgfx_fit(640, 440, 320, 220, 640, 480, 0, 0, r);
     expect_i("2x in 640x480 y", r[1], 20);
     expect_i("2x nearest", exact, 1);
-    exact = pcgfx_fit(320, 220, 320, 220, 2880, 1620, 0, r);   /* N64 pixels at 7x */
+    exact = pcgfx_fit(320, 220, 320, 220, 2880, 1620, 0, 0, r);   /* N64 pixels at 7x */
     expect_i("1x at 7x w", r[2], 2240);
     expect_i("1x at 7x h", r[3], 1540);
     expect_i("1x at 7x nearest", exact, 1);
-    exact = pcgfx_fit(640, 440, 320, 220, 2880, 1620, 0, r);   /* 2x shown at 7x: filtered */
+    exact = pcgfx_fit(640, 440, 320, 220, 2880, 1620, 0, 0, r);   /* 2x shown at 7x: filtered */
     expect_i("2x at 7x filtered", exact, 0);
-    exact = pcgfx_fit(320, 220, 320, 220, 200, 150, 0, r);     /* smaller than the frame: aspect fit */
+    exact = pcgfx_fit(320, 220, 320, 220, 200, 150, 0, 0, r);     /* smaller than the frame: aspect fit */
     expect_i("small w", r[2], 200);
     expect_i("small h", r[3], 137);
+}
+
+/* Fill the window (video.fill, GFX.md "Fill the window"): the widening rounded up makes the picture at most one N64
+ * pixel a side wider than the window's shape; the native scale is then the height's fit and the present cuts those
+ * columns, so no band is left above or below. Off, or past one pixel a side (a 4:3 window), as before. */
+static void case_fill(void) {
+    int r[4], exact;
+    /* 16:9: 392 x 220 (36 a side), 1620 / 220 = 7.36: 2887 across, 3 cut each side */
+    expect_f("fill 2880x1620", pcgfx_window_scale(-1, 2880, 1620, 392, 220, 1), 1620.0f / 220);
+    expect_f("fill 1920x1080", pcgfx_window_scale(-1, 1920, 1080, 392, 220, 1), 1080.0f / 220);
+    expect_f("fill 3440x1440 (526 across)", pcgfx_window_scale(-1, 3440, 1440, 526, 220, 1), 1440.0f / 220);
+    expect_f("fill 2560x1600 (352: exact)", pcgfx_window_scale(-1, 2560, 1600, 352, 220, 1), 1600.0f / 220);
+    expect_f("fill off 2880x1620", pcgfx_window_scale(-1, 2880, 1620, 392, 220, 0), 2880.0f / 392);
+    expect_f("fill 4:3 window: the width's", pcgfx_window_scale(-1, 1440, 1080, 320, 220, 1), 1440.0f / 320);
+    expect_f("fill at auto: whole", pcgfx_window_scale(0, 2880, 1620, 392, 220, 1), 7.0f);
+    expect_i("fill 2887 across", pcgfx_scaled(392, pcgfx_window_scale(-1, 2880, 1620, 392, 220, 1)), 2887);
+    expect_i("fill 1620 rows", pcgfx_edge(220, 240, pcgfx_scaled(240, pcgfx_window_scale(-1, 2880, 1620, 392, 220, 1))),
+             1620);
+    exact = pcgfx_fit(2887, 1620, 392, 220, 2880, 1620, 1, 1, r);
+    expect_i("fill fit x", r[0], -3);
+    expect_i("fill fit y", r[1], 0);
+    expect_i("fill fit w", r[2], 2887);
+    expect_i("fill fit h", r[3], 1620);
+    expect_i("fill fit nearest", exact, 1);
+    exact = pcgfx_fit(1924, 1080, 392, 220, 1920, 1080, 1, 1, r);
+    expect_i("fill 1080p x", r[0], -2);
+    expect_i("fill 1080p h", r[3], 1080);
+    expect_i("fill 1080p nearest", exact, 1);
+    exact = pcgfx_fit(2887, 1620, 392, 220, 2880, 1620, 1, 0, r);   /* off: the width's fit, filtered, bands */
+    expect_i("fill off h", r[3], 1616);
+    expect_i("fill off filtered", exact, 0);
+    exact = pcgfx_fit(1440, 990, 320, 220, 1440, 1080, 1, 1, r);   /* 4:3 window: bands stay */
+    expect_i("fill 4:3 y", r[1], 45);
+    expect_i("fill 4:3 w", r[2], 1440);
+    exact = pcgfx_fit(1924, 1080, 392, 220, 2880, 1620, 1, 1, r);   /* drawn for another size: fitted, cut */
+    expect_i("fill other size h", r[3], 1620);
+    expect_i("fill other size x", r[0], -3);
+    expect_i("fill other size filtered", exact, 0);
+    exact = pcgfx_fit(784, 440, 392, 220, 2880, 1620, 0, 1, r);   /* a whole multiple: as before */
+    expect_i("fill whole multiple w", r[2], 2744);
 }
 
 /* Window sizes in pixels and in the window system's units: SDL_GetWindowSize against SDL_GL_GetDrawableSize. */
@@ -294,7 +334,7 @@ static void case_rectedge(void) {
 
 int main(int argc, char **argv) {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
-        {"scale", case_scale}, {"edge", case_edge}, {"rectedge", case_rectedge}, {"fit", case_fit},
+        {"scale", case_scale}, {"edge", case_edge}, {"rectedge", case_rectedge}, {"fit", case_fit}, {"fill", case_fill},
         {"units", case_units}, {"window", case_window},
         {"texfactor", case_texfactor},
     };

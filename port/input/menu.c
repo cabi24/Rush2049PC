@@ -243,6 +243,7 @@ static void build(void)
     it->choices = scale_choices;
     it->labels = scale_labels;
     add(P_VIDEO, I_CHOICE, "Widescreen", "video", "widescreen")->choices = wide_choices;
+    add(P_VIDEO, I_CHOICE, "Fill the window", "video", "fill")->choices = onoff;   /* GFX.md "Fill the window" */
     add(P_VIDEO, I_CHOICE, "Fullscreen", "video", "fullscreen")->choices = onoff;
     add(P_VIDEO, I_CHOICE, "Fullscreen mode", "video", "fullscreen_mode")->choices = fs_mode_choices;
     it = add(P_VIDEO, I_CHOICE, "Resolution", "video", "resolution");
@@ -343,6 +344,7 @@ static void build(void)
     static const struct { const char *section, *key, *desc; } descs[] = {
         {"video", "scale", "Internal resolution; native: the window's pixels"},
         {"video", "widescreen", "A wider 3D view; auto: the window's shape"},
+        {"video", "fill", "No bands above and below: the picture to every edge"},
         {"video", "fullscreen", "Fill the screen; F11 and Alt+Enter do it too"},
         {"video", "fullscreen_mode", "Desktop: borderless; exclusive: sets a mode"},
         {"video", "resolution", "Fullscreen's size; desktop: the screen's own"},
@@ -528,6 +530,8 @@ static void apply(const char *section, const char *key)
     if (!strcasecmp(section, "video")) {
         if (!strcasecmp(key, "widescreen"))
             pc_gfx_set_widescreen((float)s->widescreen);
+        else if (!strcasecmp(key, "fill"))
+            pc_gfx_set_fill(s->fill);
         else if (!strcasecmp(key, "scale"))
             pc_gfx_set_scale(s->scale);
         else if (!strcasecmp(key, "fullscreen"))

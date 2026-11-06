@@ -308,7 +308,14 @@ static void test_live(void)
     at("Video", "Render scale", "auto (whole)", "scale auto (before native)");
     act_n(PC_MENU_RIGHT, 3);
     at("Video", "Render scale", "2x", "scale 2 again");
-    act_n(PC_MENU_DOWN, 3);
+    act_n(PC_MENU_DOWN, 2);
+    at("Video", "Fill the window", "off", "fill the window");
+    act(PC_MENU_RIGHT);
+    at("Video", "Fill the window", "on", "fill the window on");
+    CHECK(pc_menu_settings()->fill == 1, "the setting: %d", pc_menu_settings()->fill);
+    act(PC_MENU_LEFT);
+    CHECK(pc_menu_settings()->fill == 0, "off again");
+    act_n(PC_MENU_DOWN, 2);
     at("Video", "Fullscreen mode", "desktop", "fullscreen mode");
     act(PC_MENU_RIGHT);
     CHECK(pc_menu_settings()->fullscreen_mode == 1, "exclusive");
@@ -636,7 +643,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     act(PC_MENU_DOWN);
     act_n(PC_MENU_RIGHT, 3);   /* widescreen 16:9 */
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     act(PC_MENU_RIGHT);        /* vsync off, then on again: the same as the file, so not written */
     act(PC_MENU_RIGHT);
     act(PC_MENU_UP);           /* the window size */
@@ -926,7 +933,7 @@ static void test_mouse(void)
     mouse_at(PC_MOUSE_LEFT, x, y, 640, 480, 640, 480, 0);
     mouse_at(PC_MOUSE_LEFT, x, y, 640, 480, 640, 480, 0);
     at("Video", "Widescreen", "21:9", "two clicks on the left arrow: back past the start");
-    row_px(&p, 6, 20, 6, &x, &y);
+    row_px(&p, 7, 20, 6, &x, &y);
     mouse_at(PC_MOUSE_LEFT, x, y, 640, 480, 640, 480, 0);
     at("Video", "Vsync", "off", "a click on a label: as Enter, the next value");
     CHECK(!pc_menu_settings()->vsync, "the setting changed");
