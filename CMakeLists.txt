@@ -854,6 +854,9 @@ set_tests_properties(ghost_tool PROPERTIES FIXTURES_REQUIRED pakstore_files TIME
 add_test(NAME saves_files COMMAND ${PC_PYTHON} ${PORT_TOOLS}/saves_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/saves import migrate game race)
 set_tests_properties(saves_files PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 1500)
+if(PC_SANITIZE)   # under ASan on CI's 4 arm cores it took 1,150 s before the ghost prompt's runs, and passed 1,500 after
+    set_tests_properties(saves_files PROPERTIES TIMEOUT 3000)
+endif()
 add_test(NAME saves_files_swap COMMAND ${PC_PYTHON} ${PORT_TOOLS}/saves_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/saves-swap swap)
 set_tests_properties(saves_files_swap PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 RUN_SERIAL TRUE
