@@ -206,14 +206,12 @@ static int x5(int v) {   /* what a 5-bit channel decodes to */
 }
 
 /* Clears z and color, full scissor, viewport, ortho projection (pixels, y down) and identity modelview. */
-static int s_rows = FB_H;   /* the frame's scissor bottom: the rows shown (fillwindow: the game's 220) */
-
 static void frame_begin(int r, int g, int b) {
     uint16_t c = rgba16(r, g, b, 1);
     gp = s_list;
     g_be_mode = 0;
     gsDPPipeSync();
-    gsDPSetScissor(0, 0, FB_W, s_rows);
+    gsDPSetScissor(0, 0, FB_W, FB_H);
     gsDPSetCycleType(G_CYC_FILL);
     gsDPSetRenderMode(0, 0);
     gsDPSetDepthImage((uintptr_t)s_zb);
@@ -2227,7 +2225,28 @@ static void case_autosize(void) {
 /* video.fill (GFX.md "Fill the window"): a frame of the game's 220 rows at the native scale, widescreen auto, in a
  * 16:9, a 21:9 and a 4:3 window. With fill the target is the rows' shape, its widening rounded up (at most a pixel a
  * side cut), and the window has the picture at every edge; off, the VI frame's shape with the bands above and below;
- * in a 4:3 window fill can't widen, so the bands stay. Two frames a step: the rows shown are the last frame's. */
+ * in a 4:3 window fill can't widen, so the bands stay. Two frames a step: the rows shown are the last frame's. The
+ * frames go to a color image of their own: a target shows down to the largest scissor bottom it was ever drawn with,
+ * and the other cases draw all 240 rows into s_fb. */
+static uint16_t s_fill_fb[FB_W * FB_H];
+
+static void fill_frame(void) {   /* the frame cleared to one color, its scissor the game's 220 rows */
+    uint16_t c = rgba16(40, 200, 120, 1);
+    gp = s_list;
+    g_be_mode = 0;
+    gsDPPipeSync();
+    gsDPSetScissor(0, 0, FB_W, 220);
+    gsDPSetCycleType(G_CYC_FILL);
+    gsDPSetRenderMode(0, 0);
+    gsDPSetColorImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, FB_W, (uintptr_t)s_fill_fb);
+    gsDPSetFillColor((uint32_t)c << 16 | c);
+    gsDPFillRectangle(0, 0, FB_W - 1, 219);
+    gsDPFullSync();
+    gsSPEndDisplayList();
+    pc_gfx_run_dl(s_list);
+    pc_gfx_present(s_fill_fb);
+}
+
 static void case_fillwindow(void) {
     static const struct { int win_w, win_h, fill, n64_w, px_w, px_h, band; } steps[] = {
         {2880, 1620, 1, 392, 2887, 1767, 0},   /* 36 a side; 7.36: 3 internal pixels cut a side */
@@ -2243,21 +2262,19 @@ static void case_fillwindow(void) {
         printf("  (fillwindow: headless only)\n");
         return;
     }
-    s_rows = 220;
     pc_gfx_set_widescreen(-1.0f);
     pc_gfx_set_scale(-1);
     for (i = 0; i < (int)(sizeof(steps) / sizeof(steps[0])); i++) {
-        int ww, wh, bad = 0, w = steps[i].win_w, h = steps[i].win_h, band = steps[i].band;
+        int ww, wh, bad = 0, w = steps[i].win_w, h = steps[i].win_h, band = steps[i].band, nw, nh, pw, ph;
         uint8_t *win, mid[4];
         pc_gfx_set_window_size(w, h);
         pc_gfx_set_fill(steps[i].fill);
-        for (k = 0; k < 2; k++) {
-            frame_begin(40, 200, 120);
-            frame_end();
-        }
-        if (s_n64_w != steps[i].n64_w || s_px_w != steps[i].px_w || s_px_h != steps[i].px_h) {
+        for (k = 0; k < 2; k++)
+            fill_frame();
+        if (pc_gfx_framebuffer_dims(s_fill_fb, &nw, &nh, &pw, &ph) != 0 || nw != steps[i].n64_w ||
+            pw != steps[i].px_w || ph != steps[i].px_h) {
             printf("  FAIL fillwindow %dx%d fill %d: the target is %dx%d (%d across), not %dx%d (%d)\n", w, h,
-                   steps[i].fill, s_px_w, s_px_h, s_n64_w, steps[i].px_w, steps[i].px_h, steps[i].n64_w);
+                   steps[i].fill, pw, ph, nw, steps[i].px_w, steps[i].px_h, steps[i].n64_w);
             s_fail++;
             continue;
         }
@@ -2291,7 +2308,6 @@ static void case_fillwindow(void) {
         }
         free(win);
     }
-    s_rows = FB_H;
     pc_gfx_set_fill(0);
     pc_gfx_set_window_size(s_win_w, s_win_h);
     pc_gfx_set_widescreen(env_aspect);

@@ -1032,6 +1032,7 @@ static void test_menu(void)
     menu_at("Video", "Render scale", "native", "Video");
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+    press(&pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);   /* past Widescreen and Fill the window */
     press(&pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
     menu_at("Video", "Fullscreen", "on", "fullscreen on");
     CHECK(SDL_GetWindowFlags(g_win) & SDL_WINDOW_FULLSCREEN, "the window is fullscreen");
