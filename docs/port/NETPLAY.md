@@ -1120,9 +1120,6 @@ then has (a `--fast` replay with the default takes the same course).
   there. The session's input log replayed in one process by 543e5b0's program (no session code) hangs at the same
   retrace: a hang of the game's, or the port's, on the synthetic cartridge at least, not of the session. The fuzzer
   reports such a hang (the same on both) and goes on; `net_session_check.py fuzz --first 3 --seeds 1` reproduces it.
-- **The Windows cross build's `test_assets_save.exe` doesn't link**: `pc_n64_identity` (LOCKSTEP.md 5.3) is undefined
-  there; `port/ultra/n64mem.c`'s weak fallback doesn't satisfy the game C's reference under mingw-w64's PE linker.
-  `rush2049pc.exe` links (it has `statehash.c`'s) and passes `pe_check.py --dlls` with `WS2_32.dll`.
 
 ### 12.9 Not done
 

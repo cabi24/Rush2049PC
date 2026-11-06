@@ -422,10 +422,23 @@ static NetEnd session_ended(void)
     return e;
 }
 
+/* RUSH_SIM_NET's pause (net_frozen: this PC stands still, as a stopped process would) holds this PC's sample too: it
+ * is submitted, and so assigned, when the pause ends, as a stopped process's would be. Submitted at once, it would
+ * be assigned at the pause's start and sent at its end, and the peer would take the pause for its transit. */
+static struct {
+    int held;
+    uint32_t n;
+    NetPad pad;
+} Q;
+
 static void src_local(void *user, uint32_t n, const PcPad local[4])
 {
     (void)user;
     NetPad p = {local[0].buttons, local[0].stick_x, local[0].stick_y};
+    if (net_frozen(S.s)) {
+        Q.held = 1, Q.n = n, Q.pad = p;
+        return;
+    }
     net_submit(S.s, n, &p);   /* -1 once the session has ended: src_pads says why */
 }
 
@@ -433,7 +446,12 @@ static int src_pads(void *user, uint32_t n, PcPad out[4])
 {
     (void)user;
     NetPad p[NET_MAX_PORTS];
-    int r = net_frozen(S.s) ? 0 : net_pads(S.s, n, p, WAIT_POLL_MS);   /* frozen: RUSH_SIM_NET's pause */
+    int frozen = net_frozen(S.s);   /* RUSH_SIM_NET's pause */
+    if (!frozen && Q.held) {
+        Q.held = 0;
+        net_submit(S.s, Q.n, &Q.pad);
+    }
+    int r = frozen ? 0 : net_pads(S.s, n, p, WAIT_POLL_MS);
     if (r == 1) {
         for (int i = 0; i < 4; i++)
             out[i] = (PcPad){p[i].buttons, p[i].stick_x, p[i].stick_y, i < 2, 0};

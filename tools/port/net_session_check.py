@@ -427,6 +427,11 @@ def mode_paced(a, names):
             if rate is None or not 59.5 <= rate <= 60.5:
                 say(f"{name} paced {a.model}: the {role}'s pace: {said}")
                 b = 1
+        for role, t in (("host", th), ("guest", tg)):   # a stopped peer isn't a slow network (NETWORK.md 5)
+            d = re.search(r"delay \d+ \(peer \d+, (\d+)-(\d+),", t)
+            if a.model == "pause" and (not d or int(d.group(2)) > 4):
+                say(f"{name} paced pause: the {role}'s delay went to {d.group(2) if d else '?'} for a pause")
+                b = 1
         if not b:
             say(f"{name:10} paced {a.model}, the adaptive delay: host = guest, {len(replay_check.trace(th))} lines; "
                 f"host {rates[0][1]}; guest {rates[1][1]}; {session_stats(th)}")
