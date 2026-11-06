@@ -11,6 +11,7 @@ session"), on the synthetic cartridge.
     net_session_check.py mismatch --exe EXE --rom ROM --logs DIR [--mods DIR]
     net_session_check.py adopt    --exe EXE --rom ROM --logs DIR
     net_session_check.py ends     --exe EXE --rom ROM --logs DIR
+    net_session_check.py wait     --exe EXE --rom ROM --logs DIR
 
 A session is a host (--net-host 0: any port, read from its log) and a guest (--net-join 127.0.0.1:PORT), both bound
 to 127.0.0.1 (--net-bind), each with a data folder of its own, each running the path's press script for its own
@@ -42,7 +43,11 @@ adopt: a guest with other settings (game.cars, audio.voices...) takes the host's
   traces are the same; each player's pak (new ones, the same ID) is installed, port 2's copy with an ID of its own,
   and nothing is written to the disk.
 ends: the guest killed (the host ends with "timeout" within --net-timeout), the guest leaving at its own limit (the
-  host ends with "peer-left", exit 0), a guest joining nobody ("no-answer").
+  host ends with "peer-left", exit 0), a guest joining nobody ("no-answer", and its message box says so: --window
+  without a display, the boxes printed).
+wait: the host's waiting screen (port/app/netwait.c), headless at 1280 x 720: RUSH2049_TEST_NET_WAIT_SHOT saves it
+  (the panel, its text) and cancels it as Escape would (exit 0, no box, nothing of the game run); a host nobody joins
+  gives up (RUSH2049_TEST_NET_HOST_WAIT: 2 s) with a message box saying so, exit 3.
 
 Exit status: 0 when it holds. Stdlib only, Python 3.9+.
 """
@@ -65,6 +70,7 @@ sys.path.insert(0, str(ROOT / "tools/port"))
 import hash_compare  # noqa: E402
 import replay_check  # noqa: E402
 import synth_paths  # noqa: E402
+import synth_shot  # noqa: E402
 
 SCRIPTS = synth_paths.PRESS_DIR
 # The models (NETWORK.md 8's, the real-time versions of tools/port/net_check.py; shift's changes sooner still, inside a
@@ -756,29 +762,120 @@ def mode_ends(a):
             f"{abs(gap):.2f} s {'after' if gap >= 0 else 'before'} the guest's process exited, "
             f"{last[0] - last[1]} retrace(s) past the guest's last (its delay {ahead})")
     # nobody there: the guest gives up
+    # (--window without a display: the message boxes a player would see are printed; it never gets to its window)
     port = free_udp_port()
     run_dir = Path(a.logs) / "ends.noanswer.run"
     run_dir.mkdir(parents=True, exist_ok=True)
-    e = dict(os.environ, **synth_paths.data_env(run_dir))
+    e = boxes_env(run_dir)
     t0 = time.monotonic()
     p = subprocess.run(base_cmd(a, gp, spec, ["--net-bind", "127.0.0.1", "--net-join", f"127.0.0.1:{port}",
-                                              "--net-timeout", "2"]), env=e, cwd=run_dir, stdout=subprocess.PIPE,
-                       stderr=subprocess.STDOUT, timeout=120)
+                                              "--net-timeout", "2", "--window"]), env=e, cwd=run_dir,
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
     took = time.monotonic() - t0
     out = p.stdout.decode(errors="replace")
     (Path(a.logs) / "ends.noanswer.log").write_text(out)
-    if "(no-answer)" not in out or p.returncode != 3 or took > 10:
-        say(f"ends no-answer: exit {p.returncode} after {took:.1f} s; the log: "
+    box = box_text(out)
+    if "(no-answer)" not in out or p.returncode != 3 or took > 10 or \
+            not box.startswith(f"Couldn't join the online race at 127.0.0.1: no answer from 127.0.0.1:{port}"):
+        say(f"ends no-answer: exit {p.returncode} after {took:.1f} s; its box: {box!r}; the log: "
             f"{[l for l in out.splitlines() if 'online' in l][-3:]}")
         bad = 1
     else:
-        say(f"ends no-answer: a guest joining a port nobody listens on ends with no-answer after {took:.1f} s (exit 3)")
+        say(f"ends no-answer: a guest joining a port nobody listens on ends with no-answer after {took:.1f} s (exit 3), "
+            f"its box: {box!r}")
+    return bad
+
+
+def boxes_env(run_dir):
+    """A run's environment that prints its message boxes (RUSH2049_MESSAGE_BOX=print), with no display to open a
+    window on (--window then renders headless, and the boxes are a window's)."""
+    e = dict(os.environ, RUSH2049_MESSAGE_BOX="print", **synth_paths.data_env(run_dir))
+    for k in ("DISPLAY", "WAYLAND_DISPLAY", "RUSH_SIM_NET", "RUSH_SIM_DESYNC", "RUSH_SIM_GATE",
+              "RUSH2049_TEST_NET_BUILD", "RUSH2049_TEST_NET_WAIT_SHOT", "RUSH2049_TEST_NET_HOST_WAIT"):
+        e.pop(k, None)
+    return e
+
+
+def box_text(out):
+    """The text of the first message box a run printed ("" for none)."""
+    m = re.search(r"^rush2049pc: message box: [^\n]*\n(.*?)\nrush2049pc: \(end of message box\)", out, re.M | re.S)
+    return m.group(1) if m else ""
+
+
+def mode_wait(a):
+    bad = 0
+    spec = synth_paths.read_script(SCRIPTS / "race2p.press")
+    hp, gp, mp, two = path_files(a, "race2p", "wait")
+    logs = Path(a.logs)
+    # the screen, saved, then cancelled as Escape would
+    shot = logs / "wait.screen.png"
+    if shot.exists():
+        shot.unlink()
+    run_dir = logs / "wait.screen.run"
+    shutil.rmtree(run_dir, ignore_errors=True)
+    run_dir.mkdir(parents=True)
+    e = boxes_env(run_dir)
+    e["RUSH2049_TEST_NET_WAIT_SHOT"] = str(shot)
+    t0 = time.monotonic()
+    p = subprocess.run(base_cmd(a, hp, spec, ["--net-bind", "127.0.0.1", "--net-host", "0", "--size", "1280x720"]),
+                       env=e, cwd=run_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
+    took = time.monotonic() - t0
+    out = p.stdout.decode(errors="replace")
+    (logs / "wait.screen.log").write_text(out)
+    for want in ("online: this PC's addresses: ", "online: test: the waiting screen saved to",
+                 "online: hosting cancelled", "online: ended (local): hosting cancelled"):
+        if want not in out:
+            say(f"wait: the host doesn't say '{want}'")
+            bad = 1
+    if p.returncode != 0 or "message box" in out or "physics vi=" in out:
+        say(f"wait: cancelled, the host exits {p.returncode}{', with a message box' if 'message box' in out else ''}"
+            f"{', after running the game' if 'physics vi=' in out else ''}; expected 0, none, before the game")
+        bad = 1
+    if not shot.exists():
+        say("wait: no screenshot")
+        return 1
+    w, h, rows = synth_shot.read_png(str(shot))
+    panel = sum(1 for y in range(0, h, 8) for x in range(0, w, 8) if rows[y][x] == (0x0C, 0x10, 0x18))
+    white = sum(1 for y in range(h) for x in range(w) if rows[y][x] == (255, 255, 255))
+    blue = sum(1 for y in range(h) for x in range(w) if rows[y][x] == (0x8C, 0xC8, 0xFF))
+    corner = rows[2][2]
+    # the panel 408 x 236 units at 3 pixels a unit, centered on black; white text (the lines), blue (the addresses)
+    if (w, h) != (1280, 720) or corner != (0, 0, 0) or not 0.6 < panel * 64 / (1224 * 708) < 1.0 or white < 2000:
+        say(f"wait: the screenshot is {w} x {h}, its corner {corner}, {panel * 64} pixels of panel (of 1224 x 708), "
+            f"{white} white, {blue} of addresses")
+        bad = 1
+    if not bad:
+        addrs = re.search(r"online: this PC's addresses: (.*)", out).group(1)
+        say(f"wait: the waiting screen drawn ({w} x {h}: the panel, {white} pixels of white text, {blue} of addresses: "
+            f"{addrs[:160]}), saved to {shot}, then cancelled: exit 0, no box, {took:.1f} s")
+    # nobody joins: the host gives up, and its box says so
+    run_dir = logs / "wait.giveup.run"
+    shutil.rmtree(run_dir, ignore_errors=True)
+    run_dir.mkdir(parents=True)
+    e = boxes_env(run_dir)
+    e["RUSH2049_TEST_NET_HOST_WAIT"] = "2"
+    t0 = time.monotonic()
+    p = subprocess.run(base_cmd(a, hp, spec, ["--net-bind", "127.0.0.1", "--net-host", "0", "--window"]), env=e,
+                       cwd=run_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
+    took = time.monotonic() - t0
+    out = p.stdout.decode(errors="replace")
+    (logs / "wait.giveup.log").write_text(out)
+    box = box_text(out)
+    if p.returncode != 3 or not box.startswith("Nobody joined the online race in 2 seconds") or took > 30 or \
+            "physics vi=" in out:
+        say(f"wait: nobody joining, the host exits {p.returncode} after {took:.1f} s, its box {box!r}; expected 3 "
+            f"after 2 s, 'Nobody joined...'")
+        bad = 1
+    else:
+        say(f"wait: nobody joined in 2 s (RUSH2049_TEST_NET_HOST_WAIT): the host gave up after {took:.1f} s, exit 3, "
+            f"its box: {box!r}")
     return bad
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("mode", choices=["path", "sim", "auto", "paced", "fuzz", "desync", "mismatch", "adopt", "ends"])
+    ap.add_argument("mode", choices=["path", "sim", "auto", "paced", "fuzz", "desync", "mismatch", "adopt", "ends",
+                                     "wait"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
     ap.add_argument("--rom", default=str(ROOT / "build/pc/synth/rush2049_synth.z64"))
@@ -802,7 +899,7 @@ def main():
     fn = {"sim": lambda: mode_sim(a, a.names), "auto": lambda: mode_auto(a, a.names), "fuzz": lambda: mode_fuzz(a),
           "paced": lambda: mode_paced(a, a.names),
           "desync": lambda: mode_desync(a, (a.names or ["race2p"])[0]), "mismatch": lambda: mode_mismatch(a),
-          "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a)}
+          "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a), "wait": lambda: mode_wait(a)}
     sys.exit(1 if fn[a.mode]() else 0)
 
 

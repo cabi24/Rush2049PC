@@ -928,8 +928,9 @@ static uint8_t *session_local_pak(const PcSettings *cfg, const PcAppDirs *dirs, 
 
 /* The session's handshake (port/app/netplay.h, steps 1-3): after the ROM and the mods, before the memory. The guest
  * checks the host's build, ROM and mods, then takes its settings for the session (the mods' memory plan made again
- * when it depends on them); the paks are checked. *memory: the game.memory the session runs with. 0, or the exit
- * code. */
+ * when it depends on them); the paks are checked. The host only opens its port here: it adopts nothing, so it waits
+ * for its guest with its window open (pc_net_wait_guest, after pc_gfx_init). *memory: the game.memory the session
+ * runs with. 0, or the exit code. */
 static int session_handshake(PcSettings *cfg, const PcAppDirs *dirs, const PcSettingValue *over, int nover,
                              int window, int no_rom, int *memory)
 {
@@ -947,7 +948,11 @@ static int session_handshake(PcSettings *cfg, const PcAppDirs *dirs, const PcSet
     free(pak);
     if (r)
         return r;
-    if (pc_net_role() == PC_NET_GUEST) {
+    if (pc_net_role() == PC_NET_HOST) {
+        *memory = g_mods.enabled ? g_mods.memory : cfg->memory;
+        return 0;
+    }
+    {
         const char *host = pc_net_host_settings();
         pc_net_blob_value(host, "build", theirs, sizeof theirs);
         if (strcmp(theirs, build)) {
@@ -1334,7 +1339,7 @@ static int rush_main(int argc, char **argv)
                 paced = 1;   /* the session's clock: --fast's course at the pace of real time (ULTRA.md 10) */
             g_net.paced = paced;
             if ((r = session_handshake(&cfg, &dirs, over, nover, !headless, no_rom, &memory)) != 0)
-                return pc_net_finish(r, !headless);
+                return pc_net_finish(r == PC_NET_CANCELLED ? 0 : r, !headless);
             fprintf(stderr, "rush2049pc: online: the virtual clock %s\n", paced ? "paced to real time"
                     : "unpaced (--fast): as fast as both PCs and the network allow");
         }
@@ -1530,6 +1535,15 @@ static int rush_main(int argc, char **argv)
     }
     if (!headless)
         pc_app_window_icon();   /* Linux; Windows' window has the executable's icon */
+    if (pc_net_role() == PC_NET_HOST) {   /* the waiting screen until a guest joins, then its pak (netplay.h, 2-3) */
+        int r = pc_net_wait_guest(!headless);
+        if (r == 0)
+            r = pc_net_paks(!headless);
+        if (r)
+            return pc_net_finish(r == PC_NET_CANCELLED ? 0 : r, !headless);
+    }
+    if (pc_net_role())
+        pc_net_starting();   /* who joined, over the cleared window until the first retrace */
     static char title_tag[80];
     snprintf(title_tag, sizeof title_tag, "Rush2049PC %s", pc_app_version());
     pc_input_title_tag = title_tag;
@@ -1618,7 +1632,7 @@ static int rush_main(int argc, char **argv)
     if (pc_net_role()) {   /* both PCs ready: the start (port/app/netplay.h, 6) */
         int r = pc_net_start(!headless);
         if (r)
-            return pc_net_finish(r, !headless);
+            return pc_net_finish(r == PC_NET_CANCELLED ? 0 : r, !headless);
     }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);

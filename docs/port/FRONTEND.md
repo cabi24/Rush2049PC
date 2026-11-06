@@ -618,6 +618,10 @@ frame, to look at.
   overlay); the pause and quit hotkeys don't, and Escape is the overlay's back key.
 - **When it closes,** keys and controller buttons still held are ignored until they are released (sticks and
   triggers until they are back in their dead zone), so the key or button that closed it doesn't reach the game.
+- **In an online session** ([NETPLAY.md](NETPLAY.md) 12.4, 12.10) nothing is held and this player's pads are idle;
+  the settings the game reads are locked; the main page ends with two Online rows, which can't be selected: the other
+  PC ("Online: the guest, 100.101.102.104:41641") and the link ("RTT 23 ms, delay 2, stalls 1, hash ok at 1234"),
+  read from the session each time the overlay is drawn (`pc_menu_set_online`).
 
 | | Keyboard | Controller | Mouse | Script |
 |---|---|---|---|---|

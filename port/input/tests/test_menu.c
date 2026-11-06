@@ -27,7 +27,8 @@
  *   session an online session (pc_input_set_session, docs/port/NETPLAY.md 1.5): the overlay holds nothing and the
  *           game's pads are idle while it is open; the settings the game reads are locked (the Video page's draw
  *           distance, the Game page's cars, a preset's and Defaults' share of them), the others change; the notice
- *           draws over the frame and goes; out of the session the overlay holds the game again
+ *           draws over the frame and goes; the main page's two Online rows (pc_menu_set_online) drawn from the
+ *           session's status and never selected; out of the session the overlay holds the game again
  * pictures (not a CTest) writes each page as a PNG into SCRATCH_DIR, at 1280 x 960, to look at. */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -1618,6 +1619,15 @@ static void test_presets(void)
     stop();
 }
 
+static int g_online_calls;
+
+static void fake_online(char *peer, size_t peer_size, char *link, size_t link_size)
+{
+    g_online_calls++;
+    snprintf(peer, peer_size, "Online: the guest, 127.0.0.1:41641");
+    snprintf(link, link_size, "RTT 23 ms, delay 2, stalls 1, hash ok at 1234");
+}
+
 static void test_session(void)
 {
     PcSettings s;
@@ -1673,6 +1683,26 @@ static void test_session(void)
     pc_gfx_redraw();
     pc_gfx_read_window(noted, &w, &h);
     CHECK(!memcmp(noted, frame, 640 * 480 * 4), "the notice gone");
+
+    /* the Online rows: the main page's last two, read when drawn, stepped over */
+    pc_menu_set_online(fake_online);
+    act(PC_MENU_TOGGLE);
+    act(PC_MENU_PAGE_DOWN);
+    at("Settings", "Quit", NULL, "a page down: Quit, the last that can be selected");
+    act(PC_MENU_DOWN);
+    at("Settings", "Video", NULL, "down from Quit: over the Online rows, to the first");
+    act(PC_MENU_UP);
+    at("Settings", "Quit", NULL, "up from the first: Quit");
+    g_online_calls = 0;
+    pc_gfx_redraw();
+    pc_gfx_read_window(frame, &w, &h);
+    CHECK(g_online_calls == 2, "the rows read the status when drawn: %d calls", g_online_calls);
+    pc_menu_set_online(NULL);
+    pc_gfx_redraw();
+    pc_gfx_read_window(noted, &w, &h);
+    CHECK(memcmp(frame, noted, 640 * 480 * 4) != 0 && g_online_calls == 2, "the rows gone with the session's status");
+    at("Settings", "Quit", NULL, "still on Quit");
+    act(PC_MENU_CLOSE);
     free(frame);
     free(noted);
 

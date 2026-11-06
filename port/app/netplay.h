@@ -4,14 +4,20 @@
  * The flow, in main's boot order:
  *   1. pc_net_connect, after the ROM is loaded and the mods are read (mods_prepare), before the game's memory is
  *      mapped: this PC's settings (the build, the ROM's SHA-1, the mods, then the settings the game reads) and its
- *      controller 1's pak image go to the other PC, and the other's come back.
+ *      controller 1's pak image are offered to the other PC. The guest waits for the host's to arrive (it must adopt
+ *      them before its memory is mapped); the host only opens its port and goes on.
  *   2. The guest checks the host's identity lines (pc_net_blob_value), adopts the host's settings for the session
- *      (pc_net_adopt: never written to its settings file), or refuses with a clear reason (pc_net_reject).
- *   3. pc_net_paks: the two images checked; main goes on with its setup (memory, the game's data...).
+ *      (pc_net_adopt: never written to its settings file), or refuses with a clear reason (pc_net_reject); then
+ *      pc_net_paks. The host, which adopts nothing, sets up as usual and opens its window: pc_net_wait_guest shows
+ *      the waiting screen (port/app/netwait.c) until a guest's settings and pak have arrived; then pc_net_paks.
+ *   3. pc_net_paks: the two images checked. With the window open, pc_net_starting puts up a notice (who joined)
+ *      until the game's first retrace.
  *   4. pc_net_install_paks: port 1 holds the host's image, port 2 the guest's, in memory only; ports 3 and 4 none.
  *   5. pc_net_begin with the must-match text (main's, computed now): the pads source, the state hash, the input log.
  *   6. pc_net_start: both sides ready; the start time; then main boots the game.
- *   7. pc_net_finish after the main loop: BYE, the end's reason shown, the session's numbers in the log. */
+ *   7. pc_net_finish after the main loop: BYE, the end's reason shown, the session's numbers in the log.
+ * Every end before the game is logged and, with a window (or none yet), shown in a message box with a sentence that
+ * says why, except the player's own choice: Esc or closing the window (PC_NET_CANCELLED: exit 0) and Ctrl-C. */
 #ifndef PC_NETPLAY_H
 #define PC_NETPLAY_H
 
@@ -26,6 +32,7 @@ extern "C" {
 #endif
 
 enum { PC_NET_NONE = 0, PC_NET_HOST = 1, PC_NET_GUEST = 2 };
+#define PC_NET_CANCELLED (-1)   /* left before the game (Esc, the window closed; the other player): the program exits 0 */
 
 /* The command line's (the [net] settings give the port, the delay and the join code). */
 typedef struct {
@@ -39,12 +46,20 @@ typedef struct {
 
 int pc_net_role(void);   /* PC_NET_* once pc_net_connect has run; PC_NET_NONE without a session */
 
-/* 1. Connects (the host waits for a guest, up to 10 minutes; the guest for an answer, up to the timeout), sends blob
- * (main's settings text: "key=value" lines) and this PC's controller 1's pak (NULL: none), and waits until the other
- * PC's have arrived. build is what both must run (the library compares it first). 0, or the program's exit code
- * with the reason logged and shown (window: a message box). */
+/* 1. Opens the session: blob (main's settings text: "key=value" lines) and this PC's controller 1's pak (NULL: none)
+ * go to the other PC. build is what both must run (the library compares it first). The host returns once its port is
+ * open (pc_net_wait_guest waits); the guest once the host's settings and pak have arrived (up to the timeout). 0, or
+ * the program's exit code with the reason logged and shown (window: a message box). */
 int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *build, const char *blob,
                    const uint8_t *pak, int window);
+/* 2. The host, with its window open (after pc_gfx_init, before pc_input_init): the waiting screen until a guest has
+ * joined and its settings and pak have arrived, up to 10 minutes. Esc or closing the window cancels. 0,
+ * PC_NET_CANCELLED, or the exit code (logged and shown). */
+int pc_net_wait_guest(int window);
+/* 3. With the window open, before the game: a notice that the session is starting, who joined ("A player joined
+ * from ...", "Joined the online race at ..."), drawn at once over the cleared window and kept until the first
+ * retrace. */
+void pc_net_starting(void);
 /* The guest: the host's settings text (after pc_net_connect). */
 const char *pc_net_host_settings(void);
 /* The value of a "key=value" line of such a text, into out: 0, or -1 when it has none. */
@@ -69,12 +84,27 @@ void pc_net_install_paks(PcSettings *cfg);
  * key that leaves ("" for none). 0, or the exit code. */
 int pc_net_begin(PcLockstepOptions *ls, const char *must_match, const char *data_dir, const char *quit_key,
                  int window);
-/* 6. Both PCs ready: the start time agreed; waits for it. 0, or the exit code. */
+/* 6. Both PCs ready: the start time agreed; waits for it, the window's events looked at (Esc or closing it leaves)
+ * and pc_net_starting's notice drawn. 0, PC_NET_CANCELLED, or the exit code. */
 int pc_net_start(int window);
 /* 7. After the main loop: this side's BYE when it left (after the other PC has its last inputs), the reason the
  * session ended shown (a message box when it wasn't this player's choice), the session's numbers and its input log
  * in the log. The exit code: code, or 3 when the session ended otherwise than a player leaving. */
 int pc_net_finish(int code, int window);
+
+/* The F1 overlay's Online rows while a session runs (pc_menu_set_online): the peer, and the link's numbers. */
+void pc_net_status(char *peer, size_t peer_size, char *link, size_t link_size);
+
+/* port/app/netwait.c, netplay.c's: the host's waiting screen (open, its status line, the events pumped: 1 when the
+ * player cancelled, drawn again, closed), and before the game the window's events looked at, not taken (1: Esc or
+ * the window closed). */
+void pc_net_screen_open(int port, int code);
+void pc_net_screen_status(const char *status);
+int pc_net_screen_pump(void);
+int pc_net_screen_dirty(void);
+void pc_net_screen_draw(uint64_t elapsed_ns);
+void pc_net_screen_close(void);
+int pc_net_events_leave(void);
 
 #ifdef __cplusplus
 }

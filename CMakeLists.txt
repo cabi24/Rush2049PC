@@ -721,7 +721,8 @@ endforeach()
 # sticks, the overlay opened over the game), the hashes the same at every retrace. net_session_desync: a word
 # changed on one PC ends both at its retrace, each with its report. net_session_mismatch: another ROM, build or mods
 # refused, a setup the handshake can't see caught at retrace 0. net_session_adopt: the guest takes the host's
-# settings, the paks in memory only. net_session_ends: a killed peer (timeout), BYE, nobody there (no-answer).
+# settings, the paks in memory only. net_session_ends: a killed peer (timeout), BYE, nobody there (no-answer, and its
+# message box). net_session_wait: the host's waiting screen drawn, saved and cancelled; nobody joining (its box).
 set(NET_SESSION_CHECK ${PC_PYTHON} ${PORT_TOOLS}/net_session_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/net --mods ${CMAKE_BINARY_DIR}/synth/paths/mods)
 set(NET_SESSION_PATHS race2p battle2p battlequit memhigh2p race2p12 pause raceend menu)
@@ -749,6 +750,8 @@ add_test(NAME net_session_desync COMMAND ${NET_SESSION_CHECK} desync)
 add_test(NAME net_session_adopt COMMAND ${NET_SESSION_CHECK} adopt)
 set_tests_properties(net_session_desync net_session_adopt PROPERTIES FIXTURES_REQUIRED synth_rom
                      TIMEOUT ${REPLAY_TIMEOUT})
+add_test(NAME net_session_wait COMMAND ${NET_SESSION_CHECK} wait)
+set_tests_properties(net_session_wait PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
 add_test(NAME net_session_mismatch COMMAND ${NET_SESSION_CHECK} mismatch)
 set_tests_properties(net_session_mismatch PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth"
                      TIMEOUT ${REPLAY_TIMEOUT})

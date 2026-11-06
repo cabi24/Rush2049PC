@@ -128,6 +128,9 @@ int pc_gfx_poll_events(void);                /* window and input events; nonzero
  * (headless, or no SDL2), and the hook is then never called. */
 int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event));
 int pc_gfx_save_screenshot(const char *path);   /* last presented frame as PNG; 0 on success */
+/* The window as last drawn, the UI over the frame included, as a PNG (tests: headless, the window's image; with a
+ * window, its back buffer, which a swap may have emptied). 0 on success. */
+int pc_gfx_save_window(const char *path);
 void pc_gfx_shutdown(void);
 
 /* The window and the display (docs/port/GFX.md "Window and display"). Sizes are pixels (the drawable's, at any

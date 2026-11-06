@@ -30,7 +30,10 @@
  * - Help and About are read-only pages, made each time they are opened: Help from the bindings in effect, About from
  *   main's facts (pc_menu_set_about), the GL driver and the players.
  * - The Presets page sets several settings in one step (port/config/presets.c), each as if it were changed on its
- *   own page: applied where it can be, counted by Save. A preset is not a setting of its own. */
+ *   own page: applied where it can be, counted by Save. A preset is not a setting of its own.
+ * - In an online session the main page ends with two Online rows (pc_menu_set_online, port/app/netplay.c): the other
+ *   PC, and the link (round trip, this side's input delay, stalls, the last retrace whose state hashes agreed),
+ *   read each time the overlay is drawn. They can't be selected. */
 #define _GNU_SOURCE
 #include <math.h>
 #include <stdarg.h>
@@ -54,7 +57,9 @@ enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_MODS, P_SAV
  * The Saves page (docs/port/SAVES.md): I_SV_PLAYER the player shown, I_SV_ENTRY a profile or ghost (its page),
  * I_SV_ACTION an action (page: SVA_*). */
 typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT, I_PLAYER,
-               I_INFO, I_HEADING, I_OPEN, I_COPY, I_MOD, I_SV_PLAYER, I_SV_ENTRY, I_SV_ACTION, I_PRESET } Kind;
+               I_INFO, I_HEADING, I_OPEN, I_COPY, I_MOD, I_SV_PLAYER, I_SV_ENTRY, I_SV_ACTION, I_PRESET,
+               I_ONLINE } Kind;
+/* I_ONLINE: an online session's status row on the main page (page: 0 the other PC, 1 the link) */
 /* I_PRESET: a preset on the Presets page (page: which, in pc_presets' table) */
 /* I_MOD: a mod on the Mods page (page: which); I_SV_*: the Saves page */
 enum { SVA_IMPORT, SVA_EXPORT_MPK, SVA_OPEN, SVA_PIN, SVA_EXPORT, SVA_DELETE };
@@ -182,6 +187,20 @@ static Item *add(int page, Kind kind, const char *label, const char *section, co
     return it;
 }
 
+/* ---------------------------------------------------------------- an online session's rows */
+
+static void (*s_online)(char *peer, size_t peer_size, char *link, size_t link_size);
+
+/* The main page's Online rows, at its end: there while a session gives its status, else none. */
+static void online_rows(void)
+{
+    Page *p = &pages[P_MAIN];
+    while (p->n > 0 && p->item[p->n - 1].kind == I_ONLINE)
+        p->n--;
+    for (int k = 0; s_online && k < 2 && p->n < MAX_ITEMS; k++)
+        add(P_MAIN, I_ONLINE, k ? "Link" : "Online", NULL, NULL)->page = k;
+}
+
 /* ---------------------------------------------------------------- the Presets page (FRONTEND.md "Presets") */
 
 /* The main page's item and the page: a preset each (port/config/presets.c). */
@@ -225,6 +244,7 @@ static void build(void)
     add(P_MAIN, I_SAVE, "Save to rush2049pc.ini", NULL, NULL);
     add(P_MAIN, I_RESUME, "Resume", NULL, NULL)->desc = "Back to the game";
     add(P_MAIN, I_QUIT, "Quit", NULL, NULL)->desc = "Quit Rush 2049 (changes not saved are lost)";
+    online_rows();
 
     pages[P_HELP].title = "Help";
     pages[P_HELP].rows = help_rows;
@@ -462,7 +482,7 @@ static void status(uint32_t color, const char *fmt, ...)
 
 static int selectable(const Item *it)
 {
-    return it->kind != I_PLAYER && it->kind != I_HEADING;
+    return it->kind != I_PLAYER && it->kind != I_HEADING && it->kind != I_ONLINE;
 }
 
 static void fill_saves(void);
@@ -1185,6 +1205,7 @@ static void accept(Item *it)
         M.quit = 1;
         break;
     case I_PLAYER:
+    case I_ONLINE:
         break;
     case I_MOD:   /* pick it up: up and down move it in the order; again to put it down */
         M.moving = !M.moving;
@@ -1658,6 +1679,17 @@ void pc_menu_set_about(void (*fill)(PcAbout *about))
     s_about_fill = fill;
 }
 
+void pc_menu_set_online(void (*status)(char *peer, size_t peer_size, char *link, size_t link_size))
+{
+    s_online = status;
+    if (!pages[P_MAIN].title)
+        return;   /* build() adds them */
+    online_rows();
+    if (M.sel[P_MAIN] >= pages[P_MAIN].n)
+        M.sel[P_MAIN] = 0;
+    M.dirty = 1;
+}
+
 size_t pc_menu_about_text(char *out, size_t size)
 {
     size_t n = 0;
@@ -1795,6 +1827,7 @@ static void shown(const Item *it, char *out, size_t n)
     }
     case I_OPEN:
     case I_COPY:
+    case I_ONLINE:
         out[0] = 0;
         break;
     case I_MOD:
@@ -1929,6 +1962,14 @@ static void draw(int w, int h)
                          : changed(it) ? C_CHANGED : here ? C_WHITE : C_VALUE;
         if (here)
             rect(2, y, PANEL_W - 4, ROW_H, C_SELECT);
+        if (it->kind == I_ONLINE) {   /* the session's status, the full width */
+            char peer[160], link[160];
+            s_online(peer, sizeof peer, link, sizeof link);
+            snprintf(line, sizeof line, "%s", it->page ? link : peer);
+            fit(line, (PANEL_W - 16) / 6, 0);
+            text(8, y + 2, it->page ? C_VALUE : C_HINT, line);
+            continue;
+        }
         if (it->kind == I_PLAYER) {
             player_row(it->page, line, sizeof line, v, sizeof v);
             fit(line, 26, 0);
