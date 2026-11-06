@@ -36,6 +36,7 @@
 #include "pc_game_fps.h"
 #include "pc_start_menu.h"
 #include "pc_ghost_prompt.h"
+#include "pc_cheats.h"
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* pc_race_cars, its latch (port/config/race_cars.c) */
@@ -528,9 +529,36 @@ static void test_live(void)
     CHECK(pc_ghost_prompt_setting() && pc_menu_settings()->ghost_prompt == 1 && pc_ghost_prompt(0) == 1 &&
               pc_ghost_prompt(1) == 1,
           "on at once: every profile");
+    /* the cheat screen in the main menu and every cheat on it (game.cheats_menu, game.cheats_unlock, FRONTEND.md "The
+     * cheat screen"): at once, optionValid's slot 6 and the cheat screen's test of a cheat's flag */
+    act(PC_MENU_DOWN);
+    at("Game", "Cheats menu", "off", "the cheats menu: off");
+    CHECK(!pc_cheats_menu_setting() && pc_start_valid(6, 0) == 0 && pc_start_valid(6, 1) == 1,
+          "off: slot 6 as its flag (D_801164A1) says");
+    act(PC_MENU_RIGHT);
+    at("Game", "Cheats menu", "on", "the cheats menu: on");
+    CHECK(pc_cheats_menu_setting() && pc_menu_settings()->cheats_menu == 1 && pc_start_valid(6, 0) == 1 &&
+              pc_start_valid(5, 0) == 0 && pc_start_valid(7, 0) == 0 && pc_start_valid(8, 0) == 1 &&
+              pc_start_valid(4, 1) == 1 && !pc_cheat_active(0),
+          "on at once: slot 6 valid, the others as they were (8 PC SETUP's, on), the cheats as their flags");
+    act(PC_MENU_DOWN);
+    at("Game", "Unlock all cheats", "off", "unlock all cheats: off");
+    CHECK(!pc_cheats_unlock_setting() && pc_cheat_active(0) == 0 && pc_cheat_active(1) == 1,
+          "off: a cheat as its flag (gCheatActive) says");
+    act(PC_MENU_RIGHT);
+    at("Game", "Unlock all cheats", "on", "unlock all cheats: on");
+    CHECK(pc_cheats_unlock_setting() && pc_menu_settings()->cheats_unlock == 1 && pc_cheat_active(0) == 1 &&
+              pc_cheat_active(1) == 1 && pc_cheats_menu_setting(),
+          "on at once: every cheat available");
     act(PC_MENU_DOWN);
     at("Game", "Defaults", NULL, "the page's Defaults");
     act(PC_MENU_ACCEPT);
+    act(PC_MENU_UP);
+    at("Game", "Unlock all cheats", "off", "Defaults: unlock all cheats off");
+    CHECK(!pc_cheats_unlock_setting() && pc_cheat_active(0) == 0, "Defaults: a cheat as its flag again");
+    act(PC_MENU_UP);
+    at("Game", "Cheats menu", "off", "Defaults: the cheats menu off");
+    CHECK(!pc_cheats_menu_setting() && pc_start_valid(6, 0) == 0, "Defaults: slot 6 as its flag again");
     act(PC_MENU_UP);
     at("Game", "Ghost save prompt", "off", "Defaults: the ghost save prompt off");
     CHECK(!pc_ghost_prompt_setting() && pc_ghost_prompt(0) == 0, "Defaults: the developer's profile only again");

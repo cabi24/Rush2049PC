@@ -65,6 +65,8 @@ typedef struct PcSettings {
     int game_fps;                   /* game.frame_rate: 0 original (a frame every two retraces at most), 60 */
     int pc_setup;                   /* game.pc_setup: PC SETUP in the main menu opens the overlay (start_menu.c) */
     int ghost_prompt;               /* game.ghost_prompt: the ghost save prompt for every profile (ghost_prompt.c) */
+    int cheats_menu;                /* game.cheats_menu: the main menu's CHEATS option without its code (cheats.c) */
+    int cheats_unlock;              /* game.cheats_unlock: every cheat on the cheat screen available (cheats.c) */
     /* game.mods, mods_dir, mods_order and [mods] (docs/port/MODS.md) */
     int mods;                       /* use the mods folder's mods */
     char mods_dir[PC_CFG_PATH];     /* the mods folder; a name alone is in the data folder */

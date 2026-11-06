@@ -44,7 +44,7 @@ extern void func_800BEA3C(Color4,Color4);
 extern void func_800B7360(u8,u8,u8,u8);
 #ifdef TARGET_PC
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8 is PC SETUP while it
-   is on, its label the port's. */
+   is on, its label the port's; game.cheats_menu (port/config/cheats.c) makes slot 6, the cheat screen, valid. */
 int pc_start_valid(int index, int value);
 const char *pc_start_label(int index, const char *label);
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))

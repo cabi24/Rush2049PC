@@ -1,0 +1,15 @@
+# The main menu as on the N64, without game.cheats_menu and with no code entered (docs/port/FRONTEND.md "The cheat
+# screen in the main menu"): cheats_menu.press's five down pass the second to fifth options and come round to the
+# race (CHEATS, option slot 6, isn't valid), and A goes to the player screen (0x20), not the cheat screen.
+# until: 0x20:30
+# seconds: 60
+# expect: state=0x00000020: players 1, windows 1
+# check: tools/port/log_check.py cheats_hidden.log "game state 0x00000010" "game state 0x00000020" --not "game state 0x08000000" "rush2049pc: cheats:"
+5 A            # the controller pak warning (0x40000000)
+8 START        # the start prompt (4); the main menu from 8 s
+10 DOWN 0.1    # five down: the second to fifth options, then round to the race
+10.5 DOWN 0.1
+11 DOWN 0.1
+11.5 DOWN 0.1
+12 DOWN 0.1
+13 A           # the player screen (0x20)

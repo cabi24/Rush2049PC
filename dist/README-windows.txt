@@ -181,6 +181,16 @@ F1 > Game
                  shows only to a developer's profile name). With saves =
                  files it is a .r49ghost in the saves folder.
                  game.ghost_prompt
+  Cheats menu    off or on. On shows the game's own CHEATS option in the
+                 main menu, below VIDEO, without entering its button code
+                 first: it opens the cheat screen. At once.
+                 game.cheats_menu
+  Unlock all cheats
+                 off or on. On: every cheat on the cheat screen can be
+                 switched with Left and Right without entering its button
+                 code. Cheats switched on stay on until switched off or the
+                 game closes, so switch them off before turning this off.
+                 At once. game.cheats_unlock
 
 F1 > Mods, F1 > Saves: see Mods and Saves below.
 
