@@ -22,9 +22,10 @@ is wired in CI (`windows-replay`) and has not run yet.
   tap ([AUDIO.md](AUDIO.md) 11). Every synthetic path takes `--fast`'s course to the bit in paced mode, under the
   timing models, a loaded host, a hold and a stopped process too; 60.000 retraces a second of wall time (CTest
   `paced_same_*`, `paced_model_*`, `paced_realtime`, `paced_audio`, `paced_slow_host`, `paced_load`, `paced_hold`,
-  `paced_stop`, `ultra_selftest_paced`; the results in ULTRA.md 10). For the input gate and the time sync: a gate's
-  wait at the retrace is a lag the pacing catches up (up to two retraces) or re-bases (`pc_pace_info` says which);
-  `pc_pace_set_start`, `pc_pace_adjust_ns`, `pc_pace_shift_ns` (thread-safe) move the map.
+  `paced_stop`, `paced_gate`, `paced_latency`, `ultra_selftest_paced`; the results in ULTRA.md 10). The pads gate's
+  waits follow port/net's rule (over half a retrace late: re-based to the pads' arrival, never catching up), and
+  port/net's clock contract maps onto `pc_pace_set_start` and `pc_pace_adjust_ns` (`pc_port.h`). In paced mode
+  `audio.latency` and the audio device don't reach the game: the state hash is `--fast`'s with the null output.
 
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car

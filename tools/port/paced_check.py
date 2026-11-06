@@ -23,6 +23,9 @@ status line a second of game time, and --dump-audio. Then it checks:
                 tap's line at exit, the FIFO's level and the nudge of its converter, and no dry FIFO after the first
                 second (`audio: tap: the FIFO ran dry ... T s in`)
 
+--hash N[,W] gives both runs --log-hash and compares their state hashes too: the game's memory every Nth retrace
+(docs/port/LOCKSTEP.md 5).
+
 --model NAME=VALUE sets an environment variable for both runs (the timing models: RUSH_SIM_PRESENT_MS,
 RUSH_SIM_TIMER_STEP_US, RUSH_SIM_VSYNC_HZ, RUSH_SIM_GFX_MS); --env one for the paced run alone (RUSH_SIM_HOLD=VI:MS:
 the game held at retrace VI for MS of wall time, as the pause key holds it); --set a setting for the paced run
@@ -48,6 +51,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools/port"))
+import hash_compare  # noqa: E402
 import synth_compare  # noqa: E402
 import synth_paths  # noqa: E402
 
@@ -85,7 +89,8 @@ def run(args, mode, logs, env_extra, extra, stop=None):
     env["RUSH_STATE_EXACT"] = "1"
     cmd = [str(Path(args.exe).resolve()), "--rom", str(Path(args.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--no-pak", "--press-file", str(Path(args.script).resolve()), "--seconds", str(args.seconds),
-           "--status", "1", "--dump-audio", "run.wav"] + args.tail + extra
+           "--status", "1", "--dump-audio", "run.wav"] + args.tail + extra + \
+          (["--log-hash", args.hash] if args.hash else [])
     if args.until:
         cmd += ["--until-state", args.until]
     t0 = time.time()
@@ -132,6 +137,8 @@ def main():
     ap.add_argument("--max-rebases", type=int, default=2)
     ap.add_argument("--fifo-slack-ms", type=float, default=15, help="the tap's mean level within this of its target")
     ap.add_argument("--max-tail", type=int, default=32, help="subframes one WAV may have past the other's end")
+    ap.add_argument("--hash", metavar="N[,W]", help="--log-hash for both runs: the state hash compared at every Nth "
+                    "retrace too (the RDRAM window and own storage every W)")
     ap.add_argument("--logs", default=str(ROOT / "build/synth/paced"))
     ap.add_argument("--timeout", type=float, default=1200)
     args = ap.parse_args()
@@ -196,6 +203,17 @@ def main():
         i, x, y = d
         print(f"paced_check: the trace: DIFFERS from --fast's at event {i} of {len(ta)}\n"
               f"    {synth_compare.show(x)}\n    {synth_compare.show(y)}")
+
+    # the state hash (--hash): the game's memory, retrace by retrace (docs/port/LOCKSTEP.md 5)
+    if args.hash:
+        ha, hb = hash_compare.hashes(ref), hash_compare.hashes(out)
+        first, regions, common, only = hash_compare.compare(ha, hb)
+        good = bool(common) and first is None and not only
+        ok &= good
+        full = sum(1 for n in common if "window" in ha[n])
+        print(f"paced_check: the state hash: " + (f"the same at all {len(common)} retraces hashed ({full} with the "
+              f"window)" if first is None else f"DIFFERS from --fast's at retrace {first} ({', '.join(regions)})") +
+              (f"; {len(only)} retraces hashed by one run only" if only else "") + f": {'ok' if good else 'FAIL'}")
 
     # the sound the game pushed
     if ref_wav is None or wav is None:

@@ -114,6 +114,7 @@ void pc_pace_moved(uint64_t n64_ns, uint64_t now_wall);     /* sched.c: it moved
 void pc_pace_wake_late(uint64_t late_ns);                   /* sched.c: how late a timed wake came */
 int64_t pc_pace_retrace(uint32_t frame, uint64_t n64_ns);   /* loop.c: a retrace went out; how late (ns) */
 void pc_pace_hold(uint64_t wall_ns);             /* loop.c's hold(): the game was held that long */
+void pc_pace_stall(uint64_t n64_ns, uint64_t arrival);   /* loop.c: the pads gate held a retrace until arrival */
 int64_t pc_pace_lag_ns(void);                    /* how late the clock's last move came */
 void pc_pace_report(void);                       /* the exit line */
 void pc_pace_periodic(void);                     /* loop.c, once a second: with -v a line every 10 s */

@@ -66,7 +66,14 @@ uint64_t pc_pace_wall_ns(void);
  * the future, the game waits for it at its first deadline; set before pc_ultra_run, or at any time (a jump). */
 void pc_pace_set_start(uint64_t wall_ns);
 /* Time sync. Once: every deadline from now on ns later (+) or sooner (-). Lasting: every retrace that much longer
- * (+) or shorter (-) in wall time, until changed, capped at +-1 ms a retrace; returns what it set. */
+ * (+) or shorter (-) in wall time, until changed, capped at +-1 ms a retrace; returns what it set.
+ *
+ * port/net's clock contract (net.h net_pace_adjust_ns) maps onto these directly: deadline(0) = net_start_time ->
+ * pc_pace_set_start (both on pc_real_ns's clock; the session's now_ns is pc_real_ns); each retrace, after net_pads gave
+ * its pads, pc_pace_adjust_ns(net_pace_adjust_ns(s)) (0 .. 1 ms: the interval before the next retrace); and the
+ * re-base after a stall the loop does itself: when the pads gate held retrace n and its pads came more than half a
+ * retrace after n's wall time, n is taken as due at their arrival and n + 1 a retrace (and the adjustment) after it,
+ * never catching up; a smaller lateness stays on the grid. */
 void pc_pace_shift_ns(int64_t ns);
 int64_t pc_pace_adjust_ns(int64_t per_retrace);
 typedef struct {
@@ -78,6 +85,7 @@ typedef struct {
     int64_t lag_ns;            /* how late the clock's last move came after its wall time (0: on time) */
     int64_t adjust_ns;         /* pc_pace_adjust_ns's */
     uint32_t holds, rebases;   /* holds the map moved on for; lags of over two retraces re-based */
+    uint32_t stalls;           /* the pads gate's waits re-based (pads over half a retrace late) */
 } PcPaceInfo;
 void pc_pace_info(PcPaceInfo *out);
 

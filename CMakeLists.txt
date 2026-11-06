@@ -984,6 +984,19 @@ add_test(NAME paced_vsync COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py -
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/paced-vsync --seconds 30 --pacing display,120 --timer-step-us 0
     --paced)
 list(APPEND PACED_REALTIME_TESTS paced_desktop paced_vsync)
+# The pads gate (pc_lockstep.h) holding retraces at random for up to 40 ms of real time (RUSH_SIM_GATE, the paced run
+# only): the course and the state hash every retrace --fast's without it, the pads that came over half a retrace late
+# re-based by the network library's rule (paced_gate). And audio.latency 100 with SDL's disk driver fed from the tap,
+# against --fast's null output at 0: the AI's queue is the null output's whatever the device and the latency, so the
+# state hash every retrace (the RDRAM window every 60) is the same (paced_latency; with --fast the latency changes the
+# window from retrace 0, docs/port/LOCKSTEP.md).
+add_test(NAME paced_gate COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path race2p --env RUSH_SIM_GATE=7,0.05,40 --hash 1 --slowed
+    --logs ${CMAKE_BINARY_DIR}/synth/paced-gate)
+add_test(NAME paced_latency COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --path race --audio sdl --set audio.latency=100 --hash 1,60
+    --logs ${CMAKE_BINARY_DIR}/synth/paced-latency)
+list(APPEND PACED_REALTIME_TESTS paced_gate paced_latency)
 if(NOT WIN32)
     add_test(NAME paced_stop COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
         --rom ${SYNTH_ROM} --path race --stop 2@12 --held 2 --logs ${CMAKE_BINARY_DIR}/synth/paced-stop)

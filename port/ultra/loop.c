@@ -608,6 +608,7 @@ int pc_ultra_run(const PcRunOptions *opt)
     int render_only = 0;                   /* paced: the last wait ended for the presentation alone */
     uint64_t n64_deadline = 0;             /* paced: the N64 side's deadline the last N64 pass set */
     uint64_t render_wake = UINT64_MAX;     /* paced: when the presentation wants the loop next, wall ns */
+    uint32_t gate_waited = 0;              /* paced: the pads gate's retraces waited for, at the last retrace */
     if (paced)
         pc_pace_begin();
     const uint64_t vi_w = paced ? pc_pace_span(vi_ns) : vi_ns;   /* a retrace on the presentation's clock */
@@ -663,6 +664,13 @@ int pc_ultra_run(const PcRunOptions *opt)
          * are known the loop comes back here, the N64 clock where it is and nothing sent (docs/port/LOCKSTEP.md 2) */
         if (vi_due && pc_pads_gated() && pc_pads_gate(pc_frame))
             continue;
+        if (vi_due && paced && pc_pads_gated()) {   /* the gate held this retrace: the pacing's rule after it (pace.c) */
+            PcPadsStats gs;
+            pc_pads_stats(&gs);
+            if (gs.waited != gate_waited)
+                pc_pace_stall(next_vi, pc_real_ns());
+            gate_waited = gs.waited;
+        }
         if (vi_due) {
             snapshot();
             pc_hash_retrace(pc_frame);   /* the state hash, when on (docs/port/LOCKSTEP.md 5) */

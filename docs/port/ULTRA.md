@@ -579,8 +579,13 @@ N64 time then is due then), or by the session (`pc_pace_set_start`: N64 time 0 a
 |---|---|
 | a hold that says so: `hold()` (the pause key, focus lost, the F1 overlay) | the epoch later by the time held (`pc_pace_hold`); the retraces keep their N64 times (with `--fast` a hold puts the next retrace a period after the clock's moment, which moves the grid; paced mode doesn't) |
 | a lag: anything that holds the clock without saying so (a slow host, a stalled present, a debugger, a thread computing long, a gate at the retrace waiting for a remote player's input) | a move whose wall time has gone by is made at once. A lag over 2 ms and up to two retraces is caught up smoothly: a retrace comes no sooner than three quarters of a retrace after the last one came (12.5 ms apart, not a burst), the moves between them as soon as they can (from the last retrace's own time, so a delay of the loop's, a blocking swap, never adds to the next); with coarse waits (below) at once. A longer lag re-bases: the epoch moves so the move is due now. Counted, and the exit line says them |
+| the pads gate ([LOCKSTEP.md](LOCKSTEP.md): a retrace held until its pads are known, a remote player's in a session) | the network library's rule ([NETWORK.md](NETWORK.md) 1, `net_pace_adjust_ns`): pads that came more than half a retrace after the retrace's wall time re-base (`pc_pace_stall`: the retrace taken as due at their arrival, the next one a retrace after it, never catching up); a smaller lateness stays on the grid, caught up as any lag. The exit line counts both |
 | time sync (the network layer, any thread) | `pc_pace_adjust_ns(per_retrace)`: every retrace that much longer or shorter in wall time until changed, at most 1 ms; `pc_pace_shift_ns(ns)`: once. `pc_pace_info` gives the last retrace that went out, the wall time it was due and the time its move came, the next one's due time, the lag, the counts |
 | the vblank lock (`vb_lock`, FRAMERATE.md 2) | where real time moves the retraces to sit between two vblanks, paced mode shifts the epoch: the retraces are N64 time |
+
+**For a session** (port/net's clock contract, `net.h`): `pc_pace_set_start(net_start_time)` (both on `pc_real_ns`'s
+clock), then each retrace, once `net_pads` gave its pads, `pc_pace_adjust_ns(net_pace_adjust_ns(s))` (0 to 1 ms, the
+interval before the next retrace); the re-base after a stall is the loop's own (above).
 
 `RUSH_PACE_SPEED=S` (tests) runs N64 time S times as fast as the wall clock (`epoch + v / S`). `RUSH_SIM_HOLD=VI:MS`
 (tests, any mode) holds the game at retrace VI for MS of wall time, as the pause key does (`hold()`).
@@ -634,6 +639,8 @@ WAV compared, the exit lines judged).
 | `race` with SDL's disk driver fed from the tap (`paced_audio`) | the trace and the WAV `--fast`'s with the null output; the FIFO 35-67 ms, mean 50.9 against 50; the converter nudged -0.77% on average (the disk driver's slowness); no underrun, nothing dropped |
 | `race` with the timed waits in Windows' coarse steps (`paced_coarse`) | rocky and the Pi: 60.002 a second, none re-based, about 1860 retraces caught up from a step (the most 17.5 and 29.5 ms) |
 | the presentation's models, paced (`realtime_check.py --paced`): a 59.94 Hz vsync swap with frames between at display and 120, precise waits (`paced_vsync`); the Windows desktop's model, the vsync swap and coarse waits with the game's own frames (`paced_desktop`) | rocky: 60.000 a second, 2.6% and 2.5% of the vblanks lost to skipped ticks, 674 and 666 frames drawn between; the Pi: 60.000, 4.9% and 3.6% lost, 295 and 298 drawn (real time on the same Pi: 150 and 0); the desktop model 60.000 a second (rocky) |
+| `race2p` with the pads gate holding retraces at random, up to 40 ms (`RUSH_SIM_GATE=7,0.05,40`, the paced run alone; `paced_gate`) | the trace, the state hash at all 2763 retraces (47 with the window) and the sound `--fast`'s without the gate; the Pi: 146 retraces waited, 119 of them over half a retrace and re-based (2.8 s), 27 kept on the grid; the rest 60.000 a second |
+| `race` with `audio.latency = 100` and SDL's disk driver fed from the tap, against `--fast`'s null output at 0 (`paced_latency`) | the trace and the state hash every retrace, the window every 60, the same: the AI's queue doesn't depend on the latency or the device in paced mode (with `--fast` the same change makes the window differ from retrace 0) |
 | `--selftest --paced` (`ultra_selftest_paced`) | 40 of 40; a 2 s wait in 2 s of wall time |
 | a 10-minute run (`idle.press`, `--seconds 600`), RelWithDebInfo, rocky, SDL's disk driver fed from the tap, `-v` | 36,000 retraces in 600.000 s of wall time, 60.000 a second, none re-based or caught up (the most lag 6.0 ms); the tap's FIFO 31.4/50.0/64.1 ms (least/mean/most) against 50, nudged -0.66% on average (-1.86% to +0.03%), no underrun, nothing dropped |
 | default off: every path, the build before (f9a7177) against this one, RelWithDebInfo, 2 runs each | the same, every path |
@@ -644,8 +651,7 @@ work a retrace, the synthetic races headless (`race`, `race2p`, `race12`): rocky
 retraces at original, twice that). The retail
 cartridge's numbers stay off the repository.
 
-**Not done here.** The input gate at the retrace (`net-replay`) and the network layer's time sync (`port/net`) use
-the API above. The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
+**Not done here.** The session's wiring (`port/net` into the loop, NETWORK.md 10) uses the API above. The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
 them. While a hold stops the clock, port/input's UI timers that read `pc_host_ns()` (the overlay's key-capture
 timeout, menu repeat, a status line's fade, the cursor's hide) stand still too, as with `--fast`; a session's overlay
 won't hold the game, and otherwise they want a clock of their own. Without SDL's audio (headless builds) the tap is

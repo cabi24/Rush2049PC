@@ -59,8 +59,8 @@ static struct {
     uint32_t first_retrace;  /* the first retrace counted for the rate, and when it came */
     uint64_t first_w;
     uint32_t late;           /* retraces that came more than PACE_SMOOTH_NS late, caught up */
-    uint32_t holds, rebases;
-    uint64_t held_ns, rebased_ns;
+    uint32_t holds, rebases, stalls, stalls_small;
+    uint64_t held_ns, rebased_ns, stalled_ns;
     int64_t rebase_max;
     int64_t rebased_since;   /* the longest lag re-based since the last retrace */
     uint64_t wake_late;      /* how late the paced wait's timed wakes return (a decaying maximum) */
@@ -261,6 +261,25 @@ int64_t pc_pace_retrace(uint32_t frame, uint64_t n64_ns)
     return late;
 }
 
+/* loop.c: the pads gate (pc_lockstep.h) held retrace n, at N64 time n64_ns, until wall time arrival. The network
+ * library's rule (port/net/net.h net_pace_adjust_ns, docs/port/NETWORK.md 1): pads more than half a retrace after the
+ * retrace's wall time re-base, the retrace taken as due at their arrival and the next one a retrace after it (never
+ * catching up); a smaller lateness stays on the grid, caught up as any lag. */
+void pc_pace_stall(uint64_t n64_ns, uint64_t arrival)
+{
+    pthread_mutex_lock(&g_plock);
+    int64_t late = (int64_t)arrival - due_locked(n64_ns);
+    P.work_skip = 1;   /* the gate's wait isn't the host's work */
+    if (late > span(VI_NS) / 2) {
+        P.epoch += late;
+        P.stalls++;
+        P.stalled_ns += (uint64_t)late;
+    } else if (late > 0) {
+        P.stalls_small++;
+    }
+    pthread_mutex_unlock(&g_plock);
+}
+
 /* loop.c's hold(): the game was held for wall_ns; the map moves on by as much. */
 void pc_pace_hold(uint64_t wall_ns)
 {
@@ -327,6 +346,7 @@ void pc_pace_info(PcPaceInfo *out)
     out->adjust_ns = P.adjust;
     out->holds = P.holds;
     out->rebases = P.rebases;
+    out->stalls = P.stalls;
     pthread_mutex_unlock(&g_plock);
 }
 
@@ -377,7 +397,7 @@ void pc_pace_report(void)
     pthread_mutex_lock(&g_plock);
     uint32_t n = P.retrace - P.first_retrace;
     double wall = P.first_w && P.retrace_w > P.first_w ? (P.retrace_w - P.first_w) / 1e9 : 0;
-    double gaps = (P.held_ns + P.rebased_ns) / 1e9;
+    double gaps = (P.held_ns + P.rebased_ns + P.stalled_ns) / 1e9;
     double rate = wall > 0 ? n / wall : 0, paced = wall - gaps > 0 ? n / (wall - gaps) : 0;
     fprintf(stderr, "rush2049pc: paced: %u retraces in %.3f s of wall time, %.3f a second (%.3f without the %.3f s "
             "held or re-based); %u holds (%.3f s), %u re-based after a lag (%.3f s, the longest %.1f ms), %u retraces "
@@ -386,6 +406,9 @@ void pc_pace_report(void)
             n, wall, rate, paced, gaps, P.holds, P.held_ns / 1e9, P.rebases, P.rebased_ns / 1e9, P.rebase_max / 1e6,
             P.late, PACE_SMOOTH_NS / 1000000, P.lag_max / 1e6, (long long)P.adjust, P.adjusted / 1e6, P.shifts,
             P.shifted / 1e6);
+    if (P.stalls || P.stalls_small)
+        fprintf(stderr, "rush2049pc: paced: the pads gate: %u retraces' pads came over half a retrace late, re-based "
+                "(%.3f s); %u less late, kept on the grid\n", P.stalls, P.stalled_ns / 1e9, P.stalls_small);
     if (P.work_n) {   /* the headroom: what the host did a retrace (the N64 side and the presentation) */
         char work[256];
         work_line(work, sizeof work, P.work_hist, P.work_n, P.work_sum, P.work_max);
