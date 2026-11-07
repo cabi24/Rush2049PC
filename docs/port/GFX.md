@@ -644,7 +644,7 @@ its own player's view alone, across the frame, with that player's HUD at the fra
   game can't move them: their places are game state, and `pc_gfx_hud_dx` gives the game 0 in a session.
 - **A high frame rate** records the triangles with their context (the zoomed viewport, ys), and the queue's moved
   vertices, so frames between show the same view the same way; a recorded own view's viewport is not blended between
-  two frames.
+  two frames (`gfx.interp.own`).
 - **What it costs**: the other view's 3D isn't drawn, so less than the split screen; the game builds both lists as
   before.
 - **Tools.** `RUSH_GFX_VIEW_LOG=N` prints, for N graphics tasks, each queued 2D item's box, its view, its group and its
@@ -753,6 +753,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 | `parse` | the setting's text; `display` is 60 without a display |
 | `hudedges` | the race HUD at the screen's edges in 16:9: a frame between draws the HUD's rectangle where the nearer frame has it, as the frames drawn directly do with `edges` and with `centered`, and further left with `edges` |
 | `depthclear` | B far, C near, D far again, with no tick between C's present and D's task: D's depth clear (through the last target, the z buffer as the color image) reaches the depth buffer, so D's object shows. Until 2026-10-28 the present's copy left another framebuffer bound for drawing while the renderer took C's as still bound, and from the second present on that clear went nowhere: with a high frame rate a frame could keep the last one's depth when no frame was shown between |
+| `own` | two views moving their own ways, each shown alone across the frame (`net.view = own`): a frame between is that view alone at the moment, as drawn directly, and as far from the split screen's picture |
 | `gfx.interp.all.*` | every case at 2x, in 16:9, on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 ### The overlay
