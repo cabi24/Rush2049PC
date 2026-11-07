@@ -30,6 +30,7 @@ import argparse
 import hashlib
 import os
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -389,7 +390,10 @@ def mode_replay(a):
     if len(wcmds) != 1:
         say(f"replay: watching restarted {len(wcmds)} times, not once:\n" + "\n".join(tw.splitlines()[-10:]))
         return 1
-    bad |= check_cmd("watch", wcmds[0], [f"--net-return --replay-inputs {log} --paced"], ["--press-file"])
+    # the line is quoted as a POSIX shell takes it (pc_online_quote_sh, the same plain characters as shlex.quote's): a
+    # Windows path, its backslashes, in single quotes
+    bad |= check_cmd("watch", wcmds[0], [f"--net-return --replay-inputs {shlex.quote(str(log))} --paced"],
+                     ["--press-file"])
     b, nw = same_hashes("the session and its replay watched from the page (paced)", th, wp[1])
     bad |= b
     if "virtual clock paced" not in wp[1] and "paced" not in wp[1]:
