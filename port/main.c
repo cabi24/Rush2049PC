@@ -28,6 +28,7 @@
 #include "pc_cheats.h"
 #include "pc_game_types.h"
 #include "pc_lockstep.h"
+#include "netmenu.h"
 #include "netplay.h"
 #include "ultra.h"
 
@@ -98,6 +99,9 @@ static void usage(FILE *f)
             "  --net-code CODE     a join code both players give (net.code): only who knows it can join\n"
             "  --net-timeout S     end a session after S seconds without the other PC (15); --net-bind ADDR: the\n"
             "                      local address its socket uses (default any)\n"
+            "  --net-return        what the F1 Online page's restart adds (docs/port/NETPLAY.md 13): when its session\n"
+            "                      ends, or doesn't start, the program starts again without it; it and the options after\n"
+            "                      it are that restart's own\n"
             "  --press-via K[:T]   the scripts through SDL as live input (tests): controller or joystick (virtual\n"
             "                      ones, plugged in at T seconds), or keyboard; with a window or --headless\n"
             "  --pak PATH          controller pak image for controller 1 (default rush2049pc.mpk in the data\n"
@@ -989,6 +993,16 @@ static int session_handshake(PcSettings *cfg, const PcAppDirs *dirs, const PcSet
     return pc_net_paks(window);
 }
 
+/* An online session that ends before the game: its end said and shown (pc_net_finish); a run the F1 Online page
+ * started then goes back to the game (port/app/netmenu.c). The exit code. */
+static int session_end_early(int r, int window)
+{
+    int code = pc_net_finish(r == PC_NET_CANCELLED ? 0 : r, window);
+    if (pc_net_role())
+        pc_net_menu_session_end(0);
+    return code;
+}
+
 #define MAX_OVERRIDES 64
 
 #ifdef SIGHUP
@@ -1010,7 +1024,7 @@ static int rush_main(int argc, char **argv)
 #else
     int headless = !getenv("DISPLAY") && !getenv("WAYLAND_DISPLAY");
 #endif
-    int no_rom = 0, selftest = 0, use_config = 1;
+    int no_rom = 0, selftest = 0, use_config = 1, net_return = 0, replay_session = 0;
     int print_config = 0, fast = 0;
     /* paced mode (docs/port/ULTRA.md 10): a mode a session turns on, not a setting; RUSH_PACED=1 for the tests */
     int paced = getenv("RUSH_PACED") && strcmp(getenv("RUSH_PACED"), "") && strcmp(getenv("RUSH_PACED"), "0");
@@ -1192,6 +1206,8 @@ static int rush_main(int argc, char **argv)
             }
             g_net.timeout_ms = (int)(sec * 1000 + 0.5);
         }
+        else if (!strcmp(a, "--net-return"))   /* the F1 Online page's restart (port/app/netmenu.c) */
+            net_return = 1;
         else if (!strcmp(a, "--press-via")) {
             if (pc_input_set_via(ARG()) != 0)
                 return 2;
@@ -1280,6 +1296,7 @@ static int rush_main(int argc, char **argv)
 #undef ARG
     }
 
+    pc_net_menu_args(argc, argv, net_return);   /* the F1 Online page's restart: this run's options */
     /* A press file's `pak on|off` sits between the settings file and the command line. */
     PcSettingValue *first = &over[1];
     if (pc_input_script_pak >= 0) {
@@ -1317,6 +1334,19 @@ static int rush_main(int argc, char **argv)
         return 0;
     }
 
+    /* An online session's input log replayed (docs/port/NETPLAY.md 13): the session's settings the game reads, its
+     * rules and its paks (in memory), as the session ran, so --replay-inputs takes it as it is. */
+    if (g_ls.replay && !g_net.role && !selftest) {
+        char why[2 * PC_CFG_PATH];
+        replay_session = pc_replay_session(g_ls.replay, &cfg, why, sizeof why);
+        if (replay_session < 0) {
+            fprintf(stderr, "rush2049pc: --replay-inputs: %s\n", why);
+            pc_app_alert(!headless, "Rush 2049 PC: replay", why);
+            return 2;
+        }
+        if (replay_session)
+            g_session_rules = 1;
+    }
     pc_os_set_expansion_pak(cfg.expansion_pak);
     /* The ROM: from the command line as given, else game.rom by the lookup order (port/app/paths.c). Read before the
      * RDRAM window is mapped: the mods (docs/port/MODS.md) need the cartridge's files to say how much memory they
@@ -1339,7 +1369,9 @@ static int rush_main(int argc, char **argv)
                 paced = 1;   /* the session's clock: --fast's course at the pace of real time (ULTRA.md 10) */
             g_net.paced = paced;
             if ((r = session_handshake(&cfg, &dirs, over, nover, !headless, no_rom, &memory)) != 0)
-                return pc_net_finish(r == PC_NET_CANCELLED ? 0 : r, !headless);
+                return session_end_early(r, !headless);
+            if (pc_net_role() == PC_NET_GUEST)   /* the host answered: first in the page's recent hosts */
+                pc_net_menu_remember(&cfg, g_net.join);
             fprintf(stderr, "rush2049pc: online: the virtual clock %s\n", paced ? "paced to real time"
                     : "unpaced (--fast): as fast as both PCs and the network allow");
         }
@@ -1494,8 +1526,8 @@ static int rush_main(int argc, char **argv)
         int old = pc_app_pak_file(&dirs, cfg.pak_file[ch], from_command_line(over, nover, "game", keys[ch]),
                                   pak_path[ch], sizeof pak_path[ch]);
         snprintf(g_saves_mpk[ch], sizeof g_saves_mpk[ch], "%s", pak_path[ch]);
-        if (pc_net_role())
-            continue;   /* an online session's paks are copies in memory (pc_net_install_paks) */
+        if (pc_net_role() || replay_session)
+            continue;   /* an online session's paks (or its replay's) are copies in memory (pc_net_install_paks) */
         if (cfg.saves[ch] == PC_CFG_SAVES_FILES) {
             /* game.saves = files (docs/port/SAVES.md): the folder, read now when the pak is in at start (else when
              * it is first chosen); the .mpk is only read, the first time, to import its saves */
@@ -1540,7 +1572,7 @@ static int rush_main(int argc, char **argv)
         if (r == 0)
             r = pc_net_paks(!headless);
         if (r)
-            return pc_net_finish(r == PC_NET_CANCELLED ? 0 : r, !headless);
+            return session_end_early(r, !headless);
     }
     if (pc_net_role())
         pc_net_starting();   /* who joined, over the cleared window until the first retrace */
@@ -1559,6 +1591,14 @@ static int rush_main(int argc, char **argv)
         pc_app_mkdirs(cfg.screenshot_dir);   /* F12's folder */
     if (pc_input_init(&cfg) != 0 && !headless)
         fprintf(stderr, "rush2049pc: no window: scripted input only\n");
+    {   /* the F1 Online page's side (port/app/netmenu.c): host, join and watch restart the program */
+        char build[160], sha[48] = "";
+        build_id(build, sizeof build, 0);
+        if (!no_rom)
+            rom_identity(sha, sizeof sha);
+        pc_net_menu_install(pc_net_role() ? PC_NET_MENU_SESSION : g_ls.replay ? PC_NET_MENU_REPLAY : PC_NET_MENU_OFFLINE,
+                            dirs.data, &cfg, no_rom ? "" : pc_app_rom_path(NULL), build, sha);
+    }
     for (int ch = 0; ch < 4; ch++)   /* game.saves = files: the pak built from the folder (docs/port/SAVES.md) */
         if (g_saves_dir[ch][0])
             pc_si_set_pak_store(ch, g_saves_dir[ch]);
@@ -1566,6 +1606,9 @@ static int rush_main(int argc, char **argv)
     if (pc_net_role()) {   /* port 1 the host's pak, port 2 the guest's, in memory only (port/app/netplay.c) */
         pc_si_init(NULL, PC_PAK_NONE);
         pc_net_install_paks(&cfg);
+    } else if (replay_session) {   /* a session's input log: its paks, in memory only (port/app/netmenu.c) */
+        pc_si_init(NULL, PC_PAK_NONE);
+        pc_replay_session_paks();
     } else {
         pc_si_init(pak_path[0], cfg.pak[0]);   /* PC_CFG_PAK_* = PC_PAK_* */
         for (int ch = 1; ch < 4; ch++) {
@@ -1575,7 +1618,7 @@ static int rush_main(int argc, char **argv)
     }
     /* Paced mode, and any online session: the AI's queue the null output's on the N64 clock, a device fed from a tap
      * (AUDIO.md 11): the device's pulls never decide when the game's audio thread runs, so two PCs' games stay one. */
-    if (paced || pc_net_role())
+    if (paced || pc_net_role() || replay_session)   /* a session's replay: the session's audio queue */
         pc_audio_set_paced(g_audio_paced = 1);
     if (pc_audio_init(cfg.audio, dump_audio) != 0)
         fprintf(stderr, "rush2049pc: audio output falls back to null\n");
@@ -1615,7 +1658,7 @@ static int rush_main(int argc, char **argv)
     if (g_ls.record || g_ls.replay || pc_net_role()) {
         g_ls.must_match = must_match_text(&cfg);   /* a session's: with its paks in */
         if (!g_ls.must_match)
-            return pc_net_finish(1, !headless);
+            return session_end_early(1, !headless);
     }
     if (pc_net_role()) {   /* the pads source over the session, the hash, its input log (port/app/netplay.h, 5) */
         char quit[PC_CFG_BIND], *text = (char *)g_ls.must_match;
@@ -1625,21 +1668,23 @@ static int rush_main(int argc, char **argv)
         if (g_ls.must_match != text)   /* the session's input log header took its place (with the text in it) */
             free(text);
         if (r)
-            return pc_net_finish(r, !headless);
+            return session_end_early(r, !headless);
     }
     {
         int ls = pc_lockstep_setup(&g_ls);   /* input record, replay and delay (docs/port/LOCKSTEP.md) */
         if (ls)
-            return pc_net_finish(ls, !headless);
+            return session_end_early(ls, !headless);
     }
     if (pc_net_role()) {   /* both PCs ready: the start (port/app/netplay.h, 6) */
         int r = pc_net_start(!headless);
         if (r)
-            return pc_net_finish(r == PC_NET_CANCELLED ? 0 : r, !headless);
+            return session_end_early(r, !headless);
     }
     pc_os_boot(n64_main, NULL, "boot");
     int code = pc_ultra_run(&run);
     code = pc_net_finish(code, !headless);   /* an online session: BYE, why it ended, its numbers */
+    if (pc_net_role())
+        pc_net_menu_session_end(1);   /* a run the F1 Online page started: back to the game */
     pc_lockstep_finish();
     pc_pools_report();   /* port/ultra/pools.c: the pools' high-water marks (docs/port/MORECARS.md 8) */
     pc_heap_report();    /* port/ultra/heap.c: the heap's (docs/port/MEMORY.md 4) */
@@ -1653,7 +1698,9 @@ static int rush_main(int argc, char **argv)
     pc_input_shutdown();
     pc_audio_shutdown();
     pc_gfx_shutdown();
+    pc_net_menu_restart_say();   /* the F1 Online page's restart: its command line, in the log */
     pc_app_finish(code);
+    code = pc_net_menu_restart(code);   /* exec (Linux) or CreateProcess (Windows): only when one was asked for */
     fflush(NULL);
     _exit(code);   /* the N64 threads are still running game code: no atexit handlers */
 }
@@ -1662,6 +1709,12 @@ int main(int argc, char **argv)
 {
     pc_app_startup();   /* Windows: the console (or none), the timer period (port/app/startup.c) */
     int code = rush_main(argc, argv);   /* returns only when it stops early: an error, --help, --print-config... */
+    if (pc_net_menu_restart_asked()) {   /* a session the F1 Online page started ended before the game */
+        pc_input_shutdown();
+        pc_audio_shutdown();
+        pc_gfx_shutdown();
+        pc_net_menu_restart_say();
+    }
     pc_app_finish(code);
-    return code;
+    return pc_net_menu_restart(code);
 }

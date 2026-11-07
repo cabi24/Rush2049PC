@@ -945,7 +945,7 @@ static void test_menu(void)
     /* the key that closes it doesn't reach the game while it is still held */
     tap(SDL_SCANCODE_F1);
     menu_at("Settings", "Keyboard", NULL, "reopened");
-    for (int i = 0; i < 9; i++)   /* past Controllers, Game, Mods, Saves, Help, About, Presets and Save */
+    for (int i = 0; i < 10; i++)   /* past Controllers, Game, Mods, Saves, Online, Help, About, Presets and Save */
         tap(SDL_SCANCODE_DOWN);
     menu_at("Settings", "Resume", NULL, "Resume");
     key(SDL_SCANCODE_RETURN, 1, 0);
@@ -979,9 +979,9 @@ static void test_menu(void)
     button(&pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK, 0);
     pump();
     menu_at("Settings", "Resume", NULL, "where it was");
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < 9; i++)
         press(&pad, SDL_CONTROLLER_BUTTON_DPAD_UP);
-    menu_at("Settings", "Controllers", NULL, "D-pad up eight times");
+    menu_at("Settings", "Controllers", NULL, "D-pad up nine times");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
     menu_at("Controllers (all players)", "A", "a, righttrigger", "A opens the page");
     press(&pad, SDL_CONTROLLER_BUTTON_A);
@@ -1180,8 +1180,8 @@ static void test_mouse(void)
 
     /* About: Copy puts the page on the clipboard (SDL keeps one on the offscreen driver); no Open without a desktop */
     tap(SDL_SCANCODE_F1);
-    mouse(SDL_MOUSEMOTION, ROW_X, ROW_Y(8), 0);   /* About, the main page's ninth row */
-    click(ROW_X, ROW_Y(8), SDL_BUTTON_LEFT);
+    mouse(SDL_MOUSEMOTION, ROW_X, ROW_Y(9), 0);   /* About, the main page's tenth row */
+    click(ROW_X, ROW_Y(9), SDL_BUTTON_LEFT);
     menu_at("About", "Version", "unknown", "About");
     tap(SDL_SCANCODE_UP);
     menu_at("About", "Copy to the clipboard", "", "its last item: Copy, no Open (offscreen)");
@@ -1198,15 +1198,85 @@ static void test_mouse(void)
     stop();
 }
 
+/* ---------------------------------------------------------------- the Online page's text (NETPLAY.md 13) */
+
+static void typed(const char *text)
+{
+    SDL_Event e;
+    SDL_zero(e);
+    e.type = SDL_TEXTINPUT;
+    e.text.windowID = SDL_GetWindowID(g_win);
+    snprintf(e.text.text, sizeof e.text.text, "%s", text);
+    SDL_PushEvent(&e);
+    pump();
+}
+
+/* What is typed reaches the Join page's address through SDL's text input, which is on only while it is typed in. */
+static void test_text(void)
+{
+    PcSettings s;
+    pc_settings_defaults(&s);
+    if (start(&s) != 0) {
+        g_fail++;
+        return;
+    }
+    show_frame();
+    CHECK(!SDL_IsTextInputActive(), "no text input over the game");
+    tap(SDL_SCANCODE_F1);
+    for (int i = 0; i < 7; i++)
+        tap(SDL_SCANCODE_DOWN);
+    tap(SDL_SCANCODE_RETURN);
+    tap(SDL_SCANCODE_DOWN);
+    tap(SDL_SCANCODE_RETURN);
+    menu_at("Join a race", "Address", "-", "the Join page");
+    typed("x");
+    menu_at("Join a race", "Address", "-", "text before Enter goes nowhere");
+    tap(SDL_SCANCODE_RETURN);
+    CHECK(pc_menu_editing() && SDL_IsTextInputActive(), "Enter: typing, SDL's text input on");
+    typed("my-pc");
+    typed(".ts");
+    menu_at("Join a race", "Address", "my-pc.ts_", "typed");
+    key(SDL_SCANCODE_BACKSPACE, 1, 0);
+    pump();
+    key(SDL_SCANCODE_BACKSPACE, 0, 0);
+    tap(SDL_SCANCODE_BACKSPACE);
+    tap(SDL_SCANCODE_BACKSPACE);
+    menu_at("Join a race", "Address", "my-pc_", "Backspace three times");
+    tap(SDL_SCANCODE_A);   /* a key down itself: no action (its letter comes as text) */
+    menu_at("Join a race", "Address", "my-pc_", "a key's own event types nothing (the text comes as text)");
+    typed("\xc3\xa9");
+    CHECK(!strcmp(pc_menu_message(), "Letters, digits and plain punctuation only"), "not ASCII: '%s'",
+          pc_menu_message());
+    SDL_SetClipboardText(":24050\nsecond line");
+    key(SDL_SCANCODE_V, 1, KMOD_LCTRL);
+    key(SDL_SCANCODE_V, 0, KMOD_LCTRL);
+    pump();
+    menu_at("Join a race", "Address", "my-pc:24050_", "Ctrl+V: the clipboard's first line");
+    tap(SDL_SCANCODE_RETURN);
+    CHECK(!pc_menu_editing() && !SDL_IsTextInputActive() && pc_menu_is_open(), "Enter: done, text input off");
+    menu_at("Join a race", "Address", "my-pc:24050", "kept");
+    tap(SDL_SCANCODE_RETURN);
+    typed("zz");
+    tap(SDL_SCANCODE_ESCAPE);
+    menu_at("Join a race", "Address", "my-pc:24050", "Escape: as it was");
+    CHECK(pc_menu_is_open() && !pc_menu_editing(), "and the overlay stays");
+    tap(SDL_SCANCODE_RETURN);
+    typed("q");
+    tap(SDL_SCANCODE_F1);
+    CHECK(!pc_menu_is_open() && !SDL_IsTextInputActive(), "F1 closes it, typing ended");
+    stop();
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"keyboard", test_keyboard}, {"hotkeys", test_hotkeys}, {"focus", test_focus},
         {"controller", test_controller}, {"hotplug", test_hotplug}, {"generic", test_generic},
-        {"rumble", test_rumble}, {"menu", test_menu}, {"mouse", test_mouse}, {"script", test_script}};
+        {"rumble", test_rumble}, {"menu", test_menu}, {"mouse", test_mouse}, {"text", test_text},
+        {"script", test_script}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|generic|rumble|menu|script|"
-                        "all DIR\n");
+        fprintf(stderr, "usage: frontend_sdl_test keyboard|hotkeys|focus|controller|hotplug|generic|rumble|menu|mouse|"
+                        "text|script|all DIR\n");
         return 2;
     }
     g_dir = argv[2];

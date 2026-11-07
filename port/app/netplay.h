@@ -94,6 +94,8 @@ int pc_net_finish(int code, int window);
 
 /* The F1 overlay's Online rows while a session runs (pc_menu_set_online): the peer, and the link's numbers. */
 void pc_net_status(char *peer, size_t peer_size, char *link, size_t link_size);
+/* After pc_net_finish: 1 when the session ended by this side's own choice (Esc, the window, the quit key, a limit). */
+int pc_net_end_local(void);
 
 /* port/app/netwait.c, netplay.c's: the host's waiting screen (open, its status line, the events pumped: 1 when the
  * player cancelled, drawn again, closed), and before the game the window's events looked at, not taken (1: Esc or
