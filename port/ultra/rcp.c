@@ -349,7 +349,8 @@ int pc_rcp_service(uint64_t now, uint64_t *next)
         if (t->type == M_GFXTASK) {
             if (pc_rcp_gfx_tasks++ == 0)
                 report_first_gfx(t);
-            pc_gfx_run_dl(t->data_ptr);
+            if (!pc_catchup())   /* a rejoin's replay draws nothing: the renderer only reads the game's memory */
+                pc_gfx_run_dl(t->data_ptr);
             pc_os_event(OS_EVENT_SP);
             if (g_sim_gfx.ns && g_sim_gfx.n < MAX_TASKS) {   /* RUSH_SIM_GFX_MS */
                 g_sim_gfx.due[g_sim_gfx.n++] = now + g_sim_gfx.ns;

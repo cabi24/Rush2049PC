@@ -409,20 +409,36 @@ game: the other player would wait. While F1 is open your player gets no
 input; its Online page starts with two rows: the other PC, the round
 trip (RTT), your input delay, how often the game waited for the other PC
 (stalls) and the last retrace both games checked alike ("hash ok at").
-When the friend's PC stops sending, the game waits and says so; Escape
-(or closing the window) leaves, and after 15 s the session ends by
-itself. The log has the session's numbers: the round trip, the delay, how
-often the game waited.
+When the friend's PC stops sending, the game waits and says so, with
+how long it has waited and how long it will: up to 5 minutes (net.rejoin
+in rush2049pc.ini; off: 15 s, as before). If their connection comes back
+in that time, the race goes on where it was. Escape leaves for good and
+ends the session for both. The log has the session's numbers: the round
+trip, the delay, how often the game waited.
+
+Rejoining. If a player's game is gone (it crashed, its window was
+closed, the PC restarted), that player starts it again the same way,
+within those 5 minutes: ./join-online.sh with the same address, or
+./host-online.sh. The game finds the session it was in (a note in
+the netplay folder), gets the race so far from the other PC, replays it
+quickly with nothing but its progress on the screen, and plays on from
+where the other player waits; the other player's screen shows the
+progress too. Closing the window is not leaving: the other player waits
+for you to come back, and can end it with Escape.
 
 Each session's inputs are kept in the netplay folder (in the data folder:
 F1 > About > Open the data folder), and are a replay of it: F1 > Online >
 Watch a replay plays one again in real time, the same game to the last
 detail (Keep this replay copies it into the replays folder). By hand:
 --replay-inputs FILE, with the same version, ROM and mods. If the two
-games ever differ ("out of sync"), both stop and write a report there:
-attach both PCs' logs and netplay files to a bug report. After a session
-started from F1 > Online, its log is rush2049pc.old.log (the game's
-restart afterwards has rush2049pc.log).
+games ever differ ("out of sync"), the guest's game starts again by
+itself, rebuilds the race the same way from the host's, and the session
+goes on (net.recover = on, the default; at most 3 times a session). If it
+differs again at the same moment, it is a fault in the program, not a
+fluke: both stop and write a report there: attach both PCs' logs and
+netplay files to a bug report. After a session started from F1 > Online,
+its log is rush2049pc.old.log (the game's restart afterwards has
+rush2049pc.log).
 
 
 Reporting a bug

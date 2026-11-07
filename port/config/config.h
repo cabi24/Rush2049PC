@@ -137,6 +137,8 @@ typedef struct PcSettings {
     char net_code[64];              /* the join code; "" for none */
     char net_recent[PC_CFG_PATH];   /* the hosts joined last, the last first (the F1 Online page's; pc_online.h) */
     int net_view;                   /* PC_GFX_VIEW_*: what an online race shows on this PC (own: its player's view) */
+    int net_rejoin;                 /* the rejoin window, seconds (30-3600); 0: off (a 15 s silence ends the session) */
+    int net_recover;                /* a desync: the guest rebuilds by replay and the session goes on */
 
     /* Not in the file: where it was read from ("" for none) and its directory; where the settings overlay saves
      * (pc_settings_resolve: the file read, the --config path, or the located one; "" for nowhere). */

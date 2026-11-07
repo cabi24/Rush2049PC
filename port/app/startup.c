@@ -286,6 +286,51 @@ static void process_settings(void)
 }
 #endif
 
+/* The program again, with the same arguments, in place of this run (an online session's guest rebuilding its game
+ * after a desync, docs/port/NETPLAY.md 15). POSIX: execv of this executable (/proc/self/exe on Linux), the same
+ * process ID and standard streams; it returns only when that fails. Windows has no exec that keeps the process: the
+ * program starts again as a child with this one's command line and standard handles (a console, a launcher's or a
+ * test's pipes: where its output went goes the child's), and this one waits for it and returns its exit code. Called
+ * at the very end, the window, the sound and the log closed. */
+int pc_app_reexec(int argc, char **argv)
+{
+    (void)argc;
+    fprintf(stderr, "rush2049pc: starting again (the same command)\n");
+    fflush(NULL);
+#ifdef _WIN32
+    STARTUPINFOW si;
+    PROCESS_INFORMATION pi;
+    DWORD code = 1;
+    memset(&si, 0, sizeof si);
+    si.cb = sizeof si;
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    for (int i = 0; i < 3; i++) {   /* inheritable, so the child has them (a console's or a pipe's) */
+        HANDLE h = i == 0 ? si.hStdInput : i == 1 ? si.hStdOutput : si.hStdError;
+        if (h && h != INVALID_HANDLE_VALUE)
+            SetHandleInformation(h, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    }
+    if (!CreateProcessW(NULL, GetCommandLineW(), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+        fprintf(stderr, "rush2049pc: couldn't start the program again (error %lu)\n", (unsigned long)GetLastError());
+        return 1;
+    }
+    CloseHandle(pi.hThread);
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    GetExitCodeProcess(pi.hProcess, &code);
+    CloseHandle(pi.hProcess);
+    return (int)code;
+#else
+#ifdef __linux__
+    execv("/proc/self/exe", argv);
+#endif
+    execvp(argv[0], argv);
+    fprintf(stderr, "rush2049pc: couldn't start the program again: %s\n", strerror(errno));
+    return 1;
+#endif
+}
+
 void pc_app_startup(void)
 {
     const char *e = getenv("RUSH2049_CONSOLE");

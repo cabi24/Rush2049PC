@@ -271,10 +271,16 @@ void pcgfx_sdl_swap(void) {
 
 /* port/input's handler (pc_gfx_set_event_hook): every event goes to it first, so this is the only event loop. */
 static int (*s_hook)(const void *sdl_event);
+static int s_closed;   /* pc_gfx_window_closed */
 
 int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event)) {
     s_hook = hook;
     return s_win != NULL ? 0 : -1;
+}
+
+/* The window was closed (or the system asked the program to end: SDL_QUIT), as against the quit key. */
+int pc_gfx_window_closed(void) {
+    return s_closed;
 }
 
 int pcgfx_sdl_poll(void) {
@@ -284,7 +290,7 @@ int pcgfx_sdl_poll(void) {
         if (s_hook != NULL && s_hook(&e) != 0)
             quit = 1;
         if (e.type == SDL_QUIT || (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE))
-            quit = 1;
+            quit = s_closed = 1;
         if (e.type == SDL_WINDOWEVENT && (e.window.event == SDL_WINDOWEVENT_MOVED ||
                                           e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)) {
             note_geometry();

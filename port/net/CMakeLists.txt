@@ -14,6 +14,9 @@
 #   net_loopback_<model>     two processes (net_peer) over UDP on 127.0.0.1 in real time (realtime)
 #   net_desync, net_disconnect, net_bye, net_sigstop   the same two processes: a desync, a killed peer, BYE, a
 #                            stopped process (Linux)
+#   net_rejoin, net_rejoin_host, net_outage, net_recover, net_recover_repeat   rejoins (docs/port/NETWORK.md 12): a
+#                            killed guest (host) started again rejoins and replays the log; a 20 s outage; a desync
+#                            rebuilt from, and one that repeats
 #
 # rush2049pc links pcnet: port/app/netplay.c attaches the game to it (docs/port/NETPLAY.md "Status").
 cmake_minimum_required(VERSION 3.20)
@@ -87,4 +90,9 @@ if(PC_PYTHON)
         add_test(NAME net_sigstop COMMAND ${PC_NET_CHECK} sigstop)
         set_tests_properties(net_sigstop PROPERTIES TIMEOUT 120 RUN_SERIAL TRUE LABELS realtime)
     endif()
+    foreach(c rejoin rejoin-host outage recover recover-repeat)
+        string(REPLACE "-" "_" t ${c})
+        add_test(NAME net_${t} COMMAND ${PC_NET_CHECK} ${c})
+        set_tests_properties(net_${t} PROPERTIES TIMEOUT 240 RUN_SERIAL TRUE LABELS realtime)
+    endforeach()
 endif()

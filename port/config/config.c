@@ -180,6 +180,7 @@ static const char *const cars_choices[] = {"original", NULL};          /* 0: the
 static const char *const memory_choices[] = {"original", NULL};        /* 0: the N64's 8 MiB (MEMORY.md) */
 static const char *const net_delay_choices[] = {"auto", NULL};         /* 0: from the round trip (NETPLAY.md 11.2) */
 static const char *const net_view_choices[] = {"split", "own", NULL};  /* PC_GFX_VIEW_* (NETPLAY.md 14) */
+static const char *const net_rejoin_choices[] = {"off", NULL};         /* 0: no rejoin, a 15 s silence ends (NETPLAY.md 15) */
 static const char *const draw_choices[] = {"original", "far", "max", NULL};    /* PC_DRAW_* */
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
@@ -411,6 +412,13 @@ static const Item items[] = {
      "own (only this PC's player's view, filling the window, with that player's HUD at the screen's edges; the host "
      "is player 1, the guest player 2). Each player chooses their own: it changes only what is drawn. A game on one "
      "PC is always split screen. At once."},
+    {"net", "rejoin", T_INT, F(net_rejoin), 30, 3600, net_rejoin_choices, "300",
+     "Seconds an online session waits for a player whose connection or game is gone (a crash, a closed window, a "
+     "reboot): starting the same \"Host\" or \"Join online race\" again within them rejoins the race where it is, "
+     "rebuilt by replay. off: a 15 s silence ends the session, as before."},
+    {"net", "recover", T_BOOL, F(net_recover), 0, 0, NULL, "on",
+     "When the two games go out of sync, the guest's game starts again and rebuilds the race by replaying the host's "
+     "log, and the session goes on; off: a desync ends the session with its report."},
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)

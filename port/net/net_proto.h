@@ -12,7 +12,7 @@
 #define NET_MAGIC1 '2'
 #define NET_MAGIC2 'N'
 #define NET_MAGIC3 'P'
-#define NET_PROTO_VERSION 1
+#define NET_PROTO_VERSION 2   /* 2: rejoins (HELLO's rejoin block, PROGRESS), chunks numbered to 64 MiB */
 #define NET_MAX_PACKET 1200   /* Tailscale's MTU is 1280 */
 #define NET_HEADER_SIZE 40
 #define NET_TAG_SIZE 16
@@ -24,6 +24,11 @@
 #define NET_BYE_TEXT 64
 #define NET_HASH_LEN 32
 #define NET_RETRACE_NONE 0xFFFFFFFFu
+#define NET_ACK_BYTES 1024     /* a FILE_ACK's bitmap, at most: 8192 chunks past its base */
+#define NET_MAX_CHUNKS 65536   /* a blob's chunks, at most (64 MiB) */
+
+#define NET_HELLO_REJOIN 0x01  /* HELLO's rejoin flags: this side rebuilds the session (it lost its game) */
+#define NET_HELLO_KEEP 0x02    /* ... this side keeps the session and offers its log */
 
 #define NET_FLAG_TAG 0x01      /* header flags */
 
@@ -40,6 +45,7 @@ enum NetMsgType {
     NET_MSG_PING = 10,
     NET_MSG_PONG = 11,
     NET_MSG_BYE = 12,
+    NET_MSG_PROGRESS = 13,   /* a rejoining side's replay: where it is */
     NET_MSG_COUNT
 };
 
@@ -60,14 +66,20 @@ typedef struct NetBlobInfo {
 typedef struct NetHello {   /* HELLO and HELLO_ACK */
     uint64_t nonce, nonce_echo;
     uint8_t ports, nfiles;
+    uint8_t rejoin;              /* NET_HELLO_REJOIN, NET_HELLO_KEEP, or 0 (a session of its own) */
     NetBlobInfo settings;
     char build[NET_BUILD_LEN];   /* NUL-terminated */
+    /* the rejoin block (zero without one): the session's id; with KEEP, the retrace it goes on from, the desync it
+     * recovers from (NET_RETRACE_NONE: none), and how the files are the host's, the guest's, then the log */
+    uint64_t session;
+    uint32_t live, recover_at;
+    uint8_t host_files, guest_files;
     NetBlobInfo files[NET_MAX_FILES];
 } NetHello;
 
 typedef struct NetChunk {   /* SETTINGS and FILE */
     uint8_t index;
-    uint16_t chunk;
+    uint32_t chunk;
     uint32_t total;
     uint16_t len;
     const uint8_t *data;
@@ -77,9 +89,15 @@ enum { NET_BLOB_SETTINGS = 0, NET_BLOB_FILE = 1 };
 
 typedef struct NetChunkAck {
     uint8_t kind, index;
-    uint16_t nchunks;
-    const uint8_t *bitmap;   /* (nchunks + 7) / 8 bytes */
+    uint16_t nbytes;          /* the bitmap's bytes, at most NET_ACK_BYTES */
+    uint32_t nchunks;         /* the blob's chunks */
+    uint32_t base;            /* every chunk before it has arrived */
+    const uint8_t *bitmap;    /* bit i: chunk base + i has arrived */
 } NetChunkAck;
+
+typedef struct NetProgress {   /* PROGRESS: a rejoining side's replay */
+    uint32_t at, live;
+} NetProgress;
 
 typedef struct NetStartMsg {
     uint8_t hash[NET_HASH_LEN];
@@ -130,6 +148,7 @@ typedef struct NetMsg {
         NetInput input;
         uint32_t ping_id;
         NetBye bye;
+        NetProgress progress;
     } u;
 } NetMsg;
 

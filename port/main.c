@@ -839,7 +839,7 @@ static char *must_match_text(const PcSettings *cfg)
 
 /* ---------------------------------------------------------------- an online session (docs/port/NETPLAY.md) */
 
-static PcNetOptions g_net = {PC_NET_NONE, -1, NULL, NULL, 0, 0};   /* --net-host, --net-join, --net-bind, --net-timeout */
+static PcNetOptions g_net = {PC_NET_NONE, -1, NULL, NULL, 0, 0, NULL};   /* --net-host, --net-join, --net-bind, --net-timeout */
 
 /* The mods as the cartridge will hold them, for the session's handshake: each wave's file the mods give (the region
  * pc_mods_install makes of them once the game's data is loaded), or "none". The must-match text's mods line (the
@@ -969,7 +969,7 @@ static int session_handshake(PcSettings *cfg, const PcAppDirs *dirs, const PcSet
     free(pak);
     if (r)
         return r;
-    if (pc_net_role() == PC_NET_HOST) {
+    if (pc_net_role() == PC_NET_HOST && !pc_net_rejoining()) {   /* a rejoining host adopts the session's, below */
         *memory = g_mods.enabled ? g_mods.memory : cfg->memory;
         return 0;
     }
@@ -1387,6 +1387,7 @@ static int rush_main(int argc, char **argv)
             if (!fast)
                 paced = 1;   /* the session's clock: --fast's course at the pace of real time (ULTRA.md 10) */
             g_net.paced = paced;
+            g_net.data_dir = dirs.data;   /* the rejoin ticket's folder (netplay/) */
             if ((r = session_handshake(&cfg, &dirs, over, nover, !headless, no_rom, &memory)) != 0)
                 return session_end_early(r, !headless);
             if (pc_net_role() == PC_NET_GUEST)   /* the host answered: first in the page's recent hosts */
@@ -1587,7 +1588,7 @@ static int rush_main(int argc, char **argv)
     }
     if (!headless)
         pc_app_window_icon();   /* Linux; Windows' window has the executable's icon */
-    if (pc_net_role() == PC_NET_HOST) {   /* the waiting screen until a guest joins, then its pak (netplay.h, 2-3) */
+    if (pc_net_role() == PC_NET_HOST && !pc_net_rejoining()) {   /* the waiting screen until a guest joins, then its pak */
         int r = pc_net_wait_guest(!headless);
         if (r == 0)
             r = pc_net_paks(!headless);
@@ -1729,6 +1730,8 @@ static int rush_main(int argc, char **argv)
     pc_app_finish(code);
     code = pc_net_menu_restart(code);   /* exec (Linux) or CreateProcess (Windows): only when one was asked for */
     fflush(NULL);
+    if (pc_net_reexec_wanted())   /* the guest rebuilds after a desync: the program again (docs/port/NETPLAY.md 15) */
+        code = pc_app_reexec(argc, argv);
     _exit(code);   /* the N64 threads are still running game code: no atexit handlers */
 }
 

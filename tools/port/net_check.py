@@ -10,9 +10,23 @@ simulation over UDP on 127.0.0.1 in real time, each with its own RUSH_SIM_NET mo
     net_check.py --exe ... sigstop       the guest is stopped (SIGSTOP) for 3 s and continued (Linux): the run
                                          completes with the same hashes, the delay not blown up by the stop
     net_check.py --exe ... soak --model bad150 --ticks 36000   a longer run of any model (a script, not ctest)
+
+Rejoins and recovery (docs/port/NETWORK.md 12), each with a rejoin window of 60 s:
+    net_check.py --exe ... rejoin        the guest killed at tick 300 (SIGKILL, by its PID); 3 s later a new guest
+                                         rejoins the session by its id, replays the host's log and goes on: the same
+                                         hash at every tick to the end
+    net_check.py --exe ... rejoin-host   the same with the host killed (the guest knocks; a new host on the same port
+                                         rejoins)
+    net_check.py --exe ... outage        the link down 20 s (every packet lost both ways), then a stopped process
+                                         (SIGSTOP, Linux) for 20 s: both wait and go on, the same hashes, the delay small
+    net_check.py --exe ... recover       the guest's state changed once at tick 300: the host has it rebuild (its game
+                                         ends "recover"), a new guest replays the log past 300 and the run completes
+    net_check.py --exe ... recover-repeat   the change repeats in the rebuilt game: both end with a desync at 300,
+                                         "deterministic"
 """
 import argparse
 import os
+import socket
 import signal
 import subprocess
 import sys
@@ -244,11 +258,188 @@ def case_sigstop(a):
     print("ok")
 
 
+WINDOW = ("--window", "60000")
+
+
+def free_port():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def wait_tick(p, tick, limit=60):
+    t = time.monotonic()
+    while p.tick < tick and time.monotonic() - t < limit and p.proc.poll() is None:
+        time.sleep(0.005)
+    return p.tick >= tick
+
+
+def session_of(p):
+    for line in p.lines:
+        if line.startswith("session "):
+            return line.split()[1]
+    return None
+
+
+def compare(a_path, b_path, n, log_path, what):
+    a_h, b_h = read_hashes(a_path), read_hashes(b_path)
+    if len(a_h) != n or len(b_h) != n:
+        fail(f"{what}: ticks {len(a_h)} and {len(b_h)}, not {n}", log_path)
+    diff = next((i for i in range(n) if a_h[i] != b_h[i]), None)
+    if diff is not None:
+        fail(f"{what}: the hashes differ from tick {diff}", log_path)
+    print(f"  {what}: the same hash at all {n} ticks")
+
+
+def case_rejoin(a, host_side=False):
+    ticks, kill_at = 900, 300
+    who = "host" if host_side else "guest"
+    print(f"rejoin: the {who} is killed at tick {kill_at}; 3 s later a new {who} rejoins the session")
+    port = free_port()
+    host, guest, hh, gh, log = start_pair(a, a.work, f"rejoin_{who}", "delay=20,jitter=5", "delay=20,jitter=5",
+                                          ("--ticks", str(ticks), "--port", str(port), *WINDOW),
+                                          ("--ticks", str(ticks), *WINDOW))
+    victim, keeper = (host, guest) if host_side else (guest, host)
+    if not wait_tick(victim, kill_at):
+        fail(f"the {who} never reached tick {kill_at}", log.name)
+    sid = session_of(keeper)
+    if not sid:
+        fail("no session id said", log.name)
+    victim.proc.kill()   # SIGKILL by its own PID
+    killed = time.monotonic()
+    victim.wait(10)
+    time.sleep(3)
+    nh = os.path.join(a.work, f"rejoin_{who}.new.hashes")
+    if os.path.exists(nh):
+        os.remove(nh)
+    env_sim = ("--sim", "delay=20,jitter=5")
+    if host_side:
+        args = [a.exe, "--host", "--bind", "127.0.0.1", "--port", str(port), *env_sim, "--hashes", nh, "--ticks",
+                str(ticks), "--rejoin", sid, *WINDOW]
+    else:
+        args = [a.exe, "--join", f"127.0.0.1:{port}", "--bind", "127.0.0.1", *env_sim, "--hashes", nh, "--ticks",
+                str(ticks), "--rejoin", sid, *WINDOW]
+    new = Peer(f"new {who}", args, log)
+    t0 = time.monotonic()
+    new.wait(120)
+    keeper.wait(120)
+    log.close()
+    for p in (keeper, new):
+        print("  " + summary(p))
+        r = p.result or {}
+        if r.get("end") not in ("none", "peer-left", "local") or r.get("ticks") != str(ticks):
+            fail(f"{p.name} ended {r.get('end')} at {r.get('ticks')}: {p.ended}", log.name)
+    r = new.result
+    if int(r["rejoins"]) != 1 or int(keeper.result["rejoins"]) != 1:
+        fail("the rejoin isn't counted on both", log.name)
+    compare(gh if host_side else hh, nh, ticks, log.name, f"the {'guest' if host_side else 'host'} and the new {who}")
+    print(f"  the new {who} replayed {r['replayed']} ticks in {float(r['replay_ms']):.1f} ms; the {keeper.name} waited "
+          f"{float(keeper.result['stall_max']) / 1000:.1f} s at tick {r['replayed']}, from the kill ({t0 - killed:.1f} s "
+          f"before the new {who} started) to its first live input")
+    print("ok")
+
+
+def case_rejoin_host(a):
+    case_rejoin(a, True)
+
+
+def case_outage(a):
+    print("outage: the link down 20 s from 4 s (every packet lost both ways), the rejoin window 60 s")
+    sim = "delay=20,jitter=5,at=4,loss=100,at=24,loss=0"
+    host, guest, hh, gh, log = start_pair(a, a.work, "outage", sim, sim, ("--ticks", "2100", *WINDOW),
+                                          ("--ticks", "2100", *WINDOW))
+    guest.wait(120)
+    host.wait(120)
+    for p in (host, guest):
+        print("  " + summary(p))
+        r = p.result or {}
+        if r.get("end") not in ("none", "peer-left", "local") or r.get("ticks") != "2100":
+            fail(f"{p.name} ended {r.get('end')} at {r.get('ticks')}: {p.ended}", log.name)
+        if float(r["stall_max"]) < 19000 or int(r["delay_max"]) > 4:
+            fail(f"{p.name}: the longest stall {r['stall_max']} ms, the delay up to {r['delay_max']}", log.name)
+    compare(hh, gh, 2100, log.name, "host and guest through the outage")
+    log.close()
+    if not hasattr(signal, "SIGSTOP"):
+        print("ok")
+        return
+    print("outage: the guest process stopped 20 s (SIGSTOP) at tick 240, then continued")
+    host, guest, hh, gh, log = start_pair(a, a.work, "stop20", "delay=20", "delay=20", ("--ticks", "900", *WINDOW),
+                                          ("--ticks", "900", *WINDOW))
+    if not wait_tick(guest, 240):
+        fail("the guest never reached tick 240", log.name)
+    os.kill(guest.proc.pid, signal.SIGSTOP)
+    time.sleep(20)
+    os.kill(guest.proc.pid, signal.SIGCONT)
+    guest.wait(120)
+    host.wait(120)
+    log.close()
+    for p in (host, guest):
+        print("  " + summary(p))
+        r = p.result or {}
+        if r.get("end") not in ("none", "peer-left", "local") or r.get("ticks") != "900":
+            fail(f"{p.name} ended {r.get('end')} at {r.get('ticks')}", log.name)
+        if int(r["delay_max"]) > 6:
+            fail(f"{p.name}'s delay rose to {r['delay_max']}", log.name)
+    compare(hh, gh, 900, log.name, "host and guest through the stop")
+    print("ok")
+
+
+def case_recover(a, repeat=False):
+    ticks = 900
+    print(f"recover{'-repeat' if repeat else ''}: the guest's state changes at tick 300; recover on; the rebuilt guest "
+          f"{'changes it again' if repeat else 'does not'}")
+    host, guest, hh, gh, log = start_pair(a, a.work, f"recover{'_repeat' if repeat else ''}", "delay=20,jitter=5",
+                                          "delay=20,jitter=5", ("--ticks", str(ticks), "--recover", *WINDOW),
+                                          ("--ticks", str(ticks), "--recover", "--desync-at", "300", *WINDOW))
+    guest.wait(60)
+    print("  " + summary(guest))
+    r = guest.result or {}
+    if r.get("end") != "recover" or r.get("detail") != "300":
+        fail(f"the guest ended {r.get('end')} at {r.get('detail')}: {guest.ended}", log.name)
+    sid = session_of(guest)
+    nh = os.path.join(a.work, f"recover{'_repeat' if repeat else ''}.new.hashes")
+    if os.path.exists(nh):
+        os.remove(nh)
+    new = Peer("new guest", [a.exe, "--join", f"127.0.0.1:{host.port}", "--bind", "127.0.0.1", "--sim",
+                             "delay=20,jitter=5", "--hashes", nh, "--ticks", str(ticks), "--rejoin", sid, "--recover",
+                             *WINDOW, *(("--desync-at", "300") if repeat else ())], log)
+    new.wait(120)
+    host.wait(120)
+    log.close()
+    for p in (host, new):
+        print("  " + summary(p))
+        if p.ended:
+            print(f"  {p.name}: {p.ended}")
+    if repeat:
+        for p in (host, new):
+            r = p.result or {}
+            if r.get("end") != "desync" or r.get("detail") != "300":
+                fail(f"{p.name} ended {r.get('end')} at {r.get('detail')}", log.name)
+        if "deterministic" not in (new.ended or ""):
+            fail("the rebuilt guest doesn't say the desync is deterministic", log.name)
+    else:
+        for p in (host, new):
+            r = p.result or {}
+            if r.get("end") not in ("none", "peer-left", "local") or r.get("ticks") != str(ticks):
+                fail(f"{p.name} ended {r.get('end')} at {r.get('ticks')}", log.name)
+        if int(host.result["recoveries"]) != 1 or int(new.result["recoveries"]) != 1:
+            fail("the recovery isn't counted on both", log.name)
+        compare(hh, nh, ticks, log.name, "the host and the rebuilt guest")
+    print("ok")
+
+
+def case_recover_repeat(a):
+    case_recover(a, True)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--exe", required=True, help="net_peer")
     ap.add_argument("--work", default="net-check", help="where the logs and hashes go")
-    ap.add_argument("case", choices=["loopback", "desync", "disconnect", "bye", "sigstop", "soak"])
+    ap.add_argument("case", choices=["loopback", "desync", "disconnect", "bye", "sigstop", "soak", "rejoin", "rejoin-host",
+                                     "outage", "recover", "recover-repeat"])
     ap.add_argument("--model", default="wan80", choices=sorted(MODELS))
     ap.add_argument("--ticks", type=int)
     a = ap.parse_args()
@@ -256,7 +447,7 @@ def main():
     if a.case in ("loopback", "soak"):
         case_loopback(a, a.model, a.ticks, a.case == "soak")
     else:
-        globals()["case_" + a.case](a)
+        globals()["case_" + a.case.replace("-", "_")](a)
 
 
 if __name__ == "__main__":

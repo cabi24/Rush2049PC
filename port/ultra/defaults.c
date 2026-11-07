@@ -26,6 +26,7 @@ WEAK int pc_gfx_init(int headless, int window_width, int window_height)
 WEAK void pc_gfx_run_dl(const void *dl) { (void)dl; }
 WEAK void pc_gfx_present(const void *framebuffer) { (void)framebuffer; }
 WEAK int pc_gfx_poll_events(void) { return 0; }
+WEAK int pc_gfx_window_closed(void) { return 0; }
 WEAK int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event)) { (void)hook; return -1; }
 WEAK int pc_gfx_save_screenshot(const char *path) { (void)path; return -1; }
 WEAK void pc_gfx_shutdown(void) {}
@@ -63,5 +64,6 @@ WEAK void pc_audio_set_pull_hook(void (*hook)(void)) { (void)hook; }
 WEAK void pc_audio_set_latency(unsigned ms) { (void)ms; }
 WEAK void pc_audio_set_paused(int paused) { (void)paused; }
 WEAK void pc_audio_set_paced(int on) { (void)on; }
+WEAK void pc_audio_tap_hold(int on) { (void)on; }
 WEAK void pc_audio_set_report_every(unsigned seconds) { (void)seconds; }
 WEAK void pc_audio_periodic(void) {}

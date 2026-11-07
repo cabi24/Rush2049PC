@@ -15,13 +15,22 @@
  *     the hash of the must-match text, so two PCs whose setups differ in anything it lists (the paks as installed,
  *     the window's size, a test model) end at retrace 0: "the two PCs' setups differ".
  *
+ * Rejoining (docs/port/NETPLAY.md 15, NETWORK.md 12). A running session waits net.rejoin seconds (300) for a player
+ * that went silent, showing how long. Each side keeps a ticket, netplay/rejoin-ROLE.txt in the data folder (the
+ * session's id), refreshed every 20 s and deleted when the session ends; a run that starts with a fresh ticket asks to
+ * rejoin. Rejoining, this side gets the session's settings, both paks as they were at its start and the log, adopts
+ * them before its memory is mapped (the host too), and replays the log from retrace 0 unpaced with nothing drawn or
+ * played (pc_catchup_set), each retrace's hash checked against the other side's; its first live retrace is where the
+ * other side waits. A desync with net.recover on: the host has the guest rebuild that way, the guest's program
+ * starting again (pc_net_reexec_wanted); the same desync again in the replay is deterministic, and ends the session.
+ *
  * The clock. Until the paced clock (the net-clock branch) is merged, a session runs on the unpaced virtual clock
  * (--fast's): deterministic, the network deciding only when retraces happen. The paced clock attaches in three
  * places, marked "the paced clock" below: its epoch is net_start_time (pc_net_start); each retrace adds
  * net_pace_adjust_ns to the interval (src_pads); after a stall it re-bases (net.h's contract, NETWORK.md 1). The
  * session's clock (NetConfig.now_ns) is pc_real_ns, the main loop's own, so the times compare. */
 #define _GNU_SOURCE
-#include <signal.h>
+#include <signal.h>   /* SIGTERM: the system ending the program is its game going, not its player leaving */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +39,7 @@
 
 #include "app.h"
 #include "config.h"
+#include "pc_compat.h"
 #include "input_internal.h"
 #include "net.h"
 #include "net_os.h"
@@ -45,6 +55,9 @@
 #define KEEP_RETRACES 240        /* the curated state kept for a desync's report (4 s) */
 #define FULL_EVERY 60            /* the window's hash every second */
 #define EXIT_SESSION 3           /* the exit code of a session that ended otherwise than a player leaving */
+#define TICKET_EVERY_NS 20000000000ull   /* the rejoin ticket's refresh */
+#define KNOCK_WAIT_NS 3000000000ull      /* a host with a ticket: how long its guest has to knock (it does every 0.25 s) */
+#define CATCHUP_SAY_NS 2000000000ull     /* the replay's progress in the log */
 
 static struct {
     int role;                    /* PC_NET_* */
@@ -70,6 +83,23 @@ static struct {
     int gave_up;                 /* the host: nobody joined in this many seconds (HOST_WAIT_S) */
     char join[256];              /* the guest: the host as --net-join named it, without its port */
     int end_local;               /* pc_net_finish: the session ended by this side's own choice (NET_END_LOCAL) */
+    /* rejoining */
+    int window_s;                /* net.rejoin: the rejoin window (0 off) */
+    int rejoin;                  /* this side rebuilds the session by replay */
+    int catchup;                 /* the replay runs */
+    uint32_t live;               /* ... to this retrace */
+    uint64_t catch_t0, catch_said;
+    char ticket[PC_APP_PATH + 32];
+    char build[160];
+    uint64_t ticket_at;          /* last written (pc_real_ns) */
+    struct {
+        uint64_t session;
+        uint32_t recover_at;     /* the desync this run rebuilds from (NET_NONE) */
+        int recovers;
+        long long written;
+    } tk;
+    int reexec;                  /* the guest rebuilds after a desync: the program starts again */
+    uint32_t reported;           /* the host: the desync whose report was written (NET_NONE none) */
 } S;
 
 static const char *peer_name(void)
@@ -94,6 +124,79 @@ static void peer_text(char *out, size_t n)
 int pc_net_role(void)
 {
     return S.role;
+}
+
+int pc_net_rejoining(void)
+{
+    return S.rejoin;
+}
+
+int pc_net_reexec_wanted(void)
+{
+    return S.reexec;
+}
+
+/* ---------------------------------------------------------------- the rejoin ticket */
+
+/* netplay/rejoin-ROLE.txt: the session this PC plays (its id), so a run after a crash, a closed window or a reboot can
+ * rejoin it. key=value lines. */
+static void ticket_write(void)
+{
+    char text[600], at[16] = "none";
+    uint64_t id = S.s ? net_session_id(S.s) : 0;
+    if (!S.window_s || !S.ticket[0] || !id)
+        return;
+    S.tk.session = id;
+    if (S.tk.recover_at != NET_NONE)
+        snprintf(at, sizeof at, "%u", S.tk.recover_at);
+    snprintf(text, sizeof text, "# Rush2049PC: the online session this PC plays, so starting it again rejoins it "
+             "(docs/port/NETPLAY.md 15). Deleted when the session ends.\nsession=%016llx\nrole=%s\nbuild=%s\n"
+             "written=%lld\nwindow=%d\nrecover_at=%s\nrecovers=%d\n", (unsigned long long)id,
+             S.role == PC_NET_HOST ? "host" : "guest", S.build, (long long)time(NULL), S.window_s, at, S.tk.recovers);
+    if (pc_file_write_atomic(S.ticket, text, strlen(text)) != 0)
+        fprintf(stderr, "rush2049pc: online: can't write %s (a rejoin after a crash won't find the session)\n",
+                S.ticket);
+    S.ticket_at = pc_real_ns();
+}
+
+static void ticket_drop(void)
+{
+    if (S.ticket[0] && pc_app_exists(S.ticket))
+        remove(S.ticket);
+}
+
+/* A fresh ticket of this role and build: 0 with S.tk set; -1 none (or stale, or another build's). */
+static int ticket_read(void)
+{
+    char text[1024] = "", v[64];
+    FILE *f = S.ticket[0] ? fopen(S.ticket, "rb") : NULL;
+    size_t n;
+    if (!f)
+        return -1;
+    n = fread(text, 1, sizeof text - 1, f);
+    fclose(f);
+    text[n] = 0;
+    if (pc_net_blob_value(text, "role", v, sizeof v) || strcmp(v, S.role == PC_NET_HOST ? "host" : "guest"))
+        return -1;
+    if (pc_net_blob_value(text, "build", v, sizeof v) || strcmp(v, S.build))
+        return -1;
+    memset(&S.tk, 0, sizeof S.tk);
+    S.tk.recover_at = NET_NONE;
+    if (!pc_net_blob_value(text, "session", v, sizeof v))
+        S.tk.session = strtoull(v, NULL, 16);
+    if (!pc_net_blob_value(text, "written", v, sizeof v))
+        S.tk.written = atoll(v);
+    if (!pc_net_blob_value(text, "recover_at", v, sizeof v) && strcmp(v, "none"))
+        S.tk.recover_at = (uint32_t)strtoul(v, NULL, 10);
+    if (!pc_net_blob_value(text, "recovers", v, sizeof v))
+        S.tk.recovers = atoi(v);
+    long long age = (long long)time(NULL) - S.tk.written;
+    if (!S.tk.session || age < -60 || age > S.window_s + 60) {
+        memset(&S.tk, 0, sizeof S.tk);
+        S.tk.recover_at = NET_NONE;
+        return -1;
+    }
+    return 0;
 }
 
 /* ---------------------------------------------------------------- small things */
@@ -181,7 +284,13 @@ static int wait_state(NetState want, const char *what, int ui)
             pc_gfx_redraw();
             drawn = now;
         }
-        if (now - said >= 10000000000u) {
+        NetRejoinInfo ri;
+        net_rejoin_info(S.s, &ri);
+        if (ri.phase == NET_RJ_TRANSFER && ri.rejoiner && now - said >= 2000000000u) {
+            fprintf(stderr, "rush2049pc: online: getting the race so far from the %s: %llu of %llu KB\n", peer_name(),
+                    (unsigned long long)(ri.bytes >> 10), (unsigned long long)(ri.total >> 10));
+            said = now;
+        } else if (now - said >= 10000000000u) {
             fprintf(stderr, "rush2049pc: online: %s (%.0f s so far; %s)\n", what, (now - t0) / 1e9,
                     ui ? "Esc in the window leaves" : "Ctrl-C stops");
             said = now;
@@ -199,6 +308,15 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
     NetConfig c;
     S.role = o->role;
     S.window = window;
+    S.window_s = cfg->net_rejoin > 0 ? cfg->net_rejoin : 0;
+    S.tk.recover_at = S.reported = NET_NONE;
+    snprintf(S.build, sizeof S.build, "%s", build);
+    if (S.window_s && o->data_dir && *o->data_dir) {   /* the rejoin ticket (netplay/rejoin-ROLE.txt) */
+        char dir[PC_APP_PATH];
+        pc_app_join(dir, sizeof dir, o->data_dir, "netplay");
+        pc_app_mkdirs(dir);
+        pc_app_join(S.ticket, sizeof S.ticket, dir, o->role == PC_NET_HOST ? "rejoin-host.txt" : "rejoin-guest.txt");
+    }
     net_config_defaults(&c);
     c.role = o->role == PC_NET_HOST ? NET_HOST : NET_GUEST;
     c.ports = o->role == PC_NET_HOST ? 0x1 : 0x2;   /* the host plays controller 1, the guest controller 2 */
@@ -229,8 +347,17 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
     c.files[0].size = pak ? PC_PAK_SIZE : 0;
     c.nfiles = 1;
     c.delay_fixed = cfg->net_delay;
-    if (o->timeout_ms > 0)
-        c.timeout_ms = o->timeout_ms;
+    if (o->timeout_ms > 0)   /* --net-timeout: every silence, the rejoin window too */
+        c.timeout_ms = c.window_ms = o->timeout_ms;
+    else if (S.window_s)
+        c.window_ms = S.window_s * 1000;
+    if (ticket_read() == 0) {   /* this PC played a session lately that didn't end: rejoin it */
+        c.rejoin_session = S.tk.session;
+        fprintf(stderr, "rush2049pc: online: this PC played session %016llx until %lld s ago (%s): %s\n",
+                (unsigned long long)S.tk.session, (long long)time(NULL) - S.tk.written, S.ticket,
+                o->role == PC_NET_GUEST ? "asking the host to rejoin it" : "a guest that kept it has 3 s to knock");
+    }
+    c.recover = cfg->net_recover && S.tk.recovers < NET_RECOVER_MAX;
     c.join_code = cfg->net_code[0] ? cfg->net_code : NULL;
     c.now_ns = clock_ns;
     c.log = net_log;
@@ -272,11 +399,40 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
         fprintf(stderr, "rush2049pc: online: joining %s as the guest (controller 2)%s\n", peer,
                 c.join_code ? " with a join code" : "");
     }
+    if (o->role == PC_NET_HOST && c.rejoin_session) {   /* its guest kept the session: it knocks every 0.25 s */
+        uint64_t t0 = pc_real_ns();
+        while (pc_real_ns() - t0 < KNOCK_WAIT_NS && !net_rejoining(S.s) && net_state(S.s) != NET_ENDED && !pc_quit)
+            net_os_sleep_ns(10000000u);
+        if (net_rejoining(S.s)) {
+            S.rejoin = 1;
+            if (wait_state(NET_ACCEPT, "getting the session from the guest", 0) != 0)
+                return failed(window);
+            S.joined = 1;
+            fprintf(stderr, "rush2049pc: online: rejoining session %016llx: the guest kept it, and sent its log\n",
+                    (unsigned long long)c.rejoin_session);
+            return 0;
+        }
+        net_rejoin_forget(S.s);
+        ticket_drop();
+        fprintf(stderr, "rush2049pc: online: no guest knocked for session %016llx: hosting a new session\n",
+                (unsigned long long)c.rejoin_session);
+    }
     if (o->role == PC_NET_HOST)
         return 0;   /* its guest is waited for with the window open (pc_net_wait_guest) */
     if (wait_state(NET_ACCEPT, "waiting for the host", 0) != 0)
         return failed(window);
     S.joined = 1;
+    S.rejoin = net_rejoining(S.s);
+    if (S.rejoin) {
+        fprintf(stderr, "rush2049pc: online: rejoining session %016llx: the host kept it, and sent its log\n",
+                (unsigned long long)c.rejoin_session);
+    } else if (c.rejoin_session) {
+        fprintf(stderr, "rush2049pc: online: the host doesn't have session %016llx any more: a new session\n",
+                (unsigned long long)c.rejoin_session);
+        ticket_drop();
+        memset(&S.tk, 0, sizeof S.tk);
+        S.tk.recover_at = NET_NONE;
+    }
     return 0;
 }
 
@@ -344,11 +500,14 @@ void pc_net_starting(void)
 {
     char title[96], peer[128];   /* the notice's title holds 95 characters */
     peer_text(peer, sizeof peer);
-    if (S.role == PC_NET_HOST)
+    if (S.rejoin)
+        snprintf(title, sizeof title, "Rejoining the online race with %.62s.", peer);
+    else if (S.role == PC_NET_HOST)
         snprintf(title, sizeof title, "A player joined from %.70s.", peer);
     else
         snprintf(title, sizeof title, "Joined the online race at %.65s.", peer);
-    pc_menu_notice(title, "Starting when both PCs are ready...  Esc leaves.");
+    pc_menu_notice(title, S.rejoin ? "Catching up with the race when both PCs are ready...  Esc leaves."
+                                   : "Starting when both PCs are ready...  Esc leaves.");
     S.notice = 1;
     S.notice_at = pc_real_ns();
     pc_gfx_redraw();
@@ -470,6 +629,22 @@ int pc_net_paks(int window)
     size_t size[2];
     int mine = S.role == PC_NET_HOST ? 0 : 1;
     char why[200], text[400];
+    if (S.rejoin) {   /* both paks as the session had them at its start, from the side that kept it */
+        for (int k = 0; k < 2; k++) {
+            free(S.pak[k]);
+            S.pak[k] = NULL;
+            if (!net_session_files(S.s, k) || !net_session_file(S.s, k, 0, &data[k], &size[k]) || !size[k])
+                continue;   /* that player has no pak */
+            if (size[k] != PC_PAK_SIZE || pc_pak_image_check(data[k], size[k], why, sizeof why) != PC_PAK_IMAGE_OK) {
+                snprintf(text, sizeof text, "the session's controller pak %d can't be used: %s", k + 1, why);
+                return pc_net_reject(text, "a controller pak of the session is damaged", window);
+            }
+            if (!(S.pak[k] = malloc(PC_PAK_SIZE)))
+                return pc_net_reject("out of memory", NULL, window);
+            memcpy(S.pak[k], data[k], PC_PAK_SIZE);
+        }
+        return 0;
+    }
     for (int k = 0; k < 2; k++) {
         if (k == mine) {   /* this side's own: as it sent it (the library keeps no copy for the caller) */
             data[k] = NULL;
@@ -538,8 +713,8 @@ static NetEnd session_ended(void)
     if (S.started)
         fprintf(stderr, "rush2049pc: online: the session ended at retrace %u (%s): %s\n", pc_frame, net_end_name(e),
                 msg);
-    if (e == NET_END_DESYNC) {
-        if (detail == 0)
+    if (e == NET_END_DESYNC || e == NET_END_RECOVER) {
+        if (detail == 0 && e == NET_END_DESYNC)
             fprintf(stderr, "rush2049pc: online: at retrace 0: the two PCs' setups differ (each PC's log has its "
                     "must-match text: compare them)\n");
         if (pc_hash_report(S.report_path, detail) == 0)
@@ -560,10 +735,72 @@ static struct {
     NetPad pad;
 } Q;
 
+/* The quit key's words for a notice: " Esc ends the session." */
+static void quit_words(char *out, size_t n, const char *what)
+{
+    if (S.quit_key[0])
+        snprintf(out, n, " %s %s.", S.quit_key, what);
+    else
+        snprintf(out, n, " Closing the window %s.", what);
+}
+
+static void mmss(char *out, size_t n, uint64_t ms)
+{
+    snprintf(out, n, "%u:%02u", (unsigned)(ms / 60000), (unsigned)(ms / 1000 % 60));
+}
+
+/* The replay's notice (the rejoiner's screen, nothing else drawn meanwhile) and its line in the log. */
+static void catchup_notice(uint32_t n, uint64_t now)
+{
+    char title[96], line[160], q[64], left[16] = "";
+    double t = (now - S.catch_t0) / 1e9, rate = t > 0 ? n / t : 0;
+    unsigned pct = S.live ? (unsigned)((uint64_t)n * 100 / S.live) : 100;
+    if (rate > 0 && n > 600)
+        mmss(left, sizeof left, (uint64_t)((S.live - n) / rate * 1000));
+    quit_words(q, sizeof q, "leaves");
+    snprintf(title, sizeof title, "Catching up with the race: %u%%", pct);
+    snprintf(line, sizeof line, "Retrace %u of %u%s%s.%s", n, S.live, left[0] ? ", about " : "", left, q);
+    pc_menu_notice(title, line);
+    pc_gfx_redraw();
+    S.notice = 1;
+    S.notice_at = now;
+    if (now - S.catch_said >= CATCHUP_SAY_NS) {
+        fprintf(stderr, "rush2049pc: online: catching up: retrace %u of %u (%u%%), %.0f a second\n", n, S.live, pct,
+                rate);
+        S.catch_said = now;
+    }
+}
+
+/* The replay reached the live retrace: the mode before it, drawing and the sound back; the session's lockstep from
+ * here (net_submit). */
+static void catchup_done(uint32_t n)
+{
+    uint64_t now = pc_real_ns();
+    double t = (now - S.catch_t0) / 1e9;
+    pc_catchup_set(0);
+    S.catchup = 0;
+    if (S.notice)
+        pc_menu_notice(NULL, NULL), S.notice = 0;
+    fprintf(stderr, "rush2049pc: online: caught up: replayed %u retraces (%.1f s of the race) in %.2f s, %.0f a second, "
+            "%.1f times real time, every retrace's hash the %s's; live from retrace %u%s\n", n, n / 60.0, t,
+            t > 0 ? n / t : 0.0, t > 0 ? n / 60.0 / t : 0.0, peer_name(), n,
+            S.tk.recover_at != NET_NONE ? " (the desync is recovered from)" : "");
+    if (S.tk.recover_at != NET_NONE)
+        fprintf(stderr, "rush2049pc: online: recovered from the desync at retrace %u: the rebuilt game had the host's "
+                "hash at every retrace past it\n", S.tk.recover_at);
+    S.tk.recover_at = NET_NONE;
+    ticket_write();
+}
+
 static void src_local(void *user, uint32_t n, const PcPad local[4])
 {
     (void)user;
     NetPad p = {local[0].buttons, local[0].stick_x, local[0].stick_y};
+    if (S.catchup) {   /* the replay: the log's pads, not this PC's */
+        if (n < S.live)
+            return;
+        catchup_done(n);
+    }
     if (net_frozen(S.s)) {
         Q.held = 1, Q.n = n, Q.pad = p;
         return;
@@ -571,10 +808,81 @@ static void src_local(void *user, uint32_t n, const PcPad local[4])
     net_submit(S.s, n, &p);   /* -1 once the session has ended: src_pads says why */
 }
 
+/* The other side is gone or rejoining: what this player is waiting for, and for how long it may. */
+static void waiting_notice(int ms, uint64_t now)
+{
+    char title[96], line[192], q[64], a[16], b[16];
+    NetRejoinInfo ri;
+    net_rejoin_info(S.s, &ri);
+    quit_words(q, sizeof q, "ends the session");
+    if (ri.phase == NET_RJ_RECOVER && ri.recover_at != S.reported) {   /* the desync's report, once */
+        S.reported = ri.recover_at;
+        fprintf(stderr, "rush2049pc: online: the games went out of sync at retrace %u: the guest rebuilds its game by "
+                "replay of this PC's log (net.recover)\n", ri.recover_at);
+        if (pc_hash_report(S.report_path, ri.recover_at) == 0)
+            fprintf(stderr, "rush2049pc: online: the desync report (retrace %u's state as hashed): %s\n",
+                    ri.recover_at, S.report_path);
+    }
+    switch (ri.phase) {
+    case NET_RJ_SILENT:
+        mmss(a, sizeof a, ri.silent_ms);
+        mmss(b, sizeof b, ri.window_ms > ri.silent_ms ? ri.window_ms - ri.silent_ms : 0);
+        snprintf(title, sizeof title, "Waiting for the %s to come back...", peer_name());
+        if (ri.closed)
+            snprintf(line, sizeof line, "Its game closed %s ago; waiting %s more for it to start again.%s", a, b, q);
+        else
+            snprintf(line, sizeof line, "Nothing from it for %s; waiting %s more.%s", a, b, q);
+        break;
+    case NET_RJ_RECOVER:
+        mmss(a, sizeof a, ri.window_ms > ri.silent_ms ? ri.window_ms - ri.silent_ms : 0);
+        snprintf(title, sizeof title, "The games went out of sync at retrace %u.", ri.recover_at);
+        snprintf(line, sizeof line, "The guest's game is starting again to rebuild the race (up to %s).%s", a, q);
+        break;
+    case NET_RJ_TRANSFER:
+        snprintf(title, sizeof title, "The %s is rejoining...", peer_name());
+        snprintf(line, sizeof line, "Sending it the race so far: %llu of %llu KB.%s",
+                 (unsigned long long)(ri.bytes >> 10), (unsigned long long)(ri.total >> 10), q);
+        break;
+    case NET_RJ_CATCHUP:
+        snprintf(title, sizeof title, "The %s is catching up: %u%%", peer_name(),
+                 ri.live ? (unsigned)((uint64_t)ri.at * 100 / ri.live) : 100);
+        snprintf(line, sizeof line, "It replays the race: retrace %u of %u.%s", ri.at, ri.live, q);
+        break;
+    default:
+        snprintf(title, sizeof title, "Waiting for the %s...", peer_name());
+        snprintf(line, sizeof line, "%.1f s.%s", ms / 1000.0, q);
+        break;
+    }
+    pc_menu_notice(title, line);
+    pc_gfx_redraw();
+    S.notice = 1;
+    S.notice_at = now;
+    if (ri.phase != NET_RJ_NONE && now - S.catch_said >= CATCHUP_SAY_NS) {   /* the log has what the screen says */
+        fprintf(stderr, "rush2049pc: online: %s %s\n", title, line);
+        S.catch_said = now;
+    }
+}
+
 static int src_pads(void *user, uint32_t n, PcPad out[4])
 {
     (void)user;
     NetPad p[NET_MAX_PORTS];
+    if (S.catchup && n < S.live) {   /* the replay: the other side's log */
+        uint64_t now = pc_real_ns();
+        if (net_state(S.s) == NET_ENDED || !net_catchup_pads(S.s, n, p)) {
+            if (!S.ended && !pc_quit)
+                pc_quit = session_ended() == NET_END_PEER_LEFT ? 1 : 1 + EXIT_SESSION;
+            pc_pads_signal();
+            return PC_PADS_WAIT;
+        }
+        for (int i = 0; i < 4; i++)
+            out[i] = (PcPad){p[i].buttons, p[i].stick_x, p[i].stick_y, i < 2, 0};
+        if ((n & 63) == 0)
+            net_catchup_at(S.s, n);
+        if (!S.notice || now - S.notice_at >= NOTICE_EVERY_NS)
+            catchup_notice(n, now);
+        return PC_PADS_READY;
+    }
     int frozen = net_frozen(S.s);   /* RUSH_SIM_NET's pause */
     if (!frozen && Q.held) {
         Q.held = 0;
@@ -596,26 +904,22 @@ static int src_pads(void *user, uint32_t n, PcPad out[4])
             pc_pace_adjust_ns(adj);
         S.pace_ns += adj;
         S.pace_n++;
+        if (S.window_s && pc_real_ns() - S.ticket_at >= TICKET_EVERY_NS)
+            ticket_write();   /* the ticket says the session is still played */
         return PC_PADS_READY;
     }
-    if (r < 0) {   /* the main loop stops: 0 when the other player left, else EXIT_SESSION */
-        if (!S.ended && !pc_quit)
-            pc_quit = session_ended() == NET_END_PEER_LEFT ? 1 : 1 + EXIT_SESSION;
+    if (r < 0) {   /* the main loop stops: 0 when the other player left or this side rebuilds, else EXIT_SESSION */
+        if (!S.ended && !pc_quit) {
+            NetEnd e = session_ended();
+            pc_quit = e == NET_END_PEER_LEFT || e == NET_END_RECOVER ? 1 : 1 + EXIT_SESSION;
+        }
         pc_pads_signal();
         return PC_PADS_WAIT;
     }
     int ms = net_waiting_ms(S.s);
     uint64_t now = pc_real_ns();
-    if (ms >= WAITING_MS && (!S.notice || now - S.notice_at >= NOTICE_EVERY_NS)) {
-        char title[96], line[160];
-        snprintf(title, sizeof title, "Waiting for the %s...", peer_name());
-        snprintf(line, sizeof line, "%.1f s.%s%s%s", ms / 1000.0, S.quit_key[0] ? " " : "", S.quit_key,
-                 S.quit_key[0] ? " leaves the session." : " Closing the window leaves the session.");
-        pc_menu_notice(title, line);
-        pc_gfx_redraw();
-        S.notice = 1;
-        S.notice_at = now;
-    }
+    if (ms >= WAITING_MS && (!S.notice || now - S.notice_at >= NOTICE_EVERY_NS))
+        waiting_notice(ms, now);
     pc_pads_signal();   /* the gate asks again at once: the waiting is net_pads', woken by the net thread */
     return PC_PADS_WAIT;
 }
@@ -625,6 +929,17 @@ static void src_hash(void *user, uint32_t n, const PcStateHash *h)
     (void)user;
     if (S.ended || net_state(S.s) == NET_ENDED)
         return;
+    if (S.catchup && n < S.live) {   /* the replay: each retrace's hash against the other side's log */
+        uint32_t folded = (uint32_t)(h->state ^ h->state >> 32);
+        int ok = net_catchup_hash(S.s, n, folded) != 0;
+        if (ok && (n == 0 || h->full))
+            ok = net_catchup_window_hash(S.s, n, (h->full ? h->full_hash : 0) ^ (n == 0 ? S.setup_hash : 0)) != 0;
+        if (!ok && !pc_quit) {   /* the session ended: the rebuilt game differs (a desync) */
+            session_ended();
+            pc_quit = 1 + EXIT_SESSION;
+        }
+        return;
+    }
     net_hash(S.s, n, (uint32_t)(h->state ^ h->state >> 32));
     if (n == 0 || h->full)   /* retrace 0's: the two setups too */
         net_window_hash(S.s, n, (h->full ? h->full_hash : 0) ^ (n == 0 ? S.setup_hash : 0));
@@ -687,8 +1002,13 @@ int pc_net_begin(PcLockstepOptions *ls, const char *must_match, const char *data
     S.header = malloc(n + 512);
     if (!S.header)
         return 1;
-    snprintf(S.header, n + 512, "%s# online session: the %s's log (the other PC keeps its own)\n# paks: %s\n",
-             must_match, S.role == PC_NET_HOST ? "host" : "guest", S.base);
+    snprintf(S.header, n + 512, "%s# online session: the %s's log (the other PC keeps its own)\n# paks: %s\n%s",
+             must_match, S.role == PC_NET_HOST ? "host" : "guest", S.base,
+             S.rejoin ? (S.tk.recover_at != NET_NONE ? "# a rejoin after a desync: the retraces before it replayed "
+                                                       "from the host's log\n"
+                                                     : "# a rejoin: the retraces before it replayed from the other "
+                                                       "PC's log\n")
+                      : "");
     ls->must_match = S.header;
     if (!ls->record)
         ls->record = S.pads_path;
@@ -725,6 +1045,24 @@ int pc_net_start(int window)
 {
     uint64_t start;
     int r;
+    if (S.rejoin) {   /* the other side's START: then the replay of its log, from the boot */
+        net_accept(S.s);
+        r = wait_state(NET_STARTING, S.role == PC_NET_HOST ? "waiting for the guest to start the rejoin"
+                                                           : "waiting for the host to start the rejoin", 1);
+        if (r == PC_NET_CANCELLED)
+            return r;
+        if (r != 0 || !net_catchup(S.s, &S.live))
+            return failed(window);
+        S.catchup = 1;
+        S.catch_t0 = S.catch_said = pc_real_ns();
+        pc_catchup_set(1);
+        fprintf(stderr, "rush2049pc: online: rejoining session %016llx: replaying its %u retraces (%.1f s of the race) "
+                "unpaced, nothing drawn or played, each retrace's hash checked against the %s's; then live\n",
+                (unsigned long long)net_session_id(S.s), S.live, S.live / 60.0, peer_name());
+        S.started = 1;
+        ticket_write();
+        return 0;
+    }
     net_accept(S.s);
     r = wait_state(NET_STARTING, S.role == PC_NET_HOST ? "waiting for the guest to be ready"
                                                        : "waiting for the host to be ready", 1);
@@ -745,6 +1083,7 @@ int pc_net_start(int window)
     else if (start > now)
         net_os_sleep_ns(start - now);
     S.started = 1;
+    ticket_write();
     return 0;
 }
 
@@ -770,7 +1109,21 @@ int pc_net_finish(int code, int window)
     if (S.notice)
         pc_menu_notice(NULL, NULL);
     NetEnd e = net_end_reason(S.s, &detail, msg, sizeof msg);
-    if (e == NET_END_NONE) {   /* this side stopped: a limit, the window closed, the quit key, the overlay's Quit */
+#ifdef SIGTERM
+    int term = pc_quit_signal == SIGTERM;
+#else
+    int term = 0;
+#endif
+    if (e == NET_END_NONE && S.started && S.window_s && net_session_id(S.s) &&
+        (pc_gfx_window_closed() || term || pc_quit == 1 + 129)) {
+        /* the window closed, or the system ended the program (a shutdown, the terminal gone): the game went, not
+         * the player: the other PC waits for it to come back, and starting it again the same way rejoins */
+        net_end_text(S.s, NET_END_GONE, pc_gfx_window_closed() ? "the window closed" : "the program was ended");
+        e = net_end_reason(S.s, &detail, msg, sizeof msg);
+        fprintf(stderr, "rush2049pc: online: %s: the %s waits up to %d:%02d for this PC; starting the game again the "
+                "same way (Host or Join online race) rejoins the race\n", pc_gfx_window_closed() ? "the window closed"
+                : "the program was ended", peer_name(), S.window_s / 60, S.window_s % 60);
+    } else if (e == NET_END_NONE) {   /* this side stopped: a limit, the quit key, the overlay's Quit, Ctrl-C */
         if (S.started && !net_linger(S.s, LINGER_MS))
             fprintf(stderr, "rush2049pc: online: the %s may not have this side's last inputs\n", peer_name());
         net_end(S.s, NET_END_LOCAL);
@@ -779,6 +1132,25 @@ int pc_net_finish(int code, int window)
     S.end_local = e == NET_END_LOCAL;
     if (e != NET_END_LOCAL)
         session_ended();   /* while the main loop stopped for its own reason: the report all the same */
+    if (S.catchup) {   /* it ended in the replay: the mode back for the rest of the run */
+        pc_catchup_set(0);
+        S.catchup = 0;
+    }
+    if (e == NET_END_RECOVER) {   /* this PC's game rebuilds: the program starts again and rejoins */
+        S.tk.recover_at = detail;
+        S.tk.recovers++;
+        ticket_write();
+        if (getenv("RUSH_SIM_DESYNC_ONCE") && *getenv("RUSH_SIM_DESYNC_ONCE"))   /* tests: the desync was a one-off */
+            unsetenv("RUSH_SIM_DESYNC");
+        S.reexec = S.ticket[0] != 0;
+        fprintf(stderr, "rush2049pc: online: %s\n", S.reexec ? "rebuilding: the program starts again, rejoins the "
+                "session and replays the host's log past the desync" : "can't rebuild without a rejoin ticket "
+                "(net.rejoin = off, or no data folder)");
+        if (!S.reexec && code == 0)
+            code = EXIT_SESSION;
+    } else if (e != NET_END_GONE) {
+        ticket_drop();   /* it ended (a player left, a timeout, a desync): nothing to rejoin */
+    }
     net_stats(S.s, &st);
     net_stats_line(&st, line, sizeof line);
     fprintf(stderr, "rush2049pc: online: ended (%s): %s\n", net_end_name(e), msg);
@@ -792,7 +1164,12 @@ int pc_net_finish(int code, int window)
         fprintf(stderr, "rush2049pc: online: the session's input log: %s\n", S.pads_path);
         replay_hint();
     }
-    if (e != NET_END_LOCAL && e != NET_END_PEER_LEFT) {
+    if (st.rejoins || st.recoveries)
+        fprintf(stderr, "rush2049pc: online: %u rejoin%s, %u desync%s recovered from\n", st.rejoins,
+                st.rejoins == 1 ? "" : "s", st.recoveries, st.recoveries == 1 ? "" : "s");
+    if ((e == NET_END_RECOVER && S.reexec) || e == NET_END_GONE) {
+        /* no box: the program comes back at once, or its window is closing */
+    } else if (e != NET_END_LOCAL && e != NET_END_PEER_LEFT) {
         snprintf(text, sizeof text, "The online session ended (%s): %s.%s", net_end_name(e), msg,
                  e == NET_END_DESYNC ? "\n\nThe log says where the input log and the desync report are." : "");
         show(text, window);

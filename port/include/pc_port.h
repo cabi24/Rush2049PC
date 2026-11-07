@@ -61,6 +61,11 @@ int pc_mem_is_be(const void *p);
  * QueryPerformanceCounter on Windows). These calls are thread-safe (the network layer's own thread). */
 void pc_time_set_paced(int on);       /* before the boot: paced mode, and with it the virtual clock */
 int pc_time_paced(void);
+/* An online rejoin's replay (docs/port/NETPLAY.md 15), main thread, at a retrace: on, the N64 clock runs free (as
+ * --fast), graphics tasks aren't drawn, nothing is presented and the sound card gets nothing (the tap held), none of
+ * which the game sees; off, the mode before it comes back (paced: from the N64 time now, due now). */
+void pc_catchup_set(int on);
+int pc_catchup(void);
 uint64_t pc_pace_wall_ns(void);
 /* The session's start, agreed with the peer: N64 time 0 due at this wall time, so retrace N at wall_ns + N/60 s. In
  * the future, the game waits for it at its first deadline; set before pc_ultra_run, or at any time (a jump). */
@@ -123,6 +128,7 @@ int pc_gfx_init(int headless, int window_width, int window_height);   /* 0 on su
 void pc_gfx_run_dl(const void *dl);          /* one graphics task: OSTask.t.data_ptr */
 void pc_gfx_present(const void *framebuffer);   /* osViSwapBuffer: show the frame rendered into it */
 int pc_gfx_poll_events(void);                /* window and input events; nonzero when the user quits */
+int pc_gfx_window_closed(void);              /* that quit was the window's close (or the system's), not a key */
 /* The window's events for port/input: pc_gfx_poll_events passes each one (an SDL_Event *) to hook before its
  * own handling, and a nonzero return quits. NULL removes it. 0 when there is an SDL window, -1 otherwise
  * (headless, or no SDL2), and the hook is then never called. */
@@ -302,6 +308,9 @@ void pc_audio_set_paused(int paused);
  * clock pc_audio_set_clock gives (the N64's), as with --fast and the null backend, whatever the backend; a device is
  * fed from a tap of it, a FIFO whose own converter is nudged to keep its level. audio.latency is then the FIFO's. */
 void pc_audio_set_paced(int on);
+/* Paced mode's tap held (a rejoin's replay): the device gets silence and the FIFO nothing; the game's queue is as it
+ * was. Released, the FIFO fills to its level again before it plays. */
+void pc_audio_tap_hold(int on);
 /* The output's counters (underruns, the queue's level, buffers late for their render...) go to the log at exit;
  * with this, also every `seconds` while the game plays (-v: 10). pc_audio_periodic is the main loop's, about once a
  * second. */
