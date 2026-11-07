@@ -752,6 +752,10 @@ set_tests_properties(net_session_desync net_session_adopt PROPERTIES FIXTURES_RE
                      TIMEOUT ${REPLAY_TIMEOUT})
 add_test(NAME net_session_wait COMMAND ${NET_SESSION_CHECK} wait)
 set_tests_properties(net_session_wait PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+# net_session_view: own view (net.view = own) on one PC, split on the other, each way: one game, hash for hash, and
+# each PC's screenshot what it shows (docs/port/NETPLAY.md 14)
+add_test(NAME net_session_view COMMAND ${NET_SESSION_CHECK} view)
+set_tests_properties(net_session_view PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
 add_test(NAME net_session_mismatch COMMAND ${NET_SESSION_CHECK} mismatch)
 set_tests_properties(net_session_mismatch PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth"
                      TIMEOUT ${REPLAY_TIMEOUT})

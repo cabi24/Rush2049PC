@@ -7,6 +7,7 @@
  * RUSH_GFX_FILL=1 (the aspect is the rows shown's: the picture fills the window's height; 0, the default: the VI
  * frame's, with the game's bands above and below),
  * RUSH_GFX_HUD=edges|centered (the race HUD in widescreen: at the screen's edges, or in the 4:3 frame: gfx_hud.c),
+ * RUSH_GFX_VIEW=1-4 (that view of the split screen alone, across the frame, in any game: gfx_view.c; tests and tools),
  * RUSH_GFX_HEIGHT=<rows> (rows of the frame buffer to show; default: the largest scissor bottom drawn with),
  * RUSH_GFX_FRAME_RATE=original|display|<hz> (frames shown a second, between the game's own: gfx_interp.c),
  * RUSH_GFX_TEXTURES=original|upscaled|pack and the other RUSH_GFX_TEXTURE_* (gfx_tex.c, docs/port/TEXTURES.md),
@@ -479,6 +480,7 @@ int pc_gfx_init(int headless, int window_width, int window_height) {
     }
     pcgfx_cfg.fill = env_int("RUSH_GFX_FILL", pcgfx_cfg.fill) != 0;   /* video.fill (GFX.md "Fill the window") */
     pcgfx_hud_init();   /* RUSH_GFX_HUD */
+    pcgfx_view_init();  /* RUSH_GFX_VIEW */
     pcgfx_detail_init();   /* RUSH_GFX_DRAW_DISTANCE, RUSH_GFX_FOG (gfx_detail.c) */
     /* 0 x 0: the window's from the desktop (gfx_sdl.c); headless, the N64's frame, which native and auto draw at 1x */
     S.win_w = window_width > 0 && window_height > 0 ? window_width : 320;
@@ -573,6 +575,7 @@ void pc_gfx_run_dl(const void *dl) {
     pcgfx.stat_cmds = pcgfx.stat_tris = pcgfx.stat_draws = pcgfx.stat_unknown = 0;
     if (pcgfx_cfg.frame_rate != 0)   /* a high frame rate: recorded, to be drawn again between frames */
         pcgfx_rec_task_begin();
+    pcgfx_view_task_begin();         /* own view: one view of a race's split screen alone (gfx_view.c) */
     pcgfx_hud_task_begin();          /* the HUD at the screen's edges, in a race (gfx_hud.c) */
     pcgfx_run_list(dl);
     pcgfx_hud_resolve();

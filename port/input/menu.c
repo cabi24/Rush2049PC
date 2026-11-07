@@ -138,6 +138,9 @@ static const char *const api_choices[] = {"auto", "gl", "gles", NULL};
 static const char *const textures_choices[] = {"original", "upscaled", "pack", NULL};
 static const char *const hud_choices[] = {"edges", "centered", NULL};
 static const char *const hud_labels[] = {"screen edges", "centered (4:3)", NULL};
+/* net.view (port/gfx/gfx_view.c, docs/port/NETPLAY.md 14): what an online race shows here */
+static const char *const view_choices[] = {"split", "own", NULL};
+static const char *const view_labels[] = {"split screen", "own (full screen)", NULL};
 /* video.draw_distance, detail and fog (docs/port/DETAIL.md) */
 static const char *const draw_choices[] = {"original", "far", "max", NULL};
 static const char *const draw_labels[] = {"original (N64)", "far (2x)", "max (all)", NULL};
@@ -316,6 +319,9 @@ static void build(void)
     it = add(P_VIDEO, I_CHOICE, "Race HUD (widescreen)", "video", "hud");   /* GFX.md: at the screen's edges */
     it->choices = hud_choices;
     it->labels = hud_labels;
+    it = add(P_VIDEO, I_CHOICE, "Online view", "net", "view");   /* NETPLAY.md 14: each PC its own */
+    it->choices = view_choices;
+    it->labels = view_labels;
     it = add(P_VIDEO, I_CHOICE, "Draw distance", "video", "draw_distance");   /* DETAIL.md */
     it->choices = draw_choices;
     it->labels = draw_labels;
@@ -417,6 +423,7 @@ static void build(void)
         {"video", "api", "OpenGL or OpenGL ES; applies after a restart"},
         {"video", "textures", "Original, upscaled 2x or 4x, or a texture pack"},
         {"video", "hud", "Widescreen races: the HUD at the screen's edges"},
+        {"net", "view", "Online races: both views, or yours alone"},
         {"video", "draw_distance", "How far the world, cars and scenery are drawn"},
         {"video", "detail", "High: the most detailed models at any distance"},
         {"video", "fog", "The game's fog, twice as far, or none"},
@@ -630,6 +637,9 @@ static void apply(const char *section, const char *key)
             pc_input_live_window_size(s->width, s->height);
         else if (!strcasecmp(key, "pause_on_focus_loss"))
             pc_input_apply(s);
+    } else if (!strcasecmp(section, "net")) {
+        if (!strcasecmp(key, "view"))   /* from the next frame; only in an online session (gfx_view.c) */
+            pc_gfx_set_view(s->net_view);
     } else if (!strcasecmp(section, "audio")) {
         if (!strcasecmp(key, "volume"))
             pc_audio_set_volume(s->volume / 100.0);

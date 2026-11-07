@@ -25,6 +25,7 @@ documentation and n64brew.
 | `gfx_ui.c`, `gfx_font.c` | drawing over the frame in window pixels, and its font: the settings overlay ("The overlay" below) |
 | `gfx_interp.c`, `gfx_hfr.h` | a high frame rate: graphics tasks recorded, frames drawn between the game's ("High frame rate" below) |
 | `gfx_hud.c` | the race HUD at the screen's edges in widescreen: 2D queued, grouped and moved ("The HUD at the screen's edges" below) |
+| `gfx_view.c` | one view of the split screen alone, across the frame (`net.view = own`): the view filter, its zoom and taller frustum, fills and 2D sorted by view ("One view of the split screen" below) |
 | `gfx_detail.c` | `video.draw_distance`'s depth range (the far plane moved out, the near plane kept) and `video.fog` far and off ([DETAIL.md](DETAIL.md) 3) |
 | `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
 | `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between); `gfx_size_test` (gfx_size.c with made-up sizes) |
@@ -265,6 +266,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | `RUSH_GFX_SCALE=s` | internal resolution: `native` (`video.scale`'s default: the window's own pixels, any fraction, 1-16), `auto` (the largest whole multiple of the frame the window holds), a multiple 1–8, or in the renderer's tests a fixed fraction up to 16 (`2.25`; rush2049pc takes `video.scale`'s values only); native and auto are taken at each present, so the frame is drawn at the size it is shown |
 | `RUSH_GFX_WIDESCREEN=a` | widen the picture to aspect a: `off`, `auto` (the window's), `16:9`, any `W:H` or ratio up to 4 (below) |
 | `RUSH_GFX_HUD=edges\|centered` | the race HUD in widescreen: at the screen's edges (`video.hud`'s default) or in the 4:3 frame ("The HUD at the screen's edges" below) |
+| `RUSH_GFX_VIEW=1-4`, `RUSH_GFX_VIEW_LOG=N` | that view of a race's split screen alone, across the frame, in any game (tests and tools; `net.view = own` shows the session's player's); the first N tasks' 2D items and moves ("One view of the split screen" below) |
 | `RUSH_GFX_DRAW_DISTANCE=original\|far\|max`, `RUSH_GFX_FOG=original\|far\|off` | the depth range's far plane at the game's, twice it or 32 times it, and the fog as the game has it, twice as far or none (`video.draw_distance`, `video.fog`; [DETAIL.md](DETAIL.md) 3) |
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2/3` | renderer and per-task counts / generated shaders; with a high frame rate, the pairing's lines ("High frame rate" below) |
@@ -482,7 +484,8 @@ the next frame. A new value applies from the next SETCIMG.
   - The rest is distance (LOD, the fog radius), the per-view hide mask (own car, cockpit) and range guards.
   - One function reads the horizontal field of view to decide what is on screen: the battle-mode off-screen arrow
     (`entity_render_setup`, AnimateArrow, `src/blob/groups/animate_arrow/group.c:156,174`). It draws an arrow at
-    the side when an opponent's angle is past `0.48 × fovx` (`view->radius`, the view record's 0x0C). In
+    the side when an opponent's angle is past `0.48 × fovx` (`view->radius`, the view record's 0x0C), and places it
+    by fovy (0x10) too (the vertical survey, NETPLAY.md 14.2). In
     widescreen an opponent between the 4:3 edge and the wide edge is on screen and still gets an arrow, drawn at
     the 4:3 edge. Fixing it would mean `fovx' = 2·atan(tan(fovx/2)·k)` for that view, with k the renderer's
     widening of that view (which `pcgfx_wide_x` decides at draw time). It is left: it is an indicator in one mode,
@@ -543,7 +546,8 @@ screen's edge that it has on a 4:3 screen. Everything else stays as the section 
   it (the `hud` test compares the frames byte for byte).
 - **Split screen** is left as it is: the 2-player screen's views widen to the left and its side panel stays with
   the frame, the 3- and 4-player views widen in proportion (above). Moving each view's HUD would need the rule per
-  viewport, and the 2-player panel's place against the widened views; it is not done.
+  viewport, and the 2-player panel's place against the widened views; it is not done. With one view of it shown
+  alone (`net.view = own`), that view's HUD goes to the screen's edges ("One view of the split screen" below).
 - **Pieces move whole.** The game draws its race HUD (the speedometer's bezel, digits and odometer, the radar and
   its blips, the place, laps and coin counts, the map and its dots, the timer's bezel and digits) as texture
   rectangles and 1-cycle fills, in one list after the 3D; text is a rectangle per glyph, and the bezels are drawn
@@ -584,6 +588,67 @@ screen's edge that it has on a 4:3 screen. Everything else stays as the section 
   and race, the pause screen and its options, controls, audio and video pages, the stunt arena, a frame between at
   60 frames a second, all with the HUD at the edges and the menus, banners and the countdown in the middle; the
   2-player race and the results screen came out byte for byte the same with `edges` and `centered`.
+
+### One view of the split screen
+
+`net.view` (`pc_gfx_set_view`, `pc_gfx_set_view_player`; F1's Video page, [FRONTEND.md](FRONTEND.md)): `split`, the
+default, or `own`. Added 2026-11-07, `gfx_view.c`, for online play ([NETPLAY.md](NETPLAY.md) 14): both PCs run the
+game's two-player race, both views, since the game's logic is per window (NETPLAY.md 1.4); with `own` each PC draws
+its own player's view alone, across the frame, with that player's HUD at the frame's edges. Nothing reaches the game.
+
+- **When.** In a race (the countdown, the race and its pause screen) with several views, and a player to show: main.c's
+  hook (`pc_gfx_set_race_views`) gives the views' rectangles from the game's own window records (the two-player
+  layout's `D_80149B00`, `D_80149B20`: x 2-242, rows 0-109 and 111-220, the scissors the views' 3D is drawn under,
+  `wheel_render_full`), taken at each graphics task; the player is the session's (the host 1, the guest 2).
+  `RUSH_GFX_VIEW=1-4` shows that view in any game with several views, local too, for tests and tools. Anything else
+  (menus, the car select's halves, the results, split, no session) runs none of it: the drawing is byte for byte the
+  same (`gfx.view`).
+- **3D.** A perspective draw belongs to the view whose rectangle holds its viewport's centre (122, 55 or 165). Another
+  view's triangles are not drawn, nor recorded for frames between. The view shown's viewport is zoomed by k, the most
+  that keeps it within the frame (its width to the frame's: 4/3 for 240 x 110 in 320 x 220, so the field of view
+  across stays the game's 90 degrees), and centred in the frame; its picture then reaches the frame's top and bottom
+  too, where the pane showed tan(fovy/2) = 0.458 the frame shows 0.6875, the one-player view's. As widescreen divides
+  clip x by xs for the outcodes, clip y is divided by ys (here 2/3), in the outcodes, G_CULLDL and the guard band's
+  clipping (`pcgfx_outcode`, `plane_dist`); then widescreen widens it as any view across the frame. Its scissor is
+  mapped as its picture (the view's sides to the frame's).
+- **Fills** (fill and copy mode): one across the frame (the clears of depth and colour) as before; one in the view
+  shown, mapped as its picture; any other is not drawn: the frame begin's dividers between the views (rows 109-110), the
+  side panel's fill (x 240-319) and the left border (x 0-1), which are drawn before the 3D and would show through
+  where the taller view draws nothing, and another view's.
+- **2D** goes through the HUD's queue (`gfx_hud.c`, "The HUD at the screen's edges" above), at any aspect: each item is
+  the view its box is in (within 4 pixels of its rectangle), or the frame's; items group only within one view.
+  `pcgfx_view_move`:
+  - **the view shown's** pieces keep their distance to the side of the view they are nearest, now the frame's: across,
+    by thirds of the view's width (a group wider than half the view counts as the middle), to the picture's left side,
+    its middle or its right side; down, a piece in the bottom third goes with the frame's bottom, one in the middle
+    third that is also in the middle across (a centred message) to the frame's middle, the rest with the frame's top.
+    The picture's sides are the target's with `video.hud = edges`, the 4:3 frame's with `centered`. Pieces keep their
+    size and stay on the N64 pixel grid; rectangles' corners go to their new place's pixel boundaries down as across
+    (`move_corner_y`), scissors move with them within the frame's rows;
+  - **another view's** pieces are not drawn;
+  - **the frame's**: right of the views (the side panel), a piece across the panel's whole width is its background and
+    is not drawn, the rest (the map, its dots, the race clock) goes to the picture's right side, by the widening;
+    anything else (the results' header across the views) stays where the game puts it in the 4:3 frame. Each of these
+    by its own box: the panel's background and the map on it are one group;
+  - **the pause screen**: its darkening is a piece across the whole frame, drawn after the HUD; it and everything drawn
+    after it in the task are the frame's, staying where the game puts them. Its title and its menu's lines each fall in
+    one view's rectangle (the menu spans both views, a line at a time), so by their boxes they would be one view's,
+    and half the menu would be missing from the other player's screen (seen on the retail cartridge before this
+    rule).
+- **Models at HUD points.** The coin icons beside their counts (and the battle and stunt status models) are 3D models
+  the game places at a 2D point, unprojected 2 ft (5.75 ft for one battle kind) in front of the eye through the view's
+  record (`ZOID_WindowTo3D`, `car_lights_render`), drawn in the view's 3D. Zoomed with the picture, a coin icon would
+  land 4/3 as far from the view's centre, away from its count, which moves to the frame's edge. So a transform in the
+  view shown whose origin is at that depth (w 32 or 92, the game's sixteenths of a foot, within one) and on screen is
+  drawn at the view's own scale, its viewport's centre moved as its point's 2D moves (`pcgfx_view_hud_point`). The
+  game can't move them: their places are game state, and `pc_gfx_hud_dx` gives the game 0 in a session.
+- **A high frame rate** records the triangles with their context (the zoomed viewport, ys), and the queue's moved
+  vertices, so frames between show the same view the same way; a recorded own view's viewport is not blended between
+  two frames (`gfx.interp.own`).
+- **What it costs**: the other view's 3D isn't drawn, so less than the split screen; the game builds both lists as
+  before.
+- **Tools.** `RUSH_GFX_VIEW_LOG=N` prints, for N graphics tasks, each queued 2D item's box, its view, its group and its
+  move or drop, and the draws of models at HUD points with the last one's point.
 
 ### High frame rate
 
@@ -688,6 +753,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
 | `parse` | the setting's text; `display` is 60 without a display |
 | `hudedges` | the race HUD at the screen's edges in 16:9: a frame between draws the HUD's rectangle where the nearer frame has it, as the frames drawn directly do with `edges` and with `centered`, and further left with `edges` |
 | `depthclear` | B far, C near, D far again, with no tick between C's present and D's task: D's depth clear (through the last target, the z buffer as the color image) reaches the depth buffer, so D's object shows. Until 2026-10-28 the present's copy left another framebuffer bound for drawing while the renderer took C's as still bound, and from the second present on that clear went nowhere: with a high frame rate a frame could keep the last one's depth when no frame was shown between |
+| `own` | two views moving their own ways, each shown alone across the frame (`net.view = own`): a frame between is that view alone at the moment, as drawn directly, and as far from the split screen's picture |
 | `gfx.interp.all.*` | every case at 2x, in 16:9, on GLES, on desktop GL, and on llvmpipe's GLES and desktop GL |
 
 ### The overlay
@@ -926,7 +992,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
   RDRAM array.
-- **Cases.** 26, one CTest each:
+- **Cases.** 27, one CTest each:
 
 | Case | Checks |
 |---|---|
@@ -947,7 +1013,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `branchz` | BRANCH_Z |
 | `nearclip` | a floor behind the eye; a triangle inside the near plane |
 | `eyeplane` | a road under the camera and a wall beside it, from behind the eye to far ahead, back faces culled, in 12 placements (five of them gave the old float lerp a w below 0 with and without fused multiply-adds): the road reaches the screen's bottom and the horizon, the wall the right edge, and a floor 20 units under the road, drawn after it, stays hidden (the old clipping showed it through the whole near road in every placement); then a chase camera over a road of two big triangles, 30-120 units up, pitched 4-16 degrees down, at 8 headings: the road fills the bottom rows (the old clipping lost it in 12 of the 24) |
-| `clip` | on the CPU (`tests/clip_check.c`): 40,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped; and every GL vertex `pcgfx_tri_output` gives is within GL's own band, \|x\|, \|y\| ≤ 2w exactly (over 1,000 of the widened view's polygons clipped to it) |
+| `clip` | on the CPU (`tests/clip_check.c`): 80,000 triangles (anything, roads through the eye plane, tiny w next to the eye, inside; also widened 4/3, made 1.5 times taller as own view's, and both): every vertex handed to GL has w ≥ 1e-4 and lies on or within the guard band, finite; one inside it is untouched; one behind the eye or past one side is dropped; and every GL vertex `pcgfx_tri_output` gives is within GL's own band, \|x\|, \|y\| ≤ 2w exactly (over 1,000 of the widened view's polygons clipped to it) |
 | `xlu` | XLU, 2-cycle double XLU, alpha compare, texture edge |
 | `widescreen` | the aspect parser; at 16:9: the clear covers the target, a perspective view across the frame shows strips past the 4:3 frustum's sides and reaches the target's last column, a square keeps its 4:3 size, texrects (one at the frame's left side) and an ortho triangle stay 4:3 in the middle, texel for texel, a full-width fill and a full-width texrect (stretched) span the target; four quadrant views widen to 0-213 and 213-426, with their squares unstretched and a texrect cut by its 4:3 scissor; the game's 2- and 4-player panes; off, on, off again: the off frames are byte-identical |
 | `autosize` | headless window sizes from 640 × 480 to 2880 × 1620: `auto` widescreen takes the size's aspect, `auto` scale the largest multiple that fits (3 at 1280 × 720 for 426 × 240), native the fit at any fraction (2876 × 1620 at 2880 × 1620, 1363 × 768 at 1366 × 768), a fixed scale or aspect stays; a texrect stays texel-exact at each (not in window mode) |
@@ -955,6 +1021,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `ties` | rectangles at every quarter-pixel phase of both sides, side by side and row on row, drawn as they are and with every GL vertex moved 3/8 of an internal pixel left, right, down and up (`pcgfx_gl_test_nudge`: more than a GPU rounds a vertex, 1/32 pixel at most, less than the half pixel between a side on its boundary and every centre): each time every internal pixel has the rectangle its centre is in, counted in whole numbers (rows in GL's y-up coordinates). With the sides where the scale put them (before 2026-10-28) the moved frames fail at every scale, 1 too |
 | `screenshot` | PNG |
 | `hud` | the race HUD at the screen's edges, on a made-up race frame (GFX.md "The HUD at the screen's edges"), at 16:9 and 21:9: a bezel fill with a copy-mode digit on it and an orthographic triangle at the left side end up ox further left, texel for texel; a run of digits a pixel apart at the right ox further right, together; a fill cut by its scissor at the right moves with its scissor; a banner with a digit at each end and a run of digits across the middle band's side stay; a full-width fill spans the target; a panel drawn over a radar fill's side stays, the radar moves; a digit drawn on that panel after a second panel stays with it; the 3D strip spans the target; `pc_gfx_hud_dx` for points; `centered`, `edges` outside a race and `edges` at 4:3 give the same frames, byte for byte, as `centered` |
+| `view` | one view of the split screen alone (`net.view = own`, "One view of the split screen"), on a made-up two-player race frame (the frame begin's dividers and side panel fills, two views each with its ground, a square, strips above and below its frustum, a model at a HUD point in view 1; the side panel's background and map, each view's HUD digits, a banner, an orthographic triangle; paused: a fill across the frame, then a digit inside view 1's rectangle, which stays where it is drawn for either player): split, own with no player and own outside a race are the split screen byte for byte; view 1 and view 2 alone at 4:3: the ground to every edge and where the dividers, border and panel were, the other view's ground and HUD nowhere, the square zoomed 4/3, the strips beyond the view's frustum shown, each HUD piece at the frame's corner it was at in its view (down too), the banner in the middle, the panel's background gone and its map at the right, the model beside its digit and not where the zoom would put it; at 16:9 with edges the picture across the target and the HUD at its edges, with centered in the 4:3 frame |
 | `detail` | `video.draw_distance` and `video.fog` ([DETAIL.md](DETAIL.md) 3), a perspective view with its far plane at 1,000: a green quad at 1,500 drawn before a red one at 3,000 behind it, both past the far plane: red over green at original (both at the far plane's depth, the N64's), green in front at far and max; inside the far plane the depth order at every level; a primitive-depth rectangle behind a quad hidden, one in front shown; the fog at 700 against fog far at 1,400 (the same, 57%), fog off none, and with draw_distance far the original fog past the far plane full |
 
 - **Variants.** `gfx.all.gles`, `gfx.all.desktop-gl`, `gfx.all.scale2` and `gfx.all.software` (llvmpipe) rerun

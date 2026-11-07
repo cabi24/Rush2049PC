@@ -764,6 +764,56 @@ static void case_split(void) {
     }
 }
 
+/* One view of the split screen alone (net.view = own, gfx_view.c): with two views moving their own ways and each
+ * shown alone across the frame, a frame between is that view alone at the moment, as drawn directly; not the split
+ * screen's picture. */
+static int own_views(int rect[][4], int max) {
+    int k;
+    if (max < 2)
+        return 0;
+    for (k = 0; k < 2; k++)
+        view_rect(2, k, rect[k]);
+    return 2;
+}
+
+static void case_own(void) {
+    Scene sc;
+    uint8_t *got, *own, *split;
+    int k, n, ref;
+    scene_init(&sc, 2);
+    for (k = 0; k < 2; k++) {
+        float d = k ? -1.0f : 1.0f;
+        add_static(&sc, k);
+        add_obj(&sc, k, M_RED, -30 * d, 0, -200, 30 * d, 0, -200);
+        add_obj(&sc, k, M_GREEN, 0, -20 * d, -180, 0, 20 * d, -180);
+        sc.yaw0[k] = 3.0f * k, sc.yaw1[k] = -3.0f * k;
+        sc.eye0[k][1] = -5.0f * k, sc.eye1[k][1] = 5.0f * k;
+    }
+    pc_gfx_set_race_views(own_views);
+    pc_gfx_set_view(PC_GFX_VIEW_OWN);
+    for (k = 1; k <= 2; k++) {
+        pc_gfx_set_view_player(k);
+        check_moment(&sc, 0.5f, 80);
+    }
+    pair(&sc, 120);
+    got = tick(11.0);
+    own = reference(&sc, 0.5f, 1);
+    pc_gfx_set_view(PC_GFX_VIEW_SPLIT);
+    split = reference(&sc, 0.5f, 1);
+    n = count_diff(got, split, 8);
+    ref = count_diff(own, split, 8);
+    if (ref == 0 || n < ref / 2) {   /* as far from the split screen as view 2 alone drawn directly */
+        printf("  FAIL %s: the frame between is the split screen's (%d pixels differ, %d drawn directly)\n", s_case,
+               n, ref);
+        s_fail++;
+    }
+    free(got);
+    free(own);
+    free(split);
+    pc_gfx_set_race_views(NULL);
+    pc_gfx_set_view_player(0);
+}
+
 /* 2D: a texture rectangle and an orthographic triangle that move are drawn as B has them up to halfway, then as C
  * has them, texel for texel, never part of the way; the 3D with them moves part of the way. */
 static void case_hud(void) {
@@ -1074,6 +1124,7 @@ static const struct {
     {"teleport", case_teleport}, {"split", case_split},     {"hud", case_hud},       {"appear", case_appear},
     {"instances", case_instances}, {"children", case_children}, {"spin", case_spin}, {"eyerel", case_eyerel},
     {"timing", case_timing}, {"parse", case_parse},   {"hudedges", case_hudedges}, {"depthclear", case_depthclear},
+    {"own", case_own},
 };
 
 int main(int argc, char **argv) {

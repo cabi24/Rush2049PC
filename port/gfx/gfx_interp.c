@@ -41,7 +41,7 @@ typedef struct {
     float mv[4][4], proj[4][4], mp[4][4];
     float bmin[3], bmax[3];     /* its vertices' model-space bounds */
     uint64_t sig;               /* the view, and each load's source and size */
-    float xs;                   /* the outcodes' widening when they were loaded (view_x) */
+    float xs, ys;               /* the outcodes' widening when they were loaded (gfx_rsp.c's view_place) */
     uint32_t gen, nload;
     int32_t parent;             /* the transform whose modelview is the one this was pushed from, -1 */
     uint16_t depth;             /* the modelview stack's depth */
@@ -280,7 +280,6 @@ void pcgfx_rec_task_end(void) {
 
 static uint32_t current_xf(RFrame *f) {
     Xf *x;
-    float xs = 1.0f;
     if (f->cur_xf != NONE) {
         x = &f->xf[f->cur_xf];
         if (x->gen == pcgfx.xf_gen && x->vp == pcgfx.vp_ord && x->fog_mul == pcgfx.fog_mul &&
@@ -326,14 +325,7 @@ static uint32_t current_xf(RFrame *f) {
         }
     }
     /* the outcodes' widening, as load_vertices had it: the vertex buffer's outcodes are recomputed with it */
-    if (pcgfx.wide_ox != 0 && pcgfx.persp) {
-        float h = fabsf(pcgfx.vp_scale[0]), l, r;
-        l = pcgfx_wide_x(pcgfx.vp_trans[0] - h);
-        r = pcgfx_wide_x(pcgfx.vp_trans[0] + h);
-        if (h > 0.0f)
-            xs = 2.0f * h / (r - l);
-    }
-    x->xs = xs;
+    pcgfx_view_scales(&x->xs, &x->ys);
     while (f->n_view <= x->view) {
         RView *v = PUSH(f, view);
         if (v == NULL) {
@@ -1041,7 +1033,7 @@ static void draw_between(RFrame *b, RFrame *c, float a) {
             if (r->flags & V_FOG)
                 g->a = pcgfx_fog_alpha(g->z, g->w, x->fog_mul, x->fog_off, x->fog_za);
         }
-        g->clip = pcgfx_outcode(g, x->xs);
+        g->clip = pcgfx_outcode(g, x->xs, x->ys);
     }
 
     /* the frame, op by op */
@@ -1068,8 +1060,9 @@ static void draw_between(RFrame *b, RFrame *c, float a) {
                     const RCtx *rc = &c->ctx[t->ctx];
                     tc = rc->c;
                     last_ctx = t->ctx;
-                    /* a viewport that moved a little between the two (a menu's zoom) moves with the rest */
-                    if (rc->vp > 0 && rc->vp <= b->n_vp && rc->vp <= c->n_vp && rc->persp) {
+                    /* a viewport that moved a little between the two (a menu's zoom) moves with the rest; own
+                     * view's is the frame's (gfx_view.c), as recorded */
+                    if (rc->vp > 0 && rc->vp <= b->n_vp && rc->vp <= c->n_vp && rc->persp && rc->c.wide != 2) {
                         const RVp *vb = &b->vp[rc->vp - 1], *vc = &c->vp[rc->vp - 1];
                         if (memcmp(vb, vc, sizeof(*vb)) != 0 && fabsf(vb->trans[0] - vc->trans[0]) < 0.25f * rc->c.tw &&
                             fabsf(vb->trans[1] - vc->trans[1]) < 0.25f * rc->c.th &&

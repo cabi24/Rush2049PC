@@ -20,6 +20,10 @@
  * Fill-mode rectangles (clears) are not queued: they stay as GFX.md describes. The game also places a few 3D models
  * at HUD points (the coin icons beside their counts, ZOID_WindowTo3D): on the PC that function moves its point by
  * pc_gfx_hud_dx, the same rule for a point.
+ * Own view (net.view = own, gfx_view.c) uses the same queue in a race of several views, at any aspect: each item is
+ * the view its box is in, or the frame's (and so is all that is drawn after a piece across the whole frame: the pause
+ * screen); pieces group only within one view; another view's are not drawn, and the view shown's move to the frame's
+ * edges across and down (pcgfx_view_move).
  * Off (centered, 4:3, a menu, split screen) nothing here runs and the drawing is the same as without this file. */
 #include <stdatomic.h>
 #include <stdio.h>
@@ -38,14 +42,17 @@ typedef struct {
     uint32_t state;         /* its draw state, in S.st */
     uint32_t first, count;  /* its vertices, in S.v (as drawn 4:3) and S.x43 */
     float x0, y0, x1, y1;   /* its box in the 4:3 frame, N64 pixels (within its scissor) */
+    float gx0, gy0, gx1, gy1;   /* its group's box (place: kept in the group's root) */
     int32_t sc_x0, sc_x1;   /* its scissor's sides as 2D has them (the frame's, moved with the frame) */
-    int tw;                 /* the target's width, N64 pixels */
-    int pw;                 /* and internal ones */
-    float du[4];            /* a rectangle's texture coordinates' change per N64 pixel across */
+    int tw, th;             /* the target's width and height, N64 pixels */
+    int pw, ph;             /* and internal ones */
+    float du[8];            /* a rectangle's texture coordinates' change per N64 pixel across (0-3) and down (4-7) */
     int ox;                 /* the widening */
     int fw;                 /* the frame's width */
+    int32_t sc_y0, sc_y1;   /* its scissor's top and bottom */
     int parent;             /* union-find */
     uint8_t movable, tri;
+    int8_t view;            /* own view: the view its box is in, -1 the frame's (gfx_view.c) */
 } HudItem;
 
 /* Read by the game's thread too (pc_gfx_hud_dx), so atomic: the setting, and the color image's frame width and
@@ -58,16 +65,19 @@ static _Atomic int s_dx_off;
 static struct {
     int (*race)(void);      /* set before the game's threads start */
     int on;                 /* this task: edges, in a race with one view */
+    int view;               /* this task: own view (gfx_view.c) */
+    int over;               /* own view: a piece across the whole frame was drawn this task (the pause screen's) */
     HudItem *it;
     int n, cap;
     GfxOutVtx *v;
-    float *x43;             /* each vertex's x in target N64 pixels at the 4:3 place (rectangles) */
-    uint32_t nv, cv, cx;
+    float *x43, *y43;       /* each vertex's x and y in target N64 pixels at the 4:3 place (rectangles) */
+    uint32_t nv, cv, cx, cy;
     GfxDrawState *st;
     uint32_t nst, cst;
     GfxOutVtx *out;         /* a run of vertices to draw */
     uint32_t cout;
-    int dx[HUD_MAX_ITEMS];
+    int dx[HUD_MAX_ITEMS], dy[HUD_MAX_ITEMS];
+    uint8_t drop[HUD_MAX_ITEMS];  /* own view: not drawn */
     int panel[HUD_MAX_PANELS];   /* the panels' items, in order */
     int npanel;
 } S;
@@ -112,6 +122,8 @@ void pcgfx_hud_init(void) {
 
 void pcgfx_hud_task_begin(void) {
     S.on = pc_gfx_hud() == PC_GFX_HUD_EDGES && S.race != NULL && S.race();
+    S.view = pcgfx_view_on();   /* after pcgfx_view_task_begin */
+    S.over = 0;
     S.n = 0;
     S.nv = S.nst = 0;
     S.npanel = 0;
@@ -137,7 +149,7 @@ int pc_gfx_hud_dx(int x) {
 }
 
 int pcgfx_hud_on(void) {
-    return S.on && pcgfx.wide_ox != 0;
+    return (S.on && pcgfx.wide_ox != 0) || S.view;
 }
 
 int pcgfx_hud_pending(void) {
@@ -179,7 +191,8 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
     if (S.n == HUD_MAX_ITEMS)
         pcgfx_hud_resolve();
     if (grow((void **)&S.v, &S.cv, S.nv + (uint32_t)n, sizeof(*S.v)) ||
-        grow((void **)&S.x43, &S.cx, S.nv + (uint32_t)n, sizeof(*S.x43)))
+        grow((void **)&S.x43, &S.cx, S.nv + (uint32_t)n, sizeof(*S.x43)) ||
+        grow((void **)&S.y43, &S.cy, S.nv + (uint32_t)n, sizeof(*S.y43)))
         return -1;
     if (S.n >= S.cap) {
         int c = S.cap ? S.cap * 2 : 256;
@@ -199,11 +212,12 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
     it->first = S.nv;
     it->count = (uint32_t)n;
     it->tw = tw;
+    it->th = th;
     it->pw = tw;
+    it->ph = th;
     if (st->target != NULL) {
-        int ph;
         float sx, sy;
-        pcgfx_gl_target_px(st->target, &it->pw, &ph, &sx, &sy);
+        pcgfx_gl_target_px(st->target, &it->pw, &it->ph, &sx, &sy);
     }
     if (du != NULL)
         memcpy(it->du, du, sizeof(it->du));
@@ -218,6 +232,7 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
         float y = y43 != NULL ? y43[i] : (1.0f - v[i].pos[1] / w) * 0.5f * (float)th;
         S.v[S.nv + i] = v[i];
         S.x43[S.nv + i] = x;
+        S.y43[S.nv + i] = y;
         x -= (float)ox;   /* the frame's */
         if (x < it->x0) it->x0 = x;
         if (x > it->x1) it->x1 = x;
@@ -238,6 +253,13 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
     }
     it->sc_x0 = (int32_t)(pcgfx.sc_ulx >> 2) + ox;
     it->sc_x1 = (int32_t)(pcgfx.sc_lrx >> 2) + ox;
+    it->sc_y0 = (int32_t)(pcgfx.sc_uly >> 2);
+    it->sc_y1 = (int32_t)(pcgfx.sc_lry >> 2);
+    it->view = (int8_t)(S.view ? pcgfx_view_box(it->x0, it->y0, it->x1, it->y1) : -1);
+    if (S.view && (S.over || pcgfx_view_covers(it->x0, it->y0, it->x1, it->y1))) {
+        it->view = -1;   /* the pause screen: its darkening across the frame, then its title and menu over it */
+        S.over = 1;
+    }
     it->movable = (uint8_t)movable;   /* the HUD's translucent panels are drawn with the primitive depth too */
     /* a panel: what is drawn on it doesn't group with what it covers */
     if (it->x1 - it->x0 >= 0.5f * (float)fw && it->y1 - it->y0 >= (float)fw * 0.75f / 8.0f &&
@@ -279,29 +301,61 @@ static int covered(int i, int j) {
     return 0;
 }
 
+/* Own view's moves (gfx_view.c): a view's pieces by their group's box, the frame's each by its own (the side panel's
+ * background and the map on it are one group, and only the background goes). */
+static void place_view(void) {
+    int i, edges = pc_gfx_hud() == PC_GFX_HUD_EDGES;
+    for (i = 0; i < S.n; i++) {
+        const HudItem *it = &S.it[i], *r = &S.it[root(i)];
+        float b[4];
+        S.dx[i] = S.dy[i] = 0;
+        S.drop[i] = it->view >= 0 && it->view != pcgfx_view_shown();
+        if (S.drop[i] || (!it->movable && it->view < 0))
+            continue;
+        if (it->view < 0)
+            b[0] = it->x0, b[1] = it->y0, b[2] = it->x1, b[3] = it->y1;
+        else
+            b[0] = r->gx0, b[1] = r->gy0, b[2] = r->gx1, b[3] = r->gy1;
+        S.drop[i] = pcgfx_view_move(it->view, b[0], b[1], b[2], b[3], it->ox, edges, &S.dx[i], &S.dy[i]) != 0;
+    }
+}
+
 /* Each item's move, N64 pixels: its group's (GFX.md "The HUD at the screen's edges"). */
 static void place(void) {
     int i, j;
     for (i = 0; i < S.n; i++)
         for (j = i + 1; j < S.n; j++)
-            if (S.it[i].movable && S.it[j].movable && near_boxes(&S.it[i], &S.it[j]) && !covered(i, j)) {
+            if (S.it[i].movable && S.it[j].movable && S.it[i].view == S.it[j].view &&
+                near_boxes(&S.it[i], &S.it[j]) && !covered(i, j)) {
                 int a = root(i), b = root(j);
                 if (a != b)
                     S.it[a > b ? a : b].parent = a < b ? a : b;
             }
-    /* the group's box, kept in its root */
+    /* the group's box, kept in its root (the root's own box is kept apart, for own view's frame pieces) */
+    for (i = 0; i < S.n; i++) {
+        HudItem *it = &S.it[i];
+        it->gx0 = it->x0, it->gx1 = it->x1, it->gy0 = it->y0, it->gy1 = it->y1;
+    }
     for (i = 0; i < S.n; i++) {
         HudItem *it = &S.it[i], *r = &S.it[root(i)];
         if (r == it || !it->movable)
             continue;
-        if (it->x0 < r->x0) r->x0 = it->x0;
-        if (it->x1 > r->x1) r->x1 = it->x1;
+        if (it->x0 < r->gx0) r->gx0 = it->x0;
+        if (it->x1 > r->gx1) r->gx1 = it->x1;
+        if (it->y0 < r->gy0) r->gy0 = it->y0;
+        if (it->y1 > r->gy1) r->gy1 = it->y1;
+    }
+    if (S.view) {
+        place_view();
+        return;
     }
     for (i = 0; i < S.n; i++) {
         const HudItem *it = &S.it[i], *r = &S.it[root(i)];
-        float half = 0.5f * (float)it->fw, band = (float)it->fw / 6.0f, c = 0.5f * (r->x0 + r->x1);
+        float half = 0.5f * (float)it->fw, band = (float)it->fw / 6.0f, c = 0.5f * (r->gx0 + r->gx1);
         S.dx[i] = 0;
-        if (!it->movable || r->x1 - r->x0 > half)
+        S.dy[i] = 0;
+        S.drop[i] = 0;
+        if (!it->movable || r->gx1 - r->gx0 > half)
             continue;
         if (c < half - band)
             S.dx[i] = -it->ox;
@@ -333,39 +387,84 @@ static void move_corner(GfxOutVtx *o, const HudItem *it, float x, int dx) {
             o->uv[k] += d * it->du[k];
 }
 
+/* The same down (own view), on the row boundaries (pcgfx_rect_y). */
+static void move_corner_y(GfxOutVtx *o, const HudItem *it, float y, int dy) {
+    float ye0, ye1, d;
+    int k;
+    (void)pcgfx_rect_y(y, it->th, it->ph, &ye0);
+    o->pos[1] = pcgfx_rect_y(y + (float)dy, it->th, it->ph, &ye1);
+    d = ye1 - (float)dy - ye0;
+    if (d != 0.0f)
+        for (k = 0; k < 4; k++)
+            o->uv[k] += d * it->du[4 + k];
+}
+
+/* RUSH_GFX_VIEW_LOG=N: own view's first N tasks' 2D, each item's box, view and move (tools: what a race draws). */
+static void view_log(void) {
+    static int left = -1;
+    int i;
+    if (left < 0) {
+        const char *e = getenv("RUSH_GFX_VIEW_LOG");
+        left = e != NULL ? atoi(e) : 0;
+    }
+    if (left == 0)
+        return;
+    left--;
+    fprintf(stderr, "gfx: own view: %d 2D items\n", S.n);
+    for (i = 0; i < S.n; i++) {
+        const HudItem *it = &S.it[i];
+        fprintf(stderr, "gfx: own view: %3d %s %3.0f,%3.0f-%3.0f,%3.0f view %2d group %3d %s %d,%d\n", i,
+                it->tri ? "tri " : "rect", it->x0, it->y0, it->x1, it->y1, it->view, root(i),
+                S.drop[i] ? "dropped" : "moved", S.dx[i], S.dy[i]);
+    }
+}
+
 void pcgfx_hud_resolve(void) {
     GfxDrawState run_st;
     uint32_t run_n = 0;
-    int i, run_state = -1, run_dx = 0;
+    int i, run_state = -1, run_dx = 0, run_dy = 0;
     if (S.n == 0)
         return;
     pcgfx_flush();   /* what was drawn before the queue */
     place();
+    if (S.view)
+        view_log();
     if (grow((void **)&S.out, &S.cout, S.nv, sizeof(*S.out)) == 0) {
         for (i = 0; i < S.n; i++) {
             const HudItem *it = &S.it[i];
-            int dx = S.dx[i];
+            int dx = S.dx[i], dy = S.dy[i];
             uint32_t k;
-            if ((int)it->state != run_state || dx != run_dx) {
+            if (S.drop[i])
+                continue;   /* own view: another view's (gfx_view.c) */
+            if ((int)it->state != run_state || dx != run_dx || dy != run_dy) {
                 draw_run(&run_st, run_n);
                 run_n = 0;
                 run_state = (int)it->state;
                 run_dx = dx;
+                run_dy = dy;
                 run_st = S.st[it->state];
                 if (dx != 0) {   /* the 2D scissor, moved with it */
                     run_st.scissor[0] = it->sc_x0 + dx;
                     run_st.scissor[2] = it->sc_x1 + dx;
                 }
+                if (dy != 0) {   /* own view: down too, within the frame's rows (the rows shown don't grow) */
+                    int32_t y0 = it->sc_y0 + dy, y1 = it->sc_y1 + dy;
+                    run_st.scissor[1] = y0 < 0 ? 0 : y0;
+                    run_st.scissor[3] = y1 > it->sc_y1 ? it->sc_y1 : y1;
+                }
             }
             for (k = 0; k < it->count; k++) {
                 GfxOutVtx *o = &S.out[run_n + k];
                 *o = S.v[it->first + k];
-                if (dx == 0)
-                    continue;
-                if (it->tri)   /* clip x: w * 2 / tw per N64 pixel */
+                if (it->tri) {   /* clip x: w * 2 / tw per N64 pixel; y the other way */
                     o->pos[0] += (float)dx * 2.0f / (float)it->tw * o->pos[3];
-                else           /* a rectangle's corner, as draw_rect places it: on its pixel boundary */
-                    move_corner(o, it, S.x43[it->first + k], dx);
+                    o->pos[1] -= (float)dy * 2.0f / (float)it->th * o->pos[3];
+                } else {         /* a rectangle's corner, as draw_rect places it: on its pixel boundary */
+                    if (dx != 0)
+                        move_corner(o, it, S.x43[it->first + k], dx);
+                    if (dy != 0)
+                        move_corner_y(o, it, S.y43[it->first + k], dy);
+                }
             }
             run_n += it->count;
         }

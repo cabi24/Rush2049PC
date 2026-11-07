@@ -486,6 +486,23 @@ static int hud_race(void)
     return s != 0xFFFFFFFFu && (s & 0x00600000u) != 0 && *(volatile int16_t *)&gNumWindows == 1;
 }
 
+/* net.view = own (port/gfx/gfx_view.c, docs/port/NETPLAY.md 14): the race's views, from the game's own window records:
+ * in the countdown and the race (its pause screen too) with two views, the two-player layout's rectangles
+ * (wheel_render_full's D_80149B00 and D_80149B20: x0, y0, x1, y1, the scissor each view's 3D is drawn under). Read
+ * only, on the main thread, as hud_race reads the state. */
+extern int16_t D_80149B00[4], D_80149B20[4];
+static int race_views(int rect[][4], int max)
+{
+    uint32_t s = game_state();
+    if (max < 2 || s == 0xFFFFFFFFu || (s & 0x00600000u) == 0 || *(volatile int16_t *)&gNumWindows != 2)
+        return 0;
+    for (int k = 0; k < 4; k++) {
+        rect[0][k] = *(volatile int16_t *)&D_80149B00[k];
+        rect[1][k] = *(volatile int16_t *)&D_80149B20[k];
+    }
+    return 2;
+}
+
 /* --fast and paced mode: the audio output's null backend drains the queue by the N64 clock, as a device would in real
  * time (paced mode's tap included: its accounting is the null output's, docs/port/AUDIO.md 11). */
 static double fast_clock(void)
@@ -1423,6 +1440,7 @@ static int rush_main(int argc, char **argv)
     setenv("RUSH_GFX_FRAME_RATE", rate, 1);
     setenv("RUSH_GFX_TEXTURES", cfg.textures == 1 ? "upscaled" : cfg.textures == 2 ? "pack" : "original", 1);
     setenv("RUSH_GFX_HUD", cfg.hud == PC_GFX_HUD_CENTERED ? "centered" : "edges", 1);
+    pc_gfx_set_view(cfg.net_view);   /* net.view: shown in an online session only (pc_gfx_set_view_player below) */
     /* draw distance, detail and fog (docs/port/DETAIL.md): the game's part, and the renderer's */
     {
         char draw[16], detail[16], fog[16], texlod[16];
@@ -1637,6 +1655,13 @@ static int rush_main(int argc, char **argv)
     run.game_info = game_info;
     run.game_rate = game_rate;   /* game.frame_rate = 60 under vsync: the frames paced by the vblanks (FRAMERATE.md 7.6) */
     pc_gfx_set_hud_race(hud_race);
+    pc_gfx_set_race_views(race_views);
+    if (pc_net_role()) {   /* net.view = own: this PC's player's view alone, the host player 1 (port/gfx/gfx_view.c) */
+        pc_gfx_set_view_player(pc_net_role() == PC_NET_HOST ? 1 : 2);
+        if (cfg.net_view == PC_GFX_VIEW_OWN)
+            fprintf(stderr, "rush2049pc: online view: player %d's view alone, across the window (net.view = own)\n",
+                    pc_net_role() == PC_NET_HOST ? 1 : 2);
+    }
     if (fast || paced) {   /* paced mode is --fast's virtual clock, paced to the wall clock (port/ultra/pace.c); an
                             * online session runs paced, or with --fast (tests) unpaced */
         pc_time_set_virtual(1);

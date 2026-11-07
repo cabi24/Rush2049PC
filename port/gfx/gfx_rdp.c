@@ -994,11 +994,14 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
     }
 
     /* Scissor, N64 pixels, exclusive. In widescreen it is in the target: its sides at the frame's sides go to the
-     * target's for a widened draw, and a 2D draw keeps the N64's (GFX.md "Widescreen"). */
+     * target's for a widened draw, and a 2D draw keeps the N64's (GFX.md "Widescreen"). Own view's 3D (wide 2): the
+     * view shown's scissor where its picture goes, across the frame (gfx_view.c), then widened. */
     st->scissor[0] = pcgfx.sc_ulx >> 2;
     st->scissor[1] = pcgfx.sc_uly >> 2;
     st->scissor[2] = pcgfx.sc_lrx >> 2;
     st->scissor[3] = pcgfx.sc_lry >> 2;
+    if (wide == 2)
+        pcgfx_view_rect(st->scissor);
     if (pcgfx.wide_ox != 0) {
         if (wide) {
             st->scissor[0] = (int32_t)pcgfx_wide_x((float)st->scissor[0]);
@@ -1138,7 +1141,7 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
                       int flip) {
     GfxOutVtx q[4], tri[6];
     int tw, th, pw, ph, textured = tile >= 0, wide = 0, snap, stretched = 0, u, side = 0;
-    float sx = 1.0f, sy = 1.0f, cx0, cx1, cy0, cy1, xe0, xe1, ye0, ye1, du[4] = {0, 0, 0, 0};
+    float sx = 1.0f, sy = 1.0f, cx0, cx1, cy0, cy1, xe0, xe1, ye0, ye1, du[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     /* the corners' x at the 4:3 place, for the HUD at the screen's edges (gfx_hud.c) */
     float a0 = x0 + (float)pcgfx.wide_ox, a1 = x1 + (float)pcgfx.wide_ox;
     if (pcgfx.wide_ox != 0) {
@@ -1217,13 +1220,16 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     if (pcgfx_hud_on()) {   /* the HUD at the screen's edges: queued, moved with its group (gfx_hud.c) */
         const float x43[6] = {a0, a0, a1, a1, a0, a1};   /* q[0], q[2], q[1], q[1], q[2], q[3] */
         const float y43[6] = {y0, y1, y0, y0, y1, y1};
-        for (u = 0; u < 2 && textured; u++) {   /* the texture coordinates' change per N64 pixel across */
+        for (u = 0; u < 2 && textured; u++) {   /* the texture coordinates' change per N64 pixel across and down */
             if (s_state.tex[u]) {
                 float u0, v0, u1, v1;
                 pcgfx_tile_uv(u, s, t, &u0, &v0);
                 pcgfx_tile_uv(u, flip ? s : s + dsdx, flip ? t + dtdy : t, &u1, &v1);
                 du[2 * u] = u1 - u0;
                 du[2 * u + 1] = v1 - v0;
+                pcgfx_tile_uv(u, flip ? s + dsdx : s, flip ? t : t + dtdy, &u1, &v1);
+                du[4 + 2 * u] = u1 - u0;
+                du[4 + 2 * u + 1] = v1 - v0;
             }
         }
         if (pcgfx_hud_add(&s_state, tri, x43, y43, du, 6, !stretched, 0) == 0)
@@ -1269,6 +1275,8 @@ static void fill_rect(uint32_t w0, uint32_t w1) {
         if (r[3] > (int32_t)(pcgfx.sc_lry >> 2)) r[3] = pcgfx.sc_lry >> 2;
         if (r[2] <= r[0] || r[3] <= r[1])
             return;
+        if (pcgfx_view_on() && !pcgfx_view_fill(r))
+            return;   /* own view: another view's, a divider, the side panel's (gfx_view.c) */
         if (pcgfx.wide_ox != 0) {   /* widescreen: sides at the frame's go to the target's (GFX.md) */
             r[0] = (int32_t)pcgfx_wide_x((float)r[0]);
             r[2] = (int32_t)pcgfx_wide_x((float)r[2]);

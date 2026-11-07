@@ -12,6 +12,7 @@ session"), on the synthetic cartridge.
     net_session_check.py adopt    --exe EXE --rom ROM --logs DIR
     net_session_check.py ends     --exe EXE --rom ROM --logs DIR
     net_session_check.py wait     --exe EXE --rom ROM --logs DIR
+    net_session_check.py view     --exe EXE --rom ROM --logs DIR
 
 A session is a host (--net-host 0: any port, read from its log) and a guest (--net-join 127.0.0.1:PORT), both bound
 to 127.0.0.1 (--net-bind), each with a data folder of its own, each running the path's press script for its own
@@ -48,6 +49,10 @@ ends: the guest killed (the host ends with "timeout" within --net-timeout), the 
 wait: the host's waiting screen (port/app/netwait.c), headless at 1280 x 720: RUSH2049_TEST_NET_WAIT_SHOT saves it
   (the panel, its text) and cancels it as Escape would (exit 0, no box, nothing of the game run); a host nobody joins
   gives up (RUSH2049_TEST_NET_HOST_WAIT: 2 s) with a message box saying so, exit 3.
+view: own view (net.view = own, docs/port/NETPLAY.md 14) on one PC and the split screen on the other, each way round
+  (race2p, delay 2): one game, the same trace and hash at every retrace as each other and as one process; the PC with
+  own view says whose view it shows (the host player 1's, the guest player 2's), and its screenshot is one view across
+  the frame (synth_shot.py own) while the other's is the split screen's two views.
 
 Exit status: 0 when it holds. Stdlib only, Python 3.9+.
 """
@@ -872,10 +877,57 @@ def mode_wait(a):
     return bad
 
 
+def mode_view(a):
+    spec = synth_paths.read_script(SCRIPTS / "race2p.press")
+    bad, tone = 0, None
+    for own_role in ("host", "guest"):
+        tag = f"view.{own_role}"
+        hp, gp, mp, two = path_files(a, "race2p", tag)
+        extra = {r: ["--net-delay", "2"] + (["--set", "net.view=own"] if r == own_role else []) for r in ("host", "guest")}
+        r = session(a, tag, hp, gp, spec, extra["host"], extra["guest"])
+        if not r:
+            bad = 1
+            continue
+        th, tg, _ = r
+        if tone is None:
+            tone = one(a, "view.one", mp, spec, ["--input-delay", "2", "--session-rules"])
+        b = compare_session(f"view ({own_role}'s own)", th, tg, tone)
+        texts = {"host": th, "guest": tg}
+        player = 1 if own_role == "host" else 2
+        shares = {}
+        for role, t in texts.items():
+            if exit_code(t) != 0:
+                say(f"view: the {role} exits {exit_code(t)}: {ended(t)}")
+                b = 1
+            said = re.search(r"online view: player (\d)'s view alone", t)
+            if (role == own_role) != bool(said) or (said and int(said.group(1)) != player):
+                say(f"view: the {role} says {said.group(0) if said else 'nothing of its view'}; expected "
+                    f"{f'player {player}' if role == own_role else 'nothing (split)'}")
+                b = 1
+            shot = Path(a.logs) / f"{tag}.run" / f"{role}.cwd" / "race2p.png"
+            if not shot.exists():
+                say(f"view: no screenshot from the {role}")
+                b = 1
+                continue
+            lines = []
+            fails = synth_shot.check(str(shot), "own" if role == own_role else 2, say=lines.append)
+            shares[role] = ", ".join(l.split(": ", 1)[1] for l in lines)
+            for f in fails:
+                say(f"view: the {role}'s screenshot: {f}")
+                b = 1
+        if not b:
+            other = "guest" if own_role == "host" else "host"
+            say(f"view: the {own_role} own (player {player}'s view), the {other} split: host = guest = one process, "
+                f"{len(replay_check.trace(th))} lines, {len(hash_compare.hashes(th))} retraces hashed; the {own_role}'s "
+                f"screenshot one view across the frame ({shares[own_role]}), the {other}'s two views ({shares[other]})")
+        bad |= b
+    return bad
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("mode", choices=["path", "sim", "auto", "paced", "fuzz", "desync", "mismatch", "adopt", "ends",
-                                     "wait"])
+                                     "wait", "view"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
     ap.add_argument("--rom", default=str(ROOT / "build/pc/synth/rush2049_synth.z64"))
@@ -899,7 +951,8 @@ def main():
     fn = {"sim": lambda: mode_sim(a, a.names), "auto": lambda: mode_auto(a, a.names), "fuzz": lambda: mode_fuzz(a),
           "paced": lambda: mode_paced(a, a.names),
           "desync": lambda: mode_desync(a, (a.names or ["race2p"])[0]), "mismatch": lambda: mode_mismatch(a),
-          "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a), "wait": lambda: mode_wait(a)}
+          "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a), "wait": lambda: mode_wait(a),
+          "view": lambda: mode_view(a)}
     sys.exit(1 if fn[a.mode]() else 0)
 
 

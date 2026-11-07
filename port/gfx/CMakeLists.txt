@@ -46,6 +46,7 @@ add_library(pcgfx STATIC
     gfx_gl.c
     gfx_interp.c
     gfx_hud.c
+    gfx_view.c
     gfx_detail.c
     gfx_ui.c
     gfx_font.c
@@ -133,7 +134,7 @@ set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
 foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
-          eyeplane clip xlu widescreen autosize fillwindow seams ties screenshot hud detail)
+          eyeplane clip xlu widescreen autosize fillwindow seams ties screenshot hud detail view)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The harness on port/ultra's own RDRAM window (memory.c) at game.memory 64, in place of an 8 MiB buffer of its own:
@@ -243,7 +244,7 @@ set_target_properties(gfx_interp_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIR
 target_include_directories(gfx_interp_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gfx_interp_test PRIVATE pcgfx)
 foreach(c exact move camera cut teleport split hud appear instances children spin eyerel timing parse hudedges
-        depthclear)
+        depthclear own)
     add_test(NAME gfx.interp.${c} COMMAND gfx_interp_test ${c})
 endforeach()
 foreach(v "scale2;RUSH_GFX_SCALE=2" "scale2.5;RUSH_GFX_SCALE=2.5" "wide-scale3.4;RUSH_GFX_WIDESCREEN=16:9,RUSH_GFX_SCALE=3.4"
