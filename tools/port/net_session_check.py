@@ -57,7 +57,9 @@ rejoin (docs/port/NETPLAY.md 13): in the race the guest's process is killed (by 
   from retrace 0 is the host's, line for line, every hash the same, both exit 0. --host-side: the host killed and
   started again (on the same port; the guest knocks). --paced: the session's own clock (RUSH_PACE_SPEED 4): the
   replay unpaced, then paced again. --term: ended by SIGTERM (as a system shutting down), not killed: its game says
-  it is gone (BYE gone), the other side waits for it at once.
+  it is gone (BYE gone), the other side waits for it at once. --paks: each player with a controller pak (new, so both
+  have one ID, as adopt's): the rejoin installs the session's two, port 2's re-IDed as at the start. --sim MODEL:
+  RUSH_SIM_NET's model on both, the restarted one too, at the model's fixed delay.
 outage: the link down 20 s (every packet lost both ways), then the guest stopped 20 s (RUSH_SIM_NET's pause): longer
   than the old 15 s timeout, inside the rejoin window: host = guest = one process, the delay not left high.
 recover: RUSH_SIM_DESYNC changes a word of the guest's state at retrace --at; net.recover on: the host has the guest
@@ -930,11 +932,15 @@ def mode_rejoin(a, names):
     name = (names or ["race2p"])[0]
     victim = "host" if a.host_side else "guest"
     keeper = "guest" if a.host_side else "host"
-    tag = f"{name}.rejoin.{victim}{'.paced' if a.paced else ''}{'.term' if a.term else ''}"
+    tag = f"{name}.rejoin.{victim}{'.paced' if a.paced else ''}{'.term' if a.term else ''}{'.paks' if a.paks else ''}" + \
+        (f".{a.sim}" if a.sim else "")
     spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
     hp, gp, mp, two = path_files(a, name, tag)
     port = free_udp_port()
     speed = {"RUSH_PACE_SPEED": "4"} if a.paced else None
+    hsim, gsim, sdelay = MODELS[a.sim] if a.sim else ("", "", 2)
+    henv = dict(speed or {}, **({"RUSH_SIM_NET": hsim} if hsim else {}))
+    genv = dict(speed or {}, **({"RUSH_SIM_NET": gsim} if gsim else {}))
     keep, killed, new = {}, {}, {}
     kill_at = a.kill_at
 
@@ -955,10 +961,17 @@ def mode_rejoin(a, names):
             new["p"] = Proc(f"new {victim}", cmd, e, cwd, Path(a.logs) / f"{tag}.new{victim}.log")
         threading.Thread(target=run, daemon=True).start()
 
-    extra = ["--net-delay", "2", "--set", "net.rejoin=60"]
+    extra = ["--net-delay", str(sdelay), "--set", "net.rejoin=60"]
     host_extra = extra + ["--net-host", str(port)]
+    guest_extra = list(extra)
+    if a.paks:   # a pak each (new files: the same ID, so port 2's copy is re-IDed, at the start and at the rejoin)
+        d = Path(a.logs) / f"{tag}.paks"
+        shutil.rmtree(d, ignore_errors=True)
+        d.mkdir(parents=True)
+        host_extra += ["--pak", str(d / "host.mpk")]
+        guest_extra += ["--pak", str(d / "guest.mpk")]
     t0 = time.time()
-    r = session(a, tag, hp, gp, spec, host_extra, extra, speed, speed, after_start=kill_and_restart, fast=not a.paced,
+    r = session(a, tag, hp, gp, spec, host_extra, guest_extra, henv, genv, after_start=kill_and_restart, fast=not a.paced,
                 keep=keep, timeout=900)
     if not r:
         return 1
@@ -997,6 +1010,11 @@ def mode_rejoin(a, names):
         bad = 1
     if not re.search(rf"the {victim} rejoined: its replay of the session's \d+ retraces had this side's hash", tk):
         say(f"rejoin: the {keeper} doesn't say its {victim} rejoined")
+        bad = 1
+    if a.paks and ("re-IDed" in tn or "one ID" not in tn or
+                   "controller 1 (the host's player) has the host's controller pak, controller 2 (the guest's) has "
+                   "the guest's controller pak" not in tn):
+        say(f"rejoin paks: the new {victim} doesn't install the session's two paks, port 2's with its own ID")
         bad = 1
     if a.paced:
         rate, said = paced_line(tn)
@@ -1191,6 +1209,8 @@ def main():
     ap.add_argument("--kill-at", type=int, default=1700, help="rejoin: the retrace the victim is killed at")
     ap.add_argument("--repeat", action="store_true", help="recover: the desync repeats in the rebuilt game")
     ap.add_argument("--term", action="store_true", help="rejoin: SIGTERM (the game gone, BYE gone) rather than SIGKILL")
+    ap.add_argument("--paks", action="store_true", help="rejoin: each player with a controller pak")
+    ap.add_argument("--sim", choices=sorted(MODELS), help="rejoin: RUSH_SIM_NET's model on both (the restarted too)")
     ap.add_argument("--speed-wait", type=float, default=15, help="speed: seconds of the race before the kill")
     a = ap.parse_args()
     Path(a.logs).mkdir(parents=True, exist_ok=True)

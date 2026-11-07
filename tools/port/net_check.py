@@ -336,8 +336,8 @@ def case_rejoin(a, host_side=False):
         fail("the rejoin isn't counted on both", log.name)
     compare(gh if host_side else hh, nh, ticks, log.name, f"the {'guest' if host_side else 'host'} and the new {who}")
     print(f"  the new {who} replayed {r['replayed']} ticks in {float(r['replay_ms']):.1f} ms; the {keeper.name} waited "
-          f"{float(keeper.result['stall_max']) / 1000:.1f} s at tick {r['replayed']} (from the kill {killed - t0:+.1f} s "
-          f"before the new {who} started, to its first live input)")
+          f"{float(keeper.result['stall_max']) / 1000:.1f} s at tick {r['replayed']}, from the kill ({t0 - killed:.1f} s "
+          f"before the new {who} started) to its first live input")
     print("ok")
 
 
