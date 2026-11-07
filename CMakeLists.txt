@@ -772,6 +772,14 @@ set_tests_properties(net_session_desync net_session_adopt PROPERTIES FIXTURES_RE
                      TIMEOUT ${REPLAY_TIMEOUT})
 add_test(NAME net_session_wait COMMAND ${NET_SESSION_CHECK} wait)
 set_tests_properties(net_session_wait PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300)
+# net_session_router: net.upnp (docs/port/NETPLAY.md 16) against tools/port/fake_router.py on 127.0.0.1, never the
+# real router: off by default (nothing asked), on (the address said, the mapping renewed and removed, the traces
+# unchanged), a killed host and a host's game gone left to the lease, what the waiting screen says when it can't work
+if(NOT PC_SANITIZE)
+    add_test(NAME net_session_router COMMAND ${NET_SESSION_CHECK} router)
+    set_tests_properties(net_session_router PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 RUN_SERIAL TRUE
+                         LABELS realtime)
+endif()
 # net_session_view: own view (net.view = own) on one PC, split on the other, each way: one game, hash for hash, and
 # each PC's screenshot what it shows (docs/port/NETPLAY.md 14)
 add_test(NAME net_session_view COMMAND ${NET_SESSION_CHECK} view)

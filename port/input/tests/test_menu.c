@@ -1879,23 +1879,37 @@ static void test_online(void)
     act(PC_MENU_ACCEPT);
     type("s3cret c0de");
     act(PC_MENU_DOWN);   /* down ends the typing, keeping it, and moves */
+    /* net.upnp (NETPLAY.md 16): the router's port, off unless chosen; a setting, so a restart takes it along */
+    at("Host a race", "Open router port (UPnP)", "off", "net.upnp, off by default");
+    CHECK(pc_menu_unsaved_list(ch, 8) == 0, "nothing changed yet");
+    act(PC_MENU_RIGHT);
+    at("Host a race", "Open router port (UPnP)", "on", "chosen");
+    {
+        int k = pc_menu_unsaved_list(ch, 8);
+        CHECK(k == 1 && !strcmp(ch[0].section, "net") && !strcmp(ch[0].key, "upnp") && !strcmp(ch[0].value, "on"),
+              "the restart's --set net.upnp=on: %d %s.%s=%s", k, k ? ch[0].section : "", k ? ch[0].key : "",
+              k ? ch[0].value : "");
+    }
+    act(PC_MENU_LEFT);
+    at("Host a race", "Open router port (UPnP)", "off", "and off again");
+    act(PC_MENU_DOWN);
     at("Host a race", "Host now", "", "Host now");
-    act(PC_MENU_UP);
+    act_n(PC_MENU_UP, 2);
     at("Host a race", "Join code", "s3cret c0de", "the code kept");
     act_n(PC_MENU_UP, 1);
     act(PC_MENU_ACCEPT);
     act_n(PC_MENU_CLEAR, 5);
     type("70000");
     act(PC_MENU_ACCEPT);
-    act_n(PC_MENU_DOWN, 2);
+    act_n(PC_MENU_DOWN, 3);
     act(PC_MENU_ACCEPT);
     CHECK(g_on_acts == 0 && !strcmp(pc_menu_message(), "The port is a number from 1 to 65535, not '70000'"),
           "a port that isn't one: '%s'", pc_menu_message());
-    act_n(PC_MENU_UP, 2);
+    act_n(PC_MENU_UP, 3);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_CLEAR);
     act(PC_MENU_ACCEPT);
-    act_n(PC_MENU_DOWN, 2);
+    act_n(PC_MENU_DOWN, 3);
     CHECK(pump() == 0, "the main loop goes on");
     act(PC_MENU_ACCEPT);
     CHECK(g_on_acts == 1 && !strcmp(g_on_act, "host|7000|s3cret c0de"), "Host now: main's act: '%s'", g_on_act);

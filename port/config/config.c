@@ -419,6 +419,13 @@ static const Item items[] = {
     {"net", "recover", T_BOOL, F(net_recover), 0, 0, NULL, "on",
      "When the two games go out of sync, the guest's game starts again and rebuilds the race by replaying the host's "
      "log, and the session goes on; off: a desync ends the session with its report."},
+    /* net.upnp (port/app/netrouter.c, docs/port/NETPLAY.md 16): this PC's router, never the game's */
+    {"net", "upnp", T_BOOL, F(net_upnp), 0, 0, NULL, "off",
+     "Open the port on my router (UPnP): when this PC hosts an online race, its router is asked to forward the "
+     "session's UDP port to it (PCP, NAT-PMP or UPnP), for a friend who isn't on Tailscale. The mapping has a "
+     "10-minute lease, renewed while hosting, and is removed when the session ends. It changes the router's own "
+     "settings, so it is off unless chosen (here, on the host's waiting screen with U, or F1 > Online > Host a race). "
+     "The waiting screen says the address your friend joins at, or why it can't work."},
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)

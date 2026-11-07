@@ -43,7 +43,9 @@
 #include "input_internal.h"
 #include "net.h"
 #include "net_os.h"
+#include "net_nat.h"
 #include "netplay.h"
+#include "netrouter.h"
 #include "pc_lockstep.h"
 #include "ultra.h"
 
@@ -239,7 +241,7 @@ static void catch_interrupts(void)
  * left. */
 static int failed(int window)
 {
-    char msg[256], text[600];
+    char msg[256], text[1100];
     NetEnd e = net_end_reason(S.s, NULL, msg, sizeof msg);
     if (e == NET_END_NONE)
         snprintf(msg, sizeof msg, "this side left the session");
@@ -247,8 +249,14 @@ static int failed(int window)
         snprintf(text, sizeof text, "Nobody joined the online race in %d %s, so this PC stopped hosting. Host again "
                  "when your friend is ready to join.", S.gave_up % 60 ? S.gave_up : S.gave_up / 60,
                  S.gave_up % 60 ? "seconds" : "minutes");
-    else if (S.role == PC_NET_GUEST && !S.joined)
-        snprintf(text, sizeof text, "Couldn't join the online race at %s: %s.", S.join, msg);
+    else if (S.role == PC_NET_GUEST && !S.joined) {
+        char hint[400] = "";
+        NetAddr host;
+        if (e == NET_END_NO_ANSWER && net_peer_addr(S.s, &host))   /* an internet address: the host's router */
+            net_nat_join_hint(&host, host.port, hint, sizeof hint);
+        snprintf(text, sizeof text, "Couldn't join the online race at %s: %s.%s%s", S.join, msg, hint[0] ? " " : "",
+                 hint);
+    }
     else
         snprintf(text, sizeof text, "The online race ended before it started (%s): %s.", net_end_name(e), msg);
     fprintf(stderr, "rush2049pc: online: %s\n", text);
@@ -395,13 +403,16 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
         fprintf(stderr, "rush2049pc: online: Windows may ask once whether to let the program on the network: allow "
                 "it (for private networks)\n");
 #endif
+        pc_net_router_start(port, cfg->net_upnp, cfg->source);   /* net.upnp: the router opens the port (16) */
     } else {
         fprintf(stderr, "rush2049pc: online: joining %s as the guest (controller 2)%s\n", peer,
                 c.join_code ? " with a join code" : "");
     }
     if (o->role == PC_NET_HOST && c.rejoin_session) {   /* its guest kept the session: it knocks every 0.25 s */
         uint64_t t0 = pc_real_ns();
-        while (pc_real_ns() - t0 < KNOCK_WAIT_NS && !net_rejoining(S.s) && net_state(S.s) != NET_ENDED && !pc_quit)
+        /* the router asked to open the port again: its guest's knocks may need it (12 s in all at most) */
+        while ((pc_real_ns() - t0 < KNOCK_WAIT_NS || (pc_net_router_working() && pc_real_ns() - t0 < 4 *
+                KNOCK_WAIT_NS)) && !net_rejoining(S.s) && net_state(S.s) != NET_ENDED && !pc_quit)
             net_os_sleep_ns(10000000u);
         if (net_rejoining(S.s)) {
             S.rejoin = 1;
@@ -1179,6 +1190,7 @@ int pc_net_finish(int code, int window)
         snprintf(text, sizeof text, "The %s left the online session.", peer_name());
         show(text, window);
     }
+    pc_net_router_finish(e == NET_END_GONE);   /* the mapping removed; this PC's game coming back: its lease */
     pc_menu_set_online(NULL);
     net_destroy(S.s);
     S.s = NULL;
