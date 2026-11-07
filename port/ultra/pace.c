@@ -33,6 +33,7 @@
 #define VI_NS (1000000000ull / PC_VI_HZ)
 #define PACE_REBASE_NS ((int64_t)(2 * VI_NS))   /* a lag past two retraces re-bases */
 #define PACE_SMOOTH_NS 2000000                   /* a lag past this is caught up a quarter fast at most */
+#define PACE_REBASES_SAID 20                     /* the first re-based lags each said in the log */
 #define PACE_ADJUST_MAX 1000000                  /* pc_pace_adjust_ns's cap, a retrace */
 #define WORK_BIN_NS 250000                       /* the work histogram's bins: 0.25 ms, to 50 ms */
 #define WORK_BINS 200
@@ -163,12 +164,15 @@ uint64_t pc_pace_due(uint64_t d, uint64_t now)
 {
     if (d <= pc_host_ns())   /* not a move (a deadline due already): nothing to pace, no lag to see */
         return now;
+    uint32_t said = 0, at = 0;
     pthread_mutex_lock(&g_plock);
     start_locked(now);
     int64_t due = due_locked(d), lag = (int64_t)now - due;
     if (lag > PACE_REBASE_NS) {
         P.epoch += lag;
         P.rebases++;
+        if (P.rebases <= PACE_REBASES_SAID)   /* said below, out of the lock: when the game hitched, and how much */
+            said = P.rebases, at = P.retrace;
         P.rebased_ns += (uint64_t)lag;
         if (lag > P.rebase_max)
             P.rebase_max = lag;
@@ -189,6 +193,9 @@ uint64_t pc_pace_due(uint64_t d, uint64_t now)
             due = floor;
     }
     pthread_mutex_unlock(&g_plock);
+    if (said)
+        fprintf(stderr, "rush2049pc: paced: a lag of %.1f ms re-based after retrace %u (N64 time %.3f s)%s\n",
+                lag / 1e6, at, d / 1e9, said == PACE_REBASES_SAID ? "; the rest only counted" : "");
     return due > 0 ? (uint64_t)due : 0;
 }
 

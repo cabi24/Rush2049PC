@@ -1618,10 +1618,13 @@ static int rush_main(int argc, char **argv)
             return pc_net_finish(1, !headless);
     }
     if (pc_net_role()) {   /* the pads source over the session, the hash, its input log (port/app/netplay.h, 5) */
-        char quit[PC_CFG_BIND];
+        char quit[PC_CFG_BIND], *text = (char *)g_ls.must_match;
         int r;
         pc_settings_get(&cfg, "hotkeys", "quit", quit, sizeof quit);
-        if ((r = pc_net_begin(&g_ls, g_ls.must_match, dirs.data, quit, !headless)) != 0)
+        r = pc_net_begin(&g_ls, text, dirs.data, quit, !headless);
+        if (g_ls.must_match != text)   /* the session's input log header took its place (with the text in it) */
+            free(text);
+        if (r)
             return pc_net_finish(r, !headless);
     }
     {
