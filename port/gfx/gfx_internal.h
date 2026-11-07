@@ -254,6 +254,7 @@ void pcgfx_flush(void);
 /* gfx_combine.c */
 char *pcgfx_combine_glsl(const GfxShaderKey *key, int gles, int glsl_version);   /* malloc'd fragment source */
 const char *pcgfx_vertex_source(int gles, int glsl_version);
+double pcgfx_now_ms(void);   /* gfx_api.c: milliseconds on a monotonic clock */
 const char *pcgfx_ui_fragment_source(int gles, int glsl_version);   /* the overlay's (gfx_ui.c) */
 int pcgfx_combine_uses(const GfxShaderKey *key, int texel);   /* does the key read TEXEL0 (0) or TEXEL1 (1)? */
 int pcgfx_blend_uses_mem(const GfxShaderKey *key);

@@ -620,6 +620,15 @@ events are `--fast`'s; a device is fed from a tap, a FIFO of about 50 ms whose c
 (...), B re-based after a lag (... the longest ...), C retraces caught up a lag of over 2 ms (the most ...); time sync:
 ...` and `paced: the host's work a retrace (...)`: the wall time between two retraces less what the main thread slept
 with every N64 thread waiting, its mean, median, 99th percentile and most, against 16.67 ms: the host's headroom.
+Each re-based lag (the first 20) is said as it happens, `paced: a lag of L ms re-based after retrace N (N64 time ...):
+WHOSE (busy B ms of the S since that retrace)`, and at exit `paced: of the re-based lags, K the host's work (...), J
+waits that ran long (...)`: the host's work when the time since the last retrace less the main thread's sleep is half
+the lag or more (the game, the renderer, a host that gave the process no CPU; before the first retrace, the start's),
+else a wait that ran long (a timer's late wake). `paced_check.py` sets the host's work aside (up to 8 lags): the Windows
+runner's software renderer (Mesa's llvmpipe, no shader cache of its own there) builds each new shader at its first
+draw, 40-50 ms, six times a race at the same retraces (2, 484, 1024, 1412, 1416, 1472 of `race`, ba3a8c0's run
+42317924327); the renderer says a shader slow to build (`gfx: a new shader took ...`, over 8 ms) where a driver
+compiles at the link, and at exit how many it built.
 
 **The proof** (2026-11-06). The paths: `synth_compare.py --exe A --exe A --env-b RUSH_PACED=1` (the program against
 itself, `--fast` against paced; `--args-b` gives the second run options of its own, `--link` the mods paths their

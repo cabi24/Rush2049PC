@@ -996,10 +996,11 @@ foreach(model "present;RUSH_SIM_PRESENT_MS=40" "timerstep;RUSH_SIM_TIMER_STEP_US
         TIMEOUT ${PACED_SAME_TIMEOUT})
 endforeach()
 # In real time (tools/port/paced_check.py): the race paced at 60 retraces a second of wall time (59.95-60.05, at most
-# two lags re-based), its trace and the sound it pushed --fast's (paced_realtime); the same with SDL's disk driver fed
-# from the tap, the AI's queue the null output's on the N64 clock (paced_audio: no dry FIFO after the first second, its
-# mean level within 15 ms of 50); and with each present held 40 ms of wall time, a host too slow for the pace: the game
-# slows in wall time and takes the same course (paced_slow_host); and beside four busy processes (paced_load, at
+# two lags re-based, besides those of the host's own work: a software renderer's first draw with a shader), its trace
+# and the sound it pushed --fast's (paced_realtime); the same with SDL's disk driver fed from the tap, the AI's queue
+# the null output's on the N64 clock (paced_audio: no dry FIFO after the first second but after the host's own lags,
+# its mean level within 15 ms of 50); and with each present held 40 ms of wall time, a host too slow for the pace: the
+# game slows in wall time and takes the same course (paced_slow_host); and beside four busy processes (paced_load, at
 # RUSH_PACE_SPEED 4: a loaded host only delays the moves). Alone: they measure time, or load the host.
 add_test(NAME paced_realtime COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --path race --logs ${CMAKE_BINARY_DIR}/synth/paced-realtime)

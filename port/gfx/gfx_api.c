@@ -28,7 +28,7 @@
 #include "pc_port.h"
 
 /* Milliseconds on a monotonic clock: the CPU time the renderer spends (GL calls return before the GPU is done). */
-static double now_ms(void) {
+double pcgfx_now_ms(void) {
 #ifdef _WIN32
     LARGE_INTEGER f, c;
     QueryPerformanceFrequency(&f);
@@ -569,7 +569,7 @@ void pc_gfx_run_dl(const void *dl) {
         pcgfx_gl_draw_counts(&d0, &v0);
         pcgfx_gl_timer_begin(PCGFX_GPU_TASK);
     }
-    t0 = now_ms();
+    t0 = pcgfx_now_ms();
     pcgfx.stat_cmds = pcgfx.stat_tris = pcgfx.stat_draws = pcgfx.stat_unknown = 0;
     if (pcgfx_cfg.frame_rate != 0)   /* a high frame rate: recorded, to be drawn again between frames */
         pcgfx_rec_task_begin();
@@ -584,7 +584,7 @@ void pc_gfx_run_dl(const void *dl) {
         pcgfx_gl_finish();
     S.tasks++;
     pcgfx_detail_task(pcgfx.stat_tris);   /* the exit's scene line (gfx_detail.c) */
-    t0 = now_ms() - t0;
+    t0 = pcgfx_now_ms() - t0;
     if (S.times > 2) {
         pcgfx_gl_timer_end();
         pcgfx_gl_draw_counts(&d1, &v1);
@@ -665,13 +665,13 @@ static double show_begin(void) {
         return 0.0;
     pcgfx_gl_finish();
     pcgfx_gl_timer_begin(PCGFX_GPU_SHOW);
-    return now_ms();
+    return pcgfx_now_ms();
 }
 
 static void show_end(double t0) {
     if (S.times < 3)
         return;
-    S.show_ms += now_ms() - t0;
+    S.show_ms += pcgfx_now_ms() - t0;
     S.shows++;
     pcgfx_gl_timer_end();
 }
@@ -738,7 +738,7 @@ int pc_gfx_present_tick(double vt, int mode) {
     if (S.times > 1)
         pcgfx_gl_finish();
     pcgfx_gl_draw_counts(&d0, &v0);
-    t0 = now_ms();
+    t0 = pcgfx_now_ms();
     pcgfx_flush();
     window_size();
     if (pc_gfx_own_paced()) {   /* the game's own frames at the vblanks: its newest, when it is new (7.6) */
@@ -753,7 +753,7 @@ int pc_gfx_present_tick(double vt, int mode) {
         return 0;   /* nothing new: the screen keeps what it shows */
     if (S.times == 2)
         pcgfx_gl_finish();
-    t1 = now_ms() - t0;
+    t1 = pcgfx_now_ms() - t0;
     if (kind == 2) {
         S.drawn++;
         S.drawn_ms += t1;
@@ -784,7 +784,7 @@ int pc_gfx_present_tick(double vt, int mode) {
     else
         swap();
     show_end(ts);
-    S.tick_ms += now_ms() - t0;
+    S.tick_ms += pcgfx_now_ms() - t0;
     return 1;
 }
 

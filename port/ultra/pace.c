@@ -62,6 +62,8 @@ static struct {
     uint32_t late;           /* retraces that came more than PACE_SMOOTH_NS late, caught up */
     uint32_t holds, rebases, stalls, stalls_small;
     uint64_t held_ns, rebased_ns, stalled_ns;
+    uint32_t rebases_work;   /* re-based lags of the host's work (before the first retrace: the start's) */
+    uint64_t rebased_work_ns;
     int64_t rebase_max;
     int64_t rebased_since;   /* the longest lag re-based since the last retrace */
     uint64_t wake_late;      /* how late the paced wait's timed wakes return (a decaying maximum) */
@@ -165,14 +167,29 @@ uint64_t pc_pace_due(uint64_t d, uint64_t now)
     if (d <= pc_host_ns())   /* not a move (a deadline due already): nothing to pace, no lag to see */
         return now;
     uint32_t said = 0, at = 0;
+    int64_t since = 0, work = 0;
+    int whose = 0;   /* a re-based lag's: 0 the start's, 1 the host's work, 2 a wait's */
     pthread_mutex_lock(&g_plock);
     start_locked(now);
     int64_t due = due_locked(d), lag = (int64_t)now - due;
     if (lag > PACE_REBASE_NS) {
+        /* Whose lag: the host's work (the game, the renderer, a host that gave the process no CPU), when that since
+         * the last retrace (the wall time less the main thread's sleep with every N64 thread waiting) is half the lag
+         * or more; else a wait that ran long. Before the first retrace: the start's. */
+        if (P.first_w && now > P.retrace_w) {
+            uint64_t slept = pc_os_paced_slack_ns() - P.slack_at;
+            since = (int64_t)(now - P.retrace_w);
+            work = since > (int64_t)slept ? since - (int64_t)slept : 0;
+        }
+        whose = !P.first_w ? 0 : work * 2 >= lag ? 1 : 2;
         P.epoch += lag;
         P.rebases++;
-        if (P.rebases <= PACE_REBASES_SAID)   /* said below, out of the lock: when the game hitched, and how much */
-            said = P.rebases, at = P.retrace;
+        if (whose < 2) {
+            P.rebases_work++;
+            P.rebased_work_ns += (uint64_t)lag;
+        }
+        if (P.rebases <= PACE_REBASES_SAID)   /* said below, out of the lock: when the game hitched, how much, why */
+            said = P.rebases, at = P.first_w ? P.retrace : 0;
         P.rebased_ns += (uint64_t)lag;
         if (lag > P.rebase_max)
             P.rebase_max = lag;
@@ -193,9 +210,14 @@ uint64_t pc_pace_due(uint64_t d, uint64_t now)
             due = floor;
     }
     pthread_mutex_unlock(&g_plock);
-    if (said)
-        fprintf(stderr, "rush2049pc: paced: a lag of %.1f ms re-based after retrace %u (N64 time %.3f s)%s\n",
-                lag / 1e6, at, d / 1e9, said == PACE_REBASES_SAID ? "; the rest only counted" : "");
+    if (said) {
+        char why[96] = "the start's";
+        if (whose)
+            snprintf(why, sizeof why, "%s (busy %.1f ms of the %.1f since that retrace)",
+                     whose == 1 ? "the host's work" : "a wait that ran long", work / 1e6, since / 1e6);
+        fprintf(stderr, "rush2049pc: paced: a lag of %.1f ms re-based after retrace %u (N64 time %.3f s): %s%s\n",
+                lag / 1e6, at, d / 1e9, why, said == PACE_REBASES_SAID ? "; the rest only counted" : "");
+    }
     return due > 0 ? (uint64_t)due : 0;
 }
 
@@ -413,6 +435,10 @@ void pc_pace_report(void)
             n, wall, rate, paced, gaps, P.holds, P.held_ns / 1e9, P.rebases, P.rebased_ns / 1e9, P.rebase_max / 1e6,
             P.late, PACE_SMOOTH_NS / 1000000, P.lag_max / 1e6, (long long)P.adjust, P.adjusted / 1e6, P.shifts,
             P.shifted / 1e6);
+    if (P.rebases)
+        fprintf(stderr, "rush2049pc: paced: of the re-based lags, %u the host's work (%.3f s: the game, the renderer, "
+                "the start, or no CPU given), %u waits that ran long (%.3f s)\n", P.rebases_work,
+                P.rebased_work_ns / 1e9, P.rebases - P.rebases_work, (P.rebased_ns - P.rebased_work_ns) / 1e9);
     if (P.stalls || P.stalls_small)
         fprintf(stderr, "rush2049pc: paced: the pads gate: %u retraces' pads came over half a retrace late, re-based "
                 "(%.3f s); %u less late, kept on the grid\n", P.stalls, P.stalled_ns / 1e9, P.stalls_small);

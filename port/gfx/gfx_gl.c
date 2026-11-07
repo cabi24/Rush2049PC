@@ -201,6 +201,33 @@ static struct {
     float nudge[2];                 /* tests: every drawn vertex moved by this many internal pixels */
 } G;
 
+/* The shaders built during play, and how long each took (the compile and link; some drivers compile more at the
+ * first draw): one over SHADER_SLOW_MS is said, the first SHADER_SLOW_SAID of them, since a slow one is a lag paced
+ * mode re-bases (a driver without a cache of its own on a shader's first sight). */
+#define SHADER_SLOW_MS 8.0
+#define SHADER_SLOW_SAID 20
+static struct {
+    uint32_t built, slow;
+    double ms, most;
+} SB;
+
+static void shader_built(double ms) {
+    SB.built++;
+    SB.ms += ms;
+    if (ms > SB.most)
+        SB.most = ms;
+    if (ms >= SHADER_SLOW_MS && ++SB.slow <= SHADER_SLOW_SAID)
+        fprintf(stderr, "gfx: a new shader took %.1f ms to build (%u built during play so far)%s\n", ms, SB.built,
+                SB.slow == SHADER_SLOW_SAID ? "; the rest only counted" : "");
+}
+
+static void shaders_said(void) {
+    if (SB.built)
+        fprintf(stderr, "gfx: %u shaders built during play, %.1f ms in all, the most %.1f ms; %u over %.0f ms\n",
+                SB.built, SB.ms, SB.most, SB.slow, SHADER_SLOW_MS);
+    memset(&SB, 0, sizeof(SB));
+}
+
 /* ---------------------------------------------------------------- GL state as last set */
 
 /* The draws set their whole state each time (gfx_rdp.c batches by draw state); calls that would set what is set
@@ -487,6 +514,7 @@ int pcgfx_gl_init(GfxGetProc get_proc, int gles) {
         while (glGetError() != GL_NO_ERROR)
             ;
     }
+    memset(&SB, 0, sizeof(SB));
     return 0;
 }
 
@@ -506,6 +534,7 @@ void pcgfx_gl_shutdown(void) {
             glDeleteSync(g_frames[b]);
         g_frames[b] = NULL;
     }
+    shaders_said();
     for (b = 0; b < SHADER_BUCKETS; b++)
         while (G.shaders[b]) {
             GfxShader *s = G.shaders[b];
@@ -783,9 +812,11 @@ GfxShader *pcgfx_gl_shader(const GfxShaderKey *key) {
     GLuint vs, fs, prog;
     GLint ok = 0;
     char *fsrc;
+    double t0;
     for (s = G.shaders[b]; s != NULL; s = s->next)
         if (memcmp(&s->key, key, sizeof(*key)) == 0)
             return s;
+    t0 = pcgfx_now_ms();
     fsrc = pcgfx_combine_glsl(key, G.gles, G.glsl);
     if (pcgfx_cfg.verbose > 1)
         fprintf(stderr, "gfx: new shader\n%s\n", fsrc);
@@ -846,6 +877,7 @@ GfxShader *pcgfx_gl_shader(const GfxShaderKey *key) {
     }
     s->next = G.shaders[b];
     G.shaders[b] = s;
+    shader_built(pcgfx_now_ms() - t0);
     return s;
 }
 

@@ -20,13 +20,19 @@ status line a second of game time, and --dump-audio. Then it checks:
                 most --max-rebases re-based lags (a slow host, a stall); R too, unless the run is meant to be slowed
                 (--slowed: a model of a slow host, where the game slows in wall time and only the trace must hold),
                 its lower bound with the allowed lags' time taken out (each up to --rebase-ms: a lag re-bases past two
-                retraces, so one alone would put a 36 s run under 59.95 and allow none in effect)
+                retraces, so one alone would put a 36 s run under 59.95 and allow none in effect). The lags the run
+                says were the host's work (`paced: of the re-based lags, K the host's work (S s ...)`: the game, the
+                renderer, the start; up to --max-work-rebases of them) are the host's, not the pace's, and aside:
+                not counted, their time out of R's bound too. A software renderer's first draw with a new shader
+                (Mesa's llvmpipe with no shader cache of its own, as on the Windows runner: 40-50 ms) is one.
     tap         with --audio sdl (SDL's disk driver, which consumes in real time, unless SDL_AUDIODRIVER is set): the
                 tap's line at exit, the FIFO's level and the nudge of its converter, and no dry FIFO after the first
                 second (`audio: tap: the FIFO ran dry ... T s in`). The level only when the device keeps time: a
                 converter nudged over --device-off-pct on average follows a device that doesn't (the disk driver on
                 Windows sleeps 10 ms a pull and Sleep rounds up, about 5% slow; a sound card's crystal is within
-                0.01%), whose FIFO settles where the nudge's controller holds that rate
+                0.01%), whose FIFO settles where the nudge's controller holds that rate, and drops what the nudge's
+                reach can't follow (so the drops are judged only then too). A dry FIFO after a lag of the host's
+                work is allowed (the game made no sound while the host was busy): no more of them than those lags.
 
 --hash N[,W] gives both runs --log-hash and compares their state hashes too: the game's memory every Nth retrace
 (docs/port/LOCKSTEP.md 5).
@@ -140,6 +146,8 @@ def main():
     ap.add_argument("--min-rate", type=float, default=59.95)
     ap.add_argument("--max-rate", type=float, default=60.05)
     ap.add_argument("--max-rebases", type=int, default=2)
+    ap.add_argument("--max-work-rebases", type=int, default=8, help="re-based lags of the host's work set aside "
+                    "(not counted against --max-rebases), at most")
     ap.add_argument("--rebase-ms", type=float, default=50, help="the time each allowed re-based lag may take from "
                     "the whole run's rate (three retraces)")
     ap.add_argument("--device-off-pct", type=float, default=3, help="the tap's FIFO level judged only when its "
@@ -254,15 +262,21 @@ def main():
               f"the longest {m[10]} ms), no burst after it (the most caught up {m[12]} ms, at most two retraces): "
               f"{'ok' if good else 'FAIL'}")
         ok &= good
+    w = re.search(r"^rush2049pc: paced: of the re-based lags, (\d+) the host's work \(([\d.]+) s", out, re.M)
+    work_n, work_s = (int(w[1]), float(w[2])) if w else (0, 0.0)
+    aside = min(work_n, args.max_work_rebases)   # the host's, not the pace's: not counted, their time out of the bound
+    aside_s = work_s * aside / work_n if work_n else 0.0
     n = int(m[1])   # the whole run's rate: the allowed lags' time out of its bound
-    rate_lo = n / (n / lo + args.max_rebases * args.rebase_ms / 1000) if lo > 0 and n else lo
+    rate_lo = n / (n / lo + aside_s + args.max_rebases * args.rebase_ms / 1000) if lo > 0 and n else lo
     good = args.slowed or bool(args.held) or (lo <= paced <= hi and rate_lo <= rate <= hi and
-                                              rebases <= args.max_rebases)
+                                              rebases - aside <= args.max_rebases)
     ok &= good
     print(f"paced_check: the pace: {m[1]} retraces in {m[2]} s of wall time, {rate:.3f} a second "
           f"({'' if args.slowed or args.held else f'{rate_lo:.3f}-{hi:g}, '}the allowed lags out), {paced:.3f} without "
           f"the {m[5]} s held or re-based ({'not judged: the run is slowed by its model' if args.slowed else f'{lo:g}-{hi:g}'}"
-          f"); {rebases} re-based (the longest {m[10]} ms{'' if args.slowed else f', at most {args.max_rebases}'}), "
+          f"); {rebases} re-based (the longest {m[10]} ms; {work_n} the host's work"
+          f"{'' if args.slowed else f', up to {args.max_work_rebases} of those aside'}"
+          f"{'' if args.slowed else f', at most {args.max_rebases} others'}), "
           f"{m[11]} retraces caught up (the most {m[12]} ms): "
           f"{'ok' if good else 'FAIL'}")
     if args.slowed and float(m[2]) > 0:
@@ -290,13 +304,14 @@ def main():
         late = sum(1 for x in dry if x > 1.0) if int(t[13]) <= len(dry) else int(t[13])
         mean, target = float(t[6]), float(t[8])
         keeps_time = abs(float(t[9])) <= args.device_off_pct
-        good = late == 0 and int(t[17]) == 0 and (not keeps_time or abs(mean - target) <= args.fifo_slack_ms)
+        good = late <= work_n and (not keeps_time or (int(t[17]) == 0 and abs(mean - target) <= args.fifo_slack_ms))
         ok &= good
         level = (f"the mean within {args.fifo_slack_ms:g}" if keeps_time else
-                 f"the level not judged: the device runs over {args.device_off_pct:g}% off real time")
+                 f"the level and the drops not judged: the device runs over {args.device_off_pct:g}% off real time")
         print(f"paced_check: the tap to {t[1]} ({t[2]}) at {t[3]} Hz, pulls of {t[4]}: the FIFO {t[5]}/{t[6]}/{t[7]} "
               f"ms (least/mean/most) against {t[8]} ms ({level}); its converter nudged "
-              f"{t[9]}% on average ({t[10]}% to {t[11]}%); {t[13]} underruns ({late} after the first second, "
+              f"{t[9]}% on average ({t[10]}% to {t[11]}%); {t[13]} underruns ({late} after the first second, at most "
+              f"{work_n}: the lags of the host's work; "
               f"{t[14]} ms of silence), {t[17]} frames dropped: {'ok' if good else 'FAIL'}")
 
     if args.realtime:   # beside the same busy processes
