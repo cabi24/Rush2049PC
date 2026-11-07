@@ -378,6 +378,8 @@ void pcgfx_view_rect(int32_t r[4]);
 int pcgfx_view_fill(int32_t r[4]);
 /* Which view a 2D box (frame N64 pixels) is in: its index, or -1 for none (the frame's). */
 int pcgfx_view_box(float x0, float y0, float x1, float y1);
+/* 1: the box covers the whole frame (the pause screen's darkening): what is drawn after it is the frame's. */
+int pcgfx_view_covers(float x0, float y0, float x1, float y1);
 /* A 2D group's move, N64 pixels across (dx, in the target) and down (dy), its box (frame N64 pixels) in view v; 0 to
  * draw it so moved, -1 not to draw it. ox: the widening; edges: video.hud's edges in effect. */
 int pcgfx_view_move(int v, float x0, float y0, float x1, float y1, int ox, int edges, int *dx, int *dy);

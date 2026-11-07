@@ -2191,7 +2191,7 @@ static int test_views(int rect[][4], int max) {
 static Mtx s_vpoint;
 static uint16_t s_vdig2[8 * 8];
 
-static void view_scene(void) {
+static void view_scene(int paused) {
     static Vp vp[2];
     static Vtx v[2][16], m[4], t[3];
     static const uint8_t col[2][3] = {{255, 0, 0}, {0, 255, 0}};
@@ -2250,6 +2250,11 @@ static void view_scene(void) {
     vtx(&t[2], 28, 95, 0, 0, 0, 128, 255, 128, 255);
     gsSPVertex((uintptr_t)t, 3, 0);
     gsSP1Triangle(0, 1, 2);
+    if (paused) {   /* the pause screen: a darkening across the frame, then a menu line inside view 1's rectangle */
+        hud_fill(0, 0, FB_W, 220, 32, 32, 32);
+        hud_copy();
+        hud_digit(100, 30);
+    }
     frame_end();
 }
 
@@ -2294,7 +2299,7 @@ static void case_view(void) {
     pc_gfx_set_view(PC_GFX_VIEW_SPLIT);
     pc_gfx_set_view_player(0);
     s_race = 1;
-    view_scene();
+    view_scene(0);
     n = (size_t)s_px_w * s_px_h * 4;
     ref = (uint8_t *)malloc(n);
     memcpy(ref, s_px, n);
@@ -2308,7 +2313,7 @@ static void case_view(void) {
         pc_gfx_set_view(k == 0 ? PC_GFX_VIEW_SPLIT : PC_GFX_VIEW_OWN);
         pc_gfx_set_view_player(k == 1 ? 0 : 1);
         s_race = k != 2;
-        view_scene();
+        view_scene(0);
         if ((size_t)s_px_w * s_px_h * 4 != n || memcmp(ref, s_px, n) != 0) {
             printf("  FAIL view: %s differs from the split screen\n", k == 0 ? "split with the views hook"
                    : k == 1 ? "own with no player" : "own outside a race of several views");
@@ -2321,7 +2326,7 @@ static void case_view(void) {
     pc_gfx_set_view(PC_GFX_VIEW_OWN);
     pc_gfx_set_view_player(1);
     s_race = 1;
-    view_scene();
+    view_scene(0);
     check("own 1: the ground at the top left", 0, 0, 255, 0, 0, 0);
     check("own 1: the ground at the bottom right", 319, 219, 255, 0, 0, 0);
     check("own 1: the ground where the left border was", 0, 150, 255, 0, 0, 0);
@@ -2355,9 +2360,18 @@ static void case_view(void) {
     check("own 1: the model beside the top right digit", 291, 11, 255, 0, 255, 0);
     check("own 1: the model: not zoomed with the picture", 288, 52, 255, 0, 0, 0);
 
+    /* the pause screen over it: its menu line stays where the game draws it, for either player */
+    view_scene(1);
+    check("own 1 paused: the menu line", 103, 33, w, w, w, 0);
+    check("own 1 paused: not moved as view 1's", 141, 33, 32, 32, 32, 0);
+    pc_gfx_set_view_player(2);
+    view_scene(1);
+    check("own 2 paused: view 1's rectangle's menu line drawn", 103, 33, w, w, w, 0);
+    pc_gfx_set_view_player(1);
+
     /* own, player 2: view 2's */
     pc_gfx_set_view_player(2);
-    view_scene();
+    view_scene(0);
     check("own 2: the ground at the top left", 0, 0, 0, 255, 0, 0);
     check("own 2: the ground at the bottom right", 319, 219, 0, 255, 0, 0);
     check_none("own 2: view 1's ground", 255, 0, 0);
@@ -2373,7 +2387,7 @@ static void case_view(void) {
     /* 16:9, the HUD at the screen's edges: the picture across the target, the 2D at its edges */
     pc_gfx_set_view_player(1);
     pc_gfx_set_widescreen(16.0f / 9.0f);
-    view_scene();
+    view_scene(0);
     if (s_n64_w != WIDE_W) {
         printf("  FAIL view 16:9: the target is %d wide\n", s_n64_w);
         s_fail++;
@@ -2390,7 +2404,7 @@ static void case_view(void) {
         check_at("16:9: the model beside its digit", 397, 11, 255, 0, 255, 0);
         check_at("16:9: the banner in the middle", 193, 110, 255, 128, 0, 0);
         pc_gfx_set_hud(PC_GFX_HUD_CENTERED);
-        view_scene();
+        view_scene(0);
         check_at("16:9 centered: top left digit in the 4:3 frame", WIDE_OX + 11, 8, w, w, w, 0);
         check_at("16:9 centered: top right digit in the 4:3 frame", WIDE_OX + 301, 8, w, w, w, 0);
         check_at("16:9 centered: the ground beside it", 407, 8, 255, 0, 0, 0);

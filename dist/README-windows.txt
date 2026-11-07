@@ -382,6 +382,14 @@ both players) follows the connection by itself: a retrace or two (17-33
 ms) on a LAN or a close Tailscale link, 4-6 across a continent.
 --net-delay N fixes it at N retraces.
 
+Your own view: each player can see only their own car's view, filling
+the window as in a one-player race, with their speedometer, place, laps
+and coins at the screen's edges and the map and race clock at the right:
+F1 > Video > Online view = own (net.view = own in rush2049pc.ini). Each
+player chooses for themselves; the other player's game is not affected.
+The default, split, shows the game's split screen, both views, as on one
+TV.
+
 F1, the pause key and switching to another window don't pause an online
 game: the other player would wait. While F1 is open your player gets no
 input; its first page ends with two Online rows: the other PC, the round

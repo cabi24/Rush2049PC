@@ -18,7 +18,9 @@
  *   picture; any other (the dividers between the views, the side panel's background, another view's) not drawn.
  * - 2D: queued with the HUD's (gfx_hud.c) and moved by pcgfx_view_move: a piece of the view shown keeps its distance to
  *   the frame's side it is nearest, as the HUD at the screen's edges does; another view's piece is not drawn; the side
- *   panel's map and race clock go to the picture's right side, its background is not drawn.
+ *   panel's map and race clock go to the picture's right side, its background is not drawn; what is drawn after a
+ *   piece across the whole frame (the pause screen's darkening: its title and menu, whose lines each fall in one
+ *   view) is the frame's.
  * - The models the game places in 3D at HUD points (the coin icons beside their counts: ZOID_WindowTo3D) go with
  *   their point's 2D rather than with the zoomed picture (pcgfx_view_hud_point).
  * Off (split, the default; no session; one view) nothing here runs and the drawing is the same as without this file. */
@@ -43,6 +45,9 @@ static struct {
     float rows;    /* the frame's rows: the views' bottom */
     /* the view shown's last viewport: its zoom and centre (pcgfx_view_place), for rectangles mapped as its picture */
     float k, cx, cy;
+    /* RUSH_GFX_VIEW_LOG: the models placed at HUD points in the last task, and the last one's point */
+    int log, points;
+    float px, py;
 } V;
 
 int pc_gfx_parse_view(const char *text, int *ok) {
@@ -73,7 +78,8 @@ void pc_gfx_set_race_views(int (*views)(int rect[][4], int max)) {
 
 /* RUSH_GFX_VIEW=N (1-4): view N alone in any game with several views, local too (tests and tools). */
 void pcgfx_view_init(void) {
-    const char *e = getenv("RUSH_GFX_VIEW");
+    const char *e = getenv("RUSH_GFX_VIEW"), *l = getenv("RUSH_GFX_VIEW_LOG");
+    V.log = l != NULL ? atoi(l) : 0;
     if (e != NULL && *e) {
         int n = atoi(e);
         if (n >= 1 && n <= PCGFX_VIEWS_MAX) {
@@ -86,6 +92,13 @@ void pcgfx_view_init(void) {
 
 void pcgfx_view_task_begin(void) {
     int r[PCGFX_VIEWS_MAX][4], i, n;
+    if (V.on && V.log > 0) {   /* RUSH_GFX_VIEW_LOG (with gfx_hud.c's lines): the last task's models at HUD points */
+        V.log--;
+        fprintf(stderr, "gfx: own view: %d draws of models at HUD points%s", V.points, V.points ? "" : "\n");
+        if (V.points)
+            fprintf(stderr, ", the last at (%.0f, %.0f)\n", V.px, V.py);
+    }
+    V.points = 0;
     V.on = 0;
     if (V.mode != PC_GFX_VIEW_OWN || V.player == 0 || V.views == NULL)
         return;
@@ -201,6 +214,10 @@ static float views_right(void) {
     return r;
 }
 
+int pcgfx_view_covers(float x0, float y0, float x1, float y1) {
+    return x0 <= VIEW_EDGE && x1 >= frame_w() - VIEW_EDGE && y0 <= VIEW_EDGE && y1 >= V.rows - VIEW_EDGE;
+}
+
 int pcgfx_view_box(float x0, float y0, float x1, float y1) {
     int i;
     for (i = 0; i < V.n; i++) {
@@ -275,6 +292,9 @@ int pcgfx_view_hud_point(const float mp[4][4], const float scale[3], const float
     py = trans[1] - py * scale[1];
     if (pcgfx_view_move(V.own, px, py, px, py, ox, edges, &dx, &dy) != 0)
         return 0;
+    V.points++;
+    V.px = px;
+    V.py = py;
     *x = trans[0] + (float)ox + (float)dx;
     *y = trans[1] + (float)dy;
     return 1;

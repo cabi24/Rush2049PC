@@ -6,6 +6,13 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Your own view online** (`net.view`, F1 > Video > Online view; README "Playing online"): with `own`, each player's
+  PC shows only that player's view of an online race, filling the window as a one-player race does, with that
+  player's speedometer, place, laps and coins at the screen's edges and the map and race clock at the right; the
+  other player's view, the side panel and the dividers aren't drawn. Each player chooses their own, and the two games
+  stay one (it changes only what is drawn). `split`, the default, keeps the game's split screen
+  ([NETPLAY.md](docs/port/NETPLAY.md) 13).
+
 - **Online play from the desktop** (README "Playing online"): `Host online race.bat` and `Join online race.bat`
   (`host-online.sh` and `join-online.sh` on Linux) start a session with no options to type: the join one asks for the
   host's address. The host's window opens at once with a waiting screen (the port, this PC's addresses, Tailscale's

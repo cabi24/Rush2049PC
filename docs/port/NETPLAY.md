@@ -46,6 +46,11 @@ message box; launchers in the release folders (`Host online race.bat`, `Join onl
 `join-online.sh`); F1's main page ends with two Online rows in a session (the other PC, the round trip, the input
 delay, stalls, the last hash check).
 
+**Own view (2026-11-07, branch `net-view`, section 13, phase 4):** `net.view = own` (F1 > Video > Online view) shows
+each PC its own player's view alone, filling the window, with that player's HUD at the screen's edges; render-only, so
+each player chooses their own and the two games stay one, hash for hash. The game's culling leaves no holes at the top
+or bottom of the taller view (the survey, 13.2).
+
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
 full screen.
@@ -801,6 +806,8 @@ in the style of the other `RUSH_SIM_*` models; the waiting overlay, timeouts and
 
 ### Phase 4: own view, full screen
 
+**Done (2026-11-07):** section 13.
+
 **Find out first:** a survey of vertical culling in the game C (the horizontal one exists); where the two-player HUD
 draws each element; which 2D tracks 3D.
 
@@ -1266,3 +1273,146 @@ Proofs (rocky, x86-64, unless said):
 Not tried: a real window (rocky and the Pi's tests are headless; the Esc key, the window's close, the title and the
 raise are read, not run), Windows itself (CI builds and runs the tests; the .bat files were checked by reading), and
 two PCs over Tailscale (the user's test is the first).
+
+## 13. Status: own view, full screen (phase 4)
+
+Written 2026-11-07 on branch `net-view` (from 41b4aee). Each player sees only their own car's view, filling the
+window, while both PCs go on running the game's two-player race with both views (1.4: the game's logic is per window,
+so both PCs must run both). The players' side is the README's "Playing online"; the renderer's is GFX.md "One view of
+the split screen".
+
+| Where | What |
+|---|---|
+| `port/gfx/gfx_view.c` | the setting and the player; per graphics task, the race's views; the view filter, the zoom and the taller frustum, fills and 2D sorted by view, the models at HUD points |
+| `port/gfx/gfx_rsp.c` | where a view lands (`view_place`): another view's 3D not drawn, the view shown zoomed and centred; outcodes and the guard band's clipping with clip y's widening (ys) as with x's (xs) |
+| `port/gfx/gfx_rdp.c`, `gfx_hud.c`, `gfx_interp.c` | the 3D's scissor and the fills; the 2D through the HUD's queue, moved across and down or not drawn; frames between with the recorded context |
+| `port/main.c` | the views' rectangles from the game's window records (`race_views`); the session's player (the host 1, the guest 2) |
+| `port/config`, `port/input/menu.c` | `net.view`; F1 > Video > Online view |
+
+### 13.1 The setting
+
+`net.view = split|own`, `split` by default. With `own`, in an online session, the host's PC draws player 1's view
+alone and the guest's player 2's, across the window, with that player's HUD at the screen's edges. It is only what a PC
+draws: it isn't in `pc_must_match`, so a session neither compares it, nor gives the host's to the guest, nor locks it in
+F1, and each player chooses their own (13.5: the two games stay one, hash for hash). F1's Video page has it below
+"Race HUD" ("Online view": split screen, own (full screen)); it applies from the next frame. The main page already
+holds fifteen rows in a session (12.10), so the Video page, where the other drawing choices are, takes it.
+
+**A game on one PC stays split screen.** Two players at one PC share its screen, so "player 1's view only" would hide
+player 2's car from player 2; a setting left at `own` after an online race would do that to the next couch race. The
+setting is an online one, then, and the renderer's own variable, `RUSH_GFX_VIEW=1-4`, shows one view in any game for
+tests and tools (the `race2pown` path uses it).
+
+### 13.2 The survey (the game C)
+
+**Vertical culling: none.** The game's CPU code leaves nothing out by the vertical field of view, the window's height or
+its rectangle, so a taller view gets no holes and no pop-in from the game's side. Fifteen functions address the window
+records (`D_8017A510`), found in the compiled code as well as by name: the setup (`exhaust_smoke_effect`, which derives
+fovy from fovx and the window's shape, `arb_rate_set`, `ZOID_ResetWindows`, `wheel_render_full`, `car_render_full`,
+`viewport_scale`), the fog (`func_800AB18C`, `func_800A7428`, `func_800A7480`, `func_800A5518`, `func_800A6078`), the
+view's own display list (`func_8009F058`: the viewport, the scissor and the projection from the record), and three
+that use it to place things: the battle off-screen arrow (`entity_render_setup`, by fovx and fovy), `ZOID_WindowTo3D`
+(`car_lights_render`, the models at HUD points) and `ZOID_ProjectWindow` (`brake_light_update`, called only by menus).
+tan(fovx/2) and tan(fovy/2) are never read. The scene walk's tests are the hidden flag, the per-view mask, the
+matrices' range, the fog's radius in x and z, the levels of detail and the nodes' boxes, which go to G_CULLDL and so
+to the renderer (DETAIL.md 1.2); the poly list's, the hidden flag, the view bit and the range; shadows, skids and the
+emitters test no view. The visibility tables go by the eye's place alone (DETAIL.md 1.1). So the holes a taller view
+could show are the renderer's and the frame's (13.4). (The horizontal survey, GFX.md "The game's own culling", said the
+battle arrow reads fovx: it places the arrow by fovy too.)
+
+**Where the two-player HUD draws.** All 2D goes into one display list of its own (`pc_text_dl`), called after every
+view's 3D (`ctx_game_loop.c:112-117`, `particle_knot/group.c:1590-1773`), under a full-frame scissor: no 2D is
+scissored to a view, the game clips sprites in software. Each piece's place comes from a table of the cartridge's,
+indexed by the number of windows and the window, so which view a piece belongs to can only be told by its box:
+
+- per window, each drawn once per view: the speed (digits and box), odometer, tach, gear, place, lap counter, lap
+  split, radar frame and blips, wrong way, coin counts, the countdown's message pane, the results' panes, battle's
+  health, points and lives, stunt's panes;
+- shared, drawn once a frame: the race clock, the time left (timed modes), the map with its dots and the flag, the
+  pause screen, the results' header;
+- on the retail cartridge (the Pi, the frames of 13.5, in words): every per-window piece lies inside its view's
+  rectangle, the speedometer and radar at its top left, the place, laps and coin counts at its top right; the side
+  panel holds the shared ones, over its background of nine texture rectangles across its whole width.
+
+**Which 2D tracks 3D: none.** The markers over the other player's car are quads in the view's own 3D (the poly list,
+`music_control.c:106-142`, rebuilt as billboards by AnimateArrow), the countdown's digits camera-space quads in the
+view's 3D, and nothing in a race projects a 3D point to place 2D (`ZOID_ProjectWindow` is the menus'). The other way
+round, 3D tracks 2D: the coin icons beside their counts (and battle's and stunt's status models) are models placed at a
+HUD point, unprojected 2 ft in front of the camera through the view's record (`ZOID_WindowTo3D`, `coins.c:141`).
+
+### 13.3 The renderer
+
+In the race's views (main.c's hook reads them from the game's window records, `D_80149B00` and `D_80149B20`: x 2-242,
+rows 0-109 and 111-220), with own view on, per graphics task:
+
+- **3D:** a perspective draw is the view whose rectangle holds its viewport's centre. Another view's isn't drawn. The
+  view shown is zoomed by 4/3, its width to the frame's, so its field of view across stays the game's 90 degrees, and
+  centred; its picture then reaches the frame's top and bottom, tan(fovy/2) 0.6875 where the view had 0.458, the
+  one-player view's own frustum. Clip y goes through the outcodes, G_CULLDL and the guard band divided by 1.5 (ys), as
+  widescreen divides clip x (xs). Widescreen then widens it as any view across the frame, with `video.fill` too.
+- **Fills:** the clears across the frame as before; the dividers between the views, the side panel's fill and the
+  left border, drawn before the 3D in fill mode, not drawn; one in the view shown, mapped with its picture.
+- **2D:** through the HUD's queue (GFX.md "The HUD at the screen's edges"), grouped within one view: the view shown's
+  groups keep their distance to the side of the view they are nearest, now the frame's (across by thirds, down the
+  bottom third with the frame's bottom, a centred message to the middle, the rest with the top), at their own size,
+  on the N64 pixel grid; another view's not drawn; in the side panel, its background (a piece across its whole width)
+  not drawn and the map and clock at the picture's right side; anything else of the frame where the game puts it, and
+  so the pause screen: its darkening across the whole frame and all drawn after it (its title and menu, whose lines
+  each fall in one view's rectangle). With `video.hud = edges` in widescreen the sides are the screen's, with
+  `centered` the 4:3 frame's.
+- **Models at HUD points:** a transform in the view shown whose origin is 2 ft (or 5.75) in front of the eye and on
+  screen is drawn at the view's own scale, moved as its point's 2D is, so the coin icon stays beside its count.
+- Frames between (`video.frame_rate`) record the zoomed context and the moved 2D, and show the same.
+
+### 13.4 Holes at the top and bottom: what was chosen, and why
+
+The game's culling leaves none (13.2). What would have left holes is the renderer's and the frame's, and each is
+handled where it is:
+
+- the view's scissor, its rows only: mapped with its picture to the frame's;
+- G_CULLDL and the trivial reject against the view's own frustum: the outcodes take the taller frustum (ys), so a node
+  above or below the view's old field is drawn, not cut;
+- the frame begin's black fills between the views and in the side panel, drawn before the 3D: not drawn, so where
+  nothing is drawn the clear colour shows, as in a one-player race.
+
+**The zoom: to the width.** Zoomed to the frame's width, the view keeps the game's 90 degrees across, which its own
+culling, levels of detail, markers and battle arrows are made for, and gains height: its frustum is then exactly the
+one-player race's (90 degrees across, 320 x 220), which the game's world, its visibility tables and its sky are made to
+be seen with, so it shows nothing a one-player race doesn't. Zoomed to the height instead, the sides would be cut (the
+view's 90 degrees down to about 67), and a stretched picture would distort the game. On the retail frames looked at
+(13.5) the sky fills the top and the road the bottom.
+
+What stays on the view's old lines: the battle off-screen arrow, which the game places by the view's fovy at the old
+frustum's bottom (about 37 rows above the frame's bottom in own view); battle only, and not a hole.
+
+### 13.5 Proofs
+
+Rocky (x86-64, RelWithDebInfo) unless said.
+
+| Test | Result |
+|---|---|
+| `gfx.view` (new, and in every `gfx.all.*` variant: scales 1.25-6.75, native 2880 x 1620, 16:9, 21:9, GLES, desktop GL, llvmpipe) | split, own with no player and own outside a race of several views: the split screen byte for byte; view 1 and view 2 alone: the ground to every edge and where the dividers, border and panel were, the other view's ground and HUD nowhere (every other pixel scanned), the picture zoomed 4/3 and taller, each HUD piece at its corner of the frame, the panel's background gone and its map at the right, the HUD-point model beside its digit; at 16:9 with edges the HUD at the target's edges, with centered in the 4:3 frame |
+| `gfx.clip` | 80,000 triangles, the earlier 40,000 and the same made 1.5 times taller, alone and widened: every vertex GL gets within both guard bands |
+| `frontend.menu` | the Video page's Online view applies at once; in a session it isn't locked |
+| `synth_boot_race2pown` (new path: race2p with view 1 alone, `RUSH_GFX_VIEW=1`) | race2p's own end, exact floats; `synth_shot.py race2pown.png own`: the screen 96.5% drawn, the divider's rows, the side panel's place and the left border 100% (the split screen's: 0, 0, 0) |
+| `net_session_view` (new; race2p, delay 2) | own view on the host and split on the guest, then the other way: each time host = guest = one process, 5,606 trace lines, 2,765 retraces hashed (every retrace, the full hash every 30, and retrace 0's setup check); the PC with own view says "player 1's view" (host) or "player 2's view" (guest) and its screenshot is one view across the frame (96.5%, 100%, 100%, 100%), the other's two views (72.6% each, the border 0%) |
+| frames between (by hand: race2pown's path at `RUSH_GFX_FRAME_RATE=120`, 12 frames shown in the race) | the nine drawn between two are one view across the frame, as the game's three are (the screen 96.4-96.5%, the divider's rows, the side panel's place and the left border 100%) |
+| the default changes nothing: `synth_compare.py --same --runs 2`, main's program (41b4aee) against this branch's, every synthetic path | RelWithDebInfo: 63 of 63 paths the same, race2pown among them (`pcsetup` left out by the tool: the host's clock only) |
+| the whole suite | CTEST_RESULT |
+| `n64_neutral.py --base 09da2f0` | no game C changed |
+| the retail cartridge, the Pi (five frames looked at, 2026-11-07, not kept) | the pause screen with view 2 alone: at first its title and the menu's first four lines were missing (each line falls in view 1's rectangle), so the pause screen's pieces became the frame's (13.3); then the whole menu and title over view 2, its HUD at the edges. A two-player race on track 0 with view 1 alone and with view 2 alone at 4:3, and view 1 at 16:9 with `video.fill`: one view across the frame, sky to the top and road to the bottom, no band or hole; the speedometer and radar at the top left, the place, laps and coin counts at the top right (view 2's moved up from its view's rows, in its own colour), the map and race clock at the right over the 3D, the panel's background, the other view and the dividers gone; at 16:9 the HUD at the screen's edges. The coin icons were found at their HUD points (ten draws a frame, at the coin counts' place) but are not visible on these frames, nor in the split screen at that moment |
+
+### 13.6 Not done
+
+- Three and four views: the renderer takes up to four, but main's hook gives the two-player layout only (sessions are
+  two players); `RUSH_GFX_VIEW` shows one of two.
+- The sound stays the split screen's mix (both listeners), as 1.4 planned: per player it would change the audio
+  manager, which is game state.
+- The two-player detail cuts (DETAIL.md 1.8: models' two-player sections, level objects, the tires' level, the nearer
+  fog) are the game's for two players: own view shows the split screen's world, larger. `video.detail = high` restores
+  the models and objects, for both PCs (it must match).
+- The battle off-screen arrow (13.4); battle, stunt, the pause screen's other pages (options, controls) and the results
+  with own view were not looked at on the retail cartridge. The side panel's background is told by its width, and the
+  pause screen by its darkening across the frame, as seen on track 0's race; a piece across the whole frame in a race
+  that isn't the pause screen's would keep what is drawn after it in the frame's place too.
+- Two real PCs: not tried.

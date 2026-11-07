@@ -21,8 +21,9 @@
  * at HUD points (the coin icons beside their counts, ZOID_WindowTo3D): on the PC that function moves its point by
  * pc_gfx_hud_dx, the same rule for a point.
  * Own view (net.view = own, gfx_view.c) uses the same queue in a race of several views, at any aspect: each item is
- * the view its box is in, or the frame's; pieces group only within one view; another view's are not drawn, and the
- * view shown's move to the frame's edges across and down (pcgfx_view_move).
+ * the view its box is in, or the frame's (and so is all that is drawn after a piece across the whole frame: the pause
+ * screen); pieces group only within one view; another view's are not drawn, and the view shown's move to the frame's
+ * edges across and down (pcgfx_view_move).
  * Off (centered, 4:3, a menu, split screen) nothing here runs and the drawing is the same as without this file. */
 #include <stdatomic.h>
 #include <stdio.h>
@@ -65,6 +66,7 @@ static struct {
     int (*race)(void);      /* set before the game's threads start */
     int on;                 /* this task: edges, in a race with one view */
     int view;               /* this task: own view (gfx_view.c) */
+    int over;               /* own view: a piece across the whole frame was drawn this task (the pause screen's) */
     HudItem *it;
     int n, cap;
     GfxOutVtx *v;
@@ -121,6 +123,7 @@ void pcgfx_hud_init(void) {
 void pcgfx_hud_task_begin(void) {
     S.on = pc_gfx_hud() == PC_GFX_HUD_EDGES && S.race != NULL && S.race();
     S.view = pcgfx_view_on();   /* after pcgfx_view_task_begin */
+    S.over = 0;
     S.n = 0;
     S.nv = S.nst = 0;
     S.npanel = 0;
@@ -253,6 +256,10 @@ int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, 
     it->sc_y0 = (int32_t)(pcgfx.sc_uly >> 2);
     it->sc_y1 = (int32_t)(pcgfx.sc_lry >> 2);
     it->view = (int8_t)(S.view ? pcgfx_view_box(it->x0, it->y0, it->x1, it->y1) : -1);
+    if (S.view && (S.over || pcgfx_view_covers(it->x0, it->y0, it->x1, it->y1))) {
+        it->view = -1;   /* the pause screen: its darkening across the frame, then its title and menu over it */
+        S.over = 1;
+    }
     it->movable = (uint8_t)movable;   /* the HUD's translucent panels are drawn with the primitive depth too */
     /* a panel: what is drawn on it doesn't group with what it covers */
     if (it->x1 - it->x0 >= 0.5f * (float)fw && it->y1 - it->y0 >= (float)fw * 0.75f / 8.0f &&
