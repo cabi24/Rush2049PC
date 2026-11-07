@@ -1917,14 +1917,22 @@ static void test_online(void)
     act(PC_MENU_DOWN);   /* down ends the typing, keeping it, and moves */
     /* net.upnp (NETPLAY.md 16): the router's port, off unless chosen; a setting, so a restart takes it along */
     at("Host a race", "Open router port (UPnP)", "off", "net.upnp, off by default");
-    CHECK(pc_menu_unsaved_list(ch, 8) == 0, "nothing changed yet");
-    act(PC_MENU_RIGHT);
-    at("Host a race", "Open router port (UPnP)", "on", "chosen");
     {
+        /* the page's rows above touched net.rejoin and net.rumble (back to their values): the list has every setting
+         * touched, as it is now, so net.upnp's is looked for among them */
+        int k0 = pc_menu_unsaved_list(ch, 8), upnp = -1;
+        for (int i = 0; i < k0; i++)
+            if (!strcmp(ch[i].section, "net") && !strcmp(ch[i].key, "upnp"))
+                upnp = i;
+        CHECK(upnp < 0, "net.upnp not changed yet");
+        act(PC_MENU_RIGHT);
+        at("Host a race", "Open router port (UPnP)", "on", "chosen");
         int k = pc_menu_unsaved_list(ch, 8);
-        CHECK(k == 1 && !strcmp(ch[0].section, "net") && !strcmp(ch[0].key, "upnp") && !strcmp(ch[0].value, "on"),
-              "the restart's --set net.upnp=on: %d %s.%s=%s", k, k ? ch[0].section : "", k ? ch[0].key : "",
-              k ? ch[0].value : "");
+        for (int i = 0; i < k; i++)
+            if (!strcmp(ch[i].section, "net") && !strcmp(ch[i].key, "upnp"))
+                upnp = i;
+        CHECK(k == k0 + 1 && upnp >= 0 && !strcmp(ch[upnp].value, "on"), "the restart's --set net.upnp=on: %d of %d, %s",
+              upnp, k, upnp >= 0 ? ch[upnp].value : "");
     }
     act(PC_MENU_LEFT);
     at("Host a race", "Open router port (UPnP)", "off", "and off again");
