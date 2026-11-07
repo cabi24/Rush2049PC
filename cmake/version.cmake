@@ -61,14 +61,19 @@ if(NOT old STREQUAL text)
 endif()
 
 # OUT_RC (Windows): the same version for the executable's VERSIONINFO (port/app/rush2049pc.rc). Its numeric form
-# is the tag's numbers and the commits since it (v1.2.0-3-gabc1234 is 1.2.0.3); 0.0.0.0 before any tag.
+# is the tag's numbers and the commits since it (v1.2.0-3-gabc1234 is 1.2.0.3); 0.0.0.0 before any tag. The tag's
+# v is required: with no tag the version is the commit's short hash, which can be all digits (7962807), and each
+# number is a 16-bit field (a number over 65535 also gives 0.0.0.0).
 if(OUT_RC)
     set(nums "0,0,0,0")
-    if(describe MATCHES "^v?([0-9]+)(\\.([0-9]+))?(\\.([0-9]+))?(-([0-9]+)-g[0-9a-f]+)?(-dirty)?$")
+    if(describe MATCHES "^v([0-9]+)(\\.([0-9]+))?(\\.([0-9]+))?(-([0-9]+)-g[0-9a-f]+)?(-dirty)?$")
         set(nums "")
         foreach(i 1 3 5 7)
             if("${CMAKE_MATCH_${i}}" STREQUAL "")
                 string(APPEND nums ",0")
+            elseif(CMAKE_MATCH_${i} GREATER 65535)
+                set(nums ",0,0,0,0")
+                break()
             else()
                 string(APPEND nums ",${CMAKE_MATCH_${i}}")
             endif()

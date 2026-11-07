@@ -438,7 +438,8 @@ file, say) is tried again a second later. Backups and a damaged pak set aside: R
   - VERSIONINFO: ProductName `Rush2049PC`, FileDescription `Rush2049PC (unofficial PC port)` (Task Manager shows
     it), a comment that it is an unofficial port that holds no game data, FileVersion and ProductVersion as
     `git describe` gives them (the log's version), and FILEVERSION their numbers: `v1.2.0-3-gabc1234` is 1.2.0.3,
-    0.0.0.0 before any tag. No company, and none of the game's names.
+    0.0.0.0 before any tag (a short hash of digits alone, 7962807, is not read as a number; nor is a number over
+    65535, each being 16 bits). No company, and none of the game's names.
 - `cmake/version.cmake` writes `pc_version_rc.h` next to `pc_version.c` at each build, when it changes.
 - **`tools/port/make_icon.py`** makes the .ico and `port/app/icon_data.h` from the SVG, with pycairo. Both are
   committed, so a build needs neither. It draws only what the SVG uses (`rect`, `path` with M, L, H, V and Z, fill,
