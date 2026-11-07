@@ -856,6 +856,10 @@ static void waiting_notice(int ms, uint64_t now)
     pc_gfx_redraw();
     S.notice = 1;
     S.notice_at = now;
+    if (ri.phase != NET_RJ_NONE && now - S.catch_said >= CATCHUP_SAY_NS) {   /* the log has what the screen says */
+        fprintf(stderr, "rush2049pc: online: %s %s\n", title, line);
+        S.catch_said = now;
+    }
 }
 
 static int src_pads(void *user, uint32_t n, PcPad out[4])

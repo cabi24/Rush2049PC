@@ -65,7 +65,8 @@ recover: RUSH_SIM_DESYNC changes a word of the guest's state at retrace --at; ne
   on: its new trace the host's, both exit 0, both logs say the recovery and its retrace. --repeat: the change again
   in the rebuilt game (RUSH_SIM_DESYNC kept): both end with the desync at that retrace, "deterministic", exit 3.
 speed: the replay's rate (retraces a second, times real time) of a rejoin late in the race, without the per-retrace
-  trace: how long a rejoin's catch-up takes.
+  trace: how long a rejoin's catch-up takes; and for comparison one --fast process replaying the host's input log as
+  far, which draws every frame (headless): what the catch-up gains by drawing nothing.
 
 Exit status: 0 when it holds. Stdlib only, Python 3.9+.
 """
@@ -990,7 +991,8 @@ def mode_rejoin(a, names):
         say(f"rejoin: the new {victim} doesn't say it rejoined and caught up")
         bad = 1
     told = tg if keeper == "host" else th   # the killed one's own output
-    if a.term and ("online: ended (gone)" not in told or f"the {victim}'s game closed" not in tk):
+    # (Windows has no SIGTERM: terminate() kills there, and the rejoin is a crash's)
+    if a.term and os.name != "nt" and ("online: ended (gone)" not in told or f"the {victim}'s game closed" not in tk):
         say(f"rejoin: the {victim} ended by SIGTERM doesn't say its game is gone, or the {keeper} doesn't wait for it")
         bad = 1
     if not re.search(rf"the {victim} rejoined: its replay of the session's \d+ retraces had this side's hash", tk):
@@ -1114,7 +1116,7 @@ def mode_speed(a, names):
         def run():
             # no per-retrace lines: kill once the race has run a while (its state line), then start again
             t = time.monotonic()
-            while not any(int(m.group(1), 16) & 0x400000 for m in
+            while not any(int(m.group(1), 16) & 0x400000 and int(m.group(1), 16) != 0xFFFFFFFF for m in
                           (re.match(r"^rush2049pc: game state (0x[0-9A-F]+)", l) for l in list(procs[0].lines)) if m):
                 if procs[0].proc.poll() is not None or time.monotonic() - t > 600:
                     return
@@ -1146,6 +1148,25 @@ def mode_speed(a, names):
         return 1
     say(f"speed {name}: a rejoin replayed {cu[0]} retraces ({cu[0] / 60:.1f} s of the race) in {cu[1]:.2f} s: {cu[2]} "
         f"retraces a second, {cu[3]:.1f} times real time (the session paced; the replay unpaced, nothing drawn)")
+    th = (Path(a.logs) / f"{tag}.host.log").read_text()
+    m = re.search(r"online: the session's input log: (\S+)", th)
+    if not m:
+        return 0
+    def replay(seconds):   # one --fast process, drawing every frame headless; its wall time
+        run_dir = Path(a.logs) / f"{tag}.replay.run"
+        shutil.rmtree(run_dir, ignore_errors=True)
+        run_dir.mkdir(parents=True)
+        e = dict(os.environ, **synth_paths.data_env(run_dir))
+        cmd = base_cmd(a, mp, dict(spec, seconds=f"{seconds:.4f}", until=None),
+                       ["--replay-inputs", m.group(1), "--replay-force", "--session-rules"], trace=False)
+        t = time.monotonic()
+        subprocess.run(cmd, env=e, cwd=run_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900)
+        return time.monotonic() - t
+    base = min(replay(0.1) for _ in range(2))   # the start (the ROM, the data), with hardly a retrace
+    full = min(replay(cu[0] / 60) for _ in range(2))
+    rate = cu[0] / max(full - base, 0.001)
+    say(f"speed {name}: one --fast process replaying the same {cu[0]} retraces, drawing each frame: {full - base:.2f} s "
+        f"(start aside), {rate:.0f} a second; the rejoin's replay, drawing nothing, {cu[2] / rate:.2f} times as fast")
     return 0
 
 
