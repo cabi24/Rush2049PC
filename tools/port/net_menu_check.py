@@ -198,7 +198,10 @@ def restart_join(a):
     script = nsc.SCRIPTS / "race2p.press"
     host_part, _, _ = nsc.split(script.read_text())
     (d / f"{tag}.host.press").write_text(host_part)
-    hcmd = base(a, ["--net-host", str(port), "--seconds", "14", "--press-file", str(d / f"{tag}.host.press")])
+    # the host's draw distance far: the guest's for the session, not after it (main sets RUSH_GFX_DRAW_DISTANCE from
+    # the settings in effect; the restart has the environment the program started with)
+    hcmd = base(a, ["--net-host", str(port), "--seconds", "14", "--set", "video.draw_distance=far", "--press-file",
+                    str(d / f"{tag}.host.press")])
     host, _ = start(a, tag, "host", hcmd, SPEED)
     if wait_for(host, r"listening on port", 60) < 0:
         host.kill()
@@ -237,11 +240,16 @@ def restart_join(a):
     if nsc.exit_code(tg) != 0 or "time reached" not in gp[2] or "online:" in gp[2].replace("online: this PC", ""):
         say(f"join: the run back in the game didn't run offline to its limit (exit {nsc.exit_code(tg)})")
         bad = 1
+    if "video.draw_distance original -> far (the host's" not in gp[1] or "draw_distance far" in gp[2]:
+        say("join: the host's draw distance wasn't the session's only (adopted: "
+            f"{'video.draw_distance original -> far' in gp[1]}, after: {'draw_distance far' in gp[2]})")
+        bad = 1
     if not bad:
         say(f"join: F1, Online, Join a race, the recent host, Join now restarted the process into the guest: "
             f"{gcmds[0][gcmds[0].find('--net-return'):]}; {n} retraces hashed by both, all the same; the host left at "
             f"its limit and the guest, started from the page, restarted without the session and ran offline to its "
-            f"limit: {gcmds[1][len(str(Path(a.exe).resolve())):][:160]}...")
+            f"limit, with its own settings again (the host's draw distance far was the session's only): "
+            f"{gcmds[1][len(str(Path(a.exe).resolve())):][:160]}...")
     return bad
 
 

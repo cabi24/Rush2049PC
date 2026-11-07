@@ -212,7 +212,7 @@ static struct {
     char was[PC_ONLINE_ADDR];        /* the field before: Escape puts it back */
     PcOnlineAddr addr[ON_ADDRS];
     int naddr, pending;
-    char recent[PC_ONLINE_RECENT][PC_ONLINE_ADDR], recent_label[PC_ONLINE_RECENT][32];
+    char recent[PC_ONLINE_RECENT][PC_ONLINE_ADDR], recent_label[PC_ONLINE_RECENT][48];
     int nrecent;
     PcOnlineReplay replay[ON_REPLAYS];
     int nreplay;
@@ -1930,7 +1930,7 @@ static void fill_on_join(void)
         note(P_ON_JOIN, "Joined before:");
     for (int i = 0; i < O.nrecent; i++) {
         snprintf(O.recent_label[i], sizeof O.recent_label[i], "%s", O.recent[i]);
-        fit(O.recent_label[i], 26, 1);
+        fit(O.recent_label[i], 46, 0);   /* no value: the row's width; a name's start */
         add(P_ON_JOIN, I_ON_RECENT, O.recent_label[i], NULL, NULL)->page = i;
     }
     if (!O.nrecent) {
@@ -2363,7 +2363,7 @@ static const char *hint(const Item *it)
         return "Press a button or move a stick   Esc: cancel";
     switch (it->kind) {
     case I_PAGE:
-        return "Enter/A: open   Esc/B: close";
+        return M.page == P_MAIN ? "Enter/A: open   Esc/B: close" : "Enter/A: open   Esc/B: back";
     case I_CHOICE:
     case I_NUMBER:
     case I_WINDOW:

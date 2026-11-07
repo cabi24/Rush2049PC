@@ -22,7 +22,8 @@ extern "C" {
 
 /* What this run is, for the page: offline, an online session, a replay. */
 enum { PC_NET_MENU_OFFLINE, PC_NET_MENU_SESSION, PC_NET_MENU_REPLAY };
-/* At start: this run's command line (the restart's base), and --net-return (a run the page started). */
+/* At start, before main sets anything in the environment: this run's command line (the restart's base), --net-return
+ * (a run the page started), and the environment (the restart's: not the RUSH_GFX_* main sets from the settings). */
 void pc_net_menu_args(int argc, char **argv, int net_return);
 /* With the overlay set up (after pc_input_init): the page's side (pc_menu_set_online_ui), what this run is, the data
  * folder (netplay/, replays/), the settings in effect (fullscreen as the file has it), the ROM loaded (a restart names

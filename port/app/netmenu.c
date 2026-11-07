@@ -62,6 +62,11 @@ static struct {
     const char *args[MAX_ARGS];       /* the restart's command line (pc_net_menu_restart_say) */
     char argbuf[16384];
     int nargs;
+#ifdef _WIN32
+    char *env;                        /* the environment block at start (main sets RUSH_GFX_* from the settings) */
+#else
+    char **env;
+#endif
 } NM;
 
 /* ---------------------------------------------------------------- an input log's header */
@@ -366,9 +371,41 @@ static int ui_act(int action, const char *a, const char *b, char *msg, size_t si
 
 static const PcOnlineUi g_ui = {ui_mode, ui_addresses, ui_replays, ui_act};
 
+/* The environment as the program was started with it, for the restart: main sets RUSH_GFX_* and others from the
+ * settings in effect (port/gfx reads them), which a new run would take as the environment's layer over the settings
+ * file: a guest's draw distance, the host's, back in the game after the session. */
+#ifndef _WIN32
+extern char **environ;
+#endif
+
+static void keep_environment(void)
+{
+#ifdef _WIN32
+    char *e = GetEnvironmentStringsA(), *p = e;
+    size_t n;
+    if (!e)
+        return;
+    while (*p)
+        p += strlen(p) + 1;
+    n = (size_t)(p - e) + 1;
+    if ((NM.env = malloc(n)) != NULL)
+        memcpy(NM.env, e, n);
+    FreeEnvironmentStringsA(e);
+#else
+    int n = 0;
+    while (environ && environ[n])
+        n++;
+    if (!(NM.env = calloc((size_t)n + 1, sizeof *NM.env)))
+        return;
+    for (int i = 0; i < n; i++)
+        NM.env[i] = strdup(environ[i]);
+#endif
+}
+
 void pc_net_menu_args(int argc, char **argv, int net_return)
 {
     NM.argc = argc, NM.argv = argv, NM.back = net_return;
+    keep_environment();
 }
 
 void pc_net_menu_install(int mode, const char *data_dir, const PcSettings *cfg, const char *rom, const char *build,
@@ -466,7 +503,7 @@ int pc_net_menu_restart(int code)
             si.hStdInput = h[0], si.hStdOutput = h[1], si.hStdError = h[2];
             inherit = TRUE;
         }
-        if (!CreateProcessA(NM.args[0], cmd, NULL, NULL, inherit, 0, NULL, NULL, &si, &pi)) {
+        if (!CreateProcessA(NM.args[0], cmd, NULL, NULL, inherit, 0, NM.env, NULL, &si, &pi)) {
             snprintf(text, sizeof text, "The program couldn't start again (CreateProcess: error %lu). Start it again "
                      "yourself: %s", (unsigned long)GetLastError(), cmd);
             fprintf(stderr, "rush2049pc: %s\n", text);
@@ -488,10 +525,12 @@ int pc_net_menu_restart(int code)
     {
         char exe[PC_APP_PATH];
         ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
+        char **env = NM.env ? NM.env : environ;   /* the environment it was started with */
         if (n > 0) {
             exe[n] = 0;
-            execv(exe, (char *const *)NM.args);
+            execve(exe, (char *const *)NM.args, env);
         }
+        environ = env;
         execvp(NM.args[0], (char *const *)NM.args);   /* no /proc: argv[0] as it was started */
         snprintf(text, sizeof text, "The program couldn't start again (%s). Start it again yourself.",
                  strerror(errno));

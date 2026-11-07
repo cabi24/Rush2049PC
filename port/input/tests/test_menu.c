@@ -2041,6 +2041,41 @@ static void test_online(void)
     pc_menu_set_online_ui(NULL);
 }
 
+/* The Online pages as PNGs (not a CTest): the page with this PC's addresses, Host, Join while an address is typed
+ * with the hosts joined before, the replays. */
+static void online_pictures(void)
+{
+    static uint8_t px[1280 * 960 * 4];
+    static const struct { const char *name; const char *steps; } shots[] = {
+        {"online", ""}, {"online-host", "A"}, {"online-join", "DAAt"}, {"online-replays", "DDA"},
+        {"online-replay", "DDADDA"}};
+    char path[PC_CFG_PATH];
+    int w, h;
+    for (size_t i = 0; i < sizeof shots / sizeof *shots; i++) {
+        if (online_start(PC_ONLINE_OFFLINE, "100.101.102.103, my-friends-pc.tail1234.ts.net, [fd7a:115c::1]:24050") != 0)
+            return;
+        g_on_pending = 0;
+        pc_gfx_set_window_size(1280, 960);
+        show_frame();
+        for (const char *c = shots[i].steps; *c; c++) {
+            if (*c == 'D')
+                act(PC_MENU_DOWN);
+            else if (*c == 'A')
+                act(PC_MENU_ACCEPT);
+            else if (*c == 't')
+                type("my-friends-pc.tail1234.ts");
+        }
+        pump();
+        pc_gfx_redraw();
+        pc_gfx_read_window(px, &w, &h);
+        snprintf(path, sizeof path, "%s/menu-%s.png", g_dir, shots[i].name);
+        pcgfx_png_write(path, px, w, h);
+        printf("%s\n", path);
+        stop();
+    }
+    pc_menu_set_online_ui(NULL);
+}
+
 /* ---------------------------------------------------------------- relaunch: the restart's command line */
 
 /* Windows' C runtime's parse of a command line (Microsoft's "Parsing C++ command-line arguments"): the program up to
@@ -2236,7 +2271,7 @@ int main(int argc, char **argv)
         {"nav", test_nav}, {"live", test_live}, {"save", test_save}, {"script", test_script},
         {"mouse", test_mouse}, {"pages", test_pages}, {"mods", test_mods}, {"saves", test_saves_page},
         {"presets", test_presets}, {"session", test_session}, {"online", test_online}, {"relaunch", test_relaunch},
-        {"pictures", pictures}};
+        {"pictures", pictures}, {"online_pictures", online_pictures}};
     if (argc < 3) {
         fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|saves|presets|session|online|"
                         "relaunch|pictures SCRATCH_DIR\n");
