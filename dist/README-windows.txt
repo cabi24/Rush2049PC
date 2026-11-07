@@ -394,13 +394,32 @@ profiles and ghosts aren't in the session. The other player's game gets
 the same pak, but only your controller rumbles; theirs only if they
 choose it too.
 
-Without Tailscale: the host forwards UDP port 24049 on their router to
-their PC, and the guest types the router's public address (203.0.113.5).
-Then both should use the same join code, so only who knows it can join:
+Without Tailscale, the host's router must forward UDP port 24049 to
+the host's PC. The game can ask the router to do it: on the host's
+waiting screen press U ("Open the port on my router (UPnP)"), or turn on
+F1 > Online > Host a race > Open router port before Host now. The router
+must allow it (UPnP, NAT-PMP or PCP; UPnP is a switch in most routers'
+settings, often on). The waiting screen then says the address to give:
+"Your friend joins at 203.0.113.5:24049", and the guest types that. Or
+it says why it can't work there, in a sentence: the internet provider
+shares one address among many customers (carrier-grade NAT: no port can
+be opened, use Tailscale), no router answered, or the router refused.
+It is off unless you choose it, because it changes the router's own
+settings; the port is opened for 10 minutes at a time, renewed while
+hosting, and closed again when the session ends (after a crash, when the
+10 minutes run out). Only your own network is contacted. Windows'
+firewall must let the program in on the network the PC is on: when it
+asks, allow Private networks, and if Windows calls your home network
+Public (Settings > Network), make it Private or allow Public too.
+
+By hand instead: forward UDP port 24049 in the router's settings to the
+host's PC, and the guest types the router's public address. Either way,
+both should use the same join code, so only who knows it can join:
 net.code = SOMETHING-LONG in both rush2049pc.ini files (or --net-code
 SOMETHING-LONG after the launcher, from a command prompt). Another port:
 --net-host 25000 for the host, and the guest types 203.0.113.5:25000
-(or net.port in rush2049pc.ini).
+(or net.port in rush2049pc.ini). A guest that gets no answer from an
+internet address is reminded of all this in its message.
 
 The input delay (how long a press takes to reach the game, the same for
 both players) follows the connection by itself: a retrace or two (17-33

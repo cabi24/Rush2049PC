@@ -63,6 +63,14 @@ Online page; one restart for the page and for a desync's rebuild; F1 rows for th
 for a player who wants one (`net.rumble`), its motor to that player's controller only; an imported ghost's note names
 on the session's pak.
 
+**Beyond Tailscale (2026-11-07, branch `net-nat`, section 16, phase 5's first part):** `net.upnp` (off; U on the
+host's waiting screen, F1 > Online > Host a race) has the host's router open the session's UDP port, by PCP, NAT-PMP
+or UPnP IGD, written here from their specifications, with a 10-minute lease renewed while hosting and removed at the
+end. The waiting screen says "Your friend joins at 203.0.113.5:24049", or why forwarding can't work there (carrier
+NAT, no router, a refusal) and that Tailscale does; a guest that gets no answer from an internet address is told
+about forwarding and UPnP. No server outside the LAN is ever contacted: hole punching and a relay are the user's
+decision (16.6 says what they would need).
+
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
 full screen.
@@ -840,6 +848,13 @@ free per PC).
 punching, and a relay.
 
 **Proof:** a session between two networks without Tailscale; a spoofed INPUT is rejected (a test sends one).
+
+**Status (2026-11-07):** connecting by address with a forwarded port works (12), and the join code's tag is
+implemented and tested (NETWORK.md 3, 7: spoofed and replayed packets). **Section 16:** the router opens the port
+itself when the host chooses (`net.upnp`: PCP, NAT-PMP, UPnP IGD), and both players are told what will work. IPv6
+sockets are dual-stack (NETWORK.md 2); IPv6 pinholes in a router's firewall aren't asked for. Not done, by the user's
+choice of no outside server: hole punching and a relay (16.6). Not yet tried: a session between two real networks
+without Tailscale.
 
 ### Phase 6: comforts
 
@@ -1850,6 +1865,243 @@ replay's progress keeps the session alive), so it only lengthens the wait, and b
 - ~~**Not in F1.** `net.rejoin` and `net.recover` are settings in `rush2049pc.ini` only, so the shared overlay is
   untouched; the F1 Online page (branch `net-online`) could show them.~~ F1's Online page has them since section
   17.3, locked in a session.
+
+## 16. Status: beyond Tailscale: the router opens the port (phase 5)
+
+Written 2026-11-07 on branch `net-nat` (from f603f76). Online play worked over Tailscale, or by the host's public
+address after a UDP port forwarded by hand in the router's settings. Now the host can have its router open the port
+itself, and both players are told what address to use and whether it can work. Nothing outside the players' own
+networks is contacted: no STUN, rendezvous or relay server, no outside service of any kind.
+
+| Where | What |
+|---|---|
+| `port/net/net_nat.c`, `net_nat.h` | PCP (RFC 6887), NAT-PMP (RFC 6886), UPnP IGD's control, the default gateway, the lease's thread ([NETWORK.md](NETWORK.md) 13) |
+| `port/net/net_upnp.c` | without sockets: SSDP's search and answer, URLs, a small XML reader, the device description, SOAP's body and faults, HTTP answers |
+| `port/app/netrouter.c`, `netrouter.h` | `net.upnp`: the host asks once its port is open, U toggles it, the waiting screen's sentences, the mapping's end |
+| `port/app/netplay.c` | the host starts it (`pc_net_connect`) and ends it (`pc_net_finish`); a rejoining host waits for its guest's knock while the router is asked; the guest's "no answer" says more for an internet address |
+| `port/app/netwait.c` | the waiting screen: U, and the router's lines under the addresses |
+| `port/app/netmenu.c` | F1's Online page: the router's internet address first in a hosting session |
+| `port/input/menu.c` | F1 > Online > Host a race: Open router port (UPnP) |
+| `port/config` | `net.upnp` (off) |
+| `port/net/tests/nat_test.c`, `tools/port/nat_check.py`, `tools/port/fake_router.py` | the tests: never the real router (16.5) |
+
+### 16.1 What the players see
+
+**Off by default.** `net.upnp = off` sends nothing to the router or anywhere else: the router's own settings are the
+user's, so changing them is a choice. The host's waiting screen offers it under the addresses: "Not on Tailscale? U:
+Open the port on my router (UPnP)." U turns it on at once (and off again: the mapping removed), and keeps the choice
+in `rush2049pc.ini` (`net.upnp`; not with `--no-config`). F1 > Online > Host a race has the same choice, "Open router
+port (UPnP)" (its footer: "Open the port on my router (UPnP), off Tailscale"), before Host now; as a setting, a
+restart from the page takes it along (`--set net.upnp=on` when not saved). The settings file's comment says the same.
+
+**What the waiting screen says** (two lines under the addresses, each sentence in the log once as it changes:
+"router: the waiting screen says: ..."):
+
+| The router | The waiting screen |
+|---|---|
+| being asked | "Asking the router to open port 24049 (UPnP, NAT-PMP, PCP)..." |
+| opened it, its internet address public | "Your friend joins at 203.0.113.5:24049" (the address's blue) / "Router: port open (UPnP) while hosting. U closes it." |
+| opened it, without saying its address | "Router: port 24049 open (NAT-PMP). U closes it." / "Your friend joins at your internet address, port 24049." |
+| opened it, its address private: another router outside it (double NAT) | "Router: port 24049 open (UPnP), but behind another router" / "(its address 192.168.0.5): forward there too, or Tailscale." |
+| its address in 100.64.0.0/10: carrier-grade NAT | "Your provider shares one address (CGNAT, 100.72.1.5):" / "no port can be opened for you on it. Use Tailscale." (the mapping taken back at once) |
+| nothing answered | "No router answered (UPnP, NAT-PMP, PCP): is UPnP on in it?" / "Forward UDP port 24049 to this PC by hand, or use Tailscale." |
+| refused | "The router refused: UPnP error 606 (Action not authorized)" / "Turn on UPnP in it, forward UDP 24049 by hand, or use Tailscale." |
+| the port forwarded to another PC (UPnP's 718) | "The router forwards port 24049 to another PC already." / "Host on another port (F1 > Online), or use Tailscale." |
+| no internet address (0.0.0.0, NAT-PMP's network failure) | "The router has no internet address now: is it online?" / "Try again when it is, or use Tailscale." |
+| renewals failing past the lease | "The router stopped renewing port 24049: it may be closed." / "Press U twice to ask again, or use Tailscale." |
+
+The lines take the room of address rows: the screen shows one address fewer per line (the log lists them all), so
+the panel keeps its size at 1280 x 720. In a hosting session, F1 > Online lists the router's internet address first,
+tagged "internet: the router's"; Copy my address copies it.
+
+**The joining side.** A guest whose host never answers gets, after the usual sentence, one more by the address's
+kind (`net_nat_join_hint`): an internet address, "That is an internet address: unless both PCs are on Tailscale, the
+host's router must forward UDP port 24049 to their PC. The host turns on "Open the port on my router (UPnP)" (U on
+their waiting screen, or F1 > Online > Host a race), or forwards the port by hand in the router's settings. Tailscale
+needs neither."; an IPv6 one, the firewall's and the router's; a 100.x one, "are both PCs on Tailscale, signed in to
+the same tailnet?". A local network's address gets nothing more.
+
+### 16.2 The protocols, and the order they are tried in
+
+**PCP, then NAT-PMP, then UPnP IGD.** The cheapest first:
+
+1. **PCP** (RFC 6887): one MAP request for UDP (60 bytes: version 2, the lifetime, this PC's address as
+   ::ffff:a.b.c.d, a random 96-bit nonce, the internal port, the same port suggested outside, any IPv4 address
+   outside) to the default gateway's port 5351, sent at 0, 250 and 750 ms until 1.5 s; its answer must carry the
+   nonce. It gives the lifetime granted, the port and the address outside in one round trip.
+2. **NAT-PMP** (RFC 6886) only when the gateway answers PCP with NAT-PMP's "unsupported version" (RFC 6887 9: an
+   old NAT-PMP server does), so asking PCP first costs nothing there: then NAT-PMP's external address (opcode 0) and
+   its UDP mapping (opcode 1). PCP and NAT-PMP share the port: nothing answering PCP means neither. A closed port
+   answers with an ICMP port unreachable, which ends this at once (`ECONNREFUSED` on a connected UDP socket;
+   `WSAECONNRESET` on Windows); silence costs the 1.5 s.
+3. **UPnP IGD** (UPnP Device Architecture 1.1; WANIPConnection:1 and :2, WANPPPConnection:1): SSDP's M-SEARCH to
+   239.255.255.250:1900 (TTL 2, out of the interface toward the default gateway) for InternetGatewayDevice:1, :2 and
+   WANIPConnection:1, at 0 and 1 s, MX 2; the answers taken until 300 ms after the first, 2.5 s at most. The
+   description (HTTP GET, 3 s, 128 KiB at most), its WAN connection services best first (WANIPConnection:2, :1,
+   WANPPPConnection:1), GetExternalIPAddress on each until one answers (a PPPoE router lists both and only one is
+   connected), then AddPortMapping: no remote host, the port outside, UDP, the internal port, this PC's address toward
+   the router, enabled, "Rush2049PC", the lease. An IGD that takes only permanent mappings (725) is asked again with
+   lease 0, and the mapping is removed at the end all the same; 718 (the port is another PC's) is a conflict; any other
+   UPnP error a refusal, with its code and description.
+
+PCP and NAT-PMP need no discovery, no TCP and no XML; UPnP needs a search that waits for answers, two or three HTTP
+requests and XML. Many home routers speak only UPnP (often on by default); routers running miniupnpd (most of the
+open firmware, many consumer ones) speak all three and answer PCP at once; older Apple base stations speak NAT-PMP. A router that answers PCP but refuses is not the end: UPnP is still tried (its own switch in
+the router's settings), and the refusal is said if UPnP finds nothing.
+
+Measured against the fake router on rocky (16.5): PCP and NAT-PMP mapped in 0.02 s, UPnP in 0.32 s (the 300 ms
+after the search's first answer, then three HTTP requests); no router at all, 2.51 s (the search's wait: nothing on
+5351 ends PCP at once).
+
+### 16.3 The lease, its renewal, and the mapping's end
+
+**A lease of 10 minutes** (600 s; `RUSH_NAT_LEASE` in the tests), renewed at half what the router grants (PCP's and
+NAT-PMP's lifetime in the answer; UPnP's as asked), each renewal the same request again: PCP with the same nonce, NAT-PMP the same mapping, UPnP's
+AddPortMapping (the same mapping for the same client is renewed, IGD's specification). A renewal that fails is tried
+again after an eighth of the lease, 30 s at most; past the lease the log (and the waiting screen, before the race)
+says so, and it keeps trying. A port that
+the router moves (NAT-PMP and PCP may) is followed and logged.
+
+Why 10 minutes: a process that is killed or crashes removes nothing, so the lease is how long a dead mapping lasts;
+RFC 6886 suggests 2 hours for a mapping and UPnP's routers often keep them for ever, so short is the safer side. And
+it outlasts `net.rejoin`'s 5-minute window, for the case below.
+
+**Removed** (DeletePortMapping, or lifetime 0 for PCP and NAT-PMP; 2.5 s at most for the router's answer) at every end
+of a host's session that `pc_net_finish` sees: a player leaving, the other player leaving, a timeout, a desync, the
+rejoin window running out, Esc or the window closed on the waiting screen, nobody joining in 10 minutes, the guest
+refused; U turning it off; and before the F1 page's restart, which comes after `pc_net_finish`. A run that stops on an
+error between (no renderer, memory that can't be mapped) exits through `exit()`, whose handler removes it. Taken back
+at once when the router's internet address is carriers' shared range or 0.0.0.0: a mapping that can't help changes
+the router for nothing.
+
+**Left to its lease:** a crash or a kill (nothing of the program runs), and the host's game going while its session
+waits for it to come back (BYE `gone`, 15.1: its window closed, SIGTERM, a shutdown): the host that starts again
+rejoins, and its guest's knocks must still reach it through the router. The rejoining host asks the router again at
+its start, and waits for its guest's knock while the router is being asked (12 s at most instead of 3). A private
+internet address (double NAT) keeps its mapping: a port forwarded by hand on the outer router then reaches this PC.
+
+**An IGD that takes only permanent mappings** (725): removed at the end like the others; after a crash it stays until
+the next session that maps the same port from this PC (AddPortMapping of the same port for the same client replaces
+it, and that session removes it), or the router restarts.
+
+### 16.4 Only this PC's own network
+
+- `net.upnp = off`: nothing is sent.
+- PCP and NAT-PMP go to the default gateway only: the routing table's (`/proc/net/route` on Linux; on Windows
+  `GetBestRoute` for a documentation address, from `iphlpapi.dll` loaded at run time, so the program imports no new
+  DLL; nothing is sent to find it), and only when it is a private (RFC 1918) or link-local address. Other systems:
+  none, so only UPnP.
+- SSDP's answers count only from a private or link-local address; the description's URL must be an IPv4 literal
+  (no name is looked up), `http://` only, on the very address that answered; every control URL in it, and its
+  URLBase, must be on that address too. Nothing else is followed; HTTP redirects aren't.
+- The tests' hooks name loopback endpoints, and then nothing else is tried (16.5).
+- No STUN, rendezvous, relay or any outside service; the external address is the router's own answer.
+
+Everything read from the network is parsed with lengths: a field longer than its room is an error, never cut;
+two LOCATION headers aren't trusted; XML is read without a DTD (only its five named entities and ASCII character
+references; another entity is an error), with no recursion and a bound on the tags looked at; HTTP's body by its
+Content-Length or chunks (cut short is an error; a chunk over 256 MiB or a length over 9 digits refused); 128 KiB per
+answer at most; PCP's answers by their nonce, NAT-PMP's by their opcode and port.
+
+### 16.5 Proofs
+
+Never the real router: the tests point the program at a fake one on 127.0.0.1 (`tools/port/fake_router.py`: an SSDP
+responder, its HTTP server with the description and SOAP control, a PCP and NAT-PMP server, and the mappings with
+their leases, which expire as a router's do), by `RUSH_NAT_SSDP=127.0.0.1:PORT` (the search goes there, unicast,
+instead of the multicast group) and `RUSH_NAT_GATEWAY=127.0.0.1:PORT` (PCP and NAT-PMP instead of the gateway). Either
+set turns the other off unless set too, and `nat_test run` refuses to run without them. Rocky, x86-64,
+RelWithDebInfo.
+
+| Test | Result |
+|---|---|
+| `net_nat_unit` (new) | 132 checks: NAT-PMP's requests byte for byte (RFC 6886 3.2, 3.3) and its answers, cut short or of another opcode or version refused; PCP's MAP request byte for byte (RFC 6887 7.1, 11.1: ::ffff:a.b.c.d, the nonce, ::ffff:0.0.0.0) and its answer, another nonce, a request, a length cut short, not in fours or past 1,100 refused, a NAT-PMP server's "unsupported version" recognised; SSDP's M-SEARCH, an answer with headers in any case, LF line ends, a 404, no LOCATION, two LOCATIONs, one of 2,000 characters, a control character, a NUL; 16 URLs that aren't `http://A.B.C.D[:PORT]/path` (a name, https, a user, IPv6, ports 0 and 70,000, 256, three numbers, `0010`, a query without a path, a space, a backslash) and 6 references not followed (`//host`, `javascript:`, https, another host's URL); the XML reader: a prefix, a `>` in an attribute, the five entities and character references, CDATA, `<Empty/>`, an entity a DTD would define, an element inside a text, a text longer than its room, a missing tag, nested elements of one name, 13 malformed documents, 30,000 `<` and 6,000 elements never closed; the description: the WAN services best first and Layer3Forwarding not one, a URLBase and a control URL on another address not followed, a control URL of 5,000 characters, no service, garbage, no controlURL, a name with UTF-8; SOAP's body with values escaped, no room, a type that isn't a token; a fault's 718 and its description, not a fault, a code that isn't a number or has 7 digits; HTTP by Content-Length, to the end, chunked with an extension, LF line ends, and 13 answers refused (cut short, a last chunk missing, a chunk size of 10 hex digits or past the data, two Content-Lengths, -1, 11 digits, no end of the headers, HTTP/2, SIP); whole by Content-Length or the last chunk; the join hint for an internet, a Tailscale and a local address |
+| `net_nat_fuzz` (new) | 200,000 inputs, random (often XML's and HTTP's own characters) or mutated from 7 seeds (bytes flipped, markup put in, cut, stretches repeated up to 60,000 bytes: the oversized fields), each in a buffer of exactly its length, through all 12 parsers: no crash; 64,328 parses well-formed. Under AddressSanitizer and UBSan, on the Pi 5 (aarch64; rocky has no libasan): `nat_test unit` (132 checks), `fuzz 200000` (45 s) and nine `nat_check.py` cases (upnp, pcp, natpmp, hostile, kill, refused, cgnat, permanent, norouter) with the sanitized `nat_test`: no report |
+| `net_nat_upnp` | UPnP only: mapped 0.32 s after the start (the search, the description read once, its friendlyName "Fake & Test Router", GetExternalIPAddress once, AddPortMapping of this PC's port from 127.0.0.1 for 4 s), "203.0.113.5:PORT" said; 2 renewals in 5 s (every 2 s), counted alike by the program and the router; one DeletePortMapping at the end, nothing left |
+| `net_nat_pcp` | PCP only: mapped in 0.02 s, the same: 2 renewals, MAP with lifetime 0 at the end, nothing left; no SSDP search |
+| `net_nat_natpmp` | an old NAT-PMP server: PCP's request answered "unsupported version", then NAT-PMP's external address and mapping (0.02 s), 2 renewals, its removal |
+| `net_nat_order` | PCP and UPnP both there: PCP took it; UPnP never searched for (0 searches) |
+| `net_nat_kill` | the process ended at once once mapped (as a crash): no removal; the router's lease ended the mapping 3.31 s (UPnP) and 3.01 s (PCP) after the process (4 s leases taken 0.3 s and 0.0 s in) |
+| `net_nat_keep` | stopped with keep (this PC's game to come back): no removal, "left to its lease", which ended it |
+| `net_nat_refused` | UPnP's 606: failed, `refused`, "UPnP error 606 (Action not authorized)"; PCP's NOT_AUTHORIZED: `refused`, "PCP NOT_AUTHORIZED (2)"; nothing mapped |
+| `net_nat_cgnat` | an internet address of 100.72.1.5, by UPnP and by PCP: mapped, taken back at once, `cgnat`, "carrier-grade NAT" in the log; 0.0.0.0: `no-internet`, taken back |
+| `net_nat_double` | 192.168.0.5 outside: mapped and kept (`double`, "double NAT"), removed at the end |
+| `net_nat_norouter` | PCP's port closed ("nothing listens", at once) and no answer to the search: `no-router` after 2.51 s |
+| `net_nat_permanent` | an IGD that takes only permanent mappings (725): asked again with lease 0, not renewed in 5 s, removed at the end |
+| `net_nat_conflict` | 718: `conflict`, "UPnP error 718 (ConflictInMappingEntry)" |
+| `net_nat_hostile` | 10 bad IGDs: garbage for an answer, a LOCATION on 10.255.255.1 ("ignored", never connected to), a LOCATION of 2,000 characters, a description without a WAN service, a control URL of 5,000 characters, a control URL on 10.255.255.1, XML garbage (3,000 `<`), a body cut short (its Content-Length 500 bytes past it): each `no-router`, no crash, nothing mapped; an external address of 4,000 digits: mapped, the address not said; a chunked description: mapped |
+| `net_session_router` (new, realtime) | two `rush2049pc` processes, race2p, delay 2, the fake router: **off** (the default), 0 requests to the router though its hooks were set, the waiting screen offering U; **on** (`--set net.upnp=on`, UPnP, a 2 s lease), the waiting screen said "Your friend joins at 203.0.113.5:PORT" / "Router: port open (UPnP) while hosting. U closes it.", the router mapped the port at 0.4 s, renewed it 2 times, removed it at the session's end (3.1 s); host = guest = the off run's trace, line for line; both exit 0; **the host killed** while hosting: the lease ended the mapping 2.0 s later, nothing removed it; **the host's game gone** in the race (SIGTERM, BYE gone): left to its lease, not removed; the waiting screen's sentences for **CGNAT** ("Your provider shares one address (CGNAT, 100.72.1.5): / no port can be opened for you on it. Use Tailscale."), **no router** and **refused** (606), each as 16.1 has it |
+| `net_menu_restart` | as before, its press script a step more on the Host page (the new item before Host now) |
+| `frontend.menu.online` | as before, and Open router port (UPnP): off by default, nothing changed; on, the restart's `--set net.upnp=on`; off again |
+| the whole suite | RelWithDebInfo: 543 of 543 at `-j4` without the label realtime (`assets_rom` skipped: the retail ROM), then the 59 realtime ones alone under the shared lock: 57 at the first run. `net_menu_restart` failed because its press script stepped onto the new Host-page item (fixed: one step more), then passed, with `net_session_router` again; `paced_audio` failed twice with one 40 ms underrun of the sound card's tap ("the lags of the host's work"), a run this branch's code takes no part in (it starts only in a hosting session). Run by hand under the lock, interleaved: this branch's program 8 of 9 ok (one underrun), main's 9 of 9; net-polish's branch, without this one's code, was re-running `paced_audio` on rocky the same hour. CI gives the realtime tests three tries |
+| the default off: `synth_compare.py --same --runs 2`, main's program (f603f76) against this branch's, every synthetic path | RelWithDebInfo: 63 of 63 the same (252 runs; `pcsetup` left out by the tool: the host's clock only) |
+| the Windows cross build (mingw-w64 on the Pi, `RUSH_FETCH_SDL2`, RelWithDebInfo) | `rush2049pc.exe` and `nat_test.exe` link, no warning from the new files; `pe_check.py --dlls` passes: the exe imports only Windows' own DLLs, the same 14 as before (`iphlpapi.dll` is loaded at run time, not imported); `nat_test.exe` imports KERNEL32, msvcrt and WS2_32 |
+| game C | untouched (`src/`, `include/`, `nonmatching/`) |
+
+Not tried: a real router (on purpose), a real window (the U key and the screen's look were read and drawn headless,
+not pressed), Windows itself (CI's `windows` job builds and runs every test above), two networks without Tailscale.
+
+### 16.6 Hole punching and a relay: what they would need (the user's decision)
+
+Neither is built: both need a server on the internet that both players' PCs can reach, and this phase contacts
+nothing outside the players' own networks. Tailscale already does both for its users (its NAT traversal is hole
+punching; its DERP servers are a relay), which is why it stays the first recommendation. What each would take here:
+
+**UDP hole punching.**
+
+- *A rendezvous server* with a public address, run by the user (a small VPS, or any always-on machine with a public IP
+  and one UDP port open): a few hundred lines. Each PC sends it, from the session's own socket (so the router's
+  mapping is the session's), a REGISTER with a session code; the server answers each with the other's address and port
+  as the server saw them (the "server-reflexive" address, STUN's idea) and their LAN addresses.
+- *Both PCs then send to each other at once*, every 100-200 ms for a few seconds: each router sees outgoing traffic to
+  the other's address first and lets the other's packets in. Port/net's HELLO from both sides would do; today only the
+  guest sends first, so the host would send HELLOs too, and the "the first address to answer in its session becomes
+  the peer" rule would take the address learned from the server.
+- *Keepalives* every 15-25 s (routers drop idle UDP mappings in 30 s to 5 min); the session already sends 60 packets a
+  second while it runs, so only the waits need them (the waiting screen, a rejoin's wait).
+- *Authentication*: the join code's tag (NETWORK.md 3) already keeps strangers out of the session; the server itself
+  should take a code so it can't be used to find players.
+- *Where it fails*: a symmetric NAT (a new outside port for every destination) on either side, many carrier-grade NATs,
+  and some corporate and mobile networks; then only a relay works.
+- *NAT rebinding*: a router that changes the outside port in a session ends it by timeout today (NETWORK.md 7); hole
+  punching makes that more likely to matter, so the peer's address would have to be allowed to change on an
+  authenticated packet (the join code's tag makes that safe).
+
+**A relay.**
+
+- *A server that forwards each datagram* between the two registered PCs (TURN's idea, much simpler: two peers, one
+  session code). It needs the same public machine; each session costs about 5 KB/s each way (60 packets a second of
+  40-100 bytes, NETPLAY.md 1.7), so one small server carries many sessions.
+- *Latency*: one more hop; the input delay grows with the path through the server (the adaptive delay follows it,
+  11.2).
+- *Trust*: the join code's tag is end to end, so the relay can't inject or change inputs; it can read them (they aren't
+  secret) and drop them (a stall, then the rejoin window).
+- *Fallback order*: direct (Tailscale, a forwarded or UPnP-opened port), then hole punching, then the relay.
+
+**What the user would have to decide**: whether to run such a server (where, and who may use it), or to rely on
+Tailscale (or ZeroTier) for every case the router can't open a port for. The code here leaves room for either: the
+session's socket is one UDP port, and every packet is authenticated with the join code when one is set.
+
+### 16.7 Not done, and for the user to decide
+
+- **Not tried against a real router.** By design: the tests never send a mapping request to the LAN's router, from the
+  Pi or rocky. The first real try is the user's: the log has every step ("router: ..." lines: who answered, what it
+  said, the lease, each renewal, the removal), and the waiting screen says the outcome.
+- **IPv6.** The session's socket is dual-stack, but no IPv6 pinhole is asked for (PCP over IPv6, or UPnP's
+  WANIPv6FirewallControl): a host reachable over IPv6 may need a firewall rule in its router instead. The guest's hint
+  says so for an IPv6 address.
+- **U keeps the choice** in `rush2049pc.ini`, so the next host asks the router again without U; U again turns it off.
+  The user may prefer a choice for this session only.
+- **The lease, 10 minutes**, is a constant (`NET_NAT_LEASE_S`); a setting if the user wants one.
+- **A double NAT keeps its mapping** (the inner router's): useful with a port forwarded by hand on the outer one, and
+  removed at the end like any other. The sentence says to forward on the outer router, or use Tailscale.
+- **An IGD that takes only permanent mappings** leaves one after a crash until the next session that maps the same
+  port, or the router's restart (16.3). A file noting it, removed at the next start, would close that gap.
+- **The guest never asks its router**: it starts the conversation, so its router lets the host's answers in.
+- **Windows**: the gateway is found with `GetBestRoute` (`iphlpapi.dll`, loaded at run time); compiled with mingw-w64
+  here, run by CI's `windows` job (`net_nat_*`). Windows Defender Firewall's default lets unicast answers to
+  a multicast search in for a few seconds, which SSDP needs; not tried on Windows itself. The program must be allowed
+  through Windows' firewall on the profile of the network the PC is on: a home network Windows calls Public needs
+  Public allowed, or the network made Private (the README says so).
 
 ## 17. Status: a round of polish (60 online, one restart, the Online page's rules, netplay/ pruned, rumble, pak names)
 

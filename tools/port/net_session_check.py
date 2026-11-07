@@ -19,6 +19,7 @@ session"), on the synthetic cartridge.
     net_session_check.py outage   --exe EXE --rom ROM --logs DIR [NAME]
     net_session_check.py recover  --exe EXE --rom ROM --logs DIR [NAME] [--repeat]
     net_session_check.py speed    --exe EXE --rom ROM --logs DIR [NAME]
+    net_session_check.py router   --exe EXE --rom ROM --logs DIR
 
 A session is a host (--net-host 0: any port, read from its log) and a guest (--net-join 127.0.0.1:PORT), both bound
 to 127.0.0.1 (--net-bind), each with a data folder of its own, each running the path's press script for its own
@@ -85,6 +86,12 @@ recover: RUSH_SIM_DESYNC changes a word of the guest's state at retrace --at; ne
 speed: the replay's rate (retraces a second, times real time) of a rejoin late in the race, without the per-retrace
   trace: how long a rejoin's catch-up takes; and for comparison one --fast process replaying the host's input log as
   far, which draws every frame (headless): what the catch-up gains by drawing nothing.
+router: net.upnp (docs/port/NETPLAY.md 16) against tools/port/fake_router.py on 127.0.0.1 (RUSH_NAT_SSDP,
+  RUSH_NAT_GATEWAY; never the real router): off (the default), the router is never asked, even with the hooks set;
+  on, the host's waiting screen says "Your friend joins at 203.0.113.5:PORT", the mapping is there while the session
+  runs, renewed (RUSH_NAT_LEASE 2 s), and removed at the end, and both traces are the off run's, line for line; the
+  host killed while hosting leaves it to the lease; the host's game gone in the race (SIGTERM, BYE gone: it is to
+  rejoin) leaves it to the lease too; a CGNAT address, no router and a refusal each said on the waiting screen.
 
 Exit status: 0 when it holds. Stdlib only, Python 3.9+.
 """
@@ -232,14 +239,16 @@ def base_cmd(a, press, spec, extra, hashes=True, until=True, fast=True, trace=Tr
 
 
 def session(a, tag, host_press, guest_press, spec, host_extra=(), guest_extra=(), host_env=None, guest_env=None,
-            timeout=900, guest_args=None, after_start=None, fast=True, trace=True, keep=None):
-    """A host and a guest; their log texts (and the Proc objects)."""
+            timeout=900, guest_args=None, after_start=None, fast=True, trace=True, keep=None, guest_after=None):
+    """A host and a guest; their log texts (and the Proc objects). guest_after: a pattern the host's log must have
+    before the guest starts."""
     logs = Path(a.logs)
     run_dir = logs / f"{tag}.run"
     shutil.rmtree(run_dir, ignore_errors=True)
     run_dir.mkdir(parents=True)
     base_env = dict(os.environ, RUSH_STATE_EXACT="1")
-    for k in ("RUSH_SIM_NET", "RUSH_SIM_DESYNC", "RUSH_SIM_GATE", "RUSH2049_TEST_NET_BUILD"):
+    for k in ("RUSH_SIM_NET", "RUSH_SIM_DESYNC", "RUSH_SIM_GATE", "RUSH2049_TEST_NET_BUILD", "RUSH_NAT_SSDP",
+              "RUSH_NAT_GATEWAY", "RUSH_NAT_LEASE"):
         base_env.pop(k, None)
     base_env.update(spec["env"])
     procs = []
@@ -257,6 +266,10 @@ def session(a, tag, host_press, guest_press, spec, host_extra=(), guest_extra=()
             net += ["--net-host", "0"] + host_set_args()
         else:
             procs[0].got_port.wait(120)
+            t_wait = time.monotonic()
+            while guest_after and not any(re.search(guest_after, l) for l in procs[0].lines[:]) and \
+                    procs[0].proc.poll() is None and time.monotonic() - t_wait < 60:
+                time.sleep(0.02)
             if not procs[0].port:
                 say(f"{tag}: the host never listened")
                 procs[0].kill()
@@ -279,7 +292,8 @@ def one(a, tag, press, spec, extra=(), env=None):
     shutil.rmtree(run_dir, ignore_errors=True)
     run_dir.mkdir(parents=True)
     e = dict(os.environ, RUSH_STATE_EXACT="1", **synth_paths.data_env(run_dir))
-    for k in ("RUSH_SIM_NET", "RUSH_SIM_DESYNC", "RUSH_SIM_GATE", "RUSH2049_TEST_NET_BUILD"):
+    for k in ("RUSH_SIM_NET", "RUSH_SIM_DESYNC", "RUSH_SIM_GATE", "RUSH2049_TEST_NET_BUILD", "RUSH_NAT_SSDP",
+              "RUSH_NAT_GATEWAY", "RUSH_NAT_LEASE"):
         e.pop(k, None)
     e.update(spec["env"])
     e.update(env or {})
@@ -869,7 +883,8 @@ def boxes_env(run_dir):
     window on (--window then renders headless, and the boxes are a window's)."""
     e = dict(os.environ, RUSH2049_MESSAGE_BOX="print", **synth_paths.data_env(run_dir))
     for k in ("DISPLAY", "WAYLAND_DISPLAY", "RUSH_SIM_NET", "RUSH_SIM_DESYNC", "RUSH_SIM_GATE",
-              "RUSH2049_TEST_NET_BUILD", "RUSH2049_TEST_NET_WAIT_SHOT", "RUSH2049_TEST_NET_HOST_WAIT"):
+              "RUSH2049_TEST_NET_BUILD", "RUSH2049_TEST_NET_WAIT_SHOT", "RUSH2049_TEST_NET_HOST_WAIT", "RUSH_NAT_SSDP",
+              "RUSH_NAT_GATEWAY", "RUSH_NAT_LEASE"):
         e.pop(k, None)
     return e
 
@@ -1405,10 +1420,159 @@ def mode_speed(a, names):
     return 0
 
 
+def mode_router(a):
+    """net.upnp (docs/port/NETPLAY.md 16) against the fake router: never the real one (RUSH_NAT_* point at it)."""
+    import fake_router
+    bad = 0
+    spec = synth_paths.read_script(SCRIPTS / "race2p.press")
+    hp, gp, mp, two = path_files(a, "race2p", "router")
+    fixed = ["--net-delay", "2"]
+
+    def env_of(r):
+        return dict(r.env(), RUSH_NAT_LEASE="2")
+
+    # 1. off, the default: the router is never asked, though the hooks point at the fake
+    r = fake_router.FakeRouter(pmp="pcp", upnp=True).start()
+    try:
+        res = session(a, "router.off", hp, gp, spec, fixed, fixed, host_env=env_of(r), guest_env=env_of(r),
+                      timeout=600)
+        if not res:
+            return 1
+        th_off, tg, _ = res
+        if compare_session("router off", th_off, tg) or r.events or \
+                "router: not asked to open the port (net.upnp = off" not in th_off:
+            say(f"router off: the router was asked ({len(r.events)} requests: {r.events[:3]}), or the traces differ")
+            bad = 1
+        else:
+            say("router off (the default): the router never asked (0 requests to the fake, its hooks set), the "
+                "waiting screen offers U; host = guest")
+    finally:
+        r.stop()
+    # 2. on: the waiting screen says the address; mapped while the session runs, renewed, removed at the end
+    r = fake_router.FakeRouter(pmp="none", upnp=True).start()
+    try:
+        res = session(a, "router.on", hp, gp, spec, fixed + ["--set", "net.upnp=on"], fixed, host_env=env_of(r),
+                      guest_env=env_of(r), timeout=600, guest_after=r"the waiting screen says: Your friend joins at")
+        if not res:
+            return 1
+        th, tg, procs = res
+        port = procs[0].port
+        said = re.search(r"the waiting screen says: (Your friend joins at \S+) / (.*)", th)
+        adds, renews, dels = r.count("upnp", "add"), r.count("upnp", "renew"), r.count("upnp", "delete")
+        t_add = next((e["t"] for e in r.events if e["what"] == "add"), None)
+        t_del = next((e["t"] for e in r.events if e["what"] == "delete"), None)
+        same = not compare_session("router on", th, tg) and \
+            not replay_check.first_diff(replay_check.trace(th), replay_check.trace(th_off))
+        if not said or said.group(1) != f"Your friend joins at 203.0.113.5:{port}" or adds != 1 or renews < 1 or \
+                dels != 1 or r.maps or not same or exit_code(th) or exit_code(tg):
+            say(f"router on: the screen said {said.group(0) if said else None!r}; {adds} add, {renews} renewals, "
+                f"{dels} removals, left {r.maps}; traces the same as off: {same}; exits {exit_code(th)} "
+                f"{exit_code(tg)}")
+            bad = 1
+        else:
+            say(f"router on: the waiting screen said '{said.group(1)}' / '{said.group(2)}'; the fake router mapped "
+                f"port {port} at {t_add:.1f} s, renewed it {renews} times (a 2 s lease), removed it at {t_del:.1f} s "
+                f"(the session's end); host = guest = the off run's trace, line for line; both exit 0")
+    finally:
+        r.stop()
+    # 3. the host killed while hosting: no removal; the lease ends the mapping
+    r = fake_router.FakeRouter(pmp="none", upnp=True).start()
+    try:
+        run_dir = Path(a.logs) / "router.kill.run"
+        shutil.rmtree(run_dir, ignore_errors=True)
+        run_dir.mkdir(parents=True)
+        e = dict(boxes_env(run_dir), **env_of(r))
+        p = Proc("host", base_cmd(a, hp, spec, ["--net-bind", "127.0.0.1", "--net-host", "0", "--set", "net.upnp=on"]),
+                 e, run_dir, Path(a.logs) / "router.kill.log")
+        wait_line(p, r"router: UPnP: UDP port \d+ outside forwarded", 60)
+        port = p.port
+        held = r.mapping("upnp", port) is not None
+        t_kill = time.monotonic() - r.t0
+        p.kill()
+        p.wait(30)
+        deadline = time.monotonic() + 6
+        while r.mapping("upnp", port) is not None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        exp = next((ev["t"] for ev in r.events if ev["what"] == "expire"), None)
+        if not held or r.count("upnp", "delete") or exp is None or exp - t_kill > 2.5:
+            say(f"router kill: held {held}, removals {r.count('upnp', 'delete')}, expired {exp} (killed at {t_kill})")
+            bad = 1
+        else:
+            say(f"router kill: the host killed while hosting, its port mapped: nothing removed it; the router's "
+                f"lease ended it {exp - t_kill:.1f} s later (2 s lease)")
+    finally:
+        r.stop()
+    # 4. the host's game gone in the race (SIGTERM: BYE gone, it is to rejoin): the mapping left to its lease
+    r = fake_router.FakeRouter(pmp="none", upnp=True).start()
+    try:
+        def term_later(procs):
+            def run():
+                h = procs[0]
+                while h.proc.poll() is None:
+                    if any(l.startswith("rush2049pc: physics vi=900:") for l in h.lines[-200:]):
+                        break
+                    time.sleep(0.01)
+                h.proc.terminate()   # SIGTERM (Windows: killed, which leaves the mapping to its lease all the same)
+                h.proc.wait()
+                time.sleep(0.5)
+                procs[1].kill()   # the guest would wait 5 minutes for it
+            threading.Thread(target=run, daemon=True).start()
+        res = session(a, "router.gone", hp, gp, spec, fixed + ["--set", "net.upnp=on"], fixed, host_env=env_of(r),
+                      guest_env=env_of(r), timeout=300, after_start=term_later,
+                      guest_after=r"router: UPnP: UDP port \d+ outside forwarded")
+        if not res:
+            return 1
+        th, tg, procs = res
+        time.sleep(3)
+        gone = os.name == "nt" or ("online: ended (gone)" in th and "left to its lease" in th)
+        if not gone or r.count("upnp", "delete") or r.count("upnp", "expire") != 1:
+            say(f"router gone: the host's end {ended(th)}; removals {r.count('upnp', 'delete')}, expired "
+                f"{r.count('upnp', 'expire')}")
+            bad = 1
+        else:
+            say("router gone: the host's game ended by SIGTERM in the race (BYE gone, to rejoin): the mapping left to "
+                "its lease, which ended it; not removed")
+    finally:
+        r.stop()
+    # 5. what the waiting screen says when forwarding can't work: each a sentence that suggests Tailscale
+    for tag, kw, want in (("cgnat", dict(pmp="none", upnp=True, external="100.72.1.5"),
+                           "Your provider shares one address (CGNAT, 100.72.1.5): / no port can be opened for you on "
+                           "it. Use Tailscale."),
+                          ("norouter", dict(pmp="none", upnp=False),
+                           "No router answered (UPnP, NAT-PMP, PCP): is UPnP on in it? / Forward UDP port {port} to "
+                           "this PC by hand, or use Tailscale."),
+                          ("refused", dict(pmp="none", upnp=True, refuse=606),
+                           "The router refused: UPnP error 606 (Action not authorized) / Turn on UPnP in it, forward "
+                           "UDP {port} by hand, or use Tailscale.")):
+        r = fake_router.FakeRouter(**kw).start()
+        try:
+            run_dir = Path(a.logs) / f"router.{tag}.run"
+            shutil.rmtree(run_dir, ignore_errors=True)
+            run_dir.mkdir(parents=True)
+            e = dict(boxes_env(run_dir), **env_of(r), RUSH2049_TEST_NET_HOST_WAIT="5")
+            p = subprocess.run(base_cmd(a, hp, spec, ["--net-bind", "127.0.0.1", "--net-host", "0", "--set",
+                                                      "net.upnp=on"]), env=e, cwd=run_dir, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, timeout=120)
+            out = p.stdout.decode(errors="replace")
+            (Path(a.logs) / f"router.{tag}.log").write_text(out)
+            m = re.search(r"listening on port (\d+)", out)
+            port = int(m.group(1)) if m else 0
+            says = re.findall(r"the waiting screen says: (.*)", out)
+            if want.format(port=port) not in says or r.maps:
+                say(f"router {tag}: the waiting screen said {says}; wanted {want.format(port=port)!r}")
+                bad = 1
+            else:
+                say(f"router {tag}: the waiting screen said '{says[-1]}'")
+        finally:
+            r.stop()
+    return bad
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("mode", choices=["path", "sim", "auto", "paced", "fuzz", "desync", "mismatch", "adopt", "ends",
-                                     "wait", "view", "rumble", "paknames", "rejoin", "outage", "recover", "speed"])
+                                     "wait", "view", "rumble", "paknames", "rejoin", "outage", "recover", "speed",
+                                     "router"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
     ap.add_argument("--rom", default=str(ROOT / "build/pc/synth/rush2049_synth.z64"))
@@ -1449,7 +1613,8 @@ def main():
           "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a), "wait": lambda: mode_wait(a),
           "view": lambda: mode_view(a), "rumble": lambda: mode_rumble(a), "paknames": lambda: mode_paknames(a),
           "rejoin": lambda: mode_rejoin(a, a.names), "outage": lambda: mode_outage(a, a.names),
-          "recover": lambda: mode_recover(a, a.names), "speed": lambda: mode_speed(a, a.names)}
+          "recover": lambda: mode_recover(a, a.names), "speed": lambda: mode_speed(a, a.names),
+          "router": lambda: mode_router(a)}
     r = fn[a.mode]()
     sys.exit(SKIP if r == SKIP else 1 if r else 0)
 

@@ -8,7 +8,9 @@ delay, time sync, the session's failures, the `RUSH_SIM_NET` network model, and 
 since branch `net-session` (`port/app/netplay.c`, [NETPLAY.md](NETPLAY.md) section 12: phase 1's wiring of section 10).
 Two peers; the ports are a set per peer, ready for 3-4 players over 2-4 PCs later. **Rejoins** (section 12, branch
 `net-rejoin`): a side whose game is gone rejoins the running session by its id, rebuilt from the other side's log;
-a desync is recovered from the same way; protocol version 2.
+a desync is recovered from the same way; protocol version 2. **The router's port mapping** (section 13, branch
+`net-nat`): the host's router opens the session's port by PCP, NAT-PMP or UPnP IGD, with a lease; the wire format is
+unchanged.
 
 | File | What |
 |---|---|
@@ -18,11 +20,16 @@ a desync is recovered from the same way; protocol version 2.
 | `net_sim.h`, `net_sim.c` | `RUSH_SIM_NET` |
 | `net_blake2s.h`, `net_blake2s.c` | BLAKE2s, written from RFC 7693 |
 | `net_os.h`, `net_os.c` | the clock, sleeps, random bytes, a mutex, a condition variable, a thread (POSIX; Windows' own) |
+| `net_nat.h`, `net_nat.c` | the router's port mapping: PCP, NAT-PMP, UPnP IGD's control, the default gateway, the lease's thread (section 13) |
+| `net_upnp.c` | UPnP's messages without sockets: SSDP, URLs, the XML reader, the device description, SOAP, HTTP answers |
 | `port/net/tests/` | the toy simulation (`toy.c`), an in-memory network (`vnet.c`), a peer's loop (`driver.c`), `net_test`, `net_peer` |
 | `tools/port/net_check.py` | two `net_peer` processes over loopback |
+| `port/net/tests/nat_test.c`, `tools/port/nat_check.py`, `tools/port/fake_router.py` | the port mapping's tests, against a fake router on 127.0.0.1 |
 
 Everything here was written from the plan, RFC 7693, NTP's arithmetic and the POSIX and Windows Sockets
-documentation. No code comes from emulator netplay, GGPO or other ports.
+documentation; the port mapping from RFC 6887 (PCP), RFC 6886 (NAT-PMP), the UPnP Device Architecture 1.1, the IGD
+WANIPConnection:1 and :2 service templates and RFC 7230 (HTTP/1.1's messages). No code comes from emulator netplay,
+GGPO, other ports, miniupnpc or libnatpmp.
 
 ## 1. The API
 
@@ -473,7 +480,8 @@ only:
   PCs need the host to relay or a mesh.
 - No address migration: a NAT rebinding mid-session ends it by timeout (now the rejoin window's): the game is still
   there, so nothing rejoins. A new game of that player at the new address would (section 12).
-- No rendezvous server or relay (phase 5's later steps).
+- No rendezvous server or relay (phase 5's later steps): the user's decision, as no outside server is used;
+  [NETPLAY.md](NETPLAY.md) 16.6 says what they would need. The router's port mapping is section 13.
 - The margin (3 ms), the windows (3 s, 2 s) and the time-sync deadband (1 ms) are set from the simulator; phase 3's
   sessions between real PCs should check them, with the log's delay and stall lines.
 - Real-time runs on Windows: compiled and linked here, run only by CI.
@@ -564,3 +572,61 @@ own PID):
 | `net_outage`: the link down 20 s from 4 s (2,100 ticks); the guest stopped 20 s by SIGSTOP (900 ticks) | both: stalls of 20.0 s, the same hash at every tick, 60.000 ticks a second outside them, the delay 2 throughout |
 | `net_recover`: the guest's state changed at tick 300 | the guest ended `recover` at 300; the host waited 0.15 s for the new guest, which replayed and played on: the same hash at all 900 ticks |
 | `net_recover_repeat`: the change again in the new guest | both end with the desync at 300, the guest "deterministic: ..." |
+
+## 13. The router's port mapping (PCP, NAT-PMP, UPnP IGD)
+
+Written 2026-11-07 on branch `net-nat` (from f603f76). What the game does with it, what the players read, and the
+proofs are [NETPLAY.md](NETPLAY.md) 16. It doesn't touch the session: the session's socket and its port are the
+host's as before; this asks the router to forward that port to it.
+
+```c
+NetNatConfig c;  net_nat_config_defaults(&c);   // the lease (600 s), the timeouts; RUSH_NAT_* test hooks applied
+c.internal_port = net_local_port(session);  c.log = my_log;
+NetNat *n = net_nat_start(&c);                  // a thread: PCP, NAT-PMP, then UPnP; then renewals
+net_nat_status(n, &st);                         // WORKING, MAPPED (external: the address outside), FAILED (why)
+net_nat_stop(n, keep, 2500);                    // the mapping removed (keep 0) or left to its lease (1)
+```
+
+**The thread.** It finds the router, asks, and publishes its status under a lock; then it sleeps until the renewal
+(half the granted lease), renews, and on `net_nat_stop` removes the mapping (unless kept) and ends. Every wait looks at
+the stop at least every 100 ms, so a stop during the search or an HTTP request ends it at once; a request that may
+have made the mapping (one sent, its answer not in) is followed by a removal all the same. `net_nat_stop` waits up to
+its timeout for the removal's answer; past it the thread finishes by itself and the lease covers the rest.
+
+**The order** (NETPLAY.md 16.2): PCP's MAP to the default gateway's port 5351 (0, 250, 750 ms; 1.5 s); NAT-PMP when
+the gateway answers PCP with NAT-PMP's "unsupported version"; else UPnP: SSDP's search, the description, a WAN
+connection service that answers GetExternalIPAddress, AddPortMapping. A refusal by PCP or NAT-PMP doesn't stop UPnP
+from being tried.
+
+**The status** (`NetNatStatus`): the state; why (`ok`, `no-router`, `refused`, `conflict`, `no-internet`, `cgnat`,
+`double`, `lost`); the protocol; the external address and port (the router's word: PCP's answer, NAT-PMP's opcode 0,
+UPnP's GetExternalIPAddress; never asked of anyone else); the router; the lease granted (0: permanent); renewals and
+their failures; the router's own words for a refusal ("UPnP error 606 (Action not authorized)", "PCP NOT_AUTHORIZED
+(2)"); the IGD's friendlyName. An external address in 100.64.0.0/10 (carrier-grade NAT) or 0.0.0.0 fails the
+mapping, which is taken back at once; a private one is `double`, kept.
+
+**`net_nat_join_hint`**: the sentence a guest gets after "no answer" from an address of a given kind (NETPLAY.md 16.1).
+
+**The parsers**, exposed for the tests (`net_nat.h`), each over a length and a buffer from the network:
+`net_pcp_parse` (version, opcode, the nonce asked with, a length of 60-1100 in fours; a NAT-PMP server's answer
+recognised), `net_pmp_parse_external` and `net_pmp_parse_map`, `net_ssdp_parse` (a 200, LOCATION once and printable,
+ST), `net_url_parse` and `net_url_resolve` (`http://` and an IPv4 literal only; no user, no other scheme, no
+`//host`), `net_xml_text` and `net_xml_span` (an element by its local name, prefixes ignored; comments, CDATA,
+declarations and quoted `>` in attributes skipped; nesting of one name counted; five named entities and ASCII
+references only, no DTD; a text longer than its room an error), `net_igd_parse`, `net_soap_body` (values escaped,
+names and types tokens), `net_soap_fault` (UPnPError's errorCode, at most 6 digits, and its description),
+`net_http_parse` and `net_http_complete` (a status line, headers to 16 KiB, a Content-Length of at most 9 digits and
+only one, chunks of at most 7 hex digits, nothing cut short).
+
+**Test hooks.** `RUSH_NAT_SSDP=HOST:PORT` (the search, unicast, instead of 239.255.255.250:1900) and
+`RUSH_NAT_GATEWAY=HOST:PORT` (PCP and NAT-PMP instead of the gateway's 5351), IPv4 literals; with either set, loopback
+counts as this PC's network and the other one is off unless it is set too (`off` turns one off), so a test never
+reaches the real router. `RUSH_NAT_LEASE=S`: the lease asked for.
+
+**Tests** (`ctest -R net_nat`; NETPLAY.md 16.5 has the results):
+
+| Test | What |
+|---|---|
+| `net_nat_unit` | `nat_test unit`: every message's bytes and every parser, with malformed and hostile input |
+| `net_nat_fuzz` | `nat_test fuzz 200000`: random and mutated inputs (oversized fields among them) through every parser |
+| `net_nat_<case>` | `nat_check.py`: `nat_test run` against `fake_router.py`: `upnp`, `pcp`, `natpmp`, `order`, `kill`, `keep`, `refused`, `cgnat`, `double`, `norouter`, `permanent`, `conflict`, `hostile` |

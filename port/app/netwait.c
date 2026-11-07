@@ -11,6 +11,10 @@
  * The addresses and the MagicDNS name are netaddr.c's (the F1 Online page lists them too); the name is looked up on
  * a thread of its own, since DNS may wait: the screen shows at once and the name joins it.
  *
+ * Under them, the router's lines (netrouter.c, docs/port/NETPLAY.md 16): U opens the port on this PC's router
+ * (net.upnp, off by default) or closes it again, and the lines say "Your friend joins at A.B.C.D:PORT" or why it can't
+ * work there; each line takes an address row's room.
+ *
  * RUSH2049_TEST_NET_WAIT_SHOT=PATH (tests): once the lookups are done (or after 5 s), the window as drawn is saved
  * to PATH (pc_gfx_save_window), then the screen is cancelled as Escape would. */
 #define _GNU_SOURCE
@@ -28,6 +32,7 @@
 #include "netaddr.h"
 #include "netmenu.h"
 #include "netplay.h"
+#include "netrouter.h"
 #include "ultra.h"
 
 #define SHOWN 6                  /* address rows on the screen; the log lists them all */
@@ -85,8 +90,10 @@ static void text_right(int y, uint32_t color, const char *s)
 
 static void draw(int w, int h)
 {
-    char line[192], ip[64];
-    int y, shown = 0;
+    char line[192], ip[64], router[PC_NET_ROUTER_LINES][PC_NET_ROUTER_LINE];
+    int y, shown = 0, tone[PC_NET_ROUTER_LINES];
+    static const uint32_t tones[] = {C_HINT, C_OK, C_WARN, C_VALUE};
+    int nrouter = pc_net_router_lines(router, tone);   /* netrouter.c: net.upnp's lines (NETPLAY.md 16) */
     W.k = w / (UW + 12) < h / (UH + 4) ? w / (UW + 12) : h / (UH + 4);
     if (W.k < 1)
         W.k = 1;
@@ -117,7 +124,7 @@ static void draw(int w, int h)
     text(10, y, C_HINT, "Your friend joins with one of this PC's addresses:");
     y += ROW + 3;
     int lookup = W.seen = pc_net_addrs_lookup(&W.a);
-    for (int i = 0; i < W.a.naddr && shown < SHOWN && rank(&W.a.addr[W.a.order[i]]) < 90; i++, shown++) {
+    for (int i = 0; i < W.a.naddr && shown < SHOWN - nrouter && rank(&W.a.addr[W.a.order[i]]) < 90; i++, shown++) {
         const NetLocalAddr *a = &W.a.addr[W.a.order[i]];
         net_addr_ip(&a->addr, ip, sizeof ip);
         text(18, y, C_VALUE, ip);
@@ -150,6 +157,10 @@ static void draw(int w, int h)
     y += 4;
     text(10, y, C_HINT, "They start \"Join online race\" and type one of them in.");
     y += ROW + 8;
+    for (int i = 0; i < nrouter; i++, y += ROW)   /* the router: U opens the port, or what it said */
+        text(10, y, tones[tone[i]], router[i]);
+    if (nrouter)
+        y += 4;
     if (W.port != NET_DEFAULT_PORT) {
         snprintf(line, sizeof line, "Not the usual port: your friend adds :%d after the address.", W.port);
         text(10, y, C_WHITE, line);
@@ -173,6 +184,10 @@ static int on_event(const void *ev)
     const SDL_Event *e = (const SDL_Event *)ev;
     if (e->type == SDL_KEYDOWN && e->key.keysym.sym == SDLK_ESCAPE && !e->key.repeat)
         W.cancel = 1;
+    if (e->type == SDL_KEYDOWN && e->key.keysym.sym == SDLK_u && !e->key.repeat) {   /* net.upnp (netrouter.c) */
+        pc_net_router_toggle();
+        W.dirty = 1;
+    }
     if (e->type == SDL_WINDOWEVENT)
         W.dirty = 1;   /* exposed, resized: drawn again at once */
 #else

@@ -35,6 +35,7 @@
 #include "input_internal.h"
 #include "netaddr.h"
 #include "netmenu.h"
+#include "netrouter.h"
 #include "netplay.h"
 #include "pc_lockstep.h"
 #include "pc_online.h"
@@ -173,6 +174,11 @@ static int ui_addresses(PcOnlineAddr *out, int max, int *pending)
     }
     lookup = pc_net_addrs_lookup(&NM.addrs);
     *pending = lookup == 1;
+    if (n < max && pc_net_router_external(NULL, 0, ip, sizeof ip, NULL) == 0) {   /* hosting, the router's port open */
+        snprintf(out[n].text, sizeof out[n].text, "%s", ip);
+        snprintf(out[n].tag, sizeof out[n].tag, "internet: the router's");
+        n++;
+    }
     for (int i = 0; i < NM.addrs.naddr && n < max; i++) {
         const NetLocalAddr *a = &NM.addrs.addr[NM.addrs.order[i]];
         if (pc_net_addrs_rank(a) >= 90)

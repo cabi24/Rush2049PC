@@ -141,6 +141,7 @@ typedef struct PcSettings {
     int net_recover;                /* a desync: the guest rebuilds by replay and the session goes on */
     int net_keep;                   /* the sessions netplay/ keeps, the newest (1-1000); 0: all (NETPLAY.md 17) */
     int net_rumble;                 /* this player's controller holds a rumble pak in a session, not its pak */
+    int net_upnp;                   /* hosting: this PC's router opens the port (UPnP, NAT-PMP, PCP); off by default */
 
     /* Not in the file: where it was read from ("" for none) and its directory; where the settings overlay saves
      * (pc_settings_resolve: the file read, the --config path, or the located one; "" for nowhere). */

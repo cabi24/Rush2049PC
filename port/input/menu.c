@@ -1938,6 +1938,8 @@ static void fill_on_host(void)
     it->page = F_PORT, it->desc = "The UDP port your friend joins; 24049 usually";
     it = add(P_ON_HOST, I_TEXT, "Join code", NULL, NULL);
     it->page = F_CODE, it->desc = "Optional: your friend gives the same code";
+    it = add(P_ON_HOST, I_CHOICE, "Open router port (UPnP)", "net", "upnp");   /* NETPLAY.md 16: the router's own */
+    it->choices = onoff, it->desc = "Open the port on my router (UPnP), off Tailscale";
     it = add(P_ON_HOST, I_ON, "Host now", NULL, NULL);
     it->page = ONA_HOST, it->desc = "The program restarts and waits for your friend";
     note(P_ON_HOST, "");
