@@ -758,7 +758,8 @@ set_tests_properties(net_session_mismatch PROPERTIES FIXTURES_REQUIRED "synth_ro
 # The F1 Online page (docs/port/NETPLAY.md 13, tools/port/net_menu_check.py): net_menu_restart, a process that hosts from
 # the page (F1, Online, Host now) restarts into the host and a guest joins; one that joins from the page (a recent
 # host, Join now) restarts into the guest; the hashes the same on both; the guest started from the page goes back to
-# the game when the host leaves. net_menu_replay: a session's input log replays offline as it is (--replay-inputs
+# the game when the host leaves; a host that chooses Leave the session in its session restarts offline, its guest
+# told. net_menu_replay: a session's input log replays offline as it is (--replay-inputs
 # alone) and watched from the page, to the session's hashes. Their presses drive the overlay in real time.
 set(NET_MENU_CHECK ${PC_PYTHON} ${PORT_TOOLS}/net_menu_check.py --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM}
     --logs ${CMAKE_BINARY_DIR}/synth/net-menu)

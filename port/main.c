@@ -1037,6 +1037,8 @@ static int rush_main(int argc, char **argv)
     int nover = 1;
     char width[16], height[16];
 
+    /* An option that takes a value (ARG()) is in port/config/online.c's with_value too: the F1 Online page's restart
+     * reads this command line again and must not take a value for an option. */
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
         const char *v = i + 1 < argc ? argv[i + 1] : NULL;

@@ -14,6 +14,8 @@ restart: two sessions, each with one side started from the page.
     --net-join and the hashes agree. The host stops first at its limit: the joined side, started from the page
     (--net-return), restarts once more without the session (its command line the first's but the press script), and
     is stopped once it has booted.
+  leave: a launcher's host leaves its session from the page (F1, Online, Leave the session, chosen twice): the guest
+    ends with the host leaving (peer-left), and the host restarts without the session and runs offline.
   Each restart's command line (said in the log) is checked: the session's own options at its end, the press script
   left out, the rest kept.
 replay: a session of two processes (--fast, race2p, each player's pak in), then its host's input log replayed offline as
@@ -253,8 +255,50 @@ def restart_join(a):
     return bad
 
 
+def restart_leave(a):
+    """A launcher's host in a session leaves from the page (F1, Online, Leave the session twice): the guest is told
+    (peer-left), the host restarts without the session and runs offline."""
+    tag, port = "menu-leave", free_port()
+    d = Path(a.logs)
+    presses(d / f"{tag}.host.press", TO_ONLINE + ["A", "A"], start=6.0)   # game time: a session isn't held
+    hcmd = base(a, ["--net-host", str(port), "--seconds", "12", "--press-file", str(d / f"{tag}.host.press")])
+    host, _ = start(a, tag, "host", hcmd, SPEED)
+    if wait_for(host, r"listening on port", 60) < 0:
+        host.kill()
+        say("leave: the host never listened")
+        return 1
+    guest, _ = start(a, tag, "guest", base(a, ["--net-join", f"127.0.0.1:{port}", "--seconds", "30"]), SPEED)
+    th, tg = host.wait(300), guest.wait(300)
+    hp, hcmds = parts(th)
+    bad = 0
+    if len(hcmds) != 1:
+        say(f"leave: {len(hcmds)} restarts of the host, not one:\n" + "\n".join(th.splitlines()[-12:]))
+        return 1
+    bad |= check_cmd("leave", hcmds[0], ["--seconds 12", "--net-bind 127.0.0.1"],
+                     ["--net-host", "--net-return", "--press-file", "--net-code"])
+    if "Choose Leave again" in hp[0] or "online page: Leaving the session" not in hp[0]:
+        say("leave: the page's Leave isn't in the host's log")
+        bad = 1
+    end = nsc.ended(tg)
+    if end[0] != "peer-left" or nsc.exit_code(tg) != 0:
+        say(f"leave: the guest ended {end}, exit {nsc.exit_code(tg)}")
+        bad = 1
+    if "time reached" not in hp[1] or nsc.exit_code(th) != 0:
+        say(f"leave: the host back in the game didn't run offline to its limit (exit {nsc.exit_code(th)})")
+        bad = 1
+    b, n = same_hashes("leave: host and guest", hp[0], tg)
+    bad |= b
+    m = re.search(r"session ended at retrace (\d+)", tg)
+    if not bad:
+        say(f"leave: a host left the session from the page (Leave the session, twice) at retrace "
+            f"{m.group(1) if m else '?'}: {n} retraces hashed by both, all the same; the guest ended peer-left, "
+            f"exit 0; the host restarted without the session (its --net-host and press file out) and ran offline to "
+            f"its limit")
+    return bad
+
+
 def mode_restart(a):
-    return restart_host(a) | restart_join(a)
+    return restart_host(a) | restart_join(a) | restart_leave(a)
 
 
 # ---------------------------------------------------------------- replay
