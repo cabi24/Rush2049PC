@@ -29,10 +29,16 @@ typedef struct Driver {
     uint64_t trace_every, next_trace;
     int trace[DRV_TRACE], ntrace;
     int64_t adjust_total;
+    uint32_t replayed;      /* ticks replayed from the keeper's log (a rejoin) */
+    uint64_t replay_ns;     /* the replay's time on the session's clock */
 } Driver;
 
 int drv_init(Driver *d, NetSession *s, int port, uint32_t ticks, uint64_t seed, int64_t period, uint64_t trace_every);
 void drv_free(Driver *d);
+/* A rejoiner (net_catchup): replay the keeper's log from tick 0 to its live tick, each tick's hash checked against
+ * the keeper's (net_catchup_hash, the window hash every 60), as fast as it goes. 1 when it replayed, 0 nothing to
+ * replay, -1 the replay differed (the session ended). drv_step and drv_tick do it first by themselves. */
+int drv_catchup(Driver *d, uint64_t now);
 /* Virtual clock: do what is due at now without waiting; 1 when a tick ran. */
 int drv_step(Driver *d, uint64_t now);
 /* Real time: run the next tick (sleep to its deadline, wait for its pads). 1 ran, 0 done, -1 the session ended. */

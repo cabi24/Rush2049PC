@@ -10,7 +10,13 @@
  *   - compares the state hash both sides give for each retrace, and ends on the first mismatch (a desync);
  *   - gives the caller's paced clock a small adjustment each retrace so both sides reach a retrace at the same
  *     wall time (time sync);
- *   - ends on BYE, a 15 s silence, a protocol error or a desync, with the reason.
+ *   - ends on BYE, a silence (15 s while connecting; the rejoin window, window_ms, once running), a protocol error or
+ *     a desync, with the reason;
+ *   - keeps the session's log (every retrace's pads, its own hash of every retrace, the window hashes) and the
+ *     handshake's settings and files, so a side whose game is gone (a crash, a closed window, a reboot, or a desync
+ *     it rebuilds from: recover) can rejoin: a new process rejoins the session by its id (rejoin_session), gets the
+ *     log from the side that kept it, replays it unpaced checking every retrace's hash, and goes on live from where
+ *     the keeper waits (docs/port/NETWORK.md 12, NETPLAY.md 13).
  *
  * Threads. A session is one object behind one lock, and every function here may be called from any thread.
  * There are two ways to drive it:
@@ -48,6 +54,8 @@ extern "C" {
 #define NET_DEFAULT_PORT 24049
 #define NET_FILES_MAX 8                 /* = NET_MAX_FILES */
 #define NET_FILE_MAX_SIZE (1u << 20)    /* each file, at most */
+#define NET_LOG_MAX_SIZE (64u << 20)    /* a rejoin's log, at most (about 39 hours of two players) */
+#define NET_RECOVER_MAX 3               /* desyncs a session recovers from; past it a desync ends it */
 #define NET_SETTINGS_MAX_SIZE (64u << 10)
 
 /* A controller's state as the N64 reads it (PcPad): 4 bytes on the wire, u16 buttons, s8 x, s8 y. */
@@ -81,6 +89,9 @@ typedef enum NetEnd {
     NET_END_REJECTED,     /* the caller (or the peer's) rejected the settings or files */
     NET_END_BUSY,         /* the host has a guest already */
     NET_END_SOCKET,       /* the socket failed */
+    NET_END_RECOVER,      /* the guest's game went out of sync (detail: the retrace): it rebuilds by replay and rejoins */
+    NET_END_GONE,         /* this side's game closed (its window, the system ending it), not the player leaving: the
+                             peer waits the rejoin window for it to come back (BYE gone) */
     NET_END_COUNT
 } NetEnd;
 
@@ -116,7 +127,14 @@ typedef struct NetConfig {
     int delay_min, delay_cap;  /* the adaptive delay's range, retraces (default 1, 30) */
     double delay_margin_ms;    /* what the delay covers beyond the slowest input's transit (default 3) */
     int64_t retrace_ns;        /* the nominal retrace (default 1e9 / 60) */
-    int timeout_ms;            /* silence that ends a session (default 15000); the guest's wait for an answer */
+    int timeout_ms;            /* silence that ends a session before it runs (default 15000); the guest's wait for an
+                                  answer */
+    int window_ms;             /* silence that ends it once it runs: the rejoin window (0: timeout_ms) */
+    uint64_t rejoin_session;   /* nonzero: this side rejoins that session (net_session_id's), rebuilding it from the
+                                  peer's log: a guest's HELLO asks for it; a host waits for its guest's knock (and
+                                  takes a new guest instead until net_rejoin_forget) */
+    int recover;               /* a desync: the host waits for the guest to rebuild by replay (NET_END_RECOVER there,
+                                  BYE recover), up to NET_RECOVER_MAX times; 0: a desync ends the session */
     int wait_report_ms;        /* net_pads waiting this long is logged as "waiting for the peer" (default 250) */
     const char *join_code;     /* NULL or "": no tags; else every packet carries a BLAKE2s tag keyed by it */
     const char *sim;           /* a RUSH_SIM_NET model for this session; NULL: getenv("RUSH_SIM_NET") */
@@ -158,6 +176,10 @@ typedef struct NetStats {
     uint64_t hash_checks, window_hash_checks;
     /* the simulator */
     uint64_t sim_dropped, sim_duplicated, sim_reordered;
+    /* rejoins: the peer's (this side kept the session) or this side's own, desyncs recovered from, outages (inputs
+     * whose transit was past the delay's cap: not latency, so not followed by the delay) */
+    uint32_t rejoins, recoveries;
+    uint64_t outage_inputs;
 } NetStats;
 
 #define NET_NONE 0xFFFFFFFFu
@@ -235,6 +257,59 @@ NetEnd net_end_reason(NetSession *s, uint32_t *detail, char *msg, size_t n);
 void net_stats(NetSession *s, NetStats *st);
 /* One line of the stats for a log. */
 void net_stats_line(const NetStats *st, char *buf, size_t n);
+
+/* ---------------------------------------------------------------- rejoining (docs/port/NETWORK.md 12)
+ *
+ * The keeper (the side whose game goes on) waits at the first retrace it lacks the peer's input for; the rejoiner's
+ * HELLO (or the keeper's knock, when the host is the one that rejoins) sets the retrace the session goes on from,
+ * live: everything the keeper ran before it is the log. The rejoiner gets the session's settings, both sides' files
+ * as they were at its start and the log, the caller checks and adopts them (NET_ACCEPT, net_accept), and at START
+ * replays retraces 0 .. live-1 from the log as fast as it can (net_catchup_*), checking its state hash at every
+ * retrace against the keeper's; its first net_submit, of retrace live, puts it back in the lockstep. */
+
+/* The session's id: the same in both sides' sessions, and in a rejoin's (0 before the start). */
+uint64_t net_session_id(NetSession *s);
+
+typedef enum NetRejoinPhase {
+    NET_RJ_NONE = 0,
+    NET_RJ_SILENT,     /* the peer is silent: waiting for it to come back (its network, or a rejoin), window_ms */
+    NET_RJ_RECOVER,    /* a desync: waiting for the guest to rebuild and rejoin (recover_at) */
+    NET_RJ_TRANSFER,   /* the log on its way (bytes of total) */
+    NET_RJ_CATCHUP,    /* the rejoiner replays the log (at of live) */
+} NetRejoinPhase;
+
+typedef struct NetRejoinInfo {
+    NetRejoinPhase phase;
+    int rejoiner;             /* 1: this side rebuilds; 0: it keeps the session */
+    int closed;               /* NET_RJ_SILENT: the peer said its game closed (BYE gone), rather than went quiet */
+    uint32_t silent_ms;       /* since the peer's last packet */
+    uint32_t window_ms;       /* the rejoin window */
+    uint64_t bytes, total;    /* NET_RJ_TRANSFER */
+    uint32_t at, live;        /* NET_RJ_CATCHUP: retraces replayed of those to replay */
+    uint32_t recover_at;      /* the desync being recovered from, NET_NONE */
+    uint32_t rejoins, recoveries;
+} NetRejoinInfo;
+void net_rejoin_info(NetSession *s, NetRejoinInfo *out);
+/* This side rejoins (its HELLO, or the knock it answered, was taken as a rejoin): 1; 0 a session of its own. */
+int net_rejoining(NetSession *s);
+/* A host with rejoin_session that no knock came for: it goes on as a host of a new session. */
+void net_rejoin_forget(NetSession *s);
+/* The session's settings blob (the host's) and the files as they were at its start, side 0 the host's and 1 the
+ * guest's: from the handshake, or for a rejoiner from the keeper (once they have arrived: NET_ACCEPT). 1, or 0. */
+int net_session_settings(NetSession *s, const void **data, size_t *size);
+int net_session_files(NetSession *s, int side);
+int net_session_file(NetSession *s, int side, int index, const void **data, size_t *size);
+/* The rejoiner, from START until its first net_submit: 1 and *live (the retraces to replay first); 0 otherwise. */
+int net_catchup(NetSession *s, uint32_t *live);
+/* Retrace n's pads from the keeper's log (n < live): 1, or 0. */
+int net_catchup_pads(NetSession *s, uint32_t n, NetPad out[NET_MAX_PORTS]);
+/* This side's state hash of replayed retrace n against the keeper's: 1 the same; 0 it differs, and the session ends
+ * (a desync at n; at the retrace a recovery is from, said to be deterministic); -1 the log has none. The window
+ * hash likewise (1 also when the keeper took none at n). */
+int net_catchup_hash(NetSession *s, uint32_t n, uint32_t hash);
+int net_catchup_window_hash(NetSession *s, uint32_t n, uint64_t hash);
+/* The replay is at retrace n: the keeper hears of it (PROGRESS, 10 times a second). */
+void net_catchup_at(NetSession *s, uint32_t n);
 
 /* Tests: handle buf as a datagram that just arrived from `from` (the fuzzers). */
 void net_test_inject(NetSession *s, const void *buf, int len, const NetAddr *from);

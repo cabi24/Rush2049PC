@@ -6,7 +6,9 @@ delay, time sync, the session's failures, the `RUSH_SIM_NET` network model, and 
 
 **Status.** Complete and tested on its own, against a toy deterministic simulation (section 9). **The game links it**
 since branch `net-session` (`port/app/netplay.c`, [NETPLAY.md](NETPLAY.md) section 12: phase 1's wiring of section 10).
-Two peers; the ports are a set per peer, ready for 3-4 players over 2-4 PCs later.
+Two peers; the ports are a set per peer, ready for 3-4 players over 2-4 PCs later. **Rejoins** (section 12, branch
+`net-rejoin`): a side whose game is gone rejoins the running session by its id, rebuilt from the other side's log;
+a desync is recovered from the same way; protocol version 2.
 
 | File | What |
 |---|---|
@@ -116,7 +118,7 @@ bytes left over, and text fields must be NUL-terminated printable ASCII.
 | Offset | Size | Field |
 |---|---|---|
 | 0 | 4 | magic `R2NP` |
-| 4 | 1 | protocol version (1) |
+| 4 | 1 | protocol version (2; 1 had no rejoins, and numbered chunks in 16 bits) |
 | 5 | 1 | type (below) |
 | 6 | 1 | flags: bit 0 = a tag follows the payload; the rest 0 |
 | 7 | 1 | sender: 0 host, 1 guest |
@@ -141,8 +143,9 @@ bytes left over, and text fields must be NUL-terminated printable ASCII.
 | 9 | HASH | INPUT's layout with no inputs (accepted; v1 sends its hashes inside INPUT) |
 | 10, 11 | PING, PONG | `u32 id` (the header's times are the measurement) |
 | 12 | BYE | `u8 reason`, 3 reserved, `u32 detail` (the desync's retrace), `char text[64]` |
+| 13 | PROGRESS | `u32 at`, `u32 live`: a rejoining side's replay, 10 times a second (section 12) |
 
-HELLO and HELLO_ACK (104 + 36 × files bytes):
+HELLO and HELLO_ACK (124 + 36 × files bytes):
 
 | Offset | Size | Field |
 |---|---|---|
@@ -150,14 +153,22 @@ HELLO and HELLO_ACK (104 + 36 × files bytes):
 | 8 | 8 | HELLO_ACK: the guest's nonce; HELLO: 0 |
 | 16 | 1 | the ports the sender owns (bit i = port i + 1; nonzero, low 4 bits) |
 | 17 | 1 | its file count, 0-8 |
-| 18 | 2 | 0 |
+| 18 | 1 | rejoin: 0 none; 1 this side rejoins `session`; 2 this side keeps `session` and offers its log |
+| 19 | 1 | 0 |
 | 20 | 4 + 32 | its settings blob: size (at most 64 KiB), BLAKE2s-256 hash |
 | 56 | 48 | build (the commit), NUL-terminated |
-| 104 | 36 each | each file: size (at most 1 MiB), BLAKE2s-256 hash |
+| 104 | 8 | the session's id (rejoin 1 and 2; else 0) |
+| 112 | 4 | rejoin 2: the retrace the session goes on from (`live`) |
+| 116 | 4 | rejoin 2: the desync the rejoin recovers from (0xFFFFFFFF none) |
+| 120 | 1 + 1 | rejoin 2: the files that are the host's, then the guest's; the last file is the log |
+| 122 | 2 | 0 |
+| 124 | 36 each | each file: size (at most 1 MiB; a keeper's log up to 64 MiB), BLAKE2s-256 hash |
 
-SETTINGS and FILE (12 + length): `u8 index`, `u8 0`, `u16 chunk`, `u32 total size`, `u16 length` (1024, the last
-chunk the rest), `u16 0`, the bytes. FILE_ACK: `u8 kind` (0 settings, 1 file), `u8 index`, `u16 chunks`, then a bitmap
-of the chunks received (bit i of byte i/8).
+SETTINGS and FILE (16 + length): `u8 index`, `u8 0`, `u16 0`, `u32 chunk`, `u32 total size`, `u16 length` (1024, the
+last chunk the rest), `u16 0`, the bytes; up to 65,536 chunks. FILE_ACK (16 + bitmap): `u8 kind` (0 settings, 1 file),
+`u8 index`, `u16` the bitmap's bytes (at most 1024), `u32` the blob's chunks, `u32 base`, then a bitmap of the chunks
+received after it (bit i: chunk base + i): every chunk before `base` has arrived. A sender sends from its first chunk
+not acknowledged, at most 8,192 chunks ahead, the acks' reach.
 
 START (52): the agreement hash (32), retrace 0's time on the host's clock (`u64` ns), the host's clock offset
 (`i64` ns, guest minus host), `u8` offset valid, 3 reserved.
@@ -187,7 +198,7 @@ INPUT and HASH (52 + count × (4 × ports + 2) + 4 × hashes, + 12 with a window
 | | 12 | with flag 1: `u32 retrace`, `u64` window hash |
 
 An INPUT is built to fit 1200 bytes: inputs first (oldest first), then hashes. At its largest, 120 inputs of one port,
-94 hashes and a window hash, it is 1200 bytes; a tagged FILE chunk is 1092.
+94 hashes and a window hash, it is 1200 bytes; a tagged FILE chunk is 1096.
 
 **The join code's tag** (phase 5, implemented): with `NetConfig.join_code` set, every packet carries a 16-byte tag,
 BLAKE2s-128 keyed with K over the packet before it, where K = BLAKE2s-256(`"rush2049pc join code v1\0"` + the code).
@@ -209,7 +220,9 @@ compute it from the HELLOs; the blobs themselves are checked against their hashe
    with "the host runs build X; this is Y: both players need the same build"), that the ports don't overlap, and the
    sizes. It doesn't take the guest yet: a HELLO can be replayed from any address. Each sender gets a HELLO_ACK
    with a session of its own (up to 4 pending), and the first address to send a packet in its session (tagged, with
-   a code) becomes the peer. From then on the host ignores every other address.
+   a code) becomes the peer. From then on the host takes nothing else from another address but a HELLO: a rejoin of
+   its session (section 12), or anyone else, told `busy` ("the host is in an online session already"; 5 a second at
+   most).
 2. **Handshake.** The host sends its settings blob, each side its files, in 1 KiB chunks, 32 chunks a pump at most,
    each resent every 100 ms until a FILE_ACK has it. A blob whose hash doesn't match ends the session (`protocol`).
    Pings every 50 ms meanwhile. The guest compares the host's settings with its own (`net_settings_differ`); the host's
@@ -222,9 +235,11 @@ compute it from the HELLOs; the blobs themselves are checked against their hashe
    offset; the guest moves it to its own clock. The host repeats START until an INPUT comes back.
 6. **Running**: section 5.
 7. **Ending.** `net_end` sends BYE three times; a peer that keeps sending after the end gets BYE again (5 a second at
-   most). Reasons: `local`, `peer-left` (BYE), `timeout` (nothing from the peer for `timeout_ms`, 15 s), `no-answer`
-   (the guest, after `timeout_ms`), `protocol` (two values for one input or hash, a bad file, no acks), `desync`
-   (the detail is the first retrace whose hashes differ), `version`, `mismatch`, `rejected`, `busy`, `socket`.
+   most). Reasons: `local`, `peer-left` (BYE), `timeout` (nothing from the peer for `timeout_ms`, 15 s, before the
+   session runs; for `window_ms` once it runs, the rejoin window), `no-answer` (the guest, after `timeout_ms`),
+   `protocol` (two values for one input or hash, a bad file, no acks), `desync` (the detail is the first retrace whose
+   hashes differ), `version`, `mismatch`, `rejected`, `busy`, `socket`, and (section 12) `recover` (the guest
+   rebuilds after a desync) and `gone` (this side's game closed, not its player leaving: the peer waits for it).
    `net_end_reason` gives a sentence for the log; `net_end_text` ends with a sentence of the caller's, which the BYE
    carries to the peer (its first 63 characters: "the guest's ROM isn't the host's").
 8. **Leaving at a retrace of its own** (a player quits, a test's run reaches its limit): `net_linger` first waits, up
@@ -261,8 +276,11 @@ as both are known and ends both on the first mismatch, naming its retrace; windo
 **Transit.** For each input arriving here for the first time, `transit = arrival − (its assignment on the peer's clock
 − the clock offset)`: the network's delay, loss recovery included, but neither side's schedule. (The age field gives
 the assignment time exactly, delay changes and repeats included.) Not measured: inputs assigned before the start (they
-waited for START, not on the network), and anything read after a gap of 50 ms in pumping (a stopped process, a
-hitch: their arrival time is unknown; the flag goes through `RUSH_SIM_NET`'s queue too).
+waited for START, not on the network), anything read after a gap of 50 ms in pumping (a stopped process, a
+hitch: their arrival time is unknown; the flag goes through `RUSH_SIM_NET`'s queue too), and an input slower than the
+delay's cap (30 retraces, 500 ms): an outage, the link down a while and the input resent when it came back, which
+no delay can cover (counted in `outage_inputs`). Taken as latency, a 20 s outage left the delay at its cap, half a
+second of input lag shrinking a retrace every 2 s for a minute (measured, section 12).
 
 **The delay controller** (each side for itself, every submit):
 
@@ -355,6 +373,7 @@ the same model, both directions have it.
 | `net_threads` | real time, 9 s | two threads over UDP on 127.0.0.1, 80 ms ± 20, the service threads |
 | `net_loopback_<model>` | real time, 8-15 s | two `net_peer` processes (`tools/port/net_check.py`) |
 | `net_desync`, `net_disconnect`, `net_bye`, `net_sigstop` | real time, 4-17 s | two processes: a flipped bit at tick 300; the guest killed; the guest quitting; the guest stopped with SIGSTOP for 3 s (Linux) |
+| `net_rejoin`, `net_rejoin_host`, `net_outage`, `net_recover`, `net_recover_repeat` | real time, 10-60 s | rejoins (section 12): a killed guest (host) started again; a 20 s outage and a 20 s SIGSTOP; a desync rebuilt from, and one that repeats |
 
 The models (each direction; `tools/port/net_check.py` has the real-time ones, with the changes sooner):
 
@@ -447,8 +466,96 @@ only:
 - Attached to the game (section 10, NETPLAY.md 12), on the paced clock.
 - Two peers. The ports are a set per peer and the wire carries the sender's ports, but sessions of three or four
   PCs need the host to relay or a mesh.
-- No address migration: a NAT rebinding mid-session ends it by timeout.
+- No address migration: a NAT rebinding mid-session ends it by timeout (now the rejoin window's): the game is still
+  there, so nothing rejoins. A new game of that player at the new address would (section 12).
 - No rendezvous server or relay (phase 5's later steps).
 - The margin (3 ms), the windows (3 s, 2 s) and the time-sync deadband (1 ms) are set from the simulator; phase 3's
   sessions between real PCs should check them, with the log's delay and stall lines.
 - Real-time runs on Windows: compiled and linked here, run only by CI.
+
+## 12. Rejoining, and recovering from a desync
+
+Written 2026-11-07 on branch `net-rejoin` (from 41b4aee). What the game does with it is [NETPLAY.md](NETPLAY.md) 13.
+There are no savestates (NETPLAY.md 1.6), so a game that is gone is rebuilt as it was built: from the session's start,
+with the same inputs, on the deterministic clock, each retrace's hash checked against the side that kept it.
+
+**The session's id.** The first session ID the host gave its guest (HELLO_ACK) is the session's id, the same on both
+sides (`net_session_id`), for the session's life. Each rejoin's connection gets an ID of its own, so packets of the
+old game still on their way are dropped.
+
+**What each side keeps.** From START, a record of the handshake: the host's settings blob and both sides' files as
+they were. While it runs, the session's log: for each retrace it consumed the pads of the ports both sides own (4
+bytes each), its own state hash of each retrace (4 bytes), and the window hashes (12 bytes each). Two players: 12
+bytes a retrace, 2.6 MB an hour.
+
+**The rejoin window.** Once the session runs the silence that ends it is `window_ms` (the game's net.rejoin, 300 s),
+not `timeout_ms`. Inside it a network that comes back goes on with nothing lost (both sides wait at the lockstep;
+whatever wasn't acknowledged is resent), and a new game of the side that's gone can rejoin. `net_rejoin_info` says
+what the wait is: the peer silent, its game closed, a desync it rebuilds from, the log on its way, the replay.
+
+**The keeper and the rejoiner.** The keeper is the side whose game goes on: it waits at the first retrace it lacks
+the peer's input for; that retrace is `live`, and everything before it is the log. It takes a rejoin only then, with
+its hashes given to `live`, the old game gone (BYE `gone` or `recover`) or silent 1.5 s (`rejoin_ready`); until then
+the rejoiner asks again (while the old game spoke under 0.5 s ago, a guest is told `busy`).
+
+- **The guest rejoins.** Its HELLO says rejoin, with the id (`rejoin_session`: the game's ticket). The HELLO_ACK is
+  the host's offer: keep, the id, `live`, the desync it recovers from, and as files the host's settings blob, the
+  host's files, the guest's files and the log. The new game's first packet in the offered session confirms it.
+- **The host rejoins.** The guest keeps: 2 s after its host went silent (at once after a BYE `gone`) it knocks at
+  the host's address every 250 ms, a HELLO that says keep with its offer. A new host with the id answers in a session
+  of its own (HELLO_ACK: rejoin, the id), and the guest's first packet in it makes it the host's peer. A host with an
+  id takes a new guest instead until `net_rejoin_forget`; a host without one ignores knocks.
+
+Confirmed, the keeper forgets the old game (its address, session, inputs and hashes past `live`, acknowledgements,
+clock offset, sequence numbers) and sends the offer as a handshake sends its blobs (the keeper sends the settings
+blob, whichever side it is). The rejoiner checks and adopts it (NET_ACCEPT, `net_session_settings`,
+`net_session_file`), sends READY with the rejoin's agreement hash (the offer's manifest, the build, the ports), and
+after 4 round trips the keeper's START (the agreement; the host's clock offset when the keeper is the host).
+
+**The log** (the offer's last file): `R2RJLOG1`, `u32 live`, `u8` the ports, 3 zero bytes, `u32` the window hashes W,
+`u32 0`; then live × ports × 4 bytes of pads, live × 4 bytes of state hashes, W × (`u32` retrace, `u64` hash). At most
+64 MiB (`NET_LOG_MAX_SIZE`, about 39 hours of two players); FILE and FILE_ACK number chunks in 32 bits for it.
+
+**The replay.** At START the rejoiner reads the log into its own (so it can keep the session itself later) and the
+record from the offer, and is `starting` with `net_catchup` true: the caller replays retraces 0 .. live-1 from
+`net_catchup_pads`, checks each one's state hash (`net_catchup_hash`) and the window hashes (`net_catchup_window_hash`)
+against the log, and says where it is (`net_catchup_at`, PROGRESS to the keeper ten times a second). A hash that
+differs ends the session with a desync at that retrace, for both. Its first `net_submit`, of `live`, assigns idle input
+to `live` .. `live`+D-1 as a start does and puts it in the lockstep; the keeper's game, waiting at `live`, goes on
+with it. Retrace `live`'s hash and every later one are compared as always.
+
+**A desync, recovered from** (`recover`). The host is authoritative: at the first retrace r > 0 whose hashes differ it
+sends BYE `recover` with r, drops the guest's old game's packets from then on (but a BYE), and waits for the guest to
+rejoin (NET_RJ_RECOVER). A guest that sees the difference first waits up to 5 s for that word: with it, it ends
+`recover` (its caller starts its game again, which rejoins); with BYE `desync`, or no word, `desync`. The rejoin's
+replay checks every retrace again, r with them: the same desync at r means the difference is deterministic, and the
+rebuilt game ends the session with a desync whose message begins "deterministic" (the keeper says so too). At most
+`NET_RECOVER_MAX` (3) a session; a desync at retrace 0 (the two setups differ) is never recovered from; a guest
+without `recover` answers BYE `recover` with a desync.
+
+**BYE `gone`.** A side whose game closes without its player leaving (the game: its window closed, the system ending
+the program) ends with `gone`. A peer whose rejoin window is longer than its timeout drops the old game's packets
+and waits for a rejoin at once; otherwise it ends `peer-left`.
+
+**Proofs** (rocky, x86-64, RelWithDebInfo, 2026-11-07). On the virtual clock (`net_unit`, toy simulation, 1,500 ticks,
+20 ms ± 5 each way):
+
+| Case | Result |
+|---|---|
+| the guest's game gone at tick 402 (its node cut, its session dropped), a new one 8 s later at another address, and at the same address | it replayed 402 ticks, every hash the host's; both ran to 1,500 with the same hash at every tick; one stall of 8.1 s on the host; the id the same on the new guest |
+| a stranger's HELLO while the host waits | `busy`: "the host is in an online session already" |
+| the host's game gone at tick 502; the guest knocks; a new host at its address 6 s later | the new host replayed 502 ticks, and both ran to 1,500 alike |
+| the guest's state changed once at tick 300, `recover` | the guest ended `recover` at 300; the host waited at 303; the rebuilt guest replayed 303 ticks and both ran to 1,500 alike; a recovery counted on both |
+| the same change again in the rebuilt guest | it ends at 300: "deterministic: the rebuilt game went out of sync again at retrace 300, where the desync was ..."; the host ends with the desync too |
+| the link down 20 s (every packet lost both ways, 3,000 ticks) | a 20.0 s stall on both, then the same hash at every tick; the delay 2 throughout (6 inputs taken as an outage). Without the outage rule (section 5, a build of it with the rule off): the delay went to 30 |
+
+Two processes over UDP (`tools/port/net_check.py`, real time, a rejoin window of 60 s; the processes killed by their
+own PID):
+
+| Test | Result |
+|---|---|
+| `net_rejoin`: the guest killed (SIGKILL) at tick 300 of 900, a new one 3 s later with the id | it replayed 302 ticks in 0.1 ms and played on; the host's and the new guest's hashes the same at all 900 ticks; the host's one stall 3.1 s |
+| `net_rejoin_host`: the host killed, a new one on the same port | the same: 302 ticks replayed, all 900 hashes the same; the guest's stall 3.1 s |
+| `net_outage`: the link down 20 s from 4 s (2,100 ticks); the guest stopped 20 s by SIGSTOP (900 ticks) | both: stalls of 20.0 s, the same hash at every tick, 60.000 ticks a second outside them, the delay 2 throughout |
+| `net_recover`: the guest's state changed at tick 300 | the guest ended `recover` at 300; the host waited 0.15 s for the new guest, which replayed and played on: the same hash at all 900 ticks |
+| `net_recover_repeat`: the change again in the new guest | both end with the desync at 300, the guest "deterministic: ..." |

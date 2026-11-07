@@ -79,6 +79,44 @@ static int submit(Driver *d)
     return 0;
 }
 
+int drv_catchup(Driver *d, uint64_t now)
+{
+    uint32_t live;
+    NetPad pads[NET_MAX_PORTS];
+    if (d->done || !net_catchup(d->s, &live) || d->n >= live)
+        return 0;
+    uint64_t t0 = net_os_now_ns();
+    while (d->n < live) {
+        uint32_t n = d->n;
+        if (!net_catchup_pads(d->s, n, pads))
+            return -1;
+        toy_step(&d->toy, pads);
+        if (d->desync_at >= 0 && (int64_t)n == d->desync_at)
+            d->toy.b ^= 1;   /* the same deliberate desync: a deterministic one repeats in the replay */
+        d->hashes[n] = toy_hash(&d->toy);
+        d->own[n] = pads[d->port];
+        d->other[n] = pads[d->port ^ 1];
+        d->t_tick[n] = now;
+        if (net_catchup_hash(d->s, n, d->hashes[n]) == 0 ||
+            (n % 60 == 59 && net_catchup_window_hash(d->s, n, toy_window_hash(&d->toy)) == 0)) {
+            d->n++;
+            d->done = d->ended = 1;
+            return -1;
+        }
+        d->n++;
+        d->replayed++;
+        if ((d->n & 255) == 0)
+            net_catchup_at(d->s, d->n);
+    }
+    net_catchup_at(d->s, d->n);
+    d->replay_ns = net_os_now_ns() - t0;
+    d->deadline = now;   /* live from here: the next tick now */
+    d->submitted = 0;
+    if (d->n >= d->ticks)
+        d->done = 1;
+    return 1;
+}
+
 int drv_step(Driver *d, uint64_t now)
 {
     NetPad pads[NET_MAX_PORTS];
@@ -94,6 +132,8 @@ int drv_step(Driver *d, uint64_t now)
         d->started = 1;
         d->t_first = d->deadline;
     }
+    if (drv_catchup(d, now) != 0)
+        return 0;
     if (net_frozen(d->s))
         return 0;
     if (!d->submitted) {
@@ -130,6 +170,11 @@ int drv_tick(Driver *d)
         }
         net_os_sleep_ns(1000000);
     }
+    int c = drv_catchup(d, net_os_now_ns());
+    if (c < 0)
+        return -1;
+    if (d->done)
+        return 0;
     while (net_frozen(d->s))
         net_os_sleep_ns(1000000);
     net_os_sleep_until(d->deadline);

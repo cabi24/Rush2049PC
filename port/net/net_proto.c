@@ -19,8 +19,8 @@ int net_popcount4(uint8_t ports)
 
 const char *net_msg_name(int type)
 {
-    static const char *names[NET_MSG_COUNT] = {"?",     "HELLO",  "HELLO_ACK", "SETTINGS", "FILE", "FILE_ACK", "READY",
-                                               "START", "INPUT",  "HASH",      "PING",     "PONG", "BYE"};
+    static const char *names[NET_MSG_COUNT] = {"?",     "HELLO", "HELLO_ACK", "SETTINGS", "FILE", "FILE_ACK", "READY",
+                                               "START", "INPUT", "HASH",      "PING",     "PONG", "BYE",      "PROGRESS"};
     return type > 0 && type < NET_MSG_COUNT ? names[type] : "?";
 }
 
@@ -141,12 +141,27 @@ int net_proto_parse(const uint8_t *buf, int len, NetMsg *m)
         h->nonce_echo = rd_u64(&r);
         h->ports = rd_u8(&r);
         h->nfiles = rd_u8(&r);
-        if (rd_u16(&r) != 0)
+        h->rejoin = rd_u8(&r);
+        if (rd_u8(&r) != 0)
             return NET_PARSE_FIELD;
         parse_blob_info(&r, &h->settings);
         if (rd_text(&r, h->build, NET_BUILD_LEN) != 0)
             return r.bad ? NET_PARSE_SHORT : NET_PARSE_FIELD;
+        h->session = rd_u64(&r);
+        h->live = rd_u32(&r);
+        h->recover_at = rd_u32(&r);
+        h->host_files = rd_u8(&r);
+        h->guest_files = rd_u8(&r);
+        if (rd_u16(&r) != 0)
+            return r.bad ? NET_PARSE_SHORT : NET_PARSE_FIELD;
         if (h->nfiles > NET_MAX_FILES || h->ports == 0 || (h->ports & 0xF0))
+            return NET_PARSE_FIELD;
+        /* the rejoin block: none (all zero), a side that rejoins (its session), or one that keeps it (its files are
+         * the host's, the guest's, then the log) */
+        if (h->rejoin == 0 ? h->session || h->live || h->recover_at || h->host_files || h->guest_files
+            : h->rejoin == NET_HELLO_REJOIN ? !h->session || h->live || h->host_files || h->guest_files
+            : h->rejoin == NET_HELLO_KEEP ? !h->session || h->host_files + h->guest_files + 1 != h->nfiles
+                                          : 1)
             return NET_PARSE_FIELD;
         for (int i = 0; i < h->nfiles; i++)
             parse_blob_info(&r, &h->files[i]);
@@ -156,9 +171,9 @@ int net_proto_parse(const uint8_t *buf, int len, NetMsg *m)
     case NET_MSG_FILE: {
         NetChunk *c = &m->u.chunk;
         c->index = rd_u8(&r);
-        if (rd_u8(&r) != 0)
+        if (rd_u8(&r) != 0 || rd_u16(&r) != 0)
             return NET_PARSE_FIELD;
-        c->chunk = rd_u16(&r);
+        c->chunk = rd_u32(&r);
         c->total = rd_u32(&r);
         c->len = rd_u16(&r);
         if (rd_u16(&r) != 0)
@@ -172,10 +187,15 @@ int net_proto_parse(const uint8_t *buf, int len, NetMsg *m)
         NetChunkAck *a = &m->u.chunk_ack;
         a->kind = rd_u8(&r);
         a->index = rd_u8(&r);
-        a->nchunks = rd_u16(&r);
-        if (a->kind > NET_BLOB_FILE || a->nchunks == 0)
-            return r.bad ? NET_PARSE_SHORT : NET_PARSE_FIELD;
-        a->bitmap = rd_take(&r, (a->nchunks + 7) / 8);
+        a->nbytes = rd_u16(&r);
+        a->nchunks = rd_u32(&r);
+        a->base = rd_u32(&r);
+        if (r.bad)
+            return NET_PARSE_SHORT;
+        if (a->kind > NET_BLOB_FILE || a->nchunks == 0 || a->nchunks > NET_MAX_CHUNKS || a->base > a->nchunks ||
+            a->nbytes > NET_ACK_BYTES || a->nbytes > (a->nchunks - a->base + 7) / 8)
+            return NET_PARSE_FIELD;
+        a->bitmap = rd_take(&r, a->nbytes);
         break;
     }
     case NET_MSG_READY:
@@ -230,6 +250,12 @@ int net_proto_parse(const uint8_t *buf, int len, NetMsg *m)
     case NET_MSG_PING:
     case NET_MSG_PONG:
         m->u.ping_id = rd_u32(&r);
+        break;
+    case NET_MSG_PROGRESS:
+        m->u.progress.at = rd_u32(&r);
+        m->u.progress.live = rd_u32(&r);
+        if (!r.bad && m->u.progress.at > m->u.progress.live)
+            return NET_PARSE_FIELD;
         break;
     case NET_MSG_BYE: {
         NetBye *b = &m->u.bye;
@@ -324,10 +350,17 @@ void net_w_hello(NetWriter *w, const NetHello *m)
     net_w_u64(w, m->nonce_echo);
     net_w_u8(w, m->ports);
     net_w_u8(w, m->nfiles);
-    net_w_u16(w, 0);
+    net_w_u8(w, m->rejoin);
+    net_w_u8(w, 0);
     net_w_u32(w, m->settings.size);
     net_w_bytes(w, m->settings.hash, NET_HASH_LEN);
     w_text(w, m->build, NET_BUILD_LEN);
+    net_w_u64(w, m->session);
+    net_w_u32(w, m->live);
+    net_w_u32(w, m->recover_at);
+    net_w_u8(w, m->host_files);
+    net_w_u8(w, m->guest_files);
+    net_w_u16(w, 0);
     for (int i = 0; i < m->nfiles && i < NET_MAX_FILES; i++) {
         net_w_u32(w, m->files[i].size);
         net_w_bytes(w, m->files[i].hash, NET_HASH_LEN);
@@ -338,7 +371,8 @@ void net_w_chunk(NetWriter *w, const NetChunk *c)
 {
     net_w_u8(w, c->index);
     net_w_u8(w, 0);
-    net_w_u16(w, c->chunk);
+    net_w_u16(w, 0);
+    net_w_u32(w, c->chunk);
     net_w_u32(w, c->total);
     net_w_u16(w, c->len);
     net_w_u16(w, 0);

@@ -257,7 +257,7 @@ static void test_proto(void)
     pl[0] = 'X';
     CHECK(net_proto_parse(pl, n, &m) == NET_PARSE_MAGIC, "bad magic");
     memcpy(pl, buf, (size_t)n);
-    pl[4] = 2;
+    pl[4] = NET_PROTO_VERSION + 1;
     CHECK(net_proto_parse(pl, n, &m) == NET_PARSE_VERSION, "bad version");
     memcpy(pl, buf, (size_t)n);
     pl[5] = 99;
@@ -553,6 +553,7 @@ typedef struct VPair {
     VUser hu, gu;
     NetSession *h, *g;
     Driver dh, dg;
+    int hnode, gnode;   /* the nodes the host and the guest are on (0, 1; a rejoin's new game may be elsewhere) */
 } VPair;
 
 typedef struct VOpts {
@@ -565,6 +566,8 @@ typedef struct VOpts {
     int host_files, guest_files;   /* random files of 32 KiB */
     const char *host_settings, *guest_settings;
     int timeout_ms;
+    int window_ms;
+    int recover;
     int manual_accept;
     uint64_t seed;
 } VOpts;
@@ -589,6 +592,8 @@ static void vconfig(NetConfig *c, VUser *u, VNode *node, NetRole role, const VOp
     c->join_code = role == NET_HOST ? o->host_code : o->guest_code;
     if (o->timeout_ms)
         c->timeout_ms = o->timeout_ms;
+    c->window_ms = o->window_ms;
+    c->recover = o->recover;
     const char *set = role == NET_HOST ? o->host_settings : o->guest_settings;
     if (set) {
         c->settings = set;
@@ -611,6 +616,8 @@ static int vpair_open(VPair *p, const VOpts *o)
     NetConfig hc, gc;
     memset(p, 0, sizeof *p);
     vnet_init(&p->v);
+    p->hnode = 0;
+    p->gnode = 1;
     p->hu.v = p->gu.v = &p->v;
     p->hu.log.tag = "host";
     p->gu.log.tag = "guest";
@@ -642,14 +649,14 @@ static void vrun(VPair *p, uint64_t dt, int drive)
 {
     for (uint64_t t = 0; t < dt; t += 250000) {
         p->v.now += 250000;
-        if (!p->v.node[0].cut)
+        if (p->h && !p->v.node[p->hnode].cut)
             net_poll(p->h);
-        if (!p->v.node[1].cut)
+        if (p->g && !p->v.node[p->gnode].cut)
             net_poll(p->g);
         if (drive) {
-            if (!p->v.node[0].cut)
+            if (p->h && !p->v.node[p->hnode].cut)
                 drv_step(&p->dh, p->v.now);
-            if (!p->v.node[1].cut)
+            if (p->g && !p->v.node[p->gnode].cut)
                 drv_step(&p->dg, p->v.now);
         }
     }
@@ -928,7 +935,7 @@ static void test_hostile(void)
             buf[k] = (uint8_t)(r >> 56);
         }
         if (i % 3 == 0 && l >= 8)
-            memcpy(buf, "R2NP\1\10\0\1", 8);   /* past the magic */
+            memcpy(buf, "R2NP\2\10\0\1", 8);   /* past the magic and the version */
         net_test_inject(p.h, buf, l, &guest);
         net_test_inject(p.g, buf, l, &stranger);
     }
@@ -1036,6 +1043,204 @@ static void test_assignment(void)
     vpair_close(&p);
 }
 
+/* ---------------------------------------------------------------- rejoining (docs/port/NETWORK.md 12) */
+
+/* Run until both drivers have done at least n ticks (or limit). */
+static void vrun_until(VPair *p, uint32_t n, uint64_t limit)
+{
+    uint64_t t0 = p->v.now;
+    while ((p->dh.n < n || p->dg.n < n) && !(p->dh.done && p->dg.done) && p->v.now - t0 < limit)
+        vrun(p, 250000, 1);
+}
+
+/* One side's game is gone: its node cut (what it sends vanishes) and its session dropped, as a crash. */
+static void vgone(VPair *p, int host)
+{
+    p->v.node[host ? p->hnode : p->gnode].cut = 1;
+    net_destroy(host ? p->h : p->g);
+    drv_free(host ? &p->dh : &p->dg);
+    if (host)
+        p->h = NULL;
+    else
+        p->g = NULL;
+}
+
+/* A new game on node `node` for that side, rejoining session sid (desync_at: its own deliberate desync, -1 none). */
+static int vrejoin(VPair *p, int host, int node, uint64_t sid, const VOpts *o, int64_t desync_at)
+{
+    char err[200];
+    NetConfig c;
+    VUser *u = host ? &p->hu : &p->gu;
+    p->v.node[node].cut = 0;
+    vconfig(&c, u, &p->v.node[node], host ? NET_HOST : NET_GUEST, o);
+    c.rejoin_session = sid;
+    NetSession *s = net_create(&c, err, sizeof err);
+    CHECK(s, "rejoin: %s", err);
+    if (!s)
+        return -1;
+    Driver *d = host ? &p->dh : &p->dg;
+    drv_init(d, s, host ? 0 : 1, o->ticks, o->seed ^ (host ? 0x1111 : 0x2222) ^ 0x5A5A, PERIOD, 10000 * MS);
+    d->desync_at = desync_at;
+    if (host) {
+        p->h = s;
+        p->hnode = node;
+    } else {
+        p->g = s;
+        p->gnode = node;
+    }
+    return 0;
+}
+
+static void test_rejoin(void)
+{
+    VPair p;
+    VOpts o;
+    NetStats hs, gs;
+    NetRejoinInfo ri;
+    char msg[300];
+    uint32_t det;
+    memset(&o, 0, sizeof o);
+    o.ticks = 1500;
+    o.host_sim = o.guest_sim = "delay=20,jitter=5";
+    o.host_files = 1;
+    o.guest_files = 2;
+    o.host_settings = "[game]\ncars = 8\n";
+    o.window_ms = 120000;
+    o.seed = 11;
+    /* 1. the guest's game gone at tick 400, a new one at another address rejoins 8 s later; and a stranger is turned
+     * away meanwhile */
+    for (int same = 0; same < 2; same++) {
+        vpair_open(&p, &o);
+        vrun_until(&p, 400, 60000 * MS);
+        uint64_t sid = net_session_id(p.h);
+        CHECK(sid && sid == net_session_id(p.g), "the session's id on both: %016llx %016llx", (unsigned long long)sid,
+              (unsigned long long)net_session_id(p.g));
+        vgone(&p, 0);
+        vrun(&p, 8000 * MS, 1);
+        net_rejoin_info(p.h, &ri);
+        uint32_t waits = p.dh.n;
+        CHECK(ri.phase == NET_RJ_SILENT && ri.silent_ms >= 7500 && net_state(p.h) == NET_RUNNING,
+              "the host waits for its guest to come back: phase %d, silent %u ms", ri.phase, ri.silent_ms);
+        if (!same) {   /* a stranger's own HELLO: busy */
+            VUser su;
+            NetConfig sc;
+            memset(&su, 0, sizeof su);
+            su.v = &p.v;
+            su.log.tag = "stranger";
+            vconfig(&sc, &su, &p.v.node[3], NET_GUEST, &o);
+            NetSession *st = net_create(&sc, msg, sizeof msg);
+            for (int i = 0; i < 400 && net_state(st) != NET_ENDED; i++) {
+                vrun(&p, 250000, 1);
+                net_poll(st);
+            }
+            NetEnd e = net_end_reason(st, NULL, msg, sizeof msg);
+            CHECK(e == NET_END_BUSY, "a stranger joining a running session: %s (%s)", net_end_name(e), msg);
+            printf("rejoin: a stranger's HELLO while the session waits: %s (%s)\n", net_end_name(e), msg);
+            net_destroy(st);
+        }
+        vrejoin(&p, 0, same ? 1 : 2, sid, &o, -1);
+        uint64_t t0 = p.v.now;
+        while (!(p.dg.replayed && p.dg.n > waits) && p.v.now - t0 < 30000 * MS)
+            vrun(&p, 250000, 1);
+        CHECK(p.dg.replayed == waits, "the new guest replayed %u ticks; the host waited at %u", p.dg.replayed, waits);
+        vrun_ticks(&p, 120000 * MS);
+        net_stats(p.h, &hs);
+        net_stats(p.g, &gs);
+        CHECK(p.dh.n == o.ticks && p.dg.n == o.ticks && first_difference(&p.dh, &p.dg) == NET_NONE,
+              "rejoined (%s address): %u and %u ticks, first difference %u", same ? "the same" : "another", p.dh.n,
+              p.dg.n, first_difference(&p.dh, &p.dg));
+        CHECK(hs.rejoins == 1 && gs.rejoins == 1 && net_session_id(p.g) == sid, "rejoins counted %u %u", hs.rejoins,
+              gs.rejoins);
+        printf("rejoin: the guest's game gone at tick %u, a new one (%s address) rejoined %.1f s later: it replayed %u "
+               "ticks, every hash the host's, and both ran to %u with the same hash at every tick (host stalls %llu, "
+               "%.1f s)\n", waits, same ? "the same" : "another", 8.0, p.dg.replayed, o.ticks,
+               (unsigned long long)hs.stalls, hs.stall_ms_max / 1000);
+        vpair_close(&p);
+    }
+    /* 2. the host's game gone: the guest knocks; a new host at its address rejoins */
+    vpair_open(&p, &o);
+    vrun_until(&p, 500, 60000 * MS);
+    {
+        uint64_t sid = net_session_id(p.g);
+        vgone(&p, 1);
+        vrun(&p, 6000 * MS, 1);
+        uint32_t waits = p.dg.n;
+        net_rejoin_info(p.g, &ri);
+        CHECK(ri.phase == NET_RJ_SILENT, "the guest waits for its host: phase %d", ri.phase);
+        vrejoin(&p, 1, 0, sid, &o, -1);
+        vrun_ticks(&p, 120000 * MS);
+        net_stats(p.h, &hs);
+        net_stats(p.g, &gs);
+        CHECK(p.dh.replayed == waits && p.dh.n == o.ticks && p.dg.n == o.ticks &&
+                  first_difference(&p.dh, &p.dg) == NET_NONE,
+              "the host rejoined: replayed %u (the guest waited at %u), %u and %u ticks, first difference %u",
+              p.dh.replayed, waits, p.dh.n, p.dg.n, first_difference(&p.dh, &p.dg));
+        CHECK(hs.rejoins == 1 && gs.rejoins == 1, "host rejoins counted %u %u", hs.rejoins, gs.rejoins);
+        printf("rejoin: the host's game gone at tick %u; the guest knocked, a new host rejoined: it replayed %u ticks, "
+               "and both ran to %u with the same hash at every tick\n", waits, p.dh.replayed, o.ticks);
+    }
+    vpair_close(&p);
+    /* 3. a desync recovered from: the guest's state changes at tick 300 once; the host has it rebuild */
+    for (int repeat = 0; repeat < 2; repeat++) {
+        VOpts r = o;
+        r.recover = 1;
+        vpair_open(&p, &r);
+        p.dg.desync_at = 300;
+        uint64_t t0 = p.v.now;
+        while (net_state(p.g) != NET_ENDED && p.v.now - t0 < 60000 * MS)
+            vrun(&p, 250000, 1);
+        NetEnd e = net_end_reason(p.g, &det, msg, sizeof msg);
+        CHECK(e == NET_END_RECOVER && det == 300, "the guest ends to rebuild: %s at %u (%s)", net_end_name(e), det, msg);
+        uint64_t sid = net_session_id(p.g);
+        net_rejoin_info(p.h, &ri);
+        CHECK(ri.phase == NET_RJ_RECOVER && ri.recover_at == 300 && net_state(p.h) == NET_RUNNING,
+              "the host waits for the rebuild: phase %d at %u", ri.phase, ri.recover_at);
+        uint32_t waits = p.dh.n;
+        vgone(&p, 0);
+        vrun(&p, 2000 * MS, 1);
+        vrejoin(&p, 0, 1, sid, &r, repeat ? 300 : -1);
+        vrun_ticks(&p, 120000 * MS);
+        net_stats(p.h, &hs);
+        if (!repeat) {
+            CHECK(p.dh.n == r.ticks && p.dg.n == r.ticks && first_difference(&p.dh, &p.dg) == NET_NONE &&
+                      hs.recoveries == 1 && p.dg.replayed >= 300,
+                  "recovered: %u and %u ticks, first difference %u, recoveries %u", p.dh.n, p.dg.n,
+                  first_difference(&p.dh, &p.dg), hs.recoveries);
+            printf("recover: a one-off desync at tick 300: the host waited at %u, the guest rebuilt (replayed %u, every "
+                   "hash the host's past 300), both ran to %u alike; recoveries %u\n", waits, p.dg.replayed, r.ticks,
+                   hs.recoveries);
+        } else {
+            NetEnd eg = net_end_reason(p.g, &det, msg, sizeof msg);
+            NetEnd eh = net_end_reason(p.h, NULL, NULL, 0);
+            CHECK(eg == NET_END_DESYNC && det == 300 && strstr(msg, "deterministic") && eh == NET_END_DESYNC,
+                  "a desync that repeats: guest %s at %u (%s), host %s", net_end_name(eg), det, msg, net_end_name(eh));
+            printf("recover: a desync that repeats at tick 300: the rebuilt guest ends (%s: %s); the host %s\n",
+                   net_end_name(eg), msg, net_end_name(eh));
+        }
+        vpair_close(&p);
+    }
+    /* 4. a network outage of 20 s inside the window: nothing lost, and the delay isn't left at its cap */
+    {
+        VOpts n = o;
+        n.host_sim = n.guest_sim = "delay=20,jitter=5,at=5,loss=100,at=25,loss=0";
+        n.ticks = 3000;
+        n.window_ms = 60000;
+        vpair_open(&p, &n);
+        vrun_ticks(&p, 200000 * MS);
+        net_stats(p.h, &hs);
+        net_stats(p.g, &gs);
+        CHECK(p.dh.n == n.ticks && p.dg.n == n.ticks && first_difference(&p.dh, &p.dg) == NET_NONE &&
+                  hs.delay_max_seen <= 4 && gs.delay_max_seen <= 4 && hs.stall_ms_max > 19000,
+              "a 20 s outage: %u and %u ticks, delay up to %d and %d, longest stall %.1f s", p.dh.n, p.dg.n,
+              hs.delay_max_seen, gs.delay_max_seen, hs.stall_ms_max / 1000);
+        printf("outage: the link down 20 s (every packet lost both ways): both waited (longest stall %.1f s), then ran "
+               "to %u with the same hash at every tick; the delay %d-%d (outage inputs %llu, not taken as latency)\n",
+               hs.stall_ms_max / 1000, n.ticks, hs.delay_min_seen, hs.delay_max_seen,
+               (unsigned long long)(hs.outage_inputs + gs.outage_inputs));
+        vpair_close(&p);
+    }
+}
+
 static int cmd_unit(void)
 {
     test_blake2s();
@@ -1046,6 +1251,7 @@ static int cmd_unit(void)
     test_session_basics();
     test_hostile();
     test_assignment();
+    test_rejoin();
     printf("%s (%d failure(s))\n", g_fail ? "FAILED" : "unit: all passed", g_fail);
     return g_fail ? 1 : 0;
 }

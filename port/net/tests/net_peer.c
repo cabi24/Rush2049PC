@@ -5,6 +5,12 @@
  *   net_peer --host [--port P] [--bind ADDR] | --join HOST[:PORT]
  *            [--ticks N] [--sim SPEC] [--seed S] [--delay N] [--desync-at T] [--quit-at T] [--hashes FILE]
  *            [--code CODE] [--timeout MS] [--files N] [--linger MS] [--build B]
+ *            [--window MS] [--recover] [--rejoin SESSION]
+ *
+ * Rejoins (docs/port/NETWORK.md 12): both print "session S" (hex) once the session has started; --rejoin S is a new
+ * game of a side whose game was killed, which replays the other's log and goes on; --recover rebuilds after a
+ * desync (the guest's game ends "recover", and the test starts its rejoin); --window the silence a running session
+ * waits through.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,6 +92,12 @@ int main(int argc, char **argv)
             linger_ms = atoi(v);
         else if (ARG("--build"))
             c.build = v;
+        else if (ARG("--window"))
+            c.window_ms = atoi(v);
+        else if (!strcmp(a, "--recover"))
+            c.recover = 1;
+        else if (ARG("--rejoin"))
+            c.rejoin_session = strtoull(v, NULL, 16);
         else {
             fprintf(stderr, "net_peer: unknown or incomplete argument %s\n", a);
             return 2;
@@ -114,10 +126,15 @@ int main(int argc, char **argv)
              1000 * MS);
     d.desync_at = desync_at;
     d.quit_at = quit_at;
-    int r;
-    while ((r = drv_tick(&d)) > 0)
+    int r, said = 0;
+    while ((r = drv_tick(&d)) > 0) {
+        if (!said && net_session_id(s)) {
+            printf("session %016llx\n", (unsigned long long)net_session_id(s));
+            said = 1;
+        }
         if (d.n % 60 == 0)
             printf("tick %u\n", d.n);
+    }
     uint64_t t_end = net_os_now_ns();
     /* linger: the peer's last hashes, and BYE answered */
     while (net_os_now_ns() - t_end < (uint64_t)linger_ms * MS && net_state(s) != NET_ENDED)
@@ -140,11 +157,13 @@ int main(int argc, char **argv)
     double rate = drv_rate(&d, d.n / 3, d.n ? d.n - 1 : 0);
     printf("stats %s\n", line);
     printf("result end=%s detail=%u ticks=%u rate=%.3f stalls=%llu stall_ms=%.0f stall_max=%.0f delay_min=%d "
-           "delay_max=%d changes=%d checks=%llu wchecks=%llu sync=%llu rejected=%llu trace=%s\n",
+           "delay_max=%d changes=%d checks=%llu wchecks=%llu sync=%llu rejected=%llu rejoins=%u recoveries=%u "
+           "replayed=%u replay_ms=%.1f outage=%llu trace=%s\n",
            net_end_name(st.end), detail, d.n, rate, (unsigned long long)st.stalls, st.stall_ms_total,
            st.stall_ms_max, st.delay_min_seen, st.delay_max_seen, st.delay_changes,
            (unsigned long long)st.hash_checks, (unsigned long long)st.window_hash_checks,
-           (unsigned long long)st.sync_corrections, (unsigned long long)st.rejected, trace[0] ? trace : "-");
+           (unsigned long long)st.sync_corrections, (unsigned long long)st.rejected, st.rejoins, st.recoveries,
+           d.replayed, d.replay_ns / 1e6, (unsigned long long)st.outage_inputs, trace[0] ? trace : "-");
     if (st.end)
         printf("ended %s\n", msg);
     net_destroy(s);   /* BYE if still running */
