@@ -16,6 +16,12 @@
  *   5. pc_net_begin with the must-match text (main's, computed now): the pads source, the state hash, the input log.
  *   6. pc_net_start: both sides ready; the start time; then main boots the game.
  *   7. pc_net_finish after the main loop: BYE, the end's reason shown, the session's numbers in the log.
+ * Rejoining (docs/port/NETPLAY.md 13): a session writes a ticket (netplay/rejoin-ROLE.txt in the data folder: its id)
+ * and deletes it when it ends; a player whose game ended otherwise (a crash, the window closed, a reboot, a desync to
+ * rebuild from) starts the same way again, and its ticket asks to rejoin. The side that kept the session sends its
+ * log; this side adopts the session's settings and paks as a guest does (the host too, then: pc_net_rejoining), and
+ * pc_net_start begins the replay of the log, unpaced and undrawn (pc_catchup_set), checked against the other side's
+ * hashes at every retrace, live from where the other side waits.
  * Every end before the game is logged and, with a window (or none yet), shown in a message box with a sentence that
  * says why, except the player's own choice: Esc or closing the window (PC_NET_CANCELLED: exit 0) and Ctrl-C. */
 #ifndef PC_NETPLAY_H
@@ -42,9 +48,12 @@ typedef struct {
     const char *bind;        /* --net-bind ADDR: the local address ("" or NULL: any, both IPv4 and IPv6) */
     int timeout_ms;          /* --net-timeout: silence that ends a session (0: 15 s) */
     int paced;               /* the paced clock (a session without --fast): RUSH_PACE_SPEED sets the retrace's length */
+    const char *data_dir;    /* the data folder: the rejoin ticket's (netplay/) */
 } PcNetOptions;
 
 int pc_net_role(void);   /* PC_NET_* once pc_net_connect has run; PC_NET_NONE without a session */
+int pc_net_rejoining(void);   /* this side rebuilds a session (a rejoin): it adopts the session's settings, host or guest */
+int pc_net_reexec_wanted(void);   /* the guest rebuilds after a desync: main starts the program again (pc_app_reexec) */
 
 /* 1. Opens the session: blob (main's settings text: "key=value" lines) and this PC's controller 1's pak (NULL: none)
  * go to the other PC. build is what both must run (the library compares it first). The host returns once its port is

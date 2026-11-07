@@ -12,6 +12,10 @@ session"), on the synthetic cartridge.
     net_session_check.py adopt    --exe EXE --rom ROM --logs DIR
     net_session_check.py ends     --exe EXE --rom ROM --logs DIR
     net_session_check.py wait     --exe EXE --rom ROM --logs DIR
+    net_session_check.py rejoin   --exe EXE --rom ROM --logs DIR [NAME] [--host-side] [--paced]
+    net_session_check.py outage   --exe EXE --rom ROM --logs DIR [NAME]
+    net_session_check.py recover  --exe EXE --rom ROM --logs DIR [NAME] [--repeat]
+    net_session_check.py speed    --exe EXE --rom ROM --logs DIR [NAME]
 
 A session is a host (--net-host 0: any port, read from its log) and a guest (--net-join 127.0.0.1:PORT), both bound
 to 127.0.0.1 (--net-bind), each with a data folder of its own, each running the path's press script for its own
@@ -34,8 +38,8 @@ paced: the session's own clock, paced (no --fast): at 4 times the pace (RUSH_PAC
 fuzz: seeded random presses on both players (buttons, sticks, START and the D-pad through the game's menus, the
   settings overlay opened and closed, which holds nothing in a session) for --seconds of game time per seed, the
   delay adaptive: both processes' hashes agree at every retrace, and nothing ends the session early.
-desync: RUSH_SIM_DESYNC changes a word of the guest's state at retrace --at: both end with "desync" at that retrace,
-  exit 3, each writes its report beside its input log, and the reports name the word.
+desync: RUSH_SIM_DESYNC changes a word of the guest's state at retrace --at, net.recover off: both end with "desync"
+  at that retrace, exit 3, each writes its report beside its input log, and the reports name the word.
 mismatch: a guest with another ROM, another build (RUSH2049_TEST_NET_BUILD) or other mods is refused with what
   differs (both end, exit 3); a setup difference the handshake doesn't see (a test model's environment) ends both at
   retrace 0, "the two PCs' setups differ".
@@ -48,6 +52,20 @@ ends: the guest killed (the host ends with "timeout" within --net-timeout), the 
 wait: the host's waiting screen (port/app/netwait.c), headless at 1280 x 720: RUSH2049_TEST_NET_WAIT_SHOT saves it
   (the panel, its text) and cancels it as Escape would (exit 0, no box, nothing of the game run); a host nobody joins
   gives up (RUSH2049_TEST_NET_HOST_WAIT: 2 s) with a message box saying so, exit 3.
+rejoin (docs/port/NETPLAY.md 13): in the race the guest's process is killed (by its PID); 2 s later the same command
+  starts again in the same data folder, its ticket asks to rejoin, it replays the host's log and plays on: its trace
+  from retrace 0 is the host's, line for line, every hash the same, both exit 0. --host-side: the host killed and
+  started again (on the same port; the guest knocks). --paced: the session's own clock (RUSH_PACE_SPEED 4): the
+  replay unpaced, then paced again. --term: ended by SIGTERM (as a system shutting down), not killed: its game says
+  it is gone (BYE gone), the other side waits for it at once.
+outage: the link down 20 s (every packet lost both ways), then the guest stopped 20 s (RUSH_SIM_NET's pause): longer
+  than the old 15 s timeout, inside the rejoin window: host = guest = one process, the delay not left high.
+recover: RUSH_SIM_DESYNC changes a word of the guest's state at retrace --at; net.recover on: the host has the guest
+  rebuild, the guest's program starts again (the same process ID), replays the host's log past the desync and plays
+  on: its new trace the host's, both exit 0, both logs say the recovery and its retrace. --repeat: the change again
+  in the rebuilt game (RUSH_SIM_DESYNC kept): both end with the desync at that retrace, "deterministic", exit 3.
+speed: the replay's rate (retraces a second, times real time) of a rejoin late in the race, without the per-retrace
+  trace: how long a rejoin's catch-up takes.
 
 Exit status: 0 when it holds. Stdlib only, Python 3.9+.
 """
@@ -84,6 +102,9 @@ MODELS = {
     "shift": ("delay=10,at=1,delay=200,at=3,delay=30", "delay=10,at=1,delay=200,at=3,delay=30", 4),   # sooner
     "pause": ("delay=20", "delay=20,pause=4:3", 3),
     "burst": ("delay=30,jitter=5,burst=3:0.5:30", "delay=30,jitter=5,burst=3:0.5:30", 4),
+    # past the old 15 s timeout, inside the rejoin window (net.rejoin's 300 s): the link down 20 s; a stopped guest 20 s
+    "outage": ("delay=20,at=3,loss=100,at=23,loss=0", "delay=20,at=3,loss=100,at=23,loss=0", 3),
+    "stop20": ("delay=20", "delay=20,pause=3:20", 3),
 }
 _PRESS = re.compile(r"^(\s*\d+(?:\.\d+)?\s+)([A-Z]+)(?:@(\d))?(.*)$")
 _END = re.compile(r"^rush2049pc: online: ended \(([a-z-]+)\): (.*)$", re.M)
@@ -164,14 +185,14 @@ class Proc:
         self.proc.kill()
 
 
-def base_cmd(a, press, spec, extra, hashes=True, until=True, fast=True):
+def base_cmd(a, press, spec, extra, hashes=True, until=True, fast=True, trace=True):
     cmd = [str(Path(a.exe).resolve()), "--rom", str(Path(a.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--audio", "null", "--no-pak"] + (["--fast"] if fast else []) + \
-          ["--no-log", "--press-file", str(Path(press).resolve()), "--seconds", spec["seconds"], "--status", "1",
-           "--log-physics", "1", "--log-pads"]
+          ["--no-log", "--press-file", str(Path(press).resolve()), "--seconds", spec["seconds"]] + \
+          (["--status", "1", "--log-physics", "1", "--log-pads"] if trace else [])
     if until and spec.get("until"):
         cmd += ["--until-state", spec["until"]]
-    if hashes:
+    if hashes and trace:
         cmd += ["--log-hash", "1,30"]
     args = [str(Path(replay_check.MODS_ROOT) / x[len("mods/"):]) if x.startswith("mods/") and replay_check.MODS_ROOT
             else x for x in spec["args"]]
@@ -179,7 +200,7 @@ def base_cmd(a, press, spec, extra, hashes=True, until=True, fast=True):
 
 
 def session(a, tag, host_press, guest_press, spec, host_extra=(), guest_extra=(), host_env=None, guest_env=None,
-            timeout=900, guest_args=None, after_start=None, fast=True):
+            timeout=900, guest_args=None, after_start=None, fast=True, trace=True, keep=None):
     """A host and a guest; their log texts (and the Proc objects)."""
     logs = Path(a.logs)
     run_dir = logs / f"{tag}.run"
@@ -210,7 +231,10 @@ def session(a, tag, host_press, guest_press, spec, host_extra=(), guest_extra=()
                 procs[0].wait(10)
                 return None
             net += ["--net-join", f"127.0.0.1:{procs[0].port}"]
-        procs.append(Proc(role, base_cmd(a, press, s, net + list(extra), fast=fast), e, cwd, logs / f"{tag}.{role}.log"))
+        cmd = base_cmd(a, press, s, net + list(extra), fast=fast, trace=trace)
+        if keep is not None:   # how each role started: a rejoin starts it again the same way
+            keep[role] = (cmd, e, cwd)
+        procs.append(Proc(role, cmd, e, cwd, logs / f"{tag}.{role}.log"))
     if after_start:
         after_start(procs)
     texts = [p.wait(timeout) for p in procs]
@@ -530,8 +554,8 @@ def mode_fuzz(a):
 def mode_desync(a, name):
     spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
     hp, gp, mp, two = path_files(a, name, f"{name}.desync")
-    r = session(a, f"{name}.desync", hp, gp, spec, ["--net-delay", "2"], ["--net-delay", "2"],
-                guest_env={"RUSH_SIM_DESYNC": f"{a.at}:{a.address}:1"})
+    off = ["--net-delay", "2", "--set", "net.recover=off"]   # the stop with the report (recover: mode_recover)
+    r = session(a, f"{name}.desync", hp, gp, spec, off, off, guest_env={"RUSH_SIM_DESYNC": f"{a.at}:{a.address}:1"})
     if not r:
         return 1
     th, tg, _ = r
@@ -872,10 +896,263 @@ def mode_wait(a):
     return bad
 
 
+# ---------------------------------------------------------------- rejoins and recovery (NETPLAY.md 13)
+
+_CAUGHT = re.compile(r"online: caught up: replayed (\d+) retraces \(([\d.]+) s of the race\) in ([\d.]+) s, (\d+) a "
+                     r"second, ([\d.]+) times real time")
+
+
+def caught_up(text):
+    m = _CAUGHT.search(text)
+    return (int(m.group(1)), float(m.group(3)), int(m.group(4)), float(m.group(5))) if m else None
+
+
+def wait_line(proc, pattern, limit=600):
+    """Until a line of proc's output matches (or it exits): True when one did."""
+    rx = re.compile(pattern)
+    t = time.monotonic()
+    seen = 0
+    while time.monotonic() - t < limit:
+        lines = proc.lines
+        for l in lines[seen:]:
+            if rx.search(l):
+                return True
+        seen = max(0, len(lines) - 1)
+        if proc.proc.poll() is not None and proc.exit_time:
+            return any(rx.search(l) for l in proc.lines)
+        time.sleep(0.01)
+    return False
+
+
+def mode_rejoin(a, names):
+    """A player's process killed in the race and started again: it rejoins and catches up."""
+    name = (names or ["race2p"])[0]
+    victim = "host" if a.host_side else "guest"
+    keeper = "guest" if a.host_side else "host"
+    tag = f"{name}.rejoin.{victim}{'.paced' if a.paced else ''}{'.term' if a.term else ''}"
+    spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
+    hp, gp, mp, two = path_files(a, name, tag)
+    port = free_udp_port()
+    speed = {"RUSH_PACE_SPEED": "4"} if a.paced else None
+    keep, killed, new = {}, {}, {}
+    kill_at = a.kill_at
+
+    def kill_and_restart(procs):
+        def run():
+            k = procs[0 if keeper == "host" else 1]
+            v = procs[1 if keeper == "host" else 0]
+            if not wait_line(k, rf"^rush2049pc: physics vi={kill_at}:"):
+                return
+            if a.term:
+                v.proc.terminate()   # SIGTERM, by its own PID: as a system shutting down
+            else:
+                v.kill()   # SIGKILL, by the process's own PID (Popen)
+            killed["t"] = time.monotonic()
+            v.proc.wait()
+            time.sleep(2)
+            cmd, e, cwd = keep[victim]
+            new["p"] = Proc(f"new {victim}", cmd, e, cwd, Path(a.logs) / f"{tag}.new{victim}.log")
+        threading.Thread(target=run, daemon=True).start()
+
+    extra = ["--net-delay", "2", "--set", "net.rejoin=60"]
+    host_extra = extra + ["--net-host", str(port)]
+    t0 = time.time()
+    r = session(a, tag, hp, gp, spec, host_extra, extra, speed, speed, after_start=kill_and_restart, fast=not a.paced,
+                keep=keep, timeout=900)
+    if not r:
+        return 1
+    th, tg, procs = r
+    for _ in range(600):
+        if "p" in new:
+            break
+        time.sleep(0.1)
+    if "p" not in new:
+        say(f"rejoin: the {victim} was never killed and started again (vi={kill_at} not reached)")
+        return 1
+    tn = new["p"].wait(900)
+    tk = th if keeper == "host" else tg
+    bad = compare_session(f"rejoin ({victim})", tk, tn)
+    a_, b_ = replay_check.trace(tk), replay_check.trace(tn)
+    if len(a_) != len(b_):
+        say(f"rejoin: the {keeper}'s trace is {len(a_)} lines, the new {victim}'s {len(b_)}")
+        bad = 1
+    old = replay_check.trace(tg if keeper == "host" else th)
+    d = replay_check.first_diff(old, b_[:len(old)])
+    if d and d[0] < len(old) - 400:   # the killed one ran on a few retraces past the keeper's wait
+        say(f"rejoin: the killed {victim}'s trace and its rejoin's differ at line {d[0]}: {d[1]} / {d[2]}")
+        bad = 1
+    cu = caught_up(tn)
+    for role, t in ((keeper, tk), (f"new {victim}", tn)):
+        if exit_code(t) != 0:
+            say(f"rejoin: the {role} exits {exit_code(t)}: {ended(t)}")
+            bad = 1
+    if not cu or f"online: rejoining session" not in tn:
+        say(f"rejoin: the new {victim} doesn't say it rejoined and caught up")
+        bad = 1
+    told = tg if keeper == "host" else th   # the killed one's own output
+    if a.term and ("online: ended (gone)" not in told or f"the {victim}'s game closed" not in tk):
+        say(f"rejoin: the {victim} ended by SIGTERM doesn't say its game is gone, or the {keeper} doesn't wait for it")
+        bad = 1
+    if not re.search(rf"the {victim} rejoined: its replay of the session's \d+ retraces had this side's hash", tk):
+        say(f"rejoin: the {keeper} doesn't say its {victim} rejoined")
+        bad = 1
+    if a.paced:
+        rate, said = paced_line(tn)
+        if rate is None or "paced: the virtual N64 clock, paced to the wall clock" not in tn:
+            say(f"rejoin paced: the new {victim} isn't paced after its replay: {said}")
+            bad = 1
+    if not bad:
+        n, secs, rate, times = cu
+        stall = re.search(r"stalls \d+ \(([\d.]+) ms, max ([\d.]+)\)", tk)
+        say(f"rejoin {name} ({victim}{', paced x4' if a.paced else ''}): {'SIGTERM' if a.term else 'killed'} at "
+            f"retrace {kill_at}, started again 2 s "
+            f"later: it replayed {n} retraces in {secs:.2f} s ({rate} a second, {times:.1f} times real time), every "
+            f"hash the {keeper}'s; then {keeper} = new {victim}, {len(a_)} trace lines, both exit 0; the {keeper} "
+            f"waited {float(stall.group(2)) / 1000 if stall else 0:.1f} s ({time.time() - t0:.0f} s in all)")
+    return bad
+
+
+def mode_outage(a, names):
+    """Past the old 15 s timeout, inside the rejoin window: the link down 20 s; the guest stopped 20 s."""
+    bad = 0
+    for model in ("outage", "stop20"):
+        b = mode_path(a, (names or ["race2p"])[0], model=model, until="0x400000:60")
+        th = (Path(a.logs) / f"{(names or ['race2p'])[0]}.{model}.host.log").read_text()
+        tg = (Path(a.logs) / f"{(names or ['race2p'])[0]}.{model}.guest.log").read_text()
+        st = re.search(r"stalls \d+ \(([\d.]+) ms, max ([\d.]+)\)", th)
+        dl = [re.search(r"delay \d+ \(peer \d+, (\d+)-(\d+),", t) for t in (th, tg)]
+        if not st or float(st.group(2)) < 19000:
+            say(f"outage {model}: the host's longest stall {st.group(2) if st else '?'} ms, not the 20 s")
+            b = 1
+        if any(not x or int(x.group(2)) > 6 for x in dl):
+            say(f"outage {model}: the delay went to {[x.group(2) if x else '?' for x in dl]}")
+            b = 1
+        if not b:
+            say(f"outage {model}: the host waited {float(st.group(2)) / 1000:.1f} s (the old timeout was 15 s), then "
+                f"host = guest = one process; the delay up to {max(int(x.group(2)) for x in dl)}")
+        bad |= b
+    return bad
+
+
+def mode_recover(a, names):
+    """A desync with net.recover on: the guest rebuilds (its program again, the same PID) and the session goes on; with
+    --repeat the change repeats in the rebuilt game, and it ends, deterministic."""
+    name = (names or ["race2p"])[0]
+    tag = f"{name}.recover{'.repeat' if a.repeat else ''}"
+    spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
+    hp, gp, mp, two = path_files(a, name, tag)
+    genv = {"RUSH_SIM_DESYNC": f"{a.at}:{a.address}:1"}
+    if not a.repeat:
+        genv["RUSH_SIM_DESYNC_ONCE"] = "1"
+    r = session(a, tag, hp, gp, spec, ["--net-delay", "2"], ["--net-delay", "2"], guest_env=genv)
+    if not r:
+        return 1
+    th, tg, procs = r
+    bad = 0
+    cut = tg.find("rush2049pc: starting again (the same command)")
+    if cut < 0 or "online: rebuilding: the program starts again" not in tg[:max(cut, 0)]:
+        say(f"recover: the guest doesn't start again to rebuild: {ended(tg)}")
+        return 1
+    first, second = tg[:cut], tg[tg.index("\n", cut) + 1:]
+    e1 = ended(first)
+    if e1[0] != "recover" or f"retrace {a.at}" not in e1[1]:
+        say(f"recover: the guest's first game ended {e1}, not to rebuild at retrace {a.at}")
+        bad = 1
+    if f"the guest rebuilds its game by replay of this side's log" not in th or f"at retrace {a.at}" not in th:
+        say("recover: the host doesn't say it has the guest rebuild")
+        bad = 1
+    if a.repeat:
+        for role, t in (("host", th), ("rebuilt guest", second)):
+            e, msg = ended(t)
+            if e != "desync" or f"retrace {a.at}" not in msg or exit_code(t) != 3:
+                say(f"recover repeat: the {role} ended {e}: {msg} (exit {exit_code(t)}), not a desync at {a.at}")
+                bad = 1
+        if "deterministic" not in second or "deterministic" not in th:
+            say("recover repeat: not said to be deterministic on both")
+            bad = 1
+        for role, t in (("host", th), ("rebuilt guest", second)):   # today's report, beside the input log
+            m = re.search(rf"online: the desync report \(retrace {a.at}'s state as hashed\): (\S+)", t)
+            if not m or not Path(m.group(1)).exists():
+                say(f"recover repeat: the {role} wrote no report of retrace {a.at}")
+                bad = 1
+        if not bad:
+            say(f"recover repeat: the change at retrace {a.at} again in the rebuilt game: both end with the desync at "
+                f"{a.at} (exit 3), said deterministic: {ended(second)[1][:160]}")
+        return bad
+    bad |= compare_session("recover (the host and the rebuilt guest)", th, second)
+    ta, tb = replay_check.trace(th), replay_check.trace(second)
+    if len(ta) != len(tb):
+        say(f"recover: the host's trace is {len(ta)} lines, the rebuilt guest's {len(tb)}")
+        bad = 1
+    for role, t in (("host", th), ("guest", second)):
+        if exit_code(t) != 0:
+            say(f"recover: the {role} exits {exit_code(t)}: {ended(t)}")
+            bad = 1
+        if f"recovered from the desync at retrace {a.at}" not in t:
+            say(f"recover: the {role}'s log doesn't say it recovered from the desync at {a.at}")
+            bad = 1
+    if procs[1].proc.pid is None:
+        bad = 1
+    cu = caught_up(second)
+    if not bad:
+        say(f"recover {name}: the guest's word changed at retrace {a.at}; the host had it rebuild; its program started "
+            f"again (pid {procs[1].proc.pid}, the same), replayed {cu[0] if cu else '?'} retraces "
+            f"({cu[2] if cu else '?'} a second) with the host's hash at every one, and played on: host = rebuilt guest, "
+            f"{len(ta)} trace lines, both exit 0, both logs say the recovery at {a.at}")
+    return bad
+
+
+def mode_speed(a, names):
+    """The replay's rate: a rejoin late in the race, the session without the per-retrace trace."""
+    name = (names or ["race2p"])[0]
+    tag = f"{name}.speed"
+    spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
+    hp, gp, mp, two = path_files(a, name, tag)
+    keep, new = {}, {}
+
+    def kill_and_restart(procs):
+        def run():
+            # no per-retrace lines: kill once the race has run a while (its state line), then start again
+            t = time.monotonic()
+            while not any(int(m.group(1), 16) & 0x400000 for m in
+                          (re.match(r"^rush2049pc: game state (0x[0-9A-F]+)", l) for l in list(procs[0].lines)) if m):
+                if procs[0].proc.poll() is not None or time.monotonic() - t > 600:
+                    return
+                time.sleep(0.05)
+            time.sleep(a.speed_wait)
+            procs[1].kill()
+            procs[1].proc.wait()
+            time.sleep(1)
+            cmd, e, cwd = keep["guest"]
+            new["p"] = Proc("new guest", cmd, e, cwd, Path(a.logs) / f"{tag}.newguest.log")
+        threading.Thread(target=run, daemon=True).start()
+
+    r = session(a, tag, hp, gp, spec, ["--net-delay", "2", "--set", "net.rejoin=60"],
+                ["--net-delay", "2", "--set", "net.rejoin=60"], {"RUSH_PACE_SPEED": "1"}, {"RUSH_PACE_SPEED": "1"},
+                after_start=kill_and_restart, fast=False, trace=False, keep=keep)
+    if not r:
+        return 1
+    for _ in range(600):
+        if "p" in new:
+            break
+        time.sleep(0.1)
+    if "p" not in new:
+        say("speed: no rejoin")
+        return 1
+    tn = new["p"].wait(900)
+    cu = caught_up(tn)
+    if not cu or exit_code(tn) != 0:
+        say(f"speed: no catch-up line, or the new guest exits {exit_code(tn)}: {ended(tn)}")
+        return 1
+    say(f"speed {name}: a rejoin replayed {cu[0]} retraces ({cu[0] / 60:.1f} s of the race) in {cu[1]:.2f} s: {cu[2]} "
+        f"retraces a second, {cu[3]:.1f} times real time (the session paced; the replay unpaced, nothing drawn)")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("mode", choices=["path", "sim", "auto", "paced", "fuzz", "desync", "mismatch", "adopt", "ends",
-                                     "wait"])
+                                     "wait", "rejoin", "outage", "recover", "speed"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
     ap.add_argument("--rom", default=str(ROOT / "build/pc/synth/rush2049_synth.z64"))
@@ -888,6 +1165,12 @@ def main():
     ap.add_argument("--at", type=int, default=1000)
     ap.add_argument("--address", default="8011735C", help="desync: the word to change (the random seed)")
     ap.add_argument("--mods", help="the mods paths' mods (ctest's mods_synth: build/pc/synth/paths/mods)")
+    ap.add_argument("--host-side", action="store_true", help="rejoin: the host killed and started again")
+    ap.add_argument("--paced", action="store_true", help="rejoin: the session's paced clock (RUSH_PACE_SPEED 4)")
+    ap.add_argument("--kill-at", type=int, default=1700, help="rejoin: the retrace the victim is killed at")
+    ap.add_argument("--repeat", action="store_true", help="recover: the desync repeats in the rebuilt game")
+    ap.add_argument("--term", action="store_true", help="rejoin: SIGTERM (the game gone, BYE gone) rather than SIGKILL")
+    ap.add_argument("--speed-wait", type=float, default=15, help="speed: seconds of the race before the kill")
     a = ap.parse_args()
     Path(a.logs).mkdir(parents=True, exist_ok=True)
     a.logs = str(Path(a.logs).resolve())
@@ -899,7 +1182,9 @@ def main():
     fn = {"sim": lambda: mode_sim(a, a.names), "auto": lambda: mode_auto(a, a.names), "fuzz": lambda: mode_fuzz(a),
           "paced": lambda: mode_paced(a, a.names),
           "desync": lambda: mode_desync(a, (a.names or ["race2p"])[0]), "mismatch": lambda: mode_mismatch(a),
-          "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a), "wait": lambda: mode_wait(a)}
+          "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a), "wait": lambda: mode_wait(a),
+          "rejoin": lambda: mode_rejoin(a, a.names), "outage": lambda: mode_outage(a, a.names),
+          "recover": lambda: mode_recover(a, a.names), "speed": lambda: mode_speed(a, a.names)}
     sys.exit(1 if fn[a.mode]() else 0)
 
 

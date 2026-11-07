@@ -248,6 +248,7 @@ typedef struct {
 static struct {
     int want;                  /* pc_audio_set_paced */
     int on;                    /* a device opened as the tap */
+    int held;                  /* pc_audio_tap_hold: a rejoin's replay, nothing to the device */
     const PcAudioBackendOps *dev;
     PcAudioDevice device;
     uint32_t rate;             /* the device's */
@@ -311,7 +312,7 @@ static void tap_retarget(void)
 /* What the converter got, n game frames: into the FIFO. */
 static void tap_feed(const int16_t *s, size_t n)
 {
-    if (!T.on || !T.tmp || !T.cap || !n)
+    if (!T.on || T.held || !T.tmp || !T.cap || !n)
         return;
     T.last_feed = now_seconds();
     while (n) {
@@ -505,6 +506,17 @@ void pc_audio_set_paced(int on)
 {
     lock();
     T.want = on != 0;
+    unlock();
+}
+
+void pc_audio_tap_hold(int on)
+{
+    lock();
+    T.held = on != 0;
+    if (T.held) {   /* what the FIFO has is from before: the device plays silence until it fills again */
+        T.rd = T.count = 0;
+        T.playing = 0;
+    }
     unlock();
 }
 

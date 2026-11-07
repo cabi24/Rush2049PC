@@ -49,15 +49,19 @@ uint32_t pc_frame;
 volatile int pc_quit;
 static volatile sig_atomic_t g_dump;
 
+volatile int pc_quit_signal;   /* the signal that set pc_quit (an online session tells SIGTERM's end from Ctrl-C's) */
+
 static void on_signal(int sig)
 {
 #ifdef _WIN32
     signal(sig, on_signal);   /* the CRT resets a handler to the default before calling it */
 #endif
-    if (sig == SIGQUIT)
+    if (sig == SIGQUIT) {
         g_dump = 1;
-    else
+    } else {
+        pc_quit_signal = sig;
         pc_quit = 1 + 130;
+    }
 }
 
 static uint32_t (*g_game_state)(void);
@@ -604,14 +608,14 @@ int pc_ultra_run(const PcRunOptions *opt)
      * presentation's times are then wall times, the retraces' N64 times mapped to the wall (pc_pace_wall_of), and its
      * wakes are wakes of their own (render_wake), never deadlines of the N64 clock: the clock stops at --fast's
      * moments, and a pass the presentation alone woke for (render_only) does no N64 work. */
-    const int paced = pc_time_paced();
+    int paced = pc_time_paced();           /* changes once at most: a rejoin's replay done (pc_catchup_set) */
     int render_only = 0;                   /* paced: the last wait ended for the presentation alone */
     uint64_t n64_deadline = 0;             /* paced: the N64 side's deadline the last N64 pass set */
     uint64_t render_wake = UINT64_MAX;     /* paced: when the presentation wants the loop next, wall ns */
     uint32_t gate_waited = 0;              /* paced: the pads gate's retraces waited for, at the last retrace */
     if (paced)
         pc_pace_begin();
-    const uint64_t vi_w = paced ? pc_pace_span(vi_ns) : vi_ns;   /* a retrace on the presentation's clock */
+    uint64_t vi_w = paced ? pc_pace_span(vi_ns) : vi_ns;   /* a retrace on the presentation's clock */
     g_game_state = opt->game_state;
     g_game_rate = opt->game_rate;
     g_game_info = opt->game_info;
@@ -627,6 +631,17 @@ int pc_ultra_run(const PcRunOptions *opt)
     sim_start(paced ? pc_pace_wall_of(vi_at + vi_ns) : vi_at + vi_ns);
 
     while (!pc_quit) {
+        if (pc_time_paced() != paced) {   /* an online rejoin's replay is done: paced from the N64 time now */
+            paced = pc_time_paced();
+            if (paced) {
+                pc_pace_begin();
+                vi_w = pc_pace_span(vi_ns);
+            }
+            render_only = 0;
+            render_wake = UINT64_MAX;
+            next_tick = 0;
+            vb_reset();
+        }
         if (pc_input_paused() || sim_hold_due()) {
             hold();
             if (!paced)   /* paced: the retraces keep their N64 times (the map moved on in hold()) */
@@ -714,7 +729,7 @@ int pc_ultra_run(const PcRunOptions *opt)
             /* a high frame rate: the game's last frame, swapped in a retrace or more ago, not shown by any tick */
             int stale = !pc_time_free() && pc_gfx_frame_rate() != 0 && pc_gfx_frame_waiting();
             pc_vi_retrace(&fb);
-            if (fb) {
+            if (fb && !pc_catchup()) {   /* a rejoin's replay presents nothing (pc_catchup_set) */
                 pc_gfx_present(fb);
                 if (pc_gfx_frame_rate() == 0) {
                     sim_swap();
@@ -805,7 +820,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                 break;
             }
         }
-        int rate = pc_gfx_frame_rate();
+        int rate = pc_catchup() ? 0 : pc_gfx_frame_rate();
         /* The presentation's clock (render-only: real time and paced mode). In real time the host's: nvi and vat are
          * next_vi and vi_at, and its wakes are the loop's deadline. In paced mode the wall clock: nvi and vat are the
          * retraces' wall times (pace.c's map), its wakes go to render_wake, and a retrace moved against the vblanks

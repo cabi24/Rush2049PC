@@ -135,6 +135,8 @@ typedef struct PcSettings {
     int net_port;                   /* the session's UDP port */
     int net_delay;                  /* the input delay in retraces, 1-30; 0: auto */
     char net_code[64];              /* the join code; "" for none */
+    int net_rejoin;                 /* the rejoin window, seconds (30-3600); 0: off (a 15 s silence ends the session) */
+    int net_recover;                /* a desync: the guest rebuilds by replay and the session goes on */
 
     /* Not in the file: where it was read from ("" for none) and its directory; where the settings overlay saves
      * (pc_settings_resolve: the file read, the --config path, or the located one; "" for nowhere). */

@@ -357,6 +357,7 @@ typedef struct {
 int pc_ultra_run(const PcRunOptions *opt);   /* the host main loop; returns the exit code */
 extern uint32_t pc_frame;                    /* retraces since boot */
 extern volatile int pc_quit;                 /* set to stop the main loop (exit code pc_quit - 1) */
+extern volatile int pc_quit_signal;          /* the signal (SIGINT, SIGTERM) that set it, when one did */
 
 /* Logging. On mingw-w64 a `printf` format attribute checks Microsoft's formats, but its printf family, and so
  * pc_log, takes C99's (%zu). */

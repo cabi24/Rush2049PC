@@ -94,6 +94,30 @@ int pc_time_paced(void) { return g_paced; }
 
 int pc_time_free(void) { return pc_time_virtual() && !g_paced; }
 
+/* An online rejoin's replay: free-running, nothing drawn or played (pc_port.h). g_paced is the main thread's. */
+static int g_catchup, g_catchup_paced;
+
+void pc_catchup_set(int on)
+{
+    if (on && !g_catchup) {
+        g_catchup_paced = g_paced;
+        g_paced = 0;
+        g_catchup = 1;
+        pc_audio_tap_hold(1);
+    } else if (!on && g_catchup) {
+        g_catchup = 0;
+        if (g_catchup_paced) {
+            pthread_mutex_lock(&g_plock);
+            P.started = 0;   /* the epoch from the N64 time now (pc_pace_begin), not the session's start */
+            pthread_mutex_unlock(&g_plock);
+        }
+        g_paced = g_catchup_paced;
+        pc_audio_tap_hold(0);
+    }
+}
+
+int pc_catchup(void) { return g_catchup; }
+
 /* ---------------------------------------------------------------- the map (g_plock held) */
 
 /* N64 ns as wall ns. */

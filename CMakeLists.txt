@@ -723,6 +723,12 @@ endforeach()
 # refused, a setup the handshake can't see caught at retrace 0. net_session_adopt: the guest takes the host's
 # settings, the paks in memory only. net_session_ends: a killed peer (timeout), BYE, nobody there (no-answer, and its
 # message box). net_session_wait: the host's waiting screen drawn, saved and cancelled; nobody joining (its box).
+# Rejoins (NETPLAY.md 13): net_session_rejoin: the guest's process killed in the race and started again: it replays
+# the host's log and plays on, its trace the host's line for line; _host: the host's ended by SIGTERM (its game gone,
+# as a system shutting down) and started again, the guest knocking; _paced: on the session's own
+# clock. net_session_outage: the link down 20 s, the guest stopped 20 s: past the old 15 s timeout, nothing lost.
+# net_session_recover: a desync the guest rebuilds from (its program again) and the session goes on; _repeat: the same
+# desync in the rebuilt game ends both, said deterministic.
 set(NET_SESSION_CHECK ${PC_PYTHON} ${PORT_TOOLS}/net_session_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/net --mods ${CMAKE_BINARY_DIR}/synth/paths/mods)
 set(NET_SESSION_PATHS race2p battle2p battlequit memhigh2p race2p12 pause raceend menu)
@@ -745,6 +751,20 @@ if(NOT PC_SANITIZE)
     add_test(NAME net_session_ends COMMAND ${NET_SESSION_CHECK} ends)
     set_tests_properties(net_session_auto net_session_paced net_session_fuzz net_session_ends PROPERTIES
                          FIXTURES_REQUIRED synth_rom TIMEOUT 900 RUN_SERIAL TRUE LABELS realtime)
+endif()
+add_test(NAME net_session_rejoin COMMAND ${NET_SESSION_CHECK} rejoin)
+add_test(NAME net_session_recover COMMAND ${NET_SESSION_CHECK} recover)
+set_tests_properties(net_session_rejoin net_session_recover PROPERTIES FIXTURES_REQUIRED synth_rom
+                     TIMEOUT ${REPLAY_TIMEOUT})
+if(NOT PC_SANITIZE)
+    add_test(NAME net_session_rejoin_host COMMAND ${NET_SESSION_CHECK} rejoin --host-side --term)
+    add_test(NAME net_session_recover_repeat COMMAND ${NET_SESSION_CHECK} recover --repeat)
+    set_tests_properties(net_session_rejoin_host net_session_recover_repeat PROPERTIES FIXTURES_REQUIRED synth_rom
+                         TIMEOUT ${REPLAY_TIMEOUT})
+    add_test(NAME net_session_rejoin_paced COMMAND ${NET_SESSION_CHECK} rejoin --paced)
+    add_test(NAME net_session_outage COMMAND ${NET_SESSION_CHECK} outage)
+    set_tests_properties(net_session_rejoin_paced net_session_outage PROPERTIES FIXTURES_REQUIRED synth_rom
+                         TIMEOUT 900 RUN_SERIAL TRUE LABELS realtime)
 endif()
 add_test(NAME net_session_desync COMMAND ${NET_SESSION_CHECK} desync)
 add_test(NAME net_session_adopt COMMAND ${NET_SESSION_CHECK} adopt)

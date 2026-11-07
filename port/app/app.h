@@ -95,6 +95,7 @@ int pc_app_pick_pending(void);   /* ... and has answers left */
  * attaches to its parent's console and prints there, or, with none to attach to, keeps what it prints in memory
  * (quiet); then the timer period and power throttling for the run. RUSH2049_CONSOLE=none: quiet on any system. */
 void pc_app_startup(void);
+int pc_app_reexec(int argc, char **argv);   /* the program again, same arguments (POSIX: exec; Windows: a child) */
 int pc_app_console_quiet(void);   /* nobody sees what the program prints: errors need a message box */
 /* The last lines printed (quiet only; "" otherwise): up to 12. */
 void pc_app_console_tail(char *out, size_t size);
