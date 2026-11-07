@@ -1058,13 +1058,17 @@ def mode_recover(a, names):
     """A desync with net.recover on: the guest rebuilds (its program again, the same PID) and the session goes on; with
     --repeat the change repeats in the rebuilt game, and it ends, deterministic."""
     name = (names or ["race2p"])[0]
-    tag = f"{name}.recover{'.repeat' if a.repeat else ''}"
+    tag = f"{name}.recover{'.repeat' if a.repeat else ''}{'.paced' if a.paced else ''}"
     spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
     hp, gp, mp, two = path_files(a, name, tag)
     genv = {"RUSH_SIM_DESYNC": f"{a.at}:{a.address}:1"}
     if not a.repeat:
         genv["RUSH_SIM_DESYNC_ONCE"] = "1"
-    r = session(a, tag, hp, gp, spec, ["--net-delay", "2"], ["--net-delay", "2"], guest_env=genv)
+    henv = {"RUSH_PACE_SPEED": "4"} if a.paced else None   # --paced: the session's own clock, 4 times the pace
+    if a.paced:
+        genv["RUSH_PACE_SPEED"] = "4"
+    r = session(a, tag, hp, gp, spec, ["--net-delay", "2"], ["--net-delay", "2"], host_env=henv, guest_env=genv,
+                fast=not a.paced)
     if not r:
         return 1
     th, tg, procs = r
