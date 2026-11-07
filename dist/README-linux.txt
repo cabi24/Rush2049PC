@@ -356,6 +356,17 @@ name that work from anywhere, with nothing to set up on the router.
    controller. Choose two players in the main menu, as on a couch: both
    players' presses count in the menus.
 
+From the game itself: F1 > Online. Host a race (the port, 24049, and a
+join code if you want one) and Host now; or Join a race, type the host's
+address (or pick one you joined before: the last 8 are kept) and Join
+now. The program restarts into the session with your options, and comes
+back to the game when the session ends (the other player leaving, the
+connection lost) or doesn't start. The page also lists this PC's
+addresses, Tailscale's first; Enter on one copies it to the clipboard,
+to paste to your friend. In a session the page shows the other PC and
+the link, and Leave the session (choose it twice) takes you back to the
+game.
+
 The scripts start ./rush2049pc with --net-host, and with --net-join and
 the address typed; options given to them are passed on. The same by hand:
     ./rush2049pc --net-host
@@ -387,7 +398,7 @@ ms) on a LAN or a close Tailscale link, 4-6 across a continent.
 
 F1, the pause key and switching to another window don't pause an online
 game: the other player would wait. While F1 is open your player gets no
-input; its first page ends with two Online rows: the other PC, the round
+input; its Online page starts with two rows: the other PC, the round
 trip (RTT), your input delay, how often the game waited for the other PC
 (stalls) and the last retrace both games checked alike ("hash ok at").
 When the friend's PC stops sending, the game waits and says so; Escape
@@ -396,9 +407,14 @@ itself. The log has the session's numbers: the round trip, the delay, how
 often the game waited.
 
 Each session's inputs are kept in the netplay folder (in the data folder:
-F1 > About > Open the data folder). If the two games ever differ ("out of
-sync"), both stop and write a report there: attach both PCs' logs and
-netplay files to a bug report.
+F1 > About > Open the data folder), and are a replay of it: F1 > Online >
+Watch a replay plays one again in real time, the same game to the last
+detail (Keep this replay copies it into the replays folder). By hand:
+--replay-inputs FILE, with the same version, ROM and mods. If the two
+games ever differ ("out of sync"), both stop and write a report there:
+attach both PCs' logs and netplay files to a bug report. After a session
+started from F1 > Online, its log is rush2049pc.old.log (the game's
+restart afterwards has rush2049pc.log).
 
 
 Reporting a bug

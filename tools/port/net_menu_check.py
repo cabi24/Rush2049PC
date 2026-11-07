@@ -312,6 +312,26 @@ def mode_replay(a):
     if not adopted:
         say("replay: the replay doesn't say it took the session's settings and paks")
         bad = 1
+    # refused before the game, saying why: the log alone (its paks not beside it), and a pak that isn't the session's
+    lone = d / f"{tag}.run" / "lone"
+    shutil.rmtree(lone, ignore_errors=True)
+    lone.mkdir(parents=True)
+    shutil.copy(log, lone / Path(log).name)
+    refusals = []
+    for what, prepare, want in (
+            ("its paks not beside it", lambda: None, "isn't beside its input log"),
+            ("a pak not the session's", lambda: [shutil.copy(p, lone / p.name) for p in paks] and
+             (lone / paks[-1].name).write_bytes(bytes(32768)), "isn't the pak the session had")):
+        prepare()
+        q = subprocess.run(rcmd[:rcmd.index("--replay-inputs") + 1] + [str(lone / Path(log).name)] +
+                           rcmd[rcmd.index("--replay-inputs") + 2:], env=env_for(rdir), cwd=rdir,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
+        out = q.stdout.decode(errors="replace")
+        if q.returncode != 2 or want not in out or "hash vi=" in out:
+            say(f"replay: {what}: exit {q.returncode}, not refused with '{want}'")
+            bad = 1
+        else:
+            refusals.append(f"{what}: \"{next(l for l in out.splitlines() if want in l)[len('rush2049pc: '):][:110]}\"")
     # watched from the page: F1, Online, Watch a replay, Watch the last session's, in the host's data folder
     presses(d / f"{tag}.watch.press", WATCH_LAST)
     wcmd = [str(Path(a.exe).resolve()), "--rom", str(Path(a.rom).resolve()), "--no-rom-check", "--headless",
@@ -332,7 +352,8 @@ def mode_replay(a):
         say("replay: the watched replay doesn't say it is paced")
     if not bad:
         say(f"replay: a session of {n} retraces hashed alike on both; its host's log replayed offline as it is "
-            f"(--replay-inputs alone): {nr} retraces, every hash the session's; the paks beside it unchanged; "
+            f"(--replay-inputs alone): {nr} retraces, every hash the session's; the paks beside it unchanged; refused, "
+            f"exit 2, before the game: {'; '.join(refusals)}; "
             f"watched from the page (a restart into --replay-inputs FILE --paced): {nw} retraces, every hash the "
             f"session's")
     return bad
