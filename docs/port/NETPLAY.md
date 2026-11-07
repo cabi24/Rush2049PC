@@ -1309,8 +1309,8 @@ tests and tools (the `race2pown` path uses it).
 its rectangle, so a taller view gets no holes and no pop-in from the game's side. Fifteen functions address the window
 records (`D_8017A510`), found in the compiled code as well as by name: the setup (`exhaust_smoke_effect`, which derives
 fovy from fovx and the window's shape, `arb_rate_set`, `ZOID_ResetWindows`, `wheel_render_full`, `car_render_full`,
-`viewport_scale`), the fog (`func_800AB18C`, `func_800A7428`, `func_800A7480`, `func_800A5518`, `func_800A6078`), the
-view's own display list (`func_8009F058`: the viewport, the scissor and the projection from the record), and three
+`viewport_scale`), the fog (`func_800AB18C`, `func_800A7428`, `func_800A7480`), a setter and a getter of the records'
+pointers (`func_800A5518`, `func_800A6078`, the getter inlined in `ZOID_ProjectWindow`), the view's own display list (`func_8009F058`: the viewport, the scissor and the projection from the record), and three
 that use it to place things: the battle off-screen arrow (`entity_render_setup`, by fovx and fovy), `ZOID_WindowTo3D`
 (`car_lights_render`, the models at HUD points) and `ZOID_ProjectWindow` (`brake_light_update`, called only by menus).
 tan(fovx/2) and tan(fovy/2) are never read. The scene walk's tests are the hidden flag, the per-view mask, the
@@ -1398,8 +1398,9 @@ Rocky (x86-64, RelWithDebInfo) unless said.
 | `net_session_view` (new; race2p, delay 2) | own view on the host and split on the guest, then the other way: each time host = guest = one process, 5,606 trace lines, 2,765 retraces hashed (every retrace, the full hash every 30, and retrace 0's setup check); the PC with own view says "player 1's view" (host) or "player 2's view" (guest) and its screenshot is one view across the frame (96.5%, 100%, 100%, 100%), the other's two views (72.6% each, the border 0%) |
 | `gfx.interp.own` (new, and in the `gfx.interp.all.*` variants) | two views moving their own ways, each alone: a frame between at 0.5 is that view alone as drawn directly at 0.5 (within 80 pixels), and as far from the split screen's picture |
 | frames between (by hand: race2pown's path at `RUSH_GFX_FRAME_RATE=120`, 12 frames shown in the race) | the nine drawn between two are one view across the frame, as the game's three are (the screen 96.4-96.5%, the divider's rows, the side panel's place and the left border 100%) |
-| the default changes nothing: `synth_compare.py --same --runs 2`, main's program (41b4aee) against this branch's, every synthetic path | RelWithDebInfo: 63 of 63 paths the same, race2pown among them (`pcsetup` left out by the tool: the host's clock only) |
-| the whole suite | CTEST_RESULT |
+| the default changes nothing: `synth_compare.py --same --runs 2`, main's program (41b4aee) against this branch's, every synthetic path | RelWithDebInfo: 63 of 63 paths the same, race2pown among them (`pcsetup` left out by the tool: the host's clock only), with the branch's first and its last code |
+| the whole suite (the branch's last code) | RelWithDebInfo: 570 of 570, 521 at `-j4` and the 49 `realtime` alone under the shared lock (`assets_rom` skipped: the retail ROM); an earlier run on the first commit, 569 of 569 |
+| the Windows cross build (mingw-w64 on the Pi, `RUSH_FETCH_SDL2`, RelWithDebInfo) | `rush2049pc.exe` and `gfx_test.exe` link; `pe_check.py --dlls` passes (Windows' own DLLs and WS2_32 only) |
 | `n64_neutral.py --base 09da2f0` | no game C changed |
 | the retail cartridge, the Pi (six frames looked at, 2026-11-07, not kept) | the pause screen with view 2 alone: at first its title and the menu's first four lines were missing (each line falls in view 1's rectangle), so the pause screen's pieces became the frame's (13.3); then the whole menu and title over view 2, its HUD at the edges. A two-player race on track 0 with view 1 alone and with view 2 alone at 4:3, and view 1 at 16:9 with `video.fill`: one view across the frame, sky to the top and road to the bottom, no band or hole; the speedometer and radar at the top left, the place, laps and coin counts at the top right (view 2's moved up from its view's rows, in its own colour), the map and race clock at the right over the 3D, the panel's background, the other view and the dividers gone; at 16:9 the HUD at the screen's edges. The countdown with view 2 alone: its 3D digit zoomed in the middle, view 2's own message across the top. The coin icons were found at their HUD points (ten draws a frame, at the coin counts' place) but are not visible on these frames, nor in the split screen at that moment |
 
