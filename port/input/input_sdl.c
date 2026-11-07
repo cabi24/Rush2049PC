@@ -586,6 +586,38 @@ static void nav(int dir)
 
 /* A key while the overlay is open. Its own keys, the menu key, and the fullscreen and screenshot hotkeys work; the
  * game's keys, pause and quit don't (Escape is the overlay's back key). A binding item takes the next key. */
+/* A paste into the text being typed: the clipboard's first line. */
+static void paste(void)
+{
+    char *text = SDL_HasClipboardText() ? SDL_GetClipboardText() : NULL;
+    if (text) {
+        pc_menu_text(text);
+        SDL_free(text);
+    }
+}
+
+/* A key while a text item is typed in (the Online page): the text itself comes as SDL_TEXTINPUT. Backspace (held, it
+ * repeats) and Delete take the last character off, Enter is done, Escape undoes, Ctrl+V and Shift+Insert paste, up and
+ * down end it and move; the settings key closes the overlay. Nothing else: no hotkey is typed into a game action. */
+static void edit_key(const SDL_Event *e, SDL_Scancode sc, int first)
+{
+    SDL_Keymod mod = e->key.keysym.mod;
+    if (sc == SDL_SCANCODE_BACKSPACE || sc == SDL_SCANCODE_DELETE)
+        pc_menu_action(PC_MENU_CLEAR);
+    else if (!first)
+        return;
+    else if (sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER)
+        pc_menu_action(PC_MENU_ACCEPT);
+    else if (sc == SDL_SCANCODE_ESCAPE)
+        pc_menu_action(PC_MENU_BACK);
+    else if ((sc == SDL_SCANCODE_V && (mod & KMOD_CTRL)) || (sc == SDL_SCANCODE_INSERT && (mod & KMOD_SHIFT)))
+        paste();
+    else if (sc == SDL_SCANCODE_UP || sc == SDL_SCANCODE_DOWN)
+        pc_menu_action(sc == SDL_SCANCODE_UP ? PC_MENU_UP : PC_MENU_DOWN);
+    else if (hotkey_of(sc) == PC_HOTKEY_MENU && (SDL_GetKeyFromScancode(sc) & SDLK_SCANCODE_MASK))
+        pc_menu_action(PC_MENU_CLOSE);   /* F1: not a key that types */
+}
+
 static void menu_key(const SDL_Event *e, SDL_Scancode sc, int first)
 {
     int capture = pc_menu_capturing(), h = hotkey_of(sc);
@@ -594,6 +626,10 @@ static void menu_key(const SDL_Event *e, SDL_Scancode sc, int first)
             pc_menu_capture(NULL);
         else if (first && capture == PC_MENU_CAPTURE_KEY && key_name(sc))
             pc_menu_capture(key_name(sc));
+        return;
+    }
+    if (pc_menu_editing()) {
+        edit_key(e, sc, first);
         return;
     }
     if ((sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_KP_ENTER) && (e->key.keysym.mod & KMOD_ALT)) {
@@ -794,8 +830,19 @@ int pc_input_live_clipboard(const char *text)
 {
     if (pc_input_live_desktop() < 1 || SDL_SetClipboardText(text) != 0)
         return -1;
-    fprintf(stderr, "rush2049pc: the About page is on the clipboard\n");
+    fprintf(stderr, "rush2049pc: copied to the clipboard (%zu characters)\n", strlen(text));
     return 0;
+}
+
+/* SDL's text input (SDL_TEXTINPUT, an IME's) only while a text item is typed in: off over the game. */
+void pc_input_live_text(int on)
+{
+    if (!L.on || !L.win)
+        return;
+    if (on)
+        SDL_StartTextInput();
+    else
+        SDL_StopTextInput();
 }
 
 int pc_input_live_open_folder(const char *path)
@@ -863,6 +910,10 @@ int pc_input_live_event(const void *event)
         L.down[sc] = (uint8_t)down;
         break;
     }
+    case SDL_TEXTINPUT:   /* what is typed into the overlay's text item (SDL_StartTextInput while it is) */
+        if (pc_menu_editing())
+            pc_menu_text(e->text.text);
+        break;
     case SDL_CONTROLLERBUTTONDOWN: {
         int menu = menu_combo_pressed(e->cbutton.which);
         if (pc_menu_is_open())
@@ -1191,6 +1242,7 @@ int pc_input_live_init(const PcSettings *s)
         pc_gfx_set_vsync(s->vsync);
         L.cursor = -1;
         show_cursor(0);   /* no cursor over the game until the mouse moves */
+        SDL_StopTextInput();   /* on only while the overlay's text item is typed in (pc_input_live_text) */
     }
     if (V.kind != PC_VIA_PADS && V.kind != PC_VIA_KEYBOARD && V.at <= 0)
         via_attach();   /* there at start */
@@ -1463,6 +1515,7 @@ void pc_input_live_vsync(int on) { (void)on; }
 void pc_input_live_window_size(int w, int h) { pc_gfx_set_window_size(w, h); }
 int pc_input_live_desktop(void) { return 0; }
 int pc_input_live_clipboard(const char *text) { (void)text; return -1; }
+void pc_input_live_text(int on) { (void)on; }
 int pc_input_live_open_folder(const char *path) { (void)path; return -1; }
 
 #endif

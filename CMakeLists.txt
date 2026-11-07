@@ -755,6 +755,20 @@ set_tests_properties(net_session_wait PROPERTIES FIXTURES_REQUIRED synth_rom TIM
 add_test(NAME net_session_mismatch COMMAND ${NET_SESSION_CHECK} mismatch)
 set_tests_properties(net_session_mismatch PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth"
                      TIMEOUT ${REPLAY_TIMEOUT})
+# The F1 Online page (docs/port/NETPLAY.md 13, tools/port/net_menu_check.py): net_menu_restart, a process that hosts from
+# the page (F1, Online, Host now) restarts into the host and a guest joins; one that joins from the page (a recent
+# host, Join now) restarts into the guest; the hashes the same on both; the guest started from the page goes back to
+# the game when the host leaves; a host that chooses Leave the session in its session restarts offline, its guest
+# told. net_menu_replay: a session's input log replays offline as it is (--replay-inputs
+# alone) and watched from the page, to the session's hashes. Their presses drive the overlay in real time.
+set(NET_MENU_CHECK ${PC_PYTHON} ${PORT_TOOLS}/net_menu_check.py --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM}
+    --logs ${CMAKE_BINARY_DIR}/synth/net-menu)
+if(NOT PC_SANITIZE)
+    add_test(NAME net_menu_restart COMMAND ${NET_MENU_CHECK} restart)
+    add_test(NAME net_menu_replay COMMAND ${NET_MENU_CHECK} replay)
+    set_tests_properties(net_menu_restart net_menu_replay PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600
+                         RUN_SERIAL TRUE LABELS realtime)
+endif()
 add_test(NAME hash_decoupled_list COMMAND ${PC_PYTHON} ${PORT_TOOLS}/hash_compare.py --check-decoupled)
 add_test(NAME render_values COMMAND ${PC_PYTHON} ${PORT_TOOLS}/render_values_check.py)
 # synth_compare.py's verdicts on made-up runs: a run that doesn't end as its script's `# expect:` line says fails,

@@ -135,6 +135,7 @@ typedef struct PcSettings {
     int net_port;                   /* the session's UDP port */
     int net_delay;                  /* the input delay in retraces, 1-30; 0: auto */
     char net_code[64];              /* the join code; "" for none */
+    char net_recent[PC_CFG_PATH];   /* the hosts joined last, the last first (the F1 Online page's; pc_online.h) */
 
     /* Not in the file: where it was read from ("" for none) and its directory; where the settings overlay saves
      * (pc_settings_resolve: the file read, the --config path, or the located one; "" for nowhere). */

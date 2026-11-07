@@ -45,6 +45,7 @@
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* pc_race_cars, its latch (port/config/race_cars.c) */
+#include "pc_online.h"       /* the Online page's restart (port/config/online.c) */
 #include "test_gbi.h"
 
 int pc_input_init(const PcSettings *s);
@@ -207,6 +208,8 @@ static void test_nav(void)
     at("Settings", "Mods", NULL, "the Mods page");
     act(PC_MENU_DOWN);
     at("Settings", "Saves", NULL, "the Saves page after it, the last settings' page (docs/port/SAVES.md)");
+    act(PC_MENU_DOWN);
+    at("Settings", "Online", ">", "the Online page after it (docs/port/NETPLAY.md 13)");
     /* Help and About, after the settings' pages: read-only, a heading stepped over */
     act(PC_MENU_DOWN);
     at("Settings", "Help", NULL, "Help after the settings' pages");
@@ -259,7 +262,7 @@ static void test_nav(void)
     act(PC_MENU_CLOSE);
     CHECK(!pc_menu_is_open(), "close");
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 10);   /* from Keyboard, past Presets */
+    act_n(PC_MENU_DOWN, 11);   /* from Keyboard, past Online and Presets */
     at("Settings", "Quit", NULL, "Quit");
     pc_menu_action(PC_MENU_ACCEPT);
     CHECK(pump() != 0, "Quit stops the main loop");
@@ -688,7 +691,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     pc_menu_capture("Space");  /* keyboard A, which the file lacks */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 8);   /* past Presets */
+    act_n(PC_MENU_DOWN, 9);   /* past Online and Presets */
     at("Settings", "Save to rush2049pc.ini", "4 changes", "four to save");
     act(PC_MENU_ACCEPT);
     at("Settings", "Save to rush2049pc.ini", "saved", "saved");
@@ -713,17 +716,17 @@ static void test_save(void)
     CHECK(text && !strcmp(read_text(path), want), "nothing more to save: unchanged");
     CHECK(!strcmp(pc_menu_message(), "Nothing to save"), "the message: '%s'", pc_menu_message());
     at("Settings", "Save to rush2049pc.ini", "saved", "still saved");
-    act_n(PC_MENU_UP, 9);
+    act_n(PC_MENU_UP, 10);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);         /* the volume 95: something to save again */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 9);
+    act_n(PC_MENU_DOWN, 10);
     at("Settings", "Save to rush2049pc.ini", "1 change", "a change after the save");
-    act_n(PC_MENU_UP, 9);
+    act_n(PC_MENU_UP, 10);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_RIGHT);        /* and back to what the file has */
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 9);
+    act_n(PC_MENU_DOWN, 10);
     at("Settings", "Save to rush2049pc.ini", "saved", "the file has it all again");
     PcSettings back;
     pc_settings_defaults(&back);
@@ -748,7 +751,7 @@ static void test_save(void)
     act(PC_MENU_ACCEPT);
     act(PC_MENU_LEFT);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 9);
+    act_n(PC_MENU_DOWN, 10);
     act(PC_MENU_ACCEPT);
     pc_settings_defaults(&back);
     back.volume = 95;
@@ -1140,7 +1143,7 @@ static void test_pages(void)
 
     /* the page: made again each time it opens, so it follows main's numbers */
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 8);
+    act_n(PC_MENU_DOWN, 9);
     act(PC_MENU_ACCEPT);
     at("About", "Version", "v9.9.9-1-gabcdef1 (RelWithDebInfo)", "About opens on the version");
     act_n(PC_MENU_DOWN, 7);
@@ -1176,12 +1179,12 @@ static void test_pages(void)
     at("Help", "Move", "arrows, PgUp/PgDn | D-pad, LS, LB/RB", "this menu's keys, after another heading");
     act(PC_MENU_BACK);
     /* a binding changed: Help has it */
-    act_n(PC_MENU_UP, 5);
+    act_n(PC_MENU_UP, 6);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_DOWN);
     act(PC_MENU_CLEAR);
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 5);
+    act_n(PC_MENU_DOWN, 6);
     act(PC_MENU_ACCEPT);
     at("Help", "Move", NULL, "Help keeps its place");
     act_n(PC_MENU_PAGE_UP, 2);
@@ -1366,7 +1369,7 @@ static void pictures(void)
 {
     static const struct { const char *name; int down; } shots[] = {
         {"main", 0}, {"video", 0}, {"audio", 1}, {"keyboard", 2}, {"controllers", 3}, {"game", 4}, {"mods", 5},
-        {"saves", 6}, {"help", 7}, {"about", 8}, {"presets", 9}};
+        {"saves", 6}, {"online", 7}, {"help", 8}, {"about", 9}, {"presets", 10}};
     static const PcMenuMod mods[3] = {
         {"red-cars", "Red Cars", "1.2", "Someone", 5, 13, 12, 1, 0, 1, ""},
         {"long-track", "Long Track", "0.3", "Someone Else", 0, 4, 4, 0, 12, 0, ""},
@@ -1468,13 +1471,13 @@ static void test_mods(void)
     act(PC_MENU_DOWN);
     at("Mods", "2. Blue", "on", "then blue: the selection moves again");
     act(PC_MENU_BACK);
-    act_n(PC_MENU_DOWN, 5);   /* past Saves, Help, About and Presets */
+    act_n(PC_MENU_DOWN, 6);   /* past Saves, Online, Help, About and Presets */
     at("Settings", "Save to rush2049pc.ini", "2 changes", "two changes: red's flag and the order");
     act(PC_MENU_ACCEPT);
     text = read_text(path);
     CHECK(text && strstr(text, "mods_order = red, blue, noini\n") && strstr(text, "\n[mods]\nred = off\n"),
           "saved: the order and red's flag:\n%s", text ? text : "(none)");
-    act_n(PC_MENU_UP, 5);
+    act_n(PC_MENU_UP, 6);
     act(PC_MENU_ACCEPT);
     act(PC_MENU_PAGE_DOWN);
     at("Mods", "Defaults", NULL, "a page down: Defaults");
@@ -1507,7 +1510,7 @@ static void test_presets(void)
     pc_game_fps_set(0);
     pc_game_fps_begin();
     act(PC_MENU_TOGGLE);
-    act_n(PC_MENU_DOWN, 9);
+    act_n(PC_MENU_DOWN, 10);
     at("Settings", "Presets", ">", "Presets: after About, before Save");
     act(PC_MENU_ACCEPT);
     at("Presets", "N64 original", "", "N64 original: not in effect (the file's fog far)");
@@ -1541,7 +1544,7 @@ static void test_presets(void)
     act(PC_MENU_DOWN);
     at("Settings", "Save to rush2049pc.ini", "7 changes", "Save counts the preset's seven");
     /* on their pages: Voices (marked *) and Draw distance show the preset's values */
-    act_n(PC_MENU_UP, 9);
+    act_n(PC_MENU_UP, 10);
     act(PC_MENU_ACCEPT);
     act_n(PC_MENU_DOWN, 2);
     at("Audio", "Voices", "64", "the Audio page: 64 voices");
@@ -1684,15 +1687,20 @@ static void test_session(void)
     pc_gfx_read_window(noted, &w, &h);
     CHECK(!memcmp(noted, frame, 640 * 480 * 4), "the notice gone");
 
-    /* the Online rows: the main page's last two, read when drawn, stepped over */
+    /* the session's status (docs/port/NETPLAY.md 13): the main page's Online item shows the link's round trip and
+     * delay, its footer the other PC; the Online page has the two rows, read when drawn and stepped over, and Leave */
     pc_menu_set_online(fake_online);
     act(PC_MENU_TOGGLE);
     act(PC_MENU_PAGE_DOWN);
-    at("Settings", "Quit", NULL, "a page down: Quit, the last that can be selected");
+    at("Settings", "Quit", NULL, "a page down: Quit, the last: the main page has no rows of its own now");
     act(PC_MENU_DOWN);
-    at("Settings", "Video", NULL, "down from Quit: over the Online rows, to the first");
+    at("Settings", "Video", NULL, "down from Quit: the first");
+    act_n(PC_MENU_DOWN, 7);
+    at("Settings", "Online", "RTT 23 ms, delay 2", "the Online item: the link's round trip and delay");
+    act(PC_MENU_ACCEPT);
+    at("Online", "Leave the session", "", "the Online page: its two rows stepped over, then Leave");
     act(PC_MENU_UP);
-    at("Settings", "Quit", NULL, "up from the first: Quit");
+    at("Online", "Leave the session", "", "up: past the rows, round to Leave (no address headless)");
     g_online_calls = 0;
     pc_gfx_redraw();
     pc_gfx_read_window(frame, &w, &h);
@@ -1701,7 +1709,11 @@ static void test_session(void)
     pc_gfx_redraw();
     pc_gfx_read_window(noted, &w, &h);
     CHECK(memcmp(frame, noted, 640 * 480 * 4) != 0 && g_online_calls == 2, "the rows gone with the session's status");
-    at("Settings", "Quit", NULL, "still on Quit");
+    {
+        const char *pg, *item;
+        pc_menu_state(&pg, &item, NULL, 0);
+        CHECK(!strcmp(pg, "Online") && strcmp(item, "Leave the session"), "the page made again: '%s'", item);
+    }
     act(PC_MENU_CLOSE);
     free(frame);
     free(noted);
@@ -1713,14 +1725,556 @@ static void test_session(void)
     stop();
 }
 
+/* ---------------------------------------------------------------- online: the F1 Online page (NETPLAY.md 13) */
+
+static int g_on_mode, g_on_pending, g_on_acts;
+static char g_on_act[512];
+
+static int mock_on_mode(void)
+{
+    return g_on_mode;
+}
+
+static int mock_on_addresses(PcOnlineAddr *out, int max, int *pending)
+{
+    static const PcOnlineAddr a[3] = {{"100.101.102.103", "Tailscale"}, {"rocky.tail1234.ts.net", "Tailscale name"},
+                                      {"192.168.1.20", "local network"}};
+    int n = g_on_pending ? 2 : 3;   /* the name joins once looked up */
+    *pending = g_on_pending;
+    for (int i = 0, k = 0; i < 3 && k < max; i++)
+        if (!(g_on_pending && i == 1))
+            out[k++] = a[i];
+    return n;
+}
+
+static int mock_on_replays(PcOnlineReplay *out, int max)
+{
+    static PcOnlineReplay r[2];
+    snprintf(r[0].file, sizeof r[0].file, "/data/netplay/2026-11-07_210412-host.pads");
+    snprintf(r[0].label, sizeof r[0].label, "11-07 21:04 host");
+    snprintf(r[0].length, sizeof r[0].length, "4:12");
+    snprintf(r[0].info, sizeof r[0].info, "the host's log; 15120 retraces");
+    snprintf(r[0].when, sizeof r[0].when, "2026-11-07 21:04:12");
+    r[0].usable = 1;
+    snprintf(r[1].file, sizeof r[1].file, "/data/netplay/2026-11-06_200000-guest.pads");
+    snprintf(r[1].label, sizeof r[1].label, "11-06 20:00 guest");
+    snprintf(r[1].length, sizeof r[1].length, "0:30");
+    snprintf(r[1].info, sizeof r[1].info, "can't: another build made it (abc; this is def)");
+    snprintf(r[1].when, sizeof r[1].when, "2026-11-06 20:00:00");
+    for (int i = 0; i < 2 && i < max; i++)
+        out[i] = r[i];
+    return max < 2 ? max : 2;
+}
+
+static int mock_on_act(int action, const char *a, const char *b, char *msg, size_t size)
+{
+    static const char *const names[] = {"host", "join", "watch", "back", "keep"};
+    g_on_acts++;
+    snprintf(g_on_act, sizeof g_on_act, "%s|%s|%s", names[action], a ? a : "", b ? b : "");
+    snprintf(msg, size, action == PC_ONLINE_KEEP ? "Kept: replays/x.pads" : "Restarting...");
+    return 0;
+}
+
+static const PcOnlineUi g_mock_online = {mock_on_mode, mock_on_addresses, mock_on_replays, mock_on_act};
+
+/* A fresh overlay over a settings file's [net] (recent hosts), the mock main side, the Online page open. */
+static int online_start(int mode, const char *recent)
+{
+    PcSettings s;
+    pc_settings_defaults(&s);
+    pc_settings_set(&s, "net", "recent", recent, NULL, 0);
+    g_on_mode = mode, g_on_pending = 1, g_on_acts = 0, g_on_act[0] = 0;
+    pc_menu_set_online_ui(&g_mock_online);
+    if (start(&s) != 0)
+        return -1;
+    show_frame();
+    act(PC_MENU_TOGGLE);
+    act_n(PC_MENU_DOWN, 7);
+    at("Settings", "Online", mode == PC_ONLINE_SESSION ? "RTT 23 ms, delay 2" : ">", "Online, after Saves");
+    act(PC_MENU_ACCEPT);
+    return 0;
+}
+
+static void type(const char *text)
+{
+    pc_menu_text(text);
+    pump();
+}
+
+/* The text item typed in now: its length (what it shows, less the cursor). */
+static size_t field_len(void)
+{
+    const char *p, *i;
+    char v[256];
+    pc_menu_state(&p, &i, v, sizeof v);
+    return pc_menu_editing() && strlen(v) ? strlen(v) - 1 : 0;
+}
+
+static void test_online(void)
+{
+    PcSettingValue ch[8];
+    if (online_start(PC_ONLINE_OFFLINE, "") != 0) {
+        g_fail++;
+        return;
+    }
+    /* the page: Host, Join, Watch; this PC's addresses (the Tailscale name joins when looked up), Copy */
+    at("Online", "Host a race", ">", "the first item");
+    act_n(PC_MENU_DOWN, 3);
+    at("Online", "100.101.102.103", "Tailscale", "the addresses after a heading, Tailscale's first");
+    act(PC_MENU_DOWN);
+    at("Online", "192.168.1.20", "local network", "the local network's");
+    g_on_pending = 0;
+    pump();
+    at("Online", "rocky.tail1234.ts.net", "Tailscale name", "the name came: the page made again in place");
+    act_n(PC_MENU_DOWN, 2);
+    at("Online", "Copy my address", "", "Copy my address, the last");
+    act(PC_MENU_ACCEPT);
+    CHECK(!strcmp(pc_menu_message(), "No clipboard here: give them 100.101.102.103"), "headless: '%s'",
+          pc_menu_message());
+    CHECK(g_on_acts == 0, "nothing asked of main yet");
+
+    /* Host: the port and a code typed in; Enter is done, Escape undoes, Backspace takes one off */
+    act_n(PC_MENU_DOWN, 1);
+    at("Online", "Host a race", NULL, "round to Host");
+    act(PC_MENU_ACCEPT);
+    at("Host a race", "Port", "24049", "the port: net.port's");
+    type("7");
+    at("Host a race", "Port", "24049", "nothing typed before Enter");
+    act(PC_MENU_ACCEPT);
+    CHECK(pc_menu_editing(), "Enter: typing in it");
+    type(" ");
+    at("Host a race", "Port", "24049_", "the Space that chose it isn't typed; the cursor");
+    act_n(PC_MENU_CLEAR, 5);
+    type("24a050");
+    at("Host a race", "Port", "24050_", "digits only");
+    CHECK(!strcmp(pc_menu_message(), "A port is digits only"), "said: '%s'", pc_menu_message());
+    type("9");
+    CHECK(!strcmp(pc_menu_message(), "No more fits"), "five digits at most: '%s'", pc_menu_message());
+    act(PC_MENU_ACCEPT);
+    CHECK(!pc_menu_editing(), "Enter: done");
+    at("Host a race", "Port", "24050", "kept");
+    act(PC_MENU_DOWN);
+    at("Host a race", "Join code", "-", "no code");
+    act(PC_MENU_ACCEPT);
+    type("oops");
+    act(PC_MENU_BACK);
+    at("Host a race", "Join code", "-", "Escape undoes the typing");
+    CHECK(pc_menu_is_open() && !pc_menu_editing(), "and stays on the page");
+    act(PC_MENU_ACCEPT);
+    type("s3cret c0de");
+    act(PC_MENU_DOWN);   /* down ends the typing, keeping it, and moves */
+    at("Host a race", "Host now", "", "Host now");
+    act(PC_MENU_UP);
+    at("Host a race", "Join code", "s3cret c0de", "the code kept");
+    act_n(PC_MENU_UP, 1);
+    act(PC_MENU_ACCEPT);
+    act_n(PC_MENU_CLEAR, 5);
+    type("70000");
+    act(PC_MENU_ACCEPT);
+    act_n(PC_MENU_DOWN, 2);
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 0 && !strcmp(pc_menu_message(), "The port is a number from 1 to 65535, not '70000'"),
+          "a port that isn't one: '%s'", pc_menu_message());
+    act_n(PC_MENU_UP, 2);
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_CLEAR);
+    act(PC_MENU_ACCEPT);
+    act_n(PC_MENU_DOWN, 2);
+    CHECK(pump() == 0, "the main loop goes on");
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 1 && !strcmp(g_on_act, "host|7000|s3cret c0de"), "Host now: main's act: '%s'", g_on_act);
+    CHECK(pump() != 0, "then the main loop stops, as for Quit: the program restarts");
+    stop();
+
+    /* Join: the address checked first, with a sentence for each mistake */
+    static const struct { const char *typed, *said; } bad[] = {
+        {"", "Type the host's address first: their Tailscale name or 100.x address"},
+        {"my pc", "An address has no spaces in it: 'my pc'"},
+        {"http://my-pc", "Just the address, without 'http://': my-pc or 100.101.102.103"},
+        {"my-pc/race", "Just the address, without a path after it: 'my-pc/race'"},
+        {"100.101.102", "'100.101.102' isn't an IPv4 address: four numbers 0-255 with dots between them"},
+        {"100.101.102.300", "'100.101.102.300' isn't an IPv4 address: four numbers 0-255 with dots between them"},
+        {"my-pc:99999", "The port after ':' is a number from 1 to 65535: 'my-pc:99999'"},
+        {"my-pc:", "The port after ':' is a number from 1 to 65535: 'my-pc:'"},
+        {"[fd7a::1", "An IPv6 address in brackets needs its ']': [fd7a::1]:24049"},
+        {"fd7a::1]:5", "An IPv6 address with a port goes in brackets: [fd7a::1]:24049, not 'fd7a::1]:5'"},
+        {"my-pc]", "Brackets are for an IPv6 address: [fd7a::1]:24049, not 'my-pc]'"},
+        {"my..pc", "'my..pc' isn't a name: names are words with dots between them (my-pc.ts.net)"},
+        {"pc!", "'!' can't be in an address: a name (my-pc) or an address (100.101.102.103)"},
+    };
+    if (online_start(PC_ONLINE_OFFLINE, "") != 0) {
+        g_fail++;
+        return;
+    }
+    act(PC_MENU_DOWN);
+    act(PC_MENU_ACCEPT);
+    at("Join a race", "Address", "-", "the Join page: the address first");
+    for (size_t i = 0; i < sizeof bad / sizeof *bad; i++) {
+        act(PC_MENU_ACCEPT);
+        while (field_len() > 0)
+            act(PC_MENU_CLEAR);
+        type(bad[i].typed);
+        act(PC_MENU_ACCEPT);
+        act_n(PC_MENU_DOWN, 2);
+        act(PC_MENU_ACCEPT);
+        CHECK(g_on_acts == 0 && !strcmp(pc_menu_message(), bad[i].said), "'%s': '%s'", bad[i].typed,
+              pc_menu_message());
+        act_n(PC_MENU_UP, 2);
+    }
+    act(PC_MENU_ACCEPT);
+    while (field_len() > 0)
+        act(PC_MENU_CLEAR);
+    type("  my-pc.tail1234.ts.net:24050 ");
+    at("Join a race", "Address", "  my-pc.tail1234.ts.net:24050 _", "typed as it is");
+    act(PC_MENU_ACCEPT);
+    at("Join a race", "Address", "my-pc.tail1234.ts.net:24050", "done: the spaces around it trimmed");
+    act_n(PC_MENU_DOWN, 2);
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 1 && !strcmp(g_on_act, "join|my-pc.tail1234.ts.net:24050|"),
+          "Join now: the address trimmed, no code: '%s'", g_on_act);
+    stop();
+
+    /* the hosts joined before (net.recent): chosen, then Join now */
+    if (online_start(PC_ONLINE_OFFLINE, "100.101.102.103, my-pc, [fd7a:115c:a1e0::1]:24050") != 0) {
+        g_fail++;
+        return;
+    }
+    act(PC_MENU_DOWN);
+    act(PC_MENU_ACCEPT);
+    act_n(PC_MENU_DOWN, 3);
+    at("Join a race", "100.101.102.103", "", "the recent hosts after Join now, the last joined first");
+    act(PC_MENU_DOWN);
+    at("Join a race", "my-pc", "", "then the one before");
+    act(PC_MENU_DOWN);
+    at("Join a race", "[fd7a:115c:a1e0::1]:24050", "", "an IPv6 one with its port");
+    act(PC_MENU_UP);
+    act(PC_MENU_ACCEPT);
+    at("Join a race", "Join now", "", "chosen: Join now selected");
+    act_n(PC_MENU_UP, 2);
+    at("Join a race", "Address", "my-pc", "its address in the field");
+    act_n(PC_MENU_DOWN, 2);
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 1 && !strcmp(g_on_act, "join|my-pc|"), "joined: '%s'", g_on_act);
+    stop();
+
+    /* Watch a replay: the last session's, the list, an input log's own page, Keep */
+    if (online_start(PC_ONLINE_OFFLINE, "") != 0) {
+        g_fail++;
+        return;
+    }
+    act_n(PC_MENU_DOWN, 2);
+    act(PC_MENU_ACCEPT);
+    at("Replays", "Watch the last session's", "11-07 21:04 host", "the last session's first");
+    act(PC_MENU_DOWN);
+    at("Replays", "11-07 21:04 host", "4:12", "the list after a line");
+    act(PC_MENU_DOWN);
+    at("Replays", "11-06 20:00 guest", "0:30 (can't)", "one of another build: can't");
+    act(PC_MENU_ACCEPT);
+    at("11-06 20:00 guest", "Played", "2026-11-06 20:00:00", "its page");
+    act_n(PC_MENU_DOWN, 4);
+    at("11-06 20:00 guest", "Keep this replay", "", "no Watch for it; Keep");
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 1 && !strcmp(g_on_act, "keep|/data/netplay/2026-11-06_200000-guest.pads|") &&
+              !strcmp(pc_menu_message(), "Kept: replays/x.pads"),
+          "kept: '%s', '%s'", g_on_act, pc_menu_message());
+    CHECK(pump() == 0, "keeping restarts nothing");
+    act(PC_MENU_BACK);
+    at("Replays", "11-06 20:00 guest", NULL, "back to the list");
+    act_n(PC_MENU_UP, 2);
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 2 && !strcmp(g_on_act, "watch|/data/netplay/2026-11-07_210412-host.pads|"),
+          "the last session's watched: '%s'", g_on_act);
+    CHECK(pump() != 0, "the program restarts");
+    stop();
+
+    /* a replay being watched: Stop watching first */
+    if (online_start(PC_ONLINE_REPLAY, "") != 0) {
+        g_fail++;
+        return;
+    }
+    at("Online", "Stop watching", "", "Stop watching, first in a replay");
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 1 && !strcmp(g_on_act, "back||"), "back to the game: '%s'", g_on_act);
+    stop();
+
+    /* in a session: no Host, Join or Watch; Leave asks again first */
+    pc_input_set_session(1);
+    pc_menu_set_online(fake_online);
+    if (online_start(PC_ONLINE_SESSION, "") != 0) {
+        g_fail++;
+        return;
+    }
+    at("Online", "Leave the session", "", "Leave, after the two status rows");
+    act(PC_MENU_DOWN);
+    at("Online", "100.101.102.103", NULL, "then the addresses: no Host, Join or Watch");
+    act(PC_MENU_UP);
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 0 && !strcmp(pc_menu_message(), "Choose Leave again: the other player is told"),
+          "asked again: '%s'", pc_menu_message());
+    at("Online", "Leave the session", "again: leave", "said on the item");
+    act(PC_MENU_DOWN);
+    act(PC_MENU_UP);
+    at("Online", "Leave the session", "", "moving away forgets it");
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_ACCEPT);
+    CHECK(g_on_acts == 1 && !strcmp(g_on_act, "back||") && pump() != 0, "left: '%s'", g_on_act);
+    stop();
+    pc_menu_set_online(NULL);
+    pc_input_set_session(0);
+
+    /* the changes not saved go along with a restart (pc_menu_unsaved_list) */
+    if (online_start(PC_ONLINE_OFFLINE, "") != 0) {
+        g_fail++;
+        return;
+    }
+    act(PC_MENU_BACK);
+    act_n(PC_MENU_UP, 6);
+    act(PC_MENU_ACCEPT);
+    act(PC_MENU_LEFT);   /* the volume, 95 */
+    int n = pc_menu_unsaved_list(ch, 8);
+    CHECK(n == 1 && !strcmp(ch[0].section, "audio") && !strcmp(ch[0].key, "volume") && !strcmp(ch[0].value, "95"),
+          "one change: %d %s.%s=%s", n, n ? ch[0].section : "", n ? ch[0].key : "", n ? ch[0].value : "");
+    pc_menu_text("x");
+    CHECK(!pc_menu_editing(), "text when nothing is typed in is nobody's");
+    act(PC_MENU_CLOSE);
+    stop();
+    pc_menu_set_online_ui(NULL);
+}
+
+/* The Online pages as PNGs (not a CTest): the page with this PC's addresses, Host, Join while an address is typed
+ * with the hosts joined before, the replays. */
+static void online_pictures(void)
+{
+    static uint8_t px[1280 * 960 * 4];
+    static const struct { const char *name; const char *steps; } shots[] = {
+        {"online", ""}, {"online-host", "A"}, {"online-join", "DAAt"}, {"online-replays", "DDA"},
+        {"online-replay", "DDADDA"}};
+    char path[PC_CFG_PATH];
+    int w, h;
+    for (size_t i = 0; i < sizeof shots / sizeof *shots; i++) {
+        if (online_start(PC_ONLINE_OFFLINE, "100.101.102.103, my-friends-pc.tail1234.ts.net, [fd7a:115c::1]:24050") != 0)
+            return;
+        g_on_pending = 0;
+        pc_gfx_set_window_size(1280, 960);
+        show_frame();
+        for (const char *c = shots[i].steps; *c; c++) {
+            if (*c == 'D')
+                act(PC_MENU_DOWN);
+            else if (*c == 'A')
+                act(PC_MENU_ACCEPT);
+            else if (*c == 't')
+                type("my-friends-pc.tail1234.ts");
+        }
+        pump();
+        pc_gfx_redraw();
+        pc_gfx_read_window(px, &w, &h);
+        snprintf(path, sizeof path, "%s/menu-%s.png", g_dir, shots[i].name);
+        pcgfx_png_write(path, px, w, h);
+        printf("%s\n", path);
+        stop();
+    }
+    pc_menu_set_online_ui(NULL);
+}
+
+/* ---------------------------------------------------------------- relaunch: the restart's command line */
+
+/* Windows' C runtime's parse of a command line (Microsoft's "Parsing C++ command-line arguments"): the program up to
+ * its closing quote or a space; then arguments split at spaces and tabs outside quotes; 2n backslashes and a quote:
+ * n backslashes, the quote a delimiter; 2n + 1 and a quote: n and a literal quote; backslashes elsewhere literal. */
+static int win_parse(const char *s, char out[][256], int max)
+{
+    int n = 0;
+    size_t k = 0;
+    if (*s == '"') {
+        for (s++; *s && *s != '"'; s++)
+            out[0][k++] = *s;
+        if (*s)
+            s++;
+    } else {
+        for (; *s && *s != ' ' && *s != '\t'; s++)
+            out[0][k++] = *s;
+    }
+    out[0][k] = 0;
+    n = 1;
+    for (;;) {
+        int quoted = 0, any = 0;
+        while (*s == ' ' || *s == '\t')
+            s++;
+        if (!*s || n >= max)
+            break;
+        k = 0;
+        while (*s && (quoted || (*s != ' ' && *s != '\t'))) {
+            size_t slashes = 0;
+            while (*s == '\\')
+                slashes++, s++;
+            if (*s == '"') {
+                for (size_t i = 0; i < slashes / 2; i++)
+                    out[n][k++] = '\\';
+                if (slashes % 2)
+                    out[n][k++] = '"';
+                else
+                    quoted = !quoted;
+                s++;
+            } else {
+                for (size_t i = 0; i < slashes; i++)
+                    out[n][k++] = '\\';
+                if (*s && (quoted || (*s != ' ' && *s != '\t')))
+                    out[n][k++] = *s++;
+            }
+            any = 1;
+        }
+        out[n][k] = 0;
+        n += any;
+    }
+    return n;
+}
+
+static void args_are(const char **got, int n, const char *const *want, const char *what)
+{
+    int m = 0, same;
+    while (want[m])
+        m++;
+    same = n == m;
+    for (int i = 0; same && i < n; i++)
+        same = !strcmp(got[i], want[i]);
+    char line[2048];
+    pc_online_quote_sh(got, n < 0 ? 0 : n, line, sizeof line);
+    CHECK(same, "%s: %d arguments: %s", what, n, line);
+}
+
+static void test_relaunch(void)
+{
+    static char buf[4096];
+    const char *out[64];
+    char line[4096];
+    char *argv[] = {"/opt/Rush 2049/rush2049pc", "--rom", "/roms/my rush.z64", "--press-file", "menu.press",
+                    "--net-host", "24049", "--net-code", "old", "--seconds", "30", "--fast", "--set",
+                    "video.scale=2", "--record-inputs", "r.pads", "--log-hash", "1,30", "--press", "1:MENU",
+                    "--net-bind", "127.0.0.1"};
+    int argc = (int)(sizeof argv / sizeof *argv), n;
+    PcSettingValue set[2] = {{"audio", "volume", "95"}, {"video", "fullscreen", "on"}};
+    PcRelaunch r = {PC_RELAUNCH_HOST, "24050", "s3cret c0de", "/roms/other.z64", 1, set, 2};
+
+    n = pc_online_args(argc, argv, &r, out, 64, buf, sizeof buf);
+    static const char *const host[] = {"/opt/Rush 2049/rush2049pc", "--rom", "/roms/my rush.z64", "--seconds", "30",
+                                       "--fast", "--set", "video.scale=2", "--log-hash", "1,30", "--net-bind",
+                                       "127.0.0.1", "--set", "audio.volume=95", "--set", "video.fullscreen=on",
+                                       "--net-return", "--net-host", "24050", "--net-code", "s3cret c0de", NULL};
+    args_are(out, n, host, "host: the session's, the scripts' and the record's options out, the ROM given kept, the "
+             "changes, then the restart's own");
+
+    /* that run left (no --net-return now): it again, without its restart's own options */
+    char *again[64];
+    for (int i = 0; i < n; i++)
+        again[i] = (char *)out[i];
+    PcRelaunch back = {PC_RELAUNCH_OFFLINE, NULL, NULL, "/roms/other.z64", 1, NULL, 0};
+    static char buf2[4096];
+    const char *out2[64];
+    int n2 = pc_online_args(n, again, &back, out2, 64, buf2, sizeof buf2);
+    static const char *const offline[] = {"/opt/Rush 2049/rush2049pc", "--rom", "/roms/my rush.z64", "--seconds",
+                                          "30", "--fast", "--set", "video.scale=2", "--log-hash", "1,30", "--net-bind",
+                                          "127.0.0.1", "--set", "audio.volume=95", "--set", "video.fullscreen=on",
+                                          NULL};
+    args_are(out2, n2, offline, "back: --net-return and every option after it left out");
+
+    /* a replay: --paced unless the clock is given; the ROM loaded named when the command line names none */
+    char *plain[] = {"rush2049pc", "--net-host", "--headless", "--net-join", "my-pc", "--net-return",
+                     "--replay-inputs", "old.pads", "--paced"};
+    PcRelaunch watch = {PC_RELAUNCH_REPLAY, "/data/netplay/x.pads", NULL, "C:\\Games\\Rush\\baserom.us.z64", 1,
+                        NULL, 0};
+    n = pc_online_args(9, plain, &watch, out, 64, buf, sizeof buf);
+    static const char *const replay[] = {"rush2049pc", "--headless", "--rom", "C:\\Games\\Rush\\baserom.us.z64",
+                                         "--net-return", "--replay-inputs", "/data/netplay/x.pads", "--paced", NULL};
+    args_are(out, n, replay, "replay: --net-host without a port, --net-join and the last restart's left out");
+    char *fast[] = {"rush2049pc", "--fast", "game.z64"};
+    n = pc_online_args(3, fast, &watch, out, 64, buf, sizeof buf);
+    static const char *const replay_fast[] = {"rush2049pc", "--fast", "game.z64", "--net-return", "--replay-inputs",
+                                              "/data/netplay/x.pads", NULL};
+    args_are(out, n, replay_fast, "replay with --fast (tests): no --paced; a bare ROM kept, none added");
+    PcRelaunch join = {PC_RELAUNCH_JOIN, "[fd7a::1]:24050", "", "", 1, NULL, 0};
+    n = pc_online_args(1, plain, &join, out, 64, buf, sizeof buf);
+    static const char *const joined[] = {"rush2049pc", "--net-return", "--net-join", "[fd7a::1]:24050", "--net-code",
+                                         "", NULL};
+    args_are(out, n, joined, "join: an empty code given, so the settings' isn't used");
+    CHECK(pc_online_args(argc, argv, &r, out, 8, buf, sizeof buf) == -1, "too many for out: -1");
+    CHECK(pc_online_args(argc, argv, &r, out, 64, buf, 8) == -1, "too long for buf: -1");
+
+    /* Windows' command line: quoted as the C runtime parses it back (paths with spaces, quotes, backslashes) */
+    static const char *const tricky[] = {"C:\\Program Files\\Rush 2049\\rush2049pc.exe", "--rom",
+                                         "C:\\Users\\Ann Lee\\ROMs\\rush 2049.z64", "--mods-dir",
+                                         "D:\\mods dir\\", "--set", "net.code=say \"hi\"", "", "a\\\\b",
+                                         "trailing\\\\", "tab\there", "\\\"", "plain", "x\\\\\"y"};
+    int nt = (int)(sizeof tricky / sizeof *tricky);
+    char parsed[16][256];
+    CHECK(pc_online_quote_windows(tricky, nt, line, sizeof line) > 0, "quoted");
+    CHECK(!strcmp(line, "\"C:\\Program Files\\Rush 2049\\rush2049pc.exe\" --rom "
+                        "\"C:\\Users\\Ann Lee\\ROMs\\rush 2049.z64\" --mods-dir \"D:\\mods dir\\\\\" --set "
+                        "\"net.code=say \\\"hi\\\"\" \"\" a\\\\b trailing\\\\ \"tab\there\" \"\\\\\\\"\" plain "
+                        "\"x\\\\\\\\\\\"y\""),
+          "the line: %s", line);
+    int np = win_parse(line, parsed, 16);
+    int same = np == nt;
+    for (int i = 0; same && i < nt; i++)
+        same = !strcmp(parsed[i], tricky[i]);
+    CHECK(same, "parsed back as the C runtime does: %d of %d arguments, the same", np, nt);
+    CHECK(pc_online_quote_windows(tricky, nt, line, 40) == -1, "too long: -1");
+    static const char *const sh[] = {"rush2049pc", "--rom", "/roms/it's mine.z64", "--net-code", "", "a,b=c:1"};
+    pc_online_quote_sh(sh, 6, line, sizeof line);
+    CHECK(!strcmp(line, "rush2049pc --rom '/roms/it'\\''s mine.z64' --net-code '' a,b=c:1"), "the log's: %s", line);
+
+    /* net.recent: the last joined first, one host once (case, a trailing dot and :24049 aside), eight at most */
+    char list[PC_CFG_PATH] = "", items[PC_ONLINE_RECENT + 2][PC_ONLINE_ADDR];
+    CHECK(pc_online_recent_add(list, sizeof list, "my-pc", 24049) == 0 && !strcmp(list, "my-pc"), "first: %s", list);
+    pc_online_recent_add(list, sizeof list, " 100.101.102.103 ", 24049);
+    pc_online_recent_add(list, sizeof list, "MY-PC:24049", 24049);
+    CHECK(!strcmp(list, "MY-PC:24049, 100.101.102.103"), "the same host again: first, once: %s", list);
+    pc_online_recent_add(list, sizeof list, "my-pc:24050", 24049);
+    CHECK(!strcmp(list, "my-pc:24050, MY-PC:24049, 100.101.102.103"), "another port: another entry: %s", list);
+    pc_online_recent_add(list, sizeof list, "[fd7a::1]:24049", 24049);
+    pc_online_recent_add(list, sizeof list, "[FD7A::1]", 24049);
+    CHECK(!strncmp(list, "[FD7A::1], my-pc:24050", 22), "IPv6 in brackets, its port the usual: once: %s", list);
+    CHECK(pc_online_recent_add(list, sizeof list, "not an address!", 24049) == -1, "refused: not an address");
+    for (int i = 0; i < 12; i++) {
+        char h[32];
+        snprintf(h, sizeof h, "pc%d", i);
+        pc_online_recent_add(list, sizeof list, h, 24049);
+    }
+    n = pc_online_recent(list, items, PC_ONLINE_RECENT + 2);
+    CHECK(n == PC_ONLINE_RECENT && !strcmp(items[0], "pc11") && !strcmp(items[7], "pc4"), "eight kept: %s", list);
+    pc_online_recent_add(list, sizeof list, "pc6", 24049);
+    n = pc_online_recent(list, items, PC_ONLINE_RECENT + 2);
+    CHECK(n == 8 && !strcmp(items[0], "pc6") && !strcmp(items[1], "pc11") && !strcmp(items[7], "pc4"),
+          "one already there moves first, nothing lost: %s", list);
+    char tiny[12] = "a, b";
+    CHECK(pc_online_recent_add(tiny, sizeof tiny, "longer-name", 24049) == -1 && !strcmp(tiny, "a, b"),
+          "doesn't fit: unchanged");
+    n = pc_online_recent(" a , ,bad name, b:7 ", items, 8);
+    CHECK(n == 2 && !strcmp(items[0], "a") && !strcmp(items[1], "b:7"), "a list's bad entries skipped: %d", n);
+
+    /* the address and the port as typed */
+    char a[PC_ONLINE_ADDR], why[200];
+    static const char *const good[] = {"my-pc", "my-pc.tail1234.ts.net.", "100.101.102.103:24050", "fd7a:115c::1",
+                                       "[fd7a:115c::1]:24050", "[fe80::1%eth0]", "MY_PC", "10.0.0.1"};
+    for (size_t i = 0; i < sizeof good / sizeof *good; i++)
+        CHECK(pc_online_address(good[i], a, sizeof a, why, sizeof why) == 0 && !strcmp(a, good[i]), "%s: %s",
+              good[i], why);
+    int port = 0;
+    CHECK(pc_online_port(" 24050 ", &port, why, sizeof why) == 0 && port == 24050, "a port: %d", port);
+    CHECK(pc_online_port("0", &port, why, sizeof why) == -1 && !strcmp(why, "The port is a number from 1 to 65535, "
+                                                                            "not '0'"), "0: %s", why);
+    CHECK(pc_online_port("", &port, why, sizeof why) == -1 && strstr(why, "24049"), "none: %s", why);
+}
+
 int main(int argc, char **argv)
 {
     static const struct { const char *name; void (*fn)(void); } cases[] = {
         {"nav", test_nav}, {"live", test_live}, {"save", test_save}, {"script", test_script},
         {"mouse", test_mouse}, {"pages", test_pages}, {"mods", test_mods}, {"saves", test_saves_page},
-        {"presets", test_presets}, {"session", test_session}, {"pictures", pictures}};
+        {"presets", test_presets}, {"session", test_session}, {"online", test_online}, {"relaunch", test_relaunch},
+        {"pictures", pictures}, {"online_pictures", online_pictures}};
     if (argc < 3) {
-        fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|saves|presets|pictures SCRATCH_DIR\n");
+        fprintf(stderr, "usage: frontend_menu_test nav|live|save|script|mouse|pages|saves|presets|session|online|"
+                        "relaunch|pictures SCRATCH_DIR\n");
         return 2;
     }
     g_dir = argv[2];

@@ -31,9 +31,14 @@
  *   main's facts (pc_menu_set_about), the GL driver and the players.
  * - The Presets page sets several settings in one step (port/config/presets.c), each as if it were changed on its
  *   own page: applied where it can be, counted by Save. A preset is not a setting of its own.
- * - In an online session the main page ends with two Online rows (pc_menu_set_online, port/app/netplay.c): the other
- *   PC, and the link (round trip, this side's input delay, stalls, the last retrace whose state hashes agreed),
- *   read each time the overlay is drawn. They can't be selected. */
+ * - The Online page (docs/port/NETPLAY.md 13; main's side pc_menu_set_online_ui, port/app/netmenu.c): Host a race (the
+ *   port, a join code), Join a race (the address and the code typed in, the hosts joined before), Watch a replay (each
+ *   session's input log), and this PC's addresses, each copied to the clipboard by Enter. Host, Join and Watch restart
+ *   the program (lockstep starts at boot): main's act asks for the restart, and the overlay stops the main loop as its
+ *   Quit does. A text item takes what is typed (pc_menu_text, from input_sdl.c's SDL text input) until Enter or
+ *   Escape. In an online session the page has its two status rows (pc_menu_set_online, port/app/netplay.c: the other
+ *   PC, and the link: round trip, this side's input delay, stalls, the last retrace whose state hashes agreed), read
+ *   each time it is drawn, and Leave the session; the main page's Online item shows the round trip and the delay. */
 #define _GNU_SOURCE
 #include <math.h>
 #include <stdarg.h>
@@ -43,6 +48,7 @@
 #include <strings.h>
 
 #include "input_internal.h"
+#include "pc_online.h"
 #include "pc_start_menu.h"
 #include "pc_ghost_prompt.h"
 #include "pc_cheats.h"
@@ -50,7 +56,7 @@
 /* ---------------------------------------------------------------- the pages */
 
 enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_MODS, P_SAVES, P_SAVE_ITEM, P_HELP, P_ABOUT,
-       P_PRESETS, NUM_PAGES };
+       P_PRESETS, P_ONLINE, P_ON_HOST, P_ON_JOIN, P_ON_REPLAYS, P_ON_REPLAY, NUM_PAGES };
 
 /* I_INFO: a read-only row of Help or About, which can be selected (its whole text is in the footer); I_HEADING: one
  * that can't; I_OPEN, I_COPY: About's actions, the data folder in the file manager and the page to the clipboard.
@@ -58,8 +64,12 @@ enum { P_MAIN, P_VIDEO, P_AUDIO, P_KEYBOARD, P_CONTROLLER, P_GAME, P_MODS, P_SAV
  * I_SV_ACTION an action (page: SVA_*). */
 typedef enum { I_PAGE, I_CHOICE, I_NUMBER, I_WINDOW, I_BIND, I_SAVE, I_DEFAULTS, I_RESUME, I_QUIT, I_PLAYER,
                I_INFO, I_HEADING, I_OPEN, I_COPY, I_MOD, I_SV_PLAYER, I_SV_ENTRY, I_SV_ACTION, I_PRESET,
-               I_ONLINE } Kind;
-/* I_ONLINE: an online session's status row on the main page (page: 0 the other PC, 1 the link) */
+               I_ONLINE, I_TEXT, I_ON, I_ON_ADDR, I_ON_RECENT, I_ON_REPLAY } Kind;
+/* I_ONLINE: an online session's status row on the Online page (page: 0 the other PC, 1 the link). The Online pages
+ * (docs/port/NETPLAY.md 13): I_TEXT a text typed in (page: F_*), I_ON an action (page: ONA_*), I_ON_ADDR one of this
+ * PC's addresses (row; Enter copies it), I_ON_RECENT a recent host (row), I_ON_REPLAY an input log (row: its page) */
+enum { F_PORT, F_ADDRESS, F_CODE, NUM_FIELDS };
+enum { ONA_HOST, ONA_JOIN, ONA_WATCH_LAST, ONA_WATCH, ONA_BACK, ONA_LEAVE, ONA_COPY, ONA_KEEP };
 /* I_PRESET: a preset on the Presets page (page: which, in pc_presets' table) */
 /* I_MOD: a mod on the Mods page (page: which); I_SV_*: the Saves page */
 enum { SVA_IMPORT, SVA_EXPORT_MPK, SVA_OPEN, SVA_PIN, SVA_EXPORT, SVA_DELETE };
@@ -101,6 +111,7 @@ typedef struct {
 
 static Page pages[NUM_PAGES];
 static Row help_rows[MAX_ROWS], about_rows[MAX_ROWS], mods_rows[4], saves_rows[MAX_ROWS], item_rows[MAX_ROWS];
+static Row online_rows_[MAX_ROWS], on_note_rows[MAX_ROWS], replay_rows[MAX_ROWS];
 
 /* ---------------------------------------------------------------- the Mods page's mods (docs/port/MODS.md) */
 
@@ -187,19 +198,27 @@ static Item *add(int page, Kind kind, const char *label, const char *section, co
     return it;
 }
 
-/* ---------------------------------------------------------------- an online session's rows */
+/* ---------------------------------------------------------------- the Online page's state (NETPLAY.md 13) */
 
-static void (*s_online)(char *peer, size_t peer_size, char *link, size_t link_size);
-
-/* The main page's Online rows, at its end: there while a session gives its status, else none. */
-static void online_rows(void)
-{
-    Page *p = &pages[P_MAIN];
-    while (p->n > 0 && p->item[p->n - 1].kind == I_ONLINE)
-        p->n--;
-    for (int k = 0; s_online && k < 2 && p->n < MAX_ITEMS; k++)
-        add(P_MAIN, I_ONLINE, k ? "Link" : "Online", NULL, NULL)->page = k;
-}
+static void (*s_online)(char *peer, size_t peer_size, char *link, size_t link_size);   /* a session's status */
+static const PcOnlineUi *s_online_ui;   /* main's side (port/app/netmenu.c); NULL: none */
+#define ON_ADDRS 12
+#define ON_REPLAYS 24
+static struct {
+    char field[NUM_FIELDS][PC_ONLINE_ADDR];   /* the port, the address and the join code as typed */
+    int fields_set;                  /* the port and the code taken from the settings, once */
+    int edit;                        /* the field being typed in, + 1; 0 none */
+    int edit_skip;                   /* the Space that started the typing isn't typed */
+    char was[PC_ONLINE_ADDR];        /* the field before: Escape puts it back */
+    PcOnlineAddr addr[ON_ADDRS];
+    int naddr, pending;
+    char recent[PC_ONLINE_RECENT][PC_ONLINE_ADDR], recent_label[PC_ONLINE_RECENT][48];
+    int nrecent;
+    PcOnlineReplay replay[ON_REPLAYS];
+    int nreplay;
+    PcOnlineReplay one;              /* the input log its own page shows */
+    int confirm;                     /* Leave chosen once: the next choice leaves */
+} O;
 
 /* ---------------------------------------------------------------- the Presets page (FRONTEND.md "Presets") */
 
@@ -236,6 +255,8 @@ static void build(void)
     it->page = P_MODS, it->desc = "Mods' files in place of the cartridge's";
     it = add(P_MAIN, I_PAGE, "Saves", NULL, NULL);
     it->page = P_SAVES, it->desc = "Profiles and ghosts: export, import, pin, delete";
+    it = add(P_MAIN, I_PAGE, "Online", NULL, NULL);   /* NETPLAY.md 13; in a session its status */
+    it->page = P_ONLINE, it->desc = "Host or join a race, replays, this PC's address";
     it = add(P_MAIN, I_PAGE, "Help", NULL, NULL);
     it->page = P_HELP, it->desc = "What each key and button does";
     it = add(P_MAIN, I_PAGE, "About", NULL, NULL);
@@ -244,7 +265,6 @@ static void build(void)
     add(P_MAIN, I_SAVE, "Save to rush2049pc.ini", NULL, NULL);
     add(P_MAIN, I_RESUME, "Resume", NULL, NULL)->desc = "Back to the game";
     add(P_MAIN, I_QUIT, "Quit", NULL, NULL)->desc = "Quit Rush 2049 (changes not saved are lost)";
-    online_rows();
 
     pages[P_HELP].title = "Help";
     pages[P_HELP].rows = help_rows;
@@ -258,6 +278,21 @@ static void build(void)
     pages[P_SAVE_ITEM].title = "Save";
     pages[P_SAVE_ITEM].rows = item_rows;
     pages[P_SAVE_ITEM].col_a = 60;
+    pages[P_ONLINE].title = "Online";   /* made each time it opens (fill_online) */
+    pages[P_ONLINE].rows = online_rows_;
+    pages[P_ONLINE].col_a = 8;
+    pages[P_ON_HOST].title = "Host a race";
+    pages[P_ON_HOST].rows = on_note_rows;
+    pages[P_ON_HOST].col_a = 8;
+    pages[P_ON_JOIN].title = "Join a race";
+    pages[P_ON_JOIN].rows = on_note_rows;
+    pages[P_ON_JOIN].col_a = 8;
+    pages[P_ON_REPLAYS].title = "Replays";
+    pages[P_ON_REPLAYS].rows = on_note_rows;
+    pages[P_ON_REPLAYS].col_a = 8;
+    pages[P_ON_REPLAY].title = "Replay";
+    pages[P_ON_REPLAY].rows = replay_rows;
+    pages[P_ON_REPLAY].col_a = 60;
 
     pages[P_VIDEO].title = "Video";
     it = add(P_VIDEO, I_CHOICE, "Render scale", "video", "scale");
@@ -489,6 +524,11 @@ static void fill_saves(void);
 static void fill_save_item(void);
 static void saves_action(int action);
 static void fit(char *s, size_t chars, int from_left);
+static void fill_online_page(int page);
+static void on_action(int ona);
+static void on_copy(int i);
+static void edit_start(int f);
+static void edit_end(int keep);
 
 static Item *current(void)
 {
@@ -978,6 +1018,8 @@ static void set_open(int on)
 {
     if (on == M.open)
         return;
+    if (!on)
+        edit_end(1);
     M.open = on;
     M.capture = 0;
     M.status[0] = 0;
@@ -1084,6 +1126,8 @@ static void open_page(int page)
         fill_saves();
     else if (page == P_SAVE_ITEM)
         fill_save_item();
+    else if (page >= P_ONLINE && page <= P_ON_REPLAY)
+        fill_online_page(page);
     if (M.sel[page] >= pages[page].n)
         M.sel[page] = 0;
     skip_rows(1, 0);
@@ -1207,6 +1251,28 @@ static void accept(Item *it)
     case I_PLAYER:
     case I_ONLINE:
         break;
+    case I_TEXT:   /* typing in it (input_sdl.c's text) until Enter or Escape */
+        edit_start(it->page);
+        break;
+    case I_ON:
+        on_action(it->page);
+        break;
+    case I_ON_ADDR:
+        on_copy(it->page);
+        break;
+    case I_ON_RECENT:   /* the address, then Join now selected */
+        snprintf(O.field[F_ADDRESS], sizeof O.field[F_ADDRESS], "%s", O.recent[it->page]);
+        for (int i = 0; i < pages[P_ON_JOIN].n; i++)
+            if (pages[P_ON_JOIN].item[i].kind == I_ON && pages[P_ON_JOIN].item[i].page == ONA_JOIN)
+                M.sel[P_ON_JOIN] = i;
+        scroll();
+        status(C_OK, "Join now: %.40s", O.recent[it->page]);
+        break;
+    case I_ON_REPLAY:
+        O.one = O.replay[it->page];
+        M.sel[P_ON_REPLAY] = 0;
+        open_page(P_ON_REPLAY);
+        break;
     case I_MOD:   /* pick it up: up and down move it in the order; again to put it down */
         M.moving = !M.moving;
         if (M.moving)
@@ -1236,10 +1302,25 @@ void pc_menu_action(int action)
             set_open(0);
         return;
     }
+    if (O.edit) {   /* typing in a text item: Backspace, done, undone; up and down end it and move */
+        char *f = O.field[O.edit - 1];
+        M.status[0] = 0;
+        if (action == PC_MENU_CLEAR && f[0])
+            f[strlen(f) - 1] = 0;
+        else if (action == PC_MENU_ACCEPT || action == PC_MENU_BACK)
+            edit_end(action == PC_MENU_ACCEPT);
+        else if (action == PC_MENU_CLOSE)
+            set_open(0);
+        if (action != PC_MENU_UP && action != PC_MENU_DOWN)
+            return;
+        edit_end(1);
+    }
     M.status[0] = 0;
     Item *it = current();
     if (M.moving && (it->kind != I_MOD || M.page != P_MODS))
         M.moving = 0;
+    if (O.confirm && (it->kind != I_ON || it->page != ONA_LEAVE || action != PC_MENU_ACCEPT))
+        O.confirm = 0;
     switch (action) {
     case PC_MENU_UP:
     case PC_MENU_DOWN:
@@ -1275,6 +1356,10 @@ void pc_menu_action(int action)
             M.moving = 0, status(C_OK, "The order applies at the next start");
         else if (M.page == P_SAVE_ITEM)   /* a save's own page: back to the list */
             open_page(P_SAVES);
+        else if (M.page == P_ON_REPLAY)   /* an input log's page: back to the list */
+            open_page(P_ON_REPLAYS);
+        else if (M.page >= P_ON_HOST && M.page <= P_ON_REPLAYS)   /* back to the Online page */
+            open_page(P_ONLINE);
         else if (M.page != P_MAIN)
             M.page = P_MAIN;
         else
@@ -1669,6 +1754,375 @@ static void saves_action(int action)
     status(r == 0 ? C_OK : C_WARN, "%s", msg);
 }
 
+/* ---------------------------------------------------------------- Online (docs/port/NETPLAY.md 13) */
+
+/* The Online page: out of a session, Host a race, Join a race and Watch a replay (Stop watching first in a replay), each
+ * a page of its own; in a session its two status rows (the other PC; the link) and Leave the session. Then this PC's
+ * addresses, best first (main's: the waiting screen's list), each copied by Enter, and Copy my address (the first).
+ * Host, Join and Watch restart the program: nothing changes the game before one is chosen. */
+
+static int field_max(int f)
+{
+    return f == F_PORT ? 5 : f == F_CODE ? PC_ONLINE_CODE - 1 : PC_ONLINE_ADDR - 1;
+}
+
+static void edit_start(int f)
+{
+    O.edit = f + 1;
+    O.edit_skip = 1;
+    snprintf(O.was, sizeof O.was, "%s", O.field[f]);
+    pc_input_live_text(1);
+    status(C_CAPTURE, "%s", f == F_PORT ? "Type the port" : f == F_CODE ? "Type the join code" : "Type the address");
+}
+
+static void edit_end(int keep)
+{
+    if (!O.edit)
+        return;
+    if (!keep)
+        snprintf(O.field[O.edit - 1], sizeof O.field[0], "%s", O.was);
+    else if (O.edit - 1 != F_CODE) {   /* an address or a port: the spaces around it go */
+        char *f = O.field[O.edit - 1], *b = f + strspn(f, " \t");
+        size_t n = strlen(b);
+        while (n && (b[n - 1] == ' ' || b[n - 1] == '\t'))
+            n--;
+        memmove(f, b, n);
+        f[n] = 0;
+    }
+    O.edit = 0;
+    pc_input_live_text(0);
+    M.dirty = 1;
+}
+
+int pc_menu_editing(void)
+{
+    return M.open && O.edit;
+}
+
+void pc_menu_text(const char *t)
+{
+    char *f;
+    size_t n;
+    int bad = 0, full = 0;
+    if (!pc_menu_editing() || !t)
+        return;
+    f = O.field[O.edit - 1];
+    n = strlen(f);
+    if (O.edit_skip && !strcmp(t, " ")) {   /* the Space that chose the item, typed as SDL's text */
+        O.edit_skip = 0;
+        return;
+    }
+    O.edit_skip = 0;
+    for (; *t; t++) {
+        unsigned char c = (unsigned char)*t;
+        if (c == '\r' || c == '\n')   /* a paste: its first line */
+            break;
+        if (c < 0x20 || c > 0x7E || (O.edit - 1 == F_PORT && (c < '0' || c > '9'))) {
+            bad = 1;
+            continue;
+        }
+        if ((int)n >= field_max(O.edit - 1)) {
+            full = 1;
+            break;
+        }
+        f[n++] = (char)c;
+        f[n] = 0;
+    }
+    if (full)
+        status(C_WARN, "No more fits");
+    else if (bad)
+        status(C_WARN, "%s", O.edit - 1 == F_PORT ? "A port is digits only" : "Letters, digits and plain punctuation only");
+    else
+        M.status[0] = 0;
+    M.dirty = 1;
+}
+
+static int online_mode(void)
+{
+    return s_online_ui && s_online_ui->mode ? s_online_ui->mode() : PC_ONLINE_OFFLINE;
+}
+
+/* The addresses as main has them now; 1 when they changed. */
+static int online_addresses(void)
+{
+    PcOnlineAddr a[ON_ADDRS];
+    int pending = 0, n = s_online_ui && s_online_ui->addresses ? s_online_ui->addresses(a, ON_ADDRS, &pending) : 0;
+    n = n < 0 ? 0 : n > ON_ADDRS ? ON_ADDRS : n;
+    if (n == O.naddr && pending == O.pending && !memcmp(a, O.addr, (size_t)n * sizeof *a))
+        return 0;
+    memcpy(O.addr, a, (size_t)n * sizeof *a);
+    O.naddr = n, O.pending = pending;
+    return 1;
+}
+
+static void fill_online(void)
+{
+    Page *pg = &pages[P_ONLINE];
+    Item *it;
+    pg->n = 0;
+    if (s_online) {   /* a session: its status, and leaving it */
+        for (int k = 0; k < 2; k++)
+            add(P_ONLINE, I_ONLINE, k ? "Link" : "Online", NULL, NULL)->page = k;
+        it = add(P_ONLINE, I_ON, "Leave the session", NULL, NULL);
+        it->page = ONA_LEAVE, it->desc = "The other player is told; then back to the game";
+    } else {
+        if (online_mode() == PC_ONLINE_REPLAY) {
+            it = add(P_ONLINE, I_ON, "Stop watching", NULL, NULL);
+            it->page = ONA_BACK, it->desc = "Back to the game: the program starts again";
+        }
+        it = add(P_ONLINE, I_PAGE, "Host a race", NULL, NULL);
+        it->page = P_ON_HOST, it->desc = "A friend joins you: the program restarts";
+        it = add(P_ONLINE, I_PAGE, "Join a race", NULL, NULL);
+        it->page = P_ON_JOIN, it->desc = "Join a friend's race: the program restarts";
+        it = add(P_ONLINE, I_PAGE, "Watch a replay", NULL, NULL);
+        it->page = P_ON_REPLAYS, it->desc = "A session played again from its input log";
+    }
+    row(P_ONLINE, I_HEADING, "", "This PC's addresses, Tailscale's first:", NULL);
+    for (int i = 0; i < O.naddr && pg->n < MAX_ITEMS - 3; i++)
+        add(P_ONLINE, I_ON_ADDR, O.addr[i].text, NULL, NULL)->page = i;
+    if (!O.naddr)
+        row(P_ONLINE, I_HEADING, "", "None found: is this PC on a network?", NULL);
+    else if (O.pending)
+        row(P_ONLINE, I_HEADING, "", "(its Tailscale name: looking it up...)", NULL);
+    if (O.naddr) {
+        it = add(P_ONLINE, I_ON, "Copy my address", NULL, NULL);
+        it->page = ONA_COPY, it->desc = "The first one, to paste to your friend";
+    }
+    if (M.sel[P_ONLINE] >= pg->n)
+        M.sel[P_ONLINE] = 0;
+}
+
+/* A sentence of a page's notes: a row that can't be selected, the page's width. */
+static void note(int page, const char *line)
+{
+    row(page, I_HEADING, "", line, NULL);
+}
+
+static void fill_on_host(void)
+{
+    Item *it;
+    pages[P_ON_HOST].n = 0;
+    it = add(P_ON_HOST, I_TEXT, "Port", NULL, NULL);
+    it->page = F_PORT, it->desc = "The UDP port your friend joins; 24049 usually";
+    it = add(P_ON_HOST, I_TEXT, "Join code", NULL, NULL);
+    it->page = F_CODE, it->desc = "Optional: your friend gives the same code";
+    it = add(P_ON_HOST, I_ON, "Host now", NULL, NULL);
+    it->page = ONA_HOST, it->desc = "The program restarts and waits for your friend";
+    note(P_ON_HOST, "");
+    note(P_ON_HOST, "The program starts again as the host. Its");
+    note(P_ON_HOST, "window lists this PC's addresses (so does the");
+    note(P_ON_HOST, "Online page): your friend joins with one.");
+    note(P_ON_HOST, "You play controller 1, with your settings.");
+}
+
+static void fill_on_join(void)
+{
+    Item *it;
+    pages[P_ON_JOIN].n = 0;
+    it = add(P_ON_JOIN, I_TEXT, "Address", NULL, NULL);
+    it->page = F_ADDRESS, it->desc = "Their Tailscale name or 100.x address";
+    it = add(P_ON_JOIN, I_TEXT, "Join code", NULL, NULL);
+    it->page = F_CODE, it->desc = "The host's code, if they set one";
+    it = add(P_ON_JOIN, I_ON, "Join now", NULL, NULL);
+    it->page = ONA_JOIN, it->desc = "The program restarts and joins: controller 2";
+    O.nrecent = pc_online_recent(M.eff.net_recent, O.recent, PC_ONLINE_RECENT);
+    if (O.nrecent)
+        note(P_ON_JOIN, "Joined before:");
+    for (int i = 0; i < O.nrecent; i++) {
+        snprintf(O.recent_label[i], sizeof O.recent_label[i], "%s", O.recent[i]);
+        fit(O.recent_label[i], 46, 0);   /* no value: the row's width; a name's start */
+        add(P_ON_JOIN, I_ON_RECENT, O.recent_label[i], NULL, NULL)->page = i;
+    }
+    if (!O.nrecent) {
+        note(P_ON_JOIN, "");
+        note(P_ON_JOIN, "The host's window lists their addresses.");
+        note(P_ON_JOIN, "You play controller 2; the session has the");
+        note(P_ON_JOIN, "host's settings (your file isn't changed).");
+    }
+}
+
+/* The newest input log of netplay/ (a session's own, not a kept copy) that can be watched; -1 none. */
+static int last_replay(void)
+{
+    for (int i = 0; i < O.nreplay; i++)
+        if (!O.replay[i].kept)
+            return O.replay[i].usable ? i : -1;
+    return -1;
+}
+
+static void fill_on_replays(void)
+{
+    Item *it;
+    pages[P_ON_REPLAYS].n = 0;
+    O.nreplay = s_online_ui && s_online_ui->replays ? s_online_ui->replays(O.replay, ON_REPLAYS) : 0;
+    O.nreplay = O.nreplay < 0 ? 0 : O.nreplay > ON_REPLAYS ? ON_REPLAYS : O.nreplay;
+    if (last_replay() >= 0) {
+        it = add(P_ON_REPLAYS, I_ON, "Watch the last session's", NULL, NULL);
+        it->page = ONA_WATCH_LAST;
+    }
+    note(P_ON_REPLAYS, O.nreplay ? "Every session's input log, the newest first:" : "No replays yet: each online session's input");
+    if (!O.nreplay)
+        note(P_ON_REPLAYS, "log is one (in the data folder's netplay/).");
+    for (int i = 0; i < O.nreplay && pages[P_ON_REPLAYS].n < MAX_ITEMS; i++)
+        add(P_ON_REPLAYS, I_ON_REPLAY, O.replay[i].label, NULL, NULL)->page = i;
+    if (M.sel[P_ON_REPLAYS] >= pages[P_ON_REPLAYS].n)
+        M.sel[P_ON_REPLAYS] = 0;
+}
+
+static void fill_on_replay(void)
+{
+    static char title[40];
+    const PcOnlineReplay *r = &O.one;
+    Item *it;
+    pages[P_ON_REPLAY].n = 0;
+    snprintf(title, sizeof title, "%s", r->label);
+    pages[P_ON_REPLAY].title = title;
+    row(P_ON_REPLAY, I_INFO, "Played", r->when, NULL);
+    row(P_ON_REPLAY, I_INFO, "Length", r->length, NULL);
+    row(P_ON_REPLAY, I_INFO, "Log", r->info, NULL);
+    row(P_ON_REPLAY, I_INFO, "File", r->file, NULL)->path = 1;
+    if (r->usable) {
+        it = add(P_ON_REPLAY, I_ON, "Watch", NULL, NULL);
+        it->page = ONA_WATCH, it->desc = "The program restarts and plays it, in real time";
+    }
+    if (!r->kept) {
+        it = add(P_ON_REPLAY, I_ON, "Keep this replay", NULL, NULL);
+        it->page = ONA_KEEP, it->desc = "A copy in the data folder's replays/, dated";
+    }
+}
+
+static void fill_online_page(int page)
+{
+    if (!O.fields_set) {   /* the settings' port and join code, once; the page's own after */
+        snprintf(O.field[F_PORT], sizeof O.field[0], "%d", M.eff.net_port);
+        snprintf(O.field[F_CODE], sizeof O.field[0], "%s", M.eff.net_code);
+        O.fields_set = 1;
+    }
+    O.confirm = 0;
+    switch (page) {
+    case P_ONLINE:
+        online_addresses();
+        fill_online();
+        break;
+    case P_ON_HOST:
+        fill_on_host();
+        break;
+    case P_ON_JOIN:
+        fill_on_join();
+        break;
+    case P_ON_REPLAYS:
+        fill_on_replays();
+        break;
+    case P_ON_REPLAY:
+        fill_on_replay();
+        break;
+    }
+}
+
+/* Address i of this PC to the clipboard, with the Host page's port when it isn't the usual one. */
+static void on_copy(int i)
+{
+    char text[128];
+    int port = 0;
+    if (i < 0 || i >= O.naddr)
+        return;
+    pc_online_port(O.field[F_PORT], &port, NULL, 0);
+    if (port && port != 24049)
+        snprintf(text, sizeof text, strchr(O.addr[i].text, ':') ? "[%s]:%d" : "%s:%d", O.addr[i].text, port);
+    else
+        snprintf(text, sizeof text, "%s", O.addr[i].text);
+    if (pc_input_live_clipboard(text) == 0)
+        status(C_OK, "Copied %.30s: paste it to your friend", text);
+    else
+        status(C_WARN, "No clipboard here: give them %.30s", text);
+}
+
+static void on_action(int ona)
+{
+    char msg[200] = "", a[PC_ONLINE_ADDR];
+    const char *file = NULL;
+    int r, port, restart = 1;
+    if (ona == ONA_COPY) {
+        on_copy(0);
+        return;
+    }
+    if (!s_online_ui || !s_online_ui->act) {
+        status(C_WARN, "Not here: the program didn't set it up");
+        return;
+    }
+    switch (ona) {
+    case ONA_HOST:
+        if (pc_online_port(O.field[F_PORT], &port, msg, sizeof msg) != 0) {
+            status(C_WARN, "%s", msg);
+            return;
+        }
+        snprintf(a, sizeof a, "%d", port);
+        r = s_online_ui->act(PC_ONLINE_HOST, a, O.field[F_CODE], msg, sizeof msg);
+        break;
+    case ONA_JOIN:
+        if (pc_online_address(O.field[F_ADDRESS], a, sizeof a, msg, sizeof msg) != 0) {
+            status(C_WARN, "%s", msg);
+            return;
+        }
+        r = s_online_ui->act(PC_ONLINE_JOIN, a, O.field[F_CODE], msg, sizeof msg);
+        break;
+    case ONA_WATCH_LAST:
+    case ONA_WATCH:
+        if (ona == ONA_WATCH_LAST && last_replay() < 0) {
+            status(C_WARN, "No session's input log to watch");
+            return;
+        }
+        file = ona == ONA_WATCH ? O.one.file : O.replay[last_replay()].file;
+        r = s_online_ui->act(PC_ONLINE_WATCH, file, NULL, msg, sizeof msg);
+        break;
+    case ONA_LEAVE:
+        if (!O.confirm) {
+            O.confirm = 1;
+            status(C_WARN, "Choose Leave again: the other player is told");
+            return;
+        }
+        O.confirm = 0;
+        /* fall through */
+    case ONA_BACK:
+        r = s_online_ui->act(PC_ONLINE_BACK, NULL, NULL, msg, sizeof msg);
+        break;
+    case ONA_KEEP:
+        r = s_online_ui->act(PC_ONLINE_KEEP, O.one.file, NULL, msg, sizeof msg);
+        restart = 0;
+        break;
+    default:
+        return;
+    }
+    status(r == 0 ? C_OK : C_WARN, "%s", msg);
+    if (r == 0 && restart) {
+        fprintf(stderr, "rush2049pc: online page: %s\n", msg);
+        M.quit = 1;   /* the main loop stops as for Quit; main restarts the program (port/app/netmenu.c) */
+    }
+}
+
+void pc_menu_set_online_ui(const PcOnlineUi *ui)
+{
+    s_online_ui = ui;
+}
+
+int pc_menu_unsaved_list(PcSettingValue *out, int max)
+{
+    static char section[MAX_TOUCHED][16], key[MAX_TOUCHED][64], value[MAX_TOUCHED][PC_CFG_PATH + 8];
+    int n = 0;
+    for (int i = 0; i < M.ntouched && n < max && n < MAX_TOUCHED; i++) {   /* each as the overlay has it now */
+        const char *dot = strchr(M.touched[i], '.');
+        if (!dot)
+            continue;
+        snprintf(section[n], sizeof section[n], "%.*s", (int)(dot - M.touched[i]), M.touched[i]);
+        snprintf(key[n], sizeof key[n], "%s", dot + 1);
+        if (pc_settings_get(&M.eff, section[n], key[n], value[n], sizeof value[n]) != 0)
+            continue;
+        out[n] = (PcSettingValue){section[n], key[n], value[n]};
+        n++;
+    }
+    return n;
+}
+
 void pc_menu_set_saves(const PcSavesUi *ui)
 {
     s_saves = ui;
@@ -1682,11 +2136,11 @@ void pc_menu_set_about(void (*fill)(PcAbout *about))
 void pc_menu_set_online(void (*status)(char *peer, size_t peer_size, char *link, size_t link_size))
 {
     s_online = status;
-    if (!pages[P_MAIN].title)
-        return;   /* build() adds them */
-    online_rows();
-    if (M.sel[P_MAIN] >= pages[P_MAIN].n)
-        M.sel[P_MAIN] = 0;
+    if (pages[P_ONLINE].title && M.page >= P_ONLINE && M.page <= P_ON_REPLAY) {   /* the Online page follows */
+        edit_end(0);
+        M.page = P_ONLINE;
+        fill_online();
+    }
     M.dirty = 1;
 }
 
@@ -1714,6 +2168,10 @@ int pc_menu_tick(void)
         pc_menu_capture(NULL);
     if (M.open && M.page == P_ABOUT && about_players())   /* About's players follow the controllers live */
         M.dirty = 1;
+    if (M.open && M.page == P_ONLINE && O.pending && online_addresses()) {   /* the Tailscale name came */
+        fill_online();
+        M.dirty = 1;
+    }
     if (M.open && M.page == P_CONTROLLER) {   /* the player rows and auto accessories follow the controllers live */
         char rows[512] = "", l[64], v[32];
         for (int p = 0; p < 4; p++) {
@@ -1799,7 +2257,39 @@ static void shown(const Item *it, char *out, size_t n)
     value_of(&M.eff, it, v, sizeof v);
     switch (it->kind) {
     case I_PAGE:
-        snprintf(out, n, ">");
+        if (it->page == P_ONLINE && s_online) {   /* in a session: the link's round trip and delay */
+            char peer[160], link[160], *cut;
+            s_online(peer, sizeof peer, link, sizeof link);
+            if ((cut = strchr(link, ',')) && (cut = strchr(cut + 1, ',')))
+                *cut = 0;
+            snprintf(out, n, "%s", link);
+        } else {
+            snprintf(out, n, ">");
+        }
+        break;
+    case I_TEXT:
+        if (O.edit == it->page + 1)
+            snprintf(out, n, "%s_", O.field[it->page]);
+        else
+            snprintf(out, n, "%s", O.field[it->page][0] ? O.field[it->page] : "-");
+        break;
+    case I_ON_ADDR:
+        snprintf(out, n, "%s", O.addr[it->page].tag);
+        break;
+    case I_ON_REPLAY: {
+        const PcOnlineReplay *r = &O.replay[it->page];
+        snprintf(out, n, "%s%s%s", r->length, r->kept ? ", kept" : "", r->usable ? "" : " (can't)");
+        break;
+    }
+    case I_ON:
+        out[0] = 0;
+        if (it->page == ONA_WATCH_LAST && last_replay() >= 0)
+            snprintf(out, n, "%s", O.replay[last_replay()].label);
+        else if (it->page == ONA_LEAVE && O.confirm)
+            snprintf(out, n, "again: leave");
+        break;
+    case I_ON_RECENT:
+        out[0] = 0;
         break;
     case I_NUMBER:
         if (it->percent)
@@ -1865,13 +2355,15 @@ static void shown(const Item *it, char *out, size_t n)
 
 static const char *hint(const Item *it)
 {
+    if (O.edit)
+        return "Type   Enter: done   Esc: undo   Bksp: delete";
     if (M.capture == PC_MENU_CAPTURE_KEY)
         return "Press a key   Esc: cancel";
     if (M.capture)
         return "Press a button or move a stick   Esc: cancel";
     switch (it->kind) {
     case I_PAGE:
-        return "Enter/A: open   Esc/B: close";
+        return M.page == P_MAIN ? "Enter/A: open   Esc/B: close" : "Enter/A: open   Esc/B: back";
     case I_CHOICE:
     case I_NUMBER:
     case I_WINDOW:
@@ -1885,6 +2377,12 @@ static const char *hint(const Item *it)
         return M.moving ? "Up/Down: move it   Enter/A: put it down" : "Left/Right: on, off   Enter/A: move it";
     case I_PRESET:
         return "Enter/A: set these   Esc/B: back";
+    case I_TEXT:
+        return "Enter/A: type in it   Esc/B: back";
+    case I_ON_ADDR:
+        return "Enter/A: copy it   Esc/B: back";
+    case I_ON_RECENT:
+        return "Enter/A: this address   Esc/B: back";
     default:
         return M.page == P_MAIN ? "Enter/A: choose   Esc/B: close" : "Enter/A: choose   Esc/B: back";
     }
@@ -1912,6 +2410,26 @@ static void description(const Item *it, char *out, size_t n, int *wrap)
     if (it->kind == I_SAVE) {
         snprintf(out, n, "To %s", M.path[0] ? M.path : "nowhere: no settings file");
         fit(out, FOOT_CHARS, 1);
+        return;
+    }
+    if (it->kind == I_PAGE && it->page == P_ONLINE && s_online) {   /* in a session: the other PC */
+        char link[160];
+        s_online(out, n, link, sizeof link);
+        return;
+    }
+    if (it->kind == I_TEXT && (O.edit == it->page + 1 || strlen(O.field[it->page]) > VALUE_CHARS - 1)) {
+        snprintf(out, n, "%s%s", O.field[it->page], O.edit == it->page + 1 ? "_" : "");   /* the whole of it */
+        *wrap = strlen(out) > FOOT_CHARS;
+        return;
+    }
+    if (it->kind == I_ON_ADDR || it->kind == I_ON_RECENT) {
+        snprintf(out, n, "%s", it->kind == I_ON_ADDR ? O.addr[it->page].text : O.recent[it->page]);
+        *wrap = strlen(out) > FOOT_CHARS;
+        return;
+    }
+    if (it->kind == I_ON_REPLAY || (it->kind == I_ON && it->page == ONA_WATCH_LAST && last_replay() >= 0)) {
+        const PcOnlineReplay *r = it->kind == I_ON_REPLAY ? &O.replay[it->page] : &O.replay[last_replay()];
+        snprintf(out, n, "%s", r->info);
         return;
     }
     if (it->kind == I_SV_ENTRY) {   /* its file */
@@ -1958,12 +2476,14 @@ static void draw(int w, int h)
     for (int i = 0; i < ROWS && M.top[M.page] + i < p->n; i++) {
         const Item *it = &p->item[M.top[M.page] + i];
         int y = LIST_Y + i * ROW_H, here = it == sel;
-        uint32_t color = here && (M.capture || (M.moving && it->kind == I_MOD)) ? C_CAPTURE
+        uint32_t color = here && (M.capture || (M.moving && it->kind == I_MOD) || O.edit) ? C_CAPTURE
                          : changed(it) ? C_CHANGED : here ? C_WHITE : C_VALUE;
         if (here)
             rect(2, y, PANEL_W - 4, ROW_H, C_SELECT);
         if (it->kind == I_ONLINE) {   /* the session's status, the full width */
             char peer[160], link[160];
+            if (!s_online)
+                continue;
             s_online(peer, sizeof peer, link, sizeof link);
             snprintf(line, sizeof line, "%s", it->page ? link : peer);
             fit(line, (PANEL_W - 16) / 6, 0);
@@ -1995,6 +2515,8 @@ static void draw(int w, int h)
             continue;
         }
         snprintf(line, sizeof line, "%s%s", it->label, it->restart ? " *" : "");
+        if (it->kind == I_ON_ADDR)   /* a long name: its start (the footer has all of it) */
+            fit(line, (VALUE_X - 14) / 6, 0);
         text(8, y + 2, here ? C_WHITE : C_LABEL, line);
         if (here && M.capture)
             snprintf(v, sizeof v, M.capture == PC_MENU_CAPTURE_KEY ? "press a key..." : "press a button...");
@@ -2008,7 +2530,7 @@ static void draw(int w, int h)
             rect(VALUE_X, y + 4, (int)(BAR_W * f + 0.5), 4, color);
             text(VALUE_X + BAR_W + 6, y + 2, color, v);
         } else {
-            fit(v, VALUE_CHARS, 0);
+            fit(v, VALUE_CHARS, it->kind == I_TEXT && O.edit == it->page + 1);   /* typing: its end, the cursor */
             text(VALUE_X, y + 2, color, v);
         }
         if (here && !M.capture && has_value(it)) {   /* arrows to click */
@@ -2138,6 +2660,7 @@ void pc_menu_mouse(int what, int x, int y, int w, int h, int amount)
             pc_menu_capture(NULL);
             break;
         }
+        edit_end(1);   /* a click ends the typing, keeping it */
         /* a double click's second press, on the page the first one opened (or went back to), is no click there */
         if (M.page_click_ns && now >= M.page_click_ns && now - M.page_click_ns < DOUBLE_CLICK_NS)
             break;
@@ -2179,6 +2702,7 @@ void pc_menu_init(const PcSettings *s)
 {
     build();
     memset(&M, 0, sizeof M);
+    memset(&O, 0, sizeof O);   /* the Online page's fields: the settings' port and code at its first opening */
     M.eff = *s;
     snprintf(M.path, sizeof M.path, "%s", s->save_path);
     pc_settings_defaults(&M.file);

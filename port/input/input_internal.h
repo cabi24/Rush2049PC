@@ -151,6 +151,45 @@ void pc_menu_set_about(void (*fill)(PcAbout *about));
  * removes the rows. */
 void pc_menu_set_online(void (*status)(char *peer, size_t peer_size, char *link, size_t link_size));
 
+/* The Online page (docs/port/NETPLAY.md 13): host, join, watch a replay, this PC's addresses; main's side is
+ * port/app/netmenu.c. Hosting, joining and watching restart the program (lockstep starts at boot): act asks for the
+ * restart, and the overlay then stops the main loop as its Quit does. Nothing on the page changes the game before. */
+typedef struct {
+    char text[96];   /* "100.101.102.103", "my-pc.tail1234.ts.net" */
+    char tag[32];    /* "Tailscale", "Tailscale name", "local network" */
+} PcOnlineAddr;
+typedef struct {
+    char file[PC_CFG_PATH];   /* the input log */
+    char label[32];           /* "11-07 21:04 host" */
+    char length[16];          /* "4:12" */
+    char info[96];            /* the footer's line: whose log, or why it can't be watched */
+    char when[32];            /* "2026-11-07 21:04:12" */
+    int usable;               /* this build, this ROM, its paks there: it can be watched */
+    int kept;                 /* in the data folder's replays/ */
+} PcOnlineReplay;
+enum { PC_ONLINE_HOST, PC_ONLINE_JOIN, PC_ONLINE_WATCH, PC_ONLINE_BACK, PC_ONLINE_KEEP };
+enum { PC_ONLINE_OFFLINE, PC_ONLINE_SESSION, PC_ONLINE_REPLAY };   /* what this run is */
+typedef struct {
+    int (*mode)(void);
+    /* this PC's addresses, best first; *pending while its Tailscale name is being looked up */
+    int (*addresses)(PcOnlineAddr *out, int max, int *pending);
+    int (*replays)(PcOnlineReplay *out, int max);   /* netplay/'s and replays/' input logs, the newest first */
+    /* HOST (a the port, b the join code), JOIN (a the address, b the code), WATCH (a the file), BACK (this run again
+     * without its session or replay), KEEP (a the file: a copy in replays/). 0 when done, -1 when not; msg the
+     * footer's line either way. HOST, JOIN, WATCH and BACK done: the program restarts as the overlay stops it. */
+    int (*act)(int action, const char *a, const char *b, char *msg, size_t size);
+} PcOnlineUi;
+void pc_menu_set_online_ui(const PcOnlineUi *ui);
+/* A text item is being typed in (the Online page's address, port, join code): input_sdl.c sends what is typed (SDL's
+ * text input, a paste) to pc_menu_text; Backspace is PC_MENU_CLEAR, Enter ACCEPT (done), Escape BACK (as it was). */
+int pc_menu_editing(void);
+void pc_menu_text(const char *utf8);
+/* The overlay's changes not saved to the file, as --set takes them (a restart carries them): the count; the strings
+ * stay until the next call. */
+int pc_menu_unsaved_list(PcSettingValue *out, int max);
+/* SDL's text input on while an item is typed in, off otherwise (no IME over the game); no-op without a window. */
+void pc_input_live_text(int on);
+
 /* The Mods page (docs/port/MODS.md): the mods main read at start from dir. The page orders them as game.mods_order and
  * their mod.ini priorities say, and turns them on and off ([mods]); both apply at the next start. */
 #define PC_MENU_MODS 64

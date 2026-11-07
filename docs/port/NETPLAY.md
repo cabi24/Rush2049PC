@@ -46,6 +46,13 @@ message box; launchers in the release folders (`Host online race.bat`, `Join onl
 `join-online.sh`); F1's main page ends with two Online rows in a session (the other PC, the round trip, the input
 delay, stalls, the last hash check).
 
+**The F1 Online page and replays (2026-11-07, branch `net-online`, section 13):** phase 6's comforts. F1 > Online hosts
+(a port, a join code), joins (an address typed in, or one of the last 8 hosts joined, `net.recent`) and watches a
+replay (each session's input log), lists this PC's addresses as the waiting screen does and copies one to the
+clipboard; in a session it has the status and Leave the session. Lockstep starts at boot, so these restart the
+program: exec on Linux, CreateProcess on Windows, with this run's options. A session's input log now replays offline
+as it is (`--replay-inputs` alone takes the session's settings, rules and paks), to the session's hashes.
+
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
 full screen.
@@ -822,9 +829,9 @@ punching, and a relay.
 
 ### Phase 6: comforts
 
-- An F1 "Online" page: host, join, code, status.
+- An F1 "Online" page: host, join, code, status. **Done (section 13).**
 - A quick-race macro.
-- Saving replays (the input log already is one).
+- Saving replays (the input log already is one). **Done (section 13): watched from the page, kept in replays/.**
 - Rejoin by replay.
 - Three or four players over two to four PCs: battle and stunt allow them (MORECARS.md 1.2). The design generalises
   to each PC owning a set of ports, including two local players on one PC.
@@ -1092,7 +1099,8 @@ must-match text to compare.
 Every session writes `netplay/DATE-ROLE.pads` in the data folder (pc_padfile, the must-match text as its header) and
 the session's paks beside it (`.p1.mpk`, `.p2.mpk`). On a desync each side writes `DATE-ROLE.desync.txt`
 (`pc_hash_report` of the retrace, from the kept bytes). The log ends with the command that replays the session in one
-process (`--replay-inputs` with the session's settings and paks); replayed to the retrace on each OS with
+process: `--replay-inputs` and the log, which takes the session's settings and paks itself (13.3; before, the command
+gave them all as `--set`, and the paks as files the replay wrote to); replayed to the retrace on each OS with
 `--hash-report`, `hash_compare.py --reports` names the words that differ.
 
 ### 12.6 The clock and the audio
@@ -1151,8 +1159,8 @@ then has (a `--fast` replay with the default takes the same course).
 ### 12.9 Not done
 
 - Phase 3: two real PCs (Windows against Linux) over Tailscale.
-- Hosting and joining from inside the game (an F1 "Online" page, phase 6): the launchers and the waiting screen
-  (12.10) are the way in for now.
+- ~~Hosting and joining from inside the game (an F1 "Online" page, phase 6)~~: done in section 13; the launchers and
+  the waiting screen (12.10) stay.
 - A pak imported from another player's ghost keeps its own name on the session's pak (the game's note names are read
   once the game's data is loaded, after the handshake).
 - Rumble: no rumble accessory in a session; the local player's motor to its own controller can come later.
@@ -1241,11 +1249,12 @@ and tarballs, next to the program; release.yml checks they are there, and gives 
 
 Options given to a launcher are passed on: `--net-code`, a port after the host's.
 
-**F1's Online rows.** In a session the main page ends with two rows, which can't be selected and read the session's
-numbers each time the overlay is drawn (`pc_menu_set_online`, `pc_net_status` over `net_stats`): "Online: the guest,
-100.101.102.104:41641" and "RTT 23 ms, delay 2, stalls 1, hash ok at 1234": the round trip, this side's input delay,
-the stalls counted so far, and the last retrace whose state hashes both PCs compared alike (`hash_checks` counts them
-from retrace 0, in order). The main page had 13 items; with the two rows it fills its 15, so nothing scrolls.
+**F1's Online rows.** In a session two rows, which can't be selected, read the session's numbers each time the
+overlay is drawn (`pc_menu_set_online`, `pc_net_status` over `net_stats`): "Online: the guest, 100.101.102.104:41641"
+and "RTT 23 ms, delay 2, stalls 1, hash ok at 1234": the round trip, this side's input delay, the stalls counted so
+far, and the last retrace whose state hashes both PCs compared alike (`hash_checks` counts them from retrace 0, in
+order). They ended the main page here; since section 13 they head F1's Online page, and the main page's Online item
+shows the round trip and the delay (its footer the other PC), so the main page keeps to 14 items and doesn't scroll.
 
 Proofs (rocky, x86-64, unless said):
 
@@ -1266,3 +1275,191 @@ Proofs (rocky, x86-64, unless said):
 Not tried: a real window (rocky and the Pi's tests are headless; the Esc key, the window's close, the title and the
 raise are read, not run), Windows itself (CI builds and runs the tests; the .bat files were checked by reading), and
 two PCs over Tailscale (the user's test is the first).
+
+## 13. Status: the F1 Online page, the restart, replays (phase 6's comforts)
+
+Written 2026-11-07 on branch `net-online` (from 41b4aee). Players hosted and joined from the desktop's launchers
+(12.10); now they can from inside the game too, pick a host they joined before, and watch a session again. The players'
+side is the README's "Playing online"; [FRONTEND.md](FRONTEND.md) has the page among the overlay's.
+
+| Where | What |
+|---|---|
+| `port/input/menu.c` | the Online page and its pages (Host a race, Join a race, Replays, a replay's own), text typed into an item, the session's rows |
+| `port/input/input_sdl.c` | SDL's text input, on only while an item is typed in; Backspace, Enter, Escape, Ctrl+V and Shift+Insert there |
+| `port/config/online.c`, `port/include/pc_online.h` | without SDL or the game: the address and port checks, `net.recent`, the restart's command line, Windows' quoting |
+| `port/app/netmenu.c`, `netmenu.h` | main's side of the page: this PC's addresses, the replays, Keep, the restart (exec, CreateProcess), `--net-return`, a session's log replayed offline |
+| `port/app/netaddr.c`, `netaddr.h` | this PC's addresses best first and the MagicDNS name, out of `netwait.c` (the waiting screen and the page share them) |
+| `port/app/netplay.c` | `pc_net_end_local` (whose choice the end was); the replay hint shortened (13.3) |
+| `port/main.c` | `--net-return`, the page's side installed, a guest's host kept in `net.recent`, a session's log replayed, the restart at the end |
+| `port/config/config.c` | `[net] recent` |
+| `tools/port/net_menu_check.py` | the restarts and the replays with real processes (13.5) |
+
+### 13.1 The page
+
+F1 > Online, after Saves on the main page. Out of a session:
+
+- **Host a race**: Port (`net.port`'s, typed: digits, 1-65535), Join code (`net.code`'s, optional), Host now.
+- **Join a race**: Address (typed), Join code, Join now, then the hosts joined before (`net.recent`, the last first):
+  choosing one puts it in Address and selects Join now.
+- **Watch a replay**: Watch the last session's (the newest log of `netplay/`, when this build can play it), then
+  every input log of `netplay/` and `replays/`, the newest first, each with its length; a log's own page says when it
+  was played, its length, whose log it is or why it can't be watched (another build or ROM, its paks missing), its
+  file, and has Watch and Keep this replay.
+- **This PC's addresses**, as the host's waiting screen lists them (`netaddr.c`): Tailscale's 100.x first and under it
+  its MagicDNS name (looked up on a thread; the page fills in when it comes), then the local network's and public
+  ones, bridges left out. Enter on one copies it to the clipboard; **Copy my address** copies the first, with
+  `:PORT` when the Host page's port isn't 24049.
+
+In a replay being watched, **Stop watching** comes first. In a session the page starts with the two status rows of
+12.10 and **Leave the session**, chosen twice ("Choose Leave again: the other player is told"), then the addresses;
+Host, Join and Watch aren't there (one session at a time). The main page's Online item then shows "RTT 23 ms, delay 2",
+its footer the other PC.
+
+**Typing.** Enter, A or a click on a text item starts typing in it: `pc_input_live_text(1)` turns SDL's text input
+on (it is off otherwise, so no IME pops up over the game), and SDL_TEXTINPUT's text goes to `pc_menu_text`: printable
+ASCII only (the overlay's font), digits only for the port, at most 127 characters for an address and 63 for a code;
+a paste (Ctrl+V, Shift+Insert) takes the clipboard's first line. Backspace (it repeats) and Delete take the last
+character off, Enter is done (an address or a port without the spaces around it), Escape puts back what was there,
+Up and Down end it and move, a click elsewhere ends it, F1 closes the overlay. The value shows the end of the text
+with a cursor while it is typed, and the footer the whole of it. A controller can't type; the recent hosts are its
+way to join.
+
+**Nothing changes the game before a choice.** The fields are the page's own (not settings, not saved); only Host now,
+Join now, Watch, Stop watching and Leave act on the game, each by restarting the program (Copy writes the clipboard,
+Keep a file). The defaults are a normal start: `net.recent` empty, and the page itself does nothing until a choice.
+
+### 13.2 The restart
+
+Lockstep starts at boot: the handshake comes before the game's memory is mapped, and the guest adopts the host's
+settings before that (12.1). So a choice on the page doesn't start a session in this run: main's `act`
+(`netmenu.c`) takes the choice down, the overlay stops the main loop as its Quit does, main ends the run as always (a
+session's BYE, the saves written, the window, the audio, the log), says the restart's command line in the log, and
+runs the program again:
+
+- **Linux: `execve` of `/proc/self/exe`.** The same process: a shell, a launcher script or a test that started it
+  waits on and sees its output, as before. The other threads go with the exec.
+- **Windows: `CreateProcessA` of the program's own path** (`GetModuleFileNameA`), the command line quoted as the C
+  runtime parses it back (`pc_online_quote_windows`: an argument with a space, a tab or a quote, or an empty one, in
+  quotes; backslashes doubled before a quote and before the closing one; a quote after a backslash). When this run had
+  a console or its output went to a file or a pipe (a launcher's `.bat`, a script, a test, CI), the new program gets
+  the same standard handles and this one waits for it and exits with its exit code: the launcher's `if errorlevel 1
+  pause`, a console that stays until the game ends, and a test's pipe keep working, as with exec. Started from Explorer
+  (nobody sees the output) this one exits at once. A waiting run keeps its memory (the RDRAM window: 8 MiB, more with
+  `game.memory`) while the new one plays; each restart from the page nests one more.
+
+**The command line** (`pc_online_args`, `port/config/online.c`): this run's own, without what a restart replaces,
+wherever it is: a session's options (`--net-host [PORT]`, `--net-join`, `--net-code`), a replay's and a record's
+(`--replay-inputs`, `--replay-force`, `--record-inputs`, `--input-delay`, `--hash-report`) and the press scripts'
+(`--press`, `--press-file`, `--press-via`: a script that chose Host would choose it again), each with its value (a
+table of main's options that take one, so a value is never taken for an option); then `--rom` and the ROM loaded when
+the command line named none (one chosen in the file dialog without a settings file to keep it in); then the overlay's
+changes not saved, as `--set SECTION.KEY=VALUE` (`pc_menu_unsaved_list`: what the player set before choosing Host
+plays in the session), and fullscreen when F11 left it otherwise than the settings say; then `--net-return` and the
+restart's own: `--net-host PORT --net-code CODE`, `--net-join ADDRESS --net-code CODE` (an empty code given, so a
+`net.code` in the file isn't used when the page's field was emptied), or `--replay-inputs FILE` with `--paced` (but
+with `--fast` or `--paced` already there: the tests). **`--net-return` and every option after it are that restart's
+own**, so the next restart (leaving the session, its end) leaves them out and the run is the one before it again;
+the `--set` changes come before it and stay. The settings file, the mods folder, the window and every other option
+stay as given; the working directory is the same.
+
+**The environment.** main sets `RUSH_GFX_SCALE`, `RUSH_GFX_DRAW_DISTANCE` and the others from the settings in effect
+(port/gfx reads them), and a new run takes those as the environment's layer over the settings file: a guest back in
+the game after a session kept the host's draw distance (`net_menu_restart` caught it). `pc_net_menu_args` keeps the
+environment as the program started (`environ`, or Windows' block from `GetEnvironmentStringsA`) before main sets
+anything, and the restart gets that one (`execve`'s, `CreateProcessA`'s `lpEnvironment`).
+
+**`--net-return`: back to the game.** A run the page started (Host now, Join now, Watch) has `--net-return`. When its
+session ends or doesn't start, it restarts without the session (`pc_net_menu_session_end`), unless the player stopped
+the program: the window closed (`pc_net_window_closed`, from the waiting screen's and the start's event peeks, not
+Esc), Ctrl-C, or in the game an end of this side's own (`pc_net_end_local`: the quit key, F1's Quit, the window, a
+limit). So the other player leaving, a timeout, a desync, no answer, the host refusing the guest, the waiting screen's
+Esc and nobody joining in 10 minutes all come back to the game, after their message box. Leave the session and Stop
+watching restart without the session in any run (a launcher's too: back to the game). A launcher's session is as
+before: it ends, and the program with it.
+
+**The log.** Each run opens the log afresh (12.10's `rush2049pc.log`, the one before kept as `rush2049pc.old.log`), so
+after a session started from the page and the way back, the session's log is `rush2049pc.old.log`. The restarting
+run's last lines say `rush2049pc: online page: Restarting to host on port 24049...` and `rush2049pc: restarting: ...`
+with the command line as a shell would take it.
+
+**The hosts joined before.** A guest whose host answered (its settings arrived: the handshake) puts the address as
+typed first in `net.recent` in the settings file it read (`pc_net_menu_remember`; not with `--no-config`): from the
+page or a launcher alike. The list holds 8; the same host again (letters' case, a trailing dot and `:24049` being the
+usual port aside) moves to the front instead of being said twice; an entry that isn't an address is dropped.
+
+### 13.3 Replays
+
+**Before this branch a session's input log didn't replay offline as it is.** On rocky with main's program (41b4aee), a
+session of two processes with each player's pak in, then `rush2049pc --replay-inputs HOST.pads` with nothing else:
+refused, "recorded by another build, cartridge or settings", five lines differing: `game.pak2` (memory in the file,
+here auto), `game.pak3` and `game.pak4` (none, here auto), `pak2.image` (the guest's pak, here none) and
+`session.rules` (on, here off); a player's own settings file would add each adopted setting where it isn't the host's.
+It replayed with the command the session's log ended with (12.5: `--session-rules --saves pak`, every adopted setting
+as `--set`, and the `.p1.mpk` and `.p2.mpk` as `game.pak_file`, which the replay then wrote to, so a second replay
+needed fresh copies).
+
+**Now it does** (`pc_replay_session`, `netmenu.c`): `--replay-inputs` of a log whose header says `session.rules=on`
+takes, for the run only, the session's settings the game reads (`pc_must_match`'s adopted ones and the accessories;
+each change logged: `replay: game.cars original -> 12 (the session's)`), its rules (`--session-rules`), its audio
+queue (the paced audio's, `audio.latency` at its default, as in the session), and its paks: `NAME.p1.mpk` and
+`NAME.p2.mpk` beside the log, each checked against the header's `pak1.image` and `pak2.image` hashes ("isn't the pak
+the session had", "isn't beside its input log"), put in the SI in memory as the session had them, so nothing is
+written to them. Then the replay's own check (LOCKSTEP.md 3) compares the rest as before: the build, the ROM, the mods,
+the memory, the test models. A recording made with `--record-inputs` is replayed as before.
+
+**Watch a replay** restarts into `--replay-inputs FILE --paced`: the paced clock, real time as it was played and
+`--fast`'s course to the bit (12.6). The list checks each log first (`log_header`, the header alone): this build's,
+this ROM's, a session's, its paks there; the others show "(can't)" and why. **Keep this replay** copies the log and
+its paks into the data folder's `replays/` under the same name (`2026-11-07_210412-host.pads`: the date, the time and
+whose log); the list shows the kept ones too. The track isn't in the name: the log doesn't hold it, and a session goes
+through menus and races, so it would take reading the game's memory during the session.
+
+### 13.4 Small robustness
+
+- **An address that isn't one is said at once** (`pc_online_address`, before the restart; port/net's own parse and the
+  name's lookup still come in the session): nothing typed ("Type the host's address first: their Tailscale name or
+  100.x address"), a space inside it, `http://`, a path, a name and `@`, a character that can't be in one, an IPv4
+  address with three numbers or one over 255, a port after `:` that isn't 1-65535 or is missing, an IPv6 address with
+  a port outside brackets, brackets around something else or without their `]`, a name with two dots together. Each
+  is a sentence in the footer that quotes what was typed.
+- The port: "The port is a number from 1 to 65535, not '70000'".
+- `net.recent`: 8 at most, one entry a host.
+- Leave the session asks twice; Host now, Join now and Watch don't (they say "Restarting...").
+- Defaults: `net.recent` empty; the page acts only on a choice.
+
+### 13.5 Proofs
+
+Rocky, x86-64, RelWithDebInfo, unless said.
+
+| Test | Result |
+|---|---|
+| `frontend.menu.online` (new) | 76 checks: the page's items in order (Host, Join, Watch, a heading, the addresses with their tags, Copy), the Tailscale name joining the page when its lookup ends; Copy with no clipboard (headless) saying the address to give; the port typed (the Space that chose the item not typed, digits only, five at most, Backspace, Enter done, Escape undone, Down ends it and moves), a port that isn't one refused with its sentence and no act; Host now calling main's act with the port and the code, then the main loop stopping; Join's twelve wrong addresses each refused with its sentence, then one typed with spaces around it trimmed and joined; three recent hosts listed in order, one chosen into Address and Join now selected; Watch the last session's, a log of another build without Watch, Keep; Stop watching in a replay; in a session Leave after the status rows, asked twice, forgotten when moving away; the overlay's changes not saved listed for the restart |
+| `frontend.menu.relaunch` (new) | 32 checks: the host's command line from one with a press file, a session's options, a record and a code (all out), a ROM path with spaces, `--set` changes and fullscreen, `--net-return` and the restart's own; that line's back-to-the-game restart (everything from `--net-return` out); a replay's `--paced` only without `--fast`; `--rom` added only when none is given; an empty join code given; too small for out or buf: -1; Windows' quoting of 14 arguments (a program path with spaces, `C:\Users\Ann Lee\ROMs\rush 2049.z64`, a folder ending in a backslash, quotes, an empty one, double backslashes, a tab) parsed back by the C runtime's rules (a parser in the test, from Microsoft's description) to the same 14; the log's shell quoting; `net.recent`: the same host once and first (case, `:24049`, IPv6 brackets), another port another entry, 8 kept, one there moving to the front, a list that doesn't fit unchanged, bad entries skipped; good addresses kept as typed; ports |
+| `frontend.sdl.text` (new) | 14 checks through the real window (SDL's offscreen driver): no text input over the game; F1, Online, Join, Address; text before Enter goes nowhere; Enter turns SDL's text input on; SDL_TEXTINPUT events typed; Backspace held and tapped; a key's own event types nothing; non-ASCII refused with its message; Ctrl+V pasting the clipboard's first line; Enter done and text input off; Escape undoing; F1 closing the overlay and ending the typing |
+| `frontend.menu.session`, `nav`, `save`, `pages`, `mods`, `presets`, `frontend.sdl.menu`, `mouse` | as before, a step more where they pass Saves on the main page; the session's rows on the Online page and the main page's Online item showing "RTT 23 ms, delay 2" |
+| `net_menu_restart` (new, realtime) | **host**: a process in real time opens F1 > Online > Host a race > Host now (its port `net.port`'s, a free one) and execs into `--net-return --net-host PORT --net-code ''` (the press file out, `--seconds`, `--net-bind`, `--set` kept); a guest joins with race2p's port 2 presses; both paced at 4 times the pace (`RUSH_PACE_SPEED`): 961 retraces hashed by both, every hash the same; the host ends at its limit and doesn't come back (its own end). **join**: a host plays race2p's port 1 presses (the menus to the player screen), its draw distance far; a process in real time opens F1 > Online > Join a race, picks the first recent host (`--set net.recent=127.0.0.1:PORT, other-pc`), Join now, and execs into `--net-return --net-join 127.0.0.1:PORT --net-code ''`: 841 retraces hashed by both, every hash the same; the guest adopted the host's draw distance; the host leaves at its limit ("peer-left"), and the guest, started from the page, restarts without the session (no `--net-join`, `--net-code`, `--net-return` or press file) and runs offline to its limit, exit 0, without the host's draw distance. **leave**: a launcher's host in a session (its press script opens F1 over the running game) chooses Online > Leave the session twice: the session ends at retrace 560, 559 retraces hashed by both, every hash the same; the guest ends "peer-left", exit 0; the host restarts without the session (its `--net-host` and press file out) and runs offline to its limit. 53.9 s |
+| `net_menu_replay` (new, realtime) | a session of two processes (`--fast`, race2p to the race and 300 frames into it, each player's pak in): 2,165 retraces hashed alike on both; the host's log replayed offline as it is (`--replay-inputs` alone, `--fast`): the session's settings, rules and paks taken, 2,165 retraces, every hash the session's; the two `.mpk` files beside the log byte for byte as before; the log alone in another folder refused before the game, exit 2 ("controller 1's pak of the session isn't beside its input log"), and with a pak of zeros as its `.p2.mpk` ("isn't the pak the session had"); then a process in real time in the host's data folder opens F1 > Online > Watch a replay > Watch the last session's and execs into `--net-return --replay-inputs FILE --paced` (at 4 times the pace): 2,165 retraces, every hash the session's. 18.2 s |
+| mutation: the restart with the environment as it is now (`environ`) | `net_menu_restart` fails: the guest back in the game has the host's draw distance (`RUSH_GFX_DRAW_DISTANCE`) |
+| mutation: four bugs in `port/config/online.c`, one at a time (the Pi, the ASan build) | each caught: backslashes before the closing quote not doubled (`relaunch`, 2 checks), the same host not collapsed (4), the press scripts kept on a restart (2), no IPv4 range check (`online`, 10) |
+| the whole suite | RelWithDebInfo: 569 of 569 (518 at `-j4` without the label realtime, `assets_rom` skipped: the retail ROM; then the 51 realtime ones alone, under the shared lock) |
+| the default off: `synth_compare.py --same --runs 2`, main's program (41b4aee) against this branch's, every path | RelWithDebInfo: 62 of 62 the same (`pcsetup` left out by the tool: the host's clock only) |
+| the Windows cross build (mingw-w64 on the Pi, `RUSH_FETCH_SDL2`, RelWithDebInfo) | `rush2049pc.exe`, `frontend_menu_test.exe`, `frontend_sdl_test.exe` and `net_test.exe` link; the exe imports only Windows' own DLLs (`pe_check.py --dlls` passes): the new calls (`CreateProcessA`, `GetEnvironmentStringsA`, `SetHandleInformation`, `WaitForSingleObject`, `GetExitCodeProcess`) are KERNEL32's, SDL's text input IMM32's, which SDL imported already |
+| AddressSanitizer and UBSan (the Pi, aarch64) | `frontend_menu_test` online, relaunch, session, nav: no report |
+| Debug (rocky) | the frontend tests, `net_unit`, `net_session_race2p`, `adopt`, `mismatch`: 47 of 47 |
+| `n64_neutral.py --base 09da2f0` | no game C changed (`src/`, `include/`): nothing to check |
+
+Not tried: a real window on a real display (the SDL tests use the offscreen driver; an IME, a real clipboard manager,
+fullscreen across the restart); Windows itself (CI's `windows` job builds and runs every test, the new ones with the
+CreateProcess path included; the `.bat` launchers with a restart were checked by reading); two PCs.
+
+### 13.6 Not done, and for the user to decide
+
+- **A rejoin path** (the `net-rejoin` branch) can join the page's plumbing as one more `PC_ONLINE_*` action and
+  `PC_RELAUNCH_*` kind with its option; `pc_online_args` leaves a session's options out by its table.
+- **The track in a kept replay's name**: not known without the game's memory (13.3).
+- **Pruning `netplay/`**: each session adds its log (about 72 KB a minute) and two 32 KB paks; nothing removes them.
+  Keep this replay exists for when something does.
+- **A controller can't type an address**: the recent hosts are its way to join; an on-screen keyboard would be more.
+- **Windows' nested waiting runs**: each restart from the page in a run with a console keeps the run before waiting
+  (13.2); a page used for many sessions in one launcher's console nests that many. Exiting at once there instead would
+  break the launcher's console (it closes, and a program attached to it is closed with it).

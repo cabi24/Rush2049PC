@@ -69,6 +69,7 @@ static struct {
     int joined;                  /* the guest: the host's settings arrived */
     int gave_up;                 /* the host: nobody joined in this many seconds (HOST_WAIT_S) */
     char join[256];              /* the guest: the host as --net-join named it, without its port */
+    int end_local;               /* pc_net_finish: the session ended by this side's own choice (NET_END_LOCAL) */
 } S;
 
 static const char *peer_name(void)
@@ -749,30 +750,13 @@ int pc_net_start(int window)
 
 /* ---------------------------------------------------------------- 7. the end */
 
-/* The session's input log replays offline: the command that does it (the settings the session ran with). */
+/* The session's input log replays offline as it is: --replay-inputs takes a session's settings, rules and paks from
+ * the log and the .p1.mpk and .p2.mpk beside it (port/app/netmenu.c), in memory; F1's Online page watches it too. */
 static void replay_hint(void)
 {
-    char cmd[4096], v[256];
-    int len = snprintf(cmd, sizeof cmd, "rush2049pc --no-config --fast --audio null --session-rules --saves pak");
-    for (int i = 0; i < pc_must_match_count && len > 0 && (size_t)len < sizeof cmd; i++) {
-        char key[64];
-        snprintf(key, sizeof key, "%s.%s", pc_must_match[i].section, pc_must_match[i].key);
-        if (pc_must_match[i].adopt > 0 && pc_net_blob_value(S.header, key, v, sizeof v) == 0)
-            len += snprintf(cmd + len, sizeof cmd - (size_t)len, " --set %s=%s", key, v);
-    }
-    static const char *const pak[4] = {"pak", "pak2", "pak3", "pak4"};
-    for (int k = 0; k < 4 && len > 0 && (size_t)len < sizeof cmd; k++) {
-        if (k < 2 && S.pak[k])
-            len += snprintf(cmd + len, sizeof cmd - (size_t)len, " --set game.%s=memory --set game.%s_file=%s.p%d.mpk",
-                            pak[k], pak[k], S.base, k + 1);
-        else
-            len += snprintf(cmd + len, sizeof cmd - (size_t)len, " --set game.%s=none", pak[k]);
-    }
-    if (len > 0 && (size_t)len < sizeof cmd)
-        snprintf(cmd + len, sizeof cmd - (size_t)len, " --replay-inputs %s --log-hash 1,%d", S.pads_path, FULL_EVERY);
-    fprintf(stderr, "rush2049pc: online: to replay the session (with the same ROM and mods%s): %s\n",
-            S.pak[0] || S.pak[1] ? "; the replay writes to the paks it is given, so give it copies of the .mpk files "
-                                   "to replay it again" : "", cmd);
+    fprintf(stderr, "rush2049pc: online: to replay the session (with the same build, ROM and mods): rush2049pc "
+            "--replay-inputs %s [--paced or --fast] [--log-hash 1,%d]; or F1, Online, Watch a replay\n", S.pads_path,
+            FULL_EVERY);
 }
 
 int pc_net_finish(int code, int window)
@@ -792,6 +776,7 @@ int pc_net_finish(int code, int window)
         net_end(S.s, NET_END_LOCAL);
         e = net_end_reason(S.s, &detail, msg, sizeof msg);
     }
+    S.end_local = e == NET_END_LOCAL;
     if (e != NET_END_LOCAL)
         session_ended();   /* while the main loop stopped for its own reason: the report all the same */
     net_stats(S.s, &st);
@@ -822,6 +807,11 @@ int pc_net_finish(int code, int window)
     S.s = NULL;
     pc_input_set_session(0);
     return code;
+}
+
+int pc_net_end_local(void)
+{
+    return S.end_local;
 }
 
 void pc_net_status(char *peer, size_t peer_size, char *link, size_t link_size)

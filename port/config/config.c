@@ -401,6 +401,9 @@ static const Item items[] = {
     {"net", "code", T_STR, F(net_code), 0, 0, NULL, "",
      "A join code both players give (--net-code): every packet is signed with it, so only who knows it can join. "
      "Empty for none (Tailscale already authenticates and encrypts)."},
+    {"net", "recent", T_STR, F(net_recent), 0, 0, NULL, "",
+     "The hosts joined last, the last first, comma-separated (at most 8): the F1 Online page's list to join again. "
+     "Kept when a join gets the host's answer."},
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)

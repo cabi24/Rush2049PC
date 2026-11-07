@@ -6,13 +6,26 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play from the game itself** (F1 > Online, README "Playing online"): Host a race (a port, a join code), Join
+  a race (type the host's address, or pick one of the last 8 hosts you joined), Watch a replay, and this PC's
+  addresses with Tailscale's first, copied to the clipboard for your friend with one key. Choosing Host, Join or Watch
+  restarts the program into it with your options (the launchers still work); when a session you started there ends,
+  the game comes back without it. In a session the page shows the other PC and the link, and Leave the session. An
+  address that isn't one is said at once, in a sentence. Nothing changes until you choose one of them
+  ([NETPLAY.md](docs/port/NETPLAY.md) 13).
+
+- **Replays of online sessions**: each session's input log in `netplay/` now replays on its own, `--replay-inputs
+  FILE` with nothing else (it takes the session's settings and both players' paks, which it no longer writes to), or
+  from F1 > Online > Watch a replay, in real time; Keep this replay copies one into `replays/`. A replay's state is the
+  session's at every retrace ([NETPLAY.md](docs/port/NETPLAY.md) 13.3).
+
 - **Online play from the desktop** (README "Playing online"): `Host online race.bat` and `Join online race.bat`
   (`host-online.sh` and `join-online.sh` on Linux) start a session with no options to type: the join one asks for the
   host's address. The host's window opens at once with a waiting screen (the port, this PC's addresses, Tailscale's
   100.x one and its MagicDNS name first; Esc cancels) instead of waiting with no window, and the guest says whom it
   joined as soon as its window opens. Whatever stops a session before the race says why in a box (the address isn't
-  found, nobody answers, another version, ROM or mods; nobody joined in 10 minutes). In a session F1's first page ends
-  with the other PC, the round trip, the input delay, the stalls and the last hash check
+  found, nobody answers, another version, ROM or mods; nobody joined in 10 minutes). In a session F1 shows the other
+  PC, the round trip, the input delay, the stalls and the last hash check (on its Online page since the entry above)
   ([NETPLAY.md](docs/port/NETPLAY.md) 12.10).
 
 - **Online play, a preview** (`--net-host`, `--net-join HOST`; README "Playing online"): two PCs race in the game's
