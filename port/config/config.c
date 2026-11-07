@@ -179,6 +179,7 @@ static const char *const hud_choices[] = {"centered", "edges", NULL};   /* PC_GF
 static const char *const cars_choices[] = {"original", NULL};          /* 0: the N64's 6 */
 static const char *const memory_choices[] = {"original", NULL};        /* 0: the N64's 8 MiB (MEMORY.md) */
 static const char *const net_delay_choices[] = {"auto", NULL};         /* 0: from the round trip (NETPLAY.md 11.2) */
+static const char *const net_view_choices[] = {"split", "own", NULL};  /* PC_GFX_VIEW_* (NETPLAY.md 13) */
 static const char *const draw_choices[] = {"original", "far", "max", NULL};    /* PC_DRAW_* */
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
@@ -401,6 +402,12 @@ static const Item items[] = {
     {"net", "code", T_STR, F(net_code), 0, 0, NULL, "",
      "A join code both players give (--net-code): every packet is signed with it, so only who knows it can join. "
      "Empty for none (Tailscale already authenticates and encrypts)."},
+    /* net.view (port/gfx/gfx_view.c, docs/port/NETPLAY.md 13): only what this PC draws, so never matched or adopted */
+    {"net", "view", T_ENUM, F(net_view), 0, 0, net_view_choices, "split",
+     "What an online race shows on this PC: split (the game's split screen, both players' views, as on one TV) or "
+     "own (only this PC's player's view, filling the window, with that player's HUD at the screen's edges; the host "
+     "is player 1, the guest player 2). Each player chooses their own: it changes only what is drawn. A game on one "
+     "PC is always split screen. At once."},
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)

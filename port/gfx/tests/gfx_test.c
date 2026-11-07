@@ -2170,6 +2170,238 @@ static void case_hud(void) {
     pc_gfx_set_widescreen(env_aspect);
 }
 
+/* ---- one view of the split screen alone, across the frame (net.view = own; gfx_view.c, GFX.md "One view of the split
+ * screen"): a two-player race frame made up for the test, as the game draws one. On blue: the frame begin's fills in
+ * fill mode (the side panel 240-319, the divider rows 109-110, the left border 0-1); each view (viewport 120 x 55 at
+ * x 122, rows 55 and 165; scissor 2-242 and rows 0-109, 111-220) draws its ground (red, green) across its frustum, a
+ * white square at x/w, y/w -0.25..0.25, a yellow strip above its frustum (y/w 1.1..1.4) and a cyan one below; view 1
+ * draws a model at a HUD point (magenta, 2 ft in front of the eye at x/w = y/w = 0.8, as the coin icons are); then
+ * the 2D with the full-frame scissor: the side panel's background (grey, across it) and its map (blue, 260-300, rows
+ * 80-120), view 1's digits (white) at its top left (10, 5), top right (220, 5) and bottom right (220, 95), a banner in
+ * its middle (orange, 100-144, rows 50-58) and an orthographic triangle at its bottom left (8-28, rows 95-105); view
+ * 2's digits (green-blue) at (10, 115), (220, 115) and (220, 205). */
+static int test_views(int rect[][4], int max) {
+    static const int r[2][4] = {{2, 0, 242, 109}, {2, 111, 242, 220}};
+    if (!s_race || max < 2)
+        return 0;
+    memcpy(rect, r, sizeof(r));
+    return 2;
+}
+
+static Mtx s_vpoint;
+static uint16_t s_vdig2[8 * 8];
+
+static void view_scene(void) {
+    static Vp vp[2];
+    static Vtx v[2][16], m[4], t[3];
+    static const uint8_t col[2][3] = {{255, 0, 0}, {0, 255, 0}};
+    int q, i;
+    for (i = 0; i < 64; i++) {
+        s_hdig[i] = rgba16(255, 255, 255, 1);
+        s_vdig2[i] = rgba16(0, 255, 128, 1);
+    }
+    frame_begin(0, 0, 255);
+    gsDPSetCycleType(G_CYC_FILL);
+    gsDPSetFillColor(0x00010001u);
+    gsDPFillRectangle(240, 0, 319, 219);
+    gsDPFillRectangle(0, 109, 319, 110);
+    gsDPFillRectangle(0, 0, 1, 219);
+    gsDPSetCycleType(G_CYC_1CYCLE);
+    cc_shade();
+    gsSPMatrix((uintptr_t)&s_frustum, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    for (q = 0; q < 2; q++) {
+        viewport(&vp[q], 122, 55 + 110 * q, 120, 55);
+        quad(&v[q][0], -300, -300, 300, 300, -100, col[q][0], col[q][1], col[q][2]);
+        quad(&v[q][4], -25, -25, 25, 25, -100, 255, 255, 255);
+        quad(&v[q][8], -50, 110, 50, 140, -100, 255, 255, 0);
+        quad(&v[q][12], -50, -140, 50, -110, -100, 0, 255, 255);
+        gsSPViewport((uintptr_t)&vp[q]);
+        gsDPSetScissor(2, q ? 111 : 0, 242, q ? 220 : 109);
+        gsSPVertex((uintptr_t)v[q], 16, 0);
+        for (i = 0; i < 16; i += 4)
+            gsSP2Triangles(i, i + 1, i + 2, i + 2, i + 1, i + 3);
+        if (q == 0) {
+            quad(m, -2, -2, 2, 2, 0, 255, 0, 255);
+            gsSPMatrix((uintptr_t)&s_vpoint, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+            gsSPVertex((uintptr_t)m, 4, 0);
+            gsSP2Triangles(0, 1, 2, 2, 1, 3);
+            gsSPMatrix((uintptr_t)&s_ident, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+        }
+    }
+    gsDPSetScissor(0, 0, FB_W, 220);
+    gsSPViewport((uintptr_t)&s_vp);
+    gsSPMatrix((uintptr_t)&s_ortho, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    hud_fill(242, 0, 320, 220, 96, 96, 96);
+    hud_fill(260, 80, 300, 120, 0, 128, 255);
+    hud_copy();
+    hud_digit(10, 5);
+    hud_digit(220, 5);
+    hud_digit(220, 95);
+    load_texture_block((uintptr_t)s_vdig2, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    hud_digit(10, 115);
+    hud_digit(220, 115);
+    hud_digit(220, 205);
+    hud_fill(100, 50, 144, 58, 255, 128, 0);
+    gsDPSetCycleType(G_CYC_1CYCLE);
+    gsDPSetRenderMode(RM_OPA_SURF(1), RM_OPA_SURF(2));
+    cc_shade();
+    vtx(&t[0], 8, 95, 0, 0, 0, 128, 255, 128, 255);
+    vtx(&t[1], 8, 105, 0, 0, 0, 128, 255, 128, 255);
+    vtx(&t[2], 28, 95, 0, 0, 0, 128, 255, 128, 255);
+    gsSPVertex((uintptr_t)t, 3, 0);
+    gsSP1Triangle(0, 1, 2);
+    frame_end();
+}
+
+/* no pixel of colour (r, g, b) in the target (every other pixel, both ways) */
+static void check_none(const char *what, int r, int g, int b) {
+    int x, y;
+    for (y = 0; y < s_n64_h; y += 2)
+        for (x = 0; x < s_n64_w; x += 2) {
+            const uint8_t *p = tpx(x, y);
+            if (p[0] == r && p[1] == g && p[2] == b) {
+                printf("  FAIL %s %s: at (%d,%d)\n", s_case, what, x, y);
+                s_fail++;
+                return;
+            }
+        }
+}
+
+static void case_view(void) {
+    int ok, k, env_hud = pc_gfx_hud(), w = 255;
+    float env_aspect = pc_gfx_parse_aspect(getenv("RUSH_GFX_WIDESCREEN"), &ok);
+    uint8_t *ref;
+    size_t n;
+    float f[4][4];
+
+    if (pc_gfx_parse_view("split", &ok) != PC_GFX_VIEW_SPLIT || !ok || pc_gfx_parse_view("own", &ok) !=
+        PC_GFX_VIEW_OWN || !ok || (pc_gfx_parse_view("mine", &ok), ok)) {
+        printf("  FAIL view: parsing split, own, mine\n");
+        s_fail++;
+    }
+    memset(f, 0, sizeof(f));
+    f[0][0] = f[1][1] = 1.0f;
+    f[2][2] = (10.0f + 1000.0f) / (10.0f - 1000.0f);
+    f[2][3] = -1.0f;
+    f[3][2] = 2.0f * 10.0f * 1000.0f / (10.0f - 1000.0f);
+    mtx_f2l(f, &s_frustum);
+    mtx_trans(&s_vpoint, 25.6f, 25.6f, -32.0f);
+    pc_gfx_set_widescreen(0.0f);
+    pc_gfx_set_hud(PC_GFX_HUD_EDGES);
+
+    /* split (the default): the frame as without own view; own with no player, or outside such a race, the same */
+    pc_gfx_set_race_views(NULL);
+    pc_gfx_set_view(PC_GFX_VIEW_SPLIT);
+    pc_gfx_set_view_player(0);
+    s_race = 1;
+    view_scene();
+    n = (size_t)s_px_w * s_px_h * 4;
+    ref = (uint8_t *)malloc(n);
+    memcpy(ref, s_px, n);
+    check("split: view 1's ground", 120, 30, 255, 0, 0, 0);
+    check("split: view 2's ground", 120, 140, 0, 255, 0, 0);
+    check("split: the divider", 120, 110, 0, 0, 0, 8);
+    check("split: the side panel's background", 250, 150, 96, 96, 96, 0);
+    check("split: the model at its HUD point", 212, 11, 255, 0, 255, 0);
+    pc_gfx_set_race_views(test_views);
+    for (k = 0; k < 3; k++) {
+        pc_gfx_set_view(k == 0 ? PC_GFX_VIEW_SPLIT : PC_GFX_VIEW_OWN);
+        pc_gfx_set_view_player(k == 1 ? 0 : 1);
+        s_race = k != 2;
+        view_scene();
+        if ((size_t)s_px_w * s_px_h * 4 != n || memcmp(ref, s_px, n) != 0) {
+            printf("  FAIL view: %s differs from the split screen\n", k == 0 ? "split with the views hook"
+                   : k == 1 ? "own with no player" : "own outside a race of several views");
+            s_fail++;
+        }
+    }
+    free(ref);
+
+    /* own, player 1, 4:3: view 1 across the frame */
+    pc_gfx_set_view(PC_GFX_VIEW_OWN);
+    pc_gfx_set_view_player(1);
+    s_race = 1;
+    view_scene();
+    check("own 1: the ground at the top left", 0, 0, 255, 0, 0, 0);
+    check("own 1: the ground at the bottom right", 319, 219, 255, 0, 0, 0);
+    check("own 1: the ground where the left border was", 0, 150, 255, 0, 0, 0);
+    check("own 1: the ground where the divider was", 60, 110, 255, 0, 0, 0);
+    check("own 1: the ground where the side panel was", 318, 60, 255, 0, 0, 0);
+    check("own 1: the ground under the panel's background", 250, 150, 255, 0, 0, 0);
+    check_none("own 1: view 2's ground", 0, 255, 0);
+    check_none("own 1: view 2's digits", 0, 255, 132);
+    /* the picture: zoomed 4/3 about the frame's middle, taller: the square 120-200, rows 92-128; the strips above and
+     * below the view's own frustum (rows 7-29 and 191-213) */
+    check("own 1: the square in the middle", 160, 100, w, w, w, 0);
+    check("own 1: the square to 199", 198, 100, w, w, w, 0);
+    check("own 1: the square not past 200", 203, 100, 255, 0, 0, 0);
+    check("own 1: the square not past 120", 116, 100, 255, 0, 0, 0);
+    check("own 1: the square down to row 127", 160, 126, w, w, w, 0);
+    check("own 1: the square not below row 129", 160, 131, 255, 0, 0, 0);
+    check("own 1: the strip above the view's frustum", 160, 18, 255, 255, 0, 0);
+    check("own 1: the strip below it", 160, 202, 0, 255, 255, 0);
+    /* 2D: at the frame's edges, as at the view's */
+    check("own 1: top left digit", 11, 8, w, w, w, 0);
+    check("own 1: top left digit, 2 left", 16, 8, 255, 0, 0, 0);
+    check("own 1: top right digit", 301, 8, w, w, w, 0);
+    check("own 1: top right digit: not at its old place", 224, 5, 255, 0, 0, 0);
+    check("own 1: bottom right digit", 301, 209, w, w, w, 0);
+    check("own 1: bottom right digit: not at its old place", 224, 98, 255, 0, 0, 0);
+    check("own 1: the banner in the middle", 140, 110, 255, 128, 0, 0);
+    check("own 1: the banner: not at its old place", 110, 54, 255, 0, 0, 0);
+    check("own 1: the triangle at the bottom left", 9, 208, 128, 255, 128, 0);
+    check("own 1: the triangle: not at its old place", 10, 97, 255, 0, 0, 0);
+    check("own 1: the side panel's map at the right", 280, 100, 0, 128, 255, 0);
+    check("own 1: the model beside the top right digit", 291, 11, 255, 0, 255, 0);
+    check("own 1: the model: not zoomed with the picture", 288, 52, 255, 0, 0, 0);
+
+    /* own, player 2: view 2's */
+    pc_gfx_set_view_player(2);
+    view_scene();
+    check("own 2: the ground at the top left", 0, 0, 0, 255, 0, 0);
+    check("own 2: the ground at the bottom right", 319, 219, 0, 255, 0, 0);
+    check_none("own 2: view 1's ground", 255, 0, 0);
+    check_none("own 2: view 1's model", 255, 0, 255);
+    check_none("own 2: view 1's triangle", 128, 255, 128);
+    check("own 2: the square in the middle", 160, 100, w, w, w, 0);
+    check("own 2: the strip above its frustum", 160, 18, 255, 255, 0, 0);
+    check("own 2: top left digit, moved up", 11, 7, 0, 255, 132, 0);
+    check("own 2: top right digit, moved up", 301, 7, 0, 255, 132, 0);
+    check("own 2: bottom right digit", 301, 208, 0, 255, 132, 0);
+    check("own 2: view 1's digit not drawn", 224, 98, 0, 255, 0, 0);
+
+    /* 16:9, the HUD at the screen's edges: the picture across the target, the 2D at its edges */
+    pc_gfx_set_view_player(1);
+    pc_gfx_set_widescreen(16.0f / 9.0f);
+    view_scene();
+    if (s_n64_w != WIDE_W) {
+        printf("  FAIL view 16:9: the target is %d wide\n", s_n64_w);
+        s_fail++;
+    } else {
+        check_at("16:9: the ground at the left edge", 0, 1, 255, 0, 0, 0);
+        check_at("16:9: the ground at the right edge", WIDE_W - 1, 218, 255, 0, 0, 0);
+        check_at("16:9: the square in the middle", 213, 100, w, w, w, 0);
+        check_at("16:9: the square not wider", 168, 100, 255, 0, 0, 0);
+        check_at("16:9: the strip above", 213, 18, 255, 255, 0, 0);
+        check_at("16:9: top left digit at the left edge", 11, 8, w, w, w, 0);
+        check_at("16:9: top right digit at the right edge", 407, 8, w, w, w, 0);
+        check_at("16:9: bottom right digit", 407, 209, w, w, w, 0);
+        check_at("16:9: the map at the right edge", 386, 100, 0, 128, 255, 0);
+        check_at("16:9: the model beside its digit", 397, 11, 255, 0, 255, 0);
+        check_at("16:9: the banner in the middle", 193, 110, 255, 128, 0, 0);
+        pc_gfx_set_hud(PC_GFX_HUD_CENTERED);
+        view_scene();
+        check_at("16:9 centered: top left digit in the 4:3 frame", WIDE_OX + 11, 8, w, w, w, 0);
+        check_at("16:9 centered: top right digit in the 4:3 frame", WIDE_OX + 301, 8, w, w, w, 0);
+        check_at("16:9 centered: the ground beside it", 407, 8, 255, 0, 0, 0);
+    }
+    pc_gfx_set_race_views(NULL);
+    pc_gfx_set_view(PC_GFX_VIEW_SPLIT);
+    pc_gfx_set_view_player(0);
+    pc_gfx_set_hud(env_hud);
+    pc_gfx_set_widescreen(env_aspect);
+}
+
 /* the auto settings follow the window (here the headless size, pc_gfx_set_window_size): widescreen takes its aspect,
  * the auto scale the largest whole multiple of the frame that it holds, and native the window's own pixels (any
  * fraction; the frame here shows all 240 rows) */
@@ -2533,6 +2765,7 @@ static const Case s_cases[] = {
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize}, {"fillwindow", case_fillwindow},
     {"seams", case_seams},       {"ties", case_ties},         {"screenshot", case_screenshot},
     {"hud", case_hud},           {"highmem", case_highmem},   {"detail", case_detail},
+    {"view", case_view},
 };
 
 int main(int argc, char **argv) {

@@ -7,7 +7,11 @@ The race draws the game's own display lists with the cartridge's models: the gro
 and the cars, coloured boxes. Exact pixels depend on the physics and the renderer, so this checks what doesn't: the
 picture is the game's screen (320 x 220), and each of the VIEWS viewports the split screen should have (1: the
 screen; 2: its top and bottom halves; 3 or 4: its quarters, the fourth empty with 3) shows drawing, a share of its
-pixels that are not black, while the borders between them stay dark. Exit status 1 on a failed check.
+pixels that are not black, while the borders between them stay dark.
+
+VIEWS own: a two-player race with one view alone across the frame (net.view = own, docs/port/NETPLAY.md 13): the
+screen is drawn, and so are the places the split screen leaves dark: the rows between the views (its divider), the
+side panel's (above where its HUD is), and the left border, more than half of each. Exit status 1 on a failed check.
 """
 import struct
 import sys
@@ -65,15 +69,21 @@ def share(rows, x0, y0, x1, y1):
     return n / max(1, (x1 - x0) * (y1 - y0))
 
 
-def main():
-    if len(sys.argv) != 3:
-        raise SystemExit(__doc__)
-    path, views = sys.argv[1], int(sys.argv[2])
+def check(path, views, say=print):
+    """The failed checks of a screenshot (VIEWS 1-4, or "own"), each region's share said."""
     w, h, rows = read_png(path)
     fails = []
     if (w, h) != (320, 220):
         fails.append(f"the picture is {w} x {h}, not the game's 320 x 220")
+    elif views == "own":
+        for name, r, least in (("the screen", (0, 0, w, h), 0.02), ("the rows between the views", (2, 109, 238, 111), 0.5),
+                               ("the side panel's place", (244, 0, w, 90), 0.5), ("the left border", (0, 0, 2, h), 0.5)):
+            s = share(rows, *r)
+            say(f"synth_shot: {name}: {100 * s:.1f}% drawn")
+            if s < least:
+                fails.append(f"{name} is {100 * s:.1f}% drawn, not one view across the frame")
     else:
+        views = int(views)
         hw, hh = w // 2, h // 2
         if views == 1:
             regions = {"the screen": (0, 0, w, h)}
@@ -89,14 +99,21 @@ def main():
             borders = {"the border between them": (hw - 1, 0, hw + 1, h)}
         for name, r in regions.items():
             s = share(rows, *r)
-            print(f"synth_shot: {name}: {100 * s:.1f}% drawn")
+            say(f"synth_shot: {name}: {100 * s:.1f}% drawn")
             if s < 0.02:
                 fails.append(f"{name} is black ({100 * s:.1f}% drawn)")
         for name, r in borders.items():
             s = share(rows, *r)
-            print(f"synth_shot: {name}: {100 * s:.1f}% drawn")
+            say(f"synth_shot: {name}: {100 * s:.1f}% drawn")
             if s > 0.5:
                 fails.append(f"{name} is drawn over ({100 * s:.1f}%): not {views} views")
+    return fails
+
+
+def main():
+    if len(sys.argv) != 3:
+        raise SystemExit(__doc__)
+    fails = check(sys.argv[1], sys.argv[2])
     for f in fails:
         print(f"synth_shot: FAIL: {f}")
     sys.exit(1 if fails else 0)

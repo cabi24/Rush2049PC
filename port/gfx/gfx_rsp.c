@@ -135,25 +135,76 @@ static void update_mp(void) {
     }
 }
 
-/* Widescreen (GFX.md "Widescreen"): where the viewport lands in the wide target. A perspective view is widened:
- * its sides go through pcgfx_wide_x, so a view across the frame spans the target and split-screen views widen in
- * proportion, and the frustum widens with it (*xs: clip x over w as the view sees it, for the outcodes). The
- * picture keeps its scale, so the view shows more at the sides instead of a stretched image. Anything else is 2D
- * and moves with the 4:3 frame. Off: the N64's viewport. */
-static float view_x(float *xs) {
-    float t = pcgfx.vp_trans[0], h, l, r;
-    *xs = 1.0f;
-    if (pcgfx.wide_ox == 0)
-        return t;
+/* Where a view lands in the target. Widescreen (GFX.md "Widescreen"): a perspective view is widened: its sides go
+ * through pcgfx_wide_x, so a view across the frame spans the target and split-screen views widen in proportion, and
+ * the frustum widens with it (xs: clip x over w as the view sees it, for the outcodes). The picture keeps its scale,
+ * so the view shows more at the sides instead of a stretched image. Anything else is 2D and moves with the 4:3 frame.
+ * Own view (gfx_view.c): another view's 3D is not drawn (0 returned); the view shown's viewport is zoomed and centred
+ * in the frame (scale, trans), its frustum as tall as the frame's (ys) and widened as one across the frame. Off: the
+ * N64's viewport. */
+typedef struct {
+    float scale[3], trans[3];   /* the viewport the picture is drawn with */
+    float vx, xs, ys;           /* GfxTriCtx's */
+    int own;                    /* the view shown (own view) */
+} ViewPlace;
+
+static int view_place(ViewPlace *p) {
+    float t, h, hx, l, r;
+    memcpy(p->scale, pcgfx.vp_scale, sizeof(p->scale));
+    memcpy(p->trans, pcgfx.vp_trans, sizeof(p->trans));
+    p->xs = p->ys = 1.0f;
+    p->own = 0;
+    p->vx = p->trans[0];
+    if (pcgfx.wide_ox == 0 && !pcgfx_view_on())
+        return 1;
     update_mp();
-    if (!pcgfx.persp)
-        return t + (float)pcgfx.wide_ox;
-    h = fabsf(pcgfx.vp_scale[0]);
-    l = pcgfx_wide_x(t - h);
-    r = pcgfx_wide_x(t + h);
+    if (!pcgfx.persp) {
+        p->vx += (float)pcgfx.wide_ox;
+        return 1;
+    }
+    h = hx = fabsf(p->scale[0]);
+    if (pcgfx_view_on()) {
+        int v = pcgfx_view_of(pcgfx.vp_trans);
+        float half[2];
+        if (v == 0)
+            return 0;
+        if (v == 1 && pcgfx_view_hud_point((const float(*)[4])pcgfx.mp, pcgfx.vp_scale, pcgfx.vp_trans,
+                                           pcgfx.wide_ox, pc_gfx_hud() == PC_GFX_HUD_EDGES, &p->vx, &p->trans[1])) {
+            p->own = 1;   /* a model at a HUD point: where its point's 2D goes, at the view's scale (gfx_view.c) */
+            p->trans[0] = p->vx - (float)pcgfx.wide_ox;
+            return 1;
+        }
+        if (v == 1) {
+            pcgfx_view_place(pcgfx.vp_scale, pcgfx.vp_trans, p->scale, p->trans, half);
+            h = fabsf(p->scale[0]);
+            hx = half[0];
+            if (half[1] > 0.0f)
+                p->ys = fabsf(p->scale[1]) / half[1];
+            p->own = 1;
+            p->vx = p->trans[0];
+            if (pcgfx.wide_ox == 0) {
+                if (hx > 0.0f)
+                    p->xs = h / hx;
+                return 1;
+            }
+        } else if (pcgfx.wide_ox == 0)
+            return 1;
+    }
+    t = p->trans[0];
+    l = pcgfx_wide_x(t - hx);
+    r = pcgfx_wide_x(t + hx);
     if (h > 0.0f)
-        *xs = 2.0f * h / (r - l);
-    return 0.5f * (l + r);
+        p->xs = 2.0f * h / (r - l);
+    p->vx = 0.5f * (l + r);
+    return 1;
+}
+
+/* The outcodes' widening of a view now (load_vertices, G_MODIFYVTX; the frame interpolator's record of a transform). */
+void pcgfx_view_scales(float *xs, float *ys) {
+    ViewPlace p;
+    view_place(&p);
+    *xs = p.xs;
+    *ys = p.ys;
 }
 
 /* G_MW_MATRIX: replace the integer or fraction halves of two MP elements. */
@@ -211,15 +262,15 @@ static void light_read(const uint8_t *p, GfxLight *l) {
 
 /* ---------------------------------------------------------------- vertices */
 
-uint8_t pcgfx_outcode(const GfxVtx *v, float xs) {
+uint8_t pcgfx_outcode(const GfxVtx *v, float xs, float ys) {
     uint8_t c = 0;
-    float x = v->x * xs;
+    float x = v->x * xs, y = v->y * ys;
     if (x < -v->w) c |= 1;
     if (x > v->w) c |= 2;
-    if (v->y < -v->w) c |= 4;
-    if (v->y > v->w) c |= 8;
+    if (y < -v->w) c |= 4;
+    if (y > v->w) c |= 8;
     if (v->w < GFX_W_EPS) c |= 16;
-    if (x < -GFX_GUARD * v->w || x > GFX_GUARD * v->w || v->y < -GFX_GUARD * v->w || v->y > GFX_GUARD * v->w)
+    if (x < -GFX_GUARD * v->w || x > GFX_GUARD * v->w || y < -GFX_GUARD * v->w || y > GFX_GUARD * v->w)
         c |= 32;
     return c;
 }
@@ -229,9 +280,9 @@ uint8_t pcgfx_outcode(const GfxVtx *v, float xs) {
 static void load_vertices(const uint8_t *p, int be, int v0, int n) {
     const float(*mp)[4];
     int i, k;
-    float xs;
+    float xs, ys;
     update_mp();
-    view_x(&xs);
+    pcgfx_view_scales(&xs, &ys);
     mp = (const float(*)[4])pcgfx.mp;
     if ((pcgfx.geom & (G_LIGHTING | G_TEXTURE_GEN)) && pcgfx.lights_dirty)
         update_lights();
@@ -297,7 +348,7 @@ static void load_vertices(const uint8_t *p, int be, int v0, int n) {
         v->a = (pcgfx.geom & G_FOG) ? pcgfx_fog_alpha(v->z, v->w, pcgfx.fog_mul, pcgfx.fog_off,
                                                       pcgfx.proj_depth ? pcgfx.proj_za : 0.0f)
                                     : p[15] / 255.0f;
-        v->clip = pcgfx_outcode(v, xs);
+        v->clip = pcgfx_outcode(v, xs, ys);
     }
     if (pcgfx_rec != NULL)
         pcgfx_rec_load(p - 16 * i, be, v0, i);
@@ -326,13 +377,13 @@ static void modify_vertex(uint32_t w0, uint32_t w1) {
         v->t = (int16_t)(w1 & 0xFFFF);
         break;
     case G_MWO_POINT_XYSCREEN: {   /* screen position in 10.2: invert the viewport, keep w */
-        float sx = (int16_t)(w1 >> 16) / 4.0f, sy = (int16_t)(w1 & 0xFFFF) / 4.0f, xs;
+        float sx = (int16_t)(w1 >> 16) / 4.0f, sy = (int16_t)(w1 & 0xFFFF) / 4.0f, xs, ys;
         if (pcgfx.vp_scale[0] != 0.0f)
             v->x = (sx - pcgfx.vp_trans[0]) / pcgfx.vp_scale[0] * v->w;
         if (pcgfx.vp_scale[1] != 0.0f)
             v->y = -(sy - pcgfx.vp_trans[1]) / pcgfx.vp_scale[1] * v->w;
-        view_x(&xs);
-        v->clip = pcgfx_outcode(v, xs);
+        pcgfx_view_scales(&xs, &ys);
+        v->clip = pcgfx_outcode(v, xs, ys);
         break;
     }
     case G_MWO_POINT_ZSCREEN:
@@ -361,12 +412,12 @@ static void vtx_lerp(GfxVtx *o, const GfxVtx *a, const GfxVtx *b, float t) {
 }
 
 /* The planes, inside >= 0: the guard band's four sides, then the eye plane. */
-static float plane_dist(const GfxVtx *v, int plane, float xs) {
+static float plane_dist(const GfxVtx *v, int plane, float xs, float ys) {
     switch (plane) {
     case 0: return GFX_GUARD * v->w - v->x * xs;
     case 1: return GFX_GUARD * v->w + v->x * xs;
-    case 2: return GFX_GUARD * v->w - v->y;
-    case 3: return GFX_GUARD * v->w + v->y;
+    case 2: return GFX_GUARD * v->w - v->y * ys;
+    case 3: return GFX_GUARD * v->w + v->y * ys;
     default: return v->w - GFX_W_EPS;
     }
 }
@@ -374,11 +425,11 @@ static float plane_dist(const GfxVtx *v, int plane, float xs) {
 /* One plane of Sutherland-Hodgman. A new vertex is lerped from the end inside, toward the one outside. On the eye
  * plane its w is the plane's exactly: lerped from w in the thousands, a float w is off by about the plane's own 1e-4
  * and could come out below zero, which turns its projection around (a road triangle under the camera vanished). */
-static int clip_plane(const GfxVtx *in, int n, GfxVtx *out, int plane, float xs) {
+static int clip_plane(const GfxVtx *in, int n, GfxVtx *out, int plane, float xs, float ys) {
     int i, m = 0;
     for (i = 0; i < n && m + 2 <= GFX_CLIP_MAX; i++) {
         const GfxVtx *a = &in[i], *b = &in[(i + 1) % n];
-        float da = plane_dist(a, plane, xs), db = plane_dist(b, plane, xs);
+        float da = plane_dist(a, plane, xs, ys), db = plane_dist(b, plane, xs, ys);
         if (da >= 0.0f)
             out[m++] = *a;
         if ((da >= 0.0f) != (db >= 0.0f)) {
@@ -397,12 +448,12 @@ static int clip_plane(const GfxVtx *in, int n, GfxVtx *out, int plane, float xs)
 /* A triangle with a vertex outside the guard band, or at or behind the eye, clipped to the guard band and the eye
  * plane. Its new vertices sit on the guard band's sides with their own depth, as the RSP's do, instead of far out:
  * x/w in the millions next to the eye, which some GL drivers' clippers mishandle. Up to 8 vertices. */
-static int clip_guard(const GfxVtx in[3], GfxVtx poly[8], float xs) {
+static int clip_guard(const GfxVtx in[3], GfxVtx poly[8], float xs, float ys) {
     GfxVtx buf[2][GFX_CLIP_MAX];
     int n = 3, plane, k = 0;
     memcpy(buf[0], in, sizeof(GfxVtx) * 3);
     for (plane = 0; plane < 5 && n >= 3; plane++, k ^= 1)
-        n = clip_plane(buf[k], n, buf[k ^ 1], plane, xs);
+        n = clip_plane(buf[k], n, buf[k ^ 1], plane, xs, ys);
     if (n < 3 || n > 8)   /* a convex polygon gains a vertex a plane at most: more is float noise on a sliver */
         return 0;
     memcpy(poly, buf[k], sizeof(GfxVtx) * (size_t)n);
@@ -423,7 +474,7 @@ int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]) {
     if (cull == G_CULL_BOTH)
         return 0;
     if ((in[0].clip | in[1].clip | in[2].clip) & 48) {
-        n = clip_guard(in, poly, c->xs);
+        n = clip_guard(in, poly, c->xs, c->ys);
         if (n < 3)
             return 0;
     } else {
@@ -565,20 +616,26 @@ int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTr
     return m;
 }
 
-/* What a triangle drawn now needs besides its vertices. */
-static void tri_ctx(GfxTriCtx *c) {
-    memcpy(c->vp_scale, pcgfx.vp_scale, sizeof(c->vp_scale));
-    memcpy(c->vp_trans, pcgfx.vp_trans, sizeof(c->vp_trans));
-    c->vx = view_x(&c->xs);
+/* What a triangle drawn now needs besides its vertices. 0: not drawn (own view: another view's). */
+static int tri_ctx(GfxTriCtx *c) {
+    ViewPlace p;
+    if (!view_place(&p))
+        return 0;
+    memcpy(c->vp_scale, p.scale, sizeof(c->vp_scale));
+    memcpy(c->vp_trans, p.trans, sizeof(c->vp_trans));
+    c->vx = p.vx;
+    c->xs = p.xs;
+    c->ys = p.ys;
     pcgfx_target_dims(&c->tw, &c->th);
     c->geom = pcgfx.geom;
     c->prim_z = pcgfx.prim_z;
     c->zs_prim = (pcgfx.om_l & G_ZS_PRIM) != 0;
     c->tex = pcgfx.tex_on;
-    c->wide = pcgfx.wide_ox != 0 && pcgfx.persp;
+    c->wide = p.own ? 2 : pcgfx.wide_ox != 0 && pcgfx.persp;
     c->side_l = c->side_r = 0.0f;
-    c->side = c->wide && pcgfx_side_art_frame(&c->side_l, &c->side_r);
+    c->side = c->wide == 1 && pcgfx_side_art_frame(&c->side_l, &c->side_r);
     pcgfx_detail_ctx(c);
+    return 1;
 }
 
 /* Side art (TEXTURES.md "Side art"): in a frame that draws it, a menu's 3D that ends at the frame's sides (the main
@@ -611,7 +668,7 @@ void pcgfx_side_continue(GfxVtx in[3], const GfxTriCtx *c, int frame_w) {
         in[q].s += dsdx * (nx - sx[q]);
         in[q].t += dtdx * (nx - sx[q]);
         in[q].x = (nx - c->vp_trans[0]) / c->vp_scale[0] * in[q].w;
-        in[q].clip = pcgfx_outcode(&in[q], c->xs);
+        in[q].clip = pcgfx_outcode(&in[q], c->xs, c->ys);
     }
 }
 
@@ -626,7 +683,8 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
     in[0] = pcgfx.vtx[i0];
     in[1] = pcgfx.vtx[i1];
     in[2] = pcgfx.vtx[i2];
-    tri_ctx(&c);
+    if (!tri_ctx(&c))
+        return;   /* own view: another view's (gfx_view.c), not drawn nor recorded */
     if (c.side)
         pcgfx_side_continue(in, &c, pcgfx_frame_width());
     n = pcgfx_tri_visible(in, &c, poly);

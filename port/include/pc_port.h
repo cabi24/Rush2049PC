@@ -208,6 +208,18 @@ void pc_gfx_set_hud(int mode);
 int pc_gfx_hud(void);
 int pc_gfx_parse_hud(const char *text, int *ok);
 void pc_gfx_set_hud_race(int (*race)(void));
+/* One view of the split screen alone, across the frame (net.view; port/gfx/gfx_view.c, docs/port/GFX.md "One view of
+ * the split screen", docs/port/NETPLAY.md 13). PC_GFX_VIEW_SPLIT (the default) draws the game's split screen;
+ * PC_GFX_VIEW_OWN draws player pc_gfx_set_view_player's view alone (1-4; 0, the default, none: split) in a race that
+ * views() says has several views: it gives their rectangles in the frame (x0, y0, x1, y1, N64 pixels: the game's
+ * scissors), their count, or 0 outside such a race. Render-only: nothing reaches the game. From the next graphics task.
+ * pc_gfx_parse_view: "split", "own"; *ok = 0 for anything else. */
+enum { PC_GFX_VIEW_SPLIT = 0, PC_GFX_VIEW_OWN = 1 };
+void pc_gfx_set_view(int mode);
+int pc_gfx_view(void);
+int pc_gfx_parse_view(const char *text, int *ok);
+void pc_gfx_set_view_player(int player);
+void pc_gfx_set_race_views(int (*views)(int rect[][4], int max));
 /* Draw distance, detail and fog (video.draw_distance, video.detail, video.fog; docs/port/DETAIL.md). The game's
  * distance limits follow draw_distance (port/config/detail.c, pc_game_types.h); the renderer moves the depth range's
  * far plane out with it and the fog with video.fog (gfx_detail.c), from the next triangle. At original the N64's. */

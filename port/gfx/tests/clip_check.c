@@ -5,7 +5,8 @@
  * Whatever a triangle is, every vertex GL gets lies in front of the eye (w >= 1e-4) and within the guard band
  * (|x| <= 2w as the view sees it, |y| <= 2w), as on the RSP: no vertex next to the eye projected millions of pixels
  * out, which GL drivers' clippers are free to handle worse than Mesa's (GFX.md "Clipping"). A triangle inside the
- * band passes untouched, one wholly behind the eye or outside one side is dropped. And every GL vertex is within
+ * band passes untouched, one wholly behind the eye or outside one side is dropped; also with the view widened (xs,
+ * widescreen) and made taller (ys, own view: gfx_view.c). And every GL vertex is within
  * GL's own guard band, |x| <= 2w and |y| <= 2w in its clip coordinates, exactly: past it V3D clips the triangle
  * itself, with its colours and texture coordinates off (GFX.md "Clipping"). */
 #include <math.h>
@@ -21,7 +22,7 @@ static float rnd(float lo, float hi) {
     return lo + (hi - lo) * (float)(s_seed >> 8) / 16777216.0f;
 }
 
-static void make(GfxVtx *v, float x, float y, float z, float w, float xs) {
+static void make(GfxVtx *v, float x, float y, float z, float w, float xs, float ys) {
     memset(v, 0, sizeof(*v));
     v->x = x;
     v->y = y;
@@ -29,11 +30,12 @@ static void make(GfxVtx *v, float x, float y, float z, float w, float xs) {
     v->w = w;
     v->s = x * 0.25f;
     v->t = y * 0.25f;
-    v->clip = pcgfx_outcode(v, xs);
+    v->clip = pcgfx_outcode(v, xs, ys);
 }
 
 int gfx_clip_check(void) {
-    static const float xss[2] = {1.0f, 0.75f};   /* off; a view widened by 4/3 (16:9) */
+    /* off; a view widened by 4/3 (16:9); own view's two-player view made 1.5 times taller, and both */
+    static const float xss[4] = {1.0f, 0.75f, 1.0f, 0.75f}, yss[4] = {1.0f, 1.0f, 2.0f / 3.0f, 2.0f / 3.0f};
     static GfxDrawState st;
     static GfxUnitInfo units[2];
     GfxTriCtx c;
@@ -45,8 +47,9 @@ int gfx_clip_check(void) {
     c.vp_scale[0] = 160.0f, c.vp_scale[1] = 120.0f, c.vp_scale[2] = 511.0f;
     c.vp_trans[0] = 160.0f, c.vp_trans[1] = 120.0f, c.vp_trans[2] = 511.0f;
     c.tw = 320, c.th = 240;
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < 4; j++) {
         c.xs = xss[j];
+        c.ys = yss[j];
         for (k = 0; k < 20000; k++) {
             int n, kind = k % 4;
             for (i = 0; i < 3; i++) {
@@ -56,7 +59,8 @@ int gfx_clip_check(void) {
                         : kind == 2 ? rnd(-1e-3f, 1e-3f)
                         : rnd(1.0f, 30000.0f);
                 float r = kind == 3 ? w : kind == 2 ? 1e-3f : 30000.0f;
-                make(&in[i], rnd(-r, r) / (kind == 3 ? c.xs : 1.0f), rnd(-r, r), rnd(-r, r), w, c.xs);
+                make(&in[i], rnd(-r, r) / (kind == 3 ? c.xs : 1.0f), rnd(-r, r) / (kind == 3 ? c.ys : 1.0f),
+                     rnd(-r, r), w, c.xs, c.ys);
             }
             n = pcgfx_tri_visible(in, &c, poly);
             if (n > 8 || (n > 0 && n < 3)) {
@@ -94,28 +98,28 @@ int gfx_clip_check(void) {
                 /* on the band within float error: lerps from coordinates in the tens of thousands are off by
                  * about 1e-3 */
                 float lim = 2.01f * v->w + 2e-3f;
-                if (!(v->w >= 1e-4f) || fabsf(v->x * c.xs) > lim || fabsf(v->y) > lim ||
+                if (!(v->w >= 1e-4f) || fabsf(v->x * c.xs) > lim || fabsf(v->y * c.ys) > lim ||
                     !isfinite(v->x) || !isfinite(v->y) || !isfinite(v->z) || !isfinite(v->s)) {
                     if (fails < 5)
-                        printf("  FAIL clip: vertex %d of %d (kind %d, xs %.2f) at %g %g %g w %g\n", i, n, kind, c.xs,
-                               v->x, v->y, v->z, v->w);
+                        printf("  FAIL clip: vertex %d of %d (kind %d, xs %.2f, ys %.2f) at %g %g %g w %g\n", i, n,
+                               kind, c.xs, c.ys, v->x, v->y, v->z, v->w);
                     fails++;
                 }
             }
         }
     }
     /* wholly behind the eye, and wholly past one side: nothing */
-    c.xs = 1.0f;
-    make(&in[0], 0, 0, 0, -1, 1.0f);
-    make(&in[1], 100, 5, 0, -50, 1.0f);
-    make(&in[2], -100, 5, 0, -2, 1.0f);
+    c.xs = c.ys = 1.0f;
+    make(&in[0], 0, 0, 0, -1, 1.0f, 1.0f);
+    make(&in[1], 100, 5, 0, -50, 1.0f, 1.0f);
+    make(&in[2], -100, 5, 0, -2, 1.0f, 1.0f);
     if (pcgfx_tri_visible(in, &c, poly) != 0) {
         printf("  FAIL clip: a triangle behind the eye was drawn\n");
         fails++;
     }
-    make(&in[0], 50, 0, 0, 10, 1.0f);
-    make(&in[1], 5000, 5, 0, -50, 1.0f);
-    make(&in[2], 70, -5, 0, 20, 1.0f);
+    make(&in[0], 50, 0, 0, 10, 1.0f, 1.0f);
+    make(&in[1], 5000, 5, 0, -50, 1.0f, 1.0f);
+    make(&in[2], 70, -5, 0, 20, 1.0f, 1.0f);
     if (pcgfx_tri_visible(in, &c, poly) != 0) {
         printf("  FAIL clip: a triangle right of the view was drawn\n");
         fails++;

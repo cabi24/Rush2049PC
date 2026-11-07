@@ -190,12 +190,13 @@ typedef struct {
 typedef struct {
     float vp_scale[3], vp_trans[3];
     float vx, xs;           /* view_x: the viewport's x centre in the target, and clip x's widening for outcodes */
+    float ys;               /* clip y's for outcodes: 1, or a taller view's (own view, gfx_view.c) */
     int tw, th;             /* the target, N64 pixels */
     uint32_t geom;          /* G_CULL_*, G_SHADING_SMOOTH */
     uint16_t prim_z;
     uint8_t zs_prim;        /* G_ZS_PRIM: the primitive depth */
     uint8_t tex;            /* G_TEXTURE on */
-    uint8_t wide;           /* widescreen 3D: the draw state's scissor widens */
+    uint8_t wide;           /* widescreen 3D: the draw state's scissor widens (1); own view's 3D (2: gfx_view.c) */
     uint8_t side;           /* and side art is drawn: 3D ending at the frame's sides goes on (pcgfx_side_continue) */
     float side_l, side_r;   /* as far as the art reaches into the left and right bands, N64 pixels */
     uint8_t dz_on;          /* draw_distance far or max: the depth is d * dz_mul + dz_add (gfx_detail.c) */
@@ -211,7 +212,7 @@ int pcgfx_tri_visible(const GfxVtx in[3], const GfxTriCtx *c, GfxVtx poly[8]);
 #define GFX_TRI_OUT_MAX (3 * (GFX_OUT_POLY_MAX - 2))
 int pcgfx_tri_output(const GfxVtx *poly, int n, const GfxVtx *first, const GfxTriCtx *c, const GfxDrawState *st,
                      const GfxUnitInfo units[2], GfxOutVtx *tri);
-uint8_t pcgfx_outcode(const GfxVtx *v, float xs);
+uint8_t pcgfx_outcode(const GfxVtx *v, float xs, float ys);   /* xs, ys: the view's widening of clip x, y (1: none) */
 /* Side art (TEXTURES.md): a triangle's vertices on the frame's sides moved out as far as the art reaches (c->side_l,
  * side_r), its texture coordinates going on along the triangle's change across the screen (c's viewport; the
  * frame's width). */
@@ -350,11 +351,41 @@ void pcgfx_hud_task_begin(void);
 int pcgfx_hud_on(void);
 int pcgfx_hud_pending(void);
 /* Rectangles also give each vertex's y in target N64 pixels (y43: the box, since the GL vertex is on its internal
- * pixel boundary) and the texture coordinates' change per N64 pixel across (du: both units' u and v), so that a move
- * puts the sides on the boundaries of their new place, with the texture coordinates there. NULL for triangles. */
+ * pixel boundary) and the texture coordinates' change per N64 pixel across and down (du[8]: both units' u and v across,
+ * then down), so that a move puts the sides on the boundaries of their new place, with the texture coordinates there.
+ * NULL for triangles. With own view (gfx_view.c) it is on in a race of several views at any aspect, and moves down too. */
 int pcgfx_hud_add(const GfxDrawState *st, const GfxOutVtx *v, const float *x43, const float *y43, const float *du,
                   int n, int movable, int tri);
 void pcgfx_hud_resolve(void);
+
+/* gfx_view.c: one view of the split screen alone, across the frame (net.view = own; GFX.md "One view of the split
+ * screen"). While pcgfx_view_on() (a race of several views, own view, a player to show), the interpreter asks it: */
+#define PCGFX_VIEWS_MAX 4
+void pcgfx_view_init(void);         /* RUSH_GFX_VIEW */
+void pcgfx_view_task_begin(void);
+int pcgfx_view_on(void);
+int pcgfx_view_shown(void);         /* the view shown, 0-based; -1 off */
+/* A perspective draw under a viewport centred at trans: -1 no view's (drawn as usual), 0 another view's (not drawn),
+ * 1 the view shown's (pcgfx_view_place). */
+int pcgfx_view_of(const float trans[3]);
+/* The view shown's viewport (N64 pixels) as drawn: zoomed and centred in the frame (s_out, t_out), and the frame's half
+ * size (half), which its picture reaches. */
+void pcgfx_view_place(const float scale[3], const float trans[3], float s_out[2], float t_out[2], float half[2]);
+/* A rectangle (x0, y0, x1, y1, frame N64 pixels) in the view shown, where its picture puts it: the 3D's scissor. */
+void pcgfx_view_rect(int32_t r[4]);
+/* A fill-mode rectangle (the same units): 1 to draw it (mapped when it is the view shown's), 0 not (another view's,
+ * a divider, the side panel's). */
+int pcgfx_view_fill(int32_t r[4]);
+/* Which view a 2D box (frame N64 pixels) is in: its index, or -1 for none (the frame's). */
+int pcgfx_view_box(float x0, float y0, float x1, float y1);
+/* A 2D group's move, N64 pixels across (dx, in the target) and down (dy), its box (frame N64 pixels) in view v; 0 to
+ * draw it so moved, -1 not to draw it. ox: the widening; edges: video.hud's edges in effect. */
+int pcgfx_view_move(int v, float x0, float y0, float x1, float y1, int ox, int edges, int *dx, int *dy);
+/* A model at a HUD point in the view shown (ZOID_WindowTo3D: the coin icons): 1, and where its viewport's centre goes
+ * (x, y: the target's N64 pixels) so that it moves as its point's 2D does, at the view's own scale. */
+int pcgfx_view_hud_point(const float mp[4][4], const float scale[3], const float trans[3], int ox, int edges,
+                         float *x, float *y);
+void pcgfx_view_scales(float *xs, float *ys);   /* gfx_rsp.c: the outcodes' widening of x and y for the view now */
 
 /* gfx_interp.c: frame interpolation (GFX.md "High frame rate"). While pcgfx_rec is set, a graphics task is being
  * recorded: the interpreter reports its vertex loads, triangles, rectangles and clears, so that the frame can be

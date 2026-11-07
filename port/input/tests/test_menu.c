@@ -361,6 +361,15 @@ static void test_live(void)
           pc_gfx_hud());
     act(PC_MENU_LEFT);
     CHECK(pc_gfx_hud() == PC_GFX_HUD_EDGES, "edges again: %d", pc_gfx_hud());
+    /* net.view (docs/port/NETPLAY.md 13): the renderer has it at once, for an online race */
+    act(PC_MENU_DOWN);
+    at("Video", "Online view", "split screen", "the online view: split");
+    act(PC_MENU_RIGHT);
+    at("Video", "Online view", "own (full screen)", "the online view: own");
+    CHECK(pc_gfx_view() == PC_GFX_VIEW_OWN && pc_menu_settings()->net_view == PC_GFX_VIEW_OWN,
+          "the renderer has it at once: %d", pc_gfx_view());
+    act(PC_MENU_LEFT);
+    CHECK(pc_gfx_view() == PC_GFX_VIEW_SPLIT, "split again: %d", pc_gfx_view());
     act(PC_MENU_CLOSE);
     show_frame();
     target_size(&w, &h);
@@ -1655,6 +1664,13 @@ static void test_session(void)
     at("Video", "Draw distance", "original (N64)", "locked: unchanged");
     CHECK(strstr(pc_menu_message(), "locked in an online session") != NULL, "the message: '%s'", pc_menu_message());
     CHECK(pc_menu_settings()->draw_distance == s.draw_distance, "the setting unchanged");
+    act(PC_MENU_UP);   /* each PC's own view: not locked (docs/port/NETPLAY.md 13) */
+    at("Video", "Online view", "split screen", "the online view");
+    act(PC_MENU_RIGHT);
+    at("Video", "Online view", "own (full screen)", "the online view: own, in a session");
+    CHECK(pc_gfx_view() == PC_GFX_VIEW_OWN, "the renderer has it: %d", pc_gfx_view());
+    act(PC_MENU_LEFT);
+    act(PC_MENU_DOWN);
     act(PC_MENU_BACK);
     act_n(PC_MENU_DOWN, 4);
     at("Settings", "Game", NULL, "the Game page");
