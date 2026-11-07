@@ -349,7 +349,9 @@ frontend menu tests on the Pi's V3D driver).
 real time, and on the arm runner `synth_boot_race` too: the one synthetic path on the host's clock, which under ASan on 4 cores didn't
 reach its state in its 75 s (every other path runs on the virtual clock, where the slowdown costs only time, and
 `drive`, `race2p` and the others race there); and `pak_realtime`, whose control and run both drop thousands of
-retraces there. The synthetic paths are among the tests. Ubuntu's GCC 13 runtime
+retraces there. The synthetic paths are among the tests. The other tests labelled `realtime` (the two-process
+loopback sessions, held to 59.9 ticks a second) run after the rest, alone and up to three tries each, as in the
+`linux` job: once the arm runner under ASan fell short (59.84, the hashes the same throughout). Ubuntu's GCC 13 runtime
 checks stack use after return by default and the Pi's GCC 12 doesn't (`detect_stack_use_after_return`), which is how
 CI found finding 20 and the Pi didn't. Turned on for the Pi's ctest, it slowed the synthetic paths past their 150 s on
 the busy Pi, so ctest leaves it at the runtime's default; set it by hand for a hunt there. It sets `vm.mmap_rnd_bits=28` first: GCC 13's runtimes predate 32 bits of

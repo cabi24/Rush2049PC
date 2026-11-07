@@ -321,8 +321,15 @@ jobs:
       - name: Tests
         # The tests that run on the host's clock and measure it (matrix.skip_tests: audio_realtime, input_live_drive,
         # the hfr_paced ones, and on the arm runner the real-time race): the sanitizers slow the program down several
-        # times (docs/port/SANITIZE.md 5).
-        run: ctest --test-dir build/san --output-on-failure -j4 -E '${{ matrix.skip_tests }}'
+        # times (docs/port/SANITIZE.md 5). The rest labelled realtime (the loopback sessions' 59.9 ticks a second) run
+        # after the others, alone, up to three tries each, as the linux job's do: the arm runner under ASan fell short
+        # once (59.84 on 32cb147, the hashes the same throughout).
+        run: |
+          s=0
+          ctest --test-dir build/san --output-on-failure -j4 -LE realtime -E '${{ matrix.skip_tests }}' || s=1
+          ctest --test-dir build/san --output-on-failure -L realtime --repeat until-pass:3 \
+            -E '${{ matrix.skip_tests }}' || s=1
+          exit $s
       - uses: actions/upload-artifact@v4
         if: always()
         with:
