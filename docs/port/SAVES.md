@@ -211,7 +211,9 @@ kept), and its name's last two characters the digits 00-99. The game's own ghost
 a renamed ghost can never take the name of one the game is about to save (SaveGhost would fail with "exists"), and a
 friend called ALICE racing beside the player's own ALICE gets on the same pak. When the game changes such a note in place (its
 status byte), its file is written again with its own name and extension, not those (`pc_store_write`). The game reads a ghost's player, track
-and time from its header, not its name.
+and time from its header, not its name. An online session builds the player's pak before the game's data is loaded;
+the names are read from the cartridge's data image then (`saves_game_names_early`, `pc_data_peek`), so an import has
+them on the session's pak too ([NETPLAY.md](NETPLAY.md) 17.6).
 
 **A foreign ghost races as the player's own.** The track select's ghost choice (`func_803A0498`, overlay A) takes
 the ghosts of the track and way from every pak, the player's own best first and then the nearest times around it, or

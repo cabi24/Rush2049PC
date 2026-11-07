@@ -856,6 +856,15 @@ The pools hold at either rate: they are made again each frame, and a frame of on
 one of two (the 12 races of 7.5: at most 533 scene nodes of 600, 550 frame matrices of 1,200, 4,327 commands of
 8,000, 24 frame lookats of 32; no pool ran past its end).
 
+**Online at 60** (2026-11-07, [NETPLAY.md](NETPLAY.md) 17.1). A session runs on the paced virtual clock, where a
+frame at 60 is one retrace whatever the host does: a PC that can't do a retrace's work in 16.7 ms doesn't drop frames
+as in the table above, it makes its clock late, which the paced clock re-bases ([ULTRA.md](ULTRA.md) 10), and the
+other PC waits for its input: both players' game runs slower than real time, never differently. So the Pi 5's limits
+above become a session's: with the retail cartridge it keeps 60 in the front end, but in a race of 12 cars a session
+at 60 with a Pi 5 as either PC would slow both games by about the share of frames the table shows it losing (an
+estimate from these real-time numbers; not measured in a session). The Pi stays at original online (NETPLAY.md 7).
+A session takes the host's `game.frame_rate`; F1 > Online shows it to both players.
+
 **Telling the player** (2026-11-04). In a race at 60 the game thread counts its frames and the retraces they take
 (`pc_game_frame_note`, `port/config/game_fps.c`), the race told by game_loop's state change (`pc_game_fps_state`,
 given the state it changes to, `state_word_b`: in that branch `state_word_a` is still the one it leaves, 0x100000
@@ -904,7 +913,9 @@ original (0.50) nothing was said.
   the model the game at 60 kept 0.97 to 0.98 of its frames with precise waits, and 0.81 (original) or 0.60 (display)
   with the 15.6 ms waits of a Windows without the high-resolution timer: there a fifth to two fifths of its frames
   take two retraces.
-- **Windows** with the retail cartridge at 60: the cross build builds; not run.
+- **Windows** with the retail cartridge at 60: the cross build builds; not run. On the synthetic cartridge CI's
+  `windows-replay` replays Linux's recordings at 60 too (14 paths, `replay_same60_*`), to every hash
+  ([NETPLAY.md](NETPLAY.md) 17.1).
 - **The Pi 5** doesn't keep 60 in a race of 12 cars (47 frames a second with one player, 35 with four: 7.7). Since
   2026-11-04 the host is told so (7.7); the setting doesn't fall back on its own. On such a host a frame of two
   retraces can see one model tick and the next the other (7.6): the model's step waits for the game thread to give

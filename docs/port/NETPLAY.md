@@ -56,6 +56,12 @@ as it is (`--replay-inputs` alone takes the session's settings, rules and paks),
 each PC its own player's view alone, filling the window, with that player's HUD at the screen's edges; render-only, so
 each player chooses their own and the two games stay one, hash for hash. The game's culling leaves no holes at the top
 or bottom of the taller view (the survey, 14.2).
+**Polish (2026-11-07, branch `net-polish`, section 17):** `game.frame_rate = 60` online, proved (every hash the same
+at 60 across processes and in sessions; Windows against Linux at 60 in CI's `windows-replay`) and shown on F1's
+Online page; one restart for the page and for a desync's rebuild; F1 rows for the session's rules (`net.rejoin`,
+`net.recover`, `net.rumble`), locked in a session; `netplay/` kept to the newest 20 sessions (`net.keep`); a rumble pak
+for a player who wants one (`net.rumble`), its motor to that player's controller only; an imported ghost's note names
+on the session's pak.
 
 The request: "Begin planning the online play feature. I want to race with a buddy." The user and a friend each sit at
 their own PC (Windows or Linux, x86-64) and race each other over the internet. Ideally each of them sees their own car
@@ -87,7 +93,7 @@ uses, paced to real time.**
 
 | Question | Answer in one line | Section |
 |---|---|---|
-| 1. Deterministic? | Yes on the virtual clock, within a host and across Linux, Windows (msvcrt and UCRT) and aarch64, as proved on the synthetic cartridge; no in real time. Unproven on retail driving across OSes, and `game.frame_rate = 60` uses the host's `powf` | 1.1 |
+| 1. Deterministic? | Yes on the virtual clock, within a host and across Linux, Windows (msvcrt and UCRT) and aarch64, as proved on the synthetic cartridge; no in real time. Unproven on retail driving across OSes. `game.frame_rate = 60`: the host's `powf` replaced, and 60 proved in sessions, with Windows against Linux in CI (17.1) | 1.1 |
 | 2. Time | Logic per frame depends on the retraces a frame took, so in real time a loaded host steps differently. Lockstep needs the virtual clock (a frame is always 2 retraces, or 1 at 60), paced to the wall clock and gated on input | 1.2 |
 | 3. Input | Latched once a retrace by the main loop (`pc_si_set_pads`) before the VI event, and read by the model thread's ControllerUpdate every retrace. Inject the merged pads there. The input for retrace N must be known before retrace N's event goes out | 1.3 |
 | 4. Views | Per-window logic (cameras, effects, scene walk, listeners) draws from the shared RNG. Both PCs must run the same windows. Own view must be render-only: feasible but the least certain part | 1.4 |
@@ -186,7 +192,8 @@ no game state, except for one thing: with a real device, the AI's queue level is
   the UCRT's `powf` are not guaranteed to round alike. At 60 on the virtual clock every frame is one retrace, so the
   scale is always 0.5, and `sqrtf(e)` would give the same value on every host. The follow camera already does this
   (`PC_CAM_ELASTIC`, `src/blob/func_800E8D50.c:43`, `__builtin_sqrtf`). `windows-same` runs the paths at original, so
-  the 60 case has no cross-OS proof yet.
+  the 60 case has no cross-OS proof yet. (Done: LOCKSTEP.md 9 replaced it; section 17.1 proves 60 in sessions, and
+  CI's `windows-replay` replays Linux's recordings at 60 on Windows.)
 
 **The renderer can't feed back into the game.**
 
@@ -852,7 +859,7 @@ punching, and a relay.
 | 3 | **A host too slow for the serialised main loop**: the game slows for both | low on desktops at original; high on a Pi at 60 (FRAMERATE.md 7.7) | Phase 0.1 wall-time measurements, retail |
 | 4 | **Input delay feels bad at the friend's RTT** | depends on distance: 2-6 retraces | Phase 3, played |
 | 5 | **A desync ends the session**: no savestates, so no resync | rare if 1 and 2 hold | Phase 1 fuzzer, phase 3 logs; rejoin by replay later |
-| 6 | `game.frame_rate = 60` uses the host's `powf` (`game_fps.c:138`) | low, but untested across OSes | Fix with `sqrtf` before allowing 60 online; phase 0.5 at 60 |
+| 6 | `game.frame_rate = 60` uses the host's `powf` (`game_fps.c:138`) | low, but untested across OSes | Fix with `sqrtf` before allowing 60 online; phase 0.5 at 60. Done: LOCKSTEP.md 9, section 17.1 (sessions at 60; Windows against Linux at 60 in CI) |
 | 7 | **Own view**: vertical culling, HUD sorting, 2D that tracks 3D | medium, cosmetic | Phase 4's survey; split screen still works |
 | 8 | **NAT and firewalls**: CGNAT, symmetric NAT, the Windows firewall prompt | medium off Tailscale | Phase 3 (Tailscale), phase 5 |
 | 9 | Audio drift and underruns with the tap | low, cosmetic | Phase 0.2 long runs |
@@ -873,7 +880,7 @@ during a session.
 | What each player sees | (a) split screen on both first; (b) wait for own view before playing | **(a)**: race sooner; own view is phase 4 and render-only, so it can come later without touching the protocol |
 | How to connect | Tailscale; port forwarding; hole punching with a rendezvous; a relay | **Tailscale** for the first sessions (both of you on the tailnet); port forwarding next; hole punching only if needed |
 | The input delay | automatic from the measured RTT, or fixed | **Automatic, with a manual override** (`--net-delay`) |
-| The game's frame rate online | original (30) or 60 | **Original** until the `powf` fix and phase 0.5 at 60; 60 only when both PCs keep it |
+| The game's frame rate online | original (30) or 60 | **Original** until the `powf` fix and phase 0.5 at 60; 60 only when both PCs keep it (17.1: both done; 60 allowed, the host's; a PC that can't keep it slows both games) |
 | Saves during a session | session-only copies of each player's pak; or write your own port's pak back afterwards | **Session-only** in v1 |
 | Whose settings rule | the host's, adopted by the guest for the session (the guest's ini untouched); or both must already match | **The host's, adopted** |
 | A peer drops | end the session after a timeout; or continue alone | **Wait 15 s, then end**; "continue alone" optional |
@@ -1054,7 +1061,8 @@ The flow, in the boot's order (`netplay.h`):
    The other's is checked with `pc_pak_image_check`; a damaged one ends the session.
 4. **The setup goes on** with the adopted settings: the memory (with the mods' raise), the Expansion Pak flag and
    every `pc_*_set`. The paks go into the SI: port 1 the host's, port 2 the guest's, in memory only
-   (`pc_si_set_pak_image`); ports 3 and 4 none; no rumble pak. Two paks with one ID (both made by a controller 1) are
+   (`pc_si_set_pak_image`); ports 3 and 4 none; no rumble pak (since 17.5, a player's `net.rumble` puts one in their
+   port instead of their pak, on both PCs). Two paks with one ID (both made by a controller 1) are
    one pak moved to the game, so port 2's copy takes controller 2's ID, on both PCs alike. Nothing is written back.
 5. **Begin**, just before the boot: `must_match_text` with the session's paks in (its `game.pak*` lines say what the
    session has, `session.rules=on`); its compared lines go to the log and their xxHash64 is kept (12.3). The input
@@ -1175,9 +1183,12 @@ then has (a `--fast` replay with the default takes the same course).
 - Phase 3: two real PCs (Windows against Linux) over Tailscale.
 - ~~Hosting and joining from inside the game (an F1 "Online" page, phase 6)~~: done in section 13; the launchers and
   the waiting screen (12.10) stay.
-- A pak imported from another player's ghost keeps its own name on the session's pak (the game's note names are read
-  once the game's data is loaded, after the handshake).
-- Rumble: no rumble accessory in a session; the local player's motor to its own controller can come later.
+- ~~A pak imported from another player's ghost keeps its own name on the session's pak (the game's note names are read
+  once the game's data is loaded, after the handshake)~~: an imported ghost on the session's pak has the game's names
+  since section 17.6 (they are read from the cartridge before the pak is built).
+- ~~Rumble: no rumble accessory in a session; the local player's motor to its own controller can come later~~:
+  `net.rumble` (section 17.5) gives a player who wants it a rumble pak instead of their controller pak, on both PCs
+  alike, its motor to that player's own controller only.
 - Rejoining and recovering from a desync: done on branch `net-rejoin` (section 15); what isn't is in 15.7.
 
 ### 12.10 Online play from the desktop: the host's window, the ends, the launchers, F1's rows
@@ -1472,8 +1483,8 @@ CreateProcess path included; the `.bat` launchers with a restart were checked by
 - **A rejoin path** (the `net-rejoin` branch) can join the page's plumbing as one more `PC_ONLINE_*` action and
   `PC_RELAUNCH_*` kind with its option; `pc_online_args` leaves a session's options out by its table.
 - **The track in a kept replay's name**: not known without the game's memory (13.3).
-- **Pruning `netplay/`**: each session adds its log (about 72 KB a minute) and two 32 KB paks; nothing removes them.
-  Keep this replay exists for when something does.
+- ~~**Pruning `netplay/`**: each session adds its log (about 72 KB a minute) and two 32 KB paks; nothing removes them.
+  Keep this replay exists for when something does.~~ `net.keep` (20) since section 17.4.
 - **A controller can't type an address**: the recent hosts are its way to join; an on-screen keyboard would be more.
 - **Windows' nested waiting runs**: each restart from the page in a run with a console keeps the run before waiting
   (13.2); a page used for many sessions in one launcher's console nests that many. Exiting at once there instead would
@@ -1836,5 +1847,256 @@ replay's progress keeps the session alive), so it only lengthens the wait, and b
 - **Recovery trusts the host.** When the host's own game is the one that went wrong, the guest's rebuild differs at
   the desync again and the session stops, said deterministic: two PCs can't tell which one is wrong.
 - **A NAT rebinding** (the same game at a new address) still ends by timeout, now the rejoin window's.
-- **Not in F1.** `net.rejoin` and `net.recover` are settings in `rush2049pc.ini` only, so the shared overlay is
-  untouched; the F1 Online page (branch `net-online`) could show them.
+- ~~**Not in F1.** `net.rejoin` and `net.recover` are settings in `rush2049pc.ini` only, so the shared overlay is
+  untouched; the F1 Online page (branch `net-online`) could show them.~~ F1's Online page has them since section
+  17.3, locked in a session.
+
+## 17. Status: a round of polish (60 online, one restart, the Online page's rules, netplay/ pruned, rumble, pak names)
+
+Written 2026-11-07 on branch `net-polish` (from f603f76). The remaining small items after sections 13-15, in the
+order they were asked for. The players' side is the README's "Playing online".
+
+| Where | What |
+|---|---|
+| `tools/port/replay_check.py`, `CMakeLists.txt`, `.github/workflows/pc.yml` | `--set` for every run; `replay_same60_<path>`, whose recordings CI's `windows-replay` replays at 60 (17.1) |
+| `tools/port/net_session_check.py` | `--host-set` (a host's setting the guest adopts, and the single process's); `rumble`, `paknames`, `recover --page`; `view` now fails when it should |
+| `port/app/startup.c`, `app.h` | `pc_app_restart`: the one restart, for the F1 Online page and for a desync's rebuild (17.2) |
+| `port/app/netmenu.c` | the page's restart through it; a page-started guest that must rebuild after a desync does, rather than going back to the game (17.7) |
+| `port/input/menu.c`, `port/config/config.c` | the Online page's rows: the game's frame rate, `net.rejoin`, `net.recover`, `net.rumble`, locked in a session (`PC_SESSION_FIXED`); `net.keep` on the Replays page (17.3, 17.4) |
+| `port/app/netkeep.c`, `netkeep.h` | `netplay/` kept to the newest sessions (`net.keep`, 20) (17.4) |
+| `port/app/netplay.c`, `port/main.c`, `port/input/input.c` | `net.rumble`: a rumble pak for this player in the session, its motor to this PC's controller alone (17.5); `netkeep` at a session's start |
+| `port/data/pc_data.c`, `port/main.c` | `pc_data_peek`; the game's names for imported ghosts read before the session's pak is built (17.6) |
+
+No game C changed (`src/`, `include/`, `nonmatching/`).
+
+### 17.1 60 frames a second online
+
+**What happened before this branch.** `game.frame_rate` is in `pc_must_match` with `adopt` 1 (port/config/config.c):
+the host's value goes to the guest in the handshake's settings text, and the guest takes it for the run ("online:
+game.frame_rate original -> 60 (the host's, for this session)") before main calls `pc_game_fps_set`, so the game
+latches it at its first change of state on both PCs (FRAMERATE.md 7.1); F1 locks it in the session; the replay
+header and the session's input log carry it. Nothing refused it and nothing said it: a session at 60 ran, on the
+strength of the `powf` replacement (LOCKSTEP.md 9: at 60 on the virtual clock every frame is one retrace, and
+`pc_fps_filter` is `sqrtf(e)`, correctly rounded on every host; the game's other host math, `sqrtf` and `modff`, is
+the same at either rate, WINDOWS.md 12), but section 7's decision said original until phase 0.5 had run at 60, and
+no cross-OS proof at 60 existed.
+
+**The proofs at 60**, rocky, x86-64, RelWithDebInfo, the synthetic cartridge:
+
+| Test | Result |
+|---|---|
+| `replay_check.py same --set game.frame_rate=60`, every path on the virtual clock (63), 4 at once | 60 of 63 record and replay to the same trace and hash at every retrace, the two processes' images apart: 314,257 trace lines, 154,703 retraces hashed (5,213 with the window), 1,661-21,075 lines a path. The other 3 (cheats, raceend, screens) take the same course in both runs too but miss their expect line, as their scripts are timed for 30 (LOCKSTEP.md 9 found three) |
+| `replay_same60_<path>` (new; ctest, 14 paths: race2p, race2p12, battle2p, circuit, circuit12, drive, steer, stunt, solo, demo, pause, race12, memhigh2p, ghost) | 14 of 14; their recordings and replay logs stay in `synth/replay60` for CI |
+| `net_session_fps60` (new): race2p and battle2p, the host at 60 (`--host-set game.frame_rate=60`), delay 2 | the guest says it took the host's 60, both say "the game runs at 60 frames a second"; host = guest = one process at 60, line for line: race2p 4,392 lines, battle2p 4,402, 2,163 retraces hashed each |
+| `net_session_paced60` (new, realtime): the session's own clock at 60 | at 4 times the pace with delay 2: one `--fast` process's trace, 3,303 lines, 1,621 retraces in 6.8 s (239.951 a second; 239.956 in the suite's run); at the real pace under wan80 with the adaptive delay (6-7): host = guest, 3,311 lines, the host 60.000 retraces a second of wall time and the guest 59.998 (the suite's run: 59.995 and 60.000, one stall), none re-based, the gate never late; the host's work 1.40 ms a retrace on average (the guest's 1.32), 99% under 5.00 ms, one retrace's 21.2 ms lag caught up |
+
+**Across OSes: CI.** The linux jobs now upload `build/pc/synth/replay60/*.pads` and `*.replay.log` beside the
+recordings at original, and `windows-replay` replays them on the cross-built Windows program with `--set
+game.frame_rate=60` (a recording's header must match the settings it is replayed with): the Windows trace and every
+hash at 60 must be Linux x86-64's and aarch64's, path for path, as at original. `replay-dir` now fails on an empty
+folder, so a missing upload can't pass as nothing to compare. The `windows` job (MSYS2, the UCRT's math) runs the
+`replay_same60_*` tests natively too. Not run yet: this branch hasn't been pushed (17.8 has the change). Wine is on
+neither the Pi nor rocky, so the Windows replay wasn't run here; nothing was installed. CI's command itself was run
+on rocky with another compilation of the same code in the Windows program's place, a Debug build replaying the
+RelWithDebInfo build's recordings (`replay-dir --set game.frame_rate=60`): 14 of 14 the same trace and every hash,
+75,541 lines, 37,167 retraces hashed.
+
+**So 60 is allowed online**, when the CI run above agrees: the host's `game.frame_rate` is the session's. The F1
+Online page shows it (17.3), to both players: out of a session it is the player's own setting (the one a guest of
+theirs will get), in a session the session's, the host's, locked.
+
+**The Pi 5 at 60.** On the paced clock a frame is one retrace whatever the host does; a PC that can't do a
+retrace's work (the game's frame, its graphics task drawn, the audio) in 16.7 ms makes its clock late, which the
+paced clock re-bases (ULTRA.md 10: the game slower in wall time, never different), and the other PC, waiting for
+its input, slows with it: both players' race runs slower than real time. In real time the same host drops frames
+instead (FRAMERATE.md 7.7: the Pi 5 with the retail cartridge kept 47 of 60 frames a second in a race with 11
+drones, 35-37 with four players). So a Pi 5 in a session at 60 would slow both games in such races by about the
+share of frames 7.7 found it losing (estimated from 7.7, not measured in a session); in the front end and lighter
+races it keeps 60. Section 7's decision stands: the Pi as a peer at original only. F1 > About's Game frame rate row
+(FRAMERATE.md 7.7) says whether a PC kept 60 in its last race on its own.
+
+### 17.2 One restart
+
+The F1 Online page's restart (`netmenu.c`) and a desync's rebuild (`startup.c`'s `pc_app_reexec`) both ran the
+program again at the end of a run, each its own way. They are one now, `pc_app_restart(argv, argc, flags)`
+(port/app/startup.c), with each caller's needs as flags:
+
+| | the F1 Online page (Host, Join, Watch, Leave, back to the game) | the guest's rebuild after a desync |
+|---|---|---|
+| the command line | built (`pc_online_args`: this run's, less what the restart replaces, and its own) | this run's own, unchanged (`PC_APP_RESTART_SAME`): on Windows `GetCommandLineW`, every character as Windows gave it |
+| the environment | as the program started (`PC_APP_RESTART_START_ENV`): main sets `RUSH_GFX_*` from the settings in effect, which a new run would take over its settings file (13.2) | as it is now: `RUSH_SIM_DESYNC_ONCE` takes the test's desync out of it (15.2) |
+| Linux | `execve` of `/proc/self/exe`, the same process; elsewhere `execvp` of `argv[0]` | the same |
+| Windows | `CreateProcessW` of the program's own path (`GetModuleFileNameW`); a built command line quoted as the C runtime parses it back (`pc_online_quote_windows`), then widened from the code page; the start environment kept as a wide block (`GetEnvironmentStringsW`, `CREATE_UNICODE_ENVIRONMENT`), so a variable with letters outside the code page (`APPDATA` under such a user name) arrives as it was, where the page's restart passed an ANSI copy | the same |
+| Windows' console | a console, or the output to a file or a pipe (a launcher's `.bat`, a script, a test): the same standard handles, inherited, and this run waits for the new one and returns its exit code; started from Explorer (quiet: nobody sees the output): it returns 0 at once, the new program with its own output and message boxes | the same rule now. Before, the rebuild always passed its handles and waited, so a rebuild of a game started from Explorer wrote into the old run's capture pipe and its errors reached no box (read in the code, not run: no Windows here) |
+
+`pc_app_startup` keeps the environment first thing in `main`, before anything sets a variable (the page's copy was
+taken a little later, after the command line's parse; nothing set one between). On Linux the exec is of
+`/proc/self/exe` itself rather than the path it links to: a program whose file was replaced since it started (a
+new build over it) runs again as the build the session was made with, where the path would have run the new file (a
+session refuses another build). A failure is said, in a message box too, for both callers (the rebuild's was only
+printed).
+
+Proofs: `net_menu_restart` (host, join, leave; 961, 841 and 559 retraces hashed by both, every hash the same, the
+guest back in the game without the host's draw distance), `net_menu_replay` (2,165 retraces, every hash the
+session's), `net_session_recover` (the same process ID, 1,004 retraces replayed, 5,606 lines), `_repeat`, `_page`
+(17.7) and `frontend.menu.relaunch` (32 checks) all pass; `pe_check.py --dlls` passes, the program importing
+`CreateProcessW`, `GetCommandLineW`, `GetEnvironmentStringsW`, `GetModuleFileNameW` and `MultiByteToWideChar`,
+KERNEL32's.
+
+### 17.3 The Online page's rows
+
+F1 > Online has four settings rows after Host, Join and Watch (in a session after its status rows and Leave):
+
+- **Game frame rate** (`game.frame_rate`): original (30) or 60. Out of a session it is the player's own (the Game
+  page's), which a guest of theirs takes; in a session the session's, the host's.
+- **Rejoin window** (`net.rejoin`): off (15 s), 1, 2, 5 (the default), 10 or 30 minutes, 1 hour; another value from
+  the file shows as it is.
+- **Desync recovery** (`net.recover`): on (the default) or off.
+- **Rumble pak** (`net.rumble`, 17.5): off (the default) or on.
+
+In a session they show the session's values and are locked: `game.frame_rate` as before (`adopt` 1), the three
+`net` ones by a new rule, `PC_SESSION_FIXED` (`pc_settings_session_rule`): each PC's own, read when the session
+starts, so no change could reach the session running. Left or Right says "net.rejoin: locked in an online session".
+The Replays page ends with **Sessions kept** (`net.keep`, 17.4): 5, 10, 20, 50, 100 or all.
+
+`frontend.menu.online` (104 checks, 28 more): the four rows in order with their defaults; out of a session the
+rejoin window changed (10 minutes, 600 s), down to off and round to 1 hour; rumble on and off; in a session with the
+host's 60 each row shows the session's value, Left and Right change nothing and say the lock, none of the four
+settings changed; Sessions kept after the replays' list, 20 to 50 to all (0). `frontend.menu.session` (30 checks):
+up from Leave now goes round to the last row, Rumble pak, and down again to Leave.
+
+### 17.4 netplay/ pruned (`net.keep`)
+
+Each session leaves its input log (about 72 KB a minute), its two paks (32 KiB each) and, after a desync, its
+report in `netplay/`, and nothing removed them (13.6). `net.keep = 20` (1-1000, or `all`): when a session starts
+(`name_files`), the sessions there beyond the newest 20, the one starting counted, are removed
+(`port/app/netkeep.c`). A session is the files of one name, `DATE-ROLE[-N]` with `.pads`, `.p1.mpk`, `.p2.mpk` and
+`.desync.txt` after it; the newest by that name, which starts with its date and time (as the Replays page sorts
+them). Twenty sessions are a few evenings of play and a few megabytes; Keep this replay is for one to keep longer.
+
+Never removed:
+
+- the session starting (its name is given);
+- a session any of whose files changed in the last two hours, however old its name: another copy of the program
+  on this PC may still play it, or be waiting for its other player (`net.rejoin`'s longest window is an hour). A
+  guest rebuilding after a desync starts a new run, whose prune finds the old run's log a moment old;
+- anything else in `netplay/`: the rejoin tickets (`rejoin-host.txt`, `rejoin-guest.txt`: live or stale, a ticket is
+  its session's to delete), files not named as a session's are, folders;
+- `replays/`, which it doesn't look at.
+
+The log says what went: "online: netplay/: 3 older sessions removed (2026-10-01_200000-host, ...: each one's input
+log, paks and report), 19 kept besides this one (net.keep = 20; replays/ is never touched)".
+
+`app_netkeep` (new, `port/app/tests/test_netkeep.c`, 54 checks): no folder; 25 old sessions (hosts', guests' with
+paks, some with a report), a `-2` of one second, the one starting (its pak alone), the tickets, five files and a
+folder with names nearly a session's: keep 20 removes the 7 oldest, every one of their four kinds of file, and
+nothing else, saying the first three by name; sessions written a minute and 1 h 59 min ago kept past the 20, one 2 h
+1 min ago removed; a session whose report changed 10 s ago kept whole; keep 2; all removes nothing; keep 1 with no
+session starting. By hand (rocky, two `--fast` processes over loopback): a host with `net.keep = 3`, five sessions of
+October in its `netplay/` (each a log and two paks) and a stale rejoin ticket: its session's start removed the three
+oldest, all nine files, said so in the log, and left the two newest, its own log and the ticket.
+
+### 17.5 Rumble in a session (`net.rumble`)
+
+**Why there was none.** The accessory in each port is game state: the game polls every port's status (an accessory
+there or not) every 30 frames and reads its ID block, so both PCs must have the same accessory in each port; with
+`auto` it would follow each PC's own pads (1.3), so a session gives ports 1 and 2 the players' controller paks (or
+nothing) and no rumble pak (12.1, 12.9).
+
+**What the motor is.** The game turns a rumble pak's motor on and off by writing its 0xC000 block; `si.c` keeps that
+as the port's motor state and reads of the pak return only its ID (0x80 at 0x8000-0x8FFF, zeros elsewhere), never
+the motor. So the motor is output only: nothing the game reads depends on it, and in lockstep it is the same on both
+PCs at the same retrace. What must agree is only whether the pak is there.
+
+**The design.** As on an N64, a controller holds one accessory: with `net.rumble = on` this player's controller
+holds a rumble pak in the session instead of the controller pak, so the game rumbles their controller and their
+saves (profiles, ghosts) aren't in the session. The choice travels in the handshake where the player's pak travels:
+the file sent for it is the text `PC_NET_RUMBLE_FILE` instead of a pak image (or nothing for no pak), and
+`pc_net_paks` and `pc_net_install_paks` put a rumble pak in that port on both PCs. A rejoin gets it the same way, as
+the keeper sends both players' files as the session began; the session's input log says `game.pak=rumble` (or
+`pak2`), and its replay puts the rumble pak back (`pc_replay_session`). Retrace 0's hash, with the must-match text in
+it (12.3), would end a session whose PCs disagreed. Then each PC sends only its own player's motor to its own
+controller: in a session `pc_input_session_motor` maps this player's port (the host's 1, the guest's 2) to this PC's
+controller 1, and the other port's motor to nothing (before, port 1's motor would have rumbled the guest's
+controller 1). `off`, the default, is the session as before, and outside a session nothing changes.
+
+`net_session_rumble` (new; race2p, delay 2, both players' presses through SDL's virtual controllers, as
+`input_check.py`'s rumble runs): the host's `net.rumble` on, then the guest's: both games have that player's rumble
+pak (`game.pak=rumble`, then `game.pak2=rumble`, in both must-match texts; both games read it), host = guest = one
+process with that rumble pak = the host's input log replayed offline as it is (its rumble pak put back), 5,606 lines
+and 2,765 retraces hashed each time; the game's motor rumbles that player's virtual controller (once on, at full
+strength) and the other PC's never. With the session's mapping taken out (mutation): it fails both ways (the guest's
+controller rumbling with the host's motor; not with its own).
+
+### 17.6 The pak's note names (12.9)
+
+**The bug.** With `game.saves = files` a player's pak is built from their saves folder, and an imported ghost (a
+friend's) goes on it with the game's own note name prefix and ghost extension (SAVES.md 5: `place` in `pakstore.c`),
+which `saves_game_names` reads from the game's data once it is loaded. A session builds this player's pak at the
+handshake (`session_local_pak`), before the game's data is loaded (the guest must adopt the host's memory before its
+window is mapped), so an import kept its own prefix and extension on the session's pak: one whose names weren't the
+cartridge's (another cartridge's, a tool's) wasn't read by the game's SaveServer in the session (it reads the notes
+whose name starts with the game's prefix), though it was in a game on its own. A ghost the game itself saved on the
+same cartridge has the game's names already, so most imports were never affected.
+
+**The fix.** `pc_data_peek` (port/data/pc_data.c) gives bytes of the game's data as the cartridge holds them, inflating
+the image for the call, before anything is loaded; `saves_game_names_early` (main.c) reads the two strings and the
+pak's character table so, converts them as `func_800A150C` does, and sets the names before the session's pak is
+built. When the data is loaded `saves_game_names` sets them again from it, and says so in the log if the two
+differ (they never have).
+
+`net_session_paknames` (new): the host's saves folder with a ghost of `ghost.py make` in its import folder (its
+prefix TESTPREF, its extension G): on the session's pak, on both PCs (each one's `.p1.mpk`), it is
+`SYNTH049FRIEND00.T`, the synthetic cartridge's names (synth_rom.py), host = guest, 3,427 lines. Without the early
+read (mutation) it is `TESTPREFFRIEND00.G`.
+
+### 17.7 Found on the way
+
+- **A guest started from the F1 page didn't rebuild after a desync.** Its run has `--net-return`, and
+  `pc_net_menu_session_end` took the session's end (`recover`, not the player's own) for one to go back to the game
+  from: it restarted offline, and the host waited out its rejoin window. Now a rebuild wanted comes first: the same
+  command again, `--net-return` with it. `net_session_recover_page` (new): the guest with `--net-return` rebuilds (the
+  same process ID), replays 1,004 retraces with the host's hash at each, and plays on, both logs saying the recovery;
+  without the fix it went back to the game and the host waited 300 s (the test's failure, its timeout).
+- **`net_session_view` couldn't fail**: its mode returned nothing, which the script took for a pass. It returns its
+  verdict now (and passes: 5,606 lines each way round).
+
+### 17.8 Proofs, and the CI change
+
+Rocky (x86-64, RelWithDebInfo) unless said.
+
+| Check | Result |
+|---|---|
+| the whole suite (the branch's code) | RelWithDebInfo: 605 of 605 (20 of them new), 547 at `-j4` without the label realtime (`assets_rom` skipped: the retail ROM), then the 58 realtime ones alone under the shared lock; there `paced_audio` failed once on one 41 ms underrun of SDL's disk driver fed from the tap (its trace, its sound and its pace the same as `--fast`'s; no audio code changed here) and passed run again alone |
+| the default changes nothing: `synth_compare.py --same --runs 2`, main's program (f603f76, built from `git archive` in this branch's folder on rocky) against this branch's, every synthetic path | RelWithDebInfo: 63 of 63 paths the same, race2pown among them (`pcsetup` left out by the tool: the host's clock only) |
+| CI's command for 60 (`replay-dir --set game.frame_rate=60`) with a Debug build in the Windows program's place | 14 of 14 of the RelWithDebInfo build's recordings: the same trace and every hash (17.1) |
+| the Windows cross build (mingw-w64 on the Pi, `RUSH_FETCH_SDL2`, RelWithDebInfo) | `rush2049pc.exe`, `test_netkeep.exe`, `frontend_menu_test.exe` and the rest link; `pe_check.py --dlls` passes (Windows' own DLLs and WS2_32 only) |
+| `n64_neutral.py --base 09da2f0` | no game C changed |
+
+**The CI change for 60** (`.github/workflows/pc.yml`), with the ctest tests above (`CMakeLists.txt`):
+
+- the `linux` job's log artifact adds `build/pc/synth/replay60/*.pads` and `build/pc/synth/replay60/*.replay.log`;
+- `windows-replay`'s step, for each of x86-64 and aarch64, after the replay at original, runs `replay_check.py
+  replay-dir --exe bin/rush2049pc.exe --rom $rom --logs synth/$l/replay60 --mods synth/$l/paths/mods --from
+  $l/build/pc/synth/replay60 --set game.frame_rate=60`, and its artifact adds `synth/*/replay60/*.log`.
+
+What a green run shows: 14 recordings at 60 from each Linux architecture, replayed on Windows (cross-built, Debug and
+RelWithDebInfo) to the same trace and every hash. It adds about 30 replays to each `windows-replay` job (a few
+minutes) and 14 short tests to each `linux` job.
+
+### 17.9 Not done, and for the user to decide
+
+- **60 online is allowed by this branch**, with the cross-OS proof at 60 waiting for its first CI run (17.1, 17.8).
+  If that run differs, the first differing retrace and its regions are in the job's log, and 60 should go back to
+  "not online" until the cause is found.
+- **The Pi 5 at 60**: not measured in a session (no paced build of this branch on the Pi; the retail runs were kept
+  for what needed them); 17.1's expectation is from FRAMERATE.md 7.7.
+- **The recordings at 60 are 14 paths** of the 60 that run at 60, to keep CI's time; the list is `REPLAY60_PATHS`.
+- **Rumble replaces the player's pak**, as on an N64; a PC-only "rumble beside the pak" would put an accessory in a
+  port the N64 never had, so it isn't offered. Each player chooses for themselves.
+- **`net.keep`'s 20** and its two hours' grace are choices; `all` keeps everything.
+- **The window's close** still counts as the game going (15.7).
+- **Not tried here**: Windows itself (the restart's CreateProcessW path, the rumble on a real controller, the Online
+  page's rows in a real window: compiled by the cross build; CI's `windows` job runs the tests, `net_session_recover`
+  and `net_menu_*` with their pipes, so the waiting path); two PCs; the retail cartridge (none of this branch's
+  changes needed it: the proofs are the synthetic cartridge's).

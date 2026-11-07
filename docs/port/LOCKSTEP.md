@@ -379,6 +379,12 @@ game's course isn't the same from run to run anyway. Against f9a7177's program a
 timed for 30), and on race2p, drive, circuit, battle2p, stunt, race12 and demo every retrace's physics and every
 frame's camera and car (`--log-physics 1 --log-frames`, exact floats) the same.
 
+At 60 across processes and OSes (2026-11-07, [NETPLAY.md](NETPLAY.md) 17.1): `replay_check.py --set
+game.frame_rate=60` records and replays 60 of the 63 paths to the same trace and every hash (the other 3 miss their
+expect line alike, timed for 30); ctest's `replay_same60_<path>` keeps 14 of them in `synth/replay60`, which CI's
+`windows-replay` replays on the Windows program with the same `--set`; sessions at the host's 60 are
+`net_session_fps60` and `net_session_paced60`.
+
 ## 10. What isn't done or known
 
 - **Windows against Linux** is prepared (`windows-replay`) but has not run. Own storage whose host layout differs
