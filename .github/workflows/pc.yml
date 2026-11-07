@@ -285,14 +285,18 @@ jobs:
             # clocks (replay_same_*, paced_same_*, paced_model_*: the x86-64 jobs' and windows-replay's), nor the
             # network models and the other sessions (the library's own net_ tests run them under ASan in seconds), nor
             # the paced checks that measure the host's clock (paced_load beside four busy processes: its reference run
-            # alone took 298 s on ba3a8c0, and the test its 600 s).
+            # alone took 298 s on ba3a8c0, and the test its 600 s). Rejoining, recovery and the pak names run once
+            # each too (net_session_rejoin, _recover, _paknames); not their variants, the own view (synth_boot_race2pown
+            # draws it under ASan in 8 minutes, the session took 31), the sessions at 60 (replay_same60_*, _fps60,
+            # _paced60) or the router's (the fake router's net_nat_* run here): f603f76's run passed its 180 minutes
+            # with them, four tests past their own time limits on a runner a fifth slower than 41b4aee's.
             skip_tests: >-
-              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even|synth_boot_race|synth_boot_pcsetup|pak_realtime|saves_files_swap|replay_same_.*|paced_same_.*|paced_model_.*|net_session_(sim_.*|battle2p|battlequit|memhigh2p|race2p12|pause|raceend|menu|auto|paced|fuzz)|paced_(realtime|audio|hold|coarse|desktop|gate|latency|stop|load))$
+              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even|synth_boot_race|synth_boot_pcsetup|pak_realtime|saves_files_swap|replay_same_.*|paced_same_.*|paced_model_.*|replay_same60_.*|net_session_(sim_.*|battle2p|battlequit|memhigh2p|race2p12|pause|raceend|menu|auto|paced|fuzz|view|fps60|paced60|rumble|router|rejoin_host|rejoin_paced|recover_repeat|recover_page|outage)|paced_(realtime|audio|hold|coarse|desktop|gate|latency|stop|load))$
     runs-on: ${{ matrix.os }}
     # the arm ASan job's tests alone took 88 minutes on 1ec5f69 (run 41821298325: fps_physics 25, saves_files 17,
     # synth_memory_same's three 11-16 each), and the job stopped at 90 in hfr_timing, its last; online play's kept
-    # tests add about half an hour there (skip_tests)
-    timeout-minutes: 180
+    # tests add about half an hour there (skip_tests); 41b4aee's took 145 minutes and 8 more for the realtime ones
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - name: Dependencies
