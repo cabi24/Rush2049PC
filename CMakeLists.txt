@@ -804,12 +804,13 @@ set_tests_properties(net_session_wait PROPERTIES FIXTURES_REQUIRED synth_rom TIM
 # each PC's screenshot what it shows (docs/port/NETPLAY.md 14)
 add_test(NAME net_session_view COMMAND ${NET_SESSION_CHECK} view)
 set_tests_properties(net_session_view PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
-# net_session_rumble: net.rumble on one PC, each way round: both games have that player's rumble pak, one game, and its
-# motor rumbles that player's controller alone (docs/port/NETPLAY.md 17); skipped without SDL's virtual controllers
 # net_session_paknames: an imported ghost on the session's pak has the game's names, as offline (NETPLAY.md 17)
 add_test(NAME net_session_paknames COMMAND ${NET_SESSION_CHECK} paknames)
 set_tests_properties(net_session_paknames PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
-if(RUSH_SDL2_TARGET)
+# net_session_rumble: net.rumble on one PC, each way round: both games have that player's rumble pak, one game, and its
+# motor rumbles that player's controller alone (docs/port/NETPLAY.md 17); skipped without SDL's virtual controllers,
+# and not under the sanitizers (eight runs, 17-37 times slower there)
+if(RUSH_SDL2_TARGET AND NOT PC_SANITIZE)
     add_test(NAME net_session_rumble COMMAND ${NET_SESSION_CHECK} rumble)
     set_tests_properties(net_session_rumble PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT}
                          SKIP_RETURN_CODE 77)
