@@ -595,6 +595,11 @@ static int pmp_once(NetNat *n, uint32_t lifetime, int cancel, NetAddr *ext)
             n->refusal = a.result == 7 ? NET_NAT_NO_INTERNET : NET_NAT_REFUSED;
             return -1;
         }
+        if (lifetime && !a.lifetime) {   /* a success that grants nothing: not a mapping */
+            snprintf(n->detail, sizeof n->detail, "PCP granted a lifetime of 0");
+            n->refusal = NET_NAT_REFUSED;
+            return -1;
+        }
         if (lifetime) {
             n->ext_port = a.external_port;
             n->lease = a.lifetime;
@@ -615,6 +620,11 @@ static int pmp_once(NetNat *n, uint32_t lifetime, int cancel, NetAddr *ext)
         if (res) {
             snprintf(n->detail, sizeof n->detail, "NAT-PMP %s (%d)", net_pmp_result_name(res), res);
             n->refusal = res == 3 ? NET_NAT_NO_INTERNET : NET_NAT_REFUSED;
+            return -1;
+        }
+        if (lifetime && (!life || !ep)) {
+            snprintf(n->detail, sizeof n->detail, "NAT-PMP granted %s", life ? "no port" : "a lifetime of 0");
+            n->refusal = NET_NAT_REFUSED;
             return -1;
         }
         if (lifetime) {
@@ -664,6 +674,12 @@ static int try_pmp(NetNat *n, NetAddr *ext)
             snprintf(n->detail, sizeof n->detail, "PCP %s (%d)", net_pcp_result_name(a.result), a.result);
             n->refusal = a.result == 7 ? NET_NAT_NO_INTERNET : NET_NAT_REFUSED;
             say(n, "router: PCP at %s refused the mapping: %s", gw, n->detail);
+            return -1;
+        }
+        if (!a.lifetime || !a.external_port) {   /* a success that grants nothing: no mapping */
+            n->mapped = 0;
+            snprintf(n->detail, sizeof n->detail, "PCP granted %s", a.lifetime ? "no port" : "a lifetime of 0");
+            n->refusal = NET_NAT_REFUSED;
             return -1;
         }
         n->ext_port = a.external_port;
@@ -745,7 +761,7 @@ static int ssdp_find(NetNat *n, Found *out, int max)
         int ttl = 2;   /* the LAN only (UDA 1.1 says 2 by default) */
         NetAddr gw, self;
         setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (const char *)&ttl, sizeof ttl);
-        if (default_gateway(&gw) == 0) {   /* out of the interface toward the gateway, not a VPN's or a VM's */
+        if (default_gateway(&gw) == 0 && on_lan(n, &gw)) {   /* out of the interface toward the gateway, not a VM's */
             gw.port = 9;
             NetSockFd probe = udp_to(&gw, &self);
             if (probe != NET_SOCK_INVALID) {

@@ -11,6 +11,10 @@
  * The addresses and the MagicDNS name are netaddr.c's (the F1 Online page lists them too); the name is looked up on
  * a thread of its own, since DNS may wait: the screen shows at once and the name joins it.
  *
+ * Under them, the router's lines (netrouter.c, docs/port/NETPLAY.md 16): U opens the port on this PC's router
+ * (net.upnp, off by default) or closes it again, and the lines say "Your friend joins at A.B.C.D:PORT" or why it can't
+ * work there; each line takes an address row's room.
+ *
  * RUSH2049_TEST_NET_WAIT_SHOT=PATH (tests): once the lookups are done (or after 5 s), the window as drawn is saved
  * to PATH (pc_gfx_save_window), then the screen is cancelled as Escape would. */
 #define _GNU_SOURCE

@@ -26,10 +26,11 @@
 #include <unistd.h>
 #endif
 
-static int g_fail;
+static int g_fail, g_checks;
 
 #define CHECK(c, ...)                                                                                                  \
     do {                                                                                                              \
+        g_checks++;                                                                                                   \
         if (!(c)) {                                                                                                   \
             g_fail++;                                                                                                 \
             printf("FAIL %s:%d: %s: ", __FILE__, __LINE__, #c);                                                       \
@@ -408,7 +409,7 @@ static int cmd_unit(void)
     test_http();
     test_hint();
     test_config();
-    printf("%s (%d failure(s))\n", g_fail ? "FAILED" : "nat unit: all passed", g_fail);
+    printf("%s: %d checks, %d failure(s)\n", g_fail ? "FAILED" : "nat unit: all passed", g_checks, g_fail);
     return g_fail ? 1 : 0;
 }
 

@@ -71,7 +71,7 @@ def presses(path, steps, start=1.0, gap=0.3):
 
 # The overlay's way to each action: the main page's eighth item is Online (after Saves).
 TO_ONLINE = ["DOWN"] * 7 + ["A"]
-HOST_NOW = TO_ONLINE + ["A", "DOWN", "DOWN", "A"]                    # Host a race; Port, Join code, Host now
+HOST_NOW = TO_ONLINE + ["A", "DOWN", "DOWN", "DOWN", "A"]            # Host a race; Port, Join code, router, Host now
 JOIN_RECENT = TO_ONLINE + ["DOWN", "A", "DOWN", "DOWN", "DOWN", "A", "A"]   # Join a race; the first recent; Join now
 WATCH_LAST = TO_ONLINE + ["DOWN", "DOWN", "A", "A"]                  # Watch a replay; Watch the last session's
 

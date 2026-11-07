@@ -259,8 +259,9 @@ def case_norouter(a):
         env = {"RUSH_NAT_SSDP": f"127.0.0.1:{fake_router_free_port()}"}   # nobody answers the search there
         code, out, took = run(a, r, seconds=5.0, env_extra=env)
         f = next((x for x in states(out) if x["state"] == "failed"), {})
-        return check(f.get("why") == "no-router" and float(f.get("t", "99")) < 2.5 + 1.5 + 1 and
-                     "nothing listens" in out and r.count("ssdp") == 0,
+        closed = "nothing listens" in out or (os.name == "nt" and "no answer at" in out)   # Windows: maybe silence
+        return check(f.get("why") == "no-router" and float(f.get("t", "99")) < 2.5 + 1.5 + 1 and closed and
+                     r.count("ssdp") == 0,
                      f"no router: PCP's port closed (nothing listens: at once), no answer to the search: no-router "
                      f"after {f.get('t')} s", out)
     finally:

@@ -147,7 +147,9 @@ int pc_net_router_lines(char out[][PC_NET_ROUTER_LINE], int *tone)
                      proto);
                 LINE(PC_NET_ROUTER_WARN, "(its address %s): forward there too, or Tailscale.", a);
             } else if (st.external.family) {
-                LINE(PC_NET_ROUTER_VALUE, "Your friend joins at %s:%u", a, st.external.port);
+                LINE(PC_NET_ROUTER_VALUE, st.external.family == NET_AF_INET6 ? "Your friend joins at [%s]:%u"
+                                                                             : "Your friend joins at %s:%u",
+                     a, st.external.port);
                 LINE(PC_NET_ROUTER_OK, "Router: port open (%s) while hosting. U closes it.", proto);
             } else {
                 LINE(PC_NET_ROUTER_OK, "Router: port %u open (%s). U closes it.", st.external.port, proto);

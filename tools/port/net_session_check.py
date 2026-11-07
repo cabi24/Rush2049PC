@@ -1347,7 +1347,7 @@ def mode_router(a):
                     if any(l.startswith("rush2049pc: physics vi=900:") for l in h.lines[-200:]):
                         break
                     time.sleep(0.01)
-                h.proc.send_signal(signal.SIGTERM)
+                h.proc.terminate()   # SIGTERM (Windows: killed, which leaves the mapping to its lease all the same)
                 h.proc.wait()
                 time.sleep(0.5)
                 procs[1].kill()   # the guest would wait 5 minutes for it
@@ -1359,8 +1359,8 @@ def mode_router(a):
             return 1
         th, tg, procs = res
         time.sleep(3)
-        if "online: ended (gone)" not in th or r.count("upnp", "delete") or r.count("upnp", "expire") != 1 or \
-                "left to its lease" not in th:
+        gone = os.name == "nt" or ("online: ended (gone)" in th and "left to its lease" in th)
+        if not gone or r.count("upnp", "delete") or r.count("upnp", "expire") != 1:
             say(f"router gone: the host's end {ended(th)}; removals {r.count('upnp', 'delete')}, expired "
                 f"{r.count('upnp', 'expire')}")
             bad = 1
