@@ -9,6 +9,10 @@
     replay_check.py file     --exe EXE --rom ROM --logs DIR PATH
     replay_check.py replay-dir --exe EXE --rom ROM --logs DIR --from DIR [PATH ...]
 
+Every mode takes --set KEY=VALUE (repeated) for settings of every run it makes: `--set game.frame_rate=60` with its own
+--logs folder makes and replays the recordings at 60 (CI's windows-replay replays them with the same --set, as a
+recording's header must match the settings it is replayed with).
+
 Each run is the path as synth_paths.py runs it (tools/port/synth/PATH.press, its until, seconds, args and env), on the
 virtual clock, in a folder of its own, with exact floats (RUSH_STATE_EXACT), a status line each second, the cars'
 physics every retrace (--log-physics 1), the game's pads at each change (--log-pads) and the state hash every retrace
@@ -52,6 +56,7 @@ import synth_paths  # noqa: E402
 
 VI_NS = 1000000000 // 60   # a retrace of the virtual clock (port/ultra/loop.c)
 MODS_ROOT = None           # --mods: the mods paths' mods (ctest's mods_synth fixture)
+SETS = []                  # --set KEY=VALUE: settings of every run (game.frame_rate=60: the recordings at 60)
 SCRIPTS = synth_paths.PRESS_DIR   # --scripts: where PATH.press is (tools/port/retail for the retail cartridge's)
 _KEEP = re.compile(r"^rush2049pc: (game state |status |state reached:|time reached:|frames reached:|physics vi=|hash vi=|"
                    r"pads vi=)")
@@ -87,7 +92,8 @@ def run(exe, rom, logs, name, tag, extra=(), env=None, full=30, press=None, hash
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve()), "--no-rom-check", "--headless", "--no-config",
            "--audio", "null", "--no-pak", "--fast", "--no-log", "--press-file", str(Path(press).resolve()),
            "--until-state", spec["until"], "--seconds", spec["seconds"], "--status", "1", "--log-physics", "1"] + \
-        (["--log-pads"] if log_pads else []) + (["--log-hash", f"1,{full}"] if hashes else []) + args + list(extra)
+        (["--log-pads"] if log_pads else []) + (["--log-hash", f"1,{full}"] if hashes else []) + args + \
+        [x for kv in SETS for x in ("--set", kv)] + list(extra)
     e = dict(os.environ, RUSH_STATE_EXACT="1", **synth_paths.data_env(logs))
     e.pop("RUSH_SIM_GATE", None), e.pop("RUSH_SIM_DESYNC", None)
     e.update(spec["env"])
@@ -362,6 +368,9 @@ def mode_file(a, name):
 def mode_replay_dir(a, names):
     src = Path(a.source)
     names = names or sorted(p.stem for p in src.glob("*.pads") if "." not in p.stem)   # paths, not delay mode's
+    if not names:   # a folder that didn't come (an upload's paths changed) mustn't pass as nothing to compare
+        print(f"replay_check: no recordings in {src}")
+        return 1
     bad = 0
     for name in names:
         pads, other = src / f"{name}.pads", src / f"{name}.replay.log"
@@ -411,8 +420,12 @@ def main():
                     "beside --logs)")
     ap.add_argument("--scripts", help="the folder of PATH.press (default tools/port/synth; tools/port/retail with the "
                     "retail cartridge, whose runs stay out of the repository)")
+    ap.add_argument("--set", dest="sets", action="append", default=[], metavar="KEY=VALUE",
+                    help="a setting of every run, the recording's and the replay's (game.frame_rate=60: the recordings "
+                    "at 60 that windows-replay replays with the same --set)")
     a = ap.parse_args()
     global MODS_ROOT, SCRIPTS
+    SETS.extend(a.sets)
     if a.scripts:
         SCRIPTS = Path(a.scripts)
     MODS_ROOT = str(Path(a.mods).resolve()) if a.mods else str(Path(a.logs).resolve().parent / "paths" / "mods")

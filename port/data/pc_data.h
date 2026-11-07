@@ -197,6 +197,11 @@ typedef struct {
 int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path);
 int pc_data_load_image(const PcDataTables *t, int image);
 const PcDataStats *pc_data_stats(void);
+/* n bytes of the game's data at n64_addr as the cartridge holds them (the N64's byte order), before anything is
+ * loaded: from the first image that holds them, inflated for the call. 0, or -1 (no image holds them, a bad stream).
+ * For a value the program needs before the RDRAM window is mapped (an online session's handshake: docs/port/NETPLAY.md
+ * 17). */
+int pc_data_peek(const PcDataTables *t, const uint8_t *rom, size_t rom_size, uint32_t n64_addr, void *out, uint32_t n);
 /* Host address for an N64 address with the tables' symbols (NULL if none); for checks and tools. */
 void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
 /* The RDRAM window when it isn't at host 0x80000000 (the guard mode, docs/port/NOFIXED.md 5): an arena the tables put

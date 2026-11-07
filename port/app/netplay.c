@@ -43,6 +43,7 @@
 #include "input_internal.h"
 #include "net.h"
 #include "net_os.h"
+#include "netkeep.h"
 #include "netplay.h"
 #include "pc_lockstep.h"
 #include "ultra.h"
@@ -64,6 +65,7 @@ static struct {
     NetSession *s;
     int window;
     uint8_t *pak[2];             /* the session's paks: port 1's (the host's), port 2's (the guest's); NULL none */
+    int rumble[2];               /* ... or that port's rumble pak (net.rumble: PC_NET_RUMBLE_FILE) */
     uint64_t setup_hash;         /* the must-match text's compared lines */
     char *header;                /* the input log's header text: the must-match text and the session's '#' lines */
     char base[PC_APP_PATH];      /* netplay/DATE-ROLE: .pads, .p1.mpk, .p2.mpk, .desync.txt */
@@ -99,6 +101,7 @@ static struct {
         long long written;
     } tk;
     int reexec;                  /* the guest rebuilds after a desync: the program starts again */
+    int keep;                    /* net.keep: the sessions netplay/ keeps (0 all) */
     uint32_t reported;           /* the host: the desync whose report was written (NET_NONE none) */
 } S;
 
@@ -309,6 +312,7 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
     S.role = o->role;
     S.window = window;
     S.window_s = cfg->net_rejoin > 0 ? cfg->net_rejoin : 0;
+    S.keep = cfg->net_keep;
     S.tk.recover_at = S.reported = NET_NONE;
     snprintf(S.build, sizeof S.build, "%s", build);
     if (S.window_s && o->data_dir && *o->data_dir) {   /* the rejoin ticket (netplay/rejoin-ROLE.txt) */
@@ -345,6 +349,12 @@ int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *bui
     c.settings_size = strlen(blob);
     c.files[0].data = pak;
     c.files[0].size = pak ? PC_PAK_SIZE : 0;
+    if (cfg->net_rumble) {   /* this player's controller holds a rumble pak (net.rumble), as the file says */
+        c.files[0].data = (const uint8_t *)PC_NET_RUMBLE_FILE;
+        c.files[0].size = strlen(PC_NET_RUMBLE_FILE);
+        S.rumble[o->role == PC_NET_HOST ? 0 : 1] = 1;
+        pak = NULL;
+    }
     c.nfiles = 1;
     c.delay_fixed = cfg->net_delay;
     if (o->timeout_ms > 0)   /* --net-timeout: every silence, the rejoin window too */
@@ -623,6 +633,11 @@ int pc_net_reject(const char *why, const char *for_peer, int window)
 
 /* ---------------------------------------------------------------- 3, 4. the paks */
 
+static int is_rumble(const void *data, size_t size)
+{
+    return size == strlen(PC_NET_RUMBLE_FILE) && !memcmp(data, PC_NET_RUMBLE_FILE, size);
+}
+
 int pc_net_paks(int window)
 {
     const void *data[2];
@@ -633,8 +648,11 @@ int pc_net_paks(int window)
         for (int k = 0; k < 2; k++) {
             free(S.pak[k]);
             S.pak[k] = NULL;
+            S.rumble[k] = 0;
             if (!net_session_files(S.s, k) || !net_session_file(S.s, k, 0, &data[k], &size[k]) || !size[k])
                 continue;   /* that player has no pak */
+            if ((S.rumble[k] = is_rumble(data[k], size[k])) != 0)
+                continue;   /* a rumble pak (net.rumble) */
             if (size[k] != PC_PAK_SIZE || pc_pak_image_check(data[k], size[k], why, sizeof why) != PC_PAK_IMAGE_OK) {
                 snprintf(text, sizeof text, "the session's controller pak %d can't be used: %s", k + 1, why);
                 return pc_net_reject(text, "a controller pak of the session is damaged", window);
@@ -663,6 +681,12 @@ int pc_net_paks(int window)
             fprintf(stderr, "rush2049pc: online: the %s's player has no controller pak\n", peer_name());
             continue;
         }
+        if (is_rumble(data[k], size[k])) {
+            S.rumble[k] = 1;
+            fprintf(stderr, "rush2049pc: online: the %s's player has a rumble pak (net.rumble: no controller pak)\n",
+                    peer_name());
+            continue;
+        }
         if (size[k] != PC_PAK_SIZE || pc_pak_image_check(data[k], size[k], why, sizeof why) != PC_PAK_IMAGE_OK) {
             snprintf(text, sizeof text, "the %s's controller pak can't be used: %s", peer_name(), why);
             return pc_net_reject(text, S.role == PC_NET_HOST ? "the guest's controller pak is damaged"
@@ -687,13 +711,19 @@ void pc_net_install_paks(PcSettings *cfg)
                 "session\n");
     }
     for (int ch = 0; ch < 4; ch++) {
+        if (ch < 2 && S.rumble[ch]) {   /* net.rumble: the same on both PCs, from the handshake's files */
+            pc_si_set_pak_image(ch, NULL);
+            pc_si_set_pak(ch, PC_PAK_RUMBLE);
+            cfg->pak[ch] = PC_CFG_PAK_RUMBLE;
+            continue;
+        }
         pc_si_set_pak_image(ch, ch < 2 ? S.pak[ch] : NULL);
         cfg->pak[ch] = ch < 2 && S.pak[ch] ? PC_CFG_PAK_MEMORY : PC_CFG_PAK_NONE;
     }
     fprintf(stderr, "rush2049pc: online: controller 1 (the host's player) %s, controller 2 (the guest's) %s; in "
             "memory only: nothing is written to the disk during the session\n",
-            S.pak[0] ? "has the host's controller pak" : "has no controller pak",
-            S.pak[1] ? "has the guest's controller pak" : "has no controller pak");
+            S.rumble[0] ? "has a rumble pak" : S.pak[0] ? "has the host's controller pak" : "has no controller pak",
+            S.rumble[1] ? "has a rumble pak" : S.pak[1] ? "has the guest's controller pak" : "has no controller pak");
 }
 
 /* ---------------------------------------------------------------- the pads source */
@@ -961,8 +991,9 @@ static void name_files(const char *data_dir)
     strftime(stamp, sizeof stamp, "%Y-%m-%d_%H%M%S", &tm);
     pc_app_join(dir, sizeof dir, data_dir, "netplay");
     pc_app_mkdirs(dir);
+    char name[128];
     for (int k = 1; k < 100; k++) {
-        char name[128], probe[PC_APP_PATH + 16];
+        char probe[PC_APP_PATH + 16];
         snprintf(name, sizeof name, k == 1 ? "%s-%s" : "%s-%s-%d", stamp, S.role == PC_NET_HOST ? "host" : "guest", k);
         pc_app_join(S.base, sizeof S.base, dir, name);
         snprintf(probe, sizeof probe, "%s.pads", S.base);
@@ -971,6 +1002,14 @@ static void name_files(const char *data_dir)
     }
     snprintf(S.pads_path, sizeof S.pads_path, "%s.pads", S.base);
     snprintf(S.report_path, sizeof S.report_path, "%s.desync.txt", S.base);
+    {   /* net.keep: the older sessions beyond the newest (this one counted) removed (netkeep.c) */
+        char say[200];
+        int kept, gone = pc_net_keep(dir, name, S.keep, (long long)now, &kept, say, sizeof say);
+        if (gone)
+            fprintf(stderr, "rush2049pc: online: netplay/: %d older session%s removed (%s%s: each one's input log, "
+                    "paks and report), %d kept besides this one (net.keep = %d; replays/ is never touched)\n", gone,
+                    gone == 1 ? "" : "s", say, gone > 3 ? ", ..." : "", kept, S.keep);
+    }
 }
 
 int pc_net_begin(PcLockstepOptions *ls, const char *must_match, const char *data_dir, const char *quit_key,
@@ -1030,6 +1069,7 @@ int pc_net_begin(PcLockstepOptions *ls, const char *must_match, const char *data
         pc_hash_enable(FULL_EVERY);
     pc_hash_keep(KEEP_RETRACES);
     pc_input_set_session(1);   /* nothing holds the game; the overlay's locks */
+    pc_input_session_motor(S.role == PC_NET_HOST ? 0 : 1);   /* this player's motor alone, to this PC's controller */
     pc_menu_set_online(pc_net_status);   /* F1's Online rows */
     pc_gfx_hud_dx_off(1);      /* the session's rules (docs/port/LOCKSTEP.md 6) */
     S.src = (PcPadsSource){"online session", NULL, src_local, src_pads, src_hash};

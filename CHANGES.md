@@ -6,6 +6,17 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play at 60 frames a second, and a round of polish** (README "Playing online"): the host's game frame rate
+  is the session's, now proved to give one game at 60 as at 30 (and checked on Windows against Linux in CI); F1 >
+  Online shows it to both players. The page also has the session's rules as rows, locked while a session runs: the
+  rejoin window (`net.rejoin`), desync recovery (`net.recover`) and a rumble pak (`net.rumble`, off: with it on, your
+  controller holds a rumble pak in an online race instead of your controller pak, as on an N64, and rumbles; only
+  yours). The netplay folder keeps the newest 20 sessions (`net.keep`; F1 > Online > Watch a replay's last row; kept
+  replays are never removed). A friend's ghost imported into your saves gets the game's own names on an online
+  session's pak, as it does offline. A guest started from F1 > Online that goes out of sync now rebuilds its game, as
+  one started from the launcher does, instead of going back to the game ([NETPLAY.md](docs/port/NETPLAY.md) 17).
+  Nothing changes without the online options.
+
 - **Online play from the game itself** (F1 > Online, README "Playing online"): Host a race (a port, a join code), Join
   a race (type the host's address, or pick one of the last 8 hosts you joined), Watch a replay, and this PC's
   addresses with Tailscale's first, copied to the clipboard for your friend with one key. Choosing Host, Join or Watch

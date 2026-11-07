@@ -485,6 +485,34 @@ static uint8_t *image_bytes(const PcDataTables *t, int i)
     return buf;
 }
 
+int pc_data_peek(const PcDataTables *t, const uint8_t *rom, size_t rom_size, uint32_t n64_addr, void *out, uint32_t n)
+{
+    for (uint32_t i = 0; i < t->n_images; i++) {
+        const PcDataImage *im = &t->images[i];
+        uint8_t *buf;
+        if (n64_addr < im->n64_base || (uint64_t)n64_addr + n > (uint64_t)im->n64_base + im->size)
+            continue;
+        if (!rom || (size_t)im->rom_off + im->rom_len > rom_size)
+            return -1;
+        if (im->storage == PC_IMG_RAW) {
+            if (im->rom_len < im->size)
+                return -1;
+            memcpy(out, rom + im->rom_off + (n64_addr - im->n64_base), n);
+            return 0;
+        }
+        if (!(buf = malloc(im->size)))
+            return -1;
+        if (inflate_raw(rom + im->rom_off, im->rom_len, buf, im->size) != 0) {
+            free(buf);
+            return -1;
+        }
+        memcpy(out, buf + (n64_addr - im->n64_base), n);
+        free(buf);
+        return 0;   /* the first image that holds it: the main images' data before the overlays' */
+    }
+    return -1;
+}
+
 /* ---------------------------------------------------------------- filling */
 
 static void swap_arena(const PcDataTables *t, const PcDataArena *ar)

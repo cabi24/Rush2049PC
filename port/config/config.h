@@ -139,6 +139,8 @@ typedef struct PcSettings {
     int net_view;                   /* PC_GFX_VIEW_*: what an online race shows on this PC (own: its player's view) */
     int net_rejoin;                 /* the rejoin window, seconds (30-3600); 0: off (a 15 s silence ends the session) */
     int net_recover;                /* a desync: the guest rebuilds by replay and the session goes on */
+    int net_keep;                   /* the sessions netplay/ keeps, the newest (1-1000); 0: all (NETPLAY.md 17) */
+    int net_rumble;                 /* this player's controller holds a rumble pak in a session, not its pak */
 
     /* Not in the file: where it was read from ("" for none) and its directory; where the settings overlay saves
      * (pc_settings_resolve: the file read, the --config path, or the located one; "" for nowhere). */
@@ -151,14 +153,15 @@ typedef struct PcSettings {
  * session's guest adopts from the host (adopt 1), what the session sets itself (0: the accessories), and what stays
  * each PC's own in a session (-1: audio.latency, which a session's audio keeps out of the game, AUDIO.md 11). One
  * list for the replay header, the guest's adoption and the overlay's locks. pc_settings_session_rule: PC_SESSION_OWN
- * for a setting each PC keeps (one not listed too), SETS or HOSTS for one the overlay locks in a session. */
+ * for a setting each PC keeps (one not listed too), SETS or HOSTS for one the overlay locks in a session, FIXED for one
+ * each PC keeps that the session reads when it starts (net.rejoin, net.recover, net.rumble): locked too. */
 typedef struct {
     const char *section, *key;
     int adopt;
 } PcMustMatch;
 extern const PcMustMatch pc_must_match[];
 extern const int pc_must_match_count;
-enum { PC_SESSION_OWN = 0, PC_SESSION_SETS = 1, PC_SESSION_HOSTS = 2 };
+enum { PC_SESSION_OWN = 0, PC_SESSION_SETS = 1, PC_SESSION_HOSTS = 2, PC_SESSION_FIXED = 3 };
 int pc_settings_session_rule(const char *section, const char *key);
 
 /* [game] cars at run time (race_cars.c): the setting the game latches at each race's start (pc_race_cars_begin,

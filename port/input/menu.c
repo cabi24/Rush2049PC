@@ -38,7 +38,10 @@
  *   Quit does. A text item takes what is typed (pc_menu_text, from input_sdl.c's SDL text input) until Enter or
  *   Escape. In an online session the page has its two status rows (pc_menu_set_online, port/app/netplay.c: the other
  *   PC, and the link: round trip, this side's input delay, stalls, the last retrace whose state hashes agreed), read
- *   each time it is drawn, and Leave the session; the main page's Online item shows the round trip and the delay. */
+ *   each time it is drawn, and Leave the session; the main page's Online item shows the round trip and the delay. The
+ *   page's settings rows (NETPLAY.md 17): the game's frame rate, which a guest takes from its host, and this PC's
+ *   rules for a session (net.rejoin, net.recover, net.rumble), all locked in a session (pc_settings_session_rule);
+ *   the Replays page ends with net.keep. */
 #define _GNU_SOURCE
 #include <math.h>
 #include <stdarg.h>
@@ -172,6 +175,11 @@ static const char *const memory_labels[] = {"original (N64)", "16 MB", "32 MB", 
 /* game.frame_rate (docs/port/FRAMERATE.md 7) */
 static const char *const game_fps_choices[] = {"original", "60", NULL};
 static const char *const game_fps_labels[] = {"original (30)", "60", NULL};
+/* net.rejoin and net.keep on the Online pages (docs/port/NETPLAY.md 15, 17); another value from the file shows as is */
+static const char *const rejoin_choices[] = {"off", "60", "120", "300", "600", "1800", "3600", NULL};
+static const char *const rejoin_labels[] = {"off (15 s)", "1 minute", "2 minutes", "5 minutes", "10 minutes",
+                                            "30 minutes", "1 hour", NULL};
+static const char *const keep_choices[] = {"5", "10", "20", "50", "100", "all", NULL};
 /* audio.voices and audio.engines (docs/port/AUDIO.md 10): the voices apply after a restart, the engines at once */
 static const char *const voices_choices[] = {"original", "48", "64", "96", NULL};
 static const char *const voices_labels[] = {"original (32)", "48", "64", "96", NULL};
@@ -1887,6 +1895,20 @@ static void fill_online(void)
         it = add(P_ONLINE, I_PAGE, "Watch a replay", NULL, NULL);
         it->page = P_ON_REPLAYS, it->desc = "A session played again from its input log";
     }
+    /* the race's frame rate and this PC's rules for a session (NETPLAY.md 17): a session's are locked while it runs
+     * (pc_settings_session_rule: the frame rate is the host's, the rules were read at its start) */
+    it = add(P_ONLINE, I_CHOICE, "Game frame rate", "game", "frame_rate");
+    it->choices = game_fps_choices, it->labels = game_fps_labels;
+    it->desc = s_online ? "The session's: the host's, for both games" : "The game's own; a guest takes its host's";
+    it = add(P_ONLINE, I_CHOICE, "Rejoin window", "net", "rejoin");
+    it->choices = rejoin_choices, it->labels = rejoin_labels;
+    it->desc = "How long a session waits for a player who dropped";
+    it = add(P_ONLINE, I_CHOICE, "Desync recovery", "net", "recover");
+    it->choices = onoff;
+    it->desc = "Out of sync: the guest rebuilds by replay";
+    it = add(P_ONLINE, I_CHOICE, "Rumble pak", "net", "rumble");
+    it->choices = onoff;
+    it->desc = "On: your controller rumbles; your saves stay out";
     row(P_ONLINE, I_HEADING, "", "This PC's addresses, Tailscale's first:", NULL);
     for (int i = 0; i < O.naddr && pg->n < MAX_ITEMS - 3; i++)
         add(P_ONLINE, I_ON_ADDR, O.addr[i].text, NULL, NULL)->page = i;
@@ -1973,8 +1995,11 @@ static void fill_on_replays(void)
     note(P_ON_REPLAYS, O.nreplay ? "Every session's input log, the newest first:" : "No replays yet: each online session's input");
     if (!O.nreplay)
         note(P_ON_REPLAYS, "log is one (in the data folder's netplay/).");
-    for (int i = 0; i < O.nreplay && pages[P_ON_REPLAYS].n < MAX_ITEMS; i++)
+    for (int i = 0; i < O.nreplay && pages[P_ON_REPLAYS].n < MAX_ITEMS - 1; i++)
         add(P_ON_REPLAYS, I_ON_REPLAY, O.replay[i].label, NULL, NULL)->page = i;
+    it = add(P_ON_REPLAYS, I_CHOICE, "Sessions kept", "net", "keep");   /* net.keep (NETPLAY.md 17) */
+    it->choices = keep_choices;
+    it->desc = "netplay/ keeps the newest; Keep: replays/";
     if (M.sel[P_ON_REPLAYS] >= pages[P_ON_REPLAYS].n)
         M.sel[P_ON_REPLAYS] = 0;
 }

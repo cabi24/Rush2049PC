@@ -689,6 +689,9 @@ static int swap_safe(int ch)
 extern char D_801211BC[], D_801211F4[], D_801211C8[];   /* the prefix SaveServer reads, the ghost's and profile's ext */
 void func_800A150C(uint8_t *out, uint8_t *in, uint8_t limit);   /* ASCII to the pak's characters (the game's) */
 
+static uint8_t g_early_names[12];   /* saves_game_names_early's prefix and extension */
+static int g_early_names_set;
+
 static void saves_game_names(void)
 {
     uint8_t prefix[8], ext[4], in[16];
@@ -704,6 +707,58 @@ static void saves_game_names(void)
         pc_store_set_game_names(NULL, NULL);
         return;
     }
+    if (g_early_names_set && (memcmp(g_early_names, prefix, 8) || memcmp(g_early_names + 8, ext, 4)))
+        fprintf(stderr, "rush2049pc: saves: the game's names for imported ghosts read before its data was loaded "
+                "differ from its data's: this session's pak gave its imports other names\n");
+    pc_store_set_game_names(prefix, ext);
+}
+
+/* func_800A150C's conversion (src/blob/func_800A150C.c), on a table given: each character the index of the first
+ * entry of the pak's character table that is its code (two-byte codes after a first byte of 255), up to limit, zeros
+ * after. */
+static void pak_chars(const uint16_t font[256], const uint8_t *in, uint8_t *out, int limit)
+{
+    int count = 0, wide = in[0] == 255;
+    for (const uint8_t *c = in + wide; count < limit && (wide ? c[0] || c[1] : c[0]); c += 1 + wide) {
+        unsigned code = wide ? (unsigned)c[0] << 8 | c[1] : c[0];
+        for (int i = 0; i < 256; i++)
+            if (font[i] == code) {
+                out[count++] = (uint8_t)i;
+                break;
+            }
+    }
+    while (count < limit)
+        out[count++] = 0;
+}
+
+/* The same names before the game's data is loaded: an online session's handshake builds this player's pak from its
+ * saves folder then, before the guest's memory can be mapped (docs/port/NETPLAY.md 17), and an import on it gets them
+ * as on the pak of a game on its own. The strings and the pak's character table are read from the cartridge's data
+ * image as it holds them (pc_data_peek: the N64's byte order), and converted here as func_800A150C does; once the data
+ * is loaded saves_game_names sets them again from it, and says so if they differ. */
+static void saves_game_names_early(void)
+{
+    uint8_t font_raw[512], prefix_in[16] = {0}, ext_in[16] = {0}, profile0 = 0, prefix[8], ext[4];
+    uint16_t font[256];
+    const uint8_t *rom = pc_rom_bytes();
+    size_t size = pc_rom_size();
+    if (pc_data_peek(&pc_data_tables, rom, size, 0x8011EAECu, font_raw, sizeof font_raw) != 0 ||   /* D_8011EAEC */
+        pc_data_peek(&pc_data_tables, rom, size, 0x801211BCu, prefix_in, 8) != 0 ||               /* D_801211BC */
+        pc_data_peek(&pc_data_tables, rom, size, 0x801211F4u, ext_in, 4) != 0 ||                  /* D_801211F4 */
+        pc_data_peek(&pc_data_tables, rom, size, 0x801211C8u, &profile0, 1) != 0) {               /* D_801211C8 */
+        fprintf(stderr, "rush2049pc: online: the game's names for imported ghosts can't be read before its data is "
+                "loaded: this player's imports keep their own on the session's pak\n");
+        return;
+    }
+    for (int i = 0; i < 256; i++)
+        font[i] = (uint16_t)(font_raw[2 * i] << 8 | font_raw[2 * i + 1]);
+    pak_chars(font, prefix_in, prefix, 8);
+    pak_chars(font, ext_in, ext, 4);
+    if (!prefix[0] || !ext[0] || !ext_in[0] || ext_in[0] == profile0)
+        return;   /* as saves_game_names: no names (imports keep their own) */
+    memcpy(g_early_names, prefix, 8);
+    memcpy(g_early_names + 8, ext, 4);
+    g_early_names_set = 1;
     pc_store_set_game_names(prefix, ext);
 }
 
@@ -902,6 +957,11 @@ static uint8_t *session_local_pak(const PcSettings *cfg, const PcAppDirs *dirs, 
 {
     char path[PC_APP_PATH], why[256] = "";
     uint8_t *img;
+    if (cfg->net_rumble) {   /* a rumble pak instead (pc_net_connect sends it as such): the saves aren't read */
+        fprintf(stderr, "rush2049pc: online: controller 1 holds a rumble pak in the session (net.rumble): the game "
+                "rumbles this PC's controller, and this player's saves aren't in the session\n");
+        return NULL;
+    }
     if (cfg->pak[0] != PC_CFG_PAK_MEMORY) {
         fprintf(stderr, "rush2049pc: online: controller 1 has no controller pak (game.pak): this player has none in the "
                 "session\n");
@@ -912,6 +972,7 @@ static uint8_t *session_local_pak(const PcSettings *cfg, const PcAppDirs *dirs, 
     pc_app_pak_file(dirs, cfg->pak_file[0], from_command_line(over, nover, "game", "pak_file"), path, sizeof path);
     if (cfg->saves[0] == PC_CFG_SAVES_FILES) {
         char folder[PC_APP_PATH], msg[512];
+        saves_game_names_early();   /* an import on the pak gets the game's names, as offline (SAVES.md 5) */
         pc_app_data_file(dirs, cfg->saves_dir[0], from_command_line(over, nover, "game", "saves_dir"), folder,
                          sizeof folder);
         if (pc_store_open(0, folder, path, pc_app_version(), msg, sizeof msg) != 0 ||
@@ -1730,8 +1791,12 @@ static int rush_main(int argc, char **argv)
     pc_app_finish(code);
     code = pc_net_menu_restart(code);   /* exec (Linux) or CreateProcess (Windows): only when one was asked for */
     fflush(NULL);
-    if (pc_net_reexec_wanted())   /* the guest rebuilds after a desync: the program again (docs/port/NETPLAY.md 15) */
-        code = pc_app_reexec(argc, argv);
+    if (pc_net_reexec_wanted()) {   /* the guest rebuilds after a desync: the program again (docs/port/NETPLAY.md 15) */
+        /* the same command line, and the environment as it is now (RUSH_SIM_DESYNC_ONCE took the test's desync out):
+         * pc_app_restart, which the F1 Online page's restarts use too (port/app/startup.c) */
+        fprintf(stderr, "rush2049pc: starting again (the same command)\n");
+        code = pc_app_restart((const char *const *)argv, argc, PC_APP_RESTART_SAME);
+    }
     _exit(code);   /* the N64 threads are still running game code: no atexit handlers */
 }
 

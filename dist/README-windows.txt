@@ -361,7 +361,9 @@ connection lost) or doesn't start. The page also lists this PC's
 addresses, Tailscale's first; Enter on one copies it to the clipboard,
 to paste to your friend. In a session the page shows the other PC and
 the link, and Leave the session (choose it twice) takes you back to the
-game.
+game. The page also shows the game's frame rate and the session's rules
+(the rejoin window, desync recovery, a rumble pak: below), which can't be
+changed while a session runs.
 
 The launchers start rush2049pc.exe with --net-host, and with --net-join
 and the address typed; options given to them are passed on. From a
@@ -379,6 +381,18 @@ rate, memory, draw distance, detail, fog, voices and engines, the cheats
 and PC SETUP), without changing the guest's rush2049pc.ini; the log says
 which, and F1 shows them locked. Each player brings their own controller
 pak (profiles, ghosts) as a copy: nothing is saved during a session.
+
+The game's frame rate is the host's: original (30, the N64's) or 60
+(game.frame_rate: F1 > Game, or F1 > Online). At 60 both PCs must keep
+60 frames a second: a PC that can't (a Raspberry Pi 5 in a race of many
+cars) slows the race for both players, so leave it at original there.
+
+Rumble: F1 > Online > Rumble pak = on (net.rumble in rush2049pc.ini)
+gives your controller a rumble pak in online races instead of your
+controller pak, as on an N64: the game rumbles your controller, and your
+profiles and ghosts aren't in the session. The other player's game gets
+the same pak, but only your controller rumbles; theirs only if they
+choose it too.
 
 Without Tailscale: the host forwards UDP port 24049 on their router to
 their PC, and the guest types the router's public address (203.0.113.5).
@@ -426,9 +440,11 @@ for you to come back, and can end it with Escape.
 Each session's inputs are kept in the netplay folder (in the data folder:
 F1 > About > Open the data folder), and are a replay of it: F1 > Online >
 Watch a replay plays one again in real time, the same game to the last
-detail (Keep this replay copies it into the replays folder). By hand:
---replay-inputs FILE, with the same version, ROM and mods. If the two
-games ever differ ("out of sync"), the guest's game starts again by
+detail (Keep this replay copies it into the replays folder). The netplay
+folder keeps the newest 20 sessions (net.keep; the last row of Watch a
+replay; all keeps every one); the replays folder is never cleaned. By
+hand: --replay-inputs FILE, with the same version, ROM and mods. If the
+two games ever differ ("out of sync"), the guest's game starts again by
 itself, rebuilds the race the same way from the host's, and the session
 goes on (net.recover = on, the default; at most 3 times a session). If it
 differs again at the same moment, it is a fault in the program, not a

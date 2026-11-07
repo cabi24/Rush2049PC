@@ -13,6 +13,8 @@ session"), on the synthetic cartridge.
     net_session_check.py ends     --exe EXE --rom ROM --logs DIR
     net_session_check.py wait     --exe EXE --rom ROM --logs DIR
     net_session_check.py view     --exe EXE --rom ROM --logs DIR
+    net_session_check.py rumble   --exe EXE --rom ROM --logs DIR
+    net_session_check.py paknames --exe EXE --rom ROM --logs DIR
     net_session_check.py rejoin   --exe EXE --rom ROM --logs DIR [NAME] [--host-side] [--paced]
     net_session_check.py outage   --exe EXE --rom ROM --logs DIR [NAME]
     net_session_check.py recover  --exe EXE --rom ROM --logs DIR [NAME] [--repeat]
@@ -57,6 +59,13 @@ view: own view (net.view = own, docs/port/NETPLAY.md 14) on one PC and the split
   (race2p, delay 2): one game, the same trace and hash at every retrace as each other and as one process; the PC with
   own view says whose view it shows (the host player 1's, the guest player 2's), and its screenshot is one view across
   the frame (synth_shot.py own) while the other's is the split screen's two views.
+rumble (docs/port/NETPLAY.md 17): net.rumble on one PC, each way round (race2p, delay 2, the presses through SDL's
+  virtual controllers): both games have that player's rumble pak, host = guest = one process with it, line for line;
+  the game's motor rumbles that player's controller on its own PC and nothing on the other. 77 (skipped) without
+  virtual controllers.
+paknames (docs/port/NETPLAY.md 17): the host's saves folder (game.saves = files) with a ghost of ghost.py's to
+  import: on the session's pak, built before the game's data is loaded, it has the game's own names (SYNTH049...T),
+  the same on both PCs.
 rejoin (docs/port/NETPLAY.md 15): in the race the guest's process is killed (by its PID); 2 s later the same command
   starts again in the same data folder, its ticket asks to rejoin, it replays the host's log and plays on: its trace
   from retrace 0 is the host's, line for line, every hash the same, both exit 0. --host-side: the host killed and
@@ -71,6 +80,8 @@ recover: RUSH_SIM_DESYNC changes a word of the guest's state at retrace --at; ne
   rebuild, the guest's program starts again (the same process ID), replays the host's log past the desync and plays
   on: its new trace the host's, both exit 0, both logs say the recovery and its retrace. --repeat: the change again
   in the rebuilt game (RUSH_SIM_DESYNC kept): both end with the desync at that retrace, "deterministic", exit 3.
+  --page: the guest started as the F1 Online page starts one (--net-return): it rebuilds too (the same command, its
+  --net-return kept), rather than going back to the game.
 speed: the replay's rate (retraces a second, times real time) of a rejoin late in the race, without the per-retrace
   trace: how long a rejoin's catch-up takes; and for comparison one --fast process replaying the host's input log as
   far, which draws every frame (headless): what the catch-up gains by drawing nothing.
@@ -193,6 +204,19 @@ class Proc:
         self.proc.kill()
 
 
+# --host-set KEY=VALUE: settings of the host's (the guest adopts them: game.frame_rate=60) and of the single process a
+# session is compared with
+HOST_SET = []
+
+
+def host_set_args():
+    return [x for kv in HOST_SET for x in ("--set", kv)]
+
+
+def host_set_note():
+    return f" [{', '.join(HOST_SET)}: the host's, the guest adopting it]" if HOST_SET else ""
+
+
 def base_cmd(a, press, spec, extra, hashes=True, until=True, fast=True, trace=True):
     cmd = [str(Path(a.exe).resolve()), "--rom", str(Path(a.rom).resolve()), "--no-rom-check", "--headless",
            "--no-config", "--audio", "null", "--no-pak"] + (["--fast"] if fast else []) + \
@@ -230,7 +254,7 @@ def session(a, tag, host_press, guest_press, spec, host_extra=(), guest_extra=()
             s["args"] = guest_args
         net = ["--net-bind", "127.0.0.1"]
         if role == "host":
-            net += ["--net-host", "0"]
+            net += ["--net-host", "0"] + host_set_args()
         else:
             procs[0].got_port.wait(120)
             if not procs[0].port:
@@ -259,7 +283,8 @@ def one(a, tag, press, spec, extra=(), env=None):
         e.pop(k, None)
     e.update(spec["env"])
     e.update(env or {})
-    p = subprocess.run(base_cmd(a, press, spec, extra), env=e, cwd=run_dir, stdout=subprocess.PIPE,
+    p = subprocess.run(base_cmd(a, press, spec, list(extra) + host_set_args()), env=e, cwd=run_dir,
+                       stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT, timeout=900)
     text = p.stdout.decode(errors="replace")
     if p.returncode:
@@ -276,6 +301,24 @@ def ended(text):
 def exit_code(text):
     m = re.search(r"state reached: exit (\d+)", text)
     return int(m.group(1)) if m else 0
+
+
+def host_set_check(name, th, tg):
+    """--host-set: the guest took each of the host's settings for the session (logged), and at game.frame_rate=60 both
+    games ran at 60. 0 when it holds."""
+    bad = 0
+    for kv in HOST_SET:
+        key, value = kv.split("=", 1)
+        if not re.search(rf"^rush2049pc: online: {re.escape(key)} \S+ -> {re.escape(value)} \(the host's, for this "
+                         rf"session\)$", tg, re.M):
+            say(f"{name}: the guest didn't say it took the host's {key} = {value}")
+            bad = 1
+        if key == "game.frame_rate" and value == "60":
+            for role, t in (("host", th), ("guest", tg)):
+                if "the game runs at 60 frames a second (game.frame_rate)" not in t:
+                    say(f"{name}: the {role}'s game doesn't run at 60")
+                    bad = 1
+    return bad
 
 
 def compare_session(name, th, tg, tone=None):
@@ -355,6 +398,7 @@ def mode_path(a, name, model="clean", delay=None, tag=None, until=None):
     th, tg, _ = r
     tone = one(a, f"{tag}.one", mp, spec, ["--input-delay", str(delay), "--session-rules"])
     bad = compare_session(f"{name} ({model}, delay {delay})", th, tg, tone)
+    bad |= host_set_check(name, th, tg)
     for role, t in (("host", th), ("guest", tg)):
         if exit_code(t) not in (0,):
             say(f"{name}: the {role} exits {exit_code(t)}: {ended(t)}")
@@ -368,7 +412,7 @@ def mode_path(a, name, model="clean", delay=None, tag=None, until=None):
         hh = hash_compare.hashes(th)
         say(f"{name:10} {model:7} delay {delay:2}: host = guest = one process, {len(replay_check.trace(th))} lines, "
             f"{len(hh)} retraces hashed ({'two players' if two else 'the guest idle'}); host {session_stats(th)}; "
-            f"guest {session_stats(tg)} ({took:.1f} s)")
+            f"guest {session_stats(tg)} ({took:.1f} s){host_set_note()}")
     return bad
 
 
@@ -445,13 +489,14 @@ def mode_paced(a, names):
         th, tg, _ = r
         tone = one(a, f"{name}.paced4.one", mp, spec, ["--input-delay", "2", "--session-rules"])
         b = compare_session(f"{name} paced x4", th, tg, tone)
+        b |= host_set_check(f"{name} paced x4", th, tg)
         rate, said = paced_line(th)
         if rate is None or "online: the virtual clock paced to real time" not in th:
             say(f"{name} paced x4: not paced: {said}")
             b = 1
         if not b:
             say(f"{name:10} paced x4, delay 2: host = guest = one --fast process, {len(replay_check.trace(th))} lines; "
-                f"host {said}")
+                f"host {said}{host_set_note()}")
         bad |= b
         hsim, gsim, _ = MODELS[a.model]
         r = session(a, f"{name}.paced.{a.model}", hp, gp, spec, (), (), {"RUSH_SIM_NET": hsim} if hsim else None,
@@ -460,6 +505,7 @@ def mode_paced(a, names):
             return 1
         th, tg, _ = r
         b = compare_session(f"{name} paced {a.model}", th, tg)
+        b |= host_set_check(f"{name} paced {a.model}", th, tg)
         rates = [paced_line(t) for t in (th, tg)]
         for role, (rate, said) in zip(("host", "guest"), rates):
             if rate is None or not 59.5 <= rate <= 60.5:
@@ -472,7 +518,7 @@ def mode_paced(a, names):
                 b = 1
         if not b:
             say(f"{name:10} paced {a.model}, the adaptive delay: host = guest, {len(replay_check.trace(th))} lines; "
-                f"host {rates[0][1]}; guest {rates[1][1]}; {session_stats(th)}")
+                f"host {rates[0][1]}; guest {rates[1][1]}; {session_stats(th)}{host_set_note()}")
         bad |= b
     return bad
 
@@ -947,6 +993,118 @@ def mode_view(a):
             say(f"view: the {own_role} own (player {player}'s view), the {other} split: host = guest = one process, "
                 f"{len(replay_check.trace(th))} lines, {len(hash_compare.hashes(th))} retraces hashed; the {own_role}'s "
                 f"screenshot one view across the frame ({shares[own_role]}), the {other}'s two views ({shares[other]})")
+        bad |= b
+    return bad
+
+
+_RUMBLE = re.compile(r"^rush2049pc: virtual controller (\d) rumble (\d+) (\d+)$", re.M)
+SKIP = 77
+
+
+def mode_rumble(a):
+    """net.rumble (NETPLAY.md 17): race2p with one player's net.rumble on, each way round, both players' presses through
+    an SDL virtual controller (--press-via controller, as input_check.py's rumble runs). Both PCs install that player's
+    rumble pak (their must-match texts say it), host = guest = one process with that rumble pak, line for line; the
+    game's motor rumbles that player's own controller, on its own PC, and nothing on the other PC."""
+    spec = synth_paths.read_script(SCRIPTS / "race2p.press")
+    bad = 0
+    for who in ("host", "guest"):
+        tag = f"rumble.{who}"
+        hp, gp, mp, two = path_files(a, "race2p", tag)
+        extra = {r: ["--net-delay", "2", "--press-via", "controller"] + (["--set", "net.rumble=on"] if r == who else [])
+                 for r in ("host", "guest")}
+        r = session(a, tag, hp, gp, spec, extra["host"], extra["guest"])
+        if not r:
+            return 1
+        th, tg, _ = r
+        if "--press-via needs SDL 2.24" in th + tg or "--press-via: no virtual" in th + tg:
+            say("rumble: skipped: no virtual controllers here (SDL before 2.24, or no SDL2)")
+            return SKIP
+        port = 1 if who == "host" else 2
+        key = "game.pak" if port == 1 else "game.pak2"
+        tone = one(a, f"{tag}.one", mp, spec, ["--input-delay", "2", "--session-rules", "--set", f"{key}=rumble"])
+        b = compare_session(f"rumble ({who}'s)", th, tg, tone)
+        m = re.search(r"online: the session's input log: (\S+)", th)   # it replays as it is, the rumble pak in
+        rep = one(a, f"{tag}.replay", mp, spec, ["--replay-inputs", m.group(1)]) if m else ""
+        if not m or f"controller {port} a rumble pak" not in rep:
+            say(f"rumble: the host's input log doesn't replay with player {port}'s rumble pak")
+            b = 1
+        b |= compare_session(f"rumble ({who}'s) against the host's log replayed", th, rep)
+        on = {}
+        for role, t in (("host", th), ("guest", tg)):
+            if exit_code(t) != 0:
+                say(f"rumble: the {role} exits {exit_code(t)}: {ended(t)}")
+                b = 1
+            if f"online: must match: {key}=rumble" not in t:
+                say(f"rumble: the {role}'s session doesn't have player {port}'s rumble pak ({key}=rumble)")
+                b = 1
+            if f"controller {port}: the game reads the rumble pak" not in t:
+                say(f"rumble: the {role}'s game didn't find player {port}'s rumble pak")
+                b = 1
+            on[role] = sum(1 for m in _RUMBLE.finditer(t) if m.group(1) == "1" and int(m.group(2)))
+            if (role == who) != (on[role] > 0):
+                say(f"rumble: the {role}'s controller rumbled {on[role]} times; expected "
+                    f"{'some (its player has the rumble pak)' if role == who else 'none (the other player has it)'}")
+                b = 1
+        if not b:
+            other = "guest" if who == "host" else "host"
+            say(f"rumble: the {who}'s net.rumble: player {port}'s rumble pak in both games ({key}=rumble), host = "
+                f"guest = one process with it = the host's log replayed, {len(replay_check.trace(th))} lines, "
+                f"{len(hash_compare.hashes(th))} retraces hashed; the game's motor rumbled the {who}'s controller "
+                f"({on[who]} changes to on), the {other}'s never")
+        bad |= b
+    return bad
+def mode_paknames(a):
+    """An imported ghost on the session's pak (docs/port/NETPLAY.md 17): the host's saves folder (game.saves = files)
+    has a ghost of ghost.py's (its own prefix and extension, TESTPREF and G) in its import folder. The session's pak
+    is built at the handshake, before the game's data is loaded, and the import must get the game's own names there as
+    a game on its own gives it (the synthetic cartridge's SYNTH049 and T, synth_rom.py), on both PCs alike."""
+    spec = dict(synth_paths.read_script(SCRIPTS / "race2p.press"), until="0x400000:60")
+    hp, gp, mp, two = path_files(a, "race2p", "paknames")
+    saves = Path(a.logs) / "paknames.saves"
+    shutil.rmtree(saves, ignore_errors=True)
+    (saves / "import").mkdir(parents=True)
+    ghost = ROOT / "tools/port/ghost.py"
+    made = subprocess.run([sys.executable, str(ghost), "make", "--track", "0", "--backward", "1", "--name", "FRIEND",
+                           "--time", "30", "--frames", "900", "--car", "2",
+                           "--out", str(saves / "import" / "friend.r49ghost")],
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if made.returncode:
+        say(f"paknames: ghost.py make: {made.stdout}")
+        return 1
+    host = ["--net-delay", "2", "--saves", "files", "--set", "game.pak=memory", "--set", f"game.saves_dir={saves}"]
+    r = session(a, "paknames", hp, gp, spec, host, ["--net-delay", "2"])
+    if not r:
+        return 1
+    th, tg, _ = r
+    bad = compare_session("paknames", th, tg)
+    names = {}
+    for role, t in (("host", th), ("guest", tg)):
+        m = re.search(r"online: the session's input log: (\S+)\.pads", t)
+        mpk = Path(m.group(1) + ".p1.mpk") if m else None
+        if not mpk or not mpk.exists():
+            say(f"paknames: the {role} kept no .p1.mpk beside its input log")
+            return 1
+        info = subprocess.run([sys.executable, str(ghost), "info", str(mpk)], stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, text=True).stdout
+        names[role] = re.findall(r"slot +\d+: '([^']*)'", info)
+        if "differ from its data's" in t:
+            say(f"paknames: the {role} says the names read before the data was loaded differ from the data's")
+            bad = 1
+    friend = [n for n in names["host"] if "FRIEND" in n]
+    if names["host"] != names["guest"]:
+        say(f"paknames: the two PCs' port 1 paks differ: {names['host']} and {names['guest']}")
+        bad = 1
+    if len(friend) != 1 or not friend[0].startswith("SYNTH049") or not friend[0].endswith(".T"):
+        say(f"paknames: the imported ghost on the session's pak is {friend or names['host']}; expected the game's "
+            f"prefix and extension, SYNTH049...T")
+        bad = 1
+    if not bad:
+        say(f"paknames: the host's imported ghost (ghost.py's TESTPREF...G) is '{friend[0]}' on the session's pak, on "
+            f"both PCs, as the game's own names give it; host = guest, {len(replay_check.trace(th))} lines")
+    return bad
+
+
 # ---------------------------------------------------------------- rejoins and recovery (NETPLAY.md 15)
 
 _CAUGHT = re.compile(r"online: caught up: replayed (\d+) retraces \(([\d.]+) s of the race\) in ([\d.]+) s, (\d+) a "
@@ -1106,16 +1264,19 @@ def mode_recover(a, names):
     """A desync with net.recover on: the guest rebuilds (its program again, the same PID) and the session goes on; with
     --repeat the change repeats in the rebuilt game, and it ends, deterministic."""
     name = (names or ["race2p"])[0]
-    tag = f"{name}.recover{'.repeat' if a.repeat else ''}{'.paced' if a.paced else ''}"
+    tag = f"{name}.recover{'.repeat' if a.repeat else ''}{'.paced' if a.paced else ''}{'.page' if a.page else ''}"
     spec = synth_paths.read_script(SCRIPTS / f"{name}.press")
     hp, gp, mp, two = path_files(a, name, tag)
+    # --page: the guest as the F1 Online page starts one (--net-return): it must rebuild, not go back to the game; after
+    # the session's end it may (its own restart, cut off here)
+    gextra = ["--net-delay", "2"] + (["--net-return"] if a.page else [])
     genv = {"RUSH_SIM_DESYNC": f"{a.at}:{a.address}:1"}
     if not a.repeat:
         genv["RUSH_SIM_DESYNC_ONCE"] = "1"
     henv = {"RUSH_PACE_SPEED": "4"} if a.paced else None   # --paced: the session's own clock, 4 times the pace
     if a.paced:
         genv["RUSH_PACE_SPEED"] = "4"
-    r = session(a, tag, hp, gp, spec, ["--net-delay", "2"], ["--net-delay", "2"], host_env=henv, guest_env=genv,
+    r = session(a, tag, hp, gp, spec, ["--net-delay", "2"], gextra, host_env=henv, guest_env=genv,
                 fast=not a.paced)
     if not r:
         return 1
@@ -1123,9 +1284,13 @@ def mode_recover(a, names):
     bad = 0
     cut = tg.find("rush2049pc: starting again (the same command)")
     if cut < 0 or "online: rebuilding: the program starts again" not in tg[:max(cut, 0)]:
-        say(f"recover: the guest doesn't start again to rebuild: {ended(tg)}")
+        say(f"recover: the guest doesn't start again to rebuild: {ended(tg)}"
+            f"{' (it went back to the game)' if 'back to the game (--net-return)' in tg else ''}")
         return 1
     first, second = tg[:cut], tg[tg.index("\n", cut) + 1:]
+    back = second.find("\nrush2049pc: restarting: ")
+    if a.page and back >= 0:   # the rebuilt game's session ended: back to the game, a run of its own
+        second = second[:back + 1]
     e1 = ended(first)
     if e1[0] != "recover" or f"retrace {a.at}" not in e1[1]:
         say(f"recover: the guest's first game ended {e1}, not to rebuild at retrace {a.at}")
@@ -1243,7 +1408,7 @@ def mode_speed(a, names):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("mode", choices=["path", "sim", "auto", "paced", "fuzz", "desync", "mismatch", "adopt", "ends",
-                                     "wait", "view", "rejoin", "outage", "recover", "speed"])
+                                     "wait", "view", "rumble", "paknames", "rejoin", "outage", "recover", "speed"])
     ap.add_argument("names", nargs="*")
     ap.add_argument("--exe", default=str(ROOT / "build/pc/rush2049pc"))
     ap.add_argument("--rom", default=str(ROOT / "build/pc/synth/rush2049_synth.z64"))
@@ -1260,11 +1425,17 @@ def main():
     ap.add_argument("--paced", action="store_true", help="rejoin: the session's paced clock (RUSH_PACE_SPEED 4)")
     ap.add_argument("--kill-at", type=int, default=1700, help="rejoin: the retrace the victim is killed at")
     ap.add_argument("--repeat", action="store_true", help="recover: the desync repeats in the rebuilt game")
+    ap.add_argument("--page", action="store_true", help="recover: the guest started as the F1 Online page starts "
+                    "one (--net-return)")
     ap.add_argument("--term", action="store_true", help="rejoin: SIGTERM (the game gone, BYE gone) rather than SIGKILL")
     ap.add_argument("--paks", action="store_true", help="rejoin: each player with a controller pak")
     ap.add_argument("--sim", choices=sorted(MODELS), help="rejoin: RUSH_SIM_NET's model on both (the restarted too)")
     ap.add_argument("--speed-wait", type=float, default=15, help="speed: seconds of the race before the kill")
+    ap.add_argument("--host-set", action="append", default=[], metavar="KEY=VALUE",
+                    help="a setting of the host's (the guest adopts it), and of the single process compared with: "
+                    "game.frame_rate=60")
     a = ap.parse_args()
+    HOST_SET.extend(a.host_set)
     Path(a.logs).mkdir(parents=True, exist_ok=True)
     a.logs = str(Path(a.logs).resolve())
     replay_check.MODS_ROOT = str(Path(a.mods).resolve()) if a.mods else \
@@ -1276,10 +1447,11 @@ def main():
           "paced": lambda: mode_paced(a, a.names),
           "desync": lambda: mode_desync(a, (a.names or ["race2p"])[0]), "mismatch": lambda: mode_mismatch(a),
           "adopt": lambda: mode_adopt(a), "ends": lambda: mode_ends(a), "wait": lambda: mode_wait(a),
-          "view": lambda: mode_view(a),
+          "view": lambda: mode_view(a), "rumble": lambda: mode_rumble(a), "paknames": lambda: mode_paknames(a),
           "rejoin": lambda: mode_rejoin(a, a.names), "outage": lambda: mode_outage(a, a.names),
           "recover": lambda: mode_recover(a, a.names), "speed": lambda: mode_speed(a, a.names)}
-    sys.exit(1 if fn[a.mode]() else 0)
+    r = fn[a.mode]()
+    sys.exit(SKIP if r == SKIP else 1 if r else 0)
 
 
 if __name__ == "__main__":

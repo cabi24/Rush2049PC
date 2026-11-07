@@ -1716,7 +1716,9 @@ static void test_session(void)
     act(PC_MENU_ACCEPT);
     at("Online", "Leave the session", "", "the Online page: its two rows stepped over, then Leave");
     act(PC_MENU_UP);
-    at("Online", "Leave the session", "", "up: past the rows, round to Leave (no address headless)");
+    at("Online", "Rumble pak", "off", "up: past the rows, round to the last: the session's rows (no address headless)");
+    act(PC_MENU_DOWN);
+    at("Online", "Leave the session", "", "down: round to Leave, past the status rows");
     g_online_calls = 0;
     pc_gfx_redraw();
     pc_gfx_read_window(frame, &w, &h);
@@ -1793,12 +1795,19 @@ static int mock_on_act(int action, const char *a, const char *b, char *msg, size
 
 static const PcOnlineUi g_mock_online = {mock_on_mode, mock_on_addresses, mock_on_replays, mock_on_act};
 
-/* A fresh overlay over a settings file's [net] (recent hosts), the mock main side, the Online page open. */
-static int online_start(int mode, const char *recent)
+/* A fresh overlay over a settings file's [net] (recent hosts) and one more setting (SECTION.KEY, VALUE; NULL none), the
+ * mock main side, the Online page open. */
+static int online_start_set(int mode, const char *recent, const char *key, const char *value)
 {
     PcSettings s;
     pc_settings_defaults(&s);
     pc_settings_set(&s, "net", "recent", recent, NULL, 0);
+    if (key) {
+        char section[16];
+        const char *dot = strchr(key, '.');
+        snprintf(section, sizeof section, "%.*s", (int)(dot - key), key);
+        pc_settings_set(&s, section, dot + 1, value, NULL, 0);
+    }
     g_on_mode = mode, g_on_pending = 1, g_on_acts = 0, g_on_act[0] = 0;
     pc_menu_set_online_ui(&g_mock_online);
     if (start(&s) != 0)
@@ -1809,6 +1818,11 @@ static int online_start(int mode, const char *recent)
     at("Settings", "Online", mode == PC_ONLINE_SESSION ? "RTT 23 ms, delay 2" : ">", "Online, after Saves");
     act(PC_MENU_ACCEPT);
     return 0;
+}
+
+static int online_start(int mode, const char *recent)
+{
+    return online_start_set(mode, recent, NULL, NULL);
 }
 
 static void type(const char *text)
@@ -1833,9 +1847,31 @@ static void test_online(void)
         g_fail++;
         return;
     }
-    /* the page: Host, Join, Watch; this PC's addresses (the Tailscale name joins when looked up), Copy */
+    /* the page: Host, Join, Watch; the session's settings rows; this PC's addresses (the Tailscale name joins when
+     * looked up), Copy */
     at("Online", "Host a race", ">", "the first item");
     act_n(PC_MENU_DOWN, 3);
+    at("Online", "Game frame rate", "original (30)", "the game's frame rate after Host, Join and Watch");
+    act(PC_MENU_DOWN);
+    at("Online", "Rejoin window", "5 minutes", "net.rejoin's 300 s");
+    act(PC_MENU_RIGHT);
+    at("Online", "Rejoin window", "10 minutes", "out of a session it changes");
+    CHECK(pc_menu_settings()->net_rejoin == 600, "net.rejoin = %d", pc_menu_settings()->net_rejoin);
+    act_n(PC_MENU_LEFT, 4);
+    at("Online", "Rejoin window", "off (15 s)", "off, at the list's start");
+    act(PC_MENU_LEFT);
+    at("Online", "Rejoin window", "1 hour", "round to the end");
+    act(PC_MENU_RIGHT);
+    CHECK(pc_menu_settings()->net_rejoin == 0, "net.rejoin = %d", pc_menu_settings()->net_rejoin);
+    act_n(PC_MENU_RIGHT, 3);
+    act(PC_MENU_DOWN);
+    at("Online", "Desync recovery", "on", "net.recover");
+    act(PC_MENU_DOWN);
+    at("Online", "Rumble pak", "off", "net.rumble");
+    act(PC_MENU_RIGHT);
+    CHECK(pc_menu_settings()->net_rumble == 1, "net.rumble on");
+    act(PC_MENU_LEFT);
+    act(PC_MENU_DOWN);
     at("Online", "100.101.102.103", "Tailscale", "the addresses after a heading, Tailscale's first");
     act(PC_MENU_DOWN);
     at("Online", "192.168.1.20", "local network", "the local network's");
@@ -1996,7 +2032,15 @@ static void test_online(void)
     CHECK(pump() == 0, "keeping restarts nothing");
     act(PC_MENU_BACK);
     at("Replays", "11-06 20:00 guest", NULL, "back to the list");
-    act_n(PC_MENU_UP, 2);
+    act(PC_MENU_DOWN);
+    at("Replays", "Sessions kept", "20", "net.keep after the list (NETPLAY.md 17)");
+    act(PC_MENU_RIGHT);
+    at("Replays", "Sessions kept", "50", "the next");
+    CHECK(pc_menu_settings()->net_keep == 50, "net.keep = %d", pc_menu_settings()->net_keep);
+    act_n(PC_MENU_RIGHT, 2);
+    at("Replays", "Sessions kept", "all", "all: netplay/ never pruned");
+    CHECK(pc_menu_settings()->net_keep == 0, "net.keep = %d", pc_menu_settings()->net_keep);
+    act_n(PC_MENU_UP, 3);
     act(PC_MENU_ACCEPT);
     CHECK(g_on_acts == 2 && !strcmp(g_on_act, "watch|/data/netplay/2026-11-07_210412-host.pads|"),
           "the last session's watched: '%s'", g_on_act);
@@ -2013,17 +2057,34 @@ static void test_online(void)
     CHECK(g_on_acts == 1 && !strcmp(g_on_act, "back||"), "back to the game: '%s'", g_on_act);
     stop();
 
-    /* in a session: no Host, Join or Watch; Leave asks again first */
+    /* in a session: no Host, Join or Watch; the session's settings shown and locked; Leave asks again first */
     pc_input_set_session(1);
     pc_menu_set_online(fake_online);
-    if (online_start(PC_ONLINE_SESSION, "") != 0) {
+    if (online_start_set(PC_ONLINE_SESSION, "", "game.frame_rate", "60") != 0) {   /* the host's 60, adopted */
         g_fail++;
         return;
     }
     at("Online", "Leave the session", "", "Leave, after the two status rows");
+    {
+        static const struct { const char *label, *value, *key; } rows[] = {
+            {"Game frame rate", "60", "game.frame_rate"}, {"Rejoin window", "5 minutes", "net.rejoin"},
+            {"Desync recovery", "on", "net.recover"}, {"Rumble pak", "off", "net.rumble"}};
+        char said[96];
+        for (size_t i = 0; i < sizeof rows / sizeof *rows; i++) {
+            act(PC_MENU_DOWN);
+            at("Online", rows[i].label, rows[i].value, "the session's, shown");
+            act(PC_MENU_RIGHT);
+            at("Online", rows[i].label, rows[i].value, "locked: unchanged");
+            snprintf(said, sizeof said, "%s: locked in an online session", rows[i].key);
+            CHECK(!strcmp(pc_menu_message(), said), "said: '%s'", pc_menu_message());
+        }
+        CHECK(pc_menu_settings()->game_fps == 60 && pc_menu_settings()->net_rejoin == 300 &&
+                  pc_menu_settings()->net_recover == 1 && pc_menu_settings()->net_rumble == 0,
+              "none of them changed");
+    }
     act(PC_MENU_DOWN);
     at("Online", "100.101.102.103", NULL, "then the addresses: no Host, Join or Watch");
-    act(PC_MENU_UP);
+    act_n(PC_MENU_UP, 5);
     act(PC_MENU_ACCEPT);
     CHECK(g_on_acts == 0 && !strcmp(pc_menu_message(), "Choose Leave again: the other player is told"),
           "asked again: '%s'", pc_menu_message());

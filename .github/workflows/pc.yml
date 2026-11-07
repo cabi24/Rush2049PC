@@ -141,6 +141,8 @@ jobs:
             build/pc/pc-data/data_layout.txt
             build/pc/synth/replay/*.pads
             build/pc/synth/replay/*.replay.log
+            build/pc/synth/replay60/*.pads
+            build/pc/synth/replay60/*.replay.log
             build/pc/synth/rush2049_synth.z64
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
@@ -538,7 +540,8 @@ jobs:
     # 30) must be Linux's, x86-64's and aarch64's (tools/port/replay_check.py replay-dir). A recording's header says
     # what it must match (the commit, the cartridge, the settings), so each is replayed on the synthetic cartridge
     # its job made (synth_rom.py's least-squares sine fit can differ in the last bits from one Python to another), with
-    # the mods paths' mods made from it.
+    # the mods paths' mods made from it. The recordings at game.frame_rate = 60 (replay_same60_<path>, synth/replay60:
+    # NETPLAY.md 17) are replayed at 60 the same way: online play at 60 takes the same course on both OSes.
     needs: [linux, windows-cross]
     if: ${{ !cancelled() }}
     strategy:
@@ -589,6 +592,10 @@ jobs:
               --logs synth/$l/paths mods_dump || s=1
             python -X utf8 src/tools/port/replay_check.py replay-dir --exe bin/rush2049pc.exe --rom $rom \
               --logs synth/$l/replay --mods synth/$l/paths/mods --from $l/build/pc/synth/replay || s=1
+            echo "== Linux $l's recordings at game.frame_rate = 60 on Windows"
+            python -X utf8 src/tools/port/replay_check.py replay-dir --exe bin/rush2049pc.exe --rom $rom \
+              --logs synth/$l/replay60 --mods synth/$l/paths/mods --from $l/build/pc/synth/replay60 \
+              --set game.frame_rate=60 || s=1
           done
           exit $s
       - uses: actions/upload-artifact@v4
@@ -597,6 +604,7 @@ jobs:
           name: logs-windows-replay-${{ matrix.build }}
           path: |
             synth/*/replay/*.log
+            synth/*/replay60/*.log
           if-no-files-found: ignore
 
   windows:

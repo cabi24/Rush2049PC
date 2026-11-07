@@ -570,6 +570,12 @@ build against this change's (the program's sources unchanged; 30 paths in a run 
 in one Windows status line changed (the keyboard run's, at 30 s), 9 of 10 pass and it names that line; and it fails
 each path log of that run as coarse, since those were written before `--exact`.
 
+**At 60** (2026-11-07, [NETPLAY.md](NETPLAY.md) 17.1). `windows-replay` (LOCKSTEP.md 8) also replays the linux
+jobs' recordings at `game.frame_rate = 60` (`replay_same60_<path>`, `build/pc/synth/replay60`, 14 paths) with `--set
+game.frame_rate=60`: the Windows program's trace and every state hash at 60 must be Linux x86-64's and aarch64's, as
+at original. At 60 the game's frame filters take `sqrtf` where they took the host's `powf` (LOCKSTEP.md 9), so the
+host math the game calls is the same at either rate.
+
 **What this can't show.** The synthetic cartridge's car doesn't follow the controls: the steering input reaches
 the car's model record (the traces have it at +1 and -1), and the physics move the car, speed it up and put it back
 every few seconds, but along the same course with the controls or without (`input_check.py`'s nosteer run; on the
