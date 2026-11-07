@@ -6,6 +6,17 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online play survives a lost connection, a crash, and going out of sync** (README "Playing online"): a session
+  waits up to 5 minutes for a player that went silent (`net.rejoin`, 300 s; was 15 s), saying how long; a connection
+  that comes back goes on where it was. A player whose game is gone (a crash, the window closed, the PC restarted)
+  starts "Host" or "Join online race" again: the game finds its session, gets the race so far from the other PC,
+  replays it unpaced with nothing drawn (about 100 times real time on the synthetic races), every retrace checked
+  against the other PC, and plays on; both screens show the progress. When the two games go out of sync the guest's
+  game starts again and rebuilds the race from the host's the same way (`net.recover`, on); a difference that
+  repeats there stops the session with its report, as before. Escape still leaves for good
+  ([NETPLAY.md](docs/port/NETPLAY.md) 13, [NETWORK.md](docs/port/NETWORK.md) 12). Nothing changes without the
+  online options.
+
 - **Online play from the desktop** (README "Playing online"): `Host online race.bat` and `Join online race.bat`
   (`host-online.sh` and `join-online.sh` on Linux) start a session with no options to type: the join one asks for the
   host's address. The host's window opens at once with a waiting screen (the port, this PC's addresses, Tailscale's

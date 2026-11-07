@@ -45,6 +45,11 @@ next_deadline += retrace_ns + net_pace_adjust_ns(s);   // see "The caller's cloc
 
 net_linger(s, 500); net_end(s, NET_END_LOCAL);   // BYE, once the peer has this side's last inputs
 net_destroy(s);
+
+// a rejoin (section 12): a new game of a side that was gone, with c.rejoin_session = the id it played
+while (net_catchup(s, &live) && n < live)        // after START: retraces 0 .. live-1 from the keeper's log
+    net_catchup_pads(s, n, pads), run(n, pads), net_catchup_hash(s, n, state_hash(n)), n++;
+net_submit(s, live, my_pads);                    // then the lockstep, from where the keeper waits
 ```
 
 `NetPad` is the N64 pad as `PcPad` has it: `uint16_t buttons; int8_t stick_x, stick_y;`, 4 bytes on the wire.

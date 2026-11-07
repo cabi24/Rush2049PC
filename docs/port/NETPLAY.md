@@ -450,6 +450,7 @@ ini):
 - A missing input stalls both games at the next retrace. After about 0.25 s, show "Waiting for <name>..." over the
   last frame, keep pumping window events, and let Escape leave.
 - After a timeout (15 s suggested), end the session. Optionally, carry on alone with the other port's input idle.
+  (Built: a rejoin window of 300 s once the game runs, section 13.)
 
 **Rejoin.**
 
@@ -458,7 +459,7 @@ ini):
 - On the synthetic cartridge that is about 70 times faster than real time on rocky (ULTRA.md 1) and 27 times on the Pi
   (E1). On retail it is unmeasured.
   The peer that stayed must wait while the other catches up.
-- Later phase, if ever.
+- Later phase, if ever. (Built on branch `net-rejoin`, for both players and for a desync: section 13.)
 
 ### 1.6 Sync strategy: delay-based lockstep, not rollback
 
@@ -980,7 +981,9 @@ retrace a press is assigned to is that PC's own business; the other PC only need
   model (`RUSH_SIM_NET`: latency 0-300 ms, jitter, 10% loss, duplicates, reordering, spikes, a peer pausing for
   seconds), cross-OS replays in CI, and two retail processes on one machine over loopback through whole races.
 - **What happens on a desync in v1:** the session stops with the report, rather than letting two different races go
-  on. Without savestates there is no rollback to a good state. Two recoveries are possible later and are research:
+  on. Without savestates there is no rollback to a good state. (Since branch `net-rejoin` the first recovery below is
+  built, `net.recover`, on by default: section 13; a desync that repeats in the rebuilt game still stops with the
+  report.) Two recoveries are possible later and are research:
   - **Replay rejoin:** the side that is wrong restarts and replays the input log from boot on the free-running
     virtual clock, then joins again. It fixes a transient fault, not a systematic one.
   - **State repair:** at a retrace every N64 thread waits at the same call on both sides; copying the host's RDRAM
@@ -1078,14 +1081,19 @@ must-match text to compare.
   Defaults' share of them too); the Saves page's import, pin and delete are locked (the session's paks are copies,
   and no saves folder is behind them). `pc_gfx_hud_dx` gives the game 0 (`--session-rules`).
 - **Waiting**: after 250 ms without the peer's input, "Waiting for the host..." (or guest) with the seconds and the
-  quit key, over the last frame (`pc_menu_notice`, drawn by the overlay's UI hook, `pc_gfx_redraw`). The quit key
-  (Escape) or closing the window leaves.
-- **Ending**: this side leaving at a retrace of its own (a limit, the quit key, the window, the overlay's Quit) waits up
+  quit key, over the last frame (`pc_menu_notice`, drawn by the overlay's UI hook, `pc_gfx_redraw`). After a second
+  of silence it says what the wait is and how long it may last: the peer silent or its game closed ("Waiting for the
+  guest to come back... Nothing from it for 0:12; waiting 4:48 more."), a desync it rebuilds from, the log on its way,
+  its replay's percentage (section 13). The quit key (Escape) leaves; closing the window is the game going, not the
+  player leaving (section 13).
+- **Ending**: this side leaving at a retrace of its own (a limit, the quit key, the overlay's Quit, Ctrl-C) waits up
   to 0.5 s until the peer has its last inputs (`net_linger`), then BYE; the peer runs on to the retrace the other
   ended at (its inputs are there), or at most the delay past it if it was ahead when the BYE came, and ends, "the
-  host left" (or guest). A test whose two runs have one limit ends both at it. A timeout (15 s, `--net-timeout`), a desync, a mismatch or a
-  protocol error ends both; the reason is logged and shown (a message box with a window), with `net_stats_line`. Exit
-  0 when a player left, 3 otherwise.
+  host left" (or guest). A test whose two runs have one limit ends both at it. The window closed, or the system
+  ending the program (SIGTERM, SIGHUP), is BYE `gone`: the peer waits for the game to come back (section 13). A
+  timeout (the rejoin window once the game runs, `net.rejoin`, 300 s; 15 s before it; `--net-timeout` sets both), a
+  desync that isn't recovered from (section 13), a mismatch or a protocol error ends both; the reason is logged and
+  shown (a message box with a window), with `net_stats_line`. Exit 0 when a player left, 3 otherwise.
 
 ### 12.5 The input log and a desync's report
 
@@ -1156,6 +1164,7 @@ then has (a `--fast` replay with the default takes the same course).
 - A pak imported from another player's ghost keeps its own name on the session's pak (the game's note names are read
   once the game's data is loaded, after the handshake).
 - Rumble: no rumble accessory in a session; the local player's motor to its own controller can come later.
+- Rejoining and recovering from a desync: done on branch `net-rejoin` (section 13); what isn't is in 13.7.
 
 ### 12.10 Online play from the desktop: the host's window, the ends, the launchers, F1's rows
 
@@ -1266,3 +1275,220 @@ Proofs (rocky, x86-64, unless said):
 Not tried: a real window (rocky and the Pi's tests are headless; the Esc key, the window's close, the title and the
 raise are read, not run), Windows itself (CI builds and runs the tests; the .bat files were checked by reading), and
 two PCs over Tailscale (the user's test is the first).
+
+## 13. Status: rejoining, and recovering from a desync by replay
+
+Written 2026-11-07 on branch `net-rejoin` (from 41b4aee). The user's priority is robustness: sessions that survive
+lower and higher latencies, and stay in sync. Before this a peer silent for 15 s ended the session, and a desync
+stopped it. The network's side is [NETWORK.md](NETWORK.md) 12; this is the game's, and the proofs.
+
+| Where | What |
+|---|---|
+| `port/net` | the session's id and log, the rejoin window, rejoins of either side, BYE `gone` and `recover`, the replay's API, the outage rule for the delay (NETWORK.md 5, 12) |
+| `port/app/netplay.c` | the rejoin ticket, the rejoin's flows (the guest's and the host's), the replay in the pads source, the notices on both screens, a desync's report and its restart |
+| `port/app/startup.c` | `pc_app_reexec`: the program again, same arguments (POSIX exec; on Windows a child with the same handles, waited for) |
+| `port/ultra/pace.c`, `loop.c`, `rcp.c` | `pc_catchup_set`: the clock free-running, graphics tasks not drawn, nothing presented; then the mode before it, paced from the N64 time then |
+| `port/audio/audio_out.c` | `pc_audio_tap_hold`: the sound card gets nothing during the replay |
+| `port/gfx/gfx_sdl.c`, `port/ultra/loop.c`, `win32.c` | `pc_gfx_window_closed`, `pc_quit_signal`: the window's close, SIGTERM and Windows' end of a console, a logoff or a shutdown told from the quit key |
+| `port/config` | `net.rejoin` (300 s; off), `net.recover` (on) |
+| `port/main.c` | a rejoining host adopts the session's settings before its memory is mapped, as a guest does; the restart at the end |
+| `tools/port/net_session_check.py` | `rejoin`, `outage`, `recover`, `speed` (13.5) |
+
+### 13.1 The design
+
+**Surviving a drop.** A running session waits `net.rejoin` seconds (300) for a peer that went silent, its game held as
+the lockstep holds it, the notice saying what the wait is and how long it may last ("Waiting for the guest to come
+back... Nothing from it for 0:12; waiting 4:48 more. Escape ends the session."). A network that comes back in that
+time goes on with nothing lost: the inputs and hashes not acknowledged are resent, and both sides re-base their
+pacing (ULTRA.md 10). The quit key ends it for both, as before. 15 s stays the limit before the game runs (the
+handshake, a guest no host answers). `--net-timeout S` sets both, as the tests' kill-and-timeout checks want.
+
+**The rejoin window: 300 s**, a setting (30-3600, or off). What it has to cover, from the moment a player's game
+goes:
+
+- a PC that restarts: one to three minutes to the desktop on Windows 11 and most Linux desktops (more when an update
+  installs, which no window can promise);
+- starting the game again: the ROM, the mods and the handshake, seconds; the log's transfer, an hour's log is 2.6 MB,
+  sent at up to about 3 MB a second (32 chunks of 1 KiB a pump of the network thread), so seconds on a home
+  uplink;
+- the replay: retail's speed on the Pi 5 is in 13.5; the keeper's window doesn't run during it (the rejoiner's
+  progress keeps the session alive), so a long session doesn't shorten it;
+- a router or a modem that restarts: one to three minutes; Wi-Fi or a phone's hotspot reconnecting, Tailscale finding
+  a new path: seconds.
+
+Five minutes covers a restart with room to spare. Past it the player who stayed has most likely given up, and a
+session kept waiting longer only keeps their game frozen; they can end the wait any time with Escape. 15 s, as
+before, is `net.rejoin = off`.
+
+**The session's id and the ticket.** The session's id is the first session ID of its handshake (NETWORK.md 12), on
+both PCs. Each side writes `netplay/rejoin-host.txt` or `rejoin-guest.txt` in its data folder when the game starts:
+the id, the role, the build, the time (refreshed every 20 s while it runs), the window, and a desync being recovered
+from. It is deleted when the session ends: a player leaving, the other player leaving, a timeout, a desync that isn't
+recovered from. So it remains only when the game went without ending its session: a crash, a kill, a power cut; and
+by design a closed window and the system ending the program (below).
+
+**Rejoining.** A player whose game is gone starts it the same way as before. With a fresh ticket of its role and build:
+
+- the guest's HELLO asks to rejoin the session by its id. The host that kept it answers with its offer once its own
+  game waits at the first retrace it lacks the guest's input for (`live`) and the old game is gone or silent 1.5 s; a
+  host without that session (a new one, the old one ended) answers as to any guest, and the game joins a new
+  session, saying so and dropping the ticket;
+- the host, before its window opens, gives its guest 3 s to knock: the guest that kept the session knocks at the
+  host's address every 0.25 s once the host is silent (at once after a BYE `gone`). Without a knock it forgets the
+  ticket and hosts a new session as usual.
+
+The rejoiner then does what a guest does at a join, whichever side it is: it checks the session's build, ROM and mods
+lines against its own and adopts the session's settings for this run, before its memory is mapped (`pc_net_adopt`;
+for a host, its own settings at the session's start, which its ini may no longer have), and installs both paks as the
+session had them at its start (sent by the keeper: neither PC's files are read for them). Retrace 0's window hash,
+with the must-match text's hash in it (12.3), is the first one the replay checks, so a setup that differs anywhere
+stops it there.
+
+**What the keeper sends** (NETWORK.md 12): the host's settings blob, both paks as at the start, and the log: both ports'
+pads of every retrace before `live` and its own hash of each, and every window hash (every 60 retraces). The keeper
+keeps all of that from the start, in memory: 12 bytes a retrace, 2.6 MB an hour, and the paks' 64 KiB.
+
+**The replay.** At the rejoin's START the rejoiner turns on `pc_catchup_set`: the N64 clock free-running (`--fast`'s
+course, ULTRA.md 10), graphics tasks not drawn, no frame presented, the sound card fed nothing (`pc_audio_tap_hold`).
+Then the game boots, and the pads source gives each retrace before `live` its pads from the log; each retrace's state
+hash, and the window hash every 60, is checked against the keeper's. A notice four times a second says how far it is
+("Catching up with the race: 45%. Retrace 32400 of 72000, about 0:20 left."), drawn over a cleared frame; the keeper's
+says the same of the rejoiner ("The guest is catching up: 45%"), from its PROGRESS. At `live` the source turns the
+mode back (the paced clock from the N64 time then, due then), submits this PC's first input for retrace `live`, and
+the session goes on: the keeper's game was waiting there. The input log of the rejoined run is whole from retrace 0
+(its header says it was rebuilt).
+
+**What the replay skips, without changing the game's course.** Drawing: the renderer only reads the game's memory
+(the display lists, textures, vertices) and writes GL, so a graphics task not drawn still sends its SP and DP events
+at the same moment of N64 time (`rcp.c`); the one value the renderer gives the game, the HUD models' offset, is 0 in
+a session (LOCKSTEP.md 6). Presenting: a swap that waits for vsync would hold the replay to the display's rate. The
+sound card: in a session the AI's queue is the null output's on the N64 clock whatever the device (AUDIO.md 11), and
+the device only gets a copy (the tap), so holding the tap changes nothing the game sees; the game's own sound is
+still made, as it is game state. The proof is the replay's own check: every retrace's hash, and the trace of every
+test below, the keeper's line for line.
+
+**The window closed is the game going, not the player leaving.** The user listed a closed window with crashes and
+restarts. On Windows a restart closes windows the way a click does, and on Linux a shutdown sends SIGTERM; with them
+counted as leaving, a restart would end the session for both. So the quit key, F1's Quit, Ctrl-C and a run's limits
+leave as before (BYE, the other side ends "the guest left"); closing the window, SIGTERM and SIGHUP (on Windows the
+console closing, a logoff, a shutdown) end this run with BYE `gone`: the other side waits for it at once ("Its game closed 0:05 ago; waiting 4:55 more"), this side keeps
+its ticket, and starting the game again rejoins. The player who stayed ends the wait with Escape.
+
+### 13.2 Recovering from a desync
+
+With `net.recover = on` (the default; only `--net-*` sessions read it, so the N64 game is unchanged), the host is
+authoritative. At the first retrace r whose hashes differ the host tells the guest (BYE `recover`), writes its desync
+report as before, and waits at the first retrace it lacks the guest's input for. The guest writes its report, adds r
+to its ticket and starts its program again with the same arguments (`pc_app_reexec`: on Linux the same process,
+exec'd; on Windows a child the old process waits for). The new run's ticket rejoins, and its replay checks the host's
+hashes at every retrace, r and those after it: if they match, the session goes on, and both logs say "recovered from
+the desync at retrace r". If the replay differs again at r, the difference is deterministic (the same inputs give
+the same wrong state): the rebuilt game stops the session with a desync at r, "deterministic: the rebuilt game went
+out of sync again at retrace r, where the desync was", the host says the same, and both write today's report.
+
+At most three a session (the ticket counts them). A desync at retrace 0 is never recovered from: it means the two
+setups differ (12.3), which a rebuild with the same setup can't fix. `net.recover = off` (either side) stops at the
+first desync with the report, as before. `RUSH_SIM_DESYNC_ONCE=1` (tests) drops `RUSH_SIM_DESYNC` from the restarted
+run, so a forced desync is a one-off.
+
+### 13.3 The host rejoining
+
+Done, and no harder than the guest's: the library's keeper and rejoiner are roles of their own, either side; the
+guest knocks because only the host listens. The one difference in the game: a host normally sets up with its own
+settings and opens its window before its guest joins (12.10), so a rejoining host waits for its guest's knock (3 s,
+before its memory is mapped) and adopts the session's settings as a guest does. The host's port must be the one the
+session used: the default 24049, or the same `--net-host PORT`.
+
+### 13.4 Proofs
+
+`tools/port/net_session_check.py` (ctest `net_session_*`), two `rush2049pc` processes over UDP on 127.0.0.1, rocky,
+x86-64, RelWithDebInfo, the synthetic cartridge, each run's trace replay_check.py's (every state change, a status line
+a second, every retrace's physics as exact floats, the pads, the state hash every retrace and the full one every 30).
+A process "killed" is killed by its own PID; its replacement is the same command in the same data folder, started 2 s
+later.
+
+| Test | Result |
+|---|---|
+| `net_session_rejoin`: race2p, the guest killed at retrace 1700, the same command 2 s later | it rejoined and replayed 1,713 retraces in 0.59 s (2,913 a second, 48.6 times real time, the per-retrace trace on and the suite running beside it), every hash the host's; then host = new guest, 5,606 trace lines, line for line, from retrace 0; both exit 0; the host waited 2.9 s |
+| `net_session_rejoin_host`: the host ended by SIGTERM at retrace 1700 (BYE `gone`), the same command 2 s later on the same port | the guest waited for it at once and knocked; the new host replayed 1,704 retraces in 0.53 s (3,223 a second), every hash the guest's; guest = new host, 5,606 lines; both exit 0; the guest waited 3.0 s |
+| `net_session_rejoin_paced`: the session's own clock at 4 times the pace, the guest killed at 1700 | the replay unpaced (1,704 retraces in 0.38 s), then paced again from the N64 time then; host = new guest, 5,606 lines; the host waited 2.6 s |
+| `rejoin --paks` (by hand): a new controller pak each (one ID), the guest killed at 1700 | the new guest installed the session's two paks from the host's record, port 2's re-IDed as at the start ("the two paks have one ID"), its own file not read; retrace 0's hash (the paks' images in it) the host's; host = new guest, 5,605 lines; 1,711 retraces replayed in 0.60 s |
+| `rejoin --sim bad150` and `rejoin --host-side --sim bad150` (by hand): 150 ms ± 40 each way, 10% loss, duplicates and reordering on both sides and on the restarted one, delay 14 | the offer through the loss, then 1,717 and 1,716 retraces replayed in 0.50 s, every hash the other's; then the two the same, 5,630 lines; the side that stayed waited 4.0 and 3.9 s |
+| `net_session_outage`: race2p to the race and 2 s into it, delay 3: the link down 20 s (every packet lost both ways); then the guest stopped 20 s (`RUSH_SIM_NET`'s pause) | each time host = guest = one process (3,428 lines, 1,685 retraces hashed), the host waiting 20.0 s and 21.2 s, past the old 15 s timeout; the delay stayed 3 |
+| `net_session_recover`: `RUSH_SIM_DESYNC` changes the guest's random seed once, at retrace 1000 | the host had the guest rebuild; its program started again (the same process ID: exec), replayed 1,004 retraces with the host's hash at every one, 1000 and past it, and played on: host = rebuilt guest, 5,606 lines, both exit 0, both logs "recovered from the desync at retrace 1000" |
+| `recover --paced` (by hand): the same on the session's own clock at 4 times the pace | the first game paced (240.000 retraces a second of wall time), the rebuilt one's replay unpaced (1,004 retraces in 0.22 s), then paced again at 240.000 a second, none re-based; host = rebuilt guest, 5,606 lines |
+| `net_session_recover_repeat`: the change again in the rebuilt game | both end with the desync at 1000, exit 3: "deterministic: the rebuilt game went out of sync again at retrace 1000, where the desync was ..."; both reports written |
+| `net_session_desync` (`net.recover = off` now), `net_session_mismatch` | as before: both stop at 1000 with reports naming `rng+0x0`; a setup that differs stops both at retrace 0 (never recovered from) |
+| the short outages already tested (`net_session_sim_pause` and `_burst`, `net_sigstop`: 3 s at most) | inside the old 15 s already; unchanged, the delay as before |
+
+The library's own (the toy simulation, NETWORK.md 12): on the virtual clock, both sides' games gone and rebuilt, at
+the same address and another, a stranger told `busy`, a desync recovered from and one that repeats, a 20 s outage;
+over UDP, `net_rejoin`, `net_rejoin_host`, `net_outage` (and a 20 s SIGSTOP), `net_recover`, `net_recover_repeat`.
+
+| Check | Result |
+|---|---|
+| the whole suite, rocky, RelWithDebInfo (`-LE realtime` at `-j4`, then `-L realtime` alone under the lock) | 575 of 575: 519 at `-j4`, then the 56 realtime ones alone, the new ones among them (`net_rejoin`, `net_rejoin_host`, `net_outage`, `net_recover`, `net_recover_repeat`, `net_session_rejoin_paced`, `net_session_outage`); `assets_rom` skipped (the retail ROM) |
+| the default off: `synth_compare.py --same --runs 2`, main's program (41b4aee) against this branch's, every path | Debug 62 of 62 the same, RelWithDebInfo 62 of 62 (`pcsetup` left out by the tool: the host's clock only) |
+| `port/net` alone under ASan and UBSan (the Pi 5, Debug) | `net_test unit` (the rejoin cases), `fuzz` (100,000), `sim` clean, bad150, pause, and `net_check.py` rejoin, rejoin-host, recover with the sanitized `net_peer`: no report, no leak |
+| the Windows build | the changed files with Windows code (`startup.c`'s `CreateProcessW`, `netplay.c`, `net.c`, `loop.c`, `main.c`...) compile with mingw-w64 (a syntax check on the Pi); run by CI's `windows` job |
+| game C | untouched: `n64_neutral.py --base 09da2f0` passes |
+
+### 13.5 The catch-up's speed
+
+`net_session_check.py speed NAME`: a session on the paced clock at the real pace without the per-retrace trace, the
+guest killed 15 s into the race and started again 1 s later; the rejoin's own line ("caught up: replayed N retraces
+in T s"), from START to the live retrace. Then, for comparison, one `--fast` process replaying the host's input log as
+far, which draws every frame headless (its start, the ROM and the data, measured apart and taken off).
+
+| Path (rocky, RelWithDebInfo) | The rejoin's replay, nothing drawn | One `--fast` process, every frame drawn | The catch-up |
+|---|---|---|---|
+| race2p, killed 15 s into the race | 2,469 retraces (41.1 s of the session) in 0.40 s: 6,134 a second, 102 times real time | 2,595 a second | 2.4 times as fast |
+| race12 (12 cars, the guest idle) | 2,767 retraces (46.1 s) in 0.44 s: 6,336 a second, 106 times real time | 2,302 a second | 2.8 times as fast |
+
+With the per-retrace trace on and the suite running beside it (13.4) the same replays ran at 2,900-4,500 a second, 49
+to 77 times real time.
+
+On the retail cartridge (the Pi 5, two processes over loopback, by hand; its numbers stay off the repository): a rejoin
+late in a two-player race had the host's hash at every retrace and played on; its replay ran many times faster than
+real time; and drawing was most of a replay's cost there, a `--fast` replay drawing every frame being several times
+slower than the catch-up. Skipping the drawing is what makes a retail rejoin quick on a modest PC.
+
+What the speed means for the wait: the player who stayed waits for the restart, the transfer and the replay. At S
+times real time an hour of session is 60/S minutes of catching up; the rejoin window doesn't count that time (the
+replay's progress keeps the session alive), so it only lengthens the wait, and both screens show how far it is.
+
+### 13.6 Found on the way
+
+- **An outage taken as latency.** Inputs resent after a 20 s outage arrived with a 20 s transit, and the delay
+  controller went to its cap: half a second of input lag that shrank a retrace every 2 s, a minute to recover
+  (measured on the virtual clock with the rule taken out). An input slower than the cap is now an outage, not
+  latency (NETWORK.md 5); the delay stays where it was (2 in every outage test).
+- **A rejoining game at its old address.** A guest that starts again often gets the same UDP port. Its packets in the
+  offered session came from the peer's own address and were dropped as the wrong session before the offer was
+  confirmed; a host now confirms a pending session from the peer's address too (`net_unit` runs both addresses).
+- **63 characters.** The keeper hears why a rebuilt game stopped from the BYE's text, its first 63 characters: the
+  word "deterministic" was past them. It comes first now.
+- **A desync at retrace 0** is two setups that differ (12.3): rebuilding with the same setup can only fail again, so
+  it isn't tried (`net_session_mismatch` checks the stop at 0, as before).
+- **A FILE_ACK that couldn't grow.** Version 1's FILE_ACK carried the whole blob's bitmap in one packet: a log past
+  about 9 MB would not have fit. Version 2's carries a window from the first chunk not received.
+
+### 13.7 Not done, and for the user to decide
+
+- **Tried headless only.** The window's close is read, not run (the tests use SIGTERM for "the game went"); a real
+  window on Windows, and the Windows restart for a desync (a child process with the parent's handles, waited for), are
+  compiled (a mingw-w64 syntax check of the files here) and will run in CI's Windows job's `net_session_*` tests.
+- **The window's close counts as the game going**, so the other player waits up to 5 minutes, and a player who meant
+  to leave that way leaves the other waiting until they press Escape. The user may prefer the close to leave (one
+  line in `pc_net_finish`); then a Windows restart ends the session for both.
+- **The window's length**, 300 s: a setting (`net.rejoin`, 30-3600, off).
+- **No rejoin without the ticket.** A player on another PC (theirs died) can't rejoin: the session's id is in the
+  first PC's data folder. A host could show it, and a guest type it, later.
+- **Both games gone at once** (a power cut on both): nobody keeps the session; both start new ones.
+- **The host's port must be the session's** (24049 by default) for its guest's knock to reach it; `--net-host 0`
+  can't be rejoined.
+- **Recovery trusts the host.** When the host's own game is the one that went wrong, the guest's rebuild differs at
+  the desync again and the session stops, said deterministic: two PCs can't tell which one is wrong.
+- **A NAT rebinding** (the same game at a new address) still ends by timeout, now the rejoin window's.
+- **Not in F1.** `net.rejoin` and `net.recover` are settings in `rush2049pc.ini` only, so the shared overlay is
+  untouched; the F1 Online page (branch `net-online`) could show them.
