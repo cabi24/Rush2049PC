@@ -6,6 +6,16 @@ What changed for players, newest first. The details and the tests behind each it
 
 ### New
 
+- **Online without Tailscale: the router opens the port** (`net.upnp`, off; README "Playing online"): when hosting,
+  U on the waiting screen (or F1 > Online > Host a race, Open router port) asks this PC's router to forward the
+  session's UDP port to it, by PCP, NAT-PMP or UPnP. The waiting screen then says "Your friend joins at
+  203.0.113.5:24049", or why it can't work there (the provider shares one address, carrier-grade NAT; no router
+  answered; the router refused) and that Tailscale does. The port is opened for 10 minutes at a time, renewed while
+  hosting, and closed when the session ends (after a crash, the 10 minutes run out). A guest that gets no answer from
+  an internet address is told that the host's router must forward the port, and how. Only this PC's own network is
+  contacted ([NETPLAY.md](docs/port/NETPLAY.md) 16, [NETWORK.md](docs/port/NETWORK.md) 13). Off, nothing changes and
+  nothing is sent.
+
 - **Online play from the game itself** (F1 > Online, README "Playing online"): Host a race (a port, a join code), Join
   a race (type the host's address, or pick one of the last 8 hosts you joined), Watch a replay, and this PC's
   addresses with Tailscale's first, copied to the clipboard for your friend with one key. Choosing Host, Join or Watch
