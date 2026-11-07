@@ -64,7 +64,7 @@
  "symbols.decoupled": 38,
  "symbols.inside_own": 49,
  "symbols.names_reached.game_objects": 1755,
- "symbols.names_reached.port_objects": 31,
+ "symbols.names_reached.port_objects": 33,
  "symbols.own": 390,
  "symbols.reserved": 1
 }
