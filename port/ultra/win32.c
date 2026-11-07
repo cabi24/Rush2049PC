@@ -19,6 +19,7 @@
 #include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <string.h>
 
 #include "ultra.h"
@@ -246,8 +247,10 @@ static BOOL WINAPI console_event(DWORD event)
 {
     if (event != CTRL_CLOSE_EVENT && event != CTRL_LOGOFF_EVENT && event != CTRL_SHUTDOWN_EVENT)
         return FALSE;   /* Ctrl-C, Ctrl-Break: the C runtime's SIGINT and SIGBREAK */
-    if (!pc_quit)
+    if (!pc_quit) {
+        pc_quit_signal = SIGTERM;   /* the system ending the program: an online game going, not its player leaving */
         pc_quit = 1 + 130;
+    }
     for (int i = 0; i < 300 && !pc_si_finished(); i++)
         Sleep(10);
     pc_si_finish();   /* at once if the loop's end has done it */
