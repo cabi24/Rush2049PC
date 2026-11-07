@@ -53,12 +53,18 @@ typedef struct {
 
 int pc_net_role(void);   /* PC_NET_* once pc_net_connect has run; PC_NET_NONE without a session */
 int pc_net_rejoining(void);   /* this side rebuilds a session (a rejoin): it adopts the session's settings, host or guest */
-int pc_net_reexec_wanted(void);   /* the guest rebuilds after a desync: main starts the program again (pc_app_reexec) */
+int pc_net_reexec_wanted(void);   /* the guest rebuilds after a desync: main starts it again (pc_app_restart) */
 
-/* 1. Opens the session: blob (main's settings text: "key=value" lines) and this PC's controller 1's pak (NULL: none)
- * go to the other PC. build is what both must run (the library compares it first). The host returns once its port is
- * open (pc_net_wait_guest waits); the guest once the host's settings and pak have arrived (up to the timeout). 0, or
- * the program's exit code with the reason logged and shown (window: a message box). */
+/* net.rumble (docs/port/NETPLAY.md 17): this player's controller holds a rumble pak in the session. The handshake's
+ * file for the player's accessory is then this text instead of a pak image (empty: none), so the other PC, and a
+ * rejoin's keeper, which sends both players' files as the session began, install the same accessories. */
+#define PC_NET_RUMBLE_FILE "rush2049pc: a rumble pak (net.rumble)\n"
+
+/* 1. Opens the session: blob (main's settings text: "key=value" lines) and this PC's controller 1's pak (NULL: none;
+ * with net.rumble on, the rumble pak's file whatever pak is) go to the other PC. build is what both must run (the
+ * library compares it first). The host returns once its port is open (pc_net_wait_guest waits); the guest once the
+ * host's settings and pak have arrived (up to the timeout). 0, or the program's exit code with the reason logged and
+ * shown (window: a message box). */
 int pc_net_connect(const PcNetOptions *o, const PcSettings *cfg, const char *build, const char *blob,
                    const uint8_t *pak, int window);
 /* 2. The host, with its window open (after pc_gfx_init, before pc_input_init): the waiting screen until a guest has

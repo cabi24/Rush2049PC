@@ -147,16 +147,22 @@ static uint8_t g_motor[4][RUMBLE_WINDOW];
 static int g_motor_pos;
 static double g_rumble_strength = 1.0;
 
+static int g_session, g_session_motor = -1;   /* an online session; its player's port (pc_input_session_motor) */
+
 static void rumble(void)
 {
+    double level[4];
     g_motor_pos = (g_motor_pos + 1) % RUMBLE_WINDOW;
     for (int port = 0; port < 4; port++) {
         int on = pc_si_motor(port), n = 0;
         g_motor[port][g_motor_pos] = (uint8_t)on;
         for (int i = 0; i < RUMBLE_WINDOW; i++)
             n += g_motor[port][i];
-        pc_input_live_rumble(port, g_rumble_strength * (on ? 1.0 : (double)n / RUMBLE_WINDOW));
+        level[port] = g_rumble_strength * (on ? 1.0 : (double)n / RUMBLE_WINDOW);
     }
+    for (int port = 0; port < 4; port++)   /* a session: this PC's controller 1 is its player's, whatever the port */
+        pc_input_live_rumble(port, !g_session ? level[port]
+                                   : port == 0 && g_session_motor >= 0 ? level[g_session_motor] : 0.0);
 }
 
 int pc_input_log;
@@ -320,11 +326,16 @@ void pc_input_apply(const PcSettings *s)
 }
 
 /* An online session (port/app/netplay.c): nothing holds the game (input_internal.h). */
-static int g_session;
-
 void pc_input_set_session(int on)
 {
     g_session = on;
+    if (!on)
+        g_session_motor = -1;
+}
+
+void pc_input_session_motor(int port)
+{
+    g_session_motor = port >= 0 && port < 4 ? port : -1;
 }
 
 int pc_input_session(void)

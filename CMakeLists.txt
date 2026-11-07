@@ -694,6 +694,19 @@ foreach(script ${SYNTH_PATHS})
     endif()
     set_tests_properties(replay_same_${name} PROPERTIES FIXTURES_REQUIRED "${fixtures}" TIMEOUT ${REPLAY_TIMEOUT})
 endforeach()
+# replay_same60_<path>: the same at game.frame_rate = 60 (docs/port/NETPLAY.md 17), its recordings and replay logs in
+# synth/replay60, which CI's windows-replay replays too (with --set game.frame_rate=60): the Windows program must take
+# Linux's course at 60 as at original. Paths across the game's modes (each of the 60 paths that reach their end at 60
+# records and replays the same on rocky: NETPLAY.md 17).
+set(REPLAY60_PATHS race2p race2p12 battle2p circuit circuit12 drive steer stunt solo demo pause race12 memhigh2p ghost)
+if(NOT PC_SANITIZE)
+    foreach(name ${REPLAY60_PATHS})
+        add_test(NAME replay_same60_${name} COMMAND ${PC_PYTHON} ${PORT_TOOLS}/replay_check.py
+                 --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/replay60
+                 --mods ${CMAKE_BINARY_DIR}/synth/paths/mods --set game.frame_rate=60 same ${name})
+        set_tests_properties(replay_same60_${name} PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
+    endforeach()
+endif()
 set(REPLAY_TESTS replay_file gate_same hash_aslr)
 add_test(NAME replay_file COMMAND ${REPLAY_CHECK} file race2p)
 if(PC_SANITIZE_ADDRESS OR PC_SANITIZE_THREAD)
@@ -759,12 +772,27 @@ set_tests_properties(net_session_rejoin net_session_recover PROPERTIES FIXTURES_
 if(NOT PC_SANITIZE)
     add_test(NAME net_session_rejoin_host COMMAND ${NET_SESSION_CHECK} rejoin --host-side --term)
     add_test(NAME net_session_recover_repeat COMMAND ${NET_SESSION_CHECK} recover --repeat)
-    set_tests_properties(net_session_rejoin_host net_session_recover_repeat PROPERTIES FIXTURES_REQUIRED synth_rom
-                         TIMEOUT ${REPLAY_TIMEOUT})
+    # _page: a guest the F1 Online page started (--net-return) rebuilds too, rather than going back to the game
+    add_test(NAME net_session_recover_page COMMAND ${NET_SESSION_CHECK} recover --page)
+    set_tests_properties(net_session_rejoin_host net_session_recover_repeat net_session_recover_page PROPERTIES
+                         FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
     add_test(NAME net_session_rejoin_paced COMMAND ${NET_SESSION_CHECK} rejoin --paced)
     add_test(NAME net_session_outage COMMAND ${NET_SESSION_CHECK} outage)
     set_tests_properties(net_session_rejoin_paced net_session_outage PROPERTIES FIXTURES_REQUIRED synth_rom
                          TIMEOUT 900 RUN_SERIAL TRUE LABELS realtime)
+endif()
+# At game.frame_rate = 60 (docs/port/NETPLAY.md 17): the host's 60, which the guest adopts. net_session_fps60: race2p
+# and battle2p, host = guest = one process at 60, line for line; net_session_paced60: the session's own clock at 60,
+# at 4 times the pace one --fast process's trace, at the real pace under wan80 60 retraces a second of wall time.
+# Not under the sanitizers (17-37 times slower there).
+if(NOT PC_SANITIZE)
+    add_test(NAME net_session_fps60 COMMAND ${NET_SESSION_CHECK} path race2p battle2p
+             --logs ${CMAKE_BINARY_DIR}/synth/net60 --host-set game.frame_rate=60)
+    set_tests_properties(net_session_fps60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
+    add_test(NAME net_session_paced60 COMMAND ${NET_SESSION_CHECK} paced --model wan80
+             --logs ${CMAKE_BINARY_DIR}/synth/net60 --host-set game.frame_rate=60)
+    set_tests_properties(net_session_paced60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 900 RUN_SERIAL TRUE
+                         LABELS realtime)
 endif()
 add_test(NAME net_session_desync COMMAND ${NET_SESSION_CHECK} desync)
 add_test(NAME net_session_adopt COMMAND ${NET_SESSION_CHECK} adopt)
@@ -776,6 +804,16 @@ set_tests_properties(net_session_wait PROPERTIES FIXTURES_REQUIRED synth_rom TIM
 # each PC's screenshot what it shows (docs/port/NETPLAY.md 14)
 add_test(NAME net_session_view COMMAND ${NET_SESSION_CHECK} view)
 set_tests_properties(net_session_view PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
+# net_session_rumble: net.rumble on one PC, each way round: both games have that player's rumble pak, one game, and its
+# motor rumbles that player's controller alone (docs/port/NETPLAY.md 17); skipped without SDL's virtual controllers
+# net_session_paknames: an imported ghost on the session's pak has the game's names, as offline (NETPLAY.md 17)
+add_test(NAME net_session_paknames COMMAND ${NET_SESSION_CHECK} paknames)
+set_tests_properties(net_session_paknames PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT})
+if(RUSH_SDL2_TARGET)
+    add_test(NAME net_session_rumble COMMAND ${NET_SESSION_CHECK} rumble)
+    set_tests_properties(net_session_rumble PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT ${REPLAY_TIMEOUT}
+                         SKIP_RETURN_CODE 77)
+endif()
 add_test(NAME net_session_mismatch COMMAND ${NET_SESSION_CHECK} mismatch)
 set_tests_properties(net_session_mismatch PROPERTIES FIXTURES_REQUIRED "synth_rom;mods_synth"
                      TIMEOUT ${REPLAY_TIMEOUT})
@@ -821,6 +859,12 @@ add_executable(test_saves port/app/tests/test_saves.c port/app/saves.c port/app/
 target_include_directories(test_saves PRIVATE port/app port/ultra port/include)
 target_compile_options(test_saves PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 add_test(NAME app_saves COMMAND test_saves ${CMAKE_BINARY_DIR}/test-scratch-saves)
+# netplay/ kept to the newest online sessions (net.keep, docs/port/NETPLAY.md 17): what goes, what stays.
+add_executable(test_netkeep port/app/tests/test_netkeep.c port/app/netkeep.c port/app/paths.c)
+target_include_directories(test_netkeep PRIVATE port/app port/include)
+target_compile_options(test_netkeep PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
+set_target_properties(test_netkeep PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+add_test(NAME app_netkeep COMMAND test_netkeep ${CMAKE_BINARY_DIR}/test-scratch-netkeep)
 # The paks' writer thread (port/ultra/pakwrite.c, docs/port/ULTRA.md "Controller pak") with a slow, held or failing
 # fake write: submits never wait for a write, newer images replace queued ones, the order, one write at a time, a
 # failure kept and tried again, the wait at the end, the fault path, and the real atomic write.

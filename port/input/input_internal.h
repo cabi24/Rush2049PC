@@ -86,6 +86,11 @@ void pc_input_apply(const PcSettings *s);     /* the overlay's input changes, ru
  * overlay locks the settings the game reads (pc_settings_session_rule) and the Saves page's changes to the pak. */
 void pc_input_set_session(int on);
 int pc_input_session(void);
+/* In a session, the game's port of this PC's player (0 the host's, 1 the guest's): that port's rumble pak motor
+ * (net.rumble) rumbles this PC's controller 1, the player's, and no other port's motor rumbles anything here (the other
+ * player's is the other PC's). Output only: the motor is the game's write, nothing reads it back. Out of a session
+ * (pc_input_set_session(0) ends it) each port's motor rumbles its own player's controller. */
+void pc_input_session_motor(int port);
 
 /* ---------------------------------------------------------------- menu.c: the settings overlay */
 

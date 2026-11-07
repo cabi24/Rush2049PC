@@ -5,8 +5,9 @@
  * handshake comes before the game's memory is mapped). Its act here only takes the choice down; the overlay stops the
  * main loop as its Quit does, main ends the run as always (the session's BYE, the saves, the window, the log) and then
  * pc_net_menu_restart runs the program again with this run's options (port/config/online.c leaves out what the restart
- * replaces) and the restart's own:
- *   - Linux: execv of /proc/self/exe, the same process: its parent (a shell, a launcher, a test) waits on as before;
+ * replaces) and the restart's own, and the environment the program started with: pc_app_restart (port/app/startup.c),
+ * which a guest's rebuild after a desync uses too:
+ *   - Linux: execve of /proc/self/exe, the same process: its parent (a shell, a launcher, a test) waits on as before;
  *   - Windows: CreateProcess of the executable's own path, the command line quoted as the C runtime parses it. When this
  *     run had a console or its output went to a file or a pipe (a launcher's .bat, a script, a test), the new program
  *     gets the same standard handles and this one waits for it and exits with its exit code: the launcher's `if
@@ -62,11 +63,6 @@ static struct {
     const char *args[MAX_ARGS];       /* the restart's command line (pc_net_menu_restart_say) */
     char argbuf[16384];
     int nargs;
-#ifdef _WIN32
-    char *env;                        /* the environment block at start (main sets RUSH_GFX_* from the settings) */
-#else
-    char **env;
-#endif
 } NM;
 
 /* ---------------------------------------------------------------- an input log's header */
@@ -371,41 +367,9 @@ static int ui_act(int action, const char *a, const char *b, char *msg, size_t si
 
 static const PcOnlineUi g_ui = {ui_mode, ui_addresses, ui_replays, ui_act};
 
-/* The environment as the program was started with it, for the restart: main sets RUSH_GFX_* and others from the
- * settings in effect (port/gfx reads them), which a new run would take as the environment's layer over the settings
- * file: a guest's draw distance, the host's, back in the game after the session. */
-#ifndef _WIN32
-extern char **environ;
-#endif
-
-static void keep_environment(void)
-{
-#ifdef _WIN32
-    char *e = GetEnvironmentStringsA(), *p = e;
-    size_t n;
-    if (!e)
-        return;
-    while (*p)
-        p += strlen(p) + 1;
-    n = (size_t)(p - e) + 1;
-    if ((NM.env = malloc(n)) != NULL)
-        memcpy(NM.env, e, n);
-    FreeEnvironmentStringsA(e);
-#else
-    int n = 0;
-    while (environ && environ[n])
-        n++;
-    if (!(NM.env = calloc((size_t)n + 1, sizeof *NM.env)))
-        return;
-    for (int i = 0; i < n; i++)
-        NM.env[i] = strdup(environ[i]);
-#endif
-}
-
 void pc_net_menu_args(int argc, char **argv, int net_return)
 {
     NM.argc = argc, NM.argv = argv, NM.back = net_return;
-    keep_environment();
 }
 
 void pc_net_menu_install(int mode, const char *data_dir, const PcSettings *cfg, const char *rom, const char *build,
@@ -442,6 +406,8 @@ void pc_net_menu_session_end(int started)
 {
     if (!NM.back || NM.asked)
         return;
+    if (pc_net_reexec_wanted())
+        return;   /* the guest rebuilds after a desync: the same command again (its --net-return too), not the game */
     if (pc_net_window_closed() || pc_quit == 1 + 130 || (started && pc_net_end_local()))
         return;   /* the player stopped the program: the window, Ctrl-C, the quit key or Quit in the game */
     NM.asked = 1;
@@ -472,79 +438,19 @@ void pc_net_menu_restart_say(void)
 
 int pc_net_menu_restart(int code)
 {
-    char text[600];
     if (!NM.asked || NM.nargs <= 0)
         return code;
-    fflush(NULL);
-#ifdef _WIN32
-    {
-        static char cmd[32768];
-        char exe[MAX_PATH];
-        STARTUPINFOA si;
-        PROCESS_INFORMATION pi;
-        DWORD n = GetModuleFileNameA(NULL, exe, sizeof exe), got = 0;
-        int wait = !pc_app_console_quiet();   /* a console or a file or pipe saw its output: as exec, wait */
-        BOOL inherit = FALSE;
-        memset(&si, 0, sizeof si);
-        si.cb = sizeof si;
-        NM.args[0] = n > 0 && n < sizeof exe ? exe : NM.argv[0];
-        if (pc_online_quote_windows(NM.args, NM.nargs, cmd, sizeof cmd) < 0) {
-            snprintf(text, sizeof text, "The program couldn't start again: its command line is too long.");
-            pc_app_alert(1, "Rush 2049 PC", text);
-            return 1;
-        }
-        if (wait) {   /* the same standard handles: the console, the file, the pipe */
-            HANDLE h[3] = {GetStdHandle(STD_INPUT_HANDLE), GetStdHandle(STD_OUTPUT_HANDLE),
-                           GetStdHandle(STD_ERROR_HANDLE)};
-            for (int i = 0; i < 3; i++)
-                if (h[i] && h[i] != INVALID_HANDLE_VALUE)
-                    SetHandleInformation(h[i], HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-            si.dwFlags = STARTF_USESTDHANDLES;
-            si.hStdInput = h[0], si.hStdOutput = h[1], si.hStdError = h[2];
-            inherit = TRUE;
-        }
-        if (!CreateProcessA(NM.args[0], cmd, NULL, NULL, inherit, 0, NM.env, NULL, &si, &pi)) {
-            snprintf(text, sizeof text, "The program couldn't start again (CreateProcess: error %lu). Start it again "
-                     "yourself: %s", (unsigned long)GetLastError(), cmd);
-            fprintf(stderr, "rush2049pc: %s\n", text);
-            pc_app_alert(1, "Rush 2049 PC", text);
-            return 1;
-        }
-        CloseHandle(pi.hThread);
-        if (wait) {
-            WaitForSingleObject(pi.hProcess, INFINITE);
-            if (GetExitCodeProcess(pi.hProcess, &got))
-                code = (int)got;
-        } else {
-            code = 0;
-        }
-        CloseHandle(pi.hProcess);
-        return code;
-    }
-#else
-    {
-        char exe[PC_APP_PATH];
-        ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
-        char **env = NM.env ? NM.env : environ;   /* the environment it was started with */
-        if (n > 0) {
-            exe[n] = 0;
-            execve(exe, (char *const *)NM.args, env);
-        }
-        environ = env;
-        execvp(NM.args[0], (char *const *)NM.args);   /* no /proc: argv[0] as it was started */
-        snprintf(text, sizeof text, "The program couldn't start again (%s). Start it again yourself.",
-                 strerror(errno));
-        fprintf(stderr, "rush2049pc: %s\n", text);
-        pc_app_alert(1, "Rush 2049 PC", text);
-        return 1;
-    }
-#endif
+    /* this run's options changed (pc_online_args), with the environment the program started with: a new run takes
+     * RUSH_GFX_* as a layer over its settings file, and main set them from the settings in effect (a guest's, the
+     * host's draw distance); exec on Linux, CreateProcess on Windows (port/app/startup.c) */
+    return pc_app_restart(NM.args, NM.nargs, PC_APP_RESTART_START_ENV);
 }
 
 /* ---------------------------------------------------------------- a session's log replayed offline */
 
 static struct {
     uint8_t *pak[2];
+    int rumble[2];   /* that port had a rumble pak (net.rumble: the header's game.pak or pak2 = rumble) */
     int on;
 } RS;
 
@@ -590,18 +496,25 @@ int pc_replay_session(const char *file, PcSettings *cfg, char *why, size_t why_s
         }
         RS.pak[k] = r ? img : NULL;
     }
+    for (int k = 0; k < 2; k++)   /* net.rumble's: the header's game.pak or pak2 = rumble (taken above) */
+        RS.rumble[k] = cfg->pak[k] == PC_CFG_PAK_RUMBLE && !RS.pak[k];
     for (int k = 0; k < 4; k++)   /* as the header's game.pak... say: the session's paks, ports 3 and 4 none */
-        cfg->pak[k] = k < 2 && RS.pak[k] ? PC_CFG_PAK_MEMORY : PC_CFG_PAK_NONE;
+        cfg->pak[k] = k < 2 && RS.rumble[k] ? PC_CFG_PAK_RUMBLE
+                      : k < 2 && RS.pak[k] ? PC_CFG_PAK_MEMORY : PC_CFG_PAK_NONE;
     RS.on = 1;
     fprintf(stderr, "rush2049pc: replay: an online session's input log: its settings (%d changed for this run), its "
             "rules and its paks (controller 1 %s, controller 2 %s), in memory only\n", changed,
-            RS.pak[0] ? "a pak" : "none", RS.pak[1] ? "a pak" : "none");
+            RS.rumble[0] ? "a rumble pak" : RS.pak[0] ? "a pak" : "none",
+            RS.rumble[1] ? "a rumble pak" : RS.pak[1] ? "a pak" : "none");
     free(header);
     return 1;
 }
 
 void pc_replay_session_paks(void)
 {
-    for (int ch = 0; ch < 4; ch++)
+    for (int ch = 0; ch < 4; ch++) {
         pc_si_set_pak_image(ch, ch < 2 ? RS.pak[ch] : NULL);
+        if (ch < 2 && RS.rumble[ch])
+            pc_si_set_pak(ch, PC_PAK_RUMBLE);
+    }
 }

@@ -181,6 +181,7 @@ static const char *const memory_choices[] = {"original", NULL};        /* 0: the
 static const char *const net_delay_choices[] = {"auto", NULL};         /* 0: from the round trip (NETPLAY.md 11.2) */
 static const char *const net_view_choices[] = {"split", "own", NULL};  /* PC_GFX_VIEW_* (NETPLAY.md 14) */
 static const char *const net_rejoin_choices[] = {"off", NULL};         /* 0: no rejoin, a 15 s silence ends (NETPLAY.md 15) */
+static const char *const net_keep_choices[] = {"all", NULL};           /* 0: netplay/ never pruned (NETPLAY.md 17) */
 static const char *const draw_choices[] = {"original", "far", "max", NULL};    /* PC_DRAW_* */
 static const char *const detail_choices[] = {"original", "high", NULL};       /* PC_DETAIL_* */
 static const char *const fog_choices[] = {"original", "far", "off", NULL};    /* PC_FOG_* */
@@ -419,6 +420,15 @@ static const Item items[] = {
     {"net", "recover", T_BOOL, F(net_recover), 0, 0, NULL, "on",
      "When the two games go out of sync, the guest's game starts again and rebuilds the race by replaying the host's "
      "log, and the session goes on; off: a desync ends the session with its report."},
+    /* net.keep, net.rumble (docs/port/NETPLAY.md 17) */
+    {"net", "keep", T_INT, F(net_keep), 1, 1000, net_keep_choices, "20",
+     "The online sessions whose input logs (and paks and desync reports) stay in the data folder's netplay/: the "
+     "newest N, the older ones removed when a session starts; all keeps every one. Replays kept with F1's Keep this "
+     "replay (replays/) are never removed, nor a session that is running or was played in the last two hours."},
+    {"net", "rumble", T_BOOL, F(net_rumble), 0, 0, NULL, "off",
+     "In an online session this player's controller holds a rumble pak instead of the controller pak, as on an N64: "
+     "the game rumbles this PC's controller, and this player's saves (profiles, ghosts) aren't in the session. Both "
+     "PCs' games see the same accessories. off: the controller pak, as before."},
 };
 #undef F
 #define NUM_ITEMS (sizeof items / sizeof *items)
@@ -449,6 +459,11 @@ const int pc_must_match_count = (int)(sizeof pc_must_match / sizeof pc_must_matc
 
 int pc_settings_session_rule(const char *section, const char *key)
 {
+    /* each PC's own, but read when the session starts (port/app/netplay.c): no change can reach a session running */
+    static const char *const fixed[] = {"rejoin", "recover", "rumble", NULL};
+    for (int i = 0; !strcasecmp(section, "net") && fixed[i]; i++)
+        if (!strcasecmp(key, fixed[i]))
+            return PC_SESSION_FIXED;
     for (int i = 0; i < pc_must_match_count; i++)
         if (!strcasecmp(pc_must_match[i].section, section) && !strcasecmp(pc_must_match[i].key, key))
             return pc_must_match[i].adopt > 0 ? PC_SESSION_HOSTS : pc_must_match[i].adopt == 0 ? PC_SESSION_SETS

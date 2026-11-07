@@ -91,11 +91,26 @@ int pc_app_pick_pending(void);   /* ... and has answers left */
 
 /* ---------------------------------------------------------------- startup.c: the console, the process */
 
-/* First thing in main. Windows: a program started without standard handles (rush2049pc.exe is a GUI program)
- * attaches to its parent's console and prints there, or, with none to attach to, keeps what it prints in memory
- * (quiet); then the timer period and power throttling for the run. RUSH2049_CONSOLE=none: quiet on any system. */
+/* First thing in main. The environment as the program was started, for pc_app_restart. Windows: a program started
+ * without standard handles (rush2049pc.exe is a GUI program) attaches to its parent's console and prints there, or,
+ * with none to attach to, keeps what it prints in memory (quiet); then the timer period and power throttling for the
+ * run. RUSH2049_CONSOLE=none: quiet on any system. */
 void pc_app_startup(void);
-int pc_app_reexec(int argc, char **argv);   /* the program again, same arguments (POSIX: exec; Windows: a child) */
+/* The program again, in place of this run, at its very end (the window, the sound and the log closed): the F1 Online
+ * page's restarts (port/app/netmenu.c, docs/port/NETPLAY.md 13.2) and a guest's rebuild after a desync (netplay.c,
+ * NETPLAY.md 15.2), one way for both. argv (argc of them) is the new command line, argv[0] as this run was started;
+ * PC_APP_RESTART_SAME says it is this run's own, unchanged (on Windows the command line then is Windows' own,
+ * GetCommandLineW, every character as given). PC_APP_RESTART_START_ENV: the environment the program started with
+ * (pc_app_startup keeps it), not the one main has set since; without it, the environment as it is now.
+ *   - Linux: execve of /proc/self/exe (this build, even if its file was replaced since), the same process ID and
+ *     standard streams; elsewhere execvp of argv[0]. Returns only when that fails.
+ *   - Windows: CreateProcessW of the program's own path. With a console, or the output going to a file or a pipe (a
+ *     launcher's .bat, a script, a test), the new program gets the same standard handles and this one waits for it
+ *     and returns its exit code, as exec would leave a shell or a launcher waiting; started from Explorer (quiet),
+ *     it returns 0 at once and the new program keeps its own output.
+ * On a failure it says so (and in a message box) and returns 1. */
+enum { PC_APP_RESTART_SAME = 1, PC_APP_RESTART_START_ENV = 2 };
+int pc_app_restart(const char *const *argv, int argc, int flags);
 int pc_app_console_quiet(void);   /* nobody sees what the program prints: errors need a message box */
 /* The last lines printed (quiet only; "" otherwise): up to 12. */
 void pc_app_console_tail(char *out, size_t size);
