@@ -1,0 +1,838 @@
+# r3: names for the game image range 0x800B4720 - 0x800CD798 (wave 1, agent names-r3; map: docs/code/r3.md)
+# format: docs/port/PCONLY.md section 3. Sections: functions, data used only here, fields, files; "# shared" = data also used outside the range.
+# "_stub" names: empty 2-word functions the N64 compiler left where it inlined and deleted a static (no callers); the
+# original name is the inlined function's. Interior aliases: symbols that point inside another datum (named after it).
+# old	new	kind	source	confidence	note
+
+# ---- functions (address order) ----
+func_800B4720	_SaveObstacleSetting_stub	func	mat3	likely	empty 2-word residue of MAT3 save.c _SaveObstacleSetting, which the N64 build inlined into SavePlayerOption (the real body is the static _SaveObstacleSetting in save_option.c); first of three residues laid out in reverse call order before _SaveRaceSetting
+func_800B4728	_SaveStuntSetting_stub	func	mat3	likely	empty residue of MAT3 save.c _SaveStuntSetting (inlined into SavePlayerOption; body is the static in save_option.c); position by the reverse-call-order layout
+func_800B4730	_SaveBattleSetting_stub	func	mat3	likely	empty residue of MAT3 save.c _SaveBattleSetting (inlined into SavePlayerOption; body is the static in save_option.c); position by the reverse-call-order layout
+voice_stop_2	_SaveRaceSetting	func	mat3	sure	MAT3 save.c _SaveRaceSetting: same option switch 21-31 (laps..deaths), checksum + PS_WriteFile of raceSettings; only caller SavePlayerOption
+func_800B4AE8	_GetBattleSetting	func	mat3	sure	MAT3 save.c _GetBattleSetting: its body reads options 23,28,29,30,37-40 (gravity,mirror,fog,wind,mode,points,minutes,neg); inlined into GetPlayerOption (the address order of the three stubs suggests obstacle/stunt/battle, the C bodies say battle/stunt/obstacle)
+func_800B4AF0	_GetStuntSetting	func	mat3	sure	MAT3 save.c _GetStuntSetting: options 23,28,29,30,32-36 (gravity..deaths); inlined into GetPlayerOption
+func_800B4AF8	_GetObstacleSetting	func	mat3	sure	MAT3 save.c _GetObstacleSetting: options 23,28,29,30 only; inlined into GetPlayerOption
+func_800B4B00	_GetRaceSetting	func	mat3	sure	MAT3 save.c _GetRaceSetting: options 21-24,26-31 (laps..deaths); used for tracks 0-5 and 19-24 as in MAT3
+reverb_setup	GetPlayerOption	func	mat3	sure	MAT3 save.c GetPlayerOption: options <21 from the profile's array, else per-track race/battle/stunt/obstacle getter by gTrackNum ranges 0-5/19-24, 6-13, 14-17, rest
+func_800B4DA4	SaveSelectPlayer	func	mat3	sure	MAT3 save.c SaveSelectPlayer: first call sets gGlobalsSet and loads the 21 global options with GetPlayerOption + VideoSetOffset(gOptions[19],[20]); later calls save them with SavePlayerOption
+func_800B4E68	updatePauseStateCleanup	func	mat3	sure	MAT3 pausescr.c updatePauseStateCleanup: switch on gPauseState, removes Dim/Title/Pause/Sure/Rumble blits, SaveSelectPlayer per player, RemovePanes(0), gTitlePane = 0
+func_800B5570	setGameState	func	mat3	sure	MAT3 state.c setGameState: stores its argument in gNewGameState (state_word_b)
+ambient_sounds_clear	removeBG	func	mat3	sure	MAT3 front.c removeBG: removes backBlit and the four backPolys (ZOID_RemovePoly)
+func_800B55F4	video_uninitButtons	func	mat3	likely	2-word residue before SaveFlush/uninitScreen where the layout puts MAT3 videoscr.c uninitButtons (its 12-button loop is inlined in video_uninitScreen); the decomp's C body (RemovePanes(0)) is a matching device - wave 2 should move the button loop here
+func_800B5688	video_uninitScreen	func	mat3	sure	MAT3 videoscr.c uninitScreen: if inited: SaveFlush, release the 12 button objects, RemovePanes, gTitlePane = 0, RemoveBlit(blit), removeBG, panesCreated = inited = 0
+TitlePane	video_TitlePane	func	mat3	sure	MAT3 videoscr.c static _TitlePane: font 13, "CONTROLLER %d %s" when gControllerRemoved else the video title (string table index 53), width/2, ChangePaneSize/InitPane at y 6; other screens have their own _TitlePane, hence the prefix
+func_800B5898	WPitchUV	func	mat3	sure	MAT3 fmath.c WPitchUV: rotate rows' y/z about world X when |angle| > 0.001
+func_800B5940	WRollUV	func	mat3	sure	MAT3 fmath.c WRollUV: rotate rows' x/y when |angle| > 0.001
+func_800B59E8	video_validOption	func	mat3	sure	MAT3 videoscr.c validOption: returns the item's flag from the 4-entry table (inlined into updateVideoScreen and updateButtons, 2-word retail stub)
+func_800B59F0	video_updateButtons	func	mat3	sure	MAT3 videoscr.c updateButtons: same 4 buttons at y 100, angle +-12.566371*gFrameSeconds toward pi, unitmatrix copy, x -90/150, z 300, WPitchUV
+audio_distance_atten	PlayUDSound	func	mat3	sure	MAT3 audio.c PlayUDSound: edges & 0x400 picks one of two menu sounds
+audio_doppler	PlayLRSound	func	mat3	sure	MAT3 audio.c PlayLRSound: edges & 0x1000 picks one of two menu sounds
+resource_type_select	PlayStartABSound	func	mat3	sure	MAT3 audio.c PlayStartABSound: edges & 1 / & 2 / else, three menu sounds
+func_800B6014	_ReleaseSemaphore_ControlSys_stub	func	mat3	likely	empty residue of MAT3 controlsys.c static _ReleaseSemaphore (inlined as the osSendMesg in ClearControls/UpdateControls); laid out right before ClearControls after its _GetSemaphore twin in reverse call order
+func_800B601C	_GetSemaphore_ControlSys_stub	func	mat3	likely	empty residue of MAT3 controlsys.c static _GetSemaphore (inlined as the osRecvMesg on the pad queue); right before ClearControls
+audio_occlusion	ClearControls	func	mat3	sure	MAT3 controlsys.c ClearControls: under the pad semaphore clears active edges/autoEdges/levels and per pad stick, edges, levels, autoEdges, newEdges
+entity_audio_update	ClearRushControls	func	mat3	sure	MAT3 controls.c ClearRushControls: ClearControls then zero every player's edges/levels/autoEdges/analog[2]; the alias symbol set_race_state (same address, called from ovl_a) is this function too
+func_800B61A8	PlayGameSound	func	mat3	sure	MAT3 audio.c PlayGameSound: -1 when game sounds are disabled or fxid == -1, else AudPlayEffect; static inlined copies of the same name exist in groups (matching devices)
+render_helper	HAL_SetTextDepth	func	mat3	sure	MAT3 HAL_text.c HAL_SetTextDepth: gDepth = depth; > 0 sets font attribute bit 16 and BlitZDist, else clears it
+func_800B669C	TB_SetJust	func	mat3	sure	MAT3 TB_text.c TB_SetJust: stores the horizontal/vertical justification pair gJust
+func_800B66B0	_TextLen	func	mat3	sure	MAT3 HAL_text.c static _TextLen (hal_drawtext.c port): length of the 1- or 2-byte text
+func_800B6748	_SetDefaults	func	mat3	sure	MAT3 HAL_text.c static _SetDefaults: colour 230,230,230,255, trans -1, pos 0, font/leading/spacing -1
+audio_doppler_calc	_DrawText	func	mat3	sure	MAT3 HAL_text.c static _DrawText (matched port, drawtext.c): emits the glyph blits of the text buffer
+menu_input_process	HAL_DrawText	func	mat3	sure	MAT3 HAL_text.c HAL_DrawText (matched port, hal_drawtext.c)
+func_800B70EC	HAL_SetTextPos	func	mat3	sure	MAT3 HAL_text.c HAL_SetTextPos: sets gFontXpos/gFontYpos unless the -32768 "unchanged" sentinel
+object_bytes23_sum	TB_GetFontHeight	func	mat3	sure	MAT3 TB_text.c TB_GetFontHeight: font ascent + descent (the two byte getters); used by TB_DrawText for vertical justification 1/4
+sound_pitch_diff_calc	TB_RightText	func	mat3	sure	MAT3 TB_text.c TB_RightText: x - HAL_GetTextWidth(text, -1)
+sound_pitch_diff_halved	TB_CenterText	func	mat3	sure	MAT3 TB_text.c TB_CenterText: x - width/2
+state_utility	TB_DrawText	func	mat3	sure	MAT3 TB_text.c TB_DrawText: apply gJust (center/right, v 1/4) then HAL_SetTextPos + HAL_DrawText(text, -1)
+func_800B7360	HAL_SetTextColor	func	mat3	sure	MAT3 HAL_text.c HAL_SetTextColor: if any of r,g,b,a differs store gFontColor and clear the blit colour cache
+func_800B73E4	HAL_InitTime	func	mat3	sure	MAT3 HAL_time.c HAL_InitTime: once, clear the 10 once-per-frame function slots
+func_800B7438	HAL_InstallOncePerFrameFunc	func	mat3	sure	MAT3 HAL_time.c HAL_InstallOncePerFrameFunc: HAL_InitTime if needed, store func in the first free of 10 slots
+func_800B7498	TB_TextInit_stub	func	mat3	likely	empty residue of MAT3 TB_text.c static TB_TextInit (inlined into TB_SetTextColor: set gInited, TB_TextOncePerFrame, install it); right before TB_SetTextColor, after its callees
+dispatch_handler	TB_SetTextColor	func	mat3	sure	MAT3 TB_text.c TB_SetTextColor: colour 22 blends gFlashColor1/2 by gColorCycle (TB_TextInit first), else gFontColors[color]
+func_800B78A4	CountBits	func	mat3	sure	MAT3 gamerecords.c CountBits(data, numBits): count set bits
+func_800B78F0	NumCoinsFound	func	mat3	sure	MAT3 gamerecords.c NumCoinsFound(p, whichCoins): race tracks 0-5 / stunt 14-17 coin word of the profile, gJustPlayers fallback, 16 without data, 0xff00/0xff mask, CountBits
+particles_update	animCoins	func	mat3	sure	MAT3 hud.c animCoins (with animCoinsText's "%d/8" folded in), matched port in groups/coins
+func_800B7FF8	UpdateHUDPostCamera	func	mat3	sure	MAT3 hud.c UpdateHUDPostCamera: race/stunt state bits 0x200000/0x400000, hudObjAngle += pi*frame time when not paused, animCoins(0) for gRace 0-4, the battle/stunt extra (overlay) for 6/4
+particles_spawn_emitter	SkyUpdate	func	mat3	sure	MAT3 sky.c SkyUpdate(win): copy the camera's x and z into the window's sky matrix
+Effects_UpdateEmitters	UpdateCameras	func	mat3	sure	MAT3 camera.c UpdateCameras: per window copy the camera matrix to the n64 copy, negate the four off-diagonal terms, SkyUpdate unless paused, then UpdateHUDPostCamera and ShowCountdown(gCountDown > 0); the alias symbol effects_update_emitters is the same address
+particle_position_set	ZeroCamera	func	mat3	sure	MAT3 camera.c ZeroCamera(camera): bit 1/2/4/8 -> window index, slot, pos 0, unit matrix, view2spring 0
+particle_velocity_set	ZeroCameras	func	mat3	sure	MAT3 camera.c ZeroCameras: ZeroCamera(1,2,4,8) then UpdateCameras
+func_800B836C	InitCameras_stub	func	mat3	likely	empty residue right after ZeroCameras: MAT3 camera.c InitCameras is the one-line wrapper of ZeroCameras, inlined into its caller
+func_800B8810	SaveGlobals	func	mat3	sure	MAT3 save.c SaveGlobals: gGlobalsSet = 1 (called first by videoscr initScreen)
+physics_sym	updateVideoScreen	func	mat3	sure	MAT3 videoscr.c updateVideoScreen: same edges/autoEdges/levels choice by gGameState & 0x7c03fffe, initScreen, test/confirm frequency, centre offsets clamped (N64 +-32), validOption loop, updateButtons, exit to state 4/16 or setPauseState(1)
+func_800B90F8	SkyClear	func	mat3	sure	MAT3 sky.c SkyClear: null every window's sky matrix
+func_800B912C	UnloadTrack	func	mat3	sure	MAT3 tracks.c UnloadTrack: world clear (two words), SkyClear, unload the track/world/collision wave instances, memset gTrackLoadInfo
+physics_collision_test	InitSmoke	func	mat3	sure	MAT3 smoke.c InitSmoke: puff pool of 100 x 88 bytes (InitStatLL), gCarSmokeDir[6] = 0, the six fire textures (N64 only when Expansion Pak or track >= 6)
+func_800B9284	InitDemoPathPoint	func	mat3	sure	MAT3 resurrect.c InitDemoPathPoint: next attract-mode start point for the track (forward or +6 for backwards), wrapping
+func_800B930C	GetNextCheckpoint	func	mat3	sure	MAT3 pathcommon.c GetNextCheckpoint: index+1, wrapping to the loop checkpoint
+func_800B9338	NextPathPt	func	mat3	sure	MAT3 pathcommon.c NextPathPt(idx, path): wraps at the drone path's end to the loop checkpoint's pathPts[path+1]
+physics_response	CalcCheckpointTimes	func	mat3	sure	MAT3 pathcommon.c CalcCheckpointTimes: two passes over the checkpoint ring summing segment length / speed per drone path, start time + 10, /30 correction
+func_800B9740	CalcResPathBounds	func	mat3	sure	MAT3 pathcommon.c CalcResPathBounds: bounding box of the resurrection path points (gPathMin/gPathMax)
+func_800B98D8	TraceCheck	func	mat3	sure	MAT3 pathcommon.c TraceCheck(inPath, depth): reject dead-end alternate paths, record the path in gPathTrace, reject loops
+physics_velocity_clamp	TraceToCheckpoint	func	mat3	sure	MAT3 pathcommon.c TraceToCheckpoint: recursive search for the section containing a point via firstPath links
+func_800B9B64	FindClosestPt	func	mat3	sure	MAT3 pathcommon.c FindClosestPt(alt, first, pos, path, index): nearest main/alternate path point with the same skip rules, 1e20 start
+physics_friction_apply	SyncAltPaths	func	mat3	sure	MAT3 pathcommon.c SyncAltPaths: link each alternate path's first/last point (FindClosestPt), then its start section (TraceToCheckpoint); type 2 unlinked
+func_800B9F60	NextResPathPt	func	mat3	sure	MAT3 pathcommon.c NextResPathPt(inPath, inIdx, outPath, outIdx)
+audio_channel_alloc	GetPathDistance	func	mat3	sure	MAT3 pathcommon.c GetPathDistance(from, to): horizontal length along the resurrection path, -1 when to is before the loop start
+func_800BA2B0	FindPathDistances_stub	func	mat3	likely	empty residue of MAT3 pathcommon.c static FindPathDistances (inlined into SyncCheckpointsToPaths; the inlined body is the static FindPathDistances in groups/route_cross); placed after GetPathDistance, its callee
+func_800BA2B8	FindDronePathIntersect	func	mat3	sure	MAT3 pathcommon.c FindDronePathIntersect(cp, path): first point where the drone path crosses the checkpoint plane within its radius, else the closest
+audio_priority_find	FindAltPathIntersect	func	mat3	sure	MAT3 pathcommon.c FindAltPathIntersect(cp, path)
+func_800BA61C	FindResPathIntersect	func	mat3	sure	MAT3 pathcommon.c FindResPathIntersect(cp): same walk on the resurrection path, 1e20 start
+audio_mixer_main	SyncCheckpointsToPaths	func	mat3	sure	MAT3 pathcommon.c SyncCheckpointsToPaths(path): fills pathPts[0..19] with the three intersect searches, then FindPathDistances
+audio_effect_apply	ReadPathData	func	mat3	sure	MAT3 pathcommon.c ReadPathData: parses gPathWave+0x32C into gResPath, gAltPaths, the four drone paths; then SyncCheckpointsToPaths(-1), SyncAltPaths, CalcResPathBounds, CalcCheckpointTimes
+audio_effect_remove	InitPathData	func	mat3	sure	MAT3 maxpath.c InitPathData: ReadPathData, zero lastwheel/lastbrake/lastthrottle per car, gLastPathSwitchTime = gModelTime, current_drone = -1
+audio_dsp_process	ReadCheckpointData	func	mat3	sure	MAT3 pathcommon.c ReadCheckpointData: copy the checkpoint block from gPathWave, find finish/loop/start by flags 1/4/2, startTime 90, pathPts cleared, times 45
+mode_flags_clear	InitCheckpointData	func	mat3	sure	MAT3 checkpoint.c InitCheckpointData: finish_cam[0] = finish_cam[1] = 0, ReadCheckpointData
+func_800BAF90	heap_total_free_unlocked	func	code	sure	sum of the free blocks' sizes of a heap (null = default heap); the worker of heap_total_free, inlined there in retail (8-byte stub). MAT3 has only LargestAvailableMemoryHeapChunk (largest, not total)
+audio_output_setup	heap_total_free	func	code	sure	total free bytes of a game heap under the heap semaphore (D_80152770); used by LoadCars/car_palette_init to decide whether a 512-byte car palette fits
+func_800BB02C	car_palette_init	func	code	likely	initialise car slot's 24-byte palette descriptor (marker 255, value 0x8000) and give it a 512-byte buffer: the caller's, or shared with an earlier slot of the same car when the heap is short, else AllocateMemoryHeap; called by LoadCars where MAT3 calls SetupCarColor
+camera_reset	SkyInit	func	mat3	sure	MAT3 sky.c SkyInit: no sky on battle/obstacle tracks (SkyClear), else per window find "SKYSKY", new matrix, scale 2.5, object per camera
+func_800BB7F4	InitCollisionTargetPtrs	func	mat3	sure	MAT3 targetpaths.c InitCollisionTargetPtrs: clear the 30 pointers and the count
+camera_lerp_position	initTargetStructs	func	mat3	sure	MAT3 targets.c initTargetStructs: gTargetList pool (N64 130 x 0x70), Restarting, InitCollisionTargetPtrs, counts, mines, battle always-collide list (15 x 8), coin counters
+player_flag_clear_process	ReloadTrack	func	mat3	sure	MAT3 tracks.c ReloadTrack: gTrackLoadInfo.trackInited = 0; LoadTrack(gTrackNum, 0, 1)
+func_800BC21C	calcalpha	func	mat3	sure	MAT3 tires.c calcalpha(tirev): slip ratio tirev[0]/tirev[2] with the |z| >= 400 limits
+camera_dolly	frictioncircle	func	mat3	sure	MAT3 tires.c frictioncircle (header: arcade frictioncircle, calls calcalpha); traction/side force from the friction circle
+camera_follow_target	dotireforce	func	mat3	sure	MAT3 tires.c dotireforce: one tire's suspension + friction force (callee frictioncircle)
+camera_collision_avoid	calctireuv	func	mat3	sure	MAT3 tires.c calctireuv: tire velocity w x r + v, BodyVector, steer cos/-sin row, re-orthogonalise, BodyVector
+func_800BD080	displaylist_set_texture_image	func	code	sure	walks an F3DEX2 display list to its first G_SETTIMG (0xFD) and sets the image address (stops at G_ENDDL); used by TextureAnimation's flip-book
+camera_smooth_follow	displaylist_set_tile_size	func	code	sure	walks a display list and rewrites every G_SETTILESIZE (0xF2) s/t origin and extent (texture scroll); used by TextureAnimation
+race_setup_1	TextureAnimation	func	mat3	sure	MAT3 textureanim.c TextureAnimation: per-frame palette animation list (PaletteLists[gTrackNum]) then texture swap list (TextureSwapLists)
+func_800BDA24	displaylist_get_texture_image	func	code	sure	walks a display list to its first G_SETTIMG and returns the image address; used by InitTextureAnimation
+camera_shake_start	InitTextureAnimation	func	mat3	sure	MAT3 textureanim.c InitTextureAnimation: palette list entries get time 1/30 and kind >= 9 a texture lookup; unless gRestartGame, texture swap lists get their textures, time and start index
+func_800BDD90	TB_Vector2Normalize	func	mat3	sure	MAT3 TB_Vector.c TB_Vector2Normalize: normalise (x,y), default (1,0), return length
+func_800BDEB0	HAL_GetFontSpacing	func	mat3	sure	MAT3 HAL_text.c HAL_GetFontSpacing: returns gSpacing
+camera_zoom_fov	TB_GetTextNumLines	func	mat3	sure	MAT3 TB_text.c TB_GetTextNumLines: word-wrapped line count of a text in a width
+camera_auto_follow	TB_DrawTextScrollBox	func	mat3	sure	MAT3 TB_text.c TB_DrawTextScrollBox (matched port: header)
+camera_cinematic_mode	TB_DrawTextC	func	mat3	sure	MAT3 TB_text.c TB_DrawTextC(x, y, color, text): TB_SetTextColor then TB_DrawText
+func_800BE4F0	TB_Strcat	func	mat3	sure	MAT3 TB_text.c TB_Strcat: strcat for plain and 0xFF-prefixed two-byte text
+func_800BE6A4	TB_Strcpy	func	mat3	sure	MAT3 TB_text.c TB_Strcpy: the matching strcpy (follows TB_Strcat in both builds)
+music_fade	TB_DrawEllipseText	func	mat3	sure	MAT3 TB_text.c TB_DrawEllipseText: TB_EllipseText into a 128-byte buffer, then TB_DrawText
+music_tempo_adjust	TB_Printf	func	mat3	sure	MAT3 TB_text.c TB_Printf(x, y, fmt, ...): vsprintf into a 256-byte buffer, TB_DrawText
+func_800BEA30	TB_GetFlashTextCycle	func	mat3	sure	MAT3 TB_text.c TB_GetFlashTextCycle: returns gColorCycle
+func_800BEA3C	TB_FlashTextColors	func	mat3	sure	MAT3 TB_text.c TB_FlashTextColors: store the two flash colours
+func_800BEA58	PauseTargetPaths	func	mat3	sure	MAT3 targetpaths.c PauseTargetPaths(t): t->sndState = 2, t->sound = -1 (tTarget +0x64/+0x60, same offsets as MAT3)
+func_800BEA6C	PauseTargets	func	mat3	sure	MAT3 targets.c PauseTargets: PauseTargetPaths on every target of gTargetList
+race_setup_2	CheckTargetCollision	func	mat3	sure	MAT3 targets.c CheckTargetCollision(slot): battle always-collide list through gTargetCollFuncPtrs, then the target-group quadtree at the car position
+camera_blend_between	TargetPathAvoid	func	mat3	sure	MAT3 targets.c TargetPathAvoid(m, scale): bbox models 0..225 ahead and within 14 sideways lower the speed scale to 0.75 or a 0.0025 ramp
+func_800BF01C	_ValidateEmitter	func	mat3	sure	MAT3 audiomgr.c static _ValidateEmitter: empty, called with the emitter by AudStopEmitter/AudEmitterPlaying/AudUpdateEmitter
+results_screen_update	AudStopEmitter	func	mat3	sure	MAT3 audiomgr.c AudStopEmitter(tag): _ConvertTag, _ValidateEmitter, AudStopEffect
+results_time_display	AudEffectPlaying	func	mat3	sure	MAT3 audiomgr.c AudEffectPlaying(tag): state 1/3 -> 1, state 2 -> AudioEffectPlaying(sysId), else 0
+leaderboard_update	AudEmitterPlaying	func	mat3	sure	MAT3 audiomgr.c AudEmitterPlaying(tag): _ConvertTag, _ValidateEmitter, AudEffectPlaying
+camera_fov_control	_PlayStopSound	func	mat3	sure	MAT3 targetpaths.c _PlayStopSound(t): unless sndState 2 (or 0 and still playing) stop the emitter and emit the stop sound, sndState 2
+camera_clip_planes	AudUpdateEmitter	func	mat3	sure	MAT3 audiomgr.c AudUpdateEmitter(tag, pos, maxVol, pitch): pos, maxVol clamped 0..1, basePitch
+camera_aspect_ratio	_PlayStartSound	func	mat3	sure	MAT3 targetpaths.c _PlayStartSound(t): AudStopEmitter, emit the start sound (EmitGameSound inlined) or -1, sndState 0
+PlayMoveSound	_PlayMoveSound	func	mat3	sure	MAT3 targetpaths.c static _PlayMoveSound (Dreamcast text, header): the existing name minus MAT3's underscore
+func_800BF778	matf2scopy_stub	func	mat3	likely	empty residue of MAT3 stree.c static matf2scopy (float 3x3 to the packed s16 surface orientation), inlined into RotateCollisionObject; sits before MulUVS/RotateCollisionObject in reverse call order
+func_800BF780	MulUVS	func	mat3	sure	MAT3 fmath.c MulUVS: 3x3 product out[i][j] = sum_k in[i][k]*m[k][j]; called twice by RotateCollisionObject as in MAT3
+camera_first_person	RotateCollisionObject	func	mat3	sure	MAT3 stree.c RotateCollisionObject(num, ipos, orig, uvs): for saved surfaces of the object rotate the packed orientation (MulUVS twice) and the packed vertex about ipos
+func_800BFBE8	CreateQuatMat	func	mat3	sure	MAT3 fmath.c CreateQuatMat (header: arcade CreateQuatMat)
+select_screen_update	facos	func	mat3	sure	MAT3 asincos.c facos: farcsine(x, 1) (func_8009C3F8 is farcsine)
+func_800BFD8C	InterpQuats	func	mat3	sure	MAT3 fmath.c InterpQuats(frac, q1, q2, qr)
+camera_free_look	_PlacePathTargetQuat	func	mat3	sure	MAT3 targetpaths.c _PlacePathTargetQuat: CreateQuatMat of the key or InterpQuats to the next key; moving collision objects get RotateCollisionObject (obstacle-course distance gate 22500)
+func_800C0294	MoveCollisionObject	func	mat3	sure	MAT3 stree.c MoveCollisionObject(num, trans): every saved vertex of the object unpacked (1/32 fractions), translated, rounded and repacked
+camera_track_spline	_PlacePathTargetPos	func	mat3	sure	MAT3 targetpaths.c _PlacePathTargetPos: distance along the key by time and speed, 1/32 rounding, curVel, MoveCollisionObject
+func_800C0828	TransposeUV	func	mat3	sure	MAT3 fmath.c TransposeUV: swap the three off-diagonal pairs of a 3x3
+camera_build_view_matrix	_ResetPath	func	mat3	sure	MAT3 targetpaths.c _ResetPath(t, pt): flags 8/4, time 0, ptOn, pos, lastPos, parent flags 0x100/0x400, CreateQuatMat, CopyUV + TransposeUV to lastUVS, scale rows
+camera_update	_AnimatePathTarget	func	mat3	sure	MAT3 targetpaths.c _AnimatePathTarget (tVisual animator): steps the key list forwards/backwards with wrap/ping-pong, then position/orientation/sound
+func_800C15FC	ZOID_SetObjectDef_TargetPaths	func	code	likely	the decomp's inlined copy of ZOID_SetObjectDef (ObjInstanceList[obj].index = def; the real one is func_80090770) used by _StartPathTarget/_AnimatePathTarget; the retail 2-word stub at this address is most likely the residue of MAT3 _PlaceGhostRacePath, inlined into _StartPathTarget - wave 2 can call ZOID_SetObjectDef instead
+camera_process_input	_StartPathTarget	func	mat3	sure	MAT3 targetpaths.c _StartPathTarget: sndState 2, ghost-race placement (inlined _PlaceGhostRacePath) or register in CollisionTargetPtrs, max key speed, _ResetPath at the first start key, object def, env visual with 0.25/0.0425 periods
+func_800C1A00	GetTargetVelocity	func	mat3	sure	MAT3 targetpaths.c GetTargetVelocity(collIdx, vel): velocity of the registered path target with that collision index, negated when running backwards (flag 8)
+func_800C1B60	_AddStunt	func	mat3	sure	MAT3 stunt.c _AddStunt(player, type): bank the stunt, bonus for a new kind, landing type 11 scores the combo
+func_800C2004	_Check2WheelBack	func	mat3	sure	MAT3 stunt.c _Check2WheelBack: awards type 7 per 0.15 s beyond 0.25 s
+func_800C220C	_Check2WheelFront	func	mat3	sure	MAT3 stunt.c _Check2WheelFront: awards type 8
+func_800C2418	_Check2WheelSide	func	mat3	sure	MAT3 stunt.c _Check2WheelSide: awards type 6 (inlined into CheckForStunt; 2-word retail stub)
+func_800C2420	_CheckAirTime	func	mat3	sure	MAT3 stunt.c _CheckAirTime: awards type 9 per second beyond 5 s (inlined; stub)
+func_800C2428	_CheckMulti	func	mat3	sure	MAT3 stunt.c _CheckMulti: awards type 5 when two axes exceed 0.4712389 and the sum pi (inlined; stub)
+func_800C2430	_CheckFlip	func	mat3	sure	MAT3 stunt.c _CheckFlip: active bit 0x40, awards type 0/1
+func_800C26C4	_CheckSpin	func	mat3	sure	MAT3 stunt.c _CheckSpin: active bit 0x10, awards type 4
+func_800C2944	_CheckRoll	func	mat3	sure	MAT3 stunt.c _CheckRoll: active bit 0x20, awards type 2/3; the nine stunt functions lie in exact reverse call order of CheckForStunt
+camera_scene_manager	CheckForStunt	func	mat3	sure	MAT3 stunt.c CheckForStunt: idle timer 2.69 s (gStuntsDone), wheel-contact counts, axis sign changes, the eight checkers, landing banks the combo
+func_800C3578	CrashedStunt	func	mat3	sure	MAT3 stunt.c CrashedStunt(player): crash flag, _AddStunt(11) when stunts are pending, reset the player's stunt info
+func_800C360C	ResetStunts_stub	func	mat3	likely	empty residue of MAT3 stunt.c static ResetStunts (its loop is inlined into InitStunt), directly before InitStunt
+effect_system_init	InitStunt	func	mat3	sure	MAT3 stunt.c InitStunt: clear gStuntPlayer, reset the four stunt infos to 0x15000000, gStuntsDone = 0, eTime = 0
+func_800C36A0	CarApplyCollision	func	mat3	sure	MAT3 stree.c static CarApplyCollision: push the car out along the surface normal, tireIndex[carEdge], mass effect 20000/mass, soft/hard damping, body force
+func_800C3AD0	PointInSurf	func	mat3	sure	MAT3 stree.c static PointInSurf(sp, ipos, ipos2, spos, dist, path, uvs, maxSurfHop): DecodeVlist, mats2fcopy, edge tests with VectorToSurfEdge
+func_800C4078	SyncMaxpathToLastCheckpoint	func	mat3	sure	MAT3 maxpath.c SyncMaxpathToLastCheckpoint(node): mpctl.newIdx = pathPts[1 + mpctl.path] of the car's last checkpoint
+func_800C4180	ExtractYaw	func	mat3	sure	MAT3 fmath.c ExtractYaw(mat, yaw): fatan2(mat[0][2], mat[0][0]) when mat[2][0] and mat[2][2] are ~0, else fatan2(-mat[2][0], mat[2][2])
+camera_trigger_check	RoadPosition	func	mat3	sure	MAT3 stree.c RoadPosition(ipos, opos, uvs) (callers: mines and decals, header)
+camera_follow_path	FindSurfaceUvsFromResPoint	func	mat3	sure	MAT3 resurrect.c static FindSurfaceUvsFromResPoint (matched port, groups/resurrect)
+func_800C4C9C	SetNewPathIndex	func	mat3	sure	MAT3 maxpath.c SetNewPathIndex(m, idx): mpctl idx, interval_time = gModelTime, newIdx -1, xrel 20, yrel 0
+func_800C4CF8	SetDroneResPathIndex	func	mat3	sure	MAT3 maxpath.c SetDroneResPathIndex(m, path, idx): closest drone path point to the res point between the checkpoints, NextPathPt per slot, SetNewPathIndex
+func_800C4F68	SetResurrectionData	func	mat3	sure	MAT3 resurrect.c SetResurrectionData (matched port, groups/resurrect)
+func_800C54F0	AbortCar	func	mat3	sure	MAT3 resurrect.c AbortCar(drone, death): not in the first 5 s, CrashedStunt / battle init, SetResurrectionData(crash), crash_state, dead by gDeathMode
+effect_cleanup	AddBattlePoint	func	mat3	sure	MAT3 hud.c AddBattlePoint(to, from, p): only in battle/stunt, calls the overlay's _AddBattlePoint
+camera_play_script	CollideCarBodyAgainstSurface	func	mat3	sure	MAT3 stree.c static CollideCarBodyAgainstSurface (header)
+camera_victory	CollideCarBody	func	mat3	sure	MAT3 stree.c CollideCarBody: four wheel cells (updownleaf), distinct cells, DecodeSlist, CollideCarBodyAgainstSurface on non-wall polygons (0x4000 visited), CarApplyCollision, wall PointInSurf per wheel
+entity_iterate	CameraCollision	func	mat3	sure	MAT3 stree.c CameraCollision (header: ShotToWorldCollision then move the camera a quarter toward lookat)
+entity_update	TireSurf	func	mat3	sure	MAT3 stree.c TireSurf (header: arcade tiresurf)
+UnloadFrontEndWaves	_UnloadFrontEndWaves	func	mat3	sure	MAT3 state.c static _UnloadFrontEndWaves: unlock the three front-end wave instances (N64 waves 54, 58, 59); the existing name minus MAT3's underscore
+draw_ui_element	_CheckAndRepairGhost	func	mat3	sure	MAT3 save.c static _CheckAndRepairGhost (group header)
+func_800C7200	_NewGhost	func	mat3	sure	MAT3 save.c _NewGhost: the N64 takes a handle from a fixed table of ghost records instead of AllocateHandleHeap
+func_800C7300	_FreeGhost	func	mat3	sure	MAT3 save.c _FreeGhost: N64 form *ghosth = NULL (inlined; 2-word retail stub)
+object_render_cleanup	PurgePlayerData	func	mat3	sure	MAT3 save.c PurgePlayerData (empty on the GameCube): N64 closes the profile's data file and clears datah; called in the same gPlayers loop of updateGameState
+draw_text	AddPlayerScores	func	mat3	sure	MAT3 gamerecords.c AddPlayerScores(player): merge the profile's best times into the global top-5 tables (12 tracks x 3)
+func_800C7578	SavePlayerCarSetting	func	mat3	sure	MAT3 save.c SavePlayerCarSetting(player, car, field, value): byte of carSettings[car], checksum of 12, write 16
+draw_number	_SetDefaultCarSettings	func	mat3	sure	MAT3 save.c _SetDefaultCarSettings(player, car): the 12 per-car defaults from the car tables (tire scales *100-75); called 13 times by _InitPlayer
+func_800C77C4	SetDefaultControls	func	mat3	sure	MAT3 controls.c SetDefaultControls(controls): the default button assignment bytes; called by _InitPlayer
+draw_speedometer	_CheckAndRepairPlayer	func	mat3	sure	MAT3 save.c static _CheckAndRepairPlayer(player, repair) (group header)
+func_800C7EC0	_NewPlayer	func	mat3	sure	MAT3 save.c static _NewPlayer, N64 form (pak, slot) from a fixed profile table; inlined (2-word retail stub)
+func_800C7EC8	_ReadPlayer	func	mat3	sure	MAT3 save.c static _ReadPlayer(fileh) (group header)
+hud_speed_display	AudInit3D	func	mat3	sure	MAT3 audiomgr.c AudInit3D: free/active listener and emitter lists, listener (60 B) and emitter (44 B) pools, gSoundSpeed = 1100 * footUnits, gFrontDistance, gCalcDoppler
+func_800C8738	HAL_IntLog2	func	mat3	sure	MAT3 HAL_Support.c HAL_IntLog2: index of the highest set bit (31..1), else 0; used by AudioInit for gTagShift
+func_800C8774	InitBST	func	mat3	sure	MAT3 bstree.c InitBST(tree, OrderFunc) with ClearBST inlined: OrderFunc +0, numElements +4, root +8
+func_800C8784	InitLL_stub	func	mat3	likely	empty residue among AudioInit's callees: most likely MAT3 ll.c InitLL (list indirect/doubly + clear), which the N64 inlines in AudioInit/AudInit3D (hud_setup.c writes it as sound_list_init)
+object_type7_create	AudStopAllEffects	func	mat3	sure	MAT3 audiomgr.c AudStopAllEffects: posts audio command 7 (AudPauseAllEffects also uses 7 in MAT3; AudioShutdown's use decides stop)
+object_type1_create	AudKillSong	func	mat3	sure	MAT3 audiomgr.c AudKillSong: posts audio command 1
+func_800C885C	AudFree3D	func	code	likely	frees the listener and emitter pools that AudInit3D allocated (no MAT3 counterpart: its AudioShutdown keeps them); called by AudioShutdown and initGameState
+func_800C8918	AudioShutdown	func	mat3	sure	MAT3 audiomgr.c AudioShutdown: if gInited: kill song, stop effects, wait for the command slots, clear gInited, AudioShutdownSys, free fx tags, sorted tags, sequences
+hud_setup	AudioInit	func	mat3	sure	MAT3 audiomgr.c AudioInit(numVoices, maxSfx, maxMusic, numListeners, numEmitters, footUnits, frontDistance, doppler): same reinit test, command slots, fx tag lists/tree, HAL_IntLog2 tag shift, 6 sequences, AudInit3D
+display_enable	LoadFrontEndOverlay	func	mat3	sure	MAT3 state.c LoadFrontEndOverlay (empty on the GameCube); N64 loads the "Start" overlay / unloads "Extra" (state.c header)
+player_cleanup_slots	HAL_PurgeFonts	func	mat3	sure	MAT3 HAL_text.c HAL_PurgeFonts: 16 x unlock the font texture and data wave instances
+func_800C9150	loading_effect_none	func	code	likely	empty function the N64 calls (inlined) where MAT3 updateGameState calls leStartLoadingEffect/leEndLoadingEffect: the N64 has no loading effect; 2-word stub
+sync_entry_register	AudPlaySong	func	mat3	sure	MAT3 audiomgr.c AudPlaySong(song, loop): command 0 with song and loop
+speed_set	_AudSetMasterVol	func	mat3	sure	MAT3 audiomgr.c static _AudSetMasterVol(volume, time, music, sfx): command 10, volume clamped 0..1, time >= 0
+speed_mode0_wrapper	AudSetMusicVol	func	mat3	sure	MAT3 audiomgr.c AudSetMusicVol: _AudSetMasterVol(vol, time, 1, 0)
+resource_slot_clear	_LockAndLoad	func	mat3	sure	MAT3 state.c static _LockAndLoad(waveNum): LoadWave + LockWaveInstance unless already loaded
+resource_slots_clear_multiple	_LoadFrontEndWaves	func	mat3	sure	MAT3 state.c static _LoadFrontEndWaves: _LockAndLoad of the three front-end waves (N64 54, 58, 59)
+speed_mode1_wrapper	AudSetFxVol	func	mat3	sure	MAT3 audiomgr.c AudSetFxVol: _AudSetMasterVol(vol, time, 0, 1)
+draw_minimap	ClearTotalStats	func	mat3	sure	MAT3 gamerecords.c ClearTotalStats: memset the five total-stats tables (race, stunt, battle, obstacle, circuit)
+func_800C9480	InitRecords	func	mat3	sure	MAT3 gamerecords.c InitRecords: ClearTotalStats, gTotalNames = -1, memset gTempNames and gTempNameAges
+input_init_flag_get	HAL_CallOncePerFrameFuncs	func	mat3	sure	MAT3 HAL_time.c HAL_CallOncePerFrameFuncs: HAL_InitTime if needed, call every installed slot
+func_800C9590	_PotRange	func	mat3	sure	MAT3 controlsys.c static _PotRange: raw * max / range clamped to +-max
+controller_poll	UpdateControls	func	mat3	sure	MAT3 controlsys.c UpdateControls: reset tick, ignore count, per pad _PotRange stick, levels/edges, active masks, auto-repeat at 0.2 * retrace rate
+process_inputs	UpdateRushControls	func	mat3	sure	MAT3 controls.c UpdateRushControls: UpdateControls then copy each player's controller levels/edges/autoEdges/analog (controller 5 or absent player: zero)
+func_800CA2F8	initGameState	func	mat3	sure	MAT3 state.c static initGameState (state.c header; inlined into updateGameState, 2-word retail stub)
+state_change_preprocess	uninitGameState	func	mat3	sure	MAT3 state.c static uninitGameState (state.c header: post-order position after initGameState)
+playgame_state_change	updateGameState	func	mat3	sure	MAT3 state.c updateGameState with initGameState and setGameState inlined (state.c header)
+hud_render	UpdateSmoke	func	mat3	sure	MAT3 smoke.c UpdateSmoke: per-frame update of the smoke/exhaust puff list (attached puffs follow the car, free ones age, fade, grow, move); header: arcade AnimateSmoke relative
+func_800CB718	InitSmokeBlast	func	mat3	sure	MAT3 smoke.c InitSmokeBlast(slot): gCarSmokeDir[slot] &= ~0x20
+func_800CB748	SaveGhostInLimbo	func	mat3	sure	MAT3 save.c SaveGhostInLimbo(header, data): 3-slot row (track + 6 if backward), finish-time order, free the dropped header, memmove, name/id/finish, heap copy of header + data
+menu_render_list	DeleteGhost	func	mat3	sure	MAT3 save.c DeleteGhost(ghosth): PS_DeleteFile of its file when it has one
+func_800CB9D0	heap_move_block_low	func	code	likely	N64 heap compaction step for a handle block: under the heap lock move the allocation into the first earlier free block that fits, repoint the handle, split and free the old space; called by _ReadGhostData for the ghost header and data
+menu_item_select	ReallocateMemory	func	mat3	sure	MAT3 memsys.c ReallocateMemory with _ReallocateMemory inlined: resize a heap block in place under the heap lock (round to 32, _FindHeap, _FindChunk)
+DecodeGhost	_DecodeGhost	func	mat3	sure	MAT3 save.c static _DecodeGhost: unzip the ghost data once into a new handle, size/3 frames, checksum, flag; the existing name minus MAT3's underscore
+menu_transition	PurgeGhostData	func	mat3	sure	MAT3 save.c PurgeGhostData: free datah and clear header->start (N64 also closes the file)
+func_800CBF2C	_ReadGhostData	func	mat3	sure	MAT3 save.c _ReadGhostData(ghosth, decode) + N64 third flag (group header)
+sound_play_menu	AllocateMemoryHeapHigh	func	mat3	sure	MAT3 memsys.c AllocateMemoryHeapHigh: round to 32, walk from the last chunk backwards, split the tail when >= 64 left, mark used
+menu_item_value_get	ReadGhostData	func	mat3	sure	MAT3 save.c ReadGhostData(ghosth): _ReadGhostData(ghosth, 1, 1)
+func_800CC848	save_file_pak_ready	func	code	likely	1 when the record has no file node; 0 when that file's pak is not enabled (gPaks); with action set, the pak file check of the node; no caller in the image's C (save.c neighbourhood, no MAT3 match: _VerifyFile walks gPS_Files instead)
+func_800CC8C8	SavePlayerCarView	func	mat3	sure	MAT3 save.c SavePlayerCarView: by raceType 0-3/6/4/5 set settings byte +7 (carView), checksum, write
+func_800CCA04	SavePlayerCar	func	mat3	sure	MAT3 save.c SavePlayerCar: same switch on settings byte +5 (car)
+func_800CCB40	GetDefaultOption	func	mat3	sure	MAT3 GetDefaultOption(option): per-option defaults used by _InitPlayer (case 9 PAL test on the N64)
+func_800CCCCC	_InitPlayer	func	mat3	sure	MAT3 save.c static _InitPlayer (docs n64-helper section 7: recovered from this very function): revision 16, SetDefaultControls, 13 _SetDefaultCarSettings, GetDefaultOption loops, car/view per race type
+func_800CCE5C	SavePlayerControls	func	mat3	sure	MAT3 save.c SavePlayerControls: compare, copy to profile and data, checksum, write (N64 11 bytes)
+func_800CCEFC	ReadPlayerData	func	mat3	sure	MAT3 save.c ReadPlayerData: read the file data, _CheckAndRepairPlayer, SavePlayerControls, cheat-name test
+func_800CD058	DeletePlayer	func	mat3	sure	MAT3 save.c DeletePlayer: with a file: ReadPlayerData then delete it; else _InitPlayer
+func_800CD0F4	_GetUniqueExtension_stub	func	mat3	likely	empty residue before _Pow/CreatePlayer: the N64 CreatePlayer builds a unique file name inline (MAT3 _GetUniqueExtension); with _Pow these are the two deleted statics of CreatePlayer
+func_800CD0FC	_Pow	func	mat3	sure	MAT3 save.c static _Pow (num 10 folded): power of ten for CreatePlayer's file-name digits (inlined; 2-word retail stub)
+menu_confirm_dialog	ClearPlayerRecords	func	mat3	sure	MAT3 save.c ClearPlayerRecords: ReadPlayerData, then clear and write the race/stunt/battle/obstacle/circuit stats blocks and the circuit, flush
+menu_dialog_close	SavePlayerCircuitStats	func	mat3	sure	MAT3 save.c SavePlayerCircuitStats(player, circuit): checksum and write circuitStats[circuit] (28 bytes)
+object_data_allocate	SavePlayerCircuit	func	mat3	sure	MAT3 save.c SavePlayerCircuit: checksum and write the circuit block (0x4C)
+
+# ---- data used only by this range ----
+D_800339F0	gAudioMgrThreadStack	data	code	likely	top of the audio manager thread's stack, passed to osCreateThread by AudioInit (N64-only thread setup)
+D_80034F00	gAudioMgrThread	data	code	sure	OSThread of the audio manager thread created and started by AudioInit (gAudioThread is taken by the boot code's audio thread)
+D_8011023C	gInited_AudioMgr	data	mat3	sure	MAT3 audiomgr.c static gInited (s8): AudioInit's re-init test, cleared by AudioShutdown; suffix because HAL_time and TB_text have their own gInited
+D_80110248	gSortedFxTags	data	mat3	sure	MAT3 audiomgr.c gSortedFxTags: pointer to the sorted fx tag array (gNumFxTags entries), allocated by AudioInit, freed by AudioShutdown
+D_80110264	gNumFxTags	data	mat3	sure	MAT3 audiomgr.c gNumFxTags (s32): max(min(2*maxSfx, 64), maxSfx + numEmitters)
+D_80110268	gNumListeners	data	mat3	sure	MAT3 audiomgr.c gNumListeners (s32), set by AudInit3D
+D_8011026C	gNumEmitters	data	mat3	sure	MAT3 audiomgr.c gNumEmitters (s32), set by AudInit3D
+D_80110274	AudioInit_queueCreated	data	code	sure	s8 once flag (function-local static of AudioInit): the audio lock queue was created
+D_80110F80	rear_traction_by_surface	data	code	likely	f32 table [model byte 0x9][model +0x3F4] of the N64-only rear-tire traction boost in dotireforce
+D_80111130	rear_traction_by_tune	data	code	likely	f32 table [model byte 0xC][model byte 0xB] scaling rear-tire traction in dotireforce (N64-only)
+D_801140F4	countdown_polyColor	data	mat3	sure	MAT3 countdown.c ShowCountdown static polyColor: u8[4] RGBA of the countdown quad
+D_801140F8	countdown_polyXYZ	data	mat3	sure	MAT3 countdown.c ShowCountdown static polyXYZ: f32[4][3] corners of the countdown quad
+D_801141D4	frontBack	data	mat3	sure	MAT3 front.c frontBack: the front-end background multiblit definition used by createBG
+D_8011421C	trackBack	data	mat3	sure	MAT3 front.c trackBack: the track-select background multiblit definition (gGameState & 0x80)
+D_801145E4	gBackCamera	data	mat3	sure	MAT3 front.c gBackCamera: per window count and quad the camera flags of the background polys
+D_80114624	backBlit	data	mat3	sure	MAT3 front.c backBlit: the background blit handle (createBG/removeBG)
+D_801147C4	gInited_HALTime	data	mat3	sure	MAT3 HAL_time.c static gInited (s8) of the once-per-frame table
+D_80114C48	whichCam	data	mat3	sure	MAT3 hud.c whichCam: camera per window used by animCoins
+D_80115E28	coinPos	data	mat3	sure	MAT3 hud.c coinPos: per window/player positions of the coin HUD
+D_801173D8	demo_path_points	data	mat3	sure	MAT3 resurrect.c InitDemoPathPoint static demo_path_points: per track (+6 backwards) pointer to its s16 start points
+D_80117408	num_demo_ppoints	data	mat3	sure	MAT3 resurrect.c InitDemoPathPoint static num_demo_ppoints: point count per entry
+D_80117480	FireTexNames	data	mat3	sure	MAT3 smoke.c InitSmoke static FireTexNames: the six fire texture names
+D_801174C4	tireIndex	data	mat3	sure	MAT3 stree.c tireIndex: s8[8] car edge -> wheel (CarApplyCollision, CollideCarBody)
+D_801174CC	BodyVerts	data	mat3	likely	MAT3 stree.c BodyVerts (16 bytes): the body edge vertex pairs read at [e] and [e + 8] by CollideCarBodyAgainstSurface
+D_80117518	gTargetCollFuncPtrs	data	mat3	sure	MAT3 targets.c gTargetCollFuncPtrs: the six target collision shape tests (bbox, trigger, cylinder, mine cylinder, radius, 3-piece) indexed by the target's shape
+D_80118E1C	gInited_TBText	data	mat3	sure	MAT3 TB_text.c static gInited: TB_TextInit done
+D_80118E34	gFontColors	data	mat3	sure	MAT3 TB_text.c gFontColors: per text colour index the RGBA used by TB_SetTextColor
+D_8011905C	texture_swap_shared_frames	data	code	likely	the shared frame table that texture swap lists may point at (InitTextureAnimation skips its lookup unless Expansion Pak / track >= 6)
+D_8011A31C	TextureSwapLists	data	mat3	sure	MAT3 textureanim.c TextureSwapLists: per track the list of texture swap (flip-book) records
+D_8011A840	PaletteLists	data	mat3	sure	MAT3 textureanim.c PaletteLists: per track the palette animation records
+D_8011A924	gWorldNames	data	mat3	sure	MAT3 tracks.c gWorldNames (N64 indexed by track; LoadTrack)
+D_8011A970	video_buttonNames	data	mat3	sure	MAT3 videoscr.c static buttonNames (model names of the video menu buttons)
+D_8011AC98	video_buttonsJustInited	data	mat3	sure	MAT3 videoscr.c static buttonsJustInited
+D_8011AC9C	video_buttonSlideScale	data	code	likely	f32 scale of the video menu buttons' vertical slide speed limits (updateButtons, N64-only)
+D_8011ACA0	video_frontEndBlit	data	mat3	sure	MAT3 videoscr.c static frontEndBlit (multiblit used in the front end)
+D_8011ACE8	video_pauseBlit	data	mat3	sure	MAT3 videoscr.c static pauseBlit (multiblit used from the pause menu)
+D_8011AD30	video_inited	data	mat3	sure	MAT3 videoscr.c static inited
+D_8011AD34	video_blit	data	mat3	sure	MAT3 videoscr.c static blit (the screen's multiblit handle)
+D_8011AD3C	exitVideoScreen	data	mat3	sure	MAT3 videoscr.c exitVideoScreen (kMenuStay/kMenuBackward)
+D_8011AD48	video_resetChoice	data	code	likely	s32 zeroed by updateVideoScreen's reset item (with gHorzCenter/gVertCenter); no other reader in the image
+D_8011AD68	video_gTitlePane	data	mat3	sure	MAT3 videoscr.c static gTitlePane (each screen has its own)
+D_80120E0C	coin_gold_name	data	code	sure	string: the gold coin object name looked up by animCoins
+D_80120E1C	coin_silver_name	data	code	sure	string: the silver coin object name looked up by animCoins
+D_80120E2C	coin_count_format	data	code	sure	string: the per-coin count format animCoins prints (MAT3 animCoinsText's)
+D_801211BC	save_file_name_prefix	data	code	sure	string: the file name prefix SaveServer matches for the game's pak files
+D_801211C8	player_file_ext_prefix	data	code	sure	string: the player profile file extension letter SaveServer matches
+D_801211CC	cheat_profile_name	data	code	likely	string ReadPlayerData compares the profile name with; a match turns on cheats (gCheatActive and three gCheatState entries)
+D_801211DC	player_file_ext_match	data	code	likely	string CreatePlayer compares existing files' extension with while choosing a unique name
+D_801211E0	player_file_ext	data	code	likely	string: the extension CreatePlayer gives a new profile file (PS_CreateFile)
+D_801211E4	ghost_file_name_format	data	code	likely	sprintf format of a ghost's file name in SaveGhost
+D_801211F4	ghost_file_ext	data	code	likely	string: the extension SaveGhost gives a new ghost file (PS_CreateFile)
+D_801211F8	player_file_prefix	data	code	likely	the 9-byte file name prefix CreatePlayer starts each profile file name with
+D_80121204	player_file_digits_format	data	code	likely	sprintf format of CreatePlayer's attempt number digits
+D_8012120C	sky_object_name	data	code	sure	string: the sky object name SkyInit looks up (MAT3 "SKYSKY")
+D_80123DE0	hud_obj_angle_speed	data	code	sure	f32 literal of UpdateHUDPostCamera (MAT3 3.1415927f): hudObjAngle advance per second
+D_80123DF8	path_closest_start_distance	data	code	sure	f32 literal of FindClosestPt: initial nearest distance (MAT3 1.0e20f)
+D_80123E04	calcalpha_far_scale_positive	data	code	sure	f32 literal of calcalpha: multiplier when tirev[2] >= 400
+D_80123E08	calcalpha_far_scale_negative	data	code	sure	f32 literal of calcalpha: multiplier when tirev[2] <= -400
+D_80123E0C	frictioncircle_brake_threshold	data	code	sure	f32 literal of frictioncircle: brake level above which the under-rotating wheel blends to road speed
+D_80123E10	dotireforce_idt_coef	data	code	sure	f32 literal of dotireforce: idt factor of the N64 normal-force stabilisation polynomial
+D_80123E14	dotireforce_idt_offset	data	code	sure	f32 literal of dotireforce: constant term of that polynomial
+D_80123E18	dotireforce_side_drop	data	code	sure	f32 literal of dotireforce: side-force reduction factor per car physics value 0x1C
+D_80123E1C	dotireforce_side_scale_mode2	data	code	sure	f32 literal of dotireforce: side-force scale when gSpecialTires is 2
+D_80123E20	dotireforce_side_scale_slope	data	code	sure	f32 literal of dotireforce: slope of the side-force scale otherwise
+D_80123E24	dotireforce_side_scale_base	data	code	sure	f32 literal of dotireforce: base of the side-force scale otherwise
+D_80123EEC	flip_abort_angle	data	mat3	sure	f32 literal of _CheckFlip (MAT3 0.4712389f): abort when the other axes turn more
+D_80123EF0	flip_window_min	data	mat3	sure	f32 literal of _CheckFlip (MAT3 2.5132742f): lower bound of a completed half turn
+D_80123EF4	flip_window_max	data	mat3	sure	f32 literal of _CheckFlip (MAT3 3.7699113f): upper bound
+D_80123EF8	flip_landing_min	data	mat3	sure	f32 literal of _CheckFlip (MAT3 1.727876f): enough when landing or the axis sign changed
+D_80123EFC	flip_unwind_negative	data	mat3	sure	f32 literal of _CheckFlip (MAT3 -3.1415927f) added after a forward flip
+D_80123F00	flip_unwind_positive	data	mat3	sure	f32 literal of _CheckFlip (MAT3 3.1415927f) added after a backward flip
+D_80123F04	spin_abort_angle	data	mat3	sure	f32 literal of _CheckSpin (MAT3 0.4712389f)
+D_80123F08	spin_window_min	data	mat3	sure	f32 literal of _CheckSpin (MAT3 2.5132742f)
+D_80123F0C	spin_window_max	data	mat3	sure	f32 literal of _CheckSpin (MAT3 3.7699113f)
+D_80123F10	spin_landing_min	data	mat3	sure	f32 literal of _CheckSpin (MAT3 1.727876f)
+D_80123F14	spin_unwind_negative	data	mat3	sure	f32 literal of _CheckSpin (MAT3 -3.1415927f)
+D_80123F18	spin_unwind_positive	data	mat3	sure	f32 literal of _CheckSpin (MAT3 3.1415927f)
+D_80123F1C	roll_abort_angle_x	data	mat3	sure	f32 literal of _CheckRoll (MAT3 1.2566371f): x-axis abort bound
+D_80123F20	roll_abort_angle_y	data	mat3	sure	f32 literal of _CheckRoll (MAT3 0.4712389f): y-axis abort bound
+D_80123F24	roll_window_min	data	mat3	sure	f32 literal of _CheckRoll (MAT3 2.5132742f)
+D_80123F28	roll_window_max	data	mat3	sure	f32 literal of _CheckRoll (MAT3 3.7699113f)
+D_80123F2C	roll_landing_min	data	mat3	sure	f32 literal of _CheckRoll (MAT3 1.727876f)
+D_80123F30	roll_unwind_negative	data	mat3	sure	f32 literal of _CheckRoll (MAT3 -3.1415927f)
+D_80123F34	roll_unwind_positive	data	mat3	sure	f32 literal of _CheckRoll (MAT3 3.1415927f)
+D_80123F54	collision_mass_effect	data	mat3	sure	f32 literal of CarApplyCollision (MAT3 20000.0f / mass)
+D_80123F58	collision_damp_soft	data	mat3	sure	f32 literal of CarApplyCollision (MAT3 0.0009f, soft surfaces 5/6 and 0x2000)
+D_80123F5C	collision_damp_hard	data	mat3	sure	f32 literal of CarApplyCollision (MAT3 0.015f)
+D_80123F60	collision_lift_slope_drone	data	mat3	likely	f32 literal of CarApplyCollision (MAT3 0.1f, drone_type 1)
+D_80123F64	collision_lift_base	data	mat3	likely	f32 literal of CarApplyCollision (MAT3 0.05f)
+D_80123F68	collision_lift_slope	data	mat3	likely	f32 literal of CarApplyCollision (MAT3 0.2f)
+D_80123F6C	collision_force_limit	data	mat3	likely	f32 literal of CarApplyCollision (MAT3 4000.0 on the soft-surface force path)
+D_80123F70	point_in_surf_edge_radius_last	data	mat3	sure	f32 literal of PointInSurf: VectorToSurfEdge radius for the last edge (MAT3 0.01f)
+D_80123F74	point_in_surf_edge_radius_first	data	mat3	sure	f32 literal of PointInSurf: radius for the first edge (MAT3 0.01f)
+D_80123F78	point_in_surf_edge_radius	data	mat3	sure	f32 literal of PointInSurf: radius for the other edges (MAT3 0.01f)
+D_80123F7C	point_in_surf_min_height	data	mat3	sure	f32 literal of PointInSurf: rejection height of the second position (MAT3 -0.05f)
+D_80123F80	extract_yaw_epsilon	data	mat3	sure	f32 literal of ExtractYaw (MAT3 0.000001f)
+D_80123F88	drone_res_path_start_distance	data	mat3	sure	f32 literal of SetDroneResPathIndex: initial nearest distance (MAT3 1.0e20f)
+D_80124FD0	skyMatrices	data	mat3	sure	MAT3 sky.c skyMatrices: per window the sky object's matrix (u32 window addresses on the N64)
+D_8012E5EC	gDronePathsPts	data	code	sure	the pts word of gDronePaths[0] (gDronePaths + 4), read through by SetDroneResPathIndex; interior alias
+D_8012E710	ObjInstanceListAlias	data	code	likely	alias of ObjInstanceList used by animCoins (coins.c defines it as D_8012E700); wave 2 should use ObjInstanceList
+D_801391E4	background_distance	data	code	likely	s32 static of createBG: the background polys' distance (MAT3 BG_DIST)
+D_80139318	gSoundSpeed	data	mat3	sure	MAT3 audiomgr.c gSoundSpeed = 1100 * footUnits (AudInit3D)
+D_8013C128	gPlayerProfileHandles	data	code	sure	Handle[pak][16]: the N64's fixed handles of player profiles (_NewPlayer instead of AllocateHandleHeap)
+D_8013C300	CollisionTargetPtrs	data	mat3	sure	MAT3 targetpaths.c CollisionTargetPtrs[30]: path targets that move collision objects
+D_8013C378	gSmokeObjs	data	mat3	sure	MAT3 smoke.c gSmokeObjs: the 100 puff records (88 bytes each on the N64)
+D_8013E5D8	gPlayerProfileRecords	data	code	sure	the fixed player profile records [pak][16] that gPlayerProfileHandles point at
+D_8013F1DC	numCollisionTargetPtrs	data	mat3	sure	MAT3 targetpaths.c numCollisionTargetPtrs
+D_8013F1F0	gSmokeListHead	data	code	sure	the active list head inside gSmokeList (gSmokeList + 0x10), walked by UpdateSmoke; interior alias
+D_8013F1F8	gGhostFileHandles	data	code	likely	the N64's fixed ghost file handles that _NewGhost hands out
+D_8013F390	gGhostFileRecords	data	code	likely	the fixed ghost file records behind gGhostFileHandles
+D_801407F4	gResPathPts	data	code	sure	the pts pointer of gResPath (gResPath + 4); interior alias read by FindResPathIntersect/SetDroneResPathIndex
+D_80142768	gAudioLockMsgBuf	data	code	sure	message buffer of the audio lock queue that AudioInit creates (one entry)
+D_80143A10	gTrackLoadInfo	data	mat3	sure	MAT3 tracks.c gTrackLoadInfo (0x2C bytes): track/world/collision wave instances and the inited flag
+D_80143A18	gTrackLoadInfoTrackWave	data	code	sure	the track wave instance inside gTrackLoadInfo (+8), unloaded by UnloadTrack; interior alias
+D_80143A20	gTrackLoadInfoWorldWave	data	code	sure	the world wave instance inside gTrackLoadInfo (+0x10); interior alias
+D_80143A28	gTrackLoadInfoCollisionWave	data	code	sure	the collision wave instance inside gTrackLoadInfo (+0x18); interior alias
+D_80143A88	gPathTrace	data	mat3	sure	MAT3 pathcommon.c gPathTrace: s32[15] paths visited by TraceCheck
+D_80143F58	gSortedFxTagTree	data	mat3	sure	MAT3 audiomgr.c gSortedFxTagTree (tOrderedList)
+D_80144020	gPlayingFxTags	data	mat3	sure	MAT3 audiomgr.c gPlayingFxTags list
+D_80146113	gOptionsShowCoins	data	code	sure	gOptions[11] (show coins) read directly by animCoins; interior alias of gOptions
+D_80146205	gSofdecShown	data	mat3	likely	s8 cleared in state 1 of initGameState: second of six flags in MAT3's order (gGameStarted, gSofdecShown, gLicenseShown, gIntroMovieShown, pfsInited, lcdInited)
+D_80149410	gMaxMusic	data	mat3	sure	MAT3 audiomgr.c gMaxMusic (AudioInit)
+D_80149770	gTargetGroups	data	mat3	sure	MAT3 targets.c gTargetGroups: the target quadtree nodes (LoadTrack, CheckTargetCollision)
+D_80149790	numgTargetGroups	data	mat3	sure	MAT3 targets.c numgTargetGroups
+D_801497C0	gTargetGroupList	data	mat3	sure	MAT3 targets.c gTargetGroupList: target pointers referenced by the leaves
+D_801497E8	gCalcDoppler	data	mat3	sure	MAT3 audiomgr.c gCalcDoppler (AudInit3D)
+D_801497EC	numgTargetGroupList	data	mat3	sure	MAT3 targets.c numgTargetGroupList
+D_80149B10	gNewEdges	data	mat3	sure	MAT3 controlsys.c gNewEdges[4]: per pad pressed latch (ClearControls)
+D_8014A119	gPlayers0Controller	data	code	likely	controller byte of gPlayers[0] (input_rec0 + 1), read by UpdateRushControls; interior alias
+D_8014A11C	gPlayers0Pad	data	code	likely	pad words of gPlayers[0] (input_rec0 + 4: edges, levels, autoEdges, analog); interior alias
+D_8014A165	gPlayers1Controller	data	code	likely	controller byte of gPlayers[1] (input_rec1 + 1); interior alias
+D_8014D280	gTargetArray	data	mat3	sure	MAT3 targets.c gTargetArray: target records (N64 130 x 0x70) behind gTargetList
+D_80150B64	gPathCount	data	mat3	sure	MAT3 targets.c gPathCount (initTargetStructs)
+D_80150BA0	gCameraN64	data	code	sure	gCamera[0].n64 (gCamera + 0x30), the handedness-flipped matrix copy UpdateCameras writes; interior alias
+D_80150DD0	Restarting	data	mat3	sure	MAT3 targets.c static Restarting = gRestartGame (initTargetStructs)
+D_80150E28	gTargetStructCount	data	mat3	sure	MAT3 targets.c gTargetStructCount: s8[8] per target structure kind
+D_80150F78	gBBoxModelCount	data	mat3	likely	MAT3 targets.c gBBoxModelCount, zeroed by initTargetStructs (next to gBBoxModelUsed)
+D_80150F80	gBBoxModelUsed	data	mat3	sure	MAT3 targets.c gBBoxModelUsed (TargetPathAvoid)
+D_80151408	gBattleMineCnt	data	mat3	sure	MAT3 targets.c gBattleMineCnt
+D_801515F0	gGoldCoinCnt	data	mat3	likely	MAT3 targets.c gGoldCoinCnt: one of the four coin counters zeroed at the end of initTargetStructs (gold/silver assignment by the chained-assignment order)
+D_80151688	gSilverCoinCnt	data	mat3	likely	MAT3 targets.c gSilverCoinCnt (see gGoldCoinCnt)
+D_80151A70	gAlwaysCol	data	mat3	sure	MAT3 targets.c gAlwaysCol: the 15-entry always-collide pool allocated in battle
+D_80151D18	gCheckpointPathPts	data	code	sure	pathPts of gCheckpoints.points[0] (gCheckpoints + 0x30), indexed [cp][path]; interior alias
+D_80152678	video_buttonSlideSpeed	data	code	likely	f32 static of the video updateButtons: current vertical slide speed of the buttons
+D_80152738	gStuntsDone	data	mat3	sure	MAT3 stunt.c gStuntsDone
+D_801527A4	gNumResPathPts	data	mat3	sure	MAT3 pathcommon.c gNumResPathPts (ReadPathData, CalcResPathBounds)
+D_801527D0	gNumPathPts	data	mat3	sure	MAT3 pathcommon.c gNumPathPts (ReadPathData)
+D_80153E80	gAltPaths	data	mat3	sure	MAT3 pathcommon.c gAltPaths: the alternate path records (16 bytes)
+D_80153EF8	gPathPtList	data	mat3	sure	MAT3 pathcommon.c gPathPtList: the drone path points
+D_80154348	gDemoPathPt	data	mat3	sure	MAT3 resurrect.c gDemoPathPt (InitDemoPathPoint, SetResurrectionData)
+D_80154368	countdown_poly	data	mat3	sure	MAT3 countdown.c ShowCountdown static poly: per window the countdown poly
+D_80154398	countdown_polyTidx	data	mat3	sure	MAT3 countdown.c ShowCountdown static polyTidx: texture index of the countdown digits
+D_801543A4	countdown_lastCountDown	data	mat3	sure	MAT3 countdown.c ShowCountdown static lastCountDown
+D_801551E8	gOPPFuncs	data	mat3	sure	MAT3 HAL_time.c gOPPFuncs[10]: the once-per-frame functions
+D_80156BC8	stunt_chW0	data	mat3	sure	MAT3 stunt.c static chW0: x-axis turn direction changed this frame
+D_80156BD8	stunt_chW1	data	mat3	sure	MAT3 stunt.c static chW1: y-axis change
+D_80156CE4	stunt_chW2	data	mat3	sure	MAT3 stunt.c static chW2: z-axis change
+D_80157238	stunt_j	data	mat3	sure	MAT3 stunt.c static j: wheels off the ground this frame
+D_8015B248	stunt_l	data	mat3	sure	MAT3 stunt.c static l: left wheels off the ground
+D_8015B258	stunt_r	data	mat3	sure	MAT3 stunt.c static r: right wheels off the ground
+D_8015F728	stunt_b	data	mat3	sure	MAT3 stunt.c static b: back wheels off the ground
+D_8015F730	stunt_f	data	mat3	sure	MAT3 stunt.c static f: front wheels off the ground
+D_80161360	stunt_okToStart	data	mat3	sure	MAT3 stunt.c static okToStart
+D_80161388	stunt_GCabsW	data	mat3	sure	MAT3 stunt.c static GCabsW: f32[3] absolute stunt angular rates
+D_8016139C	stunt_eTime	data	mat3	sure	MAT3 stunt.c static eTime: idle time toward the 2.69 s end of a stunt run
+D_801613D0	cur_demo_ppoint	data	mat3	sure	MAT3 resurrect.c InitDemoPathPoint static cur_demo_ppoint: s16 per entry
+D_80394050	coinStuntPos	data	mat3	sure	MAT3 hud.c coinStuntPos (overlay A data on the N64)
+
+# ---- struct fields read by raw offset (N64 offsets; MAT3 struct and field names) ----
+tTarget.0x60	sound	field	mat3	sure	MAT3 tTarget.sound (s32 emitter tag); PauseTargetPaths writes -1 at +0x60, same offset as MAT3
+tTarget.0x64	sndState	field	mat3	sure	MAT3 tTarget.sndState (s8); PauseTargetPaths/PauseTargets write 2 at +0x64
+tPathPoint.0x0	xrel	field	mat3	sure	MAT3 tPathPoint.xrel (f32); SetNewPathIndex writes 20.0
+tPathPoint.0x4	yrel	field	mat3	sure	MAT3 tPathPoint.yrel (f32); SetNewPathIndex writes 0
+tPathPoint.0x20	interval_time	field	mat3	sure	MAT3 tPathPoint.interval_time (f32) = gModelTime in SetNewPathIndex
+tPathPoint.0x24	idx	field	mat3	sure	MAT3 tPathPoint.idx (s16)
+tPathPoint.0x26	newIdx	field	mat3	sure	MAT3 tPathPoint.newIdx (s16) = -1 in SetNewPathIndex
+tModelData.0x7C6	slot	field	mat3	sure	MAT3 tModelData.slot (s16): SetNewPathIndex indexes the car record with it
+tCarData.0x314	mpctl	field	mat3	sure	MAT3 tCarData.mpctl (tPathPoint, 0x2C; N64 offset 0x314, MAT3 0x32C): SyncMaxpathToLastCheckpoint writes mpctl.newIdx (+0x33A) from mpctl.path (+0x33C)
+tCarData.0x358	crash_state	field	mat3	sure	MAT3 tCarData.crash_state (s8; N64 offset, MAT3 0x370): AbortCar writes the respawn state (2)
+tCarData.0x359	dead	field	mat3	sure	MAT3 tCarData.dead (s8; MAT3 0x371): AbortCar writes alive (0) or aborted (-1) by gDeathMode
+tPlayerProfile.0x8	fileh	field	mat3	sure	MAT3 tPlayerProfile.fileh (tPS_File **); PurgePlayerData, the save functions (PROFILE_OFS(8))
+tPlayerProfile.0xC	id	field	mat3	sure	MAT3 tPlayerProfile.id (u32[2]); CreatePlayer copies 8 bytes from the data (PROFILE_OFS(12))
+tPlayerProfile.0x14	name	field	mat3	sure	MAT3 tPlayerProfile.name (13 bytes); CreatePlayer, ReadPlayerData (PROFILE_OFS(20))
+tPlayerProfile.0x21	controls	field	mat3	sure	MAT3 tPlayerProfile.controls (N64 11 bytes); SavePlayerControls, _InitPlayer (PROFILE_OFS(33))
+tPlayerProfile.0x2C	datah	field	mat3	sure	MAT3 tPlayerProfile.datah (tSaveData **; N64 offset, MAT3 0x48): the N64 profile record is 0x30 bytes
+tPS_File.0x8	RemoveFile	field	mat3	sure	MAT3 tPS_File.RemoveFile; CreatePlayer stores the player's remover (PSF_OFS(8))
+tPS_File.0xC	MoveFile	field	mat3	sure	MAT3 tPS_File.MoveFile (PSF_OFS(12))
+tPS_File.0x10	pak	field	mat3	sure	MAT3 tPS_File.pak (u8) (PSF_OFS(16))
+tPS_File.0x11	pakSlot	field	code	likely	u8 the file's slot in its pak (N64; _NewPlayer's second argument) (PSF_OFS(17))
+tPS_File.0x12	filename	field	mat3	sure	MAT3 tPS_File.filename (N64 offset): CreatePlayer/SaveServer compare names here (PSF_OFS(18))
+tPS_File.0x35	ext	field	mat3	likely	MAT3 tPS_File.ext (N64 offset): CreatePlayer/SaveServer compare the extension here (PSF_OFS(53))
+tPS_File.0x40	size	field	mat3	likely	MAT3 tPS_File.size: ReadPlayerData reads this many bytes (PSF_OFS(64))
+tPS_File.0x48	data	field	mat3	sure	MAT3 tPS_File.data: the file's loaded data (PSF_OFS(72))
+tGhostFile.0x4	fileh	field	mat3	likely	MAT3 tGhostFile.fileh (N64 offset 4, MAT3 8): DeleteGhost deletes it (GHOST_OFS(4))
+tGhostFile.0x2C	header	field	mat3	sure	MAT3 tGhostFile.header (tSaveHeader **): CompressGhost (GHOST_OFS(44))
+tAudioMsg.0x2	cmd	field	mat3	sure	MAT3 tAudioMsg.hdr.cmd: the audio command number (0 play song, 1 kill song, 7 stop all, 10 master volume)
+tAudioMsg.0x4	song	field	mat3	sure	MAT3 tAudioMsg.playSong.song (AudPlaySong); the same word is setMasterVol.vol (f32)
+tAudioMsg.0x8	loop	field	mat3	sure	MAT3 tAudioMsg.playSong.loop (s8 on the N64); the same word is setMasterVol.time (f32)
+tAudioMsg.0xC	music	field	mat3	sure	MAT3 tAudioMsg.setMasterVol.music (s8)
+tAudioMsg.0xD	sfx	field	mat3	sure	MAT3 tAudioMsg.setMasterVol.sfx (s8)
+tOrderedList.0x0	OrderFunc	field	mat3	sure	MAT3 tOrderedList.OrderFunc (InitBST)
+tOrderedList.0x4	numElements	field	mat3	sure	MAT3 tOrderedList.numElements
+tOrderedList.0x8	root	field	mat3	sure	MAT3 tOrderedList.root
+
+# ---- files: group directories named after an address or a wrong guess ----
+src/blob/groups/audio_doppler_full	src/blob/groups/countdown_show	file	mat3	sure	holds ShowCountdown (MAT3 countdown.c); groups/countdown is taken
+src/blob/groups/camera_aspect_ratio	src/blob/groups/targetpaths	file	mat3	sure	holds MAT3 targetpaths.c: _PlayStartSound, _PlayStopSound, _PlayMoveSound, _PlacePathTargetQuat/Pos, _ResetPath, _AnimatePathTarget, _StartPathTarget
+src/blob/groups/camera_first_person	src/blob/groups/stree_rotate	file	mat3	sure	holds MAT3 stree.c RotateCollisionObject
+src/blob/groups/camera_scene_manager	src/blob/groups/stunt	file	mat3	sure	holds MAT3 stunt.c: _AddStunt, the eight checkers, CheckForStunt, CrashedStunt
+src/blob/groups/cleanup	src/blob/groups/pausescr_cleanup	file	mat3	sure	holds MAT3 pausescr.c updatePauseStateCleanup
+src/blob/groups/coins	src/blob/groups/hud_coins	file	mat3	sure	holds MAT3 hud.c animCoins
+src/blob/groups/controller_poll	src/blob/groups/controlsys	file	mat3	sure	holds MAT3 controlsys.c: UpdateControls, _PotRange, SetControllerStickEdges, SetControllerActive, UpdateRushControls
+src/blob/groups/defaults	src/blob/groups/hal_text	file	mat3	sure	holds MAT3 HAL_text.c: _SetDefaults, _DrawText, HAL_DrawText, _TextLen, HAL_FinishText
+src/blob/groups/draw_number	src/blob/groups/save_default_car	file	mat3	sure	holds MAT3 save.c _SetDefaultCarSettings
+src/blob/groups/entity_helpers	src/blob/groups/audiomgr_emitters	file	mat3	sure	holds MAT3 audiomgr.c: _ValidateEmitter, AudStopEmitter, AudEmitterPlaying, AudEffectPlaying, AudUpdateEmitter
+src/blob/groups/entity_update	src/blob/groups/stree_tiresurf	file	mat3	sure	holds MAT3 stree.c TireSurf
+src/blob/groups/filename_cce5c	src/blob/groups/save_player_controls	file	mat3	sure	holds MAT3 save.c SavePlayerControls (named after an address fragment)
+src/blob/groups/func_800AD4C8	src/blob/groups/stree_collide	file	mat3	sure	holds MAT3 stree.c CollideCarBody, CollideCarBodyAgainstSurface, CarApplyCollision, PointInSurf, RoadPosition (and VectorToSurfEdge at 0x800AD4C8, another area's)
+src/blob/groups/func_800B7438	src/blob/groups/hal_time	file	mat3	sure	holds MAT3 HAL_time.c HAL_InitTime, HAL_InstallOncePerFrameFunc
+src/blob/groups/heap_free_total	src/blob/groups/memsys_free_total	file	code	sure	holds heap_total_free and its worker (memsys)
+src/blob/groups/large_init_state	src/blob/groups/options_set	file	mat3	sure	holds MAT3 options.c SetOptions
+src/blob/groups/menu	src/blob/groups/save_player_car_view	file	mat3	sure	holds MAT3 save.c SavePlayerCarView
+src/blob/groups/menu_2	src/blob/groups/save_player_car	file	mat3	sure	holds MAT3 save.c SavePlayerCar
+src/blob/groups/menu_records	src/blob/groups/save_circuit	file	mat3	sure	holds MAT3 save.c SavePlayerCircuitStats, SavePlayerCircuit
+src/blob/groups/menu_save_options	src/blob/groups/save	file	mat3	sure	holds the N64 save unit (MAT3 save.c: _InitPlayer, ReadPlayerData, DeletePlayer, CreatePlayer, ghosts, SaveServer, SaveGhost, CompressGhost) and AudioInit
+src/blob/groups/path_graph_links	src/blob/groups/pathcommon_altpaths	file	mat3	sure	holds MAT3 pathcommon.c TraceCheck, FindClosestPt, SyncAltPaths, TraceToCheckpoint
+src/blob/groups/physics_sym	src/blob/groups/videoscr_update	file	mat3	sure	holds MAT3 videoscr.c updateVideoScreen, uninitScreen, updateButtons, _TitlePane, calcMenuRect, initScreen
+src/blob/groups/read_path_data	src/blob/groups/pathcommon_read	file	mat3	sure	holds MAT3 pathcommon.c ReadPathData, CalcCheckpointTimes
+src/blob/groups/resource_slot_clear	src/blob/groups/state_waves	file	mat3	sure	holds MAT3 state.c _LockAndLoad, _LoadFrontEndWaves
+src/blob/groups/reverb_setup	src/blob/groups/save_get_option	file	mat3	sure	holds MAT3 save.c GetPlayerOption and its four per-race-type getters
+src/blob/groups/route_cross	src/blob/groups/pathcommon_sync	file	mat3	sure	holds MAT3 pathcommon.c SyncCheckpointsToPaths, FindAltPathIntersect
+src/blob/groups/score_insert	src/blob/groups/save_limbo	file	mat3	sure	holds MAT3 save.c SaveGhostInLimbo
+src/blob/groups/setting_c7578	src/blob/groups/save_car_setting	file	mat3	sure	holds MAT3 save.c SavePlayerCarSetting (named after an address fragment)
+src/blob/groups/state_audio	src/blob/groups/state_uninit	file	mat3	sure	holds MAT3 state.c uninitGameState
+# ---- files: single files named after the function they hold (follow the function; skip any flatten removed) ----
+src/blob/func_800B4720.c	src/blob/_SaveObstacleSetting_stub.c	file	mat3	likely	single file of _SaveObstacleSetting_stub (was func_800B4720)
+src/blob/func_800B4728.c	src/blob/_SaveStuntSetting_stub.c	file	mat3	likely	single file of _SaveStuntSetting_stub (was func_800B4728)
+src/blob/func_800B4730.c	src/blob/_SaveBattleSetting_stub.c	file	mat3	likely	single file of _SaveBattleSetting_stub (was func_800B4730)
+src/blob/func_800B4DA4.c	src/blob/SaveSelectPlayer.c	file	mat3	sure	single file of SaveSelectPlayer (was func_800B4DA4)
+src/blob/func_800B5570.c	src/blob/setGameState.c	file	mat3	sure	single file of setGameState (was func_800B5570)
+src/blob/ambient_sounds_clear.c	src/blob/removeBG.c	file	mat3	sure	single file of removeBG (was ambient_sounds_clear)
+src/blob/func_800B5898.c	src/blob/WPitchUV.c	file	mat3	sure	single file of WPitchUV (was func_800B5898)
+src/blob/func_800B5940.c	src/blob/WRollUV.c	file	mat3	sure	single file of WRollUV (was func_800B5940)
+src/blob/audio_distance_atten.c	src/blob/PlayUDSound.c	file	mat3	sure	single file of PlayUDSound (was audio_distance_atten)
+src/blob/audio_doppler.c	src/blob/PlayLRSound.c	file	mat3	sure	single file of PlayLRSound (was audio_doppler)
+src/blob/resource_type_select.c	src/blob/PlayStartABSound.c	file	mat3	sure	single file of PlayStartABSound (was resource_type_select)
+src/blob/func_800B6014.c	src/blob/_ReleaseSemaphore_ControlSys_stub.c	file	mat3	likely	single file of _ReleaseSemaphore_ControlSys_stub (was func_800B6014)
+src/blob/func_800B601C.c	src/blob/_GetSemaphore_ControlSys_stub.c	file	mat3	likely	single file of _GetSemaphore_ControlSys_stub (was func_800B601C)
+src/blob/audio_occlusion.c	src/blob/ClearControls.c	file	mat3	sure	single file of ClearControls (was audio_occlusion)
+src/blob/entity_audio_update.c	src/blob/ClearRushControls.c	file	mat3	sure	single file of ClearRushControls (was entity_audio_update)
+src/blob/func_800B61A8.c	src/blob/PlayGameSound.c	file	mat3	sure	single file of PlayGameSound (was func_800B61A8)
+src/blob/render_helper.c	src/blob/HAL_SetTextDepth.c	file	mat3	sure	single file of HAL_SetTextDepth (was render_helper)
+src/blob/func_800B669C.c	src/blob/TB_SetJust.c	file	mat3	sure	single file of TB_SetJust (was func_800B669C)
+src/blob/func_800B70EC.c	src/blob/HAL_SetTextPos.c	file	mat3	sure	single file of HAL_SetTextPos (was func_800B70EC)
+src/blob/sound_pitch_diff_calc.c	src/blob/TB_RightText.c	file	mat3	sure	single file of TB_RightText (was sound_pitch_diff_calc)
+src/blob/sound_pitch_diff_halved.c	src/blob/TB_CenterText.c	file	mat3	sure	single file of TB_CenterText (was sound_pitch_diff_halved)
+src/blob/func_800B7360.c	src/blob/HAL_SetTextColor.c	file	mat3	sure	single file of HAL_SetTextColor (was func_800B7360)
+src/blob/func_800B7498.c	src/blob/TB_TextInit_stub.c	file	mat3	likely	single file of TB_TextInit_stub (was func_800B7498)
+src/blob/dispatch_handler.c	src/blob/TB_SetTextColor.c	file	mat3	sure	single file of TB_SetTextColor (was dispatch_handler)
+src/blob/func_800B78A4.c	src/blob/CountBits.c	file	mat3	sure	single file of CountBits (was func_800B78A4)
+src/blob/func_800B78F0.c	src/blob/NumCoinsFound.c	file	mat3	sure	single file of NumCoinsFound (was func_800B78F0)
+src/blob/func_800B7FF8.c	src/blob/UpdateHUDPostCamera.c	file	mat3	sure	single file of UpdateHUDPostCamera (was func_800B7FF8)
+src/blob/particles_spawn_emitter.c	src/blob/SkyUpdate.c	file	mat3	sure	single file of SkyUpdate (was particles_spawn_emitter)
+src/blob/Effects_UpdateEmitters.c	src/blob/UpdateCameras.c	file	mat3	sure	single file of UpdateCameras (was Effects_UpdateEmitters)
+src/blob/particle_position_set.c	src/blob/ZeroCamera.c	file	mat3	sure	single file of ZeroCamera (was particle_position_set)
+src/blob/particle_velocity_set.c	src/blob/ZeroCameras.c	file	mat3	sure	single file of ZeroCameras (was particle_velocity_set)
+src/blob/func_800B836C.c	src/blob/InitCameras_stub.c	file	mat3	likely	single file of InitCameras_stub (was func_800B836C)
+src/blob/func_800B8810.c	src/blob/SaveGlobals.c	file	mat3	sure	single file of SaveGlobals (was func_800B8810)
+src/blob/func_800B90F8.c	src/blob/SkyClear.c	file	mat3	sure	single file of SkyClear (was func_800B90F8)
+src/blob/func_800B912C.c	src/blob/UnloadTrack.c	file	mat3	sure	single file of UnloadTrack (was func_800B912C)
+src/blob/physics_collision_test.c	src/blob/InitSmoke.c	file	mat3	sure	single file of InitSmoke (was physics_collision_test)
+src/blob/func_800B9284.c	src/blob/InitDemoPathPoint.c	file	mat3	sure	single file of InitDemoPathPoint (was func_800B9284)
+src/blob/func_800B930C.c	src/blob/GetNextCheckpoint.c	file	mat3	sure	single file of GetNextCheckpoint (was func_800B930C)
+src/blob/func_800B9338.c	src/blob/NextPathPt.c	file	mat3	sure	single file of NextPathPt (was func_800B9338)
+src/blob/func_800B9740.c	src/blob/CalcResPathBounds.c	file	mat3	sure	single file of CalcResPathBounds (was func_800B9740)
+src/blob/func_800B9F60.c	src/blob/NextResPathPt.c	file	mat3	sure	single file of NextResPathPt (was func_800B9F60)
+src/blob/audio_channel_alloc.c	src/blob/GetPathDistance.c	file	mat3	sure	single file of GetPathDistance (was audio_channel_alloc)
+src/blob/func_800BA2B0.c	src/blob/FindPathDistances_stub.c	file	mat3	likely	single file of FindPathDistances_stub (was func_800BA2B0)
+src/blob/func_800BA2B8.c	src/blob/FindDronePathIntersect.c	file	mat3	sure	single file of FindDronePathIntersect (was func_800BA2B8)
+src/blob/func_800BA61C.c	src/blob/FindResPathIntersect.c	file	mat3	sure	single file of FindResPathIntersect (was func_800BA61C)
+src/blob/audio_effect_remove.c	src/blob/InitPathData.c	file	mat3	sure	single file of InitPathData (was audio_effect_remove)
+src/blob/audio_dsp_process.c	src/blob/ReadCheckpointData.c	file	mat3	sure	single file of ReadCheckpointData (was audio_dsp_process)
+src/blob/mode_flags_clear.c	src/blob/InitCheckpointData.c	file	mat3	sure	single file of InitCheckpointData (was mode_flags_clear)
+src/blob/func_800BB02C.c	src/blob/car_palette_init.c	file	code	likely	single file of car_palette_init (was func_800BB02C)
+src/blob/camera_reset.c	src/blob/SkyInit.c	file	mat3	sure	single file of SkyInit (was camera_reset)
+src/blob/func_800BB7F4.c	src/blob/InitCollisionTargetPtrs.c	file	mat3	sure	single file of InitCollisionTargetPtrs (was func_800BB7F4)
+src/blob/camera_lerp_position.c	src/blob/initTargetStructs.c	file	mat3	sure	single file of initTargetStructs (was camera_lerp_position)
+src/blob/player_flag_clear_process.c	src/blob/ReloadTrack.c	file	mat3	sure	single file of ReloadTrack (was player_flag_clear_process)
+src/blob/func_800BC21C.c	src/blob/calcalpha.c	file	mat3	sure	single file of calcalpha (was func_800BC21C)
+src/blob/camera_dolly.c	src/blob/frictioncircle.c	file	mat3	sure	single file of frictioncircle (was camera_dolly)
+src/blob/camera_follow_target.c	src/blob/dotireforce.c	file	mat3	sure	single file of dotireforce (was camera_follow_target)
+src/blob/camera_collision_avoid.c	src/blob/calctireuv.c	file	mat3	sure	single file of calctireuv (was camera_collision_avoid)
+src/blob/func_800BD080.c	src/blob/displaylist_set_texture_image.c	file	code	sure	single file of displaylist_set_texture_image (was func_800BD080)
+src/blob/camera_smooth_follow.c	src/blob/displaylist_set_tile_size.c	file	code	sure	single file of displaylist_set_tile_size (was camera_smooth_follow)
+src/blob/race_setup_1.c	src/blob/TextureAnimation.c	file	mat3	sure	single file of TextureAnimation (was race_setup_1)
+src/blob/func_800BDA24.c	src/blob/displaylist_get_texture_image.c	file	code	sure	single file of displaylist_get_texture_image (was func_800BDA24)
+src/blob/camera_shake_start.c	src/blob/InitTextureAnimation.c	file	mat3	sure	single file of InitTextureAnimation (was camera_shake_start)
+src/blob/func_800BDD90.c	src/blob/TB_Vector2Normalize.c	file	mat3	sure	single file of TB_Vector2Normalize (was func_800BDD90)
+src/blob/func_800BDEB0.c	src/blob/HAL_GetFontSpacing.c	file	mat3	sure	single file of HAL_GetFontSpacing (was func_800BDEB0)
+src/blob/camera_zoom_fov.c	src/blob/TB_GetTextNumLines.c	file	mat3	sure	single file of TB_GetTextNumLines (was camera_zoom_fov)
+src/blob/camera_auto_follow.c	src/blob/TB_DrawTextScrollBox.c	file	mat3	sure	single file of TB_DrawTextScrollBox (was camera_auto_follow)
+src/blob/camera_cinematic_mode.c	src/blob/TB_DrawTextC.c	file	mat3	sure	single file of TB_DrawTextC (was camera_cinematic_mode)
+src/blob/func_800BE4F0.c	src/blob/TB_Strcat.c	file	mat3	sure	single file of TB_Strcat (was func_800BE4F0)
+src/blob/func_800BE6A4.c	src/blob/TB_Strcpy.c	file	mat3	sure	single file of TB_Strcpy (was func_800BE6A4)
+src/blob/music_fade.c	src/blob/TB_DrawEllipseText.c	file	mat3	sure	single file of TB_DrawEllipseText (was music_fade)
+src/blob/music_tempo_adjust.c	src/blob/TB_Printf.c	file	mat3	sure	single file of TB_Printf (was music_tempo_adjust)
+src/blob/func_800BEA30.c	src/blob/TB_GetFlashTextCycle.c	file	mat3	sure	single file of TB_GetFlashTextCycle (was func_800BEA30)
+src/blob/func_800BEA58.c	src/blob/PauseTargetPaths.c	file	mat3	sure	single file of PauseTargetPaths (was func_800BEA58)
+src/blob/func_800BEA6C.c	src/blob/PauseTargets.c	file	mat3	sure	single file of PauseTargets (was func_800BEA6C)
+src/blob/race_setup_2.c	src/blob/CheckTargetCollision.c	file	mat3	sure	single file of CheckTargetCollision (was race_setup_2)
+src/blob/camera_blend_between.c	src/blob/TargetPathAvoid.c	file	mat3	sure	single file of TargetPathAvoid (was camera_blend_between)
+src/blob/func_800BF01C.c	src/blob/_ValidateEmitter.c	file	mat3	sure	single file of _ValidateEmitter (was func_800BF01C)
+src/blob/results_time_display.c	src/blob/AudEffectPlaying.c	file	mat3	sure	single file of AudEffectPlaying (was results_time_display)
+src/blob/func_800BF778.c	src/blob/matf2scopy_stub.c	file	mat3	likely	single file of matf2scopy_stub (was func_800BF778)
+src/blob/func_800BF780.c	src/blob/MulUVS.c	file	mat3	sure	single file of MulUVS (was func_800BF780)
+src/blob/func_800BFBE8.c	src/blob/CreateQuatMat.c	file	mat3	sure	single file of CreateQuatMat (was func_800BFBE8)
+src/blob/func_800C0294.c	src/blob/MoveCollisionObject.c	file	mat3	sure	single file of MoveCollisionObject (was func_800C0294)
+src/blob/func_800C0828.c	src/blob/TransposeUV.c	file	mat3	sure	single file of TransposeUV (was func_800C0828)
+src/blob/func_800C1A00.c	src/blob/GetTargetVelocity.c	file	mat3	sure	single file of GetTargetVelocity (was func_800C1A00)
+src/blob/func_800C2418.c	src/blob/_Check2WheelSide.c	file	mat3	sure	single file of _Check2WheelSide (was func_800C2418)
+src/blob/func_800C2420.c	src/blob/_CheckAirTime.c	file	mat3	sure	single file of _CheckAirTime (was func_800C2420)
+src/blob/func_800C2428.c	src/blob/_CheckMulti.c	file	mat3	sure	single file of _CheckMulti (was func_800C2428)
+src/blob/func_800C360C.c	src/blob/ResetStunts_stub.c	file	mat3	likely	single file of ResetStunts_stub (was func_800C360C)
+src/blob/effect_system_init.c	src/blob/InitStunt.c	file	mat3	sure	single file of InitStunt (was effect_system_init)
+src/blob/func_800C4078.c	src/blob/SyncMaxpathToLastCheckpoint.c	file	mat3	sure	single file of SyncMaxpathToLastCheckpoint (was func_800C4078)
+src/blob/func_800C4180.c	src/blob/ExtractYaw.c	file	mat3	sure	single file of ExtractYaw (was func_800C4180)
+src/blob/func_800C4C9C.c	src/blob/SetNewPathIndex.c	file	mat3	sure	single file of SetNewPathIndex (was func_800C4C9C)
+src/blob/func_800C4CF8.c	src/blob/SetDroneResPathIndex.c	file	mat3	sure	single file of SetDroneResPathIndex (was func_800C4CF8)
+src/blob/func_800C54F0.c	src/blob/AbortCar.c	file	mat3	sure	single file of AbortCar (was func_800C54F0)
+src/blob/effect_cleanup.c	src/blob/AddBattlePoint.c	file	mat3	sure	single file of AddBattlePoint (was effect_cleanup)
+src/blob/entity_iterate.c	src/blob/CameraCollision.c	file	mat3	sure	single file of CameraCollision (was entity_iterate)
+src/blob/UnloadFrontEndWaves.c	src/blob/_UnloadFrontEndWaves.c	file	mat3	sure	single file of _UnloadFrontEndWaves (was UnloadFrontEndWaves)
+src/blob/object_render_cleanup.c	src/blob/PurgePlayerData.c	file	mat3	sure	single file of PurgePlayerData (was object_render_cleanup)
+src/blob/draw_text.c	src/blob/AddPlayerScores.c	file	mat3	sure	single file of AddPlayerScores (was draw_text)
+src/blob/func_800C77C4.c	src/blob/SetDefaultControls.c	file	mat3	sure	single file of SetDefaultControls (was func_800C77C4)
+src/blob/hud_speed_display.c	src/blob/AudInit3D.c	file	mat3	sure	single file of AudInit3D (was hud_speed_display)
+src/blob/func_800C8738.c	src/blob/HAL_IntLog2.c	file	mat3	sure	single file of HAL_IntLog2 (was func_800C8738)
+src/blob/func_800C8774.c	src/blob/InitBST.c	file	mat3	sure	single file of InitBST (was func_800C8774)
+src/blob/func_800C8784.c	src/blob/InitLL_stub.c	file	mat3	likely	single file of InitLL_stub (was func_800C8784)
+src/blob/object_type7_create.c	src/blob/AudStopAllEffects.c	file	mat3	sure	single file of AudStopAllEffects (was object_type7_create)
+src/blob/object_type1_create.c	src/blob/AudKillSong.c	file	mat3	sure	single file of AudKillSong (was object_type1_create)
+src/blob/player_cleanup_slots.c	src/blob/HAL_PurgeFonts.c	file	mat3	sure	single file of HAL_PurgeFonts (was player_cleanup_slots)
+src/blob/sync_entry_register.c	src/blob/AudPlaySong.c	file	mat3	sure	single file of AudPlaySong (was sync_entry_register)
+src/blob/draw_minimap.c	src/blob/ClearTotalStats.c	file	mat3	sure	single file of ClearTotalStats (was draw_minimap)
+src/blob/func_800C9480.c	src/blob/InitRecords.c	file	mat3	sure	single file of InitRecords (was func_800C9480)
+src/blob/input_init_flag_get.c	src/blob/HAL_CallOncePerFrameFuncs.c	file	mat3	sure	single file of HAL_CallOncePerFrameFuncs (was input_init_flag_get)
+src/blob/process_inputs.c	src/blob/UpdateRushControls.c	file	mat3	sure	single file of UpdateRushControls (was process_inputs)
+src/blob/hud_render.c	src/blob/UpdateSmoke.c	file	mat3	sure	single file of UpdateSmoke (was hud_render)
+src/blob/func_800CB718.c	src/blob/InitSmokeBlast.c	file	mat3	sure	single file of InitSmokeBlast (was func_800CB718)
+src/blob/menu_render_list.c	src/blob/DeleteGhost.c	file	mat3	sure	single file of DeleteGhost (was menu_render_list)
+src/blob/sound_play_menu.c	src/blob/AllocateMemoryHeapHigh.c	file	mat3	sure	single file of AllocateMemoryHeapHigh (was sound_play_menu)
+src/blob/func_800CC848.c	src/blob/save_file_pak_ready.c	file	code	likely	single file of save_file_pak_ready (was func_800CC848)
+src/blob/func_800CCB40.c	src/blob/GetDefaultOption.c	file	mat3	sure	single file of GetDefaultOption (was func_800CCB40)
+src/blob/func_800CD0F4.c	src/blob/_GetUniqueExtension_stub.c	file	mat3	likely	single file of _GetUniqueExtension_stub (was func_800CD0F4)
+src/blob/menu_confirm_dialog.c	src/blob/ClearPlayerRecords.c	file	mat3	sure	single file of ClearPlayerRecords (was menu_confirm_dialog)
+
+# shared
+# Data these functions use that functions outside the range use too: proposals for the lead to reconcile.
+# Same-address names already in the tree or the loader tables (merge, do not keep two names):
+#   function aliases in asm/us/blob/symbols.json: set_race_state = entity_audio_update (-> ClearRushControls),
+#     effects_update_emitters = Effects_UpdateEmitters (-> UpdateCameras); both have no definition of their own.
+#   data with an existing non-D_ name: state_word_a = D_801174B4 (gGameState), state_word_b = D_801174B8 (gNewGameState),
+#     gameplay_mode = D_8014A110 (gRace), active_player_count = D_8014A108 (gNumPlayers), input_rec0 = gPlayers (0x8014A118),
+#     input_rec1 = gPlayers[1] (0x8014A164), gCamera / gNumWindows / gNumModels (already the right names).
+#   wrong guesses in asm/us/boot_tail/symbols.json at these addresses: gEngineVolume (D_80150BA0), gScaleTicksPerSecond
+#     (D_8002AFB4), __osScDeltaTime (D_8002EB94), gViFrameDelta (D_8002EB98), gEventMesgQueue (D_8002ECC0), gRetraceMesgQueue
+#     (D_8002ECF8), gGameStateFlag (D_80035472), race_active (D_801170FC), gRaceControlData (D_80142728), gRenderSync
+#     (D_801427A8), gStartTime (D_80142B08), player_slots (D_80144030), gObjectArrayStart (D_80144D60), gEffectEmittersArray
+#     (D_80150B70), gPlayerCarState2 (D_80152770), gObjectSlotTable (D_801569B8), gRaceResetFlag (D_80157244).
+#   conflicts to settle first: boot_tail names 0x80114700 gPauseState and 0x80166004 gNumPlayers (both wrong: the pause
+#     state is D_801170FC, the player count D_8014A108); gAudioThread is the boot code's thread (hence gAudioMgrThread).
+D_80000300	osTvType	data	code	sure	libultra's osTvType word in low memory (GetDefaultOption's PAL test, gfx init); the SDK name
+D_8002AFB4	gRetraceRate	data	mat3	sure	MAT3 gRetraceRate: retrace rate in Hz (UpdateControls auto-repeat 0.2 * rate, ghost compression)
+D_8002AFC0	gScreenWidth	data	code	likely	s32 frame width in pixels (the _DrawText scissor, gfx init); its neighbour gScreenHeight
+D_8002AFC4	gScreenHeight	data	code	likely	s32 frame height in pixels (_DrawText scissor; > 240 means high resolution in the sprite drawer)
+D_8002E580	gWaveSizes	data	mat3	sure	MAT3 gWaveSizes: size of every wave (LoadCars' memory test)
+D_8002E8E8	gScheduler	data	mat3	sure	the scheduler state (MAT3 sc; frameCount for CreatePlayer's id); the loader table already names this address gScheduler (MAT3 sc collides with hundreds of locals)
+D_8002EB94	gFrameSeconds	data	mat3	sure	MAT3 timer.c gFrameSeconds: f32 time of the last frame
+D_8002EB98	gLastFrameCount	data	mat3	sure	MAT3 timer.c gLastFrameCount: retraces in the last frame (TextureAnimation scroll steps)
+D_8002ECC0	sched_frame_done_queue	data	code	likely	OSMesgQueue UpdateFrame drains after asking the scheduler to end the frame (N64-only)
+D_8002ECF8	sched_command_queue	data	code	likely	OSMesgQueue UpdateFrame jams the 2750 end-of-frame request into (the scheduler's command queue)
+D_80035470	sched_frame_pending	data	code	likely	volatile u8 flag cleared by UpdateFrame after the end-of-frame handshake
+D_80035471	sched_game_waiting	data	code	likely	volatile u8 flag: 0 while UpdateFrame waits for the scheduler, 1 after
+D_80035472	sched_end_frame_requested	data	code	likely	volatile u8 flag set by UpdateFrame before its request, cleared by the scheduler's end-frame handling
+D_8010FFC0	gGameSoundsEnabled	data	mat3	sure	MAT3 audio.c gGameSoundsEnabled (PlayGameSound's gate)
+D_80110244	gFxTags	data	mat3	sure	MAT3 audiomgr.c gFxTags: the fx tag records (gNumFxTags), allocated by AudioInit
+D_8011024C	gNumStopCmds	data	mat3	likely	MAT3 audiomgr.c gNumStopCmds (AudioInit zeroes it with gNumStartCmds; which word is which follows the chained assignment)
+D_80110250	gNumStartCmds	data	mat3	likely	MAT3 audiomgr.c gNumStartCmds
+D_8011025C	gListeners	data	mat3	sure	MAT3 audiomgr.c gListeners: listener pool (60-byte records) allocated by AudInit3D, freed by AudFree3D
+D_80110260	gEmitters	data	mat3	sure	MAT3 audiomgr.c gEmitters: emitter pool (44-byte records)
+D_80110270	gSequences	data	mat3	sure	MAT3 audiomgr.c gSequences: the 6 sequence records
+D_8011103C	gCarHandling	data	mat3	sure	MAT3 gCarHandling: default handling setting per car (car setting 0)
+D_80111080	gCarEngines	data	mat3	sure	MAT3 gCarEngines (car setting 1)
+D_8011119C	gCarTires	data	mat3	sure	MAT3 gCarTires (car setting 2)
+D_80111230	gCarFrame	data	mat3	sure	MAT3 gCarFrame (car setting 3)
+D_8011128C	gCarWings	data	mat3	sure	MAT3 gCarWings (car setting 4)
+D_801112DC	gFrontTireScale	data	mat3	sure	MAT3 gFrontTireScale: f32 per car (car setting 10 = *100 - 75)
+D_801113E0	gRearTireScale	data	mat3	sure	MAT3 gRearTireScale (car setting 11)
+D_8011157C	gTireRims	data	mat3	sure	MAT3 gTireRims (car setting 8 on the N64)
+D_801115C0	gCarHorn	data	mat3	sure	MAT3 gCarHorn (car setting 9 on the N64)
+D_80111604	car_default_color_0	data	code	likely	s8 per car: first of the N64's three default colour bytes (car setting 5; LoadCars copies it into the car link record where MAT3 has PaintJob)
+D_80111648	car_default_color_1	data	code	likely	s8 per car: second default colour byte (car setting 6)
+D_8011168C	car_default_color_2	data	code	likely	s8 per car: third default colour byte (car setting 7)
+D_80111754	ghostRaceTimes	data	mat3	sure	MAT3 ghostRaceTimes (CompressGhost)
+D_80111958	gLastKeyTime	data	mat3	sure	MAT3 controlsys.c gLastKeyTime: frame of the last key press (UpdateControls)
+D_8011418C	unitmatrix	data	mat3	sure	MAT3 unitmatrix: identity 3x3 plus a zero row (f32[4][3])
+D_80114264	gBackRects	data	mat3	sure	MAT3 front.c gBackRects: per window count the background poly rectangles (createBG)
+D_80114628	backPolys	data	mat3	sure	MAT3 front.c backPolys[4]
+D_80114638	backTexture	data	code	likely	the background texture record whose width/height scale the background scroll (N64 addition next to backPolys)
+D_8011463C	offsetsValid	data	mat3	sure	MAT3 front.c offsetsValid: per window count, background texture offsets valid
+D_80114650	gRestartGame	data	mat3	sure	MAT3 gRestartGame
+D_8011473C	gFinished	data	mat3	sure	MAT3 HAL_text.c static gFinished
+D_80114744	gDepth	data	mat3	sure	MAT3 HAL_text.c static gDepth (HAL_SetTextDepth)
+D_80114748	gTrans	data	mat3	sure	MAT3 HAL_text.c static gTrans
+D_8011474C	gBufferInited	data	mat3	sure	MAT3 HAL_text.c static gBufferInited
+D_801148E4	gCheatProfileUnlocked	data	code	likely	s8 set by ReadPlayerData when the profile name is the cheat name (with gCheatActive and gCheatState 14-16); read by billboard_render
+D_80116178	hudObjAngle	data	mat3	sure	MAT3 hud.c hudObjAngle (UpdateHUDPostCamera, animCoins)
+D_801164A1	gCheatActive	data	mat3	likely	MAT3 gCheatActive: set by ReadPlayerData's cheat-name branch (the hint names it gCheatActive[23])
+D_801164A4	gCheatState	data	mat3	sure	MAT3 gCheatState: per cheat state bytes (SetOptions reads 4,5,6,9-12,19)
+D_801170FC	gPauseState	data	mat3	sure	MAT3 pausescr.c gPauseState
+D_80117338	pause_DimBlit	data	mat3	sure	MAT3 pausescr.c static DimBlit; prefixed because the bare MAT3 name collides in the tree
+D_8011733C	pause_TitleBlit	data	mat3	sure	MAT3 pausescr.c static TitleBlit; prefixed because the bare MAT3 name collides in the tree
+D_80117340	pause_PauseBlit	data	mat3	sure	MAT3 pausescr.c static PauseBlit; prefixed because the bare MAT3 name collides in the tree
+D_80117344	pause_SureBlit	data	mat3	sure	MAT3 pausescr.c static SureBlit; prefixed because the bare MAT3 name collides in the tree
+D_80117348	pause_RumbleBlit	data	mat3	sure	MAT3 pausescr.c static RumbleBlit; prefixed because the bare MAT3 name collides in the tree
+D_8011734C	pause_gTitlePane	data	mat3	sure	MAT3 pausescr.c static gTitlePane (each screen has its own)
+D_80117428	gGlobalsSet	data	mat3	sure	MAT3 save.c static gGlobalsSet (SaveSelectPlayer, SaveGlobals)
+D_8011744C	car_glow_height	data	code	likely	f32 per car model: height of the type-5 glow puff above the car (UpdateSmoke, entity_spawn_init)
+D_801174B4	gGameState	data	mat3	sure	MAT3 state.c gGameState
+D_801174B8	gNewGameState	data	mat3	sure	MAT3 state.c gNewGameState (setGameState)
+D_80117530	targetInfo	data	mat3	sure	MAT3 targets.c targetInfo: per target kind sounds, fade distance, functions
+D_80118E20	gJust	data	mat3	sure	MAT3 TB_text.c static gJust: justification pair (TB_SetJust, TB_DrawText)
+D_80118E28	gFlashColor1	data	mat3	sure	MAT3 TB_text.c gFlashColor1
+D_80118E2C	gFlashColor2	data	mat3	sure	MAT3 TB_text.c gFlashColor2
+D_8011A994	video_buttonInfo	data	mat3	sure	MAT3 videoscr.c static buttonInfo[12]: object, angle, matrix per button
+D_8011AC94	video_buttonsInited	data	mat3	sure	MAT3 videoscr.c static buttonsInited
+D_8011AD38	video_panesCreated	data	mat3	sure	MAT3 videoscr.c static panesCreated
+D_8011AD40	video_optionValid	data	mat3	sure	MAT3 videoscr.c static table behind validOption (s32[4])
+D_8011AD44	gVideoMenuSelect	data	mat3	sure	MAT3 videoscr.c gVideoMenuSelect
+D_8011AD4C	gVertCenter	data	mat3	sure	MAT3 videoscr.c gVertCenter
+D_8011AD50	gHorzCenter	data	mat3	sure	MAT3 videoscr.c gHorzCenter
+D_8011AD54	gTestFrequency	data	mat3	sure	MAT3 videoscr.c gTestFrequency
+D_8011AD58	gConfirmFrequency	data	mat3	sure	MAT3 videoscr.c gConfirmFrequency
+D_8011AD5C	gYesFrequency	data	mat3	sure	MAT3 videoscr.c gYesFrequency
+D_8011AD6C	gControllerRemoved	data	mat3	sure	MAT3 gControllerRemoved
+D_8011AD70	video_menuRect	data	mat3	sure	MAT3 videoscr.c static menu rectangle computed by calcMenuRect
+D_8011ED00	gStartOverlayLoaded	data	code	sure	s8: the "Start" overlay (image A) is loaded (LoadFrontEndOverlay)
+D_8011ED04	gExtraOverlayLoaded	data	code	sure	s8: the "Extra" overlay (image B) is loaded
+D_80124EEC	stree_nodes	data	mat3	sure	MAT3 stree.c stree: the track's surface quadtree nodes (RoadPosition, CollideCarBody, TireSurf); prefixed because the bare MAT3 name collides in the tree
+D_8012E5E8	gDronePaths	data	mat3	sure	MAT3 pathcommon.c gDronePaths[4]: {numPts, pts}
+D_8012E6D0	gBlitColorCache	data	code	likely	word cleared by HAL_SetTextColor (MAT3 BlitClearColors): the blitter's current colour/palette cache
+D_8012E6D8	gPlayerFiles	data	mat3	sure	MAT3 save.c gPlayerFiles (tDLList of profiles)
+D_8012E6E0	gPlayerFilesHead	data	code	likely	head of gPlayerFiles (gPlayerFiles + 8), walked by initGameState; interior alias
+D_8012E6F8	gLimboGhosts	data	mat3	sure	MAT3 save.c gLimboGhosts (SaveGhostInLimbo)
+D_8012E700	ObjInstanceList	data	mat3	sure	MAT3 zoid.c ObjInstanceList: the object instances (0x44 bytes on the N64)
+D_801392D8	gCarSmokeDir	data	mat3	sure	MAT3 smoke.c gCarSmokeDir[6] (InitSmoke, InitSmokeBlast, UpdateSmoke)
+D_8013C090	gFrontDistance	data	mat3	sure	MAT3 audiomgr.c gFrontDistance (AudInit3D)
+D_8013F1D8	gFogIntensity	data	mat3	sure	MAT3 gFogIntensity (SetOptions: option 29; SkyInit's fog test)
+D_8013F1D9	gMirrorControls	data	mat3	sure	MAT3 gMirrorControls (SetOptions: option 28 > 1)
+D_8013F1E0	gSmokeList	data	mat3	sure	MAT3 smoke.c gSmokeList (puff pool, InitStatLL)
+D_8013F380	gFireTexs	data	mat3	sure	MAT3 smoke.c gFireTexs[6] (InitSmoke)
+D_8013FEC8	gLang	data	mat3	sure	MAT3 gLang
+D_8013FECA	gNumLimbo	data	mat3	likely	MAT3 save.c gNumLimbo: slots per limbo ghost row (SaveGhostInLimbo's loop bound)
+D_8013FECB	gCoastFlag	data	mat3	sure	MAT3 gCoastFlag (CheckForStunt)
+D_8013FEE0	gCarPalettes	data	code	sure	24-byte car palette descriptors per car slot (car_palette_init, LoadCars; docs/port/MORECARS.md)
+D_801407B4	gPathMax	data	mat3	sure	MAT3 pathcommon.c gPathMax (s16[3])
+D_801407BC	gStuntMode	data	mat3	sure	MAT3 gStuntMode (SetOptions: option 32)
+D_801407D4	gPathMin	data	mat3	sure	MAT3 pathcommon.c gPathMin (s16[3])
+D_801407DC	gStuntFlow	data	mat3	sure	MAT3 gStuntFlow (SetOptions: option 33)
+D_801407F0	gResPath	data	mat3	sure	MAT3 pathcommon.c gResPath: {numPts, pts, numAlt, alt}
+D_801407FC	gResPathAlt	data	code	sure	the alt pointer of gResPath (gResPath + 0xC); interior alias
+D_80140804	gStuntModeMins	data	mat3	sure	MAT3 gStuntModeMins (option 35)
+D_801409E8	gResPathPtList	data	mat3	sure	MAT3 pathcommon.c gResPathPtList (s16[3] points)
+D_80140A00	gStuntModePoints	data	mat3	sure	MAT3 gStuntModePoints (option 34)
+D_80140A04	gMirrorWaves	data	mat3	sure	MAT3 gMirrorWaves (option 28 > 0)
+D_80140AD8	gStuntModeDeaths	data	mat3	sure	MAT3 gStuntModeDeaths (option 36)
+D_80140B08	gBattleMode	data	mat3	sure	MAT3 gBattleMode (option 37)
+D_80140BD8	gBattleModeMins	data	mat3	sure	MAT3 gBattleModeMins (option 39)
+D_80140BDC	gNumModels	data	mat3	sure	MAT3 gNumModels (u8)
+D_80142510	gBattleModePoints	data	mat3	sure	MAT3 gBattleModePoints (option 38)
+D_801426EC	gGhostSelect	data	mat3	sure	MAT3 gGhostSelect (option 25)
+D_80142724	gNumDrones	data	mat3	sure	MAT3 gNumDrones (option 22; 6 in the demo)
+D_80142726	gWind	data	mat3	sure	MAT3 gWind (option 30)
+D_80142728	gAudioLockQueue	data	code	sure	OSMesgQueue used as the audio manager's lock (around every command slot; AudioInit creates it)
+D_80142760	gDeathMode	data	mat3	sure	MAT3 gDeathMode (option 31; AbortCar)
+D_801427A8	gAudioCommandQueue	data	code	sure	OSMesgQueue of audio commands to the audio manager thread (AudPlaySong, AudKillSong, ...)
+D_80142948	smoke_animation_frames	data	code	likely	per puff kind the animation frame/object table used by UpdateSmoke and entity_spawn_init
+D_80142B08	gCarModelNums	data	mat3	sure	MAT3 gCarModelNums[13] (LoadCars)
+D_80142DB0	gSpecialTires	data	mat3	sure	MAT3 gSpecialTires (cheat; SetOptions copies gCheatState[10]); value 2 picks dotireforce's fixed side-force scale and the low drag
+D_80142DD8	gCmds	data	mat3	sure	MAT3 audiomgr.c gCmds[128]: the audio command slots (AudioInit clears used)
+D_80143A00	gAutoEdges	data	mat3	sure	MAT3 controlsys.c gAutoEdges[4]: per pad auto-repeat edges
+D_80143FC8	gTargetList	data	mat3	sure	MAT3 targets.c gTargetList (pool of gTargetArray; initTargetStructs)
+D_80143FD8	gTargetListHead	data	code	sure	head of gTargetList (+0x10), walked by PauseTargets; interior alias
+D_80143FF8	gFreeFxTags	data	mat3	sure	MAT3 audiomgr.c gFreeFxTags list
+D_80144030	gPaks	data	mat3	sure	MAT3 gPaks: per controller pak state
+D_80144C50	gInterruptedFxTags	data	mat3	sure	MAT3 audiomgr.c gInterruptedFxTags list
+D_80144D60	gPS_Files	data	mat3	sure	MAT3 paksysdc.c gPS_Files[4] (SaveFlush)
+D_801460F8	gTagShift	data	mat3	sure	MAT3 audiomgr.c gTagShift (HAL_IntLog2 of gNumFxTags)
+D_80146104	gTagMask	data	mat3	sure	MAT3 audiomgr.c gTagMask
+D_80146108	gOptions	data	mat3	sure	MAT3 gOptions[41] (s8)
+D_80146150	gJustPlayers	data	mat3	sure	MAT3 save.c gJustPlayers[4] (NumCoinsFound fallback)
+D_80146170	gFreeListeners	data	mat3	sure	MAT3 audiomgr.c gFreeListeners (AudInit3D)
+D_80146188	gActiveListeners	data	mat3	sure	MAT3 audiomgr.c gActiveListeners
+D_801461B0	gFreeEmitters	data	mat3	sure	MAT3 audiomgr.c gFreeEmitters
+D_801461E8	gActiveEmitters	data	mat3	sure	MAT3 audiomgr.c gActiveEmitters
+D_801461F8	gGameStarted	data	mat3	likely	MAT3 state.c gGameStarted: first of the six state-1 flags (set by the start screen)
+D_80146200	gMaxSfx	data	mat3	sure	MAT3 audiomgr.c gMaxSfx
+D_80149414	gLicenseShown	data	mat3	likely	MAT3 state.c gLicenseShown: third state-1 flag (the license screen's skip test)
+D_80149774	gIntroMovieShown	data	mat3	likely	MAT3 state.c gIntroMovieShown: fourth state-1 flag (the N64 counts plays, < 2)
+D_80149784	gActiveAutoEdges	data	mat3	sure	MAT3 controlsys.c gActiveAutoEdges
+D_8014978C	gTrackNum	data	mat3	sure	MAT3 tracks.c gTrackNum (s8)
+D_80149794	pfsInited	data	mat3	likely	MAT3 state.c pfsInited: fifth state-1 flag (set once by the license screen code)
+D_801497A8	gControlSemaphore	data	code	sure	OSMesgQueue standing for controlsys.c's semaphore (ClearControls, UpdateControls)
+D_801497C4	lcdInited	data	mat3	likely	MAT3 state.c lcdInited: sixth state-1 flag
+D_801497C8	gDisplayListCursor	data	code	likely	the current display-list pointer UpdateFrame copies into D_801497F4 at the frame end
+D_801497F0	gFontHeader	data	mat3	sure	MAT3 HAL_text.c gFontHeader (HAL_GetCharWidth)
+D_801497F4	gDisplayListFrameEnd	data	code	likely	display-list pointer saved by UpdateFrame (= gDisplayListCursor) for the next frame
+D_801497F8	stree_surf	data	mat3	sure	MAT3 stree.c surf: the track surfaces (RotateCollisionObject writes their orientation); prefixed because the bare MAT3 name collides in the tree
+D_801497FC	gWorldData	data	mat3	sure	MAT3 gWorldData (LoadTrack)
+D_80149800	gFontLetters	data	mat3	sure	MAT3 HAL_text.c gFontLetters
+D_80149808	gFreeSequences	data	mat3	sure	MAT3 audiomgr.c gFreeSequences
+D_80149818	WorldTable	data	mat3	sure	MAT3 world.c WorldTable (LoadTrack, UnloadTrack)
+D_80149860	gActiveSequences	data	mat3	sure	MAT3 audiomgr.c gActiveSequences
+D_80149878	gCharMap	data	mat3	sure	MAT3 HAL_text.c gCharMap (s16[256])
+D_80149B08	gFontTextureFormat	data	code	likely	font texture image format used by _DrawText's texture load (N64 addition)
+D_80149B28	gFontTextureSize	data	code	likely	font texture pixel size used by _DrawText (N64 addition)
+D_80149B48	gFontColor	data	mat3	sure	MAT3 HAL_text.c gFontColor
+D_80149B60	gLeading	data	mat3	sure	MAT3 HAL_text.c gLeading
+D_80149B64	gActiveControllers	data	mat3	sure	MAT3 controlsys.c gActiveControllers[4] (SetControllerActive)
+D_80149B70	gSpacing	data	mat3	sure	MAT3 HAL_text.c gSpacing
+D_80149B74	gStickEdges	data	mat3	sure	MAT3 controlsys.c gStickEdges[4] (SetControllerStickEdges)
+D_80149B80	WorldBase	data	mat3	sure	MAT3 world.c WorldBase
+D_80149B88	gFontAttribute	data	mat3	sure	MAT3 HAL_text.c gFontAttribute
+D_80149D92	gFontXpos	data	mat3	sure	MAT3 HAL_text.c gFontXpos
+D_80149D9E	gFontYpos	data	mat3	sure	MAT3 HAL_text.c gFontYpos
+D_80149DA0	gFontIndex	data	mat3	sure	MAT3 HAL_text.c gFontIndex
+D_80149DD0	gBufLen	data	mat3	sure	MAT3 HAL_text.c gBufLen
+D_80149DD8	gBuffer	data	mat3	sure	MAT3 HAL_text.c gBuffer
+D_8014A108	gNumPlayers	data	mat3	sure	MAT3 gNumPlayers
+D_8014A110	gRace	data	mat3	sure	MAT3 gRace (0 race .. 6 battle)
+D_80150B70	gCamera	data	mat3	sure	MAT3 camera.c gCamera[4] (0x98 bytes each)
+D_80150EFC	gCatchup	data	mat3	sure	MAT3 gCatchup (option 26)
+D_80150F38	gBBoxModelStructs	data	mat3	sure	MAT3 targets.c gBBoxModelStructs (TargetPathAvoid)
+D_80150F88	gTotalRaceStats	data	mat3	sure	MAT3 gamerecords.c gTotalRaceStats (ClearTotalStats, AddPlayerScores)
+D_80151410	gTotalStuntStats	data	mat3	sure	MAT3 gamerecords.c gTotalStuntStats
+D_80151528	gPlayerMines	data	mat3	sure	MAT3 targets.c gPlayerMines[4] (initTargetStructs)
+D_80151578	gTotalBattleStats	data	mat3	sure	MAT3 gamerecords.c gTotalBattleStats
+D_801515F8	gTotalObstacleStats	data	mat3	sure	MAT3 gamerecords.c gTotalObstacleStats
+D_80151610	gWhichGoldCoin	data	mat3	likely	MAT3 targets.c gWhichGoldCoin, zeroed at the end of initTargetStructs (gold/silver by chained-assignment order)
+D_80151618	gTotalCircuitStats	data	mat3	sure	MAT3 gamerecords.c gTotalCircuitStats
+D_80151964	gWhichSilverCoin	data	mat3	likely	MAT3 targets.c gWhichSilverCoin
+D_80151968	gTempNames	data	mat3	sure	MAT3 gamerecords.c gTempNames (InitRecords)
+D_80151A78	gTempNameAges	data	mat3	sure	MAT3 gamerecords.c gTempNameAges
+D_80151AA8	gAlwaysColList	data	mat3	sure	MAT3 targets.c gAlwaysColList (battle; CheckTargetCollision)
+D_80151AD0	gNumWindows	data	mat3	sure	MAT3 camera.c gNumWindows
+D_80151AD8	gUpsideDownTrack	data	mat3	sure	MAT3 camera.c gUpsideDownTrack
+D_80151CE8	gCheckpoints	data	mat3	sure	MAT3 gCheckpoints: the checkpoint block (0x50-byte points, startTime/loop/finish/start)
+D_8015201C	stree_svert	data	mat3	sure	MAT3 stree.c svert: packed surface vertices (MoveCollisionObject, PointInSurf); prefixed because the bare MAT3 name collides in the tree
+D_80152020	gGhostFiles	data	mat3	sure	MAT3 save.c gGhostFiles
+D_80152030	gDifficulty	data	mat3	sure	MAT3 gDifficulty (option 24)
+D_80152038	gStuntPlayer	data	mat3	sure	MAT3 gStuntPlayer[4]
+D_80152460	stree_slist	data	mat3	sure	MAT3 stree.c slist: packed surface lists of the quadtree leaves; prefixed because the bare MAT3 name collides in the tree
+D_80152568	stree_vlist	data	mat3	sure	MAT3 stree.c vlist: packed vertex index lists of the surfaces; prefixed because the bare MAT3 name collides in the tree
+D_80152570	gBackwards	data	mat3	sure	MAT3 gBackwards (option 27)
+D_801525EC	stree_save	data	mat3	sure	MAT3 stree.c save: saved geometry of the movable collision objects (32-byte records); prefixed because the bare MAT3 name collides in the tree
+D_8015267C	stree_savenum	data	mat3	sure	MAT3 stree.c savenum; prefixed because the bare MAT3 name collides in the tree
+D_801526DC	gRoadDat	data	mat3	sure	MAT3 stree.c gRoadDat (LoadTrack)
+D_80152734	gNumLaps	data	mat3	sure	MAT3 gNumLaps (option 21)
+D_80152770	gHeapSemaphore	data	code	sure	OSMesgQueue standing for memsys.c's semaphore (every heap operation)
+D_80153F20	gPathWave	data	mat3	sure	MAT3 gPathWave: the loaded path data block
+D_80154182	current_drone	data	mat3	sure	MAT3 maxpath.c static current_drone (InitPathData sets -1)
+D_80154190	gLastPathSwitchTime	data	mat3	sure	MAT3 maxpath.c static gLastPathSwitchTime (InitPathData = gModelTime)
+D_801541A8	gPlayerCoin	data	mat3	sure	MAT3 hud.c gPlayerCoin (animCoins)
+D_801543C8	gGravityScale	data	mat3	sure	MAT3 gGravityScale (option 23)
+D_801543CC	gModelTime	data	mat3	sure	MAT3 gModelTime: race simulation time
+D_801543D4	gCircuitPlayer	data	mat3	sure	MAT3 gCircuitPlayer
+D_801543D8	gCircuitTracks	data	mat3	sure	MAT3 gCircuitTracks
+D_80154628	gCircuitTrack	data	mat3	sure	MAT3 gCircuitTrack
+D_80155210	gOPPFuncsEnd	data	code	sure	end of gOPPFuncs (gOPPFuncs + 10), the loop sentinel of HAL_InstallOncePerFrameFunc/HAL_CallOncePerFrameFuncs; interior alias
+D_80156944	gActiveLevels	data	mat3	sure	MAT3 controlsys.c gActiveLevels
+D_8015694C	gActiveEdges	data	mat3	sure	MAT3 controlsys.c gActiveEdges
+D_80156958	gContStick	data	mat3	sure	MAT3 controlsys.c gContStick[4][2]
+D_80156978	gContLevels	data	mat3	sure	MAT3 controlsys.c gContLevels[4]
+D_8015698C	playerInPause	data	mat3	sure	MAT3 playerInPause
+D_80156994	gExpansionPak	data	code	likely	s8 set when the Expansion Pak is present: enables the extra waves, fire textures and full texture animation (header hints: all-tracks flag)
+D_80156998	gContEdges	data	mat3	sure	MAT3 controlsys.c gContEdges[4]
+D_801569B8	gStuntInfo	data	mat3	sure	MAT3 stunt.c static gStuntInfo[4] (0x7C bytes on the N64)
+D_80156BA8	gStuntInfoEnd	data	code	sure	end of gStuntInfo (gStuntInfo + 4 records), InitStunt's loop sentinel; interior alias
+D_80156BDC	gShowTrackMap	data	mat3	sure	MAT3 gShowTrackMap (option 0)
+D_80156CE8	gShowRadar	data	mat3	sure	MAT3 gShowRadar (option 1)
+D_8015723C	gShowElapsed	data	mat3	sure	MAT3 gShowElapsed (option 2)
+D_80157244	gSoftReset	data	mat3	sure	MAT3 gSoftReset
+D_8015B24C	gShowRemaining	data	mat3	sure	MAT3 gShowRemaining (option 3)
+D_8015B25C	gShowTach	data	mat3	sure	MAT3 gShowTach (option 4)
+D_8015F72C	gShowSpeed	data	mat3	sure	MAT3 gShowSpeed (option 5)
+D_8015F734	gShowOdometer	data	mat3	sure	MAT3 gShowOdometer (option 6)
+D_8016137C	gShowPlace	data	mat3	sure	MAT3 gShowPlace (option 7)
+D_80161394	gShowShifter	data	mat3	sure	MAT3 gShowShifter (option 8)
+D_80161398	gfx_video_mode	data	code	likely	video mode word the frame setup switches on; zeroed by the video screen's reset item and gfx init
+D_801613A0	gShowWrongWay	data	mat3	sure	MAT3 gShowWrongWay (option 18)
+D_801613A8	gShowPlayerArrows	data	mat3	sure	MAT3 gShowPlayerArrows (option 10)
+D_801613A9	gShowCoins	data	mat3	sure	MAT3 gShowCoins (option 11)
+D_801613AA	gShowMetric	data	mat3	sure	MAT3 gShowMetric (option 9)
+D_8017A4E4	gText	data	mat3	sure	MAT3 gText: the language's string tables (_TitlePane reads its singles)
+D_8017A630	gColorCycle	data	mat3	sure	MAT3 TB_text.c static gColorCycle (TB_SetTextColor, TB_GetFlashTextCycle)
+D_8038A400	overlay_image_base	data	code	sure	load address of the runtime images A and B (LoadFrontEndOverlay)
