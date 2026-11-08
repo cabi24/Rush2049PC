@@ -183,6 +183,11 @@ class Collisions(Base):
         self.assertOne(warnings, "new memberName is in the C only as a struct member in port/member.c")
         self.assertEqual(len(errors), 1, errors)
 
+    def test_type_named_after_another_files_type(self):
+        errors, warnings = self.check(("OldThing", "Win", "type", "mat3", "sure", "the record shadow.c calls Win"))
+        self.assertEqual(errors, [])
+        self.assertOne(warnings, "new Win is a type the C has already (src/blob/shadow.c)")
+
     def test_alias_in_the_tables(self):
         errors, warnings = self.check(("D_80F00600", "state_word_a", "data", "code", "sure", "its existing alias"))
         self.assertEqual(errors, [])

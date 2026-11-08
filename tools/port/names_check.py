@@ -1013,6 +1013,13 @@ def collision(r, tree, renames_to, dropped=frozenset()):
     a header no file includes, as a struct member, or as a local or parameter. Otherwise say where it is: the
     symbol table, the files that define it (static or not), the files that use it."""
     new, old = r.new, r.old
+    if r.kind == "type" and new in tree.types and not ({new} & (tree.func_decl | tree.func_def | tree.data_decl)):
+        # a view's type named after the record type other files define (Rec164 is eggs.c's Egg): types are each
+        # file's own, so two definitions of one name are no collision unless one file sees both
+        files = tree.where.get(new, [])
+        return "warning", (f"new {new} is a type the C has already ({', '.join(files[:2])}"
+                           + (f" +{len(files) - 2}" if len(files) > 2 else "") + "): one name for two definitions "
+                           "in different files; check they agree, and that no file sees both")
     if tree.aliases(old, new, dropped):
         addr = tree.address_of(old, dropped)
         return "warning", f"new {new} is already a name of {old}'s address 0x{addr:08X} (an alias): one symbol afterwards"
