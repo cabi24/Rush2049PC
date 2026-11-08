@@ -1,166 +1,144 @@
-/**
- * race.h - Race timing and management for Rush 2049 N64
- *
- * Based on arcade game/game.c and game/checkpoint.c
- * Handles lap timing, positions, checkpoints, and race state.
- */
+/* include/game/race.h: the game loop and the race: state, countdown, drones, stunts, battle, ghosts */
+#ifndef GAME_RACE_H
+#define GAME_RACE_H
 
-#ifndef RACE_H
-#define RACE_H
+#include "game/types.h"
 
-#include "types.h"
-
-/* Maximum values */
-#define MAX_LAPS            10
-#define MAX_CHECKPOINTS     32
-#define MAX_RACE_CARS       8
-
-/* Race state flags */
-#define RACE_FLAG_STARTED       0x01
-#define RACE_FLAG_FINISHED      0x02
-#define RACE_FLAG_PAUSED        0x04
-#define RACE_FLAG_COUNTDOWN     0x08
-#define RACE_FLAG_EXTENDED      0x10    /* Time extended */
-#define RACE_FLAG_FINAL_LAP     0x20    /* On final lap */
-
-/* Countdown states */
-#define COUNTDOWN_READY     0
-#define COUNTDOWN_3         1
-#define COUNTDOWN_2         2
-#define COUNTDOWN_1         3
-#define COUNTDOWN_GO        4
-#define COUNTDOWN_DONE      5
-
-/* Race result codes */
-#define RESULT_NONE         0
-#define RESULT_WIN          1
-#define RESULT_FINISH       2
-#define RESULT_DNF          3       /* Did not finish */
-#define RESULT_TIMEOUT      4
-
-/* Frame rate */
-#define RACE_FRAMES_PER_SEC     60
-#define RACE_TIME_EXTENDED      (30 * RACE_FRAMES_PER_SEC)  /* 30 sec extension */
-
-/* Lap time entry */
-typedef struct LapTime {
-    u32     frames;         /* Time in frames */
-    u8      valid;          /* Is this a valid time? */
-    u8      best;           /* Is this the best lap? */
-    u8      pad[2];
-} LapTime;
-
-/* Checkpoint state per car */
-typedef struct CheckpointState {
-    u16     last_cp;            /* Last checkpoint passed */
-    u16     next_cp;            /* Next expected checkpoint */
-    u8      cp_hit[MAX_CHECKPOINTS / 8];  /* Bitmap of CPs hit this lap */
-    u8      wrong_way;          /* Going wrong way */
-    u8      on_shortcut;        /* On shortcut path */
-    u8      pad;
-} CheckpointState;
-
-/* Per-car race state */
-typedef struct CarRaceState {
-    /* Timing */
-    u32     start_time;         /* Frame race started */
-    u32     finish_time;        /* Frame finished race */
-    u32     total_time;         /* Total race time */
-    LapTime lap_times[MAX_LAPS];
-    u32     best_lap_time;      /* Best single lap */
-    u32     current_lap_start;  /* Frame current lap started */
-
-    /* Position */
-    u8      position;           /* Current race position (1-8) */
-    u8      current_lap;        /* Current lap number (1-based) */
-    u8      finished;           /* Has finished race */
-    u8      result;             /* Race result code */
-
-    /* Checkpoint tracking */
-    CheckpointState cp_state;
-
-    /* Progress */
-    f32     track_progress;     /* 0.0-1.0 around track */
-    f32     total_progress;     /* Including laps */
-
-} CarRaceState;
-
-/* Race configuration */
-typedef struct RaceConfig {
-    s32     num_laps;           /* Total laps */
-    s32     num_checkpoints;    /* Checkpoints per lap */
-    s32     start_time;         /* Initial time (frames) */
-    s32     checkpoint_bonus;   /* Time bonus per checkpoint */
-    s32     difficulty;         /* Difficulty level */
-    u8      flags;              /* Race flags */
-    u8      track_id;           /* Track identifier */
-    u8      pad[2];
-} RaceConfig;
-
-/* Global race state */
-typedef struct RaceState {
-    RaceConfig      config;
-    CarRaceState    cars[MAX_RACE_CARS];
-    s32             num_cars;
-    u32             race_time;          /* Current race time */
-    u32             countdown_timer;    /* Countdown frames remaining */
-    u8              countdown_state;    /* Current countdown state */
-    u8              race_flags;         /* Race state flags */
-    u8              leader;             /* Current leader index */
-    u8              num_finished;       /* Cars that have finished */
-    s32             time_remaining;     /* Time left (checkpoint mode) */
-} RaceState;
-
-/* Global race state */
-extern RaceState gRace;
-
-/* Race initialization */
-void race_init(void);
-void race_reset(void);
-void race_start(s32 num_laps, s32 num_cars);
-void race_configure(RaceConfig *config);
-
-/* Per-frame update */
-void race_update(void);
-void race_update_positions(void);
-void race_update_checkpoints(void);
-
-/* Countdown */
-void race_start_countdown(void);
-void race_update_countdown(void);
-s32 race_countdown_finished(void);
-
-/* Lap management */
-void race_car_crossed_start(s32 car_index);
-void race_car_finished_lap(s32 car_index);
-void race_car_finished_race(s32 car_index);
-u32 race_get_lap_time(s32 car_index, s32 lap);
-u32 race_get_best_lap(s32 car_index);
-
-/* Checkpoint management */
-void race_car_hit_checkpoint(s32 car_index, s32 checkpoint_id);
-s32 race_is_wrong_way(s32 car_index);
-void race_reset_checkpoint_state(s32 car_index);
-
-/* Position tracking */
-s32 race_get_position(s32 car_index);
-s32 race_get_leader(void);
-f32 race_get_progress(s32 car_index);
-
-/* Time management */
-u32 race_get_time(void);
-u32 race_get_car_time(s32 car_index);
-s32 race_get_time_remaining(void);
-void race_extend_time(s32 frames);
-
-/* Race state queries */
-s32 race_is_started(void);
-s32 race_is_finished(void);
-s32 race_is_paused(void);
-s32 race_car_has_finished(s32 car_index);
-
-/* Time formatting */
-void race_format_time(u32 frames, char *buffer);
-void race_format_time_diff(s32 diff_frames, char *buffer);
-
-#endif /* RACE_H */
+/* Data */
+extern u32 gCircuitPoints[EXTENT(6)];
+extern s32 gNumCircuitTracks[EXTENT(4)];
+extern ResourceRange gCircuitFog[EXTENT(4)];
+extern ResourceRange gCircuitWind[EXTENT(4)];
+extern s32 gCircuitDiff[EXTENT(4)];
+extern s32 circuit_drone_skills[EXTENT(6)][12];
+extern struct pc_multiblit demo_multiblit[EXTENT(1)];
+extern s8 gRestartGame;
+extern s8 gGamePointPlayed;
+extern RGB gFogColors[EXTENT(28)];
+extern s32 playerTextColor[EXTENT(4)];
+extern TextColor flashColors[EXTENT(2)];
+extern struct pc_multiblit idle_warning_multiblit[EXTENT(1)];
+extern void *inactiveBlit;
+extern s8 ghost_gInited;
+extern volatile s8 gEndingGhosts;
+extern u32 gGameState;
+extern s32 gNewGameState;
+extern u32 gSkipToGameState;
+extern f32 gravityArray[EXTENT(4)];
+extern f32 flip_abort_angle;
+extern f32 flip_window_min;
+extern f32 flip_window_max;
+extern f32 flip_landing_min;
+extern f32 flip_unwind_negative;
+extern f32 flip_unwind_positive;
+extern f32 spin_abort_angle;
+extern f32 spin_window_min;
+extern f32 spin_window_max;
+extern f32 spin_landing_min;
+extern f32 spin_unwind_negative;
+extern f32 spin_unwind_positive;
+extern f32 roll_abort_angle_x;
+extern f32 roll_abort_angle_y;
+extern f32 roll_window_min;
+extern f32 roll_window_max;
+extern f32 roll_landing_min;
+extern f32 roll_unwind_negative;
+extern f32 roll_unwind_positive;
+extern f32 countdown_round_up;
+extern s8 gCoastFlag;
+extern s32 gStuntMode;
+extern s32 gStuntFlow;
+extern struct GhostHeader *gGhostToSave;
+extern s32 gStuntModeMins;
+extern struct PlayerRec *gGhostPlayers[EXTENT(4)];
+extern s32 gStuntModePoints;
+extern GhostPlayer gRealGhostPlayers[EXTENT(4)];
+extern s32 gStuntModeDeaths;
+extern struct Ghost *gNewGhosts[EXTENT(4)];
+extern s32 gBattleMode;
+extern GhostFile gRealNewGhosts[EXTENT(4)];
+extern s32 gBattleModeMins;
+extern struct GhostHeader *gNewGhostHeaders[EXTENT(4)];
+extern s32 gBattleModePoints;
+extern GhostSaveHeader gRealNewGhostHeaders[EXTENT(4)];
+extern u16 gObjList_biased[EXTENT(162)];
+extern s8 gOutOfTime;
+extern s8 gRetireGame;
+extern s8 gGhostSelect;
+extern s16 gNumDrones;
+extern s8 gDeathMode;
+extern s8 gFogColor;
+extern u16 health_powerup_def;
+extern u16 invisibility_powerup_def;
+extern u16 shield_powerup_def;
+extern volatile s32 frame_counter;
+extern s32 gAPlayerReallyFinished;
+extern struct D_80143FD8_Record *gTargetList_head;
+extern s8 gOptions_circuit_death;
+extern s8 gOptions_battle_self_hit;
+extern s8 gGameStarted;
+extern s8 gSofdecShown;
+extern s8 gLicenseShown;
+extern s8 gIntroMovieShown;
+extern s8 pfsInited;
+extern s8 lcdInited;
+extern s32 gRace;
+extern f32 old_drone_scale[EXTENT(6)];
+extern f32 old_boost[EXTENT(6)];
+extern s8 gDifficulty;
+extern s16 gCountDown;
+extern s8 gBackwards;
+extern s8 gEndGame;
+extern s16 gNumLaps;
+extern u8 gCircuitPlayer;
+extern CircuitTrackSlot gCircuitTracks[EXTENT(1)];
+extern tCircuitCar gCircuitCars[EXTENT(1)];
+extern s16 gCircuitCars_skill[EXTENT(5)][38];
+extern s8 gCircuitTrack;
+extern s8 gCircuitSize;
+extern u32 gCircuitSeed;
+extern u8 gCircuitNumTrackRaces[EXTENT(8)];
+extern u8 gTempCircuitFirstTrack[EXTENT(8)];
+extern u16 gTempCircuitPoints[EXTENT(4)][6];
+extern StuntInfo gStuntInfo[EXTENT(4)];
+extern s32 stunt_chW0;
+extern s32 stunt_chW1;
+extern s32 stunt_chW2;
+extern s32 stunt_j;
+extern s32 stunt_l;
+extern s32 stunt_r;
+extern s32 stunt_b;
+extern s32 stunt_f;
+extern s32 stunt_okToStart;
+extern f32 stunt_GCabsW[EXTENT(3)];
+extern f32 stunt_eTime;
+extern TextColor hitColor;
+extern char *WprObjNames[EXTENT(10)];
+extern char *WfxObjNames[EXTENT(7)];
+extern char *MineTexNames[EXTENT(5)];
+extern char *RipTexNames[EXTENT(5)];
+/* weaponOffsets: declared by its files (src/ovl_b/groups/weapons/weapons.c: defines it) */
+extern f32 dummyVtx[EXTENT(4)][3];
+extern PcText4 damColor[EXTENT(5)];
+extern char scorch_texture_name[EXTENT(604)];
+extern tStatList gShotObjList;
+extern u16 wallTidx;
+extern Shield gCarShield[EXTENT(4)];
+extern s8 gCurWeaponType[EXTENT(8)];
+extern MuzzleObj gGattMuzzleObjs[EXTENT(4)];
+extern tCMuzzleObj gCannMuzzleObjs[EXTENT(4)];
+extern RingState DamagePolys;
+extern u16 damTexture;
+extern tBattlePowerUps gBattlePowerUps;
+extern u16 gMineTextures[EXTENT(8)];
+extern u16 gRipTextures[EXTENT(5)];
+extern s32 gWprObjList[EXTENT(10)];
+extern s32 gWfxObjList[EXTENT(7)];
+extern PcShot gShots[EXTENT(24)];
+extern tStatList gShotList;
+extern PcHitPoly gHitPolys[EXTENT(24)];
+extern tStatList gHitPolyList;
+extern PcShotCase gShotCase[EXTENT(30)];
+extern tStatList gShotCaseList;
+extern PcShotObj gShotObjs[EXTENT(24)];
+#endif /* GAME_RACE_H */

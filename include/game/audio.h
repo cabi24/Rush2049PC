@@ -1,63 +1,270 @@
-/**
- * audio.h - Audio system for Rush 2049 N64
- *
- * Based on arcade audio system
- * Handles sound effects, music, engine sounds
- *
- * Key functions:
- * - NewMultiBlit (0x800B37E8) - main audio dispatcher
- * - RemoveBlit (0x800B358C) - stop sounds
- * - audio_msg_send - send audio messages via OS
- * - audio_task_sync (0x8008A710) - audio task sync
- */
+/* include/game/audio.h: the sound manager, effects, music and the MusyX sound library */
+#ifndef GAME_AUDIO_H
+#define GAME_AUDIO_H
 
-#ifndef AUDIO_H
-#define AUDIO_H
+#include "game/types.h"
 
-#include "types.h"
-
-/* Sound command constants */
-#define SND_STOP        (-1)
-#define SND_ENGINE      0x100
-#define SND_COLLISION   0x200
-#define SND_CHECKPOINT  0x300
-
-/* External audio message queue */
-extern void *audio_msg_queue;
-
-/**
- * Main audio control function
- * Address: 0x800B37E8
- *
- * Called every frame to process audio state.
- * -1 parameter stops all sounds.
- */
-void NewMultiBlit(void);  /* 0x800B37E8 - TODO: Decompile */
-
-/**
- * Stop sound
- * Address: 0x800B358C
- *
- * Called when stopping a specific sound channel.
- */
-void RemoveBlit(void);  /* 0x800B358C - TODO: Decompile */
-
-/**
- * Send audio message via OS message queue
- * Address: 0x8008A6D0
- * Size: 44 bytes
- *
- * Sends a null message to the audio thread's message queue
- * to trigger audio processing.
- */
-void audio_msg_send(void);
-
-/**
- * Audio task synchronization
- * Address: 0x8008A710
- *
- * Synchronizes audio task with main thread.
- */
-void audio_task_sync(void);  /* 0x8008A710 - TODO: Decompile */
-
-#endif /* AUDIO_H */
+/* Data */
+extern u64 rspbootTextStart[EXTENT(26)];
+extern u64 rspbootTextEnd[EXTENT(452)];
+extern u8 audio_ucode_text[EXTENT(3920)];
+extern u16 sound_sample_blocks_per_voice[EXTENT(6)];
+extern s32 sound_lock_depth;
+extern u8 sound_version_text[EXTENT(44)];
+extern u8 sound_initialized;
+extern const f32 sound_semitone_up_ratios[EXTENT(128)];
+extern const f32 sound_semitone_down_ratios[EXTENT(128)];
+extern const f32 sound_volume_curve[EXTENT(129)];
+extern const f32 sound_pan_curve[EXTENT(3)];
+extern u32 sound_random_seed;
+extern const s16 sound_sine_table[EXTENT(1024)];
+extern const s16 sound_sine_table_end[EXTENT(23)];
+extern volatile u8 speech_initialized[EXTENT(4)];
+extern u8 speech_bank_owned;
+extern s8 sound_driver_name[EXTENT(20)];
+extern s8 sound_driver_name_copy[EXTENT(20)];
+extern f32 sound_sfd_margin;
+extern f32 sound_sfd_margin_half_rate;
+extern f32 sound_dma_margin;
+extern f32 sound_dma_margin_half_rate;
+extern f32 sound_sample_cache_factor;
+extern f32 sound_emitter_steal_margin;
+extern f32 sound_emitter_keep_margin;
+extern const f32 sound_emitter_fade_step;
+extern const f32 sound_semitone_ratio;
+extern u8 audio_ucode_data[EXTENT(560)];
+extern u8 audio_retrace_thread_stack_top[EXTENT(32)];
+extern u8 audio_manager_thread_stack_top[EXTENT(1200)];
+extern u8 sample_dma_thread_stack_top[EXTENT(1600)];
+extern OSThreadBytes audio_manager_thread;
+extern u8 audio_retrace_thread[EXTENT(432)];
+extern u8 sample_dma_thread[EXTENT(432)];
+extern volatile u8 sound_dma_request_count;
+extern TransferRequest sound_dma_requests[EXTENT(4)];
+extern u8 sound_dma_waiting;
+extern u8 sound_dma_done_queue[EXTENT(24)];
+extern OSMesg sound_dma_done_message[EXTENT(2)];
+extern SpeechServiceHooks sound_services;
+extern void (*sound_service_wait_task)(void);
+extern void (*sound_service_add_callback)(void (*)(void));
+extern void (*sound_service_remove_callback)(void (*)(void));
+extern void (*sound_service_start_dma)(void *, u16, void *);
+extern void *(*sound_service_translate_address)(void *);
+extern void *(*sound_service_alloc)(u32, u32);
+extern void (*sound_service_free)(void *);
+extern void (*sound_dma_flush_hook)(void);
+extern void (*sound_frame_hook)(void);
+extern u16 sound_dma_list_count;
+extern void *sound_dma_list;
+extern u32 sound_sfd_write_end;
+extern u32 sound_sfd_cache_cursor;
+extern u32 sound_dma_list_end;
+extern u32 sound_dma_list_cache_cursor;
+extern u8 sound_output_thread[EXTENT(432)];
+extern u8 *sound_output_stack;
+extern u8 sound_output_queue[EXTENT(24)];
+extern void *sound_output_messages[EXTENT(4)];
+extern u8 sound_output_event;
+extern void *sound_output_buffers[EXTENT(24)];
+extern volatile u8 sound_output_index;
+extern u32 sound_output_frequency;
+extern u8 sound_half_rate;
+extern u8 sound_output_frozen;
+extern u16 sound_output_buffer_count;
+extern struct SoundHwVoice *sound_hw_voices;
+extern void *sound_hw_voice_block;
+extern u16 sound_hw_voice_count;
+extern u8 sound_sfd_set;
+extern u32 sound_tick_countdown;
+extern u32 sound_subframes_per_tick;
+extern u16 sound_dma_capacity;
+extern u32 sound_sample_cache_size;
+extern u8 sound_dma_queue[EXTENT(24)];
+extern OSMesg sound_dma_message;
+extern volatile u8 sound_dma_busy;
+extern volatile u8 sound_task_busy;
+extern u16 sound_sfds_per_task;
+extern u16 *sound_sfd_current;
+extern u16 *sound_sfd_count;
+extern u16 *sound_sfd_sets[EXTENT(2)];
+extern u16 sound_sfd_counts[EXTENT(2)];
+extern void *sound_mix_state;
+extern void *sound_delay;
+extern s32 sound_delay_position;
+extern u32 sound_codebook_last;
+extern struct AudioNode *sound_codebook_used;
+extern struct AudioNode *sound_codebook_free;
+extern u8 *sound_sample_cache;
+extern struct AudioCacheNode *sound_sample_nodes;
+extern struct AudioCacheNode *sound_sample_lru_head;
+extern struct AudioCacheNode *sound_sample_lru_tail;
+extern struct AudioCacheNode *sound_sample_free;
+extern u16 sound_render_index;
+extern volatile s16 sound_drain_count;
+extern struct MessageQueue sound_lock_queue;
+extern void *sound_lock_message;
+extern s16 sound_group_count;
+extern struct ResourceGroup *sound_groups[EXTENT(130)];
+extern s32 sound_sample_directory_count;
+extern RegisteredSamples sound_sample_directories[EXTENT(8)];
+extern s32 sound_table_count;
+extern TableRecordStorage sound_tables[EXTENT(482)];
+extern s32 sound_keymap_count;
+extern TableRecordStorage sound_keymaps[EXTENT(256)];
+extern s32 sound_layer_count;
+extern LayerRecordStorage sound_layers[EXTENT(149)];
+extern s32 sound_macro_count;
+extern ResourceRange sound_macro_buckets[EXTENT(512)];
+extern TableRecordStorage sound_macros[EXTENT(2048)];
+extern s32 sound_sfx_table_count;
+extern RecordStorage sound_sfx_tables[EXTENT(144)];
+extern SequenceNode sound_seq_note_pool[EXTENT(256)];
+extern SequenceNode *sound_seq_free_notes;
+extern SequenceContext sound_seq_players[EXTENT(8)];
+extern u8 sound_seq_studio_groups[EXTENT(5)][5672];
+extern u32 sound_seq_current_index;
+extern u8 sound_seq_fading_out;
+extern SequenceContext *sound_seq_current;
+extern u32 sound_seq_next_id;
+extern u32 sound_tick_step;
+extern volatile u8 sound_voices_locked;
+extern s16 sound_global_variables[EXTENT(16)];
+extern u8 sound_track_volumes[EXTENT(64)];
+extern u8 sound_mono;
+extern ChannelState sound_volume_faders[EXTENT(32)];
+extern u8 sound_volume_fader_types[EXTENT(31)][40];
+extern s32 sound_synth_frequency;
+extern u32 sound_synth_unread_setting;
+extern u32 sound_samples_per_tick;
+extern AudioConfiguration sound_output_info;
+extern u8 sound_voice_count;
+extern u8 sound_music_voice_limit;
+extern u8 sound_sfx_voice_limit;
+extern u32 sound_tick_rates[EXTENT(12)];
+extern struct StateNode *sound_emitters;
+extern struct LinkNode *sound_listeners;
+extern SoundEmitterAddView sound_oneshot_emitter;
+extern EmitGroup sound_emitter_groups[EXTENT(32)];
+extern u8 sound_emitter_group_count;
+extern LargeNode sound_emitter_candidates[EXTENT(32)];
+extern u8 sound_emitter_candidate_count;
+extern SmallNode sound_emitter_playing[EXTENT(32)];
+extern u8 sound_emitter_playing_count;
+extern u8 sound_voice_free_head;
+extern u8 sound_voice_free_tail;
+extern u8 sound_sfx_voices_used;
+extern u8 sound_music_voices_used;
+extern u8 sound_priority_first_voice[EXTENT(256)];
+extern ResourceRange sound_priority_levels[EXTENT(256)];
+extern u16 sound_lowest_priority;
+extern u32 sound_handle_counter;
+extern struct SequenceNode *sound_handles_used;
+extern struct SequenceNode *sound_handles_free;
+extern u8 sound_midi_last_keys[EXTENT(8)][16];
+extern u8 sound_midi_controllers[EXTENT(8)][16][134];
+extern u8 sound_midi_portamento[EXTENT(8)][16];
+extern u8 sound_midi_channel_owners[EXTENT(8)][16];
+extern SpeechStream speech_streams[EXTENT(2)];
+extern volatile u8 speech_stream_busy[EXTENT(1)][4712];
+extern u32 speech_next_token;
+extern void *speech_bank;
+extern void *speech_bank_data;
+extern void *speech_bank_offsets;
+extern u32 speech_bank_count;
+extern void *speech_static_buffers[EXTENT(2)];
+extern u32 speech_flags;
+extern OSMesgQueue speech_lock_queue;
+extern OSMesg speech_lock_message;
+extern Definitions64 gEngineSpecs[EXTENT(9)];
+extern s8 gGameSoundsEnabled;
+extern f32 sLastHornTime[EXTENT(4)];
+extern char *gSongNames[EXTENT(12)];
+extern s8 gInited_AudioMgr;
+extern struct Entity *gFxTags;
+extern struct anon_te_tag_c *gSortedFxTags;
+extern s32 gNumStartCmds;
+extern s32 gNumStopCmds;
+extern u32 gNextFxId;
+extern u32 gNextSeqId;
+extern void *gListeners;
+extern struct RecB *gEmitters;
+extern s32 gNumFxTags;
+extern s32 gNumListeners;
+extern s32 gNumEmitters;
+extern struct Chan *gSequences;
+extern s8 audiosfx_gInited;
+extern u32 gNextIndex;
+extern volatile s8 gStopAllEffects;
+extern f32 audio_gButtonScale;
+extern s8 gCarHorn_players[EXTENT(4)][13];
+extern Vector unitmatrix_yaxis;
+extern Vector unitmatrix_zaxis;
+extern Vector unitmatrix_origin;
+extern s32 song_handle;
+extern s8 audio_driver_started;
+extern void (*audio_driver_services[EXTENT(8)])(void);
+extern s16 gBumpLRTab[EXTENT(16)];
+extern s16 gBumpFBTab[EXTENT(16)];
+extern f32 sPitchRange[EXTENT(4)];
+extern ResourceRange song_groups[EXTENT(12)];
+extern ResourceRange boot_sfx_groups[EXTENT(4)];
+extern u8 gEffectLoop[EXTENT(228)];
+extern f32 music_volume_scale;
+extern f32 fx_volume_fade_time;
+extern f32 gSoundSpeed;
+extern f32 gFrontDistance;
+extern States60 gRoadNoises[EXTENT(4)];
+extern s32 gBogSounds[EXTENT(4)];
+extern s32 gHornSounds[EXTENT(4)];
+extern Impact120 gBump[EXTENT(4)];
+extern s16 gScrapeState[EXTENT(4)];
+extern s32 gScrapes[EXTENT(4)];
+extern f32 gScrapeTime[EXTENT(4)];
+extern f32 gBumpTime[EXTENT(4)];
+extern f32 gThumpTime[EXTENT(4)];
+extern OSMesgQueue audio_lock_queue;
+extern OSMesg audio_lock_msg[EXTENT(1)];
+extern OSMesgQueue audio_command_queue;
+extern tOrderedList gSortedFxTagTree;
+extern AudioList gFreeFxTags;
+extern FxTagList gPlayingFxTags;
+extern struct Entry *gSfxInstances;
+extern AudioList gInterruptedFxTags;
+extern s32 gNumChannels;
+extern s32 gStoppedChannels[EXTENT(1)];
+extern s32 gStoppedChannels_tail;
+extern s32 gStoppedChannels_newest;
+extern s32 gNumInstances;
+extern u32 gTagShift;
+extern struct Rec32 *audiosfx_gCmds;
+extern u32 gTagMask;
+extern s8 gOptions_fx_volume;
+extern SfxQueue gFreeQ;
+extern volatile AudioList gCmdQ;
+extern AudioList gFreeListeners;
+extern AudioList gActiveListeners;
+extern AudioList gFreeEmitters;
+extern AudioList gActiveEmitters;
+extern s32 gMaxSfx;
+extern s32 gMaxMusic;
+extern u8 gCalcDoppler;
+extern AudioList gFreeSequences;
+extern AudioList gActiveSequences;
+extern u8 music_disabled;
+extern s32 song_number;
+extern s32 song_wave;
+extern void *song_data;
+extern void *musyx_project;
+extern void *musyx_samples;
+extern void *musyx_sdir;
+extern void *musyx_pool;
+extern f32 gAudioSeconds;
+extern OSMesgQueue musyx_task_done_queue;
+extern u8 musyx_task_done_msg[EXTENT(4)];
+extern f32 audio_cursorSpeed;
+extern u8 *sound_codebook_cache;
+extern struct AudioNode *sound_codebook_nodes;
+extern u32 sound_delay_length;
+extern void *sound_delay_line;
+extern OSTask sound_task;
+#endif /* GAME_AUDIO_H */

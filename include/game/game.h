@@ -1,65 +1,28 @@
-/**
- * @file game.h
- * @brief Game state definitions
+/* include/game/game.h: the game's shared declarations. Every game file includes this first.
  *
- * Based on reference/repos/rushtherock/game/game.h
- * Defines the game state machine states and related types.
- */
+ * One declaration of each type, datum and function the game's files share, by subsystem (docs/code/README.md
+ * "The headers"). types.h holds the types, each subsystem's header its data and its functions' prototypes. */
+#ifndef GAME_GAME_H
+#define GAME_GAME_H
 
-#ifndef _GAME_H
-#define _GAME_H
+#include "game/m2c.h"       /* what the decompiler left in the code: M2C_FIELD, M2C_UNK */
+#include "game/view.h"      /* VIEW: a file's own view of a shared datum */
 
-#include "types.h"
+#include "game/system.h"    /* start-up, threads, the scheduler, timers, the frame pipeline, video, the overlays */
+#include "game/memory.h"    /* the heap, the asset wads and waves, lists and trees */
+#include "game/maths.h"     /* vectors, matrices, angles, random numbers */
+#include "game/audio.h"     /* the sound manager, effects, music and the MusyX sound library */
+#include "game/scene.h"     /* the scene objects (mbox and zoid), models, textures, windows, the sky, the world */
+#include "game/blit.h"      /* the 2D blitter and panes */
+#include "game/text.h"      /* fonts and text */
+#include "game/input.h"     /* controllers and the Rumble Pak */
+#include "game/save.h"      /* the Controller Pak, profiles, records, options and passwords */
+#include "game/track.h"     /* tracks, the road tree, targets, paths and checkpoints */
+#include "game/cars.h"      /* the cars, their visuals, skids and smoke */
+#include "game/physics.h"   /* the car simulation: collision, the road, the drivetrain, tyres, respawning */
+#include "game/race.h"      /* the game loop and the race: state, countdown, drones, stunts, battle, ghosts */
+#include "game/camera.h"    /* the cameras */
+#include "game/hud.h"       /* the HUD */
+#include "game/frontend.h"  /* the front end's screens (runtime image A) */
 
-/**
- * Game command function types
- * Used for state machine transitions
- */
-typedef enum {
-    CMD_INITIALIZE,
-    CMD_ALLOCATE,
-    CMD_DO_IT,
-    CMD_UNDO_IT,
-    CMD_DEALLOCATE,
-    CMD_CLEANUP,
-    NUM_COMMANDS
-} CmdFunc;
-
-/**
- * Game state enumeration
- * Defines the main game flow states
- */
-typedef enum GState {
-    ATTRACT,        /* Attract mode - demo loop */
-    TRKSEL,         /* Track selection screen */
-    CARSEL,         /* Car selection screen */
-    PLAYGAME,       /* Active gameplay */
-    ENDGAME,        /* End of game sequence */
-    GAMEOVER,       /* Game over screen */
-    HISCORE,        /* High score entry */
-    PREPLAY,        /* Pre-play setup 1 */
-    PREPLAY2,       /* Pre-play setup 2 */
-    COUNTDOWN,      /* Race countdown */
-    NUM_GAME_STATES
-} GState;
-
-/* Entity types */
-#define DRONE   1   /* AI-controlled car */
-#define HUMAN   2   /* Player-controlled car */
-
-/* Boolean values */
-#ifndef true
-#define true    1
-#endif
-#ifndef false
-#define false   0
-#endif
-
-/* Time constants (assuming 60 fps) */
-#define ONE_SEC         60
-#define GAMEOVER_TIME   (4 * ONE_SEC)
-
-/* Global game state variable (defined in game code) */
-extern GState gstate;
-
-#endif /* _GAME_H */
+#endif /* GAME_GAME_H */

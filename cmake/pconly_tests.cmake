@@ -15,6 +15,11 @@ add_test(NAME rename_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_rename.p
 # names_check.py on maps written for each error and warning
 add_test(NAME names_check_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_names_check.py)
 set_tests_properties(rename_tool names_check_tool PROPERTIES TIMEOUT 300)
+# objsame.py on objects compiled for the test: declarations, local names, comments and moved lines give `same`; code,
+# data, strings, references, exports and __LINE__ don't (the tool compares two builds' game objects: PCONLY.md 2)
+if(NOT WIN32)
+    add_test(NAME objsame_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_objsame.py --cc ${CMAKE_C_COMPILER})
+endif()
 # the gate script parses (it runs on Rocky against the base: tools/port/pconly_gate.sh)
 find_program(PC_BASH bash)
 if(PC_BASH)

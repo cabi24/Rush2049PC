@@ -1,0 +1,103 @@
+/* include/game/scene.h: the scene objects (mbox and zoid), models, textures, windows, the sky and the world */
+#ifndef GAME_SCENE_H
+#define GAME_SCENE_H
+
+#include "game/types.h"
+
+/* Data */
+extern ModelList gRomObjDefPtrs[EXTENT(64)];
+extern Item12 texture_swap_shared_frames[EXTENT(400)];
+extern struct Sequence20 *TextureSwapLists[EXTENT(19)];
+extern struct Row20 *PaletteLists[EXTENT(19)];
+extern u32 track1Parts[EXTENT(117)][4];
+extern u32 track2Parts[EXTENT(117)][4];
+extern u32 track3Parts[EXTENT(117)][4];
+extern u32 track4Parts[EXTENT(121)][4];
+extern u32 track5Parts[EXTENT(103)][4];
+extern u32 track6Parts[EXTENT(122)][4];
+extern u32 track7Parts[EXTENT(1)][4];
+extern u32 track8Parts[EXTENT(1)][4];
+extern u32 track9Parts[EXTENT(1)][4];
+extern u32 track10Parts[EXTENT(1)][4];
+extern u32 track11Parts[EXTENT(14)][4];
+extern u32 track12Parts[EXTENT(1)][4];
+extern u32 track13Parts[EXTENT(1)][4];
+extern u32 track14Parts[EXTENT(1)][4];
+extern u32 track15Parts[EXTENT(1)][4];
+extern u32 track16Parts[EXTENT(1)][4];
+extern u32 track17Parts[EXTENT(1)][4];
+extern u32 track18Parts[EXTENT(1)][4];
+extern u32 track19Parts[EXTENT(25)][4];
+extern u8 trackParts[EXTENT(20)];
+extern u32 showAllParts[EXTENT(4)];
+extern struct Region *trackFog[EXTENT(15)];
+extern f32 fog_viewable_distance[EXTENT(4)][4];
+extern s16 fogDistance[EXTENT(4)][4];
+extern s16 fogMin[EXTENT(5)][4];
+extern s32 default_lights;
+extern PcViewport vp0;
+extern PcViewport vp1;
+extern PcViewport vp2;
+extern PcViewport vpul;
+extern PcViewport vpur;
+extern PcViewport vpll;
+extern PcViewport vplr;
+extern u8 sky_object_name[EXTENT(2888)];
+extern f32 tan_max_arg;
+extern f32 tan_two_over_pi;
+extern f32 tan_half_pi_hi;
+extern f32 tan_half_pi_lo;
+extern f32 tan_epsilon;
+extern f32 tan_p3;
+extern f32 tan_p2;
+extern f32 tan_p1;
+extern f32 tan_q4;
+extern f32 tan_q3;
+extern f32 tan_q2;
+extern f32 tan_q1;
+extern u32 gBgColor;
+extern s32 skyMatrices[EXTENT(4)];
+extern ObjectInstance ObjInstanceList[EXTENT(600)];
+extern ModelList gPalDefPtrs[EXTENT(64)];
+extern s8 gFogIntensity;
+extern u16 gNumLights;
+extern s8 gInvisibleTrack;
+extern struct Lights2 *gLights;
+extern u8 gNumModels[EXTENT(4)];
+extern s32 gMaxPolyInsts;
+extern u8 gNumZoidWindows;
+extern u32 *gWorldData;
+extern struct NameEntry *WorldTable;
+extern s16 scissor0[EXTENT(4)];
+extern s16 scissor1[EXTENT(4)];
+extern s16 scissor2[EXTENT(4)];
+extern s16 scissorul[EXTENT(4)];
+extern s16 scissorur[EXTENT(4)];
+extern s16 scissorll[EXTENT(4)];
+extern s16 scissorlr[EXTENT(4)];
+extern struct Box104 *WorldBase;
+extern s16 Worlddlidx;
+extern struct Node104 *cur_world_obj;
+extern f32 gViewableDistance;
+extern ModelList gTexDefPtrs[EXTENT(64)];
+extern OSMesgQueueWords audio_retrace_queue;
+extern OSMesg audio_retrace_msgs[EXTENT(8)];
+extern OSMesgQueue sample_dma_pi_queue;
+extern s32 sample_dma_pi_msg;
+extern f32 HFOV;
+extern s32 gNumObjects;
+extern s32 gMaxObjects;
+extern s32 gNumMatrices;
+extern s32 gMaxMatrices;
+extern s32 cull_vertex_count;
+extern s32 cull_vertex_max;
+extern volatile s16 ObjHead;
+extern PolyInstance PolyInstanceList[EXTENT(39)];
+extern s32 D_8015F740[EXTENT(560)];
+extern s32 gNumPolyInsts;
+extern f32 gGlobalCameraFacingScale;
+extern OSIoMesg sample_dma_io;
+extern ArbEntry ZoidWinInfo[EXTENT(4)];
+extern s8 gSplitScreen;
+/* pc_sample_dma_list: declared by its files (src/blob/groups/sample_dma_next/sample_dma_next.c: defines it) */
+#endif /* GAME_SCENE_H */

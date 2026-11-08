@@ -107,7 +107,7 @@ endforeach()
 if(WIN32)
     target_compile_definitions(game_flags INTERFACE zcfree=n64_zcfree)
 endif()
-target_include_directories(game_flags INTERFACE include include/game include/PR)
+target_include_directories(game_flags INTERFACE include include/PR)
 # First include of every game file: pointer-sized integer types and big-endian helpers for the 64-bit host
 # (docs/port/POINTERS.md).
 target_compile_options(game_flags INTERFACE -include ${CMAKE_SOURCE_DIR}/port/include/pc_prelude.h)
@@ -238,16 +238,25 @@ if(WIN32)
     set(PC_DATA_PE_OUTPUTS ${PC_DATA_DIR}/weak.ld)
 endif()
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_objects.txt CONTENT "$<JOIN:$<TARGET_OBJECTS:game>,\n>\n")
+# The data's types: include/game's declarations, one per datum, compiled alone with every declaration in its DWARF
+# (port/data/game_decls.c). gen_data lays each datum out by its declaration there, not by what the game's files
+# declare (docs/port/DATA.md 1). Never linked.
+add_library(game_decls OBJECT port/data/game_decls.c)
+target_link_libraries(game_decls PRIVATE game_flags)
+target_compile_options(game_decls PRIVATE -O0 -g -fno-eliminate-unused-debug-symbols
+                       -fno-eliminate-unused-debug-types -UNDEBUG)
+set_target_properties(game_decls PROPERTIES PC_NO_SANITIZE ON EXPORT_COMPILE_COMMANDS OFF)
 # Types and symbols from the -O0 objects (types_objects.txt); the runtime images' C data, which --check finds in the
 # executable, from the objects linked (game_objects.txt).
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json
            ${PC_DATA_DIR}/data_symbols.txt ${PC_DATA_PE_OUTPUTS}
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/types_objects.txt
-            --link-objects-list ${CMAKE_BINARY_DIR}/game_objects.txt
+            --link-objects-list ${CMAKE_BINARY_DIR}/game_objects.txt --decls $<TARGET_OBJECTS:game_decls>
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
             ${PC_DATA_PE_ARGS} ${PC_DATA_NOFIXED_ARGS}
-    DEPENDS $<TARGET_OBJECTS:${PC_TYPES_TARGET}> $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py
+    DEPENDS $<TARGET_OBJECTS:${PC_TYPES_TARGET}> $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:game_decls>
+            ${PORT_TOOLS}/gen_data.py
             ${PORT_TOOLS}/n64syms.py ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h ${PORT_TOOLS}/gen_stubs.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/port/data/asm_functions.txt

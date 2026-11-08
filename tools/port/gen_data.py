@@ -74,8 +74,6 @@ RENAMED = {n: "n64_" + n for n in ("main", "memcpy", "memset", "memchr", "strlen
 # A runtime image's function whose name the other image's function at the same address has (both are linked in):
 # its PC name (nonmatching/ovl_a/updateWarningScreen.c).
 IMAGE_RENAMED = {("ovl_a", "findDamageSlot"): "updateWarningScreen"}
-# The name maps' type rows that merged a view into a type the C had already (docs/code/NAMING.md 4).
-TYPES_MERGED = {"SelectCarWave", "ButtonInfo"}
 # N64 (IDO, o32) sizes of the C base types, by DWARF name.
 N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short int": 2, "short unsigned int": 2,
             "int": 4, "unsigned int": 4, "long int": 4, "long unsigned int": 4, "long long int": 8,
@@ -563,6 +561,7 @@ class Sym:
         self.parent_off = 0
         self.extent_by_gap = False
         self.cdef = False        # defined by the game C (listed for pointers, not filled)
+        self.canonical = False   # typed by include/game's declaration (--decls), not by the files'
         self.cdef_letter = None
 
 
@@ -850,6 +849,9 @@ def main():
     ap.add_argument("--pe", action="store_true", help="--check: the executable is PE (Windows)")
     ap.add_argument("--nofixed", action="store_true",
                     help="the names relative to pc_window, a section data.c defines (RUSH_NOFIXED, NOFIXED.md 2)")
+    ap.add_argument("--decls", type=Path, action="append", default=[],
+                    help="the object of the canonical data declarations (port/data/game_decls.c, compiled -O0 -g "
+                         "-fno-eliminate-unused-debug-symbols): a datum it declares takes its type from it alone")
     ap.add_argument("--defined-list", type=Path,
                     help="--nofixed: the PC layer's objects, whose definitions count (as for gen_stubs.py)")
     a = ap.parse_args()
@@ -883,22 +885,6 @@ def generate(a):
                and any(obj_image.get(o) in ("game", "ovl_a", "ovl_b") for o, _, _ in d)}
     symfile = n64syms.load_symbols(root / "symbol_addrs.us.txt")
     renamed = n64syms.renamed_names(root / "symbol_addrs.us.txt")   # the maps' names of address names
-    # The type names the name maps gave (tools/port/names/applied.tsv's type rows), new -> old: a choice between
-    # declarations that are equally good falls to their names, and was made with the old ones. Not the rows that
-    # merged a view into a type the C had already (docs/code/NAMING.md 4: Rec12 to SelectCarWave, Slot60 to
-    # ButtonInfo): that name was the type's own before.
-    type_old = {}
-    ledger = root / "tools" / "port" / "names" / "applied.tsv"
-    if ledger.exists():
-        for line in ledger.read_text().splitlines():
-            f = line.split("\t")
-            if len(f) == 3 and f[0] == "type" and f[2] not in TYPES_MERGED:
-                type_old[f[2]] = f[1]
-    type_re = re.compile(r"\b(" + "|".join(map(re.escape, sorted(type_old, key=len, reverse=True))) + r")\b") \
-        if type_old else None
-
-    def type_names_before(text):
-        return type_re.sub(lambda m: type_old[m.group(1)], text) if type_re else text
     extents = {}
     for line in (root / "port" / "data" / "extents.txt").read_text().splitlines():
         f = line.split("#", 1)[0].split()
@@ -962,17 +948,29 @@ def generate(a):
     # Types from DWARF.
     wanted = {n for s in syms.values() for n in s.names} | dec_pc
     found, tags = read_variables(objects, a.readelf, wanted)
+    # The canonical declarations (include/game, compiled alone: port/data/game_decls.c's object): one per datum, the
+    # type the data is laid out by. A datum they declare takes its type from them alone, whatever the game's files
+    # declare; the files still give the size of a game C (tentative) definition, the bound the linker checks.
+    canonical, canonical_tags = read_variables(a.decls, a.readelf, wanted) if a.decls else ({}, {})
     for d in decoupled:
         decoupled_type(d, found.get(d.pc, ()), tags)
     for s in syms.values():
+        s.canonical = not s.cdef and any(n in canonical for n in s.names)
         for n in sorted(s.names):
             for obj, t, disp, is_def in found.get(n, ()):
                 if s.cdef and not is_def:
                     continue
                 t = complete(t, tags)
-                s.decls.append((n, obj, t, disp))
+                if not s.canonical:
+                    s.decls.append((n, obj, t, disp))
                 if is_def and not s.cdef and n64_layout(t)[0]:
                     s.defsize = max(s.defsize or 0, n64_layout(t)[0])
+            if s.canonical:
+                for obj, t, disp, is_def in canonical.get(n, ()):
+                    s.decls.append((n, obj, complete(t, canonical_tags), disp))
+        if a.decls and not s.canonical and not s.cdef and not s.end_marker:
+            report["Placed by the game files' declarations: include/game declares no type for it"].append(
+                f"0x{s.addr:08X} {' '.join(sorted(s.names))}")
 
     # Extents: symbol-file (or extents.txt) size, else the game C's definition, else the largest complete
     # declaration or the gap to the next address. The symbol file's names end a gap, but not the ones the name maps
@@ -1042,9 +1040,8 @@ def generate(a):
         def fit(t):
             n = n64_layout(t)[0] or 0
             return 2 if not bound or n == bound else 1 if n > bound else 0
-        # The last keys are names: the type names before the name maps renamed them, so the maps change no choice.
         ranked = sorted(cands.items(), key=lambda kv: (fit(kv[0]), score(kv[0], program(kv[0])), kv[1][0],
-                                                       type_names_before(kv[1][1]), type_names_before(repr(kv[0]))),
+                                                       kv[1][1], repr(kv[0])),
                         reverse=True)
         s.t, (cnt, s.disp, _) = ranked[0]
         s.extent_by_gap = not bound and s.t not in [t for _, _, t, _ in s.decls]

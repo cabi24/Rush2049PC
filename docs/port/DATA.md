@@ -26,6 +26,17 @@ is the same fill run again for one image.
 
 ### 1. Types from DWARF
 
+**The canonical declarations** (since 2026-11-08, wave 2's headers, [PCONLY.md](PCONLY.md) 4): `include/game`
+declares each datum once, with the type it is laid out by, and `port/data/game_decls.c` compiles those declarations
+alone (`-O0 -g -fno-eliminate-unused-debug-symbols`, `GAME_DECLS_EXTENTS` defined so each array has its extent,
+EXTENT in `include/game/basic.h`; never linked). `gen_data.py --decls` reads that one object: a datum it declares
+takes its type from it alone, whatever the game's files declare, so the layout no longer depends on which files
+declare what, nor on how (a file reads a datum through a view of its own: `include/game/view.h`). The rest of this
+section is how a datum the canonical declarations lack is typed (`data_layout.txt` lists such data under "Placed by
+the game files' declarations": none today), and the size of a game C (tentative) definition, which still comes from
+the files. The canonical declarations were written from exactly the choices below (the data tables came out the same
+but for names in comments), so the rules are also the record of how each type was chosen.
+
 The game objects are compiled with `-g`, so each object's DWARF holds its own declaration of every external
 variable it uses. `gen_data.py` reads them with `readelf --debug-dump=info` (25 MB of text for the 1,346 objects;
 the whole generator runs in about 3 s on the Pi 5). Typedefs and qualifiers are dropped; a struct one file leaves
