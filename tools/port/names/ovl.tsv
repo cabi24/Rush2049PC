@@ -1,5 +1,8 @@
-old	new	kind	source	confidence	note
 # names-ovl: the two runtime images (src/ovl_a = image A, the front end; src/ovl_b = image B, the HUD extras of battle, stunt and obstacle races), their data, and the game data only they use. docs/code/overlays.md maps them.
+# Reconciled with the other areas' maps (wave 1): docs/code/NAMING.md has the conventions, which override this
+# header where they differ, and every decision; each old name has one row over all the maps; labels to delete
+# rather than rename are in drop.tsv.
+# old	new	kind	source	confidence	note
 # Image B: the HUD-extras overlay (battle, stunt and obstacle races). MAT3 files worlddam.c, weapons.c, streaks.c, shots.c, powerups.c, hudextra.c.
 # worlddam.c: scorch-mark decals on the road, a ring of 25 polygons
 func_8038A400	findDamageSlot	func	mat3	sure	MAT3 findDamageSlot@worlddam.c (static, inlined into newWorldDamage on the N64; the PC keeps the body): same ring recycle, ZOID_HidePoly/ZOID_NewPoly/ZOID_UpdatePoly calls, 25 slots, fades the next four
@@ -11,8 +14,8 @@ D_80394D14	scorch_texture_name	data	code	sure	char[]: the texture name initWorld
 D_80399A70	DamagePolys	data	mat3	sure	struct {s8 full; u16 oldest; tPoly *polys[25];} (0x68 on the N64; MAT3 anon_full_oldest_68): MAT3 worlddam.c static DamagePolys, the decal ring
 D_80399AD8	damTexture	data	mat3	sure	u16: MAT3 worlddam.c static damTexture, the scorch texture index initWorldDamage stores and findDamageSlot uses
 # weapons.c: the battle weapon model on each car and its muzzle flashes
-func_8038A95C	_RemoveCannMFlash	func	mat3	sure	MAT3 _RemoveCannMFlash@weapons.c: removes gCannMuzzleObjs[slot].mdls[5] and ripdl, ripTIdx = -1
-func_8038AA14	_RemoveGattMFlash	func	mat3	sure	MAT3 _RemoveGattMFlash@weapons.c: removes gGattMuzzleObjs[slot].mdls[5]
+func_8038A95C	RemoveCannMFlash	func	mat3	sure	MAT3 RemoveCannMFlash@weapons.c: removes gCannMuzzleObjs[slot].mdls[5] and ripdl, ripTIdx = -1
+func_8038AA14	RemoveGattMFlash	func	mat3	sure	MAT3 RemoveGattMFlash@weapons.c: removes gGattMuzzleObjs[slot].mdls[5]
 func_8038AA8C	AnimateWeapon	func	mat3	sure	MAT3 AnimateWeapon@weapons.c: the weapon visual's callback (StartWeapon stores it), weapon types 0-7 and 8 none, defs 530-537 of gObjList, muzzle-flash and rip smoke placement
 func_8038C910	StartWeapon	func	mat3	sure	MAT3 StartWeapon@weapons.c: fills the weapon visual (AnimateWeapon, gSeconds, slot), InitCarObj(gObjList[531]...), weaponOffsets[1][body_type]
 func_8038CA24	InitBattlePlayer	func	mat3	sure	MAT3 InitBattlePlayer@weapons.c: same stores (defense.active, fadeState, shoot, loaded = 0; weapon type 8, ammo -1; gCurWeaponType = 9; ripdl/ripCnt -1; both onTime 0; Gatt mdls -1); the file header's "no known arcade analogue" is wrong
@@ -21,9 +24,9 @@ D_80399118	gCurWeaponType	data	mat3	sure	s8[4]: MAT3 weapons.c static gCurWeapon
 D_80399120	gGattMuzzleObjs	data	mat3	sure	tMuzzleObj[4] (0x10C each on the N64): MAT3 weapons.c static gGattMuzzleObjs
 D_80399550	gCannMuzzleObjs	data	mat3	sure	tCMuzzleObj[4] (0x148 each on the N64): MAT3 weapons.c static gCannMuzzleObjs
 # streaks.c: light streaks behind shots (fading polygon ribbons)
-func_8038CB10	_NewStreakPoly	func	mat3	likely	empty 8-byte deleted stub of MAT3 _NewStreakPoly@streaks.c, inlined into UpdateStreaks; which of the two stubs is which: IDO emits inlined callees in reverse call order before the caller (as cheatscr's and hudextra's matched stubs)
-func_8038CB18	_AnimateStreakPolys	func	mat3	likely	empty 8-byte deleted stub of MAT3 _AnimateStreakPolys@streaks.c, inlined into UpdateStreaks (called first, so emitted last before it)
-func_8038CB20	UpdateStreaks	func	mat3	sure	MAT3 UpdateStreaks@streaks.c with _AnimateStreakPolys and _NewStreakPoly inlined: ages the poly list, frees expired ones, emits a quad per streak, gStreakColors; the file header's "no arcade ancestor" is wrong
+func_8038CB10	NewStreakPoly	func	mat3	likely	empty 8-byte deleted stub of MAT3 NewStreakPoly@streaks.c, inlined into UpdateStreaks; which of the two stubs is which: IDO emits inlined callees in reverse call order before the caller (as cheatscr's and hudextra's matched stubs)
+func_8038CB18	AnimateStreakPolys	func	mat3	likely	empty 8-byte deleted stub of MAT3 AnimateStreakPolys@streaks.c, inlined into UpdateStreaks (called first, so emitted last before it)
+func_8038CB20	UpdateStreaks	func	mat3	sure	MAT3 UpdateStreaks@streaks.c with AnimateStreakPolys and NewStreakPoly inlined: ages the poly list, frees expired ones, emits a quad per streak, gStreakColors; the file header's "no arcade ancestor" is wrong
 func_8038D054	NewStreak	func	mat3	sure	MAT3 NewStreak@streaks.c: GetStatLLE from gStreakList, type 0-3 sets flags 1/2/4/8 and half-width, copies the start position into newpos/lastpos/backVerts
 func_8038D1A8	InitStreaks	func	mat3	sure	MAT3 InitStreaks@streaks.c: InitStatLL(gStreakList, gStreakArray, 50) and InitStatLL(gStreakPolyList, gStreakPolyArray, 150)
 D_80394394	gStreakColors	data	mat3	sure	u8[4][4]: MAT3 streaks.c gStreakColors, the colour of a new streak poly by streak type (UpdateStreaks)
@@ -32,8 +35,8 @@ D_80395F00	gStreakArray	data	mat3	sure	tStreak[50] (0x40 each on the N64): MAT3 
 D_80396B80	gStreakPolyList	data	mat3	sure	tStatList: MAT3 streaks.c static gStreakPolyList (150 polys)
 D_80396B98	gStreakPolyArray	data	mat3	sure	tStreakPoly[150] (0x1C each on the N64): MAT3 streaks.c static gStreakPolyArray
 # shots.c: battle shots, mines, shields, damage
-func_8038D200	_UpdateShotObject	func	mat3	sure	MAT3 _UpdateShotObject@shots.c (shots.c's own comment and body)
-func_8038D328	_CreateShotObject	func	mat3	sure	MAT3 _CreateShotObject@shots.c: GetStatLLE(gShotObjList) + MBOX_NewObject
+func_8038D200	UpdateShotObject	func	mat3	sure	MAT3 UpdateShotObject@shots.c (shots.c's own comment and body)
+func_8038D328	CreateShotObject	func	mat3	sure	MAT3 CreateShotObject@shots.c: GetStatLLE(gShotObjList) + MBOX_NewObject
 func_8038D3A4	BattleDamage	func	mat3	sure	MAT3 BattleDamage@shots.c: crashflag/self/team tests, defense flag 4 scales by 0.2, damageThisFrame, health clamp, AddBattlePoint(car, hit, 1), crashflag = 1 (runtime_b_damage's "names unknown" is wrong)
 func_8038D498	SonicCarCollision	func	mat3	sure	MAT3 SonicCarCollision@shots.c (shots.c's own comment and body)
 func_8038D798	ProximityDamage	func	mat3	sure	MAT3 ProximityDamage@shots.c: ((r^2-d^2)/r^2)^2 * damage to every car in range; weapon type 5 transformed, fatan2 < 1.35, x0.35 (runtime_b_radius_effect's "ancestry unknown" is wrong)
@@ -41,7 +44,7 @@ func_8038DA78	ShotToCarCollision	func	mat3	sure	MAT3 ShotToCarCollision@shots.c 
 func_8038DDDC	MissileLock	func	mat3	sure	MAT3 MissileLock@shots.c: nearest car in the forward cone by fatan2 yaw/pitch, YawUV +-0.04 (runtime_b_nearest_steering's "names not established" is wrong)
 func_8038E088	ShotDone	func	mat3	sure	MAT3 ShotDone@shots.c (shots.c's own comment and body)
 func_8038E114	UpdateShots	func	mat3	sure	MAT3 UpdateShots@shots.c: the per-shot motion and collision switch (shots.c)
-func_8038F560	_InitNewShot	func	mat3	sure	MAT3 _InitNewShot@shots.c (static, inlined into ShotUpdate on the N64, whose 8-byte stub sits here; the PC keeps the body)
+func_8038F560	InitNewShot	func	mat3	sure	MAT3 InitNewShot@shots.c (static, inlined into ShotUpdate on the N64, whose 8-byte stub sits here; the PC keeps the body)
 func_8038F568	ElevateGun	func	mat3	sure	MAT3 ElevateGun@shots.c (shots.c's own comment and body)
 func_8038F938	UpdateDefense	func	mat3	sure	MAT3 UpdateDefense@shots.c (shots.c's own comment and body; gCarShield, gShieldSizes)
 func_8038FCD8	AnimateCase	func	mat3	sure	MAT3 AnimateCase@shots.c (static, inlined into ShotUpdate; the casing loop moved out of ShotUpdate into this stub's function on the PC)
@@ -76,7 +79,6 @@ func_80391490	IncBattlePowerUps	func	mat3	sure	MAT3 IncBattlePowerUps@powerups.c
 func_803914A8	PreInitBattlePowerUps	func	mat3	sure	MAT3 PreInitBattlePowerUps@powerups.c: gBattlePowerUps.num = 0
 D_80399AE0	gBattlePowerUps	data	mat3	sure	tBattlePowerUps {s8 num, hIdx, sIdx, iIdx; f32 healthTLeft, invsTLeft, shieldTLeft; tBattlePowerUpT *tS;} (0x18): MAT3 powerups.c static gBattlePowerUps
 # hudextra.c: the battle and stunt HUD (icons, coins, points, health bars)
-func_803914B4	_AddBattlePoint	func	mat3	sure	MAT3 _AddBattlePoint@hudextra.c (to, from, p): negative p calls RecordBattlePoints and tests gOptions[40], a 4-entry battlePoint ring from wrongWayPos to fragPos (the header's "no identified arcade equivalent" is wrong)
 func_80391640	animStuntCoins_stub	func	code	likely	empty 8-byte deleted stub of MAT3 animStuntCoins@hudextra.c (inlined into UpdateHUDExtraPostCamera, called last so emitted first); its body is the static animStuntCoins
 func_80391648	animBattleCoins_stub	func	code	likely	empty 8-byte deleted stub of MAT3 animBattleCoins@hudextra.c (inlined into UpdateHUDExtraPostCamera); its body is the static animBattleCoins
 func_80391650	animPowerupIcons	func	mat3	sure	MAT3 animPowerupIcons@hudextra.c: defense.active & 1 / & 2 picks the icon, powerupIconNames, whichCam, ScaleUV 0.025, YawUV(hudObjAngle), powerupPos
@@ -126,11 +128,11 @@ D_80395ED0	battlePointCnt	data	mat3	sure	s8: MAT3 hudextra.c static battlePointC
 D_80395ED4	hudextra_blit	data	mat3	sure	Blit *: MAT3 hudextra.c static blit (file prefix: blit is a static in several MAT3 files), the multi-blit ShowHUDExtra creates and RemoveHUDExtra removes
 D_80395ED8	bonuscnt	data	mat3	sure	s32[4]: MAT3 hudextra.c static bonuscnt, animStuntPoints' bonus flash counter
 # the game image's data only this image uses
-D_8014254C	gObjList	data	mat3	sure	u16[] (MAT3 visuals.c u16[701]): the object definitions by number; AnimateWeapon reads [530 + weapon type] as MAT3's gObjList[def]. include/game/targets.h and render.h declare a gObjList as s32[] (wrong element type)
+D_8014254C	gObjList_biased	data	mat3	sure	biased label: gObjList - 314 entries (overlay B reads D_8014254C[def + 314] = gObjList[def]); not the array: other data lies between; wave 2/3 writes gObjList[def]
 D_80142A82	health_powerup_def	data	code	likely	u16, gObjList[667]: the object definition UpdateBattleHealth sets on a health power-up target (MAT3 gObjList[0x2A1]; the N64's list is 6 shorter there); wave 2: write gObjList[667]
 D_80142A84	invisibility_powerup_def	data	code	likely	u16, gObjList[668]: UpdateBattleInvs' power-up definition (MAT3 gObjList[0x2A2]); wave 2: gObjList[668]
 D_80142A8E	shield_powerup_def	data	code	likely	u16, gObjList[673]: UpdateBattleShield's power-up definition (MAT3 gObjList[0x2A3]); wave 2: gObjList[673]
-D_80146130	battle_self_hit_penalty_option	data	code	likely	s8, gOptions[40] (gOptions at D_80146108): the battle setup's on/off option (MAT3 trackscr row 11) under which _AddBattlePoint takes a point off for a self-hit; wave 2: gOptions[40]
+D_80146130	gOptions_battle_self_hit	data	code	likely	s8, gOptions[40] (gOptions at D_80146108): the battle setup's on/off option (MAT3 trackscr row 11) under which AddBattlePointInternal takes a point off for a self-hit; wave 2: gOptions[40]
 D_80399B00	neutral_mine_texture	data	code	likely	u16, gMineTextures[4]: the neutral mine-cap texture; declared by the game, no code reads it by this name; wave 2: gMineTextures[4]
 # Image A: the front end (title, start, mode, track, car, player, records, circuit, cheat, pak and licence screens). MAT3 front-end files; functions below 0x8039B000 first, then the rest of circuitscr.c, cheatscr.c, carscr.c and the blit-callback region.
 # trackscr.c: the track-select screen (one IPA unit in image A; MAT3 GameSource trackscr.c, GC 0x80087ABC-0x8008D30C)
@@ -231,7 +233,7 @@ D_803BACCC	mapTransition	data	mat3	sure	f32: MAT3 mapTransition@trackscr.c (glob
 D_803BAE10	trackscr_InitScreen_fogPos	data	mat3	sure	f32[3]: MAT3 _InitScreen's static fogPos (showTrackSelect has another)
 D_80114658	gFogColors	data	mat3	sure	u8[][3] (RGB): MAT3 gFogColors, read by SetFogIntensity as gFogColors[gFogColor]; the tree already names 0x80114658 gFogColors
 D_801161F4	gRomObjDefPtrs	data	mat3	sure	ModelBank[] {defs, count}: MAT3 gRomObjDefPtrs, indexed by model index >> 10 in buildRaceTrackMaps/clearTrackMaps; the tree already names 0x801161F4 gRomObjDefPtrs
-D_80146125	gOptions_fogIntensity	data	code	sure	s8 interior label: gOptions[29], the fog-intensity option (MAT3 options.c sets gFogIntensity = gOptions[29]), which updateTrackScreen case 14 writes under its own address
+D_80146125	gOptions_fog_intensity	data	code	sure	s8 interior label: gOptions[29], the fog-intensity option (MAT3 options.c sets gFogIntensity = gOptions[29]), which updateTrackScreen case 14 writes under its own address
 # titlescr.c: the title screen ("press start"; MAT3 GameSource titlescr.c)
 func_8038F454	updateTitleScreen	func	mat3	sure	MAT3 updateTitleScreen@titlescr.c: gSkipToGameState check -> setGameState(0x10), NewMultiBlit(blits) + SetCountdownTimer + gGameStarted/gSoftReset + ClearRushControls once, start -> AudPlayEffect, gPlayers[0] controller 0 and [1..3] 5, setGameState(0x10); timeout -> setGameState(8)
 D_803B6A78	titlescr_blits	data	mat3	sure	MultiBlit[3] (MAT3 blits[4]): MAT3 blits@titlescr.c (static, name in 2 files), NewMultiBlit's argument in updateTitleScreen
@@ -341,23 +343,23 @@ D_803BA854	gDeleteNotify	data	mat3	sure	s8: MAT3 gDeleteNotify@recordscr.c
 # warningscr.c: the controller-pak warning screen (its function, updateWarningScreen at 0x8038A400, is named elsewhere)
 D_803B83A4	warningscr_blits	data	code	sure	MultiBlit[1]: NewMultiBlit's argument in updateWarningScreen (MAT3 warningscr.c has no blit table: its N64 body is longer)
 # pakscr.c: the controller-pak manager screen (MAT3 GameSource pakscr.c)
-func_803990D0	updatePakScreen	func	mat3	sure	MAT3 updatePakScreen@pakscr.c: gInited block (_SetState(0), createBG, NewMultiBlit, SetControllerActive), gPakErr -> ShowPakError(..., _CancelFunc), else PS_PakChanged loop and the 5-way gState switch
-func_80398B40	_SetState	func	mat3	sure	MAT3 _SetState@pakscr.c: state 1 builds the file list, state 2 clears gYes, gState = state
-func_80398B38	_BuildFileDelList	func	mat3	likely	empty deleted stub of _BuildFileDelList (inlined into _SetState on the N64; the tree keeps its body here); MAT3 _BuildFileDelList@pakscr.c: gMaxMenuHeight = 8, gFreePages, gDeleteSize, gDeleteHeight = min
-func_80398BE0	_ControlDamaged	func	mat3	likely	empty deleted stub of _ControlDamaged (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 _ControlDamaged@pakscr.c: any of A/B/Start returns to state 0
-func_80398BE8	_ControlRumblePak	func	mat3	likely	empty deleted stub of _ControlRumblePak (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 _ControlRumblePak@pakscr.c, same body as _ControlDamaged
+func_803990D0	updatePakScreen	func	mat3	sure	MAT3 updatePakScreen@pakscr.c: gInited block (SetState(0), createBG, NewMultiBlit, SetControllerActive), gPakErr -> ShowPakError(..., CancelFunc), else PS_PakChanged loop and the 5-way gState switch
+func_80398B40	SetState	func	mat3	sure	MAT3 SetState@pakscr.c: state 1 builds the file list, state 2 clears gYes, gState = state
+func_80398B38	BuildFileDelList	func	mat3	likely	empty deleted stub of BuildFileDelList (inlined into SetState on the N64; the tree keeps its body here); MAT3 BuildFileDelList@pakscr.c: gMaxMenuHeight = 8, gFreePages, gDeleteSize, gDeleteHeight = min
+func_80398BE0	ControlDamaged	func	mat3	likely	empty deleted stub of ControlDamaged (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 ControlDamaged@pakscr.c: any of A/B/Start returns to state 0
+func_80398BE8	ControlRumblePak	func	mat3	likely	empty deleted stub of ControlRumblePak (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 ControlRumblePak@pakscr.c, same body as ControlDamaged
 func_80398BF0	pakscr_FindFile	func	mat3	sure	MAT3 _FindFile@pakscr.c (static, name in 2 files): walks gPS_Files[gPickedPak] to the file whose index matches (the N64 compares the file record's own index byte)
-func_80398C34	_ControlFileDelVerify	func	mat3	likely	empty deleted stub of _ControlFileDelVerify (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 _ControlFileDelVerify@pakscr.c: left/right toggles gYes, A deletes gDeleteFile and refreshes gFreePages
-func_80398C3C	_ControlFileDel	func	mat3	sure	MAT3 _ControlFileDel@pakscr.c: gDeleteSelect/gDeleteSelTop/gDeleteSelPos scrolling with gDeleteHeight/gDeleteSize, gDeleteFile = _FindFile, the delete combo -> _SetState(2), B -> _SetState(0)
-func_80398E70	_ControlPickPak	func	mat3	sure	MAT3 _ControlPickPak@pakscr.c: gPickedPak 0..3 by left/right, A: SetPakError for no controller (gPakErr 1) or no pak (2), damaged -> state 4, rumble -> 3, else file list; B/Start leaves (setGameState)
-func_8039A24C	_CancelFunc	func	mat3	sure	MAT3 _CancelFunc@pakscr.c: PS_PakChanged(pak) or (gPakErr == 2 and PS_PakDamaged(pak)); passed to ShowPakError by updatePakScreen
+func_80398C34	ControlFileDelVerify	func	mat3	likely	empty deleted stub of ControlFileDelVerify (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 ControlFileDelVerify@pakscr.c: left/right toggles gYes, A deletes gDeleteFile and refreshes gFreePages
+func_80398C3C	ControlFileDel	func	mat3	sure	MAT3 ControlFileDel@pakscr.c: gDeleteSelect/gDeleteSelTop/gDeleteSelPos scrolling with gDeleteHeight/gDeleteSize, gDeleteFile = _FindFile, the delete combo -> SetState(2), B -> SetState(0)
+func_80398E70	ControlPickPak	func	mat3	sure	MAT3 ControlPickPak@pakscr.c: gPickedPak 0..3 by left/right, A: SetPakError for no controller (gPakErr 1) or no pak (2), damaged -> state 4, rumble -> 3, else file list; B/Start leaves (setGameState)
+func_8039A24C	CancelFunc	func	mat3	sure	MAT3 CancelFunc@pakscr.c: PS_PakChanged(pak) or (gPakErr == 2 and PS_PakDamaged(pak)); passed to ShowPakError by updatePakScreen
 D_803B46A8	pakscr_gInited	data	mat3	sure	s8: MAT3 gInited@pakscr.c (static, name in 8 files)
 D_803B46AC	gBlit	data	mat3	sure	Blit *: MAT3 gBlit@pakscr.c, NewMultiBlit's result in updatePakScreen
 D_803B46B0	gDrawText	data	mat3	sure	s8: MAT3 gDrawText@pakscr.c, 0 while a pak error is shown
-D_803B46B4	gPakErr	data	mat3	sure	s32: MAT3 gPakErr@pakscr.c, the pending pak error (1 no controller, 2 no pak), read by _CancelFunc
+D_803B46B4	gPakErr	data	mat3	sure	s32: MAT3 gPakErr@pakscr.c, the pending pak error (1 no controller, 2 no pak), read by CancelFunc
 D_803B46B8	pakscr_mblit	data	mat3	sure	MultiBlit (one): initializer of updatePakScreen's local mblit, copied into a local before NewMultiBlit
 D_803B9BB0	gState	data	mat3	sure	s32: MAT3 gState@pakscr.c, the screen state (0 pick pak, 1 file list, 2 delete verify, 3 rumble pak, 4 damaged)
-D_803B9BB4	gMaxMenuHeight	data	mat3	sure	s32: MAT3 gMaxMenuHeight@pakscr.c, set to 8 by _BuildFileDelList
+D_803B9BB4	gMaxMenuHeight	data	mat3	sure	s32: MAT3 gMaxMenuHeight@pakscr.c, set to 8 by BuildFileDelList
 D_803B9BB8	pakscr_gYes	data	mat3	sure	s8: MAT3 gYes@pakscr.c (static, name in 5 files), the delete-verify answer
 D_803B9BBA	gPickedPak	data	mat3	sure	s16: MAT3 gPickedPak@pakscr.c, the selected pak 0..3
 D_803B9BBC	pakscr_gFreePages	data	mat3	sure	s16: MAT3 gFreePages@pakscr.c (a local of the same name exists in the tree), PS_GetFreeBlocks(gPickedPak)
@@ -635,7 +637,7 @@ func_8039EF08	showCarSelect	func	mat3	likely	MAT3 showCarSelect@carscr.c: per-pl
 func_8039FF04	carscr_initButtons	func	mat3	sure	MAT3 initButtons@carscr.c (signed char p): buttonInfo[p] models and the BUTTON/CURSOR/A1/B1 textures
 func_8039D6A4	carscr_updateButtons	func	mat3	sure	MAT3 updateButtons@carscr.c (signed char p): scroll, fade and textures of player p's buttons
 func_803A0498	setGhosts	func	mat3	sure	MAT3 setGhosts@carscr.c: picks gGhosts from gGhostFiles and limboGhosts; N64 purges ghost slots 2 and 3 at the end
-func_803A3A6C	anim_car_color_marker	func	code	likely	N64-only blit callback: places the colour swatch of marker 7/8/9 at player p's button and tints it from car_color_palette by the car's colour choice
+func_803A3A6C	anim_car_color_marker	func	code	likely	N64-only blit callback: places the colour swatch of marker 7/8/9 at player p's button and tints it from paint_colors_rgb by the car's colour choice
 func_803A3D9C	carscr_slider_inline_stub	func	code	likely	empty deleted stub (8 bytes) right before carscr_animNewSlider; the static it stood for has no MAT3 counterpart, nothing calls it
 func_803A3DA4	carscr_animNewSlider	func	mat3	sure	MAT3 animNewSlider@carscr.c (blt): type/p/opt from animID, Hidden by the button angle window, the tire-scale fill
 func_803A4134	animStatBars	func	mat3	likely	MAT3 animStatBars@carscr.c: the stat-bar blit callback (player, bar, segment from animID; gStats fill)
@@ -749,33 +751,33 @@ D_803B68D4	startscr_title_button_position	data	mat3	sure	f32[3]: alias of starts
 D_803B8CD8	startscr_player_count_format	data	mat3	sure	char[]: animText player number format (MAT3 "%d")
 D_803B8CDC	startscr_button_player_count_format	data	mat3	sure	char[]: animButtonText player number format (MAT3 "%d")
 D_803B839C	gPakScr	data	mat3	sure	s8: MAT3 gPakScr@warningscr.c, which choice is highlighted / where the warning leads; the tree already uses this name for this symbol (a #define alias)
-D_803B83A0	numPaksFound	data	code	likely	u8: warningscr.c static, paks found (the warning offers the pak screen when > 0); name as the tree's warningscr draft has it; the tree already uses this name for this symbol (a #define alias)
+D_803B83A0	num_paks_found	data	code	likely	u8: warningscr.c static, paks found (the warning offers the pak screen when > 0); name as the tree's warningscr draft has it; the tree already uses this name for this symbol (a #define alias)
 D_803B92B4	warningscr_message_format	data	code	likely	char[]: sprintf format of the warning box (texts and the blocks needed)
 # pakscr.c: the controller pak screen (draw side)
-func_803A7918	_AnimText	func	mat3	sure	MAT3 _AnimText@pakscr.c: the pak screen's blit callback dispatching on the pak state
-func_803A7620	_DrawPickPak	func	mat3	sure	MAT3 _DrawPickPak@pakscr.c
-func_803A7180	_DrawFileDel	func	mat3	sure	MAT3 _DrawFileDel@pakscr.c: file list with numbers, names, blocks and free pages
-func_803A6F2C	_DrawFileDelVerify	func	mat3	sure	MAT3 _DrawFileDelVerify@pakscr.c: the yes/no over the file name
-func_803A6F24	_DrawRumblePak	func	mat3	sure	MAT3 _DrawRumblePak@pakscr.c: inlined into _AnimText (deleted stub at this address)
-func_803A6F1C	_DrawDamaged	func	mat3	sure	MAT3 _DrawDamaged@pakscr.c: inlined into _AnimText (deleted stub at this address)
-func_803A6F14	_GetPakStatusStr	func	mat3	sure	MAT3 _GetPakStatusStr@pakscr.c (pak, str): the seven status texts; inlined into _DrawPickPak (deleted stub at this address)
-D_803B889C	pakscr_status_no_controller_format	data	mat3	sure	char[]: _GetPakStatusStr format, no controller (MAT3 "(%s)")
-D_803B88A4	pakscr_status_no_pak_format	data	mat3	sure	char[]: _GetPakStatusStr format, no pak inserted
-D_803B88AC	pakscr_status_damaged_format	data	mat3	sure	char[]: _GetPakStatusStr format, damaged pak
-D_803B88B4	pakscr_status_rumble_format	data	mat3	sure	char[]: _GetPakStatusStr format, rumble pak
-D_803B88BC	pakscr_status_in_use_format	data	mat3	sure	char[]: _GetPakStatusStr format, a player or ghost file is on it
-D_803B88C4	pakscr_status_free_format	data	mat3	sure	char[]: _GetPakStatusStr format, room for a file
-D_803B88CC	pakscr_status_full_format	data	mat3	sure	char[]: _GetPakStatusStr format, full
-D_803B88D4	pakscr_pak_title_format	data	code	likely	char[]: _DrawPickPak title format with the pak number
-D_803B88DC	pakscr_action_separator	data	mat3	likely	char[]: _DrawFileDel separator of the two action words (MAT3 " ")
-D_803B88E0	pakscr_file_number_format	data	mat3	sure	char[]: _DrawFileDel file number format (MAT3 "%d")
-D_803B88E4	pakscr_name_suffix_separator	data	code	likely	char[]: _DrawFileDel separator before a file name's suffix
-D_803B88E8	pakscr_file_blocks_format	data	mat3	sure	char[]: _DrawFileDel blocks format (MAT3 "%d")
-D_803B88EC	pakscr_free_pages_format	data	mat3	sure	char[]: _DrawFileDel free pages format (MAT3 "%d")
-D_803B88F0	pakscr_blocks_needed_format	data	mat3	likely	char[]: _DrawFileDel sprintf of the needed-blocks line (MAT3 builds the same line with sprintf)
-D_803B8900	pakscr_verify_name_separator	data	code	likely	char[]: _DrawFileDelVerify separator before the suffix
-D_803B8904	pakscr_rumble_text_separator	data	code	likely	char[]: _DrawRumblePak separator of its two texts
-D_803B8908	pakscr_damaged_text_separator	data	code	likely	char[]: _DrawDamaged separator of its two texts
+func_803A7918	AnimText	func	mat3	sure	MAT3 AnimText@pakscr.c: the pak screen's blit callback dispatching on the pak state
+func_803A7620	DrawPickPak	func	mat3	sure	MAT3 DrawPickPak@pakscr.c
+func_803A7180	DrawFileDel	func	mat3	sure	MAT3 DrawFileDel@pakscr.c: file list with numbers, names, blocks and free pages
+func_803A6F2C	DrawFileDelVerify	func	mat3	sure	MAT3 DrawFileDelVerify@pakscr.c: the yes/no over the file name
+func_803A6F24	DrawRumblePak	func	mat3	sure	MAT3 DrawRumblePak@pakscr.c: inlined into AnimText (deleted stub at this address)
+func_803A6F1C	DrawDamaged	func	mat3	sure	MAT3 DrawDamaged@pakscr.c: inlined into AnimText (deleted stub at this address)
+func_803A6F14	GetPakStatusStr	func	mat3	sure	MAT3 GetPakStatusStr@pakscr.c (pak, str): the seven status texts; inlined into DrawPickPak (deleted stub at this address)
+D_803B889C	pakscr_status_no_controller_format	data	mat3	sure	char[]: GetPakStatusStr format, no controller (MAT3 "(%s)")
+D_803B88A4	pakscr_status_no_pak_format	data	mat3	sure	char[]: GetPakStatusStr format, no pak inserted
+D_803B88AC	pakscr_status_damaged_format	data	mat3	sure	char[]: GetPakStatusStr format, damaged pak
+D_803B88B4	pakscr_status_rumble_format	data	mat3	sure	char[]: GetPakStatusStr format, rumble pak
+D_803B88BC	pakscr_status_in_use_format	data	mat3	sure	char[]: GetPakStatusStr format, a player or ghost file is on it
+D_803B88C4	pakscr_status_free_format	data	mat3	sure	char[]: GetPakStatusStr format, room for a file
+D_803B88CC	pakscr_status_full_format	data	mat3	sure	char[]: GetPakStatusStr format, full
+D_803B88D4	pakscr_pak_title_format	data	code	likely	char[]: DrawPickPak title format with the pak number
+D_803B88DC	pakscr_action_separator	data	mat3	likely	char[]: DrawFileDel separator of the two action words (MAT3 " ")
+D_803B88E0	pakscr_file_number_format	data	mat3	sure	char[]: DrawFileDel file number format (MAT3 "%d")
+D_803B88E4	pakscr_name_suffix_separator	data	code	likely	char[]: DrawFileDel separator before a file name's suffix
+D_803B88E8	pakscr_file_blocks_format	data	mat3	sure	char[]: DrawFileDel blocks format (MAT3 "%d")
+D_803B88EC	pakscr_free_pages_format	data	mat3	sure	char[]: DrawFileDel free pages format (MAT3 "%d")
+D_803B88F0	pakscr_blocks_needed_format	data	mat3	likely	char[]: DrawFileDel sprintf of the needed-blocks line (MAT3 builds the same line with sprintf)
+D_803B8900	pakscr_verify_name_separator	data	code	likely	char[]: DrawFileDelVerify separator before the suffix
+D_803B8904	pakscr_rumble_text_separator	data	code	likely	char[]: DrawRumblePak separator of its two texts
+D_803B8908	pakscr_damaged_text_separator	data	code	likely	char[]: DrawDamaged separator of its two texts
 # playerscr.c: the player (profile) select screen, draw side
 func_803A9EEC	playerscr_animText	func	mat3	sure	MAT3 animText@playerscr.c: switch on gPlayerState per player; N64 has no updatePlayer call and no FormatMC case
 func_803A7B58	playerscr_drawSelect	func	mat3	sure	MAT3 drawSelect@playerscr.c (state 0); prefixed, recordscr has a drawSelect
@@ -955,7 +957,7 @@ src/ovl_b/func_803908D0.c	src/ovl_b/ShotInit.c	file	mat3	sure	holds ShotInit
 src/ovl_b/func_8039133C.c	src/ovl_b/InitBattlePowerUps.c	file	mat3	sure	holds InitBattlePowerUps
 src/ovl_b/func_80391490.c	src/ovl_b/IncBattlePowerUps.c	file	mat3	sure	holds IncBattlePowerUps
 src/ovl_b/func_803914A8.c	src/ovl_b/PreInitBattlePowerUps.c	file	mat3	sure	holds PreInitBattlePowerUps
-src/ovl_b/func_803914B4.c	src/ovl_b/AddBattlePoint.c	file	mat3	sure	holds _AddBattlePoint
+src/ovl_b/func_803914B4.c	src/ovl_b/AddBattlePoint.c	file	mat3	sure	holds AddBattlePointInternal
 src/ovl_b/func_8039244C.c	src/ovl_b/RemoveHUDExtra.c	file	mat3	sure	holds RemoveHUDExtra
 src/ovl_b/func_80392894.c	src/ovl_b/animStuntPoints.c	file	mat3	sure	holds animStuntPoints
 src/ovl_b/func_80392FE4.c	src/ovl_b/animHealth.c	file	mat3	sure	holds animHealth
@@ -986,7 +988,7 @@ src/ovl_a/func_8039156C.c	src/ovl_a/InitSelectCarLoad.c	file	mat3	sure	holds Ini
 src/ovl_a/func_80396EE8.c	src/ovl_a/playerBeingDeleted.c	file	mat3	sure	holds playerBeingDeleted
 src/ovl_a/func_80396F44.c	src/ovl_a/playerBeingCreated.c	file	mat3	sure	holds playerBeingCreated
 src/ovl_a/func_80398BF0.c	src/ovl_a/pakscr_FindFile.c	file	mat3	sure	holds pakscr_FindFile
-src/ovl_a/func_8039A24C.c	src/ovl_a/_CancelFunc.c	file	mat3	sure	holds _CancelFunc
+src/ovl_a/func_8039A24C.c	src/ovl_a/CancelFunc.c	file	mat3	sure	holds CancelFunc
 src/ovl_a/func_8039A2A0.c	src/ovl_a/updateLicenseScreen.c	file	mat3	sure	holds updateLicenseScreen
 src/ovl_a/func_803A3A6C.c	src/ovl_a/anim_car_color_marker.c	file	mat3	sure	holds anim_car_color_marker
 src/ovl_a/func_803A3DA4.c	src/ovl_a/carscr_animNewSlider.c	file	mat3	sure	holds carscr_animNewSlider
@@ -1008,7 +1010,7 @@ src/ovl_a/groups/runtime_a_c93c_closure/group.c	src/ovl_a/groups/trackscr/tracks
 src/ovl_a/groups/runtime_a_callers_deep/group.c	src/ovl_a/groups/recordscr/recordscr.c	file	mat3	sure	holds MAT3 recordscr.c: updateRecordScreen and its statics
 src/ovl_a/groups/runtime_a_joint_transforms/group.c	src/ovl_a/groups/selectcarload/selectcarload.c	file	mat3	sure	holds MAT3 selectcarload.c: SetSelectTireSizes, CreateSelectCar, UpdateSelectCar
 src/ovl_a/groups/runtime_a_menu_cleanup/group.c	src/ovl_a/groups/playerscr_uninit/playerscr_uninit.c	file	mat3	sure	holds playerscr.c: playerscr_uninitScreen, playerscr_uninitButtons
-src/ovl_a/groups/runtime_a_menu_renderers/group.c	src/ovl_a/groups/pakscr_draw/pakscr_draw.c	file	mat3	sure	holds MAT3 pakscr.c: _AnimText and the _Draw* functions
+src/ovl_a/groups/runtime_a_menu_renderers/group.c	src/ovl_a/groups/pakscr_draw/pakscr_draw.c	file	mat3	sure	holds MAT3 pakscr.c: AnimText and the _Draw* functions
 src/ovl_a/groups/runtime_a_menu_state/group.c	src/ovl_a/groups/pakscr/pakscr.c	file	mat3	sure	holds MAT3 pakscr.c: updatePakScreen and the _Control* functions
 src/ovl_a/groups/runtime_a_option_eligibility/group.c	src/ovl_a/groups/startscr_text/startscr_text.c	file	mat3	sure	holds startscr.c: startscr_animText, startscr_animButtonText, startscr_optionValid
 src/ovl_a/groups/runtime_a_profile_menu/group.c	src/ovl_a/groups/playerscr_draw/playerscr_draw.c	file	mat3	sure	holds playerscr.c: the draw functions (playerscr_drawSelect, drawWait, drawCreatePlayer)
@@ -1020,147 +1022,74 @@ src/ovl_a/groups/runtime_a_seven_option_init/group.c	src/ovl_a/groups/modescr_in
 src/ovl_a/groups/runtime_a_stats_menu/group.c	src/ovl_a/groups/recordscr_draw/recordscr_draw.c	file	mat3	sure	holds recordscr.c: the draw functions (recordscr_drawSelect, drawScores, the stats pages)
 src/ovl_a/groups/runtime_a_text_helpers/group.c	src/ovl_a/groups/circuitscr/circuitscr.c	file	mat3	sure	holds MAT3 circuitscr.c: updateCircuitScreen and its statics
 # shared
-D_80394050	coinStuntPos	data	mat3	sure	s32[4][4][2]: MAT3 hudextra.c coinStuntPos (global: hud.c's coin counter reads it, as the game's coins code does at the same offsets)
 D_80152818	gGameCar	data	mat3	sure	the car records (MAT3 tCarData gGameCar[]); on the PC decoupled as pc_cars (DECOUPLE.md), also spelled player_array; left only in N64 branches and drafts
-D_8038A400	overlay_area	data	code	sure	u8[]: where both runtime images load, the start of the heap block the overlay loader reserves for them (to 0x803BB380); unloading frees it with _DeallocateMemory(overlay_area)
-D_8039B440	extras_overlay_bss_end	data	code	sure	one past image B's BSS: the loader's bssEnd for the HUD-extras overlay (InitMaxPath)
-D_803BAE20	frontend_overlay_bss_end	data	code	sure	one past image A's BSS: the loader's bssEnd for the front-end overlay
 D_80399AF8	gMineTextures	data	mat3	sure	u16[5]: MAT3 shots.c gMineTextures, the mine-cap textures per team and a neutral one (ShotInit); the game's mine code reads [4] and [team]
-D_80399B2C	mine_cap_object	data	code	likely	s32, gWprObjList[5]: the mine cap object (MAT3 WprObjNames[5]), which the game's mine code creates by this name; wave 2: gWprObjList[5]
-D_80399B30	mine_glow_object	data	code	likely	s32, gWprObjList[6]: the mine glow object (MAT3 WprObjNames[6]), the game's mine rings; wave 2: gWprObjList[6]
-D_80394F70	gShotObjList	data	mat3	sure	tStatList: MAT3 shots.c gShotObjList (ShotInit, _CreateShotObject); also the first datum of image B's BSS, which InitMaxPath passes to the overlay loader as bssStart
-D_80115F28	wrongWayPos	data	mat3	sure	s32[4][4][2]: MAT3 hud.c wrongWayPos; _AddBattlePoint and animStuntCoins start their moves there as MAT3 does
-D_80116178	hudObjAngle	data	mat3	sure	f32: MAT3 hudObjAngle, the yaw animWeaponIcons and animPowerupIcons give the HUD objects (YawUV)
-D_801170FC	gPauseState	data	mat3	sure	s32 (MAT3 enum kNumPauseStates): animBattlePoints advances only while !gOutOfTime && !gPauseState, as MAT3
-D_8011F844	collsize	data	mat3	sure	ColSize[] {colfront, colrear, colside, colheight} (MAT3 collsize[13]): ShotToCarCollision's car boxes
-D_80142690	gOutOfTime	data	mat3	sure	s8: MAT3 gOutOfTime (animBattlePoints, as MAT3)
-D_80142764	gGravity	data	mat3	sure	f32: MAT3 gGravity (UpdateShots, AnimateCase: falling shots and casings)
-D_8014A160	gPlayers_save	data	mat3	sure	tPadState[4] (MAT3 gPlayers): animBattlePoints prints (*gPlayers[plto].save)->name as MAT3
+D_80394F70	gShotObjList	data	mat3	sure	tStatList: MAT3 shots.c gShotObjList (ShotInit, CreateShotObject); also the first datum of image B's BSS, which InitMaxPath passes to the overlay loader as bssStart
+D_80115F28	wrongWayPos	data	mat3	sure	s32[4][4][2]: MAT3 hud.c wrongWayPos; AddBattlePointInternal and animStuntCoins start their moves there as MAT3 does
 D_80151AE8	gTexDefPtrs	data	mat3	sure	MAT3 gTexDefPtrs[64] {texDefs, count}: already gTexDefPtrs in the game image's symbol table at this address (same symbol, two spellings)
-D_80152038	gStuntPlayer	data	mat3	sure	tStuntPlayer[4]: MAT3 gStuntPlayer (animStuntPoints, UpdateHUDExtraPostCamera's stunt part)
-D_801543CA	gNumCars	data	mat3	sure	s16, volatile: MAT3 gNumCars (ProximityDamage, MissileLock loop over the cars)
-D_801543CC	gModelTime	data	mat3	sure	f32: MAT3 gModelTime (the stunt coins' fade, hudextra's #define)
 D_80143FD8	gTargetList_head	data	mat3	sure	interior label, &gTargetList.head (MAT3 tStatList gTargetList at D_80143FC8, head at +0x10): InitBattlePowerUps walks it where MAT3 walks gTargetList.head; wave 2: gTargetList.head
-D_80110D08	gCarModels	data	mat3	sure	model record pointer[13] (MAT3 _tCar *gCarModels[13]): SetSelectTireSizes reads gCarModels[slot % 13]'s tire positions, as MAT3
 D_801112DC	gFrontTireScale	data	mat3	sure	f32[5][13]: MAT3 gFrontTireScale, read [player+1][slot%13] by SetSelectTireSizes for tires 0-1
 D_801113E0	gRearTireScale	data	mat3	sure	f32[5][13]: MAT3 gRearTireScale, read [player+1][slot%13] by SetSelectTireSizes for tires 2-3
 D_8011418C	unitmatrix	data	mat3	sure	f32[4][3]: MAT3 unitmatrix, the identity copied by CopyUV/ScaleUV in every menu's buttons and track maps
 D_801164A1	cheat_menu_unlocked	data	code	sure	s8 interior label: gCheatActive[21] (gCheatActive at 0x8011648C; MAT3 gCheatActive[23]), the start screen's code: set by CheckForEgg in updateStartScreen, makes start-menu option 6 (cheats) valid
 D_80116DB4	pak_recognize_error_seen	data	code	likely	s8: set by SetPakError (display_settings) for error 10 (MAT3 kPS_ErrRecognize), cleared and tested by the pak warning screen (updateWarningScreen) (N64 only)
-D_80117420	gPlayerNameChars	data	mat3	sure	const char *: MAT3 gPlayerNameChars, the name-entry alphabet of controlCreatePlayer
-D_801174B4	gGameState	data	mat3	sure	u32: MAT3 gGameState; every screen's gSkipToGameState test compares with it (the tree already #defines gGameState to it)
 D_8012E6D8	gPlayerFiles	data	mat3	sure	tDLList (16 bytes: handle, dbl, numElements, head, tail): MAT3 gPlayerFiles, the profile list recordscr's updatePakInfo walks from .head
 D_8012E6E0	gPlayerFiles_head	data	mat3	sure	pointer interior label: gPlayerFiles.head (+8), read directly by playerscr and the warning screen
-D_8012E700	ObjInstanceList	data	mat3	sure	scene-object record[600] (MAT3 anon_flags_culling_60 ObjInstanceList[600]): the tree's comments already call D_8012E700 ObjInstanceList
-D_80139320	gCarParts	data	mat3	sure	CarParts[52]: MAT3 gCarParts, the per-slot model handles (frame, hood, brakes, tires) of CreateSelectCar/SetSelectTireSizes
-D_8013F1D8	gFogIntensity	data	mat3	sure	s8: MAT3 gFogIntensity; SetFogIntensity's alpha = gFogIntensity * 192 / 3
-D_8013F1D9	gMirrorControls	data	mat3	sure	s8: MAT3 gMirrorControls; updateTrackScreen negates the step when it is > 1, as MAT3
-D_8013FE90	gCarPaintJobInited	data	mat3	sure	s8[52]: MAT3 gCarPaintJobInited, zeroed per slot by InitVisualsCarScr
-D_801407B4	gPathMax	data	mat3	sure	s16[3]: MAT3 gPathMax, the path's bounding box maximum used by buildRaceTrackMaps
-D_801407D4	gPathMin	data	mat3	sure	s16[3]: MAT3 gPathMin, the path's bounding box minimum used by buildRaceTrackMaps
-D_801407F0	gResPath	data	mat3	sure	ResPath {numPts, pts, ...}: MAT3 gResPath, the path points of buildRaceTrackMaps (the tree already #defines gResPath to it)
-D_80140A04	gMirrorWaves	data	mat3	sure	s8: MAT3 gMirrorWaves, with gBackwards sets the carousel direction in showTrackSelect
 D_80140BDC	gNumModels	data	mat3	sure	u8 (volatile): MAT3 gNumModels, MBOX_FindObject_WORK's upper bound gNumModels-1 (the tree already names 0x80140BDC so)
-D_80140BF0	blit_sprites	data	code	likely	sprite record[] indexed by a blit's resource (+0x15 flags): loadTrackScreen sets flag 1 on the track picture's record (N64 only); its other users are game-image code
-D_80142726	gWind	data	mat3	sure	s8: MAT3 gWind, BlowFog's speed (gWind * 5)
 D_801427A0	gFogColor	data	mat3	sure	s8: MAT3 gFogColor, the fog colour index of SetFogIntensity (< 19 means follow gTrackNum)
 D_80142B08	gCarModelNums	data	mat3	sure	s16[52]: MAT3 gCarModelNums, set to the wave instance by LoadSelectCar; include/game/visuals.h already declares this name
-D_80143F68	gWheelTextures	data	mat3	sure	texture pointer[] (MAT3 tTexture *gWheelTextures[48]): UpdateSelectCar's rim texture by gTireRims (the N64 indexes with +3, MAT3 +24)
-D_80144D68	gPS_Files	data	mat3	sure	tDLList[4] (16-byte stride): MAT3 gPS_Files, the files per pak that _FindFile walks from gPS_Files[gPickedPak].head
 D_80146108	gOptions	data	mat3	sure	s8[]: MAT3 gOptions, the race options the track screen edits by index (21..40 saved per player)
-D_80146150	gJustPlayers	data	mat3	sure	profile handle[4] (MAT3 tPlayerProfile *gJustPlayers[4]): setPlayerState's &gJustPlayers[p] for "just play"
 D_801461F8	gGameStarted	data	mat3	sure	s8: MAT3 gGameStarted, cleared by updateTitleScreen and initGameState, set by updateStartScreen
 D_80149414	gLicenseShown	data	mat3	sure	s8: MAT3 gLicenseShown; updateLicenseScreen picks the next state by it and sets it to 1
-D_80149774	gIntroMovieShown	data	mat3	likely	s8: MAT3 gIntroMovieShown, zeroed by initGameState in MAT3's order (gGameStarted, gSofdecShown, gLicenseShown, gIntroMovieShown, pfsInited, lcdInited); counted to 2 by updateTitleScreen
 D_80149784	gActiveAutoEdges	data	mat3	sure	u32: MAT3 gActiveAutoEdges, all pads' auto-repeat edges (the menus' left/right steps)
-D_80149794	pfsInited	data	mat3	sure	s8: MAT3 pfsInited; updateLicenseScreen's first block, zeroed by initGameState
-D_801497C4	lcdInited	data	mat3	sure	s8: MAT3 lcdInited; set inside updateLicenseScreen's first block, zeroed by initGameState
-D_8014978C	gTrackNum	data	mat3	sure	s8: MAT3 gTrackNum, the selected track 0..18 (the tree already #defines gTrackNum to it)
-D_8014A108	gNumPlayers	data	mat3	sure	s16: MAT3 gNumPlayers (the tree #defines gNumPlayers to it in resurrect.c, but asm/us/blob/symbols.json gives the name gNumPlayers to 0x80166004: see conflicts)
-D_8014A110	gRace	data	mat3	sure	s32: MAT3 gRace (0 one race .. 6 battle), validOption's row in OptionValid
-D_8014A118	gPlayers	data	mat3	sure	player record[4] of 0x4C (MAT3 tPadState gPlayers[4]): controller, edges/levels, save profile
-D_80151CE8	gCheckpoints	data	mat3	sure	checkpoint header (startTime, loopPt, finishPt, startPt, numPoints): MAT3 gCheckpoints, loopPt read by buildRaceTrackMaps
-D_80152570	gBackwards	data	mat3	sure	s8: MAT3 gBackwards, with gMirrorWaves sets the carousel direction in showTrackSelect
-D_80153F20	gPathWave	data	mat3	sure	pointer: MAT3 gPathWave, GetWaveInstanceAddr(pathWaveIdx) in loadPathData
-D_80154188	HFOV	data	mat3	sure	f32: MAT3 HFOV, reset to 90 by playerscr's uninitScreen
-D_8015418C	controlScrActive	data	mat3	sure	s8[4]: MAT3 controlScrActive, the control screen per player in playerscr's controlControls
-D_801543D4	gCircuitPlayer	data	mat3	sure	u8: MAT3 gCircuitPlayer, the player whose save menuItemValid checks
+D_8014A108	gNumPlayers	data	mat3	sure	s16: MAT3 gNumPlayers, the player count every front-end screen and resurrect.c read (resurrect.c already #defines gNumPlayers to it); the loader's stale gNumPlayers at 0x80166004 goes (drop.tsv)
+D_8014A110	gRace	data	mat3	sure	s32 (enum kNumRaceTypes): the race type (2 ghost, 4 stunt, 6 battle); the loader names it gameplay_mode; #defined to this in resurrect.c; also used by AnimateFrame, AnimateRocketFlame, LoadTrack, StartArrow (+38)
+D_8014A118	gPlayers	data	mat3	sure	tPadState[4]: the players' pad states (first byte slot: fake_init writes gPlayers[0].slot; init_cars' car->player); the loader names it input_rec0; also used by animButtonText, audio_channel_reset, drone_target_update, func_800D5374 (+33)
 D_801543D8	gCircuitTracks	data	mat3	sure	struct[] of 5 bytes (trackNum, ?, mirror, fog, wind): MAT3 gCircuitTracks, read [gCircuitTrack].trackNum/.mirror by the track screen
 D_80154628	gCircuitTrack	data	mat3	sure	s8: MAT3 gCircuitTrack, the circuit's current track index
 D_80156944	gActiveLevels	data	mat3	sure	u32: MAT3 gActiveLevels, all pads' held buttons
 D_8015694C	gActiveEdges	data	mat3	sure	u32: MAT3 gActiveEdges, all pads' newly pressed buttons
-D_80156978	gContLevels	data	mat3	likely	u32[4]: held buttons per controller (copied into gPlayers[p].levels by the input code); MAT3 has two such arrays, gContLevels and gRealLevels, and which one this is was not shown
 D_80156994	expansion_pak_present	data	code	sure	s8: set to 1 by the heap setup when the Expansion Pak is there (docs/port/MEMORY.md, ULTRA.md); gates track 5 in OptionValid/updateTrackScreen and the extra waves (N64 only)
 D_80157244	gSoftReset	data	mat3	sure	s8: MAT3 gSoftReset, every screen's reset exit
-D_801613AB	gFrameScale	data	mat3	sure	s8: MAT3 gFrameScale, UpdateSelectCar scales by FSCLS[gFrameScale-1]
+D_801613AB	gFrameScale	data	mat3	sure	s8: the frame-scale mode 0..3 (update_car_object stretches by FSCLS); also used by func_800DE45C, func_80390DCC, func_8039C908, func_8039C910 (+1)
 D_8017A4E4	gText_single	data	mat3	sure	pointer interior label: gText.single (+4 into gText at 0x8017A4E0, MAT3 anon_numSingle_single_28 gText), the single-string table controlSelect indexes
 D_803BA7EB	gBlocksNeeded	data	mat3	sure	s8 at an odd address in image A's BSS: MAT3 gBlocksNeeded@pakscr.c (an int there), which MAT3 updateWarningScreen sets to PS_GetBlocks(profile size); the N64 updateLicenseScreen and updateWarningScreen store PS_GetBlocks of the N64 size in it
-D_801613E8	attract_alt_text_flag	data	code	likely	s8: when 1 the title screen (titlescr_animText) and the credits draw their alternate text (name as the game range's map has it)
 D_803B9A50	gTrophyMat	data	mat3	sure	tUVMatrix (f32[12]): MAT3 gTrophyMat@circuitscr.c, the trophy's matrix; the first BSS object of image A, so the overlay loader also passes it as image A's BSS start
-D_803B9AA0	gCarMatrices	data	mat3	sure	void *[48]: MAT3 gCarMatrices (carscr.c global), ZOID_NewMatrix per car in _InitScreen
 D_801164A4	gCheatState	data	mat3	sure	s16[21]: MAT3 gCheatState, state shown per cheat
-D_8017A4D8	gNoCarCollisions	data	mat3	sure	s8: MAT3 gNoCarCollisions, cheat 0
 D_8013FECC	gMineCones	data	mat3	sure	s8: MAT3 gMineCones, cheat 1
 D_8013FECD	gCarMines	data	mat3	sure	s8: MAT3 gCarMines, cheat 2
-D_801403D0	gNoAutoAbort	data	mat3	sure	s8: MAT3 gNoAutoAbort, cheat 4
-D_801427A1	gSuperSpeed	data	mat3	sure	s8: MAT3 gSuperSpeed, cheat 5
-D_80142B00	gInvincible	data	mat3	sure	s8: MAT3 gInvincible, cheat 6
-D_80140418	gInvisibleCar	data	mat3	sure	s8: MAT3 gInvisibleCar, cheat 7
 D_8014061A	gInvisibleTrack	data	mat3	sure	s8: MAT3 gInvisibleTrack, cheat 8
-D_8013F2FC	gNoBrakes	data	mat3	sure	s8: MAT3 gNoBrakes, cheat 9
-D_80142DB0	gSpecialTires	data	mat3	sure	s8: MAT3 gSpecialTires, cheat 10 (0 or 2)
-D_80143F1C	gMassiveMass	data	mat3	sure	s8: MAT3 gMassiveMass, cheat 11 (0-2)
-D_8017A634	gSuicideMode	data	mat3	sure	s8: MAT3 gSuicideMode, cheat 12 (0-2)
 D_801407B0	gResurrectInPlace	data	mat3	sure	s8: MAT3 gResurrectInPlace, N64 cheat 17 (GC 19); the tree already uses this name for this symbol (a #define alias)
 D_801407D0	gEnableTireScaling	data	mat3	sure	s8: MAT3 gEnableTireScaling, N64 cheat 19 (GC 21); car options 13/14 need it
-D_80110D70	CarTitles	data	mat3	likely	char *[]: MAT3 CarTitles, car display names (drawUnlockedCars, carscr animButtonText)
-D_8011103C	gCarHandling	data	mat3	sure	s8[5][13]: MAT3 gCarHandling, car setting 0; row 0 defaults, rows 1-4 per player
-D_80111080	gCarEngines	data	mat3	sure	s8[5][13]: MAT3 gCarEngines, setting 1 (IsEngineUnlocked clamp)
-D_8011119C	gCarTires	data	mat3	sure	s8[5][13]: MAT3 gCarTires, setting 2
-D_80111230	gCarFrame	data	mat3	sure	s8[5][13]: MAT3 gCarFrame, setting 3
-D_8011128C	gCarWings	data	mat3	sure	s8[5][13]: MAT3 gCarWings, setting 4 (clamped to 1 outside gRace 4)
-D_80111604	car_color_choice_a	data	code	likely	s8[5][13]: car setting 5, a palette index (car_color_palette) for colour marker 7; N64 only (GC has gCarPaintJob there)
+D_80110D70	CarTitles	data	mat3	sure	char *[13] car names (MAT3 cars.c CarTitles, 52 bytes); DrawUnlocked's unlocked-car lines
+D_8011103C	gCarHandling	data	mat3	sure	s8[5][13]: handling per (0 drones, 1+slot humans) x body (init_cars, model +0xB); also used by animButtonText, draw_number, func_8039E444, func_803A0FD8 (+1)
+D_80111080	gCarEngines	data	mat3	sure	s8[5][13]: engine type per (drones, humans) x body (init_cars, model +0xC); also used by animButtonText, draw_number, func_8039E444, func_803A0FD8 (+1)
+D_8011119C	gCarTires	data	mat3	sure	s8[5][13]: tire type per (drones, humans) x body (init_cars, model +0xD); also used by animButtonText, draw_number, func_8039E444, func_8039EF08 (+2)
+D_80111230	gCarFrame	data	mat3	sure	s8[5][13]: frame per (drones, humans) x body (init_cars, model +0xE); also used by animButtonText, draw_number, func_8039E444, func_803A0FD8 (+1)
+D_80111604	car_color_choice_a	data	code	likely	s8[5][13]: car setting 5, a palette index (paint_colors_rgb) for colour marker 7; N64 only (GC has gCarPaintJob there)
 D_80111648	car_color_choice_b	data	code	likely	s8[5][13]: car setting 6, palette index for marker 8; N64 only
 D_8011168C	car_color_choice_c	data	code	likely	s8[5][13]: car setting 7, palette index for marker 9; N64 only
-D_8011157C	gTireRims	data	mat3	likely	s8[5][13]: MAT3 gTireRims, N64 car setting 8 (GC 6)
-D_801115C0	gCarHorn	data	mat3	likely	s8[5][13]: MAT3 gCarHorn, N64 car setting 9 (GC 7)
-D_80111784	gNumCircuitTracks	data	mat3	sure	s32[4]: MAT3 gNumCircuitTracks, races per circuit type
-D_801146AC	playerTextColor	data	mat3	likely	s32[4]: MAT3 playerTextColor, text colour index per player
+D_8011157C	gTireRims	data	mat3	sure	s8[5][13]: tire rims per (drones, humans) x body (init_cars, model +0xF); also used by animButtonText, draw_number, func_80390DCC, func_8039EF08 (+3)
+D_801115C0	gCarHorn	data	mat3	sure	MAT3 gCarHorn (car setting 9 on the N64)
 D_801146BC	flashColors	data	mat3	sure	tRGBA[2]: MAT3 flashColors (TB_FlashTextColors pair)
-D_801147C8	gDefaultNames	data	mat3	sure	char *[]: MAT3 gDefaultNames, drone names (drawReview)
-D_80116FE4	gPasswordAlphabet	data	mat3	sure	u8 *: MAT3 gPasswordAlphabet, the 32 letters of codes
 D_8011A8D8	gTrackTitles	data	mat3	sure	char *[]: MAT3 gTrackTitles
-D_8011EAD0	gPS_PakName	data	mat3	sure	char *[4]: MAT3 gPS_PakName, pak names
-D_801226C0	car_color_palette	data	code	likely	Rgb[32]: the car colour palette anim_car_color_marker tints its swatches from
-D_8012E6F8	gLimboGhosts	data	mat3	sure	tGhostFile **[]: MAT3 gLimboGhosts, three per track and direction (limboGhosts = gLimboGhosts + (track + backwards*6)*3)
-D_8012E708	ObjInstanceList_mat	data	mat3	likely	void *: alias of ObjInstanceList[0].mat (+8; the tree names ObjInstanceList itself at the node base, 8 bytes lower); updateCarComponents indexes the instances through it
+D_8011EAD0	gPS_PakName	data	mat3	sure	char *[4] controller pak names by port (MAT3 paksysdc gPS_PakName, 16 bytes); DrawGhost
 D_80138664	gCarTeamColor	data	mat3	sure	s8[]: MAT3 gCarTeamColor, paint per team in battle
 D_801426EC	gGhostSelect	data	mat3	sure	s8: MAT3 gGhostSelect (setGhosts, trackscr case 1)
-D_80142724	gNumDrones	data	mat3	sure	s16: MAT3 gNumDrones (trackscr case 17)
-D_80142760	gDeathMode	data	mat3	sure	s8: MAT3 gDeathMode (trackscr case 20); the tree already uses this name for this symbol (a #define alias)
-D_80146111	gOptions_at_9	data	mat3	sure	s8: alias of gOptions[9], the metric switch (MAT3 recordscr: if (gOptions[9]) distance * 10 / 6)
-D_80146180	gDriveHulk	data	mat3	sure	s8[4]: MAT3 gDriveHulk, cleared per player by _InitScreen
+D_80146111	gOptions_metric	data	mat3	sure	s8 interior label: gOptions[9], the metric-units option (MAT3 animOdometer and recordscr test gOptions[9]); wave 2 writes gOptions[9]
 D_80150B70	gCamera	data	mat3	sure	anon_mat_n64_98[4]: MAT3 gCamera; already this address's name in the game image's symbol table
-D_80150DD8	gUnlockedTracks	data	mat3	sure	u8[]: MAT3 gUnlockedTracks (drawUnlockedTracks, resetEnabled)
-D_80150E30	gUnlockedCars	data	mat3	sure	u8[]: MAT3 gUnlockedCars (drawUnlockedCars, IsCarUnlocked)
-D_80150E88	gUnlockedCircuits	data	mat3	sure	u8[]: MAT3 gUnlockedCircuits (resetEnabled, IsCircuitUnlocked)
-D_80150EB8	gUnlockedTrans	data	mat3	sure	u8[]: MAT3 gUnlockedTrans (drawUnlockedParts, IsTransUnlocked)
-D_80150ED8	gUnlockedEngines	data	mat3	sure	u8[]: MAT3 gUnlockedEngines (drawUnlockedParts, IsEngineUnlocked)
-D_80150EFC	gCatchup	data	mat3	sure	s8: MAT3 gCatchup (trackscr animNewSlider option 19)
-D_80150F00	gUnlockedTires	data	mat3	sure	u8[]: MAT3 gUnlockedTires
-D_80150F40	gUnlockedFrames	data	mat3	sure	u8[]: MAT3 gUnlockedFrames
-D_80150F7C	gForceUnlockedCircuits	data	mat3	likely	u8[]: MAT3 gForceUnlockedCircuits (resetEnabled writes [1], [2], [3])
-D_80150F88	gTotalRaceStats	data	mat3	sure	tRaceStats[12] (96 B): MAT3 gTotalRaceStats, used when gStatPlayer is 0
-D_80151410	gTotalStuntStats	data	mat3	sure	tStuntStats[] (64 B): MAT3 gTotalStuntStats
-D_80151578	gTotalBattleStats	data	mat3	sure	tBattleStats[] (12 B): MAT3 gTotalBattleStats
-D_801515F8	gTotalObstacleStats	data	mat3	sure	tObstacleStats[] (24 B): MAT3 gTotalObstacleStats
-D_80151618	gTotalCircuitStats	data	mat3	sure	tCircuitStats[] (28 B): MAT3 gTotalCircuitStats
 D_80151AD0	gNumWindows	data	mat3	sure	s16: MAT3 gNumWindows; already this address's name in the game image's symbol table
 D_80152020	gGhostFiles	data	mat3	sure	list: MAT3 gGhostFiles (setGhosts, getNextGhost)
-D_80152028	gGhostFiles_head	data	mat3	likely	tGhostFile **: alias of gGhostFiles.head (_GetPakStatusStr walks it)
-D_80152030	gDifficulty	data	mat3	sure	s8: MAT3 gDifficulty (trackscr animNewSlider option 18)
+D_80152028	gGhostFiles_head	data	mat3	sure	tGhostFile **: interior label, gGhostFiles.head (+8) (MovePlayerFile, GetPakStatusStr, FindGhosts walk it)
 D_80152698	gGhosts	data	mat3	sure	tGhostFile **[4]: MAT3 gGhosts
-D_80152734	gNumLaps	data	mat3	sure	s16: MAT3 gNumLaps (trackscr case 2); the tree already uses this name for this symbol (a #define alias)
-D_80154450	gCircuitCars	data	mat3	sure	tCircuitCar[6]: MAT3 gCircuitCars (drawReview, getPlaceStr, getPointsStr)
-D_80154640	gCircuitSize	data	mat3	sure	s8: MAT3 gCircuitSize (resetEnabled, getToGoStr)
-D_8017A4E0	gText	data	mat3	sure	anon_numSingle_single_28: MAT3 gText, the language text tables; the tree already uses this name for this symbol (a #define alias)
+D_8017A4E0	gText	data	mat3	sure	the text bank (anon_numSingle_single_28: single[], tab[], taba[]); the symbol table also names this address countdown_state, to merge into this name; animgear.c already #defines gText to it
+
+# reconciliation (wave 1): rows placed in this area by docs/code/NAMING.md (a shared datum goes to the area
+# whose functions use it most), and alias rows: the address spelling of a symbol mapped above
+D_8002EB94	gFrameSeconds	data	mat3	sure	volatile f32: seconds the last frame took (MAT3 gFrameSeconds; steady_move_cam/View3Cam step by it as GC's do); also used by audio_channel_setup, camera_scene_manager, camera_track_spline, camera_update (+34)
+active_player_count	gNumPlayers	data	mat3	sure	alias: the loader's name of D_8014A108 (MAT3 gNumPlayers); both rows map to gNumPlayers
+gameplay_mode	gRace	data	mat3	sure	existing name of D_8014A110: MAT3 game.c gRace (race type: 1 practice, 2 ghost, 4 stunt, 5 obstacle, 6 battle)
+input_rec0	gPlayers	data	mat3	sure	the loader's name of D_8014A118 (same datum): tPadState gPlayers[4]
+player_array	gGameCar	data	mat3	sure	alias: the loader's name of D_80152818 (MAT3 gGameCar); func_80392FE4 #defines gGameCar to it
+countdown_state	gText	data	mat3	sure	the loader table's name for 0x8017A4E0 (D_8017A4E0): MAT3 gText, the text bank, nothing to do with the countdown; both merge
+countdown_object	gText_single	data	mat3	sure	the loader table's name for 0x8017A4E4 (D_8017A4E4): gText.single, the single-string table (gText + 4); both merge

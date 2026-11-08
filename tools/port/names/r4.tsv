@@ -1,11 +1,14 @@
 # r4: the game image from 0x800CD798 up to 0x800E847C (names-r4, wave 1 of PC-only, 2026-11-08).
+# Reconciled with the other areas' maps (wave 1): docs/code/NAMING.md has the conventions, which override this
+# header where they differ, and every decision; each old name has one row over all the maps; labels to delete
+# rather than rename are in drop.tsv.
 # Format: docs/port/PCONLY.md section 3. The readable map of this area: docs/code/r4.md.
 # Conventions used here: MAT3 names verbatim; a MAT3 static's leading underscore is dropped (reserved in C);
 # a MAT3 file static whose name other MAT3 files also use gets its screen prefix (audio_, controls_, options_,
 # pause_, save_, password_, pakerr_, controlsys_), as audio_initScreen and options_TitlePane already do.
 # Empty retail stubs (jr ra; nop, never called: the remains of inlined statics) are named after the static when
 # it is known, else stub_before_/stub_after_ their neighbour.
-old	new	kind	source	confidence	note
+# old	new	kind	source	confidence	note
 
 # ===== functions, in address order
 # save.c: player profile settings (MAT3 save.c; N64 tSaveData is GC's minus one control byte, raceType at 0x47)
@@ -20,7 +23,7 @@ func_800CDDE8	GetPlayerCarTrans	func	mat3	sure	MAT3 save.c GetPlayerCarTrans (na
 func_800CDE38	GetPlayerCarView	func	mat3	sure	MAT3 save.c GetPlayerCarView: settings record's carView (the byte after trans)
 func_800CDE88	GetPlayerCar	func	mat3	sure	MAT3 save.c GetPlayerCar: settings record's car (the byte after track)
 func_800CDED8	GetPlayerRaceType	func	mat3	sure	MAT3 save.c GetPlayerRaceType: the save data's raceType byte
-menu_save_options	SaveInit	func	mat3	sure	MAT3 save.c SaveInit: binds the four default profiles, _InitPlayer + "PLAYER %d" names, InitLL of the player/ghost file lists, the limbo ghost buffers
+menu_save_options	SaveInit	func	mat3	sure	MAT3 save.c SaveInit: binds the four default profiles, InitPlayer + "PLAYER %d" names, InitLL of the player/ghost file lists, the limbo ghost buffers
 # collision.c
 menu_load_options	ForceApart	func	mat3	sure	MAT3 collision.c ForceApart: pushes a car and the other of the pair apart along dir (BodyVector into each car's frame, +/- centerForce)
 menu_options_screen	setFBCollisionForce	func	mat3	sure	MAT3 collision.c setFBCollisionForce: beside/behind tests on bodyR, ForceApart on deep overlap, relative-velocity force split by mass; N64 adds the battle hit rule
@@ -244,7 +247,7 @@ func_800E6AE8	ReadShifter	func	mat3	sure	MAT3 controls.c _ReadShifter (manual ge
 func_800E6AF0	stub_before_model_iteration	func	code	likely	empty retail stub (jr ra), never called: an mdrive.c static inlined into model_iteration
 func_800E7030	stub_before_InitControlSys	func	code	likely	empty retail stub (jr ra), never called: an mdrive.c static inlined into model_iteration
 func_800E7038	InitControlSys	func	mat3	sure	MAT3 controlsys.c InitControlSys: controllers active and stick edges on the first call, stick ranges reset, the SI lock (_InitSemaphore inline), UpdateControls
-func_800E7134	ControlIRQ	func	mat3	sure	MAT3 controlsys.c ControlIRQ: InitControlSys if needed, per pad buttons and stick, stick range growth, edges and levels, _PotRange stick floats
+func_800E7134	ControlIRQ	func	mat3	sure	MAT3 controlsys.c ControlIRQ: InitControlSys if needed, per pad buttons and stick, stick range growth, edges and levels, PotRange stick floats
 func_800E762C	init_model_task	func	mat3	sure	MAT3 mdrive.c init_model_task(frames): gModelIteration = -frames, gModelTime, each record's iteration, time and dt (ghost cars keep their own dt)
 func_800E7710	init_controllers	func	code	sure	N64-only: SI event queue, osSetEventMesg(OS_EVENT_SI), osContInit under the SI lock, the four rumble records cleared
 render_thread_entry	ModelThread	func	mat3	sure	MAT3 model.c ModelThread (N64 thread form): init_model_task(0), then per retrace ControllerUpdate and model_iteration (the group's own header)
@@ -292,9 +295,9 @@ D_8011121C	gTireSideForce	data	mat3	sure	f32[5] by tire_type; MAT3 CalcTireSideF
 D_80111274	carDurability	data	mat3	sure	f32[] by frame type; MAT3 CalcMass/carsetup's carDurability
 D_801112D0	gWingSizes	data	mat3	sure	f32[] by wing setting; MAT3 carsetup's gWingSizes
 D_801114E4	gCarDifferential	data	mat3	sure	s8[13] by car type: bit 0 magicdiff, bit 1 nothrusttorque; MAT3 carsetup's gCarDifferential
-D_801115CD	gCarHornByPlayer	data	code	likely	s8[4][13]: interior name, gCarHorn's rows 1-4 (one row of 13 cars after gCarHorn at 0x801115C0): the horn per player and car type
+D_801115CD	gCarHorn_players	data	code	likely	s8[4][13]: interior name, gCarHorn's rows 1-4 (one row of 13 cars after gCarHorn at 0x801115C0): the horn per player and car type
 D_801116D0	gTune	data	mat3	sure	tune records (0x2C each: diffbl, weight_scale, torque_scale, trans_scale, ... antispin, drift) by handling; MAT3 gTune
-D_801116D4	gTuneWeightScale	data	code	likely	f32 interior name: gTune[0].weight_scale (stride 0x2C), read by CalcMass
+D_801116D4	gTune_weight_scale	data	code	likely	f32 interior name: gTune[0].weight_scale (stride 0x2C), read by CalcMass
 D_801118E4	gControlTable	data	mat3	sure	u32[]: the game button bit of each control code; MAT3 controlsys.c gControlTable
 D_80111950	cont_bit_pattern	data	code	sure	u8: the osContInit bit pattern of the controllers present; InitControlSys waits while it reads 0x80
 D_80111954	gInitControls	data	mat3	sure	s8: controller system initialised (ControlIRQ calls InitControlSys while clear); MAT3 controlsys.c gInitControls
@@ -337,7 +340,7 @@ D_80116DA0	exitOptionScreen	data	mat3	sure	s32; MAT3 optionscr.c exitOptionScree
 D_80116DA4	options_gTitlePane	data	mat3	sure	the title pane; MAT3 optionscr.c gTitlePane
 D_80116DB0	options_buttonColor	data	code	likely	RGBA union: the option buttons' colour (alpha per button) in updateButtons
 D_80116DB8	pakerr_sInited	data	mat3	sure	s8: SetPakError's function-local static (MAT3 SetPakError sInited)
-D_80116DBC	dimMultiBlit	data	mat3	sure	blit definition[1]: PS_ErrorFunc's dimming blit (MAT3 PS_ErrorFunc static dimMultiBlit)
+D_80116DBC	PS_ErrorFunc_dimMultiBlit	data	mat3	sure	blit definition[1]: PS_ErrorFunc's dimming blit (MAT3 PS_ErrorFunc static dimMultiBlit)
 D_80116FE8	gInversePasswordAlphabet	data	mat3	sure	u8[256]: character -> 5-bit value (0xFF invalid); MAT3 password.c
 D_801170E8	gNumBytes	data	mat3	sure	u16: password buffer size in bytes; MAT3 password.c gNumBytes
 D_801170EC	gDataBits	data	mat3	sure	u16: payload bits; MAT3 password.c gDataBits
@@ -439,9 +442,9 @@ D_80149B77	gStickEdges_p3	data	mat3	sure	s8 interior name: gStickEdges[3]
 D_80149D9C	gMenuCount	data	mat3	sure	s16; MAT3 optionscr.c gMenuCount
 D_80149DD4	gConflictExists	data	mat3	sure	s8[4]; MAT3 controlscr.c gConflictExists
 D_8014A10C	prevControlScrActive	data	mat3	sure	s8[4]; MAT3 controlscr.c prevControlScrActive
-D_8014A96C	model0_modelrun	data	code	likely	s16 interior name: model record 0's fastin.modelrun (model array + 0x71C); only FinishResurrecting's compiled-out debug guard reads it
+D_8014A96C	model_modelrun	data	code	likely	s16 interior name: model record 0's fastin.modelrun (model array + 0x71C); only FinishResurrecting's compiled-out debug guard reads it
 D_80150F18	si_event_msgs	data	code	sure	OSMesg[8]: buffer of the SI event queue
-D_80152730	si_lock_msg	data	code	sure	OSMesg: the SI lock queue's one message
+D_80152730	controlsys_lock_msg	data	code	sure	OSMesg[1]: controlsys_lock_queue's message buffer
 D_8015273A	gStuntsDone_lo	data	code	sure	s16 interior name: the low half of gStuntsDone (big-endian +2), are_all_cars_stopped's stunt answer (PC reads the s32's low half)
 D_8015273C	options_cursorSpeed	data	mat3	sure	f32: options updateButtons' function-local static cursorSpeed
 D_80152740	options_scrollSpeed	data	mat3	sure	f32: options updateButtons' function-local static scrollSpeed
@@ -474,29 +477,27 @@ tModelData.0x50	w[1]	field	mat3	sure	f32 yaw rate (checkok)
 tModelData.0x64	tireForce	field	mat3	sure	f32[4][3] (checkok's force magnitudes, 0x64 + 12 i)
 tModelData.0x9C	tireV[0][2]	field	mat3	sure	f32, stride 0xC: tireV[i][2] (FinishResurrecting)
 tModelData.0xC4	bodyForce	field	mat3	sure	f32[4][3]; checkok reads bodyForce[i][1] at 0xC8, 0xD4, 0xE0, 0xEC
-tModelData.0xF4	bodyR[0][0]	field	mat3	sure	f32 (PointInBody)
+tModelData.0xF4	bodyR[0][0]	field	mat3	sure	f32[4][3] bodyR from +0xF4 (PointInBody; init_cars value244..value288)
 tModelData.0xFC	bodyR[0][2]	field	mat3	sure	f32 (PointInBody)
 tModelData.0x118	bodyR[3][0]	field	mat3	sure	f32 (PointInBody)
 tModelData.0x120	bodyR[3][2]	field	mat3	sure	f32 (PointInBody)
 tModelData.0x2EC	uvs	field	mat3	sure	f32[3][3] orientation rows (make_super_speed); checkok reads uvs[1][1] at 0x2FC
 tModelData.0x3C4	steergain	field	mat3	sure	f32 (steer_constants)
 tModelData.0x3C8	trail	field	mat3	sure	f32 (steer_constants)
-tModelData.0x3F0	magvel	field	mat3	sure	f32 speed (checkok, UpdateModel)
 tModelData.0x3F4	gear	field	mat3	sure	s16 (upshift, downshift, find_best_gear, FinishResurrecting)
 tModelData.0x3F6	commandgear	field	mat3	sure	s16 (FinishResurrecting)
 tModelData.0x400	catchup	field	mat3	sure	f32 rubber-band scale (SetCatchup, UpdateModel's time_fudge)
 tModelData.0x41C	dwangvel	field	mat3	sure	f32 driveline angular velocity (find_best_gear)
 tModelData.0x428	transratio	field	mat3	sure	f32 (transmission)
 tModelData.0x42C	totalratio	field	mat3	sure	f32 (transmission)
-tModelData.0x430	tires[0].tradius	field	mat3	sure	f32, stride 0x5C: tires[i].tradius (FinishResurrecting)
+tModelData.0x430	tires[0].tradius	field	mat3	sure	f32, stride 0x5C: tires[i].tradius (raw reads 0x430/0x48C/0x4E8/0x544 in the spark animators, FinishResurrecting)
 tModelData.0x478	tires[0].angvel	field	mat3	sure	f32, stride 0x5C: tires[i].angvel (FinishResurrecting)
 tModelData.0x5BC	weight	field	mat3	sure	f32 (steer_constants, accelerations)
 tModelData.0x5C8	wheelbase	field	mat3	sure	f32 (steer_constants)
 tModelData.0x5EC	airdist	field	mat3	sure	f32[4] (checkok's rollover test)
 tModelData.0x624	roadboost[0]	field	mat3	sure	s16 (UpdateModel's time_fudge)
-tModelData.0x63C	crashthreshold	field	mat3	sure	f32 (checkok)
+tModelData.0x63C	crashthreshold	field	mat3	sure	f32; setMiniFBCollisionForce's 0.8 * crashthreshold (unk63C)
 tModelData.0x640	crashflag	field	mat3	sure	s8 (AreWeSolid, CheckCrash, checkok, UpdateModel)
-tModelData.0x641	topscrape	field	mat3	sure	s8 (checkok)
 tModelData.0x642	thumpflag	field	mat3	sure	s8 (checkok)
 tModelData.0x644	thump_side	field	mat3	sure	s16 (checkok)
 tModelData.0x658	shifttime	field	mat3	sure	f32 (upshift, downshift)
@@ -514,7 +515,6 @@ tModelData.0x724	mainin.clutch	field	mat3	sure	f32 (SetClutch)
 tModelData.0x728	mainin.brake	field	mat3	sure	f32 (SetClutch)
 tModelData.0x72C	mainin.throttle	field	mat3	sure	f32 (SetClutch)
 tModelData.0x730	mainin.gear	field	mat3	sure	s8 (FinishResurrecting)
-tModelData.0x7C6	slot	field	mat3	sure	s16 (FinishResurrecting, checkok, UpdateModel)
 tModelData.0x7C8	in_game	field	mat3	sure	s16 (BlinkResurrectingCars, dead_reckon_all)
 tModelData.0x7CC	drone_type	field	mat3	sure	s8: 2 human (checkok)
 tModelData.0x7D0	rpm	field	mat3	sure	s16 (SetClutch, mcommunication)
@@ -536,17 +536,13 @@ tCarData.0x309	solid	field	mat3	sure	s8 (BlinkResurrectingCars); N64 offsets aft
 tCarData.0x30C	collide_time	field	mat3	sure	f32 (BlinkResurrectingCars, UpdateModel)
 tCarData.0x310	collide_count	field	mat3	sure	s8 (BlinkResurrectingCars)
 tCarData.0x311	collide_state	field	mat3	sure	s8 (BlinkResurrectingCars)
-tCarData.0x358	crash_state	field	mat3	sure	s8: 0 none, 1 wrecked, 2 respawn (CheckCrash, UpdateModel)
-tCarData.0x359	dead	field	mat3	sure	s8 (BlinkResurrectingCars, UpdateModel)
 tCarData.0x380	player	field	mat3	sure	the car's player record or NULL for drones (UpdateModel); 8 bytes on the PC
 tCarData.0x388	battle.damageThisFrame	field	mat3	sure	s16 (UpdateModel's battle rumble, cleared after use)
 tPadState.0x1	controller	field	mat3	sure	u8 (UpdateModel's rumble record index); N64 record 0x4C
 tPadState.0x4	edges	field	mat3	sure	u32 newly pressed buttons (UpdateCarSounds' horn)
 tPadState.0x38	controls	field	mat3	sure	u32 element controls[8], the horn button on the N64 (UpdateCarSounds); controls[10] start at 0x18
 tPadState.0x48	save	field	mat3	sure	the player's profile handle (UpdateModel's rumble setting)
-tPlayerProfile.0x8	fileh	field	mat3	sure	the profile's pak file (SavePlayerRaceType)
 tPlayerProfile.0x2B	rumble	field	mat3	sure	s8 rumble setting 0/1/2 (UpdateModel); N64 offset (GC 0x2C)
-tPlayerProfile.0x2C	datah	field	mat3	sure	the profile's save data handle (the Get/SavePlayer* functions); N64 offset (GC 0x48)
 tSaveData.0x47	raceType	field	mat3	sure	u8 (GetPlayerRaceType, SavePlayerRaceType); N64 offset (GC 0x48)
 tSaveData.0x4E	raceSettings.trans	field	mat3	sure	u8 (GetPlayerCarTrans); the four settings records start at 0x48, 0x5C, 0x6C, 0x80 on the N64
 tSaveData.0x4F	raceSettings.carView	field	mat3	sure	u8 (GetPlayerCarView)
@@ -561,9 +557,7 @@ anon_sound_vol_14.0x4	vol	field	mat3	sure	f32 (InitSoundState)
 anon_sound_vol_14.0x8	pitch	field	mat3	sure	f32 (InitSoundState)
 anon_sound_vol_14.0xC	lrpan	field	mat3	sure	f32 (InitSoundState)
 anon_sound_vol_14.0x10	fbpan	field	mat3	sure	f32 (InitSoundState)
-tAudioMsg.0x2	hdr.cmd	field	mat3	sure	s8 command number (AudResumeAllEffects 9, AudMono 11, AudPauseAllEffects 7)
-tAudioMsg.0x4	mono.mono	field	mat3	sure	s8 (AudMono)
-tMemoryChunk.0x16	locked	field	mat3	sure	u8 lock count (lock_memory, unlock_memory)
+tAudioMsg.0x2	hdr.cmd	field	mat3	sure	s8 the command number (MAT3 tAudioMsg.hdr.cmd): 0 play song, 1 kill song, 7 pause all, 9 resume all, 10 master volume, 11 mono
 PakError.0x0	done	field	mat3	likely	s8 (ControlChoice, ControlPakErrNQA): gPakError record, N64 layout (0x2C; MAT3 anon_done_choice1_34)
 PakError.0x1	choice1	field	mat3	likely	s8 (ControlChoice)
 PakError.0x20	edges	field	mat3	likely	u32 buttons copied from gActiveEdges by ShowPakError (N64 offset; GC 0x28)
@@ -705,7 +699,6 @@ src/blob/groups/range_cd798	src/blob/groups/save_coins	file	mat3	sure	group of S
 src/blob/groups/records_cd8ec	src/blob/groups/save_stats	file	mat3	sure	group of SavePlayerStats (save.c)
 src/blob/groups/menu_4	src/blob/groups/save_track	file	mat3	sure	group of SavePlayerTrack (save.c)
 src/blob/groups/menu_3	src/blob/groups/save_car_trans	file	mat3	sure	group of SavePlayerCarTrans (save.c)
-src/blob/groups/menu_save_options	src/blob/groups/save_init	file	mat3	sure	group of SaveInit with the other save.c functions it needs (and GhostStart's props.c)
 src/blob/groups/car_resistance	src/blob/groups/carsetup	file	mat3	sure	group of carsetup (initiali.c)
 src/blob/groups/path_D169C	src/blob/groups/get_res_pt	file	mat3	sure	group of GetResPt (resurrect.c)
 src/blob/groups/race_countdown_display	src/blob/groups/passed_cp	file	mat3	sure	group of PassedCP (checkpoint.c)
@@ -727,7 +720,6 @@ src/blob/groups/func_800E681C	src/blob/groups/model_controls_input	file	mat3	sur
 src/blob/groups/func_800E7A98	src/blob/groups/destroy_heap	file	code	sure	destroy_heap with the heap context (memsys)
 src/blob/groups/heap_max	src/blob/groups/largest_heap_chunk	file	mat3	sure	LargestAvailableMemoryHeapChunk (memsys.c)
 src/blob/groups/audio_heap	src/blob/groups/memsys	file	mat3	sure	InitMemory, InitHeap, create_heap and the allocator (memsys)
-src/blob/groups/controller_poll	src/blob/groups/controlsys	file	mat3	likely	InitControlSys, ControlIRQ with controller_poll (all controlsys.c)
 src/blob/groups/credits_scroll_grp	src/blob/groups/hud_text_anims	file	code	likely	mostly the HUD's text animators (other areas) with audio_TitlePane and options' copies; its name was my area's wrong label
 
 # Not function starts: names in asm/us/*/symbols.json in this range that sit inside other functions or are
@@ -849,204 +841,86 @@ src/blob/groups/credits_scroll_grp	src/blob/groups/hud_text_anims	file	code	like
 
 # shared
 # Data (and two types) also used by functions outside this area, and existing names of them that are wrong.
-D_8002AFB4	gRetraceRate	data	mat3	sure	f32: retraces a second (SetPakError's 3-second deadline); MAT3 timer.c gRetraceRate
 D_8002AFB8	gRetraceTime	data	mat3	sure	f32: seconds a retrace (init_model_task's gModelTime); MAT3 timer.c gRetraceTime
-D_8002E8E8	gScheduler	data	code	sure	the OSSched: its frame count is read by SetPakError, ModelThread registers with it (MAT3 sched.c calls it sc); src/rom/lib_1050_sdk.c already names this datum gScheduler
 D_8002EB90	gSeconds	data	mat3	sure	f32: game seconds (PassedCP's finish camera time, the horn timer); MAT3 timer.c gSeconds
-D_8002EB94	gFrameSeconds	data	mat3	sure	f32: seconds this frame (are_all_cars_stopped's death wait); MAT3 timer.c gFrameSeconds
 D_80035458	si_event_queue	data	code	sure	OSMesgQueue: the SI event queue init_controllers makes; ControllerUpdate drains it
-D_8010FFC0	gGameSoundsEnabled	data	mat3	sure	s8; MAT3 audio.c gGameSoundsEnabled
-D_80110030	audio_song_names	data	code	likely	char *[12]: the song titles the audio screen shows
-D_8011025C	gListeners	data	mat3	sure	the listener pool (AudAddListener returns -1 without it); MAT3 audiomgr.c gListeners
-D_801102B4	audio_buttonInfo	data	mat3	sure	menu buttons [12]; MAT3 audioscr.c buttonInfo
-D_801105B4	audio_buttonsInited	data	mat3	sure	s32; MAT3 audioscr.c buttonsInited
+D_8010FFC0	gGameSoundsEnabled	data	mat3	sure	s8; MAT3 audio.c gGameSoundsEnabled (EnableGameSounds sets, PlayGameSound/PlayTargetSound test); groups/countdown has a #define of the name to this symbol
+D_801102B4	audio_buttonInfo	data	mat3	sure	tMenuButton[12] (0x40 each); MAT3 audioscr.c static buttonInfo (angle, mat.pos used by audio_animButtonText)
+D_801105B4	audio_buttonsInited	data	mat3	sure	s32; MAT3 audioscr.c static buttonsInited (audio_animText draws the 3D buttons' text when 1)
 D_80110634	audio_panesCreated	data	mat3	sure	s8; MAT3 audioscr.c panesCreated
 D_80110638	gAudioMenuSelect	data	mat3	sure	s32: the selected row; MAT3 audioscr.c gAudioMenuSelect
 D_80110640	audio_gSong	data	mat3	sure	s32: the song chosen on the audio screen (12 random, 13 off on the N64); MAT3 audioscr.c gSong
-D_8011064C	audio_gControllerRemoved	data	mat3	sure	s8; MAT3 audioscr.c gControllerRemoved
-D_80110650	audio_menuRect	data	mat3	sure	menu rectangle (w, h, x, cx); MAT3 audioscr.c menuRect
+D_8011064C	audio_gControllerRemoved	data	mat3	sure	s8; MAT3 audioscr.c static gControllerRemoved (!gControllerData[playerInPause].attached)
+D_80110650	audio_menuRect	data	mat3	sure	anon_x_w_10 {x, w, h, cx}; MAT3 audioscr.c static menuRect (its cx is the interior symbol audio_menuRect_cx)
 D_80110D08	gCarModels	data	mat3	sure	car descriptor (_tCar) pointers by car type; MAT3 carsetup's gCarModels
-D_80110EC0	carTransGearRatioByGear	data	code	likely	f32 interior name: &carTransGearRatio[0][1], so transmission indexes [trans][gear]
+D_80110EC0	carTransGearRatio_biased	data	code	likely	f32 biased label: &carTransGearRatio[0][1], so the code indexes [trans][gear] with gear 0 meaning the first ratio; wave 2 writes carTransGearRatio[trans][gear + 1]
 D_801110C4	carEngineTorque	data	mat3	sure	f32[][3]: torque scale by engine type and handling; MAT3 drivetra.c enginetorque's carEngineTorque
 D_8011128C	gCarWings	data	mat3	sure	s8[5][13]: wing setting by player row (0 drones, 1-4 players) and car type; MAT3 gCarWings (GhostStart's port names it)
-D_8011156C	gCarSuspensions	data	mat3	sure	s8[13] by car type; MAT3 CalcDrift's gCarSuspensions
+D_8011156C	gCarSuspensions	data	mat3	sure	s8[13]: the suspension index per body type (update_game_data, func_800D0A34); also used by func_800D0A34
 D_80111998	controls_buttonInfo	data	mat3	sure	menu buttons [4][17] (GC [4][18]); MAT3 controlscr.c buttonInfo
 D_80112A9C	controls_gButtonScale	data	mat3	sure	f32; MAT3 controlscr.c gButtonScale
 D_80112AB0	controls_buttonZ	data	mat3	sure	f32: the buttons' depth; MAT3 controlscr.c buttonZ
-D_80113EE0	controls_gPlayerRects	data	mat3	sure	rectangles [4][4] by window count and player; MAT3 controlscr.c gPlayerRects
-D_8011418C	unitmatrix	data	mat3	sure	f32[4][3]: identity rows and a zero origin; MAT3 fmath.c unitmatrix
 D_801141B0	unitmatrix_origin	data	code	sure	f32[3] interior name: unitmatrix[3], the zero vector (listener position and direction, emitter direction)
-D_80114650	gRestartGame	data	mat3	sure	s8; MAT3 game.c gRestartGame
-D_801164A4	gCheatState	data	mat3	sure	s16[] cheat states; MAT3 options.c gCheatState
-D_8011650C	options_buttonInfo	data	mat3	sure	menu buttons [32]; MAT3 optionscr.c buttonInfo
-D_80116D0C	options_buttonsInited	data	mat3	sure	s32; MAT3 optionscr.c buttonsInited
+D_8011650C	options_buttonInfo	data	mat3	sure	tMenuButton[32] the options screen's 3D buttons (MAT3 optionscr static buttonInfo; 11 screens have one); angle/alpha/position read by options_animButtonText and options_printOption
+D_80116D0C	options_buttonsInited	data	mat3	sure	s32 1 while the options screen's 3D buttons are up (MAT3 optionscr static buttonsInited)
 D_80116D14	options_validOption	data	mat3	sure	s32[14]; MAT3 optionscr.c validOption
 D_80116D9C	options_gSelectedOption	data	mat3	sure	s16; MAT3 optionscr.c gSelectedOption
-D_80116DA8	options_gControllerRemoved	data	mat3	sure	s8; MAT3 optionscr.c gControllerRemoved
-D_80116DB4	gPakRecognizeError	data	code	likely	s8: set by SetPakError for the 'recognize' error (type 10), read by overlay A's warning screen
+D_80116DA8	options_gControllerRemoved	data	mat3	sure	s8 the options screen was opened by a removed controller (MAT3 optionscr static gControllerRemoved)
 D_80116FE4	gPasswordAlphabet	data	mat3	sure	char *: the 32-character password alphabet; MAT3 password.c gPasswordAlphabet
-D_801170FC	gPauseState	data	mat3	sure	s32; MAT3 pausescr.c gPauseState
 D_80117350	pause_gControllerRemoved	data	mat3	sure	s8; MAT3 pausescr.c gControllerRemoved
-D_80117354	pause_gYes	data	mat3	sure	s8; MAT3 pausescr.c gYes
-D_8011735C	rand_seed	data	code	sure	u32: the game's rand() state (multiplier 0x41C64E6D); _StartGameMusic and Random step it
-D_80117428	gGlobalsSet	data	mat3	sure	s8; MAT3 save.c gGlobalsSet
-D_801174B4	gGameState	data	mat3	sure	u32 game state bits; an alias of state_word_a at the same address (MAT3 state.c gGameState): both to this name
+D_80117354	pause_gYes	data	mat3	sure	s32 yes is selected in the are-you-sure question (MAT3 pausescr static gYes)
 D_801174B8	gNewGameState	data	mat3	sure	u32: the state setGameState asks for; an alias of state_word_b at the same address (MAT3 state.c gNewGameState)
-D_8011EAE4	gRumble	data	mat3	sure	s8: rumble allowed (modelgo's inline PS_RumbleGo sets it); MAT3 paksysdc.c gRumble
 D_8011F020	gBumpLRTab	data	mat3	sure	s16[16]: bump left/right pan by direction; MAT3 audio.c gBumpLRTab
 D_8011F040	gBumpFBTab	data	mat3	sure	s16[16]: bump front/back pan by direction; MAT3 audio.c gBumpFBTab
-D_8011F5CC	gEffectLoop	data	mat3	likely	u8[] by effect id: what AudPlayEffectVP copies into the fx tag (MAT3 _GetFxTag/AudPlayEffect use gEffectLoop[fxid])
-D_8011F844	collsize	data	mat3	sure	collision boxes by car type (side, height, front, rear); MAT3 carsetup's collsize
-D_80124EEC	stree	data	mat3	sure	the spatial tree root (init_collision's lasttp[] default); MAT3 stree.c stree
-D_8012E5E8	gDronePaths	data	mat3	sure	drone paths (numPts, pts); MAT3 maxpath.c gDronePaths
-D_8012E6D8	gPlayerFiles	data	mat3	sure	list head of the player files; MAT3 save.c gPlayerFiles
-D_8012E6F8	gLimboGhosts	data	mat3	sure	pointers to the limbo ghost records; MAT3 save.c gLimboGhosts
-D_8012E700	ObjInstanceList	data	mat3	sure	object instances (colour at .color); MAT3 zoidtexture.c ZOID_SetColor writes ObjInstanceList[objnum].color
-D_801391F0	gEnvList	data	mat3	sure	environment object list head (AbortGame's inline RemoveEnvirons loops on it); MAT3 visuals.c gEnvList
-D_8013C068	gNewControls	data	mat3	sure	s8[4][10] by controller (GC 11); MAT3 gNewControls
-D_8013C228	gDefaultControls	data	mat3	sure	s8[10]; MAT3 gDefaultControls
-D_8013F1D8	gFogIntensity	data	mat3	sure	s8 = gOptions[29]; MAT3 _SetDefaultOptions' order
+D_8012E5E8	gDronePaths	data	mat3	sure	anon_numPts_pts_8[4]: the drone (max) paths, pts[] with pos (maxpath_cam, init_camera_on_track via NextPathPt); also used by audio_effect_apply, camera_follow_path, difficulty_select, func_800B9338 (+13)
+D_8013C068	gNewControls	data	mat3	sure	u8[4][10]: each controller's control bytes, copied from gDefaultControls by InitRushControls (MAT3 [4][11]); also used by drone_target_update, func_800D8078, func_800D91A0
+D_8013C228	gDefaultControls	data	mat3	sure	u8[10]: the default control bytes (InitRushControls, drone_target_update); also used by drone_target_update
 D_8013F1D9	gMirrorControls	data	mat3	sure	s8 = gOptions[28] >= 2; MAT3 _SetDefaultOptions' order
 D_8013F2FC	gNoBrakes	data	mat3	sure	s8 cheat (ReadGasAndBrake: no brake); MAT3 _SetDefaultOptions' order
-D_8013FEC8	gLang	data	mat3	sure	s16 = gOptions[16]; MAT3 gLang
-D_8013FECA	gNumLimbo	data	mat3	sure	u8; MAT3 save.c gNumLimbo
 D_8013FECB	gCoastFlag	data	mat3	sure	s8: cars coast (no control) after the end; MAT3 game.c gCoastFlag
-D_8013FECC	gMineCones	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
-D_8013FECD	gCarMines	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
 D_801403D0	gNoAutoAbort	data	mat3	sure	s8 cheat (DetectDroneAbort); MAT3 _SetDefaultOptions' order
-D_80140418	gInvisibleCar	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
-D_8014061A	gInvisibleTrack	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
-D_801407B0	gResurrectInPlace	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
-D_801407BC	gStuntMode	data	mat3	sure	s32 = gOptions[32]; MAT3 _SetDefaultOptions' order
-D_801407D0	gEnableTireScaling	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
-D_801407DC	gStuntFlow	data	mat3	sure	s32 = gOptions[33]; MAT3 _SetDefaultOptions' order
-D_801407F0	gResPath	data	mat3	sure	the respawn path (numPts, pts, alternates); MAT3 maxpath.c gResPath
-D_801407FC	gResPathAlt	data	mat3	likely	interior name: gResPath.alt (the alternate respawn paths), FindResPt's resurrect test
 D_80140800	gGhostToSave	data	mat3	sure	ghost header pointer; GhostEnd (nonmatching draft's header)
-D_80140804	gStuntModeMins	data	mat3	sure	s32 = gOptions[35]; MAT3 _SetDefaultOptions' order
-D_80140A00	gStuntModePoints	data	mat3	sure	s32 = gOptions[34]
-D_80140A04	gMirrorWaves	data	mat3	sure	s8 = gOptions[28] > 0 (mirror mode)
-D_80140AD8	gStuntModeDeaths	data	mat3	sure	s32 = gOptions[36]
-D_80140B08	gBattleMode	data	mat3	sure	s32 = gOptions[37]
-D_80140BD8	gBattleModeMins	data	mat3	sure	s32 = gOptions[39]
-D_80140BDC	gNumModels	data	mat3	sure	an alias of gNumModels at the same address: map to it
-D_80142510	gBattleModePoints	data	mat3	sure	s32 = gOptions[38]
-D_80142699	gRetireGame	data	mat3	sure	s8 (updatePauseScreen's draft names it)
-D_801426EC	gGhostSelect	data	mat3	sure	s8 = gOptions[25]
-D_80142724	gNumDrones	data	mat3	sure	s16 = gOptions[22]
 D_80142726	gWind	data	mat3	sure	s8 = gOptions[30] (forces1's wind)
 D_80142728	audio_lock_queue	data	code	sure	OSMesgQueue: the audio manager's lock (receive to take, send to give back), N64 form of MAT3's _GetSemaphore
-D_80142740	gCheckPtTimeout	data	mat3	sure	f32[4]; MAT3 hud.c gCheckPtTimeout
-D_80142760	gDeathMode	data	mat3	sure	s8 = gOptions[31]
-D_80142764	gGravity	data	mat3	sure	f32; MAT3 drivsym.c gGravity
-D_80142770	gLapTime	data	mat3	sure	f32[4]; MAT3 hud.c gLapTime
-D_801427A0	gFogColor	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
+D_80142764	gGravity	data	mat3	sure	f32: MAT3 gGravity (UpdateShots, AnimateCase: falling shots and casings)
 D_801427A1	gSuperSpeed	data	mat3	sure	s8 cheat (init_road, positions, initialize); MAT3 drivsym.c gSuperSpeed
 D_801427A8	audio_command_queue	data	code	sure	OSMesgQueue: the audio manager's command queue (the N64 _ProcessCommand posts here)
 D_80142AC8	gElapsedTime	data	mat3	sure	f32[4]; MAT3 hud.c gElapsedTime
 D_80142B00	gInvincible	data	mat3	sure	s8 cheat (checkok); MAT3 drivsym.c gInvincible
-D_80142DB0	gSpecialTires	data	mat3	sure	s8 cheat (forces1); MAT3 drivsym.c gSpecialTires
-D_80143A00	gAutoEdges	data	mat3	sure	u32[4] by controller: auto-repeat edges; MAT3 controlsys.c gAutoEdges
+D_80142DB0	gSpecialTires	data	mat3	sure	MAT3 gSpecialTires (cheat; SetOptions copies gCheatState[10]); value 2 picks dotireforce's fixed side-force scale and the low drag
 D_80143F10	gAPlayerReallyFinished	data	mat3	sure	s32; are_all_cars_stopped's death-mode test
 D_80143F1C	gMassiveMass	data	mat3	sure	s8 cheat (CalcMass); MAT3 _SetDefaultOptions' order
-D_80143FF4	gModelIteration	data	mat3	sure	s32; MAT3 mdrive.c gModelIteration
-D_80144018	gLap	data	mat3	sure	u8[4]; MAT3 gamerecords.c RecordLap's gLap
-D_80144030	gPaks	data	mat3	likely	controller pak records [4] (N64 0x304 each; GC gPaks of 0x25C); MAT3 paksysdc.c gPaks
-D_801440AD	gPakRumbleRequest	data	code	likely	s8 interior name: pak record 0's rumble request (stride one record), set by UpdateModel (N64 form of PS_SetRumblePercent)
-D_80144DA8	gBestLapTime	data	mat3	sure	f32[4]; MAT3 gamerecords.c gBestLapTime
-D_801460F8	gTagShift	data	mat3	sure	s32; MAT3 audiomgr.c gTagShift
-D_80146104	gTagMask	data	mat3	sure	s32; MAT3 audiomgr.c gTagMask
-D_80146108	gOptions	data	mat3	sure	s8[41]; MAT3 options.c gOptions
-D_80146115	gOptionFxVolume	data	code	likely	s8 interior name: gOptions[13], the effects volume (StartListeners)
-D_80146150	gJustPlayers	data	mat3	sure	tPlayerProfile *[4]; MAT3 save.c gJustPlayers
+D_80143FF4	gModelIteration	data	mat3	sure	s32: the model tick counter (munge_gLink_data clears it; model_iteration counts it); also used by func_800E5D64, func_800E762C, model_iteration, update_model
+D_80146115	gOptions_fx_volume	data	mat3	likely	s8 interior label: gOptions[13], the effects volume 0..10 (StartListeners, EnableGameSounds; MAT3 updateAudioScreen)
 D_80146170	gFreeListeners	data	mat3	sure	list; MAT3 audiomgr.c gFreeListeners
-D_80146180	gDriveHulk	data	mat3	sure	s8[4] cheat; MAT3 _SetDefaultOptions' order
-D_80146188	gActiveListeners	data	mat3	sure	list; MAT3 audiomgr.c gActiveListeners
 D_80149440	cont_status	data	code	sure	OSContStatus[4]: osContInit/osContGetQuery results
-D_80149784	gActiveAutoEdges	data	mat3	sure	u32; MAT3 controlsys.c gActiveAutoEdges
-D_8014978C	gTrackNum	data	mat3	sure	s8; MAT3 tracks.c gTrackNum
-D_801497A8	si_lock_queue	data	code	sure	OSMesgQueue: the SI lock (MAT3 controlsys.c _GetSemaphore is empty on the GameCube)
-D_801497F8	surf	data	mat3	sure	surface table (snd_flags per surface); MAT3 stree.c surf
-D_80149808	gFreeSequences	data	mat3	sure	list; MAT3 audiomgr.c gFreeSequences
-D_80149860	gActiveSequences	data	mat3	sure	list; MAT3 audiomgr.c gActiveSequences
-D_80149A78	gLapTimes	data	mat3	sure	f32[4][8]; MAT3 gamerecords.c gLapTimes
-D_80149B64	gActiveControllers	data	mat3	sure	s8[4]; MAT3 controlsys.c gActiveControllers
 D_80149B74	gStickEdges	data	mat3	sure	s8[4]: stick as d-pad per controller; MAT3 controlsys.c gStickEdges
 D_80149B84	gOptionMenuSize	data	mat3	sure	s16; MAT3 optionscr.c gOptionMenuSize
-D_80149D98	pauseMenuSelect	data	mat3	sure	s32; MAT3 pausescr.c pauseMenuSelect (the draft names it)
-D_80149DA2	options_gFirstOption	data	mat3	sure	s16; MAT3 optionscr.c gFirstOption
+D_80149DA2	options_gFirstOption	data	mat3	sure	s16 first options row shown (MAT3 optionscr static gFirstOption, 3 files have one)
 D_80149DA8	gConflict	data	mat3	sure	s8[4][10] (GC [4][11]); MAT3 controlscr.c gConflict
 D_8014A0F8	gControlSelect	data	mat3	sure	s16[4]; MAT3 controlscr.c gControlSelect
-D_8014A100	gControlFirst	data	mat3	sure	s16[4]; MAT3 controlscr.c gControlFirst
-D_8014A108	gNumPlayers	data	mat3	sure	s16; an alias of active_player_count at the same address (MAT3 model.c gNumPlayers)
 D_8014A10A	gControlMenuSize	data	mat3	sure	s16; MAT3 controlscr.c gControlMenuSize
-D_8014A110	gRace	data	mat3	sure	s32 race type; an alias of gameplay_mode at the same address (MAT3 game.c gRace)
-D_8014A118	gPlayers	data	mat3	sure	player records [4] (N64 0x4C: slot, controller, edges, levels, autoEdges, analog, controls[10], trans, listener, save); an alias of input_rec0 (MAT3 gPlayers)
 D_8014A250_Record	ModelRecord	type	code	likely	the model record view (MAT3 tModelData, 0x808) declared in the context preludes; tModelData itself is used by local views
-D_80150EFC	gCatchup	data	mat3	sure	s8 = gOptions[26]
-D_80150F14	gUseCatchup	data	mat3	sure	s8: SetCatchup's mode (0 none, 1 half); MAT3 model.c SetCatchup's gUseCatchup
-D_80151AD0	gNumWindows	data	mat3	sure	an alias of gNumWindows at the same address: map to it
-D_80151AD8	gUpsideDownTrack	data	mat3	sure	s8 cheat (ReadSteeringWheel's sign); MAT3 _SetDefaultOptions' order
-D_80151CE8	gCheckpoints	data	mat3	sure	checkpoint records (loopPt, finishPt, points with per-path markers); MAT3 checkpoint.c gCheckpoints
-D_80152014	gNumLapsLeft	data	mat3	sure	s8; MAT3 checkpoint.c gNumLapsLeft
-D_80152015	gOneMoreCP	data	mat3	sure	s8; MAT3 PassedCP's gOneMoreCP
-D_80152020	gGhostFiles	data	mat3	sure	list head; MAT3 save.c gGhostFiles
+D_80152015	gOneMoreCP	data	mat3	sure	s8: MAT3 gOneMoreCP, cleared by init_cars; also used by race_countdown_display
 D_80152030	gDifficulty	data	mat3	sure	s8 = gOptions[24] (SetCatchup)
-D_80152570	gBackwards	data	mat3	sure	s8 = gOptions[27]
 D_801525F0	modelrun	data	mat3	sure	s16 (volatile): the model thread runs; MAT3 model.c modelrun
 D_801525F4	gDeathWaitEnd	data	mat3	sure	f32; are_all_cars_stopped
-D_80152698	gGhosts	data	mat3	sure	ghost handles [4]; MAT3 save.c gGhosts
 D_80152718	gEndGame	data	mat3	sure	s8; MAT3 game.c gEndGame
-D_80152734	gNumLaps	data	mat3	sure	s16; MAT3 game.c gNumLaps
-D_80152744	gNumActiveCars	data	mat3	sure	u8; MAT3 mdrive.c gNumActiveCars
-D_8015274C	num_our_drones	data	mat3	sure	s16; MAT3 mdrive.c num_our_drones
-D_80152768	num_drones	data	mat3	sure	s16 (volatile); MAT3 mdrive.c num_drones
-D_80152770	heap_lock_queue	data	code	sure	OSMesgQueue: the heap lock (MAT3 memsys.c _GetSemaphore is empty on the GameCube)
 D_801527C8	gMainHeap	data	mat3	sure	the main heap (heap list head); MAT3 memsys.c gMainHeap
-D_80153F08	new_sched_to_use	data	mat3	sure	s16: next drone schedule row; MAT3 mdrive.c new_sched_to_use
-D_80153F40	cur_drone	data	mat3	sure	s16; MAT3 mdrive.c cur_drone
-D_80153FD2	num_humans	data	mat3	sure	s16 (volatile); MAT3 mdrive.c num_humans
-D_80154182	current_drone	data	mat3	sure	s16: IntervalPosChange's round-robin drone; MAT3 maxpath.c current_drone
-D_8015418C	controlScrActive	data	mat3	sure	s8[4]; MAT3 controlscr.c controlScrActive
-D_80154190	gLastPathSwitchTime	data	mat3	sure	f32; MAT3 maxpath.c gLastPathSwitchTime
+D_80153F40	cur_drone	data	mat3	sure	s16: the drone being stepped (0 at init_cars); also used by func_800E56F8, model_iteration, update_drone_models
+D_8015418C	controlScrActive	data	mat3	sure	s8[4]: MAT3 controlScrActive, the control screen per player in playerscr's controlControls
 D_80154198	HudBlit1	data	mat3	sure	blit; MAT3 hud.c HudBlit1
 D_801541A0	HudBlit2	data	mat3	sure	blit; MAT3 hud.c HudBlit2
-D_801541A4	multiPlayerBlit	data	mat3	sure	blit; MAT3 hud.c multiPlayerBlit
-D_801541A8	gPlayerCoin	data	mat3	sure	coin objects [player][2] (object index at +0 and +52 of a 104-byte row); MAT3 hud.c gPlayerCoin
-D_80154350	resultPane	data	mat3	sure	result panes by window; MAT3 hud.c resultPane
-D_801543AC	gLapDistance	data	mat3	sure	f32; MAT3 maxpath.c gLapDistance
+D_801543AC	gLapDistance	data	mat3	sure	f32: race distance of a later lap (FindMaxpathIntervals); also used by FindPathDistances, car_setup_confirm
 D_801543C8	gGravityScale	data	mat3	sure	s8 = gOptions[23] (MaxPathControls' gravity tables)
-D_801543CA	gNumCars	data	mat3	sure	s16; MAT3 mdrive.c gNumCars
-D_801543CC	gModelTime	data	mat3	sure	f32; MAT3 mdrive.c gModelTime
-D_80154618	controls_buttonsInited	data	mat3	sure	s32[4]; MAT3 controlscr.c buttonsInited
-D_80156944	gActiveLevels	data	mat3	sure	u32; MAT3 controlsys.c gActiveLevels
-D_8015694C	gActiveEdges	data	mat3	sure	u32; MAT3 controlsys.c gActiveEdges
-D_80156958	gContStick	data	mat3	likely	f32[4][2] by controller: the stick (updateAudioScreen); MAT3 controlsys.c gContStick
+D_80154618	controls_buttonsInited	data	mat3	sure	s32[4], controlscr.c's static buttonsInited (in 11 screens); GetCircuitCode only uses its address as the end of gCircuitCars
 D_80156958_Entry	ContStick	type	code	likely	element type of gContStick (x, y)
-D_8015698C	playerInPause	data	mat3	sure	s32; MAT3 pausescr.c playerInPause
-D_80156994	expansion_pak_present	data	code	sure	s8: set by InitMemory's heap placement when RDRAM reaches past 4 MB; doubles the game's pools
-D_80156998	gContEdges	data	mat3	sure	u32[4] by controller; MAT3 controlsys.c gContEdges
-D_80156BDC	gShowTrackMap	data	mat3	sure	s8 = gOptions[0]
-D_80156CE8	gShowRadar	data	mat3	sure	s8 = gOptions[1]
-D_8015723C	gShowElapsed	data	mat3	sure	s8 = gOptions[2]
-D_80157244	gSoftReset	data	mat3	sure	s8; MAT3 controlsys.c gSoftReset
-D_8015B24C	gShowRemaining	data	mat3	sure	s8 = gOptions[3]
-D_8015B25C	gShowTach	data	mat3	sure	s8 = gOptions[4]
-D_8015F72C	gShowSpeed	data	mat3	sure	s8 = gOptions[5]
-D_8015F734	gShowOdometer	data	mat3	sure	s8 = gOptions[6]
-D_8016137C	gShowPlace	data	mat3	sure	s8 = gOptions[7]
-D_80161394	gShowShifter	data	mat3	sure	s8 = gOptions[8]
-D_801613A0	gShowWrongWay	data	mat3	sure	s8 = gOptions[18]
-D_801613A8	gShowPlayerArrows	data	mat3	sure	s8 = gOptions[10]
-D_801613A9	gShowCoins	data	mat3	sure	s8 = gOptions[11]
-D_801613AA	gShowMetric	data	mat3	sure	s8 = gOptions[9]
-D_801613AB	gFrameScale	data	mat3	sure	s8 cheat; MAT3 _SetDefaultOptions' order
+D_8015698C	playerInPause	data	mat3	sure	s32; MAT3 playerInPause (the player who paused; audio_animPanes/audio_animText)
 D_8017A4D8	gNoCarCollisions	data	mat3	sure	s8 (collision); MAT3 collision.c gNoCarCollisions
-D_8017A4E0	gText	data	mat3	sure	the language's text tables; an alias of countdown_state at the same address (MAT3 text.c gText)
 D_8017A634	gSuicideMode	data	mat3	sure	s8 cheat (setFBCollisionForce); MAT3 collision.c gSuicideMode
-state_word_a	gGameState	data	mat3	sure	existing name of D_801174B4: MAT3 state.c gGameState (state bits tested as gGameState & 8, 0x7C03FFFE, ...)
-state_word_b	gNewGameState	data	mat3	sure	existing name of D_801174B8: MAT3 state.c gNewGameState (what setGameState stores)
-active_player_count	gNumPlayers	data	mat3	sure	existing name of D_8014A108: MAT3 model.c gNumPlayers
-gameplay_mode	gRace	data	mat3	sure	existing name of D_8014A110: MAT3 game.c gRace (race type: 1 practice, 2 ghost, 4 stunt, 5 obstacle, 6 battle)
-input_rec0	gPlayers	data	mat3	sure	existing name of D_8014A118: MAT3 gPlayers (tPadState records)
-countdown_state	gText	data	mat3	sure	existing name of D_8017A4E0: MAT3 text.c gText (string tables)
+state_word_b	gNewGameState	data	mat3	sure	u32: setGameState(n) is `gNewGameState = n` in MAT3; the game writes state_word_b = 0x800000 / 4 where MAT3 calls setGameState
+
+# reconciliation (wave 1): rows placed in this area by docs/code/NAMING.md (a shared datum goes to the area
+# whose functions use it most), and alias rows: the address spelling of a symbol mapped above
+gBssEnd	game_bss_end	data	code	likely	alias: main_thread_entry's name for D_8017A640, the end of the game image's BSS
+func_800CDCAC	SavePlayerCarTrans	func	mat3	sure	alias: the address spelling of menu_option_toggle (same function); both rows map to SavePlayerCarTrans

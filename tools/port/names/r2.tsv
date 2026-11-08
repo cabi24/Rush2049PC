@@ -1,4 +1,7 @@
 # Name map of area r2: the game image from 0x8009DC50 up to 0x800B4720 (docs/port/PCONLY.md section 3).
+# Reconciled with the other areas' maps (wave 1): docs/code/NAMING.md has the conventions, which override this
+# header where they differ, and every decision; each old name has one row over all the maps; labels to delete
+# rather than rename are in drop.tsv.
 # Columns: old, new, kind, source, confidence, note. The readable map of the area is docs/code/r2.md.
 # MAT3 = the GameCube decomp (cabi24/SFRush2049-mat3-decomp); "file header" = the comment above the
 # function in src/blob, written by the matching agents. "stub" = an 8-byte jr-ra deleted-procedure body of
@@ -16,7 +19,7 @@
 # RemoveCar, SetupCar, InitVisuals, NewWorldObject, MBOX_GetObjectRadius, fpitch, froll, AnimateBrakeLights,
 # ObjInstanceList, WorldBase, Worlddlidx, gObjList, gTargetList, gEmitters, gCarModelNums with arcade types:
 # fix or drop those headers. active_player_count and gNumModels are already the symbols.json names of their data.
-old	new	kind	source	confidence	note
+# old	new	kind	source	confidence	note
 # ---- functions, in address order ----
 track_collision	zoid_subtree_visible	func	code	likely	scene-tree walk: 1 when a node, its child subtree or a later sibling lacks the per-view hidden bit (0x100 << view); not collision code
 track_collision_edge	zoid_node_visible	func	code	likely	one scene node: 1 when its per-view hidden bit is clear or its child subtree has a visible node (zoid_subtree_visible); caller Traverse
@@ -44,11 +47,11 @@ func_800A1644	pak_decode_name	func	code	sure	Controller Pak character codes back
 func_800A1910	game_memcmp	func	code	sure	byte memcmp (returns the first difference); the C library name is not allowed; callers compare pak ids and OSPfsState records
 func_800A1A3C	PS_PakInserted	func	mat3	sure	MAT3 PS_PakInserted: returns gPaks[pak].inserted (+1); controls-screen context header gives the same identity
 func_800A1A60	pak_file_unchanged	func	code	likely	1 when osPfsFileState of a save handle file still equals the state the game recorded; N64-only; caller func_800CC848
-func_800A1BB4	_ClearFlush	func	mat3	sure	MAT3 paksysdc.c _ClearFlush(pak): clears the pak flush flag when no file with data still needs a flush
+func_800A1BB4	ClearFlush	func	mat3	sure	MAT3 paksysdc.c ClearFlush(pak): clears the pak flush flag when no file with data still needs a flush
 func_800A1C6C	pak_find_dirty_run	func	code	sure	next run of dirty 32-byte pages in a pak file dirty bitmap (address, bytes, offset); N64 partial writes
 func_800A1DD4	pak_mark_dirty	func	code	sure	sets or clears the dirty-page bits covering an address range of a pak file data
 func_800A1E94	pak_error_from_pfs	func	code	sure	maps an osPfs error code to the PS error enum (kPS_Err*, 15 unknown)
-track_data_decompress	_PS_FlushFile	func	mat3	sure	MAT3 paksysdc.c _PS_FlushFile(psfileh, ignoreErrors): writes dirty pages with osPfsReadWriteFile, retry dialog through gErrorFunc, then _ClearFlush; no decompression
+track_data_decompress	PS_FlushFileInternal	func	mat3	sure	MAT3 paksysdc.c PS_FlushFileInternal(psfileh, ignoreErrors): writes dirty pages with osPfsReadWriteFile, retry dialog through gErrorFunc, then ClearFlush; no decompression
 AdjustSteer	PS_PurgeFile	func	mat3	sure	MAT3 paksysdc.c PS_PurgeFile: frees psfile->data under the heap lock and clears it; nothing to do with steering
 func_800A2670	paksys_stub_a	func	code	likely	deleted-procedure stub (jr ra) of a paksysdc static inlined into PS_DeleteFile (probably _DeleteFile)
 func_800A2678	paksys_stub_b	func	code	likely	deleted-procedure stub (jr ra) of a second paksysdc static inlined near PS_DeleteFile
@@ -64,16 +67,15 @@ func_800A35BC	PS_GetFreeBlocks	func	mat3	sure	MAT3 PS_GetFreeBlocks(pak): FreeSp
 func_800A35EC	PS_PakFormatted	func	mat3	likely	MAT3 PS_PakFormatted: returns 1 as on the GC; its place among the PS_Pak* getters
 func_800A35F8	PS_PakDamaged	func	mat3	sure	MAT3 PS_PakDamaged: returns gPaks[pak].damaged (+5)
 func_800A361C	PS_PakChanged	func	mat3	sure	MAT3 PS_PakChanged: returns gPaks[pak].changed (+0)
-func_800A3640	_RemovePak	func	mat3	sure	MAT3 paksysdc.c _RemovePak(pak): RemoveFile callback, free data, every handle back to the free list; group header identity
+func_800A3640	RemovePak	func	mat3	sure	MAT3 paksysdc.c RemovePak(pak): RemoveFile callback, free data, every handle back to the free list; group header identity
 func_800A370C	ClearLL	func	mat3	sure	MAT3 ll.c ClearLL(list): head = tail = 0, count = 0
 func_800A371C	paksys_stub_c	func	code	likely	deleted-procedure stub (jr ra) of a paksysdc static (the rumble stop inlined into PS_PakServer)
-ClearPak	_ClearPak	func	mat3	sure	MAT3 paksysdc.c static _ClearPak(pak): memset the pak record keeping .damaged
 track_render_process	PS_PakServer	func	mat3	sure	MAT3 paksysdc.c PS_PakServer: per-port insert/remove/same-pak/duplicate/flush state machine; group header identity; no track rendering
 func_800A43FC	pak_poll_inserted	func	code	sure	reads OSContStatus of the four ports and sets/clears gPaks[i].inserted (changed on removal); N64-only
 func_800A44D0	pak_set_error_func	func	code	sure	gErrorFunc = func; N64-only setter
 func_800A44DC	pak_shutdown	func	code	likely	gPakSysInited = 0: PS_PakServer and pak_poll_inserted stop working
 func_800A44E8	InitLL	func	mat3	sure	MAT3 ll.c InitLL(list, handle, dbl): sets the two flags then ClearLL
-car_lod_select	PS_InitPakSys	func	mat3	sure	MAT3 paksysdc.c PS_InitPakSys(errorFunc): InitLL and _ClearPak per pak; N64 also builds the 64 file handles and starts the pak thread
+car_lod_select	PS_InitPakSys	func	mat3	sure	MAT3 paksysdc.c PS_InitPakSys(errorFunc): InitLL and ClearPak per pak; N64 also builds the 64 file handles and starts the pak thread
 func_800A464C	game_strstr	func	code	sure	strstr (returns the first occurrence or 0); its own copy in the game image; the C library name is not allowed
 func_800A46CC	game_strncat	func	code	sure	strncat
 func_800A473C	game_strcpy	func	code	sure	strcpy
@@ -84,18 +86,18 @@ audio_start	BlitFinish	func	mat3	sure	MAT3 blit_pc.c BlitFinish: N64 closes the 
 sound_init	BlitInit	func	mat3	sure	MAT3 blit_pc.c BlitInit: blitAttribute, Xmin/Ymin/Xmax/Ymax, ZDist, prim alpha 255, blitDLnum wrap at 2, blitMode/blitLUT -1, blitColors 0; no sound
 wheel_setup_initial	UnloadWaveAll	func	mat3	sure	MAT3 waves.c UnloadWaveAll(waveNum): UnloadWaveInstance for every loaded instance of that wave
 func_800A4B40	unload_wave_if_matching	func	code	sure	UnloadWaveAll body per instance: unload it when loaded, of that wave and (handle < 0 or the same handle); retail keeps only its stub
-resource_update_global	stop_current_song	func	code	likely	stops the song in gSongNumber through the N64 song layer (func_80096238)
-wheel_params_set	audio_sfx_shutdown	func	code	sure	stops all effects, waits for the sfx queues to drain, clears gSfxInited, frees gSfxInstances and gSfxCmds; N64-only (MAT3 audiosfx.c has no shutdown)
+resource_update_global	stop_current_song	func	code	likely	stops the song in song_number through the N64 song layer (func_80096238)
+wheel_params_set	audio_sfx_shutdown	func	code	sure	stops all effects, waits for the sfx queues to drain, clears audiosfx_gInited, frees gSfxInstances and audiosfx_gCmds; N64-only (MAT3 audiosfx.c has no shutdown)
 init_wait_completion	AudioShutdownSys	func	mat3	likely	MAT3 audiosysps2.c AudioShutdownSys (empty on GC): N64 stops the sfx system and the song, then the driver, and waits
 func_800A4CA8	AudioSongInit	func	mat3	likely	gSong = -1: the N64 form of the AudioSongInit call AudioInitSys makes
-func_800A4CB8	AudioSfxInit	func	mat3	sure	MAT3 audiosfx.c AudioSfxInit(maxSfx): InitLL the two queues, gSfxInstances and 3x gSfxCmds pools, free list, flags; identical order
+func_800A4CB8	AudioSfxInit	func	mat3	sure	MAT3 audiosfx.c AudioSfxInit(maxSfx): InitLL the two queues, gSfxInstances and 3x audiosfx_gCmds pools, free list, flags; identical order
 func_800A4E50	text_stub	func	code	likely	deleted-procedure stub (jr ra) of a text.c / waves.c static inlined nearby
-func_800A4E58	_AdjustTextWavePointers	func	mat3	sure	MAT3 text.c _AdjustTextWavePointers: the six count-prefixed sections of the text wave into gText; no byte swaps on the N64
-func_800A5014	_ReplaceWaveInstance	func	mat3	sure	MAT3 waves.c _ReplaceWaveInstance(idx, newWave): _ValidateWaveInstance, clear loaded/ready, set wave, _SetWaveInstanceModel
+func_800A4E58	AdjustTextWavePointers	func	mat3	sure	MAT3 text.c AdjustTextWavePointers: the six count-prefixed sections of the text wave into gText; no byte swaps on the N64
+func_800A5014	ReplaceWaveInstance	func	mat3	sure	MAT3 waves.c ReplaceWaveInstance(idx, newWave): ValidateWaveInstance, clear loaded/ready, set wave, SetWaveInstanceModel
 suspension_setup	ReplaceWave	func	mat3	sure	MAT3 waves.c ReplaceWave(curWave, newWave): same tests, waits on gRenderInProgress; no suspension
-func_800A510C	LoadTextWave	func	mat3	sure	MAT3 text.c LoadTextWave: ReplaceWave(gTextWave, gLang) when the language changed, then _AdjustTextWavePointers
+func_800A510C	LoadTextWave	func	mat3	sure	MAT3 text.c LoadTextWave: ReplaceWave(gTextWave, gLang) when the language changed, then AdjustTextWavePointers
 func_800A5158	InitTextWave	func	mat3	sure	MAT3 text.c InitTextWave: once: LoadWave the largest text wave, lock it, adjust pointers, LoadTextWave
-func_800A51D8	_ConvertHeap	func	mat3	likely	deleted-procedure stub of the heap-or-default-heap getter inlined into ClearMemoryHeap: MAT3 memsys.c static _ConvertHeap
+func_800A51D8	ConvertHeap_stub	func	mat3	likely	empty retail stub of MAT3 memsys.c _ConvertHeap (out of line at 0x80097468), inlined into ClearMemoryHeap
 car_damage_visual	ClearMemoryHeap	func	mat3	likely	heap compaction: frees unowned unlocked blocks, moves movable blocks down (game_memmove), repoints owners; GC debug-info name (stripped on GC) per the InitWaves header
 func_800A54FC	zoid_reset_lights	func	code	likely	gNumLights = 0, gLights = the default light set (the tail of ZOID_Reset on the N64)
 func_800A5518	ZOID_SetViewport	func	mat3	sure	MAT3 zoidwindow.c ZOID_SetViewport(winidx, vp, s): stores the viewport and scissor pointers of a window
@@ -139,22 +141,22 @@ func_800A8284	compress_block	func	mat3	sure	zlib trees.c compress_block (zlib_de
 func_800A8778	send_tree	func	mat3	sure	zlib trees.c send_tree (zlib_deflate group map)
 func_800A8D8C	zip_stub_a	func	code	likely	deleted-procedure stub (jr ra) of a zlib static inlined by umerge (copy_block, build_bl_tree or send_all_trees)
 func_800A8D94	zip_stub_b	func	code	likely	deleted-procedure stub (jr ra) of a second inlined zlib static
-car_collision_init	_tr_stored_block	func	mat3	sure	zlib trees.c _tr_stored_block (zlib_deflate group map); no car collision
+car_collision_init	tr_stored_block	func	mat3	sure	zlib trees.c tr_stored_block (zlib_deflate group map); no car collision
 func_800A8F38	bi_reverse	func	mat3	sure	zlib trees.c bi_reverse (zlib_deflate group map)
 car_collision_update	gen_codes	func	mat3	sure	zlib trees.c gen_codes (zlib_deflate group map)
 func_800A9054	gen_bitlen	func	mat3	sure	zlib trees.c gen_bitlen (zlib_deflate group map)
 func_800A928C	pqdownheap	func	mat3	sure	zlib trees.c pqdownheap (zlib_deflate group map)
 car_crash_detect	build_tree	func	mat3	sure	zlib trees.c build_tree (zlib_deflate group map)
 func_800A9710	scan_tree	func	mat3	sure	zlib trees.c scan_tree (zlib_deflate group map)
-func_800A99C0	zip_stub_c	func	code	likely	deleted-procedure stub (jr ra) of an inlined zlib static before _tr_flush_block
-car_crash_response	_tr_flush_block	func	mat3	sure	zlib trees.c _tr_flush_block (zlib_deflate group map)
-func_800AA028	_tr_tally	func	mat3	sure	zlib trees.c _tr_tally (zlib_deflate group map)
+func_800A99C0	zip_stub_c	func	code	likely	deleted-procedure stub (jr ra) of an inlined zlib static before tr_flush_block
+car_crash_response	tr_flush_block	func	mat3	sure	zlib trees.c tr_flush_block (zlib_deflate group map)
+func_800AA028	tr_tally	func	mat3	sure	zlib trees.c tr_tally (zlib_deflate group map)
 func_800AA224	longest_match	func	mat3	sure	zlib deflate.c longest_match (zlib_deflate group map)
 func_800AA44C	zip_stub_d	func	code	likely	deleted-procedure stub (jr ra) of an inlined zlib static (probably read_buf, inlined into fill_window)
 car_reset_position	fill_window	func	mat3	sure	zlib deflate.c fill_window (zlib_deflate group map)
 car_spawn_at_checkpoint	deflate_slow	func	mat3	sure	zlib deflate.c deflate_slow (zlib_deflate group map)
-func_800AAB34	zip_stub_e	func	code	likely	deleted-procedure stub (jr ra) of an inlined zlib static (probably tr_static_init, inlined into _tr_init)
-func_800AAB3C	_tr_init	func	mat3	sure	zlib trees.c _tr_init (zlib_deflate group map)
+func_800AAB34	zip_stub_e	func	code	likely	deleted-procedure stub (jr ra) of an inlined zlib static (probably tr_static_init, inlined into tr_init)
+func_800AAB3C	tr_init	func	mat3	sure	zlib trees.c tr_init (zlib_deflate group map)
 car_angular_velocity_clamp	zip	func	mat3	sure	MAT3 zip.c zip(mem, len, compr, comprLen, level, winbits, memlevel): one-shot deflate, returns total_out; the deflate_mem.c header says the same
 func_800AB18C	WorldFogDensity	func	mat3	sure	MAT3 world.c WorldFogDensity(winidx, pos): per player-count/intensity fog tables, then the nearest track fog region blended by distance
 func_800AB528	WorldClear	func	mat3	sure	MAT3 world.c WorldClear: WorldTable = 0, WorldBase = 0
@@ -171,9 +173,9 @@ differential_output	NewWorldObject	func	mat3	sure	MAT3 world.c NewWorldObject(Wn
 func_800AC660	get_world_part_flags	func	code	likely	returns a world part dlflags; NewWorldObject inlines it in the camera-link branch; retail keeps only its stub
 wheel_torque_apply	NewWorld	func	mat3	sure	MAT3 world.c NewWorld(World, Parent): Worlddlidx = -1, FindWorld (bsearch), NewWorldObject, InitSTree, returns Worlddlidx
 fp_call_wrapper	relocate_wave_model	func	code	likely	SetupWaveModel(idx, 0): re-relocates a handle wave after the heap moved it (no GC counterpart)
-brake_force_apply	BGLoadWaveMain	func	mat3	likely	the background wave loader thread: waits for a request, _ReadWave, signals idle; GC debug-info name (erased static) per the group header
-resource_slot_get	FindWaveInstance	func	mat3	sure	MAT3 waves.c FindWaveInstance(waveNum): _FindWaveInstance(waveNum, -1)
-player_state_get	WaveInstanceReady	func	mat3	sure	MAT3 waves.c WaveInstanceReady(idx): _ValidateWaveInstance then gWaveInstance[idx].ready (+1)
+brake_force_apply	BGLoadWaveMain	func	mat3	likely	the background wave loader thread: waits for a request, ReadWave, signals idle; GC debug-info name (erased static) per the group header
+resource_slot_get	FindWaveInstance	func	mat3	sure	MAT3 waves.c FindWaveInstance(waveNum): FindWaveInstanceInternal(waveNum, -1)
+player_state_get	WaveInstanceReady	func	mat3	sure	MAT3 waves.c WaveInstanceReady(idx): ValidateWaveInstance then gWaveInstance[idx].ready (+1)
 func_800AC8D4	StartSparks	func	mat3	sure	MAT3 visuals.c StartSparks(slot): the five spark visuals (LF, LR, RF, RR, B handlers) unless attract mode
 func_800AC9BC	downleaf	func	mat3	sure	MAT3 stree.c downleaf(tp, posh, posv, quad): quadtree descent; file header cites the arcade downleaf
 handbrake_apply	updownleaf	func	mat3	sure	MAT3 stree.c updownleaf(tp, posh, posv, quad): find the containing node, then downleaf; no handbrake
@@ -191,7 +193,7 @@ func_800ADCE0	DecodeSlist	func	mat3	sure	MAT3 stree.c DecodeSlist(slp, snum, sln
 input_deadzone_apply	ShotToWorldCollision	func	mat3	sure	MAT3 stree.c ShotToWorldCollision(old, new, uvs, radius, interp, ignore); the file header already says so
 camera_position_update	update_player_visibility	func	code	sure	battle-mode line-of-sight matrix between the players (ShotToWorldCollision between raised car positions); N64-only
 func_800AED18	emitter_stub	func	code	likely	deleted-procedure stub (jr ra) of an audiomgr.c static (probably _ActivateEmitter, inlined into AudEmitEffect)
-func_800AED20	_NewEmitter	func	mat3	sure	MAT3 audiomgr.c _NewEmitter: pop gFreeEmitters, free = 0
+func_800AED20	NewEmitter	func	mat3	sure	MAT3 audiomgr.c NewEmitter: pop gFreeEmitters, free = 0
 camera_target_track	AudEmitEffect	func	mat3	sure	MAT3 audiomgr.c AudEmitEffect(pos, dir, fadeDistance, fadeCompression, maxVol, minVol, fxid, subId, replace, priority): clamps, basePitch 1, fbpan -2, gEffectLoop
 camera_collision_check	EmitGameSound	func	mat3	sure	MAT3 audio.c EmitGameSound: -1 unless gGameSoundsEnabled and fxid != -1, then AudEmitEffect
 func_800AF064	blast_stub	func	code	likely	deleted-procedure stub (jr ra) of a visuals.c static before StartBlast
@@ -199,13 +201,13 @@ save_write_data	StartBlast	func	mat3	sure	MAT3 visuals.c StartBlast(data, linkTo
 camera_smooth_lerp	InitBlast	func	mat3	sure	MAT3 visuals.c InitBlast: 50 ZOID_NewMatrix blast matrices, ring/blast object ids -1, gBlastMatCnt = 0
 save_slot_valid	InitCarObj	func	mat3	sure	MAT3 visuals.c InitCarObj(objnum, camlink, parent, flags, slot, carObjNum, forGame): matrix choice then MBOX_NewObjectCam
 save_load_data	StartFrame	func	mat3	sure	MAT3 visuals.c StartFrame(slot): AnimateFrame visual, show the frame, rocket parts via InitCarObj with the same 0.25/0.5/0.25 scales
-func_800AF844	_StopSkid	func	mat3	sure	MAT3 skids.c _StopSkid(ns): skid midpoint, active, ns->skid = 0
-func_800AF8C0	_UpdateSkid	func	mat3	sure	MAT3 skids.c _UpdateSkid(ns, slot, tire, color); the skid group header says UpdateSkid
+func_800AF844	StopSkid	func	mat3	sure	MAT3 skids.c StopSkid(ns): skid midpoint, active, ns->skid = 0
+func_800AF8C0	UpdateSkid	func	mat3	sure	MAT3 skids.c UpdateSkid(ns, slot, tire, color); the skid group header says UpdateSkid
 func_800AFA84	FreeStatLLE	func	mat3	sure	MAT3 statll.c FreeStatLLE(list, element): unlink (single or double) then push on the store
-func_800AFB28	skids_stub	func	code	likely	deleted-procedure stub (jr ra) of an unidentified skids.c static next to _GetSkid
-func_800AFB30	_GetSkid	func	mat3	sure	MAT3 skids.c _GetSkid(color); its body is defined under this label in the skid group (inlined into _StartSkid)
-save_validate	_StartSkid	func	mat3	sure	MAT3 skids.c _StartSkid(ns, slot, tire, color); skid group header; no save validation
-func_800AFD54	_ContinueSkid	func	mat3	sure	MAT3 skids.c _ContinueSkid; skid group header (inlined into UpdateSkids)
+func_800AFB28	skids_stub	func	code	likely	deleted-procedure stub (jr ra) of an unidentified skids.c static next to GetSkid
+func_800AFB30	GetSkid	func	mat3	sure	MAT3 skids.c GetSkid(color); its body is defined under this label in the skid group (inlined into StartSkid)
+save_validate	StartSkid	func	mat3	sure	MAT3 skids.c StartSkid(ns, slot, tire, color); skid group header; no save validation
+func_800AFD54	ContinueSkid	func	mat3	sure	MAT3 skids.c ContinueSkid; skid group header (inlined into UpdateSkids)
 cpak_init	UpdateSkids	func	mat3	sure	MAT3 skids.c UpdateSkids(slot): per tire start/continue/stop with the appFlags masks and colours; no Controller Pak
 cpak_read	UpdateVisuals	func	mat3	sure	MAT3 visuals.c UpdateVisuals(slot): gGoodFrameRate, smoke starts, the car visuals, UpdateSkids; no Controller Pak
 pool_linked_list_init	ClearStatLL	func	mat3	sure	MAT3 statll.c ClearStatLL(list): store = list, head = 0, chain the elements
@@ -250,34 +252,27 @@ sound_control	NewMultiBlit	func	mat3	sure	MAT3 blit.c NewMultiBlit(ulx, uly, mbl
 crowd_cheer_play	ChangePaneSize	func	mat3	sure	MAT3 pane.c ChangePaneSize(pane, x1, y1, x2, y2): five border/fill blits; no crowd
 ambient_sound_set	InitPane	func	mat3	sure	MAT3 pane.c InitPane(x1, y1, x2, y2, alpha, animFunc, animID, permanent): first free of 16 panes, five NewBlit; ovl_b #defines InitPane to it
 func_800B3D0C	HAL_GetFontLeading	func	mat3	sure	MAT3 HAL_text.c HAL_GetFontLeading: returns gLeading (N64 without the halving)
-sound_update_channel	_SetupFontData	func	mat3	sure	MAT3 HAL_text.c static _SetupFontData(force): font header, letters, char map, textures, leading/spacing, texture format; no sound
-object_type_byte2_get	HAL_GetFontAscent	func	mat3	sure	MAT3 HAL_text.c HAL_GetFontAscent: _SetupFontData(0), gFontHeader->ascent (+2)
-object_type_byte3_get	HAL_GetFontDescent	func	mat3	sure	MAT3 HAL_text.c HAL_GetFontDescent: _SetupFontData(0), gFontHeader->descent (+3)
+sound_update_channel	SetupFontData	func	mat3	sure	MAT3 HAL_text.c static SetupFontData(force): font header, letters, char map, textures, leading/spacing, texture format; no sound
+object_type_byte2_get	HAL_GetFontAscent	func	mat3	sure	MAT3 HAL_text.c HAL_GetFontAscent: SetupFontData(0), gFontHeader->ascent (+2)
+object_type_byte3_get	HAL_GetFontDescent	func	mat3	sure	MAT3 HAL_text.c HAL_GetFontDescent: SetupFontData(0), gFontHeader->descent (+3)
 object_bytes_sum_global	TB_GetFontLineHeight	func	mat3	sure	MAT3 TB_text.c TB_GetFontLineHeight = ascent + descent + leading; nonmatching table identity; ovl_b #defines it
 object_manager_update	HAL_GetTextWidth	func	mat3	sure	MAT3 HAL_text.c HAL_GetTextWidth(text, numChars); the file header describes it; ovl_a/ovl_b #define it
-func_800B41B8	_ReleaseSemaphore_HALText	func	mat3	sure	MAT3 HAL_text.c static _ReleaseSemaphore (empty on GC): osSendMesg on the font lock; suffix follows the existing _ReleaseSemaphore_Coins style
-slot_state_setup	_HAL_SetFont	func	mat3	sure	MAT3 HAL_text.c static _HAL_SetFont(fontID): find/LoadWave the dat and tex waves, _SetupFontData(old != new), font 0 fixed width
-func_800B42E8	_GetSemaphore_HALText	func	mat3	sure	MAT3 HAL_text.c static _GetSemaphore (empty on GC): osRecvMesg on the font lock
-object_create	HAL_SetFont	func	mat3	sure	MAT3 HAL_text.c HAL_SetFont(fontID): lock, _HAL_SetFont, unlock; ovl_b #defines HAL_SetFont to it
+func_800B41B8	text_unlock	func	mat3	sure	gives text_lock_queue back: the N64 body of MAT3 HAL_text.c static _ReleaseSemaphore
+slot_state_setup	HAL_SetFontInternal	func	mat3	sure	MAT3 HAL_text.c static HAL_SetFontInternal(fontID): find/LoadWave the dat and tex waves, SetupFontData(old != new), font 0 fixed width
+func_800B42E8	text_lock	func	mat3	sure	takes text_lock_queue: the N64 body of MAT3 HAL_text.c static _GetSemaphore (empty on GC), a name many MAT3 files define
+object_create	HAL_SetFont	func	mat3	sure	MAT3 HAL_text.c HAL_SetFont(fontID): lock, HAL_SetFontInternal, unlock; ovl_b #defines HAL_SetFont to it
 fcvt_wrapper	TB_Sprintf	func	mat3	sure	MAT3 TB_text.c TB_Sprintf(buf, fmt, ...): vsprintf; ovl_b #defines TB_Sprintf to it
 voice_stop	pause_TitlePane	func	mat3	sure	MAT3 pausescr.c static _TitlePane: font 13, title text, gTitlePane = InitPane(-20, 0, -10, 10, ...), ChangePaneSize round it; prefix as options_TitlePane
 func_800B45B4	pane_stub	func	code	likely	deleted-procedure stub (jr ra) of a static before RemovePanes
 sound_handles_clear	RemovePanes	func	mat3	sure	MAT3 pane.c RemovePanes(permanent): RemoveBlit the five blits of each used pane
-format_string_parse	_CalcChecksum	func	mat3	sure	MAT3 save.c static _CalcChecksum(start, size): the same seven operations by (byte & 7)
+format_string_parse	CalcChecksumInternal	func	mat3	sure	MAT3 save.c static CalcChecksumInternal(start, size): the same seven operations by (byte & 7)
 # ---- data used only in this area (address order) ----
 D_8002B020	start_overlay_rom	data	code	sure	cartridge address of the compressed Start overlay (load_start_overlay)
 D_8002B024	extra_overlay_rom	data	code	sure	cartridge address of the compressed Extra overlay (load_extra_overlay)
 D_8002E860	gLargestTextWave	data	mat3	sure	u8 wave number InitTextWave loads first, as MAT3 text.c gLargestTextWave
-D_8002F660	audio_dma_thread_stack	data	code	sure	stack top of the audio DMA thread (id 9) AudioInitSys starts
-D_800329F0	pak_thread_stack	data	code	sure	stack top of the pak/rumble thread PS_InitPakSys starts
-D_80033EA0	audio_thread_stack	data	code	sure	stack top of the audio task thread (id 3) AudioInitSys starts
-D_80034690	bg_load_thread	data	code	sure	OSThread of the background wave loader (BGLoadWaveMain raises its priority)
-D_800349F0	pak_thread	data	code	sure	OSThread of the pak/rumble thread (PS_InitPakSys)
-D_800350B0	audio_dma_thread	data	code	sure	OSThread id 9 (dma_wait_complete), started by AudioInitSys
-D_80035260	audio_thread	data	code	sure	OSThread id 3 (task_complete_signal), started by AudioInitSys
 D_80110664	default_blit_image	data	code	sure	built-in image InitBlit uses for a blit without a texture name
 D_80110D3C	CarNames	data	mat3	sure	char *[13] car name prefixes, MAT3 visuals.c CarNames (InitCarDynamicObjs)
-D_80114740	gFontHeap	data	mat3	sure	heap for font textures, MAT3 HAL_text.c gFontHeap (_HAL_SetFont LoadWave argument)
+D_80114740	gFontHeap	data	mat3	sure	heap for font textures, MAT3 HAL_text.c gFontHeap (HAL_SetFontInternal LoadWave argument)
 D_80116DE4	gPaneBlits	data	mat3	sure	16 pane records (five blit pointers, colours, used/perm), MAT3 pane.c gPaneBlits
 D_80117438	gDirtColor	data	mat3	sure	tRGBA skid colour off pavement, MAT3 skids.c gDirtColor
 D_8011743C	skid_tire_flags	data	mat3	likely	u32[4] appearance bits per tire, MAT3 UpdateSkids static appFlags
@@ -288,18 +283,18 @@ D_80118EE4	text_wave_inited	data	mat3	sure	s8, MAT3 InitTextWave static sInited
 D_8011AE58	Track1Colors	data	mat3	sure	tRGBA sheen colours outside the game, MAT3 Track1Colors
 D_8011AFDC	WeaponNames	data	mat3	sure	char *[8] weapon model names, MAT3 InitTrackDynamicObjs WeaponNames
 D_8011AFFC	WingNames	data	mat3	sure	char *[12] wing model names, MAT3 WingNames
-D_8011B02C	ObjNames	data	mat3	sure	char *[59] effect/hulk model names, MAT3 InitTrackDynamicObjs ObjNames
+D_8011B02C	InitTrackDynamicObjs_ObjNames	data	mat3	sure	char *[59] effect/hulk model names, MAT3 InitTrackDynamicObjs ObjNames
 D_8011B118	TrkNames	data	mat3	sure	char *[] track prop model names, MAT3 TrkNames
 D_8011B3A0	RimNames	data	code	likely	char *[24] rim texture names InitVisuals looks up (MAT3 InitWheelDynamicObjs, inlined)
 D_8011B400	tire_object_names	data	code	likely	char *[1] the tire model name InitVisuals stores in gObjList[156]
 D_8011B404	TexNames	data	mat3	likely	char *[10] spark/shadow/skid texture names into gTexList, MAT3 visuals.c TexNames
 D_8011B42C	carObjNames	data	mat3	sure	char *[3] car part suffixes, MAT3 InitCarDynamicObjs carObjNames
 D_8011B438	sheenName	data	mat3	sure	char *[11] sheen texture names, MAT3 SetSheen sheenName
-D_8011B4B8	wingOffsets	data	mat3	sure	f32[body][3] wing offsets, MAT3 visuals.c wingOffsets
+D_8011B4B8	wingOffsets_y	data	mat3	sure	f32 interior label: &wingOffsets[0][1] (StartWing reads it with the 12-byte row stride); wave 2 writes wingOffsets[type][1]
 D_8011E748	trackParts	data	mat3	sure	u8[19] zone count per track, MAT3 world.c trackParts
 D_8011E75C	showAllParts	data	mat3	sure	u32[4] all-zones row, MAT3 world.c showAllParts
 D_8011E76C	trackFog	data	mat3	sure	per-track fog region list (x, z, radius, near, far, fog), MAT3 world.c trackFog
-D_8011E7A8	fogViewableDistance	data	code	likely	f32[players][intensity] global viewable distance WorldFogDensity sets (N64-only table; GC copies backclip)
+D_8011E7A8	fog_viewable_distance	data	code	likely	f32[players][intensity] global viewable distance WorldFogDensity sets (N64-only table; GC copies backclip)
 D_8011E7F0	fogDistance	data	mat3	sure	s16[players][intensity] fog distance, MAT3 world.c fogDistance
 D_8011E810	fogMin	data	mat3	sure	s16[players][intensity] fog start, MAT3 world.c fogMin
 D_8011EA30	vp0	data	mat3	sure	Vp of the one-window layout, MAT3 zoidwindow.c vp0
@@ -336,7 +331,7 @@ D_80123BB8	tan_q4	data	code	sure	f32 denominator coefficient (quartic term)
 D_80123BBC	tan_q3	data	code	sure	f32 denominator coefficient
 D_80123BC0	tan_q2	data	code	sure	f32 denominator coefficient
 D_80123BC4	tan_q1	data	code	sure	f32 denominator coefficient
-D_80123C08	skid_lift	data	code	sure	f32 constant: height of a skid mark above the tire (_UpdateSkid)
+D_80123C08	skid_lift	data	code	sure	f32 constant: height of a skid mark above the tire (UpdateSkid)
 D_80123C1C	wing_flame_height	data	code	sure	f32 constant: wing flame lift (MAT3 StartWingFlame writes the literal)
 D_80124EF0	zoid_view_matrix	data	code	sure	f32[4][4] camera rotation of the current window (scaled by gGlobalCameraFacingScale)
 D_80124F30	zoid_upright_matrix	data	code	sure	f32[4][4] yaw-only matrix for upright nodes (node flag 0x8000)
@@ -369,7 +364,7 @@ D_80144008	gErrorFunc	data	mat3	sure	pak error dialog callback, MAT3 paksysdc.c 
 D_80144C60	pak_file_handles	data	code	sure	the 64 pak file handles (each points at a pak_file_records entry)
 D_80144DC0	pak_file_records	data	code	sure	the 64 tPS_File records (76 bytes on the N64)
 D_801460C8	gStoppedChannels	data	mat3	sure	s32[5], MAT3 audiosfx.c gStoppedChannels
-D_80146100	gSfxCmds	data	mat3	sure	tSfxCmd array, MAT3 audiosfx.c static gCmds (renamed: audiomgr.c has a gCmds too)
+D_80146100	audiosfx_gCmds	data	mat3	sure	tSfxCmd[]: MAT3 audiosfx.c static gCmds (file prefix: audiomgr.c has a gCmds too)
 D_80146204	gNumZoidWindows	data	mat3	sure	u8 window count, MAT3 zoidwindow.c gNumZoidWindows (the game gNumWindows is another datum)
 D_80146210	Blits	data	mat3	sure	_tBlit[200], MAT3 blit.c Blits
 D_80149780	gFontDatWaveInst	data	mat3	sure	s32, MAT3 HAL_text.c gFontDatWaveInst
@@ -387,7 +382,7 @@ D_80150E98	gTargetOwnStructPtrs	data	mat3	sure	void *[8], MAT3 targets.c gTarget
 D_80151AA0	gViewableDistance	data	mat3	sure	f32, MAT3 world.c gViewableDistance (Traverse draw reach)
 D_80152034	gRoadPath	data	mat3	sure	pathtyp * path segments (132 bytes on the N64), MAT3 stree.c path
 D_801526F0	gRoadHead	data	mat3	sure	stheadertyp *, MAT3 stree.c gRoadHead
-D_8015276C	audio_thread_messages	data	code	sure	its message buffer
+D_8015276C	musyx_task_done_msg	data	code	sure	OSMesg[1]: musyx_task_done_queue's message buffer
 D_80155220	gSkidList	data	mat3	sure	tStatList, MAT3 skids.c gSkidList
 D_80155290	gNewSkid	data	mat3	sure	tNewSkid[6][4], MAT3 skids.c gNewSkid
 D_80155B30	gSkidArray	data	mat3	sure	tSkid[100], MAT3 skids.c gSkidArray
@@ -395,7 +390,7 @@ D_80156BD0	gMaxMatrices	data	mat3	sure	s32, MAT3 zoid.c gMaxMatrices
 D_80156BD4	bg_load_request_messages	data	code	sure	its message buffer
 D_80156D30	cull_vertex_max	data	code	sure	high-water mark of cull_vertex_count
 D_80157248	cull_vertices	data	code	sure	Vtx pool of the world culling boxes
-D_80161378	gTexList_skid	data	code	sure	interior address: gTexList[8], the skid texture _GetSkid uses
+D_80161378	gTexList_skid	data	code	sure	interior address: gTexList[8], the skid texture GetSkid uses
 D_801613F0	zoid_lookat_matrix	data	code	sure	f32[4][4] look-at matrix of the current window
 D_80161434	zoid_poly_vertices	data	code	sure	Vtx * cursor for the flat polygons of the frame
 D_80161498	zoid_poly_vertex_buffers	data	code	sure	Vtx *[2] per-frame polygon vertex buffers
@@ -407,7 +402,7 @@ D_803BAE20	start_overlay_bss_end	data	code	sure	end of the Start overlay bss
 tPS_File.0x40	size	field	mat3	sure	N64 tPS_File (76 bytes): file size in bytes, read by PS_ReadFile (MAT3 tPS_File.size, GC offset 0x34)
 anon_changed_inserted_25c.0x5	damaged	field	mat3	sure	gPaks record (772 bytes on the N64): PS_PakDamaged reads it (MAT3 field damaged, GC offset 0x4)
 anon_changed_inserted_25c.0x78	FreeSpace	field	mat3	sure	gPaks record: free bytes from osPfsFreeBlocks; PS_GetFreeBlocks and pak_get_free_bytes
-anon_changed_inserted_25c.0x7D	rumblePercent	field	mat3	likely	gPaks record: rumble level PS_SetRumblePercent stores (through gPaks_rumble_level) for the rumble thread
+anon_changed_inserted_25c.0x7D	rumblePercent	field	mat3	likely	gPaks record: rumble level PS_SetRumblePercent stores (through gPaks_rumble_request) for the rumble thread
 tWindowInfo.0x0	vp	field	mat3	sure	ZoidWinInfo window: viewport pointer (ZOID_SetViewport)
 tWindowInfo.0x4	s	field	mat3	sure	ZoidWinInfo window: scissor pointer (ZOID_SetViewport)
 tWindowInfo.0x40	fogmin	field	mat3	sure	s16 (ZOID_GetFog, ZOID_SetFog)
@@ -415,9 +410,8 @@ tWindowInfo.0x42	fogmax	field	mat3	sure	u16 (ZOID_GetFog, ZOID_SetFog)
 tWindowInfo.0x44	fogcolor	field	mat3	sure	u8[4] (ZOID_GetFog reads 0x44..0x47 one by one)
 anon_palette_texture_20.0x16	hide	field	mat3	sure	gBlitInstanceList entry: 2 = free (ZOID_RemoveBlit, ZOID_AddBlit); GC offset 0x15
 tPoly.0x6	z	field	mat3	sure	s16 primitive depth (ZOID_SetPolyZ)
-tDLList.0x8	head	field	mat3	sure	first element (_NewEmitter reads gFreeEmitters.head)
-tSfxEmitter.0x8	free	field	mat3	sure	s8 cleared by _NewEmitter (N64 offset; the PC layout macro is EMITTER_ACTIVE)
-tStatList.0x0	dbl	field	mat3	sure	InitStatLL
+tDLList.0x8	head	field	mat3	sure	first element (NewEmitter reads gFreeEmitters.head)
+tSfxEmitter.0x8	free	field	mat3	sure	s8 cleared by NewEmitter (N64 offset; the PC layout macro is EMITTER_ACTIVE)
 tStatList.0x4	numElements	field	mat3	sure	InitStatLL
 tStatList.0x8	elementSize	field	mat3	sure	InitStatLL
 tStatList.0xC	list	field	mat3	sure	InitStatLL
@@ -495,7 +489,7 @@ src/blob/func_800A4CB8.c	src/blob/AudioSfxInit.c	file	mat3	sure	holds AudioSfxIn
 src/blob/func_800A4E50.c	src/blob/text_stub.c	file	code	likely	holds text_stub
 src/blob/func_800A510C.c	src/blob/LoadTextWave.c	file	mat3	sure	holds LoadTextWave
 src/blob/func_800A5158.c	src/blob/InitTextWave.c	file	mat3	sure	holds InitTextWave
-src/blob/func_800A51D8.c	src/blob/_ConvertHeap.c	file	mat3	likely	holds _ConvertHeap
+src/blob/func_800A51D8.c	src/blob/ConvertHeap_stub.c	file	mat3	likely	holds ConvertHeap_stub
 src/blob/func_800A54FC.c	src/blob/zoid_reset_lights.c	file	code	likely	holds zoid_reset_lights
 src/blob/func_800A5518.c	src/blob/ZOID_SetViewport.c	file	mat3	sure	holds ZOID_SetViewport
 src/blob/func_800A553C.c	src/blob/ZOID_SetScissor.c	file	mat3	sure	holds ZOID_SetScissor
@@ -550,17 +544,17 @@ src/blob/func_800AD090.c	src/blob/froll.c	file	mat3	sure	holds froll
 src/blob/func_800AD5D0.c	src/blob/DecodeVlist.c	file	mat3	sure	holds DecodeVlist
 src/blob/camera_position_update.c	src/blob/update_player_visibility.c	file	code	sure	holds update_player_visibility
 src/blob/func_800AED18.c	src/blob/emitter_stub.c	file	code	likely	holds emitter_stub
-src/blob/func_800AED20.c	src/blob/_NewEmitter.c	file	mat3	sure	holds _NewEmitter
+src/blob/func_800AED20.c	src/blob/NewEmitter.c	file	mat3	sure	holds NewEmitter
 src/blob/camera_collision_check.c	src/blob/EmitGameSound.c	file	mat3	sure	holds EmitGameSound
 src/blob/func_800AF064.c	src/blob/blast_stub.c	file	code	likely	holds blast_stub
 src/blob/camera_smooth_lerp.c	src/blob/InitBlast.c	file	mat3	sure	holds InitBlast
 src/blob/save_slot_valid.c	src/blob/InitCarObj.c	file	mat3	sure	holds InitCarObj
 src/blob/save_load_data.c	src/blob/StartFrame.c	file	mat3	sure	holds StartFrame
-src/blob/func_800AF844.c	src/blob/_StopSkid.c	file	mat3	sure	holds _StopSkid
+src/blob/func_800AF844.c	src/blob/StopSkid.c	file	mat3	sure	holds StopSkid
 src/blob/func_800AFA84.c	src/blob/FreeStatLLE.c	file	mat3	sure	holds FreeStatLLE
 src/blob/func_800AFB28.c	src/blob/skids_stub.c	file	code	likely	holds skids_stub
-src/blob/func_800AFB30.c	src/blob/_GetSkid.c	file	mat3	sure	holds _GetSkid
-src/blob/func_800AFD54.c	src/blob/_ContinueSkid.c	file	mat3	sure	holds _ContinueSkid
+src/blob/func_800AFB30.c	src/blob/GetSkid.c	file	mat3	sure	holds GetSkid
+src/blob/func_800AFD54.c	src/blob/ContinueSkid.c	file	mat3	sure	holds ContinueSkid
 src/blob/cpak_read.c	src/blob/UpdateVisuals.c	file	mat3	sure	holds UpdateVisuals
 src/blob/pool_linked_list_init.c	src/blob/ClearStatLL.c	file	mat3	sure	holds ClearStatLL
 src/blob/struct_fields_init.c	src/blob/InitStatLL.c	file	mat3	sure	holds InitStatLL
@@ -606,11 +600,11 @@ src/blob/groups/audio_init_sys	src/blob/groups/AudioInitSys	file	mat3	sure	holds
 src/blob/groups/audio_init_sys/car_shadow_render.c	src/blob/groups/AudioInitSys/AudioInitSys.c	file	mat3	sure	the file of AudioInitSys
 src/blob/groups/carcolor	src/blob/groups/SetupCarColor	file	mat3	sure	holds SetupCarColor, MakeRamps, blend_rgb5551
 src/blob/groups/carcolor/carcolor.c	src/blob/groups/SetupCarColor/SetupCarColor.c	file	mat3	sure	SetupCarColor
-src/blob/groups/hash	src/blob/groups/CalcChecksum	file	mat3	sure	holds save.c _CalcChecksum
+src/blob/groups/hash	src/blob/groups/CalcChecksum	file	mat3	sure	holds save.c CalcChecksumInternal
 src/blob/groups/level_objects	src/blob/groups/targets	file	mat3	sure	SetupTarget, SetTargetDef, SetTargetDefs and world.c NewWorldObject (MAT3 targets.c / world.c)
 src/blob/groups/level_objects/differential_output.c	src/blob/groups/targets/NewWorldObject.c	file	mat3	sure	NewWorldObject and get_world_part_flags
-src/blob/groups/pak_write_cluster	src/blob/groups/paksysdc_flush	file	mat3	sure	the paksysdc.c flush half (_ClearFlush, _PS_FlushFile, PS_FlushPak, PS_FlushFile, PS_WriteFile, dirty pages)
-src/blob/groups/paksys	src/blob/groups/paksysdc	file	mat3	sure	PS_PakServer, PS_CreateFile, PS_DeleteFile, PS_InitPakSys, _RemovePak, _ClearPak
+src/blob/groups/pak_write_cluster	src/blob/groups/paksysdc_flush	file	mat3	sure	the paksysdc.c flush half (ClearFlush, PS_FlushFileInternal, PS_FlushPak, PS_FlushFile, PS_WriteFile, dirty pages)
+src/blob/groups/paksys	src/blob/groups/paksysdc	file	mat3	sure	PS_PakServer, PS_CreateFile, PS_DeleteFile, PS_InitPakSys, RemovePak, ClearPak
 src/blob/groups/pfs_status	src/blob/groups/pak_error_from_pfs	file	code	sure	holds pak_error_from_pfs
 src/blob/groups/project_window	src/blob/groups/ZOID_ProjectWindow	file	mat3	sure	holds ZOID_ProjectWindow (+ BodyVector, ZOID_GetWindow context)
 src/blob/groups/project_window/body_vector.c	src/blob/groups/ZOID_ProjectWindow/BodyVector.c	file	mat3	sure	BodyVector context copy
@@ -620,7 +614,6 @@ src/blob/groups/steering_sensitivity	src/blob/groups/stree_path_interp	file	mat3
 src/blob/groups/shot_world_collision/steering.c	src/blob/groups/shot_world_collision/path_interp.c	file	mat3	sure	context copies of fPathInterp, fHalfPipeInterp, surfpos
 src/blob/groups/wheel_setup_initial	src/blob/groups/UnloadWaveAll	file	mat3	sure	holds UnloadWaveAll and unload_wave_if_matching
 src/blob/groups/window_init	src/blob/groups/ZOID_InitializeWindow	file	mat3	sure	holds ZOID_InitializeWindow (+ ZOID_SetWindow, ZOID_SetBGColor context)
-src/blob/groups/func_800AD4C8	src/blob/groups/stree_surface	file	mat3	likely	VectorToSurfEdge, mats2fcopy, updownleaf (stree.c) with camera functions of the next area
 src/blob/groups/camera_target_track	src/blob/groups/audio_emitters	file	code	likely	named after the old label of AudEmitEffect; its other members belong to other areas
 src/blob/groups/heap_release/car_damage_visual.c	src/blob/groups/heap_release/ClearMemoryHeap.c	file	mat3	likely	ClearMemoryHeap
 src/blob/groups/heap_release/wheel_params_set.c	src/blob/groups/heap_release/audio_sfx_shutdown.c	file	code	sure	audio_sfx_shutdown
@@ -631,33 +624,12 @@ src/blob/groups/sound_channel_extra/object_manager_update.c	src/blob/groups/soun
 src/blob/groups/pausescr_state/voice.c	src/blob/groups/pausescr_state/TitlePane.c	file	mat3	sure	pause_TitlePane
 # shared
 # Data also used outside 0x8009DC50-0x800B4720 (the lead reconciles these names across the areas).
-D_8002AFB4	gRetraceRate	data	mat3	likely	f32 video field rate (50 or 60); UpdateVisuals picks the frame budget from it; MAT3 gRetraceRate role
 D_8002AFC0	screen_width	data	code	sure	u16/s32 frame-buffer width in pixels; window layouts and the blitter scissor
 D_8002AFC4	screen_height	data	code	sure	frame-buffer height in pixels (above 240 = interlaced high-res)
-D_8002EB90	gSeconds	data	mat3	sure	f32 game time in seconds; skid lastTime and AnimateSkids fade as MAT3 skids.c
-D_80034840	model_thread	data	code	likely	OSThread stopped around car appearance changes in SetupCar (the model/physics thread)
-D_80035440	bg_load_idle_queue	data	code	sure	OSMesgQueue: the background loader idle token (BGLoadWaveMain sends, _BGLoadWaveCheck waits)
-D_80035458	si_message_queue	data	code	sure	OSMesgQueue of the serial interface (osPfsInitPak, osMotorInit)
 D_8008BEA4	AnimateBrakeLights	data	mat3	likely	not data: the address of func_8008BEA4, the visual function StartCar puts in visuals[0] (MAT3 StartBrakeLights sets AnimateBrakeLights); name it with that function
-D_8010FFC0	gGameSoundsEnabled	data	mat3	sure	s8, MAT3 audio.c gGameSoundsEnabled (EmitGameSound/PlayGameSound test)
-D_80110260	gEmitters	data	mat3	sure	emitter array pointer, MAT3 audiomgr.c gEmitters (AudEmitEffect returns -1 without it)
-D_80110284	gSfxInited	data	mat3	sure	s8, MAT3 audiosfx.c static gInited (renamed: other modules have a gInited)
-D_8011028C	gStopAllEffects	data	mat3	sure	s8, MAT3 audiosfx.c gStopAllEffects
-D_80111299	gCarWings	data	mat3	likely	s8 [4][13] per-player wing choice per car type; MAT3 gCarWings[slot + 1][body_type] (the symbol starts at row 1)
-D_8011157C	gTireRims	data	mat3	sure	s8 per-player rim choice per car, MAT3 gTireRims
-D_8011418C	unitmatrix	data	mat3	sure	f32[4][3] identity, MAT3 fmath unitmatrix
-D_801170FC	gPauseState	data	mat3	sure	s32 pause screen state (0 racing, 1 menu, 2-8 its screens)
-D_80117280	titlePos	data	mat3	sure	s16[2] pause title position, MAT3 pausescr.c titlePos
-D_8011734C	gTitlePane	data	mat3	sure	pane pointer of the pause title, MAT3 pausescr.c gTitlePane
-D_80117350	gControllerRemoved	data	mat3	likely	s8: the pause title shows the controller-removed text
-D_801174B4	gGameState	data	mat3	sure	u32 game state bits, MAT3 gGameState; the alias state_word_a is renamed with it
-D_80117530	gTargetInfo	data	mat3	sure	122 target info records (48 bytes), MAT3 targets.c targetInfo (prefixed: targetInfo is a Windows display-API member the port uses)
-D_8011AD8C	gShadowColor	data	mat3	sure	tRGBA shadow and pavement skid colour, MAT3 gShadowColor
-D_8011AD90	gDummyVtx	data	code	likely	the word after gShadowColor; _GetSkid, StartShadow and StartArrow use it as dummy vertex data
-D_8011ADC0	SheenColors	data	mat3	sure	tRGBA[track][2] sheen colours, MAT3 visuals.c SheenColors
+D_80111299	gCarWings_players	data	mat3	sure	s8[4][13]: alias of gCarWings rows 1-4 (MAT3 gCarWings[slot + 1][body type]); interior label
 D_8011AF90	gTrackColors	data	mat3	sure	per-track colours (IR colour), MAT3 gTrackColors
-D_8011B58C	night_car_colors_a	data	code	likely	u16[8] colours StartCar copies into the car palette on tracks 3 and 5 (a field of the table at 0x8011B57C)
-D_8011B5AC	night_car_colors_b	data	code	likely	u16[8] second colour run StartCar copies on tracks 3 and 5
+D_8011B5AC	headlight_colors_night	data	code	likely	u16[8]: head-light palette entries StartHeadLights copies to the car palette (+0x150) on night tracks 3 and 5
 D_8011B898	track1Parts	data	mat3	sure	u32[117][4] zone visibility rows of track 1, MAT3 world.c track1Parts
 D_8011BFE8	track2Parts	data	mat3	sure	u32[117][4] zone visibility rows of track 2, MAT3 world.c track2Parts
 D_8011C738	track3Parts	data	mat3	likely	u32[n][4] zone visibility rows of track 3 (MAT3 naming pattern)
@@ -678,158 +650,66 @@ D_8011E598	track17Parts	data	mat3	likely	zone visibility rows of track 17
 D_8011E5A8	track18Parts	data	mat3	likely	zone visibility rows of track 18
 D_8011E5B8	track19Parts	data	mat3	likely	zone visibility rows of track 19
 D_8011EA18	default_lights	data	code	sure	the default Lights set ZOID_Reset installs in gLights
-D_8011EAA0	song_handle	data	code	likely	s32 current song handle, -1 none (AudioSongInit, AudioInitSys)
 D_8011EAAC	audio_driver_services	data	code	likely	the callback/service table AudioInitSys hands the sound driver
-D_8011EACF	blitPrimColor	data	mat3	likely	the alpha byte (rgba[3]) of MAT3 blit_pc.c blitPrimColor; the colour starts 3 bytes before
 D_8011EAE0	gPakSysInited	data	mat3	sure	s8, MAT3 paksysdc.c static gInited (renamed: other modules have a gInited)
 D_8011EAE4	gRumble	data	mat3	sure	s8, MAT3 paksysdc.c gRumble (PS_RumbleGo/PS_RumbleStop)
 D_8011EAEC	pak_charset	data	code	sure	u16[256] Controller Pak character code to game code table
-D_8011F5CC	gEffectLoop	data	mat3	sure	u8 per effect id loop flag, MAT3 audiomgr gEffectLoop
 D_801226C0	paint_colors_rgb	data	code	sure	RGB byte triples of the 32 paint colours InitVisuals converts to paint_colors
-D_80124EEC	gRoadSTree	data	mat3	sure	streetyp * quadtree nodes (20 bytes), MAT3 stree.c stree (prefixed: stree, surf, path, save are common local names)
+D_80124EEC	stree_nodes	data	mat3	sure	MAT3 stree.c stree: the track's surface quadtree nodes (RoadPosition, CollideCarBody, TireSurf); prefixed because the bare MAT3 name collides in the tree
 D_80124F78	zoid_node_position	data	code	sure	f32[3] position of the node Traverse is drawing
-D_80124F84	lookat_count	data	code	likely	s8 lookats built so far this frame
 D_80124FC8	gBgColor	data	mat3	sure	u32 fill colour word, MAT3 zoidwindow.c gBgColor (ZOID_SetBGColor)
-D_8012E608	blitAttribute	data	mat3	sure	u32 blit attribute bits, MAT3 blit_pc.c blitAttribute
-D_8012E60C	blitXmin	data	mat3	sure	s32 scissor, MAT3 blit_pc.c blitXmin
-D_8012E610	blitXmax	data	mat3	sure	s32 scissor, MAT3 blitXmax
-D_8012E668	blitYmin	data	mat3	sure	s32 scissor, MAT3 blitYmin
-D_8012E66C	gEnvCount	data	mat3	sure	s16, MAT3 visuals.c gEnvCount
-D_8012E674	blitYmax	data	mat3	sure	s32 scissor, MAT3 blitYmax
-D_8012E67A	blitZDist	data	mat3	sure	u16, MAT3 blit_pc.c blitZDist
-D_8012E680	blitLUT	data	mat3	sure	s32, MAT3 blit_pc.c blitLUT
-D_8012E684	blit_cached_image	data	code	sure	texture image of the last tile load (cache key with blit_cached_tile)
-D_8012E688	blit_cached_tile	data	code	sure	s64 tile key of the last tile load
-D_8012E6D0	blitColors	data	mat3	sure	the current blit palette, MAT3 blit_pc.c blitColors
-D_8012E700	ObjInstanceList	data	mat3	sure	scene nodes (0x44 bytes on the N64), MAT3 zoid.c ObjInstanceList
-D_8012E708	ObjInstanceList_mat	data	code	sure	interior address: ObjInstanceList[0].mat (+8); write ObjInstanceList[i].mat instead
-D_80138664	gCarTeamColor	data	mat3	likely	s8[4] set at the start of InitVisuals as MAT3 gCarTeamColor (N64 values differ)
-D_801391F0	gEnvList	data	mat3	sure	tVisual * active environment visuals, MAT3 gEnvList
-D_801392C8	gFreeVis	data	mat3	sure	tVisual * free list, MAT3 gFreeVis
-D_80139320	gCarParts	data	mat3	sure	CarParts[52] (0x40 bytes on the N64), MAT3 gCarParts
-D_8013F1D8	gFogIntensity	data	mat3	sure	s8, MAT3 world.c gFogIntensity (WorldFogDensity index)
+D_80139320	gCarParts	data	mat3	sure	CarParts[52]: MAT3 gCarParts, the per-slot model handles (frame, hood, brakes, tires) of CreateSelectCar/SetSelectTireSizes
 D_8013FE90	gCarPaintJobInited	data	mat3	sure	s8[52], MAT3 gCarPaintJobInited
-D_8013FEC8	gLang	data	mat3	sure	s16 current language, MAT3 text.c gLang
-D_8013FECC	gMineCones	data	mat3	sure	s8, MAT3 targets.c gMineCones (InitTrackDynamicObjs MINEG1 test)
-D_8013FECD	gCarMines	data	mat3	sure	s8, MAT3 targets.c gCarMines
-D_8013FEE0	car_palette_descs	data	code	likely	per-car palette descriptors (24 bytes) SetupCarColor fills and SetModelPalette applies
-D_8013FEF4	car_palette_desc_data	data	code	likely	interior address: the data word of car_palette_descs[0] (+0x14)
+D_8013FEC8	gLang	data	mat3	sure	s16 the language (MAT3 gLang); options_animText indexes cStrLanguageNames with it
+D_8013FEE0	car_palettes	data	code	sure	24-byte car palette records per car slot (car_palette_init, LoadCars, SetupCarColor; docs/port/MORECARS.md)
 D_80140618	gNumLights	data	mat3	sure	s16, MAT3 zoidlight.c gNumLights
-D_8014061A	gInvisibleTrack	data	mat3	sure	s8, MAT3 world.c gInvisibleTrack (WorldCullObjects)
 D_801406B8	gLights	data	mat3	sure	Lights *, MAT3 zoidlight.c gLights
-D_80140A04	gMirrorWaves	data	mat3	sure	s8 mirror mode, MAT3 gMirrorWaves
-D_80140BDC	gNumModels	data	mat3	sure	u8 loaded model tables, MAT3 gNumModels; already the alias name in symbols.json
 D_80140BF0	gBlitInstanceList	data	mat3	sure	blit instances [200] (32 bytes), MAT3 zoidblit.c gBlitInstanceList; the alias pad_config is renamed with it
-D_80142728	audio_lock_queue	data	code	sure	OSMesgQueue used as the audio manager lock
-D_801427A8	audio_command_queue	data	code	sure	OSMesgQueue of audio manager commands
 D_801427C0	gObjList	data	mat3	sure	u16 model ids by role, MAT3 visuals.c gObjList
-D_80142B08	gCarModelNums	data	mat3	sure	s16[52], MAT3 gCarModelNums
-D_80143F14	gGoodFrameRate	data	mat3	sure	s8, MAT3 visuals.c gGoodFrameRate
-D_80143F68	gWheelTextures	data	mat3	likely	tTexture *[24] rim textures InitVisuals looks up, MAT3 gWheelTextures
-D_80143FC8	gTargetList	data	mat3	sure	tStatList of targets (active list at +0x10), MAT3 targets.c gTargetList
 D_80144030	gPaks	data	mat3	sure	pak records [4] (772 bytes on the N64), MAT3 paksysdc.c gPaks
-D_801440AD	gPaks_rumble_level	data	code	sure	interior address: gPaks[0] +0x7D, the rumble level byte PS_SetRumblePercent writes
-D_80144C48	gSfxInstances	data	mat3	sure	tSfxVoice array, MAT3 audiosfx.c gSfxInstances
+D_801440AD	gPaks_rumble_request	data	code	likely	s8 interior label: gPaks[0] +0x7D, the requested rumble level PS_SetRumblePercent stores and rumble_thread_entry ramps toward (record stride)
 D_80144D60	gPS_Files	data	mat3	sure	tDLList[4] file handles per pak, MAT3 paksysdc.c gPS_Files
 D_80144D68	gPS_Files_head	data	code	sure	interior address: gPS_Files[0].head (+8); write gPS_Files[i].head
-D_80144DB8	gNumChannels	data	mat3	sure	s32, MAT3 audiosfx.c gNumChannels
 D_801460E0	pak_free_handles	data	code	sure	tDLList of free pak file handles
-D_801460F4	gNumInstances	data	mat3	sure	s32, MAT3 audiosfx.c gNumInstances
-D_80146138	gSfxFreeQ	data	mat3	sure	tDLList, MAT3 audiosfx.c static gFreeQ
-D_80146160	gSfxCmdQ	data	mat3	sure	tDLList, MAT3 audiosfx.c static gCmdQ
-D_80146180	gDriveHulk	data	mat3	sure	s8[4], MAT3 visuals.c gDriveHulk (SetupCar appearance mask)
-D_801461B0	gFreeEmitters	data	mat3	sure	tDLList, MAT3 audiomgr.c gFreeEmitters
-D_801461D0	gFontSem	data	code	sure	OSMesgQueue: the HAL_text lock (_GetSemaphore_HALText)
-D_801461E8	gActiveEmitters	data	mat3	sure	tDLList, MAT3 audiomgr.c gActiveEmitters
-D_80149438	blitDL	data	code	sure	Gfx * cursor of the current blit display list, 0 when none is open
-D_80149440	cont_status	data	code	sure	OSContStatus[4] of the controller ports
+D_80146180	gDriveHulk	data	mat3	sure	s8[4]: per player, drive the crashed (1) or hulk (2) appearance (init_cars); also used by func_800DE45C, func_803A0FD8, music_tempo_set
 D_80149450	BlitPtrs	data	mat3	sure	_tBlit *[200], MAT3 blit.c BlitPtrs
 D_80149788	NumBlits	data	mat3	sure	s32, MAT3 blit.c NumBlits
-D_8014978C	gTrackNum	data	mat3	sure	s32 current track, MAT3 gTrackNum
-D_801497C0	gTargetGroupList	data	mat3	sure	tTarget **, MAT3 targets.c gTargetGroupList
-D_801497C8	gfx_cursor	data	code	sure	Gfx * cursor of the frame display list; the alias msgq_ptr is renamed with it
-D_801497D0	pak_lock_queue	data	code	sure	one-message OSMesgQueue used as the SI/pak lock
-D_801497EC	numgTargetGroupList	data	mat3	sure	s32, MAT3 targets.c numgTargetGroupList
-D_801497F0	gFontHeader	data	mat3	sure	font header pointer, MAT3 HAL_text.c gFontHeader
-D_801497F8	gRoadSurf	data	mat3	sure	surftyp * road surfaces, MAT3 stree.c surf
-D_80149800	gFontLetters	data	mat3	sure	glyph records, MAT3 gFontLetters
-D_80149818	WorldTable	data	mat3	sure	world name table, MAT3 world.c WorldTable
+D_801497F0	gFontHeader	data	mat3	sure	anon_version_type_10 *: HAL_text.c static gFontHeader, the current font's header (leading +4, spacing +8); also used by HAL_GetCharWidth, HAL_SetFontFixedWidth, object_bytes_sum_global, object_manager_update (+3)
+D_801497F8	stree_surf	data	mat3	sure	MAT3 stree.c surf: the track surfaces (RotateCollisionObject writes their orientation); prefixed because the bare MAT3 name collides in the tree
+D_80149800	gFontLetters	data	mat3	sure	anon_kerns_value_c * (12-byte letters: kerns, value, texIdx, uls/ult/lrs/lrt), HAL_text.c's static (drawtext.c already #defines gFontLetters to it)
 D_80149878	gCharMap	data	mat3	sure	s16[256] char to glyph index, MAT3 HAL_text.c gCharMap
 D_80149B00	scissor1	data	mat3	sure	s16[4] scissor of the top window, MAT3 scissor1
-D_80149B08	gFontTexFormat	data	code	sure	s32 texture format of the font textures (from the font mode)
 D_80149B20	scissor2	data	mat3	sure	s16[4] scissor of the bottom window, MAT3 scissor2
-D_80149B28	gFontTexSize	data	code	sure	s32 texel size of the font textures
-D_80149B60	gLeading	data	mat3	sure	s8, MAT3 HAL_text.c gLeading
-D_80149B70	gSpacing	data	mat3	sure	s8, MAT3 HAL_text.c gSpacing
+D_80149B28	font_texel_size	data	code	sure	s32: texel size of the font textures, set beside font_image_format by SetupFontData; DrawText reads it
+D_80149B60	gLeading	data	mat3	sure	s8 (s32 slot): HAL_text.c static gLeading (HAL_SetFontLeading); also used by __standin_func_800B6748, func_800B3D0C, menu_input_process, object_bytes_sum_global (+1)
 D_80149B80	WorldBase	data	mat3	sure	tModelPart * world nodes (104 bytes), MAT3 world.c WorldBase
-D_80149DA0	gFontIndex	data	mat3	sure	s8, MAT3 HAL_text.c gFontIndex
-D_8014A108	active_player_count	data	code	sure	s32 players in the race (MAT3 gNumPlayers role; that name is taken by another datum); the existing alias name, kept
-D_8014A110	gRace	data	mat3	sure	s32 race type, MAT3 gRace; the alias gameplay_mode is renamed with it
-D_8014A160	gPlayers	data	mat3	likely	player records (profile handle first), MAT3 gPlayers
-D_8014A248	blitMode	data	mat3	sure	s32, MAT3 blit_pc.c blitMode
-D_80150DD0	Restarting	data	mat3	sure	s8, MAT3 targets.c Restarting (SetTargetDefs)
-D_80150E28	gTargetStructCount	data	mat3	sure	s8[8], MAT3 targets.c gTargetStructCount
-D_80150F38	gBBoxModelStructs	data	mat3	sure	tMiniModelData *, MAT3 targets.c gBBoxModelStructs
-D_80150F78	gBBoxModelCount	data	mat3	sure	s32, MAT3 targets.c gBBoxModelCount
-D_80150F80	gBBoxModelUsed	data	mat3	sure	s32, MAT3 targets.c gBBoxModelUsed
-D_801515F0	gGoldCoinCnt	data	mat3	sure	s32, MAT3 targets.c gGoldCoinCnt ("GOLD" coins in SetupTarget)
-D_80151688	gSilverCoinCnt	data	mat3	sure	s32, MAT3 targets.c gSilverCoinCnt
-D_80151960	audio_low_memory	data	code	likely	s8: AudioInitSys third argument was 0; picks the larger driver memory and is read by func_800979A0
-D_80151A6C	gSongNumber	data	code	likely	s32 the song gSong plays
-D_80151AA8	gAlwaysColList	data	mat3	sure	tStatList, MAT3 targets.c gAlwaysColList
-D_80151AD8	gUpsideDownTrack	data	mat3	sure	s8, MAT3 gUpsideDownTrack
-D_8015201C	gRoadSVert	data	mat3	sure	sverttyp * surface vertices, MAT3 stree.c svert
-D_80152460	gRoadSList	data	mat3	sure	u8 * run-length surface lists, MAT3 stree.c slist
+D_80150F38	gBBoxModelStructs	data	mat3	sure	pointer to the bounding-box mini models by owner, 64-byte records (MAT3 targets.c gBBoxModelStructs); TargetCollBBox
+D_80151A6C	song_number	data	code	sure	s32: the song playing
+D_80151AD8	gUpsideDownTrack	data	mat3	sure	s8; MAT3 camera.c gUpsideDownTrack (PrePlay sets it from gCheatState[3])
 D_80152464	musyx_project	data	code	likely	address of the locked sound project wave AudioInitSys hands the driver
-D_80152568	gRoadVList	data	mat3	sure	u8 * run-length vertex lists, MAT3 stree.c vlist
-D_80152570	gBackwards	data	mat3	sure	s8 reversed track, MAT3 gBackwards
-D_801525EC	gRoadSave	data	mat3	sure	savetyp * movable-surface save records, MAT3 stree.c save
+D_801525EC	stree_save	data	mat3	sure	MAT3 stree.c save: saved geometry of the movable collision objects (32-byte records); prefixed because the bare MAT3 name collides in the tree
 D_801525FC	musyx_samples	data	code	likely	cartridge address of the sound sample data AudioInitSys hands the driver
-D_8015267C	gRoadSaveNum	data	mat3	sure	u16 count of gRoadSave, MAT3 stree.c savenum
+D_8015267C	stree_savenum	data	mat3	sure	MAT3 stree.c savenum; prefixed because the bare MAT3 name collides in the tree
 D_80152690	musyx_sdir	data	code	likely	address of the locked sample-directory wave
 D_801526D8	musyx_pool	data	code	likely	address of the locked pool wave
 D_801526DC	gRoadDat	data	mat3	sure	road data pointer, MAT3 gRoadDat
-D_80152750	audio_thread_queue	data	code	sure	OSMesgQueue AudioInitSys creates for the audio thread
-D_80152770	heap_lock_queue	data	code	sure	OSMesgQueue used as the heap lock (allocate, free, compaction)
-D_801527C8	main_heap	data	code	sure	the default heap (_ConvertHeap result)
 D_80154188	HFOV	data	mat3	sure	f32 horizontal field of view in degrees, MAT3 zoidwindow.c HFOV
-D_801543CC	gModelTime	data	mat3	likely	f32 game time of the model thread
-D_80154660	gBlastObjs	data	mat3	sure	tBlastStruct[], MAT3 visuals.c gBlastObjs
-D_80154FD8	gBlastRingObjs	data	mat3	sure	tBlastRingStruct[], MAT3 gBlastRingObjs
-D_8015698C	playerInPause	data	mat3	sure	s32 player who paused, MAT3 pausescr.c playerInPause
-D_80156990	gNumObjects	data	mat3	sure	s32, MAT3 zoid.c gNumObjects
-D_80156994	all_tracks_open	data	code	likely	s8 N64 all-tracks flag (track 5 may be started; changes several visuals)
-D_801569AC	bg_load_wave	data	code	sure	the wave instance the background loader reads next
 D_80156BAC	gNumMatrices	data	mat3	sure	s32, MAT3 zoid.c gNumMatrices
-D_80156BB0	bg_load_request_queue	data	code	sure	OSMesgQueue of background load requests
 D_80156CE0	cull_vertex_count	data	code	sure	running index into cull_vertices (ZOID_BuildCullingList)
 D_80156D44	gWaveInstance_ptr	data	code	sure	interior address: gWaveInstance[0].ptr (+0xC)
-D_8015B250	zoid_frame_gfx	data	code	sure	per-frame RSP data of the windows (viewports, projections, look-ats, vertices)
 D_8015B254	ObjHead	data	mat3	sure	s16, MAT3 zoid.c ObjHead
-D_8015B260	zoid_matrix_cursor	data	code	sure	Mtx * next free node matrix of the frame
-D_8015B268	PolyInstanceList	data	mat3	sure	tPoly[200], MAT3 zoidpoly.c PolyInstanceList
-D_8015F72D	frame_buffer_index	data	code	likely	u8 which of the two frame records is being built
 D_80161368	gTexList	data	mat3	sure	u16 texture ids (10 on the N64), MAT3 visuals.c gTexList
-D_801613A8	player_visibility_enabled	data	code	sure	s8 enables update_player_visibility
 D_801613AC	gNumBlitInsts	data	mat3	sure	s32, MAT3 zoidblit.c gNumBlitInsts
 D_801613B4	gNumPolyInsts	data	mat3	sure	s32, MAT3 zoidpoly.c gNumPolyInsts
 D_801613B8	gGlobalCameraFacingScale	data	mat3	sure	f32, MAT3 zoid.c gGlobalCameraFacingScale
-D_801613C0	player_visibility	data	code	sure	s8[4][4] players that see each other (update_player_visibility)
 D_80161430	zoid_branch_slot	data	code	sure	Gfx * of the open gSPBranchList Traverse patches, 0 when none
-D_8017A4B0	zoid_current_tlut	data	code	likely	palette table last loaded by the scene draw, 0 after a light change
-D_8017A4E0	gText	data	mat3	sure	text tables, MAT3 text.c gText; the alias countdown_state is renamed with it
+D_8017A4B0	zoid_current_tlut	data	code	sure	palette table last loaded by the scene draw, 0 after a light change
 D_8017A510	ZoidWinInfo	data	mat3	sure	tWindowInfo[4] (72 bytes), MAT3 zoidwindow.c ZoidWinInfo
 D_8017A638	zoid_tlut_mode	data	code	sure	current G_TT mode of the scene draw, -1 unknown
 D_8017A63C	gSplitScreen	data	mat3	sure	s8 layout (0 full, 1 halves, 2 quarters), MAT3 zoidwindow.c gSplitScreen
-D_80394F70	extra_overlay_bss_start	data	code	likely	start of the Extra overlay bss (load_extra_overlay); the overlay agent may name the variable there
-D_803B9A50	start_overlay_bss_start	data	code	likely	start of the Start overlay bss (load_start_overlay)
 D_803B9AA0	gCarMatrices	data	mat3	sure	tUVMatrix *[] car-select matrices, MAT3 InitCarObj gCarMatrices
-countdown_state	gText	data	mat3	sure	existing name of D_8017A4E0: MAT3 text.c gText (_AdjustTextWavePointers fills it)
 game_state_flags	inactiveBlit	data	mat3	likely	MAT3 game.c inactiveBlit: InitBlits clears it (as MAT3 InitBlits does) and game_loop keeps a multiblit pointer in it
-gameplay_mode	gRace	data	mat3	sure	existing name of D_8014A110: MAT3 gRace (0 race .. 6 battle)
-msgq_ptr	gfx_cursor	data	code	sure	existing name of D_801497C8: the frame display-list cursor, not a message queue
-pad_config	gBlitInstanceList	data	mat3	sure	existing name of D_80140BF0: MAT3 zoidblit.c gBlitInstanceList (ZOID_AddBlit/ZOID_RemoveBlit); no pad configuration
-state_word_a	gGameState	data	mat3	sure	existing name of D_801174B4: MAT3 gGameState
+pad_config	gBlitInstanceList	data	mat3	sure	the loader table's name for 0x80140BF0 (D_80140BF0): the blit instance list, not a pad configuration (overlay B already #defines gBlitInstanceList pad_config); both merge
 # Not proposed: D_80116FE4 (RemovePanes uses only its address as the end of gPaneBlits: write gPaneBlits + 16);
 # D_801158DC (a NewMultiBlit table used by a caller in another area).
 # Second names at function starts in asm/us/blob/symbols.json (aliases of a function above; drop them):
@@ -850,3 +730,18 @@ state_word_a	gGameState	data	mat3	sure	existing name of D_801174B4: MAT3 gGameSt
 #   music_volume_set (800B1F44), sound_state_init (800B2C20), car_sounds_init (800B2C40), car_sounds_interrupt (800B2D60), engine_sound_start (800B2D80), engine_sound_stop (800B3340)
 #   collision_force_check (800B34C0), Input_RegisterActivePad (800B3590), bump_state_init (800B3598), bump_sounds_init (800B35A0), scrape_sound_stop (800B3620), skid_sounds_init (800B3700)
 #   wind_sound_update (800B3710), target_in_car_check (800B3A00), target_sound_play (800B3A40), voice_play (800B3D20), slot_state_init (800B4208)
+
+# reconciliation (wave 1): rows placed in this area by docs/code/NAMING.md (a shared datum goes to the area
+# whose functions use it most), and alias rows: the address spelling of a symbol mapped above
+__osScFrameTimeResult	frame_cycle_count	data	code	likely	alias: lib_1050_sdk.c's name for D_80124F70 (osGetTime() - the retrace time); both map to frame_cycle_count
+func_80097694	FindWaveInstanceInternal	func	mat3	sure	MAT3 waves.c FindWaveInstanceInternal(waveNum, handle)
+func_800A2680	PS_DeleteFile	func	mat3	sure	alias: the address spelling of pak_delete_file_retry (same function); both rows map to PS_DeleteFile
+func_800A3724	ClearPak	func	mat3	sure	alias: the address spelling of ClearPak (same function); both rows map to ClearPak
+func_800A6404	ZOID_SplitScreen	func	mat3	sure	alias: the address spelling of car_render_full (same function); both rows map to ZOID_SplitScreen
+func_800AC898	WaveInstanceReady	func	mat3	sure	alias: the address spelling of player_state_get (same function); both rows map to WaveInstanceReady
+func_800AF5E0	InitCarObj	func	mat3	sure	alias: the address spelling of save_slot_valid (same function); both rows map to InitCarObj
+func_800B3B4C	InitPane	func	mat3	sure	alias: the address spelling of ambient_sound_set (same function); both rows map to InitPane
+func_800B3F50	TB_GetFontLineHeight	func	mat3	sure	alias: the address spelling of object_bytes_sum_global (same function); both rows map to TB_GetFontLineHeight
+func_800B3FA4	HAL_GetTextWidth	func	mat3	sure	alias: the address spelling of object_manager_update (same function); both rows map to HAL_GetTextWidth
+func_800B42F0	HAL_SetFont	func	mat3	sure	alias: the address spelling of object_create (same function); both rows map to HAL_SetFont
+func_800B4360	TB_Sprintf	func	mat3	sure	alias: the address spelling of fcvt_wrapper (same function); both rows map to TB_Sprintf

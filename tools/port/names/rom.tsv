@@ -1,5 +1,8 @@
-old	new	kind	source	confidence	note
 # names-ovl (rom): the boot segment (src/rom: entry, threads, timer, scheduler, video mode, unzip, libultra, libc, the MusyX sound library, the speech streams and GSM decoder) and the low image's data (0x80000000-0x80086A50). Sections by module; data the game image also uses is under # shared, last.
+# Reconciled with the other areas' maps (wave 1): docs/code/NAMING.md has the conventions, which override this
+# header where they differ, and every decision; each old name has one row over all the maps; labels to delete
+# rather than rename are in drop.tsv.
+# old	new	kind	source	confidence	note
 # lib_11050: the sound library's DMA request queue (ROM reads the library asks for, folded into the audio frame's DMA list)
 func_80010450	sound_dma_flush_requests	func	code	sure	moves the up-to-4 queued ROM reads into the frame DMA list, wakes the waiter; installed as the frame DMA hook
 func_800105C4	sound_dma_install_queue	func	code	sure	once: creates the done queue, clears the request count, installs sound_dma_flush_requests as the hook
@@ -684,7 +687,7 @@ game_init	main_thread_entry	func	code	sure	thread 6's body: queues, scheduler, i
 audio_thread_entry	game_thread_entry	func	code	sure	thread 7's body: game_loop() forever; not audio
 gGameThread	main_thread	data	code	sure	OSThread of thread 6 (main_thread_entry)
 gGameThreadStack	game_thread_stack	data	code	sure	u8[0x12C0] of thread 7
-gSchedulerThread	render_thread	data	code	sure	OSThread of thread 5 (render_thread_entry), not the scheduler's
+gSchedulerThread	model_thread	data	code	sure	alias: main_thread_entry's name for D_80034840 (thread 5 runs ModelThread, not the scheduler)
 # video mode and screen position (lib_21f0; N64 VI only)
 display_update	video_build_adjusted_mode	func	code	sure	copies the base VI mode into the other of two buffers with the screen offset and size applied; applies 2 frames later
 viewport_setup	video_set_mode	func	code	sure	(tv type, mode, width, height): retrace rate and time, base VI mode, its edges
@@ -1002,12 +1005,8 @@ src/rom/lib_26f60.c	src/rom/speech/gsm.c	file	code	likely	the GSM 06.10 decoder
 include/boot_tail_audio_record.h	include/sound_hw_voice.h	file	code	likely	the SoundHwVoice record
 include/boot_tail_sample_contract.h	include/sound_sample_record.h	file	code	likely	the sample directory record
 # shared
-D_80000300	osTvType	data	code	sure	libultra: osTvType (the boot globals at 0x80000300); the C spells it both ways
-D_80000318	osMemSize	data	code	sure	libultra: osMemSize (0x80000318)
-D_80027DD0	rspbootTextStart	data	code	sure	libultra: rspboot, both tasks' ucode_boot (docs/memory_map.md 1.1a)
-D_80027EA0	rspbootTextEnd	data	code	sure	libultra: end of rspboot (ucode_boot_size = end - start); also where an unreferenced second audio microcode starts
-D_80028CC0	gspF3DEX_NoN_fifoTextStart	data	code	sure	libultra: the graphics task's ucode, F3DEX NoN fifo (docs/memory_map.md 1.1a)
-D_8002DDF0	gspF3DEX_NoN_fifoDataStart	data	code	sure	libultra: its ucode_data
+D_80028CC0	gspF3DEX2_NoN_fifoTextStart	data	code	likely	u64[]: the graphics microcode text, the task ucode (EndGraphics); F3DEX2 NoN fifo, the GBI port/gfx decodes
+D_8002DDF0	gspF3DEX2_NoN_fifoDataStart	data	code	likely	u64[]: the graphics microcode data, the task ucode_data (F3DEX2 NoN fifo)
 gInflateBufferA	unzip_input_a	data	code	sure	u8[4096]: input half A
 gInflateBufferB	unzip_input_b	data	code	sure	u8[4096]: input half B
 gViTickCounter	scheduler_retrace_count	data	code	sure	s32 at gScheduler + 0x27C: the scheduler's retrace count (MAT3 sc.frameCount)
@@ -1015,62 +1014,43 @@ game_loop_tick	scheduler_retrace_count	data	code	likely	a second invented name a
 gStackGame	main_thread_stack	data	code	sure	u8[0x960] of thread 6
 gViewportOffsetX	video_default_x	data	code	sure	column 2: default horizontal offset
 gViewportOffsetY	video_default_y	data	code	sure	column 3: default vertical offset
-D_8002AFA0	scheduler_audio_task	data	code	likely	OSScTask *: the task dma_wait_complete spins on while it is the scheduler's current task; same address as the invented __osScCurAudioTask
-D_8002AFB4	gRetraceRate	data	mat3	sure	alias spelling of gScaleTicksPerSecond (same address); MAT3 gRetraceRate@timer.c
-D_8002AFB8	gRetraceTime	data	mat3	sure	alias spelling of gScaleSecondsPerTick; MAT3 gRetraceTime@timer.c
-D_8002AFC0	framebuffer_width	data	code	sure	s32: framebuffer width in pixels (SetColorImage width, video_set_mode argument)
-D_8002AFC4	framebuffer_height	data	code	sure	s32: framebuffer height
-D_8002AFC2	framebuffer_width_low	data	code	likely	s16 view of framebuffer_width's low half; no code use
-D_8002AFC6	framebuffer_height_low	data	code	likely	s16 view of framebuffer_height's low half; no code use
-D_8002B020	start_image_rom	data	code	sure	u32: ROM address of runtime image A (Start) for PrevMaxPath; 0 on the PC (docs/port/DATA.md 5)
-D_8002B024	extra_image_rom	data	code	sure	u32: ROM address of runtime image B (Extra)
+D_8002AFA0	scheduler_audio_task	data	code	likely	OSScTask *: the audio task the scheduler is running (lib_1050_sdk.c sets it, as __osScCurAudioTask); audio_retrace_thread_entry spins while it is the scheduler's current task
+D_8002AFC2	screen_width_low	data	code	likely	s16 view of screen_width's low half; no code use
+D_8002AFC6	screen_height_low	data	code	likely	s16 view of screen_height's low half; no code use
 D_8002E440	build_date_text	data	code	likely	char[] of the build-info record (docs/memory_map.md 1.1a); image A prints it with build_time_text
 D_8002E444	build_time_text	data	code	likely	char[] of the build-info record
-D_8002E4A0	frame_rdp_init_dl	data	code	likely	Gfx[]: static display list run second at each frame start (gfx_frame_begin)
-D_8002E528	frame_rsp_init_dl	data	code	likely	Gfx[]: static display list run first at each frame start
-D_8002E580	gWaveSizes	data	mat3	sure	MAT3 gWaveSizes (u32[]): size per wave, indexed by wave in the wave loader as waves.c does; the game C already #defines it
-D_8002E860	boot_wave	data	code	likely	u8: the wave func_800A5158 loads and locks on first call
-D_8002E870	build_info_tail	data	code	likely	a word of the build-info record; no code use
 D_8002E8E8	gScheduler	data	code	sure	the OSSched; lib_1050_sdk.c aliases D_8002E8E8 to gScheduler
-D_8002E928	scheduler_interrupt_queue	data	code	sure	OSMesgQueue at gScheduler + 0x40 (PC_ALIAS); the game sends its 670 message here
-D_8002E960	scheduler_task_queue	data	code	sure	OSMesgQueue at gScheduler + 0x78: tasks are sent here
-D_8002E998	scheduler_thread	data	code	sure	OSThread at gScheduler + 0xB0
 D_8002EB5C	scheduler_current_rsp_task	data	code	sure	gScheduler's curRSPTask (PC_ALIAS + 0x2B0)
 D_8002EB64	scheduler_retrace_count	data	code	sure	alias of gViTickCounter (gScheduler + 0x27C)
 D_8002EB6C	scheduler_spare_word	data	code	likely	s32 defined beside the scheduler, used by nothing
-D_8002EB70	scheduler_task_count	data	code	sure	s16: tasks in flight (the game #defines it gRenderInProgress); alias of __osScTaskCount
 D_8002EB88	scheduler_spare_time	data	code	likely	u64 defined beside the scheduler, used by nothing
-D_8002EB90	gSeconds	data	mat3	sure	alias of __osScElapsedTime; MAT3 gSeconds@timer.c
-D_8002EB94	gFrameSeconds	data	mat3	sure	alias of __osScDeltaTime; MAT3 gFrameSeconds@timer.c
-D_8002EB98	gLastFrameCount	data	mat3	sure	alias of gViFrameDelta; MAT3 gLastFrameCount@timer.c
-D_8002EBB0	depth_buffer	data	code	sure	u16 *: the Z buffer (SetDepthImage), allocated at init
-D_8002ECC0	event_queue	data	code	likely	OSMesgQueue the frame drains (same address as gEventMesgQueue)
-gEventMesgQueue	event_queue	data	code	likely	same queue: created by main_thread_entry with 8 messages
-D_8002ECF8	retrace_queue	data	code	sure	OSMesgQueue the scheduler client receives retraces on (same address as gRetraceMesgQueue)
-gRetraceMesgQueue	retrace_queue	data	code	sure	same queue: osScAddClient's queue in main_thread_entry
-D_8002F660	thread9_stack_top	data	code	likely	stack top of thread 9 (entry dma_wait_complete), the end of the stack below the idle stack
-D_800329F0	thread2_stack_top	data	code	likely	stack top of thread 2 (entry audio_queue_process)
-D_800339F0	thread10_stack_top	data	code	likely	stack top of thread 10 (entry func_800992AC)
-D_80033EA0	thread3_stack_top	data	code	likely	stack top of thread 3 (entry task_complete_signal)
+gEventMesgQueue	game_thread_queue	data	code	sure	alias: main_thread_entry's name for D_8002ECC0 (created with 8 messages); both rows map to game_thread_queue
+gRetraceMesgQueue	main_thread_queue	data	code	sure	alias: main_thread_entry's name for D_8002ECF8 (osScAddClient's queue); both rows map to main_thread_queue
+D_8002F660	audio_retrace_thread_stack_top	data	code	sure	the top of thread 9 (audio_retrace_thread) stack; gStackIdle starts here
+D_800329F0	rumble_thread_stack_top	data	code	sure	the top of thread 2 (rumble_thread) stack, passed to osCreateThread
+D_800339F0	audio_manager_thread_stack_top	data	code	likely	the top of thread 10 (audio_manager_thread) stack, passed to osCreateThread by AudioInit
+D_80033EA0	sample_dma_thread_stack_top	data	code	sure	the top of thread 3 (sample_dma_thread) stack; gSchedulerStack starts here
 D_800344E0	game_thread	data	code	sure	OSThread of thread 7 (game_thread_entry)
-D_80034690	gAudioThread	data	code	sure	the OSThread named gAudioThread at the same address (thread 8)
-D_80034840	render_thread	data	code	sure	alias of gSchedulerThread (thread 5, render_thread_entry)
-D_800349F0	thread2	data	code	likely	OSThread of thread 2 (audio_queue_process)
-D_80034F00	thread10	data	code	likely	OSThread of thread 10 (func_800992AC)
-D_800350B0	thread9	data	code	likely	OSThread of thread 9 (dma_wait_complete)
-D_80035260	thread3	data	code	likely	OSThread of thread 3 (task_complete_signal)
-D_80035410	rom_dma_queue	data	code	likely	OSMesgQueue PI DMA reads complete on (same address as gDmaMesgQueue, 8 messages)
-gDmaMesgQueue	rom_dma_queue	data	code	likely	same queue
-D_80035440	wave_load_queue	data	code	likely	OSMesgQueue (1 message) the background wave loader takes and gives (same address as gSyncMesgQueue)
-gSyncMesgQueue	wave_load_queue	data	code	likely	same queue
-D_80035458	controller_queue	data	code	likely	OSMesgQueue the controller and Rumble Pak calls wait on (SI)
-D_80035470	frame_drawn	data	code	likely	u8: cleared by UpdateFrame (MAT3 UpdateFrame) when a frame is sent
-D_80035471	frame_started	data	code	likely	u8: set by UpdateFrame
-D_80035472	frame_state	data	code	likely	u8: MainEndFrame / UpdateFrame state (same address as gGameStateFlag)
-gGameStateFlag	frame_state	data	code	likely	same byte; cleared by main_thread_entry before the main loop
+D_80034690	bg_load_thread	data	code	sure	OSThread of thread 8, whose entry is BGLoadWaveMain (main_thread_entry: osCreateThread(&gAudioThread, 8, brake_force_apply...)); BGLoadWaveMain raises its priority
+D_80034840	model_thread	data	code	sure	OSThread stopped around car appearance changes in SetupCar (the model/physics thread)
+D_800349F0	rumble_thread	data	code	sure	OSThread of thread 2, rumble_thread_entry (PS_InitPakSys starts it)
+D_80034F00	audio_manager_thread	data	code	sure	OSThread of thread 10, audio_manager_thread_entry (AudioInit creates and starts it)
+D_800350B0	audio_retrace_thread	data	code	sure	OSThread of thread 9, audio_retrace_thread_entry (AudioInitSys starts it)
+D_80035260	sample_dma_thread	data	code	sure	OSThread of thread 3, sample_dma_thread_entry (AudioInitSys starts it)
+D_80035410	rom_dma_queue	data	code	sure	OSMesgQueue PI DMA reads complete on (same address as gDmaMesgQueue, 8 messages)
+gDmaMesgQueue	rom_dma_queue	data	code	sure	alias: main_thread_entry's name for D_80035410; both rows map to rom_dma_queue
+gSyncMesgQueue	bg_load_idle_queue	data	code	sure	alias: main_thread_entry creates D_80035440 with one message under this name; both rows map to bg_load_idle_queue
+gGameStateFlag	frame_end_requested	data	code	sure	alias: main_thread_entry clears D_80035472 under this name before the main loop; both rows map to frame_end_requested
 D_800586D0	frame_command_buffer_a	data	code	sure	first frame's display-list buffer (docs: initsystem)
 D_8006A090	frame_command_buffer_b	data	code	sure	second frame's display-list buffer, 0x119C0 B after the first
-D_8007BA50	gfx_dram_stack	data	code	sure	the graphics task's dram_stack
-D_8007BE50	gfx_yield_buffer	data	code	sure	the graphics task's yield_data_ptr
-D_8007CA50	gfx_fifo_buffer	data	code	sure	the graphics task's output_buff (the RDP FIFO)
-D_80084A50	gfx_fifo_buffer_end	data	code	sure	the graphics task's output_buff_size (end of the FIFO); unzip_input_a starts there
+
+# reconciliation (wave 1): rows placed in this area by docs/code/NAMING.md (a shared datum goes to the area
+# whose functions use it most), and alias rows: the address spelling of a symbol mapped above
+__osScCurAudioTask	scheduler_audio_task	data	code	likely	alias: the scheduler-side name of D_8002AFA0 (both rows map to scheduler_audio_task); "__osSc" is not libultra
+__osScTaskCount	gRenderInProgress	data	mat3	likely	alias: lib_1050_sdk.c's own definition of D_8002EB70 (PC_ALIAS D_8002EB70 = __osScTaskCount); both map to gRenderInProgress
+gStackAudio	bg_load_thread_stack	data	code	sure	u8[0x960]: thread 8's stack (BGLoadWaveMain), not audio's
+gRenderThreadStack	model_thread_stack	data	code	sure	u8[0x960]: thread 5's stack (ModelThread)
+gAudioThread	bg_load_thread	data	code	sure	alias: main_thread_entry's wrong name for D_80034690 (thread 8 runs BGLoadWaveMain, nothing audio)
+audio_channel_free	RemoveEnvirons	data	code	likely	alias: the loader's second name of func_800B0618; seven context files declare it
+set_race_state	ClearRushControls	data	code	likely	alias: the loader's second name of entity_audio_update's address (0x800B6138); image A's cleanup_colortrace calls it
+effects_update_emitters	UpdateCameras	data	code	likely	alias: the loader's second name of Effects_UpdateEmitters' address (0x800B811C); cleanup_colortrace calls it

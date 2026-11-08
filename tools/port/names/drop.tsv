@@ -1,0 +1,1302 @@
+# drop.tsv: loader labels to delete from the data loader's symbol tables (asm/us/<table>/symbols.json) rather
+# than rename (docs/code/NAMING.md section 5). Columns: name, table (blob, boot_tail, ovl_a, ovl_b; * = all four),
+# note (the address, then why). A label is here when no map renames it, it is not already the right name of its
+# address, and nothing uses it: no code line in src/ include/ port/ nonmatching/ besides extern declarations,
+# prototypes and a #define of its own name, and no mention in tools/. Apply this file before the maps:
+# gNumPlayers and gPauseState are dropped at their stale addresses and then given to the right ones.
+# name	table	note
+AdjustSpeed	boot_tail	0x800A2680: stale; the maps give AdjustSpeed to 0x800E3984 (drop this entry before the rename)
+AdjustSpeed	ovl_a	0x800A2680: stale; the maps give AdjustSpeed to 0x800E3984 (drop this entry before the rename)
+AdjustSpeed	ovl_b	0x800A2680: stale; the maps give AdjustSpeed to 0x800E3984 (drop this entry before the rename)
+CheckCPs	blob	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this entry before the rename)
+CheckCPs	boot_tail	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this entry before the rename)
+CheckCPs	ovl_a	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this entry before the rename)
+CheckCPs	ovl_b	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this entry before the rename)
+DoDrones	blob	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
+DoDrones	boot_tail	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
+DoDrones	ovl_a	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
+DoDrones	ovl_b	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
+EndDrones	*	0x800A0100: inside zoid_draw_window (+0x10A8), not a function start; declared only (1 file): wave 2 deletes the declarations
+InitDrones	blob	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
+InitDrones	boot_tail	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
+InitDrones	ovl_a	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
+InitDrones	ovl_b	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
+Input_AllocPadSlot	*	0x800A7A10: inside ZOID_AddBlit (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+Input_PollPads	*	0x800E73E4: inside func_800E73D8 (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+Input_RegisterActivePad	*	0x800B3590: inside RemoveBlit (+0x4), not a function start
+MP_FindInterval	*	0x800A0C00: inside ZOID_EndFrame (+0x73C), not a function start; declared only (1 file): wave 2 deletes the declarations
+MP_IntervalPos	*	0x800A0D00: inside ZOID_EndFrame (+0x83C), not a function start
+MaxPath	*	0x800A0B00: inside ZOID_EndFrame (+0x63C), not a function start; declared only (1 file): wave 2 deletes the declarations
+MaxPathControls	blob	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this entry before the rename)
+MaxPathControls	boot_tail	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this entry before the rename)
+MaxPathControls	ovl_a	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this entry before the rename)
+MaxPathControls	ovl_b	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this entry before the rename)
+MaxPathZeroControls	boot_tail	0x800A2378: inside PS_FlushFileInternal (+0x460), not a function start; declared only (408 files): wave 2 deletes the declarations
+MaxPathZeroControls	ovl_a	0x800A2378: inside PS_FlushFileInternal (+0x460), not a function start; declared only (408 files): wave 2 deletes the declarations
+MaxPathZeroControls	ovl_b	0x800A2378: inside PS_FlushFileInternal (+0x460), not a function start; declared only (408 files): wave 2 deletes the declarations
+__ashldi3	ovl_a	0x8000D994: unused label
+__ashldi3	ovl_b	0x8000D994: unused label
+__ashrdi3	ovl_a	0x8000DB84: unused label
+__ashrdi3	ovl_b	0x8000DB84: unused label
+__divdi3	ovl_a	0x8000D9FC: unused label
+__divdi3	ovl_b	0x8000D9FC: unused label
+__fixdfdi	ovl_a	0x800099F0: unused label
+__fixdfdi	ovl_b	0x800099F0: unused label
+__fixsfdi	ovl_a	0x80009A0C: unused label
+__fixsfdi	ovl_b	0x80009A0C: unused label
+__fixunsdfdi	ovl_a	0x80009A28: unused label
+__fixunsdfdi	ovl_b	0x80009A28: unused label
+__fixunssfdi	ovl_a	0x80009AC8: unused label
+__fixunssfdi	ovl_b	0x80009AC8: unused label
+__floatdidf	ovl_a	0x80009B64: unused label
+__floatdidf	ovl_b	0x80009B64: unused label
+__floatdisf	ovl_a	0x80009B7C: unused label
+__floatdisf	ovl_b	0x80009B7C: unused label
+__floatundidf	ovl_a	0x80009B94: unused label
+__floatundidf	ovl_b	0x80009B94: unused label
+__floatundisf	ovl_a	0x80009BC8: unused label
+__floatundisf	ovl_b	0x80009BC8: unused label
+__lshrdi3	ovl_a	0x8000D8F0: unused label
+__lshrdi3	ovl_b	0x8000D8F0: unused label
+__moddi3	ovl_a	0x8000DAE8: unused label
+__moddi3	ovl_b	0x8000DAE8: unused label
+__muldi3	ovl_a	0x8000DA58: unused label
+__muldi3	ovl_b	0x8000DA58: unused label
+__osAiNeedsAlign	*	0x8002C3C0: unused label
+__osContBuildPacket	ovl_a	0x80009450: unused label
+__osContBuildPacket	ovl_b	0x80009450: unused label
+__osContBuildRequest	ovl_a	0x8000E6F0: unused label
+__osContBuildRequest	ovl_b	0x8000E6F0: unused label
+__osContGetStatus	ovl_a	0x800095AC: unused label
+__osContGetStatus	ovl_b	0x800095AC: unused label
+__osContParseResponse	ovl_a	0x8000E7B4: unused label
+__osContParseResponse	ovl_b	0x8000E7B4: unused label
+__osContPifInode	*	0x80037CB0: unused label; declared only (1 file): wave 2 deletes the declarations
+__osContQueryMesg	*	0x80037B20: unused label; declared only (2 files): wave 2 deletes the declarations
+__osContQueryMsgQ	*	0x80037B08: unused label; declared only (2 files): wave 2 deletes the declarations
+__osContRamReset	ovl_a	0x80009658: unused label
+__osContRamReset	ovl_b	0x80009658: unused label
+__osDispatchThread	*	0x8000D11C: unused label; declared only (3 files): wave 2 deletes the declarations
+__osEnqueueAndYield	blob	0x8000CFC4: unused label; declared only (432 files): wave 2 deletes the declarations
+__osEnqueueAndYield	boot_tail	0x8000CFC4: unused label; declared only (432 files): wave 2 deletes the declarations
+__osEnqueueAndYield	ovl_a	0x8000FBA0: unused label; declared only (432 files): wave 2 deletes the declarations
+__osEnqueueAndYield	ovl_b	0x8000FBA0: unused label; declared only (432 files): wave 2 deletes the declarations
+__osEnqueueThread	*	0x8000D0C4: unused label; declared only (428 files): wave 2 deletes the declarations
+__osException	blob	0x8000C980: unused label
+__osException	boot_tail	0x8000C990: unused label
+__osException	ovl_a	0x8000C980: unused label
+__osException	ovl_b	0x8000C980: unused label
+__osExceptionPanic	blob	0x8000D298: unused label
+__osExceptionPanic	ovl_a	0x8000D298: unused label
+__osExceptionPanic	ovl_b	0x8000D298: unused label
+__osExceptionSaveArea	*	0x80037DB0: unused label
+__osFaultedThread	*	0x8002C3E4: unused label
+__osHwIntTable	*	0x8002C470: unused label
+__osIntOffTable	*	0x8002D810: unused label
+__osIntTable	*	0x8002D830: unused label
+__osPiDmaMesg	*	0x80037A98: unused label; declared only (2 files): wave 2 deletes the declarations
+__osPiIntHandler	*	0x8002C498: unused label
+__osPiMesg	*	0x80037C70: unused label; declared only (2 files): wave 2 deletes the declarations
+__osProbeTLB	blob	0x8000FCB0: unused label
+__osRcpImTable	*	0x8002D6D0: unused label
+__osRepairId	ovl_a	0x8000EC70: unused label
+__osRepairId	ovl_b	0x8000EC70: unused label
+__osScAudioStartHi	boot_tail	0x8002EB78: unused label
+__osScAudioStartHi	ovl_a	0x8002EB78: unused label
+__osScAudioStartHi	ovl_b	0x8002EB78: unused label
+__osScAudioStartLo	boot_tail	0x8002EB7C: unused label
+__osScAudioStartLo	ovl_a	0x8002EB7C: unused label
+__osScAudioStartLo	ovl_b	0x8002EB7C: unused label
+__osScFrameTimeHi	boot_tail	0x8002EB80: unused label
+__osScFrameTimeHi	ovl_a	0x8002EB80: unused label
+__osScFrameTimeHi	ovl_b	0x8002EB80: unused label
+__osScFrameTimeLo	boot_tail	0x8002EB84: unused label
+__osScFrameTimeLo	ovl_a	0x8002EB84: unused label
+__osScFrameTimeLo	ovl_b	0x8002EB84: unused label
+__osScRetraceTimeHi	boot_tail	0x8002E8E0: unused label
+__osScRetraceTimeHi	ovl_a	0x8002E8E0: unused label
+__osScRetraceTimeHi	ovl_b	0x8002E8E0: unused label
+__osScRetraceTimeLo	boot_tail	0x8002E8E4: unused label
+__osScRetraceTimeLo	ovl_a	0x8002E8E4: unused label
+__osScRetraceTimeLo	ovl_b	0x8002E8E4: unused label
+__osSendInterrupt	blob	0x8000CEDC: unused label
+__osSendInterrupt	ovl_a	0x8000CEDC: unused label
+__osSendInterrupt	ovl_b	0x8000CEDC: unused label
+__osSiDmaRetry	*	0x80037ADC: unused label; declared only (427 files): wave 2 deletes the declarations
+__osSiMesg	*	0x80037C98: unused label; declared only (2 files): wave 2 deletes the declarations
+__osSiMesgQueue	*	0x80037C90: unused label; declared only (2 files): wave 2 deletes the declarations
+__osSpDma	ovl_a	0x8000D680: unused label
+__osSpDma	ovl_b	0x8000D680: unused label
+__osTlbFlush	blob	0x8000D840: unused label
+__osTlbFlush	ovl_a	0x8000D840: unused label
+__osTlbFlush	ovl_b	0x8000D840: unused label
+__osTlbInit	blob	0x8000D890: unused label
+__osTlbInit	ovl_a	0x8000D890: unused label
+__osTlbInit	ovl_b	0x8000D890: unused label
+__qdivrem	ovl_a	0x8000DA88: unused label
+__qdivrem	ovl_b	0x8000DA88: unused label
+__udivdi3	ovl_a	0x8000D958: unused label
+__udivdi3	ovl_b	0x8000D958: unused label
+__umoddi3	ovl_a	0x8000D91C: unused label
+__umoddi3	ovl_b	0x8000D91C: unused label
+__umoddi3_alt	ovl_a	0x8000D9C0: unused label
+__umoddi3_alt	ovl_b	0x8000D9C0: unused label
+abs_brake_control	*	0x800AD008: inside fpitch (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+achievement_display	*	0x80106260: inside func_80105EA8 (+0x3B8), not a function start
+achievement_unlock	*	0x80105EF4: inside func_80105EA8 (+0x4C), not a function start; declared only (410 files): wave 2 deletes the declarations
+achievements_check	*	0x80105858: inside func_80105480 (+0x3D8), not a function start
+achievements_screen	*	0x800D63F4: inside AudAddListener (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+active_sound_count	*	0x80159788: unused label
+active_sound_list	*	0x80159450: unused label
+adjust_maxpath_due_to_lap	*	0x800A14C0: inside PS_RumbleStop (+0xD8), not a function start
+ai_difficulty_adjust	*	0x80107600: inside animOdometer (+0x86C), not a function start
+animCountdownTimer	blob	0x800EEDB0: inside InitSystem (+0x334), not a function start; declared only (18 files): wave 2 deletes the declarations
+anim_blend	*	0x800EA400: inside View3Cam (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+anim_event_check	*	0x800EA800: inside View3Cam (+0x40C), not a function start
+anim_frame_update	*	0x80095720: inside AudioSetEffectPitch (+0x14), not a function start
+anim_play	*	0x800EA000: inside circle_camera_around_car (+0x1D4), not a function start; declared only (7 files): wave 2 deletes the declarations
+anim_stop	*	0x800EA200: inside DeathCam (+0xF8), not a function start
+attract_demo_handler	boot_tail	0x800DC99C: second name of DrawChoice3; declared only (408 files): wave 2 deletes the declarations
+attract_demo_handler	ovl_a	0x800DC99C: second name of DrawChoice3; declared only (408 files): wave 2 deletes the declarations
+attract_demo_handler	ovl_b	0x800DC99C: second name of DrawChoice3; declared only (408 files): wave 2 deletes the declarations
+attract_idle_handler	*	0x800DCD94: inside ControlChoice (+0x3C), not a function start
+attract_mode_handler	boot_tail	0x800DC88C: second name of DrawPakErrNQA; declared only (408 files): wave 2 deletes the declarations
+attract_mode_handler	ovl_a	0x800DC88C: second name of DrawPakErrNQA; declared only (408 files): wave 2 deletes the declarations
+attract_mode_handler	ovl_b	0x800DC88C: second name of DrawPakErrNQA; declared only (408 files): wave 2 deletes the declarations
+attract_or_transition	boot_tail	0x800EDDC0: second name of StartGraphics; declared only (415 files): wave 2 deletes the declarations
+attract_or_transition	ovl_a	0x800EDDC0: second name of StartGraphics; declared only (415 files): wave 2 deletes the declarations
+attract_or_transition	ovl_b	0x800EDDC0: second name of StartGraphics; declared only (415 files): wave 2 deletes the declarations
+attract_sequence_handler	*	0x800DD0D0: inside DrawPakErrNoPak (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+attract_video_handler	boot_tail	0x800DCDF4: second name of DrawChoice; declared only (408 files): wave 2 deletes the declarations
+attract_video_handler	ovl_a	0x800DCDF4: second name of DrawChoice; declared only (408 files): wave 2 deletes the declarations
+attract_video_handler	ovl_b	0x800DCDF4: second name of DrawChoice; declared only (408 files): wave 2 deletes the declarations
+audio_ambient_update	*	0x800E6600: inside ReadGasAndBrake (+0x1A0), not a function start
+audio_branch_handler	*	0x800A17F4: inside pak_decode_name (+0x1B0), not a function start
+audio_branch_handler_b	*	0x800A27AC: inside PS_DeleteFile (+0x12C), not a function start
+audio_branch_handler_c	*	0x800A2E64: inside pak_get_handle_stub (+0x120), not a function start
+audio_buffer_process	*	0x8008C724: inside fatan (+0x4), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_call_wrapper	*	0x8008A750: inside si_lock (+0x4C), not a function start
+audio_channel_update	*	0x8008C688: inside fsatan (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_collision_play	*	0x800E6400: inside ReadSteeringWheel (+0x184), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_ducking	*	0x800B4E70: inside updatePauseStateCleanup (+0x8), not a function start
+audio_engine_update	*	0x800E6000: inside GhostUpdate (+0x29C), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_heap_alloc	*	0x800BA644: inside FindResPathIntersect (+0x28), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_hw_sync	*	0x800BB044: inside car_palette_init (+0x18), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_init	*	0x800B0904: inside StartWingFlame (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_init_stub	*	0x8009FDC4: inside zoid_draw_window (+0xD6C), not a function start
+audio_listener_update	*	0x800B7440: inside HAL_InstallOncePerFrameFunc (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_music_update	*	0x800E6800: inside ReadGasAndBrake (+0x3A0), not a function start
+audio_param_apply	*	0x8008C76C: inside fatan2 (+0x4), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_pause	*	0x800B4DAC: inside SaveSelectPlayer (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_position_update	*	0x800E6A00: inside UpdateModelControls (+0x1E4), not a function start
+audio_queue_recv	*	0x80097184: inside ReadWave (+0x20), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_shutdown	*	0x800B0A90: inside StartWing (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_skid_update	*	0x800E6200: inside GhostUpdate (+0x49C), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_spatialize	*	0x800B59F8: inside video_updateButtons (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_sync_wait	*	0x8008A398: inside BlitXLU (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+audio_task_complete	boot_tail	0x800974EC: inside ConvertHeap (+0x84), not a function start; declared only (400 files): wave 2 deletes the declarations
+audio_task_complete	ovl_a	0x800974EC: inside ConvertHeap (+0x84), not a function start; declared only (400 files): wave 2 deletes the declarations
+audio_task_complete	ovl_b	0x800974EC: inside ConvertHeap (+0x84), not a function start; declared only (400 files): wave 2 deletes the declarations
+audio_task_start	*	0x8008A710: inside si_lock (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+autoshift_update	*	0x800ABB04: inside SetTargetDef (+0x32C), not a function start
+avg_sw_force	*	0x80140DC8: unused label
+avg_sw_vel	*	0x80140DC4: unused label
+avoid_areas	*	0x800A1800: inside pak_decode_name (+0x1BC), not a function start
+award_ceremony	*	0x80102A74: inside func_80102980 (+0xF4), not a function start
+best_time_check	*	0x80101700: inside func_80100E58 (+0x8A8), not a function start
+best_time_record	*	0x8010194C: inside drawBattleStandings (+0x48), not a function start
+bgm_playback	*	0x80095960: inside AudioStopEffect (+0x3C), not a function start
+bump_sounds_init	*	0x800B35A0: inside RemoveBlit (+0x14), not a function start
+bump_state_init	*	0x800B3598: inside RemoveBlit (+0xC), not a function start
+call_memcpy	*	0x8010FC1C: inside musyx_submit_audio_task (+0x3C), not a function start
+call_osjammsg	*	0x8010FC2C: inside musyx_submit_audio_task (+0x4C), not a function start
+camera_angle_update	*	0x800E3400: inside drivetrain (+0x134), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_check_constraints	*	0x800C1B8C: inside AddStunt (+0x2C), not a function start
+camera_cut_to	*	0x800BE4F8: inside TB_Strcat (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_debug_display	*	0x800C2020: inside Check2WheelBack (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_frustum_extract	*	0x800C14F4: inside AnimatePathTarget (+0xA34), not a function start
+camera_look_at_point	boot_tail	0x800BF45C: inside PlayStartSound (+0xC8), not a function start; declared only (400 files): wave 2 deletes the declarations
+camera_look_at_point	ovl_a	0x800BF45C: inside PlayStartSound (+0xC8), not a function start; declared only (400 files): wave 2 deletes the declarations
+camera_look_at_point	ovl_b	0x800BF45C: inside PlayStartSound (+0xC8), not a function start; declared only (400 files): wave 2 deletes the declarations
+camera_matrix_build	*	0x800C1188: inside AnimatePathTarget (+0x6C8), not a function start
+camera_mode_set	*	0x800E3800: inside sym (+0xDC), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_multi_view_setup	*	0x800C26E0: inside CheckSpin (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_orbit_delta	*	0x800BB9BC: inside func_800BB9B0 (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_path_follow	*	0x800C0288: inside PlacePathTargetQuat (+0x1A8), not a function start
+camera_race_setup	boot_tail	0x800F8D9C: inside updateGameOverScreen (+0x22C), not a function start; declared only (407 files): wave 2 deletes the declarations
+camera_race_setup	ovl_a	0x800F8D9C: inside updateGameOverScreen (+0x22C), not a function start; declared only (407 files): wave 2 deletes the declarations
+camera_race_setup	ovl_b	0x800F8D9C: inside updateGameOverScreen (+0x22C), not a function start; declared only (407 files): wave 2 deletes the declarations
+camera_replay_control	*	0x800E3A00: inside AvoidAreas (+0x74), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_replay_mode	*	0x800C02A0: inside MoveCollisionObject (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_restore_state	*	0x800C244C: inside CheckFlip (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_save_state	*	0x800C2228: inside Check2WheelFront (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_shake_apply	*	0x800E3600: inside ModelControls (+0x1D0), not a function start
+camera_shake_update	boot_tail	0x800BDDFC: inside TB_Vector2Normalize (+0x6C), not a function start; declared only (400 files): wave 2 deletes the declarations
+camera_shake_update	ovl_a	0x800BDDFC: inside TB_Vector2Normalize (+0x6C), not a function start; declared only (400 files): wave 2 deletes the declarations
+camera_shake_update	ovl_b	0x800BDDFC: inside TB_Vector2Normalize (+0x6C), not a function start; declared only (400 files): wave 2 deletes the declarations
+camera_split_screen_config	*	0x800C2960: inside CheckRoll (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_split_screen_setup	*	0x800C1CBC: inside AddStunt (+0x15C), not a function start
+camera_target_set	*	0x800E3000: inside engine (+0x100), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_third_person	*	0x800BFBEC: inside CreateQuatMat (+0x4), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_top_down	*	0x800BFD94: inside InterpQuats (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+camera_transition	*	0x800C0AC4: inside AnimatePathTarget (+0x4), not a function start
+camera_viewport_setup	*	0x800C17F4: inside StartPathTarget (+0x1F0), not a function start
+car_color_handler	*	0x800D1AB8: inside PlaceUnlockedCars (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+car_get_gear	*	0x800A7D88: inside ZOID_NewMatrix (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+car_preview_handler	*	0x800D16B0: inside GetResPt (+0x14), not a function start; declared only (7 files): wave 2 deletes the declarations
+car_setup_physics	*	0x800A78C8: inside ZOID_NewPoly (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+car_sounds_init	*	0x800B2C40: inside InitEnvs (+0x64), not a function start
+car_sounds_interrupt	*	0x800B2D60: inside ResetCollisionObject (+0x40), not a function start
+car_stats_handler	*	0x800D18E4: inside NewSequence (+0xC), not a function start
+car_steering_response	*	0x800A6100: inside ZOID_WindowTo3D (+0x6C), not a function start
+car_unlock_handler	*	0x800D197C: second name of AudPlaySequence
+car_velocity_clamp	*	0x800AAB44: inside tr_init (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+catchup_logic	*	0x801089CC: inside func_801084D4 (+0x4F8), not a function start
+checkpoint_check	*	0x800C85F0: inside AudInit3D (+0xF4), not a function start
+checkpoint_hit	boot_tail	0x801073D8: inside animOdometer (+0x644), not a function start; declared only (400 files): wave 2 deletes the declarations
+checkpoint_hit	ovl_a	0x801073D8: inside animOdometer (+0x644), not a function start; declared only (400 files): wave 2 deletes the declarations
+checkpoint_hit	ovl_b	0x801073D8: inside animOdometer (+0x644), not a function start; declared only (400 files): wave 2 deletes the declarations
+clear_region	*	0x8010FC34: inside musyx_submit_audio_task (+0x54), not a function start
+clutch_slip_calc	*	0x800ABA18: inside SetTargetDef (+0x240), not a function start
+collision_car_car	*	0x800BB400: inside car_palette_init (+0x3D4), not a function start
+collision_car_wall	*	0x800BB800: inside InitCollisionTargetPtrs (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+collision_detect	*	0x800BB000: inside heap_total_free (+0x68), not a function start
+collision_force_check	*	0x800B34C0: inside InitTrackDynamicObjs (+0x134), not a function start
+collision_ground_height	*	0x800E9600: inside steady_move_cam (+0x24), not a function start; declared only (7 files): wave 2 deletes the declarations
+collision_mesh_load	*	0x800E9000: inside maxpath_cam (+0xF0), not a function start; declared only (7 files): wave 2 deletes the declarations
+collision_normal_get	*	0x800E9A00: inside steady_move_cam (+0x424), not a function start
+collision_point_in_body	*	0x800BBC00: inside func_800BB9B0 (+0x250), not a function start
+collision_query_ray	*	0x800E9200: inside maxpath_cam (+0x2F0), not a function start
+collision_query_sphere	*	0x800E9400: inside UpdateRearCamera (+0x138), not a function start; declared only (7 files): wave 2 deletes the declarations
+collision_rumble_trigger	*	0x800E6450: inside ReadSteeringWheel (+0x1D4), not a function start
+collision_surface_type	*	0x800E9800: inside steady_move_cam (+0x224), not a function start
+countdown_display_handler	*	0x800FBC60: inside DrawNoControllers (+0x30), not a function start
+countdown_start	*	0x80100EE4: inside func_80100E58 (+0x8C), not a function start; declared only (7 files): wave 2 deletes the declarations
+cursor_move	*	0x800E051C: inside UpdateEngineSound (+0x4CC), not a function start
+debug_ai_paths	*	0x800FD240: inside updateFrontEnd (+0x8), not a function start
+debug_overlay	*	0x800FCA00: inside updateBG (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+difficulty_scaling	*	0x80107110: inside animOdometer (+0x37C), not a function start; declared only (410 files): wave 2 deletes the declarations
+disconnect_handler	*	0x8010B874: inside animPauseText (+0x78), not a function start; declared only (410 files): wave 2 deletes the declarations
+display_list_alloc	boot_tail	0x8009638C: inside GetWaveInstanceAddr (+0xF4), not a function start; declared only (401 files): wave 2 deletes the declarations
+display_list_alloc	ovl_a	0x8009638C: inside GetWaveInstanceAddr (+0xF4), not a function start; declared only (401 files): wave 2 deletes the declarations
+display_list_alloc	ovl_b	0x8009638C: inside GetWaveInstanceAddr (+0xF4), not a function start; declared only (401 files): wave 2 deletes the declarations
+dll_get_priority	ovl_a	0x8000C490: unused label
+dll_get_priority	ovl_b	0x8000C490: unused label
+dll_init	ovl_a	0x8000C090: unused label
+dll_init	ovl_b	0x8000C090: unused label
+dll_insert	ovl_a	0x8000C308: unused label
+dll_insert	ovl_b	0x8000C308: unused label
+dll_remove	ovl_a	0x8000C050: unused label; declared only (1 file): wave 2 deletes the declarations
+dll_remove	ovl_b	0x8000C050: unused label; declared only (1 file): wave 2 deletes the declarations
+dll_reschedule	ovl_a	0x8000C294: unused label
+dll_reschedule	ovl_b	0x8000C294: unused label
+dll_update	ovl_a	0x8000C11C: unused label
+dll_update	ovl_b	0x8000C11C: unused label
+dma_complete_wait	*	0x8009614C: inside UnloadWaveInstance (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+dma_queue_sync	*	0x800960D4: second name of DeallocateMemory
+dma_request	*	0x800962D4: inside GetWaveInstanceAddr (+0x3C), not a function start
+doing_notch	*	0x80140DD4: unused label
+draw_lap_counter	*	0x800C7ED4: inside ReadPlayer (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+draw_message	*	0x800CA308: inside uninitGameState (+0x8), not a function start
+draw_position	*	0x800C8864: inside AudFree3D (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+draw_timer	*	0x800C8920: inside AudioShutdown (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+drivetrain_interp	*	0x800ABDE8: inside SetupTarget (+0x120), not a function start; declared only (1 file): wave 2 deletes the declarations
+drivetrain_update	*	0x800AB544: inside FindWorldGroup (+0x8), not a function start; declared only (8 files): wave 2 deletes the declarations
+drone_ai_update	boot_tail	0x80093B20: inside stub_before_AnimateRocketFlame (+0xA84), not a function start; declared only (400 files): wave 2 deletes the declarations
+drone_ai_update	ovl_a	0x80093B20: inside stub_before_AnimateRocketFlame (+0xA84), not a function start; declared only (400 files): wave 2 deletes the declarations
+drone_ai_update	ovl_b	0x80093B20: inside stub_before_AnimateRocketFlame (+0xA84), not a function start; declared only (400 files): wave 2 deletes the declarations
+drone_move_update	*	0x800954E0: inside AudioSetMono (+0x38), not a function start
+drone_path_branch	*	0x800A0BAC: inside ZOID_EndFrame (+0x6E8), not a function start
+drone_path_select	*	0x800A19E4: inside game_memcmp (+0xD4), not a function start; declared only (7 files): wave 2 deletes the declarations
+drone_rwtobod	*	0x800A373C: inside ClearPak (+0x18), not a function start; declared only (7 files): wave 2 deletes the declarations
+drone_speed_adjust	*	0x800A2B30: inside PS_ReadPartialFile (+0x1A0), not a function start
+drone_steering_calc	*	0x800A0800: inside ZOID_EndFrame (+0x33C), not a function start
+dynamic_difficulty	*	0x80108098: inside animLapCount (+0x1BC), not a function start
+effect_slot_init	*	0x800C3594: inside CrashedStunt (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+emitter_create	*	0x800EEA50: inside InitGraphics (+0x19C), not a function start; declared only (1 file): wave 2 deletes the declarations
+engine_particle_effect	*	0x800A5588: inside tan_cody_waite (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+engine_sound_start	*	0x800B2D80: inside ResetCollisionObject (+0x60), not a function start
+engine_sound_stop	*	0x800B3340: inside SetTargetDefs (+0x548), not a function start
+entity_callback_invoke	*	0x80090F4C: inside func_80090F44 (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+entity_damage_update	*	0x800988E0: inside ProcessSequences (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+entity_frame_advance	*	0x80090EA4: inside YawUV (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+entity_render_transform	*	0x80096CC4: inside SetupWaveModel (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+entity_state_init	*	0x8009229C: inside GetFxTag (+0x24), not a function start; declared only (7 files): wave 2 deletes the declarations
+entity_tick_main	boot_tail	0x800930A4: inside stub_before_AnimateRocketFlame (+0x8), not a function start; declared only (400 files): wave 2 deletes the declarations
+entity_tick_main	ovl_a	0x800930A4: inside stub_before_AnimateRocketFlame (+0x8), not a function start; declared only (400 files): wave 2 deletes the declarations
+entity_tick_main	ovl_b	0x800930A4: inside stub_before_AnimateRocketFlame (+0x8), not a function start; declared only (400 files): wave 2 deletes the declarations
+entrypoint	*	0x80000400: unused label; declared only (1 file): wave 2 deletes the declarations
+explosion_effect	boot_tail	0x800EF8F4: inside animTach (+0x2C8), not a function start; declared only (400 files): wave 2 deletes the declarations
+explosion_effect	ovl_a	0x800EF8F4: inside animTach (+0x2C8), not a function start; declared only (400 files): wave 2 deletes the declarations
+explosion_effect	ovl_b	0x800EF8F4: inside animTach (+0x2C8), not a function start; declared only (400 files): wave 2 deletes the declarations
+find_best_gear	blob	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this entry before the rename)
+find_best_gear	boot_tail	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this entry before the rename)
+find_best_gear	ovl_a	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this entry before the rename)
+find_best_gear	ovl_b	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this entry before the rename)
+find_maxpath_intervals	*	0x800F87AC: inside controlMain (+0xC), not a function start
+finish_state_normal	*	0x800F64D4: second name of updateHighScoreScreen
+fire_effect	*	0x800EF500: inside animGear (+0x278), not a function start
+gActiveEffectList	*	0x80037994: unused label
+gAeroDrag	*	0x80152B20: unused label
+gAirDistance	*	0x80152A5C: unused label
+gAntiRollBarFront	*	0x80152A6C: unused label
+gAntiRollBarRear	*	0x80152A70: unused label
+gAntiSpinAirTable	*	0x80160C30: unused label
+gAntiSpinRoadTable	*	0x80160C00: unused label
+gAntiSpinScaleTable	*	0x80160C60: unused label
+gAudioChannelState	*	0x80160000: unused label
+gAudioDmaState	*	0x8002C364: unused label
+gAudioState	*	0x80130000: unused label
+gAutoTrans	*	0x80152AA8: unused label
+gBestLapTime	blob	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this entry before the rename)
+gBestLapTime	boot_tail	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this entry before the rename)
+gBestLapTime	ovl_a	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this entry before the rename)
+gBestLapTime	ovl_b	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this entry before the rename)
+gBestLapTimes	*	0x80155110: unused label
+gBestLoopTime	*	0x801530CC: unused label
+gBestTimes	*	0x80159100: unused label
+gBlastFrameIndex	*	0x80154430: unused label
+gBlastHoldTimer	*	0x80154434: unused label
+gBlastTextureIndex	*	0x80154438: unused label
+gBodyForce	*	0x80152ACC: unused label
+gBodyMoment	*	0x80152AD8: unused label
+gBrake	*	0x80152A9C: unused label
+gBumpTime	blob	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this entry before the rename)
+gBumpTime	boot_tail	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this entry before the rename)
+gBumpTime	ovl_a	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this entry before the rename)
+gBumpTime	ovl_b	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this entry before the rename)
+gCameraAspect	*	0x8003668C: unused label
+gCameraFar	*	0x80036694: unused label
+gCameraForward	*	0x80036664: unused label
+gCameraFov	*	0x80036688: unused label
+gCameraMatrix	*	0x80036600: unused label
+gCameraNear	*	0x80036690: unused label
+gCameraPitch	*	0x8003667C: unused label
+gCameraPosition	*	0x8015B000: unused label
+gCameraRight	*	0x80036670: unused label
+gCameraRoll	*	0x80036684: unused label
+gCameraSaveView	*	0x80036699: unused label
+gCameraTarget	*	0x8003664C: unused label
+gCameraUp	*	0x80036658: unused label
+gCameraView	*	0x80036698: unused label
+gCameraYaw	*	0x80036680: unused label
+gCarAcceleration	*	0x80152888: unused label
+gCarAirTime	*	0x80152BA8: unused label
+gCarAngularVelocity	*	0x8015287C: unused label
+gCarAppearance	*	0x80152BE8: unused label
+gCarBodyForce	*	0x80152B40: unused label
+gCarBodyModels	*	0x80037760: unused label
+gCarBodyPosition	boot_tail	0x80152B70: unused label
+gCarBodyType	*	0x80152BF0: unused label
+gCarBumpState	*	0x80150D30: unused label
+gCarCatchup	*	0x80152BB8: unused label
+gCarCollidable	*	0x80152B3C: unused label
+gCarCollisionRadius	*	0x80152B38: unused label
+gCarCollisionSizes	*	0x80160B00: unused label
+gCarCrashFlag	*	0x80152B28: unused label
+gCarCrashThreshold	*	0x80152B2C: unused label
+gCarDeltaTime	*	0x80152BA4: unused label
+gCarEngineType	*	0x80152BEC: unused label
+gCarForceAverage	*	0x80152B34: unused label
+gCarGameOver	*	0x80152BB4: unused label
+gCarInertiaInverse	*	0x801528A8: unused label
+gCarMPH	*	0x80152BAC: unused label
+gCarMagnitudeVelocity	*	0x80152BB0: unused label
+gCarMass	blob	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this entry before the rename)
+gCarMass	boot_tail	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this entry before the rename)
+gCarMass	ovl_a	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this entry before the rename)
+gCarMass	ovl_b	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this entry before the rename)
+gCarMassInverse	*	0x80152898: unused label
+gCarMomentOfInertia	*	0x8015289C: unused label
+gCarOrientation	*	0x80152858: unused label
+gCarPartsArray	*	0x80153100: unused label
+gCarPartsSlots	*	0x80036760: unused label
+gCarPlace	*	0x80152BF4: unused label
+gCarPosition	*	0x80152848: unused label
+gCarThumpFlag	*	0x80152B30: unused label
+gCarTime	*	0x80152BA0: unused label
+gCarTimeBoost	*	0x80152BBC: unused label
+gCarVelocity	boot_tail	0x80152820: unused label
+gCarWheelModels	*	0x80037790: unused label
+gCenterForce	*	0x80152B08: unused label
+gCenterMoment	*	0x80152B14: unused label
+gCheckpointTimes	*	0x80155000: unused label
+gCircuitDifficulty	*	0x80159380: unused label
+gCircuitLaps	*	0x80159360: unused label
+gCircuitTrackList	*	0x80159340: unused label
+gClipMaxX	boot_tail	0x8012E610: second name of blitXmax
+gClipMaxY	boot_tail	0x8012E674: second name of blitYmax
+gClipMinX	boot_tail	0x8012E60C: second name of blitXmin
+gClipMinY	boot_tail	0x8012E668: second name of blitYmin
+gClutch	*	0x80152AA0: unused label
+gClutchAngVel	*	0x80152ABE: unused label
+gClutchTorque	*	0x80152AC0: unused label
+gContinueCountdown	*	0x80142BAC: unused label
+gCountdownTicks	*	0x80142B10: unused label
+gCountdownTimer	*	0x80142B0C: unused label
+gCulledObjects	*	0x80037990: unused label
+gCurrentDrone	*	0x801530C8: unused label
+gCurrentFramebuffer	*	0x80035500: unused label
+gCurrentLapTime	*	0x80142B1C: unused label
+gCurrentLapTimes	*	0x80155120: unused label
+gCurrentViewportIdx	*	0x80036728: unused label
+gDampingCompression	*	0x80152A2C: unused label
+gDampingRebound	*	0x80152A3C: unused label
+gDecompressedDataEnd1	boot_tail	0x8010FD80: second name of gEngineSpecs; declared only (1 file): wave 2 deletes the declarations
+gDecompressedDataStart	*	0x80086A50: second name of blit_set_mode; declared only (1 file): wave 2 deletes the declarations
+gDifferentialRatio	*	0x80152AAC: unused label
+gDisplayListBuffer	*	0x80180000: unused label
+gDisplayListCommands	*	0x80037988: unused label
+gDisplayListPtr	boot_tail	0x80149438: second name of blit_dl
+gDmaInitFlag	boot_tail	0x80111968: second name of controlsys_sInited
+gDmaMesgBuf	*	0x8002F140: unused label; declared only (1 file): wave 2 deletes the declarations
+gDownshiftRPM	*	0x80152AC8: unused label
+gDragForce	*	0x80152AE4: unused label
+gDriveWheelAngVel	boot_tail	0x80152ABC: unused label
+gDriveWheelTorque	*	0x80152AB8: unused label
+gDroneAbortTimer	*	0x8015300C: unused label
+gDroneDoneCount	*	0x801530C6: unused label
+gDroneForwardRelative	boot_tail	0x80152BD8: second name of car1_dr_pos
+gDroneMaxPathIndex	*	0x80152BC0: unused label
+gDroneScale	*	0x80152BE4: unused label
+gDroneSteerRelative	*	0x80152BD4: unused label
+gDroneTarget	*	0x80152BE0: unused label
+gDroneTargetPosition	*	0x80152BC8: unused label
+gDroneTargetSpeed	*	0x80152BC4: unused label
+gDroneType	*	0x80152BDC: unused label
+gDustEmitterList	*	0x800379B8: unused label
+gEffectEmittersArray	boot_tail	0x80150B70: second name of gCamera
+gEffectFrameRate	*	0x8003799C: unused label
+gEffectsPoolBase	boot_tail	0x80150000: unused label
+gElapsedTime	blob	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this entry before the rename)
+gElapsedTime	boot_tail	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this entry before the rename)
+gElapsedTime	ovl_a	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this entry before the rename)
+gElapsedTime	ovl_b	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this entry before the rename)
+gEngineAngularVelocity	*	0x80152A94: unused label
+gEngineOn	*	0x80150BA8: unused label
+gEnginePitch	*	0x80150BA2: unused label
+gEngineRPM	*	0x80152A8C: unused label
+gEngineStateVar	*	0x80150BA4: unused label
+gEngineTorque	*	0x80152A90: unused label
+gEngineVolume	boot_tail	0x80150BA0: second name of gCamera_n64
+gEntityPool	*	0x80157000: unused label
+gEntityPoolIndex	*	0x80157400: unused label
+gEntityRecvBuffer	*	0x80165000: unused label
+gEntityStateBuffer	*	0x80164000: unused label
+gEventMesgBuf	*	0x8002ECD8: unused label; declared only (1 file): wave 2 deletes the declarations
+gEventReportCount	*	0x80166080: unused label
+gEventReportItems	*	0x80166014: unused label
+gEventReportType	*	0x80166010: unused label
+gFeedbackLevel	*	0x80140DB0: unused label; declared only (2 files): wave 2 deletes the declarations
+gFinishTimeByPlace	*	0x80142C00: unused label
+gFirstPlaceTime	blob	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this entry before the rename)
+gFirstPlaceTime	boot_tail	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this entry before the rename)
+gFirstPlaceTime	ovl_a	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this entry before the rename)
+gFirstPlaceTime	ovl_b	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this entry before the rename)
+gForceOffset	*	0x80140DB2: unused label
+gForwardVector	*	0x8002F6BC: unused label
+gFrameBytesPerPixel	*	0x80035510: unused label
+gFrameCounter	boot_tail	0x80142AFC: unused label
+gFrameHeight	*	0x8003550C: unused label
+gFrameWidth	*	0x80035508: unused label
+gFramebufferA	*	0x80200000: unused label
+gFramebufferB	*	0x80225800: unused label
+gFramebufferIndex	*	0x80035504: unused label
+gFreeEffectList	*	0x80037998: unused label
+gFscale	*	0x80140DB4: unused label
+gGameoverCountdown	*	0x80142BA8: unused label
+gGear	*	0x80152AA4: unused label
+gGfxCurrentDL	*	0x8003D524: unused label
+gGfxDisplayListA	*	0x80035520: unused label
+gGfxDisplayListB	*	0x80039520: unused label
+gGfxEndDL	*	0x8003D528: unused label
+gGfxMasterDL	*	0x8003D520: unused label
+gGfxTaskPtr	*	0x8003D52C: unused label
+gGlobalLaps	*	0x80142B4C: unused label
+gGlobalLastCp	*	0x80142B4E: unused label
+gGlobalNextCp	*	0x80142B50: unused label
+gGravelNoiseHandle	*	0x80150C10: unused label
+gGravelNoiseVolume	*	0x80150C14: unused label
+gGravityBody	*	0x80152AF0: unused label
+gGravityWorld	*	0x80152AFC: unused label
+gHeightGrid	*	0x8015C100: unused label
+gHudBlitCount	*	0x80037908: unused label
+gHudBlitList	*	0x80037904: unused label
+gHudEnabled	*	0x80037900: unused label
+gIdleThread	*	0x80034BA0: unused label; declared only (2 files): wave 2 deletes the declarations
+gInFirstPlace	blob	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this entry before the rename)
+gInFirstPlace	boot_tail	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this entry before the rename)
+gInFirstPlace	ovl_a	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this entry before the rename)
+gInFirstPlace	ovl_b	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this entry before the rename)
+gInTunnelFlag	*	0x80154468: unused label
+gInTunnelState	*	0x800379DC: unused label
+gInfinity	*	0x8002D800: unused label
+gInflateMesgBuf	*	0x8002F160: unused label; declared only (1 file): wave 2 deletes the declarations
+gLapCounts	*	0x80155100: unused label
+gLapDisplayValue	*	0x80037914: unused label
+gLapLoopIndex	*	0x80142B52: unused label
+gLapStartTime	*	0x80142B28: unused label
+gLapTotalValue	*	0x80037918: unused label
+gLastBrake	*	0x80153080: unused label
+gLastCheckpointTime	*	0x80142B48: unused label
+gLastLapTime	*	0x80142B24: unused label
+gLastMPathTime	*	0x801530D4: unused label
+gLastThrottle	*	0x801530A0: unused label
+gLastWheel	*	0x80153060: unused label
+gListenerDirection	*	0x8016100C: unused label
+gListenerPosition	*	0x80161000: unused label
+gLoopStamp	*	0x801530D0: unused label
+gLzssDmaState	*	0x80035488: unused label
+gLzssSrc	*	0x800354A0: unused label
+gLzssToggle	*	0x80035480: unused label
+gMPCtl	*	0x80153140: unused label; declared only (1 file): wave 2 deletes the declarations
+gMPath	*	0x801530E4: unused label
+gMPathActiveList	*	0x80153130: unused label
+gMPathHeaderTab	*	0x801530F0: unused label
+gMPathIndex	*	0x801530C4: unused label
+gMPathNum	*	0x801530E8: unused label
+gMPathRecording	*	0x801530C2: unused label
+gMPathTab	*	0x80153110: unused label
+gMainGameStruct	boot_tail	0x801461D0: second name of text_lock_queue
+gMatrixStack	*	0x80035530: unused label
+gMatrixStackDepth	*	0x80036534: unused label
+gMatrixStackPtr	*	0x80036530: unused label
+gMaxPath	*	0x801530E0: unused label; declared only (1 file): wave 2 deletes the declarations
+gMinimapCenterX	*	0x8003792C: unused label
+gMinimapCenterY	*	0x80037930: unused label
+gMinimapEnabled	*	0x80037928: unused label
+gModelViewMatrix	*	0x80036580: unused label
+gNegInfinity	*	0x8002D808: unused label
+gNetRecvHead	*	0x80164FF0: unused label
+gNetRecvTail	*	0x80164FF4: unused label
+gNetSendHead	*	0x80163FF0: unused label
+gNetSendTail	*	0x80163FF4: unused label
+gNetTimeFudge	*	0x80166094: unused label
+gNetTimeStamp	*	0x80166090: unused label
+gNetworkRecvSize	*	0x80164FF8: unused label
+gNetworkSendSize	*	0x80163FF8: unused label
+gNetworkState	*	0x80166000: unused label
+gNewBestLapFlag	*	0x80142B74: unused label
+gNewSkidArray	*	0x80154010: unused label
+gNumHumans	*	0x80153006: unused label
+gNumMPaths	*	0x801530C0: unused label; declared only (1 file): wave 2 deletes the declarations
+gNumPlayers	blob	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this entry before the rename)
+gNumPlayers	boot_tail	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this entry before the rename)
+gNumPlayers	ovl_a	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this entry before the rename)
+gNumPlayers	ovl_b	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this entry before the rename)
+gNumberCheckpoints	*	0x80142B44: unused label
+gObjectArrayEnd	boot_tail	0x80144DA0: second name of gGhostMenuSelect
+gObjectArrayStart	boot_tail	0x80144D60: second name of gPS_Files
+gObjectMaxCount	boot_tail	0x801569A8: second name of gMaxObjects
+gObjectSlotTable	boot_tail	0x801569B8: second name of gStuntInfo
+gOldBoost	*	0x80153040: unused label
+gOldDroneScale	*	0x80153020: unused label
+gPDUErrorCount	*	0x801660A0: unused label
+gPDULastError	*	0x801660A4: unused label
+gParticleActiveCount	*	0x800379AC: unused label
+gParticlePool	*	0x80162000: unused label
+gParticlePoolIndex	*	0x80162100: unused label
+gPauseState	boot_tail	0x80114700: stale; the maps give gPauseState to 0x801170FC (drop this entry before the rename)
+gPhysicsObjectListHead	*	0x801491F0: unused label
+gPlayTime	*	0x80142B04: unused label
+gPlayerCarState1	boot_tail	0x80152818: second name of gGameCar
+gPlayerCarState2	boot_tail	0x80152770: second name of heap_lock_queue
+gPlayerCheckpoint	*	0x80142B88: unused label
+gPlayerEntityArray	*	0x8015A250: unused label
+gPlayerFinishTimes	*	0x80142BF0: unused label
+gPlayerFlagsArray	*	0x8015A11C: unused label
+gPlayerInitFlag	boot_tail	0x80111954: second name of gInitControls
+gPlayerInputArray	*	0x8015A118: unused label
+gPlayerInputEnabled	boot_tail	0x801147C8: second name of gDefaultNames
+gPlayerLapCount	*	0x80142B78: unused label
+gPlayerRacePositionFlags	boot_tail	0x8015418C: second name of controlScrActive
+gPlayerRaceTime	*	0x80142B98: unused label
+gPlayerStatusArray	boot_tail	0x80156CF0: second name of gControllerData
+gPointsTableF1	*	0x801593B0: unused label
+gPointsTableStandard	*	0x80159390: unused label
+gPositionDisplayValue	*	0x8003791C: unused label
+gProjectionMatrix	*	0x80036540: unused label
+gRaceControlByte	boot_tail	0x80142699: second name of gRetireGame
+gRaceControlData	boot_tail	0x80142728: second name of audio_lock_queue
+gRaceNumLaps	boot_tail	0x80142B70: second name of audio_cmd_queue_msgs
+gRacePhase	*	0x80142B6C: unused label
+gRaceResetFlag	boot_tail	0x80157244: second name of gSoftReset
+gRaceStartFrame	*	0x80142B68: unused label
+gRaceTimeLimit	*	0x80142B18: unused label
+gRaceTimer	boot_tail	0x80142B00: second name of gInvincible
+gRandomSeed	boot_tail	0x8011735C: second name of rand_seed
+gReflectionEnabled	*	0x80154460: unused label
+gReflectionMode	*	0x800379D0: unused label
+gReflectionTexCloud	*	0x800379D4: unused label
+gReflectionTexTunnel	*	0x800379D8: unused label
+gReflectionTextureId	*	0x80154464: unused label
+gRenderDataPtr	boot_tail	0x8011EA18: second name of default_lights
+gRenderObjectCount	*	0x80036740: unused label
+gRenderObjectList	*	0x80036744: unused label
+gRenderPassIndex	*	0x8003674C: unused label
+gRenderSync	boot_tail	0x801427A8: second name of audio_command_queue
+gRetraceMesgBuf	*	0x8002ED10: unused label; declared only (1 file): wave 2 deletes the declarations
+gRideHeight	*	0x80152A4C: unused label
+gRoadBoost	*	0x80152C08: unused label; declared only (1 file): wave 2 deletes the declarations
+gRoadCode	*	0x80152BF8: unused label
+gRoadNoiseHandle	*	0x80150C00: unused label
+gRoadNoisePitch	boot_tail	0x80150C04: second name of first_camera_slot
+gRoadNoiseVolume	*	0x80150C08: unused label
+gRoadUnitVectors	*	0x80152C18: unused label
+gRollingResistance	*	0x80152B24: unused label
+gRpmFix	*	0x80150EC0: unused label
+gSWdamp	*	0x80140DA8: unused label
+gSWforce	*	0x80140DA2: unused label
+gSWfrict	*	0x80140DA6: unused label
+gSWpos	*	0x80140DA0: unused label
+gSWtorque	*	0x80140DA4: unused label
+gSWvel	*	0x80140DAA: unused label
+gScaleFactorX	*	0x80037960: unused label
+gScaleFactorY	*	0x80037964: unused label
+gScrapeState	blob	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this entry before the rename)
+gScrapeState	boot_tail	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this entry before the rename)
+gScrapeState	ovl_a	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this entry before the rename)
+gScrapeState	ovl_b	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this entry before the rename)
+gScrapeTime	blob	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
+gScrapeTime	boot_tail	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
+gScrapeTime	ovl_a	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
+gScrapeTime	ovl_b	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
+gScreenCenterX	*	0x80037970: unused label
+gScreenCenterY	*	0x80037974: unused label
+gSettingsData	*	0x80159200: unused label
+gShadowEnabled	*	0x800379C0: unused label
+gShadowIntensity	*	0x800379C8: unused label
+gShadowOffset	*	0x800379CC: unused label
+gShadowPool	*	0x80154440: unused label
+gShadowTextureId	boot_tail	0x80154450: second name of gCircuitCars
+gSkidFreeHead	*	0x80154000: unused label
+gSkidIntensity	*	0x80150DC0: unused label
+gSkidListHead	*	0x80154004: unused label
+gSkidMarkActiveList	*	0x800379A0: unused label
+gSkidMarkFreeList	*	0x800379A4: unused label
+gSkidMarkTextureId	*	0x800379A8: unused label
+gSkidPool	*	0x80153400: unused label
+gSmokeEmitterList	*	0x800379B0: unused label
+gSmokeFrameCount	*	0x80154404: unused label
+gSmokeIntensity	*	0x80150E40: unused label
+gSmokeNextIndex	*	0x80154400: unused label
+gSmokeParticlePool	*	0x80154200: unused label
+gSortedObjectList	*	0x80036750: unused label
+gSoundBufferTemp	*	0x80150B80: unused label
+gSoundIndexCurrent	boot_tail	0x80150B7C: unused label
+gSoundsEnabled	*	0x80150B8C: unused label
+gSparkBackHandle	*	0x80154418: unused label
+gSparkEmitterList	*	0x800379B4: unused label
+gSparkLeftHandle	*	0x80154410: unused label
+gSparkRightHandle	*	0x80154414: unused label
+gSparkTextureIndex	*	0x80154420: unused label
+gSpeedometerValue	*	0x8003790C: unused label
+gSplashEmitterList	*	0x800379BC: unused label
+gSplitScreenCount	*	0x80036724: unused label
+gSplitScreenMode	*	0x80036720: unused label
+gSplitTimeFrames	*	0x80142B30: unused label
+gSpringRate	*	0x80152A1C: unused label
+gStackIdle	boot_tail	0x8002F660: second name of audio_retrace_thread_stack_top; declared only (2 files): wave 2 deletes the declarations
+gStartTime	boot_tail	0x80142B08: second name of gCarModelNums
+gStatTotalWins	*	0x80159004: unused label
+gSteerAngle	*	0x80152A74: unused label
+gSteerRatio	*	0x80152A78: unused label
+gSteerWheelDamping	*	0x80152A80: unused label
+gSteerWheelFriction	*	0x80152A84: unused label
+gSteerWheelPosition	*	0x80152A88: unused label
+gSteerWheelTorque	*	0x80152A7C: unused label
+gSurfaceGrid	*	0x8015D000: unused label
+gSurfaceVisCode	*	0x80152C10: unused label
+gSuspensionCompression	*	0x801529FC: unused label
+gSuspensionOffset	*	0x800378B0: unused label
+gSuspensionVelocity	*	0x80152A0C: unused label
+gSyncInitFlag	boot_tail	0x8011194C: second name of si_lock_inited
+gSyncMesgBuf	*	0x8002F180: unused label; declared only (1 file): wave 2 deletes the declarations
+gTachometerValue	*	0x80037910: unused label
+gTexListArray	*	0x80153010: unused label
+gTextureFormat	*	0x8003670C: unused label
+gTextureLoads	*	0x8003798C: unused label
+gTextureLodEnabled	*	0x80036714: unused label
+gTextureScaleS	*	0x80036704: unused label
+gTextureScaleT	*	0x80036706: unused label
+gTextureTile	*	0x80036708: unused label
+gTextureWrapS	*	0x80036718: unused label
+gTextureWrapT	*	0x8003671C: unused label
+gThrottle	*	0x80152A98: unused label
+gTimeExpiredFlag	*	0x80142B40: unused label
+gTimeToBeGiven	*	0x80142B54: unused label
+gTimerDisplayValue	*	0x80037920: unused label
+gTimerQueue	*	0x80156000: unused label
+gTireAngularVelocity	*	0x80152978: unused label
+gTireCornStiff	*	0x801529DC: unused label
+gTireForce	*	0x801528B8: unused label
+gTireFrictionMax	*	0x801529EC: unused label
+gTirePosition	*	0x801528E8: unused label
+gTirePositionWorld	*	0x80152918: unused label
+gTireRadius	*	0x801529CC: unused label
+gTireSideForce	blob	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this entry before the rename)
+gTireSideForce	boot_tail	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this entry before the rename)
+gTireSideForce	ovl_a	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this entry before the rename)
+gTireSideForce	ovl_b	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this entry before the rename)
+gTireSlipAngle	*	0x80152988: unused label
+gTireSlipFlag	*	0x80152998: unused label
+gTireSlipTorque	*	0x8015299C: unused label
+gTireSquealHandles	*	0x80150BB0: unused label
+gTireSquealOn	*	0x80150BE0: unused label
+gTireSquealPitch	*	0x80150BD0: unused label
+gTireSquealState	*	0x80150C30: unused label
+gTireSquealVolume	*	0x80150BC0: unused label
+gTireTraction	*	0x801529AC: unused label
+gTireVelocity	*	0x80152948: unused label
+gTorqueCurveDirt	*	0x80160900: unused label
+gTorqueCurveRush	*	0x80160A00: unused label
+gTorqueCurveStandard	*	0x80160800: unused label
+gTorqueFix	*	0x80150EC4: unused label
+gTotalGearRatio	*	0x80152AB4: unused label
+gTotalTimeBoxTime	*	0x80142B5C: unused label
+gTotalTimeGiven	*	0x80142B58: unused label
+gTournamentActive	*	0x80159304: unused label
+gTournamentCarRestrict	*	0x801593E0: unused label
+gTournamentCatchupEnabled	*	0x801593F0: unused label
+gTournamentCurrentRace	*	0x8015930C: unused label
+gTournamentDronesEnabled	*	0x801593EC: unused label
+gTournamentFreePlay	*	0x801593D8: unused label
+gTournamentJoinMode	*	0x801593DC: unused label
+gTournamentPoints	*	0x80159310: unused label
+gTournamentRaces	*	0x80159308: unused label
+gTournamentStandings	*	0x80159320: unused label
+gTournamentState	*	0x80159300: unused label
+gTournamentTrackRestrict	*	0x801593E4: unused label
+gTournamentTransRestrict	*	0x801593E8: unused label
+gTrackAmbientColor	*	0x8003794C: unused label
+gTrackBestLap	*	0x80142BD0: unused label
+gTrackBounds	*	0x8015C000: unused label
+gTrackDataA	boot_tail	0x8014A110: second name of gRace
+gTrackDataB	boot_tail	0x8014A250: unused label
+gTrackLodLevel	*	0x80037944: unused label
+gTrackParTimes	*	0x80142BB0: unused label
+gTrackTextureSet	*	0x80037948: unused label
+gTrackTimeOfDay	*	0x80037950: unused label
+gTrackVisibleSegments	*	0x80037940: unused label
+gTrackWeather	*	0x80037954: unused label
+gTranslateX	*	0x80037968: unused label
+gTranslateY	*	0x8003796C: unused label
+gTransmissionRatio	*	0x80152AB0: unused label
+gTrianglesRendered	*	0x80037980: unused label
+gUnitUVS	*	0x8002F680: unused label
+gUnlockFlags	*	0x80159000: unused label
+gUnlockedPaints	*	0x80159204: unused label
+gUpVector	*	0x8002F6B0: unused label
+gUpshiftRPM	*	0x80152AC4: unused label
+gVerticesTransformed	*	0x80037984: unused label
+gViLastCount	ovl_a	0x80037C58: unused label
+gViLastCount	ovl_b	0x80037C58: unused label
+gViModeLan1	*	0x8002EE20: unused label; declared only (2 files): wave 2 deletes the declarations
+gViModePtr0	*	0x800367A0: unused label
+gViModePtr1	*	0x800367A8: unused label
+gViModePtr2	*	0x800367B0: unused label
+gViModePtr3	*	0x800367B8: unused label
+gViModePtr4	*	0x800367BC: unused label
+gViModePtr5	*	0x800367C0: unused label
+gViModePtr6	*	0x800367C8: unused label
+gViModeTable	*	0x8002EE08: unused label; declared only (2 files): wave 2 deletes the declarations
+gViRetraceCount	ovl_a	0x80037C5C: unused label
+gViRetraceCount	ovl_b	0x80037C5C: unused label
+gViTimeAccumHi	ovl_a	0x80037C50: unused label
+gViTimeAccumHi	ovl_b	0x80037C50: unused label
+gViTimeAccumLo	boot_tail	0x80037C54: unused label
+gViTimeAccumLo	ovl_a	0x80037C54: unused label
+gViTimeAccumLo	ovl_b	0x80037C54: unused label
+gViewMatrix	*	0x800365C0: unused label
+gViewportAlt	*	0x80159B58: unused label
+gViewportArray	*	0x80159870: unused label
+gViewportRectH	*	0x80036738: unused label
+gViewportRectW	*	0x80036734: unused label
+gViewportRectX	*	0x8003672C: unused label
+gViewportRectY	*	0x80036730: unused label
+gVisibleObjectCount	*	0x80036748: unused label
+gVisualsFreeHead	*	0x80153004: unused label
+gVisualsGoodFrameRate	*	0x80153008: unused label
+gVisualsListHead	*	0x80153000: unused label
+gVisualsPool	*	0x80150C20: unused label
+gVoiceTable	*	0x80170000: unused label
+gWaitCompleteStatus	boot_tail	0x80111950: second name of cont_bit_pattern
+gWeightTable	*	0x80153340: unused label
+gWheelRotation	*	0x800377C0: unused label
+gWheelSteerAngle	*	0x80037880: unused label
+gWhichEngine	*	0x80150B90: unused label
+gWindNoiseHandle	*	0x80150BF0: unused label
+gWindNoisePitch	*	0x80150BF4: unused label
+gWindNoiseState	*	0x80150C28: unused label
+gWindNoiseVolume	*	0x80150BF8: unused label
+gWorldBoundsMax	*	0x8015B00C: unused label
+gWrongWayFlag	*	0x80037924: unused label
+gZBuffer	*	0x8024B000: unused label
+gZeroVector	*	0x8002F6A4: unused label
+g_cache_exception_vector	*	0x80000100: unused label
+g_general_exception_vector	*	0x80000180: unused label
+g_tlb_exception_instr1	*	0x80000004: unused label
+g_tlb_exception_instr2	*	0x80000008: unused label
+g_tlb_exception_instr3	*	0x8000000C: unused label
+g_tlb_exception_vector	*	0x80000000: unused label
+g_xtlb_exception_vector	*	0x80000080: unused label
+game_mode_handler	boot_tail	0x800C9AE0: inside UpdateRushControls (+0x164), not a function start; declared only (420 files): wave 2 deletes the declarations
+game_mode_handler	ovl_a	0x800C9AE0: inside UpdateRushControls (+0x164), not a function start; declared only (420 files): wave 2 deletes the declarations
+game_mode_handler	ovl_b	0x800C9AE0: inside UpdateRushControls (+0x164), not a function start; declared only (420 files): wave 2 deletes the declarations
+game_mode_post	*	0x800FBC38: inside DrawNoControllers (+0x8), not a function start
+game_over_screen	*	0x80103A08: inside gameover_animText (+0xAD8), not a function start
+game_results_exit	boot_tail	0x800FFDF8: inside audio_animPanes (+0x1154), not a function start; declared only (418 files): wave 2 deletes the declarations
+game_results_exit	ovl_a	0x800FFDE8: inside audio_animPanes (+0x1144), not a function start; declared only (418 files): wave 2 deletes the declarations
+game_results_exit	ovl_b	0x800FFDE8: inside audio_animPanes (+0x1144), not a function start; declared only (418 files): wave 2 deletes the declarations
+game_results_init	*	0x800FEC78: inside PlayExitSound (+0x18), not a function start
+game_results_input	boot_tail	0x800FF724: inside audio_animPanes (+0xA80), not a function start; declared only (408 files): wave 2 deletes the declarations
+game_results_input	ovl_a	0x800FF724: inside audio_animPanes (+0xA80), not a function start; declared only (408 files): wave 2 deletes the declarations
+game_results_input	ovl_b	0x800FF724: inside audio_animPanes (+0xA80), not a function start; declared only (408 files): wave 2 deletes the declarations
+game_timer_elapsed	*	0x800FE5B0: second name of SelectBlit
+game_timer_lap	*	0x800FE924: second name of change_effect_lr_pan
+game_timer_split	*	0x800FEA08: inside PlayTargetSound (+0x8), not a function start
+game_timer_start	*	0x800FE08C: inside SetCircuitCode (+0xC), not a function start
+game_timer_stop	*	0x800FE4BC: inside free_car_palette (+0x10), not a function start
+gameover_handler	*	0x800FEE04: inside audio_animPanes (+0x160), not a function start
+gfx_lui	*	0x800A1D38: inside pak_find_dirty_run (+0xCC), not a function start
+gfx_lui_b	*	0x800A30AC: inside pak_get_handle_stub (+0x368), not a function start
+gfx_lui_setup	*	0x800A12D4: inside unload_start_overlay (+0x8), not a function start
+gfx_store	*	0x800A2564: inside PS_FlushFileInternal (+0x64C), not a function start
+gfx_store_b	*	0x800A2D1C: inside pak_insert_file (+0x10), not a function start
+gfx_store_word	*	0x800A1660: inside pak_decode_name (+0x1C), not a function start
+graphics_chunk_c	*	0x800F7344: inside DrawBlits (+0x8), not a function start
+graphics_chunk_d	*	0x800F7F44: inside func_800F7F3C (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+gstate_init_flag	boot_tail	0x801146EC: unused label
+gstate_requested	boot_tail	0x801174B8: second name of gNewGameState
+highscore_entry_anim	*	0x80104A58: inside func_80103D28 (+0xD30), not a function start; declared only (418 files): wave 2 deletes the declarations
+hiscore_check_handler	*	0x800DBFC0: inside updatePauseScreen (+0x7A4), not a function start
+hiscore_display_handler	*	0x800DC000: inside updatePauseScreen (+0x7E4), not a function start
+hiscore_input_analog	*	0x800FBB00: inside PrePlay (+0x838), not a function start
+hiscore_insert_handler	*	0x800DC100: inside PrevPathPt (+0x80), not a function start; declared only (7 files): wave 2 deletes the declarations
+hud_element_render	*	0x800C7350: inside AddPlayerScores (+0x4), not a function start
+hud_fade_effect	*	0x800C8F80: inside AudioInit (+0x3F4), not a function start
+hud_full_update	*	0x800C8F00: inside AudioInit (+0x374), not a function start
+hud_lap_render	*	0x800E2400: inside forces1 (+0x5C), not a function start; declared only (7 files): wave 2 deletes the declarations
+hud_minimap_render	*	0x800E2A00: inside forces1 (+0x65C), not a function start
+hud_nitro_update	*	0x800C8E50: inside AudioInit (+0x2C4), not a function start
+hud_position_render	*	0x800E2600: inside forces1 (+0x25C), not a function start
+hud_speedometer_render	*	0x800E2000: inside MovingSurfaceForce (+0x80), not a function start; declared only (7 files): wave 2 deletes the declarations
+hud_stunt_render	*	0x800E2C00: inside whatslips (+0x13C), not a function start; declared only (7 files): wave 2 deletes the declarations
+hud_tachometer_render	*	0x800E2200: inside MovingSurfaceForce (+0x280), not a function start
+hud_tachometer_update	*	0x800C8DA0: inside AudioInit (+0x214), not a function start
+hud_timer_display	*	0x800FB928: inside PrePlay (+0x660), not a function start
+hud_timer_render	*	0x800E2800: inside forces1 (+0x45C), not a function start
+hud_update	*	0x80095600: inside AudioSetMasterVolume (+0xD8), not a function start; declared only (1 file): wave 2 deletes the declarations
+inflate_io_wait	*	0x80004A10: unused label
+init_state_begin	boot_tail	0x800C9BE0: inside UpdateRushControls (+0x264), not a function start; declared only (409 files): wave 2 deletes the declarations
+init_state_begin	ovl_a	0x800C9BE0: inside UpdateRushControls (+0x264), not a function start; declared only (409 files): wave 2 deletes the declarations
+init_state_begin	ovl_b	0x800C9BE0: inside UpdateRushControls (+0x264), not a function start; declared only (409 files): wave 2 deletes the declarations
+input_analog_read	*	0x800E7690: inside init_model_task (+0x64), not a function start
+input_analog_write	*	0x80094E00: second name of ZOID_CropBlit
+input_buffer	boot_tail	0x80140BF0: second name of gBlitInstanceList
+input_button_adjust	*	0x80094D68: second name of ZOID_FlipBlit
+input_button_check	*	0x800E7580: inside func_800E73D8 (+0x1A8), not a function start
+input_callback_process	*	0x800C9530: inside HAL_CallOncePerFrameFuncs (+0x8), not a function start
+input_connected_check	*	0x80094D20: second name of ZOID_TextBlit
+input_dispatch	*	0x80094FF0: inside animControllerDimInternal (+0x8), not a function start
+input_handler	*	0x80094EC8: second name of UpdateBlit
+input_rumble_update	*	0x800E7800: inside init_controllers (+0xF0), not a function start; declared only (7 files): wave 2 deletes the declarations
+jump_handler	*	0x80095BA0: inside AudioSetEffectLRPan (+0x90), not a function start
+keyboard_init	*	0x800CD738: inside SavePlayerCircuitStats (+0x58), not a function start
+keyboard_input_process	*	0x800CD88C: inside SavePlayerCoins (+0xF4), not a function start; declared only (7 files): wave 2 deletes the declarations
+landing_rumble_trigger	*	0x800E6480: inside ReadGasAndBrake (+0x20), not a function start; declared only (7 files): wave 2 deletes the declarations
+lap_complete	boot_tail	0x8010761C: inside animOdometer (+0x888), not a function start; declared only (408 files): wave 2 deletes the declarations
+lap_complete	ovl_a	0x8010761C: inside animOdometer (+0x888), not a function start; declared only (408 files): wave 2 deletes the declarations
+lap_complete	ovl_b	0x8010761C: inside animOdometer (+0x888), not a function start; declared only (408 files): wave 2 deletes the declarations
+lap_counter_display	*	0x800D2A74: second name of NumPtsToCheckpoint
+lap_timer_split	*	0x801011DC: inside func_80100E58 (+0x384), not a function start
+large_update_routine	*	0x800FDA90: inside setMiniFBCollisionForce (+0x98), not a function start
+last_notch	*	0x80140DD8: unused label
+leaderboard_display	*	0x80101C78: inside drawBattleStandings (+0x374), not a function start
+loading_screen	*	0x800D691C: inside audio_updateButtons (+0x8), not a function start
+loading_screen_handler	*	0x800FA9E4: inside PlayGame (+0x30), not a function start
+loading_tips	*	0x800D6E7C: inside audio_initButtons (+0x8), not a function start
+lod_object_detail	*	0x800F43D4: inside RecordCircuit (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+lod_select	*	0x800F42D0: inside GetCircuitCode (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+lookup_with_output	boot_tail	0x80096B5C: inside MBFindInWad (+0x5C), not a function start; declared only (400 files): wave 2 deletes the declarations
+lookup_with_output	ovl_a	0x80096B5C: inside MBFindInWad (+0x5C), not a function start; declared only (400 files): wave 2 deletes the declarations
+lookup_with_output	ovl_b	0x80096B5C: inside MBFindInWad (+0x5C), not a function start; declared only (400 files): wave 2 deletes the declarations
+main_menu_handler	*	0x800DE868: inside SetCatchup (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+main_menu_input_handler	*	0x800DEBAC: second name of AudUpdateListener
+main_menu_render_handler	*	0x800DEC8C: second name of UpdateListeners
+matchmaking	*	0x801092D8: inside animRadarBlip (+0x398), not a function start
+matrix_rotation_build	*	0x8008D714: inside ZOID_UpdateObject (+0x18), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_animation_update	*	0x800CC000: inside ReadGhostDataInternal (+0xD4), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_audio_options	*	0x800D7300: inside audio_initButtons (+0x48C), not a function start
+menu_back	boot_tail	0x800CBE08: inside ReallocateMemory (+0x234), not a function start; declared only (401 files): wave 2 deletes the declarations
+menu_back	ovl_a	0x800CBE08: inside ReallocateMemory (+0x234), not a function start; declared only (401 files): wave 2 deletes the declarations
+menu_back	ovl_b	0x800CBE08: inside ReallocateMemory (+0x234), not a function start; declared only (401 files): wave 2 deletes the declarations
+menu_car_select	*	0x800D3000: inside FindResPtRecurse (+0x58), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_confirm	*	0x800D7100: inside audio_initButtons (+0x28C), not a function start; declared only (1 file): wave 2 deletes the declarations
+menu_confirm_render	*	0x800CD300: inside func_800CD104 (+0x1FC), not a function start
+menu_controller_config	*	0x800D6000: inside StartCarSounds (+0x19C), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_credits	*	0x800D7400: inside audio_initButtons (+0x58C), not a function start
+menu_cursor_move	*	0x800CB680: inside UpdateSmoke (+0x8DC), not a function start
+menu_cursor_update	*	0x800E1180: inside velocities (+0x34), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_highlight_set	*	0x800CC880: inside save_file_pak_ready (+0x38), not a function start; declared only (410 files): wave 2 deletes the declarations
+menu_input_handle	*	0x800D1000: inside carsetup (+0x460), not a function start
+menu_list_render	*	0x800CC9AC: inside SavePlayerCarView (+0xE4), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_load	*	0x800D7500: inside audio_initButtons (+0x68C), not a function start
+menu_main	*	0x800D7700: inside updateAudioScreen (+0xCC), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_prev	*	0x800D7000: inside audio_initButtons (+0x18C), not a function start
+menu_process_input	*	0x800CB400: inside UpdateSmoke (+0x65C), not a function start
+menu_render	*	0x800D0000: inside MakeUvsFromQuat (+0x18C), not a function start
+menu_render_background	*	0x800E0A00: inside UpdateCarSounds (+0x410), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_render_options	*	0x800E0E80: inside checkok (+0x360), not a function start
+menu_render_title	*	0x800E0C20: inside checkok (+0x100), not a function start
+menu_saveload	*	0x800D5000: inside game_reckon_all (+0x10C), not a function start
+menu_sound_play	*	0x800E1A00: inside torques (+0x460), not a function start
+menu_state_dispatch	*	0x800D7800: inside updateAudioScreen (+0x1CC), not a function start
+menu_stub_empty	*	0x800D7600: inside audio_initButtons (+0x78C), not a function start
+menu_system_update	*	0x800CF000: inside collision (+0x2C4), not a function start
+menu_text_scroll	*	0x800CC540: inside func_800CC50C (+0x34), not a function start; declared only (7 files): wave 2 deletes the declarations
+menu_toggle	*	0x800D7200: inside audio_initButtons (+0x38C), not a function start
+menu_track_select	*	0x800D2000: inside CarReportsGameOver (+0x320), not a function start
+menu_transition_start	*	0x800E1680: inside torques (+0xE0), not a function start
+menu_transition_update	*	0x800E1880: inside torques (+0x2E0), not a function start
+message_send_async	*	0x8008ABF4: inside sample_dma_next (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+mirror_mode_toggle	*	0x800D2C2C: inside FindClosestPathPt (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
+mode_enable_flagged	*	0x800DCD1C: inside ControlPakErrNQA (+0x3C), not a function start; declared only (7 files): wave 2 deletes the declarations
+mode_select_input_handler	*	0x800DFB08: second name of SetSoundVP
+model_load	*	0x800EB000: inside view1_suscomp_offset (+0x24), not a function start; declared only (7 files): wave 2 deletes the declarations
+model_lod_select	*	0x800EB500: inside update_camera (+0x4D8), not a function start
+model_render	*	0x800EB400: inside update_camera (+0x3D8), not a function start
+model_unload	*	0x800EB200: inside update_camera (+0x1D8), not a function start
+motor_pak_handles	*	0x80142A40: unused label
+motor_vibe_state	*	0x80142A30: unused label
+mp_interval_pos	*	0x800979A8: inside AudioSongPlay (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+multiplayer_setup	*	0x800D2E94: second name of TraceToEnd
+music_volume_set	*	0x800B1F44: inside RemoveCar (+0x14), not a function start; declared only (7 files): wave 2 deletes the declarations
+name_entry_screen	*	0x80104320: inside func_80103D28 (+0x5F8), not a function start
+net_connection_update	*	0x800F27DC: inside ControlUnlocked (+0xC4), not a function start
+net_error_handle	*	0x800F2E3C: inside CalcUnlockedStuff (+0x414), not a function start
+net_game_state_send	*	0x800F38BC: inside ContinueCircuit (+0x3E4), not a function start
+net_game_tick	*	0x800F20A0: inside ControlName (+0x24), not a function start; declared only (7 files): wave 2 deletes the declarations
+net_input_sync	*	0x800F1F3C: inside FindTempNameIdx (+0x238), not a function start
+net_latency_check	*	0x800F1C98: inside ControlGhost (+0x368), not a function start
+net_lobby_update	*	0x800F13F0: inside func_800F1210 (+0x1E0), not a function start; declared only (7 files): wave 2 deletes the declarations
+net_message_recv	*	0x800F0698: inside fixword (+0x24), not a function start
+net_packet_recv	*	0x800F2890: inside RankScores (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+net_packet_send	*	0x800F2720: inside ControlUnlocked (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+net_player_join_handler	*	0x800F3588: inside ContinueCircuit (+0xB0), not a function start
+net_player_update	*	0x800F1944: inside ControlGhost (+0x14), not a function start; declared only (7 files): wave 2 deletes the declarations
+net_race_sync	*	0x800F4034: inside ContinueCircuit (+0xB5C), not a function start
+net_session_init	*	0x800F314C: inside CalcUnlockedStuff (+0x724), not a function start
+net_state_sync	*	0x800F0C18: inside func_800F0914 (+0x304), not a function start
+network_sync_full	*	0x8010A83C: inside func_8010A7A4 (+0x98), not a function start; declared only (7 files): wave 2 deletes the declarations
+next_maxpath	*	0x800A1080: inside allocate_memory_at (+0xA4), not a function start
+npc_interaction	*	0x80095CC0: inside AudioSetEffectVolume (+0xC4), not a function start
+object_alloc_slot	*	0x800E7100: inside InitControlSys (+0xC8), not a function start; declared only (7 files): wave 2 deletes the declarations
+object_byte9_set	boot_tail	0x800B41C0: inside text_unlock (+0x8), not a function start; declared only (401 files): wave 2 deletes the declarations
+object_byte9_set	ovl_a	0x800B41C0: inside text_unlock (+0x8), not a function start; declared only (401 files): wave 2 deletes the declarations
+object_byte9_set	ovl_b	0x800B41C0: inside text_unlock (+0x8), not a function start; declared only (401 files): wave 2 deletes the declarations
+object_collision_all	*	0x800E7500: inside func_800E73D8 (+0x128), not a function start
+object_free_slot	*	0x800E7200: inside ControlIRQ (+0xCC), not a function start
+object_helper	*	0x800B3F50: second name of TB_GetFontLineHeight
+object_init_cleared	*	0x800AED2C: inside NewEmitter (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+object_pool_init	*	0x800E7000: inside func_800E6AF8 (+0x508), not a function start; declared only (7 files): wave 2 deletes the declarations
+object_render_all	*	0x800E7400: inside func_800E73D8 (+0x28), not a function start
+object_transform_set	*	0x800AB758: inside UpdateMiniModelStruct (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+object_update_all	*	0x800E7300: inside ControlIRQ (+0x1CC), not a function start
+object_utility	*	0x800B3FA4: second name of HAL_GetTextWidth
+options_menu_handler	*	0x800D4000: inside Resurrect (+0x4D8), not a function start
+osCauseGet	blob	0x8000DBB0: unused label
+osCauseGet	ovl_a	0x8000DBB0: unused label
+osCauseGet	ovl_b	0x8000DBB0: unused label
+osCicId	*	0x80000310: unused label
+osContStartReadData2	ovl_a	0x800097D0: unused label
+osContStartReadData2	ovl_b	0x800097D0: unused label
+osDpWait	ovl_a	0x80007B80: unused label; declared only (1 file): wave 2 deletes the declarations
+osDpWait	ovl_b	0x80007B80: unused label; declared only (1 file): wave 2 deletes the declarations
+osInvalICache_full	ovl_a	0x80008460: unused label
+osInvalICache_full	ovl_b	0x80008460: unused label
+osMotorStart	ovl_a	0x8000A194: unused label
+osMotorStart	ovl_b	0x8000A194: unused label
+osMotorStop	ovl_a	0x8000A2F0: unused label
+osMotorStop	ovl_b	0x8000A2F0: unused label
+osPfsAllocate	ovl_a	0x8000A350: unused label; declared only (1 file): wave 2 deletes the declarations
+osPfsAllocate	ovl_b	0x8000A350: unused label; declared only (1 file): wave 2 deletes the declarations
+osPfsChecker_full	ovl_a	0x8000BD90: unused label
+osPfsChecker_full	ovl_b	0x8000BD90: unused label
+osPfsGetFileSize	ovl_a	0x8000AEC4: unused label
+osPfsGetFileSize	ovl_b	0x8000AEC4: unused label
+osPfsGetFileStat	ovl_a	0x8000ADF0: unused label
+osPfsGetFileStat	ovl_b	0x8000ADF0: unused label
+osPfsReAllocate	ovl_a	0x8000BE50: unused label; declared only (1 file): wave 2 deletes the declarations
+osPfsReAllocate	ovl_b	0x8000BE50: unused label; declared only (1 file): wave 2 deletes the declarations
+osPfsReadWriteFile_pages	ovl_a	0x8000F2D0: unused label
+osPfsReadWriteFile_pages	ovl_b	0x8000F2D0: unused label
+osPfsRename	ovl_a	0x8000A700: unused label
+osPfsRename	ovl_b	0x8000A700: unused label
+osPiGetAccess	ovl_a	0x8000DC10: unused label; declared only (1 file): wave 2 deletes the declarations
+osPiGetAccess	ovl_b	0x8000DC10: unused label; declared only (1 file): wave 2 deletes the declarations
+osPiInit	ovl_a	0x8000DBC0: unused label; declared only (1 file): wave 2 deletes the declarations
+osPiInit	ovl_b	0x8000DBC0: unused label; declared only (1 file): wave 2 deletes the declarations
+osPiRawReadWord	ovl_a	0x800081D0: unused label
+osPiRawReadWord	ovl_b	0x800081D0: unused label
+osPiReadWord	ovl_a	0x8000DC80: unused label
+osPiReadWord	ovl_b	0x8000DC80: unused label
+osPiReleaseAccess	ovl_a	0x8000DC54: unused label; declared only (1 file): wave 2 deletes the declarations
+osPiReleaseAccess	ovl_b	0x8000DC54: unused label; declared only (1 file): wave 2 deletes the declarations
+osPiSetDeviceTiming	ovl_a	0x8000DDA0: unused label
+osPiSetDeviceTiming	ovl_b	0x8000DDA0: unused label
+osPiWriteWord	ovl_a	0x8000D7F0: unused label
+osPiWriteWord	ovl_b	0x8000D7F0: unused label
+osRomType	*	0x80000304: unused label
+osSetEventMesgAlt	ovl_a	0x80006E10: unused label
+osSetEventMesgAlt	ovl_b	0x80006E10: unused label
+osSetGlobalIntMask	ovl_a	0x800071D0: unused label
+osSetGlobalIntMask	ovl_b	0x800071D0: unused label
+osSetTimerIntr	ovl_a	0x80006ED0: unused label
+osSetTimerIntr	ovl_b	0x80006ED0: unused label
+osSiInit	ovl_a	0x8000E560: unused label
+osSiInit	ovl_b	0x8000E560: unused label
+osVersion	*	0x80000314: unused label
+osViGetFramebuffer	ovl_a	0x800077D0: unused label
+osViGetFramebuffer	ovl_b	0x800077D0: unused label
+osViModeNtscLan1	ovl_a	0x8000794C: unused label
+osViModeNtscLan1	ovl_b	0x8000794C: unused label
+osViModeNtscLpn1	ovl_a	0x80007AB4: unused label
+osViModeNtscLpn1	ovl_b	0x80007AB4: unused label
+osViModeTableGet	ovl_a	0x80007840: unused label
+osViModeTableGet	ovl_b	0x80007840: unused label
+osWritebackDCache_full	ovl_a	0x800086F0: unused label
+osWritebackDCache_full	ovl_b	0x800086F0: unused label
+particle_update	*	0x800EEDB0: inside InitSystem (+0x334), not a function start
+particles_animate	*	0x80095DE0: inside AudioPlayEffect (+0xDC), not a function start
+particles_init	*	0x800B78F8: inside NumCoinsFound (+0x8), not a function start; declared only (8 files): wave 2 deletes the declarations
+particles_spawn	*	0x800B8000: inside UpdateHUDPostCamera (+0x8), not a function start; declared only (8 files): wave 2 deletes the declarations
+pause_menu	*	0x800D71D0: inside audio_initButtons (+0x35C), not a function start
+pause_menu_handler	*	0x800FAEF4: inside InitDrones (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+pause_quit	*	0x800D8C58: second name of controls_initButtons
+pause_restart	*	0x800D8184: inside controls_updateButtons (+0x18), not a function start
+pause_toggle_handler	*	0x800FB5F4: inside PrePlay (+0x32C), not a function start
+physics_contact_test	*	0x800A214C: inside PS_FlushFileInternal (+0x234), not a function start
+physics_force_limit	*	0x800A29A8: inside PS_ReadPartialFile (+0x18), not a function start
+physics_forces	*	0x800BAE24: inside ReadCheckpointData (+0x44), not a function start; declared only (1 file): wave 2 deletes the declarations
+physics_forces1	*	0x80095240: inside UpdateFx (+0x60), not a function start; declared only (1 file): wave 2 deletes the declarations
+physics_forces2	*	0x800953C0: inside GetSfxInstance (+0x4), not a function start; declared only (411 files): wave 2 deletes the declarations
+physics_forces_handler_A	*	0x80090B70: inside AnimateNewBlastRing (+0x8), not a function start
+physics_forces_handler_B	*	0x80090FEC: second name of AnimateNewBlast
+physics_forces_handler_C	*	0x80093B20: inside stub_before_AnimateRocketFlame (+0xA84), not a function start
+physics_ground_trace	*	0x800B9774: inside CalcResPathBounds (+0x34), not a function start; declared only (7 files): wave 2 deletes the declarations
+physics_positions	*	0x800B9400: inside CalcCheckpointTimes (+0x58), not a function start; declared only (1 file): wave 2 deletes the declarations
+physics_post_update	*	0x800F7454: inside ClearScreen (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+physics_regular	*	0x800B9000: inside updateVideoScreen (+0x3EC), not a function start; declared only (1 file): wave 2 deletes the declarations
+physics_step	*	0x800B9130: inside UnloadTrack (+0x4), not a function start; declared only (7 files): wave 2 deletes the declarations
+physics_step_forces	*	0x800A153C: inside pak_encode_name (+0x30), not a function start; declared only (7 files): wave 2 deletes the declarations
+physics_torques	*	0x80095840: inside FreeFxTag (+0x40), not a function start; declared only (1 file): wave 2 deletes the declarations
+physics_update_all	*	0x800F4604: inside UpdateCircuit (+0xC), not a function start
+physics_velocities_K	*	0x80090310: inside StartNewBlast (+0x8), not a function start
+physics_velocities_L	*	0x800908A0: second name of AnimateBlast
+physics_velocities_M	*	0x80091874: second name of AnimateWingFlame
+physics_velocities_O	*	0x800930A4: inside stub_before_AnimateRocketFlame (+0x8), not a function start
+physics_velocities_P	*	0x800A2680: second name of PS_DeleteFile
+ping_measurement	*	0x8010B284: inside func_8010AEAC (+0x3D8), not a function start
+player_join_screen	*	0x800D349C: inside FindHumanResPt (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+player_slots	boot_tail	0x80144030: second name of gPaks
+player_state_set	boot_tail	0x800C9158: inside loading_effect_none (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+player_state_set	ovl_a	0x800C9158: inside loading_effect_none (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+player_state_set	ovl_b	0x800C9158: inside loading_effect_none (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+players_finish_check	*	0x800D60B4: inside modelgo (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+playpos	*	0x80140DCC: unused label
+points_award	*	0x800DA2D0: inside options_updateButtons (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+poll_input	*	0x80095380: inside UpdateFx (+0x1A0), not a function start
+position_result_display	*	0x800DA0CC: inside options_uninitScreen (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+prev_maxpath	*	0x800A1180: inside allocate_memory_at (+0x1A4), not a function start
+prev_notch	*	0x80140DD0: unused label
+profile_select_handler	*	0x800DFBC4: inside UpdateRoadSounds (+0x24), not a function start; declared only (7 files): wave 2 deletes the declarations
+profile_stats_update	*	0x801068F4: inside anim_no_rumble_panes (+0x80), not a function start; declared only (410 files): wave 2 deletes the declarations
+prop_batch_render	*	0x800F6DBC: inside HAL_SetMenuTextDepth (+0x494), not a function start
+prop_instance_render	*	0x800F6AD8: inside HAL_SetMenuTextDepth (+0x1B0), not a function start
+prop_visibility_check	*	0x800F724C: inside HAL_SetMenuTextDepth (+0x924), not a function start
+props_render	boot_tail	0x800F6AB8: inside HAL_SetMenuTextDepth (+0x190), not a function start; declared only (418 files): wave 2 deletes the declarations
+props_render	ovl_a	0x800F6AB8: inside HAL_SetMenuTextDepth (+0x190), not a function start; declared only (418 files): wave 2 deletes the declarations
+props_render	ovl_b	0x800F6AB8: inside HAL_SetMenuTextDepth (+0x190), not a function start; declared only (418 files): wave 2 deletes the declarations
+race_active	boot_tail	0x801170FC: second name of gPauseState
+race_checkpoint_update	*	0x800E4400: inside FindClosestDronePathPtEfficiently (+0x100), not a function start; declared only (7 files): wave 2 deletes the declarations
+race_finish	boot_tail	0x80107AF4: inside hud_inlined_stub (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+race_finish	ovl_a	0x80107AF4: inside hud_inlined_stub (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+race_finish	ovl_b	0x80107AF4: inside hud_inlined_stub (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+race_finish_check	*	0x800E4600: inside IntervalPosChange (+0xE4), not a function start
+race_lap_check	*	0x800E4000: inside AvoidAreas (+0x674), not a function start
+race_mode_select	*	0x800D24C8: second name of PassedCP
+race_position_calc	*	0x800E4200: inside AvoidAreas (+0x874), not a function start; declared only (1 file): wave 2 deletes the declarations
+race_position_update	boot_tail	0x800BE7BC: inside func_800BE744 (+0x78), not a function start; declared only (400 files): wave 2 deletes the declarations
+race_position_update	ovl_a	0x800BE7BC: inside func_800BE744 (+0x78), not a function start; declared only (400 files): wave 2 deletes the declarations
+race_position_update	ovl_b	0x800BE7BC: inside func_800BE744 (+0x78), not a function start; declared only (400 files): wave 2 deletes the declarations
+race_results_screen	*	0x80102250: inside func_8010221C (+0x34), not a function start
+race_setup_screen	*	0x800D1CE0: second name of CarReportsGameOver
+race_time_update	*	0x800E4800: inside IntervalPosChange (+0x2E4), not a function start
+race_wrong_way_check	*	0x800E4A00: inside IntervalPosChange (+0x4E4), not a function start
+radio_start	*	0x800B1BC0: inside StartEnvironment (+0x78), not a function start
+radio_stop	*	0x800B1B90: inside StartEnvironment (+0x48), not a function start
+random_range	*	0x800FDF94: inside NewCircuit (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+rawswvel	*	0x80140DC0: unused label
+read_controllers	boot_tail	0x800140B0: unused label
+read_controllers	ovl_a	0x800140B0: unused label
+read_controllers	ovl_b	0x800140B0: unused label
+recenter_flag	*	0x80140DB6: unused label
+reconnect_attempt	*	0x8010BE7C: inside animRumbleText (+0x1F8), not a function start
+render_car_body	*	0x800F9428: inside DoDrones (+0x88), not a function start
+render_car_shadow	*	0x800F9E2C: inside DoDrones (+0xA8C), not a function start
+render_car_wheels	*	0x800F9A74: inside DoDrones (+0x6D4), not a function start
+render_display_update	*	0x800FAD58: inside init_steady_move_cam (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+render_flag_check	*	0x8008E0C8: inside NormalVector (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+render_flush_buffer	*	0x800878EC: inside BlitSetAttribute (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+render_helper_main	*	0x800B65B8: inside HAL_SetTextDepth (+0x4), not a function start
+render_init_setup	*	0x80087068: inside BlitClearAttribute (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+render_mode_setup	*	0x80087118: inside BlitDraw (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+render_object	*	0x80099BFC: second name of zoid_load_texture; declared only (1 file): wave 2 deletes the declarations
+render_scene	*	0x800A04C4: second name of ZOID_EndFrame; declared only (1 file): wave 2 deletes the declarations
+render_scene_setup	*	0x800FA0D8: inside DoDrones (+0xD38), not a function start
+render_state_init	*	0x8008E280: inside ZOID_AddObject (+0x14), not a function start; declared only (7 files): wave 2 deletes the declarations
+render_state_process	*	0x8008E440: inside StartWater (+0x38), not a function start; declared only (7 files): wave 2 deletes the declarations
+render_sync_pipeline	*	0x8008A474: inside BlitRect (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+replay_ui_draw	*	0x800D8000: inside SetControls (+0x178), not a function start
+resource_alloc_conditional	*	0x800B61B0: inside PlayGameSound (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+results_screen	*	0x800D9060: inside calcControlMenuMaxSize (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+retrace_sync	*	0x80091F34: second name of AudChangeEffectPitch
+reverb_update	*	0x800B4C80: inside GetPlayerOption (+0xEC), not a function start
+rubber_banding	*	0x801079AC: inside animOdometer (+0xC18), not a function start
+rumble_intensity	*	0x80142A28: unused label
+rumble_pattern	*	0x80142A2C: unused label
+rumble_state	*	0x80142A20: unused label
+rumble_timer	*	0x80142A24: unused label
+save_context_stub	*	0x8010FBF4: inside musyx_submit_audio_task (+0x14), not a function start; declared only (410 files): wave 2 deletes the declarations
+save_delete	*	0x800AF8CC: inside UpdateSkid (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+scene_cleanup_slots	boot_tail	0x800C70BC: inside TireSurf (+0x61C), not a function start; declared only (420 files): wave 2 deletes the declarations
+scene_cleanup_slots	ovl_a	0x800C70BC: inside TireSurf (+0x61C), not a function start; declared only (420 files): wave 2 deletes the declarations
+scene_cleanup_slots	ovl_b	0x800C70BC: inside TireSurf (+0x61C), not a function start; declared only (420 files): wave 2 deletes the declarations
+scheduler_jam	*	0x80091CA4: second name of AudChangeEffect
+scrape_sound_stop	*	0x800B3620: inside RemoveBlit (+0x94), not a function start
+send_mesg	boot_tail	0x8000CEDC: unused label
+session_host	*	0x80109A98: inside animDot (+0x38), not a function start; declared only (410 files): wave 2 deletes the declarations
+session_join	*	0x80109EFC: inside animDot (+0x49C), not a function start
+session_leave	*	0x8010A4C0: inside func_80109F54 (+0x56C), not a function start; declared only (410 files): wave 2 deletes the declarations
+set_catchup	boot_tail	0x800A2CE4: inside PS_ReadPartialFile (+0x354), not a function start; declared only (414 files): wave 2 deletes the declarations
+set_catchup	ovl_a	0x800A2CE4: inside PS_ReadPartialFile (+0x354), not a function start; declared only (414 files): wave 2 deletes the declarations
+set_catchup	ovl_b	0x800A2CE4: inside PS_ReadPartialFile (+0x354), not a function start; declared only (414 files): wave 2 deletes the declarations
+setup_state_main	*	0x800FB2C8: second name of PrePlay
+sfx_play	*	0x80095360: inside UpdateFx (+0x180), not a function start
+sign_render	*	0x800F6894: inside updateHighScoreScreen (+0x3C0), not a function start
+sign_render_main	*	0x800F6934: inside HAL_SetMenuTextDepth (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+skid_sounds_init	*	0x800B3700: inside InitBlit (+0xD4), not a function start
+skill_rating_update	*	0x80108F6C: inside animRadarBlip (+0x2C), not a function start; declared only (410 files): wave 2 deletes the declarations
+slot_deactivate	boot_tail	0x800AC840: inside FindWaveInstance (+0x20), not a function start; declared only (412 files): wave 2 deletes the declarations
+slot_deactivate	ovl_a	0x800AC840: inside FindWaveInstance (+0x20), not a function start; declared only (412 files): wave 2 deletes the declarations
+slot_deactivate	ovl_b	0x800AC840: inside FindWaveInstance (+0x20), not a function start; declared only (412 files): wave 2 deletes the declarations
+slot_state_init	*	0x800B4208: inside HAL_SetFontInternal (+0x8), not a function start
+slot_state_lookup	boot_tail	0x800A2504: inside PS_FlushFileInternal (+0x5EC), not a function start; declared only (408 files): wave 2 deletes the declarations
+slot_state_lookup	ovl_a	0x800A2504: inside PS_FlushFileInternal (+0x5EC), not a function start; declared only (408 files): wave 2 deletes the declarations
+slot_state_lookup	ovl_b	0x800A2504: inside PS_FlushFileInternal (+0x5EC), not a function start; declared only (408 files): wave 2 deletes the declarations
+smoke_effect	*	0x800EF200: inside InitSystem (+0x784), not a function start
+sound_3d_update	*	0x80096240: inside AudioSongStop (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+sound_bank_load	boot_tail	0x800B0F68: inside MakeRamps (+0x8), not a function start; declared only (412 files): wave 2 deletes the declarations
+sound_bank_load	ovl_a	0x800B0F68: inside MakeRamps (+0x8), not a function start; declared only (412 files): wave 2 deletes the declarations
+sound_bank_load	ovl_b	0x800B0F68: inside MakeRamps (+0x8), not a function start; declared only (412 files): wave 2 deletes the declarations
+sound_pitch_set	*	0x800B58A0: inside WPitchUV (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+sound_priority_mgr	*	0x800B5694: inside video_uninitScreen (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+sound_state_helper	*	0x800B71DC: inside TB_DrawText (+0x8), not a function start
+sound_state_init	*	0x800B2C20: inside InitEnvs (+0x44), not a function start; declared only (7 files): wave 2 deletes the declarations
+sound_volume_set	*	0x800B5948: inside WRollUV (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+spark_effect	*	0x800EF3A0: inside animGear (+0x118), not a function start; declared only (410 files): wave 2 deletes the declarations
+state_camera_handler	*	0x800FC038: inside UpdateGame (+0xB0), not a function start
+state_cars_handler	*	0x800FC89C: inside UpdateGame (+0x914), not a function start
+state_dispatch	*	0x800FD238: second name of updateFrontEnd
+state_exit_handler	*	0x800FD264: inside updateFrontEnd (+0x2C), not a function start
+state_finish_handler	*	0x800FC960: inside UpdateGame (+0x9D8), not a function start
+state_handler_alt	*	0x800FC3D8: inside UpdateGame (+0x450), not a function start
+state_init_handler	*	0x800FBF90: inside UpdateGame (+0x8), not a function start
+state_menu_handler	*	0x800FC0EC: inside UpdateGame (+0x164), not a function start
+state_play_handler	*	0x800FC25C: inside UpdateGame (+0x2D4), not a function start
+state_ready_handler	*	0x800FC228: inside UpdateGame (+0x2A0), not a function start
+state_setup_handler	*	0x800FBFE4: inside UpdateGame (+0x5C), not a function start
+state_transition	*	0x800FBF88: second name of UpdateGame
+state_transition_check	*	0x800FC9B8: inside UpdateGame (+0xA30), not a function start
+state_update_loop	*	0x800FCEB0: inside playDemoGame (+0xB8), not a function start
+statistics_display	*	0x80104E84: inside func_80104B14 (+0x370), not a function start
+steering_angle_calc	*	0x800AD0A0: inside froll (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+stunt_arena_preview	*	0x800D3E50: inside Resurrect (+0x328), not a function start
+stunt_combo_update	*	0x800E5400: inside MaxPathControls (+0x8A8), not a function start
+stunt_detect	*	0x800E5000: inside MaxPathControls (+0x4A8), not a function start; declared only (7 files): wave 2 deletes the declarations
+stunt_height_bonus	*	0x800E5A00: inside UpdateModel (+0x308), not a function start
+stunt_landing_check	*	0x800E5600: inside Init_MDrive (+0x1C4), not a function start; declared only (7 files): wave 2 deletes the declarations
+stunt_mode_setup	*	0x800D3B28: second name of Resurrect
+stunt_score_calc	*	0x800E5200: inside MaxPathControls (+0x6A8), not a function start
+stunt_trick_register	*	0x800E5800: inside UpdateModel (+0x108), not a function start; declared only (7 files): wave 2 deletes the declarations
+suspension_damper_set	*	0x800A5160: inside InitTextWave (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+suspension_params_init	*	0x800A511C: inside LoadTextWave (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
+suspension_update	*	0x800A4CC0: inside AudioSfxInit (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+target_in_car_check	*	0x800B3A00: inside ChangePaneSize (+0x44), not a function start
+target_sound_play	*	0x800B3A40: inside ChangePaneSize (+0x84), not a function start
+texture_load_start	*	0x8008A650: inside BlitZDist (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+timer_reset	*	0x80100DF0: inside drawRect (+0x94), not a function start; declared only (7 files): wave 2 deletes the declarations
+tire_calc_force	*	0x800BA000: inside NextResPathPt (+0xA0), not a function start; declared only (8 files): wave 2 deletes the declarations
+tire_compound_set	boot_tail	0x800A5BB8: inside bg_load_wave_check_stub (+0x8), not a function start; declared only (407 files): wave 2 deletes the declarations
+tire_compound_set	ovl_a	0x800A5BB8: inside bg_load_wave_check_stub (+0x8), not a function start; declared only (407 files): wave 2 deletes the declarations
+tire_compound_set	ovl_b	0x800A5BB8: inside bg_load_wave_check_stub (+0x8), not a function start; declared only (407 files): wave 2 deletes the declarations
+tire_force_calc	*	0x800A7E00: inside ZOID_Init (+0x10), not a function start
+tire_params_load	*	0x800A5A74: inside func_800A5A40 (+0x34), not a function start; declared only (7 files): wave 2 deletes the declarations
+tire_skid_mark	*	0x800A4E60: inside AdjustTextWavePointers (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+tire_suspension_update	*	0x800BA800: inside SyncCheckpointsToPaths (+0x3C), not a function start
+title_background_handler	*	0x800DE4DC: inside InitOptions (+0x80), not a function start
+title_logo_handler	*	0x800DDFAC: second name of SetPakError
+title_screen_handler	*	0x800DD4AC: second name of ShowPakError
+tournament_is_active	*	0x800DC200: inside StorePasswordElement (+0x54), not a function start; declared only (1 file): wave 2 deletes the declarations
+tournament_parse_flags	*	0x800DC220: inside StorePasswordElement (+0x74), not a function start
+tournament_unlock_check	boot_tail	0x800DC794: second name of ChangePaneColor; declared only (400 files): wave 2 deletes the declarations
+tournament_unlock_check	ovl_a	0x800DC794: second name of ChangePaneColor; declared only (400 files): wave 2 deletes the declarations
+tournament_unlock_check	ovl_b	0x800DC794: second name of ChangePaneColor; declared only (400 files): wave 2 deletes the declarations
+track_collision_curb	*	0x8009EA70: inside func_8009EA68 (+0x8), not a function start
+track_collision_setup	boot_tail	0x800A21A4: inside PS_FlushFileInternal (+0x28C), not a function start; declared only (408 files): wave 2 deletes the declarations
+track_collision_setup	ovl_a	0x800A21A4: inside PS_FlushFileInternal (+0x28C), not a function start; declared only (408 files): wave 2 deletes the declarations
+track_collision_setup	ovl_b	0x800A21A4: inside PS_FlushFileInternal (+0x28C), not a function start; declared only (408 files): wave 2 deletes the declarations
+track_culling_update	*	0x800F6144: inside RecordGameOver (+0x24C), not a function start
+track_info_handler	*	0x800D0BA0: second name of carsetup
+track_logic	*	0x800C8A00: inside AudioShutdown (+0xE8), not a function start
+track_process_main	boot_tail	0x800A2D4C: inside pak_get_handle_stub (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+track_process_main	ovl_a	0x800A2D4C: inside pak_get_handle_stub (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+track_process_main	ovl_b	0x800A2D4C: inside pak_get_handle_stub (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
+track_render	*	0x800992AC: second name of audio_manager_thread_entry
+track_render_alt	*	0x800F6310: inside RecordGameOver (+0x418), not a function start
+track_render_main	*	0x800F5000: inside RecordGhost (+0x14), not a function start
+track_section_render	*	0x800F49C0: inside RecordBattle (+0x44), not a function start
+track_segment_load	*	0x800A1648: inside pak_decode_name (+0x4), not a function start; declared only (7 files): wave 2 deletes the declarations
+track_spline_interp	*	0x800A3654: inside RemovePak (+0x14), not a function start; declared only (7 files): wave 2 deletes the declarations
+track_surface_setup	*	0x800F4D2C: inside RecordObstacle (+0x1A0), not a function start
+track_vertex_load	*	0x800F4634: inside UpdateCircuit (+0x3C), not a function start; declared only (7 files): wave 2 deletes the declarations
+trophy_animation	*	0x8010306C: inside gameover_animText (+0x13C), not a function start
+trophy_award_championship	*	0x800DC3F8: second name of GetPasswordString
+ui_render	*	0x80095A80: inside AudioSetEffectFBPan (+0x5C), not a function start
+update_active_objects	*	0x800F733C: second name of DrawBlits
+update_mpath_index	*	0x800F8588: inside setGameOverState (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+vector3d_store_transform	*	0x8008B660: inside PositionObject (+0x20), not a function start; declared only (7 files): wave 2 deletes the declarations
+viStub	boot_tail	0x800015DC: unused label
+viStub	ovl_a	0x800015DC: unused label
+viStub	ovl_b	0x800015DC: unused label
+vi_config_offset	*	0x80094C30: inside RemovePlayerFile (+0x8), not a function start
+viewport_perspective	*	0x8009F064: inside zoid_draw_window (+0xC), not a function start
+visual_objects_update	boot_tail	0x800B55FC: inside video_uninitButtons (+0x8), not a function start; declared only (423 files): wave 2 deletes the declarations
+visual_objects_update	ovl_a	0x800B55FC: inside video_uninitButtons (+0x8), not a function start; declared only (423 files): wave 2 deletes the declarations
+visual_objects_update	ovl_b	0x800B55FC: inside video_uninitButtons (+0x8), not a function start; declared only (423 files): wave 2 deletes the declarations
+voice_play	*	0x800B3D20: inside SetupFontData (+0x8), not a function start
+voice_playback	*	0x80095F00: inside FindChunk (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
+wheel_rotation_update	*	0x800A4940: inside BlitInit (+0xC), not a function start
+wind_sound_update	*	0x800B3710: inside NewBlit (+0xC), not a function start
+world_collision	*	0x80098FC0: inside PeriodicMaintenance (+0x8), not a function start
+world_collision_detect	*	0x800EC928: inside munge_gLink_data (+0x14), not a function start; declared only (7 files): wave 2 deletes the declarations
+world_friction_apply	*	0x800ED674: inside HAL_SetTextTranslucency (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
+world_load_segment	*	0x800E8000: inside UpdateTireAppearance (+0x60), not a function start; declared only (7 files): wave 2 deletes the declarations
+world_lod_update	*	0x800E8600: inside func_800E847C (+0x184), not a function start
+world_stream_update	*	0x800E8800: inside func_800E847C (+0x384), not a function start
+world_trigger_check	boot_tail	0x800EDCE8: inside EndGraphics (+0x21C), not a function start; declared only (420 files): wave 2 deletes the declarations
+world_trigger_check	ovl_a	0x800EDCE8: inside EndGraphics (+0x21C), not a function start; declared only (420 files): wave 2 deletes the declarations
+world_trigger_check	ovl_b	0x800EDCE8: inside EndGraphics (+0x21C), not a function start; declared only (420 files): wave 2 deletes the declarations
+world_unload_segment	*	0x800E8200: inside UpdateTireAppearance (+0x260), not a function start
+world_visibility_update	*	0x800E8400: inside UpdateTireAppearance (+0x460), not a function start
