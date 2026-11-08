@@ -1,0 +1,3 @@
+# rename.py's and names_check.py's fixture drop list: labels the loader tables lose
+name	table	note
+zeta_unused	blob	a label nothing uses

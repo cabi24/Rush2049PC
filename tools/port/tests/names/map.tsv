@@ -1,0 +1,13 @@
+# rename.py's and names_check.py's fixture map (made-up names; tools/port/tests/names/tree)
+old	new	kind	source	confidence	note
+func_80F00010	thing_count_read	func	code	sure	the fixture's function: its file follows it
+D_80F00100	thing_table	data	code	sure	the fixture's table: no table gives its address but its name
+helper_old_name	thing_assist	func	code	sure	a named function in symbol_addrs.us.txt
+draft_old	thing_draft	func	code	sure	a draft CMakeLists.txt lists by its stem
+OldThing	Thing	type	code	sure	a typedef and its tag
+OldThing.0x0	total	field	code	sure	a field row: left for a hand edit
+include/game/old_header.h	include/game/thing.h	file	code	sure	a header: the #include lines follow
+targetInfo	gTargetInfo	data	mat3	sure	the game datum; port/gfx's struct member of that spelling is another thing
+D_80F00600	game_state	data	code	sure	one symbol with its alias state_word_a (one address in the tables)
+state_word_a	game_state	data	code	sure	the alias of D_80F00600
+src/blob/groups/old_group	src/blob/groups/new_group	file	code	sure	a folder: its files and the references to it follow

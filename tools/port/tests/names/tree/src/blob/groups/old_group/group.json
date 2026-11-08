@@ -1,0 +1,7 @@
+{
+ "name": "old_group",
+ "dir": "src/blob/groups/old_group",
+ "files": [
+  "member.c"
+ ]
+}
