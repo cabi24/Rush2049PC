@@ -23,7 +23,9 @@ import n64syms  # noqa: E402
 ROOT = n64syms.ROOT
 INDEXED = re.compile(r"\(\(?[A-Za-z0-9_ ]*\*?\)? *&(D_[0-9A-F]{8})\)\s*\[|\(\s*&(D_[0-9A-F]{8})\s*\+"
                      # m2c's byte offsets: (((s8 *) (&D_x)) + (i * 0x18 + ...)), ((T *) (&D_x))[i]
-                     r"|\(\s*\([A-Za-z0-9_ ]*\*\s*\)\s*\(\s*&(D_[0-9A-F]{8})\s*\)\s*\)\s*[+\[]")
+                     r"|\(\s*\([A-Za-z0-9_ ]*\*\s*\)\s*\(\s*&(D_[0-9A-F]{8})\s*\)\s*\)\s*[+\[]"
+                     # a cast to a pointer to rows: ((f32 (*)[3]) &D_x)[i][j], ((T (*)[n]) (&D_x))[i]
+                     r"|\(\s*\(\s*[A-Za-z0-9_ ]+\(\s*\*\s*\)(?:\s*\[\s*\w+\s*\])+\s*\)\s*\(?\s*&(D_[0-9A-F]{8})\s*\)?\s*\)\s*\[")
 WIDTH = {"u8": 1, "u16": 2, "u32": 4, "f32": 4, "f64": 8, "u64": 8, "ptr": 4}
 # Symbols checked by hand that need nothing: name -> why.
 REVIEWED = {
@@ -54,7 +56,7 @@ def main():
     for path in sorted(list((ROOT / "src").rglob("*.c")) + list((ROOT / "nonmatching").rglob("*.c"))):
         text = path.read_text(errors="replace")
         for m in INDEXED.finditer(text):
-            users.setdefault(m.group(1) or m.group(2) or m.group(3), set()).add(str(path.relative_to(ROOT)))
+            users.setdefault(m.group(1) or m.group(2) or m.group(3) or m.group(4), set()).add(str(path.relative_to(ROOT)))
 
     found = []
     for name, files in sorted(users.items()):

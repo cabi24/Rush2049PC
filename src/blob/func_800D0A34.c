@@ -857,7 +857,17 @@ extern f32 D_801110C4;
 extern f32 D_80111130;
 extern s8 D_8011119C;
 extern s8 D_801111A9;
+#ifdef TARGET_PC
+/* PC: the cars' drag, five traction types of three tunes, indexed below as ((f32 (*)[3]) &D_801111E0)[traction_type]
+ * [tune_type] (the model's bytes 0xD and 0xB, car_resistance's; the gap to D_8011121C). Declared as one f32, the data
+ * loader converted only [0][0] and left the other 14 in the ROM's byte order: a car tuned other than the first read
+ * its drag as -4.3e8 (0.2 byte-swapped), and its first steer spun it past the crash test (a player's report,
+ * 2026-11-07). The name stands for its first element, so the code reads as before (docs/port/SYNTH.md 3). */
+extern f32 D_801111E0[5][3];
+#define D_801111E0 D_801111E0[0][0]
+#else
 extern f32 D_801111E0;
+#endif
 extern f32 D_8011121C;
 extern s8 D_80111230;
 extern s8 D_8011123D;
