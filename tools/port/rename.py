@@ -9,7 +9,11 @@ to the whole tree.
              [--exclude GLOB]... [--strings all] [--no-follow-files] [--no-names-check] [-v]
 
 One pass reads every file of the tree (git's: tracked, and untracked but not ignored), splits it into identifier
-tokens and looks each one up in the maps, so the cost doesn't grow with the number of rows. A name is matched as a
+tokens and looks each one up in the maps, so the cost doesn't grow with the number of rows. All the rows are one
+simultaneous substitution, never one rename after another: a row's new name may be another row's old name (a chain,
+func_800DE858 to no_catchup while no_catchup becomes pak_insert_file, or a swap), files included (a chain of moves
+waits for its next link, a cycle goes through a temporary name). The drop list goes first: its labels leave the
+tables before the maps give their names to other addresses. A name is matched as a
 whole identifier token, never inside a longer one, in the spelling the map gives: another spelling of an address
 name's hex digits (func_800a3424 for func_800A3424) is another C identifier, often declared with another prototype in
 the same file, so it is reported and left (gen_stubs.py still links it to the renamed symbol by its address, and
@@ -25,7 +29,9 @@ the same file, so it is reported and left (gen_stubs.py still links it to the re
   parameter, a function's parameter or a local variable of the same spelling and the uses its scope gives it (the
   new name would capture them, or they would keep the old one).
 - The data loader's symbol tables (asm/us/*/symbols.json): their keys, the JSON rewritten in its own style; the
-  labels drop.tsv lists are removed (refused, with the maps' other errors, while anything still uses them).
+  labels drop.tsv lists are removed (refused, with the maps' other errors, while code still uses one that no symbol
+  file keeps), and so are its symbol_addrs rows' lines of symbol_addrs.us.txt (a stale gNumPlayers = 0x80166004
+  whose name a map gives to another address).
 - symbol_addrs.us.txt and every other text file (the tools' Python, the press scripts, port/data/*.txt such as
   extents.txt and decoupled.txt, the sanitizer suppressions, the linker scripts, CMake, the manifest and layout
   JSON, the docs' Markdown): whole identifier tokens (not after . or ->: reached.txt's Tag.field is a member).
@@ -35,7 +41,9 @@ the same file, so it is reported and left (gen_stubs.py still links it to the re
   gen_stubs.py and synth_rom.py resolve the new name exactly as the old one.
 - Aliases: rows that give two names of one address (D_801174B4 and state_word_a in the tables) one new name make one
   symbol: one key in each table, one line in symbol_addrs.us.txt, and in a C file one declaration where the rename
-  made two of the same text (the second is dropped); two that differ (s32 against u32) are reported, not picked.
+  made two of the same text (the second is dropped); two that differ (s32 against u32) are reported, not picked, and
+  so is an alias the rename made of a name to itself (lib_1050_sdk.c's PC_ALIAS("D_8002E8E8", "gScheduler") becomes
+  `.set gScheduler, gScheduler`, which doesn't assemble: the lead deletes those lines).
 - Paths. A token inside a path (a run like src/blob/func_800A1234.c, or a tracked folder such as
   src/blob/groups/heap_release) is part of a file's name, not the symbol's: it changes only with the file. A file row
   moves its file (git mv) and rewrites every reference to its path, by its full path or any trailing part of it
@@ -56,9 +64,13 @@ Never touched: the maps themselves, these tools' sources and their tests' fixtur
 examples) and the N64 assembly (asm/**/*.s: checksummed, the matching build's), plus --exclude globs.
 
 --dry-run and --apply run names_check.py's checks on the maps and the drop list first and stop on an error
-(--no-names-check skips the maps' checks, not the drop list's). --apply twice changes nothing the second time.
---check lists every old name still in the tree (all contexts, strings and paths included), every file row whose old
-file or folder still exists, and every dropped label still in a table. Stdlib only, Python 3.9+.
+(--no-names-check skips the maps' checks, not the drop list's; --force applies in spite of them, for the collisions
+the hand edits fix after; a row's format error still stops it). --apply writes the rows it applied to
+tools/port/names/applied.tsv, the ledger names_check.py and a second --apply read (by names alone a chain's rows
+look undone after it), so --apply twice changes nothing the second time. --check lists every place an old name
+still names its symbol (code, comments, strings, paths, other spellings, derived and pasted names), every file or
+folder still to move and every dropped label still in a table; a chain's middle rows (old names that are other
+rows' new names) can't be checked by name. Stdlib only, Python 3.9+.
 """
 import argparse
 import collections
@@ -181,6 +193,9 @@ class Plan:
                 by_new[r.new].append(r)
         self.merged = {new: rs for new, rs in by_new.items() if len(rs) > 1}   # aliases made one name
         self.drops = list(drops)
+        # drop.tsv's rows for symbol_addrs.us.txt: lines that go before the rename (a stale gNumPlayers = 0x80166004
+        # whose name a map gives to another address)
+        self.symfile_drops = {d.name for d in self.drops if d.table == nc.SYMBOL_FILE_TABLE}
         self.plan_moves(follow_files)
         # The tree's paths by every trailing part: a path in a text names one of these.
         self.suffixes = collections.defaultdict(set)       # trailing part of a file's path -> {path}
@@ -372,6 +387,10 @@ class Plan:
             edits = []
             if SYMBOL_TABLES.match(f):
                 self.scan_symbol_table(f, text, edits)
+            elif f == SYMBOL_FILE and self.symfile_drops:
+                self.scan_text(f, text, 0, len(text), edits, category_of(f))
+                self.edits[f] = (text, edits)   # its dropped lines go in new_texts, edits or none
+                continue
             elif not any(self.interesting(t) for t in set(nc.IDENT.findall(text))):
                 continue
             elif f.endswith(C_EXTS):
@@ -687,7 +706,8 @@ class Plan:
             m = re.match(r"^\s*([A-Za-z_]\w*)\s*=", line)
             if m:
                 r = self.row_for(m.group(1))
-                defined.add(r.new if r else m.group(1))
+                if m.group(1) not in self.symfile_drops:
+                    defined.add(r.new if r else m.group(1))
         for key, row in sorted(self.ident.items()):
             addr = nc.address_of_name(row.old)
             if addr is None or row.kind == "type" or row.new in defined:
@@ -710,13 +730,61 @@ class Plan:
                 pos = e
             buf.append(text[pos:])
             new_text = "".join(buf)
+            if f == SYMBOL_FILE and self.symfile_drops:
+                new_text = self.drop_symbol_lines(new_text)
             if self.merged and f.endswith(C_EXTS):
                 new_text = self.merge_declarations(f, new_text)
             elif self.merged and f == SYMBOL_FILE:
                 new_text = self.merge_symbol_lines(f, new_text)
+            if f.endswith(C_EXTS):
+                self.find_self_aliases(f, text, new_text)
             if new_text != text:
                 out[f] = new_text
         return out
+
+    def drop_symbol_lines(self, text):
+        """symbol_addrs.us.txt without the lines of the names drop.tsv lists for it."""
+        out = []
+        for line in text.split("\n"):
+            m = re.match(r"^\s*([A-Za-z_]\w*)\s*=", line)
+            if m and m.group(1) in self.symfile_drops:
+                self.dropped[m.group(1)].append(nc.SYMBOL_FILE_TABLE)
+                continue
+            out.append(line)
+        return "\n".join(out)
+
+    # an alias and what it names: PC_ALIAS("X", "Y + 4"), .set X, Y (in an asm string), X __attribute__((alias("Y")))
+    SELF_ALIAS = (re.compile(r'PC_ALIAS\(\s*"(\w+)"\s*,\s*"\s*([^"]*?)\s*"\s*\)'),
+                  re.compile(r'\.set\s+(\w+)\s*,\s*([^"\\]*?)\s*(?:\\n|")'),
+                  re.compile(r'\b(\w+)\s*(?:\[[^\]]*\]\s*)*__attribute__\s*\(\(\s*alias\s*\(\s*"(\w+)"'))
+
+    def find_self_aliases(self, f, old_text, new_text):
+        """Report the aliases the rename made of a name to itself (.set X, X in an asm string, PC_ALIAS("X", "X"),
+        X __attribute__((alias("X")))): they don't assemble; the lead deletes them (NAMING.md 7)."""
+        if "alias" not in new_text.lower() and ".set" not in new_text:
+            return
+
+        def selfs(text):
+            return {(m.group(0), text.count("\n", 0, m.start()) + 1) for rx in self.SELF_ALIAS
+                    for m in rx.finditer(text) if m.group(1) == m.group(2)}
+        before = {s for s, ln in selfs(old_text)}
+        for s, ln in sorted(selfs(new_text), key=lambda x: x[1]):
+            if s not in before:
+                self.merges.append((f, ln, f"`{s}` names itself after the rename: it won't assemble, delete it by "
+                                           f"hand"))
+
+        def defined(text):   # the symbols the file's asm aliases define, with their lines
+            out = collections.defaultdict(list)
+            for rx in self.SELF_ALIAS[:2]:
+                for m in rx.finditer(text):
+                    if m.group(1) != m.group(2):
+                        out[m.group(1)].append(text.count("\n", 0, m.start()) + 1)
+            return out
+        was = defined(old_text)
+        for name, lines in sorted(defined(new_text).items()):
+            if len(lines) > 1 and len(was.get(name, ())) < len(lines):
+                self.merges.append((f, lines[1], f"{name} is defined twice by asm aliases after the rename (lines "
+                                                 f"{', '.join(map(str, lines))}): delete the second by hand"))
 
     def merge_declarations(self, f, text):
         """Two names of one symbol made one: where a C file now declares it twice on lines of the same text (and
@@ -830,6 +898,46 @@ def git_mv(root, old, new):
         (Path(root) / old).rename(Path(root) / new)
 
 
+def move_all(root, moves):
+    """Move every old path to its new one, as one simultaneous rename: a file whose new path is another moving
+    file's old one waits for it (a chain), and a cycle goes through a temporary name. [(old, new)] moved."""
+    pending, moved, n = dict(moves), [], 0
+    first_name = {}
+    while pending:
+        progress = False
+        for old, new in sorted(pending.items()):
+            if not (Path(root) / new).exists():
+                git_mv(root, old, new)
+                moved.append((first_name.pop(old, old), new))
+                del pending[old]
+                progress = True
+        if not progress:   # a cycle (a swap): one of them to a temporary name first
+            old, new = sorted(pending.items())[0]
+            n += 1
+            tmp = f"{old}.rename-{n}"
+            git_mv(root, old, tmp)
+            first_name[tmp] = first_name.pop(old, old)
+            del pending[old]
+            pending[tmp] = new
+    return moved
+
+
+def write_ledger(root, rows):
+    """Add the rows applied to tools/port/names/applied.tsv (kind, old, new): with it names_check.py and a second
+    --apply know them applied, which a chain's names alone can't tell."""
+    p = Path(root) / nc.MAPS_DIR / nc.APPLIED_FILE
+    p.parent.mkdir(parents=True, exist_ok=True)
+    have = nc.read_ledger(root)
+    new = sorted({nc.row_key(r) for r in rows if r.kind != "field"} - have)
+    if not new:
+        return 0
+    text = nc.read_text(p) if p.is_file() else (
+        "# The rows tools/port/rename.py applied (kind, old, new), written by --apply: names_check.py and a second\n"
+        "# --apply read them as applied (a chain, A to B and B to C, can't be told by its names).\n")
+    write_text(p, text + "".join("\t".join(k) + "\n" for k in new))
+    return len(new)
+
+
 def remove_empty_dirs(root, paths):
     """Remove the folders the moves left empty, up to the top of the tree."""
     root = Path(root).resolve()
@@ -878,7 +986,7 @@ def describe(plan, verbose=False, report=None):
             extra.append(f"one symbol with {', '.join(x.old for x in plan.merged[r.new][1:])}")
         lft = left_by_row.get(id(r), {})
         out.append(f"  {r.old} -> {r.new} [{r.kind}]: {sum(c.values())} in {len(plan.row_files.get(id(r), ()))} files"
-                   + (f" ({', '.join(f'{k} {v}' for k, v in sorted(c.items()))})" if c else "")
+                   + (f" ({', '.join(f'{k} {v}' for k, v in sorted(c.items()) if v)})" if any(c.values()) else "")
                    + "".join(f"; {x}" for x in extra)
                    + (f"; left: {', '.join(f'{k} {v}' for k, v in sorted(lft.items()))}" if lft else ""))
     if plan.drops:
@@ -904,8 +1012,18 @@ def describe(plan, verbose=False, report=None):
     if len(shown) < len(left_items):
         out.append(f"  ... {len(left_items) - len(shown)} more (-v, or --report FILE)")
     if plan.merges:
-        out += ["", "aliases made one symbol:"]
-        out += [f"  {f}:{ln}: {what}" for f, ln, what in plan.merges]
+        out += ["", "aliases made one symbol (and names an alias gave itself):"]
+        differ = collections.defaultdict(list)
+        for f, ln, what in plan.merges:
+            m = re.match(r"declarations of (\w+) differ", what)
+            if m:
+                differ[m.group(1)].append((f, ln, what))
+            else:
+                out.append(f"  {f}:{ln}: {what}")
+        for name, items in sorted(differ.items(), key=lambda x: -len(x[1])):
+            f, ln, what = items[0]
+            out.append(f"  declarations of {name} differ in {len(items)} places (by hand), e.g. {f}:{ln}: "
+                       f"{what.split(': ', 1)[1]}")
     if plan.pastes:
         out += ["", "token pasting (##) that makes or could make an old name (by hand):"]
         out += [f"  {f}:{ln}: {macro}: {what}" for f, ln, macro, what, row in plan.pastes]
@@ -955,11 +1073,7 @@ def apply(plan, texts):
         lines += [f"{row.new} = 0x{addr:08X}; // type:{kind}" for row, addr, kind in plan.symfile_add]
         write_text(p, text + "\n".join(lines) + "\n")
         changed.add(SYMBOL_FILE)
-    moved = []
-    for old, (new, row, how) in sorted(plan.moves.items()):
-        if (plan.root / old).exists() and not (plan.root / new).exists():
-            git_mv(plan.root, old, new)
-            moved.append((old, new))
+    moved = move_all(plan.root, {o: n for o, (n, row, how) in plan.moves.items() if (plan.root / o).exists()})
     remove_empty_dirs(plan.root, [o for o, n in moved])
     m = dict(moved)
     sums = update_checksums(plan.root, [m.get(f, f) for f in changed])
@@ -1009,6 +1123,9 @@ def main(argv=None):
     ap.add_argument("--no-follow-files", action="store_true",
                     help="don't move a file named after a renamed function (src/ovl_a/func_8038F454.c)")
     ap.add_argument("--no-names-check", action="store_true", help="don't run names_check.py's checks of the maps")
+    ap.add_argument("--force", action="store_true",
+                    help="apply in spite of names_check.py's errors (the collisions left for hand edits); the "
+                         "rows' format errors and conflicts in the tables still stop it")
     ap.add_argument("--report", type=Path, help="write every change and everything left to this file")
     ap.add_argument("-v", "--verbose", action="store_true", help="list everything left, not the first 40")
     a = ap.parse_args(argv)
@@ -1019,16 +1136,19 @@ def main(argv=None):
         return 0
     maps, drop_files = nc.split_paths(paths)
     files = scope_files(root, a.exclude)
-    rows, _ = nc.read_maps(maps)
-    drops, _ = nc.read_drops(drop_files)
+    rows, format_errs = nc.read_maps(maps)
+    drops, drop_errs = nc.read_drops(drop_files)
+    format_errs += drop_errs + [(r.where(), m) for r in rows for m in nc.check_format(r)]
+    rows = [r for r in rows if not nc.check_format(r)]
+    ledger = nc.read_ledger(root)
     tree = nc.Tree(root, watch={r.new for r in rows if r.kind in nc.IDENT_KINDS} | {d.name for d in drops})
     if a.check:
-        rows, errs = nc.read_maps(maps)
-        drops, derrs = nc.read_drops(drop_files)
-        errs += derrs + [(r.where(), m) for r in rows for m in nc.check_format(r)]
-        for where, msg in errs:
+        for where, msg in format_errs:
             print(f"{where}: error: {msg}")
-        plan = Plan(root, [r for r in rows if not nc.check_format(r)], files, follow_files=not a.no_follow_files,
+        # A chain's middle (B in A to B, B to C) is a new name after the rename: by its name it can't be checked.
+        news = {r.new for r in rows if r.kind in nc.IDENT_KINDS}
+        middles = [r for r in rows if r.kind in nc.IDENT_KINDS and r.old in news]
+        plan = Plan(root, [r for r in rows if r not in middles], files, follow_files=not a.no_follow_files,
                     strings_all=a.strings == "all", types=tree.types, drops=drops)
         if not plan.errors:
             plan.scan()
@@ -1044,20 +1164,31 @@ def main(argv=None):
         print(f"rename.py --check: {len(hits)} places still have an old name"
               + (f"; {len(others)} places of the old spellings are other things (members, parameters, locals: -v)"
                  if others else "")
+              + (f"; {len(middles)} rows a chain's middle (their old name is another row's new one), not checked"
+                 if middles else "")
               + (f"; {nfield} field rows not checked (renamed by hand)" if nfield else ""))
-        return 1 if hits or errs or plan.errors else 0
-    rows, errs, _, applied, drops, _ = nc.run_checks(root, maps + drop_files, tree)
-    if a.no_names_check:   # the maps' format only; the drop list's checks all the same
-        errs = [(w, m) for w, m in errs if w.rsplit(":", 1)[0] in map(str, drop_files)]
-        errs += [(r.where(), m) for r in rows for m in nc.check_format(r)]
-        rows = [r for r in rows if not nc.check_format(r)]
+        return 1 if hits or format_errs or plan.errors else 0
+    if format_errs:
+        for where, msg in format_errs:
+            print(f"{where}: error: {msg}")
+        print(f"rename.py: the maps have {len(format_errs)} format errors; nothing done")
+        return 1
+    errs, applied = [], []
+    if not a.no_names_check or drops:
+        _, errs, _, applied, _, _ = nc.run_checks(root, maps + drop_files, tree)
+        if a.no_names_check:   # the drop list's checks all the same
+            errs = [(w, m) for w, m in errs if w.rsplit(":", 1)[0] in {str(p) for p in drop_files}]
     if applied:
         print(f"rename.py: {len(applied)} rows applied already")
     if errs:
         for where, msg in errs:
             print(f"{where}: error: {msg}")
-        print(f"rename.py: the maps have {len(errs)} errors (names_check.py); nothing done")
-        return 1
+        if not a.force:
+            print(f"rename.py: the maps have {len(errs)} errors (names_check.py); nothing done (--force applies "
+                  f"them all the same)")
+            return 1
+        print(f"rename.py: the maps have {len(errs)} errors (names_check.py); --force: applied all the same")
+    rows = [r for r in rows if nc.row_key(r) not in ledger]   # the ledger's rows were applied: not again
     plan = Plan(root, rows, files, follow_files=not a.no_follow_files, strings_all=a.strings == "all",
                 types=tree.types, drops=drops)
     if not plan.errors:
@@ -1072,6 +1203,7 @@ def main(argv=None):
         print(describe(plan, a.verbose, a.report))
         return 0
     moved, sums = apply(plan, texts)
+    logged = write_ledger(root, rows) if (texts or moved or plan.dropped) else 0
     if a.report:
         describe(plan, a.verbose, a.report)
     left = sum(len(v) for v in plan.left.values())
@@ -1079,6 +1211,7 @@ def main(argv=None):
           + (f", {len(plan.symfile_add)} names added to {SYMBOL_FILE}" if plan.symfile_add else "")
           + (f", {len(plan.dropped)} labels dropped" if plan.dropped else "")
           + (f", checksums updated in {', '.join(sums)}" if sums else "")
+          + (f", {logged} rows in {nc.MAPS_DIR / nc.APPLIED_FILE}" if logged else "")
           + f"; left for hand edits: {left} places, {len(plan.merges)} alias notes, {len(plan.pastes)} pasted names, "
           f"{len(plan.derived)} derived identifiers, {sum(1 for r in rows if r.kind == 'field')} field rows "
           f"(--dry-run lists them)")

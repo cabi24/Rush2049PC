@@ -91,8 +91,8 @@ class DryRun(Fixture):
                      "path: func_80F00010: src/blob/groups/func_80F00010/group.c",
                      "PASTE: func_80F00010", "func_80F00010_1 (func_80F00010 -> thing_count_read)",
                      "src/blob/alias_a.c:3: dropped a second declaration of game_state (line 2)",
-                     "src/blob/alias_b.c:3: declarations of game_state differ: line 2 `s32 game_state`, "
-                     "line 3 `u32 game_state`: by hand"):
+                     "declarations of game_state differ in 1 places (by hand), e.g. src/blob/alias_b.c:3: "
+                     "line 2 `s32 game_state`, line 3 `u32 game_state`: by hand"):
             self.assertIn(want, out)
         lines = report.read_text()
         self.assertIn("port/main.c:6: string (name): D_80F00100 -> thing_table", lines)
@@ -256,13 +256,22 @@ class Refusals(Fixture):
         self.assertEqual(snapshot(self.root), before)
 
     def test_drop_of_a_used_label(self):
+        with open(self.root / "src/blob/alias_a.c", "a") as f:
+            f.write("\ns32 read_keep(void)\n{\n    return zeta_keep;\n}\n")
         before = snapshot(self.root)
         d = self.tmp / "drop.tsv"
-        d.write_text("name\ttable\tnote\nzeta_keep\tblob\tthe header still declares it\n")
+        d.write_text("name\ttable\tnote\nzeta_keep\tblob\ta function reads it\n")
         status, out = run("--root", self.root, "--apply", MAP, d)
         self.assertEqual(status, 1)
-        self.assertIn("zeta_keep is still used in the C: include/game/old_header.h", out)
+        self.assertIn("zeta_keep is still used in the C: src/blob/alias_a.c", out)
         self.assertEqual(snapshot(self.root), before)
+
+    def test_drop_of_a_declared_label(self):
+        d = self.tmp / "drop.tsv"
+        d.write_text("name\ttable\tnote\nzeta_keep\tblob\tthe header only declares it\n")
+        self.apply(MAP, d)
+        self.assertNotIn("zeta_keep", self.text("asm/us/blob/symbols.json"))
+        self.assertIn("extern s32 zeta_keep;", self.text("include/game/thing.h"))   # the declaration: by hand
 
     def test_move_onto_a_file(self):
         before = snapshot(self.root)
@@ -285,6 +294,73 @@ class Refusals(Fixture):
         status, out = run("--root", self.root, "--apply", "--strings", "all", m)
         self.assertEqual(status, 0, out)
         self.assertIn('"calls thing_count_read here"', self.text("src/blob/thing_count_read.c"))
+
+
+class Chains(Fixture):
+    """All rows are one simultaneous substitution: a row's new name may be another row's old name."""
+
+    def setUp(self):
+        super().setUp()
+        (self.root / "src/blob/draft_old.c").write_text("s32 draft_old(void);\n")
+        (self.root / "src/blob/helper_old_name.c").write_text("s32 helper_old_name(s32 x) { return x; }\n")
+
+    def test_chain(self):
+        m = self.write_map([("draft_old", "thing_draft", "func", "code", "sure", "B to C"),
+                            ("helper_old_name", "draft_old", "func", "code", "sure", "A to B")])
+        out = self.apply(m)
+        self.assertIn("rows in tools/port/names/applied.tsv", out)
+        self.assertEqual(self.text("nonmatching/game/thing_draft.c").splitlines()[1:3],
+                         ["s32 thing_draft(void)", "{"])
+        self.assertIn("return draft_old(1);", self.text("nonmatching/game/thing_draft.c"))
+        # the file chain in one folder: draft_old.c became thing_draft.c before helper_old_name.c became draft_old.c
+        self.assertEqual(self.text("src/blob/thing_draft.c"), "s32 thing_draft(void);\n")
+        self.assertEqual(self.text("src/blob/draft_old.c"), "s32 draft_old(s32 x) { return x; }\n")
+        self.assertFalse((self.root / "src/blob/helper_old_name.c").exists())
+        syms = self.text("symbol_addrs.us.txt")
+        self.assertIn("draft_old = 0x80F00200; // type:func a named function", syms)
+        self.assertIn("thing_draft = 0x80F00400; // type:func", syms)
+        after = snapshot(self.root)
+        out = self.apply(m)   # the ledger: applied, not again (by the names alone the chain looks undone)
+        self.assertIn("2 rows applied already", out)
+        self.assertEqual(snapshot(self.root), after)
+        status, out = run("--root", self.root, "--check", m)
+        self.assertEqual(status, 0, out)
+        self.assertIn("1 rows a chain's middle", out)
+
+    def test_swap(self):
+        m = self.write_map([("draft_old", "helper_old_name", "func", "code", "sure", "a swap"),
+                            ("helper_old_name", "draft_old", "func", "code", "sure", "a swap")])
+        self.apply(m)
+        self.assertEqual(self.text("src/blob/helper_old_name.c"), "s32 helper_old_name(void);\n")
+        self.assertEqual(self.text("src/blob/draft_old.c"), "s32 draft_old(s32 x) { return x; }\n")
+        self.assertEqual([p.name for p in (self.root / "src/blob").glob("*.rename-*")], [])
+
+
+class Tables(Fixture):
+    def test_symbol_file_drop(self):
+        with open(self.root / "symbol_addrs.us.txt", "a") as f:
+            f.write("stale_name = 0x80F00B00; // a stale guess\n")
+        m = self.write_map([("D_80F00100", "stale_name", "data", "code", "sure", "the name, at its true address")])
+        status, out = run("--root", self.root, "--dry-run", m)
+        self.assertEqual(status, 1)
+        self.assertIn("new stale_name already exists: named in the tables (symbol file) at 0x80F00B00", out)
+        d = self.tmp / "drop.tsv"
+        d.write_text("name\ttable\tnote\nstale_name\tsymbol_addrs\ta stale guess: the map gives the name\n")
+        self.apply(m, d)
+        syms = self.text("symbol_addrs.us.txt")
+        self.assertNotIn("0x80F00B00", syms)
+        self.assertIn("stale_name = 0x80F00100; // type:data", syms)
+
+    def test_self_alias(self):
+        (self.root / "src/rom").mkdir(parents=True)
+        (self.root / "src/rom/sdk.c").write_text(
+            '#define PC_ALIAS(name, target) ".globl " name "\\n.set " name ", " target "\\n"\n'
+            '__asm__(PC_ALIAS("D_80F00600", "state_word_a")\n'
+            '        ".set D_80F00600, state_word_a\\n");\n')
+        status, out = run("--root", self.root, "--dry-run", MAP)
+        self.assertEqual(status, 0, out)
+        self.assertIn('src/rom/sdk.c:2: `PC_ALIAS("game_state", "game_state")` names itself after the rename', out)
+        self.assertIn("src/rom/sdk.c:3: `.set game_state, game_state\\n` names itself", out)
 
 
 class Scale(unittest.TestCase):
