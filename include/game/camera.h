@@ -58,4 +58,30 @@ extern f32 zf[EXTENT(4)];
 extern f32 yf[EXTENT(4)];
 extern s32 gContLevels_pad2;
 extern s32 gContEdges_pad2;
+
+/* Functions */
+void CheckCameraView(void);
+void circle_camera_around_car(struct Object *object, f32 *carpos, f32 (*matrix)[3][3]);
+void DeathCam(struct Cr *car, f32 *pos, f32 *uvs);
+void fix_camera_in_space(s16 arg0, void *arg1, void *arg2, intptr_t arg3);
+void init_camera_on_track(struct Object *object);
+void init_steady_move_cam(struct Obj *o);
+void init_view3(void *arg0);
+void init_views(void);
+void InitCameras(void);
+void LookInDir(f32 *dir, f32 (*m)[3]);
+void maxpath_cam(s16 update, struct Object *object, f32 *position, f32 (*matrix)[3][3]);
+void SetCameraView(s16 arg0);
+void steady_move_cam(s16 mode, struct Cr *car, f32 *pos, intptr_t uvs);
+void update_camera(struct Object *object);
+void update_car_object(void *car, void *vel, void *mat);
+void UpdateCameras(void);
+void UpdateCarObj(struct Cr *car, void *arg1, void *arg2, intptr_t arg3);
+void UpdateDroneObjects_stub(void);
+void UpdateRearCamera(struct Cr *car, f32 ab, f32 AB, f32 *camoff);
+f32 view1_suscomp_offset(void *arg0);
+void View3Cam(void *arg0, void *arg1);
+void ZeroCamera(s16 arg0);
+void ZeroCameras(void);
+
 #endif /* GAME_CAMERA_H */

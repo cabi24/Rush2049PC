@@ -15,4 +15,9 @@ typedef s32 M2C_UNK;
 /* An instruction m2c could not translate; 0 on the PC. */
 #define M2C_ERROR(desc) (0)
 
+/* The constants its context gave the code it wrote (the game's files include no C library header). */
+#define NULL ((void *)0)
+#define TRUE 1
+#define FALSE 0
+
 #endif /* GAME_M2C_H */
