@@ -246,7 +246,7 @@ data:
 | `animSpeedText` | the HUD's digital speedometer and its units | a MultiBlit entry of the HUD tables ShowHUD passes to NewMultiBlit |
 | `video_animPanes` | `animPanes@videoscr.c`: the video screen's title and menu frame | the video screen's MultiBlit tables `video_frontEndBlit`/`video_pauseBlit` (video_initScreen) |
 | `carscr_animText` | `animText@carscr.c`: each player's name, ghosts and option values on the car-select screen | a callback of the car-select MultiBlit table `carscr_mb` (initScreen@carscr.c) |
-| 18 stubs: 14 in image A (`circuitscr_first_deleted_stub` ... `trackscr_button_text_stub_third`), 4 in image B | the deleted bodies of inlined helpers: `jr ra; nop` on the N64, empty functions here | nothing (an address in data would now resolve) |
+| 18 stubs: 14 in image A (`circuitscr_first_deleted_stub` ... `trackscr_button_text_stub_third`), 4 in image B | the deleted bodies of inlined helpers: `jr ra; nop` on the N64; empty functions here until the PC-only wave 2 deleted them with the game image's 87 (docs/port/PCONLY.md 4), so the table has NULL at their addresses | nothing |
 
 Without them, `SetTargetDef` would call NULL for a weapon icon's record if it has flag 0x4000 (the ROM data
 decides), and the other entries would be skipped (their callers test for NULL). The tests run each on synthetic

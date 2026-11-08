@@ -74,8 +74,8 @@ endif()
 # Every C file of the game.
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
 # The functions the N64 decompilation never byte-matched (the "matching ceiling") have their C in nonmatching/
-# (nonmatching/README.md) where no file under src/ defines them. The runtime images' 8-byte stubs (deleted bodies of
-# inlined helpers) are empty functions in nonmatching/ovl_<x>/stubs.c.
+# (nonmatching/README.md) where no file under src/ defines them. The runtime images' 8-byte stubs (the empty bodies
+# IDO left of inlined helpers, which nothing calls) have no C: gen_data's function table has NULL at their addresses.
 foreach(f updatePauseScreen TB_EllipseText createBG PrePlay PS_ReadPartialFile
           GhostEnd WorldCullObjects TB_DrawText animSpeedText StartWeaponIcon AnimateWeaponIcon video_animPanes)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
@@ -83,8 +83,7 @@ endforeach()
 # Image A's updateWarningScreen shares its address, 0x8038A400, and so its name in the loader's tables, with image
 # B's findDamageSlot (docs/port/SYNTH.md).
 list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/carscr_animText.c
-     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/updateWarningScreen.c
-     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)
+     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/updateWarningScreen.c)
 # src/rom is the boot code's libultra, libc and audio library less what the PC layer does itself (port/ultra,
 # docs/port/ULTRA.md): thread dispatch, message queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and
 # raw device access, cache and TLB, the inflate/LZSS readers (zlib and C in port/ultra/pi.c) and IDO's libc (the

@@ -17,7 +17,7 @@
  * written, the model records after the race's cleared to the storage's end.
  * game: src/ovl_a/InitSelectCarLoad.c src/blob/fake_init.c src/blob/groups/update_game/CalcPolePositions.c
  * game: src/blob/munge_gLink_data.c src/blob/PlayTargetSound.c src/blob/init_cars.c
- * game: src/blob/groups/loadcars/root.c
+ * game: src/blob/groups/loadcars/root.c src/blob/FindWaveInstance.c
  * game: src/blob/GetNextCheckpoint.c
  */
 #include <stddef.h>

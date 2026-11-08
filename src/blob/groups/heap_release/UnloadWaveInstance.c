@@ -1,6 +1,6 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* UnloadWaveInstance: release audio slot `index`. Waits for DMA idle (inlined static acquire_decompress_lock), frees the slot's
- * heap block through the inlined heap-free helper DeallocateMemory_stub (lock / DeallocateMemoryInternal / unlock; its real
+ * heap block through the inlined heap-free helper DeallocateMemory (lock / DeallocateMemoryInternal / unlock; its real
  * definition is audio_sfx_shutdown.c's, the prefer_definition override of the locked stub), clears the allocation and
  * the slot's three 8-byte per-slot records. No arcade ancestor (N64 audio heap code).
  * Shaping (disclosed): one compiled-out read `if (slot) {}` before the store. It is a code-free extra use that keeps
@@ -20,10 +20,8 @@ extern Slot20 gWaveInstance[64];
 extern volatile s16 gRenderInProgress;
 extern u8 gRomObjDefPtrs[], gTexDefPtrs[], gPalDefPtrs[];
 void *memset(void *, int, u32);
-/* DeallocateMemory_stub's manifest owner is the empty deleted-procedure stub; DeallocateMemory (heap_release/group.c)
- * is its body under a name the link keeps (docs/port/PROTOTYPES.md). */
-#define DeallocateMemory_stub DeallocateMemory
-void DeallocateMemory_stub(u32 address);
+/* The locked heap free (heap_release/group.c). */
+void DeallocateMemory(u32 address);
 
 /* The free takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
@@ -42,7 +40,7 @@ void UnloadWaveInstance(s32 index)
         return;
     }
     acquire_decompress_lock();
-    DeallocateMemory_stub(N64A(slot->allocation));
+    DeallocateMemory(N64A(slot->allocation));
     if (slot) {}
     slot->allocation = 0;
     memset(gRomObjDefPtrs + index * WAVE_PAIR, 0, WAVE_PAIR);

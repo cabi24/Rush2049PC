@@ -38,5 +38,6 @@ evidence for names; [`docs/game-asm-ceiling.md`](../docs/game-asm-ceiling.md) ha
 | ovl_b | UpdateHUDExtraPostCamera | 2,380 | – | `src/ovl_b/groups/hud_icons/hudextra_icons.c` |
 
 Each draft's header says who reaches it; `port/assets/tests/test_weapons.c`, `test_hudtext.c` and `test_carscr.c` run
-some of them on synthetic records. `ovl_a/stubs.c` and `ovl_b/stubs.c` are the runtime images' 18 stubs (8-byte
-`jr ra; nop` bodies of inlined helpers on the N64), as empty functions.
+some of them on synthetic records. The runtime images' 18 stubs (8-byte `jr ra; nop` bodies of inlined helpers on
+the N64, which no code calls or takes the address of) had empty functions in `ovl_a/stubs.c` and `ovl_b/stubs.c`
+until wave 2 of the PC-only work deleted them with the game image's empty stubs (docs/port/PCONLY.md 4).

@@ -9,8 +9,8 @@
  * when at least 64 bytes remain) and releases the old block (DeallocateMemoryInternal = heap release).
  * No arcade ancestor found; N64 allocator module (0xFEDCBA98 block marker).
  *
- * ConvertHeap_stub is the retail `jr ra; nop` stub directly in front of this function: a deleted
- * static, the "heap or default heap" getter, inlined here. It must not be on the keep list.
+ * ConvertHeap, the "heap or the main heap" getter, was inlined here on the N64 (its empty 8-byte stub lies
+ * directly in front of this function).
  * DeallocateMemoryInternal is internal in retail (arguments arrive in a1/a2), so this body only
  * reproduces with the real release module in the unit (group.c and alloc_at.c, unchanged
  * copies of src/blob/groups/heap_release).
@@ -55,20 +55,13 @@ typedef struct Heap {
 #define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
-extern Heap *gMainHeap;
 extern s32 heap_lock_queue;
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 void DeallocateMemoryInternal(u32 address, s32 tag);
 void *game_memmove(void *dst, const void *src, u32 n);
 
-/* The manifest owner of ConvertHeap_stub is the empty deleted-procedure stub (src/blob/ConvertHeap_stub.c), which
- * the weak copies bind to on PC. This inlined helper gets its own name there. */
-#define ConvertHeap_stub car_damage_visual_heap
-Heap *ConvertHeap_stub(Heap *heap) {
-    if (heap) return heap;
-    return gMainHeap;
-}
+Heap *ConvertHeap(Heap *heap);   /* the heap, or the main heap for NULL (memsys/group.c) */
 
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's; a block's owner is a handle slot, which the
  * compaction points at the block's new place as a slot (PC_SLOT_SET) (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
@@ -82,7 +75,7 @@ void ClearMemoryHeap(Heap *hint) {
     u32 size, difference;
 
     osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
-    heap = ConvertHeap_stub(hint);
+    heap = ConvertHeap(hint);
     block = N64P(heap->first);
     while (block != NULL) {
         if (block->used && !block->lock && !block->ref && !block->tag) {

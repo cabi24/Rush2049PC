@@ -3682,6 +3682,7 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-void FindWaveInstance(s32 arg0) {
-    FindWaveInstanceInternal(arg0, -1);
+/* The wave instance (slot) that holds wave waveNum, whatever its handle; -1 when none does. */
+s32 FindWaveInstance(s32 waveNum) {
+    return FindWaveInstanceInternal(waveNum, -1);
 }

@@ -20,12 +20,11 @@ extern s16 gCarModelNums[13];
 extern s8 car_color_choice_a[],car_color_choice_b[],car_color_choice_c[];
 typedef struct Heap Heap;
 extern u32 heap_total_free(Heap *);
-extern s32 FindWaveInstanceInternal(s32,s8);
 extern s32 LoadWave(s32,s32,s32,s32,void *);
 extern void car_palette_init(s32,s32,void *);
 extern void InitSelectCarLoad(void);
 extern f32 Random(f32 max);
-s32 FindWaveInstance_stub(s32);
+s32 FindWaveInstance(s32 waveNum);
 /* PC: the heap too short for a car type's file, where LoadCars picks another type or shares one, is logged the first
  * time and counted (port/ultra/heap.c, docs/port/MEMORY.md 5); the choice is the N64's. */
 
@@ -51,7 +50,7 @@ again:
    PC_LINK_COLOR2(i)=car_color_choice_c[PC_LINK_CAR(i)];
    if(heap_total_free(0)<gWaveSizes[PC_LINK_CAR(i)+88]+512) { pc_heap_short("LoadCars, a drone's car", gWaveSizes[PC_LINK_CAR(i)+88]+512);
     for(j=0;j<13;j++) {
-     if(FindWaveInstance_stub(PC_LINK_CAR(i)+88)<0 &&
+     if(FindWaveInstance(PC_LINK_CAR(i)+88)<0 &&
         heap_total_free(0)>=gWaveSizes[PC_LINK_CAR(i)+88]+512)goto load;
      PC_LINK_CAR(i)=(PC_LINK_CAR(i)+1)%13;
     }
@@ -89,4 +88,3 @@ load2:
   }
  }
 }
-s32 FindWaveInstance_stub(s32 waveNum) { return FindWaveInstanceInternal(waveNum,-1); }

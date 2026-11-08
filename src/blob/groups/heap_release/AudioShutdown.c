@@ -4,9 +4,9 @@
  *   if the shutdown flag gInited_AudioMgr is set: release the two pending effect handles (AudFree3D, inlined),
  *   post a type-1 and a type-7 message to the slot queue audio_command_queue (24-byte slots from GetCmd, taken
  *   under the slot lock audio_lock_queue), busy-wait until no slot of audiomgr_gCmds[128] is in use, clear the flag,
- *   AudioShutdownSys(), and free three more heap blocks (DeallocateMemory_stub, the internal heap-free helper).
+ *   AudioShutdownSys(), and free three more heap blocks (DeallocateMemory, the locked heap free).
  * Structure facts (traced):
- *   - every helper is umerge-inlined: AudFree3D and DeallocateMemory_stub (internal, a25 group), the slot
+ *   - every helper is umerge-inlined: AudFree3D and DeallocateMemory (internal, a25 group), the slot
  *     lock/unlock helpers audio_lock/audio_unlock (given bodies here: the retail caller-less stubs next to
  *     GetCmd; each nested inline level adds 8 bytes per site, which is what makes the two message
  *     areas 32 bytes and the frame 208), and two file-static copies of AudKillSong/AudStopAllEffects
@@ -55,11 +55,8 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 ShutdownMsg *GetCmd(void);
 
-/* DeallocateMemory_stub's manifest owner is the empty deleted-procedure stub (src/blob/DeallocateMemory_stub.c): its body, the
- * locked heap free, was inlined here. DeallocateMemory (heap_release/group.c) is that body under a name the
- * link keeps (docs/port/PROTOTYPES.md). */
-#define DeallocateMemory_stub DeallocateMemory
-void DeallocateMemory_stub(u32 address);
+/* The locked heap free (heap_release/group.c), which the N64 build inlined here. */
+void DeallocateMemory(u32 address);
 void AudFree3D(void);
 void audio_lock(void);
 void audio_unlock(void);
@@ -82,9 +79,9 @@ void AudioShutdown(void) {
         } while (i < PC_SND_MSG_LOOP(128));
         gInited_AudioMgr = 0;
         AudioShutdownSys();
-        DeallocateMemory_stub(gFxTags);
-        DeallocateMemory_stub(gSortedFxTags);
-        DeallocateMemory_stub(gSequences);
+        DeallocateMemory(gFxTags);
+        DeallocateMemory(gSortedFxTags);
+        DeallocateMemory(gSequences);
     }
 }
 

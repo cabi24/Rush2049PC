@@ -105,7 +105,7 @@ STUB_FN(ReleaseEnviron) STUB_FN(ScaleUV) STUB_FN(ZOID_SetTexture) STUB_FN(PS_Rum
 STUB_FN(game_memcmp) STUB_FN(ZOID_SetFog) STUB_FN(WorldFogDensity) STUB_FN(InitSkids) STUB_FN(MBOX_FindTexture_WORK)
 STUB_FN(WPitchUV) STUB_FN(WRollUV) STUB_FN(SaveGlobals) STUB_FN(UnloadTrack) STUB_FN(AudFree3D)
 STUB_FN(BlinkResurrectingCars) STUB_FN(StopListeners) STUB_FN(End_MDrive) STUB_FN(modelgo) STUB_FN(StartListeners)
-STUB_FN(DeallocateMemory_stub) STUB_FN(updateControlScreen) STUB_FN(updateOptionScreen) STUB_FN(Init_MDrive) STUB_FN(munge_gLink_data)
+STUB_FN(updateControlScreen) STUB_FN(updateOptionScreen) STUB_FN(Init_MDrive) STUB_FN(munge_gLink_data)
 STUB_FN(highscore_UninitScreen) STUB_FN(RankScores) STUB_FN(GetCircuitCode) STUB_FN(UpdateCircuit) STUB_FN(ClearScreen)
 STUB_FN(ResetHighScores) STUB_FN(InitDrones) STUB_FN(InitCPS) STUB_FN(InitBattlePlayer) STUB_FN(updateTitleScreen)
 STUB_FN(ShotInit)
