@@ -102,10 +102,10 @@ def absolute_for(undefined, syms):
         addr = n64syms.address_of(name, syms)
         if addr is None:
             continue
-        if 0x80000000 <= addr < 0x80800000:
+        if n64syms.KSEG0 <= addr < n64syms.RDRAM_END:   # RDRAM: the address itself
             out[name] = addr
-        elif addr < 0x01000000 and n64syms.region_of(addr) == "other":
-            out[name] = 0xB0000000 | addr
+        elif addr < 0x01000000 and n64syms.region_of(addr) == "other":   # a ROM offset: its cartridge address
+            out[name] = n64syms.CART_KSEG1 | addr
     return out
 
 

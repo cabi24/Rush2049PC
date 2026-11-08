@@ -22,13 +22,6 @@
 
 #define LOG(...) fprintf(stderr, "rush2049pc: mods: " __VA_ARGS__)
 
-/* The file table's symbols (docs/port/ASSETS.md 2.2): gWaveSizes and the first text bank in the boot image, the ROM
- * offsets and storage kinds in the game image. */
-#define SYM_SIZES 0x8002E580u
-#define SYM_TEXT_INITIAL 0x8002E860u
-#define SYM_OFFSETS 0x8011B5BCu
-#define SYM_KINDS 0x80123564u
-
 #define FILE_MAX ((size_t)256 << 20)    /* a mod's file: more is no game file */
 #define WAVE_SAMPLES 9
 #define WAVE_SDIR 8
@@ -247,7 +240,10 @@ static const uint8_t *image_at(const PcModsImage *img, const uint8_t *bytes, uin
     return bytes + (addr - img->n64_base);
 }
 
-int pc_mods_cart_read(PcModsCart *c, const uint8_t *rom, size_t rom_size, const PcModsImage *images, int n_images)
+/* The file table's symbols (docs/port/ASSETS.md 2.2) are at `at`: gWaveSizes and the first text bank in the boot image,
+ * the ROM offsets and storage kinds in the game image. */
+int pc_mods_cart_read(PcModsCart *c, const uint8_t *rom, size_t rom_size, const PcModsImage *images, int n_images,
+                      const PcModsTableAt *at)
 {
     const PcModsImage *boot = NULL, *game = NULL;
     uint8_t *inflated = NULL;
@@ -276,10 +272,10 @@ int pc_mods_cart_read(PcModsCart *c, const uint8_t *rom, size_t rom_size, const 
             return -1;
         gameb = rom + game->rom_off;
     }
-    const uint8_t *sz = image_at(boot, bootb, SYM_SIZES, 4 * PC_MODS_WAVES);
-    const uint8_t *ti = image_at(boot, bootb, SYM_TEXT_INITIAL, 1);
-    const uint8_t *of = image_at(game, gameb, SYM_OFFSETS, 4 * PC_MODS_WAVES);
-    const uint8_t *kd = image_at(game, gameb, SYM_KINDS, 4 * PC_MODS_WAVES);
+    const uint8_t *sz = image_at(boot, bootb, at->sizes, 4 * PC_MODS_WAVES);
+    const uint8_t *ti = image_at(boot, bootb, at->text_initial, 1);
+    const uint8_t *of = image_at(game, gameb, at->rom_offsets, 4 * PC_MODS_WAVES);
+    const uint8_t *kd = image_at(game, gameb, at->storage_kinds, 4 * PC_MODS_WAVES);
     int r = sz && ti && of && kd ? 0 : -1;
     for (int w = 0; !r && w < PC_MODS_WAVES; w++) {
         c->size[w] = pc_be32(sz + 4 * w);

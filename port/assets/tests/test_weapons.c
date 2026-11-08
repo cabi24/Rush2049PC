@@ -38,8 +38,8 @@ _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TIN
 
 /* ---------------------------------------------------------------- the game's data */
 
-#define NODE(i) ((uint8_t *)WP(0x8014D280u + 0x70u * (i)))   /* the node block gTargetArray (game arena) */
-#define HEAP 0x80300000u
+#define NODE(i) ((uint8_t *)WP(TEST_N64(gTargetArray) + 0x70u * (i)))   /* the node block gTargetArray (game arena) */
+#define HEAP TEST_SCRATCH   /* the game heap's blocks */
 TInfo targetInfo[122];
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
 #define CAR(i) ((uint8_t *)&pc_cars[i])
@@ -179,7 +179,7 @@ static void test_visual(void)
     NF(t, 4, uint8_t) = 0, g_hidden = 0;
     AnimateWeaponIcon(&v, 1);
     CHECK(g_hidden == 0x10021 && g_shown == 0);
-    NF(ObjInstanceList + 33 * 0x68, 0, uint32_t) = 0x80000000u;
+    NF(ObjInstanceList + 33 * 0x68, 0, uint32_t) = 1u << 31;   /* flag 31: ready */
     gNumPlayers = 3;
     memset(CAR(2), 0, PC_CAR_SIZE);
     CF(CAR(2), 0x384, int8_t) = 2;                             /* car 2 has weapon 2 */

@@ -18,7 +18,8 @@
  *   - text: every string offset inside the file, right after a NUL;
  *   - font data: letters and kern table inside the block.
  * It prints counts and failures only, nothing of the files' contents. Without a ROM it says so and exits 77
- * (ctest: skipped). The game image's place in the ROM is the build's (port/data's image table). */
+ * (ctest: skipped). The images' places in the ROM are written here; their load addresses and the file table's
+ * symbols are looked up by name in the game's symbol file (PC_SYMBOL_FILE). */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,21 +28,27 @@
 #include <zlib.h>
 
 #include "assets.h"
+#include "pc_symbol_file.h"
 #include "support.h"
 
 #ifndef PC_DATA_ROM
 #define PC_DATA_ROM "baserom.us.z64"
 #endif
+#ifndef PC_SYMBOL_FILE
+#define PC_SYMBOL_FILE "symbol_addrs.us.txt"   /* the game's symbol file (CMakeLists.txt gives its path) */
+#endif
 
 void pc_wave_loaded(int wave, void *buf, size_t size);
 
 #define WAVES 183
-#define GAME_ROM 0xB0CB10u    /* the game image: raw DEFLATE, inflated to GAME_BASE (ASSETS.md §2.1) */
-#define GAME_BASE 0x80086A50u
+#define GAME_ROM 0xB0CB10u    /* the game image: raw DEFLATE, inflated to its load address (ASSETS.md §2.1) */
 #define GAME_SIZE 647072u
 #define BOOT_ROM 0x283D0u     /* the boot segment's data, raw */
-#define BOOT_BASE 0x800277D0u
 #define BLOCK_MAX 0x5F0000u
+
+/* N64 addresses, by name from the symbol file (main): where the boot loads the game image (gDecompressedDataStart)
+ * and the boot segment's data (its first routine, gsm_rpe_decode), and the file table's three symbols. */
+static uint32_t g_game_base, g_boot_base, g_wave_rom_offsets, g_wave_sizes, g_wave_storage_kinds;
 
 static const uint8_t *g_rom;
 static size_t g_rom_size;
@@ -131,8 +138,8 @@ static size_t lzss(const uint8_t *in, const uint8_t *end, uint8_t *out, size_t c
     return n;
 }
 
-static uint32_t game32(uint32_t addr) { return pc_be32(g_game + (addr - GAME_BASE)); }
-static uint32_t boot32(uint32_t addr) { return pc_be32(g_rom + BOOT_ROM + (addr - BOOT_BASE)); }
+static uint32_t game32(uint32_t addr) { return pc_be32(g_game + (addr - g_game_base)); }
+static uint32_t boot32(uint32_t addr) { return pc_be32(g_rom + BOOT_ROM + (addr - g_boot_base)); }
 
 /* ---------------------------------------------------------------- WADs */
 
@@ -435,6 +442,15 @@ int main(int argc, char **argv)
         else
             path = argv[i];
     }
+    g_game_base = pc_symbol_file_addr(PC_SYMBOL_FILE, "gDecompressedDataStart");
+    g_boot_base = pc_symbol_file_addr(PC_SYMBOL_FILE, "gsm_rpe_decode");
+    g_wave_rom_offsets = pc_symbol_file_addr(PC_SYMBOL_FILE, "wave_rom_offsets");
+    g_wave_sizes = pc_symbol_file_addr(PC_SYMBOL_FILE, "gWaveSizes");
+    g_wave_storage_kinds = pc_symbol_file_addr(PC_SYMBOL_FILE, "wave_storage_kinds");
+    if (!g_game_base || !g_boot_base || !g_wave_rom_offsets || !g_wave_sizes || !g_wave_storage_kinds) {
+        printf("assetcheck: %s lacks the images' or the file table's names\n", PC_SYMBOL_FILE);
+        return 1;
+    }
     FILE *f = fopen(path, "rb");
     if (!f) {
         printf("assetcheck: no ROM at %s: skipped\n", path);
@@ -467,8 +483,8 @@ int main(int argc, char **argv)
     uint8_t *buf = window + 0x200000;
     unsigned files[8] = {0};
     for (int w = 0; w < WAVES; w++) {
-        uint32_t off = game32(0x8011B5BC + 4 * w) & 0x0FFFFFFF, size = boot32(0x8002E580 + 4 * w);
-        uint32_t kind = game32(0x80123564 + 4 * w);
+        uint32_t off = game32(g_wave_rom_offsets + 4 * w) & 0x0FFFFFFF, size = boot32(g_wave_sizes + 4 * w);
+        uint32_t kind = game32(g_wave_storage_kinds + 4 * w);
         size_t block = (size + 31) & ~(size_t)31, got = 0;
         g_wave = w;
         EXPECT(kind <= 2 && off < g_rom_size && size <= BLOCK_MAX, "file table entry", off, size);

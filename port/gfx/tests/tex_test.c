@@ -46,7 +46,7 @@ int pcgfx_png_decode(const uint8_t *data, size_t size, uint8_t **out, int *out_w
 static uint8_t *s_rdram;
 
 void *pc_n64_ptr(uint32_t a) {
-    uint32_t p = a & 0x1FFFFFFFu;
+    uint32_t p = N64_TO_PHYS(a);
     return p < PC_RDRAM_SIZE ? s_rdram + p : NULL;
 }
 

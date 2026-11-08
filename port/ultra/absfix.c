@@ -4,6 +4,8 @@
 #define _GNU_SOURCE
 #include <stdint.h>
 
+#include "pc_n64_map.h"   /* N64_IS_KSEG0_OR_1: the N64 addresses the absolute symbols are at */
+
 int pc_fix_absolute_got(void);
 void pc_relro_pages(uintptr_t start, uintptr_t size, uintptr_t page, uintptr_t *lo, uintptr_t *hi);
 
@@ -31,7 +33,7 @@ void pc_relro_pages(uintptr_t start, uintptr_t size, uintptr_t page, uintptr_t *
  * the heap start, cartridge offsets), and gen_data every arena symbol (data.c: about 1,800 names of the game's
  * data and BSS in the window). binutils 2.40 on aarch64 gives the GOT slot of such an absolute symbol a RELATIVE
  * relocation, so at run time it holds the load address plus the value. Nothing the linker places has a link-time
- * address at 0x80000000 or above (gen_data.py --check verifies it), so a RELATIVE relocation with an addend there
+ * address at N64_KSEG0 or above (gen_data.py --check verifies it), so a RELATIVE relocation with an addend there
  * is one of these: put the value back. Initialized pointers to them (R_*_ABS64) are resolved at link time. Runs
  * before any game code, and before anything touches game data. */
 static int fix_absolute(struct dl_phdr_info *info, size_t size, void *count)
@@ -72,7 +74,7 @@ static int fix_absolute(struct dl_phdr_info *info, size_t size, void *count)
     int opened = 0;
     for (const ElfW(Rela) *r = (const ElfW(Rela) *)rela; (uintptr_t)(r + 1) <= rela + relasz; r++) {
         uint64_t v = (uint64_t)r->r_addend;
-        if (ELF64_R_TYPE(r->r_info) != relative || v < 0x80000000u || v >= 0xC0000000u)
+        if (ELF64_R_TYPE(r->r_info) != relative || !N64_IS_KSEG0_OR_1(v))
             continue;
         uint64_t *slot = (uint64_t *)(base + r->r_offset);
         if (*slot != base + v)

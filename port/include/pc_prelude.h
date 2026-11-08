@@ -3,6 +3,9 @@
 #ifndef PC_PRELUDE_H
 #define PC_PRELUDE_H
 
+/* The N64's memory map (the RDRAM window, KSEG0 and KSEG1, the runtime images' block): its constants' one home. */
+#include "pc_n64_map.h"
+
 /* Pointer-sized integers. */
 typedef __UINTPTR_TYPE__ uintptr_t;
 typedef __INTPTR_TYPE__ intptr_t;
@@ -59,19 +62,19 @@ void pc_heap_short(const char *what, unsigned int need);
  * crosses that boundary: PC_N64P(a) is the host pointer for N64 address a, for a cast to the pointer's type
  * ((T *)PC_N64P(a): the N64P definitions, an N64 address the game computes), and PC_N64A(p) the 32-bit N64 address of
  * a host pointer into the RDRAM window (the heap's arithmetic, a block's address relocated into a file). In the
- * fixed build (the default) the window is at host 0x80000000 and they are the zero-extension and the truncation they
- * stand for, so that build compiles as it did. A RUSH_NOFIXED build's window is anywhere, at pc_window_base
- * (port/ultra/n64mem.c, which pc_mem_init sets): K0, K1 and physical addresses are pc_window_base + (a & 0x1FFFFFFF),
- * a pointer p is 0x80000000 + (p - pc_window_base), and 0 and NULL are each other. */
+ * fixed build (the default) the window is at host PC_RDRAM_BASE and they are the zero-extension and the truncation
+ * they stand for, so that build compiles as it did. A RUSH_NOFIXED build's window is anywhere, at pc_window_base
+ * (port/ultra/n64mem.c, which pc_mem_init sets): K0, K1 and physical addresses are pc_window_base + their physical
+ * address (N64_TO_PHYS), a pointer p is PC_RDRAM_BASE + (p - pc_window_base), and 0 and NULL are each other. */
 #ifdef RUSH_NOFIXED
 extern unsigned char *pc_window_base;
 static __inline__ void *pc_n64p(unsigned int a)
 {
-    return a ? (void *)(pc_window_base + (a & 0x1FFFFFFFu)) : (void *)0;
+    return a ? (void *)(pc_window_base + N64_TO_PHYS(a)) : (void *)0;
 }
 static __inline__ unsigned int pc_n64a(__UINTPTR_TYPE__ p)
 {
-    return p ? 0x80000000u + (unsigned int)(p - (__UINTPTR_TYPE__)pc_window_base) : 0u;
+    return p ? PC_RDRAM_BASE + (unsigned int)(p - (__UINTPTR_TYPE__)pc_window_base) : 0u;
 }
 #define PC_N64P(x) pc_n64p((unsigned int)(x))
 #define PC_N64A(x) pc_n64a((__UINTPTR_TYPE__)(x))
@@ -89,7 +92,7 @@ unsigned int pc_n64_identity(const void *p);
 /* A heap handle's slot (AllocateHandleHeap, memsys/group.c) is 8 bytes on the PC and holds its block's host
  * pointer, which the game reads through the handle (`*(u8 **)h`, docs/port/POINTERS.md 9.10); the heap and a few
  * readers take the slot as the N64's u32 instead. PC_SLOT_N64(s) is the N64 address the slot at host address s holds,
- * PC_SLOT_SET(s, a) stores N64 address a's pointer in it. With the window at 0x80000000 the pointer is that address
+ * PC_SLOT_SET(s, a) stores N64 address a's pointer in it. With the window at PC_RDRAM_BASE the pointer is that address
  * zero-extended, so the N64's 4-byte read and write of the slot's first half are what they do; a RUSH_NOFIXED build's
  * pointer is taken whole. */
 #ifdef RUSH_NOFIXED
@@ -110,7 +113,7 @@ unsigned int pc_n64_identity(const void *p);
 void pc_cast_fail(const char *file, int line, __UINTPTR_TYPE__ value) __attribute__((weak));
 static __inline__ unsigned int pc_n64w_moved(__UINTPTR_TYPE__ v, const char *file, int line)
 {
-    if (v && v - (__UINTPTR_TYPE__)pc_window_base >= 0x10000000u)
+    if (v && v - (__UINTPTR_TYPE__)pc_window_base >= PC_RDRAM_MAX)
         pc_cast_fail(file, line, v);   /* weak: a program without port/ultra faults here */
     return pc_n64a(v);
 }

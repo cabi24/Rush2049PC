@@ -27,6 +27,8 @@ import re
 import sys
 from pathlib import Path
 
+import n64syms   # KSEG0: the window's N64 address (port/include/pc_n64_map.h)
+
 ROOT = Path(__file__).resolve().parents[2]
 _HASH = re.compile(r"^rush2049pc: hash vi=(\d+): ([0-9a-f]{16})((?: \S+ [0-9a-f]{16}(?: ptrs=\d+)?(?: unnamed=\d+)?)*)\s*$")
 _REGION = re.compile(r" (\S+) ([0-9a-f]{16})((?: ptrs=\d+)?)((?: unnamed=\d+)?)")
@@ -176,7 +178,7 @@ def reports_main(a, b, symbols):
         A, B = wa.read_bytes(), wb.read_bytes()
         offs, size = words_differ(A, B, limit=200)
         for o in offs:
-            print(f"  window 0x{0x80000000 + o:08X} {name_of(rows, 0x80000000 + o)}: {A[o:o + 4].hex()} against "
+            print(f"  window 0x{n64syms.KSEG0 + o:08X} {name_of(rows, n64syms.KSEG0 + o)}: {A[o:o + 4].hex()} against "
                   f"{B[o:o + 4].hex()}")
         total += len(offs) + size
     for kind in ("own", "decoupled"):

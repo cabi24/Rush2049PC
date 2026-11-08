@@ -18,6 +18,89 @@ port/include/pc_game_types.h, port/ultra/memory.c, port/data/test_reach.c, port/
 port/data/test_pc_data.c. Physical addresses below 8 MiB (0x00100000, 0x00001000) were counted only where they sit
 next to a KSEG0 one.
 
+The sections after "Wave 2: done" are that inventory as it was made, before wave 2 (its line numbers are that tree's);
+"Wave 2: done" says what became of each group, and what is left.
+
+## Wave 2: done (2026-11-08)
+
+In port/ (C, headers, the data rule files, its CMake), 8-digit literals in the N64's address families (0x80000000 to
+0xBFFFFFFF, and the 0x1FFFFFFF mask), comments included: **663 in 71 files before, 117 in 19 files after**. Of the 117,
+96 are the N64's memory map, each named once (the table below says where); the other 21 are not addresses (colours,
+hash constants, test patterns, the float-to-unsigned sign bit in pc_prelude.h).
+
+**One home for the N64's memory map: `port/include/pc_n64_map.h`.** Every number of the N64's address space the PC
+layer needs is defined there, once, with what it is, its libultra name in a comment, and whether wave 3 removes it:
+
+| Name | Value | What (libultra) | Wave 3 |
+|---|---|---|---|
+| `N64_KSEG0`, `N64_KSEG1`, `N64_KSEG2` | 0x80000000, 0xA0000000, 0xC0000000 | the MIPS segments (K0BASE, K1BASE, K2BASE) | goes once nothing carries a 32-bit N64 address |
+| `N64_PHYS_MASK`, `N64_TO_PHYS(a)` | 0x1FFFFFFF | KSEG0/KSEG1 to physical (K0_TO_PHYS, K1_TO_PHYS) | as above |
+| `N64_IS_KSEG0_OR_1(a)`, `N64_IS_KSEG1(a)`, `N64_KSEG1_TO_KSEG0(a)` | | the range tests and the alias fold | as above |
+| `N64_SEGMENT_ID_MASK`, `N64_SEGMENT_OFFSET_MASK` | 0x0F000000, 0x00FFFFFF | a segmented address's parts (SEGMENT_NUMBER, SEGMENT_OFFSET) | stay while the renderer reads N64 display lists |
+| `N64_RDRAM_SIZE`, `N64_RDRAM_SIZE_NO_PAK`, `N64_RDRAM_END` | 8 MiB, 4 MiB, 0x80800000 | the console's RDRAM | goes with the window |
+| `N64_BOOT_PARAMS`, `N64_LOW_MEMORY_END` | 0x80000300, 0x80000400 | libultra's boot parameters (osTvType ...), the boot code's start | goes (ordinary variables) |
+| `N64_CART_PHYS`, `N64_PIF_ROM_PHYS`, `N64_CART_KSEG1`, `N64_CART_SPAN` | 0x10000000, 0x1FC00000, 0xB0000000 | the cartridge on the PI (PI_DOM1_ADDR2, PIF_ROM_START, osRomBase) | **stays**: the game reads its cartridge through the PI |
+| `N64_OVERLAY_BASE`, `N64_OVERLAY_BLOCK_END` | 0x8038A400, 0x803BB380 | where the overlay loader loads runtime image A or B, and the heap block it reserves | goes (the images become PC memory) |
+| `PC_RDRAM_BASE`, `PC_RDRAM_SIZE`, `PC_RDRAM_MAX`, `PC_RCP_SEGMENT_SPAN` | KSEG0, 8 MiB, 256 MiB, 16 MiB | the PC's RDRAM window (moved here from pc_port.h, which includes this header) | goes with the window |
+
+The names are N64_-prefixed rather than libultra's own because the header is also force-included into the game C
+(pc_prelude.h includes it), where src/rom/rom_tu.h still defines K0BASE and the KSEG macros its own way. No system
+headers, plain constants. The tools take the same numbers from it: tools/port/n64syms.py reads the header
+(`N64_MAP`, and `KSEG0`, `KSEG1`, `KSEG2`, `PHYS_MASK`, `RDRAM_END`, `CART_KSEG1`, `OVERLAY_BASE`, ...), and the
+commands that run gen_data.py and gen_stubs.py depend on it.
+
+**Symbols by name.** `pc_data_addr_of(tables, name)` (port/data/pc_data.h) gives a symbol's N64 address from the data
+loader's tables (own storage, game-C data, arena symbols, functions; 0 if none), so the port asks by name instead of
+keeping a copy of the number. Where the port reached a game symbol by its address it now names it:
+
+| Group (inventory section) | Count before | Now |
+|---|---:|---|
+| KSEG and window arithmetic (W1) | 40 | `N64_IS_KSEG0_OR_1`, `N64_TO_PHYS`, `N64_KSEG1_TO_KSEG0`, `PC_RDRAM_BASE`, the segment masks (pc_data.c, gfx_rsp.c, memory.c, rcpaddr.c, absfix.c, n64mem.c, pi.c, wad.c, check.c, misc.c, pc_prelude.h, statehash.c); memory.c's local `K1_BASE` gone |
+| The RDRAM's extent (W2) | 5 | `N64_RDRAM_END`, `PC_RDRAM_MAX` |
+| Image, arena and heap bounds (W3) | 4 | heap.c's block from `N64_OVERLAY_BASE`/`N64_OVERLAY_BLOCK_END`; pc_data.c tells a runtime image by its base being at or above the tables' heap start (the loader puts the images in the heap: the same answer for the game's tables and every test's), and low memory by `N64_LOW_MEMORY_END` |
+| libultra's boot parameters (W4) | 8 | misc.c writes them through a `BootParams` struct (os.h's layout, a static assert on it) at `N64_BOOT_PARAMS`: the LOW_* enum gone |
+| Game data named by its N64 address (W5) | 11 | main.c peeks `pak_charset`, `save_file_name_prefix`, `ghost_file_ext`, `player_file_ext_prefix` by name; mods.c takes the file table's four addresses from its caller (`PcModsTableAt`, which main.c fills by name); statehash.c's TRUNCATED and SCRATCH are names, resolved once |
+| Cartridge and PI addresses (W6) | 9 | `N64_CART_PHYS`, `N64_PIF_ROM_PHYS`, `N64_CART_KSEG1`, `N64_CART_SPAN` (ultra.h's PC_ROM_MODS_MAX) |
+| Audio capture file (W7) | 5 | CAP_* as `N64_KSEG0 + offset`: the capture file's own address space |
+| Tests: the data loader on synthetic layouts (T1) | 152 | named bases and offsets: `TEST_BOOT`, `TEST_GAME`, `TEST_HEAP`, `TEST_OVL` and `BOOT(o)`, `GAME(o)` ... (`N64_KSEG0 + offset`); the report lines built with the address; test_overlay_data's stand-in arena from `N64_OVERLAY_BASE` + image B's offsets; test_pc_data checks `pc_data_addr_of` |
+| Check: datacheck (T2) | 53 | `known_widths` is symbol name + offset (each checked against the generated tables: name + offset is the address it replaced); the file table and build-info by name; the inflate tables, which no table names, by name from the symbol file (`pc_symbol_file_addr`, port/include/pc_symbol_file.h); a check that every name resolves runs with and without the ROM |
+| Check: the startup self-test (T3) | 27 | `PROBE_K0`, `RELOC_LOW`, `RELOC_HIGH` (KSEG0 + offset); the "at its N64 address" checks against `pc_data_tables.heap_lo`, `N64_OVERLAY_BASE`, `N64_BOOT_PARAMS` and `pc_data_addr_of` |
+| Tests: assets and game C (T4) | 118 | the game data tests place at its N64 address: `TEST_ABS(name)`, `TEST_AT(name)`, `TEST_N64(name)` from one table in port/assets/tests/support.h (the ABS() macros of six files gone); scratch places `TEST_SCRATCH + n` (`PC_RDRAM_BASE` + 3 MiB); assetcheck's image bases and file table by name from the symbol file; test_mods' cartridge by its own named layout |
+| Tests: the renderer and the audio interpreter (T5) | 29 | `N64_TO_PHYS`, `PC_RDRAM_BASE + n MiB` |
+| Tests: the GSM kernels (T6) | 8 | test_gsm.c takes each kernel's and table's address from its label in asm/us/boot_data/kernels.s (gsm_rpe_decode, gsm_small_xmaxc_table, ...) |
+| Tools (Y1-Y3) | 74 | n64syms.py's CODE, REGIONS and BSS_REGIONS derived from IMAGES and ARENAS (the same values, checked), the overlay rows from `OVERLAY_BASE`; gen_stubs.py, hash_compare.py, heap_check.py, nofixed_audit.py, names_check.py from n64syms; synth_rom.py's descriptors from `steady_leg_duration` + offset; alias_check.py's note by name. gen_data.py untouched (another agent's), its literals left (HEAP_LO, WINDOW_LO/HI, WINDOW_SECTION, KSEG0 in comments and a range test) |
+
+Comments: the addresses in port/'s comments became names (`game_bss_end`, `overlay_base`, `audio_ucode_text`,
+`track1Parts`, the kernels' names, PC_RDRAM_BASE ...), and the labels that still said an old name now say the new one
+(datacheck's labels, test_menu's `cheat_menu_unlocked`, test_gsm's table names).
+
+### Left in port/, and where each is named
+
+| Where | What | Why it stays |
+|---|---|---|
+| port/include/pc_n64_map.h | the N64's memory map (the table above) | the one place; wave 3 removes all but the cartridge's and the segment masks |
+| port/assets/tests/support.h | `TEST_N64_*`: 14 game symbols' N64 addresses that tests place in their window (`TEST_ABS`) | wave 3: the symbols become ordinary definitions and the placements go. Plain numbers because the assembler's `.set` takes them as written; the symbol file's values |
+| port/data/reserved.txt | `pc_matrix_spill 0x8014A250`: PC data placed in the window where the decoupled model records were | wave 3 (the spill becomes PC data); the rule is the one place it is written |
+| port/data/asm_functions.txt | 43 rows `name address source` (and 5 addresses in their notes): the assembly routines the loader's function table lists | read by gen_data.py (another agent's area), which keys rows by name and address; the addresses could come from the symbol tables by name once gen_data reads them so |
+| port/data/decoupled.txt | 20 addresses in comments: where each decoupled record was on the N64 | documentation of the N64 layout the rules undo, in gen_data's input; left with gen_data |
+| port/data/test_pc_data_decls.c | the fixtures named by their address (D_80010020 ...) | they test the loader's address parsing (as the brief says) |
+| port/assets/tests/test_musyx.c | `NODE_TOKEN(i)`, 0x80050A50 + 16 i | the token src/rom/sound/voices.c keeps for a voice node (its N64 address); the game C defines the number, the test mirrors it (see below) |
+| port/main.c, test_mods.c, test_musyx.c, test_casts.c | MusyX's sample base, ROM offset 0x39B40 (`MODS_SAMPLE_BASE`, `SAMPLE_BASE`) | a ROM offset, named; the game C's `D_00039B40` |
+
+Names still spelled as addresses in port/ (224, from 251): the game symbols no map named, which tests define or name
+because the game C uses them (D_80114C58, D_8015F740, D_80120E74 ...), the N64 names in decoupled.txt and
+asm_functions.txt (the loader's keys), and the fixtures above. They go when the maps name them in src/.
+
+### For src/ (the lead)
+
+- `src/blob/groups/heap_release/overlay_loader.c` passes `N64PTR(u8 *, 0x8038A400)` and `0x803BB380` to
+  load_overlay: pc_prelude.h now gives the game C `N64_OVERLAY_BASE` and `N64_OVERLAY_BLOCK_END`, the same numbers.
+- `src/rom/sound/voices.c` writes 0x80050A50 three times (the node token base); a named constant there (or in a shared
+  header) would let test_musyx.c use it.
+- `src/rom/rom_tu.h` defines K0BASE, IS_KSEG0, IS_KSEG1, K0_TO_PHYS, K1_TO_PHYS its own way; pc_n64_map.h's names
+  could replace them.
+- `src/blob/groups/front_end/group.c:3782` names 0x8038A400 in a comment.
+
 ## Totals
 
 620 literal occurrences: 544 are N64 addresses or address arithmetic (83 in production code, 387 in tests and checks, 74 in tools), 76 are not addresses.

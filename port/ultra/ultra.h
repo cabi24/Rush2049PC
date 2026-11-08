@@ -166,10 +166,11 @@ int pc_rom_load(const char *path, int check_sha1);   /* pc_rom_open, printing wh
 int pc_rom_blank(void);                              /* --no-rom: a zeroed 12 MiB cartridge */
 int pc_rom_copy(uint32_t rom_offset, void *dst, uint32_t size);   /* 0 if inside the ROM */
 /* The mods' files (docs/port/MODS.md): a second region of the cartridge at PC_ROM_MODS_BASE, past the largest ROM the
- * port takes and below 0x0FC00000, so a ROM offset or a cartridge address (0xB0000000 | offset) reaches it as the
- * ROM's. The file table's entries of a replaced wave point there. pc_rom_set_mods(NULL, 0): none. */
-#define PC_ROM_MODS_BASE 0x04000000u
-#define PC_ROM_MODS_MAX (0x0FC00000u - PC_ROM_MODS_BASE)
+ * port takes and below the end of the cartridge's bus range (N64_CART_SPAN), so a ROM offset or a cartridge address
+ * (N64_CART_KSEG1 | offset) reaches it as the ROM's. The file table's entries of a replaced wave point there.
+ * pc_rom_set_mods(NULL, 0): none. */
+#define PC_ROM_MODS_BASE 0x04000000u   /* a ROM offset: 64 MiB */
+#define PC_ROM_MODS_MAX (N64_CART_SPAN - PC_ROM_MODS_BASE)
 void pc_rom_set_mods(const uint8_t *data, size_t size);
 uint32_t pc_rom_word(uint32_t rom_offset);           /* big-endian word, 0 past the end */
 void pc_sha1(const void *data, size_t size, uint8_t out[20]);
@@ -271,7 +272,7 @@ int pc_pakw_fault_wait(uint64_t timeout_ns);
 /* ---------------------------------------------------------------- memory.c */
 int pc_mem_set_size(uint32_t bytes);   /* game.memory, before pc_mem_init: 0, or -1 for a size it can't map */
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */
-int pc_mem_fixed(void);         /* the window is at host 0x80000000 */
+int pc_mem_fixed(void);         /* the window is at host PC_RDRAM_BASE */
 int pc_mem_guard(void);         /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
 /* In the guard mode, a line saying what a faulting address was (an N64 address taken as a host pointer, a window
  * address cut to 32 bits, a sign-extended one); its length, or 0 when it is none of those or the mode is off. */

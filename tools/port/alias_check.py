@@ -39,8 +39,9 @@ import endian_check as ec  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 
 # (source, name, name): pairs between functions of one file, read and judged.
-_PLAYER_ROWS = ("calcSelectMenuMaxSize reads only gPlayerRects_biased[n][0] with n = gNumPlayers, 1 to 4: 0x803B5D5C + "
-                "96 (n - 1), in the layout table playerscr_gPlayerRects, which no code writes. Row 0, over this name, "
+_PLAYER_ROWS = ("calcSelectMenuMaxSize reads only gPlayerRects_biased[n][0] with n = gNumPlayers, 1 to 4: "
+                "gPlayerRects_biased + 96 n, in the layout table playerscr_gPlayerRects, which no code writes. "
+                "Row 0, over this name, "
                 "is never read (docs/port/DATA.md 3)")
 REVIEWED = {
     ("src/ovl_a/groups/playerscr/playerscr.c", "gPlayerRects_biased", "playerscr_buttonInfo"): _PLAYER_ROWS,

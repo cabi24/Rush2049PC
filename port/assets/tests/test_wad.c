@@ -126,10 +126,10 @@ int main(void)
         memset(b, 0, sizeof b);   /* a blank cartridge's file */
         pc_wave_loaded(54, b, 0);
         pc_wave_loaded(54, b, 4);
-        test_put32(b, 0x80001000u);   /* relocated already */
+        test_put32(b, PC_RDRAM_BASE + 0x1000u);   /* relocated already: a window address */
         test_put32(b + 4, 1);
         pc_wave_loaded(54, b, sizeof b);
-        CHECK(pc_be32(b) == 0x80001000u);
+        CHECK(pc_be32(b) == PC_RDRAM_BASE + 0x1000u);
         test_put32(b, 0x40);          /* the TOC runs past the block */
         test_put32(b + 4, 3);
         pc_wave_loaded(54, b, sizeof b);

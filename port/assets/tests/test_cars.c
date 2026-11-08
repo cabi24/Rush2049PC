@@ -42,10 +42,9 @@ struct car {
 
 #define CF(c, n, T) (*(T *)((uint8_t *)(c) + CAR_OFS(n)))   /* the car field at N64 offset n */
 #define MF(m, n, T) (*(T *)((uint8_t *)(m) + (n)))          /* the model field at offset n (N64 layout) */
-/* Names defined here in assembly (absolute N64 addresses, or offsets into the car array) are for the game's
- * objects only: this file reaches that data by its address, since the assembler can't take a GOT reference to
- * a symbol it defines with .set. */
-#define ABS(name, addr) __asm__(".globl " #name "\n.set " #name ", " #addr)
+/* Names defined here in assembly (absolute N64 addresses, support.h's TEST_ABS, or offsets into the car array) are for
+ * the game's objects only: this file reaches that data by its address, since the assembler can't take a GOT reference
+ * to a symbol it defines with .set. */
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 #define W32(p) ((uint32_t)(uintptr_t)(p))
 
@@ -56,18 +55,18 @@ struct pc_car pc_cars[PC_CAR_SLOTS];      /* gGameCar, the car records (pc_game_
 
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[], the model records (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
-ABS(gCheckpoints, 0x80151CE8);               /* the checkpoint block (Route at +0) and two names inside it */
-ABS(checkpoints_start_pt, 0x80151CEE);
-ABS(gCheckpoints_pathPts, 0x80151D18);
-#define gCheckpoints ((uint8_t *)(uintptr_t)0x80151CE8)
-ABS(gCarParts, 0x80139320);               /* gCarParts, 0x40 bytes a car */
-#define PARTS(i) ((uint32_t *)(uintptr_t)0x80139320 + (i) * 16)
-ABS(gTune, 0x801116D0);               /* the tune table, 44 bytes an entry */
-ABS(stdtorquecurve, 0x8011F724);               /* the torque curve */
-ABS(D_8011F814, 0x8011F814);               /* the tire records after it (car_resistance names them) */
-#define TUNES ((float *)(uintptr_t)0x801116D0)
-#define DESC_AT 0x80300000u                /* the physics descriptors (0xB4 bytes) and tire curves, as game data */
-#define CURVES_AT 0x80301000u
+TEST_ABS(gCheckpoints);                      /* the checkpoint block (Route at +0) and two names inside it */
+TEST_ABS_IN(checkpoints_start_pt, gCheckpoints, 0x6);
+TEST_ABS_IN(gCheckpoints_pathPts, gCheckpoints, 0x30);
+#define gCheckpoints TEST_AT(gCheckpoints)
+TEST_ABS(gCarParts);                         /* gCarParts, 0x40 bytes a car */
+#define PARTS(i) ((uint32_t *)TEST_AT(gCarParts) + (i) * 16)
+TEST_ABS(gTune);                             /* the tune table, 44 bytes an entry */
+TEST_ABS(stdtorquecurve);                    /* the torque curve */
+TEST_ABS(D_8011F814);                        /* the tire records after it (car_resistance names them) */
+#define TUNES ((float *)TEST_AT(gTune))
+#define DESC_AT TEST_SCRATCH                 /* the physics descriptors (0xB4 bytes) and tire curves, as game data */
+#define CURVES_AT (TEST_SCRATCH + 0x1000u)
 
 void *gCarModels[13];                      /* Car *[]: own storage, pointing into the game arena */
 uint8_t gPlayers[6 * 80] __attribute__((aligned(16)));   /* the input records */
@@ -87,7 +86,7 @@ int8_t gTrackNum, expansion_pak_present, gCarTeam[8];
 uint8_t taillight_colors_dark[16], taillight_colors_dim[16], taillight_colors_bright[16], headlight_colors_night[16], gShadowColor[4], arrowColors[5][4];
 float gDummyVtx[4][3];
 uint16_t gTexList[16], gObjList[600], gObjList_rocket_a, gObjList_rocket_b, gObjList_rocket_c;
-ABS(gObjList_biased, 0x8014254C);               /* gObjList + 0x... in the game; only an id is read */
+TEST_ABS(gObjList_biased);                   /* an id in gObjList in the game; only the id is read */
 uint8_t car_palettes_palBase[6 * 24];                /* the car palette descriptors' data words (u32 window addresses) */
 int8_t gCarWings_players[6 * 13];
 float wingOffsets_y[8 * 3], wing_flame_height = 0.75f, weaponOffsets[8][13][3];
@@ -445,7 +444,7 @@ static void test_model(void)
     g_ntire = g_nprev = 0;
     carsetup(m);
     CHECK(MF(m, 0, uint32_t) == DESC_AT && MF(m, 4, uint32_t) == W32(&TUNES[2 * 11]));
-    CHECK(MF(m, 4, uint32_t) == 0x801116D0u + 2 * 44 && MF(m, 0x40C, uint32_t) == 0x8011F724u);
+    CHECK(MF(m, 4, uint32_t) == TEST_N64(gTune) + 2 * 44 && MF(m, 0x40C, uint32_t) == TEST_N64(stdtorquecurve));
     CHECK(g_ntire == 4 && g_nprev == 4);
     for (i = 0; i < 4; i++)
         CHECK(g_tire_info[i] == CURVES_AT + 0x40 * (uint32_t)i);
@@ -500,7 +499,7 @@ static void test_race_init(void)
 
 /* The brake lights (AnimateBrakeLights, AnimateBrakeLights) of a braking car take the brake colours into its palette
  * record (a u32 window address in car_palettes_palBase): the car is the visual's slot (+0xC on the PC; +8 is its index). */
-#define PALETTES_AT 0x80302000u
+#define PALETTES_AT (TEST_SCRATCH + 0x2000u)
 static void test_brake_lights(void)
 {
     struct pc_visual v;

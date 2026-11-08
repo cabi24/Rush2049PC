@@ -1,6 +1,6 @@
 /* port/audio/musyx_lut.c: the voice resampler's 4-tap filter table.
  *
- * The microcode keeps a 64-phase table in its data (the task's ucode_data, 0x8002E210, 560 bytes at ROM
+ * The microcode keeps a 64-phase table in its data (the task's ucode_data, audio_ucode_data, 560 bytes at ROM
  * 0x2EE10). It is Nintendo's, so this port doesn't carry it: at the first task it looks for a table of the
  * expected shape in the player's ROM and uses it if found, and otherwise uses its own design, a Hann-windowed
  * sinc low-pass at 0.8 of the input Nyquist frequency (which, like the microcode's, smooths even at phase 0). */

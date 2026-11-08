@@ -3,7 +3,7 @@
  * Resolves the settings (defaults, rush2049pc.ini, the environment, a press file's `pak` line, then the
  * command line: port/config), loads and checks the ROM, maps the RDRAM window, fills the game's initialized data
  * (port/data), opens the renderer (port/gfx) and live input (port/input), then starts the game's own main
- * (0x800020F0, compiled as n64_main) on an N64 thread and runs the host main loop (port/ultra/loop.c) until the
+ * (main, compiled as n64_main) on an N64 thread and runs the host main loop (port/ultra/loop.c) until the
  * window closes or a limit is reached. */
 #include <math.h>
 #include <signal.h>
@@ -178,8 +178,8 @@ static void test_grow_waves(void)
 
 /* The MusyX service table (docs/port/MUSYX_DATA.md 8.1) is game data too, so a blank cartridge has none and
  * sndInit's first allocation calls 0. Its eight slots are the eight functions at the end of the game's code
- * (0x8010FBB4-0x8010FD7C), which nothing calls directly; their order here follows how the library calls each
- * slot. With a ROM the data loader fills the table, and a difference from this list is logged. */
+ * (from musyx_wait_audio_task to the code's end), which nothing calls directly; their order here follows how the
+ * library calls each slot. With a ROM the data loader fills the table, and a difference from this list is logged. */
 extern void (*audio_driver_services[8])(void);
 extern void musyx_submit_audio_task(void *task);                              /* 0: submit the audio task */
 extern void musyx_wait_audio_task(void);                                /* 1: wait for it */
@@ -617,7 +617,10 @@ static int mods_prepare(const PcSettings *cfg, const PcAppDirs *dirs, int dir_fr
         img[n] = (PcModsImage){pc_data_tables.images[i].name, pc_data_tables.images[i].storage == PC_IMG_DEFLATE,
                                pc_data_tables.images[i].rom_off, pc_data_tables.images[i].rom_len,
                                pc_data_tables.images[i].size, pc_data_tables.images[i].n64_base};
-    if (mc.enabled && pc_mods_cart_read(&cart, pc_rom_bytes(), pc_rom_size(), img, n) != 0) {
+    const PcModsTableAt at = {   /* the file table's symbols, by name */
+        pc_data_addr_of(&pc_data_tables, "gWaveSizes"), pc_data_addr_of(&pc_data_tables, "gLargestTextWave"),
+        pc_data_addr_of(&pc_data_tables, "wave_rom_offsets"), pc_data_addr_of(&pc_data_tables, "wave_storage_kinds")};
+    if (mc.enabled && pc_mods_cart_read(&cart, pc_rom_bytes(), pc_rom_size(), img, n, &at) != 0) {
         fprintf(stderr, "rush2049pc: mods: the ROM's file table can't be read; no mod is used\n");
         g_mods.enabled = 0;
     }
@@ -731,6 +734,14 @@ static void pak_chars(const uint16_t font[256], const uint8_t *in, uint8_t *out,
         out[count++] = 0;
 }
 
+/* n bytes of the game's datum called `name`, as the cartridge's data image holds them (pc_data_peek), found by its
+ * name in the data loader's tables. 0, or -1 when the tables have no such name or the cartridge doesn't hold it. */
+static int peek_game_data(const char *name, void *out, uint32_t n)
+{
+    uint32_t addr = pc_data_addr_of(&pc_data_tables, name);
+    return addr ? pc_data_peek(&pc_data_tables, pc_rom_bytes(), pc_rom_size(), addr, out, n) : -1;
+}
+
 /* The same names before the game's data is loaded: an online session's handshake builds this player's pak from its
  * saves folder then, before the guest's memory can be mapped (docs/port/NETPLAY.md 17), and an import on it gets them
  * as on the pak of a game on its own. The strings and the pak's character table are read from the cartridge's data
@@ -740,12 +751,10 @@ static void saves_game_names_early(void)
 {
     uint8_t font_raw[512], prefix_in[16] = {0}, ext_in[16] = {0}, profile0 = 0, prefix[8], ext[4];
     uint16_t font[256];
-    const uint8_t *rom = pc_rom_bytes();
-    size_t size = pc_rom_size();
-    if (pc_data_peek(&pc_data_tables, rom, size, 0x8011EAECu, font_raw, sizeof font_raw) != 0 ||   /* pak_charset */
-        pc_data_peek(&pc_data_tables, rom, size, 0x801211BCu, prefix_in, 8) != 0 ||               /* save_file_name_prefix */
-        pc_data_peek(&pc_data_tables, rom, size, 0x801211F4u, ext_in, 4) != 0 ||                  /* ghost_file_ext */
-        pc_data_peek(&pc_data_tables, rom, size, 0x801211C8u, &profile0, 1) != 0) {               /* player_file_ext_prefix */
+    if (peek_game_data("pak_charset", font_raw, sizeof font_raw) != 0 ||
+        peek_game_data("save_file_name_prefix", prefix_in, 8) != 0 ||
+        peek_game_data("ghost_file_ext", ext_in, 4) != 0 ||
+        peek_game_data("player_file_ext_prefix", &profile0, 1) != 0) {
         fprintf(stderr, "rush2049pc: online: the game's names for imported ghosts can't be read before its data is "
                 "loaded: this player's imports keep their own on the session's pak\n");
         return;
@@ -1543,7 +1552,7 @@ static int rush_main(int argc, char **argv)
     }
 #ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: the tables give the arenas in the window already */
     if (!pc_mem_fixed())
-        pc_data_set_window(pc_n64_ptr);   /* the guard mode, or a host that can't map 0x80000000 (NOFIXED.md 5) */
+        pc_data_set_window(pc_n64_ptr);   /* the guard mode, or a host that can't map PC_RDRAM_BASE (NOFIXED.md 5) */
 #endif
     if (selftest) {
         pc_time_set_virtual(fast);

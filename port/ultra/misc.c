@@ -44,43 +44,47 @@ void pc_fatal(const char *fmt, ...)
 
 /* ---------------------------------------------------------------- osInitialize and the boot globals */
 
-/* The low-memory globals (N64 0x80000300-0x8000035C), set by the IPL and osInitialize. The game's names for
- * them (osTvType, osMemSize for osMemSize...) are absolute symbols in the RDRAM window (gen_stubs), so the
- * values are written there, as native words. */
-enum {
-    LOW_TV_TYPE = 0x80000300, LOW_ROM_TYPE = 0x80000304, LOW_ROM_BASE = 0x80000308, LOW_RESET_TYPE = 0x8000030C,
-    LOW_CIC_ID = 0x80000310, LOW_VERSION = 0x80000314, LOW_MEM_SIZE = 0x80000318, LOW_NMI_BUFFER = 0x8000031C,
-};
+/* libultra's boot parameters, which the IPL leaves in low memory at N64_BOOT_PARAMS (pc_n64_map.h) and osInitialize
+ * completes: the layout of os.h's osTvType through osAppNMIBuffer, as native words. The game reads the two it uses
+ * by their names, osTvType and osMemSize, which the link puts at the same addresses in the RDRAM window
+ * (gen_stubs.py's aliases.ld; data.c's window in a RUSH_NOFIXED build); pc_os_initialize writes them all here. */
+typedef struct {
+    uint32_t tv_type;            /* osTvType: 0 PAL, 1 NTSC, 2 MPAL */
+    uint32_t rom_type;           /* osRomType: 0 cartridge, 1 disk drive */
+    uint32_t rom_base;           /* osRomBase: the cartridge's KSEG1 address */
+    uint32_t reset_type;         /* osResetType: 0 cold, 1 NMI */
+    uint32_t cic_id;             /* osCicId: the cartridge's lockout chip */
+    uint32_t version;            /* osVersion */
+    uint32_t mem_size;           /* osMemSize: RDRAM's bytes */
+    uint8_t app_nmi_buffer[64];  /* osAppNMIBuffer: kept across an NMI reset */
+} BootParams;
+_Static_assert(offsetof(BootParams, mem_size) == 0x18 && offsetof(BootParams, app_nmi_buffer) == 0x1C,
+               "libultra's boot parameters: osMemSize is the seventh word, osAppNMIBuffer follows it");
+
 /* osMemSize. 4 MiB until main sets it: no Expansion Pak, so the game leaves its Expansion Pak flag (expansion_pak_present)
  * clear and skips overlay B and the extra waves in races. game.expansion_pak (on by default) reports 8 MiB, as
  * N64ModernRuntime and v5 do, in the 8 MiB window. game.memory reports the window's size, whatever the pak setting:
  * the game's heap runs to osMemSize (locate_main_heap), and sets the Expansion Pak flag past 4 MiB, as a console with
  * that much memory would (docs/port/MEMORY.md 1). */
-static uint32_t g_mem_size = 0x00400000;
-
-static void put_word(uint32_t addr, uint32_t v)
-{
-    uint8_t *p = pc_n64_ptr(addr);
-    if (p)
-        memcpy(p, &v, 4);
-}
+static uint32_t g_mem_size = N64_RDRAM_SIZE_NO_PAK;
 
 void pc_os_initialize(void)
 {
-    put_word(LOW_TV_TYPE, 1);              /* NTSC */
-    put_word(LOW_ROM_TYPE, 0);
-    put_word(LOW_ROM_BASE, 0xB0000000u);
-    put_word(LOW_RESET_TYPE, 0);           /* cold: the NMI buffer starts zeroed */
-    put_word(LOW_CIC_ID, 6102);
-    put_word(LOW_VERSION, 0);
-    put_word(LOW_MEM_SIZE, g_mem_size);
-    uint8_t *nmi = pc_n64_ptr(LOW_NMI_BUFFER);
-    if (nmi)
-        memset(nmi, 0, 64);
+    BootParams *boot = pc_n64_ptr(N64_BOOT_PARAMS);
+    if (!boot)
+        return;
+    boot->tv_type = 1;                   /* NTSC */
+    boot->rom_type = 0;
+    boot->rom_base = N64_CART_KSEG1;
+    boot->reset_type = 0;                /* cold: the NMI buffer starts zeroed */
+    boot->cic_id = 6102;
+    boot->version = 0;
+    boot->mem_size = g_mem_size;
+    memset(boot->app_nmi_buffer, 0, sizeof boot->app_nmi_buffer);
 }
 
 uint32_t pc_os_mem_size(void) { return g_mem_size; }
-void pc_os_set_expansion_pak(int on) { g_mem_size = on ? PC_RDRAM_SIZE : 0x00400000; }
+void pc_os_set_expansion_pak(int on) { g_mem_size = on ? PC_RDRAM_SIZE : N64_RDRAM_SIZE_NO_PAK; }
 void pc_os_set_mem_size(uint32_t bytes) { g_mem_size = bytes; }
 
 /* main's first call (libultra's osInitialize; historical label). */
@@ -98,7 +102,7 @@ void osWritebackDCacheAll(void) {}
 uint32_t dcache_create_dirty_lines(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }
 void osUnmapTLBAll(void) {}
 void osMapTLBRdb(void) {}
-uint32_t __osTLBLookup(void *vaddr) { return (uint32_t)(uintptr_t)vaddr & 0x1FFFFFFFu; }
+uint32_t __osTLBLookup(void *vaddr) { return N64_TO_PHYS((uint32_t)(uintptr_t)vaddr); }
 
 static uint32_t g_sr = 0x2000FF01u, g_fpcsr = 0x01000800u, g_intmask = 0x003FFF01u;
 uint32_t __osGetSR(void) { return g_sr; }

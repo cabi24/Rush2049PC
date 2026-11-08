@@ -210,7 +210,7 @@ static long check_toc(int wave, const uint8_t *buf, size_t size)
     if (size < 8)
         return -1;
     uint32_t toc = pc_be32(buf), n = pc_be32(buf + 4);
-    if (toc & 0x80000000u) {
+    if (toc >= N64_KSEG0) {   /* an N64 address (the file's load address + the offset), not an offset */
         fprintf(stderr, "rush2049pc: wad %d: already relocated (TOC 0x%08X); not converted\n", wave, toc);
         return -1;
     }

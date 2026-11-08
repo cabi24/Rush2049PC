@@ -551,7 +551,7 @@ static void test_live(void)
     act(PC_MENU_DOWN);
     at("Game", "Cheats menu", "off", "the cheats menu: off");
     CHECK(!pc_cheats_menu_setting() && pc_start_valid(6, 0) == 0 && pc_start_valid(6, 1) == 1,
-          "off: slot 6 as its flag (D_801164A1) says");
+          "off: slot 6 as its flag (cheat_menu_unlocked) says");
     act(PC_MENU_RIGHT);
     at("Game", "Cheats menu", "on", "the cheats menu: on");
     CHECK(pc_cheats_menu_setting() && pc_menu_settings()->cheats_menu == 1 && pc_start_valid(6, 0) == 1 &&

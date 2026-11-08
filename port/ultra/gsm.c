@@ -25,7 +25,7 @@ static inline int32_t mult_r(int32_t a, int32_t b)
     return add32((int32_t)((uint32_t)a * (uint32_t)b), 0x4000) >> 15;
 }
 
-/* ---------------------------------------------------------------- RPE decoding (asm 0x800277D0) */
+/* ---------------------------------------------------------------- RPE decoding (asm gsm_rpe_decode) */
 
 /* exp and mant of xmaxc 0..7 after the spec's normalization (4.2.15): the asm's inline table gsm_small_xmaxc_table holds
  * them as (exp << 4) | mant, the bytes C7 D7 E3 E7 F1 F3 F5 F7. */
@@ -61,7 +61,7 @@ void gsm_rpe_decode(short xmaxcr, short Mcr, short *xMcr, short *erp)
         erp[Mcr + 3 * i] = xMcr[i];
 }
 
-/* ---------------------------------------------------------------- long-term synthesis (asm 0x800278C4) */
+/* ---------------------------------------------------------------- long-term synthesis (asm gsm_long_term_synthesis) */
 
 /* QLB, the LTP gain levels: the asm's inline table gsm_ltp_gain_levels (0x0CCD 0x2CCD 0x5333 0x7FFF). */
 static const uint16_t qlb[4] = {3277, 11469, 21299, 32767};
@@ -79,10 +79,10 @@ void gsm_long_term_synthesis(GsmState *S, short Ncr, short bcr, short *erp)
         drp[k] = (short)add32(mult_r(drp[k - Nr], brp), erp[k]);
 }
 
-/* ---------------------------------------------------------------- short-term synthesis (asm 0x80027B44) */
+/* ---------------------------------------------------------------- short-term synthesis (asm gsm_short_term_filter) */
 
-/* LARp for each part of the frame (4.2.9.1) from LARpp(j-1) and LARpp(j): the asm's helpers at 0x80027D3C,
- * 0x80027D54 and 0x80027D64, and LARpp(j) itself for k 40..159. */
+/* LARp for each part of the frame (4.2.9.1) from LARpp(j-1) and LARpp(j): the asm's three interpolation callbacks
+ * (asm/us/boot_data/kernels.s, after gsm_short_term_filter), and LARpp(j) itself for k 40..159. */
 static int32_t larp(int part, int32_t cur, int32_t prev)
 {
     switch (part) {
@@ -93,7 +93,7 @@ static int32_t larp(int part, int32_t cur, int32_t prev)
     }
 }
 
-/* LARp to rp (4.2.9.2), the asm's 0x80027D7C. The clamp is the spec's saturating add. */
+/* LARp to rp (4.2.9.2), the callbacks' shared tail in the asm. The clamp is the spec's saturating add. */
 static int32_t larp_to_rp(int32_t x)
 {
     int32_t a = x < 0 ? sub32(0, x) : x;
@@ -104,8 +104,8 @@ static int32_t larp_to_rp(int32_t x)
 }
 
 /* The lattice filter (4.3.4) over wt[0..159] into s[0..159], with deemphasis (4.3.5), upscaling (4.3.6) and
- * truncation (4.3.7) per sample. rp is recomputed for each of the four parts (the asm's 0x80027C98 packs it in
- * t6..t9; 0x80027980 filters). v[8] is never read, so it isn't computed. */
+ * truncation (4.3.7) per sample. rp is recomputed for each of the four parts (the asm's per-part routine packs it in
+ * t6..t9; the frameless filter routine filters). v[8] is never read, so it isn't computed. */
 void gsm_short_term_filter(GsmState *S, short *wt, short *s)
 {
     static const struct { int start, n; } parts[4] = {{0, 13}, {13, 14}, {27, 13}, {40, 120}};

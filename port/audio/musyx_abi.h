@@ -1,6 +1,6 @@
 /* port/audio/musyx_abi.h: the audio task ABI of San Francisco Rush 2049 (N64).
  *
- * The audio task's microcode (0x8002A050, which docs/memory_map.md calls aspMain) runs Factor 5's MusyX v1
+ * The audio task's microcode (audio_ucode_text, which docs/memory_map.md calls aspMain) runs Factor 5's MusyX v1
  * ABI, not Nintendo's Acmd command lists. OSTask.t.data_ptr points to an array of subframe descriptors (SFDs)
  * and OSTask.t.data_size is how many there are. Each SFD renders one subframe, 192 interleaved stereo frames,
  * into the output buffer named by its last voice. The game's builder is the MusyX driver in
@@ -19,7 +19,7 @@
  *   native form  the game's structs compiled for the host: the same members in the same order, pointer
  *                members widened, natural alignment. PcMusyx* below are those structs. A pointer member holds a
  *                host pointer or, when below 4 GB, an N64 address resolved with pc_n64_ptr() (the game's heap
- *                and the sample caches are in the RDRAM window at host 0x80000000; the executable is PIE, so
+ *                and the sample caches are in the RDRAM window at host PC_RDRAM_BASE; the executable is PIE, so
  *                no host data sits below 4 GB). Byte order is native. */
 #ifndef MUSYX_ABI_H
 #define MUSYX_ABI_H

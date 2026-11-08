@@ -239,7 +239,9 @@ static void pool_build(Pool *P)
     b32(B, 0xFFFFFFFF);
 }
 
-#define SAMPLE_BASE 0xB0039B40u
+/* MusyX's sample base: the cartridge address (KSEG1) of ROM offset 0x39B40, where the game's sample data starts (its
+ * D_00039B40). */
+#define SAMPLE_BASE (N64_CART_KSEG1 | 0x39B40u)
 
 static void sdir_build(Build *B)
 {
@@ -527,6 +529,9 @@ struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS], pc_mx_free_links[PC_MX_VO
 unsigned char pc_mx_fx_legato[PC_MX_VOICE_SLOTS];
 #define sound_synth_voices ((uint8_t *)pc_mx_voice)
 #define sound_handle_nodes ((uint8_t *)pc_mx_nodes)
+/* The 32-bit token src/rom/sound/voices.c keeps for node i in a voice's link: the node's N64 address on the N64
+ * (sound_handle_nodes there, 16 bytes a node). */
+#define NODE_TOKEN(i) (0x80050A50u + 16u * (i))
 STORAGE(sound_track_volumes, 64);
 STORAGE(sound_synth_frequency, 4);
 STORAGE(sound_samples_per_tick, 4);
@@ -639,10 +644,10 @@ void sound_midi_set_portamento_state(uint8_t a, uint8_t b, uint8_t c) {}
 void sound_synth_start_portamento(void *state) {}
 void sound_synth_copy_controllers(void *a, void *b) {}
 
-/* The heap is in the RDRAM window at 0x80000000; the registries keep 32-bit addresses into the files there. */
+/* The heap is in the RDRAM window at PC_RDRAM_BASE; the registries keep 32-bit addresses into the files there. */
 static uint8_t *low_window(size_t size)
 {
-    void *p = mmap((void *)0x80000000UL, size, PROT_READ | PROT_WRITE,
+    void *p = mmap((void *)(uintptr_t)PC_RDRAM_BASE, size, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
     if (p == MAP_FAILED)
         return NULL;
@@ -683,7 +688,8 @@ static void test_play(const SequenceContext *seq)
     request.identifier = 0, request.flags = 4 | 2, request.nextIdentifier = 0x1234, request.channel = 7;
     request.first = 11, request.value = 0x2222, request.stream = &request;
     sound_seq_crossfade_unlocked(&request, &result, 1);
-    CHECK(result == 0x80000000u && seq->pendingFF0 == (uintptr_t)&result && seq->unknownFF4[0] == 1);
+    /* the result: the top bit (pending) with the request's identifier, 0 */
+    CHECK(result == (1u << 31 | 0) && seq->pendingFF0 == (uintptr_t)&result && seq->unknownFF4[0] == 1);
     CHECK(seq->valueFE0 == 7 && seq->firstFE4 == 11 && seq->valueFEC == 0x2222 && seq->flagsFEE == 2 &&
           seq->streamFD8 == &request);
     for (frame = 0; frame < 60; frame++)
@@ -756,7 +762,7 @@ static void test_voices(uint8_t *pl)
     id = 1u << 16 | 60 << 8 | 0;
     CHECK(key == 0 && sound_resolve_handle(key) == (int)id);
     CHECK(rd32(v0 + 0) == m1 && rd32(v0 + 4) == m1 && rd32(v0 + 8) == 0 && rd32(v0 + 0x60) == id);
-    CHECK(rd32(v0 + 0x18) == 0x80050A50u && rd32(v0 + 0x10) == 0xFFFFFFFFu && rd32(v0 + 0x14) == 0xFFFFFFFFu);
+    CHECK(rd32(v0 + 0x18) == NODE_TOKEN(0) && rd32(v0 + 0x10) == 0xFFFFFFFFu && rd32(v0 + 0x14) == 0xFFFFFFFFu);
     CHECK(sound_handles_used == (void *)sound_handle_nodes);
     sound_macro_run(v0);
     CHECK(seen_envelope[0] == 0x1234 && seen_envelope[3] == 0x0ABC);
@@ -768,7 +774,8 @@ static void test_voices(uint8_t *pl)
     /* Macro 6 on voice 1: a trap for key-off, then a subroutine (macro 2) that waits 250 ms. */
     key = sound_macro_start(6u << 16 | 0x40 << 8 | 4, 0x100, 62, 100, 64, 0, 0, 0, 0, 1, 23);
     id = 6u << 16 | 62 << 8 | 1;
-    CHECK(key == 1 && sound_resolve_handle(key) == (int)id && rd32(v1 + 0x60) == id && rd32(v1 + 0x18) == 0x80050A50u);
+    CHECK(key == 1 && sound_resolve_handle(key) == (int)id && rd32(v1 + 0x60) == id &&
+          rd32(v1 + 0x18) == NODE_TOKEN(0));
     sound_macro_run(v1);
     CHECK(rd32(v1 + 0) == m2 && rd32(v1 + 4) == m2 + 8);            /* in the subroutine, after its wait */
     CHECK(rd32(v1 + 8) == m6 && rd32(v1 + 0xC) == m6 + 16);         /* where it returns */

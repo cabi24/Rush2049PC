@@ -3,7 +3,7 @@
  * only pc_rdram_size(), so the tests that build the game's relocations link it with their own window. */
 #include "pc_port.h"
 
-/* The RSP takes an address below 0x80000000 as segmented: bits 24-27 the segment, the low 24 bits an offset. On the
+/* The RSP takes an address below KSEG0 as segmented: bits 24-27 the segment, the low 24 bits an offset. On the
  * N64 every physical address fits the offset (8 MiB), so physical is segment 0's offset, and the game's display-list
  * relocations keep 24 bits. A larger window has physical addresses past 16 MiB, which would read as segments 1-15:
  * there the RCP is given the K0 address instead, which the renderer and the audio interpreter take as they take
@@ -18,7 +18,7 @@ int pc_rdram_k0_high(uint32_t addr)
 /* addr (K0, K1 or physical) as an offset in the window; ~0 when it is not one. */
 static uint32_t window_offset(uint32_t addr)
 {
-    uint32_t phys = addr >= 0x80000000u && addr < 0xC0000000u ? addr & 0x1FFFFFFFu : addr;
+    uint32_t phys = N64_IS_KSEG0_OR_1(addr) ? N64_TO_PHYS(addr) : addr;
     return phys < pc_rdram_size() ? phys : ~0u;
 }
 
@@ -32,9 +32,9 @@ uint32_t pc_rcp_reloc(uint32_t w1, uint32_t base, int32_t seg)
     if (seg >= 0)
         segbits = (uint32_t)(seg & 0xF) << 24;
     else
-        segbits = pc_rdram_k0_high(w1) ? 0 : w1 & 0x0F000000u;
+        segbits = pc_rdram_k0_high(w1) ? 0 : w1 & N64_SEGMENT_ID_MASK;
     if (segbits == 0 && (phys = window_offset(sum)) != ~0u && phys >= PC_RCP_SEGMENT_SPAN)
         return PC_RDRAM_BASE | phys;
-    return (sum & 0x00FFFFFFu) | segbits;
+    return (sum & N64_SEGMENT_OFFSET_MASK) | segbits;
 }
 
