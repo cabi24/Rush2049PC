@@ -64,7 +64,7 @@ struct { int16_t id; uint8_t pad[50]; } gPlayerCoin[4][2];
 float gCheckPtTimeout[4], gLapTime[4], gElapsedTime[4];
 int8_t expansion_pak_present, gTrackNum;
 int16_t gNumWindows;
-struct pc_multiblit OverlayMultiBlit[1], TwoPlayerMultiBlit[1], ThreePlayerMultiBlit[1], D_80114C58[89], HudMultiBlit[8];
+struct pc_multiblit OverlayMultiBlit[1], TwoPlayerMultiBlit[1], ThreePlayerMultiBlit[1], RaceMultiBlit[89], HudMultiBlit[8];
 int32_t gShowCredits, gCredit, gCorner, gCreditWidth, gNumCreditNames;
 int32_t pauseMenuSelect; uint32_t animPause_color;       /* animPause.c's, where Hidden is */
 volatile float gSeconds;
@@ -310,25 +310,25 @@ static int32_t dot(Blit *b) { return 1; }
 static void make_set(void)
 {
     int n = 0;
-    memset(D_80114C58, 0, sizeof D_80114C58);
+    memset(RaceMultiBlit, 0, sizeof RaceMultiBlit);
     for (; n < 40; n++)
-        D_80114C58[n].animfunc = (int (*)(void *))other_blit, D_80114C58[n].animid = (unsigned)n;
+        RaceMultiBlit[n].animfunc = (int (*)(void *))other_blit, RaceMultiBlit[n].animid = (unsigned)n;
     for (int v = 0; v < 4; v++) {
-        D_80114C58[n].animfunc = (int (*)(void *))other_blit, D_80114C58[n++].animid = (unsigned)v;   /* the frame */
+        RaceMultiBlit[n].animfunc = (int (*)(void *))other_blit, RaceMultiBlit[n++].animid = (unsigned)v;   /* the frame */
         for (int k = 0; k < 8; k++, n++) {
-            D_80114C58[n].texname = "BLIP";
-            D_80114C58[n].animfunc = (int (*)(void *))animRadarBlip;
-            D_80114C58[n].animid = (unsigned)(v << 8 | k);
-            D_80114C58[n].width = (short)(10 + v), D_80114C58[n].zdepth = (unsigned)(20 + v);
+            RaceMultiBlit[n].texname = "BLIP";
+            RaceMultiBlit[n].animfunc = (int (*)(void *))animRadarBlip;
+            RaceMultiBlit[n].animid = (unsigned)(v << 8 | k);
+            RaceMultiBlit[n].width = (short)(10 + v), RaceMultiBlit[n].zdepth = (unsigned)(20 + v);
         }
     }
     for (int k = 0; k < 8; k++, n++) {
-        D_80114C58[n].texname = "DOT";
-        D_80114C58[n].animfunc = (int (*)(void *))animDot;
-        D_80114C58[n].animid = (unsigned)k;
-        D_80114C58[n].height = 4;
+        RaceMultiBlit[n].texname = "DOT";
+        RaceMultiBlit[n].animfunc = (int (*)(void *))animDot;
+        RaceMultiBlit[n].animid = (unsigned)k;
+        RaceMultiBlit[n].height = 4;
     }
-    D_80114C58[n].animfunc = (int (*)(void *))dot, D_80114C58[n++].animid = 7;   /* not a dot: no copies */
+    RaceMultiBlit[n].animfunc = (int (*)(void *))dot, RaceMultiBlit[n++].animid = 7;   /* not a dot: no copies */
     CHECK(n == 85);
 }
 
@@ -355,15 +355,15 @@ static void test_set(void)
     make_set();
     /* up to 8 cars: the ROM's set itself */
     show_hud(6);
-    CHECK(g_set == D_80114C58 && g_set_n == 89 && HudBlit2 == &g_voice);
+    CHECK(g_set == RaceMultiBlit && g_set_n == 89 && HudBlit2 == &g_voice);
     show_hud(8);
-    CHECK(g_set == D_80114C58 && g_set_n == 89);
+    CHECK(g_set == RaceMultiBlit && g_set_n == 89);
     /* 12 cars: each run of blips and the dots continued after its 7 with 8-11 */
     show_hud(12);
-    CHECK(g_set != D_80114C58 && g_set_n == 89 + 5 * 4);
+    CHECK(g_set != RaceMultiBlit && g_set_n == 89 + 5 * 4);
     int n = 0;
     for (int i = 0; i < 89; i++) {
-        const struct pc_multiblit *e = &D_80114C58[i];
+        const struct pc_multiblit *e = &RaceMultiBlit[i];
         CHECK(same(&g_set_copy[n++], e));
         if ((e->animfunc == (int (*)(void *))animRadarBlip || e->animfunc == (int (*)(void *))animDot) &&
             (e->animid & 0xF) == 7)

@@ -121,11 +121,11 @@ void uninitDemoGame(void) {
 }
 
 void playDemoGame(s32 on, s32 x) {
-    static s8 D_8011415C = 0;
+    static s8 gDemoInited = 0;
 
     if (on) {
-        if (!D_8011415C) {
-            D_8011415C = 1;
+        if (!gDemoInited) {
+            gDemoInited = 1;
             gNumWindows = 1;
             if (!(gGameState & 0x02000000)) {
                 gRace = 0;
@@ -142,7 +142,7 @@ void playDemoGame(s32 on, s32 x) {
             PlayGame();
         }
     } else {
-        D_8011415C = 0;
+        gDemoInited = 0;
         demo_preplayDone = 0;
         endDemoGame();
         if (!(gGameState & 0x02000000)) {

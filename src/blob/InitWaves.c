@@ -36,7 +36,7 @@ typedef struct anon_loaded_ready_14 {
     unsigned char *lastPtr;
 } anon_loaded_ready_14;
 
-extern anon_loaded_ready_14 D_80156D38[64];  /* gWaveInstance */
+extern anon_loaded_ready_14 gWaveInstance[64];  /* gWaveInstance */
 extern unsigned char gNumModels;
 extern s16 gRenderInProgress;
 extern OSMesgQueue bg_load_idle_queue;              /* background loader idle token */
@@ -46,7 +46,6 @@ extern f32 gGlobalCameraFacingScale;
 extern u16 gNumLights;
 extern intptr_t gLights;
 extern s32 default_lights;
-#define gWaveInstance D_80156D38
 
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);

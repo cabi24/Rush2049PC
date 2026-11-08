@@ -1075,9 +1075,9 @@ def boot_and_sound(c):
     for j, g in enumerate(SFX_GROUPS):
         c.set("game", "boot_sfx_groups", "u16", g, "sfx group id pushed at boot", offset=4 * j + 2)
 
-    # zlib 1.0.4's extra bits of the bit-length codes (extra_blbits, D_8011E974, int[19]: zlib's own constants), which
+    # zlib 1.0.4's extra bits of the bit-length codes (extra_blbits, extra_blbits, int[19]: zlib's own constants), which
     # only static_bl_desc points to: declared in zlib_deflate for the PC, so the loader converts them (BRINGUP.md 13).
-    c.set_all("game", "D_8011E974", "u32", [0] * 16 + [2, 3, 7], "zlib's extra_blbits")
+    c.set_all("game", "extra_blbits", "u32", [0] * 16 + [2, 3, 7], "zlib's extra_blbits")
 
     # The boot data's two static display lists (Gfx[], called from every frame's list): a list of zeros is a run of
     # no-ops that walks off its end on the N64 as on the PC, so each is just its end command.
@@ -1467,7 +1467,7 @@ def saves(c):
     # looks for a note of that name and extension player_file_ext_match before it (player_file_digits_format then makes digits for an
     # attempt's number). SaveServer reads the notes whose name starts with save_file_name_prefix's 8 characters, profiles those
     # whose extension's first character is player_file_ext_prefix's, ghosts the others. SaveGhost names a ghost's note
-    # ghost_file_name_format (the owner's note name, track + 1, D_801211EC backward or D_801211F0 forward), extension
+    # ghost_file_name_format (the owner's note name, track + 1, ghost_backward_suffix backward or ghost_forward_suffix forward), extension
     # ghost_file_ext. Zero (empty names) gave every note the same name.
     chars("player_file_prefix", SAVE_PREFIX, "a profile note's name prefix (CreatePlayer)")
     chars("save_file_name_prefix", SAVE_PREFIX, "the notes SaveServer reads: the same prefix")
@@ -1476,8 +1476,8 @@ def saves(c):
     chars("player_file_ext_prefix", PROFILE_EXT, "the extension SaveServer takes for a profile")
     chars("ghost_file_ext", GHOST_EXT, "a ghost note's extension (SaveGhost)")
     chars("ghost_file_name_format", GHOST_FORMAT, "a ghost note's name (SaveGhost's sprintf: char *, int, char *)")
-    chars("D_801211EC", GHOST_BACKWARD, "a backward ghost's direction letter")
-    chars("D_801211F0", GHOST_FORWARD, "a forward ghost's direction letter")
+    chars("ghost_backward_suffix", GHOST_BACKWARD, "a backward ghost's direction letter")
+    chars("ghost_forward_suffix", GHOST_FORWARD, "a forward ghost's direction letter")
     chars("player_file_digits_format", DIGITS_FORMAT, "CreatePlayer's attempt digits (sprintf: width, number)")
     # The developer's profile name (cheat_profile_name): ReadPlayerData, loading a profile of this name, makes the main
     # menu's cheat screen valid, sets cheat states 14-16, and sets gSaveGhostFiles, without which updateHighScoreScreen keeps
@@ -1499,16 +1499,16 @@ def saves(c):
     # static tables are initialized data, zero here: tr_static_init's loops shift by extra_dbits[code] - 7 and ran
     # off dist_code. zlib's own constants (RFC 1951's extra bits and code length order; trees.c's descriptors;
     # deflate.c's level 9), as extra_blbits in boot_and_sound.
-    c.set_all("game", "D_8011E888", "u32", [0] * 8 + [k // 4 for k in range(4, 24)] + [0],
+    c.set_all("game", "extra_lbits", "u32", [0] * 8 + [k // 4 for k in range(4, 24)] + [0],
               "zlib's extra_lbits (the length codes' extra bits)")
-    c.set_all("game", "D_8011E8FC", "u32", [max(0, k // 2 - 1) for k in range(30)],
+    c.set_all("game", "extra_dbits", "u32", [max(0, k // 2 - 1) for k in range(30)],
               "zlib's extra_dbits (the distance codes' extra bits)")
-    c.set_all("game", "D_8011E9C0", "u8", [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15],
+    c.set_all("game", "bl_order", "u8", [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15],
               "zlib's bl_order (the code length codes' order)")
-    for sym, tree, extra, base, elems, bits in (("D_8011E9D4", "D_801249F0", "D_8011E888", 257, 286, 15),
-                                                ("D_8011E9E8", "D_80124E70", "D_8011E8FC", 0, 30, 15),
-                                                ("D_8011E9FC", None, "D_8011E974", 0, 19, 7)):
-        why = f"zlib's {dict(D_8011E9D4='static_l_desc', D_8011E9E8='static_d_desc', D_8011E9FC='static_bl_desc')[sym]}"
+    for sym, tree, extra, base, elems, bits in (("static_l_desc", "static_ltree", "extra_lbits", 257, 286, 15),
+                                                ("static_d_desc", "static_dtree", "extra_dbits", 0, 30, 15),
+                                                ("static_bl_desc", None, "extra_blbits", 0, 19, 7)):
+        why = f"zlib's {dict(static_l_desc='static_l_desc', static_d_desc='static_d_desc', static_bl_desc='static_bl_desc')[sym]}"
         if tree:
             c.set("game", sym, "ptr", c.syms.addr(tree), f"{why}: its static tree")
         c.set("game", sym, "ptr", c.syms.addr(extra), f"{why}: its extra bits", offset=4)
@@ -1516,7 +1516,7 @@ def saves(c):
             c.set("game", sym, "u32", v, f"{why}: extra base, elements, max length" if k == 0 else "(same)",
                   offset=8 + 4 * k)
     for k, v in enumerate((32, 258, 258, 4096)):
-        c.set("game", "D_8011E838", "u16", v, "zlib's configuration_table[9] (good length, max lazy, nice length, "
+        c.set("game", "configuration_table", "u16", v, "zlib's configuration_table[9] (good length, max lazy, nice length, "
               "max chain): the level CompressGhost asks for" if k == 0 else "(same)", offset=8 * 9 + 2 * k)
 
     # The lap path: a ghost race (gRace 2) is three laps, and its ghost is kept only if the car finishes (GhostEnd,
@@ -1596,21 +1596,21 @@ def race(c):
     # its power-up slots, and writes all 16 136-byte records (Slot136): a size of 0 is a zero-size block, and the
     # writes go over the next blocks' headers.
     c.set("game", "gTargetStructSizes", "u8", 136, "category 5's record size (battle's power-up slots, Slot136)", index=5)
-    # The level objects' bodies (D_80118C10, f32[115]): 32 bytes a body (x min, x max, z max, z min, three more, the
+    # The level objects' bodies (BBoxCollInfo, f32[115]): 32 bytes a body (x min, x max, z max, z min, three more, the
     # mass at +0x1C), which CollisionReckon reads as f32 for a kind-4 object, then the static states of categories
     # 0-2. Declared u8[], they kept the ROM's byte order (docs/port/DATA.md 8): the generator refuses an f32 there,
     # and its last element past a shorter table.
-    c.set_all("game", "D_80118C10", "f32", [-3.0, 3.0, 3.0, -3.0, 0.0, 0.0, 0.0, 50.0],
+    c.set_all("game", "BBoxCollInfo", "f32", [-3.0, 3.0, 3.0, -3.0, 0.0, 0.0, 0.0, 50.0],
               "body 0: a 6 ft box of 50 slugs")
-    c.set("game", "D_80118C10", "f32", 0.0, "the bodies' and states' last element", index=114)
-    # The respawn records after FSCLS (D_801106C4: f32[3], then {s8 flag; f32 pos[3]} up to trackSpots, which
+    c.set("game", "BBoxCollInfo", "f32", 0.0, "the bodies' and states' last element", index=114)
+    # The respawn records after FSCLS (its f32[3], then {s8 flag; f32 pos[3]} up to trackSpots, which
     # init_camera_on_track reads by trackSpots's pointers, NULL here). As f32[] the flag was swapped with its pad
     # (docs/port/DATA.md 8): the generator refuses a byte there.
-    c.set("game", "D_801106C4", "u8", 1, "the first respawn record's flag", offset=0xC)
+    c.set("game", "FSCLS", "u8", 1, "the first respawn record's flag", offset=0xC)
 
     battle(c)
 
-    # The drones' update schedule (drone_sched, D_80120E74, Row3[12] of s16; update_drone_models): row r gives how
+    # The drones' update schedule (drone_sched, drone_sched, Row3[12] of s16; update_drone_models): row r gives how
     # many drones to update each model tick, ended by -1, where the walk goes back to the row's start. The race uses
     # row n for n drones, n + 7 with two humans or more (init_cars). With zeros it never meets -1 and walks
     # on through the tables after it, updating whatever cars their values say (gRace 2's car with no time step:
@@ -1618,7 +1618,7 @@ def race(c):
     # the 3- and 4-player races). Every row: all its drones every tick.
     for r in range(12):
         for k, v in enumerate((r if r < 7 else r - 7, -1, -1)):
-            c.set("game", "D_80120E74", "u16", v, "the drone schedule: row n and n + 7 are {n, -1}" if r == k == 0
+            c.set("game", "drone_sched", "u16", v, "the drone schedule: row n and n + 7 are {n, -1}" if r == k == 0
                   else "(same)", offset=6 * r + 2 * k)
 
     # The time limit of a gRace 2 race on tracks 0-5 (ghostRaceTimes, f32[6]; CalcRaceTime, 600 s for the others): the
@@ -1639,13 +1639,13 @@ def race(c):
     # the research puts at 0x801108D0.. inside steady_leg_duration (f32[], so the loader swaps them as words). One descriptor
     # for every car type: zero but for a mass, an engine inertia, four tire curves and the four tires' positions (x
     # forward: the wheelbase is front x - rear x). The tire curves are the two six-float records after the torque
-    # curve, D_8011F814[2][6] (front, rear: copy_tire_info copies six), which only these u32 fields reach: declared in
+    # curve, frontTire[2][6] (front, rear: copy_tire_info copies six), which only these u32 fields reach: declared in
     # car_resistance for the PC, so the loader swaps them as floats (BRINGUP.md 3). Every value 1.
     base = c.syms.addr("steady_leg_duration")
     desc, susp = 0x801108D0, 0x80110A00
-    curves = c.syms.addr("D_8011F814")
+    curves = c.syms.addr("frontTire")
     for i in range(12):
-        c.set("game", "D_8011F814", "f32", 1.0, "the tire curves (front, rear): every value 1" if i == 0 else "(same)",
+        c.set("game", "frontTire", "f32", 1.0, "the tire curves (front, rear): every value 1" if i == 0 else "(same)",
               index=i)
     c.set("game", "steady_leg_duration", "f32", 3000.0, "car descriptor: mass", offset=desc + 80 - base)
     c.set("game", "steady_leg_duration", "f32", 1.0, "car descriptor: engine inertia", offset=desc + 84 - base)
@@ -1726,10 +1726,10 @@ def car_tables(c):
     # (-x, y, 0) and (x, y, 0), StartWing their sound at height y. Its gap was one row, so the other twelve kept
     # the ROM's byte order (docs/port/DATA.md 8); the generator refuses a value outside the table.
     c.set_all("game", "wingOffsets", "f32", [3.0, 0.5, 0.0] * 13, "a car type's wings: half their span, their height")
-    # The rumble request's 36 rising thresholds (D_801163F8, s32[36]): UpdateModel counts how many the car's speed
+    # The rumble request's 36 rising thresholds (percentTable, s32[36]): UpdateModel counts how many the car's speed
     # passes, less 4, for the player's rumble. As one s32 the other 35 kept the ROM's byte order (DATA.md 8), which
     # the generator refuses. Small, so a moving car rumbles as with zeros (the rumble2p path's motors).
-    c.set_all("game", "D_801163F8", "u32", [2 * (i + 1) for i in range(36)], "a rumble threshold (speed, ft/s)")
+    c.set_all("game", "percentTable", "u32", [2 * (i + 1) for i in range(36)], "a rumble threshold (speed, ft/s)")
     # CalcMass, a car's mass in slugs (its weight is that x gravity): (gCarMass[type] + (carDurability[mass
     # option] - mass_durability_base + the pak's mass bonus) x mass_unit) x the tune's factor. 3000 lb is 93 slugs; the mass
     # options add nothing; one slug a unit.
@@ -1779,7 +1779,7 @@ def multiblit(c, sym, index, texname, x, y, w, h, func=None, image="game", animi
 
 def hud(c):
     """The race HUD (ShowHUD, ShowHUD: NewMultiBlit of the HUD set HudMultiBlit[8] and the race set
-    D_80114C58[89]). With zeros every blit has no texture and no size. Six of the HUD set's eight: a 48 x 12 panel
+    RaceMultiBlit[89]). With zeros every blit has no texture and no size. Six of the HUD set's eight: a 48 x 12 panel
     of the BUTTON texture top left, the digital speedometer (animSpeedText, which the 2D sprite pass calls every
     frame: gShowSpeed is option 5, 1 by default), whose digits go at speedPos (speedPos, s32 [windows][slot][2]),
     and the four players' crossbones (animBones, animBones, animid the player), which only deaths mode shows

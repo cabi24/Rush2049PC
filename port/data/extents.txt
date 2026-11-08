@@ -28,7 +28,7 @@ gJust 8        # the TB_SetJust pair (gJust), coins.c, controls.c, countdown.c, 
 blit_cache_tile 8        # s64, blit_load_texture.c (both copies)
 gDriveHulk 4        # s8[4], InitOptions.c
 gContStickRange 8        # s8[4][2] (gStickCal), InitControlSys.c
-D_8014A250 0x3030   # Car[6] of 0x808, init_cars.c
+model 0x3030   # Car[6] of 0x808, init_cars.c
 # Tables the code indexes past their declaration (tools/port/index_check.py, docs/port/SYNTH.md 3): the car tunes,
 # three 44-byte Tune44 records (CalcMass reads ((F2C *)&gTune_weight_scale)[tune], gTune_weight_scale being record 0's +4; the
 # declarations leave one record, and the other two kept the ROM's byte order).

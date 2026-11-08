@@ -10,7 +10,7 @@
  *    (osSendMesg game_thread_queue); then count++;
  *  - 2750 (frame-end request from the game thread's UpdateFrame): frame_end_requested = 0, EndGraphics
  *    (EndGraphics), toggle the frame record frame_record_index, pending++;
- *  - 2 (task done): toggle D_801161CC (function-local static, own .data), pending--.
+ *  - 2 (task done): toggle task_done_parity (function-local static, own .data), pending--.
  * Base: draft (case order 4, 1, 2750, 2 = retail body layout; volatile flags; function-local static).
  * levers (vbatch b1/b2 + trace): gfx_tasks_pending NOT volatile (address webs v1
  * every case); the pre-NMI and frame-end bodies are inlined helpers (MainPreNMI / MainEndFrame: invented names; with
@@ -76,7 +76,7 @@ void MainEndFrame(void)
 
 void process_scheduler_message(void)
 {
-    static s32 D_801161CC = 0;
+    static s32 task_done_parity = 0;
     s16 type;
     OSMesg msg = 0;
     intptr_t cur;
@@ -103,7 +103,7 @@ void process_scheduler_message(void)
         MainEndFrame();
         break;
     case 2:
-        D_801161CC ^= 1;
+        task_done_parity ^= 1;
         gfx_tasks_pending--;
         break;
     }

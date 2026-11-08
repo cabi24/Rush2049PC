@@ -34,7 +34,7 @@ extern Blit *pause_TitleBlit;                   /* TitleBlit */
 extern Blit *pause_PauseBlit;                   /* PauseBlit */
 extern Blit *pause_SureBlit;                   /* SureBlit */
 extern Blit *pause_RumbleBlit;                   /* RumbleBlit */
-extern const MultiBlit D_80117284, D_801172A8, D_801172CC, D_801172F0, D_80117314;
+extern const MultiBlit DimMultiBlit, TitleMultiBlit, PauseMultiBlit, SureMultiBlit, RumbleMultiBlit;
             /* DimMultiBlit, TitleMultiBlit, PauseMultiBlit, SureMultiBlit, RumbleMultiBlit */
 extern Pos pause_titlePos;                     /* titlePos */
 extern s8 pause_gYes;                      /* gYes */
@@ -77,7 +77,7 @@ void ps_updatePauseStateCreate(void)
 
     switch (gPauseState) {
     case 1:
-        if (!pause_DimBlit) pause_DimBlit = NewMultiBlit(0, 0, &D_80117284, 1);
+        if (!pause_DimBlit) pause_DimBlit = NewMultiBlit(0, 0, &DimMultiBlit, 1);
         pause_TitlePane();
         ps_SetFont(13);
         x = pause_titlePos.x;
@@ -89,8 +89,8 @@ void ps_updatePauseStateCreate(void)
             if (max < width) max = width;
         }
         InitPane(x - max / 2 - 8, y - 4, x + max / 2 + 8, y + 8 * TB_GetFontLineHeight() + 4, 176, 0, 0, 0);
-        pause_TitleBlit = NewMultiBlit(0, 0, &D_801172A8, 1);
-        pause_PauseBlit = NewMultiBlit(0, 0, &D_801172CC, 1);
+        pause_TitleBlit = NewMultiBlit(0, 0, &TitleMultiBlit, 1);
+        pause_PauseBlit = NewMultiBlit(0, 0, &PauseMultiBlit, 1);
         break;
     case 6:
         pause_gYes = 0;
@@ -108,8 +108,8 @@ void ps_updatePauseStateCreate(void)
             y = pause_gPlayerRects[gNumPlayers - 1][i].cy - TB_GetFontLineHeight();
             InitPane(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + 2 * TB_GetFontLineHeight() + 4, 176, 0, 0, 0);
         }
-        pause_TitleBlit = NewMultiBlit(0, 0, &D_801172A8, 1);
-        pause_RumbleBlit = NewMultiBlit(0, 0, &D_80117314, 1);
+        pause_TitleBlit = NewMultiBlit(0, 0, &TitleMultiBlit, 1);
+        pause_RumbleBlit = NewMultiBlit(0, 0, &RumbleMultiBlit, 1);
         break;
     case 7:
     case 8:
@@ -121,8 +121,8 @@ void ps_updatePauseStateCreate(void)
         ps_SetFont(10);
         width = HAL_GetTextWidth(gText.single[216], -1);
         InitPane(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + 2 * TB_GetFontLineHeight() + 4, 176, 0, 0, 0);
-        pause_TitleBlit = NewMultiBlit(0, 0, &D_801172A8, 1);
-        pause_SureBlit = NewMultiBlit(0, 0, &D_801172F0, 1);
+        pause_TitleBlit = NewMultiBlit(0, 0, &TitleMultiBlit, 1);
+        pause_SureBlit = NewMultiBlit(0, 0, &SureMultiBlit, 1);
         break;
     }
 }

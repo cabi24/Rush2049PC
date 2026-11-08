@@ -59,7 +59,7 @@ typedef struct { uint8_t doubly, n64; int32_t count, size; void *mem, *active, *
 #define NODES 0x8014D280u            /* gTargetArray, 130 nodes of 0x70 bytes in the game arena */
 #define NODE(i) ((uint8_t *)WP(NODES + 0x70u * (i)))
 ABS(gTargetArray, 0x8014D280);
-ABS(D_80118C10, 0x80118C10);         /* the dead-reckoning bodies (arena data) */
+ABS(BBoxCollInfo, 0x80118C10);         /* the dead-reckoning bodies (arena data) */
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[] (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
 #define HEAP 0x80300000u             /* the game heap (AllocateMemoryHeap), the track's records */
@@ -85,7 +85,7 @@ int32_t gRace, gRace, gPauseState, numCollisionTargetPtrs;
 int16_t gNumPlayers;
 volatile int16_t gNumCars;         /* the cars in the race (TargetCollTrigger's cars from 8 on) */
 volatile uint8_t gNumModels = 2;
-uint16_t gObjList[1024], D_80142A78, D_80142A7A;   /* textures: the camera record names 361 */
+uint16_t gObjList[1024], gObjList_trigger_on, gObjList_trigger_off;   /* textures: the camera record names 361 */
 float unitmatrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 float zero_velocity[3], velrot_gravity[3] = {0.0f, -0.25f, 0.0f}, unitmatrix_origin[3];
 float cactus_frame_time = 0.75f, fence_frame_time = 1.25f;

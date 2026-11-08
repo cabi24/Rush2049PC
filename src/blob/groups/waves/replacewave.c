@@ -18,9 +18,8 @@ typedef struct anon_loaded_ready_14 {
     unsigned char *lastPtr;
 } anon_loaded_ready_14;
 
-extern anon_loaded_ready_14 D_80156D38[64];  /* gWaveInstance */
+extern anon_loaded_ready_14 gWaveInstance[64];  /* gWaveInstance */
 extern s16 gRenderInProgress;
-#define gWaveInstance D_80156D38
 
 int FindWaveInstanceInternal(int waveNum, signed char handle);           /* _FindWaveInstance */
 void ValidateWaveInstance(int idx, int loaded, int ready);           /* _ValidateWaveInstance */

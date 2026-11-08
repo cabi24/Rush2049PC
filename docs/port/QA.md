@@ -93,7 +93,7 @@ without valid controls the default controls and 1, and the default player (no pa
 at full, a race with crashes turns the motor on, and through `--press-via controller` (input_check's virtual SDL
 controller) the motor reaches the controller: the log has it rumbling at full and at a pulsed, weaker strength,
 then stopping. At the default, the scripted crashes (into the side walls, at full speed too) left the motor off.
-That was not the game's own: the impact's 36 thresholds (`D_801163F8`) were loaded in the ROM's byte order, so
+That was not the game's own: the impact's 36 thresholds (`percentTable`) were loaded in the ROM's byte order, so
 nearly every impact stayed at the lowest levels. Main's loader sweep (ab7f592) loads them whole; round 5 below.
 
 ### Regression sweep, round 5

@@ -122,7 +122,7 @@ _Static_assert(sizeof(PakRecord) == 0x310, "the controller/pak record");
 #define GHOST_OF(h) ((struct ghost *)*(void **)(h))
 #define U32(p, o) (*(uint32_t *)((uint8_t *)(p) + (o)))
 #define F32(p, o) (*(float *)((uint8_t *)(p) + (o)))
-#define MODEL_F(o) (*(float *)&D_8014A250[0][o])
+#define MODEL_F(o) (*(float *)&model[0][o])
 
 /* ---------------------------------------------------------------- the game's code under test */
 
@@ -185,7 +185,7 @@ int32_t gScheduler[160];
 /* the file names' parts and formats (the test's own) */
 char cheat_profile_name[] = "CHEATS", player_file_prefix[9] = "RUSH2049", player_file_ext_match[] = "P", player_file_ext[] = "P",
      player_file_digits_format[] = "%0*d", save_file_name_prefix[] = "RUSH2049", player_file_ext_prefix[] = "P";
-char ghost_file_name_format[] = "%s%d%s", D_801211EC[] = "B", D_801211F0[] = "F", ghost_file_ext[] = "G";
+char ghost_file_name_format[] = "%s%d%s", ghost_backward_suffix[] = "B", ghost_forward_suffix[] = "F", ghost_file_ext[] = "G";
 void **gGhosts[4];                           /* gGhosts: the ghosts of a race */
 void *gMainHeap;                               /* the heap */
 int32_t heap_lock_msg;
@@ -197,7 +197,7 @@ float gRetraceTime = 1.0f / 60;                   /* gRetraceTime */
 volatile int8_t gEndingGhosts;
 int32_t gModelIteration;
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
-#define D_8014A250 ((uint8_t (*)[0x808])pc_models)
+#define model ((uint8_t (*)[0x808])pc_models)
 struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 int16_t gPickedPak;
 int8_t gCarHandling[13], gCarEngines[13], gCarTires[13], gCarFrame[13], gCarWings[13], car_color_choice_a[13],
@@ -653,14 +653,14 @@ static void test_ghost(void)
     h[GH_FLAG] = 1;
     gGhosts[0] = back;
     CHECK(GhostUpdate(0, &t) == 0 && t == F32(h, GH_TIME));
-    CHECK(U32(h, GH_OFFSET) == 1 && (int8_t)D_8014A250[0][0x730] == 2 && D_8014A250[0][0x732] == 1);
+    CHECK(U32(h, GH_OFFSET) == 1 && (int8_t)model[0][0x730] == 2 && model[0][0x732] == 1);
     CHECK(MODEL_F(0x720) == 1.0f && MODEL_F(0x72C) == 1.0f && MODEL_F(0x728) == 0.0f);   /* steer, gas, brake */
     for (i = 1; i < 4; i++)
         GhostUpdate(0, &t);
     CHECK(U32(h, GH_OFFSET) == 4);
     h[GH_FLAG] = (uint8_t)-1;                                    /* recording */
     U32(h, GH_OFFSET) = 2;
-    D_8014A250[0][0x730] = 4, D_8014A250[0][0x732] = 1, D_8014A250[0][0x731] = 0;
+    model[0][0x730] = 4, model[0][0x732] = 1, model[0][0x731] = 0;
     MODEL_F(0x720) = -1.0f, MODEL_F(0x72C) = 1.0f, MODEL_F(0x728) = 0.0f;
     GhostUpdate(0, &t);
     CHECK(h[GH_BYTES + 2] == (5 | 8) && (int8_t)h[GH_BYTES + 4 + 2] == -127 && h[GH_BYTES + 8 + 2] == 0xF0);

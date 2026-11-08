@@ -196,7 +196,6 @@ typedef struct config_s {
    ush max_chain;
 } config;
 
-#define configuration_table  D_8011E838
 extern config configuration_table[10];
 #define NIL 0
 extern void *AllocateMemoryHeap(voidpf opaque, uInt size);

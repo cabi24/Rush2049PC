@@ -633,7 +633,7 @@ over the next node's link, while the other views had the N64 one.
   `gTargetStructSizes[c]` bytes (ROM data), and of their views only the camera controller `CamCtl` (72 bytes) has a pointer,
   its scene (a PTHD record of the track WAD, which itself keeps its N64 layout: `link`, `keys`, `cur` u32). The
   dead-reckoning records `gBBoxModelStructs` (64 bytes, a heap block; `UpdateMiniModelStruct` strides by 64) keep their body, game
-  data at `D_80118C10 + 32 x value`, as a u32, in each view: `level_objects`' `Matrix64`, `TargetCollBBox`'s hit
+  data at `BBoxCollInfo + 32 x value`, as a u32, in each view: `level_objects`' `Matrix64`, `TargetCollBBox`'s hit
   test and the collision response `setMiniFBCollisionForce` (`Reckon`, `BODY`). The mine data, the debris physics, the cone's motion, the coin and
   battle mode's `Slot136` have no pointers.
 - `CollisionTargetPtrs`, the cameras with key paths, is pointer-sized already (`intptr_t[30]`, PROTOTYPES.md 5).
@@ -724,7 +724,7 @@ last column include main's work merged into this branch (10258ff).
 - **Needs the ROM:** that the static per-kind tables `gTargetStructInfoPtrs[c]` point to pointer-free game data in the arena
   (a node's state then holds their window address; if one were own storage, its u32 would lose the upper half: a
   `RUSH_CHECK_CASTS` build stops there, since `N64W` is `PC_N64W`); that `gTargetStructSizes`'s category sizes are what the
-  N64-layout views read (72 for the cameras); that the 122 info records end at `D_80118C10` and their fields have the
+  N64-layout views read (72 for the cameras); that the 122 info records end at `BBoxCollInfo` and their fields have the
   widths given in 10.1 (the loader swaps them so); that the scene, key and place records are the track WAD's; and the
   targets in a real race (cones, mines, coins, flags, the scripted cameras).
 - **The weapon icons** (`StartWeaponIcon`, `_AnimateWeaponIcon` = `AnimateWeaponIcon`) were only nonmatching drafts,

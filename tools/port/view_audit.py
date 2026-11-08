@@ -2,7 +2,7 @@
 """Check that every file's view of a record agrees with one host layout (DWARF of the PC build's objects).
 
     python3 tools/port/view_audit.py --build build/pc --symbols gGameCar,gGameCar --ref StartWeapon.c
-    python3 tools/port/view_audit.py --build build/pc --symbols D_8014A250 --size 0x808 --ref init_cars.c
+    python3 tools/port/view_audit.py --build build/pc --symbols model --size 0x808 --ref init_cars.c
 
 A record the game reaches through many struct declarations (the car array, the model array) needs one layout on
 the PC: each view's named fields must sit at the host offsets the storage has. The views are the element types

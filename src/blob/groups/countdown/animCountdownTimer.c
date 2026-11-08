@@ -25,7 +25,6 @@
  *    HAL_SetFont_Countdown share one source line (as1 line tie in the group compile, see ShowHUD).
  */
 #define sc gScheduler
-#define countdownTimerPos D_80115C68
 #define mapPos hud_mapPos
 #define gFontSem text_lock_queue
 

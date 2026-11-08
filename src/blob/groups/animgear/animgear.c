@@ -14,8 +14,6 @@
  * _ReleaseSemaphore_Gear and HAL_SetFont_Gear share one source line (as1 line tie in the group compile, see
  * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
  */
-#define model D_8014A250
-#define gearPos D_80115BE8
 #define gFontSem text_lock_queue
 
 typedef unsigned char u8;

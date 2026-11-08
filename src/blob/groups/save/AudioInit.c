@@ -5,7 +5,7 @@
  * ClearLL list-clear body; no alternate copy or stand-in is installed.
  *
  * Disclosed source-shape choices:
- * - A function-local `static s8 D_80110274 = 0` owns the existing initialized
+ * - A function-local `static s8 queueCreated = 0` owns the existing initialized
  *   once flag at 0x80110274. Its four-byte .data verification window is zero; the logical flag is one byte.
  * - The count passed to the existing s32 bit-scan helper is explicitly
  *   converted to u32; the function prototype is unchanged. This code-free
@@ -112,7 +112,7 @@ void sound_list_init(List *list, s8 indirect, s8 doubly) {
  * anything reads the arguments. The effects' share (arg1) is also the sound manager's gMaxSfx (gMaxSfx: its
  * budget is 3/4 of it), the fx tags' count and AudioSfxInit's entries; at original nothing changes. */
 void AudioInit(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6, s32 arg7) {
-    static s8 D_80110274 = 0;
+    static s8 queueCreated = 0;
     s32 i;
     s32 reinit;
 
@@ -129,8 +129,8 @@ void AudioInit(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6
     for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
         audiomgr_gCmds[i].active = 0;
     }
-    if (!D_80110274) {
-        D_80110274 = 1;
+    if (!queueCreated) {
+        queueCreated = 1;
         osCreateMesgQueue(&audio_lock_queue, audio_lock_msg, 1);
         osSendMesg(&audio_lock_queue, 0, 0);
     }

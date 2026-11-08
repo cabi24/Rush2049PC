@@ -168,12 +168,12 @@ extern u16 gObjList[];
 extern Ent ObjInstanceList[];
 extern Animation24 *gEnvList;
 extern f32 unitmatrix[];
-/* PC: D_80118C10 is ROM data the loader byte-swaps by its declaration, and every word of it is an f32: bodies of 32
+/* PC: BBoxCollInfo is ROM data the loader byte-swaps by its declaration, and every word of it is an f32: bodies of 32
  * bytes (CollisionReckon's Body in setMiniFBCollisionForce.c: the bounds, then mass at +0x1C), then the static state records
  * of categories 0-2 (gTargetStructInfoPtrs). As u8[] the floats stayed big-endian, so a kind-4 object's bounds and mass read as
  * about 0 (docs/port/DATA.md 8). The record address is still taken in bytes. */
-extern f32 D_80118C10[115];
-#define BODY_TABLE ((u8 *)D_80118C10)
+extern f32 BBoxCollInfo[115];
+#define BODY_TABLE ((u8 *)BBoxCollInfo)
 extern Vec3 zero_velocity;
 extern volatile u8 gNumModels;
 extern s32 gGoldCoinCnt;

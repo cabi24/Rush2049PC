@@ -3,7 +3,7 @@
  * index + PC_RESPAWN_BASE) and Resurrect (Resurrect, groups/resurrect/resurrect.c) offsets it from its start
  * point: places 0-5 from the start point by the table's rows, places 6-11 from the point of the resurrection path
  * their row's distance behind it (pc_grid_start). The table and the paths here are the test's own (pole_pos_offset is
- * D_801210E8 in the game, data the ROM fills; nothing of the ROM's is used): the table in two shapes, columns
+ * pole_pos_offset in the game, data the ROM fills; nothing of the ROM's is used): the table in two shapes, columns
  * staggered forward and rows shifted sideways every other row; the path straight, bent, too short, and through its
  * loop point. Checked: places 0-5 start at the start point with the table's rows, bit for bit, as on the N64; places
  * 6-11's rows continue each column parity two rows back by its two-row step; on a straight path they stand where the
@@ -29,8 +29,8 @@
 struct pc_model pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
-float D_801210E8[12][3];   /* pole_pos_offset: this test's own rows */
-float unitmatrix[3][3], D_80117360[4], resurrectTime;
+float pole_pos_offset[12][3];   /* pole_pos_offset: this test's own rows */
+float unitmatrix[3][3], res_last_time[4], resurrectTime;
 uint32_t gGameState;       /* gGameState: 8 the attract demo */
 int8_t gResurrectInPlace, gDeathMode;
 int16_t gNumPlayers, gNumLaps;
@@ -159,14 +159,14 @@ static int near(const float *a, float x, float y, float z)
 
 static void test_rows(const float table[12][3], const float want[6][3])
 {
-    memcpy(D_801210E8, table, sizeof D_801210E8);
+    memcpy(pole_pos_offset, table, sizeof pole_pos_offset);
     CHECK(PC_RESPAWN_BASE == 12 && PC_MAX_LINKS == 12);
     for (int p = 0; p < 6; p++)   /* the N64's grid, bit for bit */
-        CHECK(memcmp(pc_pole_row(p), D_801210E8[p], 12) == 0);
+        CHECK(memcmp(pc_pole_row(p), pole_pos_offset[p], 12) == 0);
     for (int p = 6; p < 12; p++)
         CHECK(memcmp(pc_pole_row(p), want[p - 6], 12) == 0);
     for (int s = 0; s < 4; s++)   /* a respawn: the table's own respawn row */
-        CHECK(pc_pole_row(PC_RESPAWN_BASE + s) == D_801210E8[6 + s]);
+        CHECK(pc_pole_row(PC_RESPAWN_BASE + s) == pole_pos_offset[6 + s]);
 }
 
 /* Init_MDrive for slots 0..n-1: slot 0 the human, at the back (a human's place is the drones' count plus its
@@ -205,7 +205,7 @@ static void test_straight(void)
     path(40, START, 0, 0);
     for (int t = 0; t < 2; t++) {
         const float (*table)[3] = t ? TABLE_B : TABLE_A, (*want)[3] = t ? WANT_B : WANT_A;
-        memcpy(D_801210E8, table, sizeof D_801210E8);
+        memcpy(pole_pos_offset, table, sizeof pole_pos_offset);
         place(12, 0, pos);
         for (int i = 0; i < 12; i++) {
             int p = place_of(i, 12);
@@ -222,7 +222,7 @@ static void test_straight(void)
         CHECK(m >= closest(table, 6) && m >= CAR_LENGTH);
     }
     /* Six cars: the N64's grid, the human at place 5. */
-    memcpy(D_801210E8, TABLE_A, sizeof D_801210E8);
+    memcpy(pole_pos_offset, TABLE_A, sizeof pole_pos_offset);
     place(6, 0, pos);
     for (int i = 0; i < 6; i++)
         CHECK(memcmp(MF(i, POS), g_start, 12) == 0 && memcmp(MF(i, OFFSET), TABLE_A[place_of(i, 6)], 12) == 0);
@@ -231,7 +231,7 @@ static void test_straight(void)
 static void test_bent(void)
 {
     float pos[12][3];
-    memcpy(D_801210E8, TABLE_A, sizeof D_801210E8);
+    memcpy(pole_pos_offset, TABLE_A, sizeof pole_pos_offset);
     gRace = 0;
     gGameState = 0;
     /* The path turns 90 degrees 30 ft behind the start: before point 17 it comes along +x. Place 6 is 75 ft back:
@@ -270,7 +270,7 @@ static void test_road_ends(void)
 {
     float pos[12][3];
     static const float side[5][3] = {{-21, 0, 0}, {21, 0, -10}, {-21, 0, -25}, {21, 0, -35}, {-21, 0, -50}};
-    memcpy(D_801210E8, TABLE_A, sizeof D_801210E8);
+    memcpy(pole_pos_offset, TABLE_A, sizeof pole_pos_offset);
     gRace = 0;
     gGameState = 0;
     path(40, START, 0, 0);
@@ -304,7 +304,7 @@ static void test_road_ends(void)
 static void test_demo_and_respawns(void)
 {
     float pos[12][3];
-    memcpy(D_801210E8, TABLE_A, sizeof D_801210E8);
+    memcpy(pole_pos_offset, TABLE_A, sizeof pole_pos_offset);
     path(40, START, 0, START - 3);
     /* The attract demo starts each car on its own drone path: straight rows from its start point. (It also reads its
      * drone path's speed at the start checkpoint: gDronePaths[0], tDronePath {u16 numPts; tDronePt *pts;}.) */

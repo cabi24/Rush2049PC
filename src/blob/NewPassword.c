@@ -29,10 +29,10 @@ extern char *gPasswordAlphabet;
 
 s32 NewPassword(u32 a, u32 b)
 {
-    static s32 D_801170F8 = 1;
+    static s32 first = 1;
     s32 i;
-    if (D_801170F8) {
-        D_801170F8 = 0;
+    if (first) {
+        first = 0;
         for (i = 0; i < 32; i++) {
             gInversePasswordAlphabet[gPasswordAlphabet[i]] = i;
         }

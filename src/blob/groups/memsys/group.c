@@ -267,10 +267,10 @@ void locate_main_heap(void)
 
 void InitMemory(u16 count, u16 a)
 {
-    static s8 D_80116488 = 0;
+    static s8 heap_lock_created = 0;
 
-    if (D_80116488 == 0) {
-        D_80116488 = 1;
+    if (heap_lock_created == 0) {
+        heap_lock_created = 1;
         osCreateMesgQueue(heap_lock_queue, &heap_lock_msg, 1);
         osSendMesg(heap_lock_queue, 0, 0);
     }

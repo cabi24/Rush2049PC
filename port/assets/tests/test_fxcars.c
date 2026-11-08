@@ -80,7 +80,7 @@ int16_t gNumPlayers = 1, gBlastMatCnt, gObjList_smoke_lite, gObjList_fire;
 int32_t gPauseState, rand_seed = 1, start_water_sentinel, gGameState;
 uint8_t gNumModels = 1;
 volatile float gFrameSeconds = 1.0f / 60;
-float gModelTime, resurrectTime = 1.0f, gCarMiddles[13], unitmatrix[4][3], skid_lift = 0.8f, D_80123C0C = 0.1f;
+float gModelTime, resurrectTime = 1.0f, gCarMiddles[13], unitmatrix[4][3], skid_lift = 0.8f, skid_min_length_sq = 0.1f;
 float gSeconds[4], gDummyVtx[16];
 uint16_t gFireTexs[6], gObjList_smoke[2][9], gObjList_water[8], gObjList[200], gTexList_skid;
 char *FireTexNames[6];

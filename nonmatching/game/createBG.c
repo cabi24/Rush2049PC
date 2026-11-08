@@ -2,7 +2,7 @@
 /*
  * createBG (historical label) = GC createBG@front.c (MAT3 front.c createBG, GC 0x80013C00, size 0x220):
  * builds the four scrolling menu-background polys.
- * : D_801391E4 (only this function references it) is a function-local static (N64 BG_DIST source, an int 1025
+ * : bgDist (only this function references it) is a function-local static (N64 BG_DIST source, an int 1025
  * converted to float; GC #define BG_DIST 16777000.0f). Unit: 51 of 183 words differ (best: 65). Residual: as1
  * order of the static store vs `sw ra`, and the ugen temp ring two registers behind retail from the gBackCamera load
  * on. NOT a match.
@@ -72,28 +72,28 @@ void ZOID_ShowPoly_bg(Poly *poly)
 
 void createBG(void)
 {
-    static s32 D_801391E4;
+    static s32 bgDist;
     s32 polyIdx;
     f32 polyVerts[4][3];
     u16 texIdx;
 
-    D_801391E4 = 1025;
+    bgDist = 1025;
     for (polyIdx = 0; polyIdx < 4; polyIdx++) {
         Color backColor = { { 0x00, 0x00, 0xC0, 0xFF } };
 
         bg_texture = MBOX_FindTexture_WORK("BACKGROUND_SFX", &texIdx, 0, gNumModels - 1, 1);
-        polyVerts[0][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxX;
-        polyVerts[0][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxY;
-        polyVerts[0][2] = (f32)D_801391E4;
-        polyVerts[1][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minX;
-        polyVerts[1][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxY;
-        polyVerts[1][2] = (f32)D_801391E4;
-        polyVerts[2][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minX;
-        polyVerts[2][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minY;
-        polyVerts[2][2] = (f32)D_801391E4;
-        polyVerts[3][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxX;
-        polyVerts[3][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minY;
-        polyVerts[3][2] = (f32)D_801391E4;
+        polyVerts[0][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxX;
+        polyVerts[0][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxY;
+        polyVerts[0][2] = (f32)bgDist;
+        polyVerts[1][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minX;
+        polyVerts[1][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxY;
+        polyVerts[1][2] = (f32)bgDist;
+        polyVerts[2][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minX;
+        polyVerts[2][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minY;
+        polyVerts[2][2] = (f32)bgDist;
+        polyVerts[3][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxX;
+        polyVerts[3][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minY;
+        polyVerts[3][2] = (f32)bgDist;
         backPolys[polyIdx] = ZOID_NewPoly(4, polyVerts, texIdx, &backColor,
                                             gBackCamera[gNumWindows - 1][polyIdx] | 0x1210, 1);
         ZOID_ShowPoly_bg(backPolys[polyIdx]);

@@ -6,7 +6,7 @@
  * scaled by 127/90 for the 2-player halves, by 0.95 for the 3/4-player quarters), then fills the pane's
  * s16 rect {x, y, w, h} from the screen size screen_width/screen_height and binds entry k of the 72-byte view
  * table ZoidWinInfo to (vp, rect). gSplitScreen = layout id (0 full, 1 halves, 2 quarters), returned.
- * Case 1 is the same code as the matched sibling func_800A5A40.
+ * Case 1 is the same code as the matched sibling ZOID_ResetWindows.
  *
  * Source-form notes:
  * - INTEGRATION: the helper is non-static and must be internal in the shadow unit (unit_overrides

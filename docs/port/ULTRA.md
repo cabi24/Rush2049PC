@@ -234,7 +234,7 @@ the game saves only to the controller pak.
   for player 2: UpdateModel sets each player's rumble request (`gPaks_rumble_request`, at the PC stride) from the impact,
   scaled by the player's own rumble setting (its profile's byte 0x2B: 0 none, 1 weaker, 2 full), and the default
   player has 1 (the profile check, `CheckAndRepairPlayer`, gives a profile without valid controls the default
-  controls and 1): four steps off the impact's level. While the impact's thresholds (`D_801163F8`) loaded in the
+  controls and 1): four steps off the impact's level. While the impact's thresholds (`percentTable`) loaded in the
   ROM's byte order the scripted crashes stayed under that; with them loaded whole (ab7f592) a retail race's crashes
   turn the motor on at the default as at full (the player screen's controls, the rumble row), at strengths that
   follow the impact, and it reaches the controller (QA.md, rounds 4 and 5). The synthetic race's data turns both

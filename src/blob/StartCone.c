@@ -15,7 +15,7 @@
  * draft 145/165 -> 147/165 -> MATCH. Levers:
  *  - `vel = t->motion->vel;` computed from the target directly, BEFORE `angV = t->motion;` (147 -> 51 words;
  *    with vel derived from angV uopt folds the three vel stores into angV+12 offsets and tInfo loses t0);
- *  - the lap-flag helper takes the record pointer (`Flag1600(&D_8014A250[car])`), not the car index (-> 28);
+ *  - the lap-flag helper takes the record pointer (`Flag1600(&model[car])`), not the car index (-> 28);
  *  - tVisual stores in retail order index, func, data, timeStamp (-> 19);
  *  - angular-velocity stores in GC order 0, 12, 15 (FP ring $f16/$f18 as retail; -> 11);
  *  - GrabEnvEntry/AddToEnvList NOT helpers (GC calls them, N64 retail inlines/calls directly): only one

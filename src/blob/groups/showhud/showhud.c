@@ -57,7 +57,7 @@ extern s8 expansion_pak_present;
 extern s8 gTrackNum;
 extern s16 gNumWindows;
 extern s32 gRace;
-extern MultiBlit OverlayMultiBlit[], TwoPlayerMultiBlit[], ThreePlayerMultiBlit[], D_80114C58[], HudMultiBlit[];
+extern MultiBlit OverlayMultiBlit[], TwoPlayerMultiBlit[], ThreePlayerMultiBlit[], RaceMultiBlit[], HudMultiBlit[];
 extern s16 markers_valid;
 extern s32 gShowCredits;
 extern s32 gCredit;
@@ -87,7 +87,7 @@ extern u32 HAL_GetTextWidth(void *, s16);
 extern f32 Random(f32);
 
 /* PC: the race set with a minimap dot and a radar blip for each car past the N64's 8 (docs/port/MORECARS.md 7). The
- * set (D_80114C58, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, animDot: AnimID
+ * set (RaceMultiBlit, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, animDot: AnimID
  * the entry) and, for each of the 4 viewers, a blip for each of car slots 0-7 (AnimateTraffic, animRadarBlip: AnimID
  * bits 8-11 the viewer, 0-3 the slot), each run of them ending at 7. With more than 8 cars the humans, last in the
  * HUD order, had no dot, and slots 8-11 no blip. So a race of more than 8 cars gets a copy of the set, made at run
@@ -106,7 +106,7 @@ static void pc_hud_race_build(void)
     s32 cars = PC_RACE_CARS, i, k, n = 0;
 
     for (i = 0; i < PC_HUD_RACE_ROM; i++) {
-        const MultiBlit *e = &D_80114C58[i];
+        const MultiBlit *e = &RaceMultiBlit[i];
         pc_hud_race[n++] = *e;
         if ((e->animfunc == animDot || e->animfunc == animRadarBlip) && (e->animid & 0xF) == 7) {
             for (k = 8; k < cars && n < PC_HUD_RACE_MAX - (PC_HUD_RACE_ROM - 1 - i); k++) {
@@ -122,7 +122,7 @@ static void pc_hud_race_build(void)
 static const MultiBlit *pc_hud_race_set(void)
 {
     if (PC_RACE_CARS <= 8) {
-        return D_80114C58;
+        return RaceMultiBlit;
     }
     pc_hud_race_build();
     return pc_hud_race;

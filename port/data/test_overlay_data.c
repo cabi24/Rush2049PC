@@ -49,7 +49,7 @@ void ZOID_UpdateObject(int16_t obj, float *pos, int32_t a) {}
 void ZOID_SetTexture(int16_t obj, void *tex, int32_t a) {}
 void ZOID_SetColor(int16_t obj, void *clr) {}
 void ZOID_SetObjectDef(int16_t obj, int32_t def) {}
-void func_8009EA68(float a, float *uvs) {}
+void RollUV(float a, float *uvs) {}
 void CopyUV(float *src, float *dst) {}
 void MBOX_HideObject(int32_t obj, int32_t a, uint32_t mask) {}
 void MBOX_ShowObject(int32_t obj, int32_t a, uint32_t mask) {}

@@ -14,7 +14,7 @@
  *
  * Shaping (each one measured in the whole-program unit):
  *  - the model pointer goes through an integer cast, (Model *)((u32)D_8014A250 + ...): with
- *    &D_8014A250[index] ugen emits `.noalias $4,$sp` and as1 hoists the m->next_cp reloads and the
+ *    &model[index] ugen emits `.noalias $4,$sp` and as1 hoists the m->next_cp reloads and the
  *    m->side store across the diff[] stack stores (57 -> 28 words);
  *  - calling PlayGameSound instead of an open-coded `if (gGameSoundsEnabled) AudPlayEffect(...)`:
  *    gives the argument set-up before the test, `li a3,1` and the inverted branch, and also

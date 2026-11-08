@@ -143,7 +143,7 @@ noted.
 | `D_80153F88` (drone heading, f32[3]) | 0x80153F88, 72 B | 6 | `maxpath/group.c:444-563` (`AvoidAreas`) | `num_humans`: a 7th drone set the human count to a float's high half, and the model thread walked 16,076 input records (the spike's second crash) | static, UBSan, crash |
 | `D_80154138` (drone saved heading, f32[3]) | 0x80154138, 72 B | 6 | `maxpath/group.c:549-563` | `current_drone` (the drone the camera selected) | static, UBSan |
 | **Checkpoints, places, results** | | | | | |
-| `D_80152218` (last position, f32[3]) | 0x80152218, 72 B | 6 | `car_checkpoints_CheckCPs.c:132` (CheckCPs); set at the race's start by `InitCPTime.c:3822-3824` (a 12-byte m2c stride, for `gNumActiveCars` cars) | `D_80152260` (`uch[512]`) | static, UBSan |
+| `D_80152218` (last position, f32[3]) | 0x80152218, 72 B | 6 | `car_checkpoints_CheckCPs.c:132` (CheckCPs); set at the race's start by `InitCPTime.c:3822-3824` (a 12-byte m2c stride, for `gNumActiveCars` cars) | `dist_code` (`uch[512]`) | static, UBSan |
 | `D_801527E8` (distance to the checkpoint plane) | 0x801527E8, 24 B | 6 | `car_checkpoints_CheckCPs.c:155, 160` | `gFirstLapDistance` | static, UBSan |
 | `dot_order_list` (the HUD's car order: humans last) | 0x80142DB4, 12 B | 12 by the gap; cleared for 6 (`hud_updateFrame.c:91-93`), filled for `gNumActiveCars` (`:95-117`) | read by the minimap dots (`animDot.c:135`, `id & 0xf`) | `gPrevUnlockedFrames`. Enough for 12; the clear loop wants N | static, ASan (its function's local) |
 | **Effects** | | | | | |
@@ -201,7 +201,7 @@ humans have (`StartEnvironment.c:149`).
 | `D_80120E74` (`drone_sched`) | `Row3[12]`, 3 s16 a row | how many drones `update_drone_models` updates per model iteration, until -1: rows 0-6 for 0-6 drones with one human, rows 7-11 for 0-4 drones with two or more (`init_cars.c:371-373`: `num_our_drones`, + 7) | `update_model/group.c:4031-4035` | 7-11 drones with one human read the two-human rows; with two humans, rows 14-18 are past the table (the spike's UBSan: rows 12 and 17). Needs PC rows, or a rule |
 | `gCircuitPoints` (circuit points by place) | `u32[6]` | the circuit's points table | `ContinueCircuit.c:154`, `SetCircuitCode.c:84-85` | places 7-12 have no points (section 7) |
 | `gCarWings_players` | s8, 55 B by the gap, zero in the ROM | the smoke colour choice, `[slot * 13 + car type]` | `StartSmoke.c:426-432` | 13 bytes a slot: slots 4-11 read past the gap |
-| the HUD's MultiBlit tables (`D_80114C58`, `HudMultiBlit`) | the HUD's blits | 8 minimap dots and 8 radar icons per viewer | `showhud/showhud.c:126-128`; `animDot.c`, `animRadarBlip.c` | section 7 |
+| the HUD's MultiBlit tables (`RaceMultiBlit`, `HudMultiBlit`) | the HUD's blits | 8 minimap dots and 8 radar icons per viewer | `showhud/showhud.c:126-128`; `animDot.c`, `animRadarBlip.c` | section 7 |
 
 **Item 1d, the effects (done: [DECOUPLE.md](DECOUPLE.md) 6).** The seven effects arrays of 2.3 are PC data with
 `PC_MAX_LINKS` entries; none needed a window address, and their two loops of 3.1 (`InitSmoke.c:81`,
@@ -214,7 +214,7 @@ the trails' colour comes from the wing's animator with one player), with any num
 ### 2.7 What must keep a window address
 
 A per-car array can't simply move to PC storage when something stores its address as a 32-bit N64 address. The
-spike moved the matrix pool `D_8015F740` out of the window to grow it, and every path faulted in its first race frame
+spike moved the matrix pool `gMatrices` out of the window to grow it, and every path faulted in its first race frame
 in `SkyUpdate` (`SkyUpdate.c:3804-3822`: `skyMatrices` holds each window's camera matrix as
 a u32; `InitBlast.c`'s 50 blast matrices from the same pool are s32 on the N64 and already pointers on the
 PC, `InitBlast.c:3813-3817`). The other arrays of 2.3 moved out of the window in the spike without a fault on
@@ -369,7 +369,7 @@ the start), facing the path (in battle and stunt each player's own start record 
 battle, stunt or obstacle, or the car is a drone with `polepos >= 6`. The grid is the table, not the track: one start
 point per track, six offsets from it.
 
-**The table.** `D_801210E8`, `f32[12][3]`, game data. Rows 0-5 are the grid: in the retail cartridge, two columns
+**The table.** `pole_pos_offset`, `f32[12][3]`, game data. Rows 0-5 are the grid: in the retail cartridge, two columns
 staggered over three rows, a few car lengths deep. Rows 6-9 are where the four humans respawn
 (`resurrect.c:628-636`, `pole_pos_offset[slot + 6]`, row 6 in a ghost race): offsets along one line across the road,
 none behind. Rows 10 and 11 are read by nothing. (The GameCube's copy of the table has the same twelve rows; its
@@ -385,7 +385,7 @@ apart by the collision; in the race UBSan reports a car's engine speed of about 
 **What places 6-11 need.**
 - Six more grid rows: two columns staggered as rows 0-5 are, continuing backwards (rows 3-5 of the grid in the same
   spacing). A PC table, `pc_pole_offsets[PC_MAX_LINKS][3]`, whose first six rows are the ROM's (read from
-  `D_801210E8` at startup, so nothing is copied into the build) and whose rows 6-11 are computed from rows 4 and 5
+  `pole_pos_offset` at startup, so nothing is copied into the build) and whose rows 6-11 are computed from rows 4 and 5
   (the last row's columns, one row spacing further back each two places).
 - A respawn coding that isn't a place: `multiinit_n64`'s `index + 6` and `Resurrect`'s `polepos >= 6` become
   `index + PC_RESPAWN_BASE` and `polepos >= PC_RESPAWN_BASE` with the base 12 (or a flag), and the respawn rows stay
@@ -404,7 +404,7 @@ apart by the collision; in the race UBSan reports a car's engine speed of about 
 | The respawn coding | `PC_RESPAWN_BASE` (`port/include/pc_game_types.h`: `PC_MAX_LINKS`, 12); `init_mdrive/group.c` (multiinit), `resurrect.c` (Resurrect's start branch) |
 | The test | `assets_grid` (`port/assets/tests/test_grid.c`) |
 
-**The rows.** `pc_pole_row(place)`: places 0-5 are the loaded table's rows (`D_801210E8`, read each time a car is
+**The rows.** `pc_pole_row(place)`: places 0-5 are the loaded table's rows (`pole_pos_offset`, read each time a car is
 placed, so the build holds none of its values); each place from 6 on continues the places of its column parity two
 grid rows before it by the table's own two-row step:
 
@@ -540,7 +540,7 @@ players) refuse nothing: every drone's two engine layers play (22, 20 in split s
 | the finishing place on the results | `drawRaceStandings` (`gameoverscr_draw/results_table.c:287`): `strings[indices->cars + place]` | the text bank's six ordinals, first to sixth | the entries after the sixth hold an ordinal suffix alone (read on the retail cartridge with gdb): place 7 would show a suffix with no number. Fix: compose the number and the bank's suffix entry (read in the bank's first section; the others not looked at), or PC strings |
 | the race standings' rows | `drawRaceStandings`: `rows = gNumPlayers + 1` (line 213) | the players only | the same: unaffected |
 | stunt and battle standings | `drawBattleStandings`, `drawStuntStandings`: `rows = gNumActiveCars + 1` (lines 308, 391) | | no drones in those modes |
-| the minimap's dots | `animDot.c`: a dot blit per entry of the HUD order `dot_order_list` (`id & 0xf`), the order from `hud_updateFrame` (humans last, at the top entries) | the HUD has 8 dots (blits with AnimID 0-7, counted on the retail cartridge with gdb) | entries 8-11 have no dot; since the humans take the last entries, a 12-car race shows the drones' dots and not the player's (seen). Fix: 4 more dot blits. The HUD's blits come from the MultiBlit tables ShowHUD creates (`showhud/showhud.c:126-128`: `D_80114C58`, 89 entries, and `HudMultiBlit`, 8), ROM data: the PC adds its entries after them |
+| the minimap's dots | `animDot.c`: a dot blit per entry of the HUD order `dot_order_list` (`id & 0xf`), the order from `hud_updateFrame` (humans last, at the top entries) | the HUD has 8 dots (blits with AnimID 0-7, counted on the retail cartridge with gdb) | entries 8-11 have no dot; since the humans take the last entries, a 12-car race shows the drones' dots and not the player's (seen). Fix: 4 more dot blits. The HUD's blits come from the MultiBlit tables ShowHUD creates (`showhud/showhud.c:126-128`: `RaceMultiBlit`, 89 entries, and `HudMultiBlit`, 8), ROM data: the PC adds its entries after them |
 | the radar | `animRadarBlip.c` (AnimateTraffic): a blit per viewer and car slot (AnimID bits 8-11 viewer, 0-3 slot) | 8 per viewer in the HUD set (counted the same way) | slots 8-11 have none. Same fix |
 | the wrong-way, lap and timer texts | `gr3_*.c` | per window | unaffected |
 | the camera's car cycling | the attract demo follows car `attractSlot`, wrapping at 6 (`fake_init.c:64-69`); the ghost mode's "bump target" wraps at `gNumCars` (`CheckCameraView.c:172-183`) | | the demo wraps at N |
@@ -642,7 +642,7 @@ its own. The pools do: each was measured with the spike's high-water marks at "s
 
 | Pool | Size | 6 cars | 12 cars | Overflow detected? |
 |---|---|---|---|---|
-| the persistent matrices (`ZOID_NewMatrix` = GetMatrix: scene nodes and blasts take one each, `D_8015F740`, 48 B) | 0x8015F740-0x80161360: 150 (index 0 unused). The tables give `D_8015F740` 2,240 B because the image tables name addresses inside it (`gAudioChannelState` 0x80160000, `gTorqueCurveStandard` 0x80160800 ...) that no C uses; a 6-car race's matrices run over them | 130 (retail), 127 (synthetic) | 202 (8 cars: 154) | no: GetMatrix has no limit (`ZOID_NewMatrix.c:3812-3825`); past 149 it writes the options and the sprite count after `stunt_okToStart`, which crashed the synthetic 12-car race. About 12 matrices a car. Must stay in the window (2.7) |
+| the persistent matrices (`ZOID_NewMatrix` = GetMatrix: scene nodes and blasts take one each, `gMatrices`, 48 B) | 0x8015F740-0x80161360: 150 (index 0 unused). The tables give `gMatrices` 2,240 B because the image tables name addresses inside it (`gAudioChannelState` 0x80160000, `gTorqueCurveStandard` 0x80160800 ...) that no C uses; a 6-car race's matrices run over them | 130 (retail), 127 (synthetic) | 202 (8 cars: 154) | no: GetMatrix has no limit (`ZOID_NewMatrix.c:3812-3825`); past 149 it writes the options and the sprite count after `stunt_okToStart`, which crashed the synthetic 12-car race. About 12 matrices a car. Must stay in the window (2.7) |
 | the frame's matrices (`frame_matrix_cursor`, from +1,728 of the frame buffer to its display list at +0x9CC0, 64 B) | 600 | 206 (one view), 418 (two) | 240, 486 | no |
 | the frame's display list (`glist`, `Gfx[4000]`) | 4,000 commands; on the PC 16 B each in `pc_frame_dl` (`initgraphics/initgfx.c:53`) | 1,767 (one view), 3,485 (two) | 1,915, **4,093** | no: the SDK's `glistp > &dynamicp->glist[GLIST_LEN]` check is compiled out (`EndGraphics.c:128`, an empty `if`). A two-player 12-car race on track 0 writes past the frame buffer; `pc_frame_dl` is game C data, which ASan doesn't guard (SANITIZE.md 1.3) |
 | sprites (`gBlitInstanceList[200]`, `ZOID_AddBlit`) | 200 | 102 | 102 | yes: the allocator returns -1 at 200 |
@@ -668,7 +668,7 @@ more matrices, which is what the spike used.
 
 | Pool | N64 | PC | Past its end |
 |---|---|---|---|
-| persistent matrices (GetMatrix, `ZOID_NewMatrix.c`) | 150 at `D_8015F740` (0x8015F740-0x80161360), index 0 unused; no limit | the same 150 at their N64 addresses, then 128 more in `pc_matrix_spill` (0x8014A250-0x8014BA50, 6,144 B, in the window: 2.7): indexes 1-277 | said; the last matrix handed out again |
+| persistent matrices (GetMatrix, `ZOID_NewMatrix.c`) | 150 at `gMatrices` (0x8015F740-0x80161360), index 0 unused; no limit | the same 150 at their N64 addresses, then 128 more in `pc_matrix_spill` (0x8014A250-0x8014BA50, 6,144 B, in the window: 2.7): indexes 1-277 | said; the last matrix handed out again |
 | scene nodes (`ZOID_AddObject`, `ObjInstanceList`) | 600; no limit (a 601st is written past the table) | 600 (`PC_SCENE_NODES`) | said; the last node handed out again, the count kept at 600 |
 | the frame's lookats (`GfxBuf.la[32]` at +0x280 of the frame's buffer, `frame_lookat_count`) | 32; no limit (past it: the identity, then the frame's matrices) | 32 (`PC_FRAME_LOOKATS`) | said, at the frame's end |
 | the frame's matrices (`frame_matrix_cursor`, from +1,728) | 600 (to +0x9CC0) | 1,200 (`PC_FRAME_MATRICES`, to `PC_GLIST_OFFSET` = +78,528) | said, at the frame's end |

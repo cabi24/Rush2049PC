@@ -8,7 +8,7 @@
  * the race clock when all humans are locked, then calls PlaceUnlockedCars (places of the unlocked cars).
  * The human count test compares &model[index] with the address 0x8014A250 through a web that is NOT
  * the model array base used for indexing (retail materialises lui/addiu in the loop instead of using
- * s0): every spelling on `D_8014A250` itself is commoned with the base. A second symbol for the same
+ * s0): every spelling on `model` itself is commoned with the base. A second symbol for the same
  * address reproduces all 221 words.
  * Quirks: place[7] (frame), scores before ftemp; the final loop indexes place[i] directly.
  */

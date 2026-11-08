@@ -116,7 +116,7 @@ window symbols were tentatively defined in eleven game files. They are declarati
 - blit_cache_tile
 - gDriveHulk
 - gContStickRange
-- D_8014A250
+- model
 
 A new one shows up as a link error, `relocation truncated to fit: IMAGE_REL_AMD64_REL32 against symbol 'D_...'
 defined in *ABS* section`, and gets the same fix.

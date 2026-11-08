@@ -387,7 +387,7 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } ModelRecord;
-extern ModelRecord D_8014A250; /* 0x8014A250, offsets 0x7C6,0x7E8 */
+extern ModelRecord model; /* 0x8014A250, offsets 0x7C6,0x7E8 */
 
 typedef struct {
     u8 pad00[0x0C];

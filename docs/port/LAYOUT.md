@@ -106,7 +106,7 @@ the merge, each of those fixes, and section 4.4's, was reverted the same way:
 |---|---|
 | the audio manager's records (SYNTH.md 3, item 2: the fx tag and sorted-tag allocations, the command table's step, the views) | 40 open findings, 27 of them 4 or 5: e.g. `Record` (record_score), `Entity` (entity_lookup, entity_helpers, transform) and `ResEntry` off `tFxSequence`; `Event` and `Node16` off the sequence tag, and an index `* 60` over its pool; `Msg` off `tAudioMsg`; `Slot18[]`, `Slot24[]` and `ShutdownMsg[]` indexes of the command's N64 size; `CamSlot` off `Source` |
 | CollideCarBody's `VCar` | `D_8014A250`: host +0x3A0 read as 8 bytes and as 4 (score 4: the reference has bytes there; `VCar` against the model's other views) |
-| `enginetorque`, `transmission`, `calcaa` | `D_8014A250`: three 8-byte pointers where the reference has the u32 `car` and `parameters` (5); `EngineState` off the reference at 3 positions (5) |
+| `enginetorque`, `transmission`, `calcaa` | `model`: three 8-byte pointers where the reference has the u32 `car` and `parameters` (5); `EngineState` off the reference at 3 positions (5) |
 | `OrderFx`, the sorted-tag order | the sorted-tag pool: a 4-byte read inside a node's link (5). The order is only called through the tree's function pointer; it read the tag at the node's +8, which is its right link on the PC, so the tag's priority was read from another node |
 | AnimateBrakeLights's `In` (section 4.4) | `gGameCar`: `In` gives other N64 positions than the car (4) |
 

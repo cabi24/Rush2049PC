@@ -211,11 +211,11 @@ the same `T *`, `x` the same lvalue), as 2.2's second names do.
 | `src/blob/InitBlast.c` | `gBlastObjs` | `s32 []` | `s32` | five words of a record, by a byte pointer |
 | `src/blob/ZOID_SetObjectParent.c`, `groups/targetpaths/group.c` | `ObjInstanceList` | `s32 []` | `s32` | the 0x44-byte nodes' fields |
 | `src/blob/InitWingSmoke.c` | `gCarSmokeDir` | `s32 []` + macro | `s32` | `&(&gCarSmokeDir)[i]`, twice |
-| `src/blob/update_reckon_base.c`, `End_MDrive.c` | `D_8014A250` | `ModelRecord []` | a 2,026-byte record | the cars, 0x808 bytes each, fields to +2052 |
+| `src/blob/update_reckon_base.c`, `End_MDrive.c` | `model` | `ModelRecord []` | a 2,026-byte record | the cars, 0x808 bytes each, fields to +2052 |
 | `src/blob/init_view3.c` | `rear_y`, `rear_z` | `f32 []` + macro | `f32` | `(&x)[car] = 5.0f`, `= 3.0f` |
 | `src/blob/SetCameraView.c` | `cur_acc` | `s32 []` | `s32` | +0, +4, +8 of 12-byte records |
 | `src/blob/InitCPTime.c` | `D_80152218` | `s32 []` | `s32` | x, y, z of each car's 12 bytes in a loop: the stick's shape, three stores |
-| `src/blob/groups/controlsys/group.c` | `gContStickRange` (`gStickCal`), `gNewEdges` (`gPrevPressed`), `D_80149B50` (`gStickRaw`), `D_80149B90` (`gRepeatTime`) | `s8 [4][2]` + macro, `s32 [4]`, `s32 [2]`, `s32 [128]` | `s8`, `s32` | per pad, in the loop that had the stick's bug |
+| `src/blob/groups/controlsys/group.c` | `gContStickRange` (`gStickCal`), `gNewEdges` (`gPrevPressed`), `gNewStick` (`gStickRaw`), `gAutoEdgeTimes` (`gRepeatTime`) | `s8 [4][2]` + macro, `s32 [4]`, `s32 [2]`, `s32 [128]` | `s8`, `s32` | per pad, in the loop that had the stick's bug |
 | `src/blob/groups/update_model/group.c` | `gPaks_rumble_request` | `s8 []` + macro | `s8` | the rumble byte of each pak record, three stores |
 | `src/blob/groups/pathcommon_read/CalcCheckpointTimes.c` | `gCheckpoints` | `Route []` + macro | `Route` (80 B) | the header and `(&gCheckpoints)[i]`'s records |
 | `src/blob/StartFrame.c` | `gCarParts` | `s32 []` | `s32` | four words of 64-byte records |
@@ -223,8 +223,8 @@ the same `T *`, `x` the same lvalue), as 2.2's second names do.
 The data tables: gen_data ranks every file's declaration of a symbol (DATA.md 1), so a new one can change the
 winner. The first try (`[]` for all) changed `gBlitInstanceList`'s and `gContStickRange`'s winning types (no layout); with
 their true sizes the winners are the old ones. `data.c` and `data_symbols.txt` are the files before but for two
-arena BSS symbols the tables had as one word and that are now as long as the code reaches: `D_80149B50` 4 -> 8 bytes
-and `D_80149B90` 4 -> 512 (the next known address bounds both; they sit in the RDRAM window at their N64 addresses, so
+arena BSS symbols the tables had as one word and that are now as long as the code reaches: `gNewStick` 4 -> 8 bytes
+and `gAutoEdgeTimes` 4 -> 512 (the next known address bounds both; they sit in the RDRAM window at their N64 addresses, so
 nothing moves). Debug and RelWithDebInfo give the same files, on GCC 13 and 14.
 
 The other findings were judged by class, and each is in `tools/port/bounds_reviewed.txt` with its verdict: a *view*
@@ -283,16 +283,16 @@ functions have the class's shape, and are declared open-ended under `TARGET_PC` 
 
 | File | Symbol | Was | What the function reaches |
 |---|---|---|---|
-| `src/blob/BlinkResurrectingCars.c` | `D_8014A250` | a 2,026-byte record | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
+| `src/blob/BlinkResurrectingCars.c` | `model` | a 2,026-byte record | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
 | `src/blob/UpdateCameras.c` | `gCamera` | `s32` | each window's camera in a loop: three stores and four read-modify-writes, 4 bytes each |
-| `src/blob/ZOID_NewMatrix.c` | `D_8015F740` | `s32` | x, y and z of one record |
+| `src/blob/ZOID_NewMatrix.c` | `gMatrices` | `s32` | x, y and z of one record |
 | `src/blob/ZOID_SetTexture.c` | `ObjInstanceList` | `s32` | a scene node's four texture slots |
 | `src/blob/ZOID_SetViewport.c` | `ZoidWinInfo` | `s32` | a window's first and bounds |
 | `src/blob/ZOID_SetBlitData.c` | `gBlitInstanceList` | `PadConfig` | three fields of one record (with the Input_ files' macro) |
 
 None had *tmr* references on the three compilers, so this build compiled them as written; UpdateCameras is
 the stick's shape exactly (4-byte stores into a 4-byte symbol, in a loop). The tables are the files before but for
-`D_8015F740`, arena BSS the tables had as one word, now 2,240 bytes to the next known address (as `D_80149B50`
+`gMatrices`, arena BSS the tables had as one word, now 2,240 bytes to the next known address (as `gNewStick`
 above); Debug and RelWithDebInfo agree. The Input_ files' `gBlitInstanceList[4]` isn't its extent: the storage is the 200
 records at 0x80140BF0 and the paths reach records 4 to 91. Each of those functions reaches one field of the record
 a variable picks, 1 or 2 bytes, so the cut to 160 bytes gives no reference as wide as the declaration and nothing at

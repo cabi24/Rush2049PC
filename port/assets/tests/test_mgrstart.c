@@ -51,9 +51,9 @@ _Static_assert(sizeof(union audiomsg) == 0x20 && offsetof(union audiomsg, tag.ta
 
 uint8_t gScheduler[64];                               /* the scheduler */
 int8_t gInited_AudioMgr;                                    /* gInited */
-int32_t D_80110240 = -1;                              /* gSong */
+int32_t audiomgr_gSong = -1;                              /* gSong */
 void *gSortedFxTags;
-int32_t gNumStartCmds, gNumStopCmds, D_80110278, D_8011027C, D_80110280;
+int32_t gNumStartCmds, gNumStopCmds, gNumFxPlaying, gNumFxPending, gNumFxInterrupted;
 uint8_t audio_lock_queue[64], audio_command_queue[64];               /* the lock and the manager's queue */
 void *audio_cmd_queue_msgs[PC_SND_MSG_SLOTS];                   /* the queue's messages */
 uint8_t gSortedFxTagTree[32];                               /* gSortedFxTagTree */

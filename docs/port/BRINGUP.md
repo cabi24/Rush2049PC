@@ -153,7 +153,7 @@ players' slots, which its generator refuses outside a three-player table. (4ad9b
 ### 13. zlib's extra_blbits
 
 The report's last undescribed table that wasn't text, colours or short strings: zlib's bit-length extra bits
-(`D_8011E974`, int[19]), which only `static_bl_desc` points to and no code names. It would have been wrong whenever a
+(`extra_blbits`, int[19]), which only `static_bl_desc` points to and no code names. It would have been wrong whenever a
 ghost is compressed. `zlib_deflate` references it on the PC, so it is described. Test: the synthetic cartridge sets
 it (zlib's own constants), which its generator refuses without the declaration. (48b304c.)
 
@@ -187,7 +187,7 @@ offset hardly matters), the cut-out trees (their holes show what is behind), the
 
 A player's single race with the default options (2026-10-27) showed a skull and crossbones at the top left, by the
 speedometer, which the N64 shows only in deaths mode; a headless race on the Pi showed it too. A temporary print in
-NewMultiBlit listed the race's tables: the race set `D_80114C58` (89 blits) and the HUD set
+NewMultiBlit listed the race's tables: the race set `RaceMultiBlit` (89 blits) and the HUD set
 `HudMultiBlit` (8), whose crossbones blits, one per player as in the GC's HudMultiBlit, run animBones
 (`animBones`, the GC's hud.c). It hides them unless gDeathMode (`gDeathMode`, option 31, 0 by default) is on, and
 for a player past the windows or whose car is locked in place. The function was still m2c code at the blit's N64 offsets: on the PC's Blit

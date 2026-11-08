@@ -239,12 +239,9 @@ extern s8 gResurrectInPlace;
 extern s16 gNumPlayers;
 extern s16 gNumLaps;
 extern float resurrectTime;
-extern float D_80117360[4];         /* res_last_time */
-extern float D_801210E8[12][3];     /* pole_pos_offset */
+extern float res_last_time[4];         /* res_last_time */
+extern float pole_pos_offset[12][3];     /* pole_pos_offset */
 
-#define model D_8014A250
-#define res_last_time D_80117360
-#define pole_pos_offset D_801210E8
 
 extern float sinf(float);
 extern float cosf(float);

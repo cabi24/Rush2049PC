@@ -64,12 +64,12 @@ extern s32 gActiveLevels;
 typedef struct Sched { u8 pad0[0x27C]; volatile u32 frameCount; } Sched; /* gScheduler; SetPakError.c */
 extern Sched gScheduler;
 extern char pak_error_title_format[];
-extern char D_80121070[];
-extern char D_80121074[];
-extern char D_80121078[];
-extern char D_8012107C[];
-extern char D_80121080[];
-extern char D_80121088[];
+extern char pakerr_newlines_no_controller[];
+extern char pakerr_newlines_new_pak[];
+extern char pakerr_newlines_inconsistent[];
+extern char pakerr_newlines_full[];
+extern char pakerr_newlines_bad_data[];
+extern char pakerr_newlines_unknown[];
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 sprintf(char *, const char *, ...);
@@ -269,7 +269,7 @@ void cs_draw1_DC(s32 row, s32 col)
     font_set_DC(11);
     TB_SetTextColor(1);
     TB_Strcpy(str, gText.msg[404 / 4]);
-    TB_Strcat(str, (u8 *)D_80121070);
+    TB_Strcat(str, (u8 *)pakerr_newlines_no_controller);
     TB_Strcat(str, (u8 *)gText.msg[408 / 4]);
     pair_set_DC(1, 1);
     TB_DrawTextScrollBox(C.x + C.w / 2, C.y + (C.h - 20) / 2 + 20, C.w, C.h - 20, -1, 0, str);
@@ -282,7 +282,7 @@ void cs_draw3_DC(s32 row, s32 col)
     u8 str[256];
 
     TB_Strcpy(str, C.alt ? gText.msg[424 / 4] : gText.msg[428 / 4]);
-    TB_Strcat(str, (u8 *)D_80121074);
+    TB_Strcat(str, (u8 *)pakerr_newlines_new_pak);
     TB_Strcat(str, (u8 *)gText.msg[432 / 4]);
     DrawChoice(row, col, (intptr_t)str, gText.strings[gText.lang[25]], gText.msg[944 / 4], C.sel1);
 }
@@ -292,7 +292,7 @@ void cs_drawT0_DC(s32 row, s32 col)
     u8 str[256];
 
     TB_Strcpy(str, gText.msg[436 / 4]);
-    TB_Strcat(str, (u8 *)D_80121078);
+    TB_Strcat(str, (u8 *)pakerr_newlines_inconsistent);
     TB_Strcat(str, (u8 *)gText.msg[440 / 4]);
     DrawPakErrNQA(row, col, str);
 }
@@ -302,7 +302,7 @@ void cs_drawT1_DC(s32 row, s32 col)
     u8 str[256];
 
     TB_Strcpy(str, gText.msg[444 / 4]);
-    TB_Strcat(str, (u8 *)D_80121088);
+    TB_Strcat(str, (u8 *)pakerr_newlines_unknown);
     TB_Strcat(str, (u8 *)gText.msg[408 / 4]);
     DrawPakErrNQA(row, col, str);
 }
@@ -312,7 +312,7 @@ void cs_drawT2_DC(s32 row, s32 col)
     u8 str[256];
 
     TB_Strcpy(str, gText.msg[452 / 4]);
-    TB_Strcat(str, (u8 *)D_8012107C);
+    TB_Strcat(str, (u8 *)pakerr_newlines_full);
     TB_Strcat(str, (u8 *)gText.msg[456 / 4]);
     DrawPakErrNQA(row, col, str);
 }
@@ -322,7 +322,7 @@ void cs_drawT3_DC(s32 row, s32 col)
     u8 str[256];
 
     TB_Strcpy(str, gText.msg[460 / 4]);
-    TB_Strcat(str, (u8 *)D_80121080);
+    TB_Strcat(str, (u8 *)pakerr_newlines_bad_data);
     TB_Strcat(str, (u8 *)gText.msg[440 / 4]);
     DrawPakErrNQA(row, col, str);
 }

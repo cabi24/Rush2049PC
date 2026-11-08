@@ -247,31 +247,31 @@ With both, every site is in a finding, 11 new (file, symbol) pairs (reads only, 
 
 | Sites | File | Symbol (declared) | What the function reaches |
 |---|---|---|---|
-| 8 | `src/blob/BlinkResurrectingCars.c` | `D_8014A250` (a 2,026-byte record) | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
+| 8 | `src/blob/BlinkResurrectingCars.c` | `model` (a 2,026-byte record) | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
 | 14 | `src/blob/UpdateCameras.c` | `gCamera` (`s32`) | each window's 0x98-byte camera in a loop: three stores, four read-modify-writes, 4 bytes each: the stick's shape |
-| 3 | `src/blob/ZOID_NewMatrix.c` | `D_8015F740` (`s32`) | x, y and z of one record, set to 0 |
+| 3 | `src/blob/ZOID_NewMatrix.c` | `gMatrices` (`s32`) | x, y and z of one record, set to 0 |
 | 5 | `src/blob/ZOID_SetTexture.c` | `ObjInstanceList` (`s32`) | a scene node's four 8-byte texture slots |
 | 2 | `src/blob/ZOID_SetViewport.c` | `ZoidWinInfo` (`s32`) | a ZOID window's first and bounds pointers |
 | 4 | `src/blob/ZOID_SetBlitData.c` | `gBlitInstanceList` (one record) | three fields of one of the 200 records |
 
 None had indexed references on any of the three compilers (no *tmr* finding), so none was miscompiled in these
 builds; UpdateCameras is where a compiler that indexes its loop on the symbol would drop two of every three
-stores, as with the stick. The data tables are the files before but for `D_8015F740` (arena BSS, one word in them),
-now as long as the next known address allows, 2,240 bytes, as 2.7's `D_80149B50`; Debug and RelWithDebInfo agree.
+stores, as with the stick. The data tables are the files before but for `gMatrices` (arena BSS, one word in them),
+now as long as the next known address allows, 2,240 bytes, as 2.7's `gNewStick`; Debug and RelWithDebInfo agree.
 
 **The 116 left**, by what each function does with the symbol:
 
 | Sites | What | Where (symbol) | Verdict |
 |---|---|---|---|
 | 16 | one field of one record, picked by a variable, 1 or 2 bytes, read or written | `ZOID_CropBlit.c`, `ZOID_TextBlit.c`, `ZOID_FlipBlit.c` (`gBlitInstanceList`) | safe. 2.7 declared it `[4]` as "its extent", but its storage is the 200 records at 0x80140BF0 (`Sprite[200]`) and the paths reach records 4 to 91. A cut to 160 bytes makes no reference as wide as the declaration, and no access there is at a constant offset past it. `[200]` would make the declaration true; it changes the tables' type label of `gBlitInstanceList` (`PadConfig[200]` for `Sprite[200]`, the layout the same), so it waits for after the beta |
-| 15 | one place written (a store or a read-modify-write of that place), nothing else of the symbol in the function | `InitBlits.c` (`BlitPtrs`, a loop's one store), `CarSetup.c` (`carsetup_flag`), `InitSmokeBlast.c` (`gCarSmokeDir`), `InitPathData.c` (`D_80153F28`, `D_80153F48`, `D_80153F68`), `ZOID_RemoveBlit.c` (`gBlitInstanceList`), `FinishResurrecting.c` (`model_modelrun`), `init_view3.c` (`view3_switch`), UpdateControls's `ControlIRQ` (`gRealLevels`, `gRealEdges`: a loop's one store each, indexed on the symbol by GCC; `D_80149B30`, volatile) | safe: nothing to drop it for or forward it to; a loop's stores don't cover each other while the loop can exit |
-| 77 | reads only, one place or several | the cars' records (`D_8014A250` in `CarSetup.c`, `CheckCrash.c`, `AreWeSolid.c`, audio_frame's and StartCar's groups, PositionObject's group; `D_8014A258`, `D_8014AA32`, `D_8014A964`), the scene nodes (`ObjInstanceList` in six files), the route (`gCheckpoints`, `gCheckpoints_pathPts`, `gDronePaths`), the cameras (`gCamera`, `skyMatrices` in `SkyUpdate.c`), the controllers (`gControllerData`, `D_80149B50`), the windows (`ZoidWinInfo` in `ZOID_GetFog.c`), and the rest `bounds_reviewed.txt` lists | safe: nothing written |
+| 15 | one place written (a store or a read-modify-write of that place), nothing else of the symbol in the function | `InitBlits.c` (`BlitPtrs`, a loop's one store), `CarSetup.c` (`carsetup_flag`), `InitSmokeBlast.c` (`gCarSmokeDir`), `InitPathData.c` (`D_80153F28`, `D_80153F48`, `D_80153F68`), `ZOID_RemoveBlit.c` (`gBlitInstanceList`), `FinishResurrecting.c` (`model_modelrun`), `init_view3.c` (`view3_switch`), UpdateControls's `ControlIRQ` (`gRealLevels`, `gRealEdges`: a loop's one store each, indexed on the symbol by GCC; `gNewLevels`, volatile) | safe: nothing to drop it for or forward it to; a loop's stores don't cover each other while the loop can exit |
+| 77 | reads only, one place or several | the cars' records (`model` in `CarSetup.c`, `CheckCrash.c`, `AreWeSolid.c`, audio_frame's and StartCar's groups, PositionObject's group; `D_8014A258`, `D_8014AA32`, `D_8014A964`), the scene nodes (`ObjInstanceList` in six files), the route (`gCheckpoints`, `gCheckpoints_pathPts`, `gDronePaths`), the cameras (`gCamera`, `skyMatrices` in `SkyUpdate.c`), the controllers (`gControllerData`, `gNewStick`), the windows (`ZoidWinInfo` in `ZOID_GetFog.c`), and the rest `bounds_reviewed.txt` lists | safe: nothing written |
 | 8 | constant offsets past the declaration | `NewEmitter.c` (`gFreeEmitters`), AudioSfxServer (`gFreeQ`, `gCmdQ`), `FreeSequence` (`gFreeSequences`) | safe: GCC keeps them exact |
 
 A view that runs from its name into another name's storage is 2.5's class (`alias_check.py`), which takes a variable
 access to cover its name's own extent: for every site in the window, the names holding the address UBSan reports
-were checked against the names its file accesses. One pair is both, `D_8014A964` and `D_8014A250` in
-`CheckCrash.c` (reads only), and alias_check pairs them already (`D_8014A964` is inside `D_8014A250`'s
+were checked against the names its file accesses. One pair is both, `D_8014A964` and `model` in
+`CheckCrash.c` (reads only), and alias_check pairs them already (`D_8014A964` is inside `model`'s
 storage). These are the synthetic paths' sites; another path can reach others, and the same reading applies.
 
 ### 3.2 The misaligned colour
@@ -297,7 +297,7 @@ sweep's press scripts: the front end's screens, its options rows, a 4-player rac
 pause screen's items, the attract demo. Each reached its time and exited 0. Besides the object-size sites the
 synthetic paths reach, they reach 35 more in 11 files: all loads, each in a function bounds_check lists as reading
 that symbol only, or at a constant offset (23 of them are `CheckForStunt`'s reads of the other cars' HUD
-records through `D_8014A250`, in the 4-player race). Nothing written, so nothing new to judge.
+records through `model`, in the 4-player race). Nothing written, so nothing new to judge.
 
 One more alignment site, `init_road`: `N64P(m->car)->TIRER[i]` takes the address of a car's tyre
 positions in a `CarRec` the game keeps in the RDRAM window at a word-aligned N64 address, and the PC's `CarRec`,

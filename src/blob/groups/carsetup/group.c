@@ -90,8 +90,8 @@ extern u16 stdtorquecurve[10 * 12];   /* the torque curve, short[10][12] (engine
 /* After it, the two tire records (front and rear, six floats each: copy_tire_info copies them), which only the
  * physics descriptors' u32 tire_info fields reach. Declared and referenced here, so that the data loader swaps them
  * as floats; the torque curve's extent ran over them as u16s before (docs/port/BRINGUP.md 3). */
-extern float D_8011F814[2][6];
-float (*const pc_tire_records)[6] = D_8011F814;
+extern float frontTire[2][6];
+float (*const pc_tire_records)[6] = frontTire;
 extern Collision16 collsize[];
 extern float CalcMass(Vehicle2056 *),CalcOffroadTires(Vehicle2056 *),CalcDrift(Vehicle2056 *);
 extern void copy_tire_info(void *,Tire92 *),tire_constants(Vehicle2056 *,Tire92 *,float),steer_constants(Vehicle2056 *);

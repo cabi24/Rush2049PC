@@ -99,7 +99,7 @@ extern s32 sTrackSongs[];           /* 8010FFD4 | use 0/0 decl 420 | lw:1 idx[0x
 extern f32 sLastHornTime[];           /* 80110020 | use 0/0 decl 420 | lwc1:2 swc1:2 idx[0x4] form:1 | RESOLVED by retail */
 extern s32 gSongNames[];           /* 80110030 | use 0/0 decl 420 | lw:3 idx[0x4] form:1 | RESOLVED by retail */
 extern s8 gInited_AudioMgr;              /* 8011023C | use 0/0 decl 420 | lb:3 sb:2 */
-extern s32 D_80110240;             /* 80110240 | use 0/0 decl 420 | lw:2 sw:2 form:1 */
+extern s32 audiomgr_gSong;             /* 80110240 | use 0/0 decl 420 | lw:2 sw:2 form:1 */
 extern s32 gSortedFxTags;             /* 80110248 | use 0/0 decl 420 | lw:3 sw:1 form:1 */
 extern s32 gNumStartCmds;             /* 8011024C | use 0/0 decl 420 | lw:3 sw:3 form:1 */
 extern s32 gNumStopCmds;             /* 80110250 | use 0/0 decl 420 | lw:3 sw:3 form:2 */
@@ -112,9 +112,9 @@ extern s32 gNumListeners;             /* 80110268 | use 0/0 decl 420 | lw:3 sw:1
 extern s32 gNumEmitters;             /* 8011026C | use 0/0 decl 420 | lw:2 sw:1 form:1 */
 extern s32 gSequences;             /* 80110270 | use 0/0 decl 420 | lw:6 sw:1 form:1 */
 extern s8 AudioInit_queueCreated;              /* 80110274 | use 0/0 decl 420 | lb:1 sb:1 */
-extern s32 D_80110278;             /* 80110278 | use 0/0 decl 420 | sw:1 */
-extern s32 D_8011027C;             /* 8011027C | use 0/0 decl 420 | lw:1 sw:2 form:1 */
-extern s32 D_80110280;             /* 80110280 | use 0/0 decl 420 | lw:2 sw:2 form:1 */
+extern s32 gNumFxPlaying;             /* 80110278 | use 0/0 decl 420 | sw:1 */
+extern s32 gNumFxPending;             /* 8011027C | use 0/0 decl 420 | lw:1 sw:2 form:1 */
+extern s32 gNumFxInterrupted;             /* 80110280 | use 0/0 decl 420 | lw:2 sw:2 form:1 */
 extern s8 audiosfx_gInited;              /* 80110284 | use 0/0 decl 420 | lb:1 sb:2 */
 extern s32 gNextIndex;             /* 80110288 | use 0/0 decl 420 | lw:2 sw:2 form:1 */
 extern s8 gStopAllEffects;              /* 8011028C | use 0/0 decl 420 | lb:4 sb:3 form:4 | RESOLVED by retail */
@@ -210,8 +210,8 @@ extern s8 si_lock_inited;              /* 8011194C | use 0/0 decl 420 | lb:23 sb
 extern u8 cont_bit_pattern;              /* 80111950 | use 0/0 decl 420 | lbu:3 form:2 | RESOLVED by retail */
 extern s8 gInitControls;              /* 80111954 | use 0/0 decl 420 | lb:2 sb:1 */
 extern s32 gLastKeyTime;             /* 80111958 | use 0/0 decl 433 | lw:2 sw:2 */
-extern s8 D_8011195C;              /* 8011195C | use 0/1 decl 420 | lb:1 sb:1 form:1 | RESOLVED by retail */
-extern u8 D_80111960;              /* 80111960 | use 0/1 decl 420 | lbu:1 sb:1 form:1 | RESOLVED by retail */
+extern s8 gResetLastKeyTime;              /* 8011195C | use 0/1 decl 420 | lb:1 sb:1 form:1 | RESOLVED by retail */
+extern u8 gIgnoreCount;              /* 80111960 | use 0/1 decl 420 | lbu:1 sb:1 form:1 | RESOLVED by retail */
 extern u8 D_80111964;              /* 80111964 | use 0/0 decl 420 | lbu:1 sb:2 */
 extern s8 controlsys_sInited;              /* 80111968 | use 0/0 decl 420 | lb:1 sb:1 */
 extern s32 controls_buttonNames[];           /* 8011196C | use 0/0 decl 420 | lw:1 idx[0x4] form:1 | RESOLVED by retail */
@@ -302,7 +302,7 @@ extern s32 name_entry_del_label;             /* 801149A8 | use 0/0 decl 420 | fo
 extern s32 name_entry_end_label;             /* 801149AC | use 0/0 decl 420 | form:1 */
 extern s32 cStrCreditNames[];           /* 80114A0C | use 0/0 decl 420 | lw:4 idx[?] form:2 | RESOLVED by retail */
 extern s32 hud_whichCam[];           /* 80114C48 | use 0/0 decl 420 | lw:1 idx[0x4] | RESOLVED by retail */
-extern s32 D_80114C58;             /* 80114C58 | use 0/0 decl 420 | form:1 */
+extern s32 RaceMultiBlit;             /* 80114C58 | use 0/0 decl 420 | form:1 */
 extern s32 HudMultiBlit;             /* 801158DC | use 0/0 decl 420 | form:1 */
 extern s32 TwoPlayerMultiBlit;             /* 801159FC | use 0/0 decl 420 | form:1 */
 extern s32 ThreePlayerMultiBlit;             /* 80115A20 | use 0/0 decl 420 | form:1 */
@@ -311,8 +311,8 @@ extern s32 D_80115A48[];           /* 80115A48 | use 0/0 decl 420 | lw:3 idx[?] 
 extern s32 speedPos;             /* 80115A68 | use 0/0 decl 420 | form:2 */
 extern s32 odometerPos;             /* 80115AE8 | use 0/0 decl 420 | form:4 */
 extern s32 tachPos;             /* 80115B68 | use 0/0 decl 7 | form:1 */
-extern s32 D_80115BE8;             /* 80115BE8 | use 0/0 decl 7 | form:1 */
-extern s32 D_80115C68;             /* 80115C68 | use 0/0 decl 420 | form:1 */
+extern s32 gearPos;             /* 80115BE8 | use 0/0 decl 7 | form:1 */
+extern s32 countdownTimerPos;             /* 80115C68 | use 0/0 decl 420 | form:1 */
 extern s32 elapsedTimerPos[];           /* 80115C88 | use 0/0 decl 420 | lw:1 idx[?] form:2 | RESOLVED by retail */
 extern s32 placePos;             /* 80115CA8 | use 0/0 decl 420 | form:1 */
 extern s32 lapCountPos;             /* 80115DA8 | use 0/0 decl 7 | form:1 */
@@ -338,7 +338,7 @@ extern s32 next_drone_path;             /* 801161D0 | use 0/0 decl 420 | lw:1 sw
 extern f32 gravitySpeedIncrease[];           /* 801161D4 | use 0/0 decl 420 | lwc1:1 idx[0x4] | RESOLVED by retail */
 extern f32 gravitySpeedMin[];           /* 801161E4 | use 0/0 decl 420 | lwc1:1 idx[0x4] | RESOLVED by retail */
 extern s16 attractSlot;             /* 801163F4 | use 0/0 decl 420 | lh:1 sh:1 */
-extern s32 D_801163F8;             /* 801163F8 | use 0/0 decl 420 | lw:1 form:1 */
+extern s32 percentTable;             /* 801163F8 | use 0/0 decl 420 | lw:1 form:1 */
 extern s8 heap_lock_created;              /* 80116488 | use 0/0 decl 421 | lb:1 sb:1 */
 extern s8 cheat_menu_unlocked;              /* 801164A1 | use 1/1 decl 421 | sb:1 */
 extern s16 gCheatState[];           /* 801164A4 | use 1/1 decl 421 | form:2 | aggregate base (6 offsets) */
@@ -347,7 +347,7 @@ extern s16 cheat_all_cars;             /* 801164C0 | use 0/0 decl 420 | lh:1 sh:
 extern s16 cheat_all_tracks;             /* 801164C2 | use 0/0 decl 420 | lh:1 sh:2 | field of 0x801164A4+0x1E */
 extern s16 cheat_all_parts;             /* 801164C4 | use 0/0 decl 420 | lh:1 sh:2 | field of 0x801164A4+0x20 */
 extern s32 cStrLanguageNames[];           /* 801164D0 | use 0/0 decl 420 | lw:2 idx[0x4] | RESOLVED by retail */
-extern s32 D_801164E8[];           /* 801164E8 | use 0/0 decl 420 | lw:1 idx[0x4] form:1 | RESOLVED by retail */
+extern s32 options_buttonNames[];           /* 801164E8 | use 0/0 decl 420 | lw:1 idx[0x4] form:1 | RESOLVED by retail */
 extern s32 options_buttonInfo;             /* 8011650C | use 0/0 decl 420 | lw:2 form:6 | aggregate base (38 offsets) */
 extern s32 D_80116518;             /* 80116518 | use 0/0 decl 420 | form:1 | field of 0x8011650C+0xC */
 extern f32 D_8011653C;             /* 8011653C | use 0/0 decl 420 | swc1:1 form:1 | RESOLVED by retail; field of 0x8011650C+0x30 */
@@ -386,11 +386,11 @@ extern s32 gPauseState;             /* 801170FC | use 3/4 decl 435 | lw:38 sw:1 
 extern s32 pause_gPlayerRects;             /* 80117100 | use 0/0 decl 420 | form:3 | aggregate base (4 offsets) */
 extern s16 pause_titlePos;             /* 80117280 | use 0/0 decl 420 | lh:8 form:5 */
 extern s16 D_80117282;             /* 80117282 | use 0/0 decl 7 | lh:6 */
-extern s32 D_80117284;             /* 80117284 | use 0/0 decl 420 | form:1 */
-extern s32 D_801172A8;             /* 801172A8 | use 0/0 decl 420 | form:3 */
-extern s32 D_801172CC;             /* 801172CC | use 0/0 decl 420 | form:1 */
-extern s32 D_801172F0;             /* 801172F0 | use 0/0 decl 420 | form:1 */
-extern s32 D_80117314;             /* 80117314 | use 0/0 decl 420 | form:1 */
+extern s32 DimMultiBlit;             /* 80117284 | use 0/0 decl 420 | form:1 */
+extern s32 TitleMultiBlit;             /* 801172A8 | use 0/0 decl 420 | form:3 */
+extern s32 PauseMultiBlit;             /* 801172CC | use 0/0 decl 420 | form:1 */
+extern s32 SureMultiBlit;             /* 801172F0 | use 0/0 decl 420 | form:1 */
+extern s32 RumbleMultiBlit;             /* 80117314 | use 0/0 decl 420 | form:1 */
 extern void *pause_DimBlit;           /* 80117338 | use 1/1 decl 421 | lw:2 sw:2 form:2 */
 extern void *pause_TitleBlit;           /* 8011733C | use 1/1 decl 421 | lw:1 sw:4 form:1 */
 extern void *pause_PauseBlit;           /* 80117340 | use 1/1 decl 421 | lw:1 sw:2 form:1 */
@@ -401,7 +401,7 @@ extern s8 pause_gControllerRemoved;              /* 80117350 | use 0/0 decl 433 
 extern s8 pause_gYes;              /* 80117354 | use 0/0 decl 433 | lb:4 sb:3 form:1 | RESOLVED by retail */
 extern s32 animPause_color;             /* 80117358 | use 0/0 decl 420 | form:1 */
 extern s32 rand_seed;             /* 8011735C | use 1/1 decl 422 | lw:64 sw:65 form:28 */
-extern f32 D_80117360[];           /* 80117360 | use 0/0 decl 420 | lwc1:2 swc1:2 idx[0x4] form:2 | RESOLVED by retail */
+extern f32 res_last_time[];           /* 80117360 | use 0/0 decl 420 | lwc1:2 swc1:2 idx[0x4] form:2 | RESOLVED by retail */
 extern s16 *demo_path_points[];          /* 801173D8 | use 1/1 decl 421 | lw:1 idx[0x4] */
 extern s16 num_demo_ppoints[];           /* 80117408 | use 1/1 decl 421 | lh:1 idx[0x2] */
 extern s32 gPlayerNameChars;             /* 80117420 | use 0/0 decl 420 | lw:1 */
@@ -431,7 +431,7 @@ extern s32 D_801174DC;             /* 801174DC | use 0/0 decl 420 | lw:1 form:1 
 extern s32 D_8011750C;             /* 8011750C | use 0/0 decl 420 | lw:1 */
 extern u8 gTargetStructSizes[];            /* 80117510 | use 0/0 decl 420 | lbu:4 idx[?] form:1 | RESOLVED by retail */
 extern s32 gTargetCollFuncPtrs[];           /* 80117518 | use 0/0 decl 420 | lw:2 idx[0x4,0x10] form:2 | RESOLVED by retail */
-extern s32 D_80118C10;             /* 80118C10 | use 0/0 decl 420 | form:1 */
+extern s32 BBoxCollInfo;             /* 80118C10 | use 0/0 decl 420 | form:1 */
 extern s32 gTargetStructInfoPtrs[];           /* 80118DDC | use 0/0 decl 420 | lw:1 idx[0x4] | RESOLVED by retail */
 extern s32 zero_velocity;             /* 80118DFC | use 0/0 decl 420 | lw:1 form:1 | aggregate base (3 offsets) */
 extern s32 flag_pals[];           /* 80118E08 | use 0/0 decl 7 | lw:1 idx[0x4] | RESOLVED by retail */
@@ -507,7 +507,7 @@ extern s32 TexNames;             /* 8011B404 | use 0/0 decl 420 | lw:1 form:1 */
 extern s32 carObjNames;             /* 8011B42C | use 0/0 decl 420 | lw:1 form:1 */
 extern s32 sheenName[];           /* 8011B438 | use 0/0 decl 420 | lw:1 idx[?] form:1 | RESOLVED by retail */
 extern s32 D_8011B464;             /* 8011B464 | use 0/0 decl 420 | lw:1 form:1 */
-extern s32 D_8011B468[];           /* 8011B468 | use 0/0 decl 420 | lw:2 idx[?] | RESOLVED by retail */
+extern s32 gTrackBaseColors[];           /* 8011B468 | use 0/0 decl 420 | lw:2 idx[?] | RESOLVED by retail */
 extern f32 wingOffsets[];           /* 8011B4B4 | use 0/0 decl 420 | lwc1:1 idx[?] form:1 | RESOLVED by retail */
 extern s32 D_8011B550;             /* 8011B550 | use 0/0 decl 420 | lw:1 */
 extern s32 D_8011B554;             /* 8011B554 | use 0/0 decl 420 | lw:1 */
@@ -546,16 +546,16 @@ extern s32 trackFog[];           /* 8011E76C | use 0/0 decl 420 | lw:1 idx[0x4] 
 extern f32 fog_viewable_distance[];           /* 8011E7A8 | use 0/0 decl 420 | lwc1:1 idx[?] | RESOLVED by retail */
 extern s16 fogDistance[];           /* 8011E7F0 | use 0/0 decl 420 | lh:1 idx[?] | RESOLVED by retail */
 extern s16 fogMin[];           /* 8011E810 | use 0/0 decl 420 | lh:1 idx[?] | RESOLVED by retail */
-extern s32 D_8011E888[];           /* 8011E888 | use 0/0 decl 420 | lw:2 idx[0x4] form:2 | RESOLVED by retail */
-extern s32 D_8011E8FC[];           /* 8011E8FC | use 0/0 decl 420 | lw:3 idx[0x4] form:2 | RESOLVED by retail */
+extern s32 extra_lbits[];           /* 8011E888 | use 0/0 decl 420 | lw:2 idx[0x4] form:2 | RESOLVED by retail */
+extern s32 extra_dbits[];           /* 8011E8FC | use 0/0 decl 420 | lw:3 idx[0x4] form:2 | RESOLVED by retail */
 extern s32 D_8011E900;             /* 8011E900 | use 0/0 decl 420 | lw:2 */
 extern s32 D_8011E904;             /* 8011E904 | use 0/0 decl 420 | lw:1 form:1 | aggregate base (3 offsets) */
-extern s32 D_8011E974;             /* 8011E974 | use 0/0 decl 420 | form:1 */
-extern u8 D_8011E9C0;              /* 8011E9C0 | use 0/0 decl 420 | lbu:3 form:1 | RESOLVED by retail */
+extern s32 extra_blbits;             /* 8011E974 | use 0/0 decl 420 | form:1 */
+extern u8 bl_order;              /* 8011E9C0 | use 0/0 decl 420 | lbu:3 form:1 | RESOLVED by retail */
 extern u8 D_8011E9D2;              /* 8011E9D2 | use 0/0 decl 420 | lbu:1 form:1 | RESOLVED by retail */
-extern s32 D_8011E9D4;             /* 8011E9D4 | use 0/0 decl 420 | form:1 */
-extern s32 D_8011E9E8;             /* 8011E9E8 | use 0/0 decl 420 | form:1 */
-extern s32 D_8011E9FC;             /* 8011E9FC | use 0/0 decl 420 | form:1 */
+extern s32 static_l_desc;             /* 8011E9D4 | use 0/0 decl 420 | form:1 */
+extern s32 static_d_desc;             /* 8011E9E8 | use 0/0 decl 420 | form:1 */
+extern s32 static_bl_desc;             /* 8011E9FC | use 0/0 decl 420 | form:1 */
 extern s32 D_8011EA10;             /* 8011EA10 | use 0/0 decl 420 | lw:1 sw:1 */
 extern s32 default_lights;             /* 8011EA18 | use 2/2 decl 420 | form:4 */
 extern s16 vp0;             /* 8011EA30 | use 0/0 decl 420 | sh:1 form:6 | OPEN; aggregate base (4 offsets) */
@@ -661,7 +661,7 @@ extern s32 D_80120E48;             /* 80120E48 | use 0/0 decl 7 | form:1 */
 extern s32 D_80120E4C;             /* 80120E4C | use 0/0 decl 7 | form:1 */
 extern s32 target_steer_zero_dist_message;             /* 80120E50 | use 0/0 decl 420 | form:1 */
 extern s32 D_80120E68;             /* 80120E68 | use 0/0 decl 420 | lwl:1 form:1 | OPEN; aggregate base (8 offsets) */
-extern s16 D_80120E74[];           /* 80120E74 | use 0/0 decl 420 | lh:2 idx[?] form:2 | RESOLVED by retail; field of 0x80120E68+0xC */
+extern s16 drone_sched[];           /* 80120E74 | use 0/0 decl 420 | lh:2 idx[?] form:2 | RESOLVED by retail; field of 0x80120E68+0xC */
 extern s32 sSmoke[];           /* 80120EBC | use 0/0 decl 420 | lw:4 idx[?] form:1 | RESOLVED by retail */
 extern s32 D_80120EC0;             /* 80120EC0 | use 0/0 decl 420 | lw:1 */
 extern s32 D_80120EC4;             /* 80120EC4 | use 0/0 decl 420 | lw:1 */
@@ -680,12 +680,12 @@ extern s32 D_80121038;             /* 80121038 | use 0/0 decl 420 | form:1 */
 extern s32 D_80121048;             /* 80121048 | use 0/0 decl 420 | form:1 */
 extern s32 D_80121058;             /* 80121058 | use 0/0 decl 420 | form:1 */
 extern s32 pak_error_title_format;             /* 80121060 | use 0/0 decl 420 | form:1 */
-extern s32 D_80121070;             /* 80121070 | use 0/0 decl 420 | form:1 */
-extern s32 D_80121074;             /* 80121074 | use 0/0 decl 420 | form:1 */
-extern s32 D_80121078;             /* 80121078 | use 0/0 decl 420 | form:1 */
-extern s32 D_8012107C;             /* 8012107C | use 0/0 decl 420 | form:1 */
-extern s32 D_80121080;             /* 80121080 | use 0/0 decl 420 | form:1 */
-extern s32 D_80121088;             /* 80121088 | use 0/0 decl 420 | form:1 */
+extern s32 pakerr_newlines_no_controller;             /* 80121070 | use 0/0 decl 420 | form:1 */
+extern s32 pakerr_newlines_new_pak;             /* 80121074 | use 0/0 decl 420 | form:1 */
+extern s32 pakerr_newlines_inconsistent;             /* 80121078 | use 0/0 decl 420 | form:1 */
+extern s32 pakerr_newlines_full;             /* 8012107C | use 0/0 decl 420 | form:1 */
+extern s32 pakerr_newlines_bad_data;             /* 80121080 | use 0/0 decl 420 | form:1 */
+extern s32 pakerr_newlines_unknown;             /* 80121088 | use 0/0 decl 420 | form:1 */
 extern s32 pause_title_format;             /* 801210B0 | use 0/0 decl 420 | form:1 */
 extern s32 pause_title_name_format;             /* 801210C4 | use 0/0 decl 420 | form:1 */
 extern s32 pause_controller_removed_format;             /* 801210CC | use 0/0 decl 7 | form:1 */
@@ -697,8 +697,8 @@ extern char cheat_profile_name[];          /* 801211CC | use 1/1 decl 421 | form
 extern s32 player_file_ext_match;             /* 801211DC | use 0/0 decl 8 | form:1 */
 extern char player_file_ext[];          /* 801211E0 | use 0/0 decl 421 | form:1 */
 extern char ghost_file_name_format[];          /* 801211E4 | use 0/0 decl 421 | form:1 */
-extern char D_801211EC[];          /* 801211EC | use 0/0 decl 421 | form:1 */
-extern char D_801211F0[];          /* 801211F0 | use 0/0 decl 421 | form:1 */
+extern char ghost_backward_suffix[];          /* 801211EC | use 0/0 decl 421 | form:1 */
+extern char ghost_forward_suffix[];          /* 801211F0 | use 0/0 decl 421 | form:1 */
 extern char ghost_file_ext[];          /* 801211F4 | use 0/0 decl 421 | form:1 */
 extern s32 player_file_prefix;             /* 801211F8 | use 0/0 decl 8 | lwl:1 form:1 | OPEN; aggregate base (5 offsets) */
 extern s32 player_file_digits_format;             /* 80121204 | use 0/0 decl 8 | form:1 */
@@ -913,7 +913,7 @@ extern f32 D_80123BFC;             /* 80123BFC | use 0/0 decl 420 | lwc1:1 */
 extern f32 D_80123C00;             /* 80123C00 | use 0/0 decl 420 | lwc1:1 */
 extern f32 D_80123C04;             /* 80123C04 | use 0/0 decl 420 | lwc1:1 */
 extern f32 skid_lift;             /* 80123C08 | use 0/0 decl 420 | lwc1:1 */
-extern f32 D_80123C0C;             /* 80123C0C | use 0/0 decl 420 | lwc1:1 */
+extern f32 skid_min_length_sq;             /* 80123C0C | use 0/0 decl 420 | lwc1:1 */
 extern f32 D_80123C10;             /* 80123C10 | use 0/0 decl 420 | lwc1:1 */
 extern f32 D_80123C14;             /* 80123C14 | use 0/0 decl 420 | lwc1:1 */
 extern f32 D_80123C18;             /* 80123C18 | use 0/0 decl 420 | lwc1:1 */
@@ -1429,11 +1429,11 @@ extern f32 D_801249E0;             /* 801249E0 | use 0/0 decl 7 | lwc1:1 */
 extern f32 D_801249E4;             /* 801249E4 | use 0/0 decl 7 | lwc1:1 */
 
 /* ---- Storage after the image (BSS): 719 ---- */
-extern s32 D_801249F0;             /* 801249F0 | use 0/0 decl 420 | form:3 */
+extern s32 static_ltree;             /* 801249F0 | use 0/0 decl 420 | form:3 */
 extern s32 D_80124C30;             /* 80124C30 | use 0/0 decl 420 | form:1 */
 extern s32 D_80124DF0;             /* 80124DF0 | use 0/0 decl 420 | form:2 */
 extern s32 D_80124E50;             /* 80124E50 | use 0/0 decl 420 | form:2 */
-extern s32 D_80124E70;             /* 80124E70 | use 0/0 decl 420 | form:4 */
+extern s32 static_dtree;             /* 80124E70 | use 0/0 decl 420 | form:4 */
 extern f32 node_eye_distance;             /* 80124EE8 | use 0/0 decl 420 | lwc1:3 swc1:3 */
 extern s32 zoid_view_matrix;             /* 80124EF0 | use 0/0 decl 420 | form:5 | aggregate base (5 offsets) */
 extern s32 D_80124F20;             /* 80124F20 | use 0/0 decl 420 | form:2 */
@@ -1628,8 +1628,8 @@ extern u16 gObjList_rocket_c;             /* 8014296E | use 1/1 decl 420 | lhu:1
 extern s32 D_80142970;             /* 80142970 | use 0/0 decl 420 | form:1 */
 extern s32 D_80142980;             /* 80142980 | use 0/0 decl 420 | form:1 */
 extern u16 gObjList_car_mine;             /* 80142998 | use 0/0 decl 420 | lhu:1 sh:1 form:1 */
-extern u16 D_80142A78;             /* 80142A78 | use 0/0 decl 420 | lhu:2 */
-extern u16 D_80142A7A;             /* 80142A7A | use 0/0 decl 420 | lhu:3 */
+extern u16 gObjList_trigger_on;             /* 80142A78 | use 0/0 decl 420 | lhu:2 */
+extern u16 gObjList_trigger_off;             /* 80142A7A | use 0/0 decl 420 | lhu:3 */
 extern s32 D_80142AC4;             /* 80142AC4 | use 0/0 decl 420 | form:1 */
 extern f32 gElapsedTime[];           /* 80142AC8 | use 0/1 decl 420 | lwc1:1 swc1:2 idx[0x4] form:1 | RESOLVED by retail */
 extern f32 D_80142ACC;             /* 80142ACC | use 0/0 decl 420 | swc1:1 */
@@ -1788,11 +1788,11 @@ extern s32 D_80149B1C;             /* 80149B1C | use 0/0 decl 420 | sw:2 */
 extern s16 scissor2;             /* 80149B20 | use 0/0 decl 420 | sh:2 form:4 | OPEN; aggregate base (5 offsets) */
 extern s32 font_texel_size;             /* 80149B28 | use 1/1 decl 421 | lw:1 sw:2 | field of 0x80149B20+0x8 */
 extern u16 D_80149B2A;             /* 80149B2A | use 0/0 decl 420 | lhu:2 */
-extern s32 D_80149B30;             /* 80149B30 | use 1/1 decl 420 | lw:4 sw:1 form:2 */
+extern s32 gNewLevels;             /* 80149B30 | use 1/1 decl 420 | lw:4 sw:1 form:2 */
 extern s16 scissorul;             /* 80149B40 | use 0/0 decl 420 | sh:2 form:4 | OPEN; aggregate base (8 offsets) */
 extern u8 gFontColor[4];           /* 80149B48 | use 1/1 decl 421 | lbu:1 lw:1 sb:3 form:5 | field of 0x80149B40+0x8 */
 extern u8 D_80149B4B;              /* 80149B4B | use 0/0 decl 420 | lbu:1 sb:2 | RESOLVED by retail; field of 0x80149B40+0xB */
-extern s8 D_80149B50;              /* 80149B50 | use 0/1 decl 420 | lb:7 sb:2 form:2 | RESOLVED by retail */
+extern s8 gNewStick;              /* 80149B50 | use 0/1 decl 420 | lb:7 sb:2 form:2 | RESOLVED by retail */
 extern s16 scissorur;             /* 80149B58 | use 0/0 decl 420 | sh:2 form:4 | OPEN; aggregate base (5 offsets) */
 extern s8 gLeading;              /* 80149B60 | use 1/2 decl 421 | lb:4 sb:3 form:3 | RESOLVED by retail; field of 0x80149B58+0x8 */
 extern s8 gActiveControllers[4];           /* 80149B64 | use 1/2 decl 420 | lb:2 sb:2 idx[?] form:1 | RESOLVED by retail */
@@ -1808,7 +1808,7 @@ extern s8 gStickEdges_p3;              /* 80149B77 | use 1/1 decl 420 | lb:1 sb:
 extern s16 scissorlr;             /* 80149B78 | use 0/0 decl 420 | sh:2 form:4 | OPEN; aggregate base (5 offsets) */
 extern s16 gOptionMenuSize;             /* 80149B84 | use 0/0 decl 420 | lh:2 sh:2 form:2 */
 extern u32 gFontAttribute;             /* 80149B88 | use 2/2 decl 422 | lw:9 sw:7 form:9 */
-extern s32 D_80149B90[];           /* 80149B90 | use 0/1 decl 420 | lw:1 sw:2 idx[?] form:1 | RESOLVED by retail */
+extern s32 gAutoEdgeTimes[];           /* 80149B90 | use 0/1 decl 420 | lw:1 sw:2 idx[?] form:1 | RESOLVED by retail */
 extern s16 Worlddlidx;             /* 80149D90 | use 0/0 decl 420 | lh:4 sh:3 form:1 */
 extern s16 gFontXpos;             /* 80149D92 | use 1/1 decl 420 | lh:4 sh:4 form:2 */
 extern s32 cur_world_obj;             /* 80149D94 | use 0/0 decl 420 | sw:1 form:1 */
@@ -1892,21 +1892,21 @@ extern s32 retraces_since_frame;             /* 80151AE0 | use 0/0 decl 420 | lw
 extern s16 D_80151CEC;             /* 80151CEC | use 0/0 decl 420 | lh:12 sh:3 | field of 0x80151CE8+0x4 */
 extern s16 checkpoints_start_pt;             /* 80151CEE | use 1/1 decl 421 | lh:7 sh:3 | field of 0x80151CE8+0x6 */
 extern s32 D_801520C4;             /* 801520C4 | use 0/0 decl 433 | lw:1 | in array 0x80151FC8[2]+0xC (stride 0x78) */
-extern u8 D_80152260[];            /* 80152260 | use 0/0 decl 420 | lbu:2 sb:1 idx[?] form:3 | RESOLVED by retail */
+extern u8 dist_code[];            /* 80152260 | use 0/0 decl 420 | lbu:2 sb:1 idx[?] form:3 | RESOLVED by retail */
 extern u8 D_80152360[];            /* 80152360 | use 0/0 decl 420 | lbu:2 sb:1 idx[?] | RESOLVED by retail */
 extern u8 *stree_slist;             /* 80152460 | use 1/1 decl 421 | lw:4 sw:1 */
 extern s32 musyx_project;             /* 80152464 | use 0/0 decl 420 | lw:2 sw:1 */
-extern u8 D_80152468[];            /* 80152468 | use 0/0 decl 420 | lbu:2 sb:2 idx[?] form:2 | RESOLVED by retail */
+extern u8 length_code[];            /* 80152468 | use 0/0 decl 420 | lbu:2 sb:2 idx[?] form:2 | RESOLVED by retail */
 extern u8 *stree_vlist;             /* 80152568 | use 1/1 decl 421 | lw:3 sw:1 form:1 */
 extern s8 gTeamPoints[];            /* 8015256C | use 0/1 decl 433 | lb:6 sb:1 idx[?] form:5 | RESOLVED by retail */
 extern s8 gBackwards;              /* 80152570 | use 3/3 decl 424 | lb:14 sb:9 form:3 */
 extern s8 view3_switch[];            /* 80152574 | use 2/3 decl 422 | lb:1 sb:2 idx[?] form:1 | RESOLVED by retail */
-extern s32 D_80152578[];           /* 80152578 | use 0/0 decl 420 | lw:1 sw:1 idx[0x4] form:2 | RESOLVED by retail */
+extern s32 base_length[];           /* 80152578 | use 0/0 decl 420 | lw:1 sw:1 idx[0x4] form:2 | RESOLVED by retail */
 extern u16 modelrun;             /* 801525F0 | use 0/2 decl 420 | lhu:2 sh:5 form:6 | RESOLVED by retail; volatile quirk in 2 source(s) */
 extern f32 gDeathWaitEnd;             /* 801525F4 | use 1/1 decl 434 | lwc1:2 swc1:3 form:1 */
 extern s8 gTireCnt[];            /* 801525F8 | use 2/2 decl 422 | lb:7 sb:5 idx[?] form:1 */
 extern s32 musyx_samples;             /* 801525FC | use 0/0 decl 420 | lw:2 sw:1 */
-extern s32 D_80152600[];           /* 80152600 | use 0/0 decl 420 | lw:1 sw:1 idx[0x4] form:2 | RESOLVED by retail */
+extern s32 base_dist[];           /* 80152600 | use 0/0 decl 420 | lw:1 sw:1 idx[0x4] form:2 | RESOLVED by retail */
 extern f32 video_buttonSlideSpeed;             /* 80152678 | use 0/0 decl 420 | lwc1:5 swc1:8 form:1 | RESOLVED by retail */
 extern u16 stree_savenum;             /* 8015267C | use 3/3 decl 422 | lhu:8 sh:1 */
 extern f32 gSusAvg[];           /* 80152680 | use 2/2 decl 422 | lwc1:7 swc1:7 idx[?] form:1 */
@@ -2092,7 +2092,7 @@ extern s8 frame_record_index;              /* 8015F72D | use 0/0 decl 433 | lb:5
 extern s32 stunt_f;             /* 8015F730 | use 0/0 decl 420 | lw:3 sw:3 form:2 */
 extern s8 gShowOdometer;              /* 8015F734 | use 1/1 decl 421 | sb:8 */
 extern s32 video_texture_filter;             /* 8015F738 | use 0/0 decl 433 | lw:1 sw:2 */
-extern s32 D_8015F740;             /* 8015F740 | use 1/1 decl 420 | form:1 */
+extern s32 gMatrices;             /* 8015F740 | use 1/1 decl 420 | form:1 */
 extern s32 stunt_okToStart;             /* 80161360 | use 1/1 decl 420 | sw:1 */
 extern u16 gTexList[];           /* 80161368 | use 0/0 decl 420 | lhu:1 idx[0x2] form:2 */
 extern u16 gTexList_skid;             /* 80161378 | use 0/0 decl 420 | lhu:1 */
@@ -2188,11 +2188,11 @@ TODO(struct) 80118E34 | Color8 gFontColors[] x1/1 ; s32 gFontColors x0/420 (gene
 TODO(struct) 8011ADC0 | s32 SheenColors x0/420 (generated default) | lw:2 idx[0x8] form:2 | retail indexes it with stride 0x8, wider than the 4-byte element: record or 2-D array
 TODO(struct) 8011B4B8 | f32 wingOffsets_y x1/420 (generated default) | lwc1:2 idx[0xC] | retail indexes it with stride 0xC, wider than the 4-byte element: record or 2-D array
 TODO(struct) 8011B558 | s32 arrowColors x0/420 (generated default) | lbu:4 idx[0x4] form:5 | retail indexes it with stride 0x4, wider than the 1-byte element: record or 2-D array
-TODO(struct) 8011E838 | s32 D_8011E838 x0/420 (generated default) | lhu:1 idx[0x8] form:1 | retail indexes it with stride 0x8, wider than the 2-byte element: record or 2-D array
+TODO(struct) 8011E838 | s32 configuration_table x0/420 (generated default) | lhu:1 idx[0x8] form:1 | retail indexes it with stride 0x8, wider than the 2-byte element: record or 2-D array
 TODO(struct) 8011EACC | S blitPrimColor x1/1 ; s32 blitPrimColor x0/420 (generated default) | form:1
 TODO(struct) 8011F844 | Collision16 collsize[] x1/1 ; s32 collsize x0/420 (generated default) | lwc1:5 idx[0x10] form:3 | record array: stride 0x10 at 0x8011F844
 TODO(struct) 8011F914 | s32 shadow_scales x0/420 (generated default) | lwc1:1 idx[0x10] form:1 | retail indexes it with stride 0x10, wider than the 4-byte element: record or 2-D array
-TODO(struct) 801210E8 | s32 D_801210E8 x0/420 (generated default) | lwc1:1 idx[0xC] form:3 | retail indexes it with stride 0xC, wider than the 4-byte element: record or 2-D array
+TODO(struct) 801210E8 | s32 pole_pos_offset x0/420 (generated default) | lwc1:1 idx[0xC] form:3 | retail indexes it with stride 0xC, wider than the 4-byte element: record or 2-D array
 TODO(struct) 80124EEC | u8 *stree_nodes x1/1 ; QNode *stree_nodes x1/1 ; s32 stree_nodes x1/420 (generated default) | lw:19 sw:1 form:5
 TODO(struct) 8012E5E8 | u16 gDronePaths x2/420 (generated default) ; Count gDronePaths[] x1/2 ; CountEntry gDronePaths[] x1/1 | lhu:15 idx[0x8] form:16
 TODO(struct) 8012E5EC | PointEntry gDronePaths_pts[] x1/1 ; u8 *gDronePaths_pts x0/3 ; s32 gDronePaths_pts x0/417 (generated default) | lw:35 sw:1 idx[0x8]
@@ -2268,7 +2268,7 @@ TODO(struct) 8014A15A | s8 D_8014A15A x0/420 (generated default) | sb:2 idx[0x4C
 TODO(struct) 8014A15C | s32 D_8014A15C x0/420 (generated default) | lw:2 sw:4 | record array: stride 0x4C at 0x8014A114
 TODO(struct) 8014A160 | D_8014A160_Target **gPlayers_save x2/433 (generated default) | lw:85 sw:10 idx[0x4C]
 TODO(struct) 8014A164 | InputRecord input_rec1 x0/433 (generated default) | lbu:2 sb:1 form:1
-TODO(struct) 8014A250 | ModelRecord D_8014A250 x13/433 (generated default) ; Car D_8014A250[] x2/3 ; Model2056 D_8014A250[] x0/2 ; CarState D_8014A250[] x0/1 | lw:4 sw:1 idx[0x808] form:124 | record array: stride 0x808 at 0x8014A250
+TODO(struct) 8014A250 | ModelRecord model x13/433 (generated default) ; Car model[] x2/3 ; Model2056 model[] x0/2 ; CarState model[] x0/1 | lw:4 sw:1 idx[0x808] form:124 | record array: stride 0x808 at 0x8014A250
 TODO(struct) 8014A258 | u8 D_8014A258 x1/420 (generated default) | lbu:12 sb:2 idx[0x808,0x810] | record array: stride 0x808 at 0x8014A250
 TODO(struct) 8014A259 | s8 D_8014A259 x0/420 (generated default) | lb:1 sb:3 | record array: stride 0x808 at 0x8014A250
 TODO(struct) 8014A25A | s8 D_8014A25A x0/420 (generated default) | lb:2 sb:4 idx[0x808] | record array: stride 0x808 at 0x8014A250
@@ -2362,7 +2362,7 @@ TODO(struct) 801569B8 | Ply gStuntInfo[] x1/1 ; s32 gStuntInfo x1/419 (generated
 TODO(struct) 80156BE0 | SegmentTableEntry frame_records[] x0/433 (generated default) | sw:1 idx[0x80] form:4 | record array: stride 0x80 at 0x80156BE0
 TODO(struct) 80156C5C | s32 frame_color_buffers x0/420 (generated default) | lw:2 sw:2 idx[0x80] | record array: stride 0x80 at 0x80156BE0
 TODO(struct) 80156CF0 | Slot16 gControllerData[] x0/2 ; PadState gControllerData[] x0/1 ; u8 gControllerData x0/433 (generated default) | lb:25 sb:3 idx[0x10] form:14 | record array: stride 0x10 at 0x80156CF0
-TODO(struct) 80156D38 | ResSlot D_80156D38[] x2/2 ; Voice D_80156D38[64] x1/3 ; volatile u8 D_80156D38 x1/1 ; ResSlot D_80156D38[64] x0/2 ; s32 D_80156D38 x0/416 (generated default) | sb:3 idx[0x14] form:14 | record array: stride 0x14 at 0x80156D38
+TODO(struct) 80156D38 | ResSlot gWaveInstance[] x2/2 ; Voice gWaveInstance[64] x1/3 ; volatile u8 gWaveInstance x1/1 ; ResSlot gWaveInstance[64] x0/2 ; s32 gWaveInstance x0/416 (generated default) | sb:3 idx[0x14] form:14 | record array: stride 0x14 at 0x80156D38
 TODO(struct) 80156D39 | s8 D_80156D39 x0/420 (generated default) | lb:7 sb:3 idx[0x14] | record array: stride 0x14 at 0x80156D38
 TODO(struct) 80156D3B | s8 D_80156D3B x0/420 (generated default) | lb:5 sb:1 idx[0x14] | record array: stride 0x14 at 0x80156D38
 TODO(struct) 80156D44 | Tbl gWaveInstance_ptr[] x0/2 ; s32 gWaveInstance_ptr x0/418 (generated default) | lw:30 idx[0x14] | record array: stride 0x14 at 0x80156D38

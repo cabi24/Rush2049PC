@@ -86,7 +86,7 @@ extern u8 gShadowColor[];                 /* colour on terrain 0 */
 extern f32 gDummyVtx[];
 extern Surface *stree_surf;
 extern f32 skid_lift;
-extern f32 D_80123C0C;                  /* minimum travel before a mark starts */
+extern f32 skid_min_length_sq;                  /* minimum travel before a mark starts */
 extern f32 gSeconds[];
 extern char gSkidList[];               /* EffectObj pool */
 #define POOL_HEAD 3   /* the active list, read as the pool header's pointer word: host +0x18 */

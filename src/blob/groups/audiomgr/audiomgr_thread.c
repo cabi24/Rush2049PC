@@ -9,7 +9,7 @@
  * GC 0x800A1EA4, _ProcessPriorities GC 0x800A3208, _PlayFxTag, _StopAllSequences, _InsertSorted; bstree.c
  * ClearBST/InsertBSTE/WalkBST); Dreamcast audiomgr.c for the LOCK/UNLOCK shape.
  * Code-free devices (each measured; has the traces):
- *  (1) `_AudioNop();` (inlined int function, result discarded) at nine places: case 1 when gSong < 0, case 2 after
+ *  (1) `_AudioNop();` (inlined int function, result discarded) at nine places: case 1 when audiomgr_gSong < 0, case 2 after
  *      `startTime = -1.0f`, case 3 when sysId == -1, the ends of cases 4/7/8/9, and `default:`. Each keeps a block
  *      that retail shows as a separate `b end` (or, for 7/8/9, the empty-list `beqz` target), and each inline site
  *      is one 8-byte frame reserve (frame 208 exact). Probably an N64 debug/trace call; the name is invented.
@@ -102,13 +102,13 @@ extern OSMesgQueue audio_lock_queue;             /* audio mutex queue */
 extern OSMesgQueue audio_command_queue;             /* audio command queue */
 extern OSMesg audio_cmd_queue_msgs[];                /* its 128 messages */
 extern signed char gInited_AudioMgr;             /* gInited */
-extern int D_80110240;                     /* gSong */
+extern int audiomgr_gSong;                     /* MAT3 audiomgr.c gSong: the song playing, -1 for none */
 extern anon_te_tag_c *gSortedFxTags;
 extern int gNumStartCmds;
 extern int gNumStopCmds;
-extern int D_80110278;                     /* gNumFxPlaying */
-extern int D_8011027C;                     /* gNumFxPending */
-extern int D_80110280;                     /* gNumFxInterrupted */
+extern int gNumFxPlaying;                     /* gNumFxPlaying */
+extern int gNumFxPending;                     /* gNumFxPending */
+extern int gNumFxInterrupted;                     /* gNumFxInterrupted */
 /* PC: the priority pass's command lists and the messages they hold are PC data, PC_SND_MSG_SLOTS long
  * (pc_game_types.h, docs/port/DECOUPLE.md 9, AUDIO.md 10.4): a pass sends at most a message each, and the manager's
  * queue holds the run's messages, PC_SND_MSG_LOOP(128): 128 at original. */
@@ -122,10 +122,6 @@ extern tDLList gActiveSequences;
 extern float gAudioSeconds;                   /* audio clock */
 
 #define gInited gInited_AudioMgr
-#define gSong D_80110240
-#define gNumFxPlaying D_80110278
-#define gNumFxPending D_8011027C
-#define gNumFxInterrupted D_80110280
 
 void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 void osScAddClient(OSSched *, OSScClient *, OSMesgQueue *);
@@ -294,17 +290,17 @@ void audio_manager_thread_entry(void *arg)
             switch (cmd->hdr.cmd) {
                 goto skip; skip:        /* SHAPING (code-free, unreachable): see header (3) */
             case 0:
-                if (gSong != cmd->playSong.song && gSong < 0) {
-                    gSong = cmd->playSong.song;
-                    AudioSongPlay(gSong, cmd->playSong.loop);
+                if (audiomgr_gSong != cmd->playSong.song && audiomgr_gSong < 0) {
+                    audiomgr_gSong = cmd->playSong.song;
+                    AudioSongPlay(audiomgr_gSong, cmd->playSong.loop);
                 }
                 break;
             case 1:
-                if (gSong < 0) {
+                if (audiomgr_gSong < 0) {
                     _AudioNop();
                 } else {
-                    AudioSongStop(gSong);
-                    gSong = -1;
+                    AudioSongStop(audiomgr_gSong);
+                    audiomgr_gSong = -1;
                 }
                 break;
             case 2:

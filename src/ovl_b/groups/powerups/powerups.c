@@ -55,16 +55,14 @@ typedef struct Player {
     f32 timer;
     u8 unknown3AC[12];
 } Player;
-#define N64_ULONG uintptr_t /* a pointer through an integer: long is 32 bits on Windows */
 extern State gBattlePowerUps;
-extern f32 gFrameSeconds;
+extern volatile f32 gFrameSeconds;   /* MAT3 declares it volatile */
 extern u16 health_powerup_def, invisibility_powerup_def, shield_powerup_def;
 extern s16 gNumPlayers;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern f32 Random(f32);
 extern void ZOID_SetObjectDef(s16, u16);
 extern void MBOX_ShowObject(s32, s32, u32);
-#define gFrameSeconds (*(volatile f32 *)&gFrameSeconds)
 /* PC: the invisible car's fade out takes its u8 alpha down by at most what it has: at 60 a frame of three 30 Hz frames
  * (a slow host's five retraces) takes 24, which from 23 went round to 255. At original exactly the N64's 8. */
 #define PC_FADE_STEP(n, a) (pc_fps60 && PC_STEPS(n) > (a) ? (a) : PC_STEPS(n))
@@ -158,7 +156,7 @@ void UpdateBattleShield(void)
             gBattlePowerUps.slots[gBattlePowerUps.selected_b].count = 1;
         }
     } else {
-        gBattlePowerUps.phase_b -= *(f32 *)(N64_ULONG)&gFrameSeconds;
+        gBattlePowerUps.phase_b -= gFrameSeconds;
         if (gBattlePowerUps.phase_b < 0.0f) {
             i = Random(gBattlePowerUps.count);
             while (gBattlePowerUps.slots[i].count != 1 || gBattlePowerUps.slots[i].active == 3) {
@@ -190,7 +188,7 @@ void UpdateBattleHealth(void)
             gBattlePowerUps.slots[gBattlePowerUps.selected_delay].count = 1;
         }
     } else {
-        gBattlePowerUps.delay -= *(f32 *)(N64_ULONG)&gFrameSeconds;
+        gBattlePowerUps.delay -= gFrameSeconds;
         if (gBattlePowerUps.delay < 0.0f) {
             i = Random(gBattlePowerUps.count);
             while (gBattlePowerUps.slots[i].count != 1 || gBattlePowerUps.slots[i].active == 4) {

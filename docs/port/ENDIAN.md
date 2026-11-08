@@ -140,7 +140,7 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 | `pause_gPlayerRects` gPlayerRects | `animRumbleText/animRumbleText.c` `TPos` | 18 pad bytes and an s16 `x` at +18 (the s32 centre's low half) | pause.c's s32 layout; `x` is the whole centre, which the s16 local takes the same |
 | `hud_playerPaneColors` playerPaneColors | `hud_text_anims/animResults.c` | `Pos {s32 x, y}` | R,G,B,A bytes (ChangePaneColor reads bytes) |
 | `carscr_buttonInfo` front-end button slots | `ovl_a/anim_car_color_marker.c`, `carscr_animNewSlider.c` `MenuSlot` | `float matrix[16]` chosen: the alpha byte at +0x3C swapped as part of an f32 | the record's fields (as cleanup_colortrace's `Slot`) |
-| `cont_bit_pattern`, `D_8011195C`, `D_80111960` | `controlsys/group.c` | s32 | u8, s8, u8: the osContInit bit pattern (the boot waits while it reads 0x80), gResetTick, gSkipFrames |
+| `cont_bit_pattern`, `gResetLastKeyTime`, `gIgnoreCount` | `controlsys/group.c` | s32 | u8, s8, u8: the osContInit bit pattern (the boot waits while it reads 0x80), gResetTick, gSkipFrames |
 | `gStopAllEffects` | `audiosfx_play/group.c` | s32 | s8, as every other file |
 | `vp1`..`vplr` split-screen viewports | `ZOID_SplitScreen.c`, `ZOID_SplitMenuScreen.c` | s32: the first two halves swapped together, the other 12 bytes left big-endian | `Vp` (s16 scale[4], translate[4]) |
 | `modescr_button_color` the seven-option menu's button colour | `ovl_a/runtime_a_seven_option_init/group.c` `Color4` | `{ u32 word; }`: R,G,B,A swapped as a word, then copied whole into the nodes | `u8 c[4]` |

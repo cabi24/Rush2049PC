@@ -296,7 +296,7 @@ extern s32 playerscr_buttonsInited[];
 extern f32 HFOV;
 extern void ZOID_RemoveObject(s16),sound_handles_array_clear(FiveParts *);
 extern void cleanupControlScreen(void),RemoveBlit(Blit *),removeBG(void);
-extern void func_800A5A40(void),ZOID_Reset(void);
+extern void ZOID_ResetWindows(void),ZOID_Reset(void);
 
 void playerscr_uninitScreen(void);
 
@@ -595,7 +595,7 @@ extern s8 playerscr_gSelectMenuValid[][14];
 s32 playerClaimed(s32 skip,Owner *owner);
 extern void PlayLRSound(u32),PlayUDSound(u32);
 extern void censor(char *);
-extern Owner *func_800CD104(s8,char *);
+extern Owner *CreatePlayer(s8,char *);
 extern char *gPlayerNameChars;
 
 /* Drop one navigation step to the next/previous profile on the same pak (inlined statics in the original; written out). */
@@ -973,7 +973,7 @@ void controlCreatePlayer(s32 p)
             }
             censor(gCreatePlayerNames[p]);
             if (gCreatePlayerNames[p][0]) {
-                player = func_800CD104(playerscr_gSelectPakIdx[p], gCreatePlayerNames[p]);
+                player = CreatePlayer(playerscr_gSelectPakIdx[p], gCreatePlayerNames[p]);
                 if (player) {
                     claimPlayer(p, player);
                     playerscr_gSelectMenuSelect[p] = 3;

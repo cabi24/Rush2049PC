@@ -88,10 +88,10 @@ copies those as they are, so they are bytes, or zero.
 | | `ammoCnts[8]`, `collsize[13]` | the weapons' ammunition (5) and the bodies' collision boxes (4.5, 4.5, 2.5, 3: the tires are 4 ahead and behind, 2.5 aside) |
 | | `FireTexNames[6]` | the arenas' puff textures: "" (InitSmoke looks them up from track 6 on) |
 | | `ghostRaceTimes[6]` | a gRace 2 race's time limit on tracks 0-5 (CalcRaceTime): 15 s. Zero ended the race in its first frame |
-| | `D_80120E74[12]` | the drones' update schedule (update_drone_models): row r is {drones, -1}, the race using row n for n drones and n + 7 with two humans or more. With zeros the walk never met -1 and went on through the tables after it, updating cars those values named; a row asking for more drones than there are updates players' cars with a time step of 0: NaN |
+| | `drone_sched[12]` | the drones' update schedule (update_drone_models): row r is {drones, -1}, the race using row n for n drones and n + 7 with two humans or more. With zeros the walk never met -1 and went on through the tables after it, updating cars those values named; a row asking for more drones than there are updates players' cars with a time step of 0: NaN |
 | | `gCarBraking[13]` | a car type's brake factor: 1 (zero is a car without brakes) |
 | | `demo_path_points[12]`, `num_demo_ppoints[12]` | the demo paths' start points: one, point 0 |
-| | `gCarModels[13]`, `steady_leg_duration` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (the records `D_8011F814`, below) |
+| | `gCarModels[13]`, `steady_leg_duration` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (the records `frontTire`, below) |
 | | `carSuspensions[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
 | | `gTrackColors[19]` | gTrackColors: sixteen greys |
 | | `HudMultiBlit[0, 1, 4..7]`, `speedPos` | the HUD set (ShowHUD): a BUTTON panel, a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos), and the four players' crossbones (animBones, which only deaths mode shows). With zeros every HUD blit had no texture or size |
@@ -107,7 +107,7 @@ which fits `track_fog_texture_name`'s 4 bytes) and `SYN_BAR`.
 |---|---|
 | NewMultiBlit tables declared without their layout: the demo's blit (a NULL name), the game over title, the controls screens' first buttons, the menu backgrounds (createBG), the video and audio screens' second blits (BUTTON blits) | the generator's kind check needs the PC layout, and a second blit inside its table (1, 9) |
 | the car types' names (`SYNC00`..) after `shadow_scales`, the songs' after `boot_sfx_groups`, a car select blit's name ("") after `warningscr_blits` (`strings_after`) | strings where the images keep them, which a table sized by the gap would cover: the generator refuses (2) |
-| the tire curves in `D_8011F814[2][6]` (the descriptors' four `tire_info` words point there) | the records only those u32 fields reach, declared in car_resistance (3) |
+| the tire curves in `frontTire[2][6]` (the descriptors' four `tire_info` words point there) | the records only those u32 fields reach, declared in car_resistance (3) |
 | `gGameState` -1, the game's own "no state" (UpdateHUDPostCamera tests for it) | a start value `--until-state` must not take for a state (6) |
 | option 14 valid in a single race, `track_fog_texture_name` the name of `SYN_FOG`, an IA8 texture | the track select's fog blit and its palette word (7) |
 | track 0's palette animation and object animation (two frames), in bytes no symbol covers | tables only pointers reach, converted by `port/data/reached.txt` (8) |
@@ -125,7 +125,7 @@ need to make, read, change and delete a profile and to save and race a ghost.
 | `pak_charset[256]` | the pak's character set, the N64's public one (15 space, 16-25 digits, 26-51 A-Z, 52-65 punctuation): with zeros every note name was empty, and every note collided |
 | `player_file_prefix`, `save_file_name_prefix` | the notes' name prefix, `SYNTH049` (CreatePlayer's, SaveServer's) |
 | `player_file_ext`, `player_file_ext_match`, `player_file_ext_prefix`; `ghost_file_ext` | the profile extension `D`; the ghost extension `T` (SaveServer tells them apart by the first character) |
-| `ghost_file_name_format`, `D_801211EC`, `D_801211F0`, `player_file_digits_format` | a ghost note's name format (`%s%X%s`: the profile's note name, the track, the way), the ways' letters `R` and `N`, CreatePlayer's digits (`%0*u`) |
+| `ghost_file_name_format`, `ghost_backward_suffix`, `ghost_forward_suffix`, `player_file_digits_format` | a ghost note's name format (`%s%X%s`: the profile's note name, the track, the way), the ways' letters `R` and `N`, CreatePlayer's digits (`%0*u`) |
 | `cheat_profile_name` | a developer name, `SYN`: a profile of that name opens the ghost save prompt (`gSaveGhostFiles`); it also makes the cheat screen's states 14-16 valid |
 | `gPlayerNameChars` | the name entry's grid of 54 characters, a table of the cartridge's own (NULL faulted) |
 | `obscenities[0]` | the censor list: "" (none; NULL faulted) |
@@ -302,7 +302,7 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 | 40 | (with models) SetupWaveModel faults in the vertex chain walk at 0x6 | **the generator's**: the models shared one display list, which each model's relocation moved again | data (the generator's) | lists of their own |
 | 41 | the pause screen's options screen spins | no valid option (`while (!valid[i]) i++`) | data | `options_validOption` |
 | 42 | the pause screen's audio screen copies a NULL name | gSongNames; and its declaration ran by the gap to 131 pointers (the loader would have made the 119 words after the 12 names pointer slots), so `extents.txt` gives it 12 | data; extent | `gSongNames` |
-| 43 | gRace 2's car, then the 3- and 4-player races' and battle's first car, go NaN | update_drone_models walked off its zero schedule, then (with a schedule) row n + 7 for two humans or more asked for drones that weren't there and updated the players' cars with a time step of 0 | data | `D_80120E74` |
+| 43 | gRace 2's car, then the 3- and 4-player races' and battle's first car, go NaN | update_drone_models walked off its zero schedule, then (with a schedule) row n + 7 for two humans or more asked for drones that weren't there and updated the players' cars with a time step of 0 | data | `drone_sched` |
 
 Stops 26-34 came with the paths of section 2 (`--fast`, the virtual clock, makes each a second's run), 35-39 with
 looking for what makes the picture and the physics: the state log's car position, `RUSH_TRAP_FP` (which also stops at

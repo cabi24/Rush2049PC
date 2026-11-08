@@ -398,7 +398,7 @@ it, and both fail:
 
 - A remote human without a window is a game change across the HUD, cameras and sound. The two PCs would run
   different window sets, and so different random streams, as above.
-- Making the remote car a drone puts it on the drones' AI and update schedule (`update_drone_models`, `D_80120E74`,
+- Making the remote car a drone puts it on the drones' AI and update schedule (`update_drone_models`, `drone_sched`,
   MORECARS.md 1), not a human's controls.
 
 ### 1.5 Session flow, and what must match

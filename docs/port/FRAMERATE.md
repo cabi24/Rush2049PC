@@ -37,7 +37,7 @@ shown every two retraces.
   `src/blob/groups/modelthread/modelthread.c`) is a scheduler client at priority 7 and runs `model_iteration`
   (`src/blob/groups/update_model/group.c:4024`) once per retrace message: the model tick `gModelIteration` counts up,
   the model time `gModelTime` is ticks x 1/60, each human car steps by `dt = (ticks since its last step) x 1/60`, the
-  drones by the schedule `update_drone_models` walks (`D_80120E74`) with the ticks since their last update, then
+  drones by the schedule `update_drone_models` walks (`drone_sched`) with the ticks since their last update, then
   `dead_reckon_all`. This does not depend on how often frames are drawn.
 - **Everything else, per frame, by whole retraces.** `UpdateFrame` calls `UpdateFrameTimer` (`src/rom/timer.c`):
   `gLastFrameCount` = retraces since the last frame (`gLastFrameCount`), and the frame time `gFrameSeconds` (`gFrameSeconds`,

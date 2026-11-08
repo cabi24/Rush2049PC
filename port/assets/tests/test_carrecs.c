@@ -63,7 +63,7 @@ void NextResPathPt(int32_t idx, int32_t seg, int32_t *nidx, int32_t *nseg) { *ni
 void BodyVector(float *in, float *out, void *uvs) { (void)uvs; out[0] = in[0], out[1] = in[1], out[2] = in[2]; }
 float fatan2(float x, float z) { return x + z; }
 void YawUV(float a, void *uv) { (void)uv; if (g_nturns < 2) g_turn[g_nturns] = a; g_nturns++; }
-void func_80090F44(float a, void *uv) { (void)uv; if (g_nturns < 2) g_turn[g_nturns] = a; g_nturns++; }
+void PitchUV(float a, void *uv) { (void)uv; if (g_nturns < 2) g_turn[g_nturns] = a; g_nturns++; }
 void CopyUV(void *src, void *dst) { (void)src; (void)dst; }
 void carsetup(void *m) { (void)m; }
 void init_road(void *m) { (void)m; }

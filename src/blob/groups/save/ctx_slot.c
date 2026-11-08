@@ -77,7 +77,7 @@ typedef struct List { s32 pad0; s32 pad4; Handle head, tail; } List;
 
 extern List gGhostFiles;
 extern Handle gGhosts[4];
-extern char ghost_file_name_format[], D_801211EC[], D_801211F0[], ghost_file_ext[];
+extern char ghost_file_name_format[], ghost_backward_suffix[], ghost_forward_suffix[], ghost_file_ext[];
 void RemovePlayerFile(void);
 void MovePlayerFile(void);
 s32 sprintf(char *, const char *, ...);
@@ -216,9 +216,9 @@ void DeleteGhost(Handle ghosth) {   /* GC save.c DeleteGhost */
  * helper taking the header pointer (8 B inline area + retail's temp-ring register for the byte load). */
 char *GhostDirName(MenuData *header) {
     if (header->variant) {
-        return D_801211EC;
+        return ghost_backward_suffix;
     }
-    return D_801211F0;
+    return ghost_forward_suffix;
 }
 
 /* func_800CC040 = GC save.c SaveGhost(pak, saveGhosth, limbo), N64 form (pak, player, saveGhosth, limbo); member

@@ -87,7 +87,7 @@ extern void MBOX_HideObject(s32,s32,u32);
 extern void MBOX_ShowObject(s32,s32,u32);
 extern void ScaleUV(f32[3][3],f32[3][3],f32);
 extern void YawUV(f32,f32[3][3]);
-extern void func_80090F44(f32,f32[3][3]);
+extern void PitchUV(f32,f32[3][3]);
 extern void ZOID_WindowTo3D(s32,s16 *,Camera *,f32,f32 *);
 extern void ZOID_SetColor(s16,u32 *);
 extern void ZOID_SetObjectDef(s16,u16);
@@ -210,7 +210,7 @@ void UpdateHUDExtraPostCamera(void)
                 MBOX_ShowObject(handle->handle, 0, hudextra_whichCam[i]);
             }
             ScaleUV(gCamera[i].uv, handle->uv, gNumPlayers >= 3 ? 0.012f : 0.009f);
-            func_80090F44(-1.5707963267948966f, handle->uv);
+            PitchUV(-1.5707963267948966f, handle->uv);
             point.x = fragPos[gNumWindows - 1][i][0];
             point.y = fragPos[gNumWindows - 1][i][1];
             ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, handle->position);

@@ -922,8 +922,7 @@ void drawReview(void)
  * TB_DrawText TB_DrawText, TB_DrawTextScrollBox TB_DrawTextScrollBox, TB_GetFontLineHeight
  * TB_GetFontLineHeight, HAL_SetTextTranslucency HAL_SetTextTranslucency, TB_FlashTextColors TB_FlashTextColors (tRGBA
  * by value on N64), TB_Sprintf TB_Sprintf, TB_Strcpy TB_Strcpy, TB_Strcat TB_Strcat,
- * HAL_GetTextWidth HAL_GetTextWidth (MAT3 returns unsigned int: the macro below restores that type
- * for these calls without touching the shared s32 declaration the old members use), ChangePaneSize
+ * HAL_GetTextWidth (MAT3 returns unsigned int: text_width below gives these calls that type), ChangePaneSize
  * ChangePaneSize, getPointsStr getPointsStr, getPlaceStr getPlaceStr, getToGoStr getToGoStr,
  * getFinishedStr getFinishedStr, drawReview drawReview.
  * N64 differences from the GC body, all read from the retail words: text indices and layout constants
@@ -940,7 +939,9 @@ void drawReview(void)
  * Own data: three float literals (bits checked against the image at 0x803B9814..1C) and the del word
  * (0x803B3454 = 0x803B8758 in the image). */
 extern u8 circuitscr_del_text[];
-#define HAL_GetTextWidth(s, n) ((u32)HAL_GetTextWidth((s), (n)))
+/* A line's width in the current font, as MAT3's HAL_GetTextWidth returns it: an unsigned int (the panes below
+ * compare it unsigned). */
+static u32 text_width(u8 *str) { return HAL_GetTextWidth(str, -1); }
 void getFinishPlaceStr(s32 p, u8 *str);
 
 void circuitscr_animButtonText(void)
@@ -1065,16 +1066,16 @@ void circuitscr_animButtonText(void)
             HAL_SetFont(11);
             TB_SetTextColor(1);
             TB_Sprintf(str, circuitscr_trophy_title_format, gText.names[((u16 *)gText.indices)[44] + gCircuit->b8], gText.text[76]);
-            width = HAL_GetTextWidth(str, -1) < 20 ? 20 : HAL_GetTextWidth(str, -1);
+            width = text_width(str) < 20 ? 20 : text_width(str);
             TB_DrawText(TB_CenterText(str, 160), 153, str);
             y = 153 + TB_GetFontLineHeight();
             y += TB_GetFontLineHeight();
             getFinishPlaceStr(0, str);
-            width = width > HAL_GetTextWidth(str, -1) ? width : HAL_GetTextWidth(str, -1);
+            width = width > text_width(str) ? width : text_width(str);
             TB_DrawText(TB_CenterText(str, 160), y, str);
             y += TB_GetFontLineHeight();
             getPointsStr(0, str);
-            width = width > HAL_GetTextWidth(str, -1) ? width : HAL_GetTextWidth(str, -1);
+            width = width > text_width(str) ? width : text_width(str);
             TB_DrawText(TB_CenterText(str, 160), y, str);
             y += TB_GetFontLineHeight();
             ChangePaneSize(circuitscr_pane, 160 - width / 2 - 4, 149, 160 + width / 2 + 4, y + 4);
@@ -1086,14 +1087,14 @@ void circuitscr_animButtonText(void)
             HAL_SetFont(11);
             TB_SetTextColor(1);
             TB_Sprintf(str, circuitscr_new_circuit_title_format, gText.names[((u16 *)gText.indices)[44] + newCircuitType], gText.text[42]);
-            width = HAL_GetTextWidth(str, -1) < 20 ? 20 : HAL_GetTextWidth(str, -1);
+            width = text_width(str) < 20 ? 20 : text_width(str);
             TB_DrawText(TB_CenterText(str, 160), 129, str);
             y = 129 + TB_GetFontLineHeight();
             numCircuitTracks = gNumCircuitTracks[newCircuitType];
             if (!expansion_pak_present && numCircuitTracks >= 5)
                 numCircuitTracks = 5;
             TB_Sprintf(str, circuitscr_new_circuit_tracks_format, numCircuitTracks * (newCircuitType == 3 ? 4 : 2), gText.text[71]);
-            width = width > HAL_GetTextWidth(str, -1) ? width : HAL_GetTextWidth(str, -1);
+            width = width > text_width(str) ? width : text_width(str);
             TB_DrawText(TB_CenterText(str, 160), y, str);
             y += TB_GetFontLineHeight();
             ChangePaneSize(circuitscr_pane, 160 - width / 2 - 4, 125, 160 + width / 2 + 4, y + 4);
@@ -1106,30 +1107,30 @@ void circuitscr_animButtonText(void)
                 s16 width;
                 if (gContinueEnabled) {
                     TB_Sprintf(str, circuitscr_progress_title_format, gText.names[((u16 *)gText.indices)[44] + gCircuit->b8], gText.text[67]);
-                    width = HAL_GetTextWidth(str, -1) < 20 ? 20 : HAL_GetTextWidth(str, -1);
+                    width = text_width(str) < 20 ? 20 : text_width(str);
                     TB_DrawText(TB_CenterText(str, 160), 129, str);
                     y = 129 + TB_GetFontLineHeight();
                     getFinishedStr(str);
-                    width = width > HAL_GetTextWidth(str, -1) ? width : HAL_GetTextWidth(str, -1);
+                    width = width > text_width(str) ? width : text_width(str);
                     TB_DrawText(TB_CenterText(str, 160), y, str);
                     y += TB_GetFontLineHeight();
                     getToGoStr(str);
-                    width = width > HAL_GetTextWidth(str, -1) ? width : HAL_GetTextWidth(str, -1);
+                    width = width > text_width(str) ? width : text_width(str);
                     TB_DrawText(TB_CenterText(str, 160), y, str);
                     y += TB_GetFontLineHeight();
                 } else {
                     TB_Sprintf(str, circuitscr_finished_title_format, gText.names[((u16 *)gText.indices)[44] + gCircuit->b8], gText.text[76]);
-                    width = HAL_GetTextWidth(str, -1) < 20 ? 20 : HAL_GetTextWidth(str, -1);
+                    width = text_width(str) < 20 ? 20 : text_width(str);
                     TB_DrawText(TB_CenterText(str, 160), 129, str);
                     y = 129 + TB_GetFontLineHeight();
                 }
                 y += TB_GetFontLineHeight();
                 getPlaceStr(0, str);
-                width = width > HAL_GetTextWidth(str, -1) ? width : HAL_GetTextWidth(str, -1);
+                width = width > text_width(str) ? width : text_width(str);
                 TB_DrawText(TB_CenterText(str, 160), y, str);
                 y += TB_GetFontLineHeight();
                 getPointsStr(0, str);
-                width = width > HAL_GetTextWidth(str, -1) ? width : HAL_GetTextWidth(str, -1);
+                width = width > text_width(str) ? width : text_width(str);
                 TB_DrawText(TB_CenterText(str, 160), y, str);
                 y += TB_GetFontLineHeight();
                 ChangePaneSize(circuitscr_pane, 160 - width / 2 - 4, 125, 160 + width / 2 + 4, y + 4);
@@ -1163,7 +1164,6 @@ void getFinishPlaceStr(s32 p, u8 *str)
     TB_Strcat(str, gText.text[129]);
 }
 
-#undef HAL_GetTextWidth
 
 /* B560 initializes twelve native 64-byte slots and six special transforms.
  * Float literals are authenticated against current-tree image A. Distinct

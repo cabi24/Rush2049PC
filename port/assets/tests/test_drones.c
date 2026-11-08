@@ -34,13 +34,13 @@ short pc_drones[PC_MAX_LINKS], pc_our_drones[PC_MAX_LINKS];
 float pc_mp_steer[PC_MAX_LINKS], pc_mp_brake[PC_MAX_LINKS], pc_mp_gas[PC_MAX_LINKS];
 float pc_mp_dir[PC_MAX_LINKS][3], pc_mp_save_dir[PC_MAX_LINKS][3];
 
-int16_t D_80120E74[64];                 /* the schedule: Row3[12], and room for a walk past it */
+int16_t drone_sched[64];                 /* the schedule: Row3[12], and room for a walk past it */
 int16_t num_our_drones, sched_to_use, new_sched_to_use, sched_index, cur_drone, current_drone;
 volatile int16_t num_drones, num_humans;
 volatile uint16_t modelrun;
 int8_t gNumActiveCars, gGravityScale, gTrackNum, gOneMoreCP, gDifficulty, gBackwards, gEndGame;
 uint8_t gCoastFlag, gDeathMode;
-int32_t gModelIteration, gRace, gGameState, gGameState, gRace, D_801163F8[36];
+int32_t gModelIteration, gRace, gGameState, gGameState, gRace, percentTable[36];
 float gModelTime, gLastPathSwitchTime, gRetraceTime = 1.0f / 60, roadboost_time_scale, solid_delay_arena, gravitySpeedIncrease[8], gravitySpeedMin[8];
 int8_t gPaks_rumble_request[4 * 0x310];
 intptr_t gGhosts[16];
@@ -240,10 +240,10 @@ static void test_pick(void)
  * {n - 1, 1, -1} (n the row's drones). Or, with `all`, every row {n, -1} as the synthetic cartridge has it. */
 static void set_table(int all)
 {
-    memset(D_80120E74, 0x7F, sizeof D_80120E74);
+    memset(drone_sched, 0x7F, sizeof drone_sched);
     for (int r = 0; r < 12; r++) {
         int n = r < 7 ? r : r - 7, *v;
-        int16_t *row = &D_80120E74[3 * r];
+        int16_t *row = &drone_sched[3 * r];
         int one[3] = {n, -1, -1}, split1[3] = {1, n - 1, -1}, split2[3] = {n - 1, 1, -1};
         v = all || (r < 7 ? n < 3 : n < 2) ? one : r < 7 ? split1 : split2;
         row[0] = (int16_t)v[0], row[1] = (int16_t)v[1], row[2] = (int16_t)v[2];
@@ -256,11 +256,11 @@ static int ref_step(int n, int *out)
 {
     int k = 0, todo;
 
-    if (D_80120E74[3 * ref_sched + ++ref_index] == -1) {
+    if (drone_sched[3 * ref_sched + ++ref_index] == -1) {
         ref_index = 0;
         ref_sched = ref_next;
     }
-    todo = D_80120E74[3 * ref_sched + ref_index];
+    todo = drone_sched[3 * ref_sched + ref_index];
     for (int i = 0; i < todo; i++) {
         out[k++] = pc_our_drones[ref_cur];
         if (++ref_cur >= n)

@@ -1,7 +1,7 @@
 /*
  * animLapCount (0x80107EDC, 632 B): per-window lap counter text (HUD). Shown unless gGameState bit 3,
  * when bit 22 is set, the race state gRace is not 1/5 and gShowPlace is set; font 11 (one window) or
- * 12; for each window whose lap D_8014A250[i].lap (+2024, stride 2056) differs from gNumLaps and whose
+ * 12; for each window whose lap model[i].lap (+2024, stride 2056) differs from gNumLaps and whose
  * car gGameCar[i].f239 != 1: drop-shadowed text (colour 0 at x+1,y+1 then colour 1) of the format at
  * StrTable header +0x338 with lap+1 and gNumLaps (TB_Printf is the formatted-text print).
  * Shaping (disclosed): gfx_lock/gfx_unlock/font_set are the family's inlined helpers (non-static so umerge

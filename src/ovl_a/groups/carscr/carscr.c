@@ -90,7 +90,7 @@ extern char carscr_turntable_model_name[],carscr_turntable_base_model_name[];
 extern void LoadWave(s32,s32,s32,s32,void *);
 extern void *ZOID_NewMatrix(void);
 extern void SetOptions(void);
-extern void func_800A5A40(void);
+extern void ZOID_ResetWindows(void);
 extern void ZOID_SplitScreen(s16);
 extern void audio_interrupt_handler(s32);
 extern void InitVisuals(s32);
@@ -419,7 +419,7 @@ void carscr_InitScreen(void)
     gDriveHulk[2] = 0;
     gDriveHulk[3] = 0;
     HFOV = 90.0f;
-    func_800A5A40();
+    ZOID_ResetWindows();
     gNumWindows = gNumPlayers;
     if (gNumWindows == 3) gNumWindows = 4;
     if (gRace == 2) {
@@ -970,7 +970,11 @@ Record **getNextGhost(Record **node,s8 direction)
     return node;
 }
 
-typedef struct CarComponentSlot {s16 handle,auxiliary;u8 unknown04[48];} CarComponentSlot;
+/* A car-select component model (MAT3 carscr.c gCarComponents[][11]): its scene object, the level of detail it
+ * was made for, then its matrix and position (CarComponent below). The data loader converts the table by this
+ * declaration, which keeps those 48 bytes as bytes: changing it would change the loaded data. */
+typedef struct CarComponentSlot { s16 idx, level; u8 matrix_and_pos[48]; } CarComponentSlot;
+typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarComponent;
 extern CarComponentSlot gCarComponents[][11];
 extern s32 gCarPartFrame,carscr_buttonsInited[];
 extern void UnloadWaveAll(s32);
@@ -1005,7 +1009,7 @@ void carscr_UninitScreen(void)
     if(carscr_blit) {RemoveBlit(carscr_blit);carscr_blit=0;}
     removeBG();
     HFOV=90.0f;gNumWindows=1;
-    func_800A5A40();ZOID_Reset();
+    ZOID_ResetWindows();ZOID_Reset();
     for(player=0;player<gNumPlayers;player++)AudStopEffect(gHornSnd[player]);
     carscr_inited=0;
 }
@@ -1016,7 +1020,7 @@ void clearCarComponents(s32 p)
     s32 i;
     if (p > 0) return;
     for(i=0;i!=11;i++) {
-        if(gCarComponents[p][i].handle!=-1) {ZOID_RemoveObject(gCarComponents[p][i].handle);gCarComponents[p][i].handle=-1;gCarComponents[p][i].auxiliary=-1;}
+        if(gCarComponents[p][i].idx!=-1) {ZOID_RemoveObject(gCarComponents[p][i].idx);gCarComponents[p][i].idx=-1;gCarComponents[p][i].level=-1;}
     }
     if(gCarPartFrame!=-1) {ZOID_RemoveObject(gCarPartFrame);gCarPartFrame=-1;}
 }
@@ -1317,7 +1321,7 @@ void showGridMap(s32 enabled)
 /* updateCarComponents = updateCarComponents@carscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/carscr.c, GC 0x800910F8,
  * size 0x830), : direct typed port of the MAT3 body, replacing context stand-. Private-ABI member: p arrives in s6
  * from its caller showCarSelect; every callee-saved register is clobbered.
- * Names: gCarComponents = gCarComponents ([4][11] x 52 B: idx, level, mat), compLight = compLight (2 x 40 B, Lights2 layout),
+ * Names: gCarComponents ([4][11] x 52 B: idx, level, mat), compLight (2 x 40 B, Lights2 layout),
  * componentToName = componentToName (s16[11]), carComponentNames, gCarPartFrame, gCarParts
  * (CarHandles; frame = main, tires[k] = parts[3+k]), ObjInstanceList = ObjInstanceList_mat (68 B), MBOX_HideObject MBOX_HideObject,
  * ZOID_SetObjectParent ZOID_SetObjectParent, MBOX_NewObjectCam MBOX_NewObjectCam, MBOX_NewObject MBOX_NewObject, MBOX_FindObject_WORK
@@ -1340,8 +1344,6 @@ void showGridMap(s32 enabled)
  *    (frame 144; without it 136, every home 4/8 bytes low). The variable is used, not padding.
  * Own data checked against image A (tools/owncheck2.py): lightVec template 0x803B303C, compLight 0x803B2858 (80 B),
  * 0.1f 0x803B9628, pi 0x803B966C/0x803B9670, jump tables 0x803B962C (5) and 0x803B9640 (11), all entries equal. */
-typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarComponent;
-#define gCarComponents ((CarComponent (*)[11])gCarComponents)
 typedef struct ComponentLight { u8 col[3], pad0, colc[3], pad1; s8 dir[3], pad2; u8 pad3[4]; } ComponentLight;
 typedef struct ComponentLights { u8 col[3], pad0, colc[3], pad1; ComponentLight l[2]; } ComponentLights;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
@@ -1376,12 +1378,13 @@ void updateCarComponents(s32 p)
     f32 compScale;
     char componentName[16];
     s32 mask;
+    CarComponent (*components)[11] = (CarComponent (*)[11])gCarComponents;   /* with the matrix and position */
     if (gNumPlayers > 1 || gRace == 2) return;
     if (gCarLocked[p] == 1 || (carscr_gOpts[p][carscr_gActiveOption[p]] != 1 && carscr_gOpts[p][carscr_gActiveOption[p]] != 2 && carscr_gOpts[p][carscr_gActiveOption[p]] != 3 && carscr_gOpts[p][carscr_gActiveOption[p]] != 4 && carscr_gOpts[p][carscr_gActiveOption[p]] != 5)) {
         for (i = 0; i < 11; i++) {
-            if (gCarComponents[p][i].idx != -1) {
-                MBOX_HideObject(gCarComponents[p][i].idx, 1, 15);
-                ZOID_SetObjectParent(gCarComponents[p][i].idx, -1);
+            if (components[p][i].idx != -1) {
+                MBOX_HideObject(components[p][i].idx, 1, 15);
+                ZOID_SetObjectParent(components[p][i].idx, -1);
             }
         }
         return;
@@ -1442,65 +1445,65 @@ void updateCarComponents(s32 p)
             currentLevel = gCarTrans[p+1][gThisCar[p]] % 2;
             break;
         }
-        if (currentLevel != gCarComponents[p][i].level) {
+        if (currentLevel != components[p][i].level) {
             sprintf(componentName, carComponentNames[componentToName[i]], currentLevel + 1);
-            if (gCarComponents[p][i].idx != -1) {
-                ZOID_RemoveObject(gCarComponents[p][i].idx);
-                gCarComponents[p][i].idx = -1;
-                gCarComponents[p][i].level = -1;
+            if (components[p][i].idx != -1) {
+                ZOID_RemoveObject(components[p][i].idx);
+                components[p][i].idx = -1;
+                components[p][i].level = -1;
             }
-            gCarComponents[p][i].idx = MBOX_NewObject(MBOX_FindObject_WORK(componentName, 0, gNumModels - 1, 1), gCarComponents[p][i].uvs, -1, 0);
-            MBOX_HideObject(gCarComponents[p][i].idx, 1, 15);
+            components[p][i].idx = MBOX_NewObject(MBOX_FindObject_WORK(componentName, 0, gNumModels - 1, 1), components[p][i].uvs, -1, 0);
+            MBOX_HideObject(components[p][i].idx, 1, 15);
             if (gNumWindows == 1) {
-                gCarComponents[p][i].pos[0] = 0.0f;
-                gCarComponents[p][i].pos[1] = 1.0f;
-                gCarComponents[p][i].pos[2] = 15.0f;
+                components[p][i].pos[0] = 0.0f;
+                components[p][i].pos[1] = 1.0f;
+                components[p][i].pos[2] = 15.0f;
             } else {
-                gCarComponents[p][i].pos[0] = 0.0f;
-                gCarComponents[p][i].pos[1] = 2.0f;
-                gCarComponents[p][i].pos[2] = 15.0f;
+                components[p][i].pos[0] = 0.0f;
+                components[p][i].pos[1] = 2.0f;
+                components[p][i].pos[2] = 15.0f;
             }
-            gCarComponents[p][i].level = currentLevel;
+            components[p][i].level = currentLevel;
         }
         switch (i) {
         case 0: case 1: case 10:
-            ScaleUV(unitmatrix, gCarComponents[p][i].uvs, compScale);
-            gCarComponents[p][i].pos[0] = 0.f;
-            gCarComponents[p][i].pos[1] = 0.f;
-            gCarComponents[p][i].pos[2] = 0.f;
-            gCarComponents[p][i].pos[1] += 0.1f;
+            ScaleUV(unitmatrix, components[p][i].uvs, compScale);
+            components[p][i].pos[0] = 0.f;
+            components[p][i].pos[1] = 0.f;
+            components[p][i].pos[2] = 0.f;
+            components[p][i].pos[1] += 0.1f;
             break;
         case 2: case 6:
-            ScaleUV(ZOID_FindMatrix((s16)car->parts[3])->uvs, gCarComponents[p][i].uvs, compScale);
-            gCarComponents[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[3])->pos[0];
-            gCarComponents[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[3])->pos[1];
-            gCarComponents[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[3])->pos[2];
-            YawUV(3.1415927f, gCarComponents[p][i].uvs);
+            ScaleUV(ZOID_FindMatrix((s16)car->parts[3])->uvs, components[p][i].uvs, compScale);
+            components[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[3])->pos[0];
+            components[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[3])->pos[1];
+            components[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[3])->pos[2];
+            YawUV(3.1415927f, components[p][i].uvs);
             break;
         case 3: case 7:
-            ScaleUV(ZOID_FindMatrix((s16)car->parts[4])->uvs, gCarComponents[p][i].uvs, compScale);
-            gCarComponents[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[4])->pos[0];
-            gCarComponents[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[4])->pos[1];
-            gCarComponents[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[4])->pos[2];
+            ScaleUV(ZOID_FindMatrix((s16)car->parts[4])->uvs, components[p][i].uvs, compScale);
+            components[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[4])->pos[0];
+            components[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[4])->pos[1];
+            components[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[4])->pos[2];
             break;
         case 5: case 9:
-            ScaleUV(ZOID_FindMatrix((s16)car->parts[5])->uvs, gCarComponents[p][i].uvs, compScale);
-            gCarComponents[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[5])->pos[0];
-            gCarComponents[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[5])->pos[1];
-            gCarComponents[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[5])->pos[2];
-            YawUV(3.1415927f, gCarComponents[p][i].uvs);
+            ScaleUV(ZOID_FindMatrix((s16)car->parts[5])->uvs, components[p][i].uvs, compScale);
+            components[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[5])->pos[0];
+            components[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[5])->pos[1];
+            components[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[5])->pos[2];
+            YawUV(3.1415927f, components[p][i].uvs);
             break;
         case 4: case 8:
-            ScaleUV(ZOID_FindMatrix((s16)car->parts[6])->uvs, gCarComponents[p][i].uvs, compScale);
-            gCarComponents[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[6])->pos[0];
-            gCarComponents[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[6])->pos[1];
-            gCarComponents[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[6])->pos[2];
+            ScaleUV(ZOID_FindMatrix((s16)car->parts[6])->uvs, components[p][i].uvs, compScale);
+            components[p][i].pos[0] = ZOID_FindMatrix((s16)car->parts[6])->pos[0];
+            components[p][i].pos[1] = ZOID_FindMatrix((s16)car->parts[6])->pos[1];
+            components[p][i].pos[2] = ZOID_FindMatrix((s16)car->parts[6])->pos[2];
             break;
         }
-        ZOID_SetObjectParent(gCarComponents[p][i].idx, (s16)gCarPartFrame);
+        ZOID_SetObjectParent(components[p][i].idx, (s16)gCarPartFrame);
         mask = 1 << p;
-        MBOX_ShowObject(gCarComponents[p][i].idx, 0, mask);
-        ZOID_SetObjLights(gCarComponents[p][i].idx, 1, &compLight[whichLight]);
+        MBOX_ShowObject(components[p][i].idx, 0, mask);
+        ZOID_SetObjLights(components[p][i].idx, 1, &compLight[whichLight]);
     }
 }
 
@@ -1534,9 +1537,9 @@ void updateCarComponents(s32 p)
  */
 #define CAR_MIN(a,b) ((a) < (b) ? (a) : (b))
 extern void UpdateSelectCar(s16,s16,u8,u8,u8,s16,f32 *,f32 (*)[3],u32);
-extern void func_80090F44(f32,void *);
+extern void PitchUV(f32,void *);
 extern void YawUV(f32,void *);
-extern void func_8009EA68(f32,void *);
+extern void RollUV(f32,void *);
 extern void ScaleUV(void *,void *,f32);
 extern s8 gCarTeamColor[];
 /* Overlay A 0x8039EF00, 8 bytes: GC createGridMap@carscr.c, empty in this N64 revision (MAT3 builds the grid display list).
@@ -1591,7 +1594,7 @@ void showCarSelect(void)
                 if (carscr_cars[p][i].angle >= 6.2831855f) carscr_cars[p][i].angle -= 6.2831855f;
             }
             ScaleUV(unitmatrix, uv, 2.5f);
-            func_80090F44(0.34906584f, uv);
+            PitchUV(0.34906584f, uv);
             YawUV(carscr_cars[p][i].angle, uv);
             if (carscr_cars[p][i].car % 13 == 10) {
                 if (gNumWindows == 1) { carPos[0] = 0.0f; carPos[1] = 3.2f; carPos[2] = 40.5f; }
@@ -1607,7 +1610,7 @@ void showCarSelect(void)
             if (gNumPlayers < 3 && gRace != 2) {
                 reflectIdx = p == 0 ? 2 : 3;
                 ScaleUV(uv, reflectUV, 1.2f);
-                func_8009EA68(3.14159265f, reflectUV);
+                RollUV(3.14159265f, reflectUV);
                 reflectPos[0] = 1.2f * carPos[0];
                 reflectPos[1] = 1.2f * carPos[1];
                 reflectPos[2] = 1.2f * carPos[2];
@@ -1621,8 +1624,8 @@ void showCarSelect(void)
             if (((volatile s8 *)gThisCarIndex)[p] == i) {
                 ScaleUV(unitmatrix, gTurntableMat[p][0], 1.3f);
                 ScaleUV(unitmatrix, gTurntableMat[p][1], 1.3f);
-                func_80090F44(0.34906584f, gTurntableMat[p][0]);
-                func_80090F44(0.34906584f, gTurntableMat[p][1]);
+                PitchUV(0.34906584f, gTurntableMat[p][0]);
+                PitchUV(0.34906584f, gTurntableMat[p][1]);
                 YawUV(carscr_cars[p][i].angle, gTurntableMat[p][0]);
                 if (gNumWindows == 1) {
                     gTurntableMat[p][0][9] = 0.0f;

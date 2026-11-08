@@ -19,7 +19,7 @@
  * Data: validOption options_validOption[14], gMenuCount gMenuCount, gOptionMenuSize gOptionMenuSize, gSelectedOption
  * options_gSelectedOption, gFirstOption options_gFirstOption, exitOptionScreen exitOptionScreen, blit options_blit, frontEndBlit options_frontEndBlit /
  * pauseBlit options_pauseBlit, gControllerRemoved options_gControllerRemoved, inited options_inited, buttonInfo options_buttonInfo[32], buttonNames
- * D_801164E8, buttonColor template D_80116DAC.
+ * options_buttonNames, buttonColor template D_80116DAC.
  */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -40,7 +40,7 @@ typedef struct { s8 attached; u8 pad[15]; } ContData;
 
 extern OSMesgQueue text_lock_queue;
 extern Button options_buttonInfo[32];              /* buttonInfo */
-extern char *D_801164E8[];                 /* buttonNames */
+extern char *options_buttonNames[];                 /* buttonNames */
 extern Ent ObjInstanceList[];
 extern volatile u8 gNumModels;
 extern f32 unitmatrix[3][3];               /* unitmatrix */

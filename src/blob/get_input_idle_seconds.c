@@ -7,7 +7,7 @@
  * What mattered: the scheduler's frame counter is `volatile` (it is advanced
  * by the scheduler thread).  A volatile field is not folded into the symbol
  * (`lui/addiu base; lw 636(base)` instead of `lw %lo(sym+636)`).  The same
- * unfolded form appears in SetPakError, UpdateControls, func_800CD104,
+ * unfolded form appears in SetPakError, UpdateControls, CreatePlayer,
  * ShowPakError, EndGraphics, process_scheduler_message,
  * emitter_update, GameLoop and animDot.
  */

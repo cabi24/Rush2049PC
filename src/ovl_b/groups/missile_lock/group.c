@@ -34,7 +34,7 @@ extern s16 gNumCars;
 extern s8 gCarTeam[];
 extern void BodyVector(f32 *,f32 *,f32 *);
 extern void YawUV(f32,f32[3][3]);
-extern void func_80090F44(f32,f32[3][3]);
+extern void PitchUV(f32,f32[3][3]);
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 
@@ -69,7 +69,7 @@ void MissileLock(Object *object)
     if (nearest < 2000.0f) {
         if (best[0] > 0.0f) YawUV(PC_FSCALE(-0.04f), object->uv);
         else YawUV(PC_FSCALE(0.04f), object->uv);
-        if (best[1] > 0.0f) func_80090F44(PC_FSCALE(0.03f), object->uv);
-        else func_80090F44(PC_FSCALE(-0.03f), object->uv);
+        if (best[1] > 0.0f) PitchUV(PC_FSCALE(0.03f), object->uv);
+        else PitchUV(PC_FSCALE(-0.03f), object->uv);
     }
 }

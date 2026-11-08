@@ -4,7 +4,7 @@
  * Names are historical labels.
  *
  * The N64 descendant of arcade init_cars() (game/mdrive.c): for each of gNumCars players clear model[i]
- * (D_8014A250, 2056 bytes, preserving the f32 at +1816) and game_car[i] (gGameCar, 952 bytes) byte by byte,
+ * (model, 2056 bytes, preserving the f32 at +1816) and game_car[i] (gGameCar, 952 bytes) byte by byte,
  * initialise them from the link record gLink[i] (D_80153E88, 8 bytes: body +1, flags +6, owner +7), call
  * InitCarVisuals(gc); in-game cars get model[num_active++].slot = i (num_active = gNumActiveCars), handicap bytes
  * from five s8[][13] tables indexed [slot+1][body] (or [0][body]), next checkpoint = GetNextCheckpoint

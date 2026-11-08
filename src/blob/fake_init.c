@@ -4,7 +4,7 @@
  * running count, flags 0xB0, index 0; the `i >= 6` arm is dead but present in retail: a "slots beyond the active
  * count" branch of a loop whose bound and count are both 6), set the slot count gNumCars = 6, advance the
  * rotating static counter 0..5 into gPlayers and first_camera_slot, and set gUseCatchup = 2.
- * D_801163F4 is a function-local static (own .data, 4 zero bytes at 0x801163F4; no other function references it,
+ * attractSlot is a function-local static (own .data, 4 zero bytes at 0x801163F4; no other function references it,
  *). gNumCars is volatile (as in the locked animRadar).
  * DISCLOSED SHAPING DEVICES:
  * 1. compiled-out `if (gPlayers) {}` before the counter update: the second use that colours
@@ -44,7 +44,7 @@ void fake_init(s8 owner)
 {
     s16 i;
     s16 n;
-    static s16 D_801163F4 = 0;
+    static s16 attractSlot = 0;
 
     PC_LATCH_CARS() gTrackNum = owner;
     gNumCars = DEMO_CARS;
@@ -60,11 +60,11 @@ void fake_init(s8 owner)
         }
     }
     if (gPlayers) {}
-    D_801163F4++;
-    if (D_801163F4 >= DEMO_CARS) {
-        D_801163F4 = 0;
+    attractSlot++;
+    if (attractSlot >= DEMO_CARS) {
+        attractSlot = 0;
     }
-    gPlayers = D_801163F4 & 0xFF;
-    first_camera_slot = D_801163F4;
+    gPlayers = attractSlot & 0xFF;
+    first_camera_slot = attractSlot;
     gUseCatchup = 2;
 }

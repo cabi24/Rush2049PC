@@ -74,7 +74,7 @@ extern s32 playerscr_buttonsInited[];
 extern f32 HFOV;
 extern void ZOID_RemoveObject(s16),sound_handles_array_clear(FiveParts *);
 extern void cleanupControlScreen(void),RemoveBlit(Blit *),removeBG(void);
-extern void func_800A5A40(void),ZOID_Reset(void);
+extern void ZOID_ResetWindows(void),ZOID_Reset(void);
 
 void playerscr_uninitButtons(s8);
 void playerscr_uninitScreen(void)
@@ -95,7 +95,7 @@ void playerscr_uninitScreen(void)
     removeBG();
     HFOV=90.0f;
     gNumWindows=1;
-    func_800A5A40();
+    ZOID_ResetWindows();
     ZOID_Reset();
     screenInited=0;
 }

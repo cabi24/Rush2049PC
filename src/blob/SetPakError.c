@@ -83,19 +83,19 @@ void SetPakError(s32 player, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
     s32 i;
     s32 j;
     s8 present;
-    static s8 D_80116DB8 = 0;
+    static s8 sInited = 0;
 
     if (mode == 10) {
         pak_recognize_error_seen = 1;
     }
-    if (!D_80116DB8) {
+    if (!sInited) {
         for (j = 0; j < 4; j++) {
             for (i = 0; i < 2; i++) {
                 gPakError[j][i].mode = 0;
                 gPakError[j][i].busy = 1;
             }
         }
-        D_80116DB8 = 1;
+        sInited = 1;
     }
     for (j = 0; j < 2; j++) {
         if (gPakError[player][j].mode == 0) {

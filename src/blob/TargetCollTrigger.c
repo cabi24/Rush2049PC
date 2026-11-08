@@ -2,7 +2,7 @@
 /*
  * TargetCollTrigger: per-player trigger callback for a camera/scene object (no direct callers; reached
  * through a function pointer with four arguments, the last two unused and homed).
- * For player *player (record D_8014A250[], 0x808 bytes), when the record's +0x640 byte is 0 and its
+ * For player *player (record model[], 0x808 bytes), when the record's +0x640 byte is 0 and its
  * +0x6C4 halfword is negative, it reads the 24-byte polygon records stree_surf[] under the four
  * wheel polygon indices (+0x5A0..+0x5A6).  If any wheel polygon has flag 0x20 set and its 5-bit
  * id (bits 11..15) equals the scene id, the scene gets bit (24 + player) set (plus 0x200 when no

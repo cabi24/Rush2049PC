@@ -109,7 +109,7 @@ extern void ZOID_SetObjectDef(s16 obj, s32 def);
 extern void ZOID_UpdateObject(s16 obj, f32 *pos, s32 a);
 extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags);
 extern void CopyUV(f32 *src, f32 *dst);
-extern void func_8009EA68(f32 a, f32 *uvs);       /* RollUV */
+extern void RollUV(f32 a, f32 *uvs);       /* RollUV */
 extern void ScaleUV(f32 *src, f32 *dst, f32 s);
 extern f32 Random(f32 scale);
 extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);
@@ -341,7 +341,7 @@ void AnimateWeapon(Visual *v, s16 op)
                     MBOX_HideObject(gGattMuzzleObjs[v->slot].mdls[0], 1, 1 << car->camera);
                 r1 = (s32)Random(4.0f) + 1;
                 r2 = Random(0.5f);
-                func_8009EA68(r2, &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0]);
+                RollUV(r2, &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0]);
                 ScaleUV(&gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], 0.85f + Random(0.75f));
                 MBOX_ShowObject(gGattMuzzleObjs[v->slot].mdls[r1], 0, 15);
                 if (car->camera >= 0 && car->view <= 1)
@@ -349,7 +349,7 @@ void AnimateWeapon(Visual *v, s16 op)
                 r1++;
                 if (r1 >= 5)
                     r1 = 1;
-                func_8009EA68(r2, &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0]);
+                RollUV(r2, &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0]);
                 ScaleUV(&gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], 0.85f + Random(0.75f));
                 MBOX_ShowObject(gGattMuzzleObjs[v->slot].mdls[r1], 0, 15);
                 if (car->camera >= 0 && car->view <= 1)
@@ -421,7 +421,7 @@ void AnimateWeapon(Visual *v, s16 op)
                 if (car->camera >= 0 && car->view <= 1)
                     MBOX_HideObject(gCannMuzzleObjs[v->slot].mdls[0], 1, 1 << car->camera);
                 for (i = 1; i < 5; i++) {
-                    func_8009EA68(Random(1.25f) - 0.5f, &gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0]);
+                    RollUV(Random(1.25f) - 0.5f, &gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0]);
                     ScaleUV(&gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0], &gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0], 0.4f + Random(0.25f));
                     MBOX_ShowObject(gCannMuzzleObjs[v->slot].mdls[i], 0, 15);
                     if (car->camera >= 0 && car->view <= 1)

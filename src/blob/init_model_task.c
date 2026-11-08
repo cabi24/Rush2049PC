@@ -9,7 +9,7 @@
  *
  * Shaping (draft was 26/57):
  *  - the loop body reads the globals gModelIteration and gModelTime back instead of locals holding the
- *    values just stored. The indexed stores into D_8014A250[] do not alias those globals, so uopt
+ *    values just stored. The indexed stores into model[] do not alias those globals, so uopt
  *    keeps them in registers; reading them back is what makes &gModelIteration a coloured web (retail's a3)
  *    and gives retail's FP colouring (gModelTime's value in f12, the divisor load in f2). With locals
  * v/f both were wrong.

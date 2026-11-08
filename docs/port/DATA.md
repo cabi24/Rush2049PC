@@ -124,7 +124,7 @@ arena. The window bytes under own storage hold that data's N64 form and are not 
 A **decoupled** symbol (`port/data/decoupled.txt`) has neither: the PC owns it with one declaration of its own, data.c
 defines it outside the window at its host size, and its N64 name and every name inside its N64 extent are retired
 ([DECOUPLE.md](DECOUPLE.md)). The first is the race roster, `pc_links` (was `D_80153E88`), the second the model
-records, `pc_models` (was `D_8014A250`), the third the car records, `pc_cars` (was `gGameCar`, which was own
+records, `pc_models` (was `model`), the third the car records, `pc_cars` (was `gGameCar`, which was own
 storage: it leaves the loader's table). One that was initialized data (`init=image`: the cars' sounds-started flags,
 engine phase and finish cameras, [DECOUPLE.md](DECOUPLE.md) 7) is filled from the image when the image loads
 (section 4, step 4).
@@ -426,8 +426,8 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
 
 | Symbol | Found by | What the game reads | On the PC before | Fix |
 |---|---|---|---|---|
-| `D_80118C10` | pass 3: a `u8[]` whose every word is a float | the level objects' bodies, 32 bytes each: CollisionReckon (`setMiniFBCollisionForce.c`) reads bounds and mass as f32 through `Matrix64.record` (level_objects, kind 4). Then the static state records of the categories `gTargetStructInfoPtrs` points at (three of the report's `undescribed` lines) | the bounds and mass of every kind-4 object were denormals: car-to-object collisions used a size and mass of about 0 | `f32[115]` in level_objects (`BODY_TABLE` keeps the record address in bytes) |
-| `D_801163F8` | pass 3: small words after an `s32` | UpdateModel walks 36 rising thresholds by pointer (`0x24` steps) to set the rumble request `gPaks_rumble_request` from the car's speed, minus 4 | only the first was swapped, and the other 35 compared as byte-reversed words, so the count, and the rumble request, came out wrong: little or no rumble | `s32[36]` in UpdateModel (`RUMBLE_STEPS`) |
+| `BBoxCollInfo` | pass 3: a `u8[]` whose every word is a float | the level objects' bodies, 32 bytes each: CollisionReckon (`setMiniFBCollisionForce.c`) reads bounds and mass as f32 through `Matrix64.record` (level_objects, kind 4). Then the static state records of the categories `gTargetStructInfoPtrs` points at (three of the report's `undescribed` lines) | the bounds and mass of every kind-4 object were denormals: car-to-object collisions used a size and mass of about 0 | `f32[115]` in level_objects (`BODY_TABLE` keeps the record address in bytes) |
+| `percentTable` | pass 3: small words after an `s32` | UpdateModel walks 36 rising thresholds by pointer (`0x24` steps) to set the rumble request `gPaks_rumble_request` from the car's speed, minus 4 | only the first was swapped, and the other 35 compared as byte-reversed words, so the count, and the rumble request, came out wrong: little or no rumble | `s32[36]` in UpdateModel (`RUMBLE_STEPS`) |
 | `wingOffsets` | pass 3: floats after one row | the wings' place per car type: AnimateWing reads `[model->type][0..1]` (visual_tire_module); StartWing reads column 1 by the car's byte `b8` (`audio_frame`, `StartCar`) | `wingOffsets_y` (its `[0][1]`) bounded the gap to one row, so every car type but the first put its wings at about 0, the car's centre | `extents.txt`: 13 rows, to `D_8011B550` |
 | `gravityArray` gravityArray | pass 3: f32 elements that are text | its four floats, by the gravity option | its floats were right, but the gap ran over the strings after it (the asm's `D_80120308`, `D_8012030C`, which no PC C uses) and swapped them as floats | `extents.txt`: 16 bytes |
 
@@ -451,7 +451,7 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
   shared frames `texture_swap_shared_frames`'s pointers into the bytes after `text_wave_inited`.
 - Words after a declared table that read as floats, addresses or integers in the ROM's order, which no PC C reads:
   after `gSongNames` (`gSongNames`, 12 used: `songIdx < 12`), a table of string pointers with no name and no pointer
-  to it; after `placePos`, `D_80117360`, `controls_updateButtonColor` (the asm's `countdown_polyColor`, `countdown_polyXYZ`), `no_rumble_pane_colors` (the
+  to it; after `placePos`, `res_last_time`, `controls_updateButtonColor` (the asm's `countdown_polyColor`, `countdown_polyXYZ`), `no_rumble_pane_colors` (the
   asm's `D_801161B8`, `D_801161BC`), `rear_traction_by_surface`, `fog_viewable_distance`, and image A's `carscr_msgPos`, `buildTrackMap_mapPos`,
   `buildBattleTrackMaps_mapPos`. A C reader added later must declare them.
 - f32 elements not plausible as loaded: -1 handles under f32 views (a word either way), the car descriptors'
@@ -479,7 +479,7 @@ All resolved from the image symbol tables. Data (each is placed like any other s
 
 | Name | N64 | Region | Storage | Chosen type |
 |---|---|---|---|---|
-| `D_8014A250_alias` | 0x8014A250 | BSS | arena (also D_8014A250) | `tModelData[]`, N64 layout ([CARS.md](CARS.md)) |
+| `D_8014A250_alias` | 0x8014A250 | BSS | arena (also model) | `tModelData[]`, N64 layout ([CARS.md](CARS.md)) |
 | `gCamera` | 0x80150B70 | BSS | arena (also gCamera) | `Camera[]` |
 | `gControllerData` | 0x80156CF0 | BSS | arena (also gControllerData) | `Pad16[]` |
 | `gCarTeam` | 0x8012E67C | BSS | arena (also gCarTeam) | `s8[]` |
@@ -600,7 +600,7 @@ From `data_layout.txt`:
   - `gGameCar`: was 5712 B in `path_D169C`'s definition (6 × 952) against 6720 B of storage, with views that
     disagreed on which visual fields were pointers. Now every view has the PC car layout (0x468 bytes, 43
     pointers: the 21 visuals' `next` and `func`, and the input pointer) and the warning is gone; the model array
-    `D_8014A250` keeps its N64 layout with u32 pointer fields and sits in the arena ([CARS.md](CARS.md)).
+    `model` keeps its N64 layout with u32 pointer fields and sits in the arena ([CARS.md](CARS.md)).
   - `gPlayers`: every view now has the 80-byte record, and the m2c code that added 76-byte strides uses
     `INPUT_SIZE` ([POINTERS.md](POINTERS.md) 10.3).
 - **Width conflicts: 85 symbols** (198 pairs), such as `s32` vs `s8` for `gStopAllEffects`, `u64[]` vs `u8[4096]` for

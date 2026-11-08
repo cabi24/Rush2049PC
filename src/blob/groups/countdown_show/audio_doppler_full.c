@@ -63,11 +63,11 @@ void ShowCountdown(s32 active)
     s32 i;
     s32 winidx;
     char str[20];
-    static Poly *D_80154368[12];
-    static u16 D_80154398;
-    static u16 D_801543A4;
-    static u8 D_801140F4[4] = { 0xFF, 0xFF, 0xFF, 0xC0 };
-    static f32 D_801140F8[4][3] = {
+    static Poly *poly[12];
+    static u16 polyTidx;
+    static u16 lastCountDown;
+    static u8 polyColor[4] = { 0xFF, 0xFF, 0xFF, 0xC0 };
+    static f32 polyXYZ[4][3] = {
         { 1.0f, 1.0f, 6.0f }, { -1.0f, 1.0f, 6.0f }, { -1.0f, -1.0f, 6.0f }, { 1.0f, -1.0f, 6.0f }
     };
 
@@ -79,21 +79,21 @@ void ShowCountdown(s32 active)
                 dist = 5.0f;
             }
             for (i = 0; i < 4; i++) {
-                D_801140F8[i][2] = dist;
-                U64WorldVector(D_801140F8[i], xyz[i], gCamera[winidx].mat);
+                polyXYZ[i][2] = dist;
+                U64WorldVector(polyXYZ[i], xyz[i], gCamera[winidx].mat);
                 xyz[i][0] += gCamera[winidx].pos[0];
                 xyz[i][1] += gCamera[winidx].pos[1];
                 xyz[i][2] += gCamera[winidx].pos[2];
             }
-            if (D_80154368[winidx] == 0) {
-                MBOX_FindTexture_WORK("CNTDWN3", &D_80154398, 0, gNumModels - 1, 1);
-                D_80154368[winidx] = ZOID_NewPoly(4, xyz[0], D_80154398, D_801140F4, (1 << winidx) | 0x8000 | 0x200 | 0x80 | 0x40, 1);
-                D_801543A4 = 4;
-            } else if (D_801543A4 > gCountDown) {
+            if (poly[winidx] == 0) {
+                MBOX_FindTexture_WORK("CNTDWN3", &polyTidx, 0, gNumModels - 1, 1);
+                poly[winidx] = ZOID_NewPoly(4, xyz[0], polyTidx, polyColor, (1 << winidx) | 0x8000 | 0x200 | 0x80 | 0x40, 1);
+                lastCountDown = 4;
+            } else if (lastCountDown > gCountDown) {
                 if (winidx == gNumWindows - 1) {
                     sprintf(str, "CNTDWN%d", gCountDown);
-                    MBOX_FindTexture_WORK(str, &D_80154398, 0, gNumModels - 1, 1);
-                    D_801543A4 = gCountDown;
+                    MBOX_FindTexture_WORK(str, &polyTidx, 0, gNumModels - 1, 1);
+                    lastCountDown = gCountDown;
                     if (gCountDown == 3) {
                         PlayGameSound(75, 0, 1, 0);
                     } else if (gCountDown == 2) {
@@ -102,14 +102,14 @@ void ShowCountdown(s32 active)
                         PlayGameSound(77, 0, 1, 0);
                     }
                 }
-                ZOID_UpdatePoly(D_80154368[winidx], 4, xyz[0], D_80154398, D_801140F4, 0, 1);
-                ZOID_ShowPoly(D_80154368[winidx]);
+                ZOID_UpdatePoly(poly[winidx], 4, xyz[0], polyTidx, polyColor, 0, 1);
+                ZOID_ShowPoly(poly[winidx]);
             } else {
-                ZOID_UpdatePoly(D_80154368[winidx], 4, xyz[0], D_80154398, D_801140F4, 0, 1);
+                ZOID_UpdatePoly(poly[winidx], 4, xyz[0], polyTidx, polyColor, 0, 1);
             }
-        } else if (D_80154368[winidx] != 0) {
-            ZOID_RemovePoly(D_80154368[winidx]);
-            D_80154368[winidx] = 0;
+        } else if (poly[winidx] != 0) {
+            ZOID_RemovePoly(poly[winidx]);
+            poly[winidx] = 0;
             gCountDown = -1;
         }
     }

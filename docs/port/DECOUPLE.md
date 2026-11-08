@@ -169,7 +169,7 @@ three references to 0x8014D280: that one, initTargetStructs's node pool (the nei
 < 6`, which IDO strength-reduced to an end pointer. Nothing reaches the old range any more: filled with 0x5A after the
 loader ran, it left the race path's trace the same, and nothing wrote to it.
 
-`layout_check.py --storage` before: 4,243 accesses on `D_8014A250` and 17 on 9 of the names inside, 3,434 of them
+`layout_check.py --storage` before: 4,243 accesses on `model` and 17 on 9 of the names inside, 3,434 of them
 through the parameters above; after: 4,271 on `pc_models`, none off the reference (`struct pc_model[8]`).
 
 **The size.** Every walk stops at 6: loops to 6 or `MAX_LINKS` (init_model_task, StartEnvironment, update_game_data,
@@ -184,14 +184,14 @@ for the indexed fields, and three `void *` ones for code that keeps a record poi
 record), `PC_MODELS` (the array, for m2c's pointer walks of 0x808) and `PC_MODELS_END`. The 112 files use them, about
 340 of the uses rewritten by a script from each file's DWARF (the view's field to its N64 offset to the accessor) and
 about 60 by hand (the m2c strides and the aliases); each defines the N64 side with its own view (`#define
-PC_MODEL_SLOT(i) D_8014A250[i].half1990`, `#define PC_MODEL_SLOT(i) *(s16 *)((u8 *)&D_8014AA16 + i * 0x808)`, `#define
-PC_MODEL(i) (ModelRecord *) ((i * 0x808) + ((u8 *) (&D_8014A250)))`). FinishResurrecting's debug guard reads
+PC_MODEL_SLOT(i) model[i].half1990`, `#define PC_MODEL_SLOT(i) *(s16 *)((u8 *)&D_8014AA16 + i * 0x808)`, `#define
+PC_MODEL(i) (ModelRecord *) ((i * 0x808) + ((u8 *) (&model)))`). FinishResurrecting's debug guard reads
 `model_modelrun` as a scalar, so on the PC it is `#define model_modelrun PC_MODEL_MODELRUN(0)`. `decoupled.txt`: `pc_models
-D_8014A250 0x3030` and the 11 aliases. The state log reads `pc_models[0]`; ten asset tests and test_overlay_data define
-`pc_models` where they defined `D_8014A250` (test_cars and test_targets had it as an absolute symbol in their window).
+model 0x3030` and the 11 aliases. The state log reads `pc_models[0]`; ten asset tests and test_overlay_data define
+`pc_models` where they defined `model` (test_cars and test_targets had it as an absolute symbol in their window).
 gen_data needed nothing new.
 
-**What the tables say.** `data_symbols.txt` loses the 11 rows of `D_8014A250` and the names inside; `data.c` loses their
+**What the tables say.** `data_symbols.txt` loses the 11 rows of `model` and the names inside; `data.c` loses their
 12 `.set` lines and 11 report names, and gains `pc_models` (16,448 bytes, `.bss`); `data_layout.txt` lists it under
 "Decoupled" with the 24 retired names. The loader's symbol table is the same (419 entries) and no ROM word pointed into
 the range, so its summary line is too. The synthetic cartridge is the same file. The arena's 0x8014A250-0x8014D280 has
@@ -209,9 +209,9 @@ no symbol now: 12 KB nothing uses. (Since [MORECARS.md](MORECARS.md) 8, its firs
 | Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files (build host); before against after, `data_symbols.txt` 11 lines, `data.c` 28 |
 | the synthetic cartridge, before against after | the same file (Pi and build host) |
 | `n64_neutral.py --base 09da2f0` | passes (1,010 files: 92 code-exact, 918 shifted); 108 changed game files under `src/` |
-| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after (endian_check's 2 open value conflicts in 1 storage are the same before and after); the reports differ only by line numbers and 11 storages fewer (`D_8014A250` and 11 names inside it are one root, `pc_models`); endian_check counts 2,839 puns, 491 more (each file's view and `struct pc_model` on one storage) |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after (endian_check's 2 open value conflicts in 1 storage are the same before and after); the reports differ only by line numbers and 11 storages fewer (`model` and 11 names inside it are one root, `pc_models`); endian_check counts 2,839 puns, 491 more (each file's view and `struct pc_model` on one storage) |
 | `layout_check.py --storage pc_models` | 4,271 accesses, none off the reference (`struct pc_model[8]`) |
-| `view_audit.py --symbols pc_models --size 0x808 --ref init_cars.c` | 165 views (`struct pc_model` among them), 0 disagree (before, on `D_8014A250`: 122, 0) |
+| `view_audit.py --symbols pc_models --size 0x808 --ref init_cars.c` | 165 views (`struct pc_model` among them), 0 disagree (before, on `model`: 122, 0) |
 | `bounds_check`, build host (GCC 14) | 3 new, none `clamped` or `two offsets`, added to `bounds_reviewed.txt` as `[gcc14]` (two `view` on `pc_models`, one `tmr` on `pc_links` in init_cars); 19 entries on the retired names removed; then none new, 7 kept (as before). GCC 13 (CI's runner) and mingw-w64 12 not run on it |
 | a `RUSH_CHECK_CASTS` build (build host): race, demo | no stop |
 | Windows cross build (Pi, mingw-w64, fresh configure) | builds; `gen_data.py --check --pe`: OK, 2 decoupled |
@@ -776,8 +776,8 @@ rule past them (update_model/group.c, `pc_drone_sched`):
   one human or none and 13 + n with two, n up to 12, and the two kinds never meet. init_cars's `+= 7` and
   UpdateModel's `>= 7`, `-= 7` use it; PrePlay's restart (every car a drone, row `num_our_drones`) and the
   drone's `-= 1` stay as they are.
-- **The N64's rows.** For n up to 6 (one human) and up to 4 (two), entry k is `D_80120E74[n].v[k]` and
-  `D_80120E74[7 + n].v[k]`, read as the N64 reads it, k unbounded as there.
+- **The N64's rows.** For n up to 6 (one human) and up to 4 (two), entry k is `drone_sched[n].v[k]` and
+  `drone_sched[7 + n].v[k]`, read as the N64 reads it, k unbounded as there.
 - **Past them.** A round has as many iterations as the N64's last row of the kind (row 6, row 11) has groups before its
   -1; iteration k updates n / groups drones, plus one for the first n % groups: each drone once a round, and a round as
   long as the N64's longest, so a drone's model step (the ticks since its last update) stays what the N64 gives its

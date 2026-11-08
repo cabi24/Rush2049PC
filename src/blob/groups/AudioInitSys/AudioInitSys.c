@@ -9,8 +9,8 @@
  * Calls: LoadWave, LockWaveInstance = display_list_alloc,
  * _ValidateWaveInstance = ValidateWaveInstance; GetWaveInstanceAddr (MAT3 waves.c, GC 0x8005B7B4:
  * `_ValidateWaveInstance(idx,0,0); return gWaveInstance[idx].ptr;`) is umerge-inlined three times, which
- * is what leaves the header pointer in v0 before each LoadWave call. gWaveInstance = D_80156D38
- * (20-byte records, ptr at +0xC). Static-library prototypes are the promoted ones (src/rom/sound/init.c,
+ * is what leaves the header pointer in v0 before each LoadWave call. gWaveInstance holds
+ * 20-byte records, ptr at +0xC. Static-library prototypes are the promoted ones (src/rom/sound/init.c,
  * groups.c, api.c): sound_stop_everything(void), sound_is_idle returns u8, sound_lib_init/sound_lib_init_shared_output
  * (u32 frequency, u8 voices, u8, u8, u16 count, u32 flags), sound_fade_volume(u8, u16, u8), sound_fade_master_volume(u8, u16, u8, u8).
  *
@@ -33,7 +33,7 @@ extern s8 audio_driver_started;
 extern s32 song_handle;
 extern u8 musyx_task_done_queue[],musyx_task_done_msg[];
 extern u8 sample_dma_thread[],audio_retrace_thread[],sample_dma_thread_stack_top[],audio_retrace_thread_stack_top[];
-extern Resource20 D_80156D38[];
+extern Resource20 gWaveInstance[];
 extern Instrument4 boot_sfx_groups[4];   /* the four sfx groups pushed at boot; the song names' text follows */
 extern void *musyx_project,*musyx_pool,*musyx_sdir;
 extern intptr_t musyx_samples;
@@ -58,10 +58,10 @@ extern void sound_stop_everything(void);
 extern u8 sound_is_idle(void);
 extern s32 sound_pop_group(void);
 extern void sound_lib_exit_shared_output(void);
-extern s32 func_800108e0(u32,u8,u8,u8,u16,u32);
+extern s32 sound_lib_init_shared_output(u32,u8,u8,u8,u16,u32);
 extern s32 sound_lib_init(u32,u8,u8,u8,u16,u32);
-extern void func_8001536c(void *,u16,intptr_t,void *,void *);
-extern void func_8002043c(u8,u16,u8);
+extern s32 sound_push_group(void *,u16,void *,void *,void *);
+extern void sound_fade_volume(u8,u16,u8);
 extern void sound_fade_master_volume(u8,u16,u8,u8);
 extern void AudioSfxInit(s32);
 
@@ -100,16 +100,16 @@ void AudioInitSys(s32 channels,s32 control,s32 enabled)
         while(!sound_is_idle()) {}
         for(i=0;i<4;i++) sound_pop_group();
         sound_lib_exit_shared_output();
-        if(func_800108e0(22050,(u8)channels,(u8)enabled,(u8)control,0,memory)) {
+        if(sound_lib_init_shared_output(22050,(u8)channels,(u8)enabled,(u8)control,0,memory)) {
         }
     } else {
         sound_lib_init(22050,(u8)channels,(u8)enabled,(u8)control,0,memory);
         audio_driver_started=1;
     }
     for(j=0;j<4;j++) {
-        func_8001536c(musyx_project,boot_sfx_groups[j].id,musyx_samples,musyx_sdir,musyx_pool);
+        sound_push_group(musyx_project,boot_sfx_groups[j].id,(void *)musyx_samples,musyx_sdir,musyx_pool);
     }
-    func_8002043c(127,0,255);
+    sound_fade_volume(127,0,255);
     sound_fade_master_volume(127,0,1,1);
     AudioSfxInit(control);
     song_handle=-1;

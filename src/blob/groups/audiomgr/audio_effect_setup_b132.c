@@ -21,7 +21,7 @@ extern List gActiveSequences,gFreeSequences,gActiveEmitters,gFreeEmitters,gFreeF
 extern s32 active_sequences_head;
 extern f32 gAudioSeconds;
 extern s8 gInited_AudioMgr;
-extern s32 gNumStopCmds,gNumStartCmds,D_80110278,D_80110280,D_8011027C;
+extern s32 gNumStopCmds,gNumStartCmds,gNumFxPlaying,gNumFxInterrupted,gNumFxPending;
 extern void *gStopCmds[],*gStartCmds[];
 extern s32 *D_80144C58;
 extern intptr_t ConvertTag(s32);

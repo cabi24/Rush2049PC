@@ -6,7 +6,7 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef int s32;
 typedef struct { u8 pad0[5]; s8 sub; u8 id; u8 pad7[5]; void *ptr; u8 pad10[4]; } Voice;
-extern Voice D_80156D38[64];
+extern Voice gWaveInstance[64];
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern s32 LoadWave(s32 a, s32 b, s32 c, s32 d, void *e);
 extern void LockWaveInstance(s32 a);

@@ -1,7 +1,7 @@
 /*
  * Resource-slot views and the sound-bank refresh. Real bodies only, no stand-ins.
  *
- * D_80156D38[]: 0x14-byte resource slots { u8 ?, s8 state, u8 active, ..., void *data @0xC, ... }.
+ * gWaveInstance[]: 0x14-byte resource slots { u8 ?, s8 state, u8 active, ..., void *data @0xC, ... }.
  * ValidateWaveInstance(index, 0, 0): empty debug/validation hook (retail: `beqz a2,+8; nop; jr ra; nop`), called
  *   by jal from 11 functions. Body = the locked src/blob/func_80096288.c text plus a dead `if (0) switch`
  *   so that umerge does not inline it (plan M4 "inline blocker"); it must be INTERNAL (not in keep): its

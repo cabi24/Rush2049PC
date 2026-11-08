@@ -233,20 +233,6 @@ local void copy_block     OF((deflate_state *s, charf *buf, unsigned len, int he
  * the compiled members against the target words; the .data ones sit in
  * exactly zlib 1.0.4's source order (extra_lbits, extra_dbits, extra_blbits,
  * bl_order, static_l/d/bl_desc, then tr_static_init's static_init_done). */
-#define extra_lbits          D_8011E888
-#define extra_dbits          D_8011E8FC
-#define extra_blbits         D_8011E974
-#define bl_order             D_8011E9C0
-#define static_l_desc        D_8011E9D4
-#define static_d_desc        D_8011E9E8
-#define static_bl_desc       D_8011E9FC
-#define configuration_table  D_8011E838
-#define static_ltree         D_801249F0
-#define static_dtree         D_80124E70
-#define dist_code            D_80152260
-#define length_code          D_80152468
-#define base_length          D_80152578
-#define base_dist            D_80152600
 extern int extra_lbits[LENGTH_CODES];
 extern int extra_dbits[D_CODES];
 extern int extra_blbits[BL_CODES];

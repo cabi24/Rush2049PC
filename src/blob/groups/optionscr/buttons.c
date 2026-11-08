@@ -2,7 +2,7 @@
 /*
  * Options-screen button pair (GC optionscr.c): updateOptionScreen = updateOptionScreen (kept) and its internal callee
  * options_updateButtons = updateButtons (unsaved s0-s8/f20-f30). DB1E0 body unchanged; DA2C0
- * pad-free rewrite (GC statics cursorSpeed$472/scrollSpeed$473 = D_8015273C/D_80152740 as function-local statics,
+ * pad-free rewrite (GC statics cursorSpeed$472/scrollSpeed$473 as function-local statics,
  * GC order of sel_y, 255 spellings, alpha reuse) plus closing levers:
  *  - GC ZOID_SetColor(s16 objnum, union *col)@zoidtexture.c as an inlined helper with one nested level
  *    (ZOID_SetColor_da -> ZOID_SetColorP_da, both non-static, not on keep): the 32 B of frame below `color`
@@ -121,8 +121,8 @@ void options_uninitScreen(void)
 void ZOID_SetColor_da(s16 objnum, Color *col);
 
 void options_updateButtons(void) {
-    static f32 D_8015273C;
-    static f32 D_80152740;
+    static f32 cursorSpeed;
+    static f32 scrollSpeed;
     s32 i;
     s32 j;
     s32 n;
@@ -156,19 +156,19 @@ void options_updateButtons(void) {
     options_buttonInfo[28].pos[1] = sel_y;
     if (options_buttonsJustInited == 0) {
         y = options_buttonInfo[28].pos[1];
-        if (D_8015273C < fabsf(y - old[1]) * 60.0f / 10.0f) {
-            D_8015273C = fabsf(y - old[1]) * 60.0f / 10.0f;
-            if (!(D_8015273C < 540.0f))
-                D_8015273C = 540.0f;
-            if (!(180.0f < D_8015273C))
-                D_8015273C = 180.0f;
+        if (cursorSpeed < fabsf(y - old[1]) * 60.0f / 10.0f) {
+            cursorSpeed = fabsf(y - old[1]) * 60.0f / 10.0f;
+            if (!(cursorSpeed < 540.0f))
+                cursorSpeed = 540.0f;
+            if (!(180.0f < cursorSpeed))
+                cursorSpeed = 180.0f;
         }
-        if (old[1] + D_8015273C * gFrameSeconds < y)
-            options_buttonInfo[28].pos[1] = old[1] + D_8015273C * gFrameSeconds;
-        else if (y < old[1] - D_8015273C * gFrameSeconds)
-            options_buttonInfo[28].pos[1] = old[1] - D_8015273C * gFrameSeconds;
+        if (old[1] + cursorSpeed * gFrameSeconds < y)
+            options_buttonInfo[28].pos[1] = old[1] + cursorSpeed * gFrameSeconds;
+        else if (y < old[1] - cursorSpeed * gFrameSeconds)
+            options_buttonInfo[28].pos[1] = old[1] - cursorSpeed * gFrameSeconds;
         else
-            D_8015273C = 180.0f;
+            cursorSpeed = 180.0f;
     }
     WRollUV(options_buttonInfo[28].ang, options_buttonInfo[28].mat);
     WPitchUV(1.5707964f, options_buttonInfo[28].mat);
@@ -199,17 +199,17 @@ void options_updateButtons(void) {
         options_buttonInfo[i].pos[1] = yi;
         options_buttonInfo[i].pos[2] = 300.0f;
         if (options_buttonsJustInited == 0) {
-            if (D_80152740 < fabsf(options_buttonInfo[i].pos[1] - old[1]) * 60.0f / 10.0f) {
-                D_80152740 = fabsf(options_buttonInfo[i].pos[1] - old[1]) * 60.0f / 10.0f;
-                if (!(D_80152740 < 540.0f))
-                    D_80152740 = 540.0f;
+            if (scrollSpeed < fabsf(options_buttonInfo[i].pos[1] - old[1]) * 60.0f / 10.0f) {
+                scrollSpeed = fabsf(options_buttonInfo[i].pos[1] - old[1]) * 60.0f / 10.0f;
+                if (!(scrollSpeed < 540.0f))
+                    scrollSpeed = 540.0f;
             }
-            if (old[1] + D_80152740 * gFrameSeconds < options_buttonInfo[i].pos[1]) {
+            if (old[1] + scrollSpeed * gFrameSeconds < options_buttonInfo[i].pos[1]) {
                 flag = 0;
-                options_buttonInfo[i].pos[1] = old[1] + D_80152740 * gFrameSeconds;
-            } else if (options_buttonInfo[i].pos[1] < old[1] - D_80152740 * gFrameSeconds) {
+                options_buttonInfo[i].pos[1] = old[1] + scrollSpeed * gFrameSeconds;
+            } else if (options_buttonInfo[i].pos[1] < old[1] - scrollSpeed * gFrameSeconds) {
                 flag = 0;
-                options_buttonInfo[i].pos[1] = old[1] - D_80152740 * gFrameSeconds;
+                options_buttonInfo[i].pos[1] = old[1] - scrollSpeed * gFrameSeconds;
             }
         }
         options_buttonInfo[i + 14].pos[0] = 150.0f;
@@ -254,7 +254,7 @@ void options_updateButtons(void) {
     if (yi) {}
     if (yi) {}
     if (flag == 1)
-        D_80152740 = 0.0f;
+        scrollSpeed = 0.0f;
     options_buttonsJustInited = 0;
 }
 

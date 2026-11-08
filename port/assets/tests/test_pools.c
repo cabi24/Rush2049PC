@@ -1,7 +1,7 @@
 /* port/assets/tests/test_pools.c: the pools more cars a race fill (docs/port/MORECARS.md 8), through the game's own
  * code, with the pools shrunk (CMakeLists.txt: PC_MATRIX_SPILL 4, PC_FRAME_MATRICES 8, PC_GLIST_LEN 32) so that the
  * checks themselves are what is tested. GetMatrix (ZOID_NewMatrix) hands out the N64's 150 persistent matrices at
- * D_8015F740 (index 0 unused), then pc_matrix_spill's, then says it ran out (pc_pool_overflow) and hands out its last
+ * gMatrices (index 0 unused), then pc_matrix_spill's, then says it ran out (pc_pool_overflow) and hands out its last
  * one again; EndGraphics closes the frame's list in the frame's buffer as pc_game_types.h
  * lays it out and hands the list's and the matrices' ends to pc_frame_pools (port/ultra/pools.c), which says when
  * either ran past its end, or the frame's lookats did, and not when one is exactly full. The scene nodes' allocator
@@ -20,7 +20,7 @@
 
 /* GetMatrix's */
 int32_t gNumMatrices, gMaxMatrices;
-float D_8015F740[PC_N64_MATRICES][12] __attribute__((aligned(16)));
+float gMatrices[PC_N64_MATRICES][12] __attribute__((aligned(16)));
 float pc_matrix_spill[PC_MATRIX_SPILL][12] __attribute__((aligned(16)));   /* data.c's, in the window, in the game */
 float unitmatrix[3][3];
 static int g_copies;
@@ -80,7 +80,7 @@ static void overflow(const char *pool, int used, int capacity)
 static void test_matrices(void)
 {
     CHECK(PC_N64_MATRICES == 150 && PC_MATRIX_SPILL == 4 && PC_MATRICES == 154);   /* this test's build */
-    memset(D_8015F740, 0x7F, sizeof D_8015F740);
+    memset(gMatrices, 0x7F, sizeof gMatrices);
     memset(pc_matrix_spill, 0x7F, sizeof pc_matrix_spill);
     gNumMatrices = 0;
     gMaxMatrices = 0;
@@ -88,11 +88,11 @@ static void test_matrices(void)
     /* The N64's: indexes 1-149 at their N64 places, each cleared of its translation and set to the identity. */
     for (int i = 1; i < PC_N64_MATRICES; i++) {
         float *e = ZOID_NewMatrix();
-        CHECK(e == D_8015F740[i] && g_copied_to == e);
+        CHECK(e == gMatrices[i] && g_copied_to == e);
         CHECK(e[9] == 0.0f && e[10] == 0.0f && e[11] == 0.0f && e[8] != 0.0f);
     }
     CHECK(gNumMatrices == 149 && gMaxMatrices == 149 && g_copies == 149 && g_overflows == 0);
-    CHECK(D_8015F740[0][0] != 0.0f);   /* index 0 is never handed out */
+    CHECK(gMatrices[0][0] != 0.0f);   /* index 0 is never handed out */
     /* Then the spill, in order. */
     for (int i = 0; i < PC_MATRIX_SPILL; i++) {
         float *e = ZOID_NewMatrix();
@@ -106,7 +106,7 @@ static void test_matrices(void)
     CHECK(gMaxMatrices == 154);
     /* The frame's reset starts again at the N64's first. */
     gNumMatrices = 0;
-    CHECK(ZOID_NewMatrix() == (void *)D_8015F740[1] && g_overflows == 1);
+    CHECK(ZOID_NewMatrix() == (void *)gMatrices[1] && g_overflows == 1);
 }
 
 /* ---------------------------------------------------------------- the frame's buffer */

@@ -88,7 +88,6 @@ typedef struct {
 
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#define model D_8014A250
 #define game_car gGameCar
 extern S8 gNumActiveCars;
 #define num_active_cars gNumActiveCars

@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* AnimateNewBlastRing: per-frame update of a growing smoke/dust puff
  * attached to a scene node (name is a historical label). node->index selects
- * the car (D_8014A250, 2056-byte records), the player position source
+ * the car (model, 2056-byte records), the player position source
  * (gGameCar, 952-byte records) and the puff record (gBlastRingObjs, 60 bytes).
  *  - paused (gPauseState) -> nothing;
  *  - car disabled -> kill the puff's sound/effect handle (RemoveObjectTree

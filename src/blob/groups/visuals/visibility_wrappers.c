@@ -70,7 +70,7 @@ typedef struct Object68 {
     u32 flags;
     u8 tail[64];
 } Object68;
-extern Model2056 D_8014A250[];
+extern Model2056 model[];
 extern Car952 gGameCar[];
 extern CarConfig *gCarModels[];
 extern Control152 gCamera[];

@@ -1,6 +1,6 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
- * UnloadWaveAll (0x800A4AC4): release every slot of the 20-byte ResSlot table D_80156D38[64] that is
+ * UnloadWaveAll (0x800A4AC4): release every slot of the 20-byte ResSlot table gWaveInstance[64] that is
  * loaded and owned by `type` (UnloadWaveInstance = release slot i). Layout and predicate from the locked sibling
  * FindWaveInstanceInternal (state_audio): `p0C != 0 && type == slot->type && (sub < 0 || sub == slot->f5)`.
  * The per-slot test is a deleted helper inlined by umerge, called with sub = -1; it is defined non-static under its

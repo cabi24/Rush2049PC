@@ -6,7 +6,7 @@
  *   GetCarsIRColor    (GC 0x800563B0) and ZOID_SetObjectDef are inlined into AnimateFrame; they are written
  * non-static and kept off the keep list so their deleted-procedure stubs carry a symbol.
  * Built on (MAT3 Rocket/Frame
- * bodies, N64 field offsets, D_8011B468 as s32, 4 palette samples at 0x344) and the first pass.
+ * bodies, N64 field offsets, gTrackBaseColors as s32, 4 palette samples at 0x344) and the first pass.
  * MATCH in group visual_tire_module and in the whole-program unit.
  *
  * N64 differences from the GC body: no per-camera Show/Hide pass in AnimateRocketFlame; no trim (tobj) or
@@ -109,7 +109,7 @@ typedef struct Car {
     /* 0x3A2 */ u8 pad3A2[0x3B8 - 0x3A2];
 } Car;
 
-/* D_8014A250 element (0x808 bytes) */
+/* model element (0x808 bytes) */
 typedef struct CarState {
     /* 0x000 */ u8 pad0[8];
     /* 0x008 */ u8 mode;
@@ -153,7 +153,7 @@ extern s16 gNumWindows;
 extern u16 gObjList[];
 extern u8 car_mine_model_name[];
 extern u8 *gTrackColors[];        /* palette base per track */
-extern s32 D_8011B468[];         /* stride 4 */
+extern s32 gTrackBaseColors[];         /* stride 4 */
 extern s32 SheenColors[][2];
 
 void MBOX_HideObject(s32, s32, u32);
@@ -209,9 +209,9 @@ Color GetCarsIRColor(Car *car, CarState *m)
     if (m->dist >= 20.0f) {
         d1 = 0.025f * (m->dist - 20.0f);
         if (d1 > 1.0f)
-            return ((Color *)gTrackColors[gTrackNum])[D_8011B468[gTrackNum]];
+            return ((Color *)gTrackColors[gTrackNum])[gTrackBaseColors[gTrackNum]];
         if (d1 > 0.0f) {
-            sclr2.w = ((Color *)gTrackColors[gTrackNum])[D_8011B468[gTrackNum]].w;
+            sclr2.w = ((Color *)gTrackColors[gTrackNum])[gTrackBaseColors[gTrackNum]].w;
             d2 = 1.0f - d1;
             a = rgb[0];
             b = sclr2.b[0];

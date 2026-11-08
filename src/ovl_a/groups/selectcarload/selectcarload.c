@@ -48,12 +48,12 @@ extern s8 D_80111589[][13];
 extern s8 gTireRims[5][13];      /* gTireRims */
 extern intptr_t gWheelTextures[];
 extern f32 unitmatrix[3][3],FSCLS_from_one[];
-/* PC: D_801106C4 is FSCLS[3] and then, up to trackSpots, the tracks' respawn records init_camera_on_track reads
- * ({s8 flag; f32 pos[3]}, 16 bytes; trackSpots points at each track's). The loader converts ROM data by its
- * declaration: as f32[] each flag byte was swapped as part of an f32 and read as 0 (docs/port/DATA.md 8). */
+/* FSCLS (MAT3 camera.c: the car's y stretch by frame scale) and after it, up to trackSpots, the tracks' respawn
+ * records init_camera_on_track reads ({s8 flag; f32 pos[3]}, 16 bytes; trackSpots points at each track's: MAT3's
+ * track1Spots..track6Spots). The loader has one symbol for all of it and converts its data by this declaration: as
+ * f32[] each flag byte was swapped as part of an f32 and read as 0 (docs/port/DATA.md 8). */
 typedef struct PcRespawn { s8 flag; u8 pad1[3]; f32 pos[3]; } PcRespawn;
-extern struct PcFscls { f32 fscls[3]; PcRespawn respawn[30]; } D_801106C4;
-#define FSCLS D_801106C4.fscls
+extern struct PcFscls { f32 fscls[3]; PcRespawn respawn[30]; } FSCLS;
 extern s16 gNumWindows,gCarModelNums[];
 extern s8 gFrameScale,expansion_pak_present,gTrackNum;
 extern Color selectcarload_alphaCol;
@@ -187,9 +187,9 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
         SetFrameColor(slot, (s32 *)&alphaCol);
         CopyUV(uvs, newuvs);
         if (gFrameScale) {
-            newuvs[0][1] *= FSCLS[gFrameScale - 1];
-            newuvs[1][1] *= FSCLS[gFrameScale - 1];
-            newuvs[2][1] *= FSCLS[gFrameScale - 1];
+            newuvs[0][1] *= FSCLS.fscls[gFrameScale - 1];
+            newuvs[1][1] *= FSCLS.fscls[gFrameScale - 1];
+            newuvs[2][1] *= FSCLS.fscls[gFrameScale - 1];
         }
         ZOID_UpdateObject(gCarParts[slot].handle, pos, newuvs);
         if (gSelectCar[slot].texture != gTireRims[player + 1][idx]) {

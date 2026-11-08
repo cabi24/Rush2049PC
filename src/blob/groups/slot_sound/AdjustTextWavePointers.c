@@ -5,7 +5,7 @@
  * are padded to an even count), then relocates the three pointer sections by the block address.
  *
  * `GetWaveInstanceAddr(index)` (src/blob/groups/slot_sound) is inlined by umerge: that is the jal to
- * ValidateWaveInstance with the index kept in a3 and the `D_80156D38[index].data` load. The function therefore
+ * ValidateWaveInstance with the index kept in a3 and the `gWaveInstance[index].data` load. The function therefore
  * only matches in the slot_sound group (or the whole-program unit); no quirks.
  */
 typedef signed char s8;

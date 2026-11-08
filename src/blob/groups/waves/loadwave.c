@@ -25,12 +25,11 @@ typedef struct anon_loaded_ready_14 {
     unsigned char *lastPtr;
 } anon_loaded_ready_14;
 
-extern anon_loaded_ready_14 D_80156D38[64];  /* gWaveInstance */
+extern anon_loaded_ready_14 gWaveInstance[64];  /* gWaveInstance */
 extern unsigned int gWaveSizes[];           /* gWaveSizes */
 extern OSMesgQueue bg_load_idle_queue;              /* loader: ready queue */
 extern OSMesgQueue bg_load_request_queue;              /* loader: request queue */
 extern int bg_load_request;                      /* loader: wave instance to read */
-#define gWaveInstance D_80156D38
 
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);

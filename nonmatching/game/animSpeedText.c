@@ -14,7 +14,6 @@
  * frame) or the blit's AnimFunc; either way it gets the blit. The car record has its PC layout (docs/port/CARS.md);
  * the text bank's string table is the host pointer at +8 (ModelTables).
  */
-#define model D_8014A250
 #define gFontSem text_lock_queue
 typedef unsigned char u8;
 typedef signed char s8;

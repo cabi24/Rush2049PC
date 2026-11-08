@@ -166,15 +166,15 @@ static const struct {
      * the level objects' bodies and static states (all f32), the rumble thresholds (s32[36], walked by a
      * pointer), the wings' place per car type (f32[13][3]); and gravityArray's four floats, whose extent by the gap
      * once swapped the strings after it as floats. */
-    {"D_80118C10, the level objects' bodies and static states", 0x80118C10, 460, 1, 4},
-    {"D_801163F8, the rumble thresholds", 0x801163F8, 144, 1, 4},
+    {"BBoxCollInfo, the level objects' bodies and static states", 0x80118C10, 460, 1, 4},
+    {"percentTable, the rumble thresholds", 0x801163F8, 144, 1, 4},
     {"D_8011B4B4, the wings' place per car type", 0x8011B4B4, 156, 1, 4},
     {"D_801202F8, gravityArray", 0x801202F8, 16, 1, 4},
     {"the strings after gravityArray", 0x80120308, 20, 1, 1},
-    /* The respawn records after FSCLS (D_801106C4): an s8 flag and pad, then the place as f32. */
-    {"D_801106C4, the first respawn record's flag", 0x801106D0, 4, 1, 1},
-    {"D_801106C4, the first respawn record's place", 0x801106D4, 12, 1, 4},
-    {"D_801106C4, the last respawn record's flag", 0x801108A0, 4, 1, 1},
+    /* The respawn records after FSCLS: an s8 flag and pad, then the place as f32. */
+    {"FSCLS, the first respawn record's flag", 0x801106D0, 4, 1, 1},
+    {"FSCLS, the first respawn record's place", 0x801106D4, 12, 1, 4},
+    {"FSCLS, the last respawn record's flag", 0x801108A0, 4, 1, 1},
 };
 
 /* Checks known_widths against the images' bytes (after both runtime images are loaded); the number that differ. */

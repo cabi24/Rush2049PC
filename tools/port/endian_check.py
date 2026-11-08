@@ -2138,8 +2138,8 @@ SELFTEST_HALVES = [(("sym", "gHandles"), 0x2, "handle_index"), (("sym", "gHandle
 # element width the PC loader must swap at (symbol, N64 offset), from build/pc/pc-data/data.c.
 LOADER_EXPECT = [("gBackRects", 0x0, 4), ("gBackRects", 0xC, 4), ("gCheatState", 0x0, 2), ("gCheatState", 0x28, 2),
                  ("pause_gPlayerRects", 0x0, 4), ("pause_gPlayerRects", 0x10, 4), ("hud_playerPaneColors", 0x0, 1), ("hud_playerPaneColors", 0x5, 1),
-                 ("carscr_buttonInfo", 0x0, 4), ("carscr_buttonInfo", 0x3C, 1), ("cont_bit_pattern", 0x0, 1), ("D_8011195C", 0x0, 1),
-                 ("D_80111960", 0x0, 1), ("gStopAllEffects", 0x0, 1), ("vp1", 0x0, 2), ("vp1", 0xC, 2),
+                 ("carscr_buttonInfo", 0x0, 4), ("carscr_buttonInfo", 0x3C, 1), ("cont_bit_pattern", 0x0, 1), ("gResetLastKeyTime", 0x0, 1),
+                 ("gIgnoreCount", 0x0, 1), ("gStopAllEffects", 0x0, 1), ("vp1", 0x0, 2), ("vp1", 0xC, 2),
                  ("vplr", 0x6, 2), ("modescr_button_color", 0x0, 1), ("modescr_button_color", 0x3, 1),
                  ("target_steer_zero_dist_message", 0x0, 1), ("target_steer_zero_dist_message", 0x3, 1),
                  # the engine sound table (car_sounds/d5e64.c): rev points u16, levels f32, in both 32-byte entries
@@ -2148,10 +2148,10 @@ LOADER_EXPECT = [("gBackRects", 0x0, 4), ("gBackRects", 0xC, 4), ("gCheatState",
                  # tables declared as one element, one row or bytes (docs/port/DATA.md 8): the level objects' bodies
                  # and static states (level_objects), the rumble thresholds (UpdateModel), the wings' place per
                  # car type (extents.txt)
-                 ("D_80118C10", 0x0, 4), ("D_80118C10", 0x1C, 4), ("D_80118C10", 0x1C8, 4), ("D_801163F8", 0x4, 4),
-                 ("D_801163F8", 0x8C, 4), ("wingOffsets", 0xC, 4), ("wingOffsets", 0x98, 4),
+                 ("BBoxCollInfo", 0x0, 4), ("BBoxCollInfo", 0x1C, 4), ("BBoxCollInfo", 0x1C8, 4), ("percentTable", 0x4, 4),
+                 ("percentTable", 0x8C, 4), ("wingOffsets", 0xC, 4), ("wingOffsets", 0x98, 4),
                  # FSCLS and the respawn records after it (runtime_a_joint_transforms): flag bytes, f32 places
-                 ("D_801106C4", 0x8, 4), ("D_801106C4", 0xC, 1), ("D_801106C4", 0x10, 4), ("D_801106C4", 0x1DC, 1)]
+                 ("FSCLS", 0x8, 4), ("FSCLS", 0xC, 1), ("FSCLS", 0x10, 4), ("FSCLS", 0x1DC, 1)]
 # The colour unions gen_data copies as bytes (a byte member covers them), flashColors's element 1 under
 # flashColors_at_1's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
 # table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).

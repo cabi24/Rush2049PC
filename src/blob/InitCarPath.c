@@ -46,7 +46,7 @@ extern f32 gModelTime;
 extern s16 checkpoints_start_pt;
 
 void InitCarPath(CarA *a, CarB *b) {
-    static s32 D_801161D0 = 0;
+    static s32 next_path = 0;
 
     b->unk338 = 0;
     b->unk314 = 0.0f;
@@ -54,11 +54,11 @@ void InitCarPath(CarA *a, CarB *b) {
     b->unk334 = gModelTime;
     b->unk33A = -1;
     if (a->unk7CC == 1) {
-        b->unk33C = D_801161D0;
-        b->unk33E = D_801161D0;
-        D_801161D0++;
-        if (D_801161D0 >= 4) {
-            D_801161D0 = 0;
+        b->unk33C = next_path;
+        b->unk33E = next_path;
+        next_path++;
+        if (next_path >= 4) {
+            next_path = 0;
         }
     } else {
         b->unk33C = 0;

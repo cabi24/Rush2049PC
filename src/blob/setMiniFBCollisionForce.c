@@ -73,7 +73,7 @@ typedef struct {
 } Body;
 
 /* PC: a dead-reckoning record (gBBoxModelStructs, a heap block of 64-byte records) keeps its N64 layout, its body a 32-bit
- * window address of game data at D_80118C10 (TargetCollBBox's CollisionReckon, level_objects' Matrix64;
+ * window address of game data at BBoxCollInfo (TargetCollBBox's CollisionReckon, level_objects' Matrix64;
  * docs/port/POINTERS.md 10.2). */
 typedef struct {
     unsigned int body;          /* 0x00 */

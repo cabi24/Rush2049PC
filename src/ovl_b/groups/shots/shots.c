@@ -204,9 +204,9 @@ extern void ZOID_SetColor(s16 obj, RGBA *clr);
 extern void ZOID_RemovePoly(void *poly);
 extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags);
 extern void CopyUV(f32 *src, f32 *dst);
-extern void func_80090F44(f32 a, f32 *uvs);     /* PitchUV */
+extern void PitchUV(f32 a, f32 *uvs);     /* PitchUV */
 extern void YawUV(f32 a, f32 *uvs);
-extern void func_8009EA68(f32 a, f32 *uvs);     /* RollUV */
+extern void RollUV(f32 a, f32 *uvs);     /* RollUV */
 extern f32 Random(f32 scale);
 extern f32 fatan2(f32 y, f32 x);
 extern void BodyVector(f32 *v, f32 *out, f32 *uvs);
@@ -494,7 +494,7 @@ reduceScale:
         }
     }
     if (shot->flags & 2)
-        func_80090F44(PC_FSCALE(0.18f), &o->mat.uvs[0][0]);
+        PitchUV(PC_FSCALE(0.18f), &o->mat.uvs[0][0]);
 }
 
 /* 0x8038F938 UpdateDefense */
@@ -519,7 +519,7 @@ void UpdateDefense(Car *car, Model *m, Defense *defense, s32 i)
         gCarShield[i].mat.pos[1] = car->pos[1];
         gCarShield[i].mat.pos[2] = car->pos[2];
         CopyUV(&car->uvs[0][0], &gCarShield[i].mat.uvs[0][0]);
-        func_80090F44(defense->unknown10, &gCarShield[i].mat.uvs[0][0]);
+        PitchUV(defense->unknown10, &gCarShield[i].mat.uvs[0][0]);
         defense->unknown10 -= PC_FSCALE(0.005f);
         defense->shldTime -= gFrameSeconds;
         if (defense->shldTime <= 0.0f) {
@@ -613,7 +613,7 @@ void UpdateShots(void)
                 shot->pos[1] = shot->pos[1] + car->uvs[0][1]*off[0];
                 shot->pos[2] = shot->pos[2] + car->uvs[0][2]*off[0];
                 CopyUV(&car->uvs[0][0], &shot->uvs[0][0]);
-                func_80090F44(2.0734513f, &shot->uvs[0][0]);
+                PitchUV(2.0734513f, &shot->uvs[0][0]);
                 if (car->battle.loaded == 1) {
                     if (car->battle.type != 3 || m->crashflag || !car->collidable || car->dead) {
                         car->battle.loaded = 0;
@@ -1059,7 +1059,7 @@ resetWeapon:
             case 2:
                 StartStreak = 1;
                 streaktype = 1;
-                func_80090F44(.5f, &shot->uvs[0][0]);
+                PitchUV(.5f, &shot->uvs[0][0]);
                 car->battle.reloadingTime = 0.1666667f;
                 shot->lifeTime = 3.1666667f;
                 shot->radius = 15.0f;
@@ -1081,7 +1081,7 @@ resetWeapon:
                 car->battle.reloadingTime = 0.1666667f;
                 shot->lifeTime = 10.0f;
                 shot->radius = 1.f;
-                func_80090F44(car->battle.pitch, &shot->uvs[0][0]);
+                PitchUV(car->battle.pitch, &shot->uvs[0][0]);
                 shot->vel[0] = car->vel[0] + 50.0f*shot->uvs[2][0];
                 shot->vel[1] = car->vel[1] + 50.0f*shot->uvs[2][1];
                 shot->vel[2] = car->vel[2] + 50.0f*shot->uvs[2][2];
@@ -1091,20 +1091,20 @@ resetWeapon:
                 shot->lifeTime = 4.0f;
                 shot->radius = 0.5f;
                 YawUV(-car->battle.yaw, &shot->uvs[0][0]);
-                func_80090F44(car->battle.pitch, &shot->uvs[0][0]);
+                PitchUV(car->battle.pitch, &shot->uvs[0][0]);
                 break;
             case 0:
                 car->battle.reloadingTime = 0.1666667f;
                 shot->lifeTime = 4.0f;
                 shot->radius = 0.50f;
-                func_80090F44(car->battle.pitch, &shot->uvs[0][0]);
+                PitchUV(car->battle.pitch, &shot->uvs[0][0]);
                 break;
             case 1:
                 car->battle.reloadingTime = 0.0666667f;
                 shot->lifeTime = 4.0f;
                 shot->radius = 0.25f;
                 YawUV(Random(0.025f) - 0.0125f - car->battle.yaw, &shot->uvs[0][0]);
-                func_80090F44(car->battle.pitch + (Random(0.025f) - 0.0125f), &shot->uvs[0][0]);
+                PitchUV(car->battle.pitch + (Random(0.025f) - 0.0125f), &shot->uvs[0][0]);
                 h = GetStatLLE(&gShotCaseList);
                 if (h) {
                     off[0] = weaponOffsets[1][m->body_type][0] + CaseOffsets[0][0];
@@ -1120,7 +1120,7 @@ resetWeapon:
                     h->mat.pos[1] = h->mat.pos[1] + car->uvs[0][1]*off[0];
                     h->mat.pos[2] = h->mat.pos[2] + car->uvs[0][2]*off[0];
                     CopyUV(&car->uvs[0][0], &h->mat.uvs[0][0]);
-                    func_8009EA68(0.3f + Random(0.23f), &h->mat.uvs[0][0]);
+                    RollUV(0.3f + Random(0.23f), &h->mat.uvs[0][0]);
                     h->mbIdx = MBOX_NewObject(gWprObjList[0], &h->mat, -1, 0);
                     h->time = .5f + Random(0.3f);
                     h->vel[0] = car->vel[0] + 28.0f*h->mat.uvs[1][0];
