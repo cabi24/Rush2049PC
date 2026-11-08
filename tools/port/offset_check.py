@@ -78,6 +78,9 @@ REVIEWED = [
      "by design: the name pointer is made with PROFILE_OFS(20) a few lines before the call (POINTERS.md 9.10)"),
     (r"src/ovl_b/animBattlePoints\.c$", r"^animBattlePoints$",
      "by design: NameData is a PC-only view padded to the profile's name at +0x20 (PROFILE_OFS, POINTERS.md 9.10)"),
+    (r"src/blob/AnimateMine\.c$", r"^AnimateMine$",
+     "by design: ZOID_GetColor returns the scene node's colour on the PC (ObjInstance's prim, host +0x60), whose bytes "
+     "AnimateMine sets through its Color; the static copy it called until wave 2 gave the same address typed"),
 ]
 
 

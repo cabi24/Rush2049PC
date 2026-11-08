@@ -39,16 +39,18 @@ import endian_check as ec  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 
 # (source, name, name): pairs between functions of one file, read and judged.
-_PLAYER_ROWS = ("calcSelectMenuMaxSize reads only gPlayerRects_biased[n][0] with n = gNumPlayers, 1 to 4: 0x803B5D5C + 96 (n - 1), in "
-                "the layout table playerscr_gPlayerRects, which no code writes. Row 0, over this name, is never read "
-                "(docs/port/DATA.md 3)")
+_PLAYER_ROWS = ("calcSelectMenuMaxSize reads only gPlayerRects_biased[n][0] with n = gNumPlayers, 1 to 4: 0x803B5D5C + "
+                "96 (n - 1), in the layout table playerscr_gPlayerRects, which no code writes. Row 0, over this name, "
+                "is never read (docs/port/DATA.md 3)")
 REVIEWED = {
-    ("src/ovl_a/groups/playerscr/playerscr.c", "playerscr_buttonInfo", "gPlayerRects_biased"): _PLAYER_ROWS,
-    **{("src/ovl_a/groups/playerscr/playerscr.c", "gPlayerRects_biased", f"D_803B5D{x}"): _PLAYER_ROWS
-       for x in ("0C", "10", "14", "18", "1C", "20", "24", "28")},
+    ("src/ovl_a/groups/playerscr/playerscr.c", "gPlayerRects_biased", "playerscr_buttonInfo"): _PLAYER_ROWS,
+    # the data at 0x803B5D0C..0x803B5D28, which row 0 covers
+    **{("src/ovl_a/groups/playerscr/playerscr.c", "gPlayerRects_biased", f"playerscr_{x}"): _PLAYER_ROWS
+       for x in ("gButtonZoom", "gButtonScale", "gButtonSpace", "buttonX", "maxY", "minY", "buttonZ", "cursorZ")},
     ("src/rom/sound/sequencer.c", "sound_seq_players", "sound_seq_studio_groups"):
-        "sound_seq_set_studio_group stores sound_seq_studio_groups[index][selector] once, with the index sound_seq_find_slot finds by reading the "
-        "contexts' identifier and inactiveFC1: the store depends on those reads, and nothing reads after it",
+        "sound_seq_set_studio_group stores sound_seq_studio_groups[index][selector] once, with the index "
+        "sound_seq_find_slot finds by reading the contexts' identifier and inactiveFC1: the store depends on those "
+        "reads, and nothing reads after it",
 }
 
 

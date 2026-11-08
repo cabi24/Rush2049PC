@@ -1872,17 +1872,22 @@ def check(exe, layout_path, nm, pe=False):
     # The executable's own link-time addresses must stay below the window: port/ultra/memory.c tells the GOT
     # slots of absolute symbols by an addend at 0x80000000 or above.
     if nofixed:
-        # Inside the section only the names the layout puts there (and D_ names at their own offset, gen_stubs's
-        # aliases); outside it, no absolute symbol at an N64 address of RDRAM, KSEG1 or the cartridge.
+        # Inside the section only the names the layout puts there (and data names at their own offset, gen_stubs's
+        # aliases: an address name's address is its spelling, another name's the symbol file's or an image table's);
+        # outside it, no absolute symbol at an N64 address of RDRAM, KSEG1 or the cartridge.
         placed = {n for n, _ in layout["absolute"] + layout.get("window_names", [])} | {
             n for n, _, _ in layout.get("reserved", [])} | {layout.get("window_symbol")}
+        known = {}
+        for img in ("ovl_b", "ovl_a", "game"):   # the game image's table last: its address wins
+            known.update(n64syms.load_image_symbols(img))
+        known.update({n: v[0] for n, v in n64syms.load_symbols().items()})
         for n, x in sorted(addr.items()):
             if letter[n] in "Aa":
                 if 0x80000000 <= x < 0xC0000000:
                     bad.append(f"{n}: absolute at 0x{x:X}, an N64 address (nothing may be fixed up)")
             elif window is not None and window <= x < window + layout["window_section"] and n not in placed:
-                m = re.match(r"^D_([0-9A-F]{8})$", n)
-                if not m or int(m.group(1), 16) - lo != x - window:
+                want = known.get(n, n64syms.address_of(n, {}))
+                if want is None or want - lo != x - window:
                     bad.append(f"{n}: linked at {layout['window_symbol']}+0x{x - window:X}, inside the RDRAM window")
     elif pe:
         k1 = 0x20000000   # the KSEG1 alias of the window (port/ultra/memory.c)

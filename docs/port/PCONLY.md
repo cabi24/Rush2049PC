@@ -159,3 +159,36 @@ file-scope macros that had an N64 side (N64P, N64W, SLOT_DATA, PC_CMD_SEND ...),
 functions that are copies of each other under other names (rand: func_8008B2B4 and wod_rand; ZOID_SetColor:
 func_8008E06C, di_setButtonColor, op_ZOID_SetColorP ...); the file-static copies that differ from every global; the
 headers nothing includes (include/game/*.h but nine, game_types.h, game_globals.h, macros.h).
+
+### Wave 2: the names applied (2026-11-08)
+
+Four commits, the gate after each that changes the game (section 2):
+
+1. **The maps fitted to the flattened tree** (names_check: 136 errors, then none): the 82 file rows of files the
+   flatten deleted or this step merged out; the 16 stale lines of `symbol_addrs.us.txt` as drop.tsv rows; four
+   labels drop.tsv had "inside" a function that start the next one, and that image A calls, as aliases (SetOptions,
+   HAL_SetFontFixedWidth, SetControllerActive, SaveFlush). The copies whose names a map gives to another symbol, each
+   the same code as the game's function, call it: 19 file statics (ZOID_*, MBOX_NewObject, AddToEnvList,
+   RemoveEnvirons, setGameState, PlayGameSound, PauseTargets) and 12 second definitions (nonmatching's audio
+   commands, PauseGameMusic and InitBattlePoints; InitEgg, ZOID_SetObjectDef, Hidden, GetWaveInstanceAddr,
+   DeleteGhost, ReadGhostData); audiomgr_thread.c's ClearBST, WalkBST and _SendCmd, which differ, have their own
+   names.
+2. **The maps applied** (`rename.py --apply`): 5,609 map rows and 1,298 drop rows in the ledger, 1,328 files
+   changed, 997 moved, 1,024 labels out of the loader's tables, 3,064 names added to the symbol file; a second
+   `--apply` changes nothing. Put right by hand: `countdown` (UpdateGame's old name) where it was the English word
+   (144 places), `renderer` in CMake, 76 full paths the move had cut short. For the build: the self-aliases of the
+   scheduler's PC_ALIAS lines and two tests; `tools/port/decl_cleanup.py` (168 identity macros, 1,406 data
+   declarations of functions, 714 m2c guesses beside a typed declaration); the moved boot files' `../rom_tu.h`; the
+   tests' stand-ins for two names now one. gen_data.py keeps the base's layout (data.c the base's but for names):
+   the symbol file's `renamed` names end no extent, and ties between declarations fall to the old type names.
+3. **What the rename left to read**: derived identifiers (pc_func_800E6AE8 to pc_ReadShifter ...), other spellings
+   where a file has no other name for the symbol, updateWarningScreen by its name, comments that said a name twice.
+4. **The tools**: index_check.py finds indexed data by any name, gen_data.py's --check (RUSH_NOFIXED) accepts named
+   data at their own offset in the window, alias_check.py's and offset_check.py's review lists by the new names.
+
+Address names (`\b(func|D)_8xxxxxxx\b`) in src/, include/ and port/: 953,841 lines before, 339,301 after (src/blob
+338,094, include 987, port 179, the overlays 40, src/rom 1). Left for the per-area cleanup: the m2c context
+preambles' declarations of 959 address names nothing uses (about 310,000 lines; the maps named only what is used),
+87 address names the code uses that no map names (func_80090F44, func_8009EA68, D_8014A250 ...), the 8,229 other
+spellings (func_800a3424) in preambles that declare both, the preambles' four view types (D_8012E6E0_Node ...),
+the 388 field rows, and addresses in comments.
